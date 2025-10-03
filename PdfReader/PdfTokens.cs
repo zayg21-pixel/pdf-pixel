@@ -361,5 +361,8 @@ namespace PdfReader
         public const string TilingTypeKey = "/TilingType"; // Tiling pattern tiling type (1 constant spacing, etc.)
         public const string XStepKey = "/XStep"; // Tiling pattern horizontal step
         public const string YStepKey = "/YStep"; // Tiling pattern vertical step
+
+        // Function related (added)
+        public const string BitsPerSampleKey = "/BitsPerSample"; // Function type 0 sampled function BPS
     }
 }
