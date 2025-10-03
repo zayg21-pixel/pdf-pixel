@@ -1,0 +1,23 @@
+﻿Lefovers:
+
+invalid parsing of CMap
+Font non-fill styles
+TODOs in code
+Can we simplify constructors for PdfColorSpaceConverter?
+Storage for decoded stream, especially ICC profiles
+Colormetrics in image!
+Test with:
+https://github.com/mozilla/pdf.js/tree/master/test/pdfs
+
+https://github.com/BobLd/IccProfile or https://github.com/waacton/Unicolour
+
+https://fontdrop.info/
+
+•	Rendering intent plumbing at call sites: pass PdfRenderingIntent into ToSrgb everywhere color conversion is invoked (operators ri/Intent in images/patterns). You added the overload, but many callers likely still use the legacy path.
+•	Performance: reuse small arrays in hot paths to avoid allocations; consider struct-based pipelines if converting many samples.
+
+
+THE document, page 20, no shadows for circles, warning in log
+Should construct correct PdfObject map with revisions.
+
+All BBox are incorrect
