@@ -9,8 +9,7 @@ namespace PdfReader.Rendering.Color
     internal sealed class IccBasedConverter : PdfColorSpaceConverter
     {
         private readonly int _n;
-        private readonly PdfColorSpaceConverter _alternate;
-        private readonly bool _useAlternate;
+        private readonly bool _useDefault;
         private readonly PdfColorSpaceConverter _default;
         private static readonly Vector3 _vectorToByte3 = new Vector3(255f);
         private static readonly Vector3 _vectorRounding3 = new Vector3(0.5f);
@@ -18,13 +17,24 @@ namespace PdfReader.Rendering.Color
         private readonly IccRgbColorConverter _rgbConverter;
         private readonly IccCmykColorConverter _cmykConverter;
 
-        public IccBasedConverter(int n, PdfColorSpaceConverter alternate)
+        private IccBasedConverter(int n, PdfColorSpaceConverter alternate)
         {
             _n = n;
-            _alternate = alternate;
-            _default = _alternate ?? (_n == 1 ? DeviceGrayConverter.Instance
-                                              : _n == 4 ? DeviceCmykConverter.Instance
-                                                         : DeviceRgbConverter.Instance);
+
+            if (alternate == null)
+            {
+                _default = n switch
+                {
+                    1 => DeviceGrayConverter.Instance,
+                    3 => DeviceRgbConverter.Instance,
+                    4 => DeviceCmykConverter.Instance,
+                    _ => DeviceRgbConverter.Instance,
+                };
+            }
+            else
+            {
+                _default = alternate;
+            }
         }
 
         public IccBasedConverter(int n, PdfColorSpaceConverter alternate, byte[] iccProfileBytes)
@@ -46,13 +56,13 @@ namespace PdfReader.Rendering.Color
                         _cmykConverter = new IccCmykColorConverter(profile);
                         break;
                     default:
-                        _useAlternate = true;
+                        _useDefault = true;
                         break;
                 }
             }
             else
             {
-                _useAlternate = true;
+                _useDefault = true;
             }
         }
 
@@ -64,7 +74,7 @@ namespace PdfReader.Rendering.Color
 
         public override SKColor ToSrgb(ReadOnlySpan<float> comps01, PdfRenderingIntent intent)
         {
-            if (_useAlternate || comps01.Length != N)
+            if (_useDefault || comps01.Length != N)
             {
                 return _default.ToSrgb(comps01, intent);
             }
@@ -75,13 +85,16 @@ namespace PdfReader.Rendering.Color
             switch (comps01.Length)
             {
                 case 1:
-                    converterUsed = _grayConverter.TryToSrgb01(comps01[0], intent, out result);
+                    ;
+                    converterUsed = _grayConverter.TryToSrgb01(Clamp01(comps01[0]), intent, out result);
                     break;
                 case 3:
-                    converterUsed = _rgbConverter.TryToSrgb01(new Vector3(comps01[0], comps01[1], comps01[2]), intent, out result);
+                    var value3 = Vector3.Clamp(new Vector3(comps01[0], comps01[1], comps01[2]), Vector3.Zero, Vector3.One);
+                    converterUsed = _rgbConverter.TryToSrgb01(value3, intent, out result);
                     break;
                 case 4:
-                    converterUsed = _cmykConverter.TryToSrgb01(new Vector4(comps01[0], comps01[1], comps01[2], comps01[3]), intent, out result);
+                    var value4 = Vector4.Clamp(new Vector4(comps01[0], comps01[1], comps01[2], comps01[3]), Vector4.Zero, Vector4.One);
+                    converterUsed = _cmykConverter.TryToSrgb01(value4, intent, out result);
                     break;
             }
 

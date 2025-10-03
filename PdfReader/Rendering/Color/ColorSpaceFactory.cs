@@ -4,7 +4,7 @@ using System;
 
 namespace PdfReader.Rendering.Color
 {
-    internal static partial class ColorSpaceFactory
+    internal static class ColorSpaceFactory
     {
         public static PdfColorSpaceConverter CreateIndexedColorSpace(IPdfValue value, PdfPage page)
         {
@@ -203,7 +203,6 @@ namespace PdfReader.Rendering.Color
 
         public static PdfColorSpaceConverter CreatePatternColorSpace(IPdfValue value, PdfPage page)
         {
-            // Caller guarantees this represents a Pattern color space. Only array form [/Pattern base] needs inspection.
             if (value != null && value.Type == PdfValueType.Array)
             {
                 var array = value.AsArray();
@@ -213,8 +212,38 @@ namespace PdfReader.Rendering.Color
                     return new PatternColorSpaceConverter(baseConv);
                 }
             }
-            // Colored pattern (no base) or malformed array -> default to colored pattern semantics
             return new PatternColorSpaceConverter(null);
+        }
+
+        public static PdfColorSpaceConverter CreateLabColorSpace(IPdfValue value, PdfPage page)
+        {
+            var dict = GetDictionaryValue(value, page);
+            if (dict == null)
+            {
+                return null;
+            }
+
+            float xw = 0.9642f, yw = 1.0f, zw = 0.8249f;
+            var wpArr = dict.GetArray(PdfTokens.WhitePointKey);
+            if (wpArr != null && wpArr.Count >= 3)
+            {
+                xw = wpArr[0].AsFloat();
+                yw = wpArr[1].AsFloat();
+                zw = wpArr[2].AsFloat();
+            }
+            if (yw <= 0f) yw = 1.0f;
+
+            float aMin = -100f, aMax = 100f, bMin = -100f, bMax = 100f;
+            var rangeArr = dict.GetArray(PdfTokens.RangeKey);
+            if (rangeArr != null && rangeArr.Count >= 4)
+            {
+                aMin = rangeArr[0].AsFloat();
+                aMax = rangeArr[1].AsFloat();
+                bMin = rangeArr[2].AsFloat();
+                bMax = rangeArr[3].AsFloat();
+            }
+
+            return new LabColorSpaceConverter(xw, yw, zw, aMin, aMax, bMin, bMax);
         }
 
         private static PdfDictionary GetDictionaryValue(IPdfValue value, PdfPage page)

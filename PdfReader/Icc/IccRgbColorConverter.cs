@@ -6,9 +6,11 @@ using System.Collections.Generic;
 namespace PdfReader.Icc
 {
     /// <summary>
-    /// Optimized converter for ICC RGB (matrix/TRC) profiles to sRGB.
-    /// Uses prebuilt TRC LUTs and pre-adapted matrix rows to PCS (D50) when provided.
-    /// Falls back to A2B LUT path for LUT-based RGB profiles.
+    /// Converter for 3-component ICC-based color spaces to sRGB.
+    /// Supports:
+    ///  - RGB matrix/TRC profiles (fast path)
+    ///  - RGB LUT-based profiles via A2B pipelines
+    ///  - Lab device profiles (ColorSpace == "Lab ") by direct Lab->XYZ->sRGB conversion
     /// </summary>
     internal sealed class IccRgbColorConverter
     {
@@ -24,25 +26,30 @@ namespace PdfReader.Icc
         private readonly bool _hasRgbMatrixTrc;
         private readonly float _srcBlackL;
         private readonly float _bpcScale;
+        private readonly bool _isLabDevice;
 
         public IccRgbColorConverter(IccProfile profile)
         {
             _iccProfile = profile ?? throw new ArgumentNullException(nameof(profile));
+            _isLabDevice = string.Equals(_iccProfile?.Header?.ColorSpace, IccConstants.SpaceLab, StringComparison.Ordinal);
 
-            var mt = IccProfileParser.GetRgbMatrixTrc(profile);
-            if (mt.HasValue)
+            if (!_isLabDevice)
             {
-                _hasRgbMatrixTrc = true;
-                // Adapt matrix to PCS (D50) using CHAD if present, expose rows as Vector3
-                (_PscRow0, _PcsRow1, _PcsRow2) = IccProfileHelpers.AdaptRgbMatrixToPcsRows(profile, mt.Value.m);
-
-                // Prefer per-channel TRCs if present
-                if (profile.RedTrc != null && profile.GreenTrc != null && profile.BlueTrc != null)
+                var mt = IccProfileParser.GetRgbMatrixTrc(profile);
+                if (mt.HasValue)
                 {
-                    _hasTrc = true;
-                    _rgbTrcLutsR = IccProfileHelpers.IccTrcToLut(profile.RedTrc, IccProfileHelpers.TrcLutSize);
-                    _rgbTrcLutsG = IccProfileHelpers.IccTrcToLut(profile.GreenTrc, IccProfileHelpers.TrcLutSize);
-                    _rgbTrcLutsB = IccProfileHelpers.IccTrcToLut(profile.BlueTrc, IccProfileHelpers.TrcLutSize);
+                    _hasRgbMatrixTrc = true;
+                    // Adapt matrix to PCS (D50) using CHAD if present, expose rows as Vector3
+                    (_PscRow0, _PcsRow1, _PcsRow2) = IccProfileHelpers.AdaptRgbMatrixToPcsRows(profile, mt.Value.m);
+
+                    // Prefer per-channel TRCs if present
+                    if (profile.RedTrc != null && profile.GreenTrc != null && profile.BlueTrc != null)
+                    {
+                        _hasTrc = true;
+                        _rgbTrcLutsR = IccProfileHelpers.IccTrcToLut(profile.RedTrc, IccProfileHelpers.TrcLutSize);
+                        _rgbTrcLutsG = IccProfileHelpers.IccTrcToLut(profile.GreenTrc, IccProfileHelpers.TrcLutSize);
+                        _rgbTrcLutsB = IccProfileHelpers.IccTrcToLut(profile.BlueTrc, IccProfileHelpers.TrcLutSize);
+                    }
                 }
             }
 
@@ -50,40 +57,50 @@ namespace PdfReader.Icc
             _bpcScale = IccProfileHelpers.GetBlackLstarScale(_srcBlackL);
         }
 
-        public bool TryToSrgb01(Vector3 rgb01, PdfRenderingIntent intent, out Vector3 srgb01)
+        public bool TryToSrgb01(Vector3 comps01, PdfRenderingIntent intent, out Vector3 srgb01)
         {
             srgb01 = default;
+            
+            // Lab device profile direct path
+            if (_isLabDevice)
+            {
+                float L = comps01.X * 100f;        // 0..100
+                float a = comps01.Y * 255f - 128f; // -128..127 approx
+                float b = comps01.Z * 255f - 128f; // -128..127 approx
+                var xyzLab = ColorMath.LabD50ToXyz(L, a, b);
+                xyzLab = ColorMath.ApplyBlackPointCompensation(in xyzLab, _srcBlackL, _bpcScale, intent);
+                srgb01 = ColorMath.FromXyzD50ToSrgb01(in xyzLab);
+                return true;
+            }
 
-            // Matrix/TRC fast path
+            // Matrix/TRC fast path for RGB
             if (_hasRgbMatrixTrc)
             {
                 Vector3 lin;
-
                 if (_hasTrc)
                 {
-                    float rl = ColorMath.LookupLinear(_rgbTrcLutsR, rgb01.X);
-                    float gr = ColorMath.LookupLinear(_rgbTrcLutsG, rgb01.Y);
-                    float gb = ColorMath.LookupLinear(_rgbTrcLutsB, rgb01.Z);
+                    float rl = ColorMath.LookupLinear(_rgbTrcLutsR, comps01.X);
+                    float gr = ColorMath.LookupLinear(_rgbTrcLutsG, comps01.Y);
+                    float gb = ColorMath.LookupLinear(_rgbTrcLutsB, comps01.Z);
                     lin = new Vector3(rl, gr, gb);
                 }
                 else
                 {
-                    lin = rgb01;
+                    lin = comps01;
                 }
 
                 float X = Vector3.Dot(_PscRow0, lin);
                 float Y = Vector3.Dot(_PcsRow1, lin);
                 float Z = Vector3.Dot(_PcsRow2, lin);
                 var xyz = new Vector3(X, Y, Z);
-
                 xyz = ColorMath.ApplyBlackPointCompensation(in xyz, _srcBlackL, _bpcScale, intent);
                 srgb01 = ColorMath.FromXyzD50ToSrgb01(in xyz);
                 return true;
             }
 
-            // TODO: optimize later!!!
+            // TODO: optimize later!!! (e.g. pooled arrays, vectorization, tetrahedral CLUT)
 
-            // LUT-based RGB fallback using A2B pipeline
+            // LUT-based fallback
             var lut = GetA2BLutByIntent(intent);
             if (lut == null || lut.InChannels < 3)
             {
@@ -91,9 +108,9 @@ namespace PdfReader.Icc
             }
 
             float[] vin = new float[3];
-            vin[0] = ApplyTable(lut.InputTables[0], rgb01.X);
-            vin[1] = ApplyTable(lut.InputTables[1], rgb01.Y);
-            vin[2] = ApplyTable(lut.InputTables[2], rgb01.Z);
+            vin[0] = ApplyTable(lut.InputTables[0], comps01.X);
+            vin[1] = ApplyTable(lut.InputTables[1], comps01.Y);
+            vin[2] = ApplyTable(lut.InputTables[2], comps01.Z);
 
             if (lut.IsMab)
             {
@@ -125,10 +142,7 @@ namespace PdfReader.Icc
             }
             else
             {
-                // NOTE: For 3D CLUTs, tetrahedral interpolation can reduce error. Consider
-                // switching to IccClutEvaluator.EvaluateClutTetrahedral3D in the future.
                 float[] vclut = IccClutEvaluator.EvaluateClutLinear(lut, vin);
-
                 int outCh = lut.OutChannels;
                 if (outCh < 3)
                 {
@@ -161,6 +175,8 @@ namespace PdfReader.Icc
                     return true;
                 }
             }
+
+            return false;
         }
 
         private IccLutPipeline GetA2BLutByIntent(PdfRenderingIntent intent)
@@ -204,11 +220,12 @@ namespace PdfReader.Icc
                 float x = p.Matrix3x3[0, 0] * aOut[0] + p.Matrix3x3[0, 1] * aOut[1] + p.Matrix3x3[0, 2] * aOut[2] + p.MatrixOffset[0];
                 float y = p.Matrix3x3[1, 0] * aOut[0] + p.Matrix3x3[1, 1] * aOut[1] + p.Matrix3x3[1, 2] * aOut[2] + p.MatrixOffset[1];
                 float z = p.Matrix3x3[2, 0] * aOut[0] + p.Matrix3x3[2, 1] * aOut[1] + p.Matrix3x3[2, 2] * aOut[2] + p.MatrixOffset[2];
-                mOut[0] = x; mOut[1] = y; mOut[2] = z;
+                mOut[0] = x;
+                mOut[1] = y;
+                mOut[2] = z;
             }
 
             var clutOut = IccClutEvaluator.EvaluateClutLinearMab(p, mOut);
-
             for (int i = 0; i < clutOut.Length && i < (p.CurvesM?.Length ?? 0); i++)
             {
                 clutOut[i] = IccTrcEvaluator.ApplyTrc(p.CurvesM, i, clutOut[i]);

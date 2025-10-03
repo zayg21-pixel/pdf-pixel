@@ -167,6 +167,11 @@ namespace PdfReader.Rendering.Color
                     var conv = ColorSpaceFactory.CreateCalRrgbColorSpace(value, page);
                     return conv ?? DeviceRgbConverter.Instance;
                 }
+                case PdfColorSpaceNames.Lab:
+                {
+                    var conv = ColorSpaceFactory.CreateLabColorSpace(value, page);
+                    return conv ?? DeviceRgbConverter.Instance;
+                }
                 case PdfColorSpaceNames.Pattern:
                 {
                     var conv = ColorSpaceFactory.CreatePatternColorSpace(value, page);

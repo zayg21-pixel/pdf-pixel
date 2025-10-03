@@ -6,6 +6,7 @@ namespace PdfReader.Icc
         public const string SpaceGray = "GRAY";
         public const string SpaceRgb  = "RGB ";
         public const string SpaceCmyk = "CMYK";
+        public const string SpaceLab  = "Lab "; // Added for Lab device profiles
 
         // Type signatures (4CC)
         public const string TypeXYZ   = "XYZ ";
@@ -16,8 +17,9 @@ namespace PdfReader.Icc
         public const string TypeMluc  = "mluc";
         public const string TypeMAB   = "mAB ";
         public const string TypeMBA   = "mBA ";
-        public const string TypeLut8  = "mft1";
-        public const string TypeLut16 = "mft2";
+        // Legacy LUT tag types per ICC spec: mft1 == lut8Type, mft2 == lut16Type
+        public const string TypeLut8  = "mft1"; // formerly incorrectly named "lut8"
+        public const string TypeLut16 = "mft2"; // formerly incorrectly named "lut16"
 
         // Tag signatures (also 4CC but compared as strings in our model)
         public const string TagWtpt = "wtpt";

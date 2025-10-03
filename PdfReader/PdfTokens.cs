@@ -342,11 +342,12 @@ namespace PdfReader
         public const byte ByteE = (byte)'e';
         public const byte ByteF = (byte)'f';
 
-        // Color/ICC related keys
+        // Color/ICC and CIE /Lab related keys
         public const string AlternateKey = "/Alternate";
         public const string WhitePointKey = "/WhitePoint";
         public const string GammaKey = "/Gamma";
         public const string BlackPointKey = "/BlackPoint";
+        public const string RangeKey = "/Range"; // /Lab range specification
         public const string DefaultCMYKKey = "/DefaultCMYK";            // Page resource default CMYK color space
         public const string OutputIntentsKey = "/OutputIntents";        // Catalog array of output intents
         public const string DestOutputProfileKey = "/DestOutputProfile"; // Output intent profile stream
