@@ -24,6 +24,11 @@ namespace PdfReader.Models
         /// </summary>
         internal Dictionary<string, PdfToUnicodeCMap> CMaps { get; } = new Dictionary<string, PdfToUnicodeCMap>(StringComparer.Ordinal);
 
+        /// <summary>
+        /// Cache of parsed PDF function objects (currently only Type 0 sampled functions) keyed by their reference.
+        /// </summary>
+        internal Dictionary<PdfReference, PdfFunctionCacheEntry> FunctionCache { get; } = new Dictionary<PdfReference, PdfFunctionCacheEntry>();
+
         public Dictionary<int, PdfObject> Objects { get; set; } = new Dictionary<int, PdfObject>();
         public List<PdfPage> Pages { get; set; } = new List<PdfPage>();
         public int PageCount { get; set; }

@@ -1,21 +1,26 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using PdfReader.Models;
 
 namespace PdfReader.Rendering.Color
 {
     /// <summary>
-    /// Evaluator for simple PDF functions (types 0, 2, 3) used in shadings, tint transforms, etc.
-    /// - Type 0: Sampled function (only 1D input supported here)
-    /// - Type 2: Exponential interpolation
-    /// - Type 3: Stitching (1D) function
-    /// PostScript (Type 4) and other types are intentionally not implemented in this minimal renderer.
+    /// PDF function evaluator (subset of spec) used for color related operations (tint transforms, shadings, etc.).
+    /// Supported function types:
+    ///   0 - Sampled function (supports N-dimensional input, multilinear interpolation).
+    ///   2 - Exponential interpolation (single input variable).
+    ///   3 - Stitching function (single input variable, delegates to sub‑functions).
+    /// Unsupported types (e.g. 4 PostScript calculator functions) produce an empty result.
+    /// NOTE: Sample table ordering assumes that the FIRST input dimension varies fastest (dimension 0),
+    /// so linear sample order increments dimension 0 first, then 1, etc. This matches internal producer expectations.
     /// </summary>
     internal static class PdfFunctions
     {
         /// <summary>
-        /// Evaluate a /Function entry that can be a single function dictionary or an array of functions.
-        /// If an array, concatenates the outputs of each function in order.
+        /// Evaluate a dictionary that holds a /Function entry which may be a single function
+        /// reference or an array of functions. If multiple functions are present the outputs
+        /// are concatenated in order.
         /// </summary>
         public static float[] EvaluateColorFunctions(PdfDictionary container, float input)
         {
@@ -24,32 +29,32 @@ namespace PdfReader.Rendering.Color
                 return Array.Empty<float>();
             }
 
-            var single = container.GetPageObject(PdfTokens.FunctionKey);
-            var multiple = container.GetPageObjects(PdfTokens.FunctionKey);
+            PdfObject singleFunction = container.GetPageObject(PdfTokens.FunctionKey);
+            List<PdfObject> multipleFunctions = container.GetPageObjects(PdfTokens.FunctionKey);
 
-            // Single function case
-            if (single != null && single.Dictionary != null && (multiple == null || multiple.Count <= 1))
+            bool hasMultiple = multipleFunctions != null && multipleFunctions.Count > 1;
+
+            if (singleFunction != null && singleFunction.Dictionary != null && !hasMultiple)
             {
-                return EvaluateFunctionObject(single, input);
+                return EvaluateFunctionObject(singleFunction, input);
             }
 
-            // Multiple functions case
-            if (multiple != null && multiple.Count > 0)
+            if (multipleFunctions != null && multipleFunctions.Count > 0)
             {
-                var aggregate = new List<float>(multiple.Count * 4);
-                foreach (var funcObj in multiple)
+                var aggregate = new List<float>(multipleFunctions.Count * 4);
+                foreach (PdfObject functionObject in multipleFunctions)
                 {
-                    if (funcObj == null)
+                    if (functionObject == null)
                     {
                         continue;
                     }
 
-                    if (funcObj.Dictionary == null)
+                    if (functionObject.Dictionary == null)
                     {
                         continue;
                     }
 
-                    var part = EvaluateFunctionObject(funcObj, input);
+                    float[] part = EvaluateFunctionObject(functionObject, input);
                     if (part != null && part.Length > 0)
                     {
                         aggregate.AddRange(part);
@@ -68,47 +73,61 @@ namespace PdfReader.Rendering.Color
         }
 
         /// <summary>
-        /// Evaluate a single function object (types 0, 2, 3). Unsupported types return an empty array.
+        /// Backwards compatible scalar input evaluator (wraps span overload).
         /// </summary>
         public static float[] EvaluateFunctionObject(PdfObject functionObject, float input)
         {
-            if (functionObject == null)
+            float[] single = new float[1] { input };
+            return EvaluateFunctionObject(functionObject, single);
+        }
+
+        /// <summary>
+        /// General function dispatcher. Type 0 supports N inputs. Types 2 and 3 are limited to 1 input.
+        /// </summary>
+        public static float[] EvaluateFunctionObject(PdfObject functionObject, ReadOnlySpan<float> inputs)
+        {
+            if (functionObject == null || functionObject.Dictionary == null)
             {
                 return Array.Empty<float>();
             }
 
-            var dict = functionObject.Dictionary;
-            if (dict == null)
-            {
-                return Array.Empty<float>();
-            }
+            PdfDictionary dictionary = functionObject.Dictionary;
+            int functionType = dictionary.GetInteger(PdfTokens.FunctionTypeKey);
 
-            int functionType = dict.GetInteger(PdfTokens.FunctionTypeKey);
             switch (functionType)
             {
                 case 0:
-                    return EvaluateSampledFunction1D(functionObject, input);
+                {
+                    return EvaluateSampledFunction(functionObject, inputs);
+                }
                 case 2:
-                    return EvaluateExponentialFunction(dict, input);
+                {
+                    float x = inputs.Length > 0 ? inputs[0] : 0f;
+                    return EvaluateExponentialFunction(dictionary, x);
+                }
                 case 3:
-                    return EvaluateStitchingFunction(functionObject, input);
+                {
+                    float s = inputs.Length > 0 ? inputs[0] : 0f;
+                    return EvaluateStitchingFunction(functionObject, s);
+                }
                 default:
+                {
                     return Array.Empty<float>();
+                }
             }
         }
 
         /// <summary>
-        /// Function Type 2: Exponential interpolation: f(x) = C0 + x^N * (C1 - C0)
-        /// Components are interpolated independently; x is clamped to [0,1].
+        /// Function Type 2: f(x) = C0 + x^N * (C1 - C0). Each component interpolated independently.
         /// </summary>
-        private static float[] EvaluateExponentialFunction(PdfDictionary dict, float input)
+        private static float[] EvaluateExponentialFunction(PdfDictionary dictionary, float input)
         {
-            var c0Array = dict.GetArray(PdfTokens.C0Key);
-            var c1Array = dict.GetArray(PdfTokens.C1Key);
-            float exponent = dict.GetFloat(PdfTokens.FnNKey);
+            List<IPdfValue> c0Array = dictionary.GetArray(PdfTokens.C0Key);
+            List<IPdfValue> c1Array = dictionary.GetArray(PdfTokens.C1Key);
+            float exponent = dictionary.GetFloat(PdfTokens.FnNKey);
 
-            var c0 = c0Array != null ? ToFloatArray(c0Array) : new float[] { 0f };
-            var c1 = c1Array != null ? ToFloatArray(c1Array) : new float[] { 1f };
+            float[] c0 = c0Array != null ? ToFloatArray(c0Array) : new float[] { 0f };
+            float[] c1 = c1Array != null ? ToFloatArray(c1Array) : new float[] { 1f };
 
             int componentCount = Math.Min(c0.Length, c1.Length);
             if (componentCount == 0)
@@ -128,31 +147,30 @@ namespace PdfReader.Rendering.Color
 
             float xExp = exponent <= 0f ? x : (float)Math.Pow(x, exponent);
 
-            var output = new float[componentCount];
-            for (int i = 0; i < componentCount; i++)
+            float[] output = new float[componentCount];
+            for (int componentIndex = 0; componentIndex < componentCount; componentIndex++)
             {
-                output[i] = c0[i] + xExp * (c1[i] - c0[i]);
+                output[componentIndex] = c0[componentIndex] + xExp * (c1[componentIndex] - c0[componentIndex]);
             }
 
             return output;
         }
 
         /// <summary>
-        /// Function Type 3: Stitching function (1D).
-        /// Selects a sub-function according to bounds and optionally re-encodes the input value.
+        /// Function Type 3: 1-D stitching function. Selects sub-function based on bounds and optional encoding.
         /// </summary>
         private static float[] EvaluateStitchingFunction(PdfObject functionObject, float input)
         {
-            var dict = functionObject.Dictionary;
-            var subFunctions = dict.GetPageObjects(PdfTokens.FunctionsKey);
+            PdfDictionary dictionary = functionObject.Dictionary;
+            List<PdfObject> subFunctions = dictionary.GetPageObjects(PdfTokens.FunctionsKey);
             if (subFunctions == null || subFunctions.Count == 0)
             {
                 return Array.Empty<float>();
             }
 
-            var boundsArray = dict.GetArray(PdfTokens.BoundsKey);
-            var encodeArray = dict.GetArray(PdfTokens.EncodeKey);
-            var domainArray = dict.GetArray(PdfTokens.DomainKey);
+            List<IPdfValue> boundsArray = dictionary.GetArray(PdfTokens.BoundsKey);
+            List<IPdfValue> encodeArray = dictionary.GetArray(PdfTokens.EncodeKey);
+            List<IPdfValue> domainArray = dictionary.GetArray(PdfTokens.DomainKey);
 
             float domainStart = 0f;
             float domainEnd = 1f;
@@ -199,180 +217,263 @@ namespace PdfReader.Rendering.Color
         }
 
         /// <summary>
-        /// Function Type 0: Sampled function (only 1D input supported here). Multi-input variants are ignored.
+        /// Function Type 0: Sampled function supporting N-dimensional input with multilinear interpolation.
         /// </summary>
-        private static float[] EvaluateSampledFunction1D(PdfObject functionObject, float input)
+        private static float[] EvaluateSampledFunction(PdfObject functionObject, ReadOnlySpan<float> inputs)
         {
             try
             {
-                var dict = functionObject.Dictionary;
-                if (dict == null)
+                PdfDictionary dictionary = functionObject.Dictionary;
+                if (dictionary == null)
                 {
                     return Array.Empty<float>();
                 }
 
-                // Domain
-                var domainArray = dict.GetArray(PdfTokens.DomainKey);
-                if (domainArray == null || domainArray.Count < 2)
+                PdfDocument document = dictionary.Document;
+
+                List<IPdfValue> sizeArray = dictionary.GetArray(PdfTokens.SizeKey);
+                if (sizeArray == null || sizeArray.Count == 0)
                 {
                     return Array.Empty<float>();
                 }
-                float domainStart = domainArray[0].AsFloat();
-                float domainEnd = domainArray[1].AsFloat();
-                if (Math.Abs(domainEnd - domainStart) < 1e-12f)
-                {
-                    domainEnd = domainStart + 1f;
-                }
-
-                // Size (first dimension only for 1D)
-                var sizeArray = dict.GetArray(PdfTokens.SizeKey);
-                if (sizeArray == null || sizeArray.Count < 1)
-                {
-                    return Array.Empty<float>();
-                }
-                int sampleCount = Math.Max(1, sizeArray[0].AsInteger());
-
-                // Bits per sample
-                int bitsPerSample = dict.GetInteger(PdfTokens.BitsPerSampleKey);
-                if (bitsPerSample <= 0)
-                {
-                    // Defensive: fallback literal key if malformed
-                    bitsPerSample = dict.GetInteger("/BitsPerSample");
-                }
-                if (bitsPerSample < 1 || bitsPerSample > 32)
+                int dimensions = sizeArray.Count;
+                if (inputs.Length == 0)
                 {
                     return Array.Empty<float>();
                 }
 
-                // Range array (required) -> pairs per component
-                var rangeArray = dict.GetArray(PdfTokens.RangeKey);
-                if (rangeArray == null || rangeArray.Count < 2)
+                List<IPdfValue> domainArray = dictionary.GetArray(PdfTokens.DomainKey);
+                if (domainArray == null || domainArray.Count < 2 * dimensions)
                 {
                     return Array.Empty<float>();
                 }
-                int componentCount = rangeArray.Count / 2;
 
-                // Encode (optional)
-                var encodeArray = dict.GetArray(PdfTokens.EncodeKey);
-                float encodeStart = 0f;
-                float encodeEnd = sampleCount - 1;
-                if (encodeArray != null && encodeArray.Count >= 2)
+                // Attempt cache retrieval (only for referenced objects since inline dictionaries would reuse same reference of 0,0 otherwise)
+                PdfFunctionCacheEntry cacheEntry = null;
+                if (functionObject.Reference.IsValid && document != null)
                 {
-                    encodeStart = encodeArray[0].AsFloat();
-                    encodeEnd = encodeArray[1].AsFloat();
-                    if (Math.Abs(encodeEnd - encodeStart) < 1e-12f)
+                    document.FunctionCache.TryGetValue(functionObject.Reference, out cacheEntry);
+                }
+
+                int[] sizes;
+                int componentCount;
+                int[] strides;
+                float[] table;
+                int bitsPerSample;
+                float[] rangePairs;
+                float[] decodePairs;
+                float[] encodePairs;
+
+                if (cacheEntry != null)
+                {
+                    sizes = cacheEntry.Sizes;
+                    componentCount = cacheEntry.ComponentCount;
+                    strides = cacheEntry.Strides;
+                    table = cacheEntry.Table;
+                    bitsPerSample = cacheEntry.BitsPerSample;
+                    rangePairs = cacheEntry.RangePairs;
+                    decodePairs = cacheEntry.DecodePairs;
+                    encodePairs = cacheEntry.EncodePairs;
+                }
+                else
+                {
+                    sizes = new int[dimensions];
+                    for (int d = 0; d < dimensions; d++)
                     {
-                        encodeEnd = encodeStart + 1f;
+                        sizes[d] = Math.Max(1, sizeArray[d].AsInteger());
                     }
-                }
 
-                // Decode (optional override for sample expansion)
-                var decodeArray = dict.GetArray(PdfTokens.DecodeKey);
-
-                // Normalize input
-                float clamped = input;
-                if (clamped < domainStart)
-                {
-                    clamped = domainStart;
-                }
-                else if (clamped > domainEnd)
-                {
-                    clamped = domainEnd;
-                }
-                float domainT = (clamped - domainStart) / (domainEnd - domainStart);
-
-                // Map to sample index space
-                float u = encodeStart + domainT * (encodeEnd - encodeStart);
-                if (sampleCount == 1)
-                {
-                    u = 0f;
-                }
-                if (u < 0f)
-                {
-                    u = 0f;
-                }
-                else if (u > sampleCount - 1)
-                {
-                    u = sampleCount - 1;
-                }
-                int index0 = (int)Math.Floor(u);
-                int index1 = index0 + 1;
-                if (index1 >= sampleCount)
-                {
-                    index1 = index0;
-                }
-                float frac = u - index0;
-
-                // Read raw samples
-                var raw = PdfStreamDecoder.DecodeContentStream(functionObject).ToArray();
-                if (raw.Length == 0)
-                {
-                    return Array.Empty<float>();
-                }
-
-                var bitReader = new BitReader(raw);
-                float[,] table = new float[sampleCount, componentCount];
-                int maxSampleValue = (bitsPerSample == 32) ? -1 : ((1 << bitsPerSample) - 1);
-
-                for (int s = 0; s < sampleCount; s++)
-                {
-                    for (int c = 0; c < componentCount; c++)
+                    bitsPerSample = dictionary.GetInteger(PdfTokens.BitsPerSampleKey);
+                    if (bitsPerSample < 1 || bitsPerSample > 32)
                     {
-                        uint sample = bitReader.ReadBits(bitsPerSample);
-                        float normalized;
-                        if (bitsPerSample == 32)
+                        return Array.Empty<float>();
+                    }
+
+                    List<IPdfValue> rangeArray = dictionary.GetArray(PdfTokens.RangeKey);
+                    if (rangeArray == null || rangeArray.Count < 2)
+                    {
+                        return Array.Empty<float>();
+                    }
+                    componentCount = rangeArray.Count / 2;
+
+                    List<IPdfValue> encodeArray = dictionary.GetArray(PdfTokens.EncodeKey);
+                    List<IPdfValue> decodeArray = dictionary.GetArray(PdfTokens.DecodeKey);
+
+                    encodePairs = encodeArray != null ? ToFloatArray(encodeArray).ToArray() : null;
+                    decodePairs = decodeArray != null ? ToFloatArray(decodeArray).ToArray() : null;
+
+                    rangePairs = ToFloatArray(rangeArray).ToArray();
+
+                    // Compute strides dimension 0 fastest
+                    strides = new int[dimensions];
+                    int totalSamples = 1;
+                    for (int d = 0; d < dimensions; d++)
+                    {
+                        strides[d] = totalSamples;
+                        long nextTotal = (long)totalSamples * sizes[d];
+                        if (nextTotal > 8_000_000)
                         {
-                            normalized = sample / 4294967295f;
+                            return Array.Empty<float>();
                         }
-                        else
-                        {
-                            normalized = maxSampleValue > 0 ? sample / (float)maxSampleValue : 0f;
-                        }
+                        totalSamples = (int)nextTotal;
+                    }
 
-                        float outMin;
-                        float outMax;
-                        if (decodeArray != null && decodeArray.Count >= 2 * componentCount)
-                        {
-                            outMin = decodeArray[2 * c].AsFloat();
-                            outMax = decodeArray[2 * c + 1].AsFloat();
-                        }
-                        else
-                        {
-                            outMin = rangeArray[2 * c].AsFloat();
-                            outMax = rangeArray[2 * c + 1].AsFloat();
-                        }
+                    byte[] raw = PdfStreamDecoder.DecodeContentStream(functionObject).ToArray();
+                    if (raw.Length == 0)
+                    {
+                        return Array.Empty<float>();
+                    }
 
-                        table[s, c] = outMin + normalized * (outMax - outMin);
+                    var bitReader = new BitReader(raw);
+                    table = new float[totalSamples * componentCount];
+                    int maxSampleValue = (bitsPerSample == 32) ? -1 : ((1 << bitsPerSample) - 1);
+
+                    for (int linearIndex = 0; linearIndex < totalSamples; linearIndex++)
+                    {
+                        for (int componentIndex = 0; componentIndex < componentCount; componentIndex++)
+                        {
+                            uint sample = bitReader.ReadBits(bitsPerSample);
+                            float normalized = bitsPerSample == 32
+                                ? sample / 4294967295f
+                                : (maxSampleValue > 0 ? sample / (float)maxSampleValue : 0f);
+
+                            float outMin;
+                            float outMax;
+                            if (decodePairs != null && decodePairs.Length >= 2 * componentCount)
+                            {
+                                outMin = decodePairs[2 * componentIndex];
+                                outMax = decodePairs[2 * componentIndex + 1];
+                            }
+                            else
+                            {
+                                outMin = rangePairs[2 * componentIndex];
+                                outMax = rangePairs[2 * componentIndex + 1];
+                            }
+
+                            table[linearIndex * componentCount + componentIndex] = outMin + normalized * (outMax - outMin);
+                        }
+                    }
+
+                    if (functionObject.Reference.IsValid && document != null)
+                    {
+                        document.FunctionCache[functionObject.Reference] = new PdfFunctionCacheEntry(
+                            sizes,
+                            componentCount,
+                            bitsPerSample,
+                            table,
+                            strides,
+                            rangePairs,
+                            decodePairs,
+                            encodePairs);
                     }
                 }
 
-                var output = new float[componentCount];
-                for (int c = 0; c < componentCount; c++)
+                // Interpolation mapping
+                int[] i0 = new int[dimensions];
+                int[] i1 = new int[dimensions];
+                float[] fractions = new float[dimensions];
+
+                for (int dimensionIndex = 0; dimensionIndex < dimensions; dimensionIndex++)
                 {
-                    float v0 = table[index0, c];
-                    float v1 = table[index1, c];
-                    float value;
-                    if (index0 == index1)
+                    float domainMin = domainArray[2 * dimensionIndex].AsFloat();
+                    float domainMax = domainArray[2 * dimensionIndex + 1].AsFloat();
+                    if (Math.Abs(domainMax - domainMin) < 1e-12f)
                     {
-                        value = v0;
-                    }
-                    else
-                    {
-                        value = v0 + frac * (v1 - v0);
+                        domainMax = domainMin + 1f;
                     }
 
-                    float rMin = rangeArray[2 * c].AsFloat();
-                    float rMax = rangeArray[2 * c + 1].AsFloat();
-                    if (value < rMin)
+                    float inputValue = inputs[dimensionIndex < inputs.Length ? dimensionIndex : 0];
+                    if (inputValue < domainMin)
                     {
-                        value = rMin;
+                        inputValue = domainMin;
                     }
-                    else if (value > rMax)
+                    else if (inputValue > domainMax)
                     {
-                        value = rMax;
+                        inputValue = domainMax;
                     }
 
-                    output[c] = value;
+                    float domainT = (inputValue - domainMin) / (domainMax - domainMin);
+
+                    float encodeMin = 0f;
+                    float encodeMax = sizes[dimensionIndex] - 1;
+                    if (encodePairs != null && encodePairs.Length >= 2 * dimensions)
+                    {
+                        encodeMin = encodePairs[2 * dimensionIndex];
+                        encodeMax = encodePairs[2 * dimensionIndex + 1];
+                        if (Math.Abs(encodeMax - encodeMin) < 1e-12f)
+                        {
+                            encodeMax = encodeMin + 1f;
+                        }
+                    }
+
+                    float u = encodeMin + domainT * (encodeMax - encodeMin);
+                    if (sizes[dimensionIndex] == 1)
+                    {
+                        u = 0f;
+                    }
+                    if (u < 0f)
+                    {
+                        u = 0f;
+                    }
+                    else if (u > sizes[dimensionIndex] - 1)
+                    {
+                        u = sizes[dimensionIndex] - 1;
+                    }
+
+                    int floorIndex = (int)Math.Floor(u);
+                    int upperIndex = floorIndex + 1;
+                    if (upperIndex >= sizes[dimensionIndex])
+                    {
+                        upperIndex = floorIndex;
+                    }
+
+                    i0[dimensionIndex] = floorIndex;
+                    i1[dimensionIndex] = upperIndex;
+                    fractions[dimensionIndex] = u - floorIndex;
+                }
+
+                float[] output = new float[componentCount];
+                int cornerCount = 1 << dimensions;
+                for (int corner = 0; corner < cornerCount; corner++)
+                {
+                    float weight = 1f;
+                    int linearIndex = 0;
+                    for (int dimensionIndex = 0; dimensionIndex < dimensions; dimensionIndex++)
+                    {
+                        bool useUpper = (corner & (1 << dimensionIndex)) != 0;
+                        int sampleIndex = useUpper ? i1[dimensionIndex] : i0[dimensionIndex];
+                        float f = fractions[dimensionIndex];
+                        weight *= useUpper ? f : (1f - f);
+                        linearIndex += sampleIndex * strides[dimensionIndex];
+                        if (weight == 0f)
+                        {
+                            break;
+                        }
+                    }
+                    if (weight == 0f)
+                    {
+                        continue;
+                    }
+
+                    int baseOffset = linearIndex * componentCount;
+                    for (int componentIndex = 0; componentIndex < componentCount; componentIndex++)
+                    {
+                        output[componentIndex] += weight * table[baseOffset + componentIndex];
+                    }
+                }
+
+                for (int componentIndex = 0; componentIndex < componentCount; componentIndex++)
+                {
+                    float rangeMin = rangePairs[2 * componentIndex];
+                    float rangeMax = rangePairs[2 * componentIndex + 1];
+                    if (output[componentIndex] < rangeMin)
+                    {
+                        output[componentIndex] = rangeMin;
+                    }
+                    else if (output[componentIndex] > rangeMax)
+                    {
+                        output[componentIndex] = rangeMax;
+                    }
                 }
 
                 return output;
@@ -383,22 +484,21 @@ namespace PdfReader.Rendering.Color
             }
         }
 
-        /// <summary>
-        /// Convert a PDF value array to float[] (utility helper).
-        /// </summary>
         private static float[] ToFloatArray(List<IPdfValue> array)
         {
-            var result = new float[array.Count];
-            for (int i = 0; i < array.Count; i++)
+            if (array == null || array.Count == 0)
             {
-                result[i] = array[i].AsFloat();
+                return Array.Empty<float>();
+            }
+
+            float[] result = new float[array.Count];
+            for (int index = 0; index < array.Count; index++)
+            {
+                result[index] = array[index].AsFloat();
             }
             return result;
         }
 
-        /// <summary>
-        /// Bit-level reader for function sample tables.
-        /// </summary>
         private sealed class BitReader
         {
             private readonly byte[] _data;
@@ -418,7 +518,7 @@ namespace PdfReader.Rendering.Color
                 }
 
                 uint value = 0;
-                for (int i = 0; i < count; i++)
+                for (int bitIndex = 0; bitIndex < count; bitIndex++)
                 {
                     int byteIndex = _bitPosition >> 3;
                     if (byteIndex >= _data.Length)
@@ -431,7 +531,6 @@ namespace PdfReader.Rendering.Color
                     value = (value << 1) | bit;
                     _bitPosition++;
                 }
-
                 return value;
             }
         }

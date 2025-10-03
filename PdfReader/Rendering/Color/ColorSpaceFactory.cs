@@ -1,11 +1,16 @@
-﻿using PdfReader.Fonts;
+﻿using System;
 using PdfReader.Models;
-using System;
+using PdfReader.Fonts;
 
 namespace PdfReader.Rendering.Color
 {
     internal static class ColorSpaceFactory
     {
+        // ------------------------------------------------------------------------------------
+        // Indexed Color Space
+        // [/Indexed base hival lookup]
+        // lookup: string / hex string / stream (via indirect object)
+        // ------------------------------------------------------------------------------------
         public static PdfColorSpaceConverter CreateIndexedColorSpace(IPdfValue value, PdfPage page)
         {
             if (value == null)
@@ -26,8 +31,8 @@ namespace PdfReader.Rendering.Color
             }
 
             var baseCsValue = array[1];
-            var baseConv = PdfColorSpaces.ResolveByValue(baseCsValue, page);
-            if (baseConv == null)
+            var baseConverter = PdfColorSpaces.ResolveByValue(baseCsValue, page);
+            if (baseConverter == null)
             {
                 return null;
             }
@@ -74,16 +79,127 @@ namespace PdfReader.Rendering.Color
                         }
                         catch
                         {
-                            // Ignored: malformed lookup stream, fallback to zeros.
+                            // Ignore malformed lookup stream; leave empty lookup
                         }
                     }
                     break;
                 }
             }
 
-            return new IndexedConverter(baseConv, hiVal, lookupBytes);
+            return new IndexedConverter(baseConverter, hiVal, lookupBytes);
         }
 
+        // ------------------------------------------------------------------------------------
+        // Separation & DeviceN helpers
+        // ------------------------------------------------------------------------------------
+        private static PdfObject ResolveTintFunction(IPdfValue funcVal, PdfPage page)
+        {
+            if (funcVal == null)
+            {
+                return null;
+            }
+
+            // If the function itself is an indirect reference, return the referenced PdfObject.
+            if (funcVal.Type == PdfValueType.Reference)
+            {
+                var r = funcVal.AsReference();
+                page.Document.Objects.TryGetValue(r.ObjectNumber, out var objRef);
+                return objRef;
+            }
+
+            if (funcVal.Type == PdfValueType.Dictionary)
+            {
+                // Inline function dictionary (no separate stream object). Wrap it.
+                return new PdfObject(new PdfReference(0, 0), page.Document, funcVal);
+            }
+
+            if (funcVal.Type == PdfValueType.Array)
+            {
+                var arr = funcVal.AsArray();
+                for (int i = 0; i < arr.Count; i++)
+                {
+                    var candidate = ResolveTintFunction(arr[i], page);
+                    if (candidate != null)
+                    {
+                        return candidate;
+                    }
+                }
+            }
+
+            return null;
+        }
+
+        // ------------------------------------------------------------------------------------
+        // Separation Color Space
+        // [/Separation name altSpace tintFunc]
+        // ------------------------------------------------------------------------------------
+        public static PdfColorSpaceConverter CreateSeparationColorSpace(IPdfValue value, PdfPage page)
+        {
+            if (value == null)
+            {
+                return null;
+            }
+
+            // Use AsArray (after resolving only the top-level reference) so that element references remain intact.
+            IPdfValue raw = value;
+            if (raw.Type == PdfValueType.Reference)
+            {
+                raw = raw.ResolveToNonReference(page.Document);
+            }
+            var arr = raw.AsArray();
+            if (arr == null || arr.Count < 4)
+            {
+                return null;
+            }
+
+            string name = arr[1].AsString();
+            var alt = PdfColorSpaces.ResolveByValue(arr[2], page);
+            var tintFunc = ResolveTintFunction(arr[3], page);
+            return new SeparationColorSpaceConverter(name, alt, tintFunc);
+        }
+
+        // ------------------------------------------------------------------------------------
+        // DeviceN Color Space
+        // [/DeviceN [names] altSpace tintTransform (attributes)]
+        // ------------------------------------------------------------------------------------
+        public static PdfColorSpaceConverter CreateDeviceNColorSpace(IPdfValue value, PdfPage page)
+        {
+            if (value == null)
+            {
+                return null;
+            }
+
+            IPdfValue raw = value;
+            if (raw.Type == PdfValueType.Reference)
+            {
+                raw = raw.ResolveToNonReference(page.Document);
+            }
+            var arr = raw.AsArray();
+            if (arr == null || arr.Count < 4)
+            {
+                return null;
+            }
+
+            var namesArray = arr[1].AsArray();
+            if (namesArray == null || namesArray.Count == 0)
+            {
+                return null;
+            }
+            var names = new string[namesArray.Count];
+            for (int i = 0; i < namesArray.Count; i++)
+            {
+                names[i] = namesArray[i].AsString();
+            }
+
+            var alt = PdfColorSpaces.ResolveByValue(arr[2], page);
+            var tintFunc = ResolveTintFunction(arr[3], page);
+            return new DeviceNColorSpaceConverter(names, alt, tintFunc);
+        }
+
+        // ------------------------------------------------------------------------------------
+        // CalGray Color Space
+        // [/CalGray << /WhitePoint ... /BlackPoint ... /Gamma ... >>]
+        // ------------------------------------------------------------------------------------
         public static PdfColorSpaceConverter CreateCalGrayColorSpace(IPdfValue value, PdfPage page)
         {
             var dict = GetDictionaryValue(value, page);
@@ -92,7 +208,9 @@ namespace PdfReader.Rendering.Color
                 return null;
             }
 
-            float xw = 0.9505f, yw = 1.0f, zw = 1.0890f;
+            float xw = 0.9505f;
+            float yw = 1.0f;
+            float zw = 1.0890f;
             var wp = dict.GetArray(PdfTokens.WhitePointKey);
             if (wp != null && wp.Count >= 3)
             {
@@ -102,9 +220,9 @@ namespace PdfReader.Rendering.Color
             }
 
             float gamma = 1.0f;
-            if (dict.TryGetFloat(PdfTokens.GammaKey, out var gsingle))
+            if (dict.TryGetFloat(PdfTokens.GammaKey, out var gSingle))
             {
-                gamma = gsingle;
+                gamma = gSingle;
             }
 
             float xb = 0f, yb = 0f, zb = 0f;
@@ -119,6 +237,10 @@ namespace PdfReader.Rendering.Color
             return new CalGrayConverter(xw, yw, zw, xb, yb, zb, gamma);
         }
 
+        // ------------------------------------------------------------------------------------
+        // CalRGB Color Space
+        // [/CalRGB << /WhitePoint [...] /BlackPoint [...] /Gamma [...] /Matrix [...] >>]
+        // ------------------------------------------------------------------------------------
         public static PdfColorSpaceConverter CreateCalRrgbColorSpace(IPdfValue value, PdfPage page)
         {
             var dict = GetDictionaryValue(value, page);
@@ -127,7 +249,9 @@ namespace PdfReader.Rendering.Color
                 return null;
             }
 
-            float xw = 0.9505f, yw = 1.0f, zw = 1.0890f;
+            float xw = 0.9505f;
+            float yw = 1.0f;
+            float zw = 1.0890f;
             var wp = dict.GetArray(PdfTokens.WhitePointKey);
             if (wp != null && wp.Count >= 3)
             {
@@ -136,19 +260,21 @@ namespace PdfReader.Rendering.Color
                 zw = wp[2].AsFloat();
             }
 
-            float gr = 1.0f, gg = 1.0f, gb = 1.0f;
-            if (dict.TryGetFloat(PdfTokens.GammaKey, out var gsingle))
+            float gr = 1.0f;
+            float gg = 1.0f;
+            float gb = 1.0f;
+            if (dict.TryGetFloat(PdfTokens.GammaKey, out var gSingle))
             {
-                gr = gg = gb = gsingle;
+                gr = gg = gb = gSingle;
             }
             else
             {
-                var garr = dict.GetArray(PdfTokens.GammaKey);
-                if (garr != null && garr.Count >= 3)
+                var gArr = dict.GetArray(PdfTokens.GammaKey);
+                if (gArr != null && gArr.Count >= 3)
                 {
-                    gr = garr[0].AsFloat();
-                    gg = garr[1].AsFloat();
-                    gb = garr[2].AsFloat();
+                    gr = gArr[0].AsFloat();
+                    gg = gArr[1].AsFloat();
+                    gb = gArr[2].AsFloat();
                 }
             }
 
@@ -161,18 +287,33 @@ namespace PdfReader.Rendering.Color
                 zb = bp[2].AsFloat();
             }
 
-            float[,] m = new float[3, 3] { { 1, 0, 0 }, { 0, 1, 0 }, { 0, 0, 1 } };
+            float[,] matrix = new float[3, 3]
+            {
+                { 1f, 0f, 0f },
+                { 0f, 1f, 0f },
+                { 0f, 0f, 1f }
+            };
             var mat = dict.GetArray(PdfTokens.MatrixKey);
             if (mat != null && mat.Count >= 9)
             {
-                m[0, 0] = mat[0].AsFloat(); m[0, 1] = mat[1].AsFloat(); m[0, 2] = mat[2].AsFloat();
-                m[1, 0] = mat[3].AsFloat(); m[1, 1] = mat[4].AsFloat(); m[1, 2] = mat[5].AsFloat();
-                m[2, 0] = mat[6].AsFloat(); m[2, 1] = mat[7].AsFloat(); m[2, 2] = mat[8].AsFloat();
+                matrix[0, 0] = mat[0].AsFloat();
+                matrix[0, 1] = mat[1].AsFloat();
+                matrix[0, 2] = mat[2].AsFloat();
+                matrix[1, 0] = mat[3].AsFloat();
+                matrix[1, 1] = mat[4].AsFloat();
+                matrix[1, 2] = mat[5].AsFloat();
+                matrix[2, 0] = mat[6].AsFloat();
+                matrix[2, 1] = mat[7].AsFloat();
+                matrix[2, 2] = mat[8].AsFloat();
             }
 
-            return new CalRgbConverter(xw, yw, zw, xb, yb, zb, gr, gg, gb, m);
+            return new CalRgbConverter(xw, yw, zw, xb, yb, zb, gr, gg, gb, matrix);
         }
 
+        // ------------------------------------------------------------------------------------
+        // ICCBased Color Space
+        // [/ICCBased obj] where obj stream has /N and optional /Alternate and profile bytes
+        // ------------------------------------------------------------------------------------
         public static PdfColorSpaceConverter CreateIccColorSpace(IPdfValue value, PdfPage page)
         {
             var pdfObject = GetObjectValue(value, page);
@@ -201,6 +342,10 @@ namespace PdfReader.Rendering.Color
             return new IccBasedConverter(n, alt, iccBytes);
         }
 
+        // ------------------------------------------------------------------------------------
+        // Pattern Color Space
+        // [/Pattern]  or  [/Pattern baseCS]
+        // ------------------------------------------------------------------------------------
         public static PdfColorSpaceConverter CreatePatternColorSpace(IPdfValue value, PdfPage page)
         {
             if (value != null && value.Type == PdfValueType.Array)
@@ -215,6 +360,10 @@ namespace PdfReader.Rendering.Color
             return new PatternColorSpaceConverter(null);
         }
 
+        // ------------------------------------------------------------------------------------
+        // Lab Color Space
+        // [/Lab << /WhitePoint [...] /Range [...] /BlackPoint [...] >>]
+        // ------------------------------------------------------------------------------------
         public static PdfColorSpaceConverter CreateLabColorSpace(IPdfValue value, PdfPage page)
         {
             var dict = GetDictionaryValue(value, page);
@@ -223,7 +372,9 @@ namespace PdfReader.Rendering.Color
                 return null;
             }
 
-            float xw = 0.9642f, yw = 1.0f, zw = 0.8249f;
+            float xw = 0.9642f;
+            float yw = 1.0f;
+            float zw = 0.8249f;
             var wpArr = dict.GetArray(PdfTokens.WhitePointKey);
             if (wpArr != null && wpArr.Count >= 3)
             {
@@ -231,9 +382,15 @@ namespace PdfReader.Rendering.Color
                 yw = wpArr[1].AsFloat();
                 zw = wpArr[2].AsFloat();
             }
-            if (yw <= 0f) yw = 1.0f;
+            if (yw <= 0f)
+            {
+                yw = 1.0f;
+            }
 
-            float aMin = -100f, aMax = 100f, bMin = -100f, bMax = 100f;
+            float aMin = -100f;
+            float aMax = 100f;
+            float bMin = -100f;
+            float bMax = 100f;
             var rangeArr = dict.GetArray(PdfTokens.RangeKey);
             if (rangeArr != null && rangeArr.Count >= 4)
             {
@@ -246,17 +403,22 @@ namespace PdfReader.Rendering.Color
             return new LabColorSpaceConverter(xw, yw, zw, aMin, aMax, bMin, bMax);
         }
 
+        // ------------------------------------------------------------------------------------
+        // Utility helpers for dictionary / object resolution based on standard array forms
+        // ------------------------------------------------------------------------------------
         private static PdfDictionary GetDictionaryValue(IPdfValue value, PdfPage page)
         {
             if (value == null)
             {
                 return null;
             }
+
             var parameters = value.ResolveToArray(page.Document);
             if (parameters == null || parameters.Count < 2)
             {
                 return null;
             }
+
             return parameters[1].AsDictionary();
         }
 
@@ -266,20 +428,24 @@ namespace PdfReader.Rendering.Color
             {
                 return null;
             }
+
             if (value.Type == PdfValueType.Reference)
             {
                 return GetObjectValue(value.ResolveToNonReference(page.Document), page);
             }
+
             var parameters = value.AsArray();
             if (parameters == null || parameters.Count < 2)
             {
                 return null;
             }
+
             var reference = parameters[1].AsReference();
             if (reference.IsValid && page.Document.Objects.TryGetValue(reference.ObjectNumber, out var pdfObject))
             {
                 return pdfObject;
             }
+
             return null;
         }
     }

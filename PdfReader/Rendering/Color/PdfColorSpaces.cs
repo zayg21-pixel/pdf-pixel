@@ -177,6 +177,16 @@ namespace PdfReader.Rendering.Color
                     var conv = ColorSpaceFactory.CreatePatternColorSpace(value, page);
                     return conv ?? DeviceRgbConverter.Instance;
                 }
+                case PdfColorSpaceNames.Separation:
+                {
+                    var conv = ColorSpaceFactory.CreateSeparationColorSpace(value, page);
+                    return conv ?? DeviceGrayConverter.Instance;
+                }
+                case PdfColorSpaceNames.DeviceN:
+                {
+                    var conv = ColorSpaceFactory.CreateDeviceNColorSpace(value, page);
+                    return conv ?? DeviceRgbConverter.Instance;
+                }
                 default:
                 {
                     var resVal = ResolveColorSpaceValue(name, page);
@@ -219,6 +229,8 @@ namespace PdfReader.Rendering.Color
                 case PdfColorSpaceNames.CalGray: return PdfColorSpace.CalGray;
                 case PdfColorSpaceNames.CalRGB: return PdfColorSpace.CalRGB;
                 case PdfColorSpaceNames.Pattern: return PdfColorSpace.Pattern;
+                case PdfColorSpaceNames.Separation: return PdfColorSpace.Separation;
+                case PdfColorSpaceNames.DeviceN: return PdfColorSpace.DeviceN;
                 default: return PdfColorSpace.Unknown;
             }
         }

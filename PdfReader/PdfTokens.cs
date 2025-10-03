@@ -364,5 +364,6 @@ namespace PdfReader
 
         // Function related (added)
         public const string BitsPerSampleKey = "/BitsPerSample"; // Function type 0 sampled function BPS
+        public const string TintTransformKey = "/TintTransform"; // Separation/DeviceN attribute (when dictionary form used)
     }
 }
