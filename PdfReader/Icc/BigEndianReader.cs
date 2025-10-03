@@ -88,7 +88,9 @@ namespace PdfReader.Icc
 
         public static uint FourCC(string fourCC)
         {
-            if (string.IsNullOrEmpty(fourCC) || fourCC.Length < 4) throw new ArgumentException("fourCC must be 4 ASCII chars", nameof(fourCC));
+            // Accept exactly 4 characters per ICC spec.
+            if (string.IsNullOrEmpty(fourCC) || fourCC.Length != 4)
+                throw new ArgumentException("fourCC must be exactly 4 ASCII chars", nameof(fourCC));
             return (uint)(
                 (byte)fourCC[0] << 24 |
                 (byte)fourCC[1] << 16 |
