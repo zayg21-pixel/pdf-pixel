@@ -12,7 +12,9 @@ namespace PdfReader.Rendering.Color
     internal sealed class LabColorSpaceConverter : PdfColorSpaceConverter
     {
         private readonly bool _needsAdapt;
-        private readonly float[,] _adaptMatrix; // Bradford WP->D50 when needed
+        private readonly Vector3 _adaptRow0;    // Precomputed Bradford rows for SIMD dot usage
+        private readonly Vector3 _adaptRow1;
+        private readonly Vector3 _adaptRow2;
         private readonly Vector3 _whiteScale;   // (Xw/0.9642, Yw/1, Zw/0.8249)
         private readonly Vector3 _labMin;       // (0, aMin, bMin)
         private readonly Vector3 _labMax;       // (100, aMax, bMax)
@@ -37,7 +39,10 @@ namespace PdfReader.Rendering.Color
             else
             {
                 _needsAdapt = true;
-                _adaptMatrix = IccProfileHelpers.CreateBradfordAdaptMatrix(lxw, lyw, lzw, 0.9642f, 1.0f, 0.8249f);
+                var m = IccProfileHelpers.CreateBradfordAdaptMatrix(lxw, lyw, lzw, 0.9642f, 1.0f, 0.8249f);
+                _adaptRow0 = new Vector3(m[0,0], m[0,1], m[0,2]);
+                _adaptRow1 = new Vector3(m[1,0], m[1,1], m[1,2]);
+                _adaptRow2 = new Vector3(m[2,0], m[2,1], m[2,2]);
             }
         }
 
@@ -56,7 +61,9 @@ namespace PdfReader.Rendering.Color
             Vector3 xyz = xyzD50Base * _whiteScale;
             if (_needsAdapt)
             {
-                xyz = IccProfileHelpers.Multiply3x3(_adaptMatrix, xyz.X, xyz.Y, xyz.Z);
+                xyz = new Vector3(Vector3.Dot(_adaptRow0, xyz),
+                                   Vector3.Dot(_adaptRow1, xyz),
+                                   Vector3.Dot(_adaptRow2, xyz));
             }
 
             var srgb01 = ColorMath.FromXyzD50ToSrgb01(in xyz);
