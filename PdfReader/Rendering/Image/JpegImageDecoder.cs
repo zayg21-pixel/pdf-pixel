@@ -4,41 +4,38 @@ using System.Runtime.InteropServices;
 using PdfReader.Rendering.Image.Jpg.Decoding;
 using PdfReader.Rendering.Image.Jpg.Readers;
 using PdfReader.Rendering.Image.Jpg.Model;
-using PdfReader.Rendering.Image.PostProcessing;
+using PdfReader.Rendering.Image.Processing;
 using PdfReader.Streams;
 using PdfReader.Rendering.Image.Jpg.Color;
 using PdfReader.Rendering.Color;
+using Microsoft.Extensions.Logging;
 
 namespace PdfReader.Rendering.Image
 {
     /// <summary>
     /// JPEG (DCTDecode) image decoder.
-    /// Implements a strict 3-step pipeline (mirrors <see cref="RawImageDecoder"/> semantics):
-    ///  1. Decode: Stream JPEG entropy (baseline or progressive) into an interleaved sample buffer sized Width * Height * ComponentCount.
-    ///     MCU writers perform any immediate color transform required by the PDF pipeline (e.g., YCbCr -> RGB, YCCK -> CMYK) so the buffer is already in final component space.
-    ///  2. (Optional) PostProcess: If <see cref="PdfImagePostProcessor.RequiresPostProcess"/> is true, invoke full post-processing (decode array mapping, masking, color key ranges, palette, ICC, etc.).
-    ///  3. Fast wrap: If no post processing is needed, wrap the decoded buffer directly via <see cref="PdfImagePostProcessor.CreateImage"/>.
+    /// Decodes a JPEG-encoded image stream (baseline or progressive) into an interleaved component buffer and
+    /// delegates final interpretation (/Decode mapping, color conversion, masking, palette handling, etc.) to
+    /// <see cref="PdfImageProcessor"/>. The decoder performs any mandatory color transforms declared by the
+    /// image data (e.g. YCbCr ➜ RGB, YCCK ➜ CMYK) while streaming MCUs so that the output buffer is already
+    /// in the target component space (Gray = 1, RGB = 3, CMYK = 4 components).
     ///
-    /// The decoder no longer expands 1 or 3 component images to 4 components up front; stride = ComponentCount * Width.
-    /// CMYK (or converted YCCK) remains 4 components, RGB (or converted YCbCr) is 3, grayscale is 1.
-    /// Buffer ownership is passed to the created SKImage (fast path) or freed after post-processing (slow path).
-    /// </summary>
-    /// <remarks>
-    /// WORK PLAN / TODO (restored & updated):
-    /// Performance / Quality Improvements:
-    ///  - Chroma upsampling quality (currently nearest-neighbor per MCU); evaluate filtered upsampling for 4:2:0 and 4:2:2 when fidelity mode enabled.
-    ///
-    /// Deferred / Low Priority:
-    ///  - 12-bit sample precision (SOF0/2 with 12 bits). Will require widening internal buffers and adjusted IDCT scaling.
-    ///  - Arithmetic coding (SOF9/SOF10) support.
+    /// TODO / Work Plan:
+    ///  - Chroma upsampling quality improvements (filtered upsampling for 4:2:0 / 4:2:2 in fidelity mode).
+    ///  - 12‑bit sample precision support (widen IDCT + scaling pipeline).
+    ///  - Arithmetic coding (SOF9 / SOF10) support.
     ///  - Lossless / hierarchical modes.
-    /// </remarks>
+    /// </summary>
     public sealed class JpegImageDecoder : PdfImageDecoder
     {
-        public JpegImageDecoder(PdfImage image) : base(image)
+        public JpegImageDecoder(PdfImage image, ILoggerFactory loggerFactory) : base(image, loggerFactory)
         {
         }
 
+        /// <summary>
+        /// Decode the JPEG image returning an <see cref="SKImage"/> or null on failure (errors are logged).
+        /// Attempts custom streaming decode first; falls back to Skia's built‑in decoder if custom path fails.
+        /// </summary>
         public override SKImage Decode()
         {
             if (!ValidateImageParameters())
@@ -46,138 +43,126 @@ namespace PdfReader.Rendering.Image
                 return null;
             }
 
-            ReadOnlyMemory<byte> encoded = Image.GetImageData();
-            if (encoded.Length == 0)
+            ReadOnlyMemory<byte> encodedImageData = Image.GetImageData();
+            if (encodedImageData.Length == 0)
             {
+                Logger.LogError("JPEG image data is empty (Name={Name}).", Image.Name);
                 return null;
-            }
-
-            SKImage internalResult = DecodeInternal(encoded);
-            if (internalResult != null)
-            {
-                return internalResult;
             }
 
             try
             {
-                return SKImage.FromEncodedData(encoded.Span);
+                return DecodeInternal(encodedImageData);
             }
             catch (Exception ex)
             {
-                Console.Error.WriteLine("JpegImageDecoder.Decode: Skia fallback failed: " + ex.Message);
-                return null;
+                Logger.LogWarning(ex, "Primary JPEG decode path failed; attempting Skia fallback (Name={Name}).", Image.Name);
+                try
+                {
+                    return SKImage.FromEncodedData(encodedImageData.Span);
+                }
+                catch (Exception fallbackEx)
+                {
+                    Logger.LogError(fallbackEx, "Skia fallback JPEG decode failed (Name={Name}).", Image.Name);
+                    return null;
+                }
             }
         }
 
+        /// <summary>
+        /// Decode using custom streaming pipeline. Never returns null; throws on failure.
+        /// </summary>
         private unsafe SKImage DecodeInternal(ReadOnlyMemory<byte> encoded)
         {
             JpgHeader header;
             try
             {
                 header = JpgReader.ParseHeader(encoded.Span);
-                if (header == null || header.ContentOffset < 0)
-                {
-                    return null;
-                }
-                // Adjust image color space converter if component count disagrees with declared PDF color space.
+            }
+            catch (Exception ex)
+            {
+                throw new InvalidOperationException($"JPEG header parse exception (Image={Image.Name}).", ex);
+            }
+
+            if (header == null || header.ContentOffset < 0)
+            {
+                throw new InvalidOperationException($"JPEG header invalid or missing content segment (Image={Image.Name}).");
+            }
+
+            try
+            {
                 Image.UpdateColorSpace(header.ComponentCount);
             }
             catch (Exception ex)
             {
-                Console.Error.WriteLine("JpegImageDecoder.DecodeInternal: header parse failed: " + ex.Message);
-                return null;
+                throw new InvalidOperationException($"Color space update failed (Image={Image.Name}).", ex);
             }
 
-            if (Image.ColorSpaceConverter.IsDevice && JpgIccProfileReader.TryAssembleIccProfile(header, out var profileBytes))
-            {
-                Image.UpdateColorSpace(new IccBasedConverter(header.ComponentCount, Image.ColorSpaceConverter, profileBytes));
-            }
-
-            int width = header.Width;
-            int height = header.Height;
-            if (width <= 0 || height <= 0)
-            {
-                return null;
-            }
-
-            int stride = header.ComponentCount * width;
-            int totalBytes = stride * height;
-            IntPtr buffer = IntPtr.Zero;
-
-            ReadOnlyMemory<byte> compressed = encoded.Slice(header.ContentOffset);
-            ContentStream stream;
             try
             {
-                stream = header.IsProgressive
-                    ? (ContentStream)new JpgProgressiveStream(header, compressed, Image.ColorSpaceConverter)
-                    : (ContentStream)new JpgBaselineStream(header, compressed, Image.ColorSpaceConverter);
+                if (Image.ColorSpaceConverter.IsDevice && JpgIccProfileReader.TryAssembleIccProfile(header, out var profileBytes))
+                {
+                    Image.UpdateColorSpace(new IccBasedConverter(header.ComponentCount, Image.ColorSpaceConverter, profileBytes));
+                }
             }
             catch (Exception ex)
             {
-                Console.Error.WriteLine("JpegImageDecoder.DecodeInternal: stream init failed: " + ex.Message);
-                return null;
+                Logger.LogWarning(ex, "Ignoring embedded ICC profile due to assembly failure (Name={Name}).", Image.Name);
             }
 
+            int imageWidth = header.Width;
+            int imageHeight = header.Height;
+            if (imageWidth <= 0 || imageHeight <= 0)
+            {
+                throw new InvalidOperationException($"Invalid JPEG dimensions Width={imageWidth} Height={imageHeight} (Image={Image.Name}).");
+            }
+
+            int componentCount = header.ComponentCount;
+            int rowStride = componentCount * imageWidth;
+            int totalBytes = checked(rowStride * imageHeight);
+
+            ContentStream jpegStream;
             try
             {
-                buffer = Marshal.AllocHGlobal(totalBytes);
-                Span<byte> all = new Span<byte>((void*)buffer, totalBytes);
-                for (int rowIndex = 0; rowIndex < height; rowIndex++)
+                ReadOnlyMemory<byte> compressed = encoded.Slice(header.ContentOffset);
+                jpegStream = header.IsProgressive
+                    ? (ContentStream)new JpgProgressiveStream(header, compressed)
+                    : (ContentStream)new JpgBaselineStream(header, compressed);
+            }
+            catch (Exception ex)
+            {
+                throw new InvalidOperationException($"JPEG stream initialization failed (Image={Image.Name}).", ex);
+            }
+
+            IntPtr unmanagedBuffer = IntPtr.Zero;
+            try
+            {
+                unmanagedBuffer = Marshal.AllocHGlobal(totalBytes);
+                Span<byte> allBytes = new Span<byte>((void*)unmanagedBuffer, totalBytes);
+
+                for (int rowIndex = 0; rowIndex < imageHeight; rowIndex++)
                 {
-                    Span<byte> row = all.Slice(rowIndex * stride, stride);
-                    int remaining = stride;
-                    int offset = 0;
+                    Span<byte> targetRow = allBytes.Slice(rowIndex * rowStride, rowStride);
+                    int remaining = rowStride;
+                    int writeOffset = 0;
                     while (remaining > 0)
                     {
-                        int read = stream.Read(row.Slice(offset, remaining));
-                        if (read <= 0)
+                        int bytesRead = jpegStream.Read(targetRow.Slice(writeOffset, remaining));
+                        if (bytesRead <= 0)
                         {
-                            throw new InvalidOperationException("Unexpected end of JPEG stream.");
+                            throw new InvalidOperationException($"Unexpected end of JPEG stream at row {rowIndex} (Image={Image.Name}).");
                         }
-                        offset += read;
-                        remaining -= read;
+                        writeOffset += bytesRead;
+                        remaining -= bytesRead;
                     }
                 }
 
-                bool needsPost = PdfImagePostProcessor.RequiresPostProcess(Image);
-                if (needsPost)
-                {
-                    try
-                    {
-                        return PdfImagePostProcessor.PostProcess(Image, buffer);
-                    }
-                    finally
-                    {
-                        if (buffer != IntPtr.Zero)
-                        {
-                            Marshal.FreeHGlobal(buffer);
-                        }
-                    }
-                }
-                else
-                {
-                    try
-                    {
-                        return PdfImagePostProcessor.CreateImage(Image, buffer);
-                    }
-                    catch
-                    {
-                        if (buffer != IntPtr.Zero)
-                        {
-                            Marshal.FreeHGlobal(buffer);
-                        }
-                        return null;
-                    }
-                }
+                return Processor.CreateImage(allBytes);
             }
-            catch (Exception ex)
+            finally
             {
-                Console.Error.WriteLine("JpegImageDecoder.DecodeInternal: decode failed: " + ex.Message);
-                if (buffer != IntPtr.Zero)
-                {
-                    Marshal.FreeHGlobal(buffer);
-                }
-                return null;
+                Marshal.FreeHGlobal(unmanagedBuffer);
+                jpegStream.Dispose();
             }
         }
     }

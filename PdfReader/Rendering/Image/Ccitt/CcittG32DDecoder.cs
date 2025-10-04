@@ -9,10 +9,9 @@ namespace PdfReader.Rendering.Image.Ccitt
     /// </summary>
     internal static class CcittG32DDecoder
     {
-        public static byte[] Decode(ReadOnlySpan<byte> data, int width, int height, bool blackIs1, int k, bool endOfLine, bool byteAlign)
+        public static void Decode(ReadOnlySpan<byte> data, Span<byte> buffer, int width, int height, bool blackIs1, int k, bool endOfLine, bool byteAlign)
         {
             var reader = new CcittBitReader(data);
-            byte[] buffer = CcittRaster.CreateBuffer(width, height, blackIs1);
 
             var referenceChanges = new List<int>(width + 8) { width };
             var nextReferenceChanges = new List<int>(width + 8);
@@ -27,7 +26,7 @@ namespace PdfReader.Rendering.Image.Ccitt
                     {
                         if (!reader.TryConsumeEol())
                         {
-                            throw new System.InvalidOperationException("CCITT G3 2D decode error: missing required EOL at start of 1D row " + rowIndex + ".");
+                            throw new InvalidOperationException("CCITT G3 2D decode error: missing required EOL at start of 1D row " + rowIndex + ".");
                         }
                         if (byteAlign)
                         {
@@ -42,7 +41,7 @@ namespace PdfReader.Rendering.Image.Ccitt
                     {
                         if (!reader.TryConsumeEol())
                         {
-                            throw new System.InvalidOperationException("CCITT G3 2D decode error: missing required EOL at start of 2D row " + rowIndex + ".");
+                            throw new InvalidOperationException("CCITT G3 2D decode error: missing required EOL at start of 2D row " + rowIndex + ".");
                         }
                         if (byteAlign)
                         {
@@ -55,7 +54,7 @@ namespace PdfReader.Rendering.Image.Ccitt
                 {
                     if (!reader.TryConsumeEol())
                     {
-                        throw new System.InvalidOperationException("CCITT G3 2D decode error: missing EOL in mixed mode at row " + rowIndex + ".");
+                        throw new InvalidOperationException("CCITT G3 2D decode error: missing EOL in mixed mode at row " + rowIndex + ".");
                     }
                     if (byteAlign)
                     {
@@ -64,7 +63,7 @@ namespace PdfReader.Rendering.Image.Ccitt
                     int tagBit = reader.ReadBit();
                     if (tagBit < 0)
                     {
-                        throw new System.InvalidOperationException("CCITT G3 2D decode error: unexpected end of data reading tag bit at row " + rowIndex + ".");
+                        throw new InvalidOperationException("CCITT G3 2D decode error: unexpected end of data reading tag bit at row " + rowIndex + ".");
                     }
                     isOneDLine = tagBit == 1;
                 }
@@ -86,8 +85,6 @@ namespace PdfReader.Rendering.Image.Ccitt
                 referenceChanges = nextReferenceChanges;
                 nextReferenceChanges = tmp;
             }
-
-            return buffer;
         }
     }
 }

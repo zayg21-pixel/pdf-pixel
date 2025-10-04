@@ -4,15 +4,14 @@ using PdfReader.Rendering.Image.Jpg.Readers;
 namespace PdfReader.Rendering.Image.Jpg.Decoding
 {
     /// <summary>
-    /// Specialized decoder for progressive JPEG coefficient blocks.
-    /// Handles DC and AC coefficient decoding with successive approximation refinement.
+    /// Decoder for progressive JPEG coefficient blocks (DC and AC, first pass and refinement passes).
     /// </summary>
     internal sealed class JpgProgressiveBlockDecoder
     {
         /// <summary>
-        /// Decode DC coefficient for progressive JPEG.
+        /// Decode DC coefficient (first pass or refinement) for a progressive JPEG block.
         /// </summary>
-        public static bool DecodeDcCoefficient(
+        public static void DecodeDcCoefficient(
             ref JpgBitReader bitReader,
             JpgHuffmanDecoder dcDecoder,
             ref int previousDcValue,
@@ -23,20 +22,23 @@ namespace PdfReader.Rendering.Image.Jpg.Decoding
         {
             if (dcDecoder == null)
             {
-                Console.Error.WriteLine("[PdfReader][JPEG] Progressive: missing DC table");
-                return false;
+                throw new ArgumentNullException(nameof(dcDecoder));
+            }
+            if (coefficients == null)
+            {
+                throw new ArgumentNullException(nameof(coefficients));
+            }
+            if (coefficientBase < 0 || coefficientBase + 63 >= coefficients.Length)
+            {
+                throw new ArgumentOutOfRangeException(nameof(coefficientBase), "Coefficient base outside buffer range.");
             }
 
             if (isFirstPass)
             {
-                // First pass: decode DC difference and apply successive approximation
                 int category = dcDecoder.Decode(ref bitReader);
                 if (category < 0)
                 {
-                    Console.Error.WriteLine("[PdfReader][JPEG] Progressive: DC Huffman decode failed");
-                    Console.Error.WriteLine($"[PdfReader][JPEG] Debug: coefficientBase={coefficientBase}, successiveApproxLow={successiveApproxLow}");
-                    Console.Error.WriteLine($"[PdfReader][JPEG] Debug: bit reader position={bitReader.Position}");
-                    return false;
+                    throw new InvalidOperationException("Progressive DC Huffman decode failed (invalid category).");
                 }
 
                 int dcDifference = 0;
@@ -48,26 +50,22 @@ namespace PdfReader.Rendering.Image.Jpg.Decoding
                 int dcValue = previousDcValue + dcDifference;
                 previousDcValue = dcValue;
                 coefficients[coefficientBase + 0] = dcValue << successiveApproxLow;
-                return true;
             }
             else
             {
-                // Refinement pass: refine DC coefficient
                 int bit = (int)bitReader.ReadBits(1);
                 if (bit != 0)
                 {
                     int sign = coefficients[coefficientBase + 0] >= 0 ? 1 : -1;
                     coefficients[coefficientBase + 0] += sign * (1 << successiveApproxLow);
                 }
-
-                return true;
             }
         }
 
         /// <summary>
-        /// Decode AC coefficients for progressive JPEG first pass.
+        /// Decode AC coefficients for a progressive JPEG first pass scan.
         /// </summary>
-        public static bool DecodeAcCoefficientsFirstPass(
+        public static void DecodeAcCoefficientsFirstPass(
             ref JpgBitReader bitReader,
             JpgHuffmanDecoder acDecoder,
             int[] coefficients,
@@ -79,16 +77,25 @@ namespace PdfReader.Rendering.Image.Jpg.Decoding
         {
             if (acDecoder == null)
             {
-                Console.Error.WriteLine("[PdfReader][JPEG] Progressive: missing AC table");
-                return false;
+                throw new ArgumentNullException(nameof(acDecoder));
+            }
+            if (coefficients == null)
+            {
+                throw new ArgumentNullException(nameof(coefficients));
+            }
+            if (coefficientBase < 0 || coefficientBase + 63 >= coefficients.Length)
+            {
+                throw new ArgumentOutOfRangeException(nameof(coefficientBase), "Coefficient base outside buffer range.");
+            }
+            if (spectralStart < 1 || spectralStart > 63 || spectralEnd < spectralStart || spectralEnd > 63)
+            {
+                throw new ArgumentOutOfRangeException(nameof(spectralStart), "Invalid spectral band range.");
             }
 
-            // Check if we're in an EOB run from a previous block
             if (eobRun > 0)
             {
-                // Skip this block due to EOB run
                 eobRun--;
-                return true;
+                return;
             }
 
             int k = spectralStart;
@@ -97,64 +104,52 @@ namespace PdfReader.Rendering.Image.Jpg.Decoding
                 int rs = acDecoder.Decode(ref bitReader);
                 if (rs < 0)
                 {
-                    Console.Error.WriteLine($"[PdfReader][JPEG] Progressive: AC Huffman decode failed at coefficient position {k}");
-                    Console.Error.WriteLine($"[PdfReader][JPEG] Debug: spectralStart={spectralStart}, spectralEnd={spectralEnd}");
-                    Console.Error.WriteLine($"[PdfReader][JPEG] Debug: coefficientBase={coefficientBase}, eobRun={eobRun}");
-                    Console.Error.WriteLine($"[PdfReader][JPEG] Debug: bit reader position={bitReader.Position}");
-                    return false;
+                    throw new InvalidOperationException($"Progressive AC Huffman decode failed at spectral position {k}.");
                 }
 
-                int r = rs >> 4 & 0xF;
-                int s = rs & 0xF;
+                int run = (rs >> 4) & 0xF;
+                int size = rs & 0xF;
 
-                if (s == 0)
+                if (size == 0)
                 {
-                    if (r < 15)
+                    if (run < 15)
                     {
-                        // EOB or EOBn (End of Block with run count)
                         int eobCount = 1;
-                        if (r > 0)
+                        if (run > 0)
                         {
-                            // Read r additional bits for extended EOB run
-                            int additionalBits = (int)bitReader.ReadBits(r);
-                            eobCount = (1 << r) + additionalBits;
+                            int additionalBits = (int)bitReader.ReadBits(run);
+                            eobCount = (1 << run) + additionalBits;
                         }
-                        
-                        eobRun = eobCount - 1;  // Set remaining EOB runs (current block counts as 1)
-                        break; // End this block
+                        eobRun = eobCount - 1;
+                        break;
                     }
                     else
                     {
-                        // r == 15: ZRL (Zero Run Length) - 16 zero coefficients
                         k += 16;
                         continue;
                     }
                 }
                 else
                 {
-                    // Non-zero coefficient: skip r zeros, then place coefficient
-                    k += r;
+                    k += run;
                     if (k > spectralEnd)
                     {
-                        Console.Error.WriteLine($"[PdfReader][JPEG] Progressive: coefficient index {k} exceeds spectral end {spectralEnd}");
+                        // Malformed stream: run extends past band. Stop decoding this block.
                         break;
                     }
 
-                    // Decode the coefficient magnitude and sign
-                    int coefficient = bitReader.ReadSigned(s);
+                    int coefficient = bitReader.ReadSigned(size);
                     int naturalIndex = JpgZigZag.Table[k];
                     coefficients[coefficientBase + naturalIndex] = coefficient << successiveApproxLow;
                     k++;
                 }
             }
-
-            return true;
         }
 
         /// <summary>
-        /// Decode AC coefficients for progressive JPEG refinement pass.
+        /// Decode AC coefficients for a progressive JPEG refinement pass.
         /// </summary>
-        public static bool DecodeAcCoefficientsRefinement(
+        public static void DecodeAcCoefficientsRefinement(
             ref JpgBitReader bitReader,
             JpgHuffmanDecoder acDecoder,
             int[] coefficients,
@@ -167,21 +162,28 @@ namespace PdfReader.Rendering.Image.Jpg.Decoding
         {
             if (acDecoder == null)
             {
-                Console.Error.WriteLine("[PdfReader][JPEG] Progressive: missing AC table");
-                return false;
+                throw new ArgumentNullException(nameof(acDecoder));
+            }
+            if (coefficients == null)
+            {
+                throw new ArgumentNullException(nameof(coefficients));
+            }
+            if (coefficientBase < 0 || coefficientBase + 63 >= coefficients.Length)
+            {
+                throw new ArgumentOutOfRangeException(nameof(coefficientBase), "Coefficient base outside buffer range.");
+            }
+            if (spectralStart < 1 || spectralStart > 63 || spectralEnd < spectralStart || spectralEnd > 63)
+            {
+                throw new ArgumentOutOfRangeException(nameof(spectralStart), "Invalid spectral band range.");
             }
 
-            int k = spectralStart;
-
-            // If we have an EOB run from previous block, process it
             if (eobRun > 0)
             {
-                for (int kk = spectralStart; kk <= spectralEnd; kk++)
+                for (int bandIndex = spectralStart; bandIndex <= spectralEnd; bandIndex++)
                 {
-                    int naturalIndex = JpgZigZag.Table[kk];
+                    int naturalIndex = JpgZigZag.Table[bandIndex];
                     int idx = coefficientBase + naturalIndex;
                     int existing = coefficients[idx];
-
                     if (existing != 0)
                     {
                         int bit = (int)bitReader.ReadBits(1);
@@ -192,41 +194,36 @@ namespace PdfReader.Rendering.Image.Jpg.Decoding
                         }
                     }
                 }
-
                 eobRun--;
-                return true;
+                return;
             }
 
-            // Process coefficients until EOB
+            int k = spectralStart;
             while (k <= spectralEnd)
             {
                 int rs = acDecoder.Decode(ref bitReader);
                 if (rs < 0)
                 {
-                    Console.Error.WriteLine($"[PdfReader][JPEG] Progressive: AC refinement Huffman decode failed at position {k}, rs={rs}");
-                    Console.Error.WriteLine($"[PdfReader][JPEG] Debug: spectralStart={spectralStart}, spectralEnd={spectralEnd}, eobRun={eobRun}");
-                    return false;
+                    throw new InvalidOperationException($"Progressive AC refinement Huffman decode failed at spectral position {k}.");
                 }
 
-                int r = rs >> 4 & 0xF;
-                int s = rs & 0xF;
+                int run = (rs >> 4) & 0xF;
+                int size = rs & 0xF;
 
-                if (s == 0)
+                if (size == 0)
                 {
-                    if (r < 15)
+                    if (run < 15)
                     {
-                        // EOBn: read the additional bits for the run count first
                         int eobCount = 1;
-                        if (r > 0)
+                        if (run > 0)
                         {
-                            int additionalBits = (int)bitReader.ReadBits(r);
-                            eobCount = (1 << r) + additionalBits;
+                            int additionalBits = (int)bitReader.ReadBits(run);
+                            eobCount = (1 << run) + additionalBits;
                         }
 
-                        // Then refine existing non-zeros for the remainder of this block
-                        for (int kk = k; kk <= spectralEnd; kk++)
+                        for (int refineIndex = k; refineIndex <= spectralEnd; refineIndex++)
                         {
-                            int naturalIndex = JpgZigZag.Table[kk];
+                            int naturalIndex = JpgZigZag.Table[refineIndex];
                             int idx = coefficientBase + naturalIndex;
                             int existing = coefficients[idx];
                             if (existing != 0)
@@ -239,19 +236,16 @@ namespace PdfReader.Rendering.Image.Jpg.Decoding
                                 }
                             }
                         }
-
                         eobRun = eobCount - 1;
-                        return true; // End this block
+                        return;
                     }
                     else
                     {
-                        // ZRL: process 16 positions, refining existing non-zeros among them
-                        for (int j = 0; j < 16 && k <= spectralEnd; j++)
+                        for (int zeroRunIndex = 0; zeroRunIndex < 16 && k <= spectralEnd; zeroRunIndex++)
                         {
                             int naturalIndex = JpgZigZag.Table[k];
                             int idx = coefficientBase + naturalIndex;
                             int existing = coefficients[idx];
-
                             if (existing != 0)
                             {
                                 int bit = (int)bitReader.ReadBits(1);
@@ -266,17 +260,15 @@ namespace PdfReader.Rendering.Image.Jpg.Decoding
                         continue;
                     }
                 }
-                else if (s == 1)
+                else if (size == 1)
                 {
-                    // New coefficient with magnitude 1: the sign bit must be read immediately
                     int signBit = (int)bitReader.ReadBits(1);
-                    int newCoeff = (signBit != 0 ? 1 : -1) * (1 << successiveApproxLow);
+                    int newCoefficient = (signBit != 0 ? 1 : -1) * (1 << successiveApproxLow);
 
                     while (k <= spectralEnd)
                     {
                         int naturalIndex = JpgZigZag.Table[k];
                         int idx = coefficientBase + naturalIndex;
-
                         if (coefficients[idx] != 0)
                         {
                             int bit = (int)bitReader.ReadBits(1);
@@ -289,15 +281,15 @@ namespace PdfReader.Rendering.Image.Jpg.Decoding
                         }
                         else
                         {
-                            if (r == 0)
+                            if (run == 0)
                             {
-                                coefficients[idx] = newCoeff;
+                                coefficients[idx] = newCoefficient;
                                 k++;
                                 break;
                             }
                             else
                             {
-                                r--;
+                                run--;
                                 k++;
                             }
                         }
@@ -305,12 +297,9 @@ namespace PdfReader.Rendering.Image.Jpg.Decoding
                 }
                 else
                 {
-                    Console.Error.WriteLine($"[PdfReader][JPEG] Progressive: unexpected coefficient size {s} in refinement pass (should be 0 or 1)");
-                    return false;
+                    throw new InvalidOperationException($"Unexpected progressive refinement symbol size {size} (expected 0 or 1).");
                 }
             }
-
-            return true;
         }
     }
 }

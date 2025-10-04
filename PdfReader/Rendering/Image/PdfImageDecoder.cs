@@ -1,4 +1,6 @@
-﻿using PdfReader.Rendering.Color;
+﻿using Microsoft.Extensions.Logging;
+using PdfReader.Rendering.Color;
+using PdfReader.Rendering.Image.Processing;
 using SkiaSharp;
 using System;
 
@@ -6,12 +8,21 @@ namespace PdfReader.Rendering.Image
 {
     public abstract class PdfImageDecoder
     {
-        public PdfImageDecoder(PdfImage image)
+        public PdfImageDecoder(PdfImage image, ILoggerFactory loggerFactory)
         {
             Image = image ?? throw new ArgumentNullException(nameof(image));
+            LoggerFactory = loggerFactory ?? throw new ArgumentNullException(nameof(loggerFactory));
+            Logger = loggerFactory.CreateLogger(GetType());
+            Processor = new PdfImageProcessor(image, loggerFactory);
         }
 
         public PdfImage Image { get; }
+
+        protected ILogger Logger { get; }
+
+        protected ILoggerFactory LoggerFactory { get; }
+
+        protected PdfImageProcessor Processor { get; }
 
         public virtual bool HasDecodeParams => Image.DecodeParms != null && Image.DecodeParms.Count > 0 && (Image.DecodeParms[0].Predictor ?? 1) > 1;
 
@@ -20,36 +31,35 @@ namespace PdfReader.Rendering.Image
         /// Returns null for unsupported encodings.
         /// </summary>
         /// <param name="pdfImage">The image descriptor to decode.</param>
+        /// <param name="loggerFactory">Logger factory instance.</param>
         /// <returns>A concrete <see cref="PdfImageDecoder"/> instance, or null if unsupported.</returns>
-        public static PdfImageDecoder GetDecoder(PdfImage pdfImage)
+        public static PdfImageDecoder GetDecoder(PdfImage pdfImage, ILoggerFactory loggerFactory)
         {
             if (pdfImage == null)
             {
-                Console.Error.WriteLine("PdfImageDecoder.GetDecoder: pdfImage is null. Returning null.");
                 return null;
             }
 
             switch (pdfImage.Type)
             {
                 case PdfImageType.Raw:
-                    return new RawImageDecoder(pdfImage);
+                    return new RawImageDecoder(pdfImage, loggerFactory);
 
                 case PdfImageType.JPEG:
-                    return new JpegImageDecoder(pdfImage);
+                    return new JpegImageDecoder(pdfImage, loggerFactory);
 
                 case PdfImageType.JPEG2000:
-                    Console.Error.WriteLine("PdfImageDecoder.GetDecoder: JPEG2000 not implemented in new pipeline. Returning null.");
+                    // TODO: add JPEG2000 support
                     return null;
 
                 case PdfImageType.CCITT:
-                    return new CcittImageDecoder(pdfImage);
+                    return new CcittImageDecoder(pdfImage, loggerFactory);
 
                 case PdfImageType.JBIG2:
-                    Console.Error.WriteLine("PdfImageDecoder.GetDecoder: JBIG2 not implemented in new pipeline. Returning null.");
+                    // TODO: add JBIG2 support
                     return null;
 
                 default:
-                    Console.Error.WriteLine($"PdfImageDecoder.GetDecoder: Unknown image type {pdfImage.Type}. Returning null.");
                     return null;
             }
         }
@@ -58,42 +68,43 @@ namespace PdfReader.Rendering.Image
 
         /// <summary>
         /// Validate image parameters and return key values needed for processing.
+        /// Logs detailed errors and returns false when validation fails.
         /// </summary>
         protected bool ValidateImageParameters()
         {
-            var width = Image.Width;
-            var height = Image.Height;
-            var bitsPerComponent = Image.BitsPerComponent;
+            int width = Image.Width;
+            int height = Image.Height;
+            int bitsPerComponent = Image.BitsPerComponent;
             var converter = Image.ColorSpaceConverter;
 
             if (width <= 0 || height <= 0 || bitsPerComponent <= 0)
             {
-                Console.Error.WriteLine("RawImageDecoder.Decode: invalid image dimensions or bits per component.");
+                Logger.LogError("Invalid image state: Width={Width}, Height={Height}, BitsPerComponent={BitsPerComponent}.", width, height, bitsPerComponent);
                 return false;
             }
 
             if (converter == null)
             {
-                Console.Error.WriteLine("RawImageDecoder.Decode: missing color space converter.");
+                Logger.LogError("Missing color space converter for image (Name={Name}).", Image.Name);
                 return false;
             }
 
             if (Image.HasImageMask && bitsPerComponent != 1)
             {
-                Console.Error.WriteLine("RawImageDecoder.Decode: /ImageMask must have BitsPerComponent=1.");
+                Logger.LogError("/ImageMask requires BitsPerComponent=1 (actual={BitsPerComponent}).", bitsPerComponent);
                 return false;
             }
 
             if (converter is IndexedConverter && bitsPerComponent == 16)
             {
-                Console.Error.WriteLine("RawImageDecoder.Decode: 16 bpc not allowed for Indexed images.");
+                Logger.LogError("Indexed color space does not support 16 bits per component.");
                 return false;
             }
 
-            if (bitsPerComponent != 1 && bitsPerComponent != 2 && bitsPerComponent != 4 &&
-                bitsPerComponent != 8 && bitsPerComponent != 16)
+            bool supportedDepth = bitsPerComponent == 1 || bitsPerComponent == 2 || bitsPerComponent == 4 || bitsPerComponent == 8 || bitsPerComponent == 16;
+            if (!supportedDepth)
             {
-                Console.Error.WriteLine("RawImageDecoder.Decode: unsupported bitsPerComponent value.");
+                Logger.LogError("Unsupported BitsPerComponent value {BitsPerComponent}.", bitsPerComponent);
                 return false;
             }
 

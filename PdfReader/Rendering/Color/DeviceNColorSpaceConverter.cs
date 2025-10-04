@@ -18,12 +18,13 @@ namespace PdfReader.Rendering.Color
 
         public DeviceNColorSpaceConverter(string[] componentNames, PdfColorSpaceConverter alternate, PdfObject tintFunction)
         {
-            _componentNames = componentNames ?? System.Array.Empty<string>();
+            _componentNames = componentNames ?? Array.Empty<string>();
             _alternate = alternate ?? DeviceRgbConverter.Instance;
             _tintFunction = tintFunction;
         }
 
         public override int Components => _componentNames.Length > 0 ? _componentNames.Length : 1;
+
         public override bool IsDevice => false;
 
         public override SKColor ToSrgb(ReadOnlySpan<float> comps01, PdfRenderingIntent intent)
@@ -36,14 +37,8 @@ namespace PdfReader.Rendering.Color
                     return _alternate.ToSrgb(mapped, intent);
                 }
             }
-            // Fallback heuristic: invert (subtractive-ish) then map.
-            var tmp = new float[_alternate.Components];
-            for (int i = 0; i < tmp.Length; i++)
-            {
-                float src = i < comps01.Length ? comps01[i] : 0f;
-                tmp[i] = 1f - (src < 0f ? 0f : (src > 1f ? 1f : src));
-            }
-            return _alternate.ToSrgb(tmp, intent);
+            // Fallback, tint is not set or not supported.
+            return _alternate.ToSrgb(comps01, intent);
         }
     }
 }

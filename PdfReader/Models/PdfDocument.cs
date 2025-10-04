@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging;
 using PdfReader.Fonts;
 using PdfReader.Rendering;
 using PdfReader.Rendering.Color;
@@ -8,9 +9,9 @@ namespace PdfReader.Models
 {
     public class PdfDocument : IDisposable
     {
-        public PdfDocument()
+        public PdfDocument(ILoggerFactory loggerFactory)
         {
-            PdfRenderer = new PdfRenderer(FontCache);
+            PdfRenderer = new PdfRenderer(FontCache, loggerFactory);
         }
 
         internal Dictionary<PdfReference, PdfFontBase> Fonts { get; } = new Dictionary<PdfReference, PdfFontBase>();

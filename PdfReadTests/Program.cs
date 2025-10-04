@@ -1,4 +1,5 @@
-﻿using PdfReader;
+﻿using Microsoft.Extensions.Logging;
+using PdfReader;
 using PdfReader.Models;
 using SkiaSharp;
 
@@ -6,6 +7,8 @@ namespace PdfReadTests
 {
     class Program
     {
+        private static readonly ILoggerFactory LoggerFactoryInstance = LoggerFactory.Create(builder => builder.AddConsole());
+        private static readonly ILogger Logger = LoggerFactoryInstance.CreateLogger<Program>();
         public static int ToDecimal(string octal)
         {
             if (string.IsNullOrWhiteSpace(octal))
@@ -67,9 +70,9 @@ namespace PdfReadTests
             int? test = null;
             string rest = test.ToString();
 
-            Console.WriteLine("PDF Direct Rendering Library");
-            Console.WriteLine("===========================");
-            Console.WriteLine();
+            Logger.LogInformation("PDF Direct Rendering Library");
+            Logger.LogInformation("===========================");
+            Logger.LogInformation(string.Empty);
 
             // Test with some sample PDFs
             string[] testFiles = {
@@ -77,7 +80,7 @@ namespace PdfReadTests
                 //"pdfs//asciihexdecode.pdf",
                 //"pdfs//complex_ttf_font.pdf",
                 //"pdfs//icc-lab-8bit.pdf",
-                "pdfs//devicen.pdf",
+                //"pdfs//devicen.pdf",
                 //"pdfs//icc-xyz.pdf",
                 //"pdfs//icc-lab4.pdf",
                 //"pdfs//icc-lab2.pdf",
@@ -94,8 +97,7 @@ namespace PdfReadTests
                 //"pdfs//tiling-pattern-box.pdf",
                 //"pdfs//gradientfill.pdf",
                 //@"document - Copy.pdf",
-                //@"documentEdD.pdf",
-                //@"documentS.pdf",
+                @"documentS.pdf",
                 //@"documentC.pdf",
                 //"pdfs//ccitt_EndOfBlock_false.pdf",
                 //"pdfs//images_1bit_grayscale.pdf",
@@ -112,13 +114,14 @@ namespace PdfReadTests
 
         static async Task TestPdfFile(string filename)
         {
-            Console.WriteLine($"Testing file: {filename}");
-            Console.WriteLine(new string('=', 50));
+            await Task.Yield();
+            Logger.LogInformation("Testing file: {File}", filename);
+            Logger.LogInformation(new string('=', 50));
 
             if (!File.Exists(filename))
             {
-                Console.WriteLine($"File not found: {filename}");
-                Console.WriteLine();
+                Logger.LogWarning("File not found: {File}", filename);
+                Logger.LogInformation(string.Empty);
                 return;
             }
 
@@ -126,14 +129,15 @@ namespace PdfReadTests
             {
                 using (var stream = File.OpenRead(filename))
                 {
-                    using var document = PdfDocumentReader.Read(stream);
+                    var reader = new PdfDocumentReader(new LoggerFactory());
+                    using var document = reader.Read(stream);
 
-                    Console.WriteLine($"Successfully read PDF: {filename}");
-                    Console.WriteLine($"Total objects: {document.Objects.Count}");
-                    Console.WriteLine($"Total pages: {document.PageCount}");
-                    Console.WriteLine($"Actual pages found: {document.Pages.Count}");
-                    Console.WriteLine($"Root object: {document.RootRef}");
-                    Console.WriteLine();
+                    Logger.LogInformation("Successfully read PDF: {File}", filename);
+                    Logger.LogInformation("Total objects: {Count}", document.Objects.Count);
+                    Logger.LogInformation("Total pages: {Count}", document.PageCount);
+                    Logger.LogInformation("Actual pages found: {Count}", document.Pages.Count);
+                    Logger.LogInformation("Root object: {Root}", document.RootRef);
+                    Logger.LogInformation(string.Empty);
 
                     var start = 0;
                     var max = 200;
@@ -145,7 +149,7 @@ namespace PdfReadTests
                     for (int i = start; i < Math.Min(max, document.PageCount); i++)
                     {
                         var page = document.Pages[i];
-                        Console.WriteLine($"Page {page.PageNumber}:");
+                        Logger.LogInformation("Page {PageNumber}:", page.PageNumber);
 
                         // Demonstrate rendering to a bitmap
                         try
@@ -169,7 +173,7 @@ namespace PdfReadTests
                                 // Render the page (this will show transformation debug info)
                                 page.Draw(canvas);
 
-                                Console.WriteLine($"  === PAGE RENDERING COMPLETE ===");
+                                Logger.LogInformation("  === PAGE RENDERING COMPLETE ===");
 
                                 var basePath = Path.Combine(Path.GetDirectoryName(filename), "Test");
                                 var name = Path.GetFileNameWithoutExtension(filename);
@@ -213,21 +217,20 @@ namespace PdfReadTests
                         }
                         catch (Exception ex)
                         {
-                            Console.WriteLine($"    Rendering error: {ex.Message}");
-                            Console.WriteLine($"    Stack trace: {ex.StackTrace}");
+                            Logger.LogError(ex, "    Rendering error on page {PageNumber}.", page.PageNumber);
                         }
 
-                        Console.WriteLine();
+                        Logger.LogInformation(string.Empty);
                     }
                 }
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error reading PDF: {ex.Message}");
-                Console.WriteLine($"Stack trace: {ex.StackTrace}");
+                Logger.LogError(ex, "Error reading PDF: {File}", filename);
+                Logger.LogError(ex, "Stack trace logged");
             }
 
-            Console.WriteLine();
+            Logger.LogInformation(string.Empty);
         }
 
         private static SKPicture CreateRecording(PdfPage pdfPage, float scaleFactor)

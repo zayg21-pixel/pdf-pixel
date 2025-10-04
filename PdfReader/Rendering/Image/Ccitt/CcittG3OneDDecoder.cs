@@ -10,10 +10,9 @@ namespace PdfReader.Rendering.Image.Ccitt
     /// </summary>
     internal static class CcittG3OneDDecoder
     {
-        public static byte[] Decode(ReadOnlySpan<byte> data, int width, int height, bool blackIs1, bool endOfLine, bool byteAlign)
+        public static void Decode(ReadOnlySpan<byte> data, Span<byte> buffer, int width, int height, bool blackIs1, bool endOfLine, bool byteAlign)
         {
             var reader = new CcittBitReader(data);
-            byte[] buffer = CcittRaster.CreateBuffer(width, height, blackIs1);
             var runs = new List<int>(256);
 
             for (int rowIndex = 0; rowIndex < height; rowIndex++)
@@ -28,8 +27,6 @@ namespace PdfReader.Rendering.Image.Ccitt
                 CcittRaster.ValidateRunLengths(runs, width, rowIndex, "CCITT G3 1D");
                 CcittRaster.RasterizeRuns(buffer, runs, rowIndex, width, blackIs1);
             }
-
-            return buffer;
         }
 
         internal static void DecodeOneDCollectRuns(
@@ -41,7 +38,7 @@ namespace PdfReader.Rendering.Image.Ccitt
         {
             if (runs == null)
             {
-                throw new System.ArgumentNullException(nameof(runs));
+                throw new ArgumentNullException(nameof(runs));
             }
 
             runs.Clear();
@@ -50,7 +47,7 @@ namespace PdfReader.Rendering.Image.Ccitt
             {
                 if (!reader.TryConsumeEol())
                 {
-                    throw new System.InvalidOperationException("CCITT G3 1D decode error: missing required leading EOL.");
+                    throw new InvalidOperationException("CCITT G3 1D decode error: missing required leading EOL.");
                 }
                 if (byteAlign)
                 {
@@ -67,19 +64,19 @@ namespace PdfReader.Rendering.Image.Ccitt
                 var result = CcittRunDecoder.DecodeRun(ref reader, currentIsBlack);
                 if (result.Length < 0)
                 {
-                    throw new System.InvalidOperationException("CCITT G3 1D decode error: invalid code at x=" + xPosition + ".");
+                    throw new InvalidOperationException("CCITT G3 1D decode error: invalid code at x=" + xPosition + ".");
                 }
                 if (result.IsEndOfLine)
                 {
                     if (xPosition != width)
                     {
-                        throw new System.InvalidOperationException("CCITT G3 1D decode error: premature EOL at x=" + xPosition + ".");
+                        throw new InvalidOperationException("CCITT G3 1D decode error: premature EOL at x=" + xPosition + ".");
                     }
                     break;
                 }
                 if (!result.HasTerminating)
                 {
-                    throw new System.InvalidOperationException("CCITT G3 1D decode error: missing terminating code at x=" + xPosition + ".");
+                    throw new InvalidOperationException("CCITT G3 1D decode error: missing terminating code at x=" + xPosition + ".");
                 }
 
                 int runLength = result.Length;
@@ -92,11 +89,11 @@ namespace PdfReader.Rendering.Image.Ccitt
                         leadingZeroAllowed = false;
                         continue;
                     }
-                    throw new System.InvalidOperationException("CCITT G3 1D decode error: zero-length run encountered mid line at x=" + xPosition + ".");
+                    throw new InvalidOperationException("CCITT G3 1D decode error: zero-length run encountered mid line at x=" + xPosition + ".");
                 }
                 if (runLength > width - xPosition)
                 {
-                    throw new System.InvalidOperationException("CCITT G3 1D decode error: run overruns line (run=" + runLength + ", x=" + xPosition + ").");
+                    throw new InvalidOperationException("CCITT G3 1D decode error: run overruns line (run=" + runLength + ", x=" + xPosition + ").");
                 }
 
                 runs.Add(runLength);
@@ -106,7 +103,7 @@ namespace PdfReader.Rendering.Image.Ccitt
 
             if (xPosition != width)
             {
-                throw new System.InvalidOperationException("CCITT G3 1D decode error: line incomplete (x=" + xPosition + ").");
+                throw new InvalidOperationException("CCITT G3 1D decode error: line incomplete (x=" + xPosition + ").");
             }
         }
     }

@@ -11,9 +11,8 @@ using PdfReader.Rendering.Image.Ccitt;
 namespace PdfReader.Tests
 {
     /// <summary>
-    /// Tests for CCITT Group 3 mixed 1D/2D decoder.
-    /// Verifies correct decoding by comparing decoded results pixel-by-pixel with reference PNG images.
-    /// Also includes LibTiff comparison to debug decoder differences.
+    /// Tests for CCITT Group 3 mixed 1D/2D decoder (K parameter variant).
+    /// Verifies decoded result against reference PNG via pixel comparison.
     /// </summary>
     public class CcittG32DTests
     {
@@ -41,122 +40,57 @@ namespace PdfReader.Tests
             byteAlign = false
         };
 
-        /// <summary>
-        /// Test decoding of first test file with specified parameters.
-        /// Compares decoded result pixel-by-pixel with reference PNG image.
-        /// </summary>
         [Fact]
         public void DecodeTestFile1_ShouldMatchReferencePng()
         {
             // Arrange
             var testData = testFile1;
             var encodedBytes = HexStringToBytes(testData.hexData);
-            
+
             // Act
-            var decodedRgba = CcittG32DDecoder.Decode(encodedBytes, testData.width, testData.height, 
-                testData.isBlackLs, testData.k, testData.endOfLine, testData.byteAlign);
-            
+            var packed = DecodeToPackedG32D(encodedBytes, testData.width, testData.height, testData.isBlackLs, testData.k, testData.endOfLine, testData.byteAlign);
+            var decodedRgba = ExpandPackedToRgba(packed, testData.width, testData.height, testData.isBlackLs);
+
             // Assert
             Assert.NotNull(decodedRgba);
             Assert.Equal(testData.width * testData.height * 4, decodedRgba.Length);
-            
+
             // Load reference PNG and compare pixel by pixel
             var referencePath = GetTestImagePath(testData.fileName);
             using var referenceBitmap = LoadPngImage(referencePath);
             ComparePixelByPixel(decodedRgba, referenceBitmap, testData.width, testData.height, testData.fileName);
         }
 
-        /// <summary>
-        /// Save RGBA byte array as PNG file for visual inspection.
-        /// </summary>
-        private static void SaveRgbaAsPng(byte[] rgbaData, int width, int height, string filename)
+        private static byte[] DecodeToPackedG32D(ReadOnlySpan<byte> encoded, int width, int height, bool blackIs1, int k, bool endOfLine, bool byteAlign)
         {
-            try
-            {
-                var currentDirectory = Directory.GetCurrentDirectory();
-                var outputPath = Path.Combine(currentDirectory, filename);
-                
-                using var bitmap = new SKBitmap(width, height, SKColorType.Rgba8888, SKAlphaType.Unpremul);
-                
-                // Copy RGBA data to SKBitmap
-                unsafe
-                {
-                    var pixels = (byte*)bitmap.GetPixels();
-                    for (int i = 0; i < rgbaData.Length; i++)
-                    {
-                        pixels[i] = rgbaData[i];
-                    }
-                }
-                
-                using var image = SKImage.FromBitmap(bitmap);
-                using var data = image.Encode(SKEncodedImageFormat.Png, 100);
-                using var stream = File.OpenWrite(outputPath);
-                data.SaveTo(stream);
-                
-                Console.WriteLine($"LibTiff decoded result saved as: {outputPath}");
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Failed to save LibTiff result as PNG: {ex.Message}");
-            }
+            int rowBytes = (width + 7) / 8;
+            byte[] packed = new byte[rowBytes * height];
+            CcittG32DDecoder.Decode(encoded, packed.AsSpan(), width, height, blackIs1, k, endOfLine, byteAlign);
+            return packed;
         }
 
-        /// <summary>
-        /// Compare two decoded RGBA buffers pixel by pixel.
-        /// </summary>
-        private static void CompareDecodedResults(byte[] ourResult, byte[] referenceResult, int width, int height, string referenceName)
+        private static byte[] ExpandPackedToRgba(byte[] packed, int width, int height, bool blackIs1)
         {
-            int mismatchCount = 0;
-            const int maxMismatchesToReport = 10;
-            var mismatchDetails = new List<string>();
-
-            for (int y = 0; y < height; y++)
+            byte[] rgba = new byte[width * height * 4];
+            int rowBytes = (width + 7) / 8;
+            int rgbaIndex = 0;
+            for (int rowIndex = 0; rowIndex < height; rowIndex++)
             {
-                for (int x = 0; x < width; x++)
+                int rowOffset = rowIndex * rowBytes;
+                for (int columnIndex = 0; columnIndex < width; columnIndex++)
                 {
-                    // Get our decoded pixel (RGBA format)
-                    int ourOffset = (y * width + x) * 4;
-                    var ourR = ourResult[ourOffset];
-                    var ourG = ourResult[ourOffset + 1];
-                    var ourB = ourResult[ourOffset + 2];
-                    var ourA = ourResult[ourOffset + 3];
-
-                    // Get reference decoded pixel (RGBA format)
-                    int refOffset = (y * width + x) * 4;
-                    var refR = referenceResult[refOffset];
-                    var refG = referenceResult[refOffset + 1];
-                    var refB = referenceResult[refOffset + 2];
-                    var refA = referenceResult[refOffset + 3];
-                    
-                    // Compare RGB values (ignore slight alpha differences)
-                    if (ourR != refR || ourG != refG || ourB != refB)
-                    {
-                        mismatchCount++;
-                        
-                        if (mismatchDetails.Count < maxMismatchesToReport)
-                        {
-                            mismatchDetails.Add(
-                                $"Pixel ({x},{y}): our=RGB({ourR},{ourG},{ourB},A:{ourA}) " +
-                                $"vs {referenceName}=RGB({refR},{refG},{refB},A:{refA})");
-                        }
-                    }
+                    int byteIndex = rowOffset + (columnIndex >> 3);
+                    int bitIndex = 7 - (columnIndex & 7);
+                    int bit = (packed[byteIndex] >> bitIndex) & 1;
+                    bool isBlack = bit == (blackIs1 ? 1 : 0);
+                    byte value = isBlack ? (byte)0 : (byte)255;
+                    rgba[rgbaIndex++] = value;
+                    rgba[rgbaIndex++] = value;
+                    rgba[rgbaIndex++] = value;
+                    rgba[rgbaIndex++] = 255;
                 }
             }
-
-            if (mismatchCount > 0)
-            {
-                var errorMessage = $"Decoder comparison failed against {referenceName}. " +
-                                 $"Total mismatches: {mismatchCount} out of {width * height} pixels.\n" +
-                                 $"First {Math.Min(mismatchCount, maxMismatchesToReport)} mismatches:\n" +
-                                 string.Join("\n", mismatchDetails);
-                
-                if (mismatchCount > maxMismatchesToReport)
-                {
-                    errorMessage += $"\n... and {mismatchCount - maxMismatchesToReport} more mismatches.";
-                }
-                
-                Assert.True(false, errorMessage);
-            }
+            return rgba;
         }
 
         /// <summary>
@@ -229,31 +163,26 @@ namespace PdfReader.Tests
             const int maxMismatchesToReport = 10;
             var mismatchDetails = new List<string>();
 
-            for (int y = 0; y < height; y++)
+            for (int rowIndex = 0; rowIndex < height; rowIndex++)
             {
-                for (int x = 0; x < width; x++)
+                for (int columnIndex = 0; columnIndex < width; columnIndex++)
                 {
-                    // Get decoded pixel (RGBA format)
-                    int decodedOffset = (y * width + x) * 4;
-                    var decodedR = decodedRgba[decodedOffset];
-                    var decodedG = decodedRgba[decodedOffset + 1];
-                    var decodedB = decodedRgba[decodedOffset + 2];
-                    var decodedA = decodedRgba[decodedOffset + 3];
+                    int decodedOffset = (rowIndex * width + columnIndex) * 4;
+                    byte decodedR = decodedRgba[decodedOffset];
+                    byte decodedG = decodedRgba[decodedOffset + 1];
+                    byte decodedB = decodedRgba[decodedOffset + 2];
+                    byte decodedA = decodedRgba[decodedOffset + 3];
 
-                    // Get reference pixel
-                    var referencePixel = referenceBitmap.GetPixel(x, y);
-                    
+                    var referencePixel = referenceBitmap.GetPixel(columnIndex, rowIndex);
+
                     // Compare RGB values (ignore slight alpha differences)
-                    if (decodedR != referencePixel.Red || 
-                        decodedG != referencePixel.Green || 
-                        decodedB != referencePixel.Blue)
+                    if (decodedR != referencePixel.Red || decodedG != referencePixel.Green || decodedB != referencePixel.Blue)
                     {
                         mismatchCount++;
-                        
                         if (mismatchDetails.Count < maxMismatchesToReport)
                         {
                             mismatchDetails.Add(
-                                $"Pixel ({x},{y}): decoded=RGB({decodedR},{decodedG},{decodedB},A:{decodedA}) " +
+                                $"Pixel ({columnIndex},{rowIndex}): decoded=RGB({decodedR},{decodedG},{decodedB},A:{decodedA}) " +
                                 $"vs reference=RGB({referencePixel.Red},{referencePixel.Green},{referencePixel.Blue},A:{referencePixel.Alpha})");
                         }
                     }
@@ -262,16 +191,12 @@ namespace PdfReader.Tests
 
             if (mismatchCount > 0)
             {
-                var errorMessage = $"Pixel comparison failed for {testFileName}. " +
-                                 $"Total mismatches: {mismatchCount} out of {width * height} pixels.\n" +
-                                 $"First {Math.Min(mismatchCount, maxMismatchesToReport)} mismatches:\n" +
-                                 string.Join("\n", mismatchDetails);
-                
+                string errorMessage = $"Pixel comparison failed for {testFileName}. Total mismatches: {mismatchCount} out of {width * height} pixels.\n" +
+                    $"First {Math.Min(mismatchCount, maxMismatchesToReport)} mismatches:\n" + string.Join("\n", mismatchDetails);
                 if (mismatchCount > maxMismatchesToReport)
                 {
                     errorMessage += $"\n... and {mismatchCount - maxMismatchesToReport} more mismatches.";
                 }
-                
                 Assert.True(false, errorMessage);
             }
         }

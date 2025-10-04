@@ -1,7 +1,6 @@
 using System;
 using System.IO;
 using System.Collections.Generic;
-using PdfReader.Rendering.Color;
 using PdfReader.Rendering.Image.Jpg.Huffman;
 using PdfReader.Rendering.Image.Jpg.Idct;
 using PdfReader.Rendering.Image.Jpg.Model;
@@ -13,52 +12,50 @@ using PdfReader.Streams;
 namespace PdfReader.Rendering.Image.Jpg.Decoding
 {
     /// <summary>
-    /// Progressive JPEG decoder that exposes decoded sample bytes as a forward-only, non-seekable stream.
-    /// Output pixel format is raw interleaved component bytes (Gray = 1, YCbCr/RGB = 3 after conversion, CMYK/YCCK = 4).
-    /// Color space conversion for YCbCr -> RGB and YCCK -> CMYK happens inside the MCU writers; grayscale and CMYK remain raw.
-    /// The stream produces one MCU-row band at a time to minimize working memory.
+    /// Progressive JPEG decoder presented as a forward-only stream that yields interleaved component bytes
+    /// (Gray=1, RGB=3, CMYK=4) one MCU-row band at a time. All progressive scans are first decoded into
+    /// coefficient buffers (natural order) and IDCT is performed lazily while producing bands.
     /// </summary>
     internal sealed class JpgProgressiveStream : ContentStream
     {
         private const int DctBlockSize = 64;
 
         private readonly JpgHeader _header;
-        private readonly PdfColorSpaceConverter _colorConverter;
         private readonly ReadOnlyMemory<byte> _entropyMemory;
 
-        // Sampling / MCU geometry
+        // Maximum sampling factors across components (MCU geometry)
         private readonly int _hMax;
         private readonly int _vMax;
+
         public int McuWidth { get; }
         public int McuHeight { get; }
 
         private bool _decoderInitialized;
 
-        // Coefficient buffers for the whole image (natural order, per block)
+        /// <summary>
+        /// Coefficient buffers for a single component (entire image) in natural order per block.
+        /// </summary>
         private struct CoeffBuffers
         {
-            public int BlocksX;
-            public int BlocksY;
-            public int[] Coeffs; // length = BlocksX * BlocksY * 64
+            public int BlocksX;            // Number of horizontal blocks for the component
+            public int BlocksY;            // Number of vertical blocks for the component
+            public int[] Coeffs;           // Length = BlocksX * BlocksY * 64 (natural order blocks)
         }
 
-        private SamplingInfo _samplingInfo;
         private CoeffBuffers[] _coeffBuffers;
-
         private JpgQuantizationManager _quantizationManager;
         private Idct.ScaledIdctPlan[] _scaledPlans;
 
-        // Per-MCU reusable buffers for rendering
+        // Per-block temporary buffers
         private readonly int[] _blockNatural = new int[DctBlockSize];
-        private readonly byte[] _idctTemp = new byte[DctBlockSize];
         private readonly int[] _idctWorkspace = new int[DctBlockSize];
 
-        // Per-component MCU tiles (reused for writing one MCU to band)
+        // Per-component MCU tiles (byte samples after IDCT)
         private byte[][] _componentTiles;
         private int[] _tileWidths;
         private int[] _tileHeights;
 
-        // Output band buffer for one MCU row (reused)
+        // Output band buffer for one MCU row
         private byte[] _bandBuffer;
         private int _mcuColumns;
         private int _mcuRows;
@@ -67,70 +64,60 @@ namespace PdfReader.Rendering.Image.Jpg.Decoding
         private int _bandConsumed;
 
         private IMcuWriter _mcuWriter;
+        private long _outputBytePosition;
 
         public int Width => _header.Width;
         public int Height => _header.Height;
+        public int CurrentMcuRow { get; private set; }
 
         /// <summary>
-        /// Output stride in bytes for one row = Width * componentCount (1, 3 or 4).
+        /// Output stride = Width * componentCount.
         /// </summary>
         public int OutputStride => checked(Width * _header.ComponentCount);
 
         public override bool CanRead => true;
         public override bool CanSeek => false;
         public override bool CanWrite => false;
+        public override long Length => throw new NotSupportedException("Length is not supported.");
 
-        public override long Length
-        {
-            get { throw new NotSupportedException("Length is not supported."); }
-        }
-
-        private long _outputBytePosition;
         public override long Position
         {
             get { return _outputBytePosition; }
             set { throw new NotSupportedException("Seeking is not supported."); }
         }
 
-        public int CurrentMcuRow { get; private set; }
-
-        public JpgProgressiveStream(JpgHeader header, ReadOnlyMemory<byte> entropyData, PdfColorSpaceConverter colorConverter)
+        public JpgProgressiveStream(JpgHeader header, ReadOnlyMemory<byte> entropyData)
         {
             if (header == null)
             {
                 throw new ArgumentNullException(nameof(header));
             }
-
-            if (colorConverter == null)
-            {
-                throw new ArgumentNullException(nameof(colorConverter));
-            }
-
             if (!header.IsProgressive)
             {
                 throw new NotSupportedException("JpgProgressiveStream supports progressive JPEG only.");
             }
+            if (header.ComponentCount <= 0 || header.Components == null || header.Components.Count != header.ComponentCount)
+            {
+                throw new ArgumentException("Invalid header components.", nameof(header));
+            }
 
             _header = header;
-            _colorConverter = colorConverter;
             _entropyMemory = entropyData;
 
             int localHMax = 1;
             int localVMax = 1;
-            for (int i = 0; i < header.Components.Count; i++)
+            for (int componentIndex = 0; componentIndex < header.Components.Count; componentIndex++)
             {
-                var c = header.Components[i];
-                if (c.HorizontalSamplingFactor > localHMax)
+                var component = header.Components[componentIndex];
+                if (component.HorizontalSamplingFactor > localHMax)
                 {
-                    localHMax = c.HorizontalSamplingFactor;
+                    localHMax = component.HorizontalSamplingFactor;
                 }
-
-                if (c.VerticalSamplingFactor > localVMax)
+                if (component.VerticalSamplingFactor > localVMax)
                 {
-                    localVMax = c.VerticalSamplingFactor;
+                    localVMax = component.VerticalSamplingFactor;
                 }
             }
-
             _hMax = Math.Max(1, localHMax);
             _vMax = Math.Max(1, localVMax);
 
@@ -152,10 +139,10 @@ namespace PdfReader.Rendering.Image.Jpg.Decoding
             EnsureDecoderInitialized();
 
             int totalCopied = 0;
-            int offset = 0;
-            int count = buffer.Length;
+            int writeOffset = 0;
+            int remainingRequest = buffer.Length;
 
-            while (count > 0)
+            while (remainingRequest > 0)
             {
                 if (_bandBuffer == null || _bandConsumed >= _bandProduced)
                 {
@@ -163,17 +150,16 @@ namespace PdfReader.Rendering.Image.Jpg.Decoding
                     {
                         break; // EOF
                     }
-
                     ProduceNextBand();
                 }
 
                 int available = _bandProduced - _bandConsumed;
-                int toCopy = available < count ? available : count;
-                _bandBuffer.AsSpan(_bandConsumed, toCopy).CopyTo(buffer.Slice(offset, toCopy));
+                int toCopy = available < remainingRequest ? available : remainingRequest;
+                _bandBuffer.AsSpan(_bandConsumed, toCopy).CopyTo(buffer.Slice(writeOffset, toCopy));
 
                 _bandConsumed += toCopy;
-                offset += toCopy;
-                count -= toCopy;
+                writeOffset += toCopy;
+                remainingRequest -= toCopy;
                 totalCopied += toCopy;
                 _outputBytePosition += toCopy;
             }
@@ -200,72 +186,56 @@ namespace PdfReader.Rendering.Image.Jpg.Decoding
         {
         }
 
+        /// <summary>
+        /// Perform one-time decoding of all scans and allocate working buffers.
+        /// </summary>
         private void EnsureDecoderInitialized()
         {
             if (_decoderInitialized)
             {
                 return;
             }
-
             if (_header.SamplePrecision != 8)
             {
                 throw new NotSupportedException("Only 8-bit progressive JPEG is supported.");
             }
-
-            if (_header.ComponentCount <= 0 || _header.Components == null || _header.Components.Count != _header.ComponentCount)
+            if (_header.Scans == null || _header.Scans.Count == 0)
             {
-                throw new ArgumentException("Invalid header components.", nameof(_header));
+                throw new NotSupportedException("No progressive scans (SOS) found in header.");
             }
 
-            // Prepare sampling and MCU geometry
-            _samplingInfo = JpgComponentSampler.CalculateSamplingInfo(_header);
-            var dims = JpgComponentSampler.CalculateMcuDimensions(_header, _samplingInfo);
-            _mcuColumns = dims.mcuColumns;
-            _mcuRows = dims.mcuRows;
+            _mcuColumns = (Width + McuWidth - 1) / McuWidth;
+            _mcuRows = (Height + McuHeight - 1) / McuHeight;
 
-            // Initialize coefficient buffers for whole image (natural order)
-            _coeffBuffers = InitializeCoefficientBuffers(_samplingInfo);
+            _coeffBuffers = InitializeCoefficientBuffers(_header, _mcuColumns, _mcuRows);
+            ProcessProgressiveScans(_header, _entropyMemory.Span, _coeffBuffers, _mcuColumns, _mcuRows);
 
-            // Decode all progressive scans into coefficient buffers (no plane allocation)
-            if (!ProcessProgressiveScans(_header, _entropyMemory.Span, _samplingInfo, _coeffBuffers))
-            {
-                throw new InvalidOperationException("Failed to decode progressive scans.");
-            }
-
-            // Prepare quantization manager
             _quantizationManager = JpgQuantizationManager.CreateFromHeader(_header);
             for (int componentIndex = 0; componentIndex < _header.Components.Count; componentIndex++)
             {
                 int qid = _header.Components[componentIndex].QuantizationTableId;
-                if (!_quantizationManager.ValidateTableExists(qid, componentIndex))
-                {
-                    throw new InvalidOperationException($"Quantization table {qid} missing for component {componentIndex}.");
-                }
+                _quantizationManager.ValidateTableExists(qid, componentIndex);
             }
 
-            // Prepare per-component tiles reused per MCU rendering
-            int compCount = _header.ComponentCount;
-            _componentTiles = new byte[compCount][];
-            _tileWidths = new int[compCount];
-            _tileHeights = new int[compCount];
-            for (int ci = 0; ci < compCount; ci++)
+            int componentCount = _header.ComponentCount;
+            _componentTiles = new byte[componentCount][];
+            _tileWidths = new int[componentCount];
+            _tileHeights = new int[componentCount];
+            for (int componentIndex = 0; componentIndex < componentCount; componentIndex++)
             {
-                int h = _header.Components[ci].HorizontalSamplingFactor;
-                int v = _header.Components[ci].VerticalSamplingFactor;
-                int tw = 8 * h;
-                int th = 8 * v;
-                _tileWidths[ci] = tw;
-                _tileHeights[ci] = th;
-                _componentTiles[ci] = new byte[tw * th];
+                var component = _header.Components[componentIndex];
+                int tileWidth = 8 * component.HorizontalSamplingFactor;
+                int tileHeight = 8 * component.VerticalSamplingFactor;
+                _tileWidths[componentIndex] = tileWidth;
+                _tileHeights[componentIndex] = tileHeight;
+                _componentTiles[componentIndex] = new byte[tileWidth * tileHeight];
             }
 
-            // Allocate band buffer for one MCU row (RGBA). No clearing; we fully overwrite valid pixel region.
             _bandHeight = McuHeight;
             _bandBuffer = new byte[_bandHeight * OutputStride];
             _bandProduced = 0;
             _bandConsumed = 0;
 
-            // Create MCU writer based on color mode
             _mcuWriter = McuWriterFactory.Create(
                 _header,
                 _componentTiles,
@@ -277,23 +247,24 @@ namespace PdfReader.Rendering.Image.Jpg.Decoding
                 Width,
                 OutputStride);
 
-            // Precompute scaled IDCT plans per component
             _scaledPlans = new Idct.ScaledIdctPlan[_header.ComponentCount];
-            for (int ci = 0; ci < _header.ComponentCount; ci++)
+            for (int componentIndex = 0; componentIndex < _header.ComponentCount; componentIndex++)
             {
-                int qid = _header.Components[ci].QuantizationTableId;
-                _scaledPlans[ci] = _quantizationManager.CreateScaledIdctPlan(qid);
+                int qid = _header.Components[componentIndex].QuantizationTableId;
+                _scaledPlans[componentIndex] = _quantizationManager.CreateScaledIdctPlan(qid);
             }
 
             _decoderInitialized = true;
         }
 
+        /// <summary>
+        /// Build tiles for one MCU row and write them into the output band buffer.
+        /// </summary>
         private void ProduceNextBand()
         {
             int yBase = CurrentMcuRow * McuHeight;
             int rowsRemaining = Height - yBase;
             int bandRows = rowsRemaining < McuHeight ? rowsRemaining : McuHeight;
-
             if (bandRows <= 0)
             {
                 _bandProduced = 0;
@@ -301,55 +272,48 @@ namespace PdfReader.Rendering.Image.Jpg.Decoding
                 return;
             }
 
-            // No Array.Clear: writer fills all pixels up to image width for each output row.
-
-            for (int mcuCol = 0; mcuCol < _mcuColumns; mcuCol++)
+            for (int mcuColumnIndex = 0; mcuColumnIndex < _mcuColumns; mcuColumnIndex++)
             {
-                // For each component, build its MCU tile from coefficient buffers
-                for (int ci = 0; ci < _header.ComponentCount; ci++)
+                for (int componentIndex = 0; componentIndex < _header.ComponentCount; componentIndex++)
                 {
-                    var comp = _header.Components[ci];
-                    int hs = comp.HorizontalSamplingFactor;
-                    int vs = comp.VerticalSamplingFactor;
-                    int tileWidth = _tileWidths[ci];
-                    byte[] tile = _componentTiles[ci];
-                    var cb = _coeffBuffers[ci];
+                    var component = _header.Components[componentIndex];
+                    int hFactor = component.HorizontalSamplingFactor;
+                    int vFactor = component.VerticalSamplingFactor;
+                    int tileWidth = _tileWidths[componentIndex];
+                    byte[] tile = _componentTiles[componentIndex];
+                    var buffer = _coeffBuffers[componentIndex];
 
-                    for (int by = 0; by < vs; by++)
+                    for (int vBlock = 0; vBlock < vFactor; vBlock++)
                     {
-                        int blockY = CurrentMcuRow * vs + by;
-                        if (blockY >= cb.BlocksY)
+                        int blockY = CurrentMcuRow * vFactor + vBlock;
+                        if (blockY >= buffer.BlocksY)
                         {
                             continue;
                         }
-
-                        for (int bx = 0; bx < hs; bx++)
+                        for (int hBlock = 0; hBlock < hFactor; hBlock++)
                         {
-                            int blockX = mcuCol * hs + bx;
-                            if (blockX >= cb.BlocksX)
+                            int blockX = mcuColumnIndex * hFactor + hBlock;
+                            if (blockX >= buffer.BlocksX)
                             {
                                 continue;
                             }
 
-                            int coeffBase = (blockY * cb.BlocksX + blockX) * DctBlockSize;
-
-                            // Load natural-order coefficients for this block
-                            for (int i = 0; i < DctBlockSize; i++)
+                            int coeffBase = (blockY * buffer.BlocksX + blockX) * DctBlockSize;
+                            for (int coefficientIndex = 0; coefficientIndex < DctBlockSize; coefficientIndex++)
                             {
-                                _blockNatural[i] = cb.Coeffs[coeffBase + i];
+                                _blockNatural[coefficientIndex] = buffer.Coeffs[coeffBase + coefficientIndex];
                             }
 
-                            // Dequantize and IDCT using precomputed plan (guaranteed non-null after validation)
-                            var plan = _scaledPlans[ci];
-                            int dstY0 = by * 8;
-                            int dstX0 = bx * 8;
-                            int dstOff = dstY0 * tileWidth + dstX0;
-                            JpgIdct.TransformScaledNatural(_blockNatural, plan, tile.AsSpan(dstOff), tileWidth, _idctWorkspace);
+                            var plan = _scaledPlans[componentIndex];
+                            int dstY0 = vBlock * 8;
+                            int dstX0 = hBlock * 8;
+                            int dstOffset = dstY0 * tileWidth + dstX0;
+                            JpgIdct.TransformScaledNatural(_blockNatural, plan, tile.AsSpan(dstOffset), tileWidth, _idctWorkspace);
                         }
                     }
                 }
 
-                int xBase = mcuCol * McuWidth;
+                int xBase = mcuColumnIndex * McuWidth;
                 _mcuWriter.WriteToBuffer(_bandBuffer, xBase, bandRows);
             }
 
@@ -359,355 +323,299 @@ namespace PdfReader.Rendering.Image.Jpg.Decoding
             CurrentMcuRow++;
         }
 
-        private static CoeffBuffers[] InitializeCoefficientBuffers(SamplingInfo samplingInfo)
+        /// <summary>
+        /// Allocate coefficient buffers for each component based on MCU geometry and sampling factors.
+        /// </summary>
+        private static CoeffBuffers[] InitializeCoefficientBuffers(JpgHeader header, int mcuColumns, int mcuRows)
         {
-            int componentCount = samplingInfo.ComponentWidths.Length;
-            var coeffBuffers = new CoeffBuffers[componentCount];
-
+            int componentCount = header.ComponentCount;
+            var buffers = new CoeffBuffers[componentCount];
             for (int componentIndex = 0; componentIndex < componentCount; componentIndex++)
             {
-                coeffBuffers[componentIndex].BlocksX = samplingInfo.ComponentBlocksX[componentIndex];
-                coeffBuffers[componentIndex].BlocksY = samplingInfo.ComponentBlocksY[componentIndex];
-                coeffBuffers[componentIndex].Coeffs = new int[
-                    samplingInfo.ComponentBlocksX[componentIndex] *
-                    samplingInfo.ComponentBlocksY[componentIndex] *
-                    DctBlockSize];
+                var component = header.Components[componentIndex];
+                int blocksX = mcuColumns * component.HorizontalSamplingFactor;
+                int blocksY = mcuRows * component.VerticalSamplingFactor;
+                buffers[componentIndex].BlocksX = blocksX;
+                buffers[componentIndex].BlocksY = blocksY;
+                buffers[componentIndex].Coeffs = new int[blocksX * blocksY * DctBlockSize];
             }
-
-            return coeffBuffers;
+            return buffers;
         }
 
-        // Scans processing adapted from JpgProgressiveDecoder, restricted to filling _coeffBuffers
-        private static bool ProcessProgressiveScans(
+        /// <summary>
+        /// Decode all progressive scans into coefficient buffers.
+        /// </summary>
+        private static void ProcessProgressiveScans(
             JpgHeader header,
             ReadOnlySpan<byte> content,
-            SamplingInfo samplingInfo,
-            CoeffBuffers[] coeffBuffers)
+            CoeffBuffers[] coeffBuffers,
+            int mcuColumns,
+            int mcuRows)
         {
             var huffTables = new List<JpgHuffmanTable>(header.HuffmanTables);
             var quantTables = new List<JpgQuantizationTable>(header.QuantizationTables);
             int restartInterval = header.RestartInterval;
 
-            ReadOnlySpan<byte> stream = content;
-            var bitReader = new JpgBitReader(stream);
+            ReadOnlySpan<byte> remainingStream = content;
+            var bitReader = new JpgBitReader(remainingStream);
             JpgScanSpec currentScan = header.Scans.Count > 0 ? header.Scans[0] : null;
-            int[] prevDc = new int[header.ComponentCount];
+            int[] previousDc = new int[header.ComponentCount];
             int eobRun = 0;
 
-            if (!ProcessCurrentScan(header, samplingInfo, coeffBuffers, huffTables, restartInterval, ref bitReader, currentScan, prevDc, ref eobRun))
-            {
-                return false;
-            }
+            ProcessCurrentScan(header, coeffBuffers, huffTables, restartInterval, ref bitReader, currentScan, previousDc, ref eobRun, mcuColumns, mcuRows);
 
             while (true)
             {
                 bitReader.ByteAlign();
                 if (!bitReader.TryReadMarker(out byte marker))
                 {
-                    break;
+                    break; // No more markers
                 }
-
-                if (marker == 0xD9)
+                if (marker == 0xD9) // EOI
                 {
                     break;
                 }
 
                 int pos = bitReader.Position / 8;
-                if (pos + 2 > stream.Length)
+                if (pos + 2 > remainingStream.Length)
                 {
-                    break;
+                    throw new InvalidOperationException("Truncated marker segment length.");
                 }
 
-                ushort segLen = (ushort)(stream[pos] << 8 | stream[pos + 1]);
-                int payloadLen = segLen - 2;
+                ushort segmentLength = (ushort)(remainingStream[pos] << 8 | remainingStream[pos + 1]);
+                int payloadLength = segmentLength - 2;
                 pos += 2;
-                if (payloadLen < 0 || pos + payloadLen > stream.Length)
+                if (payloadLength < 0 || pos + payloadLength > remainingStream.Length)
                 {
-                    break;
+                    throw new InvalidOperationException("Invalid marker segment length.");
                 }
 
-                var payload = stream.Slice(pos, payloadLen);
-                int nextPos = pos + payloadLen;
-                stream = stream.Slice(nextPos);
-                bitReader = new JpgBitReader(stream);
+                var payload = remainingStream.Slice(pos, payloadLength);
+                int nextPos = pos + payloadLength;
+                remainingStream = remainingStream.Slice(nextPos);
+                bitReader = new JpgBitReader(remainingStream);
 
                 switch (marker)
                 {
-                    case 0xDB:
-                        var qts = JpgQuantizationTable.ParseDqtPayload(payload);
-                        quantTables.AddRange(qts);
+                    case 0xDB: // DQT
+                        var newQuantTables = JpgQuantizationTable.ParseDqtPayload(payload);
+                        quantTables.AddRange(newQuantTables);
                         break;
-                    case 0xC4:
-                        var hts = JpgHuffmanTable.ParseDhtPayload(payload);
-                        huffTables.AddRange(hts);
+                    case 0xC4: // DHT
+                        var newHuffTables = JpgHuffmanTable.ParseDhtPayload(payload);
+                        huffTables.AddRange(newHuffTables);
                         break;
-                    case 0xDD:
-                        if (payloadLen >= 2)
+                    case 0xDD: // DRI
+                        if (payloadLength >= 2)
                         {
                             restartInterval = payload[0] << 8 | payload[1];
                         }
                         break;
-                    case 0xDA:
+                    case 0xDA: // SOS
                         currentScan = JpgReader.ParseSos(payload);
-                        if (!ProcessCurrentScan(header, samplingInfo, coeffBuffers, huffTables, restartInterval, ref bitReader, currentScan, prevDc, ref eobRun))
-                        {
-                            return false;
-                        }
+                        ProcessCurrentScan(header, coeffBuffers, huffTables, restartInterval, ref bitReader, currentScan, previousDc, ref eobRun, mcuColumns, mcuRows);
                         break;
                     default:
+                        // Non-coding marker ignored.
                         break;
                 }
             }
-
-            return true;
         }
 
-        private static bool ProcessCurrentScan(
+        /// <summary>
+        /// Decode a single scan (interleaved or non-interleaved) into coefficient buffers.
+        /// </summary>
+        private static void ProcessCurrentScan(
             JpgHeader header,
-            SamplingInfo samplingInfo,
-            CoeffBuffers[] coeffs,
+            CoeffBuffers[] coeffBuffers,
             List<JpgHuffmanTable> huffTables,
             int restartInterval,
             ref JpgBitReader bitReader,
             JpgScanSpec currentScan,
-            int[] prevDc,
-            ref int eobRun)
+            int[] previousDc,
+            ref int eobRun,
+            int mcuColumns,
+            int mcuRows)
         {
             if (currentScan == null)
             {
-                Console.Error.WriteLine("[PdfReader][JPEG] Progressive: currentScan is null");
-                return false;
+                throw new InvalidOperationException("Current scan is null.");
             }
 
             bool isDcScan = currentScan.SpectralStart == 0 && currentScan.SpectralEnd == 0;
             bool firstPass = currentScan.SuccessiveApproxHigh == 0;
-            int Al = currentScan.SuccessiveApproxLow;
-            int Ah = currentScan.SuccessiveApproxHigh;
+            int successiveApproxLow = currentScan.SuccessiveApproxLow;
+            int successiveApproxHigh = currentScan.SuccessiveApproxHigh;
 
-            int scanCompCount = currentScan.Components.Count;
-            int[] scanToComp = JpgComponentMapper.MapScanToSofIndices(header, currentScan, permissive: true);
-            if (scanToComp == null)
+            int scanComponentCount = currentScan.Components.Count;
+            int[] scanToComponent = JpgComponentMapper.MapScanToSofIndices(header, currentScan);
+            if (scanToComponent == null)
             {
-                Console.Error.WriteLine("[PdfReader][JPEG] Progressive: Failed to map scan components to SOF indices");
-                return false;
+                throw new InvalidOperationException("Failed to map scan components to SOF indices.");
             }
 
-            var dcDecoders = new JpgHuffmanDecoder[scanCompCount];
-            var acDecoders = new JpgHuffmanDecoder[scanCompCount];
-            for (int i = 0; i < scanCompCount; i++)
+            var dcDecoders = new JpgHuffmanDecoder[scanComponentCount];
+            var acDecoders = new JpgHuffmanDecoder[scanComponentCount];
+            for (int scanComponentIndex = 0; scanComponentIndex < scanComponentCount; scanComponentIndex++)
             {
-                dcDecoders[i] = GetDcDecoder(huffTables, currentScan.Components[i].DcTableId);
-                acDecoders[i] = GetAcDecoder(huffTables, currentScan.Components[i].AcTableId);
-
-                if ((isDcScan && dcDecoders[i] == null) || (!isDcScan && acDecoders[i] == null))
+                dcDecoders[scanComponentIndex] = GetDcDecoder(huffTables, currentScan.Components[scanComponentIndex].DcTableId);
+                acDecoders[scanComponentIndex] = GetAcDecoder(huffTables, currentScan.Components[scanComponentIndex].AcTableId);
+                if ((isDcScan && dcDecoders[scanComponentIndex] == null) || (!isDcScan && acDecoders[scanComponentIndex] == null))
                 {
-                    Console.Error.WriteLine($"[PdfReader][JPEG] Progressive: Missing required table for component {i}");
-                    return false;
+                    throw new InvalidOperationException($"Missing required Huffman table for scan component {scanComponentIndex}.");
                 }
             }
 
             var restartManager = new JpgRestartManager(restartInterval);
-
-            for (int c = 0; c < header.ComponentCount; c++)
+            for (int componentIndex = 0; componentIndex < header.ComponentCount; componentIndex++)
             {
-                prevDc[c] = 0;
+                previousDc[componentIndex] = 0;
             }
-
             eobRun = 0;
 
-            if (scanCompCount > 1)
+            if (scanComponentCount > 1)
             {
-                var (mcuCols, mcuRows) = JpgComponentSampler.CalculateMcuDimensions(header, samplingInfo);
-
-                for (int mcuY = 0; mcuY < mcuRows; mcuY++)
+                // Interleaved scan
+                for (int mcuRow = 0; mcuRow < mcuRows; mcuRow++)
                 {
-                    for (int mcuX = 0; mcuX < mcuCols; mcuX++)
+                    for (int mcuColumn = 0; mcuColumn < mcuColumns; mcuColumn++)
                     {
-                        if (restartManager.TryProcessPendingRestart(ref bitReader, prevDc))
-                        {
-                            eobRun = 0;
-                        }
-
                         if (restartManager.IsRestartNeeded)
                         {
-                            if (!restartManager.ProcessRestart(ref bitReader, prevDc))
-                            {
-                                Console.Error.WriteLine($"[PdfReader][JPEG] Progressive: Restart failed at MCU ({mcuX}, {mcuY})");
-                                return false;
-                            }
+                            restartManager.ProcessRestart(ref bitReader, previousDc);
                             eobRun = 0;
                         }
 
-                        for (int si = 0; si < scanCompCount; si++)
+                        for (int scanComponentIndex = 0; scanComponentIndex < scanComponentCount; scanComponentIndex++)
                         {
-                            int compIndex = scanToComp[si];
-                            int hs = header.Components[compIndex].HorizontalSamplingFactor;
-                            int vs = header.Components[compIndex].VerticalSamplingFactor;
-                            var dc = dcDecoders[si];
-                            var ac = acDecoders[si];
+                            int componentIndex = scanToComponent[scanComponentIndex];
+                            int hFactor = header.Components[componentIndex].HorizontalSamplingFactor;
+                            int vFactor = header.Components[componentIndex].VerticalSamplingFactor;
+                            var dcDecoder = dcDecoders[scanComponentIndex];
+                            var acDecoder = acDecoders[scanComponentIndex];
 
-                            for (int by = 0; by < vs; by++)
+                            for (int vBlock = 0; vBlock < vFactor; vBlock++)
                             {
-                                for (int bx = 0; bx < hs; bx++)
+                                for (int hBlock = 0; hBlock < hFactor; hBlock++)
                                 {
-                                    int blockX = mcuX * hs + bx;
-                                    int blockY = mcuY * vs + by;
-                                    if (blockX >= coeffs[compIndex].BlocksX || blockY >= coeffs[compIndex].BlocksY)
+                                    int blockX = mcuColumn * hFactor + hBlock;
+                                    int blockY = mcuRow * vFactor + vBlock;
+                                    var coeffBuffer = coeffBuffers[componentIndex];
+                                    if (blockX >= coeffBuffer.BlocksX || blockY >= coeffBuffer.BlocksY)
                                     {
                                         continue;
                                     }
 
-                                    int blockIndex = (blockY * coeffs[compIndex].BlocksX + blockX) * DctBlockSize;
-
+                                    int blockIndex = (blockY * coeffBuffer.BlocksX + blockX) * DctBlockSize;
                                     if (isDcScan)
                                     {
-                                        if (!JpgProgressiveBlockDecoder.DecodeDcCoefficient(
+                                        JpgProgressiveBlockDecoder.DecodeDcCoefficient(
                                             ref bitReader,
-                                            dc,
-                                            ref prevDc[compIndex],
-                                            coeffs[compIndex].Coeffs,
+                                            dcDecoder,
+                                            ref previousDc[componentIndex],
+                                            coeffBuffer.Coeffs,
                                             blockIndex,
                                             firstPass,
-                                            Al))
-                                        {
-                                            Console.Error.WriteLine($"[PdfReader][JPEG] Progressive: DC decode failed at MCU ({mcuX}, {mcuY})");
-                                            return false;
-                                        }
+                                            successiveApproxLow);
                                     }
                                     else
                                     {
                                         if (firstPass)
                                         {
-                                            if (!JpgProgressiveBlockDecoder.DecodeAcCoefficientsFirstPass(
+                                            JpgProgressiveBlockDecoder.DecodeAcCoefficientsFirstPass(
                                                 ref bitReader,
-                                                ac,
-                                                coeffs[compIndex].Coeffs,
+                                                acDecoder,
+                                                coeffBuffer.Coeffs,
                                                 blockIndex,
                                                 currentScan.SpectralStart,
                                                 currentScan.SpectralEnd,
-                                                Al,
-                                                ref eobRun))
-                                            {
-                                                Console.Error.WriteLine($"[PdfReader][JPEG] Progressive: AC first pass failed at MCU ({mcuX}, {mcuY}), component {compIndex}");
-                                                return false;
-                                            }
+                                                successiveApproxLow,
+                                                ref eobRun);
                                         }
                                         else
                                         {
-                                            if (!JpgProgressiveBlockDecoder.DecodeAcCoefficientsRefinement(
+                                            JpgProgressiveBlockDecoder.DecodeAcCoefficientsRefinement(
                                                 ref bitReader,
-                                                ac,
-                                                coeffs[compIndex].Coeffs,
+                                                acDecoder,
+                                                coeffBuffer.Coeffs,
                                                 blockIndex,
                                                 currentScan.SpectralStart,
                                                 currentScan.SpectralEnd,
-                                                Ah,
-                                                Al,
-                                                ref eobRun))
-                                            {
-                                                Console.Error.WriteLine($"[PdfReader][JPEG] Progressive: AC refinement failed at MCU ({mcuX}, {mcuY}), component {compIndex}");
-                                                return false;
-                                            }
+                                                successiveApproxHigh,
+                                                successiveApproxLow,
+                                                ref eobRun);
                                         }
                                     }
                                 }
                             }
                         }
-
                         restartManager.DecrementRestartCounter();
                     }
                 }
             }
             else
             {
-                int compIndex = scanToComp[0];
-                var dc = dcDecoders[0];
-                var ac = acDecoders[0];
+                // Non-interleaved scan
+                int componentIndex = scanToComponent[0];
+                var dcDecoder = dcDecoders[0];
+                var acDecoder = acDecoders[0];
+                int blocksX = coeffBuffers[componentIndex].BlocksX;
+                int blocksY = coeffBuffers[componentIndex].BlocksY;
 
-                int blocksX = coeffs[compIndex].BlocksX;
-                int blocksY = coeffs[compIndex].BlocksY;
-
-                int blocksProcessed = 0;
-                for (int by = 0; by < blocksY; by++)
+                for (int blockRow = 0; blockRow < blocksY; blockRow++)
                 {
-                    for (int bx = 0; bx < blocksX; bx++)
+                    for (int blockColumn = 0; blockColumn < blocksX; blockColumn++)
                     {
-                        if (restartManager.TryProcessPendingRestart(ref bitReader, prevDc))
-                        {
-                            eobRun = 0;
-                        }
-
                         if (restartManager.IsRestartNeeded)
                         {
-                            if (!restartManager.ProcessRestart(ref bitReader, prevDc))
-                            {
-                                Console.Error.WriteLine($"[PdfReader][JPEG] Progressive: Restart failed at block ({bx}, {by})");
-                                return false;
-                            }
+                            restartManager.ProcessRestart(ref bitReader, previousDc);
                             eobRun = 0;
                         }
 
-                        int blockIndex = (by * blocksX + bx) * DctBlockSize;
-                        blocksProcessed++;
-
+                        int blockIndex = (blockRow * blocksX + blockColumn) * DctBlockSize;
                         if (isDcScan)
                         {
-                            if (!JpgProgressiveBlockDecoder.DecodeDcCoefficient(
+                            JpgProgressiveBlockDecoder.DecodeDcCoefficient(
                                 ref bitReader,
-                                dc,
-                                ref prevDc[compIndex],
-                                coeffs[compIndex].Coeffs,
+                                dcDecoder,
+                                ref previousDc[componentIndex],
+                                coeffBuffers[componentIndex].Coeffs,
                                 blockIndex,
                                 firstPass,
-                                Al))
-                            {
-                                Console.Error.WriteLine($"[PdfReader][JPEG] Progressive: DC decode failed at block ({bx}, {by}), processed {blocksProcessed} blocks");
-                                return false;
-                            }
+                                successiveApproxLow);
                         }
                         else
                         {
                             if (firstPass)
                             {
-                                if (!JpgProgressiveBlockDecoder.DecodeAcCoefficientsFirstPass(
+                                JpgProgressiveBlockDecoder.DecodeAcCoefficientsFirstPass(
                                     ref bitReader,
-                                    ac,
-                                    coeffs[compIndex].Coeffs,
+                                    acDecoder,
+                                    coeffBuffers[componentIndex].Coeffs,
                                     blockIndex,
                                     currentScan.SpectralStart,
                                     currentScan.SpectralEnd,
-                                    Al,
-                                    ref eobRun))
-                                {
-                                    Console.Error.WriteLine($"[PdfReader][JPEG] Progressive: AC first pass failed at block ({bx}, {by}), processed {blocksProcessed} blocks, eobRun={eobRun}");
-                                    return false;
-                                }
+                                    successiveApproxLow,
+                                    ref eobRun);
                             }
                             else
                             {
-                                if (!JpgProgressiveBlockDecoder.DecodeAcCoefficientsRefinement(
+                                JpgProgressiveBlockDecoder.DecodeAcCoefficientsRefinement(
                                     ref bitReader,
-                                    ac,
-                                    coeffs[compIndex].Coeffs,
+                                    acDecoder,
+                                    coeffBuffers[componentIndex].Coeffs,
                                     blockIndex,
                                     currentScan.SpectralStart,
                                     currentScan.SpectralEnd,
-                                    Ah,
-                                    Al,
-                                    ref eobRun))
-                                {
-                                    Console.Error.WriteLine($"[PdfReader][JPEG] Progressive: AC refinement failed at block ({bx}, {by}), processed {blocksProcessed} blocks, eobRun={eobRun}");
-                                    return false;
-                                }
+                                    successiveApproxHigh,
+                                    successiveApproxLow,
+                                    ref eobRun);
                             }
                         }
-
                         restartManager.DecrementRestartCounter();
                     }
                 }
             }
-
-            return true;
         }
 
         private static JpgHuffmanDecoder GetDcDecoder(List<JpgHuffmanTable> huffTables, int tableId)
@@ -724,14 +632,13 @@ namespace PdfReader.Rendering.Image.Jpg.Decoding
 
         private static JpgHuffmanTable FindHuffTable(List<JpgHuffmanTable> tables, int tableClass, int id)
         {
-            for (int i = tables.Count - 1; i >= 0; i--)
+            for (int index = tables.Count - 1; index >= 0; index--)
             {
-                if (tables[i].TableClass == tableClass && tables[i].TableId == id)
+                if (tables[index].TableClass == tableClass && tables[index].TableId == id)
                 {
-                    return tables[i];
+                    return tables[index];
                 }
             }
-
             return null;
         }
     }

@@ -2,6 +2,7 @@ using SkiaSharp;
 using PdfReader.Models;
 using PdfReader.Rendering.Advanced;
 using System;
+using Microsoft.Extensions.Logging;
 
 namespace PdfReader.Rendering.Image
 {
@@ -19,6 +20,15 @@ namespace PdfReader.Rendering.Image
     /// </summary>
     public class FastImageDrawer : IImageDrawer
     {
+        private readonly ILoggerFactory _factory;
+        private readonly ILogger<FastImageDrawer> _logger;
+
+        public FastImageDrawer(ILoggerFactory factory)
+        {
+            _factory = factory ?? throw new ArgumentNullException(nameof(factory));
+            _logger = factory.CreateLogger<FastImageDrawer>();
+        }
+
         public void DrawImage(SKCanvas canvas, PdfImage pdfImage, PdfGraphicsState state, PdfPage page, SKRect destRect)
         {
             if (pdfImage == null || pdfImage.Width <= 0 || pdfImage.Height <= 0)
@@ -29,40 +39,34 @@ namespace PdfReader.Rendering.Image
             using var softMaskScope = new SoftMaskDrawingScope(canvas, state, page, destRect);
             softMaskScope.BeginDrawContent();
 
-            var decoder = PdfImageDecoder.GetDecoder(pdfImage);
+            var decoder = PdfImageDecoder.GetDecoder(pdfImage, _factory);
             if (decoder == null)
             {
-                Console.Error.WriteLine($"[PdfReader] No decoder for image '{pdfImage?.Name}' of type {pdfImage?.Type}. Skipping.");
+                _logger.LogWarning("No decoder for image '{ImageName}' of type {ImageType}. Skipping.", pdfImage?.Name, pdfImage?.Type);
                 return;
             }
 
             using var baseImage = decoder.Decode();
             if (baseImage == null)
             {
-                Console.Error.WriteLine($"[PdfReader] Decoder returned null for image '{pdfImage?.Name}'. Skipping.");
+                _logger.LogWarning("Decoder returned null for image '{ImageName}'. Skipping.", pdfImage?.Name);
                 return;
             }
 
             using var paint = PdfPaintFactory.CreateImagePaint(state, page);
-            if (pdfImage.Interpolate)
-            {
-                paint.FilterQuality = SKFilterQuality.High;
-            }
+            var sampling = PdfPaintFactory.GetImageSamplingOptions(pdfImage.Interpolate);
 
-            // 0) Image mask path first
             if (pdfImage.HasImageMask)
             {
                 DrawImageMask(canvas, baseImage, state, page, destRect, pdfImage.Interpolate);
                 return;
             }
 
-            // 1) Apply soft mask if present (decoders handle /Decode and color conversions now)
-            bool smApplied;
-            using var sm = ApplyImageSoftMask(baseImage, pdfImage, page, out smApplied);
-            var finalImage = sm ?? baseImage;
+            bool softMaskApplied;
+            using var softMask = ApplyImageSoftMask(baseImage, pdfImage, page, out softMaskApplied);
+            var finalImage = softMask ?? baseImage;
 
-            // 2) Draw final image
-            canvas.DrawImage(finalImage, destRect, paint);
+            canvas.DrawImage(finalImage, destRect, sampling, paint);
 
             softMaskScope.EndDrawContent();
         }
@@ -72,15 +76,16 @@ namespace PdfReader.Rendering.Image
             using var fillPaint = PdfPaintFactory.CreateFillPaint(state, page);
             using var maskPaint = new SKPaint
             {
-                BlendMode = SKBlendMode.DstIn,
-                FilterQuality = interpolate ? SKFilterQuality.High : SKFilterQuality.None
+                BlendMode = SKBlendMode.DstIn
             };
+
+            var sampling = PdfPaintFactory.GetImageSamplingOptions(interpolate);
 
             canvas.SaveLayer(destRect, null);
             try
             {
                 canvas.DrawRect(destRect, fillPaint);
-                canvas.DrawImage(alphaMask, destRect, maskPaint);
+                canvas.DrawImage(alphaMask, destRect, sampling, maskPaint);
             }
             finally
             {
@@ -98,31 +103,28 @@ namespace PdfReader.Rendering.Image
 
             try
             {
-                var dict = pdfImage.ImageXObject?.Dictionary;
-                var smObj = dict?.GetPageObject(PdfTokens.SoftMaskKey);
-                if (smObj == null)
+                var dictionary = pdfImage.ImageXObject?.Dictionary;
+                var softMaskObject = dictionary?.GetPageObject(PdfTokens.SoftMaskKey);
+                if (softMaskObject == null)
                 {
                     return null;
                 }
 
-                var smImageDesc = PdfImage.FromXObject(smObj, page, pdfImage.Name, isSoftMask: true);
-
-                var smDecoder = PdfImageDecoder.GetDecoder(smImageDesc);
-                using var maskImage = smDecoder?.Decode();
+                var softMaskImageDescriptor = PdfImage.FromXObject(softMaskObject, page, pdfImage.Name, isSoftMask: true);
+                var softMaskDecoder = PdfImageDecoder.GetDecoder(softMaskImageDescriptor, _factory);
+                using var maskImage = softMaskDecoder?.Decode();
                 if (maskImage == null)
                 {
+                    _logger.LogWarning("Soft mask decode failed for image '{ImageName}'.", pdfImage?.Name);
                     return null;
                 }
 
-                var matte = smObj.Dictionary?.GetArray(PdfTokens.MatteKey);
-                if (matte != null && matte.Count > 0)
+                var matteArray = softMaskObject.Dictionary?.GetArray(PdfTokens.MatteKey);
+                if (matteArray != null && matteArray.Count > 0)
                 {
-                    Console.WriteLine($"[PdfReader] Image '{pdfImage?.Name}': /SMask has /Matte; dematting is not implemented in FastImageDrawer.");
+                    _logger.LogInformation("Image '{ImageName}': /SMask has /Matte; dematting not implemented.", pdfImage?.Name);
                 }
 
-                // Decoders (including JPEG) are assumed to have applied /Decode already.
-                // If the soft mask image already carries alpha (Alpha8 or non-opaque alpha), we can use it directly.
-                // Otherwise, derive alpha from luminance.
                 SKColorFilter alphaFilter = null;
                 bool maskHasAlpha = maskImage.ColorType == SKColorType.Alpha8 || maskImage.AlphaType != SKAlphaType.Opaque;
                 if (!maskHasAlpha)
@@ -130,39 +132,39 @@ namespace PdfReader.Rendering.Image
                     alphaFilter = SoftMaskUtilities.CreateAlphaFromLuminosityFilter();
                 }
 
-                int offW = Math.Max(1, source.Width);
-                int offH = Math.Max(1, source.Height);
-                using var surface = SKSurface.Create(new SKImageInfo(offW, offH, SKColorType.Rgba8888, SKAlphaType.Premul));
+                int offWidth = Math.Max(1, source.Width);
+                int offHeight = Math.Max(1, source.Height);
+                using var surface = SKSurface.Create(new SKImageInfo(offWidth, offHeight, SKColorType.Rgba8888, SKAlphaType.Premul));
                 if (surface == null)
                 {
+                    _logger.LogWarning("Failed to create surface for soft mask composition for image '{ImageName}'.", pdfImage?.Name);
                     return null;
                 }
 
-                using var canvas = surface.Canvas;
-                canvas.Clear(SKColors.Transparent);
+                using var compositionCanvas = surface.Canvas;
+                compositionCanvas.Clear(SKColors.Transparent);
 
-                // Draw source first
-                canvas.DrawImage(source, new SKRect(0, 0, offW, offH), new SKPaint());
+                var baseSampling = PdfPaintFactory.GetImageSamplingOptions(pdfImage.Interpolate);
+                compositionCanvas.DrawImage(source, new SKRect(0, 0, offWidth, offHeight), baseSampling, new SKPaint());
 
-                // Apply mask using DstIn; set filter quality to respect interpolation flag
                 using var maskPaint = new SKPaint
                 {
                     BlendMode = SKBlendMode.DstIn,
-                    ColorFilter = alphaFilter,
-                    FilterQuality = pdfImage.Interpolate ? SKFilterQuality.High : SKFilterQuality.None
+                    ColorFilter = alphaFilter
                 };
-                canvas.DrawImage(maskImage, new SKRect(0, 0, offW, offH), maskPaint);
-                canvas.Flush();
+                var maskSampling = PdfPaintFactory.GetImageSamplingOptions(pdfImage.Interpolate);
+                compositionCanvas.DrawImage(maskImage, new SKRect(0, 0, offWidth, offHeight), maskSampling, maskPaint);
+                compositionCanvas.Flush();
 
                 alphaFilter?.Dispose();
 
                 maskApplied = true;
                 return surface.Snapshot();
             }
-            catch
+            catch (Exception ex)
             {
-                // Swallow and fallback to base image; upstream will draw without soft mask.
-                return null;
+                _logger.LogWarning(ex, "Soft mask application failed for image '{ImageName}'.", pdfImage?.Name);
+                return null; // Safe to continue drawing base image without mask
             }
         }
     }

@@ -5,27 +5,30 @@ namespace PdfReader.Rendering.Image.Jpg.Decoding
 {
     /// <summary>
     /// Manages JPEG Huffman decoder tables for DC and AC coefficients.
-    /// Provides validation and lookup of decoder tables by ID.
+    /// Provides validation and lookup of decoder tables by identifier.
     /// </summary>
     internal sealed class JpgHuffmanDecoderManager
     {
-        private readonly JpgHuffmanDecoder[] _dcDecoders;
-        private readonly JpgHuffmanDecoder[] _acDecoders;
-
         /// <summary>
         /// Maximum number of Huffman tables supported (0-3 for both DC and AC).
         /// </summary>
         public const int MaxTableCount = 4;
 
-        public JpgHuffmanDecoderManager()
+        private readonly JpgHuffmanDecoder[] _dcDecoders;
+        private readonly JpgHuffmanDecoder[] _acDecoders;
+
+        private JpgHuffmanDecoderManager()
         {
             _dcDecoders = new JpgHuffmanDecoder[MaxTableCount];
             _acDecoders = new JpgHuffmanDecoder[MaxTableCount];
         }
 
         /// <summary>
-        /// Initialize decoders from the JPEG header Huffman tables.
+        /// Create and populate a decoder manager from the Huffman tables declared in the JPEG header.
+        /// Missing tables for a later scan will be detected during validation.
         /// </summary>
+        /// <param name="header">Parsed JPEG header.</param>
+        /// <returns>Populated decoder manager.</returns>
         public static JpgHuffmanDecoderManager CreateFromHeader(JpgHeader header)
         {
             if (header == null)
@@ -34,28 +37,32 @@ namespace PdfReader.Rendering.Image.Jpg.Decoding
             }
 
             var manager = new JpgHuffmanDecoderManager();
-
             foreach (var huffmanTable in header.HuffmanTables)
             {
-                if (huffmanTable.TableId >= 0 && huffmanTable.TableId < MaxTableCount)
+                if (huffmanTable == null)
                 {
-                    var decoder = new JpgHuffmanDecoder(huffmanTable);
-                    if (huffmanTable.TableClass == 0) // DC
-                    {
-                        manager._dcDecoders[huffmanTable.TableId] = decoder;
-                    }
-                    else if (huffmanTable.TableClass == 1) // AC
-                    {
-                        manager._acDecoders[huffmanTable.TableId] = decoder;
-                    }
+                    continue;
+                }
+                if (huffmanTable.TableId < 0 || huffmanTable.TableId >= MaxTableCount)
+                {
+                    continue; // Ignore out-of-range table IDs per permissive behavior
+                }
+
+                var decoder = new JpgHuffmanDecoder(huffmanTable);
+                if (huffmanTable.TableClass == 0)
+                {
+                    manager._dcDecoders[huffmanTable.TableId] = decoder;
+                }
+                else if (huffmanTable.TableClass == 1)
+                {
+                    manager._acDecoders[huffmanTable.TableId] = decoder;
                 }
             }
-
             return manager;
         }
 
         /// <summary>
-        /// Get a DC Huffman decoder by table ID.
+        /// Retrieve a DC Huffman decoder by table identifier or null if not present.
         /// </summary>
         public JpgHuffmanDecoder GetDcDecoder(int tableId)
         {
@@ -63,12 +70,11 @@ namespace PdfReader.Rendering.Image.Jpg.Decoding
             {
                 return null;
             }
-
             return _dcDecoders[tableId];
         }
 
         /// <summary>
-        /// Get an AC Huffman decoder by table ID.
+        /// Retrieve an AC Huffman decoder by table identifier or null if not present.
         /// </summary>
         public JpgHuffmanDecoder GetAcDecoder(int tableId)
         {
@@ -76,18 +82,19 @@ namespace PdfReader.Rendering.Image.Jpg.Decoding
             {
                 return null;
             }
-
             return _acDecoders[tableId];
         }
 
         /// <summary>
-        /// Validate that all required Huffman tables are present for a scan.
+        /// Validate that the required Huffman tables referenced by the scan are available.
+        /// Throws <see cref="InvalidOperationException"/> with a descriptive message if any table is missing.
         /// </summary>
-        public bool ValidateTablesForScan(JpgScanSpec scan)
+        /// <param name="scan">Scan specification to validate.</param>
+        public void ValidateTablesForScan(JpgScanSpec scan)
         {
             if (scan == null)
             {
-                return false;
+                throw new ArgumentNullException(nameof(scan));
             }
 
             for (int scanComponentIndex = 0; scanComponentIndex < scan.Components.Count; scanComponentIndex++)
@@ -98,22 +105,21 @@ namespace PdfReader.Rendering.Image.Jpg.Decoding
 
                 if (dcTableId < 0 || dcTableId >= MaxTableCount || _dcDecoders[dcTableId] == null)
                 {
-                    Console.Error.WriteLine($"[PdfReader][JPEG] Missing DC Huffman table id {dcTableId} for scan component {scanComponentIndex}");
-                    return false;
+                    throw new InvalidOperationException(
+                        $"Missing DC Huffman table (id={dcTableId}) required by scan component index {scanComponentIndex}.");
                 }
 
                 if (acTableId < 0 || acTableId >= MaxTableCount || _acDecoders[acTableId] == null)
                 {
-                    Console.Error.WriteLine($"[PdfReader][JPEG] Missing AC Huffman table id {acTableId} for scan component {scanComponentIndex}");
-                    return false;
+                    throw new InvalidOperationException(
+                        $"Missing AC Huffman table (id={acTableId}) required by scan component index {scanComponentIndex}.");
                 }
             }
-
-            return true;
         }
 
         /// <summary>
-        /// Get decoders for a specific scan component.
+        /// Get both DC and AC decoders for the supplied scan component specification.
+        /// Returns (null, null) if <paramref name="scanComponent"/> is null.
         /// </summary>
         public (JpgHuffmanDecoder dcDecoder, JpgHuffmanDecoder acDecoder) GetDecodersForScanComponent(JpgScanComponentSpec scanComponent)
         {
@@ -121,7 +127,6 @@ namespace PdfReader.Rendering.Image.Jpg.Decoding
             {
                 return (null, null);
             }
-
             var dcDecoder = GetDcDecoder(scanComponent.DcTableId);
             var acDecoder = GetAcDecoder(scanComponent.AcTableId);
             return (dcDecoder, acDecoder);

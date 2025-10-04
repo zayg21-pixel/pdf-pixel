@@ -5,6 +5,7 @@ using PdfReader.Rendering.Path;
 using PdfReader.Rendering.Image;
 using PdfReader.Rendering.Shading;
 using SkiaSharp;
+using Microsoft.Extensions.Logging;
 
 namespace PdfReader.Rendering
 {
@@ -16,12 +17,18 @@ namespace PdfReader.Rendering
     public class PdfRenderer
     {
         private readonly PdfTextRenderer _textRenderer;
+        private readonly ILoggerFactory _loggerFactory;
+        private readonly ILogger _logger;
+
         private readonly StandardPathDrawer _pathRenderer = new StandardPathDrawer();
-        private readonly FastImageDrawer _imageRenderer = new FastImageDrawer();
+        private readonly FastImageDrawer _imageRenderer;
         private readonly IShadingDrawer _shadingRenderer = new StandardShadingDrawer();
 
-        internal PdfRenderer(IFontCache fontCache)
+        internal PdfRenderer(IFontCache fontCache, ILoggerFactory loggerFactory)
         {
+            _loggerFactory = loggerFactory ?? throw new System.ArgumentNullException(nameof(loggerFactory));
+            _logger = _loggerFactory.CreateLogger<PdfRenderer>();
+            _imageRenderer = new FastImageDrawer(_loggerFactory);
             _textRenderer = new PdfTextRenderer(fontCache);
         }
 

@@ -7,10 +7,11 @@ namespace PdfReader.Rendering.Image.Jpg.Color
     {
         /// <summary>
         /// Reassembles ICC profile bytes from APP2 ICC_PROFILE segments gathered in the <see cref="JpgHeader"/>.
-        /// Returns null if segments are missing, inconsistent, or invalid.
+        /// Returns false (with null out parameter) if segments are missing, inconsistent, invalid, or if length overflows.
+        /// This method is defensive and non-throwing for malformed inputs (except catastrophic runtime failures such as OOM).
         /// </summary>
         /// <param name="header">Parsed JPEG header.</param>
-        /// <returns>Complete ICC profile byte array or null if invalid/incomplete.</returns>
+        /// <param name="profileBytes">Complete ICC profile byte array or null on failure.</param>
         public static bool TryAssembleIccProfile(JpgHeader header, out byte[] profileBytes)
         {
             if (header == null)
@@ -25,7 +26,7 @@ namespace PdfReader.Rendering.Image.Jpg.Color
                 return false;
             }
 
-            // Determine expected total segment count and validate consistency.
+            // Determine declared total segment count from first segment.
             int declaredTotal = header.IccProfileSegments[0].TotalSegments;
             if (declaredTotal <= 0 || declaredTotal > 255)
             {
@@ -33,12 +34,13 @@ namespace PdfReader.Rendering.Image.Jpg.Color
                 return false;
             }
 
-            // Track seen segments and compute aggregate length.
-            var segmentData = new byte[declaredTotal][];
+            // Prepare storage for segment payloads in 1-based order (JPEG ICC spec sequences start at 1).
+            var segmentPayloads = new byte[declaredTotal][];
             int totalLength = 0;
-            for (int i = 0; i < header.IccProfileSegments.Count; i++)
+
+            for (int segmentIndex = 0; segmentIndex < header.IccProfileSegments.Count; segmentIndex++)
             {
-                IccSegmentInfo segment = header.IccProfileSegments[i];
+                IccSegmentInfo segment = header.IccProfileSegments[segmentIndex];
                 if (segment == null)
                 {
                     profileBytes = null;
@@ -52,14 +54,14 @@ namespace PdfReader.Rendering.Image.Jpg.Color
                     return false;
                 }
 
-                int seq = segment.SequenceNumber; // JPEG ICC segments are 1-based.
-                if (seq <= 0 || seq > declaredTotal)
+                int sequenceNumber = segment.SequenceNumber; // 1-based
+                if (sequenceNumber <= 0 || sequenceNumber > declaredTotal)
                 {
                     profileBytes = null;
                     return false;
                 }
 
-                if (segmentData[seq - 1] != null)
+                if (segmentPayloads[sequenceNumber - 1] != null)
                 {
                     // Duplicate sequence number.
                     profileBytes = null;
@@ -73,41 +75,39 @@ namespace PdfReader.Rendering.Image.Jpg.Color
                     return false;
                 }
 
-                segmentData[seq - 1] = data;
+                // Check for integer overflow before accumulation.
+                if (data.Length > int.MaxValue - totalLength)
+                {
+                    profileBytes = null;
+                    return false;
+                }
+
+                segmentPayloads[sequenceNumber - 1] = data;
                 totalLength += data.Length;
             }
 
-            // Ensure all segments are present.
+            // Verify that all segments were present.
             for (int i = 0; i < declaredTotal; i++)
             {
-                if (segmentData[i] == null)
+                if (segmentPayloads[i] == null)
                 {
                     profileBytes = null;
                     return false;
                 }
             }
 
-            // Reassemble into single contiguous byte array.
-            try
+            // Reassemble contiguously.
+            var assembled = new byte[totalLength];
+            int writeOffset = 0;
+            for (int i = 0; i < segmentPayloads.Length; i++)
             {
-                byte[] profile = new byte[totalLength];
-                int offset = 0;
-                for (int i = 0; i < segmentData.Length; i++)
-                {
-                    byte[] part = segmentData[i];
-                    Buffer.BlockCopy(part, 0, profile, offset, part.Length);
-                    offset += part.Length;
-                }
+                byte[] part = segmentPayloads[i];
+                Buffer.BlockCopy(part, 0, assembled, writeOffset, part.Length);
+                writeOffset += part.Length;
+            }
 
-                profileBytes = profile;
-                return true;
-            }
-            catch (Exception ex)
-            {
-                Console.Error.WriteLine("JpgIccProfileReader.TryAssembleIccProfile: reassembly failed: " + ex.Message);
-                profileBytes = null;
-                return false;
-            }
+            profileBytes = assembled;
+            return true;
         }
     }
 }

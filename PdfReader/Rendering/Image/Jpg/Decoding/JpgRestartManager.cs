@@ -4,8 +4,8 @@ using System;
 namespace PdfReader.Rendering.Image.Jpg.Decoding
 {
     /// <summary>
-    /// Handles JPEG restart marker processing and state management.
-    /// Manages restart intervals, marker validation, and DC predictor reset.
+    /// Handles JPEG restart marker processing: restart interval countdown, marker validation sequence (RST0-RST7),
+    /// and DC predictor reset. Fails fast with exceptions on structural errors expected by the JPEG spec.
     /// </summary>
     internal sealed class JpgRestartManager
     {
@@ -25,70 +25,23 @@ namespace PdfReader.Rendering.Image.Jpg.Decoding
         public bool IsRestartEnabled => _restartInterval > 0;
         public bool IsRestartNeeded => IsRestartEnabled && _restartsToGo == 0;
 
-        public bool ProcessRestart(ref JpgBitReader bitReader, int[] previousDcValues)
+        /// <summary>
+        /// Process a required restart marker when the MCU counter reaches zero.
+        /// If no restart is currently needed the call is a no-op.
+        /// Throws if the expected marker is absent or invalid when one is required.
+        /// </summary>
+        public void ProcessRestart(ref JpgBitReader bitReader, int[] previousDcValues)
         {
             if (!IsRestartNeeded)
             {
-                return true;
+                return;
             }
-
-            return ProcessPendingRestart(ref bitReader, previousDcValues);
+            ProcessPendingRestart(ref bitReader, previousDcValues);
         }
 
         /// <summary>
-        /// If a restart marker is pending in the bitstream, consume and process it regardless of counter.
-        /// Returns true if a restart was processed, false if no marker was present.
+        /// Decrement restart counter after each MCU in the entropy-coded segment.
         /// </summary>
-        public bool TryProcessPendingRestart(ref JpgBitReader bitReader, int[] previousDcValues)
-        {
-            if (!IsRestartEnabled)
-            {
-                return false;
-            }
-
-            // Try to read a marker at current byte boundary
-            bitReader.ByteAlign();
-            if (!bitReader.TryReadMarker(out var marker))
-            {
-                return false;
-            }
-
-            if (marker < 0xD0 || marker > 0xD7)
-            {
-                // Not a restart marker; put no state changes (we cannot unread). Treat as no-op.
-                return false;
-            }
-
-            // Validate expected sequence if we've seen one already
-            if (!_seenFirstRestart)
-            {
-                _expectedRestart = marker;
-                _seenFirstRestart = true;
-            }
-            else if (marker != _expectedRestart)
-            {
-                Console.Error.WriteLine($"[PdfReader][JPEG] Restart sequence mismatch (expected 0x{_expectedRestart:X2}, got 0x{marker:X2})");
-                // Continue anyway to avoid deadlock
-                _expectedRestart = marker;
-            }
-
-            // Advance expected for next time
-            _expectedRestart = (byte)(0xD0 + (_expectedRestart - 0xD0 + 1 & 7));
-
-            // Reset DC predictors
-            if (previousDcValues != null)
-            {
-                for (int i = 0; i < previousDcValues.Length; i++)
-                {
-                    previousDcValues[i] = 0;
-                }
-            }
-
-            // Reset counter
-            _restartsToGo = _restartInterval;
-            return true;
-        }
-
         public void DecrementRestartCounter()
         {
             if (IsRestartEnabled)
@@ -97,34 +50,46 @@ namespace PdfReader.Rendering.Image.Jpg.Decoding
             }
         }
 
+        /// <summary>
+        /// Reset predictors and restart counter at the beginning of a new progressive refinement pass.
+        /// </summary>
         public void ResetForProgressivePass(int[] previousDcValues)
         {
-            if (previousDcValues != null)
-            {
-                for (int i = 0; i < previousDcValues.Length; i++)
-                {
-                    previousDcValues[i] = 0;
-                }
-            }
-
+            ResetPredictors(previousDcValues);
             _restartsToGo = _restartInterval;
         }
 
-        private bool ProcessPendingRestart(ref JpgBitReader bitReader, int[] previousDcValues)
+        private void ResetPredictors(int[] previousDcValues)
+        {
+            if (previousDcValues == null)
+            {
+                return;
+            }
+            for (int i = 0; i < previousDcValues.Length; i++)
+            {
+                previousDcValues[i] = 0;
+            }
+        }
+
+        private void AdvanceExpectedRestart()
+        {
+            _expectedRestart = (byte)(0xD0 + ((_expectedRestart - 0xD0 + 1) & 7));
+        }
+
+        /// <summary>
+        /// Strict processing for a mandatory restart boundary.
+        /// </summary>
+        private void ProcessPendingRestart(ref JpgBitReader bitReader, int[] previousDcValues)
         {
             bitReader.ByteAlign();
-            if (!bitReader.TryReadMarker(out var marker))
+            if (!bitReader.TryReadMarker(out byte marker))
             {
-                Console.Error.WriteLine("[PdfReader][JPEG] Expected restart marker but none found");
-                return false;
+                throw new InvalidOperationException("Expected restart marker but none found.");
             }
-
             if (marker < 0xD0 || marker > 0xD7)
             {
-                Console.Error.WriteLine($"[PdfReader][JPEG] Expected restart marker (RST0-RST7), got 0x{marker:X2}");
-                return false;
+                throw new InvalidOperationException($"Expected restart marker (RST0-RST7) but found 0x{marker:X2}.");
             }
-
             if (!_seenFirstRestart)
             {
                 _expectedRestart = marker;
@@ -132,22 +97,11 @@ namespace PdfReader.Rendering.Image.Jpg.Decoding
             }
             else if (marker != _expectedRestart)
             {
-                Console.Error.WriteLine($"[PdfReader][JPEG] Restart sequence mismatch (expected 0x{_expectedRestart:X2}, got 0x{marker:X2})");
-                return false;
+                throw new InvalidOperationException($"Restart marker sequence mismatch. Expected 0x{_expectedRestart:X2} got 0x{marker:X2}.");
             }
-
-            _expectedRestart = (byte)(0xD0 + (_expectedRestart - 0xD0 + 1 & 7));
-
-            if (previousDcValues != null)
-            {
-                for (int i = 0; i < previousDcValues.Length; i++)
-                {
-                    previousDcValues[i] = 0;
-                }
-            }
-
+            AdvanceExpectedRestart();
+            ResetPredictors(previousDcValues);
             _restartsToGo = _restartInterval;
-            return true;
         }
     }
 }

@@ -9,10 +9,9 @@ namespace PdfReader.Rendering.Image.Ccitt
     /// </summary>
     internal static class CcittG4TwoDDecoder
     {
-        public static byte[] Decode(ReadOnlySpan<byte> data, int width, int height, bool blackIs1, bool endOfBlock)
+        public static void Decode(ReadOnlySpan<byte> data, Span<byte> buffer, int width, int height, bool blackIs1, bool endOfBlock)
         {
             var reader = new CcittBitReader(data);
-            byte[] buffer = CcittRaster.CreateBuffer(width, height, blackIs1);
 
             var referenceChanges = new List<int>(width + 8) { width };
             var nextReferenceChanges = new List<int>(width + 8);
@@ -33,13 +32,6 @@ namespace PdfReader.Rendering.Image.Ccitt
             {
                 reader.TryConsumeRtc();
             }
-
-            return buffer;
-        }
-
-        public static byte[] Decode(ReadOnlySpan<byte> data, int width, int height, bool blackIs1)
-        {
-            return Decode(data, width, height, blackIs1, false);
         }
 
         internal static void DecodeTwoDLine(ref CcittBitReader reader, int width, List<int> referenceChanges, List<int> runs, List<int> nextReferenceChanges)

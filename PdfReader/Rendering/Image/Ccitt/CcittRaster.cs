@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Runtime.InteropServices;
 
 namespace PdfReader.Rendering.Image.Ccitt
 {
@@ -16,12 +17,15 @@ namespace PdfReader.Rendering.Image.Ccitt
         /// <param name="width">Image width in pixels.</param>
         /// <param name="height">Image height in pixels.</param>
         /// <param name="blackIs1">If true, bit value 1 represents black and 0 represents white; otherwise bit value 0 represents black and 1 represents white.</param>
+        /// <param name="byteCount">Allocated bytes count.</param>
         /// <returns>Initialized packed bit buffer of length ((width + 7) / 8) * height.</returns>
-        public static byte[] CreateBuffer(int width, int height, bool blackIs1)
+        public static unsafe IntPtr AllocateBuffer(int width, int height, bool blackIs1, out int byteCount)
         {
             int rowBytes = (width + 7) / 8;
             int total = rowBytes * height;
-            byte[] buffer = new byte[total];
+            IntPtr unmanaged = Marshal.AllocHGlobal(total);
+            byte* buffer = (byte*)unmanaged.ToPointer();
+
             // Determine background (white) bit value
             int whiteBit = blackIs1 ? 0 : 1;
             if (whiteBit == 1)
@@ -33,7 +37,8 @@ namespace PdfReader.Rendering.Image.Ccitt
                 }
             }
             // else already zeroed = all white when whiteBit == 0
-            return buffer;
+            byteCount = total;
+            return unmanaged;
         }
 
         /// <summary>
@@ -61,7 +66,7 @@ namespace PdfReader.Rendering.Image.Ccitt
         /// <param name="rowIndex">Row index being written.</param>
         /// <param name="width">Row width in pixels.</param>
         /// <param name="blackIs1">Bit polarity (1=black when true).</param>
-        public static void RasterizeRuns(byte[] buffer, List<int> runs, int rowIndex, int width, bool blackIs1)
+        public static void RasterizeRuns(Span<byte> buffer, List<int> runs, int rowIndex, int width, bool blackIs1)
         {
             int rowBytes = (width + 7) / 8;
             int rowBase = rowIndex * rowBytes;
@@ -107,7 +112,7 @@ namespace PdfReader.Rendering.Image.Ccitt
             }
         }
 
-        private static void WriteBlackRun(byte[] buffer, int rowBase, int startX, int length, int width, int blackBit, int whiteBit)
+        private static void WriteBlackRun(Span<byte> buffer, int rowBase, int startX, int length, int width, int blackBit, int whiteBit)
         {
             if (length <= 0)
             {

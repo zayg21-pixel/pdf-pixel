@@ -91,8 +91,6 @@ namespace PdfReader.Rendering.Image.Png
             WriteIHDR();
         }
 
-        private bool applyFilter = false;
-
         /// <summary>
         /// Writes a single top-down RGBA row. <paramref name="rgbaRow"/> length must equal width * 4.
         /// </summary>

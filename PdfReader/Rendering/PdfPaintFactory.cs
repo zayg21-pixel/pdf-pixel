@@ -350,5 +350,21 @@ namespace PdfReader.Rendering
                 }
             }
         }
+
+        /// <summary>
+        /// Return Skia sampling options for image and mask rendering based on the PDF image /Interpolate flag.
+        /// Linear filtering is used when interpolation is requested; otherwise nearest neighbor.
+        /// Mipmaps are disabled because PDF images are drawn at explicit resolutions set by the content stream.
+        /// </summary>
+        /// <param name="interpolate">True if the image dictionary has /Interpolate true.</param>
+        /// <returns>Sampling options appropriate for image rendering.</returns>
+        public static SKSamplingOptions GetImageSamplingOptions(bool interpolate)
+        {
+            if (interpolate)
+            {
+                return new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.None);
+            }
+            return new SKSamplingOptions(SKFilterMode.Nearest, SKMipmapMode.None);
+        }
     }
 }

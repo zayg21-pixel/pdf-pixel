@@ -1,70 +1,63 @@
-﻿using SkiaSharp;
+﻿using Microsoft.Extensions.Logging;
+using PdfReader.Rendering.Image.Raw;
+using SkiaSharp;
 using System;
 using System.Runtime.InteropServices;
-using PdfReader.Rendering.Image.Raw;
-using PdfReader.Rendering.Image.PostProcessing;
 
 namespace PdfReader.Rendering.Image
 {
     /// <summary>
-    /// Decodes raw PDF image data (after filter decompression) into an SKImage.
-    /// Optimized processing pipeline:
-    ///  1. Decode: Combined predictor reversal and resampling to 8-bit (single optimized pass)
-    ///  2. PostProcess: Applies /Decode mapping, color conversion, masking, and palette handling
+    /// Decodes a raw PDF image (an image whose stream has already had its /Filter chain decoded).
+    /// A "raw" image in this context is any /Image XObject that is not handled by a specialized
+    /// codec (e.g. JPEG, CCITT, JBIG2, JPEG2000) and therefore consists of packed sample data that may:
+    ///  * Use a PNG/TIFF predictor (/DecodeParms.Predictor) requiring per‑row reconstruction.
+    ///  * Pack sub‑byte samples (1/2/4 bpc) that must be expanded to an 8‑bit working domain.
+    ///  * Contain multi‑component pixels in an arbitrary device / calibrated / indexed color space.
+    ///
+    /// Responsibilities of this decoder:
+    ///  1. Undo predictor (if any) and normalize packed samples to an 8‑bit per component buffer.
+    ///  2. Hand the normalized buffer to <see cref="PdfImageProcessor"/> for /Decode mapping, masking,
+    ///     palette expansion, color space conversion, and final SKImage creation.
+    ///
+    /// The method returns null on failure (errors are logged) so that page rendering can continue.
     /// </summary>
     public class RawImageDecoder : PdfImageDecoder
     {
-        public RawImageDecoder(PdfImage image) : base(image)
+        public RawImageDecoder(PdfImage image, ILoggerFactory loggerFactory) : base(image, loggerFactory)
         {
         }
 
-        public override SKImage Decode()
+        /// <summary>
+        /// Decode the raw image stream into an <see cref="SKImage"/> or return null if decoding fails.
+        /// </summary>
+        public override unsafe SKImage Decode()
         {
-            // Validate input parameters
             if (!ValidateImageParameters())
             {
                 return null;
             }
 
-            // Combined Step: Decode (UndoPredictor + Resample to 8-bit) in a single optimized pass
             ReadOnlyMemory<byte> sourceData = Image.GetImageData();
-            IntPtr decodedBuffer = PdfRawImageUtilities.Decode(Image, sourceData);
-            if (decodedBuffer == IntPtr.Zero)
+            IntPtr decodedBuffer = IntPtr.Zero;
+            try
             {
-                Console.Error.WriteLine("RawImageDecoder.Decode: decoding failed.");
+                decodedBuffer = PdfRawImageUtilities.Decode(Image, sourceData);
+                if (decodedBuffer == IntPtr.Zero)
+                {
+                    Logger.LogError("RawImage decode produced a null buffer (Name={Name}).", Image.Name);
+                    return null;
+                }
+
+                return Processor.CreateImage(new ReadOnlySpan<byte>(decodedBuffer.ToPointer(), sourceData.Length));
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError(ex, "RawImage decode failed (Name={Name}).", Image.Name);
                 return null;
             }
-
-            if (PdfImagePostProcessor.RequiresPostProcess(Image))
+            finally
             {
-                try
-                {
-                    // PostProcess - Apply decode mapping, color conversion, masking, palette handling
-                    return PdfImagePostProcessor.PostProcess(Image, decodedBuffer);
-                }
-                catch
-                {
-                    Console.Error.WriteLine("RawImageDecoder.Decode: post processing failed.");
-                    return null;
-                }
-                finally
-                {
-                    // Always free the decoded buffer
-                    Marshal.FreeHGlobal(decodedBuffer);
-                }
-            }
-            else
-            {
-                try
-                {
-                    return PdfImagePostProcessor.CreateImage(Image, decodedBuffer);
-                }
-                catch
-                {
-                    // only free buffer on exception, otherwise caller takes ownership of SKImage and its pixel memory
-                    Marshal.FreeHGlobal(decodedBuffer);
-                    return null;
-                }
+                Marshal.FreeHGlobal(decodedBuffer);
             }
         }
     }
