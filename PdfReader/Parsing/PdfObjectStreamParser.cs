@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using PdfReader.Models;
+using PdfReader.Streams;
 
 namespace PdfReader.Parsing
 {
@@ -24,7 +25,7 @@ namespace PdfReader.Parsing
                 return 0;
 
             // Get the number of objects in the stream
-            int n = dict.GetInteger(PdfTokens.NKey);
+            int n = dict.GetIntegerOrDefault(PdfTokens.NKey);
             if (n <= 0)
             {
                 Console.WriteLine($"Invalid /N value in object stream {objStream.Reference.ObjectNumber}: {n}");
@@ -32,7 +33,7 @@ namespace PdfReader.Parsing
             }
 
             // Get the offset to the first object
-            int first = dict.GetInteger(PdfTokens.FirstKey);
+            int first = dict.GetIntegerOrDefault(PdfTokens.FirstKey);
             if (first < 0)
             {
                 Console.WriteLine($"Invalid /First value in object stream {objStream.Reference.ObjectNumber}: {first}");
@@ -70,7 +71,7 @@ namespace PdfReader.Parsing
             // Parse the offset table at the beginning of the stream
             for (int i = 0; i < numObjects; i++)
             {
-                PdfHelpers.SkipWhitespaceAndComment(ref context);
+                PdfParsingHelpers.SkipWhitespaceAndComment(ref context);
                 
                 if (!PdfParsers.TryParseNumber(ref context, out int objNum))
                 {
@@ -78,7 +79,7 @@ namespace PdfReader.Parsing
                     break;
                 }
 
-                PdfHelpers.SkipWhitespaceAndComment(ref context);
+                PdfParsingHelpers.SkipWhitespaceAndComment(ref context);
                 
                 if (!PdfParsers.TryParseNumber(ref context, out int offset))
                 {
@@ -141,7 +142,7 @@ namespace PdfReader.Parsing
             var objectData = decodedData.Slice(startOffset, Math.Min(endOffset - startOffset, decodedData.Length - startOffset));
             var context = new PdfParseContext(objectData);
 
-            PdfHelpers.SkipWhitespaceAndComment(ref context);
+            PdfParsingHelpers.SkipWhitespaceAndComment(ref context);
 
             // Parse the object's value
             var value = PdfParsers.ParsePdfValue(ref context, document);
@@ -169,8 +170,8 @@ namespace PdfReader.Parsing
                 return (0, 0);
 
             var dict = objStream.Dictionary;
-            int n = dict.GetInteger(PdfTokens.NKey);
-            int first = dict.GetInteger(PdfTokens.FirstKey);
+            int n = dict.GetIntegerOrDefault(PdfTokens.NKey);
+            int first = dict.GetIntegerOrDefault(PdfTokens.FirstKey);
 
             return (n, first);
         }

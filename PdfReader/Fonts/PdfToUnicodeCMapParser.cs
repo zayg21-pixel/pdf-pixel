@@ -20,7 +20,7 @@ namespace PdfReader.Fonts
             // Token-driven parsing: handle optional count before block keywords
             while (!context.IsAtEnd)
             {
-                PdfHelpers.SkipWhitespaceAndComment(ref context);
+                PdfParsingHelpers.SkipWhitespaceAndComment(ref context);
                 if (context.IsAtEnd)
                 {
                     break;
@@ -105,10 +105,6 @@ namespace PdfReader.Fonts
             {
                 cmapName = arg.AsName();
             }
-            else if (arg.Type == PdfValueType.String)
-            {
-                cmapName = arg.AsString();
-            }
 
             // Prefer cached by name when available
             if (!string.IsNullOrEmpty(cmapName) && document.CMaps.TryGetValue(cmapName, out var cached))
@@ -116,75 +112,6 @@ namespace PdfReader.Fonts
                 target.MergeFrom(cached, overwriteExisting: false);
                 return;
             }
-
-            // Fallbacks: reference or dictionary only (no document scan)
-            if (arg.Type == PdfValueType.Reference)
-            {
-                var r = arg.AsReference();
-                if (r.IsValid && document.Objects.TryGetValue(r.ObjectNumber, out var obj) && obj != null)
-                {
-                    var baseCMap = TryParseCMapObject(obj);
-                    if (baseCMap != null)
-                    {
-                        // Cache under known name if available on the object
-                        var nameFromObj = obj.Dictionary?.GetName(PdfTokens.CMapNameKey);
-                        var cacheKey = !string.IsNullOrEmpty(cmapName) ? cmapName : nameFromObj;
-                        if (!string.IsNullOrEmpty(cacheKey) && !document.CMaps.ContainsKey(cacheKey))
-                        {
-                            document.CMaps[cacheKey] = baseCMap;
-                        }
-                        target.MergeFrom(baseCMap, overwriteExisting: false);
-                    }
-                }
-            }
-            else if (arg.Type == PdfValueType.Dictionary)
-            {
-                var dict = arg.AsDictionary();
-                var fromCache = TryResolveCMapFromDictionaryCache(document, dict);
-                if (fromCache != null)
-                {
-                    target.MergeFrom(fromCache, overwriteExisting: false);
-                }
-            }
-        }
-
-        private static PdfToUnicodeCMap TryParseCMapObject(PdfObject obj)
-        {
-            if (obj == null)
-            {
-                return null;
-            }
-
-            // Verify it is a CMap (optional but safer)
-            var typeName = obj.Dictionary.GetName(PdfTokens.TypeKey);
-            if (typeName != null && !string.Equals(typeName, PdfTokens.CMapTypeValue, StringComparison.Ordinal))
-            {
-                // Not a CMap type, but some producers omit /Type. Proceed anyway.
-            }
-
-            var stream = PdfStreamDecoder.DecodeContentStream(obj);
-            if (stream.IsEmpty || stream.Length == 0)
-            {
-                return null;
-            }
-            var ctx = new PdfParseContext(stream);
-            return ParseCMapFromContext(ref ctx, obj.Document);
-        }
-
-        private static PdfToUnicodeCMap TryResolveCMapFromDictionaryCache(PdfDocument document, PdfDictionary dict)
-        {
-            if (document == null || dict == null)
-            {
-                return null;
-            }
-
-            var cmapName = dict.GetName(PdfTokens.CMapNameKey);
-            if (!string.IsNullOrEmpty(cmapName) && document.CMaps.TryGetValue(cmapName, out var cached))
-            {
-                return cached;
-            }
-
-            return null;
         }
 
         private static void ParseBfCharMappings(ref PdfParseContext context, PdfToUnicodeCMap cmap, PdfDocument document, int? expectedCount)
@@ -192,13 +119,13 @@ namespace PdfReader.Fonts
             int parsed = 0;
             while (!context.IsAtEnd)
             {
-                PdfHelpers.SkipWhitespaceAndComment(ref context);
+                PdfParsingHelpers.SkipWhitespaceAndComment(ref context);
                 if (context.IsAtEnd)
                 {
                     break;
                 }
 
-                if (PdfHelpers.MatchSequence(ref context, PdfTokens.EndBfChar))
+                if (PdfParsingHelpers.MatchSequence(ref context, PdfTokens.EndBfChar))
                 {
                     break;
                 }
@@ -220,7 +147,7 @@ namespace PdfReader.Fonts
                     continue;
                 }
                 
-                PdfHelpers.SkipWhitespaceAndComment(ref context);
+                PdfParsingHelpers.SkipWhitespaceAndComment(ref context);
                 var dstValue = PdfParsers.ParsePdfValue(ref context, document);
                 if (dstValue == null)
                 {
@@ -275,13 +202,13 @@ namespace PdfReader.Fonts
             int parsed = 0;
             while (!context.IsAtEnd)
             {
-                PdfHelpers.SkipWhitespaceAndComment(ref context);
+                PdfParsingHelpers.SkipWhitespaceAndComment(ref context);
                 if (context.IsAtEnd)
                 {
                     break;
                 }
                 
-                if (PdfHelpers.MatchSequence(ref context, PdfTokens.EndBfRange))
+                if (PdfParsingHelpers.MatchSequence(ref context, PdfTokens.EndBfRange))
                 {
                     break;
                 }
@@ -303,14 +230,14 @@ namespace PdfReader.Fonts
                     continue;
                 }
 
-                PdfHelpers.SkipWhitespaceAndComment(ref context);
+                PdfParsingHelpers.SkipWhitespaceAndComment(ref context);
                 var endVal = PdfParsers.ParsePdfValue(ref context, document);
                 if (endVal?.Type != PdfValueType.HexString)
                 {
                     continue;
                 }
 
-                PdfHelpers.SkipWhitespaceAndComment(ref context);
+                PdfParsingHelpers.SkipWhitespaceAndComment(ref context);
                 var third = PdfParsers.ParsePdfValue(ref context, document);
                 if (third == null)
                 {
@@ -355,9 +282,10 @@ namespace PdfReader.Fonts
 
                         for (int i = 0; i < arr.Count && v <= vEnd; i++, v++)
                         {
-                            var vItem = arr[i];
+                            var vItem = arr.GetValue(i);
                             string unicode = null;
-                            if (vItem.Type == PdfValueType.HexString)
+
+                            if (vItem?.Type == PdfValueType.HexString)
                             {
                                 var hex = vItem.AsHexBytes();
                                 if (hex == null || hex.Length == 0 || IsSentinelFFFF(hex))
@@ -366,7 +294,7 @@ namespace PdfReader.Fonts
                                 }
                                 unicode = ParseBytesToUnicode(hex);
                             }
-                            else if (vItem.Type == PdfValueType.String)
+                            else if (vItem?.Type == PdfValueType.String)
                             {
                                 unicode = vItem.AsString();
                             }
@@ -392,8 +320,8 @@ namespace PdfReader.Fonts
             int parsed = 0;
             while (!context.IsAtEnd)
             {
-                PdfHelpers.SkipWhitespaceAndComment(ref context);
-                if (PdfHelpers.MatchSequence(ref context, PdfTokens.EndCodespaceRange))
+                PdfParsingHelpers.SkipWhitespaceAndComment(ref context);
+                if (PdfParsingHelpers.MatchSequence(ref context, PdfTokens.EndCodespaceRange))
                 {
                     break;
                 }
@@ -415,7 +343,7 @@ namespace PdfReader.Fonts
                     context.Advance(1);
                     continue;
                 }
-                PdfHelpers.SkipWhitespaceAndComment(ref context);
+                PdfParsingHelpers.SkipWhitespaceAndComment(ref context);
                 var endVal = PdfParsers.ParsePdfValue(ref context, document);
                 if (endVal?.Type != PdfValueType.HexString)
                 {

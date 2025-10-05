@@ -1,6 +1,7 @@
 using HarfBuzzSharp;
 using PdfReader.Models;
 using PdfReader.Rendering.HarfBuzz;
+using PdfReader.Streams;
 using SkiaSharp;
 using System;
 using System.Collections.Concurrent;

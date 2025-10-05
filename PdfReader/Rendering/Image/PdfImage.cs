@@ -1,5 +1,6 @@
 using PdfReader.Models;
 using PdfReader.Rendering.Color;
+using PdfReader.Streams;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -78,12 +79,12 @@ namespace PdfReader.Rendering.Image
         /// Color key mask array (/Mask array) flattened to floats. Null when /Mask is not an array.
         /// Values are in the sample value domain for each component.
         /// </summary>
-        public IReadOnlyList<float> MaskArray { get; private set; }
+        public float[] MaskArray { get; private set; }
 
         /// <summary>
         /// Per-component decode mapping array (/Decode) as floats: [d0, d1] per component.
         /// </summary>
-        public IReadOnlyList<float> DecodeArray { get; private set; }
+        public float[] DecodeArray { get; private set; }
 
         /// <summary>
         /// Indicates whether interpolation should be applied when scaling the image (/Interpolate).
@@ -184,9 +185,9 @@ namespace PdfReader.Rendering.Image
             var image = new PdfImage
             {
                 SourceObject = imageXObject,
-                Width = imageXObject.Dictionary.GetInteger(PdfTokens.WidthKey),
-                Height = imageXObject.Dictionary.GetInteger(PdfTokens.HeightKey),
-                BitsPerComponent = imageXObject.Dictionary.GetInteger(PdfTokens.BitsPerComponentKey),
+                Width = imageXObject.Dictionary.GetIntegerOrDefault(PdfTokens.WidthKey),
+                Height = imageXObject.Dictionary.GetIntegerOrDefault(PdfTokens.HeightKey),
+                BitsPerComponent = imageXObject.Dictionary.GetIntegerOrDefault(PdfTokens.BitsPerComponentKey),
                 IsSoftMask = isSoftMask,
                 ColorSpaceConverter = PdfColorSpaces.ResolveByValue(imageXObject.Dictionary.GetValue(PdfTokens.ColorSpaceKey), page),
                 ImageXObject = imageXObject,
@@ -206,10 +207,10 @@ namespace PdfReader.Rendering.Image
                 {
                     for (int index = filterArray.Count - 1; index >= 0; index--)
                     {
-                        var filterValue = filterArray[index];
-                        if (filterValue != null && filterValue.Type == PdfValueType.Name)
+                        var filterValue = filterArray.GetName(index);
+                        if (filterValue != null)
                         {
-                            var mappedType = MapImageType(filterValue.AsName());
+                            var mappedType = MapImageType(filterValue);
                             if (mappedType != PdfImageType.Raw)
                             {
                                 image.Type = mappedType;
@@ -220,34 +221,11 @@ namespace PdfReader.Rendering.Image
                 }
             }
 
-            image.HasImageMask = imageXObject.Dictionary.GetBool(PdfTokens.ImageMaskKey);
-            image.Interpolate = imageXObject.Dictionary.GetBool(PdfTokens.InterpolateKey);
+            image.HasImageMask = imageXObject.Dictionary.GetBoolOrDefault(PdfTokens.ImageMaskKey);
+            image.Interpolate = imageXObject.Dictionary.GetBoolOrDefault(PdfTokens.InterpolateKey);
 
-            var decodeVals = imageXObject.Dictionary.GetArray(PdfTokens.DecodeKey);
-            if (decodeVals != null && decodeVals.Count > 0)
-            {
-                var floats = new List<float>(decodeVals.Count);
-                foreach (var v in decodeVals)
-                {
-                    floats.Add(v.AsFloat());
-                }
-                image.DecodeArray = floats;
-            }
-
-            var maskVal = imageXObject.Dictionary.GetValue(PdfTokens.MaskKey);
-            if (maskVal != null && maskVal.Type == PdfValueType.Array)
-            {
-                var arr = maskVal.AsArray();
-                if (arr != null && arr.Count > 0)
-                {
-                    var floats = new List<float>(arr.Count);
-                    foreach (var v in arr)
-                    {
-                        floats.Add(v.AsFloat());
-                    }
-                    image.MaskArray = floats;
-                }
-            }
+            image.DecodeArray = imageXObject.Dictionary.GetArray(PdfTokens.DecodeKey).GetFloatArray();
+            image.MaskArray = imageXObject.Dictionary.GetArray(PdfTokens.MaskKey).GetFloatArray();
 
             var intent = imageXObject.Dictionary.GetName(PdfTokens.IntentKey);
             image.RenderingIntent = string.IsNullOrEmpty(intent)
@@ -266,11 +244,10 @@ namespace PdfReader.Rendering.Image
                 {
                     for (int index = 0; index < decodeParmsArray.Count; index++)
                     {
-                        var decodeParmValue = decodeParmsArray[index];
-                        var dict = decodeParmValue.AsDictionary();
-                        if (dict != null)
+                        var decodeParmValue = decodeParmsArray.GetDictionary(index);
+                        if (decodeParmValue != null)
                         {
-                            image.DecodeParms.Add(PdfDecodeParameters.FromDictionary(dict));
+                            image.DecodeParms.Add(PdfDecodeParameters.FromDictionary(decodeParmValue));
                         }
                     }
                 }

@@ -23,7 +23,7 @@ namespace PdfReader.Parsing
                 return false;
             }
             
-            PdfHelpers.SkipWhitespaceAndComment(ref context);
+            PdfParsingHelpers.SkipWhitespaceAndComment(ref context);
             
             if (!TryParseNumber(ref context, out generation))
             {
@@ -31,9 +31,9 @@ namespace PdfReader.Parsing
                 return false;
             }
             
-            PdfHelpers.SkipWhitespaceAndComment(ref context);
+            PdfParsingHelpers.SkipWhitespaceAndComment(ref context);
             
-            if (!PdfHelpers.MatchSequence(ref context, PdfTokens.Obj))
+            if (!PdfParsingHelpers.MatchSequence(ref context, PdfTokens.Obj))
             {
                 context.Position = startPos;
                 return false;
@@ -46,26 +46,26 @@ namespace PdfReader.Parsing
         {
             var dict = new PdfDictionary(document);
             
-            if (!PdfHelpers.MatchSequence(ref context, PdfTokens.DictStart))
+            if (!PdfParsingHelpers.MatchSequence(ref context, PdfTokens.DictStart))
                 return dict;
             
             
             while (!context.IsAtEnd)
             {
-                PdfHelpers.SkipWhitespaceAndComment(ref context);
+                PdfParsingHelpers.SkipWhitespaceAndComment(ref context);
                 
-                if (PdfHelpers.MatchSequence(ref context, PdfTokens.DictEnd))
+                if (PdfParsingHelpers.MatchSequence(ref context, PdfTokens.DictEnd))
                     break;
                 
                 // Parse key
-                if (PdfHelpers.PeekByte(ref context) != PdfTokens.ForwardSlash)
+                if (PdfParsingHelpers.PeekByte(ref context) != PdfTokens.ForwardSlash)
                     break;
                 
                 string key = ParseNameAsString(ref context);
                 if (string.IsNullOrEmpty(key))
                     break;
                 
-                PdfHelpers.SkipWhitespaceAndComment(ref context);
+                PdfParsingHelpers.SkipWhitespaceAndComment(ref context);
                 
                 // Parse value
                 var value = ParsePdfValue(ref context, document);
@@ -80,12 +80,12 @@ namespace PdfReader.Parsing
 
         public static IPdfValue ParsePdfValue(ref PdfParseContext context, PdfDocument document)
         {
-            PdfHelpers.SkipWhitespaceAndComment(ref context);
+            PdfParsingHelpers.SkipWhitespaceAndComment(ref context);
 
             if (context.IsAtEnd)
                 return null;
 
-            byte b = PdfHelpers.PeekByte(ref context);
+            byte b = PdfParsingHelpers.PeekByte(ref context);
 
             if (b == PdfTokens.ForwardSlash)
             {
@@ -97,7 +97,7 @@ namespace PdfReader.Parsing
                 var array = ParsePdfArray(ref context, document);
                 return array != null ? PdfValue.Array(array) : null;
             }
-            else if (b == PdfTokens.LeftAngle && PdfHelpers.PeekByte(ref context, 1) == PdfTokens.LeftAngle)
+            else if (b == PdfTokens.LeftAngle && PdfParsingHelpers.PeekByte(ref context, 1) == PdfTokens.LeftAngle)
             {
                 var subDict = ParseDictionary(ref context, document);
                 return PdfValue.Dictionary(subDict);
@@ -108,7 +108,7 @@ namespace PdfReader.Parsing
                 var hexString = ParseHexStringAsHexDigits(ref context);
                 return hexString != null ? PdfValue.HexString(hexString) : null;
             }
-            else if (PdfHelpers.IsDigit(b) || b == PdfTokens.Minus || b == PdfTokens.Plus || b == PdfTokens.Dot)
+            else if (PdfParsingHelpers.IsDigit(b) || b == PdfTokens.Minus || b == PdfTokens.Plus || b == PdfTokens.Dot)
             {
                 return ParseNumericValue(ref context);
             }
@@ -128,7 +128,7 @@ namespace PdfReader.Parsing
             int startPos = context.Position;
             
             // Check if this could be a decimal starting with a dot
-            byte firstByte = PdfHelpers.PeekByte(ref context);
+            byte firstByte = PdfParsingHelpers.PeekByte(ref context);
             bool startsWithDot = firstByte == PdfTokens.Dot;
             
             // Try to parse as float first to handle decimals properly
@@ -141,13 +141,13 @@ namespace PdfReader.Parsing
                 {
                     int intVal = (int)floatVal;
                     // Try to parse a second number for potential reference
-                    PdfHelpers.SkipWhitespaceAndComment(ref context);
+                    PdfParsingHelpers.SkipWhitespaceAndComment(ref context);
                     int afterFirstNumber = context.Position;
                     
                     if (TryParseNumber(ref context, out int gen))
                     {
-                        PdfHelpers.SkipWhitespaceAndComment(ref context);
-                        if (PdfHelpers.MatchSequence(ref context, PdfTokens.R))
+                        PdfParsingHelpers.SkipWhitespaceAndComment(ref context);
+                        if (PdfParsingHelpers.MatchSequence(ref context, PdfTokens.R))
                         {
                             // Successfully parsed reference
                             return PdfValue.Reference(new PdfReference(intVal, gen));
@@ -173,19 +173,18 @@ namespace PdfReader.Parsing
             return null;
         }
 
-        public static List<IPdfValue> ParsePdfArray(ref PdfParseContext context, PdfDocument document
-        )
+        public static PdfArray ParsePdfArray(ref PdfParseContext context, PdfDocument document)
         {
             var array = new List<IPdfValue>();
             
-            if (!PdfHelpers.MatchSequence(ref context, PdfTokens.ArrayStart))
-                return array;
+            if (!PdfParsingHelpers.MatchSequence(ref context, PdfTokens.ArrayStart))
+                return new PdfArray(document, array);
             
             while (!context.IsAtEnd)
             {
-                PdfHelpers.SkipWhitespaceAndComment(ref context);
+                PdfParsingHelpers.SkipWhitespaceAndComment(ref context);
                 
-                if (PdfHelpers.MatchSequence(ref context, PdfTokens.ArrayEnd))
+                if (PdfParsingHelpers.MatchSequence(ref context, PdfTokens.ArrayEnd))
                     break;
                 
                 var value = ParsePdfValue(ref context, document);
@@ -200,12 +199,12 @@ namespace PdfReader.Parsing
                 }
             }
             
-            return array;
+            return new PdfArray(document, array);
         }
 
         public static string ParseNameAsString(ref PdfParseContext context)
         {
-            if (PdfHelpers.PeekByte(ref context) != PdfTokens.ForwardSlash)
+            if (PdfParsingHelpers.PeekByte(ref context) != PdfTokens.ForwardSlash)
                 return null;
             
             int start = context.Position;
@@ -213,8 +212,8 @@ namespace PdfReader.Parsing
             
             while (!context.IsAtEnd)
             {
-                byte b = PdfHelpers.PeekByte(ref context);
-                if (PdfHelpers.IsWhitespace(b) || b == PdfTokens.ForwardSlash || 
+                byte b = PdfParsingHelpers.PeekByte(ref context);
+                if (PdfParsingHelpers.IsWhitespace(b) || b == PdfTokens.ForwardSlash || 
                     b == PdfTokens.LeftSquare || b == PdfTokens.RightSquare || 
                     b == PdfTokens.LeftAngle || b == PdfTokens.RightAngle || 
                     b == PdfTokens.LeftParen || b == PdfTokens.RightParen)
@@ -296,7 +295,7 @@ namespace PdfReader.Parsing
 
         public static string ParseStringAsString(ref PdfParseContext context)
         {
-            if (PdfHelpers.PeekByte(ref context) != PdfTokens.LeftParen)
+            if (PdfParsingHelpers.PeekByte(ref context) != PdfTokens.LeftParen)
                 return null;
             
             context.Position++; // Skip '('
@@ -306,7 +305,7 @@ namespace PdfReader.Parsing
             
             while (context.Position < context.Length && parenCount > 0)
             {
-                byte b = PdfHelpers.ReadByte(ref context);
+                byte b = PdfParsingHelpers.ReadByte(ref context);
                 
                 if (b == PdfTokens.LeftParen)
                 {
@@ -324,7 +323,7 @@ namespace PdfReader.Parsing
                     // Handle PDF escape sequences
                     if (context.Position < context.Length)
                     {
-                        byte next = PdfHelpers.ReadByte(ref context);
+                        byte next = PdfParsingHelpers.ReadByte(ref context);
 
                         // TODO: refactor this into a separate method for clarity
                         // Line continuation: backslash followed by EOL (CR, LF, or CRLF) -> ignore the EOL
@@ -336,7 +335,7 @@ namespace PdfReader.Parsing
                         if (next == (byte)'\r')
                         {
                             // consume optional LF
-                            if (context.Position < context.Length && PdfHelpers.PeekByte(ref context) == (byte)'\n')
+                            if (context.Position < context.Length && PdfParsingHelpers.PeekByte(ref context) == (byte)'\n')
                             {
                                 context.Advance(1);
                             }
@@ -350,7 +349,7 @@ namespace PdfReader.Parsing
                             int digits = 1;
                             for (int k = 0; k < 2 && context.Position < context.Length; k++)
                             {
-                                byte d = PdfHelpers.PeekByte(ref context);
+                                byte d = PdfParsingHelpers.PeekByte(ref context);
                                 if (d < (byte)'0' || d > (byte)'7') break;
                                 context.Advance(1);
                                 digits++;
@@ -391,8 +390,8 @@ namespace PdfReader.Parsing
             
             while (!context.IsAtEnd)
             {
-                byte b = PdfHelpers.PeekByte(ref context);
-                if (PdfHelpers.IsWhitespace(b) || PdfHelpers.IsDelimiter(b))
+                byte b = PdfParsingHelpers.PeekByte(ref context);
+                if (PdfParsingHelpers.IsWhitespace(b) || PdfParsingHelpers.IsDelimiter(b))
                     break;
                 
                 context.Advance(1);
@@ -418,11 +417,11 @@ namespace PdfReader.Parsing
         public static ReadOnlyMemory<byte> ParseStream(ref PdfParseContext context, PdfDictionary streamDictionary)
         {
             // After the "stream" keyword, consume exactly one end-of-line if present per spec (CRLF, CR, or LF)
-            PdfHelpers.SkipSingleEol(ref context);
+            PdfParsingHelpers.SkipSingleEol(ref context);
 
             int streamStart = context.Position;
             // TODO: what a mess, length can be indirect reference too, but to object that is not parsed yet, we might need a lazy eval for stream.
-            int streamLength = streamDictionary.GetInteger(PdfTokens.LengthKey);
+            int streamLength = streamDictionary.GetIntegerOrDefault(PdfTokens.LengthKey);
 
             if (streamLength > 0)
             {
@@ -447,10 +446,10 @@ namespace PdfReader.Parsing
                     context.Position = streamStart + streamLength;
 
                     // Skip past optional EOL/whitespace/comments before endstream
-                    PdfHelpers.SkipWhitespaceAndComment(ref context);
+                    PdfParsingHelpers.SkipWhitespaceAndComment(ref context);
                     if (context.Position + PdfTokens.Endstream.Length <= context.Length)
                     {
-                        if (!PdfHelpers.MatchSequence(ref context, PdfTokens.Endstream))
+                        if (!PdfParsingHelpers.MatchSequence(ref context, PdfTokens.Endstream))
                         {
                             // malformed PDF: no "endstream" found
                             return ReadOnlyMemory<byte>.Empty;
@@ -480,20 +479,20 @@ namespace PdfReader.Parsing
             bool negative = false;
             bool hasDigits = false;
             
-            if (PdfHelpers.PeekByte(ref context) == PdfTokens.Minus)
+            if (PdfParsingHelpers.PeekByte(ref context) == PdfTokens.Minus)
             {
                 negative = true;
                 context.Advance(1);
             }
-            else if (PdfHelpers.PeekByte(ref context) == PdfTokens.Plus)
+            else if (PdfParsingHelpers.PeekByte(ref context) == PdfTokens.Plus)
             {
                 context.Advance(1);
             }
             
-            while (!context.IsAtEnd && PdfHelpers.IsDigit(PdfHelpers.PeekByte(ref context)))
+            while (!context.IsAtEnd && PdfParsingHelpers.IsDigit(PdfParsingHelpers.PeekByte(ref context)))
             {
                 hasDigits = true;
-                number = number * 10 + (PdfHelpers.PeekByte(ref context) - PdfTokens.Zero);
+                number = number * 10 + (PdfParsingHelpers.PeekByte(ref context) - PdfTokens.Zero);
                 context.Advance(1);
             }
             
@@ -516,35 +515,35 @@ namespace PdfReader.Parsing
             bool hasDigits = false;
             
             // Handle sign
-            if (PdfHelpers.PeekByte(ref context) == PdfTokens.Minus)
+            if (PdfParsingHelpers.PeekByte(ref context) == PdfTokens.Minus)
             {
                 negative = true;
                 context.Advance(1);
             }
-            else if (PdfHelpers.PeekByte(ref context) == PdfTokens.Plus)
+            else if (PdfParsingHelpers.PeekByte(ref context) == PdfTokens.Plus)
             {
                 context.Advance(1);
             }
             
             // Parse integer part (if any)
-            while (!context.IsAtEnd && PdfHelpers.IsDigit(PdfHelpers.PeekByte(ref context)))
+            while (!context.IsAtEnd && PdfParsingHelpers.IsDigit(PdfParsingHelpers.PeekByte(ref context)))
             {
                 hasDigits = true;
-                number = number * 10 + (PdfHelpers.PeekByte(ref context) - PdfTokens.Zero);
+                number = number * 10 + (PdfParsingHelpers.PeekByte(ref context) - PdfTokens.Zero);
                 context.Advance(1);
             }
             
             // Handle decimal point and fractional part
-            if (!context.IsAtEnd && PdfHelpers.PeekByte(ref context) == PdfTokens.Dot)
+            if (!context.IsAtEnd && PdfParsingHelpers.PeekByte(ref context) == PdfTokens.Dot)
             {
                 context.Advance(1); // Skip the dot
                 float fractional = 0f;
                 float divisor = 10f;
                 
-                while (!context.IsAtEnd && PdfHelpers.IsDigit(PdfHelpers.PeekByte(ref context)))
+                while (!context.IsAtEnd && PdfParsingHelpers.IsDigit(PdfParsingHelpers.PeekByte(ref context)))
                 {
                     hasDigits = true; // Mark as having digits if we have fractional digits
-                    fractional += (PdfHelpers.PeekByte(ref context) - PdfTokens.Zero) / divisor;
+                    fractional += (PdfParsingHelpers.PeekByte(ref context) - PdfTokens.Zero) / divisor;
                     divisor *= 10f;
                     context.Advance(1);
                 }
@@ -568,7 +567,7 @@ namespace PdfReader.Parsing
         /// </summary>
         public static string ParseHexStringAsHexDigits(ref PdfParseContext context)
         {
-            if (PdfHelpers.PeekByte(ref context) != PdfTokens.LeftAngle)
+            if (PdfParsingHelpers.PeekByte(ref context) != PdfTokens.LeftAngle)
                 return null;
             
             context.Advance(1); // Skip '<'
@@ -577,19 +576,19 @@ namespace PdfReader.Parsing
             
             while (!context.IsAtEnd)
             {
-                byte b = PdfHelpers.PeekByte(ref context);
+                byte b = PdfParsingHelpers.PeekByte(ref context);
                 
                 if (b == PdfTokens.RightAngle)
                 {
                     context.Advance(1); // Skip '>'
                     break;
                 }
-                else if (PdfHelpers.IsWhitespace(b))
+                else if (PdfParsingHelpers.IsWhitespace(b))
                 {
                     context.Advance(1); // Skip whitespace
                     continue;
                 }
-                else if (PdfHelpers.IsHexDigit(b))
+                else if (PdfParsingHelpers.IsHexDigit(b))
                 {
                     // Preserve hex digits as characters
                     hexDigits.Append((char)b);

@@ -22,7 +22,7 @@ namespace PdfReader.Parsing
                 // Look for object start pattern: "number generation obj"
                 if (PdfParsers.TryParseObjectHeader(ref context, out int objNum, out int generation))
                 {
-                    PdfHelpers.SkipWhitespaceAndComment(ref context);
+                    PdfParsingHelpers.SkipWhitespaceAndComment(ref context);
 
                     // Parse any value as DirectValue; if it is a dictionary, also set Dictionary
                     var value = PdfParsers.ParsePdfValue(ref context, document);
@@ -30,8 +30,8 @@ namespace PdfReader.Parsing
                     var obj = new PdfObject(new PdfReference(objNum, generation), document, value);
 
                     // Parse stream only when a dictionary precedes it
-                    PdfHelpers.SkipWhitespaceAndComment(ref context);
-                    if (obj.Dictionary != null && PdfHelpers.MatchSequence(ref context, PdfTokens.Stream))
+                    PdfParsingHelpers.SkipWhitespaceAndComment(ref context);
+                    if (obj.Dictionary != null && PdfParsingHelpers.MatchSequence(ref context, PdfTokens.Stream))
                     {
                         obj.StreamData = PdfParsers.ParseStream(ref context, obj.Dictionary);
                     }
@@ -45,7 +45,7 @@ namespace PdfReader.Parsing
                     int searchCount = 0;
                     while (context.Position < context.Length - PdfTokens.MinBufferLengthForEndObj)
                     {
-                        if (PdfHelpers.MatchSequence(ref context, PdfTokens.Endobj))
+                        if (PdfParsingHelpers.MatchSequence(ref context, PdfTokens.Endobj))
                         {
                             break;
                         }

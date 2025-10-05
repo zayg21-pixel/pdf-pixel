@@ -7,8 +7,13 @@ namespace PdfReader.Models
         PdfValueType Type { get; }
     }
 
+    public interface IPdfValue<T> : IPdfValue
+    {
+        T Value { get; }
+    }
+
     // Union type for PDF values
-    public class PdfValue<T> : IPdfValue
+    public class PdfValue<T> : IPdfValue, IPdfValue<T>
     {
         private readonly T _value;
         private readonly PdfValueType _type;
@@ -49,7 +54,7 @@ namespace PdfReader.Models
         public static PdfValue<int> Integer(int value) => new PdfValue<int>(value, PdfValueType.Integer);
         public static PdfValue<float> Real(float value) => new PdfValue<float>(value, PdfValueType.Real);
         public static PdfValue<PdfReference> Reference(PdfReference value) => new PdfValue<PdfReference>(value, PdfValueType.Reference);
-        public static PdfValue<List<IPdfValue>> Array(List<IPdfValue> value) => new PdfValue<List<IPdfValue>>(value, PdfValueType.Array);
+        public static PdfValue<PdfArray> Array(PdfArray value) => new PdfValue<PdfArray>(value, PdfValueType.Array);
         public static PdfValue<PdfDictionary> Dictionary(PdfDictionary value) => new PdfValue<PdfDictionary>(value, PdfValueType.Dictionary);
     }
 }

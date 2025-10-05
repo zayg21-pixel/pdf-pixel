@@ -20,7 +20,7 @@ namespace PdfReader.Rendering.Pattern
                     return null;
                 }
 
-                int patternType = dict.GetInteger(PdfTokens.PatternTypeKey);
+                int patternType = dict.GetIntegerOrDefault(PdfTokens.PatternTypeKey);
                 switch (patternType)
                 {
                     case 1:
@@ -33,6 +33,7 @@ namespace PdfReader.Rendering.Pattern
             }
             catch
             {
+                // Swallow and return null for malformed pattern objects.
                 return null;
             }
         }
@@ -46,15 +47,15 @@ namespace PdfReader.Rendering.Pattern
             }
 
             var bbox = new SKRect(
-                bboxArray[0].AsFloat(),
-                bboxArray[1].AsFloat(),
-                bboxArray[2].AsFloat(),
-                bboxArray[3].AsFloat());
+                bboxArray.GetFloat(0),
+                bboxArray.GetFloat(1),
+                bboxArray.GetFloat(2),
+                bboxArray.GetFloat(3));
 
-            float xStep = dict.GetFloat(PdfTokens.XStepKey);
-            float yStep = dict.GetFloat(PdfTokens.YStepKey);
-            int rawPaintType = dict.GetInteger(PdfTokens.PaintTypeKey);
-            int rawTilingType = dict.GetInteger(PdfTokens.TilingTypeKey);
+            float xStep = dict.GetFloatOrDefault(PdfTokens.XStepKey);
+            float yStep = dict.GetFloatOrDefault(PdfTokens.YStepKey);
+            int rawPaintType = dict.GetIntegerOrDefault(PdfTokens.PaintTypeKey);
+            int rawTilingType = dict.GetIntegerOrDefault(PdfTokens.TilingTypeKey);
 
             PdfTilingPaintType paintTypeKind = rawPaintType == 2 ? PdfTilingPaintType.Uncolored : PdfTilingPaintType.Colored;
             PdfTilingSpacingType tilingTypeKind = rawTilingType switch
@@ -87,7 +88,6 @@ namespace PdfReader.Rendering.Pattern
 
         private static PdfShadingPattern ParseShadingPattern(PdfReference reference, PdfObject obj, PdfDictionary dict)
         {
-            // Minimal shading pattern parsing: capture /Shading dictionary reference and optional /Matrix & /ExtGState
             var resources = dict.GetDictionary(PdfTokens.ResourcesKey);
 
             SKMatrix matrix = SKMatrix.Identity;

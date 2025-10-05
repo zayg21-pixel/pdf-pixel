@@ -58,7 +58,7 @@ namespace PdfReadTests
                 {
                     return;
                 }
-                var timestamp = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff");
+                var timestamp = DateTime.Now.ToString("HH:mm:ss.fff");
                 Console.WriteLine($"{timestamp} [{logLevel}] {_category}: {message}");
                 if (exception != null)
                 {

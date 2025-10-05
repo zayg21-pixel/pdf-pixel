@@ -1,4 +1,5 @@
 using PdfReader.Models;
+using PdfReader.Streams;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -185,11 +186,19 @@ namespace PdfReader.Fonts
 
                 var differences = new Dictionary<int, string>();
                 var diffs = encDict.GetArray(PdfTokens.DifferencesKey);
+
                 if (diffs != null)
                 {
                     int currentCode = -1;
-                    foreach (var item in diffs)
+                    for (int i = 0; i < diffs.Count; i++)
                     {
+                        var item = diffs.GetValue(i);
+
+                        if (item == null)
+                        {
+                            continue;
+                        }
+
                         if (item.Type == PdfValueType.Integer)
                         {
                             currentCode = item.AsInteger();
@@ -201,6 +210,7 @@ namespace PdfReader.Fonts
                             {
                                 n = n.Substring(1);
                             }
+
                             differences[currentCode] = n;
                             currentCode++;
                         }

@@ -84,28 +84,31 @@ namespace PdfReader.Rendering.Image
         public static PdfDecodeParameters FromDictionary(PdfDictionary dictionary)
         {
             var parameters = new PdfDecodeParameters();
-            if (dictionary == null) return parameters;
+            if (dictionary == null)
+            {
+                return parameters;
+            }
 
-            // Predictor
-            if (dictionary.TryGetInt(PdfTokens.PredictorKey, out var predictor)) parameters.Predictor = predictor;
-            if (dictionary.TryGetInt(PdfTokens.ColorsKey, out var colors)) parameters.Colors = colors;
-            if (dictionary.TryGetInt(PdfTokens.BitsPerComponentKey, out var bitsPerComponent)) parameters.BitsPerComponent = bitsPerComponent;
-            if (dictionary.TryGetInt(PdfTokens.ColumnsKey, out var columns)) parameters.Columns = columns;
+            // Predictor related
+            parameters.Predictor = dictionary.GetInt(PdfTokens.PredictorKey);
+            parameters.Colors = dictionary.GetInt(PdfTokens.ColorsKey);
+            parameters.BitsPerComponent = dictionary.GetInt(PdfTokens.BitsPerComponentKey);
+            parameters.Columns = dictionary.GetInt(PdfTokens.ColumnsKey);
 
-            // CCITT
-            if (dictionary.TryGetInt(PdfTokens.KKey, out var k)) parameters.K = k;
-            if (dictionary.TryGetBool(PdfTokens.EndOfLineKey, out var endOfLine)) parameters.EndOfLine = endOfLine;
-            if (dictionary.TryGetBool(PdfTokens.EncodedByteAlignKey, out var encodedByteAlign)) parameters.EncodedByteAlign = encodedByteAlign;
-            if (dictionary.TryGetInt(PdfTokens.RowsKey, out var rows)) parameters.Rows = rows;
-            if (dictionary.TryGetBool(PdfTokens.EndOfBlockKey, out var endOfBlock)) parameters.EndOfBlock = endOfBlock;
-            if (dictionary.TryGetBool(PdfTokens.BlackIs1Key, out var blackIs1)) parameters.BlackIs1 = blackIs1;
-            if (dictionary.TryGetInt(PdfTokens.DamagedRowsBeforeErrorKey, out var damagedRowsBeforeError)) parameters.DamagedRowsBeforeError = damagedRowsBeforeError;
+            // CCITT related
+            parameters.K = dictionary.GetInt(PdfTokens.KKey);
+            parameters.EndOfLine = dictionary.GetBool(PdfTokens.EndOfLineKey);
+            parameters.EncodedByteAlign = dictionary.GetBool(PdfTokens.EncodedByteAlignKey);
+            parameters.Rows = dictionary.GetInt(PdfTokens.RowsKey);
+            parameters.EndOfBlock = dictionary.GetBool(PdfTokens.EndOfBlockKey);
+            parameters.BlackIs1 = dictionary.GetBool(PdfTokens.BlackIs1Key);
+            parameters.DamagedRowsBeforeError = dictionary.GetInt(PdfTokens.DamagedRowsBeforeErrorKey);
 
             // LZW
-            if (dictionary.TryGetInt(PdfTokens.EarlyChangeKey, out var earlyChange)) parameters.EarlyChange = earlyChange;
+            parameters.EarlyChange = dictionary.GetInt(PdfTokens.EarlyChangeKey);
 
             // DCT
-            if (dictionary.TryGetInt(PdfTokens.ColorTransformKey, out var colorTransform)) parameters.ColorTransform = colorTransform;
+            parameters.ColorTransform = dictionary.GetInt(PdfTokens.ColorTransformKey);
 
             return parameters;
         }

@@ -1,6 +1,7 @@
 ﻿using System;
 using PdfReader.Fonts;
 using PdfReader.Models;
+using PdfReader.Streams;
 
 namespace PdfReader.Parsing
 {

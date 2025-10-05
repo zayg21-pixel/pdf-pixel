@@ -73,36 +73,36 @@ namespace PdfReader.Models
     public static class PdfColorSpaceNames
     {
         /// <summary>Device-dependent gray color space</summary>
-        public const string DeviceGray = "DeviceGray";
+        public const string DeviceGray = "/DeviceGray";
         
         /// <summary>Device-dependent RGB color space</summary>
-        public const string DeviceRGB = "DeviceRGB";
+        public const string DeviceRGB = "/DeviceRGB";
         
         /// <summary>Device-dependent CMYK color space</summary>
-        public const string DeviceCMYK = "DeviceCMYK";
+        public const string DeviceCMYK = "/DeviceCMYK";
         
         /// <summary>ICC-based color space</summary>
-        public const string ICCBased = "ICCBased";
+        public const string ICCBased = "/ICCBased";
         
         /// <summary>Indexed color space</summary>
-        public const string Indexed = "Indexed";
+        public const string Indexed = "/Indexed";
         
         /// <summary>Pattern color space</summary>
-        public const string Pattern = "Pattern";
+        public const string Pattern = "/Pattern";
         
         /// <summary>Separation color space</summary>
-        public const string Separation = "Separation";
+        public const string Separation = "/Separation";
         
         /// <summary>DeviceN color space</summary>
-        public const string DeviceN = "DeviceN";
+        public const string DeviceN = "/DeviceN";
         
         /// <summary>Lab color space</summary>
-        public const string Lab = "Lab";
+        public const string Lab = "/Lab";
         
         /// <summary>CalGray color space</summary>
-        public const string CalGray = "CalGray";
+        public const string CalGray = "/CalGray";
         
         /// <summary>CalRGB color space</summary>
-        public const string CalRGB = "CalRGB";
+        public const string CalRGB = "/CalRGB";
     }
 }

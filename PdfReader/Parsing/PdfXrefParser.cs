@@ -26,7 +26,7 @@ namespace PdfReader.Parsing
             context.Position = xrefPosition;
             
             // Skip "xref" if it exists
-            if (PdfHelpers.MatchSequence(ref context, PdfTokens.Xref))
+            if (PdfParsingHelpers.MatchSequence(ref context, PdfTokens.Xref))
             {
                 context.Advance(1);
             }
@@ -35,7 +35,7 @@ namespace PdfReader.Parsing
             // Skip to trailer
             while (context.Position < context.Length)
             {
-                if (PdfHelpers.MatchSequence(ref context, PdfTokens.Trailer))
+                if (PdfParsingHelpers.MatchSequence(ref context, PdfTokens.Trailer))
                 {
                     break;
                 }
@@ -67,7 +67,7 @@ namespace PdfReader.Parsing
             for (int i = buffer.Length - PdfTokens.Startxref.Length; i >= 0; i--)
             {
                 // Check if we're at the start of the file or after a newline
-                if (i == 0 || buffer[i - 1] == PdfHelpers.LineFeed || buffer[i - 1] == PdfHelpers.CarriageReturn)
+                if (i == 0 || buffer[i - 1] == PdfParsingHelpers.LineFeed || buffer[i - 1] == PdfParsingHelpers.CarriageReturn)
                 {
                     // Use SequenceEqual for simple and reliable comparison
                     if (buffer.Slice(i, PdfTokens.Startxref.Length).SequenceEqual(PdfTokens.Startxref))
@@ -90,7 +90,7 @@ namespace PdfReader.Parsing
             
             // Skip whitespace directly on span using PdfHelpers
             int position = 0;
-            while (position < slice.Length && PdfHelpers.IsWhitespace(slice[position]))
+            while (position < slice.Length && PdfParsingHelpers.IsWhitespace(slice[position]))
                 position++;
             
             // Parse positive integer directly from span - ultra fast!
@@ -120,7 +120,7 @@ namespace PdfReader.Parsing
                 position++;
             
             // Parse digits using PdfHelpers for consistency
-            while (position < span.Length && PdfHelpers.IsDigit(span[position]))
+            while (position < span.Length && PdfParsingHelpers.IsDigit(span[position]))
             {
                 hasDigits = true;
                 number = number * 10 + (span[position] - PdfTokens.Zero);

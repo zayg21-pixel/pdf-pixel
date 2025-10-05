@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using SkiaSharp;
 using PdfReader.Models;
 using PdfReader.Rendering.Color;
@@ -19,79 +18,79 @@ namespace PdfReader.Rendering.Shading
                 return;
             }
 
-            int type = shading.GetInteger(PdfTokens.ShadingTypeKey);
+            int type = shading.GetIntegerOrDefault(PdfTokens.ShadingTypeKey);
             switch (type)
             {
                 case 2:
+                {
                     DrawAxialShading(shading, state, canvas, page);
                     break;
+                }
                 case 3:
+                {
                     DrawRadialShading(shading, state, canvas, page);
                     break;
+                }
                 default:
+                {
                     Console.WriteLine("Shading type " + type + " not implemented");
                     break;
+                }
             }
         }
 
-        private static void DrawAxialShading(PdfDictionary shading, PdfGraphicsState gs, SKCanvas canvas, PdfPage page)
+        private static void DrawAxialShading(PdfDictionary shading, PdfGraphicsState graphicsState, SKCanvas canvas, PdfPage page)
         {
-            var coords = shading.GetArray(PdfTokens.CoordsKey);
-            if (coords == null || coords.Count < 4)
+            var coordsArray = shading.GetArray(PdfTokens.CoordsKey);
+            if (coordsArray == null || coordsArray.Count < 4)
             {
                 return;
             }
 
-            float x0 = coords[0].AsFloat();
-            float y0 = coords[1].AsFloat();
-            float x1 = coords[2].AsFloat();
-            float y1 = coords[3].AsFloat();
+            float x0 = coordsArray.GetFloat(0);
+            float y0 = coordsArray.GetFloat(1);
+            float x1 = coordsArray.GetFloat(2);
+            float y1 = coordsArray.GetFloat(3);
 
             GetExtend(shading, out bool extendStart, out bool extendEnd);
 
-            BuildShadingColorsAndStops(shading, page, gs.RenderingIntent, out var colors, out var positions);
+            BuildShadingColorsAndStops(shading, page, graphicsState.RenderingIntent, out var colors, out var positions);
             if (colors == null || colors.Length == 0)
             {
                 return;
             }
 
-            // Determine tile mode based on extend flags
             SKShaderTileMode tileMode = SKShaderTileMode.Clamp;
-            if (extendStart && extendEnd)
+            if (!extendStart && !extendEnd)
             {
-                // Both ends extend - use clamp (SkiaSharp default behavior)
-                tileMode = SKShaderTileMode.Clamp;
-            }
-            else if (!extendStart && !extendEnd)
-            {
-                // No extension - gradient should be clamped to defined region
-                tileMode = SKShaderTileMode.Decal; // Or handle clipping manually
+                tileMode = SKShaderTileMode.Decal;
             }
 
             using (var shader = SKShader.CreateLinearGradient(new SKPoint(x0, y0), new SKPoint(x1, y1), colors, positions, tileMode))
-            using (var paint = PdfPaintFactory.CreateShadingPaint(gs, shader, page))
+            using (var paint = PdfPaintFactory.CreateShadingPaint(graphicsState, shader, page))
             {
                 canvas.DrawPaint(paint);
             }
         }
 
-        private static void DrawRadialShading(PdfDictionary shading, PdfGraphicsState gs, SKCanvas canvas, PdfPage page)
+        private static void DrawRadialShading(PdfDictionary shading, PdfGraphicsState graphicsState, SKCanvas canvas, PdfPage page)
         {
-            var coords = shading.GetArray(PdfTokens.CoordsKey);
-            if (coords == null || coords.Count < 6)
+            var coordsArray = shading.GetArray(PdfTokens.CoordsKey);
+            if (coordsArray == null || coordsArray.Count < 6)
             {
                 return;
             }
 
-            float x0 = coords[0].AsFloat();
-            float y0 = coords[1].AsFloat();
-            float r0 = Math.Max(0f, coords[2].AsFloat());
-            float x1 = coords[3].AsFloat();
-            float y1 = coords[4].AsFloat();
-            float r1 = Math.Max(0f, coords[5].AsFloat());
+            float x0 = coordsArray.GetFloat(0);
+            float y0 = coordsArray.GetFloat(1);
+            float r0 = Math.Max(0f, coordsArray.GetFloat(2));
+            float x1 = coordsArray.GetFloat(3);
+            float y1 = coordsArray.GetFloat(4);
+            float r1 = Math.Max(0f, coordsArray.GetFloat(5));
+
             GetExtend(shading, out bool extendStart, out bool extendEnd);
 
-            BuildShadingColorsAndStops(shading, page, gs.RenderingIntent, out var colors, out var positions);
+            BuildShadingColorsAndStops(shading, page, graphicsState.RenderingIntent, out var colors, out var positions);
             if (colors == null || colors.Length == 0)
             {
                 return;
@@ -104,14 +103,14 @@ namespace PdfReader.Rendering.Shading
                 (r0, r1) = (r1, r0);
                 Array.Reverse(colors);
                 Array.Reverse(positions);
-                for (int i = 0; i < positions.Length; i++)
+                for (int index = 0; index < positions.Length; index++)
                 {
-                    positions[i] = 1f - positions[i];
+                    positions[index] = 1f - positions[index];
                 }
             }
 
             using (var shader = SKShader.CreateTwoPointConicalGradient(new SKPoint(x0, y0), r0, new SKPoint(x1, y1), r1, colors, positions, SKShaderTileMode.Clamp))
-            using (var paint = PdfPaintFactory.CreateShadingPaint(gs, shader, page))
+            using (var paint = PdfPaintFactory.CreateShadingPaint(graphicsState, shader, page))
             {
                 if (!extendEnd)
                 {
@@ -133,11 +132,11 @@ namespace PdfReader.Rendering.Shading
         {
             extendStart = false;
             extendEnd = false;
-            var extendArr = shading.GetArray(PdfTokens.ExtendKey);
-            if (extendArr != null && extendArr.Count >= 2)
+            var extendArray = shading.GetArray(PdfTokens.ExtendKey);
+            if (extendArray != null && extendArray.Count >= 2)
             {
-                extendStart = extendArr[0].AsBool();
-                extendEnd = extendArr[1].AsBool();
+                extendStart = extendArray.GetBool(0);
+                extendEnd = extendArray.GetBool(1);
             }
         }
 
@@ -146,13 +145,13 @@ namespace PdfReader.Rendering.Shading
             var csVal = shading.GetValue(PdfTokens.ColorSpaceKey);
             var converter = PdfColorSpaces.ResolveByValue(csVal, page) ?? DeviceRgbConverter.Instance;
 
-            var domain = shading.GetArray(PdfTokens.DomainKey);
             float d0 = 0f;
             float d1 = 1f;
-            if (domain != null && domain.Count >= 2)
+            var domainArray = shading.GetArray(PdfTokens.DomainKey)?.GetFloatArray();
+            if (domainArray != null && domainArray.Length >= 2)
             {
-                d0 = domain[0].AsFloat();
-                d1 = domain[1].AsFloat();
+                d0 = domainArray[0];
+                d1 = domainArray[1];
                 if (Math.Abs(d1 - d0) < 1e-9f)
                 {
                     d1 = d0 + 1f;
@@ -162,26 +161,24 @@ namespace PdfReader.Rendering.Shading
             var funcVal = shading.GetValue(PdfTokens.FunctionKey);
             if (funcVal != null)
             {
-                const int SampleCount = 64; // basic sampling density
+                const int SampleCount = 64;
                 colors = new SKColor[SampleCount];
                 positions = new float[SampleCount];
-                for (int i = 0; i < SampleCount; i++)
+                for (int index = 0; index < SampleCount; index++)
                 {
-                    float t = i / (float)(SampleCount - 1);
+                    float t = index / (float)(SampleCount - 1);
                     float x = d0 + t * (d1 - d0);
                     var comps = PdfFunctions.EvaluateColorFunctions(shading, x);
-                    colors[i] = converter.ToSrgb(comps, intent);
-                    positions[i] = t;
+                    colors[index] = converter.ToSrgb(comps, intent);
+                    positions[index] = t;
                 }
                 return;
             }
 
-            var c0Arr = shading.GetArray(PdfTokens.C0Key);
-            var c1Arr = shading.GetArray(PdfTokens.C1Key);
-            if (c0Arr != null && c1Arr != null)
+            var c0 = shading.GetArray(PdfTokens.C0Key)?.GetFloatArray();
+            var c1 = shading.GetArray(PdfTokens.C1Key)?.GetFloatArray();
+            if (c0 != null && c1 != null)
             {
-                var c0 = ToFloatArray(c0Arr);
-                var c1 = ToFloatArray(c1Arr);
                 colors = new[] { converter.ToSrgb(c0, intent), converter.ToSrgb(c1, intent) };
                 positions = new[] { 0f, 1f };
                 return;
@@ -189,13 +186,6 @@ namespace PdfReader.Rendering.Shading
 
             colors = new[] { SKColors.Black, SKColors.White };
             positions = new[] { 0f, 1f };
-        }
-
-        private static float[] ToFloatArray(List<IPdfValue> arr)
-        {
-            var vals = new float[arr.Count];
-            for (int i = 0; i < arr.Count; i++) vals[i] = arr[i].AsFloat();
-            return vals;
         }
     }
 }

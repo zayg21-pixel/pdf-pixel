@@ -159,11 +159,11 @@ namespace PdfReader.Rendering.Image.Processing
             {
                 return true;
             }
-            if (image.DecodeArray != null && image.DecodeArray.Count > 0)
+            if (image.DecodeArray != null && image.DecodeArray.Length > 0)
             {
                 return true;
             }
-            if (image.MaskArray != null && image.MaskArray.Count >= converter.Components * 2)
+            if (image.MaskArray != null && image.MaskArray.Length >= converter.Components * 2)
             {
                 return true;
             }
@@ -320,7 +320,7 @@ namespace PdfReader.Rendering.Image.Processing
             float decodeMin = 0f;
             float decodeMax = palette.Length - 1;
             var decodeArray = image.DecodeArray;
-            if (decodeArray != null && decodeArray.Count >= 2)
+            if (decodeArray != null && decodeArray.Length >= 2)
             {
                 decodeMin = decodeArray[0];
                 decodeMax = decodeArray[1];

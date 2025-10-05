@@ -63,21 +63,18 @@ namespace PdfReader.Parsing
         /// </summary>
         public static int ExtractPagesFromPagesObject(PdfDocument document, PdfObject pagesObj, int currentPageNum)
         {
-            var count = pagesObj.Dictionary.GetInteger(PdfTokens.CountKey);
+            var count = pagesObj.Dictionary.GetIntegerOrDefault(PdfTokens.CountKey);
             if (count > 0)
             {
                 document.PageCount = count;
             }
             
-            var kidsArray = pagesObj.Dictionary.GetValue(PdfTokens.KidsKey).AsReferenceArray();
+            var kidsArray = pagesObj.Dictionary.GetValue(PdfTokens.KidsKey).AsArray();
             if (kidsArray != null)
             {
-                foreach (var kidValue in kidsArray)
+                for (int i = 0; i < kidsArray.Count; i++)
                 {
-                    if (!document.Objects.TryGetValue(kidValue.ObjectNumber, out var kidObject))
-                    {
-                        continue;
-                    }
+                    var kidObject = kidsArray.GetPageObject(i);
 
                     if (kidObject.Dictionary.GetName(PdfTokens.TypeKey) == PdfTokens.PageKey)
                     {
@@ -109,7 +106,7 @@ namespace PdfReader.Parsing
         /// </summary>
         /// <param name="value">The PDF value to convert</param>
         /// <returns>SKRect if conversion successful, null otherwise</returns>
-        public static SKRect? TryConvertArrayToSKRect(List<IPdfValue> value)
+        public static SKRect? TryConvertArrayToSKRect(PdfArray value)
         {
             if (value == null)
                 return null;
@@ -117,10 +114,10 @@ namespace PdfReader.Parsing
             if (value.Count < 4)
                 return null;
 
-            var left = value[0].AsFloat();
-            var top = value[1].AsFloat();
-            var right = value[2].AsFloat();
-            var bottom = value[3].AsFloat();
+            var left = value.GetFloat(0);
+            var top = value.GetFloat(1);
+            var right = value.GetFloat(2);
+            var bottom = value.GetFloat(3);
 
             return new SKRect(left, top, right, bottom);
         }
@@ -131,7 +128,7 @@ namespace PdfReader.Parsing
             return (rotation % 360 + 360) % 360;
         }
 
-        public static IPdfValue GetInheritedValue(PdfDocument document, PdfObject pageObj, string key)
+        public static IPdfValue GetInheritedValue(PdfObject pageObj, string key)
         {
             var currentObj = pageObj;
             var checkedObjects = new HashSet<int>();

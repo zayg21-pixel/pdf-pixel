@@ -1,7 +1,6 @@
 ﻿using PdfReader.Models;
 using SkiaSharp;
 using System;
-using System.Collections.Generic;
 using PdfReader.Rendering.Color;
 
 namespace PdfReader.Rendering.State
@@ -53,13 +52,13 @@ namespace PdfReader.Rendering.State
             // Line width
             if (gsDict.HasKey(PdfTokens.LineWidthKey))
             {
-                graphicsState.LineWidth = gsDict.GetFloat(PdfTokens.LineWidthKey);
+                graphicsState.LineWidth = gsDict.GetFloatOrDefault(PdfTokens.LineWidthKey);
             }
 
             // Line cap style
             if (gsDict.HasKey(PdfTokens.LineCapKey))
             {
-                var capStyle = gsDict.GetFloat(PdfTokens.LineCapKey);
+                var capStyle = gsDict.GetFloatOrDefault(PdfTokens.LineCapKey);
 
                 graphicsState.LineCap = capStyle switch
                 {
@@ -73,7 +72,7 @@ namespace PdfReader.Rendering.State
             // Line join style
             if (gsDict.HasKey(PdfTokens.LineJoinKey))
             {
-                var joinStyle = gsDict.GetFloat(PdfTokens.LineJoinKey);
+                var joinStyle = gsDict.GetFloatOrDefault(PdfTokens.LineJoinKey);
                 graphicsState.LineJoin = joinStyle switch
                 {
                     0 => SKStrokeJoin.Miter,
@@ -86,7 +85,7 @@ namespace PdfReader.Rendering.State
             // Miter limit
             if (gsDict.HasKey(PdfTokens.MiterLimitKey))
             {
-                graphicsState.MiterLimit = gsDict.GetFloat(PdfTokens.MiterLimitKey);
+                graphicsState.MiterLimit = gsDict.GetFloatOrDefault(PdfTokens.MiterLimitKey);
             }
 
             // Dash pattern
@@ -95,17 +94,12 @@ namespace PdfReader.Rendering.State
                 var dashArray = gsDict.GetArray(PdfTokens.DashPatternKey);
                 if (dashArray != null && dashArray.Count >= 2)
                 {
-                    var patternArray = dashArray[0].AsArray();
-                    var phase = dashArray[1].AsFloat();
+                    var patternArray = dashArray.GetArray(0).GetFloatArray();
+                    var phase = dashArray.GetFloat(1);
 
-                    if (patternArray != null && patternArray.Count > 0)
+                    if (patternArray != null && patternArray.Length > 0)
                     {
-                        var pattern = new float[patternArray.Count];
-                        for (int i = 0; i < patternArray.Count; i++)
-                        {
-                            pattern[i] = patternArray[i].AsFloat();
-                        }
-                        graphicsState.DashPattern = pattern;
+                        graphicsState.DashPattern = patternArray;
                         graphicsState.DashPhase = phase;
                     }
                     else
@@ -120,14 +114,14 @@ namespace PdfReader.Rendering.State
             // Alpha constants (transparency)
             if (gsDict.HasKey(PdfTokens.StrokeAlphaKey)) // Stroke alpha (/CA)
             {
-                var alpha = gsDict.GetFloat(PdfTokens.StrokeAlphaKey);
+                var alpha = gsDict.GetFloatOrDefault(PdfTokens.StrokeAlphaKey);
                 // Clamp alpha to valid range [0.0, 1.0] as per PDF specification
                 graphicsState.StrokeAlpha = Math.Max(0f, Math.Min(1f, alpha));
             }
 
             if (gsDict.HasKey(PdfTokens.FillAlphaKey))   // Fill alpha (/ca)
             {
-                var alpha = gsDict.GetFloat(PdfTokens.FillAlphaKey);
+                var alpha = gsDict.GetFloatOrDefault(PdfTokens.FillAlphaKey);
                 // Clamp alpha to valid range [0.0, 1.0] as per PDF specification
                 graphicsState.FillAlpha = Math.Max(0f, Math.Min(1f, alpha));
             }
@@ -148,20 +142,18 @@ namespace PdfReader.Rendering.State
                     if (blendModeArray != null && blendModeArray.Count > 0)
                     {
                         // Try each blend mode in the array until we find a supported one
-                        foreach (var modeValue in blendModeArray)
+                        for (int i = 0; i < blendModeArray.Count; i++)
                         {
-                            if (modeValue.Type == PdfValueType.Name)
+                            var modeName = blendModeArray.GetName(i);
+
+                            if (!string.IsNullOrEmpty(modeName))
                             {
-                                var modeName = modeValue.AsName();
-                                if (!string.IsNullOrEmpty(modeName))
+                                var parsedMode = PdfBlendModeNames.ParseBlendMode(modeName);
+                                // Use the first blend mode that we recognize (even if it's Normal)
+                                if (parsedMode != PdfBlendMode.Normal || string.Equals(modeName, PdfBlendModeNames.Normal, StringComparison.OrdinalIgnoreCase))
                                 {
-                                    var parsedMode = PdfBlendModeNames.ParseBlendMode(modeName);
-                                    // Use the first blend mode that we recognize (even if it's Normal)
-                                    if (parsedMode != PdfBlendMode.Normal || string.Equals(modeName, PdfBlendModeNames.Normal, StringComparison.OrdinalIgnoreCase))
-                                    {
-                                        graphicsState.BlendMode = parsedMode;
-                                        break; // Use the first recognized blend mode
-                                    }
+                                    graphicsState.BlendMode = parsedMode;
+                                    break; // Use the first recognized blend mode
                                 }
                             }
                         }
@@ -170,7 +162,7 @@ namespace PdfReader.Rendering.State
             }
 
             // Transformation matrix
-            List<IPdfValue> matrixArray = null;
+            PdfArray matrixArray = null;
             if (gsDict.HasKey(PdfTokens.MatrixKey)) // Custom transformation matrix
             {
                 matrixArray = gsDict.GetArray(PdfTokens.MatrixKey);
@@ -180,17 +172,7 @@ namespace PdfReader.Rendering.State
                 matrixArray = gsDict.GetArray(PdfTokens.CTMKey);
             }
 
-            if (matrixArray != null && matrixArray.Count >= 6)
-            {
-                // Create transformation matrix from the graphics state
-                var matrixOperands = new List<IPdfValue>();
-                for (int i = 0; i < 6 && i < matrixArray.Count; i++)
-                {
-                    matrixOperands.Add(matrixArray[i]);
-                }
-
-                transformMatrix = PdfMatrixUtilities.CreateMatrix(matrixOperands);
-            }
+            transformMatrix = PdfMatrixUtilities.CreateMatrix(matrixArray);
 
             // Soft Mask (/SMask) - CRITICAL for shadow effects
             if (gsDict.HasKey(PdfTokens.SoftMaskKey))
@@ -224,7 +206,7 @@ namespace PdfReader.Rendering.State
             // Overprint Mode (/OPM)
             if (gsDict.HasKey(PdfTokens.OverprintModeKey))
             {
-                graphicsState.OverprintMode = gsDict.GetInteger(PdfTokens.OverprintModeKey);
+                graphicsState.OverprintMode = gsDict.GetIntegerOrDefault(PdfTokens.OverprintModeKey);
             }
 
             // Overprint Stroke (/OP)
@@ -242,25 +224,6 @@ namespace PdfReader.Rendering.State
             }
 
             return transformMatrix;
-        }
-
-        /// <summary>
-        /// Apply parsed graphics state parameters to both the state object and canvas
-        /// This is the method called by the 'gs' operator
-        /// </summary>
-        /// <param name="gsName">Name of the graphics state in the page resources</param>
-        /// <param name="graphicsState">Graphics state object to update</param>
-        /// <param name="canvas">Canvas to apply transformations to</param>
-        /// <param name="page">PDF page containing the resources</param>
-        public static void ApplyGraphicsStateParameters(string gsName, PdfGraphicsState graphicsState, SKCanvas canvas, PdfPage page)
-        {
-            var transformMatrix = ParseGraphicsStateParameters(gsName, graphicsState, page);
-            
-            // Apply transformation matrix to canvas if present
-            if (transformMatrix.HasValue)
-            {
-                canvas.Concat(transformMatrix.Value);
-            }
         }
 
         /// <summary>
@@ -301,7 +264,7 @@ namespace PdfReader.Rendering.State
 
             // /Matrix (optional) -> if present replace default identity
             var matrixArray = formDict.GetArray(PdfTokens.MatrixKey);
-            if (matrixArray != null && matrixArray.Count >= 6)
+            if (matrixArray != null)
             {
                 softMask.FormMatrix = PdfMatrixUtilities.CreateMatrix(matrixArray);
             }
@@ -310,10 +273,11 @@ namespace PdfReader.Rendering.State
             var bboxArray = formDict.GetArray(PdfTokens.BBoxKey);
             if (bboxArray != null && bboxArray.Count >= 4)
             {
-                var left = bboxArray[0].AsFloat();
-                var bottom = bboxArray[1].AsFloat();
-                var right = bboxArray[2].AsFloat();
-                var top = bboxArray[3].AsFloat();
+                var left = bboxArray.GetFloat(0);
+                var bottom = bboxArray.GetFloat(1);
+                var right = bboxArray.GetFloat(2);
+                var top = bboxArray.GetFloat(3);
+
                 softMask.BBox = new SKRect(left, bottom, right, top);
 
                 // Use SKMatrix.MapRect returning a new rectangle
@@ -337,11 +301,7 @@ namespace PdfReader.Rendering.State
                 var groupCsDict = formDict.GetDictionary(PdfTokens.TransparencyGroupKey);
                 var csVal = groupCsDict?.GetValue(PdfTokens.GroupColorSpaceKey);
                 var converter = csVal != null ? PdfColorSpaces.ResolveByValue(csVal, page) : DeviceGrayConverter.Instance;
-                var comps = new float[converter.Components];
-                for (int i = 0; i < comps.Length && i < bcArray.Count; i++)
-                {
-                    comps[i] = bcArray[i].AsFloat();
-                }
+                var comps = bcArray.GetFloatArray();
                 softMask.BackgroundColor = converter.ToSrgb(comps, PdfRenderingIntent.RelativeColorimetric);
             }
 
@@ -379,8 +339,8 @@ namespace PdfReader.Rendering.State
             group.ColorSpaceConverter = PdfColorSpaces.ResolveByValue(csValue, page);
 
             // Boolean flags (/I) and (/K) allow multiple representations; leverage GetBool
-            group.Isolated = groupDict.GetBool(PdfTokens.GroupIsolatedKey);
-            group.Knockout = groupDict.GetBool(PdfTokens.GroupKnockoutKey);
+            group.Isolated = groupDict.GetBoolOrDefault(PdfTokens.GroupIsolatedKey);
+            group.Knockout = groupDict.GetBoolOrDefault(PdfTokens.GroupKnockoutKey);
 
             return group;
         }

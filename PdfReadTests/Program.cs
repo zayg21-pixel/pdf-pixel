@@ -139,9 +139,9 @@ namespace PdfReadTests
                     Logger.LogInformation("Root object: {Root}", document.RootRef);
                     Logger.LogInformation(string.Empty);
 
-                    var start = 0;
-                    var max = 200;
-                    float scaleX = 3f; // Scale factor for rendering
+                    var start = 33;
+                    var max = 34;
+                    float scaleX = 0.1f; // Scale factor for rendering
 
                     var memory = GC.GetTotalMemory(true) / 1024 / 1024;
 

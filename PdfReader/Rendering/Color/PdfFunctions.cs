@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
 using PdfReader.Models;
+using PdfReader.Streams;
 
 namespace PdfReader.Rendering.Color
 {
@@ -92,7 +92,7 @@ namespace PdfReader.Rendering.Color
             }
 
             PdfDictionary dictionary = functionObject.Dictionary;
-            int functionType = dictionary.GetInteger(PdfTokens.FunctionTypeKey);
+            int functionType = dictionary.GetIntegerOrDefault(PdfTokens.FunctionTypeKey);
 
             switch (functionType)
             {
@@ -122,12 +122,18 @@ namespace PdfReader.Rendering.Color
         /// </summary>
         private static float[] EvaluateExponentialFunction(PdfDictionary dictionary, float input)
         {
-            List<IPdfValue> c0Array = dictionary.GetArray(PdfTokens.C0Key);
-            List<IPdfValue> c1Array = dictionary.GetArray(PdfTokens.C1Key);
-            float exponent = dictionary.GetFloat(PdfTokens.FnNKey);
+            float[] c0 = dictionary.GetArray(PdfTokens.C0Key)?.GetFloatArray();
+            float[] c1 = dictionary.GetArray(PdfTokens.C1Key)?.GetFloatArray();
+            float exponent = dictionary.GetFloatOrDefault(PdfTokens.FnNKey);
 
-            float[] c0 = c0Array != null ? ToFloatArray(c0Array) : new float[] { 0f };
-            float[] c1 = c1Array != null ? ToFloatArray(c1Array) : new float[] { 1f };
+            if (c0 == null || c0.Length == 0)
+            {
+                c0 = new float[] { 0f };
+            }
+            if (c1 == null || c1.Length == 0)
+            {
+                c1 = new float[] { 1f };
+            }
 
             int componentCount = Math.Min(c0.Length, c1.Length);
             if (componentCount == 0)
@@ -168,28 +174,21 @@ namespace PdfReader.Rendering.Color
                 return Array.Empty<float>();
             }
 
-            List<IPdfValue> boundsArray = dictionary.GetArray(PdfTokens.BoundsKey);
-            List<IPdfValue> encodeArray = dictionary.GetArray(PdfTokens.EncodeKey);
-            List<IPdfValue> domainArray = dictionary.GetArray(PdfTokens.DomainKey);
+            float[] bounds = dictionary.GetArray(PdfTokens.BoundsKey)?.GetFloatArray();
+            float[] encode = dictionary.GetArray(PdfTokens.EncodeKey)?.GetFloatArray();
+            float[] domain = dictionary.GetArray(PdfTokens.DomainKey)?.GetFloatArray();
 
             float domainStart = 0f;
             float domainEnd = 1f;
-            if (domainArray != null && domainArray.Count >= 2)
+            if (domain != null && domain.Length >= 2)
             {
-                domainStart = domainArray[0].AsFloat();
-                domainEnd = domainArray[1].AsFloat();
+                domainStart = domain[0];
+                domainEnd = domain[1];
             }
 
             int segmentIndex = 0;
-            float[] bounds = null;
-            if (boundsArray != null && boundsArray.Count > 0)
+            if (bounds != null && bounds.Length > 0)
             {
-                bounds = new float[boundsArray.Count];
-                for (int i = 0; i < boundsArray.Count; i++)
-                {
-                    bounds[i] = boundsArray[i].AsFloat();
-                }
-
                 while (segmentIndex < bounds.Length && input > bounds[segmentIndex])
                 {
                     segmentIndex++;
@@ -202,12 +201,12 @@ namespace PdfReader.Rendering.Color
             }
 
             float mappedInput = input;
-            if (bounds != null && encodeArray != null && encodeArray.Count >= 2 * subFunctions.Count)
+            if (bounds != null && encode != null && encode.Length >= 2 * subFunctions.Count)
             {
                 float a = segmentIndex == 0 ? domainStart : bounds[segmentIndex - 1];
                 float b = segmentIndex < bounds.Length ? bounds[segmentIndex] : domainEnd;
-                float e0 = encodeArray[2 * segmentIndex].AsFloat();
-                float e1 = encodeArray[2 * segmentIndex + 1].AsFloat();
+                float e0 = encode[2 * segmentIndex];
+                float e1 = encode[2 * segmentIndex + 1];
                 float length = b - a;
                 float localT = length != 0f ? (input - a) / length : 0f;
                 mappedInput = e0 + localT * (e1 - e0);
@@ -231,19 +230,19 @@ namespace PdfReader.Rendering.Color
 
                 PdfDocument document = dictionary.Document;
 
-                List<IPdfValue> sizeArray = dictionary.GetArray(PdfTokens.SizeKey);
-                if (sizeArray == null || sizeArray.Count == 0)
+                int[] sizeSource = dictionary.GetArray(PdfTokens.SizeKey)?.GetIntegerArray();
+                if (sizeSource == null || sizeSource.Length == 0)
                 {
                     return Array.Empty<float>();
                 }
-                int dimensions = sizeArray.Count;
+                int dimensions = sizeSource.Length;
                 if (inputs.Length == 0)
                 {
                     return Array.Empty<float>();
                 }
 
-                List<IPdfValue> domainArray = dictionary.GetArray(PdfTokens.DomainKey);
-                if (domainArray == null || domainArray.Count < 2 * dimensions)
+                float[] domainPairs = dictionary.GetArray(PdfTokens.DomainKey)?.GetFloatArray();
+                if (domainPairs == null || domainPairs.Length < 2 * dimensions)
                 {
                     return Array.Empty<float>();
                 }
@@ -278,39 +277,34 @@ namespace PdfReader.Rendering.Color
                 else
                 {
                     sizes = new int[dimensions];
-                    for (int d = 0; d < dimensions; d++)
+                    for (int dimensionIndex = 0; dimensionIndex < dimensions; dimensionIndex++)
                     {
-                        sizes[d] = Math.Max(1, sizeArray[d].AsInteger());
+                        sizes[dimensionIndex] = Math.Max(1, sizeSource[dimensionIndex]);
                     }
 
-                    bitsPerSample = dictionary.GetInteger(PdfTokens.BitsPerSampleKey);
+                    bitsPerSample = dictionary.GetIntegerOrDefault(PdfTokens.BitsPerSampleKey);
                     if (bitsPerSample < 1 || bitsPerSample > 32)
                     {
                         return Array.Empty<float>();
                     }
 
-                    List<IPdfValue> rangeArray = dictionary.GetArray(PdfTokens.RangeKey);
-                    if (rangeArray == null || rangeArray.Count < 2)
+                    rangePairs = dictionary.GetArray(PdfTokens.RangeKey)?.GetFloatArray();
+                    if (rangePairs == null || rangePairs.Length < 2)
                     {
                         return Array.Empty<float>();
                     }
-                    componentCount = rangeArray.Count / 2;
+                    componentCount = rangePairs.Length / 2;
 
-                    List<IPdfValue> encodeArray = dictionary.GetArray(PdfTokens.EncodeKey);
-                    List<IPdfValue> decodeArray = dictionary.GetArray(PdfTokens.DecodeKey);
-
-                    encodePairs = encodeArray != null ? ToFloatArray(encodeArray).ToArray() : null;
-                    decodePairs = decodeArray != null ? ToFloatArray(decodeArray).ToArray() : null;
-
-                    rangePairs = ToFloatArray(rangeArray).ToArray();
+                    encodePairs = dictionary.GetArray(PdfTokens.EncodeKey)?.GetFloatArray();
+                    decodePairs = dictionary.GetArray(PdfTokens.DecodeKey)?.GetFloatArray();
 
                     // Compute strides dimension 0 fastest
                     strides = new int[dimensions];
                     int totalSamples = 1;
-                    for (int d = 0; d < dimensions; d++)
+                    for (int dimensionIndex = 0; dimensionIndex < dimensions; dimensionIndex++)
                     {
-                        strides[d] = totalSamples;
-                        long nextTotal = (long)totalSamples * sizes[d];
+                        strides[dimensionIndex] = totalSamples;
+                        long nextTotal = (long)totalSamples * sizes[dimensionIndex];
                         if (nextTotal > 8_000_000)
                         {
                             return Array.Empty<float>();
@@ -375,8 +369,8 @@ namespace PdfReader.Rendering.Color
 
                 for (int dimensionIndex = 0; dimensionIndex < dimensions; dimensionIndex++)
                 {
-                    float domainMin = domainArray[2 * dimensionIndex].AsFloat();
-                    float domainMax = domainArray[2 * dimensionIndex + 1].AsFloat();
+                    float domainMin = domainPairs[2 * dimensionIndex];
+                    float domainMax = domainPairs[2 * dimensionIndex + 1];
                     if (Math.Abs(domainMax - domainMin) < 1e-12f)
                     {
                         domainMax = domainMin + 1f;
@@ -482,21 +476,6 @@ namespace PdfReader.Rendering.Color
             {
                 return Array.Empty<float>();
             }
-        }
-
-        private static float[] ToFloatArray(List<IPdfValue> array)
-        {
-            if (array == null || array.Count == 0)
-            {
-                return Array.Empty<float>();
-            }
-
-            float[] result = new float[array.Count];
-            for (int index = 0; index < array.Count; index++)
-            {
-                result[index] = array[index].AsFloat();
-            }
-            return result;
         }
 
         private sealed class BitReader

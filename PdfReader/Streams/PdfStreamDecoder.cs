@@ -4,10 +4,9 @@ using System.IO;
 using System.IO.Compression;
 using PdfReader.Models;
 using CommunityToolkit.HighPerformance;
-using PdfReader.Streams;
 using System.Linq;
 
-namespace PdfReader
+namespace PdfReader.Streams
 {
     public static class PdfStreamDecoder
     {
@@ -134,11 +133,13 @@ namespace PdfReader
             var filters = new List<string>();
 
             var filterValue = obj.Dictionary.GetArray(PdfTokens.FilterKey);
+
             if (filterValue != null)
             {
-                foreach (var filter in filterValue)
+                for (int i = 0; i < filterValue.Count; i++)
                 {
-                    var filterName = filter.AsName();
+                    var filterName = filterValue.GetName(i);
+
                     if (filterName != null)
                     {
                         filters.Add(filterName);

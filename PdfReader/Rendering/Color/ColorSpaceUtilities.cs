@@ -14,15 +14,11 @@ namespace PdfReader.Rendering.Color
             return name[0] == '/' ? name.Substring(1) : name;
         }
 
-        public static bool TryGetColorSpaceName(PdfPage page, IPdfValue value, out string name)
+        public static bool TryGetColorSpaceName(IPdfValue value, out string name)
         {
-            if (value.Type == PdfValueType.Reference)
+            if (value.Type == PdfValueType.Name)
             {
-                return TryGetColorSpaceName(page, value.ResolveToNonReference(page.Document), out name);
-            }
-            else if (value.Type == PdfValueType.Name)
-            {
-                name = value.AsString();
+                name = value.AsName();
                 return !string.IsNullOrEmpty(name);
             }
             else if (value.Type == PdfValueType.Array)
@@ -30,7 +26,7 @@ namespace PdfReader.Rendering.Color
                 var array = value.AsArray();
                 if (array.Count > 0)
                 {
-                    name = array[0].AsString();
+                    name = array.GetName(0);
                     return !string.IsNullOrEmpty(name);
                 }
             }
@@ -39,43 +35,38 @@ namespace PdfReader.Rendering.Color
             return false;
         }
 
-        public static bool TryGetColorSpaceReference(PdfPage page, IPdfValue value, out PdfReference reference)
+        public static bool TryGetColorSpaceObject(IPdfValue value, out PdfObject pdfObject)
         {
-            if (value.Type == PdfValueType.Reference)
-            {
-                reference = value.AsReference();
-                return true;
-            }
-            else if (value.Type == PdfValueType.Array)
+            if (value.Type == PdfValueType.Array)
             {
                 var array = value.AsArray();
-                if (array.Count == 2 && array[1].Type == PdfValueType.Reference)
+                if (array.Count == 2)
                 {
-                    reference = array[1].AsReference();
-                    return true;
+                    pdfObject = array.GetPageObject(1);
+                    return pdfObject?.Reference.IsValid == true;
                 }
             }
 
-            reference = default;
+            pdfObject = null;
             return false;
         }
 
-        public static bool TryResolveFromCache(PdfPage page, PdfReference reference, out PdfColorSpaceConverter value)
+        public static bool TryResolveFromCache(PdfObject pdfObject, out PdfColorSpaceConverter value)
         {
-            if (reference.IsValid && page.Document.ColorSpaceConverters.TryGetValue(reference, out var exsisting))
+            if (pdfObject.Reference.IsValid && pdfObject.Document.ColorSpaceConverters.TryGetValue(pdfObject.Reference, out var existing))
             {
-                value = exsisting;
+                value = existing;
                 return true;
             }
             value = null;
             return false;
         }
 
-        public static bool TryStoreByReference(PdfPage page, PdfReference reference, PdfColorSpaceConverter converter)
+        public static bool TryStoreByReference(PdfObject pdfObject, PdfColorSpaceConverter converter)
         {
-            if (reference.IsValid)
+            if (pdfObject.Reference.IsValid)
             {
-                page.Document.ColorSpaceConverters[reference] = converter;
+                pdfObject.Document.ColorSpaceConverters[pdfObject.Reference] = converter;
                 return true;
             }
             return false;

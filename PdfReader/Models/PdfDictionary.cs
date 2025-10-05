@@ -4,7 +4,6 @@ using System.Runtime.CompilerServices;
 
 namespace PdfReader.Models
 {
-    // Type-safe PDF dictionary
     public class PdfDictionary
     {
         private readonly Dictionary<string, IPdfValue> _values = new Dictionary<string, IPdfValue>();
@@ -25,7 +24,6 @@ namespace PdfReader.Models
             return _values.ContainsKey(GetValidKey(key));
         }
 
-        // Ensure dictionary key has leading slash
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static string GetValidKey(string key)
         {
@@ -33,20 +31,13 @@ namespace PdfReader.Models
             return key[0] == '/' ? key : "/" + key;
         }
 
-        // Type-safe getters with common PDF patterns
         public string GetName(string key)
             => _values.TryGetValue(GetValidKey(key), out var storedValue) ? storedValue.ResolveToNonReference(Document)?.AsName() : null;
 
         public string GetString(string key)
             => _values.TryGetValue(GetValidKey(key), out var storedValue) ? storedValue.ResolveToNonReference(Document)?.AsString() : null;
 
-        public int GetInteger(string key)
-            => _values.TryGetValue(GetValidKey(key), out var storedValue) ? storedValue.ResolveToNonReference(Document)?.AsInteger() ?? 0 : 0;
-
-        public float GetFloat(string key)
-            => _values.TryGetValue(GetValidKey(key), out var storedValue) ? storedValue.ResolveToNonReference(Document)?.AsFloat() ?? 0 : 0;
-
-        public bool GetBool(string key)
+        public bool GetBoolOrDefault(string key)
         {
             if (_values.TryGetValue(GetValidKey(key), out var storedValue))
             {
@@ -56,50 +47,55 @@ namespace PdfReader.Models
             return false;
         }
 
-        public bool TryGetInt(string key, out int value)
+        public int? GetInt(string key)
         {
-            value = 0;
             if (_values.TryGetValue(GetValidKey(key), out var storedValue))
             {
                 var resolvedValue = storedValue.ResolveToNonReference(Document);
+
                 if (resolvedValue != null && !IsCollectionType(resolvedValue))
                 {
-                    value = resolvedValue.AsInteger();
-                    return true;
+                    return resolvedValue.AsInteger();
                 }
             }
-            return false;
+
+            return default;
         }
 
-        public bool TryGetFloat(string key, out float value)
+        public float? GetFloat(string key)
         {
-            value = 0f;
             if (_values.TryGetValue(GetValidKey(key), out var storedValue))
             {
                 var resolvedValue = storedValue.ResolveToNonReference(Document);
                 if (resolvedValue != null && !IsCollectionType(resolvedValue))
                 {
-                    value = resolvedValue.AsFloat();
-                    return true;
+                    return resolvedValue.AsFloat();
                 }
             }
-            return false;
+
+            return default;
         }
 
-        public bool TryGetBool(string key, out bool value)
+        public bool? GetBool(string key)
         {
-            value = false;
             if (_values.TryGetValue(GetValidKey(key), out var storedValue))
             {
                 var resolvedValue = storedValue.ResolveToNonReference(Document);
                 if (resolvedValue != null && !IsCollectionType(resolvedValue))
                 {
-                    value = resolvedValue.AsBool();
-                    return true;
+                    return resolvedValue.AsBool();
                 }
             }
-            return false;
+
+            return default;
         }
+
+        public int GetIntegerOrDefault(string key)
+            => _values.TryGetValue(GetValidKey(key), out var storedValue) ? storedValue.ResolveToNonReference(Document)?.AsInteger() ?? 0 : 0;
+
+
+        public float GetFloatOrDefault(string key)
+            => _values.TryGetValue(GetValidKey(key), out var storedValue) ? storedValue.ResolveToNonReference(Document)?.AsFloat() ?? 0 : 0;
 
         private bool IsCollectionType(IPdfValue value)
         {
@@ -116,48 +112,35 @@ namespace PdfReader.Models
             return null;
         }
 
-        public List<IPdfValue> GetArray(string key)
+        public PdfArray GetArray(string key)
         {
             if (_values.TryGetValue(GetValidKey(key), out var storedValue))
             {
-                return storedValue.ResolveToArray(Document);
+                return storedValue.ResolveToNonReference(Document).AsArray();
             }
 
             return null;
         }
 
-        public PdfDictionary GetDictionary(string key)
-        {
-            if (_values.TryGetValue(GetValidKey(key), out var storedValue))
-            {
-                return storedValue.ResolveToDictionary(Document);
-            }
+        public PdfDictionary GetDictionary(string key) =>
+            _values.TryGetValue(GetValidKey(key), out var storedValue) ? storedValue.ResolveToNonReference(Document)?.AsDictionary() : null;
 
-            return null;
-        }
-
-        // Universal page object helpers
-        // If a reference array is found for a single-object accessor, use the first item if present
         public PdfObject GetPageObject(string key)
         {
             if (!_values.TryGetValue(GetValidKey(key), out var storedValue) || Document?.Objects == null)
                 return null;
 
             // Array of references case
-            var referenceArray = storedValue.AsReferenceArray();
+            var referenceArray = storedValue.AsArray();
             if (referenceArray != null)
             {
-                if (referenceArray.Count > 0 && Document.Objects.TryGetValue(referenceArray[0].ObjectNumber, out var pdfObject))
-                {
-                    return pdfObject;
-                }
-                return null;
+                return referenceArray.GetPageObject(0);
             }
 
             // Single reference case: return the existing object from the document to keep stream data
-            if (storedValue.Type == PdfValueType.Reference)
+            if (storedValue is IPdfValue<PdfReference> referenceValue)
             {
-                var reference = storedValue.AsReference();
+                var reference = referenceValue.Value;
                 if (reference.IsValid && Document.Objects.TryGetValue(reference.ObjectNumber, out var referencedObj))
                 {
                     return referencedObj;
@@ -170,31 +153,26 @@ namespace PdfReader.Models
             return new PdfObject(new PdfReference(0), Document, inlineValue);
         }
 
-        // If a single reference is found where an array is expected, return a collection of one item
         public List<PdfObject> GetPageObjects(string key)
         {
             if (!_values.TryGetValue(GetValidKey(key), out var storedValue) || Document?.Objects == null)
                 return null;
 
             var results = new List<PdfObject>();
-            var references = storedValue.AsReferenceArray();
+            var referenceArray = storedValue.ResolveToNonReference(Document)?.AsArray();
 
-            if (references == null && storedValue.Type == PdfValueType.Reference)
+            if (referenceArray != null)
             {
-                var reference = storedValue.AsReference();
-                if (Document.Objects.TryGetValue(reference.ObjectNumber, out var pdfObject) && pdfObject != null)
+                for (int i = 0; i < referenceArray.Count; i++)
                 {
-                    references = pdfObject.Value.AsReferenceArray();
-                }    
-            }
+                    var item = referenceArray.GetPageObject(i);
 
-            if (references != null)
-            {
-                foreach (var reference in references)
-                {
-                    if (Document.Objects.TryGetValue(reference.ObjectNumber, out var pdfObject) && pdfObject != null)
-                        results.Add(pdfObject);
+                    if (item != null)
+                    {
+                        results.Add(item);
+                    }
                 }
+
                 return results;
             }
 

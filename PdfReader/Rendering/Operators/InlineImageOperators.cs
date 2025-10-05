@@ -1,4 +1,5 @@
 ﻿using PdfReader.Models;
+using PdfReader.Parsing;
 using PdfReader.Rendering.Image;
 using SkiaSharp;
 using System;
@@ -82,7 +83,7 @@ namespace PdfReader.Rendering.Operators
                 }
 
                 // 3. Supply defaults if missing
-                if (!imageDict.HasKey(PdfTokens.BitsPerComponentKey) && !imageDict.GetBool(PdfTokens.ImageMaskKey))
+                if (!imageDict.HasKey(PdfTokens.BitsPerComponentKey) && !imageDict.GetBoolOrDefault(PdfTokens.ImageMaskKey))
                 {
                     imageDict.Set(PdfTokens.BitsPerComponentKey, PdfValue.Integer(8));
                 }
@@ -96,12 +97,12 @@ namespace PdfReader.Rendering.Operators
                     Console.WriteLine("Inline image missing /Height – skipping");
                     return;
                 }
-                if (!imageDict.HasKey(PdfTokens.ColorSpaceKey) && !imageDict.GetBool(PdfTokens.ImageMaskKey))
+                if (!imageDict.HasKey(PdfTokens.ColorSpaceKey) && !imageDict.GetBoolOrDefault(PdfTokens.ImageMaskKey))
                 {
                     // Default per spec is DeviceGray
                     imageDict.Set(PdfTokens.ColorSpaceKey, PdfValue.Name("/DeviceGray"));
                 }
-                if (imageDict.GetBool(PdfTokens.ImageMaskKey) && !imageDict.HasKey(PdfTokens.BitsPerComponentKey))
+                if (imageDict.GetBoolOrDefault(PdfTokens.ImageMaskKey) && !imageDict.HasKey(PdfTokens.BitsPerComponentKey))
                 {
                     imageDict.Set(PdfTokens.BitsPerComponentKey, PdfValue.Integer(1));
                 }
@@ -110,7 +111,7 @@ namespace PdfReader.Rendering.Operators
                 if (!parseContext.IsAtEnd)
                 {
                     var b = parseContext.PeekByte();
-                    if (PdfHelpers.IsWhitespace(b))
+                    if (PdfParsingHelpers.IsWhitespace(b))
                     {
                         parseContext.Advance(1);
                     }
@@ -184,9 +185,9 @@ namespace PdfReader.Rendering.Operators
                 if (span[i] == (byte)'E' && span[i + 1] == (byte)'I')
                 {
                     // Preceding must be whitespace (spec) and following delimiter
-                    bool precedingWs = i - 1 >= start && PdfHelpers.IsWhitespace(span[i - 1]);
+                    bool precedingWs = i - 1 >= start && PdfParsingHelpers.IsWhitespace(span[i - 1]);
                     byte following = i + 2 < length ? span[i + 2] : (byte)0; // EOF acceptable
-                    bool followingDelim = i + 2 >= length || PdfHelpers.IsWhitespace(following) || PdfHelpers.IsDelimiter(following);
+                    bool followingDelim = i + 2 >= length || PdfParsingHelpers.IsWhitespace(following) || PdfParsingHelpers.IsDelimiter(following);
                     if (precedingWs && followingDelim)
                     {
                         return i;
@@ -231,7 +232,7 @@ namespace PdfReader.Rendering.Operators
                         var newArr = new List<IPdfValue>(arr.Count);
                         for (int i = 0; i < arr.Count; i++)
                         {
-                            var item = arr[i];
+                            var item = arr.GetValue(i);
                             if (item != null && item.Type == PdfValueType.Name)
                             {
                                 string fname = item.AsName();
@@ -243,7 +244,7 @@ namespace PdfReader.Rendering.Operators
                             }
                             newArr.Add(item);
                         }
-                        return PdfValue.Array(newArr);
+                        return PdfValue.Array(new PdfArray(arr.Document, newArr));
                     }
                 }
             }

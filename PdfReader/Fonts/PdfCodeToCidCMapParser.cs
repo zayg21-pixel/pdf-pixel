@@ -17,7 +17,7 @@ namespace PdfReader.Fonts
 
             while (!context.IsAtEnd)
             {
-                PdfHelpers.SkipWhitespaceAndComment(ref context);
+                PdfParsingHelpers.SkipWhitespaceAndComment(ref context);
                 if (context.IsAtEnd)
                 {
                     break;
@@ -89,8 +89,8 @@ namespace PdfReader.Fonts
             int parsed = 0;
             while (!context.IsAtEnd)
             {
-                PdfHelpers.SkipWhitespaceAndComment(ref context);
-                if (PdfHelpers.MatchSequence(ref context, PdfTokens.EndCodespaceRange))
+                PdfParsingHelpers.SkipWhitespaceAndComment(ref context);
+                if (PdfParsingHelpers.MatchSequence(ref context, PdfTokens.EndCodespaceRange))
                 {
                     break;
                 }
@@ -112,7 +112,7 @@ namespace PdfReader.Fonts
                     continue;
                 }
 
-                PdfHelpers.SkipWhitespaceAndComment(ref context);
+                PdfParsingHelpers.SkipWhitespaceAndComment(ref context);
                 var endVal = PdfParsers.ParsePdfValue(ref context, document);
                 if (endVal?.Type != PdfValueType.HexString)
                 {
@@ -134,8 +134,8 @@ namespace PdfReader.Fonts
             int parsed = 0;
             while (!context.IsAtEnd)
             {
-                PdfHelpers.SkipWhitespaceAndComment(ref context);
-                if (PdfHelpers.MatchSequence(ref context, PdfTokens.EndCidChar))
+                PdfParsingHelpers.SkipWhitespaceAndComment(ref context);
+                if (PdfParsingHelpers.MatchSequence(ref context, PdfTokens.EndCidChar))
                 {
                     break;
                 }
@@ -157,7 +157,7 @@ namespace PdfReader.Fonts
                     continue;
                 }
 
-                PdfHelpers.SkipWhitespaceAndComment(ref context);
+                PdfParsingHelpers.SkipWhitespaceAndComment(ref context);
                 var dst = PdfParsers.ParsePdfValue(ref context, document);
                 if (dst?.Type != PdfValueType.Integer)
                 {
@@ -180,8 +180,8 @@ namespace PdfReader.Fonts
             int parsed = 0;
             while (!context.IsAtEnd)
             {
-                PdfHelpers.SkipWhitespaceAndComment(ref context);
-                if (PdfHelpers.MatchSequence(ref context, PdfTokens.EndCidRange))
+                PdfParsingHelpers.SkipWhitespaceAndComment(ref context);
+                if (PdfParsingHelpers.MatchSequence(ref context, PdfTokens.EndCidRange))
                 {
                     break;
                 }
@@ -203,14 +203,14 @@ namespace PdfReader.Fonts
                     continue;
                 }
 
-                PdfHelpers.SkipWhitespaceAndComment(ref context);
+                PdfParsingHelpers.SkipWhitespaceAndComment(ref context);
                 var endVal = PdfParsers.ParsePdfValue(ref context, document);
                 if (endVal?.Type != PdfValueType.HexString)
                 {
                     continue;
                 }
 
-                PdfHelpers.SkipWhitespaceAndComment(ref context);
+                PdfParsingHelpers.SkipWhitespaceAndComment(ref context);
                 var firstCidVal = PdfParsers.ParsePdfValue(ref context, document);
                 if (firstCidVal?.Type != PdfValueType.Integer)
                 {

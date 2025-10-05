@@ -28,23 +28,12 @@ namespace PdfReader.Fonts
             CharProcs = fontObject.Dictionary.GetDictionary(PdfTokens.CharProcsKey);
 
             // Get FontMatrix (required for Type3 fonts)
-            var fontMatrixArray = fontObject.Dictionary.GetArray(PdfTokens.FontMatrixKey);
-            if (fontMatrixArray?.Count >= 6)
+            FontMatrix = fontObject.Dictionary.GetArray(PdfTokens.FontMatrixKey).GetFloatArray();
+
+            if (FontMatrix == null || FontMatrix.Length != 6)
             {
-                FontMatrix = new float[]
-                {
-                    fontMatrixArray[0].AsFloat(),
-                    fontMatrixArray[1].AsFloat(),
-                    fontMatrixArray[2].AsFloat(),
-                    fontMatrixArray[3].AsFloat(),
-                    fontMatrixArray[4].AsFloat(),
-                    fontMatrixArray[5].AsFloat()
-                };
-            }
-            else
-            {
-                // Default font matrix if not specified
-                FontMatrix = new float[] { 0.001f, 0, 0, 0.001f, 0, 0 };
+                // Default font matrix if not specified or incorrect length
+                FontMatrix = [0.001f, 0, 0, 0.001f, 0, 0];
             }
 
             // Get Resources dictionary (may be needed for character procedures)

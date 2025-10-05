@@ -8,15 +8,6 @@ namespace PdfReader.Rendering.Image
 {
     /// <summary>
     /// Image drawer that keeps images as SKImage (immutable) and avoids pixel-buffer roundtrips.
-    /// Only paint- and layer-based operations are applied. Any feature that requires direct pixel
-    /// manipulation is left as a TODO placeholder.
-    ///
-    /// Spec notes (PDF ISO 32000):
-    /// - Processing order (ideal): decode samples (/Decode) -> color space conversion -> masking (color key, ImageMask, SMask) -> paint.
-    /// - In the new pipeline, decoders are responsible for /Decode and color management where applicable.
-    /// - Image mask (/ImageMask true) is handled as a stencil that paints with current nonstroking color.
-    /// - Color-key masking (/Mask array) is performed inside raw decoder when supported.
-    /// - 16 bpc support is pending inside decoders.
     /// </summary>
     public class FastImageDrawer : IImageDrawer
     {
@@ -119,8 +110,8 @@ namespace PdfReader.Rendering.Image
                     return null;
                 }
 
-                var matteArray = softMaskObject.Dictionary?.GetArray(PdfTokens.MatteKey);
-                if (matteArray != null && matteArray.Count > 0)
+                var matteArray = softMaskObject.Dictionary?.GetArray(PdfTokens.MatteKey).GetFloatArray();
+                if (matteArray != null && matteArray.Length > 0)
                 {
                     _logger.LogInformation("Image '{ImageName}': /SMask has /Matte; dematting not implemented.", pdfImage?.Name);
                 }

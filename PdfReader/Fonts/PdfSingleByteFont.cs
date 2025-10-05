@@ -16,15 +16,12 @@ namespace PdfReader.Fonts
         /// <param name="fontObject">PDF object containing the font definition</param>
         protected PdfSingleByteFont(PdfObject fontObject) : base(fontObject)
         {            
-            // Initialize width information with lightweight operations
             Widths = new PdfFontWidths
             {
-                FirstChar = fontObject.Dictionary.GetInteger(PdfTokens.FirstCharKey),
-                LastChar = fontObject.Dictionary.GetInteger(PdfTokens.LastCharKey)
+                FirstChar = fontObject.Dictionary.GetIntegerOrDefault(PdfTokens.FirstCharKey),
+                LastChar = fontObject.Dictionary.GetIntegerOrDefault(PdfTokens.LastCharKey),
+                Widths = fontObject.Dictionary.GetArray(PdfTokens.WidthsKey).GetFloatArray() ?? []
             };
-            
-            // Load simple width array (relatively lightweight)
-            LoadWidthsArray(fontObject.Dictionary);
         }
         
         /// <summary>
@@ -59,21 +56,6 @@ namespace PdfReader.Fonts
                 null => PdfFontEncoding.Unknown,
                 _ => PdfFontEncoding.Custom
             };
-        }
-
-        /// <summary>
-        /// Load widths array from dictionary (relatively lightweight)
-        /// </summary>
-        protected void LoadWidthsArray(PdfDictionary dict)
-        {
-            var widthsArray = dict.GetArray(PdfTokens.WidthsKey);
-            if (widthsArray != null)
-            {
-                foreach (var width in widthsArray)
-                {
-                    Widths.Widths.Add(width.AsFloat());
-                }
-            }
         }
     }
 }

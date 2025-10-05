@@ -1,5 +1,6 @@
 using CommunityToolkit.HighPerformance;
 using PdfReader.Models;
+using PdfReader.Streams;
 using System;
 
 namespace PdfReader.Fonts
@@ -26,7 +27,7 @@ namespace PdfReader.Fonts
             // Lightweight dictionary operations in constructor
             Widths = new PdfFontWidths
             {
-                DefaultWidth = fontObject.Dictionary.GetFloat(PdfTokens.DWKey)
+                DefaultWidth = fontObject.Dictionary.GetFloatOrDefault(PdfTokens.DWKey)
             };
             
             // Set PDF default if not specified

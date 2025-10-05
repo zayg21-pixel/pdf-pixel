@@ -97,8 +97,7 @@ namespace PdfReader.Models
             return 0;
         }
 
-        [Obsolete("Use AsFloat() for float values instead.")]
-        public static float AsReal(this IPdfValue value)
+        private static float AsReal(this IPdfValue value)
         {
             if (value is PdfValue<float> realValue && realValue.Type == PdfValueType.Real)
             {
@@ -148,7 +147,7 @@ namespace PdfReader.Models
             return false;
         }
 
-        public static PdfReference AsReference(this IPdfValue value)
+        internal static PdfReference AsReference(this IPdfValue value)
         {
             if (value is PdfValue<PdfReference> referenceValue && referenceValue.Type == PdfValueType.Reference)
             {
@@ -157,9 +156,9 @@ namespace PdfReader.Models
             return new PdfReference(0);
         }
 
-        public static List<IPdfValue> AsArray(this IPdfValue value)
+        public static PdfArray AsArray(this IPdfValue value)
         {
-            if (value is PdfValue<List<IPdfValue>> arrayValue && arrayValue.Type == PdfValueType.Array)
+            if (value is PdfValue<PdfArray> arrayValue && arrayValue.Type == PdfValueType.Array)
             {
                 return arrayValue.Value;
             }
@@ -175,36 +174,6 @@ namespace PdfReader.Models
             return null;
         }
 
-        /// <summary>
-        /// Intelligently resolve a value to a dictionary, following references if necessary
-        /// </summary>
-        public static PdfDictionary ResolveToDictionary(this IPdfValue value, PdfDocument document, int maxDepth = 10)
-        {
-            var resolved = ResolveToType(value, document, PdfValueType.Dictionary, maxDepth);
-            return resolved?.AsDictionary();
-        }
-
-        /// <summary>
-        /// Intelligently resolve a value to an array, following references if necessary.
-        /// Additionally resolves each array item to its first non-reference using ResolveToNonReference.
-        /// </summary>
-        public static List<IPdfValue> ResolveToArray(this IPdfValue value, PdfDocument document, int maxDepth = 10)
-        {
-            var resolvedArray = ResolveToType(value, document, PdfValueType.Array, maxDepth);
-            var rawArray = resolvedArray?.AsArray();
-            if (rawArray == null) return null;
-
-            // Build a resolved copy where each element is dereferenced once to a non-reference value
-            var result = new List<IPdfValue>(rawArray.Count);
-            for (int i = 0; i < rawArray.Count; i++)
-            {
-                var item = rawArray[i];
-                var nonReferenceItem = item.ResolveToNonReference(document, maxDepth - 1);
-                result.Add(nonReferenceItem ?? item);
-            }
-            return result;
-        }
-
         public static IPdfValue ResolveToNonReference(this IPdfValue value, PdfDocument document, int maxDepth = 10)
         {
             if (value == null || document == null || maxDepth <= 0)
@@ -213,68 +182,19 @@ namespace PdfReader.Models
             if (value.Type != PdfValueType.Reference)
                 return value;
 
-            var reference = value.AsReference();
-            if (!reference.IsValid) return null;
-            if (!document.Objects.TryGetValue(reference.ObjectNumber, out var referencedObject) || referencedObject == null)
-                return null;
+            var reference = (IPdfValue<PdfReference>)value;
 
-            // DirectValue is guaranteed non-null
+            if (!reference.Value.IsValid)
+            {
+                return null;
+            }
+
+            if (!document.Objects.TryGetValue(reference.Value.ObjectNumber, out var referencedObject) || referencedObject == null)
+            {
+                return null;
+            }
+
             return ResolveToNonReference(referencedObject.Value, document, maxDepth - 1);
-        }
-
-        public static IPdfValue ResolveToType(this IPdfValue value, PdfDocument document, PdfValueType targetType, int maxDepth = 10)
-        {
-            if (value == null || document == null || maxDepth <= 0)
-                return null;
-
-            if (value.Type == targetType)
-                return value;
-
-            if (value.Type == PdfValueType.Reference)
-            {
-                var reference = value.AsReference();
-                if (!reference.IsValid) return null;
-                if (!document.Objects.TryGetValue(reference.ObjectNumber, out var referencedObject) || referencedObject == null)
-                    return null;
-
-                // Follow DirectValue chain; it's never null
-                return ResolveToType(referencedObject.Value, document, targetType, maxDepth - 1);
-            }
-
-            if (value.Type == PdfValueType.Dictionary && targetType != PdfValueType.Dictionary)
-            {
-                var dictionary = value.AsDictionary();
-                if (dictionary?.RawValues != null)
-                {
-                    foreach (var entry in dictionary.RawValues)
-                    {
-                        var resolved = ResolveToType(entry.Value, document, targetType, maxDepth - 1);
-                        if (resolved != null && resolved.Type == targetType)
-                            return resolved;
-                    }
-                }
-                return null;
-            }
-
-            return null;
-        }
-
-        public static List<PdfReference> AsReferenceArray(this IPdfValue value)
-        {
-            if (value.Type != PdfValueType.Array) return null;
-
-            var array = value.AsArray();
-            if (array == null) return null;
-
-            var result = new List<PdfReference>();
-
-            foreach (var item in array)
-            {
-                if (item.Type == PdfValueType.Reference)
-                    result.Add(item.AsReference());
-            }
-
-            return result.Count == array.Count ? result : null; // Only return if all items converted
         }
     }
 }

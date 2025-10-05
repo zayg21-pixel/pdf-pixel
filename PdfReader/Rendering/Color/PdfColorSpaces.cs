@@ -1,5 +1,6 @@
 using System;
 using PdfReader.Models;
+using PdfReader.Streams;
 
 namespace PdfReader.Rendering.Color
 {
@@ -9,14 +10,14 @@ namespace PdfReader.Rendering.Color
         {
             if (value == null) return DeviceRgbConverter.Instance;
 
-            if (!ColorSpaceUtilities.TryGetColorSpaceName(page, value, out var name))
+            if (!ColorSpaceUtilities.TryGetColorSpaceName(value, out var name))
             {
                 return DeviceRgbConverter.Instance;
             }
 
-            bool hasReference = ColorSpaceUtilities.TryGetColorSpaceReference(page, value, out var reference);
+            bool hasReference = ColorSpaceUtilities.TryGetColorSpaceObject(value, out var pdfObject);
 
-            if (hasReference && ColorSpaceUtilities.TryResolveFromCache(page, reference, out var cached))
+            if (hasReference && ColorSpaceUtilities.TryResolveFromCache(pdfObject, out var cached))
             {
                 return cached;
             }
@@ -25,7 +26,7 @@ namespace PdfReader.Rendering.Color
 
             if (hasReference)
             {
-                ColorSpaceUtilities.TryStoreByReference(page, reference, result);
+                ColorSpaceUtilities.TryStoreByReference(pdfObject, result);
             }
 
             return result;
@@ -194,7 +195,7 @@ namespace PdfReader.Rendering.Color
                     {
                         return ResolveByValue(resVal, page);
                     }
-                    Console.WriteLine("[ColorSpaces] NOT FULLY IMPLEMENTED: Unknown or unsupported color space '" + name + "'. Falling back to DeviceRGB.");
+
                     return DeviceRgbConverter.Instance;
                 }
             }
@@ -211,27 +212,6 @@ namespace PdfReader.Rendering.Color
             catch
             {
                 return null;
-            }
-        }
-
-        public static PdfColorSpace ParseColorSpaceName(string colorSpaceName)
-        {
-            colorSpaceName = ColorSpaceUtilities.NormalizeName(colorSpaceName);
-
-            switch (colorSpaceName)
-            {
-                case PdfColorSpaceNames.DeviceGray: return PdfColorSpace.DeviceGray;
-                case PdfColorSpaceNames.DeviceRGB: return PdfColorSpace.DeviceRGB;
-                case PdfColorSpaceNames.DeviceCMYK: return PdfColorSpace.DeviceCMYK;
-                case PdfColorSpaceNames.ICCBased: return PdfColorSpace.ICCBased;
-                case PdfColorSpaceNames.Indexed: return PdfColorSpace.Indexed;
-                case PdfColorSpaceNames.Lab: return PdfColorSpace.Lab; // Not implemented
-                case PdfColorSpaceNames.CalGray: return PdfColorSpace.CalGray;
-                case PdfColorSpaceNames.CalRGB: return PdfColorSpace.CalRGB;
-                case PdfColorSpaceNames.Pattern: return PdfColorSpace.Pattern;
-                case PdfColorSpaceNames.Separation: return PdfColorSpace.Separation;
-                case PdfColorSpaceNames.DeviceN: return PdfColorSpace.DeviceN;
-                default: return PdfColorSpace.Unknown;
             }
         }
     }

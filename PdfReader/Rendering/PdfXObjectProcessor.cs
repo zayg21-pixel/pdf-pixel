@@ -2,6 +2,7 @@
 using PdfReader.Rendering.Advanced;
 using PdfReader.Rendering.Image;
 using PdfReader.Rendering.State;
+using PdfReader.Streams;
 using SkiaSharp;
 using System.Collections.Generic;
 
@@ -71,7 +72,7 @@ namespace PdfReader.Rendering
 
             if (bbox != null && bbox.Count >= 4)
             {
-                clipRect = new SKRect(bbox[0].AsFloat(), bbox[1].AsFloat(), bbox[2].AsFloat(), bbox[3].AsFloat());
+                clipRect = new SKRect(bbox.GetFloat(0), bbox.GetFloat(1), bbox.GetFloat(2), bbox.GetFloat(3));
             }
 
             var clip = canvas.LocalClipBounds;

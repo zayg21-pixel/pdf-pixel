@@ -19,7 +19,7 @@ namespace PdfReader.Rendering.Image
                 return null;
 
             var decode = pdfImage.DecodeArray;
-            if (decode == null || decode.Count == 0) return null;
+            if (decode == null || decode.Length == 0) return null;
             if (pdfImage.BitsPerComponent != 8) return null;
 
             int components = colorSpace.Components;

@@ -1,7 +1,6 @@
 using System;
 using PdfReader.Models;
 using SkiaSharp;
-using System.Collections.Generic;
 
 namespace PdfReader.Fonts
 {
@@ -41,8 +40,8 @@ namespace PdfReader.Fonts
         public int FontWeight { get; set; }
         public float Leading { get; set; }
         public string CharSet { get; set; }
-        public List<float> StemSnapH { get; set; }
-        public List<float> StemSnapV { get; set; }
+        public float[] StemSnapH { get; set; }
+        public float[] StemSnapV { get; set; }
         public bool IsCffFont => FontFileFormat == FontFileFormat.Type1C || FontFileFormat == FontFileFormat.CIDFontType0C;
         public byte[] Panose { get; set; }
         /// <summary>
@@ -71,37 +70,28 @@ namespace PdfReader.Fonts
             {
                 Dictionary = dict, // Store reference to the dictionary
                 FontName = dict.GetString(PdfTokens.FontNameKey),
-                Flags = (PdfFontFlags)dict.GetInteger(PdfTokens.FlagsKey),
-                ItalicAngle = dict.GetFloat(PdfTokens.ItalicAngleKey),
-                Ascent = dict.GetFloat(PdfTokens.AscentKey),
-                Descent = dict.GetFloat(PdfTokens.DescentKey),
-                CapHeight = dict.GetFloat(PdfTokens.CapHeightKey),
-                XHeight = dict.GetFloat(PdfTokens.XHeightKey),
-                StemV = dict.GetFloat(PdfTokens.StemVKey),
-                StemH = dict.GetFloat(PdfTokens.StemHKey),
-                AvgWidth = dict.GetFloat(PdfTokens.AvgWidthKey),
-                MaxWidth = dict.GetFloat(PdfTokens.MaxWidthKey),
-                MissingWidth = dict.GetFloat(PdfTokens.MissingWidthKey),
+                Flags = (PdfFontFlags)dict.GetIntegerOrDefault(PdfTokens.FlagsKey),
+                ItalicAngle = dict.GetFloatOrDefault(PdfTokens.ItalicAngleKey),
+                Ascent = dict.GetFloatOrDefault(PdfTokens.AscentKey),
+                Descent = dict.GetFloatOrDefault(PdfTokens.DescentKey),
+                CapHeight = dict.GetFloatOrDefault(PdfTokens.CapHeightKey),
+                XHeight = dict.GetFloatOrDefault(PdfTokens.XHeightKey),
+                StemV = dict.GetFloatOrDefault(PdfTokens.StemVKey),
+                StemH = dict.GetFloatOrDefault(PdfTokens.StemHKey),
+                AvgWidth = dict.GetFloatOrDefault(PdfTokens.AvgWidthKey),
+                MaxWidth = dict.GetFloatOrDefault(PdfTokens.MaxWidthKey),
+                MissingWidth = dict.GetFloatOrDefault(PdfTokens.MissingWidthKey),
                 FontFamily = dict.GetString(PdfTokens.FontFamilyKey),
                 FontStretch = dict.GetString(PdfTokens.FontStretchKey),
-                FontWeight = dict.GetInteger(PdfTokens.FontWeightKey),
-                Leading = dict.GetFloat(PdfTokens.LeadingKey),
+                FontWeight = dict.GetIntegerOrDefault(PdfTokens.FontWeightKey),
+                Leading = dict.GetFloatOrDefault(PdfTokens.LeadingKey),
                 CharSet = dict.GetString(PdfTokens.CharSetKey)
             };
 
             // Optional arrays
-            var stemSnapH = dict.GetArray(PdfTokens.StemSnapHKey);
-            if (stemSnapH != null && stemSnapH.Count > 0)
-            {
-                descriptor.StemSnapH = new List<float>(stemSnapH.Count);
-                foreach (var v in stemSnapH) descriptor.StemSnapH.Add(v.AsFloat());
-            }
-            var stemSnapV = dict.GetArray(PdfTokens.StemSnapVKey);
-            if (stemSnapV != null && stemSnapV.Count > 0)
-            {
-                descriptor.StemSnapV = new List<float>(stemSnapV.Count);
-                foreach (var v in stemSnapV) descriptor.StemSnapV.Add(v.AsFloat());
-            }
+            descriptor.StemSnapH = dict.GetArray(PdfTokens.StemSnapHKey).GetFloatArray();
+
+            descriptor.StemSnapV = dict.GetArray(PdfTokens.StemSnapVKey).GetFloatArray();
 
             // PANOSE (string or hex string)
             var panoseVal = dict.GetValue(PdfTokens.PanoseKey);
@@ -127,10 +117,10 @@ namespace PdfReader.Fonts
             descriptor.FontFileFormat = objectAndFormat.Format;
 
             // Parse FontBBox array
-            var fontBBoxArray = dict.GetArray(PdfTokens.FontBBoxKey);
-            if (fontBBoxArray?.Count >= 4)
+            var fontBBoxArray = dict.GetArray(PdfTokens.FontBBoxKey).GetFloatArray();
+            if (fontBBoxArray?.Length >= 4)
             {
-                descriptor.FontBBox = new SKRect(fontBBoxArray[0].AsFloat(), fontBBoxArray[1].AsFloat(), fontBBoxArray[2].AsFloat(), fontBBoxArray[3].AsFloat());
+                descriptor.FontBBox = new SKRect(fontBBoxArray[0], fontBBoxArray[1], fontBBoxArray[2], fontBBoxArray[3]);
             }
 
             return descriptor;

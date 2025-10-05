@@ -147,19 +147,19 @@ namespace PdfReader.Rendering.Advanced
 
                 if (tr.Type == PdfValueType.Array)
                 {
-                    var arr = tr.AsArray();
-                    if (arr == null || arr.Count == 0)
+                    var arr = tr.AsArray().GetFloatArray();
+                    if (arr == null || arr.Length == 0)
                     {
                         return null;
                     }
 
                     var alpha = new byte[256];
-                    if (arr.Count == 256)
+                    if (arr.Length == 256)
                     {
                         for (int i = 0; i < 256; i++)
                         {
-                            var v = arr[i];
-                            float f = v.Type == PdfValueType.Integer || v.Type == PdfValueType.Real ? v.AsFloat() : 0f;
+                            float f = arr[i];
+
                             if (f <= 1f)
                             {
                                 f *= 255f; // assume [0..1]

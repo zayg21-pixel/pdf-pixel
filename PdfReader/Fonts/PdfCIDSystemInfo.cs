@@ -15,7 +15,7 @@ namespace PdfReader.Fonts
             {
                 Registry = dict.GetString(PdfTokens.RegistryKey),
                 Ordering = dict.GetString(PdfTokens.OrderingKey),
-                Supplement = dict.GetInteger(PdfTokens.SupplementKey)
+                Supplement = dict.GetIntegerOrDefault(PdfTokens.SupplementKey)
             };
         }
     }

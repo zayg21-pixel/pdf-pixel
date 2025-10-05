@@ -21,15 +21,15 @@ namespace PdfReader.Parsing
             try
             {
                 // Skip whitespace
-                PdfHelpers.SkipWhitespaceAndComment(ref context);
+                PdfParsingHelpers.SkipWhitespaceAndComment(ref context);
                 
                 // Check if we find an object header (number generation obj) instead of "xref"
                 if (PdfParsers.TryParseObjectHeader(ref context, out int objNum, out int generation))
                 {
                     // Check if this object has a dictionary with /Type /XRef
-                    PdfHelpers.SkipWhitespaceAndComment(ref context);
-                    if (PdfHelpers.PeekByte(ref context) == PdfTokens.LeftAngle && 
-                        PdfHelpers.PeekByte(ref context, 1) == PdfTokens.LeftAngle)
+                    PdfParsingHelpers.SkipWhitespaceAndComment(ref context);
+                    if (PdfParsingHelpers.PeekByte(ref context) == PdfTokens.LeftAngle && 
+                        PdfParsingHelpers.PeekByte(ref context, 1) == PdfTokens.LeftAngle)
                     {
                         var dict = PdfParsers.ParseDictionary(ref context, null);
                         return dict.GetName(PdfTokens.TypeKey) == PdfTokens.XRefKey;
@@ -54,14 +54,14 @@ namespace PdfReader.Parsing
             // Parse the xref stream object
             if (PdfParsers.TryParseObjectHeader(ref context, out int objNum, out int generation))
             {
-                PdfHelpers.SkipWhitespaceAndComment(ref context);
+                PdfParsingHelpers.SkipWhitespaceAndComment(ref context);
                 var parsedDict = PdfParsers.ParseDictionary(ref context, document);
                 var xrefObj = new PdfObject(new PdfReference(objNum, generation), document, PdfValue.Dictionary(parsedDict));
                 
                 // Parse stream data if present
-                PdfHelpers.SkipWhitespaceAndComment(ref context);
+                PdfParsingHelpers.SkipWhitespaceAndComment(ref context);
 
-                if (PdfHelpers.MatchSequence(ref context, PdfTokens.Stream))
+                if (PdfParsingHelpers.MatchSequence(ref context, PdfTokens.Stream))
                 {
                     xrefObj.StreamData = PdfParsers.ParseStream(ref context, xrefObj.Dictionary);
                 }
@@ -93,10 +93,10 @@ namespace PdfReader.Parsing
             var infoObject = dict.GetPageObject(PdfTokens.InfoKey);
             
             // Get Size
-            var size = dict.GetInteger(PdfTokens.SizeKey);
+            var size = dict.GetIntegerOrDefault(PdfTokens.SizeKey);
             
             // Get Previous xref position for incremental updates
-            var prev = dict.GetInteger(PdfTokens.PrevKey);
+            var prev = dict.GetIntegerOrDefault(PdfTokens.PrevKey);
             if (prev > 0)
             {
                 Console.WriteLine($"Found previous xref at position {prev} - incremental update detected");
@@ -123,29 +123,25 @@ namespace PdfReader.Parsing
                 return;
             }
             
-            int[] fieldWidths = new int[3];
-            for (int i = 0; i < 3 && i < wArray.Count; i++)
-            {
-                fieldWidths[i] = (int)wArray[i].AsFloat();
-            }
+            int[] fieldWidths = wArray.GetIntegerArray();
             
             // Get the /Index array (ranges of object numbers)
-            var indexArray = dict.GetArray(PdfTokens.IndexKey);
+            var indexArray = dict.GetArray(PdfTokens.IndexKey).GetIntegerArray();
             var ranges = new List<(int start, int count)>();
             
-            if (indexArray != null && indexArray.Count >= 2)
+            if (indexArray != null && indexArray.Length >= 2)
             {
-                for (int i = 0; i < indexArray.Count; i += 2)
+                for (int i = 0; i < indexArray.Length; i += 2)
                 {
-                    int start = (int)indexArray[i].AsFloat();
-                    int count = (int)indexArray[i + 1].AsFloat();
+                    int start = indexArray[i];
+                    int count = indexArray[i + 1];
                     ranges.Add((start, count));
                 }
             }
             else
             {
                 // Default range: 0 to Size-1
-                int size = dict.GetInteger(PdfTokens.SizeKey);
+                int size = dict.GetIntegerOrDefault(PdfTokens.SizeKey);
                 ranges.Add((0, size));
             }
 

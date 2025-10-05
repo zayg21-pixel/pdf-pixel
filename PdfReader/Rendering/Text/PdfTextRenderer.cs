@@ -45,8 +45,15 @@ namespace PdfReader.Rendering.Text
 
             float totalAdvancement = 0f;
 
-            foreach (var item in array)
+            for (int i = 0; i < array.Count; i++)
             {
+                var item = array.GetValue(i);
+
+                if (item == null)
+                {
+                    continue;
+                }
+
                 if (item.Type == PdfValueType.String || item.Type == PdfValueType.HexString)
                 {
                     // Use PdfText wrapper for proper CID font handling

@@ -175,8 +175,6 @@ namespace PdfReader.Icc
                     return true;
                 }
             }
-
-            return false;
         }
 
         private IccLutPipeline GetA2BLutByIntent(PdfRenderingIntent intent)

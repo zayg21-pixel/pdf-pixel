@@ -15,10 +15,10 @@ namespace PdfReader.Models
             PageNumber = pageNumber;
             Document = document;
             PageObject = pageObject;
-            var resourceDictionary = PdfPageExtractor.GetInheritedValue(Document, PageObject, PdfTokens.ResourcesKey).ResolveToDictionary(document);
-            MediaBox = PdfPageExtractor.TryConvertArrayToSKRect(PdfPageExtractor.GetInheritedValue(Document, pageObject, PdfTokens.MediaBoxKey).ResolveToArray(document)) ?? DefaultSize;
-            CropBox = PdfPageExtractor.TryConvertArrayToSKRect(PdfPageExtractor.GetInheritedValue(Document, pageObject, PdfTokens.CropBoxKey).ResolveToArray(document)) ?? MediaBox;
-            Rotation = PdfPageExtractor.GetNormalizedRotation(PdfPageExtractor.GetInheritedValue(Document, pageObject, PdfTokens.CropBoxKey).ResolveToNonReference(document).AsInteger());
+            var resourceDictionary = PdfPageExtractor.GetInheritedValue(PageObject, PdfTokens.ResourcesKey).AsDictionary();
+            MediaBox = PdfPageExtractor.TryConvertArrayToSKRect(PdfPageExtractor.GetInheritedValue(pageObject, PdfTokens.MediaBoxKey).AsArray()) ?? DefaultSize;
+            CropBox = PdfPageExtractor.TryConvertArrayToSKRect(PdfPageExtractor.GetInheritedValue(pageObject, PdfTokens.CropBoxKey).AsArray()) ?? MediaBox;
+            Rotation = PdfPageExtractor.GetNormalizedRotation(PdfPageExtractor.GetInheritedValue(pageObject, PdfTokens.CropBoxKey).AsInteger());
 
             ResourceDictionary = resourceDictionary;
         }

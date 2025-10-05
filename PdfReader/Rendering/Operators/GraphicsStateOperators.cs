@@ -141,17 +141,12 @@ namespace PdfReader.Rendering.Operators
             var dashOperands = PdfOperatorProcessor.GetOperands(2, operandStack);
             if (dashOperands.Count >= 2)
             {
-                var dashArray = dashOperands[0].AsArray();
+                var dashArray = dashOperands[0].AsArray().GetFloatArray();
                 var dashPhase = dashOperands[1].AsFloat();
 
-                if (dashArray != null && dashArray.Count > 0)
+                if (dashArray != null && dashArray.Length > 0)
                 {
-                    var pattern = new float[dashArray.Count];
-                    for (int i = 0; i < dashArray.Count; i++)
-                    {
-                        pattern[i] = dashArray[i].AsFloat();
-                    }
-                    graphicsState.DashPattern = pattern;
+                    graphicsState.DashPattern = dashArray;
                     graphicsState.DashPhase = dashPhase;
                 }
                 else

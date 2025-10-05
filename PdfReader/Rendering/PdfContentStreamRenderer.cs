@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Text;
 using PdfReader.Models;
 using PdfReader.Parsing;
+using PdfReader.Streams;
 using SkiaSharp;
 
 namespace PdfReader.Rendering
