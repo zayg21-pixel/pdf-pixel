@@ -83,14 +83,7 @@ namespace PdfReader.Rendering.Color
 
         public override SKColor ToSrgb(ReadOnlySpan<float> comps01, PdfRenderingIntent renderingIntent)
         {
-            float r = comps01.Length > 0 ? comps01[0] : 0f;
-            float g = comps01.Length > 1 ? comps01[1] : 0f;
-            float b = comps01.Length > 2 ? comps01[2] : 0f;
-
-            var rgb = new Vector3(r, g, b);
-            rgb = Vector3.Clamp(rgb, Vector3.Zero, Vector3.One);
-
-            if (!_iccRgb.TryToSrgb01(rgb, renderingIntent, out var srgb01))
+            if (!_iccRgb.TryToSrgb01(comps01, renderingIntent, out var srgb01))
             {
                 return new SKColor(0, 0, 0, 255);
             }

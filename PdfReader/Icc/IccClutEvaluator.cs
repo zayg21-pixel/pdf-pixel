@@ -1,253 +1,301 @@
 using System;
+using System.Numerics;
 
 namespace PdfReader.Icc
 {
+    /// <summary>
+    /// CLUT evaluation utilities for ICC A2B pipelines.
+    /// Provides linear (trilinear / multilinear) interpolation for uniform and mAB (per-dimension) grids.
+    /// </summary>
     internal static class IccClutEvaluator
     {
-        public static float[] EvaluateClutTetrahedral3D(IccLutPipeline lut, float[] v)
-        {
-            int grid = lut.GridPoints;
-            int outCh = lut.OutChannels;
-            float scale = grid - 1;
-            float px = v[0] * scale; if (px < 0f) px = 0f; if (px > scale) px = scale;
-            float py = v[1] * scale; if (py < 0f) py = 0f; if (py > scale) py = scale;
-            float pz = v[2] * scale; if (pz < 0f) pz = 0f; if (pz > scale) pz = scale;
-            int ix = (int)Math.Floor(px); float fx = px - ix; int ix1 = ix < grid - 1 ? ix + 1 : ix;
-            int iy = (int)Math.Floor(py); float fy = py - iy; int iy1 = iy < grid - 1 ? iy + 1 : iy;
-            int iz = (int)Math.Floor(pz); float fz = pz - iz; int iz1 = iz < grid - 1 ? iz + 1 : iz;
-
-            int s2 = outCh;
-            int s1 = grid * s2;
-            int s0 = grid * s1;
-
-            int o000 = ix * s0 + iy * s1 + iz * s2;
-            int o100 = ix1 * s0 + iy * s1 + iz * s2;
-            int o010 = ix * s0 + iy1 * s1 + iz * s2;
-            int o001 = ix * s0 + iy * s1 + iz1 * s2;
-            int o110 = ix1 * s0 + iy1 * s1 + iz * s2;
-            int o101 = ix1 * s0 + iy * s1 + iz1 * s2;
-            int o011 = ix * s0 + iy1 * s1 + iz1 * s2;
-            int o111 = ix1 * s0 + iy1 * s1 + iz1 * s2;
-
-            var acc = new float[outCh];
-
-            if (fx >= fy)
-            {
-                if (fy >= fz)
-                {
-                    float w0 = 1f - fx;
-                    float w1 = fx - fy;
-                    float w2 = fy - fz;
-                    float w3 = fz;
-                    for (int c = 0; c < outCh; c++) acc[c] = lut.Clut[o000 + c] * w0 + lut.Clut[o100 + c] * w1 + lut.Clut[o110 + c] * w2 + lut.Clut[o111 + c] * w3;
-                }
-                else if (fx >= fz)
-                {
-                    float w0 = 1f - fx; float w1 = fx - fz; float w2 = fz - fy; float w3 = fy;
-                    for (int c = 0; c < outCh; c++) acc[c] = lut.Clut[o000 + c] * w0 + lut.Clut[o100 + c] * w1 + lut.Clut[o101 + c] * w2 + lut.Clut[o111 + c] * w3;
-                }
-                else
-                {
-                    float w0 = 1f - fz; float w1 = fz - fx; float w2 = fx - fy; float w3 = fy;
-                    for (int c = 0; c < outCh; c++) acc[c] = lut.Clut[o000 + c] * w0 + lut.Clut[o001 + c] * w1 + lut.Clut[o101 + c] * w2 + lut.Clut[o111 + c] * w3;
-                }
-            }
-            else
-            {
-                if (fx >= fz)
-                {
-                    float w0 = 1f - fy; float w1 = fy - fx; float w2 = fx - fz; float w3 = fz;
-                    for (int c = 0; c < outCh; c++) acc[c] = lut.Clut[o000 + c] * w0 + lut.Clut[o010 + c] * w1 + lut.Clut[o110 + c] * w2 + lut.Clut[o111 + c] * w3;
-                }
-                else if (fy >= fz)
-                {
-                    float w0 = 1f - fy; float w1 = fy - fz; float w2 = fz - fx; float w3 = fx;
-                    for (int c = 0; c < outCh; c++) acc[c] = lut.Clut[o000 + c] * w0 + lut.Clut[o010 + c] * w1 + lut.Clut[o011 + c] * w2 + lut.Clut[o111 + c] * w3;
-                }
-                else
-                {
-                    float w0 = 1f - fz; float w1 = fz - fy; float w2 = fy - fx; float w3 = fx;
-                    for (int c = 0; c < outCh; c++) acc[c] = lut.Clut[o000 + c] * w0 + lut.Clut[o001 + c] * w1 + lut.Clut[o011 + c] * w2 + lut.Clut[o111 + c] * w3;
-                }
-            }
-
-            return acc;
-        }
-
+        /// <summary>
+        /// Evaluate a uniform (lut8/lut16) CLUT with linear interpolation.
+        /// The input vin length determines the dimensionality (typically 3 for RGB or 4 for CMYK).
+        /// </summary>
+        /// <param name="lut">Pipeline containing a uniform grid.</param>
+        /// <param name="vin">Normalized input components (0..1).</param>
+        /// <returns>Interpolated output channel values.</returns>
         public static float[] EvaluateClutLinear(IccLutPipeline lut, float[] vin)
         {
-            int n = vin.Length;
-            int grid = lut.GridPoints;
-            int outCh = lut.OutChannels;
-
-            var idx0 = new int[n];
-            var frac = new float[n];
-            float scale = grid - 1;
-            for (int d = 0; d < n; d++)
+            if (lut == null)
             {
-                float p = vin[d] * scale;
-                if (p < 0f) p = 0f;
-                if (p > scale) p = scale;
-                int i0 = (int)Math.Floor(p);
-                float f = p - i0;
-                idx0[d] = i0;
-                frac[d] = f;
+                throw new ArgumentNullException(nameof(lut));
+            }
+            if (vin == null)
+            {
+                throw new ArgumentNullException(nameof(vin));
             }
 
-            var stride = new int[n];
-            int s = outCh;
-            for (int d = n - 1; d >= 0; d--)
+            int dimensionCount = vin.Length;
+            if (dimensionCount <= 0)
             {
-                stride[d] = s;
-                s *= grid;
+                return Array.Empty<float>();
             }
 
-            var acc = new float[outCh];
-            int vertices = 1 << n;
-            for (int v = 0; v < vertices; v++)
+            // Build per-dimension grid array (uniform grid => same size)
+            var gridPerDim = new int[dimensionCount];
+            for (int i = 0; i < dimensionCount; i++)
             {
-                float w = 1f;
-                int offset = 0;
-                for (int d = 0; d < n; d++)
-                {
-                    int bit = (v >> d) & 1;
-                    int id = idx0[d] + bit;
-                    if (id >= grid) { w = 0f; break; }
-                    w *= (bit == 0) ? (1f - frac[d]) : frac[d];
-                    offset += id * stride[d];
-                }
-                if (w == 0f) continue;
-
-                int baseIndex = offset;
-                for (int c = 0; c < outCh; c++)
-                {
-                    acc[c] += lut.Clut[baseIndex + c] * w;
-                }
+                gridPerDim[i] = lut.GridPoints;
             }
 
-            return acc;
+            return EvaluateClutLinearCore(lut.Clut, lut.OutChannels, gridPerDim, vin);
         }
 
-        public static float[] EvaluateClutLinearMab(IccLutPipeline p, float[] vin)
+        /// <summary>
+        /// Evaluate an mAB (per-dimension grid) CLUT with linear interpolation.
+        /// </summary>
+        /// <param name="pipeline">mAB pipeline.</param>
+        /// <param name="vin">Normalized input components (0..1).</param>
+        /// <returns>Interpolated output channel values.</returns>
+        public static float[] EvaluateClutLinearMab(IccLutPipeline pipeline, float[] vin)
         {
-            int n = p.GridPointsPerDim?.Length ?? p.InChannels;
-            int outCh = p.OutChannels;
-
-            var idx0 = new int[n];
-            var frac = new float[n];
-            for (int d = 0; d < n; d++)
+            if (pipeline == null)
             {
-                int grid = p.GridPointsPerDim[d];
-                float scale = grid - 1;
-                float pos = vin[d] * scale;
-                if (pos < 0f) pos = 0f; if (pos > scale) pos = scale;
-                int i0 = (int)Math.Floor(pos);
-                idx0[d] = i0;
-                frac[d] = pos - i0;
+                throw new ArgumentNullException(nameof(pipeline));
+            }
+            if (vin == null)
+            {
+                throw new ArgumentNullException(nameof(vin));
             }
 
-            var stride = new int[n];
-            int s = outCh;
-            for (int d = n - 1; d >= 0; d--)
+            int[] gridPerDim = pipeline.GridPointsPerDim;
+            if (gridPerDim == null || gridPerDim.Length == 0)
             {
-                stride[d] = s;
-                s *= p.GridPointsPerDim[d];
-            }
-
-            var acc = new float[outCh];
-            int vertices = 1 << n;
-            for (int v = 0; v < vertices; v++)
-            {
-                float w = 1f;
-                int offset = 0;
-                for (int d = 0; d < n; d++)
+                // Fallback: treat as uniform using InChannels
+                gridPerDim = new int[pipeline.InChannels];
+                for (int i = 0; i < gridPerDim.Length; i++)
                 {
-                    int grid = p.GridPointsPerDim[d];
-                    int bit = (v >> d) & 1;
-                    int id = idx0[d] + bit;
-                    if (id >= grid) { w = 0f; break; }
-                    w *= (bit == 0) ? (1f - frac[d]) : frac[d];
-                    offset += id * stride[d];
-                }
-                if (w == 0f) continue;
-
-                for (int c = 0; c < outCh; c++)
-                {
-                    acc[c] += p.Clut[offset + c] * w;
+                    gridPerDim[i] = pipeline.GridPoints > 0 ? pipeline.GridPoints : 1;
                 }
             }
 
-            return acc;
+            return EvaluateClutLinearCore(pipeline.Clut, pipeline.OutChannels, gridPerDim, vin);
         }
 
-        public static float[] EvaluateClutTetrahedral3DMab(IccLutPipeline p, float[] v)
+        /// <summary>
+        /// General pipeline evaluation for profiles with any input channel count (e.g. 3 = RGB/Lab, 4 = CMYK).
+        /// Applies input (A) curves, optional matrix (only when 3-channel), optional CLUT, middle (M) curves, and output (B) curves.
+        /// Produces PCS values (XYZ or Lab) without black point compensation or final color space conversion.
+        /// Handles the case where the CLUT stage is omitted (offsetClut == 0 in the tag) by skipping interpolation.
+        /// </summary>
+        public static float[] EvaluatePipelineToPcs(IccProfile profile, IccLutPipeline pipeline, ReadOnlySpan<float> input)
         {
-            int outCh = p.OutChannels;
-            int gx = p.GridPointsPerDim[0];
-            int gy = p.GridPointsPerDim[1];
-            int gz = p.GridPointsPerDim[2];
-
-            float sx = gx - 1; float px = v[0] * sx; if (px < 0f) px = 0f; if (px > sx) px = sx;
-            float sy = gy - 1; float py = v[1] * sy; if (py < 0f) py = 0f; if (py > sy) py = sy;
-            float sz = gz - 1; float pz = v[2] * sz; if (pz < 0f) pz = 0f; if (pz > sz) pz = sz;
-
-            int ix = (int)Math.Floor(px); float fx = px - ix; int ix1 = ix < gx - 1 ? ix + 1 : ix;
-            int iy = (int)Math.Floor(py); float fy = py - iy; int iy1 = iy < gy - 1 ? iy + 1 : iy;
-            int iz = (int)Math.Floor(pz); float fz = pz - iz; int iz1 = iz < gz - 1 ? iz + 1 : iz;
-
-            int s2 = outCh;
-            int s1 = gz * s2;
-            int s0 = gy * s1;
-
-            int o000 = ix * s0 + iy * s1 + iz * s2;
-            int o100 = ix1 * s0 + iy * s1 + iz * s2;
-            int o010 = ix * s0 + iy1 * s1 + iz * s2;
-            int o001 = ix * s0 + iy * s1 + iz1 * s2;
-            int o110 = ix1 * s0 + iy1 * s1 + iz * s2;
-            int o101 = ix1 * s0 + iy * s1 + iz1 * s2;
-            int o011 = ix * s0 + iy1 * s1 + iz1 * s2;
-            int o111 = ix1 * s0 + iy1 * s1 + iz1 * s2;
-
-            var acc = new float[outCh];
-
-            if (fx >= fy)
+            if (profile == null)
             {
-                if (fy >= fz)
+                return null;
+            }
+            if (pipeline == null)
+            {
+                return null;
+            }
+
+            int inChannels = pipeline.InChannels;
+            if (inChannels <= 0)
+            {
+                return null;
+            }
+
+            int usable = Math.Min(inChannels, input.Length);
+            float[] working = new float[usable];
+            IccLutPipelineCache cache = pipeline.Cache;
+
+            // Stage A (input curves)
+            if (cache.InputTrcLuts != null && cache.InputTrcLuts.Length >= usable)
+            {
+                for (int i = 0; i < usable; i++)
                 {
-                    float w0 = 1f - fx; float w1 = fx - fy; float w2 = fy - fz; float w3 = fz;
-                    for (int c = 0; c < outCh; c++) acc[c] = p.Clut[o000 + c] * w0 + p.Clut[o100 + c] * w1 + p.Clut[o110 + c] * w2 + p.Clut[o111 + c] * w3;
-                }
-                else if (fx >= fz)
-                {
-                    float w0 = 1f - fx; float w1 = fx - fz; float w2 = fz - fy; float w3 = fy;
-                    for (int c = 0; c < outCh; c++) acc[c] = p.Clut[o000 + c] * w0 + p.Clut[o100 + c] * w1 + p.Clut[o101 + c] * w2 + p.Clut[o111 + c] * w3;
-                }
-                else
-                {
-                    float w0 = 1f - fz; float w1 = fz - fx; float w2 = fx - fy; float w3 = fy;
-                    for (int c = 0; c < outCh; c++) acc[c] = p.Clut[o000 + c] * w0 + p.Clut[o001 + c] * w1 + p.Clut[o101 + c] * w2 + p.Clut[o111 + c] * w3;
+                    working[i] = ColorMath.LookupLinear(cache.InputTrcLuts[i], input[i]);
                 }
             }
             else
             {
-                if (fx >= fz)
+                for (int i = 0; i < usable; i++)
                 {
-                    float w0 = 1f - fy; float w1 = fy - fx; float w2 = fx - fz; float w3 = fz;
-                    for (int c = 0; c < outCh; c++) acc[c] = p.Clut[o000 + c] * w0 + p.Clut[o010 + c] * w1 + p.Clut[o110 + c] * w2 + p.Clut[o111 + c] * w3;
-                }
-                else if (fy >= fz)
-                {
-                    float w0 = 1f - fy; float w1 = fy - fz; float w2 = fz - fx; float w3 = fx;
-                    for (int c = 0; c < outCh; c++) acc[c] = p.Clut[o000 + c] * w0 + p.Clut[o010 + c] * w1 + p.Clut[o011 + c] * w2 + p.Clut[o111 + c] * w3;
-                }
-                else
-                {
-                    float w0 = 1f - fz; float w1 = fz - fy; float w2 = fy - fx; float w3 = fx;
-                    for (int c = 0; c < outCh; c++) acc[c] = p.Clut[o000 + c] * w0 + p.Clut[o001 + c] * w1 + p.Clut[o011 + c] * w2 + p.Clut[o111 + c] * w3;
+                    working[i] = input[i];
                 }
             }
 
-            return acc;
+            // Optional Matrix (only meaningful / allowed for 3 channels)
+            if (inChannels == 3 && cache.MatrixRow0.HasValue && cache.MatrixRow1.HasValue && cache.MatrixRow2.HasValue)
+            {
+                Vector3 vec = new Vector3(working[0], working[1], working[2]);
+                float X = Vector3.Dot(cache.MatrixRow0.Value, vec);
+                float Y = Vector3.Dot(cache.MatrixRow1.Value, vec);
+                float Z = Vector3.Dot(cache.MatrixRow2.Value, vec);
+                if (cache.MatrixOffset.HasValue)
+                {
+                    X += cache.MatrixOffset.Value.X;
+                    Y += cache.MatrixOffset.Value.Y;
+                    Z += cache.MatrixOffset.Value.Z;
+                }
+                working[0] = X;
+                if (usable > 1)
+                {
+                    working[1] = Y;
+                }
+                if (usable > 2)
+                {
+                    working[2] = Z;
+                }
+            }
+
+            bool hasClut = pipeline.Clut != null && pipeline.Clut.Length > 0;
+            float[] clutOut;
+
+            if (hasClut)
+            {
+                // Ensure input array for CLUT matches channel count expected.
+                float[] clutInput;
+                if (usable == working.Length)
+                {
+                    clutInput = working;
+                }
+                else
+                {
+                    clutInput = new float[inChannels];
+                    Array.Copy(working, clutInput, usable);
+                }
+
+                clutOut = pipeline.IsMab ? EvaluateClutLinearMab(pipeline, clutInput) : EvaluateClutLinear(pipeline, clutInput);
+                if (clutOut == null)
+                {
+                    return null;
+                }
+            }
+            else
+            {
+                // No CLUT stage: propagate current working values forward.
+                // If channel counts differ (rare without a CLUT), we will pad/truncate when applying curves.
+                clutOut = new float[working.Length];
+                Array.Copy(working, clutOut, working.Length);
+            }
+
+            // Middle (M) curves (only for mAB and only if present). Applied even if no CLUT existed.
+            if (pipeline.IsMab && cache.MidTrcLuts != null)
+            {
+                int limit = Math.Min(clutOut.Length, cache.MidTrcLuts.Length);
+                for (int i = 0; i < limit; i++)
+                {
+                    clutOut[i] = ColorMath.LookupLinear(cache.MidTrcLuts[i], clutOut[i]);
+                }
+            }
+
+            // Output (B) curves. Always produce an array sized to outputChannels.
+            if (cache.OutputTrcLuts != null)
+            {
+                int outputChannels = Math.Max(pipeline.OutChannels, cache.OutputTrcLuts.Length);
+                float[] pcs = new float[outputChannels];
+                int limit = Math.Min(clutOut.Length, cache.OutputTrcLuts.Length);
+                for (int i = 0; i < limit; i++)
+                {
+                    pcs[i] = ColorMath.LookupLinear(cache.OutputTrcLuts[i], clutOut[i]);
+                }
+                // Remaining channels (if any) default to 0.
+                return pcs;
+            }
+
+            // If no B curves LUTs, return CLUT (or working) output directly.
+            return clutOut;
+        }
+
+        /// <summary>
+        /// Core multilinear interpolation shared by uniform and per-dimension CLUTs.
+        /// </summary>
+        /// <param name="clut">Flattened CLUT array (output-major stride at innermost dimension).</param>
+        /// <param name="outChannels">Number of output channels.</param>
+        /// <param name="gridPointsPerDimension">Grid point counts for each input dimension.</param>
+        /// <param name="vin">Normalized input components (0..1).</param>
+        /// <returns>Interpolated output values.</returns>
+        private static float[] EvaluateClutLinearCore(float[] clut, int outChannels, int[] gridPointsPerDimension, float[] vin)
+        {
+            int dimensionCount = gridPointsPerDimension.Length;
+            if (dimensionCount != vin.Length)
+            {
+                // Clamp to the minimum safe dimension count
+                dimensionCount = Math.Min(dimensionCount, vin.Length);
+            }
+
+            // Pre-allocate index and fraction arrays (stack alloc would need spans; keep simple per rules)
+            var index0 = new int[dimensionCount];
+            var fraction = new float[dimensionCount];
+
+            // Clamp, scale and decompose positions
+            for (int d = 0; d < dimensionCount; d++)
+            {
+                int grid = gridPointsPerDimension[d];
+                if (grid <= 1)
+                {
+                    index0[d] = 0;
+                    fraction[d] = 0f;
+                    continue;
+                }
+
+                float scale = grid - 1;
+                float p = vin[d] * scale;
+                if (p < 0f)
+                {
+                    p = 0f;
+                }
+                else if (p > scale)
+                {
+                    p = scale;
+                }
+
+                int i0 = (int)p; // floor since p >= 0
+                float f = p - i0;
+                index0[d] = i0;
+                fraction[d] = f;
+            }
+
+            // Compute strides per dimension (innermost dimension is last index in loops => reverse order)
+            var stride = new int[dimensionCount];
+            int cumulative = outChannels;
+            for (int d = dimensionCount - 1; d >= 0; d--)
+            {
+                stride[d] = cumulative;
+                int grid = gridPointsPerDimension[d];
+                cumulative *= grid;
+            }
+
+            var result = new float[outChannels];
+            int vertexCount = 1 << dimensionCount;
+
+            for (int vertexMask = 0; vertexMask < vertexCount; vertexMask++)
+            {
+                float weight = 1f;
+                int offset = 0;
+
+                for (int d = 0; d < dimensionCount; d++)
+                {
+                    int grid = gridPointsPerDimension[d];
+                    int bit = (vertexMask >> d) & 1;
+                    int idx = index0[d] + bit;
+                    if (idx >= grid)
+                    {
+                        weight = 0f;
+                        break;
+                    }
+
+                    float f = fraction[d];
+                    weight *= (bit == 0) ? (1f - f) : f;
+                    offset += idx * stride[d];
+                }
+
+                if (weight == 0f)
+                {
+                    continue;
+                }
+
+                int baseIndex = offset;
+                for (int c = 0; c < outChannels; c++)
+                {
+                    result[c] += clut[baseIndex + c] * weight;
+                }
+            }
+
+            return result;
         }
     }
 }

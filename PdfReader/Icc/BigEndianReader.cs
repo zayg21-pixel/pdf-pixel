@@ -16,11 +16,28 @@ namespace PdfReader.Icc
             _data = data ?? Array.Empty<byte>();
         }
 
-        public int Length => _data.Length;
-
-        public void Ensure(int offset, int count)
+        /// <summary>
+        /// Returns true if the requested byte range is fully inside the underlying buffer.
+        /// </summary>
+        public bool CanRead(int offset, int count)
         {
-            if (offset < 0 || count < 0 || offset + count > _data.Length)
+            if (offset < 0 || count < 0)
+            {
+                return false;
+            }
+            if (offset > _data.Length)
+            {
+                return false;
+            }
+            return offset + count <= _data.Length;
+        }
+
+        /// <summary>
+        /// Internal bounds check that throws on failure. Use <see cref="CanRead"/> for non-throwing probes.
+        /// </summary>
+        private void Ensure(int offset, int count)
+        {
+            if (!CanRead(offset, count))
             {
                 throw new ArgumentOutOfRangeException(nameof(offset), "Insufficient data to read the requested structure.");
             }
@@ -67,17 +84,17 @@ namespace PdfReader.Icc
         public long ReadInt64(int offset)
         {
             Ensure(offset, 8);
-            var hi = (long)ReadInt32(offset);
-            var lo = (uint)ReadInt32(offset + 4);
+            long hi = ReadInt32(offset);
+            uint lo = (uint)ReadInt32(offset + 4);
             return (hi << 32) | lo;
         }
 
         public byte[] ReadBytes(int offset, int count)
         {
             Ensure(offset, count);
-            var buf = new byte[count];
-            Buffer.BlockCopy(_data, offset, buf, 0, count);
-            return buf;
+            var buffer = new byte[count];
+            Buffer.BlockCopy(_data, offset, buffer, 0, count);
+            return buffer;
         }
 
         public string ReadAscii(int offset, int count)
@@ -86,31 +103,10 @@ namespace PdfReader.Icc
             return Encoding.ASCII.GetString(_data, offset, count);
         }
 
-        public static uint FourCC(string fourCC)
-        {
-            // Accept exactly 4 characters per ICC spec.
-            if (string.IsNullOrEmpty(fourCC) || fourCC.Length != 4)
-                throw new ArgumentException("fourCC must be exactly 4 ASCII chars", nameof(fourCC));
-            return (uint)(
-                (byte)fourCC[0] << 24 |
-                (byte)fourCC[1] << 16 |
-                (byte)fourCC[2] << 8 |
-                (byte)fourCC[3]);
-        }
-
-        public static string FourCCToString(uint sig)
-        {
-            var a = (char)((sig >> 24) & 0xFF);
-            var b = (char)((sig >> 16) & 0xFF);
-            var c = (char)((sig >> 8) & 0xFF);
-            var d = (char)(sig & 0xFF);
-            return new string(new[] { a, b, c, d });
-        }
-
         // ICC fixed-point helpers
         public static float S15Fixed16ToSingle(int value)
         {
-            return value / 65536f;
+            return value / 65536f; // 1 << 16
         }
 
         public static float U16Fixed16ToSingle(uint value)
@@ -120,7 +116,25 @@ namespace PdfReader.Icc
 
         public static float U8Fixed8ToSingle(ushort value)
         {
-            return value / 256f;
+            return value / 256f; // 1 << 8
+        }
+
+        public static uint FourCC(string fourCC)
+        {
+            if (fourCC == null || fourCC.Length != 4)
+            {
+                throw new ArgumentException("FourCC must be exactly 4 characters.", nameof(fourCC));
+            }
+            return (uint)(fourCC[0] << 24 | fourCC[1] << 16 | fourCC[2] << 8 | fourCC[3]);
+        }
+
+        public static string FourCCToString(uint sig)
+        {
+            char c0 = (char)(sig >> 24 & 0xFF);
+            char c1 = (char)(sig >> 16 & 0xFF);
+            char c2 = (char)(sig >> 8 & 0xFF);
+            char c3 = (char)(sig & 0xFF);
+            return new string(new[] { c0, c1, c2, c3 });
         }
     }
 }

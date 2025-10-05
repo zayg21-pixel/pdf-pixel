@@ -79,25 +79,25 @@ namespace PdfReadTests
                 //"pdfs//ArabicCIDTrueType.pdf",
                 //"pdfs//asciihexdecode.pdf",
                 //"pdfs//complex_ttf_font.pdf",
-                //"pdfs//icc-lab-8bit.pdf",
-                //"pdfs//devicen.pdf",
-                //"pdfs//icc-xyz.pdf",
-                //"pdfs//icc-lab4.pdf",
-                //"pdfs//icc-lab2.pdf",
+                "pdfs//icc-lab-8bit.pdf",
+                "pdfs//devicen.pdf",
+                "pdfs//icc-xyz.pdf",
+                "pdfs//icc-lab4.pdf",
+                "pdfs//icc-lab2.pdf",
                 //"Adyen.pdf",
                 //"pdfs//mixedfonts.pdf",
                 //"Adyen - Copy.pdf",
                 //"pdfs//blendmode.pdf",
                 //"pdfs//alphatrans.pdf",
-                //"pdfs//calgray.pdf",
-                //"pdfs//calrgb.pdf",
-                //"pdfs//cmykjpeg.pdf",
-                //"pdfs//IndexedCS_negative_and_high.pdf",
+                "pdfs//calgray.pdf",
+                "pdfs//calrgb.pdf",
+                "pdfs//cmykjpeg.pdf",
+                "pdfs//IndexedCS_negative_and_high.pdf",
                 //@"sample.pdf",
-                //"pdfs//tiling-pattern-box.pdf",
-                //"pdfs//gradientfill.pdf",
+                "pdfs//tiling-pattern-box.pdf",
+                "pdfs//gradientfill.pdf",
                 //@"document - Copy.pdf",
-                @"documentS.pdf",
+                //@"documentS.pdf",
                 //@"documentC.pdf",
                 //"pdfs//ccitt_EndOfBlock_false.pdf",
                 //"pdfs//images_1bit_grayscale.pdf",
@@ -139,9 +139,9 @@ namespace PdfReadTests
                     Logger.LogInformation("Root object: {Root}", document.RootRef);
                     Logger.LogInformation(string.Empty);
 
-                    var start = 33;
-                    var max = 34;
-                    float scaleX = 0.1f; // Scale factor for rendering
+                    var start = 0;
+                    var max = 1000;
+                    float scaleX = 3f; // Scale factor for rendering
 
                     var memory = GC.GetTotalMemory(true) / 1024 / 1024;
 

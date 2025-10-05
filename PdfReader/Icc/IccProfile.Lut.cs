@@ -1,341 +1,428 @@
 ﻿using System;
+using System.Numerics;
 
 namespace PdfReader.Icc
 {
     /// <summary>
-    /// Partial ICC profile implementation: parsing of LUT-based A2B pipelines (lut8/lut16, mAB).
-    /// Keeps raw LUT data for evaluation elsewhere.
+    /// Partial ICC profile implementation: parsing of LUT-based A2B pipelines (lut8 / lut16, mAB).
+    /// Keeps raw LUT data for evaluation; evaluation logic is handled elsewhere.
     /// </summary>
     internal sealed partial class IccProfile
     {
-        // Overload used by IccProfile.Parse switch to follow same pattern
-        internal static IccLutPipeline ParseA2BLut(BigEndianReader r, IccTagEntry tag)
+        /// <summary>
+        /// Parse a LUT-based A2B tag entry (supports legacy lut8 / lut16 and mAB multi-process elements).
+        /// </summary>
+        /// <param name="reader">Big endian reader.</param>
+        /// <param name="tag">Tag entry.</param>
+        internal static IccLutPipeline ParseA2BLut(BigEndianReader reader, IccTagEntry tag)
         {
-            if (r == null || tag == null) return null;
-            uint type = r.ReadUInt32(tag.Offset);
-            if (type == BigEndianReader.FourCC(IccConstants.TypeLut8))
+            if (reader == null)
             {
-                return ParseLut8(r, tag.Offset, tag.Size);
+                return null;
             }
-            if (type == BigEndianReader.FourCC(IccConstants.TypeLut16))
+
+            if (tag == null)
             {
-                return ParseLut16(r, tag.Offset, tag.Size);
+                return null;
             }
-            if (type == BigEndianReader.FourCC(IccConstants.TypeMAB))
+
+            uint typeSignature = reader.ReadUInt32(tag.Offset);
+
+            if (typeSignature == BigEndianReader.FourCC(IccConstants.TypeLut8))
             {
-                return ParseMab(r, tag.Offset, tag.Size);
+                return ParseLut8(reader, tag.Offset, tag.Size);
             }
+
+            if (typeSignature == BigEndianReader.FourCC(IccConstants.TypeLut16))
+            {
+                return ParseLut16(reader, tag.Offset, tag.Size);
+            }
+
+            if (typeSignature == BigEndianReader.FourCC(IccConstants.TypeMAB))
+            {
+                return ParseMab(reader, tag.Offset, tag.Size);
+            }
+
             /*
-             * TODO (mBA / B2A support – PCS → device direction):
-             * - Parse B2A0/B2A1/B2A2 tags and recognize their types: lut8, lut16 and 'mBA ' (multi-process elements, reverse order).
-             * - Build an IccLutPipeline for reverse transforms. For mBA the stage order is:
-             *     B curves (per output channel in PCS) -> CLUT (per-dimension grid) -> optional Matrix3x3 + Offset -> A curves (per device channel).
-             *   This is the mirror of mAB (A -> M -> CLUT -> M -> B) but in the BToA layout defined by ICC.
-             * - Implement an evaluator similar to EvaluateMabToPcs, e.g. EvaluateMbaFromPcs, supporting both XYZ and Lab PCS.
-             *   Honor PCS type from profile header (Lab/XYZ); clamp/normalize appropriately.
-             * - Rendering intent selection: expose B2A0 (Perceptual), B2A1 (Relative), B2A2 (Saturation), and optionally Absolute fallback.
-             * - Integration: only needed if the engine requires PCS→device (e.g., proofing, overprint simulation, pattern shading back-transforms).
-             *   Our current device→sRGB path does not require B2A.
-             * - Robustness: validate offsets/sizes, grid products, and precision; guard against overflows and OOB access.
-             * - Performance: reuse small buffers; offer tetrahedral interpolation for 3D CLUTs as in A2B.
+             * Remaining (future) work – B2A (mBA) reverse direction support:
+             * - Parse B2A0 / B2A1 / B2A2 tags (lut8 / lut16 / 'mBA ').
+             * - Build reverse-direction pipelines mirroring the A2B stage ordering.
+             * - Implement evaluator for PCS -> device (proofing / overprint / special workflows).
+             * This is currently deferred because only device -> sRGB conversion is required.
              */
             return null;
         }
 
-        private static IccLutPipeline ParseLut8(BigEndianReader r, int off, int size)
+        /// <summary>
+        /// Parse legacy lut8 A2B structure.
+        /// </summary>
+        private static IccLutPipeline ParseLut8(BigEndianReader reader, int tagOffset, int tagSize)
         {
-            int inCh = r.ReadByte(off + 8);
-            int outCh = r.ReadByte(off + 9);
-            int grid = r.ReadByte(off + 10);
+            int inputChannels = reader.ReadByte(tagOffset + 8);
+            int outputChannels = reader.ReadByte(tagOffset + 9);
+            int uniformGridPoints = reader.ReadByte(tagOffset + 10);
 
-            // Matrix 3x3 (s15Fixed16) stage
-            var mat = new float[3, 3];
-            int mpos = off + 12;
-            for (int i = 0; i < 3; i++)
+            // 3x3 matrix (s15Fixed16)
+            float[,] matrix = new float[3, 3];
+            int matrixPos = tagOffset + 12;
+            for (int rowIndex = 0; rowIndex < 3; rowIndex++)
             {
-                for (int j = 0; j < 3; j++)
+                for (int columnIndex = 0; columnIndex < 3; columnIndex++)
                 {
-                    int v = r.ReadInt32(mpos + (i * 3 + j) * 4);
-                    mat[i, j] = BigEndianReader.S15Fixed16ToSingle(v);
+                    int raw = reader.ReadInt32(matrixPos + (rowIndex * 3 + columnIndex) * 4);
+                    matrix[rowIndex, columnIndex] = BigEndianReader.S15Fixed16ToSingle(raw);
                 }
             }
 
-            int cursor = mpos + 9 * 4;
+            int cursor = matrixPos + 9 * 4;
 
-            // Input tables: inCh * 256 bytes
-            var inTables = new float[inCh][];
-            for (int c = 0; c < inCh; c++)
+            // Input tables: inputChannels * 256 bytes each
+            float[][] inputTables = new float[inputChannels][];
+            for (int channel = 0; channel < inputChannels; channel++)
             {
-                inTables[c] = new float[256];
-                for (int i = 0; i < 256; i++) inTables[c][i] = r.ReadByte(cursor + c * 256 + i) / 255f;
-            }
-            cursor += inCh * 256;
-
-            // CLUT: outCh * grid^inCh bytes
-            int gridTotal = 1;
-            for (int d = 0; d < inCh; d++) gridTotal *= grid;
-            int clutCount = gridTotal * outCh;
-            var clut = new float[clutCount];
-            for (int i = 0; i < clutCount; i++) clut[i] = r.ReadByte(cursor + i) / 255f;
-            cursor += clutCount;
-
-            // Output tables: outCh * 256 bytes
-            var outTables = new float[outCh][];
-            for (int c = 0; c < outCh; c++)
-            {
-                outTables[c] = new float[256];
-                for (int i = 0; i < 256; i++) outTables[c][i] = r.ReadByte(cursor + c * 256 + i) / 255f;
-            }
-
-            var p = new IccLutPipeline(inCh, outCh, grid, inTables, clut, outTables)
-            {
-                Matrix3x3 = inCh == 3 ? mat : null
-            };
-            p.GridPointsPerDim = new int[inCh];
-            for (int i = 0; i < inCh; i++) p.GridPointsPerDim[i] = grid;
-            p.ClutPrecisionBytes = 1;
-            return p;
-        }
-
-        private static IccLutPipeline ParseLut16(BigEndianReader r, int off, int size)
-        {
-            int inCh = r.ReadByte(off + 8);
-            int outCh = r.ReadByte(off + 9);
-            int grid = r.ReadByte(off + 10);
-
-            // Matrix 3x3 (s15Fixed16)
-            var mat = new float[3, 3];
-            int mpos = off + 12;
-            for (int i = 0; i < 3; i++)
-            {
-                for (int j = 0; j < 3; j++)
+                inputTables[channel] = new float[256];
+                for (int i = 0; i < 256; i++)
                 {
-                    int v = r.ReadInt32(mpos + (i * 3 + j) * 4);
-                    mat[i, j] = BigEndianReader.S15Fixed16ToSingle(v);
+                    inputTables[channel][i] = reader.ReadByte(cursor + channel * 256 + i) / 255f;
                 }
             }
-
-            int cursor = mpos + 9 * 4;
-            int inEntries = r.ReadUInt16(cursor); // uInt16
-            int outEntries = r.ReadUInt16(cursor + 2);
-            cursor += 4;
-
-            // Input tables
-            var inTables = new float[inCh][];
-            for (int c = 0; c < inCh; c++)
-            {
-                var t = new float[inEntries];
-                for (int i = 0; i < inEntries; i++) t[i] = r.ReadUInt16(cursor + (c * inEntries + i) * 2) / 65535f;
-                inTables[c] = t;
-            }
-            cursor += inCh * inEntries * 2;
+            cursor += inputChannels * 256;
 
             // CLUT
             int gridTotal = 1;
-            for (int d = 0; d < inCh; d++) gridTotal *= grid;
-            int clutCount = gridTotal * outCh;
-            var clut = new float[clutCount];
-            for (int i = 0; i < clutCount; i++) clut[i] = r.ReadUInt16(cursor + i * 2) / 65535f;
-            cursor += clutCount * 2;
+            for (int d = 0; d < inputChannels; d++)
+            {
+                gridTotal *= uniformGridPoints;
+            }
+
+            int clutSampleCount = gridTotal * outputChannels;
+            float[] clut = new float[clutSampleCount];
+            for (int i = 0; i < clutSampleCount; i++)
+            {
+                clut[i] = reader.ReadByte(cursor + i) / 255f;
+            }
+            cursor += clutSampleCount;
 
             // Output tables
-            var outTables = new float[outCh][];
-            for (int c = 0; c < outCh; c++)
+            float[][] outputTables = new float[outputChannels][];
+            for (int channel = 0; channel < outputChannels; channel++)
             {
-                var t = new float[outEntries];
-                for (int i = 0; i < outEntries; i++) t[i] = r.ReadUInt16(cursor + (c * outEntries + i) * 2) / 65535f;
-                outTables[c] = t;
+                outputTables[channel] = new float[256];
+                for (int i = 0; i < 256; i++)
+                {
+                    outputTables[channel][i] = reader.ReadByte(cursor + channel * 256 + i) / 255f;
+                }
             }
 
-            var p = new IccLutPipeline(inCh, outCh, grid, inTables, clut, outTables)
+            IccLutPipeline pipeline = new IccLutPipeline(inputChannels, outputChannels, uniformGridPoints, inputTables, clut, outputTables)
             {
-                Matrix3x3 = inCh == 3 ? mat : null
+                Matrix3x3 = inputChannels == 3 ? matrix : null
             };
-            p.GridPointsPerDim = new int[inCh];
-            for (int i = 0; i < inCh; i++) p.GridPointsPerDim[i] = grid;
-            p.ClutPrecisionBytes = 2;
-            return p;
+
+            pipeline.GridPointsPerDim = new int[inputChannels];
+            for (int i = 0; i < inputChannels; i++)
+            {
+                pipeline.GridPointsPerDim[i] = uniformGridPoints;
+            }
+            pipeline.ClutPrecisionBytes = 1;
+            return pipeline;
         }
 
-        private static IccLutPipeline ParseMab(BigEndianReader r, int off, int size)
+        /// <summary>
+        /// Parse legacy lut16 A2B structure.
+        /// </summary>
+        private static IccLutPipeline ParseLut16(BigEndianReader reader, int tagOffset, int tagSize)
         {
-            int inCh = r.ReadByte(off + 8);
-            int outCh = r.ReadByte(off + 9);
-            // numGrid is nominal; actual per-dim grid sizes stored in CLUT block
-            // Offsets (u32) from start of tag
-            uint offB = r.ReadUInt32(off + 12);
-            uint offMatrix = r.ReadUInt32(off + 16);
-            uint offM = r.ReadUInt32(off + 20);
-            uint offClut = r.ReadUInt32(off + 24);
-            uint offA = r.ReadUInt32(off + 28);
+            int inputChannels = reader.ReadByte(tagOffset + 8);
+            int outputChannels = reader.ReadByte(tagOffset + 9);
+            int uniformGridPoints = reader.ReadByte(tagOffset + 10);
 
-            IccTrc[] curvesA = null, curvesB = null, curvesM = null;
-            if (offA != 0)
+            float[,] matrix = new float[3, 3];
+            int matrixPos = tagOffset + 12;
+            for (int rowIndex = 0; rowIndex < 3; rowIndex++)
             {
-                curvesA = ParseCurveSequence(r, off + (int)offA, inCh);
-            }
-            if (offB != 0)
-            {
-                curvesB = ParseCurveSequence(r, off + (int)offB, outCh);
-            }
-            if (offM != 0)
-            {
-                curvesM = ParseCurveSequence(r, off + (int)offM, outCh);
-            }
-
-            // CLUT: per-dim grid and precision
-            int clutPos = off + (int)offClut;
-            int[] gridPerDim = new int[inCh];
-            for (int i = 0; i < inCh; i++) gridPerDim[i] = r.ReadByte(clutPos + i);
-            int prec = r.ReadByte(clutPos + inCh); // 1 or 2
-            int clutDataPos = clutPos + inCh + 1;
-            // align to next 4-byte boundary
-            int pad = (4 - (clutDataPos & 3)) & 3;
-            clutDataPos += pad;
-
-            long gridTotal = 1;
-            for (int i = 0; i < inCh; i++) gridTotal *= gridPerDim[i] <= 0 ? 1 : gridPerDim[i];
-            long clutCount = gridTotal * outCh;
-            if (clutCount <= 0 || clutCount > int.MaxValue / Math.Max(1, prec)) return null;
-            var clut = new float[(int)clutCount];
-            if (prec == 1)
-            {
-                for (int i = 0; i < clut.Length; i++) clut[i] = r.ReadByte(clutDataPos + i) / 255f;
-            }
-            else
-            {
-                for (int i = 0; i < clut.Length; i++) clut[i] = r.ReadUInt16(clutDataPos + i * 2) / 65535f;
-            }
-
-            // Matrix (optional): 3x3 + 3 offsets (s15Fixed16)
-            float[,] mat = null;
-            float[] mOffset = null;
-            if (offMatrix != 0)
-            {
-                int mpos = off + (int)offMatrix;
-                mat = new float[3, 3];
-                for (int i = 0; i < 3; i++)
+                for (int columnIndex = 0; columnIndex < 3; columnIndex++)
                 {
-                    for (int j = 0; j < 3; j++)
+                    int raw = reader.ReadInt32(matrixPos + (rowIndex * 3 + columnIndex) * 4);
+                    matrix[rowIndex, columnIndex] = BigEndianReader.S15Fixed16ToSingle(raw);
+                }
+            }
+
+            int cursor = matrixPos + 9 * 4;
+            int inputTableEntries = reader.ReadUInt16(cursor);
+            int outputTableEntries = reader.ReadUInt16(cursor + 2);
+            cursor += 4;
+
+            float[][] inputTables = new float[inputChannels][];
+            for (int channel = 0; channel < inputChannels; channel++)
+            {
+                float[] table = new float[inputTableEntries];
+                for (int i = 0; i < inputTableEntries; i++)
+                {
+                    table[i] = reader.ReadUInt16(cursor + (channel * inputTableEntries + i) * 2) / 65535f;
+                }
+                inputTables[channel] = table;
+            }
+            cursor += inputChannels * inputTableEntries * 2;
+
+            int gridTotal = 1;
+            for (int d = 0; d < inputChannels; d++)
+            {
+                gridTotal *= uniformGridPoints;
+            }
+            int clutSampleCount = gridTotal * outputChannels;
+            float[] clut = new float[clutSampleCount];
+            for (int i = 0; i < clutSampleCount; i++)
+            {
+                clut[i] = reader.ReadUInt16(cursor + i * 2) / 65535f;
+            }
+            cursor += clutSampleCount * 2;
+
+            float[][] outputTables = new float[outputChannels][];
+            for (int channel = 0; channel < outputChannels; channel++)
+            {
+                float[] table = new float[outputTableEntries];
+                for (int i = 0; i < outputTableEntries; i++)
+                {
+                    table[i] = reader.ReadUInt16(cursor + (channel * outputTableEntries + i) * 2) / 65535f;
+                }
+                outputTables[channel] = table;
+            }
+
+            IccLutPipeline pipeline = new IccLutPipeline(inputChannels, outputChannels, uniformGridPoints, inputTables, clut, outputTables)
+            {
+                Matrix3x3 = inputChannels == 3 ? matrix : null
+            };
+
+            pipeline.GridPointsPerDim = new int[inputChannels];
+            for (int i = 0; i < inputChannels; i++)
+            {
+                pipeline.GridPointsPerDim[i] = uniformGridPoints;
+            }
+            pipeline.ClutPrecisionBytes = 2;
+            return pipeline;
+        }
+
+        /// <summary>
+        /// Parse mAB (multi-process elements) A2B structure.
+        /// </summary>
+        private static IccLutPipeline ParseMab(BigEndianReader reader, int tagStart, int tagSize)
+        {
+            if (reader == null)
+            {
+                return null;
+            }
+
+            const int HeaderSize = 32;
+            if (tagSize < HeaderSize)
+            {
+                return null;
+            }
+
+            int inputChannels = reader.ReadByte(tagStart + 8);
+            int outputChannels = reader.ReadByte(tagStart + 9);
+            if (inputChannels <= 0 || outputChannels <= 0 || inputChannels > 8 || outputChannels > 8)
+            {
+                return null;
+            }
+
+            uint offsetB = reader.ReadUInt32(tagStart + 12);
+            uint offsetMatrix = reader.ReadUInt32(tagStart + 16);
+            uint offsetM = reader.ReadUInt32(tagStart + 20);
+            uint offsetClut = reader.ReadUInt32(tagStart + 24);
+            uint offsetA = reader.ReadUInt32(tagStart + 28);
+
+            IccTrc[] curvesA = null;
+            IccTrc[] curvesB = null;
+            IccTrc[] curvesM = null;
+
+            if (offsetA != 0)
+            {
+                int posA = tagStart + (int)offsetA;
+                if (!IsInsideTag(posA, tagStart, tagSize))
+                {
+                    return null;
+                }
+                curvesA = ParseCurveSequence(reader, posA, inputChannels);
+            }
+
+            if (offsetB != 0)
+            {
+                int posB = tagStart + (int)offsetB;
+                if (!IsInsideTag(posB, tagStart, tagSize))
+                {
+                    return null;
+                }
+                curvesB = ParseCurveSequence(reader, posB, outputChannels);
+            }
+
+            if (offsetM != 0)
+            {
+                int posM = tagStart + (int)offsetM;
+                if (!IsInsideTag(posM, tagStart, tagSize))
+                {
+                    return null;
+                }
+                curvesM = ParseCurveSequence(reader, posM, outputChannels);
+            }
+
+            float[,] matrix3x3 = null;
+            float[] matrixOffset = null;
+            if (offsetMatrix != 0 && inputChannels == 3)
+            {
+                int posMatrix = tagStart + (int)offsetMatrix;
+                const int MatrixBlockSize = 48; // 9 + 3 s15Fixed16 values
+                if (!IsInsideTag(posMatrix, tagStart, tagSize) || !IsInsideTag(posMatrix + MatrixBlockSize - 1, tagStart, tagSize))
+                {
+                    return null;
+                }
+                matrix3x3 = new float[3, 3];
+                for (int rowIndex = 0; rowIndex < 3; rowIndex++)
+                {
+                    for (int columnIndex = 0; columnIndex < 3; columnIndex++)
                     {
-                        int v = r.ReadInt32(mpos + (i * 3 + j) * 4);
-                        mat[i, j] = BigEndianReader.S15Fixed16ToSingle(v);
+                        int raw = reader.ReadInt32(posMatrix + (rowIndex * 3 + columnIndex) * 4);
+                        matrix3x3[rowIndex, columnIndex] = BigEndianReader.S15Fixed16ToSingle(raw);
                     }
                 }
-                mOffset = new float[3];
+                matrixOffset = new float[3];
                 for (int i = 0; i < 3; i++)
                 {
-                    int v = r.ReadInt32(mpos + 9 * 4 + i * 4);
-                    mOffset[i] = BigEndianReader.S15Fixed16ToSingle(v);
+                    int raw = reader.ReadInt32(posMatrix + 9 * 4 + i * 4);
+                    matrixOffset[i] = BigEndianReader.S15Fixed16ToSingle(raw);
                 }
             }
 
-            var p = IccLutPipeline.CreateMab(inCh, outCh, gridPerDim, (byte)(prec == 1 ? 1 : 2), curvesA, curvesM, curvesB, clut, mat, mOffset);
-            return p;
+            int[] gridPerDim = null;
+            float[] clut = null;
+            byte precision = 0;
+            if (offsetClut != 0)
+            {
+                int clutPos = tagStart + (int)offsetClut;
+                if (!IsInsideTag(clutPos, tagStart, tagSize))
+                {
+                    return null;
+                }
+
+                gridPerDim = new int[inputChannels];
+                for (int i = 0; i < inputChannels; i++)
+                {
+                    int gp = reader.ReadByte(clutPos + i);
+                    gridPerDim[i] = gp <= 0 ? 1 : gp;
+                }
+
+                precision = reader.ReadByte(clutPos + inputChannels);
+                if (precision != 1 && precision != 2)
+                {
+                    return null;
+                }
+
+                int dataStart = clutPos + inputChannels + 1;
+                int pad = (4 - (dataStart & 3)) & 3;
+                dataStart += pad;
+                if (!IsInsideTag(dataStart, tagStart, tagSize))
+                {
+                    return null;
+                }
+
+                long pointCount = 1;
+                for (int i = 0; i < inputChannels; i++)
+                {
+                    pointCount *= gridPerDim[i];
+                    if (pointCount <= 0)
+                    {
+                        return null;
+                    }
+                }
+
+                long sampleCount = pointCount * outputChannels;
+                if (sampleCount <= 0 || sampleCount > int.MaxValue)
+                {
+                    return null;
+                }
+
+                long byteCount = precision == 1 ? sampleCount : sampleCount * 2;
+                int endPos = dataStart + (int)byteCount - 1;
+                if (!IsInsideTag(endPos, tagStart, tagSize))
+                {
+                    return null;
+                }
+
+                clut = new float[sampleCount];
+                if (precision == 1)
+                {
+                    for (int i = 0; i < sampleCount; i++)
+                    {
+                        clut[i] = reader.ReadByte(dataStart + i) / 255f;
+                    }
+                }
+                else
+                {
+                    for (int i = 0; i < sampleCount; i++)
+                    {
+                        clut[i] = reader.ReadUInt16(dataStart + i * 2) / 65535f;
+                    }
+                }
+            }
+
+            IccLutPipeline pipeline = IccLutPipeline.CreateMab(inputChannels, outputChannels, gridPerDim, precision, curvesA, curvesM, curvesB, clut, matrix3x3, matrixOffset);
+            return pipeline;
         }
 
-        private static IccTrc[] ParseCurveSequence(BigEndianReader r, int pos, int count)
+        private static bool IsInsideTag(int absoluteOffset, int tagStart, int tagSize)
         {
-            var list = new IccTrc[count];
-            int cursor = pos;
+            return absoluteOffset >= tagStart && absoluteOffset < tagStart + tagSize;
+        }
+
+        private static IccTrc[] ParseCurveSequence(BigEndianReader reader, int sequenceStart, int count)
+        {
+            IccTrc[] list = new IccTrc[count];
+            int cursor = sequenceStart;
             for (int i = 0; i < count; i++)
             {
-                list[i] = ReadCurveAt(r, cursor, out int size);
-                // advance to next 4-byte boundary after this curve
-                int next = cursor + size;
+                list[i] = ReadCurveAt(reader, cursor, out int curveSize);
+                int next = cursor + curveSize;
                 int pad = (4 - (next & 3)) & 3;
                 cursor = next + pad;
             }
             return list;
         }
 
-        private static IccTrc ReadCurveAt(BigEndianReader r, int pos, out int size)
+        private static IccTrc ReadCurveAt(BigEndianReader reader, int pos, out int size)
         {
             size = 0;
-            uint type = r.ReadUInt32(pos);
-            // curveType 'curv'
+            uint type = reader.ReadUInt32(pos);
+
             if (type == BigEndianReader.FourCC(IccConstants.TypeCurv))
             {
-                uint count = r.ReadUInt32(pos + 8);
+                uint count = reader.ReadUInt32(pos + 8);
                 if (count == 1)
                 {
-                    ushort u8f8 = r.ReadUInt16(pos + 12);
-                    size = 12 + 2; // 14 bytes + padding handled by caller
-                    return IccTrc.FromGamma(BigEndianReader.U8Fixed8ToSingle(u8f8));
+                    ushort gammaFixed = reader.ReadUInt16(pos + 12);
+                    size = 12 + 2; // 14 bytes total; padding handled by caller.
+                    return IccTrc.FromGamma(BigEndianReader.U8Fixed8ToSingle(gammaFixed));
                 }
-                else
-                {
-                    // sampled curves not supported yet; skip over data
-                    size = 12 + (int)count * 2;
-                    return IccTrc.Sampled((int)count);
-                }
+
+                // Sampled curves (not yet expanded here; higher level builds LUT if needed)
+                size = 12 + (int)count * 2;
+                return IccTrc.Sampled((int)count);
             }
-            // parametricCurveType 'para'
+
             if (type == BigEndianReader.FourCC(IccConstants.TypePara))
             {
-                ushort funcType = r.ReadUInt16(pos + 8);
+                ushort funcType = reader.ReadUInt16(pos + 8);
                 int paramCount = GetParamCount(funcType);
                 size = 12 + paramCount * 4;
                 if (funcType == 0 && paramCount >= 1)
                 {
-                    int g = r.ReadInt32(pos + 12);
-                    return IccTrc.FromGamma(BigEndianReader.S15Fixed16ToSingle(g));
+                    int gammaRaw = reader.ReadInt32(pos + 12);
+                    return IccTrc.FromGamma(BigEndianReader.S15Fixed16ToSingle(gammaRaw));
                 }
                 return IccTrc.UnsupportedParametric(funcType);
             }
-            // Unknown: treat as unsupported, try to skip minimal header
+
             size = 12;
             return IccTrc.UnsupportedParametric(-1);
-        }
-    }
-
-    /// <summary>
-    /// Parsed LUT pipeline for A2B (CMYK -> PCS) or similar. Evaluation is handled elsewhere.
-    /// </summary>
-    internal sealed class IccLutPipeline
-    {
-        public int InChannels { get; }
-        public int OutChannels { get; }
-        public int GridPoints { get; } // for lut8/16 uniform grids
-        public int[] GridPointsPerDim { get; set; } // for mAB per-dimension grids
-        public float[][] InputTables { get; } // lut8/16 input tables
-        public float[] Clut { get; }
-        public float[][] OutputTables { get; } // lut8/16 output tables
-        public byte ClutPrecisionBytes { get; set; }
-
-        // mAB specific and shared matrix (lut types use 3x3 without offset)
-        public bool IsMab { get; private set; }
-        public IccTrc[] CurvesA { get; private set; }
-        public IccTrc[] CurvesM { get; private set; }
-        public IccTrc[] CurvesB { get; private set; }
-        public float[,] Matrix3x3 { get; set; }
-        public float[] MatrixOffset { get; private set; }
-
-        public IccLutPipeline(int inCh, int outCh, int grid, float[][] inTables, float[] clut, float[][] outTables)
-        {
-            InChannels = inCh;
-            OutChannels = outCh;
-            GridPoints = grid;
-            InputTables = inTables;
-            Clut = clut;
-            OutputTables = outTables;
-            IsMab = false;
-        }
-
-        public static IccLutPipeline CreateMab(int inCh, int outCh, int[] gridPerDim, byte precisionBytes, IccTrc[] a, IccTrc[] m, IccTrc[] b, float[] clut, float[,] matrix, float[] offset)
-        {
-            var p = new IccLutPipeline(inCh, outCh, 0, null, clut, null)
-            {
-                GridPointsPerDim = gridPerDim,
-                ClutPrecisionBytes = precisionBytes,
-                CurvesA = a,
-                CurvesM = m,
-                CurvesB = b,
-                Matrix3x3 = matrix,
-                MatrixOffset = offset,
-                IsMab = true
-            };
-            return p;
         }
     }
 }

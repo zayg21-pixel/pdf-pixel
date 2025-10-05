@@ -1,129 +1,207 @@
 namespace PdfReader.Icc
 {
     /// <summary>
-    /// Partial ICC profile implementation: CMYK/LUT tag readers (minimal metadata for PDF use).
-    /// We do not implement full LUT pipelines; we record structure so the renderer can choose strategies.
+    /// Partial ICC profile implementation: CMYK / LUT tag readers (minimal metadata for PDF use).
+    /// We do not implement full LUT pipelines here; we only record enough structural metadata so the renderer
+    /// / converters can decide how to evaluate or approximate color transforms elsewhere.
     /// </summary>
     internal sealed partial class IccProfile
     {
-        internal static IccLutAToB ReadAToB(BigEndianReader r, IccTagEntry tag)
+        /// <summary>
+        /// Read an AToB (A2B) LUT tag and return lightweight structural metadata representation.
+        /// Supports legacy lut8 / lut16 and v4 multi-process elements ('mAB ').
+        /// </summary>
+        internal static IccLutAToB ReadAToB(BigEndianReader reader, IccTagEntry tag)
         {
-            if (!HasMin(r, tag, 12)) return null;
-            uint type = r.ReadUInt32(tag.Offset + 0);
-            // Recognize classic LUT8/LUT16 and v4 mAB type ('mAB ')
+            if (!CanReadMinimum(reader, tag, 12))
+            {
+                return null;
+            }
+
+            uint type = reader.ReadUInt32(tag.Offset + 0);
+
+            // Recognize classic LUT8 / LUT16 and v4 mAB type ('mAB ').
             if (type == BigEndianReader.FourCC(IccConstants.TypeMAB))
             {
-                return ReadMabType(r, tag);
+                return ReadMabType(reader, tag);
             }
+
             if (type == BigEndianReader.FourCC(IccConstants.TypeLut8))
             {
-                var meta = ReadLut8Type(r, tag, isAToB: true);
-                return meta == null ? null : new IccLutAToB(meta.InChannels, meta.OutChannels, meta.GridPoints, meta.HasCurvesA, meta.HasMatrix, meta.HasCurvesM, meta.HasClut, meta.HasCurvesB)
+                IccLutMeta meta = ReadLut8Type(reader, tag, isAToB: true);
+                if (meta == null)
+                {
+                    return null;
+                }
+
+                return new IccLutAToB(meta.InChannels, meta.OutChannels, meta.GridPoints, meta.HasCurvesA, meta.HasMatrix, meta.HasCurvesM, meta.HasClut, meta.HasCurvesB)
                 {
                     TagType = meta.TagType,
                     IsAToB = true
                 };
             }
+
             if (type == BigEndianReader.FourCC(IccConstants.TypeLut16))
             {
-                var meta = ReadLut16Type(r, tag, isAToB: true);
-                return meta == null ? null : new IccLutAToB(meta.InChannels, meta.OutChannels, meta.GridPoints, meta.HasCurvesA, meta.HasMatrix, meta.HasCurvesM, meta.HasClut, meta.HasCurvesB)
+                IccLutMeta meta = ReadLut16Type(reader, tag, isAToB: true);
+                if (meta == null)
+                {
+                    return null;
+                }
+
+                return new IccLutAToB(meta.InChannels, meta.OutChannels, meta.GridPoints, meta.HasCurvesA, meta.HasMatrix, meta.HasCurvesM, meta.HasClut, meta.HasCurvesB)
                 {
                     TagType = meta.TagType,
                     IsAToB = true
                 };
             }
-            // TODO: handle 'clut' type in v5 if encountered
+
+            // TODO (future): Handle potential ICC v5 'clut' type if encountered.
             return null;
         }
 
-        internal static IccLutBToA ReadBToA(BigEndianReader r, IccTagEntry tag)
+        /// <summary>
+        /// Read a BToA (B2A) LUT tag and return lightweight structural metadata representation.
+        /// Supports legacy lut8 / lut16 and v4 multi-process elements ('mBA ').
+        /// </summary>
+        internal static IccLutBToA ReadBToA(BigEndianReader reader, IccTagEntry tag)
         {
-            if (!HasMin(r, tag, 12)) return null;
-            uint type = r.ReadUInt32(tag.Offset + 0);
+            if (!CanReadMinimum(reader, tag, 12))
+            {
+                return null;
+            }
+
+            uint type = reader.ReadUInt32(tag.Offset + 0);
+
             if (type == BigEndianReader.FourCC(IccConstants.TypeMBA))
             {
-                return ReadMbaType(r, tag);
+                return ReadMbaType(reader, tag);
             }
+
             if (type == BigEndianReader.FourCC(IccConstants.TypeLut8))
             {
-                var meta = ReadLut8Type(r, tag, isAToB: false);
-                return meta == null ? null : new IccLutBToA(meta.InChannels, meta.OutChannels, meta.GridPoints, meta.HasCurvesA, meta.HasMatrix, meta.HasCurvesM, meta.HasClut, meta.HasCurvesB)
+                IccLutMeta meta = ReadLut8Type(reader, tag, isAToB: false);
+                if (meta == null)
+                {
+                    return null;
+                }
+
+                return new IccLutBToA(meta.InChannels, meta.OutChannels, meta.GridPoints, meta.HasCurvesA, meta.HasMatrix, meta.HasCurvesM, meta.HasClut, meta.HasCurvesB)
                 {
                     TagType = meta.TagType,
                     IsAToB = false
                 };
             }
+
             if (type == BigEndianReader.FourCC(IccConstants.TypeLut16))
             {
-                var meta = ReadLut16Type(r, tag, isAToB: false);
-                return meta == null ? null : new IccLutBToA(meta.InChannels, meta.OutChannels, meta.GridPoints, meta.HasCurvesA, meta.HasMatrix, meta.HasCurvesM, meta.HasClut, meta.HasCurvesB)
+                IccLutMeta meta = ReadLut16Type(reader, tag, isAToB: false);
+                if (meta == null)
+                {
+                    return null;
+                }
+
+                return new IccLutBToA(meta.InChannels, meta.OutChannels, meta.GridPoints, meta.HasCurvesA, meta.HasMatrix, meta.HasCurvesM, meta.HasClut, meta.HasCurvesB)
                 {
                     TagType = meta.TagType,
                     IsAToB = false
                 };
             }
+
             return null;
         }
 
-        private static bool HasMin(BigEndianReader r, IccTagEntry tag, int minSize)
+        /// <summary>
+        /// Bounds check helper for tag content.
+        /// </summary>
+        private static bool CanReadMinimum(BigEndianReader reader, IccTagEntry tag, int minimumSize)
         {
-            try { r.Ensure(tag.Offset, minSize); return true; } catch { return false; }
+            return reader.CanRead(tag.Offset, minimumSize);
         }
 
-        private static IccLutAToB ReadMabType(BigEndianReader r, IccTagEntry tag)
+        /// <summary>
+        /// Parse structural flags from an mAB (multi-process) AToB tag.
+        /// </summary>
+        private static IccLutAToB ReadMabType(BigEndianReader reader, IccTagEntry tag)
         {
-            // mABType per ICC v4: type(4), reserved(4), numIn(1), numOut(1), numGrid(1), reserved(1), offsets to A, M, CLUT, B curves
-            if (!HasMin(r, tag, 32)) return null;
-            byte inCh = r.ReadByte(tag.Offset + 8);
-            byte outCh = r.ReadByte(tag.Offset + 9);
-            byte grid = r.ReadByte(tag.Offset + 10);
-            // offsets (u32) from start of tag
-            uint bCurves = r.ReadUInt32(tag.Offset + 12);
-            uint matrix = r.ReadUInt32(tag.Offset + 16);
-            uint mCurves = r.ReadUInt32(tag.Offset + 20);
-            uint clut = r.ReadUInt32(tag.Offset + 24);
-            uint aCurves = r.ReadUInt32(tag.Offset + 28);
+            // mABType per ICC v4: type(4), reserved(4), inCh(1), numOut(1), numGrid(1), reserved(1),
+            // then offsets (u32) to B curves, matrix, M curves, CLUT, A curves (some may be zero when absent).
+            if (!CanReadMinimum(reader, tag, 32))
+            {
+                return null;
+            }
+
+            byte inCh = reader.ReadByte(tag.Offset + 8);
+            byte outCh = reader.ReadByte(tag.Offset + 9);
+            byte grid = reader.ReadByte(tag.Offset + 10);
+
+            uint bCurves = reader.ReadUInt32(tag.Offset + 12);
+            uint matrix = reader.ReadUInt32(tag.Offset + 16);
+            uint mCurves = reader.ReadUInt32(tag.Offset + 20);
+            uint clut = reader.ReadUInt32(tag.Offset + 24);
+            uint aCurves = reader.ReadUInt32(tag.Offset + 28);
 
             bool hasA = aCurves != 0;
             bool hasM = mCurves != 0;
-            bool hasMat = matrix != 0;
+            bool hasMatrix = matrix != 0;
             bool hasClut = clut != 0;
             bool hasB = bCurves != 0;
-            return new IccLutAToB(inCh, outCh, grid, hasA, hasMat, hasM, hasClut, hasB) { TagType = IccConstants.TypeMAB, IsAToB = true };
+
+            return new IccLutAToB(inCh, outCh, grid, hasA, hasMatrix, hasM, hasClut, hasB)
+            {
+                TagType = IccConstants.TypeMAB,
+                IsAToB = true
+            };
         }
 
-        private static IccLutBToA ReadMbaType(BigEndianReader r, IccTagEntry tag)
+        /// <summary>
+        /// Parse structural flags from an mBA (multi-process) BToA tag.
+        /// </summary>
+        private static IccLutBToA ReadMbaType(BigEndianReader reader, IccTagEntry tag)
         {
-            // mBAType is symmetric to mAB but with offsets in BA order
-            if (!HasMin(r, tag, 32)) return null;
-            byte inCh = r.ReadByte(tag.Offset + 8);
-            byte outCh = r.ReadByte(tag.Offset + 9);
-            byte grid = r.ReadByte(tag.Offset + 10);
+            if (!CanReadMinimum(reader, tag, 32))
+            {
+                return null;
+            }
 
-            uint aCurves = r.ReadUInt32(tag.Offset + 12);
-            uint matrix = r.ReadUInt32(tag.Offset + 16);
-            uint mCurves = r.ReadUInt32(tag.Offset + 20);
-            uint clut = r.ReadUInt32(tag.Offset + 24);
-            uint bCurves = r.ReadUInt32(tag.Offset + 28);
+            byte inCh = reader.ReadByte(tag.Offset + 8);
+            byte outCh = reader.ReadByte(tag.Offset + 9);
+            byte grid = reader.ReadByte(tag.Offset + 10);
+
+            uint aCurves = reader.ReadUInt32(tag.Offset + 12);
+            uint matrix = reader.ReadUInt32(tag.Offset + 16);
+            uint mCurves = reader.ReadUInt32(tag.Offset + 20);
+            uint clut = reader.ReadUInt32(tag.Offset + 24);
+            uint bCurves = reader.ReadUInt32(tag.Offset + 28);
 
             bool hasA = aCurves != 0;
             bool hasM = mCurves != 0;
-            bool hasMat = matrix != 0;
+            bool hasMatrix = matrix != 0;
             bool hasClut = clut != 0;
             bool hasB = bCurves != 0;
-            return new IccLutBToA(inCh, outCh, grid, hasA, hasMat, hasM, hasClut, hasB) { TagType = IccConstants.TypeMBA, IsAToB = false };
+
+            return new IccLutBToA(inCh, outCh, grid, hasA, hasMatrix, hasM, hasClut, hasB)
+            {
+                TagType = IccConstants.TypeMBA,
+                IsAToB = false
+            };
         }
 
-        private static IccLutMeta ReadLut8Type(BigEndianReader r, IccTagEntry tag, bool isAToB)
+        /// <summary>
+        /// Read legacy lut8 tag structural metadata. Actual tables are not parsed here (only existence recorded).
+        /// </summary>
+        private static IccLutMeta ReadLut8Type(BigEndianReader reader, IccTagEntry tag, bool isAToB)
         {
-            // lut8: type(4) 'lut8', reserved(4), inCh(1), outCh(1), gridPoints(1), reserved(1)
-            if (!HasMin(r, tag, 12)) return null;
-            byte inCh = r.ReadByte(tag.Offset + 8);
-            byte outCh = r.ReadByte(tag.Offset + 9);
-            byte grid = r.ReadByte(tag.Offset + 10);
-            // Then: 3x3 matrix (s15Fixed16), then 3*inCh input tables (uInt8), CLUT, 3*outCh output tables (uInt8)
-            // We do not parse actual tables; only record existence.
+            if (!CanReadMinimum(reader, tag, 12))
+            {
+                return null;
+            }
+
+            byte inCh = reader.ReadByte(tag.Offset + 8);
+            byte outCh = reader.ReadByte(tag.Offset + 9);
+            byte grid = reader.ReadByte(tag.Offset + 10);
+
+            // lut8 always contains: A (input) curves, matrix, CLUT, B (output) curves. No separate M curves stage.
             return new IccLutMeta(inCh, outCh, grid, hasCurvesA: true, hasMatrix: true, hasCurvesM: false, hasClut: true, hasCurvesB: true)
             {
                 TagType = IccConstants.TypeLut8,
@@ -131,56 +209,25 @@ namespace PdfReader.Icc
             };
         }
 
-        private static IccLutMeta ReadLut16Type(BigEndianReader r, IccTagEntry tag, bool isAToB)
+        /// <summary>
+        /// Read legacy lut16 tag structural metadata. Actual tables are not parsed here (only existence recorded).
+        /// </summary>
+        private static IccLutMeta ReadLut16Type(BigEndianReader reader, IccTagEntry tag, bool isAToB)
         {
-            // lut16 is similar to lut8 but uInt16 tables
-            if (!HasMin(r, tag, 12)) return null;
-            byte inCh = r.ReadByte(tag.Offset + 8);
-            byte outCh = r.ReadByte(tag.Offset + 9);
-            byte grid = r.ReadByte(tag.Offset + 10);
+            if (!CanReadMinimum(reader, tag, 12))
+            {
+                return null;
+            }
+
+            byte inCh = reader.ReadByte(tag.Offset + 8);
+            byte outCh = reader.ReadByte(tag.Offset + 9);
+            byte grid = reader.ReadByte(tag.Offset + 10);
+
             return new IccLutMeta(inCh, outCh, grid, hasCurvesA: true, hasMatrix: true, hasCurvesM: false, hasClut: true, hasCurvesB: true)
             {
                 TagType = IccConstants.TypeLut16,
                 IsAToB = isAToB
             };
         }
-    }
-
-    internal class IccLutMeta
-    {
-        public byte InChannels { get; }
-        public byte OutChannels { get; }
-        public byte GridPoints { get; }
-        public bool HasCurvesA { get; }
-        public bool HasMatrix { get; }
-        public bool HasCurvesM { get; }
-        public bool HasClut { get; }
-        public bool HasCurvesB { get; }
-        public string TagType { get; set; }
-        public bool IsAToB { get; set; }
-
-        public IccLutMeta(byte inCh, byte outCh, byte gridPoints, bool hasCurvesA, bool hasMatrix, bool hasCurvesM, bool hasClut, bool hasCurvesB)
-        {
-            InChannels = inCh;
-            OutChannels = outCh;
-            GridPoints = gridPoints;
-            HasCurvesA = hasCurvesA;
-            HasMatrix = hasMatrix;
-            HasCurvesM = hasCurvesM;
-            HasClut = hasClut;
-            HasCurvesB = hasCurvesB;
-        }
-    }
-
-    internal sealed class IccLutAToB : IccLutMeta
-    {
-        public IccLutAToB(byte inCh, byte outCh, byte gridPoints, bool hasCurvesA, bool hasMatrix, bool hasCurvesM, bool hasClut, bool hasCurvesB)
-            : base(inCh, outCh, gridPoints, hasCurvesA, hasMatrix, hasCurvesM, hasClut, hasCurvesB) { }
-    }
-
-    internal sealed class IccLutBToA : IccLutMeta
-    {
-        public IccLutBToA(byte inCh, byte outCh, byte gridPoints, bool hasCurvesA, bool hasMatrix, bool hasCurvesM, bool hasClut, bool hasCurvesB)
-            : base(inCh, outCh, gridPoints, hasCurvesA, hasMatrix, hasCurvesM, hasClut, hasCurvesB) { }
     }
 }

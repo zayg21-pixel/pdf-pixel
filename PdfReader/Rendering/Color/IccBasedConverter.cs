@@ -40,7 +40,7 @@ namespace PdfReader.Rendering.Color
         public IccBasedConverter(int n, PdfColorSpaceConverter alternate, byte[] iccProfileBytes)
             : this(n, alternate)
         {
-            var profile = IccProfileParser.TryParse(iccProfileBytes);
+            var profile = IccProfile.Parse(iccProfileBytes);
 
             if (profile != null)
             {
@@ -85,16 +85,13 @@ namespace PdfReader.Rendering.Color
             switch (comps01.Length)
             {
                 case 1:
-                    ;
-                    converterUsed = _grayConverter.TryToSrgb01(Clamp01(comps01[0]), intent, out result);
+                    converterUsed = _grayConverter.TryToSrgb01(comps01[0], intent, out result);
                     break;
                 case 3:
-                    var value3 = Vector3.Clamp(new Vector3(comps01[0], comps01[1], comps01[2]), Vector3.Zero, Vector3.One);
-                    converterUsed = _rgbConverter.TryToSrgb01(value3, intent, out result);
+                    converterUsed = _rgbConverter.TryToSrgb01(comps01, intent, out result);
                     break;
                 case 4:
-                    var value4 = Vector4.Clamp(new Vector4(comps01[0], comps01[1], comps01[2], comps01[3]), Vector4.Zero, Vector4.One);
-                    converterUsed = _cmykConverter.TryToSrgb01(value4, intent, out result);
+                    converterUsed = _cmykConverter.TryToSrgb01(comps01, intent, out result);
                     break;
             }
 
