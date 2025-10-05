@@ -22,7 +22,7 @@ namespace PdfReader.Rendering
 
         private readonly StandardPathDrawer _pathRenderer = new StandardPathDrawer();
         private readonly FastImageDrawer _imageRenderer;
-        private readonly IShadingDrawer _shadingRenderer = new StandardShadingDrawer();
+        private readonly IShadingDrawer _shadingRenderer;
 
         internal PdfRenderer(IFontCache fontCache, ILoggerFactory loggerFactory)
         {
@@ -30,6 +30,7 @@ namespace PdfReader.Rendering
             _logger = _loggerFactory.CreateLogger<PdfRenderer>();
             _imageRenderer = new FastImageDrawer(_loggerFactory);
             _textRenderer = new PdfTextRenderer(fontCache);
+            _shadingRenderer = new StandardShadingDrawer(_loggerFactory);
         }
 
         public IShadingDrawer ShadingDrawer => _shadingRenderer;

@@ -123,7 +123,8 @@ namespace PdfReader.Rendering
                     var localGs = graphicsState.Clone();
                     // Prevent double-application: global soft mask is applied by outer wrapper
                     localGs.SoftMask = null;
-                    PdfContentStreamRenderer.RenderContentStream(canvas, ref parseContext, formPage, localGs, processingXObjects);
+                    var renderer = new PdfContentStreamRenderer(formPage);
+                    renderer.RenderContext(canvas, ref parseContext, localGs, processingXObjects);
                 }
             }
             finally

@@ -1,8 +1,11 @@
-using System;
+using Microsoft.Extensions.Logging;
 using PdfReader.Fonts;
 using PdfReader.Parsing;
 using PdfReader.Rendering;
+using PdfReader.Streams;
 using SkiaSharp;
+using System;
+using System.Collections.Generic;
 
 namespace PdfReader.Models
 {
@@ -77,13 +80,13 @@ namespace PdfReader.Models
                 
             // Set up canvas for PDF coordinate system (origin bottom-left)
             canvas.Save();
-            
-            // Apply page-level transformations in correct order
-            PdfContentStreamRenderer.ApplyPageTransformations(canvas, MediaBox, CropBox, Rotation);
 
-            // Render content streams using facade, maintaining stack-based rendering
-            var streams = PdfContentStreamRenderer.GetPageContentStreams(this);
-            PdfContentStreamRenderer.RenderContentStreamsSequentially(canvas, streams, this);
+            var renderer = new PdfContentStreamRenderer(this);
+
+            // Apply page-level transformations in correct order
+            renderer.ApplyPageTransformations(canvas);
+
+            renderer.RenderContent(canvas);
 
             canvas.Restore();
         }

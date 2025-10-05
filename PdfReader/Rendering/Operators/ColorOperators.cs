@@ -3,114 +3,195 @@ using PdfReader.Models;
 using SkiaSharp;
 using PdfReader.Rendering.Color;
 using PdfReader.Rendering.Pattern;
-using PdfReader.Rendering; // For PdfPaint
 
 namespace PdfReader.Rendering.Operators
 {
-    public static class ColorOperators
+    /// <summary>
+    /// Handles color space and color setting operators (stroking and non-stroking).
+    /// Converted to instance implementation conforming to <see cref="IOperatorProcessor"/>.
+    /// </summary>
+    public class ColorOperators : IOperatorProcessor
     {
-        public static bool ProcessOperator(string op, Stack<IPdfValue> operandStack, PdfGraphicsState graphicsState, PdfPage page)
+        private static readonly HashSet<string> SupportedOperators = new HashSet<string>
+        {
+            // Device color setting (non-stroking)
+            "g","rg","k",
+            // Device color setting (stroking)
+            "G","RG","K",
+            // Color space selection
+            "cs","CS",
+            // Generic color setting in current color space
+            "sc","SC",
+            // Extended color setting allowing patterns (Name operand allowed)
+            "scn","SCN"
+        };
+
+        private readonly Stack<IPdfValue> _operandStack;
+        private readonly PdfPage _page;
+
+        public ColorOperators(Stack<IPdfValue> operandStack, PdfPage page)
+        {
+            _operandStack = operandStack;
+            _page = page;
+        }
+
+        public bool CanProcess(string op)
+        {
+            return SupportedOperators.Contains(op);
+        }
+
+        public void ProcessOperator(string op, ref PdfParseContext parseContext, ref PdfGraphicsState graphicsState)
         {
             switch (op)
             {
                 case "g":
                 case "rg":
                 case "k":
-                    return ProcessDeviceFillColor(op, operandStack, graphicsState, page);
+                {
+                    ProcessDeviceFillColor(op, graphicsState);
+                    break;
+                }
                 case "G":
                 case "RG":
                 case "K":
-                    return ProcessDeviceStrokeColor(op, operandStack, graphicsState, page);
+                {
+                    ProcessDeviceStrokeColor(op, graphicsState);
+                    break;
+                }
                 case "cs":
-                    ProcessSetFillColorSpace(operandStack, graphicsState, page);
-                    return true;
+                {
+                    ProcessSetFillColorSpace(graphicsState);
+                    break;
+                }
                 case "CS":
-                    ProcessSetStrokeColorSpace(operandStack, graphicsState, page);
-                    return true;
+                {
+                    ProcessSetStrokeColorSpace(graphicsState);
+                    break;
+                }
                 case "sc":
-                    ProcessSetFillColor(operandStack, graphicsState, page);
-                    return true;
+                {
+                    ProcessSetFillColor(graphicsState);
+                    break;
+                }
                 case "SC":
-                    ProcessSetStrokeColor(operandStack, graphicsState, page);
-                    return true;
+                {
+                    ProcessSetStrokeColor(graphicsState);
+                    break;
+                }
                 case "scn":
-                    ProcessSetFillColorN(operandStack, graphicsState, page);
-                    return true;
+                {
+                    ProcessSetFillColorN(graphicsState);
+                    break;
+                }
                 case "SCN":
-                    ProcessSetStrokeColorN(operandStack, graphicsState, page);
-                    return true;
-                default:
-                    return false;
+                {
+                    ProcessSetStrokeColorN(graphicsState);
+                    break;
+                }
             }
         }
 
-        private static bool ProcessDeviceFillColor(string op, Stack<IPdfValue> operandStack, PdfGraphicsState state, PdfPage page)
+        private void ProcessDeviceFillColor(string op, PdfGraphicsState state)
         {
             int expected;
             string space;
             switch (op)
             {
-                case "g": expected = 1; space = PdfColorSpaceNames.DeviceGray; break;
-                case "rg": expected = 3; space = PdfColorSpaceNames.DeviceRGB; break;
-                case "k": expected = 4; space = PdfColorSpaceNames.DeviceCMYK; break;
-                default: return false;
+                case "g":
+                {
+                    expected = 1;
+                    space = PdfColorSpaceNames.DeviceGray;
+                    break;
+                }
+                case "rg":
+                {
+                    expected = 3;
+                    space = PdfColorSpaceNames.DeviceRGB;
+                    break;
+                }
+                case "k":
+                {
+                    expected = 4;
+                    space = PdfColorSpaceNames.DeviceCMYK;
+                    break;
+                }
+                default:
+                {
+                    return;
+                }
             }
 
-            var operands = PdfOperatorProcessor.GetOperands(expected, operandStack);
+            var operands = PdfOperatorProcessor.GetOperands(expected, _operandStack);
             if (operands.Count < expected && expected > 1)
             {
-                return false;
+                return;
             }
 
-            var converter = PdfColorSpaces.ResolveDeviceConverter(space, page);
+            var converter = PdfColorSpaces.ResolveDeviceConverter(space, _page);
             state.FillColorConverter = converter;
 
             var components = new float[converter.Components];
-            for (int i = 0; i < components.Length && i < operands.Count; i++)
+            for (int componentIndex = 0; componentIndex < components.Length && componentIndex < operands.Count; componentIndex++)
             {
-                components[i] = operands[i].AsFloat();
+                components[componentIndex] = operands[componentIndex].AsFloat();
             }
 
             var color = converter.ToSrgb(components, state.RenderingIntent);
             state.FillPaint = PdfPaint.Solid(color);
-            return true;
         }
 
-        private static bool ProcessDeviceStrokeColor(string op, Stack<IPdfValue> operandStack, PdfGraphicsState state, PdfPage page)
+        private void ProcessDeviceStrokeColor(string op, PdfGraphicsState state)
         {
             int expected;
             string space;
             switch (op)
             {
-                case "G": expected = 1; space = PdfColorSpaceNames.DeviceGray; break;
-                case "RG": expected = 3; space = PdfColorSpaceNames.DeviceRGB; break;
-                case "K": expected = 4; space = PdfColorSpaceNames.DeviceCMYK; break;
-                default: return false;
+                case "G":
+                {
+                    expected = 1;
+                    space = PdfColorSpaceNames.DeviceGray;
+                    break;
+                }
+                case "RG":
+                {
+                    expected = 3;
+                    space = PdfColorSpaceNames.DeviceRGB;
+                    break;
+                }
+                case "K":
+                {
+                    expected = 4;
+                    space = PdfColorSpaceNames.DeviceCMYK;
+                    break;
+                }
+                default:
+                {
+                    return;
+                }
             }
 
-            var operands = PdfOperatorProcessor.GetOperands(expected, operandStack);
+            var operands = PdfOperatorProcessor.GetOperands(expected, _operandStack);
             if (operands.Count < expected && expected > 1)
             {
-                return false;
+                return;
             }
 
-            var converter = PdfColorSpaces.ResolveDeviceConverter(space, page);
+            var converter = PdfColorSpaces.ResolveDeviceConverter(space, _page);
             state.StrokeColorConverter = converter;
 
             var components = new float[converter.Components];
-            for (int i = 0; i < components.Length && i < operands.Count; i++)
+            for (int componentIndex = 0; componentIndex < components.Length && componentIndex < operands.Count; componentIndex++)
             {
-                components[i] = operands[i].AsFloat();
+                components[componentIndex] = operands[componentIndex].ResolveToNonReference(_page.Document).AsFloat();
             }
 
             var color = converter.ToSrgb(components, state.RenderingIntent);
             state.StrokePaint = PdfPaint.Solid(color);
-            return true;
         }
 
-        private static void ProcessSetFillColor(Stack<IPdfValue> operandStack, PdfGraphicsState state, PdfPage page)
+        private void ProcessSetFillColor(PdfGraphicsState state)
         {
-            var operands = PopAllOperands(operandStack);
+            var operands = PopAllOperands();
             if (operands.Count == 0)
             {
                 return;
@@ -119,21 +200,22 @@ namespace PdfReader.Rendering.Operators
             var converter = state.FillColorConverter;
             if (converter is PatternColorSpaceConverter)
             {
-                return; // sc cannot select a pattern in Pattern CS
+                // sc cannot select a pattern when current color space is Pattern per spec.
+                return;
             }
 
             var components = new float[converter.Components];
-            for (int i = 0; i < components.Length && i < operands.Count; i++)
+            for (int componentIndex = 0; componentIndex < components.Length && componentIndex < operands.Count; componentIndex++)
             {
-                components[i] = operands[i].AsFloat();
+                components[componentIndex] = operands[componentIndex].AsFloat();
             }
 
             state.FillPaint = PdfPaint.Solid(converter.ToSrgb(components, state.RenderingIntent));
         }
 
-        private static void ProcessSetStrokeColor(Stack<IPdfValue> operandStack, PdfGraphicsState state, PdfPage page)
+        private void ProcessSetStrokeColor(PdfGraphicsState state)
         {
-            var operands = PopAllOperands(operandStack);
+            var operands = PopAllOperands();
             if (operands.Count == 0)
             {
                 return;
@@ -146,17 +228,17 @@ namespace PdfReader.Rendering.Operators
             }
 
             var components = new float[converter.Components];
-            for (int i = 0; i < components.Length && i < operands.Count; i++)
+            for (int componentIndex = 0; componentIndex < components.Length && componentIndex < operands.Count; componentIndex++)
             {
-                components[i] = operands[i].AsFloat();
+                components[componentIndex] = operands[componentIndex].AsFloat();
             }
 
             state.StrokePaint = PdfPaint.Solid(converter.ToSrgb(components, state.RenderingIntent));
         }
 
-        private static void ProcessSetFillColorN(Stack<IPdfValue> operandStack, PdfGraphicsState state, PdfPage page)
+        private void ProcessSetFillColorN(PdfGraphicsState state)
         {
-            var operands = PopAllOperands(operandStack);
+            var operands = PopAllOperands();
             if (operands.Count == 0)
             {
                 return;
@@ -165,7 +247,8 @@ namespace PdfReader.Rendering.Operators
             var converter = state.FillColorConverter;
             if (converter is PatternColorSpaceConverter patternConverter)
             {
-                var resolvedPattern = TryResolvePattern(operands[operands.Count - 1].AsName(), page);
+                var patternName = operands[operands.Count - 1].AsName();
+                var resolvedPattern = TryResolvePattern(patternName);
                 if (resolvedPattern is PdfTilingPattern tilingPattern)
                 {
                     var tintComponents = ExtractTintComponents(patternConverter, operands);
@@ -177,9 +260,8 @@ namespace PdfReader.Rendering.Operators
                     state.FillPaint = PdfPaint.PatternFill(tilingPattern, tintComponents, tintColor);
                     return;
                 }
-                else if (resolvedPattern is PdfShadingPattern shadingPattern)
+                if (resolvedPattern is PdfShadingPattern shadingPattern)
                 {
-                    // Shading pattern acts like colored pattern. No tint components.
                     state.FillPaint = PdfPaint.PatternFill(shadingPattern, null, SKColors.Black);
                     return;
                 }
@@ -188,16 +270,16 @@ namespace PdfReader.Rendering.Operators
             }
 
             var numericComponents = new float[converter.Components];
-            for (int i = 0; i < numericComponents.Length && i < operands.Count; i++)
+            for (int componentIndex = 0; componentIndex < numericComponents.Length && componentIndex < operands.Count; componentIndex++)
             {
-                numericComponents[i] = operands[i].AsFloat();
+                numericComponents[componentIndex] = operands[componentIndex].AsFloat();
             }
             state.FillPaint = PdfPaint.Solid(converter.ToSrgb(numericComponents, state.RenderingIntent));
         }
 
-        private static void ProcessSetStrokeColorN(Stack<IPdfValue> operandStack, PdfGraphicsState state, PdfPage page)
+        private void ProcessSetStrokeColorN(PdfGraphicsState state)
         {
-            var operands = PopAllOperands(operandStack);
+            var operands = PopAllOperands();
             if (operands.Count == 0)
             {
                 return;
@@ -206,7 +288,8 @@ namespace PdfReader.Rendering.Operators
             var converter = state.StrokeColorConverter;
             if (converter is PatternColorSpaceConverter patternConverter)
             {
-                var resolvedPattern = TryResolvePattern(operands[operands.Count - 1].AsName(), page);
+                var patternName = operands[operands.Count - 1].AsName();
+                var resolvedPattern = TryResolvePattern(patternName);
                 if (resolvedPattern is PdfTilingPattern tilingPattern)
                 {
                     var tintComponents = ExtractTintComponents(patternConverter, operands);
@@ -218,7 +301,7 @@ namespace PdfReader.Rendering.Operators
                     state.StrokePaint = PdfPaint.PatternFill(tilingPattern, tintComponents, tintColor);
                     return;
                 }
-                else if (resolvedPattern is PdfShadingPattern shadingPattern)
+                if (resolvedPattern is PdfShadingPattern shadingPattern)
                 {
                     state.StrokePaint = PdfPaint.PatternFill(shadingPattern, null, SKColors.Black);
                     return;
@@ -228,52 +311,52 @@ namespace PdfReader.Rendering.Operators
             }
 
             var numericComponents = new float[converter.Components];
-            for (int i = 0; i < numericComponents.Length && i < operands.Count; i++)
+            for (int componentIndex = 0; componentIndex < numericComponents.Length && componentIndex < operands.Count; componentIndex++)
             {
-                numericComponents[i] = operands[i].AsFloat();
+                numericComponents[componentIndex] = operands[componentIndex].AsFloat();
             }
             state.StrokePaint = PdfPaint.Solid(converter.ToSrgb(numericComponents, state.RenderingIntent));
         }
 
-        private static void ProcessSetFillColorSpace(Stack<IPdfValue> operandStack, PdfGraphicsState state, PdfPage page)
+        private void ProcessSetFillColorSpace(PdfGraphicsState state)
         {
-            var operands = PopAllOperands(operandStack);
+            var operands = PopAllOperands();
             if (operands.Count == 0)
             {
                 return;
             }
             var raw = operands[0];
-            state.FillColorConverter = PdfColorSpaces.ResolveByValue(raw, page);
+            state.FillColorConverter = PdfColorSpaces.ResolveByValue(raw, _page);
             state.FillPaint = PdfPaint.Solid(SKColors.Black);
         }
 
-        private static void ProcessSetStrokeColorSpace(Stack<IPdfValue> operandStack, PdfGraphicsState state, PdfPage page)
+        private void ProcessSetStrokeColorSpace(PdfGraphicsState state)
         {
-            var operands = PopAllOperands(operandStack);
+            var operands = PopAllOperands();
             if (operands.Count == 0)
             {
                 return;
             }
             var raw = operands[0];
-            state.StrokeColorConverter = PdfColorSpaces.ResolveByValue(raw, page);
+            state.StrokeColorConverter = PdfColorSpaces.ResolveByValue(raw, _page);
             state.StrokePaint = PdfPaint.Solid(SKColors.Black);
         }
 
-        private static List<IPdfValue> PopAllOperands(Stack<IPdfValue> operandStack)
+        private List<IPdfValue> PopAllOperands()
         {
             var list = new List<IPdfValue>();
-            while (operandStack.Count > 0)
+            while (_operandStack.Count > 0)
             {
-                list.Insert(0, operandStack.Pop());
+                list.Insert(0, _operandStack.Pop());
             }
             return list;
         }
 
-        private static PdfPattern TryResolvePattern(string patternName, PdfPage page)
+        private PdfPattern TryResolvePattern(string patternName)
         {
             try
             {
-                var patternsDictionary = page.ResourceDictionary?.GetDictionary(PdfTokens.PatternKey);
+                var patternsDictionary = _page.ResourceDictionary?.GetDictionary(PdfTokens.PatternKey);
                 var patternObject = patternsDictionary?.GetPageObject(patternName);
                 if (patternObject == null)
                 {
@@ -287,18 +370,31 @@ namespace PdfReader.Rendering.Operators
             }
         }
 
-        private static float[] ExtractTintComponents(PatternColorSpaceConverter patternConverter, List<IPdfValue> operands)
+        private float[] ExtractTintComponents(PatternColorSpaceConverter patternConverter, List<IPdfValue> operands)
         {
-            if (patternConverter == null || patternConverter.BaseColorSpace == null || patternConverter.BaseColorSpace.Components <= 0 || operands.Count <= 1)
+            if (patternConverter == null)
             {
                 return null;
             }
+            if (patternConverter.BaseColorSpace == null)
+            {
+                return null;
+            }
+            if (patternConverter.BaseColorSpace.Components <= 0)
+            {
+                return null;
+            }
+            if (operands.Count <= 1)
+            {
+                return null;
+            }
+
             int componentCount = patternConverter.BaseColorSpace.Components;
             var values = new float[componentCount];
             int provided = operands.Count - 1; // last operand is pattern name
-            for (int i = 0; i < componentCount && i < provided; i++)
+            for (int componentIndex = 0; componentIndex < componentCount && componentIndex < provided; componentIndex++)
             {
-                values[i] = operands[i].AsFloat();
+                values[componentIndex] = operands[componentIndex].AsFloat();
             }
             return values;
         }

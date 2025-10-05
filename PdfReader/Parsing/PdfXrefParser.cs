@@ -45,7 +45,7 @@ namespace PdfReader.Parsing
             if (context.Position < context.Length)
             {
                 context.Advance(1); // Skip "trailer"
-                var trailerDict = PdfParsers.ParseDictionary(ref context, document);
+                var trailerDict = PdfParsers.ParseDictionary(ref context, document, allowReferences: true);
                 
                 // When extracting Root reference from trailer dictionary:
                 // var rootObject = trailerDict.GetPageObject(PdfTokens.RootKey);

@@ -171,31 +171,91 @@ namespace PdfReader.Rendering.Image.Processing
         }
 
         /// <summary>
-        /// Build a mapping from RAW sample code to palette index for Indexed color spaces.
+        /// Build a mapping from raw sample code (bit-packed index) to palette index for an Indexed color space.
+        /// The PDF spec defines the default decode range for Indexed images as [0 hiVal] where hiVal = paletteLength - 1.
+        /// If a /Decode array is supplied its first two numbers (decode[0], decode[1]) are used as an alternate linear mapping range.
+        /// Mapping steps:
+        ///  1. Determine raw domain size from bitsPerComponent (2^bpc or 256 for 16 bpc high-byte usage).
+        ///  2. For each raw code c in [0, rawMax] compute normalized = c / rawMax (unless rawMax==0).
+        ///  3. decoded = decodeMin + normalized * (decodeMax - decodeMin).
+        ///  4. Truncate (floor for positive values) to integer palette index and clamp to [0, hiVal].
+        /// Fast paths:
+        ///  * Identity decode: [0 hiVal] -> paletteIndex = min(rawCode, hiVal).
+        ///  * Constant decode (decodeMin ≈ decodeMax): all entries map to same clamped index.
         /// </summary>
-        public static int[] BuildIndexedDecodeMap(int paletteLength, int bitsPerComponent, float decodeMin, float decodeMax)
+        /// <param name="paletteLength">Number of entries in the palette (must be > 0).</param>
+        /// <param name="bitsPerComponent">Bits per component of the indexed image samples.</param>
+        /// <param name="decodeArray">Optional /Decode array; only the first two values are relevant for Indexed.</param>
+        /// <returns>Int array mapping every raw code (array index) to a palette index.</returns>
+        public static int[] BuildIndexedDecodeMap(int paletteLength, int bitsPerComponent, IReadOnlyList<float> decodeArray)
         {
-            int rawMax = GetRawDomainSize(bitsPerComponent) - 1;
-            int[] indexMap = new int[rawMax + 1];
-
-            if (IsConstantRange(decodeMin, decodeMax))
+            if (paletteLength <= 0)
             {
-                int singleIndex = (int)Math.Round(decodeMin);
-                singleIndex = Clamp(singleIndex, 0, paletteLength - 1);
-                for (int code = 0; code <= rawMax; code++)
+                return Array.Empty<int>();
+            }
+
+            int hiVal = paletteLength - 1;
+            int rawDomainSize = GetRawDomainSize(bitsPerComponent);
+            int rawMax = rawDomainSize - 1;
+            int[] indexMap = new int[rawDomainSize];
+
+            float decodeMin = 0f;
+            float decodeMax = hiVal;
+            bool hasDecode = decodeArray != null && decodeArray.Count >= 2;
+            if (hasDecode)
+            {
+                decodeMin = decodeArray[0];
+                decodeMax = decodeArray[1];
+            }
+
+            // Fast path: canonical identity mapping [0 hiVal]
+            if (Math.Abs(decodeMin - 0f) < DecodeEqualityEpsilon && Math.Abs(decodeMax - hiVal) < DecodeEqualityEpsilon)
+            {
+                for (int rawCode = 0; rawCode <= rawMax; rawCode++)
                 {
-                    indexMap[code] = singleIndex;
+                    int paletteIndex = rawCode <= hiVal ? rawCode : hiVal;
+                    indexMap[rawCode] = paletteIndex;
                 }
                 return indexMap;
             }
 
-            float scale = (decodeMax - decodeMin) / rawMax;
-            for (int code = 0; code <= rawMax; code++)
+            // Constant mapping (all values collapse to one index)
+            if (IsConstantRange(decodeMin, decodeMax))
             {
-                float mapped = decodeMin + code * scale;
-                int paletteIndex = (int)Math.Round(mapped);
-                paletteIndex = Clamp(paletteIndex, 0, paletteLength - 1);
-                indexMap[code] = paletteIndex;
+                int singleIndex = (int)(decodeMin >= 0 ? Math.Floor(decodeMin) : Math.Ceiling(decodeMin));
+                if (singleIndex < 0)
+                {
+                    singleIndex = 0;
+                }
+                else if (singleIndex > hiVal)
+                {
+                    singleIndex = hiVal;
+                }
+
+                for (int rawCode = 0; rawCode <= rawMax; rawCode++)
+                {
+                    indexMap[rawCode] = singleIndex;
+                }
+                return indexMap;
+            }
+
+            float span = decodeMax - decodeMin;
+            float denom = rawMax == 0 ? 1f : rawMax;
+
+            for (int rawCode = 0; rawCode <= rawMax; rawCode++)
+            {
+                float normalized = rawCode / denom; // 0..1
+                float decodedValue = decodeMin + normalized * span;
+                int paletteIndex = (int)Math.Floor(decodedValue); // truncate toward -infinity (decode values usually non-negative)
+                if (paletteIndex < 0)
+                {
+                    paletteIndex = 0;
+                }
+                else if (paletteIndex > hiVal)
+                {
+                    paletteIndex = hiVal;
+                }
+                indexMap[rawCode] = paletteIndex;
             }
 
             return indexMap;

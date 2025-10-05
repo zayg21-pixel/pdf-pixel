@@ -31,7 +31,7 @@ namespace PdfReader.Parsing
                     if (PdfParsingHelpers.PeekByte(ref context) == PdfTokens.LeftAngle && 
                         PdfParsingHelpers.PeekByte(ref context, 1) == PdfTokens.LeftAngle)
                     {
-                        var dict = PdfParsers.ParseDictionary(ref context, null);
+                        var dict = PdfParsers.ParseDictionary(ref context, null, allowReferences: true);
                         return dict.GetName(PdfTokens.TypeKey) == PdfTokens.XRefKey;
                     }
                 }
@@ -55,8 +55,8 @@ namespace PdfReader.Parsing
             if (PdfParsers.TryParseObjectHeader(ref context, out int objNum, out int generation))
             {
                 PdfParsingHelpers.SkipWhitespaceAndComment(ref context);
-                var parsedDict = PdfParsers.ParseDictionary(ref context, document);
-                var xrefObj = new PdfObject(new PdfReference(objNum, generation), document, PdfValue.Dictionary(parsedDict));
+                var parsedValue = PdfParsers.ParsePdfValue(ref context, document, allowReferences: true);
+                var xrefObj = new PdfObject(new PdfReference(objNum, generation), document, parsedValue);
                 
                 // Parse stream data if present
                 PdfParsingHelpers.SkipWhitespaceAndComment(ref context);

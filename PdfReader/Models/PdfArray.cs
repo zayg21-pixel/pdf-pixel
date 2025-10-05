@@ -169,9 +169,7 @@ namespace PdfReader.Models
                 return null;
             }
 
-            // Inline value case
-            var inlineValue = storedValue.ResolveToNonReference(Document) ?? storedValue;
-            return new PdfObject(new PdfReference(0), Document, inlineValue);
+            return null;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

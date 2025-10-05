@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Microsoft.Extensions.Logging;
 using PdfReader.Models;
 using PdfReader.Rendering.Operators;
 using SkiaSharp;
@@ -10,146 +11,123 @@ namespace PdfReader.Rendering
     /// Handles PDF operator processing and execution for content streams
     /// Delegates to specialized operator classes for better organization
     /// </summary>
-    public static class PdfOperatorProcessor
+    public class PdfOperatorProcessor
     {
-        // Valid PDF operators for content streams
+        private readonly PdfPage _page;
+        private readonly SKCanvas _canvas;
+        private readonly Stack<IPdfValue> _operandStack;
+        private readonly Stack<PdfGraphicsState> _graphicsStack;
+        private readonly SKPath _currentPath;
+        private readonly GraphicsStateOperators _graphicsStateOperators;
+        private readonly TextOperators _textOperators;
+        private readonly PathOperators _pathOperators;
+        private readonly ColorOperators _colorOperators;
+        private readonly InlineImageOperators _inlineImageOperators;
+        private readonly MiscellaneousOperators _miscOperators;
+        private readonly HashSet<int> _processingXObjects;
+        private readonly ILogger<PdfOperatorProcessor> _logger;
+
+        public PdfOperatorProcessor(PdfPage page, SKCanvas canvas, Stack<IPdfValue> operandStack, Stack<PdfGraphicsState> graphicsStack, SKPath currentPath, HashSet<int> processingXObjects)
+        {
+            _page = page;
+            _canvas = canvas;
+            _operandStack = operandStack;
+            _graphicsStack = graphicsStack;
+            _currentPath = currentPath;
+            _processingXObjects = processingXObjects;
+            _graphicsStateOperators = new GraphicsStateOperators(page, canvas, operandStack, graphicsStack);
+            _textOperators = new TextOperators(page, canvas, operandStack);
+            _pathOperators = new PathOperators(operandStack, canvas, currentPath, page);
+            _colorOperators = new ColorOperators(operandStack, page);
+            _inlineImageOperators = new InlineImageOperators(operandStack, page, canvas);
+            _miscOperators = new MiscellaneousOperators(operandStack, page, canvas, processingXObjects);
+            _logger = page.Document.LoggerFactory.CreateLogger<PdfOperatorProcessor>();
+        }
+
+        // Valid PDF operators for content streams (kept for validation / potential diagnostics)
         private static readonly HashSet<string> ValidOperators = new HashSet<string>
         {
-            // Graphics state operators
             "q", "Q", "cm", "w", "J", "j", "M", "d", "ri", "i", "gs",
-            
-            // Path construction operators
             "m", "l", "c", "v", "y", "h", "re",
-            
-            // Path painting operators
             "S", "s", "f", "F", "f*", "B", "B*", "b", "b*", "n",
-            
-            // Clipping path operators
             "W", "W*",
-            
-            // Text object operators
             "BT", "ET",
-            
-            // Text state operators
             "Tc", "Tw", "Tz", "TL", "Tf", "Tr", "Ts",
-            
-            // Text positioning operators
             "Td", "TD", "Tm", "T*",
-            
-            // Text showing operators
             "Tj", "TJ", "'", "\"",
-            
-            // Color operators
             "CS", "cs", "SC", "SCN", "sc", "scn", "G", "g", "RG", "rg", "K", "k",
-            
-            // Shading operators
             "sh",
-            
-            // Inline image operators
             "BI", "ID", "EI",
-            
-            // XObject operators
             "Do",
-            
-            // Marked content operators
             "MP", "DP", "BMC", "BDC", "EMC",
-            
-            // Compatibility operators
             "BX", "EX",
-            
-            // Type 3 font operators (for Type 3 font character procedures)
             "d0", "d1"
         };
 
-        /// <summary>
-        /// Extract operands from the operand stack in reverse order
-        /// </summary>
-        public static List<IPdfValue> GetOperands(int count, Stack<IPdfValue> operandStack)
+        internal static List<IPdfValue> GetOperands(int count, Stack<IPdfValue> operandStack)
         {
             var operands = new List<IPdfValue>(count);
-            for (int i = 0; i < count && operandStack.Count > 0; i++)
+            for (int index = 0; index < count && operandStack.Count > 0; index++)
             {
-                operands.Insert(0, operandStack.Pop()); // Insert at beginning to reverse stack order
+                operands.Insert(0, operandStack.Pop());
             }
             return operands;
         }
 
-        /// <summary>
-        /// Check if a string is a valid PDF operator
-        /// </summary>
-        public static bool IsValidOperator(string operatorName)
+        internal static bool IsValidOperator(string operatorName)
         {
             return ValidOperators.Contains(operatorName);
         }
 
-        /// <summary>
-        /// Process a PDF operator with operands from the stack
-        /// Delegates to specialized operator classes based on operator type
-        /// Includes XObject recursion tracking context
-        /// </summary>
-        public static void ProcessOperator(string op, Stack<IPdfValue> operandStack,
-                                          ref PdfParseContext parseContext, 
-                                          ref PdfGraphicsState graphicsState, Stack<PdfGraphicsState> graphicsStack,
-                                          SKCanvas canvas, SKPath currentPath,
-                                          PdfPage page, HashSet<int> processingXObjects)
+        public void ProcessOperator(string op, ref PdfParseContext parseContext, ref PdfGraphicsState graphicsState)
         {
-            // Try each specialized operator class in order
             bool handled = false;
 
-            // Try graphics state operators first (most common)
-            if (!handled)
+            if (!handled && _graphicsStateOperators.CanProcess(op))
             {
-                handled = GraphicsStateOperators.ProcessOperator(op, operandStack, ref graphicsState,
-                                                                graphicsStack, canvas, page);
+                _graphicsStateOperators.ProcessOperator(op, ref parseContext, ref graphicsState);
+                handled = true;
             }
 
-            // Try text operators
-            if (!handled)
+            if (!handled && _textOperators.CanProcess(op))
             {
-                handled = TextOperators.ProcessOperator(op, operandStack, graphicsState, 
-                                                       canvas, page);
+                _textOperators.ProcessOperator(op, ref parseContext, ref graphicsState);
+                handled = true;
             }
 
-            // Try path operators
-            if (!handled)
+            if (!handled && _pathOperators.CanProcess(op))
             {
-                handled = PathOperators.ProcessOperator(op, operandStack, graphicsState, 
-                                                       canvas, currentPath, page);
+                _pathOperators.ProcessOperator(op, ref parseContext, ref graphicsState);
+                handled = true;
             }
 
-            // Try color operators
-            if (!handled)
+            if (!handled && _colorOperators.CanProcess(op))
             {
-                handled = ColorOperators.ProcessOperator(op, operandStack, graphicsState, page);
+                _colorOperators.ProcessOperator(op, ref parseContext, ref graphicsState);
+                handled = true;
             }
 
-            // Try miscellaneous operators (includes Do operator for XObjects)
-            if (!handled)
+            if (!handled && _inlineImageOperators.CanProcess(op))
             {
-                handled = InlineImageOperators.ProcessOperator(op, operandStack, ref parseContext, graphicsState, canvas, page);
+                _inlineImageOperators.ProcessOperator(op, ref parseContext, ref graphicsState);
+                handled = true;
             }
 
-            // Try miscellaneous operators (includes Do operator for XObjects)
-            if (!handled)
+            if (!handled && _miscOperators.CanProcess(op))
             {
-                handled = MiscellaneousOperators.ProcessOperator(op, operandStack, graphicsState, canvas, page, processingXObjects);
+                _miscOperators.ProcessOperator(op, ref parseContext, ref graphicsState);
+                handled = true;
             }
 
-            // If no specialized class handled it, process as unknown
             if (!handled)
             {
-                ProcessUnknownOperator(op, operandStack);
+                ProcessUnknownOperator(op);
             }
         }
 
-        /// <summary>
-        /// Handle unknown operators by consuming operands to prevent stack buildup
-        /// </summary>
-        private static void ProcessUnknownOperator(string op, Stack<IPdfValue> operandStack)
+        private void ProcessUnknownOperator(string op)
         {
-            // Unknown operator - consume any operands that might belong to it
-            // This is a conservative approach to avoid stack buildup
-            Console.WriteLine($"Warning: Unknown PDF operator '{op}' with {operandStack.Count} operands on stack");
+            _logger.LogWarning($"Unknown PDF operator '{op}' with {_operandStack.Count} operands on stack");
         }
     }
 }

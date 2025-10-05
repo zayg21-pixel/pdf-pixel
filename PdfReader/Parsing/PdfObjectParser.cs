@@ -25,7 +25,7 @@ namespace PdfReader.Parsing
                     PdfParsingHelpers.SkipWhitespaceAndComment(ref context);
 
                     // Parse any value as DirectValue; if it is a dictionary, also set Dictionary
-                    var value = PdfParsers.ParsePdfValue(ref context, document);
+                    var value = PdfParsers.ParsePdfValue(ref context, document, allowReferences: true);
 
                     var obj = new PdfObject(new PdfReference(objNum, generation), document, value);
 

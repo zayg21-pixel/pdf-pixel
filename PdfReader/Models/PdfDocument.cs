@@ -12,7 +12,10 @@ namespace PdfReader.Models
         public PdfDocument(ILoggerFactory loggerFactory)
         {
             PdfRenderer = new PdfRenderer(FontCache, loggerFactory);
+            LoggerFactory = loggerFactory;
         }
+
+        internal ILoggerFactory LoggerFactory { get; }
 
         internal Dictionary<PdfReference, PdfFontBase> Fonts { get; } = new Dictionary<PdfReference, PdfFontBase>();
 

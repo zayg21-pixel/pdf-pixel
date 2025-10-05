@@ -1,188 +1,218 @@
 using System;
 using System.Collections.Generic;
+using Microsoft.Extensions.Logging;
 using PdfReader.Models;
 using SkiaSharp;
 
 namespace PdfReader.Rendering.Operators
 {
     /// <summary>
-    /// Handles miscellaneous PDF operators that don't fit into other categories
+    /// Handles miscellaneous PDF operators that don't fit into other specialized categories.
+    /// Includes XObject invocation, marked content, compatibility, Type 3 font metrics, and shading.
     /// </summary>
-    public static class MiscellaneousOperators
+    public class MiscellaneousOperators : IOperatorProcessor
     {
-        /// <summary>
-        /// Process miscellaneous operators with XObject recursion tracking
-        /// </summary>
-        public static bool ProcessOperator(string op, Stack<IPdfValue> operandStack, PdfGraphicsState graphicsState,
-                                         SKCanvas canvas, PdfPage page, HashSet<int> processingXObjects)
+        private static readonly HashSet<string> SupportedOperators = new HashSet<string>
+        {
+            // XObject invocation
+            "Do",
+            // Marked content
+            "MP","DP","BMC","BDC","EMC",
+            // Compatibility
+            "BX","EX",
+            // Type 3 font metrics
+            "d0","d1",
+            // Shading
+            "sh"
+        };
+
+        private readonly Stack<IPdfValue> _operandStack;
+        private readonly PdfPage _page;
+        private readonly SKCanvas _canvas;
+        private readonly HashSet<int> _processingXObjects;
+        private readonly ILogger<MiscellaneousOperators> _logger;
+
+        public MiscellaneousOperators(Stack<IPdfValue> operandStack, PdfPage page, SKCanvas canvas, HashSet<int> processingXObjects)
+        {
+            _operandStack = operandStack;
+            _page = page;
+            _canvas = canvas;
+            _processingXObjects = processingXObjects;
+            _logger = page.Document.LoggerFactory.CreateLogger<MiscellaneousOperators>();
+        }
+
+        public bool CanProcess(string op)
+        {
+            return SupportedOperators.Contains(op);
+        }
+
+        public void ProcessOperator(string op, ref PdfParseContext parseContext, ref PdfGraphicsState graphicsState)
         {
             switch (op)
             {
-                // XObject operators
-                case "Do": // Invoke XObject
-                    ProcessInvokeXObject(operandStack, graphicsState, canvas, page, processingXObjects);
-                    return true;
-
-                // Marked content operators
-                case "MP": // Designate marked content point
-                    ProcessMarkContentPoint(operandStack);
-                    return true;
-
-                case "DP": // Designate marked content point with property list
-                    ProcessMarkContentPointWithProperties(operandStack);
-                    return true;
-
-                case "BMC": // Begin marked content sequence
-                    ProcessBeginMarkedContent(operandStack);
-                    return true;
-
-                case "BDC": // Begin marked content sequence with property list
-                    ProcessBeginMarkedContentWithProperties(operandStack);
-                    return true;
-
-                case "EMC": // End marked content sequence
+                case "Do":
+                {
+                    ProcessInvokeXObject(graphicsState);
+                    break;
+                }
+                case "MP":
+                {
+                    ProcessMarkContentPoint();
+                    break;
+                }
+                case "DP":
+                {
+                    ProcessMarkContentPointWithProperties();
+                    break;
+                }
+                case "BMC":
+                {
+                    ProcessBeginMarkedContent();
+                    break;
+                }
+                case "BDC":
+                {
+                    ProcessBeginMarkedContentWithProperties();
+                    break;
+                }
+                case "EMC":
+                {
                     ProcessEndMarkedContent();
-                    return true;
-
-                // Compatibility operators
-                case "BX": // Begin compatibility section
+                    break;
+                }
+                case "BX":
+                {
                     ProcessBeginCompatibility();
-                    return true;
-
-                case "EX": // End compatibility section
+                    break;
+                }
+                case "EX":
+                {
                     ProcessEndCompatibility();
-                    return true;
-
-                // Type 3 font operators
-                case "d0": // Set glyph width for Type 3 fonts
-                    ProcessSetGlyphWidth(operandStack);
-                    return true;
-
-                case "d1": // Set glyph width and bounding box for Type 3 fonts
-                    ProcessSetGlyphWidthAndBoundingBox(operandStack);
-                    return true;
-
-                // Shading operators
-                case "sh": // Paint area defined by shading pattern
-                    ProcessShading(operandStack, graphicsState, canvas, page);
-                    return true;
-
-                default:
-                    return false; // Not handled by this class
+                    break;
+                }
+                case "d0":
+                {
+                    ProcessSetGlyphWidth();
+                    break;
+                }
+                case "d1":
+                {
+                    ProcessSetGlyphWidthAndBoundingBox();
+                    break;
+                }
+                case "sh":
+                {
+                    ProcessShading(graphicsState);
+                    break;
+                }
             }
         }
 
-        /// <summary>
-        /// Process XObject invocation using dedicated XObject processor
-        /// </summary>
-        private static void ProcessInvokeXObject(Stack<IPdfValue> operandStack, PdfGraphicsState graphicsState,
-                                               SKCanvas canvas, PdfPage page, HashSet<int> processingXObjects)
+        private void ProcessInvokeXObject(PdfGraphicsState graphicsState)
         {
-            var xobjOperands = PdfOperatorProcessor.GetOperands(1, operandStack);
-            if (xobjOperands.Count == 0)
+            var operands = PdfOperatorProcessor.GetOperands(1, _operandStack);
+            if (operands.Count == 0)
             {
                 return;
             }
 
-            var xObjectName = xobjOperands[0].AsName();
+            var xObjectName = operands[0].AsName();
             if (string.IsNullOrEmpty(xObjectName))
             {
                 return;
             }
 
-            // Delegate to dedicated XObject processor with recursion tracking
-            PdfXObjectProcessor.ProcessXObject(xObjectName, graphicsState, canvas, page, processingXObjects);
+            PdfXObjectProcessor.ProcessXObject(xObjectName, graphicsState, _canvas, _page, _processingXObjects);
         }
 
-        // Marked content operators (safe to ignore for rendering)
-        private static void ProcessMarkContentPoint(Stack<IPdfValue> operandStack)
+        private void ProcessMarkContentPoint()
         {
-            var mpOperands = PdfOperatorProcessor.GetOperands(1, operandStack);
-            // Safe to ignore - does not affect rendering
+            PdfOperatorProcessor.GetOperands(1, _operandStack); // Intentionally ignored.
         }
 
-        private static void ProcessMarkContentPointWithProperties(Stack<IPdfValue> operandStack)
+        private void ProcessMarkContentPointWithProperties()
         {
-            var dpOperands = PdfOperatorProcessor.GetOperands(2, operandStack);
-            // Safe to ignore - does not affect rendering
+            PdfOperatorProcessor.GetOperands(2, _operandStack); // Intentionally ignored.
         }
 
-        private static void ProcessBeginMarkedContent(Stack<IPdfValue> operandStack)
+        private void ProcessBeginMarkedContent()
         {
-            var bmcOperands = PdfOperatorProcessor.GetOperands(1, operandStack);
-            // Safe to ignore - does not affect rendering
+            PdfOperatorProcessor.GetOperands(1, _operandStack); // Intentionally ignored.
         }
 
-        private static void ProcessBeginMarkedContentWithProperties(Stack<IPdfValue> operandStack)
+        private void ProcessBeginMarkedContentWithProperties()
         {
-            var bdcOperands = PdfOperatorProcessor.GetOperands(2, operandStack);
-            // Safe to ignore - does not affect rendering
+            PdfOperatorProcessor.GetOperands(2, _operandStack); // Intentionally ignored.
         }
 
-        private static void ProcessEndMarkedContent()
+        private void ProcessEndMarkedContent()
         {
-            // Safe to ignore - does not affect rendering
+            // No state to manage presently.
         }
 
-        // Compatibility operators (safe to ignore)
-        private static void ProcessBeginCompatibility()
+        private void ProcessBeginCompatibility()
         {
-            // Safe to ignore - does not affect rendering
+            // Ignored per PDF spec (compatibility section start).
         }
 
-        private static void ProcessEndCompatibility()
+        private void ProcessEndCompatibility()
         {
-            // Safe to ignore - does not affect rendering
+            // Ignored per PDF spec (compatibility section end).
         }
 
-        // Type 3 font operators (specialized font handling)
-        private static void ProcessSetGlyphWidth(Stack<IPdfValue> operandStack)
+        private void ProcessSetGlyphWidth()
         {
-            var d0Operands = PdfOperatorProcessor.GetOperands(2, operandStack);
-            if (d0Operands.Count >= 2)
+            var operands = PdfOperatorProcessor.GetOperands(2, _operandStack);
+            if (operands.Count < 2)
             {
-                var wx = d0Operands[0].AsFloat();
-                var wy = d0Operands[1].AsFloat();
-                Console.WriteLine($"Type 3 glyph width: {wx}, {wy}");
-            }
-        }
-
-        private static void ProcessSetGlyphWidthAndBoundingBox(Stack<IPdfValue> operandStack)
-        {
-            var d1Operands = PdfOperatorProcessor.GetOperands(6, operandStack);
-            if (d1Operands.Count >= 6)
-            {
-                var wx = d1Operands[0].AsFloat();
-                var wy = d1Operands[1].AsFloat();
-                var llx = d1Operands[2].AsFloat();
-                var lly = d1Operands[3].AsFloat();
-                var urx = d1Operands[4].AsFloat();
-                var ury = d1Operands[5].AsFloat();
-                Console.WriteLine($"Type 3 glyph width and bbox: w=({wx},{wy}), bbox=({llx},{lly},{urx},{ury})");
-            }
-        }
-
-        // Shading operators (minimal support for type 2 and 3)
-        private static void ProcessShading(Stack<IPdfValue> operandStack, PdfGraphicsState graphicsState, SKCanvas canvas, PdfPage page)
-        {
-            var shadingOperands = PdfOperatorProcessor.GetOperands(1, operandStack);
-            if (shadingOperands.Count == 0)
                 return;
+            }
 
-            var shadingName = shadingOperands[0].AsName();
+            var glyphWidthX = operands[0].AsFloat();
+            var glyphWidthY = operands[1].AsFloat();
+            _logger.LogDebug("Type3 glyph width: ({GlyphWidthX},{GlyphWidthY})", glyphWidthX, glyphWidthY);
+        }
+
+        private void ProcessSetGlyphWidthAndBoundingBox()
+        {
+            var operands = PdfOperatorProcessor.GetOperands(6, _operandStack);
+            if (operands.Count < 6)
+            {
+                return;
+            }
+
+            var glyphWidthX = operands[0].AsFloat();
+            var glyphWidthY = operands[1].AsFloat();
+            var llx = operands[2].AsFloat();
+            var lly = operands[3].AsFloat();
+            var urx = operands[4].AsFloat();
+            var ury = operands[5].AsFloat();
+            _logger.LogDebug("Type3 glyph width and bbox: w=({GlyphWidthX},{GlyphWidthY}) bbox=({Llx},{Lly},{Urx},{Ury})", glyphWidthX, glyphWidthY, llx, lly, urx, ury);
+        }
+
+        private void ProcessShading(PdfGraphicsState graphicsState)
+        {
+            var operands = PdfOperatorProcessor.GetOperands(1, _operandStack);
+            if (operands.Count == 0)
+            {
+                return;
+            }
+
+            var shadingName = operands[0].AsName();
             if (string.IsNullOrEmpty(shadingName))
+            {
                 return;
+            }
 
-            // Lookup shading dictionary from resources
-            var shadings = page.ResourceDictionary.GetDictionary(PdfTokens.ShadingKey);
+            var shadings = _page.ResourceDictionary.GetDictionary(PdfTokens.ShadingKey);
             var shadingDict = shadings?.GetDictionary(shadingName);
             if (shadingDict == null)
             {
-                Console.WriteLine($"Shading '{shadingName}' not found in resources");
+                _logger.LogWarning("Shading '{ShadingName}' not found in resources", shadingName);
                 return;
             }
 
-            page.Document.PdfRenderer.ShadingDrawer.DrawShading(canvas, shadingDict, graphicsState, page);
+            _page.Document.PdfRenderer.ShadingDrawer.DrawShading(_canvas, shadingDict, graphicsState, _page);
         }
     }
 }

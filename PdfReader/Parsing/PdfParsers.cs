@@ -42,7 +42,7 @@ namespace PdfReader.Parsing
             return true;
         }
 
-        public static PdfDictionary ParseDictionary(ref PdfParseContext context, PdfDocument document)
+        public static PdfDictionary ParseDictionary(ref PdfParseContext context, PdfDocument document, bool allowReferences)
         {
             var dict = new PdfDictionary(document);
             
@@ -68,7 +68,7 @@ namespace PdfReader.Parsing
                 PdfParsingHelpers.SkipWhitespaceAndComment(ref context);
                 
                 // Parse value
-                var value = ParsePdfValue(ref context, document);
+                var value = ParsePdfValue(ref context, document, allowReferences);
                 if (value != null)
                 {
                     dict.Set(key, value);
@@ -78,7 +78,7 @@ namespace PdfReader.Parsing
             return dict;
         }
 
-        public static IPdfValue ParsePdfValue(ref PdfParseContext context, PdfDocument document)
+        public static IPdfValue ParsePdfValue(ref PdfParseContext context, PdfDocument document, bool allowReferences = false)
         {
             PdfParsingHelpers.SkipWhitespaceAndComment(ref context);
 
@@ -94,12 +94,12 @@ namespace PdfReader.Parsing
             }
             else if (b == PdfTokens.LeftSquare)
             {
-                var array = ParsePdfArray(ref context, document);
+                var array = ParsePdfArray(ref context, document, allowReferences);
                 return array != null ? PdfValue.Array(array) : null;
             }
             else if (b == PdfTokens.LeftAngle && PdfParsingHelpers.PeekByte(ref context, 1) == PdfTokens.LeftAngle)
             {
-                var subDict = ParseDictionary(ref context, document);
+                var subDict = ParseDictionary(ref context, document, allowReferences);
                 return PdfValue.Dictionary(subDict);
             }
             else if (b == PdfTokens.LeftAngle)
@@ -110,7 +110,7 @@ namespace PdfReader.Parsing
             }
             else if (PdfParsingHelpers.IsDigit(b) || b == PdfTokens.Minus || b == PdfTokens.Plus || b == PdfTokens.Dot)
             {
-                return ParseNumericValue(ref context);
+                return ParseNumericValue(ref context, allowReferences);
             }
             else if (b == PdfTokens.LeftParen)
             {
@@ -122,7 +122,7 @@ namespace PdfReader.Parsing
             return token != null ? PdfValue.Operator(token) : null;
         }
 
-        private static IPdfValue ParseNumericValue(ref PdfParseContext context)
+        private static IPdfValue ParseNumericValue(ref PdfParseContext context, bool allowReferences)
         {
             // Save position to handle reference parsing correctly
             int startPos = context.Position;
@@ -144,7 +144,7 @@ namespace PdfReader.Parsing
                     PdfParsingHelpers.SkipWhitespaceAndComment(ref context);
                     int afterFirstNumber = context.Position;
                     
-                    if (TryParseNumber(ref context, out int gen))
+                    if (allowReferences && TryParseNumber(ref context, out int gen))
                     {
                         PdfParsingHelpers.SkipWhitespaceAndComment(ref context);
                         if (PdfParsingHelpers.MatchSequence(ref context, PdfTokens.R))
@@ -173,7 +173,7 @@ namespace PdfReader.Parsing
             return null;
         }
 
-        public static PdfArray ParsePdfArray(ref PdfParseContext context, PdfDocument document)
+        public static PdfArray ParsePdfArray(ref PdfParseContext context, PdfDocument document, bool allowReferences)
         {
             var array = new List<IPdfValue>();
             
@@ -187,7 +187,7 @@ namespace PdfReader.Parsing
                 if (PdfParsingHelpers.MatchSequence(ref context, PdfTokens.ArrayEnd))
                     break;
                 
-                var value = ParsePdfValue(ref context, document);
+                var value = ParsePdfValue(ref context, document, allowReferences);
                 if (value != null)
                 {
                     array.Add(value);

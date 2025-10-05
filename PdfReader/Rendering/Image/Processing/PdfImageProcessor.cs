@@ -317,16 +317,7 @@ namespace PdfReader.Rendering.Image.Processing
                 throw new InvalidOperationException("ProcessIndexed: Empty palette.");
             }
 
-            float decodeMin = 0f;
-            float decodeMax = palette.Length - 1;
-            var decodeArray = image.DecodeArray;
-            if (decodeArray != null && decodeArray.Length >= 2)
-            {
-                decodeMin = decodeArray[0];
-                decodeMax = decodeArray[1];
-            }
-
-            int[] indexMap = ProcessingUtilities.BuildIndexedDecodeMap(palette.Length, bitsPerComponent, decodeMin, decodeMax);
+            int[] indexMap = ProcessingUtilities.BuildIndexedDecodeMap(palette.Length, bitsPerComponent, image.DecodeArray);
             int rowByteLength = ImageSampling.GetRowByteLength(width, 1, bitsPerComponent);
             int destinationRowBytes = checked(width * 4);
             IntPtr bufferPtr = IntPtr.Zero;

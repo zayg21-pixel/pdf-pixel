@@ -148,9 +148,7 @@ namespace PdfReader.Models
                 return null;
             }
 
-            // Inline dictionary or other inline value: wrap as a transient PdfObject (no stream)
-            var inlineValue = storedValue.ResolveToNonReference(Document) ?? storedValue;
-            return new PdfObject(new PdfReference(0), Document, inlineValue);
+            return null;
         }
 
         public List<PdfObject> GetPageObjects(string key)

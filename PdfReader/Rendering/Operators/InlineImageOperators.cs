@@ -1,224 +1,241 @@
-﻿using PdfReader.Models;
+﻿using System;
+using System.Collections.Generic;
+using Microsoft.Extensions.Logging;
+using PdfReader.Models;
 using PdfReader.Parsing;
 using PdfReader.Rendering.Image;
 using SkiaSharp;
-using System;
-using System.Collections.Generic;
 
 namespace PdfReader.Rendering.Operators
 {
-    internal class InlineImageOperators
+    /// <summary>
+    /// Handles inline image operators (BI / ID / EI) including parameter collection and image decoding.
+    /// Requires access to the raw parse context for scanning inline image data bytes.
+    /// </summary>
+    internal class InlineImageOperators : IOperatorProcessor
     {
-        /// <summary>
-        /// Process inline image related operators (BI / ID / EI)
-        /// </summary>
-        public static bool ProcessOperator(string op, Stack<IPdfValue> operandStack, ref PdfParseContext parseContext, PdfGraphicsState graphicsState,
-                                         SKCanvas canvas, PdfPage page)
+        private static readonly HashSet<string> SupportedOperators = new HashSet<string>
+        {
+            "BI", "ID", "EI"
+        };
+
+        private readonly Stack<IPdfValue> _operandStack;
+        private readonly PdfPage _page;
+        private readonly SKCanvas _canvas;
+        private readonly ILogger<InlineImageOperators> _logger;
+
+        public InlineImageOperators(Stack<IPdfValue> operandStack, PdfPage page, SKCanvas canvas)
+        {
+            _operandStack = operandStack;
+            _page = page;
+            _canvas = canvas;
+            _logger = page.Document.LoggerFactory.CreateLogger<InlineImageOperators>();
+        }
+
+        public bool CanProcess(string op)
+        {
+            return SupportedOperators.Contains(op);
+        }
+
+        public void ProcessOperator(string op, ref PdfParseContext parseContext, ref PdfGraphicsState graphicsState)
         {
             switch (op)
             {
-                case "BI": // Begin inline image (parameters follow until ID)
-                    ProcessBeginInlineImage(operandStack);
-                    return true;
-                case "ID": // Inline image data (operand stack now has parameters collected since BI)
-                    ProcessInlineImageData(operandStack, ref parseContext, graphicsState, canvas, page);
-                    return true;
-                case "EI": // Should never be directly processed (we consume it while reading data)
-                    ProcessEndInlineImage(operandStack);
-                    return true;
-                default:
-                    return false;
+                case "BI":
+                {
+                    ProcessBeginInlineImage();
+                    break;
+                }
+                case "ID":
+                {
+                    ProcessInlineImageData(ref parseContext, graphicsState);
+                    break;
+                }
+                case "EI":
+                {
+                    ProcessUnexpectedEndInlineImage();
+                    break;
+                }
             }
         }
 
-        private static void ProcessBeginInlineImage(Stack<IPdfValue> operandStack)
+        private void ProcessBeginInlineImage()
         {
-            // Marker only – parameters accumulate on operand stack until ID
+            // Marker only – parameters accumulate on operand stack until ID.
         }
 
-        /// <summary>
-        /// Parse inline image parameters from operand stack, read raw image bytes until EI sentinel, then render.
-        /// </summary>
-        private static void ProcessInlineImageData(Stack<IPdfValue> operandStack, ref PdfParseContext parseContext,
-                                                   PdfGraphicsState graphicsState, SKCanvas canvas, PdfPage page)
+        private void ProcessInlineImageData(ref PdfParseContext parseContext, PdfGraphicsState graphicsState)
         {
             try
             {
-                // 1. Collect parameters (stack bottom -> top is original order; we need FIFO for key/value pairs)
-                var paramValues = new List<IPdfValue>(operandStack);
-                paramValues.Reverse(); // Now in reading order
-                operandStack.Clear();
+                var parameterValues = new List<IPdfValue>(_operandStack);
+                parameterValues.Reverse();
+                _operandStack.Clear();
 
-                // 2. Build dictionary with abbreviation expansion
-                var imageDict = new PdfDictionary(page.Document);
-                imageDict.Set(PdfTokens.SubtypeKey, PdfValue.Name(PdfTokens.ImageSubtype));
-
-                for (int i = 0; i + 1 < paramValues.Count; i += 2)
+                var imageDictionary = BuildImageDictionary(parameterValues);
+                if (imageDictionary == null)
                 {
-                    var keyVal = paramValues[i];
-                    var valueVal = paramValues[i + 1];
-                    if (keyVal.Type != PdfValueType.Name)
-                    {
-                        // Not a name – malformed; stop to avoid misalignment
-                        break;
-                    }
-
-                    var rawKey = keyVal.AsName();
-                    if (string.IsNullOrEmpty(rawKey))
-                    {
-                        continue;
-                    }
-
-                    // Ensure starts with '/'
-                    if (rawKey[0] != '/') rawKey = "/" + rawKey;
-
-                    var expandedKey = ExpandInlineImageKey(rawKey);
-                    var normalizedValue = NormalizeInlineImageValue(expandedKey, valueVal, page);
-
-                    // If key already exists do not overwrite (later duplicates ignored)
-                    if (!imageDict.HasKey(expandedKey))
-                    {
-                        imageDict.Set(expandedKey, normalizedValue ?? valueVal);
-                    }
-                }
-
-                // 3. Supply defaults if missing
-                if (!imageDict.HasKey(PdfTokens.BitsPerComponentKey) && !imageDict.GetBoolOrDefault(PdfTokens.ImageMaskKey))
-                {
-                    imageDict.Set(PdfTokens.BitsPerComponentKey, PdfValue.Integer(8));
-                }
-                if (!imageDict.HasKey(PdfTokens.WidthKey))
-                {
-                    Console.WriteLine("Inline image missing /Width – skipping");
                     return;
                 }
-                if (!imageDict.HasKey(PdfTokens.HeightKey))
-                {
-                    Console.WriteLine("Inline image missing /Height – skipping");
-                    return;
-                }
-                if (!imageDict.HasKey(PdfTokens.ColorSpaceKey) && !imageDict.GetBoolOrDefault(PdfTokens.ImageMaskKey))
-                {
-                    // Default per spec is DeviceGray
-                    imageDict.Set(PdfTokens.ColorSpaceKey, PdfValue.Name("/DeviceGray"));
-                }
-                if (imageDict.GetBoolOrDefault(PdfTokens.ImageMaskKey) && !imageDict.HasKey(PdfTokens.BitsPerComponentKey))
-                {
-                    imageDict.Set(PdfTokens.BitsPerComponentKey, PdfValue.Integer(1));
-                }
 
-                // 4. Skip single whitespace char after ID (if present)
-                if (!parseContext.IsAtEnd)
-                {
-                    var b = parseContext.PeekByte();
-                    if (PdfParsingHelpers.IsWhitespace(b))
-                    {
-                        parseContext.Advance(1);
-                    }
-                }
+                SkipSingleWhitespaceAfterId(ref parseContext);
 
                 int dataStart = parseContext.Position;
                 int dataEnd = FindInlineImageDataEnd(ref parseContext, dataStart);
                 if (dataEnd < 0)
                 {
-                    Console.WriteLine("Could not locate inline image EI sentinel – skipping image");
+                    _logger.LogWarning("Could not locate inline image EI sentinel – skipping image");
                     return;
                 }
 
                 int dataLength = dataEnd - dataStart;
-                ReadOnlyMemory<byte> imageDataMem;
-                if (dataLength > 0)
-                {
-                    if (parseContext.IsSingleMemory)
-                    {
-                        imageDataMem = parseContext.OriginalMemory.Slice(dataStart, dataLength);
-                    }
-                    else
-                    {
-                        // Fallback allocation (rare path)
-                        var span = parseContext.GetSlice(dataStart, dataLength);
-                        imageDataMem = new ReadOnlyMemory<byte>(span.ToArray());
-                    }
-                }
-                else
-                {
-                    imageDataMem = ReadOnlyMemory<byte>.Empty;
-                }
+                ReadOnlyMemory<byte> imageDataMemory = dataLength > 0
+                    ? ExtractImageDataSlice(ref parseContext, dataStart, dataLength)
+                    : ReadOnlyMemory<byte>.Empty;
 
                 // Advance past EI
-                parseContext.Position = dataEnd + 2; // Skip 'E''I'
+                parseContext.Position = dataEnd + 2;
 
-                // 5. Construct synthetic PdfObject
-                var inlineObj = new PdfObject(new PdfReference(-1), page.Document, PdfValue.Dictionary(imageDict))
+                var inlineObject = new PdfObject(new PdfReference(-1), _page.Document, PdfValue.Dictionary(imageDictionary))
                 {
-                    StreamData = imageDataMem
+                    StreamData = imageDataMemory
                 };
 
-                // 6. Decode & render via existing pipeline
-                var pdfImage = PdfImage.FromXObject(inlineObj, page, name: null, isSoftMask: false);
-
-                page.Document.PdfRenderer.DrawUnitImage(canvas, pdfImage, graphicsState, page);
+                var pdfImage = PdfImage.FromXObject(inlineObject, _page, name: null, isSoftMask: false);
+                _page.Document.PdfRenderer.DrawUnitImage(_canvas, pdfImage, graphicsState, _page);
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error processing inline image: {ex.Message}");
+                _logger.LogError(ex, "Error processing inline image");
             }
         }
 
-        /// <summary>
-        /// Locate the end of inline image data ensuring the EI sentinel is delimited.
-        /// Returns position of 'E' in EI or -1 if not found.
-        /// </summary>
-        private static int FindInlineImageDataEnd(ref PdfParseContext context, int start)
+        private PdfDictionary BuildImageDictionary(List<IPdfValue> parameters)
         {
-            // Only implemented for single memory fast path. Multi-chunk fallback not yet implemented.
+            var imageDictionary = new PdfDictionary(_page.Document);
+            imageDictionary.Set(PdfTokens.SubtypeKey, PdfValue.Name(PdfTokens.ImageSubtype));
+
+            for (int parameterIndex = 0; parameterIndex + 1 < parameters.Count; parameterIndex += 2)
+            {
+                var keyValue = parameters[parameterIndex];
+                var valueValue = parameters[parameterIndex + 1];
+                if (keyValue.Type != PdfValueType.Name)
+                {
+                    break;
+                }
+
+                var rawKey = keyValue.AsName();
+                if (string.IsNullOrEmpty(rawKey))
+                {
+                    continue;
+                }
+
+                var expandedKey = ExpandInlineImageKey(rawKey);
+                var normalizedValue = NormalizeInlineImageValue(expandedKey, valueValue);
+
+                if (!imageDictionary.HasKey(expandedKey))
+                {
+                    imageDictionary.Set(expandedKey, normalizedValue ?? valueValue);
+                }
+            }
+
+            if (!imageDictionary.HasKey(PdfTokens.BitsPerComponentKey) && !imageDictionary.GetBoolOrDefault(PdfTokens.ImageMaskKey))
+            {
+                imageDictionary.Set(PdfTokens.BitsPerComponentKey, PdfValue.Integer(8));
+            }
+            if (!imageDictionary.HasKey(PdfTokens.WidthKey))
+            {
+                _logger.LogWarning("Inline image missing /Width – skipping");
+                return null;
+            }
+            if (!imageDictionary.HasKey(PdfTokens.HeightKey))
+            {
+                _logger.LogWarning("Inline image missing /Height – skipping");
+                return null;
+            }
+            if (!imageDictionary.HasKey(PdfTokens.ColorSpaceKey) && !imageDictionary.GetBoolOrDefault(PdfTokens.ImageMaskKey))
+            {
+                imageDictionary.Set(PdfTokens.ColorSpaceKey, PdfValue.Name(PdfColorSpaceNames.DeviceGray));
+            }
+            if (imageDictionary.GetBoolOrDefault(PdfTokens.ImageMaskKey) && !imageDictionary.HasKey(PdfTokens.BitsPerComponentKey))
+            {
+                imageDictionary.Set(PdfTokens.BitsPerComponentKey, PdfValue.Integer(1));
+            }
+
+            return imageDictionary;
+        }
+
+        private void SkipSingleWhitespaceAfterId(ref PdfParseContext parseContext)
+        {
+            if (parseContext.IsAtEnd)
+            {
+                return;
+            }
+
+            var next = parseContext.PeekByte();
+            if (PdfParsingHelpers.IsWhitespace(next))
+            {
+                parseContext.Advance(1);
+            }
+        }
+
+        private ReadOnlyMemory<byte> ExtractImageDataSlice(ref PdfParseContext parseContext, int dataStart, int dataLength)
+        {
+            if (parseContext.IsSingleMemory)
+            {
+                return parseContext.OriginalMemory.Slice(dataStart, dataLength);
+            }
+
+            var span = parseContext.GetSlice(dataStart, dataLength);
+            return new ReadOnlyMemory<byte>(span.ToArray());
+        }
+
+        private int FindInlineImageDataEnd(ref PdfParseContext context, int start)
+        {
             if (!context.IsSingleMemory)
             {
-                // TODO: implement multi-chunk scan (rare)
-                return -1;
+                return -1; // Multi-chunk fallback not implemented.
             }
 
             var span = context.OriginalMemory.Span;
             int length = span.Length;
-            for (int i = start; i + 1 < length; i++)
+            for (int index = start; index + 1 < length; index++)
             {
-                if (span[i] == (byte)'E' && span[i + 1] == (byte)'I')
+                if (span[index] == (byte)'E' && span[index + 1] == (byte)'I')
                 {
-                    // Preceding must be whitespace (spec) and following delimiter
-                    bool precedingWs = i - 1 >= start && PdfParsingHelpers.IsWhitespace(span[i - 1]);
-                    byte following = i + 2 < length ? span[i + 2] : (byte)0; // EOF acceptable
-                    bool followingDelim = i + 2 >= length || PdfParsingHelpers.IsWhitespace(following) || PdfParsingHelpers.IsDelimiter(following);
-                    if (precedingWs && followingDelim)
+                    bool precedingWhitespace = index - 1 >= start && PdfParsingHelpers.IsWhitespace(span[index - 1]);
+                    byte following = index + 2 < length ? span[index + 2] : (byte)0;
+                    bool followingDelimiter = index + 2 >= length || PdfParsingHelpers.IsWhitespace(following) || PdfParsingHelpers.IsDelimiter(following);
+                    if (precedingWhitespace && followingDelimiter)
                     {
-                        return i;
+                        return index;
                     }
                 }
             }
             return -1;
         }
 
-        private static IPdfValue NormalizeInlineImageValue(string expandedKey, IPdfValue value, PdfPage page)
+        private IPdfValue NormalizeInlineImageValue(string expandedKey, IPdfValue value)
         {
             if (expandedKey == PdfTokens.ColorSpaceKey && value.Type == PdfValueType.Name)
             {
-                string name = value.AsName();
+                var name = value.AsName();
                 if (!string.IsNullOrEmpty(name))
                 {
                     switch (name)
                     {
-                        case "/G": return PdfValue.Name("/DeviceGray");
-                        case "/RGB": return PdfValue.Name("/DeviceRGB");
-                        case "/CMYK": return PdfValue.Name("/DeviceCMYK");
-                        case "/I": return PdfValue.Name("/Indexed");
+                        case "/G": return PdfValue.Name(PdfColorSpaceNames.DeviceGray);
+                        case "/RGB": return PdfValue.Name(PdfColorSpaceNames.DeviceRGB);
+                        case "/CMYK": return PdfValue.Name(PdfColorSpaceNames.DeviceCMYK);
+                        case "/I": return PdfValue.Name(PdfColorSpaceNames.Indexed);
                     }
                 }
             }
             else if (expandedKey == PdfTokens.FilterKey)
             {
-                // Normalize filter name(s) (single or array)
                 if (value.Type == PdfValueType.Name)
                 {
-                    string filterName = value.AsName();
+                    var filterName = value.AsName();
                     if (!string.IsNullOrEmpty(filterName))
                     {
                         return PdfValue.Name(ExpandFilterName(filterName));
@@ -226,34 +243,33 @@ namespace PdfReader.Rendering.Operators
                 }
                 else if (value.Type == PdfValueType.Array)
                 {
-                    var arr = value.AsArray();
-                    if (arr != null && arr.Count > 0)
+                    var array = value.AsArray();
+                    if (array != null && array.Count > 0)
                     {
-                        var newArr = new List<IPdfValue>(arr.Count);
-                        for (int i = 0; i < arr.Count; i++)
+                        var newValues = new List<IPdfValue>(array.Count);
+                        for (int elementIndex = 0; elementIndex < array.Count; elementIndex++)
                         {
-                            var item = arr.GetValue(i);
+                            var item = array.GetValue(elementIndex);
                             if (item != null && item.Type == PdfValueType.Name)
                             {
-                                string fname = item.AsName();
-                                if (!string.IsNullOrEmpty(fname))
+                                var itemName = item.AsName();
+                                if (!string.IsNullOrEmpty(itemName))
                                 {
-                                    newArr.Add(PdfValue.Name(ExpandFilterName(fname)));
+                                    newValues.Add(PdfValue.Name(ExpandFilterName(itemName)));
                                     continue;
                                 }
                             }
-                            newArr.Add(item);
+                            newValues.Add(item);
                         }
-                        return PdfValue.Array(new PdfArray(arr.Document, newArr));
+                        return PdfValue.Array(new PdfArray(array.Document, newValues));
                     }
                 }
             }
             return value;
         }
 
-        private static string ExpandInlineImageKey(string key)
+        private string ExpandInlineImageKey(string key)
         {
-            // Already full keys
             switch (key)
             {
                 case PdfTokens.WidthKey:
@@ -265,39 +281,41 @@ namespace PdfReader.Rendering.Operators
                 case PdfTokens.FilterKey:
                 case PdfTokens.ImageMaskKey:
                 case PdfTokens.MaskKey:
+                {
                     return key;
+                }
             }
 
-            // Abbreviations per spec
-            return key switch
+            switch (key)
             {
-                "/W" => PdfTokens.WidthKey,
-                "/H" => PdfTokens.HeightKey,
-                "/BPC" => PdfTokens.BitsPerComponentKey,
-                "/CS" => PdfTokens.ColorSpaceKey,
-                "/D" => PdfTokens.DecodeKey,
-                "/DP" => PdfTokens.DecodeParmsKey,
-                "/F" => PdfTokens.FilterKey,
-                "/IM" => PdfTokens.ImageMaskKey,
-                _ => key
-            };
+                case "/W": return PdfTokens.WidthKey;
+                case "/H": return PdfTokens.HeightKey;
+                case "/BPC": return PdfTokens.BitsPerComponentKey;
+                case "/CS": return PdfTokens.ColorSpaceKey;
+                case "/D": return PdfTokens.DecodeKey;
+                case "/DP": return PdfTokens.DecodeParmsKey;
+                case "/F": return PdfTokens.FilterKey;
+                case "/IM": return PdfTokens.ImageMaskKey;
+                default: return key;
+            }
         }
 
-        private static string ExpandFilterName(string raw)
+        private string ExpandFilterName(string raw)
         {
             if (string.IsNullOrEmpty(raw))
             {
                 return raw;
             }
+
             if (raw[0] != '/')
             {
                 raw = "/" + raw;
             }
-            // Remove leading slash for switch logic
+
             var core = raw.Substring(1);
             switch (core)
             {
-                case "Fl": return PdfTokens.FlateDecode; // /Fl -> /FlateDecode
+                case "Fl": return PdfTokens.FlateDecode;
                 case "LZW": return PdfTokens.LZWDecode;
                 case "AHx": return PdfTokens.ASCIIHexDecode;
                 case "A85": return PdfTokens.ASCII85Decode;
@@ -306,15 +324,13 @@ namespace PdfReader.Rendering.Operators
                 case "DCT": return PdfTokens.DCTDecode;
                 case "JPX": return PdfTokens.JPXDecode;
                 case "JB2": return PdfTokens.JBIG2Decode;
-                default:
-                    return raw; // Already full or unrecognized
+                default: return raw;
             }
         }
 
-        private static void ProcessEndInlineImage(Stack<IPdfValue> operandStack)
+        private void ProcessUnexpectedEndInlineImage()
         {
-            // Should be handled inside ProcessInlineImageData – reaching here indicates parsing drift
-            Console.WriteLine("Unexpected EI operator encountered standalone");
+            _logger.LogWarning("Unexpected EI operator encountered standalone");
         }
     }
 }

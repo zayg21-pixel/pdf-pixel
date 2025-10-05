@@ -74,7 +74,6 @@ namespace PdfReader.Rendering.Advanced
             var paint = new SKPaint
             {
                 IsAntialias = true,
-                FilterQuality = SKFilterQuality.High
             };
 
             // Knockout not implemented; treat same as isolated for paint selection.

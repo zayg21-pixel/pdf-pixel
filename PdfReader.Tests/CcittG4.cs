@@ -155,12 +155,12 @@ namespace PdfReader.Tests
         {
             if (width != referenceBitmap.Width)
             {
-                Assert.True(false, $"Width mismatch for {testFileName}: expected {width}, got {referenceBitmap.Width}");
+                Assert.Fail($"Width mismatch for {testFileName}: expected {width}, got {referenceBitmap.Width}");
             }
 
             if (height != referenceBitmap.Height)
             {
-                Assert.True(false, $"Height mismatch for {testFileName}: expected {height}, got {referenceBitmap.Height}");
+                Assert.Fail($"Height mismatch for {testFileName}: expected {height}, got {referenceBitmap.Height}");
             }
 
             int mismatchCount = 0;
@@ -207,7 +207,7 @@ namespace PdfReader.Tests
                     errorMessage += $"\n... and {mismatchCount - maxMismatchesToReport} more mismatches.";
                 }
 
-                Assert.True(false, errorMessage);
+                Assert.Fail(errorMessage);
             }
         }
     }

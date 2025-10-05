@@ -2,6 +2,7 @@ using System;
 using SkiaSharp;
 using PdfReader.Models;
 using PdfReader.Rendering.Color;
+using Microsoft.Extensions.Logging;
 
 namespace PdfReader.Rendering.Shading
 {
@@ -11,6 +12,15 @@ namespace PdfReader.Rendering.Shading
     /// </summary>
     public class StandardShadingDrawer : IShadingDrawer
     {
+        private readonly ILoggerFactory _loggerFactory;
+        private readonly ILogger<StandardShadingDrawer> _logger;
+
+        public StandardShadingDrawer(ILoggerFactory loggerFactory)
+        {
+            _loggerFactory = loggerFactory ?? throw new ArgumentNullException(nameof(loggerFactory));
+            _logger = loggerFactory.CreateLogger<StandardShadingDrawer>();
+        }
+
         public void DrawShading(SKCanvas canvas, PdfDictionary shading, PdfGraphicsState state, PdfPage page)
         {
             if (shading == null)
@@ -33,7 +43,7 @@ namespace PdfReader.Rendering.Shading
                 }
                 default:
                 {
-                    Console.WriteLine("Shading type " + type + " not implemented");
+                    _logger.LogWarning("Shading type " + type + " not implemented");
                     break;
                 }
             }

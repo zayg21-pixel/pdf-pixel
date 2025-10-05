@@ -145,7 +145,7 @@ namespace PdfReader.Parsing
             PdfParsingHelpers.SkipWhitespaceAndComment(ref context);
 
             // Parse the object's value
-            var value = PdfParsers.ParsePdfValue(ref context, document);
+            var value = PdfParsers.ParsePdfValue(ref context, document, allowReferences: true);
 
             // Create the object (generation is always 0 for compressed objects)
             var obj = new PdfObject(new PdfReference(objNum, 0), document, value);

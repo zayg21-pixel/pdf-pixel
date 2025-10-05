@@ -14,10 +14,10 @@ namespace PdfReader.Rendering.Image
         private readonly ILoggerFactory _factory;
         private readonly ILogger<FastImageDrawer> _logger;
 
-        public FastImageDrawer(ILoggerFactory factory)
+        public FastImageDrawer(ILoggerFactory loggerFactory)
         {
-            _factory = factory ?? throw new ArgumentNullException(nameof(factory));
-            _logger = factory.CreateLogger<FastImageDrawer>();
+            _factory = loggerFactory ?? throw new ArgumentNullException(nameof(loggerFactory));
+            _logger = loggerFactory.CreateLogger<FastImageDrawer>();
         }
 
         public void DrawImage(SKCanvas canvas, PdfImage pdfImage, PdfGraphicsState state, PdfPage page, SKRect destRect)

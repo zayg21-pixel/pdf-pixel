@@ -171,7 +171,8 @@ namespace PdfReader.Rendering.Pattern
 
                     var parseContext = new PdfParseContext(data);
                     var patternPage = new FormXObjectPageWrapper(page, pattern.StreamObject);
-                    PdfContentStreamRenderer.RenderContentStream(canvas, ref parseContext, patternPage, cellState, recursionGuard);
+                    var renderer = new PdfContentStreamRenderer(page);
+                    renderer.RenderContext(canvas, ref parseContext, cellState, recursionGuard);
 
                     canvas.Restore();
                 }

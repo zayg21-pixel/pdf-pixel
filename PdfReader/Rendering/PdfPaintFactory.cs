@@ -230,6 +230,7 @@ namespace PdfReader.Rendering
             var paint = CreateBasePaint(state);
             paint.Style = SKPaintStyle.Stroke;
             paint.Color = ApplyAlpha(state.StrokeColor, state.StrokeAlpha);
+
             ApplyStrokeStyling(paint, state);
 
             if (state.DashPattern != null && state.DashPattern.Length > 0)
@@ -305,7 +306,6 @@ namespace PdfReader.Rendering
         {
             var paint = CreateBasePaint(state);
             paint.Style = SKPaintStyle.Fill;
-            paint.FilterQuality = SKFilterQuality.High;
             // NOTE (PDF spec): The non-stroking alpha (ca) multiplies the result color. To avoid
             // tinting gradient shader colors, we set paint color to white with overall FillAlpha.
             paint.Color = ApplyAlpha(SKColors.White, state.FillAlpha);

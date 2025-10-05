@@ -18,11 +18,11 @@ namespace PdfReader.Rendering.Advanced
     /// </summary>
     public sealed class SoftMaskDrawingScope : IDisposable
     {
-        private readonly SKCanvas canvas;
-        private readonly PdfSoftMask softMask;
-        private readonly PdfGraphicsState graphicsState;
-        private readonly PdfPage currentPage;
-        private readonly SKRect? layerBounds;
+        private readonly SKCanvas _canvas;
+        private readonly PdfSoftMask _softMask;
+        private readonly PdfGraphicsState _graphicsState;
+        private readonly PdfPage _currentPage;
+        private readonly SKRect? _layerBounds;
 
         private SKRect activeBounds;
         private bool began;
@@ -35,11 +35,11 @@ namespace PdfReader.Rendering.Advanced
             PdfPage currentPage,
             SKRect? layerBounds)
         {
-            this.canvas = canvas;
-            this.softMask = graphicsState.SoftMask;
-            this.graphicsState = graphicsState;
-            this.currentPage = currentPage;
-            this.layerBounds = layerBounds;
+            _canvas = canvas;
+            _softMask = graphicsState.SoftMask;
+            _graphicsState = graphicsState;
+            _currentPage = currentPage;
+            _layerBounds = layerBounds;
         }
 
         /// <summary>
@@ -54,19 +54,19 @@ namespace PdfReader.Rendering.Advanced
 
             began = true;
 
-            if (canvas == null)
+            if (_canvas == null)
             {
                 return;
             }
 
-            shouldApplyMask = softMask != null && softMask.GroupObject != null;
+            shouldApplyMask = _softMask != null && _softMask.GroupObject != null;
 
             if (!shouldApplyMask)
             {
                 return;
             }
 
-            activeBounds = layerBounds ?? ComputeTightMaskBounds(canvas, softMask);
+            activeBounds = _layerBounds ?? ComputeTightMaskBounds(_canvas, _softMask);
 
             if (activeBounds.Width <= 0 || activeBounds.Height <= 0)
             {
@@ -76,7 +76,7 @@ namespace PdfReader.Rendering.Advanced
             }
 
             // Capture content into a layer so we can apply the soft mask at EndDrawContent
-            canvas.SaveLayer(activeBounds, null);
+            _canvas.SaveLayer(activeBounds, null);
         }
 
         /// <summary>
@@ -100,50 +100,51 @@ namespace PdfReader.Rendering.Advanced
                 // Record the soft mask content into a picture
                 using var recorder = new SKPictureRecorder();
 
-                var cullRect = !softMask.TransformedBounds.IsEmpty ? softMask.TransformedBounds : activeBounds;
+                var cullRect = !_softMask.TransformedBounds.IsEmpty ? _softMask.TransformedBounds : activeBounds;
                 using var recCanvas = recorder.BeginRecording(cullRect);
 
                 recCanvas.Save();
 
                 // Apply Form /Matrix
-                if (!softMask.FormMatrix.IsIdentity)
+                if (!_softMask.FormMatrix.IsIdentity)
                 {
-                    recCanvas.Concat(softMask.FormMatrix);
+                    recCanvas.Concat(_softMask.FormMatrix);
                 }
 
                 // Clip to /BBox if provided
-                if (!softMask.BBox.IsEmpty)
+                if (!_softMask.BBox.IsEmpty)
                 {
-                    recCanvas.ClipRect(softMask.BBox);
+                    recCanvas.ClipRect(_softMask.BBox);
                 }
 
                 // Background for luminosity masks (BC in group color space)
-                if (softMask.Subtype == SoftMaskSubtype.Luminosity)
+                if (_softMask.Subtype == SoftMaskSubtype.Luminosity)
                 {
                     using var bgPaint = new SKPaint
                     {
                         Style = SKPaintStyle.Fill,
-                        Color = softMask.BackgroundColor ?? SKColors.White
+                        Color = _softMask.BackgroundColor ?? SKColors.White
                     };
 
-                    var bgRect = softMask.BBox.IsEmpty ? cullRect : softMask.BBox;
+                    var bgRect = _softMask.BBox.IsEmpty ? cullRect : _softMask.BBox;
                     recCanvas.DrawRect(bgRect, bgPaint);
                 }
 
                 // Render mask content stream
-                var contentData = PdfStreamDecoder.DecodeContentStream(softMask.GroupObject);
+                var contentData = PdfStreamDecoder.DecodeContentStream(_softMask.GroupObject);
                 if (!contentData.IsEmpty)
                 {
                     var parseContext = new PdfParseContext(contentData);
-                    var maskGs = softMask.Subtype == SoftMaskSubtype.Luminosity
+                    var maskGs = _softMask.Subtype == SoftMaskSubtype.Luminosity
                         ? SoftMaskUtilities.CreateLuminosityMaskGraphicsState()
                         : SoftMaskUtilities.CreateAlphaMaskGraphicsState();
 
                     // The mask group itself should not inherit an outer soft mask.
                     maskGs.SoftMask = null;
 
-                    var formPage = new FormXObjectPageWrapper(currentPage, softMask.GroupObject);
-                    PdfContentStreamRenderer.RenderContentStream(recCanvas, ref parseContext, formPage, maskGs, new HashSet<int>());
+                    var formPage = new FormXObjectPageWrapper(_currentPage, _softMask.GroupObject);
+                    var renderer = new PdfContentStreamRenderer(formPage);
+                    renderer.RenderContext(recCanvas, ref parseContext, maskGs, new HashSet<int>());
                 }
 
                 recCanvas.Restore();
@@ -151,11 +152,11 @@ namespace PdfReader.Rendering.Advanced
                 using var picture = recorder.EndRecording();
                 using var maskPaint = new SKPaint { IsAntialias = true, BlendMode = SKBlendMode.DstIn };
 
-                using var alphaFilter = softMask.Subtype == SoftMaskSubtype.Luminosity
+                using var alphaFilter = _softMask.Subtype == SoftMaskSubtype.Luminosity
                     ? SoftMaskUtilities.CreateAlphaFromLuminosityFilter()
                     : null;
 
-                using var trFilter = SoftMaskUtilities.CreateTransferFunctionColorFilter(softMask);
+                using var trFilter = SoftMaskUtilities.CreateTransferFunctionColorFilter(_softMask);
 
                 using var composedFilter = (alphaFilter != null && trFilter != null)
                     ? SKColorFilter.CreateCompose(alphaFilter, trFilter)
@@ -164,12 +165,12 @@ namespace PdfReader.Rendering.Advanced
                 var filterToApply = composedFilter ?? trFilter ?? alphaFilter;
                 maskPaint.ColorFilter = filterToApply;
 
-                canvas.DrawPicture(picture, maskPaint);
+                _canvas.DrawPicture(picture, maskPaint);
             }
             finally
             {
                 // Close the layer started in BeginDrawContent
-                canvas.Restore();
+                _canvas.Restore();
                 shouldApplyMask = false;
             }
         }
