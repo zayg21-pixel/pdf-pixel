@@ -55,7 +55,7 @@ namespace PdfReader.Icc
         /// <summary>
         /// Standard size used for high-resolution lookup table generation (e.g., TRC, companding, cube-root).
         /// </summary>
-        public const int LutTableSize = 8192;
+        public const int LutTableSize = 2048;
 
         /// <summary>
         /// Size of precomputed sRGB companding LUT (same as <see cref="LutTableSize"/>).
