@@ -26,23 +26,21 @@ namespace PdfReader.Rendering.Color
 
         public override bool IsDevice => false;
 
-        public override SKColor ToSrgb(ReadOnlySpan<float> comps01, PdfRenderingIntent intent)
+        protected override SKColor ToSrgbCore(ReadOnlySpan<float> comps01, PdfRenderingIntent intent)
         {
             float tint = comps01.Length > 0 ? comps01[0] : 0f;
             float[] mapped;
+
             if (_tintFunction != null)
             {
                 mapped = PdfFunctions.EvaluateFunctionObject(_tintFunction, Clamp01(tint));
-                if (mapped == null || mapped.Length == 0)
+                if (mapped != null && mapped.Length > 0)
                 {
-                    mapped = new[] { Clamp01(1f - tint) }; // fallback like simple subtractive
+                    return _alternate.ToSrgb(mapped, intent);
                 }
             }
-            else
-            {
-                mapped = new[] { Clamp01(1f - tint) }; // simple heuristic mapping
-            }
-            return _alternate.ToSrgb(mapped, intent);
+
+            return _alternate.ToSrgb(comps01, intent);
         }
     }
 }

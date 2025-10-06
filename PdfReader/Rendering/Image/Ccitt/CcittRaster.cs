@@ -12,36 +12,6 @@ namespace PdfReader.Rendering.Image.Ccitt
     internal static class CcittRaster
     {
         /// <summary>
-        /// Create a packed 1-bit-per-pixel buffer initialized to the white background value according to <paramref name="blackIs1"/>.
-        /// </summary>
-        /// <param name="width">Image width in pixels.</param>
-        /// <param name="height">Image height in pixels.</param>
-        /// <param name="blackIs1">If true, bit value 1 represents black and 0 represents white; otherwise bit value 0 represents black and 1 represents white.</param>
-        /// <param name="byteCount">Allocated bytes count.</param>
-        /// <returns>Initialized packed bit buffer of length ((width + 7) / 8) * height.</returns>
-        public static unsafe IntPtr AllocateBuffer(int width, int height, bool blackIs1, out int byteCount)
-        {
-            int rowBytes = (width + 7) / 8;
-            int total = rowBytes * height;
-            IntPtr unmanaged = Marshal.AllocHGlobal(total);
-            byte* buffer = (byte*)unmanaged.ToPointer();
-
-            // Determine background (white) bit value
-            int whiteBit = blackIs1 ? 0 : 1;
-            if (whiteBit == 1)
-            {
-                // Fill all bits to 1 (white) when whiteBit=1
-                for (int i = 0; i < total; i++)
-                {
-                    buffer[i] = 0xFF;
-                }
-            }
-            // else already zeroed = all white when whiteBit == 0
-            byteCount = total;
-            return unmanaged;
-        }
-
-        /// <summary>
         /// Validate that the sum of run lengths matches the expected width.
         /// </summary>
         public static void ValidateRunLengths(List<int> runs, int expectedWidth, int rowIndex, string decoderName)
@@ -53,7 +23,7 @@ namespace PdfReader.Rendering.Image.Ccitt
             }
             if (total != expectedWidth)
             {
-                throw new System.InvalidOperationException(decoderName + " decode error: row length mismatch row=" + rowIndex + " got=" + total + " expected=" + expectedWidth + ".");
+                throw new InvalidOperationException(decoderName + " decode error: row length mismatch row=" + rowIndex + " got=" + total + " expected=" + expectedWidth + ".");
             }
         }
 
@@ -73,14 +43,13 @@ namespace PdfReader.Rendering.Image.Ccitt
             int x = 0;
             bool isBlack = false; // first run white
             int blackBit = blackIs1 ? 1 : 0;
-            int whiteBit = 1 - blackBit;
 
             for (int r = 0; r < runs.Count; r++)
             {
                 int runLength = runs[r];
                 if (runLength > 0 && isBlack)
                 {
-                    WriteBlackRun(buffer, rowBase, x, runLength, width, blackBit, whiteBit);
+                    WriteBlackRun(buffer, rowBase, x, runLength, blackBit);
                 }
                 x += runLength;
                 isBlack = !isBlack;
@@ -112,7 +81,7 @@ namespace PdfReader.Rendering.Image.Ccitt
             }
         }
 
-        private static void WriteBlackRun(Span<byte> buffer, int rowBase, int startX, int length, int width, int blackBit, int whiteBit)
+        private static void WriteBlackRun(Span<byte> buffer, int rowBase, int startX, int length, int blackBit)
         {
             if (length <= 0)
             {

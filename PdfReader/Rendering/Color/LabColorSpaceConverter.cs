@@ -49,7 +49,7 @@ namespace PdfReader.Rendering.Color
         public override int Components => 3;
         public override bool IsDevice => false;
 
-        public override SKColor ToSrgb(ReadOnlySpan<float> comps, PdfRenderingIntent intent)
+        protected override SKColor ToSrgbCore(ReadOnlySpan<float> comps, PdfRenderingIntent intent)
         {
             float Lraw = comps.Length > 0 ? comps[0] : 0f;
             float araw = comps.Length > 1 ? comps[1] : 0f;

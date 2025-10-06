@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Numerics;
-using System.Collections.Concurrent;
 using PdfReader.Models;
 
 namespace PdfReader.Icc
@@ -16,10 +15,6 @@ namespace PdfReader.Icc
         private readonly float _sourceBlackLstar;
         private readonly float _blackPointCompensationScale;
         private readonly bool _isLabDevice;
-
-        private readonly ConcurrentDictionary<PdfRenderingIntent, Vector3[]> _intentLutCache = new ConcurrentDictionary<PdfRenderingIntent, Vector3[]>();
-
-        private readonly RgbDeviceToSrgbCore _coreDelegate; // Delegate used for LUT population.
 
         public IccRgbColorConverter(IccProfile profile)
         {
@@ -46,9 +41,6 @@ namespace PdfReader.Icc
 
             _sourceBlackLstar = IccProfileHelpers.GetSourceBlackLstar(_iccProfile);
             _blackPointCompensationScale = IccProfileHelpers.GetBlackLstarScale(_sourceBlackLstar);
-
-            // Assign delegate to instance method.
-            _coreDelegate = ConvertCore;
         }
 
         public bool TryToSrgb01(ReadOnlySpan<float> rgb01, PdfRenderingIntent intent, out Vector3 srgb01)
@@ -60,21 +52,9 @@ namespace PdfReader.Icc
                 return false;
             }
 
-            // Thread-safe LUT creation (null cached if build yields no successful samples).
-            Vector3[] lut = _intentLutCache.GetOrAdd(intent, i => IccRgb3dLut.Build(i, _coreDelegate));
-            if (lut != null && lut.Length > 0)
-            {
-                srgb01 = IccRgb3dLut.Sample(lut, rgb01[0], rgb01[1], rgb01[2], SamlingInterpolation.SampleBilinear);
-                return true;
-            }
-
-            // Fallback analytic path (if LUT build produced only failures or is absent).
-            return ConvertCore(rgb01[0], rgb01[1], rgb01[2], intent, out srgb01);
-        }
-
-        private bool ConvertCore(float c0, float c1, float c2, PdfRenderingIntent intent, out Vector3 srgb01)
-        {
-            srgb01 = default;
+            float c0 = rgb01[0];
+            float c1 = rgb01[1];
+            float c2 = rgb01[2];
 
             if (_isLabDevice)
             {

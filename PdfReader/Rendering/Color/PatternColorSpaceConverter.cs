@@ -27,7 +27,7 @@ namespace PdfReader.Rendering.Color
 
         public override int Components => _baseColorSpace?.Components ?? 0;
 
-        public override SKColor ToSrgb(ReadOnlySpan<float> comps01, PdfRenderingIntent intent)
+        protected override SKColor ToSrgbCore(ReadOnlySpan<float> comps01, PdfRenderingIntent intent)
         {
             // Pattern space itself cannot directly produce a color without pattern painting.
             // For uncolored patterns, we interpret provided components through base color space to get the current color.

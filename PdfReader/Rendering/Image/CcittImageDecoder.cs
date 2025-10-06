@@ -3,22 +3,21 @@ using PdfReader.Rendering.Image.Ccitt;
 using PdfReader.Rendering.Image.Processing;
 using SkiaSharp;
 using System;
-using System.Runtime.InteropServices;
 
 namespace PdfReader.Rendering.Image
 {
     /// <summary>
     /// CCITT Fax (CCITTFaxDecode) image decoder.
-    /// Decodes the compressed bitstream to a 1-bpc packed buffer (respecting /DecodeParms) and
-    /// delegates interpretation (/Decode array, masking, color conversion) to <see cref="PdfImageProcessor"/>.
-    /// Failure cases log and return null (decoder is permissive: upstream may decide to continue page rendering).
+    /// Streams CCITT rows through <see cref="CcittRowDecoder"/> and hands each packed 1-bit row
+    /// to <see cref="PdfImageRowProcessor"/> for /Decode, masking and color conversion.
+    /// No legacy full-buffer fallback is retained.
     /// </summary>
     internal sealed class CcittImageDecoder : PdfImageDecoder
     {
         private readonly int _k;
         private readonly bool _endOfLine;
         private readonly bool _byteAlign;
-        private readonly bool _blackIs1; // filter-level black polarity (bit meaning in encoded data)
+        private readonly bool _blackIs1;
         private readonly bool _endOfBlock;
         private readonly int _columns;
         private readonly int _rows;
@@ -42,51 +41,61 @@ namespace PdfReader.Rendering.Image
 
         public override unsafe SKImage Decode()
         {
+            int width = _columns;
+            int height = _rows;
+            if (width <= 0 || height <= 0)
+            {
+                Logger.LogError("Invalid CCITT dimensions {Width}x{Height}.", width, height);
+                return null;
+            }
+
             try
             {
-                int width = _columns;
-                int height = _rows;
-                if (width <= 0 || height <= 0)
-                {
-                    Logger.LogError("Invalid CCITT dimensions {Width}x{Height}.", width, height);
-                    return null;
-                }
-
                 ReadOnlyMemory<byte> encoded = Image.GetImageData();
-                var unmanaged = CcittRaster.AllocateBuffer(width, height, _blackIs1, out int byteCount);
-                var buffer = new Span<byte>(unmanaged.ToPointer(), byteCount);
-
-                try
+                if (encoded.IsEmpty)
                 {
-                    if (_k == 0)
-                    {
-                        CcittG3OneDDecoder.Decode(encoded.Span, buffer, width, height, _blackIs1, _endOfLine, _byteAlign);
-                    }
-                    else if (_k < 0)
-                    {
-                        CcittG4TwoDDecoder.Decode(encoded.Span, buffer, width, height, _blackIs1, _endOfBlock);
-                    }
-                    else
-                    {
-                        CcittG32DDecoder.Decode(encoded.Span, buffer, width, height, _blackIs1, _k, _endOfLine, _byteAlign);
-                    }
-
-                    return Processor.CreateImage(buffer);
-                }
-                catch (Exception ex)
-                {
-                    Logger.LogError(ex, "CCITT entropy decode failed.");
+                    Logger.LogError("CCITT image data empty (Name={Name}).", Image.Name);
                     return null;
                 }
-                finally
+
+                // Initialize row processor (8-bit pipeline; will read packed 1-bit samples per row).
+                using var rowProcessor = new PdfImageRowProcessor(Image, LoggerFactory.CreateLogger<PdfImageRowProcessor>());
+                rowProcessor.InitializeBuffer();
+
+                // Row decoder (produces packed 1-bit rows, MSB-first).
+                var rowDecoder = new CcittRowDecoder(
+                    encoded.Span,
+                    width,
+                    height,
+                    _blackIs1,
+                    _k,
+                    _endOfLine,
+                    _byteAlign,
+                    _endOfBlock);
+
+                int packedRowBytes = rowDecoder.RowStride;
+                byte[] rowBuffer = new byte[packedRowBytes];
+
+                int rowIndex = 0;
+                while (rowDecoder.DecodeNextRow(rowBuffer))
                 {
-                    Marshal.FreeHGlobal(unmanaged);
+                    fixed (byte* rowPtr = rowBuffer)
+                    {
+                        rowProcessor.WriteRow(rowIndex, rowPtr);
+                    }
+                    rowIndex++;
                 }
 
+                if (rowIndex != height)
+                {
+                    Logger.LogWarning("CCITT row decoder ended early (Decoded={Decoded} Expected={Expected}) (Name={Name}).", rowIndex, height, Image.Name);
+                }
+
+                return rowProcessor.GetSkImage();
             }
             catch (Exception ex)
             {
-                Logger.LogError(ex, "Unexpected CCITT decode failure.");
+                Logger.LogError(ex, "CCITT streaming decode failed (Name={Name}).", Image.Name);
                 return null;
             }
         }

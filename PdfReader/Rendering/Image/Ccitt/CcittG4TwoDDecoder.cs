@@ -9,31 +9,6 @@ namespace PdfReader.Rendering.Image.Ccitt
     /// </summary>
     internal static class CcittG4TwoDDecoder
     {
-        public static void Decode(ReadOnlySpan<byte> data, Span<byte> buffer, int width, int height, bool blackIs1, bool endOfBlock)
-        {
-            var reader = new CcittBitReader(data);
-
-            var referenceChanges = new List<int>(width + 8) { width };
-            var nextReferenceChanges = new List<int>(width + 8);
-            var runs = new List<int>(256);
-
-            for (int row = 0; row < height; row++)
-            {
-                runs.Clear();
-                DecodeTwoDLine(ref reader, width, referenceChanges, runs, nextReferenceChanges);
-                CcittRaster.ValidateRunLengths(runs, width, row, "CCITT G4");
-                CcittRaster.RasterizeRuns(buffer, runs, row, width, blackIs1);
-                var tmp = referenceChanges;
-                referenceChanges = nextReferenceChanges;
-                nextReferenceChanges = tmp;
-            }
-
-            if (endOfBlock)
-            {
-                reader.TryConsumeRtc();
-            }
-        }
-
         internal static void DecodeTwoDLine(ref CcittBitReader reader, int width, List<int> referenceChanges, List<int> runs, List<int> nextReferenceChanges)
         {
             runs.Clear();

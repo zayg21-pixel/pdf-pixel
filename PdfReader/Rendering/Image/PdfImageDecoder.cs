@@ -13,7 +13,6 @@ namespace PdfReader.Rendering.Image
             Image = image ?? throw new ArgumentNullException(nameof(image));
             LoggerFactory = loggerFactory ?? throw new ArgumentNullException(nameof(loggerFactory));
             Logger = loggerFactory.CreateLogger(GetType());
-            Processor = new PdfImageProcessor(image, loggerFactory);
         }
 
         public PdfImage Image { get; }
@@ -21,8 +20,6 @@ namespace PdfReader.Rendering.Image
         protected ILogger Logger { get; }
 
         protected ILoggerFactory LoggerFactory { get; }
-
-        protected PdfImageProcessor Processor { get; }
 
         public virtual bool HasDecodeParams => Image.DecodeParms != null && Image.DecodeParms.Count > 0 && (Image.DecodeParms[0].Predictor ?? 1) > 1;
 

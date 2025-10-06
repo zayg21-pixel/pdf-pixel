@@ -9,15 +9,19 @@ namespace PdfReader.Rendering.Color
         public static readonly DeviceRgbConverter Instance = new DeviceRgbConverter();
 
         public override int Components => 3;
-
         public override bool IsDevice => true;
 
-        public override SKColor ToSrgb(ReadOnlySpan<float> comps01, PdfRenderingIntent renderingIntent)
+        protected override SKColor ToSrgbCore(ReadOnlySpan<float> comps01, PdfRenderingIntent renderingIntent)
         {
-            var r = ToByte(comps01.Length > 0 ? comps01[0] : 0f);
-            var g = ToByte(comps01.Length > 1 ? comps01[1] : 0f);
-            var b = ToByte(comps01.Length > 2 ? comps01[2] : 0f);
+            byte r = ToByte(comps01.Length > 0 ? comps01[0] : 0f);
+            byte g = ToByte(comps01.Length > 1 ? comps01[1] : 0f);
+            byte b = ToByte(comps01.Length > 2 ? comps01[2] : 0f);
             return new SKColor(r, g, b);
+        }
+
+        public override unsafe void Sample8RgbaInPlace(byte* rgbaRow, int pixelCount, PdfRenderingIntent intent)
+        {
+            // Device RGB already correct; leave as-is.
         }
     }
 }

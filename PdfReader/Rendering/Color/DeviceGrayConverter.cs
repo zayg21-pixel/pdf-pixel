@@ -12,10 +12,22 @@ namespace PdfReader.Rendering.Color
 
         public override bool IsDevice => true;
 
-        public override SKColor ToSrgb(ReadOnlySpan<float> comps01, PdfRenderingIntent renderingIntent)
+        protected override SKColor ToSrgbCore(ReadOnlySpan<float> comps01, PdfRenderingIntent renderingIntent)
         {
-            var g = ToByte(comps01.Length > 0 ? comps01[0] : 0f);
+            byte g = ToByte(comps01.Length > 0 ? comps01[0] : 0f);
             return new SKColor(g, g, g);
+        }
+
+        public override unsafe void Sample8RgbaInPlace(byte* rgbaRow, int pixelCount, PdfRenderingIntent intent)
+        {
+            for (int pixelIndex = 0; pixelIndex < pixelCount; pixelIndex++)
+            {
+                int baseIdx = pixelIndex * 4;
+                byte g = rgbaRow[baseIdx];
+                rgbaRow[baseIdx + 1] = g;
+                rgbaRow[baseIdx + 2] = g;
+                rgbaRow[baseIdx + 3] = 255; // set alpha to opaque
+            }
         }
     }
 }

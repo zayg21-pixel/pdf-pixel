@@ -15,6 +15,9 @@ namespace PdfReader.Rendering.Image.Processing
     ///  * 4 bpc  -> 0..15
     ///  * 8 bpc  -> 0..255
     ///  * 16 bpc -> high byte only (0..255)
+    /// NOTE: Color key mask ranges produced by <see cref="TryBuildColorKeyRanges"/> are scaled to the 8‑bit domain (0..255)
+    /// for all bit depths so they can be compared directly against decoded 8‑bit component values produced by the
+    /// byte decode path. (For 16 bpc we downscale to high byte; for < 8 bpc we linearly scale raw code to 0..255.)
     /// </summary>
     internal static class ProcessingUtilities
     {
@@ -42,12 +45,8 @@ namespace PdfReader.Rendering.Image.Processing
 
         /// <summary>
         /// Build per-component decode lookup tables from an optional /Decode array.
-        /// If <paramref name="decodeArray"/> is null or incomplete an identity mapping in [0,1] is produced.
+        /// The resulting LUTs map raw sample codes to normalized floats in [0,1].
         /// </summary>
-        /// <param name="componentCount">Number of color components in the source image.</param>
-        /// <param name="bitsPerComponent">Bits per component (1,2,4,8,16 supported).</param>
-        /// <param name="decodeArray">Flattened /Decode array ([d0 d1] per component) or null for identity.</param>
-        /// <returns>Array of per-component lookup tables mapping RAW codes to normalized 0..1 floats.</returns>
         public static float[][] BuildDecodeLuts(int componentCount, int bitsPerComponent, IReadOnlyList<float> decodeArray)
         {
             if (componentCount <= 0)
@@ -99,9 +98,70 @@ namespace PdfReader.Rendering.Image.Processing
         }
 
         /// <summary>
+        /// Build per-component decode lookup tables from an optional /Decode array, outputting byte components (0..255).
+        /// Each LUT maps raw sample codes directly to an 8-bit component value, avoiding per-pixel float math.
+        /// This is used by the byte-based color conversion path (PdfColorSpaceConverter.ToSrgb8Bit).
+        /// </summary>
+        /// <param name="componentCount">Number of color components.</param>
+        /// <param name="bitsPerComponent">Bits per component (1,2,4,8,16 supported; 16 uses the high byte domain).</param>
+        /// <param name="decodeArray">Optional /Decode array ([d0 d1] per component) or null for identity [0 1].</param>
+        /// <returns>Array of per-component byte LUTs (raw code -> component byte 0..255).</returns>
+        public static byte[][] Build8BitDecodeLuts(int componentCount, int bitsPerComponent, IReadOnlyList<float> decodeArray)
+        {
+            if (componentCount <= 0)
+            {
+                return Array.Empty<byte[]>();
+            }
+
+            bool hasDecode = decodeArray != null && decodeArray.Count >= componentCount * 2;
+            int lutSize = GetRawDomainSize(bitsPerComponent);
+            var luts = new byte[componentCount][];
+
+            for (int componentIndex = 0; componentIndex < componentCount; componentIndex++)
+            {
+                float decodeMin = 0f;
+                float decodeMax = 1f;
+                if (hasDecode)
+                {
+                    decodeMin = decodeArray[componentIndex * 2];
+                    decodeMax = decodeArray[componentIndex * 2 + 1];
+                }
+
+                if (IsConstantRange(decodeMin, decodeMax))
+                {
+                    byte constantByte = (byte)(Clamp01(decodeMin) * 255f + 0.5f);
+                    byte[] constantLut = new byte[lutSize];
+                    for (int i = 0; i < lutSize; i++)
+                    {
+                        constantLut[i] = constantByte;
+                    }
+                    luts[componentIndex] = constantLut;
+                    continue;
+                }
+
+                byte[] lut = new byte[lutSize];
+                float maxCode = lutSize - 1;
+                float span = decodeMax - decodeMin;
+                for (int rawCode = 0; rawCode < lutSize; rawCode++)
+                {
+                    float normalized = maxCode <= 0 ? 0f : rawCode / maxCode; // 0..1
+                    float mapped = decodeMin + normalized * span; // decode domain
+                    mapped = Clamp01(mapped);
+                    lut[rawCode] = (byte)(mapped * 255f + 0.5f);
+                }
+                luts[componentIndex] = lut;
+            }
+
+            return luts;
+        }
+
+        /// <summary>
         /// Attempt to build per-component color key mask ranges (inclusive min/max) from a /Mask array.
-        /// RAW domain values are NOT scaled to bytes (they remain in their native code domain).
-        /// For 16 bpc the high byte only domain (0..255) is used.
+        /// Returned ranges are scaled to 0..255 for every supported bits-per-component value so that they can be directly
+        /// compared against decoded 8-bit component values. Scaling rules:
+        ///  * 16 bpc: high byte (value >> 8) already yields 0..255.
+        ///  * 8 bpc: unchanged.
+        ///  * 1/2/4 bpc: linearly scaled (raw * 255 / rawMax) with rounding to nearest.
         /// </summary>
         /// <param name="componentCount">Number of color components in the source image.</param>
         /// <param name="bitsPerComponent">Bits per component (1,2,4,8,16 supported).</param>
@@ -119,20 +179,24 @@ namespace PdfReader.Rendering.Image.Processing
                 return false;
             }
 
-            int domainMax;
-            bool shiftHigh = false;
-            if (bitsPerComponent == 16)
+            int rawMax;
+            bool is16 = bitsPerComponent == 16;
+            if (is16)
             {
-                domainMax = MaxByte; // high byte domain
-                shiftHigh = true;
+                rawMax = 65535; // will shift to 0..255
             }
-            else if (bitsPerComponent >= 1 && bitsPerComponent <= 8)
+            else if (bitsPerComponent == 8)
             {
-                domainMax = bitsPerComponent == 8 ? MaxByte : (1 << bitsPerComponent) - 1;
+                rawMax = 255; // direct
+            }
+            else if (bitsPerComponent == 1 || bitsPerComponent == 2 || bitsPerComponent == 4)
+            {
+                rawMax = (1 << bitsPerComponent) - 1; // 1,3,15
             }
             else
             {
-                domainMax = MaxByte; // fallback
+                // Unsupported depth: fall back to 8-bit assumptions
+                rawMax = 255;
             }
 
             minInclusive = new int[componentCount];
@@ -141,30 +205,44 @@ namespace PdfReader.Rendering.Image.Processing
             for (int componentIndex = 0; componentIndex < componentCount; componentIndex++)
             {
                 int baseIndex = componentIndex * 2;
-                int minValue = (int)Math.Round(maskArray[baseIndex]);
-                int maxValue = (int)Math.Round(maskArray[baseIndex + 1]);
-                if (minValue > maxValue)
+                int minRaw = (int)Math.Round(maskArray[baseIndex]);
+                int maxRaw = (int)Math.Round(maskArray[baseIndex + 1]);
+                if (minRaw > maxRaw)
                 {
-                    int temp = minValue;
-                    minValue = maxValue;
-                    maxValue = temp;
+                    int temp = minRaw;
+                    minRaw = maxRaw;
+                    maxRaw = temp;
                 }
 
-                if (shiftHigh)
+                if (is16)
                 {
-                    minValue = Clamp(minValue, 0, 65535);
-                    maxValue = Clamp(maxValue, 0, 65535);
-                    minValue >>= 8;
-                    maxValue >>= 8;
+                    minRaw = Clamp(minRaw, 0, 65535) >> 8; // high byte
+                    maxRaw = Clamp(maxRaw, 0, 65535) >> 8;
+                }
+                else if (bitsPerComponent == 8)
+                {
+                    minRaw = Clamp(minRaw, 0, 255);
+                    maxRaw = Clamp(maxRaw, 0, 255);
+                }
+                else if (bitsPerComponent == 1 || bitsPerComponent == 2 || bitsPerComponent == 4)
+                {
+                    // Scale small raw domain to 0..255 preserving endpoints.
+                    int domainMax = rawMax; // 1,3,15
+                    minRaw = Clamp(minRaw, 0, domainMax);
+                    maxRaw = Clamp(maxRaw, 0, domainMax);
+                    // Scale with rounding: value * 255 / domainMax
+                    minRaw = domainMax == 0 ? 0 : (minRaw * 255 + (domainMax / 2)) / domainMax;
+                    maxRaw = domainMax == 0 ? 0 : (maxRaw * 255 + (domainMax / 2)) / domainMax;
                 }
                 else
                 {
-                    minValue = Clamp(minValue, 0, domainMax);
-                    maxValue = Clamp(maxValue, 0, domainMax);
+                    // Fallback clamp.
+                    minRaw = Clamp(minRaw, 0, 255);
+                    maxRaw = Clamp(maxRaw, 0, 255);
                 }
 
-                minInclusive[componentIndex] = minValue;
-                maxInclusive[componentIndex] = maxValue;
+                minInclusive[componentIndex] = minRaw;
+                maxInclusive[componentIndex] = maxRaw;
             }
 
             return true;

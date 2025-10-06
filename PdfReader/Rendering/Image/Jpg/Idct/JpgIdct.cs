@@ -58,34 +58,6 @@ namespace PdfReader.Rendering.Image.Jpg.Idct
                 throw new ArgumentException("workspace must be at least 64 ints", nameof(workspace));
             }
 
-            // DC-only fast path (all AC are zero)
-            int acOr = 0;
-            for (int i = 1; i < 64; i++)
-            {
-                acOr |= input[i];
-            }
-
-            if (acOr == 0)
-            {
-                int dc = ((input[0] + 4) >> 3) + CenterSample;
-                byte b = RangeLimit(dc);
-
-                int dest = 0;
-                for (int y = 0; y < DctSize; y++)
-                {
-                    output[dest + 0] = b;
-                    output[dest + 1] = b;
-                    output[dest + 2] = b;
-                    output[dest + 3] = b;
-                    output[dest + 4] = b;
-                    output[dest + 5] = b;
-                    output[dest + 6] = b;
-                    output[dest + 7] = b;
-                    dest += outStride;
-                }
-                return;
-            }
-
             // Pass 1: rows
             for (int row = 0; row < 64; row += 8)
             {

@@ -14,17 +14,10 @@ namespace PdfReader.Rendering.Image
 {
     /// <summary>
     /// JPEG (DCTDecode) image decoder.
-    /// Decodes a JPEG-encoded image stream (baseline or progressive) into an interleaved component buffer and
-    /// delegates final interpretation (/Decode mapping, color conversion, masking, palette handling, etc.) to
-    /// <see cref="PdfImageProcessor"/>. The decoder performs any mandatory color transforms declared by the
-    /// image data (e.g. YCbCr ➜ RGB, YCCK ➜ CMYK) while streaming MCUs so that the output buffer is already
-    /// in the target component space (Gray = 1, RGB = 3, CMYK = 4 components).
-    ///
-    /// TODO / Work Plan:
-    ///  - Chroma upsampling quality improvements (filtered upsampling for 4:2:0 / 4:2:2 in fidelity mode).
-    ///  - 12‑bit sample precision support (widen IDCT + scaling pipeline).
-    ///  - Arithmetic coding (SOF9 / SOF10) support.
-    ///  - Lossless / hierarchical modes.
+    /// Decodes a JPEG-encoded image stream (baseline or progressive) into an interleaved component row stream and
+    /// performs row-level post processing (decode mapping, masking, color conversion, palette handling) via
+    /// <see cref="PdfImageRowProcessor"/>. Mandatory JPEG color transforms (YCbCr ➜ RGB, YCCK ➜ CMYK) are applied
+    /// during MCU decode so that emitted rows are already in the declared component space (Gray=1, RGB=3, CMYK=4).
     /// </summary>
     public sealed class JpegImageDecoder : PdfImageDecoder
     {
@@ -70,7 +63,8 @@ namespace PdfReader.Rendering.Image
         }
 
         /// <summary>
-        /// Decode using custom streaming pipeline. Never returns null; throws on failure.
+        /// Decode using custom streaming pipeline. Throws on failure.
+        /// Row data is streamed row-by-row directly into a <see cref="PdfImageRowProcessor"/> without allocating a full intermediate buffer.
         /// </summary>
         private unsafe SKImage DecodeInternal(ReadOnlyMemory<byte> encoded)
         {
@@ -117,9 +111,8 @@ namespace PdfReader.Rendering.Image
                 throw new InvalidOperationException($"Invalid JPEG dimensions Width={imageWidth} Height={imageHeight} (Image={Image.Name}).");
             }
 
-            int componentCount = header.ComponentCount;
-            int rowStride = componentCount * imageWidth;
-            int totalBytes = checked(rowStride * imageHeight);
+            int componentCount = header.ComponentCount; // After internal color transform stage
+            int rowStride = checked(componentCount * imageWidth);
 
             ContentStream jpegStream;
             try
@@ -134,20 +127,23 @@ namespace PdfReader.Rendering.Image
                 throw new InvalidOperationException($"JPEG stream initialization failed (Image={Image.Name}).", ex);
             }
 
-            IntPtr unmanagedBuffer = IntPtr.Zero;
+            PdfImageRowProcessor rowProcessor = null;
+            IntPtr unmanagedRow = IntPtr.Zero;
             try
             {
-                unmanagedBuffer = Marshal.AllocHGlobal(totalBytes);
-                Span<byte> allBytes = new Span<byte>((void*)unmanagedBuffer, totalBytes);
+                rowProcessor = new PdfImageRowProcessor(Image, LoggerFactory.CreateLogger<PdfImageRowProcessor>());
+                rowProcessor.InitializeBuffer();
+
+                unmanagedRow = Marshal.AllocHGlobal(rowStride);
 
                 for (int rowIndex = 0; rowIndex < imageHeight; rowIndex++)
                 {
-                    Span<byte> targetRow = allBytes.Slice(rowIndex * rowStride, rowStride);
+                    Span<byte> rowSpan = new Span<byte>((void*)unmanagedRow, rowStride);
                     int remaining = rowStride;
                     int writeOffset = 0;
                     while (remaining > 0)
                     {
-                        int bytesRead = jpegStream.Read(targetRow.Slice(writeOffset, remaining));
+                        int bytesRead = jpegStream.Read(rowSpan.Slice(writeOffset, remaining));
                         if (bytesRead <= 0)
                         {
                             throw new InvalidOperationException($"Unexpected end of JPEG stream at row {rowIndex} (Image={Image.Name}).");
@@ -155,14 +151,21 @@ namespace PdfReader.Rendering.Image
                         writeOffset += bytesRead;
                         remaining -= bytesRead;
                     }
+
+                    rowProcessor.WriteRow(rowIndex, (byte*)unmanagedRow);
                 }
 
-                return Processor.CreateImage(allBytes);
+                return rowProcessor.GetSkImage();
             }
             finally
             {
-                Marshal.FreeHGlobal(unmanagedBuffer);
                 jpegStream.Dispose();
+                if (unmanagedRow != IntPtr.Zero)
+                {
+                    Marshal.FreeHGlobal(unmanagedRow);
+                }
+
+                rowProcessor?.Dispose();
             }
         }
     }

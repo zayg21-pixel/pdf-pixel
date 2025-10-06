@@ -10,25 +10,6 @@ namespace PdfReader.Rendering.Image.Ccitt
     /// </summary>
     internal static class CcittG3OneDDecoder
     {
-        public static void Decode(ReadOnlySpan<byte> data, Span<byte> buffer, int width, int height, bool blackIs1, bool endOfLine, bool byteAlign)
-        {
-            var reader = new CcittBitReader(data);
-            var runs = new List<int>(256);
-
-            for (int rowIndex = 0; rowIndex < height; rowIndex++)
-            {
-                DecodeOneDCollectRuns(
-                    ref reader,
-                    width,
-                    requireLeadingEol: endOfLine,
-                    byteAlign: byteAlign,
-                    runs: runs);
-
-                CcittRaster.ValidateRunLengths(runs, width, rowIndex, "CCITT G3 1D");
-                CcittRaster.RasterizeRuns(buffer, runs, rowIndex, width, blackIs1);
-            }
-        }
-
         internal static void DecodeOneDCollectRuns(
             ref CcittBitReader reader,
             int width,

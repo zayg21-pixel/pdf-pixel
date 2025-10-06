@@ -27,7 +27,7 @@ namespace PdfReader.Rendering.Color
 
         public override bool IsDevice => false;
 
-        public override SKColor ToSrgb(ReadOnlySpan<float> comps01, PdfRenderingIntent intent)
+        protected override SKColor ToSrgbCore(ReadOnlySpan<float> comps01, PdfRenderingIntent intent)
         {
             if (_tintFunction != null)
             {

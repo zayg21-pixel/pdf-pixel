@@ -5,6 +5,7 @@ namespace PdfReader.Rendering.Image.Ccitt
     /// <summary>
     /// Bit reader for CCITT fax streams (MSB-first within each byte).
     /// Provides minimal helpers for optional EOL handling and alignment.
+    /// Exposes read state so callers can snapshot/restore between logical decode units (rows).
     /// </summary>
     internal ref struct CcittBitReader
     {
@@ -14,6 +15,11 @@ namespace PdfReader.Rendering.Image.Ccitt
         private byte _current;      // shifted working byte
         private readonly bool _msbFirst;
 
+        /// <summary>
+        /// Create a new reader at the beginning of the data span.
+        /// </summary>
+        /// <param name="data">Encoded data span.</param>
+        /// <param name="msbFirst">True for MSB-first (standard CCITT).</param>
         public CcittBitReader(ReadOnlySpan<byte> data, bool msbFirst = true)
         {
             _data = data;
@@ -22,6 +28,38 @@ namespace PdfReader.Rendering.Image.Ccitt
             _current = 0;
             _msbFirst = msbFirst;
         }
+
+        /// <summary>
+        /// Create a reader with explicit state (useful for resuming mid-stream without keeping the ref struct alive).
+        /// </summary>
+        /// <param name="data">Encoded data span.</param>
+        /// <param name="byteIndex">Current byte index within the data.</param>
+        /// <param name="bitsRemaining">Bits remaining in the current working byte.</param>
+        /// <param name="current">Current working byte (already shifted appropriately).</param>
+        /// <param name="msbFirst">Bit order flag.</param>
+        public CcittBitReader(ReadOnlySpan<byte> data, int byteIndex, int bitsRemaining, byte current, bool msbFirst = true)
+        {
+            _data = data;
+            _byteIndex = byteIndex;
+            _bitsRemaining = bitsRemaining;
+            _current = current;
+            _msbFirst = msbFirst;
+        }
+
+        /// <summary>
+        /// Current byte index within the underlying data span.
+        /// </summary>
+        public int ByteIndex => _byteIndex;
+
+        /// <summary>
+        /// Remaining bit count in the working byte.
+        /// </summary>
+        public int BitsRemaining => _bitsRemaining;
+
+        /// <summary>
+        /// Current shifted working byte value.
+        /// </summary>
+        public byte Current => _current;
 
         public int ReadBit()
         {

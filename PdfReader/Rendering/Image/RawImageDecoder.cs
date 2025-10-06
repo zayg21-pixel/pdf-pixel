@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
 using PdfReader.Rendering.Image.Raw;
+using PdfReader.Rendering.Image.Processing;
 using SkiaSharp;
 using System;
 using System.Runtime.InteropServices;
@@ -8,18 +9,12 @@ namespace PdfReader.Rendering.Image
 {
     /// <summary>
     /// Decodes a raw PDF image (an image whose stream has already had its /Filter chain decoded).
-    /// A "raw" image in this context is any /Image XObject that is not handled by a specialized
-    /// codec (e.g. JPEG, CCITT, JBIG2, JPEG2000) and therefore consists of packed sample data that may:
-    ///  * Use a PNG/TIFF predictor (/DecodeParms.Predictor) requiring per‑row reconstruction.
-    ///  * Pack sub‑byte samples (1/2/4 bpc) that must be expanded to an 8‑bit working domain.
-    ///  * Contain multi‑component pixels in an arbitrary device / calibrated / indexed color space.
-    ///
-    /// Responsibilities of this decoder:
-    ///  1. Undo predictor (if any) and normalize packed samples to an 8‑bit per component buffer.
-    ///  2. Hand the normalized buffer to <see cref="PdfImageProcessor"/> for /Decode mapping, masking,
-    ///     palette expansion, color space conversion, and final SKImage creation.
-    ///
-    /// The method returns null on failure (errors are logged) so that page rendering can continue.
+    /// A raw image is any /Image XObject not handled by a specialized codec (JPEG, CCITT, JBIG2, JPEG2000, etc.).
+    /// Responsibilities:
+    ///  1. Undo predictor row-by-row when present (TIFF / PNG predictors).
+    ///  2. Provide predictor‑undone, original bit depth sample rows to <see cref="PdfImageRowProcessor"/>.
+    ///  3. Let the row processor handle /Decode arrays, color key masking, palette expansion, color conversion.
+    /// Falls back to legacy full-buffer path for unsupported predictor + bit depth combinations.
     /// </summary>
     public class RawImageDecoder : PdfImageDecoder
     {
@@ -38,27 +33,70 @@ namespace PdfReader.Rendering.Image
             }
 
             ReadOnlyMemory<byte> sourceData = Image.GetImageData();
-            IntPtr decodedBuffer = IntPtr.Zero;
+            if (sourceData.IsEmpty)
+            {
+                Logger.LogError("Raw image data is empty (Name={Name}).", Image.Name);
+                return null;
+            }
+
+            // Try streaming row decoder first.
             try
             {
-                decodedBuffer = PdfRawImageUtilities.Decode(Image, sourceData);
-                if (decodedBuffer == IntPtr.Zero)
-                {
-                    Logger.LogError("RawImage decode produced a null buffer (Name={Name}).", Image.Name);
-                    return null;
-                }
-
-                return Processor.CreateImage(new ReadOnlySpan<byte>(decodedBuffer.ToPointer(), sourceData.Length));
+                return DecodeStreamed(sourceData);
+            }
+            catch (NotSupportedException nsx)
+            {
+                Logger.LogInformation(nsx, "Row streaming not supported; falling back to legacy full-buffer path (Name={Name}).", Image.Name);
             }
             catch (Exception ex)
             {
-                Logger.LogError(ex, "RawImage decode failed (Name={Name}).", Image.Name);
-                return null;
+                Logger.LogWarning(ex, "Row streaming path failed; attempting legacy full-buffer path (Name={Name}).");
             }
-            finally
+
+            return null;
+        }
+
+        private unsafe SKImage DecodeStreamed(ReadOnlyMemory<byte> sourceData)
+        {
+            using PdfRawImageRowDecoder rowDecoder = new PdfRawImageRowDecoder(Image, sourceData);
+            using PdfImageRowProcessor rowProcessor = new PdfImageRowProcessor(Image, LoggerFactory.CreateLogger<PdfImageRowProcessor>());
+            rowProcessor.InitializeBuffer();
+
+            // Managed row buffer reused each iteration; size is original bit depth packed row.
+            byte[] rowBuffer = new byte[rowDecoder.DecodedRowByteLength];
+
+            int expectedRows = Image.Height;
+            int rowIndex = 0;
+            while (true)
             {
-                Marshal.FreeHGlobal(decodedBuffer);
+                bool hasRow;
+                fixed (byte* rowPtr = rowBuffer)
+                {
+                    hasRow = rowDecoder.DecodeNexRow(rowPtr);
+                    if (hasRow)
+                    {
+                        rowProcessor.WriteRow(rowIndex, rowPtr);
+                    }
+                }
+
+                if (!hasRow)
+                {
+                    break;
+                }
+
+                rowIndex++;
+                if (rowIndex > expectedRows)
+                {
+                    throw new InvalidOperationException($"Decoded more rows than expected ({rowIndex}>{expectedRows}) for image {Image.Name}.");
+                }
             }
+
+            if (rowIndex != expectedRows)
+            {
+                Logger.LogWarning("Row decoder ended early (Decoded={Decoded} Expected={Expected}) (Name={Name}).", rowIndex, expectedRows, Image.Name);
+            }
+
+            return rowProcessor.GetSkImage();
         }
     }
 }

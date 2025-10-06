@@ -80,7 +80,7 @@ namespace PdfReader.Rendering.Color
             }
         }
 
-        public override SKColor ToSrgb(ReadOnlySpan<float> comps01, PdfRenderingIntent renderingIntent)
+        protected override SKColor ToSrgbCore(ReadOnlySpan<float> comps01, PdfRenderingIntent renderingIntent)
         {
             int idx = 0;
             if (comps01.Length > 0)
