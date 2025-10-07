@@ -1,14 +1,15 @@
-﻿using SkiaSharp;
-using System;
-using System.Runtime.InteropServices;
-using PdfReader.Rendering.Image.Jpg.Decoding;
-using PdfReader.Rendering.Image.Jpg.Readers;
-using PdfReader.Rendering.Image.Jpg.Model;
-using PdfReader.Rendering.Image.Processing;
-using PdfReader.Streams;
-using PdfReader.Rendering.Image.Jpg.Color;
-using PdfReader.Rendering.Color;
+﻿using CommunityToolkit.HighPerformance;
 using Microsoft.Extensions.Logging;
+using PdfReader.Rendering.Color;
+using PdfReader.Rendering.Image.Jpg.Color;
+using PdfReader.Rendering.Image.Jpg.Decoding;
+using PdfReader.Rendering.Image.Jpg.Model;
+using PdfReader.Rendering.Image.Jpg.Readers;
+using PdfReader.Rendering.Image.Processing;
+using SkiaSharp;
+using System;
+using System.IO;
+using System.Runtime.InteropServices;
 
 namespace PdfReader.Rendering.Image
 {
@@ -43,6 +44,28 @@ namespace PdfReader.Rendering.Image
                 return null;
             }
 
+            bool requiresPostProcessing = ProcessingUtilities.ApplyDecode(Image.DecodeArray) || Image.MaskArray?.Length > 0;
+
+            try
+            {
+                // Fast path: device RGB or Gray with no masking or decode array adjustments can be returned directly.
+                if (!requiresPostProcessing && (Image.ColorSpaceConverter is DeviceRgbConverter || Image.ColorSpaceConverter is DeviceGrayConverter))
+                {
+                    return SKImage.FromEncodedData(encodedImageData.Span);
+                }
+
+                // ICC-based shortcut: when the PDF supplies an ICC profile we can let Skia apply the color transform
+                // by decoding with the source space tagged from the ICC bytes and drawing into an sRGB surface.
+                if (!requiresPostProcessing && Image.ColorSpaceConverter is IccBasedConverter iccConverter && iccConverter.IccBytes != null)
+                {
+                    return DecodeWithSkiaUsingIcc(encodedImageData, iccConverter);
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.LogWarning("JPEG basic decoding failed, will continue with full decoding.", ex);
+            }
+
             try
             {
                 return DecodeInternal(encodedImageData);
@@ -60,6 +83,41 @@ namespace PdfReader.Rendering.Image
                     return null;
                 }
             }
+        }
+
+        private static unsafe SKImage DecodeWithSkiaUsingIcc(ReadOnlyMemory<byte> encodedImageData, IccBasedConverter iccConverter)
+        {
+
+            var handle = encodedImageData.Pin();
+
+            IntPtr addr = (IntPtr)handle.Pointer;
+            SKDataReleaseDelegate release = (address, ctx) =>
+            {
+                if (ctx is IDisposable disp)
+                {
+                    disp.Dispose();
+                }
+            };
+
+            using var data = SKData.Create(addr, encodedImageData.Length, release, handle);
+            using SKCodec codec = SKCodec.Create(data);
+
+            using SKColorSpace sourceColorSpace = SKColorSpace.CreateIcc(iccConverter.IccBytes);
+
+            var sourceInfo = new SKImageInfo(codec.Info.Width, codec.Info.Height, SKColorType.Rgba8888, SKAlphaType.Unpremul, sourceColorSpace);
+            using var bitmap = new SKBitmap(sourceInfo);
+
+            if (codec.GetPixels(sourceInfo, bitmap.GetPixels()) == SKCodecResult.Success)
+            {
+                var result = SKImage.FromBitmap(bitmap);
+
+                if (result != null)
+                {
+                    return result;
+                }
+            }
+
+            throw new InvalidOperationException("Can't process with ICC profile.");
         }
 
         /// <summary>
@@ -114,17 +172,17 @@ namespace PdfReader.Rendering.Image
             int componentCount = header.ComponentCount; // After internal color transform stage
             int rowStride = checked(componentCount * imageWidth);
 
-            ContentStream jpegStream;
+            IJpgDecoder decoder;
             try
             {
                 ReadOnlyMemory<byte> compressed = encoded.Slice(header.ContentOffset);
-                jpegStream = header.IsProgressive
-                    ? (ContentStream)new JpgProgressiveStream(header, compressed)
-                    : (ContentStream)new JpgBaselineStream(header, compressed);
+                decoder = header.IsProgressive
+                    ? (IJpgDecoder)new JpgProgressiveDecoder(header, compressed)
+                    : (IJpgDecoder)new JpgBaselineDecoder(header, compressed);
             }
             catch (Exception ex)
             {
-                throw new InvalidOperationException($"JPEG stream initialization failed (Image={Image.Name}).", ex);
+                throw new InvalidOperationException($"JPEG decoder initialization failed (Image={Image.Name}).", ex);
             }
 
             PdfImageRowProcessor rowProcessor = null;
@@ -139,19 +197,10 @@ namespace PdfReader.Rendering.Image
                 for (int rowIndex = 0; rowIndex < imageHeight; rowIndex++)
                 {
                     Span<byte> rowSpan = new Span<byte>((void*)unmanagedRow, rowStride);
-                    int remaining = rowStride;
-                    int writeOffset = 0;
-                    while (remaining > 0)
+                    if (!decoder.TryReadRow(rowSpan))
                     {
-                        int bytesRead = jpegStream.Read(rowSpan.Slice(writeOffset, remaining));
-                        if (bytesRead <= 0)
-                        {
-                            throw new InvalidOperationException($"Unexpected end of JPEG stream at row {rowIndex} (Image={Image.Name}).");
-                        }
-                        writeOffset += bytesRead;
-                        remaining -= bytesRead;
+                        throw new InvalidOperationException($"JPEG decode failed at row {rowIndex} (Image={Image.Name}).");
                     }
-
                     rowProcessor.WriteRow(rowIndex, (byte*)unmanagedRow);
                 }
 
@@ -159,7 +208,6 @@ namespace PdfReader.Rendering.Image
             }
             finally
             {
-                jpegStream.Dispose();
                 if (unmanagedRow != IntPtr.Zero)
                 {
                     Marshal.FreeHGlobal(unmanagedRow);

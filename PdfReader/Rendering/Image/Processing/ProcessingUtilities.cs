@@ -23,7 +23,6 @@ namespace PdfReader.Rendering.Image.Processing
     {
         private const float DecodeEqualityEpsilon = 1e-12f;
         private const int EightBitDomainSize = 256;
-        private const int MaxByte = 255;
 
         /// <summary>
         /// Returns true when a /Decode array indicates that mapping must be applied
@@ -33,7 +32,7 @@ namespace PdfReader.Rendering.Image.Processing
         {
             if (decodeArray != null && decodeArray.Count >= 2)
             {
-                bool differsFromDefault = Math.Abs(decodeArray[0] - 0f) > 1e-6f || Math.Abs(decodeArray[1] - 1f) > 1e-6f;
+                bool differsFromDefault = Math.Abs(decodeArray[0] - 0f) > DecodeEqualityEpsilon || Math.Abs(decodeArray[1] - 1f) > DecodeEqualityEpsilon;
                 if (differsFromDefault)
                 {
                     return true;
@@ -41,60 +40,6 @@ namespace PdfReader.Rendering.Image.Processing
             }
 
             return false;
-        }
-
-        /// <summary>
-        /// Build per-component decode lookup tables from an optional /Decode array.
-        /// The resulting LUTs map raw sample codes to normalized floats in [0,1].
-        /// </summary>
-        public static float[][] BuildDecodeLuts(int componentCount, int bitsPerComponent, IReadOnlyList<float> decodeArray)
-        {
-            if (componentCount <= 0)
-            {
-                return Array.Empty<float[]>();
-            }
-
-            bool hasDecode = decodeArray != null && decodeArray.Count >= componentCount * 2;
-
-            int lutSize = GetRawDomainSize(bitsPerComponent);
-            var luts = new float[componentCount][];
-
-            for (int componentIndex = 0; componentIndex < componentCount; componentIndex++)
-            {
-                float decodeMin = 0f;
-                float decodeMax = 1f;
-
-                if (hasDecode)
-                {
-                    decodeMin = decodeArray[componentIndex * 2];
-                    decodeMax = decodeArray[componentIndex * 2 + 1];
-                }
-
-                if (IsConstantRange(decodeMin, decodeMax))
-                {
-                    float constant = Clamp01(decodeMin);
-                    float[] constantLut = new float[lutSize];
-                    for (int i = 0; i < lutSize; i++)
-                    {
-                        constantLut[i] = constant;
-                    }
-                    luts[componentIndex] = constantLut;
-                    continue;
-                }
-
-                float[] lut = new float[lutSize];
-                float maxCode = lutSize - 1;
-                for (int code = 0; code < lutSize; code++)
-                {
-                    float normalized = maxCode <= 0 ? 0f : code / maxCode;
-                    float mapped = decodeMin + normalized * (decodeMax - decodeMin);
-                    mapped = Clamp01(mapped);
-                    lut[code] = mapped;
-                }
-                luts[componentIndex] = lut;
-            }
-
-            return luts;
         }
 
         /// <summary>
@@ -339,56 +284,6 @@ namespace PdfReader.Rendering.Image.Processing
             return indexMap;
         }
 
-        /// <summary>
-        /// Build a 2-entry LUT (RAW code 0/1) for an image mask using /Decode ordering.
-        /// Default [0 1] => 0 -> opaque white, 1 -> transparent (0 alpha). Inverted when [1 0].
-        /// </summary>
-        public static byte[] BuildImageMaskLut(IReadOnlyList<float> decodeArray)
-        {
-            bool invert = false;
-            if (decodeArray != null && decodeArray.Count >= 2)
-            {
-                invert = decodeArray[0] > decodeArray[1];
-            }
-
-            byte[] alphaLut = new byte[2];
-            alphaLut[0] = invert ? (byte)0 : (byte)255;
-            alphaLut[1] = invert ? (byte)255 : (byte)0;
-
-            return alphaLut;
-        }
-
-        /// <summary>
-        /// Build an alpha LUT mapping RAW sample codes to 0..255 alpha values using the first decode interval.
-        /// </summary>
-        public static byte[] BuildAlphaLut(int bitsPerComponent, IReadOnlyList<float> decodeArray)
-        {
-            var (decodeMin, decodeMax) = GetMinMaxOrDefault(decodeArray);
-
-            int lutSize = GetRawDomainSize(bitsPerComponent);
-            byte[] lut = new byte[lutSize];
-
-            if (IsConstantRange(decodeMin, decodeMax))
-            {
-                byte constant = (byte)(Clamp01(decodeMin) * 255f + 0.5f);
-                for (int i = 0; i < lutSize; i++)
-                {
-                    lut[i] = constant;
-                }
-                return lut;
-            }
-
-            float maxCode = lutSize - 1;
-            for (int code = 0; code < lutSize; code++)
-            {
-                float normalized = maxCode <= 0 ? 0f : code / maxCode;
-                float alpha = decodeMin + normalized * (decodeMax - decodeMin);
-                alpha = Clamp01(alpha);
-                lut[code] = (byte)(alpha * 255f + 0.5f);
-            }
-            return lut;
-        }
-
         private static int GetRawDomainSize(int bitsPerComponent)
         {
             // Special case for 16 bpc: we only operate on the high byte so domain is 256.
@@ -406,19 +301,6 @@ namespace PdfReader.Rendering.Image.Processing
 
             // Fallback: treat as 8-bit domain size.
             return EightBitDomainSize;
-        }
-
-        private static (float decodeMin, float decodeMax) GetMinMaxOrDefault(IReadOnlyList<float> decodeArray)
-        {
-            float decodeMin = 0f;
-            float decodeMax = 1f;
-            if (decodeArray != null && decodeArray.Count >= 2)
-            {
-                decodeMin = decodeArray[0];
-                decodeMax = decodeArray[1];
-            }
-
-            return (decodeMin, decodeMax);
         }
 
         private static bool IsConstantRange(float min, float max)

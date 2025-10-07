@@ -1,16 +1,18 @@
 using PdfReader.Models;
 using SkiaSharp;
-using System;
 using System.Collections.Generic;
 using System.Linq;
 
 namespace PdfReader.Parsing
 {
     /// <summary>
-    /// Handles extraction of pages from PDF document structure
+    /// Handles extraction of pages from PDF document structure.
+    /// Resolves inherited attributes (Resources, MediaBox, CropBox, Rotate) before constructing PdfPage instances.
     /// </summary>
     public static class PdfPageExtractor
     {
+        private static readonly SKRect DefaultMediaBox = new SKRect(0, 0, 612, 792);
+
         /// <summary>
         /// Extract all pages from the PDF document
         /// </summary>
@@ -48,10 +50,10 @@ namespace PdfReader.Parsing
 
             var pageObjects = document.Objects.Values.Where(obj => obj.Dictionary.GetName(PdfTokens.TypeKey) == PdfTokens.PageKey).ToList();
             
-            for (int i = 0; i < pageObjects.Count; i++)
+            for (int index = 0; index < pageObjects.Count; index++)
             {
-                var pageObj = pageObjects[i];
-                var page = CreatePageFromObject(document, pageObj, i + 1);
+                var pageObj = pageObjects[index];
+                var page = CreatePageFromObject(document, pageObj, index + 1);
                 document.Pages.Add(page);
             }
             
@@ -75,13 +77,13 @@ namespace PdfReader.Parsing
                 for (int i = 0; i < kidsArray.Count; i++)
                 {
                     var kidObject = kidsArray.GetPageObject(i);
-
-                    if (kidObject.Dictionary.GetName(PdfTokens.TypeKey) == PdfTokens.PageKey)
+                    var typeName = kidObject.Dictionary.GetName(PdfTokens.TypeKey);
+                    if (typeName == PdfTokens.PageKey)
                     {
                         var page = CreatePageFromObject(document, kidObject, currentPageNum++);
                         document.Pages.Add(page);
                     }
-                    else if (kidObject.Dictionary.GetName(PdfTokens.TypeKey) == PdfTokens.PagesKey)
+                    else if (typeName == PdfTokens.PagesKey)
                     {
                         currentPageNum = ExtractPagesFromPagesObject(document, kidObject, currentPageNum);
                     }
@@ -96,9 +98,23 @@ namespace PdfReader.Parsing
         /// </summary>
         private static PdfPage CreatePageFromObject(PdfDocument document, PdfObject pageObj, int pageNumber)
         {
-            var page = new PdfPage(pageNumber, document, pageObj);
-            
-            return page;
+            var resourceDictionary = GetInheritedValue(pageObj, PdfTokens.ResourcesKey).AsDictionary() ?? new PdfDictionary(document);
+
+            var mediaBox = TryConvertArrayToSKRect(GetInheritedValue(pageObj, PdfTokens.MediaBoxKey).AsArray()) ?? DefaultMediaBox;
+            if (mediaBox.Width <= 0 || mediaBox.Height <= 0)
+            {
+                mediaBox = DefaultMediaBox;
+            }
+
+            var cropBox = TryConvertArrayToSKRect(GetInheritedValue(pageObj, PdfTokens.CropBoxKey).AsArray()) ?? mediaBox;
+            if (cropBox.Width <= 0 || cropBox.Height <= 0)
+            {
+                cropBox = mediaBox;
+            }
+
+            var rotation = GetNormalizedRotation(GetInheritedValue(pageObj, PdfTokens.RotateKey).AsInteger());
+
+            return new PdfPage(pageNumber, document, pageObj, mediaBox, cropBox, rotation, resourceDictionary);
         }
 
         /// <summary>
@@ -109,16 +125,18 @@ namespace PdfReader.Parsing
         public static SKRect? TryConvertArrayToSKRect(PdfArray value)
         {
             if (value == null)
+            {
                 return null;
-
+            }
             if (value.Count < 4)
+            {
                 return null;
+            }
 
             var left = value.GetFloat(0);
             var top = value.GetFloat(1);
             var right = value.GetFloat(2);
             var bottom = value.GetFloat(3);
-
             return new SKRect(left, top, right, bottom);
         }
 

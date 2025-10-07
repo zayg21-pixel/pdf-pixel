@@ -1,4 +1,5 @@
 using System;
+using System.Runtime.CompilerServices;
 using PdfReader.Rendering.Image.Jpg.Model;
 
 namespace PdfReader.Rendering.Image.Jpg.Color
@@ -44,6 +45,7 @@ namespace PdfReader.Rendering.Image.Jpg.Color
         /// <summary>
         /// Clamp an integer value to byte range (0-255).
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         protected static byte ClampToByte(int value)
         {
             if (value < 0)

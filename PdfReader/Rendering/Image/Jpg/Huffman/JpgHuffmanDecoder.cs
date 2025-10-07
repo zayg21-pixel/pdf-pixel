@@ -67,7 +67,6 @@ namespace PdfReader.Rendering.Image.Jpg
 
         public int Decode(ref JpgBitReader br)
         {
-            br.EnsureBits(LookaheadBits);
             int la = (int)br.PeekBits(LookaheadBits);
             short entry = _lookahead[la];
             if (entry != -1)

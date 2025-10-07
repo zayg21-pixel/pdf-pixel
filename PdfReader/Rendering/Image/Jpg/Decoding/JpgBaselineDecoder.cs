@@ -1,20 +1,16 @@
 using System;
-using System.IO;
-using PdfReader.Rendering.Color;
 using PdfReader.Rendering.Image.Jpg.Idct;
 using PdfReader.Rendering.Image.Jpg.Model;
 using PdfReader.Rendering.Image.Jpg.Readers;
 using PdfReader.Rendering.Image.Jpg.Color;
-using PdfReader.Streams;
 
 namespace PdfReader.Rendering.Image.Jpg.Decoding
 {
     /// <summary>
-    /// Baseline JPEG decoder as a forward-only stream producing interleaved component bytes (Gray=1, RGB=3, CMYK=4).
-    /// Performs per-MCU decoding and color conversion directly into an RGBA band buffer (one MCU row at a time).
-    /// Plane-sized sampling info APIs are intentionally avoided (obsolete) in favor of direct MCU grid math.
+    /// Baseline JPEG decoder producing interleaved component rows (Gray=1, RGB=3, CMYK=4) via progressive row access.
+    /// Decodes one MCU row band at a time, performing IDCT and color conversion directly into a band buffer.
     /// </summary>
-    internal sealed class JpgBaselineStream : ContentStream
+    internal sealed class JpgBaselineDecoder : IJpgDecoder
     {
         private const int DctBlockSize = 64;
 
@@ -23,7 +19,7 @@ namespace PdfReader.Rendering.Image.Jpg.Decoding
         private readonly int _hMax;
         private readonly int _vMax;
 
-        private ReadOnlyMemory<byte> _entropyMemory;
+        private readonly ReadOnlyMemory<byte> _entropyMemory;
         private bool _decoderInitialized;
 
         private int _mcuColumns;
@@ -54,27 +50,18 @@ namespace PdfReader.Rendering.Image.Jpg.Decoding
 
         private IMcuWriter _mcuWriter;
 
-        public int McuWidth { get; }
-        public int McuHeight { get; }
-        public int McuColumns => _mcuColumns;
-        public int McuRows => _mcuRows;
-        public int Width => _header.Width;
-        public int Height => _header.Height;
-        public int OutputStride => checked(Width * _header.ComponentCount);
-        public int CurrentMcuRow { get; private set; }
+        private readonly int _mcuWidth;
+        private readonly int _mcuHeight;
+        private int _currentMcuRow;
+        private int _currentRow;
+        private int _outputStride;
 
-        public override long Position
-        {
-            get { return _outputBytePosition; }
-            set { throw new NotSupportedException("Seeking is not supported."); }
-        }
+        private JpgBitReaderState _savedState;
+        private bool _hasSavedState;
 
-        public override long Length => throw new NotSupportedException("Length is not supported.");
-        public override bool CanRead => true;
-        public override bool CanSeek => false;
-        public override bool CanWrite => false;
+        public int CurrentRow => _currentRow;
 
-        public JpgBaselineStream(JpgHeader header, ReadOnlyMemory<byte> entropyData)
+        public JpgBaselineDecoder(JpgHeader header, ReadOnlyMemory<byte> entropyData)
         {
             if (header == null)
             {
@@ -82,7 +69,7 @@ namespace PdfReader.Rendering.Image.Jpg.Decoding
             }
             if (!header.IsBaseline)
             {
-                throw new NotSupportedException("JpgBaselineStream supports baseline JPEG only.");
+                throw new NotSupportedException("JpgBaselineDecoder supports baseline JPEG only.");
             }
             if (header.ComponentCount <= 0 || header.Components == null || header.Components.Count != header.ComponentCount)
             {
@@ -91,11 +78,6 @@ namespace PdfReader.Rendering.Image.Jpg.Decoding
 
             _header = header;
             _entropyMemory = entropyData;
-
-            _outputBytePosition = 0;
-            _bandBuffer = null;
-            _bandProduced = 0;
-            _bandConsumed = 0;
 
             int localHMax = 1;
             int localVMax = 1;
@@ -114,68 +96,50 @@ namespace PdfReader.Rendering.Image.Jpg.Decoding
             _hMax = Math.Max(1, localHMax);
             _vMax = Math.Max(1, localVMax);
 
-            McuWidth = 8 * _hMax;
-            McuHeight = 8 * _vMax;
+            _mcuWidth = 8 * _hMax;
+            _mcuHeight = 8 * _vMax;
 
-            CurrentMcuRow = 0;
+            _currentMcuRow = 0;
+            _currentRow = 0;
             _decoderInitialized = false;
         }
 
-        public override int Read(Span<byte> buffer)
+        public bool TryReadRow(Span<byte> rowBuffer)
         {
-            if (buffer.Length == 0)
+            if (rowBuffer.Length == 0)
             {
-                return 0;
+                return false;
             }
 
             EnsureDecoderInitialized();
 
-            int totalCopied = 0;
-            int offset = 0;
-            int remainingRequest = buffer.Length;
-
-            while (remainingRequest > 0)
+            if (_currentRow >= _header.Height)
             {
-                if (_bandBuffer == null || _bandConsumed >= _bandProduced)
-                {
-                    if (CurrentMcuRow >= _mcuRows)
-                    {
-                        break;
-                    }
-                    ProduceNextBand();
-                }
-
-                int available = _bandProduced - _bandConsumed;
-                int toCopy = available < remainingRequest ? available : remainingRequest;
-                _bandBuffer.AsSpan(_bandConsumed, toCopy).CopyTo(buffer.Slice(offset, toCopy));
-
-                _bandConsumed += toCopy;
-                offset += toCopy;
-                remainingRequest -= toCopy;
-                totalCopied += toCopy;
-                _outputBytePosition += toCopy;
+                return false;
             }
 
-            return totalCopied;
-        }
+            if (rowBuffer.Length < _outputStride)
+            {
+                throw new ArgumentException("Row buffer too small for decoded row.", nameof(rowBuffer));
+            }
 
-        public override long Seek(long offset, SeekOrigin origin)
-        {
-            throw new NotSupportedException("Seek is not supported for JpgBaselineStream.");
-        }
+            if (_bandBuffer == null || _bandConsumed >= _bandProduced)
+            {
+                if (_currentMcuRow >= _mcuRows)
+                {
+                    return false;
+                }
+                ProduceNextBand();
+                if (_bandProduced == 0)
+                {
+                    return false;
+                }
+            }
 
-        public override void SetLength(long value)
-        {
-            throw new NotSupportedException();
-        }
-
-        public override void Write(byte[] buffer, int offset, int count)
-        {
-            throw new NotSupportedException();
-        }
-
-        public override void Flush()
-        {
+            _bandBuffer.AsSpan(_bandConsumed, _outputStride).CopyTo(rowBuffer);
+            _bandConsumed += _outputStride;
+            _currentRow++;
+            return true;
         }
 
         private void EnsureDecoderInitialized()
@@ -193,7 +157,6 @@ namespace PdfReader.Rendering.Image.Jpg.Decoding
             _decoderManager = JpgHuffmanDecoderManager.CreateFromHeader(_header);
             _quantizationManager = JpgQuantizationManager.CreateFromHeader(_header);
 
-            // New ValidateTablesForScan throws when invalid
             _decoderManager.ValidateTablesForScan(_scan);
             for (int componentIndex = 0; componentIndex < _header.Components.Count; componentIndex++)
             {
@@ -207,8 +170,8 @@ namespace PdfReader.Rendering.Image.Jpg.Decoding
                 throw new InvalidOperationException("Failed to map scan components to SOF indices.");
             }
 
-            _mcuColumns = (Width + McuWidth - 1) / McuWidth;
-            _mcuRows = (Height + McuHeight - 1) / McuHeight;
+            _mcuColumns = (_header.Width + _mcuWidth - 1) / _mcuWidth;
+            _mcuRows = (_header.Height + _mcuHeight - 1) / _mcuHeight;
 
             _restartManager = new JpgRestartManager(_header.RestartInterval);
             _previousDc = new int[_header.ComponentCount];
@@ -228,8 +191,9 @@ namespace PdfReader.Rendering.Image.Jpg.Decoding
                 _componentTiles[ci] = new byte[tileWidth * tileHeight];
             }
 
-            _bandHeight = McuHeight;
-            _bandBuffer = new byte[_bandHeight * OutputStride];
+            _outputStride = checked(_header.Width * _header.ComponentCount);
+            _bandHeight = _mcuHeight;
+            _bandBuffer = new byte[_bandHeight * _outputStride];
             _bandProduced = 0;
             _bandConsumed = 0;
 
@@ -240,9 +204,9 @@ namespace PdfReader.Rendering.Image.Jpg.Decoding
                 _tileHeights,
                 _hMax,
                 _vMax,
-                McuWidth,
-                Width,
-                OutputStride);
+                _mcuWidth,
+                _header.Width,
+                _outputStride);
 
             _scaledPlans = new Idct.ScaledIdctPlan[_header.ComponentCount];
             for (int ci = 0; ci < _header.ComponentCount; ci++)
@@ -261,9 +225,9 @@ namespace PdfReader.Rendering.Image.Jpg.Decoding
 
         private void ProduceNextBand()
         {
-            int yBase = CurrentMcuRow * McuHeight;
-            int rowsRemaining = Height - yBase;
-            int bandRows = rowsRemaining < McuHeight ? rowsRemaining : McuHeight;
+            int yBase = _currentMcuRow * _mcuHeight;
+            int rowsRemaining = _header.Height - yBase;
+            int bandRows = rowsRemaining < _mcuHeight ? rowsRemaining : _mcuHeight;
             if (bandRows <= 0)
             {
                 _bandProduced = 0;
@@ -316,7 +280,7 @@ namespace PdfReader.Rendering.Image.Jpg.Decoding
                     }
                 }
 
-                int xBase = mcuColumnIndex * McuWidth;
+                int xBase = mcuColumnIndex * _mcuWidth;
                 _mcuWriter.WriteToBuffer(_bandBuffer, xBase, bandRows);
                 _restartManager.DecrementRestartCounter();
             }
@@ -325,13 +289,9 @@ namespace PdfReader.Rendering.Image.Jpg.Decoding
             _hasSavedState = true;
 
             _bandHeight = bandRows;
-            _bandProduced = bandRows * OutputStride;
+            _bandProduced = bandRows * _outputStride;
             _bandConsumed = 0;
-            CurrentMcuRow++;
+            _currentMcuRow++;
         }
-
-        private long _outputBytePosition;
-        private JpgBitReaderState _savedState;
-        private bool _hasSavedState;
     }
 }

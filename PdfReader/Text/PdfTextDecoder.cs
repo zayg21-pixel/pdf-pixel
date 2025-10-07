@@ -2,7 +2,7 @@ using PdfReader.Fonts;
 using System;
 using System.Text;
 
-namespace PdfReader
+namespace PdfReader.Text
 {
     /// <summary>
     /// Font-aware text decoder for PDF content.

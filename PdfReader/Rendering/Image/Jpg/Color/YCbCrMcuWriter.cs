@@ -10,10 +10,15 @@ namespace PdfReader.Rendering.Image.Jpg.Color
     /// </summary>
     internal sealed class YCbCrMcuWriter : BaseMcuWriter
     {
-        private static readonly short[] _rFromCr = new short[256];
-        private static readonly short[] _bFromCb = new short[256];
-        private static readonly short[] _gFromCb = new short[256];
-        private static readonly short[] _gFromCr = new short[256];
+        // Fixed-point scale (14 bits)
+        private const int FixedPointScale = 16384;
+        private const int RCrCoeff = 22970;    // 1.402 * 16384
+        private const int GCbCoeff = 5638;     // 0.344136 * 16384
+        private const int GCrCoeff = 11698;    // 0.714136 * 16384
+        private const int BCbCoeff = 29032;    // 1.772 * 16384
+        private const int RCrOffset = 179;     // (RCrCoeff * 128) >> 14
+        private const int GCbCrOffset = 135;   // ((GCbCoeff * 128 + GCrCoeff * 128) >> 14)
+        private const int BCbOffset = 226;     // (BCbCoeff * 128) >> 14
 
         private readonly byte[] _tile0; // Y
         private readonly byte[] _tile1; // Cb
@@ -27,18 +32,6 @@ namespace PdfReader.Rendering.Image.Jpg.Color
         private readonly int _horizontalSamplingFactor0;
         private readonly int _horizontalSamplingFactor1;
         private readonly int _horizontalSamplingFactor2;
-
-        static YCbCrMcuWriter()
-        {
-            for (int i = 0; i < 256; i++)
-            {
-                int delta = i - 128;
-                _rFromCr[i] = (short)Math.Round(1.402000 * delta);
-                _bFromCb[i] = (short)Math.Round(1.772000 * delta);
-                _gFromCb[i] = (short)Math.Round(-0.344136 * delta);
-                _gFromCr[i] = (short)Math.Round(-0.714136 * delta);
-            }
-        }
 
         public YCbCrMcuWriter(
             JpgHeader header,
@@ -70,6 +63,12 @@ namespace PdfReader.Rendering.Image.Jpg.Color
             _horizontalSamplingFactor2 = header.Components[2].HorizontalSamplingFactor;
         }
 
+        /// <summary>
+        /// Write MCU pixels to the output buffer in RGB format using fixed-point YCbCr to RGB conversion.
+        /// </summary>
+        /// <param name="buffer">Output RGB buffer.</param>
+        /// <param name="xBase">Starting X coordinate in the output image.</param>
+        /// <param name="heightPixels">Number of pixel rows to write.</param>
         public override void WriteToBuffer(byte[] buffer, int xBase, int heightPixels)
         {
             int accY0 = 0;
@@ -85,7 +84,7 @@ namespace PdfReader.Rendering.Image.Jpg.Color
             for (int localRow = 0; localRow < heightPixels; localRow++)
             {
                 int destRowOffset = localRow * _outputStride;
-                int destOffset = destRowOffset + xBase * 3; // 3 bytes per pixel (R,G,B)
+                int destOffset = destRowOffset + xBase * 3;
 
                 int accX0 = 0;
                 int sx0 = 0;
@@ -100,13 +99,13 @@ namespace PdfReader.Rendering.Image.Jpg.Color
                     byte cb = _tile1[yOff1 + sx1];
                     byte cr = _tile2[yOff2 + sx2];
 
-                    int r = y + _rFromCr[cr];
-                    int g = y + _gFromCb[cb] + _gFromCr[cr];
-                    int b = y + _bFromCb[cb];
+                    int r = y + ((RCrCoeff * cr) >> 14) - RCrOffset;
+                    int g = y - ((GCbCoeff * cb + GCrCoeff * cr) >> 14) + GCbCrOffset;
+                    int b = y + ((BCbCoeff * cb) >> 14) - BCbOffset;
 
-                    buffer[destOffset + 0] = ClampToByte(r);
-                    buffer[destOffset + 1] = ClampToByte(g);
-                    buffer[destOffset + 2] = ClampToByte(b);
+                    buffer[destOffset + 0] = r < 0 ? (byte)0 : r > 255 ? (byte)255 : (byte)r;
+                    buffer[destOffset + 1] = g < 0 ? (byte)0 : g > 255 ? (byte)255 : (byte)g;
+                    buffer[destOffset + 2] = b < 0 ? (byte)0 : b > 255 ? (byte)255 : (byte)b;
                     destOffset += 3;
 
                     accX0 += _horizontalSamplingFactor0;

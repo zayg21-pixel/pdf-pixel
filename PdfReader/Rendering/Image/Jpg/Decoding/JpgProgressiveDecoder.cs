@@ -1,5 +1,4 @@
 using System;
-using System.IO;
 using System.Collections.Generic;
 using PdfReader.Rendering.Image.Jpg.Huffman;
 using PdfReader.Rendering.Image.Jpg.Idct;
@@ -7,55 +6,63 @@ using PdfReader.Rendering.Image.Jpg.Model;
 using PdfReader.Rendering.Image.Jpg.Quantization;
 using PdfReader.Rendering.Image.Jpg.Readers;
 using PdfReader.Rendering.Image.Jpg.Color;
-using PdfReader.Streams;
 
 namespace PdfReader.Rendering.Image.Jpg.Decoding
 {
+    public interface IJpgDecoder
+    {
+        /// <summary>
+        /// Read the next full image row of interleaved component samples into <paramref name="rowBuffer"/>.
+        /// Returns false when no more rows are available.
+        /// </summary>
+        /// <param name="rowBuffer">Destination buffer. Length must be at least (Width * ComponentCount) as determined by the owning decoder logic.</param>
+        /// <returns>True if a row was written; false on end of image.</returns>
+        bool TryReadRow(Span<byte> rowBuffer);
+
+        /// <summary>
+        /// Zero-based index of the next row to be produced.
+        /// </summary>
+        int CurrentRow { get; }
+    }
+
     /// <summary>
-    /// Progressive JPEG decoder presented as a forward-only stream that yields interleaved component bytes
-    /// (Gray=1, RGB=3, CMYK=4) one MCU-row band at a time. All progressive scans are first decoded into
-    /// coefficient buffers (natural order) and IDCT is performed lazily while producing bands.
+    /// Progressive JPEG decoder that yields interleaved component bytes (Gray=1, RGB=3, CMYK=4) one row at a time.
+    /// All progressive scans are fully decoded into coefficient buffers (natural order) and IDCT is performed lazily
+    /// while producing MCU-row bands.
     /// </summary>
-    internal sealed class JpgProgressiveStream : ContentStream
+    internal sealed class JpgProgressiveDecoder : IJpgDecoder
     {
         private const int DctBlockSize = 64;
 
         private readonly JpgHeader _header;
         private readonly ReadOnlyMemory<byte> _entropyMemory;
 
-        // Maximum sampling factors across components (MCU geometry)
         private readonly int _hMax;
         private readonly int _vMax;
 
-        public int McuWidth { get; }
-        public int McuHeight { get; }
+        private readonly int _mcuWidth;
+        private readonly int _mcuHeight;
 
         private bool _decoderInitialized;
 
-        /// <summary>
-        /// Coefficient buffers for a single component (entire image) in natural order per block.
-        /// </summary>
         private struct CoeffBuffers
         {
-            public int BlocksX;            // Number of horizontal blocks for the component
-            public int BlocksY;            // Number of vertical blocks for the component
-            public int[] Coeffs;           // Length = BlocksX * BlocksY * 64 (natural order blocks)
+            public int BlocksX;
+            public int BlocksY;
+            public int[] Coeffs;
         }
 
         private CoeffBuffers[] _coeffBuffers;
         private JpgQuantizationManager _quantizationManager;
         private Idct.ScaledIdctPlan[] _scaledPlans;
 
-        // Per-block temporary buffers
         private readonly int[] _blockNatural = new int[DctBlockSize];
         private readonly int[] _idctWorkspace = new int[DctBlockSize];
 
-        // Per-component MCU tiles (byte samples after IDCT)
         private byte[][] _componentTiles;
         private int[] _tileWidths;
         private int[] _tileHeights;
 
-        // Output band buffer for one MCU row
         private byte[] _bandBuffer;
         private int _mcuColumns;
         private int _mcuRows;
@@ -64,29 +71,14 @@ namespace PdfReader.Rendering.Image.Jpg.Decoding
         private int _bandConsumed;
 
         private IMcuWriter _mcuWriter;
-        private long _outputBytePosition;
 
-        public int Width => _header.Width;
-        public int Height => _header.Height;
-        public int CurrentMcuRow { get; private set; }
+        private int _currentMcuRow;
+        private int _currentRow;
+        private int _outputStride;
 
-        /// <summary>
-        /// Output stride = Width * componentCount.
-        /// </summary>
-        public int OutputStride => checked(Width * _header.ComponentCount);
+        public int CurrentRow => _currentRow;
 
-        public override bool CanRead => true;
-        public override bool CanSeek => false;
-        public override bool CanWrite => false;
-        public override long Length => throw new NotSupportedException("Length is not supported.");
-
-        public override long Position
-        {
-            get { return _outputBytePosition; }
-            set { throw new NotSupportedException("Seeking is not supported."); }
-        }
-
-        public JpgProgressiveStream(JpgHeader header, ReadOnlyMemory<byte> entropyData)
+        public JpgProgressiveDecoder(JpgHeader header, ReadOnlyMemory<byte> entropyData)
         {
             if (header == null)
             {
@@ -94,7 +86,7 @@ namespace PdfReader.Rendering.Image.Jpg.Decoding
             }
             if (!header.IsProgressive)
             {
-                throw new NotSupportedException("JpgProgressiveStream supports progressive JPEG only.");
+                throw new NotSupportedException("JpgProgressiveDecoder supports progressive JPEG only.");
             }
             if (header.ComponentCount <= 0 || header.Components == null || header.Components.Count != header.ComponentCount)
             {
@@ -121,74 +113,14 @@ namespace PdfReader.Rendering.Image.Jpg.Decoding
             _hMax = Math.Max(1, localHMax);
             _vMax = Math.Max(1, localVMax);
 
-            McuWidth = 8 * _hMax;
-            McuHeight = 8 * _vMax;
+            _mcuWidth = 8 * _hMax;
+            _mcuHeight = 8 * _vMax;
 
             _decoderInitialized = false;
-            _outputBytePosition = 0;
-            CurrentMcuRow = 0;
+            _currentMcuRow = 0;
+            _currentRow = 0;
         }
 
-        public override int Read(Span<byte> buffer)
-        {
-            if (buffer.Length == 0)
-            {
-                return 0;
-            }
-
-            EnsureDecoderInitialized();
-
-            int totalCopied = 0;
-            int writeOffset = 0;
-            int remainingRequest = buffer.Length;
-
-            while (remainingRequest > 0)
-            {
-                if (_bandBuffer == null || _bandConsumed >= _bandProduced)
-                {
-                    if (CurrentMcuRow >= _mcuRows)
-                    {
-                        break; // EOF
-                    }
-                    ProduceNextBand();
-                }
-
-                int available = _bandProduced - _bandConsumed;
-                int toCopy = available < remainingRequest ? available : remainingRequest;
-                _bandBuffer.AsSpan(_bandConsumed, toCopy).CopyTo(buffer.Slice(writeOffset, toCopy));
-
-                _bandConsumed += toCopy;
-                writeOffset += toCopy;
-                remainingRequest -= toCopy;
-                totalCopied += toCopy;
-                _outputBytePosition += toCopy;
-            }
-
-            return totalCopied;
-        }
-
-        public override long Seek(long offset, SeekOrigin origin)
-        {
-            throw new NotSupportedException("Seek is not supported for JpgProgressiveStream.");
-        }
-
-        public override void SetLength(long value)
-        {
-            throw new NotSupportedException();
-        }
-
-        public override void Write(byte[] buffer, int offset, int count)
-        {
-            throw new NotSupportedException();
-        }
-
-        public override void Flush()
-        {
-        }
-
-        /// <summary>
-        /// Perform one-time decoding of all scans and allocate working buffers.
-        /// </summary>
         private void EnsureDecoderInitialized()
         {
             if (_decoderInitialized)
@@ -204,8 +136,8 @@ namespace PdfReader.Rendering.Image.Jpg.Decoding
                 throw new NotSupportedException("No progressive scans (SOS) found in header.");
             }
 
-            _mcuColumns = (Width + McuWidth - 1) / McuWidth;
-            _mcuRows = (Height + McuHeight - 1) / McuHeight;
+            _mcuColumns = (_header.Width + _mcuWidth - 1) / _mcuWidth;
+            _mcuRows = (_header.Height + _mcuHeight - 1) / _mcuHeight;
 
             _coeffBuffers = InitializeCoefficientBuffers(_header, _mcuColumns, _mcuRows);
             ProcessProgressiveScans(_header, _entropyMemory.Span, _coeffBuffers, _mcuColumns, _mcuRows);
@@ -231,8 +163,9 @@ namespace PdfReader.Rendering.Image.Jpg.Decoding
                 _componentTiles[componentIndex] = new byte[tileWidth * tileHeight];
             }
 
-            _bandHeight = McuHeight;
-            _bandBuffer = new byte[_bandHeight * OutputStride];
+            _outputStride = checked(_header.Width * _header.ComponentCount);
+            _bandHeight = _mcuHeight;
+            _bandBuffer = new byte[_bandHeight * _outputStride];
             _bandProduced = 0;
             _bandConsumed = 0;
 
@@ -243,9 +176,9 @@ namespace PdfReader.Rendering.Image.Jpg.Decoding
                 _tileHeights,
                 _hMax,
                 _vMax,
-                McuWidth,
-                Width,
-                OutputStride);
+                _mcuWidth,
+                _header.Width,
+                _outputStride);
 
             _scaledPlans = new Idct.ScaledIdctPlan[_header.ComponentCount];
             for (int componentIndex = 0; componentIndex < _header.ComponentCount; componentIndex++)
@@ -257,14 +190,11 @@ namespace PdfReader.Rendering.Image.Jpg.Decoding
             _decoderInitialized = true;
         }
 
-        /// <summary>
-        /// Build tiles for one MCU row and write them into the output band buffer.
-        /// </summary>
         private void ProduceNextBand()
         {
-            int yBase = CurrentMcuRow * McuHeight;
-            int rowsRemaining = Height - yBase;
-            int bandRows = rowsRemaining < McuHeight ? rowsRemaining : McuHeight;
+            int yBase = _currentMcuRow * _mcuHeight;
+            int rowsRemaining = _header.Height - yBase;
+            int bandRows = rowsRemaining < _mcuHeight ? rowsRemaining : _mcuHeight;
             if (bandRows <= 0)
             {
                 _bandProduced = 0;
@@ -285,7 +215,7 @@ namespace PdfReader.Rendering.Image.Jpg.Decoding
 
                     for (int vBlock = 0; vBlock < vFactor; vBlock++)
                     {
-                        int blockY = CurrentMcuRow * vFactor + vBlock;
+                        int blockY = _currentMcuRow * vFactor + vBlock;
                         if (blockY >= buffer.BlocksY)
                         {
                             continue;
@@ -313,19 +243,16 @@ namespace PdfReader.Rendering.Image.Jpg.Decoding
                     }
                 }
 
-                int xBase = mcuColumnIndex * McuWidth;
+                int xBase = mcuColumnIndex * _mcuWidth;
                 _mcuWriter.WriteToBuffer(_bandBuffer, xBase, bandRows);
             }
 
             _bandHeight = bandRows;
-            _bandProduced = bandRows * OutputStride;
+            _bandProduced = bandRows * _outputStride;
             _bandConsumed = 0;
-            CurrentMcuRow++;
+            _currentMcuRow++;
         }
 
-        /// <summary>
-        /// Allocate coefficient buffers for each component based on MCU geometry and sampling factors.
-        /// </summary>
         private static CoeffBuffers[] InitializeCoefficientBuffers(JpgHeader header, int mcuColumns, int mcuRows)
         {
             int componentCount = header.ComponentCount;
@@ -342,9 +269,6 @@ namespace PdfReader.Rendering.Image.Jpg.Decoding
             return buffers;
         }
 
-        /// <summary>
-        /// Decode all progressive scans into coefficient buffers.
-        /// </summary>
         private static void ProcessProgressiveScans(
             JpgHeader header,
             ReadOnlySpan<byte> content,
@@ -369,9 +293,9 @@ namespace PdfReader.Rendering.Image.Jpg.Decoding
                 bitReader.ByteAlign();
                 if (!bitReader.TryReadMarker(out byte marker))
                 {
-                    break; // No more markers
+                    break;
                 }
-                if (marker == 0xD9) // EOI
+                if (marker == 0xD9)
                 {
                     break;
                 }
@@ -397,34 +321,69 @@ namespace PdfReader.Rendering.Image.Jpg.Decoding
 
                 switch (marker)
                 {
-                    case 0xDB: // DQT
+                    case 0xDB:
                         var newQuantTables = JpgQuantizationTable.ParseDqtPayload(payload);
                         quantTables.AddRange(newQuantTables);
                         break;
-                    case 0xC4: // DHT
+                    case 0xC4:
                         var newHuffTables = JpgHuffmanTable.ParseDhtPayload(payload);
                         huffTables.AddRange(newHuffTables);
                         break;
-                    case 0xDD: // DRI
+                    case 0xDD:
                         if (payloadLength >= 2)
                         {
                             restartInterval = payload[0] << 8 | payload[1];
                         }
                         break;
-                    case 0xDA: // SOS
+                    case 0xDA:
                         currentScan = JpgReader.ParseSos(payload);
                         ProcessCurrentScan(header, coeffBuffers, huffTables, restartInterval, ref bitReader, currentScan, previousDc, ref eobRun, mcuColumns, mcuRows);
                         break;
                     default:
-                        // Non-coding marker ignored.
                         break;
                 }
             }
         }
 
-        /// <summary>
-        /// Decode a single scan (interleaved or non-interleaved) into coefficient buffers.
-        /// </summary>
+        public bool TryReadRow(Span<byte> rowBuffer)
+        {
+            if (rowBuffer.Length == 0)
+            {
+                return false;
+            }
+
+            EnsureDecoderInitialized();
+
+            if (_currentRow >= _header.Height)
+            {
+                return false;
+            }
+
+            if (rowBuffer.Length < _outputStride)
+            {
+                throw new ArgumentException("Row buffer too small for decoded row.", nameof(rowBuffer));
+            }
+
+            if (_bandBuffer == null || _bandConsumed >= _bandProduced)
+            {
+                if (_currentMcuRow >= _mcuRows)
+                {
+                    return false;
+                }
+                ProduceNextBand();
+                if (_bandProduced == 0)
+                {
+                    return false;
+                }
+            }
+
+            _bandBuffer.AsSpan(_bandConsumed, _outputStride).CopyTo(rowBuffer);
+            _bandConsumed += _outputStride;
+            _currentRow++;
+
+            return true;
+        }
+
         private static void ProcessCurrentScan(
             JpgHeader header,
             CoeffBuffers[] coeffBuffers,

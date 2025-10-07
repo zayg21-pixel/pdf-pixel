@@ -16,6 +16,17 @@ namespace PdfReader.Rendering.Image.Processing
     /// </summary>
     internal sealed class PdfImageRowProcessor : IDisposable
     {
+        /// <summary>
+        /// Output processing modes. Exactly one mode is selected per instance.
+        /// </summary>
+        private enum OutputMode
+        {
+            Alpha,      // Alpha-only (image mask or soft mask)
+            Gray,       // Single component device gray without color key mask
+            IndexedRgba,// Indexed color space expanded to RGBA
+            Rgba        // Direct (non-indexed) color converted RGBA (DeviceRGB/CMYK, calibrated, etc.)
+        }
+
         private readonly PdfImage _image;
         private readonly PdfColorSpaceConverter _converter;
         private readonly ILogger _logger;
@@ -29,21 +40,18 @@ namespace PdfReader.Rendering.Image.Processing
         private readonly int[] _minInclusive; // scaled 0..255 domain
         private readonly int[] _maxInclusive; // scaled 0..255 domain
 
-        private readonly bool _isIndexed;
         private readonly IndexedConverter _indexedConverter;
         private readonly SKColor[] _indexedPalette;
         private readonly int[] _indexedDecodeMap;
 
         private readonly byte[][] _decodeLuts; // per-component 8-bit decode LUTs; null if identity
 
+        private readonly OutputMode _outputMode;
+
         private IntPtr _buffer;
         private int _rowStride;
         private bool _initialized;
         private bool _completed;
-
-        private readonly bool _outputAlphaOnly;
-        private readonly bool _outputGray;
-        private readonly bool _outputRgba;
 
         /// <summary>
         /// Create a row processor for the specified image. Assumes predictor already undone.
@@ -58,6 +66,7 @@ namespace PdfReader.Rendering.Image.Processing
             {
                 throw new ArgumentNullException(nameof(logger));
             }
+
             _image = image;
             _logger = logger;
 
@@ -89,31 +98,32 @@ namespace PdfReader.Rendering.Image.Processing
                 out _minInclusive,
                 out _maxInclusive);
 
-            if (_converter is IndexedConverter idx)
-            {
-                _isIndexed = true;
-                _indexedConverter = idx;
-                _indexedPalette = idx.BuildPalette(image.RenderingIntent);
-                _indexedDecodeMap = ProcessingUtilities.BuildIndexedDecodeMap(_indexedPalette.Length, _bitsPerComponent, image.DecodeArray);
-            }
-
             if (ProcessingUtilities.ApplyDecode(image.DecodeArray))
             {
                 _decodeLuts = ProcessingUtilities.Build8BitDecodeLuts(_components, _bitsPerComponent, image.DecodeArray);
             }
 
-            _outputAlphaOnly = image.HasImageMask || image.IsSoftMask;
-            if (_outputAlphaOnly)
+            bool alphaOnly = image.HasImageMask || image.IsSoftMask;
+            if (alphaOnly)
             {
-                _outputGray = false;
-                _outputRgba = false;
+                _outputMode = OutputMode.Alpha;
             }
             else
             {
-                bool singleComponentDeviceGray = _components == 1 && _converter.IsDevice && !_isIndexed;
-                bool canGray = singleComponentDeviceGray && !_hasColorKeyMask;
-                _outputGray = canGray;
-                _outputRgba = !_outputGray;
+                // Indexed color space takes precedence over Gray detection.
+                if (_converter is IndexedConverter indexed)
+                {
+                    _indexedConverter = indexed;
+                    _indexedPalette = indexed.BuildPalette(image.RenderingIntent);
+                    _indexedDecodeMap = ProcessingUtilities.BuildIndexedDecodeMap(_indexedPalette.Length, _bitsPerComponent, image.DecodeArray);
+                    _outputMode = OutputMode.IndexedRgba;
+                }
+                else
+                {
+                    bool singleComponentDeviceGray = _components == 1 && _converter.IsDevice;
+                    bool canGray = singleComponentDeviceGray && !_hasColorKeyMask;
+                    _outputMode = canGray ? OutputMode.Gray : OutputMode.Rgba;
+                }
             }
         }
 
@@ -143,7 +153,7 @@ namespace PdfReader.Rendering.Image.Processing
                 return;
             }
 
-            if (_outputAlphaOnly || _outputGray)
+            if (_outputMode == OutputMode.Alpha || _outputMode == OutputMode.Gray)
             {
                 _rowStride = _width; // Alpha8 or Gray8 output
             }
@@ -160,7 +170,7 @@ namespace PdfReader.Rendering.Image.Processing
         /// <summary>
         /// Writes a fully decoded (post-filter, predictor undone) component-interleaved sample row into the output buffer.
         /// The row pointer must reference exactly the bytes for a single row of component samples in the encoded layout.
-        /// For bits per component &lt; 8 samples are tightly packed; 16 bpc is downscaled.
+        /// For bits per component < 8 samples are tightly packed; 16 bpc is downscaled.
         /// </summary>
         public unsafe void WriteRow(int rowIndex, byte* decodedRow)
         {
@@ -183,21 +193,28 @@ namespace PdfReader.Rendering.Image.Processing
 
             byte* destRow = (byte*)_buffer + rowIndex * _rowStride;
 
-            if (_outputAlphaOnly)
+            switch (_outputMode)
             {
-                ProcessAlphaOnlyRow(decodedRow, destRow);
-            }
-            else if (_outputGray)
-            {
-                ProcessGrayRow(decodedRow, destRow);
-            }
-            else if (_isIndexed)
-            {
-                ProcessIndexedRgbaRow(decodedRow, destRow);
-            }
-            else
-            {
-                ProcessRgbaRow(decodedRow, destRow);
+                case OutputMode.Alpha:
+                {
+                    ProcessAlphaOnlyRow(decodedRow, destRow);
+                    break;
+                }
+                case OutputMode.Gray:
+                {
+                    ProcessGrayRow(decodedRow, destRow);
+                    break;
+                }
+                case OutputMode.IndexedRgba:
+                {
+                    ProcessIndexedRgbaRow(decodedRow, destRow);
+                    break;
+                }
+                default:
+                {
+                    ProcessRgbaRow(decodedRow, destRow);
+                    break;
+                }
             }
         }
 
@@ -217,24 +234,31 @@ namespace PdfReader.Rendering.Image.Processing
 
             SKColorType colorType;
             SKAlphaType alphaType;
-            if (_outputAlphaOnly)
+            switch (_outputMode)
             {
-                colorType = SKColorType.Alpha8;
-                alphaType = SKAlphaType.Unpremul;
-            }
-            else if (_outputGray)
-            {
-                colorType = SKColorType.Gray8;
-                alphaType = SKAlphaType.Opaque;
-            }
-            else
-            {
-                colorType = SKColorType.Rgba8888;
-                alphaType = SKAlphaType.Unpremul;
+                case OutputMode.Alpha:
+                {
+                    colorType = SKColorType.Alpha8;
+                    alphaType = SKAlphaType.Unpremul;
+                    break;
+                }
+                case OutputMode.Gray:
+                {
+                    colorType = SKColorType.Gray8;
+                    alphaType = SKAlphaType.Opaque;
+                    break;
+                }
+                default:
+                {
+                    colorType = SKColorType.Rgba8888;
+                    // All RGBA outputs here are unpremultiplied; alpha for Indexed is always 255.
+                    alphaType = _outputMode == OutputMode.IndexedRgba ? SKAlphaType.Opaque : SKAlphaType.Unpremul;
+                    break;
+                }
             }
 
-            var info = new SKImageInfo(_width, _height, colorType, alphaType);
-            var pixmap = new SKPixmap(info, _buffer, _rowStride);
+            SKImageInfo info = new SKImageInfo(_width, _height, colorType, alphaType);
+            SKPixmap pixmap = new SKPixmap(info, _buffer, _rowStride);
             SKImageRasterReleaseDelegate release = (addr, ctx) => Marshal.FreeHGlobal(addr);
             SKImage image = SKImage.FromPixels(pixmap, release);
             if (image == null)
@@ -319,6 +343,7 @@ namespace PdfReader.Rendering.Image.Processing
 
         private unsafe void ProcessIndexedRgbaRow(byte* sourceRow, byte* destRow)
         {
+            // Palette should be initialized when mode is IndexedRgba.
             for (int columnIndex = 0; columnIndex < _width; columnIndex++)
             {
                 int rgbaBase = columnIndex * 4;

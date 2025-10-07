@@ -2,6 +2,7 @@ using PdfReader.Fonts;
 using PdfReader.Models;
 using PdfReader.Rendering.Advanced;
 using PdfReader.Rendering.HarfBuzz;
+using PdfReader.Text;
 using SkiaSharp;
 using System;
 

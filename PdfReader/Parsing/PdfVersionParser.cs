@@ -1,80 +1,101 @@
-using PdfReader.Fonts;
 using System;
-using System.Text;
+using PdfReader.Fonts;
+using Microsoft.Extensions.Logging;
+using PdfReader.Models;
 
 namespace PdfReader.Parsing
 {
     /// <summary>
-    /// Handles PDF version detection and validation
-    /// Supports PDF versions from 1.0 to 2.0
+    /// Handles PDF version detection and validation.
+    /// Supports PDF versions from 1.0 to 2.0.
+    /// Instance-based to allow structured logging via the owning document's logger factory.
+    /// Exposes a single entry point returning a rich <see cref="PdfVersionInfo"/> model.
     /// </summary>
-    public static class PdfVersionParser
+    public class PdfVersionParser
     {
-        /// <summary>
-        /// Parse and validate PDF version from header
-        /// </summary>
-        public static (bool isValid, string version, bool requiresAdvancedFeatures) ParsePdfVersion(ref PdfParseContext context)
-        {            
-            // Look for PDF header at the beginning
-            if (context.Length < 8) // Minimum for "%PDF-1.0"
-                return (false, null, false);
+        private readonly PdfDocument _document;
+        private readonly ILogger<PdfVersionParser> _logger;
 
-            // Check for PDF magic number
+        /// <summary>
+        /// Create a new version parser bound to the specified PDF document.
+        /// </summary>
+        /// <param name="document">Owning <see cref="PdfDocument"/> providing logging infrastructure.</param>
+        public PdfVersionParser(PdfDocument document)
+        {
+            _document = document ?? throw new ArgumentNullException(nameof(document));
+            _logger = _document.LoggerFactory.CreateLogger<PdfVersionParser>();
+        }
+
+        /// <summary>
+        /// Parse the PDF header and return a populated <see cref="PdfVersionInfo"/> containing
+        /// the detected version string, validity state, advanced feature requirement and feature flags.
+        /// </summary>
+        /// <param name="context">Parsing context positioned at the start of the file.</param>
+        /// <returns>Populated <see cref="PdfVersionInfo"/> (never null).</returns>
+        public PdfVersionInfo ParsePdfVersionInfo(ref PdfParseContext context)
+        {
+            if (context.Length < 8)
+            {
+                return PdfVersionInfo.Invalid();
+            }
+
             var headerBytes = context.GetSlice(0, Math.Min(16, context.Length));
             var headerText = EncodingExtensions.PdfDefault.GetString(headerBytes);
 
             if (!headerText.StartsWith("%PDF-"))
             {
-                Console.WriteLine("Invalid PDF header - missing %PDF- signature");
-                return (false, null, false);
+                _logger.LogWarning("Invalid PDF header - missing %PDF- signature");
+                return PdfVersionInfo.Invalid();
             }
 
-            // Extract version string
-            var versionStart = 5; // After "%PDF-"
-            var versionEnd = headerText.IndexOfAny(new char[] { '\r', '\n' }, versionStart);
+            int versionStart = 5; // After "%PDF-"
+            int versionEnd = headerText.IndexOfAny(new char[] { '\r', '\n' }, versionStart);
             if (versionEnd == -1)
+            {
                 versionEnd = Math.Min(headerText.Length, versionStart + 3);
+            }
 
-            var version = headerText.Substring(versionStart, versionEnd - versionStart).Trim();
+            string version = headerText.Substring(versionStart, versionEnd - versionStart).Trim();
 
-            Console.WriteLine($"Detected PDF version: {version}");
-
-            // Validate version and determine feature requirements
-            var (isValidVersion, requiresAdvanced) = ValidateVersion(version);
-
+            var isValidVersion = IsValid(version);
             if (!isValidVersion)
             {
-                Console.WriteLine($"Unsupported or invalid PDF version: {version}");
-                return (false, version, false);
+                _logger.LogWarning("Unsupported or invalid PDF version: {Version}", version);
+                return PdfVersionInfo.Create(version, false, new PdfVersionFeatures());
             }
 
-            return (true, version, requiresAdvanced);
+            var features = BuildFeatures(version);
+            return PdfVersionInfo.Create(version, true, features);
         }
 
         /// <summary>
-        /// Validate PDF version and determine if advanced features are required
+        /// Validate PDF version string and determine if advanced feature parsing paths are required.
         /// </summary>
-        private static (bool isValid, bool requiresAdvancedFeatures) ValidateVersion(string version)
+        /// <param name="version">Version string (e.g. 1.4, 1.7, 2.0).</param>
+        /// <returns>Tuple indicating validity and advanced feature requirement.</returns>
+        private static bool IsValid(string version)
         {
-            return version switch
+            switch (version)
             {
-                "1.0" => (true, false),
-                "1.1" => (true, false), 
-                "1.2" => (true, false),
-                "1.3" => (true, false),
-                "1.4" => (true, false), // Last version before major changes
-                "1.5" => (true, true),  // Introduced object streams, cross-reference streams
-                "1.6" => (true, true),  // Enhanced security, metadata streams
-                "1.7" => (true, true),  // Extension level, 3D annotations, etc.
-                "2.0" => (true, true),  // Modern PDF features
-                _ => (false, false)     // Unknown/unsupported version
-            };
+                case "1.0":
+                case "1.1":
+                case "1.2":
+                case "1.3":
+                case "1.4":
+                case "1.5":
+                case "1.6":
+                case "1.7":
+                case "2.0":
+                    return true;
+                default:
+                    return false;
+            }
         }
 
         /// <summary>
-        /// Get required features for a specific PDF version
+        /// Build feature flags for a given version string.
         /// </summary>
-        public static PdfVersionFeatures GetRequiredFeatures(string version)
+        private static PdfVersionFeatures BuildFeatures(string version)
         {
             return version switch
             {
@@ -126,37 +147,8 @@ namespace PdfReader.Parsing
                     Supports3DAnnotations = true,
                     SupportsModernFeatures = true
                 },
-                _ => new PdfVersionFeatures() // Default empty features
+                _ => new PdfVersionFeatures()
             };
-        }
-    }
-
-    /// <summary>
-    /// Represents the features available in a specific PDF version
-    /// </summary>
-    public class PdfVersionFeatures
-    {
-        public bool SupportsObjectStreams { get; set; }
-        public bool SupportsXrefStreams { get; set; }
-        public bool SupportsIncrementalUpdates { get; set; }
-        public bool SupportsEncryption { get; set; }
-        public bool SupportsMetadataStreams { get; set; }
-        public bool SupportsExtensionLevel { get; set; }
-        public bool Supports3DAnnotations { get; set; }
-        public bool SupportsModernFeatures { get; set; }
-
-        public override string ToString()
-        {
-            var features = new StringBuilder();
-            if (SupportsObjectStreams) features.Append("ObjectStreams ");
-            if (SupportsXrefStreams) features.Append("XrefStreams ");
-            if (SupportsEncryption) features.Append("Encryption ");
-            if (SupportsMetadataStreams) features.Append("MetadataStreams ");
-            if (SupportsExtensionLevel) features.Append("ExtensionLevel ");
-            if (Supports3DAnnotations) features.Append("3DAnnotations ");
-            if (SupportsModernFeatures) features.Append("ModernFeatures ");
-            
-            return features.ToString().Trim();
         }
     }
 }

@@ -1,4 +1,5 @@
 using System;
+using System.Runtime.CompilerServices;
 
 namespace PdfReader.Rendering.Image.Jpg.Readers
 {
@@ -6,9 +7,10 @@ namespace PdfReader.Rendering.Image.Jpg.Readers
     /// Bit reader for JPEG entropy-coded segments. Handles 0xFF00 byte stuffing and exposes marker reading.
     /// The reader avoids consuming marker bytes; callers can detect and read markers between MCUs.
     /// </summary>
-    internal ref struct JpgBitReader
+    internal unsafe ref struct JpgBitReader
     {
-        private ReadOnlySpan<byte> _data;
+        private byte* _current;
+        private int _remaining;
         private int _pos;
         private uint _bitBuf;
         private int _bits;
@@ -16,7 +18,11 @@ namespace PdfReader.Rendering.Image.Jpg.Readers
 
         public JpgBitReader(ReadOnlySpan<byte> data)
         {
-            _data = data;
+            fixed (byte* dataPtr = data)
+            {
+                _current = dataPtr;
+                _remaining = data.Length;
+            }
             _pos = 0;
             _bitBuf = 0;
             _bits = 0;
@@ -28,16 +34,21 @@ namespace PdfReader.Rendering.Image.Jpg.Readers
         /// </summary>
         public JpgBitReader(ReadOnlySpan<byte> data, JpgBitReaderState state)
         {
-            _data = data;
+            fixed (byte* dataPtr = data)
+            {
+                _current = dataPtr + state.Pos;
+                _remaining = data.Length - state.Pos;
+            }
             _pos = state.Pos;
             _bitBuf = state.BitBuf;
             _bits = state.Bits;
             _markerPending = state.MarkerPending;
         }
 
-        public int Position => _pos * 8 - _bits; // Return bit position, not byte position
+        public int Position => _pos * 8 - _bits;
 
-        public void EnsureBits(int requiredBits)
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private void EnsureBits(int requiredBits)
         {
             while (_bits < requiredBits)
             {
@@ -48,25 +59,32 @@ namespace PdfReader.Rendering.Image.Jpg.Readers
                     continue;
                 }
 
-                if (_pos >= _data.Length)
+                if (_remaining <= 0)
                 {
                     _bitBuf <<= 8;
                     _bits += 8;
                     continue;
                 }
 
-                byte b = _data[_pos++];
+                byte b = *_current;
+                _current++;
+                _remaining--;
+                _pos++;
                 if (b == 0xFF)
                 {
-                    if (_pos < _data.Length)
+                    if (_remaining > 0)
                     {
-                        byte next = _data[_pos];
+                        byte next = *_current;
                         if (next == 0x00)
                         {
+                            _current++;
+                            _remaining--;
                             _pos++;
                         }
                         else
                         {
+                            _current--;
+                            _remaining++;
                             _pos--;
                             _markerPending = true;
                             continue;
@@ -74,7 +92,7 @@ namespace PdfReader.Rendering.Image.Jpg.Readers
                     }
                 }
 
-                _bitBuf = _bitBuf << 8 | b;
+                _bitBuf = (_bitBuf << 8) | b;
                 _bits += 8;
             }
         }
@@ -82,7 +100,7 @@ namespace PdfReader.Rendering.Image.Jpg.Readers
         public uint PeekBits(int n)
         {
             EnsureBits(n);
-            return _bitBuf >> _bits - n & (uint)(1 << n) - 1;
+            return _bitBuf >> (_bits - n) & (uint)((1 << n) - 1);
         }
 
         public void DropBits(int n)
@@ -110,7 +128,7 @@ namespace PdfReader.Rendering.Image.Jpg.Readers
             }
 
             uint v = ReadBits(n);
-            int vt = 1 << n - 1;
+            int vt = 1 << (n - 1);
             if (v < (uint)vt)
             {
                 return (int)v - ((1 << n) - 1);
@@ -136,29 +154,34 @@ namespace PdfReader.Rendering.Image.Jpg.Readers
             // Ensure we're at a byte boundary and bit buffer flushed
             ByteAlign();
 
-            if (_pos >= _data.Length)
+            if (_remaining <= 0)
             {
                 return false;
             }
 
-            // Expect one or more 0xFF fill bytes, then a non-0xFF marker code
-            int i = _pos;
-            if (_data[i++] != 0xFF)
+            byte* markerPtr = _current;
+            int markerRemaining = _remaining;
+            int markerPos = _pos;
+            if (*markerPtr++ != 0xFF)
+            {
+                return false;
+            }
+            markerRemaining--;
+            markerPos++;
+
+            while (markerRemaining > 0 && *markerPtr == 0xFF)
+            {
+                markerPtr++;
+                markerRemaining--;
+                markerPos++;
+            }
+
+            if (markerRemaining <= 0)
             {
                 return false;
             }
 
-            while (i < _data.Length && _data[i] == 0xFF)
-            {
-                i++;
-            }
-
-            if (i >= _data.Length)
-            {
-                return false;
-            }
-
-            byte code = _data[i++];
+            byte code = *markerPtr++;
             if (code == 0x00)
             {
                 // Stuffed 0x00 means 0xFF00 was a data byte sequence, not a marker.
@@ -166,7 +189,10 @@ namespace PdfReader.Rendering.Image.Jpg.Readers
             }
 
             // Consume the marker bytes
-            _pos = i;
+            int consumed = (int)(markerPtr - _current);
+            _current = markerPtr;
+            _remaining -= consumed;
+            _pos += consumed;
             _markerPending = false;
             _bitBuf = 0;
             _bits = 0;

@@ -13,15 +13,4 @@
   <ItemGroup>
     <ProjectReference Include="..\PdfReader\PdfReader.csproj" />
   </ItemGroup>
-  <ItemGroup>
-    <None Update="ccitt.png">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-    <None Update="ccittBlackIs.png">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-    <None Update="ccittk1.png">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-  </ItemGroup>
 </Project>

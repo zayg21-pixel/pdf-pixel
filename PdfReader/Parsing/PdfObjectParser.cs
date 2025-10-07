@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using PdfReader.Models;
 
 namespace PdfReader.Parsing
@@ -7,15 +8,23 @@ namespace PdfReader.Parsing
     /// <summary>
     /// Handles parsing of PDF objects and object streams
     /// </summary>
-    public static class PdfObjectParser
+    public class PdfObjectParser
     {
+        private readonly PdfDocument _document;
+        private readonly PdfObjectStreamParser _objectStreamParser;
+
+        public PdfObjectParser(PdfDocument document)
+        {
+            _document = document ?? throw new ArgumentNullException(nameof(document));
+            _objectStreamParser = new PdfObjectStreamParser(document);
+        }
+
         /// <summary>
         /// Parse all objects in the PDF document
         /// </summary>
-        public static void ParseObjects(ref PdfParseContext context, PdfDocument document)
+        public void ParseObjects(ref PdfParseContext context)
         {
             context.Position = 0;
-            var objectStreams = new List<PdfObject>();
             
             while (context.Position < context.Length - PdfTokens.MinBufferLengthForObjectParsing)
             {
@@ -25,9 +34,9 @@ namespace PdfReader.Parsing
                     PdfParsingHelpers.SkipWhitespaceAndComment(ref context);
 
                     // Parse any value as DirectValue; if it is a dictionary, also set Dictionary
-                    var value = PdfParsers.ParsePdfValue(ref context, document, allowReferences: true);
+                    var value = PdfParsers.ParsePdfValue(ref context, _document, allowReferences: true);
 
-                    var obj = new PdfObject(new PdfReference(objNum, generation), document, value);
+                    var obj = new PdfObject(new PdfReference(objNum, generation), _document, value);
 
                     // Parse stream only when a dictionary precedes it
                     PdfParsingHelpers.SkipWhitespaceAndComment(ref context);
@@ -38,7 +47,7 @@ namespace PdfReader.Parsing
 
                     if (value != null)
                     {
-                        document.Objects[objNum] = obj;
+                        _document.Objects[objNum] = obj;
                     }
 
                     // Skip to endobj - with bounds checking
@@ -58,32 +67,10 @@ namespace PdfReader.Parsing
                     context.Position++;
                 }
             }
-            
+
 
             // Extract objects from object streams
-            ExtractObjectsFromStreams(document, objectStreams);
-        }
-        
-        /// <summary>
-        /// Extract objects from object streams
-        /// </summary>
-        public static int ExtractObjectsFromStreams(PdfDocument document, List<PdfObject> objectStreams)
-        {
-            int extractedCount = 0;
-            
-            foreach (var objStream in objectStreams)
-            {
-                try
-                {
-                    extractedCount += PdfObjectStreamParser.ExtractObjectsFromSingleStream(document, objStream);
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"Error extracting objects from stream {objStream.Reference.ObjectNumber}: {ex.Message}");
-                }
-            }
-            
-            return extractedCount;
+            _objectStreamParser.ParseObjectStreams();
         }
     }
 }

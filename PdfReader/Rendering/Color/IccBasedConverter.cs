@@ -41,6 +41,7 @@ namespace PdfReader.Rendering.Color
             : this(n, alternate)
         {
             var profile = IccProfile.Parse(iccProfileBytes);
+            IccBytes = iccProfileBytes;
 
             if (profile != null)
             {
@@ -65,6 +66,8 @@ namespace PdfReader.Rendering.Color
                 _useDefault = true;
             }
         }
+
+        public byte[] IccBytes { get; }
 
         public override int Components => _default.Components;
 

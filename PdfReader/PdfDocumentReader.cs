@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using Microsoft.Extensions.Logging;
 using PdfReader.Models;
 using PdfReader.Parsing;
@@ -70,34 +71,26 @@ namespace PdfReader
 
             var context = new PdfParseContext(buffer);
             var document = new PdfDocument(_loggerFactory);
+            var versionParser = new PdfVersionParser(document);
+            var resourceLoader = new PdfResourceLoader(document);
 
             try
             {
-                var versionInfo = PdfVersionParser.ParsePdfVersion(ref context);
-                bool isValidVersion = versionInfo.isValid;
-                string version = versionInfo.version;
-                bool requiresAdvancedFeatures = versionInfo.requiresAdvancedFeatures;
-
-                if (!isValidVersion)
+                PdfVersionInfo versionInfo = versionParser.ParsePdfVersionInfo(ref context);
+                if (!versionInfo.IsValid)
                 {
-                    _logger.LogWarning("Invalid or unsupported PDF version '{Version}'. Continuing optimistically.", version);
+                    _logger.LogWarning("Invalid or unsupported PDF version '{Version}'. Continuing optimistically.", versionInfo.Version);
                 }
                 else
                 {
-                    _logger.LogInformation("Detected PDF version {Version}.", version);
-                    if (requiresAdvancedFeatures)
-                    {
-                        _logger.LogInformation("Advanced PDF features required (version {Version}). Using enhanced parsing path.", version);
-                        var features = PdfVersionParser.GetRequiredFeatures(version);
-                        _logger.LogDebug("Declared advanced feature flags: {Features}.", features);
-                    }
+                    _logger.LogInformation("Detected PDF version {Version}.", versionInfo.Version);
                 }
 
                 int xrefPosition = PdfXrefParser.FindStartXref(ref context);
                 if (xrefPosition >= 0)
                 {
                     bool parsedViaStream = false;
-                    if (requiresAdvancedFeatures && PdfXrefStreamParser.IsXrefStream(ref context, xrefPosition))
+                    if (versionInfo.Features.SupportsXrefStreams && PdfXrefStreamParser.IsXrefStream(ref context, xrefPosition))
                     {
                         _logger.LogInformation("Cross-reference stream detected at position {Pos}.", xrefPosition);
                         PdfXrefStreamParser.ParseXrefStream(ref context, document, xrefPosition);
@@ -114,17 +107,13 @@ namespace PdfReader
                     _logger.LogWarning("No cross-reference table offset found (startxref missing).");
                 }
 
-                PdfObjectParser.ParseObjects(ref context, document);
-
-                if (versionInfo.requiresAdvancedFeatures)
-                {
-                    ProcessObjectStreams(document);
-                }
+                var objectParser = new PdfObjectParser(document);
+                objectParser.ParseObjects(ref context);
 
                 PdfPageExtractor.ExtractPages(document);
-                PdfResourceLoader.LoadPageResources(document);
+                resourceLoader.LoadPageResources();
 
-                _logger.LogInformation("Parsed PDF {Version} with {PageCount} page(s).", versionInfo.version, document.PageCount);
+                _logger.LogInformation("Parsed PDF {Version} with {PageCount} page(s).", versionInfo.Version, document.PageCount);
             }
             catch (Exception ex)
             {
@@ -132,50 +121,6 @@ namespace PdfReader
             }
 
             return document;
-        }
-
-        /// <summary>
-        /// Process object streams and extract their embedded objects (PDF 1.5+ feature).
-        /// </summary>
-        /// <param name="document">Target PDF document.</param>
-        private void ProcessObjectStreams(PdfDocument document)
-        {
-            if (document == null)
-            {
-                return;
-            }
-
-            var objectStreams = new List<PdfObject>();
-            foreach (var pdfObject in document.Objects.Values)
-            {
-                if (PdfObjectStreamParser.IsObjectStream(pdfObject))
-                {
-                    objectStreams.Add(pdfObject);
-                }
-            }
-
-            if (objectStreams.Count == 0)
-            {
-                return;
-            }
-
-            _logger.LogInformation("Found {Count} object stream(s). Extracting compressed objects.", objectStreams.Count);
-
-            int totalExtracted = 0;
-            foreach (var objStream in objectStreams)
-            {
-                if (PdfObjectStreamParser.ValidateObjectStream(objStream))
-                {
-                    int extracted = PdfObjectStreamParser.ExtractObjectsFromSingleStream(document, objStream);
-                    totalExtracted += extracted;
-                }
-                else
-                {
-                    _logger.LogWarning("Invalid object stream skipped (obj {ObjNumber}).", objStream.Reference.ObjectNumber);
-                }
-            }
-
-            _logger.LogInformation("Extracted {Total} object(s) from object stream(s).", totalExtracted);
         }
     }
 }

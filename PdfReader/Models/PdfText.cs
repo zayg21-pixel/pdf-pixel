@@ -1,6 +1,7 @@
 using System;
 using System.Text;
 using PdfReader.Fonts;
+using PdfReader.Text;
 
 namespace PdfReader.Models
 {
