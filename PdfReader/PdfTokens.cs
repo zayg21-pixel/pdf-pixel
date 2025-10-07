@@ -36,7 +36,12 @@ namespace PdfReader
         public const string RotateKey = "/Rotate";
         public const string CropBoxKey = "/CropBox";
         public const string ParentKey = "/Parent";
-        public const string LengthKey = "/Length";
+        public const string LengthKey = "/Length"; // also used in encryption dictionary
+        public const string VKey = "/V";             // encryption version
+        public const string RKey = "/R";             // encryption revision
+        public const string PKey = "/P";             // permissions
+        public const string EncryptMetadataKey = "/EncryptMetadata"; // encrypt metadata flag
+
         // Image/XObject specific
         public const string DecodeKey = "/Decode";
         public const string DecodeParmsKey = "/DecodeParms";
@@ -222,6 +227,8 @@ namespace PdfReader
         public const string PrevKey = "/Prev";
         public const string SizeKey = "/Size";
         public const string InfoKey = "/Info";
+        public const string EncryptKey = "/Encrypt"; // Trailer encryption dictionary reference key
+        public const string IdKey = "/ID";           // Trailer file identifier array key
         
         // Object Stream Dictionary Keys (PDF 1.5+)
         public const string ExtendsKey = "/Extends";

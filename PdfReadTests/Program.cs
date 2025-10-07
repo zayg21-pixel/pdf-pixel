@@ -84,6 +84,7 @@ namespace PdfReadTests
                 //"pdfs//icc-xyz.pdf",
                 //"pdfs//icc-lab4.pdf",
                 //"pdfs//icc-lab2.pdf",
+                "pdf-example-password.pdf",
                 //"Adyen.pdf",
                 //"Adyen_debug.pdf",
                 //"pdfs//mixedfonts.pdf",
@@ -98,7 +99,7 @@ namespace PdfReadTests
                 //"pdfs//tiling-pattern-box.pdf",
                 //"pdfs//gradientfill.pdf", // TODO: fix, doesn't render
                 //@"document - Copy.pdf",
-                @"documentS.pdf",
+                //@"documentS.pdf",
                 //@"documentC.pdf",
                 //"pdfs//ccitt_EndOfBlock_false.pdf",
                 //"pdfs//images_1bit_grayscale.pdf",
@@ -130,7 +131,7 @@ namespace PdfReadTests
             {
                 using (var stream = File.OpenRead(filename))
                 {
-                    var reader = new PdfDocumentReader(new LoggerFactory());
+                    var reader = new PdfDocumentReader(LoggerFactoryInstance);
                     using var document = reader.Read(stream);
 
                     Logger.LogInformation("Successfully read PDF: {File}", filename);

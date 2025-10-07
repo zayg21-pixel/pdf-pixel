@@ -71,49 +71,18 @@ namespace PdfReader
 
             var context = new PdfParseContext(buffer);
             var document = new PdfDocument(_loggerFactory);
-            var versionParser = new PdfVersionParser(document);
             var resourceLoader = new PdfResourceLoader(document);
+            var pageExtractor = new PdfPageExtractor(document);
 
             try
             {
-                PdfVersionInfo versionInfo = versionParser.ParsePdfVersionInfo(ref context);
-                if (!versionInfo.IsValid)
-                {
-                    _logger.LogWarning("Invalid or unsupported PDF version '{Version}'. Continuing optimistically.", versionInfo.Version);
-                }
-                else
-                {
-                    _logger.LogInformation("Detected PDF version {Version}.", versionInfo.Version);
-                }
-
-                int xrefPosition = PdfXrefParser.FindStartXref(ref context);
-                if (xrefPosition >= 0)
-                {
-                    bool parsedViaStream = false;
-                    if (versionInfo.Features.SupportsXrefStreams && PdfXrefStreamParser.IsXrefStream(ref context, xrefPosition))
-                    {
-                        _logger.LogInformation("Cross-reference stream detected at position {Pos}.", xrefPosition);
-                        PdfXrefStreamParser.ParseXrefStream(ref context, document, xrefPosition);
-                        parsedViaStream = true;
-                    }
-                    if (!parsedViaStream)
-                    {
-                        _logger.LogInformation("Traditional cross-reference table detected at position {Pos}.", xrefPosition);
-                        PdfXrefParser.ParseXrefAndTrailer(ref context, document, xrefPosition);
-                    }
-                }
-                else
-                {
-                    _logger.LogWarning("No cross-reference table offset found (startxref missing).");
-                }
-
                 var objectParser = new PdfObjectParser(document);
                 objectParser.ParseObjects(ref context);
 
-                PdfPageExtractor.ExtractPages(document);
+                pageExtractor.ExtractPages();
                 resourceLoader.LoadPageResources();
 
-                _logger.LogInformation("Parsed PDF {Version} with {PageCount} page(s).", versionInfo.Version, document.PageCount);
+                _logger.LogInformation("Parsed PDF with {PageCount} page(s).", document.PageCount);
             }
             catch (Exception ex)
             {

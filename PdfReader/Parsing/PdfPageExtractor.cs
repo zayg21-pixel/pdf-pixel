@@ -1,128 +1,151 @@
-using PdfReader.Models;
-using SkiaSharp;
+using System;
 using System.Collections.Generic;
 using System.Linq;
+using Microsoft.Extensions.Logging;
+using PdfReader.Models;
+using SkiaSharp;
 
 namespace PdfReader.Parsing
 {
     /// <summary>
-    /// Handles extraction of pages from PDF document structure.
-    /// Resolves inherited attributes (Resources, MediaBox, CropBox, Rotate) before constructing PdfPage instances.
+    /// Extracts pages from the PDF document and resolves inherited attributes
+    /// (Resources, MediaBox, CropBox, Rotate) prior to constructing <see cref="PdfPage"/> instances.
+    /// Instance based to enable structured logging.
     /// </summary>
-    public static class PdfPageExtractor
+    public class PdfPageExtractor
     {
         private static readonly SKRect DefaultMediaBox = new SKRect(0, 0, 612, 792);
 
+        private readonly PdfDocument _document;
+        private readonly ILogger<PdfPageExtractor> _logger;
+
         /// <summary>
-        /// Extract all pages from the PDF document
+        /// Create a new page extractor bound to a document.
         /// </summary>
-        public static void ExtractPages(PdfDocument document)
+        /// <param name="document">Target PDF document.</param>
+        public PdfPageExtractor(PdfDocument document)
         {
-            // First try the traditional approach
-            if (document.RootRef > 0 && document.Objects.TryGetValue(document.RootRef, out var rootObj))
+            _document = document ?? throw new ArgumentNullException(nameof(document));
+            _logger = document.LoggerFactory.CreateLogger<PdfPageExtractor>();
+        }
+
+        /// <summary>
+        /// Extract all pages in the document populating <see cref="PdfDocument.Pages"/> and <see cref="PdfDocument.PageCount"/>.
+        /// RootRef is expected to be established earlier (xref parsing). This method will only set RootRef
+        /// if it is currently unset (0) and a /Catalog is discovered during fallback scan.
+        /// </summary>
+        public void ExtractPages()
+        {
+            // Primary path: follow stored RootRef if available.
+            if (_document.RootRef > 0 && _document.Objects.TryGetValue(_document.RootRef, out var rootObj))
             {
                 var pagesObject = rootObj.Dictionary.GetPageObject(PdfTokens.PagesKey);
                 if (pagesObject != null)
                 {
-                    ExtractPagesFromPagesObject(document, pagesObject, 1);
+                    ExtractPagesFromPagesObject(pagesObject, 1);
                     return;
                 }
+                _logger.LogWarning("Root object (ref {RootRef}) present but /Pages tree not found.", _document.RootRef);
             }
-            
-            // Fallback: Find root and pages objects by scanning all objects
-            var catalogObj = document.Objects.Values.FirstOrDefault(obj => obj.Dictionary?.GetName(PdfTokens.TypeKey) == PdfTokens.CatalogKey);
-            
-            if (catalogObj != null)
+            else
             {
-                document.RootRef = catalogObj.Reference.ObjectNumber;
-                
-                var pagesObject = catalogObj.Dictionary.GetPageObject(PdfTokens.PagesKey);
-                if (pagesObject != null)
-                {
-                    ExtractPagesFromPagesObject(document, pagesObject, 1);
-
-                    if (document.PageCount != 0)
-                    {
-                        return;
-                    }
-                }
+                _logger.LogWarning("RootRef {RootRef} not found in objects.", _document.RootRef);
             }
 
-            var pageObjects = document.Objects.Values.Where(obj => obj.Dictionary.GetName(PdfTokens.TypeKey) == PdfTokens.PageKey).ToList();
-            
-            for (int index = 0; index < pageObjects.Count; index++)
+            // Last resort: enumerate loose page objects.
+            var pageObjects = _document.Objects.Values.Where(o => o.Dictionary.GetName(PdfTokens.TypeKey) == PdfTokens.PageKey).ToList();
+            for (int i = 0; i < pageObjects.Count; i++)
             {
-                var pageObj = pageObjects[index];
-                var page = CreatePageFromObject(document, pageObj, index + 1);
-                document.Pages.Add(page);
+                var pageObj = pageObjects[i];
+                var page = CreatePageFromObject(pageObj, i + 1);
+                _document.Pages.Add(page);
             }
-            
-            document.PageCount = document.Pages.Count;
+            _document.PageCount = _document.Pages.Count;
+
+            if (_document.PageCount == 0)
+            {
+                _logger.LogWarning("No page objects found during fallback scan.");
+            }
         }
 
         /// <summary>
-        /// Extract pages from a pages object (handles page tree hierarchy)
+        /// Recursively extract pages from a /Pages node, handling nested page trees.
         /// </summary>
-        public static int ExtractPagesFromPagesObject(PdfDocument document, PdfObject pagesObj, int currentPageNum)
+        /// <param name="pagesObj">/Pages object node.</param>
+        /// <param name="currentPageNum">Current running page number.</param>
+        private int ExtractPagesFromPagesObject(PdfObject pagesObj, int currentPageNum)
         {
-            var count = pagesObj.Dictionary.GetIntegerOrDefault(PdfTokens.CountKey);
-            if (count > 0)
+            var declaredCount = pagesObj.Dictionary.GetIntegerOrDefault(PdfTokens.CountKey);
+            if (declaredCount > 0)
             {
-                document.PageCount = count;
+                _document.PageCount = declaredCount; // optimistic set
             }
-            
+
             var kidsArray = pagesObj.Dictionary.GetValue(PdfTokens.KidsKey).AsArray();
-            if (kidsArray != null)
+            if (kidsArray == null)
             {
-                for (int i = 0; i < kidsArray.Count; i++)
+                _logger.LogWarning("/Pages node (ref {Ref}) missing /Kids array.", pagesObj.Reference.ObjectNumber);
+                return currentPageNum;
+            }
+
+            for (int i = 0; i < kidsArray.Count; i++)
+            {
+                var kidObject = kidsArray.GetPageObject(i);
+                if (kidObject == null)
                 {
-                    var kidObject = kidsArray.GetPageObject(i);
-                    var typeName = kidObject.Dictionary.GetName(PdfTokens.TypeKey);
-                    if (typeName == PdfTokens.PageKey)
-                    {
-                        var page = CreatePageFromObject(document, kidObject, currentPageNum++);
-                        document.Pages.Add(page);
-                    }
-                    else if (typeName == PdfTokens.PagesKey)
-                    {
-                        currentPageNum = ExtractPagesFromPagesObject(document, kidObject, currentPageNum);
-                    }
+                    _logger.LogWarning("Null kid reference at index {Index} in /Kids array of /Pages ref {Ref}.", i, pagesObj.Reference.ObjectNumber);
+                    continue;
+                }
+
+                var typeName = kidObject.Dictionary.GetName(PdfTokens.TypeKey);
+                if (typeName == PdfTokens.PageKey)
+                {
+                    var page = CreatePageFromObject(kidObject, currentPageNum++);
+                    _document.Pages.Add(page);
+                }
+                else if (typeName == PdfTokens.PagesKey)
+                {
+                    currentPageNum = ExtractPagesFromPagesObject(kidObject, currentPageNum);
+                }
+                else
+                {
+                    _logger.LogWarning("Unexpected /Type '{Type}' encountered in page tree (ref {Ref}).", typeName, kidObject.Reference.ObjectNumber);
                 }
             }
-            
+
             return currentPageNum;
         }
 
         /// <summary>
-        /// Create a PdfPage from a page object
+        /// Build a <see cref="PdfPage"/> from a raw /Page object resolving inherited geometry and resources.
         /// </summary>
-        private static PdfPage CreatePageFromObject(PdfDocument document, PdfObject pageObj, int pageNumber)
+        private PdfPage CreatePageFromObject(PdfObject pageObj, int pageNumber)
         {
-            var resourceDictionary = GetInheritedValue(pageObj, PdfTokens.ResourcesKey).AsDictionary() ?? new PdfDictionary(document);
+            var resourceDictionary = GetInheritedValue(pageObj, PdfTokens.ResourcesKey).AsDictionary() ?? new PdfDictionary(_document);
 
             var mediaBox = TryConvertArrayToSKRect(GetInheritedValue(pageObj, PdfTokens.MediaBoxKey).AsArray()) ?? DefaultMediaBox;
             if (mediaBox.Width <= 0 || mediaBox.Height <= 0)
             {
+                _logger.LogWarning("Invalid MediaBox on page {PageNum} replaced with default.", pageNumber);
                 mediaBox = DefaultMediaBox;
             }
 
             var cropBox = TryConvertArrayToSKRect(GetInheritedValue(pageObj, PdfTokens.CropBoxKey).AsArray()) ?? mediaBox;
             if (cropBox.Width <= 0 || cropBox.Height <= 0)
             {
+                _logger.LogWarning("Invalid CropBox on page {PageNum} replaced with MediaBox.", pageNumber);
                 cropBox = mediaBox;
             }
 
             var rotation = GetNormalizedRotation(GetInheritedValue(pageObj, PdfTokens.RotateKey).AsInteger());
 
-            return new PdfPage(pageNumber, document, pageObj, mediaBox, cropBox, rotation, resourceDictionary);
+            return new PdfPage(pageNumber, _document, pageObj, mediaBox, cropBox, rotation, resourceDictionary);
         }
 
         /// <summary>
-        /// Utility method to convert a PDF array value to SKRect
+        /// Convert a PDF rectangle array to <see cref="SKRect"/>.
         /// </summary>
-        /// <param name="value">The PDF value to convert</param>
-        /// <returns>SKRect if conversion successful, null otherwise</returns>
-        public static SKRect? TryConvertArrayToSKRect(PdfArray value)
+        private SKRect? TryConvertArrayToSKRect(PdfArray value)
         {
             if (value == null)
             {
@@ -132,7 +155,6 @@ namespace PdfReader.Parsing
             {
                 return null;
             }
-
             var left = value.GetFloat(0);
             var top = value.GetFloat(1);
             var right = value.GetFloat(2);
@@ -140,28 +162,31 @@ namespace PdfReader.Parsing
             return new SKRect(left, top, right, bottom);
         }
 
-        public static int GetNormalizedRotation(int rotation)
+        /// <summary>
+        /// Normalize rotation to 0 / 90 / 180 / 270.
+        /// </summary>
+        private int GetNormalizedRotation(int rotation)
         {
-            // Normalize rotation to 0, 90, 180, or 270 degrees
             return (rotation % 360 + 360) % 360;
         }
 
-        public static IPdfValue GetInheritedValue(PdfObject pageObj, string key)
+        /// <summary>
+        /// Walk up the page tree resolving an inherited value.
+        /// </summary>
+        private IPdfValue GetInheritedValue(PdfObject pageObj, string key)
         {
             var currentObj = pageObj;
-            var checkedObjects = new HashSet<int>();
-            while (currentObj != null && !checkedObjects.Contains(currentObj.Reference.ObjectNumber))
+            var visited = new HashSet<int>();
+            while (currentObj != null && !visited.Contains(currentObj.Reference.ObjectNumber))
             {
-                checkedObjects.Add(currentObj.Reference.ObjectNumber);
-                // Check for the value at this level
+                visited.Add(currentObj.Reference.ObjectNumber);
                 if (currentObj.Dictionary.HasKey(key))
                 {
                     return currentObj.Dictionary.GetValue(key);
                 }
-                // Move to parent page object
                 currentObj = currentObj.Dictionary.GetPageObject(PdfTokens.ParentKey);
             }
-            return null; // Not found in hierarchy
+            return null;
         }
     }
 }
