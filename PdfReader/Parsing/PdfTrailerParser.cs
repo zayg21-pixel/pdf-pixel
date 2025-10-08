@@ -49,12 +49,6 @@ namespace PdfReader.Parsing
                 return;
             }
 
-            var rootObj = dict.GetPageObject(PdfTokens.RootKey);
-            if (rootObj != null && _document.RootRef == 0)
-            {
-                _document.RootRef = rootObj.Reference.ObjectNumber;
-            }
-
             if (_document.Decryptor != null)
             {
                 return; // Already set (e.g., from /Encrypt in an object stream)

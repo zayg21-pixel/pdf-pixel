@@ -84,8 +84,8 @@ namespace PdfReadTests
                 //"pdfs//icc-xyz.pdf",
                 //"pdfs//icc-lab4.pdf",
                 //"pdfs//icc-lab2.pdf",
-                "pdf-example-password.pdf",
-                //"Adyen.pdf",
+                //"pdf-example-password.pdf",
+                "Adyen.pdf",
                 //"Adyen_debug.pdf",
                 //"pdfs//mixedfonts.pdf",
                 //"Adyen - Copy.pdf",
@@ -132,7 +132,7 @@ namespace PdfReadTests
                 using (var stream = File.OpenRead(filename))
                 {
                     var reader = new PdfDocumentReader(LoggerFactoryInstance);
-                    using var document = reader.Read(stream);
+                    using var document = reader.Read(stream, "test");
 
                     Logger.LogInformation("Successfully read PDF: {File}", filename);
                     Logger.LogInformation("Total objects: {Count}", document.Objects.Count);

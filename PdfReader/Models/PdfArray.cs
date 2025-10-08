@@ -18,6 +18,11 @@ namespace PdfReader.Models
         }
 
         /// <summary>
+        /// Raw values for internal access.
+        /// </summary>
+        internal List<IPdfValue> RawValues => _items;
+
+        /// <summary>
         /// Owning document used for reference resolution.
         /// </summary>
         public PdfDocument Document { get; }

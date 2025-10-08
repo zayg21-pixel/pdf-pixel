@@ -1,7 +1,5 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using Microsoft.Extensions.Logging;
 using PdfReader.Models;
 using PdfReader.Parsing;
@@ -29,8 +27,9 @@ namespace PdfReader
         /// Returns a document instance that may be partially populated if parsing fails.
         /// </summary>
         /// <param name="stream">Input stream positioned at beginning of a PDF file.</param>
+        /// <param name="password">Password for password protected documents. Can be null.</param>
         /// <returns>Parsed <see cref="PdfDocument"/> (partially populated on failure).</returns>
-        public PdfDocument Read(Stream stream)
+        public PdfDocument Read(Stream stream, string password = null)
         {
             if (stream == null)
             {
@@ -77,7 +76,7 @@ namespace PdfReader
             try
             {
                 var objectParser = new PdfObjectParser(document);
-                objectParser.ParseObjects(ref context);
+                objectParser.ParseObjects(ref context, password);
 
                 pageExtractor.ExtractPages();
                 resourceLoader.LoadPageResources();

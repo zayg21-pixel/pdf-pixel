@@ -1,5 +1,7 @@
 using System;
 using Microsoft.Extensions.Logging;
+using PdfReader.Encryption;
+using PdfReader.Fonts;
 using PdfReader.Models;
 
 namespace PdfReader.Parsing
@@ -33,7 +35,8 @@ namespace PdfReader.Parsing
         /// Also detects trailer dictionaries (by keyword 'trailer') and sets RootRef if not already established.
         /// </summary>
         /// <param name="context">Parse context wrapping the full PDF bytes.</param>
-        public void ParseObjects(ref PdfParseContext context)
+        /// <param name="password">Password for password protected documents. Can be null.</param>
+        public void ParseObjects(ref PdfParseContext context, string password)
         {
             context.Position = 0;
 
@@ -64,16 +67,6 @@ namespace PdfReader.Parsing
                         }
                     }
 
-                    if (_document.RootRef == 0)
-                    {
-                        string typeName = pdfObject.Dictionary.GetName(PdfTokens.TypeKey);
-
-                        if (typeName == PdfTokens.CatalogKey)
-                        {
-                            _document.RootRef = objectNumber;
-                        }
-                    }
-
                     // Advance to endobj (tolerant scan)
                     while (context.Position < context.Length - PdfTokens.MinBufferLengthForEndObj)
                     {
@@ -96,28 +89,106 @@ namespace PdfReader.Parsing
             }
 
             _pdfTrailerParser.FinalizeTrailer();
-            // TODO: we should decrypt object streams with the document decryptor if present.
-
-            DecryptObjects();
+            DecryptObjects(password);
 
             // Extract objects that are embedded in object streams (ObjStm)
             _objectStreamParser.ParseObjectStreams();
+
+            UpdateRoot();
         }
 
-        private void DecryptObjects()
+        private void UpdateRoot()
+        {
+            if (_document.TrailerDictionary != null)
+            {
+                var rootObj = _document.TrailerDictionary.GetPageObject(PdfTokens.RootKey);
+
+                if (rootObj != null)
+                {
+                    _document.RootRef = rootObj.Reference.ObjectNumber;
+                    return;
+                }
+            }
+
+            foreach (var pdfObject in _document.Objects.Values)
+            {
+                string typeName = pdfObject.Dictionary.GetName(PdfTokens.TypeKey);
+                if (typeName == PdfTokens.CatalogKey)
+                {
+                    // Direct /Catalog object discovered.
+                    _document.RootRef = pdfObject.Reference.ObjectNumber;
+                    return;
+                }
+                else if (typeName == PdfTokens.XRefKey)
+                {
+                    // XRef stream dictionaries (PDF 1.5+) are trailer dictionaries in stream form.
+                    // They may contain /Root just like a classic trailer. Resolve its reference.
+                    var rootObject = pdfObject.Dictionary.GetPageObject(PdfTokens.RootKey);
+                    if (rootObject != null)
+                    {
+                        _document.RootRef = rootObject.Reference.ObjectNumber;
+                        return;
+                    }
+                }
+                else
+                {
+                    // Rare recovery case: if this dictionary itself exposes a /Root key (non-standard) we may accept it.
+                    var fallbackRoot = pdfObject.Dictionary.GetPageObject(PdfTokens.RootKey);
+                    if (fallbackRoot != null)
+                    {
+                        _document.RootRef = fallbackRoot.Reference.ObjectNumber;
+                        return;
+                    }
+                }
+            }
+
+            _logger.LogWarning("Root object is not discovered.");
+        }
+
+        private void DecryptObjects(string password)
         {
             if (_document.Decryptor == null)
             {
                 return;
             }
 
-            _document.Decryptor.UpdatePassword("test");
+            _document.Decryptor.UpdatePassword(password);
 
             foreach (var obj in _document.Objects.Values)
             {
+                DecryptIPdfValues(obj.Value, obj, _document.Decryptor);
+
                 if (!obj.StreamData.IsEmpty)
                 {
                     obj.StreamData = _document.Decryptor.DecryptBytes(obj.StreamData, obj.Reference);
+                }
+            }
+        }
+
+        private void DecryptIPdfValues(IPdfValue value, PdfObject pdfObject, BasePdfDecryptor decryptor)
+        {
+            if (value is PdfDictionary dictionary)
+            {
+                foreach (var dictionaryValue in dictionary.RawValues.Values)
+                {
+                    DecryptIPdfValues(dictionaryValue, pdfObject, decryptor);
+                }
+            }
+            else if (value is PdfArray array)
+            {
+                foreach (var arrayValue in array.RawValues)
+                {
+                    DecryptIPdfValues(arrayValue, pdfObject, decryptor);
+                }
+            }
+            else if (value is IPdfValue<string> textValue)
+            {
+                if (value.Type == PdfValueType.String || value.Type == PdfValueType.HexString)
+                {
+                    byte[] bytes = EncodingExtensions.PdfDefault.GetBytes(textValue.Value);
+                    var decrypted = decryptor.DecryptBytes(bytes, pdfObject.Reference);
+                    var decryptedText = EncodingExtensions.PdfDefault.GetString(decrypted);
+                    textValue.UpdateValue(decryptedText);
                 }
             }
         }
