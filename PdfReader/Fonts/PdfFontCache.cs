@@ -1,4 +1,5 @@
 using HarfBuzzSharp;
+using Microsoft.Extensions.Logging;
 using PdfReader.Models;
 using PdfReader.Rendering.HarfBuzz;
 using PdfReader.Streams;
@@ -20,8 +21,20 @@ namespace PdfReader.Fonts
         private readonly Dictionary<(int weight, int width, SKFontStyleSlant slant), SKTypeface> _fallbackCache = new Dictionary<(int weight, int width, SKFontStyleSlant slant), SKTypeface>();
         private readonly ConcurrentDictionary<PdfReference, ReadOnlyMemory<byte>> _cache = new ConcurrentDictionary<PdfReference, ReadOnlyMemory<byte>>();
         private readonly ConcurrentDictionary<PdfReference, CffNameKeyedInfo> _ccfMaps = new ConcurrentDictionary<PdfReference, CffNameKeyedInfo>();
+        private readonly PdfDocument _document;
+        private readonly ILogger<PdfFontCache> _logger;
+        private readonly SkiaFontLoader _skiaFontLoader;
+        private readonly HarfBuzzFontLoader _harfBuzzFontLoader;
 
         private bool _disposed = false;
+
+        public PdfFontCache(PdfDocument document)
+        {
+            _document = document;
+            _skiaFontLoader = new SkiaFontLoader(document);
+            _harfBuzzFontLoader = new HarfBuzzFontLoader(document);
+            _logger = document.LoggerFactory.CreateLogger<PdfFontCache>();
+        }
 
         public ReadOnlyMemory<byte> GetFontStream(PdfFontDescriptor decriptor)
         {
@@ -103,7 +116,7 @@ namespace PdfReader.Fonts
 
             if (!_typefaceCache.TryGetValue(font, out var cachedTypeface))
             {
-                cachedTypeface = PdfFontUtilities.GetTypeface(font);
+                cachedTypeface = _skiaFontLoader.GetTypeface(font);
                 _typefaceCache[font] = cachedTypeface;
             }
 
@@ -137,7 +150,7 @@ namespace PdfReader.Fonts
 
             if (!_harfBuzzFontCache.TryGetValue(font, out var cachedFont))
             {
-                cachedFont = HarfBuzzFontRenderer.CreateHarfBuzzFont(font);
+                cachedFont = _harfBuzzFontLoader.CreateHarfBuzzFont(font);
                 _harfBuzzFontCache[font] = cachedFont;
             }
 

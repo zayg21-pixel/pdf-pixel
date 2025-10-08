@@ -1,3 +1,5 @@
+using Microsoft.Extensions.Logging;
+using PdfReader.Models;
 using SkiaSharp;
 using System;
 using System.Collections.Generic;
@@ -10,7 +12,7 @@ namespace PdfReader.Fonts
     /// 1. Try direct match of normalized stem.
     /// 2. Fallback sequence from MergedFamilyMap.
     /// </summary>
-    public static class PdfFontUtilities
+    public class SkiaFontLoader
     {
         private static readonly Dictionary<string, string[]> MergedFamilyMap = new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase)
         {
@@ -38,7 +40,7 @@ namespace PdfReader.Fonts
             { "SourceCodePro", new[] { "Source Code Pro", "Courier New", "Courier", "Liberation Mono" } },
             { "DroidSans", new[] { "Droid Sans", "Helvetica", "Arial", "Liberation Sans" } },
             { "DroidSerif", new[] { "Droid Serif", "Times New Roman", "Times", "Liberation Serif" } },
-            { "DroidSansMono", new[] { "Droid Sans Mono", "Courier New", "Courier", "Liberation Mono" } },
+            { "DroidSansMono", new[] { "Droid Sans Mono", "Liberation Mono", "Courier New", "Courier" } },
             { "HelveticaNeue", new[] { "Helvetica Neue", "Helvetica", "Arial", "Liberation Sans" } },
             { "ArialUnicodeMS", new[] { "Arial Unicode MS", "Arial", "Helvetica" } },
             { "SegoeUI", new[] { "Segoe UI", "Arial", "Helvetica" } },
@@ -46,7 +48,16 @@ namespace PdfReader.Fonts
             { "SegoeUIEmoji", new[] { "Segoe UI Emoji", "Segoe UI Symbol", "Segoe UI" } }
         };
 
-        public static SKTypeface GetTypeface(PdfFontBase font)
+        private readonly PdfDocument _document;
+        private readonly ILogger<SkiaFontLoader> _logger;
+
+        public SkiaFontLoader(PdfDocument document)
+        {
+            _document = document ?? throw new ArgumentNullException(nameof(document));
+            _logger = document.LoggerFactory.CreateLogger<SkiaFontLoader>();
+        }
+
+        public SKTypeface GetTypeface(PdfFontBase font)
         {
             if (font == null)
             {
@@ -62,15 +73,15 @@ namespace PdfReader.Fonts
                 case PdfCompositeFont compositeFont:
                     return GetTypefaceForCompositeFont(compositeFont);
                 case PdfType3Font type3Font:
-                    Console.WriteLine("Warning: Type3 font " + type3Font.BaseFont + " cannot be converted to SKTypeface");
+                    _logger.LogWarning("Type3 font {BaseFont} cannot be converted to SKTypeface", type3Font.BaseFont);
                     return GetTypefaceFromParametersOrDefault(font);
                 default:
-                    Console.WriteLine("Warning: Unknown font type " + font.GetType().Name);
+                    _logger.LogWarning("Unknown font type {FontType} when obtaining typeface", font.GetType().Name);
                     return GetTypefaceFromParametersOrDefault(font);
             }
         }
 
-        private static SKTypeface GetTypefaceForSimpleFont(PdfSimpleFont simpleFont)
+        private SKTypeface GetTypefaceForSimpleFont(PdfSimpleFont simpleFont)
         {
             if (simpleFont.IsEmbedded)
             {
@@ -83,7 +94,7 @@ namespace PdfReader.Fonts
             return GetTypefaceFromParametersOrDefault(simpleFont);
         }
 
-        private static SKTypeface GetTypefaceForCIDFont(PdfCIDFont cidFont)
+        private SKTypeface GetTypefaceForCIDFont(PdfCIDFont cidFont)
         {
             if (cidFont.IsEmbedded)
             {
@@ -96,7 +107,7 @@ namespace PdfReader.Fonts
             return GetTypefaceFromParametersOrDefault(cidFont);
         }
 
-        private unsafe static SKTypeface LoadSkiaTypeface(FontFileFormat? fileFormat, PdfFontBase baseFont)
+        private unsafe SKTypeface LoadSkiaTypeface(FontFileFormat? fileFormat, PdfFontBase baseFont)
         {
             var memory = baseFont.FontDescriptor?.GetFontStream() ?? default;
             var handle = memory.Pin();
@@ -125,18 +136,18 @@ namespace PdfReader.Fonts
             }
         }
 
-        private static SKTypeface GetTypefaceForCompositeFont(PdfCompositeFont compositeFont)
+        private SKTypeface GetTypefaceForCompositeFont(PdfCompositeFont compositeFont)
         {
             var primaryDescendant = compositeFont.PrimaryDescendant;
             if (primaryDescendant != null)
             {
                 return GetTypefaceForCIDFont(primaryDescendant);
             }
-            Console.WriteLine("Warning: Composite font " + compositeFont.BaseFont + " has no descendant fonts");
+            _logger.LogWarning("Composite font {BaseFont} has no descendant fonts", compositeFont.BaseFont);
             return GetTypefaceFromParametersOrDefault(compositeFont);
         }
 
-        private static SKTypeface GetTypefaceFromParametersOrDefault(PdfFontBase font)
+        private SKTypeface GetTypefaceFromParametersOrDefault(PdfFontBase font)
         {
             if (font == null)
             {
@@ -177,23 +188,23 @@ namespace PdfReader.Fonts
                 {
                     if (!candidate.Equals(parsed.NormalizedStem, StringComparison.OrdinalIgnoreCase))
                     {
-                        Console.WriteLine("Info: Substituting font family '" + parsed.NormalizedStem + "' with '" + candidate + "'");
+                        _logger.LogInformation("Substituting font family {OriginalFamily} with {CandidateFamily}", parsed.NormalizedStem, candidate);
                     }
                     return tf;
                 }
             }
 
-            Console.WriteLine("Warning: No matching typeface found for '" + parsed.NormalizedStem + "', attempting cache fallback");
+            _logger.LogWarning("No matching typeface found for {FontFamily}, attempting cache fallback", parsed.NormalizedStem);
             var cacheFallback = font.Document.FontCache.GetFallbackFromParameters(style.Width, style.Weight, style.Slant);
             if (cacheFallback != null)
             {
                 return cacheFallback;
             }
-            Console.WriteLine("Warning: Cache fallback unavailable, using SKTypeface.Default");
+            _logger.LogWarning("Cache fallback unavailable, using SKTypeface.Default for {FontFamily}", parsed.NormalizedStem);
             return SKTypeface.Default;
         }
 
-        private static IEnumerable<string> EnumerateFallbackCandidates(PdfFontName parsed)
+        private IEnumerable<string> EnumerateFallbackCandidates(PdfFontName parsed)
         {
             if (MergedFamilyMap.TryGetValue(parsed.NormalizedStem, out var list))
             {

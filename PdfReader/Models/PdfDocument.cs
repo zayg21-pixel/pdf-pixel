@@ -25,6 +25,7 @@ namespace PdfReader.Models
 
         public PdfDocument(ILoggerFactory loggerFactory, ReadOnlyMemory<byte> fileBytes)
         {
+            FontCache = new PdfFontCache(this);
             PdfRenderer = new PdfRenderer(FontCache, loggerFactory);
             LoggerFactory = loggerFactory;
             _fileBytes = fileBytes;
@@ -37,7 +38,7 @@ namespace PdfReader.Models
 
         internal Dictionary<PdfReference, PdfColorSpaceConverter> ColorSpaceConverters { get; } = new Dictionary<PdfReference, PdfColorSpaceConverter>();
 
-        internal PdfFontCache FontCache { get; } = new PdfFontCache();
+        internal PdfFontCache FontCache { get; }
 
         internal Dictionary<string, PdfToUnicodeCMap> CMaps { get; } = new Dictionary<string, PdfToUnicodeCMap>(StringComparer.Ordinal);
 
