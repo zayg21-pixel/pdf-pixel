@@ -41,6 +41,15 @@ namespace PdfReader
         public const string RKey = "/R";             // encryption revision
         public const string PKey = "/P";             // permissions
         public const string EncryptMetadataKey = "/EncryptMetadata"; // encrypt metadata flag
+        public const string OKey = "/O";             // used in linearization and encryption dictionaries
+        public const string UKey = "/U";             // encryption dictionary user entry
+        public const string OEKey = "/OE";           // encryption dictionary owner encrypted key (R>=5)
+        public const string UEKey = "/UE";           // encryption dictionary user encrypted key (R>=5)
+        public const string PermsKey = "/Perms";     // encryption dictionary permissions (R>=5)
+        public const string StmFKey = "/StmF";       // encryption stream crypt filter name
+        public const string StrFKey = "/StrF";       // encryption string crypt filter name
+        public const string EffKey = "/EFF";         // encryption embedded file crypt filter name
+        public const string CFKey = "/CF";           // encryption crypt filter dictionary
 
         // Image/XObject specific
         public const string DecodeKey = "/Decode";
@@ -246,7 +255,6 @@ namespace PdfReader
         public const string LinearizedKey = "/Linearized";
         public const string LKey = "/L";
         public const string HKey = "/H";
-        public const string OKey = "/O";
         public const string EKey = "/E";
         public const string TKey = "/T";
 

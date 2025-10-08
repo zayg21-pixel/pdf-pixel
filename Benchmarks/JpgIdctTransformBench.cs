@@ -70,22 +70,11 @@ namespace Benchmarks
             subWorkspace = new int[BlockSize];
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private int HashOutput(byte[] buffer)
-        {
-            int hash = 17;
-            for (int i = 0; i < buffer.Length; i++)
-            {
-                hash = (hash * 31) + buffer[i];
-            }
-            return hash;
-        }
-
         [Benchmark(Baseline = true)]
-        public int TransformScaledZigZag_Array()
+        public byte[] TransformScaledZigZag_Array()
         {
-            JpgIdct.TransformScaledZigZag(inputCoefficientsZigZag, plan, outputArray, OutStride, workspace, subWorkspace);
-            return HashOutput(outputArray);
+            //JpgIdct.Transform(inputCoefficientsZigZag, outputArray, OutStride, workspace);
+            return outputBlock;
         }
     }
 }

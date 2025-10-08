@@ -26,7 +26,7 @@ namespace PdfReadTests
                 //"pdfs//icc-lab4.pdf",
                 //"pdfs//icc-lab2.pdf",
                 //"pdf-example-password.pdf",
-                "Adyen.pdf",
+                //"Adyen.pdf",
                 //"Adyen_debug.pdf",
                 //"pdfs//mixedfonts.pdf",
                 //"Adyen - Copy.pdf",
@@ -40,11 +40,13 @@ namespace PdfReadTests
                 //"pdfs//tiling-pattern-box.pdf",
                 //"pdfs//gradientfill.pdf",
                 //@"document - Copy.pdf",
-                @"documentS.pdf",
-                @"documentC.pdf",
+                //@"documentS.pdf",
+                //@"documentC.pdf",
                 //"pdfs//ccitt_EndOfBlock_false.pdf",
                 //"pdfs//images_1bit_grayscale.pdf",
                 //"adyen_2020.pdf",
+                //"adyen_2020_debug.pdf",
+                "pdfs\\emojies.pdf"
                 //"documentEd.pdf"
                 //@"document_1.pdf"
             };
@@ -81,8 +83,8 @@ namespace PdfReadTests
                     Logger.LogInformation("Root object: {Root}", document.RootObject);
 
                     var start = 0;
-                    var max = 300;
-                    float scaleX = 1f; // Scale factor for rendering
+                    var max = 3;
+                    float scaleX = 3f; // Scale factor for rendering
 
                     var memory = GC.GetTotalMemory(true) / 1024 / 1024;
 
@@ -125,7 +127,7 @@ namespace PdfReadTests
                                 // Save as PNG (optional)
                                 var filename_png = $"{basePath}\\{name}_page_{page.PageNumber}.png";
                                 using (var image = surface.Snapshot())
-                                using (var data = image.Encode())
+                                using (var data = image.Encode(SKEncodedImageFormat.Jpeg, 100))
                                 using (var fileStream = File.OpenWrite(filename_png))
                                 {
                                     data.SaveTo(fileStream);

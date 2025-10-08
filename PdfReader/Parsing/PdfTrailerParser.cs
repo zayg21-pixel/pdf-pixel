@@ -1,4 +1,5 @@
 using System;
+using Microsoft.Extensions.Logging;
 using PdfReader.Encryption;
 using PdfReader.Models;
 
@@ -10,18 +11,21 @@ namespace PdfReader.Parsing
     internal sealed class PdfTrailerParser
     {
         private readonly PdfDocument _document;
+        private readonly ILogger<PdfTrailerParser> _logger;
 
         public PdfTrailerParser(PdfDocument document)
         {
             _document = document ?? throw new ArgumentNullException(nameof(document));
+            _logger = document.LoggerFactory.CreateLogger<PdfTrailerParser>();
         }
 
-        public bool TryParseTrailerDictionary(ref PdfParseContext context)
+        public bool TryParseTrailerDictionary(ref PdfParseContext context, out PdfDictionary trailer)
         {
             PdfParsingHelpers.SkipWhitespaceAndComment(ref context);
 
             if (!PdfParsingHelpers.MatchSequence(ref context, PdfTokens.Trailer))
             {
+                trailer = null;
                 return false;
             }
 
@@ -31,23 +35,42 @@ namespace PdfReader.Parsing
             byte second = PdfParsingHelpers.PeekByte(ref context, 1);
             if (first != PdfTokens.LeftAngle || second != PdfTokens.LeftAngle)
             {
+                trailer = null;
                 return true;
             }
 
-            if (_document.TrailerDictionary != null)
+            trailer = PdfParsers.ParsePdfValue(ref context, _document, allowReferences: true).AsDictionary();
+
+            if (trailer == null)
             {
-                return true;
+                return false;
             }
 
-            _document.TrailerDictionary = PdfParsers.ParsePdfValue(ref context, _document, allowReferences: true).AsDictionary();
-            _document.RootObject = _document.TrailerDictionary?.GetPageObject(PdfTokens.RootKey);
             return true;
         }
 
-        public void FinalizeTrailer()
+        /// <summary>
+        /// Return the /Prev offset from the current trailer dictionary.
+        /// </summary>
+        public int? GetPrevOffset(PdfDictionary trailer)
         {
-            var dict = _document.TrailerDictionary;
-            if (dict == null)
+            if (trailer == null)
+            {
+                return null;
+            }
+
+            var prev = trailer.GetInt(PdfTokens.PrevKey);
+            if (!prev.HasValue || prev.Value < 0)
+            {
+                return null;
+            }
+
+            return prev.Value;
+        }
+
+        public void TrySetDecryptor(PdfDictionary trailer)
+        {
+            if (trailer == null)
             {
                 return;
             }
@@ -57,11 +80,10 @@ namespace PdfReader.Parsing
                 return; // Already set (e.g., from /Encrypt in an object stream)
             }
 
-            // Only create decryptor if /Encrypt present
-            var encryptDict = dict.GetDictionary(PdfTokens.EncryptKey);
+            var encryptDict = trailer.GetDictionary(PdfTokens.EncryptKey);
             if (encryptDict == null)
             {
-                return; // Not encrypted; leave Decryptor null
+                return; // Not encrypted
             }
 
             var parameters = new PdfDecryptorParameters();
@@ -77,28 +99,26 @@ namespace PdfReader.Parsing
                 parameters.EncryptMetadata = encryptMetadata.Value;
             }
 
-            // Optional legacy /O and /U entries
-            parameters.OwnerEntry = encryptDict.GetValue("/O").AsHexBytes();
-            parameters.UserEntry = encryptDict.GetValue("/U").AsHexBytes();
+            // Use PdfTokens constants instead of string literals.
+            parameters.OwnerEntry = encryptDict.GetValue(PdfTokens.OKey).AsHexBytes();
+            parameters.UserEntry = encryptDict.GetValue(PdfTokens.UKey).AsHexBytes();
 
-            // R>=5 entries ( /OE /UE /Perms )
             if (parameters.R >= 5)
             {
-                parameters.OwnerEncryptedKey = encryptDict.GetValue("/OE").AsHexBytes();
-                parameters.UserEncryptedKey = encryptDict.GetValue("/UE").AsHexBytes();
-                parameters.Perms = encryptDict.GetValue("/Perms").AsHexBytes();
+                parameters.OwnerEncryptedKey = encryptDict.GetValue(PdfTokens.OEKey).AsHexBytes();
+                parameters.UserEncryptedKey = encryptDict.GetValue(PdfTokens.UEKey).AsHexBytes();
+                parameters.Perms = encryptDict.GetValue(PdfTokens.PermsKey).AsHexBytes();
             }
 
-            // Crypt filter related (V=4/5) entries
             if (parameters.V >= 4)
             {
-                parameters.StreamCryptFilterName = encryptDict.GetName("/StmF");
-                parameters.StringCryptFilterName = encryptDict.GetName("/StrF");
-                parameters.EmbeddedFileCryptFilterName = encryptDict.GetName("/EFF");
-                parameters.CryptFilterDictionary = encryptDict.GetDictionary("/CF");
+                parameters.StreamCryptFilterName = encryptDict.GetName(PdfTokens.StmFKey);
+                parameters.StringCryptFilterName = encryptDict.GetName(PdfTokens.StrFKey);
+                parameters.EmbeddedFileCryptFilterName = encryptDict.GetName(PdfTokens.EffKey);
+                parameters.CryptFilterDictionary = encryptDict.GetDictionary(PdfTokens.CFKey);
             }
 
-            var idArray = dict.GetArray(PdfTokens.IdKey);
+            var idArray = trailer.GetArray(PdfTokens.IdKey);
             if (idArray != null && idArray.Count >= 2)
             {
                 parameters.FileIdFirst = idArray.GetValue(0).AsHexBytes();
@@ -106,6 +126,10 @@ namespace PdfReader.Parsing
             }
 
             _document.Decryptor = PdfDecryptorFactory.Create(parameters);
+            if (_document.Decryptor == null)
+            {
+                _logger.LogWarning("PdfTrailerParser: Failed to create decryptor despite presence of /Encrypt dictionary (V={V} R={R}).", parameters.V, parameters.R);
+            }
         }
     }
 }

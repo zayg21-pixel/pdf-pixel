@@ -11,7 +11,6 @@ namespace PdfReader.Rendering.Image.Jpg.Color
     internal sealed class YCbCrMcuWriter : BaseMcuWriter
     {
         // Fixed-point scale (14 bits)
-        private const int FixedPointScale = 16384;
         private const int RCrCoeff = 22970;    // 1.402 * 16384
         private const int GCbCoeff = 5638;     // 0.344136 * 16384
         private const int GCrCoeff = 11698;    // 0.714136 * 16384
@@ -103,9 +102,9 @@ namespace PdfReader.Rendering.Image.Jpg.Color
                     int g = y - ((GCbCoeff * cb + GCrCoeff * cr) >> 14) + GCbCrOffset;
                     int b = y + ((BCbCoeff * cb) >> 14) - BCbOffset;
 
-                    buffer[destOffset + 0] = r < 0 ? (byte)0 : r > 255 ? (byte)255 : (byte)r;
-                    buffer[destOffset + 1] = g < 0 ? (byte)0 : g > 255 ? (byte)255 : (byte)g;
-                    buffer[destOffset + 2] = b < 0 ? (byte)0 : b > 255 ? (byte)255 : (byte)b;
+                    buffer[destOffset + 0] = ClampToByte(r);
+                    buffer[destOffset + 1] = ClampToByte(g);
+                    buffer[destOffset + 2] = ClampToByte(b);
                     destOffset += 3;
 
                     accX0 += _horizontalSamplingFactor0;

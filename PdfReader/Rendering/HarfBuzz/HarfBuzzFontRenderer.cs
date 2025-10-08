@@ -2,6 +2,7 @@
 using PdfReader.Fonts;
 using PdfReader.Models;
 using System;
+using System.Collections.Generic;
 
 namespace PdfReader.Rendering.HarfBuzz
 {
@@ -16,7 +17,7 @@ namespace PdfReader.Rendering.HarfBuzz
         /// Handles CID fonts with raw codepoints vs Unicode fonts
         /// Updated to use PdfFontBase hierarchy
         /// </summary>
-        public static ShapedGlyph[] ShapeText(ref PdfText text, Font harfBuzzFont, PdfFontBase font, PdfGraphicsState state)
+        public static ShapedGlyph[] ShapeText(ref PdfText text, Font harfBuzzFont, string unicode, PdfFontBase font, PdfGraphicsState state)
         {
             if (text.IsEmpty)
                 return Array.Empty<ShapedGlyph>();
@@ -34,19 +35,40 @@ namespace PdfReader.Rendering.HarfBuzz
             }
             else
             {
-                return ShapeUnicodeText(text, harfBuzzFont, font, state);
+                return ShapeUnicodeText(text, harfBuzzFont, unicode, font, state);
             }
         }
 
-        private static ShapedGlyph[] ShapeUnicodeText(PdfText text, Font harfBuzzFont, PdfFontBase font, PdfGraphicsState state)
+        private static ShapedGlyph[] ShapeUnicodeText(PdfText text, Font harfBuzzFont, string unicode, PdfFontBase font, PdfGraphicsState state)
         {
             float xOffset = 0;
             float yOffset = 0;
 
-            // TODO: we can't really rely on this to calculate space advances, need to split char by char instead.
-            string unicode = text.GetUnicodeText(font);
             HarfBuzzSharp.Buffer buffer = new HarfBuzzSharp.Buffer();
-            buffer.AddUtf8(unicode);
+            buffer.ContentType = ContentType.Unicode;
+            HashSet<uint> spaceClusters = new HashSet<uint>();
+            uint cluster = 0;
+
+            for (int i = 0; i < unicode.Length; i++)
+            {
+                if (i < unicode.Length - 1 && char.IsSurrogatePair(unicode[i], unicode[i + 1]))
+                {
+                    var codepoint = (uint)char.ConvertToUtf32(unicode[i], unicode[i + 1]);
+                    buffer.Add(codepoint, cluster);
+                    i++;
+                }
+                else
+                {
+                    buffer.Add(unicode[i], cluster);
+
+                    if (unicode[i] == ' ')
+                    {
+                        spaceClusters.Add(cluster);
+                    }
+                }
+
+                cluster++;
+            }
 
             buffer.Direction = Direction.LeftToRight;
             harfBuzzFont.Shape(buffer);
@@ -66,9 +88,9 @@ namespace PdfReader.Rendering.HarfBuzz
                 xOffset += xNormalized + state.CharacterSpacing;
                 yOffset += yNormalized;
 
-                if (state.WordSpacing != 0 && info.Cluster < unicode.Length)
+                if (state.WordSpacing != 0)
                 {
-                    if (unicode[(int)info.Cluster] == ' ')
+                    if (spaceClusters.Contains(info.Cluster))
                     {
                         xOffset += state.WordSpacing;
                     }

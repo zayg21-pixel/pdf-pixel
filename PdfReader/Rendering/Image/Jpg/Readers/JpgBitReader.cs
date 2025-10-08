@@ -48,6 +48,16 @@ namespace PdfReader.Rendering.Image.Jpg.Readers
         public int Position => _pos * 8 - _bits;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static uint Mask(int bitCount)
+        {
+            if (bitCount == 0)
+            {
+                return 0u;
+            }
+            return (uint)((1u << bitCount) - 1u);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void EnsureBits(int requiredBits)
         {
             while (_bits < requiredBits)
@@ -66,11 +76,11 @@ namespace PdfReader.Rendering.Image.Jpg.Readers
                     continue;
                 }
 
-                byte b = *_current;
+                byte value = *_current;
                 _current++;
                 _remaining--;
                 _pos++;
-                if (b == 0xFF)
+                if (value == 0xFF)
                 {
                     if (_remaining > 0)
                     {
@@ -92,68 +102,131 @@ namespace PdfReader.Rendering.Image.Jpg.Readers
                     }
                 }
 
-                _bitBuf = (_bitBuf << 8) | b;
+                _bitBuf = (_bitBuf << 8) | value;
                 _bits += 8;
             }
         }
 
-        public uint PeekBits(int n)
+        /// <summary>
+        /// Generic peek for n bits (1..16). Retains high-bit buffer orientation.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public uint PeekBits(int bitCount)
         {
-            EnsureBits(n);
-            return _bitBuf >> (_bits - n) & (uint)((1 << n) - 1);
+            EnsureBits(bitCount);
+            return _bitBuf >> (_bits - bitCount) & Mask(bitCount);
         }
 
-        public void DropBits(int n)
+        /// <summary>
+        /// Specialized 8-bit peek (hot path for Huffman lookahead).
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public uint PeekBits8()
         {
-            if (n < 0 || n > _bits)
+            EnsureBits(8);
+            return (_bitBuf >> (_bits - 8)) & 0xFFu;
+        }
+
+        /// <summary>
+        /// Specialized 16-bit peek (used for extended Huffman decode slow path).
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public uint PeekBits16()
+        {
+            EnsureBits(16);
+            return (_bitBuf >> (_bits - 16)) & 0xFFFFu;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void DropBits(int bitCount)
+        {
+            if (bitCount < 0 || bitCount > _bits)
             {
-                n = _bits;
+                bitCount = _bits;
             }
 
-            _bits -= n;
+            _bits -= bitCount;
         }
 
-        public uint ReadBits(int n)
+        /// <summary>
+        /// Read n bits (0..16) in a single combined Ensure/extract/drop step to avoid separate Peek + Drop overhead.
+        /// Returns 0 if bitCount is 0.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public uint ReadBits(int bitCount)
         {
-            uint v = PeekBits(n);
-            DropBits(n);
-            return v;
+            if (bitCount == 0)
+            {
+                return 0u;
+            }
+
+            EnsureBits(bitCount);
+            int newBits = _bits - bitCount;
+            uint value = (_bitBuf >> newBits) & Mask(bitCount);
+            _bits = newBits;
+            return value;
         }
 
-        public int ReadSigned(int n)
+        /// <summary>
+        /// Specialized 8-bit read (hot path) combining ensure, extract, and drop.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public uint ReadBits8()
         {
-            if (n == 0)
+            EnsureBits(8);
+            int newBits = _bits - 8;
+            uint value = (_bitBuf >> newBits) & 0xFFu;
+            _bits = newBits;
+            return value;
+        }
+
+        /// <summary>
+        /// Specialized 16-bit read combining ensure, extract, and drop.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public uint ReadBits16()
+        {
+            EnsureBits(16);
+            int newBits = _bits - 16;
+            uint value = (_bitBuf >> newBits) & 0xFFFFu;
+            _bits = newBits;
+            return value;
+        }
+
+        /// <summary>
+        /// Read a JPEG signed value encoded with <paramref name="bitCount"/> bits where the top bit indicates sign.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public int ReadSigned(int bitCount)
+        {
+            if (bitCount == 0)
             {
                 return 0;
             }
 
-            uint v = ReadBits(n);
-            int vt = 1 << (n - 1);
-            if (v < (uint)vt)
-            {
-                return (int)v - ((1 << n) - 1);
-            }
-
-            return (int)v;
+            uint raw = ReadBits(bitCount);
+            int threshold = 1 << (bitCount - 1);
+            int fullMask = (1 << bitCount) - 1;
+            int negativeMask = ((int)raw - threshold) >> 31;
+            int result = (int)raw - (negativeMask & fullMask);
+            return result;
         }
 
         /// <summary>
         /// Align to next byte boundary by discarding any buffered bits from the bit buffer.
-        /// This fully flushes the buffer so the next read is at a byte boundary in the underlying stream.
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void ByteAlign()
         {
             _bitBuf = 0;
             _bits = 0;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool TryReadMarker(out byte marker)
         {
             marker = 0;
-
-            // Ensure we're at a byte boundary and bit buffer flushed
             ByteAlign();
-
             if (_remaining <= 0)
             {
                 return false;
@@ -184,11 +257,9 @@ namespace PdfReader.Rendering.Image.Jpg.Readers
             byte code = *markerPtr++;
             if (code == 0x00)
             {
-                // Stuffed 0x00 means 0xFF00 was a data byte sequence, not a marker.
                 return false;
             }
 
-            // Consume the marker bytes
             int consumed = (int)(markerPtr - _current);
             _current = markerPtr;
             _remaining -= consumed;

@@ -50,8 +50,6 @@ namespace PdfReader.Models
 
         public PdfObject RootObject { get; set; }
 
-        public PdfDictionary TrailerDictionary { get; internal set; }
-
         public BasePdfDecryptor Decryptor { get; internal set; }
 
         public PdfRenderer PdfRenderer { get; }

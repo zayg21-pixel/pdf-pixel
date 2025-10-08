@@ -5,6 +5,7 @@ using PdfReader.Rendering.HarfBuzz;
 using PdfReader.Text;
 using SkiaSharp;
 using System;
+using System.Linq;
 
 namespace PdfReader.Rendering.Text
 {
@@ -64,7 +65,6 @@ namespace PdfReader.Rendering.Text
             var unicodeText = pdfText.GetUnicodeText(font);
             bool isCffNameKeyed = font.FontDescriptor?.IsCffFont == true;
 
-
             using var skPpaint = PdfPaintFactory.CreateTextPaint(state, page);
             using var skFont = PdfPaintFactory.CreateTextFont(state, typeface, page);
 
@@ -74,10 +74,20 @@ namespace PdfReader.Rendering.Text
             {
                 var shaped = BuildCffShapedGlyphs(pdfText, skFont, state, font);
                 size = DrawShapedText(canvas, skPpaint, skFont, shaped, state, dryRun);
-            } else if (harfBuzzFont != null)
+            }
+            else if (harfBuzzFont != null)
             {
-                var shaped = HarfBuzzFontRenderer.ShapeText(ref pdfText, harfBuzzFont, font, state);
-                size = DrawShapedText(canvas, skPpaint, skFont, shaped, state, dryRun);
+                var shaped = HarfBuzzFontRenderer.ShapeText(ref pdfText, harfBuzzFont, unicodeText, font, state);
+
+                // If all glyphs are missing (glyph ID 0), fall back to Unicode rendering
+                if (shaped.All(x => x.GlyphId == 0))
+                {
+                    size = DrawUnicodeText(canvas, skPpaint, skFont, unicodeText, state, dryRun);
+                }
+                else
+                {
+                    size = DrawShapedText(canvas, skPpaint, skFont, shaped, state, dryRun);
+                }
             }
             else
             {

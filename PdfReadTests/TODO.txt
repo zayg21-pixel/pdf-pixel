@@ -9,7 +9,6 @@ https://github.com/BobLd/IccProfile or https://github.com/waacton/Unicolour
 
 https://fontdrop.info/
 
-Should construct correct PdfObject map with revisions.
 Add AES decryption and all other algorithms.
 
 adyen2020, page 104

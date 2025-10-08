@@ -32,16 +32,26 @@ namespace PdfReader.Rendering.Image.Jpg.Idct
         private const int FIX_2_562915447 = 20995;  // FIX(2.562915447)
         private const int FIX_3_072711026 = 25172;  // FIX(3.072711026)
 
-        public static void Transform(ReadOnlySpan<int> input, Span<byte> output, int outStride)
+        // Vector mask (hardcoded) to zero out the DC lane (lane 0) when Vector<int>.Count == 8.
+        // Other lanes are set to -1 (all bits set) so bitwise AND preserves their original values.
+        private static readonly Vector<int> MaskSkipDc = InitializeDcMask();
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static Vector<int> InitializeDcMask()
         {
-            Span<int> workspace = stackalloc int[64];
-            Transform(input, output, outStride, workspace);
+            if (Vector<int>.Count == 8)
+            {
+                return new Vector<int>(new int[] { 0, -1, -1, -1, -1, -1, -1, -1 });
+            }
+
+            // Fallback: all lanes preserve (we will not rely on mask logic if width != 8).
+            return new Vector<int>(-1);
         }
 
         /// <summary>
-        /// Transform with caller-provided workspace to avoid per-call stack allocation.
+        /// Core transform with caller-provided workspace. DC-only shortcut handled by callers.
         /// </summary>
-        public static void Transform(ReadOnlySpan<int> input, Span<byte> output, int outStride, Span<int> workspace)
+        private static void Transform(ReadOnlySpan<int> input, Span<byte> output, int outStride, Span<int> workspace)
         {
             if (input.Length < DctSize * DctSize)
             {
@@ -58,16 +68,14 @@ namespace PdfReader.Rendering.Image.Jpg.Idct
                 throw new ArgumentException("workspace must be at least 64 ints", nameof(workspace));
             }
 
-            // Pass 1: rows
-            for (int row = 0; row < 64; row += 8)
+            for (int rowIndex = 0; rowIndex < 64; rowIndex += 8)
             {
-                IdctRow(workspace.Slice(row, 8), input.Slice(row, 8));
+                IdctRow(workspace.Slice(rowIndex, 8), input.Slice(rowIndex, 8));
             }
 
-            // Pass 2: columns and store
-            for (int col = 0; col < 8; col++)
+            for (int columnIndex = 0; columnIndex < 8; columnIndex++)
             {
-                IdctColAndStore(workspace, col, output, outStride);
+                IdctColAndStore(workspace, columnIndex, output, outStride);
             }
         }
 
@@ -76,36 +84,36 @@ namespace PdfReader.Rendering.Image.Jpg.Idct
         {
             if ((inRow[1] | inRow[2] | inRow[3] | inRow[4] | inRow[5] | inRow[6] | inRow[7]) == 0)
             {
-                int dc = inRow[0] << Pass1Bits;
-                outRow[0] = dc;
-                outRow[1] = dc;
-                outRow[2] = dc;
-                outRow[3] = dc;
-                outRow[4] = dc;
-                outRow[5] = dc;
-                outRow[6] = dc;
-                outRow[7] = dc;
+                int dcValue = inRow[0] << Pass1Bits;
+                outRow[0] = dcValue;
+                outRow[1] = dcValue;
+                outRow[2] = dcValue;
+                outRow[3] = dcValue;
+                outRow[4] = dcValue;
+                outRow[5] = dcValue;
+                outRow[6] = dcValue;
+                outRow[7] = dcValue;
                 return;
             }
 
-            int coefficient0 = inRow[0];
-            int coefficient1 = inRow[1];
-            int coefficient2 = inRow[2];
-            int coefficient3 = inRow[3];
-            int coefficient4 = inRow[4];
-            int coefficient5 = inRow[5];
-            int coefficient6 = inRow[6];
-            int coefficient7 = inRow[7];
+            int c0 = inRow[0];
+            int c1 = inRow[1];
+            int c2 = inRow[2];
+            int c3 = inRow[3];
+            int c4 = inRow[4];
+            int c5 = inRow[5];
+            int c6 = inRow[6];
+            int c7 = inRow[7];
 
             // Even part
-            long z2 = coefficient2;
-            long z3 = coefficient6;
+            long z2 = c2;
+            long z3 = c6;
             long z1 = (z2 + z3) * FIX_0_541196100;
             long tmp2 = z1 - z3 * FIX_1_847759065;
             long tmp3 = z1 + z2 * FIX_0_765366865;
 
-            long tmp0 = ((long)(coefficient0 + coefficient4)) << ConstBits;
-            long tmp1 = ((long)(coefficient0 - coefficient4)) << ConstBits;
+            long tmp0 = ((long)(c0 + c4)) << ConstBits;
+            long tmp1 = ((long)(c0 - c4)) << ConstBits;
 
             long tmp10 = tmp0 + tmp3;
             long tmp13 = tmp0 - tmp3;
@@ -113,10 +121,10 @@ namespace PdfReader.Rendering.Image.Jpg.Idct
             long tmp12 = tmp1 - tmp2;
 
             // Odd part per IJG
-            long t0 = coefficient7;
-            long t1 = coefficient5;
-            long t2 = coefficient3;
-            long t3 = coefficient1;
+            long t0 = c7;
+            long t1 = c5;
+            long t2 = c3;
+            long t3 = c1;
 
             long oz2 = t0 + t2;
             long oz3 = t1 + t3;
@@ -161,9 +169,8 @@ namespace PdfReader.Rendering.Image.Jpg.Idct
             {
                 int dc = Descale(c0, Pass1Bits + 3) + CenterSample;
                 byte b = RangeLimit(dc);
-
                 int outIndex = col;
-                for (int y = 0; y < 8; y++)
+                for (int rowIndex = 0; rowIndex < 8; rowIndex++)
                 {
                     output[outIndex] = b;
                     outIndex += outStride;
@@ -231,9 +238,10 @@ namespace PdfReader.Rendering.Image.Jpg.Idct
         }
 
         /// <summary>
-        /// Transform using a precomputed ScaledIdctPlan with zig-zag input. Fuses dequantization and zig-zag remap.
+        /// Transform using a precomputed ScaledIdctPlan with zig-zag input (fused dequant + remap).
+        /// Performs DC-only detection (vector accelerated when width == 8) and fills directly when possible.
         /// </summary>
-        public static void TransformScaledZigZag(int[] inputZigZag, ScaledIdctPlan plan, Span<byte> output, int outStride, int[] workspace, int[] subWorkspace)
+        public static void TransformScaledZigZag(int[] inputZigZag, ScaledIdctPlan plan, Span<byte> output, int outStride, int[] workspace, int[] subWorkspace, bool dcOnly)
         {
             if (plan == null)
             {
@@ -245,31 +253,52 @@ namespace PdfReader.Rendering.Image.Jpg.Idct
                 throw new ArgumentException("input must have 64 coefficients");
             }
 
-            int vec = Vector<int>.Count;
-            int i = 0;
-            for (; i <= 64 - vec; i += vec)
+            if (dcOnly)
             {
-                var vi = new Vector<int>(inputZigZag, i);
-                var vq = new Vector<int>(plan.DequantZig, i);
-                (vi * vq).CopyTo(subWorkspace, i);
+                int dcDequant = inputZigZag[0] * plan.DequantZig[0];
+                FillBlockFromDc(dcDequant, output, outStride);
+                return;
             }
-            for (; i < 64; i++)
+
+            int vectorWidth = Vector<int>.Count;
+            if (vectorWidth == 8)
             {
-                subWorkspace[i] = inputZigZag[i] * plan.DequantZig[i];
+                int index = 0;
+                for (; index <= 64 - vectorWidth; index += vectorWidth)
+                {
+                    Vector<int> coeff = new Vector<int>(inputZigZag, index);
+                    Vector<int> quant = new Vector<int>(plan.DequantZig, index);
+                    (coeff * quant).CopyTo(subWorkspace, index);
+                }
+                for (; index < 64; index++)
+                {
+                    int v = inputZigZag[index];
+                    subWorkspace[index] = v * plan.DequantZig[index];
+                }
             }
-            for (i = 0; i < 64; i++)
+            else
             {
-                int natural = JpgZigZag.Table[i];
-                workspace[natural] = subWorkspace[i];
+                for (int i = 0; i < 64; i++)
+                {
+                    int v = inputZigZag[i];
+                    subWorkspace[i] = v * plan.DequantZig[i];
+                }
+            }
+
+            for (int zig = 0; zig < 64; zig++)
+            {
+                int naturalIndex = JpgZigZag.Table[zig];
+                workspace[naturalIndex] = subWorkspace[zig];
             }
 
             Transform(workspace, output, outStride, workspace);
         }
 
         /// <summary>
-        /// Transform using a precomputed ScaledIdctPlan with natural-order input (dequant multipliers in natural order).
+        /// Transform using a precomputed ScaledIdctPlan with natural-order input (fused dequant + IDCT).
+        /// Performs DC-only detection (vector accelerated when width == 8) and fills directly when possible.
         /// </summary>
-        public static void TransformScaledNatural(int[] inputNatural, ScaledIdctPlan plan, Span<byte> output, int outStride, int[] workspace)
+        public static void TransformScaledNatural(int[] inputNatural, ScaledIdctPlan plan, Span<byte> output, int outStride, int[] workspace, bool dcOnly)
         {
             if (plan == null)
             {
@@ -281,18 +310,36 @@ namespace PdfReader.Rendering.Image.Jpg.Idct
                 throw new ArgumentException("input must have 64 coefficients");
             }
 
-            // Multiply by dequant (natural order) into workspace then run standard transform
-            int vec = Vector<int>.Count;
-            int i = 0;
-            for (; i <= 64 - vec; i += vec)
+            if (dcOnly)
             {
-                var vi = new Vector<int>(inputNatural, i);
-                var vq = new Vector<int>(plan.DequantNatural, i);
-                (vi * vq).CopyTo(workspace, i);
+                int dcDequant = inputNatural[0] * plan.DequantNatural[0];
+                FillBlockFromDc(dcDequant, output, outStride);
+                return;
             }
-            for (; i < 64; i++)
+
+            int vectorWidth = Vector<int>.Count;
+            if (vectorWidth == 8)
             {
-                workspace[i] = inputNatural[i] * plan.DequantNatural[i];
+                int index = 0;
+                for (; index <= 64 - vectorWidth; index += vectorWidth)
+                {
+                    Vector<int> coeff = new Vector<int>(inputNatural, index);
+                    Vector<int> quant = new Vector<int>(plan.DequantNatural, index);
+                    (coeff * quant).CopyTo(workspace, index);
+                }
+                for (; index < 64; index++)
+                {
+                    int v = inputNatural[index];
+                    workspace[index] = v * plan.DequantNatural[index];
+                }
+            }
+            else
+            {
+                for (int i = 0; i < 64; i++)
+                {
+                    int v = inputNatural[i];
+                    workspace[i] = v * plan.DequantNatural[i];
+                }
             }
 
             Transform(workspace, output, outStride, workspace);
@@ -301,8 +348,6 @@ namespace PdfReader.Rendering.Image.Jpg.Idct
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static int Descale(long value, int n)
         {
-            // JPEG-style RIGHT_SHIFT with round-to-nearest behavior matching libjpeg.
-            // For negative values, use (bias-1) to preserve symmetry.
             long bias = 1L << (n - 1);
             if (value >= 0)
             {
@@ -328,6 +373,29 @@ namespace PdfReader.Rendering.Image.Jpg.Idct
             }
 
             return (byte)value;
+        }
+
+        /// <summary>
+        /// Fill an 8x8 output block with the pixel value derived from a single dequantized DC coefficient.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static void FillBlockFromDc(int dcDequant, Span<byte> output, int outStride)
+        {
+            int dcShifted = dcDequant << Pass1Bits;
+            int pixel = Descale(dcShifted, Pass1Bits + 3) + CenterSample;
+            byte value = RangeLimit(pixel);
+            for (int rowIndex = 0; rowIndex < 8; rowIndex++)
+            {
+                int dest = rowIndex * outStride;
+                output[dest + 0] = value;
+                output[dest + 1] = value;
+                output[dest + 2] = value;
+                output[dest + 3] = value;
+                output[dest + 4] = value;
+                output[dest + 5] = value;
+                output[dest + 6] = value;
+                output[dest + 7] = value;
+            }
         }
     }
 }

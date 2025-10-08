@@ -16,7 +16,7 @@ namespace PdfReader.Rendering.Image
         /// <summary>
         /// Gets the underlying <see cref="PdfObject"/> that serves as the source for this instance.
         /// </summary>
-        public PdfObject SourceObject { get; private set; }
+        public PdfObject SourceObject { get; internal set; }
 
         /// <summary>
         /// Returns the raw image data decoded from the PDF stream after reversing the /Filter chain.
@@ -27,74 +27,74 @@ namespace PdfReader.Rendering.Image
         /// <summary>
         /// Image width in pixels (/Width).
         /// </summary>
-        public int Width { get; private set; }
+        public int Width { get; internal set; }
 
         /// <summary>
         /// Image height in pixels (/Height).
         /// </summary>
-        public int Height { get; private set; }
+        public int Height { get; internal set; }
 
         /// <summary>
         /// Number of bits per color component (/BitsPerComponent).
         /// Valid values are typically 1, 2, 4, 8, or 16 depending on the color space.
         /// </summary>
-        public int BitsPerComponent { get; private set; }
+        public int BitsPerComponent { get; internal set; }
 
         /// <summary>
         /// Image is decoded from a soft mask (/Image XObject with /Subtype /Image and /SMask key in the parent image).
         /// </summary>
-        public bool IsSoftMask { get; private set; }
+        public bool IsSoftMask { get; internal set; }
 
         /// <summary>
         /// Color space (/ColorSpace). Resolved to a strongly-typed converter for sample interpretation.
         /// </summary>
-        public PdfColorSpaceConverter ColorSpaceConverter { get; private set; }
+        public PdfColorSpaceConverter ColorSpaceConverter { get; internal set; }
 
         /// <summary>
         /// The original Image XObject that owns this image (/Subtype /Image).
         /// </summary>
-        public PdfObject ImageXObject { get; private set; }
+        public PdfObject ImageXObject { get; internal set; }
 
         /// <summary>
         /// Debug-friendly name for this image (resource name in /XObject dictionary when available).
         /// </summary>
-        public string Name { get; private set; }
+        public string Name { get; internal set; }
 
         /// <summary>
         /// Simplified image type classification derived from /Filter (e.g., JPEG, JPEG2000, CCITT, JBIG2, Raw).
         /// </summary>
-        public PdfImageType Type { get; private set; } = PdfImageType.Raw;
+        public PdfImageType Type { get; internal set; } = PdfImageType.Raw;
 
         /// <summary>
         /// Parsed /DecodeParms entries (single dictionary or first entry when array) used by certain filters and predictors.
         /// </summary>
-        public List<PdfDecodeParameters> DecodeParms { get; private set; } = new List<PdfDecodeParameters>();
+        public List<PdfDecodeParameters> DecodeParms { get; internal set; } = new List<PdfDecodeParameters>();
 
         /// <summary>
         /// True when explicit image masking is enabled (/ImageMask true).
         /// </summary>
-        public bool HasImageMask { get; private set; }
+        public bool HasImageMask { get; internal set; }
 
         /// <summary>
         /// Color key mask array (/Mask array) flattened to floats. Null when /Mask is not an array.
         /// Values are in the sample value domain for each component.
         /// </summary>
-        public float[] MaskArray { get; private set; }
+        public float[] MaskArray { get; internal set; }
 
         /// <summary>
         /// Per-component decode mapping array (/Decode) as floats: [d0, d1] per component.
         /// </summary>
-        public float[] DecodeArray { get; private set; }
+        public float[] DecodeArray { get; internal set; }
 
         /// <summary>
         /// Indicates whether interpolation should be applied when scaling the image (/Interpolate).
         /// </summary>
-        public bool Interpolate { get; private set; }
+        public bool Interpolate { get; internal set; }
 
         /// <summary>
         /// Strongly-typed rendering intent parsed from /Intent. Defaults to RelativeColorimetric when not specified.
         /// </summary>
-        public PdfRenderingIntent RenderingIntent { get; private set; } = PdfRenderingIntent.RelativeColorimetric;
+        public PdfRenderingIntent RenderingIntent { get; internal set; } = PdfRenderingIntent.RelativeColorimetric;
 
         /// <summary>
         /// Update the image color space converter when the actual component count extracted from a decoded

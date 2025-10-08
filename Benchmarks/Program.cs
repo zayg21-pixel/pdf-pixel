@@ -1,10 +1,12 @@
-﻿using System.Runtime.InteropServices;
-using BenchmarkDotNet.Attributes;
+﻿using BenchmarkDotNet.Attributes;
+using BenchmarkDotNet.Configs;
+using BenchmarkDotNet.Jobs;
 using BenchmarkDotNet.Running;
-using PdfReader.Rendering.Image.Jpg.Readers;
-using PdfReader.Rendering.Image.Jpg.Model;
 using PdfReader.Rendering.Image.Jpg.Decoding;
+using PdfReader.Rendering.Image.Jpg.Model;
+using PdfReader.Rendering.Image.Jpg.Readers;
 using SkiaSharp;
+using System.Runtime.InteropServices;
 
 namespace Benchmarks
 {
@@ -12,16 +14,16 @@ namespace Benchmarks
     {
         public static void Main(string[] args)
         {
-            var s = new JpegDecodeBenchmarks();
-            s.Setup();
+            //var s = new JpegDecodeBenchmarks();
+            //s.Setup();
 
-            for (int i = 0; i < 1000; i++)
-            {
-                using var skiaImage = s.BaselineStreamDecode();
-            }
+            //for (int i = 0; i < 1000; i++)
+            //{
+            //    using var skiaImage = s.BaselineStreamDecode();
+            //}
 
             // Run all benchmarks in the assembly, including JpgIdctTransformBench and others.
-            //BenchmarkRunner.Run<JpgIdctTransformBench>();
+            BenchmarkRunner.Run<JpegDecodeBenchmarks>();
             //BenchmarkSwitcher.FromAssembly(typeof(Program).Assembly).Run(args);
         }
     }
@@ -32,6 +34,7 @@ namespace Benchmarks
     }
 
     [MemoryDiagnoser]
+    [SimpleJob(RuntimeMoniker.Net80, launchCount: 1, warmupCount: 1, invocationCount: 20, iterationCount: 32)]
     public class JpegDecodeBenchmarks
     {
         private ReadOnlyMemory<byte> jpegData;

@@ -269,13 +269,13 @@ namespace PdfReader.Rendering.Image.Jpg.Decoding
                                 dcDecoder,
                                 acDecoder,
                                 ref _previousDc[componentIndex],
-                                _blockZigZag);
+                                _blockZigZag, out bool dcOnly);
 
                             var plan = _scaledPlans[componentIndex];
                             int dstY0 = vBlock * 8;
                             int dstX0 = hBlock * 8;
                             int dstOffset = dstY0 * tileWidth + dstX0;
-                            JpgIdct.TransformScaledZigZag(_blockZigZag, plan, tile.AsSpan(dstOffset), tileWidth, _idctWorkspace, _idctSubWorkspace);
+                            JpgIdct.TransformScaledZigZag(_blockZigZag, plan, tile.AsSpan(dstOffset), tileWidth, _idctWorkspace, _idctSubWorkspace, dcOnly);
                         }
                     }
                 }

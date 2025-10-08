@@ -229,16 +229,24 @@ namespace PdfReader.Rendering.Image.Jpg.Decoding
                             }
 
                             int coeffBase = (blockY * buffer.BlocksX + blockX) * DctBlockSize;
-                            for (int coefficientIndex = 0; coefficientIndex < DctBlockSize; coefficientIndex++)
+                            bool dcOnly = true;
+                            int dc = buffer.Coeffs[coeffBase];
+                            _blockNatural[0] = dc;
+                            for (int coefficientIndex = 1; coefficientIndex < DctBlockSize; coefficientIndex++)
                             {
-                                _blockNatural[coefficientIndex] = buffer.Coeffs[coeffBase + coefficientIndex];
+                                int val = buffer.Coeffs[coeffBase + coefficientIndex];
+                                _blockNatural[coefficientIndex] = val;
+                                if (val != 0)
+                                {
+                                    dcOnly = false;
+                                }
                             }
 
                             var plan = _scaledPlans[componentIndex];
                             int dstY0 = vBlock * 8;
                             int dstX0 = hBlock * 8;
                             int dstOffset = dstY0 * tileWidth + dstX0;
-                            JpgIdct.TransformScaledNatural(_blockNatural, plan, tile.AsSpan(dstOffset), tileWidth, _idctWorkspace);
+                            JpgIdct.TransformScaledNatural(_blockNatural, plan, tile.AsSpan(dstOffset), tileWidth, _idctWorkspace, dcOnly);
                         }
                     }
                 }
