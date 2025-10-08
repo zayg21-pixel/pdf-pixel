@@ -42,48 +42,14 @@ namespace PdfReader.Parsing
             return true;
         }
 
-        public static PdfDictionary ParseDictionary(ref PdfParseContext context, PdfDocument document, bool allowReferences)
-        {
-            var dict = new PdfDictionary(document);
-            
-            if (!PdfParsingHelpers.MatchSequence(ref context, PdfTokens.DictStart))
-                return dict;
-            
-            
-            while (!context.IsAtEnd)
-            {
-                PdfParsingHelpers.SkipWhitespaceAndComment(ref context);
-                
-                if (PdfParsingHelpers.MatchSequence(ref context, PdfTokens.DictEnd))
-                    break;
-                
-                // Parse key
-                if (PdfParsingHelpers.PeekByte(ref context) != PdfTokens.ForwardSlash)
-                    break;
-                
-                string key = ParseNameAsString(ref context);
-                if (string.IsNullOrEmpty(key))
-                    break;
-                
-                PdfParsingHelpers.SkipWhitespaceAndComment(ref context);
-                
-                // Parse value
-                var value = ParsePdfValue(ref context, document, allowReferences);
-                if (value != null)
-                {
-                    dict.Set(key, value);
-                }
-            }
-            
-            return dict;
-        }
-
-        public static IPdfValue ParsePdfValue(ref PdfParseContext context, PdfDocument document, bool allowReferences = false)
+        public static IPdfValue ParsePdfValue(ref PdfParseContext context, PdfDocument document, PdfReference targetReference = default, bool allowReferences = false, bool shouldDecrypt = false)
         {
             PdfParsingHelpers.SkipWhitespaceAndComment(ref context);
 
             if (context.IsAtEnd)
+            {
                 return null;
+            }
 
             byte b = PdfParsingHelpers.PeekByte(ref context);
 
@@ -94,17 +60,17 @@ namespace PdfReader.Parsing
             }
             else if (b == PdfTokens.LeftSquare)
             {
-                var array = ParsePdfArray(ref context, document, allowReferences);
+                var array = ParsePdfArray(ref context, document, targetReference, allowReferences, shouldDecrypt);
                 return array != null ? PdfValue.Array(array) : null;
             }
             else if (b == PdfTokens.LeftAngle && PdfParsingHelpers.PeekByte(ref context, 1) == PdfTokens.LeftAngle)
             {
-                var subDict = ParseDictionary(ref context, document, allowReferences);
+                var subDict = ParseDictionary(ref context, document, targetReference, allowReferences, shouldDecrypt);
                 return PdfValue.Dictionary(subDict);
             }
             else if (b == PdfTokens.LeftAngle)
             {
-                // Single angle bracket - hex string
+                // Single angle bracket - hex string. Do not decrypt here (spec encryption applies to the raw bytes; hex literal stays hex digits).
                 var hexString = ParseHexStringAsHexDigits(ref context);
                 return hexString != null ? PdfValue.HexString(hexString) : null;
             }
@@ -115,11 +81,38 @@ namespace PdfReader.Parsing
             else if (b == PdfTokens.LeftParen)
             {
                 var str = ParseStringAsString(ref context);
-                return str != null ? PdfValue.String(str) : null;
+                if (str == null)
+                {
+                    return null;
+                }
+
+                str = GetDecryptedString(document, targetReference, shouldDecrypt, str);
+
+                return PdfValue.String(str);
             }
-            
+
             var token = ParseTokenAsString(ref context);
             return token != null ? PdfValue.Operator(token) : null;
+        }
+
+        private static string GetDecryptedString(PdfDocument document, PdfReference reference, bool shouldDecrypt, string str)
+        {
+            if (shouldDecrypt && document.Decryptor != null)
+            {
+                try
+                {
+                    // Interpret parsed string as ISO-8859-1 bytes (baseline PDF doc encoding) and decrypt.
+                    byte[] rawBytes = EncodingExtensions.PdfDefault.GetBytes(str);
+                    var decrypted = document.Decryptor.DecryptBytes(rawBytes, reference);
+                    str = EncodingExtensions.PdfDefault.GetString(decrypted);
+                }
+                catch
+                {
+                    // Ignore decryption errors at this stage (leave original string).
+                }
+            }
+
+            return str;
         }
 
         private static IPdfValue ParseNumericValue(ref PdfParseContext context, bool allowReferences)
@@ -173,21 +166,68 @@ namespace PdfReader.Parsing
             return null;
         }
 
-        public static PdfArray ParsePdfArray(ref PdfParseContext context, PdfDocument document, bool allowReferences)
+        private static PdfDictionary ParseDictionary(ref PdfParseContext context, PdfDocument document, PdfReference targetReference, bool allowReferences, bool shouldDecrypt)
+        {
+            var dict = new PdfDictionary(document);
+
+            if (!PdfParsingHelpers.MatchSequence(ref context, PdfTokens.DictStart))
+            {
+                return dict;
+            }
+
+            while (!context.IsAtEnd)
+            {
+                PdfParsingHelpers.SkipWhitespaceAndComment(ref context);
+
+                if (PdfParsingHelpers.MatchSequence(ref context, PdfTokens.DictEnd))
+                {
+                    break;
+                }
+
+                // Parse key
+                if (PdfParsingHelpers.PeekByte(ref context) != PdfTokens.ForwardSlash)
+                {
+                    break;
+                }
+
+                string key = ParseNameAsString(ref context);
+                if (string.IsNullOrEmpty(key))
+                {
+                    break;
+                }
+
+                PdfParsingHelpers.SkipWhitespaceAndComment(ref context);
+
+                // Parse value
+                var value = ParsePdfValue(ref context, document, targetReference, allowReferences, shouldDecrypt);
+                if (value != null)
+                {
+                    dict.Set(key, value);
+                }
+            }
+
+            return dict;
+        }
+
+        private static PdfArray ParsePdfArray(ref PdfParseContext context, PdfDocument document, PdfReference targetReference, bool allowReferences, bool shouldDecrypt)
         {
             var array = new List<IPdfValue>();
             
             if (!PdfParsingHelpers.MatchSequence(ref context, PdfTokens.ArrayStart))
+            {
                 return new PdfArray(document, array);
+            }
             
             while (!context.IsAtEnd)
             {
                 PdfParsingHelpers.SkipWhitespaceAndComment(ref context);
                 
                 if (PdfParsingHelpers.MatchSequence(ref context, PdfTokens.ArrayEnd))
+                {
                     break;
+                }
                 
-                var value = ParsePdfValue(ref context, document, allowReferences);
+                var value = ParsePdfValue(ref context, document, targetReference, allowReferences, shouldDecrypt);
                 if (value != null)
                 {
                     array.Add(value);
@@ -202,10 +242,12 @@ namespace PdfReader.Parsing
             return new PdfArray(document, array);
         }
 
-        public static string ParseNameAsString(ref PdfParseContext context)
+        private static string ParseNameAsString(ref PdfParseContext context)
         {
             if (PdfParsingHelpers.PeekByte(ref context) != PdfTokens.ForwardSlash)
+            {
                 return null;
+            }
             
             int start = context.Position;
             context.Advance(1); // Skip '/'
@@ -217,7 +259,9 @@ namespace PdfReader.Parsing
                     b == PdfTokens.LeftSquare || b == PdfTokens.RightSquare || 
                     b == PdfTokens.LeftAngle || b == PdfTokens.RightAngle || 
                     b == PdfTokens.LeftParen || b == PdfTokens.RightParen)
+                {
                     break;
+                }
                 
                 context.Advance(1);
             }
@@ -284,19 +328,29 @@ namespace PdfReader.Parsing
         private static int HexDigitToValue(byte hexDigit)
         {
             if (hexDigit >= (byte)'0' && hexDigit <= (byte)'9')
+            {
                 return hexDigit - (byte)'0';
+            }
             else if (hexDigit >= (byte)'A' && hexDigit <= (byte)'F')
+            {
                 return hexDigit - (byte)'A' + 10;
+            }
             else if (hexDigit >= (byte)'a' && hexDigit <= (byte)'f')
+            {
                 return hexDigit - (byte)'a' + 10;
+            }
             else
+            {
                 return 0; // Should never happen if IsHexDigit was called first
+            }
         }
 
         public static string ParseStringAsString(ref PdfParseContext context)
         {
             if (PdfParsingHelpers.PeekByte(ref context) != PdfTokens.LeftParen)
+            {
                 return null;
+            }
             
             context.Position++; // Skip '('
             
@@ -316,7 +370,9 @@ namespace PdfReader.Parsing
                 {
                     parenCount--;
                     if (parenCount > 0)
+                    {
                         str.Append((char)b);
+                    }
                 }
                 else if (b == PdfTokens.Backslash && context.Position < context.Length)
                 {
@@ -329,7 +385,6 @@ namespace PdfReader.Parsing
                         // Line continuation: backslash followed by EOL (CR, LF, or CRLF) -> ignore the EOL
                         if (next == (byte)'\n')
                         {
-                            // ignore LF
                             continue;
                         }
                         if (next == (byte)'\r')
@@ -346,13 +401,14 @@ namespace PdfReader.Parsing
                         if (next >= (byte)'0' && next <= (byte)'7')
                         {
                             int val = next - (byte)'0';
-                            int digits = 1;
                             for (int k = 0; k < 2 && context.Position < context.Length; k++)
                             {
                                 byte d = PdfParsingHelpers.PeekByte(ref context);
-                                if (d < (byte)'0' || d > (byte)'7') break;
+                                if (d < (byte)'0' || d > (byte)'7')
+                                {
+                                    break;
+                                }
                                 context.Advance(1);
-                                digits++;
                                 val = (val << 3) + (d - (byte)'0');
                             }
                             str.Append((char)(val & 0xFF));
@@ -392,7 +448,9 @@ namespace PdfReader.Parsing
             {
                 byte b = PdfParsingHelpers.PeekByte(ref context);
                 if (PdfParsingHelpers.IsWhitespace(b) || PdfParsingHelpers.IsDelimiter(b))
+                {
                     break;
+                }
                 
                 context.Advance(1);
             }
@@ -416,12 +474,6 @@ namespace PdfReader.Parsing
         /// <returns>Stream data as Memory&lt;byte&gt;</returns>
         public static ReadOnlyMemory<byte> ParseStream(ref PdfParseContext context, PdfDictionary streamDictionary)
         {
-            // TODO: we must handle the case where /Length is an indirect reference, but to properly do this,
-            // we need to have already parsed all objects and have them in the document's object table.
-            // For now, we only handle direct integer lengths.
-            // In future we need to parse xref table first, then parse all objects, then we can resolve indirect references.
-            // this will also allow us to handle object streams (ObjStm) properly and decode encrypted streams.
-
             // After the "stream" keyword, consume exactly one end-of-line if present per spec (CRLF, CR, or LF)
             PdfParsingHelpers.SkipSingleEol(ref context);
 
@@ -503,7 +555,6 @@ namespace PdfReader.Parsing
             }
         }
 
-        // Extremely frequently called during number parsing - aggressive inline
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool TryParseNumber(ref PdfParseContext context, out int number)
         {
@@ -530,14 +581,16 @@ namespace PdfReader.Parsing
             
             if (hasDigits)
             {
-                if (negative) number = -number;
+                if (negative)
+                {
+                    number = -number;
+                }
                 return true;
             }
             
             return false;
         }
 
-        // Frequently called during number parsing - aggressive inline
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool TryParseFloat(ref PdfParseContext context, out float number)
         {
@@ -585,7 +638,10 @@ namespace PdfReader.Parsing
             
             if (hasDigits)
             {
-                if (negative) number = -number;
+                if (negative)
+                {
+                    number = -number;
+                }
                 return true;
             }
             
@@ -594,13 +650,12 @@ namespace PdfReader.Parsing
             return false;
         }
 
-        /// <summary>
-        /// Parse a PDF hex string &lt;...&gt; and return the raw hex digits as string (for CMap usage)
-        /// </summary>
         public static string ParseHexStringAsHexDigits(ref PdfParseContext context)
         {
             if (PdfParsingHelpers.PeekByte(ref context) != PdfTokens.LeftAngle)
+            {
                 return null;
+            }
             
             context.Advance(1); // Skip '<'
             

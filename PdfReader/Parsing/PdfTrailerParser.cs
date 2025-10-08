@@ -39,8 +39,8 @@ namespace PdfReader.Parsing
                 return true;
             }
 
-            _document.TrailerDictionary = PdfParsers.ParseDictionary(ref context, _document, allowReferences: true);
-            _document.RootObject = _document.TrailerDictionary.GetPageObject(PdfTokens.RootKey);
+            _document.TrailerDictionary = PdfParsers.ParsePdfValue(ref context, _document, allowReferences: true).AsDictionary();
+            _document.RootObject = _document.TrailerDictionary?.GetPageObject(PdfTokens.RootKey);
             return true;
         }
 

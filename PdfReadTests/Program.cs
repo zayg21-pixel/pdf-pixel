@@ -9,67 +9,8 @@ namespace PdfReadTests
     {
         private static readonly ILoggerFactory LoggerFactoryInstance = LoggerFactory.Create(builder => builder.AddConsole());
         private static readonly ILogger Logger = LoggerFactoryInstance.CreateLogger<Program>();
-        public static int ToDecimal(string octal)
-        {
-            if (string.IsNullOrWhiteSpace(octal))
-                throw new ArgumentException("Value cannot be null or whitespace.", nameof(octal));
-
-            if (!TryToDecimal(octal.AsSpan().Trim(), out var value))
-                throw new FormatException($"Invalid octal number: '{octal}'.");
-
-            return value;
-        }
-
-        public static bool TryToDecimal(ReadOnlySpan<char> octal, out int value)
-        {
-            value = 0;
-
-            // optional 0o/0O prefix
-            if (octal.StartsWith("0o".AsSpan(), StringComparison.OrdinalIgnoreCase))
-                octal = octal.Slice(2);
-
-            if (octal.Length == 0)
-                return false;
-
-            try
-            {
-                foreach (char c in octal)
-                {
-                    if (c < '0' || c > '7') return false;
-                    checked { value = value * 8 + (c - '0'); }
-                }
-                return true;
-            }
-            catch (OverflowException)
-            {
-                return false;
-            }
-        }
-
         static async Task Main(string[] args)
         {
-            //var items = File.ReadAllText("StandardEncodings2.txt");
-            //var split = items.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
-
-            //string[] result = new string[256];
-
-            //foreach (var line in split)
-            //{
-            //    var parts = line.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
-            //    var name = parts[1];
-            //    var part = parts[2];
-
-            //    if (TryToDecimal(part, out var code))
-            //    {
-            //        result[code] = name;
-            //    }
-            //}
-
-            //string resString = string.Join(",\r\n", result?.Select(r => r == null ? "null" : $"\"{r}\""));
-
-            int? test = null;
-            string rest = test.ToString();
-
             Logger.LogInformation("PDF Direct Rendering Library");
             Logger.LogInformation("===========================");
             Logger.LogInformation(string.Empty);
@@ -97,13 +38,13 @@ namespace PdfReadTests
                 //"pdfs//IndexedCS_negative_and_high.pdf",
                 //@"sample.pdf",
                 //"pdfs//tiling-pattern-box.pdf",
-                //"pdfs//gradientfill.pdf", // TODO: fix, doesn't render
+                //"pdfs//gradientfill.pdf",
                 //@"document - Copy.pdf",
-                @"documentS.pdf",
+                //@"documentS.pdf",
                 //@"documentC.pdf",
                 //"pdfs//ccitt_EndOfBlock_false.pdf",
                 //"pdfs//images_1bit_grayscale.pdf",
-                //"adyen_2020.pdf",
+                "adyen_2020.pdf",
                 //"documentEd.pdf"
                 //@"document_1.pdf"
             };
@@ -154,8 +95,6 @@ namespace PdfReadTests
                         // Demonstrate rendering to a bitmap
                         try
                         {
-                            // Use the effective rendering bounds (CropBox if available, otherwise MediaBox)
-                            // This also accounts for rotation by swapping dimensions when needed
                             var renderingBounds = page.CropBox;
                             
                             var renderWidth = (int)Math.Max(renderingBounds.Width, 100); // Minimum 100px
@@ -192,17 +131,6 @@ namespace PdfReadTests
                                     data.SaveTo(fileStream);
                                 }
 
-                                //if (i == max - 1)
-                                //{
-                                //    while (true)
-                                //    {
-                                //        GC.Collect();
-                                //        GC.WaitForPendingFinalizers();
-                                //        GC.WaitForFullGCComplete();
-                                //        await Task.Delay(100);
-                                //    }
-                                //}
-
                                 //var recording = CreateRecording(page, scaleX);
                                 //var filename_png = $"Test\\{filename}_page_{page.PageNumber}.sk";
                                 //using (var image = recording.Serialize())
@@ -210,8 +138,6 @@ namespace PdfReadTests
                                 //{
                                 //    image.SaveTo(fileStream);
                                 //}
-
-                                //Console.WriteLine($"    Rendered successfully and saved as {filename_png}");
                             }
 
                         }

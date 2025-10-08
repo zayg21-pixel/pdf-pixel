@@ -10,14 +10,12 @@ namespace PdfReader.Models
     public interface IPdfValue<T> : IPdfValue
     {
         T Value { get; }
-
-        void UpdateValue(T newValue);
     }
 
     // Union type for PDF values
     public class PdfValue<T> : IPdfValue, IPdfValue<T>
     {
-        private T _value;
+        private readonly T _value;
         private readonly PdfValueType _type;
 
         public PdfValueType Type => _type;
@@ -27,11 +25,6 @@ namespace PdfReader.Models
         {
             _value = value;
             _type = type;
-        }
-
-        public void UpdateValue(T newValue)
-        {
-            _value = newValue;
         }
 
         public override string ToString()

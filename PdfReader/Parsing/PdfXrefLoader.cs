@@ -18,18 +18,15 @@ namespace PdfReader.Parsing
         private const int MaxReasonableObjectNumber = 10_000_000; // Heuristic guardrail.
         private const int MaxReasonableEntryCount = 2_000_000;     // Prevent runaway allocations / loops.
 
-        public PdfXrefLoader(PdfDocument document, ILogger<PdfXrefLoader> logger)
+        public PdfXrefLoader(PdfDocument document)
         {
             if (document == null)
             {
                 throw new ArgumentNullException(nameof(document));
             }
-            if (logger == null)
-            {
-                throw new ArgumentNullException(nameof(logger));
-            }
+
             _document = document;
-            _logger = logger;
+            _logger = document.LoggerFactory.CreateLogger<PdfXrefLoader>();
             _trailerParser = new PdfTrailerParser(document);
         }
 
@@ -64,6 +61,7 @@ namespace PdfReader.Parsing
                 {
                     context.Position = xrefOffset + PdfTokens.Xref.Length;
                     ParseClassicXref(ref context);
+                    _trailerParser.FinalizeTrailer();
                 }
                 catch (Exception ex)
                 {
@@ -75,7 +73,11 @@ namespace PdfReader.Parsing
             // Not classic; attempt xref stream (PDF 1.5+)
             try
             {
-                if (!ParseXrefStream(ref context, xrefOffset))
+                if (ParseXrefStream(ref context, xrefOffset))
+                {
+                    _trailerParser.FinalizeTrailer();
+                }
+                else
                 {
                     _logger.LogWarning("PdfXrefLoader: Offset {Offset} was not a classic table nor a valid xref stream.", xrefOffset);
                 }
@@ -327,8 +329,6 @@ namespace PdfReader.Parsing
                             break;
                         case 1: // uncompressed
                             info = PdfObjectInfo.ForUncompressed(reference, field2, true);
-                            info.RawField2 = field2;
-                            info.RawField3 = field3;
                             break;
                         case 2: // compressed
                             if (field2 == 0)
@@ -336,8 +336,6 @@ namespace PdfReader.Parsing
                                 continue;
                             }
                             info = PdfObjectInfo.ForCompressed(reference, (int)field2, (int)field3, true);
-                            info.RawField2 = field2;
-                            info.RawField3 = field3;
                             break;
                         default:
                             _logger.LogWarning("PdfXrefLoader: Unsupported xref stream entry type {Type} for object {Obj} (fields {F2},{F3}).", type, objNumber, field2, field3);

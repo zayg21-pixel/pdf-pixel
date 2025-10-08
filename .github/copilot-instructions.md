@@ -10,6 +10,7 @@ General
 - Avoid magic numbers; introduce well-named constants.
 - Prefer immutability and pure functions when possible.
 - Preserve existing comments; update them if they become outdated instead of removing.
+- NEVER remove TODO comments. Preserve every TODO exactly as written. If the surrounding code changes, you may add clarification after the existing TODO but must not delete or rewrite the original TODO marker or text.
 
 Formatting and compactness
 - Never place multiple statements on a single line. One statement per line.

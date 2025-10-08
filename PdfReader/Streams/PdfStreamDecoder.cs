@@ -43,6 +43,7 @@ namespace PdfReader.Streams
             // TODO: use
             List<string> filters = GetFilters(obj);
             List<PdfDictionary> decodeParms = GetDecodeParms(obj);
+
             return DecodeAsStream(obj.StreamData, filters, decodeParms);
         }
 

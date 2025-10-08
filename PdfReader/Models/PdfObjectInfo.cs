@@ -158,20 +158,6 @@ namespace PdfReader.Models
         public bool FromFallbackScan { get; internal set; }
 
         /// <summary>
-        /// Optional diagnostic copy of raw field 2 value from xref stream (unused by core logic).
-        /// For type 1 entries this is the file offset. For type 2 entries the object stream number.
-        /// For type 0 entries the next free object number. Null when not captured.
-        /// </summary>
-        public long? RawField2 { get; internal set; }
-
-        /// <summary>
-        /// Optional diagnostic copy of raw field 3 value from xref stream (unused by core logic).
-        /// For type 1 entries this is the generation. For type 2 entries the index in the object stream.
-        /// For type 0 entries the next free generation. Null when not captured.
-        /// </summary>
-        public long? RawField3 { get; internal set; }
-
-        /// <summary>
         /// Optional relative byte offset inside the decoded object stream where this compressed object's bytes start.
         /// Populated on-demand when the containing /ObjStm is first indexed.
         /// </summary>

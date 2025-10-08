@@ -1,7 +1,5 @@
 using System;
 using Microsoft.Extensions.Logging;
-using PdfReader.Encryption;
-using PdfReader.Fonts;
 using PdfReader.Models;
 
 namespace PdfReader.Parsing
@@ -14,7 +12,6 @@ namespace PdfReader.Parsing
     {
         private readonly PdfDocument _document;
         private readonly PdfObjectStreamParser _objectStreamParser;
-        private readonly PdfTrailerParser _pdfTrailerParser;
         private readonly ILogger<PdfObjectParser> _logger;
 
         public PdfObjectParser(PdfDocument document)
@@ -26,60 +23,7 @@ namespace PdfReader.Parsing
 
             _document = document;
             _objectStreamParser = new PdfObjectStreamParser(document);
-            _pdfTrailerParser = new PdfTrailerParser(document);
             _logger = document.LoggerFactory.CreateLogger<PdfObjectParser>();
-        }
-
-        private void ScanObjects(ref PdfParseContext context, string password)
-        {
-            // TODO: complete as fail case
-            context.Position = 0;
-
-            while (context.Position < context.Length - PdfTokens.MinBufferLengthForObjectParsing)
-            {
-                // Attempt to parse an object header: "number generation obj"
-                if (PdfParsers.TryParseObjectHeader(ref context, out int objectNumber, out int generation))
-                {
-                    PdfParsingHelpers.SkipWhitespaceAndComment(ref context);
-
-                    // Parse the object value (could be any PDF value; dictionary sets obj.Dictionary internally)
-                    var value = PdfParsers.ParsePdfValue(ref context, _document, allowReferences: true);
-                    var pdfObject = new PdfObject(new PdfReference(objectNumber, generation), _document, value);
-
-                    // If a dictionary precedes a stream keyword, parse the stream data.
-                    PdfParsingHelpers.SkipWhitespaceAndComment(ref context);
-                    if (PdfParsingHelpers.MatchSequence(ref context, PdfTokens.Stream))
-                    {
-                        pdfObject.StreamData = PdfParsers.ParseStream(ref context, pdfObject.Dictionary);
-                    }
-
-                    if (value != null)
-                    {
-                        _document.StoreParsedObject(pdfObject);
-                    }
-
-                    // Advance to endobj (tolerant scan)
-                    while (context.Position < context.Length - PdfTokens.MinBufferLengthForEndObj)
-                    {
-                        if (PdfParsingHelpers.MatchSequence(ref context, PdfTokens.Endobj))
-                        {
-                            break;
-                        }
-                        context.Position++;
-                    }
-                }
-                else if (_pdfTrailerParser.TryParseTrailerDictionary(ref context))
-                {
-                    // Advance by one byte and continue scanning.
-                    context.Position++;
-                }
-                else
-                {
-                    context.Position++;
-                }
-            }
-
-            _pdfTrailerParser.FinalizeTrailer();
         }
 
         /// <summary>
@@ -90,10 +34,6 @@ namespace PdfReader.Parsing
         /// <returns>Parsed PdfObject or null on failure / unsupported cases.</returns>
         public PdfObject ParseSingleIndexedObject(PdfObjectInfo info)
         {
-            if (info == null)
-            {
-                return null;
-            }
             if (info.IsFree)
             {
                 return null;
@@ -121,14 +61,25 @@ namespace PdfReader.Parsing
                 return null;
             }
             PdfParsingHelpers.SkipWhitespaceAndComment(ref context);
-            var value = PdfParsers.ParsePdfValue(ref context, _document, allowReferences: true);
+            var value = PdfParsers.ParsePdfValue(ref context, _document, info.Reference, allowReferences: true, shouldDecrypt: _document.Decryptor != null);
             var pdfObject = new PdfObject(info.Reference, _document, value);
             PdfParsingHelpers.SkipWhitespaceAndComment(ref context);
             if (PdfParsingHelpers.MatchSequence(ref context, PdfTokens.Stream))
             {
-                pdfObject.StreamData = PdfParsers.ParseStream(ref context, pdfObject.Dictionary);
+                var streamData = PdfParsers.ParseStream(ref context, pdfObject.Dictionary);
+                pdfObject.StreamData = GetDecryptedStream(streamData, info.Reference);
             }
             return pdfObject;
+        }
+
+        private ReadOnlyMemory<byte> GetDecryptedStream(ReadOnlyMemory<byte> streamData, PdfReference reference)
+        {
+            if (_document.Decryptor != null)
+            {
+                return _document.Decryptor.DecryptBytes(streamData, reference);
+            }
+
+            return streamData;
         }
     }
 }

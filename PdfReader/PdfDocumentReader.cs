@@ -70,20 +70,16 @@ namespace PdfReader
 
             var context = new PdfParseContext(buffer);
             var document = new PdfDocument(_loggerFactory, buffer);
-            var xrefLoader = new PdfXrefLoader(document, _loggerFactory.CreateLogger<PdfXrefLoader>());
-            //var resourceLoader = new PdfResourceLoader(document);
+            var xrefLoader = new PdfXrefLoader(document);
             var pageExtractor = new PdfPageExtractor(document);
 
             try
             {
                 xrefLoader.LoadXref(ref context);
 
-                // TODO: add as fallback!
-                //var objectParser = new PdfObjectParser(document);
-                //objectParser.ParseObjects(ref context, password);
+                document.Decryptor?.UpdatePassword(password);
 
                 pageExtractor.ExtractPages();
-                //resourceLoader.LoadPageResources();
 
                 _logger.LogInformation("Parsed PDF with {PageCount} page(s).", document.PageCount);
             }
