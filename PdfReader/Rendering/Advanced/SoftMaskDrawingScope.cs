@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using PdfReader.Models;
+using PdfReader.Parsing;
 using PdfReader.Streams;
 using SkiaSharp;
 

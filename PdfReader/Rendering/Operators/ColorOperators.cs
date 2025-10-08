@@ -3,6 +3,7 @@ using PdfReader.Models;
 using SkiaSharp;
 using PdfReader.Rendering.Color;
 using PdfReader.Rendering.Pattern;
+using PdfReader.Parsing;
 
 namespace PdfReader.Rendering.Operators
 {

@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using Microsoft.Extensions.Logging;
 using PdfReader.Models;
+using PdfReader.Parsing;
 using PdfReader.Rendering.State;
 using SkiaSharp;
 

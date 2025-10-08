@@ -25,9 +25,9 @@ namespace PdfReader.Models
 
         public PdfDocument(ILoggerFactory loggerFactory, ReadOnlyMemory<byte> fileBytes)
         {
+            LoggerFactory = loggerFactory;
             FontCache = new PdfFontCache(this);
             PdfRenderer = new PdfRenderer(FontCache, loggerFactory);
-            LoggerFactory = loggerFactory;
             _fileBytes = fileBytes;
             _pdfObjectParser = new PdfObjectParser(this);
         }

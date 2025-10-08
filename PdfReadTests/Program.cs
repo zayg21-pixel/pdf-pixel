@@ -26,7 +26,7 @@ namespace PdfReadTests
                 //"pdfs//icc-lab4.pdf",
                 //"pdfs//icc-lab2.pdf",
                 //"pdf-example-password.pdf",
-                //"Adyen.pdf",
+                "Adyen.pdf",
                 //"Adyen_debug.pdf",
                 //"pdfs//mixedfonts.pdf",
                 //"Adyen - Copy.pdf",
@@ -40,11 +40,11 @@ namespace PdfReadTests
                 //"pdfs//tiling-pattern-box.pdf",
                 //"pdfs//gradientfill.pdf",
                 //@"document - Copy.pdf",
-                //@"documentS.pdf",
-                //@"documentC.pdf",
+                @"documentS.pdf",
+                @"documentC.pdf",
                 //"pdfs//ccitt_EndOfBlock_false.pdf",
                 //"pdfs//images_1bit_grayscale.pdf",
-                "adyen_2020.pdf",
+                //"adyen_2020.pdf",
                 //"documentEd.pdf"
                 //@"document_1.pdf"
             };
@@ -82,7 +82,7 @@ namespace PdfReadTests
 
                     var start = 0;
                     var max = 300;
-                    float scaleX = 0.1f; // Scale factor for rendering
+                    float scaleX = 1f; // Scale factor for rendering
 
                     var memory = GC.GetTotalMemory(true) / 1024 / 1024;
 

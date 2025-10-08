@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 
-namespace PdfReader
+namespace PdfReader.Parsing
 {
     /// <summary>
     /// High-performance PDF parse context optimized for both single and multiple memory chunks.

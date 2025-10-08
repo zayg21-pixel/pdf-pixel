@@ -95,6 +95,7 @@ namespace PdfReader.Parsing
             return token != null ? PdfValue.Operator(token) : null;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static string GetDecryptedString(PdfDocument document, PdfReference reference, bool shouldDecrypt, string str)
         {
             if (shouldDecrypt && document.Decryptor != null)
@@ -115,6 +116,7 @@ namespace PdfReader.Parsing
             return str;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static IPdfValue ParseNumericValue(ref PdfParseContext context, bool allowReferences)
         {
             // Save position to handle reference parsing correctly
@@ -242,6 +244,7 @@ namespace PdfReader.Parsing
             return new PdfArray(document, array);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static string ParseNameAsString(ref PdfParseContext context)
         {
             if (PdfParsingHelpers.PeekByte(ref context) != PdfTokens.ForwardSlash)
@@ -267,15 +270,11 @@ namespace PdfReader.Parsing
             }
             
             // PDF spec: Names may contain any characters except null (0) encoded as #XX
-            return DecodePdfNameOptimized(context.GetSlice(start, context.Position - start));
+            return DecodePdfName(context.GetSlice(start, context.Position - start));
         }
 
-        /// <summary>
-        /// Optimized PDF name decoding that handles hex-encoded ASCII characters in a single loop
-        /// According to PDF specification, names can contain special characters encoded as #XX 
-        /// where XX is the hexadecimal representation of the ASCII character (e.g., #5F -> underscore)
-        /// </summary>
-        private static string DecodePdfNameOptimized(ReadOnlySpan<byte> nameBytes)
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static string DecodePdfName(ReadOnlySpan<byte> nameBytes)
         {
             var result = new StringBuilder(nameBytes.Length); // Pre-allocate for efficiency
             
@@ -345,7 +344,7 @@ namespace PdfReader.Parsing
             }
         }
 
-        public static string ParseStringAsString(ref PdfParseContext context)
+        private static string ParseStringAsString(ref PdfParseContext context)
         {
             if (PdfParsingHelpers.PeekByte(ref context) != PdfTokens.LeftParen)
             {
@@ -377,59 +376,8 @@ namespace PdfReader.Parsing
                 else if (b == PdfTokens.Backslash && context.Position < context.Length)
                 {
                     // Handle PDF escape sequences
-                    if (context.Position < context.Length)
-                    {
-                        byte next = PdfParsingHelpers.ReadByte(ref context);
-
-                        // TODO: refactor this into a separate method for clarity
-                        // Line continuation: backslash followed by EOL (CR, LF, or CRLF) -> ignore the EOL
-                        if (next == (byte)'\n')
-                        {
-                            continue;
-                        }
-                        if (next == (byte)'\r')
-                        {
-                            // consume optional LF
-                            if (context.Position < context.Length && PdfParsingHelpers.PeekByte(ref context) == (byte)'\n')
-                            {
-                                context.Advance(1);
-                            }
-                            continue;
-                        }
-
-                        // Octal escape: up to 3 octal digits (0-7), value 0..255
-                        if (next >= (byte)'0' && next <= (byte)'7')
-                        {
-                            int val = next - (byte)'0';
-                            for (int k = 0; k < 2 && context.Position < context.Length; k++)
-                            {
-                                byte d = PdfParsingHelpers.PeekByte(ref context);
-                                if (d < (byte)'0' || d > (byte)'7')
-                                {
-                                    break;
-                                }
-                                context.Advance(1);
-                                val = (val << 3) + (d - (byte)'0');
-                            }
-                            str.Append((char)(val & 0xFF));
-                            continue;
-                        }
-
-                        // Standard escapes
-                        char mapped = next switch
-                        {
-                            (byte)'n' => '\n',
-                            (byte)'r' => '\r',
-                            (byte)'t' => '\t',
-                            (byte)'b' => '\b',
-                            (byte)'f' => '\f',
-                            (byte)'(' => '(',
-                            (byte)')' => ')',
-                            (byte)'\\' => '\\',
-                            _ => (char)next
-                        };
-                        str.Append(mapped);
-                    }
+                    HandleEscapedSequence(ref context, str);
+                    continue;
                 }
                 else
                 {
@@ -440,7 +388,85 @@ namespace PdfReader.Parsing
             return str.ToString();
         }
 
-        public static string ParseTokenAsString(ref PdfParseContext context)
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static void HandleEscapedSequence(ref PdfParseContext context, StringBuilder builder)
+        {
+            if (context.Position >= context.Length)
+            {
+                return;
+            }
+
+            byte next = PdfParsingHelpers.ReadByte(ref context);
+
+            // Line continuation: a backslash followed by EOL (CR, LF, or CRLF) -> ignore the EOL entirely.
+            if (next == (byte)'\n')
+            {
+                return;
+            }
+            if (next == (byte)'\r')
+            {
+                if (context.Position < context.Length && PdfParsingHelpers.PeekByte(ref context) == (byte)'\n')
+                {
+                    context.Advance(1); // Consume optional LF following CR.
+                }
+                return;
+            }
+
+            // Octal escape: up to 3 octal digits (0-7), value 0..255.
+            if (next >= (byte)'0' && next <= (byte)'7')
+            {
+                int value = next - (byte)'0';
+                for (int digitIndex = 0; digitIndex < 2 && context.Position < context.Length; digitIndex++)
+                {
+                    byte candidate = PdfParsingHelpers.PeekByte(ref context);
+                    if (candidate < (byte)'0' || candidate > (byte)'7')
+                    {
+                        break;
+                    }
+                    context.Advance(1);
+                    value = (value << 3) + (candidate - (byte)'0');
+                }
+                builder.Append((char)(value & 0xFF));
+                return;
+            }
+
+            char mapped;
+            switch (next)
+            {
+                case (byte)'n':
+                    mapped = '\n';
+                    break;
+                case (byte)'r':
+                    mapped = '\r';
+                    break;
+                case (byte)'t':
+                    mapped = '\t';
+                    break;
+                case (byte)'b':
+                    mapped = '\b';
+                    break;
+                case (byte)'f':
+                    mapped = '\f';
+                    break;
+                case (byte)'(':
+                    mapped = '(';
+                    break;
+                case (byte)')':
+                    mapped = ')';
+                    break;
+                case (byte)'\\':
+                    mapped = '\\';
+                    break;
+                default:
+                    mapped = (char)next;
+                    break;
+            }
+
+            builder.Append(mapped);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static string ParseTokenAsString(ref PdfParseContext context)
         {
             int start = context.Position;
             
@@ -592,7 +618,7 @@ namespace PdfReader.Parsing
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static bool TryParseFloat(ref PdfParseContext context, out float number)
+        private static bool TryParseFloat(ref PdfParseContext context, out float number)
         {
             number = 0f;
             int startPos = context.Position;
@@ -650,7 +676,8 @@ namespace PdfReader.Parsing
             return false;
         }
 
-        public static string ParseHexStringAsHexDigits(ref PdfParseContext context)
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static string ParseHexStringAsHexDigits(ref PdfParseContext context)
         {
             if (PdfParsingHelpers.PeekByte(ref context) != PdfTokens.LeftAngle)
             {

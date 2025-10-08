@@ -5,6 +5,7 @@ using PdfReader.Models;
 using PdfReader.Rendering.Color;
 using PdfReader.Rendering.Advanced;
 using PdfReader.Streams;
+using PdfReader.Parsing;
 
 namespace PdfReader.Rendering.Pattern
 {

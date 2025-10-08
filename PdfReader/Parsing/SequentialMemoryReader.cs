@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace PdfReader
+namespace PdfReader.Parsing
 {
     /// <summary>
     /// High-performance sequential access to multiple memory chunks as if they were one contiguous memory blob.

@@ -1,4 +1,5 @@
 ﻿using PdfReader.Models;
+using PdfReader.Parsing;
 using PdfReader.Rendering.Advanced;
 using PdfReader.Rendering.Image;
 using PdfReader.Rendering.State;

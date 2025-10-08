@@ -58,8 +58,7 @@ namespace PdfReader.Rendering.HarfBuzz
                 var info = buffer.GlyphInfos[i];
                 var position = buffer.GlyphPositions[i];
 
-                // TODO: pass correct direction based on text direction
-                var xNormalized = position.XAdvance / 64f; // HarfBuzz uses 26.6 fixed point
+                var xNormalized = position.XAdvance / 64f;
                 var yNormalized = position.YAdvance / 64f;
 
                 result[i] = new ShapedGlyph(info.Codepoint, xOffset, yOffset, xNormalized, yNormalized);
@@ -91,9 +90,8 @@ namespace PdfReader.Rendering.HarfBuzz
             for (int i = 0; i < glyphs.Length; i++)
             {
                 uint codepoint = glyphs[i];
-                // TODO: pass correct direction based on text direction
                 harfBuzzFont.GetGlyphAdvanceForDirection(codepoint, Direction.LeftToRight, out int xAdvance, out int yAdvance);
-                var xNormalized = xAdvance / 64f; // HarfBuzz uses 26.6 fixed point
+                var xNormalized = xAdvance / 64f;
                 var yNormalized = yAdvance / 64f;
 
                 result[i] = new ShapedGlyph(codepoint, xOffset, yOffset, xNormalized, yNormalized);

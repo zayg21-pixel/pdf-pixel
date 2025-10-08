@@ -1,3 +1,5 @@
+using PdfReader.Parsing;
+
 namespace PdfReader.Rendering.Operators
 {
     /// <summary>
