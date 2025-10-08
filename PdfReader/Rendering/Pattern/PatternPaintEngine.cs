@@ -183,7 +183,7 @@ namespace PdfReader.Rendering.Pattern
 
         private static void RenderShadingPattern(SKCanvas canvas, PdfShadingPattern shadingPattern, PdfGraphicsState state, PdfPage page, IPatternPaintTarget target)
         {
-            if (shadingPattern.ShadingObject == null)
+            if (shadingPattern.ShadingDictionary == null)
             {
                 return;
             }
@@ -207,7 +207,7 @@ namespace PdfReader.Rendering.Pattern
             canvas.Concat(ctmInverse); // Remove dynamic CTM so pattern anchors to default user space.
             canvas.Concat(shadingPattern.PatternMatrix); // Enter pattern space anchored to base user space.
 
-            page.Document.PdfRenderer.ShadingDrawer.DrawShading(canvas, shadingPattern.ShadingObject.Dictionary, state, page);
+            page.Document.PdfRenderer.ShadingDrawer.DrawShading(canvas, shadingPattern.ShadingDictionary, state, page);
 
             softMaskScope.EndDrawContent();
 

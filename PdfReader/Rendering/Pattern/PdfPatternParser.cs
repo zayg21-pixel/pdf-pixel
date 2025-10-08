@@ -97,19 +97,13 @@ namespace PdfReader.Rendering.Pattern
                 matrix = PdfMatrixUtilities.CreateMatrix(matrixArray);
             }
 
-            PdfObject shadingObject = null;
-            var shadingEntry = dict.GetPageObject(PdfTokens.ShadingKey);
-            if (shadingEntry != null)
-            {
-                shadingObject = shadingEntry;
-            }
-
-            PdfDictionary extGState = dict.GetDictionary(PdfTokens.ExtGStateKey);
-
+            PdfDictionary shadingObject = dict.GetDictionary(PdfTokens.ShadingKey);
             if (shadingObject == null)
             {
                 return null; // Invalid shading pattern without /Shading
             }
+
+            PdfDictionary extGState = dict.GetDictionary(PdfTokens.ExtGStateKey);
 
             return new PdfShadingPattern(reference, shadingObject, resources, matrix, extGState);
         }

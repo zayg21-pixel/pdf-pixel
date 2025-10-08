@@ -92,19 +92,19 @@ namespace PdfReader.Rendering.Pattern
     public sealed class PdfShadingPattern : PdfPattern
     {
         /// <summary>Shading dictionary object referenced by the pattern's /Shading entry.</summary>
-        public PdfObject ShadingObject { get; }
+        public PdfDictionary ShadingDictionary { get; }
         /// <summary>Optional ExtGState dictionary (may be null).</summary>
         public PdfDictionary ExtGState { get; }
 
         internal PdfShadingPattern(
             PdfReference reference,
-            PdfObject shadingObject,
+            PdfDictionary shadingDictionary,
             PdfDictionary resources,
             SKMatrix matrix,
             PdfDictionary extGState)
             : base(reference, resources, matrix, PdfPatternType.Shading)
         {
-            ShadingObject = shadingObject;
+            ShadingDictionary = shadingDictionary;
             ExtGState = extGState;
         }
     }
