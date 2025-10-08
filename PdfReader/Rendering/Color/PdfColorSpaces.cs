@@ -93,13 +93,13 @@ namespace PdfReader.Rendering.Color
         {
             try
             {
-                var doc = page?.Document;
-                if (doc == null || !doc.RootRef.IsValid || !doc.Objects.TryGetValue(doc.RootRef, out var root))
+                var rootObject = page.Document.RootObject;
+                if (rootObject == null)
                 {
                     return null;
                 }
 
-                var catalog = root.Dictionary;
+                var catalog = rootObject.Dictionary;
                 var intents = catalog?.GetPageObjects(PdfTokens.OutputIntentsKey);
                 if (intents == null)
                 {

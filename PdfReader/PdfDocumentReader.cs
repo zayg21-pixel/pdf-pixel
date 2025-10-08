@@ -44,14 +44,14 @@ namespace PdfReader
                 throw new InvalidOperationException("Stream must support seeking (required for parsing).");
             }
 
-            var length = stream.Length;
+            long length = stream.Length;
             if (length <= 0)
             {
                 _logger.LogWarning("Empty stream encountered when attempting to read PDF.");
-                return new PdfDocument(_loggerFactory);
+                return new PdfDocument(_loggerFactory, ReadOnlyMemory<byte>.Empty);
             }
 
-            var buffer = new byte[length];
+            byte[] buffer = new byte[length];
             stream.Position = 0;
             int readTotal = 0;
             while (readTotal < length)
@@ -69,17 +69,21 @@ namespace PdfReader
             }
 
             var context = new PdfParseContext(buffer);
-            var document = new PdfDocument(_loggerFactory);
-            var resourceLoader = new PdfResourceLoader(document);
+            var document = new PdfDocument(_loggerFactory, buffer);
+            var xrefLoader = new PdfXrefLoader(document, _loggerFactory.CreateLogger<PdfXrefLoader>());
+            //var resourceLoader = new PdfResourceLoader(document);
             var pageExtractor = new PdfPageExtractor(document);
 
             try
             {
-                var objectParser = new PdfObjectParser(document);
-                objectParser.ParseObjects(ref context, password);
+                xrefLoader.LoadXref(ref context);
+
+                // TODO: add as fallback!
+                //var objectParser = new PdfObjectParser(document);
+                //objectParser.ParseObjects(ref context, password);
 
                 pageExtractor.ExtractPages();
-                resourceLoader.LoadPageResources();
+                //resourceLoader.LoadPageResources();
 
                 _logger.LogInformation("Parsed PDF with {PageCount} page(s).", document.PageCount);
             }

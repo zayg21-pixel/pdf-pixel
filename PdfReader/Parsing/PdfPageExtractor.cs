@@ -37,34 +37,19 @@ namespace PdfReader.Parsing
         public void ExtractPages()
         {
             // Primary path: follow stored RootRef if available.
-            if (_document.RootRef.IsValid && _document.Objects.TryGetValue(_document.RootRef, out var rootObj))
+            if (_document.RootObject != null)
             {
-                var pagesObject = rootObj.Dictionary.GetPageObject(PdfTokens.PagesKey);
+                var pagesObject = _document.RootObject.Dictionary.GetPageObject(PdfTokens.PagesKey);
                 if (pagesObject != null)
                 {
                     ExtractPagesFromPagesObject(pagesObject, 1);
                     return;
                 }
-                _logger.LogWarning("Root object (ref {RootRef}) present but /Pages tree not found.", _document.RootRef);
+                _logger.LogWarning("Root object (ref {RootRef}) present but /Pages tree not found.", _document.RootObject);
             }
             else
             {
-                _logger.LogWarning("RootRef {RootRef} not found in objects.", _document.RootRef);
-            }
-
-            // Last resort: enumerate loose page objects.
-            var pageObjects = _document.Objects.Values.Where(o => o.Dictionary.GetName(PdfTokens.TypeKey) == PdfTokens.PageKey).ToList();
-            for (int i = 0; i < pageObjects.Count; i++)
-            {
-                var pageObj = pageObjects[i];
-                var page = CreatePageFromObject(pageObj, i + 1);
-                _document.Pages.Add(page);
-            }
-            _document.PageCount = _document.Pages.Count;
-
-            if (_document.PageCount == 0)
-            {
-                _logger.LogWarning("No page objects found during fallback scan.");
+                _logger.LogWarning("RootRef {RootRef} not found in objects.", _document.RootObject);
             }
         }
 

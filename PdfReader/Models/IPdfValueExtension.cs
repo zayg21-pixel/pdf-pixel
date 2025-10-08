@@ -184,12 +184,9 @@ namespace PdfReader.Models
 
             var reference = (IPdfValue<PdfReference>)value;
 
-            if (!reference.Value.IsValid)
-            {
-                return null;
-            }
+            var referencedObject = document.GetObject(reference.Value);
 
-            if (!document.Objects.TryGetValue(reference.Value, out var referencedObject) || referencedObject == null)
+            if (referencedObject == null)
             {
                 return null;
             }

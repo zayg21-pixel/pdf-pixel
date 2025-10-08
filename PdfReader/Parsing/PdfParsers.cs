@@ -416,6 +416,12 @@ namespace PdfReader.Parsing
         /// <returns>Stream data as Memory&lt;byte&gt;</returns>
         public static ReadOnlyMemory<byte> ParseStream(ref PdfParseContext context, PdfDictionary streamDictionary)
         {
+            // TODO: we must handle the case where /Length is an indirect reference, but to properly do this,
+            // we need to have already parsed all objects and have them in the document's object table.
+            // For now, we only handle direct integer lengths.
+            // In future we need to parse xref table first, then parse all objects, then we can resolve indirect references.
+            // this will also allow us to handle object streams (ObjStm) properly and decode encrypted streams.
+
             // After the "stream" keyword, consume exactly one end-of-line if present per spec (CRLF, CR, or LF)
             PdfParsingHelpers.SkipSingleEol(ref context);
 

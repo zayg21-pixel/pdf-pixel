@@ -127,7 +127,7 @@ namespace PdfReader.Models
 
         public PdfObject GetPageObject(string key)
         {
-            if (!_values.TryGetValue(GetValidKey(key), out var storedValue) || Document?.Objects == null)
+            if (!_values.TryGetValue(GetValidKey(key), out var storedValue))
                 return null;
 
             // Array of references case
@@ -141,11 +141,7 @@ namespace PdfReader.Models
             if (storedValue is IPdfValue<PdfReference> referenceValue)
             {
                 var reference = referenceValue.Value;
-                if (reference.IsValid && Document.Objects.TryGetValue(reference, out var referencedObj))
-                {
-                    return referencedObj;
-                }
-                return null;
+                return Document.GetObject(reference);
             }
 
             return null;
@@ -153,7 +149,7 @@ namespace PdfReader.Models
 
         public List<PdfObject> GetPageObjects(string key)
         {
-            if (!_values.TryGetValue(GetValidKey(key), out var storedValue) || Document?.Objects == null)
+            if (!_values.TryGetValue(GetValidKey(key), out var storedValue))
                 return null;
 
             var results = new List<PdfObject>();

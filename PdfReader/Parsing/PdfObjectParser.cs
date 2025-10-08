@@ -30,14 +30,9 @@ namespace PdfReader.Parsing
             _logger = document.LoggerFactory.CreateLogger<PdfObjectParser>();
         }
 
-        /// <summary>
-        /// Parse all objects in the PDF document (single pass) and extract objects from any object streams.
-        /// Also detects trailer dictionaries (by keyword 'trailer') and sets RootRef if not already established.
-        /// </summary>
-        /// <param name="context">Parse context wrapping the full PDF bytes.</param>
-        /// <param name="password">Password for password protected documents. Can be null.</param>
-        public void ParseObjects(ref PdfParseContext context, string password)
+        private void ScanObjects(ref PdfParseContext context, string password)
         {
+            // TODO: complete as fail case
             context.Position = 0;
 
             while (context.Position < context.Length - PdfTokens.MinBufferLengthForObjectParsing)
@@ -60,7 +55,7 @@ namespace PdfReader.Parsing
 
                     if (value != null)
                     {
-                        _document.Objects[pdfObject.Reference] = pdfObject;
+                        _document.StoreParsedObject(pdfObject);
                     }
 
                     // Advance to endobj (tolerant scan)
@@ -85,108 +80,55 @@ namespace PdfReader.Parsing
             }
 
             _pdfTrailerParser.FinalizeTrailer();
-            DecryptObjects(password);
-
-            // Extract objects that are embedded in object streams (ObjStm)
-            _objectStreamParser.ParseObjectStreams();
-
-            UpdateRoot();
         }
 
-        private void UpdateRoot()
+        /// <summary>
+        /// Lazily parse a single indexed indirect object using only information from the provided PdfObjectInfo.
+        /// </summary>
+        /// <param name="document">Owning document.</param>
+        /// <param name="info">Indexed object metadata.</param>
+        /// <returns>Parsed PdfObject or null on failure / unsupported cases.</returns>
+        public PdfObject ParseSingleIndexedObject(PdfObjectInfo info)
         {
-            if (_document.TrailerDictionary != null)
+            if (info == null)
             {
-                var rootObj = _document.TrailerDictionary.GetPageObject(PdfTokens.RootKey);
-
-                if (rootObj != null)
-                {
-                    _document.RootRef = rootObj.Reference;
-                    return;
-                }
+                return null;
             }
-
-            foreach (var pdfObject in _document.Objects.Values)
+            if (info.IsFree)
             {
-                string typeName = pdfObject.Dictionary.GetName(PdfTokens.TypeKey);
-                if (typeName == PdfTokens.CatalogKey)
-                {
-                    // Direct /Catalog object discovered.
-                    _document.RootRef = pdfObject.Reference;
-                    return;
-                }
-                else if (typeName == PdfTokens.XRefKey)
-                {
-                    // XRef stream dictionaries (PDF 1.5+) are trailer dictionaries in stream form.
-                    // They may contain /Root just like a classic trailer. Resolve its reference.
-                    var rootObject = pdfObject.Dictionary.GetPageObject(PdfTokens.RootKey);
-                    if (rootObject != null)
-                    {
-                        _document.RootRef = rootObject.Reference;
-                        return;
-                    }
-                }
-                else
-                {
-                    // Rare recovery case: if this dictionary itself exposes a /Root key (non-standard) we may accept it.
-                    var fallbackRoot = pdfObject.Dictionary.GetPageObject(PdfTokens.RootKey);
-                    if (fallbackRoot != null)
-                    {
-                        _document.RootRef = fallbackRoot.Reference;
-                        return;
-                    }
-                }
+                return null;
             }
-
-            _logger.LogWarning("Root object is not discovered.");
-        }
-
-        private void DecryptObjects(string password)
-        {
-            if (_document.Decryptor == null)
+            if (info.IsCompressed)
             {
-                return;
+                return _objectStreamParser.ParseSingleCompressed(info);
             }
-
-            _document.Decryptor.UpdatePassword(password);
-
-            foreach (var obj in _document.Objects.Values)
+            if (info.Offset == null || _document.FileBytes.IsEmpty)
             {
-                DecryptIPdfValues(obj.Value, obj, _document.Decryptor);
-
-                if (!obj.StreamData.IsEmpty)
-                {
-                    obj.StreamData = _document.Decryptor.DecryptBytes(obj.StreamData, obj.Reference);
-                }
+                return null;
             }
-        }
-
-        private void DecryptIPdfValues(IPdfValue value, PdfObject pdfObject, BasePdfDecryptor decryptor)
-        {
-            if (value is PdfDictionary dictionary)
+            if (info.Offset.Value > int.MaxValue)
             {
-                foreach (var dictionaryValue in dictionary.RawValues.Values)
-                {
-                    DecryptIPdfValues(dictionaryValue, pdfObject, decryptor);
-                }
+                return null;
             }
-            else if (value is PdfArray array)
+            var context = new PdfParseContext(_document.FileBytes);
+            context.Position = (int)info.Offset.Value;
+            if (!PdfParsers.TryParseObjectHeader(ref context, out int objNum, out int gen))
             {
-                foreach (var arrayValue in array.RawValues)
-                {
-                    DecryptIPdfValues(arrayValue, pdfObject, decryptor);
-                }
+                return null;
             }
-            else if (value is IPdfValue<string> textValue)
+            if (objNum != info.Reference.ObjectNumber || gen != info.Reference.Generation)
             {
-                if (value.Type == PdfValueType.String || value.Type == PdfValueType.HexString)
-                {
-                    byte[] bytes = EncodingExtensions.PdfDefault.GetBytes(textValue.Value);
-                    var decrypted = decryptor.DecryptBytes(bytes, pdfObject.Reference);
-                    var decryptedText = EncodingExtensions.PdfDefault.GetString(decrypted);
-                    textValue.UpdateValue(decryptedText);
-                }
+                return null;
             }
+            PdfParsingHelpers.SkipWhitespaceAndComment(ref context);
+            var value = PdfParsers.ParsePdfValue(ref context, _document, allowReferences: true);
+            var pdfObject = new PdfObject(info.Reference, _document, value);
+            PdfParsingHelpers.SkipWhitespaceAndComment(ref context);
+            if (PdfParsingHelpers.MatchSequence(ref context, PdfTokens.Stream))
+            {
+                pdfObject.StreamData = PdfParsers.ParseStream(ref context, pdfObject.Dictionary);
+            }
+            return pdfObject;
         }
     }
 }

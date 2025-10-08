@@ -18,6 +18,8 @@ namespace PdfReader.Parsing
 
         public bool TryParseTrailerDictionary(ref PdfParseContext context)
         {
+            PdfParsingHelpers.SkipWhitespaceAndComment(ref context);
+
             if (!PdfParsingHelpers.MatchSequence(ref context, PdfTokens.Trailer))
             {
                 return false;
@@ -38,6 +40,7 @@ namespace PdfReader.Parsing
             }
 
             _document.TrailerDictionary = PdfParsers.ParseDictionary(ref context, _document, allowReferences: true);
+            _document.RootObject = _document.TrailerDictionary.GetPageObject(PdfTokens.RootKey);
             return true;
         }
 

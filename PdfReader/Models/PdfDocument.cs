@@ -3,6 +3,7 @@ using PdfReader.Encryption;
 using PdfReader.Fonts;
 using PdfReader.Rendering;
 using PdfReader.Rendering.Color;
+using PdfReader.Parsing;
 using System;
 using System.Collections.Generic;
 
@@ -10,13 +11,24 @@ namespace PdfReader.Models
 {
     /// <summary>
     /// Represents a parsed PDF document with object table, pages, resources and renderer.
+    /// Adds lazy object resolution support via an object index.
+    /// Existing eager parsing continues to populate the internal cache; callers should prefer <see cref="GetObject"/>.
     /// </summary>
     public class PdfDocument : IDisposable
     {
-        public PdfDocument(ILoggerFactory loggerFactory)
+        private readonly Dictionary<PdfReference, PdfObject> _objects = new Dictionary<PdfReference, PdfObject>();
+        private readonly PdfObjectParser _pdfObjectParser;
+
+        private readonly ReadOnlyMemory<byte> _fileBytes;
+
+        internal Dictionary<PdfReference, PdfObjectInfo> ObjectIndex { get; } = new Dictionary<PdfReference, PdfObjectInfo>();
+
+        public PdfDocument(ILoggerFactory loggerFactory, ReadOnlyMemory<byte> fileBytes)
         {
             PdfRenderer = new PdfRenderer(FontCache, loggerFactory);
             LoggerFactory = loggerFactory;
+            _fileBytes = fileBytes;
+            _pdfObjectParser = new PdfObjectParser(this);
         }
 
         internal ILoggerFactory LoggerFactory { get; }
@@ -27,47 +39,66 @@ namespace PdfReader.Models
 
         internal PdfFontCache FontCache { get; } = new PdfFontCache();
 
-        /// <summary>
-        /// Cache of parsed CMaps keyed by /CMapName. Populated by resource loader for reuse (e.g., usecmap resolution).
-        /// </summary>
         internal Dictionary<string, PdfToUnicodeCMap> CMaps { get; } = new Dictionary<string, PdfToUnicodeCMap>(StringComparer.Ordinal);
 
-        /// <summary>
-        /// Cache of parsed PDF function objects (currently only Type 0 sampled functions) keyed by their reference.
-        /// </summary>
         internal Dictionary<PdfReference, PdfFunctionCacheEntry> FunctionCache { get; } = new Dictionary<PdfReference, PdfFunctionCacheEntry>();
 
-        /// <summary>
-        /// Map of indirect object instance.
-        /// </summary>
-        public Dictionary<PdfReference, PdfObject> Objects { get; set; } = new Dictionary<PdfReference, PdfObject>();
-
-        /// <summary>
-        /// Logical list of pages in display order.
-        /// </summary>
         public List<PdfPage> Pages { get; set; } = new List<PdfPage>();
 
-        /// <summary>
-        /// Declared or inferred page count.
-        /// </summary>
         public int PageCount { get; set; }
 
-        /// <summary>
-        /// Object reference of the catalog (root) dictionary.
-        /// </summary>
-        public PdfReference RootRef { get; set; }
+        public PdfObject RootObject { get; set; }
 
         public PdfDictionary TrailerDictionary { get; internal set; }
 
-        /// <summary>
-        /// Placeholder decryptor with extracted encryption parameters if file is encrypted.
-        /// </summary>
         public BasePdfDecryptor Decryptor { get; internal set; }
 
-        /// <summary>
-        /// Default renderer for PDF content streams.
-        /// </summary>
         public PdfRenderer PdfRenderer { get; }
+
+        /// <summary>
+        /// Exposes the original PDF file bytes for internal parser use (lazy object loading).
+        /// </summary>
+        internal ReadOnlyMemory<byte> FileBytes => _fileBytes;
+
+        internal void StoreParsedObject(PdfObject pdfObject)
+        {
+            if (pdfObject == null)
+            {
+                return;
+            }
+            _objects[pdfObject.Reference] = pdfObject;
+        }
+
+        /// <summary>
+        /// Retrieve an object by reference, parsing it lazily if present in the index but not yet materialized.
+        /// Only uncompressed indexed objects are currently supported in the lazy path.
+        /// </summary>
+        /// <param name="reference">Target object reference.</param>
+        /// <returns>Materialized <see cref="PdfObject"/> or null if unavailable.</returns>
+        public PdfObject GetObject(PdfReference reference)
+        {
+            if (!reference.IsValid)
+            {
+                return null;
+            }
+
+            if (_objects.TryGetValue(reference, out var existing))
+            {
+                return existing;
+            }
+
+            if (!ObjectIndex.TryGetValue(reference, out var info))
+            {
+                return null;
+            }
+
+            var parsed = _pdfObjectParser.ParseSingleIndexedObject(info);
+            if (parsed != null)
+            {
+                StoreParsedObject(parsed);
+            }
+            return parsed;
+        }
 
         public void Dispose()
         {

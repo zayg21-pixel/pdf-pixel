@@ -149,7 +149,7 @@ namespace PdfReader.Models
         /// </summary>
         public PdfObject GetPageObject(int index)
         {
-            if (!IsValidIndex(index) || Document?.Objects == null)
+            if (!IsValidIndex(index))
             {
                 return null;
             }
@@ -167,11 +167,7 @@ namespace PdfReader.Models
             if (storedValue is IPdfValue<PdfReference> referenceValue)
             {
                 var reference = referenceValue.Value;
-                if (reference.IsValid && Document.Objects.TryGetValue(reference, out var referencedObj))
-                {
-                    return referencedObj;
-                }
-                return null;
+                return Document.GetObject(reference);
             }
 
             return null;
