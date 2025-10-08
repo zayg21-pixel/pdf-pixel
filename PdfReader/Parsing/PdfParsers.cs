@@ -420,55 +420,81 @@ namespace PdfReader.Parsing
             PdfParsingHelpers.SkipSingleEol(ref context);
 
             int streamStart = context.Position;
-            // TODO: what a mess, length can be indirect reference too, but to object that is not parsed yet, we might need a lazy eval for stream.
             int streamLength = streamDictionary.GetIntegerOrDefault(PdfTokens.LengthKey);
 
-            if (streamLength > 0)
+            if (streamLength == 0)
             {
-                // Validate that we have enough data
-                int availableData = context.Length - streamStart;
+                int scanStart = context.Position;
 
-                if (streamLength <= availableData)
+                while (context.Position + PdfTokens.Endstream.Length <= context.Length)
                 {
-                    ReadOnlyMemory<byte> result;
-
-                    if (context.IsSingleMemory)
+                    if (PdfParsingHelpers.MatchSequence(ref context, PdfTokens.Endstream))
                     {
-                        // Zero-copy: slice original backing memory
-                        result = context.OriginalMemory.Slice(streamStart, streamLength);
+                        int endMarkerStart = context.Position - PdfTokens.Endstream.Length;
+                        streamLength = endMarkerStart - scanStart;
+                        context.Position = scanStart; // Reset position to start of stream data
+                        break;
                     }
-                    else
-                    {
-                        // should never happen as for stream parsing we're having single memory, but handle gracefully
-                        result = context.GetSlice(streamStart, streamLength).ToArray();
-                    }
-
-                    context.Position = streamStart + streamLength;
-
-                    // Skip past optional EOL/whitespace/comments before endstream
-                    PdfParsingHelpers.SkipWhitespaceAndComment(ref context);
-                    if (context.Position + PdfTokens.Endstream.Length <= context.Length)
-                    {
-                        if (!PdfParsingHelpers.MatchSequence(ref context, PdfTokens.Endstream))
-                        {
-                            // malformed PDF: no "endstream" found
-                            return ReadOnlyMemory<byte>.Empty;
-                        }
-                    }
-
-                    return result;
+                    context.Advance(1);
                 }
-                else
+
+                while (streamLength > 0)
                 {
-                    // malformed PDF: specified stream length exceeds available data
-                    context.Position++;
-                    return ReadOnlyMemory<byte>.Empty;
+                    byte last = context.PeekByte(streamLength - 1);
+                    if (!PdfParsingHelpers.IsWhitespace(last))
+                    {
+                        break;
+                    }
+                    streamLength--;
                 }
             }
 
-            // If we can't find endstream, advance position to avoid infinite loop
-            context.Position++;
-            return ReadOnlyMemory<byte>.Empty;
+            if (streamLength == 0)
+            {
+                // Unable to determine stream length - malformed PDF
+                context.Position++;
+                return ReadOnlyMemory<byte>.Empty;
+            }
+
+            // Validate that we have enough data
+            int availableData = context.Length - streamStart;
+
+            if (streamLength <= availableData)
+            {
+                ReadOnlyMemory<byte> result;
+
+                if (context.IsSingleMemory)
+                {
+                    // Zero-copy: slice original backing memory
+                    result = context.OriginalMemory.Slice(streamStart, streamLength);
+                }
+                else
+                {
+                    // should never happen as for stream parsing we're having single memory, but handle gracefully
+                    result = context.GetSlice(streamStart, streamLength).ToArray();
+                }
+
+                context.Position = streamStart + streamLength;
+
+                // Skip past optional EOL/whitespace/comments before endstream
+                PdfParsingHelpers.SkipWhitespaceAndComment(ref context);
+                if (context.Position + PdfTokens.Endstream.Length <= context.Length)
+                {
+                    if (!PdfParsingHelpers.MatchSequence(ref context, PdfTokens.Endstream))
+                    {
+                        // malformed PDF: no "endstream" found
+                        return ReadOnlyMemory<byte>.Empty;
+                    }
+                }
+
+                return result;
+            }
+            else
+            {
+                // malformed PDF: specified stream length exceeds available data
+                context.Position++;
+                return ReadOnlyMemory<byte>.Empty;
+            }
         }
 
         // Extremely frequently called during number parsing - aggressive inline

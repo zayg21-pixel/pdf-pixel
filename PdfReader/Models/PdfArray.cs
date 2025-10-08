@@ -167,7 +167,7 @@ namespace PdfReader.Models
             if (storedValue is IPdfValue<PdfReference> referenceValue)
             {
                 var reference = referenceValue.Value;
-                if (reference.IsValid && Document.Objects.TryGetValue(reference.ObjectNumber, out var referencedObj))
+                if (reference.IsValid && Document.Objects.TryGetValue(reference, out var referencedObj))
                 {
                     return referencedObj;
                 }

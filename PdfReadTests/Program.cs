@@ -85,7 +85,7 @@ namespace PdfReadTests
                 //"pdfs//icc-lab4.pdf",
                 //"pdfs//icc-lab2.pdf",
                 //"pdf-example-password.pdf",
-                "Adyen.pdf",
+                //"Adyen.pdf",
                 //"Adyen_debug.pdf",
                 //"pdfs//mixedfonts.pdf",
                 //"Adyen - Copy.pdf",
@@ -97,7 +97,7 @@ namespace PdfReadTests
                 //"pdfs//IndexedCS_negative_and_high.pdf",
                 //@"sample.pdf",
                 //"pdfs//tiling-pattern-box.pdf",
-                //"pdfs//gradientfill.pdf", // TODO: fix, doesn't render
+                "pdfs//gradientfill.pdf", // TODO: fix, doesn't render
                 //@"document - Copy.pdf",
                 //@"documentS.pdf",
                 //@"documentC.pdf",
@@ -139,7 +139,6 @@ namespace PdfReadTests
                     Logger.LogInformation("Total pages: {Count}", document.PageCount);
                     Logger.LogInformation("Actual pages found: {Count}", document.Pages.Count);
                     Logger.LogInformation("Root object: {Root}", document.RootRef);
-                    Logger.LogInformation(string.Empty);
 
                     var start = 0;
                     var max = 300;

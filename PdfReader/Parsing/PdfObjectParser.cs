@@ -60,11 +60,7 @@ namespace PdfReader.Parsing
 
                     if (value != null)
                     {
-                        // First write wins; if duplicates appear we could log later (optional enhancement).
-                        if (!_document.Objects.ContainsKey(objectNumber))
-                        {
-                            _document.Objects[objectNumber] = pdfObject;
-                        }
+                        _document.Objects[pdfObject.Reference] = pdfObject;
                     }
 
                     // Advance to endobj (tolerant scan)
@@ -105,7 +101,7 @@ namespace PdfReader.Parsing
 
                 if (rootObj != null)
                 {
-                    _document.RootRef = rootObj.Reference.ObjectNumber;
+                    _document.RootRef = rootObj.Reference;
                     return;
                 }
             }
@@ -116,7 +112,7 @@ namespace PdfReader.Parsing
                 if (typeName == PdfTokens.CatalogKey)
                 {
                     // Direct /Catalog object discovered.
-                    _document.RootRef = pdfObject.Reference.ObjectNumber;
+                    _document.RootRef = pdfObject.Reference;
                     return;
                 }
                 else if (typeName == PdfTokens.XRefKey)
@@ -126,7 +122,7 @@ namespace PdfReader.Parsing
                     var rootObject = pdfObject.Dictionary.GetPageObject(PdfTokens.RootKey);
                     if (rootObject != null)
                     {
-                        _document.RootRef = rootObject.Reference.ObjectNumber;
+                        _document.RootRef = rootObject.Reference;
                         return;
                     }
                 }
@@ -136,7 +132,7 @@ namespace PdfReader.Parsing
                     var fallbackRoot = pdfObject.Dictionary.GetPageObject(PdfTokens.RootKey);
                     if (fallbackRoot != null)
                     {
-                        _document.RootRef = fallbackRoot.Reference.ObjectNumber;
+                        _document.RootRef = fallbackRoot.Reference;
                         return;
                     }
                 }

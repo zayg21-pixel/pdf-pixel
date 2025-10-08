@@ -189,7 +189,7 @@ namespace PdfReader.Models
                 return null;
             }
 
-            if (!document.Objects.TryGetValue(reference.Value.ObjectNumber, out var referencedObject) || referencedObject == null)
+            if (!document.Objects.TryGetValue(reference.Value, out var referencedObject) || referencedObject == null)
             {
                 return null;
             }

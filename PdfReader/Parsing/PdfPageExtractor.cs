@@ -37,7 +37,7 @@ namespace PdfReader.Parsing
         public void ExtractPages()
         {
             // Primary path: follow stored RootRef if available.
-            if (_document.RootRef > 0 && _document.Objects.TryGetValue(_document.RootRef, out var rootObj))
+            if (_document.RootRef.IsValid && _document.Objects.TryGetValue(_document.RootRef, out var rootObj))
             {
                 var pagesObject = rootObj.Dictionary.GetPageObject(PdfTokens.PagesKey);
                 if (pagesObject != null)

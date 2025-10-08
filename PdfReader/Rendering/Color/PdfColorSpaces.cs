@@ -94,7 +94,7 @@ namespace PdfReader.Rendering.Color
             try
             {
                 var doc = page?.Document;
-                if (doc == null || doc.RootRef == 0 || !doc.Objects.TryGetValue(doc.RootRef, out var root))
+                if (doc == null || !doc.RootRef.IsValid || !doc.Objects.TryGetValue(doc.RootRef, out var root))
                 {
                     return null;
                 }

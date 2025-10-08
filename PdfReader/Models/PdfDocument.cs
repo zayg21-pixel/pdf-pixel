@@ -38,9 +38,9 @@ namespace PdfReader.Models
         internal Dictionary<PdfReference, PdfFunctionCacheEntry> FunctionCache { get; } = new Dictionary<PdfReference, PdfFunctionCacheEntry>();
 
         /// <summary>
-        /// Map of indirect object number to parsed object instance.
+        /// Map of indirect object instance.
         /// </summary>
-        public Dictionary<int, PdfObject> Objects { get; set; } = new Dictionary<int, PdfObject>();
+        public Dictionary<PdfReference, PdfObject> Objects { get; set; } = new Dictionary<PdfReference, PdfObject>();
 
         /// <summary>
         /// Logical list of pages in display order.
@@ -53,9 +53,9 @@ namespace PdfReader.Models
         public int PageCount { get; set; }
 
         /// <summary>
-        /// Object number of the catalog (root) dictionary.
+        /// Object reference of the catalog (root) dictionary.
         /// </summary>
-        public int RootRef { get; set; }
+        public PdfReference RootRef { get; set; }
 
         public PdfDictionary TrailerDictionary { get; internal set; }
 

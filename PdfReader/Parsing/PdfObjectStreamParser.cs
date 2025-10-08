@@ -147,7 +147,7 @@ namespace PdfReader.Parsing
 
                     if (extractedObject != null)
                     {
-                        _pdfDocument.Objects[objectNumber] = extractedObject;
+                        _pdfDocument.Objects[extractedObject.Reference] = extractedObject;
                         extractedCount++;
                     }
                 }
