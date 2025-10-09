@@ -5,11 +5,14 @@ namespace PdfReader.Rendering.Image.Jpg.Decoding
 {
     /// <summary>
     /// Decoder for progressive JPEG coefficient blocks (DC and AC, first pass and refinement passes).
+    /// Coefficients are stored in natural (row-major) order. Spectral indices (zig-zag order) are remapped
+    /// to natural indices during decode to avoid later de-zig-zag passes.
     /// </summary>
     internal sealed class JpgProgressiveBlockDecoder
     {
         /// <summary>
         /// Decode DC coefficient (first pass or refinement) for a progressive JPEG block.
+        /// DC coefficient (zig index 0) maps to natural index 0.
         /// </summary>
         public static void DecodeDcCoefficient(
             ref JpgBitReader bitReader,
@@ -49,7 +52,7 @@ namespace PdfReader.Rendering.Image.Jpg.Decoding
 
                 int dcValue = previousDcValue + dcDifference;
                 previousDcValue = dcValue;
-                coefficients[coefficientBase + 0] = dcValue << successiveApproxLow;
+                coefficients[coefficientBase + 0] = dcValue << successiveApproxLow; // natural index 0
             }
             else
             {
@@ -64,6 +67,7 @@ namespace PdfReader.Rendering.Image.Jpg.Decoding
 
         /// <summary>
         /// Decode AC coefficients for a progressive JPEG first pass scan.
+        /// Spectral indices (zig-zag order) are remapped to natural indices on write.
         /// </summary>
         public static void DecodeAcCoefficientsFirstPass(
             ref JpgBitReader bitReader,
@@ -134,8 +138,7 @@ namespace PdfReader.Rendering.Image.Jpg.Decoding
                     k += run;
                     if (k > spectralEnd)
                     {
-                        // Malformed stream: run extends past band. Stop decoding this block.
-                        break;
+                        break; // Malformed stream extension beyond band.
                     }
 
                     int coefficient = bitReader.ReadSigned(size);
@@ -147,7 +150,8 @@ namespace PdfReader.Rendering.Image.Jpg.Decoding
         }
 
         /// <summary>
-        /// Decode AC coefficients for a progressive JPEG refinement pass.
+        /// Decode AC coefficients for a progressive JPEG refinement pass (successive approximation > 0).
+        /// Operates on coefficients stored in natural order (reads/writes remap spectral indices each access).
         /// </summary>
         public static void DecodeAcCoefficientsRefinement(
             ref JpgBitReader bitReader,

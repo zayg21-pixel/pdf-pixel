@@ -181,7 +181,6 @@ namespace PdfReader.Rendering.Image
         /// </summary>
         public static PdfImage FromXObject(PdfObject imageXObject, PdfPage page, string name, bool isSoftMask)
         {
-            var imageData = PdfStreamDecoder.DecodeContentStream(imageXObject);
             var image = new PdfImage
             {
                 SourceObject = imageXObject,

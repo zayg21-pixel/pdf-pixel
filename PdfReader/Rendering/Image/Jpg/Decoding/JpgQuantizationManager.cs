@@ -1,5 +1,4 @@
 using System;
-using System.Numerics;
 using PdfReader.Rendering.Image.Jpg.Model;
 using PdfReader.Rendering.Image.Jpg.Quantization;
 
@@ -33,18 +32,19 @@ namespace PdfReader.Rendering.Image.Jpg.Decoding
                 throw new ArgumentNullException(nameof(header));
             }
 
-            var manager = new JpgQuantizationManager();
+            JpgQuantizationManager manager = new JpgQuantizationManager();
             if (header.QuantizationTables == null)
             {
                 return manager; // No tables provided (legal for scans referencing none yet)
             }
 
-            foreach (var quantTable in header.QuantizationTables)
+            foreach (JpgQuantizationTable quantTable in header.QuantizationTables)
             {
                 if (quantTable == null)
                 {
                     continue;
                 }
+
                 if (quantTable.TableId < 0 || quantTable.TableId >= MaxTableCount)
                 {
                     continue; // Ignore out-of-range table ids
@@ -52,20 +52,20 @@ namespace PdfReader.Rendering.Image.Jpg.Decoding
 
                 manager._tables[quantTable.TableId] = quantTable;
 
-                int[] ints = new int[64];
-                for (int i = 0; i < 64; i++)
+                int[] zigZagEntries = new int[64];
+                for (int coefficientIndex = 0; coefficientIndex < 64; coefficientIndex++)
                 {
-                    ints[i] = quantTable.Entries[i];
+                    zigZagEntries[coefficientIndex] = quantTable.Entries[coefficientIndex];
                 }
-                manager._entriesInt[quantTable.TableId] = ints;
+                manager._entriesInt[quantTable.TableId] = zigZagEntries;
 
-                int[] nat = new int[64];
-                for (int zig = 0; zig < 64; zig++)
+                int[] naturalEntries = new int[64];
+                for (int zigIndex = 0; zigIndex < 64; zigIndex++)
                 {
-                    int naturalIndex = JpgZigZag.Table[zig];
-                    nat[naturalIndex] = ints[zig];
+                    int naturalIndex = JpgZigZag.Table[zigIndex];
+                    naturalEntries[naturalIndex] = zigZagEntries[zigIndex];
                 }
-                manager._entriesNaturalInt[quantTable.TableId] = nat;
+                manager._entriesNaturalInt[quantTable.TableId] = naturalEntries;
             }
 
             return manager;
@@ -77,6 +77,7 @@ namespace PdfReader.Rendering.Image.Jpg.Decoding
             {
                 return null;
             }
+
             return _tables[tableId];
         }
 
@@ -85,118 +86,40 @@ namespace PdfReader.Rendering.Image.Jpg.Decoding
         /// </summary>
         public void ValidateTableExists(int tableId, int componentIndex)
         {
-            var table = GetTable(tableId);
+            JpgQuantizationTable table = GetTable(tableId);
             if (table == null)
             {
                 throw new InvalidOperationException($"Quantization table id {tableId} required for component {componentIndex} is missing.");
             }
         }
 
-        public void DequantizeBlock(int[] coefficientsZigZag, int quantizationTableId)
+        /// <summary>
+        /// Create a new <see cref="Block8x8F"/> whose 64 scalar elements are populated with the natural-order
+        /// quantization table entries for the given <paramref name="tableId"/>. This mirrors the internal
+        /// representation used by <see cref="Idct.ScaledIdctPlan.DequantNaturalBlock"/>.
+        /// </summary>
+        /// <param name="tableId">Quantization table identifier (0..3).</param>
+        /// <returns>Block with natural-order table values converted to float.</returns>
+        public Block8x8F CreateNaturalBlock(int tableId)
         {
-            DequantizeBlockZigZag(coefficientsZigZag, quantizationTableId);
-        }
+            if (tableId < 0 || tableId >= MaxTableCount)
+            {
+                throw new ArgumentOutOfRangeException(nameof(tableId));
+            }
 
-        public void DequantizeNaturalBlock(int[] coefficientsNatural, int quantizationTableId)
-        {
-            DequantizeNaturalBlockInPlace(coefficientsNatural, quantizationTableId);
-        }
-
-        public void DequantizeBlockZigZag(int[] coefficientsZigZag, int tableId)
-        {
-            var q = tableId >= 0 && tableId < MaxTableCount ? _entriesInt[tableId] : null;
-            if (q == null)
+            int[] naturalEntries = _entriesNaturalInt[tableId];
+            if (naturalEntries == null)
             {
                 throw new InvalidOperationException($"Quantization table id {tableId} not loaded.");
             }
 
-            const int Width = 64;
-            int vectorWidth = Vector<int>.Count;
-            if (Vector.IsHardwareAccelerated && Width >= vectorWidth)
+            Block8x8F block = default;
+            for (int coefficientIndex = 0; coefficientIndex < Block8x8F.Size; coefficientIndex++)
             {
-                int i = 0;
-                for (; i <= Width - vectorWidth; i += vectorWidth)
-                {
-                    var v = new Vector<int>(coefficientsZigZag, i);
-                    var m = new Vector<int>(q, i);
-                    (v * m).CopyTo(coefficientsZigZag, i);
-                }
-                for (; i < Width; i++)
-                {
-                    coefficientsZigZag[i] = coefficientsZigZag[i] * q[i];
-                }
-            }
-            else
-            {
-                for (int i = 0; i < Width; i++)
-                {
-                    coefficientsZigZag[i] = coefficientsZigZag[i] * q[i];
-                }
-            }
-        }
-
-        public void DequantizeNaturalBlockInPlace(int[] coefficientsNatural, int tableId)
-        {
-            var qNat = tableId >= 0 && tableId < MaxTableCount ? _entriesNaturalInt[tableId] : null;
-            if (qNat == null)
-            {
-                throw new InvalidOperationException($"Quantization table id {tableId} not loaded.");
+                block[coefficientIndex] = naturalEntries[coefficientIndex];
             }
 
-            const int Width = 64;
-            int vectorWidth = Vector<int>.Count;
-            if (Vector.IsHardwareAccelerated && Width >= vectorWidth)
-            {
-                int i = 0;
-                for (; i <= Width - vectorWidth; i += vectorWidth)
-                {
-                    var v = new Vector<int>(coefficientsNatural, i);
-                    var m = new Vector<int>(qNat, i);
-                    (v * m).CopyTo(coefficientsNatural, i);
-                }
-                for (; i < Width; i++)
-                {
-                    coefficientsNatural[i] = coefficientsNatural[i] * qNat[i];
-                }
-            }
-            else
-            {
-                for (int i = 0; i < Width; i++)
-                {
-                    coefficientsNatural[i] = coefficientsNatural[i] * qNat[i];
-                }
-            }
-        }
-
-        public void DequantizeAndDeZigZag(ReadOnlySpan<int> srcZigZag, int tableId, Span<int> dstNatural)
-        {
-            var q = tableId >= 0 && tableId < MaxTableCount ? _entriesInt[tableId] : null;
-            if (q == null)
-            {
-                throw new InvalidOperationException($"Quantization table id {tableId} not loaded.");
-            }
-
-            for (int i = 0; i < 64; i++)
-            {
-                int naturalIndex = JpgZigZag.Table[i];
-                dstNatural[naturalIndex] = srcZigZag[i] * q[i];
-            }
-        }
-
-        public Idct.ScaledIdctPlan CreateScaledIdctPlan(int tableId)
-        {
-            var q = tableId >= 0 && tableId < MaxTableCount ? _entriesInt[tableId] : null;
-            var qNat = tableId >= 0 && tableId < MaxTableCount ? _entriesNaturalInt[tableId] : null;
-            if (q == null || qNat == null)
-            {
-                throw new InvalidOperationException($"Quantization table id {tableId} not loaded.");
-            }
-
-            int[] zig = new int[64];
-            int[] nat = new int[64];
-            Array.Copy(q, zig, 64);
-            Array.Copy(qNat, nat, 64);
-            return new Idct.ScaledIdctPlan(tableId, zig, nat);
+            return block;
         }
     }
 }

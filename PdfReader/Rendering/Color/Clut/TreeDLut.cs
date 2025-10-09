@@ -1,4 +1,5 @@
 using System;
+using System.Runtime.CompilerServices;
 using PdfReader.Models;
 using SkiaSharp;
 
@@ -18,20 +19,10 @@ namespace PdfReader.Rendering.Color.Clut
         private const int FractionMax = 16; // normalized fraction range (0..16)
         private const int WeightScale = 256; // bilinear weight sum normalization
 
-        // Precomputed strides for faster index math (avoid re-computing each sample).
+        // Strides for index math.
         private const int StrideB = 3; // 3 bytes per lattice point
         private const int StrideG = GridSize * StrideB; // bytes to advance one G index
         private const int StrideR = GridSize * StrideG; // bytes to advance one R index
-
-        /// <summary>
-        /// Precomputed r * StrideR for r in [0,16]. Eliminates runtime multiplication for r0 * StrideR.
-        /// </summary>
-        private static readonly int[] RStrideLut = BuildRStrideLut();
-
-        /// <summary>
-        /// Precomputed g * StrideG for g in [0,16]. Eliminates runtime multiplication for g0 * StrideG.
-        /// </summary>
-        private static readonly int[] GStrideLut = BuildGStrideLut();
 
         /// <summary>
         /// Weight lookup for all (fracR, fracG) pairs (16 x 16 = 256 entries).
@@ -42,34 +33,22 @@ namespace PdfReader.Rendering.Color.Clut
 
         /// <summary>
         /// Holds the four bilinear weights for a (fracR, fracG) pair.
-        /// Stored as 16-bit values (range 0..256).
+        /// Stored as 16-bit values (range 0..256). Marked readonly for immutability.
         /// </summary>
-        private struct WeightQuad
+        private readonly struct WeightQuad
         {
-            public ushort W00; // (1-dr)(1-dg)
-            public ushort W10; // dr(1-dg)
-            public ushort W01; // (1-dr)dg
-            public ushort W11; // dr dg
-        }
+            public readonly ushort W00; // (1-dr)(1-dg)
+            public readonly ushort W10; // dr(1-dg)
+            public readonly ushort W01; // (1-dr)dg
+            public readonly ushort W11; // dr dg
 
-        private static int[] BuildRStrideLut()
-        {
-            var lut = new int[GridSize];
-            for (int i = 0; i < GridSize; i++)
+            public WeightQuad(ushort w00, ushort w10, ushort w01, ushort w11)
             {
-                lut[i] = i * StrideR;
+                W00 = w00;
+                W10 = w10;
+                W01 = w01;
+                W11 = w11;
             }
-            return lut;
-        }
-
-        private static int[] BuildGStrideLut()
-        {
-            var lut = new int[GridSize];
-            for (int i = 0; i < GridSize; i++)
-            {
-                lut[i] = i * StrideG;
-            }
-            return lut;
         }
 
         private static WeightQuad[] BuildWeightTable()
@@ -86,13 +65,7 @@ namespace PdfReader.Rendering.Color.Clut
                     int w01 = oneMinusFracR * fracG;
                     int w11 = WeightScale - (w00 + w10 + w01); // Maintain invariant sum = 256
                     int index = (fracR << 4) | fracG;
-                    table[index] = new WeightQuad
-                    {
-                        W00 = (ushort)w00,
-                        W10 = (ushort)w10,
-                        W01 = (ushort)w01,
-                        W11 = (ushort)w11
-                    };
+                    table[index] = new WeightQuad((ushort)w00, (ushort)w10, (ushort)w01, (ushort)w11);
                 }
             }
             return table;
@@ -134,9 +107,9 @@ namespace PdfReader.Rendering.Color.Clut
 
         /// <summary>
         /// 8-bit bilinear sampling helper using fixed-point arithmetic for weights and accumulation (8-bit input, 17 grid points, power-of-two normalization).
-        /// Micro-optimized to mirror the fast in-place variant: removes redundant fraction scaling/bounds checks,
-        /// uses stride lookup and precomputed weight table, and eliminates unnecessary clamping.
+        /// Performs on-the-fly stride computation (r0 * StrideR + g0 * StrideG) instead of lookup tables.
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static unsafe void SampleBilinear8(
             byte[] lut,
             byte r,
@@ -154,11 +127,10 @@ namespace PdfReader.Rendering.Color.Clut
             int fracG = g & GridIndexMask; // 0..15
             int fracB = b & GridIndexMask; // 0..15
 
-            // Nearest neighbor along B axis (midpoint decision).
             int bSlice = fracB < 8 ? b0 : (b0 + 1); // 0..16
 
-            // Base offset for (r0,g0) at chosen B slice.
-            int baseRG0 = RStrideLut[r0] + GStrideLut[g0];
+            // Base offset for (r0,g0) at chosen B slice using direct multiplication.
+            int baseRG0 = r0 * StrideR + g0 * StrideG;
             int sliceOffset = bSlice * StrideB;
 
             int baseR0G0 = baseRG0 + sliceOffset;
@@ -180,6 +152,7 @@ namespace PdfReader.Rendering.Color.Clut
 
         /// <summary>
         /// In-place bilinear sampling for an RGBA row (stride 4). Only RGB bytes are updated; alpha bytes remain unchanged.
+        /// Performs on-the-fly stride computation (r0 * StrideR + g0 * StrideG) instead of lookup tables.
         /// </summary>
         internal static unsafe void SampleBilinear8RgbaInPlace(byte* lut, byte* rgbaRow, int pixelCount)
         {
@@ -200,20 +173,16 @@ namespace PdfReader.Rendering.Color.Clut
                 int fracG = gValue & GridIndexMask; // 0..15
                 int fracB = bValue & GridIndexMask; // 0..15
 
-                // Nearest neighbor along B axis using fraction midpoint.
-                int bSlice = fracB < 8 ? b0 : (b0 + 1); // b1 == b0+1 (never exceeds 16 given input range)
+                int bSlice = fracB < 8 ? b0 : (b0 + 1); // 0..16
 
-                // Base offset for (r0,g0) slice; reuse via additions (eliminates 6 multiplications vs original form).
-                int baseRG0 = RStrideLut[r0] + GStrideLut[g0];
+                int baseRG0 = r0 * StrideR + g0 * StrideG;
                 int sliceOffset = bSlice * StrideB;
 
-                // Derive the four lattice point indices by additive offsets.
                 int baseR0G0 = baseRG0 + sliceOffset;
-                int baseR1G0 = baseR0G0 + StrideR;         // increment R
-                int baseR0G1 = baseR0G0 + StrideG;         // increment G
-                int baseR1G1 = baseR0G0 + StrideR + StrideG; // increment both
+                int baseR1G0 = baseR0G0 + StrideR;
+                int baseR0G1 = baseR0G0 + StrideG;
+                int baseR1G1 = baseR0G0 + StrideR + StrideG;
 
-                // Lookup precomputed weights.
                 int weightIndex = (fracR << 4) | fracG;
                 ref WeightQuad w = ref WeightTable[weightIndex];
 
@@ -221,7 +190,7 @@ namespace PdfReader.Rendering.Color.Clut
                 int sumG = lut[baseR0G0 + 1] * w.W00 + lut[baseR1G0 + 1] * w.W10 + lut[baseR0G1 + 1] * w.W01 + lut[baseR1G1 + 1] * w.W11;
                 int sumB = lut[baseR0G0 + 2] * w.W00 + lut[baseR1G0 + 2] * w.W10 + lut[baseR0G1 + 2] * w.W01 + lut[baseR1G1 + 2] * w.W11;
 
-                int rOut = (sumR + HalfWeight) >> 8; // 0..255
+                int rOut = (sumR + HalfWeight) >> 8;
                 int gOut = (sumG + HalfWeight) >> 8;
                 int bOut = (sumB + HalfWeight) >> 8;
 

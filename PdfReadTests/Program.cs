@@ -40,13 +40,13 @@ namespace PdfReadTests
                 //"pdfs//tiling-pattern-box.pdf",
                 //"pdfs//gradientfill.pdf",
                 //@"document - Copy.pdf",
-                //@"documentS.pdf",
+                @"documentS.pdf",
                 //@"documentC.pdf",
                 //"pdfs//ccitt_EndOfBlock_false.pdf",
                 //"pdfs//images_1bit_grayscale.pdf",
                 //"adyen_2020.pdf",
                 //"adyen_2020_debug.pdf",
-                "pdfs\\emojies.pdf"
+                //"pdfs\\emojies.pdf"
                 //"documentEd.pdf"
                 //@"document_1.pdf"
             };
@@ -83,8 +83,8 @@ namespace PdfReadTests
                     Logger.LogInformation("Root object: {Root}", document.RootObject);
 
                     var start = 0;
-                    var max = 3;
-                    float scaleX = 3f; // Scale factor for rendering
+                    var max = 2000;
+                    float scaleX = 0.1f; // Scale factor for rendering
 
                     var memory = GC.GetTotalMemory(true) / 1024 / 1024;
 

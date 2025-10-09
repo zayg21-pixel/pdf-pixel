@@ -3,6 +3,7 @@ using PdfReader.Rendering.Color.Clut;
 using SkiaSharp;
 using System;
 using System.Collections.Concurrent;
+using System.Runtime.CompilerServices;
 
 namespace PdfReader.Rendering.Color
 {
@@ -81,6 +82,7 @@ namespace PdfReader.Rendering.Color
         /// <summary>
         /// Clamps a value to the 0..1 interval.
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         protected static float Clamp01(float v)
         {
             return v < 0f ? 0f : (v > 1f ? 1f : v);
@@ -92,6 +94,7 @@ namespace PdfReader.Rendering.Color
         /// <param name="b">The 8-bit unsigned integer to convert.</param>
         /// <returns>A floating-point value between 0 and 1, inclusive, representing the normalized value of <paramref
         /// name="b"/>.</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         protected static float ToFloat01(byte b)
         {
             return OneDLut.ByteToFloat01[b];
@@ -100,6 +103,7 @@ namespace PdfReader.Rendering.Color
         /// <summary>
         /// Converts a normalized value (0..1) to an 8-bit unsigned byte with rounding.
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         protected static byte ToByte(float v01)
         {
             return OneDLut.ToByte(v01);

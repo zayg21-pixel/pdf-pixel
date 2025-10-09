@@ -5,18 +5,31 @@ namespace PdfReader.Rendering.Image.Jpg.Readers
 {
     /// <summary>
     /// Bit reader for JPEG entropy-coded segments. Handles 0xFF00 byte stuffing and exposes marker reading.
-    /// The reader avoids consuming marker bytes; callers can detect and read markers between MCUs.
+    /// Marker reading and marker segment payload reading are separate atomic operations. Call <see cref="TryReadMarker"/>
+    /// to obtain the next marker code (if any) and then, for markers which include a length-prefixed payload, call
+    /// <see cref="ReadSegmentPayload"/> to obtain the payload bytes (excluding the two length bytes).
     /// </summary>
     internal unsafe ref struct JpgBitReader
     {
+        private const int MaxReservoirBits = 64;
+        private const int ByteBitCount = 8;
+        private const int ReservoirAppendThreshold = MaxReservoirBits - ByteBitCount; // 56 for 64-bit reservoir.
+        private const byte MarkerPrefix = 0xFF;
+        private const byte StuffingZero = 0x00;
+        private const int MarkerSegmentLengthFieldSize = 2; // Length field includes its 2 bytes.
+
         private byte* _current;
         private int _remaining;
         private int _pos;
-        private uint _bitBuf;
-        private int _bits;
+        private ulong _bitBuf;   // Left-aligned bit reservoir (high bits contain oldest bits). Up to 64 bits stored.
+        private int _bits;        // Number of valid bits currently in _bitBuf (0..64).
         private bool _markerPending;
 
-        public JpgBitReader(ReadOnlySpan<byte> data)
+        /// <summary>
+        /// Create a new bit reader over <paramref name="data"/> starting at position 0.
+        /// </summary>
+        /// <param name="data">Entropy-coded byte span (no ownership is taken).</param>
+        public JpgBitReader(ref ReadOnlySpan<byte> data)
         {
             fixed (byte* dataPtr = data)
             {
@@ -30,9 +43,9 @@ namespace PdfReader.Rendering.Image.Jpg.Readers
         }
 
         /// <summary>
-        /// Create a bit reader with a previously captured state to resume decoding.
+        /// Create a bit reader over <paramref name="data"/> resuming from a previously captured <paramref name="state"/>.
         /// </summary>
-        public JpgBitReader(ReadOnlySpan<byte> data, JpgBitReaderState state)
+        public JpgBitReader(ref ReadOnlySpan<byte> data, JpgBitReaderState state)
         {
             fixed (byte* dataPtr = data)
             {
@@ -45,112 +58,106 @@ namespace PdfReader.Rendering.Image.Jpg.Readers
             _markerPending = state.MarkerPending;
         }
 
-        public int Position => _pos * 8 - _bits;
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static uint Mask(int bitCount)
-        {
-            if (bitCount == 0)
-            {
-                return 0u;
-            }
-            return (uint)((1u << bitCount) - 1u);
-        }
-
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void EnsureBits(int requiredBits)
         {
-            while (_bits < requiredBits)
+            if (_bits >= requiredBits)
             {
-                if (_markerPending)
-                {
-                    _bitBuf <<= 8;
-                    _bits += 8;
-                    continue;
-                }
+                return;
+            }
 
-                if (_remaining <= 0)
-                {
-                    _bitBuf <<= 8;
-                    _bits += 8;
-                    continue;
-                }
+            ulong bitBuf = _bitBuf;
+            int bits = _bits;
 
-                byte value = *_current;
-                _current++;
-                _remaining--;
-                _pos++;
-                if (value == 0xFF)
+            if (!_markerPending)
+            {
+                while (bits < requiredBits && bits <= ReservoirAppendThreshold && _remaining > 0)
                 {
-                    if (_remaining > 0)
+                    byte value = *_current;
+
+                    if (value != MarkerPrefix)
                     {
-                        byte next = *_current;
-                        if (next == 0x00)
+                        _current++;
+                        _remaining--;
+                        _pos++;
+                        bitBuf = (bitBuf << ByteBitCount) | value;
+                        bits += ByteBitCount;
+                        continue;
+                    }
+
+                    if (_remaining >= MarkerSegmentLengthFieldSize)
+                    {
+                        byte next = _current[1];
+                        if (next == StuffingZero)
                         {
-                            _current++;
-                            _remaining--;
-                            _pos++;
-                        }
-                        else
-                        {
-                            _current--;
-                            _remaining++;
-                            _pos--;
-                            _markerPending = true;
+                            _current += MarkerSegmentLengthFieldSize;
+                            _remaining -= MarkerSegmentLengthFieldSize;
+                            _pos += MarkerSegmentLengthFieldSize;
+                            bitBuf = (bitBuf << ByteBitCount) | MarkerPrefix;
+                            bits += ByteBitCount;
                             continue;
                         }
+
+                        _markerPending = true;
+                        break;
+                    }
+                    else
+                    {
+                        _current++;
+                        _remaining--;
+                        _pos++;
+                        bitBuf = (bitBuf << ByteBitCount) | MarkerPrefix;
+                        bits += ByteBitCount;
+                        continue;
                     }
                 }
-
-                _bitBuf = (_bitBuf << 8) | value;
-                _bits += 8;
             }
+
+            // Pad with zero bits if blocked by marker or end-of-data and still need bits.
+            if (bits < requiredBits && (_markerPending || _remaining == 0))
+            {
+                int neededBits = requiredBits - bits;
+                // Limit to remaining reservoir capacity.
+                int availableBits = MaxReservoirBits - bits; // Always multiple of 8.
+                if (neededBits > availableBits)
+                {
+                    neededBits = availableBits;
+                }
+                // Round up to next whole byte (multiple of 8) using mask instead of divide/multiply.
+                int padBits = (neededBits + (ByteBitCount - 1)) & ~(ByteBitCount - 1);
+                if (padBits > 0)
+                {
+                    bitBuf <<= padBits;
+                    bits += padBits;
+                }
+            }
+
+            _bitBuf = bitBuf;
+            _bits = bits;
         }
 
         /// <summary>
-        /// Generic peek for n bits (1..16). Retains high-bit buffer orientation.
-        /// </summary>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public uint PeekBits(int bitCount)
-        {
-            EnsureBits(bitCount);
-            return _bitBuf >> (_bits - bitCount) & Mask(bitCount);
-        }
-
-        /// <summary>
-        /// Specialized 8-bit peek (hot path for Huffman lookahead).
-        /// </summary>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public uint PeekBits8()
-        {
-            EnsureBits(8);
-            return (_bitBuf >> (_bits - 8)) & 0xFFu;
-        }
-
-        /// <summary>
-        /// Specialized 16-bit peek (used for extended Huffman decode slow path).
+        /// Peek 16 bits (without consuming) for slow-path Huffman decoding.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public uint PeekBits16()
         {
             EnsureBits(16);
-            return (_bitBuf >> (_bits - 16)) & 0xFFFFu;
+            int shift = _bits - 16;
+            return (uint)((_bitBuf >> shift) & 0xFFFFUL);
         }
 
+        /// <summary>
+        /// Drop (discard) <paramref name="bitCount"/> previously peeked bits.
+        /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void DropBits(int bitCount)
         {
-            if (bitCount < 0 || bitCount > _bits)
-            {
-                bitCount = _bits;
-            }
-
             _bits -= bitCount;
         }
 
         /// <summary>
-        /// Read n bits (0..16) in a single combined Ensure/extract/drop step to avoid separate Peek + Drop overhead.
-        /// Returns 0 if bitCount is 0.
+        /// Read (and consume) up to 16 bits. Returns 0 if <paramref name="bitCount"/> is 0.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public uint ReadBits(int bitCount)
@@ -159,42 +166,15 @@ namespace PdfReader.Rendering.Image.Jpg.Readers
             {
                 return 0u;
             }
-
             EnsureBits(bitCount);
             int newBits = _bits - bitCount;
-            uint value = (_bitBuf >> newBits) & Mask(bitCount);
+            uint value = (uint)((_bitBuf >> newBits) & ((1UL << bitCount) - 1UL));
             _bits = newBits;
             return value;
         }
 
         /// <summary>
-        /// Specialized 8-bit read (hot path) combining ensure, extract, and drop.
-        /// </summary>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public uint ReadBits8()
-        {
-            EnsureBits(8);
-            int newBits = _bits - 8;
-            uint value = (_bitBuf >> newBits) & 0xFFu;
-            _bits = newBits;
-            return value;
-        }
-
-        /// <summary>
-        /// Specialized 16-bit read combining ensure, extract, and drop.
-        /// </summary>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public uint ReadBits16()
-        {
-            EnsureBits(16);
-            int newBits = _bits - 16;
-            uint value = (_bitBuf >> newBits) & 0xFFFFu;
-            _bits = newBits;
-            return value;
-        }
-
-        /// <summary>
-        /// Read a JPEG signed value encoded with <paramref name="bitCount"/> bits where the top bit indicates sign.
+        /// Read a JPEG signed value with the given bit length where the top bit is the sign indicator.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public int ReadSigned(int bitCount)
@@ -203,17 +183,20 @@ namespace PdfReader.Rendering.Image.Jpg.Readers
             {
                 return 0;
             }
-
-            uint raw = ReadBits(bitCount);
-            int threshold = 1 << (bitCount - 1);
-            int fullMask = (1 << bitCount) - 1;
-            int negativeMask = ((int)raw - threshold) >> 31;
-            int result = (int)raw - (negativeMask & fullMask);
-            return result;
+            EnsureBits(bitCount);
+            int mask = (1 << bitCount) - 1;
+            int newBits = _bits - bitCount;
+            int raw = (int)(_bitBuf >> newBits) & mask;
+            _bits = newBits;
+            int signBit = 1 << (bitCount - 1);
+            int value = raw;
+            int adjustMask = (value - signBit) >> 31;
+            value -= adjustMask & mask;
+            return value;
         }
 
         /// <summary>
-        /// Align to next byte boundary by discarding any buffered bits from the bit buffer.
+        /// Discard any buffered bits and align to the next byte boundary.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void ByteAlign()
@@ -222,6 +205,12 @@ namespace PdfReader.Rendering.Image.Jpg.Readers
             _bits = 0;
         }
 
+        /// <summary>
+        /// Attempt to read the next marker. Returns false if no marker is present at the current position.
+        /// On success the internal state is byte-aligned at the first byte after the marker code.
+        /// Stand-alone markers (SOI/EOI/RSTn/TEM) are treated the same as other markers here; payload handling is separate.
+        /// </summary>
+        /// <param name="marker">Marker code (low byte) when return value is true.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool TryReadMarker(out byte marker)
         {
@@ -234,19 +223,17 @@ namespace PdfReader.Rendering.Image.Jpg.Readers
 
             byte* markerPtr = _current;
             int markerRemaining = _remaining;
-            int markerPos = _pos;
-            if (*markerPtr++ != 0xFF)
+
+            if (*markerPtr++ != MarkerPrefix)
             {
                 return false;
             }
             markerRemaining--;
-            markerPos++;
 
-            while (markerRemaining > 0 && *markerPtr == 0xFF)
+            while (markerRemaining > 0 && *markerPtr == MarkerPrefix)
             {
                 markerPtr++;
                 markerRemaining--;
-                markerPos++;
             }
 
             if (markerRemaining <= 0)
@@ -255,7 +242,7 @@ namespace PdfReader.Rendering.Image.Jpg.Readers
             }
 
             byte code = *markerPtr++;
-            if (code == 0x00)
+            if (code == StuffingZero)
             {
                 return false;
             }
@@ -272,7 +259,43 @@ namespace PdfReader.Rendering.Image.Jpg.Readers
         }
 
         /// <summary>
-        /// Capture the current internal state to resume later on a new bit reader instance.
+        /// Read and return the payload bytes for a marker whose payload is known to exist (i.e. not SOI, EOI, RSTn, TEM).
+        /// The payload length is determined by the 2-byte big-endian length value (which includes those 2 bytes).
+        /// The returned span excludes the two length bytes. The reader advances past the entire segment.
+        /// </summary>
+        /// <returns>Payload bytes (may be empty if length == 2).</returns>
+        /// <exception cref="InvalidOperationException">Thrown on truncated or invalid length.</exception>
+        public ReadOnlySpan<byte> ReadSegmentPayload()
+        {
+            if (_remaining < MarkerSegmentLengthFieldSize)
+            {
+                throw new InvalidOperationException("Truncated marker segment length.");
+            }
+
+            int lenHigh = _current[0];
+            int lenLow = _current[1];
+            int segmentLength = (lenHigh << 8) | lenLow;
+            if (segmentLength < MarkerSegmentLengthFieldSize)
+            {
+                throw new InvalidOperationException("Invalid marker segment length.");
+            }
+            if (_remaining < segmentLength)
+            {
+                throw new InvalidOperationException("Truncated marker segment payload.");
+            }
+
+            int payloadLength = segmentLength - MarkerSegmentLengthFieldSize;
+            byte* payloadPtr = _current + MarkerSegmentLengthFieldSize;
+            ReadOnlySpan<byte> payload = new ReadOnlySpan<byte>(payloadPtr, payloadLength);
+
+            _current += segmentLength;
+            _remaining -= segmentLength;
+            _pos += segmentLength;
+            return payload;
+        }
+
+        /// <summary>
+        /// Capture a snapshot of the current position and buffered bits for later resumption.
         /// </summary>
         public JpgBitReaderState CaptureState()
         {
@@ -281,16 +304,31 @@ namespace PdfReader.Rendering.Image.Jpg.Readers
     }
 
     /// <summary>
-    /// Serializable snapshot of a JpgBitReader position and buffered bits.
+    /// Serializable snapshot of a <see cref="JpgBitReader"/> internal state.
     /// </summary>
     internal readonly struct JpgBitReaderState
     {
+        /// <summary>
+        /// Byte position (number of source bytes consumed).
+        /// </summary>
         public readonly int Pos;
-        public readonly uint BitBuf;
+        /// <summary>
+        /// Buffered bits reservoir.
+        /// </summary>
+        public readonly ulong BitBuf;
+        /// <summary>
+        /// Count of valid bits currently in <see cref="BitBuf"/>.
+        /// </summary>
         public readonly int Bits;
+        /// <summary>
+        /// True if a marker prefix (0xFF) was encountered and pending marker consumption prevented further byte fetch.
+        /// </summary>
         public readonly bool MarkerPending;
 
-        public JpgBitReaderState(int pos, uint bitBuf, int bits, bool markerPending)
+        /// <summary>
+        /// Initialize a new snapshot instance.
+        /// </summary>
+        public JpgBitReaderState(int pos, ulong bitBuf, int bits, bool markerPending)
         {
             Pos = pos;
             BitBuf = bitBuf;

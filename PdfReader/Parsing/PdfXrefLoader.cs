@@ -86,6 +86,7 @@ namespace PdfReader.Parsing
             // Not classic; attempt xref stream (PDF 1.5+)
             try
             {
+                context.Position = xrefOffset;
                 PdfDictionary trailer = ParseXrefStream(ref context);
 
                 int? offset;

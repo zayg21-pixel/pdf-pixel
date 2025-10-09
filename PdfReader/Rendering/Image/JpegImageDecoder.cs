@@ -1,5 +1,4 @@
-﻿using CommunityToolkit.HighPerformance;
-using Microsoft.Extensions.Logging;
+﻿using Microsoft.Extensions.Logging;
 using PdfReader.Rendering.Color;
 using PdfReader.Rendering.Image.Jpg.Color;
 using PdfReader.Rendering.Image.Jpg.Decoding;
@@ -8,7 +7,6 @@ using PdfReader.Rendering.Image.Jpg.Readers;
 using PdfReader.Rendering.Image.Processing;
 using SkiaSharp;
 using System;
-using System.IO;
 using System.Runtime.InteropServices;
 
 namespace PdfReader.Rendering.Image
@@ -44,28 +42,6 @@ namespace PdfReader.Rendering.Image
                 return null;
             }
 
-            bool requiresPostProcessing = ProcessingUtilities.ApplyDecode(Image.DecodeArray) || Image.MaskArray?.Length > 0;
-
-            try
-            {
-                // Fast path: device RGB or Gray with no masking or decode array adjustments can be returned directly.
-                if (!requiresPostProcessing && (Image.ColorSpaceConverter is DeviceRgbConverter || Image.ColorSpaceConverter is DeviceGrayConverter))
-                {
-                    return SKImage.FromEncodedData(encodedImageData.Span);
-                }
-
-                // ICC-based shortcut: when the PDF supplies an ICC profile we can let Skia apply the color transform
-                // by decoding with the source space tagged from the ICC bytes and drawing into an sRGB surface.
-                if (!requiresPostProcessing && Image.ColorSpaceConverter is IccBasedConverter iccConverter && iccConverter.IccBytes != null)
-                {
-                    return DecodeWithSkiaUsingIcc(encodedImageData, iccConverter);
-                }
-            }
-            catch (Exception ex)
-            {
-                Logger.LogWarning("JPEG basic decoding failed, will continue with full decoding.", ex);
-            }
-
             try
             {
                 return DecodeInternal(encodedImageData);
@@ -83,41 +59,6 @@ namespace PdfReader.Rendering.Image
                     return null;
                 }
             }
-        }
-
-        private static unsafe SKImage DecodeWithSkiaUsingIcc(ReadOnlyMemory<byte> encodedImageData, IccBasedConverter iccConverter)
-        {
-
-            var handle = encodedImageData.Pin();
-
-            IntPtr addr = (IntPtr)handle.Pointer;
-            SKDataReleaseDelegate release = (address, ctx) =>
-            {
-                if (ctx is IDisposable disp)
-                {
-                    disp.Dispose();
-                }
-            };
-
-            using var data = SKData.Create(addr, encodedImageData.Length, release, handle);
-            using SKCodec codec = SKCodec.Create(data);
-
-            using SKColorSpace sourceColorSpace = SKColorSpace.CreateIcc(iccConverter.IccBytes);
-
-            var sourceInfo = new SKImageInfo(codec.Info.Width, codec.Info.Height, SKColorType.Rgba8888, SKAlphaType.Unpremul, sourceColorSpace);
-            using var bitmap = new SKBitmap(sourceInfo);
-
-            if (codec.GetPixels(sourceInfo, bitmap.GetPixels()) == SKCodecResult.Success)
-            {
-                var result = SKImage.FromBitmap(bitmap);
-
-                if (result != null)
-                {
-                    return result;
-                }
-            }
-
-            throw new InvalidOperationException("Can't process with ICC profile.");
         }
 
         /// <summary>

@@ -76,7 +76,7 @@ namespace PdfReadTests
 
     internal static class LoggingBuilderExtensions
     {
-        public static ILoggingBuilder AddConsole(this ILoggingBuilder builder, LogLevel minLevel = LogLevel.Information)
+        public static ILoggingBuilder AddConsole(this ILoggingBuilder builder, LogLevel minLevel = LogLevel.Debug)
         {
             builder.AddProvider(new SimpleConsoleLoggerProvider(minLevel));
             return builder;

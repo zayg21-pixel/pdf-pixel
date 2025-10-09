@@ -6,14 +6,20 @@ using PdfReader.Rendering.Image.Jpg.Readers;
 namespace PdfReader.Rendering.Image.Jpg
 {
     /// <summary>
-    /// Fast Huffman decoder built from a JpgHuffmanTable. Uses a lookahead table for up to 8-bit codes,
-    /// falling back to a length-by-length scan using a single 16-bit peek beyond the lookahead size.
+    /// Fast Huffman decoder built from a <see cref="JpgHuffmanTable"/>. Uses a widened lookahead table (10 bits by default)
+    /// to capture the majority of codes in a single table probe. Fallback performs a single 16-bit peek and
+    /// incrementally extends the code length without discarding whole bytes, ensuring only the exact number of
+    /// bits for the matched code are removed from the bit reader.
     /// </summary>
     internal sealed class JpgHuffmanDecoder
     {
-        private const int LookaheadBits = 8;
+        private const int LookaheadBits = 10; // MUST be &lt;= MaxCodeBits and &lt;= 16 (since we only peek 16 bits).
         private const int MaxCodeBits = 16;
-        private readonly short[] _lookahead; // 256 entries: high byte = bits, low byte = symbol (0 means invalid when entry == -1)
+
+        // Lookahead table: entry layout: high byte = number of bits in code, low byte = symbol.
+        // Entry value -1 indicates no direct match (requires slow path).
+        private readonly short[] _lookahead;
+
         private readonly ushort[] _minCode = new ushort[MaxCodeBits + 1];
         private readonly ushort[] _maxCode = new ushort[MaxCodeBits + 1];
         private readonly int[] _valOffset = new int[MaxCodeBits + 1];
@@ -51,16 +57,16 @@ namespace PdfReader.Rendering.Image.Jpg
                     _maxCode[codeLength] = (ushort)(code + count - 1);
                     _valOffset[codeLength] = huffValueIndex - code;
 
-                    for (int j = 0; j < count; j++)
+                    for (int valueIndex = 0; valueIndex < count; valueIndex++)
                     {
                         if (codeLength <= LookaheadBits)
                         {
                             int replicateCount = 1 << (LookaheadBits - codeLength);
                             int baseIndex = code << (LookaheadBits - codeLength);
-                            short entry = (short)((codeLength << 8) | table.Values[huffValueIndex + j]);
-                            for (int r = 0; r < replicateCount; r++)
+                            short entry = (short)((codeLength << 8) | table.Values[huffValueIndex + valueIndex]);
+                            for (int replicateIndex = 0; replicateIndex < replicateCount; replicateIndex++)
                             {
-                                _lookahead[baseIndex + r] = entry;
+                                _lookahead[baseIndex + replicateIndex] = entry;
                             }
                         }
 
@@ -74,52 +80,57 @@ namespace PdfReader.Rendering.Image.Jpg
         }
 
         /// <summary>
-        /// Decode a single Huffman symbol from the bit reader.
+        /// Decode a single Huffman symbol from the bit reader. Performs a single 16-bit peek supplying the
+        /// high bits used for the widened lookahead table. On fast-path a single array access plus DropBits.
+        /// Slow path incrementally extends the code without re-shifting the entire 16-bit window for each length.
         /// </summary>
         /// <param name="br">Bit reader positioned at the next Huffman code.</param>
         /// <returns>Decoded symbol or -1 on malformed input.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public int Decode(ref JpgBitReader br)
         {
-            short laEntry = _lookahead[br.PeekBits8()];
-            if (laEntry != -1)
+            uint peek16 = br.PeekBits16();
+            int lookaheadShift = MaxCodeBits - LookaheadBits;
+            int lookaheadIndex = (int)(peek16 >> lookaheadShift);
+
+            short lookaheadEntry = _lookahead[lookaheadIndex];
+            if (lookaheadEntry != -1)
             {
-                int nbits = (laEntry >> 8) & 0xFF;
-                int symbol = laEntry & 0xFF;
-                br.DropBits(nbits);
+                int matchedBits = (lookaheadEntry >> 8) & 0xFF;
+                int symbol = lookaheadEntry & 0xFF;
+                br.DropBits(matchedBits);
                 return symbol;
             }
 
-            // Slow path: use one 16-bit peek, then test increasing lengths.
-            // This avoids per-bit reads; we compute the candidate code by masking the low bits.
-            uint bits16 = br.PeekBits16();
-            for (int len = LookaheadBits + 1; len <= MaxCodeBits; len++)
+            int codePrefix = lookaheadIndex; // Current code bits value (length = LookaheadBits initially).
+            for (int length = LookaheadBits + 1; length <= MaxCodeBits; length++)
             {
-                int code = (int)(bits16 >> (MaxCodeBits - len)) & ((1 << len) - 1);
-                ushort max = _maxCode[len];
-                if (code > max)
+                int nextBit = (int)(peek16 >> (MaxCodeBits - length)) & 1;
+                codePrefix = (codePrefix << 1) | nextBit;
+
+                ushort max = _maxCode[length];
+                if (codePrefix > max)
                 {
                     continue;
                 }
 
-                ushort min = _minCode[len];
-                if (code < min)
+                ushort min = _minCode[length];
+                if (codePrefix < min)
                 {
                     continue;
                 }
 
-                int index = _valOffset[len] + code;
-                // Construction guarantees index is valid if tables were well-formed.
-                if ((uint)index >= (uint)_huffval.Length)
+                int valueArrayIndex = _valOffset[length] + codePrefix;
+                if ((uint)valueArrayIndex >= (uint)_huffval.Length)
                 {
                     return -1;
                 }
 
-                br.DropBits(len);
-                return _huffval[index];
+                br.DropBits(length);
+                return _huffval[valueArrayIndex];
             }
 
-            return -1;
+            return -1; // Malformed stream (no matching code up to 16 bits).
         }
     }
 }

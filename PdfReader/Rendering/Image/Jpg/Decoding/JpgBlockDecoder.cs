@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Runtime.CompilerServices;
+using PdfReader.Rendering.Image.Jpg.Model;
 using PdfReader.Rendering.Image.Jpg.Readers;
 
 namespace PdfReader.Rendering.Image.Jpg.Decoding
@@ -6,24 +8,25 @@ namespace PdfReader.Rendering.Image.Jpg.Decoding
     /// <summary>
     /// Decodes JPEG 8x8 DCT blocks for baseline sequential scans (non-progressive).
     /// Handles differential DC prediction and run-length / Huffman AC decoding.
+    /// Outputs coefficients directly in natural (row-major) order to avoid a later de-zig-zag pass.
     /// </summary>
     internal sealed class JpgBlockDecoder
     {
         /// <summary>
-        /// Decode a single 8x8 DCT block (baseline). Coefficients are written in zig‑zag order.
+        /// Decode a single 8x8 DCT block (baseline). Coefficients are written in natural (row-major) order.
         /// </summary>
         /// <param name="bitReader">Bit reader positioned at the start of the block entropy data.</param>
         /// <param name="dcDecoder">DC Huffman table decoder (required).</param>
         /// <param name="acDecoder">AC Huffman table decoder (required).</param>
         /// <param name="previousDcValue">Reference to previous DC for differential prediction (updated).</param>
-        /// <param name="coefficientsZigZag">Destination array (length &gt;= 64) receiving coefficients in zig‑zag order.</param>
+        /// <param name="coefficientsNatural">Destination array (length &gt;= 64) receiving coefficients in natural order.</param>
         /// <param name="dcOnly">Outputs true if block contains only a DC coefficient (all AC are zero).</param>
         public static void DecodeBaselineBlock(
             ref JpgBitReader bitReader,
             JpgHuffmanDecoder dcDecoder,
             JpgHuffmanDecoder acDecoder,
             ref int previousDcValue,
-            int[] coefficientsZigZag,
+            ref Block8x8F coefficientsNatural,
             out bool dcOnly)
         {
             if (dcDecoder == null)
@@ -36,31 +39,20 @@ namespace PdfReader.Rendering.Image.Jpg.Decoding
                 throw new ArgumentNullException(nameof(acDecoder));
             }
 
-            if (coefficientsZigZag == null)
-            {
-                throw new ArgumentNullException(nameof(coefficientsZigZag));
-            }
+            coefficientsNatural.Clear();
 
-            if (coefficientsZigZag.Length < 64)
-            {
-                throw new ArgumentException("Coefficient array must have length >= 64.", nameof(coefficientsZigZag));
-            }
-
-            // Ensure prior contents do not leak (hot path: Array.Clear is optimized).
-            Array.Clear(coefficientsZigZag, 0, 64);
-
-            DecodeDcCoefficient(ref bitReader, dcDecoder, ref previousDcValue, coefficientsZigZag);
-            DecodeAcCoefficients(ref bitReader, acDecoder, coefficientsZigZag, out dcOnly);
+            DecodeDcCoefficient(ref bitReader, dcDecoder, ref previousDcValue, ref coefficientsNatural);
+            DecodeAcCoefficients(ref bitReader, acDecoder, ref coefficientsNatural, out dcOnly);
         }
 
         /// <summary>
-        /// Decode differential DC coefficient (baseline).
+        /// Decode differential DC coefficient (baseline) and store at natural index 0.
         /// </summary>
         private static void DecodeDcCoefficient(
             ref JpgBitReader bitReader,
             JpgHuffmanDecoder dcDecoder,
             ref int previousDcValue,
-            int[] coefficientsZigZag)
+            ref Block8x8F coefficientsNatural)
         {
             int category = dcDecoder.Decode(ref bitReader);
             if (category < 0)
@@ -76,33 +68,40 @@ namespace PdfReader.Rendering.Image.Jpg.Decoding
 
             int dcValue = previousDcValue + dcDifference;
             previousDcValue = dcValue;
-            coefficientsZigZag[0] = dcValue;
+
+            ref float destinationRef = ref Unsafe.As<Block8x8F, float>(ref coefficientsNatural);
+            destinationRef = dcValue;
         }
 
         /// <summary>
         /// Decode AC coefficients using JPEG run-length/Huffman rules (EOB, ZRL, runs of zeros).
+        /// Stores each decoded non-zero at its natural index (mapping from current spectral/zig-zag position).
         /// Sets dcOnly true only if no non-zero AC value is encountered.
         /// </summary>
         private static void DecodeAcCoefficients(
             ref JpgBitReader bitReader,
             JpgHuffmanDecoder acDecoder,
-            int[] coefficientsZigZag,
+            ref Block8x8F coefficientsNatural,
             out bool dcOnly)
         {
-            int coefficientIndex = 1;
+            int spectralIndex = 1;
             dcOnly = true;
 
-            while (coefficientIndex < 64)
+            // Local references to improve JIT optimizations and avoid repeated static field bounds checks.
+            byte[] zigZagToNatural = JpgZigZag.Table;
+            ref float destinationRef = ref Unsafe.As<Block8x8F, float>(ref coefficientsNatural);
+
+            while (spectralIndex < 64)
             {
                 int runSize = acDecoder.Decode(ref bitReader);
                 if (runSize < 0)
                 {
-                    throw new InvalidOperationException($"Huffman decode failed for AC coefficient at position {coefficientIndex}.");
+                    throw new InvalidOperationException($"Huffman decode failed for AC coefficient at spectral position {spectralIndex}.");
                 }
 
                 if (runSize == 0)
                 {
-                    // EOB: remaining coefficients stay zero; retain dcOnly as-is.
+                    // EOB: Remaining coefficients are zero.
                     return;
                 }
 
@@ -111,32 +110,33 @@ namespace PdfReader.Rendering.Image.Jpg.Decoding
 
                 if (size == 0 && run == 0xF)
                 {
-                    // ZRL: skip 16 zeros.
-                    coefficientIndex += 16;
-                    if (coefficientIndex >= 64)
+                    // ZRL: Skip 16 zeros in spectral order.
+                    spectralIndex += 16;
+                    if (spectralIndex >= 64)
                     {
-                        // Exceeded block; stop.
                         return;
                     }
+
                     continue;
                 }
 
-                coefficientIndex += run; // Advance past run zeros.
-                if (coefficientIndex >= 64)
+                spectralIndex += run; // Advance past run zeros.
+                if (spectralIndex >= 64)
                 {
-                    // Malformed run beyond block; stop gracefully.
+                    // Malformed stream: run extends beyond block.
                     return;
                 }
 
-                int acValue = size > 0 ? bitReader.ReadSigned(size) : 0;
-
+                int acValue = bitReader.ReadSigned(size);
                 if (acValue != 0)
                 {
                     dcOnly = false;
                 }
 
-                coefficientsZigZag[coefficientIndex] = acValue;
-                coefficientIndex++;
+                int naturalIndex = zigZagToNatural[spectralIndex];
+
+                Unsafe.Add(ref destinationRef, naturalIndex) = acValue;
+                spectralIndex++;
             }
         }
     }
