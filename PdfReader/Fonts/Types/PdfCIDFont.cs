@@ -1,9 +1,10 @@
 using CommunityToolkit.HighPerformance;
+using PdfReader.Fonts.Mapping;
 using PdfReader.Models;
 using PdfReader.Streams;
 using System;
 
-namespace PdfReader.Fonts
+namespace PdfReader.Fonts.Types
 {
     /// <summary>
     /// CID fonts: CIDFontType0, CIDFontType2

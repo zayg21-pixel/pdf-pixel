@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 
-namespace PdfReader.Fonts
+namespace PdfReader.Fonts.Types
 {
     // Font width information
     public class PdfFontWidths

@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Text;
 
-namespace PdfReader.Fonts
+namespace PdfReader.Text
 {
     internal static class EncodingExtensions
     {
@@ -40,7 +40,7 @@ namespace PdfReader.Fonts
                 return string.Empty;
             }
 
-            return GetString(encoding, value.Span);
+            return encoding.GetString(value.Span);
         }
     }
 }

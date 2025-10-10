@@ -1,5 +1,6 @@
 using HarfBuzzSharp;
 using Microsoft.Extensions.Logging;
+using PdfReader.Fonts.Cff;
 using PdfReader.Models;
 using PdfReader.Rendering.HarfBuzz;
 using PdfReader.Streams;
@@ -8,7 +9,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 
-namespace PdfReader.Fonts
+namespace PdfReader.Fonts.Management
 {
     /// <summary>
     /// Default implementation of font cache that contains both SKTypeface and HarfBuzz fonts
@@ -25,6 +26,7 @@ namespace PdfReader.Fonts
         private readonly ILogger<PdfFontCache> _logger;
         private readonly SkiaFontLoader _skiaFontLoader;
         private readonly HarfBuzzFontLoader _harfBuzzFontLoader;
+        private readonly CffSidGidMapper _cffMapper;
 
         private bool _disposed = false;
 
@@ -34,29 +36,36 @@ namespace PdfReader.Fonts
             _skiaFontLoader = new SkiaFontLoader(document);
             _harfBuzzFontLoader = new HarfBuzzFontLoader(document);
             _logger = document.LoggerFactory.CreateLogger<PdfFontCache>();
+            _cffMapper = new CffSidGidMapper(document);
         }
 
         public ReadOnlyMemory<byte> GetFontStream(PdfFontDescriptor decriptor)
         {
             if (decriptor?.FontFileObject == null)
+            {
                 return ReadOnlyMemory<byte>.Empty;
+            }
 
-            // Try to get from cache first
             if (_cache.TryGetValue(decriptor.FontFileObject.Reference, out var cached))
+            {
                 return cached;
+            }
 
-            // Not in cache, decode and cache
             return _cache.GetOrAdd(decriptor.FontFileObject.Reference, _ => DecodeFontStream(decriptor));
         }
 
         public CffNameKeyedInfo GetCffInfo(PdfFontDescriptor decriptor)
         {
             if (decriptor?.FontFileObject == null)
+            {
                 return null;
-            // Try to get from cache first
+            }
+
             if (_ccfMaps.TryGetValue(decriptor.FontFileObject.Reference, out var cached))
+            {
                 return cached;
-            // Not in cache, decode and cache
+            }
+
             return _ccfMaps.GetOrAdd(decriptor.FontFileObject.Reference, _ => DecodeCffInfo(decriptor));
         }
 
@@ -64,12 +73,11 @@ namespace PdfReader.Fonts
         {
             try
             {
-                // Handle CFF-based fonts by wrapping into an OpenType container Skia can consume
                 if (decriptor.HasEmbeddedFont && decriptor.FontFileFormat == FontFileFormat.Type1C || decriptor.FontFileFormat == FontFileFormat.CIDFontType0C)
                 {
                     var decoded = PdfStreamDecoder.DecodeContentStream(decriptor.FontFileObject);
 
-                    if (CffSidGidMapper.TryParseNameKeyed(decoded, out var cffInfo))
+                    if (_cffMapper.TryParseNameKeyed(decoded, out var cffInfo))
                     {
                         return cffInfo;
                     }
@@ -77,6 +85,7 @@ namespace PdfReader.Fonts
             }
             catch
             {
+                // Swallow exceptions - higher level code can fallback.
             }
 
             return null;

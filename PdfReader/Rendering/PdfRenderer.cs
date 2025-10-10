@@ -6,6 +6,7 @@ using PdfReader.Rendering.Image;
 using PdfReader.Rendering.Shading;
 using SkiaSharp;
 using Microsoft.Extensions.Logging;
+using PdfReader.Fonts.Management;
 
 namespace PdfReader.Rendering
 {
@@ -29,7 +30,7 @@ namespace PdfReader.Rendering
             _loggerFactory = loggerFactory ?? throw new System.ArgumentNullException(nameof(loggerFactory));
             _logger = _loggerFactory.CreateLogger<PdfRenderer>();
             _imageRenderer = new FastImageDrawer(_loggerFactory);
-            _textRenderer = new PdfTextRenderer(fontCache);
+            _textRenderer = new PdfTextRenderer(fontCache, _loggerFactory);
             _shadingRenderer = new StandardShadingDrawer(_loggerFactory);
         }
 

@@ -1,6 +1,6 @@
 using PdfReader.Models;
 
-namespace PdfReader.Fonts
+namespace PdfReader.Fonts.Types
 {
     // CID font system info
     public class PdfCIDSystemInfo

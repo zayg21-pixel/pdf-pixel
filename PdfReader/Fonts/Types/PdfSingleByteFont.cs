@@ -1,7 +1,7 @@
 using PdfReader.Models;
 using System;
 
-namespace PdfReader.Fonts
+namespace PdfReader.Fonts.Types
 {
     /// <summary>
     /// Intermediate base class for single-byte fonts (Simple fonts and Type3 fonts)

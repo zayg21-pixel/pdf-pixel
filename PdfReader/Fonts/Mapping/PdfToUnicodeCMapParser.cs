@@ -3,7 +3,7 @@ using System.Text;
 using PdfReader.Parsing;
 using PdfReader.Models;
 
-namespace PdfReader.Fonts
+namespace PdfReader.Fonts.Mapping
 {
     /// <summary>
     /// Parser for PDF ToUnicode CMaps used in CID fonts
@@ -401,7 +401,7 @@ namespace PdfReader.Fonts
             uint v = 0u;
             for (int i = 0; i < bytes.Length; i++)
             {
-                v = (v << 8) | bytes[i];
+                v = v << 8 | bytes[i];
             }
             return v;
         }

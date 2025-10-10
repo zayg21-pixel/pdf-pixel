@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace PdfReader.Fonts
+namespace PdfReader.Fonts.Mapping
 {
     // ToUnicode CMap for character mapping (length-aware, character code-based)
     // NOTE: Keys are byte-sequence character codes, avoiding collisions between e.g. <41> and <0041>.

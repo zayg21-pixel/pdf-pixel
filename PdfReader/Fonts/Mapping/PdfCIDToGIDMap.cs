@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace PdfReader.Fonts
+namespace PdfReader.Fonts.Mapping
 {
     /// <summary>
     /// Represents a CID-to-GID mapping for CID fonts

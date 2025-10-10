@@ -1,3 +1,4 @@
+using PdfReader.Fonts.Types;
 using PdfReader.Models;
 using System;
 

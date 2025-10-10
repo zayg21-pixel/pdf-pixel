@@ -1,6 +1,8 @@
 using System;
 using System.Text;
 using PdfReader.Fonts;
+using PdfReader.Fonts.Mapping;
+using PdfReader.Fonts.Types;
 using PdfReader.Text;
 
 namespace PdfReader.Models
@@ -26,31 +28,6 @@ namespace PdfReader.Models
         /// Check if the text is empty
         /// </summary>
         public bool IsEmpty => RawBytes.Length == 0;
-
-        /// <summary>
-        /// Decode this text to Unicode using the provided font.
-        /// </summary>
-        public string GetUnicodeText(PdfFontBase font)
-        {
-            return PdfTextDecoder.DecodeTextStringWithFont(RawBytes, font);
-        }
-
-        /// <summary>
-        /// Decode a single character code to Unicode using the provided font.
-        /// </summary>
-        public string GetUnicodeText(PdfCharacterCode code, PdfFontBase font)
-        {
-            return PdfTextDecoder.DecodeCharacterCode(code, font);
-        }
-
-        /// <summary>
-        /// Extract byte-sequence character codes from raw bytes using the provided font.
-        /// Uses codespace ranges when available.
-        /// </summary>
-        public PdfCharacterCode[] GetCharacterCodes(PdfFontBase font)
-        {
-            return PdfTextDecoder.ExtractCharacterCodesFromBytes(RawBytes, font);
-        }
 
         /// <summary>
         /// Convert CIDs to GIDs for font rendering using the existing font mapping path.
@@ -143,15 +120,9 @@ namespace PdfReader.Models
 
         private static uint[] ConvertCIDsToGIDs(uint[] cids, PdfFontBase font)
         {
-            if (cids == null || cids.Length == 0)
+            if (cids?.Length == 0)
             {
                 return Array.Empty<uint>();
-            }
-
-            if (font == null)
-            {
-                Console.WriteLine("Warning: Font is null in ConvertCIDsToGIDs, using identity mapping");
-                return cids;
             }
             
             switch (font)
@@ -163,18 +134,17 @@ namespace PdfReader.Models
                     return ConvertCIDsToGIDs(cids, cidFont);
 
                 case PdfSimpleFont simpleFont:
-                    return ConvertCIDsToGIDs_Simple(cids, simpleFont);
+                    return ConvertCIDsToGIDsSimple(cids, simpleFont);
 
                 case PdfType3Font type3Font:
                     return ConvertCIDsToGIDs(cids, type3Font);
 
                 default:
-                    Console.WriteLine($"Warning: Unknown font type {font.GetType().Name} in ConvertCIDsToGIDs, using identity mapping");
                     return cids;
             }
         }
 
-        private static uint[] ConvertCIDsToGIDs_Simple(uint[] cids, PdfSimpleFont simpleFont)
+        private static uint[] ConvertCIDsToGIDsSimple(uint[] cids, PdfSimpleFont simpleFont)
         {
             var result = new uint[cids.Length];
             var cff = simpleFont.FontDescriptor?.GetCffInfo();

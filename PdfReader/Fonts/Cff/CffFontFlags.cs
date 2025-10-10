@@ -1,9 +1,9 @@
 using System;
 
-namespace PdfReader.Fonts
+namespace PdfReader.Fonts.Cff
 {
     [Flags]
-    public enum PdfFontFlags
+    public enum CffFontFlags
     {
         None = 0,
         FixedPitch = 1,

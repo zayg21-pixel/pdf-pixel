@@ -1,4 +1,6 @@
+using Microsoft.Extensions.Logging;
 using PdfReader.Fonts;
+using PdfReader.Fonts.Management;
 using PdfReader.Models;
 using PdfReader.Rendering.Advanced;
 using PdfReader.Rendering.HarfBuzz;
@@ -12,15 +14,24 @@ namespace PdfReader.Rendering.Text
     public class StandardTextDrawer : ITextDrawer
     {
         private readonly IFontCache _fontCache;
+        private readonly ILogger<StandardTextDrawer> _logger;
+        private readonly PdfTextDecoder _pdfTextDecoder;
+        private readonly HarfBuzzFontRenderer _harfBuzzRenderer;
 
-        internal StandardTextDrawer(IFontCache fontCache)
+        internal StandardTextDrawer(IFontCache fontCache, ILoggerFactory loggerFactory)
         {
             _fontCache = fontCache ?? throw new ArgumentNullException(nameof(fontCache));
+            if (loggerFactory == null)
+            {
+                throw new ArgumentNullException(nameof(loggerFactory));
+            }
+            _pdfTextDecoder = new PdfTextDecoder(loggerFactory);
+            _harfBuzzRenderer = new HarfBuzzFontRenderer(_pdfTextDecoder);
+            _logger = loggerFactory.CreateLogger<StandardTextDrawer>();
         }
 
         public float DrawText(SKCanvas canvas, ref PdfText pdfText, PdfPage page, PdfGraphicsState state, PdfFontBase font)
         {
-            // If nothing to draw, return immediately
             if (font?.Type == PdfFontType.Type3 || pdfText.IsEmpty)
             {
                 return 0f;
@@ -36,23 +47,17 @@ namespace PdfReader.Rendering.Text
 
                 using var softMaskScope = new SoftMaskDrawingScope(canvas, state, page, measuredBounds);
                 softMaskScope.BeginDrawContent();
-
                 DrawText(canvas, ref pdfText, page, state, font, dryRun: false);
-
                 softMaskScope.EndDrawContent();
-
                 return measuredBounds.Width;
             }
             else
             {
-                // No soft mask: draw directly and return width
                 var actualBounds = DrawText(canvas, ref pdfText, page, state, font, dryRun: false);
                 return actualBounds.Width;
             }
         }
 
-        // Inner method: draws text or measures it, returns local bounds. Does NOT apply soft mask.
-        // Returns SKRect.Empty only when there is truly no text to consider (empty text or unsupported font).
         private SKRect DrawText(SKCanvas canvas, ref PdfText pdfText, PdfPage page, PdfGraphicsState state, PdfFontBase font, bool dryRun)
         {
             if (font?.Type == PdfFontType.Type3 || pdfText.IsEmpty)
@@ -62,46 +67,42 @@ namespace PdfReader.Rendering.Text
 
             var typeface = _fontCache.GetTypeface(font);
             var harfBuzzFont = _fontCache.GetHarfBuzzFont(font);
-            var unicodeText = pdfText.GetUnicodeText(font);
+            var unicodeText = _pdfTextDecoder.DecodeTextStringWithFont(pdfText.RawBytes, font);
             bool isCffNameKeyed = font.FontDescriptor?.IsCffFont == true;
 
-            using var skPpaint = PdfPaintFactory.CreateTextPaint(state, page);
+            using var skPaint = PdfPaintFactory.CreateTextPaint(state, page);
             using var skFont = PdfPaintFactory.CreateTextFont(state, typeface, page);
 
             SKSize size;
-
             if (isCffNameKeyed)
             {
-                var shaped = BuildCffShapedGlyphs(pdfText, skFont, state, font);
-                size = DrawShapedText(canvas, skPpaint, skFont, shaped, state, dryRun);
+                var shaped = BuildCffShapedGlyphs(ref pdfText, skFont, state, font);
+                size = DrawShapedText(canvas, skPaint, skFont, shaped, state, dryRun);
             }
             else if (harfBuzzFont != null)
             {
-                var shaped = HarfBuzzFontRenderer.ShapeText(ref pdfText, harfBuzzFont, unicodeText, font, state);
-
-                // If all glyphs are missing (glyph ID 0), fall back to Unicode rendering
+                var shaped = _harfBuzzRenderer.ShapeText(ref pdfText, harfBuzzFont, unicodeText, font, state);
                 if (shaped.All(x => x.GlyphId == 0))
                 {
-                    size = DrawUnicodeText(canvas, skPpaint, skFont, unicodeText, state, dryRun);
+                    size = DrawUnicodeText(canvas, skPaint, skFont, unicodeText, state, dryRun);
                 }
                 else
                 {
-                    size = DrawShapedText(canvas, skPpaint, skFont, shaped, state, dryRun);
+                    size = DrawShapedText(canvas, skPaint, skFont, shaped, state, dryRun);
                 }
             }
             else
             {
-                size = DrawUnicodeText(canvas, skPpaint, skFont, unicodeText, state, dryRun);
+                size = DrawUnicodeText(canvas, skPaint, skFont, unicodeText, state, dryRun);
             }
 
-            // Compute a reasonable local bounds from measured size
             var bounds = CalculateSoftMaskBounds(size);
             return bounds;
         }
 
-        private ShapedGlyph[] BuildCffShapedGlyphs(PdfText pdfText, SKFont font, PdfGraphicsState state, PdfFontBase baseFont)
+        private ShapedGlyph[] BuildCffShapedGlyphs(ref PdfText pdfText, SKFont font, PdfGraphicsState state, PdfFontBase baseFont)
         {
-            var codes = pdfText.GetCharacterCodes(baseFont);
+            var codes = _pdfTextDecoder.ExtractCharacterCodes(pdfText.RawBytes, baseFont);
             var gids = pdfText.GetGids(codes, baseFont);
 
             int glyphCount = gids.Length;
@@ -112,34 +113,27 @@ namespace PdfReader.Rendering.Text
             }
 
             float[] glyphWidths = font.GetGlyphWidths(glyphArray);
-
             var shaped = new ShapedGlyph[glyphCount];
             int shapeIndex = 0;
-
             float cursorX = 0f;
             for (int i = 0; i < glyphCount; i++)
             {
                 uint gid = gids[i];
-
                 if (gid == 0)
                 {
                     continue;
                 }
-
                 float width = (gid != 0 && glyphWidths != null && i < glyphWidths.Length) ? glyphWidths[i] : 0f;
-                string unicodeTextForCid = PdfTextDecoder.DecodeCharacterCode(codes[i], baseFont);
+                string unicodeTextForCid = _pdfTextDecoder.DecodeCharacterCode(codes[i], baseFont);
                 float extra = state.CharacterSpacing + (unicodeTextForCid == " " ? state.WordSpacing : 0f);
-
                 shaped[shapeIndex] = new ShapedGlyph(gid, cursorX, 0, width + extra, 0);
                 cursorX += width + extra;
                 shapeIndex++;
             }
-
             if (shapeIndex != shaped.Length)
             {
                 Array.Resize(ref shaped, shapeIndex);
             }
-
             return shaped;
         }
 
@@ -149,7 +143,6 @@ namespace PdfReader.Rendering.Text
             {
                 return SKSize.Empty;
             }
-
             float advanceWidth = 0f;
             for (int i = 0; i < text.Length; i++)
             {
@@ -176,16 +169,13 @@ namespace PdfReader.Rendering.Text
             {
                 return SKSize.Empty;
             }
-
             float advanceWidth = 0f;
-
             if (!dryRun && state.TextRenderingMode != PdfTextRenderingMode.Invisible)
             {
                 using var builder = new SKTextBlobBuilder();
                 var run = builder.AllocatePositionedRun(font, shapingResult.Length);
                 var glyphSpan = run.Glyphs;
                 var positionSpan = run.Positions;
-
                 for (int i = 0; i < shapingResult.Length; i++)
                 {
                     ref var shapedGlyph = ref shapingResult[i];
@@ -207,14 +197,12 @@ namespace PdfReader.Rendering.Text
                     }
                 }
             }
-
             var metrics = font.Metrics;
             float height = metrics.Descent - metrics.Ascent;
             paint.Dispose();
             return new SKSize(advanceWidth, height);
         }
 
-        // Compute a reasonable soft-mask bounds rectangle from measured size
         private SKRect CalculateSoftMaskBounds(SKSize size)
         {
             float top = -size.Height * 0.8f;

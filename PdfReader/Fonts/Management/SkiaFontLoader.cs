@@ -1,10 +1,12 @@
 using Microsoft.Extensions.Logging;
+using PdfReader.Fonts.Cff;
+using PdfReader.Fonts.Types;
 using PdfReader.Models;
 using SkiaSharp;
 using System;
 using System.Collections.Generic;
 
-namespace PdfReader.Fonts
+namespace PdfReader.Fonts.Management
 {
     /// <summary>
     /// Utility class for working with PDF fonts and text.
@@ -219,7 +221,7 @@ namespace PdfReader.Fonts
         {
             if (font?.FontDescriptor != null)
             {
-                if (font.FontDescriptor.Flags.HasFlag(PdfFontFlags.Italic))
+                if (font.FontDescriptor.Flags.HasFlag(CffFontFlags.Italic))
                 {
                     return true;
                 }
@@ -235,7 +237,7 @@ namespace PdfReader.Fonts
         {
             if (font?.FontDescriptor != null)
             {
-                if (font.FontDescriptor.Flags.HasFlag(PdfFontFlags.ForceBold))
+                if (font.FontDescriptor.Flags.HasFlag(CffFontFlags.ForceBold))
                 {
                     return true;
                 }

@@ -1,3 +1,4 @@
+using PdfReader.Fonts.Mapping;
 using PdfReader.Models;
 using PdfReader.Parsing;
 using PdfReader.Streams;
@@ -14,7 +15,6 @@ namespace PdfReader.Fonts
     /// </summary>
     public abstract class PdfFontBase
     {
-        // Thread-safe lazy loading using Lazy<T>
         private readonly Lazy<PdfToUnicodeCMap> _toUnicodeCMap;
 
         /// <summary>

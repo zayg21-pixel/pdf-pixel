@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace PdfReader.Fonts
+namespace PdfReader.Fonts.Management
 {
     /// <summary>
     /// Parsed representation of a PDF BaseFont PostScript name.

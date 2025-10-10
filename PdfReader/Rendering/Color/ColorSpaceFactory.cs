@@ -1,7 +1,7 @@
 ﻿using System;
 using PdfReader.Models;
-using PdfReader.Fonts;
 using PdfReader.Streams;
+using PdfReader.Text;
 
 namespace PdfReader.Rendering.Color
 {

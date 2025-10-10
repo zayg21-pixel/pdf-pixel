@@ -1,130 +1,132 @@
 ﻿using HarfBuzzSharp;
 using PdfReader.Fonts;
+using PdfReader.Fonts.Types;
 using PdfReader.Models;
+using PdfReader.Text;
 using System;
 using System.Collections.Generic;
 
 namespace PdfReader.Rendering.HarfBuzz
 {
     /// <summary>
-    /// Advanced font rendering system using HarfBuzz for comprehensive embedded font support
-    /// Updated to use PdfFontBase hierarchy
+    /// HarfBuzz based text shaping for complex scripts and advanced OpenType features.
+    /// Instance-based so it can reuse a shared PdfTextDecoder (for CID->Unicode fallbacks etc.).
     /// </summary>
-    public class HarfBuzzFontRenderer
+    public sealed class HarfBuzzFontRenderer
     {
+        private readonly PdfTextDecoder _decoder;
+
+        public HarfBuzzFontRenderer(PdfTextDecoder decoder)
+        {
+            _decoder = decoder ?? throw new ArgumentNullException(nameof(decoder));
+        }
+
         /// <summary>
-        /// Shape text using HarfBuzz for complex scripts and advanced typography
-        /// Handles CID fonts with raw codepoints vs Unicode fonts
-        /// Updated to use PdfFontBase hierarchy
+        /// Shape text using HarfBuzz for complex scripts and advanced typography.
+        /// Handles CID fonts with raw codes vs Unicode fonts.
         /// </summary>
-        public static ShapedGlyph[] ShapeText(ref PdfText text, Font harfBuzzFont, string unicode, PdfFontBase font, PdfGraphicsState state)
+        public ShapedGlyph[] ShapeText(ref PdfText text, Font harfBuzzFont, string unicode, PdfFontBase font, PdfGraphicsState state)
         {
             if (text.IsEmpty)
+            {
                 return Array.Empty<ShapedGlyph>();
+            }
 
-            // Set font scale based on desired size
-            var scale = (int)(state.FontSize * 64f); // Use 64 units per point for better precision
+            int scale = (int)(state.FontSize * 64f);
             harfBuzzFont.SetScale(scale, scale);
 
-            // Determine if this is a CID font based on font hierarchy
-            bool isCIDFont = font is PdfCIDFont || font is PdfCompositeFont || font.FontDescriptor?.IsCffFont == true;
-
-            if (isCIDFont)
+            bool isCidFont = font is PdfCIDFont || font is PdfCompositeFont || font.FontDescriptor?.IsCffFont == true;
+            if (isCidFont)
             {
-                return ShapeGlyphs(text, harfBuzzFont, font, state);
+                return ShapeGlyphs(ref text, harfBuzzFont, font, state);
             }
             else
             {
-                return ShapeUnicodeText(text, harfBuzzFont, unicode, font, state);
+                return ShapeUnicodeText(unicode, harfBuzzFont, state);
             }
         }
 
-        private static ShapedGlyph[] ShapeUnicodeText(PdfText text, Font harfBuzzFont, string unicode, PdfFontBase font, PdfGraphicsState state)
+        private ShapedGlyph[] ShapeUnicodeText(string unicode, Font harfBuzzFont, PdfGraphicsState state)
         {
-            float xOffset = 0;
-            float yOffset = 0;
+            float xOffset = 0f;
+            float yOffset = 0f;
 
-            HarfBuzzSharp.Buffer buffer = new HarfBuzzSharp.Buffer();
-            buffer.ContentType = ContentType.Unicode;
-            HashSet<uint> spaceClusters = new HashSet<uint>();
+            var buffer = new HarfBuzzSharp.Buffer
+            {
+                ContentType = ContentType.Unicode,
+                Direction = Direction.LeftToRight
+            };
+
+            var spaceClusters = new HashSet<uint>();
             uint cluster = 0;
 
             for (int i = 0; i < unicode.Length; i++)
             {
                 if (i < unicode.Length - 1 && char.IsSurrogatePair(unicode[i], unicode[i + 1]))
                 {
-                    var codepoint = (uint)char.ConvertToUtf32(unicode[i], unicode[i + 1]);
+                    uint codepoint = (uint)char.ConvertToUtf32(unicode[i], unicode[i + 1]);
                     buffer.Add(codepoint, cluster);
                     i++;
                 }
                 else
                 {
                     buffer.Add(unicode[i], cluster);
-
                     if (unicode[i] == ' ')
                     {
                         spaceClusters.Add(cluster);
                     }
                 }
-
                 cluster++;
             }
 
-            buffer.Direction = Direction.LeftToRight;
             harfBuzzFont.Shape(buffer);
-
             var result = new ShapedGlyph[buffer.Length];
 
             for (int i = 0; i < buffer.Length; i++)
             {
                 var info = buffer.GlyphInfos[i];
                 var position = buffer.GlyphPositions[i];
+                float xAdvance = position.XAdvance / 64f;
+                float yAdvance = position.YAdvance / 64f;
 
-                var xNormalized = position.XAdvance / 64f;
-                var yNormalized = position.YAdvance / 64f;
+                result[i] = new ShapedGlyph(info.Codepoint, xOffset, yOffset, xAdvance, yAdvance);
 
-                result[i] = new ShapedGlyph(info.Codepoint, xOffset, yOffset, xNormalized, yNormalized);
+                xOffset += xAdvance + state.CharacterSpacing;
+                yOffset += yAdvance;
 
-                xOffset += xNormalized + state.CharacterSpacing;
-                yOffset += yNormalized;
-
-                if (state.WordSpacing != 0)
+                if (state.WordSpacing != 0 && spaceClusters.Contains(info.Cluster))
                 {
-                    if (spaceClusters.Contains(info.Cluster))
-                    {
-                        xOffset += state.WordSpacing;
-                    }
+                    xOffset += state.WordSpacing;
                 }
             }
 
             return result;
         }
 
-        private static ShapedGlyph[] ShapeGlyphs(PdfText text, Font harfBuzzFont, PdfFontBase font, PdfGraphicsState state)
+        private ShapedGlyph[] ShapeGlyphs(ref PdfText text, Font harfBuzzFont, PdfFontBase font, PdfGraphicsState state)
         {
-            var cids = text.GetCharacterCodes(font);
-            var glyphs = text.GetGids(cids, font);
+            var codes = _decoder.ExtractCharacterCodes(text.RawBytes, font);
+            var gids = text.GetGids(codes, font);
 
-            float xOffset = 0;
-            float yOffset = 0;
-            var result = new ShapedGlyph[glyphs.Length];
+            float xOffset = 0f;
+            float yOffset = 0f;
+            var result = new ShapedGlyph[gids.Length];
 
-            for (int i = 0; i < glyphs.Length; i++)
+            for (int i = 0; i < gids.Length; i++)
             {
-                uint codepoint = glyphs[i];
-                harfBuzzFont.GetGlyphAdvanceForDirection(codepoint, Direction.LeftToRight, out int xAdvance, out int yAdvance);
-                var xNormalized = xAdvance / 64f;
-                var yNormalized = yAdvance / 64f;
+                uint gid = gids[i];
+                harfBuzzFont.GetGlyphAdvanceForDirection(gid, Direction.LeftToRight, out int xAdv, out int yAdv);
+                float xAdvance = xAdv / 64f;
+                float yAdvance = yAdv / 64f;
 
-                result[i] = new ShapedGlyph(codepoint, xOffset, yOffset, xNormalized, yNormalized);
+                result[i] = new ShapedGlyph(gid, xOffset, yOffset, xAdvance, yAdvance);
 
-                xOffset += xNormalized + state.CharacterSpacing;
-                yOffset += yNormalized;
+                xOffset += xAdvance + state.CharacterSpacing;
+                yOffset += yAdvance;
 
                 if (state.WordSpacing != 0)
                 {
-                    string unicodeChars = text.GetUnicodeText(cids[i], font);
-
+                    string unicodeChars = _decoder.DecodeCharacterCode(codes[i], font);
                     if (unicodeChars.IndexOf(' ') >= 0)
                     {
                         xOffset += state.WordSpacing;

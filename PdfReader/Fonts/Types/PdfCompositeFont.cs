@@ -1,3 +1,5 @@
+using PdfReader.Fonts.Mapping;
+using PdfReader.Fonts.Types;
 using PdfReader.Models;
 using PdfReader.Parsing;
 using PdfReader.Streams;

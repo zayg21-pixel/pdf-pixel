@@ -1,6 +1,6 @@
 using System;
 
-namespace PdfReader.Fonts
+namespace PdfReader.Fonts.Mapping
 {
     /// <summary>
     /// Immutable representation of a PDF character code bytes.
@@ -76,14 +76,14 @@ namespace PdfReader.Fonts
             for (int i = 0; i < span.Length; i++)
             {
                 byte b = span[i];
-                chars[idx++] = GetHexNibble((b >> 4) & 0x0F);
+                chars[idx++] = GetHexNibble(b >> 4 & 0x0F);
                 chars[idx++] = GetHexNibble(b & 0x0F);
                 if (i < span.Length - 1) chars[idx++] = '-';
             }
             return new string(chars);
         }
 
-        private static char GetHexNibble(int v) => (char)(v < 10 ? ('0' + v) : ('A' + (v - 10)));
+        private static char GetHexNibble(int v) => (char)(v < 10 ? '0' + v : 'A' + (v - 10));
 
         /// <summary>
         /// Pack a uint into minimal-length big-endian bytes (no leading zero bytes).
@@ -165,7 +165,7 @@ namespace PdfReader.Fonts
             uint v = 0u;
             for (int i = 0; i < span.Length; i++)
             {
-                v = (v << 8) | span[i];
+                v = v << 8 | span[i];
             }
             return v;
         }

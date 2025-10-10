@@ -1,4 +1,4 @@
-namespace PdfReader.Fonts
+namespace PdfReader.Fonts.Mapping
 {
     /// <summary>
     /// Utility for converting single-byte PDF codes between base encodings

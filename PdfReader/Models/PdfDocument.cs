@@ -6,6 +6,8 @@ using PdfReader.Rendering.Color;
 using PdfReader.Parsing;
 using System;
 using System.Collections.Generic;
+using PdfReader.Fonts.Management;
+using PdfReader.Fonts.Mapping;
 
 namespace PdfReader.Models
 {

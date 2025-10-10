@@ -1,4 +1,4 @@
-namespace PdfReader.Fonts
+namespace PdfReader.Fonts.Cff
 {
     internal static class CffData
     {

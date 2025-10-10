@@ -1,4 +1,5 @@
 using System;
+using PdfReader.Fonts.Cff;
 using PdfReader.Models;
 using SkiaSharp;
 
@@ -22,7 +23,7 @@ namespace PdfReader.Fonts
     public class PdfFontDescriptor
     {
         public string FontName { get; set; }
-        public PdfFontFlags Flags { get; set; }
+        public CffFontFlags Flags { get; set; }
         public SKRect FontBBox { get; set; }
         public float ItalicAngle { get; set; }
         public float Ascent { get; set; }
@@ -70,7 +71,7 @@ namespace PdfReader.Fonts
             {
                 Dictionary = dict, // Store reference to the dictionary
                 FontName = dict.GetString(PdfTokens.FontNameKey),
-                Flags = (PdfFontFlags)dict.GetIntegerOrDefault(PdfTokens.FlagsKey),
+                Flags = (CffFontFlags)dict.GetIntegerOrDefault(PdfTokens.FlagsKey),
                 ItalicAngle = dict.GetFloatOrDefault(PdfTokens.ItalicAngleKey),
                 Ascent = dict.GetFloatOrDefault(PdfTokens.AscentKey),
                 Descent = dict.GetFloatOrDefault(PdfTokens.DescentKey),

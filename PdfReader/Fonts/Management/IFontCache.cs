@@ -1,8 +1,9 @@
 using HarfBuzzSharp;
+using PdfReader.Fonts.Cff;
 using SkiaSharp;
 using System;
 
-namespace PdfReader.Fonts
+namespace PdfReader.Fonts.Management
 {
     /// <summary>
     /// Interface for font caching that contains both SKTypeface and HarfBuzz fonts

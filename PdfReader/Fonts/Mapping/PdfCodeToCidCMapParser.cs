@@ -2,7 +2,7 @@ using System;
 using PdfReader.Models;
 using PdfReader.Parsing;
 
-namespace PdfReader.Fonts
+namespace PdfReader.Fonts.Mapping
 {
     /// <summary>
     /// Parser for code-to-CID CMaps (Type0 /Encoding CMaps).

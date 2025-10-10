@@ -1,4 +1,6 @@
+using Microsoft.Extensions.Logging;
 using PdfReader.Fonts;
+using PdfReader.Fonts.Management;
 using PdfReader.Models;
 using SkiaSharp;
 
@@ -12,9 +14,9 @@ namespace PdfReader.Rendering.Text
     {
         private readonly ITextDrawer _textDrawer;
 
-        internal PdfTextRenderer(IFontCache fontCache)
+        internal PdfTextRenderer(IFontCache fontCache, ILoggerFactory loggerFactory)
         {
-            _textDrawer = new StandardTextDrawer(fontCache);
+            _textDrawer = new StandardTextDrawer(fontCache, loggerFactory);
         }
 
         /// <summary>
