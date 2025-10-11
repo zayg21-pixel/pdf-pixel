@@ -2,12 +2,12 @@ using HarfBuzzSharp;
 using Microsoft.Extensions.Logging;
 using PdfReader.Fonts.Cff;
 using PdfReader.Models;
-using PdfReader.Rendering.HarfBuzz;
 using PdfReader.Streams;
 using SkiaSharp;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.IO;
 
 namespace PdfReader.Fonts.Management
 {
@@ -20,12 +20,10 @@ namespace PdfReader.Fonts.Management
         private readonly Dictionary<PdfFontBase, SKTypeface> _typefaceCache = new Dictionary<PdfFontBase, SKTypeface>();
         private readonly Dictionary<PdfFontBase, Font> _harfBuzzFontCache = new Dictionary<PdfFontBase, Font>();
         private readonly Dictionary<(int weight, int width, SKFontStyleSlant slant), SKTypeface> _fallbackCache = new Dictionary<(int weight, int width, SKFontStyleSlant slant), SKTypeface>();
-        private readonly ConcurrentDictionary<PdfReference, ReadOnlyMemory<byte>> _cache = new ConcurrentDictionary<PdfReference, ReadOnlyMemory<byte>>();
         private readonly ConcurrentDictionary<PdfReference, CffNameKeyedInfo> _ccfMaps = new ConcurrentDictionary<PdfReference, CffNameKeyedInfo>();
         private readonly PdfDocument _document;
         private readonly ILogger<PdfFontCache> _logger;
         private readonly SkiaFontLoader _skiaFontLoader;
-        private readonly HarfBuzzFontLoader _harfBuzzFontLoader;
         private readonly CffSidGidMapper _cffMapper;
 
         private bool _disposed = false;
@@ -33,25 +31,19 @@ namespace PdfReader.Fonts.Management
         public PdfFontCache(PdfDocument document)
         {
             _document = document;
-            _skiaFontLoader = new SkiaFontLoader(document);
-            _harfBuzzFontLoader = new HarfBuzzFontLoader(document);
+            _skiaFontLoader = new SkiaFontLoader(document, this);
             _logger = document.LoggerFactory.CreateLogger<PdfFontCache>();
             _cffMapper = new CffSidGidMapper(document);
         }
 
-        public ReadOnlyMemory<byte> GetFontStream(PdfFontDescriptor decriptor)
+        public Stream GetFontStream(PdfFontDescriptor decriptor)
         {
             if (decriptor?.FontFileObject == null)
             {
-                return ReadOnlyMemory<byte>.Empty;
+                return null;
             }
 
-            if (_cache.TryGetValue(decriptor.FontFileObject.Reference, out var cached))
-            {
-                return cached;
-            }
-
-            return _cache.GetOrAdd(decriptor.FontFileObject.Reference, _ => DecodeFontStream(decriptor));
+            return DecodeFontStream(decriptor);
         }
 
         public CffNameKeyedInfo GetCffInfo(PdfFontDescriptor decriptor)
@@ -91,7 +83,7 @@ namespace PdfReader.Fonts.Management
             return null;
         }
 
-        private ReadOnlyMemory<byte> DecodeFontStream(PdfFontDescriptor decriptor)
+        private Stream DecodeFontStream(PdfFontDescriptor decriptor)
         {
             try
             {
@@ -100,16 +92,16 @@ namespace PdfReader.Fonts.Management
                 if (cffInfo != null)
                 {
                     var result = CffOpenTypeWrapper.Wrap(decriptor, cffInfo);
-                    return result;
+                    return new MemoryStream(result);
                 }
                 else
                 {
-                    return PdfStreamDecoder.DecodeContentStream(decriptor.FontFileObject);
+                    return PdfStreamDecoder.DecodeContentAsStream(decriptor.FontFileObject);
                 }
             }
             catch (Exception)
             {
-                return ReadOnlyMemory<byte>.Empty;
+                return null;
             }
         }
 
@@ -142,28 +134,6 @@ namespace PdfReader.Fonts.Management
             }
 
             return cachedTypeface;
-        }
-
-        /// <summary>
-        /// Get or create a HarfBuzz font for the specified PDF font
-        /// Updated to use PdfFontBase hierarchy
-        /// </summary>
-        /// <param name="font">PDF font to get HarfBuzz font for</param>
-        /// <returns>HarfBuzz Font instance, or null if not supported</returns>
-        public Font GetHarfBuzzFont(PdfFontBase font)
-        {
-            if (font == null)
-            {
-                return null;
-            }
-
-            if (!_harfBuzzFontCache.TryGetValue(font, out var cachedFont))
-            {
-                cachedFont = _harfBuzzFontLoader.CreateHarfBuzzFont(font);
-                _harfBuzzFontCache[font] = cachedFont;
-            }
-
-            return cachedFont;
         }
 
         /// <summary>

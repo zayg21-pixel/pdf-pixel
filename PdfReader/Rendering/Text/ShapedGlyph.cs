@@ -1,4 +1,4 @@
-namespace PdfReader.Rendering.HarfBuzz
+namespace PdfReader.Rendering.Text
 {
     /// <summary>
     /// Information about a shaped glyph

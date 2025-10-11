@@ -14,7 +14,7 @@ namespace PdfReader.Fonts.Management
     /// 1. Try direct match of normalized stem.
     /// 2. Fallback sequence from MergedFamilyMap.
     /// </summary>
-    public class SkiaFontLoader
+    internal class SkiaFontLoader
     {
         private static readonly Dictionary<string, string[]> MergedFamilyMap = new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase)
         {
@@ -52,10 +52,12 @@ namespace PdfReader.Fonts.Management
 
         private readonly PdfDocument _document;
         private readonly ILogger<SkiaFontLoader> _logger;
+        private readonly IFontCache _fontCache;
 
-        public SkiaFontLoader(PdfDocument document)
+        public SkiaFontLoader(PdfDocument document, IFontCache fontCache)
         {
             _document = document ?? throw new ArgumentNullException(nameof(document));
+            _fontCache = fontCache ?? throw new ArgumentNullException(nameof(fontCache));
             _logger = document.LoggerFactory.CreateLogger<SkiaFontLoader>();
         }
 
@@ -113,33 +115,10 @@ namespace PdfReader.Fonts.Management
             return GetTypefaceFromParametersOrDefault(cidFont);
         }
 
-        private unsafe SKTypeface LoadSkiaTypeface(FontFileFormat? fileFormat, PdfFontBase baseFont)
+        private SKTypeface LoadSkiaTypeface(FontFileFormat? fileFormat, PdfFontBase baseFont)
         {
-            var memory = baseFont.FontDescriptor?.GetFontStream() ?? default;
-            var handle = memory.Pin();
-            bool created = false;
-            try
-            {
-                IntPtr addr = (IntPtr)handle.Pointer;
-                SKDataReleaseDelegate release = (address, ctx) =>
-                {
-                    if (ctx is IDisposable disp)
-                    {
-                        disp.Dispose();
-                    }
-                };
-                using var data = SKData.Create(addr, memory.Length, release, handle);
-                var typeface = SKTypeface.FromData(data);
-                created = true;
-                return typeface;
-            }
-            finally
-            {
-                if (!created)
-                {
-                    handle.Dispose();
-                }
-            }
+            var stream = _fontCache.GetFontStream(baseFont.FontDescriptor);
+            return SKTypeface.FromStream(stream);
         }
 
         private SKTypeface GetTypefaceForCompositeFont(PdfCompositeFont compositeFont)

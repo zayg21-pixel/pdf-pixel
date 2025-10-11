@@ -40,7 +40,6 @@ namespace PdfReader.Streams
         /// </summary>
         public static Stream DecodeContentAsStream(PdfObject obj)
         {
-            // TODO: use
             List<string> filters = GetFilters(obj);
             List<PdfDictionary> decodeParms = GetDecodeParms(obj);
 

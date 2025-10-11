@@ -25,6 +25,11 @@ namespace PdfReader.Rendering.Image
         public ReadOnlyMemory<byte> GetImageData() => PdfStreamDecoder.DecodeContentStream(ImageXObject);
 
         /// <summary>
+        /// Retrieves the image data as a stream.
+        /// </summary>
+        public Stream GetImageDataStream() => PdfStreamDecoder.DecodeContentAsStream(ImageXObject);
+
+        /// <summary>
         /// Image width in pixels (/Width).
         /// </summary>
         public int Width { get; internal set; }

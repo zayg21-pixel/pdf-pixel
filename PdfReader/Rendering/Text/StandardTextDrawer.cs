@@ -1,22 +1,24 @@
 using Microsoft.Extensions.Logging;
 using PdfReader.Fonts;
 using PdfReader.Fonts.Management;
+using PdfReader.Fonts.Types;
 using PdfReader.Models;
 using PdfReader.Rendering.Advanced;
-using PdfReader.Rendering.HarfBuzz;
 using PdfReader.Text;
 using SkiaSharp;
 using System;
-using System.Linq;
 
 namespace PdfReader.Rendering.Text
 {
+    /// <summary>
+    /// Standard text drawer without HarfBuzz dependency.
+    /// Performs direct CID/composite glyph mapping when reliable; otherwise falls back to Unicode drawing.
+    /// </summary>
     public class StandardTextDrawer : ITextDrawer
     {
         private readonly IFontCache _fontCache;
         private readonly ILogger<StandardTextDrawer> _logger;
         private readonly PdfTextDecoder _pdfTextDecoder;
-        private readonly HarfBuzzFontRenderer _harfBuzzRenderer;
 
         internal StandardTextDrawer(IFontCache fontCache, ILoggerFactory loggerFactory)
         {
@@ -26,13 +28,20 @@ namespace PdfReader.Rendering.Text
                 throw new ArgumentNullException(nameof(loggerFactory));
             }
             _pdfTextDecoder = new PdfTextDecoder(loggerFactory);
-            _harfBuzzRenderer = new HarfBuzzFontRenderer(_pdfTextDecoder);
             _logger = loggerFactory.CreateLogger<StandardTextDrawer>();
         }
 
+        /// <summary>
+        /// Draw PDF text and return the advancement width in user space units.
+        /// Validates arguments (public API guard clauses).
+        /// </summary>
         public float DrawText(SKCanvas canvas, ref PdfText pdfText, PdfPage page, PdfGraphicsState state, PdfFontBase font)
         {
-            if (font?.Type == PdfFontType.Type3 || pdfText.IsEmpty)
+            if (font == null)
+            {
+                return 0f;
+            }
+            if (font.Type == PdfFontType.Type3 || pdfText.IsEmpty)
             {
                 return 0f;
             }
@@ -40,55 +49,37 @@ namespace PdfReader.Rendering.Text
             if (state.SoftMask != null)
             {
                 SKRect measuredBounds;
-
                 using (var softMaskScope = new SoftMaskDrawingScope(canvas, state, page))
                 {
                     softMaskScope.BeginDrawContent();
-                    measuredBounds = DrawText(canvas, ref pdfText, page, state, font, dryRun: false);
+                    measuredBounds = DrawTextInternal(canvas, ref pdfText, page, state, font, false);
                     softMaskScope.EndDrawContent();
                 }
-
                 return measuredBounds.Width;
             }
-            else
-            {
-                var actualBounds = DrawText(canvas, ref pdfText, page, state, font, dryRun: false);
-                return actualBounds.Width;
-            }
+
+            var bounds = DrawTextInternal(canvas, ref pdfText, page, state, font, false);
+            return bounds.Width;
         }
 
-        private SKRect DrawText(SKCanvas canvas, ref PdfText pdfText, PdfPage page, PdfGraphicsState state, PdfFontBase font, bool dryRun)
+        /// <summary>
+        /// Internal draw implementation. Assumes validated arguments (no defensive checks).
+        /// </summary>
+        private SKRect DrawTextInternal(SKCanvas canvas, ref PdfText pdfText, PdfPage page, PdfGraphicsState state, PdfFontBase font, bool dryRun)
         {
-            if (font?.Type == PdfFontType.Type3 || pdfText.IsEmpty)
-            {
-                return SKRect.Empty;
-            }
-
             var typeface = _fontCache.GetTypeface(font);
-            var harfBuzzFont = _fontCache.GetHarfBuzzFont(font);
             var unicodeText = _pdfTextDecoder.DecodeTextStringWithFont(pdfText.RawBytes, font);
-            bool isCffNameKeyed = font.FontDescriptor?.IsCffFont == true;
 
             using var skPaint = PdfPaintFactory.CreateTextPaint(state, page);
             using var skFont = PdfPaintFactory.CreateTextFont(state, typeface, page);
 
+            bool canShape = ShouldShapeText(font);
+
             SKSize size;
-            if (isCffNameKeyed)
+            if (canShape)
             {
-                var shaped = BuildCffShapedGlyphs(ref pdfText, skFont, state, font);
+                var shaped = BuildDirectMappedGlyphs(ref pdfText, skFont, state, font, typeface);
                 size = DrawShapedText(canvas, skPaint, skFont, shaped, state, dryRun);
-            }
-            else if (harfBuzzFont != null)
-            {
-                var shaped = _harfBuzzRenderer.ShapeText(ref pdfText, harfBuzzFont, unicodeText, font, state);
-                if (shaped.All(x => x.GlyphId == 0))
-                {
-                    size = DrawUnicodeText(canvas, skPaint, skFont, unicodeText, state, dryRun);
-                }
-                else
-                {
-                    size = DrawShapedText(canvas, skPaint, skFont, shaped, state, dryRun);
-                }
             }
             else
             {
@@ -99,40 +90,106 @@ namespace PdfReader.Rendering.Text
             return bounds;
         }
 
-        private ShapedGlyph[] BuildCffShapedGlyphs(ref PdfText pdfText, SKFont font, PdfGraphicsState state, PdfFontBase baseFont)
+        /// <summary>
+        /// Decide if we should attempt shaping (direct glyph mapping) for the font.
+        /// Rules:
+        /// - Composite (Type0): shape if descendant has CIDToGIDMap OR implicit Identity mapping for CIDFontType2.
+        /// - CIDFont: shape if CIDToGIDMap present OR implicit identity (CIDFontType2).
+        /// - Simple fonts (Type1/TrueType): shape (single-byte reliable mapping) unless font size/path indicates fallback need.
+        /// - Type3: never shape (glyph defined by content stream; handled elsewhere).
+        /// - Other / unknown: fallback to Unicode.
+        /// </summary>
+        private bool ShouldShapeText(PdfFontBase font)
         {
-            var codes = _pdfTextDecoder.ExtractCharacterCodes(pdfText.RawBytes, baseFont);
-            var gids = pdfText.GetGids(codes, baseFont);
-
-            int glyphCount = gids.Length;
-            var glyphArray = new ushort[glyphCount];
-            for (int i = 0; i < glyphCount; i++)
+            switch (font)
             {
-                glyphArray[i] = (ushort)gids[i];
-            }
-
-            float[] glyphWidths = font.GetGlyphWidths(glyphArray);
-            var shaped = new ShapedGlyph[glyphCount];
-            int shapeIndex = 0;
-            float cursorX = 0f;
-            for (int i = 0; i < glyphCount; i++)
-            {
-                uint gid = gids[i];
-                if (gid == 0)
+                case PdfCompositeFont compositeFont:
                 {
-                    continue;
+                    var descendant = compositeFont.PrimaryDescendant;
+                    if (descendant == null)
+                    {
+                        return false;
+                    }
+                    bool identityEncoding = compositeFont.Encoding == PdfFontEncoding.IdentityH || compositeFont.Encoding == PdfFontEncoding.IdentityV;
+                    if (descendant.HasCIDToGIDMapping)
+                    {
+                        return true;
+                    }
+                    if (descendant.Type == PdfFontType.CIDFontType2 && identityEncoding)
+                    {
+                        return true;
+                    }
+                    return false;
                 }
-                float width = (gid != 0 && glyphWidths != null && i < glyphWidths.Length) ? glyphWidths[i] : 0f;
-                string unicodeTextForCid = _pdfTextDecoder.DecodeCharacterCode(codes[i], baseFont);
-                float extra = state.CharacterSpacing + (unicodeTextForCid == " " ? state.WordSpacing : 0f);
-                shaped[shapeIndex] = new ShapedGlyph(gid, cursorX, 0, width + extra, 0);
-                cursorX += width + extra;
-                shapeIndex++;
+                case PdfCIDFont cidFont:
+                {
+                    if (cidFont.HasCIDToGIDMapping)
+                    {
+                        return true;
+                    }
+                    if (cidFont.Type == PdfFontType.CIDFontType2)
+                    {
+                        return true;
+                    }
+                    return false;
+                }
+                case PdfSimpleFont simpleFont:
+                {
+                    // Simple single-byte fonts have a direct, reliable mapping (Differences + encoding).
+                    // Allow shaping so we can unify drawing path (still uses direct gid extraction).
+                    return true;
+                }
+                case PdfType3Font _:
+                {
+                    // Type3 glyphs are content streams; shaping not applicable here.
+                    return false;
+                }
+                default:
+                {
+                    // Unknown / unsupported font category -> fallback to Unicode.
+                    return false;
+                }
             }
-            if (shapeIndex != shaped.Length)
+        }
+
+        /// <summary>
+        /// Build shaped glyphs using direct mapping.
+        /// Returns empty if any GID invalid (0 or out-of-range) or all advances zero.
+        /// </summary>
+        private ShapedGlyph[] BuildDirectMappedGlyphs(ref PdfText pdfText, SKFont skFont, PdfGraphicsState state, PdfFontBase font, SKTypeface typeface)
+        {
+            var codes = _pdfTextDecoder.ExtractCharacterCodes(pdfText.RawBytes, font);
+            var gids = pdfText.GetGids(codes, font);
+
+            int glyphCountInTypeface = typeface.GlyphCount;
+            int inputCount = gids.Length;
+            var glyphArrayForWidth = new ushort[inputCount];
+            for (int glyphIndex = 0; glyphIndex < inputCount; glyphIndex++)
             {
-                Array.Resize(ref shaped, shapeIndex);
+                uint gid = gids[glyphIndex];
+                if (gid == 0 || gid >= glyphCountInTypeface)
+                {
+                    return Array.Empty<ShapedGlyph>();
+                }
+                glyphArrayForWidth[glyphIndex] = (ushort)gid;
             }
+
+            float[] glyphWidths = skFont.GetGlyphWidths(glyphArrayForWidth);
+            var shaped = new ShapedGlyph[inputCount];
+            float cursorX = 0f;
+
+            for (int index = 0; index < inputCount; index++)
+            {
+                uint gid = gids[index];
+                float width = glyphWidths != null && index < glyphWidths.Length ? glyphWidths[index] : 0f;
+                string unicodeForCode = _pdfTextDecoder.DecodeCharacterCode(codes[index], font);
+                bool isSpace = unicodeForCode == " ";
+                float spacing = state.CharacterSpacing + (isSpace ? state.WordSpacing : 0f);
+                float advance = width + spacing;
+                shaped[index] = new ShapedGlyph(gid, cursorX, 0f, advance, 0f);
+                cursorX += advance;
+            }
+
             return shaped;
         }
 
@@ -142,20 +199,23 @@ namespace PdfReader.Rendering.Text
             {
                 return SKSize.Empty;
             }
+
             float advanceWidth = 0f;
-            for (int i = 0; i < text.Length; i++)
+            for (int index = 0; index < text.Length; index++)
             {
-                string glyphString = text[i].ToString();
+                string glyphString = text[index].ToString();
                 if (!dryRun && state.TextRenderingMode != PdfTextRenderingMode.Invisible)
                 {
-                    canvas.DrawText(glyphString, advanceWidth, 0, font, paint);
+                    canvas.DrawText(glyphString, advanceWidth, 0f, font, paint);
                 }
-                advanceWidth += font.MeasureText(glyphString, paint) + state.CharacterSpacing;
+                float measured = font.MeasureText(glyphString, paint);
+                advanceWidth += measured + state.CharacterSpacing;
                 if (glyphString == " ")
                 {
                     advanceWidth += state.WordSpacing;
                 }
             }
+
             var metrics = font.Metrics;
             float height = metrics.Descent - metrics.Ascent;
             paint.Dispose();
@@ -168,6 +228,7 @@ namespace PdfReader.Rendering.Text
             {
                 return SKSize.Empty;
             }
+
             float advanceWidth = 0f;
             if (!dryRun && state.TextRenderingMode != PdfTextRenderingMode.Invisible)
             {
@@ -175,27 +236,28 @@ namespace PdfReader.Rendering.Text
                 var run = builder.AllocatePositionedRun(font, shapingResult.Length);
                 var glyphSpan = run.Glyphs;
                 var positionSpan = run.Positions;
-                for (int i = 0; i < shapingResult.Length; i++)
+                for (int index = 0; index < shapingResult.Length; index++)
                 {
-                    ref var shapedGlyph = ref shapingResult[i];
-                    glyphSpan[i] = (ushort)shapedGlyph.GlyphId;
-                    positionSpan[i] = new SKPoint(shapedGlyph.X, shapedGlyph.Y);
+                    ref var shapedGlyph = ref shapingResult[index];
+                    glyphSpan[index] = (ushort)shapedGlyph.GlyphId;
+                    positionSpan[index] = new SKPoint(shapedGlyph.X, shapedGlyph.Y);
                     advanceWidth += shapedGlyph.AdvanceX;
                 }
                 using var blob = builder.Build();
-                canvas.DrawText(blob, 0, 0, paint);
+                canvas.DrawText(blob, 0f, 0f, paint);
             }
             else
             {
-                for (int i = 0; i < shapingResult.Length; i++)
+                for (int index = 0; index < shapingResult.Length; index++)
                 {
-                    ref var shapedGlyph = ref shapingResult[i];
+                    ref var shapedGlyph = ref shapingResult[index];
                     if (shapedGlyph.GlyphId != 0)
                     {
                         advanceWidth += shapedGlyph.AdvanceX;
                     }
                 }
             }
+
             var metrics = font.Metrics;
             float height = metrics.Descent - metrics.Ascent;
             paint.Dispose();
@@ -206,7 +268,8 @@ namespace PdfReader.Rendering.Text
         {
             float top = -size.Height * 0.8f;
             float bottom = size.Height * 0.2f;
-            return new SKRect(0, top, size.Width, bottom);
+            // TODO: remove, calculate correct bounds
+            return new SKRect(0f, top, size.Width, bottom);
         }
     }
 }

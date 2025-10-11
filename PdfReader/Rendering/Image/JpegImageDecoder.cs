@@ -36,6 +36,7 @@ namespace PdfReader.Rendering.Image
             }
 
             ReadOnlyMemory<byte> encodedImageData = Image.GetImageData();
+
             if (encodedImageData.Length == 0)
             {
                 Logger.LogError("JPEG image data is empty (Name={Name}).", Image.Name);

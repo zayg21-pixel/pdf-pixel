@@ -158,7 +158,7 @@ namespace PdfReader.Parsing
                 if (_trailerParser.TryParseTrailerDictionary(ref context, out PdfDictionary trailer))
                 {
                     TryApplyTrailer(trailer);
-                    _logger.LogDebug("PdfXrefLoader: Encountered 'trailer' after subsection {Index}. Ending xref parse.");
+                    _logger.LogTrace("PdfXrefLoader: Encountered 'trailer' after subsection {Index}. Ending xref parse.");
                     return trailer;
                 }
 

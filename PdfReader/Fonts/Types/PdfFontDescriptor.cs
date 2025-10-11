@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using PdfReader.Fonts.Cff;
 using PdfReader.Models;
 using SkiaSharp;
@@ -163,22 +164,6 @@ namespace PdfReader.Fonts
             }
 
             return default;
-        }
-
-        /// <summary>
-        /// Get font stream data, either from cache or by decoding and caching
-        /// Returns the decoded font stream data
-        /// </summary>
-        public ReadOnlyMemory<byte> GetFontStream()
-        {
-            if (FontFileObject == null)
-                return ReadOnlyMemory<byte>.Empty;
-
-            var document = Dictionary.Document;
-            var fontCache = document.FontCache;
-
-            // Get the font stream data using the font file object
-            return fontCache.GetFontStream(this);
         }
 
         internal CffNameKeyedInfo GetCffInfo()

@@ -2,12 +2,14 @@
 using PdfReader.Rendering.Image.Processing;
 using SkiaSharp;
 using System;
+using System.IO;
 
 namespace PdfReader.Rendering.Image
 {
     /// <summary>
     /// Decodes a raw PDF image (an image whose stream has already had its /Filter chain decoded including predictor undo).
-    /// Responsibilities now limited to passing already predictor-decoded, packed sample bytes to the row processor.
+    /// Stream-based implementation to reduce memory pressure: reads one decoded (predictor-processed, packed) row
+    /// at a time from the underlying stream and forwards it to <see cref="PdfImageRowProcessor"/>.
     /// </summary>
     public class RawImageDecoder : PdfImageDecoder
     {
@@ -16,7 +18,7 @@ namespace PdfReader.Rendering.Image
         }
 
         /// <summary>
-        /// Decode the raw image stream into an SKImage or return null if decoding fails.
+        /// Decode the raw image stream into an <see cref="SKImage"/> or return null if decoding fails.
         /// </summary>
         public override SKImage Decode()
         {
@@ -25,16 +27,16 @@ namespace PdfReader.Rendering.Image
                 return null;
             }
 
-            ReadOnlyMemory<byte> data = Image.GetImageData();
-            if (data.IsEmpty)
+            using Stream dataStream = Image.GetImageDataStream();
+            if (dataStream == null)
             {
-                Logger.LogError("Raw image data is empty (Name={Name}).", Image.Name);
+                Logger.LogError("Raw image data stream is null (Name={Name}).", Image.Name);
                 return null;
             }
 
             try
             {
-                return DecodeBuffer(data);
+                return DecodeStream(dataStream);
             }
             catch (Exception ex)
             {
@@ -43,44 +45,57 @@ namespace PdfReader.Rendering.Image
             }
         }
 
-        private SKImage DecodeBuffer(ReadOnlyMemory<byte> buffer)
+        /// <summary>
+        /// Stream-based row decoding: computes expected per-row byte count and processes each row sequentially.
+        /// For bitsPerComponent &lt; 8 data remains packed; packing is handled downstream by the row processor.
+        /// </summary>
+        private unsafe SKImage DecodeStream(Stream imageStream)
         {
             using PdfImageRowProcessor rowProcessor = new PdfImageRowProcessor(Image, LoggerFactory.CreateLogger<PdfImageRowProcessor>());
             rowProcessor.InitializeBuffer();
 
-            int height = Image.Height;
-            int width = Image.Width;
-            int components = Image.ColorSpaceConverter.Components;
+            int imageHeight = Image.Height;
+            int imageWidth = Image.Width;
+            int componentCount = Image.ColorSpaceConverter.Components;
             int bitsPerComponent = Image.BitsPerComponent;
 
-            // Compute decoded row length (post predictor) matching PredictorDecodeStream logic.
-            int decodedRowBytes = bitsPerComponent >= 8
-                ? width * components * ((bitsPerComponent + 7) / 8)
-                : (width * components * bitsPerComponent + 7) / 8;
+            // Compute packed bytes per input row (raw decoded samples prior to conversion).
+            int decodedRowBytes;
+            if (bitsPerComponent >= 8)
+            {
+                int bytesPerComponent = (bitsPerComponent + 7) / 8; // 8->1, 16->2
+                decodedRowBytes = checked(imageWidth * componentCount * bytesPerComponent);
+            }
+            else
+            {
+                decodedRowBytes = checked((imageWidth * componentCount * bitsPerComponent + 7) / 8);
+            }
 
             if (decodedRowBytes <= 0)
             {
-                throw new InvalidOperationException("Computed decoded row length is invalid.");
-            }
-            if (buffer.Length < decodedRowBytes * height)
-            {
-                Logger.LogWarning("Raw image buffer smaller than expected (Have={Have} Expected>={Need}) (Name={Name}).", buffer.Length, decodedRowBytes * height, Image.Name);
+                throw new InvalidOperationException("Computed decoded row byte count is invalid.");
             }
 
-            var span = buffer.Span;
-            for (int rowIndex = 0; rowIndex < height; rowIndex++)
+            // Allocate a dedicated row buffer (no shared pool) per user instructions.
+            byte[] rowBuffer = new byte[decodedRowBytes];
+
+            fixed (byte* rowPtr = rowBuffer)
             {
-                int offset = rowIndex * decodedRowBytes;
-                if (offset + decodedRowBytes > span.Length)
+                for (int rowIndex = 0; rowIndex < imageHeight; rowIndex++)
                 {
-                    break;
-                }
-                unsafe
-                {
-                    fixed (byte* rowPtr = span.Slice(offset, decodedRowBytes))
+                    int bytesReadThisRow = 0;
+                    while (bytesReadThisRow < decodedRowBytes)
                     {
-                        rowProcessor.WriteRow(rowIndex, rowPtr);
+                        int read = imageStream.Read(rowBuffer, bytesReadThisRow, decodedRowBytes - bytesReadThisRow);
+                        if (read == 0)
+                        {
+                            Logger.LogWarning("Premature end of raw image stream at row {Row}/{Height} (Name={Name}).", rowIndex, imageHeight, Image.Name);
+                            return rowProcessor.GetSkImage();
+                        }
+                        bytesReadThisRow += read;
                     }
+
+                    rowProcessor.WriteRow(rowIndex, rowPtr);
                 }
             }
 

@@ -7,7 +7,7 @@ namespace PdfReadTests
 {
     class Program
     {
-        private static readonly ILoggerFactory LoggerFactoryInstance = LoggerFactory.Create(builder => builder.AddConsole(LogLevel.Trace));
+        private static readonly ILoggerFactory LoggerFactoryInstance = LoggerFactory.Create(builder => builder.AddConsole(LogLevel.Information));
         private static readonly ILogger Logger = LoggerFactoryInstance.CreateLogger<Program>();
         static async Task Main(string[] args)
         {
@@ -19,8 +19,9 @@ namespace PdfReadTests
             string[] testFiles = {
                 //"pdfs//alphatrans.pdf",
                 //"pdfs//ArabicCIDTrueType.pdf",
-                "pdfs//asciihexdecode.pdf",
+                //"pdfs//asciihexdecode.pdf",
                 //"pdfs//complex_ttf_font.pdf",
+                //"pdfs//complex_ttf_font_ed.pdf",
                 //"pdfs//icc-lab-8bit.pdf",
                 //"pdfs//devicen.pdf",
                 //"pdfs//icc-xyz.pdf",
@@ -28,6 +29,7 @@ namespace PdfReadTests
                 //"pdfs//icc-lab2.pdf",
                 //"pdf-example-password.pdf",
                 //"pdfs//mixedfonts.pdf",
+                //"pdfs//mixedfonts_ed.pdf",
                 //"pdfs//blendmode.pdf",
                 //"pdfs//alphatrans.pdf",
                 //"pdfs//calgray.pdf",
@@ -41,12 +43,12 @@ namespace PdfReadTests
                 //@"documentS.pdf",
                 //@"documentC.pdf",
                 //@"sample.pdf",
-                //@"document - Copy.pdf",
                 //"Adyen.pdf",
+                "Adyen 2023.pdf",
                 //"adyen_2020.pdf",
                 //"adyen_2020_debug.pdf",
-                //"pdfs\\emojies.pdf"
-                //"documentEd.pdf"
+                //"pdfs\\emojies.pdf",
+                //"documentEd.pdf",
                 //@"document_1.pdf"
             };
 
@@ -82,8 +84,8 @@ namespace PdfReadTests
                     Logger.LogInformation("Root object: {Root}", document.RootObject);
 
                     var start = 0;
-                    var max = 1000;
-                    float scaleX = 3f; // Scale factor for rendering
+                    var max = 2000;
+                    float scaleX = 0.1f; // Scale factor for rendering
 
                     var memory = GC.GetTotalMemory(true) / 1024 / 1024;
 
@@ -157,7 +159,10 @@ namespace PdfReadTests
                 Logger.LogError(ex, "Stack trace logged");
             }
 
-            Logger.LogInformation(string.Empty);
+            //while (true)
+            //{
+            //    await Task.Delay(1000);
+            //}
         }
 
         private static SKPicture CreateRecording(PdfPage pdfPage, float scaleFactor)
