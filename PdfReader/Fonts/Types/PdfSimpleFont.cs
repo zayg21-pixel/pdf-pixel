@@ -18,11 +18,11 @@ namespace PdfReader.Fonts
         /// <summary>
         /// Constructor for simple fonts - lightweight operations only
         /// </summary>
-        /// <param name="fontObject">PDF object containing the font definition</param>
-        public PdfSimpleFont(PdfObject fontObject) : base(fontObject)
+        /// <param name="fontObject">PDF dictionary containing the font definition</param>
+        public PdfSimpleFont(PdfDictionary fontDictionary) : base(fontDictionary)
         {
             if (Type == PdfFontType.Type3)
-                throw new ArgumentException("Type3 fonts should use PdfType3Font class", nameof(fontObject));
+                throw new ArgumentException("Type3 fonts should use PdfType3Font class");
 
             // Initialize thread-safe lazy loaders
             _fontDescriptor = new Lazy<PdfFontDescriptor>(LoadFontDescriptor, isThreadSafe: true);

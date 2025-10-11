@@ -121,6 +121,7 @@ namespace PdfReader.Rendering
 
                     if (PdfOperatorProcessor.IsValidOperator(op))
                     {
+                        var r = _logger.IsEnabled(LogLevel.Trace);
                         _logger.LogTrace("Processing operator: {Operator} with parameters {Parameters}", op, string.Join("; ", operandStack));
                         operatorProcessor.ProcessOperator(op, ref parseContext, ref graphicsState);
                     }

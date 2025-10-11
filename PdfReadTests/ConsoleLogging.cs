@@ -4,6 +4,10 @@ using Microsoft.Extensions.Logging;
 
 namespace PdfReadTests
 {
+    /// <summary>
+    /// Provides a simple console logger provider implementation with configurable minimum level.
+    /// Ensures trace/debug messages are not filtered out by global logging filters when requested.
+    /// </summary>
     internal sealed class SimpleConsoleLoggerProvider : ILoggerProvider
     {
         private readonly LogLevel _minLevel;
@@ -49,16 +53,19 @@ namespace PdfReadTests
                 {
                     return;
                 }
+
                 if (formatter == null)
                 {
                     return;
                 }
+
                 string message = formatter(state, exception);
                 if (string.IsNullOrEmpty(message) && exception == null)
                 {
                     return;
                 }
-                var timestamp = DateTime.Now.ToString("HH:mm:ss.fff");
+
+                string timestamp = DateTime.Now.ToString("HH:mm:ss.fff");
                 Console.WriteLine($"{timestamp} [{logLevel}] {_category}: {message}");
                 if (exception != null)
                 {
@@ -69,15 +76,30 @@ namespace PdfReadTests
             private sealed class NullScope : IDisposable
             {
                 public static readonly NullScope Instance = new NullScope();
-                public void Dispose() { }
+                public void Dispose()
+                {
+                }
             }
         }
     }
 
+    /// <summary>
+    /// Logging builder extensions for registering the simple console logger provider.
+    /// Sets the global minimum level so that requested lower levels (Trace/Debug) are not filtered out
+    /// by the logging pipeline before reaching the provider.
+    /// </summary>
     internal static class LoggingBuilderExtensions
     {
-        public static ILoggingBuilder AddConsole(this ILoggingBuilder builder, LogLevel minLevel = LogLevel.Debug)
+        /// <summary>
+        /// Adds the <see cref="SimpleConsoleLoggerProvider"/> to the logging builder with the specified minimum level.
+        /// Ensures <paramref name="minLevel"/> is also applied as the global filter.
+        /// </summary>
+        /// <param name="builder">The logging builder to configure.</param>
+        /// <param name="minLevel">Minimum log level to emit (default Trace).</param>
+        /// <returns>The same <see cref="ILoggingBuilder"/> for chaining.</returns>
+        public static ILoggingBuilder AddConsole(this ILoggingBuilder builder, LogLevel minLevel = LogLevel.Trace)
         {
+            builder.SetMinimumLevel(minLevel);
             builder.AddProvider(new SimpleConsoleLoggerProvider(minLevel));
             return builder;
         }

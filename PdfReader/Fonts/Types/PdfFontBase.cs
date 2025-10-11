@@ -21,32 +21,30 @@ namespace PdfReader.Fonts
         /// Constructor for all PDF fonts with essential immutable properties
         /// Performs only lightweight dictionary operations
         /// </summary>
-        /// <param name="fontObject">PDF object containing the font definition</param>
-        protected PdfFontBase(PdfObject fontObject)
+        /// <param name="fontObject">PDF dictionary containing the font definition</param>
+        protected PdfFontBase(PdfDictionary fontDictionary)
         {
-            FontObject = fontObject ?? throw new ArgumentNullException(nameof(fontObject));
+            Dictionary = fontDictionary ?? throw new ArgumentNullException(nameof(fontDictionary));
 
             // Parse encoding and differences from /Encoding (handles name or dictionary cases)
-            var parsed = ParseEncoding(fontObject.Dictionary);
+            var parsed = ParseEncoding(fontDictionary);
             Encoding = parsed.Encoding;
             CustomEncoding = parsed.CustomEncoding;
             Differences = parsed.Differences ?? new Dictionary<int, string>();
 
             // Parse essential properties from the font object (lightweight operations)
-            var subtype = fontObject.Dictionary.GetName(PdfTokens.SubtypeKey);
+            var subtype = fontDictionary.GetName(PdfTokens.SubtypeKey);
             Type = ParseFontType(subtype);
-            BaseFont = fontObject.Dictionary.GetString(PdfTokens.BaseFontKey) ?? string.Empty;
+            BaseFont = fontDictionary.GetString(PdfTokens.BaseFontKey) ?? string.Empty;
             
             // Initialize lazy loaders (thread-safe)
             _toUnicodeCMap = new Lazy<PdfToUnicodeCMap>(LoadToUnicodeCMap, isThreadSafe: true);
         }
 
         /// <summary>
-        /// PDF object containing the font definition
-        /// Provides access to Reference, Document, and Dictionary
-        /// Immutable - set through constructor
+        /// Font dictionary.
         /// </summary>
-        public PdfObject FontObject { get; }
+        public PdfDictionary Dictionary { get; }
 
         /// <summary>
         /// PDF font type (Type1, TrueType, Type3, Type0, CIDFontType0, CIDFontType2, etc.)
@@ -79,12 +77,7 @@ namespace PdfReader.Fonts
         /// <summary>
         /// PDF document containing this font (convenience property)
         /// </summary>
-        public PdfDocument Document => FontObject.Document;
-        
-        /// <summary>
-        /// Font dictionary (convenience property)
-        /// </summary>
-        public PdfDictionary Dictionary => FontObject.Dictionary;
+        public PdfDocument Document => Dictionary.Document;
         
         /// <summary>
         /// Loaded ToUnicode CMap for character-to-Unicode mapping

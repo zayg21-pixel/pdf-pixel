@@ -19,17 +19,17 @@ namespace PdfReader.Fonts
         /// <summary>
         /// Constructor for Type3 fonts - lightweight operations only
         /// </summary>
-        /// <param name="fontObject">PDF object containing the Type3 font definition</param>
-        public PdfType3Font(PdfObject fontObject) : base(fontObject)
+        /// <param name="fontObject">PDF dictionary containing the font definition</param>
+        public PdfType3Font(PdfDictionary fontDictionary) : base(fontDictionary)
         {
             if (Type != PdfFontType.Type3)
-                throw new ArgumentException("Font object must be Type3", nameof(fontObject));
+                throw new ArgumentException("Font dictionary must be Type3");
 
             // Get CharProcs dictionary - essential for Type3 fonts
-            CharProcs = fontObject.Dictionary.GetDictionary(PdfTokens.CharProcsKey);
+            CharProcs = Dictionary.GetDictionary(PdfTokens.CharProcsKey);
 
             // Get FontMatrix (required for Type3 fonts)
-            FontMatrix = fontObject.Dictionary.GetArray(PdfTokens.FontMatrixKey).GetFloatArray();
+            FontMatrix = Dictionary.GetArray(PdfTokens.FontMatrixKey).GetFloatArray();
 
             if (FontMatrix == null || FontMatrix.Length != 6)
             {
@@ -38,7 +38,7 @@ namespace PdfReader.Fonts
             }
 
             // Get Resources dictionary (may be needed for character procedures)
-            Resources = fontObject.Dictionary.GetDictionary(PdfTokens.ResourcesKey);
+            Resources = Dictionary.GetDictionary(PdfTokens.ResourcesKey);
 
             // Initialize thread-safe lazy loaders
             _fontDescriptor = new Lazy<PdfFontDescriptor>(LoadFontDescriptor, isThreadSafe: true);

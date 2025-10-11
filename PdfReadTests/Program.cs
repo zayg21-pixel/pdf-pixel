@@ -7,7 +7,7 @@ namespace PdfReadTests
 {
     class Program
     {
-        private static readonly ILoggerFactory LoggerFactoryInstance = LoggerFactory.Create(builder => builder.AddConsole());
+        private static readonly ILoggerFactory LoggerFactoryInstance = LoggerFactory.Create(builder => builder.AddConsole(LogLevel.Trace));
         private static readonly ILogger Logger = LoggerFactoryInstance.CreateLogger<Program>();
         static async Task Main(string[] args)
         {
@@ -19,10 +19,10 @@ namespace PdfReadTests
             string[] testFiles = {
                 //"pdfs//alphatrans.pdf",
                 //"pdfs//ArabicCIDTrueType.pdf",
-                //"pdfs//asciihexdecode.pdf",
+                "pdfs//asciihexdecode.pdf",
                 //"pdfs//complex_ttf_font.pdf",
                 //"pdfs//icc-lab-8bit.pdf",
-                "pdfs//devicen.pdf",
+                //"pdfs//devicen.pdf",
                 //"pdfs//icc-xyz.pdf",
                 //"pdfs//icc-lab4.pdf",
                 //"pdfs//icc-lab2.pdf",

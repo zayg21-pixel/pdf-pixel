@@ -9,16 +9,17 @@ namespace PdfReader.Fonts
     public static class PdfFontFactory
     {
         /// <summary>
-        /// Determine if a PdfObject is a font object by inspecting its dictionary Type/Subtype.
+        /// Determine if a PdfDictionary is a font dictionary by inspecting its Type/Subtype.
         /// </summary>
-        public static bool IsFontObject(PdfObject obj)
+        public static bool IsFont(PdfDictionary pdfDictionary)
         {
-            if (obj == null) return false;
-            var dict = obj.Dictionary;
-            if (dict == null) return false;
+            if (pdfDictionary == null)
+            {
+                return false;
+            }
 
-            var type = dict.GetName(PdfTokens.TypeKey);
-            var subtype = dict.GetName(PdfTokens.SubtypeKey);
+            var type = pdfDictionary.GetName(PdfTokens.TypeKey);
+            var subtype = pdfDictionary.GetName(PdfTokens.SubtypeKey);
 
             if (type == PdfTokens.FontKey)
                 return true;
@@ -45,30 +46,42 @@ namespace PdfReader.Fonts
         /// </summary>
         public static PdfFontBase CreateFont(PdfObject fontObject)
         {
-            var dict = fontObject.Dictionary;
-
-            if (dict == null)
+            if (fontObject == null)
             {
                 return null;
             }
 
-            if (!IsFontObject(fontObject))
+            return CreateFont(fontObject.Dictionary);
+        }
+
+        /// <summary>
+        /// Creates a font object based on the specified PDF dictionary.
+        /// </summary>
+        /// <remarks>The method determines the font subtype from the dictionary and returns an appropriate
+        /// font object instance. Supported font subtypes include Type0, CIDFontType0, CIDFontType2,  Type1, TrueType,
+        /// Type3, and MMType1. If the subtype is unrecognized, a simple font object  is returned as a
+        /// fallback.</remarks>
+        /// <param name="dictionary">The PDF dictionary containing font metadata and properties.  This dictionary must represent a valid font
+        /// object.</param>
+        public static PdfFontBase CreateFont(PdfDictionary dictionary)
+        {
+            if (!IsFont(dictionary))
             {
                 return null;
             }
 
-            var subtype = dict.GetName(PdfTokens.SubtypeKey);
+            var subtype = dictionary.GetName(PdfTokens.SubtypeKey);
 
             return subtype switch
             {
-                PdfTokens.Type0FontKey => new PdfCompositeFont(fontObject),
-                PdfTokens.CIDFontType0Key => new PdfCIDFont(fontObject),
-                PdfTokens.CIDFontType2Key => new PdfCIDFont(fontObject),
-                PdfTokens.Type1FontKey => new PdfSimpleFont(fontObject),
-                PdfTokens.TrueTypeFontKey => new PdfSimpleFont(fontObject),
-                PdfTokens.Type3FontKey => new PdfType3Font(fontObject),
-                PdfTokens.MMType1FontKey => new PdfSimpleFont(fontObject),
-                _ => new PdfSimpleFont(fontObject) // Fallback for unknown subtypes under /Font
+                PdfTokens.Type0FontKey => new PdfCompositeFont(dictionary),
+                PdfTokens.CIDFontType0Key => new PdfCIDFont(dictionary),
+                PdfTokens.CIDFontType2Key => new PdfCIDFont(dictionary),
+                PdfTokens.Type1FontKey => new PdfSimpleFont(dictionary),
+                PdfTokens.TrueTypeFontKey => new PdfSimpleFont(dictionary),
+                PdfTokens.Type3FontKey => new PdfType3Font(dictionary),
+                PdfTokens.MMType1FontKey => new PdfSimpleFont(dictionary),
+                _ => new PdfSimpleFont(dictionary) // Fallback for unknown subtypes under /Font
             };
         }
     }

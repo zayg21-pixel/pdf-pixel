@@ -22,13 +22,13 @@ namespace PdfReader.Fonts.Types
         /// <summary>
         /// Constructor for CID fonts - lightweight operations only
         /// </summary>
-        /// <param name="fontObject">PDF object containing the font definition</param>
-        public PdfCIDFont(PdfObject fontObject) : base(fontObject)
+        /// <param name="fontObject">PDF dictionary containing the font definition</param>
+        public PdfCIDFont(PdfDictionary fontDictionary) : base(fontDictionary)
         {
             // Lightweight dictionary operations in constructor
             Widths = new PdfFontWidths
             {
-                DefaultWidth = fontObject.Dictionary.GetFloatOrDefault(PdfTokens.DWKey)
+                DefaultWidth = fontDictionary.GetFloatOrDefault(PdfTokens.DWKey)
             };
             
             // Set PDF default if not specified

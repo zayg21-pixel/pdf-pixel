@@ -109,9 +109,11 @@ namespace PdfReader.Models
             }
 
             var fontObject = fontDict.GetPageObject(fontName);
+
             if (fontObject == null)
             {
-                return null;
+                var inlineDictionary = fontDict.GetValue(fontName).AsDictionary();
+                return PdfFontFactory.CreateFont(inlineDictionary);
             }
 
             var fontReference = fontObject.Reference;

@@ -13,14 +13,14 @@ namespace PdfReader.Fonts.Types
         /// <summary>
         /// Constructor for single-byte fonts - handles common initialization
         /// </summary>
-        /// <param name="fontObject">PDF object containing the font definition</param>
-        protected PdfSingleByteFont(PdfObject fontObject) : base(fontObject)
+        /// <param name="fontObject">PDF dictionary containing the font definition</param>
+        public PdfSingleByteFont(PdfDictionary fontDictionary) : base(fontDictionary)
         {            
             Widths = new PdfFontWidths
             {
-                FirstChar = fontObject.Dictionary.GetIntegerOrDefault(PdfTokens.FirstCharKey),
-                LastChar = fontObject.Dictionary.GetIntegerOrDefault(PdfTokens.LastCharKey),
-                Widths = fontObject.Dictionary.GetArray(PdfTokens.WidthsKey).GetFloatArray() ?? []
+                FirstChar = Dictionary.GetIntegerOrDefault(PdfTokens.FirstCharKey),
+                LastChar = Dictionary.GetIntegerOrDefault(PdfTokens.LastCharKey),
+                Widths = Dictionary.GetArray(PdfTokens.WidthsKey).GetFloatArray() ?? []
             };
         }
         

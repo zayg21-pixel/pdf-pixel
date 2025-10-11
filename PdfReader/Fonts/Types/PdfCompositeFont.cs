@@ -23,8 +23,8 @@ namespace PdfReader.Fonts
         /// <summary>
         /// Constructor for composite fonts - lightweight operations only
         /// </summary>
-        /// <param name="fontObject">PDF object containing the font definition</param>
-        public PdfCompositeFont(PdfObject fontObject) : base(fontObject)
+        /// <param name="fontObject">PDF dictionary containing the font definition</param>
+        public PdfCompositeFont(PdfDictionary fontDictionary) : base(fontDictionary)
         {
             // Initialize thread-safe lazy loaders
             _descendantFonts = new Lazy<List<PdfCIDFont>>(LoadDescendantFonts, isThreadSafe: true);
