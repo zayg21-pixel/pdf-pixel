@@ -1,10 +1,10 @@
+using Microsoft.Extensions.Logging;
 using PdfReader.Models;
 using PdfReader.Parsing;
 using PdfReader.Streams;
 using SkiaSharp;
 using System;
 using System.Collections.Generic;
-using System.Text;
 
 namespace PdfReader.Rendering
 {
@@ -14,10 +14,12 @@ namespace PdfReader.Rendering
     public class PdfContentStreamRenderer
     {
         private readonly PdfPage _page;
+        private readonly ILogger<PdfContentStreamRenderer> _logger;
 
         public PdfContentStreamRenderer(PdfPage page)
         {
             _page = page;
+            _logger = page.Document.LoggerFactory.CreateLogger<PdfContentStreamRenderer>();
         }
 
         /// <summary>
@@ -70,7 +72,7 @@ namespace PdfReader.Rendering
             // Create unified context that treats all streams as one continuous stream
             var parseContext = new PdfParseContext(contentStreams);
 
-            //string content = Encoding.ASCII.GetString(parseContext.GetSlice(0, parseContext.Length).ToArray());
+            //string content = Encoding.ASCII.GetString(parseContext.GetSlice(0, parseContext.Length).ToArray()); // TODO: remove
 
             var state = new PdfGraphicsState();
             var processingXObjects = new HashSet<int>();
@@ -116,9 +118,10 @@ namespace PdfReader.Rendering
                 if (value.Type == PdfValueType.Operator)
                 {
                     string op = value.AsString();
-                    
+
                     if (PdfOperatorProcessor.IsValidOperator(op))
                     {
+                        _logger.LogTrace("Processing operator: {Operator} with parameters {Parameters}", op, string.Join("; ", operandStack));
                         operatorProcessor.ProcessOperator(op, ref parseContext, ref graphicsState);
                     }
                     else
