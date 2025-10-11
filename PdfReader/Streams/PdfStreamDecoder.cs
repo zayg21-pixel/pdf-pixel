@@ -232,11 +232,7 @@ namespace PdfReader.Streams
                 Console.Error.WriteLine("PdfStreamDecoder: predictor specified without valid /Columns; skipping predictor stage.");
                 return decoded; // Cannot proceed without a positive column count.
             }
-            if (bitsPerComponent != 8 && bitsPerComponent != 16)
-            {
-                Console.Error.WriteLine($"PdfStreamDecoder: predictor bitsPerComponent={bitsPerComponent} unsupported; skipping predictor stage.");
-                return decoded; // Current implementation supports only byte-aligned sample sizes.
-            }
+
             return new PredictorDecodeStream(decoded, predictor, colors, bitsPerComponent, columns);
         }
 

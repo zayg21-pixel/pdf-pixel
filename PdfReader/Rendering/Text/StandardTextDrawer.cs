@@ -39,16 +39,15 @@ namespace PdfReader.Rendering.Text
 
             if (state.SoftMask != null)
             {
-                var measuredBounds = DrawText(canvas, ref pdfText, page, state, font, dryRun: true);
-                if (measuredBounds.IsEmpty)
+                SKRect measuredBounds;
+
+                using (var softMaskScope = new SoftMaskDrawingScope(canvas, state, page))
                 {
-                    return 0f;
+                    softMaskScope.BeginDrawContent();
+                    measuredBounds = DrawText(canvas, ref pdfText, page, state, font, dryRun: false);
+                    softMaskScope.EndDrawContent();
                 }
 
-                using var softMaskScope = new SoftMaskDrawingScope(canvas, state, page, measuredBounds);
-                softMaskScope.BeginDrawContent();
-                DrawText(canvas, ref pdfText, page, state, font, dryRun: false);
-                softMaskScope.EndDrawContent();
                 return measuredBounds.Width;
             }
             else

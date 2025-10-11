@@ -24,9 +24,9 @@ namespace PdfReader.Rendering.Pattern
                 switch (patternType)
                 {
                     case 1:
-                        return ParseTilingPattern(reference, obj, dict);
+                        return ParseTilingPattern(reference, dict);
                     case 2:
-                        return ParseShadingPattern(reference, obj, dict);
+                        return ParseShadingPattern(reference, dict);
                     default:
                         return null; // Unsupported pattern type
                 }
@@ -38,7 +38,7 @@ namespace PdfReader.Rendering.Pattern
             }
         }
 
-        private static PdfTilingPattern ParseTilingPattern(PdfReference reference, PdfObject obj, PdfDictionary dict)
+        private static PdfTilingPattern ParseTilingPattern(PdfReference reference, PdfDictionary dict)
         {
             var bboxArray = dict.GetArray(PdfTokens.BBoxKey);
             if (bboxArray == null || bboxArray.Count < 4)
@@ -72,8 +72,6 @@ namespace PdfReader.Rendering.Pattern
                 matrix = PdfMatrixUtilities.CreateMatrix(matrixArray);
             }
 
-            var resources = dict.GetDictionary(PdfTokens.ResourcesKey);
-
             return new PdfTilingPattern(
                 reference,
                 bbox,
@@ -81,15 +79,11 @@ namespace PdfReader.Rendering.Pattern
                 yStep,
                 paintTypeKind,
                 tilingTypeKind,
-                resources,
-                obj,
                 matrix);
         }
 
-        private static PdfShadingPattern ParseShadingPattern(PdfReference reference, PdfObject obj, PdfDictionary dict)
+        private static PdfShadingPattern ParseShadingPattern(PdfReference reference, PdfDictionary dict)
         {
-            var resources = dict.GetDictionary(PdfTokens.ResourcesKey);
-
             SKMatrix matrix = SKMatrix.Identity;
             var matrixArray = dict.GetArray(PdfTokens.MatrixKey);
             if (matrixArray != null && matrixArray.Count >= 6)
@@ -104,8 +98,9 @@ namespace PdfReader.Rendering.Pattern
             }
 
             PdfDictionary extGState = dict.GetDictionary(PdfTokens.ExtGStateKey);
+            var shading = new PdfShading(shadingObject);
 
-            return new PdfShadingPattern(reference, shadingObject, resources, matrix, extGState);
+            return new PdfShadingPattern(reference, shading, matrix, extGState);
         }
     }
 }

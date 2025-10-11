@@ -4,334 +4,124 @@ using System.Collections.Generic;
 namespace PdfReader.Rendering.Image.Processing
 {
     /// <summary>
-    /// Utility helpers used during PDF image processing for:
-    ///  * Building /Decode lookup tables (per component) in the RAW sample code domain.
-    ///  * Creating alpha and image mask lookup tables.
-    ///  * Building color key masking ranges (inclusive min / max per component).
-    ///  * Building indexed color decode maps (RAW code -> palette index).
-    /// RAW sample domains:
-    ///  * 1 bpc  -> 0..1
-    ///  * 2 bpc  -> 0..3
-    ///  * 4 bpc  -> 0..15
-    ///  * 8 bpc  -> 0..255
-    ///  * 16 bpc -> high byte only (0..255)
-    /// NOTE: Color key mask ranges produced by <see cref="TryBuildColorKeyRanges"/> are scaled to the 8‑bit domain (0..255)
-    /// for all bit depths so they can be compared directly against decoded 8‑bit component values produced by the
-    /// byte decode path. (For 16 bpc we downscale to high byte; for < 8 bpc we linearly scale raw code to 0..255.)
+    /// Utility helpers used during PDF image processing.
+    /// Responsible for building decode mapping arrays, color key mask ranges and related helpers.
     /// </summary>
     internal static class ProcessingUtilities
     {
-        private const float DecodeEqualityEpsilon = 1e-12f;
-        private const int EightBitDomainSize = 256;
-
         /// <summary>
-        /// Returns true when a /Decode array indicates that mapping must be applied
-        /// (i.e. differs from the canonical [0 1] for the first component).
-        /// </summary>
-        public static bool ApplyDecode(IReadOnlyList<float> decodeArray)
-        {
-            if (decodeArray != null && decodeArray.Count >= 2)
-            {
-                bool differsFromDefault = Math.Abs(decodeArray[0] - 0f) > DecodeEqualityEpsilon || Math.Abs(decodeArray[1] - 1f) > DecodeEqualityEpsilon;
-                if (differsFromDefault)
-                {
-                    return true;
-                }
-            }
-
-            return false;
-        }
-
-        /// <summary>
-        /// Build per-component decode lookup tables from an optional /Decode array, outputting byte components (0..255).
-        /// Each LUT maps raw sample codes directly to an 8-bit component value, avoiding per-pixel float math.
-        /// This is used by the byte-based color conversion path (PdfColorSpaceConverter.ToSrgb8Bit).
+        /// Build a preprocessed /Decode mapping array for per-component application in the row processor.
+        /// Returns null when no decode needs to be applied (identity [0 1] for all components or invalid array) and not an image mask.
+        /// For each component two bytes are stored: [minByte, maxByte] representing clamped and rounded endpoints.
+        /// Reversed ranges (min > max in source) are preserved to enable inversion. Constant ranges produce identical endpoints.
+        /// When isImageMask is true the mapping is always materialized; identity is converted to reversed endpoints [255,0]
+        /// and ascending ranges are inverted by transforming endpoints to (255 - min, 255 - max) which flips ordering.
         /// </summary>
         /// <param name="componentCount">Number of color components.</param>
-        /// <param name="bitsPerComponent">Bits per component (1,2,4,8,16 supported; 16 uses the high byte domain).</param>
-        /// <param name="decodeArray">Optional /Decode array ([d0 d1] per component) or null for identity [0 1].</param>
-        /// <returns>Array of per-component byte LUTs (raw code -> component byte 0..255).</returns>
-        public static byte[][] Build8BitDecodeLuts(int componentCount, int bitsPerComponent, IReadOnlyList<float> decodeArray)
+        /// <param name="decodeArray">Source /Decode float array or null.</param>
+        /// <param name="isImageMask">True when building decode for an image mask (single component, inverted semantics).</param>
+        /// <returns>Byte array length componentCount*2 or null when identity and not an image mask.</returns>
+        public static byte[] BuildDecodeMinSpanBytes(int componentCount, IReadOnlyList<float> decodeArray, bool isImageMask)
         {
             if (componentCount <= 0)
             {
-                return Array.Empty<byte[]>();
+                return null;
             }
 
-            bool hasDecode = decodeArray != null && decodeArray.Count >= componentCount * 2;
-            int lutSize = GetRawDomainSize(bitsPerComponent);
-            var luts = new byte[componentCount][];
+            int required = componentCount * 2;
+            bool valid = decodeArray != null && decodeArray.Count >= required;
+
+            byte[] result = new byte[required];
+            bool anyNonIdentity = false;
 
             for (int componentIndex = 0; componentIndex < componentCount; componentIndex++)
             {
-                float decodeMin = 0f;
-                float decodeMax = 1f;
-                if (hasDecode)
-                {
-                    decodeMin = decodeArray[componentIndex * 2];
-                    decodeMax = decodeArray[componentIndex * 2 + 1];
-                }
+                float min = valid ? decodeArray[componentIndex * 2] : 0f;
+                float max = valid ? decodeArray[componentIndex * 2 + 1] : 1f;
 
-                if (IsConstantRange(decodeMin, decodeMax))
-                {
-                    byte constantByte = (byte)(Clamp01(decodeMin) * 255f + 0.5f);
-                    byte[] constantLut = new byte[lutSize];
-                    for (int i = 0; i < lutSize; i++)
-                    {
-                        constantLut[i] = constantByte;
-                    }
-                    luts[componentIndex] = constantLut;
-                    continue;
-                }
+                // Clamp without swapping to preserve reversal semantics.
+                if (min < 0f) { min = 0f; } else if (min > 1f) { min = 1f; }
+                if (max < 0f) { max = 0f; } else if (max > 1f) { max = 1f; }
 
-                byte[] lut = new byte[lutSize];
-                float maxCode = lutSize - 1;
-                float span = decodeMax - decodeMin;
-                for (int rawCode = 0; rawCode < lutSize; rawCode++)
+                byte minByte = (byte)(min * 255f + 0.5f);
+                byte maxByte = (byte)(max * 255f + 0.5f);
+
+                int baseIndex = componentIndex * 2;
+                result[baseIndex] = minByte;
+                result[baseIndex + 1] = maxByte;
+
+                if (!(minByte == 0 && maxByte == 255))
                 {
-                    float normalized = maxCode <= 0 ? 0f : rawCode / maxCode; // 0..1
-                    float mapped = decodeMin + normalized * span; // decode domain
-                    mapped = Clamp01(mapped);
-                    lut[rawCode] = (byte)(mapped * 255f + 0.5f);
+                    anyNonIdentity = true;
                 }
-                luts[componentIndex] = lut;
             }
 
-            return luts;
+            if (!anyNonIdentity && !isImageMask)
+            {
+                // Identity and not an image mask => no decode applied.
+                return null;
+            }
+
+            if (isImageMask)
+            {
+                // For image masks invert ascending or identity ranges. Reversed ranges already produce desired semantics.
+                for (int componentIndex = 0; componentIndex < componentCount; componentIndex++)
+                {
+                    int baseIndex = componentIndex * 2;
+                    byte minByte = result[baseIndex];
+                    byte maxByte = result[baseIndex + 1];
+                    if (maxByte >= minByte)
+                    {
+                        // Invert endpoints to reverse ordering.
+                        byte invMin = (byte)(255 - minByte);
+                        byte invMax = (byte)(255 - maxByte);
+                        result[baseIndex] = invMin;
+                        result[baseIndex + 1] = invMax;
+                    }
+                }
+            }
+
+            return result;
         }
 
         /// <summary>
-        /// Attempt to build per-component color key mask ranges (inclusive min/max) from a /Mask array.
-        /// Returned ranges are scaled to 0..255 for every supported bits-per-component value so that they can be directly
-        /// compared against decoded 8-bit component values. Scaling rules:
-        ///  * 16 bpc: high byte (value >> 8) already yields 0..255.
-        ///  * 8 bpc: unchanged.
-        ///  * 1/2/4 bpc: linearly scaled (raw * 255 / rawMax) with rounding to nearest.
+        /// Normalize a raw /Mask array (color key mask) to ascending min/max pairs per component.
+        /// The raw values are preserved in their original sample domain (no scaling to 8-bit) so they can be
+        /// compared directly against raw sample codes before expansion. Returns null when the input is invalid.
         /// </summary>
-        /// <param name="componentCount">Number of color components in the source image.</param>
-        /// <param name="bitsPerComponent">Bits per component (1,2,4,8,16 supported).</param>
-        /// <param name="maskArray">/Mask numeric array specifying min/max pairs.</param>
-        /// <param name="minInclusive">Output: minimum inclusive values per component.</param>
-        /// <param name="maxInclusive">Output: maximum inclusive values per component.</param>
-        /// <returns>True if ranges were constructed; false if the array was invalid.</returns>
-        public static bool TryBuildColorKeyRanges(int componentCount, int bitsPerComponent, IReadOnlyList<float> maskArray, out int[] minInclusive, out int[] maxInclusive)
+        /// <param name="componentCount">Number of components expected (1, 3 or 4).</param>
+        /// <param name="rawMask">Flattened /Mask array containing [min,max] pairs per component.</param>
+        /// <returns>Normalized raw [min,max] pairs array or null.</returns>
+        internal static int[] BuildNormalizedMaskRawPairs(int componentCount, int[] rawMask)
         {
-            minInclusive = null;
-            maxInclusive = null;
-
-            if (maskArray == null || maskArray.Count < componentCount * 2)
+            if (componentCount <= 0)
             {
-                return false;
+                return null;
+            }
+            if (rawMask == null || rawMask.Length < componentCount * 2)
+            {
+                return null;
             }
 
-            int rawMax;
-            bool is16 = bitsPerComponent == 16;
-            if (is16)
-            {
-                rawMax = 65535; // will shift to 0..255
-            }
-            else if (bitsPerComponent == 8)
-            {
-                rawMax = 255; // direct
-            }
-            else if (bitsPerComponent == 1 || bitsPerComponent == 2 || bitsPerComponent == 4)
-            {
-                rawMax = (1 << bitsPerComponent) - 1; // 1,3,15
-            }
-            else
-            {
-                // Unsupported depth: fall back to 8-bit assumptions
-                rawMax = 255;
-            }
-
-            minInclusive = new int[componentCount];
-            maxInclusive = new int[componentCount];
+            int[] normalized = new int[rawMask.Length];
+            Array.Copy(rawMask, normalized, rawMask.Length);
 
             for (int componentIndex = 0; componentIndex < componentCount; componentIndex++)
             {
                 int baseIndex = componentIndex * 2;
-                int minRaw = (int)Math.Round(maskArray[baseIndex]);
-                int maxRaw = (int)Math.Round(maskArray[baseIndex + 1]);
+                int minRaw = normalized[baseIndex];
+                int maxRaw = normalized[baseIndex + 1];
                 if (minRaw > maxRaw)
                 {
                     int temp = minRaw;
                     minRaw = maxRaw;
                     maxRaw = temp;
                 }
-
-                if (is16)
-                {
-                    minRaw = Clamp(minRaw, 0, 65535) >> 8; // high byte
-                    maxRaw = Clamp(maxRaw, 0, 65535) >> 8;
-                }
-                else if (bitsPerComponent == 8)
-                {
-                    minRaw = Clamp(minRaw, 0, 255);
-                    maxRaw = Clamp(maxRaw, 0, 255);
-                }
-                else if (bitsPerComponent == 1 || bitsPerComponent == 2 || bitsPerComponent == 4)
-                {
-                    // Scale small raw domain to 0..255 preserving endpoints.
-                    int domainMax = rawMax; // 1,3,15
-                    minRaw = Clamp(minRaw, 0, domainMax);
-                    maxRaw = Clamp(maxRaw, 0, domainMax);
-                    // Scale with rounding: value * 255 / domainMax
-                    minRaw = domainMax == 0 ? 0 : (minRaw * 255 + (domainMax / 2)) / domainMax;
-                    maxRaw = domainMax == 0 ? 0 : (maxRaw * 255 + (domainMax / 2)) / domainMax;
-                }
-                else
-                {
-                    // Fallback clamp.
-                    minRaw = Clamp(minRaw, 0, 255);
-                    maxRaw = Clamp(maxRaw, 0, 255);
-                }
-
-                minInclusive[componentIndex] = minRaw;
-                maxInclusive[componentIndex] = maxRaw;
+                normalized[baseIndex] = minRaw;
+                normalized[baseIndex + 1] = maxRaw;
             }
 
-            return true;
-        }
-
-        /// <summary>
-        /// Build a mapping from raw sample code (bit-packed index) to palette index for an Indexed color space.
-        /// The PDF spec defines the default decode range for Indexed images as [0 hiVal] where hiVal = paletteLength - 1.
-        /// If a /Decode array is supplied its first two numbers (decode[0], decode[1]) are used as an alternate linear mapping range.
-        /// Mapping steps:
-        ///  1. Determine raw domain size from bitsPerComponent (2^bpc or 256 for 16 bpc high-byte usage).
-        ///  2. For each raw code c in [0, rawMax] compute normalized = c / rawMax (unless rawMax==0).
-        ///  3. decoded = decodeMin + normalized * (decodeMax - decodeMin).
-        ///  4. Truncate (floor for positive values) to integer palette index and clamp to [0, hiVal].
-        /// Fast paths:
-        ///  * Identity decode: [0 hiVal] -> paletteIndex = min(rawCode, hiVal).
-        ///  * Constant decode (decodeMin ≈ decodeMax): all entries map to same clamped index.
-        /// </summary>
-        /// <param name="paletteLength">Number of entries in the palette (must be > 0).</param>
-        /// <param name="bitsPerComponent">Bits per component of the indexed image samples.</param>
-        /// <param name="decodeArray">Optional /Decode array; only the first two values are relevant for Indexed.</param>
-        /// <returns>Int array mapping every raw code (array index) to a palette index.</returns>
-        public static int[] BuildIndexedDecodeMap(int paletteLength, int bitsPerComponent, IReadOnlyList<float> decodeArray)
-        {
-            if (paletteLength <= 0)
-            {
-                return Array.Empty<int>();
-            }
-
-            int hiVal = paletteLength - 1;
-            int rawDomainSize = GetRawDomainSize(bitsPerComponent);
-            int rawMax = rawDomainSize - 1;
-            int[] indexMap = new int[rawDomainSize];
-
-            float decodeMin = 0f;
-            float decodeMax = hiVal;
-            bool hasDecode = decodeArray != null && decodeArray.Count >= 2;
-            if (hasDecode)
-            {
-                decodeMin = decodeArray[0];
-                decodeMax = decodeArray[1];
-            }
-
-            // Fast path: canonical identity mapping [0 hiVal]
-            if (Math.Abs(decodeMin - 0f) < DecodeEqualityEpsilon && Math.Abs(decodeMax - hiVal) < DecodeEqualityEpsilon)
-            {
-                for (int rawCode = 0; rawCode <= rawMax; rawCode++)
-                {
-                    int paletteIndex = rawCode <= hiVal ? rawCode : hiVal;
-                    indexMap[rawCode] = paletteIndex;
-                }
-                return indexMap;
-            }
-
-            // Constant mapping (all values collapse to one index)
-            if (IsConstantRange(decodeMin, decodeMax))
-            {
-                int singleIndex = (int)(decodeMin >= 0 ? Math.Floor(decodeMin) : Math.Ceiling(decodeMin));
-                if (singleIndex < 0)
-                {
-                    singleIndex = 0;
-                }
-                else if (singleIndex > hiVal)
-                {
-                    singleIndex = hiVal;
-                }
-
-                for (int rawCode = 0; rawCode <= rawMax; rawCode++)
-                {
-                    indexMap[rawCode] = singleIndex;
-                }
-                return indexMap;
-            }
-
-            float span = decodeMax - decodeMin;
-            float denom = rawMax == 0 ? 1f : rawMax;
-
-            for (int rawCode = 0; rawCode <= rawMax; rawCode++)
-            {
-                float normalized = rawCode / denom; // 0..1
-                float decodedValue = decodeMin + normalized * span;
-                int paletteIndex = (int)Math.Floor(decodedValue); // truncate toward -infinity (decode values usually non-negative)
-                if (paletteIndex < 0)
-                {
-                    paletteIndex = 0;
-                }
-                else if (paletteIndex > hiVal)
-                {
-                    paletteIndex = hiVal;
-                }
-                indexMap[rawCode] = paletteIndex;
-            }
-
-            return indexMap;
-        }
-
-        private static int GetRawDomainSize(int bitsPerComponent)
-        {
-            // Special case for 16 bpc: we only operate on the high byte so domain is 256.
-            if (bitsPerComponent == 16)
-            {
-                return EightBitDomainSize;
-            }
-
-            if (bitsPerComponent >= 1 && bitsPerComponent <= 8)
-            {
-                // For 1,2,4,8 bits we can compute the domain size via left shift (1 << bpc).
-                // This naturally produces: 2,4,16,256.
-                return 1 << bitsPerComponent;
-            }
-
-            // Fallback: treat as 8-bit domain size.
-            return EightBitDomainSize;
-        }
-
-        private static bool IsConstantRange(float min, float max)
-        {
-            return Math.Abs(max - min) < DecodeEqualityEpsilon;
-        }
-
-        private static float Clamp01(float value)
-        {
-            if (value < 0f)
-            {
-                return 0f;
-            }
-            if (value > 1f)
-            {
-                return 1f;
-            }
-            return value;
-        }
-
-        private static int Clamp(int value, int min, int max)
-        {
-            if (value < min)
-            {
-                return min;
-            }
-            if (value > max)
-            {
-                return max;
-            }
-            return value;
+            return normalized;
         }
     }
 }

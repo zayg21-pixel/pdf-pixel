@@ -288,7 +288,7 @@ namespace PdfReader.Rendering.State
             softMask.ResourcesDictionary = formDict.GetDictionary(PdfTokens.ResourcesKey);
 
             // /Group (transparency group inside mask form)
-            var groupDict = formDict.GetDictionary(PdfTokens.TransparencyGroupKey);
+            var groupDict = formDict.GetDictionary(PdfTokens.GroupKey);
             if (groupDict != null)
             {
                 softMask.TransparencyGroup = ParseTransparencyGroup(groupDict, page);
@@ -298,7 +298,7 @@ namespace PdfReader.Rendering.State
             var bcArray = softMaskDict.GetArray(PdfTokens.SoftMaskBCKey);
             if (bcArray != null && bcArray.Count > 0)
             {
-                var groupCsDict = formDict.GetDictionary(PdfTokens.TransparencyGroupKey);
+                var groupCsDict = formDict.GetDictionary(PdfTokens.GroupKey);
                 var csVal = groupCsDict?.GetValue(PdfTokens.GroupColorSpaceKey);
                 var converter = csVal != null ? PdfColorSpaces.ResolveByValue(csVal, page) : DeviceGrayConverter.Instance;
                 var comps = bcArray.GetFloatArray();

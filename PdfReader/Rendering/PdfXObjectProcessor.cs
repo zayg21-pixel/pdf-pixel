@@ -76,10 +76,6 @@ namespace PdfReader.Rendering
                 clipRect = new SKRect(bbox.GetFloat(0), bbox.GetFloat(1), bbox.GetFloat(2), bbox.GetFloat(3));
             }
 
-            var clip = canvas.LocalClipBounds;
-            var tightBounds = SKRect.Intersect(clip, transformMatrix.MapRect(clipRect));
-            var layerBounds = tightBounds.IsEmpty ? clip : tightBounds;
-
             // Use form paint to composite the whole form with correct alpha/blend when needed
             using var formPaint = PdfPaintFactory.CreateFormXObjectPaint(graphicsState, page);
 
@@ -94,7 +90,7 @@ namespace PdfReader.Rendering
                 canvas.ClipRect(clipRect);
             }
 
-            using var softMaskScope = new SoftMaskDrawingScope(canvas, graphicsState, page, layerBounds);
+            using var softMaskScope = new SoftMaskDrawingScope(canvas, graphicsState, page);
             softMaskScope.BeginDrawContent();
 
             // Parse /Group and apply transparency group
@@ -103,7 +99,7 @@ namespace PdfReader.Rendering
             var prevGroup = graphicsState.TransparencyGroup;
             try
             {
-                PdfDictionary groupDict = formXObject.Dictionary.GetDictionary("/Group");
+                PdfDictionary groupDict = formXObject.Dictionary.GetDictionary(PdfTokens.GroupKey);
                 if (groupDict != null)
                 {
                     group = PdfGraphicsStateParser.ParseTransparencyGroup(groupDict, page);

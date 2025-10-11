@@ -12,3 +12,5 @@ https://fontdrop.info/
 Add AES decryption and all other algorithms.
 
 adyen2020, page 104
+apply patterns to other content
+Type3 font

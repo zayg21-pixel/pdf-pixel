@@ -76,10 +76,10 @@ namespace PdfReader.Rendering.Image
         public bool HasImageMask { get; internal set; }
 
         /// <summary>
-        /// Color key mask array (/Mask array) flattened to floats. Null when /Mask is not an array.
-        /// Values are in the sample value domain for each component.
+        /// Color key mask array (/Mask array) flattened to integer sample codes. Null when /Mask is not an array.
+        /// Values are in the raw sample value domain for each component prior to any /Decode mapping.
         /// </summary>
-        public float[] MaskArray { get; internal set; }
+        public int[] MaskArray { get; internal set; }
 
         /// <summary>
         /// Per-component decode mapping array (/Decode) as floats: [d0, d1] per component.
@@ -224,7 +224,8 @@ namespace PdfReader.Rendering.Image
             image.Interpolate = imageXObject.Dictionary.GetBoolOrDefault(PdfTokens.InterpolateKey);
 
             image.DecodeArray = imageXObject.Dictionary.GetArray(PdfTokens.DecodeKey).GetFloatArray();
-            image.MaskArray = imageXObject.Dictionary.GetArray(PdfTokens.MaskKey).GetFloatArray();
+            // Direct integer retrieval for /Mask color key ranges (spec defines integer pairs). We accept parsed ints only.
+            image.MaskArray = imageXObject.Dictionary.GetArray(PdfTokens.MaskKey).GetIntegerArray();
 
             var intent = imageXObject.Dictionary.GetName(PdfTokens.IntentKey);
             image.RenderingIntent = string.IsNullOrEmpty(intent)

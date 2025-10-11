@@ -54,7 +54,7 @@ namespace PdfReader.Rendering.Image.Jpg.Decoding
             _scalingInfos = new ScalingInfo[componentCount];
             for (int componentIndex = 0; componentIndex < componentCount; componentIndex++)
             {
-                var component = header.Components[componentIndex];
+                JpgComponent component = header.Components[componentIndex];
                 int hFactor = component.HorizontalSamplingFactor;
                 int vFactor = component.VerticalSamplingFactor;
                 if (hFactor <= 0 || vFactor <= 0 || (parameters.HMax % hFactor) != 0 || (parameters.VMax % vFactor) != 0)
@@ -129,13 +129,7 @@ namespace PdfReader.Rendering.Image.Jpg.Decoding
                     for (int fullBlockCol = 0; fullBlockCol < _parameters.HMax; fullBlockCol++)
                     {
                         int destIndex = fullBase + fullBlockRow * _parameters.HMax + fullBlockCol;
-                        UpsampleBlock(
-                            sourceBlocks,
-                            mcuColumnIndex,
-                            fullBlockRow,
-                            fullBlockCol,
-                            in info,
-                            ref destBlocks[destIndex]);
+                        UpsampleBlock(sourceBlocks, mcuColumnIndex, fullBlockRow, fullBlockCol, in info, ref destBlocks[destIndex]);
                     }
                 }
             }
@@ -163,67 +157,75 @@ namespace PdfReader.Rendering.Image.Jpg.Decoding
                 return;
             }
 
-            if (info.HorizontalScale == 1 && info.VerticalScale == 2)
-            {
-                for (int srcRow = 0; srcRow < 4; srcRow++)
-                {
-                    int destRow0 = srcRow * 2;
-                    int destRow1 = destRow0 + 1;
-                    int vecBaseSrc = srcRow * 2;
-                    int vecBaseDest0 = destRow0 * 2;
-                    int vecBaseDest1 = destRow1 * 2;
-                    Vector4 sL = sourceBlock.GetVector(vecBaseSrc + 0);
-                    Vector4 sR = sourceBlock.GetVector(vecBaseSrc + 1);
-                    dest.SetVector(vecBaseDest0 + 0, sL);
-                    dest.SetVector(vecBaseDest0 + 1, sR);
-                    dest.SetVector(vecBaseDest1 + 0, sL);
-                    dest.SetVector(vecBaseDest1 + 1, sR);
-                }
-                return;
-            }
+            int hScale = info.HorizontalScale;
+            int vScale = info.VerticalScale;
 
-            if (info.HorizontalScale == 2 && info.VerticalScale == 1)
+            // Optimized and correct 2x paths using quarter selection inside the source block.
+            // For subsampled chroma (e.g. 4:2:0) a single native block represents a 2x or 4x pixel area.
+            // Each destination block corresponds to a quadrant (when both scales are 2) or half region (single 2x scale).
+            if (hScale == 2 && vScale == 1)
             {
+                // Horizontal only upsample. Choose the left/right 4-column quarter then expand 4 -> 8 by duplicating lanes.
+                int quarterColBase = (fullBlockCol & 1) * 4; // 0 for left block, 4 for right block.
                 for (int rowIndex = 0; rowIndex < 8; rowIndex++)
                 {
-                    int vecBase = rowIndex * 2;
-                    Vector4 srcL = sourceBlock.GetVector(vecBase + 0);
-                    Vector4 destL = new Vector4(srcL.X, srcL.X, srcL.Y, srcL.Y);
-                    Vector4 destR = new Vector4(srcL.Z, srcL.Z, srcL.W, srcL.W);
-                    dest.SetVector(vecBase + 0, destL);
-                    dest.SetVector(vecBase + 1, destR);
+                    int vecBaseSrc = rowIndex * 2;
+                    // Select vector containing the 4 source samples for this dest block half.
+                    Vector4 quarter = sourceBlock.GetVector(vecBaseSrc + (quarterColBase == 0 ? 0 : 1));
+                    // Expand 4 samples (a b c d) -> 8 samples (a a b b c c d d).
+                    Vector4 leftExpanded = new Vector4(quarter.X, quarter.X, quarter.Y, quarter.Y);
+                    Vector4 rightExpanded = new Vector4(quarter.Z, quarter.Z, quarter.W, quarter.W);
+                    int destVecBase = rowIndex * 2;
+                    dest.SetVector(destVecBase + 0, leftExpanded);
+                    dest.SetVector(destVecBase + 1, rightExpanded);
                 }
                 return;
             }
-
-            if (info.HorizontalScale == 2 && info.VerticalScale == 2)
+            if (hScale == 1 && vScale == 2)
             {
-                for (int srcRow = 0; srcRow < 4; srcRow++)
+                // Vertical only upsample. Choose the top/bottom 4-row quarter then duplicate each row vertically.
+                int quarterRowBase = (fullBlockRow & 1) * 4; // 0 for top block, 4 for bottom block.
+                for (int destRow = 0; destRow < 8; destRow++)
                 {
-                    int vecBaseSrc = srcRow * 2;
-                    Vector4 sL = sourceBlock.GetVector(vecBaseSrc + 0);
-                    Vector4 destL = new Vector4(sL.X, sL.X, sL.Y, sL.Y);
-                    Vector4 destR = new Vector4(sL.Z, sL.Z, sL.W, sL.W);
-                    int destRow0 = srcRow * 2;
-                    int destRow1 = destRow0 + 1;
-                    int vecBaseDest0 = destRow0 * 2;
-                    int vecBaseDest1 = destRow1 * 2;
-                    dest.SetVector(vecBaseDest0 + 0, destL);
-                    dest.SetVector(vecBaseDest0 + 1, destR);
-                    dest.SetVector(vecBaseDest1 + 0, destL);
-                    dest.SetVector(vecBaseDest1 + 1, destR);
+                    int srcRow = quarterRowBase + (destRow >> 1); // Each source row maps to two dest rows.
+                    int srcVecBase = srcRow * 2;
+                    Vector4 left = sourceBlock.GetVector(srcVecBase + 0);
+                    Vector4 right = sourceBlock.GetVector(srcVecBase + 1);
+                    int destVecBase = destRow * 2;
+                    dest.SetVector(destVecBase + 0, left);
+                    dest.SetVector(destVecBase + 1, right);
+                }
+                return;
+            }
+            if (hScale == 2 && vScale == 2)
+            {
+                // Both horizontal and vertical upsample. Select 4x4 quarter then expand each 4x4 sample into 8x8 via 2x2 replication.
+                int quarterRowBase = (fullBlockRow & 1) * 4; // 0 or 4.
+                int quarterColBase = (fullBlockCol & 1) * 4; // 0 or 4.
+                bool useLeft = quarterColBase == 0;
+                for (int destRow = 0; destRow < 8; destRow++)
+                {
+                    int srcRow = quarterRowBase + (destRow >> 1);
+                    int srcVecBase = srcRow * 2;
+                    Vector4 quarterVector = sourceBlock.GetVector(srcVecBase + (useLeft ? 0 : 1));
+                    Vector4 leftExpanded = new Vector4(quarterVector.X, quarterVector.X, quarterVector.Y, quarterVector.Y);
+                    Vector4 rightExpanded = new Vector4(quarterVector.Z, quarterVector.Z, quarterVector.W, quarterVector.W);
+                    int destVecBase = destRow * 2;
+                    dest.SetVector(destVecBase + 0, leftExpanded);
+                    dest.SetVector(destVecBase + 1, rightExpanded);
                 }
                 return;
             }
 
+            // Fallback generic path (scales other than 1 or 2). Per-pixel replication using scalar indices.
             for (int rowInDest = 0; rowInDest < 8; rowInDest++)
             {
                 int fullRow = fullBlockRow * 8 + rowInDest;
-                int sourceRow = fullRow / info.VerticalScale;
+                int sourceRow = fullRow / vScale;
                 for (int colInDest = 0; colInDest < 8; colInDest++)
                 {
                     int fullCol = fullBlockCol * 8 + colInDest;
-                    int sourceCol = fullCol / info.HorizontalScale;
+                    int sourceCol = fullCol / hScale;
                     int sourceIndex = sourceRow * 8 + sourceCol;
                     int destIndex = rowInDest * 8 + colInDest;
                     dest[destIndex] = sourceBlock[sourceIndex];

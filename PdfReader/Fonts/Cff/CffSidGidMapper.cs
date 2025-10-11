@@ -29,6 +29,8 @@ namespace PdfReader.Fonts.Cff
         private const int OperatorCharset = 15;               // Charset offset operator
         private const int OperatorEncoding = 16;              // Encoding offset operator
         private const int OperatorCharStrings = 17;           // CharStrings offset operator
+        private const int OperatorPrivate = 18;               // Private DICT (size + offset) operator (unused here but must be skipped)
+        private const int OperatorTopDictMax = 21;            // Highest single-byte top DICT operator code (21 = SyntheticBase)
 
         // Number encoding boundaries (CFF DICT operand encoding spec)
         private const byte OperandIntLow = 32;                // Inclusive start of single byte int encoding
@@ -574,39 +576,42 @@ namespace PdfReader.Fonts.Cff
                     continue;
                 }
 
-                if (opByte <= OperatorCharStrings)
+                // Handle all single-byte top DICT operators (0..21). We only use 15,16,17 for mapping.
+                if (opByte <= OperatorTopDictMax)
                 {
-                    int op = opByte;
-                    if (op == OperatorCharset)
+                    if (opByte == OperatorCharset)
                     {
                         if (operandStack.Count > 0)
                         {
                             charsetOffset = (int)operandStack[operandStack.Count - 1];
                         }
                     }
-                    else if (op == OperatorEncoding)
+                    else if (opByte == OperatorEncoding)
                     {
                         if (operandStack.Count > 0)
                         {
                             encodingOffset = (int)operandStack[operandStack.Count - 1];
                         }
                     }
-                    else if (op == OperatorCharStrings)
+                    else if (opByte == OperatorCharStrings)
                     {
                         if (operandStack.Count > 0)
                         {
                             charStringsOffset = (int)operandStack[operandStack.Count - 1];
                         }
                     }
+                    // OperatorPrivate (18) and others are intentionally ignored for current mapping needs.
                     operandStack.Clear();
                     continue;
                 }
 
+                // Operand decoding
                 if (opByte >= OperandIntLow && opByte <= OperandIntHigh)
                 {
                     operandStack.Add(opByte - 139);
+                    continue;
                 }
-                else if (opByte >= OperandPositiveIntStart && opByte <= OperandPositiveIntEnd)
+                if (opByte >= OperandPositiveIntStart && opByte <= OperandPositiveIntEnd)
                 {
                     if (position >= topDictBytes.Length)
                     {
@@ -615,8 +620,9 @@ namespace PdfReader.Fonts.Cff
                     byte nextByte = topDictBytes[position++];
                     int operandInt = (opByte - 247) * 256 + nextByte + 108;
                     operandStack.Add(operandInt);
+                    continue;
                 }
-                else if (opByte >= OperandNegativeIntStart && opByte <= OperandNegativeIntEnd)
+                if (opByte >= OperandNegativeIntStart && opByte <= OperandNegativeIntEnd)
                 {
                     if (position >= topDictBytes.Length)
                     {
@@ -625,8 +631,9 @@ namespace PdfReader.Fonts.Cff
                     byte nextByte = topDictBytes[position++];
                     int operandInt = -(opByte - 251) * 256 - nextByte - 108;
                     operandStack.Add(operandInt);
+                    continue;
                 }
-                else if (opByte == OperandShortInt)
+                if (opByte == OperandShortInt)
                 {
                     if (position + 1 >= topDictBytes.Length)
                     {
@@ -635,8 +642,9 @@ namespace PdfReader.Fonts.Cff
                     short operandShort = (short)(topDictBytes[position] << 8 | topDictBytes[position + 1]);
                     position += 2;
                     operandStack.Add(operandShort);
+                    continue;
                 }
-                else if (opByte == OperandLongInt)
+                if (opByte == OperandLongInt)
                 {
                     if (position + 3 >= topDictBytes.Length)
                     {
@@ -645,8 +653,9 @@ namespace PdfReader.Fonts.Cff
                     int operandInt = topDictBytes[position] << 24 | topDictBytes[position + 1] << 16 | topDictBytes[position + 2] << 8 | topDictBytes[position + 3];
                     position += 4;
                     operandStack.Add(operandInt);
+                    continue;
                 }
-                else if (opByte == OperandRealNumber)
+                if (opByte == OperandRealNumber)
                 {
                     bool finished = false;
                     while (!finished && position < topDictBytes.Length)
@@ -657,13 +666,14 @@ namespace PdfReader.Fonts.Cff
                             finished = true;
                         }
                     }
+                    continue;
                 }
-                else
-                {
-                    return false; // Unknown byte pattern
-                }
+
+                // Unknown byte pattern -> treat as failure (malformed DICT)
+                return false;
             }
 
+            // Success if we obtained a CharStrings offset (charset may be predefined 0/1/2)
             return charStringsOffset != 0;
         }
 

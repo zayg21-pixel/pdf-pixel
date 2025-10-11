@@ -12,12 +12,19 @@ namespace PdfReader.Rendering.Path
     /// </summary>
     public class StandardPathDrawer : IPathDrawer
     {
+        private readonly PatternPaintEngine _patternEngine = new PatternPaintEngine();
+
         /// <summary>
         /// Draw a path using the specified paint operation and fill rule.
         /// Handles pattern paints, soft masks, and combined fill+stroke layering.
         /// </summary>
         public void DrawPath(SKCanvas canvas, SKPath path, PdfGraphicsState state, PaintOperation operation, PdfPage page, SKPathFillType fillType)
         {
+            if (canvas == null)
+            {
+                return;
+            }
+
             if (path == null || path.IsEmpty)
             {
                 return;
@@ -25,31 +32,19 @@ namespace PdfReader.Rendering.Path
 
             path.FillType = fillType;
 
-            var layerBounds = ComputePathLayerBounds(canvas, path, state, operation);
-            using var softMaskScope = new SoftMaskDrawingScope(canvas, state, page, layerBounds);
-            softMaskScope.BeginDrawContent();
-
-            DrawPathCore(canvas, path, state, operation, page, layerBounds);
-
-            softMaskScope.EndDrawContent();
-        }
-
-        private static SKRect ComputePathLayerBounds(SKCanvas canvas, SKPath path, PdfGraphicsState state, PaintOperation operation)
-        {
-            var bounds = path.Bounds;
-            if (operation == PaintOperation.Stroke || operation == PaintOperation.FillAndStroke)
+            using (var softMaskScope = new SoftMaskDrawingScope(canvas, state, page))
             {
-                // Inflate to cover stroke thickness (approximate) plus a small cushion for joins/caps.
-                var inflate = System.Math.Max(1f, (state.LineWidth * 0.5f) + 1f);
-                bounds.Inflate(inflate, inflate);
+                softMaskScope.BeginDrawContent();
+                DrawPathCore(canvas, path, state, operation, page);
+                softMaskScope.EndDrawContent();
             }
-
-            var clip = canvas.LocalClipBounds;
-            var tight = SKRect.Intersect(clip, bounds);
-            return tight.IsEmpty ? clip : tight;
         }
 
-        private static void DrawPathCore(SKCanvas canvas, SKPath path, PdfGraphicsState state, PaintOperation operation, PdfPage page, SKRect bounds)
+        /// <summary>
+        /// Core path drawing logic for each paint operation.
+        /// SaveLayer for FillAndStroke now uses the current clip region (no explicit bounds) simplifying logic.
+        /// </summary>
+        private void DrawPathCore(SKCanvas canvas, SKPath path, PdfGraphicsState state, PaintOperation operation, PdfPage page)
         {
             switch (operation)
             {
@@ -58,7 +53,7 @@ namespace PdfReader.Rendering.Path
                     using (var strokePaint = PdfPaintFactory.CreateStrokePaint(state, page))
                     {
                         var strokeTarget = new PathPatternPaintTarget(path, strokePaint);
-                        if (!PatternPaintEngine.TryRenderPattern(canvas, strokeTarget, state, page, state.StrokePaint, state.StrokeColorConverter))
+                        if (!_patternEngine.TryRenderPattern(canvas, strokeTarget, state, page, state.StrokePaint, state.StrokeColorConverter))
                         {
                             canvas.DrawPath(path, strokePaint);
                         }
@@ -70,7 +65,7 @@ namespace PdfReader.Rendering.Path
                     using (var fillPaint = PdfPaintFactory.CreateFillPaint(state, page))
                     {
                         var fillTarget = new PathPatternPaintTarget(path, fillPaint);
-                        if (!PatternPaintEngine.TryRenderPattern(canvas, fillTarget, state, page, state.FillPaint, state.FillColorConverter))
+                        if (!_patternEngine.TryRenderPattern(canvas, fillTarget, state, page, state.FillPaint, state.FillColorConverter))
                         {
                             canvas.DrawPath(path, fillPaint);
                         }
@@ -85,26 +80,25 @@ namespace PdfReader.Rendering.Path
                         BlendMode = PdfBlendModeNames.ToSkiaBlendMode(state.BlendMode)
                     })
                     {
-                        canvas.SaveLayer(bounds, layerPaint);
+                        canvas.SaveLayer(layerPaint);
                         try
                         {
-                            // Fill phase
+                            // Fill phase.
                             using (var fillPaint = PdfPaintFactory.CreateFillPaint(state, page))
                             {
                                 var fillTarget = new PathPatternPaintTarget(path, fillPaint);
-                                if (!PatternPaintEngine.TryRenderPattern(canvas, fillTarget, state, page, state.FillPaint, state.FillColorConverter))
+                                if (!_patternEngine.TryRenderPattern(canvas, fillTarget, state, page, state.FillPaint, state.StrokeColorConverter))
                                 {
                                     canvas.DrawPath(path, fillPaint);
                                 }
                             }
 
-                            // Stroke phase
+                            // Stroke phase.
                             using (var strokePaint = PdfPaintFactory.CreateStrokePaint(state, page))
                             {
-                                // When layering stroke atop fill within a save layer we want the stroke to replace pixels where it lies.
-                                strokePaint.BlendMode = SKBlendMode.SrcOver;
+                                strokePaint.BlendMode = SKBlendMode.Src;
                                 var strokeTarget = new PathPatternPaintTarget(path, strokePaint);
-                                if (!PatternPaintEngine.TryRenderPattern(canvas, strokeTarget, state, page, state.StrokePaint, state.StrokeColorConverter))
+                                if (!_patternEngine.TryRenderPattern(canvas, strokeTarget, state, page, state.StrokePaint, state.FillColorConverter))
                                 {
                                     canvas.DrawPath(path, strokePaint);
                                 }

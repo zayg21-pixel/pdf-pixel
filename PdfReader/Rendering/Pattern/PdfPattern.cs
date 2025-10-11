@@ -18,17 +18,14 @@ namespace PdfReader.Rendering.Pattern
     {
         /// <summary>Pattern object reference.</summary>
         public PdfReference Reference { get; }
-        /// <summary>Raw resources dictionary associated with the pattern (may be null).</summary>
-        public PdfDictionary Resources { get; }
         /// <summary>Pattern transformation matrix (identity if /Matrix absent).</summary>
         public SKMatrix PatternMatrix { get; }
         /// <summary>Underlying pattern type enum.</summary>
         public PdfPatternType PatternType { get; }
 
-        protected PdfPattern(PdfReference reference, PdfDictionary resources, SKMatrix matrix, PdfPatternType patternType)
+        protected PdfPattern(PdfReference reference, SKMatrix matrix, PdfPatternType patternType)
         {
             Reference = reference;
-            Resources = resources;
             PatternMatrix = matrix;
             PatternType = patternType;
         }
@@ -63,7 +60,6 @@ namespace PdfReader.Rendering.Pattern
         public float YStep { get; }
         public PdfTilingPaintType PaintTypeKind { get; }
         public PdfTilingSpacingType TilingTypeKind { get; }
-        public PdfObject StreamObject { get; }
 
         internal PdfTilingPattern(
             PdfReference reference,
@@ -72,17 +68,14 @@ namespace PdfReader.Rendering.Pattern
             float yStep,
             PdfTilingPaintType paintTypeKind,
             PdfTilingSpacingType tilingTypeKind,
-            PdfDictionary resources,
-            PdfObject streamObject,
             SKMatrix matrix)
-            : base(reference, resources, matrix, PdfPatternType.Tiling)
+            : base(reference, matrix, PdfPatternType.Tiling)
         {
             BBox = bbox;
             XStep = xStep;
             YStep = yStep;
             PaintTypeKind = paintTypeKind;
             TilingTypeKind = tilingTypeKind;
-            StreamObject = streamObject;
         }
     }
 
@@ -91,20 +84,19 @@ namespace PdfReader.Rendering.Pattern
     /// </summary>
     public sealed class PdfShadingPattern : PdfPattern
     {
-        /// <summary>Shading dictionary object referenced by the pattern's /Shading entry.</summary>
-        public PdfDictionary ShadingDictionary { get; }
+        /// <summary>Shading object referenced by the pattern's /Shading entry.</summary>
+        public PdfShading Shading { get; }
         /// <summary>Optional ExtGState dictionary (may be null).</summary>
         public PdfDictionary ExtGState { get; }
 
         internal PdfShadingPattern(
             PdfReference reference,
-            PdfDictionary shadingDictionary,
-            PdfDictionary resources,
+            PdfShading shading,
             SKMatrix matrix,
             PdfDictionary extGState)
-            : base(reference, resources, matrix, PdfPatternType.Shading)
+            : base(reference, matrix, PdfPatternType.Shading)
         {
-            ShadingDictionary = shadingDictionary;
+            Shading = shading;
             ExtGState = extGState;
         }
     }

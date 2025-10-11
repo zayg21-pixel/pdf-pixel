@@ -17,33 +17,32 @@ namespace PdfReadTests
 
             // Test with some sample PDFs
             string[] testFiles = {
+                //"pdfs//alphatrans.pdf",
                 //"pdfs//ArabicCIDTrueType.pdf",
                 //"pdfs//asciihexdecode.pdf",
                 //"pdfs//complex_ttf_font.pdf",
                 //"pdfs//icc-lab-8bit.pdf",
-                //"pdfs//devicen.pdf",
+                "pdfs//devicen.pdf",
                 //"pdfs//icc-xyz.pdf",
                 //"pdfs//icc-lab4.pdf",
                 //"pdfs//icc-lab2.pdf",
                 //"pdf-example-password.pdf",
-                //"Adyen.pdf",
-                //"Adyen_debug.pdf",
                 //"pdfs//mixedfonts.pdf",
-                //"Adyen - Copy.pdf",
                 //"pdfs//blendmode.pdf",
                 //"pdfs//alphatrans.pdf",
                 //"pdfs//calgray.pdf",
                 //"pdfs//calrgb.pdf",
                 //"pdfs//cmykjpeg.pdf",
                 //"pdfs//IndexedCS_negative_and_high.pdf",
-                //@"sample.pdf",
                 //"pdfs//tiling-pattern-box.pdf",
                 //"pdfs//gradientfill.pdf",
-                //@"document - Copy.pdf",
-                @"documentS.pdf",
-                //@"documentC.pdf",
                 //"pdfs//ccitt_EndOfBlock_false.pdf",
                 //"pdfs//images_1bit_grayscale.pdf",
+                //@"documentS.pdf",
+                //@"documentC.pdf",
+                //@"sample.pdf",
+                //@"document - Copy.pdf",
+                //"Adyen.pdf",
                 //"adyen_2020.pdf",
                 //"adyen_2020_debug.pdf",
                 //"pdfs\\emojies.pdf"
@@ -83,8 +82,8 @@ namespace PdfReadTests
                     Logger.LogInformation("Root object: {Root}", document.RootObject);
 
                     var start = 0;
-                    var max = 2000;
-                    float scaleX = 0.1f; // Scale factor for rendering
+                    var max = 1000;
+                    float scaleX = 3f; // Scale factor for rendering
 
                     var memory = GC.GetTotalMemory(true) / 1024 / 1024;
 
@@ -125,7 +124,7 @@ namespace PdfReadTests
                                 }
 
                                 // Save as PNG (optional)
-                                var filename_png = $"{basePath}\\{name}_page_{page.PageNumber}.png";
+                                var filename_png = $"{basePath}\\{name}_page_{page.PageNumber}.jpg";
                                 using (var image = surface.Snapshot())
                                 using (var data = image.Encode(SKEncodedImageFormat.Jpeg, 100))
                                 using (var fileStream = File.OpenWrite(filename_png))

@@ -27,7 +27,7 @@ namespace PdfReader.Rendering.Image
                 return;
             }
 
-            using var softMaskScope = new SoftMaskDrawingScope(canvas, state, page, destRect);
+            using var softMaskScope = new SoftMaskDrawingScope(canvas, state, page);
             softMaskScope.BeginDrawContent();
 
             var decoder = PdfImageDecoder.GetDecoder(pdfImage, _factory);
@@ -65,18 +65,22 @@ namespace PdfReader.Rendering.Image
         private void DrawImageMask(SKCanvas canvas, SKImage alphaMask, PdfGraphicsState state, PdfPage page, SKRect destRect, bool interpolate)
         {
             using var fillPaint = PdfPaintFactory.CreateFillPaint(state, page);
-            using var maskPaint = new SKPaint
-            {
-                BlendMode = SKBlendMode.DstIn
-            };
 
             var sampling = PdfPaintFactory.GetImageSamplingOptions(interpolate);
 
             canvas.SaveLayer(destRect, null);
+
             try
             {
-                canvas.DrawRect(destRect, fillPaint);
-                canvas.DrawImage(alphaMask, destRect, sampling, maskPaint);
+                canvas.DrawImage(alphaMask, destRect, sampling);
+
+                using var srcInPaint = new SKPaint
+                {
+                    BlendMode = SKBlendMode.SrcIn,
+                    Color = fillPaint.Color
+                };
+
+                canvas.DrawRect(destRect, srcInPaint);
             }
             finally
             {
@@ -113,7 +117,7 @@ namespace PdfReader.Rendering.Image
                 var matteArray = softMaskObject.Dictionary?.GetArray(PdfTokens.MatteKey).GetFloatArray();
                 if (matteArray != null && matteArray.Length > 0)
                 {
-                    _logger.LogInformation("Image '{ImageName}': /SMask has /Matte; dematting not implemented.", pdfImage?.Name);
+                    _logger.LogWarning("Image '{ImageName}': /SMask has /Matte; dematting not implemented.", pdfImage?.Name);
                 }
 
                 SKColorFilter alphaFilter = null;
@@ -155,7 +159,7 @@ namespace PdfReader.Rendering.Image
             catch (Exception ex)
             {
                 _logger.LogWarning(ex, "Soft mask application failed for image '{ImageName}'.", pdfImage?.Name);
-                return null; // Safe to continue drawing base image without mask
+                return null;
             }
         }
     }

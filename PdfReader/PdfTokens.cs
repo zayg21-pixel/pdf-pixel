@@ -201,7 +201,7 @@ namespace PdfReader
         
         // Extended Graphics State Dictionary Keys (transparency)
         public const string SoftMaskKey = "/SMask";
-        public const string TransparencyGroupKey = "/Group";
+        public const string GroupKey = "/Group";
         public const string KnockoutKey = "/TK";
         public const string OverprintModeKey = "/OPM";
         public const string OverprintStrokeKey = "/OP";

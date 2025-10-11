@@ -36,8 +36,4 @@
     <PackageReference Include="System.Text.Encoding.CodePages" Version="8.0.0" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Folder Include="Rendering\Image\Raw\" />
-  </ItemGroup>
-
 </Project>

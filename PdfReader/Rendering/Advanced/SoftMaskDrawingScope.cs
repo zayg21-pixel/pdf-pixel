@@ -10,7 +10,7 @@ namespace PdfReader.Rendering.Advanced
     /// <summary>
     /// Disposable scope to render content with an optional soft mask and transparency group applied.
     /// Usage:
-    /// using (var scope = new SoftMaskDrawingScope(canvas, softMask, document, graphicsState, currentPage, layerBounds))
+    /// using (var scope = new SoftMaskDrawingScope(canvas, graphicsState, currentPage))
     /// {
     ///     scope.BeginDrawContent();
     ///     // draw page/form content here
@@ -23,24 +23,28 @@ namespace PdfReader.Rendering.Advanced
         private readonly PdfSoftMask _softMask;
         private readonly PdfGraphicsState _graphicsState;
         private readonly PdfPage _currentPage;
-        private readonly SKRect? _layerBounds;
 
         private SKRect activeBounds;
         private bool began;
         private bool shouldApplyMask;
         private bool disposed;
 
+        /// <summary>
+        /// Create a new soft mask drawing scope.
+        /// Bounds are derived internally from the soft mask transformed bounds intersected with the current canvas clip.
+        /// </summary>
+        /// <param name="canvas">Target canvas.</param>
+        /// <param name="graphicsState">Current graphics state (provides the soft mask).</param>
+        /// <param name="currentPage">Current page context.</param>
         public SoftMaskDrawingScope(
             SKCanvas canvas,
             PdfGraphicsState graphicsState,
-            PdfPage currentPage,
-            SKRect? layerBounds)
+            PdfPage currentPage)
         {
             _canvas = canvas;
             _softMask = graphicsState.SoftMask;
             _graphicsState = graphicsState;
             _currentPage = currentPage;
-            _layerBounds = layerBounds;
         }
 
         /// <summary>
@@ -67,16 +71,16 @@ namespace PdfReader.Rendering.Advanced
                 return;
             }
 
-            activeBounds = _layerBounds ?? ComputeTightMaskBounds(_canvas, _softMask);
+            activeBounds = ComputeTightMaskBounds(_canvas, _softMask);
 
             if (activeBounds.Width <= 0 || activeBounds.Height <= 0)
             {
-                // nothing to mask, draw directly
+                // Nothing to mask, draw directly.
                 shouldApplyMask = false;
                 return;
             }
 
-            // Capture content into a layer so we can apply the soft mask at EndDrawContent
+            // Capture content into a layer so we can apply the soft mask at EndDrawContent.
             _canvas.SaveLayer(activeBounds, null);
         }
 
@@ -98,7 +102,7 @@ namespace PdfReader.Rendering.Advanced
 
             try
             {
-                // Record the soft mask content into a picture
+                // Record the soft mask content into a picture.
                 using var recorder = new SKPictureRecorder();
 
                 var cullRect = !_softMask.TransformedBounds.IsEmpty ? _softMask.TransformedBounds : activeBounds;
@@ -106,19 +110,19 @@ namespace PdfReader.Rendering.Advanced
 
                 recCanvas.Save();
 
-                // Apply Form /Matrix
+                // Apply Form /Matrix.
                 if (!_softMask.FormMatrix.IsIdentity)
                 {
                     recCanvas.Concat(_softMask.FormMatrix);
                 }
 
-                // Clip to /BBox if provided
+                // Clip to /BBox if provided.
                 if (!_softMask.BBox.IsEmpty)
                 {
                     recCanvas.ClipRect(_softMask.BBox);
                 }
 
-                // Background for luminosity masks (BC in group color space)
+                // Background for luminosity masks (BC in group color space).
                 if (_softMask.Subtype == SoftMaskSubtype.Luminosity)
                 {
                     using var bgPaint = new SKPaint
@@ -131,7 +135,7 @@ namespace PdfReader.Rendering.Advanced
                     recCanvas.DrawRect(bgRect, bgPaint);
                 }
 
-                // Render mask content stream
+                // Render mask content stream.
                 var contentData = PdfStreamDecoder.DecodeContentStream(_softMask.GroupObject);
                 if (!contentData.IsEmpty)
                 {
@@ -151,7 +155,11 @@ namespace PdfReader.Rendering.Advanced
                 recCanvas.Restore();
 
                 using var picture = recorder.EndRecording();
-                using var maskPaint = new SKPaint { IsAntialias = true, BlendMode = SKBlendMode.DstIn };
+                using var maskPaint = new SKPaint
+                {
+                    IsAntialias = true,
+                    BlendMode = SKBlendMode.DstIn
+                };
 
                 using var alphaFilter = _softMask.Subtype == SoftMaskSubtype.Luminosity
                     ? SoftMaskUtilities.CreateAlphaFromLuminosityFilter()
@@ -170,12 +178,15 @@ namespace PdfReader.Rendering.Advanced
             }
             finally
             {
-                // Close the layer started in BeginDrawContent
+                // Close the layer started in BeginDrawContent.
                 _canvas.Restore();
                 shouldApplyMask = false;
             }
         }
 
+        /// <summary>
+        /// Dispose pattern. Attempts to safely end the scope if caller forgot to call EndDrawContent.
+        /// </summary>
         public void Dispose()
         {
             if (disposed)
@@ -185,7 +196,7 @@ namespace PdfReader.Rendering.Advanced
 
             disposed = true;
 
-            // Ensure proper teardown if the caller forgot to call EndDrawContent
+            // Ensure proper teardown if the caller forgot to call EndDrawContent.
             if (began && shouldApplyMask)
             {
                 try
@@ -194,21 +205,21 @@ namespace PdfReader.Rendering.Advanced
                 }
                 catch
                 {
-                    // Best effort; avoid throwing from Dispose
+                    // Best effort; avoid throwing from Dispose.
                 }
             }
         }
 
         private static SKRect ComputeTightMaskBounds(SKCanvas canvas, PdfSoftMask softMask)
         {
-            var clip = canvas.LocalClipBounds;
+            var clipBounds = canvas.LocalClipBounds;
             if (!softMask.TransformedBounds.IsEmpty)
             {
-                var intersect = SKRect.Intersect(clip, softMask.TransformedBounds);
-                return intersect.IsEmpty ? clip : intersect;
+                var intersect = SKRect.Intersect(clipBounds, softMask.TransformedBounds);
+                return intersect.IsEmpty ? clipBounds : intersect;
             }
 
-            return clip;
+            return clipBounds;
         }
     }
 }

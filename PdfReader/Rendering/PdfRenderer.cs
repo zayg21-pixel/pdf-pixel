@@ -21,8 +21,8 @@ namespace PdfReader.Rendering
         private readonly ILoggerFactory _loggerFactory;
         private readonly ILogger _logger;
 
-        private readonly StandardPathDrawer _pathRenderer = new StandardPathDrawer();
-        private readonly FastImageDrawer _imageRenderer;
+        private readonly IPathDrawer _pathRenderer = new StandardPathDrawer();
+        private readonly IImageDrawer _imageRenderer;
         private readonly IShadingDrawer _shadingRenderer;
 
         internal PdfRenderer(IFontCache fontCache, ILoggerFactory loggerFactory)
@@ -33,8 +33,6 @@ namespace PdfReader.Rendering
             _textRenderer = new PdfTextRenderer(fontCache, _loggerFactory);
             _shadingRenderer = new StandardShadingDrawer(_loggerFactory);
         }
-
-        public IShadingDrawer ShadingDrawer => _shadingRenderer;
 
         /// <summary>
         /// Draw text with the current graphics state (updated to handle PdfText and PdfFontBase)
@@ -88,7 +86,6 @@ namespace PdfReader.Rendering
                 canvas.Translate(0, state.Rise);
             }
 
-
             canvas.Scale(1, -1);
             
             // Delegate to text renderer for the actual text positioning logic and get advancement
@@ -108,25 +105,31 @@ namespace PdfReader.Rendering
         }
 
         /// <summary>
-        /// Draw an image in PDF unit coordinate space (0,0) to (1,1) with proper transformations
-        /// This is a convenience method for XObject image processing
-        /// Handles coordinate transformation for proper image positioning
+        /// Draw an image in PDF unit coordinate space (0,0) to (1,1) with proper transformations.
+        /// This is a convenience method for XObject image processing.
+        /// Handles coordinate transformation for proper image positioning.
         /// </summary>
         public void DrawUnitImage(SKCanvas canvas, PdfImage pdfImage, PdfGraphicsState state, PdfPage page)
         {
-            // Save canvas state
             canvas.Save();
-
-            // Apply local Y-axis flip to counteract global Y-flip for image content orientation
             canvas.Scale(1, -1);
-            
-            // For unit coordinate space, adjust the rectangle to work with the Y-flipped coordinate system
-            var destRect = new SKRect(0, -1, 1, 0);  // Adjust for Y-flip in unit space
-            
-            // Draw the image using the standard image renderer
+            var destRect = new SKRect(0, -1, 1, 0);
             _imageRenderer.DrawImage(canvas, pdfImage, state, page, destRect);
-
             canvas.Restore();
+        }
+
+        /// <summary>
+        /// Draw a shading fill described by the shading dictionary (operator 'sh').
+        /// Soft mask application is delegated to the shading drawer implementation.
+        /// Caller must apply the appropriate CTM prior to invocation.
+        /// </summary>
+        /// <param name="canvas">Destination canvas to draw on.</param>
+        /// <param name="shading">Shading object defining the gradient/pattern.</param>
+        /// <param name="state">Current graphics state providing CTM and soft mask.</param>
+        /// <param name="page">Page context for resource access and color space resolution.</param>
+        public void DrawShading(SKCanvas canvas, PdfShading shading, PdfGraphicsState state, PdfPage page)
+        {
+            _shadingRenderer.DrawShading(canvas, shading, state, page);
         }
     }
 }

@@ -92,6 +92,10 @@ namespace PdfReader.Fonts.Management
                 {
                     return result;
                 }
+                else
+                {
+                    _logger.LogWarning("Failed to load embedded font for {BaseFont}, falling back to loading from parameters", simpleFont.BaseFont);
+                }
             }
             return GetTypefaceFromParametersOrDefault(simpleFont);
         }
@@ -190,7 +194,7 @@ namespace PdfReader.Fonts.Management
                 {
                     if (!candidate.Equals(parsed.NormalizedStem, StringComparison.OrdinalIgnoreCase))
                     {
-                        _logger.LogInformation("Substituting font family {OriginalFamily} with {CandidateFamily}", parsed.NormalizedStem, candidate);
+                        _logger.LogDebug("Substituting font family {OriginalFamily} with {CandidateFamily}", parsed.NormalizedStem, candidate);
                     }
                     return tf;
                 }

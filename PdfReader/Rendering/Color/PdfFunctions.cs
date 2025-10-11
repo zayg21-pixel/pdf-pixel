@@ -222,6 +222,12 @@ namespace PdfReader.Rendering.Color
         {
             try
             {
+                PdfFunctionCacheEntry cacheEntry = null;
+                if (functionObject.Reference.IsValid)
+                {
+                    functionObject.Document.FunctionCache.TryGetValue(functionObject.Reference, out cacheEntry);
+                }
+
                 PdfDictionary dictionary = functionObject.Dictionary;
                 if (dictionary == null)
                 {
@@ -245,13 +251,6 @@ namespace PdfReader.Rendering.Color
                 if (domainPairs == null || domainPairs.Length < 2 * dimensions)
                 {
                     return Array.Empty<float>();
-                }
-
-                // Attempt cache retrieval (only for referenced objects since inline dictionaries would reuse same reference of 0,0 otherwise)
-                PdfFunctionCacheEntry cacheEntry = null;
-                if (functionObject.Reference.IsValid && document != null)
-                {
-                    document.FunctionCache.TryGetValue(functionObject.Reference, out cacheEntry);
                 }
 
                 int[] sizes;
