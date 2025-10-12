@@ -72,8 +72,6 @@ namespace PdfReader.Rendering
             // Create unified context that treats all streams as one continuous stream
             var parseContext = new PdfParseContext(contentStreams);
 
-            //string content = Encoding.ASCII.GetString(parseContext.GetSlice(0, parseContext.Length).ToArray()); // TODO: remove
-
             var state = new PdfGraphicsState();
             var processingXObjects = new HashSet<int>();
 

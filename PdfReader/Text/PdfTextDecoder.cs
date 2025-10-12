@@ -98,7 +98,6 @@ namespace PdfReader.Text
                 {
                     return unicode;
                 }
-                _logger.LogInformation("Character code {Code} not found in ToUnicode CMap for font {Font}.", code, font.BaseFont);
             }
 
             var enc = GetEncodingForFont(font);

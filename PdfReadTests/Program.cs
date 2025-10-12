@@ -83,9 +83,9 @@ namespace PdfReadTests
                     Logger.LogInformation("Actual pages found: {Count}", document.Pages.Count);
                     Logger.LogInformation("Root object: {Root}", document.RootObject);
 
-                    var start = 0;
-                    var max = 2000;
-                    float scaleX = 0.1f; // Scale factor for rendering
+                    var start = 30;
+                    var max = 31;
+                    float scaleX = 4f; // Scale factor for rendering
 
                     var memory = GC.GetTotalMemory(true) / 1024 / 1024;
 

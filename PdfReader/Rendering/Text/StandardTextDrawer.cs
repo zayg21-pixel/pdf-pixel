@@ -46,26 +46,20 @@ namespace PdfReader.Rendering.Text
                 return 0f;
             }
 
-            if (state.SoftMask != null)
-            {
-                SKRect measuredBounds;
-                using (var softMaskScope = new SoftMaskDrawingScope(canvas, state, page))
-                {
-                    softMaskScope.BeginDrawContent();
-                    measuredBounds = DrawTextInternal(canvas, ref pdfText, page, state, font, false);
-                    softMaskScope.EndDrawContent();
-                }
-                return measuredBounds.Width;
-            }
+            SKSize size;
 
-            var bounds = DrawTextInternal(canvas, ref pdfText, page, state, font, false);
-            return bounds.Width;
+            using var softMaskScope = new SoftMaskDrawingScope(canvas, state, page);
+            softMaskScope.BeginDrawContent();
+            size = DrawTextInternal(canvas, ref pdfText, page, state, font, false);
+            softMaskScope.EndDrawContent();
+
+            return size.Width;
         }
 
         /// <summary>
         /// Internal draw implementation. Assumes validated arguments (no defensive checks).
         /// </summary>
-        private SKRect DrawTextInternal(SKCanvas canvas, ref PdfText pdfText, PdfPage page, PdfGraphicsState state, PdfFontBase font, bool dryRun)
+        private SKSize DrawTextInternal(SKCanvas canvas, ref PdfText pdfText, PdfPage page, PdfGraphicsState state, PdfFontBase font, bool dryRun)
         {
             var typeface = _fontCache.GetTypeface(font);
             var unicodeText = _pdfTextDecoder.DecodeTextStringWithFont(pdfText.RawBytes, font);
@@ -86,8 +80,7 @@ namespace PdfReader.Rendering.Text
                 size = DrawUnicodeText(canvas, skPaint, skFont, unicodeText, state, dryRun);
             }
 
-            var bounds = CalculateSoftMaskBounds(size);
-            return bounds;
+            return size;
         }
 
         /// <summary>
@@ -262,14 +255,6 @@ namespace PdfReader.Rendering.Text
             float height = metrics.Descent - metrics.Ascent;
             paint.Dispose();
             return new SKSize(advanceWidth, height);
-        }
-
-        private SKRect CalculateSoftMaskBounds(SKSize size)
-        {
-            float top = -size.Height * 0.8f;
-            float bottom = size.Height * 0.2f;
-            // TODO: remove, calculate correct bounds
-            return new SKRect(0f, top, size.Width, bottom);
         }
     }
 }

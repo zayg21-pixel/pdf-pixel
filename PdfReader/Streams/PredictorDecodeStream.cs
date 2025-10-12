@@ -1,5 +1,6 @@
 ﻿using System;
 using System.IO;
+using System.Reflection;
 using System.Runtime.CompilerServices;
 
 namespace PdfReader.Streams
@@ -16,6 +17,7 @@ namespace PdfReader.Streams
         private readonly int _colors; // number of color components per pixel
         private readonly int _bitsPerComponent; // sample size
         private readonly int _columns; // pixel columns per row
+        private readonly bool _leaveOpen;
 
         private readonly int _bytesPerSample; // 1 for <8 bpc, 1 for 8, 2 for 16
         private readonly int _decodedRowBytes; // bytes in decoded (post predictor) row
@@ -27,7 +29,7 @@ namespace PdfReader.Streams
         private bool _endOfStream; // reached end of source
         private bool _currentRowValid; // whether _currentRow contains decoded data
 
-        public PredictorDecodeStream(Stream decoded, int predictor, int colors, int bitsPerComponent, int columns)
+        public PredictorDecodeStream(Stream decoded, int predictor, int colors, int bitsPerComponent, int columns, bool leaveOpen = false)
         {
             if (decoded == null)
             {
@@ -45,6 +47,9 @@ namespace PdfReader.Streams
             {
                 throw new ArgumentOutOfRangeException(nameof(columns));
             }
+
+            _leaveOpen = leaveOpen;
+
             if (predictor != 2 && (predictor < 10 || predictor > 15))
             {
                 // Unsupported predictor: just use passthrough stream
@@ -134,6 +139,7 @@ namespace PdfReader.Streams
             return totalCopied;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private bool DecodeNextRow()
         {
             _rowOffset = 0;
@@ -329,5 +335,15 @@ namespace PdfReader.Streams
         public override void SetLength(long value) => throw new NotSupportedException();
 
         public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing && !_leaveOpen)
+            {
+                _source.Dispose();
+            }
+
+            base.Dispose(disposing);
+        }
     }
 }

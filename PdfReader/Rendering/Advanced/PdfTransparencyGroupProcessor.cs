@@ -6,7 +6,6 @@ namespace PdfReader.Rendering.Advanced
     /// <summary>
     /// Handles PDF transparency group isolation / knockout layering.
     /// Current implementation creates an offscreen layer for isolated or knockout groups and restores afterwards.
-    /// Knockout semantics are not fully implemented yet (TODO: per-object compositing pass).
     /// </summary>
     public static class PdfTransparencyGroupProcessor
     {

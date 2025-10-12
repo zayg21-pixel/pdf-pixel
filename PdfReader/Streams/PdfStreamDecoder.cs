@@ -240,7 +240,7 @@ namespace PdfReader.Streams
                 return decoded; // Cannot proceed without a positive column count.
             }
 
-            return new PredictorDecodeStream(decoded, predictor, colors, bitsPerComponent, columns);
+            return new PredictorDecodeStream(decoded, predictor, colors, bitsPerComponent, columns, leaveOpen: false);
         }
 
         private Stream DecompressFlateData(Stream compressed)

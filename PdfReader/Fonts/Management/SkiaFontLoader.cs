@@ -117,7 +117,7 @@ namespace PdfReader.Fonts.Management
 
         private SKTypeface LoadSkiaTypeface(PdfFontBase baseFont)
         {
-            var stream = _fontCache.GetFontStream(baseFont.FontDescriptor);
+            using var stream = _fontCache.GetFontStream(baseFont.FontDescriptor);
             return SKTypeface.FromStream(stream);
         }
 
