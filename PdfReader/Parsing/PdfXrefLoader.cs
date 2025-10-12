@@ -264,7 +264,7 @@ namespace PdfReader.Parsing
 
             var xrefObject = new PdfObject(new PdfReference(objNum, gen), _document, value);
             xrefObject.StreamData = PdfParsers.ParseStream(ref context, dictionary);
-            var decoded = PdfStreamDecoder.DecodeContentStream(xrefObject);
+            var decoded = _document.StreamDecoder.DecodeContentStream(xrefObject);
             if (decoded.IsEmpty)
             {
                 _logger.LogWarning("PdfXrefLoader: Decoded xref stream empty.");

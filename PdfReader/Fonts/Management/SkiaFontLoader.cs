@@ -89,7 +89,7 @@ namespace PdfReader.Fonts.Management
         {
             if (simpleFont.IsEmbedded)
             {
-                var result = LoadSkiaTypeface(simpleFont.FontDescriptor?.FontFileFormat, simpleFont);
+                var result = LoadSkiaTypeface(simpleFont);
                 if (result != null)
                 {
                     return result;
@@ -106,7 +106,7 @@ namespace PdfReader.Fonts.Management
         {
             if (cidFont.IsEmbedded)
             {
-                var result = LoadSkiaTypeface(cidFont.FontDescriptor?.FontFileFormat, cidFont);
+                var result = LoadSkiaTypeface(cidFont);
                 if (result != null)
                 {
                     return result;
@@ -115,7 +115,7 @@ namespace PdfReader.Fonts.Management
             return GetTypefaceFromParametersOrDefault(cidFont);
         }
 
-        private SKTypeface LoadSkiaTypeface(FontFileFormat? fileFormat, PdfFontBase baseFont)
+        private SKTypeface LoadSkiaTypeface(PdfFontBase baseFont)
         {
             var stream = _fontCache.GetFontStream(baseFont.FontDescriptor);
             return SKTypeface.FromStream(stream);

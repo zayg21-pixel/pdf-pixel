@@ -50,7 +50,7 @@ namespace PdfReader.Parsing
 
             if (!_decodedStreamCache.TryGetValue(containerReference.ObjectNumber, out var decoded))
             {
-                decoded = PdfStreamDecoder.DecodeContentStream(containerObject);
+                decoded = _pdfDocument.StreamDecoder.DecodeContentStream(containerObject);
                 if (decoded.IsEmpty)
                 {
                     return null;
@@ -192,7 +192,7 @@ namespace PdfReader.Parsing
                 return;
             }
 
-            var decodedData = PdfStreamDecoder.DecodeContentStream(pdfObject);
+            var decodedData = _pdfDocument.StreamDecoder.DecodeContentStream(pdfObject);
             if (decodedData.IsEmpty)
             {
                 _logger.LogWarning("Failed to decode object stream {ObjectNumber}", pdfObject.Reference.ObjectNumber);

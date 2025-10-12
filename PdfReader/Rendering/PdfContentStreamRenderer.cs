@@ -88,7 +88,7 @@ namespace PdfReader.Rendering
 
             foreach (var contentObject in contents)
             {
-                var contentData = PdfStreamDecoder.DecodeContentStream(contentObject);
+                var contentData = _page.Document.StreamDecoder.DecodeContentStream(contentObject);
 
                 if (!contentData.IsEmpty)
                 {

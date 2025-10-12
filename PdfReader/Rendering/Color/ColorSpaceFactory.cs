@@ -45,7 +45,7 @@ namespace PdfReader.Rendering.Color
 
             if (lutObject != null)
             {
-                var data = PdfStreamDecoder.DecodeContentStream(lutObject);
+                var data = page.Document.StreamDecoder.DecodeContentStream(lutObject);
 
                 if (!data.IsEmpty)
                 {
@@ -360,7 +360,7 @@ namespace PdfReader.Rendering.Color
             byte[] iccBytes = null;
             if (!pdfObject.StreamData.IsEmpty)
             {
-                var data = PdfStreamDecoder.DecodeContentStream(pdfObject);
+                var data = page.Document.StreamDecoder.DecodeContentStream(pdfObject);
                 iccBytes = data.ToArray();
             }
 

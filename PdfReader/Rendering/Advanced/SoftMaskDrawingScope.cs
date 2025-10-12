@@ -136,7 +136,7 @@ namespace PdfReader.Rendering.Advanced
                 }
 
                 // Render mask content stream.
-                var contentData = PdfStreamDecoder.DecodeContentStream(_softMask.GroupObject);
+                var contentData = _currentPage.Document.StreamDecoder.DecodeContentStream(_softMask.GroupObject);
                 if (!contentData.IsEmpty)
                 {
                     var parseContext = new PdfParseContext(contentData);

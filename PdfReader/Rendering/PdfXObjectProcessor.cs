@@ -112,7 +112,7 @@ namespace PdfReader.Rendering
                 }
 
                 // Decode and render content with a cloned state that clears parent soft mask
-                var content = PdfStreamDecoder.DecodeContentStream(formXObject);
+                var content = page.Document.StreamDecoder.DecodeContentStream(formXObject);
                 if (!content.IsEmpty)
                 {
                     var parseContext = new PdfParseContext(content);

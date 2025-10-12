@@ -22,12 +22,12 @@ namespace PdfReader.Rendering.Image
         /// Returns the raw image data decoded from the PDF stream after reversing the /Filter chain.
         /// </summary>
         /// <returns></returns>
-        public ReadOnlyMemory<byte> GetImageData() => PdfStreamDecoder.DecodeContentStream(ImageXObject);
+        public ReadOnlyMemory<byte> GetImageData() => SourceObject.Document.StreamDecoder.DecodeContentStream(ImageXObject);
 
         /// <summary>
-        /// Retrieves the image data as a stream.
+        /// Retrieves the image data as a stream (for large images).
         /// </summary>
-        public Stream GetImageDataStream() => PdfStreamDecoder.DecodeContentAsStream(ImageXObject);
+        public Stream GetImageDataStream() => SourceObject.Document.StreamDecoder.DecodeContentAsStream(ImageXObject);
 
         /// <summary>
         /// Image width in pixels (/Width).

@@ -117,7 +117,7 @@ namespace PdfReader.Rendering.Color
                     var profileObj = dict.GetPageObject(PdfTokens.DestOutputProfileKey);
                     if (profileObj != null && !profileObj.StreamData.IsEmpty)
                     {
-                        var data = PdfStreamDecoder.DecodeContentStream(profileObj);
+                        var data = page.Document.StreamDecoder.DecodeContentStream(profileObj);
                         if (!data.IsEmpty)
                         {
                             return data.ToArray();

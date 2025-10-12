@@ -160,7 +160,7 @@ namespace PdfReader.Fonts
                     return null;
                 }
 
-                var data = PdfStreamDecoder.DecodeContentStream(encodingObj);
+                var data = Document.StreamDecoder.DecodeContentStream(encodingObj);
                 if (data.IsEmpty || data.Length == 0)
                 {
                     return null;

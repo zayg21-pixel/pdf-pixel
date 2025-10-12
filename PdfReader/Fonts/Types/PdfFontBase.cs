@@ -229,7 +229,7 @@ namespace PdfReader.Fonts
 
             try
             {
-                var cmapData = PdfStreamDecoder.DecodeContentStream(toUnicodeObj);
+                var cmapData = Document.StreamDecoder.DecodeContentStream(toUnicodeObj);
                 var cMapContent = new PdfParseContext(cmapData);
                 return PdfToUnicodeCMapParser.ParseCMapFromContext(ref cMapContent, Document);
             }

@@ -82,7 +82,7 @@ namespace PdfReader.Rendering.Pattern
                 return;
             }
 
-            var data = PdfStreamDecoder.DecodeContentStream(streamObject);
+            var data = page.Document.StreamDecoder.DecodeContentStream(streamObject);
             if (data.IsEmpty)
             {
                 return;

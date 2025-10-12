@@ -5,6 +5,7 @@ using System.IO.Compression;
 using PdfReader.Models;
 using CommunityToolkit.HighPerformance;
 using System.Linq;
+using Microsoft.Extensions.Logging;
 
 namespace PdfReader.Streams
 {
@@ -12,41 +13,48 @@ namespace PdfReader.Streams
     /// Decodes generic PDF streams by applying /Filter chains and optional /DecodeParms predictor post-processing.
     /// Image specific formats (DCT, JPX, JBIG2, CCITT) are left undecoded for specialized handlers.
     /// </summary>
-    public static class PdfStreamDecoder
+    public sealed class PdfStreamDecoder
     {
+        private readonly PdfDocument _document;
+        private readonly ILogger<PdfStreamDecoder> _logger;
+
+        public PdfStreamDecoder(PdfDocument document)
+        {
+            _document = document ?? throw new ArgumentNullException(nameof(document));
+            _logger = document.LoggerFactory.CreateLogger<PdfStreamDecoder>();
+        }
+
         /// <summary>
         /// Decode the full stream into memory (filters + predictor) and return the resulting bytes.
+        /// Note: should only be used for smaller streams that can fit into memory comfortably.
         /// </summary>
-        public static ReadOnlyMemory<byte> DecodeContentStream(PdfObject obj)
+        public ReadOnlyMemory<byte> DecodeContentStream(PdfObject obj)
         {
-            List<string> filters = GetFilters(obj);
-            List<PdfDictionary> decodeParms = GetDecodeParms(obj);
-            using (Stream final = DecodeAsStream(obj.StreamData, filters, decodeParms))
+            var filters = GetFilters(obj);
+            var decodeParameters = GetDecodeParms(obj);
+            using Stream final = DecodeAsStream(obj.StreamData, filters, decodeParameters);
+
+            if (final == null)
             {
-                if (final == null)
-                {
-                    return obj.StreamData;
-                }
-                using (var ms = new MemoryStream())
-                {
-                    final.CopyTo(ms);
-                    return ms.ToArray();
-                }
+                return obj.StreamData;
             }
+
+            using var memoryStream = new MemoryStream();
+            final.CopyTo(memoryStream);
+            return memoryStream.ToArray();
         }
 
         /// <summary>
-        /// Decode the stream and return a readable Stream (caller disposes). May buffer internally for predictor undo.
+        /// Decode the stream and return a readable Stream (caller disposes).
         /// </summary>
-        public static Stream DecodeContentAsStream(PdfObject obj)
+        public Stream DecodeContentAsStream(PdfObject obj)
         {
-            List<string> filters = GetFilters(obj);
-            List<PdfDictionary> decodeParms = GetDecodeParms(obj);
-
-            return DecodeAsStream(obj.StreamData, filters, decodeParms);
+            var filters = GetFilters(obj);
+            var decodeParameters = GetDecodeParms(obj);
+            return DecodeAsStream(obj.StreamData, filters, decodeParameters);
         }
 
-        private static Stream DecodeAsStream(ReadOnlyMemory<byte> streamData, List<string> filters, List<PdfDictionary> decodeParms)
+        private Stream DecodeAsStream(ReadOnlyMemory<byte> streamData, List<string> filters, List<PdfDictionary> decodeParameters)
         {
             Stream current = streamData.AsStream();
 
@@ -69,57 +77,57 @@ namespace PdfReader.Streams
                     case PdfTokens.JPXDecode:
                     case PdfTokens.JBIG2Decode:
                     case PdfTokens.CCITTFaxDecode:
-                        {
-                            return current;
-                        }
+                    {
+                        return current;
+                    }
                     case PdfTokens.FlateDecode:
-                        {
-                            current = DecompressFlateData(current);
-                            break;
-                        }
+                    {
+                        current = DecompressFlateData(current);
+                        break;
+                    }
                     case PdfTokens.ASCIIHexDecode:
-                        {
-                            current = new AsciiHexDecodeStream(current, leaveOpen: false);
-                            break;
-                        }
+                    {
+                        current = new AsciiHexDecodeStream(current, leaveOpen: false);
+                        break;
+                    }
                     case PdfTokens.ASCII85Decode:
-                        {
-                            Console.Error.WriteLine("PdfStreamDecoder: TODO implement ASCII85Decode; stopping further filter decoding.");
-                            return current;
-                        }
+                    {
+                        _logger.LogWarning("PdfStreamDecoder: TODO implement ASCII85Decode; stopping further filter decoding.");
+                        return current; // TODO implement ASCII85Decode; stopping further filter decoding.
+                    }
                     case PdfTokens.LZWDecode:
-                        {
-                            Console.Error.WriteLine("PdfStreamDecoder: TODO implement LZWDecode; stopping further filter decoding (predictor may be pending).");
-                            return current;
-                        }
+                    {
+                        _logger.LogWarning("PdfStreamDecoder: TODO implement LZWDecode; stopping further filter decoding (predictor may be pending).");
+                        return current; // TODO implement LZWDecode; stopping further filter decoding (predictor may be pending).
+                    }
                     case PdfTokens.RunLengthDecode:
-                        {
-                            Console.Error.WriteLine("PdfStreamDecoder: TODO implement RunLengthDecode; stopping further filter decoding.");
-                            return current;
-                        }
+                    {
+                        _logger.LogWarning("PdfStreamDecoder: TODO implement RunLengthDecode; stopping further filter decoding.");
+                        return current; // TODO implement RunLengthDecode; stopping further filter decoding.
+                    }
                     case PdfTokens.Crypt:
-                        {
-                            Console.Error.WriteLine("PdfStreamDecoder: TODO implement Crypt filter integration; returning partially decoded stream.");
-                            return current;
-                        }
+                    {
+                        _logger.LogWarning("PdfStreamDecoder: TODO implement Crypt filter integration; returning partially decoded stream.");
+                        return current; // TODO implement Crypt filter integration; returning partially decoded stream.
+                    }
                     default:
-                        {
-                            Console.Error.WriteLine($"PdfStreamDecoder: unknown filter '{filter}'; returning partially decoded stream.");
-                            return current; // Unknown filter – return partially decoded stream.
-                        }
+                    {
+                        _logger.LogWarning("PdfStreamDecoder: unknown filter '{FilterName}'; returning partially decoded stream.", filter);
+                        return current; // Unknown filter – return partially decoded stream.
+                    }
                 }
 
-                var parmsForFilter = GetDecodeParmsForIndex(filterIndex, decodeParms);
-                if (parmsForFilter != null && (filter == PdfTokens.FlateDecode || filter == PdfTokens.LZWDecode))
+                var parametersForFilter = GetDecodeParmsForIndex(filterIndex, decodeParameters);
+                if (parametersForFilter != null && (filter == PdfTokens.FlateDecode || filter == PdfTokens.LZWDecode))
                 {
-                    current = ApplyPredictorIfNeeded(current, parmsForFilter);
+                    current = ApplyPredictorIfNeeded(current, parametersForFilter);
                 }
             }
 
             return current;
         }
 
-        private static bool IsImageFilter(string filter)
+        private bool IsImageFilter(string filter)
         {
             return filter == PdfTokens.DCTDecode ||
                    filter == PdfTokens.JPXDecode ||
@@ -127,7 +135,7 @@ namespace PdfReader.Streams
                    filter == PdfTokens.CCITTFaxDecode;
         }
 
-        private static List<string> GetFilters(PdfObject obj)
+        private List<string> GetFilters(PdfObject obj)
         {
             var filters = new List<string>();
             if (obj == null || obj.Dictionary == null)
@@ -157,7 +165,7 @@ namespace PdfReader.Streams
             return filters;
         }
 
-        private static List<PdfDictionary> GetDecodeParms(PdfObject obj)
+        private List<PdfDictionary> GetDecodeParms(PdfObject obj)
         {
             var list = new List<PdfDictionary>();
             if (obj == null || obj.Dictionary == null)
@@ -187,55 +195,55 @@ namespace PdfReader.Streams
             return list;
         }
 
-        private static PdfDictionary GetDecodeParmsForIndex(int filterIndex, List<PdfDictionary> decodeParms)
+        private PdfDictionary GetDecodeParmsForIndex(int filterIndex, List<PdfDictionary> decodeParameters)
         {
-            if (decodeParms == null || decodeParms.Count == 0)
+            if (decodeParameters == null || decodeParameters.Count == 0)
             {
                 return null;
             }
-            if (decodeParms.Count == 1)
+            if (decodeParameters.Count == 1)
             {
-                return decodeParms[0];
+                return decodeParameters[0];
             }
-            if (filterIndex >= 0 && filterIndex < decodeParms.Count)
+            if (filterIndex >= 0 && filterIndex < decodeParameters.Count)
             {
-                return decodeParms[filterIndex];
+                return decodeParameters[filterIndex];
             }
             return null;
         }
 
-        private static Stream ApplyPredictorIfNeeded(Stream decoded, PdfDictionary decodeParmDict)
+        private Stream ApplyPredictorIfNeeded(Stream decoded, PdfDictionary decodeParameterDictionary)
         {
-            if (decodeParmDict == null)
+            if (decodeParameterDictionary == null)
             {
                 return decoded;
             }
 
-            int predictor = decodeParmDict.GetInt(PdfTokens.PredictorKey) ?? 1;
+            int predictor = decodeParameterDictionary.GetInt(PdfTokens.PredictorKey) ?? 1;
             if (predictor <= 1)
             {
                 return decoded;
             }
             if (predictor != 2 && (predictor < 10 || predictor > 15))
             {
-                Console.Error.WriteLine($"PdfStreamDecoder: unsupported predictor {predictor}; skipping predictor stage.");
+                _logger.LogWarning("PdfStreamDecoder: unsupported predictor {Predictor}; skipping predictor stage.", predictor);
                 return decoded; // Unsupported predictor variant.
             }
 
-            int colors = decodeParmDict.GetInt(PdfTokens.ColorsKey) ?? 1;
-            int bitsPerComponent = decodeParmDict.GetInt(PdfTokens.BitsPerComponentKey) ?? 8;
-            int columns = decodeParmDict.GetInt(PdfTokens.ColumnsKey) ?? 1;
+            int colors = decodeParameterDictionary.GetInt(PdfTokens.ColorsKey) ?? 1;
+            int bitsPerComponent = decodeParameterDictionary.GetInt(PdfTokens.BitsPerComponentKey) ?? 8;
+            int columns = decodeParameterDictionary.GetInt(PdfTokens.ColumnsKey) ?? 1;
 
             if (columns <= 0)
             {
-                Console.Error.WriteLine("PdfStreamDecoder: predictor specified without valid /Columns; skipping predictor stage.");
+                _logger.LogWarning("PdfStreamDecoder: predictor specified without valid /Columns; skipping predictor stage.");
                 return decoded; // Cannot proceed without a positive column count.
             }
 
             return new PredictorDecodeStream(decoded, predictor, colors, bitsPerComponent, columns);
         }
 
-        private static Stream DecompressFlateData(Stream compressed)
+        private Stream DecompressFlateData(Stream compressed)
         {
             if (compressed == null)
             {
@@ -247,7 +255,7 @@ namespace PdfReader.Streams
                 {
                     if (compressed.Length - compressed.Position < 2)
                     {
-                        Console.Error.WriteLine("PdfStreamDecoder: FlateDecode: insufficient data for zlib header; returning original stream.");
+                        _logger.LogWarning("PdfStreamDecoder: FlateDecode: insufficient data for zlib header; returning original stream.");
                         return compressed;
                     }
                     compressed.ReadByte();
@@ -255,19 +263,19 @@ namespace PdfReader.Streams
                 }
                 else
                 {
-                    byte[] hdr = new byte[2];
-                    int read = compressed.Read(hdr, 0, 2);
-                    if (read < 2)
+                    byte[] headerBytes = new byte[2];
+                    int readCount = compressed.Read(headerBytes, 0, 2);
+                    if (readCount < 2)
                     {
-                        Console.Error.WriteLine("PdfStreamDecoder: FlateDecode: insufficient data for zlib header (non-seekable); returning original stream.");
+                        _logger.LogWarning("PdfStreamDecoder: FlateDecode: insufficient data for zlib header (non-seekable); returning original stream.");
                         return compressed;
                     }
                 }
                 return new DeflateStream(compressed, CompressionMode.Decompress, leaveOpen: false);
             }
-            catch
+            catch (Exception ex)
             {
-                Console.Error.WriteLine("PdfStreamDecoder: FlateDecode: exception during decompression; returning original stream.");
+                _logger.LogWarning(ex, "PdfStreamDecoder: FlateDecode: exception during decompression; returning original stream.");
                 return compressed;
             }
         }

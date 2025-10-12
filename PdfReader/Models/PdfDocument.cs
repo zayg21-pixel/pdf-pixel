@@ -8,6 +8,7 @@ using System;
 using System.Collections.Generic;
 using PdfReader.Fonts.Management;
 using PdfReader.Fonts.Mapping;
+using PdfReader.Streams;
 
 namespace PdfReader.Models
 {
@@ -23,11 +24,10 @@ namespace PdfReader.Models
 
         private readonly ReadOnlyMemory<byte> _fileBytes;
 
-        internal Dictionary<PdfReference, PdfObjectInfo> ObjectIndex { get; } = new Dictionary<PdfReference, PdfObjectInfo>();
-
         public PdfDocument(ILoggerFactory loggerFactory, ReadOnlyMemory<byte> fileBytes)
         {
             LoggerFactory = loggerFactory;
+            StreamDecoder = new PdfStreamDecoder(this);
             FontCache = new PdfFontCache(this);
             PdfRenderer = new PdfRenderer(FontCache, loggerFactory);
             _fileBytes = fileBytes;
@@ -44,7 +44,10 @@ namespace PdfReader.Models
 
         internal Dictionary<string, PdfToUnicodeCMap> CMaps { get; } = new Dictionary<string, PdfToUnicodeCMap>(StringComparer.Ordinal);
 
+        // TODO: remove, implement more high-level function caching
         internal Dictionary<PdfReference, PdfFunctionCacheEntry> FunctionCache { get; } = new Dictionary<PdfReference, PdfFunctionCacheEntry>();
+
+        internal PdfStreamDecoder StreamDecoder { get; }
 
         public List<PdfPage> Pages { get; set; } = new List<PdfPage>();
 
@@ -53,6 +56,8 @@ namespace PdfReader.Models
         public PdfObject RootObject { get; set; }
 
         public BasePdfDecryptor Decryptor { get; internal set; }
+
+        internal Dictionary<PdfReference, PdfObjectInfo> ObjectIndex { get; } = new Dictionary<PdfReference, PdfObjectInfo>();
 
         public PdfRenderer PdfRenderer { get; }
 

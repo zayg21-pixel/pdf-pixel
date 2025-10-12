@@ -311,7 +311,7 @@ namespace PdfReader.Rendering.Color
                         totalSamples = (int)nextTotal;
                     }
 
-                    byte[] raw = PdfStreamDecoder.DecodeContentStream(functionObject).ToArray();
+                    byte[] raw = functionObject.Document.StreamDecoder.DecodeContentStream(functionObject).ToArray();
                     if (raw.Length == 0)
                     {
                         return Array.Empty<float>();

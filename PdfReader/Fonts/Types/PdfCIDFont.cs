@@ -141,7 +141,7 @@ namespace PdfReader.Fonts.Types
                 try
                 {
                     // Load as stream data
-                    var cidToGidData = PdfStreamDecoder.DecodeContentStream(cidToGidObj);
+                    var cidToGidData = Document.StreamDecoder.DecodeContentStream(cidToGidObj);
                     var map = PdfCIDToGIDMap.FromStreamData(cidToGidData);
                     return map;
                 }
