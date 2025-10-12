@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging;
 using SkiaSharp;
 using PdfReader.Rendering.Color;
 using System.Runtime.CompilerServices;
+using System.Threading.Tasks;
 
 namespace PdfReader.Rendering.Image.Processing
 {
@@ -68,8 +69,8 @@ namespace PdfReader.Rendering.Image.Processing
                 throw new NotSupportedException("Unsupported component count. Expected 1, 3 or 4.");
             }
 
-            // Normalize /Mask color key pairs via utility (ensures ascending ordering per component).
-            _maskArray = ProcessingUtilities.BuildNormalizedMaskRawPairs(_components, _image.MaskArray);
+            // Normalize and scale /Mask color key pairs via utility (ensures ascending ordering per component).
+            _maskArray = ProcessingUtilities.BuildNormalizedMaskRawPairs(_components, _image.MaskArray, _bitsPerComponent);
 
             var sourceDecode = image.DecodeArray; // local reference (not stored)
             _decodeArray = ProcessingUtilities.BuildDecodeMinSpanBytes(_components, sourceDecode, image.HasImageMask);
@@ -177,17 +178,17 @@ namespace PdfReader.Rendering.Image.Processing
                 case OutputMode.Alpha:
                 case OutputMode.Gray:
                 {
-                    ProcessSingleChannelRow(decodedRow, destRow);
+                    PdfImageGrayUpsampler.UpsampleScaleGrayRow(decodedRow, destRow, _width, _bitsPerComponent);
+                    break;
+                }
+                case OutputMode.Rgba:
+                {
+                    PdfImageRgbaUpsampler.UpsampleScaleRgbaRow(decodedRow, destRow, _width, _components, _bitsPerComponent);
                     break;
                 }
                 case OutputMode.IndexedRgba:
                 {
                     ProcessIndexedRgbaRow(decodedRow, destRow);
-                    break;
-                }
-                default:
-                {
-                    ProcessRgbaRow(decodedRow, destRow);
                     break;
                 }
             }
@@ -196,7 +197,7 @@ namespace PdfReader.Rendering.Image.Processing
         /// <summary>
         /// Returns an SKImage wrapping the unmanaged buffer. Ownership of buffer transfers to Skia.
         /// </summary>
-        public SKImage GetSkImage()
+        public unsafe SKImage GetSkImage()
         {
             if (!_initialized)
             {
@@ -205,6 +206,56 @@ namespace PdfReader.Rendering.Image.Processing
             if (_completed)
             {
                 throw new InvalidOperationException("GetSkImage already called.");
+            }
+
+            // Apply /Decode mapping and color space conversion in parallel for non-indexed outputs.
+            switch (_outputMode)
+            {
+                case OutputMode.Alpha:
+                case OutputMode.Gray:
+                    {
+                        byte* basePtr = (byte*)_buffer;
+
+                        if (_decodeArray != null)
+                        {
+                            Parallel.For(0, _height, rowIndex =>
+                            {
+                                byte* rowPtr = basePtr + rowIndex * _rowStride;
+                                ApplyDecodeMappingSingleComponentRow(rowPtr);
+                            });
+                        }
+
+                        break;
+                    }
+                case OutputMode.Rgba:
+                    {
+                        byte* basePtr = (byte*)_buffer;
+
+                        if (_decodeArray != null || _maskArray != null || _converter is not DeviceRgbConverter)
+                        {
+                            Parallel.For(0, _height, rowIndex =>
+                            {
+                                byte* rowPtr = basePtr + rowIndex * _rowStride;
+
+                                if (_maskArray != null && _components != 4)
+                                {
+                                    ApplyMaskToSingleRgbaRow(rowPtr);
+                                }
+
+                                if (_decodeArray != null)
+                                {
+                                    ApplyDecodeMappingRgbaRow(rowPtr);
+                                }
+
+                                if (_converter is not DeviceRgbConverter)
+                                {
+                                    _converter.Sample8RgbaInPlace(rowPtr, _width, _image.RenderingIntent);
+                                }
+                            });
+                        }
+
+                        break;
+                    }
             }
 
             SKColorType colorType;
@@ -243,52 +294,15 @@ namespace PdfReader.Rendering.Image.Processing
             return image;
         }
 
-        private unsafe void ProcessSingleChannelRow(byte* sourceRow, byte* destRow)
-        {
-            // Gray path: no color key masking.
-            for (int columnIndex = 0; columnIndex < _width; columnIndex++)
-            {
-                int sampleIndex = columnIndex * _components;
-                int rawCode = ReadRawSample(sourceRow, sampleIndex);
-                int expanded = ExpandRawSample(rawCode);
-                byte grayValue = DecodeExpandedSample(expanded, 0);
-                destRow[columnIndex] = grayValue;
-            }
-        }
-
-        private unsafe void ProcessRgbaRow(byte* sourceRow, byte* destRow)
-        {
-            for (int columnIndex = 0; columnIndex < _width; columnIndex++)
-            {
-                int rgbaBase = columnIndex * 4;
-                int pixelBaseSampleIndex = columnIndex * _components;
-                bool shouldMask = _components != 4 && _maskArray != null;
-                for (int componentIndex = 0; componentIndex < _components; componentIndex++)
-                {
-                    int sampleIndex = pixelBaseSampleIndex + componentIndex;
-                    int rawCode = ReadRawSample(sourceRow, sampleIndex);
-                    UpdateMaskFlag(rawCode, componentIndex, ref shouldMask); // Only RGBA path applies color key masking.
-                    int expanded = ExpandRawSample(rawCode);
-                    byte decoded = DecodeExpandedSample(expanded, componentIndex);
-                    destRow[rgbaBase + componentIndex] = decoded;
-                }
-
-                if (_components != 4)
-                {
-                    destRow[rgbaBase + 3] = shouldMask ? (byte)0 : (byte)255;
-                }
-            }
-            _converter.Sample8RgbaInPlace(destRow, _width, _image.RenderingIntent);
-        }
-
         private unsafe void ProcessIndexedRgbaRow(byte* sourceRow, byte* destRow)
         {
+            // TODO: we might need to optimize this later
             int hiVal = _indexedPalette.Length - 1;
             for (int columnIndex = 0; columnIndex < _width; columnIndex++)
             {
                 int rgbaBase = columnIndex * 4;
                 int sampleIndex = columnIndex * _components;
-                int rawIndex = ReadRawSample(sourceRow, sampleIndex);
+                int rawIndex = PdfImageRgbaUpsampler.ReadRawSample(sourceRow, sampleIndex, _bitsPerComponent);
                 if (rawIndex > hiVal)
                 {
                     rawIndex = hiVal;
@@ -302,94 +316,78 @@ namespace PdfReader.Rendering.Image.Processing
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private unsafe int ReadRawSample(byte* rowPtr, int sampleIndex)
+        private unsafe void ApplyMaskToSingleRgbaRow(byte* rowPtr)
         {
-            switch (_bitsPerComponent)
+            if (_maskArray == null)
             {
-                case 16:
+                return;
+            }
+
+            // For each pixel determine if ALL components fall inside their respective [min,max] ranges.
+            // If so, the pixel is masked (alpha = 0). Otherwise alpha remains opaque.
+            // RGB images: we explicitly restore alpha to 255 for unmasked pixels.
+            // CMYK images (_components == 4): we NEVER overwrite the 4th byte to 255 here, only set to 0 when masked.
+            for (int pixelIndex = 0; pixelIndex < _width; pixelIndex++)
+            {
+                int baseIndex = pixelIndex * 4;
+                bool allInRange = true;
+                for (int componentIndex = 0; componentIndex < _components; componentIndex++)
                 {
-                    int byteIndex = sampleIndex * 2;
-                    int hi = rowPtr[byteIndex];
-                    int lo = rowPtr[byteIndex + 1];
-                    return (hi << 8) | lo; // 0..65535
+                    int maskBase = componentIndex * 2;
+                    int minRaw = _maskArray[maskBase];
+                    int maxRaw = _maskArray[maskBase + 1];
+                    int value = rowPtr[baseIndex + componentIndex];
+                    if (value < minRaw || value > maxRaw)
+                    {
+                        allInRange = false;
+                        break;
+                    }
                 }
-                case 8:
+
+                if (allInRange)
                 {
-                    return rowPtr[sampleIndex]; // 0..255
-                }
-                case 4:
-                {
-                    int byteIndex = sampleIndex >> 1;
-                    bool highNibble = (sampleIndex & 1) == 0;
-                    int value = rowPtr[byteIndex];
-                    return highNibble ? (value >> 4) & 0x0F : value & 0x0F; // 0..15
-                }
-                case 2:
-                {
-                    int byteIndex = sampleIndex >> 2;
-                    int shift = 6 - ((sampleIndex & 3) * 2);
-                    return (rowPtr[byteIndex] >> shift) & 0x03; // 0..3
-                }
-                case 1:
-                {
-                    int byteIndex = sampleIndex >> 3;
-                    int shift = 7 - (sampleIndex & 7);
-                    return (rowPtr[byteIndex] >> shift) & 0x01; // 0..1
-                }
-                default:
-                {
-                    return 0;
+                    // Masked pixel -> alpha zero.
+                    rowPtr[baseIndex + 3] = 0;
                 }
             }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private int ExpandRawSample(int rawCode)
-        {
-            int expanded;
-            switch (_bitsPerComponent)
-            {
-                case 16:
-                {
-                    expanded = (rawCode + 128) >> 8; // rounded high-byte
-                    break;
-                }
-                case 8:
-                {
-                    expanded = rawCode;
-                    break;
-                }
-                case 4:
-                {
-                    expanded = (rawCode & 0x0F) * 17;
-                    break;
-                }
-                case 2:
-                {
-                    expanded = (rawCode & 0x03) * 85;
-                    break;
-                }
-                case 1:
-                {
-                    expanded = (rawCode & 0x01) * 255;
-                    break;
-                }
-                default:
-                {
-                    expanded = 0;
-                    break;
-                }
-            }
-            return expanded;
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private byte DecodeExpandedSample(int expanded, int componentIndex)
+        private unsafe void ApplyDecodeMappingRgbaRow(byte* rowPtr)
         {
             if (_decodeArray == null)
             {
-                return (byte)expanded;
+                return;
             }
+            for (int columnIndex = 0; columnIndex < _width; columnIndex++)
+            {
+                int baseIndex = columnIndex * 4;
+                for (int componentIndex = 0; componentIndex < _components; componentIndex++)
+                {
+                    byte value = rowPtr[baseIndex + componentIndex];
+                    byte mapped = MapDecodedByte(value, componentIndex);
+                    rowPtr[baseIndex + componentIndex] = mapped;
+                }
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private unsafe void ApplyDecodeMappingSingleComponentRow(byte* rowPtr)
+        {
+            if (_decodeArray == null)
+            {
+                return;
+            }
+            for (int columnIndex = 0; columnIndex < _width; columnIndex++)
+            {
+                byte value = rowPtr[columnIndex];
+                rowPtr[columnIndex] = MapDecodedByte(value, 0);
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private byte MapDecodedByte(int expanded, int componentIndex)
+        {
             int decodePairIndex = componentIndex * 2;
             int minByte = _decodeArray[decodePairIndex];
             int maxByte = _decodeArray[decodePairIndex + 1];
@@ -417,26 +415,6 @@ namespace PdfReader.Rendering.Image.Processing
                 mappedValue = 255;
             }
             return (byte)mappedValue;
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void UpdateMaskFlag(int rawCode, int componentIndex, ref bool shouldMask)
-        {
-            if (!shouldMask)
-            {
-                return;
-            }
-            if (_maskArray == null)
-            {
-                return;
-            }
-            int pairIndex = componentIndex * 2;
-            int minRaw = _maskArray[pairIndex];
-            int maxRaw = _maskArray[pairIndex + 1];
-            if (rawCode < minRaw || rawCode > maxRaw)
-            {
-                shouldMask = false;
-            }
         }
 
         public void Dispose()

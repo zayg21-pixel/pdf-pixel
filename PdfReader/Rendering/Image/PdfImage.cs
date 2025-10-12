@@ -22,12 +22,12 @@ namespace PdfReader.Rendering.Image
         /// Returns the raw image data decoded from the PDF stream after reversing the /Filter chain.
         /// </summary>
         /// <returns></returns>
-        public ReadOnlyMemory<byte> GetImageData() => SourceObject.Document.StreamDecoder.DecodeContentStream(ImageXObject);
+        public ReadOnlyMemory<byte> GetImageData() => SourceObject.Document.StreamDecoder.DecodeContentStream(SourceObject);
 
         /// <summary>
         /// Retrieves the image data as a stream (for large images).
         /// </summary>
-        public Stream GetImageDataStream() => SourceObject.Document.StreamDecoder.DecodeContentAsStream(ImageXObject);
+        public Stream GetImageDataStream() => SourceObject.Document.StreamDecoder.DecodeContentAsStream(SourceObject);
 
         /// <summary>
         /// Image width in pixels (/Width).
@@ -54,11 +54,6 @@ namespace PdfReader.Rendering.Image
         /// Color space (/ColorSpace). Resolved to a strongly-typed converter for sample interpretation.
         /// </summary>
         public PdfColorSpaceConverter ColorSpaceConverter { get; internal set; }
-
-        /// <summary>
-        /// The original Image XObject that owns this image (/Subtype /Image).
-        /// </summary>
-        public PdfObject ImageXObject { get; internal set; }
 
         /// <summary>
         /// Debug-friendly name for this image (resource name in /XObject dictionary when available).
@@ -194,7 +189,6 @@ namespace PdfReader.Rendering.Image
                 BitsPerComponent = imageXObject.Dictionary.GetIntegerOrDefault(PdfTokens.BitsPerComponentKey),
                 IsSoftMask = isSoftMask,
                 ColorSpaceConverter = PdfColorSpaces.ResolveByValue(imageXObject.Dictionary.GetValue(PdfTokens.ColorSpaceKey), page),
-                ImageXObject = imageXObject,
                 Name = name
             };
 

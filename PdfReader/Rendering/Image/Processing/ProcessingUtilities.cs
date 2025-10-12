@@ -40,8 +40,22 @@ namespace PdfReader.Rendering.Image.Processing
                 float max = valid ? decodeArray[componentIndex * 2 + 1] : 1f;
 
                 // Clamp without swapping to preserve reversal semantics.
-                if (min < 0f) { min = 0f; } else if (min > 1f) { min = 1f; }
-                if (max < 0f) { max = 0f; } else if (max > 1f) { max = 1f; }
+                if (min < 0f)
+                {
+                    min = 0f;
+                }
+                else if (min > 1f)
+                {
+                    min = 1f;
+                }
+                if (max < 0f)
+                {
+                    max = 0f;
+                }
+                else if (max > 1f)
+                {
+                    max = 1f;
+                }
 
                 byte minByte = (byte)(min * 255f + 0.5f);
                 byte maxByte = (byte)(max * 255f + 0.5f);
@@ -85,14 +99,21 @@ namespace PdfReader.Rendering.Image.Processing
         }
 
         /// <summary>
-        /// Normalize a raw /Mask array (color key mask) to ascending min/max pairs per component.
-        /// The raw values are preserved in their original sample domain (no scaling to 8-bit) so they can be
-        /// compared directly against raw sample codes before expansion. Returns null when the input is invalid.
+        /// Normalize a raw /Mask array (color key mask) to ascending min/max pairs per component and scale them into the 8-bit domain.
+        /// Scaling rules follow sample expansion logic:
+        /// 1 bpc: value * 255
+        /// 2 bpc: value * 85
+        /// 4 bpc: value * 17
+        /// 8 bpc: identity
+        /// 16 bpc: (value + 128) >> 8 (rounded high byte)
+        /// Reversed raw pairs are swapped before scaling so that resulting scaled pairs are always ascending.
+        /// Returns null when input is invalid.
         /// </summary>
         /// <param name="componentCount">Number of components expected (1, 3 or 4).</param>
-        /// <param name="rawMask">Flattened /Mask array containing [min,max] pairs per component.</param>
-        /// <returns>Normalized raw [min,max] pairs array or null.</returns>
-        internal static int[] BuildNormalizedMaskRawPairs(int componentCount, int[] rawMask)
+        /// <param name="rawMask">Flattened /Mask array containing [min,max] pairs per component in raw sample domain.</param>
+        /// <param name="bitsPerComponent">Bits per component of the image samples (1,2,4,8,16).</param>
+        /// <returns>Scaled ascending [min,max] pairs in 0..255 domain or null.</returns>
+        internal static int[] BuildNormalizedMaskRawPairs(int componentCount, int[] rawMask, int bitsPerComponent)
         {
             if (componentCount <= 0)
             {
@@ -103,25 +124,89 @@ namespace PdfReader.Rendering.Image.Processing
                 return null;
             }
 
-            int[] normalized = new int[rawMask.Length];
-            Array.Copy(rawMask, normalized, rawMask.Length);
-
+            int[] normalized = new int[componentCount * 2];
             for (int componentIndex = 0; componentIndex < componentCount; componentIndex++)
             {
                 int baseIndex = componentIndex * 2;
-                int minRaw = normalized[baseIndex];
-                int maxRaw = normalized[baseIndex + 1];
+                int minRaw = rawMask[baseIndex];
+                int maxRaw = rawMask[baseIndex + 1];
                 if (minRaw > maxRaw)
                 {
                     int temp = minRaw;
                     minRaw = maxRaw;
                     maxRaw = temp;
                 }
-                normalized[baseIndex] = minRaw;
-                normalized[baseIndex + 1] = maxRaw;
+
+                // Scale raw domain to 8-bit domain.
+                int scaledMin = ScaleRawToByte(minRaw, bitsPerComponent);
+                int scaledMax = ScaleRawToByte(maxRaw, bitsPerComponent);
+
+                if (scaledMin < 0)
+                {
+                    scaledMin = 0;
+                }
+                if (scaledMin > 255)
+                {
+                    scaledMin = 255;
+                }
+                if (scaledMax < 0)
+                {
+                    scaledMax = 0;
+                }
+                if (scaledMax > 255)
+                {
+                    scaledMax = 255;
+                }
+
+                normalized[baseIndex] = scaledMin;
+                normalized[baseIndex + 1] = scaledMax;
             }
 
             return normalized;
+        }
+
+        /// <summary>
+        /// Scale a raw sample code in its native bits-per-component domain into an 8-bit value (0..255).
+        /// </summary>
+        /// <param name="raw">Raw sample value.</param>
+        /// <param name="bitsPerComponent">Bits per component.</param>
+        /// <returns>Scaled 0..255 value.</returns>
+        private static int ScaleRawToByte(int raw, int bitsPerComponent)
+        {
+            switch (bitsPerComponent)
+            {
+                case 16:
+                {
+                    // Rounded high byte consistent with expansion logic.
+                    return (raw + 128) >> 8;
+                }
+                case 8:
+                {
+                    return raw;
+                }
+                case 4:
+                {
+                    return (raw & 0x0F) * 17;
+                }
+                case 2:
+                {
+                    return (raw & 0x03) * 85;
+                }
+                case 1:
+                {
+                    return (raw & 0x01) * 255;
+                }
+                default:
+                {
+                    // Fallback: attempt proportional scaling when unexpected bpc encountered.
+                    if (bitsPerComponent > 0 && bitsPerComponent < 16)
+                    {
+                        int domainMax = (1 << bitsPerComponent) - 1;
+                        return domainMax == 0 ? 0 : (raw * 255) / domainMax;
+                    }
+                    return 0;
+                }
+            }
         }
     }
 }

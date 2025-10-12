@@ -1,34 +1,64 @@
 ﻿using System;
 using System.IO;
-using System.Reflection;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
+using System.Numerics; // SIMD vectorization for PNG filter cases
 
 namespace PdfReader.Streams
 {
     /// <summary>
     /// Streaming predictor undo wrapper for TIFF (2) and PNG (10..15) predictors.
-    /// Does NOT pre-buffer the entire decoded data. Decodes one row at a time on demand.
-    /// Supports bits per component: 1,2,4,8,16. For sub‑byte sample sizes packing is preserved.
+    /// Decodes one row at a time (no full buffering). Supports bits per component 1,2,4,8,16.
+    /// Sub-byte sample packing is preserved; predictor undo operates in packed form for TIFF.
     /// </summary>
     internal sealed class PredictorDecodeStream : Stream
     {
-        private readonly Stream _source; // underlying decoded (filter chain already applied) stream
-        private readonly int _predictor; // 2 (TIFF) or 10..15 (PNG filters)
-        private readonly int _colors; // number of color components per pixel
-        private readonly int _bitsPerComponent; // sample size
-        private readonly int _columns; // pixel columns per row
+        // Underlying decoded (filter chain already applied) stream provided by caller.
+        private readonly Stream _source;
+        // Predictor value from PDF image dictionary: 2 (TIFF) or 10..15 (PNG filters). 1 treated as identity.
+        private readonly int _predictor;
+        // Number of color components per pixel (samples per pixel).
+        private readonly int _colors;
+        // Bits per component (sample size) 1,2,4,8 or 16.
+        private readonly int _bitsPerComponent;
+        // Pixel width (columns) of the image row.
+        private readonly int _columns;
+        // Whether to leave underlying stream open when disposing.
         private readonly bool _leaveOpen;
 
-        private readonly int _bytesPerSample; // 1 for <8 bpc, 1 for 8, 2 for 16
-        private readonly int _decodedRowBytes; // bytes in decoded (post predictor) row
-        private readonly int _encodedRowBytes; // bytes in encoded row (PNG only: +1 filter byte)
-        private readonly byte[] _currentRow; // holds decoded row bytes
-        private readonly byte[] _previousRow; // PNG filter reference; null for first row or TIFF predictor
+        // Bytes per sample (1 for <=8 bpc, 2 for 16 bpc). For sub‑byte packing still 1 here.
+        private readonly int _bytesPerSample;
+        // Logical decoded bytes in a row (packed for sub‑byte samples).
+        private readonly int _decodedRowBytes;
+        // Encoded row bytes (PNG adds 1 filter byte; TIFF same as decoded).
+        private readonly int _encodedRowBytes;
 
-        private int _rowOffset; // position inside current decoded row
-        private bool _endOfStream; // reached end of source
-        private bool _currentRowValid; // whether _currentRow contains decoded data
+        // Row buffer. TIFF layout: [row data]; PNG layout: [margin bytes][filter byte][row data].
+        private readonly byte[] _currentRow;
+        // Previous row buffer for PNG predictors (same layout as _currentRow). Null for TIFF / identity.
+        private readonly byte[] _previousRow;
 
+        // Left margin size (bytesPerPixel) used only for PNG to eliminate left boundary checks; 0 otherwise.
+        private readonly int _rowMarginBytes;
+        // Index inside buffers where actual row pixel data begins (after margin and filter byte for PNG).
+        private readonly int _rowDataOffset;
+
+        // Current read offset inside logical decoded row (excluding margin/filter).
+        private int _rowOffset;
+        // End-of-stream flag for underlying source.
+        private bool _endOfStream;
+        // Whether _currentRow presently holds a decoded row ready for reading.
+        private bool _currentRowValid;
+
+        public override bool CanRead => true;
+        public override bool CanSeek => false;
+        public override bool CanWrite => false;
+        public override long Length => throw new NotSupportedException();
+        public override long Position { get { throw new NotSupportedException(); } set { throw new NotSupportedException(); } }
+
+        /// <summary>
+        /// Initializes a predictor decode stream that performs TIFF (2) or PNG (10..15) predictor undo on demand.
+        /// </summary>
         public PredictorDecodeStream(Stream decoded, int predictor, int colors, int bitsPerComponent, int columns, bool leaveOpen = false)
         {
             if (decoded == null)
@@ -50,19 +80,23 @@ namespace PdfReader.Streams
 
             _leaveOpen = leaveOpen;
 
+            // Identity path for unsupported predictor values.
             if (predictor != 2 && (predictor < 10 || predictor > 15))
             {
-                // Unsupported predictor: just use passthrough stream
                 _source = decoded;
-                _predictor = 1; // treat as identity
+                _predictor = 1;
                 _colors = colors;
                 _bitsPerComponent = bitsPerComponent;
                 _columns = columns;
                 _bytesPerSample = bitsPerComponent >= 8 ? (bitsPerComponent + 7) / 8 : 1;
                 _decodedRowBytes = bitsPerComponent >= 8 ? columns * colors * _bytesPerSample : (columns * colors * bitsPerComponent + 7) / 8;
                 _encodedRowBytes = _decodedRowBytes;
+                _rowMarginBytes = 0;
+                _rowDataOffset = 0;
                 _currentRow = Array.Empty<byte>();
                 _previousRow = null;
+                _rowOffset = 0;
+                _endOfStream = false;
                 _currentRowValid = false;
                 return;
             }
@@ -75,29 +109,37 @@ namespace PdfReader.Streams
             _bytesPerSample = bitsPerComponent >= 8 ? (bitsPerComponent + 7) / 8 : 1;
             _decodedRowBytes = bitsPerComponent >= 8 ? columns * colors * _bytesPerSample : (columns * colors * bitsPerComponent + 7) / 8;
             _encodedRowBytes = predictor >= 10 ? _decodedRowBytes + 1 : _decodedRowBytes;
-            _currentRow = new byte[_decodedRowBytes];
-            _previousRow = predictor >= 10 ? new byte[_decodedRowBytes] : null;
+
+            if (predictor >= 10)
+            {
+                // PNG: buffer layout [margin][filter][data]. Margin length = bytesPerPixel.
+                int bytesPerPixel = (_colors * _bitsPerComponent + 7) / 8;
+                _rowMarginBytes = bytesPerPixel;
+                _rowDataOffset = _rowMarginBytes + 1; // skip margin and filter byte
+                int total = _rowMarginBytes + 1 + _decodedRowBytes;
+                _currentRow = new byte[total];
+                _previousRow = new byte[total];
+                // Margin bytes implicitly zero. Filter byte will be written at index _rowMarginBytes.
+            }
+            else
+            {
+                // TIFF predictor: no margin, no filter byte.
+                _rowMarginBytes = 0;
+                _rowDataOffset = 0;
+                _currentRow = new byte[_decodedRowBytes];
+                _previousRow = null;
+            }
+
             _rowOffset = 0;
             _endOfStream = false;
             _currentRowValid = false;
         }
 
-        public override bool CanRead => true;
-
-        public override bool CanSeek => false;
-
-        public override bool CanWrite => false;
-
-        public override long Length => throw new NotSupportedException();
-
-        public override long Position
-        {
-            get { throw new NotSupportedException(); }
-            set { throw new NotSupportedException(); }
-        }
-
         public override void Flush() { }
 
+        /// <summary>
+        /// Reads decoded predictor-undo row bytes into caller buffer.
+        /// </summary>
         public override int Read(byte[] buffer, int offset, int count)
         {
             if (buffer == null)
@@ -120,17 +162,17 @@ namespace PdfReader.Streams
                 {
                     if (_endOfStream)
                     {
-                        break; // no more data
+                        break;
                     }
                     if (!DecodeNextRow())
                     {
-                        break; // end of stream or decode failure
+                        break;
                     }
                 }
 
                 int remainingInRow = _decodedRowBytes - _rowOffset;
                 int toCopy = remainingInRow < count ? remainingInRow : count;
-                Array.Copy(_currentRow, _rowOffset, buffer, offset, toCopy);
+                Array.Copy(_currentRow, _rowDataOffset + _rowOffset, buffer, offset, toCopy);
                 _rowOffset += toCopy;
                 offset += toCopy;
                 count -= toCopy;
@@ -139,201 +181,79 @@ namespace PdfReader.Streams
             return totalCopied;
         }
 
+        /// <summary>
+        /// Decodes next encoded row from the source and applies predictor undo.
+        /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private bool DecodeNextRow()
         {
             _rowOffset = 0;
-            int readBytesNeeded = _encodedRowBytes;
-            int readOffset = 0;
             byte filterByte = 0;
+
             if (_predictor >= 10)
             {
-                // PNG: first byte is filter, then row data.
-                int fb = _source.ReadByte();
-                if (fb < 0)
+                // PNG: read filter byte + row data directly into buffer starting at margin index.
+                int start = _rowMarginBytes; // position of filter byte
+                int needed = _encodedRowBytes; // filter + row data
+                int readOffset = 0;
+                while (readOffset < needed)
                 {
-                    _endOfStream = true;
-                    _currentRowValid = false;
-                    return false;
-                }
-                filterByte = (byte)fb;
-                readBytesNeeded = _decodedRowBytes;
-            }
-            while (readOffset < readBytesNeeded)
-            {
-                int read = _source.Read(_currentRow, readOffset, readBytesNeeded - readOffset);
-                if (read <= 0)
-                {
-                    _endOfStream = true;
-                    if (readOffset == 0)
+                    int read = _source.Read(_currentRow, start + readOffset, needed - readOffset);
+                    if (read <= 0)
                     {
-                        _currentRowValid = false;
-                        return false;
+                        _endOfStream = true;
+                        if (readOffset == 0)
+                        {
+                            _currentRowValid = false;
+                            return false;
+                        }
+                        _currentRowValid = true; // partial
+                        return true;
                     }
-                    // Partial row; treat as end-of-stream, but still expose decoded partial bytes (unlikely). No predictor applied.
-                    _currentRowValid = true;
-                    return true;
+                    readOffset += read;
                 }
-                readOffset += read;
+                filterByte = _currentRow[start];
+            }
+            else
+            {
+                // TIFF or identity: just read row data.
+                int needed = _decodedRowBytes;
+                int readOffset = 0;
+                while (readOffset < needed)
+                {
+                    int read = _source.Read(_currentRow, readOffset, needed - readOffset);
+                    if (read <= 0)
+                    {
+                        _endOfStream = true;
+                        if (readOffset == 0)
+                        {
+                            _currentRowValid = false;
+                            return false;
+                        }
+                        _currentRowValid = true; // partial
+                        return true;
+                    }
+                    readOffset += read;
+                }
             }
 
             if (_predictor == 2)
             {
-                UndoTiffPredictor(_currentRow);
+                TiffPredictorUndo.UndoTiffPredictor(_currentRow, _columns, _colors, _bitsPerComponent, _bytesPerSample);
             }
             else if (_predictor >= 10 && _predictor <= 15)
             {
-                UndoPngFilter(filterByte, _currentRow, _previousRow);
-                // Remember current row for next filter pass.
-                Array.Copy(_currentRow, 0, _previousRow, 0, _decodedRowBytes);
+                PngFilterUndo.UndoPngFilter(filterByte, _currentRow, _previousRow, _rowMarginBytes, _rowDataOffset, _decodedRowBytes);
+                // Copy decoded pixel data (exclude margin + filter byte) for next row reference.
+                Buffer.BlockCopy(_currentRow, _rowDataOffset, _previousRow, _rowDataOffset, _decodedRowBytes);
             }
 
             _currentRowValid = true;
             return true;
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void UndoTiffPredictor(byte[] row)
-        {
-            // Left differencing per sample (modulo sample domain) applied in-place.
-            int samplesPerRow = _columns * _colors;
-            if (_bitsPerComponent >= 8)
-            {
-                if (_bytesPerSample == 1)
-                {
-                    for (int sampleIndex = 0; sampleIndex < samplesPerRow; sampleIndex++)
-                    {
-                        int leftIndex = sampleIndex - _colors;
-                        int left = leftIndex >= 0 ? row[leftIndex] : 0;
-                        int current = row[sampleIndex];
-                        row[sampleIndex] = (byte)((current + left) & 0xFF);
-                    }
-                }
-                else // 16 bpc
-                {
-                    for (int sampleIndex = 0; sampleIndex < samplesPerRow; sampleIndex++)
-                    {
-                        int byteIndex = sampleIndex * 2;
-                        int current = (row[byteIndex] << 8) | row[byteIndex + 1];
-                        int left = 0;
-                        if (sampleIndex >= _colors)
-                        {
-                            int leftByteIndex = (sampleIndex - _colors) * 2;
-                            left = (row[leftByteIndex] << 8) | row[leftByteIndex + 1];
-                        }
-                        int decoded = (current + left) & 0xFFFF;
-                        row[byteIndex] = (byte)(decoded >> 8);
-                        row[byteIndex + 1] = (byte)(decoded & 0xFF);
-                    }
-                }
-            }
-            else
-            {
-                // Sub-byte path: expand into temporary sample array then repack.
-                int bits = _bitsPerComponent;
-                int sampleMask = (1 << bits) - 1;
-                int[] samples = new int[samplesPerRow];
-                int bitPos = 0;
-                for (int sampleIndex = 0; sampleIndex < samplesPerRow; sampleIndex++)
-                {
-                    int byteIndex = bitPos >> 3;
-                    int intraBits = bitPos & 7;
-                    int remainingBits = 8 - intraBits;
-                    int value;
-                    if (remainingBits >= bits)
-                    {
-                        int shift = remainingBits - bits;
-                        value = (row[byteIndex] >> shift) & sampleMask;
-                    }
-                    else
-                    {
-                        int firstPart = row[byteIndex] & ((1 << remainingBits) - 1);
-                        int secondPart = row[byteIndex + 1] >> (8 - (bits - remainingBits));
-                        value = ((firstPart << (bits - remainingBits)) | secondPart) & sampleMask;
-                    }
-                    int leftIndex = sampleIndex - _colors;
-                    int left = leftIndex >= 0 ? samples[leftIndex] : 0;
-                    samples[sampleIndex] = (value + left) & sampleMask;
-                    bitPos += bits;
-                }
-                // Repack.
-                Array.Clear(row, 0, row.Length);
-                int outBitPos = 0;
-                for (int sampleIndex = 0; sampleIndex < samplesPerRow; sampleIndex++)
-                {
-                    int value = samples[sampleIndex] & sampleMask;
-                    int outByteIndex = outBitPos >> 3;
-                    int outIntra = outBitPos & 7;
-                    int freeBits = 8 - outIntra;
-                    if (freeBits >= bits)
-                    {
-                        int shift = freeBits - bits;
-                        row[outByteIndex] &= (byte)~(((sampleMask) << shift) & 0xFF);
-                        row[outByteIndex] |= (byte)((value & sampleMask) << shift);
-                    }
-                    else
-                    {
-                        int firstBits = freeBits;
-                        int secondBits = bits - firstBits;
-                        int firstMask = (1 << firstBits) - 1;
-                        int firstValue = (value >> secondBits) & firstMask;
-                        row[outByteIndex] &= (byte)~firstMask;
-                        row[outByteIndex] |= (byte)firstValue;
-                        int secondValue = value & ((1 << secondBits) - 1);
-                        int secondShift = 8 - secondBits;
-                        row[outByteIndex + 1] &= (byte)~(((1 << secondBits) - 1) << secondShift);
-                        row[outByteIndex + 1] |= (byte)(secondValue << secondShift);
-                    }
-                    outBitPos += bits;
-                }
-            }
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void UndoPngFilter(byte filter, byte[] currentRow, byte[] previousRow)
-        {
-            int bytesPerPixel = (_colors * _bitsPerComponent + 7) / 8; // PNG definition
-            for (int i = 0; i < _decodedRowBytes; i++)
-            {
-                int raw = currentRow[i];
-                int left = i >= bytesPerPixel ? currentRow[i - bytesPerPixel] : 0;
-                int up = previousRow != null ? previousRow[i] : 0;
-                int upLeft = (previousRow != null && i >= bytesPerPixel) ? previousRow[i - bytesPerPixel] : 0;
-                int decoded = filter switch
-                {
-                    0 => raw,
-                    1 => raw + left,
-                    2 => raw + up,
-                    3 => raw + ((left + up) >> 1),
-                    4 => raw + Paeth(left, up, upLeft),
-                    _ => raw
-                };
-                currentRow[i] = (byte)decoded;
-            }
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static int Paeth(int a, int b, int c)
-        {
-            int p = a + b - c;
-            int pa = Math.Abs(p - a);
-            int pb = Math.Abs(p - b);
-            int pc = Math.Abs(p - c);
-            if (pa <= pb && pa <= pc)
-            {
-                return a;
-            }
-            if (pb <= pc)
-            {
-                return b;
-            }
-            return c;
-        }
-
         public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
-
         public override void SetLength(long value) => throw new NotSupportedException();
-
         public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
 
         protected override void Dispose(bool disposing)
@@ -342,7 +262,6 @@ namespace PdfReader.Streams
             {
                 _source.Dispose();
             }
-
             base.Dispose(disposing);
         }
     }

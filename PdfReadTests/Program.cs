@@ -85,7 +85,7 @@ namespace PdfReadTests
 
                     var start = 30;
                     var max = 31;
-                    float scaleX = 4f; // Scale factor for rendering
+                    float scaleX = 2f; // Scale factor for rendering
 
                     var memory = GC.GetTotalMemory(true) / 1024 / 1024;
 

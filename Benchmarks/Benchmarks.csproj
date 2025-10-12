@@ -6,6 +6,9 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Remove="C:\Users\EugeneZaitsev\.nuget\packages\microsoft.visualstudio.diagnosticshub.benchmarkdotnetdiagnosers\18.0.36525.3\contentFiles\cs\any\BenchmarkProfilerAgentConfig.g.cs" />
+  </ItemGroup>
+  <ItemGroup>
     <PackageReference Include="BenchmarkDotNet" Version="0.15.4" />
     <PackageReference Include="Microsoft.VisualStudio.DiagnosticsHub.BenchmarkDotNetDiagnosers" Version="18.0.36525.3" />
   </ItemGroup>
@@ -13,6 +16,9 @@
     <ProjectReference Include="..\PdfReader\PdfReader.csproj" />
   </ItemGroup>
   <ItemGroup>
+    <None Update="Im10.dat">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
     <None Update="TestJpeg.jpg">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>

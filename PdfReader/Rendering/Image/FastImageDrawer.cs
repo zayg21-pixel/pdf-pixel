@@ -98,7 +98,7 @@ namespace PdfReader.Rendering.Image
 
             try
             {
-                var dictionary = pdfImage.ImageXObject?.Dictionary;
+                var dictionary = pdfImage.SourceObject.Dictionary;
                 var softMaskObject = dictionary?.GetPageObject(PdfTokens.SoftMaskKey);
                 if (softMaskObject == null)
                 {
