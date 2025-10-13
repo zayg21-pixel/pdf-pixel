@@ -158,27 +158,14 @@ namespace PdfReader.Rendering.Text
             var codes = _pdfTextDecoder.ExtractCharacterCodes(pdfText.RawBytes, font);
             var gids = pdfText.GetGids(codes, font);
 
-            int glyphCountInTypeface = typeface.GlyphCount;
-            int inputCount = gids.Length;
-            var glyphArrayForWidth = new ushort[inputCount];
-            for (int glyphIndex = 0; glyphIndex < inputCount; glyphIndex++)
-            {
-                uint gid = gids[glyphIndex];
-                if (gid == 0 || gid >= glyphCountInTypeface)
-                {
-                    return Array.Empty<ShapedGlyph>();
-                }
-                glyphArrayForWidth[glyphIndex] = (ushort)gid;
-            }
-
-            float[] glyphWidths = skFont.GetGlyphWidths(glyphArrayForWidth);
-            var shaped = new ShapedGlyph[inputCount];
+            float[] glyphWidths = skFont.GetGlyphWidths(gids);
+            var shaped = new ShapedGlyph[gids.Length];
             float cursorX = 0f;
 
-            for (int index = 0; index < inputCount; index++)
+            for (int index = 0; index < gids.Length; index++)
             {
                 uint gid = gids[index];
-                float width = glyphWidths != null && index < glyphWidths.Length ? glyphWidths[index] : 0f;
+                float width = glyphWidths[index];
                 string unicodeForCode = _pdfTextDecoder.DecodeCharacterCode(codes[index], font);
                 bool isSpace = unicodeForCode == " ";
                 float spacing = state.CharacterSpacing + (isSpace ? state.WordSpacing : 0f);

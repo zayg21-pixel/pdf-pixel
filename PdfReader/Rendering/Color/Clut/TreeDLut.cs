@@ -26,6 +26,7 @@ namespace PdfReader.Rendering.Color.Clut
 
         private const int TripleStrideG = GridSize; // Points to advance one G index
         private const int TripleStrideR = GridSize * GridSize; // Points to advance one R index
+        private const int TripleStrideRG = TripleStrideR + TripleStrideG;
         private const float Inv16 = 1f / 16f; // Fraction conversion for nibble (0..15 -> 0..0.9375)
 
         /// <summary>
@@ -111,20 +112,14 @@ namespace PdfReader.Rendering.Color.Clut
             // Base (r,g,b) lattice point linear index in packed layout (R outer, G middle, B inner).
             int baseIndex = rBaseIndex * TripleStrideR + gBaseIndex * TripleStrideG + bBaseIndex; // (r0,g0,b0)
 
-            // Corner indices on b0 slice.
-            int i000 = baseIndex; // (r0,g0,b0)
-            int i100 = i000 + TripleStrideR; // (r1,g0,b0)
-            int i010 = i000 + TripleStrideG; // (r0,g1,b0)
-            int i110 = i000 + TripleStrideR + TripleStrideG; // (r1,g1,b0)
-
             // Fetch lattice colors.
-            ref Vector3 c000 = ref lut[i000];
+            ref Vector3 c000 = ref lut[baseIndex]; // (r0,g0,b0)
             ref Vector3 c001 = ref Unsafe.Add(ref c000, 1); // i001
-            ref Vector3 c100 = ref lut[i100];
+            ref Vector3 c100 = ref Unsafe.Add(ref c000, TripleStrideR); // (r1,g0,b0)
             ref Vector3 c101 = ref Unsafe.Add(ref c100, 1); // i101
-            ref Vector3 c010 = ref lut[i010];
+            ref Vector3 c010 = ref Unsafe.Add(ref c000, TripleStrideG); // (r0,g1,b0)
             ref Vector3 c011 = ref Unsafe.Add(ref c010, 1); // i011
-            ref Vector3 c110 = ref lut[i110];
+            ref Vector3 c110 = ref Unsafe.Add(ref c000, TripleStrideRG); // (r1,g1,b0)
             ref Vector3 c111 = ref Unsafe.Add(ref c110, 1); // i111
 
             // Compute trilinear interpolation.

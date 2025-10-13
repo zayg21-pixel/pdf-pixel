@@ -9,7 +9,7 @@ namespace PdfReader.Fonts.Mapping
     /// </summary>
     public class PdfCIDToGIDMap
     {
-        private readonly Dictionary<uint, uint> _cidToGidMap = new Dictionary<uint, uint>();
+        private readonly Dictionary<uint, ushort> _cidToGidMap = new Dictionary<uint, ushort>();
         private readonly bool _isIdentityMapping;
 
         /// <summary>
@@ -53,10 +53,10 @@ namespace PdfReader.Fonts.Mapping
                 if (byteIndex + 1 < bytes.Length)
                 {
                     // Read 2-byte big-endian GID
-                    int gid = bytes[byteIndex] << 8 | bytes[byteIndex + 1];
+                    ushort gid = (ushort)(bytes[byteIndex] << 8 | bytes[byteIndex + 1]);
                     
                     // Store all mappings, including GID 0 (.notdef is still valid)
-                    _cidToGidMap[cid] = (uint)gid;
+                    _cidToGidMap[cid] = gid;
                 }
             }
         }
@@ -64,15 +64,15 @@ namespace PdfReader.Fonts.Mapping
         /// <summary>
         /// Get the GID for a given CID
         /// </summary>
-        public uint GetGID(uint cid)
+        public ushort GetGID(uint cid)
         {
             if (_isIdentityMapping)
             {
-                return cid; // Identity mapping: GID = CID
+                return (ushort)cid; // Identity mapping: GID = CID
             }
 
             // Check explicit mapping
-            if (_cidToGidMap.TryGetValue(cid, out uint gid))
+            if (_cidToGidMap.TryGetValue(cid, out ushort gid))
             {
                 return gid;
             }

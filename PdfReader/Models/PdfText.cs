@@ -1,4 +1,5 @@
 using System;
+using System.Runtime.CompilerServices;
 using System.Text;
 using PdfReader.Fonts;
 using PdfReader.Fonts.Mapping;
@@ -33,46 +34,9 @@ namespace PdfReader.Models
         /// Convert CIDs to GIDs for font rendering using the existing font mapping path.
         /// Prefer Composite font code->CID mapping when available.
         /// </summary>
-        public uint[] GetGids(PdfCharacterCode[] codes, PdfFontBase font)
+        public ushort[] GetGids(PdfCharacterCode[] codes, PdfFontBase font)
         {
-            if (codes == null || codes.Length == 0)
-            {
-                return Array.Empty<uint>();
-            }
-
-            if (font is PdfCompositeFont composite)
-            {
-                var primary = composite.PrimaryDescendant;
-                if (primary == null)
-                {
-                    return Array.Empty<uint>();
-                }
-
-                var gids = new uint[codes.Length];
-                for (int i = 0; i < codes.Length; i++)
-                {
-                    uint cid = 0;
-                    bool mapped = composite.TryMapCodeToCid(codes[i], out cid);
-                    if (!mapped)
-                    {
-                        // As a fallback, use big-endian packing (works for Identity encodings)
-                        cid = (uint)codes[i];
-                    }
-
-                    gids[i] = primary.GetGlyphId(cid);
-                }
-
-                return gids;
-            }
-
-            // Existing path for non-composite fonts
-            var numericCids = new uint[codes.Length];
-            for (int i = 0; i < codes.Length; i++)
-            {
-                numericCids[i] = (uint)codes[i];
-            }
-
-            return ConvertCIDsToGIDs(numericCids, font);
+            return ConvertCodesToGids(codes, font);
         }
 
         /// <summary>
@@ -96,6 +60,7 @@ namespace PdfReader.Models
             }
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static ReadOnlyMemory<byte> GetStringBytes(IPdfValue operand)
         {
             var stringValue = operand.AsString();
@@ -107,6 +72,7 @@ namespace PdfReader.Models
             return EncodingExtensions.PdfDefault.GetBytes(stringValue);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static ReadOnlyMemory<byte> GetHexStringBytes(IPdfValue operand)
         {
             var result = operand.AsHexBytes();
@@ -118,53 +84,40 @@ namespace PdfReader.Models
             return result;
         }
 
-        private static uint[] ConvertCIDsToGIDs(uint[] cids, PdfFontBase font)
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static ushort[] ConvertCodesToGids(PdfCharacterCode[] codes, PdfFontBase font)
         {
-            if (cids?.Length == 0)
+            if (codes?.Length == 0)
             {
-                return Array.Empty<uint>();
+                return [];
             }
-            
-            switch (font)
+
+            return font switch
             {
-                case PdfCompositeFont compositeFont:
-                    return ConvertCIDsToGIDs(cids, compositeFont);
-
-                case PdfCIDFont cidFont:
-                    return ConvertCIDsToGIDs(cids, cidFont);
-
-                case PdfSimpleFont simpleFont:
-                    return ConvertCIDsToGIDsSimple(cids, simpleFont);
-
-                case PdfType3Font type3Font:
-                    return ConvertCIDsToGIDs(cids, type3Font);
-
-                default:
-                    return cids;
-            }
+                PdfCompositeFont compositeFont => ConvertCodesToGidsCompositeFont(codes, compositeFont),
+                PdfCIDFont cidFont => ConvertCidsToGidsCidFont(codes, cidFont),
+                PdfSimpleFont simpleFont => ConvertCodesToGidsSimpleFont(codes, simpleFont),
+                _ => IdentityCodesToGidsFallback(codes),
+            };
         }
 
-        private static uint[] ConvertCIDsToGIDsSimple(uint[] cids, PdfSimpleFont simpleFont)
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static ushort[] ConvertCodesToGidsSimpleFont(PdfCharacterCode[] codes, PdfSimpleFont simpleFont)
         {
-            var result = new uint[cids.Length];
+            var result = new ushort[codes.Length];
             var cff = simpleFont.FontDescriptor?.GetCffInfo();
 
             if (cff == null)
             {
-                for (int i = 0; i < cids.Length; i++)
-                {
-                    result[i] = cids[i] & 0xFF;
-                }
-
-                return result;
+                return IdentityCodesToGidsFallback(codes);
             }
 
             var differences = simpleFont.Differences;
 
-            for (int i = 0; i < cids.Length; i++)
+            for (int i = 0; i < codes.Length; i++)
             {
-                uint cid = cids[i];
-                uint gid = 0;
+                uint cid = codes[i];
+                ushort gid = 0;
 
                 string name = null;
                 bool hasDifference = differences != null && differences.TryGetValue((int)cid, out name) && !string.IsNullOrEmpty(name);
@@ -187,40 +140,56 @@ namespace PdfReader.Models
             return result;
         }
 
-        private static uint[] ConvertCIDsToGIDs(uint[] cids, PdfCompositeFont compositeFont)
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static ushort[] ConvertCodesToGidsCompositeFont(PdfCharacterCode[] codes, PdfCompositeFont compositeFont)
         {
-            var map = compositeFont.PrimaryDescendant?.CIDToGIDMap;
-
-            if (map != null)
+            var primary = compositeFont.PrimaryDescendant;
+            if (primary == null)
             {
-                uint[] gids = new uint[cids.Length];
+                return IdentityCodesToGidsFallback(codes);
+            }
 
-                for (int i = 0; i < cids.Length; i++)
+            var gids = new ushort[codes.Length];
+            for (int i = 0; i < codes.Length; i++)
+            {
+                uint cid = 0;
+                bool mapped = compositeFont.TryMapCodeToCid(codes[i], out cid);
+                if (!mapped)
                 {
-                    var cid = cids[i];
-                    gids[i] = map.GetGID(cid);
+                    // As a fallback, use big-endian packing (works for Identity encodings)
+                    cid = (uint)codes[i];
                 }
 
-                return gids;
+                gids[i] = primary.GetGlyphId(cid);
             }
 
-            return cids;
-        }
-
-        private static uint[] ConvertCIDsToGIDs(uint[] cids, PdfCIDFont cidFont)
-        {
-            var gids = new uint[cids.Length];
-            for (int i = 0; i < cids.Length; i++)
-            {
-                var cid = cids[i];
-                gids[i] = cidFont.GetGlyphId(cid);
-            }
             return gids;
         }
 
-        private static uint[] ConvertCIDsToGIDs(uint[] cids, PdfType3Font type3Font)
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static ushort[] ConvertCidsToGidsCidFont(PdfCharacterCode[] codes, PdfCIDFont cidFont)
         {
-            return cids;
+            var gids = new ushort[codes.Length];
+
+            for (int i = 0; i < codes.Length; i++)
+            {
+                gids[i] = cidFont.GetGlyphId(codes[i]);
+            }
+
+            return gids;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static ushort[] IdentityCodesToGidsFallback(PdfCharacterCode[] codes)
+        {
+            ushort[] result = new ushort[codes.Length];
+
+            for (int i = 0; i < codes.Length; i++)
+            {
+                result[i] = (ushort)(codes[i] & 0xFFFF);
+            }
+
+            return result;
         }
 
         public override string ToString()

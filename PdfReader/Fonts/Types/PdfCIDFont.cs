@@ -82,9 +82,9 @@ namespace PdfReader.Fonts.Types
         /// Convert Character ID (CID) to Glyph ID (GID) for font rendering
         /// Uses lazy-loaded CIDToGIDMap or defaults to identity mapping
         /// </summary>
-        public uint GetGlyphId(uint cid)
+        public ushort GetGlyphId(uint cid)
         {
-            return CIDToGIDMap?.GetGID(cid) ?? cid;
+            return CIDToGIDMap?.GetGID(cid) ?? (ushort)cid;
         }
         
         /// <summary>
