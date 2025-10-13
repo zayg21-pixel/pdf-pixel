@@ -40,16 +40,16 @@ namespace PdfReadTests
                 //"pdfs//gradientfill.pdf",
                 //"pdfs//ccitt_EndOfBlock_false.pdf",
                 //"pdfs//images_1bit_grayscale.pdf",
-                @"documentS.pdf",
+                //@"documentS.pdf",
                 @"documentC.pdf",
-                @"sample.pdf",
-                "Adyen.pdf",
-                "Adyen 2023.pdf",
-                "adyen_2020.pdf",
-                "adyen_2020_debug.pdf",
-                "pdfs\\emojies.pdf",
-                "documentEd.pdf",
-                @"document_1.pdf"
+                //@"sample.pdf",
+                //"Adyen.pdf",
+                //"Adyen 2023.pdf",
+                //"adyen_2020.pdf",
+                //"adyen_2020_debug.pdf",
+                //"pdfs\\emojies.pdf",
+                //"documentEd.pdf",
+                //@"document_1.pdf"
             };
 
             foreach (var file in testFiles)
@@ -85,7 +85,7 @@ namespace PdfReadTests
 
                     var start = 0;
                     var max = 300;
-                    float scaleX = 1f; // Scale factor for rendering
+                    float scaleX = 0.1f; // Scale factor for rendering
 
                     var memory = GC.GetTotalMemory(true) / 1024 / 1024;
 

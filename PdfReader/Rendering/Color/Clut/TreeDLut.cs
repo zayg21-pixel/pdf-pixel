@@ -1,5 +1,7 @@
 using System;
+using System.Numerics;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using PdfReader.Models;
 using SkiaSharp;
 
@@ -9,48 +11,48 @@ namespace PdfReader.Rendering.Color.Clut
 
     /// <summary>
     /// Helper for building and sampling 3D device->sRGB lookup tables.
-    /// Provides bilinear (RG + nearest B) and full trilinear interpolation methods.
+    /// LUT layout: contiguous packed RGB triples for each lattice point in (R,G,B) iteration order.
+    /// Bilinear sampling (RG with nearest B) uses precomputed weight quads that sum to 1 (normalized floats).
     /// </summary>
     internal static class TreeDLut
     {
         internal const int GridSize = 17; // 17^3 = 4913 lattice points
-        private const int GridIndexShift = 4; // 4 bits for index (0..15), 4 bits for fraction (0..15)
-        private const int GridIndexMask = 0x0F; // fractional mask
-        private const int FractionMax = 16; // normalized fraction range (0..16)
-        private const int WeightScale = 256; // bilinear weight sum normalization
+        private const int GridIndexShift = 4; // Upper 4 bits: lattice index, lower 4 bits: fractional component
+        private const int GridIndexMask = 0x0F; // Mask for fractional component (0..15)
+        private const int FractionMax = 16; // Normalized fraction range (0..16)
+        private const int WeightScale = 256; // Legacy fixed-point scale retained for clarity
 
-        // Strides for index math.
-        private const int StrideB = 3; // 3 bytes per lattice point
-        private const int StrideG = GridSize * StrideB; // bytes to advance one G index
-        private const int StrideR = GridSize * StrideG; // bytes to advance one R index
+        private const int TripleStrideG = GridSize; // Points to advance one G index
+        private const int TripleStrideR = GridSize * GridSize; // Points to advance one R index
 
         /// <summary>
         /// Weight lookup for all (fracR, fracG) pairs (16 x 16 = 256 entries).
-        /// Each entry stores the four bilinear weights (w00, w10, w01, w11) that sum to 256.
-        /// Eliminates three multiplications and one subtraction per pixel in the hot loop.
+        /// Each entry stores four normalized corner weights (sum == 1).
         /// </summary>
         private static readonly WeightQuad[] WeightTable = BuildWeightTable();
 
         /// <summary>
-        /// Holds the four bilinear weights for a (fracR, fracG) pair.
-        /// Stored as 16-bit values (range 0..256). Marked readonly for immutability.
+        /// Holds the four bilinear weights for a (fracR, fracG) pair (normalized floats).
+        /// Provides Vector4 and (when available) Vector128<float> representations for SIMD dot products.
         /// </summary>
         private readonly struct WeightQuad
         {
-            public readonly ushort W00; // (1-dr)(1-dg)
-            public readonly ushort W10; // dr(1-dg)
-            public readonly ushort W01; // (1-dr)dg
-            public readonly ushort W11; // dr dg
+            public Vector4 VectorQuad { get; } // (w00, w10, w01, w11) sum == 1
 
             public WeightQuad(ushort w00, ushort w10, ushort w01, ushort w11)
             {
-                W00 = w00;
-                W10 = w10;
-                W01 = w01;
-                W11 = w11;
+                float invScale = 1f / WeightScale;
+                float fw00 = w00 * invScale;
+                float fw10 = w10 * invScale;
+                float fw01 = w01 * invScale;
+                float fw11 = 1f - (fw00 + fw10 + fw01); // enforce exact sum=1
+                VectorQuad = new Vector4(fw00, fw10, fw01, fw11);
             }
         }
 
+        /// <summary>
+        /// Builds the static weight table once at startup using fixed-point math then normalizes to floats.
+        /// </summary>
         private static WeightQuad[] BuildWeightTable()
         {
             var table = new WeightQuad[16 * 16];
@@ -71,135 +73,151 @@ namespace PdfReader.Rendering.Color.Clut
             return table;
         }
 
-        internal static byte[] Build8Bit(PdfRenderingIntent intent, DeviceToSrgbCore converter)
+        /// <summary>
+        /// Builds a packed RGB 3D LUT (device -> sRGB) sampled uniformly over each dimension.
+        /// Layout order: R (outer), G (middle), B (inner).
+        /// </summary>
+        internal static unsafe byte[] Build8Bit(PdfRenderingIntent intent, DeviceToSrgbCore converter)
         {
             if (converter == null)
             {
                 return null;
             }
-
             int n = GridSize;
             int totalPoints = n * n * n;
-            int totalBytes = totalPoints * 3;
+            int totalBytes = totalPoints * sizeof(Rgb); // sizeof(Rgb) == 3 (Pack=1)
             byte[] lut = new byte[totalBytes];
-            int writeIndex = 0;
-
-            for (int rIndex = 0; rIndex < n; rIndex++)
+            fixed (byte* lutPtr = lut)
             {
-                float r = (float)rIndex / (n - 1);
-                for (int gIndex = 0; gIndex < n; gIndex++)
+                Rgb* rgbPtr = (Rgb*)lutPtr;
+                int writeIndex = 0;
+                for (int rIndex = 0; rIndex < n; rIndex++)
                 {
-                    float g = (float)gIndex / (n - 1);
-                    for (int bIndex = 0; bIndex < n; bIndex++)
+                    float rNorm = (float)rIndex / (n - 1);
+                    for (int gIndex = 0; gIndex < n; gIndex++)
                     {
-                        float b = (float)bIndex / (n - 1);
-                        ReadOnlySpan<float> input = stackalloc float[] { r, g, b };
-                        SKColor color = converter(input, intent);
-                        lut[writeIndex++] = color.Red;
-                        lut[writeIndex++] = color.Green;
-                        lut[writeIndex++] = color.Blue;
+                        float gNorm = (float)gIndex / (n - 1);
+                        for (int bIndex = 0; bIndex < n; bIndex++)
+                        {
+                            float bNorm = (float)bIndex / (n - 1);
+                            ReadOnlySpan<float> input = stackalloc float[] { rNorm, gNorm, bNorm };
+                            SKColor color = converter(input, intent);
+                            rgbPtr[writeIndex].R = color.Red;
+                            rgbPtr[writeIndex].G = color.Green;
+                            rgbPtr[writeIndex].B = color.Blue;
+                            writeIndex++;
+                        }
                     }
                 }
             }
-
             return lut;
         }
 
         /// <summary>
-        /// 8-bit bilinear sampling helper using fixed-point arithmetic for weights and accumulation (8-bit input, 17 grid points, power-of-two normalization).
-        /// Performs on-the-fly stride computation (r0 * StrideR + g0 * StrideG) instead of lookup tables.
+        /// Shared core for bilinear RG + nearest B sampling. Writes all three RGB components via single struct assignment.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static unsafe void SampleBilinear8(
-            byte[] lut,
-            byte r,
-            byte g,
-            byte b,
-            byte* destination)
+        private static unsafe void SampleBilinearCore(Rgb* rgbLut, int rIndexBase, int gIndexBase, int bSlice, ref WeightQuad weights, Rgb* destination)
         {
-            const int HalfWeight = WeightScale / 2; // 128
+            // Compute lattice indices for four RG corners at chosen B slice.
+            int baseTriple = rIndexBase * TripleStrideR + gIndexBase * TripleStrideG + bSlice;
+            int i00 = baseTriple;
+            int i10 = i00 + TripleStrideR;
+            int i01 = i00 + TripleStrideG;
+            int i11 = i00 + TripleStrideR + TripleStrideG;
 
-            int r0 = r >> GridIndexShift; // 0..15
-            int g0 = g >> GridIndexShift; // 0..15
-            int b0 = b >> GridIndexShift; // 0..15
+            // Gather corner samples.
+            Rgb c00 = rgbLut[i00];
+            Rgb c10 = rgbLut[i10];
+            Rgb c01 = rgbLut[i01];
+            Rgb c11 = rgbLut[i11];
 
-            int fracR = r & GridIndexMask; // 0..15
-            int fracG = g & GridIndexMask; // 0..15
-            int fracB = b & GridIndexMask; // 0..15
+            Vector4 wv = weights.VectorQuad;
+            // Build channel vectors and compute dot products.
+            float rVal = Vector4.Dot(new Vector4(c00.R, c10.R, c01.R, c11.R), wv);
+            float gVal = Vector4.Dot(new Vector4(c00.G, c10.G, c01.G, c11.G), wv);
+            float bVal = Vector4.Dot(new Vector4(c00.B, c10.B, c01.B, c11.B), wv);
 
-            int bSlice = fracB < 8 ? b0 : (b0 + 1); // 0..16
-
-            // Base offset for (r0,g0) at chosen B slice using direct multiplication.
-            int baseRG0 = r0 * StrideR + g0 * StrideG;
-            int sliceOffset = bSlice * StrideB;
-
-            int baseR0G0 = baseRG0 + sliceOffset;
-            int baseR1G0 = baseR0G0 + StrideR;          // r1 == r0 + 1
-            int baseR0G1 = baseR0G0 + StrideG;          // g1 == g0 + 1
-            int baseR1G1 = baseR0G0 + StrideR + StrideG; // r1,g1
-
-            int weightIndex = (fracR << 4) | fracG;
-            ref WeightQuad w = ref WeightTable[weightIndex];
-
-            int sumR = lut[baseR0G0] * w.W00 + lut[baseR1G0] * w.W10 + lut[baseR0G1] * w.W01 + lut[baseR1G1] * w.W11;
-            int sumG = lut[baseR0G0 + 1] * w.W00 + lut[baseR1G0 + 1] * w.W10 + lut[baseR0G1 + 1] * w.W01 + lut[baseR1G1 + 1] * w.W11;
-            int sumB = lut[baseR0G0 + 2] * w.W00 + lut[baseR1G0 + 2] * w.W10 + lut[baseR0G1 + 2] * w.W01 + lut[baseR1G1 + 2] * w.W11;
-
-            destination[0] = (byte)((sumR + HalfWeight) >> 8);
-            destination[1] = (byte)((sumG + HalfWeight) >> 8);
-            destination[2] = (byte)((sumB + HalfWeight) >> 8);
+            // Single struct write (truncate toward zero). For rounding add +0.5f to each component before cast if desired.
+            Rgb outPixel;
+            outPixel.R = (byte)rVal;
+            outPixel.G = (byte)gVal;
+            outPixel.B = (byte)bVal;
+            *destination = outPixel;
         }
 
         /// <summary>
-        /// In-place bilinear sampling for an RGBA row (stride 4). Only RGB bytes are updated; alpha bytes remain unchanged.
-        /// Performs on-the-fly stride computation (r0 * StrideR + g0 * StrideG) instead of lookup tables.
+        /// Bilinear sampling over R,G with nearest B. Normalized weights eliminate explicit normalization.
         /// </summary>
-        internal static unsafe void SampleBilinear8RgbaInPlace(byte* lut, byte* rgbaRow, int pixelCount)
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static unsafe void SampleBilinear8(byte[] lut, byte rByte, byte gByte, byte bByte, byte* destination)
         {
-            const int HalfWeight = WeightScale / 2; // 128
-            int pixelOffset = 0;
+            int rIndexBase = rByte >> GridIndexShift;
+            int gIndexBase = gByte >> GridIndexShift;
+            int bIndexBase = bByte >> GridIndexShift;
+            int fracR = rByte & GridIndexMask;
+            int fracG = gByte & GridIndexMask;
+            int fracB = bByte & GridIndexMask;
+            int bSlice = fracB < 8 ? bIndexBase : (bIndexBase + 1);
+            int weightIndex = (fracR << 4) | fracG;
+            ref WeightQuad w = ref WeightTable[weightIndex];
+            fixed (byte* lutPtr = lut)
+            {
+                SampleBilinearCore((Rgb*)lutPtr, rIndexBase, gIndexBase, bSlice, ref w, (Rgb*)destination);
+            }
+        }
 
+        /// <summary>
+        /// In-place bilinear sampling for an RGBA row. RGB updated, Alpha preserved.
+        /// </summary>
+        internal static unsafe void SampleBilinear8RgbaInPlace(byte* lutPtr, byte* rgbaRowPtr, int pixelCount)
+        {
+            if (lutPtr == null)
+            {
+                return; // LUT not available
+            }
+            if (rgbaRowPtr == null)
+            {
+                return; // Destination buffer null
+            }
+            if (pixelCount <= 0)
+            {
+                return; // Nothing to process
+            }
+            Rgb* rgbLut = (Rgb*)lutPtr;
+            Rgba* pixels = (Rgba*)rgbaRowPtr;
             for (int pixelIndex = 0; pixelIndex < pixelCount; pixelIndex++)
             {
-                byte rValue = rgbaRow[pixelOffset];
-                byte gValue = rgbaRow[pixelOffset + 1];
-                byte bValue = rgbaRow[pixelOffset + 2];
-
-                int r0 = rValue >> GridIndexShift; // 0..15
-                int g0 = gValue >> GridIndexShift; // 0..15
-                int b0 = bValue >> GridIndexShift; // 0..15
-
-                int fracR = rValue & GridIndexMask; // 0..15
-                int fracG = gValue & GridIndexMask; // 0..15
-                int fracB = bValue & GridIndexMask; // 0..15
-
-                int bSlice = fracB < 8 ? b0 : (b0 + 1); // 0..16
-
-                int baseRG0 = r0 * StrideR + g0 * StrideG;
-                int sliceOffset = bSlice * StrideB;
-
-                int baseR0G0 = baseRG0 + sliceOffset;
-                int baseR1G0 = baseR0G0 + StrideR;
-                int baseR0G1 = baseR0G0 + StrideG;
-                int baseR1G1 = baseR0G0 + StrideR + StrideG;
-
+                Rgba* pixelPtr = pixels + pixelIndex;
+                int rIndexBase = pixelPtr->R >> GridIndexShift;
+                int gIndexBase = pixelPtr->G >> GridIndexShift;
+                int bIndexBase = pixelPtr->B >> GridIndexShift;
+                int fracR = pixelPtr->R & GridIndexMask;
+                int fracG = pixelPtr->G & GridIndexMask;
+                int fracB = pixelPtr->B & GridIndexMask;
+                int bSlice = fracB < 8 ? bIndexBase : (bIndexBase + 1);
                 int weightIndex = (fracR << 4) | fracG;
                 ref WeightQuad w = ref WeightTable[weightIndex];
-
-                int sumR = lut[baseR0G0] * w.W00 + lut[baseR1G0] * w.W10 + lut[baseR0G1] * w.W01 + lut[baseR1G1] * w.W11;
-                int sumG = lut[baseR0G0 + 1] * w.W00 + lut[baseR1G0 + 1] * w.W10 + lut[baseR0G1 + 1] * w.W01 + lut[baseR1G1 + 1] * w.W11;
-                int sumB = lut[baseR0G0 + 2] * w.W00 + lut[baseR1G0 + 2] * w.W10 + lut[baseR0G1 + 2] * w.W01 + lut[baseR1G1 + 2] * w.W11;
-
-                int rOut = (sumR + HalfWeight) >> 8;
-                int gOut = (sumG + HalfWeight) >> 8;
-                int bOut = (sumB + HalfWeight) >> 8;
-
-                rgbaRow[pixelOffset] = (byte)rOut;
-                rgbaRow[pixelOffset + 1] = (byte)gOut;
-                rgbaRow[pixelOffset + 2] = (byte)bOut;
-
-                pixelOffset += 4;
+                SampleBilinearCore(rgbLut, rIndexBase, gIndexBase, bSlice, ref w, (Rgb*)pixelPtr); // writes R,G,B only
+                // Alpha left unchanged. TODO: migh not be usefull here.
             }
+        }
+
+        [StructLayout(LayoutKind.Sequential, Pack = 1)]
+        private struct Rgb
+        {
+            public byte R;
+            public byte G;
+            public byte B;
+        }
+
+        [StructLayout(LayoutKind.Sequential, Pack = 1)]
+        public struct Rgba // TODO: migh not be usefull here.
+        {
+            public byte R;
+            public byte G;
+            public byte B;
+            public byte A;
         }
     }
 }

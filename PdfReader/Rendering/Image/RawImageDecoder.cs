@@ -3,6 +3,7 @@ using PdfReader.Rendering.Image.Processing;
 using SkiaSharp;
 using System;
 using System.IO;
+using PdfReader.Rendering.Image.Skia;
 
 namespace PdfReader.Rendering.Image
 {
@@ -10,6 +11,8 @@ namespace PdfReader.Rendering.Image
     /// Decodes a raw PDF image (an image whose stream has already had its /Filter chain decoded including predictor undo).
     /// Stream-based implementation to reduce memory pressure: reads one decoded (predictor-processed, packed) row
     /// at a time from the underlying stream and forwards it to <see cref="PdfImageRowProcessor"/>.
+    /// Includes an experimental fast path that attempts to wrap compatible PDF Flate + PNG predictor data directly
+    /// into a PNG container without recompression.
     /// </summary>
     public class RawImageDecoder : PdfImageDecoder
     {
@@ -19,12 +22,20 @@ namespace PdfReader.Rendering.Image
 
         /// <summary>
         /// Decode the raw image stream into an <see cref="SKImage"/> or return null if decoding fails.
+        /// Attempts an experimental fast PNG wrapping path first (no recompression) when the encoded PDF image
+        /// matches a restricted PNG compatible profile.
         /// </summary>
         public override SKImage Decode()
         {
             if (!ValidateImageParameters())
             {
                 return null;
+            }
+
+            SKImage fastPng = PngSkiaDecoder.DecodeAsPng(Image);
+            if (fastPng != null)
+            {
+                return fastPng;
             }
 
             using Stream dataStream = Image.GetImageDataStream();

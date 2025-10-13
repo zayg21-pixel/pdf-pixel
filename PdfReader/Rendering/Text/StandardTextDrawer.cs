@@ -7,6 +7,7 @@ using PdfReader.Rendering.Advanced;
 using PdfReader.Text;
 using SkiaSharp;
 using System;
+using System.Runtime.CompilerServices;
 
 namespace PdfReader.Rendering.Text
 {
@@ -59,6 +60,7 @@ namespace PdfReader.Rendering.Text
         /// <summary>
         /// Internal draw implementation. Assumes validated arguments (no defensive checks).
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private SKSize DrawTextInternal(SKCanvas canvas, ref PdfText pdfText, PdfPage page, PdfGraphicsState state, PdfFontBase font, bool dryRun)
         {
             var typeface = _fontCache.GetTypeface(font);
@@ -92,6 +94,7 @@ namespace PdfReader.Rendering.Text
         /// - Type3: never shape (glyph defined by content stream; handled elsewhere).
         /// - Other / unknown: fallback to Unicode.
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private bool ShouldShapeText(PdfFontBase font)
         {
             switch (font)
@@ -149,6 +152,7 @@ namespace PdfReader.Rendering.Text
         /// Build shaped glyphs using direct mapping.
         /// Returns empty if any GID invalid (0 or out-of-range) or all advances zero.
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private ShapedGlyph[] BuildDirectMappedGlyphs(ref PdfText pdfText, SKFont skFont, PdfGraphicsState state, PdfFontBase font, SKTypeface typeface)
         {
             var codes = _pdfTextDecoder.ExtractCharacterCodes(pdfText.RawBytes, font);
@@ -186,6 +190,7 @@ namespace PdfReader.Rendering.Text
             return shaped;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private SKSize DrawUnicodeText(SKCanvas canvas, SKPaint paint, SKFont font, string text, PdfGraphicsState state, bool dryRun)
         {
             if (string.IsNullOrEmpty(text))
@@ -211,10 +216,11 @@ namespace PdfReader.Rendering.Text
 
             var metrics = font.Metrics;
             float height = metrics.Descent - metrics.Ascent;
-            paint.Dispose();
+
             return new SKSize(advanceWidth, height);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private SKSize DrawShapedText(SKCanvas canvas, SKPaint paint, SKFont font, ShapedGlyph[] shapingResult, PdfGraphicsState state, bool dryRun)
         {
             if (shapingResult.Length == 0)
@@ -253,7 +259,7 @@ namespace PdfReader.Rendering.Text
 
             var metrics = font.Metrics;
             float height = metrics.Descent - metrics.Ascent;
-            paint.Dispose();
+
             return new SKSize(advanceWidth, height);
         }
     }

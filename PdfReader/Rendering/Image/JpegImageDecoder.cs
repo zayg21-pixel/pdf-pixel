@@ -5,6 +5,7 @@ using PdfReader.Rendering.Image.Jpg.Decoding;
 using PdfReader.Rendering.Image.Jpg.Model;
 using PdfReader.Rendering.Image.Jpg.Readers;
 using PdfReader.Rendering.Image.Processing;
+using PdfReader.Rendering.Image.Skia;
 using SkiaSharp;
 using System;
 using System.Runtime.InteropServices;
@@ -33,6 +34,13 @@ namespace PdfReader.Rendering.Image
             if (!ValidateImageParameters())
             {
                 return null;
+            }
+
+            var skiaJpg = JpgSkiaDecoder.DecodeAsJpg(Image);
+
+            if (skiaJpg != null)
+            {
+                return skiaJpg;
             }
 
             ReadOnlyMemory<byte> encodedImageData = Image.GetImageData();

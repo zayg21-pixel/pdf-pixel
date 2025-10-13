@@ -135,7 +135,12 @@ namespace PdfReader.Streams
                    filter == PdfTokens.CCITTFaxDecode;
         }
 
-        private List<string> GetFilters(PdfObject obj)
+        /// <summary>
+        /// Expands filter array.
+        /// </summary>
+        /// <param name="obj">Source object.</param>
+        /// <returns>Collection of filters.</returns>
+        public static List<string> GetFilters(PdfObject obj)
         {
             var filters = new List<string>();
             if (obj == null || obj.Dictionary == null)

@@ -2,6 +2,7 @@
 using PdfReader.Rendering.Advanced;
 using SkiaSharp;
 using System;
+using System.Runtime.CompilerServices;
 
 namespace PdfReader.Rendering
 {
@@ -17,6 +18,7 @@ namespace PdfReader.Rendering
         /// <param name="color">Base color</param>
         /// <param name="alpha">Alpha value from 0.0 (transparent) to 1.0 (opaque)</param>
         /// <returns>Color with applied alpha</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static SKColor ApplyAlpha(SKColor color, float alpha)
         {
             // Clamp alpha to valid range
@@ -37,6 +39,7 @@ namespace PdfReader.Rendering
         /// Common initialization shared by all paints.
         /// Sets antialiasing and the blend mode from graphics state.
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static SKPaint CreateBasePaint(PdfGraphicsState state)
         {
             var paint = new SKPaint
@@ -68,6 +71,7 @@ namespace PdfReader.Rendering
         /// Estimate the scale factor contributed by the current text transform (TextMatrix + Tz).
         /// Used to keep text stroke width in user-space units, independent of text-specific scaling.
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static float GetTextScaleFactor(PdfGraphicsState state)
         {
             // Extract the 2x2 linear part of the matrix.
@@ -102,6 +106,7 @@ namespace PdfReader.Rendering
         /// - All elements must be nonnegative; replace zeros with a tiny epsilon when any positive exists.
         /// - The sum of elements must be &gt; 0; otherwise, disable dashing.
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static float[] NormalizeDashPattern(float[] pattern)
         {
             if (pattern == null || pattern.Length == 0)
@@ -136,6 +141,7 @@ namespace PdfReader.Rendering
         /// <summary>
         /// Create a paint object for text rendering based on the text rendering mode
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static SKPaint CreateTextPaint(PdfGraphicsState state, PdfPage page)
         {
             var paint = CreateBasePaint(state);
@@ -191,6 +197,7 @@ namespace PdfReader.Rendering
         /// <param name="typeface">Typeface to use</param>
         /// <param name="page">Current page (reserved for future use)</param>
         /// <returns>Configured SKFont</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static SKFont CreateTextFont(PdfGraphicsState state, SKTypeface typeface, PdfPage page)
         {
             if (state == null)
@@ -225,6 +232,7 @@ namespace PdfReader.Rendering
         /// <summary>
         /// Create a paint object for stroke operations with transparency support
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static SKPaint CreateStrokePaint(PdfGraphicsState state, PdfPage page)
         {
             var paint = CreateBasePaint(state);
@@ -251,6 +259,7 @@ namespace PdfReader.Rendering
         /// <summary>
         /// Create a paint object for fill operations with transparency support
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static SKPaint CreateFillPaint(PdfGraphicsState state, PdfPage page)
         {
             var paint = CreateBasePaint(state);
@@ -266,6 +275,7 @@ namespace PdfReader.Rendering
         /// <summary>
         /// Create a paint object for image operations with transparency support
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static SKPaint CreateImagePaint(PdfGraphicsState state, PdfPage page)
         {
             var paint = CreateBasePaint(state);
@@ -281,6 +291,7 @@ namespace PdfReader.Rendering
         /// <summary>
         /// Create paint for Form XObject rendering with transparency group support
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static SKPaint CreateFormXObjectPaint(PdfGraphicsState state, PdfPage page)
         {
             if (state == null) return new SKPaint();
@@ -302,6 +313,7 @@ namespace PdfReader.Rendering
         /// <summary>
         /// Create paint for shadings (axial/radial), applying fill alpha and blend mode without tinting
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static SKPaint CreateShadingPaint(PdfGraphicsState state, SKShader shader, PdfPage page)
         {
             var paint = CreateBasePaint(state);
@@ -323,6 +335,7 @@ namespace PdfReader.Rendering
         /// Apply advanced transparency effects including soft masks, knockout, and overprint
         /// This is crucial for rendering shadows and other complex transparency effects correctly
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static void ApplyAdvancedTransparencyEffects(SKPaint paint, PdfGraphicsState state, PdfPage page)
         {
             // Apply knockout effects
@@ -358,6 +371,7 @@ namespace PdfReader.Rendering
         /// </summary>
         /// <param name="interpolate">True if the image dictionary has /Interpolate true.</param>
         /// <returns>Sampling options appropriate for image rendering.</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static SKSamplingOptions GetImageSamplingOptions(bool interpolate)
         {
             if (interpolate)
