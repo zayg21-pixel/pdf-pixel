@@ -42,20 +42,21 @@ namespace PdfReader.Rendering
             // This will handle ALL coordinate transformations at once
             canvas.Scale(1, -1);
 
-            // Step 3: Handle crop box offset if different from media box
-            if (_page.CropBox != _page.MediaBox)
-            {
-                // Apply clipping to crop box bounds
-                var clipRect = new SKRect(0, 0, _page.CropBox.Width, _page.CropBox.Height);
-                canvas.ClipRect(clipRect);
+            // TODO: fix this, it's broken
+            //// Step 3: Handle crop box offset if different from media box
+            //if (_page.CropBox != _page.MediaBox)
+            //{
+            //    // Apply clipping to crop box bounds
+            //    var clipRect = new SKRect(0, 0, _page.CropBox.Width, _page.CropBox.Height);
+            //    canvas.ClipRect(clipRect);
 
-                // Translate to crop box origin if needed
-                if (_page.CropBox.Left != 0 || _page.CropBox.Bottom != 0)
-                {
-                    // Note: In PDF coordinate system, cropBox.Bottom is the Y offset from page bottom
-                    canvas.Translate(-_page.CropBox.Left, -_page.CropBox.Bottom);
-                }
-            }
+            //    // Translate to crop box origin if needed
+            //    if (_page.CropBox.Left != 0 || _page.CropBox.Bottom != 0)
+            //    {
+            //        // Note: In PDF coordinate system, cropBox.Bottom is the Y offset from page bottom
+            //        canvas.Translate(-_page.CropBox.Left, -_page.CropBox.Bottom);
+            //    }
+            //}
         }
 
         /// <summary>

@@ -9,9 +9,6 @@ namespace PdfReader.Rendering.Image.Skia
     {
         public static bool CanUseSkiaFastPath(PdfImage image)
         {
-            // TODO: revert for performance
-            return false;
-
             if (image.MaskArray?.Length > 0)
             {
                 return false;

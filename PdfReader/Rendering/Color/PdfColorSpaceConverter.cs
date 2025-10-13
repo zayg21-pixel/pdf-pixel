@@ -3,6 +3,7 @@ using PdfReader.Rendering.Color.Clut;
 using SkiaSharp;
 using System;
 using System.Collections.Concurrent;
+using System.Numerics;
 using System.Runtime.CompilerServices;
 
 namespace PdfReader.Rendering.Color
@@ -16,6 +17,7 @@ namespace PdfReader.Rendering.Color
     {
         private readonly ConcurrentDictionary<PdfRenderingIntent, byte[]> _grayLutCache = new ConcurrentDictionary<PdfRenderingIntent, byte[]>();
         private readonly ConcurrentDictionary<PdfRenderingIntent, byte[]> _rgbLutCache = new ConcurrentDictionary<PdfRenderingIntent, byte[]>();
+        private readonly ConcurrentDictionary<PdfRenderingIntent, Vector3[]> _rgbLut2Cache = new ConcurrentDictionary<PdfRenderingIntent, Vector3[]>();
         private readonly ConcurrentDictionary<PdfRenderingIntent, LayeredThreeDLut> _cmykLutCache = new ConcurrentDictionary<PdfRenderingIntent, LayeredThreeDLut>();
 
         /// <summary>
@@ -62,11 +64,17 @@ namespace PdfReader.Rendering.Color
 
             if (Components == 3)
             {
-                byte[] lut = _rgbLutCache.GetOrAdd(intent, ri => TreeDLut.Build8Bit(ri, ToSrgbCore));
-                fixed (byte* pLut = lut)
+                var lut = _rgbLut2Cache.GetOrAdd(intent, ri => TreeDLut.BuildVectorLut(ri, ToSrgbCore));
+                fixed (Vector3* pLut = lut)
                 {
-                    TreeDLut.SampleBilinear8RgbaInPlace(pLut, rgbaRow, pixelCount);
+                    TreeDLut.SampleTrilinear(pLut, rgbaRow, pixelCount);
                 }
+
+                //byte[] lut = _rgbLutCache.GetOrAdd(intent, ri => TreeDLut.Build8Bit(ri, ToSrgbCore));
+                //fixed (byte* pLut = lut)
+                //{
+                //    TreeDLut.SampleBilinear8RgbaInPlace(pLut, rgbaRow, pixelCount);
+                //}
                 return;
             }
 
