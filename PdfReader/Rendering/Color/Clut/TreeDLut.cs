@@ -85,13 +85,17 @@ namespace PdfReader.Rendering.Color.Clut
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static unsafe void SampleTrilinear(Vector3* lut, Rgba* source, Rgba* destination)
         {
-            int rBaseIndex = source->R >> GridIndexShift; // 0..15
-            int gBaseIndex = source->G >> GridIndexShift; // 0..15
-            int bBaseIndex = source->B >> GridIndexShift; // 0..15
+            var r = source->R;
+            var g = source->G;
+            var b = source->B;
 
-            int fracR = source->R & GridIndexMask; // 0..15
-            int fracG = source->G & GridIndexMask; // 0..15
-            int fracB = source->B & GridIndexMask; // 0..15
+            int rBaseIndex = r >> GridIndexShift; // 0..15
+            int gBaseIndex = g >> GridIndexShift; // 0..15
+            int bBaseIndex = b >> GridIndexShift; // 0..15
+
+            int fracR = r & GridIndexMask; // 0..15
+            int fracG = g & GridIndexMask; // 0..15
+            int fracB = b & GridIndexMask; // 0..15
 
             float fr = fracR * Inv16; // fractional R
             float fg = fracG * Inv16; // fractional G
@@ -113,21 +117,15 @@ namespace PdfReader.Rendering.Color.Clut
             int i010 = i000 + TripleStrideG; // (r0,g1,b0)
             int i110 = i000 + TripleStrideR + TripleStrideG; // (r1,g1,b0)
 
-            // Corner indices on b1 slice (increment inner dimension by +1).
-            int i001 = i000 + 1; // (r0,g0,b1)
-            int i101 = i100 + 1; // (r1,g0,b1)
-            int i011 = i010 + 1; // (r0,g1,b1)
-            int i111 = i110 + 1; // (r1,g1,b1)
-
             // Fetch lattice colors.
-            Vector3 c000 = lut[i000];
-            Vector3 c100 = lut[i100];
-            Vector3 c010 = lut[i010];
-            Vector3 c110 = lut[i110];
-            Vector3 c001 = lut[i001];
-            Vector3 c101 = lut[i101];
-            Vector3 c011 = lut[i011];
-            Vector3 c111 = lut[i111];
+            ref Vector3 c000 = ref lut[i000];
+            ref Vector3 c001 = ref Unsafe.Add(ref c000, 1); // i001
+            ref Vector3 c100 = ref lut[i100];
+            ref Vector3 c101 = ref Unsafe.Add(ref c100, 1); // i101
+            ref Vector3 c010 = ref lut[i010];
+            ref Vector3 c011 = ref Unsafe.Add(ref c010, 1); // i011
+            ref Vector3 c110 = ref lut[i110];
+            ref Vector3 c111 = ref Unsafe.Add(ref c110, 1); // i111
 
             // Compute trilinear interpolation.
             Vector3 accum = c000 * (wR0 * wG0 * wB0) + c100 * (wR1 * wG0 * wB0) + c010 * (wR0 * wG1 * wB0) + c110 * (wR1 * wG1 * wB0) + c001 * (wR0 * wG0 * wB1) + c101 * (wR1 * wG0 * wB1) + c011 * (wR0 * wG1 * wB1) + c111 * (wR1 * wG1 * wB1);
