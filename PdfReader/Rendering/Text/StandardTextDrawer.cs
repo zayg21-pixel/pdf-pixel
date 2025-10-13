@@ -129,8 +129,8 @@ namespace PdfReader.Rendering.Text
                 case PdfSimpleFont simpleFont:
                 {
                     // Simple single-byte fonts have a direct, reliable mapping (Differences + encoding).
-                    // Allow shaping so we can unify drawing path (still uses direct gid extraction).
-                    return true;
+                    // however, currently we only have CFF mappings for simple fonts.
+                    return simpleFont?.FontDescriptor.IsCffFont == true;
                 }
                 case PdfType3Font _:
                 {

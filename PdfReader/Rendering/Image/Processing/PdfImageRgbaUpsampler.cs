@@ -412,7 +412,7 @@ namespace PdfReader.Rendering.Image.Processing
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static unsafe void UpsampleScaleCmyk8(byte* source, byte* destination, int columns)
         {
-            System.Buffer.MemoryCopy(source, destination, columns, columns);
+            System.Buffer.MemoryCopy(source, destination, columns * 4, columns * 4);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
