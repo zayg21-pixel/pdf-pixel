@@ -64,10 +64,10 @@ namespace PdfReader.Fonts
         /// <summary>
         /// Get character width (delegated to appropriate descendant)
         /// </summary>
-        public override float GetGlyphWidth(int charCode)
+        public override float GetGlyphWidth(PdfCharacterCode code)
         {
             var descendant = PrimaryDescendant;
-            return descendant?.GetGlyphWidth(charCode) ?? 1000f;
+            return descendant?.GetGlyphWidth(code) ?? 1000f;
         }
 
         /// <summary>

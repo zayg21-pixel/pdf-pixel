@@ -36,7 +36,18 @@ namespace PdfReader.Models
         /// </summary>
         public ushort[] GetGids(PdfCharacterCode[] codes, PdfFontBase font)
         {
-            return ConvertCodesToGids(codes, font);
+            if (codes?.Length == 0)
+            {
+                return [];
+            }
+
+            return font switch
+            {
+                PdfCompositeFont compositeFont => ConvertCodesToGidsCompositeFont(codes, compositeFont),
+                PdfCIDFont cidFont => ConvertCidsToGidsCidFont(codes, cidFont),
+                PdfSimpleFont simpleFont => ConvertCodesToGidsSimpleFont(codes, simpleFont),
+                _ => IdentityCodesToGidsFallback(codes),
+            };
         }
 
         /// <summary>
@@ -85,23 +96,6 @@ namespace PdfReader.Models
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static ushort[] ConvertCodesToGids(PdfCharacterCode[] codes, PdfFontBase font)
-        {
-            if (codes?.Length == 0)
-            {
-                return [];
-            }
-
-            return font switch
-            {
-                PdfCompositeFont compositeFont => ConvertCodesToGidsCompositeFont(codes, compositeFont),
-                PdfCIDFont cidFont => ConvertCidsToGidsCidFont(codes, cidFont),
-                PdfSimpleFont simpleFont => ConvertCodesToGidsSimpleFont(codes, simpleFont),
-                _ => IdentityCodesToGidsFallback(codes),
-            };
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static ushort[] ConvertCodesToGidsSimpleFont(PdfCharacterCode[] codes, PdfSimpleFont simpleFont)
         {
             var result = new ushort[codes.Length];
@@ -144,6 +138,7 @@ namespace PdfReader.Models
         private static ushort[] ConvertCodesToGidsCompositeFont(PdfCharacterCode[] codes, PdfCompositeFont compositeFont)
         {
             var primary = compositeFont.PrimaryDescendant;
+
             if (primary == null)
             {
                 return IdentityCodesToGidsFallback(codes);

@@ -39,7 +39,7 @@ namespace PdfReader.Rendering.Image
             _rows = parameters?.Rows ?? image.Height;
         }
 
-        public override unsafe SKImage Decode()
+        public override SKImage Decode()
         {
             int width = _columns;
             int height = _rows;
@@ -79,10 +79,7 @@ namespace PdfReader.Rendering.Image
                 int rowIndex = 0;
                 while (rowDecoder.DecodeNextRow(rowBuffer))
                 {
-                    fixed (byte* rowPtr = rowBuffer)
-                    {
-                        rowProcessor.WriteRow(rowIndex, rowPtr);
-                    }
+                    rowProcessor.WriteRow(rowIndex, rowBuffer);
                     rowIndex++;
                 }
 

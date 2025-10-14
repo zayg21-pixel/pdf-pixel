@@ -5,7 +5,6 @@ using System;
 using System.Collections.Concurrent;
 using System.Numerics;
 using System.Runtime.CompilerServices;
-
 namespace PdfReader.Rendering.Color
 {
     /// <summary>
@@ -15,10 +14,11 @@ namespace PdfReader.Rendering.Color
     /// </summary>
     public abstract class PdfColorSpaceConverter
     {
-        private readonly ConcurrentDictionary<PdfRenderingIntent, byte[]> _grayLutCache = new ConcurrentDictionary<PdfRenderingIntent, byte[]>();
-        private readonly ConcurrentDictionary<PdfRenderingIntent, byte[]> _rgbLutCache = new ConcurrentDictionary<PdfRenderingIntent, byte[]>();
-        private readonly ConcurrentDictionary<PdfRenderingIntent, Vector3[]> _rgbLut2Cache = new ConcurrentDictionary<PdfRenderingIntent, Vector3[]>();
-        private readonly ConcurrentDictionary<PdfRenderingIntent, LayeredThreeDLut> _cmykLutCache = new ConcurrentDictionary<PdfRenderingIntent, LayeredThreeDLut>();
+        private const float ToFloat = 1f / 255f;
+        private const int MaxByte = 255;
+
+        private readonly ConcurrentDictionary<PdfRenderingIntent, IRgbaSampler> _rgbaLutCache = new ConcurrentDictionary<PdfRenderingIntent, IRgbaSampler>();
+        private static readonly DeviceRgbaSampler _defaultSampler = new DeviceRgbaSampler();
 
         /// <summary>
         /// Gets the number of input components for the color space (e.g. 1=Gray, 3=RGB, 4=CMYK).
@@ -47,44 +47,62 @@ namespace PdfReader.Rendering.Color
         /// <returns>sRGB color.</returns>
         public virtual SKColor ToSrgb(ReadOnlySpan<float> comps01, PdfRenderingIntent intent)
         {
-            return ToSrgbCore(comps01, intent);
+            if (IsDevice)
+            {
+                return ToSrgbCore(comps01, intent);
+            }
+            var rgba = new Rgba();
+
+            switch (Components)
+            {
+                case 1:
+                    {
+                        byte value = ToByte(comps01[0]);
+                        rgba.R = value;
+                        rgba.G = value;
+                        rgba.B = value;
+                        rgba.A = MaxByte;
+                        break;
+                    }
+                case 3:
+                    {
+                        rgba.R = ToByte(comps01[0]);
+                        rgba.G = ToByte(comps01[1]);
+                        rgba.B = ToByte(comps01[2]);
+                        rgba.A = MaxByte;
+                        break;
+                    }
+                case 4:
+                    {
+                        rgba.R = ToByte(comps01[0]);
+                        rgba.G = ToByte(comps01[1]);
+                        rgba.B = ToByte(comps01[2]);
+                        rgba.A = ToByte(comps01[3]);
+                        break;
+                    }
+            }
+
+            var sampler = GetSampler(intent);
+            
+            sampler.Sample(ref rgba, ref rgba);
+
+            return new SKColor(rgba.R, rgba.G, rgba.B, rgba.A);
         }
 
-        public virtual unsafe void Sample8RgbaInPlace(byte* rgbaRow, int pixelCount, PdfRenderingIntent intent)
+        internal virtual IRgbaSampler GetSampler(PdfRenderingIntent intent)
         {
-            if (Components == 1)
+            if (IsDevice)
             {
-                byte[] grayLut = _grayLutCache.GetOrAdd(intent, ri => OneDLut.Build8Bit(ri, ToSrgbCore));
-                fixed (byte* pLut = grayLut)
-                {
-                    OneDLut.Sample8RgbaInPlace(pLut, rgbaRow, pixelCount);
-                }
-                return;
+                return _defaultSampler;
             }
 
-            if (Components == 3)
+            switch (Components)
             {
-                var lut = _rgbLut2Cache.GetOrAdd(intent, ri => TreeDLut.BuildVectorLut(ri, ToSrgbCore));
-                fixed (Vector3* pLut = lut)
-                {
-                    TreeDLut.SampleTrilinear(pLut, rgbaRow, pixelCount);
-                }
-
-                //byte[] lut = _rgbLutCache.GetOrAdd(intent, ri => TreeDLut.Build8Bit(ri, ToSrgbCore));
-                //fixed (byte* pLut = lut)
-                //{
-                //    TreeDLut.SampleBilinear8RgbaInPlace(pLut, rgbaRow, pixelCount);
-                //}
-                return;
+                case 4:
+                    return _rgbaLutCache.GetOrAdd(intent, ri => LayeredThreeDLut.Build(intent, ToSrgbCore));
+                default:
+                    return _rgbaLutCache.GetOrAdd(intent, ri => TreeDLut.Build(intent, ToSrgbCore));
             }
-
-            if (Components == 4)
-            {
-                LayeredThreeDLut layered = _cmykLutCache.GetOrAdd(intent, ri => LayeredThreeDLut.Build(ri, ToSrgbCore));
-                layered.SampleRgbaInPlace(rgbaRow, pixelCount);
-                return;
-            }
-            // Unsupported component count - do nothing.
         }
 
         /// <summary>
@@ -105,7 +123,7 @@ namespace PdfReader.Rendering.Color
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         protected static float ToFloat01(byte b)
         {
-            return OneDLut.ByteToFloat01[b];
+            return b * ToFloat;
         }
 
         /// <summary>
@@ -114,7 +132,31 @@ namespace PdfReader.Rendering.Color
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         protected static byte ToByte(float v01)
         {
-            return OneDLut.ToByte(v01);
+            var value = v01 * MaxByte + 0.5f;
+
+            if (value <= 0f)
+            {
+                return 0;
+            }
+
+            if (value >= MaxByte)
+            {
+                return MaxByte;
+            }
+
+            return (byte)value;
+        }
+
+
+        private sealed class DeviceRgbaSampler : IRgbaSampler
+        {
+            public bool IsDefault => true;
+
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            public void Sample(ref Rgba source, ref Rgba destination)
+            {
+                // no op
+            }
         }
     }
 }

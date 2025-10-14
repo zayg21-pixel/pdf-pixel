@@ -38,49 +38,6 @@ namespace PdfReader.Text
         }
 
         /// <summary>
-        /// Decode a PDF string (raw bytes) to Unicode using the provided font.
-        /// Priority:
-        /// 1) ToUnicode CMap
-        /// 2) Font encoding
-        /// 3) UTF-8 fallback
-        /// </summary>
-        public string DecodeTextStringWithFont(ReadOnlyMemory<byte> bytes, PdfFontBase font)
-        {
-            if (bytes.Length == 0)
-            {
-                return string.Empty;
-            }
-
-            if (font == null)
-            {
-                _logger.LogWarning("Font is null, using UTF-8 fallback for raw text of length {Length}.", bytes.Length);
-                return Encoding.UTF8.GetString(bytes);
-            }
-
-            if (font.ToUnicodeCMap != null)
-            {
-                return DecodeWithToUnicodeCMap(bytes, font);
-            }
-
-            try
-            {
-                var encoding = GetEncodingForFont(font);
-                if (encoding != null)
-                {
-                    return encoding.GetString(bytes);
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "Failed to decode using font encoding for {Font}.", font.BaseFont);
-            }
-
-            // TODO: need fall-backs for CFF fonts without CMap
-            _logger.LogWarning("Using UTF-8 fallback for font {Font} (Type: {Type}).", font.BaseFont, font.Type);
-            return Encoding.UTF8.GetString(bytes);
-        }
-
-        /// <summary>
         /// Decode a single byte-sequence character code to Unicode using ToUnicode or font encoding.
         /// </summary>
         public string DecodeCharacterCode(PdfCharacterCode code, PdfFontBase font)
@@ -100,12 +57,21 @@ namespace PdfReader.Text
                 }
             }
 
-            var enc = GetEncodingForFont(font);
-            if (enc != null)
+            if (font.Differences != null && font.Differences.TryGetValue((int)(uint)code, out var charName))
+            {
+                if (AdobeGlyphList.CharacterMap.TryGetValue(charName, out var unicode))
+                {
+                    return unicode;
+                }
+            }
+
+            var encoding = GetEncodingForFont(font);
+
+            if (encoding != null)
             {
                 try
                 {
-                    return enc.GetString(code.Bytes);
+                    return encoding.GetString(code.Bytes);
                 }
                 catch (Exception ex)
                 {
@@ -117,55 +83,7 @@ namespace PdfReader.Text
                 _logger.LogInformation("No encoding available for font {Font} (Type: {Type}).", font.BaseFont, font.Type);
             }
 
-            // TODO: need fall-backs for CFF fonts without CMap
             return EncodingExtensions.PdfDefault.GetString(code.Bytes);
-        }
-
-        private string DecodeWithToUnicodeCMap(ReadOnlyMemory<byte> bytes, PdfFontBase font)
-        {
-            var cmap = font.ToUnicodeCMap;
-            var sb = new StringBuilder(bytes.Length);
-
-            if (ShouldUseCodespaceRanges(font, cmap))
-            {
-                int offset = 0;
-                while (offset < bytes.Length)
-                {
-                    int length = cmap.GetMaxMatchingLength(bytes.Slice(offset).Span);
-                    if (length == 0)
-                    {
-                        length = 1; // consume one byte to avoid infinite loop
-                    }
-
-                    var code = new PdfCharacterCode(bytes.Slice(offset, length));
-                    var unicode = cmap.GetUnicode(code);
-                    if (unicode != null)
-                    {
-                        sb.Append(unicode);
-                    }
-                    else
-                    {
-                        sb.Append(EncodingExtensions.PdfDefault.GetString(bytes.Slice(offset, length)));
-                    }
-                    offset += length;
-                }
-                return sb.ToString();
-            }
-
-            var codes = ExtractCharacterCodes(bytes, font);
-            foreach (var code in codes)
-            {
-                var unicode = cmap.GetUnicode(code);
-                if (unicode != null)
-                {
-                    sb.Append(unicode);
-                }
-                else
-                {
-                    sb.Append(EncodingExtensions.PdfDefault.GetString(code.Bytes));
-                }
-            }
-            return sb.ToString();
         }
 
         private static bool ShouldUseCodespaceRanges(PdfFontBase font, PdfToUnicodeCMap cmap)

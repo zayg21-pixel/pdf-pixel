@@ -18,10 +18,5 @@ namespace PdfReader.Rendering.Color
             byte b = ToByte(comps01.Length > 2 ? comps01[2] : 0f);
             return new SKColor(r, g, b);
         }
-
-        public override unsafe void Sample8RgbaInPlace(byte* rgbaRow, int pixelCount, PdfRenderingIntent intent)
-        {
-            // Device RGB already correct; leave as-is.
-        }
     }
 }

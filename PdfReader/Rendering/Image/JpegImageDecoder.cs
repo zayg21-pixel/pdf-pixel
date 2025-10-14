@@ -58,15 +58,7 @@ namespace PdfReader.Rendering.Image
             catch (Exception ex)
             {
                 Logger.LogWarning(ex, "Primary JPEG decode path failed; attempting Skia fallback (Name={Name}).", Image.Name);
-                try
-                {
-                    return SKImage.FromEncodedData(encodedImageData.Span);
-                }
-                catch (Exception fallbackEx)
-                {
-                    Logger.LogError(fallbackEx, "Skia fallback JPEG decode failed (Name={Name}).", Image.Name);
-                    return null;
-                }
+                return SKImage.FromEncodedData(encodedImageData.Span);
             }
         }
 
@@ -74,7 +66,7 @@ namespace PdfReader.Rendering.Image
         /// Decode using custom streaming pipeline. Throws on failure.
         /// Row data is streamed row-by-row directly into a <see cref="PdfImageRowProcessor"/> without allocating a full intermediate buffer.
         /// </summary>
-        private unsafe SKImage DecodeInternal(ReadOnlyMemory<byte> encoded)
+        private SKImage DecodeInternal(ReadOnlyMemory<byte> encoded)
         {
             JpgHeader header;
             try
@@ -136,33 +128,28 @@ namespace PdfReader.Rendering.Image
             }
 
             PdfImageRowProcessor rowProcessor = null;
-            IntPtr unmanagedRow = IntPtr.Zero;
+
             try
             {
                 rowProcessor = new PdfImageRowProcessor(Image, LoggerFactory.CreateLogger<PdfImageRowProcessor>());
                 rowProcessor.InitializeBuffer();
 
-                unmanagedRow = Marshal.AllocHGlobal(rowStride);
+                Span<byte> rowBuffer = new byte[rowStride];
 
                 for (int rowIndex = 0; rowIndex < imageHeight; rowIndex++)
                 {
-                    Span<byte> rowSpan = new Span<byte>((void*)unmanagedRow, rowStride);
-                    if (!decoder.TryReadRow(rowSpan))
+                    if (!decoder.TryReadRow(rowBuffer))
                     {
                         throw new InvalidOperationException($"JPEG decode failed at row {rowIndex} (Image={Image.Name}).");
                     }
-                    rowProcessor.WriteRow(rowIndex, (byte*)unmanagedRow);
+
+                    rowProcessor.WriteRow(rowIndex, rowBuffer);
                 }
 
                 return rowProcessor.GetSkImage();
             }
             finally
             {
-                if (unmanagedRow != IntPtr.Zero)
-                {
-                    Marshal.FreeHGlobal(unmanagedRow);
-                }
-
                 rowProcessor?.Dispose();
             }
         }

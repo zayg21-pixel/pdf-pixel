@@ -28,12 +28,9 @@ namespace PdfReader.Fonts.Types
             // Lightweight dictionary operations in constructor
             Widths = new PdfFontWidths
             {
-                DefaultWidth = fontDictionary.GetFloatOrDefault(PdfTokens.DWKey)
+                Widths = fontDictionary.GetArray(PdfTokens.WKey).GetFloatArray(),
+                DefaultWidth = fontDictionary.GetFloat(PdfTokens.DWKey) ?? 1000f // Default to 1000 if not specified
             };
-            
-            // Set PDF default if not specified
-            if (Widths.DefaultWidth == 0)
-                Widths.DefaultWidth = 1000;
 
             // Initialize thread-safe lazy loaders (no more reference storage)
             _fontDescriptor = new Lazy<PdfFontDescriptor>(LoadFontDescriptor, isThreadSafe: true);
@@ -73,9 +70,9 @@ namespace PdfReader.Fonts.Types
         /// <summary>
         /// Get character width for a given character code
         /// </summary>
-        public override float GetGlyphWidth(int charCode)
+        public override float GetGlyphWidth(PdfCharacterCode code)
         {
-            return Widths?.GetWidth(charCode) ?? Widths?.DefaultWidth ?? 1000f;
+            return Widths.GetWidth(code);
         }
         
         /// <summary>
@@ -153,7 +150,7 @@ namespace PdfReader.Fonts.Types
             
             // Check if CIDToGIDMap is specified as "Identity" in the font dictionary
             var cidToGidName = Dictionary.GetName(PdfTokens.CIDToGIDMapKey);
-            if (cidToGidName == "Identity")
+            if (cidToGidName == "/Identity") // TODO: investigate
             {
                 return PdfCIDToGIDMap.CreateIdentityMapping();
             }

@@ -1,7 +1,6 @@
 using Microsoft.Extensions.Logging;
 using PdfReader.Fonts;
 using PdfReader.Fonts.Management;
-using PdfReader.Fonts.Types;
 using PdfReader.Models;
 using PdfReader.Rendering.Advanced;
 using PdfReader.Text;
@@ -11,8 +10,7 @@ using System.Runtime.CompilerServices;
 
 namespace PdfReader.Rendering.Text
 {
-    /// <summary>
-    /// Standard text drawer without HarfBuzz dependency.
+    /// <summary>.
     /// Performs direct CID/composite glyph mapping when reliable; otherwise falls back to Unicode drawing.
     /// </summary>
     public class StandardTextDrawer : ITextDrawer
@@ -64,8 +62,6 @@ namespace PdfReader.Rendering.Text
         private SKSize DrawTextInternal(SKCanvas canvas, ref PdfText pdfText, PdfPage page, PdfGraphicsState state, PdfFontBase font, bool dryRun)
         {
             var typeface = _fontCache.GetTypeface(font);
-            var unicodeText = _pdfTextDecoder.DecodeTextStringWithFont(pdfText.RawBytes, font);
-
             using var skPaint = PdfPaintFactory.CreateTextPaint(state, page);
             using var skFont = PdfPaintFactory.CreateTextFont(state, typeface, page);
 
@@ -74,78 +70,16 @@ namespace PdfReader.Rendering.Text
             SKSize size;
             if (canShape)
             {
-                var shaped = BuildDirectMappedGlyphs(ref pdfText, skFont, state, font, typeface);
+                var shaped = BuildDirectMappedGlyphs(ref pdfText, skFont, state, font);
                 size = DrawShapedText(canvas, skPaint, skFont, shaped, state, dryRun);
             }
             else
             {
-                size = DrawUnicodeText(canvas, skPaint, skFont, unicodeText, state, dryRun);
+                var shaped = ShapeUnicodeText(ref pdfText, skFont, state, font);
+                size = DrawShapedText(canvas, skPaint, skFont, shaped, state, dryRun);
             }
 
             return size;
-        }
-
-        /// <summary>
-        /// Decide if we should attempt shaping (direct glyph mapping) for the font.
-        /// Rules:
-        /// - Composite (Type0): shape if descendant has CIDToGIDMap OR implicit Identity mapping for CIDFontType2.
-        /// - CIDFont: shape if CIDToGIDMap present OR implicit identity (CIDFontType2).
-        /// - Simple fonts (Type1/TrueType): shape (single-byte reliable mapping) unless font size/path indicates fallback need.
-        /// - Type3: never shape (glyph defined by content stream; handled elsewhere).
-        /// - Other / unknown: fallback to Unicode.
-        /// </summary>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private bool ShouldShapeText(PdfFontBase font)
-        {
-            switch (font)
-            {
-                case PdfCompositeFont compositeFont:
-                {
-                    var descendant = compositeFont.PrimaryDescendant;
-                    if (descendant == null)
-                    {
-                        return false;
-                    }
-                    bool identityEncoding = compositeFont.Encoding == PdfFontEncoding.IdentityH || compositeFont.Encoding == PdfFontEncoding.IdentityV;
-                    if (descendant.HasCIDToGIDMapping)
-                    {
-                        return true;
-                    }
-                    if (descendant.Type == PdfFontType.CIDFontType2 && identityEncoding)
-                    {
-                        return true;
-                    }
-                    return false;
-                }
-                case PdfCIDFont cidFont:
-                {
-                    if (cidFont.HasCIDToGIDMapping)
-                    {
-                        return true;
-                    }
-                    if (cidFont.Type == PdfFontType.CIDFontType2)
-                    {
-                        return true;
-                    }
-                    return false;
-                }
-                case PdfSimpleFont simpleFont:
-                {
-                    // Simple single-byte fonts have a direct, reliable mapping (Differences + encoding).
-                    // however, currently we only have CFF mappings for simple fonts.
-                    return simpleFont?.FontDescriptor.IsCffFont == true;
-                }
-                case PdfType3Font _:
-                {
-                    // Type3 glyphs are content streams; shaping not applicable here.
-                    return false;
-                }
-                default:
-                {
-                    // Unknown / unsupported font category -> fallback to Unicode.
-                    return false;
-                }
-            }
         }
 
         /// <summary>
@@ -153,12 +87,14 @@ namespace PdfReader.Rendering.Text
         /// Returns empty if any GID invalid (0 or out-of-range) or all advances zero.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private ShapedGlyph[] BuildDirectMappedGlyphs(ref PdfText pdfText, SKFont skFont, PdfGraphicsState state, PdfFontBase font, SKTypeface typeface)
+        private ShapedGlyph[] BuildDirectMappedGlyphs(ref PdfText pdfText, SKFont skFont, PdfGraphicsState state, PdfFontBase font)
         {
             var codes = _pdfTextDecoder.ExtractCharacterCodes(pdfText.RawBytes, font);
             var gids = pdfText.GetGids(codes, font);
 
+            // TODO: need to correctly build Width map (CIDWidths is never set), and only if widths is missing, fallback to font metrics.
             float[] glyphWidths = skFont.GetGlyphWidths(gids);
+
             var shaped = new ShapedGlyph[gids.Length];
             float cursorX = 0f;
 
@@ -178,33 +114,40 @@ namespace PdfReader.Rendering.Text
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private SKSize DrawUnicodeText(SKCanvas canvas, SKPaint paint, SKFont font, string text, PdfGraphicsState state, bool dryRun)
+        private ShapedGlyph[] ShapeUnicodeText(ref PdfText pdfText, SKFont skFont, PdfGraphicsState state, PdfFontBase font)
         {
-            if (string.IsNullOrEmpty(text))
+            var codes = _pdfTextDecoder.ExtractCharacterCodes(pdfText.RawBytes, font);
+            var shaped = new ShapedGlyph[codes.Length];
+            int codeOffset = 0;
+            float cursorX = 0f;
+
+            for (int index = 0; index < codes.Length; index++)
             {
-                return SKSize.Empty;
+                string unicodeForCode = _pdfTextDecoder.DecodeCharacterCode(codes[index], font);
+                var gids = skFont.GetGlyphs(unicodeForCode);
+                var glyphWidths = skFont.GetGlyphWidths(gids);
+                int offset = gids.Length - 1;
+
+                if (offset > 0)
+                {
+                    Array.Resize(ref shaped, shaped.Length + offset);
+                }
+
+                for (int g = 0; g < gids.Length; g++)
+                {
+                    uint gid = gids[g];
+                    float width = glyphWidths[g];
+                    bool isSpace = unicodeForCode == " ";
+                    float spacing = state.CharacterSpacing + (isSpace ? state.WordSpacing : 0f);
+                    float advance = width + spacing;
+                    shaped[index + codeOffset] = new ShapedGlyph(gid, cursorX, 0f, advance, 0f);
+                    cursorX += advance;
+                }
+
+                codeOffset += offset;
             }
 
-            float advanceWidth = 0f;
-            for (int index = 0; index < text.Length; index++)
-            {
-                string glyphString = text[index].ToString();
-                if (!dryRun && state.TextRenderingMode != PdfTextRenderingMode.Invisible)
-                {
-                    canvas.DrawText(glyphString, advanceWidth, 0f, font, paint);
-                }
-                float measured = font.MeasureText(glyphString, paint);
-                advanceWidth += measured + state.CharacterSpacing;
-                if (glyphString == " ")
-                {
-                    advanceWidth += state.WordSpacing;
-                }
-            }
-
-            var metrics = font.Metrics;
-            float height = metrics.Descent - metrics.Ascent;
-
-            return new SKSize(advanceWidth, height);
+            return shaped;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -237,10 +180,7 @@ namespace PdfReader.Rendering.Text
                 for (int index = 0; index < shapingResult.Length; index++)
                 {
                     ref var shapedGlyph = ref shapingResult[index];
-                    if (shapedGlyph.GlyphId != 0)
-                    {
-                        advanceWidth += shapedGlyph.AdvanceX;
-                    }
+                    advanceWidth += shapedGlyph.AdvanceX;
                 }
             }
 
@@ -248,6 +188,58 @@ namespace PdfReader.Rendering.Text
             float height = metrics.Descent - metrics.Ascent;
 
             return new SKSize(advanceWidth, height);
+        }
+
+        /// <summary>
+        /// Decide if we should attempt shaping (direct glyph mapping) for the font.
+        /// Rules:
+        /// - Composite (Type0): shape if descendant has CIDToGIDMap OR implicit Identity mapping for CIDFontType2.
+        /// - CIDFont: shape if CIDToGIDMap present OR implicit identity (CIDFontType2).
+        /// - Simple fonts (Type1/TrueType): shape (single-byte reliable mapping) unless font size/path indicates fallback need.
+        /// - Type3: never shape (glyph defined by content stream; handled elsewhere).
+        /// - Other / unknown: fallback to Unicode.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private bool ShouldShapeText(PdfFontBase font)
+        {
+            // TODO: should be a virtual property on PdfFontBase and overridden in subclasses
+            switch (font)
+            {
+                case PdfCompositeFont compositeFont:
+                    {
+                        var descendant = compositeFont.PrimaryDescendant;
+                        if (descendant == null)
+                        {
+                            return false;
+                        }
+                        bool identityEncoding = compositeFont.Encoding == PdfFontEncoding.IdentityH || compositeFont.Encoding == PdfFontEncoding.IdentityV;
+                        if (descendant.HasCIDToGIDMapping)
+                        {
+                            return true;
+                        }
+                        if (descendant.Type == PdfFontType.CIDFontType2 && identityEncoding)
+                        {
+                            return true;
+                        }
+                        return false;
+                    }
+                case PdfSimpleFont simpleFont:
+                    {
+                        // Simple single-byte fonts have a direct, reliable mapping (Differences + encoding).
+                        // however, currently we only have CFF mappings for simple fonts.
+                        return simpleFont.FontDescriptor?.IsCffFont == true;
+                    }
+                case PdfType3Font _:
+                    {
+                        // Type3 glyphs are content streams; shaping not applicable here.
+                        return false;
+                    }
+                default:
+                    {
+                        // Unknown / unsupported font category -> fallback to Unicode.
+                        return false;
+                    }
+            }
         }
     }
 }

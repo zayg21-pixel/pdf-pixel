@@ -9,7 +9,7 @@ namespace PdfReader.Rendering.Color.Clut
     /// Each slice is a regular 3D grid (same layout as TreeDLut) built with CMY varying and fixed K.
     /// Sampling: full trilinear interpolation (C,M,Y) inside two adjacent K slices using Vector3 LUTs, then linear blend across K.
     /// </summary>
-    internal sealed class LayeredThreeDLut
+    internal sealed class LayeredThreeDLut : IRgbaSampler
     {
         private readonly Vector3[][] _kSlices; // Array of CMY 3D LUTs (one per sampled K). Each slice stores packed Vector3 RGB values.
         private readonly float[] _kLevels;     // Normalized K level positions for slices (0..1 ascending).
@@ -73,105 +73,78 @@ namespace PdfReader.Rendering.Color.Clut
         }
 
         /// <summary>
-        /// In-place sampling for a row of interleaved CMYK pixels producing interleaved RGBA output.
-        /// Input layout: C,M,Y,K repeating per pixel. Output layout: R,G,B,A.
-        /// Performs trilinear (C,M,Y) interpolation inside two adjacent K slices then linear blend across K.
-        /// Preserves original K (input alpha channel) instead of forcing opaque, since callers may need it.
+        /// False as this converter modifies color.
         /// </summary>
-        /// <param name="rgbaRow">Pointer to first byte of interleaved CMYK input / RGBA output buffer.</param>
-        /// <param name="pixelCount">Number of pixels in the buffer.</param>
-        internal unsafe void SampleRgbaInPlace(byte* rgbaRow, int pixelCount)
+        public bool IsDefault => false;
+
+        /// <summary>
+        /// Samples a single CMYK pixel using layered 3D LUTs and writes the result to the destination pixel.
+        /// Uses the K (A channel) from the source to select/interpolate between K slices.
+        /// Calls TreeDLut.SampleTrilinear(ref Vector3, ref Rgba, ref Rgba) for the appropriate slice(s).
+        /// Sets the output alpha channel to 255 (opaque).
+        /// </summary>
+        /// <param name="source">Source pixel (R=C, G=M, B=Y, A=K)</param>
+        /// <param name="destination">Destination pixel (R=R, G=G, B=B, A=255)</param>
+        public void Sample(ref Rgba source, ref Rgba destination)
         {
-            if (_kSlices == null)
+            if (_kSlices == null || _kLevels == null)
             {
-                return; // LUT not initialized.
-            }
-            if (rgbaRow == null)
-            {
-                return; // Buffer null.
-            }
-            if (pixelCount <= 0)
-            {
-                return; // Nothing to process.
+                return;
             }
 
-            for (int pixelIndex = 0; pixelIndex < pixelCount; pixelIndex++)
+            float kNormalized = source.A / 255f;
+            int upperSliceIndex = 0;
+            while (upperSliceIndex < _kLevels.Length && _kLevels[upperSliceIndex] < kNormalized)
             {
-                byte* pixelPtr = rgbaRow + (pixelIndex * 4);
-
-                byte cByte = pixelPtr[0];
-                byte mByte = pixelPtr[1];
-                byte yByte = pixelPtr[2];
-                byte kByte = pixelPtr[3];
-
-                float kNormalized = kByte / 255f;
-
-                int upperSliceIndex = 0;
-                while (upperSliceIndex < _kLevels.Length && _kLevels[upperSliceIndex] < kNormalized)
-                {
-                    upperSliceIndex++;
-                }
-
-                Rgba sourcePixel = new Rgba(cByte, mByte, yByte, kByte); // Rgba used as CMYK container (R=C,G=M,B=Y,A=K).
-
-                if (upperSliceIndex == 0)
-                {
-                    Vector3[] firstSlice = _kSlices[0];
-                    fixed (Vector3* firstPtr = firstSlice)
-                    {
-                        TreeDLut.SampleTrilinear(firstPtr, &sourcePixel, (Rgba*)pixelPtr);
-                    }
-                }
-                else if (upperSliceIndex >= _kLevels.Length)
-                {
-                    Vector3[] lastSlice = _kSlices[_kLevels.Length - 1];
-                    fixed (Vector3* lastPtr = lastSlice)
-                    {
-                        TreeDLut.SampleTrilinear(lastPtr, &sourcePixel, (Rgba*)pixelPtr);
-                    }
-                }
-                else
-                {
-                    int lowerSliceIndex = upperSliceIndex - 1;
-                    Vector3[] lowerSlice = _kSlices[lowerSliceIndex];
-                    Vector3[] upperSlice = _kSlices[upperSliceIndex];
-
-                    float kLower = _kLevels[lowerSliceIndex];
-                    float kUpper = _kLevels[upperSliceIndex];
-                    float t = kUpper <= kLower ? 0f : (kNormalized - kLower) / (kUpper - kLower);
-                    if (t < 0f)
-                    {
-                        t = 0f;
-                    }
-                    else if (t > 1f)
-                    {
-                        t = 1f;
-                    }
-
-                    Rgba lowerSample = default;
-                    Rgba upperSample = default;
-                    fixed (Vector3* lowerPtr = lowerSlice)
-                    fixed (Vector3* upperPtr = upperSlice)
-                    {
-                        TreeDLut.SampleTrilinear(lowerPtr, &sourcePixel, &lowerSample);
-                        TreeDLut.SampleTrilinear(upperPtr, &sourcePixel, &upperSample);
-                    }
-
-                    float blendLowerWeight = 1f - t;
-                    float blendUpperWeight = t;
-
-                    // Vectorized K-slice blending.
-                    Vector3 lowerVector = new Vector3(lowerSample.R, lowerSample.G, lowerSample.B);
-                    Vector3 upperVector = new Vector3(upperSample.R, upperSample.G, upperSample.B);
-                    Vector3 blendedVector = (lowerVector * blendLowerWeight) + (upperVector * blendUpperWeight);
-
-                    pixelPtr[0] = (byte)(blendedVector.X + 0.5f);
-                    pixelPtr[1] = (byte)(blendedVector.Y + 0.5f);
-                    pixelPtr[2] = (byte)(blendedVector.Z + 0.5f);
-                }
-
-                pixelPtr[3] = kByte; // Preserve original K instead of forcing opaque.
+                upperSliceIndex++;
             }
+
+            if (upperSliceIndex == 0)
+            {
+                Vector3[] firstSlice = _kSlices[0];
+                TreeDLut.Sample(ref firstSlice[0], ref source, ref destination);
+            }
+            else if (upperSliceIndex >= _kLevels.Length)
+            {
+                Vector3[] lastSlice = _kSlices[_kLevels.Length - 1];
+                TreeDLut.Sample(ref lastSlice[0], ref source, ref destination);
+            }
+            else
+            {
+                int lowerSliceIndex = upperSliceIndex - 1;
+                Vector3[] lowerSlice = _kSlices[lowerSliceIndex];
+                Vector3[] upperSlice = _kSlices[upperSliceIndex];
+
+                float kLower = _kLevels[lowerSliceIndex];
+                float kUpper = _kLevels[upperSliceIndex];
+                float t = kUpper <= kLower ? 0f : (kNormalized - kLower) / (kUpper - kLower);
+                if (t < 0f)
+                {
+                    t = 0f;
+                }
+                else if (t > 1f)
+                {
+                    t = 1f;
+                }
+
+                Rgba lowerSample = default;
+                Rgba upperSample = default;
+                TreeDLut.Sample(ref lowerSlice[0], ref source, ref lowerSample);
+                TreeDLut.Sample(ref upperSlice[0], ref source, ref upperSample);
+
+                float blendLowerWeight = 1f - t;
+                float blendUpperWeight = t;
+
+                Vector3 lowerVector = new Vector3(lowerSample.R, lowerSample.G, lowerSample.B);
+                Vector3 upperVector = new Vector3(upperSample.R, upperSample.G, upperSample.B);
+                Vector3 blendedVector = (lowerVector * blendLowerWeight) + (upperVector * blendUpperWeight);
+
+                destination.R = (byte)(blendedVector.X + 0.5f);
+                destination.G = (byte)(blendedVector.Y + 0.5f);
+                destination.B = (byte)(blendedVector.Z + 0.5f);
+            }
+
+            destination.A = 255; // Force opaque alpha
         }
     }
 }

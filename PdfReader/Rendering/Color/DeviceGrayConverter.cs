@@ -17,17 +17,5 @@ namespace PdfReader.Rendering.Color
             byte g = ToByte(comps01.Length > 0 ? comps01[0] : 0f);
             return new SKColor(g, g, g);
         }
-
-        public override unsafe void Sample8RgbaInPlace(byte* rgbaRow, int pixelCount, PdfRenderingIntent intent)
-        {
-            for (int pixelIndex = 0; pixelIndex < pixelCount; pixelIndex++)
-            {
-                int baseIdx = pixelIndex * 4;
-                byte g = rgbaRow[baseIdx];
-                rgbaRow[baseIdx + 1] = g;
-                rgbaRow[baseIdx + 2] = g;
-                rgbaRow[baseIdx + 3] = 255; // set alpha to opaque
-            }
-        }
     }
 }

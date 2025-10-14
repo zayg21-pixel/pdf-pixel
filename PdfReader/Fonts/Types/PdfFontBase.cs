@@ -101,7 +101,7 @@ namespace PdfReader.Fonts
         /// Get the width of a character/glyph
         /// Implementation varies by font type
         /// </summary>
-        public abstract float GetGlyphWidth(int charCode);
+        public abstract float GetGlyphWidth(PdfCharacterCode code);
 
         /// <summary>
         /// Parse font type from PDF subtype string (lightweight operation)

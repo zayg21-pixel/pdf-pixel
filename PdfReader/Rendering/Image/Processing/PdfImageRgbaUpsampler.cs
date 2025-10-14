@@ -1,43 +1,45 @@
-﻿using System.Runtime.CompilerServices;
+﻿using System;
+using PdfReader.Rendering.Color.Clut;
+using System.Runtime.CompilerServices;
 
 namespace PdfReader.Rendering.Image.Processing
 {
-    internal static unsafe class PdfImageRgbaUpsampler
+    internal static class PdfImageRgbaUpsampler
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static unsafe int ReadRawSample(byte* rowPtr, int sampleIndex, int bitsPerComponent)
+        public static int ReadRawSample(ref byte row, int sampleIndex, int bitsPerComponent)
         {
             switch (bitsPerComponent)
             {
                 case 16:
                     {
                         int byteIndex = sampleIndex * 2;
-                        int hi = rowPtr[byteIndex];
-                        int lo = rowPtr[byteIndex + 1];
+                        int hi = Unsafe.Add(ref row, byteIndex);
+                        int lo = Unsafe.Add(ref row, byteIndex + 1);
                         return (hi << 8) | lo;
                     }
                 case 8:
                     {
-                        return rowPtr[sampleIndex];
+                        return Unsafe.Add(ref row, sampleIndex);
                     }
                 case 4:
                     {
                         int byteIndex = sampleIndex >> 1;
                         bool highNibble = (sampleIndex & 1) == 0;
-                        int value = rowPtr[byteIndex];
+                        int value = Unsafe.Add(ref row, byteIndex);
                         return highNibble ? (value >> 4) & 0x0F : value & 0x0F;
                     }
                 case 2:
                     {
                         int byteIndex = sampleIndex >> 2;
                         int shift = 6 - ((sampleIndex & 3) * 2);
-                        return (rowPtr[byteIndex] >> shift) & 0x03;
+                        return (Unsafe.Add(ref row, byteIndex) >> shift) & 0x03;
                     }
                 case 1:
                     {
                         int byteIndex = sampleIndex >> 3;
                         int shift = 7 - (sampleIndex & 7);
-                        return (rowPtr[byteIndex] >> shift) & 0x01;
+                        return (Unsafe.Add(ref row, byteIndex) >> shift) & 0x01;
                     }
                 default:
                     {
@@ -47,7 +49,7 @@ namespace PdfReader.Rendering.Image.Processing
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static void UpsampleScaleRgbaRow(byte* source, byte* destination, int columns, int components, int bitsPerComponent)
+        public static void UpsampleScaleRgbaRow(ref byte source, ref Rgba destination, int columns, int components, int bitsPerComponent, PdfPixelProcessor processor)
         {
             switch (components)
             {
@@ -55,19 +57,19 @@ namespace PdfReader.Rendering.Image.Processing
                     switch (bitsPerComponent)
                     {
                         case 1:
-                            UpsampleScaleGray1(source, destination, columns);
+                            UpsampleScaleGray1(ref source, ref destination, columns, processor);
                             break;
                         case 2:
-                            UpsampleScaleGray2(source, destination, columns);
+                            UpsampleScaleGray2(ref source, ref destination, columns, processor);
                             break;
                         case 4:
-                            UpsampleScaleGray4(source, destination, columns);
+                            UpsampleScaleGray4(ref source, ref destination, columns, processor);
                             break;
                         case 8:
-                            UpsampleScaleGray8(source, destination, columns);
+                            UpsampleScaleGray8(ref source, ref destination, columns, processor);
                             break;
                         case 16:
-                            UpsampleScaleGray16(source, destination, columns);
+                            UpsampleScaleGray16(ref source, ref destination, columns, processor);
                             break;
                     }
                     break;
@@ -75,19 +77,19 @@ namespace PdfReader.Rendering.Image.Processing
                     switch (bitsPerComponent)
                     {
                         case 1:
-                            UpsampleScaleRgb1(source, destination, columns);
+                            UpsampleScaleRgb1(ref source, ref destination, columns, processor);
                             break;
                         case 2:
-                            UpsampleScaleRgb2(source, destination, columns);
+                            UpsampleScaleRgb2(ref source, ref destination, columns, processor);
                             break;
                         case 4:
-                            UpsampleScaleRgb4(source, destination, columns);
+                            UpsampleScaleRgb4(ref source, ref destination, columns, processor);
                             break;
                         case 8:
-                            UpsampleScaleRgb8(source, destination, columns);
+                            UpsampleScaleRgb8(ref source, ref destination, columns, processor);
                             break;
                         case 16:
-                            UpsampleScaleRgb16(source, destination, columns);
+                            UpsampleScaleRgb16(ref source, ref destination, columns, processor);
                             break;
                     }
                     break;
@@ -95,19 +97,19 @@ namespace PdfReader.Rendering.Image.Processing
                     switch (bitsPerComponent)
                     {
                         case 1:
-                            UpsampleScaleCmyk1(source, destination, columns);
+                            UpsampleScaleCmyk1(ref source, ref destination, columns, processor);
                             break;
                         case 2:
-                            UpsampleScaleCmyk2(source, destination, columns);
+                            UpsampleScaleCmyk2(ref source, ref destination, columns, processor);
                             break;
                         case 4:
-                            UpsampleScaleCmyk4(source, destination, columns);
+                            UpsampleScaleCmyk4(ref source, ref destination, columns, processor);
                             break;
                         case 8:
-                            UpsampleScaleCmyk8(source, destination, columns);
+                            UpsampleScaleCmyk8(ref source, ref destination, columns, processor);
                             break;
                         case 16:
-                            UpsampleScaleCmyk16(source, destination, columns);
+                            UpsampleScaleCmyk16(ref source, ref destination, columns, processor);
                             break;
                     }
                     break;
@@ -115,113 +117,127 @@ namespace PdfReader.Rendering.Image.Processing
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static void UpsampleScaleGray1(byte* source, byte* destination, int columns)
+        private static void UpsampleScaleGray1(ref byte source, ref Rgba destination, int columns, PdfPixelProcessor processor)
         {
             // 1-bit grayscale: each bit is one pixel (highest bit first). Expand 0/1 to 0/255 and replicate to RGB with alpha 255.
-            uint* rgbaPtr = (uint*)destination;
             for (int pixelIndex = 0; pixelIndex < columns; pixelIndex++)
             {
                 int byteIndex = pixelIndex >> 3;
                 int bitOffset = 7 - (pixelIndex & 7);
-                int rawBit = (source[byteIndex] >> bitOffset) & 0x1;
-                uint gray = (uint)(rawBit * 255);
-                rgbaPtr[pixelIndex] = gray | (gray << 8) | (gray << 16) | 0xFF000000U;
+                int rawBit = (Unsafe.Add(ref source, byteIndex) >> bitOffset) & 0x1;
+                byte gray = (byte)(rawBit * 255);
+                ref Rgba destPixel = ref Unsafe.Add(ref destination, pixelIndex);
+                destPixel.R = gray;
+                destPixel.G = gray;
+                destPixel.B = gray;
+                destPixel.A = 255;
+                processor.ExecuteGray(ref destPixel);
             }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static void UpsampleScaleGray2(byte* source, byte* destination, int columns)
+        private static void UpsampleScaleGray2(ref byte source, ref Rgba destination, int columns, PdfPixelProcessor processor)
         {
             // 2-bit grayscale: 4 samples per byte, high bits first. Expand 0..3 to 0..255 by multiplying by 85.
-            uint* rgbaPtr = (uint*)destination;
             for (int pixelIndex = 0; pixelIndex < columns; pixelIndex++)
             {
                 int byteIndex = pixelIndex >> 2; // 4 samples per byte.
                 int sampleInByte = pixelIndex & 3; // 0..3.
                 int bitOffset = 6 - (sampleInByte * 2);
-                int rawValue = (source[byteIndex] >> bitOffset) & 0x3; // 0..3.
-                uint gray = (uint)(rawValue * 85); // 255 / 3 = 85.
-                rgbaPtr[pixelIndex] = gray | (gray << 8) | (gray << 16) | 0xFF000000U;
+                int rawValue = (Unsafe.Add(ref source, byteIndex) >> bitOffset) & 0x3; // 0..3.
+                byte gray = (byte)(rawValue * 85); // 255 / 3 = 85.
+                ref Rgba destPixel = ref Unsafe.Add(ref destination, pixelIndex);
+                destPixel.R = gray;
+                destPixel.G = gray;
+                destPixel.B = gray;
+                destPixel.A = 255;
+                processor.ExecuteGray(ref destPixel);
             }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static void UpsampleScaleGray4(byte* source, byte* destination, int columns)
+        private static void UpsampleScaleGray4(ref byte source, ref Rgba destination, int columns, PdfPixelProcessor processor)
         {
             // 4-bit grayscale: 2 samples per byte. High nibble first. Expand 0..15 to 0..255 by multiplying by 17.
-            uint* rgbaPtr = (uint*)destination;
             for (int pixelIndex = 0; pixelIndex < columns; pixelIndex++)
             {
                 int byteIndex = pixelIndex >> 1; // 2 samples per byte.
                 bool highNibble = (pixelIndex & 1) == 0;
-                int value = source[byteIndex];
+                int value = Unsafe.Add(ref source, byteIndex);
                 int rawValue = highNibble ? (value >> 4) : (value & 0xF); // 0..15.
-                uint gray = (uint)(rawValue * 17); // 255 / 15 ≈ 17.
-                rgbaPtr[pixelIndex] = gray | (gray << 8) | (gray << 16) | 0xFF000000U;
+                byte gray = (byte)(rawValue * 17); // 255 / 15 ≈ 17.
+                ref Rgba destPixel = ref Unsafe.Add(ref destination, pixelIndex);
+                destPixel.R = gray;
+                destPixel.G = gray;
+                destPixel.B = gray;
+                destPixel.A = 255;
+                processor.ExecuteGray(ref destPixel);
             }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static unsafe void UpsampleScaleGray8(byte* source, byte* destination, int columns)
+        private static void UpsampleScaleGray8(ref byte source, ref Rgba destination, int columns, PdfPixelProcessor processor)
         {
-            // Per-pixel pointer expansion mirroring UpsampleScaleRgb8 pattern (no Unsafe.ReadUnaligned usage).
-            uint* rgbaPtr = (uint*)destination;
-            for (int pixelIndex = 0, srcOffset = 0; pixelIndex < columns; pixelIndex++, srcOffset++)
+            ref byte sourceByte = ref source;
+            for (int pixelIndex = 0; pixelIndex < columns; pixelIndex++)
             {
-                byte gray = source[srcOffset];
-                uint g = gray;
-                rgbaPtr[pixelIndex] = g | (g << 8) | (g << 16) | 0xFF000000U;
+                destination.R = sourceByte;
+                destination.G = sourceByte;
+                destination.B = sourceByte;
+                destination.A = 255;
+                processor.ExecuteGray(ref destination);
+                sourceByte = ref Unsafe.Add(ref sourceByte, 1);
+                destination = ref Unsafe.Add(ref destination, 1);
             }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static unsafe void UpsampleScaleGray16(byte* source, byte* destination, int columns)
+        private static void UpsampleScaleGray16(ref byte source, ref Rgba destination, int columns, PdfPixelProcessor processor)
         {
-            // Per-pixel pointer expansion mirroring UpsampleScaleRgb8 style (no Unsafe.ReadUnaligned usage).
-            uint* rgbaPtr = (uint*)destination;
-            for (int pixelIndex = 0, srcOffset = 0; pixelIndex < columns; pixelIndex++, srcOffset += 2)
+            for (int pixelIndex = 0, sourceOffset = 0; pixelIndex < columns; pixelIndex++, sourceOffset += 2)
             {
-                byte highByte = source[srcOffset];
-                uint g = highByte;
-                rgbaPtr[pixelIndex] = g | (g << 8) | (g << 16) | 0xFF000000U;
+                byte highByte = Unsafe.Add(ref source, sourceOffset);
+                destination.R = highByte;
+                destination.G = highByte;
+                destination.B = highByte;
+                destination.A = 255;
+                processor.ExecuteGray(ref destination);
+                destination = ref Unsafe.Add(ref destination, 1);
             }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static unsafe void UpsampleScaleRgb1(byte* source, byte* destination, int columns)
+        private static void UpsampleScaleRgb1(ref byte source, ref Rgba destination, int columns, PdfPixelProcessor processor)
         {
-            // Classic per-component bit extraction: 1 bit per component, packed left-to-right (high bit first in each byte).
-            // Each pixel consumes 3 bits (R,G,B). We scale 0/1 to 0/255.
-            uint* destinationUint = (uint*)destination;
-            int totalSamples = columns * 3;
             for (int columnIndex = 0; columnIndex < columns; columnIndex++)
             {
                 int sampleBase = columnIndex * 3;
                 // R component.
                 int byteIndex = sampleBase >> 3;
                 int bitOffset = 7 - (sampleBase & 7);
-                int rRaw = (source[byteIndex] >> bitOffset) & 0x1;
+                int rRaw = (Unsafe.Add(ref source, byteIndex) >> bitOffset) & 0x1;
                 // G component.
                 int gSampleIndex = sampleBase + 1;
                 byteIndex = gSampleIndex >> 3;
                 bitOffset = 7 - (gSampleIndex & 7);
-                int gRaw = (source[byteIndex] >> bitOffset) & 0x1;
+                int gRaw = (Unsafe.Add(ref source, byteIndex) >> bitOffset) & 0x1;
                 // B component.
                 int bSampleIndex = sampleBase + 2;
                 byteIndex = bSampleIndex >> 3;
                 bitOffset = 7 - (bSampleIndex & 7);
-                int bRaw = (source[byteIndex] >> bitOffset) & 0x1;
-                uint rgba = (uint)(rRaw * 255 | (gRaw * 255) << 8 | (bRaw * 255) << 16 | 0xFF000000U);
-                destinationUint[columnIndex] = rgba;
+                int bRaw = (Unsafe.Add(ref source, byteIndex) >> bitOffset) & 0x1;
+                ref Rgba destPixel = ref Unsafe.Add(ref destination, columnIndex);
+                destPixel.R = (byte)(rRaw * 255);
+                destPixel.G = (byte)(gRaw * 255);
+                destPixel.B = (byte)(bRaw * 255);
+                destPixel.A = 255;
+                processor.ExecuteRgba(ref destPixel);
             }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static unsafe void UpsampleScaleRgb2(byte* source, byte* destination, int columns)
+        private static void UpsampleScaleRgb2(ref byte source, ref Rgba destination, int columns, PdfPixelProcessor processor)
         {
-            // Classic per-component bit extraction: 2 bits per component (values 0..3) packed high bits first.
-            // Scale 0..3 to 0..255 by multiplying by 85.
-            uint* destinationUint = (uint*)destination;
             for (int columnIndex = 0; columnIndex < columns; columnIndex++)
             {
                 int sampleBase = columnIndex * 3;
@@ -229,203 +245,220 @@ namespace PdfReader.Rendering.Image.Processing
                 int byteIndex = sampleBase >> 2; // 4 samples per byte.
                 int twoBitIndex = sampleBase & 3;
                 int bitOffset = 6 - (twoBitIndex * 2);
-                int rRaw = (source[byteIndex] >> bitOffset) & 0x3;
+                int rRaw = (Unsafe.Add(ref source, byteIndex) >> bitOffset) & 0x3;
                 // G component.
                 int gSampleIndex = sampleBase + 1;
                 byteIndex = gSampleIndex >> 2;
                 twoBitIndex = gSampleIndex & 3;
                 bitOffset = 6 - (twoBitIndex * 2);
-                int gRaw = (source[byteIndex] >> bitOffset) & 0x3;
+                int gRaw = (Unsafe.Add(ref source, byteIndex) >> bitOffset) & 0x3;
                 // B component.
                 int bSampleIndex = sampleBase + 2;
                 byteIndex = bSampleIndex >> 2;
                 twoBitIndex = bSampleIndex & 3;
                 bitOffset = 6 - (twoBitIndex * 2);
-                int bRaw = (source[byteIndex] >> bitOffset) & 0x3;
-                uint rgba = (uint)(rRaw * 85 | (gRaw * 85) << 8 | (bRaw * 85) << 16 | 0xFF000000U);
-                destinationUint[columnIndex] = rgba;
+                int bRaw = (Unsafe.Add(ref source, byteIndex) >> bitOffset) & 0x3;
+                ref Rgba destPixel = ref Unsafe.Add(ref destination, columnIndex);
+                destPixel.R = (byte)(rRaw * 85);
+                destPixel.G = (byte)(gRaw * 85);
+                destPixel.B = (byte)(bRaw * 85);
+                destPixel.A = 255;
+                processor.ExecuteRgba(ref destPixel);
             }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static unsafe void UpsampleScaleRgb4(byte* source, byte* destination, int columns)
+        private static void UpsampleScaleRgb4(ref byte source, ref Rgba destination, int columns, PdfPixelProcessor processor)
         {
-            // Classic per-component nibble extraction: 4 bits per component (values 0..15) packed high nibble first.
-            // Scale 0..15 to 0..255 by multiplying by 17.
-            uint* destinationUint = (uint*)destination;
             for (int columnIndex = 0; columnIndex < columns; columnIndex++)
             {
                 int sampleBase = columnIndex * 3;
                 // R component.
                 int byteIndex = sampleBase >> 1; // 2 samples per byte.
                 bool highNibble = (sampleBase & 1) == 0;
-                int value = source[byteIndex];
+                int value = Unsafe.Add(ref source, byteIndex);
                 int rRaw = highNibble ? (value >> 4) : (value & 0xF);
                 // G component.
                 int gSampleIndex = sampleBase + 1;
                 byteIndex = gSampleIndex >> 1;
                 highNibble = (gSampleIndex & 1) == 0;
-                value = source[byteIndex];
+                value = Unsafe.Add(ref source, byteIndex);
                 int gRaw = highNibble ? (value >> 4) : (value & 0xF);
                 // B component.
                 int bSampleIndex = sampleBase + 2;
                 byteIndex = bSampleIndex >> 1;
                 highNibble = (bSampleIndex & 1) == 0;
-                value = source[byteIndex];
+                value = Unsafe.Add(ref source, byteIndex);
                 int bRaw = highNibble ? (value >> 4) : (value & 0xF);
-                uint rgba = (uint)(rRaw * 17 | (gRaw * 17) << 8 | (bRaw * 17) << 16 | 0xFF000000U);
-                destinationUint[columnIndex] = rgba;
+                ref Rgba destPixel = ref Unsafe.Add(ref destination, columnIndex);
+                destPixel.R = (byte)(rRaw * 17);
+                destPixel.G = (byte)(gRaw * 17);
+                destPixel.B = (byte)(bRaw * 17);
+                destPixel.A = 255;
+                processor.ExecuteRgba(ref destPixel);
             }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static unsafe void UpsampleScaleRgb8(byte* source, byte* destination, int columns)
+        private static void UpsampleScaleRgb8(ref byte source, ref Rgba destination, int columns, PdfPixelProcessor processor)
         {
-            for (long i = 0, offsetRgb = 0; i < columns; i++, offsetRgb += 3)
+            ref Rgb sourcePixel = ref Unsafe.As<byte, Rgb>(ref source);
+            for (int columnIndex = 0; columnIndex < columns; columnIndex++)
             {
-                ((uint*)destination)[i] = *(uint*)(source + offsetRgb) | 0xff000000;
+                destination = Unsafe.As<Rgb, Rgba>(ref sourcePixel);
+                destination.A = 255;
+                processor.ExecuteRgba(ref destination);
+                sourcePixel = ref Unsafe.Add(ref sourcePixel, 1);
+                destination = ref Unsafe.Add(ref destination, 1);
             }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static unsafe void UpsampleScaleRgb16(byte* source, byte* destination, int columns)
+        private static void UpsampleScaleRgb16(ref byte source, ref Rgba destination, int columns, PdfPixelProcessor processor)
         {
-            // Per-pixel pointer expansion mirroring UpsampleScaleRgb8 style (no Unsafe.ReadUnaligned usage).
-            uint* destinationUint = (uint*)destination;
-            for (int columnIndex = 0, srcOffset = 0; columnIndex < columns; columnIndex++, srcOffset += 6)
+            for (int columnIndex = 0, sourceOffset = 0; columnIndex < columns; columnIndex++, sourceOffset += 6)
             {
-                int r16 = (source[srcOffset] << 8) | source[srcOffset + 1];
-                int g16 = (source[srcOffset + 2] << 8) | source[srcOffset + 3];
-                int b16 = (source[srcOffset + 4] << 8) | source[srcOffset + 5];
-                byte r8 = (byte)(r16 >> 8);
-                byte g8 = (byte)(g16 >> 8);
-                byte b8 = (byte)(b16 >> 8);
-                destinationUint[columnIndex] = (uint)(r8 | (g8 << 8) | (b8 << 16) | 0xFF000000U);
+                int r16 = (Unsafe.Add(ref source, sourceOffset) << 8) | Unsafe.Add(ref source, sourceOffset + 1);
+                int g16 = (Unsafe.Add(ref source, sourceOffset + 2) << 8) | Unsafe.Add(ref source, sourceOffset + 3);
+                int b16 = (Unsafe.Add(ref source, sourceOffset + 4) << 8) | Unsafe.Add(ref source, sourceOffset + 5);
+                destination.R = (byte)(r16 >> 8);
+                destination.G = (byte)(g16 >> 8);
+                destination.B = (byte)(b16 >> 8);
+                destination.A = 255;
+                processor.ExecuteRgba(ref destination);
+                destination = ref Unsafe.Add(ref destination, 1);
             }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static void UpsampleScaleCmyk1(byte* source, byte* destination, int columns)
+        private static void UpsampleScaleCmyk1(ref byte source, ref Rgba destination, int columns, PdfPixelProcessor processor)
         {
-            // 1-bit CMYK: 4 bits per pixel (C,M,Y,K). Expand each 0/1 to 0/255 and map C->R, M->G, Y->B, K->A.
-            uint* rgbaPtr = (uint*)destination;
             for (int pixelIndex = 0; pixelIndex < columns; pixelIndex++)
             {
                 int sampleBase = pixelIndex * 4;
                 int cByte = sampleBase >> 3;
                 int cBitOffset = 7 - (sampleBase & 7);
-                int cRaw = (source[cByte] >> cBitOffset) & 0x1;
+                int cRaw = (Unsafe.Add(ref source, cByte) >> cBitOffset) & 0x1;
                 int mSample = sampleBase + 1;
                 int mByte = mSample >> 3;
                 int mBitOffset = 7 - (mSample & 7);
-                int mRaw = (source[mByte] >> mBitOffset) & 0x1;
+                int mRaw = (Unsafe.Add(ref source, mByte) >> mBitOffset) & 0x1;
                 int ySample = sampleBase + 2;
                 int yByte = ySample >> 3;
                 int yBitOffset = 7 - (ySample & 7);
-                int yRaw = (source[yByte] >> yBitOffset) & 0x1;
+                int yRaw = (Unsafe.Add(ref source, yByte) >> yBitOffset) & 0x1;
                 int kSample = sampleBase + 3;
                 int kByte = kSample >> 3;
                 int kBitOffset = 7 - (kSample & 7);
-                int kRaw = (source[kByte] >> kBitOffset) & 0x1;
-                uint c = (uint)(cRaw * 255);
-                uint m = (uint)(mRaw * 255);
-                uint y = (uint)(yRaw * 255);
-                uint k = (uint)(kRaw * 255);
-                rgbaPtr[pixelIndex] = c | (m << 8) | (y << 16) | (k << 24);
+                int kRaw = (Unsafe.Add(ref source, kByte) >> kBitOffset) & 0x1;
+                ref Rgba destPixel = ref Unsafe.Add(ref destination, pixelIndex);
+                destPixel.R = (byte)(cRaw * 255);
+                destPixel.G = (byte)(mRaw * 255);
+                destPixel.B = (byte)(yRaw * 255);
+                destPixel.A = (byte)(kRaw * 255);
+                processor.ExecuteCmyk(ref destPixel);
             }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static void UpsampleScaleCmyk2(byte* source, byte* destination, int columns)
+        private static void UpsampleScaleCmyk2(ref byte source, ref Rgba destination, int columns, PdfPixelProcessor processor)
         {
-            // 2-bit CMYK: each component 0..3, 4 components per pixel. Expand by multiplying by 85.
-            uint* rgbaPtr = (uint*)destination;
             for (int pixelIndex = 0; pixelIndex < columns; pixelIndex++)
             {
                 int sampleBase = pixelIndex * 4;
                 int cByte = sampleBase >> 2;
                 int cTwoBitIndex = sampleBase & 3;
                 int cBitOffset = 6 - (cTwoBitIndex * 2);
-                int cRaw = (source[cByte] >> cBitOffset) & 0x3;
+                int cRaw = (Unsafe.Add(ref source, cByte) >> cBitOffset) & 0x3;
                 int mSample = sampleBase + 1;
                 int mByte = mSample >> 2;
                 int mTwoBitIndex = mSample & 3;
                 int mBitOffset = 6 - (mTwoBitIndex * 2);
-                int mRaw = (source[mByte] >> mBitOffset) & 0x3;
+                int mRaw = (Unsafe.Add(ref source, mByte) >> mBitOffset) & 0x3;
                 int ySample = sampleBase + 2;
                 int yByte = ySample >> 2;
                 int yTwoBitIndex = ySample & 3;
                 int yBitOffset = 6 - (yTwoBitIndex * 2);
-                int yRaw = (source[yByte] >> yBitOffset) & 0x3;
+                int yRaw = (Unsafe.Add(ref source, yByte) >> yBitOffset) & 0x3;
                 int kSample = sampleBase + 3;
                 int kByte = kSample >> 2;
                 int kTwoBitIndex = kSample & 3;
                 int kBitOffset = 6 - (kTwoBitIndex * 2);
-                int kRaw = (source[kByte] >> kBitOffset) & 0x3;
-                uint c = (uint)(cRaw * 85);
-                uint m = (uint)(mRaw * 85);
-                uint y = (uint)(yRaw * 85);
-                uint k = (uint)(kRaw * 85);
-                rgbaPtr[pixelIndex] = c | (m << 8) | (y << 16) | (k << 24);
+                int kRaw = (Unsafe.Add(ref source, kByte) >> kBitOffset) & 0x3;
+                ref Rgba destPixel = ref Unsafe.Add(ref destination, pixelIndex);
+                destPixel.R = (byte)(cRaw * 85);
+                destPixel.G = (byte)(mRaw * 85);
+                destPixel.B = (byte)(yRaw * 85);
+                destPixel.A = (byte)(kRaw * 85);
+                processor.ExecuteCmyk(ref destPixel);
             }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static void UpsampleScaleCmyk4(byte* source, byte* destination, int columns)
+        private static void UpsampleScaleCmyk4(ref byte source, ref Rgba destination, int columns, PdfPixelProcessor processor)
         {
-            // 4-bit CMYK: 2 samples per byte, high nibble first. Expand 0..15 to 0..255 by multiplying by 17.
-            uint* rgbaPtr = (uint*)destination;
             for (int pixelIndex = 0; pixelIndex < columns; pixelIndex++)
             {
                 int sampleBase = pixelIndex * 4;
                 // C
                 int cByte = sampleBase >> 1;
                 bool cHigh = (sampleBase & 1) == 0;
-                int cValue = source[cByte];
+                int cValue = Unsafe.Add(ref source, cByte);
                 int cRaw = cHigh ? (cValue >> 4) : (cValue & 0xF);
                 // M
                 int mSample = sampleBase + 1;
                 int mByte = mSample >> 1;
                 bool mHigh = (mSample & 1) == 0;
-                int mValue = source[mByte];
+                int mValue = Unsafe.Add(ref source, mByte);
                 int mRaw = mHigh ? (mValue >> 4) : (mValue & 0xF);
                 // Y
                 int ySample = sampleBase + 2;
                 int yByte = ySample >> 1;
                 bool yHigh = (ySample & 1) == 0;
-                int yValue = source[yByte];
+                int yValue = Unsafe.Add(ref source, yByte);
                 int yRaw = yHigh ? (yValue >> 4) : (yValue & 0xF);
                 // K
                 int kSample = sampleBase + 3;
                 int kByte = kSample >> 1;
                 bool kHigh = (kSample & 1) == 0;
-                int kValue = source[kByte];
+                int kValue = Unsafe.Add(ref source, kByte);
                 int kRaw = kHigh ? (kValue >> 4) : (kValue & 0xF);
-                uint c = (uint)(cRaw * 17);
-                uint m = (uint)(mRaw * 17);
-                uint y = (uint)(yRaw * 17);
-                uint k = (uint)(kRaw * 17);
-                rgbaPtr[pixelIndex] = c | (m << 8) | (y << 16) | (k << 24);
+                ref Rgba destPixel = ref Unsafe.Add(ref destination, pixelIndex);
+                destPixel.R = (byte)(cRaw * 17);
+                destPixel.G = (byte)(mRaw * 17);
+                destPixel.B = (byte)(yRaw * 17);
+                destPixel.A = (byte)(kRaw * 17);
+                processor.ExecuteCmyk(ref destPixel);
             }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static unsafe void UpsampleScaleCmyk8(byte* source, byte* destination, int columns)
+        private static void UpsampleScaleCmyk8(ref byte source, ref Rgba destination, int columns, PdfPixelProcessor processor)
         {
-            System.Buffer.MemoryCopy(source, destination, columns * 4, columns * 4);
+            for (int i = 0; i < columns; i++)
+            {
+                uint value = Unsafe.ReadUnaligned<uint>(ref Unsafe.Add(ref source, i * 4));
+                ref Rgba destPixel = ref Unsafe.Add(ref destination, i);
+                destPixel = Unsafe.As<uint, Rgba>(ref value);
+                processor.ExecuteCmyk(ref destPixel);
+            }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static unsafe void UpsampleScaleCmyk16(byte* source, byte* destination, int columns)
+        private static void UpsampleScaleCmyk16(ref byte source, ref Rgba destination, int columns, PdfPixelProcessor processor)
         {
-            uint* rgbaPtr = (uint*)destination;
             for (int pixelIndex = 0, srcOffset = 0; pixelIndex < columns; pixelIndex++, srcOffset += 8)
             {
-                byte cHi = source[srcOffset];
-                byte mHi = source[srcOffset + 2];
-                byte yHi = source[srcOffset + 4];
-                byte kHi = source[srcOffset + 6];
-                rgbaPtr[pixelIndex] = (uint)(cHi | (mHi << 8) | (yHi << 16) | (kHi << 24));
+                byte cHi = Unsafe.Add(ref source, srcOffset);
+                byte mHi = Unsafe.Add(ref source, srcOffset + 2);
+                byte yHi = Unsafe.Add(ref source, srcOffset + 4);
+                byte kHi = Unsafe.Add(ref source, srcOffset + 6);
+                ref Rgba destPixel = ref Unsafe.Add(ref destination, pixelIndex);
+                destPixel.R = cHi;
+                destPixel.G = mHi;
+                destPixel.B = yHi;
+                destPixel.A = kHi;
+                processor.ExecuteCmyk(ref destPixel);
             }
         }
     }

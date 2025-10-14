@@ -28,11 +28,13 @@
     <PackageReference Include="CommunityToolkit.HighPerformance" Version="8.4.0" />
     <PackageReference Include="CoreJ2K.Skia" Version="1.1.2.50" />
     <PackageReference Include="HarfBuzzSharp" Version="8.3.1.1" />
+    <PackageReference Include="Microsoft.Bcl.HashCode" Version="6.0.0" />
     <PackageReference Include="Microsoft.Bcl.Numerics" Version="9.0.8" />
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="9.0.9" />
     <PackageReference Include="SkiaSharp" Version="3.119.0" />
     <PackageReference Include="SkiaSharp.HarfBuzz" Version="3.119.0" />
     <PackageReference Include="System.Memory" Version="4.6.3" />
+    <PackageReference Include="System.Reflection.Emit.Lightweight" Version="4.7.0" />
     <PackageReference Include="System.Text.Encoding.CodePages" Version="8.0.0" />
   </ItemGroup>
 

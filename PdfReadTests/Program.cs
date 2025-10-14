@@ -2,6 +2,7 @@
 using PdfReader;
 using PdfReader.Models;
 using SkiaSharp;
+using System.Text;
 
 namespace PdfReadTests
 {
@@ -11,6 +12,8 @@ namespace PdfReadTests
         private static readonly ILogger Logger = LoggerFactoryInstance.CreateLogger<Program>();
         static async Task Main(string[] args)
         {
+            //Main();
+            //return;
             Logger.LogInformation("PDF Direct Rendering Library");
             Logger.LogInformation("===========================");
             Logger.LogInformation(string.Empty);
@@ -30,7 +33,7 @@ namespace PdfReadTests
                 //"pdf-example-password.pdf",
                 //"pdfs//mixedfonts.pdf",
                 //"pdfs//mixedfonts_ed.pdf",
-                //"pdfs//blendmode.pdf",
+                "pdfs//blendmode.pdf", // TODO: blending does not work
                 //"pdfs//alphatrans.pdf",
                 //"pdfs//calgray.pdf",
                 //"pdfs//calrgb.pdf",
@@ -40,6 +43,7 @@ namespace PdfReadTests
                 //"pdfs//gradientfill.pdf",
                 //"pdfs//ccitt_EndOfBlock_false.pdf",
                 //"pdfs//images_1bit_grayscale.pdf",
+                //"pdfs//pdf_c.pdf",
                 //@"documentS.pdf",
                 @"documentC.pdf",
                 //@"sample.pdf",

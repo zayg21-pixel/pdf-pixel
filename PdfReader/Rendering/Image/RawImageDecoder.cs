@@ -60,7 +60,7 @@ namespace PdfReader.Rendering.Image
         /// Stream-based row decoding: computes expected per-row byte count and processes each row sequentially.
         /// For bitsPerComponent &lt; 8 data remains packed; packing is handled downstream by the row processor.
         /// </summary>
-        private unsafe SKImage DecodeStream(Stream imageStream)
+        private SKImage DecodeStream(Stream imageStream)
         {
             using PdfImageRowProcessor rowProcessor = new PdfImageRowProcessor(Image, LoggerFactory.CreateLogger<PdfImageRowProcessor>());
             rowProcessor.InitializeBuffer();
@@ -90,24 +90,21 @@ namespace PdfReader.Rendering.Image
             // Allocate a dedicated row buffer (no shared pool) per user instructions.
             byte[] rowBuffer = new byte[decodedRowBytes];
 
-            fixed (byte* rowPtr = rowBuffer)
+            for (int rowIndex = 0; rowIndex < imageHeight; rowIndex++)
             {
-                for (int rowIndex = 0; rowIndex < imageHeight; rowIndex++)
+                int bytesReadThisRow = 0;
+                while (bytesReadThisRow < decodedRowBytes)
                 {
-                    int bytesReadThisRow = 0;
-                    while (bytesReadThisRow < decodedRowBytes)
+                    int read = imageStream.Read(rowBuffer, bytesReadThisRow, decodedRowBytes - bytesReadThisRow);
+                    if (read == 0)
                     {
-                        int read = imageStream.Read(rowBuffer, bytesReadThisRow, decodedRowBytes - bytesReadThisRow);
-                        if (read == 0)
-                        {
-                            Logger.LogWarning("Premature end of raw image stream at row {Row}/{Height} (Name={Name}).", rowIndex, imageHeight, Image.Name);
-                            return rowProcessor.GetSkImage();
-                        }
-                        bytesReadThisRow += read;
+                        Logger.LogWarning("Premature end of raw image stream at row {Row}/{Height} (Name={Name}).", rowIndex, imageHeight, Image.Name);
+                        return rowProcessor.GetSkImage();
                     }
-
-                    rowProcessor.WriteRow(rowIndex, rowPtr);
+                    bytesReadThisRow += read;
                 }
+
+                rowProcessor.WriteRow(rowIndex, rowBuffer);
             }
 
             return rowProcessor.GetSkImage();

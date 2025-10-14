@@ -80,6 +80,12 @@ namespace PdfReader.Rendering.Color
             }
         }
 
+        public override SKColor ToSrgb(ReadOnlySpan<float> comps01, PdfRenderingIntent intent)
+        {
+            // to avoid LUT usage in base implementation
+            return ToSrgbCore(comps01, intent);
+        }
+
         protected override SKColor ToSrgbCore(ReadOnlySpan<float> comps01, PdfRenderingIntent renderingIntent)
         {
             int idx = 0;

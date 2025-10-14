@@ -1,3 +1,4 @@
+using PdfReader.Fonts.Mapping;
 using PdfReader.Models;
 using System;
 
@@ -18,9 +19,9 @@ namespace PdfReader.Fonts.Types
         {            
             Widths = new PdfFontWidths
             {
-                FirstChar = Dictionary.GetIntegerOrDefault(PdfTokens.FirstCharKey),
-                LastChar = Dictionary.GetIntegerOrDefault(PdfTokens.LastCharKey),
-                Widths = Dictionary.GetArray(PdfTokens.WidthsKey).GetFloatArray() ?? []
+                FirstChar = (uint)Dictionary.GetIntegerOrDefault(PdfTokens.FirstCharKey),
+                LastChar = (uint)Dictionary.GetIntegerOrDefault(PdfTokens.LastCharKey),
+                Widths = Dictionary.GetArray(PdfTokens.WidthsKey).GetFloatArray()
             };
         }
         
@@ -33,9 +34,9 @@ namespace PdfReader.Fonts.Types
         /// <summary>
         /// Get character width from font metrics
         /// </summary>
-        public override float GetGlyphWidth(int charCode)
+        public override float GetGlyphWidth(PdfCharacterCode code)
         {
-            return Widths?.GetWidth(charCode) ?? 1000f;
+            return Widths.GetWidth(code);
         }
 
         /// <summary>
