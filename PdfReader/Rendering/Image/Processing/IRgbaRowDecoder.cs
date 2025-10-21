@@ -1,4 +1,3 @@
-using PdfReader.Rendering.Color.Clut;
 
 namespace PdfReader.Rendering.Image.Processing
 {
@@ -12,6 +11,6 @@ namespace PdfReader.Rendering.Image.Processing
         /// </summary>
         /// <param name="source">Reference to the first byte of the source row data.</param>
         /// <param name="destination">Reference to the first RGBA pixel of the destination buffer.</param>
-        void Decode(ref byte source, ref Rgba destination);
+        void Decode(ref byte source, ref byte destination);
     }
 }

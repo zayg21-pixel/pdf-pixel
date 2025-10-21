@@ -1,5 +1,6 @@
 using System;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 
 namespace PdfReader.Rendering.Image.Jpg.Readers
 {
@@ -31,6 +32,9 @@ namespace PdfReader.Rendering.Image.Jpg.Readers
         /// <param name="data">Entropy-coded byte span (no ownership is taken).</param>
         public JpgBitReader(ref ReadOnlySpan<byte> data)
         {
+            _current = (byte*)Unsafe.AsPointer(ref MemoryMarshal.GetReference(data));
+            _remaining = data.Length;
+
             fixed (byte* dataPtr = data)
             {
                 _current = dataPtr;
@@ -47,11 +51,10 @@ namespace PdfReader.Rendering.Image.Jpg.Readers
         /// </summary>
         public JpgBitReader(ref ReadOnlySpan<byte> data, JpgBitReaderState state)
         {
-            fixed (byte* dataPtr = data)
-            {
-                _current = dataPtr + state.Pos;
-                _remaining = data.Length - state.Pos;
-            }
+
+            _current = (byte*)Unsafe.AsPointer(ref MemoryMarshal.GetReference(data)) + state.Pos;
+            _remaining = data.Length - state.Pos;
+
             _pos = state.Pos;
             _bitBuf = state.BitBuf;
             _bits = state.Bits;

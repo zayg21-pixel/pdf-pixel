@@ -1,23 +1,41 @@
 namespace PdfReader.Rendering.Text
 {
     /// <summary>
-    /// Information about a shaped glyph
+    /// Represents a shaped glyph with its width and optional additional advance after the glyph.
     /// </summary>
     public readonly struct ShapedGlyph
     {
-        public ShapedGlyph(uint glyphId, float x, float y, float advanceX, float advanceY)
+        /// <summary>
+        /// Initializes a new instance of the <see cref="ShapedGlyph"/> struct.
+        /// </summary>
+        /// <param name="glyphId">The glyph identifier.</param>
+        /// <param name="width">The width of the glyph.</param>
+        /// <param name="advanceAfter">The additional advance after the glyph, such as for spaces.</param>
+        public ShapedGlyph(uint glyphId, float width, float advanceAfter)
         {
             GlyphId = glyphId;
-            X = x;
-            Y = y;
-            AdvanceX = advanceX;
-            AdvanceY = advanceY;
+            Width = width;
+            AdvanceAfter = advanceAfter;
         }
 
+        /// <summary>
+        /// Gets the glyph identifier.
+        /// </summary>
         public uint GlyphId { get; }
-        public float X { get; }
-        public float Y { get; }
-        public float AdvanceX { get; }
-        public float AdvanceY { get; }
+
+        /// <summary>
+        /// Gets the width of the glyph.
+        /// </summary>
+        public float Width { get; }
+
+        /// <summary>
+        /// Gets the additional advance after the glyph, such as for spaces.
+        /// </summary>
+        public float AdvanceAfter { get; }
+
+        /// <summary>
+        /// Gets the total width including advance after the glyph.
+        /// </summary>
+        public float TotalWidth => Width + AdvanceAfter;
     }
 }

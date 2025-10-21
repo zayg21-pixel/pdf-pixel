@@ -17,5 +17,10 @@ namespace PdfReader.Rendering.Color
             byte g = ToByte(comps01.Length > 0 ? comps01[0] : 0f);
             return new SKColor(g, g, g);
         }
+
+        public override void AddColorFilter(SKPaint paint, PdfRenderingIntent intent)
+        {
+            // no op
+        }
     }
 }

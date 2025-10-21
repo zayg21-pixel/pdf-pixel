@@ -1,6 +1,5 @@
 using PdfReader.Fonts;
 using PdfReader.Fonts.Mapping;
-using PdfReader.Fonts.Types;
 using System;
 using System.Text;
 using Microsoft.Extensions.Logging;
@@ -86,62 +85,12 @@ namespace PdfReader.Text
             return EncodingExtensions.PdfDefault.GetString(code.Bytes);
         }
 
-        private static bool ShouldUseCodespaceRanges(PdfFontBase font, PdfToUnicodeCMap cmap)
-        {
-            if (font == null || cmap == null)
-            {
-                return false;
-            }
-            if (!(font is PdfCompositeFont) && !(font is PdfCIDFont))
-            {
-                return false;
-            }
-            return cmap.HasCodeSpaceRanges && cmap.MaxCodeLength > 0;
-        }
-
-        public PdfCharacterCode[] ExtractCharacterCodes(ReadOnlyMemory<byte> bytes, PdfFontBase font)
-        {
-            if (bytes.IsEmpty)
-            {
-                return Array.Empty<PdfCharacterCode>();
-            }
-
-            if (ShouldUseCodespaceRanges(font, font?.ToUnicodeCMap))
-            {
-                var cmap = font.ToUnicodeCMap;
-                var list = new System.Collections.Generic.List<PdfCharacterCode>();
-                int offset = 0;
-                while (offset < bytes.Length)
-                {
-                    int length = cmap.GetMaxMatchingLength(bytes.Slice(offset).Span);
-                    if (length == 0)
-                    {
-                        length = 1;
-                    }
-                    list.Add(new PdfCharacterCode(bytes.Slice(offset, length)));
-                    offset += length;
-                }
-                return list.ToArray();
-            }
-
-            int codeLength = GetCharacterCodeLength(font);
-            if (codeLength == 2 && bytes.Length % 2 != 0)
-            {
-                _logger.LogInformation("Odd byte count {Length} with 2-byte expectation, using 1-byte segmentation.", bytes.Length);
-                codeLength = 1;
-            }
-
-            int count = bytes.Length / codeLength;
-            var result = new PdfCharacterCode[count];
-            for (int index = 0; index < count; index++)
-            {
-                int offset = index * codeLength;
-                result[index] = new PdfCharacterCode(bytes.Slice(offset, codeLength));
-            }
-            return result;
-        }
-
-        public Encoding GetEncodingForFont(PdfFontBase font)
+        /// <summary>
+        /// Gets the encoding for the specified font using its encoding type.
+        /// </summary>
+        /// <param name="font">The font to get the encoding for.</param>
+        /// <returns>The resolved encoding, or null if not available.</returns>
+        private Encoding GetEncodingForFont(PdfFontBase font)
         {
             if (font == null)
             {
@@ -149,59 +98,7 @@ namespace PdfReader.Text
                 return null;
             }
 
-            switch (font)
-            {
-                case PdfCompositeFont compositeFont:
-                    return GetEncodingForCompositeFont(compositeFont);
-                case PdfCIDFont cidFont:
-                    return GetEncodingForCIDFont(cidFont);
-                case PdfSimpleFont simpleFont:
-                    return GetEncodingForSimpleFont(simpleFont);
-                case PdfType3Font type3Font:
-                    return GetEncodingForType3Font(type3Font);
-                default:
-                    return GetEncodingByEncodingType(font.Encoding, font);
-            }
-        }
-
-        private Encoding GetEncodingForCompositeFont(PdfCompositeFont compositeFont)
-        {
-            var enc = GetEncodingByEncodingType(compositeFont.Encoding, compositeFont);
-            return enc;
-        }
-
-        private Encoding GetEncodingForCIDFont(PdfCIDFont cidFont)
-        {
-            switch (cidFont.Encoding)
-            {
-                case PdfFontEncoding.IdentityH:
-                case PdfFontEncoding.IdentityV:
-                    _logger.LogInformation("{Encoding} for {Font}. No direct byte->Unicode decoding without ToUnicode.", cidFont.Encoding, cidFont.BaseFont);
-                    return null;
-                default:
-                    return GetEncodingByEncodingType(cidFont.Encoding, cidFont);
-            }
-        }
-
-        private Encoding GetEncodingForSimpleFont(PdfSimpleFont simpleFont)
-        {
-            return GetEncodingByEncodingType(simpleFont.Encoding, simpleFont);
-        }
-
-        private Encoding GetEncodingForType3Font(PdfType3Font type3Font)
-        {
-            var encoding = GetEncodingByEncodingType(type3Font.Encoding, type3Font);
-            if (encoding == null)
-            {
-                _logger.LogWarning("Type3 font {Font} has no usable encoding, using ISO-8859-1.", type3Font.BaseFont);
-                return EncodingExtensions.PdfDefault;
-            }
-            return encoding;
-        }
-
-        private Encoding GetEncodingByEncodingType(PdfFontEncoding encoding, PdfFontBase font)
-        {
-            switch (encoding)
+            switch (font.Encoding)
             {
                 case PdfFontEncoding.StandardEncoding:
                     return EncodingExtensions.PdfDefault;
@@ -231,7 +128,7 @@ namespace PdfReader.Text
                 case PdfFontEncoding.UniCNS_UTF16_V:
                 case PdfFontEncoding.UniKS_UTF16_H:
                 case PdfFontEncoding.UniKS_UTF16_V:
-                    _logger.LogInformation("{Encoding} encountered for {Font}. Using UTF-16BE as best-effort when ToUnicode is absent.", encoding, font.BaseFont);
+                    _logger.LogInformation("{Encoding} encountered for {Font}. Using UTF-16BE as best-effort when ToUnicode is absent.", font.Encoding, font.BaseFont);
                     return Encoding.BigEndianUnicode;
                 case PdfFontEncoding.Custom:
                     _logger.LogWarning("Custom encoding for font {Font} not fully supported, using ISO-8859-1. Name={Custom}.", font.BaseFont, font.CustomEncoding);
@@ -239,91 +136,6 @@ namespace PdfReader.Text
                 case PdfFontEncoding.Unknown:
                 default:
                     return EncodingExtensions.PdfDefault;
-            }
-        }
-
-        private int GetCharacterCodeLength(PdfFontBase font)
-        {
-            if (font == null)
-            {
-                _logger.LogWarning("Font is null in GetCharacterCodeLength, assuming 1-byte codes.");
-                return 1;
-            }
-
-            switch (font)
-            {
-                case PdfCompositeFont compositeFont:
-                    return GetCharacterCodeLengthForComposite(compositeFont);
-                case PdfCIDFont cidFont:
-                    return GetCharacterCodeLengthForCID(cidFont);
-                case PdfSimpleFont simpleFont:
-                    return GetCharacterCodeLengthForSimple(simpleFont);
-                case PdfType3Font type3Font:
-                    return GetCharacterCodeLengthForType3Font(type3Font);
-                default:
-                    _logger.LogWarning("Unknown font type {Type}, using encoding-based code length.", font.GetType().Name);
-                    return GetCharacterCodeLengthByEncoding(font.Encoding, font);
-            }
-        }
-
-        private int GetCharacterCodeLengthForComposite(PdfCompositeFont compositeFont)
-        {
-            var byEncoding = GetCharacterCodeLengthByEncoding(compositeFont.Encoding, compositeFont);
-            if (byEncoding != 1)
-            {
-                return byEncoding;
-            }
-            return 2;
-        }
-
-        private int GetCharacterCodeLengthForCID(PdfCIDFont cidFont)
-        {
-            _logger.LogInformation("CID font {Font} accessed directly - should typically be accessed through composite font.", cidFont.BaseFont);
-            return 2;
-        }
-
-        private int GetCharacterCodeLengthForSimple(PdfSimpleFont simpleFont)
-        {
-            var byEncoding = GetCharacterCodeLengthByEncoding(simpleFont.Encoding, simpleFont);
-            if (byEncoding == 2)
-            {
-                _logger.LogWarning("Simple font {Font} has 2-byte encoding {Encoding}, but simple fonts should use 1-byte codes.", simpleFont.BaseFont, simpleFont.Encoding);
-            }
-            return 1;
-        }
-
-        private int GetCharacterCodeLengthForType3Font(PdfType3Font type3Font)
-        {
-            return 1;
-        }
-
-        private int GetCharacterCodeLengthByEncoding(PdfFontEncoding encoding, PdfFontBase font)
-        {
-            switch (encoding)
-            {
-                case PdfFontEncoding.StandardEncoding:
-                case PdfFontEncoding.MacRomanEncoding:
-                case PdfFontEncoding.WinAnsiEncoding:
-                case PdfFontEncoding.MacExpertEncoding:
-                    return 1;
-                case PdfFontEncoding.IdentityH:
-                case PdfFontEncoding.IdentityV:
-                    return 2;
-                case PdfFontEncoding.UniJIS_UTF16_H:
-                case PdfFontEncoding.UniJIS_UTF16_V:
-                case PdfFontEncoding.UniGB_UTF16_H:
-                case PdfFontEncoding.UniGB_UTF16_V:
-                case PdfFontEncoding.UniCNS_UTF16_H:
-                case PdfFontEncoding.UniCNS_UTF16_V:
-                case PdfFontEncoding.UniKS_UTF16_H:
-                case PdfFontEncoding.UniKS_UTF16_V:
-                    return 2;
-                case PdfFontEncoding.Custom:
-                    _logger.LogWarning("Custom encoding for font {Font} - assuming 1-byte codes. Name={Custom}.", font.BaseFont, font.CustomEncoding);
-                    return 1;
-                case PdfFontEncoding.Unknown:
-                default:
-                    return 1;
             }
         }
     }

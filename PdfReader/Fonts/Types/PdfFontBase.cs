@@ -1,8 +1,11 @@
+using PdfReader.Fonts.Management;
 using PdfReader.Fonts.Mapping;
 using PdfReader.Models;
 using PdfReader.Parsing;
-using PdfReader.Streams;
+using PdfReader.Text;
+using SkiaSharp;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 
 namespace PdfReader.Fonts
@@ -16,6 +19,9 @@ namespace PdfReader.Fonts
     public abstract class PdfFontBase
     {
         private readonly Lazy<PdfToUnicodeCMap> _toUnicodeCMap;
+        private readonly ConcurrentDictionary<PdfCharacterCode, PdfCharacterInfo> _characterInfoCache = new ConcurrentDictionary<PdfCharacterCode, PdfCharacterInfo>();
+        private readonly PdfTextDecoder _decoder;
+        private readonly IFontCache _fontCache;
 
         /// <summary>
         /// Constructor for all PDF fonts with essential immutable properties
@@ -26,11 +32,14 @@ namespace PdfReader.Fonts
         {
             Dictionary = fontDictionary ?? throw new ArgumentNullException(nameof(fontDictionary));
 
+            _decoder = new PdfTextDecoder(fontDictionary.Document.LoggerFactory);
+            _fontCache = fontDictionary.Document.FontCache;
+
             // Parse encoding and differences from /Encoding (handles name or dictionary cases)
-            var parsed = ParseEncoding(fontDictionary);
-            Encoding = parsed.Encoding;
-            CustomEncoding = parsed.CustomEncoding;
-            Differences = parsed.Differences ?? new Dictionary<int, string>();
+            var encodingInfo = PdfFontEncodingParser.ParseEncoding(fontDictionary);
+            Encoding = encodingInfo.Encoding;
+            CustomEncoding = encodingInfo.CustomEncoding;
+            Differences = encodingInfo.Differences ?? new Dictionary<int, string>();
 
             // Parse essential properties from the font object (lightweight operations)
             var subtype = fontDictionary.GetName(PdfTokens.SubtypeKey);
@@ -101,7 +110,105 @@ namespace PdfReader.Fonts
         /// Get the width of a character/glyph
         /// Implementation varies by font type
         /// </summary>
-        public abstract float GetGlyphWidth(PdfCharacterCode code);
+        public abstract float GetWidth(PdfCharacterCode code);
+
+        /// <summary>
+        /// Converts a <see cref="PdfCharacterCode"/> to its corresponding Unicode string representation.
+        /// </summary>
+        /// <param name="code">The <see cref="PdfCharacterCode"/> to be converted. Cannot be <see langword="null"/>.</param>
+        /// <returns>The Unicode string representation of the specified <see cref="PdfCharacterCode"/>.</returns>
+        /// <exception cref="ArgumentNullException">Thrown if <paramref name="code"/> is <see langword="null"/>.</exception>
+        public string GetUnicodeString(PdfCharacterCode code)
+        {
+            return _decoder.DecodeCharacterCode(code, this);
+        }
+
+        /// <summary>
+        /// Extracts character codes from raw bytes for this font.
+        /// Abstract in base; must be overridden in derived font types.
+        /// </summary>
+        /// <param name="bytes">Raw bytes to extract character codes from.</param>
+        /// <returns>Array of extracted PdfCharacterCode items.</returns>
+        public abstract PdfCharacterCode[] ExtractCharacterCodes(ReadOnlyMemory<byte> bytes);
+
+        /// <summary>
+        /// Gets the glyph ID (GID) for the specified character code.
+        /// Returns 0 if no valid GID is found.
+        /// </summary>
+        /// <param name="code">The character code to map to a glyph ID.</param>
+        /// <returns>The glyph ID (GID) for the character code, or 0 if not found.</returns>
+        public abstract ushort GetGid(PdfCharacterCode code);
+
+        /// <summary>
+        /// Indicates whether this font requires shaping for correct glyph mapping.
+        /// Should be overridden in derived font types to reflect font-specific logic.
+        /// </summary>
+        public abstract bool ShouldShape { get; }
+
+        /// <summary>
+        /// Extracts all resolved information for a single PDF character code.
+        /// Caches results for each character code. Calls the protected virtual ExtractCharacterInfoCore for font-specific logic.
+        /// </summary>
+        /// <param name="characterCode">The character code to extract info for.</param>
+        /// <returns>Resolved character info including Unicode, GIDs, and widths.</returns>
+        public PdfCharacterInfo ExtractCharacterInfo(PdfCharacterCode characterCode)
+        {
+            if (characterCode == null)
+            {
+                throw new ArgumentNullException(nameof(characterCode));
+            }
+
+            return _characterInfoCache.GetOrAdd(characterCode, ExtractCharacterInfoCore);
+        }
+
+        /// <summary>
+        /// Creates and configures an SKFont for glyph measurement (size 1, subpixel, alias edging, no hinting).
+        /// Only call when actual Skia measurement is needed.
+        /// </summary>
+        /// <returns>Configured SKFont instance.</returns>
+        private SKFont GetSkFont()
+        {
+            SKTypeface typeface = _fontCache.GetTypeface(this);
+            SKFont skFont = new SKFont(typeface, size: 1f)
+            {
+                Subpixel = true,
+                LinearMetrics = true,
+                Hinting = SKFontHinting.Normal,
+                Edging = SKFontEdging.SubpixelAntialias
+            };
+            return skFont;
+        }
+
+        /// <summary>
+        /// Core extraction logic for character info. Override in derived font types.
+        /// </summary>
+        /// <param name="characterCode">The character code to extract info for.</param>
+        /// <returns>Resolved character info including Unicode, GIDs, and widths.</returns>
+        protected virtual PdfCharacterInfo ExtractCharacterInfoCore(PdfCharacterCode characterCode)
+        {
+            ushort gid = GetGid(characterCode);
+            float width = GetWidth(characterCode);
+            string unicode = GetUnicodeString(characterCode);
+
+            if (gid != 0 && width != 0)
+            {
+                return new PdfCharacterInfo(characterCode, unicode, gid, width);
+            }
+            else if (gid != 0)
+            {
+                using SKFont skFont = GetSkFont();
+                float[] widths = skFont.GetGlyphWidths([gid]);
+                float measuredWidth = widths.Length > 0 ? widths[0] : 1f;
+                return new PdfCharacterInfo(characterCode, unicode, gid, measuredWidth);
+            }
+            else
+            {
+                using SKFont skFont = GetSkFont();
+                ushort[] gids = skFont.GetGlyphs(unicode);
+                float[] widths = skFont.GetGlyphWidths(unicode);
+                return new PdfCharacterInfo(characterCode, unicode, gids, widths);
+            }
+        }
 
         /// <summary>
         /// Parse font type from PDF subtype string (lightweight operation)
@@ -119,102 +226,6 @@ namespace PdfReader.Fonts
                 PdfTokens.MMType1FontKey => PdfFontType.MMType1,
                 _ => PdfFontType.Unknown
             };
-        }
-
-        /// <summary>
-        /// Parse /Encoding entry supporting both name and dictionary cases, including /Differences
-        /// Returns the resolved base encoding enum (or Identity encodings for CID), optional custom name, and Differences map.
-        /// </summary>
-        private static (PdfFontEncoding Encoding, string CustomEncoding, Dictionary<int, string> Differences) ParseEncoding(PdfDictionary dict)
-        {
-            var encVal = dict.GetValue(PdfTokens.EncodingKey);
-            if (encVal == null)
-            {
-                // No /Encoding specified
-                return (PdfFontEncoding.Unknown, null, null);
-            }
-
-            // Name case: /Encoding /WinAnsiEncoding, /UniJIS-UTF16-H, etc.
-            var name = encVal.AsName();
-            if (!string.IsNullOrEmpty(name))
-            {
-                var encoding = name switch
-                {
-                    PdfTokens.StandardEncodingKey => PdfFontEncoding.StandardEncoding,
-                    PdfTokens.MacRomanEncodingKey => PdfFontEncoding.MacRomanEncoding,
-                    PdfTokens.WinAnsiEncodingKey => PdfFontEncoding.WinAnsiEncoding,
-                    PdfTokens.MacExpertEncodingKey => PdfFontEncoding.MacExpertEncoding,
-                    PdfTokens.IdentityHEncodingKey => PdfFontEncoding.IdentityH,
-                    PdfTokens.IdentityVEncodingKey => PdfFontEncoding.IdentityV,
-                    // Predefined Unicode CMaps (use PdfTokens constants)
-                    PdfTokens.UniJIS_UTF16_H_EncodingKey => PdfFontEncoding.UniJIS_UTF16_H,
-                    PdfTokens.UniJIS_UTF16_V_EncodingKey => PdfFontEncoding.UniJIS_UTF16_V,
-                    PdfTokens.UniGB_UTF16_H_EncodingKey => PdfFontEncoding.UniGB_UTF16_H,
-                    PdfTokens.UniGB_UTF16_V_EncodingKey => PdfFontEncoding.UniGB_UTF16_V,
-                    PdfTokens.UniCNS_UTF16_H_EncodingKey => PdfFontEncoding.UniCNS_UTF16_H,
-                    PdfTokens.UniCNS_UTF16_V_EncodingKey => PdfFontEncoding.UniCNS_UTF16_V,
-                    PdfTokens.UniKS_UTF16_H_EncodingKey => PdfFontEncoding.UniKS_UTF16_H,
-                    PdfTokens.UniKS_UTF16_V_EncodingKey => PdfFontEncoding.UniKS_UTF16_V,
-                    _ => PdfFontEncoding.Custom
-                };
-
-                string custom = encoding == PdfFontEncoding.Custom ? name : null;
-                return (encoding, custom, null);
-            }
-
-            // Dictionary case: may include /BaseEncoding and /Differences
-            var encDict = encVal.AsDictionary();
-            if (encDict != null)
-            {
-                // Base encoding name (optional); default per spec is StandardEncoding for Type1/Type3, WinAnsi for TrueType
-                var baseEncodingName = encDict.GetName(PdfTokens.BaseEncodingKey);
-                var baseEncoding = baseEncodingName switch
-                {
-                    PdfTokens.StandardEncodingKey => PdfFontEncoding.StandardEncoding,
-                    PdfTokens.MacRomanEncodingKey => PdfFontEncoding.MacRomanEncoding,
-                    PdfTokens.WinAnsiEncodingKey => PdfFontEncoding.WinAnsiEncoding,
-                    PdfTokens.MacExpertEncodingKey => PdfFontEncoding.MacExpertEncoding,
-                    _ => PdfFontEncoding.StandardEncoding
-                };
-
-                var differences = new Dictionary<int, string>();
-                var diffs = encDict.GetArray(PdfTokens.DifferencesKey);
-
-                if (diffs != null)
-                {
-                    int currentCode = -1;
-                    for (int i = 0; i < diffs.Count; i++)
-                    {
-                        var item = diffs.GetValue(i);
-
-                        if (item == null)
-                        {
-                            continue;
-                        }
-
-                        if (item.Type == PdfValueType.Integer)
-                        {
-                            currentCode = item.AsInteger();
-                        }
-                        else if (item.Type == PdfValueType.Name && currentCode >= 0)
-                        {
-                            var n = item.AsName();
-                            if (!string.IsNullOrEmpty(n) && n[0] == '/')
-                            {
-                                n = n.Substring(1);
-                            }
-
-                            differences[currentCode] = n;
-                            currentCode++;
-                        }
-                    }
-                }
-
-                return (baseEncoding, null, differences);
-            }
-
-            // Fallback: unknown encoding representation
-            return (PdfFontEncoding.Unknown, null, null);
         }
 
         /// <summary>

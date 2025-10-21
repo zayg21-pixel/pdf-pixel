@@ -33,8 +33,7 @@ namespace PdfReadTests
                 //"pdf-example-password.pdf",
                 //"pdfs//mixedfonts.pdf",
                 //"pdfs//mixedfonts_ed.pdf",
-                "pdfs//blendmode.pdf", // TODO: blending does not work
-                //"pdfs//alphatrans.pdf",
+                //"pdfs//blendmode.pdf",
                 //"pdfs//calgray.pdf",
                 //"pdfs//calrgb.pdf",
                 //"pdfs//cmykjpeg.pdf",
@@ -88,8 +87,8 @@ namespace PdfReadTests
                     Logger.LogInformation("Root object: {Root}", document.RootObject);
 
                     var start = 0;
-                    var max = 300;
-                    float scaleX = 1f; // Scale factor for rendering
+                    var max = 400;
+                    float scaleX = 0.1f; // Scale factor for rendering
 
                     var memory = GC.GetTotalMemory(true) / 1024 / 1024;
 

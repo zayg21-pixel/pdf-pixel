@@ -8,7 +8,6 @@ using PdfReader.Rendering.Image.Processing;
 using PdfReader.Rendering.Image.Skia;
 using SkiaSharp;
 using System;
-using System.Runtime.InteropServices;
 
 namespace PdfReader.Rendering.Image
 {

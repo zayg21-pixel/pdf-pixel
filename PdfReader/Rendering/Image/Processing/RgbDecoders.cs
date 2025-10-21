@@ -9,22 +9,18 @@ namespace PdfReader.Rendering.Image.Processing
     internal sealed class Rgb1RowDecoder : IRgbaRowDecoder
     {
         private readonly int _columns;
-        private readonly PdfPixelProcessor _processor;
 
-        public Rgb1RowDecoder(int columns, PdfPixelProcessor processor)
+        public Rgb1RowDecoder(int columns)
         {
             _columns = columns;
-
-            if (processor.HasProcessing)
-            {
-                _processor = processor;
-            }
         }
 
         /// <inheritdoc/>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Decode(ref byte source, ref Rgba destination)
+        public void Decode(ref byte source, ref byte destination)
         {
+            ref var rgbDestination = ref Unsafe.As<byte, Rgba>(ref destination);
+
             for (int columnIndex = 0; columnIndex < _columns; columnIndex++)
             {
                 int sampleBase = columnIndex * 3;
@@ -42,12 +38,11 @@ namespace PdfReader.Rendering.Image.Processing
                 int bByteIndex = bSampleIndex >> 3;
                 int bBitOffset = 7 - (bSampleIndex & 7);
                 int bRaw = (Unsafe.Add(ref source, bByteIndex) >> bBitOffset) & 0x1;
-                destination.R = (byte)(rRaw * 255);
-                destination.G = (byte)(gRaw * 255);
-                destination.B = (byte)(bRaw * 255);
-                destination.A = 255;
-                _processor?.ExecuteRgba(ref destination);
-                destination = ref Unsafe.Add(ref destination, 1);
+                rgbDestination.R = (byte)(rRaw * 255);
+                rgbDestination.G = (byte)(gRaw * 255);
+                rgbDestination.B = (byte)(bRaw * 255);
+                rgbDestination.A = 255;
+                rgbDestination = ref Unsafe.Add(ref rgbDestination, 1);
             }
         }
     }
@@ -58,22 +53,18 @@ namespace PdfReader.Rendering.Image.Processing
     internal sealed class Rgb2RowDecoder : IRgbaRowDecoder
     {
         private readonly int _columns;
-        private readonly PdfPixelProcessor _processor;
 
-        public Rgb2RowDecoder(int columns, PdfPixelProcessor processor)
+        public Rgb2RowDecoder(int columns)
         {
             _columns = columns;
-
-            if (processor.HasProcessing)
-            {
-                _processor = processor;
-            }
         }
 
         /// <inheritdoc/>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Decode(ref byte source, ref Rgba destination)
+        public void Decode(ref byte source, ref byte destination)
         {
+            ref var rgbDestination = ref Unsafe.As<byte, Rgba>(ref destination);
+
             for (int columnIndex = 0; columnIndex < _columns; columnIndex++)
             {
                 int sampleBase = columnIndex * 3;
@@ -94,12 +85,11 @@ namespace PdfReader.Rendering.Image.Processing
                 int bTwoBitIndex = bSampleIndex & 3;
                 int bBitOffset = 6 - (bTwoBitIndex * 2);
                 int bRaw = (Unsafe.Add(ref source, bByteIndex) >> bBitOffset) & 0x3;
-                destination.R = (byte)(rRaw * 85);
-                destination.G = (byte)(gRaw * 85);
-                destination.B = (byte)(bRaw * 85);
-                destination.A = 255;
-                _processor?.ExecuteRgba(ref destination);
-                destination = ref Unsafe.Add(ref destination, 1);
+                rgbDestination.R = (byte)(rRaw * 85);
+                rgbDestination.G = (byte)(gRaw * 85);
+                rgbDestination.B = (byte)(bRaw * 85);
+                rgbDestination.A = 255;
+                rgbDestination = ref Unsafe.Add(ref rgbDestination, 1);
             }
         }
     }
@@ -110,22 +100,18 @@ namespace PdfReader.Rendering.Image.Processing
     internal sealed class Rgb4RowDecoder : IRgbaRowDecoder
     {
         private readonly int _columns;
-        private readonly PdfPixelProcessor _processor;
 
-        public Rgb4RowDecoder(int columns, PdfPixelProcessor processor)
+        public Rgb4RowDecoder(int columns)
         {
             _columns = columns;
-
-            if (processor.HasProcessing)
-            {
-                _processor = processor;
-            }
         }
 
         /// <inheritdoc/>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Decode(ref byte source, ref Rgba destination)
+        public void Decode(ref byte source, ref byte destination)
         {
+            ref var rgbDestination = ref Unsafe.As<byte, Rgba>(ref destination);
+
             for (int columnIndex = 0; columnIndex < _columns; columnIndex++)
             {
                 int sampleBase = columnIndex * 3;
@@ -146,12 +132,11 @@ namespace PdfReader.Rendering.Image.Processing
                 bool bHighNibble = (bSampleIndex & 1) == 0;
                 int bValue = Unsafe.Add(ref source, bByteIndex);
                 int bRaw = bHighNibble ? (bValue >> 4) : (bValue & 0xF);
-                destination.R = (byte)(rRaw * 17);
-                destination.G = (byte)(gRaw * 17);
-                destination.B = (byte)(bRaw * 17);
-                destination.A = 255;
-                _processor?.ExecuteRgba(ref destination);
-                destination = ref Unsafe.Add(ref destination, 1);
+                rgbDestination.R = (byte)(rRaw * 17);
+                rgbDestination.G = (byte)(gRaw * 17);
+                rgbDestination.B = (byte)(bRaw * 17);
+                rgbDestination.A = 255;
+                rgbDestination = ref Unsafe.Add(ref rgbDestination, 1);
             }
         }
     }
@@ -162,35 +147,24 @@ namespace PdfReader.Rendering.Image.Processing
     internal sealed class Rgb8RowDecoder : IRgbaRowDecoder
     {
         private readonly int _columns;
-        private readonly PdfPixelProcessor _processor;
 
-        /// <summary>
-        /// Initializes a new instance of the <see cref="Rgb8RowDecoder"/> class.
-        /// </summary>
-        /// <param name="columns">The number of pixels (columns) in the row.</param>
-        /// <param name="processor">The pixel processor to apply color conversion and post-processing.</param>
-        public Rgb8RowDecoder(int columns, PdfPixelProcessor processor)
+        public Rgb8RowDecoder(int columns)
         {
             _columns = columns;
-
-            if (processor.HasProcessing)
-            {
-                _processor = processor;
-            }
         }
 
         /// <inheritdoc/>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Decode(ref byte source, ref Rgba destination)
+        public void Decode(ref byte source, ref byte destination)
         {
+            ref var rgbDestination = ref Unsafe.As<byte, Rgba>(ref destination);
             ref Rgb sourcePixel = ref Unsafe.As<byte, Rgb>(ref source);
             for (int columnIndex = 0; columnIndex < _columns; columnIndex++)
             {
-                destination = Unsafe.As<Rgb, Rgba>(ref sourcePixel);
-                destination.A = 255;
-                _processor?.ExecuteRgba(ref destination);
+                rgbDestination = Unsafe.As<Rgb, Rgba>(ref sourcePixel);
+                rgbDestination.A = 255;
                 sourcePixel = ref Unsafe.Add(ref sourcePixel, 1);
-                destination = ref Unsafe.Add(ref destination, 1);
+                rgbDestination = ref Unsafe.Add(ref rgbDestination, 1);
             }
         }
     }
@@ -201,33 +175,34 @@ namespace PdfReader.Rendering.Image.Processing
     internal sealed class Rgb16RowDecoder : IRgbaRowDecoder
     {
         private readonly int _columns;
-        private readonly PdfPixelProcessor _processor;
 
-        public Rgb16RowDecoder(int columns, PdfPixelProcessor processor)
+        public Rgb16RowDecoder(int columns)
         {
             _columns = columns;
-
-            if (processor.HasProcessing)
-            {
-                _processor = processor;
-            }
         }
 
         /// <inheritdoc/>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Decode(ref byte source, ref Rgba destination)
+        public void Decode(ref byte source, ref byte destination)
         {
-            for (int columnIndex = 0, sourceOffset = 0; columnIndex < _columns; columnIndex++, sourceOffset += 6)
+            for (int columnIndex = 0; columnIndex < _columns; columnIndex++)
             {
-                int r16 = (Unsafe.Add(ref source, sourceOffset) << 8) | Unsafe.Add(ref source, sourceOffset + 1);
-                int g16 = (Unsafe.Add(ref source, sourceOffset + 2) << 8) | Unsafe.Add(ref source, sourceOffset + 3);
-                int b16 = (Unsafe.Add(ref source, sourceOffset + 4) << 8) | Unsafe.Add(ref source, sourceOffset + 5);
-                destination.R = (byte)(r16 >> 8);
-                destination.G = (byte)(g16 >> 8);
-                destination.B = (byte)(b16 >> 8);
-                destination.A = 255;
-                _processor?.ExecuteRgba(ref destination);
-                destination = ref Unsafe.Add(ref destination, 1);
+                int srcOffset = columnIndex * 3 * 2;
+                int dstOffset = columnIndex * 4 * 2;
+
+                ushort r = (ushort)(Unsafe.Add(ref source, srcOffset) | (Unsafe.Add(ref source, srcOffset + 1) << 8));
+                ushort g = (ushort)(Unsafe.Add(ref source, srcOffset + 2) | (Unsafe.Add(ref source, srcOffset + 3) << 8));
+                ushort b = (ushort)(Unsafe.Add(ref source, srcOffset + 4) | (Unsafe.Add(ref source, srcOffset + 5) << 8));
+                ushort a = 65535;
+
+                Unsafe.Add(ref destination, dstOffset) = (byte)(r & 0xFF);
+                Unsafe.Add(ref destination, dstOffset + 1) = (byte)(r >> 8);
+                Unsafe.Add(ref destination, dstOffset + 2) = (byte)(g & 0xFF);
+                Unsafe.Add(ref destination, dstOffset + 3) = (byte)(g >> 8);
+                Unsafe.Add(ref destination, dstOffset + 4) = (byte)(b & 0xFF);
+                Unsafe.Add(ref destination, dstOffset + 5) = (byte)(b >> 8);
+                Unsafe.Add(ref destination, dstOffset + 6) = (byte)(a & 0xFF);
+                Unsafe.Add(ref destination, dstOffset + 7) = (byte)(a >> 8);
             }
         }
     }

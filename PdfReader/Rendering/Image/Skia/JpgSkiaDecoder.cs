@@ -1,5 +1,4 @@
-﻿using PdfReader.Rendering.Color;
-using SkiaSharp;
+﻿using SkiaSharp;
 
 namespace PdfReader.Rendering.Image.Skia
 {
@@ -14,14 +13,7 @@ namespace PdfReader.Rendering.Image.Skia
 
             var stream = image.GetImageDataStream();
 
-            if (image.ColorSpaceConverter is IccBasedConverter iccConnverter)
-            {
-                return SkiaImageHelpers.DecodeWithSkiaUsingIcc(stream, iccConnverter);
-            }
-            else
-            {
-                return SKImage.FromEncodedData(stream);
-            }
+            return SKImage.FromEncodedData(stream);
         }
     }
 }

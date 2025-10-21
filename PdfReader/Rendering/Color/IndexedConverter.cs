@@ -1,4 +1,5 @@
 using PdfReader.Models;
+using PdfReader.Rendering.Color.Clut;
 using SkiaSharp;
 using System;
 using System.Collections.Generic;
@@ -101,6 +102,11 @@ namespace PdfReader.Rendering.Color
                 return palette[idx];
             }
             return SKColors.Black;
+        }
+
+        protected override SKColorFilter BuldColorFilter(PdfRenderingIntent intent)
+        {
+            return IndexedColorFilter.BuildIndexedColorFilter(BuildPalette(intent));
         }
     }
 }

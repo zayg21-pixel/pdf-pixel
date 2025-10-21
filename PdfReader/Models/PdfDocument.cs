@@ -109,6 +109,11 @@ namespace PdfReader.Models
         public void Dispose()
         {
             FontCache.Dispose();
+
+            foreach (var converter in ColorSpaceConverters.Values)
+            {
+                converter.Dispose();
+            }
         }
     }
 }

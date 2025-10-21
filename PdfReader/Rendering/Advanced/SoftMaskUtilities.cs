@@ -71,55 +71,6 @@ namespace PdfReader.Rendering.Advanced
         }
 
         /// <summary>
-        /// Create a color filter that maps decoded Gray/RGB components into alpha according to /Decode array.
-        /// - For Gray: alpha = d0 + Gray * (d1 - d0)
-        /// - For RGB:  alpha = 0.299*R' + 0.587*G' + 0.114*B' where C' = d0c + C*(d1c - d0c)
-        /// RGB/Gray channels are preserved; only alpha is replaced.
-        /// Returns null if decode is missing or unsupported format.
-        /// </summary>
-        public static SKColorFilter CreateAlphaFromDecode(IReadOnlyList<float> decode, int components)
-        {
-            if (decode == null || decode.Count < 2)
-            {
-                return null;
-            }
-
-            if (components == 1 && decode.Count >= 2)
-            {
-                float d0 = decode[0];
-                float d1 = decode[1];
-                float scale = d1 - d0;
-                float offset = d0;
-                var mat = new float[]
-                {
-                    1, 0, 0, 0, 0,
-                    0, 1, 0, 0, 0,
-                    0, 0, 1, 0, 0,
-                    scale, 0, 0, 0, offset
-                };
-                return SKColorFilter.CreateColorMatrix(mat);
-            }
-
-            if (components == 3 && decode.Count >= 6)
-            {
-                float d0R = decode[0], d1R = decode[1]; float sR = d1R - d0R; float oR = d0R;
-                float d0G = decode[2], d1G = decode[3]; float sG = d1G - d0G; float oG = d0G;
-                float d0B = decode[4], d1B = decode[5]; float sB = d1B - d0B; float oB = d0B;
-                const float Lr = 0.299f, Lg = 0.587f, Lb = 0.114f;
-                var mat = new float[]
-                {
-                    1, 0, 0, 0, 0,
-                    0, 1, 0, 0, 0,
-                    0, 0, 1, 0, 0,
-                    Lr*sR, Lg*sG, Lb*sB, 0, Lr*oR + Lg*oG + Lb*oB
-                };
-                return SKColorFilter.CreateColorMatrix(mat);
-            }
-
-            return null;
-        }
-
-        /// <summary>
         /// Create a color filter from soft mask transfer function (/TR). Minimal support:
         /// - Name /Identity: no-op
         /// - Array of 256 samples [0..1] or [0..255]: lookup applied to alpha channel only

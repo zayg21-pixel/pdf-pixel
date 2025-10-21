@@ -25,12 +25,7 @@ namespace PdfReader.Fonts.Types
         /// <param name="fontObject">PDF dictionary containing the font definition</param>
         public PdfCIDFont(PdfDictionary fontDictionary) : base(fontDictionary)
         {
-            // Lightweight dictionary operations in constructor
-            Widths = new PdfFontWidths
-            {
-                Widths = fontDictionary.GetArray(PdfTokens.WKey).GetFloatArray(),
-                DefaultWidth = fontDictionary.GetFloat(PdfTokens.DWKey) ?? 1000f // Default to 1000 if not specified
-            };
+            Widths = CidFontWidths.Parse(fontDictionary);
 
             // Initialize thread-safe lazy loaders (no more reference storage)
             _fontDescriptor = new Lazy<PdfFontDescriptor>(LoadFontDescriptor, isThreadSafe: true);
@@ -49,13 +44,13 @@ namespace PdfReader.Fonts.Types
         /// Thread-safe lazy-loaded when first accessed - heavy operation
         /// </summary>
         public PdfCIDSystemInfo CIDSystemInfo => _cidSystemInfo.Value;
-        
+
         /// <summary>
         /// Character width information for CID-based characters
         /// Initialized during construction
         /// </summary>
-        public PdfFontWidths Widths { get; }
-        
+        public CidFontWidths Widths { get; }
+
         /// <summary>
         /// Loaded CID-to-GID mapping
         /// Thread-safe lazy-loaded when first accessed - heavy operation
@@ -68,20 +63,49 @@ namespace PdfReader.Fonts.Types
         public override bool IsEmbedded => FontDescriptor?.HasEmbeddedFont == true;
 
         /// <summary>
+        /// Gets the width for a given CID in this CID font.
+        /// Returns explicit width if defined, otherwise DefaultWidth, otherwise 0f.
+        /// </summary>
+        /// <param name="cid">The CID to get the width for.</param>
+        /// <returns>The width for the CID.</returns>
+        public float GetWidthByCid(uint cid)
+        {
+            var width = Widths.GetWidth(cid);
+            if (width.HasValue)
+            {
+                return width.Value;
+            }
+            if (Widths.DefaultWidth.HasValue)
+            {
+                return Widths.DefaultWidth.Value;
+            }
+
+            return 0f;
+        }
+
+        /// <summary>
         /// Get character width for a given character code
         /// </summary>
-        public override float GetGlyphWidth(PdfCharacterCode code)
+        public override float GetWidth(PdfCharacterCode code)
         {
-            return Widths.GetWidth(code);
+            return GetWidthByCid((uint)code);
         }
         
         /// <summary>
-        /// Convert Character ID (CID) to Glyph ID (GID) for font rendering
-        /// Uses lazy-loaded CIDToGIDMap or defaults to identity mapping
+        /// Convert Character ID (CID) to Glyph ID (GID) for font rendering.
+        /// Uses lazy-loaded CIDToGIDMap or returns 0 if no mapping exists.
         /// </summary>
-        public ushort GetGlyphId(uint cid)
+        public ushort GetGidByCid(uint cid)
         {
-            return CIDToGIDMap?.GetGID(cid) ?? (ushort)cid;
+            if (CIDToGIDMap == null)
+            {
+                return 0;
+            }
+            if (CIDToGIDMap.HasMapping(cid))
+            {
+                return CIDToGIDMap.GetGID(cid);
+            }
+            return 0;
         }
         
         /// <summary>
@@ -162,6 +186,66 @@ namespace PdfReader.Fonts.Types
             }
 
             return null;
+        }
+
+        /// <summary>
+        /// Indicates whether this font requires external shaping for correct glyph mapping.
+        /// Returns false if CIDToGIDMap is present (identity or custom mapping); returns true only if mapping is missing.
+        /// </summary>
+        public override bool ShouldShape
+        {
+            get
+            {
+                if (HasCIDToGIDMapping)
+                {
+                    // CIDToGIDMap is present (identity or custom): direct mapping is possible, no external shaping needed.
+                    return false;
+                }
+                // CIDToGIDMap is missing: shaping may be required for correct glyph mapping.
+                return true;
+            }
+        }
+
+        /// <summary>
+        /// Extracts character codes from raw bytes for CID fonts.
+        /// Always uses fixed-length segmentation (2 bytes per CID).
+        /// This method does not use codespace ranges or ToUnicode CMap, as those are only defined at the composite font (Type0) level.
+        /// </summary>
+        /// <param name="bytes">Raw bytes to extract character codes from.</param>
+        /// <returns>Array of extracted PdfCharacterCode items, each representing a 2-byte CID.</returns>
+        public override PdfCharacterCode[] ExtractCharacterCodes(ReadOnlyMemory<byte> bytes)
+        {
+            if (bytes.IsEmpty)
+            {
+                return Array.Empty<PdfCharacterCode>();
+            }
+
+            const int CodeLength = 2;
+            int count = bytes.Length / CodeLength;
+            var result = new PdfCharacterCode[count];
+            for (int index = 0; index < count; index++)
+            {
+                int offset = index * CodeLength;
+                result[index] = new PdfCharacterCode(bytes.Slice(offset, CodeLength));
+            }
+            return result;
+        }
+
+        /// <summary>
+        /// Gets the glyph ID (GID) for the specified character code in a CID font.
+        /// Returns 0 if no valid GID is found.
+        /// </summary>
+        /// <param name="code">The character code to map to a glyph ID.</param>
+        /// <returns>The glyph ID (GID) for the character code, or 0 if not found.</returns>
+        public override ushort GetGid(PdfCharacterCode code)
+        {
+            if (code == null)
+            {
+                return 0;
+            }
+
+            uint cid = (uint)code;
+            return GetGidByCid(cid);
         }
     }
 }

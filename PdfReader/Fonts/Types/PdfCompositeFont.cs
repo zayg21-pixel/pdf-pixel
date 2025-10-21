@@ -62,12 +62,24 @@ namespace PdfReader.Fonts
         public override bool IsEmbedded => PrimaryDescendant?.IsEmbedded == true;
 
         /// <summary>
-        /// Get character width (delegated to appropriate descendant)
+        /// Get character width (delegated to appropriate descendant CID font by CID).
         /// </summary>
-        public override float GetGlyphWidth(PdfCharacterCode code)
+        public override float GetWidth(PdfCharacterCode code)
         {
             var descendant = PrimaryDescendant;
-            return descendant?.GetGlyphWidth(code) ?? 1000f;
+            if (descendant == null)
+            {
+                return 0f;
+            }
+
+            uint cid;
+
+            if (!TryMapCodeToCid(code, out cid))
+            {
+                return 0f;
+            }
+
+            return descendant.GetWidthByCid(cid);
         }
 
         /// <summary>
@@ -174,6 +186,125 @@ namespace PdfReader.Fonts
                 // Ignore errors; fall back to Identity or no mapping
                 return null;
             }
+        }
+
+        /// <summary>
+        /// Indicates whether this font requires shaping for correct glyph mapping.
+        /// Returns true if the primary descendant requires shaping; otherwise false.
+        /// </summary>
+        public override bool ShouldShape
+        {
+            get
+            {
+                var descendant = PrimaryDescendant;
+                if (descendant != null)
+                {
+                    return descendant.ShouldShape;
+                }
+                return true;
+            }
+        }
+
+        /// <summary>
+        /// Extracts character codes from raw bytes for composite fonts.
+        /// Uses codespace ranges if ToUnicodeCMap is available and valid; otherwise uses code length.
+        /// </summary>
+        /// <param name="bytes">Raw bytes to extract character codes from.</param>
+        /// <returns>Array of extracted PdfCharacterCode items.</returns>
+        public override PdfCharacterCode[] ExtractCharacterCodes(ReadOnlyMemory<byte> bytes)
+        {
+            if (bytes.IsEmpty)
+            {
+                return Array.Empty<PdfCharacterCode>();
+            }
+
+            if (ToUnicodeCMap != null && ToUnicodeCMap.HasCodeSpaceRanges && ToUnicodeCMap.MaxCodeLength > 0)
+            {
+                var cmap = ToUnicodeCMap;
+                var characterCodes = new List<PdfCharacterCode>();
+                int offset = 0;
+                while (offset < bytes.Length)
+                {
+                    int length = cmap.GetMaxMatchingLength(bytes.Slice(offset).Span);
+                    if (length == 0)
+                    {
+                        length = 1;
+                    }
+                    characterCodes.Add(new PdfCharacterCode(bytes.Slice(offset, length)));
+                    offset += length;
+                }
+                return characterCodes.ToArray();
+            }
+
+            int codeLength = GetCharacterCodeLength();
+            if (codeLength == 2 && bytes.Length % 2 != 0)
+            {
+                // Odd byte count with 2-byte expectation, fallback to 1-byte segmentation
+                codeLength = 1;
+            }
+
+            int count = bytes.Length / codeLength;
+            var result = new PdfCharacterCode[count];
+            for (int index = 0; index < count; index++)
+            {
+                int offset = index * codeLength;
+                result[index] = new PdfCharacterCode(bytes.Slice(offset, codeLength));
+            }
+            return result;
+        }
+
+        /// <summary>
+        /// Determines the character code length for this composite font.
+        /// </summary>
+        /// <returns>The code length in bytes (1 or 2).</returns>
+        private int GetCharacterCodeLength()
+        {
+            switch (Encoding)
+            {
+                case PdfFontEncoding.IdentityH:
+                case PdfFontEncoding.IdentityV:
+                case PdfFontEncoding.UniJIS_UTF16_H:
+                case PdfFontEncoding.UniJIS_UTF16_V:
+                case PdfFontEncoding.UniGB_UTF16_H:
+                case PdfFontEncoding.UniGB_UTF16_V:
+                case PdfFontEncoding.UniCNS_UTF16_H:
+                case PdfFontEncoding.UniCNS_UTF16_V:
+                case PdfFontEncoding.UniKS_UTF16_H:
+                case PdfFontEncoding.UniKS_UTF16_V:
+                    return 2;
+                default:
+                    return 1;
+            }
+        }
+
+        /// <summary>
+        /// Gets the glyph ID (GID) for the specified character code in a composite font.
+        /// Returns 0 if no valid GID is found.
+        /// Follows PDF spec: character code is mapped to CID using encoding/CMap, then CID is mapped to GID by descendant font.
+        /// </summary>
+        /// <param name="code">The character code to map to a glyph ID.</param>
+        /// <returns>The glyph ID (GID) for the character code, or 0 if not found.</returns>
+        public override ushort GetGid(PdfCharacterCode code)
+        {
+            if (code == null)
+            {
+                return 0;
+            }
+
+            var descendant = PrimaryDescendant;
+            if (descendant == null)
+            {
+                return 0;
+            }
+
+            uint cid;
+            if (!TryMapCodeToCid(code, out cid))
+            {
+                return 0;
+            }
+
+            // Call GetGlyphId of CID font directly
+            return descendant.GetGidByCid(cid);
         }
     }
 }

@@ -16,27 +16,28 @@ namespace PdfReader.Fonts.Types
         /// </summary>
         /// <param name="fontObject">PDF dictionary containing the font definition</param>
         public PdfSingleByteFont(PdfDictionary fontDictionary) : base(fontDictionary)
-        {            
-            Widths = new PdfFontWidths
-            {
-                FirstChar = (uint)Dictionary.GetIntegerOrDefault(PdfTokens.FirstCharKey),
-                LastChar = (uint)Dictionary.GetIntegerOrDefault(PdfTokens.LastCharKey),
-                Widths = Dictionary.GetArray(PdfTokens.WidthsKey).GetFloatArray()
-            };
+        {
+            Widths = SingleByteFontWidths.Parse(fontDictionary);
         }
         
         /// <summary>
         /// Character width information
         /// Initialized during construction
         /// </summary>
-        public PdfFontWidths Widths { get; }
+        public SingleByteFontWidths Widths { get; }
 
         /// <summary>
         /// Get character width from font metrics
         /// </summary>
-        public override float GetGlyphWidth(PdfCharacterCode code)
+        public override float GetWidth(PdfCharacterCode code)
         {
-            return Widths.GetWidth(code);
+            var width = Widths.GetWidth(code);
+            if (width.HasValue)
+            {
+                return width.Value;
+            }
+            // Fallback: PDF spec recommends 0 if not defined for single-byte fonts
+            return 0f;
         }
 
         /// <summary>
@@ -57,6 +58,28 @@ namespace PdfReader.Fonts.Types
                 null => PdfFontEncoding.Unknown,
                 _ => PdfFontEncoding.Custom
             };
+        }
+
+        /// <summary>
+        /// Extracts character codes from raw bytes for single-byte fonts.
+        /// Always uses single-byte segmentation.
+        /// </summary>
+        /// <param name="bytes">Raw bytes to extract character codes from.</param>
+        /// <returns>Array of extracted PdfCharacterCode items.</returns>
+        public override PdfCharacterCode[] ExtractCharacterCodes(ReadOnlyMemory<byte> bytes)
+        {
+            if (bytes.IsEmpty)
+            {
+                return Array.Empty<PdfCharacterCode>();
+            }
+
+            int count = bytes.Length;
+            var result = new PdfCharacterCode[count];
+            for (int index = 0; index < count; index++)
+            {
+                result[index] = new PdfCharacterCode(bytes.Slice(index, 1));
+            }
+            return result;
         }
     }
 }

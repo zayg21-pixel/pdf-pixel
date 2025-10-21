@@ -1,3 +1,4 @@
+using PdfReader.Fonts.Mapping;
 using PdfReader.Fonts.Types;
 using PdfReader.Models;
 using System;
@@ -150,6 +151,29 @@ namespace PdfReader.Fonts
                 return $"/{charCode:X2}"; // Use hex representation as placeholder
             }
             return null;
+        }
+
+        /// <summary>
+        /// Indicates whether this font requires shaping for correct glyph mapping.
+        /// Always returns true for Type3 fonts (shaping not applicable, prevents direct GID extraction).
+        /// </summary>
+        public override bool ShouldShape
+        {
+            get
+            {
+                return true;
+            }
+        }
+
+        /// <summary>
+        /// Gets the glyph ID (GID) for the specified character code in a Type3 font.
+        /// Type3 fonts do not use GIDs; always returns 0.
+        /// </summary>
+        /// <param name="code">The character code to map to a glyph ID.</param>
+        /// <returns>Always 0 for Type3 fonts.</returns>
+        public override ushort GetGid(PdfCharacterCode code)
+        {
+            return 0;
         }
     }
 }

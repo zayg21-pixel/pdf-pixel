@@ -4,7 +4,6 @@ using Microsoft.Extensions.Logging;
 using SkiaSharp;
 using PdfReader.Rendering.Color;
 using System.Runtime.CompilerServices;
-using PdfReader.Rendering.Color.Clut;
 
 namespace PdfReader.Rendering.Image.Processing
 {
@@ -16,9 +15,7 @@ namespace PdfReader.Rendering.Image.Processing
     {
         private enum OutputMode
         {
-            Alpha,
             Gray,
-            IndexedRgba,
             Rgba
         }
 
@@ -29,13 +26,11 @@ namespace PdfReader.Rendering.Image.Processing
         private readonly int _width;
         private readonly int _height;
         private readonly int _bitsPerComponent;
-        private readonly int _components; // validated: 1,3,4
+        private readonly int _components;
 
         private readonly OutputMode _outputMode;
-        private readonly PdfPixelProcessor _pixelProcessor;
         private readonly IRgbaRowDecoder _rgbaRowDecoder;
         private readonly IGrayRowDecoder _grayRowDecoder;
-        private readonly IndexedRowDecoder _indexedDecoder;
 
         private IntPtr _buffer;
         private int _rowStride;
@@ -67,49 +62,21 @@ namespace PdfReader.Rendering.Image.Processing
                 throw new NotSupportedException("Unsupported component count. Expected 1, 3 or 4.");
             }
 
-
-            var sourceDecode = image.DecodeArray;
-            _pixelProcessor = new PdfPixelProcessor(image);
-
-            bool alphaOnly = image.HasImageMask || image.IsSoftMask;
-            if (alphaOnly)
-            {
-                _outputMode = OutputMode.Alpha;
-            }
-            else if (_converter is IndexedConverter indexed)
-            {
-                _indexedDecoder = new IndexedRowDecoder(indexed, image.RenderingIntent, _width, _bitsPerComponent);
-
-                // Indexed /Decode ignored; warn if source decode differs from default raw domain identity.
-                if (sourceDecode != null && sourceDecode.Length == _components * 2)
-                {
-                    int rawMax = _bitsPerComponent == 16 ? 255 : ((1 << _bitsPerComponent) - 1);
-                    float dMin = sourceDecode[0];
-                    float dMax = sourceDecode[1];
-                    bool isDefault = Math.Abs(dMin - 0f) < 1e-12f && Math.Abs(dMax - rawMax) < 1e-9f;
-                    if (!isDefault)
-                    {
-                        _logger.LogWarning("Indexed image /Decode array ignored (Name={Name}) Range=[{Min} {Max}] RawMax={RawMax}", _image.Name, dMin, dMax, rawMax);
-                    }
-                }
-
-                _outputMode = OutputMode.IndexedRgba;
-            }
-            else
-            {
-                bool canGray = _components == 1 && _converter.IsDevice && !_pixelProcessor.HasMask;
-                _outputMode = canGray ? OutputMode.Gray : OutputMode.Rgba;
-            }
+            _outputMode = _components == 1 ? OutputMode.Gray : OutputMode.Rgba;
 
             switch (_outputMode)
             {
                 case OutputMode.Gray:
-                case OutputMode.Alpha:
-                    _grayRowDecoder = GrayRowDecoderFactory.Create(_width, _bitsPerComponent, _pixelProcessor);
+                {
+                    bool upscale = _converter is not IndexedConverter;
+                    _grayRowDecoder = GrayRowDecoderFactory.Create(_width, _bitsPerComponent, upscale);
                     break;
+                }
                 case OutputMode.Rgba:
-                    _rgbaRowDecoder = RgbaRowDecoderFactory.Create(_width, _components, _bitsPerComponent, _pixelProcessor);
+                {
+                    _rgbaRowDecoder = RgbaRowDecoderFactory.Create(_width, _components, _bitsPerComponent);
                     break;
+                }
             }
         }
 
@@ -139,13 +106,23 @@ namespace PdfReader.Rendering.Image.Processing
                 return;
             }
 
-            if (_outputMode == OutputMode.Alpha || _outputMode == OutputMode.Gray)
+            if (_outputMode == OutputMode.Gray)
             {
-                _rowStride = _width; // Alpha8 or Gray8
+                // Always output Gray8, even for 16-bit input (downsampled)
+                _rowStride = _width; // 1 byte per pixel
             }
             else
             {
-                _rowStride = _width * 4; // RGBA
+                if (_bitsPerComponent == 16)
+                {
+                    // RGBA 16-bit: 8 bytes per pixel
+                    _rowStride = _width * 8;
+                }
+                else
+                {
+                    // RGBA 8-bit: 4 bytes per pixel
+                    _rowStride = _width * 4;
+                }
             }
 
             long totalBytes = (long)_rowStride * _height;
@@ -175,21 +152,15 @@ namespace PdfReader.Rendering.Image.Processing
 
             switch (_outputMode)
             {
-                case OutputMode.Alpha:
                 case OutputMode.Gray:
                     {
+                        // Always decode to 8-bit gray, even for 16-bit input
                         _grayRowDecoder.Decode(ref decodedRow[0], ref destRow);
                         break;
                     }
                 case OutputMode.Rgba:
                     {
-                        ref Rgba destRgbaRef = ref Unsafe.As<byte, Rgba>(ref destRow);
-                        _rgbaRowDecoder.Decode(ref decodedRow[0], ref destRgbaRef);
-                        break;
-                    }
-                case OutputMode.IndexedRgba:
-                    {
-                        _indexedDecoder.Decode(ref decodedRow[0], ref destRow);
+                        _rgbaRowDecoder.Decode(ref decodedRow[0], ref destRow);
                         break;
                     }
             }
@@ -210,25 +181,25 @@ namespace PdfReader.Rendering.Image.Processing
             }
 
             SKColorType colorType;
-            SKAlphaType alphaType;
+            SKAlphaType alphaType = SKAlphaType.Premul;
+
             switch (_outputMode)
             {
-                case OutputMode.Alpha:
-                {
-                    colorType = SKColorType.Alpha8;
-                    alphaType = SKAlphaType.Unpremul;
-                    break;
-                }
                 case OutputMode.Gray:
                 {
                     colorType = SKColorType.Gray8;
-                    alphaType = SKAlphaType.Opaque;
                     break;
                 }
                 default:
                 {
-                    colorType = SKColorType.Rgba8888;
-                    alphaType = _outputMode == OutputMode.IndexedRgba ? SKAlphaType.Opaque : SKAlphaType.Unpremul;
+                    if (_bitsPerComponent == 16)
+                    {
+                        colorType = SKColorType.Rgba16161616;
+                    }
+                    else
+                    {
+                        colorType = SKColorType.Rgba8888;
+                    }
                     break;
                 }
             }

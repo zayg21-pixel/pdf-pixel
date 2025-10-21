@@ -97,6 +97,16 @@ namespace PdfReader.Rendering.Image
         public PdfRenderingIntent RenderingIntent { get; internal set; } = PdfRenderingIntent.RelativeColorimetric;
 
         /// <summary>
+        /// Raw /Matte array from the image dictionary, if present.
+        /// </summary>
+        public float[] MatteArray { get; internal set; }
+
+        /// <summary>
+        /// The soft mask image associated with this image, if any.
+        /// </summary>
+        public PdfImage SoftMask { get; internal set; }
+
+        /// <summary>
         /// Update the image color space converter when the actual component count extracted from a decoded
         /// image stream (e.g. JPEG SOF) does not match the current converter's component count.
         /// This is a defensive fix-up for malformed PDFs where /ColorSpace is inconsistent with the encoded data.
@@ -223,9 +233,12 @@ namespace PdfReader.Rendering.Image
             image.Interpolate = imageXObject.Dictionary.GetBoolOrDefault(PdfTokens.InterpolateKey);
 
             image.DecodeArray = imageXObject.Dictionary.GetArray(PdfTokens.DecodeKey).GetFloatArray();
-            // Direct integer retrieval for /Mask color key ranges (spec defines integer pairs). We accept parsed ints only.
             image.MaskArray = imageXObject.Dictionary.GetArray(PdfTokens.MaskKey).GetIntegerArray();
 
+            // Parse /Matte as raw float array (for dematting at render time)
+            image.MatteArray = imageXObject.Dictionary.GetArray(PdfTokens.MatteKey).GetFloatArray();
+
+            // Parse /Intent and set RenderingIntent
             var intent = imageXObject.Dictionary.GetName(PdfTokens.IntentKey);
             image.RenderingIntent = string.IsNullOrEmpty(intent)
                 ? PdfRenderingIntent.RelativeColorimetric
@@ -250,6 +263,13 @@ namespace PdfReader.Rendering.Image
                         }
                     }
                 }
+            }
+
+            // Parse /SMask as a soft mask image if present
+            var softMaskObject = imageXObject.Dictionary.GetPageObject(PdfTokens.SoftMaskKey);
+            if (softMaskObject != null)
+            {
+                image.SoftMask = FromXObject(softMaskObject, page, name, isSoftMask: true);
             }
 
             return image;

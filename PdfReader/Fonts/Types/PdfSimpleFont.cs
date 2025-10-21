@@ -1,3 +1,4 @@
+using PdfReader.Fonts.Mapping;
 using PdfReader.Fonts.Types;
 using PdfReader.Models;
 using System;
@@ -40,6 +41,25 @@ namespace PdfReader.Fonts
         public override bool IsEmbedded => FontDescriptor?.HasEmbeddedFont == true;
 
         /// <summary>
+        /// Indicates whether this font requires shaping for correct glyph mapping.
+        /// Returns false if CFF info is present and encoding/differences are resolved; otherwise true.
+        /// </summary>
+        public override bool ShouldShape
+        {
+            get
+            {
+                var cffInfo = FontDescriptor?.GetCffInfo();
+                if (cffInfo != null)
+                {
+                    // CFF info present, encoding and differences resolved
+                    return false;
+                }
+                // Fallback: shaping required
+                return true;
+            }
+        }
+
+        /// <summary>
         /// Load font descriptor (heavy operation - lazy loaded using GetPageObject)
         /// </summary>
         private PdfFontDescriptor LoadFontDescriptor()
@@ -53,6 +73,44 @@ namespace PdfReader.Fonts
             {
                 return null;
             }
+        }
+
+        /// <summary>
+        /// Gets the glyph ID (GID) for the specified character code in a simple font.
+        /// Returns 0 if no valid GID is found.
+        /// </summary>
+        /// <param name="code">The character code to map to a glyph ID.</param>
+        /// <returns>The glyph ID (GID) for the character code, or 0 if not found.</returns>
+        public override ushort GetGid(PdfCharacterCode code)
+        {
+            if (code == null)
+            {
+                return 0;
+            }
+
+            var cff = FontDescriptor?.GetCffInfo();
+            if (cff == null)
+            {
+                return 0;
+            }
+
+            uint cid = code;
+            string name = null;
+            bool hasDifference = Differences != null && Differences.TryGetValue((int)cid, out name) && !string.IsNullOrEmpty(name);
+
+            if (hasDifference && cff.NameToGid.TryGetValue(name, out ushort namedGid))
+            {
+                return namedGid;
+            }
+
+            if (!hasDifference &&
+                SingleByteEncodingConverter.TryGetNameByCid(cid, Encoding, out string nameByCid) &&
+                cff.NameToGid.TryGetValue(nameByCid, out var standardNamedGid))
+            {
+                return standardNamedGid;
+            }
+
+            return 0;
         }
     }
 }

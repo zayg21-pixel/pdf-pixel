@@ -1,5 +1,4 @@
-﻿using PdfReader.Rendering.Color;
-using PdfReader.Streams;
+﻿using PdfReader.Streams;
 using SkiaSharp;
 using System;
 using System.IO;
@@ -36,6 +35,8 @@ namespace PdfReader.Rendering.Image.Skia
 
             if (filters.Count != 1 || filters[0] != PdfTokens.FlateDecode)
             {
+                // we can potentially extend this to decode non-flate filters in advance and return as non-compressed PNG,
+                // but that is quite rare case
                 return null;
             }
 
@@ -55,7 +56,20 @@ namespace PdfReader.Rendering.Image.Skia
 
             var converter = image.ColorSpaceConverter;
 
-            byte colorType = 2; // Truecolor RGB
+            byte colorType;
+            if (converter.Components == 1)
+            {
+                colorType = 0; // Grayscale
+            }
+            else if (converter.Components == 3)
+            {
+                colorType = 2; // Truecolor RGB
+            }
+            else
+            {
+                // Not supported by fast path
+                return null;
+            }
 
             ReadOnlyMemory<byte> rawEncoded = image.SourceObject.StreamData;
 
@@ -75,14 +89,7 @@ namespace PdfReader.Rendering.Image.Skia
             pngStream.Flush();
             pngStream.Position = 0;
 
-            if (image.ColorSpaceConverter is IccBasedConverter iccConverter)
-            {
-                return SkiaImageHelpers.DecodeWithSkiaUsingIcc(pngStream, iccConverter);
-            }
-            else
-            {
-                return SKImage.FromEncodedData(pngStream);
-            }
+            return SKImage.FromEncodedData(pngStream);
         }
 
         private static bool IsValidPdgStream(ReadOnlyMemory<byte> rawEncoded)

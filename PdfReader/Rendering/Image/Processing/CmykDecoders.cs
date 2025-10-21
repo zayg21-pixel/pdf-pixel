@@ -1,4 +1,5 @@
 using PdfReader.Rendering.Color.Clut;
+using System;
 using System.Runtime.CompilerServices;
 
 namespace PdfReader.Rendering.Image.Processing
@@ -9,22 +10,18 @@ namespace PdfReader.Rendering.Image.Processing
     internal sealed class Cmyk1RowDecoder : IRgbaRowDecoder
     {
         private readonly int _columns;
-        private readonly PdfPixelProcessor _processor;
 
-        public Cmyk1RowDecoder(int columns, PdfPixelProcessor processor)
+        public Cmyk1RowDecoder(int columns)
         {
             _columns = columns;
-
-            if (processor.HasProcessing)
-            {
-                _processor = processor;
-            }
         }
 
         /// <inheritdoc/>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Decode(ref byte source, ref Rgba destination)
+        public void Decode(ref byte source, ref byte destination)
         {
+            ref var rgbDestination = ref Unsafe.As<byte, Rgba>(ref destination);
+
             for (int columnIndex = 0; columnIndex < _columns; columnIndex++)
             {
                 int sampleBase = columnIndex * 4;
@@ -43,12 +40,11 @@ namespace PdfReader.Rendering.Image.Processing
                 int kByteIndex = kSampleIndex >> 3;
                 int kBitOffset = 7 - (kSampleIndex & 7);
                 int kRaw = (Unsafe.Add(ref source, kByteIndex) >> kBitOffset) & 0x1;
-                destination.R = (byte)(cRaw * 255);
-                destination.G = (byte)(mRaw * 255);
-                destination.B = (byte)(yRaw * 255);
-                destination.A = (byte)(kRaw * 255);
-                _processor?.ExecuteCmyk(ref destination);
-                destination = ref Unsafe.Add(ref destination, 1);
+                rgbDestination.R = (byte)(cRaw * 255);
+                rgbDestination.G = (byte)(mRaw * 255);
+                rgbDestination.B = (byte)(yRaw * 255);
+                rgbDestination.A = (byte)(kRaw * 255);
+                rgbDestination = ref Unsafe.Add(ref rgbDestination, 1);
             }
         }
     }
@@ -59,22 +55,18 @@ namespace PdfReader.Rendering.Image.Processing
     internal sealed class Cmyk2RowDecoder : IRgbaRowDecoder
     {
         private readonly int _columns;
-        private readonly PdfPixelProcessor _processor;
 
-        public Cmyk2RowDecoder(int columns, PdfPixelProcessor processor)
+        public Cmyk2RowDecoder(int columns)
         {
             _columns = columns;
-
-            if (processor.HasProcessing)
-            {
-                _processor = processor;
-            }
         }
 
         /// <inheritdoc/>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Decode(ref byte source, ref Rgba destination)
+        public void Decode(ref byte source, ref byte destination)
         {
+            ref var rgbDestination = ref Unsafe.As<byte, Rgba>(ref destination);
+
             for (int columnIndex = 0; columnIndex < _columns; columnIndex++)
             {
                 int sampleBase = columnIndex * 4;
@@ -97,12 +89,11 @@ namespace PdfReader.Rendering.Image.Processing
                 int kTwoBitIndex = kSampleIndex & 3;
                 int kBitOffset = 6 - (kTwoBitIndex * 2);
                 int kRaw = (Unsafe.Add(ref source, kByteIndex) >> kBitOffset) & 0x3;
-                destination.R = (byte)(cRaw * 85);
-                destination.G = (byte)(mRaw * 85);
-                destination.B = (byte)(yRaw * 85);
-                destination.A = (byte)(kRaw * 85);
-                _processor?.ExecuteCmyk(ref destination);
-                destination = ref Unsafe.Add(ref destination, 1);
+                rgbDestination.R = (byte)(cRaw * 85);
+                rgbDestination.G = (byte)(mRaw * 85);
+                rgbDestination.B = (byte)(yRaw * 85);
+                rgbDestination.A = (byte)(kRaw * 85);
+                rgbDestination = ref Unsafe.Add(ref rgbDestination, 1);
             }
         }
     }
@@ -113,22 +104,18 @@ namespace PdfReader.Rendering.Image.Processing
     internal sealed class Cmyk4RowDecoder : IRgbaRowDecoder
     {
         private readonly int _columns;
-        private readonly PdfPixelProcessor _processor;
 
-        public Cmyk4RowDecoder(int columns, PdfPixelProcessor processor)
+        public Cmyk4RowDecoder(int columns)
         {
             _columns = columns;
-
-            if (processor.HasProcessing)
-            {
-                _processor = processor;
-            }
         }
 
         /// <inheritdoc/>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Decode(ref byte source, ref Rgba destination)
+        public void Decode(ref byte source, ref byte destination)
         {
+            ref var rgbDestination = ref Unsafe.As<byte, Rgba>(ref destination);
+
             for (int columnIndex = 0; columnIndex < _columns; columnIndex++)
             {
                 int sampleBase = columnIndex * 4;
@@ -151,12 +138,11 @@ namespace PdfReader.Rendering.Image.Processing
                 bool kHigh = (kSampleIndex & 1) == 0;
                 int kValue = Unsafe.Add(ref source, kByteIndex);
                 int kRaw = kHigh ? (kValue >> 4) : (kValue & 0xF);
-                destination.R = (byte)(cRaw * 17);
-                destination.G = (byte)(mRaw * 17);
-                destination.B = (byte)(yRaw * 17);
-                destination.A = (byte)(kRaw * 17);
-                _processor?.ExecuteCmyk(ref destination);
-                destination = ref Unsafe.Add(ref destination, 1);
+                rgbDestination.R = (byte)(cRaw * 17);
+                rgbDestination.G = (byte)(mRaw * 17);
+                rgbDestination.B = (byte)(yRaw * 17);
+                rgbDestination.A = (byte)(kRaw * 17);
+                rgbDestination = ref Unsafe.Add(ref rgbDestination, 1);
             }
         }
     }
@@ -167,28 +153,23 @@ namespace PdfReader.Rendering.Image.Processing
     internal sealed class Cmyk8RowDecoder : IRgbaRowDecoder
     {
         private readonly int _columns;
-        private readonly PdfPixelProcessor _processor;
 
-        public Cmyk8RowDecoder(int columns, PdfPixelProcessor processor)
+        public Cmyk8RowDecoder(int columns)
         {
             _columns = columns;
-
-            if (processor.HasProcessing)
-            {
-                _processor = processor;
-            }
         }
 
         /// <inheritdoc/>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Decode(ref byte source, ref Rgba destination)
+        public void Decode(ref byte source, ref byte destination)
         {
+            ref var rgbDestination = ref Unsafe.As<byte, Rgba>(ref destination);
+
             for (int columnIndex = 0; columnIndex < _columns; columnIndex++)
             {
                 uint value = Unsafe.ReadUnaligned<uint>(ref Unsafe.Add(ref source, columnIndex * 4));
-                destination = Unsafe.As<uint, Rgba>(ref value);
-                _processor?.ExecuteCmyk(ref destination);
-                destination = ref Unsafe.Add(ref destination, 1);
+                rgbDestination = Unsafe.As<uint, Rgba>(ref value);
+                rgbDestination = ref Unsafe.Add(ref rgbDestination, 1);
             }
         }
     }
@@ -199,34 +180,35 @@ namespace PdfReader.Rendering.Image.Processing
     internal sealed class Cmyk16RowDecoder : IRgbaRowDecoder
     {
         private readonly int _columns;
-        private readonly PdfPixelProcessor _processor;
 
-        public Cmyk16RowDecoder(int columns, PdfPixelProcessor processor)
+        public Cmyk16RowDecoder(int columns)
         {
             _columns = columns;
-
-            if (processor.HasProcessing)
-            {
-                _processor = processor;
-            }
         }
 
         /// <inheritdoc/>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Decode(ref byte source, ref Rgba destination)
+        public void Decode(ref byte source, ref byte destination)
         {
-            for (int columnIndex = 0, sourceOffset = 0; columnIndex < _columns; columnIndex++, sourceOffset += 8)
+            // Writes raw 16-bit CMYK values for each pixel, allowing later color management (e.g., ICC profile conversion).
+            for (int columnIndex = 0; columnIndex < _columns; columnIndex++)
             {
-                byte cHi = Unsafe.Add(ref source, sourceOffset);
-                byte mHi = Unsafe.Add(ref source, sourceOffset + 2);
-                byte yHi = Unsafe.Add(ref source, sourceOffset + 4);
-                byte kHi = Unsafe.Add(ref source, sourceOffset + 6);
-                destination.R = cHi;
-                destination.G = mHi;
-                destination.B = yHi;
-                destination.A = kHi;
-                _processor?.ExecuteCmyk(ref destination);
-                destination = ref Unsafe.Add(ref destination, 1);
+                int sourceOffset = columnIndex * 4 * 2; // 4 components, 2 bytes each
+                int destinationOffset = columnIndex * 4 * 2; // 4 components, 2 bytes each
+
+                ushort cyan = (ushort)(Unsafe.Add(ref source, sourceOffset) | (Unsafe.Add(ref source, sourceOffset + 1) << 8));
+                ushort magenta = (ushort)(Unsafe.Add(ref source, sourceOffset + 2) | (Unsafe.Add(ref source, sourceOffset + 3) << 8));
+                ushort yellow = (ushort)(Unsafe.Add(ref source, sourceOffset + 4) | (Unsafe.Add(ref source, sourceOffset + 5) << 8));
+                ushort black = (ushort)(Unsafe.Add(ref source, sourceOffset + 6) | (Unsafe.Add(ref source, sourceOffset + 7) << 8));
+
+                Unsafe.Add(ref destination, destinationOffset) = (byte)(cyan & 0xFF);
+                Unsafe.Add(ref destination, destinationOffset + 1) = (byte)(cyan >> 8);
+                Unsafe.Add(ref destination, destinationOffset + 2) = (byte)(magenta & 0xFF);
+                Unsafe.Add(ref destination, destinationOffset + 3) = (byte)(magenta >> 8);
+                Unsafe.Add(ref destination, destinationOffset + 4) = (byte)(yellow & 0xFF);
+                Unsafe.Add(ref destination, destinationOffset + 5) = (byte)(yellow >> 8);
+                Unsafe.Add(ref destination, destinationOffset + 6) = (byte)(black & 0xFF);
+                Unsafe.Add(ref destination, destinationOffset + 7) = (byte)(black >> 8);
             }
         }
     }

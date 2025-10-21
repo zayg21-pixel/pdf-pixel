@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using PdfReader.Models;
 using PdfReader.Parsing;
-using PdfReader.Streams;
 using SkiaSharp;
 
 namespace PdfReader.Rendering.Advanced
@@ -81,7 +80,12 @@ namespace PdfReader.Rendering.Advanced
             }
 
             // Capture content into a layer so we can apply the soft mask at EndDrawContent.
-            _canvas.SaveLayer(activeBounds, null);
+            var layerPaint = new SKPaint
+            {
+                IsAntialias = true,
+                BlendMode = PdfBlendModeNames.ToSkiaBlendMode(_graphicsState.BlendMode)
+            };
+            _canvas.SaveLayer(activeBounds, layerPaint);
         }
 
         /// <summary>
