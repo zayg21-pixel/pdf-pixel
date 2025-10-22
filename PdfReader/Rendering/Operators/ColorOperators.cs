@@ -363,7 +363,7 @@ namespace PdfReader.Rendering.Operators
                 {
                     return null;
                 }
-                return PdfPatternParser.TryParsePattern(patternObject.Reference, patternObject);
+                return PdfPatternParser.TryParsePattern(patternObject.Reference, patternObject, _page);
             }
             catch
             {

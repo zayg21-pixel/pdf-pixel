@@ -103,14 +103,10 @@ namespace PdfReader.Rendering.Image.Processing
     internal sealed class Gray8RowDecoder : IGrayRowDecoder
     {
         private readonly int _columns;
-        private readonly bool _upscale;
-        private readonly int _scaleFactor;
 
-        public Gray8RowDecoder(int columns, bool upscale)
+        public Gray8RowDecoder(int columns)
         {
             _columns = columns;
-            _upscale = upscale;
-            _scaleFactor = 1;
         }
 
         /// <inheritdoc/>
@@ -131,14 +127,10 @@ namespace PdfReader.Rendering.Image.Processing
     internal sealed class Gray16RowDecoder : IGrayRowDecoder
     {
         private readonly int _columns;
-        private readonly bool _upscale;
-        private readonly int _scaleFactor;
 
-        public Gray16RowDecoder(int columns, bool upscale)
+        public Gray16RowDecoder(int columns)
         {
             _columns = columns;
-            _upscale = upscale;
-            _scaleFactor = 1;
         }
 
         /// <inheritdoc/>

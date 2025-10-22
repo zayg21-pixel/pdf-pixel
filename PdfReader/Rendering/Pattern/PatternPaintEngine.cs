@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using SkiaSharp;
 using PdfReader.Models;
 using PdfReader.Rendering.Color;
+using PdfReader.Rendering.Shading;
 using PdfReader.Streams;
 using PdfReader.Parsing;
 
@@ -34,6 +35,7 @@ namespace PdfReader.Rendering.Pattern
             PdfPaint paint,
             PdfColorSpaceConverter colorConverter)
         {
+            return false;
             if (paint == null)
             {
                 return false;
@@ -225,6 +227,159 @@ namespace PdfReader.Rendering.Pattern
             page.Document.PdfRenderer.DrawShading(canvas, shadingPattern.Shading, state, page);
 
             canvas.Restore();
+        }
+
+        /// <summary>
+        /// Converts a PdfPattern (tiling or shading) to an SKShader for use in SKPaint.
+        /// Returns null if the pattern type is unsupported or conversion fails.
+        /// Uses the localMatrix parameter of SKShader to anchor and transform the pattern, matching PDF spec and SkiaSharp best practices.
+        /// </summary>
+        /// <param name="pattern">The PDF pattern to convert.</param>
+        /// <param name="state">Current graphics state (for color/tint resolution).</param>
+        /// <param name="page">Current page context.</param>
+        /// <returns>SKShader instance or null.</returns>
+        public static SKShader ToShader(PdfPattern pattern, PdfGraphicsState state, PdfPage page)
+        {
+            if (pattern == null)
+            {
+                return null;
+            }
+
+            SKMatrix ctmInverse;
+            bool haveCtmInverse = state.CTM.TryInvert(out ctmInverse);
+            SKMatrix localMatrix = haveCtmInverse
+                ? SKMatrix.Concat(ctmInverse, pattern.PatternMatrix)
+                : pattern.PatternMatrix;
+
+            switch (pattern.PatternType)
+            {
+                case PdfPatternType.Shading:
+                {
+                    var shadingPattern = pattern as PdfShadingPattern;
+                    if (shadingPattern?.Shading == null)
+                    {
+                        return null;
+                    }
+
+                    return PdfShadingBuilder.ToShader(shadingPattern.Shading, state.RenderingIntent, localMatrix);
+                }
+
+                case PdfPatternType.Tiling:
+                {
+                    var tilingPattern = pattern as PdfTilingPattern;
+                    if (tilingPattern == null)
+                    {
+                        return null;
+                    }
+
+                    var bbox = tilingPattern.BBox;
+                    if (bbox.Width <= 0f || bbox.Height <= 0f)
+                    {
+                        return null;
+                    }
+
+                    SKBitmap cellBitmap = RenderTilingCell(tilingPattern, state, page);
+                    if (cellBitmap == null)
+                    {
+                        return null;
+                    }
+
+                    // Use localMatrix for anchoring
+                    return SKShader.CreateBitmap(cellBitmap, SKShaderTileMode.Repeat, SKShaderTileMode.Repeat, localMatrix);
+                }
+
+                default:
+                {
+                    return null;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Renders a single tiling pattern cell to a bitmap, handling both colored and uncolored (stencil) scenarios.
+        /// For uncolored patterns, applies tint using Skia's layer logic for efficiency.
+        /// </summary>
+        /// <param name="pattern">Tiling pattern definition.</param>
+        /// <param name="state">Graphics state for color/tint resolution.</param>
+        /// <param name="page">Current page context.</param>
+        /// <returns>Bitmap containing the rendered pattern cell.</returns>
+        private static SKBitmap RenderTilingCell(PdfTilingPattern pattern, PdfGraphicsState state, PdfPage page)
+        {
+            var streamObject = page.Document.GetObject(pattern.Reference);
+            if (streamObject == null)
+            {
+                return null;
+            }
+
+            var bbox = pattern.BBox;
+            if (bbox.Width <= 0f || bbox.Height <= 0f)
+            {
+                return null;
+            }
+
+            var data = page.Document.StreamDecoder.DecodeContentStream(streamObject);
+            if (data.IsEmpty)
+            {
+                return null;
+            }
+
+            var cellState = state.Clone();
+            int width = Math.Max(1, (int)Math.Ceiling(bbox.Width));
+            int height = Math.Max(1, (int)Math.Ceiling(bbox.Height));
+
+            if (pattern.PaintTypeKind == PdfTilingPaintType.Uncolored)
+            {
+                // Determine tint color
+                SKColor tintColor = SKColors.Black;
+                if (state.FillPaint != null && state.FillPaint.PatternComponents != null)
+                {
+                    var pcs = state.FillColorConverter as PatternColorSpaceConverter;
+                    if (pcs != null && pcs.BaseColorSpace != null)
+                    {
+                        tintColor = pcs.BaseColorSpace.ToSrgb(state.FillPaint.PatternComponents, state.RenderingIntent);
+                    }
+                }
+
+                // Render mask and apply tint using SaveLayer
+                var bitmap = new SKBitmap(width, height, SKColorType.Gray8, SKAlphaType.Premul);
+                using (var canvas = new SKCanvas(bitmap))
+                {
+                    canvas.Clear(SKColors.Transparent);
+                    var paint = new SKPaint
+                    {
+                        ColorFilter = SKColorFilter.CreateBlendMode(tintColor, SKBlendMode.SrcIn)
+                    };
+                    canvas.SaveLayer(paint);
+                    // TODO: The translation based on bbox is not always correct. See PDF spec for pattern cell alignment.
+                    canvas.Translate(-bbox.Left, -bbox.Top);
+                    var recursionGuard = new HashSet<int>();
+                    var expanded = new SKRect(bbox.Left, bbox.Top, bbox.Right, bbox.Bottom);
+                    var patternPage = new FormXObjectPageWrapper(page, streamObject);
+                    var renderer = new PdfContentStreamRenderer(patternPage);
+                    var parseContext = new PdfParseContext(data);
+                    renderer.RenderContext(canvas, ref parseContext, cellState, recursionGuard);
+                    canvas.Restore();
+                }
+                return bitmap;
+            }
+            else
+            {
+                // Render colored pattern cell
+                var colorBitmap = new SKBitmap(width, height);
+                using (var colorCanvas = new SKCanvas(colorBitmap))
+                {
+                    colorCanvas.Clear(SKColors.Transparent);
+                    colorCanvas.Save();
+                    colorCanvas.Translate(-bbox.Left, -bbox.Top);
+                    var recursionGuardColored = new HashSet<int>();
+                    var patternPageColored = new FormXObjectPageWrapper(page, streamObject);
+                    var rendererColored = new PdfContentStreamRenderer(patternPageColored);
+                    var parseContextColored = new PdfParseContext(data);
+                    rendererColored.RenderContext(colorCanvas, ref parseContextColored, cellState, recursionGuardColored);
+                    colorCanvas.Restore();
+                }
+                return colorBitmap;
+            }
         }
     }
 }

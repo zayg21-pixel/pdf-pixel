@@ -131,6 +131,7 @@ namespace PdfReader.Rendering.Advanced
                 {
                     using var bgPaint = new SKPaint
                     {
+                        IsAntialias = true,
                         Style = SKPaintStyle.Fill,
                         Color = _softMask.BackgroundColor ?? SKColors.White
                     };

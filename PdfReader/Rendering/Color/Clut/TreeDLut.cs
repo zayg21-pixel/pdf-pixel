@@ -10,7 +10,6 @@ namespace PdfReader.Rendering.Color.Clut
     /// Helper for building and sampling 3D device->sRGB lookup tables.
     /// LUT layout: contiguous packed RGB triples for each lattice point in (R,G,B) iteration order.
     /// Bilinear sampling (RG with nearest B) uses precomputed weight quads that sum to 1 (normalized floats).
-    /// TODO: we need a separate version of this converter that specifically handles Gray (3 identical components)->sRGB.
     /// </summary>
     internal sealed class TreeDLut : IRgbaSampler
     {

@@ -10,7 +10,7 @@ namespace PdfReader.Fonts.Mapping
     /// </summary>
     public static class PdfCodeToCidCMapParser
     {
-        public static PdfCodeToCidCMap ParseCMapFromContext(ref PdfParseContext context, PdfDocument document)
+        public static PdfCodeToCidCMap ParseCMapFromContext(ref PdfParseContext context, PdfDocument document, PdfDictionary cmapDictionary)
         {
             var cmap = new PdfCodeToCidCMap();
             int? pendingCount = null;
@@ -64,6 +64,8 @@ namespace PdfReader.Fonts.Mapping
                     if (string.Equals(op, PdfTokens.UseCMapKey, StringComparison.Ordinal))
                     {
                         // TODO: resolve base code-to-CID CMap (separate cache from ToUnicode)
+                        // See ResolveAndMergeUseCMap implementation below.
+                        ResolveAndMergeUseCMap(ref context, document, cmap);
                         continue;
                     }
 
@@ -76,12 +78,56 @@ namespace PdfReader.Fonts.Mapping
                 }
             }
 
+            // After parsing, attempt to cache the CMap by name for usecmap resolution.
+            string cmapName = null;
+            if (cmapDictionary != null)
+            {
+                cmapName = cmapDictionary.GetName(PdfTokens.CMapNameKey);
+                if (string.IsNullOrEmpty(cmapName))
+                {
+                    cmapName = cmapDictionary.GetName(PdfTokens.NameKey);
+                }
+            }
+            // Only cache if a name is found and the CMap is valid.
+            if (!string.IsNullOrEmpty(cmapName) && (cmap.MappingCount > 0 || cmap.HasCodeSpaceRanges))
+            {
+                document.CodeToCidCMaps[cmapName] = cmap;
+            }
             if (cmap.MappingCount > 0 || cmap.HasCodeSpaceRanges)
             {
                 return cmap;
             }
 
             return null;
+        }
+
+        /// <summary>
+        /// Resolves and merges a base code-to-CID CMap referenced by usecmap.
+        /// </summary>
+        /// <param name="context">PDF parse context.</param>
+        /// <param name="document">PDF document.</param>
+        /// <param name="target">Target CMap to merge into.</param>
+        private static void ResolveAndMergeUseCMap(ref PdfParseContext context, PdfDocument document, PdfCodeToCidCMap target)
+        {
+            var arg = PdfParsers.ParsePdfValue(ref context, document);
+            if (arg == null)
+            {
+                return;
+            }
+
+            string cmapName = null;
+            if (arg.Type == PdfValueType.Name)
+            {
+                cmapName = arg.AsName();
+            }
+
+            if (!string.IsNullOrEmpty(cmapName) && document.CodeToCidCMaps.TryGetValue(cmapName, out var baseCMap))
+            {
+                if (baseCMap != null)
+                {
+                    target.MergeFrom(baseCMap);
+                }
+            }
         }
 
         private static void ParseCodespaceRanges(ref PdfParseContext context, PdfCodeToCidCMap cmap, PdfDocument document, int? expectedCount)

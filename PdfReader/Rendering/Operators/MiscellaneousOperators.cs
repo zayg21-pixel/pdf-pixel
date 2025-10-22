@@ -213,7 +213,7 @@ namespace PdfReader.Rendering.Operators
                 return;
             }
 
-            var shading = new PdfShading(shadingDict);
+            var shading = new PdfShading(shadingDict, _page);
 
             _page.Document.PdfRenderer.DrawShading(_canvas, shading, graphicsState, _page);
         }

@@ -11,7 +11,7 @@ namespace PdfReader.Fonts.Mapping
     /// </summary>
     public static class PdfToUnicodeCMapParser
     {        
-        public static PdfToUnicodeCMap ParseCMapFromContext(ref PdfParseContext context, PdfDocument document)
+        public static PdfToUnicodeCMap ParseCMapFromContext(ref PdfParseContext context, PdfDocument document, PdfDictionary cmapDictionary)
         {
             var cmap = new PdfToUnicodeCMap();
 
@@ -88,6 +88,21 @@ namespace PdfReader.Fonts.Mapping
                 // Unknown token/content: already consumed; proceed
             }
             
+            // After parsing, attempt to cache the CMap by name for usecmap resolution.
+            string cmapName = null;
+            if (cmapDictionary != null)
+            {
+                cmapName = cmapDictionary.GetName(PdfTokens.CMapNameKey);
+                if (string.IsNullOrEmpty(cmapName))
+                {
+                    cmapName = cmapDictionary.GetName(PdfTokens.NameKey);
+                }
+            }
+            // Only cache if a name is found and the CMap is valid.
+            if (!string.IsNullOrEmpty(cmapName) && cmap.MappingCount > 0)
+            {
+                document.ToUnicodeCmaps[cmapName] = cmap;
+            }
             return cmap.MappingCount > 0 ? cmap : null;
         }
         
@@ -107,7 +122,7 @@ namespace PdfReader.Fonts.Mapping
             }
 
             // Prefer cached by name when available
-            if (!string.IsNullOrEmpty(cmapName) && document.CMaps.TryGetValue(cmapName, out var cached))
+            if (!string.IsNullOrEmpty(cmapName) && document.ToUnicodeCmaps.TryGetValue(cmapName, out var cached))
             {
                 target.MergeFrom(cached, overwriteExisting: false);
                 return;

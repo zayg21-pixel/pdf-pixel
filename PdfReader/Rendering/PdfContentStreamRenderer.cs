@@ -5,6 +5,7 @@ using PdfReader.Streams;
 using SkiaSharp;
 using System;
 using System.Collections.Generic;
+using System.Text;
 
 namespace PdfReader.Rendering
 {
@@ -72,6 +73,8 @@ namespace PdfReader.Rendering
 
             // Create unified context that treats all streams as one continuous stream
             var parseContext = new PdfParseContext(contentStreams);
+
+            //var s = Encoding.UTF8.GetString(parseContext.GetSlice(0, parseContext.Length).ToArray());
 
             var state = new PdfGraphicsState();
             var processingXObjects = new HashSet<int>();

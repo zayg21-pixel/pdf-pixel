@@ -17,7 +17,7 @@ namespace PdfReader.Rendering
     /// </summary>
     public class PdfRenderer
     {
-        private readonly PdfTextRenderer _textRenderer;
+        private readonly IPdfTextDrawer _textRenderer;
         private readonly ILoggerFactory _loggerFactory;
         private readonly ILogger _logger;
 
@@ -30,7 +30,7 @@ namespace PdfReader.Rendering
             _loggerFactory = loggerFactory ?? throw new System.ArgumentNullException(nameof(loggerFactory));
             _logger = _loggerFactory.CreateLogger<PdfRenderer>();
             _imageRenderer = new FastImageDrawer(_loggerFactory);
-            _textRenderer = new PdfTextRenderer(fontCache, _loggerFactory);
+            _textRenderer = new PdfTextDrawer(fontCache, _loggerFactory);
             _shadingRenderer = new StandardShadingDrawer(_loggerFactory);
         }
 

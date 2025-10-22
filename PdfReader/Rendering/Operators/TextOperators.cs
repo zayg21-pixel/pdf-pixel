@@ -205,7 +205,7 @@ namespace PdfReader.Rendering.Operators
                 return;
             }
 
-            graphicsState.Leading = operands[0].AsFloat();
+            graphicsState.Leading = -operands[0].AsFloat();
         }
 
         private void ProcessSetTextRise(PdfGraphicsState graphicsState)

@@ -146,12 +146,17 @@ namespace PdfReader.Rendering.Image
 
             canvas.SaveLayer(destRect, null);
 
-            using var maskPaint = new SKPaint();
-            maskPaint.ColorFilter = ColorFilterDecode.BuildMaskDecodeFilter(pdfImage.DecodeArray);
+            using var maskPaint = new SKPaint
+            {
+                IsAntialias = true,
+                ColorFilter = ColorFilterDecode.BuildMaskDecodeFilter(pdfImage.DecodeArray)
+            };
+
             canvas.DrawImage(alphaMask, destRect, sampling, maskPaint);
 
             using var srcInPaint = new SKPaint
             {
+                IsAntialias = true,
                 BlendMode = SKBlendMode.SrcIn,
                 Color = fillPaint.Color
             };
@@ -216,6 +221,7 @@ namespace PdfReader.Rendering.Image
 
             using var maskPaint = new SKPaint
             {
+                IsAntialias = true,
                 BlendMode = SKBlendMode.DstIn
             };
             ImagePostProcessingFilters.ApplyImageFilters(maskPaint, pdfImage.SoftMask);
@@ -225,6 +231,7 @@ namespace PdfReader.Rendering.Image
 
             using var layerPaint = new SKPaint
             {
+                IsAntialias = true,
                 BlendMode = imagePaint.BlendMode,
                 Color = imagePaint.Color
             };

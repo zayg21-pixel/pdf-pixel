@@ -6,16 +6,16 @@ namespace PdfReader.Rendering.Color
 {
     /// <summary>
     /// Simplified Separation color space converter.
-    /// Maps single-component tint value through an optional tint transform function (function types 0,2,3) into a base color space.
+    /// Maps single-component tint value through a tint transform function (function types 0,2,3) into a base color space.
     /// If no function/base is present falls back to DeviceGray.
     /// </summary>
     internal sealed class SeparationColorSpaceConverter : PdfColorSpaceConverter
     {
         private readonly string _colorantName;
         private readonly PdfColorSpaceConverter _alternate;
-        private readonly PdfObject _tintFunction;
+        private readonly PdfFunction _tintFunction;
 
-        public SeparationColorSpaceConverter(string colorantName, PdfColorSpaceConverter alternate, PdfObject tintFunction)
+        public SeparationColorSpaceConverter(string colorantName, PdfColorSpaceConverter alternate, PdfFunction tintFunction)
         {
             _colorantName = colorantName;
             _alternate = alternate ?? DeviceGrayConverter.Instance;
@@ -29,18 +29,18 @@ namespace PdfReader.Rendering.Color
         protected override SKColor ToSrgbCore(ReadOnlySpan<float> comps01, PdfRenderingIntent intent)
         {
             float tint = comps01.Length > 0 ? comps01[0] : 0f;
-            float[] mapped;
+            ReadOnlySpan<float> mapped = comps01;
 
             if (_tintFunction != null)
             {
-                mapped = PdfFunctions.EvaluateFunctionObject(_tintFunction, Clamp01(tint));
-                if (mapped != null && mapped.Length > 0)
+                mapped = _tintFunction.Evaluate(tint);
+                if (mapped == null || mapped.Length == 0)
                 {
-                    return _alternate.ToSrgb(mapped, intent);
+                    mapped = comps01;
                 }
             }
 
-            return _alternate.ToSrgb(comps01, intent);
+            return _alternate.ToSrgb(mapped, intent);
         }
     }
 }

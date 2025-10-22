@@ -15,19 +15,19 @@ namespace PdfReader.Rendering.Text
     /// Manages text drawing with proper drawer selection and positioning
     /// Updated to use PdfFontBase hierarchy
     /// </summary>
-    public class PdfTextRenderer
+    public class PdfTextDrawer : IPdfTextDrawer
     {
         private readonly IFontCache _fontCache;
-        private readonly ILogger<PdfTextRenderer> _logger;
+        private readonly ILogger<PdfTextDrawer> _logger;
 
-        internal PdfTextRenderer(IFontCache fontCache, ILoggerFactory loggerFactory)
+        internal PdfTextDrawer(IFontCache fontCache, ILoggerFactory loggerFactory)
         {
             _fontCache = fontCache ?? throw new ArgumentNullException(nameof(fontCache));
             if (loggerFactory == null)
             {
                 throw new ArgumentNullException(nameof(loggerFactory));
             }
-            _logger = loggerFactory.CreateLogger<PdfTextRenderer>();
+            _logger = loggerFactory.CreateLogger<PdfTextDrawer>();
         }
 
         /// <summary>

@@ -1,3 +1,6 @@
+using PdfReader.Rendering.Color;
+using System.Collections.Generic;
+
 namespace PdfReader.Models
 {
     /// <summary>
@@ -7,11 +10,6 @@ namespace PdfReader.Models
     /// </summary>
     public sealed class PdfShading
     {
-        /// <summary>
-        /// Underlying raw dictionary for fallback access (still needed for function evaluation).
-        /// </summary>
-        public PdfDictionary RawDictionary { get; } // TODO: need to replace with function object model, like function evaluator
-
         /// <summary>
         /// Shading type (2 = axial, 3 = radial, others may be added later).
         /// </summary>
@@ -38,9 +36,9 @@ namespace PdfReader.Models
         public bool ExtendEnd { get; }
 
         /// <summary>
-        /// Color space value (/ColorSpace) raw object for converter resolution.
+        /// Color space value (/ColorSpace) resolved object.
         /// </summary>
-        public IPdfValue ColorSpaceValue { get; }
+        public PdfColorSpaceConverter ColorSpaceConverter { get; }
 
         /// <summary>
         /// Optional start color array (/C0) for simple interpolation shadings.
@@ -53,16 +51,16 @@ namespace PdfReader.Models
         public float[] C1 { get; }
 
         /// <summary>
-        /// True when a /Function entry is present (function-based color evaluation instead of simple C0/C1).
+        /// List of resolved PdfFunction(s) for function-based color evaluation.
         /// </summary>
-        public bool HasFunction { get; }
+        public List<PdfFunction> Functions { get; }
 
-        public PdfShading(PdfDictionary raw)
+        public PdfShading(PdfDictionary raw, PdfPage page)
         {
-            RawDictionary = raw;
             if (raw == null)
             {
                 ShadingType = 0;
+                Functions = new List<PdfFunction>();
                 return;
             }
             ShadingType = raw.GetIntegerOrDefault(PdfTokens.ShadingTypeKey);
@@ -76,10 +74,61 @@ namespace PdfReader.Models
                 ExtendStart = extendArr.GetBool(0);
                 ExtendEnd = extendArr.GetBool(1);
             }
-            ColorSpaceValue = raw.GetValue(PdfTokens.ColorSpaceKey);
+
+            var colorSpaceValue = raw.GetValue(PdfTokens.ColorSpaceKey);
+            ColorSpaceConverter = PdfColorSpaces.ResolveByValue(colorSpaceValue, page);
+
             C0 = raw.GetArray(PdfTokens.C0Key)?.GetFloatArray();
             C1 = raw.GetArray(PdfTokens.C1Key)?.GetFloatArray();
-            HasFunction = raw.GetValue(PdfTokens.FunctionKey) != null;
+            Functions = new List<PdfFunction>();
+
+            var functionObjects = raw.GetPageObjects(PdfTokens.FunctionKey);
+            if (functionObjects != null)
+            {
+                foreach (var functionObject in functionObjects)
+                {
+                    var function = PdfFunctions.GetFunction(functionObject);
+                    if (function != null)
+                    {
+                        Functions.Add(function);
+                    }
+                }
+            }
+
+            var functionValue = raw.GetValue(PdfTokens.FunctionKey);
+
+            if (functionValue != null)
+            {
+                if (functionValue.Type == PdfValueType.Array)
+                {
+                    var functionArray = functionValue.AsArray();
+
+                    for (int i = 0; i < functionArray.Count; i++)
+                    {
+                        var dictionaryValue = functionArray.GetValue(i);
+                        if (dictionaryValue != null)
+                        {
+                            var funcObject = new PdfObject(new PdfReference(0, 0), page.Document, dictionaryValue);
+                            var function = PdfFunctions.GetFunction(funcObject);
+
+                            if (function != null)
+                            {
+                                Functions.Add(function);
+                            }
+                        }
+                    }
+                }
+                else if (functionValue.Type == PdfValueType.Dictionary)
+                {
+                    var functionObject = new PdfObject(new PdfReference(0, 0), page.Document, functionValue);
+                    var function = PdfFunctions.GetFunction(functionObject);
+                    if (function != null)
+                    {
+                        Functions.Add(function);
+                    }
+                }
+            }
+
         }
     }
 }

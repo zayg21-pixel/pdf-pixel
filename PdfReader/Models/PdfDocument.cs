@@ -5,6 +5,7 @@ using PdfReader.Rendering;
 using PdfReader.Rendering.Color;
 using PdfReader.Parsing;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using PdfReader.Fonts.Management;
 using PdfReader.Fonts.Mapping;
@@ -15,7 +16,6 @@ namespace PdfReader.Models
     /// <summary>
     /// Represents a parsed PDF document with object table, pages, resources and renderer.
     /// Adds lazy object resolution support via an object index.
-    /// Existing eager parsing continues to populate the internal cache; callers should prefer <see cref="GetObject"/>.
     /// </summary>
     public class PdfDocument : IDisposable
     {
@@ -42,10 +42,14 @@ namespace PdfReader.Models
 
         internal PdfFontCache FontCache { get; }
 
-        internal Dictionary<string, PdfToUnicodeCMap> CMaps { get; } = new Dictionary<string, PdfToUnicodeCMap>(StringComparer.Ordinal);
+        internal Dictionary<string, PdfToUnicodeCMap> ToUnicodeCmaps { get; } = new Dictionary<string, PdfToUnicodeCMap>(StringComparer.Ordinal);
 
-        // TODO: remove, implement more high-level function caching
-        internal Dictionary<PdfReference, PdfFunctionCacheEntry> FunctionCache { get; } = new Dictionary<PdfReference, PdfFunctionCacheEntry>();
+        internal Dictionary<string, PdfCodeToCidCMap> CodeToCidCMaps { get; } = new Dictionary<string, PdfCodeToCidCMap>(StringComparer.Ordinal);
+
+        /// <summary>
+        /// High-level cache for parsed PDF functions, keyed by reference.
+        /// </summary>
+        internal ConcurrentDictionary<PdfReference, PdfFunction> FunctionObjectCache { get; } = new ConcurrentDictionary<PdfReference, PdfFunction>();
 
         internal PdfStreamDecoder StreamDecoder { get; }
 

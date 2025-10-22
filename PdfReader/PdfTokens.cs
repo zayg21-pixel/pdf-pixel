@@ -137,6 +137,7 @@ namespace PdfReader
         public const string MacExpertEncodingKey = "/MacExpertEncoding";
         
         // CID Font Encodings (CMaps)
+        public const string IdentityKey = "/Identity";      // Identity CMap for CID fonts
         public const string IdentityHEncodingKey = "/Identity-H";  // Horizontal identity CMap for CID fonts
         public const string IdentityVEncodingKey = "/Identity-V";  // Vertical identity CMap for CID fonts
         

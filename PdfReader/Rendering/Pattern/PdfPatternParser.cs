@@ -1,4 +1,3 @@
-using System;
 using SkiaSharp;
 using PdfReader.Models;
 
@@ -10,7 +9,7 @@ namespace PdfReader.Rendering.Pattern
         /// Parse a pattern object (tiling or shading) and return a concrete PdfPattern instance.
         /// Returns null if unsupported or malformed.
         /// </summary>
-        public static PdfPattern TryParsePattern(PdfReference reference, PdfObject obj)
+        public static PdfPattern TryParsePattern(PdfReference reference, PdfObject obj, PdfPage page)
         {
             try
             {
@@ -26,7 +25,7 @@ namespace PdfReader.Rendering.Pattern
                     case 1:
                         return ParseTilingPattern(reference, dict);
                     case 2:
-                        return ParseShadingPattern(reference, dict);
+                        return ParseShadingPattern(reference, dict, page);
                     default:
                         return null; // Unsupported pattern type
                 }
@@ -82,7 +81,7 @@ namespace PdfReader.Rendering.Pattern
                 matrix);
         }
 
-        private static PdfShadingPattern ParseShadingPattern(PdfReference reference, PdfDictionary dict)
+        private static PdfShadingPattern ParseShadingPattern(PdfReference reference, PdfDictionary dict, PdfPage page)
         {
             SKMatrix matrix = SKMatrix.Identity;
             var matrixArray = dict.GetArray(PdfTokens.MatrixKey);
@@ -98,7 +97,7 @@ namespace PdfReader.Rendering.Pattern
             }
 
             PdfDictionary extGState = dict.GetDictionary(PdfTokens.ExtGStateKey);
-            var shading = new PdfShading(shadingObject);
+            var shading = new PdfShading(shadingObject, page);
 
             return new PdfShadingPattern(reference, shading, matrix, extGState);
         }

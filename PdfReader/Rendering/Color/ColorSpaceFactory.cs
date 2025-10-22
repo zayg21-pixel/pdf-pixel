@@ -77,77 +77,34 @@ namespace PdfReader.Rendering.Color
         // Separation & DeviceN helpers
         // ------------------------------------------------------------------------------------
         /// <summary>
-        /// Resolve a tint transform function definition to a PdfObject.
+        /// Resolve a tint transform function definition to a single PdfFunction, as required by the PDF spec.
         /// Correct resolution order:
         /// 1. Attempt to extract an indirect object via <see cref="PdfArray.GetPageObject"/> at the specified index.
         /// 2. Fall back to inline dictionary (wrapped as a PdfObject with a dummy reference).
-        /// 3. If the entry is an array of functions, search each element recursively (same ordering per element).
-        /// This replaces the previous implementation that incorrectly used GetValue first (losing object stream context).
         /// </summary>
         /// <param name="array">Parent color space parameter array.</param>
         /// <param name="index">Index of the tint transform entry.</param>
         /// <param name="page">Owning page (for document reference).</param>
-        /// <returns>Resolved PdfObject or null if none found.</returns>
-        private static PdfObject ResolveTintFunction(PdfArray array, int index, PdfPage page)
+        /// <returns>Resolved PdfFunction or null if none found.</returns>
+        private static PdfFunction ResolveTintFunction(PdfArray array, int index, PdfPage page)
         {
             if (array == null)
             {
                 return null;
             }
 
-            // First attempt: try to obtain a page object (indirect reference or inline stream wrapper).
             var directObject = array.GetPageObject(index);
             if (directObject != null)
             {
-                return directObject;
+                return PdfFunctions.GetFunction(directObject);
             }
 
-            // Fallback to raw value for further inspection.
             var rawValue = array.GetValue(index);
-            return ResolveTintFunction(rawValue, page);
-        }
 
-        /// <summary>
-        /// Recursive helper for resolving tint function when starting from a generic value (array or dictionary).
-        /// Keeps original semantics but is now only used internally after object extraction attempts.
-        /// </summary>
-        /// <param name="funcVal">Candidate value.</param>
-        /// <param name="page">Owning page.</param>
-        /// <returns>PdfObject wrapping the function dictionary or null.</returns>
-        private static PdfObject ResolveTintFunction(IPdfValue funcVal, PdfPage page)
-        {
-            if (funcVal == null)
+            if (rawValue.Type == PdfValueType.Dictionary)
             {
-                return null;
-            }
-
-            // Inline dictionary case: wrap it so callers uniformly receive PdfObject.
-            if (funcVal.Type == PdfValueType.Dictionary)
-            {
-                return new PdfObject(new PdfReference(0, 0), page.Document, funcVal);
-            }
-
-            // Array case: search elements using same object-first strategy.
-            if (funcVal.Type == PdfValueType.Array)
-            {
-                var pdfArray = funcVal.AsArray();
-                if (pdfArray != null)
-                {
-                    for (int elementIndex = 0; elementIndex < pdfArray.Count; elementIndex++)
-                    {
-                        var elementObject = pdfArray.GetPageObject(elementIndex);
-                        if (elementObject != null)
-                        {
-                            return elementObject;
-                        }
-                        var innerValue = pdfArray.GetValue(elementIndex);
-                        var wrapped = ResolveTintFunction(innerValue, page);
-                        if (wrapped != null)
-                        {
-                            return wrapped;
-                        }
-                    }
-                }
+                var obj = new PdfObject(new PdfReference(0, 0), page.Document, rawValue);
+                return PdfFunctions.GetFunction(obj);
             }
 
             return null;
@@ -173,8 +130,8 @@ namespace PdfReader.Rendering.Color
 
             string name = arr.GetString(1);
             var alt = PdfColorSpaces.ResolveByValue(arr.GetValue(2), page);
-            var tintFunc = ResolveTintFunction(arr, 3, page);
-            return new SeparationColorSpaceConverter(name, alt, tintFunc);
+            var tintFunction = ResolveTintFunction(arr, 3, page);
+            return new SeparationColorSpaceConverter(name, alt, tintFunction);
         }
 
         // ------------------------------------------------------------------------------------
@@ -207,8 +164,8 @@ namespace PdfReader.Rendering.Color
             }
 
             var alt = PdfColorSpaces.ResolveByValue(arr.GetValue(2), page);
-            var tintFunc = ResolveTintFunction(arr, 3, page);
-            return new DeviceNColorSpaceConverter(names, alt, tintFunc);
+            var tintFunction = ResolveTintFunction(arr, 3, page);
+            return new DeviceNColorSpaceConverter(names, alt, tintFunction);
         }
 
         // ------------------------------------------------------------------------------------

@@ -1,6 +1,5 @@
 using PdfReader.Models;
 using PdfReader.Rendering.Advanced;
-using PdfReader.Rendering.Pattern;
 using SkiaSharp;
 
 namespace PdfReader.Rendering.Path
@@ -12,8 +11,6 @@ namespace PdfReader.Rendering.Path
     /// </summary>
     public class StandardPathDrawer : IPathDrawer
     {
-        private readonly PatternPaintEngine _patternEngine = new PatternPaintEngine();
-
         /// <summary>
         /// Draw a path using the specified paint operation and fill rule.
         /// Handles pattern paints, soft masks, and combined fill+stroke layering.
@@ -52,11 +49,7 @@ namespace PdfReader.Rendering.Path
                 {
                     using (var strokePaint = PdfPaintFactory.CreateStrokePaint(state, page))
                     {
-                        var strokeTarget = new PathPatternPaintTarget(path, strokePaint);
-                        if (!_patternEngine.TryRenderPattern(canvas, strokeTarget, state, page, state.StrokePaint, state.StrokeColorConverter))
-                        {
-                            canvas.DrawPath(path, strokePaint);
-                        }
+                        canvas.DrawPath(path, strokePaint);
                     }
                     break;
                 }
@@ -64,50 +57,23 @@ namespace PdfReader.Rendering.Path
                 {
                     using (var fillPaint = PdfPaintFactory.CreateFillPaint(state, page))
                     {
-                        var fillTarget = new PathPatternPaintTarget(path, fillPaint);
-                        if (!_patternEngine.TryRenderPattern(canvas, fillTarget, state, page, state.FillPaint, state.FillColorConverter))
-                        {
-                            canvas.DrawPath(path, fillPaint);
-                        }
+                        canvas.DrawPath(path, fillPaint);
                     }
                     break;
                 }
                 case PaintOperation.FillAndStroke:
                 {
-                    using (var layerPaint = new SKPaint
+                    // Fill phase.
+                    using (var fillPaint = PdfPaintFactory.CreateFillPaint(state, page))
                     {
-                        IsAntialias = true,
-                        BlendMode = PdfBlendModeNames.ToSkiaBlendMode(state.BlendMode)
-                    })
-                    {
-                        canvas.SaveLayer(layerPaint);
-                        try
-                        {
-                            // Fill phase.
-                            using (var fillPaint = PdfPaintFactory.CreateFillPaint(state, page))
-                            {
-                                var fillTarget = new PathPatternPaintTarget(path, fillPaint);
-                                if (!_patternEngine.TryRenderPattern(canvas, fillTarget, state, page, state.FillPaint, state.StrokeColorConverter))
-                                {
-                                    canvas.DrawPath(path, fillPaint);
-                                }
-                            }
+                        canvas.DrawPath(path, fillPaint);
+                    }
 
-                            // Stroke phase.
-                            using (var strokePaint = PdfPaintFactory.CreateStrokePaint(state, page))
-                            {
-                                strokePaint.BlendMode = SKBlendMode.Src;
-                                var strokeTarget = new PathPatternPaintTarget(path, strokePaint);
-                                if (!_patternEngine.TryRenderPattern(canvas, strokeTarget, state, page, state.StrokePaint, state.FillColorConverter))
-                                {
-                                    canvas.DrawPath(path, strokePaint);
-                                }
-                            }
-                        }
-                        finally
-                        {
-                            canvas.Restore();
-                        }
+                    // Stroke phase.
+                    using (var strokePaint = PdfPaintFactory.CreateStrokePaint(state, page))
+                    {
+                        strokePaint.BlendMode = SKBlendMode.Src;
+                        canvas.DrawPath(path, strokePaint);
                     }
                     break;
                 }

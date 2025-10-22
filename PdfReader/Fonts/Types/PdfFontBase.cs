@@ -140,12 +140,6 @@ namespace PdfReader.Fonts
         public abstract ushort GetGid(PdfCharacterCode code);
 
         /// <summary>
-        /// Indicates whether this font requires shaping for correct glyph mapping.
-        /// Should be overridden in derived font types to reflect font-specific logic.
-        /// </summary>
-        public abstract bool ShouldShape { get; }
-
-        /// <summary>
         /// Extracts all resolved information for a single PDF character code.
         /// Caches results for each character code. Calls the protected virtual ExtractCharacterInfoCore for font-specific logic.
         /// </summary>
@@ -242,7 +236,7 @@ namespace PdfReader.Fonts
             {
                 var cmapData = Document.StreamDecoder.DecodeContentStream(toUnicodeObj);
                 var cMapContent = new PdfParseContext(cmapData);
-                return PdfToUnicodeCMapParser.ParseCMapFromContext(ref cMapContent, Document);
+                return PdfToUnicodeCMapParser.ParseCMapFromContext(ref cMapContent, Document, toUnicodeObj.Dictionary);
             }
             catch (Exception)
             {

@@ -20,31 +20,32 @@ namespace PdfReadTests
 
             // Test with some sample PDFs
             string[] testFiles = {
-                //"pdfs//alphatrans.pdf",
-                //"pdfs//ArabicCIDTrueType.pdf",
-                //"pdfs//asciihexdecode.pdf",
-                //"pdfs//complex_ttf_font.pdf",
-                //"pdfs//complex_ttf_font_ed.pdf",
-                //"pdfs//icc-lab-8bit.pdf",
-                //"pdfs//devicen.pdf",
-                //"pdfs//icc-xyz.pdf",
-                //"pdfs//icc-lab4.pdf",
-                //"pdfs//icc-lab2.pdf",
-                //"pdf-example-password.pdf",
-                //"pdfs//mixedfonts.pdf",
-                //"pdfs//mixedfonts_ed.pdf",
-                //"pdfs//blendmode.pdf",
-                //"pdfs//calgray.pdf",
-                //"pdfs//calrgb.pdf",
-                //"pdfs//cmykjpeg.pdf",
-                //"pdfs//IndexedCS_negative_and_high.pdf",
-                //"pdfs//tiling-pattern-box.pdf",
-                //"pdfs//gradientfill.pdf",
-                //"pdfs//ccitt_EndOfBlock_false.pdf",
-                //"pdfs//images_1bit_grayscale.pdf",
-                //"pdfs//pdf_c.pdf",
+                "pdfs//pattern_text_embedded_font.pdf",
+                "pdfs//alphatrans.pdf",
+                "pdfs//ArabicCIDTrueType.pdf",
+                "pdfs//asciihexdecode.pdf",
+                "pdfs//complex_ttf_font.pdf",
+                "pdfs//complex_ttf_font_ed.pdf",
+                "pdfs//icc-lab-8bit.pdf",
+                "pdfs//devicen.pdf",
+                "pdfs//icc-xyz.pdf",
+                "pdfs//icc-lab4.pdf",
+                "pdfs//icc-lab2.pdf",
+                "pdf-example-password.pdf",
+                "pdfs//mixedfonts.pdf",
+                "pdfs//mixedfonts_ed.pdf",
+                "pdfs//blendmode.pdf",
+                "pdfs//calgray.pdf",
+                "pdfs//calrgb.pdf",
+                "pdfs//cmykjpeg.pdf",
+                "pdfs//IndexedCS_negative_and_high.pdf",
+                "pdfs//tiling-pattern-box.pdf",
+                "pdfs//gradientfill.pdf",
+                "pdfs//ccitt_EndOfBlock_false.pdf",
+                "pdfs//images_1bit_grayscale.pdf",
+                "pdfs//pdf_c.pdf",
                 //@"documentS.pdf",
-                @"documentC.pdf",
+                //@"documentC.pdf",
                 //@"sample.pdf",
                 //"Adyen.pdf",
                 //"Adyen 2023.pdf",
@@ -87,8 +88,8 @@ namespace PdfReadTests
                     Logger.LogInformation("Root object: {Root}", document.RootObject);
 
                     var start = 0;
-                    var max = 400;
-                    float scaleX = 0.1f; // Scale factor for rendering
+                    var max = 300;
+                    float scaleX = 3f; // Scale factor for rendering
 
                     var memory = GC.GetTotalMemory(true) / 1024 / 1024;
 
@@ -113,7 +114,6 @@ namespace PdfReadTests
                                 using var canvas = surface.Canvas;
                                 canvas.Scale(scaleX, scaleX); // Apply scaling for high-res rendering
                                 canvas.Clear(SKColors.White);
-
 
                                 // Render the page (this will show transformation debug info)
                                 page.Draw(canvas);

@@ -1,5 +1,6 @@
 ﻿using PdfReader.Models;
 using PdfReader.Rendering.Advanced;
+using PdfReader.Rendering.Pattern;
 using SkiaSharp;
 using System;
 using System.Runtime.CompilerServices;
@@ -151,36 +152,67 @@ namespace PdfReader.Rendering
             {
                 case PdfTextRenderingMode.Fill:
                 case PdfTextRenderingMode.FillAndClip:
+                {
                     paint.Style = SKPaintStyle.Fill;
-                    paint.Color = ApplyAlpha(state.FillColor, state.FillAlpha);
+                    if (state.FillPaint != null && state.FillPaint.IsPattern && state.FillPaint.Pattern != null)
+                    {
+                        // Use pattern shader for fill
+                        paint.Shader = PatternPaintEngine.ToShader(state.FillPaint.Pattern, state, page);
+                        paint.Color = ApplyAlpha(SKColors.White, state.FillAlpha);
+                    }
+                    else
+                    {
+                        paint.Color = ApplyAlpha(state.FillColor, state.FillAlpha);
+                    }
                     break;
-
+                }
                 case PdfTextRenderingMode.Stroke:
                 case PdfTextRenderingMode.StrokeAndClip:
+                {
                     paint.Style = SKPaintStyle.Stroke;
-                    paint.Color = ApplyAlpha(state.StrokeColor, state.StrokeAlpha);
+                    if (state.StrokePaint != null && state.StrokePaint.IsPattern && state.StrokePaint.Pattern != null)
+                    {
+                        // Use pattern shader for stroke
+                        paint.Shader = PatternPaintEngine.ToShader(state.StrokePaint.Pattern, state, page);
+                        paint.Color = ApplyAlpha(SKColors.White, state.StrokeAlpha);
+                    }
+                    else
+                    {
+                        paint.Color = ApplyAlpha(state.StrokeColor, state.StrokeAlpha);
+                    }
                     var strokeTextScale = GetTextScaleFactor(state);
                     ApplyStrokeStyling(paint, state, 1 / strokeTextScale);
                     break;
-
+                }
                 case PdfTextRenderingMode.FillAndStroke:
                 case PdfTextRenderingMode.FillAndStrokeAndClip:
-                    // NOTE (Deviation from PDF spec): PDF uses separate alpha constants for fill (ca)
-                    // and stroke (CA). Rendering both with a single StrokeAndFill paint cannot apply
-                    // different alphas simultaneously. The full spec behavior is to render fill and stroke
-                    // separately. This simplified approach matches prior behavior.
+                {
                     var fillTextScale = GetTextScaleFactor(state);
                     paint.Style = SKPaintStyle.StrokeAndFill;
-                    paint.Color = ApplyAlpha(state.FillColor, state.FillAlpha);
+                    // Prefer fill pattern if present, otherwise stroke pattern, otherwise solid color
+                    if (state.FillPaint != null && state.FillPaint.IsPattern && state.FillPaint.Pattern != null)
+                    {
+                        paint.Shader = PatternPaintEngine.ToShader(state.FillPaint.Pattern, state, page);
+                        paint.Color = ApplyAlpha(SKColors.White, state.FillAlpha);
+                    }
+                    else if (state.StrokePaint != null && state.StrokePaint.IsPattern && state.StrokePaint.Pattern != null)
+                    {
+                        paint.Shader = PatternPaintEngine.ToShader(state.StrokePaint.Pattern, state, page);
+                        paint.Color = ApplyAlpha(SKColors.White, state.StrokeAlpha);
+                    }
+                    else
+                    {
+                        paint.Color = ApplyAlpha(state.FillColor, state.FillAlpha);
+                    }
                     ApplyStrokeStyling(paint, state, 1 / fillTextScale);
                     break;
-
+                }
                 case PdfTextRenderingMode.Invisible:
                 case PdfTextRenderingMode.Clip:
-                    // NOTE (PDF spec): Clip modes do not actually paint; clipping is handled by the
-                    // text operators. Here we ensure no visible marks are made if paint is used.
+                {
                     paint.Color = SKColors.Transparent;
                     break;
+                }
             }
 
             // Apply advanced transparency effects if present
@@ -237,7 +269,16 @@ namespace PdfReader.Rendering
         {
             var paint = CreateBasePaint(state);
             paint.Style = SKPaintStyle.Stroke;
-            paint.Color = ApplyAlpha(state.StrokeColor, state.StrokeAlpha);
+            if (state.StrokePaint != null && state.StrokePaint.IsPattern && state.StrokePaint.Pattern != null)
+            {
+                // Use pattern shader for stroke
+                paint.Shader = PatternPaintEngine.ToShader(state.StrokePaint.Pattern, state, page);
+                paint.Color = ApplyAlpha(SKColors.White, state.StrokeAlpha);
+            }
+            else
+            {
+                paint.Color = ApplyAlpha(state.StrokeColor, state.StrokeAlpha);
+            }
 
             ApplyStrokeStyling(paint, state);
 
@@ -264,7 +305,16 @@ namespace PdfReader.Rendering
         {
             var paint = CreateBasePaint(state);
             paint.Style = SKPaintStyle.Fill;
-            paint.Color = ApplyAlpha(state.FillColor, state.FillAlpha);
+            if (state.FillPaint != null && state.FillPaint.IsPattern && state.FillPaint.Pattern != null)
+            {
+                // Use pattern shader for fill
+                paint.Shader = PatternPaintEngine.ToShader(state.FillPaint.Pattern, state, page);
+                paint.Color = ApplyAlpha(SKColors.White, state.FillAlpha);
+            }
+            else
+            {
+                paint.Color = ApplyAlpha(state.FillColor, state.FillAlpha);
+            }
 
             // Apply advanced transparency effects if present
             ApplyAdvancedTransparencyEffects(paint, state, page);
@@ -294,7 +344,7 @@ namespace PdfReader.Rendering
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static SKPaint CreateFormXObjectPaint(PdfGraphicsState state, PdfPage page)
         {
-            if (state == null) return new SKPaint();
+            if (state == null) return new SKPaint { IsAntialias = true };
 
             // If a transparency group was parsed and needs isolation/knockout handling,
             // return a paint configured by the group processor.

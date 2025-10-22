@@ -179,29 +179,12 @@ namespace PdfReader.Fonts
                 }
 
                 var ctx = new PdfParseContext(data);
-                return PdfCodeToCidCMapParser.ParseCMapFromContext(ref ctx, Document);
+                return PdfCodeToCidCMapParser.ParseCMapFromContext(ref ctx, Document, encodingObj.Dictionary);
             }
             catch (Exception)
             {
                 // Ignore errors; fall back to Identity or no mapping
                 return null;
-            }
-        }
-
-        /// <summary>
-        /// Indicates whether this font requires shaping for correct glyph mapping.
-        /// Returns true if the primary descendant requires shaping; otherwise false.
-        /// </summary>
-        public override bool ShouldShape
-        {
-            get
-            {
-                var descendant = PrimaryDescendant;
-                if (descendant != null)
-                {
-                    return descendant.ShouldShape;
-                }
-                return true;
             }
         }
 

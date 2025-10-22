@@ -174,7 +174,7 @@ namespace PdfReader.Fonts.Types
             
             // Check if CIDToGIDMap is specified as "Identity" in the font dictionary
             var cidToGidName = Dictionary.GetName(PdfTokens.CIDToGIDMapKey);
-            if (cidToGidName == "/Identity") // TODO: investigate
+            if (cidToGidName == PdfTokens.IdentityKey)
             {
                 return PdfCIDToGIDMap.CreateIdentityMapping();
             }
@@ -186,24 +186,6 @@ namespace PdfReader.Fonts.Types
             }
 
             return null;
-        }
-
-        /// <summary>
-        /// Indicates whether this font requires external shaping for correct glyph mapping.
-        /// Returns false if CIDToGIDMap is present (identity or custom mapping); returns true only if mapping is missing.
-        /// </summary>
-        public override bool ShouldShape
-        {
-            get
-            {
-                if (HasCIDToGIDMapping)
-                {
-                    // CIDToGIDMap is present (identity or custom): direct mapping is possible, no external shaping needed.
-                    return false;
-                }
-                // CIDToGIDMap is missing: shaping may be required for correct glyph mapping.
-                return true;
-            }
         }
 
         /// <summary>

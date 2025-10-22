@@ -154,18 +154,6 @@ namespace PdfReader.Fonts
         }
 
         /// <summary>
-        /// Indicates whether this font requires shaping for correct glyph mapping.
-        /// Always returns true for Type3 fonts (shaping not applicable, prevents direct GID extraction).
-        /// </summary>
-        public override bool ShouldShape
-        {
-            get
-            {
-                return true;
-            }
-        }
-
-        /// <summary>
         /// Gets the glyph ID (GID) for the specified character code in a Type3 font.
         /// Type3 fonts do not use GIDs; always returns 0.
         /// </summary>

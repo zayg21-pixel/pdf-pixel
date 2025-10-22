@@ -29,9 +29,9 @@ namespace PdfReader.Rendering.Image.Processing
                 case 4:
                     return new Gray4RowDecoder(columns, upscale);
                 case 8:
-                    return new Gray8RowDecoder(columns, upscale);
+                    return new Gray8RowDecoder(columns);
                 case 16:
-                    return new Gray16RowDecoder(columns, upscale);
+                    return new Gray16RowDecoder(columns);
                 default:
                     throw new ArgumentException($"Unsupported bitsPerComponent for grayscale: {bitsPerComponent}");
             }
