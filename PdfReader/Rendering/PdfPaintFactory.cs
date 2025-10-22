@@ -227,10 +227,9 @@ namespace PdfReader.Rendering
         /// </summary>
         /// <param name="state">Current graphics state</param>
         /// <param name="typeface">Typeface to use</param>
-        /// <param name="page">Current page (reserved for future use)</param>
         /// <returns>Configured SKFont</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static SKFont CreateTextFont(PdfGraphicsState state, SKTypeface typeface, PdfPage page)
+        public static SKFont CreateTextFont(PdfGraphicsState state, SKTypeface typeface)
         {
             if (state == null)
             {

@@ -1,19 +1,9 @@
-using System;
 using PdfReader.Models;
 
 namespace PdfReader.Rendering.Color
 {
     internal static class ColorSpaceUtilities
     {
-        public static string NormalizeName(string name)
-        {
-            if (string.IsNullOrEmpty(name))
-            {
-                return name;
-            }
-            return name[0] == '/' ? name.Substring(1) : name;
-        }
-
         public static bool TryGetColorSpaceName(IPdfValue value, out string name)
         {
             if (value.Type == PdfValueType.Name)

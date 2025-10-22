@@ -1,9 +1,5 @@
 using System;
 using System.Runtime.CompilerServices;
-using System.Text;
-using PdfReader.Fonts;
-using PdfReader.Fonts.Mapping;
-using PdfReader.Fonts.Types;
 using PdfReader.Text;
 
 namespace PdfReader.Models
@@ -29,29 +25,6 @@ namespace PdfReader.Models
         /// Check if the text is empty
         /// </summary>
         public bool IsEmpty => RawBytes.Length == 0;
-
-        /// <summary>
-        /// Convert character codes to glyph IDs (GIDs) for font rendering.
-        /// Returns an array of GIDs, one per character code, using font's GetGid method.
-        /// </summary>
-        /// <param name="codes">Array of character codes.</param>
-        /// <param name="font">Font to use for mapping.</param>
-        /// <returns>Array of GIDs, one per character code.</returns>
-        [Obsolete("Use PdfFontBase.GetGid method directly for better performance and clarity.")]
-        public ushort[] GetGids(PdfCharacterCode[] codes, PdfFontBase font)
-        {
-            if (codes == null || codes.Length == 0)
-            {
-                return Array.Empty<ushort>();
-            }
-
-            var gids = new ushort[codes.Length];
-            for (int i = 0; i < codes.Length; i++)
-            {
-                gids[i] = font.GetGid(codes[i]);
-            }
-            return gids;
-        }
 
         /// <summary>
         /// Create PdfText from a PDF string operand

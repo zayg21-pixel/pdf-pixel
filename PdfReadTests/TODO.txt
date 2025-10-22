@@ -8,7 +8,10 @@ https://github.com/BobLd/IccProfile or https://github.com/waacton/Unicolour
 
 https://fontdrop.info/
 
-Add AES decryption and all other algorithms.
-
+Add AES decryption and all other algorithms
+Add missing stream filters implementations
+Add JPEG2000 decoder and JBIG2 decoder
 apply patterns to stencil image
+Missing shading types: 4,5,6
+Inherit image color space from graphics state
 Type3 font

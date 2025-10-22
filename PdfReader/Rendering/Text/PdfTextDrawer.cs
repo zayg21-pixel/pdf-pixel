@@ -47,9 +47,9 @@ namespace PdfReader.Rendering.Text
 
             var typeface = _fontCache.GetTypeface(font);
             using var skPaint = PdfPaintFactory.CreateTextPaint(state, page);
-            using var skFont = PdfPaintFactory.CreateTextFont(state, typeface, page);
+            using var skFont = PdfPaintFactory.CreateTextFont(state, typeface);
 
-            var shaped = ShapeText(ref pdfText, skFont, state, font);
+            var shaped = ShapeText(ref pdfText, state, font);
 
             using var softMaskScope = new SoftMaskDrawingScope(canvas, state, page);
 
@@ -83,7 +83,7 @@ namespace PdfReader.Rendering.Text
 
             // Create typeface and skFont once
             var typeface = _fontCache.GetTypeface(font);
-            using var skFont = PdfPaintFactory.CreateTextFont(state, typeface, page);
+            using var skFont = PdfPaintFactory.CreateTextFont(state, typeface);
 
             for (int i = 0; i < array.Count; i++)
             {
@@ -99,7 +99,7 @@ namespace PdfReader.Rendering.Text
                     if (!pdfText.IsEmpty)
                     {
                         // Shape and add glyphs
-                        var glyphs = ShapeText(ref pdfText, skFont, state, font);
+                        var glyphs = ShapeText(ref pdfText, state, font);
                         shapedGlyphs.AddRange(glyphs);
                         hasGlyphs = true;
                     }
@@ -146,7 +146,7 @@ namespace PdfReader.Rendering.Text
         /// Handles both direct mapping and shaping cases using unified logic.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private ShapedGlyph[] ShapeText(ref PdfText pdfText, SKFont skFont, PdfGraphicsState state, PdfFontBase font)
+        private ShapedGlyph[] ShapeText(ref PdfText pdfText, PdfGraphicsState state, PdfFontBase font)
         {
             var codes = font.ExtractCharacterCodes(pdfText.RawBytes);
             var shapedGlyphs = new List<ShapedGlyph>(codes.Length);

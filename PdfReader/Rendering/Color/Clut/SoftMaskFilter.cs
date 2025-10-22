@@ -9,42 +9,83 @@ namespace PdfReader.Rendering.Color.Clut
     internal static class SoftMaskFilter
     {
         /// <summary>
-        /// Builds an <see cref="SKColorFilter"/> that applies an alpha mask based on the provided mask array.
-        /// The filter maps the grayscale input (R channel) to alpha values according to the mask.
+        /// Builds an <see cref="SKColorFilter"/> that applies an alpha mask based on the provided mask ranges for grayscale or RGB images.
+        /// The filter maps each component to alpha values according to the PDF /Mask specification.
         /// </summary>
-        /// <param name="mask">The mask array, where each value represents an allowed sample value (0-255).</param>
+        /// <param name="maskRanges">The mask array, where each consecutive pair [min, max] defines a range of sample values to be made transparent for each component. Supports grayscale (2 values) and RGB (6 values). Returns null for other cases.</param>
+        /// <param name="bitsPerComponent">The number of bits per component in the image. Used to normalize mask and pixel values to 0–255.</param>
         /// <returns>
-        /// An <see cref="SKColorFilter"/> that sets alpha to 1.0 if the input value is in the mask, otherwise 0.0.
+        /// An <see cref="SKColorFilter"/> that sets alpha to 0.0 if all input components are in their mask range, otherwise 1.0. Returns null if maskRanges is not for grayscale or RGB.
         /// </returns>
-        /// <exception cref="ArgumentNullException">Thrown if <paramref name="mask"/> is null.</exception>
-        public static SKColorFilter BuildMaskColorFilter(int[] mask)
+        /// <exception cref="ArgumentNullException">Thrown if <paramref name="maskRanges"/> is null.</exception>
+        public static SKColorFilter BuildMaskColorFilter(int[] maskRanges, int bitsPerComponent)
         {
-            if (mask == null)
+            if (maskRanges == null)
             {
-                throw new ArgumentNullException(nameof(mask));
+                throw new ArgumentNullException(nameof(maskRanges));
+            }
+            if (bitsPerComponent < 1 || bitsPerComponent > 16)
+            {
+                // Arbitrary upper bound for sanity; PDF spec allows up to 16
+                return null;
             }
 
-            byte[] alphaLut = new byte[256];
-            for (int value = 0; value < 256; value++)
+            int maxSampleValue = (1 << bitsPerComponent) - 1;
+
+            byte[,] maskLut = new byte[3, 256];
+            if (maskRanges.Length == 2)
             {
-                alphaLut[value] = (byte)(Array.IndexOf(mask, value) >= 0 ? 255 : 0);
+                // Grayscale: fill all three rows with the same mask
+                int min = maskRanges[0];
+                int max = maskRanges[1];
+                for (int value = 0; value < 256; value++)
+                {
+                    int sampleValue = (int)Math.Round((double)value * maxSampleValue / 255.0);
+                    byte maskValue = (byte)((sampleValue >= min && sampleValue <= max) ? 0 : 255);
+                    maskLut[0, value] = maskValue;
+                    maskLut[1, value] = maskValue;
+                    maskLut[2, value] = maskValue;
+                }
+            }
+            else if (maskRanges.Length == 6)
+            {
+                // RGB: fill each row with its own mask
+                for (int component = 0; component < 3; component++)
+                {
+                    int min = maskRanges[component * 2];
+                    int max = maskRanges[component * 2 + 1];
+                    for (int value = 0; value < 256; value++)
+                    {
+                        int sampleValue = (int)Math.Round((double)value * maxSampleValue / 255.0);
+                        maskLut[component, value] = (byte)((sampleValue >= min && sampleValue <= max) ? 0 : 255);
+                    }
+                }
+            }
+            else
+            {
+                // Unsupported mask (e.g., CMYK): return null
+                return null;
             }
 
-            SKColor[] maskPixels = new SKColor[256];
-            for (int i = 0; i < 256; i++)
+            using var maskBitmap = new SKBitmap(256, 3, SKColorType.Alpha8, SKAlphaType.Premul);
+            for (int y = 0; y < 3; y++)
             {
-                maskPixels[i] = new SKColor(0, 0, 0, alphaLut[i]);
+                for (int x = 0; x < 256; x++)
+                {
+                    maskBitmap.SetPixel(x, y, new SKColor(0, 0, 0, maskLut[y, x]));
+                }
             }
-
-            using SKBitmap maskBitmap = new SKBitmap(256, 1, SKColorType.Alpha8, SKAlphaType.Premul);
-            maskBitmap.Pixels = maskPixels;
 
             string shaderSource = @"
                 uniform shader maskLut;
                 half4 main(half4 inColor) {
-                    float idx = clamp(inColor.r * 255.0, 0.0, 255.0);
-                    float texCoord = idx + 0.5;
-                    half alpha = maskLut.eval(float2(texCoord, 0.5)).a;
+                    float rTexCoord = clamp(inColor.r * 255.0, 0.0, 255.0) + 0.5;
+                    float gTexCoord = clamp(inColor.g * 255.0, 0.0, 255.0) + 0.5;
+                    float bTexCoord = clamp(inColor.b * 255.0, 0.0, 255.0) + 0.5;
+                    half rMask = maskLut.eval(float2(rTexCoord, 0.5)).a;
+                    half gMask = maskLut.eval(float2(gTexCoord, 1.5)).a;
+                    half bMask = maskLut.eval(float2(bTexCoord, 2.5)).a;
+                    half alpha = (rMask == 0.0 && gMask == 0.0 && bMask == 0.0) ? 0.0 : 1.0;
                     return half4(inColor.rgb, alpha);
                 }
             ";
@@ -55,12 +96,13 @@ namespace PdfReader.Rendering.Color.Clut
                 throw new InvalidOperationException($"Failed to compile SoftMaskFilter shader: {error}");
             }
 
+            var uniforms = new SKRuntimeEffectUniforms(effect);
             var children = new SKRuntimeEffectChildren(effect)
             {
                 { "maskLut", maskBitmap.ToShader() }
             };
 
-            return effect.ToColorFilter(null, children);
+            return effect.ToColorFilter(uniforms, children);
         }
 
         /// <summary>

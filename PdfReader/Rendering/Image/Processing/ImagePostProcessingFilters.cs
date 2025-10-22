@@ -1,4 +1,5 @@
 ﻿using PdfReader.Rendering.Advanced;
+using PdfReader.Rendering.Color;
 using PdfReader.Rendering.Color.Clut;
 using SkiaSharp;
 
@@ -30,12 +31,26 @@ namespace PdfReader.Rendering.Image.Processing
             // PDF spec: decoding must occur before color conversion.
             ApplyDecodeFilter(paint, pdfImage.DecodeArray, pdfImage.ColorSpaceConverter.Components);
 
-            // Step 2: Apply color space conversion filter if available.
+            // Step 2: Apply Mask filter (color key mask or soft mask) if present and supported.
+            // Masking must be applied before color space conversion per PDF spec.
+            // Masking is not supported for indexed or CMYK color spaces.
+            bool isIndexed = pdfImage.ColorSpaceConverter is IndexedConverter;
+            bool isCmyk = pdfImage.ColorSpaceConverter.Components == 4;
+            if (!isIndexed && !isCmyk && pdfImage.MaskArray != null && pdfImage.MaskArray.Length > 0)
+            {
+                using var maskFilter = SoftMaskFilter.BuildMaskColorFilter(
+                    pdfImage.MaskArray,
+                    pdfImage.BitsPerComponent
+                );
+                ComposeColorFilter(paint, maskFilter);
+            }
+
+            // Step 3: Apply color space conversion filter if available.
             // Converts decoded samples to sRGB using the image's color space.
             // PDF spec: color conversion must occur after decoding and before masking.
             pdfImage.ColorSpaceConverter.AddColorFilter(paint, pdfImage.RenderingIntent);
 
-            // Step 3: If this image is a soft mask, apply luminocity-to-alpha filter.
+            // Step 4: If this image is a soft mask, apply luminocity-to-alpha filter.
             // Converts grayscale values to alpha for soft-masked images.
             // PDF spec: soft mask must be applied after color conversion.
             if (pdfImage.IsSoftMask)
@@ -43,7 +58,7 @@ namespace PdfReader.Rendering.Image.Processing
                 ApplyLuminocityToAlphaFilter(paint);
             }
 
-            // Step 4: Apply Matte dematting filter if pdfImage.MatteArray is present.
+            // Step 5: Apply Matte dematting filter if pdfImage.MatteArray is present.
             // The matte color is used to 'dematte' the image, removing the effect of pre-blended background.
             // See PDF 2.0 spec §11.9.6 for dematting algorithm.
             // This requires both the decoded pixel color and the alpha mask.
@@ -53,15 +68,6 @@ namespace PdfReader.Rendering.Image.Processing
                 SKColor matteColor = pdfImage.ColorSpaceConverter.ToSrgb(pdfImage.MatteArray, pdfImage.RenderingIntent);
                 using var dematteFilter = SoftMaskFilter.BuildDematteColorFilter(matteColor);
                 ComposeColorFilter(paint, dematteFilter);
-            }
-
-            // Step 5: Apply Mask filter (color key mask or soft mask) if present.
-            // This sets the alpha channel for transparency.
-            // Masking must be the last step, as it determines final pixel transparency after all color and matte operations.
-            if (pdfImage.MaskArray != null && pdfImage.MaskArray.Length > 0)
-            {
-                using var maskFilter = SoftMaskFilter.BuildMaskColorFilter(pdfImage.MaskArray);
-                ComposeColorFilter(paint, maskFilter);
             }
         }
 
@@ -95,6 +101,11 @@ namespace PdfReader.Rendering.Image.Processing
         /// <param name="newFilter">The new SKColorFilter to compose.</param>
         private static void ComposeColorFilter(SKPaint paint, SKColorFilter newFilter)
         {
+            if (newFilter == null)
+            {
+                return;
+            }
+
             if (paint.ColorFilter == null)
             {
                 paint.ColorFilter = newFilter;

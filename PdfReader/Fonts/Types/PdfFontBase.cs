@@ -168,7 +168,8 @@ namespace PdfReader.Fonts
                 Subpixel = true,
                 LinearMetrics = true,
                 Hinting = SKFontHinting.Normal,
-                Edging = SKFontEdging.SubpixelAntialias
+                Edging = SKFontEdging.SubpixelAntialias,
+
             };
             return skFont;
         }
@@ -198,6 +199,7 @@ namespace PdfReader.Fonts
             else
             {
                 using SKFont skFont = GetSkFont();
+
                 ushort[] gids = skFont.GetGlyphs(unicode);
                 float[] widths = skFont.GetGlyphWidths(unicode);
                 return new PdfCharacterInfo(characterCode, unicode, gids, widths);
