@@ -63,11 +63,6 @@ namespace PdfReader.Streams
                 return ApplyPredictorIfNeeded(current, null); // May still have predictor parameters.
             }
 
-            if (filters.Any(IsImageFilter))
-            {
-                return current;
-            }
-
             for (int filterIndex = 0; filterIndex < filters.Count; filterIndex++)
             {
                 string filter = filters[filterIndex];
@@ -125,14 +120,6 @@ namespace PdfReader.Streams
             }
 
             return current;
-        }
-
-        private bool IsImageFilter(string filter)
-        {
-            return filter == PdfTokens.DCTDecode ||
-                   filter == PdfTokens.JPXDecode ||
-                   filter == PdfTokens.JBIG2Decode ||
-                   filter == PdfTokens.CCITTFaxDecode;
         }
 
         /// <summary>

@@ -1,7 +1,6 @@
 using System;
 using SkiaSharp;
 using PdfReader.Models;
-using PdfReader.Rendering.Color;
 using Microsoft.Extensions.Logging;
 using PdfReader.Rendering.Advanced;
 
@@ -50,7 +49,7 @@ namespace PdfReader.Rendering.Shading
         /// </summary>
         private void DrawShadingCore(SKCanvas canvas, PdfShading shading, PdfGraphicsState state, PdfPage page)
         {
-            var shader = PdfShadingBuilder.ToShader(shading, state.RenderingIntent, SKMatrix.Identity);
+            using var shader = PdfShadingBuilder.ToShader(shading);
             if (shader == null)
             {
                 _logger.LogWarning("Shading type " + shading.ShadingType + " not implemented or invalid shading data");

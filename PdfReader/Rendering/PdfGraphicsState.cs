@@ -98,6 +98,15 @@ namespace PdfReader.Rendering
         public float DashPhase { get; set; } = 0.0f;
 
         // --------------------------------------------------------------------------------------
+        // Path rendering state (see PDF 2.0 spec 8.4 Graphics State)
+        // --------------------------------------------------------------------------------------
+        /// <summary>
+        /// Flatness tolerance (i operator). Controls curve flattening accuracy for path rendering.
+        /// Default is 1.0 per PDF specification.
+        /// </summary>
+        public float FlatnessTolerance { get; set; } = 1.0f;
+
+        // --------------------------------------------------------------------------------------
         // Transparency state (see PDF 2.0 spec 11 Transparency)
         // --------------------------------------------------------------------------------------
         /// <summary>
@@ -224,6 +233,7 @@ namespace PdfReader.Rendering
                 StrokePaint = StrokePaint,
                 FillPaint = FillPaint,
                 StrokeAlpha = StrokeAlpha,
+                FlatnessTolerance = FlatnessTolerance,
                 FillAlpha = FillAlpha,
                 BlendMode = BlendMode,
                 LineWidth = LineWidth,
@@ -251,7 +261,7 @@ namespace PdfReader.Rendering
                 TextMatrix = TextMatrix,
                 TextLineMatrix = TextLineMatrix,
                 InTextObject = InTextObject,
-                CTM = CTM, // Include CTM in cloning
+                CTM = CTM,
             };
         }
     }

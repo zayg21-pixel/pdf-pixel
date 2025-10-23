@@ -62,14 +62,5 @@ namespace PdfReader.Rendering
             }
             return new PdfPaint(resolvedTintColor, pattern, patternComponents);
         }
-
-        /// <summary>
-        /// For uncolored patterns, returns the resolved tint color if available (Color property), otherwise black.
-        /// For colored patterns or solid colors returns Color.
-        /// </summary>
-        public SKColor GetEffectiveColor()
-        {
-            return Color;
-        }
     }
 }

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Text;
 using PdfReader.Fonts.Management;
+using PdfReader.Fonts.Types;
 
 namespace PdfReader.Fonts.Cff
 {
@@ -244,7 +245,7 @@ namespace PdfReader.Fonts.Cff
             using (var writer = new BinaryWriter(stream))
             {
                 short xAvgCharWidth = CffOpenTypeWriter.ClampToShort(fontDescriptor.AvgWidth != 0 ? fontDescriptor.AvgWidth : DefaultAvgWidth, DefaultAvgWidth);
-                ushort usWeightClass = (ushort)(fontDescriptor.FontWeight >= 100 && fontDescriptor.FontWeight <= 900 ? fontDescriptor.FontWeight : (fontDescriptor.Flags & CffFontFlags.ForceBold) == CffFontFlags.ForceBold ? DefaultBoldWeight : DefaultWeightIfUnknown);
+                ushort usWeightClass = (ushort)(fontDescriptor.FontWeight >= 100 && fontDescriptor.FontWeight <= 900 ? fontDescriptor.FontWeight : (fontDescriptor.Flags & PdfFontFlags.ForceBold) == PdfFontFlags.ForceBold ? DefaultBoldWeight : DefaultWeightIfUnknown);
                 ushort usWidthClass = 5; // Medium width
                 short sTypoAscender = CffOpenTypeWriter.ClampToShort(fontDescriptor.Ascent != 0 ? fontDescriptor.Ascent : DefaultAscent, DefaultAscent);
                 short sTypoDescender = CffOpenTypeWriter.ClampToShort(fontDescriptor.Descent != 0 ? fontDescriptor.Descent : DefaultDescent, DefaultDescent);
@@ -253,7 +254,7 @@ namespace PdfReader.Fonts.Cff
                 ushort usWinDescent = (ushort)Math.Max(0, -(int)Math.Round(fontDescriptor.FontBBox.Bottom != 0 ? fontDescriptor.FontBBox.Bottom : DefaultDescent));
 
                 ushort fsSelection = 0;
-                bool italic = (fontDescriptor.Flags & CffFontFlags.Italic) == CffFontFlags.Italic || Math.Abs(fontDescriptor.ItalicAngle) > 0.1f;
+                bool italic = (fontDescriptor.Flags & PdfFontFlags.Italic) == PdfFontFlags.Italic || Math.Abs(fontDescriptor.ItalicAngle) > 0.1f;
                 bool bold = usWeightClass >= DefaultBoldWeight;
                 if (italic)
                 {

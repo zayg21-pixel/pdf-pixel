@@ -1,9 +1,8 @@
 using PdfReader.Fonts.Mapping;
-using PdfReader.Fonts.Types;
 using PdfReader.Models;
 using System;
 
-namespace PdfReader.Fonts
+namespace PdfReader.Fonts.Types
 {
     /// <summary>
     /// Type 3 fonts (user-defined fonts)

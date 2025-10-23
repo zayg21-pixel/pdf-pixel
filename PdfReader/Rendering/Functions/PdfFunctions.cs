@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using PdfReader.Models;
 
-namespace PdfReader.Rendering.Color
+namespace PdfReader.Rendering.Functions
 {
     /// <summary>
     /// PDF function evaluator (subset of spec) used for color related operations (tint transforms, shadings, etc.).
@@ -67,29 +67,24 @@ namespace PdfReader.Rendering.Color
             }
 
             PdfFunctionType functionType = PdfFunction.GetFunctionType(functionObject);
-            PdfFunction function = null;
+            PdfFunction function;
+
             switch (functionType)
             {
                 case PdfFunctionType.Sampled:
-                {
                     function = SampledPdfFunction.FromObject(functionObject);
                     break;
-                }
                 case PdfFunctionType.Exponential:
-                {
                     function = ExponentialPdfFunction.FromObject(functionObject);
                     break;
-                }
                 case PdfFunctionType.Stitching:
-                {
                     function = StitchingPdfFunction.FromObject(functionObject);
                     break;
-                }
+                case PdfFunctionType.PostScript:
+                    function = PostScriptPdfFunction.FromObject(functionObject);
+                    break;
                 default:
-                {
-                    // Unsupported or unknown function type
                     return null;
-                }
             }
 
             if (function != null && functionObject.Reference.IsValid && functionObject.Document != null)
@@ -99,42 +94,6 @@ namespace PdfReader.Rendering.Color
             }
 
             return function;
-        }
-
-        private sealed class BitReader
-        {
-            private readonly byte[] _data;
-            private int _bitPosition;
-
-            public BitReader(byte[] data)
-            {
-                _data = data ?? Array.Empty<byte>();
-                _bitPosition = 0;
-            }
-
-            public uint ReadBits(int count)
-            {
-                if (count <= 0 || count > 32)
-                {
-                    return 0;
-                }
-
-                uint value = 0;
-                for (int bitIndex = 0; bitIndex < count; bitIndex++)
-                {
-                    int byteIndex = _bitPosition >> 3;
-                    if (byteIndex >= _data.Length)
-                    {
-                        break;
-                    }
-
-                    int shift = 7 - (_bitPosition & 7);
-                    uint bit = (uint)((_data[byteIndex] >> shift) & 1);
-                    value = (value << 1) | bit;
-                    _bitPosition++;
-                }
-                return value;
-            }
         }
     }
 }

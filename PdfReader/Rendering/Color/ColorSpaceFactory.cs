@@ -1,5 +1,6 @@
 ﻿using System;
 using PdfReader.Models;
+using PdfReader.Rendering.Functions;
 using PdfReader.Streams;
 using PdfReader.Text;
 
@@ -51,22 +52,22 @@ namespace PdfReader.Rendering.Color
                 {
                     lookupBytes = data.ToArray();
                 }
-            }
-            else
-            {
-                var lutVal = array.GetValue(3);
-
-                switch (lutVal?.Type)
+                else
                 {
-                    case PdfValueType.HexString:
-                        lookupBytes = lutVal.AsHexBytes() ?? Array.Empty<byte>();
-                        break;
-                    case PdfValueType.String:
-                        {
-                            var s = lutVal.AsString() ?? string.Empty;
-                            lookupBytes = EncodingExtensions.PdfDefault.GetBytes(s);
+                    var lutVal = lutObject.Value;
+
+                    switch (lutVal?.Type)
+                    {
+                        case PdfValueType.HexString:
+                            lookupBytes = lutVal.AsHexBytes() ?? Array.Empty<byte>();
                             break;
-                        }
+                        case PdfValueType.String:
+                            {
+                                var s = lutVal.AsString() ?? string.Empty;
+                                lookupBytes = EncodingExtensions.PdfDefault.GetBytes(s);
+                                break;
+                            }
+                    }
                 }
             }
 
@@ -97,14 +98,6 @@ namespace PdfReader.Rendering.Color
             if (directObject != null)
             {
                 return PdfFunctions.GetFunction(directObject);
-            }
-
-            var rawValue = array.GetValue(index);
-
-            if (rawValue.Type == PdfValueType.Dictionary)
-            {
-                var obj = new PdfObject(new PdfReference(0, 0), page.Document, rawValue);
-                return PdfFunctions.GetFunction(obj);
             }
 
             return null;

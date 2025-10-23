@@ -1,7 +1,7 @@
 using System;
 using PdfReader.Models;
 
-namespace PdfReader.Rendering.Color
+namespace PdfReader.Rendering.Functions
 {
     /// <summary>
     /// Enumerates supported PDF function types.
@@ -11,8 +11,8 @@ namespace PdfReader.Rendering.Color
         Unknown = -1,
         Sampled = 0,
         Exponential = 2,
-        Stitching = 3
-        // Add more as needed
+        Stitching = 3,
+        PostScript = 4
     }
 
     /// <summary>
@@ -56,9 +56,46 @@ namespace PdfReader.Rendering.Color
                     return PdfFunctionType.Exponential;
                 case 3:
                     return PdfFunctionType.Stitching;
+                case 4:
+                    return PdfFunctionType.PostScript;
                 default:
                     return PdfFunctionType.Unknown;
             }
+        }
+
+        /// <summary>
+        /// Clamps each value in the input span to the corresponding min/max pair in the range span.
+        /// </summary>
+        /// <param name="values">Input values to clamp.</param>
+        /// <param name="range">Range span, as [min0, max0, min1, max1, ...].</param>
+        protected static void Clamp(Span<float> values, ReadOnlySpan<float> range)
+        {
+            int count = Math.Min(values.Length, range.Length / 2);
+            for (int i = 0; i < count; i++)
+            {
+                float min = range[i * 2];
+                float max = range[i * 2 + 1];
+                values[i] = Math.Max(min, Math.Min(max, values[i]));
+            }
+        }
+
+        /// <summary>
+        /// Clamps a single value to the min/max pair at the specified index in the range span.
+        /// </summary>
+        /// <param name="value">Value to clamp.</param>
+        /// <param name="range">Range span, as [min0, max0, min1, max1, ...].</param>
+        /// <param name="index">Index of the min/max pair to use.</param>
+        /// <returns>Clamped value.</returns>
+        protected static float Clamp(float value, ReadOnlySpan<float> range, int index)
+        {
+            if (range.Length < (index + 1) * 2)
+            {
+                return value;
+            }
+
+            float min = range[index * 2];
+            float max = range[index * 2 + 1];
+            return Math.Max(min, Math.Min(max, value));
         }
     }
 }

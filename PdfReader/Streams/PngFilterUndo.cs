@@ -2,7 +2,6 @@ using System;
 using System.Numerics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-using static CoreJ2K.j2k.codestream.HeaderInfo;
 
 namespace PdfReader.Streams
 {
@@ -14,48 +13,6 @@ namespace PdfReader.Streams
     /// </summary>
     internal static class PngFilterUndo
     {
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static void UndoPngFilterOld(byte filter, byte[] currentRow, byte[] previousRow, int bytesPerPixel, int rowDataOffset, int rowDataLength)
-        {
-            for (int i = rowDataOffset; i < rowDataLength; i++)
-            {
-                int raw = currentRow[i];
-                int left = i >= bytesPerPixel ? currentRow[i - bytesPerPixel] : 0;
-                int up = previousRow != null ? previousRow[i] : 0;
-                int upLeft = (previousRow != null && i >= bytesPerPixel) ? previousRow[i - bytesPerPixel] : 0;
-                int decoded = filter switch
-                {
-                    0 => raw,
-                    1 => raw + left,
-                    2 => raw + up,
-                    3 => raw + ((left + up) >> 1),
-                    4 => raw + PaethOld(left, up, upLeft),
-                    _ => raw
-                };
-                currentRow[i] = (byte)decoded;
-            }
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static int PaethOld(int a, int b, int c)
-        {
-            int p = a + b - c;
-            int pa = Math.Abs(p - a);
-            int pb = Math.Abs(p - b);
-            int pc = Math.Abs(p - c);
-            if (pa <= pb && pa <= pc)
-            {
-                return a;
-            }
-            if (pb <= pc)
-            {
-                return b;
-            }
-            return c;
-        }
-
-
         /// <summary>
         /// Applies PNG filter undo to a single row.
         /// </summary>

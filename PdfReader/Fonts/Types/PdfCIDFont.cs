@@ -1,7 +1,5 @@
-using CommunityToolkit.HighPerformance;
 using PdfReader.Fonts.Mapping;
 using PdfReader.Models;
-using PdfReader.Streams;
 using System;
 
 namespace PdfReader.Fonts.Types
@@ -99,8 +97,9 @@ namespace PdfReader.Fonts.Types
         {
             if (CIDToGIDMap == null)
             {
-                return 0;
+                return (ushort)cid;
             }
+
             if (CIDToGIDMap.HasMapping(cid))
             {
                 return CIDToGIDMap.GetGID(cid);
@@ -155,23 +154,6 @@ namespace PdfReader.Fonts.Types
         /// </summary>
         private PdfCIDToGIDMap LoadCIDToGIDMap()
         {
-            // Use GetPageObject instead of stored reference
-            var cidToGidObj = Dictionary.GetPageObject(PdfTokens.CIDToGIDMapKey);
-            if (cidToGidObj != null)
-            {
-                try
-                {
-                    // Load as stream data
-                    var cidToGidData = Document.StreamDecoder.DecodeContentStream(cidToGidObj);
-                    var map = PdfCIDToGIDMap.FromStreamData(cidToGidData);
-                    return map;
-                }
-                catch (Exception)
-                {
-                    // Fall through to other methods
-                }
-            }
-            
             // Check if CIDToGIDMap is specified as "Identity" in the font dictionary
             var cidToGidName = Dictionary.GetName(PdfTokens.CIDToGIDMapKey);
             if (cidToGidName == PdfTokens.IdentityKey)
@@ -179,10 +161,13 @@ namespace PdfReader.Fonts.Types
                 return PdfCIDToGIDMap.CreateIdentityMapping();
             }
 
-            // According to PDF spec, if no CIDToGIDMap is specified for CIDFontType2, it defaults to Identity
-            if (Type == PdfFontType.CIDFontType2)
+            // Use GetPageObject instead of stored reference
+            var cidToGidObj = Dictionary.GetPageObject(PdfTokens.CIDToGIDMapKey);
+            if (cidToGidObj != null)
             {
-                return PdfCIDToGIDMap.CreateIdentityMapping();
+                // Load as stream data
+                var cidToGidData = Document.StreamDecoder.DecodeContentStream(cidToGidObj);
+                return PdfCIDToGIDMap.FromStreamData(cidToGidData);
             }
 
             return null;

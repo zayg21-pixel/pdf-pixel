@@ -115,6 +115,15 @@ namespace PdfReader.Rendering
                 return null;
             }
 
+            if (pattern.Length % 2 != 0)
+            {
+                // Per PDF spec, odd-length patterns are repeated to make even-length
+                var extended = new float[pattern.Length * 2];
+                Array.Copy(pattern, extended, pattern.Length);
+                Array.Copy(pattern, 0, extended, pattern.Length, pattern.Length);
+                pattern = extended;
+            }
+
             var sum = 0f;
             for (int i = 0; i < pattern.Length; i++)
             {
@@ -157,7 +166,7 @@ namespace PdfReader.Rendering
                     if (state.FillPaint != null && state.FillPaint.IsPattern && state.FillPaint.Pattern != null)
                     {
                         // Use pattern shader for fill
-                        paint.Shader = PatternPaintEngine.ToShader(state.FillPaint.Pattern, state, page);
+                        paint.Shader = state.FillPaint.Pattern.AsShader(state.RenderingIntent, state);
                         paint.Color = ApplyAlpha(SKColors.White, state.FillAlpha);
                     }
                     else
@@ -173,7 +182,7 @@ namespace PdfReader.Rendering
                     if (state.StrokePaint != null && state.StrokePaint.IsPattern && state.StrokePaint.Pattern != null)
                     {
                         // Use pattern shader for stroke
-                        paint.Shader = PatternPaintEngine.ToShader(state.StrokePaint.Pattern, state, page);
+                        paint.Shader = state.FillPaint.Pattern.AsShader(state.RenderingIntent, state);
                         paint.Color = ApplyAlpha(SKColors.White, state.StrokeAlpha);
                     }
                     else
@@ -192,12 +201,12 @@ namespace PdfReader.Rendering
                     // Prefer fill pattern if present, otherwise stroke pattern, otherwise solid color
                     if (state.FillPaint != null && state.FillPaint.IsPattern && state.FillPaint.Pattern != null)
                     {
-                        paint.Shader = PatternPaintEngine.ToShader(state.FillPaint.Pattern, state, page);
+                        paint.Shader = state.FillPaint.Pattern.AsShader(state.RenderingIntent, state);
                         paint.Color = ApplyAlpha(SKColors.White, state.FillAlpha);
                     }
                     else if (state.StrokePaint != null && state.StrokePaint.IsPattern && state.StrokePaint.Pattern != null)
                     {
-                        paint.Shader = PatternPaintEngine.ToShader(state.StrokePaint.Pattern, state, page);
+                        paint.Shader = state.FillPaint.Pattern.AsShader(state.RenderingIntent, state);
                         paint.Color = ApplyAlpha(SKColors.White, state.StrokeAlpha);
                     }
                     else
@@ -271,7 +280,7 @@ namespace PdfReader.Rendering
             if (state.StrokePaint != null && state.StrokePaint.IsPattern && state.StrokePaint.Pattern != null)
             {
                 // Use pattern shader for stroke
-                paint.Shader = PatternPaintEngine.ToShader(state.StrokePaint.Pattern, state, page);
+                paint.Shader = state.StrokePaint.Pattern.AsShader(state.RenderingIntent, state);
                 paint.Color = ApplyAlpha(SKColors.White, state.StrokeAlpha);
             }
             else
@@ -304,10 +313,11 @@ namespace PdfReader.Rendering
         {
             var paint = CreateBasePaint(state);
             paint.Style = SKPaintStyle.Fill;
+
             if (state.FillPaint != null && state.FillPaint.IsPattern && state.FillPaint.Pattern != null)
             {
                 // Use pattern shader for fill
-                paint.Shader = PatternPaintEngine.ToShader(state.FillPaint.Pattern, state, page);
+                paint.Shader = state.FillPaint.Pattern.AsShader(state.RenderingIntent, state);
                 paint.Color = ApplyAlpha(SKColors.White, state.FillAlpha);
             }
             else
@@ -374,8 +384,6 @@ namespace PdfReader.Rendering
 
             // Apply advanced transparency effects if present
             ApplyAdvancedTransparencyEffects(paint, state, page);
-
-            shader?.Dispose();
 
             return paint;
         }

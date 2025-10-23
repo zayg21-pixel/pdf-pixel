@@ -14,6 +14,7 @@ namespace PdfReader.Rendering.Path
         /// <summary>
         /// Draw a path using the specified paint operation and fill rule.
         /// Handles pattern paints, soft masks, and combined fill+stroke layering.
+        /// Note: FlatnessTolerance from graphics state is ignored, as SkiaSharp does not support curve flattening control.
         /// </summary>
         public void DrawPath(SKCanvas canvas, SKPath path, PdfGraphicsState state, PaintOperation operation, PdfPage page, SKPathFillType fillType)
         {
@@ -28,6 +29,9 @@ namespace PdfReader.Rendering.Path
             }
 
             path.FillType = fillType;
+
+            // FlatnessTolerance is ignored in SkiaSharp rendering.
+            // See PDF spec 8.4.5: Most modern renderers ignore or clamp this value for performance.
 
             using (var softMaskScope = new SoftMaskDrawingScope(canvas, state, page))
             {
@@ -47,7 +51,7 @@ namespace PdfReader.Rendering.Path
             {
                 case PaintOperation.Stroke:
                 {
-                    using (var strokePaint = PdfPaintFactory.CreateStrokePaint(state, page))
+                    using var strokePaint = PdfPaintFactory.CreateStrokePaint(state, page);
                     {
                         canvas.DrawPath(path, strokePaint);
                     }
@@ -55,7 +59,7 @@ namespace PdfReader.Rendering.Path
                 }
                 case PaintOperation.Fill:
                 {
-                    using (var fillPaint = PdfPaintFactory.CreateFillPaint(state, page))
+                    using var fillPaint = PdfPaintFactory.CreateFillPaint(state, page);
                     {
                         canvas.DrawPath(path, fillPaint);
                     }

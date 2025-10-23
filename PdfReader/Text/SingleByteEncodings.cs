@@ -1,13 +1,17 @@
-namespace PdfReader.Fonts.Mapping
+using PdfReader.Fonts.Types;
+using System.Collections.Generic;
+
+namespace PdfReader.Text
 {
     /// <summary>
-    /// Utility for converting single-byte PDF codes between base encodings
-    /// without involving glyph names. Builds a byte->byte map from WinAnsi to
-    /// StandardEncoding for a curated set of known characters; identity for others.
+    /// Utility for converting single-byte PDF codes with base encodings
+    /// to standard glyph names.
     /// </summary>
-    internal static class SingleByteEncodingConverter
+    internal static class SingleByteEncodings
     {
-        private static string[] standard = new string[]
+        private const string Undefined = ".notdef";
+
+        private static readonly string[] standard = new string[]
         {
             null,
             null,
@@ -267,7 +271,7 @@ namespace PdfReader.Fonts.Mapping
             null
         };
 
-        private static string[] ansi = new string[]
+        private static readonly string[] ansi = new string[]
         {
             null,
             null,
@@ -527,7 +531,7 @@ namespace PdfReader.Fonts.Mapping
             "ydieresis"
         };
 
-        public static string[] macRoman = new string[]
+        private static readonly string[] macRoman = new string[]
         {
             null,
             null,
@@ -787,24 +791,312 @@ namespace PdfReader.Fonts.Mapping
             "caron"
         };
 
-        public static bool TryGetNameByCid(uint cid, PdfFontEncoding ecoding, out string encoding)
+        private static readonly string[] macExpert = new string[]
         {
-            byte code = (byte)(cid & 0xFF);
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            "space",
+            "exclamsmall",
+            "Hungarumlautsmall",
+            null,
+            "dollaroldstyle",
+            "dollarsuperior",
+            "ampersandsmall",
+            "Acutesmall",
+            "parenleftsuperior",
+            "parenrightsuperior",
+            "twodotenleader",
+            "onedotenleader",
+            "comma",
+            "hyphen",
+            "period",
+            "fraction",
+            "zerooldstyle",
+            "oneoldstyle",
+            "twooldstyle",
+            "threeoldstyle",
+            "fouroldstyle",
+            "fiveoldstyle",
+            "sixoldstyle",
+            "sevenoldstyle",
+            "eightoldstyle",
+            "nineoldstyle",
+            "colon",
+            "semicolon",
+            "commasuperior",
+            "threequartersemdash",
+            "periodsuperior",
+            "questionsmall",
+            null,
+            "asuperior",
+            "bsuperior",
+            "centsuperior",
+            "dsuperior",
+            "esuperior",
+            null,
+            null,
+            null,
+            "isuperior",
+            null,
+            null,
+            "lsuperior",
+            "msuperior",
+            "nsuperior",
+            "osuperior",
+            null,
+            null,
+            "rsuperior",
+            "ssuperior",
+            "tsuperior",
+            null,
+            "ff",
+            "fi",
+            "fl",
+            "ffi",
+            "ffl",
+            "parenleftinferior",
+            null,
+            "parenrightinferior",
+            "Circumflexsmall",
+            "hyphensuperior",
+            "Gravesmall",
+            "Asmall",
+            "Bsmall",
+            "Csmall",
+            "Dsmall",
+            "Esmall",
+            "Fsmall",
+            "Gsmall",
+            "Hsmall",
+            "Ismall",
+            "Jsmall",
+            "Ksmall",
+            "Lsmall",
+            "Msmall",
+            "Nsmall",
+            "Osmall",
+            "Psmall",
+            "Qsmall",
+            "Rsmall",
+            "Ssmall",
+            "Tsmall",
+            "Usmall",
+            "Vsmall",
+            "Wsmall",
+            "Xsmall",
+            "Ysmall",
+            "Zsmall",
+            "colonmonetary",
+            "onefitted",
+            "rupiah",
+            "Tildesmall",
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            "exclamdownsmall",
+            "centoldstyle",
+            "Lslashsmall",
+            null,
+            null,
+            "Scaronsmall",
+            "Zcaronsmall",
+            "Dieresissmall",
+            "Brevesmall",
+            "Caronsmall",
+            null,
+            "Dotaccentsmall",
+            null,
+            null,
+            "Macronsmall",
+            null,
+            null,
+            "figuredash",
+            "hypheninferior",
+            null,
+            null,
+            "Ogoneksmall",
+            "Ringsmall",
+            "Cedillasmall",
+            null,
+            null,
+            null,
+            "onequarter",
+            "onehalf",
+            "threequarters",
+            "questiondownsmall",
+            "oneeighth",
+            "threeeighths",
+            "fiveeighths",
+            "seveneighths",
+            "onethird",
+            "twothirds",
+            null,
+            null,
+            "zerosuperior",
+            "onesuperior",
+            "twosuperior",
+            "threesuperior",
+            "foursuperior",
+            "fivesuperior",
+            "sixsuperior",
+            "sevensuperior",
+            "eightsuperior",
+            "ninesuperior",
+            "zeroinferior",
+            "oneinferior",
+            "twoinferior",
+            "threeinferior",
+            "fourinferior",
+            "fiveinferior",
+            "sixinferior",
+            "seveninferior",
+            "eightinferior",
+            "nineinferior",
+            "centinferior",
+            "dollarinferior",
+            "periodinferior",
+            "commainferior",
+            "Agravesmall",
+            "Aacutesmall",
+            "Acircumflexsmall",
+            "Atildesmall",
+            "Adieresissmall",
+            "Aringsmall",
+            "AEsmall",
+            "Ccedillasmall",
+            "Egravesmall",
+            "Eacutesmall",
+            "Ecircumflexsmall",
+            "Edieresissmall",
+            "Igravesmall",
+            "Iacutesmall",
+            "Icircumflexsmall",
+            "Idieresissmall",
+            "Ethsmall",
+            "Ntildesmall",
+            "Ogravesmall",
+            "Oacutesmall",
+            "Ocircumflexsmall",
+            "Otildesmall",
+            "Odieresissmall",
+            "OEsmall",
+            "Oslashsmall",
+            "Ugravesmall",
+            "Uacutesmall",
+            "Ucircumflexsmall",
+            "Udieresissmall",
+            "Yacutesmall",
+            "Thornsmall",
+            "Ydieresissmal"
+        };
 
-            switch (ecoding)
+        public static string[] GetEncodingSet(PdfFontEncoding encoding)
+        {
+            return encoding switch
             {
-                case PdfFontEncoding.StandardEncoding:
-                    encoding = standard[code];
-                    return encoding != null;
+                PdfFontEncoding.StandardEncoding => standard,
+                PdfFontEncoding.WinAnsiEncoding => ansi,
+                PdfFontEncoding.MacExpertEncoding => macExpert,
+                PdfFontEncoding.MacRomanEncoding => macRoman,
+                _ => null,
+            };
+        }
+
+        public static string GetNameByCode(byte code, PdfFontEncoding encoding, Dictionary<int, string> differences = default)
+        {
+            if (differences != null && differences.TryGetValue(code, out string name) && !string.IsNullOrEmpty(name))
+            {
+                return name;
+            }
+
+            return encoding switch
+            {
+                PdfFontEncoding.StandardEncoding => standard[code],
+                PdfFontEncoding.MacRomanEncoding => macRoman[code],
+                PdfFontEncoding.WinAnsiEncoding => ansi[code],
+                PdfFontEncoding.MacExpertEncoding => macExpert[code],
+                _ => null,
+            };
+        }
+
+        public static string GetNameByCodeOrDefault(byte code, PdfFontEncoding encoding, Dictionary<int, string> differences = default)
+        {
+            if (differences != null && differences.TryGetValue(code, out string name) && !string.IsNullOrEmpty(name))
+            {
+                return name;
+            }
+
+            switch (encoding)
+            {
                 case PdfFontEncoding.MacRomanEncoding:
-                    encoding = macRoman[code];
-                    return encoding != null;
+                    return macRoman[code] ?? Undefined;
                 case PdfFontEncoding.WinAnsiEncoding:
-                    encoding = ansi[code];
-                    return encoding != null;
+                    return ansi[code] ?? Undefined;
+                case PdfFontEncoding.MacExpertEncoding:
+                    return macExpert[code] ?? Undefined;
                 default:
-                    encoding = null;
-                    return false;
+                    return standard[code] ?? Undefined;
             }
         }
     }

@@ -211,14 +211,9 @@ namespace PdfReader.Fonts.Cff
 
                 // Build name->GID & SID->GID maps
                 var glyphNameToGid = new Dictionary<string, ushort>(glyphCount, StringComparer.Ordinal);
-                var sidToGid = new Dictionary<ushort, ushort>(glyphCount);
                 for (ushort glyphId = 0; glyphId < sidByGlyph.Length; glyphId++)
                 {
                     ushort sid = sidByGlyph[glyphId];
-                    if (!sidToGid.ContainsKey(sid))
-                    {
-                        sidToGid[sid] = glyphId;
-                    }
 
                     string glyphName = ResolveGlyphName(sid, customStrings);
                     if (!string.IsNullOrEmpty(glyphName) && !glyphNameToGid.ContainsKey(glyphName))
@@ -227,19 +222,10 @@ namespace PdfReader.Fonts.Cff
                     }
                 }
 
-                // Build code->GID from Encoding
-                var codeToGid = BuildCodeToGidMap(encodingOffset, cffBytes, glyphCount, glyphNameToGid, sidToGid);
-
                 info = new CffNameKeyedInfo
                 {
-                    IsCidKeyed = isCidKeyed,
-                    CharsetOffset = charsetOffset,
-                    CharStringsOffset = charStringsOffset,
-                    EncodingOffset = encodingOffset,
                     GlyphCount = glyphCount,
                     NameToGid = glyphNameToGid,
-                    SidToGid = sidToGid,
-                    CodeToGid = codeToGid,
                     CffData = cffDataMemory
                 };
 
@@ -299,127 +285,6 @@ namespace PdfReader.Fonts.Cff
             }
 
             return null;
-        }
-
-        private Dictionary<byte, ushort> BuildCodeToGidMap(int encodingOffset, ReadOnlySpan<byte> cffBytes, int glyphCount, Dictionary<string, ushort> glyphNameToGid, Dictionary<ushort, ushort> sidToGid)
-        {
-            var codeToGid = new Dictionary<byte, ushort>();
-
-            if (encodingOffset == PredefinedEncodingStandard || encodingOffset == PredefinedEncodingExpert)
-            {
-                var encodingNames = encodingOffset == PredefinedEncodingStandard ? CffData.StandardEncodingNames : CffData.ExpertEncodingNames;
-                for (int code = 0; code < encodingNames.Length; code++)
-                {
-                    var encodingGlyphName = encodingNames[code];
-                    if (string.IsNullOrEmpty(encodingGlyphName) || encodingGlyphName == NotDefGlyphName)
-                    {
-                        continue;
-                    }
-
-                    if (glyphNameToGid.TryGetValue(encodingGlyphName, out ushort mappedGid) && mappedGid != NotDefSid)
-                    {
-                        codeToGid[(byte)code] = mappedGid;
-                        continue;
-                    }
-
-                    if (TryGetStandardSid(encodingGlyphName, out ushort standardSid) && sidToGid.TryGetValue(standardSid, out mappedGid) && mappedGid != NotDefSid)
-                    {
-                        codeToGid[(byte)code] = mappedGid;
-                    }
-                }
-
-                return codeToGid;
-            }
-
-            if (encodingOffset <= 0 || encodingOffset >= cffBytes.Length)
-            {
-                return codeToGid; // No encoding or invalid offset
-            }
-
-            var encodingReader = new CffDataReader(cffBytes)
-            {
-                Position = encodingOffset
-            };
-            if (!encodingReader.TryReadByte(out byte encodingFormatRaw))
-            {
-                return codeToGid;
-            }
-
-            bool hasSupplement = (encodingFormatRaw & 0x80) != 0;
-            byte encodingFormat = (byte)(encodingFormatRaw & 0x7F);
-
-            switch (encodingFormat)
-            {
-                case 0:
-                    if (!encodingReader.TryReadByte(out byte codeCount))
-                    {
-                        return codeToGid;
-                    }
-                    for (int i = 0; i < codeCount; i++)
-                    {
-                        if (!encodingReader.TryReadByte(out byte code))
-                        {
-                            return codeToGid;
-                        }
-                        ushort glyphId = (ushort)(i + FirstRealGlyphGid);
-                        if (glyphId < glyphCount)
-                        {
-                            codeToGid[code] = glyphId;
-                        }
-                    }
-                    break;
-                case 1:
-                    if (!encodingReader.TryReadByte(out byte rangeCount))
-                    {
-                        return codeToGid;
-                    }
-                    ushort gidCursor = FirstRealGlyphGid;
-                    for (int rangeIndex = 0; rangeIndex < rangeCount && gidCursor < glyphCount; rangeIndex++)
-                    {
-                        if (!encodingReader.TryReadByte(out byte firstCode))
-                        {
-                            return codeToGid;
-                        }
-                        if (!encodingReader.TryReadByte(out byte leftCount))
-                        {
-                            return codeToGid;
-                        }
-                        int codesInRange = leftCount + 1;
-                        for (int j = 0; j < codesInRange && gidCursor < glyphCount; j++)
-                        {
-                            byte code = (byte)(firstCode + j);
-                            codeToGid[code] = gidCursor++;
-                        }
-                    }
-                    break;
-                default:
-                    break; // Unsupported encoding format; ignore.
-            }
-
-            if (hasSupplement)
-            {
-                if (!encodingReader.TryReadByte(out byte supplementCount))
-                {
-                    return codeToGid;
-                }
-                for (int supplementIndex = 0; supplementIndex < supplementCount; supplementIndex++)
-                {
-                    if (!encodingReader.TryReadUInt16BE(out ushort supplementSid))
-                    {
-                        return codeToGid;
-                    }
-                    if (!encodingReader.TryReadByte(out byte supplementCode))
-                    {
-                        return codeToGid;
-                    }
-                    if (sidToGid.TryGetValue(supplementSid, out ushort supplementGid) && supplementGid != NotDefSid)
-                    {
-                        codeToGid[supplementCode] = supplementGid;
-                    }
-                }
-            }
-
-            return codeToGid;
         }
 
         private static string[] GetCharsetNames(int charsetId)

@@ -1,4 +1,4 @@
-namespace PdfReader.Fonts
+namespace PdfReader.Fonts.Types
 {
     // Font-related enums and classes
     public enum PdfFontType

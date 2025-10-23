@@ -1,7 +1,9 @@
 using System;
+using System.Collections.Generic;
 using PdfReader.Models;
+using PdfReader.Parsing;
 
-namespace PdfReader.Rendering.Color
+namespace PdfReader.Rendering.Functions
 {
     /// <summary>
     /// Represents a PDF sampled function (Type 0) supporting N-dimensional input with multilinear interpolation.
@@ -102,24 +104,22 @@ namespace PdfReader.Rendering.Color
                 totalSamples = (int)nextTotal;
             }
 
-            byte[] raw = functionObject.Document.StreamDecoder.DecodeContentStream(functionObject).ToArray();
+            var raw = functionObject.DecodeAsMemory();
             if (raw.Length == 0)
             {
                 return null;
             }
 
-            var bitReader = new FunctionBitReader(raw);
+            var bitReader = new UintBitReader(raw.Span);
             float[] table = new float[totalSamples * componentCount];
-            int maxSampleValue = (bitsPerSample == 32) ? -1 : ((1 << bitsPerSample) - 1);
+            float factor = 1f / ((1UL << bitsPerSample) - 1);
 
             for (int linearIndex = 0; linearIndex < totalSamples; linearIndex++)
             {
                 for (int componentIndex = 0; componentIndex < componentCount; componentIndex++)
                 {
                     uint sample = bitReader.ReadBits(bitsPerSample);
-                    float normalized = bitsPerSample == 32
-                        ? sample / 4294967295f
-                        : (maxSampleValue > 0 ? sample / (float)maxSampleValue : 0f);
+                    float normalized = sample * factor;
 
                     float outMin;
                     float outMax;
@@ -150,6 +150,16 @@ namespace PdfReader.Rendering.Color
                 domainPairs);
         }
 
+        /// <summary>
+        /// Gets the number of samples in each input dimension (sample grid sizes).
+        /// </summary>
+        public IReadOnlyList<int> Sizes => _sizes;
+
+        /// <summary>
+        /// Gets the number of input dimensions for this sampled function.
+        /// </summary>
+        public int Dimensions => _dimensions;
+
         /// <inheritdoc />
         public override ReadOnlySpan<float> Evaluate(float value)
         {
@@ -174,22 +184,19 @@ namespace PdfReader.Rendering.Color
             {
                 float domainMin = _domainPairs[2 * dimensionIndex];
                 float domainMax = _domainPairs[2 * dimensionIndex + 1];
-                if (Math.Abs(domainMax - domainMin) < 1e-12f)
-                {
-                    domainMax = domainMin + 1f;
-                }
+                float inputValue = dimensionIndex < inputs.Length ? inputs[dimensionIndex] : 0f;
+                // Clamp input to domain
+                inputValue = Clamp(inputValue, _domainPairs, dimensionIndex);
 
-                float inputValue = inputs[dimensionIndex < inputs.Length ? dimensionIndex : 0];
-                if (inputValue < domainMin)
-                {
-                    inputValue = domainMin;
-                }
-                else if (inputValue > domainMax)
-                {
-                    inputValue = domainMax;
-                }
+                float decodeMin = _decodePairs != null && _decodePairs.Length >= 2 * _dimensions
+                    ? _decodePairs[2 * dimensionIndex]
+                    : domainMin;
+                float decodeMax = _decodePairs != null && _decodePairs.Length >= 2 * _dimensions
+                    ? _decodePairs[2 * dimensionIndex + 1]
+                    : domainMax;
 
                 float domainT = (inputValue - domainMin) / (domainMax - domainMin);
+                float mappedInput = decodeMin + domainT * (decodeMax - decodeMin);
 
                 float encodeMin = 0f;
                 float encodeMax = _sizes[dimensionIndex] - 1;
@@ -203,7 +210,7 @@ namespace PdfReader.Rendering.Color
                     }
                 }
 
-                float u = encodeMin + domainT * (encodeMax - encodeMin);
+                float u = encodeMin + ((mappedInput - decodeMin) / (decodeMax - decodeMin)) * (encodeMax - encodeMin);
                 if (_sizes[dimensionIndex] == 1)
                 {
                     u = 0f;
@@ -237,10 +244,10 @@ namespace PdfReader.Rendering.Color
                 int linearIndex = 0;
                 for (int dimensionIndex = 0; dimensionIndex < _dimensions; dimensionIndex++)
                 {
-                    bool useUpper = (corner & (1 << dimensionIndex)) != 0;
+                    bool useUpper = (corner & 1 << dimensionIndex) != 0;
                     int sampleIndex = useUpper ? i1[dimensionIndex] : i0[dimensionIndex];
                     float f = fractions[dimensionIndex];
-                    weight *= useUpper ? f : (1f - f);
+                    weight *= useUpper ? f : 1f - f;
                     linearIndex += sampleIndex * _strides[dimensionIndex];
                     if (weight == 0f)
                     {
@@ -259,19 +266,8 @@ namespace PdfReader.Rendering.Color
                 }
             }
 
-            for (int componentIndex = 0; componentIndex < _componentCount; componentIndex++)
-            {
-                float rangeMin = _rangePairs[2 * componentIndex];
-                float rangeMax = _rangePairs[2 * componentIndex + 1];
-                if (output[componentIndex] < rangeMin)
-                {
-                    output[componentIndex] = rangeMin;
-                }
-                else if (output[componentIndex] > rangeMax)
-                {
-                    output[componentIndex] = rangeMax;
-                }
-            }
+            // Clamp output to range
+            Clamp(output, _rangePairs);
 
             return output;
         }

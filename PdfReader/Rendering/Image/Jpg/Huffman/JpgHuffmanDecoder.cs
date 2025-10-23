@@ -13,7 +13,7 @@ namespace PdfReader.Rendering.Image.Jpg
     /// </summary>
     internal sealed class JpgHuffmanDecoder
     {
-        private const int LookaheadBits = 10; // MUST be &lt;= MaxCodeBits and &lt;= 16 (since we only peek 16 bits).
+        private const int LookaheadBits = 8; // MUST be &lt;= MaxCodeBits and &lt;= 16 (since we only peek 16 bits).
         private const int MaxCodeBits = 16;
 
         // Lookahead table: entry layout: high byte = number of bits in code, low byte = symbol.

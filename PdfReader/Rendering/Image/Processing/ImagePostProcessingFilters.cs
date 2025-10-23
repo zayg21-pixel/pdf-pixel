@@ -48,7 +48,7 @@ namespace PdfReader.Rendering.Image.Processing
             // Step 3: Apply color space conversion filter if available.
             // Converts decoded samples to sRGB using the image's color space.
             // PDF spec: color conversion must occur after decoding and before masking.
-            pdfImage.ColorSpaceConverter.AddColorFilter(paint, pdfImage.RenderingIntent);
+            ComposeColorFilter(paint, pdfImage.ColorSpaceConverter.AsColorFilter(pdfImage.RenderingIntent));
 
             // Step 4: If this image is a soft mask, apply luminocity-to-alpha filter.
             // Converts grayscale values to alpha for soft-masked images.

@@ -1,15 +1,18 @@
 using Microsoft.Extensions.Logging;
 using PdfReader.Encryption;
 using PdfReader.Fonts;
+using PdfReader.Fonts.Management;
+using PdfReader.Fonts.Mapping;
+using PdfReader.Fonts.Types;
+using PdfReader.Parsing;
 using PdfReader.Rendering;
 using PdfReader.Rendering.Color;
-using PdfReader.Parsing;
+using PdfReader.Rendering.Functions;
+using PdfReader.Rendering.Pattern;
+using PdfReader.Streams;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using PdfReader.Fonts.Management;
-using PdfReader.Fonts.Mapping;
-using PdfReader.Streams;
 
 namespace PdfReader.Models
 {
@@ -36,11 +39,17 @@ namespace PdfReader.Models
 
         internal ILoggerFactory LoggerFactory { get; }
 
+        internal PdfFontCache FontCache { get; }
+
+        /// <summary>
+        /// Local page font cache.
+        /// </summary>
         internal Dictionary<PdfReference, PdfFontBase> Fonts { get; } = new Dictionary<PdfReference, PdfFontBase>();
 
+        /// <summary>
+        /// Local page color space converter cache.
+        /// </summary>
         internal Dictionary<PdfReference, PdfColorSpaceConverter> ColorSpaceConverters { get; } = new Dictionary<PdfReference, PdfColorSpaceConverter>();
-
-        internal PdfFontCache FontCache { get; }
 
         internal Dictionary<string, PdfToUnicodeCMap> ToUnicodeCmaps { get; } = new Dictionary<string, PdfToUnicodeCMap>(StringComparer.Ordinal);
 
@@ -50,6 +59,8 @@ namespace PdfReader.Models
         /// High-level cache for parsed PDF functions, keyed by reference.
         /// </summary>
         internal ConcurrentDictionary<PdfReference, PdfFunction> FunctionObjectCache { get; } = new ConcurrentDictionary<PdfReference, PdfFunction>();
+
+        internal Dictionary<PdfReference, PdfPattern> PatternCache { get; } = new Dictionary<PdfReference, PdfPattern>();
 
         internal PdfStreamDecoder StreamDecoder { get; }
 
@@ -118,6 +129,8 @@ namespace PdfReader.Models
             {
                 converter.Dispose();
             }
+
+            ColorSpaceConverters.Clear();
         }
     }
 }

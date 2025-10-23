@@ -1,4 +1,3 @@
-using PdfReader.Fonts;
 using PdfReader.Models;
 using PdfReader.Rendering.Text;
 using PdfReader.Rendering.Path;
@@ -7,6 +6,7 @@ using PdfReader.Rendering.Shading;
 using SkiaSharp;
 using Microsoft.Extensions.Logging;
 using PdfReader.Fonts.Management;
+using PdfReader.Fonts.Types;
 
 namespace PdfReader.Rendering
 {

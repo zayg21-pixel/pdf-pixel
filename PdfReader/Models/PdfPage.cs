@@ -1,4 +1,5 @@
 using PdfReader.Fonts;
+using PdfReader.Fonts.Types;
 using PdfReader.Rendering;
 using SkiaSharp;
 using System;
@@ -110,26 +111,20 @@ namespace PdfReader.Models
 
             var fontObject = fontDict.GetPageObject(fontName);
 
-            if (fontObject == null)
-            {
-                var inlineDictionary = fontDict.GetValue(fontName).AsDictionary();
-                return PdfFontFactory.CreateFont(inlineDictionary);
-            }
-
             var fontReference = fontObject.Reference;
-            if (Document.Fonts.TryGetValue(fontReference, out var cachedFont))
+            if (fontReference.IsValid && Document.Fonts.TryGetValue(fontReference, out var cachedFont))
             {
                 return cachedFont;
             }
 
             var newFont = PdfFontFactory.CreateFont(fontObject);
-            if (newFont != null)
+
+            if (newFont != null && fontReference.IsValid)
             {
                 Document.Fonts[fontReference] = newFont;
-                return newFont;
             }
 
-            return null;
+            return newFont;
         }
 
         /// <summary>

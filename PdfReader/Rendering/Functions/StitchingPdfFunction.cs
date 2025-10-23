@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using PdfReader.Models;
 
-namespace PdfReader.Rendering.Color
+namespace PdfReader.Rendering.Functions
 {
     /// <summary>
     /// Represents a PDF stitching function (Type 3) that delegates to sub-functions based on bounds and encoding.
@@ -100,7 +100,7 @@ namespace PdfReader.Rendering.Color
                 mappedInput = e0 + localT * (e1 - e0);
             }
 
-            PdfFunction childFunction = (segmentIndex < _subFunctions.Count) ? _subFunctions[segmentIndex] : null;
+            PdfFunction childFunction = segmentIndex < _subFunctions.Count ? _subFunctions[segmentIndex] : null;
             if (childFunction != null)
             {
                 return childFunction.Evaluate(mappedInput);

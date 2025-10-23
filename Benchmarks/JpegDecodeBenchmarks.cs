@@ -1,4 +1,5 @@
 ﻿using BenchmarkDotNet.Attributes;
+using BenchmarkDotNet.Jobs;
 using PdfReader.Rendering.Image.Jpg.Decoding;
 using PdfReader.Rendering.Image.Jpg.Model;
 using PdfReader.Rendering.Image.Jpg.Readers;
@@ -8,7 +9,7 @@ using System.Runtime.InteropServices;
 namespace Benchmarks
 {
     [MemoryDiagnoser]
-    //[SimpleJob(RuntimeMoniker.Net80, launchCount: 1, warmupCount: 1, invocationCount: 20, iterationCount: 32)]
+    [SimpleJob(RuntimeMoniker.Net80, launchCount: 1, warmupCount: 1, invocationCount: 20, iterationCount: 32)]
     public class JpegDecodeBenchmarks
     {
         private ReadOnlyMemory<byte> jpegData;

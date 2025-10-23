@@ -64,11 +64,6 @@ namespace PdfReader.Rendering.Color.Clut
             PdfRenderingIntent renderingIntent,
             DeviceToSrgbCore deviceToSrgbConverter)
         {
-            if (channelCount != 1 && channelCount != 3 && channelCount != 4)
-            {
-                throw new ArgumentOutOfRangeException(nameof(channelCount), channelCount, "Only 1, 3, or 4 channels are supported.");
-            }
-
             if (channelCount == 4)
             {
                 return BuildClutColorFilterKSlice(resolution, renderingIntent, deviceToSrgbConverter);

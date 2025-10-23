@@ -1,86 +1,122 @@
-using HarfBuzzSharp;
 using Microsoft.Extensions.Logging;
 using PdfReader.Fonts.Cff;
+using PdfReader.Fonts.Mapping;
+using PdfReader.Fonts.Types;
 using PdfReader.Models;
-using PdfReader.Streams;
 using SkiaSharp;
 using System;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
 using System.IO;
 
 namespace PdfReader.Fonts.Management
 {
     /// <summary>
-    /// Default implementation of font cache that contains both SKTypeface and HarfBuzz fonts
-    /// Updated to use PdfFontBase hierarchy as dictionary key for efficient lookups
+    /// Default implementation of font cache.
     /// </summary>
     internal class PdfFontCache : IFontCache
     {
-        private readonly Dictionary<PdfFontBase, SKTypeface> _typefaceCache = new Dictionary<PdfFontBase, SKTypeface>();
-        private readonly Dictionary<PdfFontBase, Font> _harfBuzzFontCache = new Dictionary<PdfFontBase, Font>();
-        private readonly Dictionary<(int weight, int width, SKFontStyleSlant slant), SKTypeface> _fallbackCache = new Dictionary<(int weight, int width, SKFontStyleSlant slant), SKTypeface>();
+        private readonly ConcurrentDictionary<PdfFontBase, SKTypeface> _typefaceCache = new ConcurrentDictionary<PdfFontBase, SKTypeface>();
         private readonly ConcurrentDictionary<PdfReference, CffNameKeyedInfo> _ccfMaps = new ConcurrentDictionary<PdfReference, CffNameKeyedInfo>();
+        private readonly ConcurrentDictionary<PdfFontBase, IByteCodeToGidMapper> _byteCodeToGidMapperCache = new ConcurrentDictionary<PdfFontBase, IByteCodeToGidMapper>();
         private readonly PdfDocument _document;
         private readonly ILogger<PdfFontCache> _logger;
-        private readonly SkiaFontLoader _skiaFontLoader;
         private readonly CffSidGidMapper _cffMapper;
-
         private bool _disposed = false;
 
         public PdfFontCache(PdfDocument document)
         {
             _document = document;
-            _skiaFontLoader = new SkiaFontLoader(document, this);
             _logger = document.LoggerFactory.CreateLogger<PdfFontCache>();
             _cffMapper = new CffSidGidMapper(document);
         }
 
-        public Stream GetFontStream(PdfFontDescriptor decriptor)
+        /// <summary>
+        /// Get or create a SKTypeface for the specified PDF font
+        /// Updated to use PdfFontBase hierarchy
+        /// </summary>
+        /// <param name="font">PDF font to get typeface for</param>
+        /// <returns>SKTypeface instance</returns>
+        public SKTypeface GetTypeface(PdfFontBase font)
         {
-            if (decriptor?.FontFileObject == null)
+            if (font == null)
             {
-                return null;
+                return SKTypeface.Default;
             }
 
-            return DecodeFontStream(decriptor);
-        }
-
-        public CffNameKeyedInfo GetCffInfo(PdfFontDescriptor decriptor)
-        {
-            if (decriptor?.FontFileObject == null)
+            if (!_typefaceCache.TryGetValue(font, out var cachedTypeface))
             {
-                return null;
-            }
-
-            if (_ccfMaps.TryGetValue(decriptor.FontFileObject.Reference, out var cached))
-            {
-                return cached;
-            }
-
-            return _ccfMaps.GetOrAdd(decriptor.FontFileObject.Reference, _ => DecodeCffInfo(decriptor));
-        }
-
-        private CffNameKeyedInfo DecodeCffInfo(PdfFontDescriptor decriptor)
-        {
-            try
-            {
-                if (decriptor.HasEmbeddedFont && decriptor.FontFileFormat == FontFileFormat.Type1C || decriptor.FontFileFormat == FontFileFormat.CIDFontType0C)
+                SKTypeface typeface = null;
+                var descriptor = font.FontDescriptor;
+                if (descriptor != null && descriptor.FontFileObject != null)
                 {
-                    var decoded = _document.StreamDecoder.DecodeContentStream(decriptor.FontFileObject);
-
-                    if (_cffMapper.TryParseNameKeyed(decoded, out var cffInfo))
+                    // Embedded font: load from stream
+                    using var stream = DecodeFontStream(descriptor);
+                    if (stream != null)
                     {
-                        return cffInfo;
+                        typeface = SKTypeface.FromStream(stream);
                     }
                 }
-            }
-            catch
-            {
-                // Swallow exceptions - higher level code can fallback.
+                if (typeface == null)
+                {
+                    // Non-embedded font: use SkiaFontLoader for substitution
+                    typeface = SkiaFontSubstitutor.SubstituteTypeface(font.BaseFont, descriptor);
+                }
+                _typefaceCache[font] = typeface ?? SKTypeface.Default;
+                cachedTypeface = _typefaceCache[font];
             }
 
-            return null;
+            return cachedTypeface;
+        }
+
+        /// <summary>
+        /// Gets a glyph name to GID mapper for the specified font.
+        /// Resolves a CFF mapper for CFF fonts, or an SFNT mapper for TrueType/OpenType fonts.
+        /// Returns null for unsupported or non-TrueType font types.
+        /// Caches the mapper for future calls.
+        /// </summary>
+        /// <param name="font">The PDF font to get the mapper for.</param>
+        /// <returns>An IByteCodeToGidMapper for the font, or null if not available or not a TrueType/CFF font.</returns>
+        public IByteCodeToGidMapper GetByteCodeToGidMapper(PdfFontBase font)
+        {
+            if (font == null)
+            {
+                return null;
+            }
+
+            if (_byteCodeToGidMapperCache.TryGetValue(font, out var cachedMapper))
+            {
+                return cachedMapper;
+            }
+
+            IByteCodeToGidMapper mapper = null;
+
+            // CFF font (Type1C or CIDFontType0C) requires descriptor
+            var descriptor = font.FontDescriptor;
+            var flags = descriptor?.Flags ?? PdfFontFlags.None;
+
+            if (descriptor != null && (descriptor.FontFileFormat == FontFileFormat.Type1C || descriptor.FontFileFormat == FontFileFormat.CIDFontType0C))
+            {
+                var cffInfo = GetCffInfo(descriptor);
+                if (cffInfo != null)
+                {
+                    mapper = new CffByteCodeToGidMapper(cffInfo, flags, font.Encoding, font.Differences);
+                }
+            }
+            else if (font is PdfSimpleFont simpleFont)
+            {
+                var typeface = GetTypeface(font);
+                if (typeface != null)
+                {
+                    mapper = new SntfByteCodeToGidMapper(typeface, flags, simpleFont.Encoding, simpleFont.Differences, simpleFont.ToUnicodeCMap);
+                }
+            }
+
+            if (mapper != null)
+            {
+                _byteCodeToGidMapperCache[font] = mapper;
+            }
+
+            return mapper;
         }
 
         private Stream DecodeFontStream(PdfFontDescriptor decriptor)
@@ -105,61 +141,36 @@ namespace PdfReader.Fonts.Management
             }
         }
 
-        /// <summary>
-        /// Get or create a SKTypeface for the specified PDF font
-        /// Updated to use PdfFontBase hierarchy
-        /// </summary>
-        /// <param name="font">PDF font to get typeface for</param>
-        /// <returns>SKTypeface instance</returns>
-        public SKTypeface GetTypeface(PdfFontBase font)
+        private CffNameKeyedInfo GetCffInfo(PdfFontDescriptor descriptor)
         {
-            if (font == null) return SKTypeface.Default;
-
-            if (!_typefaceCache.TryGetValue(font, out var cachedTypeface))
+            if (descriptor?.FontFileObject == null)
             {
-                cachedTypeface = _skiaFontLoader.GetTypeface(font);
-                _typefaceCache[font] = cachedTypeface;
+                return null;
             }
 
-            return cachedTypeface;
+            return _ccfMaps.GetOrAdd(descriptor.FontFileObject.Reference, _ => DecodeCffInfo(descriptor));
         }
 
-        public SKTypeface GetFallbackFromParameters(int weight, int width, SKFontStyleSlant slant)
+        private CffNameKeyedInfo DecodeCffInfo(PdfFontDescriptor decriptor)
         {
-            var key = (weight, width, slant);
-            if (!_fallbackCache.TryGetValue(key, out var cachedTypeface))
+            try
             {
-                cachedTypeface = SKTypeface.FromFamilyName("Arial", weight, width, slant);
-                _fallbackCache[key] = cachedTypeface;
+                if (decriptor.HasEmbeddedFont && decriptor.FontFileFormat == FontFileFormat.Type1C || decriptor.FontFileFormat == FontFileFormat.CIDFontType0C)
+                {
+                    var decoded = _document.StreamDecoder.DecodeContentStream(decriptor.FontFileObject);
+
+                    if (_cffMapper.TryParseNameKeyed(decoded, out var cffInfo))
+                    {
+                        return cffInfo;
+                    }
+                }
+            }
+            catch
+            {
+                // Swallow exceptions - higher level code can fallback.
             }
 
-            return cachedTypeface;
-        }
-
-        /// <summary>
-        /// Clear all cached fonts
-        /// </summary>
-        public void ClearCache()
-        {
-            foreach (var typeface in _typefaceCache.Values)
-            {
-                typeface?.Dispose();
-            }
-            _typefaceCache.Clear();
-
-            foreach (var font in _harfBuzzFontCache.Values)
-            {
-                font?.Dispose();
-            }
-
-            foreach (var fallback in _fallbackCache.Values)
-            {
-                fallback?.Dispose();
-            }
-
-            _typefaceCache.Clear();
-            _fallbackCache.Clear();
-            _harfBuzzFontCache.Clear();
+            return null;
         }
 
         protected virtual void Dispose(bool disposing)
@@ -168,7 +179,14 @@ namespace PdfReader.Fonts.Management
             {
                 if (disposing)
                 {
-                    ClearCache();
+                    foreach (var typeface in _typefaceCache.Values)
+                    {
+                        typeface?.Dispose();
+                    }
+
+                    _typefaceCache.Clear();
+                    _byteCodeToGidMapperCache.Clear();
+                    _ccfMaps.Clear();
                 }
                 _disposed = true;
             }

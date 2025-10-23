@@ -3,24 +3,25 @@ using System.Collections.Generic;
 
 namespace PdfReader.Fonts.Cff
 {
+    /// <summary>
+    /// Holds parsed metadata for a name-keyed CFF (Type 1C) font.
+    /// Provides glyph count, glyph name to GID mapping, and raw CFF data.
+    /// </summary>
     internal sealed class CffNameKeyedInfo
     {
-        public bool IsCidKeyed { get; set; }
-
-        public int CharsetOffset { get; set; }
-
-        public int CharStringsOffset { get; set; }
-
-        public int EncodingOffset { get; set; }
-
+        /// <summary>
+        /// Gets or sets the total number of glyphs in the font.
+        /// </summary>
         public int GlyphCount { get; set; }
 
+        /// <summary>
+        /// Gets or sets the mapping from glyph names to glyph IDs (GIDs).
+        /// </summary>
         public Dictionary<string, ushort> NameToGid { get; set; }
 
-        public Dictionary<ushort, ushort> SidToGid { get; set; }
-
-        public Dictionary<byte, ushort> CodeToGid { get; set; }
-
+        /// <summary>
+        /// Gets or sets the raw CFF font data.
+        /// </summary>
         public ReadOnlyMemory<byte> CffData { get; set; }
     }
 }

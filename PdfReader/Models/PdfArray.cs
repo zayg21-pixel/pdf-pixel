@@ -170,7 +170,8 @@ namespace PdfReader.Models
                 return Document.GetObject(reference);
             }
 
-            return null;
+            // return synthetic object
+            return new PdfObject(default, Document, storedValue);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

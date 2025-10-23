@@ -284,7 +284,7 @@ namespace PdfReader.Rendering.Image.Jpg.Decoding
             var quantTables = new List<JpgQuantizationTable>(header.QuantizationTables);
             int restartInterval = header.RestartInterval;
 
-            var bitReader = new JpgBitReader(ref content);
+            var bitReader = new JpgBitReader(content);
             JpgScanSpec currentScan = header.Scans.Count > 0 ? header.Scans[0] : null;
             int[] previousDc = new int[header.ComponentCount];
             int eobRun = 0;

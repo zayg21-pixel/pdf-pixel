@@ -14,90 +14,42 @@ namespace PdfReader.Rendering.Pattern
     /// Base class for all PDF pattern types (/Pattern). Provides common metadata shared by
     /// tiling and shading patterns.
     /// </summary>
-    public abstract class PdfPattern
+    public abstract class PdfPattern : IDisposable
     {
-        /// <summary>Pattern object reference.</summary>
-        public PdfReference Reference { get; }
-        /// <summary>Pattern transformation matrix (identity if /Matrix absent).</summary>
-        public SKMatrix PatternMatrix { get; }
-        /// <summary>Underlying pattern type enum.</summary>
-        public PdfPatternType PatternType { get; }
-
-        protected PdfPattern(PdfReference reference, SKMatrix matrix, PdfPatternType patternType)
+        protected PdfPattern(PdfPage page, PdfObject sourceObject, SKMatrix matrix, PdfPatternType patternType)
         {
-            Reference = reference;
+            Page = page;
+            SourceObject = sourceObject;
             PatternMatrix = matrix;
             PatternType = patternType;
         }
-    }
 
-    /// <summary>
-    /// Strongly typed paint type for tiling patterns (PDF spec Table 90)
-    /// </summary>
-    public enum PdfTilingPaintType
-    {
-        Colored = 1,
-        Uncolored = 2
-    }
+        /// <summary>
+        /// Owning page context for the pattern.
+        /// </summary>
+        public PdfPage Page { get; set; }
 
-    /// <summary>
-    /// Strongly typed tiling type (PDF spec Table 91)
-    /// </summary>
-    public enum PdfTilingSpacingType
-    {
-        ConstantSpacing = 1,
-        NoDistortion = 2,
-        ConstantSpacingFast = 3
-    }
+        /// <summary>Original source PDF object for the pattern.</summary>
+        public PdfObject SourceObject { get; }
 
-    /// <summary>
-    /// Represents a parsed tiling (/PatternType 1) pattern.
-    /// </summary>
-    public sealed class PdfTilingPattern : PdfPattern
-    {
-        public SKRect BBox { get; }
-        public float XStep { get; }
-        public float YStep { get; }
-        public PdfTilingPaintType PaintTypeKind { get; }
-        public PdfTilingSpacingType TilingTypeKind { get; }
+        /// <summary>Pattern transformation matrix (identity if /Matrix absent).</summary>
+        public SKMatrix PatternMatrix { get; }
 
-        internal PdfTilingPattern(
-            PdfReference reference,
-            SKRect bbox,
-            float xStep,
-            float yStep,
-            PdfTilingPaintType paintTypeKind,
-            PdfTilingSpacingType tilingTypeKind,
-            SKMatrix matrix)
-            : base(reference, matrix, PdfPatternType.Tiling)
+        /// <summary>Underlying pattern type enum.</summary>
+        public PdfPatternType PatternType { get; }
+
+        /// <summary>
+        /// Converts the current object to reusable <see cref="SKShader"/> representation.
+        /// </summary>
+        /// <param name="intent">The rendering intent that specifies how colors should be managed during rendering.</param>
+        /// <param name="state">The graphics state that provides additional context for rendering, such as transformations and clipping
+        /// paths.</param>
+        /// <returns>An <see cref="SKShader"/> instance representing the current object, configured based on the specified
+        /// rendering intent and graphics state.</returns>
+        public abstract SKShader AsShader(PdfRenderingIntent intent, PdfGraphicsState state);
+
+        public virtual void Dispose()
         {
-            BBox = bbox;
-            XStep = xStep;
-            YStep = yStep;
-            PaintTypeKind = paintTypeKind;
-            TilingTypeKind = tilingTypeKind;
-        }
-    }
-
-    /// <summary>
-    /// Represents a shading pattern (/PatternType 2). Minimal placeholder – only captures core references.
-    /// </summary>
-    public sealed class PdfShadingPattern : PdfPattern
-    {
-        /// <summary>Shading object referenced by the pattern's /Shading entry.</summary>
-        public PdfShading Shading { get; }
-        /// <summary>Optional ExtGState dictionary (may be null).</summary>
-        public PdfDictionary ExtGState { get; }
-
-        internal PdfShadingPattern(
-            PdfReference reference,
-            PdfShading shading,
-            SKMatrix matrix,
-            PdfDictionary extGState)
-            : base(reference, matrix, PdfPatternType.Shading)
-        {
-            Shading = shading;
-            ExtGState = extGState;
         }
     }
 }

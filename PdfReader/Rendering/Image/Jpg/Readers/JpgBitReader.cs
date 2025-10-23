@@ -1,6 +1,6 @@
 using System;
+using System.Buffers.Binary;
 using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
 
 namespace PdfReader.Rendering.Image.Jpg.Readers
 {
@@ -10,7 +10,7 @@ namespace PdfReader.Rendering.Image.Jpg.Readers
     /// to obtain the next marker code (if any) and then, for markers which include a length-prefixed payload, call
     /// <see cref="ReadSegmentPayload"/> to obtain the payload bytes (excluding the two length bytes).
     /// </summary>
-    internal unsafe ref struct JpgBitReader
+    internal ref struct JpgBitReader
     {
         private const int MaxReservoirBits = 64;
         private const int ByteBitCount = 8;
@@ -19,9 +19,9 @@ namespace PdfReader.Rendering.Image.Jpg.Readers
         private const byte StuffingZero = 0x00;
         private const int MarkerSegmentLengthFieldSize = 2; // Length field includes its 2 bytes.
 
-        private byte* _current;
-        private int _remaining;
+        private ReadOnlySpan<byte> _data;
         private int _pos;
+        private int _remaining;
         private ulong _bitBuf;   // Left-aligned bit reservoir (high bits contain oldest bits). Up to 64 bits stored.
         private int _bits;        // Number of valid bits currently in _bitBuf (0..64).
         private bool _markerPending;
@@ -30,16 +30,10 @@ namespace PdfReader.Rendering.Image.Jpg.Readers
         /// Create a new bit reader over <paramref name="data"/> starting at position 0.
         /// </summary>
         /// <param name="data">Entropy-coded byte span (no ownership is taken).</param>
-        public JpgBitReader(ref ReadOnlySpan<byte> data)
+        public JpgBitReader(ReadOnlySpan<byte> data)
         {
-            _current = (byte*)Unsafe.AsPointer(ref MemoryMarshal.GetReference(data));
+            _data = data;
             _remaining = data.Length;
-
-            fixed (byte* dataPtr = data)
-            {
-                _current = dataPtr;
-                _remaining = data.Length;
-            }
             _pos = 0;
             _bitBuf = 0;
             _bits = 0;
@@ -49,12 +43,10 @@ namespace PdfReader.Rendering.Image.Jpg.Readers
         /// <summary>
         /// Create a bit reader over <paramref name="data"/> resuming from a previously captured <paramref name="state"/>.
         /// </summary>
-        public JpgBitReader(ref ReadOnlySpan<byte> data, JpgBitReaderState state)
+        public JpgBitReader(ReadOnlySpan<byte> data, JpgBitReaderState state)
         {
-
-            _current = (byte*)Unsafe.AsPointer(ref MemoryMarshal.GetReference(data)) + state.Pos;
+            _data = data;
             _remaining = data.Length - state.Pos;
-
             _pos = state.Pos;
             _bitBuf = state.BitBuf;
             _bits = state.Bits;
@@ -69,74 +61,103 @@ namespace PdfReader.Rendering.Image.Jpg.Readers
                 return;
             }
 
-            ulong bitBuf = _bitBuf;
-            int bits = _bits;
+            ulong bitBuffer = _bitBuf;
+            int bufferedBits = _bits;
 
             if (!_markerPending)
             {
-                while (bits < requiredBits && bits <= ReservoirAppendThreshold && _remaining > 0)
+                while (bufferedBits < requiredBits && bufferedBits <= ReservoirAppendThreshold && _remaining > 0)
                 {
-                    byte value = *_current;
+                    int reservoirBytes = (ReservoirAppendThreshold - bufferedBits) >> 3;
+                    int delta = reservoirBytes - _remaining;
+                    int mask = delta >> 31;
+                    int bytesToRead = _remaining + (delta & mask);
 
-                    if (value != MarkerPrefix)
+                    if (bytesToRead >= 8)
                     {
-                        _current++;
-                        _remaining--;
-                        _pos++;
-                        bitBuf = (bitBuf << ByteBitCount) | value;
-                        bits += ByteBitCount;
-                        continue;
-                    }
+                        ulong chunk = BinaryPrimitives.ReadUInt64BigEndian(_data.Slice(_pos, 8));
+                        const ulong HighBitMask = 0x8080808080808080UL;
+                        const ulong ByteMask = 0x0101010101010101UL;
+                        bool hasMarker = ((chunk - ByteMask) & ~chunk & HighBitMask) != 0;
 
-                    if (_remaining >= MarkerSegmentLengthFieldSize)
-                    {
-                        byte next = _current[1];
-                        if (next == StuffingZero)
+                        if (!hasMarker)
                         {
-                            _current += MarkerSegmentLengthFieldSize;
-                            _remaining -= MarkerSegmentLengthFieldSize;
-                            _pos += MarkerSegmentLengthFieldSize;
-                            bitBuf = (bitBuf << ByteBitCount) | MarkerPrefix;
-                            bits += ByteBitCount;
+                            bitBuffer = (bitBuffer << (ByteBitCount * 8)) | chunk;
+                            bufferedBits += ByteBitCount * 8;
+                            _pos += 8;
+                            _remaining -= 8;
                             continue;
                         }
-
+                        // Marker found, process bytes up to marker using the chunk
+                        for (int chunkIndex = 0; chunkIndex < 8; chunkIndex++)
+                        {
+                            int shift = (7 - chunkIndex) * ByteBitCount;
+                            byte value = (byte)((chunk >> shift) & 0xFF);
+                            if (value == MarkerPrefix)
+                            {
+                                break;
+                            }
+                            bitBuffer = (bitBuffer << ByteBitCount) | value;
+                            bufferedBits += ByteBitCount;
+                            _pos++;
+                            _remaining--;
+                        }
+                        // Now process marker byte as usual below
+                    }
+                    // Byte-by-byte fallback (marker or not enough for chunk)
+                    byte valueByte = _data[_pos];
+                    if (valueByte != MarkerPrefix)
+                    {
+                        _pos++;
+                        _remaining--;
+                        bitBuffer = (bitBuffer << ByteBitCount) | valueByte;
+                        bufferedBits += ByteBitCount;
+                        continue;
+                    }
+                    if (_remaining >= MarkerSegmentLengthFieldSize)
+                    {
+                        byte next = _data[_pos + 1];
+                        if (next == StuffingZero)
+                        {
+                            _pos += MarkerSegmentLengthFieldSize;
+                            _remaining -= MarkerSegmentLengthFieldSize;
+                            bitBuffer = (bitBuffer << ByteBitCount) | MarkerPrefix;
+                            bufferedBits += ByteBitCount;
+                            continue;
+                        }
                         _markerPending = true;
                         break;
                     }
                     else
                     {
-                        _current++;
-                        _remaining--;
                         _pos++;
-                        bitBuf = (bitBuf << ByteBitCount) | MarkerPrefix;
-                        bits += ByteBitCount;
+                        _remaining--;
+                        bitBuffer = (bitBuffer << ByteBitCount) | MarkerPrefix;
+                        bufferedBits += ByteBitCount;
                         continue;
                     }
                 }
             }
 
             // Pad with zero bits if blocked by marker or end-of-data and still need bits.
-            if (bits < requiredBits && (_markerPending || _remaining == 0))
+            if (bufferedBits < requiredBits && (_markerPending || _remaining == 0))
             {
-                int neededBits = requiredBits - bits;
-                // Limit to remaining reservoir capacity.
-                int availableBits = MaxReservoirBits - bits; // Always multiple of 8.
+                int neededBits = requiredBits - bufferedBits;
+                int availableBits = MaxReservoirBits - bufferedBits;
                 if (neededBits > availableBits)
                 {
                     neededBits = availableBits;
                 }
-                // Round up to next whole byte (multiple of 8) using mask instead of divide/multiply.
                 int padBits = (neededBits + (ByteBitCount - 1)) & ~(ByteBitCount - 1);
                 if (padBits > 0)
                 {
-                    bitBuf <<= padBits;
-                    bits += padBits;
+                    bitBuffer <<= padBits;
+                    bufferedBits += padBits;
                 }
             }
 
-            _bitBuf = bitBuf;
-            _bits = bits;
+            _bitBuf = bitBuffer;
+            _bits = bufferedBits;
         }
 
         /// <summary>
@@ -224,18 +245,19 @@ namespace PdfReader.Rendering.Image.Jpg.Readers
                 return false;
             }
 
-            byte* markerPtr = _current;
+            int markerPos = _pos;
             int markerRemaining = _remaining;
 
-            if (*markerPtr++ != MarkerPrefix)
+            if (_data[markerPos] != MarkerPrefix)
             {
                 return false;
             }
+            markerPos++;
             markerRemaining--;
 
-            while (markerRemaining > 0 && *markerPtr == MarkerPrefix)
+            while (markerRemaining > 0 && _data[markerPos] == MarkerPrefix)
             {
-                markerPtr++;
+                markerPos++;
                 markerRemaining--;
             }
 
@@ -244,16 +266,17 @@ namespace PdfReader.Rendering.Image.Jpg.Readers
                 return false;
             }
 
-            byte code = *markerPtr++;
+            byte code = _data[markerPos];
+            markerPos++;
+            markerRemaining--;
             if (code == StuffingZero)
             {
                 return false;
             }
 
-            int consumed = (int)(markerPtr - _current);
-            _current = markerPtr;
-            _remaining -= consumed;
-            _pos += consumed;
+            int consumed = markerPos - _pos;
+            _pos = markerPos;
+            _remaining = markerRemaining;
             _markerPending = false;
             _bitBuf = 0;
             _bits = 0;
@@ -275,8 +298,8 @@ namespace PdfReader.Rendering.Image.Jpg.Readers
                 throw new InvalidOperationException("Truncated marker segment length.");
             }
 
-            int lenHigh = _current[0];
-            int lenLow = _current[1];
+            int lenHigh = _data[_pos];
+            int lenLow = _data[_pos + 1];
             int segmentLength = (lenHigh << 8) | lenLow;
             if (segmentLength < MarkerSegmentLengthFieldSize)
             {
@@ -288,12 +311,11 @@ namespace PdfReader.Rendering.Image.Jpg.Readers
             }
 
             int payloadLength = segmentLength - MarkerSegmentLengthFieldSize;
-            byte* payloadPtr = _current + MarkerSegmentLengthFieldSize;
-            ReadOnlySpan<byte> payload = new ReadOnlySpan<byte>(payloadPtr, payloadLength);
+            int payloadStart = _pos + MarkerSegmentLengthFieldSize;
+            ReadOnlySpan<byte> payload = _data.Slice(payloadStart, payloadLength);
 
-            _current += segmentLength;
-            _remaining -= segmentLength;
             _pos += segmentLength;
+            _remaining -= segmentLength;
             return payload;
         }
 

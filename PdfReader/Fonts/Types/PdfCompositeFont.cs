@@ -1,12 +1,10 @@
 using PdfReader.Fonts.Mapping;
-using PdfReader.Fonts.Types;
 using PdfReader.Models;
 using PdfReader.Parsing;
-using PdfReader.Streams;
 using System;
 using System.Collections.Generic;
 
-namespace PdfReader.Fonts
+namespace PdfReader.Fonts.Types
 {
     /// <summary>
     /// Type0 (Composite) fonts: Multi-byte character support
@@ -113,46 +111,23 @@ namespace PdfReader.Fonts
         private List<PdfCIDFont> LoadDescendantFonts()
         {
             var descendants = new List<PdfCIDFont>();
-            
-            try
+
+            // Use GetPageObjects to get all descendant font objects
+            var descendantObjects = Dictionary.GetPageObjects(PdfTokens.DescendantFontsKey);
+            if (descendantObjects == null || descendantObjects.Count == 0)
             {
-                // Use GetPageObjects to get all descendant font objects
-                var descendantObjects = Dictionary.GetPageObjects(PdfTokens.DescendantFontsKey);
-                if (descendantObjects == null || descendantObjects.Count == 0)
-                {
-                    return descendants;
-                }
-
-                foreach (var descendantObj in descendantObjects)
-                {
-                    if (descendantObj == null)
-                    {
-                        continue;
-                    }
-
-                    var descendantRef = descendantObj.Reference;
-
-                    // Check if already loaded in document cache
-                    if (Document.Fonts.TryGetValue(descendantRef, out var cachedDescendant) && 
-                        cachedDescendant is PdfCIDFont cachedCIDFont)
-                    {
-                        descendants.Add(cachedCIDFont);
-                        continue;
-                    }
-
-                    // Load descendant font using factory
-                    var descendantFont = PdfFontFactory.CreateFont(descendantObj);
-                    if (descendantFont is PdfCIDFont cidFont)
-                    {
-                        descendants.Add(cidFont);
-                        // Cache the descendant font in document
-                        Document.Fonts[descendantRef] = cidFont;
-                    }
-                }
+                return descendants;
             }
-            catch (Exception)
+
+            foreach (var descendantObj in descendantObjects)
             {
-                // Return empty list on error
+                var descendant = PdfFontFactory.CreateFont(descendantObj);
+
+                if (descendant is PdfCIDFont cidFont)
+                {
+                    descendants.Add(cidFont);
+                }
+
             }
 
             return descendants;
@@ -164,28 +139,20 @@ namespace PdfReader.Fonts
         /// </summary>
         private PdfCodeToCidCMap LoadCodeToCidCMap()
         {
-            try
+            var encodingObj = Dictionary.GetPageObject(PdfTokens.EncodingKey);
+            if (encodingObj == null)
             {
-                var encodingObj = Dictionary.GetPageObject(PdfTokens.EncodingKey);
-                if (encodingObj == null)
-                {
-                    return null;
-                }
-
-                var data = Document.StreamDecoder.DecodeContentStream(encodingObj);
-                if (data.IsEmpty || data.Length == 0)
-                {
-                    return null;
-                }
-
-                var ctx = new PdfParseContext(data);
-                return PdfCodeToCidCMapParser.ParseCMapFromContext(ref ctx, Document, encodingObj.Dictionary);
-            }
-            catch (Exception)
-            {
-                // Ignore errors; fall back to Identity or no mapping
                 return null;
             }
+
+            var data = Document.StreamDecoder.DecodeContentStream(encodingObj);
+            if (data.IsEmpty || data.Length == 0)
+            {
+                return null;
+            }
+
+            var ctx = new PdfParseContext(data);
+            return PdfCodeToCidCMapParser.ParseCMapFromContext(ref ctx, Document, encodingObj.Dictionary);
         }
 
         /// <summary>

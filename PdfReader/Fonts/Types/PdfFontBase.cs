@@ -8,7 +8,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 
-namespace PdfReader.Fonts
+namespace PdfReader.Fonts.Types
 {
     /// <summary>
     /// Base class for all PDF font types with common properties and interface
@@ -20,7 +20,6 @@ namespace PdfReader.Fonts
     {
         private readonly Lazy<PdfToUnicodeCMap> _toUnicodeCMap;
         private readonly ConcurrentDictionary<PdfCharacterCode, PdfCharacterInfo> _characterInfoCache = new ConcurrentDictionary<PdfCharacterCode, PdfCharacterInfo>();
-        private readonly PdfTextDecoder _decoder;
         private readonly IFontCache _fontCache;
 
         /// <summary>
@@ -31,8 +30,6 @@ namespace PdfReader.Fonts
         protected PdfFontBase(PdfDictionary fontDictionary)
         {
             Dictionary = fontDictionary ?? throw new ArgumentNullException(nameof(fontDictionary));
-
-            _decoder = new PdfTextDecoder(fontDictionary.Document.LoggerFactory);
             _fontCache = fontDictionary.Document.FontCache;
 
             // Parse encoding and differences from /Encoding (handles name or dictionary cases)
@@ -120,7 +117,23 @@ namespace PdfReader.Fonts
         /// <exception cref="ArgumentNullException">Thrown if <paramref name="code"/> is <see langword="null"/>.</exception>
         public string GetUnicodeString(PdfCharacterCode code)
         {
-            return _decoder.DecodeCharacterCode(code, this);
+            if (ToUnicodeCMap != null)
+            {
+                var unicode = ToUnicodeCMap.GetUnicode(code);
+                if (unicode != null)
+                {
+                    return unicode;
+                }
+            }
+
+            string name = SingleByteEncodings.GetNameByCodeOrDefault((byte)(uint)code, Encoding, Differences);
+
+            if (AdobeGlyphList.CharacterMap.TryGetValue(name, out var aglUnicode))
+            {
+                return aglUnicode;
+            }
+
+            return null;
         }
 
         /// <summary>
@@ -234,17 +247,9 @@ namespace PdfReader.Fonts
             if (toUnicodeObj == null)
                 return null;
 
-            try
-            {
-                var cmapData = Document.StreamDecoder.DecodeContentStream(toUnicodeObj);
-                var cMapContent = new PdfParseContext(cmapData);
-                return PdfToUnicodeCMapParser.ParseCMapFromContext(ref cMapContent, Document, toUnicodeObj.Dictionary);
-            }
-            catch (Exception)
-            {
-                // Silently handle parsing errors
-                return null;
-            }
+            var cmapData = Document.StreamDecoder.DecodeContentStream(toUnicodeObj);
+            var cMapContent = new PdfParseContext(cmapData);
+            return PdfToUnicodeCMapParser.ParseCMapFromContext(ref cMapContent, Document, toUnicodeObj.Dictionary);
         }
     }
 }

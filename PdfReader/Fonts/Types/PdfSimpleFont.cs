@@ -1,9 +1,9 @@
 using PdfReader.Fonts.Mapping;
-using PdfReader.Fonts.Types;
 using PdfReader.Models;
+using PdfReader.Text;
 using System;
 
-namespace PdfReader.Fonts
+namespace PdfReader.Fonts.Types
 {
     /// <summary>
     /// Simple fonts: Type1, TrueType, MMType1 (excluding Type3)
@@ -15,6 +15,7 @@ namespace PdfReader.Fonts
     {
         // Thread-safe lazy loading using Lazy<T>
         private readonly Lazy<PdfFontDescriptor> _fontDescriptor;
+        private readonly Lazy<IByteCodeToGidMapper> _mapper;
 
         /// <summary>
         /// Constructor for simple fonts - lightweight operations only
@@ -27,6 +28,7 @@ namespace PdfReader.Fonts
 
             // Initialize thread-safe lazy loaders
             _fontDescriptor = new Lazy<PdfFontDescriptor>(LoadFontDescriptor, isThreadSafe: true);
+            _mapper = new Lazy<IByteCodeToGidMapper>(() => Document.FontCache.GetByteCodeToGidMapper(this), isThreadSafe: true);
         }
 
         /// <summary>
@@ -69,29 +71,16 @@ namespace PdfReader.Fonts
                 return 0;
             }
 
-            var cff = FontDescriptor?.GetCffInfo();
-            if (cff == null)
+            string name = SingleByteEncodings.GetNameByCode((byte)(uint)code, Encoding, Differences);
+
+            var mapper = _mapper.Value;
+
+            if (mapper == null)
             {
                 return 0;
             }
 
-            uint cid = code;
-            string name = null;
-            bool hasDifference = Differences != null && Differences.TryGetValue((int)cid, out name) && !string.IsNullOrEmpty(name);
-
-            if (hasDifference && cff.NameToGid.TryGetValue(name, out ushort namedGid))
-            {
-                return namedGid;
-            }
-
-            if (!hasDifference &&
-                SingleByteEncodingConverter.TryGetNameByCid(cid, Encoding, out string nameByCid) &&
-                cff.NameToGid.TryGetValue(nameByCid, out var standardNamedGid))
-            {
-                return standardNamedGid;
-            }
-
-            return 0;
+            return mapper.GetGid((byte)code);
         }
     }
 }

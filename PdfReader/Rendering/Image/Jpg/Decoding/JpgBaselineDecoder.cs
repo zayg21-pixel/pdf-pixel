@@ -159,7 +159,7 @@ namespace PdfReader.Rendering.Image.Jpg.Decoding
             }
 
             var startSpan = _entropyMemory.Span;
-            var initialBitReader = new JpgBitReader(ref startSpan);
+            var initialBitReader = new JpgBitReader(startSpan);
             _savedState = initialBitReader.CaptureState();
             _hasSavedState = true;
             _decoderInitialized = true;
@@ -179,7 +179,7 @@ namespace PdfReader.Rendering.Image.Jpg.Decoding
 
             var blockNatural = default(Block8x8F);
             var sourceSpan = _entropyMemory.Span;
-            var bitReader = _hasSavedState ? new JpgBitReader(ref sourceSpan, _savedState) : new JpgBitReader(ref sourceSpan);
+            var bitReader = _hasSavedState ? new JpgBitReader(sourceSpan, _savedState) : new JpgBitReader(sourceSpan);
 
             for (int mcuColumnIndex = 0; mcuColumnIndex < _decodingParameters.McuColumns; mcuColumnIndex++)
             {

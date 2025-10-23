@@ -74,8 +74,6 @@ namespace PdfReader.Rendering
             // Create unified context that treats all streams as one continuous stream
             var parseContext = new PdfParseContext(contentStreams);
 
-            //var s = Encoding.UTF8.GetString(parseContext.GetSlice(0, parseContext.Length).ToArray());
-
             var state = new PdfGraphicsState();
             var processingXObjects = new HashSet<int>();
 
@@ -123,7 +121,6 @@ namespace PdfReader.Rendering
 
                     if (PdfOperatorProcessor.IsValidOperator(op))
                     {
-                        var r = _logger.IsEnabled(LogLevel.Trace);
                         _logger.LogTrace("Processing operator: {Operator} with parameters {Parameters}", op, string.Join("; ", operandStack));
                         operatorProcessor.ProcessOperator(op, ref parseContext, ref graphicsState);
                     }

@@ -1,7 +1,7 @@
 using System;
 using PdfReader.Models;
 
-namespace PdfReader.Rendering.Color
+namespace PdfReader.Rendering.Functions
 {
     /// <summary>
     /// Represents a PDF exponential interpolation function (Type 2).
@@ -12,34 +12,36 @@ namespace PdfReader.Rendering.Color
         private readonly float[] _c1;
         private readonly float _exponent;
         private readonly int _componentCount;
+        private readonly float[] _range;
+        private readonly float[] _domain;
 
-        private ExponentialPdfFunction(float[] c0, float[] c1, float exponent)
+        private ExponentialPdfFunction(float[] c0, float[] c1, float exponent, float[] domain, float[] range)
         {
             _c0 = c0;
             _c1 = c1;
             _exponent = exponent;
             _componentCount = Math.Min(c0.Length, c1.Length);
+            _domain = domain;
+            _range = range;
         }
 
         /// <inheritdoc />
         public override ReadOnlySpan<float> Evaluate(float value)
         {
-            float x = value;
-            if (x < 0f)
-            {
-                x = 0f;
-            }
-            else if (x > 1f)
-            {
-                x = 1f;
-            }
+            float x = Clamp(value, _domain, 0);
 
-            float xExp = _exponent <= 0f ? x : (float)Math.Pow(x, _exponent);
+            float xExp = _exponent <= 0f ? x : MathF.Pow(x, _exponent);
 
             float[] buffer = new float[_componentCount];
             for (int componentIndex = 0; componentIndex < _componentCount; componentIndex++)
             {
                 buffer[componentIndex] = _c0[componentIndex] + xExp * (_c1[componentIndex] - _c0[componentIndex]);
+            }
+
+            // Clamp output to range if available
+            if (_range != null && _range.Length >= _componentCount * 2)
+            {
+                Clamp(buffer, _range);
             }
 
             return buffer;
@@ -51,7 +53,6 @@ namespace PdfReader.Rendering.Color
             float x = values.Length > 0 ? values[0] : 0f;
             return Evaluate(x);
         }
-
 
         /// <summary>
         /// Creates an ExponentialPdfFunction from a PDF function object.
@@ -68,14 +69,20 @@ namespace PdfReader.Rendering.Color
             float[] c0 = functionObject.Dictionary.GetArray(PdfTokens.C0Key)?.GetFloatArray();
             float[] c1 = functionObject.Dictionary.GetArray(PdfTokens.C1Key)?.GetFloatArray();
             float exponent = functionObject.Dictionary.GetFloatOrDefault(PdfTokens.FnNKey);
+            float[] domain = functionObject.Dictionary.GetArray(PdfTokens.DomainKey)?.GetFloatArray();
+            float[] range = functionObject.Dictionary.GetArray(PdfTokens.RangeKey)?.GetFloatArray();
 
             if (c0 == null || c0.Length == 0)
             {
-                c0 = new float[] { 0f };
+                c0 = [0f];
             }
             if (c1 == null || c1.Length == 0)
             {
-                c1 = new float[] { 1f };
+                c1 = [1f];
+            }
+            if (domain == null || domain.Length < 2)
+            {
+                domain = [0f, 1f];
             }
 
             int componentCount = Math.Min(c0.Length, c1.Length);
@@ -84,7 +91,7 @@ namespace PdfReader.Rendering.Color
                 return null;
             }
 
-            return new ExponentialPdfFunction(c0, c1, exponent);
+            return new ExponentialPdfFunction(c0, c1, exponent, domain, range);
         }
     }
 }

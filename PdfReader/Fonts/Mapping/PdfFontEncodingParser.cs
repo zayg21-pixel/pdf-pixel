@@ -1,35 +1,9 @@
 using System.Collections.Generic;
+using PdfReader.Fonts.Types;
 using PdfReader.Models;
 
 namespace PdfReader.Fonts.Mapping
 {
-    /// <summary>
-    /// Holds encoding information parsed from a PDF font dictionary.
-    /// </summary>
-    public struct PdfFontEncodingInfo
-    {
-        /// <summary>
-        /// The resolved base encoding enum (or Identity encodings for CID), or Unknown if not present.
-        /// </summary>
-        public PdfFontEncoding Encoding { get; }
-        /// <summary>
-        /// Custom encoding name (when Encoding == Custom). For name-based encodings not recognized.
-        /// </summary>
-        public string CustomEncoding { get; }
-        /// <summary>
-        /// Differences array parsed from /Encoding dictionary as a code -> glyph name map.
-        /// Empty for name-based encodings or when not present.
-        /// </summary>
-        public Dictionary<int, string> Differences { get; }
-
-        public PdfFontEncodingInfo(PdfFontEncoding encoding, string customEncoding, Dictionary<int, string> differences)
-        {
-            Encoding = encoding;
-            CustomEncoding = customEncoding;
-            Differences = differences;
-        }
-    }
-
     /// <summary>
     /// Static helper for parsing font encoding information from a PDF dictionary.
     /// </summary>
@@ -46,7 +20,7 @@ namespace PdfReader.Fonts.Mapping
             var encVal = dict.GetValue(PdfTokens.EncodingKey);
             if (encVal == null)
             {
-                // No /Encoding specified
+                // No /Encoding specified, assume standard
                 return new PdfFontEncodingInfo(PdfFontEncoding.Unknown, null, null);
             }
 
@@ -56,7 +30,6 @@ namespace PdfReader.Fonts.Mapping
             {
                 var encoding = name switch
                 {
-                    PdfTokens.StandardEncodingKey => PdfFontEncoding.StandardEncoding,
                     PdfTokens.MacRomanEncodingKey => PdfFontEncoding.MacRomanEncoding,
                     PdfTokens.WinAnsiEncodingKey => PdfFontEncoding.WinAnsiEncoding,
                     PdfTokens.MacExpertEncodingKey => PdfFontEncoding.MacExpertEncoding,

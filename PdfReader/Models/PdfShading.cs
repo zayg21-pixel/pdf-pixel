@@ -1,4 +1,7 @@
+using PdfReader.Rendering;
 using PdfReader.Rendering.Color;
+using PdfReader.Rendering.Functions;
+using SkiaSharp;
 using System.Collections.Generic;
 
 namespace PdfReader.Models
@@ -10,6 +13,11 @@ namespace PdfReader.Models
     /// </summary>
     public sealed class PdfShading
     {
+        /// <summary>
+        /// Gets the underlying <see cref="PdfObject"/> that serves as the source for this instance.
+        /// </summary>
+        public PdfObject SourceObject { get; }
+
         /// <summary>
         /// Shading type (2 = axial, 3 = radial, others may be added later).
         /// </summary>
@@ -41,6 +49,11 @@ namespace PdfReader.Models
         public PdfColorSpaceConverter ColorSpaceConverter { get; }
 
         /// <summary>
+        /// Gets the rendering intent used to control color rendering in the PDF.
+        /// </summary>
+        public PdfRenderingIntent RenderingIntent { get; }
+
+        /// <summary>
         /// Optional start color array (/C0) for simple interpolation shadings.
         /// </summary>
         public float[] C0 { get; }
@@ -55,34 +68,44 @@ namespace PdfReader.Models
         /// </summary>
         public List<PdfFunction> Functions { get; }
 
-        public PdfShading(PdfDictionary raw, PdfPage page)
+        /// <summary>
+        /// Gets the optional transformation matrix (/Matrix) for this shading, if defined.
+        /// </summary>
+        public SKMatrix? Matrix { get; }
+
+        public PdfShading(PdfObject pdfObject, PdfPage page)
         {
-            if (raw == null)
+            var rawDictionary = pdfObject.Dictionary;
+            SourceObject = pdfObject;
+
+            if (rawDictionary == null)
             {
                 ShadingType = 0;
                 Functions = new List<PdfFunction>();
                 return;
             }
-            ShadingType = raw.GetIntegerOrDefault(PdfTokens.ShadingTypeKey);
-            var coordsArr = raw.GetArray(PdfTokens.CoordsKey)?.GetFloatArray();
+
+            ShadingType = rawDictionary.GetIntegerOrDefault(PdfTokens.ShadingTypeKey);
+            var coordsArr = rawDictionary.GetArray(PdfTokens.CoordsKey)?.GetFloatArray();
             Coords = coordsArr;
-            var domainArr = raw.GetArray(PdfTokens.DomainKey)?.GetFloatArray();
+            var domainArr = rawDictionary.GetArray(PdfTokens.DomainKey)?.GetFloatArray();
             Domain = domainArr;
-            var extendArr = raw.GetArray(PdfTokens.ExtendKey);
+            var extendArr = rawDictionary.GetArray(PdfTokens.ExtendKey);
             if (extendArr != null && extendArr.Count >= 2)
             {
                 ExtendStart = extendArr.GetBool(0);
                 ExtendEnd = extendArr.GetBool(1);
             }
 
-            var colorSpaceValue = raw.GetValue(PdfTokens.ColorSpaceKey);
+            var colorSpaceValue = rawDictionary.GetValue(PdfTokens.ColorSpaceKey);
             ColorSpaceConverter = PdfColorSpaces.ResolveByValue(colorSpaceValue, page);
+            RenderingIntent = PdfRenderingIntentUtilities.ParseRenderingIntent(rawDictionary.GetName(PdfTokens.IntentKey));
 
-            C0 = raw.GetArray(PdfTokens.C0Key)?.GetFloatArray();
-            C1 = raw.GetArray(PdfTokens.C1Key)?.GetFloatArray();
+            C0 = rawDictionary.GetArray(PdfTokens.C0Key)?.GetFloatArray();
+            C1 = rawDictionary.GetArray(PdfTokens.C1Key)?.GetFloatArray();
             Functions = new List<PdfFunction>();
 
-            var functionObjects = raw.GetPageObjects(PdfTokens.FunctionKey);
+            var functionObjects = rawDictionary.GetPageObjects(PdfTokens.FunctionKey);
             if (functionObjects != null)
             {
                 foreach (var functionObject in functionObjects)
@@ -95,40 +118,15 @@ namespace PdfReader.Models
                 }
             }
 
-            var functionValue = raw.GetValue(PdfTokens.FunctionKey);
-
-            if (functionValue != null)
+            var matrixArray = rawDictionary.GetArray(PdfTokens.MatrixKey);
+            if (matrixArray != null && matrixArray.Count >= 6)
             {
-                if (functionValue.Type == PdfValueType.Array)
-                {
-                    var functionArray = functionValue.AsArray();
-
-                    for (int i = 0; i < functionArray.Count; i++)
-                    {
-                        var dictionaryValue = functionArray.GetValue(i);
-                        if (dictionaryValue != null)
-                        {
-                            var funcObject = new PdfObject(new PdfReference(0, 0), page.Document, dictionaryValue);
-                            var function = PdfFunctions.GetFunction(funcObject);
-
-                            if (function != null)
-                            {
-                                Functions.Add(function);
-                            }
-                        }
-                    }
-                }
-                else if (functionValue.Type == PdfValueType.Dictionary)
-                {
-                    var functionObject = new PdfObject(new PdfReference(0, 0), page.Document, functionValue);
-                    var function = PdfFunctions.GetFunction(functionObject);
-                    if (function != null)
-                    {
-                        Functions.Add(function);
-                    }
-                }
+                Matrix = PdfMatrixUtilities.CreateMatrix(matrixArray);
             }
-
+            else
+            {
+                Matrix = null;
+            }
         }
     }
 }

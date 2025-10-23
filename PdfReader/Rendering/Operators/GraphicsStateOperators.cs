@@ -101,7 +101,7 @@ namespace PdfReader.Rendering.Operators
                 case "i":
                 {
                     // Set flatness tolerance
-                    ProcessSetFlatnessTolerance();
+                    ProcessSetFlatnessTolerance(graphicsState);
                     break;
                 }
             }
@@ -255,7 +255,7 @@ namespace PdfReader.Rendering.Operators
             graphicsState.CTM = transformMatrix.Value.PostConcat(graphicsState.CTM);
         }
 
-        private void ProcessSetFlatnessTolerance()
+        private void ProcessSetFlatnessTolerance(PdfGraphicsState graphicsState)
         {
             var operands = PdfOperatorProcessor.GetOperands(1, _operandStack);
             if (operands.Count == 0)
@@ -264,8 +264,7 @@ namespace PdfReader.Rendering.Operators
             }
 
             var flatness = operands[0].AsFloat();
-            // Flatness is rarely used and typically ignored by modern renderers. Log once per distinct value.
-            _logger.LogWarning("Flatness tolerance {Flatness} encountered (not implemented).", flatness);
+            graphicsState.FlatnessTolerance = flatness;
         }
     }
 }

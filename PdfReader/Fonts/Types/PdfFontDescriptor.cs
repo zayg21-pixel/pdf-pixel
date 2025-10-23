@@ -1,10 +1,7 @@
-using System;
-using System.IO;
-using PdfReader.Fonts.Cff;
 using PdfReader.Models;
 using SkiaSharp;
 
-namespace PdfReader.Fonts
+namespace PdfReader.Fonts.Types
 {
     /// <summary>
     /// Font file format enumeration
@@ -24,7 +21,7 @@ namespace PdfReader.Fonts
     public class PdfFontDescriptor
     {
         public string FontName { get; set; }
-        public CffFontFlags Flags { get; set; }
+        public PdfFontFlags Flags { get; set; }
         public SKRect FontBBox { get; set; }
         public float ItalicAngle { get; set; }
         public float Ascent { get; set; }
@@ -44,7 +41,6 @@ namespace PdfReader.Fonts
         public string CharSet { get; set; }
         public float[] StemSnapH { get; set; }
         public float[] StemSnapV { get; set; }
-        public bool IsCffFont => FontFileFormat == FontFileFormat.Type1C || FontFileFormat == FontFileFormat.CIDFontType0C;
         public byte[] Panose { get; set; }
         /// <summary>
         /// The embedded font file object (only one exists at a time)
@@ -72,7 +68,7 @@ namespace PdfReader.Fonts
             {
                 Dictionary = dict, // Store reference to the dictionary
                 FontName = dict.GetString(PdfTokens.FontNameKey),
-                Flags = (CffFontFlags)dict.GetIntegerOrDefault(PdfTokens.FlagsKey),
+                Flags = (PdfFontFlags)dict.GetIntegerOrDefault(PdfTokens.FlagsKey),
                 ItalicAngle = dict.GetFloatOrDefault(PdfTokens.ItalicAngleKey),
                 Ascent = dict.GetFloatOrDefault(PdfTokens.AscentKey),
                 Descent = dict.GetFloatOrDefault(PdfTokens.DescentKey),
@@ -164,15 +160,6 @@ namespace PdfReader.Fonts
             }
 
             return default;
-        }
-
-        internal CffNameKeyedInfo GetCffInfo()
-        {
-            var document = Dictionary.Document;
-            var fontCache = document.FontCache;
-
-            // Get the font stream data using the font file object
-            return fontCache.GetCffInfo(this);
         }
     }
 }

@@ -3,6 +3,9 @@ using System.Text;
 
 namespace PdfReader
 {
+    /// <summary>
+    /// Common PDF dictionary key constants for shading and mesh decoding.
+    /// </summary>
     public static class PdfTokens
     {
         // PDF Keywords
@@ -194,6 +197,9 @@ namespace PdfReader
         public const string BoundsKey = "/Bounds";           // stitching function bounds
         public const string EncodeKey = "/Encode";           // stitching function encode array
         public const string ExtendKey = "/Extend";           // extend flags for shadings
+        public const string BitsPerCoordinateKey = "/BitsPerCoordinate"; // Dictionary key for bits per coordinate in mesh shading
+        public const string BitsPerFlagKey = "/BitsPerFlag";           // Dictionary key for bits per flag in mesh shading
+        public const string VerticesPerRowKey = "/VerticesPerRow"; 
 
         // XObject Subtypes
         public const string ImageSubtype = "/Image";

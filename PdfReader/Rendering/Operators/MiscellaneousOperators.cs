@@ -206,14 +206,15 @@ namespace PdfReader.Rendering.Operators
             }
 
             var shadings = _page.ResourceDictionary.GetDictionary(PdfTokens.ShadingKey);
-            var shadingDict = shadings?.GetDictionary(shadingName);
-            if (shadingDict == null)
+            var shadingObject = shadings?.GetPageObject(shadingName);
+
+            if (shadingObject == null)
             {
                 _logger.LogWarning("Shading '{ShadingName}' not found in resources", shadingName);
                 return;
             }
 
-            var shading = new PdfShading(shadingDict, _page);
+            var shading = new PdfShading(shadingObject, _page);
 
             _page.Document.PdfRenderer.DrawShading(_canvas, shading, graphicsState, _page);
         }

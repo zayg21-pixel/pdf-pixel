@@ -2,7 +2,6 @@
 using PdfReader;
 using PdfReader.Models;
 using SkiaSharp;
-using System.Text;
 
 namespace PdfReadTests
 {
@@ -12,8 +11,6 @@ namespace PdfReadTests
         private static readonly ILogger Logger = LoggerFactoryInstance.CreateLogger<Program>();
         static async Task Main(string[] args)
         {
-            //Main();
-            //return;
             Logger.LogInformation("PDF Direct Rendering Library");
             Logger.LogInformation("===========================");
             Logger.LogInformation(string.Empty);
@@ -21,19 +18,24 @@ namespace PdfReadTests
             // Test with some sample PDFs
             string[] testFiles = {
                 //"pdfs//pattern_text_embedded_font.pdf",
+                //"pdfs//textframe-gradient.pdf",
                 //"pdfs//chrome-text-selection-markedContent.pdf", // interesting, some odd boxes on text
                 //"pdfs//colorkeymask.pdf",
-                "pdfs//coons-allflags-withfunction.pdf"
+                //"pdfs//coons-allflags-withfunction.pdf",
+                //"pdfs//lamp_cairo.pdf",
+                //"pdfs//tensor4-nofunction.pdf",
+                //"pdfs//LATTICE1.pdf",
+                //"pdfs//inks.pdf",
                 //"pdfs//canvas.pdf", // broken, GetGlyphs() returns empty
-                //"pdfs//alphatrans.pdf",
+                //"pdfs//alphatrans.pdf", // gradient transparency broken
                 //"pdfs//ArabicCIDTrueType.pdf",
                 //"pdfs//asciihexdecode.pdf",
                 //"pdfs//complex_ttf_font.pdf",
                 //"pdfs//complex_ttf_font_ed.pdf",
-                //"pdfs//icc-lab-8bit.pdf",
+                //"//pdfs//icc-lab-8bit.pdf",
                 //"pdfs//devicen.pdf",
                 //"pdfs//icc-xyz.pdf",
-                //"pdfs//icc-lab4.pdf",
+                "pdfs//icc-lab4.pdf",
                 //"pdfs//icc-lab2.pdf",
                 //"pdf-example-password.pdf",
                 //"pdfs//mixedfonts.pdf",
@@ -47,7 +49,10 @@ namespace PdfReadTests
                 //"pdfs//gradientfill.pdf",
                 //"pdfs//ccitt_EndOfBlock_false.pdf",
                 //"pdfs//images_1bit_grayscale.pdf",
+                //"pdfs//shading_extend.pdf",
                 //"pdfs//pdf_c.pdf",
+                //"PDF32000_2008.pdf", // many exceptions (mostly in JPG, skia also falls)
+                //"ch14.pdf"
                 //@"documentS.pdf",
                 //@"documentC.pdf",
                 //@"sample.pdf",
@@ -69,6 +74,15 @@ namespace PdfReadTests
         static async Task TestPdfFile(string filename)
         {
             await Task.Yield();
+
+            // Create a D3D11 device
+
+            using var d3dContext = new VorticeDirect3DContext();
+            using var backend = d3dContext.CreateBackendContext();
+
+            // Create GRContext for Direct3D
+            using var grContext = GRContext.CreateDirect3D(backend);
+
             Logger.LogInformation("Testing file: {File}", filename);
             Logger.LogInformation(new string('=', 50));
 
@@ -92,8 +106,8 @@ namespace PdfReadTests
                     Logger.LogInformation("Root object: {Root}", document.RootObject);
 
                     var start = 0;
-                    var max = 300;
-                    float scaleX = 3f; // Scale factor for rendering
+                    var max = 3;
+                    float scaleX = 4f; // Scale factor for rendering
 
                     var memory = GC.GetTotalMemory(true) / 1024 / 1024;
 
@@ -112,43 +126,43 @@ namespace PdfReadTests
                             var renderHeight = (int)Math.Max(renderingBounds.Height, 100); // Minimum 100px
 
                             var info = new SKImageInfo((int)(renderWidth * scaleX), (int)(renderHeight * scaleX));
+                            using var surface = SKSurface.Create(grContext, false, info);
+                            //using var surface = SKSurface.Create(info);
 
-                            using (var surface = SKSurface.Create(info))
+                            using var canvas = surface.Canvas;
+                            canvas.ClipRect(new SKRect(0, 0, renderWidth * scaleX, renderHeight * scaleX));
+                            canvas.Scale(scaleX, scaleX); // Apply scaling for high-res rendering
+                            canvas.Clear(SKColors.White);
+
+                            // Render the page (this will show transformation debug info)
+                            page.Draw(canvas);
+
+                            Logger.LogInformation("  === PAGE RENDERING COMPLETE ===");
+
+                            var basePath = Path.Combine(Path.GetDirectoryName(filename), "Test");
+                            var name = Path.GetFileNameWithoutExtension(filename);
+
+                            if (!Directory.Exists(basePath))
                             {
-                                using var canvas = surface.Canvas;
-                                canvas.Scale(scaleX, scaleX); // Apply scaling for high-res rendering
-                                canvas.Clear(SKColors.White);
-
-                                // Render the page (this will show transformation debug info)
-                                page.Draw(canvas);
-
-                                Logger.LogInformation("  === PAGE RENDERING COMPLETE ===");
-
-                                var basePath = Path.Combine(Path.GetDirectoryName(filename), "Test");
-                                var name = Path.GetFileNameWithoutExtension(filename);
-
-                                if (!Directory.Exists(basePath))
-                                {
-                                    Directory.CreateDirectory(basePath);
-                                }
-
-                                // Save as PNG (optional)
-                                var filename_png = $"{basePath}\\{name}_page_{page.PageNumber}.jpg";
-                                using (var image = surface.Snapshot())
-                                using (var data = image.Encode(SKEncodedImageFormat.Jpeg, 100))
-                                using (var fileStream = File.OpenWrite(filename_png))
-                                {
-                                    data.SaveTo(fileStream);
-                                }
-
-                                //var recording = CreateRecording(page, scaleX);
-                                //var filename_png = $"Test\\{filename}_page_{page.PageNumber}.sk";
-                                //using (var image = recording.Serialize())
-                                //using (var fileStream = File.OpenWrite(filename_png))
-                                //{
-                                //    image.SaveTo(fileStream);
-                                //}
+                                Directory.CreateDirectory(basePath);
                             }
+
+                            // Save as PNG (optional)
+                            var filename_png = $"{basePath}\\{name}_page_{page.PageNumber}.jpg";
+                            using (var image = surface.Snapshot())
+                            using (var data = image.Encode(SKEncodedImageFormat.Jpeg, 100))
+                            using (var fileStream = File.OpenWrite(filename_png))
+                            {
+                                data.SaveTo(fileStream);
+                            }
+
+                            //var recording = CreateRecording(page, scaleX);
+                            //var filename_png = $"Test\\{filename}_page_{page.PageNumber}.sk";
+                            //using (var image = recording.Serialize())
+                            //using (var fileStream = File.OpenWrite(filename_png))
+                            //{
+                            //    image.SaveTo(fileStream);
+                            //}
 
                         }
                         catch (Exception ex)

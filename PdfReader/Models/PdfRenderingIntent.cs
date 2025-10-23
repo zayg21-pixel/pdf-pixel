@@ -42,16 +42,16 @@ namespace PdfReader.Models
     public static class PdfRenderingIntentNames
     {
         /// <summary>RelativeColorimetric rendering intent</summary>
-        public const string RelativeColorimetric = "RelativeColorimetric";
+        public const string RelativeColorimetric = "/RelativeColorimetric";
         
         /// <summary>AbsoluteColorimetric rendering intent</summary>
-        public const string AbsoluteColorimetric = "AbsoluteColorimetric";
+        public const string AbsoluteColorimetric = "/AbsoluteColorimetric";
         
         /// <summary>Perceptual rendering intent</summary>
-        public const string Perceptual = "Perceptual";
+        public const string Perceptual = "/Perceptual";
         
         /// <summary>Saturation rendering intent</summary>
-        public const string Saturation = "Saturation";
+        public const string Saturation = "/Saturation";
     }
 
     /// <summary>
@@ -66,11 +66,6 @@ namespace PdfReader.Models
         /// <returns>Parsed rendering intent, defaults to RelativeColorimetric if unknown</returns>
         public static PdfRenderingIntent ParseRenderingIntent(string intentName)
         {
-            if (intentName.StartsWith("/"))
-            {
-                intentName = intentName.Substring(1);
-            }
-
             return intentName switch
             {
                 PdfRenderingIntentNames.RelativeColorimetric => PdfRenderingIntent.RelativeColorimetric,
@@ -78,23 +73,6 @@ namespace PdfReader.Models
                 PdfRenderingIntentNames.Perceptual => PdfRenderingIntent.Perceptual,
                 PdfRenderingIntentNames.Saturation => PdfRenderingIntent.Saturation,
                 _ => PdfRenderingIntent.RelativeColorimetric // Default per PDF spec
-            };
-        }
-
-        /// <summary>
-        /// Convert rendering intent enum to PDF name
-        /// </summary>
-        /// <param name="intent">Rendering intent enum value</param>
-        /// <returns>PDF rendering intent name</returns>
-        public static string ToIntentName(PdfRenderingIntent intent)
-        {
-            return intent switch
-            {
-                PdfRenderingIntent.RelativeColorimetric => PdfRenderingIntentNames.RelativeColorimetric,
-                PdfRenderingIntent.AbsoluteColorimetric => PdfRenderingIntentNames.AbsoluteColorimetric,
-                PdfRenderingIntent.Perceptual => PdfRenderingIntentNames.Perceptual,
-                PdfRenderingIntent.Saturation => PdfRenderingIntentNames.Saturation,
-                _ => PdfRenderingIntentNames.RelativeColorimetric
             };
         }
     }

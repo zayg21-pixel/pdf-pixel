@@ -18,9 +18,9 @@ namespace PdfReader.Rendering.Color
             return new SKColor(g, g, g);
         }
 
-        public override void AddColorFilter(SKPaint paint, PdfRenderingIntent intent)
+        public override SKColorFilter AsColorFilter(PdfRenderingIntent intent)
         {
-            // no op
+            return null;
         }
     }
 }

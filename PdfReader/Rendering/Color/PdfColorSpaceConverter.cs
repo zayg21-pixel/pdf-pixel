@@ -57,6 +57,15 @@ namespace PdfReader.Rendering.Color
             return ToSrgbCore(comps01, intent);
         }
 
+        public static SKColorF ToRawColorF(ReadOnlySpan<float> comps01)
+        {
+            return new SKColorF(
+                comps01.Length > 0 ? comps01[0] : 0f,
+                comps01.Length > 1 ? comps01[1] : 0f,
+                comps01.Length > 2 ? comps01[2] : 0f,
+                comps01.Length > 3 ? comps01[3] : 255f);
+        }
+
         /// <summary>
         /// Clamps a value to the 0..1 interval.
         /// </summary>
@@ -98,36 +107,9 @@ namespace PdfReader.Rendering.Color
             return (byte)value;
         }
 
-        /// <summary>
-        /// Adds a color filter to the specified SKPaint, combining any existing color filter with a CLUT color filter for the given rendering intent.
-        /// The CLUT color filter is cached per intent and disposed when this converter is disposed.
-        /// </summary>
-        /// <param name="paint">The SKPaint to modify.</param>
-        /// <param name="intent">The PDF rendering intent to use for color conversion.</param>
-        public virtual void AddColorFilter(SKPaint paint, PdfRenderingIntent intent)
+        public virtual SKColorFilter AsColorFilter(PdfRenderingIntent intent)
         {
-            if (paint == null)
-            {
-                throw new ArgumentNullException(nameof(paint));
-            }
-
-            SKColorFilter clutFilter = _colorFilterCache.GetOrAdd(
-                intent,
-                key => BuldColorFilter(intent));
-
-            if (clutFilter == null)
-            {
-                return;
-            }
-
-            if (paint.ColorFilter != null)
-            {
-                paint.ColorFilter = SKColorFilter.CreateCompose(paint.ColorFilter, clutFilter);
-            }
-            else
-            {
-                paint.ColorFilter = clutFilter;
-            }
+            return _colorFilterCache.GetOrAdd(intent, key => BuldColorFilter(intent));
         }
 
         protected virtual SKColorFilter BuldColorFilter(PdfRenderingIntent intent)

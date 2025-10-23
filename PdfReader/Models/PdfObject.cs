@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 
 namespace PdfReader.Models
 {
@@ -21,5 +22,15 @@ namespace PdfReader.Models
         public PdfDictionary Dictionary { get; }
 
         public ReadOnlyMemory<byte> StreamData { get; set; }
+
+        public Stream DecodeAsStream() // TOOD: use those overloads instead!
+        {
+            return Document.StreamDecoder.DecodeContentAsStream(this);
+        }
+
+        public ReadOnlyMemory<byte> DecodeAsMemory()
+        {
+            return Document.StreamDecoder.DecodeContentStream(this);
+        }
     }
 }

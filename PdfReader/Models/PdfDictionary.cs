@@ -144,7 +144,8 @@ namespace PdfReader.Models
                 return Document.GetObject(reference);
             }
 
-            return null;
+            // return synthetic object
+            return new PdfObject(default, Document, storedValue);
         }
 
         public List<PdfObject> GetPageObjects(string key)
@@ -172,7 +173,11 @@ namespace PdfReader.Models
 
             // Single item fallback
             var single = GetPageObject(key);
-            if (single != null) results.Add(single);
+            if (single != null)
+            {
+                results.Add(single);
+            }
+
             return results.Count > 0 ? results : null;
         }
 

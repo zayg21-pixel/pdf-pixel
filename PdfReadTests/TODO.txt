@@ -12,6 +12,7 @@ Add AES decryption and all other algorithms
 Add missing stream filters implementations
 Add JPEG2000 decoder and JBIG2 decoder
 apply patterns to stencil image
-Missing shading types: 4,5,6
 Inherit image color space from graphics state
 Type3 font
+Predefined CMaps
+https://github.com/mozilla/pdf.js/issues/6305 - SHAAAADINGS!

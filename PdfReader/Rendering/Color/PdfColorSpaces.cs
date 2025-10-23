@@ -1,6 +1,4 @@
-using System;
 using PdfReader.Models;
-using PdfReader.Streams;
 
 namespace PdfReader.Rendering.Color
 {
@@ -10,14 +8,14 @@ namespace PdfReader.Rendering.Color
         {
             if (value == null) return DeviceRgbConverter.Instance;
 
-            if (!ColorSpaceUtilities.TryGetColorSpaceName(value, out var name))
+            if (!TryGetColorSpaceName(value, out var name))
             {
                 return DeviceRgbConverter.Instance;
             }
 
-            bool hasReference = ColorSpaceUtilities.TryGetColorSpaceObject(value, out var pdfObject);
+            bool hasReference = TryGetColorSpaceObject(value, out var pdfObject);
 
-            if (hasReference && ColorSpaceUtilities.TryResolveFromCache(pdfObject, out var cached))
+            if (hasReference &&  TryResolveFromCache(pdfObject, out var cached))
             {
                 return cached;
             }
@@ -26,7 +24,7 @@ namespace PdfReader.Rendering.Color
 
             if (hasReference)
             {
-                ColorSpaceUtilities.TryStoreByReference(pdfObject, result);
+                TryStoreByReference(pdfObject, result);
             }
 
             return result;
@@ -54,80 +52,68 @@ namespace PdfReader.Rendering.Color
 
         private static PdfColorSpaceConverter ResolveDefaultDeviceSpace(PdfPage page, string defaultKey, int n)
         {
-            try
+            var resources = page?.ResourceDictionary;
+            var defaultVal = resources?.GetValue(defaultKey);
+            if (defaultVal != null)
             {
-                var resources = page?.ResourceDictionary;
-                var defaultVal = resources?.GetValue(defaultKey);
-                if (defaultVal != null)
+                // Default.* can be an ICCBased space or other color space; reuse existing parser
+                var conv = ResolveByValue(defaultVal, page);
+                if (conv is IccBasedConverter iccConv && iccConv.N == n)
                 {
-                    // Default.* can be an ICCBased space or other color space; reuse existing parser
-                    var conv = ResolveByValue(defaultVal, page);
-                    if (conv is IccBasedConverter iccConv && iccConv.N == n)
-                    {
-                        return iccConv; // Already ICC
-                    }
-
-                    // If it resolved to a non-ICC converter but N matches, wrap via ICC if underlying was ICCBased
-                    if (conv != null && conv.Components == n)
-                    {
-                        return conv;
-                    }
+                    return iccConv; // Already ICC
                 }
 
-                // Fallback to first /DestOutputProfile if present (OutputIntent) for RGB/CMYK/Gray
-                var profileBytes = TryGetFirstOutputIntentProfile(page);
-                if (profileBytes != null && profileBytes.Length > 0)
+                // If it resolved to a non-ICC converter but N matches, wrap via ICC if underlying was ICCBased
+                if (conv != null && conv.Components == n)
                 {
-                    return new IccBasedConverter(n, null, profileBytes);
+                    return conv;
                 }
             }
-            catch
+
+            // Fallback to first /DestOutputProfile if present (OutputIntent) for RGB/CMYK/Gray
+            var profileBytes = TryGetFirstOutputIntentProfile(page.Document);
+            if (profileBytes != null && profileBytes.Length > 0)
             {
-                // Safe to ignore; fall back to naive device space
+                return new IccBasedConverter(n, null, profileBytes);
             }
 
             return null;
         }
 
-        private static byte[] TryGetFirstOutputIntentProfile(PdfPage page)
+        private static byte[] TryGetFirstOutputIntentProfile(PdfDocument document)
         {
-            try
+            // TODO: find real example of this
+            var rootObject = document.RootObject;
+            if (rootObject == null)
             {
-                var rootObject = page.Document.RootObject;
-                if (rootObject == null)
-                {
-                    return null;
-                }
-
-                var catalog = rootObject.Dictionary;
-                var intents = catalog?.GetPageObjects(PdfTokens.OutputIntentsKey);
-                if (intents == null)
-                {
-                    return null;
-                }
-
-                foreach (var oi in intents)
-                {
-                    var dict = oi?.Dictionary;
-                    if (dict == null)
-                    {
-                        continue;
-                    }
-
-                    var profileObj = dict.GetPageObject(PdfTokens.DestOutputProfileKey);
-                    if (profileObj != null && !profileObj.StreamData.IsEmpty)
-                    {
-                        var data = page.Document.StreamDecoder.DecodeContentStream(profileObj);
-                        if (!data.IsEmpty)
-                        {
-                            return data.ToArray();
-                        }
-                    }
-                }
+                return null;
             }
-            catch
+
+            var catalog = rootObject.Dictionary;
+            var intents = catalog?.GetPageObjects(PdfTokens.OutputIntentsKey);
+            if (intents == null)
             {
-                // ignore
+                return null;
+            }
+
+            foreach (var oi in intents)
+            {
+                var dict = oi?.Dictionary;
+                if (dict == null)
+                {
+                    continue;
+                }
+
+                var profileObj = dict.GetPageObject(PdfTokens.DestOutputProfileKey);
+
+                if (profileObj != null && !profileObj.StreamData.IsEmpty)
+                {
+                    var data = document.StreamDecoder.DecodeContentStream(profileObj);
+                    if (!data.IsEmpty)
+                    {
+                        return data.ToArray();
+                    }
+                }
             }
 
             return null;
@@ -213,6 +199,64 @@ namespace PdfReader.Rendering.Color
             {
                 return null;
             }
+        }
+
+        public static bool TryGetColorSpaceName(IPdfValue value, out string name)
+        {
+            if (value.Type == PdfValueType.Name)
+            {
+                name = value.AsName();
+                return !string.IsNullOrEmpty(name);
+            }
+            else if (value.Type == PdfValueType.Array)
+            {
+                var array = value.AsArray();
+                if (array.Count > 0)
+                {
+                    name = array.GetName(0);
+                    return !string.IsNullOrEmpty(name);
+                }
+            }
+
+            name = default;
+            return false;
+        }
+
+        public static bool TryGetColorSpaceObject(IPdfValue value, out PdfObject pdfObject)
+        {
+            if (value.Type == PdfValueType.Array)
+            {
+                var array = value.AsArray();
+                if (array.Count == 2)
+                {
+                    pdfObject = array.GetPageObject(1);
+                    return pdfObject?.Reference.IsValid == true;
+                }
+            }
+
+            pdfObject = null;
+            return false;
+        }
+
+        public static bool TryResolveFromCache(PdfObject pdfObject, out PdfColorSpaceConverter value)
+        {
+            if (pdfObject.Reference.IsValid && pdfObject.Document.ColorSpaceConverters.TryGetValue(pdfObject.Reference, out var existing))
+            {
+                value = existing;
+                return true;
+            }
+            value = null;
+            return false;
+        }
+
+        public static bool TryStoreByReference(PdfObject pdfObject, PdfColorSpaceConverter converter)
+        {
+            if (pdfObject.Reference.IsValid)
+            {
+                pdfObject.Document.ColorSpaceConverters[pdfObject.Reference] = converter;
+                return true;
+            }
+            return false;
         }
     }
 }

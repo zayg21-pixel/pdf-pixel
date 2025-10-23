@@ -9,52 +9,54 @@ namespace PdfReader.Rendering.Pattern
         /// Parse a pattern object (tiling or shading) and return a concrete PdfPattern instance.
         /// Returns null if unsupported or malformed.
         /// </summary>
-        public static PdfPattern TryParsePattern(PdfReference reference, PdfObject obj, PdfPage page)
+        public static PdfPattern TryParsePattern(PdfObject patternObject, PdfPage page)
         {
-            try
+            if (patternObject.Reference.IsValid)
             {
-                var dict = obj.Dictionary;
-                if (dict == null)
+                if (page.Document.PatternCache.TryGetValue(patternObject.Reference, out var cachedPattern))
                 {
-                    return null;
+                    return cachedPattern;
                 }
+            }
 
-                int patternType = dict.GetIntegerOrDefault(PdfTokens.PatternTypeKey);
-                switch (patternType)
-                {
-                    case 1:
-                        return ParseTilingPattern(reference, dict);
-                    case 2:
-                        return ParseShadingPattern(reference, dict, page);
-                    default:
-                        return null; // Unsupported pattern type
-                }
-            }
-            catch
+            var result = ParsePatternInternal(patternObject, page);
+
+            if (result != null && patternObject.Reference.IsValid)
             {
-                // Swallow and return null for malformed pattern objects.
-                return null;
+                page.Document.PatternCache[patternObject.Reference] = result;
             }
+
+            return result;
         }
 
-        private static PdfTilingPattern ParseTilingPattern(PdfReference reference, PdfDictionary dict)
+        private static PdfPattern ParsePatternInternal(PdfObject patternObject, PdfPage page)
         {
-            var bboxArray = dict.GetArray(PdfTokens.BBoxKey);
-            if (bboxArray == null || bboxArray.Count < 4)
+            int patternType = patternObject.Dictionary.GetIntegerOrDefault(PdfTokens.PatternTypeKey);
+            return patternType switch
+            {
+                1 => ParseTilingPattern(patternObject, page),
+                2 => ParseShadingPattern(patternObject, page),
+                _ => null,// Unsupported pattern type
+            };
+        }
+
+        private static PdfTilingPattern ParseTilingPattern(PdfObject patternObject, PdfPage page)
+        {
+            var dictionary = patternObject.Dictionary;
+
+            var bboxArray = dictionary.GetArray(PdfTokens.BBoxKey).GetFloatArray();
+
+            if (bboxArray.Length < 4)
             {
                 return null;
             }
 
-            var bbox = new SKRect(
-                bboxArray.GetFloat(0),
-                bboxArray.GetFloat(1),
-                bboxArray.GetFloat(2),
-                bboxArray.GetFloat(3));
+            var bbox = new SKRect(bboxArray[0], bboxArray[1], bboxArray[2], bboxArray[3]);
 
-            float xStep = dict.GetFloatOrDefault(PdfTokens.XStepKey);
-            float yStep = dict.GetFloatOrDefault(PdfTokens.YStepKey);
-            int rawPaintType = dict.GetIntegerOrDefault(PdfTokens.PaintTypeKey);
-            int rawTilingType = dict.GetIntegerOrDefault(PdfTokens.TilingTypeKey);
+            float xStep = dictionary.GetFloatOrDefault(PdfTokens.XStepKey);
+            float yStep = dictionary.GetFloatOrDefault(PdfTokens.YStepKey);
+            int rawPaintType = dictionary.GetIntegerOrDefault(PdfTokens.PaintTypeKey);
+            int rawTilingType = dictionary.GetIntegerOrDefault(PdfTokens.TilingTypeKey);
 
             PdfTilingPaintType paintTypeKind = rawPaintType == 2 ? PdfTilingPaintType.Uncolored : PdfTilingPaintType.Colored;
             PdfTilingSpacingType tilingTypeKind = rawTilingType switch
@@ -65,14 +67,15 @@ namespace PdfReader.Rendering.Pattern
             };
 
             SKMatrix matrix = SKMatrix.Identity;
-            var matrixArray = dict.GetArray(PdfTokens.MatrixKey);
+            var matrixArray = dictionary.GetArray(PdfTokens.MatrixKey);
             if (matrixArray != null && matrixArray.Count >= 6)
             {
                 matrix = PdfMatrixUtilities.CreateMatrix(matrixArray);
             }
 
             return new PdfTilingPattern(
-                reference,
+                page,
+                patternObject,
                 bbox,
                 xStep,
                 yStep,
@@ -81,25 +84,28 @@ namespace PdfReader.Rendering.Pattern
                 matrix);
         }
 
-        private static PdfShadingPattern ParseShadingPattern(PdfReference reference, PdfDictionary dict, PdfPage page)
+        private static PdfShadingPattern ParseShadingPattern(PdfObject patternObject, PdfPage page) // TODO: get rid of page arg
         {
             SKMatrix matrix = SKMatrix.Identity;
-            var matrixArray = dict.GetArray(PdfTokens.MatrixKey);
+            var dictionary = patternObject.Dictionary;
+
+            var matrixArray = dictionary.GetArray(PdfTokens.MatrixKey);
             if (matrixArray != null && matrixArray.Count >= 6)
             {
                 matrix = PdfMatrixUtilities.CreateMatrix(matrixArray);
             }
 
-            PdfDictionary shadingObject = dict.GetDictionary(PdfTokens.ShadingKey);
+            var shadingObject = dictionary.GetPageObject(PdfTokens.ShadingKey);
+
             if (shadingObject == null)
             {
                 return null; // Invalid shading pattern without /Shading
             }
 
-            PdfDictionary extGState = dict.GetDictionary(PdfTokens.ExtGStateKey);
+            PdfDictionary extGState = dictionary.GetDictionary(PdfTokens.ExtGStateKey);
             var shading = new PdfShading(shadingObject, page);
 
-            return new PdfShadingPattern(reference, shading, matrix, extGState);
+            return new PdfShadingPattern(page, patternObject, shading, matrix, extGState);
         }
     }
 }
