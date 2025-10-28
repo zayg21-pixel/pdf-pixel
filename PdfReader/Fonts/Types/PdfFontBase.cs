@@ -20,7 +20,6 @@ namespace PdfReader.Fonts.Types
     {
         private readonly Lazy<PdfToUnicodeCMap> _toUnicodeCMap;
         private readonly ConcurrentDictionary<PdfCharacterCode, PdfCharacterInfo> _characterInfoCache = new ConcurrentDictionary<PdfCharacterCode, PdfCharacterInfo>();
-        private readonly IFontCache _fontCache;
 
         /// <summary>
         /// Constructor for all PDF fonts with essential immutable properties
@@ -30,7 +29,6 @@ namespace PdfReader.Fonts.Types
         protected PdfFontBase(PdfDictionary fontDictionary)
         {
             Dictionary = fontDictionary ?? throw new ArgumentNullException(nameof(fontDictionary));
-            _fontCache = fontDictionary.Document.FontCache;
 
             // Parse encoding and differences from /Encoding (handles name or dictionary cases)
             var encodingInfo = PdfFontEncodingParser.ParseEncoding(fontDictionary);
@@ -61,7 +59,7 @@ namespace PdfReader.Fonts.Types
         /// <summary>
         /// Character encoding for this font (base encoding or CMap name type for CID fonts)
         /// </summary>
-        public PdfFontEncoding Encoding { get; }
+        public virtual PdfFontEncoding Encoding { get; }
 
         /// <summary>
         /// Custom encoding name (when Encoding == Custom). For name-based encodings not recognized.
@@ -169,25 +167,6 @@ namespace PdfReader.Fonts.Types
         }
 
         /// <summary>
-        /// Creates and configures an SKFont for glyph measurement (size 1, subpixel, alias edging, no hinting).
-        /// Only call when actual Skia measurement is needed.
-        /// </summary>
-        /// <returns>Configured SKFont instance.</returns>
-        private SKFont GetSkFont()
-        {
-            SKTypeface typeface = _fontCache.GetTypeface(this);
-            SKFont skFont = new SKFont(typeface, size: 1f)
-            {
-                Subpixel = true,
-                LinearMetrics = true,
-                Hinting = SKFontHinting.Normal,
-                Edging = SKFontEdging.SubpixelAntialias,
-
-            };
-            return skFont;
-        }
-
-        /// <summary>
         /// Core extraction logic for character info. Override in derived font types.
         /// </summary>
         /// <param name="characterCode">The character code to extract info for.</param>
@@ -202,22 +181,46 @@ namespace PdfReader.Fonts.Types
             {
                 return new PdfCharacterInfo(characterCode, unicode, gid, width);
             }
-            else if (gid != 0)
+            else if (gid != 0 && unicode?.Length > 0)
             {
                 using SKFont skFont = GetSkFont();
                 float[] widths = skFont.GetGlyphWidths([gid]);
                 float measuredWidth = widths.Length > 0 ? widths[0] : 1f;
                 return new PdfCharacterInfo(characterCode, unicode, gid, measuredWidth);
             }
-            else
+            else if (unicode?.Length > 0)
             {
                 using SKFont skFont = GetSkFont();
 
                 ushort[] gids = skFont.GetGlyphs(unicode);
+                ushort extractedGid = gids.Length > 0 ? gids[0] : (ushort)0;
                 float[] widths = skFont.GetGlyphWidths(unicode);
-                return new PdfCharacterInfo(characterCode, unicode, gids, widths);
+                float measuredWidth = widths.Length > 0 ? widths[0] : 1f;
+                return new PdfCharacterInfo(characterCode, unicode, extractedGid, measuredWidth);
             }
+
+            return new PdfCharacterInfo(characterCode, string.Empty, 0, 0f);
         }
+
+        /// <summary>
+        /// Creates and configures an SKFont for glyph measurement (size 1, subpixel, alias edging, no hinting).
+        /// Only call when actual Skia measurement is needed.
+        /// </summary>
+        /// <returns>Configured SKFont instance.</returns>
+        private SKFont GetSkFont()
+        {
+            SKTypeface typeface = Dictionary.Document.FontCache.GetTypeface(this);
+            SKFont skFont = new SKFont(typeface, size: 1f)
+            {
+                Subpixel = true,
+                LinearMetrics = true,
+                Hinting = SKFontHinting.Normal,
+                Edging = SKFontEdging.SubpixelAntialias,
+
+            };
+            return skFont;
+        }
+
 
         /// <summary>
         /// Parse font type from PDF subtype string (lightweight operation)

@@ -18,29 +18,14 @@ namespace PdfReader.Fonts.Types
         public string Unicode { get; }
 
         /// <summary>
-        /// The glyph ID(s) for this character code.
+        /// The glyph ID for this character code.
         /// </summary>
-        public ushort[] Gids { get; }
+        public ushort Gid { get; }
 
         /// <summary>
-        /// The width(s) for each glyph.
+        /// The width for current glyph.
         /// </summary>
-        public float[] Widths { get; }
-
-        /// <summary>
-        /// Creates a PdfCharacterInfo for multiple Unicode, GIDs, and widths.
-        /// </summary>
-        public PdfCharacterInfo(
-            PdfCharacterCode characterCode,
-            string unicode,
-            ushort[] gids,
-            float[] widths)
-        {
-            CharacterCode = characterCode;
-            Unicode = unicode;
-            Gids = gids;
-            Widths = widths;
-        }
+        public float Width { get; }
 
         /// <summary>
         /// Creates a PdfCharacterInfo for a single Unicode, GID, and width.
@@ -53,8 +38,8 @@ namespace PdfReader.Fonts.Types
         {
             CharacterCode = characterCode;
             Unicode = unicode;
-            Gids = [gid];
-            Widths = [width];
+            Gid = gid;
+            Width = width;
         }
     }
 }

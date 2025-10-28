@@ -157,12 +157,7 @@ namespace PdfReader.Rendering.Text
                 bool isSpace = unicode == " ";
                 float spacing = state.CharacterSpacing + (isSpace ? state.WordSpacing : 0f);
 
-                for (int glyphIndex = 0; glyphIndex < info.Gids.Length; glyphIndex++)
-                {
-                    ushort gid = info.Gids[glyphIndex];
-                    float width = info.Widths.Length > glyphIndex ? info.Widths[glyphIndex] : 1f;
-                    shapedGlyphs.Add(new ShapedGlyph(gid, width * state.FontSize, spacing));
-                }
+                shapedGlyphs.Add(new ShapedGlyph(info.Gid, info.Width * state.FontSize, spacing));
             }
 
             return shapedGlyphs.ToArray();

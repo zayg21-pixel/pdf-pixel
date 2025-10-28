@@ -26,8 +26,8 @@ namespace PdfReadTests
                 //"pdfs//tensor4-nofunction.pdf",
                 //"pdfs//LATTICE1.pdf",
                 //"pdfs//inks.pdf",
-                //"pdfs//canvas.pdf", // broken, GetGlyphs() returns empty
-                //"pdfs//alphatrans.pdf", // gradient transparency broken
+                //"pdfs//canvas.pdf",
+                //"pdfs//alphatrans.pdf",
                 //"pdfs//ArabicCIDTrueType.pdf",
                 //"pdfs//asciihexdecode.pdf",
                 //"pdfs//complex_ttf_font.pdf",
@@ -35,11 +35,11 @@ namespace PdfReadTests
                 //"//pdfs//icc-lab-8bit.pdf",
                 //"pdfs//devicen.pdf",
                 //"pdfs//icc-xyz.pdf",
-                "pdfs//icc-lab4.pdf",
+                //"pdfs//icc-lab4.pdf",
                 //"pdfs//icc-lab2.pdf",
                 //"pdf-example-password.pdf",
-                //"pdfs//mixedfonts.pdf",
-                //"pdfs//mixedfonts_ed.pdf",
+                //"pdfs//mixedfonts.pdf", // came a bit broken
+                "pdfs//mixedfonts_ed.pdf",
                 //"pdfs//blendmode.pdf",
                 //"pdfs//calgray.pdf",
                 //"pdfs//calrgb.pdf",
@@ -106,8 +106,8 @@ namespace PdfReadTests
                     Logger.LogInformation("Root object: {Root}", document.RootObject);
 
                     var start = 0;
-                    var max = 3;
-                    float scaleX = 4f; // Scale factor for rendering
+                    var max = 900;
+                    float scaleX = 1f; // Scale factor for rendering
 
                     var memory = GC.GetTotalMemory(true) / 1024 / 1024;
 
@@ -126,8 +126,8 @@ namespace PdfReadTests
                             var renderHeight = (int)Math.Max(renderingBounds.Height, 100); // Minimum 100px
 
                             var info = new SKImageInfo((int)(renderWidth * scaleX), (int)(renderHeight * scaleX));
-                            using var surface = SKSurface.Create(grContext, false, info);
-                            //using var surface = SKSurface.Create(info);
+                            //using var surface = SKSurface.Create(grContext, false, info);
+                            using var surface = SKSurface.Create(info);
 
                             using var canvas = surface.Canvas;
                             canvas.ClipRect(new SKRect(0, 0, renderWidth * scaleX, renderHeight * scaleX));

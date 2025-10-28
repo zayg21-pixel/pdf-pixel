@@ -41,26 +41,6 @@ namespace PdfReader.Fonts.Types
         }
 
         /// <summary>
-        /// Parse font encoding from dictionary (lightweight operation)
-        /// </summary>
-        protected static PdfFontEncoding ParseEncoding(PdfDictionary dict)
-        {
-            var encoding = dict.GetName(PdfTokens.EncodingKey);
-            
-            return encoding switch
-            {
-                PdfTokens.StandardEncodingKey => PdfFontEncoding.StandardEncoding,
-                PdfTokens.MacRomanEncodingKey => PdfFontEncoding.MacRomanEncoding,
-                PdfTokens.WinAnsiEncodingKey => PdfFontEncoding.WinAnsiEncoding,
-                PdfTokens.MacExpertEncodingKey => PdfFontEncoding.MacExpertEncoding,
-                PdfTokens.IdentityHEncodingKey => PdfFontEncoding.IdentityH,
-                PdfTokens.IdentityVEncodingKey => PdfFontEncoding.IdentityV,
-                null => PdfFontEncoding.Unknown,
-                _ => PdfFontEncoding.Custom
-            };
-        }
-
-        /// <summary>
         /// Extracts character codes from raw bytes for single-byte fonts.
         /// Always uses single-byte segmentation.
         /// </summary>

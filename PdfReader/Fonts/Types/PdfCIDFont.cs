@@ -106,16 +106,6 @@ namespace PdfReader.Fonts.Types
             }
             return 0;
         }
-        
-        /// <summary>
-        /// Check if this CID font has a valid character collection definition
-        /// </summary>
-        public bool HasValidCIDSystemInfo => CIDSystemInfo != null;
-        
-        /// <summary>
-        /// Check if CID-to-GID mapping is available
-        /// </summary>
-        public bool HasCIDToGIDMapping => CIDToGIDMap != null;
 
         /// <summary>
         /// Load font descriptor (heavy operation - lazy loaded)

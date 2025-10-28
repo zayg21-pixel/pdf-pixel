@@ -37,6 +37,8 @@ namespace PdfReader.Fonts.Types
         /// </summary>
         public override PdfFontDescriptor FontDescriptor => _fontDescriptor.Value;
 
+        public override PdfFontEncoding Encoding => GetResolvedEncoding(base.Encoding);
+
         /// <summary>
         /// Check if font has embedded data (uses lazy-loaded FontDescriptor)
         /// </summary>
@@ -56,6 +58,24 @@ namespace PdfReader.Fonts.Types
             {
                 return null;
             }
+        }
+
+        private PdfFontEncoding GetResolvedEncoding(PdfFontEncoding baseEncoding)
+        {
+            if (baseEncoding == PdfFontEncoding.Unknown)
+            {
+                // TODO: treat CFF correctly
+
+                switch (Type)
+                {
+                    case PdfFontType.TrueType:
+                        return PdfFontEncoding.WinAnsiEncoding;
+                    default:
+                        return PdfFontEncoding.StandardEncoding;
+                }
+            }
+
+            return baseEncoding;
         }
 
         /// <summary>

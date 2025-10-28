@@ -13,13 +13,14 @@ namespace PdfReader.Fonts.Mapping
     /// </summary>
     internal class SntfByteCodeToGidMapper : IByteCodeToGidMapper
     {
-        private readonly ushort[] _codeToGid; // Direct Format 0 mapping
+        private readonly ushort[] _codeToGid; // Direct Format 0/4 for symbolic fonts
         private readonly Dictionary<string, ushort> _nameToGid;
         private readonly Dictionary<string, ushort> _unicodeToGid;
         private readonly PdfFontFlags _flags;
         private readonly PdfFontEncoding _encoding;
         private readonly Dictionary<int, string> _differences;
         private readonly PdfToUnicodeCMap _toUnicodeCMap;
+        private readonly FontTableInfo _tableInfo;
 
         /// <summary>
         /// Initializes a new instance of <see cref="SntfByteCodeToGidMapper"/> for the specified typeface and encoding.
@@ -46,10 +47,16 @@ namespace PdfReader.Fonts.Mapping
             _differences = differences;
             _toUnicodeCMap = toUnicodeCMap;
 
-            var fontTableInfo = GetFontTableInfo(typeface);
-            _codeToGid = ExtractCodeToGidFormat0(fontTableInfo); // Direct Format 0 mapping
-            _nameToGid = ExtractNameToGid(fontTableInfo);
-            _unicodeToGid = ExtractUnicodeToGid(fontTableInfo);
+            _tableInfo = GetFontTableInfo(typeface);
+            _codeToGid = ExtractCodeToGidFormat0(_tableInfo); // Direct Format 0 mapping
+
+            if (_codeToGid == null)
+            {
+                _codeToGid = ExtractCodeToGidFormat4(_tableInfo);
+            }
+
+            _nameToGid = ExtractNameToGid(_tableInfo);
+            _unicodeToGid = ExtractUnicodeToGid(_tableInfo);
         }
 
         /// <summary>
@@ -61,19 +68,12 @@ namespace PdfReader.Fonts.Mapping
         /// <returns>The glyph ID (GID) for the character code, or 0 if not found.</returns>
         public ushort GetGid(byte code)
         {
-            if (_flags.HasFlag(PdfFontFlags.Symbolic))
+            if (_flags.HasFlag(PdfFontFlags.Symbolic) && _codeToGid != null)
             {
-                // Unknown encoding, use direct (byte -> GID) mapping from Format0
                 return _codeToGid[code];
             }
 
-            var currentEncoding = _encoding;
-            if (currentEncoding == PdfFontEncoding.Unknown)
-            {
-                currentEncoding = PdfFontEncoding.WinAnsiEncoding;
-            }
-
-            string name = SingleByteEncodings.GetNameByCode(code, currentEncoding, _differences);
+            string name = SingleByteEncodings.GetNameByCode(code, _encoding, _differences);
 
             if (name == null)
             {
@@ -164,7 +164,28 @@ namespace PdfReader.Fonts.Mapping
             {
                 return SnftCMapParser.ParseFormat0(info.CmapData, info.Format0Offset);
             }
-            return new ushort[256]; // All zeros if not available
+            return null;
+        }
+
+        /// <summary>
+        /// Extracts a direct mapping from byte code to GID using Format 0 CMap.
+        /// Used as the primary mapping for single-byte fonts.
+        /// </summary>
+        private static ushort[] ExtractCodeToGidFormat4(FontTableInfo info)
+        {
+            if (info.CmapData != null && info.Format4Offset >= 0)
+            {
+                var subResult = SnftCMapParser.ParseFormat4(info.CmapData, info.Format4Offset);
+                ushort[] result = new ushort[256]; // this can be done better, I think
+
+                foreach (var item in subResult)
+                {
+                    result[(byte)item.Key] = item.Value;
+                }
+
+                return result;
+            }
+            return null;
         }
 
         /// <summary>
