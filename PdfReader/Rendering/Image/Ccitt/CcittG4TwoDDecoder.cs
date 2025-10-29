@@ -41,7 +41,7 @@ namespace PdfReader.Rendering.Image.Ccitt
                     {
                         bool colorBefore = (runs.Count % 2) == 1;
                         GetPassPair(referenceChanges, a0, colorBefore, out int b1, out int b2);
-                        if (b1 <= a0 || b2 <= b1 || b2 > width)
+                        if (b1 < a0 || b2 <= b1 || b2 > width)
                         {
                             throw new System.InvalidOperationException("CCITT G4 decode error: invalid pass pair a0=" + a0 + " b1=" + b1 + " b2=" + b2 + ".");
                         }

@@ -57,15 +57,6 @@ namespace PdfReader.Rendering.Color
             return ToSrgbCore(comps01, intent);
         }
 
-        public static SKColorF ToRawColorF(ReadOnlySpan<float> comps01)
-        {
-            return new SKColorF(
-                comps01.Length > 0 ? comps01[0] : 0f,
-                comps01.Length > 1 ? comps01[1] : 0f,
-                comps01.Length > 2 ? comps01[2] : 0f,
-                comps01.Length > 3 ? comps01[3] : 255f);
-        }
-
         /// <summary>
         /// Clamps a value to the 0..1 interval.
         /// </summary>

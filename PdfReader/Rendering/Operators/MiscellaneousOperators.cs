@@ -126,28 +126,42 @@ namespace PdfReader.Rendering.Operators
             PdfXObjectProcessor.ProcessXObject(xObjectName, graphicsState, _canvas, _page, _processingXObjects);
         }
 
+        // Handles MP (Marked Content Point): expects 1 operand (tag name)
         private void ProcessMarkContentPoint()
         {
+            // PDF spec: MP operator takes a single tag name operand.
+            // Operand is ignored for rendering, but must be popped to maintain stack integrity.
             PdfOperatorProcessor.GetOperands(1, _operandStack); // Intentionally ignored.
         }
 
+        // Handles DP (Marked Content Point with Properties): expects 2 operands (tag name, property dictionary)
         private void ProcessMarkContentPointWithProperties()
         {
+            // PDF spec: DP operator takes a tag name and a property dictionary.
+            // Operands are ignored for rendering, but must be popped to maintain stack integrity.
             PdfOperatorProcessor.GetOperands(2, _operandStack); // Intentionally ignored.
         }
 
+        // Handles BMC (Begin Marked Content): expects 1 operand (tag name)
         private void ProcessBeginMarkedContent()
         {
+            // PDF spec: BMC operator takes a single tag name operand.
+            // Operand is ignored for rendering, but must be popped to maintain stack integrity.
             PdfOperatorProcessor.GetOperands(1, _operandStack); // Intentionally ignored.
         }
 
+        // Handles BDC (Begin Marked Content with Properties): expects 2 operands (tag name, property dictionary)
         private void ProcessBeginMarkedContentWithProperties()
         {
+            // PDF spec: BDC operator takes a tag name and a property dictionary.
+            // Operands are ignored for rendering, but must be popped to maintain stack integrity.
             PdfOperatorProcessor.GetOperands(2, _operandStack); // Intentionally ignored.
         }
 
+        // Handles EMC (End Marked Content): no operands
         private void ProcessEndMarkedContent()
         {
+            // PDF spec: EMC operator takes no operands.
             // No state to manage presently.
         }
 

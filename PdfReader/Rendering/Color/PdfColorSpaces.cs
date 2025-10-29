@@ -4,18 +4,21 @@ namespace PdfReader.Rendering.Color
 {
     public static class PdfColorSpaces
     {
-        public static PdfColorSpaceConverter ResolveByValue(IPdfValue value, PdfPage page)
+        public static PdfColorSpaceConverter ResolveByValue(IPdfValue value, PdfPage page, int defaultComponents = 3)
         {
-            if (value == null) return DeviceRgbConverter.Instance;
+            if (value == null)
+            {
+                return ResolveDeviceConverter(defaultComponents, page);
+            }
 
             if (!TryGetColorSpaceName(value, out var name))
             {
-                return DeviceRgbConverter.Instance;
+                return ResolveDeviceConverter(defaultComponents, page);
             }
 
             bool hasReference = TryGetColorSpaceObject(value, out var pdfObject);
 
-            if (hasReference &&  TryResolveFromCache(pdfObject, out var cached))
+            if (hasReference && TryResolveFromCache(pdfObject, out var cached))
             {
                 return cached;
             }
@@ -28,6 +31,21 @@ namespace PdfReader.Rendering.Color
             }
 
             return result;
+        }
+
+        public static PdfColorSpaceConverter ResolveDeviceConverter(int components, PdfPage page)
+        {
+            switch (components)
+            {
+                case 1:
+                    return ResolveDeviceConverter(PdfColorSpaceNames.DeviceGray, page);
+                case 3:
+                    return ResolveDeviceConverter(PdfColorSpaceNames.DeviceRGB, page);
+                case 4:
+                    return ResolveDeviceConverter(PdfColorSpaceNames.DeviceCMYK, page);
+                default:
+                    return null;
+            }
         }
 
         public static PdfColorSpaceConverter ResolveDeviceConverter(string name, PdfPage page)
@@ -57,7 +75,7 @@ namespace PdfReader.Rendering.Color
             if (defaultVal != null)
             {
                 // Default.* can be an ICCBased space or other color space; reuse existing parser
-                var conv = ResolveByValue(defaultVal, page);
+                var conv = ResolveByValue(defaultVal, page, -1);
                 if (conv is IccBasedConverter iccConv && iccConv.N == n)
                 {
                     return iccConv; // Already ICC

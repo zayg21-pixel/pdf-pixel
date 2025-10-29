@@ -107,7 +107,7 @@ namespace PdfReader.Rendering
         {
             var graphicsStack = new Stack<PdfGraphicsState>();
             var operandStack = new Stack<IPdfValue>();
-            var currentPath = new SKPath();
+            using var currentPath = new SKPath();
             var operatorProcessor = new PdfOperatorProcessor(_page, canvas, operandStack, graphicsStack, currentPath, processingXObjects);
 
             IPdfValue value;

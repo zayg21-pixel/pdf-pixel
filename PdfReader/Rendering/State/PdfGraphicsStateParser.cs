@@ -300,7 +300,7 @@ namespace PdfReader.Rendering.State
             {
                 var groupCsDict = formDict.GetDictionary(PdfTokens.GroupKey);
                 var csVal = groupCsDict?.GetValue(PdfTokens.GroupColorSpaceKey);
-                var converter = csVal != null ? PdfColorSpaces.ResolveByValue(csVal, page) : DeviceGrayConverter.Instance;
+                var converter = PdfColorSpaces.ResolveByValue(csVal, page, 1);
                 var comps = bcArray.GetFloatArray();
                 softMask.BackgroundColor = converter.ToSrgb(comps, PdfRenderingIntent.RelativeColorimetric);
             }

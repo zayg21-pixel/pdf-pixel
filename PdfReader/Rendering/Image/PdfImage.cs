@@ -191,14 +191,17 @@ namespace PdfReader.Rendering.Image
         /// </summary>
         public static PdfImage FromXObject(PdfObject imageXObject, PdfPage page, string name, bool isSoftMask)
         {
+            int bitsPerComponent = imageXObject.Dictionary.GetIntegerOrDefault(PdfTokens.BitsPerComponentKey);
+            int defaultComponents = GetDefaultComponents(bitsPerComponent);
+
             var image = new PdfImage
             {
                 SourceObject = imageXObject,
                 Width = imageXObject.Dictionary.GetIntegerOrDefault(PdfTokens.WidthKey),
                 Height = imageXObject.Dictionary.GetIntegerOrDefault(PdfTokens.HeightKey),
-                BitsPerComponent = imageXObject.Dictionary.GetIntegerOrDefault(PdfTokens.BitsPerComponentKey),
+                BitsPerComponent = bitsPerComponent,
                 IsSoftMask = isSoftMask,
-                ColorSpaceConverter = PdfColorSpaces.ResolveByValue(imageXObject.Dictionary.GetValue(PdfTokens.ColorSpaceKey), page),
+                ColorSpaceConverter = PdfColorSpaces.ResolveByValue(imageXObject.Dictionary.GetValue(PdfTokens.ColorSpaceKey), page, defaultComponents),
                 Name = name
             };
 
@@ -273,6 +276,15 @@ namespace PdfReader.Rendering.Image
             }
 
             return image;
+        }
+
+        private static int GetDefaultComponents(int bitsPerComponent)
+        {
+            return bitsPerComponent switch
+            {
+                1 => 1,
+                _ => 3,
+            };
         }
 
         private static PdfImageType MapImageType(string name)

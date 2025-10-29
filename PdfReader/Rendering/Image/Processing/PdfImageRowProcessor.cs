@@ -9,7 +9,6 @@ namespace PdfReader.Rendering.Image.Processing
 {
     /// <summary>
     /// Row-oriented image post processor that converts already decoded sample rows into final output buffers.
-    /// All processing occurs in an 8-bit pipeline; 16-bit input components are downscaled (rounded) to 8-bit.
     /// </summary>
     internal sealed class PdfImageRowProcessor : IDisposable
     {
@@ -62,7 +61,7 @@ namespace PdfReader.Rendering.Image.Processing
                 throw new NotSupportedException("Unsupported component count. Expected 1, 3 or 4.");
             }
 
-            _outputMode = _components == 1 ? OutputMode.Gray : OutputMode.Rgba;
+            _outputMode = (_components == 1 || _bitsPerComponent == 16) ? OutputMode.Gray : OutputMode.Rgba;
 
             switch (_outputMode)
             {

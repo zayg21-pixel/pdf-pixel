@@ -39,7 +39,7 @@ namespace PdfReadTests
                 //"pdfs//icc-lab2.pdf",
                 //"pdf-example-password.pdf",
                 //"pdfs//mixedfonts.pdf", // came a bit broken
-                "pdfs//mixedfonts_ed.pdf",
+                //"pdfs//mixedfonts_ed.pdf",
                 //"pdfs//blendmode.pdf",
                 //"pdfs//calgray.pdf",
                 //"pdfs//calrgb.pdf",
@@ -51,7 +51,7 @@ namespace PdfReadTests
                 //"pdfs//images_1bit_grayscale.pdf",
                 //"pdfs//shading_extend.pdf",
                 //"pdfs//pdf_c.pdf",
-                //"PDF32000_2008.pdf", // many exceptions (mostly in JPG, skia also falls)
+                "PDF32000_2008.pdf", // exception on drawing CCITT
                 //"ch14.pdf"
                 //@"documentS.pdf",
                 //@"documentC.pdf",
@@ -106,10 +106,8 @@ namespace PdfReadTests
                     Logger.LogInformation("Root object: {Root}", document.RootObject);
 
                     var start = 0;
-                    var max = 900;
-                    float scaleX = 1f; // Scale factor for rendering
-
-                    var memory = GC.GetTotalMemory(true) / 1024 / 1024;
+                    var max = 1000;
+                    float scaleX = 4f; // Scale factor for rendering
 
                     // Analyze pages with detailed content stream debugging
                     for (int i = start; i < Math.Min(max, document.PageCount); i++)
@@ -125,7 +123,7 @@ namespace PdfReadTests
                             var renderWidth = (int)Math.Max(renderingBounds.Width, 100); // Minimum 100px
                             var renderHeight = (int)Math.Max(renderingBounds.Height, 100); // Minimum 100px
 
-                            var info = new SKImageInfo((int)(renderWidth * scaleX), (int)(renderHeight * scaleX));
+                            var info = new SKImageInfo((int)(renderWidth * scaleX), (int)(renderHeight * scaleX), SKColorType.Rgba8888, SKAlphaType.Premul, SKColorSpace.CreateSrgb());
                             //using var surface = SKSurface.Create(grContext, false, info);
                             using var surface = SKSurface.Create(info);
 

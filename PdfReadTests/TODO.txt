@@ -16,3 +16,6 @@ Inherit image color space from graphics state
 Type3 font
 Predefined CMaps
 https://github.com/mozilla/pdf.js/issues/6305 - SHAAAADINGS!
+halftones
+rework graphics stack, try-catch for operation execution. Don't check for predefined operators
+clear stack after each operator (we need a reliable way to distinguish booleans, need a separate type!)

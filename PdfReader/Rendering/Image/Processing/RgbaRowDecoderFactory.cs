@@ -21,6 +21,17 @@ namespace PdfReader.Rendering.Image.Processing
         {
             switch (components)
             {
+                case 1:
+                    switch (bitsPerComponent)
+                    {
+                        case 1: return new GrayRgba1RowDecoder(columns);
+                        case 2: return new GrayRgba2RowDecoder(columns);
+                        case 4: return new GrayRgba4RowDecoder(columns);
+                        case 8: return new GrayRgba8RowDecoder(columns);
+                        case 16: return new GrayRgba16RowDecoder(columns);
+                        default:
+                            throw new ArgumentException($"Unsupported bitsPerComponent for RGB: {bitsPerComponent}");
+                    }
                 case 3:
                     switch (bitsPerComponent)
                     {

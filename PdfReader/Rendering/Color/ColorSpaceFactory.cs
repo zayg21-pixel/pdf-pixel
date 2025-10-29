@@ -301,11 +301,7 @@ namespace PdfReader.Rendering.Color
             PdfColorSpaceConverter alt = null;
             var dict = pdfObject.Dictionary;
             n = dict.GetIntegerOrDefault(PdfTokens.NKey);
-            var altVal = dict.GetValue(PdfTokens.AlternateKey);
-            if (altVal != null)
-            {
-                alt = PdfColorSpaces.ResolveByValue(altVal, page);
-            }
+            var altVal = PdfColorSpaces.ResolveByValue(dict.GetValue(PdfTokens.AlternateKey), page, n);
 
             byte[] iccBytes = null;
             if (!pdfObject.StreamData.IsEmpty)
