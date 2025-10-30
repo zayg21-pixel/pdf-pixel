@@ -67,16 +67,14 @@ namespace PdfReader.Fonts.Types
                         var widthsArr = second.AsArray();
                         for (int j = 0; j < widthsArr.Count; j++)
                         {
-                            cidWidths[firstCid + (uint)j] = widthsArr.GetValue(j).AsFloat() * WidthToUserSpaceCoeff;
+                            cidWidths[firstCid + (uint)j] = widthsArr.GetFloat(j) * WidthToUserSpaceCoeff;
                         }
                     }
                     else
                     {
                         // Range: firstCid to secondCid, all have the same width
                         uint lastCid = (uint)second.AsInteger();
-                        var widthVal = wArray.GetValue(i++);
-                        if (widthVal == null) { break; }
-                        float width = widthVal.AsFloat() * WidthToUserSpaceCoeff;
+                        float width = wArray.GetFloat(i++) * WidthToUserSpaceCoeff;
                         for (uint cid = firstCid; cid <= lastCid; cid++)
                         {
                             cidWidths[cid] = width;

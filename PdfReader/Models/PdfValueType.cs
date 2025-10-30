@@ -4,12 +4,12 @@ namespace PdfReader.Models
     {
         Name,
         String, 
+        Boolean,
         Operator, 
         Integer,
         Real,
         Reference,
         Array,
         Dictionary,
-        HexString
     }
 }

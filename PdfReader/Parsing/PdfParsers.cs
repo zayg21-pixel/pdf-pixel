@@ -70,9 +70,8 @@ namespace PdfReader.Parsing
             }
             else if (b == PdfTokens.LeftAngle)
             {
-                // Single angle bracket - hex string. Do not decrypt here (spec encryption applies to the raw bytes; hex literal stays hex digits).
-                var hexString = ParseHexStringAsHexDigits(ref context);
-                return hexString != null ? PdfValue.HexString(hexString) : null;
+                var hexString = ParseHexStringAsString(ref context);
+                return hexString != null ? PdfValue.String(hexString) : null;
             }
             else if (PdfParsingHelpers.IsDigit(b) || b == PdfTokens.Minus || b == PdfTokens.Plus || b == PdfTokens.Dot)
             {
@@ -92,6 +91,15 @@ namespace PdfReader.Parsing
             }
 
             var token = ParseTokenAsString(ref context);
+
+            if (token == "true")
+            {
+                return PdfValue.Boolean(true);
+            }
+            if (token == "false")
+            {
+                return PdfValue.Boolean(false);
+            }
             return token != null ? PdfValue.Operator(token) : null;
         }
 
@@ -676,36 +684,49 @@ namespace PdfReader.Parsing
             return false;
         }
 
+        /// <summary>
+        /// Parses a PDF hex string (e.g., <48656C6C6F>) and decodes it to a string using PDF default encoding.
+        /// Decoding is performed live; odd-length hex strings are padded with zero as per PDF spec.
+        /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static string ParseHexStringAsHexDigits(ref PdfParseContext context)
+        private static string ParseHexStringAsString(ref PdfParseContext context)
         {
             if (PdfParsingHelpers.PeekByte(ref context) != PdfTokens.LeftAngle)
             {
                 return null;
             }
-            
+
             context.Advance(1); // Skip '<'
-            
-            var hexDigits = new StringBuilder();
-            
+
+            var bytes = new List<byte>();
+            int? highNibble = null;
+
             while (!context.IsAtEnd)
             {
-                byte b = PdfParsingHelpers.PeekByte(ref context);
-                
-                if (b == PdfTokens.RightAngle)
+                byte currentByte = PdfParsingHelpers.PeekByte(ref context);
+
+                if (currentByte == PdfTokens.RightAngle)
                 {
                     context.Advance(1); // Skip '>'
                     break;
                 }
-                else if (PdfParsingHelpers.IsWhitespace(b))
+                else if (PdfParsingHelpers.IsWhitespace(currentByte))
                 {
                     context.Advance(1); // Skip whitespace
                     continue;
                 }
-                else if (PdfParsingHelpers.IsHexDigit(b))
+                else if (PdfParsingHelpers.IsHexDigit(currentByte))
                 {
-                    // Preserve hex digits as characters
-                    hexDigits.Append((char)b);
+                    int value = HexDigitToValue(currentByte);
+                    if (highNibble == null)
+                    {
+                        highNibble = value;
+                    }
+                    else
+                    {
+                        bytes.Add((byte)((highNibble.Value << 4) | value));
+                        highNibble = null;
+                    }
                     context.Advance(1);
                 }
                 else
@@ -714,8 +735,15 @@ namespace PdfReader.Parsing
                     context.Advance(1);
                 }
             }
-            
-            return hexDigits.ToString();
+
+            // If odd number of hex digits, pad last nibble with zero
+            if (highNibble != null)
+            {
+                bytes.Add((byte)(highNibble.Value << 4));
+            }
+
+            // Decode bytes using PDF default encoding
+            return EncodingExtensions.PdfDefault.GetString(bytes.ToArray());
         }
     }
 }

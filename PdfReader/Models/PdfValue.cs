@@ -33,7 +33,7 @@ namespace PdfReader.Models
             {
                 PdfValueType.Name => $"/{_value}",
                 PdfValueType.String => $"({_value})",
-                PdfValueType.HexString => $"<{_value}>",
+                PdfValueType.Operator => _value.ToString(),
                 PdfValueType.Integer => _value.ToString(),
                 PdfValueType.Real => _value.ToString(),
                 PdfValueType.Reference => _value.ToString(),
@@ -50,9 +50,9 @@ namespace PdfReader.Models
         public static PdfValue<string> Name(string value) => new PdfValue<string>(value, PdfValueType.Name);
         public static PdfValue<string> String(string value) => new PdfValue<string>(value, PdfValueType.String);
         public static PdfValue<string> Operator(string value) => new PdfValue<string>(value, PdfValueType.Operator);
-        public static PdfValue<string> HexString(string value) => new PdfValue<string>(value, PdfValueType.HexString);
         public static PdfValue<int> Integer(int value) => new PdfValue<int>(value, PdfValueType.Integer);
         public static PdfValue<float> Real(float value) => new PdfValue<float>(value, PdfValueType.Real);
+        public static PdfValue<bool> Boolean(bool value) => new PdfValue<bool>(value, PdfValueType.Boolean);
         public static PdfValue<PdfReference> Reference(PdfReference value) => new PdfValue<PdfReference>(value, PdfValueType.Reference);
         public static PdfValue<PdfArray> Array(PdfArray value) => new PdfValue<PdfArray>(value, PdfValueType.Array);
         public static PdfValue<PdfDictionary> Dictionary(PdfDictionary value) => new PdfValue<PdfDictionary>(value, PdfValueType.Dictionary);

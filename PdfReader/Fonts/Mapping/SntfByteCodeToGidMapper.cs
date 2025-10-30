@@ -19,7 +19,7 @@ namespace PdfReader.Fonts.Mapping
         private readonly PdfFontFlags _flags;
         private readonly PdfFontEncoding _encoding;
         private readonly Dictionary<int, string> _differences;
-        private readonly PdfToUnicodeCMap _toUnicodeCMap;
+        private readonly PdfCMap _toUnicodeCMap;
         private readonly FontTableInfo _tableInfo;
 
         /// <summary>
@@ -35,7 +35,7 @@ namespace PdfReader.Fonts.Mapping
             PdfFontFlags flags,
             PdfFontEncoding encoding,
             Dictionary<int, string> differences,
-            PdfToUnicodeCMap toUnicodeCMap)
+            PdfCMap toUnicodeCMap)
         {
             if (typeface == null)
             {

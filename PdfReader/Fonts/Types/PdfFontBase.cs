@@ -18,7 +18,7 @@ namespace PdfReader.Fonts.Types
     /// </summary>
     public abstract class PdfFontBase
     {
-        private readonly Lazy<PdfToUnicodeCMap> _toUnicodeCMap;
+        private readonly Lazy<PdfCMap> _toUnicodeCMap;
         private readonly ConcurrentDictionary<PdfCharacterCode, PdfCharacterInfo> _characterInfoCache = new ConcurrentDictionary<PdfCharacterCode, PdfCharacterInfo>();
 
         /// <summary>
@@ -42,7 +42,7 @@ namespace PdfReader.Fonts.Types
             BaseFont = fontDictionary.GetString(PdfTokens.BaseFontKey) ?? string.Empty;
             
             // Initialize lazy loaders (thread-safe)
-            _toUnicodeCMap = new Lazy<PdfToUnicodeCMap>(LoadToUnicodeCMap, isThreadSafe: true);
+            _toUnicodeCMap = new Lazy<PdfCMap>(LoadToUnicodeCMap, isThreadSafe: true);
         }
 
         /// <summary>
@@ -87,7 +87,7 @@ namespace PdfReader.Fonts.Types
         /// Loaded ToUnicode CMap for character-to-Unicode mapping
         /// Thread-safe lazy-loaded when first accessed - heavy operation
         /// </summary>
-        public PdfToUnicodeCMap ToUnicodeCMap => _toUnicodeCMap.Value;
+        public PdfCMap ToUnicodeCMap => _toUnicodeCMap.Value;
 
         /// <summary>
         /// Check if this font has embedded font data
@@ -243,7 +243,7 @@ namespace PdfReader.Fonts.Types
         /// <summary>
         /// Load ToUnicode CMap (heavy operation - lazy loaded using GetPageObject)
         /// </summary>
-        private PdfToUnicodeCMap LoadToUnicodeCMap()
+        private PdfCMap LoadToUnicodeCMap()
         {
             // Use GetPageObject instead of storing reference
             var toUnicodeObj = Dictionary.GetPageObject(PdfTokens.ToUnicodeKey);
@@ -252,7 +252,7 @@ namespace PdfReader.Fonts.Types
 
             var cmapData = Document.StreamDecoder.DecodeContentStream(toUnicodeObj);
             var cMapContent = new PdfParseContext(cmapData);
-            return PdfToUnicodeCMapParser.ParseCMapFromContext(ref cMapContent, Document, toUnicodeObj.Dictionary);
+            return PdfCMapParser.ParseCMapFromContext(ref cMapContent, Document);
         }
     }
 }

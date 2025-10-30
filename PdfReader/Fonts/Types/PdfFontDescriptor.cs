@@ -95,7 +95,7 @@ namespace PdfReader.Fonts.Types
             var panoseVal = dict.GetValue(PdfTokens.PanoseKey);
             if (panoseVal != null)
             {
-                var hexBytes = panoseVal.AsHexBytes();
+                var hexBytes = panoseVal.AsStringBytes();
                 if (hexBytes != null)
                 {
                     descriptor.Panose = hexBytes;

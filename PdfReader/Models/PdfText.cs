@@ -31,44 +31,14 @@ namespace PdfReader.Models
         /// </summary>
         public static PdfText FromOperand(IPdfValue operand)
         {
-            if (operand.Type == PdfValueType.String)
-            {
-                var rawBytes = GetStringBytes(operand);
-                return new PdfText(rawBytes);
-            }
-            else if (operand.Type == PdfValueType.HexString)
-            {
-                var rawBytes = GetHexStringBytes(operand);
-                return new PdfText(rawBytes);
-            }
-            else
+            var bytes = operand.AsStringBytes();
+
+            if (bytes == null)
             {
                 return default;
             }
-        }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static ReadOnlyMemory<byte> GetStringBytes(IPdfValue operand)
-        {
-            var stringValue = operand.AsString();
-            if (string.IsNullOrEmpty(stringValue))
-            {
-                return ReadOnlyMemory<byte>.Empty;
-            }
-
-            return EncodingExtensions.PdfDefault.GetBytes(stringValue);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static ReadOnlyMemory<byte> GetHexStringBytes(IPdfValue operand)
-        {
-            var result = operand.AsHexBytes();
-            if (result == null)
-            {
-                return ReadOnlyMemory<byte>.Empty;
-            }
-
-            return result;
+            return new PdfText(bytes);
         }
 
         public override string ToString()

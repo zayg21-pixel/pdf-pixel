@@ -16,7 +16,7 @@ namespace PdfReader.Fonts.Types
     {
         // Thread-safe lazy loading using Lazy<T>
         private readonly Lazy<List<PdfCIDFont>> _descendantFonts;
-        private readonly Lazy<PdfCodeToCidCMap> _codeToCidCMap;
+        private readonly Lazy<PdfCMap> _codeToCidCMap;
 
         /// <summary>
         /// Constructor for composite fonts - lightweight operations only
@@ -26,7 +26,7 @@ namespace PdfReader.Fonts.Types
         {
             // Initialize thread-safe lazy loaders
             _descendantFonts = new Lazy<List<PdfCIDFont>>(LoadDescendantFonts, isThreadSafe: true);
-            _codeToCidCMap = new Lazy<PdfCodeToCidCMap>(LoadCodeToCidCMap, isThreadSafe: true);
+            _codeToCidCMap = new Lazy<PdfCMap>(LoadCodeToCidCMap, isThreadSafe: true);
         }
 
         /// <summary>
@@ -52,7 +52,7 @@ namespace PdfReader.Fonts.Types
         /// Optional code->CID CMap derived from the parent /Encoding entry when it is a CMap stream.
         /// May be null if /Encoding is a predefined name without an embedded stream (e.g., Identity-H).
         /// </summary>
-        public PdfCodeToCidCMap CodeToCidCMap => _codeToCidCMap.Value;
+        public PdfCMap CodeToCidCMap => _codeToCidCMap.Value;
 
         /// <summary>
         /// Check if font has embedded data (delegated to primary descendant)
@@ -137,7 +137,7 @@ namespace PdfReader.Fonts.Types
         /// Load an embedded /Encoding CMap stream (if present) into a code->CID map.
         /// Returns null if /Encoding is a name or if parsing fails.
         /// </summary>
-        private PdfCodeToCidCMap LoadCodeToCidCMap()
+        private PdfCMap LoadCodeToCidCMap()
         {
             var encodingObj = Dictionary.GetPageObject(PdfTokens.EncodingKey);
             if (encodingObj == null)
@@ -152,7 +152,7 @@ namespace PdfReader.Fonts.Types
             }
 
             var ctx = new PdfParseContext(data);
-            return PdfCodeToCidCMapParser.ParseCMapFromContext(ref ctx, Document, encodingObj.Dictionary);
+            return PdfCMapParser.ParseCMapFromContext(ref ctx, Document);
         }
 
         /// <summary>
@@ -168,9 +168,9 @@ namespace PdfReader.Fonts.Types
                 return Array.Empty<PdfCharacterCode>();
             }
 
-            if (ToUnicodeCMap != null && ToUnicodeCMap.HasCodeSpaceRanges && ToUnicodeCMap.MaxCodeLength > 0)
+            if (CodeToCidCMap != null && CodeToCidCMap.HasCodeSpaceRanges)
             {
-                var cmap = ToUnicodeCMap;
+                var cmap = CodeToCidCMap;
                 var characterCodes = new List<PdfCharacterCode>();
                 int offset = 0;
                 while (offset < bytes.Length)

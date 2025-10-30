@@ -1,6 +1,4 @@
-using System;
-using System.Collections.Generic;
-using System.Text;
+using PdfReader.Text;
 
 namespace PdfReader.Models
 {
@@ -31,22 +29,7 @@ namespace PdfReader.Models
             {
                 return stringValue.Value;
             }
-            else if (value is PdfValue<string> hexValue && hexValue.Type == PdfValueType.HexString)
-            {
-                var bytes = hexValue.AsHexBytes();
 
-                if (bytes == null) return null;
-                return Encoding.ASCII.GetString(bytes);
-            }
-            return null;
-        }
-
-        public static string AsHexString(this IPdfValue value)
-        {
-            if (value is PdfValue<string> hexStringValue && hexStringValue.Type == PdfValueType.HexString)
-            {
-                return hexStringValue.Value;
-            }
             return null;
         }
 
@@ -54,33 +37,16 @@ namespace PdfReader.Models
         /// Convert HexString value into raw bytes. Returns null if not a HexString.
         /// Skips whitespace and pads odd-length nibbles per PDF spec.
         /// </summary>
-        public static byte[] AsHexBytes(this IPdfValue value)
+        public static byte[] AsStringBytes(this IPdfValue value)
         {
-            var hex = value.AsHexString();
-            if (string.IsNullOrEmpty(hex))
+            string stringValue = AsString(value);
+
+            if (stringValue == null)
             {
                 return null;
             }
 
-            var bytes = new List<byte>(hex.Length / 2);
-            int? high = null;
-            for (int i = 0; i < hex.Length; i++)
-            {
-                char c = hex[i];
-                int v;
-                if (c >= '0' && c <= '9') v = c - '0';
-                else if (c >= 'A' && c <= 'F') v = c - 'A' + 10;
-                else if (c >= 'a' && c <= 'f') v = c - 'a' + 10;
-                else continue; // ignore non-hex (spaces, newlines)
-
-                if (high == null) high = v;
-                else { bytes.Add((byte)((high.Value << 4) | v)); high = null; }
-            }
-            if (high != null)
-            {
-                bytes.Add((byte)(high.Value << 4));
-            }
-            return bytes.ToArray();
+            return EncodingExtensions.PdfDefault.GetBytes(stringValue);
         }
 
         public static int AsInteger(this IPdfValue value)
@@ -99,7 +65,7 @@ namespace PdfReader.Models
 
         private static float AsReal(this IPdfValue value)
         {
-            if (value is PdfValue<float> realValue && realValue.Type == PdfValueType.Real)
+            if (value is PdfValue<float> realValue)
             {
                 return realValue.Value;
             }
@@ -118,42 +84,13 @@ namespace PdfReader.Models
 
         public static bool AsBool(this IPdfValue value)
         {
-            if (value == null) return false;
-
-            // Names like /true or /false
-            if (value.Type == PdfValueType.Name)
+            if (value is PdfValue<bool> booleanValue)
             {
-                var nameString = value.AsName();
-                if (string.IsNullOrEmpty(nameString)) return false;
-                if (nameString[0] == '/') nameString = nameString.Substring(1);
-                return string.Equals(nameString, "true", StringComparison.OrdinalIgnoreCase);
+                return booleanValue.Value;
             }
 
-            // Non-zero numeric considered true per many PDF producers
-            if (value.Type == PdfValueType.Integer || value.Type == PdfValueType.Real)
-            {
-                return value.AsFloat() != 0f;
-            }
-
-            // Strings: optional
-            var text = value.AsString();
-            if (!string.IsNullOrEmpty(text))
-            {
-                if (text[0] == '/') text = text.Substring(1);
-                if (string.Equals(text, "true", StringComparison.OrdinalIgnoreCase)) return true;
-                if (string.Equals(text, "false", StringComparison.OrdinalIgnoreCase)) return false;
-            }
 
             return false;
-        }
-
-        internal static PdfReference AsReference(this IPdfValue value)
-        {
-            if (value is PdfValue<PdfReference> referenceValue && referenceValue.Type == PdfValueType.Reference)
-            {
-                return referenceValue.Value;
-            }
-            return new PdfReference(0);
         }
 
         public static PdfArray AsArray(this IPdfValue value)

@@ -3,26 +3,18 @@ using System.Collections.Generic;
 
 namespace PdfReader.Fonts.Mapping
 {
-    // ToUnicode CMap for character mapping (length-aware, character code-based)
-    // NOTE: Keys are byte-sequence character codes, avoiding collisions between e.g. <41> and <0041>.
-    public class PdfToUnicodeCMap
+    /// <summary>
+    /// General CMap for character mapping (length-aware, character code-based).
+    /// Stores both code-to-CID and code-to-Unicode mappings for full CMap support.
+    /// </summary>
+    public class PdfCMap
     {
-        // Length-aware mappings keyed by PdfCid (byte-sequence equality)
+        // Length-aware mappings keyed by PdfCharacterCode (byte-sequence equality)
         private readonly Dictionary<PdfCharacterCode, string> _characterCodeToUnicode = new Dictionary<PdfCharacterCode, string>();
-        private readonly Dictionary<PdfCharacterCode, int> _characterCodeToUnicodeCodePoint = new Dictionary<PdfCharacterCode, int>();
+        private readonly Dictionary<PdfCharacterCode, int> _codeToCid = new Dictionary<PdfCharacterCode, int>();
 
         // Codespace ranges: define valid code byte lengths and value intervals
         private readonly List<CodeSpaceRange> _codeSpaceRanges = new List<CodeSpaceRange>();
-
-        /// <summary>
-        /// Minimum declared character code length across codespace ranges; 0 if none declared.
-        /// </summary>
-        public int MinCodeLength { get; private set; }
-
-        /// <summary>
-        /// Maximum declared character code length across codespace ranges; 0 if none declared.
-        /// </summary>
-        public int MaxCodeLength { get; private set; }
 
         /// <summary>
         /// True if any codespace ranges are present.
@@ -37,20 +29,20 @@ namespace PdfReader.Fonts.Mapping
         {
             if (start.Length == 0 || end.Length == 0 || start.Length != end.Length || start.Length > 4)
             {
-                return; // ignore malformed
+                return;
             }
 
             uint vStart = PdfCharacterCode.UnpackBigEndianToUInt(start);
             uint vEnd = PdfCharacterCode.UnpackBigEndianToUInt(end);
+
             if (vEnd < vStart)
             {
-                // swap to normalize
-                uint t = vStart; vStart = vEnd; vEnd = t;
+                _codeSpaceRanges.Add(new CodeSpaceRange(start.Length, vEnd, vStart));
             }
-            _codeSpaceRanges.Add(new CodeSpaceRange(start.Length, vStart, vEnd));
-
-            if (MinCodeLength == 0 || start.Length < MinCodeLength) MinCodeLength = start.Length;
-            if (start.Length > MaxCodeLength) MaxCodeLength = start.Length;
+            else
+            {
+                _codeSpaceRanges.Add(new CodeSpaceRange(start.Length, vStart, vEnd));
+            }
         }
 
         /// <summary>
@@ -64,25 +56,28 @@ namespace PdfReader.Fonts.Mapping
                 return 0;
             }
 
-            int maxLen = Math.Min(MaxCodeLength, input.Length);
-            for (int len = maxLen; len >= MinCodeLength; len--)
+            int longestMatch = 0;
+            for (int i = 0; i < _codeSpaceRanges.Count; i++)
             {
-                uint value = PdfCharacterCode.UnpackBigEndianToUInt(input.Slice(0, len));
-                for (int i = 0; i < _codeSpaceRanges.Count; i++)
+                var range = _codeSpaceRanges[i];
+                if (input.Length < range.Length)
                 {
-                    var r = _codeSpaceRanges[i];
-                    if (r.Length != len) continue;
-                    if (value >= r.Start && value <= r.End)
+                    continue;
+                }
+                uint value = PdfCharacterCode.UnpackBigEndianToUInt(input.Slice(0, range.Length));
+                if (value >= range.Start && value <= range.End)
+                {
+                    if (range.Length > longestMatch)
                     {
-                        return len;
+                        longestMatch = range.Length;
                     }
                 }
             }
-            return 0;
+            return longestMatch;
         }
 
         /// <summary>
-        /// Add a single mapping for a length-aware CID (byte sequence).
+        /// Add a single mapping for a length-aware code (byte sequence) to Unicode.
         /// </summary>
         public void AddMapping(PdfCharacterCode code, string unicode)
         {
@@ -91,20 +86,22 @@ namespace PdfReader.Fonts.Mapping
                 return;
             }
             _characterCodeToUnicode[code] = unicode;
-            
-            // Also try to parse as code point for efficiency
-            if (unicode.Length == 1)
-            {
-                _characterCodeToUnicodeCodePoint[code] = unicode[0];
-            }
-            else if (unicode.Length == 2 && char.IsSurrogatePair(unicode[0], unicode[1]))
-            {
-                _characterCodeToUnicodeCodePoint[code] = char.ConvertToUtf32(unicode[0], unicode[1]);
-            }
         }
-        
+
         /// <summary>
-        /// Add a sequential range mapping using length-aware start/end codes.
+        /// Add a single mapping for a length-aware code (byte sequence) to CID.
+        /// </summary>
+        public void AddCidMapping(PdfCharacterCode code, int cid)
+        {
+            if (code == null)
+            {
+                return;
+            }
+            _codeToCid[code] = cid;
+        }
+
+        /// <summary>
+        /// Add a sequential range mapping using length-aware start/end codes to Unicode.
         /// Both start and end must be the same length (1..4 bytes), inclusive.
         /// </summary>
         public void AddRangeMapping(ReadOnlySpan<byte> startCode, ReadOnlySpan<byte> endCode, int startUnicode)
@@ -116,19 +113,53 @@ namespace PdfReader.Fonts.Mapping
             int len = startCode.Length;
             uint vStart = PdfCharacterCode.UnpackBigEndianToUInt(startCode);
             uint vEnd = PdfCharacterCode.UnpackBigEndianToUInt(endCode);
-            if (vEnd < vStart) { uint t = vStart; vStart = vEnd; vEnd = t; }
+            if (vEnd < vStart)
+            {
+                uint temp = vStart;
+                vStart = vEnd;
+                vEnd = temp;
+            }
 
             int delta = 0;
             for (uint v = vStart; v <= vEnd; v++, delta++)
             {
                 int codePoint = startUnicode + delta;
                 var codeBytes = PdfCharacterCode.PackUIntToBigEndian(v, len);
-                AddMapping(new PdfCharacterCode(codeBytes), char.ConvertFromUtf32(codePoint));
+                _characterCodeToUnicode[new PdfCharacterCode(codeBytes)] = char.ConvertFromUtf32(codePoint);
             }
         }
-        
+
         /// <summary>
-        /// Lookup by length-aware CID.
+        /// Add a sequential range mapping using length-aware start/end codes to CIDs.
+        /// Both start and end must be the same length (1..4 bytes), inclusive.
+        /// </summary>
+        public void AddCidRangeMapping(ReadOnlySpan<byte> startCode, ReadOnlySpan<byte> endCode, int startCid)
+        {
+            if (startCode.Length == 0 || endCode.Length == 0 || startCode.Length != endCode.Length || startCode.Length > 4)
+            {
+                return;
+            }
+            int len = startCode.Length;
+            uint vStart = PdfCharacterCode.UnpackBigEndianToUInt(startCode);
+            uint vEnd = PdfCharacterCode.UnpackBigEndianToUInt(endCode);
+            if (vEnd < vStart)
+            {
+                uint temp = vStart;
+                vStart = vEnd;
+                vEnd = temp;
+            }
+
+            int delta = 0;
+            for (uint v = vStart; v <= vEnd; v++, delta++)
+            {
+                int cid = startCid + delta;
+                var codeBytes = PdfCharacterCode.PackUIntToBigEndian(v, len);
+                _codeToCid[new PdfCharacterCode(codeBytes)] = cid;
+            }
+        }
+
+        /// <summary>
+        /// Lookup by length-aware code for Unicode mapping.
         /// </summary>
         public string GetUnicode(PdfCharacterCode code)
         {
@@ -140,18 +171,27 @@ namespace PdfReader.Fonts.Mapping
             {
                 return unicode;
             }
-            if (_characterCodeToUnicodeCodePoint.TryGetValue(code, out int codePoint))
-            {
-                return char.ConvertFromUtf32(codePoint);
-            }
             return null;
         }
 
         /// <summary>
-        /// Merge mappings from another CMap. Keys are treated the same (PdfCid).
+        /// Lookup by length-aware code for CID mapping.
+        /// </summary>
+        public bool TryGetCid(PdfCharacterCode code, out int cid)
+        {
+            if (code == null)
+            {
+                cid = 0;
+                return false;
+            }
+            return _codeToCid.TryGetValue(code, out cid);
+        }
+
+        /// <summary>
+        /// Merge mappings from another CMap. Keys are treated the same (PdfCharacterCode).
         /// Codespace ranges are merged and Min/Max recalculated.
         /// </summary>
-        public void MergeFrom(PdfToUnicodeCMap other, bool overwriteExisting = false)
+        public void MergeFrom(PdfCMap other, bool overwriteExisting = false)
         {
             if (other == null)
             {
@@ -165,34 +205,16 @@ namespace PdfReader.Fonts.Mapping
                     _characterCodeToUnicode[kvp.Key] = kvp.Value;
                 }
             }
-
-            foreach (var kvp in other._characterCodeToUnicodeCodePoint)
+            foreach (var kvp in other._codeToCid)
             {
-                if (overwriteExisting || !_characterCodeToUnicodeCodePoint.ContainsKey(kvp.Key))
+                if (overwriteExisting || !_codeToCid.ContainsKey(kvp.Key))
                 {
-                    _characterCodeToUnicodeCodePoint[kvp.Key] = kvp.Value;
+                    _codeToCid[kvp.Key] = kvp.Value;
                 }
             }
-
-            // merge codespace ranges
-            foreach (var r in other._codeSpaceRanges)
+            foreach (var range in other._codeSpaceRanges)
             {
-                _codeSpaceRanges.Add(r);
-            }
-            RecomputeMinMaxLengths();
-        }
-
-        public int MappingCount => Math.Max(_characterCodeToUnicode.Count, _characterCodeToUnicodeCodePoint.Count);
-
-        private void RecomputeMinMaxLengths()
-        {
-            MinCodeLength = 0;
-            MaxCodeLength = 0;
-            for (int i = 0; i < _codeSpaceRanges.Count; i++)
-            {
-                var len = _codeSpaceRanges[i].Length;
-                if (MinCodeLength == 0 || len < MinCodeLength) MinCodeLength = len;
-                if (len > MaxCodeLength) MaxCodeLength = len;
+                _codeSpaceRanges.Add(range);
             }
         }
 

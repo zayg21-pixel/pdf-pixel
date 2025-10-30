@@ -55,19 +55,7 @@ namespace PdfReader.Rendering.Color
                 else
                 {
                     var lutVal = lutObject.Value;
-
-                    switch (lutVal?.Type)
-                    {
-                        case PdfValueType.HexString:
-                            lookupBytes = lutVal.AsHexBytes() ?? Array.Empty<byte>();
-                            break;
-                        case PdfValueType.String:
-                            {
-                                var s = lutVal.AsString() ?? string.Empty;
-                                lookupBytes = EncodingExtensions.PdfDefault.GetBytes(s);
-                                break;
-                            }
-                    }
+                    lookupBytes = lutVal.AsStringBytes() ?? Array.Empty<byte>();
                 }
             }
 

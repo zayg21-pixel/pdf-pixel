@@ -19,3 +19,14 @@ https://github.com/mozilla/pdf.js/issues/6305 - SHAAAADINGS!
 halftones
 rework graphics stack, try-catch for operation execution. Don't check for predefined operators
 clear stack after each operator (we need a reliable way to distinguish booleans, need a separate type!)
+Overwrite CLUT in separation/DeviceN, we can't apply it reliably as CLUT.
+We need to skip DeviceN/Separation for images as we can't apply tint transform reliably.
+Finally rework ColorSpace parsing to be fully spec compliant
+Shading ExtXState
+Overprint and Knockout, and other print related stuff (do we need it)
+Marked content and structure elements (Tagged PDF)
+extent bug
+process clip by text (Type 3?)
+find out where those weird custom encodings are
+differentiate between embedded and system fonts for cmap
+UseCMap implemented incorrectly

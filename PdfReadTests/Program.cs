@@ -28,7 +28,7 @@ namespace PdfReadTests
                 //"pdfs//inks.pdf",
                 //"pdfs//canvas.pdf",
                 //"pdfs//alphatrans.pdf",
-                //"pdfs//ArabicCIDTrueType.pdf",
+                "pdfs//ArabicCIDTrueType.pdf",
                 //"pdfs//asciihexdecode.pdf",
                 //"pdfs//complex_ttf_font.pdf",
                 //"pdfs//complex_ttf_font_ed.pdf",
@@ -51,7 +51,7 @@ namespace PdfReadTests
                 //"pdfs//images_1bit_grayscale.pdf",
                 //"pdfs//shading_extend.pdf",
                 //"pdfs//pdf_c.pdf",
-                "PDF32000_2008.pdf", // exception on drawing CCITT
+                //"PDF32000_2008.pdf", // exception on drawing CCITT
                 //"ch14.pdf"
                 //@"documentS.pdf",
                 //@"documentC.pdf",
@@ -107,7 +107,7 @@ namespace PdfReadTests
 
                     var start = 0;
                     var max = 1000;
-                    float scaleX = 4f; // Scale factor for rendering
+                    float scaleX = 1f; // Scale factor for rendering
 
                     // Analyze pages with detailed content stream debugging
                     for (int i = start; i < Math.Min(max, document.PageCount); i++)
@@ -155,7 +155,7 @@ namespace PdfReadTests
                             }
 
                             //var recording = CreateRecording(page, scaleX);
-                            //var filename_png = $"Test\\{filename}_page_{page.PageNumber}.sk";
+                            ////var filename_png = $"Test\\{filename}_page_{page.PageNumber}.sk";
                             //using (var image = recording.Serialize())
                             //using (var fileStream = File.OpenWrite(filename_png))
                             //{

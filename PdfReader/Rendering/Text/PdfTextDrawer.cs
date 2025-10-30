@@ -92,7 +92,7 @@ namespace PdfReader.Rendering.Text
                     continue;
                 }
 
-                if (item.Type == PdfValueType.String || item.Type == PdfValueType.HexString)
+                if (item.Type == PdfValueType.String)
                 {
                     var pdfText = PdfText.FromOperand(item);
                     if (!pdfText.IsEmpty)
