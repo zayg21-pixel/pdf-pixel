@@ -50,25 +50,27 @@ namespace PdfReader.Models
         /// <summary>
         /// Get a name value (e.g. /Subtype) at an index. Returns null if not a name.
         /// </summary>
-        public string GetName(int index)
+        public PdfString GetName(int index)
         {
             var value = GetValue(index);
             if (value == null)
             {
-                return null;
+                return default;
             }
+
             return value.AsName();
         }
 
         /// <summary>
         /// Get a string value at an index (text, hex, or name coerced). Returns null if not a string-like value.
         /// </summary>
-        public string GetString(int index)
+        public PdfString GetString(int index)
         {
             var value = GetValue(index);
+
             if (value == null)
             {
-                return null;
+                return default;
             }
             return value.AsString();
         }
@@ -124,9 +126,7 @@ namespace PdfReader.Models
                 return null;
             }
 
-            throw new NotImplementedException();
-
-            //return value.AsArray();
+            return value.AsArray();
         }
 
         /// <summary>

@@ -87,12 +87,7 @@ namespace PdfReader.Rendering.Advanced
                 var tr = softMask.TransferFunction;
                 if (tr.Type == PdfValueType.Name)
                 {
-                    var name = tr.AsName();
-                    if (!string.IsNullOrEmpty(name) && name.IndexOf("Identity", StringComparison.OrdinalIgnoreCase) >= 0)
-                    {
-                        return null; // identity
-                    }
-
+                    // always no-op for /Identity
                     return null;
                 }
 

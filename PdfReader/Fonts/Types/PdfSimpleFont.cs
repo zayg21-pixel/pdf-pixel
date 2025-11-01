@@ -23,7 +23,7 @@ namespace PdfReader.Fonts.Types
         /// <param name="fontObject">PDF dictionary containing the font definition</param>
         public PdfSimpleFont(PdfDictionary fontDictionary) : base(fontDictionary)
         {
-            if (Type == PdfFontType.Type3)
+            if (Type == PdfFontSubType.Type3)
                 throw new ArgumentException("Type3 fonts should use PdfType3Font class");
 
             // Initialize thread-safe lazy loaders
@@ -68,7 +68,7 @@ namespace PdfReader.Fonts.Types
 
                 switch (Type)
                 {
-                    case PdfFontType.TrueType:
+                    case PdfFontSubType.TrueType:
                         return PdfFontEncoding.WinAnsiEncoding;
                     default:
                         return PdfFontEncoding.StandardEncoding;

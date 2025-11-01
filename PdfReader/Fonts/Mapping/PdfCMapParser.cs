@@ -2,6 +2,7 @@ using System;
 using System.Text;
 using PdfReader.Parsing;
 using PdfReader.Models;
+using PdfReader.Text;
 
 namespace PdfReader.Fonts.Mapping
 {
@@ -22,24 +23,25 @@ namespace PdfReader.Fonts.Mapping
                     continue;
                 }
 
-                switch (value.AsString())
+                PdfCMapTokenType tokenType = value.AsString().AsEnum<PdfCMapTokenType>();
+                switch (tokenType)
                 {
-                    case PdfTokens.BeginBfCharKey:
+                    case PdfCMapTokenType.BeginBfChar:
                         ParseBfCharMappings(ref context, cmap, document);
                         break;
-                    case PdfTokens.BeginBfRangeKey:
+                    case PdfCMapTokenType.BeginBfRange:
                         ParseBfRangeMappings(ref context, cmap, document);
                         break;
-                    case PdfTokens.BeginCidCharKey:
+                    case PdfCMapTokenType.BeginCidChar:
                         ParseCidCharMappings(ref context, cmap, document);
                         break;
-                    case PdfTokens.BeginCidRangeKey:
+                    case PdfCMapTokenType.BeginCidRange:
                         ParseCidRangeMappings(ref context, cmap, document);
                         break;
-                    case PdfTokens.BeginCodespaceRangeKey:
+                    case PdfCMapTokenType.BeginCodespaceRange:
                         ParseCodespaceRangesInternal(ref context, cmap, document);
                         break;
-                    case PdfTokens.UseCMapKey:
+                    case PdfCMapTokenType.UseCMap:
                         ResolveAndMergeUseCMap(ref context, document, cmap);
                         break;
                 }
@@ -49,26 +51,17 @@ namespace PdfReader.Fonts.Mapping
         
         private static void ResolveAndMergeUseCMap(ref PdfParseContext context, PdfDocument document, PdfCMap target)
         {
-            var arg = PdfParsers.ParsePdfValue(ref context, document);
-            if (arg == null)
-            {
-                return;
-            }
-
-            string cmapName = null;
-
-            if (arg.Type == PdfValueType.Name)
-            {
-                cmapName = arg.AsName();
-            }
+            var cmapName = PdfParsers.ParsePdfValue(ref context, document).AsName();
 
             // Prefer cached by name when available
-            if (!string.IsNullOrEmpty(cmapName))
+            if (cmapName.IsEmpty)
             {
-                var cmap = document.GetCmap(cmapName);
-                target.MergeFrom(cmap, overwriteExisting: false);
                 return;
             }
+
+            var cmap = document.GetCmap(cmapName);
+            target.MergeFrom(cmap, overwriteExisting: false);
+            return;
         }
 
         private static void ParseBfCharMappings(ref PdfParseContext context, PdfCMap cmap, PdfDocument document)
@@ -81,9 +74,8 @@ namespace PdfReader.Fonts.Mapping
                 {
                     case PdfValueType.Operator:
                     {
-                        string operatorValue = value.AsString();
-
-                        if (operatorValue == PdfTokens.EndBfCharKey)
+                        var token = value.AsString().AsEnum<PdfCMapTokenType>();
+                        if (token == PdfCMapTokenType.EndBfChar)
                         {
                             return;
                         }
@@ -93,12 +85,7 @@ namespace PdfReader.Fonts.Mapping
                     case PdfValueType.String:
                     {
                         var code = new PdfCharacterCode(value.AsStringBytes());
-                        var unicodeBytes = PdfParsers.ParsePdfValue(ref context, document).AsStringBytes();
-
-                        if (unicodeBytes == null)
-                        {
-                            continue;
-                        }
+                        var unicodeBytes = PdfParsers.ParsePdfValue(ref context, document).AsStringBytes().Span;
 
                         if (!IsSentinelFFFF(unicodeBytes))
                         {
@@ -118,8 +105,8 @@ namespace PdfReader.Fonts.Mapping
             {
                 if (value.Type == PdfValueType.Operator)
                 {
-                    string operatorValue = value.AsString();
-                    if (operatorValue == PdfTokens.EndBfRangeKey)
+                    var token = value.AsString().AsEnum<PdfCMapTokenType>();
+                    if (token == PdfCMapTokenType.EndBfRange)
                     {
                         return;
                     }
@@ -128,14 +115,14 @@ namespace PdfReader.Fonts.Mapping
 
                 if (value.Type == PdfValueType.String)
                 {
-                    var startBytes = value.AsStringBytes();
+                    var startBytes = value.AsStringBytes().ToArray();
                     var endValue = PdfParsers.ParsePdfValue(ref context, document);
 
                     if (endValue == null)
                     {
                         continue;
                     }
-                    var endBytes = endValue.AsStringBytes();
+                    var endBytes = endValue.AsStringBytes().Span;
 
                     var thirdValue = PdfParsers.ParsePdfValue(ref context, document);
 
@@ -146,15 +133,25 @@ namespace PdfReader.Fonts.Mapping
 
                     if (thirdValue.Type == PdfValueType.String)
                     {
-                        var unicodeBytes = thirdValue.AsStringBytes();
+                        var unicodeBytes = thirdValue.AsStringBytes().Span;
 
-                        if (unicodeBytes == null || IsSentinelFFFF(unicodeBytes))
+                        if (IsSentinelFFFF(unicodeBytes))
                         {
                             continue;
                         }
 
-                        int startCodePoint = FirstCodePointFromUtf16BE(unicodeBytes);
-                        cmap.AddRangeMapping(startBytes, endBytes, startCodePoint);
+                        // Sequential form: iterate codes explicitly instead of calling AddRangeMapping.
+                        uint startCodePoint = ToUnicodeCodePoint(unicodeBytes);
+                        int codeLength = startBytes.Length;
+                        uint codeStart = PdfCharacterCode.UnpackBigEndianToUInt(startBytes);
+                        uint codeEnd = PdfCharacterCode.UnpackBigEndianToUInt(endBytes);
+                        int offset = 0;
+                        for (uint current = codeStart; current <= codeEnd; current++, offset++)
+                        {
+                            var packed = PdfCharacterCode.PackUIntToBigEndian(current, codeLength);
+                            string unicode = char.ConvertFromUtf32((int)(startCodePoint + offset));
+                            cmap.AddMapping(new PdfCharacterCode(packed), unicode);
+                        }
 
                     }
                     else if (thirdValue.Type == PdfValueType.Array)
@@ -162,23 +159,23 @@ namespace PdfReader.Fonts.Mapping
                         var array = thirdValue.AsArray();
 
                         int codeLength = startBytes.Length;
-                        uint codeStart = BytesToUIntBE(startBytes);
-                        uint codeEnd = BytesToUIntBE(endBytes);
+                        uint codeStart = PdfCharacterCode.UnpackBigEndianToUInt(startBytes);
+                        uint codeEnd = PdfCharacterCode.UnpackBigEndianToUInt(endBytes);
                         uint codeCurrent = codeStart;
 
                         for (int arrayIndex = 0; arrayIndex < array.Count && codeCurrent <= codeEnd; arrayIndex++, codeCurrent++)
                         {
                             var arrayItem = array.GetValue(arrayIndex);
-                            var hex = arrayItem.AsStringBytes();
+                            var hex = arrayItem.AsStringBytes().Span;
 
-                            if (hex == null || IsSentinelFFFF(hex))
+                            if (IsSentinelFFFF(hex))
                             {
                                 continue;
                             }
 
                             string unicode = ParseBytesToUnicode(hex);
 
-                            var codeBytes = UIntToBytesBE(codeCurrent, codeLength);
+                            var codeBytes = PdfCharacterCode.PackUIntToBigEndian(codeCurrent, codeLength);
                             cmap.AddMapping(new PdfCharacterCode(codeBytes), unicode);
                         }
                     }
@@ -196,8 +193,8 @@ namespace PdfReader.Fonts.Mapping
                 {
                     case PdfValueType.Operator:
                     {
-                        string operatorValue = value.AsString();
-                        if (operatorValue == PdfTokens.EndCodespaceRangeKey)
+                        var token = value.AsString().AsEnum<PdfCMapTokenType>();
+                        if (token == PdfCMapTokenType.EndCodespaceRange)
                         {
                             return;
                         }
@@ -207,9 +204,9 @@ namespace PdfReader.Fonts.Mapping
 
                     case PdfValueType.String:
                     {
-                        var startBytes = value.AsStringBytes();
+                        var startBytes = value.AsStringBytes().ToArray();
                         var endValue = PdfParsers.ParsePdfValue(ref context, document);
-                        var endBytes = endValue.AsStringBytes();
+                        var endBytes = endValue.AsStringBytes().ToArray();
 
                         cmap.AddCodespaceRange(startBytes, endBytes);
                         break;
@@ -230,7 +227,8 @@ namespace PdfReader.Fonts.Mapping
                 {
                     case PdfValueType.Operator:
                     {
-                        if (value.AsString() == PdfTokens.EndCidCharKey)
+                        var token = value.AsString().AsEnum<PdfCMapTokenType>();
+                        if (token == PdfCMapTokenType.EndCidChar)
                         {
                             return;
                         }
@@ -260,7 +258,8 @@ namespace PdfReader.Fonts.Mapping
                 {
                     case PdfValueType.Operator:
                     {
-                        if (value.AsString() == PdfTokens.EndCidRangeKey)
+                        var token = value.AsString().AsEnum<PdfCMapTokenType>();
+                        if (token == PdfCMapTokenType.EndCidRange)
                         {
                             return;
                         }
@@ -268,9 +267,9 @@ namespace PdfReader.Fonts.Mapping
                     }
                     case PdfValueType.String:
                     {
-                        var startBytes = value.AsStringBytes();
+                        var startBytes = value.AsStringBytes().ToArray();
                         var endValue = PdfParsers.ParsePdfValue(ref context, document);
-                        var endBytes = endValue.AsStringBytes();
+                        var endBytes = endValue.AsStringBytes().ToArray();
 
                         var cidValue = PdfParsers.ParsePdfValue(ref context, document);
                         var firstCid = cidValue.AsInteger();
@@ -282,61 +281,57 @@ namespace PdfReader.Fonts.Mapping
             }
         }
 
+        private static uint ToUnicodeCodePoint(ReadOnlySpan<byte> hex)
+        {
+            // Strip UTF-16BE BOM if present (FE FF) per PDF spec 9.10.3.
+            if (hex.Length >= 2 && hex[0] == 0xFE && hex[1] == 0xFF)
+            {
+                hex = hex.Slice(2);
+            }
+
+            // Need at least one 16-bit code unit.
+            if (hex.Length < 2)
+            {
+                return 0u;
+            }
+
+            int firstUnit = (hex[0] << 8) | hex[1];
+
+            // Handle surrogate pair to form a single scalar value (non-BMP).
+            if (firstUnit >= 0xD800 && firstUnit <= 0xDBFF)
+            {
+                // High surrogate; require low surrogate code unit.
+                if (hex.Length >= 4)
+                {
+                    int secondUnit = (hex[2] << 8) | hex[3];
+                    if (secondUnit >= 0xDC00 && secondUnit <= 0xDFFF)
+                    {
+                        int high = firstUnit - 0xD800;
+                        int low = secondUnit - 0xDC00;
+                        uint codePoint = (uint)((high << 10) + low + 0x10000);
+                        return codePoint;
+                    }
+                }
+                // Invalid surrogate sequence; fall back to returning first unit value.
+            }
+
+            return (uint)firstUnit;
+        }
+
         // Per ISO 32000-1:2008 Section 9.10.3, Unicode values in ToUnicode CMaps
         // are encoded as UTF-16BE (big-endian UTF-16) without BOM.
-        private static string ParseBytesToUnicode(byte[] hex)
+        private static string ParseBytesToUnicode(ReadOnlySpan<byte> hex)
         {
-            if (hex != null && hex.Length >= 2 && hex[0] == 0xFE && hex[1] == 0xFF)
+            if (hex.Length >= 2 && hex[0] == 0xFE && hex[1] == 0xFF)
             {
-                var withoutBom = new byte[hex.Length - 2];
-                Buffer.BlockCopy(hex, 2, withoutBom, 0, withoutBom.Length);
-                hex = withoutBom;
+                hex = hex.Slice(2);
             }
-            return Encoding.BigEndianUnicode.GetString(hex ?? Array.Empty<byte>());
+            return Encoding.BigEndianUnicode.GetString(hex);
         }
 
-        private static int FirstCodePointFromUtf16BE(byte[] bytes)
+        private static bool IsSentinelFFFF(ReadOnlySpan<byte> bytes)
         {
-            if (bytes == null || bytes.Length == 0)
-            {
-                return 0;
-            }
-            var s = ParseBytesToUnicode(bytes);
-            if (string.IsNullOrEmpty(s))
-            {
-                return 0;
-            }
-            if (char.IsHighSurrogate(s[0]) && s.Length >= 2 && char.IsLowSurrogate(s[1]))
-            {
-                return char.ConvertToUtf32(s[0], s[1]);
-            }
-            return s[0];
-        }
-
-        private static bool IsSentinelFFFF(byte[] bytes)
-        {
-            return bytes != null && bytes.Length == 2 && bytes[0] == 0xFF && bytes[1] == 0xFF;
-        }
-
-        private static uint BytesToUIntBE(byte[] bytes)
-        {
-            uint v = 0u;
-            for (int i = 0; i < bytes.Length; i++)
-            {
-                v = v << 8 | bytes[i];
-            }
-            return v;
-        }
-
-        private static byte[] UIntToBytesBE(uint value, int length)
-        {
-            var bytes = new byte[length];
-            for (int i = length - 1; i >= 0; i--)
-            {
-                bytes[i] = (byte)(value & 0xFF);
-                value >>= 8;
-            }
-            return bytes;
+            return bytes.Length == 2 && bytes[0] == 0xFF && bytes[1] == 0xFF;
         }
     }
 }

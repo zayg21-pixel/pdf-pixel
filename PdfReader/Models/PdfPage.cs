@@ -96,9 +96,9 @@ namespace PdfReader.Models
         /// </summary>
         /// <param name="fontName">Resource key of the font.</param>
         /// <returns>Resolved <see cref="PdfFontBase"/> or null.</returns>
-        public virtual PdfFontBase GetFont(string fontName)
+        public virtual PdfFontBase GetFont(PdfString fontName)
         {
-            if (string.IsNullOrEmpty(fontName))
+            if (fontName.IsEmpty)
             {
                 return null;
             }

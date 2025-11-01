@@ -12,13 +12,13 @@ namespace PdfReader.Rendering.Color
     /// </summary>
     internal sealed class SeparationColorSpaceConverter : PdfColorSpaceConverter
     {
-        private readonly string _colorantName;
+        private readonly PdfString _name;
         private readonly PdfColorSpaceConverter _alternate;
         private readonly PdfFunction _tintFunction;
 
-        public SeparationColorSpaceConverter(string colorantName, PdfColorSpaceConverter alternate, PdfFunction tintFunction)
+        public SeparationColorSpaceConverter(PdfString name, PdfColorSpaceConverter alternate, PdfFunction tintFunction)
         {
-            _colorantName = colorantName;
+            _name = name;
             _alternate = alternate ?? DeviceGrayConverter.Instance;
             _tintFunction = tintFunction;
         }

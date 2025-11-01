@@ -1,6 +1,8 @@
 using System.Collections.Generic;
+using System.Text;
 using PdfReader.Fonts.Types;
 using PdfReader.Models;
+using PdfReader.Text;
 
 namespace PdfReader.Fonts.Mapping
 {
@@ -21,34 +23,16 @@ namespace PdfReader.Fonts.Mapping
             if (encVal == null)
             {
                 // No /Encoding specified, assume standard
-                return new PdfFontEncodingInfo(PdfFontEncoding.Unknown, null, null);
+                return new PdfFontEncodingInfo(PdfFontEncoding.Unknown, PdfString.Empty, null);
             }
 
             // Name case: /Encoding /WinAnsiEncoding, /UniJIS-UTF16-H, etc.
             var name = encVal.AsName();
-            if (!string.IsNullOrEmpty(name))
-            {
-                var encoding = name switch
-                {
-                    PdfTokens.MacRomanEncodingKey => PdfFontEncoding.MacRomanEncoding,
-                    PdfTokens.WinAnsiEncodingKey => PdfFontEncoding.WinAnsiEncoding,
-                    PdfTokens.MacExpertEncodingKey => PdfFontEncoding.MacExpertEncoding,
-                    PdfTokens.IdentityHEncodingKey => PdfFontEncoding.IdentityH,
-                    PdfTokens.IdentityVEncodingKey => PdfFontEncoding.IdentityV,
-                    // Predefined Unicode CMaps (use PdfTokens constants)
-                    PdfTokens.UniJIS_UTF16_H_EncodingKey => PdfFontEncoding.UniJIS_UTF16_H,
-                    PdfTokens.UniJIS_UTF16_V_EncodingKey => PdfFontEncoding.UniJIS_UTF16_V,
-                    PdfTokens.UniGB_UTF16_H_EncodingKey => PdfFontEncoding.UniGB_UTF16_H,
-                    PdfTokens.UniGB_UTF16_V_EncodingKey => PdfFontEncoding.UniGB_UTF16_V,
-                    PdfTokens.UniCNS_UTF16_H_EncodingKey => PdfFontEncoding.UniCNS_UTF16_H,
-                    PdfTokens.UniCNS_UTF16_V_EncodingKey => PdfFontEncoding.UniCNS_UTF16_V,
-                    PdfTokens.UniKS_UTF16_H_EncodingKey => PdfFontEncoding.UniKS_UTF16_H,
-                    PdfTokens.UniKS_UTF16_V_EncodingKey => PdfFontEncoding.UniKS_UTF16_V,
-                    _ => PdfFontEncoding.Custom
-                };
 
-                string custom = encoding == PdfFontEncoding.Custom ? name : null;
-                return new PdfFontEncodingInfo(encoding, custom, null);
+            if (!name.IsEmpty)
+            {
+                var encoding = name.AsEnum<PdfFontEncoding>();
+                return new PdfFontEncodingInfo(encoding, name, null);
             }
 
             // Dictionary case: may include /BaseEncoding and /Differences
@@ -56,15 +40,7 @@ namespace PdfReader.Fonts.Mapping
             if (encDict != null)
             {
                 // Base encoding name (optional); default per spec is StandardEncoding for Type1/Type3, WinAnsi for TrueType
-                var baseEncodingName = encDict.GetName(PdfTokens.BaseEncodingKey);
-                var baseEncoding = baseEncodingName switch
-                {
-                    PdfTokens.StandardEncodingKey => PdfFontEncoding.StandardEncoding,
-                    PdfTokens.MacRomanEncodingKey => PdfFontEncoding.MacRomanEncoding,
-                    PdfTokens.WinAnsiEncodingKey => PdfFontEncoding.WinAnsiEncoding,
-                    PdfTokens.MacExpertEncodingKey => PdfFontEncoding.MacExpertEncoding,
-                    _ => PdfFontEncoding.StandardEncoding
-                };
+                var baseEncoding = encDict.GetName(PdfTokens.BaseEncodingKey).AsEnum<PdfFontEncoding>();
 
                 var differences = new Dictionary<int, string>();
                 var diffs = encDict.GetArray(PdfTokens.DifferencesKey);
@@ -87,23 +63,17 @@ namespace PdfReader.Fonts.Mapping
                         }
                         else if (item.Type == PdfValueType.Name && currentCode >= 0)
                         {
-                            var n = item.AsName();
-                            if (!string.IsNullOrEmpty(n) && n[0] == '/')
-                            {
-                                n = n.Substring(1);
-                            }
-
-                            differences[currentCode] = n;
+                            differences[currentCode] = item.AsName().ToString();
                             currentCode++;
                         }
                     }
                 }
 
-                return new PdfFontEncodingInfo(baseEncoding, null, differences);
+                return new PdfFontEncodingInfo(baseEncoding, PdfString.Empty, differences);
             }
 
             // Fallback: unknown encoding representation
-            return new PdfFontEncodingInfo(PdfFontEncoding.Unknown, null, null);
+            return new PdfFontEncodingInfo(PdfFontEncoding.Unknown, PdfString.Empty, null);
         }
     }
 }

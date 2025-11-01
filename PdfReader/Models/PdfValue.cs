@@ -47,14 +47,14 @@ namespace PdfReader.Models
     // Static factory class for creating PdfValue instances
     public static class PdfValue
     {
-        public static PdfValue<string> Name(string value) => new PdfValue<string>(value, PdfValueType.Name);
-        public static PdfValue<string> String(string value) => new PdfValue<string>(value, PdfValueType.String);
-        public static PdfValue<string> Operator(string value) => new PdfValue<string>(value, PdfValueType.Operator);
-        public static PdfValue<int> Integer(int value) => new PdfValue<int>(value, PdfValueType.Integer);
-        public static PdfValue<float> Real(float value) => new PdfValue<float>(value, PdfValueType.Real);
-        public static PdfValue<bool> Boolean(bool value) => new PdfValue<bool>(value, PdfValueType.Boolean);
-        public static PdfValue<PdfReference> Reference(PdfReference value) => new PdfValue<PdfReference>(value, PdfValueType.Reference);
-        public static PdfValue<PdfArray> Array(PdfArray value) => new PdfValue<PdfArray>(value, PdfValueType.Array);
-        public static PdfValue<PdfDictionary> Dictionary(PdfDictionary value) => new PdfValue<PdfDictionary>(value, PdfValueType.Dictionary);
+        public static IPdfValue<PdfString> Name(PdfString value) => new PdfValue<PdfString>(value, PdfValueType.Name);
+        public static IPdfValue<PdfString> String(PdfString value) => new PdfValue<PdfString>(value, PdfValueType.String);
+        public static IPdfValue<PdfString> Operator(PdfString value) => new PdfValue<PdfString>(value, PdfValueType.Operator);
+        public static IPdfValue<int> Integer(int value) => new PdfValue<int>(value, PdfValueType.Integer);
+        public static IPdfValue<float> Real(float value) => new PdfValue<float>(value, PdfValueType.Real);
+        public static IPdfValue<bool> Boolean(bool value) => new PdfValue<bool>(value, PdfValueType.Boolean);
+        public static IPdfValue<PdfReference> Reference(PdfReference value) => new PdfValue<PdfReference>(value, PdfValueType.Reference);
+        public static IPdfValue<PdfArray> Array(PdfArray value) => new PdfValue<PdfArray>(value, PdfValueType.Array);
+        public static IPdfValue<PdfDictionary> Dictionary(PdfDictionary value) => new PdfValue<PdfDictionary>(value, PdfValueType.Dictionary);
     }
 }

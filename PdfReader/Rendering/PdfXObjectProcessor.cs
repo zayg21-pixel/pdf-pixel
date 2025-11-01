@@ -4,6 +4,7 @@ using PdfReader.Rendering.Advanced;
 using PdfReader.Rendering.Image;
 using PdfReader.Rendering.State;
 using PdfReader.Streams;
+using PdfReader.Text;
 using SkiaSharp;
 using System.Collections.Generic;
 
@@ -11,10 +12,10 @@ namespace PdfReader.Rendering
 {
     public static class PdfXObjectProcessor
     {
-        public static void ProcessXObject(string xObjectName, PdfGraphicsState graphicsState,
+        public static void ProcessXObject(PdfString xObjectName, PdfGraphicsState graphicsState,
                                           SKCanvas canvas, PdfPage page, HashSet<int> processingXObjects)
         {
-            if (string.IsNullOrEmpty(xObjectName))
+            if (xObjectName.IsEmpty)
                 return;
 
             var xObject = GetXObjectFromResources(page, xObjectName);
@@ -24,13 +25,14 @@ namespace PdfReader.Rendering
             if (processingXObjects.Contains(xObject.Reference.ObjectNumber))
                 return;
 
-            var subtype = xObject.Dictionary.GetName(PdfTokens.SubtypeKey);
+            var subtype = xObject.Dictionary.GetName(PdfTokens.SubtypeKey).AsEnum<PdfXObjectSubtype>();
+
             switch (subtype)
             {
-                case PdfTokens.ImageSubtype:
+                case PdfXObjectSubtype.Image:
                     ProcessImageXObject(xObject, xObjectName, graphicsState, canvas, page);
                     break;
-                case PdfTokens.FormSubtype:
+                case PdfXObjectSubtype.Form:
                     ProcessFormXObject(xObject, xObjectName, graphicsState, canvas, page, processingXObjects);
                     break;
                 default:
@@ -38,12 +40,12 @@ namespace PdfReader.Rendering
             }
         }
 
-        private static PdfObject GetXObjectFromResources(PdfPage page, string xObjectName)
+        private static PdfObject GetXObjectFromResources(PdfPage page, PdfString xObjectName)
         {
             return GetXObjectFromResourcesDict(page.ResourceDictionary, xObjectName);
         }
 
-        private static PdfObject GetXObjectFromResourcesDict(PdfDictionary resourcesDict, string xObjectName)
+        private static PdfObject GetXObjectFromResourcesDict(PdfDictionary resourcesDict, PdfString xObjectName)
         {
             var xObjectDict = resourcesDict.GetDictionary(PdfTokens.XObjectKey);
             if (xObjectDict == null)
@@ -52,14 +54,14 @@ namespace PdfReader.Rendering
             return xObjectDict.GetPageObject(xObjectName);
         }
 
-        private static void ProcessImageXObject(PdfObject imageXObject, string xObjectName, PdfGraphicsState graphicsState,
+        private static void ProcessImageXObject(PdfObject imageXObject, PdfString xObjectName, PdfGraphicsState graphicsState,
                                                 SKCanvas canvas, PdfPage page)
         {
             var pdfImage = PdfImage.FromXObject(imageXObject, page, xObjectName, isSoftMask: false);
             page.Document.PdfRenderer.DrawUnitImage(canvas, pdfImage, graphicsState, page);
         }
 
-        private static void ProcessFormXObject(PdfObject formXObject, string xObjectName, PdfGraphicsState graphicsState,
+        private static void ProcessFormXObject(PdfObject formXObject, PdfString xObjectName, PdfGraphicsState graphicsState,
                                                SKCanvas canvas, PdfPage page, HashSet<int> processingXObjects)
         {
             processingXObjects.Add(formXObject.Reference.ObjectNumber);
@@ -99,11 +101,9 @@ namespace PdfReader.Rendering
             var prevGroup = graphicsState.TransparencyGroup;
             try
             {
-                PdfDictionary groupDict = formXObject.Dictionary.GetDictionary(PdfTokens.GroupKey);
-                if (groupDict != null)
+                group = PdfGraphicsStateParser.ParseTransparencyGroup(formXObject.Dictionary.GetDictionary(PdfTokens.GroupKey), page);
+                if (group != null)
                 {
-                    group = PdfGraphicsStateParser.ParseTransparencyGroup(groupDict, page);
-                    graphicsState.TransparencyGroup = group;
                     if (PdfTransparencyGroupProcessor.ShouldApplyTransparencyGroup(group))
                     {
                         PdfTransparencyGroupProcessor.TryApplyTransparencyGroup(canvas, group, graphicsState);

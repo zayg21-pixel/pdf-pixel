@@ -10,11 +10,6 @@ namespace PdfReader.Rendering
     public class PdfTransparencyGroup
     {
         /// <summary>
-        /// Group subtype (should be "Transparency")
-        /// </summary>
-        public string Subtype { get; set; }
-        
-        /// <summary>
         /// Resolved color space converter for the group's blending color space.
         /// Falls back to DeviceRGB when unspecified or unsupported.
         /// </summary>
@@ -29,10 +24,5 @@ namespace PdfReader.Rendering
         /// Knockout flag (K) - if true, objects in group knock out each other (not fully implemented yet)
         /// </summary>
         public bool Knockout { get; set; } = false;
-        
-        /// <summary>
-        /// Check if this is a transparency group
-        /// </summary>
-        public bool IsTransparencyGroup => string.Equals(Subtype, PdfTokens.TransparencyGroupValue, System.StringComparison.OrdinalIgnoreCase);
     }
 }

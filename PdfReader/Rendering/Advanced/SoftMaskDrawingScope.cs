@@ -127,7 +127,7 @@ namespace PdfReader.Rendering.Advanced
                 }
 
                 // Background for luminosity masks (BC in group color space).
-                if (_softMask.Subtype == SoftMaskSubtype.Luminosity)
+                if (_softMask.Subtype == PdfSoftMaskSubtype.Luminosity)
                 {
                     using var bgPaint = new SKPaint
                     {
@@ -145,7 +145,7 @@ namespace PdfReader.Rendering.Advanced
                 if (!contentData.IsEmpty)
                 {
                     var parseContext = new PdfParseContext(contentData);
-                    var maskGs = _softMask.Subtype == SoftMaskSubtype.Luminosity
+                    var maskGs = _softMask.Subtype == PdfSoftMaskSubtype.Luminosity
                         ? SoftMaskUtilities.CreateLuminosityMaskGraphicsState()
                         : SoftMaskUtilities.CreateAlphaMaskGraphicsState();
 
@@ -166,7 +166,7 @@ namespace PdfReader.Rendering.Advanced
                     BlendMode = SKBlendMode.DstIn
                 };
 
-                using var alphaFilter = _softMask.Subtype == SoftMaskSubtype.Luminosity
+                using var alphaFilter = _softMask.Subtype == PdfSoftMaskSubtype.Luminosity
                     ? SoftMaskUtilities.CreateAlphaFromLuminosityFilter()
                     : null;
 

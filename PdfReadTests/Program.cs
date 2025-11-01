@@ -28,7 +28,7 @@ namespace PdfReadTests
                 //"pdfs//inks.pdf",
                 //"pdfs//canvas.pdf",
                 //"pdfs//alphatrans.pdf",
-                "pdfs//ArabicCIDTrueType.pdf",
+                //"pdfs//ArabicCIDTrueType.pdf",
                 //"pdfs//asciihexdecode.pdf",
                 //"pdfs//complex_ttf_font.pdf",
                 //"pdfs//complex_ttf_font_ed.pdf",
@@ -51,7 +51,7 @@ namespace PdfReadTests
                 //"pdfs//images_1bit_grayscale.pdf",
                 //"pdfs//shading_extend.pdf",
                 //"pdfs//pdf_c.pdf",
-                //"PDF32000_2008.pdf", // exception on drawing CCITT
+                "PDF32000_2008.pdf"
                 //"ch14.pdf"
                 //@"documentS.pdf",
                 //@"documentC.pdf",
@@ -77,11 +77,11 @@ namespace PdfReadTests
 
             // Create a D3D11 device
 
-            using var d3dContext = new VorticeDirect3DContext();
-            using var backend = d3dContext.CreateBackendContext();
+            //using var d3dContext = new VorticeDirect3DContext();
+            //using var backend = d3dContext.CreateBackendContext();
 
-            // Create GRContext for Direct3D
-            using var grContext = GRContext.CreateDirect3D(backend);
+            //// Create GRContext for Direct3D
+            //using var grContext = GRContext.CreateDirect3D(backend);
 
             Logger.LogInformation("Testing file: {File}", filename);
             Logger.LogInformation(new string('=', 50));
@@ -106,8 +106,8 @@ namespace PdfReadTests
                     Logger.LogInformation("Root object: {Root}", document.RootObject);
 
                     var start = 0;
-                    var max = 1000;
-                    float scaleX = 1f; // Scale factor for rendering
+                    var max = 10000;
+                    float scaleX = 0.1f; // Scale factor for rendering
 
                     // Analyze pages with detailed content stream debugging
                     for (int i = start; i < Math.Min(max, document.PageCount); i++)
@@ -145,7 +145,7 @@ namespace PdfReadTests
                                 Directory.CreateDirectory(basePath);
                             }
 
-                            // Save as PNG (optional)
+                            //// Save as PNG (optional)
                             var filename_png = $"{basePath}\\{name}_page_{page.PageNumber}.jpg";
                             using (var image = surface.Snapshot())
                             using (var data = image.Encode(SKEncodedImageFormat.Jpeg, 100))
@@ -154,14 +154,8 @@ namespace PdfReadTests
                                 data.SaveTo(fileStream);
                             }
 
-                            //var recording = CreateRecording(page, scaleX);
-                            ////var filename_png = $"Test\\{filename}_page_{page.PageNumber}.sk";
-                            //using (var image = recording.Serialize())
-                            //using (var fileStream = File.OpenWrite(filename_png))
-                            //{
-                            //    image.SaveTo(fileStream);
-                            //}
-
+                            //var recording = CreateRecording(page);
+                            //SaveRecording(recording, scaleX, filename_png);
                         }
                         catch (Exception ex)
                         {
@@ -184,16 +178,28 @@ namespace PdfReadTests
             //}
         }
 
-        private static SKPicture CreateRecording(PdfPage pdfPage, float scaleFactor)
+        private static SKPicture CreateRecording(PdfPage pdfPage)
         {
             using var recorder = new SKPictureRecorder();
-            using var canvas = recorder.BeginRecording(SKRect.Create((float)(pdfPage.CropBox.Width * scaleFactor), (float)(pdfPage.CropBox.Height * scaleFactor)));
-            canvas.ClipRect(new SKRect(0, 0, (float)(pdfPage.CropBox.Width * scaleFactor), (float)(pdfPage.CropBox.Height * scaleFactor)));
+            using var canvas = recorder.BeginRecording(SKRect.Create(pdfPage.CropBox.Width, pdfPage.CropBox.Height));
+            canvas.ClipRect(new SKRect(0, 0, pdfPage.CropBox.Width, pdfPage.CropBox.Height));
 
+            canvas.Clear(SKColors.White);
             pdfPage.Draw(canvas);
 
             canvas.Flush();
             return recorder.EndRecording();
+        }
+
+        private static void SaveRecording(SKPicture picture, float scale, string path)
+        {
+            var matrix = SKMatrix.CreateScale(scale, scale);
+            using var image = SKImage.FromPicture(picture, new SKSizeI((int)(picture.CullRect.Width * scale), (int)(picture.CullRect.Height * scale)), matrix);
+            using (var data = image.Encode(SKEncodedImageFormat.Jpeg, 100))
+            using (var fileStream = File.OpenWrite(path))
+            {
+                data.SaveTo(fileStream);
+            }
         }
     }
 }

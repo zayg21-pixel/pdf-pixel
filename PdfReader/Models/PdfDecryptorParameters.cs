@@ -77,17 +77,17 @@ namespace PdfReader.Models
         /// <summary>
         /// Stream crypt filter name (/StmF) when V=4 or 5.
         /// </summary>
-        public string StreamCryptFilterName { get; set; }
+        public PdfString StreamCryptFilterName { get; set; }
 
         /// <summary>
         /// String crypt filter name (/StrF) when V=4 or 5.
         /// </summary>
-        public string StringCryptFilterName { get; set; }
+        public PdfString StringCryptFilterName { get; set; }
 
         /// <summary>
         /// Embedded file crypt filter name (/EFF) when present.
         /// </summary>
-        public string EmbeddedFileCryptFilterName { get; set; }
+        public PdfString EmbeddedFileCryptFilterName { get; set; }
 
         /// <summary>
         /// Crypt filter dictionary (/CF) parsed lazily by decryptor. Raw map retained from SourceDictionary when needed.

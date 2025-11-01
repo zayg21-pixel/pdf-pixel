@@ -55,7 +55,7 @@ namespace PdfReader.Rendering.Color
                 else
                 {
                     var lutVal = lutObject.Value;
-                    lookupBytes = lutVal.AsStringBytes() ?? Array.Empty<byte>();
+                    lookupBytes = lutVal.AsStringBytes().ToArray();
                 }
             }
 
@@ -109,7 +109,7 @@ namespace PdfReader.Rendering.Color
                 return null;
             }
 
-            string name = arr.GetString(1);
+            var name = arr.GetName(1);
             var alt = PdfColorSpaces.ResolveByValue(arr.GetValue(2), page);
             var tintFunction = ResolveTintFunction(arr, 3, page);
             return new SeparationColorSpaceConverter(name, alt, tintFunction);
@@ -133,12 +133,12 @@ namespace PdfReader.Rendering.Color
                 return null;
             }
 
-            var namesArray = arr.GetValue(1)?.AsArray();
+            var namesArray = arr.GetArray(1);
             if (namesArray == null || namesArray.Count == 0)
             {
                 return null;
             }
-            var names = new string[namesArray.Count];
+            var names = new PdfString[namesArray.Count];
             for (int index = 0; index < namesArray.Count; index++)
             {
                 names[index] = namesArray.GetString(index);

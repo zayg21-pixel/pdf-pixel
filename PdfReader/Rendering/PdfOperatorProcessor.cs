@@ -44,26 +44,6 @@ namespace PdfReader.Rendering
             _logger = page.Document.LoggerFactory.CreateLogger<PdfOperatorProcessor>();
         }
 
-        // Valid PDF operators for content streams (kept for validation / potential diagnostics)
-        private static readonly HashSet<string> ValidOperators = new HashSet<string>
-        {
-            "q", "Q", "cm", "w", "J", "j", "M", "d", "ri", "i", "gs",
-            "m", "l", "c", "v", "y", "h", "re",
-            "S", "s", "f", "F", "f*", "B", "B*", "b", "b*", "n",
-            "W", "W*",
-            "BT", "ET",
-            "Tc", "Tw", "Tz", "TL", "Tf", "Tr", "Ts",
-            "Td", "TD", "Tm", "T*",
-            "Tj", "TJ", "'", "\"",
-            "CS", "cs", "SC", "SCN", "sc", "scn", "G", "g", "RG", "rg", "K", "k",
-            "sh",
-            "BI", "ID", "EI",
-            "Do",
-            "MP", "DP", "BMC", "BDC", "EMC",
-            "BX", "EX",
-            "d0", "d1"
-        };
-
         internal static List<IPdfValue> GetOperands(int count, Stack<IPdfValue> operandStack)
         {
             var operands = new List<IPdfValue>(count);
@@ -72,11 +52,6 @@ namespace PdfReader.Rendering
                 operands.Insert(0, operandStack.Pop());
             }
             return operands;
-        }
-
-        internal static bool IsValidOperator(string operatorName)
-        {
-            return ValidOperators.Contains(operatorName);
         }
 
         public void ProcessOperator(string op, ref PdfParseContext parseContext, ref PdfGraphicsState graphicsState)

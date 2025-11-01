@@ -62,7 +62,7 @@ namespace PdfReader.Rendering.Advanced
         /// </summary>
         public static bool ShouldApplyTransparencyGroup(PdfTransparencyGroup transparencyGroup)
         {
-            return transparencyGroup != null && transparencyGroup.IsTransparencyGroup && (transparencyGroup.Isolated || transparencyGroup.Knockout);
+            return transparencyGroup != null && (transparencyGroup.Isolated || transparencyGroup.Knockout);
         }
 
         /// <summary>

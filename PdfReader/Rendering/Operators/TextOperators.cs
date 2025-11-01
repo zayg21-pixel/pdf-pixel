@@ -155,7 +155,7 @@ namespace PdfReader.Rendering.Operators
 
             var fontName = operands[0].AsName();
             var fontSize = operands[1].AsFloat();
-            if (fontName == null || fontSize <= 0)
+            if (fontName.IsEmpty || fontSize <= 0)
             {
                 return;
             }

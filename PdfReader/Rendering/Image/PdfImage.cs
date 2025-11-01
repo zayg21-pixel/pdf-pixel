@@ -1,6 +1,7 @@
 using PdfReader.Models;
 using PdfReader.Rendering.Color;
 using PdfReader.Streams;
+using PdfReader.Text;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -58,7 +59,7 @@ namespace PdfReader.Rendering.Image
         /// <summary>
         /// Debug-friendly name for this image (resource name in /XObject dictionary when available).
         /// </summary>
-        public string Name { get; internal set; }
+        public PdfString Name { get; internal set; }
 
         /// <summary>
         /// Simplified image type classification derived from /Filter (e.g., JPEG, JPEG2000, CCITT, JBIG2, Raw).
@@ -189,7 +190,7 @@ namespace PdfReader.Rendering.Image
         /// <summary>
         /// Create a PdfImage from XObject data.
         /// </summary>
-        public static PdfImage FromXObject(PdfObject imageXObject, PdfPage page, string name, bool isSoftMask)
+        public static PdfImage FromXObject(PdfObject imageXObject, PdfPage page, PdfString name, bool isSoftMask)
         {
             int bitsPerComponent = imageXObject.Dictionary.GetIntegerOrDefault(PdfTokens.BitsPerComponentKey);
             int defaultComponents = GetDefaultComponents(bitsPerComponent);
@@ -206,29 +207,16 @@ namespace PdfReader.Rendering.Image
             };
 
             // Type from Filter
-            var filterName = imageXObject.Dictionary.GetName(PdfTokens.FilterKey);
-            if (!string.IsNullOrEmpty(filterName))
+            List<PdfFilterType> filters = PdfStreamDecoder.GetFilters(imageXObject);
+
+            foreach (var filter in filters)
             {
-                image.Type = MapImageType(filterName);
-            }
-            else
-            {
-                var filterArray = imageXObject.Dictionary.GetArray(PdfTokens.FilterKey);
-                if (filterArray != null && filterArray.Count > 0)
+                var imageType = MapImageType(filter);
+
+                if (imageType != PdfImageType.Raw)
                 {
-                    for (int index = filterArray.Count - 1; index >= 0; index--)
-                    {
-                        var filterValue = filterArray.GetName(index);
-                        if (filterValue != null)
-                        {
-                            var mappedType = MapImageType(filterValue);
-                            if (mappedType != PdfImageType.Raw)
-                            {
-                                image.Type = mappedType;
-                                break;
-                            }
-                        }
-                    }
+                    image.Type = imageType;
+                    break;
                 }
             }
 
@@ -242,10 +230,7 @@ namespace PdfReader.Rendering.Image
             image.MatteArray = imageXObject.Dictionary.GetArray(PdfTokens.MatteKey).GetFloatArray();
 
             // Parse /Intent and set RenderingIntent
-            var intent = imageXObject.Dictionary.GetName(PdfTokens.IntentKey);
-            image.RenderingIntent = string.IsNullOrEmpty(intent)
-                ? PdfRenderingIntent.RelativeColorimetric
-                : PdfRenderingIntentUtilities.ParseRenderingIntent(intent);
+            image.RenderingIntent = imageXObject.Dictionary.GetName(PdfTokens.IntentKey).AsEnum<PdfRenderingIntent>();
 
             var decodeParmsDict = imageXObject.Dictionary.GetDictionary(PdfTokens.DecodeParmsKey);
             if (decodeParmsDict != null)
@@ -287,38 +272,16 @@ namespace PdfReader.Rendering.Image
             };
         }
 
-        private static PdfImageType MapImageType(string name)
+        private static PdfImageType MapImageType(PdfFilterType filterType)
         {
-            if (string.IsNullOrWhiteSpace(name)) return PdfImageType.Raw;
-            var normalizedName = NormalizeName(name);
-            switch (normalizedName)
+            return filterType switch
             {
-                case "dctdecode":
-                case "dct":
-                case "jpeg":
-                    return PdfImageType.JPEG;
-                case "jpxdecode":
-                case "jpx":
-                case "jpeg2000":
-                    return PdfImageType.JPEG2000;
-                case "ccittfaxdecode":
-                case "ccf":
-                case "ccittfax":
-                    return PdfImageType.CCITT;
-                case "jbig2decode":
-                case "jbig2":
-                    return PdfImageType.JBIG2;
-                default:
-                    return PdfImageType.Raw;
-            }
-        }
-
-        private static string NormalizeName(string raw)
-        {
-            var name = raw?.Trim();
-            if (string.IsNullOrEmpty(name)) return string.Empty;
-            if (name[0] == '/') name = name.Substring(1);
-            return name.ToLowerInvariant();
+                PdfFilterType.DCTDecode => PdfImageType.JPEG,
+                PdfFilterType.JPXDecode => PdfImageType.JPEG2000,
+                PdfFilterType.CCITTFaxDecode => PdfImageType.CCITT,
+                PdfFilterType.JBIG2Decode => PdfImageType.JBIG2,
+                _ => PdfImageType.Raw,
+            };
         }
     }
 

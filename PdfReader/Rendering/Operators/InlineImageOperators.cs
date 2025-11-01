@@ -4,6 +4,8 @@ using Microsoft.Extensions.Logging;
 using PdfReader.Models;
 using PdfReader.Parsing;
 using PdfReader.Rendering.Image;
+using PdfReader.Streams;
+using PdfReader.Text;
 using SkiaSharp;
 
 namespace PdfReader.Rendering.Operators
@@ -101,7 +103,7 @@ namespace PdfReader.Rendering.Operators
                     StreamData = imageDataMemory
                 };
 
-                var pdfImage = PdfImage.FromXObject(inlineObject, _page, name: null, isSoftMask: false);
+                var pdfImage = PdfImage.FromXObject(inlineObject, _page, name: PdfString.Empty, isSoftMask: false);
                 _page.Document.PdfRenderer.DrawUnitImage(_canvas, pdfImage, graphicsState, _page);
             }
             catch (Exception ex)
@@ -125,7 +127,7 @@ namespace PdfReader.Rendering.Operators
                 }
 
                 var rawKey = keyValue.AsName();
-                if (string.IsNullOrEmpty(rawKey))
+                if (rawKey.IsEmpty)
                 {
                     continue;
                 }
@@ -155,7 +157,7 @@ namespace PdfReader.Rendering.Operators
             }
             if (!imageDictionary.HasKey(PdfTokens.ColorSpaceKey) && !imageDictionary.GetBoolOrDefault(PdfTokens.ImageMaskKey))
             {
-                imageDictionary.Set(PdfTokens.ColorSpaceKey, PdfValue.Name(PdfColorSpaceNames.DeviceGray));
+                imageDictionary.Set(PdfTokens.ColorSpaceKey, PdfValue.Name(PdfColorSpace.DeviceGray.AsPdfString()));
             }
             if (imageDictionary.GetBoolOrDefault(PdfTokens.ImageMaskKey) && !imageDictionary.HasKey(PdfTokens.BitsPerComponentKey))
             {
@@ -215,19 +217,19 @@ namespace PdfReader.Rendering.Operators
             return -1;
         }
 
-        private IPdfValue NormalizeInlineImageValue(string expandedKey, IPdfValue value)
+        private IPdfValue NormalizeInlineImageValue(PdfString expandedKey, IPdfValue value)
         {
             if (expandedKey == PdfTokens.ColorSpaceKey && value.Type == PdfValueType.Name)
             {
-                var name = value.AsName();
-                if (!string.IsNullOrEmpty(name))
+                var colorSpace = value.AsName().AsEnum<PdfInlineImageColorSpace>();
+                if (colorSpace != PdfInlineImageColorSpace.Unknown)
                 {
-                    switch (name)
+                    switch (colorSpace)
                     {
-                        case "/G": return PdfValue.Name(PdfColorSpaceNames.DeviceGray);
-                        case "/RGB": return PdfValue.Name(PdfColorSpaceNames.DeviceRGB);
-                        case "/CMYK": return PdfValue.Name(PdfColorSpaceNames.DeviceCMYK);
-                        case "/I": return PdfValue.Name(PdfColorSpaceNames.Indexed);
+                        case PdfInlineImageColorSpace.DeviceGray: return PdfValue.Name(PdfColorSpace.DeviceGray.AsPdfString());
+                        case PdfInlineImageColorSpace.DeviceRGB: return PdfValue.Name(PdfColorSpace.DeviceRGB.AsPdfString());
+                        case PdfInlineImageColorSpace.DeviceCMYK: return PdfValue.Name(PdfColorSpace.DeviceCMYK.AsPdfString());
+                        case PdfInlineImageColorSpace.Indexed: return PdfValue.Name(PdfColorSpace.Indexed.AsPdfString());
                     }
                 }
             }
@@ -236,9 +238,18 @@ namespace PdfReader.Rendering.Operators
                 if (value.Type == PdfValueType.Name)
                 {
                     var filterName = value.AsName();
-                    if (!string.IsNullOrEmpty(filterName))
+                    if (!filterName.IsEmpty)
                     {
-                        return PdfValue.Name(ExpandFilterName(filterName));
+                        var filter = ExpandFilterName(filterName);
+
+                        if (filter != PdfFilterType.Unknown)
+                        {
+                            return PdfValue.Name(filter.AsPdfString());
+                        }
+                        else
+                        {
+                            return PdfValue.Name(filterName);
+                        }
                     }
                 }
                 else if (value.Type == PdfValueType.Array)
@@ -253,11 +264,17 @@ namespace PdfReader.Rendering.Operators
                             if (item != null && item.Type == PdfValueType.Name)
                             {
                                 var itemName = item.AsName();
-                                if (!string.IsNullOrEmpty(itemName))
+                                var filterName = ExpandFilterName(itemName);
+
+                                if (filterName != PdfFilterType.Unknown)
                                 {
-                                    newValues.Add(PdfValue.Name(ExpandFilterName(itemName)));
-                                    continue;
+                                    newValues.Add(PdfValue.Name(filterName.AsPdfString()));
                                 }
+                                else
+                                {
+                                    newValues.Add(PdfValue.Name(itemName));
+                                }
+
                             }
                             newValues.Add(item);
                         }
@@ -268,63 +285,67 @@ namespace PdfReader.Rendering.Operators
             return value;
         }
 
-        private string ExpandInlineImageKey(string key)
+        /// <summary>
+        /// Expands abbreviated inline image property keys to their full PDF dictionary keys using PdfInlineImageProperty enum.
+        /// </summary>
+        /// <param name="key">The raw property key (e.g., /W, /H, /BPC).</param>
+        /// <returns>The expanded PDF dictionary key, or the original key if not recognized.</returns>
+        private PdfString ExpandInlineImageKey(PdfString key)
         {
-            switch (key)
+            var property = key.AsEnum<PdfInlineImageProperty>();
+            switch (property)
             {
-                case PdfTokens.WidthKey:
-                case PdfTokens.HeightKey:
-                case PdfTokens.BitsPerComponentKey:
-                case PdfTokens.ColorSpaceKey:
-                case PdfTokens.DecodeKey:
-                case PdfTokens.DecodeParmsKey:
-                case PdfTokens.FilterKey:
-                case PdfTokens.ImageMaskKey:
-                case PdfTokens.MaskKey:
-                {
+                case PdfInlineImageProperty.Width:
+                    return PdfTokens.WidthKey;
+                case PdfInlineImageProperty.Height:
+                    return PdfTokens.HeightKey;
+                case PdfInlineImageProperty.BitsPerComponent:
+                    return PdfTokens.BitsPerComponentKey;
+                case PdfInlineImageProperty.ColorSpace:
+                    return PdfTokens.ColorSpaceKey;
+                case PdfInlineImageProperty.Decode:
+                    return PdfTokens.DecodeKey;
+                case PdfInlineImageProperty.DecodeParms:
+                    return PdfTokens.DecodeParmsKey;
+                case PdfInlineImageProperty.Filter:
+                    return PdfTokens.FilterKey;
+                case PdfInlineImageProperty.ImageMask:
+                    return PdfTokens.ImageMaskKey;
+                default:
                     return key;
-                }
-            }
-
-            switch (key)
-            {
-                case "/W": return PdfTokens.WidthKey;
-                case "/H": return PdfTokens.HeightKey;
-                case "/BPC": return PdfTokens.BitsPerComponentKey;
-                case "/CS": return PdfTokens.ColorSpaceKey;
-                case "/D": return PdfTokens.DecodeKey;
-                case "/DP": return PdfTokens.DecodeParmsKey;
-                case "/F": return PdfTokens.FilterKey;
-                case "/IM": return PdfTokens.ImageMaskKey;
-                default: return key;
             }
         }
 
-        private string ExpandFilterName(string raw)
+        /// <summary>
+        /// Expands abbreviated inline image filter names to their full PDF filter names using PdfInlineImageFilter enum.
+        /// </summary>
+        /// <param name="raw">The raw filter abbreviation (e.g., Fl, LZW, AHx).</param>
+        /// <returns>The full filter name as defined in PdfTokens, or the original value if not recognized.</returns>
+        private PdfFilterType ExpandFilterName(PdfString raw)
         {
-            if (string.IsNullOrEmpty(raw))
+            var filter = raw.AsEnum<PdfInlineImageFilter>();
+            switch (filter)
             {
-                return raw;
-            }
-
-            if (raw[0] != '/')
-            {
-                raw = "/" + raw;
-            }
-
-            var core = raw.Substring(1);
-            switch (core)
-            {
-                case "Fl": return PdfTokens.FlateDecode;
-                case "LZW": return PdfTokens.LZWDecode;
-                case "AHx": return PdfTokens.ASCIIHexDecode;
-                case "A85": return PdfTokens.ASCII85Decode;
-                case "RL": return PdfTokens.RunLengthDecode;
-                case "CCF": return PdfTokens.CCITTFaxDecode;
-                case "DCT": return PdfTokens.DCTDecode;
-                case "JPX": return PdfTokens.JPXDecode;
-                case "JB2": return PdfTokens.JBIG2Decode;
-                default: return raw;
+                case PdfInlineImageFilter.Flate:
+                    return PdfFilterType.FlateDecode;
+                case PdfInlineImageFilter.LZW:
+                    return PdfFilterType.LZWDecode;
+                case PdfInlineImageFilter.ASCIIHex:
+                    return PdfFilterType.ASCIIHexDecode;
+                case PdfInlineImageFilter.ASCII85:
+                    return PdfFilterType.ASCII85Decode;
+                case PdfInlineImageFilter.RunLength:
+                    return PdfFilterType.RunLengthDecode;
+                case PdfInlineImageFilter.CCITTFax:
+                    return PdfFilterType.CCITTFaxDecode;
+                case PdfInlineImageFilter.DCT:
+                    return PdfFilterType.DCTDecode;
+                case PdfInlineImageFilter.JPX:
+                    return PdfFilterType.JPXDecode;
+                case PdfInlineImageFilter.JBIG2:
+                    return PdfFilterType.JBIG2Decode;
+                default:
+                    return PdfFilterType.Unknown;
             }
         }
 

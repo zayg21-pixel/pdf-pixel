@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using PdfReader.Models;
 using PdfReader.Parsing;
 using PdfReader.Rendering.State;
+using PdfReader.Text;
 using SkiaSharp;
 
 namespace PdfReader.Rendering.Operators
@@ -115,8 +116,7 @@ namespace PdfReader.Rendering.Operators
                 return;
             }
 
-            var name = operands[0].AsName();
-            graphicsState.RenderingIntent = PdfRenderingIntentUtilities.ParseRenderingIntent(name);
+            graphicsState.RenderingIntent = operands[0].AsName().AsEnum<PdfRenderingIntent>();
         }
 
         private void ProcessSaveGraphicsState(PdfGraphicsState graphicsState)

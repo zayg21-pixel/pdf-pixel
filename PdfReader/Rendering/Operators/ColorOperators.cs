@@ -95,25 +95,25 @@ namespace PdfReader.Rendering.Operators
         private void ProcessDeviceFillColor(string op, PdfGraphicsState state)
         {
             int expected;
-            string space;
+            PdfColorSpace space;
             switch (op)
             {
                 case "g":
                 {
                     expected = 1;
-                    space = PdfColorSpaceNames.DeviceGray;
+                    space = PdfColorSpace.DeviceGray;
                     break;
                 }
                 case "rg":
                 {
                     expected = 3;
-                    space = PdfColorSpaceNames.DeviceRGB;
+                    space = PdfColorSpace.DeviceRGB;
                     break;
                 }
                 case "k":
                 {
                     expected = 4;
-                    space = PdfColorSpaceNames.DeviceCMYK;
+                    space = PdfColorSpace.DeviceCMYK;
                     break;
                 }
                 default:
@@ -144,25 +144,25 @@ namespace PdfReader.Rendering.Operators
         private void ProcessDeviceStrokeColor(string op, PdfGraphicsState state)
         {
             int expected;
-            string space;
+            PdfColorSpace space;
             switch (op)
             {
                 case "G":
                 {
                     expected = 1;
-                    space = PdfColorSpaceNames.DeviceGray;
+                    space = PdfColorSpace.DeviceGray;
                     break;
                 }
                 case "RG":
                 {
                     expected = 3;
-                    space = PdfColorSpaceNames.DeviceRGB;
+                    space = PdfColorSpace.DeviceRGB;
                     break;
                 }
                 case "K":
                 {
                     expected = 4;
-                    space = PdfColorSpaceNames.DeviceCMYK;
+                    space = PdfColorSpace.DeviceCMYK;
                     break;
                 }
                 default:
@@ -353,7 +353,7 @@ namespace PdfReader.Rendering.Operators
             return list;
         }
 
-        private PdfPattern TryResolvePattern(string patternName)
+        private PdfPattern TryResolvePattern(PdfString patternName)
         {
             try
             {

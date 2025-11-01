@@ -3,6 +3,7 @@ using System.Runtime.CompilerServices;
 
 namespace PdfReader.Parsing
 {
+    // TODO: limit usage of this class where PdfParseContext can be used
     internal static class PdfParsingHelpers
     {
         // Constants
@@ -31,7 +32,7 @@ namespace PdfReader.Parsing
         public static byte ReadByte(ref PdfParseContext context) => context.ReadByte();
         
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static byte PeekByte(ref PdfParseContext context, int offset = 0) => context.PeekByte(offset);
+        public static byte PeekByte(ref PdfParseContext context, int offset = 0) => context.PeekByte(offset); // TODO: remove
 
         // Navigation helpers
         public static void SkipWhitespaceAndComment(ref PdfParseContext context)
@@ -94,21 +95,6 @@ namespace PdfReader.Parsing
                 }
             }
             else if (b0 == LineFeed)
-            {
-                context.Advance(1);
-            }
-        }
-
-        /// <summary>
-        /// Advance past a single space or tab byte if present. Do not consume newlines.
-        /// Useful after inline image "ID" marker which requires exactly one white-space character.
-        /// </summary>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static void SkipSingleSpaceOrTab(ref PdfParseContext context)
-        {
-            if (context.IsAtEnd) return;
-            byte b0 = PeekByte(ref context);
-            if (b0 == (byte)' ' || b0 == (byte)'\t')
             {
                 context.Advance(1);
             }

@@ -1,4 +1,5 @@
 using PdfReader.Models;
+using PdfReader.Text;
 using SkiaSharp;
 
 namespace PdfReader.Rendering
@@ -6,10 +7,25 @@ namespace PdfReader.Rendering
     /// <summary>
     /// Enumeration of supported soft mask subtypes.
     /// </summary>
-    public enum SoftMaskSubtype
+    [PdfEnum]
+    public enum PdfSoftMaskSubtype
     {
+        /// <summary>
+        /// Unknown soft mask subtype (default).
+        /// </summary>
+        [PdfEnumDefaultValue]
         Unknown = 0,
+
+        /// <summary>
+        /// Alpha soft mask subtype (/Alpha).
+        /// </summary>
+        [PdfEnumValue("Alpha")]
         Alpha,
+
+        /// <summary>
+        /// Luminosity soft mask subtype (/Luminosity).
+        /// </summary>
+        [PdfEnumValue("Luminosity")]
         Luminosity
     }
 
@@ -22,7 +38,7 @@ namespace PdfReader.Rendering
         /// <summary>
         /// Parsed soft mask subtype (/S). Defaults to Unknown when not /Alpha or /Luminosity.
         /// </summary>
-        public SoftMaskSubtype Subtype { get; set; } = SoftMaskSubtype.Unknown;
+        public PdfSoftMaskSubtype Subtype { get; set; } = PdfSoftMaskSubtype.Unknown;
 
         /// <summary>
         /// Reference to the Form XObject that defines the mask (/G entry).

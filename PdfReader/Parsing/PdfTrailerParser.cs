@@ -100,14 +100,14 @@ namespace PdfReader.Parsing
             }
 
             // Use PdfTokens constants instead of string literals.
-            parameters.OwnerEntry = encryptDict.GetValue(PdfTokens.OKey).AsStringBytes();
-            parameters.UserEntry = encryptDict.GetValue(PdfTokens.UKey).AsStringBytes();
+            parameters.OwnerEntry = encryptDict.GetValue(PdfTokens.OKey).AsStringBytes().ToArray();
+            parameters.UserEntry = encryptDict.GetValue(PdfTokens.UKey).AsStringBytes().ToArray();
 
             if (parameters.R >= 5)
             {
-                parameters.OwnerEncryptedKey = encryptDict.GetValue(PdfTokens.OEKey).AsStringBytes();
-                parameters.UserEncryptedKey = encryptDict.GetValue(PdfTokens.UEKey).AsStringBytes();
-                parameters.Perms = encryptDict.GetValue(PdfTokens.PermsKey).AsStringBytes();
+                parameters.OwnerEncryptedKey = encryptDict.GetValue(PdfTokens.OEKey).AsStringBytes().ToArray();
+                parameters.UserEncryptedKey = encryptDict.GetValue(PdfTokens.UEKey).AsStringBytes().ToArray();
+                parameters.Perms = encryptDict.GetValue(PdfTokens.PermsKey).AsStringBytes().ToArray();
             }
 
             if (parameters.V >= 4)
@@ -121,8 +121,8 @@ namespace PdfReader.Parsing
             var idArray = trailer.GetArray(PdfTokens.IdKey);
             if (idArray != null && idArray.Count >= 2)
             {
-                parameters.FileIdFirst = idArray.GetValue(0).AsStringBytes();
-                parameters.FileIdSecond = idArray.GetValue(1).AsStringBytes();
+                parameters.FileIdFirst = idArray.GetValue(0).AsStringBytes().ToArray();
+                parameters.FileIdSecond = idArray.GetValue(1).AsStringBytes().ToArray();
             }
 
             _document.Decryptor = PdfDecryptorFactory.Create(parameters);

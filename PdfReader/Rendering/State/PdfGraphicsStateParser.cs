@@ -2,6 +2,7 @@
 using SkiaSharp;
 using System;
 using PdfReader.Rendering.Color;
+using PdfReader.Text;
 
 namespace PdfReader.Rendering.State
 {
@@ -20,7 +21,7 @@ namespace PdfReader.Rendering.State
         /// <param name="page">PDF page containing the resources</param>
         /// <param name="document">PDF document for reference resolution</param>
         /// <returns>Transformation matrix if one was specified, null otherwise</returns>
-        public static SKMatrix? ParseGraphicsStateParameters(string gsName, PdfGraphicsState graphicsState, PdfPage page)
+        public static SKMatrix? ParseGraphicsStateParameters(PdfString gsName, PdfGraphicsState graphicsState, PdfPage page)
         {
             // Get the ExtGState dictionary from resources using smart resolution
             var extGStateDict = page.ResourceDictionary.GetDictionary(PdfTokens.ExtGStateKey);
@@ -131,9 +132,9 @@ namespace PdfReader.Rendering.State
             {
                 // First try to get as name
                 var blendModeName = gsDict.GetName(PdfTokens.BlendModeKey);
-                if (!string.IsNullOrEmpty(blendModeName))
+                if (!blendModeName.IsEmpty)
                 {
-                    graphicsState.BlendMode = PdfBlendModeNames.ParseBlendMode(blendModeName);
+                    graphicsState.BlendMode = blendModeName.AsEnum<PdfBlendMode>();
                 }
                 else
                 {
@@ -144,17 +145,12 @@ namespace PdfReader.Rendering.State
                         // Try each blend mode in the array until we find a supported one
                         for (int i = 0; i < blendModeArray.Count; i++)
                         {
-                            var modeName = blendModeArray.GetName(i);
+                            var mode = blendModeArray.GetName(i).AsEnum<PdfBlendMode>();
 
-                            if (!string.IsNullOrEmpty(modeName))
+                            if (mode != PdfBlendMode.Unknown)
                             {
-                                var parsedMode = PdfBlendModeNames.ParseBlendMode(modeName);
-                                // Use the first blend mode that we recognize (even if it's Normal)
-                                if (parsedMode != PdfBlendMode.Normal || string.Equals(modeName, PdfBlendModeNames.Normal, StringComparison.OrdinalIgnoreCase))
-                                {
-                                    graphicsState.BlendMode = parsedMode;
-                                    break; // Use the first recognized blend mode
-                                }
+                                graphicsState.BlendMode = mode;
+                                break;
                             }
                         }
                     }
@@ -178,7 +174,7 @@ namespace PdfReader.Rendering.State
             if (gsDict.HasKey(PdfTokens.SoftMaskKey))
             {
                 var maskName = gsDict.GetName(PdfTokens.SoftMaskKey);
-                if (string.Equals(maskName, PdfTokens.NoneValue, StringComparison.OrdinalIgnoreCase))
+                if (maskName == PdfTokens.NoneValue)
                 {
                     // Remove soft mask
                     graphicsState.SoftMask = null;
@@ -199,8 +195,7 @@ namespace PdfReader.Rendering.State
             // Knockout (/TK)
             if (gsDict.HasKey(PdfTokens.KnockoutKey))
             {
-                var knockoutName = gsDict.GetName(PdfTokens.KnockoutKey);
-                graphicsState.Knockout = string.Equals(knockoutName, PdfTokens.TrueValue, StringComparison.OrdinalIgnoreCase);
+                graphicsState.Knockout = gsDict.GetBoolOrDefault(PdfTokens.KnockoutKey);
             }
 
             // Overprint Mode (/OPM)
@@ -212,15 +207,13 @@ namespace PdfReader.Rendering.State
             // Overprint Stroke (/OP)
             if (gsDict.HasKey(PdfTokens.OverprintStrokeKey))
             {
-                var overprintName = gsDict.GetName(PdfTokens.OverprintStrokeKey);
-                graphicsState.OverprintStroke = string.Equals(overprintName, PdfTokens.TrueValue, StringComparison.OrdinalIgnoreCase);
+                graphicsState.OverprintStroke = gsDict.GetBoolOrDefault(PdfTokens.OverprintStrokeKey);
             }
 
             // Overprint Fill (/op)
             if (gsDict.HasKey(PdfTokens.OverprintFillKey))
             {
-                var overprintFillName = gsDict.GetName(PdfTokens.OverprintFillKey);
-                graphicsState.OverprintFill = string.Equals(overprintFillName, PdfTokens.TrueValue, StringComparison.OrdinalIgnoreCase);
+                graphicsState.OverprintFill = gsDict.GetBoolOrDefault(PdfTokens.OverprintFillKey);
             }
 
             return transformMatrix;
@@ -239,19 +232,7 @@ namespace PdfReader.Rendering.State
             var softMask = new PdfSoftMask();
 
             // Subtype (/S)
-            var subtypeName = softMaskDict.GetName(PdfTokens.SoftMaskSubtypeKey);
-            if (string.Equals(subtypeName, PdfTokens.AlphaSoftMask, StringComparison.OrdinalIgnoreCase))
-            {
-                softMask.Subtype = SoftMaskSubtype.Alpha;
-            }
-            else if (string.Equals(subtypeName, PdfTokens.LuminositySoftMask, StringComparison.OrdinalIgnoreCase))
-            {
-                softMask.Subtype = SoftMaskSubtype.Luminosity;
-            }
-            else
-            {
-                softMask.Subtype = SoftMaskSubtype.Unknown;
-            }
+            softMask.Subtype = softMaskDict.GetName(PdfTokens.SoftMaskSubtypeKey).AsEnum<PdfSoftMaskSubtype>();
 
             // Group (/G) mandatory
             softMask.GroupObject = softMaskDict.GetPageObject(PdfTokens.SoftMaskGroupKey);
@@ -316,7 +297,7 @@ namespace PdfReader.Rendering.State
 
         /// <summary>
         /// Parse a transparency group dictionary from a Form XObject.
-        /// Resolves /CS to a color space converter immediately (defaults to DeviceRGB when absent).
+        /// Resolves /CS to a color space converter immediately, returns null, if not a transparency group.
         /// </summary>
         public static PdfTransparencyGroup ParseTransparencyGroup(PdfDictionary groupDict, PdfPage page)
         {
@@ -328,10 +309,10 @@ namespace PdfReader.Rendering.State
             var group = new PdfTransparencyGroup();
 
             // Subtype (/S) - should be /Transparency
-            group.Subtype = groupDict.GetName(PdfTokens.GroupSubtypeKey);
-            if (!group.IsTransparencyGroup)
+            var subtype = groupDict.GetName(PdfTokens.GroupSubtypeKey);
+            if (subtype != PdfTokens.TransparencyGroupValue)
             {
-                return group; // Non-transparency group; leave defaults
+                return null; // Non-transparency group;
             }
 
             // Color Space (/CS) - may be name or array (ICCBased, etc.)

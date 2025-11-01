@@ -1,4 +1,5 @@
 using PdfReader.Models;
+using PdfReader.Text;
 
 namespace PdfReader.Rendering.Color
 {
@@ -38,37 +39,32 @@ namespace PdfReader.Rendering.Color
             switch (components)
             {
                 case 1:
-                    return ResolveDeviceConverter(PdfColorSpaceNames.DeviceGray, page);
+                    return ResolveDeviceConverter(PdfColorSpace.DeviceGray, page);
                 case 3:
-                    return ResolveDeviceConverter(PdfColorSpaceNames.DeviceRGB, page);
+                    return ResolveDeviceConverter(PdfColorSpace.DeviceRGB, page);
                 case 4:
-                    return ResolveDeviceConverter(PdfColorSpaceNames.DeviceCMYK, page);
+                    return ResolveDeviceConverter(PdfColorSpace.DeviceCMYK, page);
                 default:
                     return null;
             }
         }
 
-        public static PdfColorSpaceConverter ResolveDeviceConverter(string name, PdfPage page)
+        public static PdfColorSpaceConverter ResolveDeviceConverter(PdfColorSpace colorSpace, PdfPage page)
         {
-            if (string.IsNullOrEmpty(name))
+            switch (colorSpace)
             {
-                return DeviceRgbConverter.Instance;
-            }
-
-            switch (name)
-            {
-                case PdfColorSpaceNames.DeviceGray:
+                case PdfColorSpace.DeviceGray:
                     return ResolveDefaultDeviceSpace(page, PdfTokens.DefaultGrayKey, 1) ?? DeviceGrayConverter.Instance;
-                case PdfColorSpaceNames.DeviceRGB:
+                case PdfColorSpace.DeviceRGB:
                     return ResolveDefaultDeviceSpace(page, PdfTokens.DefaultRGBKey, 3) ?? DeviceRgbConverter.Instance;
-                case PdfColorSpaceNames.DeviceCMYK:
+                case PdfColorSpace.DeviceCMYK:
                     return ResolveDefaultDeviceSpace(page, PdfTokens.DefaultCMYKKey, 4) ?? DeviceCmykConverter.Instance;
             }
 
             return DeviceRgbConverter.Instance;
         }
 
-        private static PdfColorSpaceConverter ResolveDefaultDeviceSpace(PdfPage page, string defaultKey, int n)
+        private static PdfColorSpaceConverter ResolveDefaultDeviceSpace(PdfPage page, PdfString defaultKey, int n)
         {
             var resources = page?.ResourceDictionary;
             var defaultVal = resources?.GetValue(defaultKey);
@@ -137,57 +133,59 @@ namespace PdfReader.Rendering.Color
             return null;
         }
 
-        private static PdfColorSpaceConverter ResolveByNameAndValue(string name, IPdfValue value, PdfPage page)
+        private static PdfColorSpaceConverter ResolveByNameAndValue(PdfString name, IPdfValue value, PdfPage page)
         {
-            if (string.IsNullOrEmpty(name))
+            if (name.IsEmpty)
             {
                 return DeviceRgbConverter.Instance;
             }
 
-            switch (name)
+            var nameEnum = name.AsEnum<PdfColorSpace>();
+
+            switch (nameEnum)
             {
-                case PdfColorSpaceNames.DeviceGray:
-                    return ResolveDeviceConverter(name, page);
-                case PdfColorSpaceNames.DeviceRGB:
-                    return ResolveDeviceConverter(name, page);
-                case PdfColorSpaceNames.DeviceCMYK:
-                    return ResolveDeviceConverter(name, page);
-                case PdfColorSpaceNames.Indexed:
+                case PdfColorSpace.DeviceGray:
+                    return ResolveDeviceConverter(PdfColorSpace.DeviceGray, page);
+                case PdfColorSpace.DeviceRGB:
+                    return ResolveDeviceConverter(PdfColorSpace.DeviceRGB, page);
+                case PdfColorSpace.DeviceCMYK:
+                    return ResolveDeviceConverter(PdfColorSpace.DeviceCMYK, page);
+                case PdfColorSpace.Indexed:
                 {
                     var conv = ColorSpaceFactory.CreateIndexedColorSpace(value, page);
                     return conv ?? DeviceGrayConverter.Instance;
                 }
-                case PdfColorSpaceNames.ICCBased:
+                case PdfColorSpace.ICCBased:
                 {
                     var conv = ColorSpaceFactory.CreateIccColorSpace(value, page);
                     return conv ?? DeviceRgbConverter.Instance;
                 }
-                case PdfColorSpaceNames.CalGray:
+                case PdfColorSpace.CalGray:
                 {
                     var conv = ColorSpaceFactory.CreateCalGrayColorSpace(value, page);
                     return conv ?? DeviceGrayConverter.Instance;
                 }
-                case PdfColorSpaceNames.CalRGB:
+                case PdfColorSpace.CalRGB:
                 {
                     var conv = ColorSpaceFactory.CreateCalRrgbColorSpace(value, page);
                     return conv ?? DeviceRgbConverter.Instance;
                 }
-                case PdfColorSpaceNames.Lab:
+                case PdfColorSpace.Lab:
                 {
                     var conv = ColorSpaceFactory.CreateLabColorSpace(value, page);
                     return conv ?? DeviceRgbConverter.Instance;
                 }
-                case PdfColorSpaceNames.Pattern:
+                case PdfColorSpace.Pattern:
                 {
                     var conv = ColorSpaceFactory.CreatePatternColorSpace(value, page);
                     return conv ?? DeviceRgbConverter.Instance;
                 }
-                case PdfColorSpaceNames.Separation:
+                case PdfColorSpace.Separation:
                 {
                     var conv = ColorSpaceFactory.CreateSeparationColorSpace(value, page);
                     return conv ?? DeviceGrayConverter.Instance;
                 }
-                case PdfColorSpaceNames.DeviceN:
+                case PdfColorSpace.DeviceN:
                 {
                     var conv = ColorSpaceFactory.CreateDeviceNColorSpace(value, page);
                     return conv ?? DeviceRgbConverter.Instance;
@@ -205,7 +203,7 @@ namespace PdfReader.Rendering.Color
             }
         }
 
-        private static IPdfValue ResolveColorSpaceValue(string resourceName, PdfPage page)
+        private static IPdfValue ResolveColorSpaceValue(PdfString resourceName, PdfPage page)
         {
             try
             {
@@ -219,12 +217,12 @@ namespace PdfReader.Rendering.Color
             }
         }
 
-        public static bool TryGetColorSpaceName(IPdfValue value, out string name)
+        public static bool TryGetColorSpaceName(IPdfValue value, out PdfString name)
         {
             if (value.Type == PdfValueType.Name)
             {
                 name = value.AsName();
-                return !string.IsNullOrEmpty(name);
+                return !name.IsEmpty;
             }
             else if (value.Type == PdfValueType.Array)
             {
@@ -232,7 +230,7 @@ namespace PdfReader.Rendering.Color
                 if (array.Count > 0)
                 {
                     name = array.GetName(0);
-                    return !string.IsNullOrEmpty(name);
+                    return !name.IsEmpty;
                 }
             }
 

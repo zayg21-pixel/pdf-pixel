@@ -117,17 +117,10 @@ namespace PdfReader.Rendering
             {
                 if (value.Type == PdfValueType.Operator)
                 {
-                    string op = value.AsString();
+                    string op = value.AsString().ToString();
 
-                    if (PdfOperatorProcessor.IsValidOperator(op))
-                    {
-                        _logger.LogTrace("Processing operator: {Operator} with parameters {Parameters}", op, string.Join("; ", operandStack));
-                        operatorProcessor.ProcessOperator(op, ref parseContext, ref graphicsState);
-                    }
-                    else
-                    {
-                        operandStack.Push(value);
-                    }
+                    _logger.LogTrace("Processing operator: {Operator} with parameters {Parameters}", op, string.Join("; ", operandStack));
+                    operatorProcessor.ProcessOperator(op, ref parseContext, ref graphicsState);
                 }
                 else
                 {

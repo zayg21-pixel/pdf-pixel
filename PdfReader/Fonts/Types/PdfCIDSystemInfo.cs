@@ -5,8 +5,8 @@ namespace PdfReader.Fonts.Types
     // CID font system info
     public class PdfCIDSystemInfo
     {
-        public string Registry { get; set; }
-        public string Ordering { get; set; }
+        public PdfString Registry { get; set; }
+        public PdfString Ordering { get; set; }
         public int Supplement { get; set; }
 
         public static PdfCIDSystemInfo FromDictionary(PdfDictionary dict)

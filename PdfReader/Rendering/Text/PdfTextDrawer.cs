@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging;
+using PdfReader.Fonts;
 using PdfReader.Fonts.Management;
 using PdfReader.Fonts.Types;
 using PdfReader.Models;
@@ -39,7 +40,7 @@ namespace PdfReader.Rendering.Text
             {
                 return 0f;
             }
-            if (font.Type == PdfFontType.Type3 || pdfText.IsEmpty)
+            if (font.Type == PdfFontSubType.Type3 || pdfText.IsEmpty)
             {
                 return 0f;
             }
@@ -148,7 +149,7 @@ namespace PdfReader.Rendering.Text
         private ShapedGlyph[] ShapeText(ref PdfText pdfText, PdfGraphicsState state, PdfFontBase font)
         {
             var codes = font.ExtractCharacterCodes(pdfText.RawBytes);
-            var shapedGlyphs = new List<ShapedGlyph>(codes.Length);
+            ShapedGlyph[] shapedGlyphs = new ShapedGlyph[codes.Length];
 
             for (int codeIndex = 0; codeIndex < codes.Length; codeIndex++)
             {
@@ -157,10 +158,10 @@ namespace PdfReader.Rendering.Text
                 bool isSpace = unicode == " ";
                 float spacing = state.CharacterSpacing + (isSpace ? state.WordSpacing : 0f);
 
-                shapedGlyphs.Add(new ShapedGlyph(info.Gid, info.Width * state.FontSize, spacing));
+                shapedGlyphs[codeIndex] = new ShapedGlyph(info.Gid, info.Width * state.FontSize, spacing);
             }
 
-            return shapedGlyphs.ToArray();
+            return shapedGlyphs;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

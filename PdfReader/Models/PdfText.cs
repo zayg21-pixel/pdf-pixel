@@ -1,5 +1,4 @@
 using System;
-using System.Runtime.CompilerServices;
 using PdfReader.Text;
 
 namespace PdfReader.Models
@@ -33,7 +32,7 @@ namespace PdfReader.Models
         {
             var bytes = operand.AsStringBytes();
 
-            if (bytes == null)
+            if (bytes.IsEmpty)
             {
                 return default;
             }

@@ -118,7 +118,7 @@ namespace PdfReader.Rendering.Operators
             }
 
             var xObjectName = operands[0].AsName();
-            if (string.IsNullOrEmpty(xObjectName))
+            if (xObjectName.IsEmpty)
             {
                 return;
             }
@@ -214,7 +214,7 @@ namespace PdfReader.Rendering.Operators
             }
 
             var shadingName = operands[0].AsName();
-            if (string.IsNullOrEmpty(shadingName))
+            if (shadingName.IsEmpty)
             {
                 return;
             }

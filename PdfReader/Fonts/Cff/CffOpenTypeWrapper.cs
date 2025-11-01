@@ -305,7 +305,7 @@ namespace PdfReader.Fonts.Cff
 
         private static byte[] BuildName(PdfFontDescriptor descriptor)
         {
-            var parsed = PdfFontName.Parse(descriptor?.FontName);
+            var parsed = PdfFontName.Parse(descriptor?.FontName ?? default);
 
             string family = parsed.NormalizedStem;
             if (string.IsNullOrWhiteSpace(family))
@@ -334,13 +334,13 @@ namespace PdfReader.Fonts.Cff
                 subfamily = "Regular";
             }
 
-            string baseNameNoSubset = parsed.RawName;
-            if (!string.IsNullOrEmpty(parsed.SubsetTag) && parsed.RawName.Length > parsed.SubsetTag.Length + 1)
+            string baseNameNoSubset = parsed.RawName.ToString();
+            if (!string.IsNullOrEmpty(parsed.SubsetTag) && baseNameNoSubset.Length > parsed.SubsetTag.Length + 1)
             {
-                int plusIndex = parsed.RawName.IndexOf('+');
-                if (plusIndex >= 0 && plusIndex < parsed.RawName.Length - 1)
+                int plusIndex = baseNameNoSubset.IndexOf('+');
+                if (plusIndex >= 0 && plusIndex < baseNameNoSubset.Length - 1)
                 {
-                    baseNameNoSubset = parsed.RawName.Substring(plusIndex + 1);
+                    baseNameNoSubset = baseNameNoSubset.Substring(plusIndex + 1);
                 }
             }
             if (string.IsNullOrEmpty(baseNameNoSubset))

@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 
@@ -6,7 +5,7 @@ namespace PdfReader.Models
 {
     public class PdfDictionary
     {
-        private readonly Dictionary<string, IPdfValue> _values = new Dictionary<string, IPdfValue>();
+        private readonly Dictionary<PdfString, IPdfValue> _values = new Dictionary<PdfString, IPdfValue>();
 
         public PdfDictionary(PdfDocument document)
         {
@@ -15,29 +14,38 @@ namespace PdfReader.Models
 
         public int Count => _values.Count;
 
-        internal Dictionary<string, IPdfValue> RawValues => _values;
+        internal Dictionary<PdfString, IPdfValue> RawValues => _values;
 
         public PdfDocument Document { get; }
 
-        public bool HasKey(string key)
+        public bool HasKey(PdfString key)
         {
             return _values.ContainsKey(GetValidKey(key));
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static string GetValidKey(string key)
+        private static PdfString GetValidKey(PdfString key)
         {
-            if (string.IsNullOrEmpty(key)) return key;
-            return key[0] == '/' ? key : "/" + key;
+            if (key.IsEmpty)
+            {
+                return key;
+            }
+            if (key.IsName)
+            {
+                // this should already be trimmed, but just in case
+                return key.TrimName();
+            }
+
+            return key;
         }
 
-        public string GetName(string key)
-            => _values.TryGetValue(GetValidKey(key), out var storedValue) ? storedValue.ResolveToNonReference(Document)?.AsName() : null;
+        public PdfString GetName(PdfString key)
+            => _values.TryGetValue(GetValidKey(key), out var storedValue) ? storedValue.ResolveToNonReference(Document)?.AsName() ?? default : default;
 
-        public string GetString(string key)
-            => _values.TryGetValue(GetValidKey(key), out var storedValue) ? storedValue.ResolveToNonReference(Document)?.AsString() : null;
+        public PdfString GetString(PdfString key)
+            => _values.TryGetValue(GetValidKey(key), out var storedValue) ? storedValue.ResolveToNonReference(Document)?.AsString() ?? default : default;
 
-        public bool GetBoolOrDefault(string key)
+        public bool GetBoolOrDefault(PdfString key)
         {
             if (_values.TryGetValue(GetValidKey(key), out var storedValue))
             {
@@ -47,7 +55,7 @@ namespace PdfReader.Models
             return false;
         }
 
-        public int? GetInt(string key)
+        public int? GetInt(PdfString key)
         {
             if (_values.TryGetValue(GetValidKey(key), out var storedValue))
             {
@@ -62,7 +70,7 @@ namespace PdfReader.Models
             return default;
         }
 
-        public float? GetFloat(string key)
+        public float? GetFloat(PdfString key)
         {
             if (_values.TryGetValue(GetValidKey(key), out var storedValue))
             {
@@ -76,7 +84,7 @@ namespace PdfReader.Models
             return default;
         }
 
-        public bool? GetBool(string key)
+        public bool? GetBool(PdfString key)
         {
             if (_values.TryGetValue(GetValidKey(key), out var storedValue))
             {
@@ -90,11 +98,11 @@ namespace PdfReader.Models
             return default;
         }
 
-        public int GetIntegerOrDefault(string key)
+        public int GetIntegerOrDefault(PdfString key)
             => _values.TryGetValue(GetValidKey(key), out var storedValue) ? storedValue.ResolveToNonReference(Document)?.AsInteger() ?? 0 : 0;
 
 
-        public float GetFloatOrDefault(string key)
+        public float GetFloatOrDefault(PdfString key)
             => _values.TryGetValue(GetValidKey(key), out var storedValue) ? storedValue.ResolveToNonReference(Document)?.AsFloat() ?? 0 : 0;
 
         private bool IsCollectionType(IPdfValue value)
@@ -102,7 +110,7 @@ namespace PdfReader.Models
             return value.Type == PdfValueType.Array || value.Type == PdfValueType.Dictionary;
         }
 
-        public IPdfValue GetValue(string key)
+        public IPdfValue GetValue(PdfString key)
         {
             if (_values.TryGetValue(GetValidKey(key), out var storedValue))
             {
@@ -112,7 +120,7 @@ namespace PdfReader.Models
             return null;
         }
 
-        public PdfArray GetArray(string key)
+        public PdfArray GetArray(PdfString key)
         {
             if (_values.TryGetValue(GetValidKey(key), out var storedValue))
             {
@@ -122,10 +130,10 @@ namespace PdfReader.Models
             return null;
         }
 
-        public PdfDictionary GetDictionary(string key) =>
+        public PdfDictionary GetDictionary(PdfString key) =>
             _values.TryGetValue(GetValidKey(key), out var storedValue) ? storedValue.ResolveToNonReference(Document)?.AsDictionary() : null;
 
-        public PdfObject GetPageObject(string key)
+        public PdfObject GetPageObject(PdfString key)
         {
             if (!_values.TryGetValue(GetValidKey(key), out var storedValue))
                 return null;
@@ -148,7 +156,7 @@ namespace PdfReader.Models
             return new PdfObject(default, Document, storedValue);
         }
 
-        public List<PdfObject> GetPageObjects(string key)
+        public List<PdfObject> GetPageObjects(PdfString key)
         {
             if (!_values.TryGetValue(GetValidKey(key), out var storedValue))
                 return null;
@@ -182,7 +190,7 @@ namespace PdfReader.Models
         }
 
         // Internal methods for parsing
-        internal void Set(string key, IPdfValue value)
+        internal void Set(PdfString key, IPdfValue value)
         {
             _values[GetValidKey(key)] = value;
         }

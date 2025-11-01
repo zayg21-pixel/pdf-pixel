@@ -1,61 +1,54 @@
 using PdfReader.Text;
+using System;
 
 namespace PdfReader.Models
 {
     public static class IPdfValueExtension
     {
         // Type-safe getters
-        public static string AsName(this IPdfValue value)
+        public static PdfString AsName(this IPdfValue value)
         {
-            if (value is PdfValue<string> nameValue && nameValue.Type == PdfValueType.Name)
+            if (value is IPdfValue<PdfString> nameValue && nameValue.Type == PdfValueType.Name)
             {
                 return nameValue.Value;
             }
-            return null;
+
+            return default;
         }
 
-        public static string AsString(this IPdfValue value)
+        public static PdfString AsString(this IPdfValue value)
         {
-            if (value is PdfValue<string> nameValue && nameValue.Type == PdfValueType.Name)
-            {
-                var nameValueString = nameValue.Value;
-
-                if (nameValueString.StartsWith("/"))
-                    return nameValueString.Substring(1);
-
-                return nameValueString;
-            }
-            if (value is PdfValue<string> stringValue && (stringValue.Type == PdfValueType.String || stringValue.Type == PdfValueType.Operator))
+            if (value is IPdfValue<PdfString> stringValue && (stringValue.Type == PdfValueType.String || stringValue.Type == PdfValueType.Operator))
             {
                 return stringValue.Value;
             }
 
-            return null;
+            return default;
         }
 
         /// <summary>
         /// Convert HexString value into raw bytes. Returns null if not a HexString.
         /// Skips whitespace and pads odd-length nibbles per PDF spec.
         /// </summary>
-        public static byte[] AsStringBytes(this IPdfValue value)
+        public static ReadOnlyMemory<byte> AsStringBytes(this IPdfValue value)
         {
-            string stringValue = AsString(value);
+            var stringValue = AsString(value);
 
-            if (stringValue == null)
+            if (stringValue.IsEmpty)
             {
                 return null;
             }
 
-            return EncodingExtensions.PdfDefault.GetBytes(stringValue);
+            return stringValue.Value;
         }
 
         public static int AsInteger(this IPdfValue value)
         {
-            if (value is PdfValue<int> intValue && intValue.Type == PdfValueType.Integer)
+            if (value is IPdfValue<int> intValue && intValue.Type == PdfValueType.Integer)
             {
                 return intValue.Value;
             }
-            else if (value is PdfValue<float> floatNumber && floatNumber.Type == PdfValueType.Real)
+            else if (value is IPdfValue<float> floatNumber && floatNumber.Type == PdfValueType.Real)
             {
                 return (int)floatNumber.Value;
             }
@@ -65,7 +58,7 @@ namespace PdfReader.Models
 
         private static float AsReal(this IPdfValue value)
         {
-            if (value is PdfValue<float> realValue)
+            if (value is IPdfValue<float> realValue)
             {
                 return realValue.Value;
             }

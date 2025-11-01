@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging;
 using PdfReader.Fonts.Types;
+using PdfReader.Models;
 using SkiaSharp;
 using System;
 using System.Collections.Generic;
@@ -52,7 +53,7 @@ namespace PdfReader.Fonts.Management
         /// <param name="baseFont">PDF font base name.</param>
         /// <param name="fontDescriptor">Font descriptor for style hints.</param>
         /// <returns>Matching SKTypeface or SKTypeface.Default if not found.</returns>
-        public static SKTypeface SubstituteTypeface(string baseFont, PdfFontDescriptor fontDescriptor)
+        public static SKTypeface SubstituteTypeface(PdfString baseFont, PdfFontDescriptor fontDescriptor)
         {
             var parsed = PdfFontName.Parse(baseFont);
             bool isBold = IsBold(fontDescriptor, parsed);

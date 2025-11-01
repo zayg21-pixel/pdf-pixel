@@ -171,7 +171,7 @@ namespace PdfReader.Rendering
                     }
                     else
                     {
-                        paint.Color = ApplyAlpha(state.FillColor, state.FillAlpha);
+                        paint.Color = ApplyAlpha(state.FillPaint.Color, state.FillAlpha);
                     }
                     break;
                 }
@@ -187,7 +187,7 @@ namespace PdfReader.Rendering
                     }
                     else
                     {
-                        paint.Color = ApplyAlpha(state.StrokeColor, state.StrokeAlpha);
+                        paint.Color = ApplyAlpha(state.StrokePaint.Color, state.StrokeAlpha);
                     }
                     var strokeTextScale = GetTextScaleFactor(state);
                     ApplyStrokeStyling(paint, state, 1 / strokeTextScale);
@@ -211,7 +211,7 @@ namespace PdfReader.Rendering
                     }
                     else
                     {
-                        paint.Color = ApplyAlpha(state.FillColor, state.FillAlpha);
+                        paint.Color = ApplyAlpha(state.FillPaint.Color, state.FillAlpha);
                     }
                     ApplyStrokeStyling(paint, state, 1 / fillTextScale);
                     break;
@@ -285,7 +285,7 @@ namespace PdfReader.Rendering
             }
             else
             {
-                paint.Color = ApplyAlpha(state.StrokeColor, state.StrokeAlpha);
+                paint.Color = ApplyAlpha(state.StrokePaint.Color, state.StrokeAlpha);
             }
 
             ApplyStrokeStyling(paint, state);
@@ -322,7 +322,7 @@ namespace PdfReader.Rendering
             }
             else
             {
-                paint.Color = ApplyAlpha(state.FillColor, state.FillAlpha);
+                paint.Color = ApplyAlpha(state.FillPaint.Color, state.FillAlpha);
             }
 
             // Apply advanced transparency effects if present
@@ -364,7 +364,7 @@ namespace PdfReader.Rendering
 
             var paint = CreateBasePaint(state);
             // NOTE: We use white with FillAlpha to apply overall non-stroking alpha when compositing the form
-            // back to the page. The actual group isolation/knockout is handled via SaveLayer in PdfXObjectProcessor.
+            // back to the page. The actual group isolation/knockout is handled in PdfXObjectProcessor.
             paint.Color = ApplyAlpha(SKColors.White, state.FillAlpha);
             return paint;
         }

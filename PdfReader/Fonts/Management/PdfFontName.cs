@@ -1,3 +1,4 @@
+using PdfReader.Models;
 using System;
 using System.Collections.Generic;
 
@@ -22,7 +23,7 @@ namespace PdfReader.Fonts.Management
         /// <summary>
         /// Raw BaseFont value from the PDF (may include subset prefix).
         /// </summary>
-        public string RawName { get; }
+        public PdfString RawName { get; }
 
         /// <summary>
         /// Subset tag (e.g., ABCDEF) if present before '+'. Null if not subsetted.
@@ -45,7 +46,7 @@ namespace PdfReader.Fonts.Management
         public bool ItalicHint { get; }
 
         private PdfFontName(
-            string rawName,
+            PdfString rawName,
             string subsetTag,
             string normalizedStem,
             bool boldHint,
@@ -62,14 +63,14 @@ namespace PdfReader.Fonts.Management
         /// Parse a raw PDF BaseFont name into a <see cref="PdfFontName"/>.
         /// </summary>
         /// <param name="rawName">Raw BaseFont string (may be null or empty).</param>
-        public static PdfFontName Parse(string rawName)
+        public static PdfFontName Parse(PdfString rawName)
         {
-            if (string.IsNullOrEmpty(rawName))
+            if (rawName.IsEmpty)
             {
-                return new PdfFontName(string.Empty, null, string.Empty, false, false);
+                return new PdfFontName(PdfString.Empty, null, string.Empty, false, false);
             }
 
-            string working = rawName;
+            string working = rawName.ToString();
             string subsetTag = null;
 
             int plusIndex = working.IndexOf('+');

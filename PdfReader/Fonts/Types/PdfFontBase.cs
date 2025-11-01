@@ -37,9 +37,8 @@ namespace PdfReader.Fonts.Types
             Differences = encodingInfo.Differences ?? new Dictionary<int, string>();
 
             // Parse essential properties from the font object (lightweight operations)
-            var subtype = fontDictionary.GetName(PdfTokens.SubtypeKey);
-            Type = ParseFontType(subtype);
-            BaseFont = fontDictionary.GetString(PdfTokens.BaseFontKey) ?? string.Empty;
+            Type = fontDictionary.GetName(PdfTokens.SubtypeKey).AsEnum<PdfFontSubType>();
+            BaseFont = fontDictionary.GetString(PdfTokens.BaseFontKey);
             
             // Initialize lazy loaders (thread-safe)
             _toUnicodeCMap = new Lazy<PdfCMap>(LoadToUnicodeCMap, isThreadSafe: true);
@@ -52,9 +51,8 @@ namespace PdfReader.Fonts.Types
 
         /// <summary>
         /// PDF font type (Type1, TrueType, Type3, Type0, CIDFontType0, CIDFontType2, etc.)
-        /// Immutable - parsed from font object
         /// </summary>
-        public PdfFontType Type { get; }
+        public PdfFontSubType Type { get; }
 
         /// <summary>
         /// Character encoding for this font (base encoding or CMap name type for CID fonts)
@@ -62,9 +60,9 @@ namespace PdfReader.Fonts.Types
         public virtual PdfFontEncoding Encoding { get; }
 
         /// <summary>
-        /// Custom encoding name (when Encoding == Custom). For name-based encodings not recognized.
+        /// Custom encoding name. For name-based encodings not recognized.
         /// </summary>
-        public string CustomEncoding { get; }
+        public PdfString CustomEncoding { get; }
 
         /// <summary>
         /// Differences array parsed from /Encoding dictionary as a code -> glyph name map.
@@ -74,9 +72,8 @@ namespace PdfReader.Fonts.Types
 
         /// <summary>
         /// Base font name (PostScript name)
-        /// Immutable - parsed from font object
         /// </summary>
-        public string BaseFont { get; }
+        public PdfString BaseFont { get; }
         
         /// <summary>
         /// PDF document containing this font (convenience property)
@@ -219,25 +216,6 @@ namespace PdfReader.Fonts.Types
 
             };
             return skFont;
-        }
-
-
-        /// <summary>
-        /// Parse font type from PDF subtype string (lightweight operation)
-        /// </summary>
-        private static PdfFontType ParseFontType(string subtype)
-        {
-            return subtype switch
-            {
-                PdfTokens.Type1FontKey => PdfFontType.Type1,
-                PdfTokens.TrueTypeFontKey => PdfFontType.TrueType,
-                PdfTokens.Type3FontKey => PdfFontType.Type3,
-                PdfTokens.Type0FontKey => PdfFontType.Type0,
-                PdfTokens.CIDFontType0Key => PdfFontType.CIDFontType0,
-                PdfTokens.CIDFontType2Key => PdfFontType.CIDFontType2,
-                PdfTokens.MMType1FontKey => PdfFontType.MMType1,
-                _ => PdfFontType.Unknown
-            };
         }
 
         /// <summary>

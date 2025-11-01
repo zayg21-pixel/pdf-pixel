@@ -33,7 +33,7 @@ namespace PdfReader.Rendering.Image.Skia
 
             var filters = PdfStreamDecoder.GetFilters(image.SourceObject);
 
-            if (filters.Count != 1 || filters[0] != PdfTokens.FlateDecode)
+            if (filters.Count != 1 || filters[0] != PdfFilterType.FlateDecode)
             {
                 // we can potentially extend this to decode non-flate filters in advance and return as non-compressed PNG,
                 // but that is quite rare case

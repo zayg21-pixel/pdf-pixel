@@ -1,5 +1,6 @@
-using PdfReader.Models;
 using PdfReader.Fonts.Types;
+using PdfReader.Models;
+using PdfReader.Text;
 
 namespace PdfReader.Fonts
 {
@@ -19,25 +20,15 @@ namespace PdfReader.Fonts
             }
 
             var type = pdfDictionary.GetName(PdfTokens.TypeKey);
-            var subtype = pdfDictionary.GetName(PdfTokens.SubtypeKey);
 
             if (type == PdfTokens.FontKey)
-                return true;
-
-            // Some font dictionaries (descendant CID fonts, etc.) rely on subtype
-            switch (subtype)
             {
-                case PdfTokens.Type0FontKey:
-                case PdfTokens.CIDFontType0Key:
-                case PdfTokens.CIDFontType2Key:
-                case PdfTokens.Type1FontKey:
-                case PdfTokens.TrueTypeFontKey:
-                case PdfTokens.Type3FontKey:
-                case PdfTokens.MMType1FontKey:
-                    return true;
-                default:
-                    return false;
+                return true;
             }
+
+            var subtype = pdfDictionary.GetName(PdfTokens.SubtypeKey).AsEnum<PdfFontSubType>();
+
+            return subtype != PdfFontSubType.Unknown;
         }
 
         /// <summary>
@@ -70,17 +61,17 @@ namespace PdfReader.Fonts
                 return null;
             }
 
-            var subtype = dictionary.GetName(PdfTokens.SubtypeKey);
+            var subtype = dictionary.GetName(PdfTokens.SubtypeKey).AsEnum<PdfFontSubType>();
 
             return subtype switch
             {
-                PdfTokens.Type0FontKey => new PdfCompositeFont(dictionary),
-                PdfTokens.CIDFontType0Key => new PdfCIDFont(dictionary),
-                PdfTokens.CIDFontType2Key => new PdfCIDFont(dictionary),
-                PdfTokens.Type1FontKey => new PdfSimpleFont(dictionary),
-                PdfTokens.TrueTypeFontKey => new PdfSimpleFont(dictionary),
-                PdfTokens.Type3FontKey => new PdfType3Font(dictionary),
-                PdfTokens.MMType1FontKey => new PdfSimpleFont(dictionary),
+                PdfFontSubType.Type0 => new PdfCompositeFont(dictionary),
+                PdfFontSubType.CidFontType0 => new PdfCIDFont(dictionary),
+                PdfFontSubType.CidFontType2 => new PdfCIDFont(dictionary),
+                PdfFontSubType.Type1 => new PdfSimpleFont(dictionary),
+                PdfFontSubType.TrueType => new PdfSimpleFont(dictionary),
+                PdfFontSubType.Type3 => new PdfType3Font(dictionary),
+                PdfFontSubType.MMType1 => new PdfSimpleFont(dictionary),
                 _ => new PdfSimpleFont(dictionary) // Fallback for unknown subtypes under /Font
             };
         }

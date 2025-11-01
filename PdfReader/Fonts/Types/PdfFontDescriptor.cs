@@ -1,4 +1,5 @@
 using PdfReader.Models;
+using PdfReader.Text;
 using SkiaSharp;
 
 namespace PdfReader.Fonts.Types
@@ -7,20 +8,50 @@ namespace PdfReader.Fonts.Types
     /// Font file format enumeration
     /// Determined by embedded font stream and its dictionary (/FontFile, /FontFile2, /FontFile3 + /Subtype)
     /// </summary>
-    public enum FontFileFormat
+    [PdfEnum]
+    public enum PdfFontFileFormat
     {
+        /// <summary>
+        /// Unknown or unspecified font file format.
+        /// </summary>
+        [PdfEnumDefaultValue]
         Unknown,
-        Type1,        // FontFile - Type 1 font program (PFA/PFB)
-        TrueType,     // FontFile2 - TrueType font program
-        OpenType,     // FontFile3 with /Subtype /OpenType (SFNT wrapper)
-        Type1C,       // FontFile3 with /Subtype /Type1C (CFF compact)
-        CIDFontType0C // FontFile3 with /Subtype /CIDFontType0C (CFF for CIDFonts)
+
+        /// <summary>
+        /// Type 1 font program (PFA/PFB) (/Type1).
+        /// </summary>
+        [PdfEnumValue("Type1")]
+        Type1,
+
+        /// <summary>
+        /// TrueType font program (/TrueType).
+        /// </summary>
+        [PdfEnumValue("TrueType")]
+        TrueType,
+
+        /// <summary>
+        /// OpenType font program (SFNT wrapper) (/OpenType).
+        /// </summary>
+        [PdfEnumValue("OpenType")]
+        OpenType,
+
+        /// <summary>
+        /// Compact Font Format (CFF) Type 1 font program (/Type1C).
+        /// </summary>
+        [PdfEnumValue("Type1C")]
+        Type1C,
+
+        /// <summary>
+        /// CFF for CIDFonts (/CIDFontType0C).
+        /// </summary>
+        [PdfEnumValue("CIDFontType0C")]
+        CIDFontType0C
     }
 
     // Font descriptor information
     public class PdfFontDescriptor
     {
-        public string FontName { get; set; }
+        public PdfString FontName { get; set; }
         public PdfFontFlags Flags { get; set; }
         public SKRect FontBBox { get; set; }
         public float ItalicAngle { get; set; }
@@ -34,11 +65,11 @@ namespace PdfReader.Fonts.Types
         public float MaxWidth { get; set; }
         public float MissingWidth { get; set; }
         // Extended properties (PDF 1.5+)
-        public string FontFamily { get; set; }
-        public string FontStretch { get; set; }
+        public PdfString FontFamily { get; set; }
+        public PdfString FontStretch { get; set; }
         public int FontWeight { get; set; }
         public float Leading { get; set; }
-        public string CharSet { get; set; }
+        public PdfString CharSet { get; set; }
         public float[] StemSnapH { get; set; }
         public float[] StemSnapV { get; set; }
         public byte[] Panose { get; set; }
@@ -50,7 +81,7 @@ namespace PdfReader.Fonts.Types
         /// <summary>
         /// Format of the embedded font file
         /// </summary>
-        public FontFileFormat FontFileFormat { get; set; }
+        public PdfFontFileFormat FontFileFormat { get; set; }
 
         /// <summary>
         /// Reference to the original dictionary this descriptor was created from
@@ -96,17 +127,9 @@ namespace PdfReader.Fonts.Types
             if (panoseVal != null)
             {
                 var hexBytes = panoseVal.AsStringBytes();
-                if (hexBytes != null)
+                if (!hexBytes.IsEmpty)
                 {
-                    descriptor.Panose = hexBytes;
-                }
-                else
-                {
-                    var str = panoseVal.AsString();
-                    if (!string.IsNullOrEmpty(str))
-                    {
-                        descriptor.Panose = System.Text.Encoding.ASCII.GetBytes(str);
-                    }
+                    descriptor.Panose = hexBytes.ToArray();
                 }
             }
 
@@ -124,39 +147,28 @@ namespace PdfReader.Fonts.Types
             return descriptor;
         }
 
-        private static (PdfObject Object, FontFileFormat Format) GetFileObjectAndFormat(PdfDictionary dict)
+        private static (PdfObject Object, PdfFontFileFormat Format) GetFileObjectAndFormat(PdfDictionary dict)
         {
             // Get font file object and determine format (only one exists at a time)
             // Priority order: FontFile2 (TrueType), FontFile3 (check /Subtype), FontFile (Type1)
             var fontFile2Obj = dict.GetPageObject(PdfTokens.FontFile2Key);
             if (fontFile2Obj != null)
             {
-                return (fontFile2Obj, FontFileFormat.TrueType);
+                return (fontFile2Obj, PdfFontFileFormat.TrueType);
             }
 
             var fontFile3Obj = dict.GetPageObject(PdfTokens.FontFile3Key);
             if (fontFile3Obj != null)
             {
-                // For FontFile3 the actual program type is specified by the stream dictionary /Subtype (Name with leading '/')
-                var subType = fontFile3Obj.Dictionary?.GetName(PdfTokens.SubtypeKey);
-                switch (subType)
-                {
-                    case "/Type1C":
-                        return (fontFile3Obj, FontFileFormat.Type1C);
-                    case "/CIDFontType0C":
-                        return (fontFile3Obj, FontFileFormat.CIDFontType0C);
-                    case "/OpenType":
-                        return (fontFile3Obj, FontFileFormat.OpenType);
-                    default:
-                        // Unknown/unspecified subtype for FontFile3; assume OpenType wrapper
-                        return (fontFile3Obj, FontFileFormat.OpenType);
-                }
+                // For FontFile3 the actual program type is specified by the stream dictionary /Subtype
+                var subType = fontFile3Obj.Dictionary.GetName(PdfTokens.SubtypeKey).AsEnum<PdfFontFileFormat>();
+                return (fontFile3Obj, subType);
             }
 
             var fontFileObj = dict.GetPageObject(PdfTokens.FontFileKey);
             if (fontFileObj != null)
             {
-                return (fontFileObj, FontFileFormat.Type1);
+                return (fontFileObj, PdfFontFileFormat.Type1);
             }
 
             return default;

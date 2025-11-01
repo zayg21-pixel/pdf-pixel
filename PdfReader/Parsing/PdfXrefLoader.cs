@@ -248,7 +248,7 @@ namespace PdfReader.Parsing
                 _logger.LogDebug("PdfXrefLoader: Xref stream object value not a dictionary.");
                 return null;
             }
-            string typeName = dictionary.GetName(PdfTokens.TypeKey);
+            var typeName = dictionary.GetName(PdfTokens.TypeKey);
             if (typeName != PdfTokens.XRefKey)
             {
                 _logger.LogDebug("PdfXrefLoader: Object at offset {Offset} is not /Type /XRef (type={Type}).", context.Position, typeName);

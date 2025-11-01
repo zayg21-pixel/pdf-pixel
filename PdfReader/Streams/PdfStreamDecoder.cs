@@ -6,6 +6,7 @@ using PdfReader.Models;
 using CommunityToolkit.HighPerformance;
 using System.Linq;
 using Microsoft.Extensions.Logging;
+using PdfReader.Text;
 
 namespace PdfReader.Streams
 {
@@ -54,7 +55,7 @@ namespace PdfReader.Streams
             return DecodeAsStream(obj.StreamData, filters, decodeParameters);
         }
 
-        private Stream DecodeAsStream(ReadOnlyMemory<byte> streamData, List<string> filters, List<PdfDictionary> decodeParameters)
+        private Stream DecodeAsStream(ReadOnlyMemory<byte> streamData, List<PdfFilterType> filters, List<PdfDictionary> decodeParameters)
         {
             Stream current = streamData.AsStream();
 
@@ -65,42 +66,42 @@ namespace PdfReader.Streams
 
             for (int filterIndex = 0; filterIndex < filters.Count; filterIndex++)
             {
-                string filter = filters[filterIndex];
+                PdfFilterType filter = filters[filterIndex];
                 switch (filter)
                 {
-                    case PdfTokens.DCTDecode:
-                    case PdfTokens.JPXDecode:
-                    case PdfTokens.JBIG2Decode:
-                    case PdfTokens.CCITTFaxDecode:
+                    case PdfFilterType.DCTDecode:
+                    case PdfFilterType.JPXDecode:
+                    case PdfFilterType.JBIG2Decode:
+                    case PdfFilterType.CCITTFaxDecode:
                     {
                         return current;
                     }
-                    case PdfTokens.FlateDecode:
+                    case PdfFilterType.FlateDecode:
                     {
                         current = DecompressFlateData(current);
                         break;
                     }
-                    case PdfTokens.ASCIIHexDecode:
+                    case PdfFilterType.ASCIIHexDecode:
                     {
                         current = new AsciiHexDecodeStream(current, leaveOpen: false);
                         break;
                     }
-                    case PdfTokens.ASCII85Decode:
+                    case PdfFilterType.ASCII85Decode:
                     {
                         _logger.LogWarning("PdfStreamDecoder: TODO implement ASCII85Decode; stopping further filter decoding.");
                         return current; // TODO implement ASCII85Decode; stopping further filter decoding.
                     }
-                    case PdfTokens.LZWDecode:
+                    case PdfFilterType.LZWDecode:
                     {
                         _logger.LogWarning("PdfStreamDecoder: TODO implement LZWDecode; stopping further filter decoding (predictor may be pending).");
                         return current; // TODO implement LZWDecode; stopping further filter decoding (predictor may be pending).
                     }
-                    case PdfTokens.RunLengthDecode:
+                    case PdfFilterType.RunLengthDecode:
                     {
                         _logger.LogWarning("PdfStreamDecoder: TODO implement RunLengthDecode; stopping further filter decoding.");
                         return current; // TODO implement RunLengthDecode; stopping further filter decoding.
                     }
-                    case PdfTokens.Crypt:
+                    case PdfFilterType.Crypt:
                     {
                         _logger.LogWarning("PdfStreamDecoder: TODO implement Crypt filter integration; returning partially decoded stream.");
                         return current; // TODO implement Crypt filter integration; returning partially decoded stream.
@@ -113,7 +114,7 @@ namespace PdfReader.Streams
                 }
 
                 var parametersForFilter = GetDecodeParmsForIndex(filterIndex, decodeParameters);
-                if (parametersForFilter != null && (filter == PdfTokens.FlateDecode || filter == PdfTokens.LZWDecode))
+                if (parametersForFilter != null && (filter == PdfFilterType.FlateDecode || filter == PdfFilterType.LZWDecode))
                 {
                     current = ApplyPredictorIfNeeded(current, parametersForFilter);
                 }
@@ -127,33 +128,35 @@ namespace PdfReader.Streams
         /// </summary>
         /// <param name="obj">Source object.</param>
         /// <returns>Collection of filters.</returns>
-        public static List<string> GetFilters(PdfObject obj)
+        public static List<PdfFilterType> GetFilters(PdfObject obj)
         {
-            var filters = new List<string>();
-            if (obj == null || obj.Dictionary == null)
+            var filters = new List<PdfFilterType>();
+            if (obj == null)
             {
                 return filters;
             }
+
             var filterArray = obj.Dictionary.GetArray(PdfTokens.FilterKey);
             if (filterArray != null)
             {
                 for (int index = 0; index < filterArray.Count; index++)
                 {
-                    var name = filterArray.GetName(index);
-                    if (!string.IsNullOrEmpty(name))
+                    var filterType = filterArray.GetName(index).AsEnum<PdfFilterType>();
+                    if (filterType != PdfFilterType.Unknown)
                     {
-                        filters.Add(name);
+                        filters.Add(filterType);
                     }
                 }
             }
             else
             {
-                var single = obj.Dictionary.GetName(PdfTokens.FilterKey);
-                if (!string.IsNullOrEmpty(single))
+                var filterType = obj.Dictionary.GetName(PdfTokens.FilterKey).AsEnum<PdfFilterType>();
+                if (filterType != PdfFilterType.Unknown)
                 {
-                    filters.Add(single);
+                    filters.Add(filterType);
                 }
             }
+
             return filters;
         }
 

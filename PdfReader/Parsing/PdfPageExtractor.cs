@@ -158,7 +158,7 @@ namespace PdfReader.Parsing
         /// <summary>
         /// Walk up the page tree resolving an inherited value.
         /// </summary>
-        private IPdfValue GetInheritedValue(PdfObject pageObj, string key)
+        private IPdfValue GetInheritedValue(PdfObject pageObj, PdfString key)
         {
             var currentObj = pageObj;
             var visited = new HashSet<int>();

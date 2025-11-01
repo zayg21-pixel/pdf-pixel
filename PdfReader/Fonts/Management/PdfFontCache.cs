@@ -94,7 +94,7 @@ namespace PdfReader.Fonts.Management
             var descriptor = font.FontDescriptor;
             var flags = descriptor?.Flags ?? PdfFontFlags.None;
 
-            if (descriptor != null && (descriptor.FontFileFormat == FontFileFormat.Type1C || descriptor.FontFileFormat == FontFileFormat.CIDFontType0C))
+            if (descriptor != null && (descriptor.FontFileFormat == PdfFontFileFormat.Type1C || descriptor.FontFileFormat == PdfFontFileFormat.CIDFontType0C))
             {
                 var cffInfo = GetCffInfo(descriptor);
                 if (cffInfo != null)
@@ -155,7 +155,7 @@ namespace PdfReader.Fonts.Management
         {
             try
             {
-                if (decriptor.HasEmbeddedFont && decriptor.FontFileFormat == FontFileFormat.Type1C || decriptor.FontFileFormat == FontFileFormat.CIDFontType0C)
+                if (decriptor.HasEmbeddedFont && decriptor.FontFileFormat == PdfFontFileFormat.Type1C || decriptor.FontFileFormat == PdfFontFileFormat.CIDFontType0C)
                 {
                     var decoded = _document.StreamDecoder.DecodeContentStream(decriptor.FontFileObject);
 

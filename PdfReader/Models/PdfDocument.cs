@@ -51,7 +51,7 @@ namespace PdfReader.Models
         /// </summary>
         internal Dictionary<PdfReference, PdfColorSpaceConverter> ColorSpaceConverters { get; } = new Dictionary<PdfReference, PdfColorSpaceConverter>();
 
-        public PdfCMap GetCmap(string name)
+        public PdfCMap GetCmap(PdfString name)
         {
             return null;
             // TODO: Implement standard CMap retrieval (predefined and embedded)

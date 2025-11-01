@@ -1,6 +1,7 @@
 using PdfReader.Rendering;
 using PdfReader.Rendering.Color;
 using PdfReader.Rendering.Functions;
+using PdfReader.Text;
 using SkiaSharp;
 using System.Collections.Generic;
 
@@ -99,7 +100,7 @@ namespace PdfReader.Models
 
             var colorSpaceValue = rawDictionary.GetValue(PdfTokens.ColorSpaceKey);
             ColorSpaceConverter = PdfColorSpaces.ResolveByValue(colorSpaceValue, page);
-            RenderingIntent = PdfRenderingIntentUtilities.ParseRenderingIntent(rawDictionary.GetName(PdfTokens.IntentKey));
+            RenderingIntent = rawDictionary.GetName(PdfTokens.IntentKey).AsEnum<PdfRenderingIntent>();
 
             C0 = rawDictionary.GetArray(PdfTokens.C0Key)?.GetFloatArray();
             C1 = rawDictionary.GetArray(PdfTokens.C1Key)?.GetFloatArray();

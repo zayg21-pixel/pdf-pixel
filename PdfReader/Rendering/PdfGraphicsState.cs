@@ -36,19 +36,6 @@ namespace PdfReader.Rendering
         /// </summary>
         public PdfPaint FillPaint { get; set; } = PdfPaint.Solid(SKColors.Black);
 
-        // --------------------------------------------------------------------------------------
-        // Legacy compatibility (read-only projections of StrokePaint / FillPaint)
-        // --------------------------------------------------------------------------------------
-        /// <summary>
-        /// Current stroking color in sRGB (projection of StrokePaint.Color).
-        /// </summary>
-        public SKColor StrokeColor => StrokePaint?.Color ?? SKColors.Black;
-
-        /// <summary>
-        /// Current non-stroking (fill) color in sRGB (projection of FillPaint.Color).
-        /// </summary>
-        public SKColor FillColor => FillPaint?.Color ?? SKColors.Black;
-
         /// <summary>
         /// Rendering intent (ri operator). Defaults to RelativeColorimetric per spec.
         /// </summary>
@@ -165,7 +152,7 @@ namespace PdfReader.Rendering
         /// <summary>
         /// Current font resource name (from Tf operator) or null.
         /// </summary>
-        public string CurrentFont { get; set; }
+        public PdfString CurrentFont { get; set; }
 
         /// <summary>
         /// Font size (Tf operator). Default 1.

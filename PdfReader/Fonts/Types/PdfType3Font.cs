@@ -1,5 +1,6 @@
 using PdfReader.Fonts.Mapping;
 using PdfReader.Models;
+using PdfReader.Text;
 using System;
 
 namespace PdfReader.Fonts.Types
@@ -22,7 +23,7 @@ namespace PdfReader.Fonts.Types
         /// <param name="fontObject">PDF dictionary containing the font definition</param>
         public PdfType3Font(PdfDictionary fontDictionary) : base(fontDictionary)
         {
-            if (Type != PdfFontType.Type3)
+            if (Type != PdfFontSubType.Type3)
                 throw new ArgumentException("Font dictionary must be Type3");
 
             // Get CharProcs dictionary - essential for Type3 fonts
@@ -88,7 +89,7 @@ namespace PdfReader.Fonts.Types
         /// </summary>
         /// <param name="charCode">Character code to get glyph for</param>
         /// <returns>PDF object containing the glyph definition, or null if not found</returns>
-        public PdfObject GetCharacterProcedure(int charCode)
+        public PdfObject GetCharacterProcedure(byte charCode)
         {
             if (CharProcs == null)
                 return null;
@@ -96,7 +97,7 @@ namespace PdfReader.Fonts.Types
             // Convert character code to character name
             // This may need encoding-specific logic
             var charName = GetCharacterName(charCode);
-            if (charName == null)
+            if (charName.IsEmpty)
                 return null;
 
             return CharProcs.GetPageObject(charName);
@@ -106,17 +107,18 @@ namespace PdfReader.Fonts.Types
         /// Get all available character names in this Type3 font
         /// </summary>
         /// <returns>Array of character names, or empty array if CharProcs is null</returns>
-        public string[] GetAvailableCharacterNames()
+        public PdfString[] GetAvailableCharacterNames()
         {
             if (CharProcs == null)
-                return new string[0];
+                return [];
 
-            var names = new string[CharProcs.Count];
+            var names = new PdfString[CharProcs.Count];
             var i = 0;
             foreach (var key in CharProcs.RawValues.Keys)
             {
                 names[i++] = key;
             }
+
             return names;
         }
 
@@ -137,19 +139,15 @@ namespace PdfReader.Fonts.Types
             }
         }
 
+        public override PdfFontEncoding Encoding => Encoding == PdfFontEncoding.Unknown ? PdfFontEncoding.StandardEncoding : base.Encoding;
+
         /// <summary>
         /// Convert character code to character name based on encoding
-        /// This is a simplified implementation - may need enhancement for complex encodings
         /// </summary>
-        private string GetCharacterName(int charCode)
+        private PdfString GetCharacterName(byte charCode)
         {
-            // For now, use simple mapping
-            // TODO: Implement proper encoding-based character name resolution
-            if (charCode >= 0 && charCode <= 255)
-            {
-                return $"/{charCode:X2}"; // Use hex representation as placeholder
-            }
-            return null;
+            string codeName = SingleByteEncodings.GetNameByCodeOrDefault(charCode, Encoding, Differences);
+            return PdfString.FromString(codeName);
         }
 
         /// <summary>
