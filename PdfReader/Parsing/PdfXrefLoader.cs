@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using Microsoft.Extensions.Logging;
 using PdfReader.Models;
-using PdfReader.Streams;
 
 namespace PdfReader.Parsing
 {

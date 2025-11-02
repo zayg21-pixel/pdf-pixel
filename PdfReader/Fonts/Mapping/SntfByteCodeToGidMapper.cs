@@ -1,4 +1,5 @@
 ﻿using PdfReader.Fonts.Types;
+using PdfReader.Models;
 using PdfReader.Text;
 using SkiaSharp;
 using System;
@@ -14,11 +15,11 @@ namespace PdfReader.Fonts.Mapping
     internal class SntfByteCodeToGidMapper : IByteCodeToGidMapper
     {
         private readonly ushort[] _codeToGid; // Direct Format 0/4 for symbolic fonts
-        private readonly Dictionary<string, ushort> _nameToGid;
+        private readonly Dictionary<PdfString, ushort> _nameToGid;
         private readonly Dictionary<string, ushort> _unicodeToGid;
         private readonly PdfFontFlags _flags;
         private readonly PdfFontEncoding _encoding;
-        private readonly Dictionary<int, string> _differences;
+        private readonly Dictionary<int, PdfString> _differences;
         private readonly PdfCMap _toUnicodeCMap;
         private readonly FontTableInfo _tableInfo;
 
@@ -34,7 +35,7 @@ namespace PdfReader.Fonts.Mapping
             SKTypeface typeface,
             PdfFontFlags flags,
             PdfFontEncoding encoding,
-            Dictionary<int, string> differences,
+            Dictionary<int, PdfString> differences,
             PdfCMap toUnicodeCMap)
         {
             if (typeface == null)
@@ -73,7 +74,7 @@ namespace PdfReader.Fonts.Mapping
                 return _codeToGid[code];
             }
 
-            string name = SingleByteEncodings.GetNameByCode(code, _encoding, _differences);
+            PdfString name = SingleByteEncodings.GetNameByCode(code, _encoding, _differences);
 
             if (name == null)
             {
@@ -194,9 +195,9 @@ namespace PdfReader.Fonts.Mapping
         /// </summary>
         /// <param name="info">FontTableInfo struct with table data and offsets.</param>
         /// <returns>Dictionary mapping glyph names to GIDs.</returns>
-        private static Dictionary<string, ushort> ExtractNameToGid(FontTableInfo info)
+        private static Dictionary<PdfString, ushort> ExtractNameToGid(FontTableInfo info)
         {
-            var nameToGid = new Dictionary<string, ushort>(StringComparer.Ordinal);
+            var nameToGid = new Dictionary<PdfString, ushort>();
 
             // Merge post table (format 1.0 or 2.0)
             if (info.PostData != null)
@@ -222,15 +223,15 @@ namespace PdfReader.Fonts.Mapping
             // Merge CMap format 0
             if (info.CmapData != null && info.Format0Offset >= 0)
             {
-                string[] encodingNames = SingleByteEncodings.GetEncodingSet(info.Format0Encoding);
+                PdfString[] encodingNames = SingleByteEncodings.GetEncodingSet(info.Format0Encoding);
                 if (encodingNames != null)
                 {
                     var cmapMap = SnftCMapParser.ParseFormat0(info.CmapData, info.Format0Offset);
                     for (int code = 0; code < 256; code++)
                     {
-                        string glyphName = encodingNames[code];
+                        PdfString glyphName = encodingNames[code];
                         
-                        if (!string.IsNullOrEmpty(glyphName))
+                        if (!glyphName.IsEmpty)
                         {
                             nameToGid[glyphName] = cmapMap[code];
                         }

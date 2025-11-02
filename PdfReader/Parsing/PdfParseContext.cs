@@ -10,14 +10,12 @@ namespace PdfReader.Parsing
     /// </summary>
     public ref struct PdfParseContext
     {
-        // Single memory optimization fields - used when _isSingleMemory is true
         private readonly ReadOnlyMemory<byte> _singleMemory;
         private readonly ReadOnlySpan<byte> _singleSpan;
         private int _position;
         private readonly int _length;
         private readonly bool _isSingleMemory;
 
-        // Multi-memory field - used when _isSingleMemory is false
         private SequentialMemoryReader _reader;
 
         // Single memory constructors (optimized fast path)
@@ -101,6 +99,11 @@ namespace PdfReader.Parsing
         /// Indicates whether this context contains a single memory chunk (for optimization)
         /// </summary>
         public bool IsSingleMemory => _isSingleMemory;
+
+        /// <summary>
+        /// Gets the original memory segment represented as a read-only sequence of bytes.
+        /// </summary>
+        public ReadOnlyMemory<byte> OriginalMemory => _isSingleMemory ? _singleMemory : default;
 
         /// <summary>
         /// Peek at a byte without advancing position (optimized for single memory)
@@ -230,9 +233,5 @@ namespace PdfReader.Parsing
                 return _reader.GetSlice(length);
             }
         }
-
-        // Legacy properties for backward compatibility (deprecated but maintained)
-        public ReadOnlySpan<byte> Buffer => _isSingleMemory ? _singleSpan : ReadOnlySpan<byte>.Empty;
-        public ReadOnlyMemory<byte> OriginalMemory => _isSingleMemory ? _singleMemory : default;
     }
 }

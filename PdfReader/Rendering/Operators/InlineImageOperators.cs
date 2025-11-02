@@ -39,37 +39,33 @@ namespace PdfReader.Rendering.Operators
             return SupportedOperators.Contains(op);
         }
 
-        public void ProcessOperator(string op, ref PdfParseContext parseContext, ref PdfGraphicsState graphicsState)
+        public void ProcessOperator(string op, ref PdfGraphicsState graphicsState)
         {
             switch (op)
             {
                 case "BI":
                 {
-                    ProcessBeginInlineImage();
+                    // Begin Inline Image - no action needed, parameters will be collected on stack
                     break;
                 }
                 case "ID":
                 {
-                    ProcessInlineImageData(ref parseContext, graphicsState);
+                    // Inline Image - comsumed by EI operator, so no action needed here
                     break;
                 }
                 case "EI":
                 {
-                    ProcessUnexpectedEndInlineImage();
+                    ProcessEndInlineImage(ref graphicsState);
                     break;
                 }
             }
         }
 
-        private void ProcessBeginInlineImage()
-        {
-            // Marker only – parameters accumulate on operand stack until ID.
-        }
-
-        private void ProcessInlineImageData(ref PdfParseContext parseContext, PdfGraphicsState graphicsState)
+        private void ProcessEndInlineImage(ref PdfGraphicsState graphicsState)
         {
             try
             {
+                var image = _operandStack.Pop();
                 var parameterValues = new List<IPdfValue>(_operandStack);
                 parameterValues.Reverse();
                 _operandStack.Clear();
@@ -80,27 +76,10 @@ namespace PdfReader.Rendering.Operators
                     return;
                 }
 
-                SkipSingleWhitespaceAfterId(ref parseContext);
-
-                int dataStart = parseContext.Position;
-                int dataEnd = FindInlineImageDataEnd(ref parseContext, dataStart);
-                if (dataEnd < 0)
-                {
-                    _logger.LogWarning("Could not locate inline image EI sentinel – skipping image");
-                    return;
-                }
-
-                int dataLength = dataEnd - dataStart;
-                ReadOnlyMemory<byte> imageDataMemory = dataLength > 0
-                    ? ExtractImageDataSlice(ref parseContext, dataStart, dataLength)
-                    : ReadOnlyMemory<byte>.Empty;
-
-                // Advance past EI
-                parseContext.Position = dataEnd + 2;
 
                 var inlineObject = new PdfObject(new PdfReference(-1), _page.Document, PdfValue.Dictionary(imageDictionary))
                 {
-                    StreamData = imageDataMemory
+                    StreamData = image.AsString().Value
                 };
 
                 var pdfImage = PdfImage.FromXObject(inlineObject, _page, name: PdfString.Empty, isSoftMask: false);
@@ -165,56 +144,6 @@ namespace PdfReader.Rendering.Operators
             }
 
             return imageDictionary;
-        }
-
-        private void SkipSingleWhitespaceAfterId(ref PdfParseContext parseContext)
-        {
-            if (parseContext.IsAtEnd)
-            {
-                return;
-            }
-
-            var next = parseContext.PeekByte();
-            if (PdfParsingHelpers.IsWhitespace(next))
-            {
-                parseContext.Advance(1);
-            }
-        }
-
-        private ReadOnlyMemory<byte> ExtractImageDataSlice(ref PdfParseContext parseContext, int dataStart, int dataLength)
-        {
-            if (parseContext.IsSingleMemory)
-            {
-                return parseContext.OriginalMemory.Slice(dataStart, dataLength);
-            }
-
-            var span = parseContext.GetSlice(dataStart, dataLength);
-            return new ReadOnlyMemory<byte>(span.ToArray());
-        }
-
-        private int FindInlineImageDataEnd(ref PdfParseContext context, int start)
-        {
-            if (!context.IsSingleMemory)
-            {
-                return -1; // Multi-chunk fallback not implemented.
-            }
-
-            var span = context.OriginalMemory.Span;
-            int length = span.Length;
-            for (int index = start; index + 1 < length; index++)
-            {
-                if (span[index] == (byte)'E' && span[index + 1] == (byte)'I')
-                {
-                    bool precedingWhitespace = index - 1 >= start && PdfParsingHelpers.IsWhitespace(span[index - 1]);
-                    byte following = index + 2 < length ? span[index + 2] : (byte)0;
-                    bool followingDelimiter = index + 2 >= length || PdfParsingHelpers.IsWhitespace(following) || PdfParsingHelpers.IsDelimiter(following);
-                    if (precedingWhitespace && followingDelimiter)
-                    {
-                        return index;
-                    }
-                }
-            }
-            return -1;
         }
 
         private IPdfValue NormalizeInlineImageValue(PdfString expandedKey, IPdfValue value)
@@ -347,11 +276,6 @@ namespace PdfReader.Rendering.Operators
                 default:
                     return PdfFilterType.Unknown;
             }
-        }
-
-        private void ProcessUnexpectedEndInlineImage()
-        {
-            _logger.LogWarning("Unexpected EI operator encountered standalone");
         }
     }
 }

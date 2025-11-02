@@ -14,7 +14,7 @@ namespace PdfReader.Fonts.Cff
     internal class CffSidGidMapper
     {
         // Constants (avoid magic numbers)
-        private const string NotDefGlyphName = ".notdef";
+        private static readonly PdfString NotDefGlyphName = ".notdef"u8;
 
         private const int PredefinedCharsetIsoAdobe = 0;      // ISOAdobe charset id
         private const int PredefinedCharsetExpert = 1;        // Expert charset id
@@ -47,7 +47,7 @@ namespace PdfReader.Fonts.Cff
         private const int FirstRealGlyphGid = 1;              // GID 0 reserved for .notdef
 
         // Cache for fast name->SID lookup over the StandardStrings table (O(1) instead of O(n)).
-        private static readonly Dictionary<string, ushort> StandardNameToSid = BuildStandardNameToSid();
+        private static readonly Dictionary<PdfString, ushort> StandardNameToSid = BuildStandardNameToSid();
 
         private readonly ILogger<CffSidGidMapper> _logger;
 
@@ -61,13 +61,13 @@ namespace PdfReader.Fonts.Cff
             _logger = document.LoggerFactory.CreateLogger<CffSidGidMapper>();
         }
 
-        private static Dictionary<string, ushort> BuildStandardNameToSid()
+        private static Dictionary<PdfString, ushort> BuildStandardNameToSid()
         {
-            var standardNameToSidMap = new Dictionary<string, ushort>(CffData.StandardStrings.Length, StringComparer.Ordinal);
+            var standardNameToSidMap = new Dictionary<PdfString, ushort>(CffData.StandardStrings.Length);
             for (ushort sid = 0; sid < CffData.StandardStrings.Length; sid++)
             {
                 var standardName = CffData.StandardStrings[sid];
-                if (!string.IsNullOrEmpty(standardName) && !standardNameToSidMap.ContainsKey(standardName))
+                if (!standardName.IsEmpty && !standardNameToSidMap.ContainsKey(standardName))
                 {
                     standardNameToSidMap[standardName] = sid;
                 }
@@ -195,28 +195,28 @@ namespace PdfReader.Fonts.Cff
                 {
                     return false;
                 }
-                var customStrings = new string[stringIndexCount];
+                var customStrings = new PdfString[stringIndexCount];
                 for (int stringIndex = 0; stringIndex < stringIndexCount; stringIndex++)
                 {
                     int start = stringIndexDataStart + (stringIndexOffsets[stringIndex] - 1);
                     int end = stringIndexDataStart + (stringIndexOffsets[stringIndex + 1] - 1);
                     if (start < 0 || end < start || end > cffBytes.Length)
                     {
-                        customStrings[stringIndex] = string.Empty;
+                        customStrings[stringIndex] = default;
                         continue;
                     }
                     var slice = cffBytes.Slice(start, end - start);
-                    customStrings[stringIndex] = Encoding.ASCII.GetString(slice.ToArray());
+                    customStrings[stringIndex] = slice;
                 }
 
                 // Build name->GID & SID->GID maps
-                var glyphNameToGid = new Dictionary<string, ushort>(glyphCount, StringComparer.Ordinal);
+                var glyphNameToGid = new Dictionary<PdfString, ushort>(glyphCount);
                 for (ushort glyphId = 0; glyphId < sidByGlyph.Length; glyphId++)
                 {
                     ushort sid = sidByGlyph[glyphId];
 
-                    string glyphName = ResolveGlyphName(sid, customStrings);
-                    if (!string.IsNullOrEmpty(glyphName) && !glyphNameToGid.ContainsKey(glyphName))
+                    PdfString glyphName = ResolveGlyphName(sid, customStrings);
+                    if (!glyphName.IsEmpty && !glyphNameToGid.ContainsKey(glyphName))
                     {
                         glyphNameToGid[glyphName] = glyphId;
                     }
@@ -271,7 +271,7 @@ namespace PdfReader.Fonts.Cff
             }
         }
 
-        private static string ResolveGlyphName(ushort sid, string[] customStrings)
+        private static PdfString ResolveGlyphName(ushort sid, PdfString[] customStrings)
         {
             if (sid < CffData.StandardStrings.Length)
             {
@@ -284,10 +284,10 @@ namespace PdfReader.Fonts.Cff
                 return customStrings[customIndex];
             }
 
-            return null;
+            return default;
         }
 
-        private static string[] GetCharsetNames(int charsetId)
+        private static PdfString[] GetCharsetNames(int charsetId)
         {
             switch (charsetId)
             {
@@ -298,7 +298,7 @@ namespace PdfReader.Fonts.Cff
                 case PredefinedCharsetExpertSubset:
                     return CffData.ExpertSubsetStrings; // ExpertSubset charset
                 default:
-                    return Array.Empty<string>();
+                    return Array.Empty<PdfString>();
             }
         }
 
@@ -377,14 +377,14 @@ namespace PdfReader.Fonts.Cff
             sidByGlyph = new ushort[glyphCount];
             sidByGlyph[0] = NotDefSid; // .notdef
 
-            string[] charsetGlyphNames = GetCharsetNames(charsetId);
-            var seenNames = new HashSet<string>(StringComparer.Ordinal);
+            PdfString[] charsetGlyphNames = GetCharsetNames(charsetId);
+            var seenNames = new HashSet<PdfString>();
 
             int glyphId = FirstRealGlyphGid;
             for (int i = 0; i < charsetGlyphNames.Length && glyphId < glyphCount; i++)
             {
                 var glyphName = charsetGlyphNames[i];
-                if (string.IsNullOrEmpty(glyphName) || glyphName == NotDefGlyphName)
+                if (glyphName.IsEmpty || glyphName == NotDefGlyphName)
                 {
                     continue;
                 }
@@ -402,7 +402,7 @@ namespace PdfReader.Fonts.Cff
             return true;
         }
 
-        private static bool TryGetStandardSid(string name, out ushort sid)
+        private static bool TryGetStandardSid(PdfString name, out ushort sid)
         {
             if (StandardNameToSid != null && StandardNameToSid.TryGetValue(name, out sid))
             {

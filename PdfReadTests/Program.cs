@@ -106,7 +106,7 @@ namespace PdfReadTests
                     Logger.LogInformation("Root object: {Root}", document.RootObject);
 
                     var start = 0;
-                    var max = 10000;
+                    var max = 1000;
                     float scaleX = 0.1f; // Scale factor for rendering
 
                     // Analyze pages with detailed content stream debugging
@@ -146,12 +146,17 @@ namespace PdfReadTests
                             }
 
                             //// Save as PNG (optional)
-                            var filename_png = $"{basePath}\\{name}_page_{page.PageNumber}.jpg";
-                            using (var image = surface.Snapshot())
-                            using (var data = image.Encode(SKEncodedImageFormat.Jpeg, 100))
-                            using (var fileStream = File.OpenWrite(filename_png))
+                            //var filename_png = $"{basePath}\\{name}_page_{page.PageNumber}.jpg";
+                            //using (var image = surface.Snapshot())
+                            //using (var data = image.Encode(SKEncodedImageFormat.Jpeg, 100))
+                            //using (var fileStream = File.OpenWrite(filename_png))
+                            //{
+                            //    data.SaveTo(fileStream);
+                            //}
+
+                            if (page.PageNumber == document.PageCount - 10)
                             {
-                                data.SaveTo(fileStream);
+                                Console.WriteLine("Rendered page saved to: ");
                             }
 
                             //var recording = CreateRecording(page);

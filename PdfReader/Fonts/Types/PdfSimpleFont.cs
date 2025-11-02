@@ -91,7 +91,7 @@ namespace PdfReader.Fonts.Types
                 return 0;
             }
 
-            string name = SingleByteEncodings.GetNameByCode((byte)(uint)code, Encoding, Differences);
+            var name = SingleByteEncodings.GetNameByCode((byte)(uint)code, Encoding, Differences);
 
             var mapper = _mapper.Value;
 

@@ -9,7 +9,7 @@ namespace PdfReader.Fonts.Mapping
     /// </summary>
     public struct PdfFontEncodingInfo
     {
-        public PdfFontEncodingInfo(PdfFontEncoding encoding, PdfString customEncoding, Dictionary<int, string> differences)
+        public PdfFontEncodingInfo(PdfFontEncoding encoding, PdfString customEncoding, Dictionary<int, PdfString> differences)
         {
             Encoding = encoding;
             CustomEncoding = customEncoding;
@@ -30,6 +30,6 @@ namespace PdfReader.Fonts.Mapping
         /// Differences array parsed from /Encoding dictionary as a code -> glyph name map.
         /// Empty for name-based encodings or when not present.
         /// </summary>
-        public Dictionary<int, string> Differences { get; }
+        public Dictionary<int, PdfString> Differences { get; }
     }
 }

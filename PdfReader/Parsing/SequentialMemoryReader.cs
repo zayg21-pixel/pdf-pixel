@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 
 namespace PdfReader.Parsing
 {
@@ -184,21 +185,22 @@ namespace PdfReader.Parsing
             if (length > available)
                 length = available;
 
-            // Fast path: slice is entirely in current chunk (O(1))
-            if (_currentChunkIndex < _chunks.Count)
+            // Fast path: find which chunk contains the start and check if slice fits entirely in that chunk
+            int targetChunkIndex = BinarySearchChunk(start);
+            if (targetChunkIndex < _chunks.Count)
             {
-                int chunkStart = _chunkStartPositions[_currentChunkIndex];
-                int chunkEnd = _chunkStartPositions[_currentChunkIndex + 1];
+                int chunkStart = _chunkStartPositions[targetChunkIndex];
+                int chunkEnd = _chunkStartPositions[targetChunkIndex + 1];
                 
                 if (start >= chunkStart && start + length <= chunkEnd)
                 {
-                    // Slice is entirely in current chunk - use cached span directly
+                    // Slice is entirely in target chunk - use direct access
                     int offsetInChunk = start - chunkStart;
-                    return _currentChunkSpan.Slice(offsetInChunk, length);
+                    return _chunks[targetChunkIndex].Span.Slice(offsetInChunk, length);
                 }
             }
 
-            // Slow path: slice is in different chunk(s) - need to set position temporarily
+            // Slow path: slice spans multiple chunks - need to set position temporarily and copy
             int originalPosition = _totalPosition;
             int originalChunkIndex = _currentChunkIndex;
             int originalPositionInChunk = _positionInCurrentChunk;
@@ -335,6 +337,7 @@ namespace PdfReader.Parsing
         /// Binary search to find which chunk contains the given position
         /// Returns chunk index (O(log n) instead of O(n))
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private int BinarySearchChunk(int position)
         {
             int left = 0;

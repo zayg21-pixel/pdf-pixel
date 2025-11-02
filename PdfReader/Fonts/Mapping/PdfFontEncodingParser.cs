@@ -42,7 +42,7 @@ namespace PdfReader.Fonts.Mapping
                 // Base encoding name (optional); default per spec is StandardEncoding for Type1/Type3, WinAnsi for TrueType
                 var baseEncoding = encDict.GetName(PdfTokens.BaseEncodingKey).AsEnum<PdfFontEncoding>();
 
-                var differences = new Dictionary<int, string>();
+                var differences = new Dictionary<int, PdfString>();
                 var diffs = encDict.GetArray(PdfTokens.DifferencesKey);
 
                 if (diffs != null)
@@ -63,7 +63,7 @@ namespace PdfReader.Fonts.Mapping
                         }
                         else if (item.Type == PdfValueType.Name && currentCode >= 0)
                         {
-                            differences[currentCode] = item.AsName().ToString();
+                            differences[currentCode] = item.AsName();
                             currentCode++;
                         }
                     }

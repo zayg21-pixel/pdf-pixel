@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Runtime.CompilerServices;
 
 namespace PdfReader.Models
@@ -9,18 +10,24 @@ namespace PdfReader.Models
     /// </summary>
     public class PdfArray
     {
-        private readonly List<IPdfValue> _items = new List<IPdfValue>();
+        private readonly IPdfValue[] _items;
 
-        public PdfArray(PdfDocument document, List<IPdfValue> items)
+        public PdfArray(PdfDocument document, IPdfValue[] items)
         {
             Document = document;
-            _items = items ?? new List<IPdfValue>();
+            _items = items ?? Array.Empty<IPdfValue>();
+        }
+
+        public PdfArray(PdfDocument document, IList<IPdfValue> items)
+        {
+            Document = document;
+            _items = items?.ToArray() ?? Array.Empty<IPdfValue>();
         }
 
         /// <summary>
         /// Raw values for internal access.
         /// </summary>
-        internal List<IPdfValue> RawValues => _items;
+        internal IList<IPdfValue> RawValues => _items;
 
         /// <summary>
         /// Owning document used for reference resolution.
@@ -30,7 +37,7 @@ namespace PdfReader.Models
         /// <summary>
         /// Number of items in the array.
         /// </summary>
-        public int Count => _items.Count;
+        public int Count => _items.Length;
 
         /// <summary>
         /// Get the raw (resolved) value at an index or null if out of range.
@@ -177,7 +184,7 @@ namespace PdfReader.Models
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private bool IsValidIndex(int index)
         {
-            return index >= 0 && index < _items.Count;
+            return index >= 0 && index < _items.Length;
         }
     }
 }

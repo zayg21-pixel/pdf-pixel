@@ -39,6 +39,7 @@ namespace PdfReader.Models
                 PdfValueType.Reference => _value.ToString(),
                 PdfValueType.Array => _value is List<IPdfValue> list ? $"[{list.Count} items]" : "[array]",
                 PdfValueType.Dictionary => _value is PdfDictionary dict ? $"<< {dict.Count} entries >>" : "<<dictionary>>",
+                PdfValueType.InlineStream => "[inline stream]",
                 _ => "null"
             };
         }
@@ -50,6 +51,7 @@ namespace PdfReader.Models
         public static IPdfValue<PdfString> Name(PdfString value) => new PdfValue<PdfString>(value, PdfValueType.Name);
         public static IPdfValue<PdfString> String(PdfString value) => new PdfValue<PdfString>(value, PdfValueType.String);
         public static IPdfValue<PdfString> Operator(PdfString value) => new PdfValue<PdfString>(value, PdfValueType.Operator);
+        public static IPdfValue<PdfString> InlineStream(PdfString value) => new PdfValue<PdfString>(value, PdfValueType.InlineStream);
         public static IPdfValue<int> Integer(int value) => new PdfValue<int>(value, PdfValueType.Integer);
         public static IPdfValue<float> Real(float value) => new PdfValue<float>(value, PdfValueType.Real);
         public static IPdfValue<bool> Boolean(bool value) => new PdfValue<bool>(value, PdfValueType.Boolean);

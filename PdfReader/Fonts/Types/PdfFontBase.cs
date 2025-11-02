@@ -34,7 +34,7 @@ namespace PdfReader.Fonts.Types
             var encodingInfo = PdfFontEncodingParser.ParseEncoding(fontDictionary);
             Encoding = encodingInfo.Encoding;
             CustomEncoding = encodingInfo.CustomEncoding;
-            Differences = encodingInfo.Differences ?? new Dictionary<int, string>();
+            Differences = encodingInfo.Differences ?? new Dictionary<int, PdfString>();
 
             // Parse essential properties from the font object (lightweight operations)
             Type = fontDictionary.GetName(PdfTokens.SubtypeKey).AsEnum<PdfFontSubType>();
@@ -68,7 +68,7 @@ namespace PdfReader.Fonts.Types
         /// Differences array parsed from /Encoding dictionary as a code -> glyph name map.
         /// Empty for name-based encodings or when not present.
         /// </summary>
-        public Dictionary<int, string> Differences { get; }
+        public Dictionary<int, PdfString> Differences { get; }
 
         /// <summary>
         /// Base font name (PostScript name)
@@ -121,7 +121,7 @@ namespace PdfReader.Fonts.Types
                 }
             }
 
-            string name = SingleByteEncodings.GetNameByCodeOrDefault((byte)(uint)code, Encoding, Differences);
+            PdfString name = SingleByteEncodings.GetNameByCodeOrUndefined((byte)(uint)code, Encoding, Differences);
 
             if (AdobeGlyphList.CharacterMap.TryGetValue(name, out var aglUnicode))
             {

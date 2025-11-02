@@ -54,43 +54,43 @@ namespace PdfReader.Rendering
             return operands;
         }
 
-        public void ProcessOperator(string op, ref PdfParseContext parseContext, ref PdfGraphicsState graphicsState)
+        public void ProcessOperator(string op, ref PdfGraphicsState graphicsState)
         {
             bool handled = false;
 
             if (!handled && _graphicsStateOperators.CanProcess(op))
             {
-                _graphicsStateOperators.ProcessOperator(op, ref parseContext, ref graphicsState);
+                _graphicsStateOperators.ProcessOperator(op, ref graphicsState);
                 handled = true;
             }
 
             if (!handled && _textOperators.CanProcess(op))
             {
-                _textOperators.ProcessOperator(op, ref parseContext, ref graphicsState);
+                _textOperators.ProcessOperator(op, ref graphicsState);
                 handled = true;
             }
 
             if (!handled && _pathOperators.CanProcess(op))
             {
-                _pathOperators.ProcessOperator(op, ref parseContext, ref graphicsState);
+                _pathOperators.ProcessOperator(op, ref graphicsState);
                 handled = true;
             }
 
             if (!handled && _colorOperators.CanProcess(op))
             {
-                _colorOperators.ProcessOperator(op, ref parseContext, ref graphicsState);
+                _colorOperators.ProcessOperator(op, ref graphicsState);
                 handled = true;
             }
 
             if (!handled && _inlineImageOperators.CanProcess(op))
             {
-                _inlineImageOperators.ProcessOperator(op, ref parseContext, ref graphicsState);
+                _inlineImageOperators.ProcessOperator(op, ref graphicsState);
                 handled = true;
             }
 
             if (!handled && _miscOperators.CanProcess(op))
             {
-                _miscOperators.ProcessOperator(op, ref parseContext, ref graphicsState);
+                _miscOperators.ProcessOperator(op, ref graphicsState);
                 handled = true;
             }
 

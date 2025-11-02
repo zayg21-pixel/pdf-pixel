@@ -146,8 +146,7 @@ namespace PdfReader.Fonts.Types
         /// </summary>
         private PdfString GetCharacterName(byte charCode)
         {
-            string codeName = SingleByteEncodings.GetNameByCodeOrDefault(charCode, Encoding, Differences);
-            return PdfString.FromString(codeName);
+            return SingleByteEncodings.GetNameByCode(charCode, Encoding, Differences);
         }
 
         /// <summary>

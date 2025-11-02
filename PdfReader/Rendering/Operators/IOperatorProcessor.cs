@@ -1,5 +1,3 @@
-using PdfReader.Parsing;
-
 namespace PdfReader.Rendering.Operators
 {
     /// <summary>
@@ -20,8 +18,7 @@ namespace PdfReader.Rendering.Operators
         /// Implementations must not throw for unknown operators; caller ensures eligibility.
         /// </summary>
         /// <param name="op">The operator token.</param>
-        /// <param name="parseContext">Current parse context (ref struct).</param>
         /// <param name="graphicsState">The current graphics state (may be mutated or replaced).</param>
-        void ProcessOperator(string op, ref PdfParseContext parseContext, ref PdfGraphicsState graphicsState);
+        void ProcessOperator(string op, ref PdfGraphicsState graphicsState);
     }
 }

@@ -14,9 +14,10 @@ namespace PdfReader.Fonts.Mapping
         public static PdfCMap ParseCMapFromContext(ref PdfParseContext context, PdfDocument document)
         {
             var cmap = new PdfCMap();
+            var parser = new PdfParser(ref context, document, allowReferences: false);
             IPdfValue value;
 
-            while ((value = PdfParsers.ParsePdfValue(ref context, document)) != null)
+            while ((value = parser.ReadNextValue()) != null)
             {
                 if (value.Type != PdfValueType.Operator)
                 {
@@ -27,31 +28,31 @@ namespace PdfReader.Fonts.Mapping
                 switch (tokenType)
                 {
                     case PdfCMapTokenType.BeginBfChar:
-                        ParseBfCharMappings(ref context, cmap, document);
+                        ParseBfCharMappings(ref parser, cmap, document);
                         break;
                     case PdfCMapTokenType.BeginBfRange:
-                        ParseBfRangeMappings(ref context, cmap, document);
+                        ParseBfRangeMappings(ref parser, cmap, document);
                         break;
                     case PdfCMapTokenType.BeginCidChar:
-                        ParseCidCharMappings(ref context, cmap, document);
+                        ParseCidCharMappings(ref parser, cmap, document);
                         break;
                     case PdfCMapTokenType.BeginCidRange:
-                        ParseCidRangeMappings(ref context, cmap, document);
+                        ParseCidRangeMappings(ref parser, cmap, document);
                         break;
                     case PdfCMapTokenType.BeginCodespaceRange:
-                        ParseCodespaceRangesInternal(ref context, cmap, document);
+                        ParseCodespaceRangesInternal(ref parser, cmap, document);
                         break;
                     case PdfCMapTokenType.UseCMap:
-                        ResolveAndMergeUseCMap(ref context, document, cmap);
+                        ResolveAndMergeUseCMap(ref parser, document, cmap);
                         break;
                 }
             }
             return cmap;
         }
         
-        private static void ResolveAndMergeUseCMap(ref PdfParseContext context, PdfDocument document, PdfCMap target)
+        private static void ResolveAndMergeUseCMap(ref PdfParser parser, PdfDocument document, PdfCMap target)
         {
-            var cmapName = PdfParsers.ParsePdfValue(ref context, document).AsName();
+            var cmapName = parser.ReadNextValue().AsName();
 
             // Prefer cached by name when available
             if (cmapName.IsEmpty)
@@ -64,11 +65,11 @@ namespace PdfReader.Fonts.Mapping
             return;
         }
 
-        private static void ParseBfCharMappings(ref PdfParseContext context, PdfCMap cmap, PdfDocument document)
+        private static void ParseBfCharMappings(ref PdfParser parser, PdfCMap cmap, PdfDocument document)
         {
             IPdfValue value;
 
-            while ((value = PdfParsers.ParsePdfValue(ref context, document)) != null)
+            while ((value = parser.ReadNextValue()) != null)
             {
                 switch (value.Type)
                 {
@@ -85,7 +86,7 @@ namespace PdfReader.Fonts.Mapping
                     case PdfValueType.String:
                     {
                         var code = new PdfCharacterCode(value.AsStringBytes());
-                        var unicodeBytes = PdfParsers.ParsePdfValue(ref context, document).AsStringBytes().Span;
+                        var unicodeBytes = parser.ReadNextValue().AsStringBytes().Span;
 
                         if (!IsSentinelFFFF(unicodeBytes))
                         {
@@ -98,10 +99,10 @@ namespace PdfReader.Fonts.Mapping
             }
         }
         
-        private static void ParseBfRangeMappings(ref PdfParseContext context, PdfCMap cmap, PdfDocument document)
+        private static void ParseBfRangeMappings(ref PdfParser parser, PdfCMap cmap, PdfDocument document)
         {
             IPdfValue value;
-            while ((value = PdfParsers.ParsePdfValue(ref context, document)) != null)
+            while ((value = parser.ReadNextValue()) != null)
             {
                 if (value.Type == PdfValueType.Operator)
                 {
@@ -115,8 +116,8 @@ namespace PdfReader.Fonts.Mapping
 
                 if (value.Type == PdfValueType.String)
                 {
-                    var startBytes = value.AsStringBytes().ToArray();
-                    var endValue = PdfParsers.ParsePdfValue(ref context, document);
+                    var startBytes = value.AsStringBytes().Span;
+                    var endValue = parser.ReadNextValue();
 
                     if (endValue == null)
                     {
@@ -124,7 +125,7 @@ namespace PdfReader.Fonts.Mapping
                     }
                     var endBytes = endValue.AsStringBytes().Span;
 
-                    var thirdValue = PdfParsers.ParsePdfValue(ref context, document);
+                    var thirdValue = parser.ReadNextValue();
 
                     if (thirdValue == null)
                     {
@@ -183,11 +184,11 @@ namespace PdfReader.Fonts.Mapping
             }
         }
 
-        private static void ParseCodespaceRangesInternal(ref PdfParseContext context, PdfCMap cmap, PdfDocument document)
+        private static void ParseCodespaceRangesInternal(ref PdfParser parser, PdfCMap cmap, PdfDocument document)
         {
 
             IPdfValue value;
-            while ((value = PdfParsers.ParsePdfValue(ref context, document)) != null)
+            while ((value = parser.ReadNextValue()) != null)
             {
                 switch (value.Type)
                 {
@@ -204,9 +205,9 @@ namespace PdfReader.Fonts.Mapping
 
                     case PdfValueType.String:
                     {
-                        var startBytes = value.AsStringBytes().ToArray();
-                        var endValue = PdfParsers.ParsePdfValue(ref context, document);
-                        var endBytes = endValue.AsStringBytes().ToArray();
+                        var startBytes = value.AsStringBytes().Span;
+                        var endValue = parser.ReadNextValue();
+                        var endBytes = endValue.AsStringBytes().Span;
 
                         cmap.AddCodespaceRange(startBytes, endBytes);
                         break;
@@ -218,10 +219,10 @@ namespace PdfReader.Fonts.Mapping
         /// <summary>
         /// Parse begincidchar block: maps code (hex string) to CID (integer), then to Unicode string.
         /// </summary>
-        private static void ParseCidCharMappings(ref PdfParseContext context, PdfCMap cmap, PdfDocument document)
+        private static void ParseCidCharMappings(ref PdfParser parser, PdfCMap cmap, PdfDocument document)
         {
             IPdfValue value;
-            while ((value = PdfParsers.ParsePdfValue(ref context, document)) != null)
+            while ((value = parser.ReadNextValue()) != null)
             {
                 switch (value.Type)
                 {
@@ -237,7 +238,7 @@ namespace PdfReader.Fonts.Mapping
                     case PdfValueType.String:
                     {
                         var codeBytes = value.AsStringBytes();
-                        var cidValue = PdfParsers.ParsePdfValue(ref context, document);
+                        var cidValue = parser.ReadNextValue();
                         var cid = cidValue.AsInteger();
                         cmap.AddCidMapping(new PdfCharacterCode(codeBytes), cid);
                         break;
@@ -249,10 +250,10 @@ namespace PdfReader.Fonts.Mapping
         /// <summary>
         /// Parse begincidrange block: maps code range to sequential CIDs, then to Unicode strings.
         /// </summary>
-        private static void ParseCidRangeMappings(ref PdfParseContext context, PdfCMap cmap, PdfDocument document)
+        private static void ParseCidRangeMappings(ref PdfParser parser, PdfCMap cmap, PdfDocument document)
         {
             IPdfValue value;
-            while ((value = PdfParsers.ParsePdfValue(ref context, document)) != null)
+            while ((value = parser.ReadNextValue()) != null)
             {
                 switch (value.Type)
                 {
@@ -267,11 +268,11 @@ namespace PdfReader.Fonts.Mapping
                     }
                     case PdfValueType.String:
                     {
-                        var startBytes = value.AsStringBytes().ToArray();
-                        var endValue = PdfParsers.ParsePdfValue(ref context, document);
-                        var endBytes = endValue.AsStringBytes().ToArray();
+                        var startBytes = value.AsStringBytes().Span;
+                        var endValue = parser.ReadNextValue();
+                        var endBytes = endValue.AsStringBytes().Span;
 
-                        var cidValue = PdfParsers.ParsePdfValue(ref context, document);
+                        var cidValue = parser.ReadNextValue();
                         var firstCid = cidValue.AsInteger();
 
                         cmap.AddCidRangeMapping(startBytes, endBytes, firstCid);

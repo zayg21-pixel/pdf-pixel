@@ -1,5 +1,6 @@
 ﻿using PdfReader.Fonts.Cff;
 using PdfReader.Fonts.Types;
+using PdfReader.Models;
 using PdfReader.Text;
 using System;
 using System.Collections.Generic;
@@ -16,7 +17,7 @@ namespace PdfReader.Fonts.Mapping
         private readonly CffNameKeyedInfo _cffInfo;
         private readonly PdfFontFlags _flags;
         private readonly PdfFontEncoding _encoding;
-        private readonly Dictionary<int, string> _differences;
+        private readonly Dictionary<int, PdfString> _differences;
 
         /// <summary>
         /// Initializes a new instance of <see cref="CffByteCodeToGidMapper"/> for the specified CFF font info.
@@ -29,7 +30,7 @@ namespace PdfReader.Fonts.Mapping
             CffNameKeyedInfo cffInfo,
             PdfFontFlags flags,
             PdfFontEncoding encoding,
-            Dictionary<int, string> differences)
+            Dictionary<int, PdfString> differences)
         {
             _cffInfo = cffInfo ?? throw new ArgumentNullException(nameof(cffInfo));
             _flags = flags;
@@ -46,7 +47,7 @@ namespace PdfReader.Fonts.Mapping
         /// <returns>The glyph ID (GID) for the character code, or 0 if not found.</returns>
         public ushort GetGid(byte code)
         {
-            string glyphName = SingleByteEncodings.GetNameByCode(code, _encoding, _differences);
+            PdfString glyphName = SingleByteEncodings.GetNameByCode(code, _encoding, _differences);
             if (glyphName != null && _cffInfo.NameToGid.TryGetValue(glyphName, out ushort gidByName))
             {
                 return gidByName;

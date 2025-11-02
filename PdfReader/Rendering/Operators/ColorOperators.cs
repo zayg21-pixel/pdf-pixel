@@ -41,7 +41,7 @@ namespace PdfReader.Rendering.Operators
             return SupportedOperators.Contains(op);
         }
 
-        public void ProcessOperator(string op, ref PdfParseContext parseContext, ref PdfGraphicsState graphicsState)
+        public void ProcessOperator(string op, ref PdfGraphicsState graphicsState)
         {
             switch (op)
             {

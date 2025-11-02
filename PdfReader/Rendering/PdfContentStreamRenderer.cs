@@ -1,11 +1,9 @@
 using Microsoft.Extensions.Logging;
 using PdfReader.Models;
 using PdfReader.Parsing;
-using PdfReader.Streams;
 using SkiaSharp;
 using System;
 using System.Collections.Generic;
-using System.Text;
 
 namespace PdfReader.Rendering
 {
@@ -109,18 +107,15 @@ namespace PdfReader.Rendering
             var operandStack = new Stack<IPdfValue>();
             using var currentPath = new SKPath();
             var operatorProcessor = new PdfOperatorProcessor(_page, canvas, operandStack, graphicsStack, currentPath, processingXObjects);
-
+            var parser = new PdfParser(ref parseContext, _page.Document, allowReferences: false);
             IPdfValue value;
 
-            // Parse and process the entire stream (single or multiple chunks) continuously
-            while ((value = PdfParsers.ParsePdfValue(ref parseContext, _page.Document)) != null)
+            while ((value = parser.ReadNextValue()) != null)
             {
                 if (value.Type == PdfValueType.Operator)
                 {
                     string op = value.AsString().ToString();
-
-                    _logger.LogTrace("Processing operator: {Operator} with parameters {Parameters}", op, string.Join("; ", operandStack));
-                    operatorProcessor.ProcessOperator(op, ref parseContext, ref graphicsState);
+                    operatorProcessor.ProcessOperator(op, ref graphicsState);
                 }
                 else
                 {

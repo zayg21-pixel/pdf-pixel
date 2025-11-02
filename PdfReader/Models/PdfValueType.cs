@@ -11,5 +11,6 @@ namespace PdfReader.Models
         Reference,
         Array,
         Dictionary,
+        InlineStream
     }
 }

@@ -13,7 +13,7 @@ namespace PdfReader.Fonts.Management
     /// <summary>
     /// Default implementation of font cache.
     /// </summary>
-    internal class PdfFontCache : IFontCache
+    internal class PdfFontCache : IFontCache // TODO: We can potentially remove this cache and store in fonts directly.
     {
         private readonly ConcurrentDictionary<PdfFontBase, SKTypeface> _typefaceCache = new ConcurrentDictionary<PdfFontBase, SKTypeface>();
         private readonly ConcurrentDictionary<PdfReference, CffNameKeyedInfo> _ccfMaps = new ConcurrentDictionary<PdfReference, CffNameKeyedInfo>();

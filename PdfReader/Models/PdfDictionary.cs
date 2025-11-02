@@ -5,11 +5,17 @@ namespace PdfReader.Models
 {
     public class PdfDictionary
     {
-        private readonly Dictionary<PdfString, IPdfValue> _values = new Dictionary<PdfString, IPdfValue>();
+        private readonly Dictionary<PdfString, IPdfValue> _values;
 
-        public PdfDictionary(PdfDocument document)
+        public PdfDictionary(PdfDocument document) : this(document, null)
         {
             Document = document;
+        }
+
+        public PdfDictionary(PdfDocument document, Dictionary<PdfString, IPdfValue> values)
+        {
+            Document = document;
+            _values = values ?? new Dictionary<PdfString, IPdfValue>();
         }
 
         public int Count => _values.Count;

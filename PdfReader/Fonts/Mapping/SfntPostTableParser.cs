@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 using PdfReader.Fonts.Types;
+using PdfReader.Models;
 using PdfReader.Text;
 
 namespace PdfReader.Fonts.Mapping
@@ -17,7 +18,7 @@ namespace PdfReader.Fonts.Mapping
         /// </summary>
         /// <param name="postData">The raw bytes of the 'post' table.</param>
         /// <returns>Dictionary mapping glyph names to GIDs.</returns>
-        public static Dictionary<string, ushort> GetNameToGidFormat1(byte[] postData)
+        public static Dictionary<PdfString, ushort> GetNameToGidFormat1(byte[] postData)
         {
             if (postData == null || postData.Length < 32)
             {
@@ -31,11 +32,11 @@ namespace PdfReader.Fonts.Mapping
                 throw new ArgumentException("Only post table format 1.0 is supported.", nameof(postData));
             }
 
-            string[] macGlyphNames = SingleByteEncodings.GetEncodingSet(PdfFontEncoding.MacRomanEncoding);
-            var nameToGid = new Dictionary<string, ushort>(macGlyphNames.Length, StringComparer.Ordinal);
+            PdfString[] macGlyphNames = SingleByteEncodings.GetEncodingSet(PdfFontEncoding.MacRomanEncoding);
+            var nameToGid = new Dictionary<PdfString, ushort>(macGlyphNames.Length);
             for (int glyphIndex = 0; glyphIndex < macGlyphNames.Length; glyphIndex++)
             {
-                string glyphName = macGlyphNames[glyphIndex];
+                PdfString glyphName = macGlyphNames[glyphIndex];
                 nameToGid[glyphName] = (ushort)glyphIndex;
             }
             return nameToGid;
@@ -46,7 +47,7 @@ namespace PdfReader.Fonts.Mapping
         /// </summary>
         /// <param name="postData">The raw bytes of the 'post' table.</param>
         /// <returns>Dictionary mapping glyph names to GIDs.</returns>
-        public static Dictionary<string, ushort> GetNameToGidFormat2(byte[] postData)
+        public static Dictionary<PdfString, ushort> GetNameToGidFormat2(byte[] postData)
         {
             if (postData == null || postData.Length < 32)
             {
@@ -62,7 +63,7 @@ namespace PdfReader.Fonts.Mapping
 
             int numGlyphs = ExtractHelpers.ReadUInt16(postData, 32);
             int glyphNameIndexOffset = 34;
-            Dictionary<string, ushort> nameToGid = new Dictionary<string, ushort>(numGlyphs, StringComparer.Ordinal);
+            Dictionary<PdfString, ushort> nameToGid = new Dictionary<PdfString, ushort>(numGlyphs);
             List<int> nameIndices = new List<int>(numGlyphs);
             for (int glyphIndex = 0; glyphIndex < numGlyphs; glyphIndex++)
             {
@@ -70,14 +71,14 @@ namespace PdfReader.Fonts.Mapping
                 nameIndices.Add(nameIndex);
             }
 
-            string[] macGlyphNames = SingleByteEncodings.GetEncodingSet(PdfFontEncoding.MacRomanEncoding);
+            PdfString[] macGlyphNames = SingleByteEncodings.GetEncodingSet(PdfFontEncoding.MacRomanEncoding);
 
             int customNameOffset = glyphNameIndexOffset + numGlyphs * 2;
             int customNamePtr = customNameOffset;
             for (int glyphIndex = 0; glyphIndex < numGlyphs; glyphIndex++)
             {
                 int nameIndex = nameIndices[glyphIndex];
-                string glyphName;
+                PdfString glyphName;
                 if (nameIndex < macGlyphNames.Length)
                 {
                     glyphName = macGlyphNames[nameIndex];
@@ -87,7 +88,7 @@ namespace PdfReader.Fonts.Mapping
                     int customIndex = nameIndex - macGlyphNames.Length;
                     if (customNamePtr >= postData.Length)
                     {
-                        glyphName = ".notdef";
+                        glyphName = SingleByteEncodings.UndefinedCharacter;
                     }
                     else
                     {
@@ -95,11 +96,11 @@ namespace PdfReader.Fonts.Mapping
                         customNamePtr++;
                         if (customNamePtr + len > postData.Length)
                         {
-                            glyphName = ".notdef";
+                            glyphName = SingleByteEncodings.UndefinedCharacter;
                         }
                         else
                         {
-                            glyphName = Encoding.ASCII.GetString(postData, customNamePtr, len);
+                            glyphName = new PdfString(postData.AsMemory().Slice(customNamePtr, len));
                             customNamePtr += len;
                         }
                     }

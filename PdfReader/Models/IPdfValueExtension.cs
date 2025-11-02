@@ -18,7 +18,7 @@ namespace PdfReader.Models
 
         public static PdfString AsString(this IPdfValue value)
         {
-            if (value is IPdfValue<PdfString> stringValue && (stringValue.Type == PdfValueType.String || stringValue.Type == PdfValueType.Operator))
+            if (value is IPdfValue<PdfString> stringValue)
             {
                 return stringValue.Value;
             }
