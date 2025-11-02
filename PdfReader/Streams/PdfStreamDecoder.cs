@@ -214,7 +214,7 @@ namespace PdfReader.Streams
                 return decoded;
             }
 
-            int predictor = decodeParameterDictionary.GetInt(PdfTokens.PredictorKey) ?? 1;
+            int predictor = decodeParameterDictionary.GetInteger(PdfTokens.PredictorKey) ?? 1;
             if (predictor <= 1)
             {
                 return decoded;
@@ -225,9 +225,9 @@ namespace PdfReader.Streams
                 return decoded; // Unsupported predictor variant.
             }
 
-            int colors = decodeParameterDictionary.GetInt(PdfTokens.ColorsKey) ?? 1;
-            int bitsPerComponent = decodeParameterDictionary.GetInt(PdfTokens.BitsPerComponentKey) ?? 8;
-            int columns = decodeParameterDictionary.GetInt(PdfTokens.ColumnsKey) ?? 1;
+            int colors = decodeParameterDictionary.GetInteger(PdfTokens.ColorsKey) ?? 1;
+            int bitsPerComponent = decodeParameterDictionary.GetInteger(PdfTokens.BitsPerComponentKey) ?? 8;
+            int columns = decodeParameterDictionary.GetInteger(PdfTokens.ColumnsKey) ?? 1;
 
             if (columns <= 0)
             {

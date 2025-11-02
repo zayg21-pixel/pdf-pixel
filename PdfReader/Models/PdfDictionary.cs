@@ -61,7 +61,7 @@ namespace PdfReader.Models
             return false;
         }
 
-        public int? GetInt(PdfString key)
+        public int? GetInteger(PdfString key)
         {
             if (_values.TryGetValue(GetValidKey(key), out var storedValue))
             {
@@ -138,6 +138,15 @@ namespace PdfReader.Models
 
         public PdfDictionary GetDictionary(PdfString key) =>
             _values.TryGetValue(GetValidKey(key), out var storedValue) ? storedValue.ResolveToNonReference(Document)?.AsDictionary() : null;
+
+        public PdfReference GetReference(PdfString key)
+        {
+            if (_values.TryGetValue(GetValidKey(key), out var storedValue) && storedValue is IPdfValue<PdfReference> reference)
+            {
+                return reference.Value;
+            }
+            return default;
+        }
 
         public PdfObject GetPageObject(PdfString key)
         {

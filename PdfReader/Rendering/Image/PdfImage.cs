@@ -202,7 +202,7 @@ namespace PdfReader.Rendering.Image
                 Height = imageXObject.Dictionary.GetIntegerOrDefault(PdfTokens.HeightKey),
                 BitsPerComponent = bitsPerComponent,
                 IsSoftMask = isSoftMask,
-                ColorSpaceConverter = PdfColorSpaces.ResolveByValue(imageXObject.Dictionary.GetValue(PdfTokens.ColorSpaceKey), page, defaultComponents),
+                ColorSpaceConverter = page.Cache.ColorSpace.ResolveByValue(imageXObject.Dictionary.GetValue(PdfTokens.ColorSpaceKey), defaultComponents),
                 Name = name
             };
 

@@ -3,7 +3,6 @@ using PdfReader.Models;
 using SkiaSharp;
 using PdfReader.Rendering.Color;
 using PdfReader.Rendering.Pattern;
-using PdfReader.Parsing;
 
 namespace PdfReader.Rendering.Operators
 {
@@ -128,7 +127,7 @@ namespace PdfReader.Rendering.Operators
                 return;
             }
 
-            var converter = PdfColorSpaces.ResolveDeviceConverter(space, _page);
+            var converter = _page.Cache.ColorSpace.ResolveDeviceConverter(space);
             state.FillColorConverter = converter;
 
             var components = new float[converter.Components];
@@ -177,7 +176,7 @@ namespace PdfReader.Rendering.Operators
                 return;
             }
 
-            var converter = PdfColorSpaces.ResolveDeviceConverter(space, _page);
+            var converter = _page.Cache.ColorSpace.ResolveDeviceConverter(space);
             state.StrokeColorConverter = converter;
 
             var components = new float[converter.Components];
@@ -327,7 +326,7 @@ namespace PdfReader.Rendering.Operators
                 return;
             }
             var raw = operands[0];
-            state.FillColorConverter = PdfColorSpaces.ResolveByValue(raw, _page);
+            state.FillColorConverter = _page.Cache.ColorSpace.ResolveByValue(raw);
             state.FillPaint = PdfPaint.Solid(SKColors.Black);
         }
 
@@ -339,7 +338,7 @@ namespace PdfReader.Rendering.Operators
                 return;
             }
             var raw = operands[0];
-            state.StrokeColorConverter = PdfColorSpaces.ResolveByValue(raw, _page);
+            state.StrokeColorConverter = _page.Cache.ColorSpace.ResolveByValue(raw);
             state.StrokePaint = PdfPaint.Solid(SKColors.Black);
         }
 
@@ -363,7 +362,7 @@ namespace PdfReader.Rendering.Operators
                 {
                     return null;
                 }
-                return PdfPatternParser.TryParsePattern(patternObject, _page);
+                return PdfPatternParser.ParsePattern(patternObject, _page);
             }
             catch
             {

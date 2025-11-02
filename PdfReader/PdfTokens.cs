@@ -53,6 +53,10 @@ namespace PdfReader
         public static readonly PdfString FilterKey = "Filter"u8;
         public static readonly PdfString RotateKey = "Rotate"u8;
         public static readonly PdfString CropBoxKey = "CropBox"u8;
+        // Added missing page box keys (override semantics top-down)
+        public static readonly PdfString BleedBoxKey = "BleedBox"u8;
+        public static readonly PdfString TrimBoxKey = "TrimBox"u8;
+        public static readonly PdfString ArtBoxKey = "ArtBox"u8;
         public static readonly PdfString ParentKey = "Parent"u8;
         public static readonly PdfString LengthKey = "Length"u8; // also used in encryption dictionary
         public static readonly PdfString VKey = "V"u8;             // encryption version

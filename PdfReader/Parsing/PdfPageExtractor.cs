@@ -1,9 +1,6 @@
 using System;
-using System.Collections.Generic;
-using System.Linq;
 using Microsoft.Extensions.Logging;
 using PdfReader.Models;
-using SkiaSharp;
 
 namespace PdfReader.Parsing
 {
@@ -14,8 +11,6 @@ namespace PdfReader.Parsing
     /// </summary>
     public class PdfPageExtractor
     {
-        private static readonly SKRect DefaultMediaBox = new SKRect(0, 0, 612, 792);
-
         private readonly PdfDocument _document;
         private readonly ILogger<PdfPageExtractor> _logger;
 
@@ -39,10 +34,12 @@ namespace PdfReader.Parsing
             // Primary path: follow stored RootRef if available.
             if (_document.RootObject != null)
             {
-                var pagesObject = _document.RootObject.Dictionary.GetPageObject(PdfTokens.PagesKey);
-                if (pagesObject != null)
+                var rootPagesObject = _document.RootObject.Dictionary.GetPageObject(PdfTokens.PagesKey);
+                if (rootPagesObject != null)
                 {
-                    ExtractPagesFromPagesObject(pagesObject, 1);
+                    var initialResources = new PdfPageResources();
+                    initialResources.UpdateFrom(rootPagesObject); // seed from root /Pages
+                    ExtractPagesFromPagesObject(rootPagesObject, 1, initialResources);
                     return;
                 }
                 _logger.LogWarning("Root object (ref {RootRef}) present but /Pages tree not found.", _document.RootObject);
@@ -54,17 +51,18 @@ namespace PdfReader.Parsing
         }
 
         /// <summary>
-        /// Recursively extract pages from a /Pages node, handling nested page trees.
+        /// Recursively extract pages from a /Pages node, handling nested page trees with inherited attributes.
         /// </summary>
-        /// <param name="pagesObj">/Pages object node.</param>
-        /// <param name="currentPageNum">Current running page number.</param>
-        private int ExtractPagesFromPagesObject(PdfObject pagesObj, int currentPageNum)
+        private int ExtractPagesFromPagesObject(PdfObject pagesObj, int currentPageNum, PdfPageResources inherited)
         {
-            var declaredCount = pagesObj.Dictionary.GetIntegerOrDefault(PdfTokens.CountKey);
-            if (declaredCount > 0)
+            if (pagesObj == null)
             {
-                _document.PageCount = declaredCount; // optimistic set
+                return currentPageNum;
             }
+
+            // Clone and update for this level so siblings are isolated.
+            var levelResources = inherited.Clone();
+            levelResources.UpdateFrom(pagesObj);
 
             var kidsArray = pagesObj.Dictionary.GetValue(PdfTokens.KidsKey).AsArray();
             if (kidsArray == null)
@@ -85,12 +83,16 @@ namespace PdfReader.Parsing
                 var typeName = kidObject.Dictionary.GetName(PdfTokens.TypeKey);
                 if (typeName == PdfTokens.PageKey)
                 {
-                    var page = CreatePageFromObject(kidObject, currentPageNum++);
+                    // Page-level overrides
+                    var pageResources = levelResources.Clone();
+                    pageResources.UpdateFrom(kidObject);
+                    var page = new PdfPage(currentPageNum, _document, kidObject, pageResources);
                     _document.Pages.Add(page);
+                    currentPageNum++;
                 }
                 else if (typeName == PdfTokens.PagesKey)
                 {
-                    currentPageNum = ExtractPagesFromPagesObject(kidObject, currentPageNum);
+                    currentPageNum = ExtractPagesFromPagesObject(kidObject, currentPageNum, levelResources);
                 }
                 else
                 {
@@ -99,79 +101,6 @@ namespace PdfReader.Parsing
             }
 
             return currentPageNum;
-        }
-
-        /// <summary>
-        /// Build a <see cref="PdfPage"/> from a raw /Page object resolving inherited geometry and resources.
-        /// </summary>
-        private PdfPage CreatePageFromObject(PdfObject pageObj, int pageNumber)
-        {
-            var resourceDictionary = GetInheritedValue(pageObj, PdfTokens.ResourcesKey).AsDictionary() ?? new PdfDictionary(_document);
-
-            var mediaBox = TryConvertArrayToSKRect(GetInheritedValue(pageObj, PdfTokens.MediaBoxKey).AsArray()) ?? DefaultMediaBox;
-            if (mediaBox.Width <= 0 || mediaBox.Height <= 0)
-            {
-                _logger.LogWarning("Invalid MediaBox on page {PageNum} replaced with default.", pageNumber);
-                mediaBox = DefaultMediaBox;
-            }
-
-            var cropBox = TryConvertArrayToSKRect(GetInheritedValue(pageObj, PdfTokens.CropBoxKey).AsArray()) ?? mediaBox;
-            if (cropBox.Width <= 0 || cropBox.Height <= 0)
-            {
-                _logger.LogWarning("Invalid CropBox on page {PageNum} replaced with MediaBox.", pageNumber);
-                cropBox = mediaBox;
-            }
-
-            var rotation = GetNormalizedRotation(GetInheritedValue(pageObj, PdfTokens.RotateKey).AsInteger());
-
-            return new PdfPage(pageNumber, _document, pageObj, mediaBox, cropBox, rotation, resourceDictionary);
-        }
-
-        /// <summary>
-        /// Convert a PDF rectangle array to <see cref="SKRect"/>.
-        /// </summary>
-        private SKRect? TryConvertArrayToSKRect(PdfArray value)
-        {
-            if (value == null)
-            {
-                return null;
-            }
-            if (value.Count < 4)
-            {
-                return null;
-            }
-            var left = value.GetFloat(0);
-            var top = value.GetFloat(1);
-            var right = value.GetFloat(2);
-            var bottom = value.GetFloat(3);
-            return new SKRect(left, top, right, bottom);
-        }
-
-        /// <summary>
-        /// Normalize rotation to 0 / 90 / 180 / 270.
-        /// </summary>
-        private int GetNormalizedRotation(int rotation)
-        {
-            return (rotation % 360 + 360) % 360;
-        }
-
-        /// <summary>
-        /// Walk up the page tree resolving an inherited value.
-        /// </summary>
-        private IPdfValue GetInheritedValue(PdfObject pageObj, PdfString key)
-        {
-            var currentObj = pageObj;
-            var visited = new HashSet<int>();
-            while (currentObj != null && !visited.Contains(currentObj.Reference.ObjectNumber))
-            {
-                visited.Add(currentObj.Reference.ObjectNumber);
-                if (currentObj.Dictionary.HasKey(key))
-                {
-                    return currentObj.Dictionary.GetValue(key);
-                }
-                currentObj = currentObj.Dictionary.GetPageObject(PdfTokens.ParentKey);
-            }
-            return null;
         }
     }
 }

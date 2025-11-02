@@ -34,6 +34,10 @@ namespace PdfReader.Parsing
         /// <returns>Parsed PdfObject or null on failure / unsupported cases.</returns>
         public PdfObject ParseSingleIndexedObject(PdfObjectInfo info)
         {
+            if (info == null)
+            {
+                return null;
+            }
             if (info.IsFree)
             {
                 return null;
@@ -50,36 +54,26 @@ namespace PdfReader.Parsing
             {
                 return null;
             }
-            var context = new PdfParseContext(_document.FileBytes);
-            context.Position = (int)info.Offset.Value;
-            if (!PdfParsers.TryParseObjectHeader(ref context, out int objNum, out int gen))
+
+            // Create a parse context positioned at the object offset.
+            var context = new PdfParseContext(_document.FileBytes.Slice((int)info.Offset.Value));
+
+            // Use unified PdfParser.ReadObject for indirect object parsing (handles header + value + optional stream).
+            var parser = new PdfParser(ref context, _document, allowReferences: true);
+            var parsedObject = parser.ReadObject();
+            if (parsedObject == null)
             {
                 return null;
             }
-            if (objNum != info.Reference.ObjectNumber || gen != info.Reference.Generation)
+
+            // Validate reference matches index metadata to guard against malformed offsets.
+            if (parsedObject.Reference.ObjectNumber != info.Reference.ObjectNumber ||
+                parsedObject.Reference.Generation != info.Reference.Generation)
             {
                 return null;
             }
-            PdfParsingHelpers.SkipWhitespaceAndComment(ref context);
-            var value = PdfParsers.ParsePdfValue(ref context, _document, info.Reference, allowReferences: true, shouldDecrypt: _document.Decryptor != null);
-            var pdfObject = new PdfObject(info.Reference, _document, value);
-            PdfParsingHelpers.SkipWhitespaceAndComment(ref context);
-            if (PdfParsingHelpers.MatchSequence(ref context, PdfTokens.Stream))
-            {
-                var streamData = PdfParsers.ParseStream(ref context, pdfObject.Dictionary);
-                pdfObject.StreamData = GetDecryptedStream(streamData, info.Reference);
-            }
-            return pdfObject;
-        }
 
-        private ReadOnlyMemory<byte> GetDecryptedStream(ReadOnlyMemory<byte> streamData, PdfReference reference)
-        {
-            if (_document.Decryptor != null)
-            {
-                return _document.Decryptor.DecryptBytes(streamData, reference);
-            }
-
-            return streamData;
+            return parsedObject;
         }
     }
 }

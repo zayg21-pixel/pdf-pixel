@@ -6,30 +6,16 @@ namespace PdfReader.Rendering.Pattern
     internal static class PdfPatternParser
     {
         /// <summary>
-        /// Parse a pattern object (tiling or shading) and return a concrete PdfPattern instance.
-        /// Returns null if unsupported or malformed.
+        /// Parses a PDF pattern object and returns the corresponding <see cref="PdfPattern"/> instance.
         /// </summary>
-        public static PdfPattern TryParsePattern(PdfObject patternObject, PdfPage page)
-        {
-            if (patternObject.Reference.IsValid)
-            {
-                if (page.Document.PatternCache.TryGetValue(patternObject.Reference, out var cachedPattern))
-                {
-                    return cachedPattern;
-                }
-            }
-
-            var result = ParsePatternInternal(patternObject, page);
-
-            if (result != null && patternObject.Reference.IsValid)
-            {
-                page.Document.PatternCache[patternObject.Reference] = result;
-            }
-
-            return result;
-        }
-
-        private static PdfPattern ParsePatternInternal(PdfObject patternObject, PdfPage page)
+        /// <remarks>This method supports parsing tiling patterns (PatternType 1) and shading patterns
+        /// (PatternType 2).  Patterns with other types are not supported and will result in a <see langword="null"/>
+        /// return value.</remarks>
+        /// <param name="patternObject">The PDF object representing the pattern. Must contain a valid dictionary with a <c>PatternType</c> key.</param>
+        /// <param name="page">The <see cref="PdfPage"/> associated with the pattern, used for resolving resources.</param>
+        /// <returns>A <see cref="PdfPattern"/> instance representing the parsed pattern, or <see langword="null"/> if the
+        /// pattern type is unsupported.</returns>
+        public static PdfPattern ParsePattern(PdfObject patternObject, PdfPage page)
         {
             int patternType = patternObject.Dictionary.GetIntegerOrDefault(PdfTokens.PatternTypeKey);
             return patternType switch
@@ -84,7 +70,7 @@ namespace PdfReader.Rendering.Pattern
                 matrix);
         }
 
-        private static PdfShadingPattern ParseShadingPattern(PdfObject patternObject, PdfPage page) // TODO: get rid of page arg
+        private static PdfShadingPattern ParseShadingPattern(PdfObject patternObject, PdfPage page)
         {
             SKMatrix matrix = SKMatrix.Identity;
             var dictionary = patternObject.Dictionary;

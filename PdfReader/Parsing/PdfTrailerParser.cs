@@ -19,34 +19,28 @@ namespace PdfReader.Parsing
             _logger = document.LoggerFactory.CreateLogger<PdfTrailerParser>();
         }
 
+        /// <summary>
+        /// Attempt to parse a trailer dictionary at the current context position using the unified PdfParser.
+        /// Reads two top-level values: an operator (must be 'trailer') and an optional dictionary.
+        /// Returns false if the first value is not the trailer operator. Returns true otherwise (even if dictionary missing).
+        /// </summary>
         public bool TryParseTrailerDictionary(ref PdfParseContext context, out PdfDictionary trailer)
         {
-            PdfParsingHelpers.SkipWhitespaceAndComment(ref context);
+            trailer = null;
 
-            if (!PdfParsingHelpers.MatchSequence(ref context, PdfTokens.Trailer))
+            // Use unified parser; it handles whitespace/comments internally.
+            var parser = new PdfParser(ref context, _document, allowReferences: true);
+
+            var firstValue = parser.ReadNextValue();
+
+            if (firstValue.AsString() != PdfTokens.Trailer)
             {
-                trailer = null;
-                return false;
+                return false; // First operator is not 'trailer'.
             }
 
-            PdfParsingHelpers.SkipWhitespaceAndComment(ref context);
+            trailer = parser.ReadNextValue().AsDictionary();
 
-            byte first = PdfParsingHelpers.PeekByte(ref context);
-            byte second = PdfParsingHelpers.PeekByte(ref context, 1);
-            if (first != PdfTokens.LeftAngle || second != PdfTokens.LeftAngle)
-            {
-                trailer = null;
-                return true;
-            }
-
-            trailer = PdfParsers.ParsePdfValue(ref context, _document, allowReferences: true).AsDictionary();
-
-            if (trailer == null)
-            {
-                return false;
-            }
-
-            return true;
+            return true; // Trailer keyword consumed (dictionary may be null).
         }
 
         /// <summary>
@@ -59,7 +53,7 @@ namespace PdfReader.Parsing
                 return null;
             }
 
-            var prev = trailer.GetInt(PdfTokens.PrevKey);
+            var prev = trailer.GetInteger(PdfTokens.PrevKey);
             if (!prev.HasValue || prev.Value < 0)
             {
                 return null;
@@ -99,7 +93,6 @@ namespace PdfReader.Parsing
                 parameters.EncryptMetadata = encryptMetadata.Value;
             }
 
-            // Use PdfTokens constants instead of string literals.
             parameters.OwnerEntry = encryptDict.GetValue(PdfTokens.OKey).AsStringBytes().ToArray();
             parameters.UserEntry = encryptDict.GetValue(PdfTokens.UKey).AsStringBytes().ToArray();
 

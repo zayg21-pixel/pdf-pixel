@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 using Microsoft.Extensions.Logging;
 using PdfReader.Models;
 
@@ -52,13 +53,16 @@ namespace PdfReader.Parsing
                 return;
             }
 
-            // Latest section first.
+            // Classic table path.
             if (context.MatchSequenceAt(xrefOffset, PdfTokens.Xref))
             {
                 try
                 {
                     context.Position = xrefOffset + PdfTokens.Xref.Length;
-                    var trailer = ParseClassicXref(ref context);
+                    var classicParser = new PdfParser(ref context, _document, allowReferences: true);
+                    PdfDictionary trailer = ParseClassicXref(ref classicParser);
+                    // Sync outer context after parsing.
+                    context.Position = classicParser.Position;
 
                     // Walk /Prev chain backwards.
                     int? prevOffset;
@@ -69,12 +73,16 @@ namespace PdfReader.Parsing
                         if (context.MatchSequenceAt(offsetValue, PdfTokens.Xref))
                         {
                             context.Position = offsetValue + PdfTokens.Xref.Length;
-                            trailer = ParseClassicXref(ref context);
+                            classicParser = new PdfParser(ref context, _document, allowReferences: true);
+                            trailer = ParseClassicXref(ref classicParser);
+                            context.Position = classicParser.Position;
                         }
                         else
                         {
                             context.Position = offsetValue;
-                            trailer = ParseXrefStream(ref context);
+                            var streamParser = new PdfParser(ref context, _document, allowReferences: true);
+                            trailer = ParseXrefStream(ref streamParser);
+                            context.Position = streamParser.Position;
                         }
                     }
                 }
@@ -85,26 +93,32 @@ namespace PdfReader.Parsing
                 return;
             }
 
-            // XRef stream path.
+            // Stream path.
             try
             {
                 context.Position = xrefOffset;
-                var trailer = ParseXrefStream(ref context);
+                var streamParserRoot = new PdfParser(ref context, _document, allowReferences: true);
+                PdfDictionary streamTrailer = ParseXrefStream(ref streamParserRoot);
+                context.Position = streamParserRoot.Position;
 
                 int? prevOffset;
-                while ((prevOffset = _trailerParser.GetPrevOffset(trailer)).HasValue)
+                while ((prevOffset = _trailerParser.GetPrevOffset(streamTrailer)).HasValue)
                 {
                     int offsetValue = prevOffset.Value;
                     _logger.LogDebug("PdfXrefLoader: Following /Prev chain to offset {Offset} (stream path).", offsetValue);
                     if (context.MatchSequenceAt(offsetValue, PdfTokens.Xref))
                     {
                         context.Position = offsetValue + PdfTokens.Xref.Length;
-                        trailer = ParseClassicXref(ref context);
+                        var classicParser = new PdfParser(ref context, _document, allowReferences: true);
+                        streamTrailer = ParseClassicXref(ref classicParser);
+                        context.Position = classicParser.Position;
                     }
                     else
                     {
                         context.Position = offsetValue;
-                        trailer = ParseXrefStream(ref context);
+                        var streamParser = new PdfParser(ref context, _document, allowReferences: true);
+                        streamTrailer = ParseXrefStream(ref streamParser);
+                        context.Position = streamParser.Position;
                     }
                 }
             }
@@ -115,35 +129,67 @@ namespace PdfReader.Parsing
         }
 
         #region Classic XRef
-        private PdfDictionary ParseClassicXref(ref PdfParseContext context)
+        /// <summary>
+        /// Parse classic xref subsections using PdfParser only. Format: (firstObject entryCount) lines followed by entries, ending with trailer operator.
+        /// </summary>
+        private PdfDictionary ParseClassicXref(ref PdfParser parser)
         {
             int subsectionIndex = 0;
-            while (!context.IsAtEnd)
+            while (true)
             {
-                int subsectionStartPos = context.Position;
-                PdfParsingHelpers.SkipWhitespaceAndComment(ref context);
-                if (!PdfParsers.TryParseNumber(ref context, out int firstObject))
+                int subsectionStart = parser.Position;
+                IPdfValue firstValue = parser.ReadNextValue();
+                if (firstValue == null)
                 {
-                    _logger.LogDebug("PdfXrefLoader: Finished parsing classic xref (no more subsections). ");
+                    _logger.LogDebug("PdfXrefLoader: Finished parsing classic xref (EOF).");
                     break;
                 }
 
-                PdfParsingHelpers.SkipWhitespaceAndComment(ref context);
-                if (!PdfParsers.TryParseNumber(ref context, out int entryCount))
+                // Trailer detection.
+                if (firstValue.Type == PdfValueType.Operator)
                 {
-                    _logger.LogWarning("PdfXrefLoader: Failed to read entry count for subsection {Index} (start {First}) at position {Pos}.", subsectionIndex, firstObject, context.Position);
-                    context.Position = subsectionStartPos;
-                    break;
-                }
-
-                PdfParsingHelpers.SkipWhitespaceAndComment(ref context);
-                int parsedCount = 0;
-                for (int localIndex = 0; localIndex < entryCount && !context.IsAtEnd; localIndex++)
-                {
-                    int loopPos = context.Position;
-                    if (!ParseSingleEntry(ref context, firstObject + localIndex))
+                    PdfString op = firstValue.AsString();
+                    if (!op.IsEmpty && op == PdfTokens.Trailer)
                     {
-                        _logger.LogWarning("PdfXrefLoader: Failed xref entry index {LocalIndex} (object {ObjectNumber}) at position {Position}.", localIndex, firstObject + localIndex, loopPos);
+                        IPdfValue dictValue = parser.ReadNextValue();
+                        PdfDictionary trailerDict = dictValue?.AsDictionary();
+                        if (trailerDict != null)
+                        {
+                            TryApplyTrailer(trailerDict);
+                        }
+                        _logger.LogTrace("PdfXrefLoader: Encountered 'trailer' after subsection {Index}. Ending xref parse.", subsectionIndex);
+                        return trailerDict;
+                    }
+
+                    // Unexpected operator -> treat as end.
+                    _logger.LogDebug("PdfXrefLoader: Unexpected operator instead of subsection header; ending parse.");
+                    break;
+                }
+
+                if (firstValue.Type != PdfValueType.Integer)
+                {
+                    // Not integer and not trailer -> end.
+                    _logger.LogDebug("PdfXrefLoader: Non-integer subsection start value; ending classic xref parse.");
+                    break;
+                }
+
+                IPdfValue countValue = parser.ReadNextValue();
+                if (countValue == null || countValue.Type != PdfValueType.Integer)
+                {
+                    _logger.LogWarning("PdfXrefLoader: Failed to read entry count for subsection {Index} (start {First}) at position {Pos}.", subsectionIndex, firstValue.AsInteger(), parser.Position);
+                    break;
+                }
+
+                int firstObject = firstValue.AsInteger();
+                int entryCount = countValue.AsInteger();
+                int parsedCount = 0;
+
+                for (int localIndex = 0; localIndex < entryCount; localIndex++)
+                {
+                    int entryObjectNumber = firstObject + localIndex;
+                    if (!ParseSingleEntry(ref parser, entryObjectNumber))
+                    {
+                        _logger.LogWarning("PdfXrefLoader: Failed xref entry index {LocalIndex} (object {ObjectNumber}) at position {Position}.", localIndex, entryObjectNumber, parser.Position);
                         break;
                     }
                     parsedCount++;
@@ -154,70 +200,46 @@ namespace PdfReader.Parsing
                     _logger.LogWarning("PdfXrefLoader: Parsed {Parsed} of {Declared} entries in subsection {Index} (start {First}).", parsedCount, entryCount, subsectionIndex, firstObject);
                 }
 
-                if (_trailerParser.TryParseTrailerDictionary(ref context, out PdfDictionary trailer))
-                {
-                    TryApplyTrailer(trailer);
-                    _logger.LogTrace("PdfXrefLoader: Encountered 'trailer' after subsection {Index}. Ending xref parse.");
-                    return trailer;
-                }
-
                 subsectionIndex++;
             }
 
             return null;
         }
 
-        private bool ParseSingleEntry(ref PdfParseContext context, int objectNumber)
+        /// <summary>
+        /// Parse a single classic xref table entry using the unified PdfParser.
+        /// Reads three tokens (offset, generation, status) without validating the first two types.
+        /// Only the third (status) must be an operator 'n' or 'f'.
+        /// </summary>
+        private bool ParseSingleEntry(ref PdfParser parser, int objectNumber)
         {
-            int entryStart = context.Position;
-            PdfParsingHelpers.SkipWhitespaceAndComment(ref context);
-            if (!PdfParsers.TryParseNumber(ref context, out int offsetValue))
+            int entryStart = parser.Position;
+
+            int offsetValue = parser.ReadNextValue().AsInteger();
+            int generation = parser.ReadNextValue().AsInteger();
+            PdfString statusString = parser.ReadNextValue().AsString();
+
+            if (statusString.IsEmpty || statusString.Value.Length != 1)
             {
-                _logger.LogWarning("PdfXrefLoader: Could not parse offset for object {ObjectNumber} at position {Pos}.", objectNumber, entryStart);
-                context.Position = entryStart;
+                parser.Position = entryStart;
                 return false;
             }
-            PdfParsingHelpers.SkipWhitespaceAndComment(ref context);
-            if (!PdfParsers.TryParseNumber(ref context, out int generation))
-            {
-                _logger.LogWarning("PdfXrefLoader: Could not parse generation for object {ObjectNumber} after offset at position {Pos}.", objectNumber, context.Position);
-                context.Position = entryStart;
-                return false;
-            }
-            PdfParsingHelpers.SkipWhitespaceAndComment(ref context);
-            if (context.IsAtEnd)
-            {
-                _logger.LogWarning("PdfXrefLoader: Unexpected end-of-buffer after generation for object {ObjectNumber}.");
-                context.Position = entryStart;
-                return false;
-            }
-            byte status = PdfParsingHelpers.PeekByte(ref context);
-            context.Advance(1);
-            if (!context.IsAtEnd && PdfParsingHelpers.PeekByte(ref context) == (byte)'\r')
-            {
-                context.Advance(1);
-                if (!context.IsAtEnd && PdfParsingHelpers.PeekByte(ref context) == (byte)'\n')
-                {
-                    context.Advance(1);
-                }
-            }
-            else if (!context.IsAtEnd && PdfParsingHelpers.PeekByte(ref context) == (byte)'\n')
-            {
-                context.Advance(1);
-            }
+
+            byte statusByte = statusString.Value.Span[0];
 
             var reference = new PdfReference(objectNumber, generation);
             PdfObjectInfo info;
-            if (status == (byte)'n')
+            if (statusByte == (byte)'n')
             {
                 info = PdfObjectInfo.ForUncompressed(reference, offsetValue, false);
             }
-            else if (status == (byte)'f')
+            else if (statusByte == (byte)'f')
             {
                 info = PdfObjectInfo.ForFree(reference, 0, generation, false);
             }
             else
             {
+                parser.Position = entryStart;
                 return false;
             }
 
@@ -227,51 +249,31 @@ namespace PdfReader.Parsing
         #endregion
 
         #region XRef Stream (PDF 1.5+)
-        private PdfDictionary ParseXrefStream(ref PdfParseContext context)
+        private PdfDictionary ParseXrefStream(ref PdfParser parser)
         {
-            if (!PdfParsers.TryParseObjectHeader(ref context, out int objNum, out int gen))
+            PdfObject xrefObject = parser.ReadObject();
+            if (xrefObject == null || xrefObject.Dictionary == null)
             {
-                _logger.LogDebug("PdfXrefLoader: startxref offset {Offset} does not begin with an indirect object header (not xref stream).", context.Position);
-                return null;
-            }
-            PdfParsingHelpers.SkipWhitespaceAndComment(ref context);
-            var value = PdfParsers.ParsePdfValue(ref context, _document, allowReferences: true);
-            if (value == null)
-            {
-                _logger.LogDebug("PdfXrefLoader: Missing dictionary at xref stream object header.");
-                return null;
-            }
-            var dictionary = value.AsDictionary();
-            if (dictionary == null)
-            {
-                _logger.LogDebug("PdfXrefLoader: Xref stream object value not a dictionary.");
-                return null;
-            }
-            var typeName = dictionary.GetName(PdfTokens.TypeKey);
-            if (typeName != PdfTokens.XRefKey)
-            {
-                _logger.LogDebug("PdfXrefLoader: Object at offset {Offset} is not /Type /XRef (type={Type}).", context.Position, typeName);
+                _logger.LogDebug("PdfXrefLoader: startxref offset {Offset} did not yield a dictionary stream object.", parser.Position);
                 return null;
             }
 
-            PdfParsingHelpers.SkipWhitespaceAndComment(ref context);
-            if (!PdfParsingHelpers.MatchSequence(ref context, PdfTokens.Stream))
+            if (xrefObject.StreamData.IsEmpty)
             {
-                _logger.LogWarning("PdfXrefLoader: XRef stream object missing 'stream' keyword.");
+                _logger.LogWarning("PdfXrefLoader: XRef stream object has no stream data.");
                 return null;
             }
 
-            var xrefObject = new PdfObject(new PdfReference(objNum, gen), _document, value);
-            xrefObject.StreamData = PdfParsers.ParseStream(ref context, dictionary);
             var decoded = _document.StreamDecoder.DecodeContentStream(xrefObject);
             if (decoded.IsEmpty)
             {
                 _logger.LogWarning("PdfXrefLoader: Decoded xref stream empty.");
                 return null;
             }
-            ParseXrefStreamEntries(dictionary, decoded);
-            TryApplyTrailer(dictionary);
-            return dictionary;
+
+            ParseXrefStreamEntries(xrefObject.Dictionary, decoded);
+            TryApplyTrailer(xrefObject.Dictionary);
+            return xrefObject.Dictionary;
         }
 
         private void ParseXrefStreamEntries(PdfDictionary dict, ReadOnlyMemory<byte> decoded)
@@ -393,6 +395,7 @@ namespace PdfReader.Parsing
             _logger.LogDebug("PdfXrefLoader: Skipping older revision entry for object {Object} gen {Gen}.", reference.ObjectNumber, reference.Generation);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static long ReadBigEndian(ReadOnlySpan<byte> slice)
         {
             long value = 0;
@@ -442,12 +445,15 @@ namespace PdfReader.Parsing
             }
             var temp = context;
             temp.Position = afterKeyword;
-            PdfParsingHelpers.SkipWhitespaceAndComment(ref temp);
-            if (!PdfParsers.TryParseNumber(ref temp, out int offset))
+            PdfParser parser = new PdfParser(ref temp, null, allowReferences: false);
+            var value = parser.ReadNextValue();
+
+            if (value.Type != PdfValueType.Integer)
             {
                 return -1;
             }
-            return offset;
+
+            return value.AsInteger();
         }
         #endregion
     }

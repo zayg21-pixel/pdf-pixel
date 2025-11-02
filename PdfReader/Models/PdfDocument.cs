@@ -13,6 +13,7 @@ using PdfReader.Streams;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using PdfReader.Icc;
 
 namespace PdfReader.Models
 {
@@ -62,13 +63,11 @@ namespace PdfReader.Models
         /// </summary>
         internal ConcurrentDictionary<PdfReference, PdfFunction> FunctionObjectCache { get; } = new ConcurrentDictionary<PdfReference, PdfFunction>();
 
-        internal Dictionary<PdfReference, PdfPattern> PatternCache { get; } = new Dictionary<PdfReference, PdfPattern>();
-
         internal PdfStreamDecoder StreamDecoder { get; }
 
-        public List<PdfPage> Pages { get; set; } = new List<PdfPage>();
+        public List<PdfPage> Pages { get; } = new List<PdfPage>();
 
-        public int PageCount { get; set; }
+        public int PageCount => Pages.Count;
 
         public PdfObject RootObject { get; set; }
 
@@ -82,6 +81,12 @@ namespace PdfReader.Models
         /// Exposes the original PDF file bytes for internal parser use (lazy object loading).
         /// </summary>
         internal ReadOnlyMemory<byte> FileBytes => _fileBytes;
+
+        /// <summary>
+        /// Parsed catalog output intent ICC profile (first preferred or first valid). Null when none present or invalid.
+        /// Populated by <see cref="Parsing.PdfOutputIntentParser"/> post xref/catalog load.
+        /// </summary>
+        internal IccProfile OutputIntentProfile { get; set; }
 
         internal void StoreParsedObject(PdfObject pdfObject)
         {

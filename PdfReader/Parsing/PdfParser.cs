@@ -15,6 +15,18 @@ namespace PdfReader.Parsing
         private readonly PdfDocument _document; // Needed for constructing arrays/dictionaries
         private readonly bool _allowReferences;
 
+        /// <summary>
+        /// Current absolute byte position within the underlying parse context.
+        /// Setting this advances or rewinds the parser to a new location (bounds clamped to context length).
+        /// </summary>
+        public int Position
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => _parseContext.Position;
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            set => _parseContext.Position = value;
+        }
+
         // Frame describing an open collection (array or dictionary) with start index in the value list.
         // Stores the originating opening token type so we can validate matching closing tokens.
         private struct CollectionFrame

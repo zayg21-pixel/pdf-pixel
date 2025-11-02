@@ -37,12 +37,9 @@ namespace PdfReader.Rendering.Color
             }
         }
 
-        public IccBasedConverter(int n, PdfColorSpaceConverter alternate, byte[] iccProfileBytes)
+        public IccBasedConverter(int n, PdfColorSpaceConverter alternate, IccProfile profile)
             : this(n, alternate)
         {
-            var profile = IccProfile.Parse(iccProfileBytes);
-            IccBytes = iccProfileBytes;
-
             if (profile != null)
             {
                 switch (n)
@@ -67,7 +64,10 @@ namespace PdfReader.Rendering.Color
             }
         }
 
-        public byte[] IccBytes { get; }
+        public IccBasedConverter(int n, PdfColorSpaceConverter alternate, byte[] iccProfileBytes)
+            : this(n, alternate, IccProfile.Parse(iccProfileBytes))
+        {
+        }
 
         public override int Components => _default.Components;
 

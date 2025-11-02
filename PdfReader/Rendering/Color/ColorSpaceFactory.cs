@@ -27,7 +27,7 @@ namespace PdfReader.Rendering.Color
             }
 
             var baseCsValue = array.GetValue(1);
-            var baseConverter = PdfColorSpaces.ResolveByValue(baseCsValue, page);
+            var baseConverter = page.Cache.ColorSpace.ResolveByValue(baseCsValue);
             if (baseConverter == null)
             {
                 return null;
@@ -110,7 +110,7 @@ namespace PdfReader.Rendering.Color
             }
 
             var name = arr.GetName(1);
-            var alt = PdfColorSpaces.ResolveByValue(arr.GetValue(2), page);
+            var alt = page.Cache.ColorSpace.ResolveByValue(arr.GetValue(2));
             var tintFunction = ResolveTintFunction(arr, 3, page);
             return new SeparationColorSpaceConverter(name, alt, tintFunction);
         }
@@ -144,7 +144,7 @@ namespace PdfReader.Rendering.Color
                 names[index] = namesArray.GetString(index);
             }
 
-            var alt = PdfColorSpaces.ResolveByValue(arr.GetValue(2), page);
+            var alt = page.Cache.ColorSpace.ResolveByValue(arr.GetValue(2));
             var tintFunction = ResolveTintFunction(arr, 3, page);
             return new DeviceNColorSpaceConverter(names, alt, tintFunction);
         }
@@ -289,7 +289,7 @@ namespace PdfReader.Rendering.Color
             PdfColorSpaceConverter alt = null;
             var dict = pdfObject.Dictionary;
             n = dict.GetIntegerOrDefault(PdfTokens.NKey);
-            var altVal = PdfColorSpaces.ResolveByValue(dict.GetValue(PdfTokens.AlternateKey), page, n);
+            var altVal = page.Cache.ColorSpace.ResolveByValue(dict.GetValue(PdfTokens.AlternateKey), n);
 
             byte[] iccBytes = null;
             if (!pdfObject.StreamData.IsEmpty)
@@ -313,7 +313,7 @@ namespace PdfReader.Rendering.Color
                 if (array != null && array.Count >= 2)
                 {
                     var arrayValue = array.GetValue(1);
-                    var baseConv = PdfColorSpaces.ResolveByValue(arrayValue, page);
+                    var baseConv = page.Cache.ColorSpace.ResolveByValue(arrayValue);
                     return new PatternColorSpaceConverter(baseConv);
                 }
             }

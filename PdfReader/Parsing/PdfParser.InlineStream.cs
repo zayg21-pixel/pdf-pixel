@@ -10,7 +10,6 @@ namespace PdfReader.Parsing
         private IPdfValue ReadInlineStream()
         {
             // ID operator already consumed by ReadToken
-            
             // Skip single whitespace after ID per PDF spec
             SkipSingleWhitespaceAfterID();
             
@@ -63,39 +62,48 @@ namespace PdfReader.Parsing
                 return _parseContext.OriginalMemory.Slice(dataStart, dataLength);
             }
 
-            var span = _parseContext.GetSlice(dataStart, dataLength);
-            return span.ToArray();
+            return _parseContext.GetSlice(dataStart, dataLength).ToArray();
         }
         
+        /// <summary>
+        /// Locate the end position (absolute) of inline image data by finding a valid EI terminator.
+        /// Uses the parse context slice for both single-memory and multi-chunk scenarios.
+        /// </summary>
+        /// <param name="start">Absolute start position of the inline data.</param>
+        /// <returns>Absolute end position (start of EI) or -1 if not found.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private int FindInlineStreamDataEnd(int start)
         {
-            if (!_parseContext.IsSingleMemory)
+            if (start < 0 || start >= _parseContext.Length)
             {
-                return -1; // Multi-chunk fallback not implemented
+                return -1;
             }
 
-            var span = _parseContext.OriginalMemory.Span;
-            int length = span.Length;
-            
-            for (int index = start; index + 1 < length; index++)
+            ReadOnlySpan<byte> data = _parseContext.GetSlice(start, _parseContext.Length - start);
+            int length = data.Length;
+            if (length == 0)
             {
-                if (span[index] == (byte)'E' && span[index + 1] == (byte)'I')
+                return -1;
+            }
+
+            for (int localIndex = 0; localIndex + 1 < length; localIndex++)
+            {
+                if (data[localIndex] != (byte)'E' || data[localIndex + 1] != (byte)'I')
                 {
-                    // Check for proper EI delimiter according to PDF spec:
-                    // - Must be preceded by whitespace (or be at start)
-                    // - Must be followed by whitespace or delimiter (or be at end)
-                    bool precedingWhitespace = index - 1 >= start && IsWhitespace(span[index - 1]);
-                    byte following = index + 2 < length ? span[index + 2] : (byte)0;
-                    bool followingDelimiter = index + 2 >= length || IsTokenTerminator(following);
-                    
-                    if (precedingWhitespace && followingDelimiter)
-                    {
-                        return index;
-                    }
+                    continue;
+                }
+
+                bool precedingWhitespace = localIndex == 0 || IsWhitespace(data[localIndex - 1]);
+                byte following = localIndex + 2 < length ? data[localIndex + 2] : (byte)0;
+                bool followingDelimiter = localIndex + 2 >= length || IsTokenTerminator(following);
+
+                if (precedingWhitespace && followingDelimiter)
+                {
+                    // Return absolute position within original context
+                    return start + localIndex;
                 }
             }
-            
+
             return -1;
         }
     }

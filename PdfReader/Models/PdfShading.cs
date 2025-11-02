@@ -14,6 +14,62 @@ namespace PdfReader.Models
     /// </summary>
     public sealed class PdfShading
     {
+        public PdfShading(PdfObject pdfObject, PdfPage page)
+        {
+            var rawDictionary = pdfObject.Dictionary;
+            SourceObject = pdfObject;
+
+            if (rawDictionary == null)
+            {
+                ShadingType = 0;
+                Functions = new List<PdfFunction>();
+                return;
+            }
+
+            ShadingType = rawDictionary.GetIntegerOrDefault(PdfTokens.ShadingTypeKey);
+            var coordsArr = rawDictionary.GetArray(PdfTokens.CoordsKey)?.GetFloatArray();
+            Coords = coordsArr;
+            var domainArr = rawDictionary.GetArray(PdfTokens.DomainKey)?.GetFloatArray();
+            Domain = domainArr;
+            var extendArr = rawDictionary.GetArray(PdfTokens.ExtendKey);
+            if (extendArr != null && extendArr.Count >= 2)
+            {
+                ExtendStart = extendArr.GetBool(0);
+                ExtendEnd = extendArr.GetBool(1);
+            }
+
+            var colorSpaceValue = rawDictionary.GetValue(PdfTokens.ColorSpaceKey);
+            ColorSpaceConverter = page.Cache.ColorSpace.ResolveByValue(colorSpaceValue);
+            RenderingIntent = rawDictionary.GetName(PdfTokens.IntentKey).AsEnum<PdfRenderingIntent>();
+
+            C0 = rawDictionary.GetArray(PdfTokens.C0Key)?.GetFloatArray();
+            C1 = rawDictionary.GetArray(PdfTokens.C1Key)?.GetFloatArray();
+            Functions = new List<PdfFunction>();
+
+            var functionObjects = rawDictionary.GetPageObjects(PdfTokens.FunctionKey);
+            if (functionObjects != null)
+            {
+                foreach (var functionObject in functionObjects)
+                {
+                    var function = PdfFunctions.GetFunction(functionObject);
+                    if (function != null)
+                    {
+                        Functions.Add(function);
+                    }
+                }
+            }
+
+            var matrixArray = rawDictionary.GetArray(PdfTokens.MatrixKey);
+            if (matrixArray != null && matrixArray.Count >= 6)
+            {
+                Matrix = PdfMatrixUtilities.CreateMatrix(matrixArray);
+            }
+            else
+            {
+                Matrix = null;
+            }
+        }
+
         /// <summary>
         /// Gets the underlying <see cref="PdfObject"/> that serves as the source for this instance.
         /// </summary>
@@ -73,61 +129,5 @@ namespace PdfReader.Models
         /// Gets the optional transformation matrix (/Matrix) for this shading, if defined.
         /// </summary>
         public SKMatrix? Matrix { get; }
-
-        public PdfShading(PdfObject pdfObject, PdfPage page)
-        {
-            var rawDictionary = pdfObject.Dictionary;
-            SourceObject = pdfObject;
-
-            if (rawDictionary == null)
-            {
-                ShadingType = 0;
-                Functions = new List<PdfFunction>();
-                return;
-            }
-
-            ShadingType = rawDictionary.GetIntegerOrDefault(PdfTokens.ShadingTypeKey);
-            var coordsArr = rawDictionary.GetArray(PdfTokens.CoordsKey)?.GetFloatArray();
-            Coords = coordsArr;
-            var domainArr = rawDictionary.GetArray(PdfTokens.DomainKey)?.GetFloatArray();
-            Domain = domainArr;
-            var extendArr = rawDictionary.GetArray(PdfTokens.ExtendKey);
-            if (extendArr != null && extendArr.Count >= 2)
-            {
-                ExtendStart = extendArr.GetBool(0);
-                ExtendEnd = extendArr.GetBool(1);
-            }
-
-            var colorSpaceValue = rawDictionary.GetValue(PdfTokens.ColorSpaceKey);
-            ColorSpaceConverter = PdfColorSpaces.ResolveByValue(colorSpaceValue, page);
-            RenderingIntent = rawDictionary.GetName(PdfTokens.IntentKey).AsEnum<PdfRenderingIntent>();
-
-            C0 = rawDictionary.GetArray(PdfTokens.C0Key)?.GetFloatArray();
-            C1 = rawDictionary.GetArray(PdfTokens.C1Key)?.GetFloatArray();
-            Functions = new List<PdfFunction>();
-
-            var functionObjects = rawDictionary.GetPageObjects(PdfTokens.FunctionKey);
-            if (functionObjects != null)
-            {
-                foreach (var functionObject in functionObjects)
-                {
-                    var function = PdfFunctions.GetFunction(functionObject);
-                    if (function != null)
-                    {
-                        Functions.Add(function);
-                    }
-                }
-            }
-
-            var matrixArray = rawDictionary.GetArray(PdfTokens.MatrixKey);
-            if (matrixArray != null && matrixArray.Count >= 6)
-            {
-                Matrix = PdfMatrixUtilities.CreateMatrix(matrixArray);
-            }
-            else
-            {
-                Matrix = null;
-            }
-        }
     }
 }

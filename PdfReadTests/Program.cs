@@ -2,6 +2,7 @@
 using PdfReader;
 using PdfReader.Models;
 using SkiaSharp;
+using System.IO;
 
 namespace PdfReadTests
 {
@@ -95,80 +96,72 @@ namespace PdfReadTests
 
             try
             {
-                using (var stream = File.OpenRead(filename))
+                var reader = new PdfDocumentReader(LoggerFactoryInstance);
+                using var document = reader.Read(File.ReadAllBytes(filename), "test");
+
+                Logger.LogInformation("Successfully read PDF: {File}", filename);
+                Logger.LogInformation("Total pages: {Count}", document.PageCount);
+                Logger.LogInformation("Actual pages found: {Count}", document.Pages.Count);
+                Logger.LogInformation("Root object: {Root}", document.RootObject);
+
+                var start = 0;
+                var max = 1000;
+                float scaleX = 0.1f; // Scale factor for rendering
+
+                // Analyze pages with detailed content stream debugging
+                for (int i = start; i < Math.Min(max, document.PageCount); i++)
                 {
-                    var reader = new PdfDocumentReader(LoggerFactoryInstance);
-                    using var document = reader.Read(stream, "test");
+                    var page = document.Pages[i];
+                    Logger.LogInformation("Page {PageNumber}:", page.PageNumber);
 
-                    Logger.LogInformation("Successfully read PDF: {File}", filename);
-                    Logger.LogInformation("Total pages: {Count}", document.PageCount);
-                    Logger.LogInformation("Actual pages found: {Count}", document.Pages.Count);
-                    Logger.LogInformation("Root object: {Root}", document.RootObject);
-
-                    var start = 0;
-                    var max = 1000;
-                    float scaleX = 0.1f; // Scale factor for rendering
-
-                    // Analyze pages with detailed content stream debugging
-                    for (int i = start; i < Math.Min(max, document.PageCount); i++)
+                    // Demonstrate rendering to a bitmap
+                    try
                     {
-                        var page = document.Pages[i];
-                        Logger.LogInformation("Page {PageNumber}:", page.PageNumber);
+                        var renderingBounds = page.CropBox;
 
-                        // Demonstrate rendering to a bitmap
-                        try
+                        var renderWidth = (int)Math.Max(renderingBounds.Width, 100); // Minimum 100px
+                        var renderHeight = (int)Math.Max(renderingBounds.Height, 100); // Minimum 100px
+
+                        var info = new SKImageInfo((int)(renderWidth * scaleX), (int)(renderHeight * scaleX), SKColorType.Rgba8888, SKAlphaType.Premul, SKColorSpace.CreateSrgb());
+                        //using var surface = SKSurface.Create(grContext, false, info);
+                        using var surface = SKSurface.Create(info);
+
+                        using var canvas = surface.Canvas;
+                        canvas.ClipRect(new SKRect(0, 0, renderWidth * scaleX, renderHeight * scaleX));
+                        canvas.Scale(scaleX, scaleX); // Apply scaling for high-res rendering
+                        canvas.Clear(SKColors.White);
+
+                        // Render the page (this will show transformation debug info)
+                        page.Draw(canvas);
+
+                        Logger.LogInformation("  === PAGE RENDERING COMPLETE ===");
+
+                        var basePath = Path.Combine(Path.GetDirectoryName(filename), "Test");
+                        var name = Path.GetFileNameWithoutExtension(filename);
+
+                        if (!Directory.Exists(basePath))
                         {
-                            var renderingBounds = page.CropBox;
-                            
-                            var renderWidth = (int)Math.Max(renderingBounds.Width, 100); // Minimum 100px
-                            var renderHeight = (int)Math.Max(renderingBounds.Height, 100); // Minimum 100px
-
-                            var info = new SKImageInfo((int)(renderWidth * scaleX), (int)(renderHeight * scaleX), SKColorType.Rgba8888, SKAlphaType.Premul, SKColorSpace.CreateSrgb());
-                            //using var surface = SKSurface.Create(grContext, false, info);
-                            using var surface = SKSurface.Create(info);
-
-                            using var canvas = surface.Canvas;
-                            canvas.ClipRect(new SKRect(0, 0, renderWidth * scaleX, renderHeight * scaleX));
-                            canvas.Scale(scaleX, scaleX); // Apply scaling for high-res rendering
-                            canvas.Clear(SKColors.White);
-
-                            // Render the page (this will show transformation debug info)
-                            page.Draw(canvas);
-
-                            Logger.LogInformation("  === PAGE RENDERING COMPLETE ===");
-
-                            var basePath = Path.Combine(Path.GetDirectoryName(filename), "Test");
-                            var name = Path.GetFileNameWithoutExtension(filename);
-
-                            if (!Directory.Exists(basePath))
-                            {
-                                Directory.CreateDirectory(basePath);
-                            }
-
-                            //// Save as PNG (optional)
-                            //var filename_png = $"{basePath}\\{name}_page_{page.PageNumber}.jpg";
-                            //using (var image = surface.Snapshot())
-                            //using (var data = image.Encode(SKEncodedImageFormat.Jpeg, 100))
-                            //using (var fileStream = File.OpenWrite(filename_png))
-                            //{
-                            //    data.SaveTo(fileStream);
-                            //}
-
-                            if (page.PageNumber == document.PageCount - 10)
-                            {
-                                Console.WriteLine("Rendered page saved to: ");
-                            }
-
-                            //var recording = CreateRecording(page);
-                            //SaveRecording(recording, scaleX, filename_png);
-                        }
-                        catch (Exception ex)
-                        {
-                            Logger.LogError(ex, "    Rendering error on page {PageNumber}.", page.PageNumber);
+                            Directory.CreateDirectory(basePath);
                         }
 
-                        Logger.LogInformation(string.Empty);
+                        //// Save as PNG (optional)
+                        //var filename_png = $"{basePath}\\{name}_page_{page.PageNumber}.jpg";
+                        //using (var image = surface.Snapshot())
+                        //using (var data = image.Encode(SKEncodedImageFormat.Jpeg, 100))
+                        //using (var fileStream = File.OpenWrite(filename_png))
+                        //{
+                        //    data.SaveTo(fileStream);
+                        //}
+
+                        //var recording = CreateRecording(page);
+                        //SaveRecording(recording, scaleX, filename_png);
                     }
+                    catch (Exception ex)
+                    {
+                        Logger.LogError(ex, "    Rendering error on page {PageNumber}.", page.PageNumber);
+                    }
+
+                    Logger.LogInformation(string.Empty);
                 }
             }
             catch (Exception ex)

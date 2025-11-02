@@ -242,17 +242,7 @@ namespace PdfReader.Rendering.Operators
             }
 
             var gsName = operands[0].AsName();
-            // Apply graphics state parameters from the page resources and get any transformation matrix
-            var transformMatrix = PdfGraphicsStateParser.ParseGraphicsStateParameters(gsName, graphicsState, _page);
-
-            if (!transformMatrix.HasValue)
-            {
-                return;
-            }
-
-            _canvas.Concat(transformMatrix.Value);
-            // Update CTM in graphics state - concatenate with existing CTM
-            graphicsState.CTM = transformMatrix.Value.PostConcat(graphicsState.CTM);
+            _page.Cache.ApplyGraphicsStateParameters(gsName, _canvas, graphicsState);
         }
 
         private void ProcessSetFlatnessTolerance(PdfGraphicsState graphicsState)

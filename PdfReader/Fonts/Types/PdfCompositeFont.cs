@@ -121,7 +121,7 @@ namespace PdfReader.Fonts.Types
 
             foreach (var descendantObj in descendantObjects)
             {
-                var descendant = PdfFontFactory.CreateFont(descendantObj);
+                var descendant = PdfFontFactory.CreateFont(descendantObj.Dictionary);
 
                 if (descendant is PdfCIDFont cidFont)
                 {

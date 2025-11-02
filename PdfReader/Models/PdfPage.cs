@@ -1,8 +1,7 @@
-using PdfReader.Fonts;
-using PdfReader.Fonts.Types;
 using PdfReader.Rendering;
 using SkiaSharp;
 using System;
+using System.Threading;
 
 namespace PdfReader.Models
 {
@@ -13,47 +12,47 @@ namespace PdfReader.Models
     /// </summary>
     public class PdfPage
     {
+        private static readonly SKRect DefaultMediaBox = new SKRect(0, 0, 612, 792);
+
+        // Lazy per-page cache (thread-safe). Allocated only on first access.
+        private readonly Lazy<PdfPageCache> _lazyPageCache;
+
         /// <summary>
-        /// Initializes a new instance of the <see cref="PdfPage"/> class with fully resolved attributes.
-        /// Caller must guarantee that <paramref name="mediaBox"/> and <paramref name="cropBox"/> are valid rectangles
-        /// and that <paramref name="resourceDictionary"/> is non-null.
+        /// Initializes a new instance using <see cref="PdfPageResources"/> snapshot (rotation already normalized there).
         /// </summary>
-        /// <param name="pageNumber">1-based page index within the document.</param>
-        /// <param name="document">Owning <see cref="PdfDocument"/>.</param>
-        /// <param name="pageObject">Underlying /Page dictionary object.</param>
-        /// <param name="mediaBox">Resolved MediaBox rectangle.</param>
-        /// <param name="cropBox">Resolved CropBox rectangle.</param>
-        /// <param name="rotation">Normalized rotation in degrees (0, 90, 180, 270).</param>
-        /// <param name="resourceDictionary">Resolved resource dictionary (must not be null).</param>
+        /// <param name="pageNumber">1-based page index.</param>
+        /// <param name="document">Owning document.</param>
+        /// <param name="pageObject">Underlying /Page object.</param>
+        /// <param name="pageResources">Resolved inheritable page resources snapshot.</param>
         public PdfPage(int pageNumber,
                        PdfDocument document,
                        PdfObject pageObject,
-                       SKRect mediaBox,
-                       SKRect cropBox,
-                       int rotation,
-                       PdfDictionary resourceDictionary)
+                       PdfPageResources pageResources)
         {
-            if (document == null)
-            {
-                throw new ArgumentNullException(nameof(document));
-            }
-            if (pageObject == null)
-            {
-                throw new ArgumentNullException(nameof(pageObject));
-            }
-            if (resourceDictionary == null)
-            {
-                throw new ArgumentNullException(nameof(resourceDictionary));
-            }
+            Document = document ?? throw new ArgumentNullException(nameof(document));
+            PageObject = pageObject ?? throw new ArgumentNullException(nameof(pageObject));
+            PageResources = pageResources ?? throw new ArgumentNullException(nameof(pageResources));
+            _lazyPageCache = new Lazy<PdfPageCache>(() => new PdfPageCache(this), LazyThreadSafetyMode.ExecutionAndPublication);
 
             PageNumber = pageNumber;
-            Document = document;
-            PageObject = pageObject;
-            MediaBox = mediaBox;
-            CropBox = cropBox;
-            Rotation = rotation;
-            ResourceDictionary = resourceDictionary;
+            var media = pageResources.MediaBoxRect ?? DefaultMediaBox;
+            var crop = pageResources.CropBoxRect ?? media;
+            MediaBox = media;
+            CropBox = crop;
+            Rotation = pageResources.Rotate ?? 0;
+            ResourceDictionary = pageResources.Resources ?? new PdfDictionary(document);
         }
+
+        /// <summary>
+        /// Lazy per-page resource cache providing name-based lookups. Internal access only.
+        /// Created on first access to avoid unnecessary allocations for pages that do not need caching.
+        /// </summary>
+        internal virtual PdfPageCache Cache => _lazyPageCache.Value;
+
+        /// <summary>
+        /// Page resources snapshot used to resolve inheritable attributes.
+        /// </summary>
+        internal PdfPageResources PageResources { get; }
 
         /// <summary>
         /// 1-based index of this page within the document.
@@ -91,43 +90,6 @@ namespace PdfReader.Models
         public PdfDocument Document { get; }
 
         /// <summary>
-        /// Retrieve a font by its resource key from the page resources (with document-level caching).
-        /// Returns null if the font reference does not exist or cannot be created.
-        /// </summary>
-        /// <param name="fontName">Resource key of the font.</param>
-        /// <returns>Resolved <see cref="PdfFontBase"/> or null.</returns>
-        public virtual PdfFontBase GetFont(PdfString fontName)
-        {
-            if (fontName.IsEmpty)
-            {
-                return null;
-            }
-
-            var fontDict = ResourceDictionary.GetDictionary(PdfTokens.FontKey);
-            if (fontDict == null)
-            {
-                return null;
-            }
-
-            var fontObject = fontDict.GetPageObject(fontName);
-
-            var fontReference = fontObject.Reference;
-            if (fontReference.IsValid && Document.Fonts.TryGetValue(fontReference, out var cachedFont))
-            {
-                return cachedFont;
-            }
-
-            var newFont = PdfFontFactory.CreateFont(fontObject);
-
-            if (newFont != null && fontReference.IsValid)
-            {
-                Document.Fonts[fontReference] = newFont;
-            }
-
-            return newFont;
-        }
-
-        /// <summary>
         /// Render the page content to a Skia canvas.
         /// </summary>
         /// <param name="canvas">Destination canvas.</param>
@@ -147,6 +109,13 @@ namespace PdfReader.Models
             renderer.ApplyPageTransformations(canvas);
             renderer.RenderContent(canvas);
             canvas.Restore();
+
+            // Release transient per-page cached resources after drawing to reduce memory footprint.
+            // Fonts and color spaces retained at document level; this clears name-based page dictionaries.
+            if (_lazyPageCache.IsValueCreated)
+            {
+                Cache.ReleaseCache();
+            }
         }
     }
 }

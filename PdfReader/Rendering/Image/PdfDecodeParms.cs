@@ -90,25 +90,25 @@ namespace PdfReader.Rendering.Image
             }
 
             // Predictor related
-            parameters.Predictor = dictionary.GetInt(PdfTokens.PredictorKey);
-            parameters.Colors = dictionary.GetInt(PdfTokens.ColorsKey);
-            parameters.BitsPerComponent = dictionary.GetInt(PdfTokens.BitsPerComponentKey);
-            parameters.Columns = dictionary.GetInt(PdfTokens.ColumnsKey);
+            parameters.Predictor = dictionary.GetInteger(PdfTokens.PredictorKey);
+            parameters.Colors = dictionary.GetInteger(PdfTokens.ColorsKey);
+            parameters.BitsPerComponent = dictionary.GetInteger(PdfTokens.BitsPerComponentKey);
+            parameters.Columns = dictionary.GetInteger(PdfTokens.ColumnsKey);
 
             // CCITT related
-            parameters.K = dictionary.GetInt(PdfTokens.KKey);
+            parameters.K = dictionary.GetInteger(PdfTokens.KKey);
             parameters.EndOfLine = dictionary.GetBool(PdfTokens.EndOfLineKey);
             parameters.EncodedByteAlign = dictionary.GetBool(PdfTokens.EncodedByteAlignKey);
-            parameters.Rows = dictionary.GetInt(PdfTokens.RowsKey);
+            parameters.Rows = dictionary.GetInteger(PdfTokens.RowsKey);
             parameters.EndOfBlock = dictionary.GetBool(PdfTokens.EndOfBlockKey);
             parameters.BlackIs1 = dictionary.GetBool(PdfTokens.BlackIs1Key);
-            parameters.DamagedRowsBeforeError = dictionary.GetInt(PdfTokens.DamagedRowsBeforeErrorKey);
+            parameters.DamagedRowsBeforeError = dictionary.GetInteger(PdfTokens.DamagedRowsBeforeErrorKey);
 
             // LZW
-            parameters.EarlyChange = dictionary.GetInt(PdfTokens.EarlyChangeKey);
+            parameters.EarlyChange = dictionary.GetInteger(PdfTokens.EarlyChangeKey);
 
             // DCT
-            parameters.ColorTransform = dictionary.GetInt(PdfTokens.ColorTransformKey);
+            parameters.ColorTransform = dictionary.GetInteger(PdfTokens.ColorTransformKey);
 
             return parameters;
         }

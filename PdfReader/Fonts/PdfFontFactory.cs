@@ -32,20 +32,6 @@ namespace PdfReader.Fonts
         }
 
         /// <summary>
-        /// Create appropriate font type based on PDF object
-        /// Returns the correct subclass: PdfSimpleFont, PdfCIDFont, PdfCompositeFont, or PdfType3Font
-        /// </summary>
-        public static PdfFontBase CreateFont(PdfObject fontObject)
-        {
-            if (fontObject == null)
-            {
-                return null;
-            }
-
-            return CreateFont(fontObject.Dictionary);
-        }
-
-        /// <summary>
         /// Creates a font object based on the specified PDF dictionary.
         /// </summary>
         /// <remarks>The method determines the font subtype from the dictionary and returns an appropriate

@@ -97,10 +97,12 @@ namespace PdfReader.Parsing
                 return null;
             }
 
-            var slice = new ReadOnlyMemory<byte>(decoded.ToArray(), objectStart, length);
+            // Slice directly without copying the entire decoded buffer.
+            ReadOnlyMemory<byte> slice = decoded.Slice(objectStart, length);
             var context = new PdfParseContext(slice);
-            PdfParsingHelpers.SkipWhitespaceAndComment(ref context);
-            var value = PdfParsers.ParsePdfValue(ref context, _pdfDocument, allowReferences: true);
+            // Use new PdfParser struct for value parsing (handles whitespace/comments internally).
+            var parser = new PdfParser(ref context, _pdfDocument, allowReferences: true);
+            var value = parser.ReadNextValue();
             if (value == null)
             {
                 return null;
@@ -126,21 +128,28 @@ namespace PdfReader.Parsing
                 return;
             }
 
-            var headerMemory = new ReadOnlyMemory<byte>(decoded.ToArray(), 0, firstOffset);
+            // Header slice without copying.
+            ReadOnlyMemory<byte> headerMemory = decoded.Slice(0, firstOffset);
             var headerContext = new PdfParseContext(headerMemory);
+            // Unified parsing via PdfParser for header: sequence of objectNumber relativeOffset pairs.
+            var headerParser = new PdfParser(ref headerContext, _pdfDocument, allowReferences: false);
 
             for (int index = 0; index < objectCount; index++)
             {
-                PdfParsingHelpers.SkipWhitespaceAndComment(ref headerContext);
-                if (!PdfParsers.TryParseNumber(ref headerContext, out int objectNumber))
+                var objectNumberValue = headerParser.ReadNextValue();
+                if (objectNumberValue == null || objectNumberValue.Type != PdfValueType.Integer)
                 {
                     break;
                 }
-                PdfParsingHelpers.SkipWhitespaceAndComment(ref headerContext);
-                if (!PdfParsers.TryParseNumber(ref headerContext, out int relativeOffset))
+                var offsetValue = headerParser.ReadNextValue();
+                if (offsetValue == null || offsetValue.Type != PdfValueType.Integer)
                 {
                     break;
                 }
+
+                int objectNumber = objectNumberValue.AsInteger();
+                int relativeOffset = offsetValue.AsInteger();
+
                 var reference = new PdfReference(objectNumber, 0);
                 if (_pdfDocument.ObjectIndex.TryGetValue(reference, out var info))
                 {

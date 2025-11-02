@@ -16,10 +16,11 @@ namespace PdfReader.Fonts.Types
     /// Essential properties are read-only and set through constructor for immutability
     /// Heavy operations are lazy-loaded using thread-safe Lazy&lt;T&gt; pattern
     /// </summary>
-    public abstract class PdfFontBase
+    public abstract class PdfFontBase : IDisposable
     {
         private readonly Lazy<PdfCMap> _toUnicodeCMap;
         private readonly ConcurrentDictionary<PdfCharacterCode, PdfCharacterInfo> _characterInfoCache = new ConcurrentDictionary<PdfCharacterCode, PdfCharacterInfo>();
+        private bool disposedValue;
 
         /// <summary>
         /// Constructor for all PDF fonts with essential immutable properties
@@ -231,6 +232,29 @@ namespace PdfReader.Fonts.Types
             var cmapData = Document.StreamDecoder.DecodeContentStream(toUnicodeObj);
             var cMapContent = new PdfParseContext(cmapData);
             return PdfCMapParser.ParseCMapFromContext(ref cMapContent, Document);
+        }
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (!disposedValue)
+            {
+                if (disposing)
+                {
+                    // TODO: dispose managed state (managed objects)
+                }
+                disposedValue = true;
+            }
+        }
+
+        ~PdfFontBase()
+        {
+            Dispose(disposing: false);
+        }
+
+        public void Dispose()
+        {
+            Dispose(disposing: true);
+            GC.SuppressFinalize(this);
         }
     }
 }

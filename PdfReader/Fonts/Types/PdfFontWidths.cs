@@ -84,8 +84,8 @@ namespace PdfReader.Fonts.Types
         /// <returns>Parsed PdfFontWidths instance.</returns>
         public static PdfFontWidths ParseSingleByteFontWidths(PdfDictionary fontDictionary)
         {
-            var firstChar = (uint?)fontDictionary.GetInt(PdfTokens.FirstCharKey);
-            var lastChar = (uint?)fontDictionary.GetInt(PdfTokens.LastCharKey);
+            var firstChar = (uint?)fontDictionary.GetInteger(PdfTokens.FirstCharKey);
+            var lastChar = (uint?)fontDictionary.GetInteger(PdfTokens.LastCharKey);
             var widthsArray = fontDictionary.GetArray(PdfTokens.WidthsKey)?.GetFloatArray();
 
             return new PdfFontWidths

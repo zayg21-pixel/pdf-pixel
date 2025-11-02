@@ -13,7 +13,7 @@ namespace PdfReader.Parsing
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public IPdfValue ReadNumber()
+        private IPdfValue ReadNumber()
         {
             // Parse sign
             bool isNegative = false;
