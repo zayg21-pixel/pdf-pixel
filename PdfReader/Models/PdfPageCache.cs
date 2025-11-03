@@ -180,8 +180,6 @@ namespace PdfReader.Models
             _fontsByName.Clear();
             _colorSpacesByName.Clear();
             _graphicsStateParametersByName.Clear();
-            // TODO: consider caching and releasing Shading resources (axial/radial/mesh shading objects).
-            // TODO: consider caching and releasing Default* color spaces (DefaultGray/DefaultRGB/DefaultCMYK resolved converters).
         }
 
         /// <summary>

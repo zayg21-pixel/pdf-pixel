@@ -32,13 +32,9 @@ namespace PdfReader.Streams
         public ReadOnlyMemory<byte> DecodeContentStream(PdfObject obj)
         {
             var filters = GetFilters(obj);
+            var rawStream = obj.GetRawStream();
             var decodeParameters = GetDecodeParms(obj);
-            using Stream final = DecodeAsStream(obj.StreamData, filters, decodeParameters);
-
-            if (final == null)
-            {
-                return obj.StreamData;
-            }
+            using Stream final = DecodeAsStream(rawStream, filters, decodeParameters);
 
             using var memoryStream = new MemoryStream();
             final.CopyTo(memoryStream);
@@ -52,13 +48,11 @@ namespace PdfReader.Streams
         {
             var filters = GetFilters(obj);
             var decodeParameters = GetDecodeParms(obj);
-            return DecodeAsStream(obj.StreamData, filters, decodeParameters);
+            return DecodeAsStream(obj.GetRawStream(), filters, decodeParameters);
         }
 
-        private Stream DecodeAsStream(ReadOnlyMemory<byte> streamData, List<PdfFilterType> filters, List<PdfDictionary> decodeParameters)
+        private Stream DecodeAsStream(Stream current, List<PdfFilterType> filters, List<PdfDictionary> decodeParameters)
         {
-            Stream current = streamData.AsStream();
-
             if (filters == null || filters.Count == 0)
             {
                 return ApplyPredictorIfNeeded(current, null); // May still have predictor parameters.

@@ -55,51 +55,17 @@ namespace PdfReader
             if (length <= 0)
             {
                 _logger.LogWarning("Empty stream encountered when attempting to read PDF.");
-                return new PdfDocument(_loggerFactory, ReadOnlyMemory<byte>.Empty);
+                return new PdfDocument(_loggerFactory, stream);
             }
 
-            byte[] buffer = new byte[length];
-            stream.Position = 0;
-            int readTotal = 0;
-            while (readTotal < length)
-            {
-                int read = stream.Read(buffer, readTotal, (int)(length - readTotal));
-                if (read <= 0)
-                {
-                    break;
-                }
-                readTotal += read;
-            }
-            if (readTotal < length)
-            {
-                _logger.LogWarning("Expected {Expected} bytes, read {Actual} bytes while loading PDF stream.", length, readTotal);
-            }
-
-            return Read(buffer, password);
-        }
-
-        /// <summary>
-        /// Reads a PDF document from the specified data buffer and optionally decrypts it using the provided password.
-        /// </summary>
-        /// <remarks>This method parses the PDF structure, extracts pages, and processes the first output
-        /// intent profile if present. If an error occurs during parsing, a partial <see cref="PdfDocument"/> is
-        /// returned, and the error is logged.</remarks>
-        /// <param name="data">The PDF file data as a read-only memory buffer. This must contain the full content of the PDF file.</param>
-        /// <param name="password">An optional password used to decrypt the PDF if it is encrypted. If the PDF is not encrypted or no password
-        /// is required, this parameter can be <see langword="null"/>.</param>
-        /// <returns>A <see cref="PdfDocument"/> representing the parsed PDF. The document may be partially populated if an error
-        /// occurs during parsing.</returns>
-        public PdfDocument Read(ReadOnlyMemory<byte> data, string password = null)
-        {
-            var context = new PdfParseContext(data);
-            var document = new PdfDocument(_loggerFactory, data);
+            var document = new PdfDocument(_loggerFactory, stream);
             var xrefLoader = new PdfXrefLoader(document);
             var pageExtractor = new PdfPageExtractor(document);
             var outputIntentParser = new PdfOutputIntentParser(document);
 
             try
             {
-                xrefLoader.LoadXref(ref context);
+                xrefLoader.LoadXref();
 
                 document.Decryptor?.UpdatePassword(password);
 

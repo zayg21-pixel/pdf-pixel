@@ -71,9 +71,12 @@ namespace PdfReader.Rendering.Image.Skia
                 return null;
             }
 
-            ReadOnlyMemory<byte> rawEncoded = image.SourceObject.StreamData;
+            using var rawEncoded = image.SourceObject.GetRawStream();
+            using var memoryStream = new MemoryStream();
+            rawEncoded.CopyTo(memoryStream);
+            byte[] rawEncodedData = memoryStream.ToArray();
 
-            if (!IsValidPdgStream(rawEncoded))
+            if (!IsValidPdgStream(rawEncodedData))
             {
                 return null;
             }
@@ -82,7 +85,7 @@ namespace PdfReader.Rendering.Image.Skia
             using var pngStream = new MemoryStream();
             WritePngSignature(pngStream);
             WriteIhdrChunk(pngStream, width, height, (byte)bpc, colorType);
-            byte[] idatPayload = rawEncoded.ToArray();
+            byte[] idatPayload = rawEncodedData;
             WriteChunk(pngStream, "IDAT", idatPayload, 0, idatPayload.Length);
             WriteChunk(pngStream, "IEND", Array.Empty<byte>(), 0, 0);
 

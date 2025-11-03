@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using Microsoft.Extensions.Logging;
 using PdfReader.Models;
+using System.IO;
+using System.Text;
 
 namespace PdfReader.Parsing
 {
@@ -16,6 +18,7 @@ namespace PdfReader.Parsing
         private readonly PdfDocument _document;
         private readonly ILogger<PdfXrefLoader> _logger;
         private readonly PdfTrailerParser _trailerParser;
+        private readonly BinaryReader _reader; // Reusable reader for frequent byte access.
 
         public PdfXrefLoader(PdfDocument document)
         {
@@ -27,42 +30,33 @@ namespace PdfReader.Parsing
             _document = document;
             _logger = document.LoggerFactory.CreateLogger<PdfXrefLoader>();
             _trailerParser = new PdfTrailerParser(document);
+            _reader = new BinaryReader(document.FileStream, Encoding.ASCII, leaveOpen: true);
         }
 
-        public void LoadXref(ref PdfParseContext context)
+        public void LoadXref()
         {
-            if (_document.FileBytes.IsEmpty)
-            {
-                _logger.LogWarning("PdfXrefLoader: File bytes empty – cannot load xref.");
-                return;
-            }
-
-            context.Position = 0; // Start at beginning for backward scan.
-
-            int startxrefPos = LocateLastStartXref(ref context);
+            long startxrefPos = LocateLastStartXref();
             if (startxrefPos < 0)
             {
                 _logger.LogWarning("PdfXrefLoader: 'startxref' keyword not found – falling back to legacy full scan.");
                 return;
             }
 
-            int xrefOffset = ParseStartXrefOffset(ref context, startxrefPos);
-            if (xrefOffset < 0 || xrefOffset >= context.Length)
+            int xrefOffset = ParseStartXrefOffset(startxrefPos);
+            if (xrefOffset < 0 || xrefOffset >= _document.FileStream.Length)
             {
-                _logger.LogWarning("PdfXrefLoader: Parsed startxref offset {Offset} is invalid (file length {Length}).", xrefOffset, context.Length);
+                _logger.LogWarning("PdfXrefLoader: Parsed startxref offset {Offset} is invalid (file length {Length}).", xrefOffset, _document.FileStream.Length);
                 return;
             }
+            var parser = new PdfParser(_document.FileStream, _document, allowReferences: true);
 
             // Classic table path.
-            if (context.MatchSequenceAt(xrefOffset, PdfTokens.Xref))
+            if (MatchSequenceAt(xrefOffset, PdfTokens.Xref))
             {
                 try
                 {
-                    context.Position = xrefOffset + PdfTokens.Xref.Length;
-                    var classicParser = new PdfParser(ref context, _document, allowReferences: true);
-                    PdfDictionary trailer = ParseClassicXref(ref classicParser);
-                    // Sync outer context after parsing.
-                    context.Position = classicParser.Position;
+                    parser.Position = xrefOffset + PdfTokens.Xref.Length;
+                    PdfDictionary trailer = ParseClassicXref(ref parser);
 
                     // Walk /Prev chain backwards.
                     int? prevOffset;
@@ -70,19 +64,16 @@ namespace PdfReader.Parsing
                     {
                         int offsetValue = prevOffset.Value;
                         _logger.LogDebug("PdfXrefLoader: Following /Prev chain to offset {Offset} (classic path).", offsetValue);
-                        if (context.MatchSequenceAt(offsetValue, PdfTokens.Xref))
+                        if (MatchSequenceAt(offsetValue, PdfTokens.Xref))
                         {
-                            context.Position = offsetValue + PdfTokens.Xref.Length;
-                            classicParser = new PdfParser(ref context, _document, allowReferences: true);
-                            trailer = ParseClassicXref(ref classicParser);
-                            context.Position = classicParser.Position;
+                            parser.Position = offsetValue + PdfTokens.Xref.Length;
+                            trailer = ParseClassicXref(ref parser);
                         }
                         else
                         {
-                            context.Position = offsetValue;
-                            var streamParser = new PdfParser(ref context, _document, allowReferences: true);
+                            var streamParser = new PdfParser(_document.FileStream, _document, allowReferences: true);
+                            streamParser.Position = offsetValue;
                             trailer = ParseXrefStream(ref streamParser);
-                            context.Position = streamParser.Position;
                         }
                     }
                 }
@@ -96,29 +87,23 @@ namespace PdfReader.Parsing
             // Stream path.
             try
             {
-                context.Position = xrefOffset;
-                var streamParserRoot = new PdfParser(ref context, _document, allowReferences: true);
-                PdfDictionary streamTrailer = ParseXrefStream(ref streamParserRoot);
-                context.Position = streamParserRoot.Position;
+                parser.Position = xrefOffset;
+                PdfDictionary streamTrailer = ParseXrefStream(ref parser);
 
                 int? prevOffset;
                 while ((prevOffset = _trailerParser.GetPrevOffset(streamTrailer)).HasValue)
                 {
                     int offsetValue = prevOffset.Value;
                     _logger.LogDebug("PdfXrefLoader: Following /Prev chain to offset {Offset} (stream path).", offsetValue);
-                    if (context.MatchSequenceAt(offsetValue, PdfTokens.Xref))
+                    if (MatchSequenceAt(offsetValue, PdfTokens.Xref))
                     {
-                        context.Position = offsetValue + PdfTokens.Xref.Length;
-                        var classicParser = new PdfParser(ref context, _document, allowReferences: true);
-                        streamTrailer = ParseClassicXref(ref classicParser);
-                        context.Position = classicParser.Position;
+                        parser.Position = offsetValue + PdfTokens.Xref.Length;
+                        streamTrailer = ParseClassicXref(ref parser);
                     }
                     else
                     {
-                        context.Position = offsetValue;
-                        var streamParser = new PdfParser(ref context, _document, allowReferences: true);
-                        streamTrailer = ParseXrefStream(ref streamParser);
-                        context.Position = streamParser.Position;
+                        parser.Position = offsetValue;
+                        streamTrailer = ParseXrefStream(ref parser);
                     }
                 }
             }
@@ -258,13 +243,7 @@ namespace PdfReader.Parsing
                 return null;
             }
 
-            if (xrefObject.StreamData.IsEmpty)
-            {
-                _logger.LogWarning("PdfXrefLoader: XRef stream object has no stream data.");
-                return null;
-            }
-
-            var decoded = _document.StreamDecoder.DecodeContentStream(xrefObject);
+            var decoded = xrefObject.DecodeAsMemory();
             if (decoded.IsEmpty)
             {
                 _logger.LogWarning("PdfXrefLoader: Decoded xref stream empty.");
@@ -423,12 +402,12 @@ namespace PdfReader.Parsing
         #endregion
 
         #region Shared Helpers
-        private static int LocateLastStartXref(ref PdfParseContext context)
+        private long LocateLastStartXref()
         {
             ReadOnlySpan<byte> token = PdfTokens.Startxref;
-            for (int scanIndex = context.Length - token.Length; scanIndex >= 0; scanIndex--)
+            for (long scanIndex = _document.FileStream.Length - token.Length; scanIndex >= 0; scanIndex--)
             {
-                if (context.MatchSequenceAt(scanIndex, token))
+                if (MatchSequenceAt(scanIndex, token))
                 {
                     return scanIndex;
                 }
@@ -436,16 +415,10 @@ namespace PdfReader.Parsing
             return -1;
         }
 
-        private static int ParseStartXrefOffset(ref PdfParseContext context, int startxrefPos)
+        private int ParseStartXrefOffset(long startxrefPos)
         {
-            int afterKeyword = startxrefPos + PdfTokens.Startxref.Length;
-            if (afterKeyword >= context.Length)
-            {
-                return -1;
-            }
-            var temp = context;
-            temp.Position = afterKeyword;
-            PdfParser parser = new PdfParser(ref temp, null, allowReferences: false);
+            PdfParser parser = new PdfParser(_document.FileStream, _document, allowReferences: false);
+            parser.Position = (int)startxrefPos + PdfTokens.Startxref.Length;
             var value = parser.ReadNextValue();
 
             if (value.Type != PdfValueType.Integer)
@@ -454,6 +427,42 @@ namespace PdfReader.Parsing
             }
 
             return value.AsInteger();
+        }
+
+        /// <summary>
+        /// Match a byte sequence at the specified absolute file position using the underlying FileStream.
+        /// Seeks to the provided position, reads the required bytes and advances the stream; does not restore position.
+        /// </summary>
+        /// <param name="position">Absolute byte offset in the PDF file.</param>
+        /// <param name="sequence">Sequence to compare.</param>
+        /// <returns>True when the bytes at the specified position equal the sequence.</returns>
+        private bool MatchSequenceAt(long position, ReadOnlySpan<byte> sequence)
+        {
+            if (sequence.Length == 0)
+            {
+                return true;
+            }
+
+            Stream stream = _reader.BaseStream;
+            if (position < 0)
+            {
+                return false;
+            }
+            if (position + sequence.Length > stream.Length)
+            {
+                return false;
+            }
+
+            stream.Position = position;
+
+            byte[] buffer = new byte[sequence.Length];
+            int bytesRead = _reader.Read(buffer, 0, buffer.Length);
+            if (bytesRead != buffer.Length)
+            {
+                return false;
+            }
+
+            return new ReadOnlySpan<byte>(buffer).SequenceEqual(sequence);
         }
         #endregion
     }

@@ -101,7 +101,7 @@ namespace PdfReader.Parsing
             ReadOnlyMemory<byte> slice = decoded.Slice(objectStart, length);
             var context = new PdfParseContext(slice);
             // Use new PdfParser struct for value parsing (handles whitespace/comments internally).
-            var parser = new PdfParser(ref context, _pdfDocument, allowReferences: true);
+            var parser = new PdfParser(context, _pdfDocument, allowReferences: true);
             var value = parser.ReadNextValue();
             if (value == null)
             {
@@ -132,7 +132,7 @@ namespace PdfReader.Parsing
             ReadOnlyMemory<byte> headerMemory = decoded.Slice(0, firstOffset);
             var headerContext = new PdfParseContext(headerMemory);
             // Unified parsing via PdfParser for header: sequence of objectNumber relativeOffset pairs.
-            var headerParser = new PdfParser(ref headerContext, _pdfDocument, allowReferences: false);
+            var headerParser = new PdfParser(headerContext, _pdfDocument, allowReferences: false);
 
             for (int index = 0; index < objectCount; index++)
             {

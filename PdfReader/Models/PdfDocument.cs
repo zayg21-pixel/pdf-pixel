@@ -14,6 +14,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using PdfReader.Icc;
+using System.IO;
 
 namespace PdfReader.Models
 {
@@ -26,16 +27,14 @@ namespace PdfReader.Models
         private readonly Dictionary<PdfReference, PdfObject> _objects = new Dictionary<PdfReference, PdfObject>();
         private readonly PdfObjectParser _pdfObjectParser;
 
-        private readonly ReadOnlyMemory<byte> _fileBytes;
-
-        public PdfDocument(ILoggerFactory loggerFactory, ReadOnlyMemory<byte> fileBytes)
+        public PdfDocument(ILoggerFactory loggerFactory, Stream fileStream)
         {
             LoggerFactory = loggerFactory;
             StreamDecoder = new PdfStreamDecoder(this);
             FontCache = new PdfFontCache(this);
             PdfRenderer = new PdfRenderer(FontCache, loggerFactory);
-            _fileBytes = fileBytes;
             _pdfObjectParser = new PdfObjectParser(this);
+            FileStream = fileStream;
         }
 
         internal ILoggerFactory LoggerFactory { get; }
@@ -80,7 +79,7 @@ namespace PdfReader.Models
         /// <summary>
         /// Exposes the original PDF file bytes for internal parser use (lazy object loading).
         /// </summary>
-        internal ReadOnlyMemory<byte> FileBytes => _fileBytes;
+        internal Stream FileStream { get; }
 
         /// <summary>
         /// Parsed catalog output intent ICC profile (first preferred or first valid). Null when none present or invalid.

@@ -1,5 +1,6 @@
 using PdfReader.Models;
 using System;
+using System.IO;
 
 namespace PdfReader.Encryption
 {
@@ -24,6 +25,23 @@ namespace PdfReader.Encryption
         /// <param name="data">Encrypted (or plain) bytes.</param>
         /// <param name="reference">Owning object reference.</param>
         public abstract ReadOnlyMemory<byte> DecryptBytes(ReadOnlyMemory<byte> data, PdfReference reference);
+
+        /// <summary>
+        /// Decrypts the contents of the specified stream using the provided PDF reference.
+        /// </summary>
+        /// <remarks>The method reads the entire content of the input stream, decrypts it, and returns a
+        /// new memory stream containing the decrypted data. The input stream is not modified or disposed by this
+        /// method.</remarks>
+        /// <param name="stream">The input stream containing the encrypted data. The stream must be readable.</param>
+        /// <param name="reference">The PDF reference used to determine the decryption parameters.</param>
+        /// <returns>A stream containing the decrypted data. The caller is responsible for disposing of the returned stream.</returns>
+        public virtual Stream DecryptStream(Stream stream, PdfReference reference)
+        {
+            using var memoryStream = new MemoryStream();
+            stream.CopyTo(memoryStream);
+            var decryptedBytes = DecryptBytes(memoryStream.ToArray(), reference);
+            return new MemoryStream(decryptedBytes.ToArray());
+        }
 
         protected string Password { get; private set; }
 

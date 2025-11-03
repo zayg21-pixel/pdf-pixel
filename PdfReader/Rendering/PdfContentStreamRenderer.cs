@@ -73,6 +73,7 @@ namespace PdfReader.Rendering
             var parseContext = new PdfParseContext(contentStreams);
 
             var state = new PdfGraphicsState();
+            state.DeviceMatrix = canvas.TotalMatrix;
             var processingXObjects = new HashSet<int>();
 
             RenderContext(canvas, ref parseContext, state, processingXObjects);
@@ -86,7 +87,7 @@ namespace PdfReader.Rendering
 
             foreach (var contentObject in contents)
             {
-                var contentData = _page.Document.StreamDecoder.DecodeContentStream(contentObject);
+                var contentData = contentObject.DecodeAsMemory();
 
                 if (!contentData.IsEmpty)
                 {
@@ -107,7 +108,7 @@ namespace PdfReader.Rendering
             var operandStack = new Stack<IPdfValue>();
             using var currentPath = new SKPath();
             var operatorProcessor = new PdfOperatorProcessor(_page, canvas, operandStack, graphicsStack, currentPath, processingXObjects);
-            var parser = new PdfParser(ref parseContext, _page.Document, allowReferences: false);
+            var parser = new PdfParser(parseContext, _page.Document, allowReferences: false);
             IPdfValue value;
 
             while ((value = parser.ReadNextValue()) != null)

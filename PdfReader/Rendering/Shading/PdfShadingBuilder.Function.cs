@@ -93,12 +93,9 @@ namespace PdfReader.Rendering.Shading
                 ? SKMatrix.Concat(shading.Matrix.Value, pixelToDomain)
                 : pixelToDomain;
 
-            SKShaderTileMode tileModeX = shading.ExtendStart || shading.ExtendEnd ? SKShaderTileMode.Clamp : SKShaderTileMode.Decal;
-            SKShaderTileMode tileModeY = shading.ExtendStart || shading.ExtendEnd ? SKShaderTileMode.Clamp : SKShaderTileMode.Decal;
-
             return bitmap.ToShader(
-                tileModeX,
-                tileModeY,
+                SKShaderTileMode.Decal,
+                SKShaderTileMode.Decal,
                 new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.Linear),
                 finalMatrix);
         }

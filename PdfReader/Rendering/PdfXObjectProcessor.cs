@@ -58,6 +58,7 @@ namespace PdfReader.Rendering
                                                 SKCanvas canvas, PdfPage page)
         {
             var pdfImage = PdfImage.FromXObject(imageXObject, page, xObjectName, isSoftMask: false);
+
             page.Document.PdfRenderer.DrawUnitImage(canvas, pdfImage, graphicsState, page);
         }
 

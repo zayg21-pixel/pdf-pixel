@@ -79,7 +79,7 @@ namespace PdfReader.Rendering.Operators
 
                 var inlineObject = new PdfObject(new PdfReference(-1), _page.Document, PdfValue.Dictionary(imageDictionary))
                 {
-                    StreamData = image.AsString().Value
+                    EmbaddedStream = image.AsString().Value
                 };
 
                 var pdfImage = PdfImage.FromXObject(inlineObject, _page, name: PdfString.Empty, isSoftMask: false);

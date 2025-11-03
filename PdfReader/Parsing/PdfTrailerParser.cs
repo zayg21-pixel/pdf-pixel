@@ -29,7 +29,7 @@ namespace PdfReader.Parsing
             trailer = null;
 
             // Use unified parser; it handles whitespace/comments internally.
-            var parser = new PdfParser(ref context, _document, allowReferences: true);
+            var parser = new PdfParser(context, _document, allowReferences: true);
 
             var firstValue = parser.ReadNextValue();
 

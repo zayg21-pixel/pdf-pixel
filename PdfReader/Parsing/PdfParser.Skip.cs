@@ -1,4 +1,5 @@
-﻿using System.Runtime.CompilerServices;
+﻿using System;
+using System.Runtime.CompilerServices;
 
 namespace PdfReader.Parsing
 {
@@ -24,10 +25,10 @@ namespace PdfReader.Parsing
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private int SkipWhitespacesAndComments()
         {
-            int startPosition = _parseContext.Position; // capture starting offset
-            while (!_parseContext.IsAtEnd)
+            int startPosition = Position; // capture starting offset
+            while (!IsAtEnd)
             {
-                byte current = _parseContext.PeekByte();
+                byte current = PeekByte();
                 switch (current)
                 {
                     case Separator: // space
@@ -37,63 +38,59 @@ namespace PdfReader.Parsing
                     case NullChar:  // null padding
                     case FormFeed:  // form feed
                     {
-                        _parseContext.Advance(1);
+                        Advance(1);
                         continue;
                     }
                     case CommentStart:
                     {
-                        _parseContext.Advance(1); // consume '%'
-                        while (!_parseContext.IsAtEnd)
+                        Advance(1); // consume '%'
+                        while (!IsAtEnd)
                         {
-                            byte commentChar = _parseContext.PeekByte();
+                            byte commentChar = PeekByte();
                             if (commentChar == CarriageReturn || commentChar == LineFeed)
                             {
-                                _parseContext.Advance(1); // consume EOL terminator
+                                Advance(1); // consume EOL terminator
                                 break;
                             }
-                            _parseContext.Advance(1); // advance through comment content
+                            Advance(1); // advance through comment content
                         }
                         continue; // resume outer loop
                     }
                     default:
                     {
-                        return _parseContext.Position - startPosition; // number of skipped bytes
+                        return Position - startPosition; // number of skipped bytes
                     }
                 }
             }
-            return _parseContext.Position - startPosition;
+            return Position - startPosition;
         }
 
         /// <summary>
-        /// Skip only PDF whitespace characters (space, tab, CR, LF, form feed, null) without processing comments.
-        /// Returns number of skipped bytes.
+        /// Skips a single end-of-line sequence in the input, if present.
         /// </summary>
+        /// <remarks>This method advances the input position past a single end-of-line sequence, which can
+        /// be either a carriage return ('\r'), a line feed ('\n'), or a carriage return followed by a line feed
+        /// ("\r\n"). If the input is already at the end, no action is taken.</remarks>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private int SkipWhitespaces()
+        private void SkipSingleEndOfLine()
         {
-            int startPosition = _parseContext.Position;
-            while (!_parseContext.IsAtEnd)
+            if (IsAtEnd)
             {
-                byte current = _parseContext.PeekByte();
-                switch (current)
+                return;
+            }
+            byte b = PeekByte();
+            if (b == (byte)'\r')
+            {
+                Advance(1);
+                if (!IsAtEnd && PeekByte() == (byte)'\n')
                 {
-                    case Separator: // space
-                    case Tab:       // tab
-                    case CarriageReturn:
-                    case LineFeed:
-                    case NullChar:  // null padding
-                    case FormFeed:  // form feed
-                    {
-                        _parseContext.Advance(1);
-                        continue;
-                    }
-                    default:
-                    {
-                        return _parseContext.Position - startPosition;
-                    }
+                    Advance(1);
                 }
             }
-            return _parseContext.Position - startPosition;
+            else if (b == (byte)'\n')
+            {
+                Advance(1);
+            }
         }
 
         /// <summary>

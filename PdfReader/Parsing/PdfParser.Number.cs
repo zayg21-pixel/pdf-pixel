@@ -18,47 +18,47 @@ namespace PdfReader.Parsing
             // Parse sign
             bool isNegative = false;
             
-            byte firstByte = _parseContext.PeekByte();
+            byte firstByte = PeekByte();
             if (firstByte == Minus)
             {
                 isNegative = true;
-                _parseContext.Advance(1);
+                Advance(1);
             }
             else if (firstByte == Plus)
             {
-                _parseContext.Advance(1);
+                Advance(1);
             }
 
             // Parse integer part
             long integerPart = 0;
             bool hasDigits = false;
-            while (!_parseContext.IsAtEnd)
+            while (!IsAtEnd)
             {
-                byte currentByte = _parseContext.PeekByte();
+                byte currentByte = PeekByte();
                 if (!IsDigit(currentByte))
                 {
                     break;
                 }
                 hasDigits = true;
-                integerPart = integerPart * 10 + (_parseContext.ReadByte() - Zero);
+                integerPart = integerPart * 10 + (ReadByte() - Zero);
             }
 
             // Parse fractional part if dot is present
             long fractionalPart = 0;
             int fractionalDigits = 0;
             
-            if (!_parseContext.IsAtEnd && _parseContext.PeekByte() == Dot)
+            if (!IsAtEnd && PeekByte() == Dot)
             {
-                _parseContext.Advance(1); // Consume the dot
-                while (!_parseContext.IsAtEnd)
+                Advance(1); // Consume the dot
+                while (!IsAtEnd)
                 {
-                    byte currentByte = _parseContext.PeekByte();
+                    byte currentByte = PeekByte();
                     if (!IsDigit(currentByte))
                     {
                         break;
                     }
                     hasDigits = true; // Numbers like ".5" are valid
-                    fractionalPart = fractionalPart * 10 + (_parseContext.ReadByte() - Zero);
+                    fractionalPart = fractionalPart * 10 + (ReadByte() - Zero);
                     fractionalDigits++;
                 }
             }

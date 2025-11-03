@@ -27,6 +27,7 @@ namespace PdfReader.Rendering.Text
             {
                 throw new ArgumentNullException(nameof(loggerFactory));
             }
+            
             _logger = loggerFactory.CreateLogger<PdfTextDrawer>();
         }
 
@@ -173,9 +174,15 @@ namespace PdfReader.Rendering.Text
             }
 
             float advanceWidth = 0f;
-            float x = 0f;
-            if (!dryRun && state.TextRenderingMode != PdfTextRenderingMode.Invisible)
+
+            // Draw visible text first (for combined modes) per PDF spec
+            if (!dryRun && IsVisibleText(state.TextRenderingMode))
             {
+                canvas.Save();
+
+                // Apply text matrix transformation
+                canvas.Concat(state.GetFullTextMatrix());
+
                 using var builder = new SKTextBlobBuilder();
                 var run = builder.AllocatePositionedRun(font, shapingResult.Length);
                 var glyphSpan = run.Glyphs;
@@ -184,12 +191,13 @@ namespace PdfReader.Rendering.Text
                 {
                     ref var shapedGlyph = ref shapingResult[index];
                     glyphSpan[index] = (ushort)shapedGlyph.GlyphId;
-                    positionSpan[index] = new SKPoint(x, 0f);
+                    positionSpan[index] = new SKPoint(advanceWidth, 0f);
                     advanceWidth += shapedGlyph.TotalWidth;
-                    x += shapedGlyph.TotalWidth;
                 }
                 using var blob = builder.Build();
                 canvas.DrawText(blob, 0f, 0f, paint);
+
+                canvas.Restore();
             }
             else
             {
@@ -200,10 +208,74 @@ namespace PdfReader.Rendering.Text
                 }
             }
 
+            // Apply clipping if requested (modes with Clip). Pure clip mode skips drawing above.
+            if (!dryRun && IsClippingText(state.TextRenderingMode))
+            {
+                var textPath = new SKPath();
+
+                float x = 0f;
+                for (int i = 0; i < shapingResult.Length; i++)
+                {
+                    var glyphId = shapingResult[i].GlyphId;
+                    using var glyphPath = font.GetGlyphPath((ushort)glyphId);
+                    if (glyphPath != null)
+                    {
+                        // Translate glyph outline by current advance
+                        textPath.AddPath(glyphPath, SKMatrix.CreateTranslation(x, 0f));
+                    }
+                    x += shapingResult[i].TotalWidth;
+                }
+
+                textPath.Transform(state.GetFullTextMatrix());
+
+                if (state.TextClipPath == null)
+                {
+                    state.TextClipPath = new SKPath();
+                }
+
+                state.TextClipPath.AddPath(textPath);
+            }
+
             var metrics = font.Metrics;
             float height = metrics.Descent - metrics.Ascent;
 
             return new SKSize(advanceWidth, height);
+        }
+
+        private static bool IsVisibleText(PdfTextRenderingMode mode)
+        {
+            switch (mode)
+            {
+                case PdfTextRenderingMode.Fill:
+                case PdfTextRenderingMode.Stroke:
+                case PdfTextRenderingMode.FillAndStroke:
+                case PdfTextRenderingMode.FillAndClip:
+                case PdfTextRenderingMode.StrokeAndClip:
+                case PdfTextRenderingMode.FillAndStrokeAndClip:
+                    return true;
+                case PdfTextRenderingMode.Invisible:
+                case PdfTextRenderingMode.Clip:
+                default:
+                    return false;
+            }
+        }
+
+        private static bool IsClippingText(PdfTextRenderingMode mode)
+        {
+            switch (mode)
+            {
+                case PdfTextRenderingMode.Clip:
+                case PdfTextRenderingMode.FillAndClip:
+                case PdfTextRenderingMode.StrokeAndClip:
+                case PdfTextRenderingMode.FillAndStrokeAndClip:
+                    return true;
+                case PdfTextRenderingMode.Fill:
+                case PdfTextRenderingMode.Stroke:
+                case PdfTextRenderingMode.FillAndStroke:
+                case PdfTextRenderingMode.Invisible:
+                default:
+                    return false;
+            }
         }
     }
 }

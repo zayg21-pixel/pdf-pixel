@@ -13,9 +13,10 @@ namespace PdfReader.Parsing
             // Skip single whitespace after ID per PDF spec
             SkipSingleWhitespaceAfterID();
             
-            int dataStart = _parseContext.Position;
+            int dataStart = Position;
             int dataEnd = FindInlineStreamDataEnd(dataStart);
-            
+            Position = dataStart;
+
             if (dataEnd < 0)
             {
                 // Could not find EI terminator - return empty stream
@@ -27,14 +28,12 @@ namespace PdfReader.Parsing
             
             if (dataLength > 0)
             {
-                streamData = ExtractInlineStreamDataSlice(dataStart, dataLength);
+                streamData = ReadSliceFromCurrent(dataLength).ToArray();
             }
             else
             {
                 streamData = default;
             }
-            
-            _parseContext.Position = dataEnd;
             
             return PdfValue.InlineStream(new PdfString(streamData));
         }
@@ -42,27 +41,16 @@ namespace PdfReader.Parsing
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void SkipSingleWhitespaceAfterID()
         {
-            if (_parseContext.IsAtEnd)
+            if (IsAtEnd)
             {
                 return;
             }
 
-            byte next = _parseContext.PeekByte();
+            byte next = PeekByte();
             if (IsWhitespace(next))
             {
-                _parseContext.Advance(1);
+                Advance(1);
             }
-        }
-        
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private ReadOnlyMemory<byte> ExtractInlineStreamDataSlice(int dataStart, int dataLength)
-        {
-            if (_parseContext.IsSingleMemory)
-            {
-                return _parseContext.OriginalMemory.Slice(dataStart, dataLength);
-            }
-
-            return _parseContext.GetSlice(dataStart, dataLength).ToArray();
         }
         
         /// <summary>
@@ -74,34 +62,40 @@ namespace PdfReader.Parsing
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private int FindInlineStreamDataEnd(int start)
         {
-            if (start < 0 || start >= _parseContext.Length)
+            if (start <0 || start >= Length)
             {
                 return -1;
             }
 
-            ReadOnlySpan<byte> data = _parseContext.GetSlice(start, _parseContext.Length - start);
-            int length = data.Length;
-            if (length == 0)
-            {
-                return -1;
-            }
+            int position = start;
+            int previousByte = -1;
+            SetPosition(position);
 
-            for (int localIndex = 0; localIndex + 1 < length; localIndex++)
+            while (!IsAtEnd)
             {
-                if (data[localIndex] != (byte)'E' || data[localIndex + 1] != (byte)'I')
+                byte currentByte = ReadByte();
+                position++;
+
+                if (currentByte == (byte)'E' && !IsAtEnd)
                 {
+                    byte nextByte = ReadByte();
+                    position++;
+                    if (nextByte == (byte)'I')
+                    {
+                        bool precedingWhitespace = previousByte == -1 || IsWhitespace((byte)previousByte);
+                        byte following = !IsAtEnd ? PeekByte() : (byte)0;
+                        bool followingDelimiter = IsAtEnd || IsTokenTerminator(following);
+
+                        if (precedingWhitespace && followingDelimiter)
+                        {
+                            // Return absolute position of 'E' (start of EI)
+                            return position -2;
+                        }
+                    }
+                    previousByte = currentByte;
                     continue;
                 }
-
-                bool precedingWhitespace = localIndex == 0 || IsWhitespace(data[localIndex - 1]);
-                byte following = localIndex + 2 < length ? data[localIndex + 2] : (byte)0;
-                bool followingDelimiter = localIndex + 2 >= length || IsTokenTerminator(following);
-
-                if (precedingWhitespace && followingDelimiter)
-                {
-                    // Return absolute position within original context
-                    return start + localIndex;
-                }
+                previousByte = currentByte;
             }
 
             return -1;

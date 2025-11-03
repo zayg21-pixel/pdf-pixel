@@ -1,7 +1,6 @@
 using SkiaSharp;
 using PdfReader.Models;
 using PdfReader.Rendering.Color;
-using PdfReader.Rendering.Pattern;
 
 namespace PdfReader.Rendering
 {
@@ -117,6 +116,11 @@ namespace PdfReader.Rendering
         public PdfSoftMask SoftMask { get; set; }
 
         /// <summary>
+        /// Gets or sets the transformation matrix applied to the device.
+        /// </summary>
+        public SKMatrix DeviceMatrix { get; set; } = SKMatrix.Identity;
+
+        /// <summary>
         /// Transparency group state (for form XObjects / group dictionaries) or null.
         /// </summary>
         public PdfTransparencyGroup TransparencyGroup { get; set; }
@@ -211,6 +215,56 @@ namespace PdfReader.Rendering
         public bool InTextObject { get; set; } = false;
 
         /// <summary>
+        /// Gets or sets the clipping path used to define the area where text can be rendered.
+        /// </summary>
+        public SKPath TextClipPath { get; set; }
+
+        /// <summary>
+        /// Computes and returns the full text transformation matrix, incorporating the text matrix, rise,  horizontal
+        /// scaling, and a vertical flip.
+        /// </summary>
+        /// <returns>An <see cref="SKMatrix"/> representing the full text transformation matrix.</returns>
+        public SKMatrix GetFullTextMatrix()
+        {
+            var composed = TextMatrix;
+            if (Rise != 0)
+            {
+                composed = SKMatrix.Concat(composed, SKMatrix.CreateTranslation(0f, Rise));
+            }
+
+            if (HorizontalScaling != 0f && HorizontalScaling != 100f)
+            {
+                var hScale = HorizontalScaling / 100f;
+                var hScaleMatrix = SKMatrix.CreateScale(hScale, 1f);
+                composed = SKMatrix.Concat(composed, hScaleMatrix);
+            }
+
+            var flipY = SKMatrix.CreateScale(1f, -1f);
+            composed = SKMatrix.Concat(composed, flipY);
+
+            return composed;
+        }
+
+        /// <summary>
+        /// Computes the full transformation matrix, including the current transformation matrix (CTM)  and, if
+        /// applicable, the text transformation matrix.
+        /// </summary>
+        /// <returns>The full transformation matrix as an <see cref="SKMatrix"/>. If in a text object, the matrix  includes the
+        /// text transformation; otherwise, it represents only the CTM.</returns>
+        public SKMatrix GetFullTransformationMatrix()
+        {
+            var ctm = CTM;
+            
+            if (InTextObject)
+            {
+                var textMatrix = GetFullTextMatrix();
+                ctm = SKMatrix.Concat(ctm, textMatrix);
+            }
+
+            return ctm;
+        }
+
+        /// <summary>
         /// Create a deep copy for stack push (q operator). Paint objects are reference-copied (immutable usage expected).
         /// </summary>
         public PdfGraphicsState Clone()
@@ -249,6 +303,8 @@ namespace PdfReader.Rendering
                 TextLineMatrix = TextLineMatrix,
                 InTextObject = InTextObject,
                 CTM = CTM,
+                DeviceMatrix = DeviceMatrix,
+                TextClipPath = TextClipPath
             };
         }
     }

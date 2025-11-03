@@ -292,7 +292,7 @@ namespace PdfReader.Rendering.Color
             var altVal = page.Cache.ColorSpace.ResolveByValue(dict.GetValue(PdfTokens.AlternateKey), n);
 
             byte[] iccBytes = null;
-            if (!pdfObject.StreamData.IsEmpty)
+            if (pdfObject.HasStream)
             {
                 var data = page.Document.StreamDecoder.DecodeContentStream(pdfObject);
                 iccBytes = data.ToArray();

@@ -45,26 +45,37 @@ namespace PdfReader.Rendering
                 return 0f;
             }
 
-            canvas.Save();
+            //canvas.Save();
 
-            // Apply text matrix transformation
-            canvas.Concat(state.TextMatrix);
+            //// Apply text matrix transformation
+            //canvas.Concat(state.TextMatrix);
 
-            // Apply text rise (vertical offset) - BEFORE Y-flip so direction is correct
-            if (state.Rise != 0)
-            {
-                canvas.Translate(0, state.Rise);
-            }
+            //// Apply text rise (vertical offset) - BEFORE Y-flip so direction is correct
+            //if (state.Rise != 0)
+            //{
+            //    canvas.Translate(0, state.Rise);
+            //}
 
-            // CRITICAL: Apply local Y-axis flip ONLY for glyph rendering
-            // This preserves the correct transformation order while fixing glyph orientation
-            canvas.Scale(1, -1);
+            //// CRITICAL: Apply local Y-axis flip ONLY for glyph rendering
+            //// This preserves the correct transformation order while fixing glyph orientation
+            //canvas.Scale(1, -1);
 
             // Draw text and get advancement
             var advancement = _textRenderer.DrawText(canvas, ref pdfText, page, state, font);
 
-            canvas.Restore();
-            
+            //canvas.Scale(-1, 1);
+
+            //if (state.Rise != 0)
+            //{
+            //    canvas.Translate(0, -state.Rise);
+            //}
+
+            //canvas.Concat(state.TextMatrix.Invert());
+
+
+
+            //canvas.Restore();
+
             return advancement;
         }
 
@@ -74,24 +85,9 @@ namespace PdfReader.Rendering
         /// Updated to use PdfFontBase hierarchy
         /// </summary>
         public float DrawTextWithPositioning(SKCanvas canvas, IPdfValue arrayOperand, PdfPage page, PdfGraphicsState state, PdfFontBase font)
-        {
-            canvas.Save();
-            
-            // Apply text matrix transformation
-            canvas.Concat(state.TextMatrix);
-            
-            // Apply text rise (vertical offset)
-            if (state.Rise != 0)
-            {
-                canvas.Translate(0, state.Rise);
-            }
-
-            canvas.Scale(1, -1);
-            
+        {            
             // Delegate to text renderer for the actual text positioning logic and get advancement
             var totalAdvancement = _textRenderer.DrawTextWithPositioning(canvas, arrayOperand, page, state, font);
-            
-            canvas.Restore();
             
             return totalAdvancement;
         }

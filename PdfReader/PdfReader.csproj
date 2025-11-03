@@ -8,6 +8,17 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <None Remove="Resources\AnsiEncodings.bin" />
+    <None Remove="Resources\ExpertStrings.bin" />
+    <None Remove="Resources\ExpertSubsetStrings.bin" />
+    <None Remove="Resources\IsoAdobeStrings.bin" />
+    <None Remove="Resources\MacExpertEncodings.bin" />
+    <None Remove="Resources\MacRomanEncodings.bin" />
+    <None Remove="Resources\StandardEncodings.bin" />
+    <None Remove="Resources\StandardStrings.bin" />
+  </ItemGroup>
+
+  <ItemGroup>
     <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
       <_Parameter1>IccProfile.Test</_Parameter1>
     </AssemblyAttribute>
@@ -22,6 +33,27 @@
     <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
       <_Parameter1>PdfReader.Tests</_Parameter1>
     </AssemblyAttribute>
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="Resources\Agl.bin">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Resources\AnsiEncodings.bin">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Resources\ExpertStrings.bin" />
+    <EmbeddedResource Include="Resources\ExpertSubsetStrings.bin" />
+    <EmbeddedResource Include="Resources\IsoAdobeStrings.bin" />
+    <EmbeddedResource Include="Resources\MacExpertEncodings.bin">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Resources\MacRomanEncodings.bin">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Resources\StandardEncodings.bin">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Resources\StandardStrings.bin" />
   </ItemGroup>
 
   <ItemGroup>

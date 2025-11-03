@@ -263,7 +263,7 @@ namespace PdfReader.Rendering
                 hScale = 1f;
             }
 
-            font.ScaleX = hScale;
+            //font.ScaleX = hScale;
 
             // Skew/rotation are already represented in the text matrix applied at draw time.
             return font;

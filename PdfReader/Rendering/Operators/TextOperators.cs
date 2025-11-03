@@ -133,6 +133,12 @@ namespace PdfReader.Rendering.Operators
 
         private void ProcessBeginText(PdfGraphicsState graphicsState)
         {
+            if (graphicsState.TextClipPath != null)
+            {
+                graphicsState.TextClipPath.Dispose();
+                graphicsState.TextClipPath = null;
+            }
+
             graphicsState.InTextObject = true;
             graphicsState.TextMatrix = SKMatrix.Identity;
             graphicsState.TextLineMatrix = SKMatrix.Identity;
@@ -143,6 +149,13 @@ namespace PdfReader.Rendering.Operators
             graphicsState.InTextObject = false;
             graphicsState.TextMatrix = SKMatrix.Identity;
             graphicsState.TextLineMatrix = SKMatrix.Identity;
+
+            if (graphicsState.TextClipPath != null)
+            {
+                _canvas.ClipPath(graphicsState.TextClipPath, SKClipOperation.Intersect, antialias: true);
+                graphicsState.TextClipPath.Dispose();
+                graphicsState.TextClipPath = null;
+            }
         }
 
         private void ProcessSetFont(PdfGraphicsState graphicsState)

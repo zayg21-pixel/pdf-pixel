@@ -1,19 +1,40 @@
 ﻿using PdfReader.Models;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Runtime.CompilerServices;
+using System.Text;
 
 namespace PdfReader.Parsing
 {
+    // TODO: handle decryption here.
     internal ref partial struct PdfParser
     {
         // Boolean literal constants
         private readonly ReadOnlySpan<byte> TrueValue = "true"u8;
         private readonly ReadOnlySpan<byte> FalseValue = "false"u8;
 
+        private int _lastSetPostion = 0;
+        private readonly BinaryReader _reader;
+        private readonly bool _streamMode;
         private PdfParseContext _parseContext;
         private readonly PdfDocument _document; // Needed for constructing arrays/dictionaries
         private readonly bool _allowReferences;
+
+        public PdfParser(PdfParseContext parseContext, PdfDocument document, bool allowReferences)
+        {
+            _parseContext = parseContext;
+            _document = document;
+            _allowReferences = allowReferences;
+        }
+
+        public PdfParser(Stream stream, PdfDocument document, bool allowReferences)
+        {
+            _reader = new BinaryReader(stream, Encoding.ASCII);
+            _document = document;
+            _allowReferences = allowReferences;
+            _streamMode = true;
+        }
 
         /// <summary>
         /// Current absolute byte position within the underlying parse context.
@@ -22,30 +43,21 @@ namespace PdfReader.Parsing
         public int Position
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => _parseContext.Position;
+            get => GetPosition();
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            set => _parseContext.Position = value;
+            set => SetPosition(value);
         }
 
-        // Frame describing an open collection (array or dictionary) with start index in the value list.
-        // Stores the originating opening token type so we can validate matching closing tokens.
-        private struct CollectionFrame
+        public int Length
         {
-            public PdfTokenType FrameToken;
-            public int StartIndex;
-
-            public CollectionFrame(PdfTokenType frameToken, int startIndex)
-            {
-                FrameToken = frameToken;
-                StartIndex = startIndex;
-            }
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => GetLength();
         }
 
-        public PdfParser(ref PdfParseContext parseContext, PdfDocument document, bool allowReferences)
+        public bool IsAtEnd
         {
-            _parseContext = parseContext;
-            _document = document;
-            _allowReferences = allowReferences;
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get => GetIsAtEnd();
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -54,7 +66,7 @@ namespace PdfReader.Parsing
             List<IPdfValue> values = new List<IPdfValue>();
             Stack<CollectionFrame> frames = new Stack<CollectionFrame>();
 
-            while (!_parseContext.IsAtEnd)
+            while (!IsAtEnd)
             {
                 // Skip leading whitespace/comments before each token.
                 SkipWhitespacesAndComments();
@@ -144,6 +156,20 @@ namespace PdfReader.Parsing
             }
 
             return null;
+        }
+
+        // Frame describing an open collection (array or dictionary) with start index in the value list.
+        // Stores the originating opening token type so we can validate matching closing tokens.
+        private struct CollectionFrame
+        {
+            public PdfTokenType FrameToken;
+            public int StartIndex;
+
+            public CollectionFrame(PdfTokenType frameToken, int startIndex)
+            {
+                FrameToken = frameToken;
+                StartIndex = startIndex;
+            }
         }
     }
 }

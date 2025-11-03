@@ -63,11 +63,7 @@ namespace PdfReader.Rendering.Pattern
                 return null;
             }
 
-            SKMatrix ctmInverse;
-            bool haveCtmInverse = state.CTM.TryInvert(out ctmInverse);
-            SKMatrix localMatrix = haveCtmInverse
-                ? SKMatrix.Concat(ctmInverse, PatternMatrix)
-                : PatternMatrix;
+            SKMatrix localMatrix = SKMatrix.Concat(state.GetFullTransformationMatrix().Invert(), PatternMatrix);
 
             return _cachedBaseShader.WithLocalMatrix(localMatrix);
         }

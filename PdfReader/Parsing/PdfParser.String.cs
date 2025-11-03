@@ -17,9 +17,9 @@ namespace PdfReader.Parsing
             bool hasWhitespaces = false;
             
             // Scan ahead to count hex digits and detect invalid characters
-            while (_parseContext.Position + scanOffset < _parseContext.Length)
+            while (Position + scanOffset < Length)
             {
-                byte currentByte = _parseContext.PeekByte(scanOffset);
+                byte currentByte = PeekByte(scanOffset);
                 
                 if (currentByte == RightAngle)
                 {
@@ -56,10 +56,10 @@ namespace PdfReader.Parsing
             // Stage 3: Fill array with values, skipping invalid characters
             int? highNibble = null;
 
-            while (!_parseContext.IsAtEnd)
+            while (!IsAtEnd)
             {
                 // Read and process the byte
-                byte readByte = _parseContext.ReadByte();
+                byte readByte = ReadByte();
 
                 if (readByte == RightAngle)
                 {
@@ -112,9 +112,9 @@ namespace PdfReader.Parsing
             int parenCount = 1; // We've already consumed the opening '('
             bool hasEscapes = false;
             
-            while (_parseContext.Position + scanOffset < _parseContext.Length && parenCount > 0)
+            while (Position + scanOffset < Length && parenCount > 0)
             {
-                byte currentByte = _parseContext.PeekByte(scanOffset);
+                byte currentByte = PeekByte(scanOffset);
                 
                 if (currentByte == LeftParen)
                 {
@@ -135,9 +135,9 @@ namespace PdfReader.Parsing
                 {
                     hasEscapes = true;
                     scanOffset++; // Skip backslash
-                    if (_parseContext.Position + scanOffset < _parseContext.Length)
+                    if (Position + scanOffset < Length)
                     {
-                        byte nextByte = _parseContext.PeekByte(scanOffset);
+                        byte nextByte = PeekByte(scanOffset);
                         scanOffset++;
                         
                         // Line continuation (CR, LF, CRLF) -> contributes 0 to final length
@@ -148,8 +148,7 @@ namespace PdfReader.Parsing
                         else if (nextByte == CarriageReturn)
                         {
                             // CR - check for optional LF
-                            if (_parseContext.Position + scanOffset < _parseContext.Length && 
-                                _parseContext.PeekByte(scanOffset) == LineFeed)
+                            if (Position + scanOffset < Length && PeekByte(scanOffset) == LineFeed)
                             {
                                 scanOffset++; // Skip LF in CRLF
                             }
@@ -160,9 +159,9 @@ namespace PdfReader.Parsing
                             // Octal escape - up to 3 digits, contributes 1 byte to final length
                             finalLength++;
                             // Skip additional octal digits (up to 2 more)
-                            for (int i = 0; i < 2 && _parseContext.Position + scanOffset < _parseContext.Length; i++)
+                            for (int i = 0; i < 2 && Position + scanOffset < Length; i++)
                             {
-                                byte octalByte = _parseContext.PeekByte(scanOffset);
+                                byte octalByte = PeekByte(scanOffset);
                                 if (octalByte >= (byte)'0' && octalByte <= (byte)'7')
                                 {
                                     scanOffset++;
@@ -193,8 +192,8 @@ namespace PdfReader.Parsing
                 // Fast path: use GetSlice directly for strings without escapes
                 // scanOffset points past the closing ')', so we need scanOffset-1 for content length
                 // and advance by full scanOffset to consume the closing ')'
-                var stringSlice = _parseContext.GetSliceFromCurrent(scanOffset - 1); // Exclude closing ')'
-                _parseContext.Advance(scanOffset); // Consume everything including closing ')'
+                var stringSlice = ReadSliceFromCurrent(scanOffset - 1); // Exclude closing ')'
+                Advance(1); // Consume everything including closing ')'
                 return PdfValue.String(new PdfString(stringSlice));
             }
             
@@ -203,9 +202,9 @@ namespace PdfReader.Parsing
             int byteIndex = 0;
             parenCount = 1;
             
-            while (!_parseContext.IsAtEnd && parenCount > 0)
+            while (!IsAtEnd && parenCount > 0)
             {
-                byte readByte = _parseContext.ReadByte();
+                byte readByte = ReadByte();
                 
                 if (readByte == LeftParen)
                 {
@@ -226,9 +225,9 @@ namespace PdfReader.Parsing
                 else if (readByte == Backslash)
                 {
                     // Handle escape sequence
-                    if (!_parseContext.IsAtEnd)
+                    if (!IsAtEnd)
                     {
-                        byte nextByte = _parseContext.ReadByte();
+                        byte nextByte = ReadByte();
                         
                         // Line continuation
                         if (nextByte == LineFeed)
@@ -239,9 +238,9 @@ namespace PdfReader.Parsing
                         else if (nextByte == CarriageReturn)
                         {
                             // Skip CR and optional LF - no output
-                            if (!_parseContext.IsAtEnd && _parseContext.PeekByte() == LineFeed)
+                            if (!IsAtEnd && PeekByte() == LineFeed)
                             {
-                                _parseContext.Advance(1);
+                                Advance(1);
                             }
                             continue;
                         }
@@ -249,12 +248,12 @@ namespace PdfReader.Parsing
                         {
                             // Octal escape sequence
                             int octalValue = nextByte - (byte)'0';
-                            for (int i = 0; i < 2 && !_parseContext.IsAtEnd; i++)
+                            for (int i = 0; i < 2 && !IsAtEnd; i++)
                             {
-                                byte octalByte = _parseContext.PeekByte();
+                                byte octalByte = PeekByte();
                                 if (octalByte >= (byte)'0' && octalByte <= (byte)'7')
                                 {
-                                    _parseContext.Advance(1);
+                                    Advance(1);
                                     octalValue = (octalValue << 3) + (octalByte - (byte)'0');
                                 }
                                 else
@@ -302,9 +301,9 @@ namespace PdfReader.Parsing
             int escapeCount = 0;
             int scanOffset = 0;
             
-            while (_parseContext.Position + scanOffset < _parseContext.Length)
+            while (Position + scanOffset < Length)
             {
-                byte currentByte = _parseContext.PeekByte(scanOffset);
+                byte currentByte = PeekByte(scanOffset);
                 
                 // Check for token terminators
                 if (IsTokenTerminator(currentByte))
@@ -330,8 +329,7 @@ namespace PdfReader.Parsing
             if (escapeCount == 0)
             {
                 // Fast path: use GetSlice directly for names without escapes
-                var nameSlice = _parseContext.GetSliceFromCurrent(scanOffset);
-                _parseContext.Advance(scanOffset);
+                var nameSlice = ReadSliceFromCurrent(scanOffset);
                 var nameString = new PdfString(nameSlice);
                 return PdfValue.Name(nameString);
             }
@@ -340,23 +338,23 @@ namespace PdfReader.Parsing
             byte[] nameBytes = new byte[nameLength];
             int byteIndex = 0;
             
-            while (!_parseContext.IsAtEnd && byteIndex < nameLength)
+            while (!IsAtEnd && byteIndex < nameLength)
             {
-                byte readByte = _parseContext.ReadByte();
+                byte currentByte = PeekByte();
                 
                 // Check for token terminators
-                if (IsTokenTerminator(readByte))
+                if (IsTokenTerminator(currentByte))
                 {
-                    // Put the terminator back by moving position back
-                    _parseContext.Position--;
                     break;
                 }
-                
-                if (readByte == (byte)'#')
+
+                Advance(1);
+
+                if (currentByte == (byte)'#')
                 {
                     // Handle escape sequence #XX - just read 2 bytes and convert
-                    byte hex1 = _parseContext.ReadByte();
-                    byte hex2 = _parseContext.ReadByte();
+                    byte hex1 = ReadByte();
+                    byte hex2 = ReadByte();
 
                     int hexValue = (HexDigitToValue(hex1) << 4) | HexDigitToValue(hex2);
                     nameBytes[byteIndex++] = (byte)hexValue;
@@ -364,7 +362,7 @@ namespace PdfReader.Parsing
                 else
                 {
                     // Regular character
-                    nameBytes[byteIndex++] = readByte;
+                    nameBytes[byteIndex++] = currentByte;
                 }
             }
             
@@ -378,9 +376,9 @@ namespace PdfReader.Parsing
             // Scan ahead to find operator end
             int scanOffset = 0;
             
-            while (_parseContext.Position + scanOffset < _parseContext.Length)
+            while (Position + scanOffset < Length)
             {
-                byte currentByte = _parseContext.PeekByte(scanOffset);
+                byte currentByte = PeekByte(scanOffset);
                 
                 // Check for token terminators (same as names)
                 if (IsTokenTerminator(currentByte))
@@ -392,15 +390,14 @@ namespace PdfReader.Parsing
             }
             
             // Use GetSlice directly since operators never have escape sequences
-            var operatorSlice = _parseContext.GetSliceFromCurrent(scanOffset);
-            _parseContext.Advance(scanOffset);
+            var operatorSlice = ReadSliceFromCurrent(scanOffset);
             
             // Special case: check for boolean literals using SequenceEqual
-            if (operatorSlice.SequenceEqual(TrueValue))
+            if (operatorSlice.Span.SequenceEqual(TrueValue))
             {
                 return PdfValue.Boolean(true);
             }
-            else if (operatorSlice.SequenceEqual(FalseValue))
+            else if (operatorSlice.Span.SequenceEqual(FalseValue))
             {
                 return PdfValue.Boolean(false);
             }

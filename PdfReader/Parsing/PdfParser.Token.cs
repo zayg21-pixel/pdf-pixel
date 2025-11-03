@@ -51,59 +51,59 @@ namespace PdfReader.Parsing
         {
             SkipWhitespacesAndComments();
 
-            if (_parseContext.IsAtEnd)
+            if (IsAtEnd)
             {
                 return PdfTokenType.ContextEnd;
             }
 
-            byte current = _parseContext.PeekByte();
+            byte current = PeekByte();
 
             // Boundary checks for lookahead removed: PeekByte(n) returns 0 when out-of-range.
             switch (current)
             {
                 case LeftSquare:
                 {
-                    _parseContext.Advance(1);
+                    Advance(1);
                     return PdfTokenType.ArrayStart;
                 }
                 case RightSquare:
                 {
-                    _parseContext.Advance(1);
+                    Advance(1);
                     return PdfTokenType.ArrayEnd;
                 }
                 case LeftAngle:
                 {
-                    if (_parseContext.PeekByte(1) == LeftAngle)
+                    if (PeekByte(1) == LeftAngle)
                     {
-                        _parseContext.Advance(2);
+                        Advance(2);
                         return PdfTokenType.DictionaryStart;
                     }
-                    _parseContext.Advance(1);
+                    Advance(1);
                     return PdfTokenType.HexString;
                 }
                 case RightAngle:
                 {
-                    if (_parseContext.PeekByte(1) == RightAngle)
+                    if (PeekByte(1) == RightAngle)
                     {
-                        _parseContext.Advance(2);
+                        Advance(2);
                         return PdfTokenType.DictionaryEnd;
                     }
-                    _parseContext.Advance(1);
+                    Advance(1);
                     return PdfTokenType.HexStringEnd;
                 }
                 case ForwardSlash:
                 {
-                    _parseContext.Advance(1);
+                    Advance(1);
                     return PdfTokenType.Name;
                 }
                 case LeftParen:
                 {
-                    _parseContext.Advance(1);
+                    Advance(1);
                     return PdfTokenType.String;
                 }
                 case RightParen:
                 {
-                    _parseContext.Advance(1);
+                    Advance(1);
                     return PdfTokenType.StringEnd;
                 }
                 case Plus:
@@ -114,9 +114,9 @@ namespace PdfReader.Parsing
                 }
                 default:
                 {
-                    if (_allowReferences && current == Reference && IsTokenTerminator(_parseContext.PeekByte(1)))
+                    if (_allowReferences && current == Reference && IsTokenTerminator(PeekByte(1)))
                     {
-                        _parseContext.Advance(1);
+                        Advance(1);
                         return PdfTokenType.Reference;
                     }
 
@@ -126,12 +126,12 @@ namespace PdfReader.Parsing
                     }
 
                     // Check for ID operator (inline stream start)
-                    if (current == (byte)'I' && _parseContext.PeekByte(1) == (byte)'D')
+                    if (current == (byte)'I' && PeekByte(1) == (byte)'D')
                     {
                         // Verify it's followed by whitespace or delimiter
-                        if (IsTokenTerminator(_parseContext.PeekByte(2)))
+                        if (IsTokenTerminator(PeekByte(2)))
                         {
-                            _parseContext.Advance(2); // Consume "ID"
+                            Advance(2); // Consume "ID"
                             return PdfTokenType.InlineStreamStart;
                         }
                     }

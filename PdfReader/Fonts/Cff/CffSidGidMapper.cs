@@ -1,9 +1,10 @@
+using Microsoft.Extensions.Logging;
+using PdfReader.Models;
 using PdfReader.Text;
 using System;
 using System.Collections.Generic;
+using System.Runtime.InteropServices;
 using System.Text;
-using Microsoft.Extensions.Logging;
-using PdfReader.Models;
 
 namespace PdfReader.Fonts.Cff
 {
@@ -14,7 +15,7 @@ namespace PdfReader.Fonts.Cff
     internal class CffSidGidMapper
     {
         // Constants (avoid magic numbers)
-        private static readonly PdfString NotDefGlyphName = ".notdef"u8;
+        private static readonly PdfString NotDefGlyphName = (PdfString)".notdef"u8;
 
         private const int PredefinedCharsetIsoAdobe = 0;      // ISOAdobe charset id
         private const int PredefinedCharsetExpert = 1;        // Expert charset id
@@ -85,12 +86,12 @@ namespace PdfReader.Fonts.Cff
         /// <returns>True if parsing succeeded, false otherwise.</returns>
         public bool TryParseNameKeyed(ReadOnlyMemory<byte> cffDataMemory, out CffNameKeyedInfo info)
         {
-            var cffBytes = cffDataMemory.Span;
+            var cffBytes = cffDataMemory;
             info = null;
 
             try
             {
-                var reader = new CffDataReader(cffBytes);
+                var reader = new CffDataReader(cffBytes.Span);
 
                 // Header
                 if (!reader.TryReadByte(out _))
@@ -130,7 +131,7 @@ namespace PdfReader.Fonts.Cff
 
                 if (topDictCount > 1)
                 {
-                    LogMultipleTopDicts(nameIndexCount, nameIndexDataStart, nameIndexOffsets, cffBytes, topDictCount);
+                    LogMultipleTopDicts(nameIndexCount, nameIndexDataStart, nameIndexOffsets, cffBytes.Span, topDictCount);
                 }
 
                 // Use first Top DICT
@@ -142,7 +143,7 @@ namespace PdfReader.Fonts.Cff
                 }
                 var topDictBytes = cffBytes.Slice(topDictStart, topDictEnd - topDictStart);
 
-                if (!TryParseTopDict(topDictBytes, out int charsetOffset, out int charStringsOffset, out int encodingOffset, out bool isCidKeyed))
+                if (!TryParseTopDict(topDictBytes.Span, out int charsetOffset, out int charStringsOffset, out int encodingOffset, out bool isCidKeyed))
                 {
                     return false;
                 }
@@ -156,7 +157,7 @@ namespace PdfReader.Fonts.Cff
                 }
 
                 // CharStrings INDEX (determine glyph count)
-                var charStringsReader = new CffDataReader(cffBytes)
+                var charStringsReader = new CffDataReader(cffBytes.Span)
                 {
                     Position = charStringsOffset
                 };
@@ -180,14 +181,14 @@ namespace PdfReader.Fonts.Cff
                 }
                 else
                 {
-                    if (!TryReadExplicitCharsetSids(cffBytes, charsetOffset, glyphCount, out sidByGlyph))
+                    if (!TryReadExplicitCharsetSids(cffBytes.Span, charsetOffset, glyphCount, out sidByGlyph))
                     {
                         return false;
                     }
                 }
 
                 // String INDEX (custom strings after StandardStrings)
-                var stringIndexReader = new CffDataReader(cffBytes)
+                var stringIndexReader = new CffDataReader(cffBytes.Span)
                 {
                     Position = stringIndexStart
                 };

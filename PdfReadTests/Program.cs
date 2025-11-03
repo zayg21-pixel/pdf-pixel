@@ -2,7 +2,6 @@
 using PdfReader;
 using PdfReader.Models;
 using SkiaSharp;
-using System.IO;
 
 namespace PdfReadTests
 {
@@ -18,6 +17,7 @@ namespace PdfReadTests
 
             // Test with some sample PDFs
             string[] testFiles = {
+                "pdfs//100mb.pdf",
                 //"pdfs//pattern_text_embedded_font.pdf",
                 //"pdfs//textframe-gradient.pdf",
                 //"pdfs//chrome-text-selection-markedContent.pdf", // interesting, some odd boxes on text
@@ -33,14 +33,14 @@ namespace PdfReadTests
                 //"pdfs//asciihexdecode.pdf",
                 //"pdfs//complex_ttf_font.pdf",
                 //"pdfs//complex_ttf_font_ed.pdf",
-                //"//pdfs//icc-lab-8bit.pdf",
+                //"pdfs//icc-lab-8bit.pdf",
                 //"pdfs//devicen.pdf",
                 //"pdfs//icc-xyz.pdf",
                 //"pdfs//icc-lab4.pdf",
                 //"pdfs//icc-lab2.pdf",
                 //"pdf-example-password.pdf",
                 //"pdfs//mixedfonts.pdf", // came a bit broken
-                "pdfs//mixedfonts_ed.pdf",
+                //"pdfs//mixedfonts_ed.pdf",
                 //"pdfs//blendmode.pdf",
                 //"pdfs//calgray.pdf",
                 //"pdfs//calrgb.pdf",
@@ -97,7 +97,8 @@ namespace PdfReadTests
             try
             {
                 var reader = new PdfDocumentReader(LoggerFactoryInstance);
-                using var document = reader.Read(File.ReadAllBytes(filename), "test");
+                using var file = File.OpenRead(filename);
+                using var document = reader.Read(file, "test");
 
                 Logger.LogInformation("Successfully read PDF: {File}", filename);
                 Logger.LogInformation("Total pages: {Count}", document.PageCount);
@@ -106,7 +107,7 @@ namespace PdfReadTests
 
                 var start = 0;
                 var max = 1000;
-                float scaleX = 4f; // Scale factor for rendering
+                float scaleX = 3f; // Scale factor for rendering
 
                 // Analyze pages with detailed content stream debugging
                 for (int i = start; i < Math.Min(max, document.PageCount); i++)
@@ -144,7 +145,12 @@ namespace PdfReadTests
                             Directory.CreateDirectory(basePath);
                         }
 
-                        //// Save as PNG (optional)
+                        //if (page.PageNumber == document.PageCount)
+                        //{
+                        //    Console.WriteLine();
+                        //}
+
+                        // Save as PNG (optional)
                         var filename_png = $"{basePath}\\{name}_page_{page.PageNumber}.jpg";
                         using (var image = surface.Snapshot())
                         using (var data = image.Encode(SKEncodedImageFormat.Jpeg, 100))
@@ -169,11 +175,6 @@ namespace PdfReadTests
                 Logger.LogError(ex, "Error reading PDF: {File}", filename);
                 Logger.LogError(ex, "Stack trace logged");
             }
-
-            //while (true)
-            //{
-            //    await Task.Delay(1000);
-            //}
         }
 
         private static SKPicture CreateRecording(PdfPage pdfPage)

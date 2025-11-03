@@ -46,20 +46,20 @@ namespace PdfReader.Parsing
             {
                 return _objectStreamParser.ParseSingleCompressed(info);
             }
-            if (info.Offset == null || _document.FileBytes.IsEmpty)
+            if (info.Offset == null)
             {
                 return null;
             }
+
             if (info.Offset.Value > int.MaxValue)
             {
                 return null;
             }
 
-            // Create a parse context positioned at the object offset.
-            var context = new PdfParseContext(_document.FileBytes.Slice((int)info.Offset.Value));
-
             // Use unified PdfParser.ReadObject for indirect object parsing (handles header + value + optional stream).
-            var parser = new PdfParser(ref context, _document, allowReferences: true);
+            var parser = new PdfParser(_document.FileStream, _document, allowReferences: true);
+            parser.Position = (int)info.Offset.Value;
+
             var parsedObject = parser.ReadObject();
             if (parsedObject == null)
             {

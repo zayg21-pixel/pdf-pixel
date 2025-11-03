@@ -14,12 +14,12 @@ namespace PdfReader.Parsing
     {
         private static readonly PdfString[] PreferredIntentOrder =
         {
-             "GTS_PDFX"u8, // PDF/X family
-             "GTS_PDFA1"u8, // PDF/A-1
-             "GTS_PDFA2"u8, // PDF/A-2
-             "GTS_PDFA3"u8, // PDF/A-3
-             "GTS_PDFE"u8, // Engineering (rare)
-             "ISO_PDF"u8 // Generic ISO intent (fallback)
+             (PdfString)"GTS_PDFX"u8, // PDF/X family
+             (PdfString)"GTS_PDFA1"u8, // PDF/A-1
+             (PdfString)"GTS_PDFA2"u8, // PDF/A-2
+             (PdfString)"GTS_PDFA3"u8, // PDF/A-3
+             (PdfString)"GTS_PDFE"u8, // Engineering (rare)
+             (PdfString)"ISO_PDF"u8 // Generic ISO intent (fallback)
         };
 
         private readonly PdfDocument _document;
@@ -78,7 +78,7 @@ namespace PdfReader.Parsing
 
                 // /DestOutputProfile may be indirect or direct stream.
                 var profileObj = dict.GetPageObject(PdfTokens.DestOutputProfileKey);
-                if (profileObj == null || profileObj.StreamData.IsEmpty)
+                if (profileObj == null || !profileObj.HasStream)
                 {
                     continue; // No stream to parse.
                 }

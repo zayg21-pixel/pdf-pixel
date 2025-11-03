@@ -1,6 +1,6 @@
 ﻿using PdfReader.Text;
 using System;
-using System.Collections.Generic;
+using System.Buffers;
 using System.Linq;
 
 namespace PdfReader.Models
@@ -19,19 +19,13 @@ namespace PdfReader.Models
             Value = value;
         }
 
-        public PdfString(IList<byte> value)
-        {
-            Value = value.ToArray();
-        }
-
+        /// <summary>
+        /// Initializes a new instance of the <see cref="PdfString"/> class with the specified byte array value.
+        /// </summary>
+        /// <param name="value">The byte array representing the value of the PDF string. Cannot be <see langword="null"/>.</param>
         public PdfString(byte[] value)
         {
             Value = value;
-        }
-
-        public PdfString(ReadOnlySpan<byte> value)
-        {
-            Value = value.ToArray();
         }
 
         /// <summary>
@@ -39,26 +33,28 @@ namespace PdfReader.Models
         /// </summary>
         public ReadOnlyMemory<byte> Value { get; }
 
+        /// <summary>
+        /// Gets a value indicating whether the current instance contains no characters.
+        /// </summary>
         public bool IsEmpty => Value.Length == 0;
 
-        public bool IsName => Value.Length > 0 && Value.Span[0] == (byte)'/';
-
+        /// <summary>
+        /// Gets an empty <see cref="PdfString"/> instance.
+        /// </summary>
+        /// <remarks>This property provides a predefined, immutable instance of <see cref="PdfString"/> 
+        /// that represents an empty string. It can be used as a default value or to avoid  creating new instances for
+        /// empty content.</remarks>
         public static PdfString Empty => new PdfString(ReadOnlyMemory<byte>.Empty);
 
+        /// <summary>
+        /// Creates a new <see cref="PdfString"/> instance from the specified string value.
+        /// </summary>
+        /// <param name="value">The string to convert into a <see cref="PdfString"/>. Cannot be <see langword="null"/>.</param>
+        /// <returns>A <see cref="PdfString"/> representing the specified string value.</returns>
         public static PdfString FromString(string value)
         {
             var bytes = EncodingExtensions.PdfDefault.GetBytes(value);
             return new PdfString(bytes);
-        }
-
-        public PdfString TrimName()
-        {
-            if (IsName)
-            {
-                return Value.Slice(1);
-            }
-
-            return this;
         }
 
         /// <summary>
@@ -82,6 +78,7 @@ namespace PdfReader.Models
             {
                 return Equals(other);
             }
+
             return false;
         }
 
@@ -128,19 +125,18 @@ namespace PdfReader.Models
         /// Explicitly converts a ReadOnlySpan&lt;byte&gt; to a PdfString.
         /// </summary>
         /// <param name="value">The byte span to convert.</param>
-        public static implicit operator PdfString(ReadOnlySpan<byte> value)
+        public static explicit operator PdfString(ReadOnlySpan<byte> value)
         {
             return new PdfString(value.ToArray());
         }
 
         /// <summary>
-        /// Implicitly converts a PdfString to a string using PDF default encoding.
+        /// Explicitly converts a string to a PdfString.
         /// </summary>
-        [Obsolete("Use PdfString instead")]
-        /// <param name="pdfString">The PdfString to convert.</param>
-        public static implicit operator string(PdfString pdfString)
+        /// <param name="value">String to convert.</param>
+        public static explicit operator PdfString(string value)
         {
-            return pdfString.ToString();
+            return FromString(value);
         }
 
         public override string ToString()

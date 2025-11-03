@@ -16,7 +16,7 @@ namespace PdfReader.Parsing
         private int _positionInCurrentChunk;
         private int _totalPosition;
         private readonly int _totalLength;
-        private ReadOnlySpan<byte> _currentChunkSpan; // Cached span for current chunk - key optimization!
+        private ReadOnlyMemory<byte> _currentChunk; // Cached span for current chunk - key optimization!
 
         public SequentialMemoryReader(List<ReadOnlyMemory<byte>> chunks)
         {
@@ -37,7 +37,7 @@ namespace PdfReader.Parsing
             _totalLength = total;
 
             // Cache current chunk span for fast access - avoids repeated .Span calls
-            _currentChunkSpan = chunks.Count > 0 ? chunks[0].Span : ReadOnlySpan<byte>.Empty;
+            _currentChunk = chunks.Count > 0 ? chunks[0] : ReadOnlyMemory<byte>.Empty;
         }
 
         /// <summary>
@@ -69,9 +69,9 @@ namespace PdfReader.Parsing
             if (_currentChunkIndex < _chunks.Count)
             {
                 int targetPosInCurrentChunk = _positionInCurrentChunk + offset;
-                if (targetPosInCurrentChunk >= 0 && targetPosInCurrentChunk < _currentChunkSpan.Length)
+                if (targetPosInCurrentChunk >= 0 && targetPosInCurrentChunk < _currentChunk.Length)
                 {
-                    return _currentChunkSpan[targetPosInCurrentChunk]; // Direct cached access!
+                    return _currentChunk.Span[targetPosInCurrentChunk]; // Direct cached access!
                 }
             }
 
@@ -89,14 +89,14 @@ namespace PdfReader.Parsing
                 return 0;
 
             // Fast path: read from cached current chunk span (O(1))
-            if (_currentChunkIndex < _chunks.Count && _positionInCurrentChunk < _currentChunkSpan.Length)
+            if (_currentChunkIndex < _chunks.Count && _positionInCurrentChunk < _currentChunk.Length)
             {
-                byte result = _currentChunkSpan[_positionInCurrentChunk]; // Direct cached access!
+                byte result = _currentChunk.Span[_positionInCurrentChunk]; // Direct cached access!
                 _positionInCurrentChunk++;
                 _totalPosition++;
 
                 // Check if we need to move to next chunk
-                if (_positionInCurrentChunk >= _currentChunkSpan.Length)
+                if (_positionInCurrentChunk >= _currentChunk.Length)
                 {
                     MoveToNextChunk();
                 }
@@ -125,13 +125,13 @@ namespace PdfReader.Parsing
             if (_currentChunkIndex < _chunks.Count)
             {
                 int newPosInChunk = _positionInCurrentChunk + count;
-                if (newPosInChunk <= _currentChunkSpan.Length) // Can advance within current chunk
+                if (newPosInChunk <= _currentChunk.Length) // Can advance within current chunk
                 {
                     _positionInCurrentChunk = newPosInChunk;
                     _totalPosition = targetPosition;
                     
                     // Check if we reached the end of current chunk
-                    if (_positionInCurrentChunk >= _currentChunkSpan.Length)
+                    if (_positionInCurrentChunk >= _currentChunk.Length)
                     {
                         MoveToNextChunk();
                     }
@@ -147,10 +147,10 @@ namespace PdfReader.Parsing
         /// Get a slice of bytes from current position as ReadOnlySpan
         /// Optimized to use cached span when possible to avoid copying
         /// </summary>
-        public ReadOnlySpan<byte> GetSlice(int length)
+        public ReadOnlyMemory<byte> GetSlice(int length)
         {
             if (length <= 0 || IsAtEnd)
-                return ReadOnlySpan<byte>.Empty;
+                return ReadOnlyMemory<byte>.Empty;
 
             // Clamp length to available data
             int available = _totalLength - _totalPosition;
@@ -160,10 +160,10 @@ namespace PdfReader.Parsing
             // Fast path: slice fits entirely in current chunk - use cached span (O(1))
             if (_currentChunkIndex < _chunks.Count)
             {
-                int remainingInChunk = _currentChunkSpan.Length - _positionInCurrentChunk;
+                int remainingInChunk = _currentChunk.Length - _positionInCurrentChunk;
                 if (length <= remainingInChunk)
                 {
-                    return _currentChunkSpan.Slice(_positionInCurrentChunk, length); // Direct cached access!
+                    return _currentChunk.Slice(_positionInCurrentChunk, length); // Direct cached access!
                 }
             }
 
@@ -172,56 +172,9 @@ namespace PdfReader.Parsing
         }
 
         /// <summary>
-        /// Get a slice from the specified start position and length without changing current position
-        /// Optimized to avoid unnecessary position changes when possible
-        /// </summary>
-        public ReadOnlySpan<byte> GetSliceAt(int start, int length)
-        {
-            if (length <= 0 || start >= _totalLength || start < 0)
-                return ReadOnlySpan<byte>.Empty;
-
-            // Clamp length to available data
-            int available = _totalLength - start;
-            if (length > available)
-                length = available;
-
-            // Fast path: find which chunk contains the start and check if slice fits entirely in that chunk
-            int targetChunkIndex = BinarySearchChunk(start);
-            if (targetChunkIndex < _chunks.Count)
-            {
-                int chunkStart = _chunkStartPositions[targetChunkIndex];
-                int chunkEnd = _chunkStartPositions[targetChunkIndex + 1];
-                
-                if (start >= chunkStart && start + length <= chunkEnd)
-                {
-                    // Slice is entirely in target chunk - use direct access
-                    int offsetInChunk = start - chunkStart;
-                    return _chunks[targetChunkIndex].Span.Slice(offsetInChunk, length);
-                }
-            }
-
-            // Slow path: slice spans multiple chunks - need to set position temporarily and copy
-            int originalPosition = _totalPosition;
-            int originalChunkIndex = _currentChunkIndex;
-            int originalPositionInChunk = _positionInCurrentChunk;
-            var originalChunkSpan = _currentChunkSpan;
-
-            SetPosition(start);
-            var result = GetSlice(length);
-
-            // Restore original position and cached state
-            _totalPosition = originalPosition;
-            _currentChunkIndex = originalChunkIndex;
-            _positionInCurrentChunk = originalPositionInChunk;
-            _currentChunkSpan = originalChunkSpan;
-
-            return result;
-        }
-
-        /// <summary>
         /// Get slice that spans multiple chunks - requires copying
         /// </summary>
-        private ReadOnlySpan<byte> GetSliceAcrossChunks(int length)
+        private ReadOnlyMemory<byte> GetSliceAcrossChunks(int length)
         {
             var buffer = new byte[length];
             int copied = 0;
@@ -241,7 +194,7 @@ namespace PdfReader.Parsing
                 tempPositionInChunk = 0;
             }
 
-            return buffer.AsSpan(0, copied);
+            return buffer.AsMemory(0, copied);
         }
 
         /// <summary>
@@ -262,7 +215,7 @@ namespace PdfReader.Parsing
                 // Position at end
                 _currentChunkIndex = _chunks.Count;
                 _positionInCurrentChunk = 0;
-                _currentChunkSpan = ReadOnlySpan<byte>.Empty;
+                _currentChunk = ReadOnlyMemory<byte>.Empty;
                 return;
             }
 
@@ -289,11 +242,11 @@ namespace PdfReader.Parsing
             // Update cached chunk span only when changing chunks
             if (chunkIndex < _chunks.Count)
             {
-                _currentChunkSpan = _chunks[chunkIndex].Span;
+                _currentChunk = _chunks[chunkIndex];
             }
             else
             {
-                _currentChunkSpan = ReadOnlySpan<byte>.Empty;
+                _currentChunk = ReadOnlyMemory<byte>.Empty;
             }
         }
 
@@ -325,11 +278,11 @@ namespace PdfReader.Parsing
             // Update cached span for new current chunk
             if (_currentChunkIndex < _chunks.Count)
             {
-                _currentChunkSpan = _chunks[_currentChunkIndex].Span; // Cache new chunk span
+                _currentChunk = _chunks[_currentChunkIndex]; // Cache new chunk span
             }
             else
             {
-                _currentChunkSpan = ReadOnlySpan<byte>.Empty;
+                _currentChunk = ReadOnlyMemory<byte>.Empty;
             }
         }
 

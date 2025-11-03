@@ -147,32 +147,6 @@ namespace PdfReader.Parsing
         }
 
         /// <summary>
-        /// Get a slice from the specified position and length (optimized for single memory)
-        /// </summary>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public ReadOnlySpan<byte> GetSlice(int start, int length)
-        {
-            if (_isSingleMemory)
-            {
-                if (start < 0 || start >= _length)
-                    return ReadOnlySpan<byte>.Empty;
-                
-                int available = _length - start;
-                if (length > available)
-                    length = available;
-                
-                if (length <= 0)
-                    return ReadOnlySpan<byte>.Empty;
-                
-                return _singleSpan.Slice(start, length); // Direct span slice - fastest!
-            }
-            else
-            {
-                return _reader.GetSliceAt(start, length);
-            }
-        }
-
-        /// <summary>
         /// Check if a sequence matches at the specified position (optimized for single memory)
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -212,21 +186,21 @@ namespace PdfReader.Parsing
         /// Get slice from current position (optimized for single memory)
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public ReadOnlySpan<byte> GetSliceFromCurrent(int length)
+        public ReadOnlyMemory<byte> GetSliceFromCurrent(int length)
         {
             if (_isSingleMemory)
             {
                 if (_position >= _length)
-                    return ReadOnlySpan<byte>.Empty;
+                    return ReadOnlyMemory<byte>.Empty;
                 
                 int available = _length - _position;
                 if (length > available)
                     length = available;
                 
                 if (length <= 0)
-                    return ReadOnlySpan<byte>.Empty;
+                    return ReadOnlyMemory<byte>.Empty;
                 
-                return _singleSpan.Slice(_position, length); // Direct span slice - fastest!
+                return _singleMemory.Slice(_position, length); // Direct span slice - fastest!
             }
             else
             {
