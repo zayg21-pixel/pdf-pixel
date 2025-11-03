@@ -98,7 +98,7 @@ namespace PdfReader.Fonts.Mapping
                 }
             }
         }
-        
+
         private static void ParseBfRangeMappings(ref PdfParser parser, PdfCMap cmap, PdfDocument document)
         {
             IPdfValue value;
@@ -114,71 +114,84 @@ namespace PdfReader.Fonts.Mapping
                     continue;
                 }
 
-                if (value.Type == PdfValueType.String)
+                if (value.Type != PdfValueType.String)
                 {
-                    var startBytes = value.AsStringBytes().Span;
-                    var endValue = parser.ReadNextValue();
+                    continue;
+                }
 
-                    if (endValue == null)
+                var startBytes = value.AsStringBytes().Span;
+                var endValue = parser.ReadNextValue();
+                var endBytes = endValue.AsStringBytes().Span;
+
+                var thirdValue = parser.ReadNextValue();
+                if (thirdValue == null)
+                {
+                    continue;
+                }
+
+                if (thirdValue.Type == PdfValueType.String)
+                {
+                    var unicodeBytes = thirdValue.AsStringBytes().Span;
+                    if (IsSentinelFFFF(unicodeBytes))
                     {
                         continue;
                     }
-                    var endBytes = endValue.AsStringBytes().Span;
+                    SliceBom(ref unicodeBytes);
 
-                    var thirdValue = parser.ReadNextValue();
-
-                    if (thirdValue == null)
+                    // Decode starting Unicode sequence (one or two UTF-16 code units) into scalar.
+                    string startUnicodeFull = Encoding.BigEndianUnicode.GetString(unicodeBytes);
+                    int baseScalar;
+                    if (startUnicodeFull.Length == 1)
                     {
+                        baseScalar = startUnicodeFull[0];
+                    }
+                    else if (startUnicodeFull.Length == 2 && char.IsSurrogatePair(startUnicodeFull[0], startUnicodeFull[1]))
+                    {
+                        baseScalar = char.ConvertToUtf32(startUnicodeFull[0], startUnicodeFull[1]);
+                    }
+                    else
+                    {
+                        // Multi-codepoint sequence: map only first code to full string per spec semantics.
+                        cmap.AddMapping(new PdfCharacterCode(value.AsStringBytes()), startUnicodeFull);
                         continue;
                     }
 
-                    if (thirdValue.Type == PdfValueType.String)
+                    int codeLength = startBytes.Length;
+                    uint codeStart = PdfCharacterCode.UnpackBigEndianToUInt(startBytes);
+                    uint codeEnd = PdfCharacterCode.UnpackBigEndianToUInt(endBytes);
+                    int offset = 0;
+                    for (uint current = codeStart; current <= codeEnd; current++, offset++)
                     {
-                        var unicodeBytes = thirdValue.AsStringBytes().Span;
+                        int scalar = baseScalar + offset;
+                        if (scalar > 0x10FFFF)
+                        {
+                            break;
+                        }
 
-                        if (IsSentinelFFFF(unicodeBytes))
+                        string unicode = char.ConvertFromUtf32(scalar);
+                        var packed = PdfCharacterCode.PackUIntToBigEndian(current, codeLength);
+                        cmap.AddMapping(new PdfCharacterCode(packed), unicode);
+                    }
+                }
+                else if (thirdValue.Type == PdfValueType.Array)
+                {
+                    var array = thirdValue.AsArray();
+                    int codeLength = startBytes.Length;
+                    uint codeStart = PdfCharacterCode.UnpackBigEndianToUInt(startBytes);
+                    uint codeEnd = PdfCharacterCode.UnpackBigEndianToUInt(endBytes);
+                    uint codeCurrent = codeStart;
+
+                    for (int arrayIndex = 0; arrayIndex < array.Count && codeCurrent <= codeEnd; arrayIndex++, codeCurrent++)
+                    {
+                        var arrayItem = array.GetValue(arrayIndex);
+                        var hex = arrayItem.AsStringBytes().Span;
+                        if (IsSentinelFFFF(hex))
                         {
                             continue;
                         }
-
-                        // Sequential form: iterate codes explicitly instead of calling AddRangeMapping.
-                        uint startCodePoint = ToUnicodeCodePoint(unicodeBytes);
-                        int codeLength = startBytes.Length;
-                        uint codeStart = PdfCharacterCode.UnpackBigEndianToUInt(startBytes);
-                        uint codeEnd = PdfCharacterCode.UnpackBigEndianToUInt(endBytes);
-                        int offset = 0;
-                        for (uint current = codeStart; current <= codeEnd; current++, offset++)
-                        {
-                            var packed = PdfCharacterCode.PackUIntToBigEndian(current, codeLength);
-                            string unicode = char.ConvertFromUtf32((int)(startCodePoint + offset));
-                            cmap.AddMapping(new PdfCharacterCode(packed), unicode);
-                        }
-
-                    }
-                    else if (thirdValue.Type == PdfValueType.Array)
-                    {
-                        var array = thirdValue.AsArray();
-
-                        int codeLength = startBytes.Length;
-                        uint codeStart = PdfCharacterCode.UnpackBigEndianToUInt(startBytes);
-                        uint codeEnd = PdfCharacterCode.UnpackBigEndianToUInt(endBytes);
-                        uint codeCurrent = codeStart;
-
-                        for (int arrayIndex = 0; arrayIndex < array.Count && codeCurrent <= codeEnd; arrayIndex++, codeCurrent++)
-                        {
-                            var arrayItem = array.GetValue(arrayIndex);
-                            var hex = arrayItem.AsStringBytes().Span;
-
-                            if (IsSentinelFFFF(hex))
-                            {
-                                continue;
-                            }
-
-                            string unicode = ParseBytesToUnicode(hex);
-
-                            var codeBytes = PdfCharacterCode.PackUIntToBigEndian(codeCurrent, codeLength);
-                            cmap.AddMapping(new PdfCharacterCode(codeBytes), unicode);
-                        }
+                        string unicode = ParseBytesToUnicode(hex);
+                        var codeBytes = PdfCharacterCode.PackUIntToBigEndian(codeCurrent, codeLength);
+                        cmap.AddMapping(new PdfCharacterCode(codeBytes), unicode);
                     }
                 }
             }
@@ -271,10 +284,8 @@ namespace PdfReader.Fonts.Mapping
                         var startBytes = value.AsStringBytes().Span;
                         var endValue = parser.ReadNextValue();
                         var endBytes = endValue.AsStringBytes().Span;
-
                         var cidValue = parser.ReadNextValue();
                         var firstCid = cidValue.AsInteger();
-
                         cmap.AddCidRangeMapping(startBytes, endBytes, firstCid);
                         break;
                     }
@@ -282,51 +293,20 @@ namespace PdfReader.Fonts.Mapping
             }
         }
 
-        private static uint ToUnicodeCodePoint(ReadOnlySpan<byte> hex)
+        private static void SliceBom(ref ReadOnlySpan<byte> hex)
         {
             // Strip UTF-16BE BOM if present (FE FF) per PDF spec 9.10.3.
             if (hex.Length >= 2 && hex[0] == 0xFE && hex[1] == 0xFF)
             {
                 hex = hex.Slice(2);
             }
-
-            // Need at least one 16-bit code unit.
-            if (hex.Length < 2)
-            {
-                return 0u;
-            }
-
-            int firstUnit = (hex[0] << 8) | hex[1];
-
-            // Handle surrogate pair to form a single scalar value (non-BMP).
-            if (firstUnit >= 0xD800 && firstUnit <= 0xDBFF)
-            {
-                // High surrogate; require low surrogate code unit.
-                if (hex.Length >= 4)
-                {
-                    int secondUnit = (hex[2] << 8) | hex[3];
-                    if (secondUnit >= 0xDC00 && secondUnit <= 0xDFFF)
-                    {
-                        int high = firstUnit - 0xD800;
-                        int low = secondUnit - 0xDC00;
-                        uint codePoint = (uint)((high << 10) + low + 0x10000);
-                        return codePoint;
-                    }
-                }
-                // Invalid surrogate sequence; fall back to returning first unit value.
-            }
-
-            return (uint)firstUnit;
         }
 
         // Per ISO 32000-1:2008 Section 9.10.3, Unicode values in ToUnicode CMaps
         // are encoded as UTF-16BE (big-endian UTF-16) without BOM.
         private static string ParseBytesToUnicode(ReadOnlySpan<byte> hex)
         {
-            if (hex.Length >= 2 && hex[0] == 0xFE && hex[1] == 0xFF)
-            {
-                hex = hex.Slice(2);
-            }
+            SliceBom(ref hex);
             return Encoding.BigEndianUnicode.GetString(hex);
         }
 

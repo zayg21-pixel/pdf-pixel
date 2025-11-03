@@ -40,7 +40,7 @@ namespace PdfReadTests
                 //"pdfs//icc-lab2.pdf",
                 //"pdf-example-password.pdf",
                 //"pdfs//mixedfonts.pdf", // came a bit broken
-                //"pdfs//mixedfonts_ed.pdf",
+                "pdfs//mixedfonts_ed.pdf",
                 //"pdfs//blendmode.pdf",
                 //"pdfs//calgray.pdf",
                 //"pdfs//calrgb.pdf",
@@ -52,7 +52,7 @@ namespace PdfReadTests
                 //"pdfs//images_1bit_grayscale.pdf",
                 //"pdfs//shading_extend.pdf",
                 //"pdfs//pdf_c.pdf",
-                "PDF32000_2008.pdf"
+                //"PDF32000_2008.pdf"
                 //"ch14.pdf"
                 //@"documentS.pdf",
                 //@"documentC.pdf",
@@ -106,7 +106,7 @@ namespace PdfReadTests
 
                 var start = 0;
                 var max = 1000;
-                float scaleX = 0.1f; // Scale factor for rendering
+                float scaleX = 4f; // Scale factor for rendering
 
                 // Analyze pages with detailed content stream debugging
                 for (int i = start; i < Math.Min(max, document.PageCount); i++)
@@ -145,13 +145,13 @@ namespace PdfReadTests
                         }
 
                         //// Save as PNG (optional)
-                        //var filename_png = $"{basePath}\\{name}_page_{page.PageNumber}.jpg";
-                        //using (var image = surface.Snapshot())
-                        //using (var data = image.Encode(SKEncodedImageFormat.Jpeg, 100))
-                        //using (var fileStream = File.OpenWrite(filename_png))
-                        //{
-                        //    data.SaveTo(fileStream);
-                        //}
+                        var filename_png = $"{basePath}\\{name}_page_{page.PageNumber}.jpg";
+                        using (var image = surface.Snapshot())
+                        using (var data = image.Encode(SKEncodedImageFormat.Jpeg, 100))
+                        using (var fileStream = File.OpenWrite(filename_png))
+                        {
+                            data.SaveTo(fileStream);
+                        }
 
                         //var recording = CreateRecording(page);
                         //SaveRecording(recording, scaleX, filename_png);
