@@ -1,6 +1,5 @@
 ﻿using PdfReader.Models;
 using PdfReader.Rendering.Advanced;
-using PdfReader.Rendering.Pattern;
 using SkiaSharp;
 using System;
 using System.Runtime.CompilerServices;
@@ -52,54 +51,27 @@ namespace PdfReader.Rendering
             return paint;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static float GetReverseTextScale(PdfGraphicsState state)
+        {
+            var matrix = state.GetFullTextMatrix();
+            return 2f / (Math.Abs(matrix.ScaleX) + Math.Abs(matrix.ScaleY));
+        }
+
         /// <summary>
         /// Apply stroke styling attributes from graphics state onto a paint.
         /// Implements hairline for zero width per PDF spec and normalizes miter limit.
         /// </summary>
-        private static void ApplyStrokeStyling(SKPaint paint, PdfGraphicsState state, float scale = 1f)
+        private static void ApplyStrokeStyling(SKPaint paint, PdfGraphicsState state, float scale)
         {
             // NOTE (PDF spec): setlinewidth 0 means a device-dependent hairline. Skia interprets
             // StrokeWidth = 0 as a hairline, so pass through 0 unchanged; clamp negatives to 0.
-            var width = state.LineWidth;
-            paint.StrokeWidth = (width <= 0 ? 0f : width) * scale;
+            var width = state.LineWidth * scale;
+            paint.StrokeWidth = (width <= 0 ? 0f : width);
             paint.StrokeCap = state.LineCap;
             paint.StrokeJoin = state.LineJoin;
             // Miter limit must be positive; clamp to a safe minimum to avoid Skia issues.
             paint.StrokeMiter = (state.MiterLimit > 0 ? state.MiterLimit : 1f) * scale;
-        }
-
-        /// <summary>
-        /// Estimate the scale factor contributed by the current text transform (TextMatrix + Tz).
-        /// Used to keep text stroke width in user-space units, independent of text-specific scaling.
-        /// </summary>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static float GetTextScaleFactor(PdfGraphicsState state)
-        {
-            // Extract the 2x2 linear part of the matrix.
-            // SKMatrix layout:
-            // [ ScaleX  SkewX  TransX ]
-            // [ SkewY   ScaleY TransY ]
-            // [ Persp0  Persp1 Persp2 ]
-            var m = state.TextMatrix;
-
-            // Lengths of transformed basis vectors (columns) give per-axis scales.
-            double scaleX = Math.Sqrt(m.ScaleX * m.ScaleX + m.SkewY * m.SkewY);
-            double scaleY = Math.Sqrt(m.SkewX * m.SkewX + m.ScaleY * m.ScaleY);
-
-            // Horizontal scaling (Tz) applies only to X in text space.
-            float hScale = state.HorizontalScaling != 0 ? state.HorizontalScaling / 100f : 1f;
-
-            // Combine: average to get an isotropic representative scale.
-            double s1 = scaleX * hScale;
-            double s2 = scaleY; // Y not affected by Tz
-            float avg = (float)((s1 + s2) * 0.5);
-
-            if (avg <= 0f || float.IsNaN(avg) || float.IsInfinity(avg))
-            {
-                return 1f;
-            }
-
-            return avg;
         }
 
         /// <summary>
@@ -189,14 +161,12 @@ namespace PdfReader.Rendering
                     {
                         paint.Color = ApplyAlpha(state.StrokePaint.Color, state.StrokeAlpha);
                     }
-                    var strokeTextScale = GetTextScaleFactor(state);
-                    ApplyStrokeStyling(paint, state, 1 / strokeTextScale);
+                    ApplyStrokeStyling(paint, state, GetReverseTextScale(state));
                     break;
                 }
                 case PdfTextRenderingMode.FillAndStroke:
                 case PdfTextRenderingMode.FillAndStrokeAndClip:
                 {
-                    var fillTextScale = GetTextScaleFactor(state);
                     paint.Style = SKPaintStyle.StrokeAndFill;
                     // Prefer fill pattern if present, otherwise stroke pattern, otherwise solid color
                     if (state.FillPaint != null && state.FillPaint.IsPattern && state.FillPaint.Pattern != null)
@@ -213,7 +183,7 @@ namespace PdfReader.Rendering
                     {
                         paint.Color = ApplyAlpha(state.FillPaint.Color, state.FillAlpha);
                     }
-                    ApplyStrokeStyling(paint, state, 1 / fillTextScale);
+                    ApplyStrokeStyling(paint, state, GetReverseTextScale(state));
                     break;
                 }
                 case PdfTextRenderingMode.Invisible:
@@ -248,22 +218,13 @@ namespace PdfReader.Rendering
             var font = new SKFont
             {
                 Typeface = typeface,
-                Size = state.FontSize,
+                Size = 1,
                 // Improve visual quality and keep metrics stable across hinting variations
                 Subpixel = true,
                 LinearMetrics = true,
                 Hinting = SKFontHinting.Normal,
                 Edging = SKFontEdging.SubpixelAntialias
             };
-
-            // Apply PDF HorizontalScaling (Tz) as X scale (percentage -> factor)
-            float hScale = state.HorizontalScaling != 0 ? state.HorizontalScaling / 100f : 1f;
-            if (hScale <= 0f || float.IsNaN(hScale) || float.IsInfinity(hScale))
-            {
-                hScale = 1f;
-            }
-
-            //font.ScaleX = hScale;
 
             // Skew/rotation are already represented in the text matrix applied at draw time.
             return font;
@@ -288,7 +249,7 @@ namespace PdfReader.Rendering
                 paint.Color = ApplyAlpha(state.StrokePaint.Color, state.StrokeAlpha);
             }
 
-            ApplyStrokeStyling(paint, state);
+            ApplyStrokeStyling(paint, state, 1);
 
             if (state.DashPattern != null && state.DashPattern.Length > 0)
             {

@@ -46,6 +46,11 @@ namespace PdfReader.Rendering.Text
                 return 0f;
             }
 
+            if (pdfText.IsEmpty)
+            {
+                return 0;
+            }
+
             var typeface = _fontCache.GetTypeface(font);
             using var skPaint = PdfPaintFactory.CreateTextPaint(state, page);
             using var skFont = PdfPaintFactory.CreateTextFont(state, typeface);
@@ -55,10 +60,10 @@ namespace PdfReader.Rendering.Text
             using var softMaskScope = new SoftMaskDrawingScope(canvas, state, page);
 
             softMaskScope.BeginDrawContent();
-            var size = DrawShapedText(canvas, skPaint, skFont, shaped, state, dryRun: false);
+            var width = DrawShapedText(canvas, skPaint, skFont, shaped, state, dryRun: false);
             softMaskScope.EndDrawContent();
 
-            return size.Width;
+            return width * state.HorizontalScaling / 100f * state.FontSize; // TODO: it's unclear from specs, should we apply horizontal scaling here. Logically - yes as it's affects displacement.
         }
 
         /// <summary>
@@ -79,7 +84,6 @@ namespace PdfReader.Rendering.Text
             }
 
             var shapedGlyphs = new List<ShapedGlyph>();
-            float totalAdvancement = 0f;
             bool hasGlyphs = false;
 
             // Create typeface and skFont once
@@ -109,7 +113,8 @@ namespace PdfReader.Rendering.Text
                 {
                     // Positioning adjustment
                     var adjustment = item.AsFloat();
-                    var adjustmentInUserSpace = -adjustment * state.FontSize / 1000f;
+                    var adjustmentInUserSpace = -adjustment / 1000f;
+
                     if (shapedGlyphs.Count > 0)
                     {
                         // Add advance to last glyph
@@ -118,12 +123,12 @@ namespace PdfReader.Rendering.Text
                     }
                     else
                     {
-                        // No glyphs yet, translate canvas
-                        canvas.Translate(adjustmentInUserSpace, 0);
-                        totalAdvancement += adjustmentInUserSpace;
+                        shapedGlyphs.Insert(0, new ShapedGlyph(0, 0, adjustmentInUserSpace)); // TODO: fix, this will draw a glyph with ID 0, width is defined as 0, so it might not render, but...
                     }
                 }
             }
+
+            float totalAdvancement = 0f;
 
             if (hasGlyphs && shapedGlyphs.Count > 0)
             {
@@ -133,13 +138,12 @@ namespace PdfReader.Rendering.Text
 
                 // Draw all glyphs at once
                 using var skPaint = PdfPaintFactory.CreateTextPaint(state, page);
-                var size = DrawShapedText(canvas, skPaint, skFont, shapedGlyphs.ToArray(), state, false);
-                totalAdvancement += size.Width;
+                totalAdvancement = DrawShapedText(canvas, skPaint, skFont, shapedGlyphs.ToArray(), state, false);
 
                 softMaskScope.EndDrawContent();
             }
 
-            return totalAdvancement;
+            return totalAdvancement * state.HorizontalScaling / 100f * state.FontSize;
         }
 
         /// <summary>
@@ -159,19 +163,21 @@ namespace PdfReader.Rendering.Text
                 bool isSpace = unicode == " ";
                 float spacing = state.CharacterSpacing + (isSpace ? state.WordSpacing : 0f);
 
-                shapedGlyphs[codeIndex] = new ShapedGlyph(info.Gid, info.Width * state.FontSize, spacing);
+                shapedGlyphs[codeIndex] = new ShapedGlyph(info.Gid, info.Width, spacing / state.FontSize);
             }
 
             return shapedGlyphs;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private SKSize DrawShapedText(SKCanvas canvas, SKPaint paint, SKFont font, ShapedGlyph[] shapingResult, PdfGraphicsState state, bool dryRun)
+        private float DrawShapedText(SKCanvas canvas, SKPaint paint, SKFont font, ShapedGlyph[] shapingResult, PdfGraphicsState state, bool dryRun)
         {
             if (shapingResult.Length == 0)
             {
-                return SKSize.Empty;
+                return 0;
             }
+
+            var textMatrix = state.GetFullTextMatrix();
 
             float advanceWidth = 0f;
 
@@ -181,7 +187,7 @@ namespace PdfReader.Rendering.Text
                 canvas.Save();
 
                 // Apply text matrix transformation
-                canvas.Concat(state.GetFullTextMatrix());
+                canvas.Concat(textMatrix);
 
                 using var builder = new SKTextBlobBuilder();
                 var run = builder.AllocatePositionedRun(font, shapingResult.Length);
@@ -226,7 +232,7 @@ namespace PdfReader.Rendering.Text
                     x += shapingResult[i].TotalWidth;
                 }
 
-                textPath.Transform(state.GetFullTextMatrix());
+                textPath.Transform(textMatrix);
 
                 if (state.TextClipPath == null)
                 {
@@ -236,12 +242,10 @@ namespace PdfReader.Rendering.Text
                 state.TextClipPath.AddPath(textPath);
             }
 
-            var metrics = font.Metrics;
-            float height = metrics.Descent - metrics.Ascent;
-
-            return new SKSize(advanceWidth, height);
+            return advanceWidth;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static bool IsVisibleText(PdfTextRenderingMode mode)
         {
             switch (mode)
@@ -260,6 +264,7 @@ namespace PdfReader.Rendering.Text
             }
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static bool IsClippingText(PdfTextRenderingMode mode)
         {
             switch (mode)

@@ -40,43 +40,7 @@ namespace PdfReader.Rendering
         /// </summary>
         public float DrawText(SKCanvas canvas, ref PdfText pdfText, PdfPage page, PdfGraphicsState state, PdfFontBase font)
         {
-            if (pdfText.IsEmpty)
-            {
-                return 0f;
-            }
-
-            //canvas.Save();
-
-            //// Apply text matrix transformation
-            //canvas.Concat(state.TextMatrix);
-
-            //// Apply text rise (vertical offset) - BEFORE Y-flip so direction is correct
-            //if (state.Rise != 0)
-            //{
-            //    canvas.Translate(0, state.Rise);
-            //}
-
-            //// CRITICAL: Apply local Y-axis flip ONLY for glyph rendering
-            //// This preserves the correct transformation order while fixing glyph orientation
-            //canvas.Scale(1, -1);
-
-            // Draw text and get advancement
-            var advancement = _textRenderer.DrawText(canvas, ref pdfText, page, state, font);
-
-            //canvas.Scale(-1, 1);
-
-            //if (state.Rise != 0)
-            //{
-            //    canvas.Translate(0, -state.Rise);
-            //}
-
-            //canvas.Concat(state.TextMatrix.Invert());
-
-
-
-            //canvas.Restore();
-
-            return advancement;
+            return _textRenderer.DrawText(canvas, ref pdfText, page, state, font);
         }
 
         /// <summary>
@@ -86,10 +50,7 @@ namespace PdfReader.Rendering
         /// </summary>
         public float DrawTextWithPositioning(SKCanvas canvas, IPdfValue arrayOperand, PdfPage page, PdfGraphicsState state, PdfFontBase font)
         {            
-            // Delegate to text renderer for the actual text positioning logic and get advancement
-            var totalAdvancement = _textRenderer.DrawTextWithPositioning(canvas, arrayOperand, page, state, font);
-            
-            return totalAdvancement;
+            return _textRenderer.DrawTextWithPositioning(canvas, arrayOperand, page, state, font);
         }
 
         /// <summary>

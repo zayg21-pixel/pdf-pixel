@@ -17,7 +17,8 @@ namespace PdfReadTests
 
             // Test with some sample PDFs
             string[] testFiles = {
-                "pdfs//100mb.pdf",
+                //"pdfs//100mb.pdf",
+                //"pdfs//PDF-Horizontal-Scaling.pdf",
                 //"pdfs//pattern_text_embedded_font.pdf",
                 //"pdfs//textframe-gradient.pdf",
                 //"pdfs//chrome-text-selection-markedContent.pdf", // interesting, some odd boxes on text
@@ -52,15 +53,15 @@ namespace PdfReadTests
                 //"pdfs//images_1bit_grayscale.pdf",
                 //"pdfs//shading_extend.pdf",
                 //"pdfs//pdf_c.pdf",
-                //"PDF32000_2008.pdf"
+                "PDF32000_2008.pdf",
                 //"ch14.pdf"
                 //@"documentS.pdf",
                 //@"documentC.pdf",
                 //@"sample.pdf",
-                //"Adyen.pdf",
-                //"Adyen 2023.pdf",
-                //"adyen_2020.pdf",
-                //"adyen_2020_debug.pdf",
+                "Adyen.pdf",
+                "Adyen 2023.pdf",
+                "adyen_2020.pdf",
+                "adyen_2020_debug.pdf",
                 //"pdfs\\emojies.pdf",
                 //"documentEd.pdf",
                 //@"document_1.pdf"
@@ -78,11 +79,11 @@ namespace PdfReadTests
 
             // Create a D3D11 device
 
-            //using var d3dContext = new VorticeDirect3DContext();
-            //using var backend = d3dContext.CreateBackendContext();
+            using var d3dContext = new VorticeDirect3DContext();
+            using var backend = d3dContext.CreateBackendContext();
 
-            //// Create GRContext for Direct3D
-            //using var grContext = GRContext.CreateDirect3D(backend);
+            // Create GRContext for Direct3D
+            using var grContext = GRContext.CreateDirect3D(backend);
 
             Logger.LogInformation("Testing file: {File}", filename);
             Logger.LogInformation(new string('=', 50));
@@ -106,7 +107,7 @@ namespace PdfReadTests
                 Logger.LogInformation("Root object: {Root}", document.RootObject);
 
                 var start = 0;
-                var max = 1000;
+                var max = 4;
                 float scaleX = 3f; // Scale factor for rendering
 
                 // Analyze pages with detailed content stream debugging
@@ -124,8 +125,8 @@ namespace PdfReadTests
                         var renderHeight = (int)Math.Max(renderingBounds.Height, 100); // Minimum 100px
 
                         var info = new SKImageInfo((int)(renderWidth * scaleX), (int)(renderHeight * scaleX), SKColorType.Rgba8888, SKAlphaType.Premul, SKColorSpace.CreateSrgb());
-                        //using var surface = SKSurface.Create(grContext, false, info);
-                        using var surface = SKSurface.Create(info);
+                        using var surface = SKSurface.Create(grContext, false, info);
+                        //using var surface = SKSurface.Create(info);
 
                         using var canvas = surface.Canvas;
                         canvas.ClipRect(new SKRect(0, 0, renderWidth * scaleX, renderHeight * scaleX));

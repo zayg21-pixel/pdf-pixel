@@ -299,7 +299,7 @@ namespace PdfReader.Rendering.Operators
             var font = _page.Cache.GetFont(graphicsState.CurrentFont);
             var advancement = _page.Document.PdfRenderer.DrawText(_canvas, ref pdfText, _page, graphicsState, font);
             var advanceMatrix = SKMatrix.CreateTranslation(advancement, 0);
-            graphicsState.TextMatrix = advanceMatrix.PostConcat(graphicsState.TextMatrix);
+            graphicsState.TextMatrix = SKMatrix.Concat(graphicsState.TextMatrix, advanceMatrix);
         }
 
         private void ProcessShowTextNextLine(PdfGraphicsState graphicsState)
@@ -322,9 +322,9 @@ namespace PdfReader.Rendering.Operators
             }
 
             var font = _page.Cache.GetFont(graphicsState.CurrentFont);
-            var totalAdvancement = _page.Document.PdfRenderer.DrawTextWithPositioning(_canvas, operands[0], _page, graphicsState, font);
-            var advanceMatrix = SKMatrix.CreateTranslation(totalAdvancement, 0);
-            graphicsState.TextMatrix = advanceMatrix.PostConcat(graphicsState.TextMatrix);
+            var advancement = _page.Document.PdfRenderer.DrawTextWithPositioning(_canvas, operands[0], _page, graphicsState, font);
+            var advanceMatrix = SKMatrix.CreateTranslation(advancement, 0);
+            graphicsState.TextMatrix = SKMatrix.Concat(graphicsState.TextMatrix, advanceMatrix);
         }
 
         private void ProcessNextLine(PdfGraphicsState graphicsState)
@@ -371,7 +371,7 @@ namespace PdfReader.Rendering.Operators
             var font = _page.Cache.GetFont(graphicsState.CurrentFont);
             var advancement = _page.Document.PdfRenderer.DrawText(_canvas, ref pdfText, _page, graphicsState, font);
             var advanceMatrix = SKMatrix.CreateTranslation(advancement, 0);
-            graphicsState.TextMatrix = advanceMatrix.PostConcat(graphicsState.TextMatrix);
+            graphicsState.TextMatrix = SKMatrix.Concat(graphicsState.TextMatrix, advanceMatrix);
         }
     }
 }

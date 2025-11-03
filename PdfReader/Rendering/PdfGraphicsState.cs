@@ -227,20 +227,15 @@ namespace PdfReader.Rendering
         public SKMatrix GetFullTextMatrix()
         {
             var composed = TextMatrix;
+
             if (Rise != 0)
             {
                 composed = SKMatrix.Concat(composed, SKMatrix.CreateTranslation(0f, Rise));
             }
 
-            if (HorizontalScaling != 0f && HorizontalScaling != 100f)
-            {
-                var hScale = HorizontalScaling / 100f;
-                var hScaleMatrix = SKMatrix.CreateScale(hScale, 1f);
-                composed = SKMatrix.Concat(composed, hScaleMatrix);
-            }
-
-            var flipY = SKMatrix.CreateScale(1f, -1f);
-            composed = SKMatrix.Concat(composed, flipY);
+            // Apply font size, horizontal scaling, and vertical flip
+            var fontSizeMatrix = SKMatrix.CreateScale(FontSize * HorizontalScaling / 100f, -FontSize);
+            composed = SKMatrix.Concat(composed, fontSizeMatrix);
 
             return composed;
         }
