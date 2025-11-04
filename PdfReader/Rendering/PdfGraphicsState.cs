@@ -220,46 +220,6 @@ namespace PdfReader.Rendering
         public SKPath TextClipPath { get; set; }
 
         /// <summary>
-        /// Computes and returns the full text transformation matrix, incorporating the text matrix, rise,  horizontal
-        /// scaling, and a vertical flip.
-        /// </summary>
-        /// <returns>An <see cref="SKMatrix"/> representing the full text transformation matrix.</returns>
-        public SKMatrix GetFullTextMatrix()
-        {
-            var composed = TextMatrix;
-
-            if (Rise != 0)
-            {
-                composed = SKMatrix.Concat(composed, SKMatrix.CreateTranslation(0f, Rise));
-            }
-
-            // Apply font size, horizontal scaling, and vertical flip
-            var fontSizeMatrix = SKMatrix.CreateScale(FontSize * HorizontalScaling / 100f, -FontSize);
-            composed = SKMatrix.Concat(composed, fontSizeMatrix);
-
-            return composed;
-        }
-
-        /// <summary>
-        /// Computes the full transformation matrix, including the current transformation matrix (CTM)  and, if
-        /// applicable, the text transformation matrix.
-        /// </summary>
-        /// <returns>The full transformation matrix as an <see cref="SKMatrix"/>. If in a text object, the matrix  includes the
-        /// text transformation; otherwise, it represents only the CTM.</returns>
-        public SKMatrix GetFullTransformationMatrix()
-        {
-            var ctm = CTM;
-            
-            if (InTextObject)
-            {
-                var textMatrix = GetFullTextMatrix();
-                ctm = SKMatrix.Concat(ctm, textMatrix);
-            }
-
-            return ctm;
-        }
-
-        /// <summary>
         /// Create a deep copy for stack push (q operator). Paint objects are reference-copied (immutable usage expected).
         /// </summary>
         public PdfGraphicsState Clone()

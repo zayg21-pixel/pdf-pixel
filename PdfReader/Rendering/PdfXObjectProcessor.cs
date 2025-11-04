@@ -80,7 +80,7 @@ namespace PdfReader.Rendering
             }
 
             // Use form paint to composite the whole form with correct alpha/blend when needed
-            using var formPaint = PdfPaintFactory.CreateFormXObjectPaint(graphicsState, page);
+            using var formPaint = PdfPaintFactory.CreateFormXObjectPaint(graphicsState);
 
             canvas.SaveLayer(clipRect, formPaint);
 

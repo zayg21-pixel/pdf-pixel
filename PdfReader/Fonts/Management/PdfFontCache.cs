@@ -54,6 +54,11 @@ namespace PdfReader.Fonts.Management
                     if (stream != null)
                     {
                         typeface = SKTypeface.FromStream(stream);
+
+                        if (typeface == null)
+                        {
+                            _logger.LogWarning("Failed to load embedded font for BaseFont '{BaseFont}'", font.BaseFont.Value);
+                        }
                     }
                 }
                 if (typeface == null)

@@ -131,22 +131,21 @@ namespace PdfReader.Rendering.Shading
 
             if (!shading.ExtendEnd || !shading.ExtendStart)
             {
-                float start = positions[0];
-                float end = positions[positions.Length - 1];
 
-                float offset = (end - start) * 0.001f;
                 var listPositions = new List<float>(positions);
                 var listColors = new List<SKColor>(colors);
 
                 if (!shading.ExtendStart)
                 {
-                    listPositions.Insert(0, start - offset);
+                    float start = positions[0];
+                    listPositions.Insert(0, start);
                     listColors.Insert(0, SKColors.Transparent);
                 }
 
                 if (!shading.ExtendEnd)
                 {
-                    listPositions.Add(end + offset);
+                    float end = positions[positions.Length - 1];
+                    listPositions.Add(end);
                     listColors.Add(SKColors.Transparent);
                 }
 

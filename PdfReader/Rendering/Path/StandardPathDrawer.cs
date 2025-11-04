@@ -51,7 +51,7 @@ namespace PdfReader.Rendering.Path
             {
                 case PaintOperation.Stroke:
                 {
-                    using var strokePaint = PdfPaintFactory.CreateStrokePaint(state, page);
+                    using var strokePaint = PdfPaintFactory.CreateStrokePaint(state);
                     {
                         canvas.DrawPath(path, strokePaint);
                     }
@@ -59,7 +59,7 @@ namespace PdfReader.Rendering.Path
                 }
                 case PaintOperation.Fill:
                 {
-                    using var fillPaint = PdfPaintFactory.CreateFillPaint(state, page);
+                    using var fillPaint = PdfPaintFactory.CreateFillPaint(state);
                     {
                         canvas.DrawPath(path, fillPaint);
                     }
@@ -68,13 +68,13 @@ namespace PdfReader.Rendering.Path
                 case PaintOperation.FillAndStroke:
                 {
                     // Fill phase.
-                    using (var fillPaint = PdfPaintFactory.CreateFillPaint(state, page))
+                    using (var fillPaint = PdfPaintFactory.CreateFillPaint(state))
                     {
                         canvas.DrawPath(path, fillPaint);
                     }
 
                     // Stroke phase.
-                    using (var strokePaint = PdfPaintFactory.CreateStrokePaint(state, page))
+                    using (var strokePaint = PdfPaintFactory.CreateStrokePaint(state))
                     {
                         strokePaint.BlendMode = SKBlendMode.Src;
                         canvas.DrawPath(path, strokePaint);

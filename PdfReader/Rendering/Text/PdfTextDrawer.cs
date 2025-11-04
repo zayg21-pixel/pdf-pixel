@@ -52,18 +52,17 @@ namespace PdfReader.Rendering.Text
             }
 
             var typeface = _fontCache.GetTypeface(font);
-            using var skPaint = PdfPaintFactory.CreateTextPaint(state, page);
-            using var skFont = PdfPaintFactory.CreateTextFont(state, typeface);
+            using var skFont = PdfPaintFactory.CreateTextFont(typeface);
 
             var shaped = ShapeText(ref pdfText, state, font);
 
             using var softMaskScope = new SoftMaskDrawingScope(canvas, state, page);
 
             softMaskScope.BeginDrawContent();
-            var width = DrawShapedText(canvas, skPaint, skFont, shaped, state, dryRun: false);
+            var width = DrawShapedText(canvas, skFont, shaped, state);
             softMaskScope.EndDrawContent();
 
-            return width * state.HorizontalScaling / 100f * state.FontSize; // TODO: it's unclear from specs, should we apply horizontal scaling here. Logically - yes as it's affects displacement.
+            return width;
         }
 
         /// <summary>
@@ -84,11 +83,6 @@ namespace PdfReader.Rendering.Text
             }
 
             var shapedGlyphs = new List<ShapedGlyph>();
-            bool hasGlyphs = false;
-
-            // Create typeface and skFont once
-            var typeface = _fontCache.GetTypeface(font);
-            using var skFont = PdfPaintFactory.CreateTextFont(state, typeface);
 
             for (int i = 0; i < array.Count; i++)
             {
@@ -106,7 +100,6 @@ namespace PdfReader.Rendering.Text
                         // Shape and add glyphs
                         var glyphs = ShapeText(ref pdfText, state, font);
                         shapedGlyphs.AddRange(glyphs);
-                        hasGlyphs = true;
                     }
                 }
                 else
@@ -123,27 +116,30 @@ namespace PdfReader.Rendering.Text
                     }
                     else
                     {
-                        shapedGlyphs.Insert(0, new ShapedGlyph(0, 0, adjustmentInUserSpace)); // TODO: fix, this will draw a glyph with ID 0, width is defined as 0, so it might not render, but...
+                        // TODO: fix, this will draw a glyph with ID 0, width is defined as 0, so it should not render, but...
+                        shapedGlyphs.Insert(0, new ShapedGlyph(0, 0, adjustmentInUserSpace));
                     }
                 }
             }
 
-            float totalAdvancement = 0f;
+            float width = 0f;
 
-            if (hasGlyphs && shapedGlyphs.Count > 0)
+            if (shapedGlyphs.Count > 0)
             {
                 using var softMaskScope = new SoftMaskDrawingScope(canvas, state, page);
 
                 softMaskScope.BeginDrawContent();
 
-                // Draw all glyphs at once
-                using var skPaint = PdfPaintFactory.CreateTextPaint(state, page);
-                totalAdvancement = DrawShapedText(canvas, skPaint, skFont, shapedGlyphs.ToArray(), state, false);
+                // Create typeface and skFont once
+                var typeface = _fontCache.GetTypeface(font);
+                using var skFont = PdfPaintFactory.CreateTextFont(typeface);
+
+                width = DrawShapedText(canvas, skFont, shapedGlyphs.ToArray(), state);
 
                 softMaskScope.EndDrawContent();
             }
 
-            return totalAdvancement * state.HorizontalScaling / 100f * state.FontSize;
+            return width;
         }
 
         /// <summary>
@@ -170,20 +166,32 @@ namespace PdfReader.Rendering.Text
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private float DrawShapedText(SKCanvas canvas, SKPaint paint, SKFont font, ShapedGlyph[] shapingResult, PdfGraphicsState state, bool dryRun)
+        private float DrawShapedText(SKCanvas canvas, SKFont font, ShapedGlyph[] shapingResult, PdfGraphicsState state)
         {
             if (shapingResult.Length == 0)
             {
                 return 0;
             }
 
-            var textMatrix = state.GetFullTextMatrix();
+            // this produces the combined text matrix with rise and font size applied, needed to draw outlines correctly
+            var textMatrix = state.TextMatrix;
 
-            float advanceWidth = 0f;
-
-            // Draw visible text first (for combined modes) per PDF spec
-            if (!dryRun && IsVisibleText(state.TextRenderingMode))
+            if (state.Rise != 0)
             {
+                textMatrix = SKMatrix.Concat(textMatrix, SKMatrix.CreateTranslation(0f, state.Rise));
+            }
+
+            // Apply font size, horizontal scaling, and vertical flip
+            var fullHorizontalScale = state.FontSize * state.HorizontalScaling / 100f;
+            var fontScalingMatrix = SKMatrix.CreateScale(fullHorizontalScale, -state.FontSize);
+            textMatrix = SKMatrix.Concat(textMatrix, fontScalingMatrix);
+
+
+            float width = 0;
+
+            if (ShouldFill(state.TextRenderingMode))
+            {
+                float x = 0;
                 canvas.Save();
 
                 // Apply text matrix transformation
@@ -197,29 +205,33 @@ namespace PdfReader.Rendering.Text
                 {
                     ref var shapedGlyph = ref shapingResult[index];
                     glyphSpan[index] = (ushort)shapedGlyph.GlyphId;
-                    positionSpan[index] = new SKPoint(advanceWidth, 0f);
-                    advanceWidth += shapedGlyph.TotalWidth;
+                    positionSpan[index] = new SKPoint(x, 0f);
+                    x += shapedGlyph.TotalWidth;
                 }
                 using var blob = builder.Build();
+                using var paint = PdfPaintFactory.CreateFillPaint(state);
+
+                if (paint.Shader != null)
+                {
+                    // we need to adjust the shader matrix to account for the text matrix to avoid double-transforming
+                    // currently shader only used for patterns, so this is sufficient, but may need more general handling later
+                    paint.Shader = paint.Shader.WithLocalMatrix(textMatrix.Invert());
+                }
+
                 canvas.DrawText(blob, 0f, 0f, paint);
 
                 canvas.Restore();
-            }
-            else
-            {
-                for (int index = 0; index < shapingResult.Length; index++)
-                {
-                    ref var shapedGlyph = ref shapingResult[index];
-                    advanceWidth += shapedGlyph.TotalWidth;
-                }
+
+                width = Math.Max(width, x);
             }
 
-            // Apply clipping if requested (modes with Clip). Pure clip mode skips drawing above.
-            if (!dryRun && IsClippingText(state.TextRenderingMode))
+            if (ShouldStroke(state.TextRenderingMode))
             {
+                // this is 4-5 times slower than drawing blob, but it's needed for correct stroking for PDF compliance
                 var textPath = new SKPath();
 
                 float x = 0f;
+
                 for (int i = 0; i < shapingResult.Length; i++)
                 {
                     var glyphId = shapingResult[i].GlyphId;
@@ -229,43 +241,89 @@ namespace PdfReader.Rendering.Text
                         // Translate glyph outline by current advance
                         textPath.AddPath(glyphPath, SKMatrix.CreateTranslation(x, 0f));
                     }
+
                     x += shapingResult[i].TotalWidth;
                 }
 
                 textPath.Transform(textMatrix);
 
-                if (state.TextClipPath == null)
-                {
-                    state.TextClipPath = new SKPath();
-                }
+                using var paint = PdfPaintFactory.CreateStrokePaint(state);
+                canvas.DrawPath(textPath, paint);
 
-                state.TextClipPath.AddPath(textPath);
+                width = Math.Max(width, x);
             }
 
-            return advanceWidth;
+            // Apply clipping if requested (modes with Clip). Pure clip mode skips drawing above.
+            if (ShouldClip(state.TextRenderingMode))
+            {
+                var textPath = new SKPath();
+                float x = 0f;
+
+                for (int i = 0; i < shapingResult.Length; i++)
+                {
+                    var glyphId = shapingResult[i].GlyphId;
+                    using var glyphPath = font.GetGlyphPath((ushort)glyphId);
+                    if (glyphPath != null)
+                    {
+                        // Translate glyph outline by current advance
+                        textPath.AddPath(glyphPath, SKMatrix.CreateTranslation(x, 0f));
+                    }
+
+                    x += shapingResult[i].TotalWidth;
+                }
+
+                textPath.Transform(textMatrix);
+
+                state.TextClipPath ??= new SKPath();
+                state.TextClipPath.AddPath(textPath);
+
+                width = Math.Max(width, x);
+            }
+
+            if (width == 0)
+            {
+                for (int index = 0; index < shapingResult.Length; index++)
+                {
+                    ref var shapedGlyph = ref shapingResult[index];
+                    width += shapedGlyph.TotalWidth;
+                }
+            }
+
+            return width * fullHorizontalScale;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static bool IsVisibleText(PdfTextRenderingMode mode)
+        private static bool ShouldFill(PdfTextRenderingMode mode)
         {
             switch (mode)
             {
                 case PdfTextRenderingMode.Fill:
-                case PdfTextRenderingMode.Stroke:
                 case PdfTextRenderingMode.FillAndStroke:
                 case PdfTextRenderingMode.FillAndClip:
-                case PdfTextRenderingMode.StrokeAndClip:
                 case PdfTextRenderingMode.FillAndStrokeAndClip:
                     return true;
-                case PdfTextRenderingMode.Invisible:
-                case PdfTextRenderingMode.Clip:
                 default:
                     return false;
             }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static bool IsClippingText(PdfTextRenderingMode mode)
+        private static bool ShouldStroke(PdfTextRenderingMode mode)
+        {
+            switch (mode)
+            {
+                case PdfTextRenderingMode.Stroke:
+                case PdfTextRenderingMode.FillAndStroke:
+                case PdfTextRenderingMode.StrokeAndClip:
+                case PdfTextRenderingMode.FillAndStrokeAndClip:
+                    return true;
+                default:
+                    return false;
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static bool ShouldClip(PdfTextRenderingMode mode)
         {
             switch (mode)
             {
@@ -274,10 +332,6 @@ namespace PdfReader.Rendering.Text
                 case PdfTextRenderingMode.StrokeAndClip:
                 case PdfTextRenderingMode.FillAndStrokeAndClip:
                     return true;
-                case PdfTextRenderingMode.Fill:
-                case PdfTextRenderingMode.Stroke:
-                case PdfTextRenderingMode.FillAndStroke:
-                case PdfTextRenderingMode.Invisible:
                 default:
                     return false;
             }

@@ -2,6 +2,7 @@ using PdfReader.Fonts.Management;
 using PdfReader.Fonts.Mapping;
 using PdfReader.Models;
 using PdfReader.Parsing;
+using PdfReader.Rendering;
 using PdfReader.Text;
 using SkiaSharp;
 using System;
@@ -181,14 +182,14 @@ namespace PdfReader.Fonts.Types
             }
             else if (gid != 0 && unicode?.Length > 0)
             {
-                using SKFont skFont = GetSkFont();
+                using SKFont skFont = PdfPaintFactory.CreateTextFont(Dictionary.Document.FontCache.GetTypeface(this));
                 float[] widths = skFont.GetGlyphWidths([gid]);
                 float measuredWidth = widths.Length > 0 ? widths[0] : 1f;
                 return new PdfCharacterInfo(characterCode, unicode, gid, measuredWidth);
             }
             else if (unicode?.Length > 0)
             {
-                using SKFont skFont = GetSkFont();
+                using SKFont skFont = PdfPaintFactory.CreateTextFont(Dictionary.Document.FontCache.GetTypeface(this));
 
                 ushort[] gids = skFont.GetGlyphs(unicode);
                 ushort extractedGid = gids.Length > 0 ? gids[0] : (ushort)0;
@@ -198,25 +199,6 @@ namespace PdfReader.Fonts.Types
             }
 
             return new PdfCharacterInfo(characterCode, string.Empty, 0, 0f);
-        }
-
-        /// <summary>
-        /// Creates and configures an SKFont for glyph measurement (size 1, subpixel, alias edging, no hinting).
-        /// Only call when actual Skia measurement is needed.
-        /// </summary>
-        /// <returns>Configured SKFont instance.</returns>
-        private SKFont GetSkFont()
-        {
-            SKTypeface typeface = Dictionary.Document.FontCache.GetTypeface(this);
-            SKFont skFont = new SKFont(typeface, size: 1f)
-            {
-                Subpixel = true,
-                LinearMetrics = true,
-                Hinting = SKFontHinting.Normal,
-                Edging = SKFontEdging.SubpixelAntialias,
-
-            };
-            return skFont;
         }
 
         /// <summary>

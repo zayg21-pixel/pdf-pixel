@@ -92,7 +92,7 @@ namespace PdfReader.Rendering.Pattern
                 return null;
             }
 
-            SKMatrix localMatrix = SKMatrix.Concat(state.GetFullTransformationMatrix().Invert(), PatternMatrix);
+            SKMatrix localMatrix = SKMatrix.Concat(state.CTM, PatternMatrix);
 
             var transformedShader = _cachedBaseShader.WithLocalMatrix(localMatrix);
 

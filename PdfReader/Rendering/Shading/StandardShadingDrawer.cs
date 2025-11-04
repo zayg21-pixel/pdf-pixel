@@ -56,7 +56,7 @@ namespace PdfReader.Rendering.Shading
                 return;
             }
 
-            using (var paint = PdfPaintFactory.CreateShadingPaint(state, shader, page))
+            using (var paint = PdfPaintFactory.CreateShadingPaint(state, shader))
             {
                 canvas.DrawPaint(paint);
             }

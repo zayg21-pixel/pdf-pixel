@@ -99,7 +99,7 @@ namespace PdfReader.Rendering.Image
                 return;
             }
 
-            using var imagePaint = PdfPaintFactory.CreateImagePaint(state, page);
+            using var imagePaint = PdfPaintFactory.CreateImagePaint(state);
             ImagePostProcessingFilters.ApplyImageFilters(imagePaint, pdfImage);
 
             var sampling = PdfPaintFactory.GetImageSamplingOptions(pdfImage.Interpolate);
@@ -140,7 +140,7 @@ namespace PdfReader.Rendering.Image
                 return;
             }
 
-            using var fillPaint = PdfPaintFactory.CreateFillPaint(state, page);
+            using var fillPaint = PdfPaintFactory.CreateFillPaint(state);
 
             var sampling = PdfPaintFactory.GetImageSamplingOptions(pdfImage.Interpolate);
 
@@ -216,7 +216,7 @@ namespace PdfReader.Rendering.Image
                 return;
             }
 
-            using var imagePaint = PdfPaintFactory.CreateImagePaint(state, page);
+            using var imagePaint = PdfPaintFactory.CreateImagePaint(state);
             ImagePostProcessingFilters.ApplyImageFilters(imagePaint, pdfImage);
 
             using var maskPaint = new SKPaint

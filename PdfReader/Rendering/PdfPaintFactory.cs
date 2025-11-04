@@ -6,6 +6,7 @@ using System.Runtime.CompilerServices;
 
 namespace PdfReader.Rendering
 {
+    // TODO: Move more base brush/paint creation logic here
     /// <summary>
     /// Factory for creating SkiaSharp paint objects and typefaces for PDF rendering
     /// Enhanced with transparency and blend mode support
@@ -30,11 +31,6 @@ namespace PdfReader.Rendering
             return color.WithAlpha(alphaBytes);
         }
 
-        // NOTE (PDF spec): Many paint decisions depend on current graphics state (ExtGState).
-        // We centralize common initialization in CreateBasePaint and then layer operation-specific
-        // parameters (color, stroke attributes, shader, etc.). Some behaviors below are approximations
-        // and are marked accordingly.
-
         /// <summary>
         /// Common initialization shared by all paints.
         /// Sets antialiasing and the blend mode from graphics state.
@@ -51,27 +47,20 @@ namespace PdfReader.Rendering
             return paint;
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static float GetReverseTextScale(PdfGraphicsState state)
-        {
-            var matrix = state.GetFullTextMatrix();
-            return 2f / (Math.Abs(matrix.ScaleX) + Math.Abs(matrix.ScaleY));
-        }
-
         /// <summary>
         /// Apply stroke styling attributes from graphics state onto a paint.
         /// Implements hairline for zero width per PDF spec and normalizes miter limit.
         /// </summary>
-        private static void ApplyStrokeStyling(SKPaint paint, PdfGraphicsState state, float scale)
+        private static void ApplyStrokeStyling(SKPaint paint, PdfGraphicsState state)
         {
             // NOTE (PDF spec): setlinewidth 0 means a device-dependent hairline. Skia interprets
             // StrokeWidth = 0 as a hairline, so pass through 0 unchanged; clamp negatives to 0.
-            var width = state.LineWidth * scale;
-            paint.StrokeWidth = (width <= 0 ? 0f : width);
+            var width = state.LineWidth;
+            paint.StrokeWidth = width <= 0 ? 0f : width;
             paint.StrokeCap = state.LineCap;
             paint.StrokeJoin = state.LineJoin;
             // Miter limit must be positive; clamp to a safe minimum to avoid Skia issues.
-            paint.StrokeMiter = (state.MiterLimit > 0 ? state.MiterLimit : 1f) * scale;
+            paint.StrokeMiter = state.MiterLimit > 0 ? state.MiterLimit : 1f;
         }
 
         /// <summary>
@@ -121,100 +110,14 @@ namespace PdfReader.Rendering
         }
 
         /// <summary>
-        /// Create a paint object for text rendering based on the text rendering mode
-        /// </summary>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static SKPaint CreateTextPaint(PdfGraphicsState state, PdfPage page)
-        {
-            var paint = CreateBasePaint(state);
-
-            // Set paint style and color based on text rendering mode
-            switch (state.TextRenderingMode)
-            {
-                case PdfTextRenderingMode.Fill:
-                case PdfTextRenderingMode.FillAndClip:
-                {
-                    paint.Style = SKPaintStyle.Fill;
-                    if (state.FillPaint != null && state.FillPaint.IsPattern && state.FillPaint.Pattern != null)
-                    {
-                        // Use pattern shader for fill
-                        paint.Shader = state.FillPaint.Pattern.AsShader(state.RenderingIntent, state);
-                        paint.Color = ApplyAlpha(SKColors.White, state.FillAlpha);
-                    }
-                    else
-                    {
-                        paint.Color = ApplyAlpha(state.FillPaint.Color, state.FillAlpha);
-                    }
-                    break;
-                }
-                case PdfTextRenderingMode.Stroke:
-                case PdfTextRenderingMode.StrokeAndClip:
-                {
-                    paint.Style = SKPaintStyle.Stroke;
-                    if (state.StrokePaint != null && state.StrokePaint.IsPattern && state.StrokePaint.Pattern != null)
-                    {
-                        // Use pattern shader for stroke
-                        paint.Shader = state.FillPaint.Pattern.AsShader(state.RenderingIntent, state);
-                        paint.Color = ApplyAlpha(SKColors.White, state.StrokeAlpha);
-                    }
-                    else
-                    {
-                        paint.Color = ApplyAlpha(state.StrokePaint.Color, state.StrokeAlpha);
-                    }
-                    ApplyStrokeStyling(paint, state, GetReverseTextScale(state));
-                    break;
-                }
-                case PdfTextRenderingMode.FillAndStroke:
-                case PdfTextRenderingMode.FillAndStrokeAndClip:
-                {
-                    paint.Style = SKPaintStyle.StrokeAndFill;
-                    // Prefer fill pattern if present, otherwise stroke pattern, otherwise solid color
-                    if (state.FillPaint != null && state.FillPaint.IsPattern && state.FillPaint.Pattern != null)
-                    {
-                        paint.Shader = state.FillPaint.Pattern.AsShader(state.RenderingIntent, state);
-                        paint.Color = ApplyAlpha(SKColors.White, state.FillAlpha);
-                    }
-                    else if (state.StrokePaint != null && state.StrokePaint.IsPattern && state.StrokePaint.Pattern != null)
-                    {
-                        paint.Shader = state.FillPaint.Pattern.AsShader(state.RenderingIntent, state);
-                        paint.Color = ApplyAlpha(SKColors.White, state.StrokeAlpha);
-                    }
-                    else
-                    {
-                        paint.Color = ApplyAlpha(state.FillPaint.Color, state.FillAlpha);
-                    }
-                    ApplyStrokeStyling(paint, state, GetReverseTextScale(state));
-                    break;
-                }
-                case PdfTextRenderingMode.Invisible:
-                case PdfTextRenderingMode.Clip:
-                {
-                    paint.Color = SKColors.Transparent;
-                    break;
-                }
-            }
-
-            // Apply advanced transparency effects if present
-            ApplyAdvancedTransparencyEffects(paint, state, page);
-
-            return paint;
-        }
-
-        /// <summary>
         /// Create a font object for text shaping and measurement.
-        /// Honors PDF HorizontalScaling (Tz) and FontSize, and enables stable metrics.
         /// </summary>
         /// <param name="state">Current graphics state</param>
         /// <param name="typeface">Typeface to use</param>
         /// <returns>Configured SKFont</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static SKFont CreateTextFont(PdfGraphicsState state, SKTypeface typeface)
+        public static SKFont CreateTextFont(SKTypeface typeface)
         {
-            if (state == null)
-            {
-                throw new ArgumentNullException(nameof(state));
-            }
-
             var font = new SKFont
             {
                 Typeface = typeface,
@@ -234,7 +137,7 @@ namespace PdfReader.Rendering
         /// Create a paint object for stroke operations with transparency support
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static SKPaint CreateStrokePaint(PdfGraphicsState state, PdfPage page)
+        public static SKPaint CreateStrokePaint(PdfGraphicsState state)
         {
             var paint = CreateBasePaint(state);
             paint.Style = SKPaintStyle.Stroke;
@@ -249,7 +152,7 @@ namespace PdfReader.Rendering
                 paint.Color = ApplyAlpha(state.StrokePaint.Color, state.StrokeAlpha);
             }
 
-            ApplyStrokeStyling(paint, state, 1);
+            ApplyStrokeStyling(paint, state);
 
             if (state.DashPattern != null && state.DashPattern.Length > 0)
             {
@@ -261,7 +164,7 @@ namespace PdfReader.Rendering
             }
 
             // Apply advanced transparency effects if present
-            ApplyAdvancedTransparencyEffects(paint, state, page);
+            ApplyAdvancedTransparencyEffects(paint, state);
 
             return paint;
         }
@@ -270,7 +173,7 @@ namespace PdfReader.Rendering
         /// Create a paint object for fill operations with transparency support
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static SKPaint CreateFillPaint(PdfGraphicsState state, PdfPage page)
+        public static SKPaint CreateFillPaint(PdfGraphicsState state)
         {
             var paint = CreateBasePaint(state);
             paint.Style = SKPaintStyle.Fill;
@@ -287,7 +190,7 @@ namespace PdfReader.Rendering
             }
 
             // Apply advanced transparency effects if present
-            ApplyAdvancedTransparencyEffects(paint, state, page);
+            ApplyAdvancedTransparencyEffects(paint, state);
 
             return paint;
         }
@@ -296,14 +199,14 @@ namespace PdfReader.Rendering
         /// Create a paint object for image operations with transparency support
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static SKPaint CreateImagePaint(PdfGraphicsState state, PdfPage page)
+        public static SKPaint CreateImagePaint(PdfGraphicsState state)
         {
             var paint = CreateBasePaint(state);
             // For images, we typically use fill alpha since images are considered non-stroking operations
             paint.Color = ApplyAlpha(SKColors.White, state.FillAlpha);
 
             // Apply advanced transparency effects if present
-            ApplyAdvancedTransparencyEffects(paint, state, page);
+            ApplyAdvancedTransparencyEffects(paint, state);
 
             return paint;
         }
@@ -312,7 +215,7 @@ namespace PdfReader.Rendering
         /// Create paint for Form XObject rendering with transparency group support
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static SKPaint CreateFormXObjectPaint(PdfGraphicsState state, PdfPage page)
+        public static SKPaint CreateFormXObjectPaint(PdfGraphicsState state)
         {
             if (state == null) return new SKPaint { IsAntialias = true };
 
@@ -334,7 +237,7 @@ namespace PdfReader.Rendering
         /// Create paint for shadings (axial/radial), applying fill alpha and blend mode without tinting
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static SKPaint CreateShadingPaint(PdfGraphicsState state, SKShader shader, PdfPage page)
+        public static SKPaint CreateShadingPaint(PdfGraphicsState state, SKShader shader)
         {
             var paint = CreateBasePaint(state);
             paint.Style = SKPaintStyle.Fill;
@@ -344,7 +247,7 @@ namespace PdfReader.Rendering
             paint.Shader = shader;
 
             // Apply advanced transparency effects if present
-            ApplyAdvancedTransparencyEffects(paint, state, page);
+            ApplyAdvancedTransparencyEffects(paint, state);
 
             return paint;
         }
@@ -354,7 +257,7 @@ namespace PdfReader.Rendering
         /// This is crucial for rendering shadows and other complex transparency effects correctly
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static void ApplyAdvancedTransparencyEffects(SKPaint paint, PdfGraphicsState state, PdfPage page)
+        private static void ApplyAdvancedTransparencyEffects(SKPaint paint, PdfGraphicsState state)
         {
             // Apply knockout effects
             if (state.Knockout)
@@ -364,20 +267,6 @@ namespace PdfReader.Rendering
                 if (paint.BlendMode == SKBlendMode.SrcOver)
                 {
                     paint.BlendMode = SKBlendMode.Src; // Approximation of knockout
-                }
-            }
-
-            // Apply overprint simulation
-            if (state.OverprintStroke || state.OverprintFill)
-            {
-                // NOTE (Approximation): Overprint is a device/ink interaction primarily for print workflows.
-                // For screen rendering we simulate a common case by using Multiply in OPM=1 when Normal blending.
-                if (state.OverprintMode == 1 && (state.OverprintStroke || state.OverprintFill))
-                {
-                    if (paint.BlendMode == SKBlendMode.SrcOver)
-                    {
-                        paint.BlendMode = SKBlendMode.Multiply;
-                    }
                 }
             }
         }

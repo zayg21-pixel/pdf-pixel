@@ -114,26 +114,22 @@ namespace PdfReader.Parsing
                 }
                 default:
                 {
+                    if (IsDigit(current))
+                    {
+                        return PdfTokenType.Number;
+                    }
+
                     if (_allowReferences && current == Reference && IsTokenTerminator(PeekByte(1)))
                     {
                         Advance(1);
                         return PdfTokenType.Reference;
                     }
 
-                    if (IsDigit(current))
-                    {
-                        return PdfTokenType.Number;
-                    }
-
                     // Check for ID operator (inline stream start)
-                    if (current == (byte)'I' && PeekByte(1) == (byte)'D')
+                    if (current == (byte)'I' && PeekByte(1) == (byte)'D' && IsTokenTerminator(PeekByte(2)))
                     {
-                        // Verify it's followed by whitespace or delimiter
-                        if (IsTokenTerminator(PeekByte(2)))
-                        {
-                            Advance(2); // Consume "ID"
-                            return PdfTokenType.InlineStreamStart;
-                        }
+                        Advance(2); // Consume "ID"
+                        return PdfTokenType.InlineStreamStart;
                     }
 
                     return PdfTokenType.Operator;
