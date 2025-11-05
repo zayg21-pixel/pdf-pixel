@@ -49,7 +49,7 @@ namespace PdfReader.Rendering
         /// Updated to use PdfFontBase hierarchy
         /// </summary>
         public float DrawTextWithPositioning(SKCanvas canvas, IPdfValue arrayOperand, PdfPage page, PdfGraphicsState state, PdfFontBase font)
-        {            
+        {
             return _textRenderer.DrawTextWithPositioning(canvas, arrayOperand, page, state, font);
         }
 
@@ -68,6 +68,7 @@ namespace PdfReader.Rendering
         /// </summary>
         public void DrawUnitImage(SKCanvas canvas, PdfImage pdfImage, PdfGraphicsState state, PdfPage page)
         {
+            // TODO: move scaling logic into image drawer to allow more flexible usage
             canvas.Save();
             canvas.Scale(1, -1);
             var destRect = new SKRect(0, -1, 1, 0);

@@ -58,7 +58,7 @@ namespace PdfReader.Models
                 return Stream.Null;
             }
 
-            var subrange = new SubrangeReadOnlyStream(Document.FileStream, StreamInfo.Value.Offset, StreamInfo.Value.Length, leaveOpen: true);
+            var subrange = new SubrangeReadOnlyStream(Document.Stream, StreamInfo.Value.Offset, StreamInfo.Value.Length, leaveOpen: true);
 
             if (Document.Decryptor != null && Reference.IsValid)
             {

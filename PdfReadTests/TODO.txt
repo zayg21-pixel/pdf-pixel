@@ -30,3 +30,4 @@ process clip by text (Type 3?)
 find out where those weird custom encodings are
 differentiate between embedded and system fonts for cmap
 UseCMap implemented incorrectly
+PDF has Null. Often in array. Need to handle it properly.

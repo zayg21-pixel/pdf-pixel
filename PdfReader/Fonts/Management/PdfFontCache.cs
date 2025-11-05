@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Logging;
 using PdfReader.Fonts.Cff;
 using PdfReader.Fonts.Mapping;
+using PdfReader.Fonts.PsFont;
 using PdfReader.Fonts.Types;
 using PdfReader.Models;
 using SkiaSharp;
@@ -107,12 +108,22 @@ namespace PdfReader.Fonts.Management
                     mapper = new CffByteCodeToGidMapper(cffInfo, flags, font.Encoding, font.Differences);
                 }
             }
-            else if (font is PdfSimpleFont simpleFont)
+            if (descriptor != null && descriptor.FontFileFormat == PdfFontFileFormat.Type1)
+            {
+                var cffInfo = GetCffInfo(descriptor);
+                if (cffInfo != null)
+                {
+                    mapper = new OneToOneCodeToGidMapper();
+                }
+            }
+
+            if (mapper == null && font is PdfSimpleFont simpleFont)
             {
                 var typeface = GetTypeface(font);
+                bool isSubstituted = font.Type == PdfFontSubType.Type1 || !font.IsEmbedded; // TODO: this should be improved!
                 if (typeface != null)
                 {
-                    mapper = new SntfByteCodeToGidMapper(typeface, flags, simpleFont.Encoding, simpleFont.Differences, simpleFont.ToUnicodeCMap);
+                    mapper = new SntfByteCodeToGidMapper(typeface, flags, isSubstituted, simpleFont.Encoding, simpleFont.Differences, simpleFont.ToUnicodeCMap);
                 }
             }
 
@@ -156,15 +167,26 @@ namespace PdfReader.Fonts.Management
             return _ccfMaps.GetOrAdd(descriptor.FontFileObject.Reference, _ => DecodeCffInfo(descriptor));
         }
 
-        private CffNameKeyedInfo DecodeCffInfo(PdfFontDescriptor decriptor)
+        private CffNameKeyedInfo DecodeCffInfo(PdfFontDescriptor descriptor)
         {
             try
             {
-                if (decriptor.HasEmbeddedFont && decriptor.FontFileFormat == PdfFontFileFormat.Type1C || decriptor.FontFileFormat == PdfFontFileFormat.CIDFontType0C)
+                if (descriptor.HasEmbeddedFont && descriptor.FontFileFormat == PdfFontFileFormat.Type1C || descriptor.FontFileFormat == PdfFontFileFormat.CIDFontType0C)
                 {
-                    var decoded = _document.StreamDecoder.DecodeContentStream(decriptor.FontFileObject);
+                    var decoded = _document.StreamDecoder.DecodeContentStream(descriptor.FontFileObject);
 
                     if (_cffMapper.TryParseNameKeyed(decoded, out var cffInfo))
+                    {
+                        return cffInfo;
+                    }
+                }
+                else if (descriptor.HasEmbeddedFont && descriptor.FontFileFormat == PdfFontFileFormat.Type1)
+                {
+                    var decoded = _document.StreamDecoder.DecodeContentStream(descriptor.FontFileObject);
+
+                    byte[] cffFont = Type1ToCffConverter.GetCffFont(descriptor);
+
+                    if (_cffMapper.TryParseNameKeyed(cffFont, out var cffInfo))
                     {
                         return cffInfo;
                     }

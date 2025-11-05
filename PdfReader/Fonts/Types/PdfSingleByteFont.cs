@@ -1,5 +1,6 @@
 using PdfReader.Fonts.Mapping;
 using PdfReader.Models;
+using SkiaSharp;
 using System;
 
 namespace PdfReader.Fonts.Types
@@ -39,6 +40,7 @@ namespace PdfReader.Fonts.Types
             // Fallback: PDF spec recommends 0 if not defined for single-byte fonts
             return 0f;
         }
+
 
         /// <summary>
         /// Extracts character codes from raw bytes for single-byte fonts.

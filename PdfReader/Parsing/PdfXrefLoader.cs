@@ -30,7 +30,7 @@ namespace PdfReader.Parsing
             _document = document;
             _logger = document.LoggerFactory.CreateLogger<PdfXrefLoader>();
             _trailerParser = new PdfTrailerParser(document);
-            _reader = new BinaryReader(document.FileStream, Encoding.ASCII, leaveOpen: true);
+            _reader = new BinaryReader(document.Stream, Encoding.ASCII, leaveOpen: true);
         }
 
         public void LoadXref()
@@ -43,12 +43,12 @@ namespace PdfReader.Parsing
             }
 
             int xrefOffset = ParseStartXrefOffset(startxrefPos);
-            if (xrefOffset < 0 || xrefOffset >= _document.FileStream.Length)
+            if (xrefOffset < 0 || xrefOffset >= _document.Stream.Length)
             {
-                _logger.LogWarning("PdfXrefLoader: Parsed startxref offset {Offset} is invalid (file length {Length}).", xrefOffset, _document.FileStream.Length);
+                _logger.LogWarning("PdfXrefLoader: Parsed startxref offset {Offset} is invalid (file length {Length}).", xrefOffset, _document.Stream.Length);
                 return;
             }
-            var parser = new PdfParser(_document.FileStream, _document, allowReferences: true);
+            var parser = new PdfParser(_document.Stream, _document, allowReferences: true);
 
             // Classic table path.
             if (MatchSequenceAt(xrefOffset, PdfTokens.Xref))
@@ -71,7 +71,7 @@ namespace PdfReader.Parsing
                         }
                         else
                         {
-                            var streamParser = new PdfParser(_document.FileStream, _document, allowReferences: true);
+                            var streamParser = new PdfParser(_document.Stream, _document, allowReferences: true);
                             streamParser.Position = offsetValue;
                             trailer = ParseXrefStream(ref streamParser);
                         }
@@ -405,7 +405,7 @@ namespace PdfReader.Parsing
         private long LocateLastStartXref()
         {
             ReadOnlySpan<byte> token = PdfTokens.Startxref;
-            for (long scanIndex = _document.FileStream.Length - token.Length; scanIndex >= 0; scanIndex--)
+            for (long scanIndex = _document.Stream.Length - token.Length; scanIndex >= 0; scanIndex--)
             {
                 if (MatchSequenceAt(scanIndex, token))
                 {
@@ -417,7 +417,7 @@ namespace PdfReader.Parsing
 
         private int ParseStartXrefOffset(long startxrefPos)
         {
-            PdfParser parser = new PdfParser(_document.FileStream, _document, allowReferences: false);
+            PdfParser parser = new PdfParser(_document.Stream, _document, allowReferences: false);
             parser.Position = (int)startxrefPos + PdfTokens.Startxref.Length;
             var value = parser.ReadNextValue();
 

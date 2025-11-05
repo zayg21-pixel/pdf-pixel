@@ -1,6 +1,7 @@
+using Microsoft.Extensions.Logging;
 using PdfReader.Fonts.Mapping;
 using PdfReader.Models;
-using PdfReader.Text;
+using SkiaSharp;
 using System;
 
 namespace PdfReader.Fonts.Types
@@ -13,9 +14,8 @@ namespace PdfReader.Fonts.Types
     /// </summary>
     public class PdfSimpleFont : PdfSingleByteFont
     {
-        // Thread-safe lazy loading using Lazy<T>
-        private readonly Lazy<PdfFontDescriptor> _fontDescriptor;
-        private readonly Lazy<IByteCodeToGidMapper> _mapper;
+        private readonly ILogger<PdfSimpleFont> _logger;
+        private readonly IByteCodeToGidMapper _mapper;
 
         /// <summary>
         /// Constructor for simple fonts - lightweight operations only
@@ -23,19 +23,18 @@ namespace PdfReader.Fonts.Types
         /// <param name="fontObject">PDF dictionary containing the font definition</param>
         public PdfSimpleFont(PdfDictionary fontDictionary) : base(fontDictionary)
         {
-            if (Type == PdfFontSubType.Type3)
-                throw new ArgumentException("Type3 fonts should use PdfType3Font class");
+            _logger = fontDictionary.Document.LoggerFactory.CreateLogger<PdfSimpleFont>();
 
             // Initialize thread-safe lazy loaders
-            _fontDescriptor = new Lazy<PdfFontDescriptor>(LoadFontDescriptor, isThreadSafe: true);
-            _mapper = new Lazy<IByteCodeToGidMapper>(() => Document.FontCache.GetByteCodeToGidMapper(this), isThreadSafe: true);
+            FontDescriptor = LoadFontDescriptor();
+            _mapper = Document.FontCache.GetByteCodeToGidMapper(this);
         }
 
         /// <summary>
         /// Font descriptor containing metrics and embedding information
         /// Thread-safe lazy-loaded when first accessed - heavy operation
         /// </summary>
-        public override PdfFontDescriptor FontDescriptor => _fontDescriptor.Value;
+        public override PdfFontDescriptor FontDescriptor { get; }
 
         public override PdfFontEncoding Encoding => GetResolvedEncoding(base.Encoding);
 
@@ -43,6 +42,12 @@ namespace PdfReader.Fonts.Types
         /// Check if font has embedded data (uses lazy-loaded FontDescriptor)
         /// </summary>
         public override bool IsEmbedded => FontDescriptor?.HasEmbeddedFont == true;
+
+
+        public SKPath GetPath(PdfCharacterCode code)
+        {
+            return null;
+        }
 
         /// <summary>
         /// Load font descriptor (heavy operation - lazy loaded using GetPageObject)
@@ -91,16 +96,12 @@ namespace PdfReader.Fonts.Types
                 return 0;
             }
 
-            var name = SingleByteEncodings.GetNameByCode((byte)(uint)code, Encoding, Differences);
-
-            var mapper = _mapper.Value;
-
-            if (mapper == null)
+            if (_mapper == null)
             {
                 return 0;
             }
 
-            return mapper.GetGid((byte)code);
+            return _mapper.GetGid((byte)code);
         }
     }
 }

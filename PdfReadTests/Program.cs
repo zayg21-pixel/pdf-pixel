@@ -53,9 +53,10 @@ namespace PdfReadTests
                 //"pdfs//images_1bit_grayscale.pdf",
                 //"pdfs//shading_extend.pdf",
                 //"pdfs//pdf_c.pdf",
-                "pdfs//1208.0264v4.pdf",
+                //"pdfs//1208.0264v4.pdf",
+                "pdfs//806-5413-10.pdf",
+                //"pdfs//1208.0264v4_ed.pdf",
                 //"pdfs//1405.2785v3.pdf",
-
                 //"PDF32000_2008.pdf",
                 //"ch14.pdf"
                 //@"documentS.pdf",
@@ -79,6 +80,7 @@ namespace PdfReadTests
         static async Task TestPdfFile(string filename)
         {
             await Task.Yield();
+            await Task.Delay(3000);
 
             // Create a D3D11 device
 
@@ -100,6 +102,7 @@ namespace PdfReadTests
 
             try
             {
+                
                 var reader = new PdfDocumentReader(LoggerFactoryInstance);
                 using var file = File.OpenRead(filename);
                 using var document = reader.Read(file, "test");
@@ -110,8 +113,8 @@ namespace PdfReadTests
                 Logger.LogInformation("Root object: {Root}", document.RootObject);
 
                 var start = 0;
-                var max = 1000;
-                float scaleX = 4f; // Scale factor for rendering
+                var max = 50;
+                float scaleX = 5f; // Scale factor for rendering
 
                 // Analyze pages with detailed content stream debugging
                 for (int i = start; i < Math.Min(max, document.PageCount); i++)

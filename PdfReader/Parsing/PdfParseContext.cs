@@ -1,211 +1,254 @@
+using PdfReader.Text;
 using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
+using System.Text;
 
 namespace PdfReader.Parsing
 {
     /// <summary>
-    /// High-performance PDF parse context optimized for both single and multiple memory chunks.
-    /// Uses direct memory/span access for single chunks (fastest path) and SequentialMemoryReader for multi-chunk scenarios.
+    /// High-performance PDF parse context over one or many memory chunks treated uniformly.
+    /// Maintains a cached current chunk and performs lazy binary search when crossing chunk boundaries.
+    /// Simplified (no single-chunk special casing) for maintainability.
     /// </summary>
     public ref struct PdfParseContext
     {
-        private readonly ReadOnlyMemory<byte> _singleMemory;
-        private readonly ReadOnlySpan<byte> _singleSpan;
-        private int _position;
-        private readonly int _length;
-        private readonly bool _isSingleMemory;
+        private readonly ReadOnlySpan<ReadOnlyMemory<byte>> _chunks;
+        private readonly ReadOnlySpan<int> _chunkStartPositions; // Cumulative start offsets per chunk (last element == total length)
+        private readonly int _length; // Total length across all chunks
+        private int _currentChunkIndex;
+        private int _currentChunkStart; // Absolute start position of current chunk
+        private int _currentChunkEnd; // Absolute end (exclusive) position of current chunk
+        private int _position; // Unified absolute position
+        private ReadOnlySpan<byte> _currentChunk;
+        private const int InvalidChunkIndex = -1;
 
-        private SequentialMemoryReader _reader;
-
-        // Single memory constructors (optimized fast path)
+        /// <summary>
+        /// Construct context from a single memory block (wrapped as one chunk).
+        /// </summary>
+        /// <param name="memory">The memory block to parse.</param>
         public PdfParseContext(ReadOnlyMemory<byte> memory)
         {
-            _singleMemory = memory;
-            _singleSpan = memory.Span;
+            var chunkArray = memory.Length == 0 ? Array.Empty<ReadOnlyMemory<byte>>() : new[] { memory };
+            _chunks = chunkArray;
+
+            var starts = new int[chunkArray.Length + 1];
+            var running = 0;
+            for (var i = 0; i < chunkArray.Length; i++)
+            {
+                starts[i] = running;
+                running += chunkArray[i].Length;
+            }
+            starts[chunkArray.Length] = running;
+            _chunkStartPositions = starts;
+
+            _length = running;
             _position = 0;
-            _length = memory.Length;
-            _isSingleMemory = true;
-            _reader = default;
+            _currentChunkIndex = chunkArray.Length > 0 ? 0 : InvalidChunkIndex;
+            _currentChunk = chunkArray.Length > 0 ? chunkArray[0].Span : ReadOnlySpan<byte>.Empty;
+            _currentChunkStart = _currentChunkIndex >= 0 ? 0 : 0;
+            _currentChunkEnd = _currentChunkIndex >= 0 ? _currentChunk.Length : 0;
         }
 
-        // Multi-memory constructor (fallback to SequentialMemoryReader)
+        /// <summary>
+        /// Construct context from a list of memory chunks.
+        /// </summary>
+        /// <param name="chunks">The list of chunks representing one logical stream.</param>
         public PdfParseContext(List<ReadOnlyMemory<byte>> chunks)
         {
-            if (chunks.Count <= 1)
+            if (chunks == null)
             {
-                // Optimize single chunk case
-                if (chunks.Count == 0)
-                {
-                    _singleMemory = default;
-                    _singleSpan = ReadOnlySpan<byte>.Empty;
-                    _position = 0;
-                    _length = 0;
-                }
-                else
-                {
-                    _singleMemory = chunks[0];
-                    _singleSpan = chunks[0].Span;
-                    _position = 0;
-                    _length = chunks[0].Length;
-                }
-                _isSingleMemory = true;
-                _reader = default;
+                throw new ArgumentNullException(nameof(chunks));
             }
-            else
+
+            var chunkArray = chunks.ToArray();
+            _chunks = chunkArray;
+
+            var starts = new int[chunkArray.Length + 1];
+            var running = 0;
+            for (var i = 0; i < chunkArray.Length; i++)
             {
-                // Multi-chunk case - use SequentialMemoryReader
-                _singleMemory = default;
-                _singleSpan = default;
-                _position = 0;
-                _length = 0;
-                _isSingleMemory = false;
-                _reader = new SequentialMemoryReader(chunks);
+                starts[i] = running;
+                running += chunkArray[i].Length;
+            }
+            starts[chunkArray.Length] = running;
+            _chunkStartPositions = starts;
+
+            _length = running;
+            _position = 0;
+            _currentChunkIndex = chunkArray.Length > 0 ? 0 : InvalidChunkIndex;
+            _currentChunk = chunkArray.Length > 0 ? chunkArray[0].Span : ReadOnlySpan<byte>.Empty;
+            _currentChunkStart = _currentChunkIndex >= 0 ? 0 : 0;
+            _currentChunkEnd = _currentChunkIndex >= 0 ? _currentChunk.Length : 0;
+        }
+
+        /// <summary>
+        /// Current absolute position in the logical stream.
+        /// </summary>
+        public int Position
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get { return _position; }
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            set
+            {
+                if (value < 0)
+                {
+                    value = 0;
+                }
+                if (value > _length)
+                {
+                    value = _length;
+                }
+                _position = value;
+                SetCurrentChunkByPosition(value);
             }
         }
 
         /// <summary>
-        /// Current position in the stream (optimized for single memory)
+        /// Total length in bytes across all chunks.
         /// </summary>
-        public int Position 
-        { 
+        public int Length
+        {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => _isSingleMemory ? _position : _reader.Position;
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            set 
-            {
-                if (_isSingleMemory)
-                {
-                    _position = Math.Max(0, Math.Min(value, _length));
-                }
-                else
-                {
-                    _reader.SetPosition(value);
-                }
-            }
+            get { return _length; }
         }
 
         /// <summary>
-        /// Total length of all memory chunks combined
+        /// True if positioned at or beyond end of stream.
         /// </summary>
-        public int Length => _isSingleMemory ? _length : _reader.Length;
+        public bool IsAtEnd
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get { return _position >= _length; }
+        }
 
         /// <summary>
-        /// Check if we're at the end of all memory chunks
+        /// Peek a byte at offset from current position without advancing. Returns 0 if out of range.
+        /// Fast path: if target lies within cached chunk boundaries, index directly.
+        /// Slow path: resolve chunk by setting current chunk based on target position.
         /// </summary>
-        public bool IsAtEnd => _isSingleMemory ? _position >= _length : _reader.IsAtEnd;
-
-        /// <summary>
-        /// Indicates whether this context contains a single memory chunk (for optimization)
-        /// </summary>
-        public bool IsSingleMemory => _isSingleMemory;
-
-        /// <summary>
-        /// Gets the original memory segment represented as a read-only sequence of bytes.
-        /// </summary>
-        public ReadOnlyMemory<byte> OriginalMemory => _isSingleMemory ? _singleMemory : default;
-
-        /// <summary>
-        /// Peek at a byte without advancing position (optimized for single memory)
-        /// </summary>
+        /// <param name="offset">Optional offset from current position.</param>
+        /// <returns>The byte value or 0 if out of range.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public byte PeekByte(int offset = 0)
         {
-            if (_isSingleMemory)
+            var target = _position + offset;
+            if (target < 0 || target >= _length)
             {
-                int targetPosition = _position + offset;
-                if (targetPosition >= 0 && targetPosition < _length)
-                {
-                    return _singleSpan[targetPosition]; // Direct span access - fastest!
-                }
                 return 0;
             }
-            else
+
+            if (_currentChunkIndex >= 0 && target >= _currentChunkStart && target < _currentChunkEnd)
             {
-                return _reader.PeekByte(offset);
+                return _currentChunk[target - _currentChunkStart];
             }
+
+            SetCurrentChunkByPosition(target);
+            if (_currentChunkIndex < 0)
+            {
+                return 0;
+            }
+
+            return _currentChunk[target - _currentChunkStart];
         }
 
         /// <summary>
-        /// Read a byte and advance position (optimized for single memory)
+        /// Read a byte and advance position. Returns 0 at end.
         /// </summary>
+        /// <returns>The byte value or 0 if at end.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public byte ReadByte()
         {
-            if (_isSingleMemory)
-            {
-                if (_position < _length)
-                {
-                    return _singleSpan[_position++]; // Direct span access - fastest!
-                }
-                return 0;
-            }
-            else
-            {
-                return _reader.ReadByte();
-            }
+            var value = PeekByte();
+            Advance(1);
+            return value;
         }
 
         /// <summary>
-        /// Check if a sequence matches at the specified position (optimized for single memory)
+        /// Advance by count bytes (clamped). Negative count allowed (rewind).
         /// </summary>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public bool MatchSequenceAt(int position, ReadOnlySpan<byte> sequence)
-        {
-            if (_isSingleMemory)
-            {
-                if (position + sequence.Length > _length || position < 0)
-                    return false;
-                
-                var slice = _singleSpan.Slice(position, sequence.Length);
-                return slice.SequenceEqual(sequence); // Direct span comparison - fastest!
-            }
-            else
-            {
-                return _reader.MatchSequenceAt(position, sequence);
-            }
-        }
-
-        /// <summary>
-        /// Advance position by the specified number of bytes (optimized for single memory)
-        /// </summary>
+        /// <param name="count">Number of bytes to advance (can be negative).</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Advance(int count)
         {
-            if (_isSingleMemory)
+            var newPosition = _position + count;
+            if (newPosition < 0)
             {
-                _position = Math.Min(_position + count, _length);
+                newPosition = 0;
             }
-            else
+            if (newPosition > _length)
             {
-                _reader.Advance(count);
+                newPosition = _length;
             }
+            _position = newPosition;
+            SetCurrentChunkByPosition(newPosition);
         }
 
         /// <summary>
-        /// Get slice from current position (optimized for single memory)
+        /// Sets the current chunk based on an absolute position. If position is outside the stream, sets to empty.
+        /// Fast path: if already inside current chunk, do nothing.
         /// </summary>
+        /// <param name="position">Absolute position within the logical stream.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public ReadOnlyMemory<byte> GetSliceFromCurrent(int length)
+        private void SetCurrentChunkByPosition(int position)
         {
-            if (_isSingleMemory)
+            if (_currentChunkIndex >= 0 && position >= _currentChunkStart && position < _currentChunkEnd)
             {
-                if (_position >= _length)
-                    return ReadOnlyMemory<byte>.Empty;
-                
-                int available = _length - _position;
-                if (length > available)
-                    length = available;
-                
-                if (length <= 0)
-                    return ReadOnlyMemory<byte>.Empty;
-                
-                return _singleMemory.Slice(_position, length); // Direct span slice - fastest!
+                // Already within current chunk; nothing to update.
+                return;
             }
-            else
+
+            if (position < 0 || position >= _length)
             {
-                return _reader.GetSlice(length);
+                _currentChunkIndex = InvalidChunkIndex;
+                _currentChunk = ReadOnlySpan<byte>.Empty;
+                _currentChunkStart = 0;
+                _currentChunkEnd = 0;
+                return;
             }
+
+            int left = 0;
+            int right = _chunks.Length - 1;
+            while (left <= right)
+            {
+                int mid = left + (right - left) / 2;
+                int chunkStart = _chunkStartPositions[mid];
+                int chunkEnd = _chunkStartPositions[mid + 1];
+                if (position >= chunkStart && position < chunkEnd)
+                {
+                    _currentChunkIndex = mid;
+                    _currentChunkStart = chunkStart;
+                    _currentChunkEnd = chunkEnd;
+                    _currentChunk = _chunks[mid].Span;
+                    return;
+                }
+                if (position < chunkStart)
+                {
+                    right = mid - 1;
+                }
+                else
+                {
+                    left = mid + 1;
+                }
+            }
+
+            _currentChunkIndex = InvalidChunkIndex;
+            _currentChunk = ReadOnlySpan<byte>.Empty;
+            _currentChunkStart = 0;
+            _currentChunkEnd = 0;
+        }
+
+        public override string ToString()
+        {
+            StringBuilder builder = new StringBuilder();
+
+            foreach (var chunk in _chunks)
+            {
+                builder.Append(EncodingExtensions.PdfDefault.GetString(chunk));
+            }
+
+            return builder.ToString();
         }
     }
 }

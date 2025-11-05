@@ -1,5 +1,4 @@
-﻿using CommunityToolkit.HighPerformance.Buffers;
-using Microsoft.Extensions.Logging;
+﻿using Microsoft.Extensions.Logging;
 using PdfReader.Models;
 using PdfReader.Parsing;
 using System;

@@ -114,7 +114,7 @@ namespace PdfReader.Parsing
                 }
                 default:
                 {
-                    if (IsDigit(current))
+                    if (current >= Zero && current <= Nine)
                     {
                         return PdfTokenType.Number;
                     }

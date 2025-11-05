@@ -11,94 +11,46 @@ namespace PdfReader.Parsing
         {
             // ID operator already consumed by ReadToken
             // Skip single whitespace after ID per PDF spec
-            SkipSingleWhitespaceAfterID();
-            
-            int dataStart = Position;
-            int dataEnd = FindInlineStreamDataEnd(dataStart);
-            Position = dataStart;
-
-            if (dataEnd < 0)
-            {
-                // Could not find EI terminator - return empty stream
-                return PdfValue.InlineStream(PdfString.Empty);
-            }
-            
-            int dataLength = dataEnd - dataStart;
-            ReadOnlyMemory<byte> streamData;
-            
-            if (dataLength > 0)
-            {
-                streamData = ReadSliceFromCurrent(dataLength).ToArray();
-            }
-            else
-            {
-                streamData = default;
-            }
-            
-            return PdfValue.InlineStream(new PdfString(streamData));
-        }
-        
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void SkipSingleWhitespaceAfterID()
-        {
-            if (IsAtEnd)
-            {
-                return;
-            }
-
-            byte next = PeekByte();
-            if (IsWhitespace(next))
+            if (IsWhitespace(PeekByte()))
             {
                 Advance(1);
             }
-        }
-        
-        /// <summary>
-        /// Locate the end position (absolute) of inline image data by finding a valid EI terminator.
-        /// Uses the parse context slice for both single-memory and multi-chunk scenarios.
-        /// </summary>
-        /// <param name="start">Absolute start position of the inline data.</param>
-        /// <returns>Absolute end position (start of EI) or -1 if not found.</returns>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private int FindInlineStreamDataEnd(int start)
-        {
-            if (start <0 || start >= Length)
-            {
-                return -1;
-            }
 
-            int position = start;
-            int previousByte = -1;
-            SetPosition(position);
+            _localBuffer.Clear();
 
+            int previousByte = -1; // Tracks last consumed byte for whitespace check before potential EI.
             while (!IsAtEnd)
             {
-                byte currentByte = ReadByte();
-                position++;
+                byte current = ReadByte();
 
-                if (currentByte == (byte)'E' && !IsAtEnd)
+                if (current == (byte)'E' && !IsAtEnd)
                 {
-                    byte nextByte = ReadByte();
-                    position++;
-                    if (nextByte == (byte)'I')
+                    byte next = PeekByte();
+                    if (next == (byte)'I')
                     {
                         bool precedingWhitespace = previousByte == -1 || IsWhitespace((byte)previousByte);
-                        byte following = !IsAtEnd ? PeekByte() : (byte)0;
-                        bool followingDelimiter = IsAtEnd || IsTokenTerminator(following);
+                        byte following = (Position + 1 < Length) ? PeekByte(1) : (byte)0; // after 'E'+'I'
+                        bool followingDelimiter = (Position + 1 >= Length) || IsTokenTerminator(following);
 
                         if (precedingWhitespace && followingDelimiter)
                         {
-                            // Return absolute position of 'E' (start of EI)
-                            return position -2;
+                            // Roll back the consumed 'E' since EI marks end; leave Position at start of 'E'.
+                            SetPosition(Position - 1);
+                            break;
                         }
                     }
-                    previousByte = currentByte;
-                    continue;
                 }
-                previousByte = currentByte;
+
+                _localBuffer.Add(current);
+                previousByte = current;
             }
 
-            return -1;
+            if (_localBuffer.Count == 0)
+            {
+                return PdfValue.InlineStream(PdfString.Empty);
+            }
+
+            return PdfValue.InlineStream(new PdfString([.. _localBuffer]));
         }
     }
 }

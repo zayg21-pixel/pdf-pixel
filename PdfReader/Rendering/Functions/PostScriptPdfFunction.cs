@@ -1,7 +1,10 @@
+using Microsoft.Extensions.Logging;
+using PdfReader.Models;
+using PdfReader.PostScript;
+using PdfReader.PostScript.Tokens;
+using PdfReader.Text;
 using System;
 using System.Collections.Generic;
-using PdfReader.Models;
-using PdfReader.Text;
 
 namespace PdfReader.Rendering.Functions
 {
@@ -11,7 +14,7 @@ namespace PdfReader.Rendering.Functions
     /// </summary>
     public sealed class PostScriptPdfFunction : PdfFunction
     {
-        private readonly PostScriptExpressionEvaluator _evaluator;
+        private readonly PostScriptEvaluator _evaluator;
         private readonly float[] _domain;
         private readonly float[] _range;
 
@@ -21,7 +24,7 @@ namespace PdfReader.Rendering.Functions
         /// <param name="evaluator">The PostScript expression evaluator.</param>
         /// <param name="domain">Domain array.</param>
         /// <param name="range">Range array.</param>
-        private PostScriptPdfFunction(PostScriptExpressionEvaluator evaluator, float[] domain, float[] range)
+        private PostScriptPdfFunction(PostScriptEvaluator evaluator, float[] domain, float[] range)
         {
             _evaluator = evaluator ?? throw new ArgumentNullException(nameof(evaluator));
             _domain = domain ?? throw new ArgumentNullException(nameof(domain));
@@ -62,9 +65,7 @@ namespace PdfReader.Rendering.Functions
                 return null;
             }
 
-            string postScriptCode = EncodingExtensions.PdfDefault.GetString(streamData.Span);
-            var evaulator = new PostScriptExpressionEvaluator(postScriptCode);
-
+            var evaulator = new PostScriptEvaluator(streamData.Span, functionObject.Document.LoggerFactory.CreateLogger<PostScriptEvaluator>());
             return new PostScriptPdfFunction(evaulator, domain, range);
         }
 

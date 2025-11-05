@@ -7,88 +7,91 @@ namespace PdfReader.Parsing
     partial struct PdfParser
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static bool IsDigit(byte value)
-        {
-            return value >= Zero && value <= Nine;
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private IPdfValue ReadNumber()
         {
-            // Parse sign
+            // Single-pass number parsing.
+            // Accumulates all digits (integer and fractional) into one combined value.
+            // Fractional digit count determines scaling using precomputed inverse powers of10.
             bool isNegative = false;
-            
-            byte firstByte = PeekByte();
-            if (firstByte == Minus)
+            byte first = PeekByte();
+            if (first == Minus)
             {
                 isNegative = true;
                 Advance(1);
             }
-            else if (firstByte == Plus)
+            else if (first == Plus)
             {
                 Advance(1);
             }
 
-            // Parse integer part
-            long integerPart = 0;
-            bool hasDigits = false;
+            double combined = 0d;
+            int fractionalDigits = 0;
+            bool afterDot = false;
+            bool sawDigit = false;
+
             while (!IsAtEnd)
             {
-                byte currentByte = PeekByte();
-                if (!IsDigit(currentByte))
-                {
-                    break;
-                }
-                hasDigits = true;
-                integerPart = integerPart * 10 + (ReadByte() - Zero);
-            }
+                byte current = PeekByte();
 
-            // Parse fractional part if dot is present
-            long fractionalPart = 0;
-            int fractionalDigits = 0;
-            
-            if (!IsAtEnd && PeekByte() == Dot)
-            {
-                Advance(1); // Consume the dot
-                while (!IsAtEnd)
+                if (!afterDot && current == Dot)
                 {
-                    byte currentByte = PeekByte();
-                    if (!IsDigit(currentByte))
+                    afterDot = true;
+                    Advance(1);
+                    continue;
+                }
+
+                if (current >= Zero && current <= Nine)
+                {
+                    combined = combined * 10d + (current - Zero);
+
+                    if (afterDot)
                     {
-                        break;
+                        fractionalDigits++;
                     }
-                    hasDigits = true; // Numbers like ".5" are valid
-                    fractionalPart = fractionalPart * 10 + (ReadByte() - Zero);
-                    fractionalDigits++;
+
+                    sawDigit = true;
+                    Advance(1);
+                    continue;
                 }
+
+                break;
             }
 
-            if (!hasDigits)
+            if (!sawDigit)
             {
-                // Malformed number (like just "+" or "-"), return integer 0
+                // Malformed number like '+' '-' '.' -> treat as 0.
                 return PdfValue.Integer(0);
             }
 
-            if (fractionalDigits > 0)
+            if (fractionalDigits == 0)
             {
-                // Return as real (float) - handles cases like ".5", "123.45", "0.25"
-                float value = integerPart + fractionalPart / MathF.Pow(10, fractionalDigits);
+                int intValue = (int)combined;
                 if (isNegative)
                 {
-                    value = -value;
+                    intValue = -intValue;
                 }
-                return PdfValue.Real(value);
+                return PdfValue.Integer(intValue);
+            }
+
+            // Scale once using lookup (fallback to Math.Pow for lengths beyond precomputed span).
+            double scale;
+            if (fractionalDigits < inversePowersOf10.Length)
+            {
+                scale = inversePowersOf10[fractionalDigits];
             }
             else
             {
-                // Return as integer - handles cases like "123", "-45", "0"
-                int value = (int)integerPart;
-                if (isNegative)
-                {
-                    value = -value;
-                }
-                return PdfValue.Integer(value);
+                scale = Math.Pow(0.1d, fractionalDigits);
             }
+
+            double realValue = combined * scale;
+
+            if (isNegative)
+            {
+                realValue = -realValue;
+            }
+
+            return PdfValue.Real((float)realValue);
         }
     }
 }

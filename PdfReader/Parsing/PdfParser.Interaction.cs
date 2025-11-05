@@ -12,24 +12,11 @@ namespace PdfReader.Parsing
         {
             if (_streamMode)
             {
-                return (int)_lastSetPostion >= _reader.BaseStream.Length;
+                return _lastSetPostion >= _length;
             }
             else
             {
                 return _parseContext.IsAtEnd;
-            }
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private int GetLength()
-        {
-            if (_streamMode)
-            {
-                return (int)_reader.BaseStream.Length;
-            }
-            else
-            {
-                return _parseContext.Length;
             }
         }
 
@@ -52,7 +39,7 @@ namespace PdfReader.Parsing
         {
             if (_streamMode)
             {
-                _reader.BaseStream.Position = position;
+                _stream.Position = position;
                 _lastSetPostion = position;
             }
             else
@@ -66,16 +53,8 @@ namespace PdfReader.Parsing
         {
             if (_streamMode)
             {
-                RestorePosition();
-
-                if (offset == 0)
-                {
-                    return (byte)_reader.PeekChar();
-                }
-
-                _reader.BaseStream.Seek(offset, SeekOrigin.Current);
-                int value = _reader.PeekChar();
-                _reader.BaseStream.Seek(-offset, SeekOrigin.Current);
+                RestorePosition(offset: offset);
+                var value = _stream.ReadByte();
 
                 if (value == -1)
                 {
@@ -96,15 +75,14 @@ namespace PdfReader.Parsing
             if (_streamMode)
             {
                 RestorePosition();
-                int value = _reader.Read();
+                int value = _stream.ReadByte();
 
                 if (value == -1)
                 {
                     return 0;
                 }
 
-                SavePosition();
-
+                _lastSetPostion++;
                 return (byte)value;
             }
             else
@@ -118,9 +96,7 @@ namespace PdfReader.Parsing
         {
             if (_streamMode)
             {
-                RestorePosition();
-                _reader.BaseStream.Seek(offset, SeekOrigin.Current);
-                SavePosition();
+                _lastSetPostion += offset;
             }
             else
             {
@@ -129,42 +105,13 @@ namespace PdfReader.Parsing
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private ReadOnlyMemory<byte> ReadSliceFromCurrent(int dataLength)
+        private void RestorePosition(int offset = 0)
         {
             if (_streamMode)
             {
-                RestorePosition();
-                long originalPosition = _reader.BaseStream.Position;
-                byte[] buffer = new byte[dataLength];
-                _reader.Read(buffer, 0, dataLength);
-
-                SavePosition();
-
-                return buffer;
-            }
-
-            var result = _parseContext.GetSliceFromCurrent(dataLength);
-            _parseContext.Advance(dataLength);
-            return result;
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void SavePosition()
-        {
-            if (_streamMode)
-            {
-                _lastSetPostion = (int)_reader.BaseStream.Position;
-            }
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void RestorePosition()
-        {
-            if (_streamMode)
-            {
-                if (_reader.BaseStream.Position != _lastSetPostion)
+                if (_stream.Position != _lastSetPostion + offset)
                 {
-                    _reader.BaseStream.Position = _lastSetPostion;
+                    _stream.Position = _lastSetPostion + offset;
                 }
             }
         }

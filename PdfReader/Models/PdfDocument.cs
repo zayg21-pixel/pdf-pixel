@@ -1,6 +1,5 @@
 using Microsoft.Extensions.Logging;
 using PdfReader.Encryption;
-using PdfReader.Fonts;
 using PdfReader.Fonts.Management;
 using PdfReader.Fonts.Mapping;
 using PdfReader.Fonts.Types;
@@ -8,7 +7,6 @@ using PdfReader.Parsing;
 using PdfReader.Rendering;
 using PdfReader.Rendering.Color;
 using PdfReader.Rendering.Functions;
-using PdfReader.Rendering.Pattern;
 using PdfReader.Streams;
 using System;
 using System.Collections.Concurrent;
@@ -34,7 +32,7 @@ namespace PdfReader.Models
             FontCache = new PdfFontCache(this);
             PdfRenderer = new PdfRenderer(FontCache, loggerFactory);
             _pdfObjectParser = new PdfObjectParser(this);
-            FileStream = fileStream;
+            Stream = new BufferedStream(fileStream);
         }
 
         internal ILoggerFactory LoggerFactory { get; }
@@ -79,7 +77,7 @@ namespace PdfReader.Models
         /// <summary>
         /// Exposes the original PDF file bytes for internal parser use (lazy object loading).
         /// </summary>
-        internal Stream FileStream { get; }
+        internal BufferedStream Stream { get; }
 
         /// <summary>
         /// Parsed catalog output intent ICC profile (first preferred or first valid). Null when none present or invalid.

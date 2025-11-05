@@ -22,6 +22,7 @@ namespace PdfReader.Fonts.Mapping
         private readonly Dictionary<int, PdfString> _differences;
         private readonly PdfCMap _toUnicodeCMap;
         private readonly FontTableInfo _tableInfo;
+        private readonly bool _isSubstituted;
 
         /// <summary>
         /// Initializes a new instance of <see cref="SntfByteCodeToGidMapper"/> for the specified typeface and encoding.
@@ -34,6 +35,7 @@ namespace PdfReader.Fonts.Mapping
         public SntfByteCodeToGidMapper(
             SKTypeface typeface,
             PdfFontFlags flags,
+            bool substituted,
             PdfFontEncoding encoding,
             Dictionary<int, PdfString> differences,
             PdfCMap toUnicodeCMap)
@@ -44,6 +46,7 @@ namespace PdfReader.Fonts.Mapping
             }
 
             _flags = flags;
+            _isSubstituted = substituted;
             _encoding = encoding;
             _differences = differences;
             _toUnicodeCMap = toUnicodeCMap;
@@ -69,7 +72,7 @@ namespace PdfReader.Fonts.Mapping
         /// <returns>The glyph ID (GID) for the character code, or 0 if not found.</returns>
         public ushort GetGid(byte code)
         {
-            if (_flags.HasFlag(PdfFontFlags.Symbolic) && _codeToGid != null)
+            if (!_isSubstituted && _flags.HasFlag(PdfFontFlags.Symbolic) && _codeToGid != null)
             {
                 return _codeToGid[code];
             }

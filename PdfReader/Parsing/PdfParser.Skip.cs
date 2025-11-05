@@ -23,9 +23,8 @@ namespace PdfReader.Parsing
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private int SkipWhitespacesAndComments()
+        private void SkipWhitespacesAndComments()
         {
-            int startPosition = Position; // capture starting offset
             while (!IsAtEnd)
             {
                 byte current = PeekByte();
@@ -58,11 +57,10 @@ namespace PdfReader.Parsing
                     }
                     default:
                     {
-                        return Position - startPosition; // number of skipped bytes
+                        return;
                     }
                 }
             }
-            return Position - startPosition;
         }
 
         /// <summary>

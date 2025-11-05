@@ -83,6 +83,7 @@ namespace PdfReader.Rendering.Text
             }
 
             var shapedGlyphs = new List<ShapedGlyph>();
+            float initialAdvance = 0f;
 
             for (int i = 0; i < array.Count; i++)
             {
@@ -116,8 +117,8 @@ namespace PdfReader.Rendering.Text
                     }
                     else
                     {
-                        // TODO: fix, this will draw a glyph with ID 0, width is defined as 0, so it should not render, but...
-                        shapedGlyphs.Insert(0, new ShapedGlyph(0, 0, adjustmentInUserSpace));
+                        shapedGlyphs.Insert(0, new ShapedGlyph(0, 0, initialAdvance));
+                        initialAdvance = adjustmentInUserSpace;
                     }
                 }
             }
@@ -178,7 +179,7 @@ namespace PdfReader.Rendering.Text
 
             if (state.Rise != 0)
             {
-                textMatrix = SKMatrix.Concat(textMatrix, SKMatrix.CreateTranslation(0f, state.Rise));
+                textMatrix = SKMatrix.Concat(textMatrix, SKMatrix.CreateTranslation(0, state.Rise));
             }
 
             // Apply font size, horizontal scaling, and vertical flip
@@ -191,23 +192,42 @@ namespace PdfReader.Rendering.Text
 
             if (ShouldFill(state.TextRenderingMode))
             {
-                float x = 0;
+                float currentAdvance = 0f;
                 canvas.Save();
 
                 // Apply text matrix transformation
                 canvas.Concat(textMatrix);
 
+                // Pre-count drawable glyphs (gid != 0) while computing positions using full advance including skipped glyphs.
+                int drawableCount = 0;
+                for (int i = 0; i < shapingResult.Length; i++)
+                {
+                    if (shapingResult[i].GlyphId != 0)
+                    {
+                        drawableCount++;
+                    }
+                }
+
                 using var builder = new SKTextBlobBuilder();
-                var run = builder.AllocatePositionedRun(font, shapingResult.Length);
+                var run = builder.AllocatePositionedRun(font, drawableCount);
                 var glyphSpan = run.Glyphs;
                 var positionSpan = run.Positions;
+
+                int drawIndex = 0;
                 for (int index = 0; index < shapingResult.Length; index++)
                 {
                     ref var shapedGlyph = ref shapingResult[index];
-                    glyphSpan[index] = (ushort)shapedGlyph.GlyphId;
-                    positionSpan[index] = new SKPoint(x, 0f);
-                    x += shapedGlyph.TotalWidth;
+                    // Record position regardless to advance subsequent glyphs.
+                    if (shapedGlyph.GlyphId != 0)
+                    {
+                        glyphSpan[drawIndex] = (ushort)shapedGlyph.GlyphId;
+                        positionSpan[drawIndex] = new SKPoint(currentAdvance, 0f);
+                        drawIndex++;
+                    }
+
+                    currentAdvance += shapedGlyph.TotalWidth;
                 }
+
                 using var blob = builder.Build();
                 using var paint = PdfPaintFactory.CreateFillPaint(state);
 
@@ -218,16 +238,20 @@ namespace PdfReader.Rendering.Text
                     paint.Shader = paint.Shader.WithLocalMatrix(textMatrix.Invert());
                 }
 
-                canvas.DrawText(blob, 0f, 0f, paint);
+                if (drawableCount > 0)
+                {
+                    canvas.DrawText(blob, 0f, 0f, paint);
+                }
 
                 canvas.Restore();
 
-                width = Math.Max(width, x);
+                width = Math.Max(width, currentAdvance);
             }
 
             if (ShouldStroke(state.TextRenderingMode))
             {
                 // this is 4-5 times slower than drawing blob, but it's needed for correct stroking for PDF compliance
+                // TODO: we can add special case here for simple fonts with linear transformations to use faster blob stroking
                 var textPath = new SKPath();
 
                 float x = 0f;
@@ -235,11 +259,14 @@ namespace PdfReader.Rendering.Text
                 for (int i = 0; i < shapingResult.Length; i++)
                 {
                     var glyphId = shapingResult[i].GlyphId;
-                    using var glyphPath = font.GetGlyphPath((ushort)glyphId);
-                    if (glyphPath != null)
+                    if (glyphId != 0)
                     {
-                        // Translate glyph outline by current advance
-                        textPath.AddPath(glyphPath, SKMatrix.CreateTranslation(x, 0f));
+                        using var glyphPath = font.GetGlyphPath((ushort)glyphId);
+                        if (glyphPath != null)
+                        {
+                            // Translate glyph outline by current advance
+                            textPath.AddPath(glyphPath, SKMatrix.CreateTranslation(x, 0f));
+                        }
                     }
 
                     x += shapingResult[i].TotalWidth;
@@ -248,7 +275,10 @@ namespace PdfReader.Rendering.Text
                 textPath.Transform(textMatrix);
 
                 using var paint = PdfPaintFactory.CreateStrokePaint(state);
-                canvas.DrawPath(textPath, paint);
+                if (!textPath.IsEmpty)
+                {
+                    canvas.DrawPath(textPath, paint);
+                }
 
                 width = Math.Max(width, x);
             }
@@ -262,11 +292,14 @@ namespace PdfReader.Rendering.Text
                 for (int i = 0; i < shapingResult.Length; i++)
                 {
                     var glyphId = shapingResult[i].GlyphId;
-                    using var glyphPath = font.GetGlyphPath((ushort)glyphId);
-                    if (glyphPath != null)
+                    if (glyphId != 0)
                     {
-                        // Translate glyph outline by current advance
-                        textPath.AddPath(glyphPath, SKMatrix.CreateTranslation(x, 0f));
+                        using var glyphPath = font.GetGlyphPath((ushort)glyphId);
+                        if (glyphPath != null)
+                        {
+                            // Translate glyph outline by current advance
+                            textPath.AddPath(glyphPath, SKMatrix.CreateTranslation(x, 0f));
+                        }
                     }
 
                     x += shapingResult[i].TotalWidth;
@@ -274,8 +307,11 @@ namespace PdfReader.Rendering.Text
 
                 textPath.Transform(textMatrix);
 
-                state.TextClipPath ??= new SKPath();
-                state.TextClipPath.AddPath(textPath);
+                if (!textPath.IsEmpty)
+                {
+                    state.TextClipPath ??= new SKPath();
+                    state.TextClipPath.AddPath(textPath);
+                }
 
                 width = Math.Max(width, x);
             }

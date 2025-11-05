@@ -3,7 +3,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Runtime.CompilerServices;
-using System.Text;
 
 namespace PdfReader.Parsing
 {
@@ -14,23 +13,41 @@ namespace PdfReader.Parsing
         private readonly ReadOnlySpan<byte> TrueValue = "true"u8;
         private readonly ReadOnlySpan<byte> FalseValue = "false"u8;
 
+        private readonly ReadOnlySpan<double> inversePowersOf10 =
+        [
+            1.0,
+            0.1,
+            0.01,
+            0.001,
+            0.0001,
+            0.00001,
+            0.000001,
+            0.0000001,
+            0.00000001,
+            0.000000001
+        ];
+
         private int _lastSetPostion = 0;
-        private readonly BinaryReader _reader;
+        private readonly List<byte> _localBuffer = new List<byte>();
+        private readonly BufferedStream _stream;
         private readonly bool _streamMode;
-        private PdfParseContext _parseContext;
-        private readonly PdfDocument _document; // Needed for constructing arrays/dictionaries
+        private readonly PdfDocument _document;
+        private readonly int _length;
         private readonly bool _allowReferences;
+        private PdfParseContext _parseContext;
 
         public PdfParser(PdfParseContext parseContext, PdfDocument document, bool allowReferences)
         {
             _parseContext = parseContext;
             _document = document;
             _allowReferences = allowReferences;
+            _length = parseContext.Length;
         }
 
-        public PdfParser(Stream stream, PdfDocument document, bool allowReferences)
+        public PdfParser(BufferedStream bufferedStream, PdfDocument document, bool allowReferences)
         {
-            _reader = new BinaryReader(stream, Encoding.ASCII);
+            _stream = bufferedStream;
+            _length = (int)bufferedStream.Length;
             _document = document;
             _allowReferences = allowReferences;
             _streamMode = true;
@@ -48,12 +65,14 @@ namespace PdfReader.Parsing
             set => SetPosition(value);
         }
 
-        public int Length
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => GetLength();
-        }
+        /// <summary>
+        /// Total length of the underlying parse context in bytes.
+        /// </summary>
+        public int Length => _length;
 
+        /// <summary>
+        /// True if the parser has reached the end of the underlying parse context.
+        /// </summary>
         public bool IsAtEnd
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]

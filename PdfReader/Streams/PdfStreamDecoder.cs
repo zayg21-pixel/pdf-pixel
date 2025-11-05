@@ -3,8 +3,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
 using PdfReader.Models;
-using CommunityToolkit.HighPerformance;
-using System.Linq;
 using Microsoft.Extensions.Logging;
 using PdfReader.Text;
 
@@ -87,8 +85,10 @@ namespace PdfReader.Streams
                     }
                     case PdfFilterType.LZWDecode:
                     {
-                        _logger.LogWarning("PdfStreamDecoder: TODO implement LZWDecode; stopping further filter decoding (predictor may be pending).");
-                        return current; // TODO implement LZWDecode; stopping further filter decoding (predictor may be pending).
+                        var parametersForLzwFilter = GetDecodeParmsForIndex(filterIndex, decodeParameters);
+                        bool earlyChange = parametersForLzwFilter?.GetInteger(PdfTokens.EarlyChangeKey) != 0;
+                        current = new LzwDecodeStream(current, leaveOpen: false, earlyChange: earlyChange);
+                        break;
                     }
                     case PdfFilterType.RunLengthDecode:
                     {
@@ -167,10 +167,7 @@ namespace PdfReader.Streams
                 for (int index = 0; index < parmsArray.Count; index++)
                 {
                     var dict = parmsArray.GetDictionary(index);
-                    if (dict != null)
-                    {
-                        list.Add(dict);
-                    }
+                    list.Add(dict);
                 }
             }
             else
