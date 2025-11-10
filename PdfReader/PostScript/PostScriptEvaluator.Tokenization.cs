@@ -138,8 +138,8 @@ namespace PdfReader.PostScript
                             continue;
                         }
                         string raw = Encoding.ASCII.GetString(data.Slice(tokenStart, tokenLength));
-                        // Binary block gate detection (RD / -| / |- ).
-                        if (raw == "RD" || raw == "-|" || raw == "|-")
+                        // Binary block gate detection (RD / -|).
+                        if (raw == "RD" || raw == "-|")
                         {
                             // Must have preceding length number token.
                             if (result.Count == 0 || result[result.Count - 1] is not PostScriptNumber lenToken)
@@ -151,8 +151,13 @@ namespace PdfReader.PostScript
                             {
                                 throw new InvalidOperationException("Binary block length out of range: " + byteCount);
                             }
-                            // Skip any whitespace after gate token before raw bytes.
-                            SkipWhitespace(data, ref position);
+
+                            // Consume exactly one whitespace delimiter (spec) if present at current position.
+                            if (position < length && IsPsWhitespace(data[position]))
+                            {
+                                position++;
+                            }
+
                             if (position + byteCount > length)
                             {
                                 throw new InvalidOperationException("Insufficient data for binary block length " + byteCount);

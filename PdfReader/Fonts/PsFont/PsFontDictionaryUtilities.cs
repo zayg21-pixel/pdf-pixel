@@ -4,7 +4,6 @@ using PdfReader.PostScript.Tokens;
 using PdfReader.Models;
 using PdfReader.Fonts.Types;
 using PdfReader.Text;
-using SkiaSharp;
 
 namespace PdfReader.Fonts.PsFont
 {
@@ -12,15 +11,23 @@ namespace PdfReader.Fonts.PsFont
     /// Helper utilities for extracting common Type1 font dictionary entries (LenIV, CharStrings, FontMatrix).
     /// Uses symbolic constants for key names.
     /// </summary>
-    internal static class PsFontDictionaryParser
+    internal static class PsFontDictionaryUtilities
     {
+        public const string StandardEncodingName = "StandardEncoding";
+        public const string MacRomanEncodingName = "MacRomanEncoding";
+        public const string WinAnsiEncodingName = "WinAnsiEncoding";
+        public const string MacExpertEncodingName = "MacExpertEncoding";
+        public const string FontDirectoryKey = "FontDirectory";
+        private const string NotdefName = ".notdef"; // Constant for .notdef glyph name.
+
+        private const string FontNameKey = "FontName";
         private const string PrivateKey = "Private";
-        private const string LenIVKey = "LenIV";
+        private const string LenIVKey = "lenIV";
         private const string CharStringsKey = "CharStrings";
         private const string FontMatrixKey = "FontMatrix";
         private const string EncodingKey = "Encoding";
-        private const string SubrsKey = "Subrs"; // Subroutine array key (Type1 /Private dictionary)
-        private const string NotdefName = ".notdef"; // Constant for .notdef glyph name.
+        private const string SubrsKey = "Subrs";
+        private const string FontBboxKey = "FontBBox";
 
         /// <summary>
         /// Extract the LenIV value from a font dictionary's /Private sub-dictionary if present.
@@ -46,6 +53,32 @@ namespace PdfReader.Fonts.PsFont
                 }
             }
             return 4;
+        }
+
+        /// <summary>
+        /// Retrieves the font name from the specified PostScript dictionary.
+        /// </summary>
+        /// <param name="dict">The PostScript dictionary from which to extract the font name. Cannot be null.</param>
+        /// <returns>The font name as a string if found; otherwise, <see langword="null"/>.</returns>
+        public static string GetFontName(PostScriptDictionary dict)
+        {
+            if (dict == null)
+            {
+                return null;
+            }
+
+            if (dict.Entries.TryGetValue(FontNameKey, out PostScriptToken token))
+            {
+                if (token is PostScriptLiteralName ln)
+                {
+                    return ln.Name;
+                }
+                if (token is PostScriptString ps)
+                {
+                    return ps.Value;
+                }
+            }
+            return null;
         }
 
         /// <summary>
@@ -121,7 +154,8 @@ namespace PdfReader.Fonts.PsFont
             {
                 return null;
             }
-            if (dict.Entries.TryGetValue("FontBBox", out PostScriptToken token) && token is IPostScriptCollection arr && arr.Items != null && arr.Items.Count >= 4)
+
+            if (dict.Entries.TryGetValue(FontBboxKey, out PostScriptToken token) && token is IPostScriptCollection arr && arr.Items != null && arr.Items.Count >= 4)
             {
                 var result = new float[4];
                 for (int i = 0; i < 4; i++)
@@ -232,17 +266,44 @@ namespace PdfReader.Fonts.PsFont
             // Common PostScript variants that may differ (add mappings as needed).
             switch (name)
             {
-                case "StandardEncoding":
+                case StandardEncodingName:
                     return PdfFontEncoding.StandardEncoding;
-                case "MacRomanEncoding":
+                case MacRomanEncodingName:
                     return PdfFontEncoding.MacRomanEncoding;
-                case "WinAnsiEncoding":
+                case WinAnsiEncodingName:
                     return PdfFontEncoding.WinAnsiEncoding;
-                case "MacExpertEncoding":
+                case MacExpertEncodingName:
                     return PdfFontEncoding.MacExpertEncoding;
                 default:
                     return PdfFontEncoding.Unknown;
             }
+        }
+
+        public static PostScriptArray GetEncodingArray(PdfFontEncoding pdfEncoding)
+        {
+            var encodingSet = SingleByteEncodings.GetEncodingSet(pdfEncoding);
+
+            if (encodingSet == null)
+            {
+                return null;
+            }
+
+            var encodingArray = new PostScriptArray(encodingSet.Length);
+
+            for (int i = 0; i < encodingSet.Length; i++)
+            {
+                var glyphName = encodingSet[i];
+                if (glyphName == PdfString.Empty)
+                {
+                    encodingArray.Elements[i] = new PostScriptLiteralName(NotdefName);
+                }
+                else
+                {
+                    encodingArray.Elements[i] = new PostScriptLiteralName(glyphName.ToString());
+                }
+            }
+
+            return encodingArray;
         }
     }
 }

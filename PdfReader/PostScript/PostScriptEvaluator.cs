@@ -192,6 +192,12 @@ namespace PdfReader.PostScript
                 return;
             }
 
+            // File-related stub operators (currentfile, closefile, eexec)
+            if (TryExecuteIOOperator(name, stack))
+            {
+                return;
+            }
+
             switch (name)
             {
                 case "readonly":
@@ -256,17 +262,7 @@ namespace PdfReader.PostScript
     // - stringwidth: compute glyph string width (optional) // Could be deferred until width metrics needed.
     // - charpath / setcachedevice / setcharwidth (Type1 charstring build ops) // Charstring interpreter will handle; not in header evaluator.
     // - save / restore: implement proper memory snapshot and rollback // 'save' stub present; 'restore' pending if needed.
-    // - noaccess / executeonly: mark dictionary / procedure access flags (readonly covers subset) // Could extend readonly flag.
-    // - readonly variants: xreadonly if encountered (alias) // Not yet observed; easy alias.
     // - currentfile: access underlying stream (not required here) // For 'currentfile eexec' boundary; safe sentinel stub.
     // - count / mark / cleartomark: stack markers (not currently used in font headers observed) // Implement only if encountered.
     // - getinterval / putinterval: substring / subarray extraction (rare in plain Type1 headers) // Defer.
-    // - astore / aload: array packing/unpacking helpers // Not yet required.
-    // - for / repeat / loop / exit / stop: flow control (for implemented, others omitted) // 'for' done; others pending on demand.
-    // - where / load / known: dictionary queries (implemented) // Implemented.
-    // - get / put: dictionary and array element access (array put implemented; dict put TBD) // 'get' done; dict 'put' pending.
-    // - length / type: object inspection (not yet implemented) // Potential future improvement.
-    // - token / search: string parsing (not required for static font programs) // Out of scope.
-    // - index / roll / copy / dup / exch / pop / clear: stack ops (implemented subset) // Implemented.
-    // - if / ifelse / exec / bind (bind omitted; could pre-bind procedures for speed) // Implemented except 'bind'.
 }

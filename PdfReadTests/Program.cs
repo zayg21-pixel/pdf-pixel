@@ -1,6 +1,7 @@
 ﻿using Microsoft.Extensions.Logging;
 using PdfReader;
 using PdfReader.Models;
+using PdfReader.Rendering.Image;
 using SkiaSharp;
 
 namespace PdfReadTests
@@ -54,18 +55,18 @@ namespace PdfReadTests
                 //"pdfs//shading_extend.pdf",
                 //"pdfs//pdf_c.pdf",
                 //"pdfs//1208.0264v4.pdf",
-                "pdfs//806-5413-10.pdf",
+                //"pdfs//806-5413-10.pdf",
                 //"pdfs//1208.0264v4_ed.pdf",
                 //"pdfs//1405.2785v3.pdf",
                 //"PDF32000_2008.pdf",
                 //"ch14.pdf"
                 //@"documentS.pdf",
-                //@"documentC.pdf",
-                //@"sample.pdf",
-                //"Adyen.pdf",
-                //"Adyen 2023.pdf",
-                //"adyen_2020.pdf",
-                //"adyen_2020_debug.pdf",
+                @"documentC.pdf",
+                @"sample.pdf",
+                "Adyen.pdf",
+                "Adyen 2023.pdf",
+                "adyen_2020.pdf",
+                "adyen_2020_debug.pdf",
                 //"pdfs\\emojies.pdf",
                 //"documentEd.pdf",
                 //@"document_1.pdf"
@@ -80,7 +81,6 @@ namespace PdfReadTests
         static async Task TestPdfFile(string filename)
         {
             await Task.Yield();
-            await Task.Delay(3000);
 
             // Create a D3D11 device
 
@@ -113,8 +113,8 @@ namespace PdfReadTests
                 Logger.LogInformation("Root object: {Root}", document.RootObject);
 
                 var start = 0;
-                var max = 50;
-                float scaleX = 5f; // Scale factor for rendering
+                var max = 1000;
+                float scaleX = 2f; // Scale factor for rendering
 
                 // Analyze pages with detailed content stream debugging
                 for (int i = start; i < Math.Min(max, document.PageCount); i++)
@@ -135,7 +135,6 @@ namespace PdfReadTests
                         using var surface = SKSurface.Create(info);
 
                         using var canvas = surface.Canvas;
-                        canvas.ClipRect(new SKRect(0, 0, renderWidth * scaleX, renderHeight * scaleX));
                         canvas.Scale(scaleX, scaleX); // Apply scaling for high-res rendering
                         canvas.Clear(SKColors.White);
 

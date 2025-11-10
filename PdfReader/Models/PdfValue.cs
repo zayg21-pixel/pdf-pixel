@@ -32,6 +32,7 @@ namespace PdfReader.Models
             return _type switch
             {
                 PdfValueType.Name => $"/{_value}",
+                PdfValueType.Boolean => _value.ToString(),
                 PdfValueType.String => $"({_value})",
                 PdfValueType.Operator => _value.ToString(),
                 PdfValueType.Integer => _value.ToString(),

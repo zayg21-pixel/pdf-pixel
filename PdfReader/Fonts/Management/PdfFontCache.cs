@@ -113,6 +113,7 @@ namespace PdfReader.Fonts.Management
                 var cffInfo = GetCffInfo(descriptor);
                 if (cffInfo != null)
                 {
+                    // no matter if it's symbolic or not, we're always building a CFF mapper for Type1 that uses 1:1 mapping
                     mapper = new OneToOneCodeToGidMapper();
                 }
             }

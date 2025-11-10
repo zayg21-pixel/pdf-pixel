@@ -172,7 +172,7 @@ namespace PdfReader.PostScript.Tokens
         public static bool operator ==(PostScriptToken left, PostScriptToken right)
         {
 
-            return left.EqualsToken(right);
+            return left?.EqualsToken(right) == true;
         }
 
         public static bool operator !=(PostScriptToken left, PostScriptToken right)
@@ -183,38 +183,38 @@ namespace PdfReader.PostScript.Tokens
         public static bool operator >(PostScriptToken left, PostScriptToken right)
         {
 
-            return left.CompareToToken(right) > 0;
+            return left?.CompareToToken(right) > 0;
         }
         public static bool operator <(PostScriptToken left, PostScriptToken right)
         {
 
-            return left.CompareToToken(right) < 0;
+            return left?.CompareToToken(right) < 0;
         }
         public static bool operator >=(PostScriptToken left, PostScriptToken right)
         {
 
-            return left.CompareToToken(right) >= 0;
+            return left?.CompareToToken(right) >= 0;
         }
         public static bool operator <=(PostScriptToken left, PostScriptToken right)
         {
- 
-            return left.CompareToToken(right) <= 0;
+
+            return left?.CompareToToken(right) <= 0;
         }
 
         public static PostScriptToken operator &(PostScriptToken left, PostScriptToken right)
         {
 
-            return left.LogicalAnd(right);
+            return left?.LogicalAnd(right);
         }
         public static PostScriptToken operator |(PostScriptToken left, PostScriptToken right)
         {
 
-            return left.LogicalOr(right);
+            return left?.LogicalOr(right);
         }
         public static PostScriptToken operator !(PostScriptToken operand)
         {
 
-            return operand.LogicalNot();
+            return operand?.LogicalNot();
         }
 
         public abstract override int GetHashCode();

@@ -1,6 +1,5 @@
 using System.Collections.Generic;
 using PdfReader.Models;
-using PdfReader.Parsing;
 using SkiaSharp;
 
 namespace PdfReader.Rendering.Operators
@@ -276,7 +275,7 @@ namespace PdfReader.Rendering.Operators
 
             var tx = operands[0].AsFloat();
             var ty = operands[1].AsFloat();
-            graphicsState.Leading = -ty;
+            graphicsState.Leading = ty;
             var translation = SKMatrix.CreateTranslation(tx, ty);
             graphicsState.TextLineMatrix = translation.PostConcat(graphicsState.TextLineMatrix);
             graphicsState.TextMatrix = graphicsState.TextLineMatrix;

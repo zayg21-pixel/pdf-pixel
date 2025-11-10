@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Logging;
 using PdfReader.Models;
 using PdfReader.Parsing;
+using PdfReader.Rendering.Image;
 using SkiaSharp;
 using System;
 using System.Collections.Generic;
@@ -28,34 +29,12 @@ namespace PdfReader.Rendering
         /// </summary>
         public void ApplyPageTransformations(SKCanvas canvas)
         {
-            // Convert from PDF coordinate system (bottom-left origin, Y-up) 
-            // to Skia coordinate system (top-left origin, Y-down)
-            
-            // Use the effective height for coordinate system conversion
-            var effectiveHeight = _page.CropBox.Height;
-
-            // Step 1: Translate to move origin from bottom-left to top-left
-            canvas.Translate(0, effectiveHeight);
+            // Step 1: Translate to move origin from bottom-left to top-left with crop box offset
+            canvas.Translate(-_page.CropBox.Left, _page.CropBox.Height + _page.CropBox.Top);
 
             // Step 2: Flip Y-axis to convert from Y-up to Y-down
             // This will handle ALL coordinate transformations at once
             canvas.Scale(1, -1);
-
-            // TODO: fix this, it's broken
-            //// Step 3: Handle crop box offset if different from media box
-            //if (_page.CropBox != _page.MediaBox)
-            //{
-            //    // Apply clipping to crop box bounds
-            //    var clipRect = new SKRect(0, 0, _page.CropBox.Width, _page.CropBox.Height);
-            //    canvas.ClipRect(clipRect);
-
-            //    // Translate to crop box origin if needed
-            //    if (_page.CropBox.Left != 0 || _page.CropBox.Bottom != 0)
-            //    {
-            //        // Note: In PDF coordinate system, cropBox.Bottom is the Y offset from page bottom
-            //        canvas.Translate(-_page.CropBox.Left, -_page.CropBox.Bottom);
-            //    }
-            //}
         }
 
         /// <summary>

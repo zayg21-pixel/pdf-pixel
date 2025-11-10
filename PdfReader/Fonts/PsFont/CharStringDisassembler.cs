@@ -16,77 +16,77 @@ namespace PdfReader.Fonts.PsFont
         private const byte OpShortInt = 28; // Type2 only
 
         private static readonly Dictionary<int, string> Type1Operators = new Dictionary<int, string>
- {
- {1, "hstem" },
- {3, "vstem" },
- {4, "vmoveto" },
- {5, "rlineto" },
- {6, "hlineto" },
- {7, "vlineto" },
- {8, "rrcurveto" },
- {9, "closepath" },
- {10, "callsubr" },
- {11, "return" },
- {13, "hsbw" },
- {14, "endchar" },
- {21, "rmoveto" },
- {22, "hmoveto" },
- {24, "rcurveline" },
- {25, "rlinecurve" },
- {26, "vvcurveto" },
- {27, "hhcurveto" },
- {30, "vhcurveto" },
- {31, "hvcurveto" }
- };
+         {
+             {1, "hstem" },
+             {3, "vstem" },
+             {4, "vmoveto" },
+             {5, "rlineto" },
+             {6, "hlineto" },
+             {7, "vlineto" },
+             {8, "rrcurveto" },
+             {9, "closepath" },
+             {10, "callsubr" },
+             {11, "return" },
+             {13, "hsbw" },
+             {14, "endchar" },
+             {21, "rmoveto" },
+             {22, "hmoveto" },
+             {24, "rcurveline" },
+             {25, "rlinecurve" },
+             {26, "vvcurveto" },
+             {27, "hhcurveto" },
+             {30, "vhcurveto" },
+             {31, "hvcurveto" }
+         };
 
         private static readonly Dictionary<int, string> Type1EscapeOperators = new Dictionary<int, string>
- {
- {0, "dotsection" },
- {1, "vstem3" },
- {2, "hstem3" },
- {6, "seac" },
- {7, "sbw" },
- {12, "div" },
- {16, "callothersubr" },
- {17, "pop" },
- {33, "setcurrentpoint" }
- };
+         {
+             {0, "dotsection" },
+             {1, "vstem3" },
+             {2, "hstem3" },
+             {6, "seac" },
+             {7, "sbw" },
+             {12, "div" },
+             {16, "callothersubr" },
+             {17, "pop" },
+             {33, "setcurrentpoint" }
+         };
 
         private static readonly Dictionary<int, string> Type2Operators = new Dictionary<int, string>
- {
- // Base set (shared codes with Type1) + Type2 only codes.
- {1, "hstem" },
- {3, "vstem" },
- {4, "vmoveto" },
- {5, "rlineto" },
- {6, "hlineto" },
- {7, "vlineto" },
- {8, "rrcurveto" },
- {10, "callsubr" },
- {11, "return" },
- {14, "endchar" },
- {18, "hstemhm" },
- {19, "hintmask" },
- {20, "cntrmask" },
- {21, "rmoveto" },
- {22, "hmoveto" },
- {23, "vstemhm" },
- {24, "rcurveline" },
- {25, "rlinecurve" },
- {26, "vvcurveto" },
- {27, "hhcurveto" },
- {29, "callgsubr" },
- {30, "vhcurveto" },
- {31, "hvcurveto" }
- };
+         {
+             // Base set (shared codes with Type1) + Type2 only codes.
+             {1, "hstem" },
+             {3, "vstem" },
+             {4, "vmoveto" },
+             {5, "rlineto" },
+             {6, "hlineto" },
+             {7, "vlineto" },
+             {8, "rrcurveto" },
+             {10, "callsubr" },
+             {11, "return" },
+             {14, "endchar" },
+             {18, "hstemhm" },
+             {19, "hintmask" },
+             {20, "cntrmask" },
+             {21, "rmoveto" },
+             {22, "hmoveto" },
+             {23, "vstemhm" },
+             {24, "rcurveline" },
+             {25, "rlinecurve" },
+             {26, "vvcurveto" },
+             {27, "hhcurveto" },
+             {29, "callgsubr" },
+             {30, "vhcurveto" },
+             {31, "hvcurveto" }
+         };
 
         private static readonly Dictionary<int, string> Type2EscapeOperators = new Dictionary<int, string>
- {
- {34, "hflex" },
- {35, "flex" },
- {36, "hflex1" },
- {37, "flex1" }
- };
+         {
+             {34, "hflex" },
+             {35, "flex" },
+             {36, "hflex1" },
+             {37, "flex1" }
+         };
 
         /// <summary>
         /// Disassembles a raw Type1 or Type2 (CFF) charstring into a human readable sequence.

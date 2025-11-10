@@ -7,6 +7,8 @@ using PdfReader.PostScript.Tokens;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
+using System.Text;
 
 namespace PdfReader.Fonts.PsFont
 {
@@ -47,47 +49,52 @@ namespace PdfReader.Fonts.PsFont
                 throw new InvalidDataException("Invalid Length2 for Type1 font stream (spec compliance required).");
             }
 
-            var parsedDictionary = ParseFontProgram(rawData, length1, length2, file.Document.LoggerFactory);
+            var parsedDictionary = ParseFontProgram(descriptor, rawData, length1, length2, file.Document.LoggerFactory);
 
-            return Type1Interpreter.GenerateCffFontData(parsedDictionary, descriptor);
+            return Type1DictionaryToCffConverter.GenerateCffFontDataFromDictionary(parsedDictionary, descriptor);
         }
 
-        private static PostScriptDictionary ParseFontProgram(ReadOnlyMemory<byte> rawData, int length1, int length2, ILoggerFactory loggerFactory)
+        private static PostScriptDictionary ParseFontProgram(PdfFontDescriptor descriptor, ReadOnlyMemory<byte> rawData, int length1, int length2, ILoggerFactory loggerFactory)
         {
             var operandStack = new Stack<PostScriptToken>();
-
             var headerSpan = rawData.Span.Slice(0, length1);
-            var headerEvaluator = new PostScriptEvaluator(headerSpan, loggerFactory.CreateLogger<PostScriptEvaluator>());
-            headerEvaluator.SetSystemValue("FontDirectory", new PostScriptDictionary());
-            headerEvaluator.EvaluateTokens(operandStack);
 
-            var fontDict = operandStack.Pop() as PostScriptDictionary;
-            if (fontDict == null)
-            {
-                throw new InvalidDataException("Header execution did not produce a font dictionary.");
-            }
-            operandStack.Push(fontDict); // Keep font dictionary for eexec modifications.
+            var headerEvaluator = new PostScriptEvaluator(headerSpan, loggerFactory.CreateLogger<PostScriptEvaluator>());
+            var fontDirectory = new PostScriptDictionary();
+
+            headerEvaluator.SetSystemValue(PsFontDictionaryUtilities.FontDirectoryKey, fontDirectory);
+            headerEvaluator.SetSystemValue(PsFontDictionaryUtilities.StandardEncodingName, PsFontDictionaryUtilities.GetEncodingArray(PdfFontEncoding.StandardEncoding));
+            headerEvaluator.SetSystemValue(PsFontDictionaryUtilities.MacRomanEncodingName, PsFontDictionaryUtilities.GetEncodingArray(PdfFontEncoding.MacRomanEncoding));
+            headerEvaluator.SetSystemValue(PsFontDictionaryUtilities.MacExpertEncodingName, PsFontDictionaryUtilities.GetEncodingArray(PdfFontEncoding.MacExpertEncoding));
+            headerEvaluator.SetSystemValue(PsFontDictionaryUtilities.WinAnsiEncodingName, PsFontDictionaryUtilities.GetEncodingArray(PdfFontEncoding.WinAnsiEncoding));
+
+            headerEvaluator.EvaluateTokens(operandStack);
 
             var encryptedSpan = rawData.Span.Slice(length1, length2);
             var decryptedSpan = Type1Decryptor.DecryptEexecBinary(encryptedSpan);
+
             var eexecEvaluator = new PostScriptEvaluator(decryptedSpan, loggerFactory.CreateLogger<PostScriptEvaluator>());
-            eexecEvaluator.SetSystemValue("FontDirectory", new PostScriptDictionary());
+            eexecEvaluator.SetSystemValue(PsFontDictionaryUtilities.FontDirectoryKey, fontDirectory);
             eexecEvaluator.EvaluateTokens(operandStack);
 
-            // Retrieve (possibly mutated) font dictionary reference.
-            foreach (var token in operandStack)
+            PostScriptDictionary fontDictionary = null;
+
+            if (fontDirectory.Entries.TryGetValue(descriptor.FontName.ToString(), out var font))
             {
-                if (token is PostScriptDictionary d)
-                {
-                    fontDict = d;
-                    break;
-                }
+                fontDictionary = font as PostScriptDictionary;
             }
-            if (fontDict == null)
+            else
+            {
+                // fallback: take the last defined font dictionary in FontDirectory
+                fontDictionary = fontDirectory.Entries.Values.OfType<PostScriptDictionary>().LastOrDefault();
+            }
+
+            if (fontDictionary == null)
             {
                 throw new InvalidDataException("Font dictionary missing after eexec execution.");
             }
-            return fontDict;
+
+            return fontDictionary;
         }
     }
 }

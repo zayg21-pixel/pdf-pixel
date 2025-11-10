@@ -2,20 +2,10 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using PdfReader.Models;
+using PdfReader.Text;
 
 namespace PdfReader.Fonts.PsFont
 {
-    public struct Type1ConverterContext
-    {
-        public Dictionary<int, byte[]> LocalSubrs { get; set; }
-
-        public bool WasClosePath { get; set; }
-
-        public bool InFlexSequence { get; set; }
-
-        public List<int> FlexDeltas { get; set; }
-    }
-
     /// <summary>
     /// Static helper class for shallow Type1 -> Type2 CharString conversion.
     /// NOTE: This is a minimal placeholder. TODO: Implement full semantics (width handling, hsbw/sbw distinction, flex expansion, subroutine bias, hint operators, seac composition, OtherSubrs, division, real numbers).
@@ -24,42 +14,43 @@ namespace PdfReader.Fonts.PsFont
     internal static class Type1CharStringConverter
     {
         // Operator constants retained for future full conversion.
-        private const byte OpHStem = 1; // hstem (hint) – discard operands in pairs
-        private const byte OpVStem = 3; // vstem (hint) – discard operands in pairs
-        private const byte OpHsbw = 13; // hsbw (Type1 only) – TODO: distinguish from sbw
-        private const byte OpEndChar = 14;
-        private const byte OpRMoveTo = 21;
-        private const byte OpHMoveTo = 22;
+        private const byte OpHStem = 1;
+        private const byte OpVStem = 3;
+        private const byte OpHsbw = 13;
+
+        // path drawing/move operators
         private const byte OpVMoveTo = 4;
         private const byte OpRLineTo = 5;
         private const byte OpHLineTo = 6;
         private const byte OpVLineTo = 7;
         private const byte OpRRCurveTo = 8;
+        private const byte OpRMoveTo = 21;
+        private const byte OpHMoveTo = 22;
+        private const byte OpVHCurveTo = 30;
+        private const byte OpHVCurveTo = 31;
+
         private const byte OpCallSubr = 10; // Subroutine call – one operand index
         private const byte OpReturn = 11; // Return from subroutine
         private const byte OpEscape = 12;
+        private const byte OpEndChar = 14;
         private const byte OpClosePath = 9; // Type1 only (deprecated)
-        private const byte OpRCurveLine = 24; // rcurveline
-        private const byte OpRLineCurve = 25; // rlinecurve
-        private const byte OpVVCurveTo = 26; // vvcurveto
-        private const byte OpHHCurveTo = 27; // hhcurveto
-        private const byte OpVHCurveTo = 30; // vhcurveto
-        private const byte OpHVCurveTo = 31; // hvcurveto
-        private const byte EscDiv = 12;
         private const byte EscSbw = 7;
+        private const byte EscSeac = 6;
+        private const byte EscDiv = 12;
         private const byte EscCallOtherSubr = 16; // callothersubr, the only handled escape operator (flex). seac currently unsupported (TODO remains in summary)
 
         /// <summary>
         /// Convert all Type1 charstrings and flatten local subroutines (inlines their content). Skips hints.
         /// </summary>
-        public static Dictionary<PdfString, byte[]> ConvertAllCharStringsToType2Flatten(Dictionary<PdfString, byte[]> source, Type1ConverterContext context)
+        public static Dictionary<PdfString, byte[]> ConvertAllCharStringsToType2Flatten(Type1ConverterContext context)
         {
-            var result = new Dictionary<PdfString, byte[]>(source.Count);
-            foreach (var kv in source)
+            var result = new Dictionary<PdfString, byte[]>(context.Source.Count);
+            foreach (var kv in context.Source)
             {
                 var oldValue = kv.Value;
                 var newValue = FlattenCharString(oldValue, context);
                 result[kv.Key] = newValue;
+
             }
             return result;
         }
@@ -71,7 +62,7 @@ namespace PdfReader.Fonts.PsFont
                 return Array.Empty<byte>();
             }
             var output = new MemoryStream(root.Length + 32);
-            var operandStack = new List<int>(32);
+            var operandStack = new List<Type1CharStringNumber>(32);
             ProcessCharString(root, ref context, output, operandStack);
 
             return output.ToArray();
@@ -80,7 +71,7 @@ namespace PdfReader.Fonts.PsFont
         /// <summary>
         /// Recursive processor that inlines subroutines while preserving operand stack semantics.
         /// </summary>
-        private static void ProcessCharString(byte[] data, ref Type1ConverterContext context, MemoryStream output, List<int> operandStack)
+        private static void ProcessCharString(byte[] data, ref Type1ConverterContext context, MemoryStream output, List<Type1CharStringNumber> operandStack)
         {
             for (int i = 0; i < data.Length; i++)
             {
@@ -89,7 +80,7 @@ namespace PdfReader.Fonts.PsFont
                 // Number decoding
                 if (b >= 32 && b <= 246)
                 {
-                    operandStack.Add(b - 139);
+                    operandStack.Add(new Type1CharStringNumber(b - 139));
                     continue;
                 }
                 if (b >= 247 && b <= 250)
@@ -99,7 +90,7 @@ namespace PdfReader.Fonts.PsFont
                         break;
                     }
                     int b1 = data[++i];
-                    operandStack.Add((b - 247) * 256 + b1 + 108);
+                    operandStack.Add(new Type1CharStringNumber((b - 247) * 256 + b1 + 108));
                     continue;
                 }
                 if (b >= 251 && b <= 254)
@@ -109,7 +100,7 @@ namespace PdfReader.Fonts.PsFont
                         break;
                     }
                     int b1 = data[++i];
-                    operandStack.Add(-(b - 251) * 256 - b1 - 108);
+                    operandStack.Add(new Type1CharStringNumber(-(b - 251) * 256 - b1 - 108));
                     continue;
                 }
                 if (b == 255)
@@ -120,7 +111,7 @@ namespace PdfReader.Fonts.PsFont
                     }
                     int value = (data[i + 1] << 24) | (data[i + 2] << 16) | (data[i + 3] << 8) | data[i + 4];
                     i += 4;
-                    operandStack.Add(value);
+                    operandStack.Add(new Type1CharStringNumber(value));
                     continue;
                 }
 
@@ -136,13 +127,6 @@ namespace PdfReader.Fonts.PsFont
                     continue;
                 }
 
-                // Hint operators – discard operands (pairs) & do not output
-                if (b == OpHStem || b == OpVStem)
-                {
-                    operandStack.Clear();
-                    continue;
-                }
-
                 // ClosePath (Type1 only) – ignore
                 if (b == OpClosePath)
                 {
@@ -153,10 +137,15 @@ namespace PdfReader.Fonts.PsFont
                 // hsbw: first operator; sets sidebearing and width (sbx, wx). Convert to width + hmoveto sequence.
                 if (b == OpHsbw)
                 {
-                    int sbx = operandStack[operandStack.Count - 2];
-                    // int wx = operandStack[operandStack.Count - 1]; // ignored for now
+                    var sbx = operandStack[operandStack.Count - 2];
+                    var wx = operandStack[operandStack.Count - 1];
                     WriteNumber(output, sbx);
+                    UpdateCoordinates(ref context, OpHMoveTo, new List<Type1CharStringNumber> { sbx });
                     output.WriteByte(OpHMoveTo);
+
+                    context.SideBearingX = sbx.GetAsDouble();
+                    context.WidthX = wx.GetAsDouble();
+
                     operandStack.Clear();
                     continue;
                 }
@@ -164,7 +153,7 @@ namespace PdfReader.Fonts.PsFont
                 // Subroutine handling
                 if (b == OpCallSubr)
                 {
-                    int subrIndex = operandStack.Count > 0 ? operandStack[operandStack.Count - 1] : -1;
+                    int subrIndex = operandStack.Count > 0 ? operandStack[operandStack.Count - 1].Value1 : -1;
                     if (operandStack.Count > 0)
                     {
                         operandStack.RemoveAt(operandStack.Count - 1);
@@ -183,6 +172,11 @@ namespace PdfReader.Fonts.PsFont
                 }
                 if (b == OpEndChar)
                 {
+                    if (context.SkipEndChar)
+                    {
+                        return;
+                    }
+
                     output.WriteByte(OpEndChar);
                     return;
                 }
@@ -199,7 +193,9 @@ namespace PdfReader.Fonts.PsFont
                         }
                         else
                         {
-                            foreach (int v in operandStack)
+                            UpdateCoordinates(ref context, b, operandStack);
+
+                            foreach (var v in operandStack)
                             {
                                 WriteNumber(output, v);
                             }
@@ -210,20 +206,21 @@ namespace PdfReader.Fonts.PsFont
 
                         break;
                     }
+                    case OpHStem:
+                    case OpVStem:
                     case OpHMoveTo:
                     case OpVMoveTo:
                     case OpRLineTo:
                     case OpHLineTo:
                     case OpVLineTo:
                     case OpRRCurveTo:
-                    case OpRCurveLine:
-                    case OpRLineCurve:
-                    case OpVVCurveTo:
-                    case OpHHCurveTo:
                     case OpVHCurveTo:
                     case OpHVCurveTo:
                     {
-                        foreach (int v in operandStack)
+
+                        UpdateCoordinates(ref context, b, operandStack);
+
+                        foreach (var v in operandStack)
                         {
                             WriteNumber(output, v);
                         }
@@ -242,34 +239,79 @@ namespace PdfReader.Fonts.PsFont
             }
         }
 
-        private static void HandleEscapeSequence(ref Type1ConverterContext context, MemoryStream output, List<int> operandStack, byte esc)
+        private static void HandleEscapeSequence(ref Type1ConverterContext context, MemoryStream output, List<Type1CharStringNumber> operandStack, byte esc)
         {
             switch (esc)
             {
                 case EscDiv:
                 {
-                    foreach (int v in operandStack)
-                    {
-                        WriteNumber(output, v);
-                    }
+                    var v1 = operandStack[operandStack.Count - 2];
+                    var v2 = operandStack[operandStack.Count - 1];
 
-                    operandStack.Clear();
+                    operandStack.RemoveAt(operandStack.Count - 1);
+                    operandStack.RemoveAt(operandStack.Count - 1);
+                    
+                    v1.SetSecondValue(v2.Value1, ValueOperation.Div);
+                    operandStack.Add(v1);
 
-                    output.WriteByte(OpEscape);
-                    output.WriteByte(EscDiv);
                     break;
                 }
                 case EscSbw:
                 {
-                    int sbx = operandStack[operandStack.Count - 4];
-                    int sby = operandStack[operandStack.Count - 3];
-                    // int swx = operandStack[operandStack.Count - 2]; next 2 operands are wx, wy – ignored in Type2 conversion, but we can use them for metrics
-                    // int swy = operandStack[operandStack.Count - 1];
+                    var sbx = operandStack[operandStack.Count - 4];
+                    var sby = operandStack[operandStack.Count - 3];
+                    var swx = operandStack[operandStack.Count - 2];
+                    var swy = operandStack[operandStack.Count - 1];
+
+                    context.SideBearingX = sbx.GetAsDouble();
+                    context.SideBearingY = sby.GetAsDouble();
+                    context.WidthX = swx.GetAsDouble();
+                    context.WidthY = swy.GetAsDouble();
+
                     WriteNumber(output, sbx);
                     WriteNumber(output, sby);
+
+                    UpdateCoordinates(ref context, OpRMoveTo, new List<Type1CharStringNumber> { sbx, sby });
                     output.WriteByte(OpRMoveTo);
 
                     operandStack.Clear();
+                    break;
+                }
+                case EscSeac:
+                {
+                    // asb adx ady bchar achar seac
+                    // a - accent, b - base character
+                    var asb = operandStack[operandStack.Count - 5];
+                    var adx = operandStack[operandStack.Count - 4];
+                    var ady = operandStack[operandStack.Count - 3];
+                    var bchar = operandStack[operandStack.Count - 2];
+                    var achar = operandStack[operandStack.Count - 1];
+                    operandStack.Clear();
+
+                    var standardEncoding = SingleByteEncodings.GetEncodingSet(Types.PdfFontEncoding.StandardEncoding);
+
+                    var nameA = standardEncoding[achar.Value1];
+                    var nameB = standardEncoding[bchar.Value1];
+                    var aBytes = context.Source[nameA];
+                    var bBytes = context.Source[nameB];
+
+                    // Base character first
+                    context.SkipEndChar = true;
+                    ProcessCharString(bBytes, ref context, output, operandStack);
+                    context.SkipEndChar = false;
+
+                    // Move to default position for accent
+                    double x = -context.X + context.SideBearingX + adx.GetAsDouble() - asb.GetAsDouble();
+                    double y = -context.Y + context.SideBearingY + ady.GetAsDouble();
+                    var type1X = Type1CharStringNumber.FromDouble(x);
+                    var type1Y = Type1CharStringNumber.FromDouble(y);
+                    WriteNumber(output, type1X);
+                    WriteNumber(output, type1Y);
+                    UpdateCoordinates(ref context, OpRMoveTo, new List<Type1CharStringNumber> { type1X, type1Y });
+                    output.WriteByte(OpRMoveTo);
+
+                    ProcessCharString(aBytes, ref context, output, operandStack);
+
                     break;
                 }
                 case EscCallOtherSubr:
@@ -278,7 +320,7 @@ namespace PdfReader.Fonts.PsFont
                     {
                         break;
                     }
-                    var index = operandStack[operandStack.Count - 1];
+                    var index = operandStack[operandStack.Count - 1].Value1;
 
                     switch (index)
                     {
@@ -293,7 +335,7 @@ namespace PdfReader.Fonts.PsFont
                             {
                                 if (context.FlexDeltas == null)
                                 {
-                                    context.FlexDeltas = new List<int>();
+                                    context.FlexDeltas = new List<Type1CharStringNumber>();
                                 }
 
                                 context.FlexDeltas.Add(operandStack[d]);
@@ -306,7 +348,9 @@ namespace PdfReader.Fonts.PsFont
                         {
                             if (context.FlexDeltas != null)
                             {
-                                foreach (int item in context.FlexDeltas)
+                                UpdateCoordinates(ref context, OpRRCurveTo, context.FlexDeltas);
+
+                                foreach (var item in context.FlexDeltas)
                                 {
                                     WriteNumber(output, item);
                                 }
@@ -334,6 +378,68 @@ namespace PdfReader.Fonts.PsFont
             }
         }
 
+        private static void UpdateCoordinates(ref Type1ConverterContext context, int code, List<Type1CharStringNumber> operandStack)
+        {
+            switch (code)
+            {
+                case OpHMoveTo:
+                case OpHLineTo:
+                    foreach (Type1CharStringNumber value in operandStack)
+                    {
+                        context.X += value.GetAsDouble();
+                    }
+                    break;
+                case OpVMoveTo:
+                case OpVLineTo:
+                    foreach (Type1CharStringNumber value in operandStack)
+                    {
+                        context.Y += value.GetAsDouble();
+                    }
+                    break;
+                case OpRMoveTo:
+                case OpRLineTo:
+                case OpRRCurveTo:
+                    for (int i = 0; i < operandStack.Count; i++)
+                    {
+                        if (i % 2 == 0)
+                        {
+                            context.X += operandStack[i].GetAsDouble();
+                        }
+                        else
+                        {
+                            context.Y += operandStack[i].GetAsDouble();
+                        }
+                    }
+                    break;
+                case OpVHCurveTo:
+                    for (int i = 0; i < operandStack.Count; i++)
+                    {
+                        if (i % 2 == 0)
+                        {
+                            context.Y += operandStack[i].GetAsDouble();
+                        }
+                        else
+                        {
+                            context.X += operandStack[i].GetAsDouble();
+                        }
+                    }
+                    break;
+                case OpHVCurveTo:
+                    for (int i = 0; i < operandStack.Count; i++)
+                    {
+                        if ((i / 2) % 2 == 0)
+                        {
+                            context.X += operandStack[i].GetAsDouble();
+                        }
+                        else
+                        {
+                            context.Y += operandStack[i].GetAsDouble();
+                        }
+                    }
+                    break;
+            }
+        }
+
         /// <summary>
         /// Encode a single integer using Type2 (CFF) CharString number encoding.
         /// Uses compact 1- or 2-byte encodings when possible.
@@ -341,57 +447,23 @@ namespace PdfReader.Fonts.PsFont
         /// outside of the quick ranges, and longint (255 + 4 bytes) otherwise.
         /// NOTE: Type1 does not have the 28 or 255 forms; this method intentionally emits Type2 encodings.
         /// </summary>
-        private static void WriteNumber(Stream s, int value)
+        private static void WriteNumber(Stream s, Type1CharStringNumber value)
         {
-            // 1-byte encoding: -107 .. 107
-            if (value >= -107 && value <= 107)
+            PsNumberConverter.EncodeCharStringNumber(s, value.Value1);
+            if (value.HasSecondValue)
             {
-                s.WriteByte((byte)(value + 139));
-                return;
-            }
-
-            // 2-byte positive: 108 .. 1131
-            if (value >= 108 && value <= 1131)
-            {
-                int v = value - 108;
-                byte b1 = (byte)(v / 256);
-                byte b2 = (byte)(v % 256);
-                s.WriteByte((byte)(247 + b1));
-                s.WriteByte(b2);
-                return;
-            }
-
-            // 2-byte negative: -1131 .. -108
-            if (value >= -1131 && value <= -108)
-            {
-                int v = -value - 108;
-                byte b1 = (byte)(v / 256);
-                byte b2 = (byte)(v % 256);
-                s.WriteByte((byte)(251 + b1));
-                s.WriteByte(b2);
-                return;
-            }
-
-            // ShortInt (Type2 only): -32768 .. 32767 excluding ranges already handled above.
-            if (value >= -32768 && value <= 32767)
-            {
-                s.WriteByte(28); // shortint marker
-                unchecked
+                if (value.Operation == ValueOperation.Div)
                 {
-                    s.WriteByte((byte)((value >> 8) & 0xFF));
-                    s.WriteByte((byte)(value & 0xFF));
+                    // Division requires special handling – emit div operator after the two numbers.
+                    PsNumberConverter.EncodeCharStringNumber(s, value.Value2);
+                    s.WriteByte(OpEscape);
+                    s.WriteByte(EscDiv);
+                    return;
                 }
-                return;
-            }
-
-            // LongInt (Type2 only): 255 + 4 bytes big-endian two's complement
-            s.WriteByte(255);
-            unchecked
-            {
-                s.WriteByte((byte)((value >> 24) & 0xFF));
-                s.WriteByte((byte)((value >> 16) & 0xFF));
-                s.WriteByte((byte)((value >> 8) & 0xFF));
-                s.WriteByte((byte)(value & 0xFF));
+                else
+                {
+                    throw new NotSupportedException("Unsupported second value operation in Type1 to Type2 CharString conversion.");
+                }
             }
         }
     }
