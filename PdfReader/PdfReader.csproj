@@ -9,6 +9,7 @@
 
   <ItemGroup>
     <None Remove="Resources\AnsiEncodings.bin" />
+    <None Remove="Resources\CompactCmyk.icc" />
     <None Remove="Resources\ExpertStrings.bin" />
     <None Remove="Resources\ExpertSubsetStrings.bin" />
     <None Remove="Resources\IsoAdobeStrings.bin" />
@@ -41,6 +42,7 @@
     <EmbeddedResource Include="Resources\AnsiEncodings.bin">
       <CopyToOutputDirectory>Never</CopyToOutputDirectory>
     </EmbeddedResource>
+    <EmbeddedResource Include="Resources\CompactCmyk.icc" />
     <EmbeddedResource Include="Resources\ExpertStrings.bin" />
     <EmbeddedResource Include="Resources\ExpertSubsetStrings.bin" />
     <EmbeddedResource Include="Resources\IsoAdobeStrings.bin" />

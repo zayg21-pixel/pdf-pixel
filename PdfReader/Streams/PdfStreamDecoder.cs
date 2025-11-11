@@ -80,8 +80,8 @@ namespace PdfReader.Streams
                     }
                     case PdfFilterType.ASCII85Decode:
                     {
-                        _logger.LogWarning("PdfStreamDecoder: TODO implement ASCII85Decode; stopping further filter decoding.");
-                        return current; // TODO implement ASCII85Decode; stopping further filter decoding.
+                        current = new Ascii85DecodeStream(current, leaveOpen: false);
+                        break;
                     }
                     case PdfFilterType.LZWDecode:
                     {

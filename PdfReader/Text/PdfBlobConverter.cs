@@ -2,7 +2,6 @@
 using System;
 using System.Buffers.Binary;
 using System.Collections.Generic;
-using System.IO;
 using System.Text;
 
 namespace PdfReader.Text
@@ -12,22 +11,6 @@ namespace PdfReader.Text
     /// </summary>
     public static class PdfTextResourceConverter
     {
-        public static byte[] ReadFromResource(string resourceName)
-        {
-            var assembly = typeof(PdfTextResourceConverter).Assembly;
-            // Open the resource stream
-            using Stream stream = assembly.GetManifestResourceStream($"PdfReader.Resources.{resourceName}");
-
-            if (stream == null)
-            {
-                throw new FileNotFoundException("Resource not found.");
-            }
-
-            using var memoryStream = new MemoryStream();
-            stream.CopyTo(memoryStream);
-            return memoryStream.ToArray();
-        }
-
         /// <summary>
         /// Generates a binary blob representing the <see cref="CharacterMap"/> contents.
         /// </summary>

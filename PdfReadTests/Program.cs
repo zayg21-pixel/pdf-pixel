@@ -46,7 +46,7 @@ namespace PdfReadTests
                 //"pdfs//blendmode.pdf",
                 //"pdfs//calgray.pdf",
                 //"pdfs//calrgb.pdf",
-                //"pdfs//cmykjpeg.pdf",
+                "pdfs//cmykjpeg.pdf",
                 //"pdfs//IndexedCS_negative_and_high.pdf",
                 //"pdfs//tiling-pattern-box.pdf",
                 //"pdfs//gradientfill.pdf",
@@ -58,15 +58,17 @@ namespace PdfReadTests
                 //"pdfs//806-5413-10.pdf",
                 //"pdfs//1208.0264v4_ed.pdf",
                 //"pdfs//1405.2785v3.pdf",
+                //"pdfs//5091.Design_MM_Fonts.pdf",
+                "pdfs//2009science11_12.pdf",
                 //"PDF32000_2008.pdf",
                 //"ch14.pdf"
                 //@"documentS.pdf",
-                @"documentC.pdf",
-                @"sample.pdf",
-                "Adyen.pdf",
-                "Adyen 2023.pdf",
-                "adyen_2020.pdf",
-                "adyen_2020_debug.pdf",
+                //@"documentC.pdf",
+                //@"sample.pdf",
+                //"Adyen.pdf",
+                //"Adyen 2023.pdf",
+                //"adyen_2020.pdf",
+                //"adyen_2020_debug.pdf",
                 //"pdfs\\emojies.pdf",
                 //"documentEd.pdf",
                 //@"document_1.pdf"
@@ -105,7 +107,7 @@ namespace PdfReadTests
                 
                 var reader = new PdfDocumentReader(LoggerFactoryInstance);
                 using var file = File.OpenRead(filename);
-                using var document = reader.Read(file, "test");
+                using var document = reader.Read(file);
 
                 Logger.LogInformation("Successfully read PDF: {File}", filename);
                 Logger.LogInformation("Total pages: {Count}", document.PageCount);
@@ -114,7 +116,7 @@ namespace PdfReadTests
 
                 var start = 0;
                 var max = 1000;
-                float scaleX = 2f; // Scale factor for rendering
+                float scaleX = 3f; // Scale factor for rendering
 
                 // Analyze pages with detailed content stream debugging
                 for (int i = start; i < Math.Min(max, document.PageCount); i++)

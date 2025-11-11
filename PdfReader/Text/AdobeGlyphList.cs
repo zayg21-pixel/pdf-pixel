@@ -1,4 +1,5 @@
 ﻿using PdfReader.Models;
+using PdfReader.Resources;
 using System.Collections.Generic;
 
 namespace PdfReader.Text
@@ -7,7 +8,7 @@ namespace PdfReader.Text
     {
         static AdobeGlyphList()
         {
-            var aglData = PdfTextResourceConverter.ReadFromResource("Agl.bin");
+            var aglData = PdfResourceLoader.GetResource("Agl.bin");
             CharacterMap = PdfTextResourceConverter.ReadFromCharacterMapBlob(aglData);
         }
 

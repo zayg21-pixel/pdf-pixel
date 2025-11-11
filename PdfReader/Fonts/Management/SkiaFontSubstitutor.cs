@@ -93,6 +93,15 @@ namespace PdfReader.Fonts.Management
                 }
             }
 
+            // Stage 3: fallback to default with style
+            var defaultWithParameters = SKTypeface.FromFamilyName(default, style);
+
+            if (defaultWithParameters != null)
+            {
+                return defaultWithParameters;
+            }
+
+            // Final fallback: default typeface
             return SKTypeface.Default;
         }
 

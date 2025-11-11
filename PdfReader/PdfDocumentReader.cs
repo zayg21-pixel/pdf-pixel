@@ -66,7 +66,7 @@ namespace PdfReader
             {
                 xrefLoader.LoadXref();
 
-                document.Decryptor?.UpdatePassword(password);
+                document.Decryptor?.UpdatePassword(password ?? string.Empty);
 
                 pageExtractor.ExtractPages();
                 outputIntentParser.ParseFirstOutputIntentProfile();

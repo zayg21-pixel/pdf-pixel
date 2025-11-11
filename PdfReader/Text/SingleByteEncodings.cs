@@ -1,5 +1,6 @@
 using PdfReader.Fonts.Types;
 using PdfReader.Models;
+using PdfReader.Resources;
 using System.Collections.Generic;
 
 namespace PdfReader.Text
@@ -14,16 +15,16 @@ namespace PdfReader.Text
 
         static SingleByteEncodings()
         {
-            var standardData = PdfTextResourceConverter.ReadFromResource("StandardEncodings.bin");
+            var standardData = PdfResourceLoader.GetResource("StandardEncodings.bin");
             standard = PdfTextResourceConverter.FromPdfStringBlob(standardData);
 
-            var ansiData = PdfTextResourceConverter.ReadFromResource("AnsiEncodings.bin");
+            var ansiData = PdfResourceLoader.GetResource("AnsiEncodings.bin");
             ansi = PdfTextResourceConverter.FromPdfStringBlob(ansiData);
 
-            var macRomanData = PdfTextResourceConverter.ReadFromResource("MacRomanEncodings.bin");
+            var macRomanData = PdfResourceLoader.GetResource("MacRomanEncodings.bin");
             macRoman = PdfTextResourceConverter.FromPdfStringBlob(macRomanData);
 
-            var macExpertData = PdfTextResourceConverter.ReadFromResource("MacExpertEncodings.bin");
+            var macExpertData = PdfResourceLoader.GetResource("MacExpertEncodings.bin");
             macExpert = PdfTextResourceConverter.FromPdfStringBlob(macExpertData);
         }
 

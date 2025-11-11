@@ -1,3 +1,4 @@
+using System;
 using System.Numerics;
 using System.Runtime.CompilerServices;
 using PdfReader.Models;
@@ -65,17 +66,7 @@ namespace PdfReader.Icc
                 return table[lastIndex];
             }
 
-            // Nearest sample (no interpolation). Rounded to closest index.
-            float scaledNearest = normalized * lastIndex + 0.5f;
-            int nearestIndex = (int)scaledNearest;
-            if (nearestIndex > lastIndex)
-            {
-                nearestIndex = lastIndex; // Safety in case of rounding overshoot.
-            }
-            return table[nearestIndex];
 
-            // Linear interpolation between two nearest samples, a bit overkill, but left here for reference, don't remove.
-            /*
             float position = normalized * lastIndex;
             int index0 = (int)Math.Floor(position);
             int index1 = index0 + 1;
@@ -84,7 +75,7 @@ namespace PdfReader.Icc
             float v0 = table[index0];
             float v1 = table[index1];
 
-            return v0 + (v1 - v0) * fraction;*/
+            return v0 + (v1 - v0) * fraction;
         }
 
         /// <summary>

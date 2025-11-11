@@ -1,6 +1,6 @@
 using PdfReader.Models;
+using PdfReader.Resources;
 using PdfReader.Text;
-using System.IO;
 
 namespace PdfReader.Fonts.Cff
 {
@@ -8,16 +8,16 @@ namespace PdfReader.Fonts.Cff
     {
         static CffData()
         {
-            var standardStringsData = PdfTextResourceConverter.ReadFromResource("StandardStrings.bin");
+            var standardStringsData = PdfResourceLoader.GetResource("StandardStrings.bin");
             StandardStrings = PdfTextResourceConverter.FromPdfStringBlob(standardStringsData);
 
-            var isoAdobeStringsData = PdfTextResourceConverter.ReadFromResource("IsoAdobeStrings.bin");
+            var isoAdobeStringsData = PdfResourceLoader.GetResource("IsoAdobeStrings.bin");
             IsoAdobeStrings = PdfTextResourceConverter.FromPdfStringBlob(isoAdobeStringsData);
 
-            var expertStringsData = PdfTextResourceConverter.ReadFromResource("ExpertStrings.bin");
+            var expertStringsData = PdfResourceLoader.GetResource("ExpertStrings.bin");
             ExpertStrings = PdfTextResourceConverter.FromPdfStringBlob(expertStringsData);
 
-            var expertSubsetStringsData = PdfTextResourceConverter.ReadFromResource("ExpertSubsetStrings.bin");
+            var expertSubsetStringsData = PdfResourceLoader.GetResource("ExpertSubsetStrings.bin");
             ExpertSubsetStrings = PdfTextResourceConverter.FromPdfStringBlob(expertSubsetStringsData);
         }
 

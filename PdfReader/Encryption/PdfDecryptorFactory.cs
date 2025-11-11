@@ -13,6 +13,7 @@ namespace PdfReader.Encryption
             {
                 return null;
             }
+
             // Only handle legacy revisions for now
             if (parameters.R <= 2)
             {

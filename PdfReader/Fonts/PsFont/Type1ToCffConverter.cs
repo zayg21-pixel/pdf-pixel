@@ -1,5 +1,4 @@
 using Microsoft.Extensions.Logging;
-using PdfReader.Fonts.Cff;
 using PdfReader.Fonts.Types;
 using PdfReader.Models;
 using PdfReader.PostScript;
@@ -8,18 +7,11 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Text;
 
 namespace PdfReader.Fonts.PsFont
 {
     internal static class Type1ToCffConverter
     {
-        /// <summary>
-        /// Construct extractor for a spec-compliant embedded Type1 font stream.
-        /// </summary>
-        /// <param name="fontFile">PDF font stream object.</param>
-        /// <param name="loggerFactory">Logger factory.</param>
-        /// <exception cref="InvalidDataException">Thrown on invalid or unsupported font stream.</exception>
         public static byte[] GetCffFont(PdfFontDescriptor descriptor)
         {
             var file = descriptor.FontFileObject;
