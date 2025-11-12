@@ -65,7 +65,7 @@ namespace PdfReader.Rendering.Functions
                 return null;
             }
 
-            var evaulator = new PostScriptEvaluator(streamData.Span, functionObject.Document.LoggerFactory.CreateLogger<PostScriptEvaluator>());
+            var evaulator = new PostScriptEvaluator(streamData.Span, appendExec: true, functionObject.Document.LoggerFactory.CreateLogger<PostScriptEvaluator>());
             return new PostScriptPdfFunction(evaulator, domain, range);
         }
 
@@ -87,7 +87,7 @@ namespace PdfReader.Rendering.Functions
             var stack = new Stack<PostScriptToken>();
 
             // Clamp and push input parameters to domain
-            for (int inputIndex = values.Length - 1; inputIndex >= 0; inputIndex--)
+            for (int inputIndex = 0; inputIndex < values.Length; inputIndex++)
             {
                 float inputValue = values[inputIndex];
                 float clampedValue = Clamp(inputValue, _domain, inputIndex);

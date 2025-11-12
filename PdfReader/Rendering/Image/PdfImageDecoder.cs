@@ -21,7 +21,7 @@ namespace PdfReader.Rendering.Image
 
         protected ILoggerFactory LoggerFactory { get; }
 
-        public virtual bool HasDecodeParams => Image.DecodeParms != null && Image.DecodeParms.Count > 0 && (Image.DecodeParms[0].Predictor ?? 1) > 1;
+        public bool IsColorConverted => PdfImageRowProcessor.ShouldConvertColor(Image);
 
         /// <summary>
         /// Factory: create an appropriate image decoder for the given <see cref="PdfImage"/> based on its <see cref="PdfImage.Type"/>.

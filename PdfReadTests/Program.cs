@@ -30,6 +30,7 @@ namespace PdfReadTests
                 //"pdfs//LATTICE1.pdf",
                 //"pdfs//inks.pdf",
                 //"pdfs//canvas.pdf",
+                "pdfs//personwithdog.pdf",
                 //"pdfs//alphatrans.pdf",
                 //"pdfs//ArabicCIDTrueType.pdf",
                 //"pdfs//asciihexdecode.pdf",
@@ -46,7 +47,8 @@ namespace PdfReadTests
                 //"pdfs//blendmode.pdf",
                 //"pdfs//calgray.pdf",
                 //"pdfs//calrgb.pdf",
-                "pdfs//cmykjpeg.pdf",
+                //"pdfs//colorspace_cos.pdf",
+                //"pdfs//cmykjpeg.pdf",
                 //"pdfs//IndexedCS_negative_and_high.pdf",
                 //"pdfs//tiling-pattern-box.pdf",
                 //"pdfs//gradientfill.pdf",
@@ -59,7 +61,7 @@ namespace PdfReadTests
                 //"pdfs//1208.0264v4_ed.pdf",
                 //"pdfs//1405.2785v3.pdf",
                 //"pdfs//5091.Design_MM_Fonts.pdf",
-                "pdfs//2009science11_12.pdf",
+                //"pdfs//2009science11_12.pdf",
                 //"PDF32000_2008.pdf",
                 //"ch14.pdf"
                 //@"documentS.pdf",
@@ -114,9 +116,9 @@ namespace PdfReadTests
                 Logger.LogInformation("Actual pages found: {Count}", document.Pages.Count);
                 Logger.LogInformation("Root object: {Root}", document.RootObject);
 
-                var start = 0;
+                var start = 1;
                 var max = 1000;
-                float scaleX = 3f; // Scale factor for rendering
+                float scaleX = 4f; // Scale factor for rendering
 
                 // Analyze pages with detailed content stream debugging
                 for (int i = start; i < Math.Min(max, document.PageCount); i++)

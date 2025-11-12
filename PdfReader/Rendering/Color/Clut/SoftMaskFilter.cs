@@ -13,51 +13,58 @@ namespace PdfReader.Rendering.Color.Clut
         /// The filter maps each component to alpha values according to the PDF /Mask specification.
         /// </summary>
         /// <param name="maskRanges">The mask array, where each consecutive pair [min, max] defines a range of sample values to be made transparent for each component. Supports grayscale (2 values) and RGB (6 values). Returns null for other cases.</param>
+        /// <param name="upsample">If true - mask value will be up-sampled to match normalized color components.</param>
         /// <param name="bitsPerComponent">The number of bits per component in the image. Used to normalize mask and pixel values to 0–255.</param>
         /// <returns>
         /// An <see cref="SKColorFilter"/> that sets alpha to 0.0 if all input components are in their mask range, otherwise 1.0. Returns null if maskRanges is not for grayscale or RGB.
         /// </returns>
         /// <exception cref="ArgumentNullException">Thrown if <paramref name="maskRanges"/> is null.</exception>
-        public static SKColorFilter BuildMaskColorFilter(int[] maskRanges, int bitsPerComponent)
+        public static SKColorFilter BuildMaskColorFilter(int[] maskRanges, bool upsample, int bitsPerComponent)
         {
             if (maskRanges == null)
             {
                 throw new ArgumentNullException(nameof(maskRanges));
             }
+
             if (bitsPerComponent < 1 || bitsPerComponent > 16)
             {
                 // Arbitrary upper bound for sanity; PDF spec allows up to 16
                 return null;
             }
 
+            if (!upsample && bitsPerComponent >= 16)
+            {
+                // Only supporting 8 and less when not upsampling
+                return null;
+            }
+
             int maxSampleValue = (1 << bitsPerComponent) - 1;
 
-            byte[,] maskLut = new byte[3, 256];
+            // Use 1D array: [R0..R255, G0..G255, B0..B255]
+            byte[] maskLut = new byte[256 * 3];
             if (maskRanges.Length == 2)
             {
-                // Grayscale: fill all three rows with the same mask
                 int min = maskRanges[0];
                 int max = maskRanges[1];
                 for (int value = 0; value < 256; value++)
                 {
-                    int sampleValue = (int)Math.Round((double)value * maxSampleValue / 255.0);
+                    int sampleValue = upsample ? (int)Math.Round((double)value * maxSampleValue / 255.0) : value;
                     byte maskValue = (byte)((sampleValue >= min && sampleValue <= max) ? 0 : 255);
-                    maskLut[0, value] = maskValue;
-                    maskLut[1, value] = maskValue;
-                    maskLut[2, value] = maskValue;
+                    maskLut[value] = maskValue; // R
+                    maskLut[256 + value] = maskValue; // G
+                    maskLut[512 + value] = maskValue; // B
                 }
             }
             else if (maskRanges.Length == 6)
             {
-                // RGB: fill each row with its own mask
                 for (int component = 0; component < 3; component++)
                 {
                     int min = maskRanges[component * 2];
                     int max = maskRanges[component * 2 + 1];
                     for (int value = 0; value < 256; value++)
                     {
-                        int sampleValue = (int)Math.Round((double)value * maxSampleValue / 255.0);
-                        maskLut[component, value] = (byte)((sampleValue >= min && sampleValue <= max) ? 0 : 255);
+                        int sampleValue = upsample ? (int)Math.Round((double)value * maxSampleValue / 255.0) : value;
+                        maskLut[component * 256 + value] = (byte)((sampleValue >= min && sampleValue <= max) ? 0 : 255);
                     }
                 }
             }
@@ -68,13 +75,7 @@ namespace PdfReader.Rendering.Color.Clut
             }
 
             using var maskBitmap = new SKBitmap(256, 3, SKColorType.Alpha8, SKAlphaType.Premul);
-            for (int y = 0; y < 3; y++)
-            {
-                for (int x = 0; x < 256; x++)
-                {
-                    maskBitmap.SetPixel(x, y, new SKColor(0, 0, 0, maskLut[y, x]));
-                }
-            }
+            System.Runtime.InteropServices.Marshal.Copy(maskLut, 0, maskBitmap.GetPixels(), maskLut.Length);
 
             string shaderSource = @"
                 uniform shader maskLut;

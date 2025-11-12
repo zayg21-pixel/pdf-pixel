@@ -123,7 +123,8 @@ namespace PdfReader.PostScript
         {
             Ensure(stack, 1);
             float value = PopOfType<PostScriptNumber>(stack).Value;
-            stack.Push(new PostScriptNumber(operation(value)));
+            float result = operation(value);
+            stack.Push(new PostScriptNumber(result));
         }
     }
 }

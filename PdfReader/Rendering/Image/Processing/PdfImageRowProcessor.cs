@@ -4,6 +4,8 @@ using Microsoft.Extensions.Logging;
 using SkiaSharp;
 using PdfReader.Rendering.Color;
 using System.Runtime.CompilerServices;
+using PdfReader.Models;
+using PdfReader.Rendering.Color.Clut;
 
 namespace PdfReader.Rendering.Image.Processing
 {
@@ -15,7 +17,8 @@ namespace PdfReader.Rendering.Image.Processing
         private enum OutputMode
         {
             Gray,
-            Rgba
+            Rgba,
+            RgbaColorApplied
         }
 
         private readonly PdfImage _image;
@@ -56,42 +59,61 @@ namespace PdfReader.Rendering.Image.Processing
             }
 
             _components = _converter.Components;
-            if (_components != 1 && _components != 3 && _components != 4)
+
+
+            if (ShouldConvertColor(_image))
             {
-                throw new NotSupportedException("Unsupported component count. Expected 1, 3 or 4.");
+                _outputMode = OutputMode.RgbaColorApplied;
             }
-
-            _outputMode = (_components == 1 || _bitsPerComponent == 16) ? OutputMode.Gray : OutputMode.Rgba;
-
-            switch (_outputMode)
+            else
             {
-                case OutputMode.Gray:
+                _outputMode = (_components == 1 || _bitsPerComponent == 16) ? OutputMode.Gray : OutputMode.Rgba;
+
+                switch (_outputMode)
                 {
-                    bool upscale = _converter is not IndexedConverter;
-                    _grayRowDecoder = GrayRowDecoderFactory.Create(_width, _bitsPerComponent, upscale);
-                    break;
-                }
-                case OutputMode.Rgba:
-                {
-                    _rgbaRowDecoder = RgbaRowDecoderFactory.Create(_width, _components, _bitsPerComponent);
-                    break;
+                    case OutputMode.Gray:
+                    {
+                        bool upscale = _converter is not IndexedConverter;
+                        _grayRowDecoder = GrayRowDecoderFactory.Create(_width, _bitsPerComponent, upscale);
+                        break;
+                    }
+                    case OutputMode.Rgba:
+                    {
+                        _rgbaRowDecoder = RgbaRowDecoderFactory.Create(_width, _components, _bitsPerComponent);
+                        break;
+                    }
                 }
             }
         }
 
-        /// <summary>
-        /// Gets the row stride in bytes for the output buffer (set after initialization).
-        /// </summary>
-        public int RowStride
+        public static bool ShouldConvertColor(PdfImage image)
         {
-            get
+            var converter = image.ColorSpaceConverter;
+
+            if (converter == null)
             {
-                if (!_initialized)
-                {
-                    throw new InvalidOperationException("Buffer not initialized.");
-                }
-                return _rowStride;
+                return false;
             }
+
+            // non-standard number of components, always convert color
+            if (converter.Components != 1 && converter.Components != 3 && converter.Components != 4)
+            {
+                return true;
+            }
+
+            // can't apply mask as color filter if more than 3 components, no space for alpha
+            if (converter.Components > 3 && image.MaskArray?.Length > 0)
+            {
+                return true;
+            }
+
+            // Always convert DeviceN and Separation to apply color correctly
+            if (converter is DeviceNColorSpaceConverter || converter is SeparationColorSpaceConverter)
+            {
+                return true;
+            }
+
+            return false;
         }
 
         /// <summary>
@@ -105,23 +127,28 @@ namespace PdfReader.Rendering.Image.Processing
                 return;
             }
 
-            if (_outputMode == OutputMode.Gray)
+            switch (_outputMode)
             {
-                // Always output Gray8, even for 16-bit input (downsampled)
-                _rowStride = _width; // 1 byte per pixel
-            }
-            else
-            {
-                if (_bitsPerComponent == 16)
-                {
-                    // RGBA 16-bit: 8 bytes per pixel
-                    _rowStride = _width * 8;
-                }
-                else
-                {
-                    // RGBA 8-bit: 4 bytes per pixel
+                case OutputMode.Gray:
+                    // Always output Gray8, even for 16-bit input (downsampled)
+                    _rowStride = _width; // 1 byte per pixel
+                    break;
+                case OutputMode.RgbaColorApplied:
+                    // Full decode to RGBA 8-bit: 4 bytes per pixel
                     _rowStride = _width * 4;
-                }
+                    break;
+                default:
+                    if (_bitsPerComponent == 16)
+                    {
+                        // RGBA 16-bit: 8 bytes per pixel
+                        _rowStride = _width * 8;
+                    }
+                    else
+                    {
+                        // RGBA 8-bit: 4 bytes per pixel
+                        _rowStride = _width * 4;
+                    }
+                    break;
             }
 
             long totalBytes = (long)_rowStride * _height;
@@ -146,22 +173,116 @@ namespace PdfReader.Rendering.Image.Processing
                 throw new InvalidOperationException("Image already completed.");
             }
 
+            if (_outputMode == OutputMode.RgbaColorApplied)
+            {
+                WriteWithFullColor(rowIndex, decodedRow);
+                return;
+            }
+
             var nativeRef = new NativeRef<byte>(_buffer);
             ref byte destRow = ref Unsafe.Add(ref nativeRef.Value, rowIndex * _rowStride);
 
             switch (_outputMode)
             {
                 case OutputMode.Gray:
-                    {
-                        // Always decode to 8-bit gray, even for 16-bit input
-                        _grayRowDecoder.Decode(ref decodedRow[0], ref destRow);
-                        break;
-                    }
+                {
+                    // Always decode to 8-bit gray, even for 16-bit input
+                    _grayRowDecoder.Decode(ref decodedRow[0], ref destRow);
+                    break;
+                }
                 case OutputMode.Rgba:
+                {
+                    _rgbaRowDecoder.Decode(ref decodedRow[0], ref destRow);
+                    break;
+                }
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private void WriteWithFullColor(int rowIndex, Span<byte> decodedRow)
+        {
+            var nativeRef = new NativeRef<byte>(_buffer);
+            ref byte destRowByte = ref Unsafe.Add(ref nativeRef.Value, rowIndex * _rowStride);
+            ref Rgba destRowColor = ref Unsafe.As<byte, Rgba>(ref destRowByte);
+
+            int width = _width;
+            int componentCount = _components;
+            int bitsPerComponent = _bitsPerComponent;
+            PdfRenderingIntent intent = _image.RenderingIntent;
+
+            float[] componentValues = new float[componentCount];
+
+            bool applyDecode = _image.DecodeArray != null && _image.DecodeArray.Length == componentCount * 2;
+            float[] decodeArray = _image.DecodeArray; // May be null when applyDecode is false.
+
+            bool applyMask = _image.MaskArray != null && _image.MaskArray.Length == componentCount * 2;
+            int[] maskArray = _image.MaskArray; // Raw sample code ranges (min,max) per component.
+
+            int byteCursor = 0;
+            int bitOffset = 0; // Bit cursor for packed path (1,2,4).
+
+            int maxCode = (1 << bitsPerComponent) - 1;
+            float scale = 1f / maxCode;
+
+            for (int x = 0; x < width; x++)
+            {
+                bool maskMatch = applyMask;
+
+                for (int c = 0; c < componentCount; c++)
+                {
+                    int sample;
+                    if (bitsPerComponent == 16)
                     {
-                        _rgbaRowDecoder.Decode(ref decodedRow[0], ref destRow);
-                        break;
+                        int hi = decodedRow[byteCursor];
+                        int lo = decodedRow[byteCursor + 1];
+                        sample = (hi << 8) | lo; // Big-endian.
+                        byteCursor += 2;
                     }
+                    else if (bitsPerComponent == 8)
+                    {
+                        sample = decodedRow[byteCursor];
+                        byteCursor += 1;
+                    }
+                    else
+                    {
+                        int byteIndex = bitOffset >> 3;
+                        int bitInByte = bitOffset & 7;
+                        int shift = 8 - bitInByte - bitsPerComponent;
+                        sample = (decodedRow[byteIndex] >> shift) & maxCode;
+                        bitOffset += bitsPerComponent;
+                    }
+
+                    if (applyMask && maskMatch)
+                    {
+                        int minCode = maskArray[c * 2];
+                        int maxCodeRange = maskArray[c * 2 + 1];
+
+                        if (sample < minCode || sample > maxCodeRange)
+                        {
+                            maskMatch = false; // Early reject for this pixel.
+                        }
+                    }
+
+                    float value01 = sample * scale; // Normalize to 0..1.
+
+                    if (applyDecode)
+                    {
+                        int di = c * 2;
+                        float dMin = decodeArray[di];
+                        float dMax = decodeArray[di + 1];
+                        value01 = dMin + value01 * (dMax - dMin);
+                    }
+
+                    componentValues[c] = value01;
+                }
+
+                SKColor pixel = _converter.ToSrgb(componentValues, intent);
+                if (applyMask && maskMatch)
+                {
+                    pixel = new SKColor(pixel.Red, pixel.Green, pixel.Blue, 0);
+                }
+
+                Unsafe.Add(ref destRowColor, x) = new Rgba(pixel.Red, pixel.Green, pixel.Blue, pixel.Alpha);
             }
         }
 
@@ -187,6 +308,11 @@ namespace PdfReader.Rendering.Image.Processing
                 case OutputMode.Gray:
                 {
                     colorType = SKColorType.Gray8;
+                    break;
+                }
+                case OutputMode.RgbaColorApplied:
+                {
+                    colorType = SKColorType.Rgba8888;
                     break;
                 }
                 default:

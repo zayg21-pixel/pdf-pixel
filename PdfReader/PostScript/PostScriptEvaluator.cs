@@ -2,6 +2,7 @@ using Microsoft.Extensions.Logging;
 using PdfReader.PostScript.Tokens;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace PdfReader.PostScript
 {
@@ -25,10 +26,16 @@ namespace PdfReader.PostScript
         private bool _stopRequested;
         private int _stoppedDepth;
 
-        public PostScriptEvaluator(ReadOnlySpan<byte> code, ILogger<PostScriptEvaluator> logger)
+        public PostScriptEvaluator(ReadOnlySpan<byte> code, bool appendExec, ILogger<PostScriptEvaluator> logger)
         {
             _logger = logger;
             _tokens = Tokenize(code);
+
+            if (appendExec)
+            {
+                _tokens.Add(new PostScriptExecutableName("exec"));
+            }
+
             _dictStack.Push(_systemDict); // systemdict bottom
             _dictStack.Push(_userDict); // userdict top
             _loopDepth = 0;
@@ -50,9 +57,27 @@ namespace PdfReader.PostScript
         }
 
         /// <summary>
+        /// Evaluate the program's root tokens against a stack.
+        /// </summary>
+        public void EvaluateTokens(Stack<PostScriptToken> stack)
+        {
+            if (stack == null)
+            {
+                throw new ArgumentNullException(nameof(stack));
+            }
+
+            _loopDepth = 0;
+            _exitRequested = false;
+            _stopRequested = false;
+            _stoppedDepth = 0;
+
+            EvaluateTokens(_tokens, stack);
+        }
+
+        /// <summary>
         /// Evaluate tokens against a stack.
         /// </summary>
-        public void EvaluateTokens(List<PostScriptToken> tokens, Stack<PostScriptToken> stack)
+        private void EvaluateTokens(List<PostScriptToken> tokens, Stack<PostScriptToken> stack)
         {
             for (int i = 0; i < tokens.Count; i++)
             {
@@ -116,18 +141,6 @@ namespace PdfReader.PostScript
                     // Intentionally left as is.
                 }
             }
-        }
-
-        /// <summary>
-        /// Evaluate the program's root tokens against a stack.
-        /// </summary>
-        public void EvaluateTokens(Stack<PostScriptToken> stack)
-        {
-            if (stack == null)
-            {
-                throw new ArgumentNullException(nameof(stack));
-            }
-            EvaluateTokens(_tokens, stack);
         }
 
         private bool TryLookupDict(string name, out PostScriptToken value)

@@ -20,30 +20,6 @@ namespace PdfReader.Parsing
         }
 
         /// <summary>
-        /// Attempt to parse a trailer dictionary at the current context position using the unified PdfParser.
-        /// Reads two top-level values: an operator (must be 'trailer') and an optional dictionary.
-        /// Returns false if the first value is not the trailer operator. Returns true otherwise (even if dictionary missing).
-        /// </summary>
-        public bool TryParseTrailerDictionary(ref PdfParseContext context, out PdfDictionary trailer)
-        {
-            trailer = null;
-
-            // Use unified parser; it handles whitespace/comments internally.
-            var parser = new PdfParser(context, _document, allowReferences: true);
-
-            var firstValue = parser.ReadNextValue();
-
-            if (firstValue.AsString() != PdfTokens.Trailer)
-            {
-                return false; // First operator is not 'trailer'.
-            }
-
-            trailer = parser.ReadNextValue().AsDictionary();
-
-            return true; // Trailer keyword consumed (dictionary may be null).
-        }
-
-        /// <summary>
         /// Return the /Prev offset from the current trailer dictionary.
         /// </summary>
         public int? GetPrevOffset(PdfDictionary trailer)

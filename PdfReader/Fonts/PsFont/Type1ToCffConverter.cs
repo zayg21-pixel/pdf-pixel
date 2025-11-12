@@ -51,7 +51,7 @@ namespace PdfReader.Fonts.PsFont
             var operandStack = new Stack<PostScriptToken>();
             var headerSpan = rawData.Span.Slice(0, length1);
 
-            var headerEvaluator = new PostScriptEvaluator(headerSpan, loggerFactory.CreateLogger<PostScriptEvaluator>());
+            var headerEvaluator = new PostScriptEvaluator(headerSpan, appendExec: false, loggerFactory.CreateLogger<PostScriptEvaluator>());
             var fontDirectory = new PostScriptDictionary();
 
             headerEvaluator.SetSystemValue(PsFontDictionaryUtilities.FontDirectoryKey, fontDirectory);
@@ -65,7 +65,7 @@ namespace PdfReader.Fonts.PsFont
             var encryptedSpan = rawData.Span.Slice(length1, length2);
             var decryptedSpan = Type1Decryptor.DecryptEexecBinary(encryptedSpan);
 
-            var eexecEvaluator = new PostScriptEvaluator(decryptedSpan, loggerFactory.CreateLogger<PostScriptEvaluator>());
+            var eexecEvaluator = new PostScriptEvaluator(decryptedSpan, appendExec: false, loggerFactory.CreateLogger<PostScriptEvaluator>());
             eexecEvaluator.SetSystemValue(PsFontDictionaryUtilities.FontDirectoryKey, fontDirectory);
             eexecEvaluator.EvaluateTokens(operandStack);
 

@@ -13,7 +13,8 @@ namespace PdfReader.Rendering.Image.Processing
         /// </summary>
         /// <param name="paint">The SKPaint to apply filters to.</param>
         /// <param name="pdfImage">The PdfImage containing image properties.</param>
-        public static void ApplyImageFilters(SKPaint paint, PdfImage pdfImage)
+        /// <param name="colorConverted">If true, color has already been converted.</param>
+        public static void ApplyImageFilters(SKPaint paint, PdfImage pdfImage, bool colorConverted)
         {
             // Fail fast if input is invalid.
             if (paint == null)
@@ -26,29 +27,30 @@ namespace PdfReader.Rendering.Image.Processing
                 return;
             }
 
-            // Step 1: Apply Decode filter if present.
-            // This remaps decoded sample values according to the /Decode array.
-            // PDF spec: decoding must occur before color conversion.
-            ApplyDecodeFilter(paint, pdfImage.DecodeArray, pdfImage.ColorSpaceConverter.Components);
-
-            // Step 2: Apply Mask filter (color key mask or soft mask) if present and supported.
-            // Masking must be applied before color space conversion per PDF spec.
-            // Masking is not supported for indexed or CMYK color spaces.
-            bool isIndexed = pdfImage.ColorSpaceConverter is IndexedConverter;
-            bool isCmyk = pdfImage.ColorSpaceConverter.Components == 4;
-            if (!isIndexed && !isCmyk && pdfImage.MaskArray != null && pdfImage.MaskArray.Length > 0)
+            if (!colorConverted)
             {
-                using var maskFilter = SoftMaskFilter.BuildMaskColorFilter(
-                    pdfImage.MaskArray,
-                    pdfImage.BitsPerComponent
-                );
-                ComposeColorFilter(paint, maskFilter);
-            }
+                // Step 1: Apply Decode filter if present.
+                // This remaps decoded sample values according to the /Decode array.
+                // PDF spec: decoding must occur before color conversion.
+                ApplyDecodeFilter(paint, pdfImage.DecodeArray, pdfImage.ColorSpaceConverter.Components);
 
-            // Step 3: Apply color space conversion filter if available.
-            // Converts decoded samples to sRGB using the image's color space.
-            // PDF spec: color conversion must occur after decoding and before masking.
-            ComposeColorFilter(paint, pdfImage.ColorSpaceConverter.AsColorFilter(pdfImage.RenderingIntent));
+                // Step 2: Apply Mask filter (color key mask or soft mask) if present and supported.
+                // Masking must be applied before color space conversion per PDF spec.
+                if (pdfImage.MaskArray != null && pdfImage.MaskArray.Length > 0)
+                {
+                    using var maskFilter = SoftMaskFilter.BuildMaskColorFilter(
+                        pdfImage.MaskArray,
+                        pdfImage.ColorSpaceConverter is not IndexedConverter,
+                        pdfImage.BitsPerComponent
+                    );
+                    ComposeColorFilter(paint, maskFilter);
+                }
+
+                // Step 3: Apply color space conversion filter if available.
+                // Converts decoded samples to sRGB using the image's color space.
+                // PDF spec: color conversion must occur after decoding and before masking.
+                ComposeColorFilter(paint, pdfImage.ColorSpaceConverter.AsColorFilter(pdfImage.RenderingIntent));
+            }
 
             // Step 4: If this image is a soft mask, apply luminocity-to-alpha filter.
             // Converts grayscale values to alpha for soft-masked images.

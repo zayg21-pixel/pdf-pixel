@@ -1,136 +1,110 @@
 using System;
-using System.Numerics;
 using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
 
 namespace PdfReader.Streams
 {
     /// <summary>
-    /// Helper for undoing PNG predictor filters (types 0..4) with optional SIMD acceleration
-    /// for Sub (1), Up (2) and Average (3) filters. Operates on buffers that include a left zero margin
-    /// of bytesPerPixel bytes (to avoid bounds checks) and optionally a leading filter byte
-    /// (caller handles layout). No allocations; purely in-place.
+    /// PNG predictor filter undo implementation (types0..4).
+    /// Layout expectation: caller supplies buffers with leading left margin of <paramref name="bytesPerPixel"/> zero bytes
+    /// then a single filter byte, then pixel data (rowDataOffset points to first pixel data byte).
     /// </summary>
     internal static class PngFilterUndo
     {
         /// <summary>
-        /// Applies PNG filter undo to a single row.
+        /// Undo a PNG predictor filter in-place on the current row buffer.
         /// </summary>
         /// <param name="filterType">PNG filter byte (0..4).</param>
-        /// <param name="currentRow">Buffer containing row to be decoded in-place.</param>
-        /// <param name="previousRow">Previous decoded row (same layout) or buffer of zeros for first row.</param>
-        /// <param name="bytesPerPixel">Bytes per pixel (color components * bits per component rounded up to whole bytes).</param>
-        /// <param name="rowDataOffset">Offset in buffers where actual pixel row data begins (after margin + filter byte).</param>
+        /// <param name="currentRow">Current encoded row buffer; modified in-place to decoded row values.</param>
+        /// <param name="previousRow">Previously decoded row buffer (same layout) or zeros for first row.</param>
+        /// <param name="bytesPerPixel">Bytes per pixel (components * bitsPerComponent rounded up to whole bytes).</param>
+        /// <param name="rowDataOffset">Offset to the first pixel data byte (after margin + filter byte).</param>
         /// <param name="rowDataLength">Number of pixel data bytes in the row.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static unsafe void UndoPngFilter(byte filterType, byte[] currentRow, byte[] previousRow, int bytesPerPixel, int rowDataOffset, int rowDataLength)
+        public static void UndoPngFilter(byte filterType, byte[] currentRow, byte[] previousRow, int bytesPerPixel, int rowDataOffset, int rowDataLength)
         {
-            Span<byte> currentRowSpan = currentRow;
-            Span<byte> previousRowSpan = previousRow;
-
-            byte* currentRowPtr = (byte*)Unsafe.AsPointer(ref MemoryMarshal.GetReference(currentRowSpan));
-            byte* previousRowPtr = (byte*)Unsafe.AsPointer(ref MemoryMarshal.GetReference(previousRowSpan));
+            if (currentRow == null)
+            {
+                throw new ArgumentNullException(nameof(currentRow));
+            }
+            if (previousRow == null)
+            {
+                throw new ArgumentNullException(nameof(previousRow));
+            }
+            if (bytesPerPixel <= 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(bytesPerPixel));
+            }
+            if (rowDataOffset < 0 || rowDataOffset > currentRow.Length)
+            {
+                throw new ArgumentOutOfRangeException(nameof(rowDataOffset));
+            }
+            if (rowDataLength < 0 || rowDataOffset + rowDataLength > currentRow.Length)
+            {
+                throw new ArgumentOutOfRangeException(nameof(rowDataLength));
+            }
 
             switch (filterType)
             {
                 case 0:
-                    {
-                        // None: nothing to do.
-                        return;
-                    }
+                {
+                    // None: no transformation.
+                    return;
+                }
                 case 1:
+                {
+                    // Sub: raw[i] += raw[i - bytesPerPixel]; first pixel's bytesPerPixel bytes have implicit left0.
+                    for (int i = bytesPerPixel; i < rowDataLength; i++)
                     {
-                        // Sub: raw[i] += raw[i - bytesPerPixel]. Left dependency distance permits SIMD after first bytesPerPixel bytes.
-                        ref byte rawRef = ref currentRow[rowDataOffset];
-                        ref byte leftRef = ref currentRow[rowDataOffset - bytesPerPixel];
-
-                        for (int leadingIndex = 0; leadingIndex < rowDataLength; leadingIndex++)
-                        {
-                            byte left = leftRef;
-                            rawRef = (byte)(rawRef + left);
-                            rawRef = ref Unsafe.Add(ref rawRef, 1);
-                            leftRef = ref Unsafe.Add(ref leftRef, 1);
-                        }
-
-                        return;
+                        int idx = rowDataOffset + i;
+                        currentRow[idx] = (byte)(currentRow[idx] + currentRow[idx - bytesPerPixel]);
                     }
+                    return;
+                }
                 case 2:
+                {
+                    // Up: raw[i] += previous[i].
+                    for (int i = 0; i < rowDataLength; i++)
                     {
-                        // Up: raw[i] += previous[i]. Direct SIMD over entire row (no intra-row dependency) then scalar tail.
-                        int vectorWidth = Vector<byte>.Count;
-                        int vectorizable = Vector.IsHardwareAccelerated ? (rowDataLength - (rowDataLength % vectorWidth)) : 0;
-                        for (int elementOffset = 0; elementOffset < vectorizable; elementOffset += vectorWidth)
-                        {
-                            var currentVector = Unsafe.ReadUnaligned<Vector<byte>>(currentRowPtr + (rowDataOffset + elementOffset));
-                            var upVector = Unsafe.ReadUnaligned<Vector<byte>>(previousRowPtr + (rowDataOffset + elementOffset));
-                            var decodedVector = currentVector + upVector;
-                            decodedVector.CopyTo(currentRow, rowDataOffset + elementOffset);
-                        }
-                        int tailStart = vectorizable;
-                        int tailCount = rowDataLength - tailStart;
-                        if (tailCount > 0)
-                        {
-                            ref byte rawTailRef = ref currentRow[rowDataOffset + tailStart];
-                            ref byte upTailRef = ref previousRow[rowDataOffset + tailStart];
-                            for (int tailIndex = 0; tailIndex < tailCount; tailIndex++)
-                            {
-                                byte up = upTailRef;
-                                rawTailRef = (byte)(rawTailRef + up);
-                                rawTailRef = ref Unsafe.Add(ref rawTailRef, 1);
-                                upTailRef = ref Unsafe.Add(ref upTailRef, 1);
-                            }
-                        }
-                        return;
+                        int idx = rowDataOffset + i;
+                        currentRow[idx] = (byte)(currentRow[idx] + previousRow[idx]);
                     }
+                    return;
+                }
                 case 3:
+                {
+                    // Average: raw[i] += (left + up) >>1; left is zero for first pixel bytesPerPixel region.
+                    for (int i = 0; i < rowDataLength; i++)
                     {
-                        // Average: raw[i] += (left + up) >> 1.
-                        ref byte rawRef = ref currentRow[rowDataOffset];
-                        ref byte leftRef = ref currentRow[rowDataOffset - bytesPerPixel];
-                        ref byte upRef = ref previousRow[rowDataOffset];
-
-                        for (int leadingIndex = 0; leadingIndex < rowDataLength; leadingIndex++)
-                        {
-                            int left = leftRef;
-                            int up = upRef;
-                            rawRef = (byte)(rawRef + ((left + up) >> 1));
-                            rawRef = ref Unsafe.Add(ref rawRef, 1);
-                            leftRef = ref Unsafe.Add(ref leftRef, 1);
-                            upRef = ref Unsafe.Add(ref upRef, 1);
-                        }
-
-                        return;
+                        int idx = rowDataOffset + i;
+                        int left = i >= bytesPerPixel ? currentRow[idx - bytesPerPixel] : 0;
+                        int up = previousRow[idx];
+                        currentRow[idx] = (byte)(currentRow[idx] + ((left + up) >> 1));
                     }
+                    return;
+                }
                 case 4:
+                {
+                    // Paeth: raw[i] += Paeth(left, up, upLeft); left/upLeft zero for first pixel.
+                    for (int i = 0; i < rowDataLength; i++)
                     {
-                        // Paeth: raw[i] += Paeth(left, up, upLeft). Kept scalar due to complexity and lower frequency.
-                        ref byte rawRef = ref currentRow[rowDataOffset];
-                        ref byte leftRef = ref currentRow[rowDataOffset - bytesPerPixel];
-                        ref byte upRef = ref previousRow[rowDataOffset];
-                        ref byte upLeftRef = ref previousRow[rowDataOffset - bytesPerPixel];
-                        for (int i = 0; i < rowDataLength; i++)
-                        {
-                            int left = leftRef;
-                            int up = upRef;
-                            int upLeft = upLeftRef;
-                            rawRef = (byte)(rawRef + Paeth(left, up, upLeft));
-                            rawRef = ref Unsafe.Add(ref rawRef, 1);
-                            leftRef = ref Unsafe.Add(ref leftRef, 1);
-                            upRef = ref Unsafe.Add(ref upRef, 1);
-                            upLeftRef = ref Unsafe.Add(ref upLeftRef, 1);
-                        }
-                        return;
+                        int idx = rowDataOffset + i;
+                        int left = i >= bytesPerPixel ? currentRow[idx - bytesPerPixel] : 0;
+                        int up = previousRow[idx];
+                        int upLeft = i >= bytesPerPixel ? previousRow[idx - bytesPerPixel] : 0;
+                        currentRow[idx] = (byte)(currentRow[idx] + Paeth(left, up, upLeft));
                     }
+                    return;
+                }
                 default:
-                    {
-                        // Unknown filter; treat as None.
-                        return;
-                    }
+                {
+                    // Unknown filter type: treat as None.
+                    return;
+                }
             }
         }
 
         /// <summary>
-        /// Paeth predictor function per PNG specification. Returns one of a, b, c closest to p = a + b - c.
+        /// Paeth predictor per PNG specification: choose closest of a, b, c to p = a + b - c.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static int Paeth(int a, int b, int c)
@@ -139,8 +113,14 @@ namespace PdfReader.Streams
             int pa = p - a; if (pa < 0) { pa = -pa; }
             int pb = p - b; if (pb < 0) { pb = -pb; }
             int pc = p - c; if (pc < 0) { pc = -pc; }
-            if (pa <= pb && pa <= pc) { return a; }
-            if (pb <= pc) { return b; }
+            if (pa <= pb && pa <= pc)
+            {
+                return a;
+            }
+            if (pb <= pc)
+            {
+                return b;
+            }
             return c;
         }
     }

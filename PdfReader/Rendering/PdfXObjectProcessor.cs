@@ -82,8 +82,6 @@ namespace PdfReader.Rendering
             // Use form paint to composite the whole form with correct alpha/blend when needed
             using var formPaint = PdfPaintFactory.CreateFormXObjectPaint(graphicsState);
 
-            canvas.SaveLayer(clipRect, formPaint);
-
             // Apply form matrix if present
             canvas.Concat(transformMatrix);
 
@@ -92,6 +90,8 @@ namespace PdfReader.Rendering
             {
                 canvas.ClipRect(clipRect);
             }
+
+            canvas.SaveLayer(formPaint);
 
             using var softMaskScope = new SoftMaskDrawingScope(canvas, graphicsState, page);
             softMaskScope.BeginDrawContent();
@@ -132,6 +132,7 @@ namespace PdfReader.Rendering
                     PdfTransparencyGroupProcessor.TryEndTransparencyGroup(canvas, group);
                 }
                 graphicsState.TransparencyGroup = prevGroup;
+
                 canvas.Restore();
 
                 softMaskScope.EndDrawContent();

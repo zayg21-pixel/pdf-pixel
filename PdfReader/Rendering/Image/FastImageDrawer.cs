@@ -100,7 +100,7 @@ namespace PdfReader.Rendering.Image
             }
 
             using var imagePaint = PdfPaintFactory.CreateImagePaint(state);
-            ImagePostProcessingFilters.ApplyImageFilters(imagePaint, pdfImage);
+            ImagePostProcessingFilters.ApplyImageFilters(imagePaint, pdfImage, decoder.IsColorConverted);
 
             var sampling = PdfPaintFactory.GetImageSamplingOptions(pdfImage.Interpolate);
             canvas.DrawImage(baseImage, destRect, sampling, imagePaint);
@@ -217,14 +217,14 @@ namespace PdfReader.Rendering.Image
             }
 
             using var imagePaint = PdfPaintFactory.CreateImagePaint(state);
-            ImagePostProcessingFilters.ApplyImageFilters(imagePaint, pdfImage);
+            ImagePostProcessingFilters.ApplyImageFilters(imagePaint, pdfImage, baseDecoder.IsColorConverted);
 
             using var maskPaint = new SKPaint
             {
                 IsAntialias = true,
                 BlendMode = SKBlendMode.DstIn
             };
-            ImagePostProcessingFilters.ApplyImageFilters(maskPaint, pdfImage.SoftMask);
+            ImagePostProcessingFilters.ApplyImageFilters(maskPaint, pdfImage.SoftMask, softMaskDecoder.IsColorConverted);
 
             var sampling = PdfPaintFactory.GetImageSamplingOptions(pdfImage.Interpolate);
             var maskSampling = PdfPaintFactory.GetImageSamplingOptions(pdfImage.SoftMask.Interpolate);

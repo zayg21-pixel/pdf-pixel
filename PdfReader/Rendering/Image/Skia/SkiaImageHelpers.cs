@@ -1,4 +1,6 @@
-﻿namespace PdfReader.Rendering.Image.Skia
+﻿using PdfReader.Rendering.Color;
+
+namespace PdfReader.Rendering.Image.Skia
 {
     internal class SkiaImageHelpers
     {
@@ -13,6 +15,11 @@
             if (image.ColorSpaceConverter.Components == 3)
             {
                 return image.BitsPerComponent == 8 || image.BitsPerComponent == 16;
+            }
+
+            if (image.ColorSpaceConverter is DeviceNColorSpaceConverter || image.ColorSpaceConverter is SeparationColorSpaceConverter)
+            {
+                return false;
             }
 
             return false;

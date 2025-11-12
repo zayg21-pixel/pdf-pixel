@@ -1,8 +1,6 @@
 ﻿using System;
 using System.IO;
 using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
-using System.Numerics; // SIMD vectorization for PNG filter cases
 
 namespace PdfReader.Streams
 {

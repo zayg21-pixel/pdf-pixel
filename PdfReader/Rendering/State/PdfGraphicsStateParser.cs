@@ -175,16 +175,6 @@ namespace PdfReader.Rendering.State
             return parameters;
         }
 
-        /// <summary>
-        /// Legacy direct parsing method retained for compatibility. Prefer parsing then calling ApplyToGraphicsState.
-        /// </summary>
-        public static SKMatrix? ParseGraphicsStateFromDictionary(PdfDictionary gsDict, PdfGraphicsState graphicsState, PdfPage page)
-        {
-            var parameters = ParseGraphicsStateParametersFromDictionary(gsDict, page);
-            parameters.ApplyToGraphicsState(graphicsState);
-            return parameters.TransformMatrix;
-        }
-
         public static PdfSoftMask ParseSoftMaskDictionary(PdfDictionary softMaskDict, PdfPage page)
         {
             if (softMaskDict == null)
