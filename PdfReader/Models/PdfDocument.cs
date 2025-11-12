@@ -135,6 +135,8 @@ namespace PdfReader.Models
             }
 
             ColorSpaceConverters.Clear();
+
+            Stream.Dispose();
         }
     }
 }

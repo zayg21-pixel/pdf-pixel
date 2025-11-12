@@ -64,6 +64,11 @@ namespace PdfReader.Rendering
 
             var contents = _page.PageObject.Dictionary.GetPageObjects(PdfTokens.ContentsKey);
 
+            if (contents == null)
+            {
+                return contentStreams;
+            }
+
             foreach (var contentObject in contents)
             {
                 var contentData = contentObject.DecodeAsMemory();

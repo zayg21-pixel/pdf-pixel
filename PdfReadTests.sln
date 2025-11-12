@@ -13,6 +13,10 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Benchmarks", "Benchmarks\Be
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PdfReader.Tests", "PdfReader.Tests\PdfReader.Tests.csproj", "{B4D304AF-C86B-C9FE-E9BD-FCC2C832CE5C}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PdfReader.Wpf.PdfPanel", "PdfReader.Wpf.PdfPanel\PdfReader.Wpf.PdfPanel.csproj", "{D26755B5-7B8B-C1EE-8388-E03E97FFFDB3}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PdfReader.Wpf.Demo", "PdfReader.Wpf.Demo\PdfReader.Wpf.Demo.csproj", "{F3E18A43-0D48-9E0D-27CE-650AB5EB4144}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -39,6 +43,14 @@ Global
 		{B4D304AF-C86B-C9FE-E9BD-FCC2C832CE5C}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{B4D304AF-C86B-C9FE-E9BD-FCC2C832CE5C}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{B4D304AF-C86B-C9FE-E9BD-FCC2C832CE5C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D26755B5-7B8B-C1EE-8388-E03E97FFFDB3}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D26755B5-7B8B-C1EE-8388-E03E97FFFDB3}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D26755B5-7B8B-C1EE-8388-E03E97FFFDB3}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D26755B5-7B8B-C1EE-8388-E03E97FFFDB3}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F3E18A43-0D48-9E0D-27CE-650AB5EB4144}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F3E18A43-0D48-9E0D-27CE-650AB5EB4144}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F3E18A43-0D48-9E0D-27CE-650AB5EB4144}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F3E18A43-0D48-9E0D-27CE-650AB5EB4144}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
