@@ -76,14 +76,14 @@ namespace PdfReader.Rendering
 
             if (bbox != null && bbox.Count >= 4)
             {
-                clipRect = new SKRect(bbox.GetFloat(0), bbox.GetFloat(1), bbox.GetFloat(2), bbox.GetFloat(3));
+                clipRect = new SKRect(bbox.GetFloat(0), bbox.GetFloat(1), bbox.GetFloat(2), bbox.GetFloat(3)).Standardized;
             }
 
             // Use form paint to composite the whole form with correct alpha/blend when needed
             using var formPaint = PdfPaintFactory.CreateFormXObjectPaint(graphicsState);
 
             // Apply form matrix if present
-            canvas.Concat(transformMatrix);
+            canvas.Concat(transformMatrix); // TODO: investigate cases when form matrix is not identity
 
             // Clip to /BBox
             if (!clipRect.IsEmpty)
@@ -91,27 +91,14 @@ namespace PdfReader.Rendering
                 canvas.ClipRect(clipRect);
             }
 
-            canvas.SaveLayer(formPaint);
+            canvas.SaveLayer(clipRect, formPaint);
 
             using var softMaskScope = new SoftMaskDrawingScope(canvas, graphicsState, page);
             softMaskScope.BeginDrawContent();
 
             // Parse /Group and apply transparency group
-            PdfTransparencyGroup group = null;
-            bool groupApplied = false;
-            var prevGroup = graphicsState.TransparencyGroup;
             try
             {
-                group = PdfGraphicsStateParser.ParseTransparencyGroup(formXObject.Dictionary.GetDictionary(PdfTokens.GroupKey), page);
-                if (group != null)
-                {
-                    if (PdfTransparencyGroupProcessor.ShouldApplyTransparencyGroup(group))
-                    {
-                        PdfTransparencyGroupProcessor.TryApplyTransparencyGroup(canvas, group, graphicsState);
-                        groupApplied = true;
-                    }
-                }
-
                 // Decode and render content with a cloned state that clears parent soft mask
                 var content = page.Document.StreamDecoder.DecodeContentStream(formXObject);
                 if (!content.IsEmpty)
@@ -127,12 +114,6 @@ namespace PdfReader.Rendering
             }
             finally
             {
-                if (groupApplied)
-                {
-                    PdfTransparencyGroupProcessor.TryEndTransparencyGroup(canvas, group);
-                }
-                graphicsState.TransparencyGroup = prevGroup;
-
                 canvas.Restore();
 
                 softMaskScope.EndDrawContent();

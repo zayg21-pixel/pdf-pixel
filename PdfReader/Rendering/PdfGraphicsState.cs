@@ -121,11 +121,6 @@ namespace PdfReader.Rendering
         public SKMatrix DeviceMatrix { get; set; } = SKMatrix.Identity;
 
         /// <summary>
-        /// Transparency group state (for form XObjects / group dictionaries) or null.
-        /// </summary>
-        public PdfTransparencyGroup TransparencyGroup { get; set; }
-
-        /// <summary>
         /// Mask rendering mode used internally while rendering soft mask content streams.
         /// </summary>
         public PdfMaskRenderMode MaskRenderMode { get; set; } = PdfMaskRenderMode.None;
@@ -242,7 +237,6 @@ namespace PdfReader.Rendering
                 FillColorConverter = FillColorConverter,
                 RenderingIntent = RenderingIntent,
                 SoftMask = SoftMask,
-                TransparencyGroup = TransparencyGroup,
                 OverprintMode = OverprintMode,
                 OverprintStroke = OverprintStroke,
                 OverprintFill = OverprintFill,

@@ -201,7 +201,7 @@ namespace PdfReader.Rendering.State
                 var bottom = bboxArray.GetFloat(1);
                 var right = bboxArray.GetFloat(2);
                 var top = bboxArray.GetFloat(3);
-                softMask.BBox = new SKRect(left, bottom, right, top);
+                softMask.BBox = new SKRect(left, bottom, right, top).Standardized;
                 softMask.TransformedBounds = softMask.FormMatrix.MapRect(softMask.BBox);
             }
             softMask.ResourcesDictionary = formDict.GetDictionary(PdfTokens.ResourcesKey);

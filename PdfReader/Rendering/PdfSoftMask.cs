@@ -76,7 +76,7 @@ namespace PdfReader.Rendering
         /// The /BBox transformed by FormMatrix (if any). Equals BBox when no matrix was supplied.
         /// Empty when BBox not specified.
         /// </summary>
-        public SKRect TransformedBounds { get; set; }
+        public SKRect TransformedBounds { get; set; } // TODO: we might want to remove this
 
         /// <summary>
         /// Cached /Resources dictionary of the soft mask Form XObject (may be null).

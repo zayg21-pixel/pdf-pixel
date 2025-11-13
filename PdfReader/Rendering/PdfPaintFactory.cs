@@ -219,13 +219,6 @@ namespace PdfReader.Rendering
         {
             if (state == null) return new SKPaint { IsAntialias = true };
 
-            // If a transparency group was parsed and needs isolation/knockout handling,
-            // return a paint configured by the group processor.
-            if (PdfTransparencyGroupProcessor.ShouldApplyTransparencyGroup(state.TransparencyGroup))
-            {
-                return PdfTransparencyGroupProcessor.CreateTransparencyGroupPaint(state.TransparencyGroup, state);
-            }
-
             var paint = CreateBasePaint(state);
             // NOTE: We use white with FillAlpha to apply overall non-stroking alpha when compositing the form
             // back to the page. The actual group isolation/knockout is handled in PdfXObjectProcessor.

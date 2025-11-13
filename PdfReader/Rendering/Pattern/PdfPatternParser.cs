@@ -37,7 +37,7 @@ namespace PdfReader.Rendering.Pattern
                 return null;
             }
 
-            var bbox = new SKRect(bboxArray[0], bboxArray[1], bboxArray[2], bboxArray[3]);
+            var bbox = new SKRect(bboxArray[0], bboxArray[1], bboxArray[2], bboxArray[3]).Standardized;
 
             float xStep = dictionary.GetFloatOrDefault(PdfTokens.XStepKey);
             float yStep = dictionary.GetFloatOrDefault(PdfTokens.YStepKey);
