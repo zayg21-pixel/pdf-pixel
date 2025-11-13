@@ -2,8 +2,6 @@
 using PdfReader.Parsing;
 using PdfReader.Rendering.Advanced;
 using PdfReader.Rendering.Image;
-using PdfReader.Rendering.State;
-using PdfReader.Streams;
 using PdfReader.Text;
 using SkiaSharp;
 using System.Collections.Generic;
@@ -96,7 +94,6 @@ namespace PdfReader.Rendering
             using var softMaskScope = new SoftMaskDrawingScope(canvas, graphicsState, page);
             softMaskScope.BeginDrawContent();
 
-            // Parse /Group and apply transparency group
             try
             {
                 // Decode and render content with a cloned state that clears parent soft mask

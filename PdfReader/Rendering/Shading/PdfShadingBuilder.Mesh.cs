@@ -10,7 +10,7 @@ namespace PdfReader.Rendering.Shading
     /// </summary>
     internal static partial class PdfShadingBuilder
     {
-        private const int MinTessellationVertices = 2;
+        private const int MinTessellationVertices = 1; // TODO: we need a better minimum to avoid artifacts for sub-pixel patches
         private const int MaxTessellationVertices = 24;
         private const int MaxPatchCountForDropoff = 500;
 

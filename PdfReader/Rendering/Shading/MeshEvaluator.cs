@@ -292,10 +292,18 @@ namespace PdfReader.Rendering.Shading
             float interpolatedAlpha = Vector4.Dot(alphaChannel, weights);
 
             return new SKColor(
-                (byte)interpolatedRed,
-                (byte)interpolatedGreen,
-                (byte)interpolatedBlue,
-                (byte)interpolatedAlpha);
+                ClampToByte(interpolatedRed),
+                ClampToByte(interpolatedGreen),
+                ClampToByte(interpolatedBlue),
+                ClampToByte(interpolatedAlpha));
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static byte ClampToByte(float value)
+        {
+            if (value < 0f) return 0;
+            if (value > 255f) return 255;
+            return (byte)value;
         }
 
         /// <summary>
