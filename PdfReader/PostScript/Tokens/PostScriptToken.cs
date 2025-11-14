@@ -57,6 +57,7 @@ namespace PdfReader.PostScript.Tokens
         {
             throw new InvalidOperationException("AND not supported for these token types.");
         }
+
         /// <summary>
         /// Logical OR (boolean) or bitwise OR (integral numeric). Override in supported types.
         /// </summary>
@@ -64,6 +65,12 @@ namespace PdfReader.PostScript.Tokens
         {
             throw new InvalidOperationException("OR not supported for these token types.");
         }
+
+        public virtual PostScriptToken LogicalXor(PostScriptToken other)
+        {
+            throw new InvalidOperationException("XOR not supported for these token types.");
+        }
+
         /// <summary>
         /// Logical NOT (boolean) or bitwise complement (integral numeric). Override in supported types.
         /// </summary>
@@ -211,6 +218,13 @@ namespace PdfReader.PostScript.Tokens
 
             return left?.LogicalOr(right);
         }
+
+        public static PostScriptToken operator ^(PostScriptToken left, PostScriptToken right)
+        {
+
+            return left?.LogicalXor(right);
+        }
+
         public static PostScriptToken operator !(PostScriptToken operand)
         {
 

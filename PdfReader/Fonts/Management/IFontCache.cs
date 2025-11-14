@@ -27,5 +27,7 @@ namespace PdfReader.Fonts.Management
         /// <param name="font">The PDF font to get the mapper for.</param>
         /// <returns>An IByteCodeToGidMapper for the font, or null if not available or not a TrueType/CFF font.</returns>
         IByteCodeToGidMapper GetByteCodeToGidMapper(PdfFontBase font);
+
+        public CffNameKeyedInfo GetCffInfo(PdfFontBase font); // TODO: refactor to better location
     }
 }

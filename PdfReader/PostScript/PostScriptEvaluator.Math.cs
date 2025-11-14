@@ -30,6 +30,38 @@ namespace PdfReader.PostScript
                     BinaryNumeric(stack, (a, b) => a / b);
                     return true;
                 }
+                case "idiv":
+                {
+                    BinaryNumeric(stack, (a, b) => MathF.Truncate(a / b));
+                    return true;
+                }
+                case "bitshift":
+                {
+                    BinaryNumeric(stack, (a, b) => b < 0 ? ((int)a >> (int)b) : ((int)a << (int)b));
+                    return true;
+                }
+                case "cvi":
+                {
+                    UnaryNumeric(stack, a => (int)a);
+                    return true;
+                }
+                case "cvr":
+                {
+                    UnaryNumeric(stack, a => a);
+                    return true;
+                }
+                case "srand":
+                {
+                    var seed = PopOfType<PostScriptNumber>(stack).Value;
+                    _random = new Random((int)seed);
+                    return true;
+                }
+                case "rand":
+                {
+                    float value = (float)_random.NextDouble();
+                    stack.Push(new PostScriptNumber(value));
+                    return true;
+                }
                 case "mod":
                 {
                     BinaryNumeric(stack, (a, b) => a % b);
@@ -103,6 +135,11 @@ namespace PdfReader.PostScript
                 case "max":
                 {
                     BinaryNumeric(stack, MathF.Max);
+                    return true;
+                }
+                case "atan":
+                {
+                    BinaryNumeric(stack, (y, x) => ((MathF.Atan2(y, x) * 180f / MathF.PI) + 360) % 360);
                     return true;
                 }
             }

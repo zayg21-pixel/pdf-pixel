@@ -1,6 +1,5 @@
 using CommunityToolkit.HighPerformance;
 using PdfReader.Streams;
-using PdfReader.Text;
 using System;
 using System.IO;
 
@@ -8,15 +7,18 @@ namespace PdfReader.Models
 {
     public struct PdfObjectStreamReference
     {
-        public PdfObjectStreamReference(int offset, int length)
+        public PdfObjectStreamReference(int offset, int length, bool isEncrypted)
         {
             Offset = offset;
             Length = length;
+            IsEncrypted = isEncrypted;
         }
 
         public int Offset { get; }
 
         public int Length { get; }
+
+        public bool IsEncrypted { get; }
     }
 
     public class PdfObject
@@ -60,7 +62,7 @@ namespace PdfReader.Models
 
             var subrange = new SubrangeReadOnlyStream(Document.Stream, StreamInfo.Value.Offset, StreamInfo.Value.Length, leaveOpen: true);
 
-            if (Document.Decryptor != null && Reference.IsValid)
+            if (StreamInfo.Value.IsEncrypted && Document.Decryptor != null && Reference.IsValid)
             {
                 return Document.Decryptor.DecryptStream(subrange, Reference);
             }

@@ -1,5 +1,4 @@
 ﻿using PdfReader.Models;
-using PdfReader.Rendering.Advanced;
 using SkiaSharp;
 using System;
 using System.Runtime.CompilerServices;
@@ -217,8 +216,6 @@ namespace PdfReader.Rendering
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static SKPaint CreateFormXObjectPaint(PdfGraphicsState state)
         {
-            if (state == null) return new SKPaint { IsAntialias = true };
-
             var paint = CreateBasePaint(state);
             // NOTE: We use white with FillAlpha to apply overall non-stroking alpha when compositing the form
             // back to the page. The actual group isolation/knockout is handled in PdfXObjectProcessor.

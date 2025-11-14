@@ -18,6 +18,8 @@ namespace PdfReader.Wpf.PdfPanel
     /// </summary>
     public partial class SkiaPdfPanel : FrameworkElement
     {
+        private const bool UseGpuAcceleration = true;
+
         private readonly VisualCollection children;
         private ConcurrentQueue<DrawingRequest> updateQueue;
         private SemaphoreSlim queueSemaphore;
@@ -263,10 +265,19 @@ namespace PdfReader.Wpf.PdfPanel
 
         private async void StartReadFromQueue(SemaphoreSlim semaphore, ConcurrentQueue<DrawingRequest> queue)
         {
-            SKBitmap bitmap = null;
+            SKSurface surface = null;
             PagesDrawingRequest activePagesDrawingRequest = null;
             PagesDrawingRequest previousPagesDrawingRequest = null;
             bool pagesUpdated = false;
+            GRContext context = null;
+
+            if (UseGpuAcceleration)
+            {
+                // TODO: dispose context properly
+                using var d3dContext = new VorticeDirect3DContext();
+                using var backend = d3dContext.CreateBackendContext();
+                context = GRContext.CreateDirect3D(backend);
+            }
 
             while (true)
             {
@@ -300,12 +311,12 @@ namespace PdfReader.Wpf.PdfPanel
                     var width = (int)request.CanvasSize.Width;
                     var height = (int)request.CanvasSize.Height;
 
-                    if (bitmap == null || bitmap.Width != width || bitmap.Height != height)
+                    if (surface == null || surface.Canvas.DeviceClipBounds.Width != width || surface.Canvas.DeviceClipBounds.Height != height)
                     {
-                        var newBitmap = CreateBitmap(bitmap, width, height);
+                        var newSurface = CreateSurface(surface, context, width, height);
 
-                        bitmap?.Dispose();
-                        bitmap = newBitmap;
+                        surface?.Dispose();
+                        surface = newSurface;
                     }
 
                     if (request is PagesDrawingRequest pagesDrawingRequest)
@@ -315,19 +326,19 @@ namespace PdfReader.Wpf.PdfPanel
                     }
                     else if (request is ResetDrawingRequest)
                     {
-                        bitmap?.Dispose();
-                        bitmap = CreateBitmap(null, width, height);
+                        surface?.Dispose();
+                        surface = CreateSurface(null, context, width, height);
                         pagesUpdated = false;
                     }
 
                     if (pagesUpdated)
                     {
-                        pagesUpdated = !await this.ProcessPagesDrawing(bitmap, activePagesDrawingRequest, previousPagesDrawingRequest, queue).ConfigureAwait(false);
+                        pagesUpdated = !await this.ProcessPagesDrawing(surface, activePagesDrawingRequest, previousPagesDrawingRequest, queue).ConfigureAwait(false);
                         previousPagesDrawingRequest = activePagesDrawingRequest;
                     }
-                    else if (bitmap != null && activePagesDrawingRequest != null)
+                    else if (surface != null && activePagesDrawingRequest != null)
                     {
-                        await this.DrawOnWritableBitmapAsync(bitmap, activePagesDrawingRequest).ConfigureAwait(false);
+                        await this.DrawOnWritableBitmapAsync(surface, activePagesDrawingRequest).ConfigureAwait(false);
                     }
                 }
                 catch
@@ -338,20 +349,31 @@ namespace PdfReader.Wpf.PdfPanel
                 }
             }
 
-            bitmap?.Dispose();
+            context?.Dispose();
+            surface?.Dispose();
         }
 
-        private static SKBitmap CreateBitmap(SKBitmap source, int width, int height)
+        private static SKSurface CreateSurface(SKSurface source, GRContext context, int width, int height)
         {
-            var bitmap = new SKBitmap(width, height, SKImageInfo.PlatformColorType, SKAlphaType.Opaque);
+            var info = new SKImageInfo(width, height, SKColorType.Rgba8888, SKAlphaType.Premul, SKColorSpace.CreateSrgb());
+
+            var result = GetBaseSurface(info, context);
 
             if (source != null)
             {
-                using var canvas = new SKCanvas(bitmap);
-                canvas.DrawBitmap(source, SKRect.Create(source.Width, source.Height));
+                result.Canvas.DrawSurface(source, SKPoint.Empty);
             }
 
-            return bitmap;
+            return result;
+        }
+
+        private static SKSurface GetBaseSurface(SKImageInfo info, GRContext context)
+        {
+            if (context != null)
+            {
+                return SKSurface.Create(context, false, info);
+            }
+            return SKSurface.Create(info);
         }
 
         private void RequestRedrawPages()

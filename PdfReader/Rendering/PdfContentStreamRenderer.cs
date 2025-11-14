@@ -92,7 +92,7 @@ namespace PdfReader.Rendering
             var operandStack = new Stack<IPdfValue>();
             using var currentPath = new SKPath();
             var operatorProcessor = new PdfOperatorProcessor(_page, canvas, operandStack, graphicsStack, currentPath, processingXObjects);
-            var parser = new PdfParser(parseContext, _page.Document, allowReferences: false);
+            var parser = new PdfParser(parseContext, _page.Document, allowReferences: false, decrypt: false);
             IPdfValue value;
 
             while ((value = parser.ReadNextValue()) != null)

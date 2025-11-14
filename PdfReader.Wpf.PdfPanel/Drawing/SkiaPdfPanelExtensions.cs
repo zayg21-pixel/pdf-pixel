@@ -15,19 +15,18 @@ namespace PdfReader.Wpf.PdfPanel.Drawing
     {
         public static async Task<bool> ProcessPagesDrawing(
             this SkiaPdfPanel panel,
-            SKBitmap bitmap,
+            SKSurface surface,
             PagesDrawingRequest request,
             PagesDrawingRequest lastRequest,
             ConcurrentQueue<DrawingRequest> updateQueue)
         {
-            using var canvas = new SKCanvas(bitmap);
-            canvas.ClipRect(canvas.LocalClipBounds);
-
+            var canvas = surface.Canvas;
 
             if (CanDrawCached(request))
             {
-                DrawCached(bitmap, request, lastRequest);
-                await DrawOnWritableBitmapAsync(panel, bitmap, request).ConfigureAwait(false);
+                canvas.Clear(request.BackgroundColor);
+                DrawCached(surface, request, lastRequest);
+                await DrawOnWritableBitmapAsync(panel, surface, request).ConfigureAwait(false);
 
                 if (!updateQueue.IsEmpty)
                 {
@@ -71,7 +70,7 @@ namespace PdfReader.Wpf.PdfPanel.Drawing
                 }
 
                 canvas.DrawPageFromRequest(picture.PageNumber, request, PageDrawFlags.Background | PageDrawFlags.Content);
-                await DrawOnWritableBitmapAsync(panel, bitmap, request).ConfigureAwait(false);
+                await DrawOnWritableBitmapAsync(panel, surface, request).ConfigureAwait(false);
 
                 if (!updateQueue.IsEmpty)
                 {
@@ -108,15 +107,9 @@ namespace PdfReader.Wpf.PdfPanel.Drawing
             return shouldDraw;
         }
 
-        private static void DrawCached(SKBitmap bitmap, PagesDrawingRequest request, PagesDrawingRequest lastRequest)
+        private static void DrawCached(SKSurface surface, PagesDrawingRequest request, PagesDrawingRequest lastRequest)
         {
-            using var canvas = new SKCanvas(bitmap);
-
-            using var copy = new SKBitmap(bitmap.Info);
-            using var copyConvas = new SKCanvas(copy);
-            copyConvas.DrawBitmap(bitmap, 0, 0);
-
-            canvas.Clear(request.BackgroundColor);
+            var canvas = surface.Canvas;
 
             foreach (var page in request.VisiblePages)
             {
@@ -148,7 +141,7 @@ namespace PdfReader.Wpf.PdfPanel.Drawing
                     var thumbnail = cached.Thumbnail;
                     var thumbnailRect = SKRect.Create(0, 0, thumbnail.Width, thumbnail.Height);
 
-                    var samplingOption = new SKSamplingOptions(SKFilterMode.Nearest, SKMipmapMode.Nearest);
+                    var samplingOption = new SKSamplingOptions(SKFilterMode.Nearest, SKMipmapMode.None);
                     canvas.DrawImage(thumbnail, thumbnailRect, destRect, samplingOption);
                 }
 
@@ -163,19 +156,16 @@ namespace PdfReader.Wpf.PdfPanel.Drawing
                 }
 
                 var lastPage = lastRequest.VisiblePages.FirstOrDefault(x => x.PageNumber == page.PageNumber);
-
-                var sourceRect = lastPage.GetSkScaledBounds(lastRequest.Scale);
-                canvas.DrawBitmap(copy, sourceRect, destRect);
             }
         }
 
-        public static async Task DrawOnWritableBitmapAsync(this SkiaPdfPanel panel, SKBitmap bitmap, PagesDrawingRequest pagesDrawingRequest)
+        public static async Task DrawOnWritableBitmapAsync(this SkiaPdfPanel panel, SKSurface surface, PagesDrawingRequest pagesDrawingRequest)
         {
             try
             {
                 await panel.Dispatcher.BeginInvoke(new Action(() =>
                 {
-                    DrawOnWritableBitmap(panel, bitmap, pagesDrawingRequest);
+                    DrawOnWritableBitmap(panel, surface, pagesDrawingRequest);
                 })).Task.ConfigureAwait(false);
             }
             catch
@@ -184,153 +174,38 @@ namespace PdfReader.Wpf.PdfPanel.Drawing
             }
         }
 
-        private static void DrawOnWritableBitmap(this SkiaPdfPanel panel, SKBitmap bitmap, PagesDrawingRequest pagesDrawingRequest)
+        private static void DrawOnWritableBitmap(this SkiaPdfPanel panel, SKSurface sourceSurface, PagesDrawingRequest pagesDrawingRequest)
         {
-            WriteableBitmap writeableBitmap = null;
-            bool bitmapLocked = false;
-            SKImageInfo imageInfo = default;
+            WriteableBitmap writeableBitmap = pagesDrawingRequest.WritableBitmap;
+            writeableBitmap.Lock();
 
-            try
+            SKImageInfo imageInfo = new SKImageInfo(writeableBitmap.PixelWidth, writeableBitmap.PixelHeight, SKImageInfo.PlatformColorType, SKAlphaType.Premul);
+            SKSurface drawingSurface = SKSurface.Create(new SKImageInfo(writeableBitmap.PixelWidth, writeableBitmap.PixelHeight));
+            SKSurface surface = SKSurface.Create(imageInfo, writeableBitmap.BackBuffer, writeableBitmap.BackBufferStride);
+
+            using (drawingSurface)
             {
-                writeableBitmap = pagesDrawingRequest.WritableBitmap;
-
-                try
+                using (surface)
                 {
-                    writeableBitmap.Lock();
-                    bitmapLocked = true;
-                    imageInfo = new SKImageInfo(writeableBitmap.PixelWidth, writeableBitmap.PixelHeight, SKImageInfo.PlatformColorType, SKAlphaType.Premul);
-                }
-                catch (Exception lockEx)
-                {
-                    panel.RaiseDrawingError(lockEx, $"Failed to lock WriteableBitmap or create SKImageInfo (Size: {writeableBitmap?.PixelWidth}x{writeableBitmap?.PixelHeight})");
-                    return;
-                }
-
-                SKSurface drawingSurface = null;
-                SKSurface surface = null;
-                try
-                {
-                    drawingSurface = SKSurface.Create(new SKImageInfo(writeableBitmap.PixelWidth, writeableBitmap.PixelHeight));
-                    if (drawingSurface == null)
-                    {
-                        throw new InvalidOperationException("Drawing surface creation returned null");
-                    }
-
-                    surface = SKSurface.Create(imageInfo, writeableBitmap.BackBuffer, writeableBitmap.BackBufferStride);
-                    if (surface == null)
-                    {
-                        throw new InvalidOperationException("Main surface creation returned null");
-                    }
-                }
-                catch (Exception surfaceEx)
-                {
-                    drawingSurface?.Dispose();
-                    panel.RaiseDrawingError(surfaceEx, $"Failed to create SKSurfaces (Size: {imageInfo.Width}x{imageInfo.Height}, Stride: {writeableBitmap.BackBufferStride})");
-                    return;
-                }
-
-                using (drawingSurface)
-                {
-                    using (surface)
-                    {
-                        try
-                        {
-                            surface.Canvas.DrawBitmap(bitmap, SKRect.Create(bitmap.Width, bitmap.Height), SKRect.Create(imageInfo.Size));
-
-                            try
-                            {
-                                pagesDrawingRequest.Pages.OnAfterDraw?.Invoke(drawingSurface.Canvas, pagesDrawingRequest.VisiblePages, pagesDrawingRequest.Scale);
-                            }
-                            catch (Exception callbackEx)
-                            {
-                                panel.RaiseDrawingError(callbackEx, "OnAfterDraw callback execution");
-                            }
-
-                            surface.Canvas.DrawSurface(drawingSurface, SKPoint.Empty);
-                        }
-                        catch (Exception drawEx)
-                        {
-                            panel.RaiseDrawingError(drawEx, $"Failed during drawing operations (Source: {bitmap.Width}x{bitmap.Height}, Target: {imageInfo.Width}x{imageInfo.Height})");
-                            return;
-                        }
-                    }
-                }
-
-                try
-                {
-                    writeableBitmap.AddDirtyRect(new Int32Rect(0, 0, imageInfo.Width, imageInfo.Height));
-                    writeableBitmap.Unlock();
-                    bitmapLocked = false;
-                }
-                catch (Exception bitmapFinalizationEx)
-                {
-                    panel.RaiseDrawingError(bitmapFinalizationEx, $"Failed to finalize WriteableBitmap (Size: {imageInfo.Width}x{imageInfo.Height})");
-                    bitmapLocked = false;
-                    return;
-                }
-
-                var drawingVisual = panel.DrawingVisual;
-                System.Windows.Media.DrawingContext render = null;
-                try
-                {
-                    render = drawingVisual.RenderOpen();
-                    if (render == null)
-                    {
-                        throw new InvalidOperationException("RenderOpen returned null DrawingContext");
-                    }
-
-                    var pixelOffsetX = panel.SnapPosition(pagesDrawingRequest.CanvasOffset.X, pagesDrawingRequest.CanvasScale.X);
-                    var pixelOffsetY = panel.SnapPosition(pagesDrawingRequest.CanvasOffset.Y, pagesDrawingRequest.CanvasScale.Y);
-
-                    render.DrawImage(writeableBitmap, new Rect(pixelOffsetX, pixelOffsetY, writeableBitmap.Width, writeableBitmap.Height));
-                }
-                catch (Exception renderEx)
-                {
-                    panel.RaiseDrawingError(renderEx, $"Failed during WPF rendering (Size: {writeableBitmap?.Width}x{writeableBitmap?.Height})");
-                    return;
-                }
-                finally
-                {
-                    try
-                    {
-                        render?.Close();
-                    }
-                    catch (Exception closeEx)
-                    {
-                        panel.RaiseDrawingError(closeEx, "Failed to close DrawingContext");
-                    }
+                    surface.Canvas.DrawSurface(sourceSurface, SKPoint.Empty);
+                    pagesDrawingRequest.Pages.OnAfterDraw?.Invoke(drawingSurface.Canvas, pagesDrawingRequest.VisiblePages, pagesDrawingRequest.Scale);
+                    surface.Canvas.DrawSurface(drawingSurface, SKPoint.Empty);
                 }
             }
-            catch (System.Runtime.InteropServices.SEHException sehEx)
-            {
-                panel.RaiseDrawingError(sehEx, "Native interop error during bitmap drawing");
-            }
-            catch (ObjectDisposedException disposedEx)
-            {
-                panel.RaiseDrawingError(disposedEx, "Object disposed during drawing operation");
-            }
-            catch (InvalidOperationException invalidEx)
-            {
-                panel.RaiseDrawingError(invalidEx, "Invalid operation during drawing");
-            }
-            catch (Exception ex)
-            {
-                panel.RaiseDrawingError(ex, "Unexpected error during drawing operation");
-            }
-            finally
-            {
-                if (bitmapLocked && writeableBitmap != null)
-                {
-                    try
-                    {
-                        writeableBitmap.Unlock();
-                    }
-                    catch (Exception unlockEx)
-                    {
-                        panel.RaiseDrawingError(unlockEx, "Failed to unlock WriteableBitmap in finally block");
-                    }
-                }
-            }
+
+            writeableBitmap.AddDirtyRect(new Int32Rect(0, 0, imageInfo.Width, imageInfo.Height));
+
+            var drawingVisual = panel.DrawingVisual;
+            System.Windows.Media.DrawingContext render = drawingVisual.RenderOpen();
+
+            var pixelOffsetX = panel.SnapPosition(pagesDrawingRequest.CanvasOffset.X, pagesDrawingRequest.CanvasScale.X);
+            var pixelOffsetY = panel.SnapPosition(pagesDrawingRequest.CanvasOffset.Y, pagesDrawingRequest.CanvasScale.Y);
+
+            render.DrawImage(writeableBitmap, new Rect(pixelOffsetX, pixelOffsetY, writeableBitmap.Width, writeableBitmap.Height));
+
+            render.Close();
+
+            writeableBitmap.Unlock();
         }
     }
 }

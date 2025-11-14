@@ -1,3 +1,4 @@
+using PdfReader.Fonts.Cff;
 using System;
 using System.Collections.Generic;
 
@@ -27,6 +28,23 @@ namespace PdfReader.Fonts.Mapping
         {
             var map = new PdfCIDToGIDMap(false);
             map.ParseStreamData(streamData);
+            return map;
+        }
+
+        internal static PdfCIDToGIDMap FromCffFont(CffNameKeyedInfo keyedInfo)
+        {
+            if (keyedInfo.GidToSid == null || keyedInfo.GidToSid.Length == 0)
+            {
+                return new PdfCIDToGIDMap(true);
+            }
+
+            var map = new PdfCIDToGIDMap(false);
+
+            for (uint gid = 0; gid < keyedInfo.GidToSid.Length; gid++)
+            {
+                var sid = keyedInfo.GidToSid[gid];
+                map._cidToGidMap[sid] = (ushort)gid;
+            }
             return map;
         }
 

@@ -123,7 +123,7 @@ namespace PdfReader.Rendering.Advanced
                 // Clip to /BBox if provided.
                 if (!_softMask.BBox.IsEmpty)
                 {
-                    recCanvas.ClipRect(_softMask.BBox);
+                    recCanvas.ClipRect(_softMask.BBox, antialias: true);
                 }
 
                 // Background for luminosity masks (BC in group color space).

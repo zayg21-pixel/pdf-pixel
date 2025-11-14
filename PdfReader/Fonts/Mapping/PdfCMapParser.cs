@@ -14,7 +14,7 @@ namespace PdfReader.Fonts.Mapping
         public static PdfCMap ParseCMapFromContext(ref PdfParseContext context, PdfDocument document)
         {
             var cmap = new PdfCMap();
-            var parser = new PdfParser(context, document, allowReferences: false);
+            var parser = new PdfParser(context, document, allowReferences: false, decrypt: false);
             IPdfValue value;
 
             while ((value = parser.ReadNextValue()) != null)

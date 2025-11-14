@@ -143,7 +143,7 @@ namespace PdfReader.Rendering.Color.Clut
             return lutBitmap.ToShader(
                 SKShaderTileMode.Clamp,
                 SKShaderTileMode.Clamp,
-                new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.Linear));
+                new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.None));
         }
     }
 }

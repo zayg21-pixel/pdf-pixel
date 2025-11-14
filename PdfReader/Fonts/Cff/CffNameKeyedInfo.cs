@@ -20,6 +20,10 @@ namespace PdfReader.Fonts.Cff
         /// </summary>
         public Dictionary<PdfString, ushort> NameToGid { get; set; }
 
+        public bool IsCidFont { get; set; }
+
+        public ushort[] GidToSid { get; set; }
+
         /// <summary>
         /// Gets or sets the raw CFF font data.
         /// </summary>

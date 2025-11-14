@@ -48,7 +48,7 @@ namespace PdfReader.Parsing
                 _logger.LogWarning("PdfXrefLoader: Parsed startxref offset {Offset} is invalid (file length {Length}).", xrefOffset, _document.Stream.Length);
                 return;
             }
-            var parser = new PdfParser(_document.Stream, _document, allowReferences: true);
+            var parser = new PdfParser(_document.Stream, _document, allowReferences: true, decrypt: false);
 
             // Classic table path.
             if (MatchSequenceAt(xrefOffset, PdfTokens.Xref))
@@ -71,7 +71,7 @@ namespace PdfReader.Parsing
                         }
                         else
                         {
-                            var streamParser = new PdfParser(_document.Stream, _document, allowReferences: true);
+                            var streamParser = new PdfParser(_document.Stream, _document, allowReferences: true, decrypt: false);
                             streamParser.Position = offsetValue;
                             trailer = ParseXrefStream(ref streamParser);
                         }
@@ -417,7 +417,7 @@ namespace PdfReader.Parsing
 
         private int ParseStartXrefOffset(long startxrefPos)
         {
-            PdfParser parser = new PdfParser(_document.Stream, _document, allowReferences: false);
+            PdfParser parser = new PdfParser(_document.Stream, _document, allowReferences: false, decrypt: false);
             parser.Position = (int)startxrefPos + PdfTokens.Startxref.Length;
             var value = parser.ReadNextValue();
 

@@ -12,8 +12,6 @@ namespace PdfReader.Fonts.Types
     /// </summary>
     public class PdfCIDFont : PdfFontBase
     {
-        // Thread-safe lazy loading using Lazy<T>
-        private readonly Lazy<PdfFontDescriptor> _fontDescriptor;
         private readonly Lazy<PdfCIDSystemInfo> _cidSystemInfo;
         private readonly Lazy<PdfCIDToGIDMap> _cidToGIDMap;
 
@@ -26,7 +24,7 @@ namespace PdfReader.Fonts.Types
             Widths = CidFontWidths.Parse(fontDictionary);
 
             // Initialize thread-safe lazy loaders (no more reference storage)
-            _fontDescriptor = new Lazy<PdfFontDescriptor>(LoadFontDescriptor, isThreadSafe: true);
+            FontDescriptor = LoadFontDescriptor();
             _cidSystemInfo = new Lazy<PdfCIDSystemInfo>(LoadCIDSystemInfo, isThreadSafe: true);
             _cidToGIDMap = new Lazy<PdfCIDToGIDMap>(LoadCIDToGIDMap, isThreadSafe: true);
         }
@@ -35,7 +33,7 @@ namespace PdfReader.Fonts.Types
         /// Font descriptor containing metrics and embedding information
         /// Thread-safe lazy-loaded when first accessed - heavy operation
         /// </summary>
-        public override PdfFontDescriptor FontDescriptor => _fontDescriptor.Value;
+        public override PdfFontDescriptor FontDescriptor { get; }
         
         /// <summary>
         /// CID system information (Registry, Ordering, Supplement)
@@ -95,6 +93,12 @@ namespace PdfReader.Fonts.Types
         /// </summary>
         public ushort GetGidByCid(uint cid)
         {
+            // If font is not embedded, can't map to GID
+            if (!IsEmbedded)
+            {
+                return 0;
+            }
+
             if (CIDToGIDMap == null)
             {
                 return (ushort)cid;
@@ -158,6 +162,13 @@ namespace PdfReader.Fonts.Types
                 // Load as stream data
                 var cidToGidData = Document.StreamDecoder.DecodeContentStream(cidToGidObj);
                 return PdfCIDToGIDMap.FromStreamData(cidToGidData);
+            }
+
+            var cffFont = Document.FontCache.GetCffInfo(this);
+
+            if (cffFont != null)
+            {
+                return PdfCIDToGIDMap.FromCffFont(cffFont);
             }
 
             return null;

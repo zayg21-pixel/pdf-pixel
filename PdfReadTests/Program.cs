@@ -1,7 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
 using PdfReader;
 using PdfReader.Models;
-using PdfReader.Rendering.Image;
 using SkiaSharp;
 
 namespace PdfReadTests

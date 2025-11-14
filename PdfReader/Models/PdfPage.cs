@@ -104,7 +104,7 @@ namespace PdfReader.Models
                 throw new InvalidOperationException("Document reference not set. This page was not properly loaded from a document.");
             }
 
-            canvas.Save();
+            canvas.SaveLayer();
             var renderer = new PdfContentStreamRenderer(this);
             renderer.ApplyPageTransformations(canvas);
             renderer.RenderContent(canvas);

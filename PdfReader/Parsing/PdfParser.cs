@@ -6,7 +6,6 @@ using System.Runtime.CompilerServices;
 
 namespace PdfReader.Parsing
 {
-    // TODO: handle decryption here.
     internal ref partial struct PdfParser
     {
         // Boolean literal constants
@@ -34,22 +33,26 @@ namespace PdfReader.Parsing
         private readonly PdfDocument _document;
         private readonly int _length;
         private readonly bool _allowReferences;
+        private readonly bool _decrypt;
         private PdfParseContext _parseContext;
+        private PdfReference _currentReference;
 
-        public PdfParser(PdfParseContext parseContext, PdfDocument document, bool allowReferences)
+        public PdfParser(PdfParseContext parseContext, PdfDocument document, bool allowReferences, bool decrypt)
         {
             _parseContext = parseContext;
             _document = document;
             _allowReferences = allowReferences;
+            _decrypt = decrypt;
             _length = parseContext.Length;
         }
 
-        public PdfParser(BufferedStream bufferedStream, PdfDocument document, bool allowReferences)
+        public PdfParser(BufferedStream bufferedStream, PdfDocument document, bool allowReferences, bool decrypt)
         {
             _stream = bufferedStream;
             _length = (int)bufferedStream.Length;
             _document = document;
             _allowReferences = allowReferences;
+            _decrypt = decrypt;
             _streamMode = true;
         }
 

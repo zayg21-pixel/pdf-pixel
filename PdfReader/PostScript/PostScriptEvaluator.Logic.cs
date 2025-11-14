@@ -50,6 +50,11 @@ namespace PdfReader.PostScript
                     BinaryLogical(stack, (a, b) => a | b);
                     return true;
                 }
+                case "xor":
+                {
+                    BinaryLogical(stack, (a, b) => a ^ b);
+                    return true;
+                }
                 case "not":
                 {
                     UnaryLogical(stack);

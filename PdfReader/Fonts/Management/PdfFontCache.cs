@@ -158,6 +158,11 @@ namespace PdfReader.Fonts.Management
             }
         }
 
+        public CffNameKeyedInfo GetCffInfo(PdfFontBase font)
+        {
+            return GetCffInfo(font.FontDescriptor);
+        }
+
         private CffNameKeyedInfo GetCffInfo(PdfFontDescriptor descriptor)
         {
             if (descriptor?.FontFileObject == null)

@@ -81,12 +81,12 @@ namespace PdfReader.Rendering
             using var formPaint = PdfPaintFactory.CreateFormXObjectPaint(graphicsState);
 
             // Apply form matrix if present
-            canvas.Concat(transformMatrix); // TODO: investigate cases when form matrix is not identity
+            canvas.Concat(transformMatrix);
 
             // Clip to /BBox
             if (!clipRect.IsEmpty)
             {
-                canvas.ClipRect(clipRect);
+                canvas.ClipRect(clipRect, antialias: true);
             }
 
             canvas.SaveLayer(clipRect, formPaint);

@@ -27,8 +27,11 @@ namespace PdfReader.Parsing
             int objectNumber = first.AsInteger();
             int generation = second.AsInteger();
             var reference = new PdfReference(objectNumber, generation);
+            _currentReference = reference;
 
             IPdfValue value = ReadNextValue();
+            _currentReference = default;
+
             if (value == null)
             {
                 Position = startPos;
@@ -90,7 +93,7 @@ namespace PdfReader.Parsing
 
             Advance(PdfTokens.Endstream.Value.Length);
 
-            return new PdfObjectStreamReference(streamStart, declaredLength);
+            return new PdfObjectStreamReference(streamStart, declaredLength, _decrypt);
         }
     }
 }

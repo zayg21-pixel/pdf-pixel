@@ -244,7 +244,7 @@ namespace PdfReader.Rendering.Operators
                 return;
             }
             _currentPath.FillType = fillType;
-            _canvas.ClipPath(_currentPath, SKClipOperation.Intersect);
+            _canvas.ClipPath(_currentPath, SKClipOperation.Intersect, antialias: true);
         }
 
         private void ProcessStrokePath(PdfGraphicsState graphicsState)

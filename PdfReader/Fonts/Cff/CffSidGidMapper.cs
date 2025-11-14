@@ -147,10 +147,7 @@ namespace PdfReader.Fonts.Cff
                 {
                     return false;
                 }
-                if (isCidKeyed)
-                {
-                    return false; // only name-keyed handled here
-                }
+
                 if (charStringsOffset <= 0 || charStringsOffset >= cffBytes.Length)
                 {
                     return false;
@@ -227,6 +224,8 @@ namespace PdfReader.Fonts.Cff
                 {
                     GlyphCount = glyphCount,
                     NameToGid = glyphNameToGid,
+                    IsCidFont = isCidKeyed,
+                    GidToSid = sidByGlyph,
                     CffData = cffDataMemory
                 };
 

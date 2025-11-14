@@ -21,6 +21,7 @@ namespace PdfReader.PostScript
         private readonly PostScriptDictionary _systemDict = new PostScriptDictionary();
         private readonly PostScriptDictionary _userDict = new PostScriptDictionary();
 
+        private Random _random = new Random();
         private int _loopDepth;
         private bool _exitRequested;
         private bool _stopRequested;
@@ -213,6 +214,16 @@ namespace PdfReader.PostScript
 
             switch (name)
             {
+                case "systemdict":
+                {
+                    stack.Push(_systemDict);
+                    break;
+                }
+                case "userdict":
+                {
+                    stack.Push(_userDict);
+                    break;
+                }
                 case "readonly":
                 {
                     AccessSetOperator(stack, PostScriptAccess.ReadOnly);

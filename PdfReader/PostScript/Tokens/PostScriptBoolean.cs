@@ -37,7 +37,7 @@ namespace PdfReader.PostScript.Tokens
             {
                 throw new InvalidOperationException("Logical AND requires boolean right operand.");
             }
-            return new PostScriptBoolean(Value && right.Value);
+            return new PostScriptBoolean(Value & right.Value);
         }
         public override PostScriptToken LogicalOr(PostScriptToken other)
         {
@@ -45,8 +45,18 @@ namespace PdfReader.PostScript.Tokens
             {
                 throw new InvalidOperationException("Logical OR requires boolean right operand.");
             }
-            return new PostScriptBoolean(Value || right.Value);
+            return new PostScriptBoolean(Value | right.Value);
         }
+
+        public override PostScriptToken LogicalXor(PostScriptToken other)
+        {
+            if (other is not PostScriptBoolean right)
+            {
+                throw new InvalidOperationException("Logical XOR requires boolean right operand.");
+            }
+            return new PostScriptBoolean(Value ^ right.Value);
+        }
+
         public override PostScriptToken LogicalNot()
         {
             return new PostScriptBoolean(!Value);

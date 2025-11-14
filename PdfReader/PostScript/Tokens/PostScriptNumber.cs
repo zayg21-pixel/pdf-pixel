@@ -51,6 +51,7 @@ namespace PdfReader.PostScript.Tokens
             int result = (int)Value & (int)right.Value;
             return new PostScriptNumber(result);
         }
+
         public override PostScriptToken LogicalOr(PostScriptToken other)
         {
             if (other is not PostScriptNumber right)
@@ -64,6 +65,21 @@ namespace PdfReader.PostScript.Tokens
             int result = (int)Value | (int)right.Value;
             return new PostScriptNumber(result);
         }
+
+        public override PostScriptToken LogicalXor(PostScriptToken other)
+        {
+            if (other is not PostScriptNumber right)
+            {
+                throw new InvalidOperationException("Bitwise XOR requires numeric right operand.");
+            }
+            if (Value != (int)Value || right.Value != (int)right.Value)
+            {
+                throw new InvalidOperationException("Bitwise XOR requires integral operands.");
+            }
+            int result = (int)Value ^ (int)right.Value;
+            return new PostScriptNumber(result);
+        }
+
         public override PostScriptToken LogicalNot()
         {
             if (Value != (int)Value)

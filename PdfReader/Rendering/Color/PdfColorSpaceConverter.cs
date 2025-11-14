@@ -106,7 +106,7 @@ namespace PdfReader.Rendering.Color
         protected virtual SKColorFilter BuldColorFilter(PdfRenderingIntent intent)
         {
             return ColorFilterClut.BuildClutColorFilter(
-                    ColorFilterClutResolution.Low, // Use Low fidelity by default; can be parameterized if needed
+                    ColorFilterClutResolution.Normal,
                     Components,
                     intent,
                     ToSrgbCore);

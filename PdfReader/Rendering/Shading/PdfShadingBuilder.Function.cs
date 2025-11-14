@@ -96,7 +96,7 @@ namespace PdfReader.Rendering.Shading
             return bitmap.ToShader(
                 SKShaderTileMode.Decal,
                 SKShaderTileMode.Decal,
-                new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.Linear),
+                new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.None),
                 finalMatrix);
         }
     }

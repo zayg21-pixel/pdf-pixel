@@ -22,6 +22,7 @@ namespace PdfReader.Wpf.PdfPanel.Drawing
         {
             canvas.Clear(new SKColor(color.R, color.G, color.B, color.A));
         }
+
         public static void DrawPageFromRequest(this SKCanvas canvas, int pageNumber, PagesDrawingRequest request, PageDrawFlags drawFlags)
         {
             if (!request.VisiblePages.Any(x => x.PageNumber == pageNumber))

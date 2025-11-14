@@ -1,6 +1,5 @@
 ﻿using PdfReader.Models;
 using System;
-using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 
 namespace PdfReader.Parsing
@@ -48,7 +47,15 @@ namespace PdfReader.Parsing
                 // Odd number of hex digits: pad low nibble with0.
                 _localBuffer.Add((byte)(highNibble.Value << 4));
             }
-            return PdfValue.String(new PdfString([.. _localBuffer]));
+
+            ReadOnlyMemory<byte> bytes = _localBuffer.ToArray();
+
+            if (_decrypt && _document.Decryptor != null && _currentReference.IsValid)
+            {
+                bytes = _document.Decryptor.DecryptBytes(bytes, _currentReference);
+            }
+
+            return PdfValue.String(new PdfString(bytes));
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -137,7 +144,15 @@ namespace PdfReader.Parsing
                         break;
                 }
             }
-            return PdfValue.String(new PdfString([.. _localBuffer]));
+
+            ReadOnlyMemory<byte> bytes = _localBuffer.ToArray();
+
+            if (_decrypt && _document.Decryptor != null && _currentReference.IsValid)
+            {
+                bytes = _document.Decryptor.DecryptBytes(bytes, _currentReference);
+            }
+
+            return PdfValue.String(new PdfString(bytes));
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

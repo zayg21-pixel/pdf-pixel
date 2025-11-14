@@ -2,8 +2,7 @@
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <TargetFramework>net48</TargetFramework>
-    <!--<TargetFramework>net8.0-windows</TargetFramework>-->
+    <TargetFramework>net8.0-windows</TargetFramework>
     <LangVersion>8.0</LangVersion>
     <UseWPF>true</UseWPF>
   </PropertyGroup>
@@ -15,11 +14,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\PdfReader.Wpf.PdfPanel\PdfReader.Wpf.PdfPanel.csproj" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Reference Include="netstandard" />
-    <Reference Include="System.Web" />
   </ItemGroup>
 
 </Project>
