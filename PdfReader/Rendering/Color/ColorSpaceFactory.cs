@@ -161,36 +161,12 @@ namespace PdfReader.Rendering.Color
                 return null;
             }
 
-            float xw = 0.9505f;
-            float yw = 1.0f;
-            float zw = 1.0890f;
-            var wp = dict.GetArray(PdfTokens.WhitePointKey)?.GetFloatArray();
-            if (wp != null && wp.Length >= 3)
-            {
-                xw = wp[0];
-                yw = wp[1];
-                zw = wp[2];
-            }
 
-            float gamma = 1.0f;
-            var gSingle = dict.GetFloat(PdfTokens.GammaKey);
-            if (gSingle.HasValue)
-            {
-                gamma = gSingle.Value;
-            }
+            var whitePoint = dict.GetArray(PdfTokens.WhitePointKey)?.GetFloatArray();
+            var blackPoint = dict.GetArray(PdfTokens.BlackPointKey)?.GetFloatArray();
+            var gamma = dict.GetFloat(PdfTokens.GammaKey);
 
-            float xb = 0f;
-            float yb = 0f;
-            float zb = 0f;
-            var bp = dict.GetArray(PdfTokens.BlackPointKey)?.GetFloatArray();
-            if (bp != null && bp.Length >= 3)
-            {
-                xb = bp[0];
-                yb = bp[1];
-                zb = bp[2];
-            }
-
-            return new CalGrayConverter(xw, yw, zw, xb, yb, zb, gamma);
+            return new CalGrayConverter(whitePoint, blackPoint, gamma);
         }
 
         // ------------------------------------------------------------------------------------
@@ -205,49 +181,23 @@ namespace PdfReader.Rendering.Color
                 return null;
             }
 
-            float xw = 0.9505f;
-            float yw = 1.0f;
-            float zw = 1.0890f;
-            var wp = dict.GetArray(PdfTokens.WhitePointKey)?.GetFloatArray();
-            if (wp != null && wp.Length >= 3)
-            {
-                xw = wp[0];
-                yw = wp[1];
-                zw = wp[2];
-            }
+            var whitePoint = dict.GetArray(PdfTokens.WhitePointKey)?.GetFloatArray();
 
-            float gr = 1.0f;
-            float gg = 1.0f;
-            float gb = 1.0f;
+            float[] gamma = null;
             var gSingle = dict.GetFloat(PdfTokens.GammaKey);
 
             if (gSingle.HasValue)
             {
-                gr = gSingle.Value;
-                gg = gSingle.Value;
-                gb = gSingle.Value;
+                gamma = [gSingle.Value, gSingle.Value, gSingle.Value];
             }
             else
             {
                 var gArr = dict.GetArray(PdfTokens.GammaKey)?.GetFloatArray();
-                if (gArr != null && gArr.Length >= 3)
-                {
-                    gr = gArr[0];
-                    gg = gArr[1];
-                    gb = gArr[2];
-                }
+                gamma = gArr;
             }
 
-            float xb = 0f;
-            float yb = 0f;
-            float zb = 0f;
-            var bp = dict.GetArray(PdfTokens.BlackPointKey)?.GetFloatArray();
-            if (bp != null && bp.Length >= 3)
-            {
-                xb = bp[0];
-                yb = bp[1];
-                zb = bp[2];
-            }
+            var blackPoint = dict.GetArray(PdfTokens.BlackPointKey)?.GetFloatArray();
+
 
             float[,] matrix = new float[3, 3]
             {
@@ -270,7 +220,7 @@ namespace PdfReader.Rendering.Color
                 matrix[2, 2] = mat[8];
             }
 
-            return new CalRgbConverter(xw, yw, zw, xb, yb, zb, gr, gg, gb, matrix);
+            return new CalRgbConverter(whitePoint, blackPoint, gamma, matrix);
         }
 
         // ------------------------------------------------------------------------------------

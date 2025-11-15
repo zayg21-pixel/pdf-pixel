@@ -20,8 +20,14 @@ namespace PdfReader.Fonts.Cff
         /// </summary>
         public Dictionary<PdfString, ushort> NameToGid { get; set; }
 
+        /// <summary>
+        /// Gets or sets a value indicating whether the font is a CID font.
+        /// </summary>
         public bool IsCidFont { get; set; }
 
+        /// <summary>
+        /// Gets or sets the mapping of Glyph IDs (GIDs) to CharSet IDs (SIDs).
+        /// </summary>
         public ushort[] GidToSid { get; set; }
 
         /// <summary>

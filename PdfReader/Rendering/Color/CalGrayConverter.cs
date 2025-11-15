@@ -15,32 +15,26 @@ namespace PdfReader.Rendering.Color
     /// </summary>
     internal sealed class CalGrayConverter : PdfColorSpaceConverter
     {
-        private readonly float _xw;
-        private readonly float _yw;
-        private readonly float _zw;
-        private readonly float _xb;
-        private readonly float _yb;
-        private readonly float _zb;
-        private readonly float _gamma;
         private readonly IccGrayColorConverter _iccGray;
         private readonly Vector3 _blackSrgb01;
         private readonly bool _hasBlackPoint;
 
-        public CalGrayConverter(float xw, float yw, float zw, float xb, float yb, float zb, float gamma)
+        public CalGrayConverter(float[] whitePoint, float[] blackPoint, float? gamma)
         {
-            _xw = xw <= 0 ? 0.9505f : xw;
-            _yw = yw <= 0 ? 1.0f : yw; // Spec requires Yw = 1.0
-            _zw = zw <= 0 ? 1.0890f : zw;
-            _xb = xb < 0 ? 0f : xb;
-            _yb = yb < 0 ? 0f : yb;
-            _zb = zb < 0 ? 0f : zb;
-            _gamma = gamma <= 0 ? 1.0f : gamma;
+            float xw = 0.9505f;
+            float yw = 1.0f;
+            float zw = 1.0890f;
 
-            float g = _gamma;
+            if (whitePoint != null && whitePoint.Length == 3)
+            {
+                if (whitePoint[0] > 0f) xw = whitePoint[0];
+                if (whitePoint[1] > 0f) yw = whitePoint[1];
+                if (whitePoint[2] > 0f) zw = whitePoint[2];
+            }
 
             // Synthetic ICC Gray profile: white point + TRC + chromatic adaptation (CalGray WP -> D50).
             // Do NOT set BlackPoint; we will apply PDF BlackPoint semantics manually afterwards.
-            var chad = IccProfileHelpers.CreateBradfordAdaptMatrix(_xw, _yw, _zw, 0.9642f, 1.0000f, 0.8249f);
+            var chad = IccProfileHelpers.CreateBradfordAdaptMatrix(xw, yw, zw, 0.9642f, 1.0000f, 0.8249f);
             var profile = new IccProfile
             {
                 Header = new IccProfileHeader
@@ -50,18 +44,18 @@ namespace PdfReader.Rendering.Color
                     RenderingIntent = 1
                 },
                 WhitePoint = new IccXyz(0.9642f, 1.0000f, 0.8249f),
-                GrayTrc = IccTrc.FromGamma(g),
+                GrayTrc = IccTrc.FromGamma(gamma ?? 1.0f),
                 ChromaticAdaptation = chad
             };
 
             _iccGray = new IccGrayColorConverter(profile);
 
             // Precompute adapted black point -> D50 -> sRGB01 if present.
-            _hasBlackPoint = (_xb > 1e-6f) || (_yb > 1e-6f) || (_zb > 1e-6f);
+            _hasBlackPoint = blackPoint != null && blackPoint.Length >= 3;
             if (_hasBlackPoint)
             {
                 // Adapt CalGray black point to D50 then to sRGB (0..1)
-                Vector3 bpXyzD50 = IccProfileHelpers.Multiply3x3(chad, _xb, _yb, _zb);
+                Vector3 bpXyzD50 = IccProfileHelpers.Multiply3x3(chad, blackPoint[0], blackPoint[1], blackPoint[2]);
                 _blackSrgb01 = ColorMath.FromXyzD50ToSrgb01(in bpXyzD50);
             }
             else
