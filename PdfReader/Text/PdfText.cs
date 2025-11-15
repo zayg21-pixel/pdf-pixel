@@ -1,7 +1,7 @@
 using System;
-using PdfReader.Text;
+using PdfReader.Models;
 
-namespace PdfReader.Models
+namespace PdfReader.Text
 {
     /// <summary>
     /// Represents text extracted from PDF with proper handling of CID fonts vs Unicode fonts

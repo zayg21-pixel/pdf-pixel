@@ -8,6 +8,8 @@ using Microsoft.Extensions.Logging;
 using PdfReader.Fonts.Management;
 using PdfReader.Fonts.Types;
 using PdfReader.Imaging.Model;
+using PdfReader.Text;
+using PdfReader.Shading.Model;
 
 namespace PdfReader.Rendering
 {

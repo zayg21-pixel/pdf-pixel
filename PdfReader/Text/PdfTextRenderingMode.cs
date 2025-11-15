@@ -1,4 +1,4 @@
-namespace PdfReader.Models
+namespace PdfReader.Text
 {
     /// <summary>
     /// Text rendering modes for PDF text operators

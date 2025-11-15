@@ -1,6 +1,4 @@
-﻿using PdfReader.Models;
-
-namespace PdfReader.Encryption
+﻿namespace PdfReader.Encryption
 {
     /// <summary>
     /// Factory selecting appropriate decryptor implementation based on /V and /R.

@@ -4,6 +4,7 @@ using PdfReader.Fonts.Management;
 using PdfReader.Fonts.Types;
 using PdfReader.Models;
 using PdfReader.Rendering.Advanced;
+using PdfReader.Text;
 using SkiaSharp;
 using System;
 using System.Collections.Generic;

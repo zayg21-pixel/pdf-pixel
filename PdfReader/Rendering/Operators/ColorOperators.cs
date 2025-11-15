@@ -1,8 +1,9 @@
 using System.Collections.Generic;
 using PdfReader.Models;
 using SkiaSharp;
-using PdfReader.Rendering.Pattern;
 using PdfReader.Color.ColorSpace;
+using PdfReader.Pattern.Model;
+using PdfReader.Pattern.Utilities;
 
 namespace PdfReader.Rendering.Operators
 {

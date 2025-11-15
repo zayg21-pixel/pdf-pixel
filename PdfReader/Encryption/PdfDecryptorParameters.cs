@@ -1,6 +1,6 @@
-﻿using System.Collections.Generic;
+﻿using PdfReader.Models;
 
-namespace PdfReader.Models
+namespace PdfReader.Encryption
 {
     /// <summary>
     /// Aggregates values from the /Encrypt dictionary and the trailer /ID array required to initialize a decryptor.

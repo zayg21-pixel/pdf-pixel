@@ -1,6 +1,6 @@
 using System;
 using SkiaSharp;
-using PdfReader.Rendering.Pattern;
+using PdfReader.Pattern.Model;
 
 namespace PdfReader.Rendering
 {

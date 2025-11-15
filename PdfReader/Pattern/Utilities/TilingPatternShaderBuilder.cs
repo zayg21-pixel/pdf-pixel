@@ -1,0 +1,90 @@
+using System.Collections.Generic;
+using SkiaSharp;
+using PdfReader.Models;
+using PdfReader.Parsing;
+using PdfReader.Rendering;
+using PdfReader.Pattern.Model;
+
+namespace PdfReader.Pattern.Utilities;
+
+/// <summary>
+/// Converts PDF tiling and shading patterns into SkiaSharp <see cref="SKShader"/> instances for rendering.
+/// Ensures patterns are anchored, transformed, and optimized for device-space rendering and performance.
+/// </summary>
+internal sealed class TilingPatternShaderBuilder
+{
+    /// <summary>
+    /// Creates a base <see cref="SKShader"/> for the given PDF tiling pattern and page context.
+    /// Does not apply CTM or color filter/tint for uncolored patterns.
+    /// The returned shader is suitable for further transformation and color filtering.
+    /// </summary>
+    /// <param name="pattern">The PDF tiling pattern to convert.</param>
+    /// <param name="page">Current page context.</param>
+    /// <returns>Base <see cref="SKShader"/> instance or null if creation fails.</returns>
+    public static SKShader ToBaseShader(PdfTilingPattern pattern, PdfPage page)
+    {
+        if (pattern == null)
+        {
+            return null;
+        }
+
+        var bbox = pattern.BBox;
+        if (bbox.Width <= 0f || bbox.Height <= 0f)
+        {
+            return null;
+        }
+
+        SKPicture cellPicture = RenderTilingCell(pattern, page);
+        if (cellPicture == null)
+        {
+            return null;
+        }
+
+        SKRect pictureBounds = new SKRect(0, 0, bbox.Width, bbox.Height);
+        return SKShader.CreatePicture(
+            cellPicture,
+            SKShaderTileMode.Repeat,
+            SKShaderTileMode.Repeat,
+            SKFilterMode.Nearest,
+            SKMatrix.Identity,
+            pictureBounds);
+    }
+
+    /// <summary>
+    /// Renders a single tiling pattern cell to an <see cref="SKPicture"/>. Does not apply tint or color filter.
+    /// The returned picture is suitable for use with <see cref="SKShader"/> and post-factum color filtering.
+    /// </summary>
+    /// <param name="pattern">Tiling pattern definition.</param>
+    /// <param name="page">Current page context.</param>
+    /// <returns><see cref="SKPicture"/> containing the rendered pattern cell.</returns>
+    private static SKPicture RenderTilingCell(PdfTilingPattern pattern, PdfPage page)
+    {
+        var streamData = pattern.SourceObject.DecodeAsMemory();
+
+        if (streamData.IsEmpty)
+        {
+            return null;
+        }
+
+        var bbox = pattern.BBox;
+        if (bbox.Width <= 0f || bbox.Height <= 0f)
+        {
+            return null;
+        }
+
+        var cellState = new PdfGraphicsState();
+        SKRect pictureBounds = new SKRect(0, 0, bbox.Width, bbox.Height);
+        var recorder = new SKPictureRecorder();
+        var canvas = recorder.BeginRecording(pictureBounds);
+        canvas.Translate(-bbox.Left, -bbox.Top);
+
+        // Render pattern cell without tint or color filter
+        var recursionGuard = new HashSet<int>();
+        var patternPage = new FormXObjectPageWrapper(page, pattern.SourceObject);
+        var renderer = new PdfContentStreamRenderer(patternPage);
+        var parseContext = new PdfParseContext(streamData);
+        renderer.RenderContext(canvas, ref parseContext, cellState, recursionGuard);
+
+        return recorder.EndRecording();
+    }
+}
