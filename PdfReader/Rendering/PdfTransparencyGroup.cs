@@ -1,5 +1,5 @@
+using PdfReader.Color.ColorSpace;
 using PdfReader.Models;
-using PdfReader.Rendering.Color;
 
 namespace PdfReader.Rendering
 {

@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.Logging;
+using PdfReader.Color.ColorSpace;
 using PdfReader.Imaging.Jpg.Color;
 using PdfReader.Imaging.Jpg.Decoding;
 using PdfReader.Imaging.Jpg.Model;
@@ -6,7 +7,6 @@ using PdfReader.Imaging.Jpg.Readers;
 using PdfReader.Imaging.Model;
 using PdfReader.Imaging.Processing;
 using PdfReader.Imaging.Skia;
-using PdfReader.Rendering.Color;
 using SkiaSharp;
 using System;
 

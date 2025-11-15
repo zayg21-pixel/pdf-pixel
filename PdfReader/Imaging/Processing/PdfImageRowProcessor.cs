@@ -2,12 +2,12 @@ using System;
 using System.Runtime.InteropServices;
 using Microsoft.Extensions.Logging;
 using SkiaSharp;
-using PdfReader.Rendering.Color;
 using System.Runtime.CompilerServices;
 using PdfReader.Models;
-using PdfReader.Rendering.Color.Clut;
 using PdfReader.Imaging.Model;
 using PdfReader.Imaging.Sampling;
+using PdfReader.Color.ColorSpace;
+using PdfReader.Color.Structures;
 
 namespace PdfReader.Imaging.Processing;
 
@@ -191,7 +191,7 @@ internal sealed class PdfImageRowProcessor : IDisposable
     {
         var nativeRef = new NativeRef<byte>(_buffer);
         ref byte destRowByte = ref Unsafe.Add(ref nativeRef.Value, rowIndex * _rowStride);
-        ref Rgba destRowColor = ref Unsafe.As<byte, Rgba>(ref destRowByte);
+        ref RgbaPacked destRowColor = ref Unsafe.As<byte, RgbaPacked>(ref destRowByte);
 
         int width = _width;
         int componentCount = _components;
@@ -270,7 +270,7 @@ internal sealed class PdfImageRowProcessor : IDisposable
                 pixel = new SKColor(pixel.Red, pixel.Green, pixel.Blue, 0);
             }
 
-            Unsafe.Add(ref destRowColor, x) = new Rgba(pixel.Red, pixel.Green, pixel.Blue, pixel.Alpha);
+            Unsafe.Add(ref destRowColor, x) = new RgbaPacked(pixel.Red, pixel.Green, pixel.Blue, pixel.Alpha);
         }
     }
 

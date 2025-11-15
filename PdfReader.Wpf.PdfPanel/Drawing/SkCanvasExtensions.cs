@@ -1,7 +1,6 @@
 ﻿using SkiaSharp;
 using System;
 using System.Linq;
-using System.Windows.Media;
 
 namespace PdfReader.Wpf.PdfPanel.Drawing
 {
@@ -18,7 +17,7 @@ namespace PdfReader.Wpf.PdfPanel.Drawing
     /// </summary>
     internal static class SkCanvasExtensions
     {
-        public static void Clear(this SKCanvas canvas, Color color)
+        public static void Clear(this SKCanvas canvas, System.Windows.Media.Color color)
         {
             canvas.Clear(new SKColor(color.R, color.G, color.B, color.A));
         }

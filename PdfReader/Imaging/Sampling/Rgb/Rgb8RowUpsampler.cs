@@ -1,4 +1,4 @@
-using PdfReader.Rendering.Color.Clut;
+using PdfReader.Color.Structures;
 using System.Runtime.CompilerServices;
 
 namespace PdfReader.Imaging.Sampling.Rgb
@@ -19,11 +19,11 @@ namespace PdfReader.Imaging.Sampling.Rgb
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Upsample(ref byte source, ref byte destination)
         {
-            ref var rgbDestination = ref Unsafe.As<byte, Rgba>(ref destination);
-            ref Rendering.Color.Clut.Rgb sourcePixel = ref Unsafe.As<byte, Rendering.Color.Clut.Rgb>(ref source);
+            ref var rgbDestination = ref Unsafe.As<byte, RgbaPacked>(ref destination);
+            ref RgbPacked sourcePixel = ref Unsafe.As<byte, RgbPacked>(ref source);
             for (int columnIndex = 0; columnIndex < _columns; columnIndex++)
             {
-                rgbDestination = Unsafe.As<PdfReader.Rendering.Color.Clut.Rgb, Rgba>(ref sourcePixel);
+                rgbDestination = Unsafe.As<RgbPacked, RgbaPacked>(ref sourcePixel);
                 rgbDestination.A = 255;
                 sourcePixel = ref Unsafe.Add(ref sourcePixel, 1);
                 rgbDestination = ref Unsafe.Add(ref rgbDestination, 1);

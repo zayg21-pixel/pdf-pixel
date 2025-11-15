@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Linq;
-using System.Windows.Media;
 
 namespace PdfReader.Wpf.PdfPanel.Drawing
 {
@@ -14,7 +13,7 @@ namespace PdfReader.Wpf.PdfPanel.Drawing
 
         public VisiblePageInfo[] VisiblePages { get; set; }
 
-        public Color BackgroundColor { get; set; }
+        public System.Windows.Media.Color BackgroundColor { get; set; }
 
         public int MaxThumbnailSize { get; set; }
 

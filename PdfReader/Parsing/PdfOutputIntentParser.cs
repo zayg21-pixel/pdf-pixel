@@ -1,6 +1,6 @@
 using System;
 using System.Collections.Generic;
-using PdfReader.Icc;
+using PdfReader.Color.Icc.Model;
 using PdfReader.Models;
 
 namespace PdfReader.Parsing

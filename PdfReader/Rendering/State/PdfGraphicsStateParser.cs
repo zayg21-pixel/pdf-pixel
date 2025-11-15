@@ -1,7 +1,6 @@
 ﻿using PdfReader.Models;
 using SkiaSharp;
 using System;
-using PdfReader.Rendering.Color;
 using PdfReader.Text;
 
 namespace PdfReader.Rendering.State

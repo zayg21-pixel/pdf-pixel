@@ -54,7 +54,7 @@ namespace PdfReader.Wpf.PdfPanel
         public static readonly DependencyProperty MaxThumbnailSizeProperty = DependencyProperty.Register(nameof(MaxThumbnailSize), typeof(int), typeof(SkiaPdfPanel),
             new FrameworkPropertyMetadata(512, FrameworkPropertyMetadataOptions.AffectsRender));
 
-        public static readonly DependencyProperty BackgroundColorProperty = DependencyProperty.Register(nameof(BackgroundColor), typeof(Color), typeof(SkiaPdfPanel),
+        public static readonly DependencyProperty BackgroundColorProperty = DependencyProperty.Register(nameof(BackgroundColor), typeof(System.Windows.Media.Color), typeof(SkiaPdfPanel),
             new FrameworkPropertyMetadata(Colors.LightGray, FrameworkPropertyMetadataOptions.AffectsRender));
 
         public static readonly DependencyProperty AutoScaleModeProperty = DependencyProperty.Register(nameof(AutoScaleMode), typeof(PdfPanelAutoScaleMode), typeof(SkiaPdfPanel),
@@ -158,9 +158,9 @@ namespace PdfReader.Wpf.PdfPanel
         /// <summary>
         /// Gets or sets the background color.
         /// </summary>
-        public Color BackgroundColor
+        public System.Windows.Media.Color BackgroundColor
         {
-            get => (Color)GetValue(BackgroundColorProperty);
+            get => (System.Windows.Media.Color)GetValue(BackgroundColorProperty);
             set => SetValue(BackgroundColorProperty, value);
         }
 

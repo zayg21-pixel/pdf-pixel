@@ -1,12 +1,12 @@
 using System;
 using System.Collections.Generic;
 using PdfReader.Rendering.Pattern;
-using PdfReader.Rendering.Color;
 using PdfReader.Fonts.Types;
 using PdfReader.Fonts;
 using SkiaSharp;
 using PdfReader.Rendering.State;
 using PdfReader.Rendering;
+using PdfReader.Color.ColorSpace;
 
 namespace PdfReader.Models
 {

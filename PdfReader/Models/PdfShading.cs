@@ -1,5 +1,5 @@
+using PdfReader.Color.ColorSpace;
 using PdfReader.Rendering;
-using PdfReader.Rendering.Color;
 using PdfReader.Rendering.Functions;
 using PdfReader.Text;
 using SkiaSharp;

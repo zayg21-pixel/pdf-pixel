@@ -1,4 +1,4 @@
-﻿using PdfReader.Rendering.Color.Clut;
+﻿using PdfReader.Color.Structures;
 using System.Runtime.CompilerServices;
 
 namespace PdfReader.Imaging.Sampling.Rgb;
@@ -20,7 +20,7 @@ internal sealed class GrayRgba4RowUpsampler : IRowUpsampler
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void Upsample(ref byte source, ref byte destination)
     {
-        ref var rgbDestination = ref Unsafe.As<byte, Rgba>(ref destination);
+        ref var rgbDestination = ref Unsafe.As<byte, RgbaPacked>(ref destination);
 
         for (int columnIndex = 0; columnIndex < _columns; columnIndex++)
         {
