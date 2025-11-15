@@ -5,113 +5,112 @@ using SkiaSharp;
 using System;
 using System.Numerics;
 
-namespace PdfReader.Color.ColorSpace
+namespace PdfReader.Color.ColorSpace;
+
+internal sealed class IccBasedConverter : PdfColorSpaceConverter
 {
-    internal sealed class IccBasedConverter : PdfColorSpaceConverter
+    private readonly int _n;
+    private readonly bool _useDefault;
+    private readonly PdfColorSpaceConverter _default;
+    private static readonly Vector3 _vectorToByte3 = new Vector3(255f);
+    private static readonly Vector3 _vectorRounding3 = new Vector3(0.5f);
+    private readonly IccGrayColorConverter _grayConverter;
+    private readonly IccRgbColorConverter _rgbConverter;
+    private readonly IccCmykColorConverter _cmykConverter;
+
+    private IccBasedConverter(int n, PdfColorSpaceConverter alternate)
     {
-        private readonly int _n;
-        private readonly bool _useDefault;
-        private readonly PdfColorSpaceConverter _default;
-        private static readonly Vector3 _vectorToByte3 = new Vector3(255f);
-        private static readonly Vector3 _vectorRounding3 = new Vector3(0.5f);
-        private readonly IccGrayColorConverter _grayConverter;
-        private readonly IccRgbColorConverter _rgbConverter;
-        private readonly IccCmykColorConverter _cmykConverter;
+        _n = n;
 
-        private IccBasedConverter(int n, PdfColorSpaceConverter alternate)
+        if (alternate == null)
         {
-            _n = n;
-
-            if (alternate == null)
+            _default = n switch
             {
-                _default = n switch
-                {
-                    1 => DeviceGrayConverter.Instance,
-                    3 => DeviceRgbConverter.Instance,
-                    4 => DeviceCmykConverter.Instance,
-                    _ => DeviceRgbConverter.Instance,
-                };
-            }
-            else
-            {
-                _default = alternate;
-            }
+                1 => DeviceGrayConverter.Instance,
+                3 => DeviceRgbConverter.Instance,
+                4 => DeviceCmykConverter.Instance,
+                _ => DeviceRgbConverter.Instance,
+            };
         }
-
-        public IccBasedConverter(int n, PdfColorSpaceConverter alternate, IccProfile profile)
-            : this(n, alternate)
+        else
         {
-            if (profile != null)
-            {
-                switch (n)
-                {
-                    case 1:
-                        _grayConverter = new IccGrayColorConverter(profile);
-                        break;
-                    case 3:
-                        _rgbConverter = new IccRgbColorConverter(profile);
-                        break;
-                    case 4:
-                        _cmykConverter = new IccCmykColorConverter(profile);
-                        break;
-                    default:
-                        _useDefault = true;
-                        break;
-                }
-            }
-            else
-            {
-                _useDefault = true;
-            }
+            _default = alternate;
         }
+    }
 
-        public IccBasedConverter(int n, PdfColorSpaceConverter alternate, byte[] iccProfileBytes)
-            : this(n, alternate, IccProfile.Parse(iccProfileBytes))
+    public IccBasedConverter(int n, PdfColorSpaceConverter alternate, IccProfile profile)
+        : this(n, alternate)
+    {
+        if (profile != null)
         {
-        }
-
-        public override int Components => _default.Components;
-
-        public override bool IsDevice => false;
-
-        public int N => _n;
-
-        protected override SKColor ToSrgbCore(ReadOnlySpan<float> comps01, PdfRenderingIntent intent)
-        {
-            if (_useDefault || comps01.Length != N)
-            {
-                return _default.ToSrgb(comps01, intent);
-            }
-
-            Vector3 result = default;
-            bool converterUsed = false;
-
-            switch (comps01.Length)
+            switch (n)
             {
                 case 1:
-                    converterUsed = _grayConverter.TryToSrgb01(comps01[0], intent, out result);
+                    _grayConverter = new IccGrayColorConverter(profile);
                     break;
                 case 3:
-                    converterUsed = _rgbConverter.TryToSrgb01(comps01, intent, out result);
+                    _rgbConverter = new IccRgbColorConverter(profile);
                     break;
                 case 4:
-                    converterUsed = _cmykConverter.TryToSrgb01(comps01, intent, out result);
+                    _cmykConverter = new IccCmykColorConverter(profile);
+                    break;
+                default:
+                    _useDefault = true;
                     break;
             }
+        }
+        else
+        {
+            _useDefault = true;
+        }
+    }
 
-            if (converterUsed)
-            {
-                Vector3 converted = ConvertTyByte(result);
-                return new SKColor((byte)converted.X, (byte)converted.Y, (byte)converted.Z);
-            }
+    public IccBasedConverter(int n, PdfColorSpaceConverter alternate, byte[] iccProfileBytes)
+        : this(n, alternate, IccProfile.Parse(iccProfileBytes))
+    {
+    }
 
+    public override int Components => _default.Components;
+
+    public override bool IsDevice => false;
+
+    public int N => _n;
+
+    protected override SKColor ToSrgbCore(ReadOnlySpan<float> comps01, PdfRenderingIntent intent)
+    {
+        if (_useDefault || comps01.Length != N)
+        {
             return _default.ToSrgb(comps01, intent);
         }
 
-        private static Vector3 ConvertTyByte(Vector3 rgb01)
+        Vector3 result = default;
+        bool converterUsed = false;
+
+        switch (comps01.Length)
         {
-            Vector3 converted = rgb01 * _vectorToByte3 + _vectorRounding3;
-            return Vector3.Clamp(converted, Vector3.Zero, _vectorToByte3);
+            case 1:
+                converterUsed = _grayConverter.TryToSrgb01(comps01[0], intent, out result);
+                break;
+            case 3:
+                converterUsed = _rgbConverter.TryToSrgb01(comps01, intent, out result);
+                break;
+            case 4:
+                converterUsed = _cmykConverter.TryToSrgb01(comps01, intent, out result);
+                break;
         }
+
+        if (converterUsed)
+        {
+            Vector3 converted = ConvertTyByte(result);
+            return new SKColor((byte)converted.X, (byte)converted.Y, (byte)converted.Z);
+        }
+
+        return _default.ToSrgb(comps01, intent);
+    }
+
+    private static Vector3 ConvertTyByte(Vector3 rgb01)
+    {
+        Vector3 converted = rgb01 * _vectorToByte3 + _vectorRounding3;
+        return Vector3.Clamp(converted, Vector3.Zero, _vectorToByte3);
     }
 }

@@ -5,28 +5,32 @@ using PdfReader.Resources;
 using SkiaSharp;
 using System;
 
-namespace PdfReader.Color.ColorSpace
+namespace PdfReader.Color.ColorSpace;
+
+/// <summary>
+/// Provides a converter for the Device CMYK color space to sRGB.
+/// </summary>
+/// <remarks>This converter uses an ICC profile to accurately transform CMYK color values to sRGB. It is designed
+/// to handle the Device CMYK color space, which is commonly used in printing.</remarks>
+internal sealed class DeviceCmykConverter : PdfColorSpaceConverter
 {
-    internal sealed class DeviceCmykConverter : PdfColorSpaceConverter
+    public static readonly DeviceCmykConverter Instance = new DeviceCmykConverter();
+    private static readonly IccCmykColorConverter _iccCmykConverter;
+
+    static DeviceCmykConverter()
     {
-        public static readonly DeviceCmykConverter Instance = new DeviceCmykConverter();
-        private static readonly IccCmykColorConverter _iccCmykConverter;
+        var cmykIccBytes = PdfResourceLoader.GetResource("CompactCmyk.icc");
+        var cmykProfile = IccProfile.Parse(cmykIccBytes);
+        _iccCmykConverter = new IccCmykColorConverter(cmykProfile);
+    }
 
-        static DeviceCmykConverter()
-        {
-            var cmykIccBytes = PdfResourceLoader.GetResource("CompactCmyk.icc");
-            var cmykProfile = IccProfile.Parse(cmykIccBytes);
-            _iccCmykConverter = new IccCmykColorConverter(cmykProfile);
-        }
+    public override int Components => 4;
 
-        public override int Components => 4;
+    public override bool IsDevice => true;
 
-        public override bool IsDevice => true;
-
-        protected override SKColor ToSrgbCore(ReadOnlySpan<float> comps01, PdfRenderingIntent renderingIntent)
-        {
-            _iccCmykConverter.TryToSrgb01(comps01, renderingIntent, out var srgb01);
-            return new SKColor(ToByte(srgb01.X), ToByte(srgb01.Y), ToByte(srgb01.Z));
-        }
+    protected override SKColor ToSrgbCore(ReadOnlySpan<float> comps01, PdfRenderingIntent renderingIntent)
+    {
+        _iccCmykConverter.TryToSrgb01(comps01, renderingIntent, out var srgb01);
+        return new SKColor(ToByte(srgb01.X), ToByte(srgb01.Y), ToByte(srgb01.Z));
     }
 }
