@@ -1,5 +1,5 @@
 using Microsoft.Extensions.Logging;
-using PdfReader.Rendering.Image.Ccitt;
+using PdfReader.Imaging.Ccitt;
 using PdfReader.Rendering.Image.Processing;
 using SkiaSharp;
 using System;
@@ -29,7 +29,7 @@ namespace PdfReader.Rendering.Image
                 throw new ArgumentNullException(nameof(loggerFactory));
             }
 
-            var parameters = image.DecodeParms != null && image.DecodeParms.Count > 0 ? image.DecodeParms[0] : null;
+            var parameters = image.DecodeParms;
             _k = parameters?.K ?? 0;
             _endOfLine = parameters?.EndOfLine ?? false;
             _byteAlign = parameters?.EncodedByteAlign ?? false;

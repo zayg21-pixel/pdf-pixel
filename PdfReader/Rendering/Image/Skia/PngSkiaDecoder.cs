@@ -40,11 +40,8 @@ namespace PdfReader.Rendering.Image.Skia
                 return null;
             }
 
-            int? predictor = null;
-            if (image.DecodeParms != null && image.DecodeParms.Count > 0)
-            {
-                predictor = image.DecodeParms[0]?.Predictor;
-            }
+            int? predictor = image.DecodeParms?.Predictor;
+
             if (!predictor.HasValue || predictor.Value < 10 || predictor.Value > 15)
             {
                 return null;

@@ -67,9 +67,9 @@ namespace PdfReader.Rendering.Image
         public PdfImageType Type { get; internal set; } = PdfImageType.Raw;
 
         /// <summary>
-        /// Parsed /DecodeParms entries (single dictionary or first entry when array) used by certain filters and predictors.
+        /// Parsed /DecodeParms entries (single dictionary or first image-related entry when array) used by certain filters and predictors.
         /// </summary>
-        public List<PdfDecodeParameters> DecodeParms { get; internal set; } = new List<PdfDecodeParameters>();
+        public PdfDecodeParameters DecodeParms { get; internal set; }
 
         /// <summary>
         /// True when explicit image masking is enabled (/ImageMask true).
@@ -206,49 +206,42 @@ namespace PdfReader.Rendering.Image
                 Name = name
             };
 
-            // Type from Filter
-            List<PdfFilterType> filters = PdfStreamDecoder.GetFilters(imageXObject);
-
-            foreach (var filter in filters)
-            {
-                var imageType = MapImageType(filter);
-
-                if (imageType != PdfImageType.Raw)
-                {
-                    image.Type = imageType;
-                    break;
-                }
-            }
-
             image.HasImageMask = imageXObject.Dictionary.GetBoolOrDefault(PdfTokens.ImageMaskKey);
             image.Interpolate = imageXObject.Dictionary.GetBoolOrDefault(PdfTokens.InterpolateKey);
 
-            image.DecodeArray = imageXObject.Dictionary.GetArray(PdfTokens.DecodeKey).GetFloatArray();
-            image.MaskArray = imageXObject.Dictionary.GetArray(PdfTokens.MaskKey).GetIntegerArray();
+            image.DecodeArray = imageXObject.Dictionary.GetArray(PdfTokens.DecodeKey)?.GetFloatArray();
+            image.MaskArray = imageXObject.Dictionary.GetArray(PdfTokens.MaskKey)?.GetIntegerArray();
 
             // Parse /Matte as raw float array (for dematting at render time)
-            image.MatteArray = imageXObject.Dictionary.GetArray(PdfTokens.MatteKey).GetFloatArray();
+            image.MatteArray = imageXObject.Dictionary.GetArray(PdfTokens.MatteKey)?.GetFloatArray();
 
             // Parse /Intent and set RenderingIntent
             image.RenderingIntent = imageXObject.Dictionary.GetName(PdfTokens.IntentKey).AsEnum<PdfRenderingIntent>();
 
+            // Type from Filter
+            List<PdfFilterType> filters = PdfStreamDecoder.GetFilters(imageXObject);
+
+            if (filters.Count > 0)
+            {
+                image.Type = MapImageType(filters[filters.Count - 1]);
+            }
+
             var decodeParmsDict = imageXObject.Dictionary.GetDictionary(PdfTokens.DecodeParmsKey);
             if (decodeParmsDict != null)
             {
-                image.DecodeParms.Add(PdfDecodeParameters.FromDictionary(decodeParmsDict));
+                image.DecodeParms = PdfDecodeParameters.FromDictionary(decodeParmsDict);
             }
             else
             {
                 var decodeParmsArray = imageXObject.Dictionary.GetArray(PdfTokens.DecodeParmsKey);
                 if (decodeParmsArray != null)
                 {
-                    for (int index = 0; index < decodeParmsArray.Count; index++)
+                    // image DecodeParms corresponds to the last entry in the array
+                    var imageDecodeParamsDictionary = decodeParmsArray.GetDictionary(decodeParmsArray.Count - 1);
+
+                    if (imageDecodeParamsDictionary != null)
                     {
-                        var decodeParmValue = decodeParmsArray.GetDictionary(index);
-                        if (decodeParmValue != null)
-                        {
-                            image.DecodeParms.Add(PdfDecodeParameters.FromDictionary(decodeParmValue));
-                        }
+                        image.DecodeParms = PdfDecodeParameters.FromDictionary(imageDecodeParamsDictionary);
                     }
                 }
             }
