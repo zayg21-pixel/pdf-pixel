@@ -11,6 +11,7 @@ namespace PdfReader.Parsing
         // Boolean literal constants
         private readonly ReadOnlySpan<byte> TrueValue = "true"u8;
         private readonly ReadOnlySpan<byte> FalseValue = "false"u8;
+        private readonly ReadOnlySpan<byte> NullValue = "null"u8;
 
         private readonly ReadOnlySpan<double> inversePowersOf10 =
         [
@@ -153,7 +154,7 @@ namespace PdfReader.Parsing
                             int generation = values[values.Count - 1].AsInteger();
                             int objectNumber = values[values.Count - 2].AsInteger();
                             values.RemoveRange(values.Count - 2, 2);
-                            values.Add(PdfValue.Reference(new PdfReference(objectNumber, generation)));
+                            values.Add(PdfValueFactory.Reference(new PdfReference(objectNumber, generation)));
                         }
                         break;
                     }

@@ -145,7 +145,6 @@ namespace PdfReader.Color.ColorSpace
 
             var blackPoint = dictionary.GetArray(PdfTokens.BlackPointKey)?.GetFloatArray();
 
-
             float[,] matrix = new float[3, 3]
             {
                 { 1f, 0f, 0f },

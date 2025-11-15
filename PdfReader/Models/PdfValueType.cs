@@ -2,10 +2,11 @@ namespace PdfReader.Models
 {
     public enum PdfValueType
     {
+        Null,
         Name,
         String, 
         Boolean,
-        Operator, 
+        Operator,
         Integer,
         Real,
         Reference,

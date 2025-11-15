@@ -80,7 +80,7 @@ internal class InlineImageOperators : IOperatorProcessor
             }
 
 
-            var inlineObject = new PdfObject(new PdfReference(-1), _page.Document, PdfValue.Dictionary(imageDictionary))
+            var inlineObject = new PdfObject(new PdfReference(-1), _page.Document, PdfValueFactory.Dictionary(imageDictionary))
             {
                 EmbaddedStream = image.AsString().Value
             };
@@ -97,7 +97,7 @@ internal class InlineImageOperators : IOperatorProcessor
     private PdfDictionary BuildImageDictionary(List<IPdfValue> parameters)
     {
         var imageDictionary = new PdfDictionary(_page.Document);
-        imageDictionary.Set(PdfTokens.SubtypeKey, PdfValue.Name(PdfTokens.ImageSubtype));
+        imageDictionary.Set(PdfTokens.SubtypeKey, PdfValueFactory.Name(PdfTokens.ImageSubtype));
 
         for (int parameterIndex = 0; parameterIndex + 1 < parameters.Count; parameterIndex += 2)
         {
@@ -125,7 +125,7 @@ internal class InlineImageOperators : IOperatorProcessor
 
         if (!imageDictionary.HasKey(PdfTokens.BitsPerComponentKey) && !imageDictionary.GetBooleanOrDefault(PdfTokens.ImageMaskKey))
         {
-            imageDictionary.Set(PdfTokens.BitsPerComponentKey, PdfValue.Integer(8));
+            imageDictionary.Set(PdfTokens.BitsPerComponentKey, PdfValueFactory.Integer(8));
         }
         if (!imageDictionary.HasKey(PdfTokens.WidthKey))
         {
@@ -139,11 +139,11 @@ internal class InlineImageOperators : IOperatorProcessor
         }
         if (!imageDictionary.HasKey(PdfTokens.ColorSpaceKey) && !imageDictionary.GetBooleanOrDefault(PdfTokens.ImageMaskKey))
         {
-            imageDictionary.Set(PdfTokens.ColorSpaceKey, PdfValue.Name(PdfColorSpaceType.DeviceGray.AsPdfString()));
+            imageDictionary.Set(PdfTokens.ColorSpaceKey, PdfValueFactory.Name(PdfColorSpaceType.DeviceGray.AsPdfString()));
         }
         if (imageDictionary.GetBooleanOrDefault(PdfTokens.ImageMaskKey) && !imageDictionary.HasKey(PdfTokens.BitsPerComponentKey))
         {
-            imageDictionary.Set(PdfTokens.BitsPerComponentKey, PdfValue.Integer(1));
+            imageDictionary.Set(PdfTokens.BitsPerComponentKey, PdfValueFactory.Integer(1));
         }
 
         return imageDictionary;
@@ -158,10 +158,10 @@ internal class InlineImageOperators : IOperatorProcessor
             {
                 switch (colorSpace)
                 {
-                    case PdfInlineImageColorSpace.DeviceGray: return PdfValue.Name(PdfColorSpaceType.DeviceGray.AsPdfString());
-                    case PdfInlineImageColorSpace.DeviceRGB: return PdfValue.Name(PdfColorSpaceType.DeviceRGB.AsPdfString());
-                    case PdfInlineImageColorSpace.DeviceCMYK: return PdfValue.Name(PdfColorSpaceType.DeviceCMYK.AsPdfString());
-                    case PdfInlineImageColorSpace.Indexed: return PdfValue.Name(PdfColorSpaceType.Indexed.AsPdfString());
+                    case PdfInlineImageColorSpace.DeviceGray: return PdfValueFactory.Name(PdfColorSpaceType.DeviceGray.AsPdfString());
+                    case PdfInlineImageColorSpace.DeviceRGB: return PdfValueFactory.Name(PdfColorSpaceType.DeviceRGB.AsPdfString());
+                    case PdfInlineImageColorSpace.DeviceCMYK: return PdfValueFactory.Name(PdfColorSpaceType.DeviceCMYK.AsPdfString());
+                    case PdfInlineImageColorSpace.Indexed: return PdfValueFactory.Name(PdfColorSpaceType.Indexed.AsPdfString());
                 }
             }
         }
@@ -176,11 +176,11 @@ internal class InlineImageOperators : IOperatorProcessor
 
                     if (filter != PdfFilterType.Unknown)
                     {
-                        return PdfValue.Name(filter.AsPdfString());
+                        return PdfValueFactory.Name(filter.AsPdfString());
                     }
                     else
                     {
-                        return PdfValue.Name(filterName);
+                        return PdfValueFactory.Name(filterName);
                     }
                 }
             }
@@ -200,17 +200,17 @@ internal class InlineImageOperators : IOperatorProcessor
 
                             if (filterName != PdfFilterType.Unknown)
                             {
-                                newValues.Add(PdfValue.Name(filterName.AsPdfString()));
+                                newValues.Add(PdfValueFactory.Name(filterName.AsPdfString()));
                             }
                             else
                             {
-                                newValues.Add(PdfValue.Name(itemName));
+                                newValues.Add(PdfValueFactory.Name(itemName));
                             }
 
                         }
                         newValues.Add(item);
                     }
-                    return PdfValue.Array(new PdfArray(array.Document, newValues));
+                    return PdfValueFactory.Array(new PdfArray(array.Document, newValues));
                 }
             }
         }

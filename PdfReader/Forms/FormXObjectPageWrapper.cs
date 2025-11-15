@@ -33,8 +33,8 @@ internal class FormXObjectPageWrapper : PdfPage
         {
             _overridesResources = true;
             var syntheticDict = new PdfDictionary(originalPage.Document);
-            syntheticDict.Set(PdfTokens.ResourcesKey, PdfValue.Dictionary(formResources));
-            _resourcePageObject = new PdfObject(new PdfReference(-1, 0), originalPage.Document, PdfValue.Dictionary(syntheticDict));
+            syntheticDict.Set(PdfTokens.ResourcesKey, PdfValueFactory.Dictionary(formResources));
+            _resourcePageObject = new PdfObject(new PdfReference(-1, 0), originalPage.Document, PdfValueFactory.Dictionary(syntheticDict));
             _resourceDictionary = formResources;
         }
     }

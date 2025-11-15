@@ -30,7 +30,7 @@ namespace PdfReader.Parsing
 
             values.RemoveRange(frame.StartIndex, itemCount);
             var array = new PdfArray(_document, items);
-            values.Add(PdfValue.Array(array));
+            values.Add(PdfValueFactory.Array(array));
         }
 
         /// <summary>
@@ -75,7 +75,7 @@ namespace PdfReader.Parsing
 
             values.RemoveRange(frame.StartIndex, rawCount);
             var dictionary = new PdfDictionary(_document, rawMap);
-            values.Add(PdfValue.Dictionary(dictionary));
+            values.Add(PdfValueFactory.Dictionary(dictionary));
         }
     }
 }

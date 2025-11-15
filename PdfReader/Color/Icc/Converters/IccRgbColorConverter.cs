@@ -114,7 +114,7 @@ internal sealed class IccRgbColorConverter
         xyz = ColorMath.ApplyBlackPointCompensation(in xyz, _sourceBlackLstar, _blackPointCompensationScale, intent);
         srgb01 = ColorMath.FromXyzD50ToSrgb01(in xyz);
 
-        return false;
+        return true;
     }
 
     private static bool TryBuildDeviceToPcsMatrix(IccProfile profile, out float[,] matrix)

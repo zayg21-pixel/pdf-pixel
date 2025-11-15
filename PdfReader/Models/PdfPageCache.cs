@@ -130,7 +130,7 @@ namespace PdfReader.Models
                 var inlinePatternDictionary = _patternDictionary.GetDictionary(patternName);
                 if (inlinePatternDictionary != null)
                 {
-                    patternObject = new PdfObject(new PdfReference(-1,0), _page.Document, PdfValue.Dictionary(inlinePatternDictionary));
+                    patternObject = new PdfObject(new PdfReference(-1,0), _page.Document, PdfValueFactory.Dictionary(inlinePatternDictionary));
                 }
             }
             if (patternObject == null)

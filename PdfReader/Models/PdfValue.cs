@@ -7,6 +7,18 @@ namespace PdfReader.Models
         PdfValueType Type { get; }
     }
 
+    public class NullValue : IPdfValue
+    {
+        public static readonly NullValue Instance = new NullValue();
+
+        public PdfValueType Type => PdfValueType.Null;
+
+        public override string ToString()
+        {
+            return "null";
+        }
+    }
+
     public interface IPdfValue<T> : IPdfValue
     {
         T Value { get; }
@@ -31,6 +43,7 @@ namespace PdfReader.Models
         {
             return _type switch
             {
+                PdfValueType.Null => "null",
                 PdfValueType.Name => $"/{_value}",
                 PdfValueType.Boolean => _value.ToString(),
                 PdfValueType.String => $"({_value})",
@@ -41,14 +54,15 @@ namespace PdfReader.Models
                 PdfValueType.Array => _value is List<IPdfValue> list ? $"[{list.Count} items]" : "[array]",
                 PdfValueType.Dictionary => _value is PdfDictionary dict ? $"<< {dict.Count} entries >>" : "<<dictionary>>",
                 PdfValueType.InlineStream => "[inline stream]",
-                _ => "null"
+                _ => "unknown"
             };
         }
     }
 
     // Static factory class for creating PdfValue instances
-    public static class PdfValue
+    public static class PdfValueFactory
     {
+        public static IPdfValue Null() => NullValue.Instance;
         public static IPdfValue<PdfString> Name(PdfString value) => new PdfValue<PdfString>(value, PdfValueType.Name);
         public static IPdfValue<PdfString> String(PdfString value) => new PdfValue<PdfString>(value, PdfValueType.String);
         public static IPdfValue<PdfString> Operator(PdfString value) => new PdfValue<PdfString>(value, PdfValueType.Operator);

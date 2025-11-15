@@ -55,7 +55,7 @@ namespace PdfReader.Parsing
                 bytes = _document.Decryptor.DecryptBytes(bytes, _currentReference);
             }
 
-            return PdfValue.String(new PdfString(bytes));
+            return PdfValueFactory.String(new PdfString(bytes));
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -152,7 +152,7 @@ namespace PdfReader.Parsing
                 bytes = _document.Decryptor.DecryptBytes(bytes, _currentReference);
             }
 
-            return PdfValue.String(new PdfString(bytes));
+            return PdfValueFactory.String(new PdfString(bytes));
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -182,7 +182,7 @@ namespace PdfReader.Parsing
                     _localBuffer.Add(currentByte);
                 }
             }
-            return PdfValue.Name(new PdfString([.. _localBuffer]));
+            return PdfValueFactory.Name(new PdfString([.. _localBuffer]));
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -204,15 +204,19 @@ namespace PdfReader.Parsing
 
             if (result.Span.SequenceEqual(TrueValue))
             {
-                return PdfValue.Boolean(true);
+                return PdfValueFactory.Boolean(true);
             }
             else if (result.Span.SequenceEqual(FalseValue))
             {
-                return PdfValue.Boolean(false);
+                return PdfValueFactory.Boolean(false);
+            }
+            else if (result.Span.SequenceEqual(NullValue))
+            {
+                return PdfValueFactory.Null();
             }
             else
             {
-                return PdfValue.Operator(result);
+                return PdfValueFactory.Operator(result);
             }
         }
 

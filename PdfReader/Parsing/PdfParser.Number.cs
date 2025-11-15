@@ -60,7 +60,7 @@ namespace PdfReader.Parsing
             if (!sawDigit)
             {
                 // Malformed number like '+' '-' '.' -> treat as 0.
-                return PdfValue.Integer(0);
+                return PdfValueFactory.Integer(0);
             }
 
             if (fractionalDigits == 0)
@@ -70,7 +70,7 @@ namespace PdfReader.Parsing
                 {
                     intValue = -intValue;
                 }
-                return PdfValue.Integer(intValue);
+                return PdfValueFactory.Integer(intValue);
             }
 
             // Scale once using lookup (fallback to Math.Pow for lengths beyond precomputed span).
@@ -91,7 +91,7 @@ namespace PdfReader.Parsing
                 realValue = -realValue;
             }
 
-            return PdfValue.Real((float)realValue);
+            return PdfValueFactory.Real((float)realValue);
         }
     }
 }

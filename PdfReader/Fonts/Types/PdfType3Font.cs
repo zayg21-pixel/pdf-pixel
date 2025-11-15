@@ -139,7 +139,7 @@ namespace PdfReader.Fonts.Types
             }
         }
 
-        public override PdfFontEncoding Encoding => Encoding == PdfFontEncoding.Unknown ? PdfFontEncoding.StandardEncoding : base.Encoding;
+        public override PdfFontEncoding Encoding => base.Encoding == PdfFontEncoding.Unknown ? PdfFontEncoding.StandardEncoding : base.Encoding;
 
         /// <summary>
         /// Convert character code to character name based on encoding

@@ -47,10 +47,10 @@ namespace PdfReader.Parsing
 
             if (_localBuffer.Count == 0)
             {
-                return PdfValue.InlineStream(PdfString.Empty);
+                return PdfValueFactory.InlineStream(PdfString.Empty);
             }
 
-            return PdfValue.InlineStream(new PdfString([.. _localBuffer]));
+            return PdfValueFactory.InlineStream(new PdfString([.. _localBuffer]));
         }
     }
 }
