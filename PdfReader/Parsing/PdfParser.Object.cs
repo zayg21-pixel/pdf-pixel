@@ -1,5 +1,6 @@
 using System.Runtime.CompilerServices;
 using PdfReader.Models;
+using PdfReader.Text;
 
 namespace PdfReader.Parsing
 {

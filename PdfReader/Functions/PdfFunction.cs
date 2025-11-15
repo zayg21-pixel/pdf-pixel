@@ -1,5 +1,6 @@
 using System;
 using PdfReader.Models;
+using PdfReader.Text;
 
 namespace PdfReader.Functions;
 

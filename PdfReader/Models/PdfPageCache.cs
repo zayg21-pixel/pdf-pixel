@@ -7,6 +7,7 @@ using PdfReader.Rendering.State;
 using PdfReader.Color.ColorSpace;
 using PdfReader.Pattern.Model;
 using PdfReader.Pattern.Utilities;
+using PdfReader.Text;
 
 namespace PdfReader.Models
 {

@@ -4,6 +4,7 @@ using System.Linq;
 using Microsoft.Extensions.Logging;
 using PdfReader.Models;
 using PdfReader.Streams;
+using PdfReader.Text;
 
 namespace PdfReader.Parsing
 {
@@ -50,7 +51,7 @@ namespace PdfReader.Parsing
 
             if (!_decodedStreamCache.TryGetValue(containerReference.ObjectNumber, out var decoded))
             {
-                decoded = _pdfDocument.StreamDecoder.DecodeContentStream(containerObject);
+                decoded = containerObject.DecodeAsMemory();
                 if (decoded.IsEmpty)
                 {
                     return null;

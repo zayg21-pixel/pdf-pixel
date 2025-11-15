@@ -1,5 +1,6 @@
 using PdfReader.Models;
 using PdfReader.Fonts.Mapping;
+using PdfReader.Text;
 
 namespace PdfReader.Fonts.Types
 {

@@ -149,7 +149,7 @@ namespace PdfReader.Fonts.Management
                 }
                 else
                 {
-                    return _document.StreamDecoder.DecodeContentAsStream(decriptor.FontFileObject);
+                    return decriptor.FontFileObject.DecodeAsStream();
                 }
             }
             catch (Exception)
@@ -179,7 +179,7 @@ namespace PdfReader.Fonts.Management
             {
                 if (descriptor.HasEmbeddedFont && descriptor.FontFileFormat == PdfFontFileFormat.Type1C || descriptor.FontFileFormat == PdfFontFileFormat.CIDFontType0C)
                 {
-                    var decoded = _document.StreamDecoder.DecodeContentStream(descriptor.FontFileObject);
+                    var decoded = descriptor.FontFileObject.DecodeAsMemory();
 
                     if (_cffMapper.TryParseNameKeyed(decoded, out var cffInfo))
                     {
@@ -188,8 +188,6 @@ namespace PdfReader.Fonts.Management
                 }
                 else if (descriptor.HasEmbeddedFont && descriptor.FontFileFormat == PdfFontFileFormat.Type1)
                 {
-                    var decoded = _document.StreamDecoder.DecodeContentStream(descriptor.FontFileObject);
-
                     byte[] cffFont = Type1ToCffConverter.GetCffFont(descriptor);
 
                     if (_cffMapper.TryParseNameKeyed(cffFont, out var cffInfo))

@@ -3,6 +3,7 @@ using PdfReader.Models;
 using PdfReader.Shading.Model;
 using PdfReader.Pattern.Model;
 using PdfReader.Rendering.Operators;
+using PdfReader.Text;
 
 namespace PdfReader.Pattern.Utilities;
 

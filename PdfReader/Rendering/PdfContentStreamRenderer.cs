@@ -3,6 +3,7 @@ using PdfReader.Models;
 using PdfReader.Parsing;
 using PdfReader.Rendering.Image;
 using PdfReader.Rendering.State;
+using PdfReader.Text;
 using SkiaSharp;
 using System;
 using System.Collections.Generic;

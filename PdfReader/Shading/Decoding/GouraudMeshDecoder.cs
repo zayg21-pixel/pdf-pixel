@@ -1,6 +1,7 @@
 using PdfReader.Models;
 using PdfReader.Parsing;
 using PdfReader.Shading.Model;
+using PdfReader.Text;
 using SkiaSharp;
 using System;
 using System.Collections.Generic;

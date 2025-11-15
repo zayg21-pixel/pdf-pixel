@@ -1,4 +1,5 @@
 using PdfReader.Models;
+using PdfReader.Text;
 
 namespace PdfReader.Imaging.Model;
 

@@ -1,6 +1,7 @@
 using PdfReader.Fonts.Mapping;
 using PdfReader.Models;
 using PdfReader.Parsing;
+using PdfReader.Text;
 using System;
 using System.Collections.Generic;
 
@@ -145,7 +146,7 @@ namespace PdfReader.Fonts.Types
                 return null;
             }
 
-            var data = Document.StreamDecoder.DecodeContentStream(encodingObj);
+            var data = encodingObj.DecodeAsMemory();
             if (data.IsEmpty || data.Length == 0)
             {
                 return null;

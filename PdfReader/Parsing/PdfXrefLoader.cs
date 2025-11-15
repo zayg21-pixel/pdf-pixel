@@ -5,6 +5,7 @@ using Microsoft.Extensions.Logging;
 using PdfReader.Models;
 using System.IO;
 using System.Text;
+using PdfReader.Text;
 
 namespace PdfReader.Parsing
 {

@@ -145,7 +145,7 @@ public sealed class SoftMaskDrawingScope : IDisposable
             }
 
             // Render mask content stream.
-            var contentData = _currentPage.Document.StreamDecoder.DecodeContentStream(_softMask.GroupObject);
+            var contentData = _softMask.GroupObject.DecodeAsMemory();
             if (!contentData.IsEmpty)
             {
                 var parseContext = new PdfParseContext(contentData);

@@ -4,6 +4,7 @@ using PdfReader.Forms;
 using PdfReader.Models;
 using PdfReader.Rendering.State;
 using PdfReader.Shading.Model;
+using PdfReader.Text;
 using SkiaSharp;
 
 namespace PdfReader.Rendering.Operators

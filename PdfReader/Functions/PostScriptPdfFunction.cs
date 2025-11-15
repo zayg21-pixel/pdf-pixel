@@ -2,6 +2,7 @@ using Microsoft.Extensions.Logging;
 using PdfReader.Models;
 using PdfReader.PostScript;
 using PdfReader.PostScript.Tokens;
+using PdfReader.Text;
 using System;
 using System.Collections.Generic;
 

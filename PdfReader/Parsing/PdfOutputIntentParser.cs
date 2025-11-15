@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using PdfReader.Color.Icc.Model;
 using PdfReader.Models;
+using PdfReader.Text;
 
 namespace PdfReader.Parsing
 {

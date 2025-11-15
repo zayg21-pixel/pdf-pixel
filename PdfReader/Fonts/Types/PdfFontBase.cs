@@ -211,7 +211,7 @@ namespace PdfReader.Fonts.Types
             if (toUnicodeObj == null)
                 return null;
 
-            var cmapData = Document.StreamDecoder.DecodeContentStream(toUnicodeObj);
+            var cmapData = toUnicodeObj.DecodeAsMemory();
             var cMapContent = new PdfParseContext(cmapData);
             return PdfCMapParser.ParseCMapFromContext(ref cMapContent, Document);
         }

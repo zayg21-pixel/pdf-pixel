@@ -85,15 +85,6 @@ namespace PdfReader.Models
         /// </summary>
         internal IccProfile OutputIntentProfile { get; set; }
 
-        internal void StoreParsedObject(PdfObject pdfObject)
-        {
-            if (pdfObject == null)
-            {
-                return;
-            }
-            _objects[pdfObject.Reference] = pdfObject;
-        }
-
         /// <summary>
         /// Retrieve an object by reference, parsing it lazily if present in the index but not yet materialized.
         /// Only uncompressed indexed objects are currently supported in the lazy path.
@@ -120,7 +111,7 @@ namespace PdfReader.Models
             var parsed = _pdfObjectParser.ParseSingleIndexedObject(info);
             if (parsed != null)
             {
-                StoreParsedObject(parsed);
+                _objects[parsed.Reference] = parsed;
             }
             return parsed;
         }

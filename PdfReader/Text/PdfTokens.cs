@@ -1,7 +1,7 @@
 using PdfReader.Models;
 using System;
 
-namespace PdfReader
+namespace PdfReader.Text
 {
     /// <summary>
     /// Common PDF dictionary key constants for shading and mesh decoding.

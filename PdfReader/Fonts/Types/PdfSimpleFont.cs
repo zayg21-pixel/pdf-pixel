@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Logging;
 using PdfReader.Fonts.Mapping;
 using PdfReader.Models;
+using PdfReader.Text;
 using SkiaSharp;
 using System;
 

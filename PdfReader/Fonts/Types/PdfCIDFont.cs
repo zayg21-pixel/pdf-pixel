@@ -1,5 +1,6 @@
 using PdfReader.Fonts.Mapping;
 using PdfReader.Models;
+using PdfReader.Text;
 using System;
 
 namespace PdfReader.Fonts.Types
@@ -160,7 +161,7 @@ namespace PdfReader.Fonts.Types
             if (cidToGidObj != null)
             {
                 // Load as stream data
-                var cidToGidData = Document.StreamDecoder.DecodeContentStream(cidToGidObj);
+                var cidToGidData = cidToGidObj.DecodeAsMemory();
                 return PdfCIDToGIDMap.FromStreamData(cidToGidData);
             }
 

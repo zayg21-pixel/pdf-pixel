@@ -1,3 +1,4 @@
+using PdfReader.Text;
 using SkiaSharp;
 
 namespace PdfReader.Models

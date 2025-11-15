@@ -1,7 +1,7 @@
 using PdfReader.Models;
+using PdfReader.Text;
 
 namespace PdfReader.Forms;
-// TODO: need a better place for this? And a better name?
 
 /// <summary>
 /// Wrapper page that exposes a Form XObject's own /Resources dictionary if present,

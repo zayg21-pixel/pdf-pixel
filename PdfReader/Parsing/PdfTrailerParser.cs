@@ -2,6 +2,7 @@ using System;
 using Microsoft.Extensions.Logging;
 using PdfReader.Encryption;
 using PdfReader.Models;
+using PdfReader.Text;
 
 namespace PdfReader.Parsing
 {

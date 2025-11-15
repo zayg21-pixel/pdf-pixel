@@ -6,6 +6,7 @@ using PdfReader.Pattern.Model;
 using PdfReader.Pattern.Utilities;
 using PdfReader.Color.Paint;
 using PdfReader.Rendering.State;
+using PdfReader.Text;
 
 namespace PdfReader.Rendering.Operators
 {
