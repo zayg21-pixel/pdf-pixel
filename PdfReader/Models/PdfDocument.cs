@@ -4,7 +4,6 @@ using PdfReader.Fonts.Management;
 using PdfReader.Fonts.Mapping;
 using PdfReader.Fonts.Types;
 using PdfReader.Parsing;
-using PdfReader.Rendering;
 using PdfReader.Streams;
 using System;
 using System.Collections.Concurrent;

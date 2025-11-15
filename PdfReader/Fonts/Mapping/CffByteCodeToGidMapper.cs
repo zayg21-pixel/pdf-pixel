@@ -14,7 +14,7 @@ namespace PdfReader.Fonts.Mapping
     /// </summary>
     internal class CffByteCodeToGidMapper : IByteCodeToGidMapper
     {
-        private readonly CffNameKeyedInfo _cffInfo;
+        private readonly CffInfo _cffInfo;
         private readonly PdfFontFlags _flags;
         private readonly PdfFontEncoding _encoding;
         private readonly Dictionary<int, PdfString> _differences;
@@ -27,7 +27,7 @@ namespace PdfReader.Fonts.Mapping
         /// <param name="encoding">The PDF font encoding.</param>
         /// <param name="differences">Encoding differences.</param>
         public CffByteCodeToGidMapper(
-            CffNameKeyedInfo cffInfo,
+            CffInfo cffInfo,
             PdfFontFlags flags,
             PdfFontEncoding encoding,
             Dictionary<int, PdfString> differences)

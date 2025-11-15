@@ -1,7 +1,7 @@
 using Microsoft.Extensions.Logging;
 using PdfReader.Fonts.Cff;
 using PdfReader.Fonts.Mapping;
-using PdfReader.Fonts.PsFont;
+using PdfReader.Fonts.Type1;
 using PdfReader.Fonts.Types;
 using PdfReader.Models;
 using SkiaSharp;
@@ -17,7 +17,7 @@ namespace PdfReader.Fonts.Management
     internal class PdfFontCache : IFontCache // TODO: We can potentially remove this cache and store in fonts directly.
     {
         private readonly ConcurrentDictionary<PdfFontBase, SKTypeface> _typefaceCache = new ConcurrentDictionary<PdfFontBase, SKTypeface>();
-        private readonly ConcurrentDictionary<PdfReference, CffNameKeyedInfo> _ccfMaps = new ConcurrentDictionary<PdfReference, CffNameKeyedInfo>();
+        private readonly ConcurrentDictionary<PdfReference, CffInfo> _ccfMaps = new ConcurrentDictionary<PdfReference, CffInfo>();
         private readonly ConcurrentDictionary<PdfFontBase, IByteCodeToGidMapper> _byteCodeToGidMapperCache = new ConcurrentDictionary<PdfFontBase, IByteCodeToGidMapper>();
         private readonly PdfDocument _document;
         private readonly ILogger<PdfFontCache> _logger;
@@ -158,12 +158,12 @@ namespace PdfReader.Fonts.Management
             }
         }
 
-        public CffNameKeyedInfo GetCffInfo(PdfFontBase font)
+        public CffInfo GetCffInfo(PdfFontBase font)
         {
             return GetCffInfo(font.FontDescriptor);
         }
 
-        private CffNameKeyedInfo GetCffInfo(PdfFontDescriptor descriptor)
+        private CffInfo GetCffInfo(PdfFontDescriptor descriptor)
         {
             if (descriptor?.FontFileObject == null)
             {
@@ -173,7 +173,7 @@ namespace PdfReader.Fonts.Management
             return _ccfMaps.GetOrAdd(descriptor.FontFileObject.Reference, _ => DecodeCffInfo(descriptor));
         }
 
-        private CffNameKeyedInfo DecodeCffInfo(PdfFontDescriptor descriptor)
+        private CffInfo DecodeCffInfo(PdfFontDescriptor descriptor)
         {
             try
             {

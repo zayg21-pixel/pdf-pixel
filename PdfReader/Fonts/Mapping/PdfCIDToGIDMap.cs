@@ -31,7 +31,7 @@ namespace PdfReader.Fonts.Mapping
             return map;
         }
 
-        internal static PdfCIDToGIDMap FromCffFont(CffNameKeyedInfo keyedInfo)
+        internal static PdfCIDToGIDMap FromCffFont(CffInfo keyedInfo)
         {
             if (keyedInfo.GidToSid == null || keyedInfo.GidToSid.Length == 0)
             {

@@ -4,7 +4,7 @@ using System.IO;
 using PdfReader.Models;
 using PdfReader.Text;
 
-namespace PdfReader.Fonts.PsFont
+namespace PdfReader.Fonts.Type1
 {
     /// <summary>
     /// Static helper class for shallow Type1 -> Type2 CharString conversion.
@@ -449,13 +449,13 @@ namespace PdfReader.Fonts.PsFont
         /// </summary>
         private static void WriteNumber(Stream s, Type1CharStringNumber value)
         {
-            PsNumberConverter.EncodeCharStringNumber(s, value.Value1);
+            FontNumberConverter.EncodeCharStringNumber(s, value.Value1);
             if (value.HasSecondValue)
             {
                 if (value.Operation == ValueOperation.Div)
                 {
                     // Division requires special handling – emit div operator after the two numbers.
-                    PsNumberConverter.EncodeCharStringNumber(s, value.Value2);
+                    FontNumberConverter.EncodeCharStringNumber(s, value.Value2);
                     s.WriteByte(OpEscape);
                     s.WriteByte(EscDiv);
                     return;

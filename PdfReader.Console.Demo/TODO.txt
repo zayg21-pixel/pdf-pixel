@@ -1,36 +1,14 @@
 ﻿Leftovers:
-
-TODOs in code
-Test with:
-https://github.com/mozilla/pdf.js/tree/master/test/pdfs
-
-https://github.com/BobLd/IccProfile or https://github.com/waacton/Unicolour
-
-https://fontdrop.info/
-
 Add AES decryption and all other algorithms
 Add missing stream filters implementations
 Add JPEG2000 decoder and JBIG2 decoder
 apply patterns to stencil image
-Inherit image color space from graphics state
 Type3 font
 Predefined CMaps
-https://github.com/mozilla/pdf.js/issues/6305 - SHAAAADINGS!
-halftones
 rework graphics stack, try-catch for operation execution. Don't check for predefined operators
 clear stack after each operator (we need a reliable way to distinguish booleans, need a separate type!)
-Overwrite CLUT in separation/DeviceN, we can't apply it reliably as CLUT.
-We need to skip DeviceN/Separation for images as we can't apply tint transform reliably.
-Finally rework ColorSpace parsing to be fully spec compliant
 Shading ExtXState
-Overprint and Knockout, and other print related stuff (do we need it)
-Marked content and structure elements (Tagged PDF)
-extent bug
-process clip by text (Type 3?)
-find out where those weird custom encodings are
 differentiate between embedded and system fonts for cmap
-UseCMap implemented incorrectly
 PDF has Null. Often in array. Need to handle it properly.
-
-Added profile for Device CMYK, maybe add for RGB and Gray?
-https://github.com/saucecontrol/Compact-ICC-Profiles?tab=readme-ov-file
+MMType1 font (need example, only found CFF MM)
+TR curves for GS and SoftMask

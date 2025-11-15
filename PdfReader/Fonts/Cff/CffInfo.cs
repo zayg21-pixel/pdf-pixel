@@ -1,3 +1,4 @@
+using PdfReader.Fonts.Types;
 using PdfReader.Models;
 using System;
 using System.Collections.Generic;
@@ -5,10 +6,10 @@ using System.Collections.Generic;
 namespace PdfReader.Fonts.Cff
 {
     /// <summary>
-    /// Holds parsed metadata for a name-keyed CFF (Type 1C) font.
+    /// Holds parsed metadata for a CFF (Type 1C) font.
     /// Provides glyph count, glyph name to GID mapping, and raw CFF data.
     /// </summary>
-    internal sealed class CffNameKeyedInfo
+    internal sealed class CffInfo
     {
         /// <summary>
         /// Gets or sets the total number of glyphs in the font.
@@ -24,6 +25,11 @@ namespace PdfReader.Fonts.Cff
         /// Gets or sets a value indicating whether the font is a CID font.
         /// </summary>
         public bool IsCidFont { get; set; }
+
+        /// <summary>
+        /// Gets or sets the encoding used by the PDF font.
+        /// </summary>
+        public PdfFontEncoding Encoding { get; set; }
 
         /// <summary>
         /// Gets or sets the mapping of Glyph IDs (GIDs) to CharSet IDs (SIDs).

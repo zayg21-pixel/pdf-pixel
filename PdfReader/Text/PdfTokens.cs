@@ -122,6 +122,9 @@ namespace PdfReader.Text
         public static readonly PdfString CIDToGIDMapKey = (PdfString)"CIDToGIDMap"u8;
         public static readonly PdfString CMapNameKey = (PdfString)"CMapName"u8;        // For CMap streams
         public static readonly PdfString CMapTypeValue = (PdfString)"CMap"u8;
+        public static readonly PdfString Length1 = (PdfString)"Length1"u8;
+        public static readonly PdfString Length2 = (PdfString)"Length2"u8;
+        public static readonly PdfString Length3 = (PdfString)"Length3"u8;
 
         // Font Types
         public static readonly PdfString Type1FontKey = (PdfString)"Type1"u8;
