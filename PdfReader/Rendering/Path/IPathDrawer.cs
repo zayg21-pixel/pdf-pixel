@@ -1,5 +1,7 @@
 using SkiaSharp;
 using PdfReader.Models;
+using PdfReader.Color.Paint;
+using PdfReader.Rendering.State;
 
 namespace PdfReader.Rendering.Path
 {

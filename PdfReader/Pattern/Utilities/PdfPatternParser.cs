@@ -1,8 +1,8 @@
 using SkiaSharp;
 using PdfReader.Models;
-using PdfReader.Rendering;
 using PdfReader.Shading.Model;
 using PdfReader.Pattern.Model;
+using PdfReader.Rendering.Operators;
 
 namespace PdfReader.Pattern.Utilities;
 

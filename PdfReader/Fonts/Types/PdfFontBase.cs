@@ -1,8 +1,8 @@
+using PdfReader.Color.Paint;
 using PdfReader.Fonts.Management;
 using PdfReader.Fonts.Mapping;
 using PdfReader.Models;
 using PdfReader.Parsing;
-using PdfReader.Rendering;
 using PdfReader.Text;
 using SkiaSharp;
 using System;

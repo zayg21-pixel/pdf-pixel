@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging;
 using PdfReader.Imaging.Model;
 using PdfReader.Models;
 using PdfReader.Parsing;
+using PdfReader.Rendering.State;
 using PdfReader.Streams;
 using PdfReader.Text;
 using SkiaSharp;

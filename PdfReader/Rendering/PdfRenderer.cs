@@ -10,6 +10,8 @@ using PdfReader.Fonts.Types;
 using PdfReader.Imaging.Model;
 using PdfReader.Text;
 using PdfReader.Shading.Model;
+using PdfReader.Color.Paint;
+using PdfReader.Rendering.State;
 
 namespace PdfReader.Rendering
 {

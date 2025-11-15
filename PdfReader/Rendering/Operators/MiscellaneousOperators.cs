@@ -1,6 +1,8 @@
 using System.Collections.Generic;
 using Microsoft.Extensions.Logging;
+using PdfReader.Forms;
 using PdfReader.Models;
+using PdfReader.Rendering.State;
 using PdfReader.Shading.Model;
 using SkiaSharp;
 

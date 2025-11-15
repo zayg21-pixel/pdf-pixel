@@ -2,7 +2,7 @@ using PdfReader.Models;
 using SkiaSharp;
 using System.Collections.Generic;
 
-namespace PdfReader.Rendering
+namespace PdfReader.Rendering.Operators
 {
     /// <summary>
     /// Utility methods for matrix operations and operand handling

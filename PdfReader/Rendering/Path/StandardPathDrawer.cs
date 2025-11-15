@@ -1,5 +1,7 @@
+using PdfReader.Color.Paint;
 using PdfReader.Models;
-using PdfReader.Rendering.Advanced;
+using PdfReader.Rendering.State;
+using PdfReader.Transparency.Utilities;
 using SkiaSharp;
 
 namespace PdfReader.Rendering.Path

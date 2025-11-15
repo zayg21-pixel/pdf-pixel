@@ -1,10 +1,13 @@
 using Microsoft.Extensions.Logging;
+using PdfReader.Color.Paint;
 using PdfReader.Fonts;
 using PdfReader.Fonts.Management;
 using PdfReader.Fonts.Types;
 using PdfReader.Models;
-using PdfReader.Rendering.Advanced;
+using PdfReader.Rendering.State;
 using PdfReader.Text;
+using PdfReader.Transparency;
+using PdfReader.Transparency.Utilities;
 using SkiaSharp;
 using System;
 using System.Collections.Generic;

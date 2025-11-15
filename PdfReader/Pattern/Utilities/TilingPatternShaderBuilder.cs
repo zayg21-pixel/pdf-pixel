@@ -4,6 +4,8 @@ using PdfReader.Models;
 using PdfReader.Parsing;
 using PdfReader.Rendering;
 using PdfReader.Pattern.Model;
+using PdfReader.Forms;
+using PdfReader.Rendering.State;
 
 namespace PdfReader.Pattern.Utilities;
 

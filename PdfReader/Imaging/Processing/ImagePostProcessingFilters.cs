@@ -1,7 +1,7 @@
 ﻿using PdfReader.Color.ColorSpace;
 using PdfReader.Color.Filters;
 using PdfReader.Imaging.Model;
-using PdfReader.Rendering.Advanced;
+using PdfReader.Transparency.Utilities;
 using SkiaSharp;
 
 namespace PdfReader.Imaging.Processing;

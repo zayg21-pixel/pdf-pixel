@@ -1,6 +1,7 @@
 using SkiaSharp;
 using PdfReader.Models;
 using PdfReader.Shading.Model;
+using PdfReader.Rendering.State;
 
 namespace PdfReader.Rendering.Shading
 {

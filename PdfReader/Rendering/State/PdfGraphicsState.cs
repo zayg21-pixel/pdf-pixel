@@ -2,8 +2,10 @@ using SkiaSharp;
 using PdfReader.Models;
 using PdfReader.Color.ColorSpace;
 using PdfReader.Text;
+using PdfReader.Color.Paint;
+using PdfReader.Transparency.Model;
 
-namespace PdfReader.Rendering
+namespace PdfReader.Rendering.State
 {
     public enum PdfMaskRenderMode
     {

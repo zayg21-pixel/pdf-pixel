@@ -1,6 +1,7 @@
 using SkiaSharp;
 using PdfReader.Models;
 using System;
+using PdfReader.Transparency.Model;
 
 namespace PdfReader.Rendering.State
 {

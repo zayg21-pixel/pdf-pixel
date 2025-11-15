@@ -1,5 +1,6 @@
 ﻿using PdfReader.Fonts.Types;
 using PdfReader.Models;
+using PdfReader.Rendering.State;
 using PdfReader.Text;
 using SkiaSharp;
 

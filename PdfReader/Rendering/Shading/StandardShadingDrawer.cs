@@ -2,9 +2,11 @@ using System;
 using SkiaSharp;
 using PdfReader.Models;
 using Microsoft.Extensions.Logging;
-using PdfReader.Rendering.Advanced;
 using PdfReader.Shading;
 using PdfReader.Shading.Model;
+using PdfReader.Color.Paint;
+using PdfReader.Rendering.State;
+using PdfReader.Transparency.Utilities;
 
 namespace PdfReader.Rendering.Shading
 {

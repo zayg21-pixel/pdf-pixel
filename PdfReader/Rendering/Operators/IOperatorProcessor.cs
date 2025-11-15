@@ -1,3 +1,5 @@
+using PdfReader.Rendering.State;
+
 namespace PdfReader.Rendering.Operators
 {
     /// <summary>

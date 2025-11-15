@@ -4,6 +4,8 @@ using SkiaSharp;
 using PdfReader.Color.ColorSpace;
 using PdfReader.Pattern.Model;
 using PdfReader.Pattern.Utilities;
+using PdfReader.Color.Paint;
+using PdfReader.Rendering.State;
 
 namespace PdfReader.Rendering.Operators
 {
