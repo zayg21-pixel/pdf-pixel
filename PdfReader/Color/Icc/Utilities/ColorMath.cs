@@ -1,8 +1,8 @@
 using System;
 using System.Numerics;
 using System.Runtime.CompilerServices;
+using PdfReader.Color.ColorSpace;
 using PdfReader.Color.Icc.Model;
-using PdfReader.Models;
 
 namespace PdfReader.Color.Icc.Utilities;
 

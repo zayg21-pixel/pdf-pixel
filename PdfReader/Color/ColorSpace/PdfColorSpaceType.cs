@@ -1,13 +1,13 @@
 using PdfReader.Text;
 
-namespace PdfReader.Models
+namespace PdfReader.Color.ColorSpace
 {
     /// <summary>
     /// PDF color spaces enumeration
     /// Represents the various color spaces supported by PDF documents
     /// </summary>
     [PdfEnum]
-    public enum PdfColorSpace
+    public enum PdfColorSpaceType
     {
         [PdfEnumDefaultValue]
         Unknown,

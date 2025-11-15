@@ -4,6 +4,7 @@ using System;
 using PdfReader.Text;
 using PdfReader.Rendering.Operators;
 using PdfReader.Transparency.Utilities;
+using PdfReader.Transparency.Model;
 
 namespace PdfReader.Rendering.State
 {

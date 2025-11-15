@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using Microsoft.Extensions.Logging;
+using PdfReader.Color.ColorSpace;
 using PdfReader.Imaging.Model;
 using PdfReader.Models;
 using PdfReader.Parsing;
@@ -137,7 +138,7 @@ namespace PdfReader.Rendering.Operators
             }
             if (!imageDictionary.HasKey(PdfTokens.ColorSpaceKey) && !imageDictionary.GetBoolOrDefault(PdfTokens.ImageMaskKey))
             {
-                imageDictionary.Set(PdfTokens.ColorSpaceKey, PdfValue.Name(PdfColorSpace.DeviceGray.AsPdfString()));
+                imageDictionary.Set(PdfTokens.ColorSpaceKey, PdfValue.Name(PdfColorSpaceType.DeviceGray.AsPdfString()));
             }
             if (imageDictionary.GetBoolOrDefault(PdfTokens.ImageMaskKey) && !imageDictionary.HasKey(PdfTokens.BitsPerComponentKey))
             {
@@ -156,10 +157,10 @@ namespace PdfReader.Rendering.Operators
                 {
                     switch (colorSpace)
                     {
-                        case PdfInlineImageColorSpace.DeviceGray: return PdfValue.Name(PdfColorSpace.DeviceGray.AsPdfString());
-                        case PdfInlineImageColorSpace.DeviceRGB: return PdfValue.Name(PdfColorSpace.DeviceRGB.AsPdfString());
-                        case PdfInlineImageColorSpace.DeviceCMYK: return PdfValue.Name(PdfColorSpace.DeviceCMYK.AsPdfString());
-                        case PdfInlineImageColorSpace.Indexed: return PdfValue.Name(PdfColorSpace.Indexed.AsPdfString());
+                        case PdfInlineImageColorSpace.DeviceGray: return PdfValue.Name(PdfColorSpaceType.DeviceGray.AsPdfString());
+                        case PdfInlineImageColorSpace.DeviceRGB: return PdfValue.Name(PdfColorSpaceType.DeviceRGB.AsPdfString());
+                        case PdfInlineImageColorSpace.DeviceCMYK: return PdfValue.Name(PdfColorSpaceType.DeviceCMYK.AsPdfString());
+                        case PdfInlineImageColorSpace.Indexed: return PdfValue.Name(PdfColorSpaceType.Indexed.AsPdfString());
                     }
                 }
             }

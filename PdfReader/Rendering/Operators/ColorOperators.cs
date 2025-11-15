@@ -98,25 +98,25 @@ namespace PdfReader.Rendering.Operators
         private void ProcessDeviceFillColor(string op, PdfGraphicsState state)
         {
             int expected;
-            PdfColorSpace space;
+            PdfColorSpaceType space;
             switch (op)
             {
                 case "g":
                 {
                     expected = 1;
-                    space = PdfColorSpace.DeviceGray;
+                    space = PdfColorSpaceType.DeviceGray;
                     break;
                 }
                 case "rg":
                 {
                     expected = 3;
-                    space = PdfColorSpace.DeviceRGB;
+                    space = PdfColorSpaceType.DeviceRGB;
                     break;
                 }
                 case "k":
                 {
                     expected = 4;
-                    space = PdfColorSpace.DeviceCMYK;
+                    space = PdfColorSpaceType.DeviceCMYK;
                     break;
                 }
                 default:
@@ -147,25 +147,25 @@ namespace PdfReader.Rendering.Operators
         private void ProcessDeviceStrokeColor(string op, PdfGraphicsState state)
         {
             int expected;
-            PdfColorSpace space;
+            PdfColorSpaceType space;
             switch (op)
             {
                 case "G":
                 {
                     expected = 1;
-                    space = PdfColorSpace.DeviceGray;
+                    space = PdfColorSpaceType.DeviceGray;
                     break;
                 }
                 case "RG":
                 {
                     expected = 3;
-                    space = PdfColorSpace.DeviceRGB;
+                    space = PdfColorSpaceType.DeviceRGB;
                     break;
                 }
                 case "K":
                 {
                     expected = 4;
-                    space = PdfColorSpace.DeviceCMYK;
+                    space = PdfColorSpaceType.DeviceCMYK;
                     break;
                 }
                 default:

@@ -1,6 +1,6 @@
 using PdfReader.Text;
 
-namespace PdfReader.Models
+namespace PdfReader.Color.ColorSpace
 {
     /// <summary>
     /// PDF rendering intents as defined in PDF specification section 11.7.5

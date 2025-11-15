@@ -1,7 +1,7 @@
 using SkiaSharp;
 using PdfReader.Text;
 
-namespace PdfReader.Models
+namespace PdfReader.Transparency.Model
 {
     /// <summary>
     /// PDF blend modes enumeration

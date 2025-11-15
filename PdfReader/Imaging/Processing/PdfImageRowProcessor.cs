@@ -3,7 +3,6 @@ using System.Runtime.InteropServices;
 using Microsoft.Extensions.Logging;
 using SkiaSharp;
 using System.Runtime.CompilerServices;
-using PdfReader.Models;
 using PdfReader.Imaging.Model;
 using PdfReader.Imaging.Sampling;
 using PdfReader.Color.ColorSpace;

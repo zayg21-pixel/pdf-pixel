@@ -1,3 +1,4 @@
+using PdfReader.Color.ColorSpace;
 using PdfReader.Models;
 using PdfReader.Rendering.State;
 using PdfReader.Shading;

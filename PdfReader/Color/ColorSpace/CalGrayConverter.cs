@@ -1,6 +1,5 @@
 using System;
 using SkiaSharp;
-using PdfReader.Models;
 using System.Numerics;
 using PdfReader.Color.Icc.Model;
 using PdfReader.Color.Icc.Utilities;

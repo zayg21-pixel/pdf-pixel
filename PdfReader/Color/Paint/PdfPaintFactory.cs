@@ -1,5 +1,5 @@
-﻿using PdfReader.Models;
-using PdfReader.Rendering.State;
+﻿using PdfReader.Rendering.State;
+using PdfReader.Transparency.Model;
 using SkiaSharp;
 using System;
 using System.Runtime.CompilerServices;

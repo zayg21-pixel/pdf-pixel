@@ -2,6 +2,7 @@ using System;
 using SkiaSharp;
 using PdfReader.Models;
 using PdfReader.Rendering.State;
+using PdfReader.Color.ColorSpace;
 
 namespace PdfReader.Pattern.Model;
 

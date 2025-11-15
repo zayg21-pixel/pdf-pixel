@@ -78,11 +78,11 @@ internal sealed partial class ColorSpaceResolver
         switch (components)
         {
             case 1:
-                return ResolveDeviceConverter(PdfColorSpace.DeviceGray);
+                return ResolveDeviceConverter(PdfColorSpaceType.DeviceGray);
             case 3:
-                return ResolveDeviceConverter(PdfColorSpace.DeviceRGB);
+                return ResolveDeviceConverter(PdfColorSpaceType.DeviceRGB);
             case 4:
-                return ResolveDeviceConverter(PdfColorSpace.DeviceCMYK);
+                return ResolveDeviceConverter(PdfColorSpaceType.DeviceCMYK);
             default:
                 return null;
         }
@@ -92,13 +92,13 @@ internal sealed partial class ColorSpaceResolver
     /// Resolve a specific device color space considering Default* resource overrides and OutputIntent profile.
     /// Uses name cache only (no dedicated fields).
     /// </summary>
-    public PdfColorSpaceConverter ResolveDeviceConverter(PdfColorSpace colorSpace)
+    public PdfColorSpaceConverter ResolveDeviceConverter(PdfColorSpaceType colorSpace)
     {
         var deviceName = colorSpace.AsPdfString();
 
         switch (colorSpace)
         {
-            case PdfColorSpace.DeviceGray:
+            case PdfColorSpaceType.DeviceGray:
             {
                 if (_nameCache.TryGetValue(deviceName, out var gray))
                 {
@@ -108,7 +108,7 @@ internal sealed partial class ColorSpaceResolver
                 _nameCache[deviceName] = resolved;
                 return resolved;
             }
-            case PdfColorSpace.DeviceRGB:
+            case PdfColorSpaceType.DeviceRGB:
             {
                 if (_nameCache.TryGetValue(deviceName, out var rgb))
                 {
@@ -118,7 +118,7 @@ internal sealed partial class ColorSpaceResolver
                 _nameCache[deviceName] = resolved;
                 return resolved;
             }
-            case PdfColorSpace.DeviceCMYK:
+            case PdfColorSpaceType.DeviceCMYK:
             {
                 if (_nameCache.TryGetValue(deviceName, out var cmyk))
                 {
@@ -129,7 +129,7 @@ internal sealed partial class ColorSpaceResolver
                 return resolved;
             }
         }
-        return ResolveDeviceConverter(PdfColorSpace.DeviceRGB);
+        return ResolveDeviceConverter(PdfColorSpaceType.DeviceRGB);
     }
 
     #region Internal Helpers
@@ -165,51 +165,51 @@ internal sealed partial class ColorSpaceResolver
             return DeviceRgbConverter.Instance;
         }
 
-        var family = name.AsEnum<PdfColorSpace>();
+        var family = name.AsEnum<PdfColorSpaceType>();
         switch (family)
         {
-            case PdfColorSpace.DeviceGray:
-                return ResolveDeviceConverter(PdfColorSpace.DeviceGray);
-            case PdfColorSpace.DeviceRGB:
-                return ResolveDeviceConverter(PdfColorSpace.DeviceRGB);
-            case PdfColorSpace.DeviceCMYK:
-                return ResolveDeviceConverter(PdfColorSpace.DeviceCMYK);
-            case PdfColorSpace.Indexed:
+            case PdfColorSpaceType.DeviceGray:
+                return ResolveDeviceConverter(PdfColorSpaceType.DeviceGray);
+            case PdfColorSpaceType.DeviceRGB:
+                return ResolveDeviceConverter(PdfColorSpaceType.DeviceRGB);
+            case PdfColorSpaceType.DeviceCMYK:
+                return ResolveDeviceConverter(PdfColorSpaceType.DeviceCMYK);
+            case PdfColorSpaceType.Indexed:
             {
                 var conv = CreateIndexedColorSpace(originalValue);
                 return conv ?? DeviceGrayConverter.Instance;
             }
-            case PdfColorSpace.ICCBased:
+            case PdfColorSpaceType.ICCBased:
             {
                 var conv = CreateIccColorSpace(originalValue);
                 return conv ?? DeviceRgbConverter.Instance;
             }
-            case PdfColorSpace.CalGray:
+            case PdfColorSpaceType.CalGray:
             {
                 var conv = CreateCalGrayColorSpace(originalValue);
                 return conv ?? DeviceGrayConverter.Instance;
             }
-            case PdfColorSpace.CalRGB:
+            case PdfColorSpaceType.CalRGB:
             {
                 var conv = CreateCalRrgbColorSpace(originalValue);
                 return conv ?? DeviceRgbConverter.Instance;
             }
-            case PdfColorSpace.Lab:
+            case PdfColorSpaceType.Lab:
             {
                 var conv = CreateLabColorSpace(originalValue);
                 return conv ?? DeviceRgbConverter.Instance;
             }
-            case PdfColorSpace.Pattern:
+            case PdfColorSpaceType.Pattern:
             {
                 var conv = CreatePatternColorSpace(originalValue);
                 return conv ?? DeviceRgbConverter.Instance;
             }
-            case PdfColorSpace.Separation:
+            case PdfColorSpaceType.Separation:
             {
                 var conv = CreateSeparationColorSpace(originalValue);
                 return conv ?? DeviceGrayConverter.Instance;
             }
-            case PdfColorSpace.DeviceN:
+            case PdfColorSpaceType.DeviceN:
             {
                 var conv = CreateDeviceNColorSpace(originalValue);
                 return conv ?? DeviceRgbConverter.Instance;
