@@ -1,7 +1,5 @@
 ﻿using PdfReader.Models;
 using SkiaSharp;
-using System;
-using System.Collections.Generic;
 
 namespace PdfReader.Rendering.Advanced
 {

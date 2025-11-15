@@ -1,7 +1,7 @@
 using System;
 using SkiaSharp;
 using PdfReader.Models;
-using PdfReader.Rendering.Functions;
+using PdfReader.Functions;
 
 namespace PdfReader.Color.ColorSpace
 {

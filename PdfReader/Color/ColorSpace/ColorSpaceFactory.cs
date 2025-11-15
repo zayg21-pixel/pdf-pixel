@@ -1,6 +1,6 @@
 ﻿using System;
+using PdfReader.Functions;
 using PdfReader.Models;
-using PdfReader.Rendering.Functions;
 
 namespace PdfReader.Color.ColorSpace
 {

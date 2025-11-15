@@ -5,7 +5,6 @@ using PdfReader.Fonts.Mapping;
 using PdfReader.Fonts.Types;
 using PdfReader.Parsing;
 using PdfReader.Rendering;
-using PdfReader.Rendering.Functions;
 using PdfReader.Streams;
 using System;
 using System.Collections.Concurrent;
@@ -13,6 +12,7 @@ using System.Collections.Generic;
 using System.IO;
 using PdfReader.Color.ColorSpace;
 using PdfReader.Color.Icc.Model;
+using PdfReader.Functions;
 
 namespace PdfReader.Models
 {

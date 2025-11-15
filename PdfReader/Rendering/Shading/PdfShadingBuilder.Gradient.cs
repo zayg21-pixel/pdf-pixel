@@ -1,5 +1,5 @@
-﻿using PdfReader.Models;
-using PdfReader.Rendering.Functions;
+﻿using PdfReader.Functions;
+using PdfReader.Models;
 using SkiaSharp;
 using System;
 using System.Collections.Generic;
