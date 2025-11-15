@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using PdfReader.Forms;
 using PdfReader.Models;
 using PdfReader.Parsing;
 using PdfReader.Rendering;
@@ -25,9 +24,7 @@ public sealed class SoftMaskDrawingScope : IDisposable
     private readonly SKCanvas _canvas;
     private readonly PdfSoftMask _softMask;
     private readonly PdfGraphicsState _graphicsState;
-    private readonly PdfPage _currentPage;
 
-    private SKRect activeBounds;
     private bool began;
     private bool shouldApplyMask;
     private bool disposed;
@@ -41,13 +38,11 @@ public sealed class SoftMaskDrawingScope : IDisposable
     /// <param name="currentPage">Current page context.</param>
     public SoftMaskDrawingScope(
         SKCanvas canvas,
-        PdfGraphicsState graphicsState,
-        PdfPage currentPage)
+        PdfGraphicsState graphicsState)
     {
         _canvas = canvas;
         _softMask = graphicsState.SoftMask;
         _graphicsState = graphicsState;
-        _currentPage = currentPage;
     }
 
     /// <summary>
@@ -67,19 +62,10 @@ public sealed class SoftMaskDrawingScope : IDisposable
             return;
         }
 
-        shouldApplyMask = _softMask != null && _softMask.GroupObject != null;
+        shouldApplyMask = _softMask != null && _softMask.MaskForm != null;
 
         if (!shouldApplyMask)
         {
-            return;
-        }
-
-        activeBounds = ComputeTightMaskBounds(_canvas, _softMask);
-
-        if (activeBounds.Width <= 0 || activeBounds.Height <= 0)
-        {
-            // Nothing to mask, draw directly.
-            shouldApplyMask = false;
             return;
         }
 
@@ -89,7 +75,9 @@ public sealed class SoftMaskDrawingScope : IDisposable
             IsAntialias = true,
             BlendMode = PdfBlendModeNames.ToSkiaBlendMode(_graphicsState.BlendMode)
         };
-        _canvas.SaveLayer(activeBounds, layerPaint);
+
+        // TODO: investigate possible bounds specifying
+        _canvas.SaveLayer(layerPaint);
     }
 
     /// <summary>
@@ -112,23 +100,12 @@ public sealed class SoftMaskDrawingScope : IDisposable
         {
             // Record the soft mask content into a picture.
             using var recorder = new SKPictureRecorder();
-
-            var cullRect = !_softMask.TransformedBounds.IsEmpty ? _softMask.TransformedBounds : activeBounds;
-            using var recCanvas = recorder.BeginRecording(cullRect);
+            using var recCanvas = recorder.BeginRecording(_softMask.MaskForm.GetTransformedBounds());
 
             recCanvas.Save();
 
-            // Apply Form /Matrix.
-            if (!_softMask.FormMatrix.IsIdentity)
-            {
-                recCanvas.Concat(_softMask.FormMatrix);
-            }
-
-            // Clip to /BBox if provided.
-            if (!_softMask.BBox.IsEmpty)
-            {
-                recCanvas.ClipRect(_softMask.BBox, antialias: true);
-            }
+            recCanvas.Concat(_softMask.MaskForm.Matrix);
+            recCanvas.ClipRect(_softMask.MaskForm.BBox, antialias: true);
 
             // Background for luminosity masks (BC in group color space).
             if (_softMask.Subtype == PdfSoftMaskSubtype.Luminosity)
@@ -137,15 +114,14 @@ public sealed class SoftMaskDrawingScope : IDisposable
                 {
                     IsAntialias = true,
                     Style = SKPaintStyle.Fill,
-                    Color = _softMask.BackgroundColor ?? SKColors.White
+                    Color = _softMask.GetBackgroundColor(_graphicsState.RenderingIntent)
                 };
 
-                var bgRect = _softMask.BBox.IsEmpty ? cullRect : _softMask.BBox;
-                recCanvas.DrawRect(bgRect, bgPaint);
+                recCanvas.DrawRect(_softMask.MaskForm.BBox, bgPaint);
             }
 
             // Render mask content stream.
-            var contentData = _softMask.GroupObject.DecodeAsMemory();
+            var contentData = _softMask.MaskForm.GetFormData();
             if (!contentData.IsEmpty)
             {
                 var parseContext = new PdfParseContext(contentData);
@@ -153,11 +129,8 @@ public sealed class SoftMaskDrawingScope : IDisposable
                     ? SoftMaskUtilities.CreateLuminosityMaskGraphicsState()
                     : SoftMaskUtilities.CreateAlphaMaskGraphicsState();
 
-                // The mask group itself should not inherit an outer soft mask.
-                maskGs.SoftMask = null;
-
-                var formPage = new FormXObjectPageWrapper(_currentPage, _softMask.GroupObject);
-                var renderer = new PdfContentStreamRenderer(formPage);
+                var page = _softMask.MaskForm.GetFormPage();
+                var renderer = new PdfContentStreamRenderer(page);
                 renderer.RenderContext(recCanvas, ref parseContext, maskGs, new HashSet<int>());
             }
 
@@ -174,14 +147,7 @@ public sealed class SoftMaskDrawingScope : IDisposable
                 ? SoftMaskUtilities.CreateAlphaFromLuminosityFilter()
                 : null;
 
-            using var trFilter = SoftMaskUtilities.CreateTransferFunctionColorFilter(_softMask);
-
-            using var composedFilter = alphaFilter != null && trFilter != null
-                ? SKColorFilter.CreateCompose(alphaFilter, trFilter)
-                : null;
-
-            var filterToApply = composedFilter ?? trFilter ?? alphaFilter;
-            maskPaint.ColorFilter = filterToApply;
+            maskPaint.ColorFilter = alphaFilter;
 
             _canvas.DrawPicture(picture, maskPaint);
         }
@@ -217,17 +183,5 @@ public sealed class SoftMaskDrawingScope : IDisposable
                 // Best effort; avoid throwing from Dispose.
             }
         }
-    }
-
-    private static SKRect ComputeTightMaskBounds(SKCanvas canvas, PdfSoftMask softMask)
-    {
-        var clipBounds = canvas.LocalClipBounds;
-        if (!softMask.TransformedBounds.IsEmpty)
-        {
-            var intersect = SKRect.Intersect(clipBounds, softMask.TransformedBounds);
-            return intersect.IsEmpty ? clipBounds : intersect;
-        }
-
-        return clipBounds;
     }
 }

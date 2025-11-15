@@ -1,11 +1,12 @@
-using System.Collections.Generic;
 using Microsoft.Extensions.Logging;
 using PdfReader.Forms;
+using PdfReader.Imaging.Model;
 using PdfReader.Models;
 using PdfReader.Rendering.State;
 using PdfReader.Shading.Model;
 using PdfReader.Text;
 using SkiaSharp;
+using System.Collections.Generic;
 
 namespace PdfReader.Rendering.Operators
 {
@@ -125,7 +126,30 @@ namespace PdfReader.Rendering.Operators
                 return;
             }
 
-            PdfXObjectProcessor.ProcessXObject(xObjectName, graphicsState, _canvas, _page, _processingXObjects);
+            var pageObject = _page.Cache.GetXObject(xObjectName);
+
+            if (pageObject == null)
+            {
+                _logger.LogWarning("XObject '{XObjectName}' not found in resources", xObjectName);
+                return;
+            }
+
+            switch (pageObject.Subtype)
+            {
+                case PdfXObjectSubtype.Image:
+                {
+                    var pdfImage = PdfImage.FromXObject(pageObject.XObject, _page, xObjectName, isSoftMask: false);
+                    _page.Document.PdfRenderer.DrawUnitImage(_canvas, pdfImage, graphicsState, _page);
+                    break;
+                }
+                case PdfXObjectSubtype.Form:
+                    var formXObject = PdfForm.FromXObject(pageObject.XObject, _page);
+                    _page.Document.PdfRenderer.DrawForm(_canvas, formXObject, graphicsState, _page, _processingXObjects);
+                    break;
+                default:
+                    _logger.LogWarning("Unsupported XObject subtype '{XObjectSubtype}' for XObject '{XObjectName}'", pageObject.Subtype, xObjectName);
+                    return;
+            }
         }
 
         // Handles MP (Marked Content Point): expects 1 operand (tag name)

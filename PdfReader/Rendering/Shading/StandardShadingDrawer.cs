@@ -39,7 +39,7 @@ namespace PdfReader.Rendering.Shading
                 return;
             }
 
-            using (var softMaskScope = new SoftMaskDrawingScope(canvas, state, page))
+            using (var softMaskScope = new SoftMaskDrawingScope(canvas, state))
             {
                 softMaskScope.BeginDrawContent();
                 DrawShadingCore(canvas, shading, state, page);

@@ -52,7 +52,7 @@ namespace PdfReader.Rendering.Image
                 return;
             }
 
-            using var softMaskScope = new SoftMaskDrawingScope(canvas, state, page);
+            using var softMaskScope = new SoftMaskDrawingScope(canvas, state);
             softMaskScope.BeginDrawContent();
 
             if (pdfImage.HasImageMask)

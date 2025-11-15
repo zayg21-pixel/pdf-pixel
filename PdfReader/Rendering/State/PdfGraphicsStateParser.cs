@@ -135,7 +135,7 @@ namespace PdfReader.Rendering.State
             }
             parameters.TransformMatrix = PdfMatrixUtilities.CreateMatrix(matrixArray);
 
-            // Soft Mask (/SMask) - CRITICAL for shadow effects
+            // Soft Mask (/SMask)
             if (gsDict.HasKey(PdfTokens.SoftMaskKey))
             {
                 var maskName = gsDict.GetName(PdfTokens.SoftMaskKey);

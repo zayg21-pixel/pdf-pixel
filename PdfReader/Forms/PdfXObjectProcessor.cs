@@ -3,10 +3,8 @@ using PdfReader.Imaging.Model;
 using PdfReader.Models;
 using PdfReader.Parsing;
 using PdfReader.Rendering;
-using PdfReader.Rendering.Operators;
 using PdfReader.Rendering.State;
 using PdfReader.Text;
-using PdfReader.Transparency;
 using PdfReader.Transparency.Utilities;
 using SkiaSharp;
 using System.Collections.Generic;
@@ -71,43 +69,29 @@ public static class PdfXObjectProcessor
     {
         processingXObjects.Add(formXObject.Reference.ObjectNumber);
 
-        // Compute tight layer bounds from /BBox and /Matrix (for mask/group save layers)
-        var bbox = formXObject.Dictionary.GetArray(PdfTokens.BBoxKey);
-        var matrixArray = formXObject.Dictionary.GetArray(PdfTokens.MatrixKey);
-
-        SKMatrix transformMatrix = PdfMatrixUtilities.CreateMatrix(matrixArray);
-        SKRect clipRect = SKRect.Empty;
-
-        if (bbox != null && bbox.Count >= 4)
-        {
-            clipRect = new SKRect(bbox.GetFloat(0), bbox.GetFloat(1), bbox.GetFloat(2), bbox.GetFloat(3)).Standardized;
-        }
+        var form = PdfForm.FromXObject(formXObject, page);
 
         // Use form paint to composite the whole form with correct alpha/blend when needed
         using var formPaint = PdfPaintFactory.CreateFormXObjectPaint(graphicsState);
 
         // Apply form matrix if present
-        canvas.Concat(transformMatrix);
+        canvas.Concat(form.Matrix);
 
         // Clip to /BBox
-        if (!clipRect.IsEmpty)
-        {
-            canvas.ClipRect(clipRect, antialias: true);
-        }
+        canvas.ClipRect(form.BBox, antialias: true);
+        canvas.SaveLayer(form.BBox, formPaint);
 
-        canvas.SaveLayer(clipRect, formPaint);
-
-        using var softMaskScope = new SoftMaskDrawingScope(canvas, graphicsState, page);
+        using var softMaskScope = new SoftMaskDrawingScope(canvas, graphicsState);
         softMaskScope.BeginDrawContent();
 
         try
         {
             // Decode and render content with a cloned state that clears parent soft mask
-            var content = formXObject.DecodeAsMemory();
+            var content = form.GetFormData();
             if (!content.IsEmpty)
             {
                 var parseContext = new PdfParseContext(content);
-                var formPage = new FormXObjectPageWrapper(page, formXObject);
+                var formPage = form.GetFormPage();
                 var localGs = graphicsState.Clone();
                 // Prevent double-application: global soft mask is applied by outer wrapper
                 localGs.SoftMask = null;

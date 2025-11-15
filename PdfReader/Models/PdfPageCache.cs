@@ -27,6 +27,7 @@ namespace PdfReader.Models
         private readonly PdfDictionary _fontDictionary; // captured once
         private readonly PdfDictionary _patternDictionary; // captured once
         private readonly PdfDictionary _extGStateDictionary; // captured once
+        private readonly PdfDictionary _xObjectDictionary;
         private bool _disposed;
 
         public PdfPageCache(PdfPage page)
@@ -36,12 +37,28 @@ namespace PdfReader.Models
             _fontDictionary = _page.ResourceDictionary.GetDictionary(PdfTokens.FontKey);
             _patternDictionary = _page.ResourceDictionary.GetDictionary(PdfTokens.PatternKey);
             _extGStateDictionary = _page.ResourceDictionary.GetDictionary(PdfTokens.ExtGStateKey);
+            _xObjectDictionary = _page.ResourceDictionary.GetDictionary(PdfTokens.XObjectKey);
         }
 
         /// <summary>
         /// Gets the resolver used to determine the color space for image processing operations.
         /// </summary>
         public ColorSpaceResolver ColorSpace { get; }
+
+        /// <summary>
+        /// Retrieve an XObject by resource name from /XObject dictionary. Returns null if not found.
+        /// </summary>
+        public PdfXObject GetXObject(PdfString xObjectName)
+        {
+            var pageObject = _xObjectDictionary.GetObject(xObjectName);
+
+            if (pageObject == null)
+            {
+                return null;
+            }
+
+            return PdfXObject.FromObject(pageObject);
+        }
 
         /// <summary>
         /// Get (and cache) a font by resource name. Returns null if not found or cannot be created.

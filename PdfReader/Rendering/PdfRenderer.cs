@@ -1,17 +1,21 @@
-using PdfReader.Models;
-using PdfReader.Rendering.Text;
-using PdfReader.Rendering.Path;
-using PdfReader.Rendering.Image;
-using PdfReader.Rendering.Shading;
-using SkiaSharp;
 using Microsoft.Extensions.Logging;
+using PdfReader.Color.Paint;
 using PdfReader.Fonts.Management;
 using PdfReader.Fonts.Types;
+using PdfReader.Forms;
 using PdfReader.Imaging.Model;
-using PdfReader.Text;
-using PdfReader.Shading.Model;
-using PdfReader.Color.Paint;
+using PdfReader.Models;
+using PdfReader.Parsing;
+using PdfReader.Rendering.Image;
+using PdfReader.Rendering.Path;
+using PdfReader.Rendering.Shading;
 using PdfReader.Rendering.State;
+using PdfReader.Rendering.Text;
+using PdfReader.Shading.Model;
+using PdfReader.Text;
+using PdfReader.Transparency.Utilities;
+using SkiaSharp;
+using System.Collections.Generic;
 
 namespace PdfReader.Rendering
 {
@@ -79,6 +83,51 @@ namespace PdfReader.Rendering
             var destRect = new SKRect(0, -1, 1, 0);
             _imageRenderer.DrawImage(canvas, pdfImage, state, page, destRect);
             canvas.Restore();
+        }
+
+        /// <summary>
+        /// Render a form XObject onto the canvas with proper handling of transparency and soft masks.
+        /// </summary>
+        public void DrawForm(SKCanvas canvas, PdfForm formXObject, PdfGraphicsState graphicsState, PdfPage page, HashSet<int> processingXObjects)
+        {
+            int objectNumber = formXObject.XObject.Reference.ObjectNumber;
+            processingXObjects.Add(objectNumber);
+
+            // Use form paint to composite the whole form with correct alpha/blend when needed
+            using var formPaint = PdfPaintFactory.CreateFormXObjectPaint(graphicsState);
+
+            // Apply form matrix if present
+            canvas.Concat(formXObject.Matrix);
+
+            // Clip to /BBox
+            canvas.ClipRect(formXObject.BBox, antialias: true);
+            canvas.SaveLayer(formXObject.BBox, formPaint);
+
+            using var softMaskScope = new SoftMaskDrawingScope(canvas, graphicsState);
+            softMaskScope.BeginDrawContent();
+
+            try
+            {
+                // Decode and render content with a cloned state that clears parent soft mask
+                var content = formXObject.GetFormData();
+                if (!content.IsEmpty)
+                {
+                    var parseContext = new PdfParseContext(content);
+                    var formPage = formXObject.GetFormPage();
+                    var localGs = graphicsState.Clone();
+                    // Prevent double-application: global soft mask is applied by outer wrapper
+                    localGs.SoftMask = null;
+                    var renderer = new PdfContentStreamRenderer(formPage);
+                    renderer.RenderContext(canvas, ref parseContext, localGs, processingXObjects);
+                }
+            }
+            finally
+            {
+                canvas.Restore();
+
+                softMaskScope.EndDrawContent();
+                processingXObjects.Remove(objectNumber);
+            }
         }
 
         /// <summary>

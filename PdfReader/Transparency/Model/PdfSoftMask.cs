@@ -1,3 +1,5 @@
+using PdfReader.Color.ColorSpace;
+using PdfReader.Forms;
 using PdfReader.Models;
 using PdfReader.Text;
 using SkiaSharp;
@@ -43,43 +45,31 @@ public class PdfSoftMask
     /// <summary>
     /// Reference to the Form XObject that defines the mask (/G entry).
     /// </summary>
-    public PdfObject GroupObject { get; set; }
+    public PdfForm MaskForm { get; set; }
 
     /// <summary>
-    /// Parsed transparency group dictionary (/Group of the Form XObject) if present.
-    /// May be null when the mask Form does not specify a transparency group.
+    /// Background color (BC) components.
     /// </summary>
-    public PdfTransparencyGroup TransparencyGroup { get; set; }
+    public float[] BackgroundColor { get; set; }
 
     /// <summary>
-    /// Background color (BC) resolved to sRGB using the soft mask group's color space (/Group /CS).
-    /// Null when not specified.
+    /// Retrieves the background color as an SKColor, converting it to sRGB if necessary.
     /// </summary>
-    public SKColor? BackgroundColor { get; set; }
+    /// <param name="intent">Current intent.</param>
+    /// <returns>SKColor instance.</returns>
+    public SKColor GetBackgroundColor(PdfRenderingIntent intent)
+    {
+        SKColor backgroundColor;
 
-    /// <summary>
-    /// Transfer function (TR) - function or name for color transformation.
-    /// </summary>
-    public IPdfValue TransferFunction { get; set; }
+        if (BackgroundColor != null)
+        {
+            backgroundColor = MaskForm.TransparencyGroup?.ColorSpaceConverter?.ToSrgb(BackgroundColor, intent) ?? SKColors.White;
+        }
+        else
+        {
+            backgroundColor = SKColors.White;
+        }
 
-    /// <summary>
-    /// /Matrix of the soft mask Form XObject. Identity when not specified.
-    /// </summary>
-    public SKMatrix FormMatrix { get; set; } = SKMatrix.Identity;
-
-    /// <summary>
-    /// The untransformed /BBox rectangle of the soft mask Form XObject. Empty when not specified.
-    /// </summary>
-    public SKRect BBox { get; set; }
-
-    /// <summary>
-    /// The /BBox transformed by FormMatrix (if any). Equals BBox when no matrix was supplied.
-    /// Empty when BBox not specified.
-    /// </summary>
-    public SKRect TransformedBounds { get; set; } // TODO: we might want to remove this
-
-    /// <summary>
-    /// Cached /Resources dictionary of the soft mask Form XObject (may be null).
-    /// </summary>
-    public PdfDictionary ResourcesDictionary { get; set; }
+        return backgroundColor;
+    }
 }

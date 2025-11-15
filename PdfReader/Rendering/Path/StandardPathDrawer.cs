@@ -35,7 +35,7 @@ namespace PdfReader.Rendering.Path
             // FlatnessTolerance is ignored in SkiaSharp rendering.
             // See PDF spec 8.4.5: Most modern renderers ignore or clamp this value for performance.
 
-            using (var softMaskScope = new SoftMaskDrawingScope(canvas, state, page))
+            using (var softMaskScope = new SoftMaskDrawingScope(canvas, state))
             {
                 softMaskScope.BeginDrawContent();
                 DrawPathCore(canvas, path, state, operation, page);

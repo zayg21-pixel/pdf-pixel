@@ -213,7 +213,6 @@ namespace PdfReader.Text
         public static readonly PdfString SoftMaskSubtypeKey = (PdfString)"S"u8;
         public static readonly PdfString SoftMaskGroupKey = (PdfString)"G"u8;
         public static readonly PdfString SoftMaskBCKey = (PdfString)"BC"u8;
-        public static readonly PdfString SoftMaskTRKey = (PdfString)"TR"u8;
         
         // Transparency Group Subtypes
         public static readonly PdfString TransparencyGroupValue = (PdfString)"Transparency"u8;

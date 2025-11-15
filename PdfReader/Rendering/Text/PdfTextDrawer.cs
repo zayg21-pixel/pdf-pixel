@@ -60,7 +60,7 @@ namespace PdfReader.Rendering.Text
 
             var shaped = ShapeText(ref pdfText, state, font);
 
-            using var softMaskScope = new SoftMaskDrawingScope(canvas, state, page);
+            using var softMaskScope = new SoftMaskDrawingScope(canvas, state);
 
             softMaskScope.BeginDrawContent();
             var width = DrawShapedText(canvas, skFont, shaped, state);
@@ -131,7 +131,7 @@ namespace PdfReader.Rendering.Text
 
             if (shapedGlyphs.Count > 0)
             {
-                using var softMaskScope = new SoftMaskDrawingScope(canvas, state, page);
+                using var softMaskScope = new SoftMaskDrawingScope(canvas, state);
 
                 softMaskScope.BeginDrawContent();
 
