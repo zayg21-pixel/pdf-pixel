@@ -111,7 +111,7 @@ namespace PdfReader.Models
         /// <summary>
         /// Get a boolean value (interprets names /true /false, numbers, and strings heuristically).
         /// </summary>
-        public bool GetBool(int index)
+        public bool GetBoolean(int index)
         {
             var value = GetValue(index);
             if (value == null)
@@ -154,7 +154,7 @@ namespace PdfReader.Models
         /// <summary>
         /// Get a page object (resolves reference, arrays-of-references to first, or wraps inline value).
         /// </summary>
-        public PdfObject GetPageObject(int index)
+        public PdfObject GetObject(int index)
         {
             if (!IsValidIndex(index))
             {
@@ -167,7 +167,7 @@ namespace PdfReader.Models
             var referenceArray = storedValue.AsArray();
             if (referenceArray != null)
             {
-                return referenceArray.GetPageObject(0);
+                return referenceArray.GetObject(0);
             }
 
             // Single reference case

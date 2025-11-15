@@ -85,7 +85,7 @@ internal static class PdfPatternParser
             matrix = PdfMatrixUtilities.CreateMatrix(matrixArray);
         }
 
-        var shadingObject = dictionary.GetPageObject(PdfTokens.ShadingKey);
+        var shadingObject = dictionary.GetObject(PdfTokens.ShadingKey);
 
         if (shadingObject == null)
         {

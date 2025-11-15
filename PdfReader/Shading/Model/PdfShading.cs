@@ -35,8 +35,8 @@ public sealed class PdfShading
         var extendArr = rawDictionary.GetArray(PdfTokens.ExtendKey);
         if (extendArr != null && extendArr.Count >= 2)
         {
-            ExtendStart = extendArr.GetBool(0);
-            ExtendEnd = extendArr.GetBool(1);
+            ExtendStart = extendArr.GetBoolean(0);
+            ExtendEnd = extendArr.GetBoolean(1);
         }
 
         var colorSpaceValue = rawDictionary.GetValue(PdfTokens.ColorSpaceKey);
@@ -47,7 +47,7 @@ public sealed class PdfShading
         C1 = rawDictionary.GetArray(PdfTokens.C1Key)?.GetFloatArray();
         Functions = new List<PdfFunction>();
 
-        var functionObjects = rawDictionary.GetPageObjects(PdfTokens.FunctionKey);
+        var functionObjects = rawDictionary.GetObjects(PdfTokens.FunctionKey);
         if (functionObjects != null)
         {
             foreach (var functionObject in functionObjects)

@@ -36,7 +36,7 @@ public sealed class StitchingPdfFunction : PdfFunction
         }
 
         var dictionary = functionObject.Dictionary;
-        List<PdfObject> subFunctionObjects = dictionary.GetPageObjects(PdfTokens.FunctionsKey);
+        List<PdfObject> subFunctionObjects = dictionary.GetObjects(PdfTokens.FunctionsKey);
         if (subFunctionObjects == null || subFunctionObjects.Count == 0)
         {
             return null;

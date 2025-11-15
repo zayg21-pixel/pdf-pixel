@@ -52,7 +52,7 @@ namespace PdfReader.Parsing
             }
 
             // Collect all intents.
-            List<PdfObject> intents = catalogDict.GetPageObjects(PdfTokens.OutputIntentsKey);
+            List<PdfObject> intents = catalogDict.GetObjects(PdfTokens.OutputIntentsKey);
             if (intents == null || intents.Count == 0)
             {
                 return;
@@ -78,7 +78,7 @@ namespace PdfReader.Parsing
                 }
 
                 // /DestOutputProfile may be indirect or direct stream.
-                var profileObj = dict.GetPageObject(PdfTokens.DestOutputProfileKey);
+                var profileObj = dict.GetObject(PdfTokens.DestOutputProfileKey);
                 if (profileObj == null || !profileObj.HasStream)
                 {
                     continue; // No stream to parse.

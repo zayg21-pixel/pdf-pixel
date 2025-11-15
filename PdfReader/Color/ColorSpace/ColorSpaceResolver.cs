@@ -267,7 +267,7 @@ internal sealed partial class ColorSpaceResolver
             var arr = value.AsArray();
             if (arr != null && arr.Count ==2)
             {
-                pdfObject = arr.GetPageObject(1);
+                pdfObject = arr.GetObject(1);
                 return pdfObject?.Reference.IsValid == true;
             }
         }

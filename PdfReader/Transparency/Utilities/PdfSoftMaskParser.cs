@@ -17,7 +17,7 @@ internal class PdfSoftMaskParser
         }
         var softMask = new PdfSoftMask();
         softMask.Subtype = softMaskDict.GetName(PdfTokens.SoftMaskSubtypeKey).AsEnum<PdfSoftMaskSubtype>();
-        softMask.GroupObject = softMaskDict.GetPageObject(PdfTokens.SoftMaskGroupKey);
+        softMask.GroupObject = softMaskDict.GetObject(PdfTokens.SoftMaskGroupKey);
         if (softMask.GroupObject == null)
         {
             return null;
@@ -74,8 +74,8 @@ internal class PdfSoftMaskParser
         }
         var csValue = groupDict.GetValue(PdfTokens.GroupColorSpaceKey);
         group.ColorSpaceConverter = page.Cache.ColorSpace.ResolveByValue(csValue);
-        group.Isolated = groupDict.GetBoolOrDefault(PdfTokens.GroupIsolatedKey);
-        group.Knockout = groupDict.GetBoolOrDefault(PdfTokens.GroupKnockoutKey);
+        group.Isolated = groupDict.GetBooleanOrDefault(PdfTokens.GroupIsolatedKey);
+        group.Knockout = groupDict.GetBooleanOrDefault(PdfTokens.GroupKnockoutKey);
         return group;
     }
 }

@@ -100,7 +100,7 @@ namespace PdfReader.Fonts.Types
             if (charName.IsEmpty)
                 return null;
 
-            return CharProcs.GetPageObject(charName);
+            return CharProcs.GetObject(charName);
         }
 
         /// <summary>

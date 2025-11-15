@@ -157,7 +157,7 @@ namespace PdfReader.Fonts.Types
             }
 
             // Use GetPageObject instead of stored reference
-            var cidToGidObj = Dictionary.GetPageObject(PdfTokens.CIDToGIDMapKey);
+            var cidToGidObj = Dictionary.GetObject(PdfTokens.CIDToGIDMapKey);
             if (cidToGidObj != null)
             {
                 // Load as stream data

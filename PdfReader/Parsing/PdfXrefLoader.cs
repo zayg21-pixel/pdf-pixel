@@ -395,7 +395,7 @@ namespace PdfReader.Parsing
 
             if (_document.RootObject == null)
             {
-                _document.RootObject = dict.GetPageObject(PdfTokens.RootKey);
+                _document.RootObject = dict.GetObject(PdfTokens.RootKey);
             }
 
             _trailerParser.TrySetDecryptor(dict);

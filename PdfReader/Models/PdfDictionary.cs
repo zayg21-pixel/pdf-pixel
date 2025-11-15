@@ -1,197 +1,195 @@
 using System.Collections.Generic;
-using System.Runtime.CompilerServices;
 
-namespace PdfReader.Models
+namespace PdfReader.Models;
+
+public class PdfDictionary
 {
-    public class PdfDictionary
+    private readonly Dictionary<PdfString, IPdfValue> _values;
+
+    public PdfDictionary(PdfDocument document) : this(document, null)
     {
-        private readonly Dictionary<PdfString, IPdfValue> _values;
+        Document = document;
+    }
 
-        public PdfDictionary(PdfDocument document) : this(document, null)
+    public PdfDictionary(PdfDocument document, Dictionary<PdfString, IPdfValue> values)
+    {
+        Document = document;
+        _values = values ?? new Dictionary<PdfString, IPdfValue>();
+    }
+
+    public int Count => _values.Count;
+
+    internal Dictionary<PdfString, IPdfValue> RawValues => _values;
+
+    public PdfDocument Document { get; }
+
+    public bool HasKey(PdfString key)
+    {
+        return _values.ContainsKey(key);
+    }
+
+    public PdfString GetName(PdfString key)
+        => _values.TryGetValue(key, out var storedValue) ? storedValue.ResolveToNonReference(Document)?.AsName() ?? default : default;
+
+    public PdfString GetString(PdfString key)
+        => _values.TryGetValue(key, out var storedValue) ? storedValue.ResolveToNonReference(Document)?.AsString() ?? default : default;
+
+    public bool GetBooleanOrDefault(PdfString key)
+    {
+        if (_values.TryGetValue(key, out var storedValue))
         {
-            Document = document;
+            var resolvedValue = storedValue.ResolveToNonReference(Document);
+            return resolvedValue != null && resolvedValue.AsBool();
         }
+        return false;
+    }
 
-        public PdfDictionary(PdfDocument document, Dictionary<PdfString, IPdfValue> values)
+    public int? GetInteger(PdfString key)
+    {
+        if (_values.TryGetValue(key, out var storedValue))
         {
-            Document = document;
-            _values = values ?? new Dictionary<PdfString, IPdfValue>();
-        }
+            var resolvedValue = storedValue.ResolveToNonReference(Document);
 
-        public int Count => _values.Count;
-
-        internal Dictionary<PdfString, IPdfValue> RawValues => _values;
-
-        public PdfDocument Document { get; }
-
-        public bool HasKey(PdfString key)
-        {
-            return _values.ContainsKey(key);
-        }
-
-        public PdfString GetName(PdfString key)
-            => _values.TryGetValue(key, out var storedValue) ? storedValue.ResolveToNonReference(Document)?.AsName() ?? default : default;
-
-        public PdfString GetString(PdfString key)
-            => _values.TryGetValue(key, out var storedValue) ? storedValue.ResolveToNonReference(Document)?.AsString() ?? default : default;
-
-        public bool GetBoolOrDefault(PdfString key)
-        {
-            if (_values.TryGetValue(key, out var storedValue))
+            if (resolvedValue != null && !IsCollectionType(resolvedValue))
             {
-                var resolvedValue = storedValue.ResolveToNonReference(Document);
-                return resolvedValue != null && resolvedValue.AsBool();
+                return resolvedValue.AsInteger();
             }
-            return false;
         }
 
-        public int? GetInteger(PdfString key)
+        return default;
+    }
+
+    public float? GetFloat(PdfString key)
+    {
+        if (_values.TryGetValue(key, out var storedValue))
         {
-            if (_values.TryGetValue(key, out var storedValue))
+            var resolvedValue = storedValue.ResolveToNonReference(Document);
+            if (resolvedValue != null && !IsCollectionType(resolvedValue))
             {
-                var resolvedValue = storedValue.ResolveToNonReference(Document);
-
-                if (resolvedValue != null && !IsCollectionType(resolvedValue))
-                {
-                    return resolvedValue.AsInteger();
-                }
+                return resolvedValue.AsFloat();
             }
-
-            return default;
         }
 
-        public float? GetFloat(PdfString key)
+        return default;
+    }
+
+    public bool? GetBoolean(PdfString key)
+    {
+        if (_values.TryGetValue(key, out var storedValue))
         {
-            if (_values.TryGetValue(key, out var storedValue))
+            var resolvedValue = storedValue.ResolveToNonReference(Document);
+            if (resolvedValue != null && !IsCollectionType(resolvedValue))
             {
-                var resolvedValue = storedValue.ResolveToNonReference(Document);
-                if (resolvedValue != null && !IsCollectionType(resolvedValue))
-                {
-                    return resolvedValue.AsFloat();
-                }
+                return resolvedValue.AsBool();
             }
-
-            return default;
         }
 
-        public bool? GetBool(PdfString key)
-        {
-            if (_values.TryGetValue(key, out var storedValue))
-            {
-                var resolvedValue = storedValue.ResolveToNonReference(Document);
-                if (resolvedValue != null && !IsCollectionType(resolvedValue))
-                {
-                    return resolvedValue.AsBool();
-                }
-            }
+        return default;
+    }
 
-            return default;
+    public int GetIntegerOrDefault(PdfString key)
+        => _values.TryGetValue(key, out var storedValue) ? storedValue.ResolveToNonReference(Document)?.AsInteger() ?? 0 : 0;
+
+
+    public float GetFloatOrDefault(PdfString key)
+        => _values.TryGetValue(key, out var storedValue) ? storedValue.ResolveToNonReference(Document)?.AsFloat() ?? 0 : 0;
+
+    private bool IsCollectionType(IPdfValue value)
+    {
+        return value.Type == PdfValueType.Array || value.Type == PdfValueType.Dictionary;
+    }
+
+    public IPdfValue GetValue(PdfString key)
+    {
+        if (_values.TryGetValue(key, out var storedValue))
+        {
+            return storedValue.ResolveToNonReference(Document);
         }
 
-        public int GetIntegerOrDefault(PdfString key)
-            => _values.TryGetValue(key, out var storedValue) ? storedValue.ResolveToNonReference(Document)?.AsInteger() ?? 0 : 0;
+        return null;
+    }
 
-
-        public float GetFloatOrDefault(PdfString key)
-            => _values.TryGetValue(key, out var storedValue) ? storedValue.ResolveToNonReference(Document)?.AsFloat() ?? 0 : 0;
-
-        private bool IsCollectionType(IPdfValue value)
+    public PdfArray GetArray(PdfString key)
+    {
+        if (_values.TryGetValue(key, out var storedValue))
         {
-            return value.Type == PdfValueType.Array || value.Type == PdfValueType.Dictionary;
+            return storedValue.ResolveToNonReference(Document).AsArray();
         }
 
-        public IPdfValue GetValue(PdfString key)
-        {
-            if (_values.TryGetValue(key, out var storedValue))
-            {
-                return storedValue.ResolveToNonReference(Document);
-            }
+        return null;
+    }
 
+    public PdfDictionary GetDictionary(PdfString key) =>
+        _values.TryGetValue(key, out var storedValue) ? storedValue.ResolveToNonReference(Document)?.AsDictionary() : null;
+
+    public PdfReference GetReference(PdfString key)
+    {
+        if (_values.TryGetValue(key, out var storedValue) && storedValue is IPdfValue<PdfReference> reference)
+        {
+            return reference.Value;
+        }
+        return default;
+    }
+
+    public PdfObject GetObject(PdfString key)
+    {
+        if (!_values.TryGetValue(key, out var storedValue))
             return null;
+
+        // Array of references case
+        var referenceArray = storedValue.AsArray();
+        if (referenceArray != null)
+        {
+            return referenceArray.GetObject(0);
         }
 
-        public PdfArray GetArray(PdfString key)
+        // Single reference case: return the existing object from the document to keep stream data
+        if (storedValue is IPdfValue<PdfReference> referenceValue)
         {
-            if (_values.TryGetValue(key, out var storedValue))
-            {
-                return storedValue.ResolveToNonReference(Document).AsArray();
-            }
+            var reference = referenceValue.Value;
+            return Document.GetObject(reference);
+        }
 
+        // return synthetic object
+        return new PdfObject(default, Document, storedValue);
+    }
+
+    public List<PdfObject> GetObjects(PdfString key)
+    {
+        if (!_values.TryGetValue(key, out var storedValue))
             return null;
-        }
 
-        public PdfDictionary GetDictionary(PdfString key) =>
-            _values.TryGetValue(key, out var storedValue) ? storedValue.ResolveToNonReference(Document)?.AsDictionary() : null;
+        var results = new List<PdfObject>();
+        var referenceArray = storedValue.ResolveToNonReference(Document)?.AsArray();
 
-        public PdfReference GetReference(PdfString key)
+        if (referenceArray != null)
         {
-            if (_values.TryGetValue(key, out var storedValue) && storedValue is IPdfValue<PdfReference> reference)
+            for (int i = 0; i < referenceArray.Count; i++)
             {
-                return reference.Value;
-            }
-            return default;
-        }
+                var item = referenceArray.GetObject(i);
 
-        public PdfObject GetPageObject(PdfString key)
-        {
-            if (!_values.TryGetValue(key, out var storedValue))
-                return null;
-
-            // Array of references case
-            var referenceArray = storedValue.AsArray();
-            if (referenceArray != null)
-            {
-                return referenceArray.GetPageObject(0);
-            }
-
-            // Single reference case: return the existing object from the document to keep stream data
-            if (storedValue is IPdfValue<PdfReference> referenceValue)
-            {
-                var reference = referenceValue.Value;
-                return Document.GetObject(reference);
-            }
-
-            // return synthetic object
-            return new PdfObject(default, Document, storedValue);
-        }
-
-        public List<PdfObject> GetPageObjects(PdfString key)
-        {
-            if (!_values.TryGetValue(key, out var storedValue))
-                return null;
-
-            var results = new List<PdfObject>();
-            var referenceArray = storedValue.ResolveToNonReference(Document)?.AsArray();
-
-            if (referenceArray != null)
-            {
-                for (int i = 0; i < referenceArray.Count; i++)
+                if (item != null)
                 {
-                    var item = referenceArray.GetPageObject(i);
-
-                    if (item != null)
-                    {
-                        results.Add(item);
-                    }
+                    results.Add(item);
                 }
-
-                return results;
             }
 
-            // Single item fallback
-            var single = GetPageObject(key);
-            if (single != null)
-            {
-                results.Add(single);
-            }
-
-            return results.Count > 0 ? results : null;
+            return results;
         }
 
-        // Internal methods for parsing
-        internal void Set(PdfString key, IPdfValue value)
+        // Single item fallback
+        var single = GetObject(key);
+        if (single != null)
         {
-            _values[key] = value;
+            results.Add(single);
         }
+
+        return results.Count > 0 ? results : null;
+    }
+
+    // Internal methods for parsing
+    internal void Set(PdfString key, IPdfValue value)
+    {
+        _values[key] = value;
     }
 }

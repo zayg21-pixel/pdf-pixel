@@ -222,7 +222,7 @@ namespace PdfReader.Rendering.Operators
             }
 
             var shadings = _page.ResourceDictionary.GetDictionary(PdfTokens.ShadingKey);
-            var shadingObject = shadings?.GetPageObject(shadingName);
+            var shadingObject = shadings?.GetObject(shadingName);
 
             if (shadingObject == null)
             {

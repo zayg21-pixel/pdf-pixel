@@ -97,11 +97,11 @@ public class PdfDecodeParameters
 
         // CCITT related
         parameters.K = dictionary.GetInteger(PdfTokens.KKey);
-        parameters.EndOfLine = dictionary.GetBool(PdfTokens.EndOfLineKey);
-        parameters.EncodedByteAlign = dictionary.GetBool(PdfTokens.EncodedByteAlignKey);
+        parameters.EndOfLine = dictionary.GetBoolean(PdfTokens.EndOfLineKey);
+        parameters.EncodedByteAlign = dictionary.GetBoolean(PdfTokens.EncodedByteAlignKey);
         parameters.Rows = dictionary.GetInteger(PdfTokens.RowsKey);
-        parameters.EndOfBlock = dictionary.GetBool(PdfTokens.EndOfBlockKey);
-        parameters.BlackIs1 = dictionary.GetBool(PdfTokens.BlackIs1Key);
+        parameters.EndOfBlock = dictionary.GetBoolean(PdfTokens.EndOfBlockKey);
+        parameters.BlackIs1 = dictionary.GetBoolean(PdfTokens.BlackIs1Key);
         parameters.DamagedRowsBeforeError = dictionary.GetInteger(PdfTokens.DamagedRowsBeforeErrorKey);
 
         // LZW

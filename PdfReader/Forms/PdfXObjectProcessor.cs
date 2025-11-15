@@ -55,7 +55,7 @@ public static class PdfXObjectProcessor
         if (xObjectDict == null)
             return null;
 
-        return xObjectDict.GetPageObject(xObjectName);
+        return xObjectDict.GetObject(xObjectName);
     }
 
     private static void ProcessImageXObject(PdfObject imageXObject, PdfString xObjectName, PdfGraphicsState graphicsState,

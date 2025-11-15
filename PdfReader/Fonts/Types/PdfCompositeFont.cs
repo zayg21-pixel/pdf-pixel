@@ -114,7 +114,7 @@ namespace PdfReader.Fonts.Types
             var descendants = new List<PdfCIDFont>();
 
             // Use GetPageObjects to get all descendant font objects
-            var descendantObjects = Dictionary.GetPageObjects(PdfTokens.DescendantFontsKey);
+            var descendantObjects = Dictionary.GetObjects(PdfTokens.DescendantFontsKey);
             if (descendantObjects == null || descendantObjects.Count == 0)
             {
                 return descendants;
@@ -140,7 +140,7 @@ namespace PdfReader.Fonts.Types
         /// </summary>
         private PdfCMap LoadCodeToCidCMap()
         {
-            var encodingObj = Dictionary.GetPageObject(PdfTokens.EncodingKey);
+            var encodingObj = Dictionary.GetObject(PdfTokens.EncodingKey);
             if (encodingObj == null)
             {
                 return null;

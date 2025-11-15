@@ -153,7 +153,7 @@ namespace PdfReader.Rendering.State
             // Knockout (/TK)
             if (gsDict.HasKey(PdfTokens.KnockoutKey))
             {
-                parameters.Knockout = gsDict.GetBoolOrDefault(PdfTokens.KnockoutKey);
+                parameters.Knockout = gsDict.GetBooleanOrDefault(PdfTokens.KnockoutKey);
             }
 
             // Overprint Mode (/OPM)
@@ -165,13 +165,13 @@ namespace PdfReader.Rendering.State
             // Overprint Stroke (/OP)
             if (gsDict.HasKey(PdfTokens.OverprintStrokeKey))
             {
-                parameters.OverprintStroke = gsDict.GetBoolOrDefault(PdfTokens.OverprintStrokeKey);
+                parameters.OverprintStroke = gsDict.GetBooleanOrDefault(PdfTokens.OverprintStrokeKey);
             }
 
             // Overprint Fill (/op)
             if (gsDict.HasKey(PdfTokens.OverprintFillKey))
             {
-                parameters.OverprintFill = gsDict.GetBoolOrDefault(PdfTokens.OverprintFillKey);
+                parameters.OverprintFill = gsDict.GetBooleanOrDefault(PdfTokens.OverprintFillKey);
             }
 
             return parameters;

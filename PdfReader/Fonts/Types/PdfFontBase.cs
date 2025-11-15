@@ -207,7 +207,7 @@ namespace PdfReader.Fonts.Types
         private PdfCMap LoadToUnicodeCMap()
         {
             // Use GetPageObject instead of storing reference
-            var toUnicodeObj = Dictionary.GetPageObject(PdfTokens.ToUnicodeKey);
+            var toUnicodeObj = Dictionary.GetObject(PdfTokens.ToUnicodeKey);
             if (toUnicodeObj == null)
                 return null;
 

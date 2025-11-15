@@ -122,7 +122,7 @@ namespace PdfReader.Rendering.Operators
                 }
             }
 
-            if (!imageDictionary.HasKey(PdfTokens.BitsPerComponentKey) && !imageDictionary.GetBoolOrDefault(PdfTokens.ImageMaskKey))
+            if (!imageDictionary.HasKey(PdfTokens.BitsPerComponentKey) && !imageDictionary.GetBooleanOrDefault(PdfTokens.ImageMaskKey))
             {
                 imageDictionary.Set(PdfTokens.BitsPerComponentKey, PdfValue.Integer(8));
             }
@@ -136,11 +136,11 @@ namespace PdfReader.Rendering.Operators
                 _logger.LogWarning("Inline image missing /Height – skipping");
                 return null;
             }
-            if (!imageDictionary.HasKey(PdfTokens.ColorSpaceKey) && !imageDictionary.GetBoolOrDefault(PdfTokens.ImageMaskKey))
+            if (!imageDictionary.HasKey(PdfTokens.ColorSpaceKey) && !imageDictionary.GetBooleanOrDefault(PdfTokens.ImageMaskKey))
             {
                 imageDictionary.Set(PdfTokens.ColorSpaceKey, PdfValue.Name(PdfColorSpaceType.DeviceGray.AsPdfString()));
             }
-            if (imageDictionary.GetBoolOrDefault(PdfTokens.ImageMaskKey) && !imageDictionary.HasKey(PdfTokens.BitsPerComponentKey))
+            if (imageDictionary.GetBooleanOrDefault(PdfTokens.ImageMaskKey) && !imageDictionary.HasKey(PdfTokens.BitsPerComponentKey))
             {
                 imageDictionary.Set(PdfTokens.BitsPerComponentKey, PdfValue.Integer(1));
             }

@@ -35,7 +35,7 @@ namespace PdfReader.Parsing
             // Primary path: follow stored RootRef if available.
             if (_document.RootObject != null)
             {
-                var rootPagesObject = _document.RootObject.Dictionary.GetPageObject(PdfTokens.PagesKey);
+                var rootPagesObject = _document.RootObject.Dictionary.GetObject(PdfTokens.PagesKey);
                 if (rootPagesObject != null)
                 {
                     var initialResources = new PdfPageResources();
@@ -74,7 +74,7 @@ namespace PdfReader.Parsing
 
             for (int i = 0; i < kidsArray.Count; i++)
             {
-                var kidObject = kidsArray.GetPageObject(i);
+                var kidObject = kidsArray.GetObject(i);
                 if (kidObject == null)
                 {
                     _logger.LogWarning("Null kid reference at index {Index} in /Kids array of /Pages ref {Ref}.", i, pagesObj.Reference.ObjectNumber);

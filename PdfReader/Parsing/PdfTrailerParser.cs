@@ -64,7 +64,7 @@ namespace PdfReader.Parsing
             parameters.LengthBits = encryptDict.GetIntegerOrDefault(PdfTokens.LengthKey);
             parameters.Permissions = encryptDict.GetIntegerOrDefault(PdfTokens.PKey);
 
-            var encryptMetadata = encryptDict.GetBool(PdfTokens.EncryptMetadataKey);
+            var encryptMetadata = encryptDict.GetBoolean(PdfTokens.EncryptMetadataKey);
             if (encryptMetadata.HasValue)
             {
                 parameters.EncryptMetadata = encryptMetadata.Value;

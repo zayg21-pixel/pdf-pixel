@@ -38,7 +38,7 @@ namespace PdfReader.Color.ColorSpace
 
             byte[] lookupTableBytes = Array.Empty<byte>();
 
-            var lookupObject = colorSpaceArray.GetPageObject(3);
+            var lookupObject = colorSpaceArray.GetObject(3);
             if (lookupObject != null)
             {
                 var lookupData = lookupObject.DecodeAsMemory();
@@ -231,7 +231,7 @@ namespace PdfReader.Color.ColorSpace
                 return null;
             }
 
-            var tintFunctionObject = colorSpaceArray.GetPageObject(tintFunctionIndex);
+            var tintFunctionObject = colorSpaceArray.GetObject(tintFunctionIndex);
             if (tintFunctionObject != null)
             {
                 return PdfFunctions.GetFunction(tintFunctionObject);
@@ -269,7 +269,7 @@ namespace PdfReader.Color.ColorSpace
                 return null;
             }
 
-            return parametersArray.GetPageObject(1);
+            return parametersArray.GetObject(1);
         }
     }
 }

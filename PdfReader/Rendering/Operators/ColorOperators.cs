@@ -361,7 +361,7 @@ namespace PdfReader.Rendering.Operators
             try
             {
                 var patternsDictionary = _page.ResourceDictionary?.GetDictionary(PdfTokens.PatternKey);
-                var patternObject = patternsDictionary?.GetPageObject(patternName);
+                var patternObject = patternsDictionary?.GetObject(patternName);
                 if (patternObject == null)
                 {
                     return null;

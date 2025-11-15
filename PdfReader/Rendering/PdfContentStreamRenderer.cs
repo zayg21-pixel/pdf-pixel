@@ -64,7 +64,7 @@ namespace PdfReader.Rendering
         {
             var contentStreams = new List<ReadOnlyMemory<byte>>();
 
-            var contents = _page.PageObject.Dictionary.GetPageObjects(PdfTokens.ContentsKey);
+            var contents = _page.PageObject.Dictionary.GetObjects(PdfTokens.ContentsKey);
 
             if (contents == null)
             {

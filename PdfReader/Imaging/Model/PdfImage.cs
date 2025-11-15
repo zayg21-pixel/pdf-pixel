@@ -206,8 +206,8 @@ public class PdfImage
             Name = name
         };
 
-        image.HasImageMask = imageXObject.Dictionary.GetBoolOrDefault(PdfTokens.ImageMaskKey);
-        image.Interpolate = imageXObject.Dictionary.GetBoolOrDefault(PdfTokens.InterpolateKey);
+        image.HasImageMask = imageXObject.Dictionary.GetBooleanOrDefault(PdfTokens.ImageMaskKey);
+        image.Interpolate = imageXObject.Dictionary.GetBooleanOrDefault(PdfTokens.InterpolateKey);
 
         image.DecodeArray = imageXObject.Dictionary.GetArray(PdfTokens.DecodeKey)?.GetFloatArray();
         image.MaskArray = imageXObject.Dictionary.GetArray(PdfTokens.MaskKey)?.GetIntegerArray();
@@ -247,7 +247,7 @@ public class PdfImage
         }
 
         // Parse /SMask as a soft mask image if present
-        var softMaskObject = imageXObject.Dictionary.GetPageObject(PdfTokens.SoftMaskKey);
+        var softMaskObject = imageXObject.Dictionary.GetObject(PdfTokens.SoftMaskKey);
         if (softMaskObject != null)
         {
             image.SoftMask = FromXObject(softMaskObject, page, name, isSoftMask: true);

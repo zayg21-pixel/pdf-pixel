@@ -151,13 +151,13 @@ namespace PdfReader.Fonts.Types
         {
             // Get font file object and determine format (only one exists at a time)
             // Priority order: FontFile2 (TrueType), FontFile3 (check /Subtype), FontFile (Type1)
-            var fontFile2Obj = dict.GetPageObject(PdfTokens.FontFile2Key);
+            var fontFile2Obj = dict.GetObject(PdfTokens.FontFile2Key);
             if (fontFile2Obj != null)
             {
                 return (fontFile2Obj, PdfFontFileFormat.TrueType);
             }
 
-            var fontFile3Obj = dict.GetPageObject(PdfTokens.FontFile3Key);
+            var fontFile3Obj = dict.GetObject(PdfTokens.FontFile3Key);
             if (fontFile3Obj != null)
             {
                 // For FontFile3 the actual program type is specified by the stream dictionary /Subtype
@@ -165,7 +165,7 @@ namespace PdfReader.Fonts.Types
                 return (fontFile3Obj, subType);
             }
 
-            var fontFileObj = dict.GetPageObject(PdfTokens.FontFileKey);
+            var fontFileObj = dict.GetObject(PdfTokens.FontFileKey);
             if (fontFileObj != null)
             {
                 return (fontFileObj, PdfFontFileFormat.Type1);
