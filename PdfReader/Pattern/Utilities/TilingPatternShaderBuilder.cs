@@ -20,10 +20,11 @@ internal sealed class TilingPatternShaderBuilder
     /// Does not apply CTM or color filter/tint for uncolored patterns.
     /// The returned shader is suitable for further transformation and color filtering.
     /// </summary>
+    /// <param name="renderer">PDF renderer instance.</param>
     /// <param name="pattern">The PDF tiling pattern to convert.</param>
     /// <param name="page">Current page context.</param>
     /// <returns>Base <see cref="SKShader"/> instance or null if creation fails.</returns>
-    public static SKShader ToBaseShader(PdfTilingPattern pattern, PdfPage page)
+    public static SKShader ToBaseShader(IPdfRenderer renderer, PdfTilingPattern pattern, PdfPage page)
     {
         if (pattern == null)
         {
@@ -36,7 +37,7 @@ internal sealed class TilingPatternShaderBuilder
             return null;
         }
 
-        SKPicture cellPicture = RenderTilingCell(pattern, page);
+        SKPicture cellPicture = RenderTilingCell(renderer, pattern, page);
         if (cellPicture == null)
         {
             return null;
@@ -56,10 +57,11 @@ internal sealed class TilingPatternShaderBuilder
     /// Renders a single tiling pattern cell to an <see cref="SKPicture"/>. Does not apply tint or color filter.
     /// The returned picture is suitable for use with <see cref="SKShader"/> and post-factum color filtering.
     /// </summary>
+    /// <param name="renderer">PDF renderer instance.</param>
     /// <param name="pattern">Tiling pattern definition.</param>
     /// <param name="page">Current page context.</param>
     /// <returns><see cref="SKPicture"/> containing the rendered pattern cell.</returns>
-    private static SKPicture RenderTilingCell(PdfTilingPattern pattern, PdfPage page)
+    private static SKPicture RenderTilingCell(IPdfRenderer renderer, PdfTilingPattern pattern, PdfPage page)
     {
         var streamData = pattern.SourceObject.DecodeAsMemory();
 
@@ -83,9 +85,9 @@ internal sealed class TilingPatternShaderBuilder
         // Render pattern cell without tint or color filter
         var recursionGuard = new HashSet<int>();
         var patternPage = new FormXObjectPageWrapper(page, pattern.SourceObject);
-        var renderer = new PdfContentStreamRenderer(patternPage);
+        var contentRenderer = new PdfContentStreamRenderer(renderer, patternPage);
         var parseContext = new PdfParseContext(streamData);
-        renderer.RenderContext(canvas, ref parseContext, cellState, recursionGuard);
+        contentRenderer.RenderContext(canvas, ref parseContext, cellState, recursionGuard);
 
         return recorder.EndRecording();
     }

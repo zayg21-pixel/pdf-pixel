@@ -3,6 +3,7 @@ using PdfReader.Models;
 using PdfReader.Color.ColorSpace;
 using PdfReader.Pattern.Utilities;
 using PdfReader.Rendering.State;
+using PdfReader.Rendering;
 
 namespace PdfReader.Pattern.Model;
 
@@ -31,8 +32,10 @@ public enum PdfTilingSpacingType
 public sealed class PdfTilingPattern : PdfPattern
 {
     private SKShader _cachedBaseShader;
+    private readonly IPdfRenderer _renderer;
 
     internal PdfTilingPattern(
+        IPdfRenderer renderer,
         PdfPage page,
         PdfObject sourceObject,
         SKRect bbox,
@@ -43,6 +46,7 @@ public sealed class PdfTilingPattern : PdfPattern
         SKMatrix matrix)
         : base(page, sourceObject, matrix, PdfPatternType.Tiling)
     {
+        _renderer = renderer;
         BBox = bbox;
         XStep = xStep;
         YStep = yStep;
@@ -86,7 +90,7 @@ public sealed class PdfTilingPattern : PdfPattern
     {
         if (_cachedBaseShader == null)
         {
-            _cachedBaseShader = TilingPatternShaderBuilder.ToBaseShader(this, Page);
+            _cachedBaseShader = TilingPatternShaderBuilder.ToBaseShader(_renderer, this, Page);
         }
 
         if (_cachedBaseShader == null)

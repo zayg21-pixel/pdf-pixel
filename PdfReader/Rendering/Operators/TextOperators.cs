@@ -4,375 +4,366 @@ using PdfReader.Rendering.State;
 using PdfReader.Text;
 using SkiaSharp;
 
-namespace PdfReader.Rendering.Operators
+namespace PdfReader.Rendering.Operators;
+
+/// <summary>
+/// Handles text-related PDF operators.
+/// Converted to instance implementation for consistency with other operator processors.
+/// </summary>
+public class TextOperators : IOperatorProcessor
 {
-    /// <summary>
-    /// Handles text-related PDF operators.
-    /// Converted to instance implementation for consistency with other operator processors.
-    /// </summary>
-    public class TextOperators : IOperatorProcessor
+    private static readonly HashSet<string> SupportedOperators = new HashSet<string>
     {
-        private static readonly HashSet<string> SupportedOperators = new HashSet<string>
-        {
-            // Text object operators
-            "BT","ET",
-            // Text state operators
-            "Tf","Tc","Tw","Tz","TL","Ts","Tr",
-            // Text positioning operators
-            "Td","TD","T*","Tm",
-            // Text showing operators
-            "Tj","TJ","'","\""
-        };
+        // Text object operators
+        "BT","ET",
+        // Text state operators
+        "Tf","Tc","Tw","Tz","TL","Ts","Tr",
+        // Text positioning operators
+        "Td","TD","T*","Tm",
+        // Text showing operators
+        "Tj","TJ","'","\""
+    };
 
-        private readonly PdfPage _page;
-        private readonly SKCanvas _canvas;
-        private readonly Stack<IPdfValue> _operandStack;
+    private readonly IPdfRenderer _renderer;
+    private readonly PdfPage _page;
+    private readonly SKCanvas _canvas;
+    private readonly Stack<IPdfValue> _operandStack;
 
-        public TextOperators(PdfPage page, SKCanvas canvas, Stack<IPdfValue> operandStack)
+    public TextOperators(IPdfRenderer renderer, PdfPage page, SKCanvas canvas, Stack<IPdfValue> operandStack)
+    {
+        _renderer = renderer;
+        _page = page;
+        _canvas = canvas;
+        _operandStack = operandStack;
+    }
+
+    public bool CanProcess(string op)
+    {
+        return SupportedOperators.Contains(op);
+    }
+
+    public void ProcessOperator(string op, ref PdfGraphicsState graphicsState)
+    {
+        switch (op)
         {
-            _page = page;
-            _canvas = canvas;
-            _operandStack = operandStack;
+            case "BT":
+                {
+                    ProcessBeginText(graphicsState);
+                    break;
+                }
+            case "ET":
+                {
+                    ProcessEndText(graphicsState);
+                    break;
+                }
+            case "Tf":
+                {
+                    ProcessSetFont(graphicsState);
+                    break;
+                }
+            case "Tc":
+                {
+                    ProcessSetCharacterSpacing(graphicsState);
+                    break;
+                }
+            case "Tw":
+                {
+                    ProcessSetWordSpacing(graphicsState);
+                    break;
+                }
+            case "Tz":
+                {
+                    ProcessSetHorizontalScaling(graphicsState);
+                    break;
+                }
+            case "TL":
+                {
+                    ProcessSetTextLeading(graphicsState);
+                    break;
+                }
+            case "Ts":
+                {
+                    ProcessSetTextRise(graphicsState);
+                    break;
+                }
+            case "Tr":
+                {
+                    ProcessSetTextRenderingMode(graphicsState);
+                    break;
+                }
+            case "Td":
+                {
+                    ProcessMoveTextPosition(graphicsState);
+                    break;
+                }
+            case "TD":
+                {
+                    ProcessMoveTextPositionAndSetLeading(graphicsState);
+                    break;
+                }
+            case "T*":
+                {
+                    ProcessNextLine(graphicsState);
+                    break;
+                }
+            case "Tm":
+                {
+                    ProcessSetTextMatrix(graphicsState);
+                    break;
+                }
+            case "Tj":
+                {
+                    ProcessShowText(graphicsState);
+                    break;
+                }
+            case "'":
+                {
+                    ProcessShowTextNextLine(graphicsState);
+                    break;
+                }
+            case "TJ":
+                {
+                    ProcessShowTextWithPositioning(graphicsState);
+                    break;
+                }
+            case "\"":
+                {
+                    ProcessSetSpacingAndShowText(graphicsState);
+                    break;
+                }
+        }
+    }
+
+    private void ProcessBeginText(PdfGraphicsState graphicsState)
+    {
+        if (graphicsState.TextClipPath != null)
+        {
+            graphicsState.TextClipPath.Dispose();
+            graphicsState.TextClipPath = null;
         }
 
-        public bool CanProcess(string op)
+        graphicsState.InTextObject = true;
+        graphicsState.TextMatrix = SKMatrix.Identity;
+        graphicsState.TextLineMatrix = SKMatrix.Identity;
+    }
+
+    private void ProcessEndText(PdfGraphicsState graphicsState)
+    {
+        graphicsState.InTextObject = false;
+        graphicsState.TextMatrix = SKMatrix.Identity;
+        graphicsState.TextLineMatrix = SKMatrix.Identity;
+
+        if (graphicsState.TextClipPath != null)
         {
-            return SupportedOperators.Contains(op);
+            _canvas.ClipPath(graphicsState.TextClipPath, SKClipOperation.Intersect, antialias: true);
+            graphicsState.TextClipPath.Dispose();
+            graphicsState.TextClipPath = null;
+        }
+    }
+
+    private void ProcessSetFont(PdfGraphicsState graphicsState)
+    {
+        var operands = PdfOperatorProcessor.GetOperands(2, _operandStack);
+        if (operands.Count < 2)
+        {
+            return;
         }
 
-        public void ProcessOperator(string op, ref PdfGraphicsState graphicsState)
+        var fontName = operands[0].AsName();
+        var fontSize = operands[1].AsFloat();
+        if (fontName.IsEmpty || fontSize <= 0)
         {
-            switch (op)
-            {
-                case "BT":
-                    {
-                        ProcessBeginText(graphicsState);
-                        break;
-                    }
-                case "ET":
-                    {
-                        ProcessEndText(graphicsState);
-                        break;
-                    }
-                case "Tf":
-                    {
-                        ProcessSetFont(graphicsState);
-                        break;
-                    }
-                case "Tc":
-                    {
-                        ProcessSetCharacterSpacing(graphicsState);
-                        break;
-                    }
-                case "Tw":
-                    {
-                        ProcessSetWordSpacing(graphicsState);
-                        break;
-                    }
-                case "Tz":
-                    {
-                        ProcessSetHorizontalScaling(graphicsState);
-                        break;
-                    }
-                case "TL":
-                    {
-                        ProcessSetTextLeading(graphicsState);
-                        break;
-                    }
-                case "Ts":
-                    {
-                        ProcessSetTextRise(graphicsState);
-                        break;
-                    }
-                case "Tr":
-                    {
-                        ProcessSetTextRenderingMode(graphicsState);
-                        break;
-                    }
-                case "Td":
-                    {
-                        ProcessMoveTextPosition(graphicsState);
-                        break;
-                    }
-                case "TD":
-                    {
-                        ProcessMoveTextPositionAndSetLeading(graphicsState);
-                        break;
-                    }
-                case "T*":
-                    {
-                        ProcessNextLine(graphicsState);
-                        break;
-                    }
-                case "Tm":
-                    {
-                        ProcessSetTextMatrix(graphicsState);
-                        break;
-                    }
-                case "Tj":
-                    {
-                        ProcessShowText(graphicsState);
-                        break;
-                    }
-                case "'":
-                    {
-                        ProcessShowTextNextLine(graphicsState);
-                        break;
-                    }
-                case "TJ":
-                    {
-                        ProcessShowTextWithPositioning(graphicsState);
-                        break;
-                    }
-                case "\"":
-                    {
-                        ProcessSetSpacingAndShowText(graphicsState);
-                        break;
-                    }
-            }
+            return;
         }
 
-        private void ProcessBeginText(PdfGraphicsState graphicsState)
-        {
-            if (graphicsState.TextClipPath != null)
-            {
-                graphicsState.TextClipPath.Dispose();
-                graphicsState.TextClipPath = null;
-            }
+        graphicsState.CurrentFont = fontName;
+        graphicsState.FontSize = fontSize;
+    }
 
-            graphicsState.InTextObject = true;
-            graphicsState.TextMatrix = SKMatrix.Identity;
-            graphicsState.TextLineMatrix = SKMatrix.Identity;
+    private void ProcessSetCharacterSpacing(PdfGraphicsState graphicsState)
+    {
+        var operands = PdfOperatorProcessor.GetOperands(1, _operandStack);
+        if (operands.Count == 0)
+        {
+            return;
         }
 
-        private void ProcessEndText(PdfGraphicsState graphicsState)
-        {
-            graphicsState.InTextObject = false;
-            graphicsState.TextMatrix = SKMatrix.Identity;
-            graphicsState.TextLineMatrix = SKMatrix.Identity;
+        graphicsState.CharacterSpacing = operands[0].AsFloat();
+    }
 
-            if (graphicsState.TextClipPath != null)
-            {
-                _canvas.ClipPath(graphicsState.TextClipPath, SKClipOperation.Intersect, antialias: true);
-                graphicsState.TextClipPath.Dispose();
-                graphicsState.TextClipPath = null;
-            }
+    private void ProcessSetWordSpacing(PdfGraphicsState graphicsState)
+    {
+        var operands = PdfOperatorProcessor.GetOperands(1, _operandStack);
+        if (operands.Count == 0)
+        {
+            return;
         }
 
-        private void ProcessSetFont(PdfGraphicsState graphicsState)
+        graphicsState.WordSpacing = operands[0].AsFloat();
+    }
+
+    private void ProcessSetHorizontalScaling(PdfGraphicsState graphicsState)
+    {
+        var operands = PdfOperatorProcessor.GetOperands(1, _operandStack);
+        if (operands.Count == 0)
         {
-            var operands = PdfOperatorProcessor.GetOperands(2, _operandStack);
-            if (operands.Count < 2)
-            {
-                return;
-            }
-
-            var fontName = operands[0].AsName();
-            var fontSize = operands[1].AsFloat();
-            if (fontName.IsEmpty || fontSize <= 0)
-            {
-                return;
-            }
-
-            graphicsState.CurrentFont = fontName;
-            graphicsState.FontSize = fontSize;
+            return;
         }
 
-        private void ProcessSetCharacterSpacing(PdfGraphicsState graphicsState)
-        {
-            var operands = PdfOperatorProcessor.GetOperands(1, _operandStack);
-            if (operands.Count == 0)
-            {
-                return;
-            }
+        graphicsState.HorizontalScaling = operands[0].AsFloat();
+    }
 
-            graphicsState.CharacterSpacing = operands[0].AsFloat();
+    private void ProcessSetTextLeading(PdfGraphicsState graphicsState)
+    {
+        var operands = PdfOperatorProcessor.GetOperands(1, _operandStack);
+        if (operands.Count == 0)
+        {
+            return;
         }
 
-        private void ProcessSetWordSpacing(PdfGraphicsState graphicsState)
-        {
-            var operands = PdfOperatorProcessor.GetOperands(1, _operandStack);
-            if (operands.Count == 0)
-            {
-                return;
-            }
+        graphicsState.Leading = -operands[0].AsFloat();
+    }
 
-            graphicsState.WordSpacing = operands[0].AsFloat();
+    private void ProcessSetTextRise(PdfGraphicsState graphicsState)
+    {
+        var operands = PdfOperatorProcessor.GetOperands(1, _operandStack);
+        if (operands.Count == 0)
+        {
+            return;
         }
 
-        private void ProcessSetHorizontalScaling(PdfGraphicsState graphicsState)
-        {
-            var operands = PdfOperatorProcessor.GetOperands(1, _operandStack);
-            if (operands.Count == 0)
-            {
-                return;
-            }
+        graphicsState.Rise = operands[0].AsFloat();
+    }
 
-            graphicsState.HorizontalScaling = operands[0].AsFloat();
+    private void ProcessSetTextRenderingMode(PdfGraphicsState graphicsState)
+    {
+        var operands = PdfOperatorProcessor.GetOperands(1, _operandStack);
+        if (operands.Count == 0)
+        {
+            return;
         }
 
-        private void ProcessSetTextLeading(PdfGraphicsState graphicsState)
+        var mode = (int)operands[0].AsFloat();
+        if (mode >= 0 && mode <= 7)
         {
-            var operands = PdfOperatorProcessor.GetOperands(1, _operandStack);
-            if (operands.Count == 0)
-            {
-                return;
-            }
+            graphicsState.TextRenderingMode = (PdfTextRenderingMode)mode;
+        }
+        else
+        {
+            graphicsState.TextRenderingMode = PdfTextRenderingMode.Fill;
+        }
+    }
 
-            graphicsState.Leading = -operands[0].AsFloat();
+    private void ProcessMoveTextPosition(PdfGraphicsState graphicsState)
+    {
+        var operands = PdfOperatorProcessor.GetOperands(2, _operandStack);
+        if (operands.Count < 2 || !graphicsState.InTextObject)
+        {
+            return;
         }
 
-        private void ProcessSetTextRise(PdfGraphicsState graphicsState)
-        {
-            var operands = PdfOperatorProcessor.GetOperands(1, _operandStack);
-            if (operands.Count == 0)
-            {
-                return;
-            }
+        var tx = operands[0].AsFloat();
+        var ty = operands[1].AsFloat();
+        var translation = SKMatrix.CreateTranslation(tx, ty);
+        graphicsState.TextLineMatrix = translation.PostConcat(graphicsState.TextLineMatrix);
+        graphicsState.TextMatrix = graphicsState.TextLineMatrix;
+    }
 
-            graphicsState.Rise = operands[0].AsFloat();
+    private void ProcessMoveTextPositionAndSetLeading(PdfGraphicsState graphicsState)
+    {
+        var operands = PdfOperatorProcessor.GetOperands(2, _operandStack);
+        if (operands.Count < 2 || !graphicsState.InTextObject)
+        {
+            return;
         }
 
-        private void ProcessSetTextRenderingMode(PdfGraphicsState graphicsState)
-        {
-            var operands = PdfOperatorProcessor.GetOperands(1, _operandStack);
-            if (operands.Count == 0)
-            {
-                return;
-            }
+        var tx = operands[0].AsFloat();
+        var ty = operands[1].AsFloat();
+        graphicsState.Leading = ty;
+        var translation = SKMatrix.CreateTranslation(tx, ty);
+        graphicsState.TextLineMatrix = translation.PostConcat(graphicsState.TextLineMatrix);
+        graphicsState.TextMatrix = graphicsState.TextLineMatrix;
+    }
 
-            var mode = (int)operands[0].AsFloat();
-            if (mode >= 0 && mode <= 7)
-            {
-                graphicsState.TextRenderingMode = (PdfTextRenderingMode)mode;
-            }
-            else
-            {
-                graphicsState.TextRenderingMode = PdfTextRenderingMode.Fill;
-            }
+    private void ProcessShowText(PdfGraphicsState graphicsState)
+    {
+        var operands = PdfOperatorProcessor.GetOperands(1, _operandStack);
+        if (operands.Count == 0 || !graphicsState.InTextObject)
+        {
+            return;
         }
 
-        private void ProcessMoveTextPosition(PdfGraphicsState graphicsState)
-        {
-            var operands = PdfOperatorProcessor.GetOperands(2, _operandStack);
-            if (operands.Count < 2 || !graphicsState.InTextObject)
-            {
-                return;
-            }
+        var sequence = PdfTextSequence.FromText(operands[0]);
+        ProcessSequence(graphicsState, sequence);
+    }
 
-            var tx = operands[0].AsFloat();
-            var ty = operands[1].AsFloat();
-            var translation = SKMatrix.CreateTranslation(tx, ty);
-            graphicsState.TextLineMatrix = translation.PostConcat(graphicsState.TextLineMatrix);
-            graphicsState.TextMatrix = graphicsState.TextLineMatrix;
+    private void ProcessShowTextNextLine(PdfGraphicsState graphicsState)
+    {
+        if (!graphicsState.InTextObject)
+        {
+            return;
         }
 
-        private void ProcessMoveTextPositionAndSetLeading(PdfGraphicsState graphicsState)
-        {
-            var operands = PdfOperatorProcessor.GetOperands(2, _operandStack);
-            if (operands.Count < 2 || !graphicsState.InTextObject)
-            {
-                return;
-            }
+        ProcessNextLine(graphicsState);
+        ProcessShowText(graphicsState);
+    }
 
-            var tx = operands[0].AsFloat();
-            var ty = operands[1].AsFloat();
-            graphicsState.Leading = ty;
-            var translation = SKMatrix.CreateTranslation(tx, ty);
-            graphicsState.TextLineMatrix = translation.PostConcat(graphicsState.TextLineMatrix);
-            graphicsState.TextMatrix = graphicsState.TextLineMatrix;
+    private void ProcessShowTextWithPositioning(PdfGraphicsState graphicsState)
+    {
+        var operands = PdfOperatorProcessor.GetOperands(1, _operandStack);
+        if (operands.Count == 0 || !graphicsState.InTextObject)
+        {
+            return;
         }
 
-        private void ProcessShowText(PdfGraphicsState graphicsState)
+        var sequence = PdfTextSequence.FromArray(operands[0]);
+        ProcessSequence(graphicsState, sequence);
+    }
+
+    private void ProcessNextLine(PdfGraphicsState graphicsState)
+    {
+        if (!graphicsState.InTextObject)
         {
-            var operands = PdfOperatorProcessor.GetOperands(1, _operandStack);
-            if (operands.Count == 0 || !graphicsState.InTextObject)
-            {
-                return;
-            }
-
-            var pdfText = PdfText.FromOperand(operands[0]);
-            if (pdfText.IsEmpty)
-            {
-                return;
-            }
-
-            var font = _page.Cache.GetFont(graphicsState.CurrentFont);
-            var advancement = _page.Document.PdfRenderer.DrawText(_canvas, ref pdfText, _page, graphicsState, font);
-            var advanceMatrix = SKMatrix.CreateTranslation(advancement, 0);
-            graphicsState.TextMatrix = SKMatrix.Concat(graphicsState.TextMatrix, advanceMatrix);
+            return;
         }
 
-        private void ProcessShowTextNextLine(PdfGraphicsState graphicsState)
-        {
-            if (!graphicsState.InTextObject)
-            {
-                return;
-            }
+        var translation = SKMatrix.CreateTranslation(0, graphicsState.Leading);
+        graphicsState.TextLineMatrix = translation.PostConcat(graphicsState.TextLineMatrix);
+        graphicsState.TextMatrix = graphicsState.TextLineMatrix;
+    }
 
-            ProcessNextLine(graphicsState);
-            ProcessShowText(graphicsState);
+    private void ProcessSetTextMatrix(PdfGraphicsState graphicsState)
+    {
+        var operands = PdfOperatorProcessor.GetOperands(6, _operandStack);
+        if (operands.Count < 6 || !graphicsState.InTextObject)
+        {
+            return;
         }
 
-        private void ProcessShowTextWithPositioning(PdfGraphicsState graphicsState)
-        {
-            var operands = PdfOperatorProcessor.GetOperands(1, _operandStack);
-            if (operands.Count == 0 || !graphicsState.InTextObject)
-            {
-                return;
-            }
+        var matrix = PdfMatrixUtilities.CreateMatrix(operands);
+        graphicsState.TextMatrix = matrix;
+        graphicsState.TextLineMatrix = matrix;
+    }
 
-            var font = _page.Cache.GetFont(graphicsState.CurrentFont);
-            var advancement = _page.Document.PdfRenderer.DrawTextWithPositioning(_canvas, operands[0], _page, graphicsState, font);
-            var advanceMatrix = SKMatrix.CreateTranslation(advancement, 0);
-            graphicsState.TextMatrix = SKMatrix.Concat(graphicsState.TextMatrix, advanceMatrix);
+    private void ProcessSetSpacingAndShowText(PdfGraphicsState graphicsState)
+    {
+        var operands = PdfOperatorProcessor.GetOperands(3, _operandStack);
+        if (operands.Count < 3 || !graphicsState.InTextObject)
+        {
+            return;
         }
 
-        private void ProcessNextLine(PdfGraphicsState graphicsState)
-        {
-            if (!graphicsState.InTextObject)
-            {
-                return;
-            }
+        graphicsState.WordSpacing = operands[0].AsFloat();
+        graphicsState.CharacterSpacing = operands[1].AsFloat();
+        var sequence = PdfTextSequence.FromText(operands[2]);
+        ProcessSequence(graphicsState, sequence);
+    }
 
-            var translation = SKMatrix.CreateTranslation(0, graphicsState.Leading);
-            graphicsState.TextLineMatrix = translation.PostConcat(graphicsState.TextLineMatrix);
-            graphicsState.TextMatrix = graphicsState.TextLineMatrix;
-        }
-
-        private void ProcessSetTextMatrix(PdfGraphicsState graphicsState)
-        {
-            var operands = PdfOperatorProcessor.GetOperands(6, _operandStack);
-            if (operands.Count < 6 || !graphicsState.InTextObject)
-            {
-                return;
-            }
-
-            var matrix = PdfMatrixUtilities.CreateMatrix(operands);
-            graphicsState.TextMatrix = matrix;
-            graphicsState.TextLineMatrix = matrix;
-        }
-
-        private void ProcessSetSpacingAndShowText(PdfGraphicsState graphicsState)
-        {
-            var operands = PdfOperatorProcessor.GetOperands(3, _operandStack);
-            if (operands.Count < 3 || !graphicsState.InTextObject)
-            {
-                return;
-            }
-
-            graphicsState.WordSpacing = operands[0].AsFloat();
-            graphicsState.CharacterSpacing = operands[1].AsFloat();
-            var pdfText = PdfText.FromOperand(operands[2]);
-            if (pdfText.IsEmpty)
-            {
-                return;
-            }
-
-            var font = _page.Cache.GetFont(graphicsState.CurrentFont);
-            var advancement = _page.Document.PdfRenderer.DrawText(_canvas, ref pdfText, _page, graphicsState, font);
-            var advanceMatrix = SKMatrix.CreateTranslation(advancement, 0);
-            graphicsState.TextMatrix = SKMatrix.Concat(graphicsState.TextMatrix, advanceMatrix);
-        }
+    private void ProcessSequence(PdfGraphicsState graphicsState, PdfTextSequence sequence)
+    {
+        var font = _page.Cache.GetFont(graphicsState.CurrentFont);
+        var advancement = _renderer.DrawTextSequence(_canvas, sequence, graphicsState, font);
+        var advanceMatrix = SKMatrix.CreateTranslation(advancement, 0);
+        graphicsState.TextMatrix = SKMatrix.Concat(graphicsState.TextMatrix, advanceMatrix);
     }
 }

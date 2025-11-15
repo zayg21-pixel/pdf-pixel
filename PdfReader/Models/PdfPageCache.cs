@@ -8,6 +8,7 @@ using PdfReader.Color.ColorSpace;
 using PdfReader.Pattern.Model;
 using PdfReader.Pattern.Utilities;
 using PdfReader.Text;
+using PdfReader.Rendering;
 
 namespace PdfReader.Models
 {
@@ -104,7 +105,7 @@ namespace PdfReader.Models
         /// Get (and cache) a pattern by resource name from /Pattern dictionary. Returns null if not found or unsupported.
         /// Checks document-level pattern cache first when indirect reference is present.
         /// </summary>
-        public PdfPattern GetPattern(PdfString patternName)
+        public PdfPattern GetPattern(IPdfRenderer renderer, PdfString patternName)
         {
             if (patternName.IsEmpty)
             {
@@ -136,7 +137,8 @@ namespace PdfReader.Models
             {
                 return null;
             }
-            var parsedPattern = PdfPatternParser.ParsePattern(patternObject, _page);
+
+            var parsedPattern = PdfPatternParser.ParsePattern(renderer, patternObject, _page);
             if (parsedPattern != null)
             {
                 _patternsByName[patternName] = parsedPattern;

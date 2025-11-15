@@ -4,6 +4,7 @@ using PdfReader.Shading.Model;
 using PdfReader.Pattern.Model;
 using PdfReader.Rendering.Operators;
 using PdfReader.Text;
+using PdfReader.Rendering;
 
 namespace PdfReader.Pattern.Utilities;
 
@@ -15,22 +16,23 @@ internal static class PdfPatternParser
     /// <remarks>This method supports parsing tiling patterns (PatternType 1) and shading patterns
     /// (PatternType 2).  Patterns with other types are not supported and will result in a <see langword="null"/>
     /// return value.</remarks>
+    /// <param name="renderer">The PDF renderer instance used for context during parsing.</param>
     /// <param name="patternObject">The PDF object representing the pattern. Must contain a valid dictionary with a <c>PatternType</c> key.</param>
     /// <param name="page">The <see cref="PdfPage"/> associated with the pattern, used for resolving resources.</param>
     /// <returns>A <see cref="PdfPattern"/> instance representing the parsed pattern, or <see langword="null"/> if the
     /// pattern type is unsupported.</returns>
-    public static PdfPattern ParsePattern(PdfObject patternObject, PdfPage page)
+    public static PdfPattern ParsePattern(IPdfRenderer renderer, PdfObject patternObject, PdfPage page)
     {
         int patternType = patternObject.Dictionary.GetIntegerOrDefault(PdfTokens.PatternTypeKey);
         return patternType switch
         {
-            1 => ParseTilingPattern(patternObject, page),
+            1 => ParseTilingPattern(renderer, patternObject, page),
             2 => ParseShadingPattern(patternObject, page),
             _ => null,// Unsupported pattern type
         };
     }
 
-    private static PdfTilingPattern ParseTilingPattern(PdfObject patternObject, PdfPage page)
+    private static PdfTilingPattern ParseTilingPattern(IPdfRenderer renderer, PdfObject patternObject, PdfPage page)
     {
         var dictionary = patternObject.Dictionary;
 
@@ -64,6 +66,7 @@ internal static class PdfPatternParser
         }
 
         return new PdfTilingPattern(
+            renderer,
             page,
             patternObject,
             bbox,

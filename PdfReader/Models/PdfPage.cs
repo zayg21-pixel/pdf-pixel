@@ -105,9 +105,10 @@ namespace PdfReader.Models
             }
 
             canvas.SaveLayer();
-            var renderer = new PdfContentStreamRenderer(this);
-            renderer.ApplyPageTransformations(canvas);
-            renderer.RenderContent(canvas);
+            var renderer = new PdfRenderer(Document.FontCache, Document.LoggerFactory);
+            var contentRenderer = new PdfContentStreamRenderer(renderer, this);
+            contentRenderer.ApplyPageTransformations(canvas);
+            contentRenderer.RenderContent(canvas);
             canvas.Restore();
 
             // Release transient per-page cached resources after drawing to reduce memory footprint.

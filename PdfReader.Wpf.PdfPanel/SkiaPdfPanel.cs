@@ -18,7 +18,7 @@ namespace PdfReader.Wpf.PdfPanel
     /// </summary>
     public partial class SkiaPdfPanel : FrameworkElement
     {
-        private const bool UseGpuAcceleration = true;
+        private const bool UseGpuAcceleration = false;
 
         private readonly VisualCollection children;
         private ConcurrentQueue<DrawingRequest> updateQueue;

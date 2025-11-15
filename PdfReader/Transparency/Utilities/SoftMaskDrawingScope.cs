@@ -21,6 +21,7 @@ namespace PdfReader.Transparency.Utilities;
 /// </summary>
 public sealed class SoftMaskDrawingScope : IDisposable
 {
+    private readonly IPdfRenderer _renderer;
     private readonly SKCanvas _canvas;
     private readonly PdfSoftMask _softMask;
     private readonly PdfGraphicsState _graphicsState;
@@ -33,13 +34,15 @@ public sealed class SoftMaskDrawingScope : IDisposable
     /// Create a new soft mask drawing scope.
     /// Bounds are derived internally from the soft mask transformed bounds intersected with the current canvas clip.
     /// </summary>
+    /// <param name="renderer">PDF renderer instance.</param>
     /// <param name="canvas">Target canvas.</param>
     /// <param name="graphicsState">Current graphics state (provides the soft mask).</param>
-    /// <param name="currentPage">Current page context.</param>
     public SoftMaskDrawingScope(
+        IPdfRenderer renderer,
         SKCanvas canvas,
         PdfGraphicsState graphicsState)
     {
+        _renderer = renderer;
         _canvas = canvas;
         _softMask = graphicsState.SoftMask;
         _graphicsState = graphicsState;
@@ -130,8 +133,8 @@ public sealed class SoftMaskDrawingScope : IDisposable
                     : SoftMaskUtilities.CreateAlphaMaskGraphicsState();
 
                 var page = _softMask.MaskForm.GetFormPage();
-                var renderer = new PdfContentStreamRenderer(page);
-                renderer.RenderContext(recCanvas, ref parseContext, maskGs, new HashSet<int>());
+                var contentRenderer = new PdfContentStreamRenderer(_renderer, page);
+                contentRenderer.RenderContext(recCanvas, ref parseContext, maskGs, new HashSet<int>());
             }
 
             recCanvas.Restore();

@@ -3,10 +3,8 @@ using PdfReader.Color.Paint;
 using PdfReader.Fonts;
 using PdfReader.Fonts.Management;
 using PdfReader.Fonts.Types;
-using PdfReader.Models;
 using PdfReader.Rendering.State;
 using PdfReader.Text;
-using PdfReader.Transparency;
 using PdfReader.Transparency.Utilities;
 using SkiaSharp;
 using System;
@@ -16,113 +14,72 @@ using System.Runtime.CompilerServices;
 namespace PdfReader.Rendering.Text
 {
     /// <summary>
-    /// Manages text drawing with proper drawer selection and positioning
-    /// Updated to use PdfFontBase hierarchy
+    /// Manages text drawing with proper selection and positioning.
     /// </summary>
-    public class PdfTextDrawer : IPdfTextDrawer
+    public class PdfTextRenderer : IPdfTextRenderer
     {
+        private readonly IPdfRenderer _renderer;
         private readonly IFontCache _fontCache;
-        private readonly ILogger<PdfTextDrawer> _logger;
+        private readonly ILogger<PdfTextRenderer> _logger;
 
-        internal PdfTextDrawer(IFontCache fontCache, ILoggerFactory loggerFactory)
+        internal PdfTextRenderer(IPdfRenderer renderer, IFontCache fontCache, ILoggerFactory loggerFactory)
         {
+            _renderer = renderer ?? throw new ArgumentNullException(nameof(renderer));
             _fontCache = fontCache ?? throw new ArgumentNullException(nameof(fontCache));
             if (loggerFactory == null)
             {
                 throw new ArgumentNullException(nameof(loggerFactory));
             }
             
-            _logger = loggerFactory.CreateLogger<PdfTextDrawer>();
-        }
-
-        /// <summary>
-        /// Draw PDF text and return the advancement width in user space units.
-        /// Validates arguments (public API guard clauses).
-        /// </summary>
-        public float DrawText(SKCanvas canvas, ref PdfText pdfText, PdfPage page, PdfGraphicsState state, PdfFontBase font)
-        {
-            if (font == null)
-            {
-                return 0f;
-            }
-            if (font.Type == PdfFontSubType.Type3 || pdfText.IsEmpty)
-            {
-                return 0f;
-            }
-
-            if (pdfText.IsEmpty)
-            {
-                return 0;
-            }
-
-            var typeface = _fontCache.GetTypeface(font);
-            using var skFont = PdfPaintFactory.CreateTextFont(typeface);
-
-            var shaped = ShapeText(ref pdfText, state, font);
-
-            using var softMaskScope = new SoftMaskDrawingScope(canvas, state);
-
-            softMaskScope.BeginDrawContent();
-            var width = DrawShapedText(canvas, skFont, shaped, state);
-            softMaskScope.EndDrawContent();
-
-            return width;
+            _logger = loggerFactory.CreateLogger<PdfTextRenderer>();
         }
 
         /// <summary>
         /// Draw text with positioning adjustments (TJ operator) and return total advancement
         /// Updated to use PdfFontBase hierarchy
         /// </summary>
-        public float DrawTextWithPositioning(SKCanvas canvas, IPdfValue arrayOperand, PdfPage page, PdfGraphicsState state, PdfFontBase font)
+        public float DrawTextSequence(SKCanvas canvas, PdfTextSequence textSequence, PdfGraphicsState state, PdfFontBase font)
         {
-            if (arrayOperand.Type != PdfValueType.Array)
+            if (textSequence.Items.Count == 0)
             {
-                return 0f;
-            }
-
-            var array = arrayOperand.AsArray();
-            if (array == null)
-            {
-                return 0f;
+                return 0;
             }
 
             var shapedGlyphs = new List<ShapedGlyph>();
             float initialAdvance = 0f;
 
-            for (int i = 0; i < array.Count; i++)
+            for (int i = 0; i < textSequence.Items.Count; i++)
             {
-                var item = array.GetValue(i);
-                if (item == null)
-                {
-                    continue;
-                }
+                var item = textSequence.Items[i];
 
-                if (item.Type == PdfValueType.String)
+                switch (item.Kind)
                 {
-                    var pdfText = PdfText.FromOperand(item);
-                    if (!pdfText.IsEmpty)
+                    case PdfTextPositioningKind.Text:
                     {
-                        // Shape and add glyphs
-                        var glyphs = ShapeText(ref pdfText, state, font);
+                        var text = item.Text;
+                        var glyphs = ShapeText(ref text, state, font);
                         shapedGlyphs.AddRange(glyphs);
-                    }
-                }
-                else
-                {
-                    // Positioning adjustment
-                    var adjustment = item.AsFloat();
-                    var adjustmentInUserSpace = -adjustment / 1000f;
 
-                    if (shapedGlyphs.Count > 0)
-                    {
-                        // Add advance to last glyph
-                        var last = shapedGlyphs[shapedGlyphs.Count - 1];
-                        shapedGlyphs[shapedGlyphs.Count - 1] = new ShapedGlyph(last.GlyphId, last.Width, last.AdvanceAfter + adjustmentInUserSpace);
+                        break;
                     }
-                    else
+                    case PdfTextPositioningKind.Adjustment:
                     {
-                        shapedGlyphs.Insert(0, new ShapedGlyph(0, 0, initialAdvance));
-                        initialAdvance = adjustmentInUserSpace;
+                        var adjustment = item.Adjustment;
+                        var adjustmentInUserSpace = -adjustment / 1000f;
+
+                        if (shapedGlyphs.Count > 0)
+                        {
+                            // Add advance to last glyph
+                            var last = shapedGlyphs[shapedGlyphs.Count - 1];
+                            shapedGlyphs[shapedGlyphs.Count - 1] = new ShapedGlyph(last.GlyphId, last.Width, last.AdvanceAfter + adjustmentInUserSpace);
+                        }
+                        else
+                        {
+                            shapedGlyphs.Insert(0, new ShapedGlyph(0, 0, initialAdvance));
+                            initialAdvance = adjustmentInUserSpace;
+                        }
+
+                        break;
                     }
                 }
             }
@@ -131,7 +88,7 @@ namespace PdfReader.Rendering.Text
 
             if (shapedGlyphs.Count > 0)
             {
-                using var softMaskScope = new SoftMaskDrawingScope(canvas, state);
+                using var softMaskScope = new SoftMaskDrawingScope(_renderer, canvas, state);
 
                 softMaskScope.BeginDrawContent();
 

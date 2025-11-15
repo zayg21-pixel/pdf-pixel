@@ -30,7 +30,6 @@ namespace PdfReader.Models
             LoggerFactory = loggerFactory;
             StreamDecoder = new PdfStreamDecoder(this);
             FontCache = new PdfFontCache(this);
-            PdfRenderer = new PdfRenderer(FontCache, loggerFactory);
             _pdfObjectParser = new PdfObjectParser(this);
             Stream = new BufferedStream(fileStream);
         }
@@ -71,8 +70,6 @@ namespace PdfReader.Models
         public BasePdfDecryptor Decryptor { get; internal set; }
 
         internal Dictionary<PdfReference, PdfObjectInfo> ObjectIndex { get; } = new Dictionary<PdfReference, PdfObjectInfo>();
-
-        public PdfRenderer PdfRenderer { get; }
 
         /// <summary>
         /// Exposes the original PDF file bytes for internal parser use (lazy object loading).

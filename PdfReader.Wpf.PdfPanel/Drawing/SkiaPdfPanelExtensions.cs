@@ -21,6 +21,7 @@ namespace PdfReader.Wpf.PdfPanel.Drawing
             ConcurrentQueue<DrawingRequest> updateQueue)
         {
             var canvas = surface.Canvas;
+            canvas.ClipRect(new SKRect(0, 0, (float)request.CanvasSize.Width, (float)request.CanvasSize.Height));
 
             if (CanDrawCached(request))
             {
