@@ -1,7 +1,7 @@
-﻿using PdfReader.Models;
+﻿using PdfReader.Imaging.Model;
+using PdfReader.Models;
 using PdfReader.Parsing;
 using PdfReader.Rendering.Advanced;
-using PdfReader.Rendering.Image;
 using PdfReader.Text;
 using SkiaSharp;
 using System.Collections.Generic;

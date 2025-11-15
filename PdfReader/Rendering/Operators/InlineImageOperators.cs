@@ -1,9 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
 using Microsoft.Extensions.Logging;
+using PdfReader.Imaging.Model;
 using PdfReader.Models;
 using PdfReader.Parsing;
-using PdfReader.Rendering.Image;
 using PdfReader.Streams;
 using PdfReader.Text;
 using SkiaSharp;

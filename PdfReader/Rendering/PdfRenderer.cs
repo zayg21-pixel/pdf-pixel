@@ -7,6 +7,7 @@ using SkiaSharp;
 using Microsoft.Extensions.Logging;
 using PdfReader.Fonts.Management;
 using PdfReader.Fonts.Types;
+using PdfReader.Imaging.Model;
 
 namespace PdfReader.Rendering
 {

@@ -1,5 +1,6 @@
 using SkiaSharp;
 using PdfReader.Models;
+using PdfReader.Imaging.Model;
 
 namespace PdfReader.Rendering.Image
 {

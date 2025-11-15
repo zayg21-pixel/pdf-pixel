@@ -1,8 +1,10 @@
 using Microsoft.Extensions.Logging;
+using PdfReader.Imaging.Decoding;
+using PdfReader.Imaging.Model;
+using PdfReader.Imaging.Processing;
 using PdfReader.Models;
 using PdfReader.Rendering.Advanced;
 using PdfReader.Rendering.Color.Clut;
-using PdfReader.Rendering.Image.Processing;
 using SkiaSharp;
 using System;
 
