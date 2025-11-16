@@ -3,7 +3,6 @@ using SkiaSharp;
 using System.Numerics;
 using PdfReader.Color.Icc.Model;
 using PdfReader.Color.Icc.Utilities;
-using PdfReader.Color.Icc.Converters;
 
 namespace PdfReader.Color.ColorSpace;
 
@@ -16,9 +15,10 @@ namespace PdfReader.Color.ColorSpace;
 /// </summary>
 internal sealed class CalRgbConverter : PdfColorSpaceConverter
 {
-    private readonly IccRgbColorConverter _iccRgb;
     private readonly bool _hasBlackPoint;
-    private readonly Vector3 _blackSrgb01;
+    private readonly Vector3 _pcsRow0, _pcsRow1, _pcsRow2;
+    private readonly IccTrc _rTrc, _gTrc, _bTrc;
+    private readonly Vector3 _blackPointXyz;
 
     public CalRgbConverter(float[] whitePoint, float[] blackPoint, float[] gamma, float[,] matrix)
     {
@@ -42,50 +42,32 @@ internal sealed class CalRgbConverter : PdfColorSpaceConverter
         float gG = gamma[1] <= 0 ? 1.0f : gamma[1];
         float gB = gamma[2] <= 0 ? 1.0f : gamma[2];
 
-        float[,] m = matrix ?? new float[3, 3]
-        {
-            { 1, 0, 0 },
-            { 0, 1, 0 },
-            { 0, 0, 1 }
-        };
+        matrix ??= new float[3, 3]
+            {
+                { 1, 0, 0 },
+                { 0, 1, 0 },
+                { 0, 0, 1 }
+            };
 
         // Bradford adaptation from CalRGB white to D50 (ICC PCS white)
         var chad = IccProfileHelpers.CreateBradfordAdaptMatrix(xw, yw, zw, 0.9642f, 1.0000f, 0.8249f);
 
-        // Build synthetic ICC profile WITHOUT BlackPoint (see class comment)
-        var profile = new IccProfile
-        {
-            Header = new IccProfileHeader
-            {
-                ColorSpace = IccConstants.SpaceRgb,
-                Pcs = IccConstants.TypeXYZ,
-                RenderingIntent = 1 // Relative colorimetric default
-            },
-            WhitePoint = new IccXyz(0.9642f, 1.0f, 0.8249f),
-            BlackPoint = null, // Explicitly null: CalRGB /BlackPoint ignored for Acrobat parity
-            RedMatrix = new IccXyz(m[0, 0], m[0, 1], m[0, 2]),
-            GreenMatrix = new IccXyz(m[1, 0], m[1, 1], m[1, 2]),
-            BlueMatrix = new IccXyz(m[2, 0], m[2, 1], m[2, 2]),
-            RedTrc = IccTrc.FromGamma(gR),
-            GreenTrc = IccTrc.FromGamma(gG),
-            BlueTrc = IccTrc.FromGamma(gB),
-            ChromaticAdaptation = chad
-        };
+        var adaptedPimaries = IccProfileHelpers.Multiply3x3(chad, matrix);
+        (_pcsRow0, _pcsRow1, _pcsRow2) = IccProfileHelpers.ToVectorRows(adaptedPimaries);
+        _rTrc = IccTrc.FromGamma(gR);
+        _gTrc = IccTrc.FromGamma(gG);
+        _bTrc = IccTrc.FromGamma(gB);
 
-        // Precompute adapted black point -> D50 -> sRGB01 if present.
+        // Precompute adapted black point -> D50
         _hasBlackPoint = blackPoint != null && blackPoint.Length >= 3;
         if (_hasBlackPoint)
         {
-            // Adapt CalGray black point to D50 then to sRGB (0..1)
-            Vector3 bpXyzD50 = IccProfileHelpers.Multiply3x3(chad, blackPoint[0], blackPoint[1], blackPoint[2]);
-            _blackSrgb01 = ColorMath.FromXyzD50ToSrgb01(in bpXyzD50);
+            _blackPointXyz = IccProfileHelpers.Multiply3x3(chad, blackPoint[0], blackPoint[1], blackPoint[2]);
         }
         else
         {
-            _blackSrgb01 = Vector3.Zero;
+            _blackPointXyz = Vector3.Zero;
         }
-
-        _iccRgb = new IccRgbColorConverter(profile);
     }
 
     public override int Components => 3;
@@ -94,16 +76,28 @@ internal sealed class CalRgbConverter : PdfColorSpaceConverter
 
     protected override SKColor ToSrgbCore(ReadOnlySpan<float> comps01, PdfRenderingIntent renderingIntent)
     {
-        if (!_iccRgb.TryToSrgb01(comps01, renderingIntent, out var srgb01))
-        {
-            return new SKColor(0, 0, 0, 255);
-        }
+        var c0 = comps01.Length > 0 ? comps01[0] : 0f;
+        var c1 = comps01.Length > 1 ? comps01[1] : 0f;
+        var c2 = comps01.Length > 2 ? comps01[2] : 0f;
+
+        float rLinear = IccTrcEvaluator.EvaluateTrc(_rTrc, c0);
+        float gLinear = IccTrcEvaluator.EvaluateTrc(_gTrc, c1);
+        float bLinear = IccTrcEvaluator.EvaluateTrc(_bTrc, c2);
+        Vector3 linear = new Vector3(rLinear, gLinear, bLinear);
+
+        float X = Vector3.Dot(_pcsRow0, linear);
+        float Y = Vector3.Dot(_pcsRow1, linear);
+        float Z = Vector3.Dot(_pcsRow2, linear);
+        Vector3 xyz = new Vector3(X, Y, Z);
 
         if (_hasBlackPoint && renderingIntent == PdfRenderingIntent.RelativeColorimetric)
         {
-            Vector3 scale = Vector3.One - _blackSrgb01;
-            srgb01 = _blackSrgb01 + srgb01 * scale;
+            // TODO: this applied incorrectly
+            Vector3 scale = Vector3.One - _blackPointXyz;
+            xyz = _blackPointXyz + xyz * scale;
         }
+
+        Vector3 srgb01 = ColorMath.FromXyzD50ToSrgb01(xyz);
 
         byte R = ToByte(srgb01.X);
         byte G = ToByte(srgb01.Y);
