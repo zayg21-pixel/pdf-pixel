@@ -32,7 +32,7 @@ internal sealed class IccRgbColorConverter
             if (TryBuildDeviceToPcsMatrix(profile, out float[,] matrix3x3))
             {
                 _hasMatrixTrcProfile = true;
-                (_pcsRow0, _pcsRow1, _pcsRow2) = IccProfileHelpers.AdaptRgbMatrixToPcsRows(profile, matrix3x3);
+                (_pcsRow0, _pcsRow1, _pcsRow2) = IccProfileHelpers.ToVectorRows(matrix3x3);
             }
 
             if (profile.RedTrc != null && profile.GreenTrc != null && profile.BlueTrc != null)
@@ -113,6 +113,7 @@ internal sealed class IccRgbColorConverter
 
         xyz = ColorMath.ApplyBlackPointCompensation(in xyz, _sourceBlackLstar, _blackPointCompensationScale, intent);
         srgb01 = ColorMath.FromXyzD50ToSrgb01(in xyz);
+        // TODO: exact WPC can be applied here for better accuracy
 
         return true;
     }

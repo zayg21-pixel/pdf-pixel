@@ -49,14 +49,6 @@ internal sealed class CalRgbConverter : PdfColorSpaceConverter
             { 0, 0, 1 }
         };
 
-        // Primaries (PDF defines Matrix row-major -> rows become r,g,b XYZ)
-        var primaries = new Vector3[3]
-        {
-            new Vector3(m[0,0], m[0,1], m[0,2]),
-            new Vector3(m[1,0], m[1,1], m[1,2]),
-            new Vector3(m[2,0], m[2,1], m[2,2])
-        };
-
         // Bradford adaptation from CalRGB white to D50 (ICC PCS white)
         var chad = IccProfileHelpers.CreateBradfordAdaptMatrix(xw, yw, zw, 0.9642f, 1.0000f, 0.8249f);
 
@@ -71,9 +63,9 @@ internal sealed class CalRgbConverter : PdfColorSpaceConverter
             },
             WhitePoint = new IccXyz(0.9642f, 1.0f, 0.8249f),
             BlackPoint = null, // Explicitly null: CalRGB /BlackPoint ignored for Acrobat parity
-            RedMatrix = new IccXyz(primaries[0].X, primaries[0].Y, primaries[0].Z),
-            GreenMatrix = new IccXyz(primaries[1].X, primaries[1].Y, primaries[1].Z),
-            BlueMatrix = new IccXyz(primaries[2].X, primaries[2].Y, primaries[2].Z),
+            RedMatrix = new IccXyz(m[0, 0], m[0, 1], m[0, 2]),
+            GreenMatrix = new IccXyz(m[1, 0], m[1, 1], m[1, 2]),
+            BlueMatrix = new IccXyz(m[2, 0], m[2, 1], m[2, 2]),
             RedTrc = IccTrc.FromGamma(gR),
             GreenTrc = IccTrc.FromGamma(gG),
             BlueTrc = IccTrc.FromGamma(gB),

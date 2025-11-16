@@ -1,14 +1,22 @@
-﻿Leftovers:
+﻿Common:
 Add AES decryption and all other algorithms
-Add missing stream filters implementations
-Add JPEG2000 decoder and JBIG2 decoder
-apply patterns to stencil image
+Add RunLengthDecode, Crypt (?)
+
+Fonts:
+Complete refactoring of font handling and cache
 Type3 font
-Predefined CMaps
-rework graphics stack, try-catch for operation execution. Don't check for predefined operators
-clear stack after each operator (we need a reliable way to distinguish booleans, need a separate type!)
-Shading ExtXState
-differentiate between embedded and system fonts for cmap
-PDF has Null. Often in array. Need to handle it properly.
 MMType1 font (need example, only found CFF MM)
+Predefined CMaps
+differentiate between embedded and system fonts for cmap
+
+Color:
 TR curves for GS and SoftMask
+ICC WhitePoint, Do we need to handle it? When and how?
+
+Shading:
+Shading ExtXState
+Normalize Type 7 mesh size
+apply patterns to stencil image
+
+Images:
+Add JPEG2000 decoder and JBIG2 decoder

@@ -27,7 +27,7 @@ namespace PdfReader.Models
         public PdfDocument(ILoggerFactory loggerFactory, Stream fileStream)
         {
             LoggerFactory = loggerFactory;
-            StreamDecoder = new PdfStreamDecoder(this);
+            StreamDecoder = new PdfStreamDecoder(loggerFactory);
             FontCache = new PdfFontCache(this);
             _pdfObjectParser = new PdfObjectParser(this);
             Stream = new BufferedStream(fileStream);

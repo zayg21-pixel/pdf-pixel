@@ -103,7 +103,16 @@ public class PdfContentStreamRenderer
             if (value.Type == PdfValueType.Operator)
             {
                 string op = value.AsString().ToString();
-                operatorProcessor.ProcessOperator(op, ref graphicsState);
+
+                try
+                {
+                    operatorProcessor.ProcessOperator(op, ref graphicsState);
+                }
+                catch
+                {
+                    _logger.LogError("Error processing PDF content stream operator {Operator}. Continuing to next.", op);
+                    operandStack.Clear();
+                }
             }
             else
             {

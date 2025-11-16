@@ -14,13 +14,11 @@ namespace PdfReader.Streams
     /// </summary>
     public sealed class PdfStreamDecoder
     {
-        private readonly PdfDocument _document;
         private readonly ILogger<PdfStreamDecoder> _logger;
 
-        public PdfStreamDecoder(PdfDocument document)
+        public PdfStreamDecoder(ILoggerFactory loggerFactory)
         {
-            _document = document ?? throw new ArgumentNullException(nameof(document));
-            _logger = document.LoggerFactory.CreateLogger<PdfStreamDecoder>();
+            _logger = loggerFactory.CreateLogger<PdfStreamDecoder>();
         }
 
         /// <summary>

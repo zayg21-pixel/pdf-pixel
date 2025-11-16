@@ -147,20 +147,17 @@ internal static class IccProfileHelpers
         }
     }
 
-    /// <summary>
-    /// Multiply a device RGB -> PCS matrix by the profile chromatic adaptation matrix if present and return row vectors.
-    /// </summary>
-    public static (Vector3 Row0, Vector3 Row1, Vector3 Row2) AdaptRgbMatrixToPcsRows(IccProfile profile, float[,] sourceMatrix)
+    public static (Vector3 Row0, Vector3 Row1, Vector3 Row2) ToVectorRows(float[,] sourceMatrix)
     {
         if (sourceMatrix == null)
         {
             return (default, default, default);
         }
 
-        float[,] working = profile?.ChromaticAdaptation != null ? Multiply3x3(profile.ChromaticAdaptation, sourceMatrix) : sourceMatrix;
-        Vector3 row0 = new Vector3(working[0, 0], working[0, 1], working[0, 2]);
-        Vector3 row1 = new Vector3(working[1, 0], working[1, 1], working[1, 2]);
-        Vector3 row2 = new Vector3(working[2, 0], working[2, 1], working[2, 2]);
+        Vector3 row0 = new Vector3(sourceMatrix[0, 0], sourceMatrix[0, 1], sourceMatrix[0, 2]);
+        Vector3 row1 = new Vector3(sourceMatrix[1, 0], sourceMatrix[1, 1], sourceMatrix[1, 2]);
+        Vector3 row2 = new Vector3(sourceMatrix[2, 0], sourceMatrix[2, 1], sourceMatrix[2, 2]);
+
         return (row0, row1, row2);
     }
 
