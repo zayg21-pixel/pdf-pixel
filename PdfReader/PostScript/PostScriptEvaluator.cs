@@ -246,13 +246,11 @@ namespace PdfReader.PostScript
                 }
                 case "save":
                 {
-                    // TODO: Marker-only 'save' implementation; does not snapshot VM state. Future enhancement could capture dictionary stack and operand depth.
                     stack.Push(new PostScriptSave());
                     break;
                 }
                 case "restore":
                 {
-                    // TODO: Marker-only 'restore' implementation; pops objects until a PostScriptSave marker is found, discarding it. No actual state rollback.
                     PostScriptSave foundMarker = null;
                     var temp = new Stack<PostScriptToken>();
                     while (stack.Count > 0)
@@ -276,17 +274,4 @@ namespace PdfReader.PostScript
             }
         }
     }
-
-    // TODO: Font-related PostScript operators pending or partial:
-    // - findfont: lookup font in FontDirectory // Typically unnecessary for embedded PDF Type1 fonts; PDF provides font dict.
-    // - definefont: register font dictionary under name // Optional; PDF font dictionaries are already instantiated.
-    // - scalefont: apply scaling to FontMatrix / metrics // Rarely needed; scaling handled via PDF font matrix.
-    // - makefont: compose new font with matrix // Optional; out of scope currently.
-    // - setfont: select current font (not needed for static analysis) // Confirmed not required for header parsing.
-    // - stringwidth: compute glyph string width (optional) // Could be deferred until width metrics needed.
-    // - charpath / setcachedevice / setcharwidth (Type1 charstring build ops) // Charstring interpreter will handle; not in header evaluator.
-    // - save / restore: implement proper memory snapshot and rollback // 'save' stub present; 'restore' pending if needed.
-    // - currentfile: access underlying stream (not required here) // For 'currentfile eexec' boundary; safe sentinel stub.
-    // - count / mark / cleartomark: stack markers (not currently used in font headers observed) // Implement only if encountered.
-    // - getinterval / putinterval: substring / subarray extraction (rare in plain Type1 headers) // Defer.
 }

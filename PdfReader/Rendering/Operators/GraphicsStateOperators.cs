@@ -1,10 +1,12 @@
-using System.Collections.Generic;
 using Microsoft.Extensions.Logging;
 using PdfReader.Color.ColorSpace;
 using PdfReader.Models;
 using PdfReader.Rendering.State;
 using PdfReader.Text;
 using SkiaSharp;
+using System;
+using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 
 namespace PdfReader.Rendering.Operators;
 
@@ -222,7 +224,7 @@ public class GraphicsStateOperators : IOperatorProcessor
 
         if (dashArray != null && dashArray.Length > 0)
         {
-            graphicsState.DashPattern = dashArray;
+            graphicsState.DashPattern = GetDashPattern(dashArray);
             graphicsState.DashPhase = dashPhase;
         }
         else
@@ -255,5 +257,47 @@ public class GraphicsStateOperators : IOperatorProcessor
 
         var flatness = operands[0].AsFloat();
         graphicsState.FlatnessTolerance = flatness;
+    }
+
+    private static float[] GetDashPattern(float[] pattern)
+    {
+        if (pattern == null || pattern.Length == 0)
+        {
+            return null;
+        }
+
+        if (pattern.Length % 2 != 0)
+        {
+            // Per PDF spec, odd-length patterns are repeated to make even-length
+            var extended = new float[pattern.Length * 2];
+            Array.Copy(pattern, extended, pattern.Length);
+            Array.Copy(pattern, 0, extended, pattern.Length, pattern.Length);
+            pattern = extended;
+        }
+
+        const float Epsilon = 0.001f;
+        var sum = 0f;
+        for (int i = 0; i < pattern.Length; i++)
+        {
+            var dash = pattern[i];
+
+            if (dash > 0)
+            {
+                sum += dash;
+            }
+            else if (dash <= 0)
+            {
+                // Replace non-positive dashes with a small epsilon
+                pattern[i] = Epsilon;
+            }
+        }
+
+        if (sum <= 0f)
+        {
+            // Per PDF spec, if the sum is zero, the line is solid (no dash effect)
+            return null;
+        }
+
+        return pattern;
     }
 }

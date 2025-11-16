@@ -19,15 +19,17 @@ internal class ColorFilterDecode
     /// <exception cref="ArgumentOutOfRangeException">Thrown if channelCount is not 1, 3, or 4.</exception>
     public static SKColorFilter BuildDecodeColorFilter(float[] decode, int channelCount)
     {
+        if (decode == null || decode.Length != channelCount * 2)
+        {
+            return null;
+        }
+
         if (channelCount != 1 && channelCount != 3 && channelCount != 4)
         {
             throw new ArgumentOutOfRangeException(nameof(channelCount), channelCount, "Only 1, 3, or 4 channels are supported.");
         }
 
-        if (decode == null || decode.Length != channelCount * 2)
-        {
-            throw new ArgumentException("Decode array must have 2 values per channel.", nameof(decode));
-        }
+
 
         string shaderSource = BuildShaderSource(channelCount);
         var effect = SKRuntimeEffect.CreateColorFilter(shaderSource, out var error);
@@ -65,7 +67,7 @@ internal class ColorFilterDecode
         float[] decodeArray = decode;
         if (decode == null || decode.Length < 2)
         {
-            decodeArray = new float[] { 0f, 1f };
+            decodeArray = [0f, 1f];
         }
 
         float decodeMin = decodeArray[1];

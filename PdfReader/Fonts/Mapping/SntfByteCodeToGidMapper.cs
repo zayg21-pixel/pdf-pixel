@@ -247,7 +247,6 @@ namespace PdfReader.Fonts.Mapping
 
         /// <summary>
         /// Extracts a mapping from Unicode codepoints to glyph IDs (GIDs) using CMap format 4.
-        /// TODO: Add support for format 12 for large Unicode fonts.
         /// </summary>
         /// <param name="info">FontTableInfo struct with table data and offsets.</param>
         /// <returns>Dictionary mapping Unicode codepoints to GIDs.</returns>

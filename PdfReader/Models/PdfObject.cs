@@ -72,23 +72,13 @@ namespace PdfReader.Models
             }
         }
 
-        public Stream DecodeAsStream() // TODO: use
+        public Stream DecodeAsStream()
         {
-            if (!HasStream)
-            {
-                return Stream.Null;
-            }
-
             return Document.StreamDecoder.DecodeContentAsStream(this);
         }
 
         public ReadOnlyMemory<byte> DecodeAsMemory()
         {
-            if (!HasStream)
-            {
-                return ReadOnlyMemory<byte>.Empty;
-            }
-
             return Document.StreamDecoder.DecodeContentStream(this);
         }
     }

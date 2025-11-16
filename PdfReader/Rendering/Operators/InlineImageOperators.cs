@@ -79,7 +79,6 @@ internal class InlineImageOperators : IOperatorProcessor
                 return;
             }
 
-
             var inlineObject = new PdfObject(new PdfReference(-1), _page.Document, PdfValueFactory.Dictionary(imageDictionary))
             {
                 EmbaddedStream = image.AsString().Value

@@ -36,7 +36,7 @@ public class FormRenderer : IFormRenderer
         processingXObjects.Add(objectNumber);
 
         // Use form paint to composite the whole form with correct alpha/blend when needed
-        using var formPaint = PdfPaintFactory.CreateFormXObjectPaint(graphicsState);
+        using var formPaint = PdfPaintFactory.CreateLayerPaint(graphicsState);
 
         // Apply form matrix if present
         canvas.Concat(formXObject.Matrix);

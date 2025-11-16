@@ -56,21 +56,15 @@ namespace PdfReader.PostScript
                 }
                 case "currentdict":
                 {
-                    if (_dictStack.Count > 0)
-                    {
-                        PostScriptDictionary top = _dictStack.Peek();
-                        top.EnsureAccess(PostScriptAccessOperation.Read);
-                        stack.Push(top);
-                    }
+                    PostScriptDictionary top = _dictStack.Peek();
+                    top.EnsureAccess(PostScriptAccessOperation.Read);
+                    stack.Push(top);
 
                     return true;
                 }
                 case "end":
                 {
-                    if (_dictStack.Count > 2)
-                    {
-                        _dictStack.Pop();
-                    }
+                    _dictStack.Pop();
                     return true;
                 }
             }

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using PdfReader.Color.Paint;
 using PdfReader.Models;
 using PdfReader.Parsing;
 using PdfReader.Rendering;
@@ -72,14 +73,7 @@ public sealed class SoftMaskDrawingScope : IDisposable
             return;
         }
 
-        // Capture content into a layer so we can apply the soft mask at EndDrawContent.
-        var layerPaint = new SKPaint
-        {
-            IsAntialias = true,
-            BlendMode = PdfBlendModeNames.ToSkiaBlendMode(_graphicsState.BlendMode)
-        };
-
-        // TODO: investigate possible bounds specifying
+        var layerPaint = PdfPaintFactory.CreateLayerPaint(_graphicsState);
         _canvas.SaveLayer(layerPaint);
     }
 
@@ -113,14 +107,9 @@ public sealed class SoftMaskDrawingScope : IDisposable
             // Background for luminosity masks (BC in group color space).
             if (_softMask.Subtype == PdfSoftMaskSubtype.Luminosity)
             {
-                using var bgPaint = new SKPaint
-                {
-                    IsAntialias = true,
-                    Style = SKPaintStyle.Fill,
-                    Color = _softMask.GetBackgroundColor(_graphicsState.RenderingIntent)
-                };
-
-                recCanvas.DrawRect(_softMask.MaskForm.BBox, bgPaint);
+                var backgroundColor = _softMask.GetBackgroundColor(_graphicsState.RenderingIntent);
+                using var backgroundPaint = PdfPaintFactory.CreateMaskBackgroundPaint(backgroundColor);
+                recCanvas.DrawRect(_softMask.MaskForm.BBox, backgroundPaint);
             }
 
             // Render mask content stream.
@@ -140,11 +129,7 @@ public sealed class SoftMaskDrawingScope : IDisposable
             recCanvas.Restore();
 
             using var picture = recorder.EndRecording();
-            using var maskPaint = new SKPaint
-            {
-                IsAntialias = true,
-                BlendMode = SKBlendMode.DstIn
-            };
+            using var maskPaint = PdfPaintFactory.CreateMaskPaint();
 
             using var alphaFilter = _softMask.Subtype == PdfSoftMaskSubtype.Luminosity
                 ? SoftMaskUtilities.CreateAlphaFromLuminosityFilter()

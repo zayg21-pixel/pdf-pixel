@@ -7,11 +7,7 @@ using PdfReader.Color.Icc.Utilities;
 namespace PdfReader.Color.ColorSpace;
 
 /// <summary>
-/// Converter for CalRGB (CIEBasedABC) color space.
-/// Builds a synthetic ICC RGB (matrix/TRC + chromatic adaptation) profile
-/// from CalRGB parameters and delegates to IccRgbColorConverter.
-/// PDF BlackPoint is applied after ICC RGB conversion in sRGB space by
-/// interpolating between the adapted black point and the ICC-derived neutral.
+/// Converter for PDF CalRGB (CIEBasedCalRGB) color space.
 /// </summary>
 internal sealed class CalRgbConverter : PdfColorSpaceConverter
 {
@@ -92,7 +88,6 @@ internal sealed class CalRgbConverter : PdfColorSpaceConverter
 
         if (_hasBlackPoint && renderingIntent == PdfRenderingIntent.RelativeColorimetric)
         {
-            // TODO: this applied incorrectly
             Vector3 scale = Vector3.One - _blackPointXyz;
             xyz = _blackPointXyz + xyz * scale;
         }

@@ -1,4 +1,5 @@
-﻿using PdfReader.Shading.Builder;
+﻿using PdfReader.Color.Paint;
+using PdfReader.Shading.Builder;
 using PdfReader.Shading.Decoding;
 using PdfReader.Shading.Model;
 using SkiaSharp;
@@ -51,12 +52,7 @@ internal static partial class PdfShadingBuilder
         using var canvas = recorder.BeginRecording(normalizedMeshBounds);
         canvas.Translate(-meshBounds.Left, -meshBounds.Top);
 
-        using var paint = new SKPaint
-        {
-            IsAntialias = true,
-            Style = SKPaintStyle.Fill,
-            Color = SKColors.White
-        };
+        using var paint = PdfPaintFactory.CreateShaderPaint(shading.AntiAlias);
 
         // Batch draw all triangles in one call
         using var vertices = SKVertices.CreateCopy(SKVertexMode.Triangles, allPoints, allColors);
@@ -105,7 +101,7 @@ internal static partial class PdfShadingBuilder
             tessellation = MinTessellationVertices + (int)dropoff;
         }
 
-        using var paint = new SKPaint { IsAntialias = true, Color = SKColors.White, Style = SKPaintStyle.Fill };
+        using var paint = PdfPaintFactory.CreateShaderPaint(shading.AntiAlias);
 
         using var vertices = MeshEvaluator.CreateVerticesForPatches(patches, tessellation);
         canvas.DrawVertices(vertices, SKBlendMode.Modulate, paint);
@@ -135,7 +131,7 @@ internal static partial class PdfShadingBuilder
         SKRect meshBounds = ComputeMeshBounds(patches);
         var normalizedMeshBounds = new SKRect(0, 0, meshBounds.Width, meshBounds.Height);
 
-        using var paint = new SKPaint { IsAntialias = true, Style = SKPaintStyle.Fill, Color = SKColors.White };
+        using var paint = PdfPaintFactory.CreateShaderPaint(shading.AntiAlias);
 
         using var recorder = new SKPictureRecorder();
         using var canvas = recorder.BeginRecording(normalizedMeshBounds);

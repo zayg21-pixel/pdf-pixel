@@ -4,11 +4,7 @@ using SkiaSharp;
 namespace PdfReader.Color.ColorSpace;
 
 /// <summary>
-/// Converter for CalGray (CIEBasedA) color space.
-/// Uses a synthetic ICC Gray profile (white + TRC + chromatic adaptation) but
-/// does NOT embed the CalGray BlackPoint in the profile. Instead the explicit
-/// PDF BlackPoint is applied after ICC grayscale conversion in sRGB space by
-/// interpolating between the adapted black point and the ICC-derived neutral.
+/// <see cref="CalRgbConverter"/> based converter for CalGray (CIEBasedGray) color space.
 /// </summary>
 internal sealed class CalGrayConverter : PdfColorSpaceConverter
 {

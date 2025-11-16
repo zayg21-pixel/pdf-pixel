@@ -1,6 +1,7 @@
 ﻿using PdfReader.Color.ColorSpace;
 using PdfReader.Color.Filters;
 using PdfReader.Imaging.Model;
+using PdfReader.Models;
 using PdfReader.Transparency.Utilities;
 using SkiaSharp;
 
@@ -33,7 +34,7 @@ internal class ImagePostProcessingFilters
             // Step 1: Apply Decode filter if present.
             // This remaps decoded sample values according to the /Decode array.
             // PDF spec: decoding must occur before color conversion.
-            ApplyDecodeFilter(paint, pdfImage.DecodeArray, pdfImage.ColorSpaceConverter.Components);
+            ApplyDecodeFilter(paint, pdfImage.DecodeArray, pdfImage.ColorSpaceConverter.Components, pdfImage.HasImageMask);
 
             // Step 2: Apply Mask filter (color key mask or soft mask) if present and supported.
             // Masking must be applied before color space conversion per PDF spec.
@@ -77,15 +78,18 @@ internal class ImagePostProcessingFilters
     /// <summary>
     /// Applies the decode filter to remap sample values according to the /Decode array.
     /// </summary>
-    private static void ApplyDecodeFilter(SKPaint paint, float[] decode, int components)
+    private static void ApplyDecodeFilter(SKPaint paint, float[] decode, int components, bool isMask)
     {
-        if (decode == null || decode.Length != components * 2)
+        if (isMask)
         {
-            return;
+            using var decodeFilter = ColorFilterDecode.BuildMaskDecodeFilter(decode);
+            ComposeColorFilter(paint, decodeFilter);
         }
-
-        using var decodeFilter = ColorFilterDecode.BuildDecodeColorFilter(decode, components);
-        ComposeColorFilter(paint, decodeFilter);
+        else
+        {
+            using var decodeFilter = ColorFilterDecode.BuildDecodeColorFilter(decode, components);
+            ComposeColorFilter(paint, decodeFilter);
+        }
     }
 
     /// <summary>

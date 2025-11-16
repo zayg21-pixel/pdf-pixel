@@ -69,6 +69,8 @@ public sealed class PdfShading
         {
             Matrix = null;
         }
+
+        AntiAlias = rawDictionary.GetBooleanOrDefault(PdfTokens.AntiAliasKey);
     }
 
     /// <summary>
@@ -130,4 +132,9 @@ public sealed class PdfShading
     /// Gets the optional transformation matrix (/Matrix) for this shading, if defined.
     /// </summary>
     public SKMatrix? Matrix { get; }
+
+    /// <summary>
+    /// Gets the option to enable anti-aliasing (/AntiAlias) when rendering the shading.
+    /// </summary>
+    public bool AntiAlias { get; }
 }

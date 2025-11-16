@@ -146,28 +146,17 @@ public class ImageRenderer : IImageRenderer
             return;
         }
 
-        using var fillPaint = PdfPaintFactory.CreateFillPaint(state);
-
         var sampling = PdfPaintFactory.GetImageSamplingOptions(pdfImage.Interpolate);
+        var layerPaint = PdfPaintFactory.CreateLayerPaint(state);
+        using var fillPaint = PdfPaintFactory.CreateMaskImageFillPaint(state);
 
-        canvas.SaveLayer(destRect, null);
+        using var maskPaint = PdfPaintFactory.CreateImageMaskPaint();
+        ImagePostProcessingFilters.ApplyImageFilters(maskPaint, pdfImage, decoder.IsColorConverted);
 
-        using var maskPaint = new SKPaint
-        {
-            IsAntialias = true,
-            ColorFilter = ColorFilterDecode.BuildMaskDecodeFilter(pdfImage.DecodeArray)
-        };
+        canvas.SaveLayer(destRect, layerPaint);
 
+        canvas.DrawRect(destRect, fillPaint);
         canvas.DrawImage(alphaMask, destRect, sampling, maskPaint);
-
-        using var srcInPaint = new SKPaint
-        {
-            IsAntialias = true,
-            BlendMode = SKBlendMode.SrcIn,
-            Color = fillPaint.Color
-        };
-
-        canvas.DrawRect(destRect, srcInPaint);
 
         canvas.Restore();
     }
@@ -221,25 +210,16 @@ public class ImageRenderer : IImageRenderer
             return;
         }
 
+        using var layerPaint = PdfPaintFactory.CreateLayerPaint(state);
         using var imagePaint = PdfPaintFactory.CreateImagePaint(state);
         ImagePostProcessingFilters.ApplyImageFilters(imagePaint, pdfImage, baseDecoder.IsColorConverted);
 
-        using var maskPaint = new SKPaint
-        {
-            IsAntialias = true,
-            BlendMode = SKBlendMode.DstIn
-        };
+        using var maskPaint = PdfPaintFactory.CreateImageMaskPaint();
         ImagePostProcessingFilters.ApplyImageFilters(maskPaint, pdfImage.SoftMask, softMaskDecoder.IsColorConverted);
 
         var sampling = PdfPaintFactory.GetImageSamplingOptions(pdfImage.Interpolate);
         var maskSampling = PdfPaintFactory.GetImageSamplingOptions(pdfImage.SoftMask.Interpolate);
 
-        using var layerPaint = new SKPaint
-        {
-            IsAntialias = true,
-            BlendMode = imagePaint.BlendMode,
-            Color = imagePaint.Color
-        };
 
         canvas.SaveLayer(destRect, layerPaint);
 

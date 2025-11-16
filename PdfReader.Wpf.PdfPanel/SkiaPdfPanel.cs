@@ -273,7 +273,6 @@ namespace PdfReader.Wpf.PdfPanel
 
             if (UseGpuAcceleration)
             {
-                // TODO: dispose context properly
                 using var d3dContext = new VorticeDirect3DContext();
                 using var backend = d3dContext.CreateBackendContext();
                 context = GRContext.CreateDirect3D(backend);
