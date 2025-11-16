@@ -90,8 +90,8 @@ namespace PdfReader.Streams
                     }
                     case PdfFilterType.RunLengthDecode:
                     {
-                        _logger.LogWarning("PdfStreamDecoder: TODO implement RunLengthDecode; stopping further filter decoding.");
-                        return current; // TODO implement RunLengthDecode; stopping further filter decoding.
+                        current = new RunLengthDecodeStream(current, leaveOpen: false);
+                        break;
                     }
                     case PdfFilterType.Crypt:
                     {
