@@ -1,6 +1,6 @@
-﻿Common:
+﻿Encryption:
 Add AES decryption and all other algorithms
-Add RunLengthDecode, Crypt (?)
+Crypt in streams
 
 Fonts:
 Complete refactoring of font handling and cache
@@ -20,3 +20,8 @@ apply patterns to stencil image
 
 Images:
 Add JPEG2000 decoder and JBIG2 decoder
+
+Bugs:
+fit11-talk.pdf - not rendered half of the text, invalid offsets
+ch14.pdf - slow rendering on CPU dues to shaders, gaps in shaders
+

@@ -1,6 +1,5 @@
 using Microsoft.Extensions.Logging;
 using PdfReader.Color.Paint;
-using PdfReader.Fonts;
 using PdfReader.Fonts.Management;
 using PdfReader.Fonts.Types;
 using PdfReader.Rendering.State;

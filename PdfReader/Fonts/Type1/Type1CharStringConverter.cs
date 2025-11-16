@@ -368,6 +368,18 @@ internal static class Type1CharStringConverter
                 }
                 break;
             }
+            case 1 or 2:
+            {
+                operandStack.Clear();
+                // stem hinting, not supported, can be skipped
+                break;
+            }
+            case 17 or 33:
+            {
+                operandStack.Clear();
+                // additional flex operators, not needed as we use different flex logic
+                break;
+            }
             default:
             {
                 operandStack.Clear();

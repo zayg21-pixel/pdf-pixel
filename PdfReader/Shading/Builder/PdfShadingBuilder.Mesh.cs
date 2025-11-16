@@ -13,9 +13,7 @@ namespace PdfReader.Shading;
 /// </summary>
 internal static partial class PdfShadingBuilder
 {
-    private const int MinTessellationVertices = 1; // TODO: we need a better minimum to avoid artifacts for sub-pixel patches
-    private const int MaxTessellationVertices = 24;
-    private const int MaxPatchCountForDropoff = 500;
+    private const int MaxTessellationVertices = 32;
 
     /// <summary>
     /// Builds an SKShader for Gouraud-shaded triangle mesh (Type 4 and Type 5) shading using SkiaSharp.
@@ -65,7 +63,6 @@ internal static partial class PdfShadingBuilder
         return picture.ToShader(SKShaderTileMode.Decal, SKShaderTileMode.Decal, SKFilterMode.Linear, localMatrix, normalizedMeshBounds);
     }
 
-
     /// <summary>
     /// Builds an SKShader for type 7 (Tensor-Product Patch Mesh) shading using SkSL and a data texture.
     /// All mesh patches are packed into a single texture, each as a 4x4 block.
@@ -84,22 +81,19 @@ internal static partial class PdfShadingBuilder
         SKRect meshBounds = ComputeMeshBounds(patches);
         var normalizedMeshBounds = new SKRect(0, 0, meshBounds.Width, meshBounds.Height);
 
+        var area = meshBounds.Width * meshBounds.Height;
+        var maxCount = MathF.Sqrt(area / patches.Count * MathF.Sqrt(3) / 4f); // average triangle side size in pixels
+        if (maxCount < 0)
+        {
+            maxCount = 1;
+        }
+
         using var recorder = new SKPictureRecorder();
         using var canvas = recorder.BeginRecording(normalizedMeshBounds);
         canvas.Translate(-meshBounds.Left, -meshBounds.Top);
 
         int patchCount = patches.Count;
-        int tessellation;
-
-        if (patchCount >= MaxPatchCountForDropoff)
-        {
-            tessellation = MinTessellationVertices;
-        }
-        else
-        {
-            float dropoff = (MaxTessellationVertices - MinTessellationVertices) * (1f - (float)patchCount / MaxPatchCountForDropoff);
-            tessellation = MinTessellationVertices + (int)dropoff;
-        }
+        int tessellation = (int)MathF.Round(Math.Min(maxCount, MaxTessellationVertices));
 
         using var paint = PdfPaintFactory.CreateShaderPaint(shading.AntiAlias);
 
@@ -110,7 +104,7 @@ internal static partial class PdfShadingBuilder
 
         var localMatrix = SKMatrix.CreateTranslation(meshBounds.Left, meshBounds.Top);
 
-        return picture.ToShader(SKShaderTileMode.Decal, SKShaderTileMode.Decal, SKFilterMode.Linear, localMatrix, normalizedMeshBounds);
+        return picture.ToShader(SKShaderTileMode.Decal, SKShaderTileMode.Decal, SKFilterMode.Nearest, localMatrix, normalizedMeshBounds);
     }
 
     /// <summary>
