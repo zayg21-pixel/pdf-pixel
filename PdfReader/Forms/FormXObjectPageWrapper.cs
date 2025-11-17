@@ -32,14 +32,22 @@ internal class FormXObjectPageWrapper : PdfPage
         else
         {
             _overridesResources = true;
-            var syntheticDict = new PdfDictionary(originalPage.Document);
-            syntheticDict.Set(PdfTokens.ResourcesKey, PdfValueFactory.Dictionary(formResources));
-            _resourcePageObject = new PdfObject(new PdfReference(-1, 0), originalPage.Document, PdfValueFactory.Dictionary(syntheticDict));
+            _resourcePageObject = formXObject;
             _resourceDictionary = formResources;
         }
     }
 
+    public FormXObjectPageWrapper(PdfObject formXObject)
+        : base(0, formXObject.Document, formXObject, new PdfPageResources())
+    {
+        var formResources = formXObject.Dictionary.GetDictionary(PdfTokens.ResourcesKey);
+        _overridesResources = true;
+        _resourcePageObject = formXObject;
+        _resourceDictionary = formResources;
+    }
+
     public override PdfObject PageObject => _resourcePageObject;
+
     public override PdfDictionary ResourceDictionary => _resourceDictionary;
 
     internal override PdfPageCache Cache

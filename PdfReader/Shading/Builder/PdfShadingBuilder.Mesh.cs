@@ -72,7 +72,7 @@ internal static partial class PdfShadingBuilder
         SKRect meshBounds = ComputeMeshBounds(patches);
 
         var area = meshBounds.Width * meshBounds.Height;
-        var maxCount = MathF.Sqrt(area / patches.Count * MathF.Sqrt(3) / 4f); // average triangle side size in pixels
+        var maxCount = MathF.Sqrt(area / patches.Count * MathF.Sqrt(3) / 4f); // average triangle area side size in pixels
         if (maxCount < 0)
         {
             maxCount = 1;
@@ -81,7 +81,6 @@ internal static partial class PdfShadingBuilder
         using var recorder = new SKPictureRecorder();
         using var canvas = recorder.BeginRecording(meshBounds);
 
-        int patchCount = patches.Count;
         int tessellation = (int)MathF.Round(Math.Min(maxCount, MaxTessellationVertices));
 
         using var paint = PdfPaintFactory.CreateShaderPaint(shading.AntiAlias);
@@ -113,7 +112,6 @@ internal static partial class PdfShadingBuilder
 
         using var recorder = new SKPictureRecorder();
         using var canvas = recorder.BeginRecording(meshBounds);
-        canvas.Translate(-meshBounds.Left, -meshBounds.Top);
 
         foreach (var patch in patches)
         {

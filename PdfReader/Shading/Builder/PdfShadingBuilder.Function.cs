@@ -8,13 +8,13 @@ namespace PdfReader.Shading;
 internal static partial class PdfShadingBuilder
 {
     /// <summary>
-    /// Builds a PDF-spec compliant function-based (Type 1) shading shader using SKBitmap.
+    /// Builds a PDF-spec compliant function-based (Type 1) shading picture using SKBitmap.
     /// If the function is sampled, uses the sample grid size mapped to shading.Domain.
     /// Otherwise, samples the function(s) over the domain rectangle at a fixed resolution.
     /// </summary>
     /// <param name="shading">Parsed shading model.</param>
-    /// <returns>SKShader instance or null if input is invalid.</returns>
-    private static SKShader BuildFunctionBased(PdfShading shading)
+    /// <returns>SKPicture instance or null if input is invalid.</returns>
+    private static SKPicture BuildFunctionBased(PdfShading shading)
     {
         if (shading.Functions == null || shading.Functions.Count == 0 || shading.ColorSpaceConverter == null)
         {
@@ -91,10 +91,12 @@ internal static partial class PdfShadingBuilder
             ? SKMatrix.Concat(shading.Matrix.Value, pixelToDomain)
             : pixelToDomain;
 
-        return bitmap.ToShader(
-            SKShaderTileMode.Decal,
-            SKShaderTileMode.Decal,
-            new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.None),
-            finalMatrix);
+        using var recorder = new SKPictureRecorder();
+        using var canvas = recorder.BeginRecording(new SKRect(0, 0, bitmap.Width, bitmap.Height));
+
+        canvas.Concat(finalMatrix);
+        canvas.DrawBitmap(bitmap, SKPoint.Empty);
+
+        return recorder.EndRecording();
     }
 }

@@ -255,18 +255,20 @@ public class ColorOperators : IOperatorProcessor
             var resolvedPattern = _page.Cache.GetPattern(_renderer, patternName);
             if (resolvedPattern is PdfTilingPattern tilingPattern)
             {
-                var tintComponents = ExtractTintComponents(patternConverter, operands);
                 var tintColor = SKColors.Black;
-                if (tilingPattern.PaintTypeKind == PdfTilingPaintType.Uncolored && tintComponents != null && patternConverter.BaseColorSpace != null)
+
+                if (tilingPattern.PaintTypeKind == PdfTilingPaintType.Uncolored)
                 {
-                    tintColor = patternConverter.BaseColorSpace.ToSrgb(tintComponents, state.RenderingIntent);
+                    var tintComponents = ExtractTintComponents(operands);
+                    tintColor = state.FillColorConverter.ToSrgb(tintComponents, state.RenderingIntent);
                 }
-                state.FillPaint = PdfPaint.PatternFill(tilingPattern, tintComponents, tintColor);
+
+                state.FillPaint = PdfPaint.PatternFill(tilingPattern, tintColor);
                 return;
             }
             if (resolvedPattern is PdfShadingPattern shadingPattern)
             {
-                state.FillPaint = PdfPaint.PatternFill(shadingPattern, null, SKColors.Black);
+                state.FillPaint = PdfPaint.PatternFill(shadingPattern, SKColors.Black);
                 return;
             }
             state.FillPaint = PdfPaint.Solid(SKColors.Black);
@@ -296,18 +298,20 @@ public class ColorOperators : IOperatorProcessor
             var resolvedPattern = _page.Cache.GetPattern(_renderer, patternName);
             if (resolvedPattern is PdfTilingPattern tilingPattern)
             {
-                var tintComponents = ExtractTintComponents(patternConverter, operands);
                 var tintColor = SKColors.Black;
-                if (tilingPattern.PaintTypeKind == PdfTilingPaintType.Uncolored && tintComponents != null && patternConverter.BaseColorSpace != null)
+
+                if (tilingPattern.PaintTypeKind == PdfTilingPaintType.Uncolored)
                 {
-                    tintColor = patternConverter.BaseColorSpace.ToSrgb(tintComponents, state.RenderingIntent);
+                    var tintComponents = ExtractTintComponents(operands);
+                    tintColor = state.StrokeColorConverter.ToSrgb(tintComponents, state.RenderingIntent);
                 }
-                state.StrokePaint = PdfPaint.PatternFill(tilingPattern, tintComponents, tintColor);
+
+                state.StrokePaint = PdfPaint.PatternFill(tilingPattern, tintColor);
                 return;
             }
             if (resolvedPattern is PdfShadingPattern shadingPattern)
             {
-                state.StrokePaint = PdfPaint.PatternFill(shadingPattern, null, SKColors.Black);
+                state.StrokePaint = PdfPaint.PatternFill(shadingPattern, SKColors.Black);
                 return;
             }
             state.StrokePaint = PdfPaint.Solid(SKColors.Black);
@@ -356,32 +360,20 @@ public class ColorOperators : IOperatorProcessor
         return list;
     }
 
-    private float[] ExtractTintComponents(PatternColorSpaceConverter patternConverter, List<IPdfValue> operands)
+    private float[] ExtractTintComponents(List<IPdfValue> operands)
     {
-        if (patternConverter == null)
-        {
-            return null;
-        }
-        if (patternConverter.BaseColorSpace == null)
-        {
-            return null;
-        }
-        if (patternConverter.BaseColorSpace.Components <= 0)
-        {
-            return null;
-        }
         if (operands.Count <= 1)
         {
             return null;
         }
 
-        int componentCount = patternConverter.BaseColorSpace.Components;
-        var values = new float[componentCount];
+        List<float> values = new List<float>();
         int provided = operands.Count - 1; // last operand is pattern name
-        for (int componentIndex = 0; componentIndex < componentCount && componentIndex < provided; componentIndex++)
+        for (int componentIndex = 0; componentIndex < provided; componentIndex++)
         {
-            values[componentIndex] = operands[componentIndex].AsFloat();
+            values.Add(operands[componentIndex].AsFloat());
         }
-        return values;
+
+        return values.ToArray();
     }
 }

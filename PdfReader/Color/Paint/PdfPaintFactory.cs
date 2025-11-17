@@ -182,7 +182,7 @@ public static class PdfPaintFactory
     public static SKPaint CreateShadingPaint(PdfGraphicsState state)
     {
         var paint = CreateBasePaint(state);
-        paint.Style = SKPaintStyle.Fill;
+        paint.Style = SKPaintStyle.Stroke;
         paint.Color = ApplyAlpha(SKColors.Black, state.FillAlpha);
 
         return paint;

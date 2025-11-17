@@ -147,145 +147,30 @@ namespace PdfReader.Rendering.Text
             var fontScalingMatrix = SKMatrix.CreateScale(fullHorizontalScale, -state.FontSize);
             textMatrix = SKMatrix.Concat(textMatrix, fontScalingMatrix);
 
-
-            float width = 0;
-
             if (ShouldFill(state.TextRenderingMode))
             {
-                float currentAdvance = 0f;
-                canvas.Save();
-
-                // Apply text matrix transformation
-                canvas.Concat(textMatrix);
-
-                // Pre-count drawable glyphs (gid != 0) while computing positions using full advance including skipped glyphs.
-                int drawableCount = 0;
-                for (int i = 0; i < shapingResult.Length; i++)
-                {
-                    if (shapingResult[i].GlyphId != 0)
-                    {
-                        drawableCount++;
-                    }
-                }
-
-                using var builder = new SKTextBlobBuilder();
-                var run = builder.AllocatePositionedRun(font, drawableCount);
-                var glyphSpan = run.Glyphs;
-                var positionSpan = run.Positions;
-
-                int drawIndex = 0;
-                for (int index = 0; index < shapingResult.Length; index++)
-                {
-                    ref var shapedGlyph = ref shapingResult[index];
-                    // Record position regardless to advance subsequent glyphs.
-                    if (shapedGlyph.GlyphId != 0)
-                    {
-                        glyphSpan[drawIndex] = (ushort)shapedGlyph.GlyphId;
-                        positionSpan[drawIndex] = new SKPoint(currentAdvance, 0f);
-                        drawIndex++;
-                    }
-
-                    currentAdvance += shapedGlyph.TotalWidth;
-                }
-
-                using var blob = builder.Build();
-                using var paint = PdfPaintFactory.CreateFillPaint(state);
-
-                if (paint.Shader != null)
-                {
-                    // we need to adjust the shader matrix to account for the text matrix to avoid double-transforming
-                    // currently shader only used for patterns, so this is sufficient, but may need more general handling later
-                    paint.Shader = paint.Shader.WithLocalMatrix(textMatrix.Invert());
-                }
-
-                if (drawableCount > 0)
-                {
-                    canvas.DrawText(blob, 0f, 0f, paint);
-                }
-
-                canvas.Restore();
-
-                width = Math.Max(width, currentAdvance);
+                using var textFillTarget = new TextFillRenderTarget(font, shapingResult, state);
+                textFillTarget.Render(canvas);
             }
 
             if (ShouldStroke(state.TextRenderingMode))
             {
-                // this is 4-5 times slower than drawing blob, but it's needed for correct stroking for PDF compliance
-                // TODO: we can add special case here for simple fonts with linear transformations to use faster blob stroking
-                var textPath = new SKPath();
-
-                float x = 0f;
-
-                for (int i = 0; i < shapingResult.Length; i++)
-                {
-                    var glyphId = shapingResult[i].GlyphId;
-                    if (glyphId != 0)
-                    {
-                        using var glyphPath = font.GetGlyphPath((ushort)glyphId);
-                        if (glyphPath != null)
-                        {
-                            // Translate glyph outline by current advance
-                            textPath.AddPath(glyphPath, SKMatrix.CreateTranslation(x, 0f));
-                        }
-                    }
-
-                    x += shapingResult[i].TotalWidth;
-                }
-
-                textPath.Transform(textMatrix);
-
-                using var paint = PdfPaintFactory.CreateStrokePaint(state);
-                if (!textPath.IsEmpty)
-                {
-                    canvas.DrawPath(textPath, paint);
-                }
-
-                width = Math.Max(width, x);
+                using var textStrokeTarget = new TextStrokeRenderTarget(font, shapingResult, state);
+                textStrokeTarget.Render(canvas);
             }
 
             // Apply clipping if requested (modes with Clip). Pure clip mode skips drawing above.
             if (ShouldClip(state.TextRenderingMode))
             {
-                var textPath = new SKPath();
-                float x = 0f;
-
-                for (int i = 0; i < shapingResult.Length; i++)
-                {
-                    var glyphId = shapingResult[i].GlyphId;
-                    if (glyphId != 0)
-                    {
-                        using var glyphPath = font.GetGlyphPath((ushort)glyphId);
-                        if (glyphPath != null)
-                        {
-                            // Translate glyph outline by current advance
-                            textPath.AddPath(glyphPath, SKMatrix.CreateTranslation(x, 0f));
-                        }
-                    }
-
-                    x += shapingResult[i].TotalWidth;
-                }
-
-                textPath.Transform(textMatrix);
-
+                using var textPath = TextRenderUtilities.GetTextPath(shapingResult, font, state);
                 if (!textPath.IsEmpty)
                 {
                     state.TextClipPath ??= new SKPath();
                     state.TextClipPath.AddPath(textPath);
                 }
-
-                width = Math.Max(width, x);
             }
 
-            if (width == 0)
-            {
-                for (int index = 0; index < shapingResult.Length; index++)
-                {
-                    ref var shapedGlyph = ref shapingResult[index];
-                    width += shapedGlyph.TotalWidth;
-                }
-            }
-
-            return width * fullHorizontalScale;
+            return TextRenderUtilities.GetTextWidth(shapingResult) * fullHorizontalScale;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

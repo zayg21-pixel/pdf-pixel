@@ -1,6 +1,5 @@
 ﻿using PdfReader.Text;
 using System;
-using System.Buffers;
 using System.Linq;
 
 namespace PdfReader.Models

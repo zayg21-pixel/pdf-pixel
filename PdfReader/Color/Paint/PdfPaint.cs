@@ -23,24 +23,14 @@ public sealed class PdfPaint
     public PdfPattern Pattern { get; }
 
     /// <summary>
-    /// Gets a copy of the pattern tint components (base color space components) for uncolored patterns.
-    /// Null for solid color paints or colored patterns.
-    /// </summary>
-    public float[] PatternComponents { get; }
-
-    /// <summary>
     /// True if this paint represents a pattern (colored or uncolored), otherwise false for solid colors.
     /// </summary>
     public bool IsPattern => Pattern != null;
 
-    private PdfPaint(SKColor color, PdfPattern pattern, float[] patternComponents)
+    private PdfPaint(SKColor color, PdfPattern pattern)
     {
         Color = color;
         Pattern = pattern;
-        if (patternComponents != null && patternComponents.Length > 0)
-        {
-            PatternComponents = (float[])patternComponents.Clone();
-        }
     }
 
     /// <summary>
@@ -48,18 +38,18 @@ public sealed class PdfPaint
     /// </summary>
     public static PdfPaint Solid(SKColor color)
     {
-        return new PdfPaint(color, null, null);
+        return new PdfPaint(color, null);
     }
 
     /// <summary>
     /// Create a pattern paint (colored or uncolored). For uncolored patterns provide tint components.
     /// </summary>
-    public static PdfPaint PatternFill(PdfPattern pattern, float[] patternComponents, SKColor resolvedTintColor)
+    public static PdfPaint PatternFill(PdfPattern pattern, SKColor resolvedTintColor)
     {
         if (pattern == null)
         {
             throw new ArgumentNullException(nameof(pattern));
         }
-        return new PdfPaint(resolvedTintColor, pattern, patternComponents);
+        return new PdfPaint(resolvedTintColor, pattern);
     }
 }

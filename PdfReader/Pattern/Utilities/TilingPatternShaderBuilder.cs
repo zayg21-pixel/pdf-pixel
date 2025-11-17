@@ -1,12 +1,11 @@
-using PdfReader.Color.Paint;
-using PdfReader.Forms;
+using System.Collections.Generic;
+using SkiaSharp;
 using PdfReader.Models;
 using PdfReader.Parsing;
-using PdfReader.Pattern.Model;
 using PdfReader.Rendering;
+using PdfReader.Pattern.Model;
+using PdfReader.Forms;
 using PdfReader.Rendering.State;
-using SkiaSharp;
-using System.Collections.Generic;
 
 namespace PdfReader.Pattern.Utilities;
 
@@ -17,51 +16,33 @@ namespace PdfReader.Pattern.Utilities;
 internal sealed class TilingPatternShaderBuilder
 {
     /// <summary>
-    /// Creates a base <see cref="SKPicture"/> for the given PDF tiling pattern and page context.
+    /// Creates a base <see cref="SKShader"/> for the given PDF tiling pattern and page context.
     /// Does not apply CTM or color filter/tint for uncolored patterns.
-    /// The returned instance is suitable for further transformation and color filtering.
+    /// The returned shader is suitable for further transformation and color filtering.
     /// </summary>
     /// <param name="renderer">PDF renderer instance.</param>
     /// <param name="pattern">The PDF tiling pattern to convert.</param>
-    /// <param name="page">Current page context.</param>
-    /// <returns>Base <see cref="SKPicture"/> instance or null if creation fails.</returns>
-    public static SKPicture ToBaseShader(IPdfRenderer renderer, PdfTilingPattern pattern, PdfPage page)
+    /// <returns>Base <see cref="SKShader"/> instance or null if creation fails.</returns>
+    public static SKShader ToBaseShader(IPdfRenderer renderer, PdfTilingPattern pattern)
     {
         if (pattern == null)
         {
             return null;
         }
 
-        var bbox = pattern.BBox;
-        if (bbox.Width <= 0f || bbox.Height <= 0f)
-        {
-            return null;
-        }
-
-        SKPicture cellPicture = RenderTilingCell(renderer, pattern, page);
-
+        SKPicture cellPicture = RenderTilingCell(renderer, pattern);
         if (cellPicture == null)
         {
             return null;
         }
 
-        using var fillPicture = new SKPictureRecorder();
-        var unrestrictedBounds = new SKRect(float.NegativeInfinity, float.NegativeInfinity, float.PositiveInfinity, float.PositiveInfinity);
-
-        using var fullCanvas = fillPicture.BeginRecording(unrestrictedBounds);
-
-        using var shader = SKShader.CreatePicture(
+        return SKShader.CreatePicture(
             cellPicture,
             SKShaderTileMode.Repeat,
             SKShaderTileMode.Repeat,
-            SKFilterMode.Linear);
-
-        using var basePaint = PdfPaintFactory.CreateShaderPaint(antiAlias: true);
-        basePaint.Shader = shader;
-
-        fullCanvas.DrawPaint(basePaint);
-
-        return fillPicture.EndRecording();
+            SKFilterMode.Nearest,
+            SKMatrix.Identity,
+            pattern.BBox);
     }
 
     /// <summary>
@@ -70,9 +51,8 @@ internal sealed class TilingPatternShaderBuilder
     /// </summary>
     /// <param name="renderer">PDF renderer instance.</param>
     /// <param name="pattern">Tiling pattern definition.</param>
-    /// <param name="page">Current page context.</param>
-    /// <returns><see cref="SKPicture"/> containing the rendered pattern cell.</returns>
-    private static SKPicture RenderTilingCell(IPdfRenderer renderer, PdfTilingPattern pattern, PdfPage page)
+    /// <returns><see cref="SKPicture"/> Containing the rendered pattern cell.</returns>
+    public static SKPicture RenderTilingCell(IPdfRenderer renderer, PdfTilingPattern pattern)
     {
         var streamData = pattern.SourceObject.DecodeAsMemory();
 
@@ -82,12 +62,13 @@ internal sealed class TilingPatternShaderBuilder
         }
 
         var cellState = new PdfGraphicsState();
-        using var recorder = new SKPictureRecorder();
-        using var canvas = recorder.BeginRecording(pattern.BBox);
+        var recorder = new SKPictureRecorder();
+        var canvas = recorder.BeginRecording(pattern.BBox);
+        canvas.ClipRect(pattern.BBox);
 
         // Render pattern cell without tint or color filter
         var recursionGuard = new HashSet<int>();
-        var patternPage = new FormXObjectPageWrapper(page, pattern.SourceObject);
+        var patternPage = new FormXObjectPageWrapper(pattern.SourceObject);
         var contentRenderer = new PdfContentStreamRenderer(renderer, patternPage);
         var parseContext = new PdfParseContext(streamData);
         contentRenderer.RenderContext(canvas, ref parseContext, cellState, recursionGuard);

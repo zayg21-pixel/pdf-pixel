@@ -1,5 +1,6 @@
-using PdfReader.Color.ColorSpace;
+using PdfReader.Color.Paint;
 using PdfReader.Models;
+using PdfReader.Rendering;
 using PdfReader.Rendering.State;
 using PdfReader.Shading;
 using PdfReader.Shading.Model;
@@ -14,8 +15,6 @@ namespace PdfReader.Pattern.Model;
 /// </summary>
 public sealed class PdfShadingPattern : PdfPattern
 {
-    private SKPicture _cachedBasePicture;
-
     /// <summary>
     /// Initializes a new instance of the <see cref="PdfShadingPattern"/> class with the specified parameters.
     /// </summary>
@@ -25,12 +24,11 @@ public sealed class PdfShadingPattern : PdfPattern
     /// <param name="matrix">The pattern transformation matrix.</param>
     /// <param name="extGState">Optional extended graphics state dictionary (may be null).</param>
     internal PdfShadingPattern(
-        PdfPage page,
         PdfObject sourceObject,
         PdfShading shading,
         SKMatrix matrix,
         PdfDictionary extGState)
-        : base(page, sourceObject, matrix, PdfPatternType.Shading)
+        : base(sourceObject, matrix, PdfPatternType.Shading)
     {
         Shading = shading;
         ExtGState = extGState;
@@ -46,29 +44,23 @@ public sealed class PdfShadingPattern : PdfPattern
     /// </summary>
     public PdfDictionary ExtGState { get; } // TODO: use
 
-    /// <inheritdoc/>
-    public override SKPicture AsPicture(PdfGraphicsState state)
+    internal override void RenderPattern(SKCanvas canvas, PdfGraphicsState state, IRenderTarget renderTarget)
     {
-        if (_cachedBasePicture != null)
+        var shadingPicture = PdfShadingBuilder.ToPicture(Shading);
+        
+        if (shadingPicture != null)
         {
-            return _cachedBasePicture;
+            using var paint = PdfPaintFactory.CreateShadingPaint(state);
+            var matrix = SKMatrix.Concat(state.CTM.Invert(), state.FillPaint.Pattern.PatternMatrix);
+            canvas.Save();
+
+            canvas.ClipPath(renderTarget.ClipPath, SKClipOperation.Intersect, antialias: true);
+
+            canvas.Concat(matrix);
+
+            canvas.DrawPicture(shadingPicture, paint);
+
+            canvas.Restore();
         }
-        _cachedBasePicture = PdfShadingBuilder.ToPicture(Shading);
-
-        return _cachedBasePicture;
-    }
-
-    /// <summary>
-    /// Disposes the cached shader and releases resources.
-    /// </summary>
-    public override void Dispose()
-    {
-        if (_cachedBasePicture != null)
-        {
-            _cachedBasePicture.Dispose();
-            _cachedBasePicture = null;
-        }
-
-        base.Dispose();
     }
 }

@@ -1,104 +1,51 @@
 using PdfReader.Color.Paint;
+using PdfReader.Pattern.Model;
 using PdfReader.Rendering.State;
 using SkiaSharp;
 
 namespace PdfReader.Rendering.Path;
 
+/// <summary>
+/// Render target for filling a path, supporting pattern fills.
+/// </summary>
 internal class PathFillRenderTarget : IRenderTarget
 {
     private readonly SKPath _path;
-    private readonly SKPaint _basePaint;
-    private SKPicture _shaderPicture;
-    private SKMatrix _shaderMatrix;
+    private readonly PdfGraphicsState _state;
+    private readonly PdfPattern _pattern;
 
     public PathFillRenderTarget(SKPath path, PdfGraphicsState state)
     {
         _path = path;
+        _state = state;
 
-        if (state.FillPaint != null && state.FillPaint.IsPattern && state.FillPaint.Pattern != null)
+        if (state.FillPaint.IsPattern)
         {
-            _shaderMatrix = SKMatrix.Concat(state.CTM.Invert(), state.FillPaint.Pattern.PatternMatrix);
-            _shaderPicture = state.FillPaint.Pattern.AsPicture(state); // cached, don't dispose!
-            _basePaint = PdfPaintFactory.CreateShadingPaint(state);
-        }
-        else
-        {
-            _basePaint = PdfPaintFactory.CreateFillPaint(state);
+            _pattern = state.FillPaint.Pattern;
         }
     }
 
+    public SKPath ClipPath => _path;
+
+    public SKColor Color => _state.FillPaint.Color;
+
     public void Render(SKCanvas canvas)
     {
-        if (_shaderPicture != null)
+        if (_pattern != null)
         {
             canvas.Save();
             canvas.ClipPath(_path, SKClipOperation.Intersect, antialias: true);
-
-            canvas.Concat(_shaderMatrix);
-            canvas.DrawPicture(_shaderPicture, _basePaint);
-
+            _pattern.RenderPattern(canvas, _state, this);
             canvas.Restore();
         }
         else
         {
-            canvas.DrawPath(_path, _basePaint);
+            using var paint = PdfPaintFactory.CreateFillPaint(_state);
+            canvas.DrawPath(_path, paint);
         }
     }
 
     public void Dispose()
     {
-        _basePaint.Dispose();
-        
-    }
-}
-
-internal class PathStrokeRenderTarget : IRenderTarget
-{
-    private readonly SKPath _path;
-    private readonly SKPaint _basePaint;
-    private SKPicture _shaderPicture;
-    private SKMatrix _shaderMatrix;
-
-    public PathStrokeRenderTarget(SKPath path, PdfGraphicsState state)
-    {
-        _path = path;
-
-        if (state.StrokePaint != null && state.StrokePaint.IsPattern && state.StrokePaint.Pattern != null)
-        {
-            _shaderMatrix = SKMatrix.Concat(state.CTM.Invert(), state.StrokePaint.Pattern.PatternMatrix);
-            _shaderPicture = state.StrokePaint.Pattern.AsPicture(state); // cached, don't dispose!
-            _basePaint = PdfPaintFactory.CreateShadingPaint(state);
-
-            using var strokePaint = PdfPaintFactory.CreateStrokePaint(state);
-            _path = _basePaint.GetFillPath(path);
-        }
-        else
-        {
-            _basePaint = PdfPaintFactory.CreateStrokePaint(state);
-        }
-    }
-
-    public void Render(SKCanvas canvas)
-    {
-        if (_shaderPicture != null)
-        {
-            canvas.Save();
-            canvas.ClipPath(_path, SKClipOperation.Intersect, antialias: true);
-
-            canvas.Concat(_shaderMatrix);
-            canvas.DrawPicture(_shaderPicture, _basePaint);
-
-            canvas.Restore();
-        }
-        else
-        {
-            canvas.DrawPath(_path, _basePaint);
-        }
-    }
-
-    public void Dispose()
-    {
-        _basePaint.Dispose();
-
     }
 }

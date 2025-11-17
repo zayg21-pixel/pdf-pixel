@@ -1,9 +1,8 @@
-using System;
-using SkiaSharp;
 using PdfReader.Models;
-using PdfReader.Rendering.State;
-using PdfReader.Color.ColorSpace;
 using PdfReader.Rendering;
+using PdfReader.Rendering.State;
+using SkiaSharp;
+using System;
 
 namespace PdfReader.Pattern.Model;
 
@@ -17,20 +16,14 @@ public enum PdfPatternType
 /// Base class for all PDF pattern types (/Pattern). Provides common metadata shared by
 /// tiling and shading patterns.
 /// </summary>
-public abstract class PdfPattern : IDisposable
+public abstract class PdfPattern
 {
-    protected PdfPattern(PdfPage page, PdfObject sourceObject, SKMatrix matrix, PdfPatternType patternType)
+    protected PdfPattern(PdfObject sourceObject, SKMatrix matrix, PdfPatternType patternType)
     {
-        Page = page;
         SourceObject = sourceObject;
         PatternMatrix = matrix;
         PatternType = patternType;
     }
-
-    /// <summary>
-    /// Owning page context for the pattern.
-    /// </summary>
-    public PdfPage Page { get; set; }
 
     /// <summary>Original source PDF object for the pattern.</summary>
     public PdfObject SourceObject { get; }
@@ -42,15 +35,10 @@ public abstract class PdfPattern : IDisposable
     public PdfPatternType PatternType { get; }
 
     /// <summary>
-    /// Converts the current object to reusable <see cref="SKPicture"/> that can be used as shader representation.
+    /// Renders the pattern onto the provided canvas using the given graphics state.
     /// </summary>
-    /// <param name="state">The graphics state that provides additional context for rendering, such as transformations and clipping
-    /// paths.</param>
-    /// <returns>An <see cref="SKPicture"/> instance representing the current object, configured based on the specified
-    /// rendering intent and graphics state.</returns>
-    public abstract SKPicture AsPicture(PdfGraphicsState state);
-
-    public virtual void Dispose()
-    {
-    }
+    /// <param name="canvas">Current canvas with CTM applied.</param>
+    /// <param name="state">Actual graphics state.</param>
+    /// <param name="renderTarget">Pattern render target.</param>
+    internal abstract void RenderPattern(SKCanvas canvas, PdfGraphicsState state, IRenderTarget renderTarget);
 }

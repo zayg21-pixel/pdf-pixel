@@ -14,7 +14,7 @@ internal static partial class PdfShadingBuilder
     {
         return shading.ShadingType switch
         {
-            //1 => BuildFunctionBased(shading),
+            1 => BuildFunctionBased(shading),
             2 => BuildAxial(shading),
             3 => BuildRadial(shading),
             4 or 5 => BuildGouraud(shading),

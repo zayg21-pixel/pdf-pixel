@@ -191,11 +191,6 @@ namespace PdfReader.Models
         /// </summary>
         public void ReleaseCache()
         {
-            foreach (var patternEntry in _patternsByName)
-            {
-                patternEntry.Value?.Dispose();
-            }
-
             _patternsByName.Clear();
             _fontsByName.Clear();
             _colorSpacesByName.Clear();
@@ -210,10 +205,6 @@ namespace PdfReader.Models
             if (_disposed)
             {
                 return;
-            }
-            foreach (var patternEntry in _patternsByName)
-            {
-                patternEntry.Value?.Dispose();
             }
 
             _patternsByName.Clear();

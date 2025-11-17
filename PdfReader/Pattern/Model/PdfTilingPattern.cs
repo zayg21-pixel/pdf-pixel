@@ -1,9 +1,11 @@
-using SkiaSharp;
-using PdfReader.Models;
 using PdfReader.Color.ColorSpace;
+using PdfReader.Color.Paint;
+using PdfReader.Models;
 using PdfReader.Pattern.Utilities;
-using PdfReader.Rendering.State;
 using PdfReader.Rendering;
+using PdfReader.Rendering.State;
+using PdfReader.Transparency.Utilities;
+using SkiaSharp;
 
 namespace PdfReader.Pattern.Model;
 
@@ -31,12 +33,10 @@ public enum PdfTilingSpacingType
 /// </summary>
 public sealed class PdfTilingPattern : PdfPattern
 {
-    private SKPicture _cachedBasePicture;
     private readonly IPdfRenderer _renderer;
 
     internal PdfTilingPattern(
         IPdfRenderer renderer,
-        PdfPage page,
         PdfObject sourceObject,
         SKRect bbox,
         float xStep,
@@ -44,7 +44,7 @@ public sealed class PdfTilingPattern : PdfPattern
         PdfTilingPaintType paintTypeKind,
         PdfTilingSpacingType tilingTypeKind,
         SKMatrix matrix)
-        : base(page, sourceObject, matrix, PdfPatternType.Tiling)
+        : base(sourceObject, matrix, PdfPatternType.Tiling)
     {
         _renderer = renderer;
         BBox = bbox;
@@ -79,61 +79,40 @@ public sealed class PdfTilingPattern : PdfPattern
     /// </summary>
     public PdfTilingSpacingType TilingTypeKind { get; }
 
-    /// <inheritdoc/>
-    public override SKPicture AsPicture(PdfGraphicsState state)
+    internal override void RenderPattern(SKCanvas canvas, PdfGraphicsState state, IRenderTarget renderTarget)
     {
-        if (_cachedBasePicture == null)
-        {
-            _cachedBasePicture = TilingPatternShaderBuilder.ToBaseShader(_renderer, this, Page);
-        }
+        var tile = TilingPatternShaderBuilder.RenderTilingCell(_renderer, this);
 
-        if (_cachedBasePicture == null)
-        {
-            return null;
-        }
+        var matrix = SKMatrix.Concat(state.CTM.Invert(), state.FillPaint.Pattern.PatternMatrix);
+        canvas.Save();
+
+        var clipPath = renderTarget.ClipPath;
+        canvas.ClipPath(clipPath, SKClipOperation.Intersect, antialias: true);
+
+        canvas.Concat(matrix);
+
+        using var paint = PdfPaintFactory.CreateShadingPaint(state);
 
         if (PaintTypeKind == PdfTilingPaintType.Uncolored)
         {
-            if (state.FillPaint != null && state.FillPaint.PatternComponents != null)
+            paint.ColorFilter = SKColorFilter.CreateBlendMode(renderTarget.Color, SKBlendMode.SrcIn);
+        }
+
+        var bounds = matrix.Invert().MapRect(clipPath.Bounds);
+
+        float startX = bounds.Left - bounds.Left % XStep;
+        float startY = bounds.Top - bounds.Top % YStep;
+        float endX = bounds.Right + bounds.Right % XStep + XStep;
+        float endY = bounds.Bottom + bounds.Bottom % YStep + YStep;
+
+        for (float x = startX; x <= endX; x += XStep)
+        {
+            for (float y = startY; y <= endY; y += YStep)
             {
-                var patternColorSpace = state.FillColorConverter as PatternColorSpaceConverter;
-
-                if (patternColorSpace != null && patternColorSpace.BaseColorSpace != null)
-                {
-                    var tintedPicture = new SKPictureRecorder();
-                    var canvas = tintedPicture.BeginRecording(_cachedBasePicture.CullRect);
-                    var tintPaint = new SKPaint // TODO: move to paints!
-                    {
-                        IsAntialias = true,
-                        Color = SKColors.Red,
-                        ColorFilter = SKColorFilter.CreateBlendMode(patternColorSpace.BaseColorSpace.ToSrgb(state.FillPaint.PatternComponents, state.RenderingIntent), SKBlendMode.SrcIn)
-
-                    };
-
-                    canvas.DrawPicture(_cachedBasePicture, tintPaint);
-                    return tintedPicture.EndRecording();
-
-                    //SKColor tintColor = patternColorSpace.BaseColorSpace.ToSrgb(state.FillPaint.PatternComponents, state.RenderingIntent);
-                    //var tintColorFilter = SKColorFilter.CreateBlendMode(tintColor, SKBlendMode.SrcIn);
-                    //return transformedShader.WithColorFilter(tintColorFilter);
-                }
+                canvas.DrawPicture(tile, x, y, paint);
             }
         }
 
-        return _cachedBasePicture;
-    }
-
-    /// <summary>
-    /// Disposes the cached shader and releases resources.
-    /// </summary>
-    public override void Dispose()
-    {
-        if (_cachedBasePicture != null)
-        {
-            _cachedBasePicture.Dispose();
-            _cachedBasePicture = null;
-        }
-
-        base.Dispose();
+        canvas.Restore();
     }
 }
