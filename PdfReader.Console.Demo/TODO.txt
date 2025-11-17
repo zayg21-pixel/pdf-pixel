@@ -14,14 +14,12 @@ TR curves for GS and SoftMask
 ICC WhitePoint, Do we need to handle it? When and how?
 
 Shading:
-Shading ExtXState
-Normalize Type 7 mesh size
-apply patterns to stencil image
+Shading ExtXState and other missing properties (need examples)
+apply patterns to stencil image (need example)
 
 Images:
 Add JPEG2000 decoder and JBIG2 decoder
 
 Bugs:
 fit11-talk.pdf - not rendered half of the text, invalid offsets
-ch14.pdf - slow rendering on CPU dues to shaders, gaps in shaders
 
