@@ -31,7 +31,7 @@ public enum PdfTilingSpacingType
 /// </summary>
 public sealed class PdfTilingPattern : PdfPattern
 {
-    private SKShader _cachedBaseShader;
+    private SKPicture _cachedBasePicture;
     private readonly IPdfRenderer _renderer;
 
     internal PdfTilingPattern(
@@ -79,44 +79,48 @@ public sealed class PdfTilingPattern : PdfPattern
     /// </summary>
     public PdfTilingSpacingType TilingTypeKind { get; }
 
-    /// <summary>
-    /// Returns an <see cref="SKShader"/> for this tiling pattern.
-    /// Caches the base shader for reuse and performance.
-    /// </summary>
-    /// <param name="intent">The rendering intent for color conversion.</param>
-    /// <param name="state">The current graphics state.</param>
-    /// <returns>An <see cref="SKShader"/> instance or null if creation fails.</returns>
-    public override SKShader AsShader(PdfRenderingIntent intent, PdfGraphicsState state)
+    /// <inheritdoc/>
+    public override SKPicture AsPicture(PdfGraphicsState state)
     {
-        if (_cachedBaseShader == null)
+        if (_cachedBasePicture == null)
         {
-            _cachedBaseShader = TilingPatternShaderBuilder.ToBaseShader(_renderer, this, Page);
+            _cachedBasePicture = TilingPatternShaderBuilder.ToBaseShader(_renderer, this, Page);
         }
 
-        if (_cachedBaseShader == null)
+        if (_cachedBasePicture == null)
         {
             return null;
         }
-
-        SKMatrix localMatrix = SKMatrix.Concat(state.CTM, PatternMatrix);
-
-        var transformedShader = _cachedBaseShader.WithLocalMatrix(localMatrix);
 
         if (PaintTypeKind == PdfTilingPaintType.Uncolored)
         {
             if (state.FillPaint != null && state.FillPaint.PatternComponents != null)
             {
                 var patternColorSpace = state.FillColorConverter as PatternColorSpaceConverter;
+
                 if (patternColorSpace != null && patternColorSpace.BaseColorSpace != null)
                 {
-                    SKColor tintColor = patternColorSpace.BaseColorSpace.ToSrgb(state.FillPaint.PatternComponents, state.RenderingIntent);
-                    var tintColorFilter = SKColorFilter.CreateBlendMode(tintColor, SKBlendMode.SrcIn);
-                    return transformedShader.WithColorFilter(tintColorFilter);
+                    var tintedPicture = new SKPictureRecorder();
+                    var canvas = tintedPicture.BeginRecording(_cachedBasePicture.CullRect);
+                    var tintPaint = new SKPaint // TODO: move to paints!
+                    {
+                        IsAntialias = true,
+                        Color = SKColors.Red,
+                        ColorFilter = SKColorFilter.CreateBlendMode(patternColorSpace.BaseColorSpace.ToSrgb(state.FillPaint.PatternComponents, state.RenderingIntent), SKBlendMode.SrcIn)
+
+                    };
+
+                    canvas.DrawPicture(_cachedBasePicture, tintPaint);
+                    return tintedPicture.EndRecording();
+
+                    //SKColor tintColor = patternColorSpace.BaseColorSpace.ToSrgb(state.FillPaint.PatternComponents, state.RenderingIntent);
+                    //var tintColorFilter = SKColorFilter.CreateBlendMode(tintColor, SKBlendMode.SrcIn);
+                    //return transformedShader.WithColorFilter(tintColorFilter);
                 }
             }
         }
 
-        return transformedShader;
+        return _cachedBasePicture;
     }
 
     /// <summary>
@@ -124,10 +128,10 @@ public sealed class PdfTilingPattern : PdfPattern
     /// </summary>
     public override void Dispose()
     {
-        if (_cachedBaseShader != null)
+        if (_cachedBasePicture != null)
         {
-            _cachedBaseShader.Dispose();
-            _cachedBaseShader = null;
+            _cachedBasePicture.Dispose();
+            _cachedBasePicture = null;
         }
 
         base.Dispose();

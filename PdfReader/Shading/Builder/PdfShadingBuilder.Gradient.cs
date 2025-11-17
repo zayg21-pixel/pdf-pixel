@@ -1,4 +1,5 @@
-﻿using PdfReader.Functions;
+﻿using PdfReader.Color.Paint;
+using PdfReader.Functions;
 using PdfReader.Shading.Model;
 using SkiaSharp;
 using System;
@@ -8,7 +9,9 @@ namespace PdfReader.Shading;
 
 internal static partial class PdfShadingBuilder
 {
-    private static SKShader BuildAxial(PdfShading shading)
+    private static readonly SKRect UnrestrictedBounds = new SKRect(float.NegativeInfinity, float.NegativeInfinity, float.PositiveInfinity, float.PositiveInfinity);
+
+    private static SKPicture BuildAxial(PdfShading shading)
     {
         if (shading.Coords?.Length != 4)
         {
@@ -24,15 +27,25 @@ internal static partial class PdfShadingBuilder
         SKPoint start = new SKPoint(shading.Coords[0], shading.Coords[1]);
         SKPoint end = new SKPoint(shading.Coords[2], shading.Coords[3]);
 
-        return SKShader.CreateLinearGradient(
+        using var shader = SKShader.CreateLinearGradient(
             start,
             end,
             colors,
             positions,
             SKShaderTileMode.Clamp);
+
+        using var pictureRecorder = new SKPictureRecorder();
+        using var canvas = pictureRecorder.BeginRecording(UnrestrictedBounds);
+
+        using var basePaint = PdfPaintFactory.CreateShaderPaint(shading.AntiAlias);
+        basePaint.Shader = shader;
+
+        canvas.DrawPaint(basePaint);
+
+        return pictureRecorder.EndRecording();
     }
 
-    private static SKShader BuildRadial(PdfShading shading)
+    private static SKPicture BuildRadial(PdfShading shading)
     {
         if (shading.Coords?.Length != 6)
         {
@@ -67,12 +80,22 @@ internal static partial class PdfShadingBuilder
             }
         }
 
-        return SKShader.CreateTwoPointConicalGradient(
+        using var shader = SKShader.CreateTwoPointConicalGradient(
             center0, r0,
             center1, r1,
             colors,
             positions,
             SKShaderTileMode.Clamp);
+
+        using var pictureRecorder = new SKPictureRecorder();
+        using var canvas = pictureRecorder.BeginRecording(UnrestrictedBounds);
+
+        using var basePaint = PdfPaintFactory.CreateShaderPaint(shading.AntiAlias);
+        basePaint.Shader = shader;
+
+        canvas.DrawPaint(basePaint);
+
+        return pictureRecorder.EndRecording();
     }
 
     /// <summary>

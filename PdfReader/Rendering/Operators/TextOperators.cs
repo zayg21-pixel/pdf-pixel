@@ -340,7 +340,7 @@ public class TextOperators : IOperatorProcessor
             return;
         }
 
-        var matrix = PdfMatrixUtilities.CreateMatrix(operands);
+        var matrix = PdfLocationUtilities.CreateMatrix(operands);
         graphicsState.TextMatrix = matrix;
         graphicsState.TextLineMatrix = matrix;
     }

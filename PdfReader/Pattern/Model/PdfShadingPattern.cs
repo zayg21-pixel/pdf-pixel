@@ -1,6 +1,5 @@
 using PdfReader.Color.ColorSpace;
 using PdfReader.Models;
-using PdfReader.Rendering;
 using PdfReader.Rendering.State;
 using PdfReader.Shading;
 using PdfReader.Shading.Model;
@@ -15,7 +14,7 @@ namespace PdfReader.Pattern.Model;
 /// </summary>
 public sealed class PdfShadingPattern : PdfPattern
 {
-    private SKShader _cachedBaseShader;
+    private SKPicture _cachedBasePicture;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="PdfShadingPattern"/> class with the specified parameters.
@@ -47,28 +46,16 @@ public sealed class PdfShadingPattern : PdfPattern
     /// </summary>
     public PdfDictionary ExtGState { get; } // TODO: use
 
-    /// <summary>
-    /// Returns an <see cref="SKShader"/> for this shading pattern, replicating the logic of <see cref="PatternPaintEngine.ToShader"/>.
-    /// Caches the base shader for reuse and performance.
-    /// </summary>
-    /// <param name="intent">The rendering intent for color conversion.</param>
-    /// <param name="state">The current graphics state.</param>
-    /// <returns>An <see cref="SKShader"/> instance or null if creation fails.</returns>
-    public override SKShader AsShader(PdfRenderingIntent intent, PdfGraphicsState state)
+    /// <inheritdoc/>
+    public override SKPicture AsPicture(PdfGraphicsState state)
     {
-        if (_cachedBaseShader == null)
+        if (_cachedBasePicture != null)
         {
-            _cachedBaseShader = PdfShadingBuilder.ToShader(Shading);
+            return _cachedBasePicture;
         }
+        _cachedBasePicture = PdfShadingBuilder.ToPicture(Shading);
 
-        if (_cachedBaseShader == null)
-        {
-            return null;
-        }
-
-        SKMatrix localMatrix = SKMatrix.Concat(state.CTM.Invert(), PatternMatrix);
-
-        return _cachedBaseShader.WithLocalMatrix(localMatrix);
+        return _cachedBasePicture;
     }
 
     /// <summary>
@@ -76,10 +63,10 @@ public sealed class PdfShadingPattern : PdfPattern
     /// </summary>
     public override void Dispose()
     {
-        if (_cachedBaseShader != null)
+        if (_cachedBasePicture != null)
         {
-            _cachedBaseShader.Dispose();
-            _cachedBaseShader = null;
+            _cachedBasePicture.Dispose();
+            _cachedBasePicture = null;
         }
 
         base.Dispose();

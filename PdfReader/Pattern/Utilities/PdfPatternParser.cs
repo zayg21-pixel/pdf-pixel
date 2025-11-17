@@ -36,14 +36,8 @@ internal static class PdfPatternParser
     {
         var dictionary = patternObject.Dictionary;
 
-        var bboxArray = dictionary.GetArray(PdfTokens.BBoxKey).GetFloatArray();
-
-        if (bboxArray.Length < 4)
-        {
-            return null;
-        }
-
-        var bbox = new SKRect(bboxArray[0], bboxArray[1], bboxArray[2], bboxArray[3]).Standardized;
+        var bboxArray = dictionary.GetArray(PdfTokens.BBoxKey);
+        var bbox = PdfLocationUtilities.CreateBBox(bboxArray) ?? SKRect.Empty;
 
         float xStep = dictionary.GetFloatOrDefault(PdfTokens.XStepKey);
         float yStep = dictionary.GetFloatOrDefault(PdfTokens.YStepKey);
@@ -58,12 +52,8 @@ internal static class PdfPatternParser
             _ => PdfTilingSpacingType.ConstantSpacing
         };
 
-        SKMatrix matrix = SKMatrix.Identity;
         var matrixArray = dictionary.GetArray(PdfTokens.MatrixKey);
-        if (matrixArray != null && matrixArray.Count >= 6)
-        {
-            matrix = PdfMatrixUtilities.CreateMatrix(matrixArray);
-        }
+        SKMatrix matrix = PdfLocationUtilities.CreateMatrix(matrixArray) ?? SKMatrix.Identity;
 
         return new PdfTilingPattern(
             renderer,
@@ -79,14 +69,10 @@ internal static class PdfPatternParser
 
     private static PdfShadingPattern ParseShadingPattern(PdfObject patternObject, PdfPage page)
     {
-        SKMatrix matrix = SKMatrix.Identity;
         var dictionary = patternObject.Dictionary;
 
         var matrixArray = dictionary.GetArray(PdfTokens.MatrixKey);
-        if (matrixArray != null && matrixArray.Count >= 6)
-        {
-            matrix = PdfMatrixUtilities.CreateMatrix(matrixArray);
-        }
+        var matrix = PdfLocationUtilities.CreateMatrix(matrixArray) ?? SKMatrix.Identity;
 
         var shadingObject = dictionary.GetObject(PdfTokens.ShadingKey);
 

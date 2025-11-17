@@ -61,14 +61,10 @@ public sealed class PdfShading
         }
 
         var matrixArray = rawDictionary.GetArray(PdfTokens.MatrixKey);
-        if (matrixArray != null && matrixArray.Count >= 6)
-        {
-            Matrix = PdfMatrixUtilities.CreateMatrix(matrixArray);
-        }
-        else
-        {
-            Matrix = null;
-        }
+        Matrix = PdfLocationUtilities.CreateMatrix(matrixArray);
+
+        var bboxArray = rawDictionary.GetArray(PdfTokens.BBoxKey);
+        BBox = PdfLocationUtilities.CreateBBox(bboxArray);
 
         AntiAlias = rawDictionary.GetBooleanOrDefault(PdfTokens.AntiAliasKey);
     }
@@ -131,10 +127,15 @@ public sealed class PdfShading
     /// <summary>
     /// Gets the optional transformation matrix (/Matrix) for this shading, if defined.
     /// </summary>
-    public SKMatrix? Matrix { get; }
+    public SKMatrix? Matrix { get; } // TODO: use
+
+    /// <summary>
+    /// Gets the optional bbox (/BBox) for this shading, if defined.
+    /// </summary>
+    public SKRect? BBox { get; } // TODO: use
 
     /// <summary>
     /// Gets the option to enable anti-aliasing (/AntiAlias) when rendering the shading.
     /// </summary>
-    public bool AntiAlias { get; }
+    public bool AntiAlias { get; } // TODO: probably, not use
 }

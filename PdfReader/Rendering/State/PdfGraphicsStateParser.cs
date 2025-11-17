@@ -133,7 +133,7 @@ namespace PdfReader.Rendering.State
             {
                 matrixArray = gsDict.GetArray(PdfTokens.CTMKey);
             }
-            parameters.TransformMatrix = PdfMatrixUtilities.CreateMatrix(matrixArray);
+            parameters.TransformMatrix = PdfLocationUtilities.CreateMatrix(matrixArray);
 
             // Soft Mask (/SMask)
             if (gsDict.HasKey(PdfTokens.SoftMaskKey))

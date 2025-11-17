@@ -80,17 +80,8 @@ namespace PdfReader.Forms
             var groupDict = dict.GetDictionary(PdfTokens.GroupKey);
             var resourcesDict = dict.GetDictionary(PdfTokens.ResourcesKey);
 
-            SKMatrix matrix = PdfMatrixUtilities.CreateMatrix(matrixArray);
-            SKRect bbox = SKRect.Empty;
-            if (bboxArray != null && bboxArray.Count >= 4)
-            {
-                bbox = new SKRect(
-                    bboxArray.GetFloat(0),
-                    bboxArray.GetFloat(1),
-                    bboxArray.GetFloat(2),
-                    bboxArray.GetFloat(3)
-                ).Standardized;
-            }
+            SKMatrix matrix = PdfLocationUtilities.CreateMatrix(matrixArray) ?? SKMatrix.Identity;
+            SKRect bbox = PdfLocationUtilities.CreateBBox(bboxArray) ?? SKRect.Empty;
 
             PdfTransparencyGroup transparencyGroup = null;
             if (groupDict != null)

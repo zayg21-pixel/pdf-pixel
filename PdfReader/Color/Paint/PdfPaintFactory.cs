@@ -60,16 +60,7 @@ public static class PdfPaintFactory
     {
         var paint = CreateBasePaint(state);
         paint.Style = SKPaintStyle.Stroke;
-        if (state.StrokePaint != null && state.StrokePaint.IsPattern && state.StrokePaint.Pattern != null)
-        {
-            // Use pattern shader for stroke
-            paint.Shader = state.StrokePaint.Pattern.AsShader(state.RenderingIntent, state);
-            paint.Color = ApplyAlpha(SKColors.White, state.StrokeAlpha);
-        }
-        else
-        {
-            paint.Color = ApplyAlpha(state.StrokePaint.Color, state.StrokeAlpha);
-        }
+        paint.Color = ApplyAlpha(state.StrokePaint.Color, state.StrokeAlpha);
 
         ApplyStrokeStyling(paint, state);
 
@@ -85,16 +76,7 @@ public static class PdfPaintFactory
         var paint = CreateBasePaint(state);
         paint.Style = SKPaintStyle.Fill;
 
-        if (state.FillPaint != null && state.FillPaint.IsPattern && state.FillPaint.Pattern != null)
-        {
-            // Use pattern shader for fill
-            paint.Shader = state.FillPaint.Pattern.AsShader(state.RenderingIntent, state);
-            paint.Color = ApplyAlpha(SKColors.White, state.FillAlpha);
-        }
-        else
-        {
-            paint.Color = ApplyAlpha(state.FillPaint.Color, state.FillAlpha);
-        }
+        paint.Color = ApplyAlpha(state.FillPaint.Color, state.FillAlpha);
 
         return paint;
     }
@@ -194,15 +176,14 @@ public static class PdfPaintFactory
     }
 
     /// <summary>
-    /// Create paint for shadings (axial/radial), applying fill alpha and blend mode without tinting
+    /// Creates shading paint for shading patterns.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static SKPaint CreateShadingPaint(PdfGraphicsState state, SKShader shader)
+    public static SKPaint CreateShadingPaint(PdfGraphicsState state)
     {
         var paint = CreateBasePaint(state);
         paint.Style = SKPaintStyle.Fill;
-        paint.Color = ApplyAlpha(SKColors.White, state.FillAlpha);
-        paint.Shader = shader;
+        paint.Color = ApplyAlpha(SKColors.Black, state.FillAlpha);
 
         return paint;
     }
@@ -221,6 +202,7 @@ public static class PdfPaintFactory
         {
             return new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.None);
         }
+
         return new SKSamplingOptions(SKFilterMode.Nearest, SKMipmapMode.None);
     }
 

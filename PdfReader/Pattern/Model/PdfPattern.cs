@@ -42,14 +42,13 @@ public abstract class PdfPattern : IDisposable
     public PdfPatternType PatternType { get; }
 
     /// <summary>
-    /// Converts the current object to reusable <see cref="SKShader"/> representation.
+    /// Converts the current object to reusable <see cref="SKPicture"/> that can be used as shader representation.
     /// </summary>
-    /// <param name="intent">The rendering intent that specifies how colors should be managed during rendering.</param>
     /// <param name="state">The graphics state that provides additional context for rendering, such as transformations and clipping
     /// paths.</param>
-    /// <returns>An <see cref="SKShader"/> instance representing the current object, configured based on the specified
+    /// <returns>An <see cref="SKPicture"/> instance representing the current object, configured based on the specified
     /// rendering intent and graphics state.</returns>
-    public abstract SKShader AsShader(PdfRenderingIntent intent, PdfGraphicsState state);
+    public abstract SKPicture AsPicture(PdfGraphicsState state);
 
     public virtual void Dispose()
     {

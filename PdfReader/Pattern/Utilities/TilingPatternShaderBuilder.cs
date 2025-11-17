@@ -1,11 +1,12 @@
-using System.Collections.Generic;
-using SkiaSharp;
+using PdfReader.Color.Paint;
+using PdfReader.Forms;
 using PdfReader.Models;
 using PdfReader.Parsing;
-using PdfReader.Rendering;
 using PdfReader.Pattern.Model;
-using PdfReader.Forms;
+using PdfReader.Rendering;
 using PdfReader.Rendering.State;
+using SkiaSharp;
+using System.Collections.Generic;
 
 namespace PdfReader.Pattern.Utilities;
 
@@ -16,15 +17,15 @@ namespace PdfReader.Pattern.Utilities;
 internal sealed class TilingPatternShaderBuilder
 {
     /// <summary>
-    /// Creates a base <see cref="SKShader"/> for the given PDF tiling pattern and page context.
+    /// Creates a base <see cref="SKPicture"/> for the given PDF tiling pattern and page context.
     /// Does not apply CTM or color filter/tint for uncolored patterns.
-    /// The returned shader is suitable for further transformation and color filtering.
+    /// The returned instance is suitable for further transformation and color filtering.
     /// </summary>
     /// <param name="renderer">PDF renderer instance.</param>
     /// <param name="pattern">The PDF tiling pattern to convert.</param>
     /// <param name="page">Current page context.</param>
-    /// <returns>Base <see cref="SKShader"/> instance or null if creation fails.</returns>
-    public static SKShader ToBaseShader(IPdfRenderer renderer, PdfTilingPattern pattern, PdfPage page)
+    /// <returns>Base <see cref="SKPicture"/> instance or null if creation fails.</returns>
+    public static SKPicture ToBaseShader(IPdfRenderer renderer, PdfTilingPattern pattern, PdfPage page)
     {
         if (pattern == null)
         {
@@ -38,19 +39,29 @@ internal sealed class TilingPatternShaderBuilder
         }
 
         SKPicture cellPicture = RenderTilingCell(renderer, pattern, page);
+
         if (cellPicture == null)
         {
             return null;
         }
 
-        SKRect pictureBounds = new SKRect(0, 0, bbox.Width, bbox.Height);
-        return SKShader.CreatePicture(
+        using var fillPicture = new SKPictureRecorder();
+        var unrestrictedBounds = new SKRect(float.NegativeInfinity, float.NegativeInfinity, float.PositiveInfinity, float.PositiveInfinity);
+
+        using var fullCanvas = fillPicture.BeginRecording(unrestrictedBounds);
+
+        using var shader = SKShader.CreatePicture(
             cellPicture,
             SKShaderTileMode.Repeat,
             SKShaderTileMode.Repeat,
-            SKFilterMode.Nearest,
-            SKMatrix.Identity,
-            pictureBounds);
+            SKFilterMode.Linear);
+
+        using var basePaint = PdfPaintFactory.CreateShaderPaint(antiAlias: true);
+        basePaint.Shader = shader;
+
+        fullCanvas.DrawPaint(basePaint);
+
+        return fillPicture.EndRecording();
     }
 
     /// <summary>
@@ -70,17 +81,9 @@ internal sealed class TilingPatternShaderBuilder
             return null;
         }
 
-        var bbox = pattern.BBox;
-        if (bbox.Width <= 0f || bbox.Height <= 0f)
-        {
-            return null;
-        }
-
         var cellState = new PdfGraphicsState();
-        SKRect pictureBounds = new SKRect(0, 0, bbox.Width, bbox.Height);
-        var recorder = new SKPictureRecorder();
-        var canvas = recorder.BeginRecording(pictureBounds);
-        canvas.Translate(-bbox.Left, -bbox.Top);
+        using var recorder = new SKPictureRecorder();
+        using var canvas = recorder.BeginRecording(pattern.BBox);
 
         // Render pattern cell without tint or color filter
         var recursionGuard = new HashSet<int>();

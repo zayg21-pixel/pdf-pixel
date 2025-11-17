@@ -146,7 +146,7 @@ public class GraphicsStateOperators : IOperatorProcessor
             return;
         }
 
-        var matrix = PdfMatrixUtilities.CreateMatrix(operands);
+        var matrix = PdfLocationUtilities.CreateMatrix(operands);
         _canvas.Concat(matrix);
 
         // Update CTM in graphics state - concatenate with existing CTM

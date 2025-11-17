@@ -52,14 +52,13 @@ public class ShadingRenderer : IShadingRenderer
     /// </summary>
     private void DrawShadingCore(SKCanvas canvas, PdfShading shading, PdfGraphicsState state)
     {
-        using var shader = PdfShadingBuilder.ToShader(shading);
-        if (shader == null)
+        using var shaderPicture = PdfShadingBuilder.ToPicture(shading);
+        if (shaderPicture == null)
         {
             _logger.LogWarning("Shading type " + shading.ShadingType + " not implemented or invalid shading data");
             return;
         }
-
-        using var paint = PdfPaintFactory.CreateShadingPaint(state, shader);
-        canvas.DrawPaint(paint);
+        using var paint = PdfPaintFactory.CreateShadingPaint(state);
+        canvas.DrawPicture(shaderPicture, paint);
     }
 }
