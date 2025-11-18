@@ -41,10 +41,6 @@ public sealed class PdfShading
 
         var colorSpaceValue = rawDictionary.GetValue(PdfTokens.ColorSpaceKey);
         ColorSpaceConverter = page.Cache.ColorSpace.ResolveByValue(colorSpaceValue);
-        RenderingIntent = rawDictionary.GetName(PdfTokens.IntentKey).AsEnum<PdfRenderingIntent>();
-
-        C0 = rawDictionary.GetArray(PdfTokens.C0Key)?.GetFloatArray();
-        C1 = rawDictionary.GetArray(PdfTokens.C1Key)?.GetFloatArray();
         Functions = new List<PdfFunction>();
 
         var functionObjects = rawDictionary.GetObjects(PdfTokens.FunctionKey);
@@ -60,9 +56,6 @@ public sealed class PdfShading
             }
         }
 
-        var matrixArray = rawDictionary.GetArray(PdfTokens.MatrixKey);
-        Matrix = PdfLocationUtilities.CreateMatrix(matrixArray);
-
         var bboxArray = rawDictionary.GetArray(PdfTokens.BBoxKey);
         BBox = PdfLocationUtilities.CreateBBox(bboxArray);
 
@@ -75,27 +68,27 @@ public sealed class PdfShading
     public PdfObject SourceObject { get; }
 
     /// <summary>
-    /// Shading type (2 = axial, 3 = radial, others may be added later).
+    /// Shading type (1 - 7 types).
     /// </summary>
     public int ShadingType { get; }
 
     /// <summary>
-    /// Coordinates array (/Coords). Axial: [x0 y0 x1 y1]. Radial: [x0 y0 r0 x1 y1 r1].
+    /// Coordinates array (/Coords). Axial: [x0 y0 x1 y1]. Radial: [x0 y0 r0 x1 y1 r1], type 2, 3 specific.
     /// </summary>
     public float[] Coords { get; }
 
     /// <summary>
-    /// Domain array (/Domain) defining parameter range for function evaluation.
+    /// Domain array (/Domain) defining parameter range for function evaluation (Type 1 - 3 specific).
     /// </summary>
     public float[] Domain { get; }
 
     /// <summary>
-    /// Start extension flag (/Extend[0]).
+    /// Start extension flag (/Extend[0]), type 2, 3 specific.
     /// </summary>
     public bool ExtendStart { get; }
 
     /// <summary>
-    /// End extension flag (/Extend[1]).
+    /// End extension flag (/Extend[1]), type 2, 3 specific.
     /// </summary>
     public bool ExtendEnd { get; }
 
@@ -106,28 +99,16 @@ public sealed class PdfShading
 
     /// <summary>
     /// Gets the rendering intent used to control color rendering in the PDF.
+    /// TODO: remove, intent is not specified per-shading.
     /// </summary>
     public PdfRenderingIntent RenderingIntent { get; }
-
-    /// <summary>
-    /// Optional start color array (/C0) for simple interpolation shadings.
-    /// </summary>
-    public float[] C0 { get; }
-
-    /// <summary>
-    /// Optional end color array (/C1) for simple interpolation shadings.
-    /// </summary>
-    public float[] C1 { get; }
 
     /// <summary>
     /// List of resolved PdfFunction(s) for function-based color evaluation.
     /// </summary>
     public List<PdfFunction> Functions { get; }
 
-    /// <summary>
-    /// Gets the optional transformation matrix (/Matrix) for this shading, if defined.
-    /// </summary>
-    public SKMatrix? Matrix { get; } // TODO: use
+    public float[] Background { get; } // TODO: use
 
     /// <summary>
     /// Gets the optional bbox (/BBox) for this shading, if defined.
@@ -137,5 +118,5 @@ public sealed class PdfShading
     /// <summary>
     /// Gets the option to enable anti-aliasing (/AntiAlias) when rendering the shading.
     /// </summary>
-    public bool AntiAlias { get; } // TODO: probably, not use
+    public bool AntiAlias { get; }
 }

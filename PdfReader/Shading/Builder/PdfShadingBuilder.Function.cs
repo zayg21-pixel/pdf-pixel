@@ -1,5 +1,7 @@
 ﻿using PdfReader.Functions;
+using PdfReader.Rendering.Operators;
 using PdfReader.Shading.Model;
+using PdfReader.Text;
 using SkiaSharp;
 using System;
 
@@ -86,9 +88,12 @@ internal static partial class PdfShadingBuilder
         SKMatrix pixelToDomain = SKMatrix.CreateScale(scaleX, scaleY);
         pixelToDomain = SKMatrix.Concat(SKMatrix.CreateTranslation(translateX, translateY), pixelToDomain);
 
+        var matrixArray = shading.SourceObject.Dictionary.GetArray(PdfTokens.MatrixKey);
+        var matrix = PdfLocationUtilities.CreateMatrix(matrixArray);
+
         // Concatenate with shading.Matrix if present
-        SKMatrix finalMatrix = shading.Matrix.HasValue
-            ? SKMatrix.Concat(shading.Matrix.Value, pixelToDomain)
+        SKMatrix finalMatrix = matrix.HasValue
+            ? SKMatrix.Concat(matrix.Value, pixelToDomain)
             : pixelToDomain;
 
         using var recorder = new SKPictureRecorder();

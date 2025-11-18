@@ -1,10 +1,8 @@
-using PdfReader.Color.ColorSpace;
 using PdfReader.Color.Paint;
 using PdfReader.Models;
 using PdfReader.Pattern.Utilities;
 using PdfReader.Rendering;
 using PdfReader.Rendering.State;
-using PdfReader.Transparency.Utilities;
 using SkiaSharp;
 
 namespace PdfReader.Pattern.Model;
@@ -102,8 +100,8 @@ public sealed class PdfTilingPattern : PdfPattern
 
         float startX = bounds.Left - bounds.Left % XStep;
         float startY = bounds.Top - bounds.Top % YStep;
-        float endX = bounds.Right + bounds.Right % XStep + XStep;
-        float endY = bounds.Bottom + bounds.Bottom % YStep + YStep;
+        float endX = bounds.Right + bounds.Right % XStep;
+        float endY = bounds.Bottom + bounds.Bottom % YStep;
 
         for (float x = startX; x <= endX; x += XStep)
         {

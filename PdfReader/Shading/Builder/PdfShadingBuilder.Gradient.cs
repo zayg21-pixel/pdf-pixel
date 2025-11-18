@@ -137,15 +137,6 @@ internal static partial class PdfShadingBuilder
                 positions[sampleIndex] = t;
             }
         }
-        else if (shading.C0 != null && shading.C1 != null)
-        {
-            colors =
-            [
-                converter.ToSrgb(shading.C0, shading.RenderingIntent),
-                converter.ToSrgb(shading.C1, shading.RenderingIntent)
-            ];
-            positions = [0f, 1f];
-        }
         else
         {
             colors = [SKColors.Black, SKColors.White];
