@@ -4,14 +4,13 @@ using PdfReader.Shading.Model;
 using SkiaSharp;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace PdfReader.Shading;
 
 internal static partial class PdfShadingBuilder
 {
-    private static readonly SKRect UnrestrictedBounds = new SKRect(float.NegativeInfinity, float.NegativeInfinity, float.PositiveInfinity, float.PositiveInfinity);
-
-    private static SKPicture BuildAxial(PdfShading shading)
+    private static SKPicture BuildAxial(PdfShading shading, SKRect bounds)
     {
         if (shading.Coords?.Length != 4)
         {
@@ -35,7 +34,7 @@ internal static partial class PdfShadingBuilder
             SKShaderTileMode.Clamp);
 
         using var pictureRecorder = new SKPictureRecorder();
-        using var canvas = pictureRecorder.BeginRecording(UnrestrictedBounds);
+        using var canvas = pictureRecorder.BeginRecording(bounds);
 
         using var basePaint = PdfPaintFactory.CreateShaderPaint(shading.AntiAlias);
         basePaint.Shader = shader;
@@ -45,15 +44,9 @@ internal static partial class PdfShadingBuilder
         return pictureRecorder.EndRecording();
     }
 
-    private static SKPicture BuildRadial(PdfShading shading)
+    private static SKPicture BuildRadial(PdfShading shading, SKRect bounds)
     {
         if (shading.Coords?.Length != 6)
-        {
-            return null;
-        }
-
-        BuildShadingColorsAndStops(shading, out var colors, out var positions);
-        if (colors == null || colors.Length == 0)
         {
             return null;
         }
@@ -63,22 +56,45 @@ internal static partial class PdfShadingBuilder
         float r0 = shading.Coords[2];
         float r1 = shading.Coords[5];
 
-        // Handle reversed radii
-        if (r0 > r1)
+        BuildShadingColorsAndStops(shading, out var colors, out var positions);
+
+        if (colors == null || colors.Length == 0)
         {
-            SKPoint tempCenter = center0;
-            center0 = center1;
-            center1 = tempCenter;
-            float tempRadius = r0;
-            r0 = r1;
-            r1 = tempRadius;
-            Array.Reverse(colors);
-            Array.Reverse(positions);
-            for (int i = 0; i < positions.Length; i++)
-            {
-                positions[i] = 1f - positions[i];
-            }
+            return null;
         }
+
+        using var pictureRecorder = new SKPictureRecorder();
+        using var canvas = pictureRecorder.BeginRecording(bounds);
+
+        // first pass, draw inner surface part
+        SKPoint reversedCenter0 = center1;
+        SKPoint reversedCenter1 = center0;
+        float reversedR0 = r1;
+        float reversedR1 = r0;
+
+        var reversedColors = colors.Reverse().ToArray();
+        var reversedPositions = positions.Reverse().ToArray();
+
+        for (int i = 0; i < reversedPositions.Length; i++)
+        {
+            reversedPositions[i] = 1 - reversedPositions[i];
+        }
+
+        using var reversedPaint = PdfPaintFactory.CreateShaderPaint(shading.AntiAlias);
+
+        using var reversedShader = SKShader.CreateTwoPointConicalGradient(
+            reversedCenter0, reversedR0,
+            reversedCenter1, reversedR1,
+            reversedColors,
+            reversedPositions,
+            SKShaderTileMode.Clamp);
+
+        reversedPaint.Shader = reversedShader;
+
+        // second pass, draw outer surface part
+        canvas.DrawPaint(reversedPaint);
+
+        using var basePaint = PdfPaintFactory.CreateShaderPaint(shading.AntiAlias);
 
         using var shader = SKShader.CreateTwoPointConicalGradient(
             center0, r0,
@@ -87,10 +103,6 @@ internal static partial class PdfShadingBuilder
             positions,
             SKShaderTileMode.Clamp);
 
-        using var pictureRecorder = new SKPictureRecorder();
-        using var canvas = pictureRecorder.BeginRecording(UnrestrictedBounds);
-
-        using var basePaint = PdfPaintFactory.CreateShaderPaint(shading.AntiAlias);
         basePaint.Shader = shader;
 
         canvas.DrawPaint(basePaint);
@@ -145,7 +157,6 @@ internal static partial class PdfShadingBuilder
 
         if (!shading.ExtendEnd || !shading.ExtendStart)
         {
-
             var listPositions = new List<float>(positions);
             var listColors = new List<SKColor>(colors);
 

@@ -194,6 +194,7 @@ namespace PdfReader.Text
         public static readonly PdfString BitsPerFlagKey = (PdfString)"BitsPerFlag"u8;           // Dictionary key for bits per flag in mesh shading
         public static readonly PdfString VerticesPerRowKey = (PdfString)"VerticesPerRow"u8; 
         public static readonly PdfString AntiAliasKey = (PdfString)"AntiAlias"u8;                     // Boolean key for mesh shading anti-aliasing
+        public static readonly PdfString BackgroundKey = (PdfString)"Background"u8;                       // Array key for mesh shading background color
 
         // XObject Subtypes
         public static readonly PdfString ImageSubtype = (PdfString)"Image"u8;

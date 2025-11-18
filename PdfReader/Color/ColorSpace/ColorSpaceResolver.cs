@@ -14,7 +14,6 @@ internal sealed partial class ColorSpaceResolver
 {
     private readonly PdfPage _page;
     private readonly PdfDictionary _colorSpaceDictionary; // Cached once per page.
-    private readonly Dictionary<PdfString, PdfColorSpaceConverter> _nameCache = new Dictionary<PdfString, PdfColorSpaceConverter>();
 
     public ColorSpaceResolver(PdfPage page)
     {
@@ -29,7 +28,7 @@ internal sealed partial class ColorSpaceResolver
     ///3) Null (default device fallback).
     /// Results are cached by indirect reference (document-level) and by resource name (page-level) when applicable.
     /// </summary>
-    public PdfColorSpaceConverter ResolveByValue(IPdfValue value, int defaultComponents =3)
+    public PdfColorSpaceConverter ResolveByValue(IPdfValue value, int defaultComponents = 3)
     {
         if (value == null)
         {
@@ -41,33 +40,7 @@ internal sealed partial class ColorSpaceResolver
             return ResolveDeviceConverter(defaultComponents);
         }
 
-        // Name-level cache hit first (includes device names once resolved).
-        if (_nameCache.TryGetValue(familyName, out var cachedByName))
-        {
-            return cachedByName;
-        }
-
-        bool hasRef = TryGetColorSpaceObject(value, out var referencedObject);
-        if (hasRef && TryResolveFromCache(referencedObject, out var cached))
-        {
-            // Also store in name cache when name present.
-            _nameCache[familyName] = cached;
-            return cached;
-        }
-
-        var result = ResolveByNameAndValue(familyName, value);
-
-        // Store in caches where appropriate.
-        if (hasRef)
-        {
-            TryStoreByReference(referencedObject, result);
-        }
-        if (!familyName.IsEmpty && result != null)
-        {
-            _nameCache[familyName] = result;
-        }
-
-        return result;
+        return ResolveByNameAndValue(familyName, value);
     }
 
     /// <summary>
@@ -100,33 +73,15 @@ internal sealed partial class ColorSpaceResolver
         {
             case PdfColorSpaceType.DeviceGray:
             {
-                if (_nameCache.TryGetValue(deviceName, out var gray))
-                {
-                    return gray;
-                }
-                var resolved = ResolveDefaultDeviceSpace(PdfTokens.DefaultGrayKey,1) ?? DeviceGrayConverter.Instance;
-                _nameCache[deviceName] = resolved;
-                return resolved;
+                return ResolveDefaultDeviceSpace(PdfTokens.DefaultGrayKey, 1) ?? DeviceGrayConverter.Instance;
             }
             case PdfColorSpaceType.DeviceRGB:
             {
-                if (_nameCache.TryGetValue(deviceName, out var rgb))
-                {
-                    return rgb;
-                }
-                var resolved = ResolveDefaultDeviceSpace(PdfTokens.DefaultRGBKey,3) ?? DeviceRgbConverter.Instance;
-                _nameCache[deviceName] = resolved;
-                return resolved;
+                return ResolveDefaultDeviceSpace(PdfTokens.DefaultRGBKey, 3) ?? DeviceRgbConverter.Instance;
             }
             case PdfColorSpaceType.DeviceCMYK:
             {
-                if (_nameCache.TryGetValue(deviceName, out var cmyk))
-                {
-                    return cmyk;
-                }
-                var resolved = ResolveDefaultDeviceSpace(PdfTokens.DefaultCMYKKey,4) ?? DeviceCmykConverter.Instance;
-                _nameCache[deviceName] = resolved;
-                return resolved;
+                return ResolveDefaultDeviceSpace(PdfTokens.DefaultCMYKKey, 4) ?? DeviceCmykConverter.Instance;
             }
         }
         return ResolveDeviceConverter(PdfColorSpaceType.DeviceRGB);
@@ -219,13 +174,28 @@ internal sealed partial class ColorSpaceResolver
                 // Resource name lookup path.
                 if (_colorSpaceDictionary != null)
                 {
-                    var resourceValue = _colorSpaceDictionary.GetValue(name);
+                    var resourceValue = _colorSpaceDictionary.GetObject(name);
+                    bool hasRef = resourceValue?.Reference.IsValid == true;
+
+                    if (hasRef)
+                    {
+                        if (TryResolveFromCache(resourceValue, out var cached))
+                        {
+                            return cached;
+                        }
+                    }
+
                     if (resourceValue != null)
                     {
-                        var resolved = ResolveByValue(resourceValue);
+                        var resolved = ResolveByValue(resourceValue.Value);
+
                         if (resolved != null)
                         {
-                            _nameCache[name] = resolved;
+                            if (hasRef)
+                            {
+                                TryStoreByReference(resourceValue, resolved);
+                            }
+
                             return resolved;
                         }
                     }
@@ -250,28 +220,13 @@ internal sealed partial class ColorSpaceResolver
         if (value.Type == PdfValueType.Array)
         {
             var arr = value.AsArray();
-            if (arr != null && arr.Count >0)
+            if (arr != null && arr.Count > 0)
             {
                 name = arr.GetName(0);
                 return !name.IsEmpty;
             }
         }
         name = default;
-        return false;
-    }
-
-    private bool TryGetColorSpaceObject(IPdfValue value, out PdfObject pdfObject)
-    {
-        if (value != null && value.Type == PdfValueType.Array)
-        {
-            var arr = value.AsArray();
-            if (arr != null && arr.Count ==2)
-            {
-                pdfObject = arr.GetObject(1);
-                return pdfObject?.Reference.IsValid == true;
-            }
-        }
-        pdfObject = null;
         return false;
     }
 

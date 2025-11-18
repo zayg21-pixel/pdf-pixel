@@ -14,7 +14,7 @@ internal class FormXObjectPageWrapper : PdfPage
     private readonly PdfObject _resourcePageObject;
     private readonly PdfDictionary _resourceDictionary;
     private readonly PdfPage _originalPage;
-    private readonly bool _overridesResources;
+    private readonly PdfPageCache _pageCache;
 
     public FormXObjectPageWrapper(PdfPage originalPage, PdfObject formXObject)
         : base(originalPage.PageNumber, originalPage.Document, originalPage.PageObject, originalPage.PageResources)
@@ -25,15 +25,15 @@ internal class FormXObjectPageWrapper : PdfPage
         var formResources = formXObject.Dictionary.GetDictionary(PdfTokens.ResourcesKey);
         if (formResources == null)
         {
-            _overridesResources = false;
             _resourcePageObject = originalPage.PageObject;
             _resourceDictionary = originalPage.ResourceDictionary;
+            _pageCache = originalPage.Cache;
         }
         else
         {
-            _overridesResources = true;
             _resourcePageObject = formXObject;
             _resourceDictionary = formResources;
+            _pageCache = new PdfPageCache(this);
         }
     }
 
@@ -41,25 +41,14 @@ internal class FormXObjectPageWrapper : PdfPage
         : base(0, formXObject.Document, formXObject, new PdfPageResources())
     {
         var formResources = formXObject.Dictionary.GetDictionary(PdfTokens.ResourcesKey);
-        _overridesResources = true;
         _resourcePageObject = formXObject;
         _resourceDictionary = formResources;
+        _pageCache = new PdfPageCache(this);
     }
 
     public override PdfObject PageObject => _resourcePageObject;
 
     public override PdfDictionary ResourceDictionary => _resourceDictionary;
 
-    internal override PdfPageCache Cache
-    {
-        get
-        {
-            // If we did not override resources, reuse original page cache to avoid duplicate lookups.
-            if (!_overridesResources)
-            {
-                return _originalPage.Cache;
-            }
-            return base.Cache; // Separate cache when resources differ.
-        }
-    }
+    internal override PdfPageCache Cache => _pageCache;
 }

@@ -15,7 +15,7 @@ internal sealed class PatternColorSpaceConverter : PdfColorSpaceConverter
 
     public PatternColorSpaceConverter(PdfColorSpaceConverter baseColorSpace)
     {
-        _baseColorSpace = baseColorSpace ?? DeviceRgbConverter.Instance; // may be null for colored patterns
+        _baseColorSpace = baseColorSpace; // may be null for colored patterns
     }
 
     public override bool IsDevice => false;
@@ -24,6 +24,11 @@ internal sealed class PatternColorSpaceConverter : PdfColorSpaceConverter
 
     protected override SKColor ToSrgbCore(ReadOnlySpan<float> comps01, PdfRenderingIntent intent)
     {
+        if (_baseColorSpace == null)
+        {
+            return SKColors.Black; // Colored pattern: color defined by pattern content stream; return black as placeholder.
+        }
+
         return _baseColorSpace.ToSrgb(comps01, intent);
     }
 }

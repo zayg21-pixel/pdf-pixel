@@ -134,11 +134,11 @@ public static class PdfPaintFactory
     }
 
     /// <summary>
-    /// Creates luminosity mask background paint.
+    /// Creates default background paint.
     /// </summary>
-    /// <param name="background">Bask Background color.</param>
+    /// <param name="background">Background color.</param>
     /// <returns></returns>
-    public static SKPaint CreateMaskBackgroundPaint(SKColor background)
+    public static SKPaint CreateBackgroundPaint(SKColor background)
     {
         return new SKPaint
         {
@@ -171,7 +171,6 @@ public static class PdfPaintFactory
         {
             IsAntialias = antiAlias,
             Style = SKPaintStyle.Fill,
-            Color = SKColors.White
         };
     }
 

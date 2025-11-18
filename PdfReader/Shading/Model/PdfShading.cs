@@ -58,6 +58,12 @@ public sealed class PdfShading
 
         var bboxArray = rawDictionary.GetArray(PdfTokens.BBoxKey);
         BBox = PdfLocationUtilities.CreateBBox(bboxArray);
+        var backgroundComponents = rawDictionary.GetArray(PdfTokens.BackgroundKey)?.GetFloatArray();
+
+        if (backgroundComponents != null)
+        {
+            Background = ColorSpaceConverter.ToSrgb(backgroundComponents, RenderingIntent);
+        }
 
         AntiAlias = rawDictionary.GetBooleanOrDefault(PdfTokens.AntiAliasKey);
     }
@@ -108,12 +114,15 @@ public sealed class PdfShading
     /// </summary>
     public List<PdfFunction> Functions { get; }
 
-    public float[] Background { get; } // TODO: use
+    /// <summary>
+    /// Shading background color (/Background), if defined.
+    /// </summary>
+    public SKColor? Background { get; }
 
     /// <summary>
     /// Gets the optional bbox (/BBox) for this shading, if defined.
     /// </summary>
-    public SKRect? BBox { get; } // TODO: use
+    public SKRect? BBox { get; }
 
     /// <summary>
     /// Gets the option to enable anti-aliasing (/AntiAlias) when rendering the shading.

@@ -52,13 +52,26 @@ public class ShadingRenderer : IShadingRenderer
     /// </summary>
     private void DrawShadingCore(SKCanvas canvas, PdfShading shading, PdfGraphicsState state)
     {
-        using var shaderPicture = PdfShadingBuilder.ToPicture(shading);
+        using var shaderPicture = PdfShadingBuilder.ToPicture(shading, canvas.DeviceClipBounds);
+
         if (shaderPicture == null)
         {
             _logger.LogWarning("Shading type " + shading.ShadingType + " not implemented or invalid shading data");
             return;
         }
         using var paint = PdfPaintFactory.CreateShadingPaint(state);
+
+        if (shading.BBox.HasValue)
+        {
+            canvas.ClipRect(shading.BBox.Value, SKClipOperation.Intersect, antialias: true);
+        }
+
+        if (shading.Background.HasValue)
+        {
+            using var backgroundPaint = PdfPaintFactory.CreateBackgroundPaint(shading.Background.Value);
+            canvas.DrawRect(canvas.LocalClipBounds, backgroundPaint);
+        }
+
         canvas.DrawPicture(shaderPicture, paint);
     }
 }

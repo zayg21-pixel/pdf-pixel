@@ -1,3 +1,4 @@
+using System;
 using PdfReader.Color.Paint;
 using PdfReader.Models;
 using PdfReader.Pattern.Utilities;
@@ -103,10 +104,15 @@ public sealed class PdfTilingPattern : PdfPattern
         float endX = bounds.Right + bounds.Right % XStep;
         float endY = bounds.Bottom + bounds.Bottom % YStep;
 
-        for (float x = startX; x <= endX; x += XStep)
+        int xCount = (int)Math.Ceiling((endX - startX) / XStep);
+        int yCount = (int)Math.Ceiling((endY - startY) / YStep);
+
+        for (int i = 0; i <= xCount; i++)
         {
-            for (float y = startY; y <= endY; y += YStep)
+            float x = startX + i * XStep;
+            for (int j = 0; j <= yCount; j++)
             {
+                float y = startY + j * YStep;
                 canvas.DrawPicture(tile, x, y, paint);
             }
         }

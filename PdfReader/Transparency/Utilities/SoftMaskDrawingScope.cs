@@ -102,13 +102,12 @@ public sealed class SoftMaskDrawingScope : IDisposable
             recCanvas.Save();
 
             recCanvas.Concat(_softMask.MaskForm.Matrix);
-            recCanvas.ClipRect(_softMask.MaskForm.BBox, antialias: true);
 
             // Background for luminosity masks (BC in group color space).
             if (_softMask.Subtype == PdfSoftMaskSubtype.Luminosity)
             {
                 var backgroundColor = _softMask.GetBackgroundColor(_graphicsState.RenderingIntent);
-                using var backgroundPaint = PdfPaintFactory.CreateMaskBackgroundPaint(backgroundColor);
+                using var backgroundPaint = PdfPaintFactory.CreateBackgroundPaint(backgroundColor);
                 recCanvas.DrawRect(_softMask.MaskForm.BBox, backgroundPaint);
             }
 

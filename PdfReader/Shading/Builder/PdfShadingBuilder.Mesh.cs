@@ -5,6 +5,7 @@ using PdfReader.Shading.Model;
 using SkiaSharp;
 using System;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 
 namespace PdfReader.Shading;
 
@@ -51,7 +52,7 @@ internal static partial class PdfShadingBuilder
 
         // Batch draw all triangles in one call
         using var vertices = SKVertices.CreateCopy(SKVertexMode.Triangles, allPoints, allColors);
-        canvas.DrawVertices(vertices, SKBlendMode.Modulate, paint);
+        canvas.DrawVertices(vertices, SKBlendMode.DstIn, paint);
 
         return recorder.EndRecording();
     }
@@ -72,7 +73,7 @@ internal static partial class PdfShadingBuilder
         SKRect meshBounds = ComputeMeshBounds(patches);
 
         var area = meshBounds.Width * meshBounds.Height;
-        var maxCount = MathF.Sqrt(area / patches.Count * MathF.Sqrt(3) / 4f); // average triangle area side size in pixels
+        var maxCount = MathF.Sqrt(area / patches.Count * MathF.Sqrt(3) / 4f); // average triangle side size in pixels
         if (maxCount < 0)
         {
             maxCount = 1;
@@ -86,7 +87,7 @@ internal static partial class PdfShadingBuilder
         using var paint = PdfPaintFactory.CreateShaderPaint(shading.AntiAlias);
 
         using var vertices = MeshEvaluator.CreateVerticesForPatches(patches, tessellation);
-        canvas.DrawVertices(vertices, SKBlendMode.Modulate, paint);
+        canvas.DrawVertices(vertices, SKBlendMode.DstIn, paint);
 
         return recorder.EndRecording();
     }
@@ -118,12 +119,13 @@ internal static partial class PdfShadingBuilder
             var controlPoints = patch.Points;
             Array.Resize(ref controlPoints, 12);
 
-            canvas.DrawPatch(controlPoints, patch.CornerColors, null, paint);
+            canvas.DrawPatch(controlPoints, patch.CornerColors, null, SKBlendMode.DstIn, paint);
         }
 
         return recorder.EndRecording();
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static SKRect ComputeMeshBounds(List<MeshData> patches)
     {
         float minX = float.MaxValue;

@@ -46,17 +46,30 @@ public sealed class PdfShadingPattern : PdfPattern
 
     internal override void RenderPattern(SKCanvas canvas, PdfGraphicsState state, IRenderTarget renderTarget)
     {
-        var shadingPicture = PdfShadingBuilder.ToPicture(Shading);
+        var matrix = SKMatrix.Concat(state.CTM.Invert(), state.FillPaint.Pattern.PatternMatrix);
+        var bounds = matrix.Invert().MapRect(renderTarget.ClipPath.Bounds);
+
+        using var shadingPicture = PdfShadingBuilder.ToPicture(Shading, bounds);
         
         if (shadingPicture != null)
         {
             using var paint = PdfPaintFactory.CreateShadingPaint(state);
-            var matrix = SKMatrix.Concat(state.CTM.Invert(), state.FillPaint.Pattern.PatternMatrix);
             canvas.Save();
 
             canvas.ClipPath(renderTarget.ClipPath, SKClipOperation.Intersect, antialias: true);
 
             canvas.Concat(matrix);
+
+            if (Shading.BBox.HasValue)
+            {
+                canvas.ClipRect(Shading.BBox.Value, SKClipOperation.Intersect, antialias: true);
+            }
+
+            if (Shading.Background.HasValue)
+            {
+                using var backgroundPaint = PdfPaintFactory.CreateBackgroundPaint(Shading.Background.Value);
+                canvas.DrawRect(canvas.LocalClipBounds, backgroundPaint);
+            }
 
             canvas.DrawPicture(shadingPicture, paint);
 
