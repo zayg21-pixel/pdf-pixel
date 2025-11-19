@@ -133,7 +133,7 @@ internal sealed class IccProfileHeader
         try
         {
             created = new DateTime(
-                year,
+                Math.Max(1, year),
                 Math.Max(1, month),
                 Math.Max(1, day),
                 Math.Min(23, hour),

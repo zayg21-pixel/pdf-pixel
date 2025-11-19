@@ -110,7 +110,7 @@ public class ImageRenderer : IImageRenderer
         using var imagePaint = PdfPaintFactory.CreateImagePaint(state);
         ImagePostProcessingFilters.ApplyImageFilters(imagePaint, pdfImage, decoder.IsColorConverted);
 
-        var sampling = PdfPaintFactory.GetImageSamplingOptions(pdfImage.Interpolate);
+        var sampling = PdfPaintFactory.GetImageSamplingOptions(pdfImage);
         canvas.DrawImage(baseImage, destRect, sampling, imagePaint);
     }
 
@@ -146,7 +146,7 @@ public class ImageRenderer : IImageRenderer
             return;
         }
 
-        var sampling = PdfPaintFactory.GetImageSamplingOptions(pdfImage.Interpolate);
+        var sampling = PdfPaintFactory.GetImageSamplingOptions(pdfImage);
         var layerPaint = PdfPaintFactory.CreateLayerPaint(state);
         using var fillPaint = PdfPaintFactory.CreateMaskImageFillPaint(state);
 
@@ -211,15 +211,14 @@ public class ImageRenderer : IImageRenderer
         }
 
         using var layerPaint = PdfPaintFactory.CreateLayerPaint(state);
-        using var imagePaint = PdfPaintFactory.CreateImagePaint(state);
+        using var imagePaint = PdfPaintFactory.CreateMaskedImagePaint();
         ImagePostProcessingFilters.ApplyImageFilters(imagePaint, pdfImage, baseDecoder.IsColorConverted);
 
         using var maskPaint = PdfPaintFactory.CreateImageMaskPaint();
         ImagePostProcessingFilters.ApplyImageFilters(maskPaint, pdfImage.SoftMask, softMaskDecoder.IsColorConverted);
 
-        var sampling = PdfPaintFactory.GetImageSamplingOptions(pdfImage.Interpolate);
-        var maskSampling = PdfPaintFactory.GetImageSamplingOptions(pdfImage.SoftMask.Interpolate);
-
+        var sampling = PdfPaintFactory.GetImageSamplingOptions(pdfImage);
+        var maskSampling = PdfPaintFactory.GetImageSamplingOptions(pdfImage.SoftMask);
 
         canvas.SaveLayer(destRect, layerPaint);
 

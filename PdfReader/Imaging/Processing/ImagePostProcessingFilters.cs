@@ -97,7 +97,7 @@ internal class ImagePostProcessingFilters
     /// </summary>
     private static void ApplyLuminocityToAlphaFilter(SKPaint paint)
     {
-        using var luminosityToAlphaFilter = SoftMaskUtilities.CreateAlphaFromLuminosityFilter();
+        using var luminosityToAlphaFilter = SKColorFilter.CreateLumaColor();
         ComposeColorFilter(paint, luminosityToAlphaFilter);
     }
 

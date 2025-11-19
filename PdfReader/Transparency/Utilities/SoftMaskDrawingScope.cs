@@ -131,7 +131,7 @@ public sealed class SoftMaskDrawingScope : IDisposable
             using var maskPaint = PdfPaintFactory.CreateMaskPaint();
 
             using var alphaFilter = _softMask.Subtype == PdfSoftMaskSubtype.Luminosity
-                ? SoftMaskUtilities.CreateAlphaFromLuminosityFilter()
+                ? SKColorFilter.CreateLumaColor()
                 : null;
 
             maskPaint.ColorFilter = alphaFilter;

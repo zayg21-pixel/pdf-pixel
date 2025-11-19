@@ -19,7 +19,8 @@ apply patterns to stencil image (need example)
 
 Images:
 Add JPEG2000 decoder and JBIG2 decoder
+Images must be antialiased, need to find best way to do it to still keep composition with mask
 
 Bugs:
-fit11-talk.pdf - not rendered half of the text, invalid offsets
+fit11-talk.pdf - not rendered some text (couple of slashes), but a lot is not resolved from TTF
 

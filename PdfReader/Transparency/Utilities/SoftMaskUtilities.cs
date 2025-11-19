@@ -54,20 +54,4 @@ internal static class SoftMaskUtilities
             LineWidth = 1.0f
         };
     }
-
-    /// <summary>
-    /// Create a color filter that converts RGB luminance into the alpha channel (keeps RGB unchanged).
-    /// Used when constructing alpha from luminosity sources.
-    /// </summary>
-    public static SKColorFilter CreateAlphaFromLuminosityFilter()
-    {
-        var matrix = new float[]
-        {
-            1, 0, 0, 0, 0,
-            0, 1, 0, 0, 0,
-            0, 0, 1, 0, 0,
-            0.299f, 0.587f, 0.114f, 0, 0
-        };
-        return SKColorFilter.CreateColorMatrix(matrix);
-    }
 }

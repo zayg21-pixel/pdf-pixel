@@ -1,4 +1,5 @@
-﻿using PdfReader.Rendering.State;
+﻿using PdfReader.Imaging.Model;
+using PdfReader.Rendering.State;
 using PdfReader.Transparency.Model;
 using SkiaSharp;
 using System;
@@ -87,10 +88,8 @@ public static class PdfPaintFactory
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static SKPaint CreateImagePaint(PdfGraphicsState state)
     {
-        var paint = new SKPaint
-        {
-            BlendMode = PdfBlendModeNames.ToSkiaBlendMode(state.BlendMode)
-        };
+        var paint = CreateBasePaint(state);
+
         // For images, we typically use fill alpha since images are considered non-stroking operations
         paint.Color = ApplyAlpha(SKColors.White, state.FillAlpha);
 
@@ -98,7 +97,17 @@ public static class PdfPaintFactory
     }
 
     /// <summary>
-    /// Image mask paint (DstIn blend mode).
+    /// Paint for masked image drawing (no special blend mode, no antialiasing).
+    /// </summary>
+    /// <returns></returns>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static SKPaint CreateMaskedImagePaint()
+    {
+        return new SKPaint();
+    }
+
+    /// <summary>
+    /// Image mask paint (DstIn blend mode, no antialiasing).
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static SKPaint CreateImageMaskPaint()
@@ -187,16 +196,13 @@ public static class PdfPaintFactory
     }
 
     /// <summary>
-    /// Return Skia sampling options for image and mask rendering based on the PDF image /Interpolate flag.
-    /// Linear filtering is used when interpolation is requested; otherwise nearest neighbor.
-    /// Mipmaps are disabled because PDF images are drawn at explicit resolutions set by the content stream.
+    /// Return Skia sampling options for image and mask rendering based on the PDF image /Interpolate flag
+    /// and image type.
     /// </summary>
-    /// <param name="interpolate">True if the image dictionary has /Interpolate true.</param>
-    /// <returns>Sampling options appropriate for image rendering.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static SKSamplingOptions GetImageSamplingOptions(bool interpolate)
+    public static SKSamplingOptions GetImageSamplingOptions(PdfImage image)
     {
-        if (interpolate)
+        if (image.Interpolate || image.BitsPerComponent >= 8)
         {
             return new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.None);
         }
