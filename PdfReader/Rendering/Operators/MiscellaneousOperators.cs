@@ -34,10 +34,10 @@ public class MiscellaneousOperators : IOperatorProcessor
     private readonly Stack<IPdfValue> _operandStack;
     private readonly PdfPage _page;
     private readonly SKCanvas _canvas;
-    private readonly HashSet<int> _processingXObjects;
+    private readonly HashSet<uint> _processingXObjects;
     private readonly ILogger<MiscellaneousOperators> _logger;
 
-    public MiscellaneousOperators(IPdfRenderer renderer, Stack<IPdfValue> operandStack, PdfPage page, SKCanvas canvas, HashSet<int> processingXObjects)
+    public MiscellaneousOperators(IPdfRenderer renderer, Stack<IPdfValue> operandStack, PdfPage page, SKCanvas canvas, HashSet<uint> processingXObjects)
     {
         _renderer = renderer;
         _operandStack = operandStack;

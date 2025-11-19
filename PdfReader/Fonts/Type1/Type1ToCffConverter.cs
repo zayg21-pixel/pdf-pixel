@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging;
+using PdfReader.Fonts.Cff;
 using PdfReader.Fonts.Types;
 using PdfReader.PostScript;
 using PdfReader.PostScript.Tokens;
@@ -18,17 +19,17 @@ internal static class Type1ToCffConverter
     /// <summary>
     /// Retrieves the CFF font data from a Type1 font program embedded in the given font descriptor.
     /// </summary>
-    /// <param name="font">Font instance.</param>
+    /// <param name="descriptor">Font instance.</param>
     /// <returns>CFF font bytes.</returns>
     /// <exception cref="InvalidDataException">Invalid font data.</exception>
-    public static byte[] GetCffFont(PdfSimpleFont font)
+    public static CffInfo GetCffFont(PdfFontDescriptor descriptor)
     {
-        if (font.FontDescriptor == null)
+        if (descriptor?.FontFileObject == null)
         {
-            throw new InvalidDataException("Missing FontDescriptor for Type1 font.");
+            throw new InvalidDataException("Missing font file for Type1 font.");
         }
 
-        var file = font.FontDescriptor.FontFileObject;
+        var file = descriptor.FontFileObject;
         var length1 = file.Dictionary.GetIntegerOrDefault(PdfTokens.Length1);
         var length2 = file.Dictionary.GetIntegerOrDefault(PdfTokens.Length2);
         var length3 = file.Dictionary.GetIntegerOrDefault(PdfTokens.Length3);
@@ -55,9 +56,9 @@ internal static class Type1ToCffConverter
             throw new InvalidDataException("Invalid Length2 for Type1 font stream (spec compliance required).");
         }
 
-        var parsedDictionary = ParseFontProgram(font.FontDescriptor, rawData, length1, length2, file.Document.LoggerFactory);
+        var parsedDictionary = ParseFontProgram(descriptor, rawData, length1, length2, file.Document.LoggerFactory);
 
-        return Type1DictionaryToCffConverter.GenerateCffFontDataFromDictionary(parsedDictionary, font);
+        return Type1DictionaryToCffConverter.GenerateCffFontDataFromDictionary(parsedDictionary, descriptor);
     }
 
     private static PostScriptDictionary ParseFontProgram(PdfFontDescriptor descriptor, ReadOnlyMemory<byte> rawData, int length1, int length2, ILoggerFactory loggerFactory)

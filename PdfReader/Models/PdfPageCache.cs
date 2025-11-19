@@ -21,7 +21,6 @@ namespace PdfReader.Models
     internal sealed class PdfPageCache : IDisposable
     {
         private readonly PdfPage _page;
-        private readonly Dictionary<PdfString, PdfFontBase> _fontsByName = new Dictionary<PdfString, PdfFontBase>();
         private readonly Dictionary<PdfString, PdfPattern> _patternsByName = new Dictionary<PdfString, PdfPattern>();
         private readonly Dictionary<PdfString, PdfColorSpaceConverter> _colorSpacesByName = new Dictionary<PdfString, PdfColorSpaceConverter>();
         private readonly Dictionary<PdfString, PdfGraphicsStateParameters> _graphicsStateParametersByName = new Dictionary<PdfString, PdfGraphicsStateParameters>();
@@ -70,34 +69,43 @@ namespace PdfReader.Models
             {
                 return null;
             }
-            if (_fontsByName.TryGetValue(fontName, out var cached))
-            {
-                return cached;
-            }
+
             if (_fontDictionary == null)
             {
                 return null;
             }
-            var fontReference = _fontDictionary.GetReference(fontName);
-            if (fontReference.IsValid && _page.Document.Fonts.TryGetValue(fontReference, out var documentCachedFont))
-            {
-                _fontsByName[fontName] = documentCachedFont;
-                return documentCachedFont;
-            }
-            var fontObjectDictionary = _fontDictionary.GetDictionary(fontName);
-            if (fontObjectDictionary == null)
+
+            var fontObject = _fontDictionary.GetObject(fontName);
+            return GetFont(fontObject);
+        }
+
+        /// <summary>
+        /// Get (and cache) a font from a PdfObject. Returns null if not found or cannot be created.
+        /// </summary>
+        /// <param name="fontObject">Font object.</param>
+        /// <returns></returns>
+        public PdfFontBase GetFont(PdfObject fontObject)
+        {
+            if (fontObject == null)
             {
                 return null;
             }
+
+            if (fontObject.Reference.IsValid && _page.Document.Fonts.TryGetValue(fontObject.Reference, out var documentCachedFont))
+            {
+                return documentCachedFont;
+            }
+            var fontObjectDictionary = fontObject.Dictionary;
+
             var newFont = PdfFontFactory.CreateFont(fontObjectDictionary);
             if (newFont != null)
             {
-                if (fontReference.IsValid)
+                if (fontObject.Reference.IsValid)
                 {
-                    _page.Document.Fonts[fontReference] = newFont;
+                    _page.Document.Fonts[fontObject.Reference] = newFont;
                 }
-                _fontsByName[fontName] = newFont;
             }
+
             return newFont;
         }
 
@@ -130,7 +138,7 @@ namespace PdfReader.Models
                 var inlinePatternDictionary = _patternDictionary.GetDictionary(patternName);
                 if (inlinePatternDictionary != null)
                 {
-                    patternObject = new PdfObject(new PdfReference(-1,0), _page.Document, PdfValueFactory.Dictionary(inlinePatternDictionary));
+                    patternObject = new PdfObject(default, _page.Document, PdfValueFactory.Dictionary(inlinePatternDictionary));
                 }
             }
             if (patternObject == null)
@@ -192,7 +200,6 @@ namespace PdfReader.Models
         public void ReleaseCache()
         {
             _patternsByName.Clear();
-            _fontsByName.Clear();
             _colorSpacesByName.Clear();
             _graphicsStateParametersByName.Clear();
         }
@@ -208,7 +215,6 @@ namespace PdfReader.Models
             }
 
             _patternsByName.Clear();
-            _fontsByName.Clear();
             _colorSpacesByName.Clear();
             _graphicsStateParametersByName.Clear();
             _disposed = true;

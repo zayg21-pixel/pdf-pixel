@@ -25,7 +25,7 @@ namespace PdfReader.Parsing
                 return null;
             }
 
-            int objectNumber = first.AsInteger();
+            uint objectNumber = (uint)first.AsInteger();
             int generation = second.AsInteger();
             var reference = new PdfReference(objectNumber, generation);
             _currentReference = reference;
@@ -92,7 +92,7 @@ namespace PdfReader.Parsing
 
             SkipSingleEndOfLine();
 
-            Advance(PdfTokens.Endstream.Value.Length);
+            Advance(PdfTokens.EndStream.Value.Length);
 
             return new PdfObjectStreamReference(streamStart, declaredLength, _decrypt);
         }

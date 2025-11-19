@@ -5,6 +5,7 @@ using PdfReader.Text;
 using PdfReader.Rendering.Operators;
 using PdfReader.Transparency.Utilities;
 using PdfReader.Transparency.Model;
+using PdfReader.Color.ColorSpace;
 
 namespace PdfReader.Rendering.State
 {
@@ -172,6 +173,27 @@ namespace PdfReader.Rendering.State
             if (gsDict.HasKey(PdfTokens.OverprintFillKey))
             {
                 parameters.OverprintFill = gsDict.GetBooleanOrDefault(PdfTokens.OverprintFillKey);
+            }
+
+            // Font (/Font)
+            if (gsDict.HasKey(PdfTokens.FontKey))
+            {
+                var fontArray = gsDict.GetArray(PdfTokens.FontKey);
+                if (fontArray != null && fontArray.Count == 2)
+                {
+                    var fontObject = fontArray.GetObject(0);
+                    var fontSize = fontArray.GetFloat(1);
+
+                    parameters.Font = page.Cache.GetFont(fontObject);
+                    parameters.FontSize = fontSize;
+                }
+            }
+
+            // Rendering intent (/RI)
+            if (gsDict.HasKey(PdfTokens.StateIntentKey))
+            {
+                var intentName = gsDict.GetName(PdfTokens.StateIntentKey);
+                parameters.PdfRenderingIntent = intentName.AsEnum<PdfRenderingIntent>();
             }
 
             return parameters;

@@ -105,7 +105,7 @@ namespace PdfReader.Models
             }
 
             canvas.SaveLayer();
-            var renderer = new PdfRenderer(Document.FontCache, Document.LoggerFactory);
+            var renderer = new PdfRenderer(Document.LoggerFactory);
             var contentRenderer = new PdfContentStreamRenderer(renderer, this);
             contentRenderer.ApplyPageTransformations(canvas);
             contentRenderer.RenderContent(canvas);

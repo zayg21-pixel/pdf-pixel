@@ -82,7 +82,7 @@ public sealed class PdfTilingPattern : PdfPattern
     {
         var tile = TilingPatternShaderBuilder.RenderTilingCell(_renderer, this);
 
-        var matrix = SKMatrix.Concat(state.CTM.Invert(), state.FillPaint.Pattern.PatternMatrix);
+        var matrix = SKMatrix.Concat(state.CTM.Invert(), PatternMatrix);
         canvas.Save();
 
         var clipPath = renderTarget.ClipPath;

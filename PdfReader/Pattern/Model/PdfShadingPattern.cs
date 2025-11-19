@@ -46,7 +46,7 @@ public sealed class PdfShadingPattern : PdfPattern
 
     internal override void RenderPattern(SKCanvas canvas, PdfGraphicsState state, IRenderTarget renderTarget)
     {
-        var matrix = SKMatrix.Concat(state.CTM.Invert(), state.FillPaint.Pattern.PatternMatrix);
+        var matrix = SKMatrix.Concat(state.CTM.Invert(), PatternMatrix);
         var bounds = matrix.Invert().MapRect(renderTarget.ClipPath.Bounds);
 
         using var shadingPicture = PdfShadingBuilder.ToPicture(Shading, bounds);

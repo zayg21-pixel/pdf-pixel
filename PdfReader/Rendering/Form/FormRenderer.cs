@@ -23,9 +23,9 @@ public class FormRenderer : IFormRenderer
         _loggerFactory = loggerFactory;
     }
 
-    public void DrawForm(SKCanvas canvas, PdfForm formXObject, PdfGraphicsState graphicsState, HashSet<int> processingXObjects)
+    public void DrawForm(SKCanvas canvas, PdfForm formXObject, PdfGraphicsState graphicsState, HashSet<uint> processingXObjects)
     {
-        int objectNumber = formXObject.XObject.Reference.ObjectNumber;
+        uint objectNumber = formXObject.XObject.Reference.ObjectNumber;
 
         if (processingXObjects.Contains(objectNumber))
         {

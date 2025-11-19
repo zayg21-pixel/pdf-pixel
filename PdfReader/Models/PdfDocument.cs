@@ -28,22 +28,25 @@ namespace PdfReader.Models
         {
             LoggerFactory = loggerFactory;
             StreamDecoder = new PdfStreamDecoder(loggerFactory);
-            FontCache = new PdfFontCache(this);
+            FontSubstitutor = new SkiaFontSubstitutor();
             _pdfObjectParser = new PdfObjectParser(this);
             Stream = new BufferedStream(fileStream);
         }
 
         internal ILoggerFactory LoggerFactory { get; }
 
-        internal PdfFontCache FontCache { get; }
+        /// <summary>
+        /// Document level font substitution engine.
+        /// </summary>
+        internal SkiaFontSubstitutor FontSubstitutor { get; }
 
         /// <summary>
-        /// Local page font cache.
+        /// Document font cache.
         /// </summary>
         internal Dictionary<PdfReference, PdfFontBase> Fonts { get; } = new Dictionary<PdfReference, PdfFontBase>();
 
         /// <summary>
-        /// Local page color space converter cache.
+        /// Document color space converter cache.
         /// </summary>
         internal Dictionary<PdfReference, PdfColorSpaceConverter> ColorSpaceConverters { get; } = new Dictionary<PdfReference, PdfColorSpaceConverter>();
 
@@ -114,7 +117,7 @@ namespace PdfReader.Models
 
         public void Dispose()
         {
-            FontCache.Dispose();
+            FontSubstitutor.Dispose();
 
             foreach (var converter in ColorSpaceConverters.Values)
             {

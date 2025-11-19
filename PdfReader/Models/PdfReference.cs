@@ -1,35 +1,40 @@
 using System;
 
-namespace PdfReader.Models
+namespace PdfReader.Models;
+
+// Strongly-typed PDF reference
+public readonly struct PdfReference : IEquatable<PdfReference>
 {
-    // Strongly-typed PDF reference
-    public readonly struct PdfReference : IEquatable<PdfReference>
+    public PdfReference(uint objectNumber, int generation = 0)
     {
-        public int ObjectNumber { get; }
-        public int Generation { get; }
+        ObjectNumber = objectNumber;
+        Generation = generation;
+    }
 
-        public PdfReference(int objectNumber, int generation = 0)
-        {
-            ObjectNumber = objectNumber;
-            Generation = generation;
-        }
+    /// <summary>
+    /// Number of the referenced object.
+    /// </summary>
+    public uint ObjectNumber { get; }
 
-        public bool IsValid => ObjectNumber > 0;
+    /// <summary>
+    /// Object generation number.
+    /// </summary>
+    public int Generation { get; }
 
-        public override string ToString() => $"{ObjectNumber} {Generation} R";
+    /// <summary>
+    /// True if this is a valid reference (object number > 0).
+    /// </summary>
+    public bool IsValid => ObjectNumber > 0;
 
-        public override int GetHashCode()
-        {
-            int hash = 23;
-            hash = hash * 31 + ObjectNumber;
-            hash = hash * 31 + Generation;
+    public override string ToString() => $"{ObjectNumber} {Generation} R";
 
-            return hash;
-        }
+    public override int GetHashCode()
+    {
+        return HashCode.Combine(ObjectNumber, Generation);
+    }
 
-        public bool Equals(PdfReference other)
-        {
-            return other.ObjectNumber == ObjectNumber && other.Generation == Generation;
-        }
+    public bool Equals(PdfReference other)
+    {
+        return other.ObjectNumber == ObjectNumber && other.Generation == Generation;
     }
 }

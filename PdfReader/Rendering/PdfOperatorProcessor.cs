@@ -25,10 +25,10 @@ public class PdfOperatorProcessor
     private readonly ColorOperators _colorOperators;
     private readonly InlineImageOperators _inlineImageOperators;
     private readonly MiscellaneousOperators _miscOperators;
-    private readonly HashSet<int> _processingXObjects;
+    private readonly HashSet<uint> _processingXObjects;
     private readonly ILogger<PdfOperatorProcessor> _logger;
 
-    public PdfOperatorProcessor(IPdfRenderer renderer, PdfPage page, SKCanvas canvas, Stack<IPdfValue> operandStack, Stack<PdfGraphicsState> graphicsStack, SKPath currentPath, HashSet<int> processingXObjects)
+    public PdfOperatorProcessor(IPdfRenderer renderer, PdfPage page, SKCanvas canvas, Stack<IPdfValue> operandStack, Stack<PdfGraphicsState> graphicsStack, SKPath currentPath, HashSet<uint> processingXObjects)
     {
         _renderer = renderer;
         _page = page;

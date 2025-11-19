@@ -1,6 +1,8 @@
 using SkiaSharp;
 using System;
 using PdfReader.Transparency.Model;
+using PdfReader.Fonts.Types;
+using PdfReader.Color.ColorSpace;
 
 namespace PdfReader.Rendering.State
 {
@@ -85,13 +87,20 @@ namespace PdfReader.Rendering.State
         /// </summary>
         public bool? OverprintFill { get; set; }
 
-        // TODO: Font (name and size) not yet parsed (ExtGState /Font entry)
-        // TODO: RenderingIntent (/RI) ignored
-        // TODO: StrokeAdjust (/SA) ignored
-        // TODO: Transfer functions (/TR /TR2) ignored
-        // TODO: Black generation /UCR and /BG entries ignored
-        // TODO: Halftone (/HT) ignored
-        // TODO: Flatness (/FL) ignored
+        /// <summary>
+        /// Parsed font (/Font). Null when absent.
+        /// </summary>
+        public PdfFontBase Font { get; set; }
+
+        /// <summary>
+        /// Parsed font size from (/Font). Null when absent.
+        /// </summary>
+        public float? FontSize { get; set; }
+
+        /// <summary>
+        /// Parsed rendering intent (/RI). Null when absent.
+        /// </summary>
+        public PdfRenderingIntent? PdfRenderingIntent { get; set; }
 
         /// <summary>
         /// Apply parsed parameter values to a target graphics state instance. Only non-null entries are applied.
@@ -161,6 +170,18 @@ namespace PdfReader.Rendering.State
             {
                 var matrix = TransformMatrix.Value;
                 graphicsState.CTM = matrix.PostConcat(graphicsState.CTM);
+            }
+            if (Font != null)
+            {
+                graphicsState.CurrentFont = Font;
+            }
+            if (FontSize.HasValue)
+            {
+                graphicsState.FontSize = FontSize.Value;
+            }
+            if (PdfRenderingIntent.HasValue)
+            {
+                graphicsState.RenderingIntent = PdfRenderingIntent.Value;
             }
         }
     }

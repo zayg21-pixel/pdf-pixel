@@ -48,7 +48,7 @@ namespace PdfReader.Models
         /// <param name="indexInObjectStream">Zero-based index within the object stream.</param>
         /// <param name="fromXrefStream">True if sourced from a cross-reference stream.</param>
         /// <returns>Configured <see cref="PdfObjectInfo"/> instance.</returns>
-        public static PdfObjectInfo ForCompressed(PdfReference reference, int objectStreamNumber, int indexInObjectStream, bool fromXrefStream)
+        public static PdfObjectInfo ForCompressed(PdfReference reference, uint objectStreamNumber, int indexInObjectStream, bool fromXrefStream)
         {
             if (objectStreamNumber <= 0)
             {
@@ -129,7 +129,7 @@ namespace PdfReader.Models
         /// Object number of the containing object stream when <see cref="IsCompressed"/> is true.
         /// Null for uncompressed or free objects.
         /// </summary>
-        public int? ObjectStreamNumber { get; private set; }
+        public uint? ObjectStreamNumber { get; private set; }
 
         /// <summary>
         /// Zero-based index inside the containing object stream when <see cref="IsCompressed"/> is true.

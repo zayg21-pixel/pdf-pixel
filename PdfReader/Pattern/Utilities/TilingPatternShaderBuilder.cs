@@ -36,7 +36,7 @@ internal sealed class TilingPatternShaderBuilder
         var canvas = recorder.BeginRecording(pattern.BBox);
 
         // Render pattern cell without tint or color filter
-        var recursionGuard = new HashSet<int>();
+        var recursionGuard = new HashSet<uint>();
         var patternPage = new FormXObjectPageWrapper(pattern.SourceObject);
         var contentRenderer = new PdfContentStreamRenderer(renderer, patternPage);
         var parseContext = new PdfParseContext(streamData);

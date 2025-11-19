@@ -18,13 +18,11 @@ namespace PdfReader.Rendering.Text
     public class PdfTextRenderer : IPdfTextRenderer
     {
         private readonly IPdfRenderer _renderer;
-        private readonly IFontCache _fontCache;
         private readonly ILogger<PdfTextRenderer> _logger;
 
-        internal PdfTextRenderer(IPdfRenderer renderer, IFontCache fontCache, ILoggerFactory loggerFactory)
+        internal PdfTextRenderer(IPdfRenderer renderer, ILoggerFactory loggerFactory)
         {
             _renderer = renderer ?? throw new ArgumentNullException(nameof(renderer));
-            _fontCache = fontCache ?? throw new ArgumentNullException(nameof(fontCache));
             if (loggerFactory == null)
             {
                 throw new ArgumentNullException(nameof(loggerFactory));
@@ -89,9 +87,7 @@ namespace PdfReader.Rendering.Text
 
                 softMaskScope.BeginDrawContent();
 
-                // Create typeface and skFont once
-                var typeface = _fontCache.GetTypeface(font);
-                using var skFont = PdfPaintFactory.CreateTextFont(typeface);
+                using var skFont = font.GetSkiaFont();
 
                 width = DrawShapedText(canvas, skFont, shapedGlyphs.ToArray(), state);
 

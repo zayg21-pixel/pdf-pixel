@@ -52,14 +52,9 @@ internal class CffSidGidMapper
 
     private readonly ILogger<CffSidGidMapper> _logger;
 
-    public CffSidGidMapper(PdfDocument document)
+    public CffSidGidMapper(ILoggerFactory loggerFactory)
     {
-        if (document == null)
-        {
-            throw new ArgumentNullException(nameof(document));
-        }
-
-        _logger = document.LoggerFactory.CreateLogger<CffSidGidMapper>();
+        _logger = loggerFactory.CreateLogger<CffSidGidMapper>();
     }
 
     private static Dictionary<PdfString, ushort> BuildStandardNameToSid()
@@ -219,6 +214,8 @@ internal class CffSidGidMapper
                     glyphNameToGid[glyphName] = glyphId;
                 }
             }
+
+            // TODO: we could also parse the Encoding table here for code->GID mapping.
 
             PdfFontEncoding encoding = encodingOffset switch
             {

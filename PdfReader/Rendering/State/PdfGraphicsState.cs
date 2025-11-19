@@ -4,6 +4,7 @@ using PdfReader.Color.ColorSpace;
 using PdfReader.Text;
 using PdfReader.Color.Paint;
 using PdfReader.Transparency.Model;
+using PdfReader.Fonts.Types;
 
 namespace PdfReader.Rendering.State
 {
@@ -152,9 +153,9 @@ namespace PdfReader.Rendering.State
         // Text state (see PDF 2.0 spec 9 Text) - tracked between BT/ET
         // --------------------------------------------------------------------------------------
         /// <summary>
-        /// Current font resource name (from Tf operator) or null.
+        /// Current font resource name from Tf operator or external graphics state.
         /// </summary>
-        public PdfString CurrentFont { get; set; }
+        public PdfFontBase CurrentFont { get; set; }
 
         /// <summary>
         /// Font size (Tf operator). Default 1.

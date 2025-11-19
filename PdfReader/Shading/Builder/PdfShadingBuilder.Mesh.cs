@@ -74,7 +74,7 @@ internal static partial class PdfShadingBuilder
 
         var area = meshBounds.Width * meshBounds.Height;
         var maxCount = MathF.Sqrt(area / patches.Count * MathF.Sqrt(3) / 4f); // average triangle side size in pixels
-        if (maxCount < 0)
+        if (maxCount < 1)
         {
             maxCount = 1;
         }

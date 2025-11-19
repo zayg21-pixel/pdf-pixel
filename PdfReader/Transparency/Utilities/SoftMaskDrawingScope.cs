@@ -122,7 +122,7 @@ public sealed class SoftMaskDrawingScope : IDisposable
 
                 var page = _softMask.MaskForm.GetFormPage();
                 var contentRenderer = new PdfContentStreamRenderer(_renderer, page);
-                contentRenderer.RenderContext(recCanvas, ref parseContext, maskGs, new HashSet<int>());
+                contentRenderer.RenderContext(recCanvas, ref parseContext, maskGs, new HashSet<uint>());
             }
 
             recCanvas.Restore();

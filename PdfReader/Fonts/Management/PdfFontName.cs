@@ -1,102 +1,96 @@
+using PdfReader.Fonts.Types;
 using PdfReader.Models;
 using System;
-using System.Collections.Generic;
 
-namespace PdfReader.Fonts.Management
+namespace PdfReader.Fonts.Management;
+
+/// <summary>
+/// Parsed representation of a PDF BaseFont PostScript name.
+/// Performs syntactic normalization (subset removal, manufacturer suffix removal, style token detection)
+/// and exposes a normalized stem (family stem without style tokens or trailing MT).
+/// </summary>
+public readonly struct PdfFontName : IEquatable<PdfFontName>
 {
-    /// <summary>
-    /// Parsed representation of a PDF BaseFont PostScript name.
-    /// Performs syntactic normalization (subset removal, manufacturer suffix removal, style token detection)
-    /// and exposes a normalized stem (family stem without style tokens or trailing MT).
-    /// </summary>
-    public sealed class PdfFontName
+    private static readonly string[] StyleTokensOrdered =
     {
-        private static readonly string[] StyleTokensOrdered =
+        "BoldItalic",
+        "BoldOblique",
+        "Bold",
+        "Italic",
+        "Oblique"
+    };
+
+    /// <summary>
+    /// Stem after removing subset tag, trailing manufacturer token (MT), and style tokens.
+    /// </summary>
+    public string NormalizedStem { get; }
+
+    /// <summary>
+    /// Style hint parsed from PostScript name tokens.
+    /// </summary>
+    public bool BoldHint { get; }
+
+    /// <summary>
+    /// Style hint parsed from PostScript name tokens.
+    /// </summary>
+    public bool ItalicHint { get; }
+
+    public PdfFontName(
+        string normalizedStem,
+        bool boldHint,
+        bool italicHint)
+    {
+        NormalizedStem = normalizedStem;
+        BoldHint = boldHint;
+        ItalicHint = italicHint;
+    }
+
+    /// <summary>
+    /// Parse a raw PDF BaseFont name into a <see cref="PdfFontName"/>.
+    /// </summary>
+    /// <param name="rawName">Raw BaseFont string (may be null or empty).</param>
+    /// <param name="descriptor">Font descriptor providing additional font metadata (can be null).</param>
+    public static PdfFontName Parse(PdfString rawName, PdfFontDescriptor descriptor)
+    {
+        if (rawName.IsEmpty)
         {
-            "BoldItalic",
-            "BoldOblique",
-            "Bold",
-            "Italic",
-            "Oblique"
-        };
-
-        /// <summary>
-        /// Raw BaseFont value from the PDF (may include subset prefix).
-        /// </summary>
-        public PdfString RawName { get; }
-
-        /// <summary>
-        /// Subset tag (e.g., ABCDEF) if present before '+'. Null if not subsetted.
-        /// </summary>
-        public string SubsetTag { get; }
-
-        /// <summary>
-        /// Stem after removing subset tag, trailing manufacturer token (MT), and style tokens.
-        /// </summary>
-        public string NormalizedStem { get; }
-
-        /// <summary>
-        /// Style hint parsed from PostScript name tokens (does not inspect font descriptors).
-        /// </summary>
-        public bool BoldHint { get; }
-
-        /// <summary>
-        /// Style hint parsed from PostScript name tokens (does not inspect font descriptors).
-        /// </summary>
-        public bool ItalicHint { get; }
-
-        private PdfFontName(
-            PdfString rawName,
-            string subsetTag,
-            string normalizedStem,
-            bool boldHint,
-            bool italicHint)
-        {
-            RawName = rawName;
-            SubsetTag = subsetTag;
-            NormalizedStem = normalizedStem;
-            BoldHint = boldHint;
-            ItalicHint = italicHint;
+            return new PdfFontName(string.Empty, false, false);
         }
 
-        /// <summary>
-        /// Parse a raw PDF BaseFont name into a <see cref="PdfFontName"/>.
-        /// </summary>
-        /// <param name="rawName">Raw BaseFont string (may be null or empty).</param>
-        public static PdfFontName Parse(PdfString rawName)
+        string working = rawName.ToString();
+        string subsetTag = null;
+
+        int plusIndex = working.IndexOf('+');
+        if (plusIndex > 0 && plusIndex < working.Length - 1)
         {
-            if (rawName.IsEmpty)
-            {
-                return new PdfFontName(PdfString.Empty, null, string.Empty, false, false);
-            }
+            subsetTag = working.Substring(0, plusIndex);
+            working = working.Substring(plusIndex + 1);
+        }
 
-            string working = rawName.ToString();
-            string subsetTag = null;
+        if (working.EndsWith("MT", StringComparison.Ordinal))
+        {
+            working = working.Substring(0, working.Length - 2);
+        }
 
-            int plusIndex = working.IndexOf('+');
-            if (plusIndex > 0 && plusIndex < working.Length - 1)
-            {
-                subsetTag = working.Substring(0, plusIndex);
-                working = working.Substring(plusIndex + 1);
-            }
+        string basePart = working;
+        string stylePart = null;
+        int hyphenIndex = working.IndexOf('-');
+        if (hyphenIndex > 0 && hyphenIndex < working.Length - 1)
+        {
+            basePart = working.Substring(0, hyphenIndex);
+            stylePart = working.Substring(hyphenIndex + 1);
+        }
 
-            if (working.EndsWith("MT", StringComparison.Ordinal))
-            {
-                working = working.Substring(0, working.Length - 2);
-            }
+        bool bold = false;
+        bool italic = false;
 
-            string basePart = working;
-            string stylePart = null;
-            int hyphenIndex = working.IndexOf('-');
-            if (hyphenIndex > 0 && hyphenIndex < working.Length - 1)
-            {
-                basePart = working.Substring(0, hyphenIndex);
-                stylePart = working.Substring(hyphenIndex + 1);
-            }
-
-            bool bold = false;
-            bool italic = false;
-
+        if (descriptor != null)
+        {
+            bold = descriptor.Flags.HasFlag(PdfFontFlags.ForceBold);
+            italic = descriptor.Flags.HasFlag(PdfFontFlags.Italic) || Math.Abs(descriptor.ItalicAngle) > 0.1f;
+        }
+        else
+        {
             if (!string.IsNullOrEmpty(stylePart))
             {
                 string lowered = stylePart.ToLowerInvariant();
@@ -109,8 +103,7 @@ namespace PdfReader.Fonts.Management
                     italic = true;
                 }
             }
-
-            if (stylePart == null)
+            else
             {
                 string temp = basePart;
                 foreach (string token in StyleTokensOrdered)
@@ -132,8 +125,35 @@ namespace PdfReader.Fonts.Management
                 }
                 basePart = temp;
             }
-
-            return new PdfFontName(rawName, subsetTag, basePart, bold, italic);
         }
+
+        return new PdfFontName(basePart, bold, italic);
+    }
+
+    /// <summary>
+    /// Determines whether the specified <see cref="PdfFontName"/> is equal to the current <see cref="PdfFontName"/>.
+    /// Comparison is based on NormalizedStem, BoldHint, and ItalicHint.
+    /// </summary>
+    public bool Equals(PdfFontName other)
+    {
+        return string.Equals(NormalizedStem, other.NormalizedStem, StringComparison.Ordinal)
+            && BoldHint == other.BoldHint
+            && ItalicHint == other.ItalicHint;
+    }
+
+    /// <summary>
+    /// Determines whether the specified object is equal to the current <see cref="PdfFontName"/>.
+    /// </summary>
+    public override bool Equals(object obj)
+    {
+        return obj is PdfFontName other && Equals(other);
+    }
+
+    /// <summary>
+    /// Returns a hash code for the current <see cref="PdfFontName"/>.
+    /// </summary>
+    public override int GetHashCode()
+    {
+        return HashCode.Combine(NormalizedStem, BoldHint, ItalicHint);
     }
 }

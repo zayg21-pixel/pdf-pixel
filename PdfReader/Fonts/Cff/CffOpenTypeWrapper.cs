@@ -305,7 +305,7 @@ internal static class CffOpenTypeWrapper
 
     private static byte[] BuildName(PdfFontDescriptor descriptor)
     {
-        var parsed = PdfFontName.Parse(descriptor?.FontName ?? default);
+        var parsed = PdfFontName.Parse(descriptor.FontName, descriptor);
 
         string family = parsed.NormalizedStem;
         if (string.IsNullOrWhiteSpace(family))
@@ -334,20 +334,8 @@ internal static class CffOpenTypeWrapper
             subfamily = "Regular";
         }
 
-        string baseNameNoSubset = parsed.RawName.ToString();
-        if (!string.IsNullOrEmpty(parsed.SubsetTag) && baseNameNoSubset.Length > parsed.SubsetTag.Length + 1)
-        {
-            int plusIndex = baseNameNoSubset.IndexOf('+');
-            if (plusIndex >= 0 && plusIndex < baseNameNoSubset.Length - 1)
-            {
-                baseNameNoSubset = baseNameNoSubset.Substring(plusIndex + 1);
-            }
-        }
-        if (string.IsNullOrEmpty(baseNameNoSubset))
-        {
-            baseNameNoSubset = family;
-        }
-        string postScriptName = baseNameNoSubset.Replace(' ', '-');
+        string baseName = parsed.NormalizedStem;
+        string postScriptName = baseName.Replace(' ', '-');
 
         var records = new List<(ushort NameId, string Value)>
         {

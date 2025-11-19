@@ -1,35 +1,62 @@
 using System.Collections.Generic;
 using PdfReader.Fonts.Types;
 using PdfReader.Models;
+using PdfReader.Text;
 
-namespace PdfReader.Fonts.Mapping
+namespace PdfReader.Fonts.Mapping;
+
+/// <summary>
+/// Holds encoding information parsed from a PDF font dictionary.
+/// </summary>
+public class PdfFontEncodingInfo
 {
-    /// <summary>
-    /// Holds encoding information parsed from a PDF font dictionary.
-    /// </summary>
-    public struct PdfFontEncodingInfo
+    public PdfFontEncodingInfo(PdfFontEncoding encoding, PdfString customEncoding, Dictionary<int, PdfString> differences)
     {
-        public PdfFontEncodingInfo(PdfFontEncoding encoding, PdfString customEncoding, Dictionary<int, PdfString> differences)
+        BaseEncoding = encoding;
+        CustomEncoding = customEncoding;
+        Differences = differences ?? new Dictionary<int, PdfString>();
+    }
+
+    /// <summary>
+    /// The resolved base encoding enum, or Unknown if not present.
+    /// </summary>
+    public PdfFontEncoding BaseEncoding { get; private set; }
+
+    /// <summary>
+    /// Custom encoding name (when Encoding == Custom). For name-based encodings not recognized.
+    /// </summary>
+    public PdfString CustomEncoding { get; }
+
+    /// <summary>
+    /// Differences array parsed from /Encoding dictionary as a code -> glyph name map.
+    /// Empty for name-based encodings or when not present. Empty otherwise.
+    /// </summary>
+    public Dictionary<int, PdfString> Differences { get; }
+
+    /// <summary>
+    /// Updates the differences map from the given encoding vector.
+    /// </summary>
+    /// <param name="encodingVector">Encoding vector.</param>
+    public void Update(PdfFontEncoding baseEncoding, PdfString[] encodingVector)
+    {
+        if (baseEncoding != PdfFontEncoding.Unknown)
         {
-            Encoding = encoding;
-            CustomEncoding = customEncoding;
-            Differences = differences;
+            BaseEncoding = baseEncoding;
         }
 
-        /// <summary>
-        /// The resolved base encoding enum (or Identity encodings for CID), or Unknown if not present.
-        /// </summary>
-        public PdfFontEncoding Encoding { get; }
+        if (encodingVector == null || encodingVector.Length == 0)
+        {
+            return;
+        }
 
-        /// <summary>
-        /// Custom encoding name (when Encoding == Custom). For name-based encodings not recognized.
-        /// </summary>
-        public PdfString CustomEncoding { get; }
+        for (int code = 0; code < encodingVector.Length; code++)
+        {
+            PdfString glyphName = encodingVector[code];
 
-        /// <summary>
-        /// Differences array parsed from /Encoding dictionary as a code -> glyph name map.
-        /// Empty for name-based encodings or when not present.
-        /// </summary>
-        public Dictionary<int, PdfString> Differences { get; }
+            if (!glyphName.IsEmpty && glyphName != SingleByteEncodings.UndefinedCharacter)
+            {
+                Differences[code] = glyphName;
+            }
+        }
     }
 }

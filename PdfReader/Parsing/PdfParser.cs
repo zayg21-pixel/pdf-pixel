@@ -152,7 +152,7 @@ namespace PdfReader.Parsing
                         if (values.Count >= 2)
                         {
                             int generation = values[values.Count - 1].AsInteger();
-                            int objectNumber = values[values.Count - 2].AsInteger();
+                            uint objectNumber = (uint)values[values.Count - 2].AsInteger();
                             values.RemoveRange(values.Count - 2, 2);
                             values.Add(PdfValueFactory.Reference(new PdfReference(objectNumber, generation)));
                         }

@@ -1,9 +1,9 @@
 ﻿using System;
 using System.Runtime.CompilerServices;
 
-namespace PdfReader.Fonts.Mapping
+namespace PdfReader.Fonts.TrueType
 {
-    internal class ExtractHelpers
+    internal class SnftExtractHelpers
     {
         /// <summary>
         /// Converts a 4-character tag to UInt32 as used in font tables.

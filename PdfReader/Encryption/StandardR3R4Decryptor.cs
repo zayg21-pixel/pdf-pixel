@@ -185,7 +185,7 @@ namespace PdfReader.Encryption
         {
             Span<byte> buffer = stackalloc byte[_fileKeyLengthBytes + 5];
             _fileKey.AsSpan(0, _fileKeyLengthBytes).CopyTo(buffer);
-            int obj = reference.ObjectNumber;
+            uint obj = reference.ObjectNumber;
             int gen = reference.Generation;
             buffer[_fileKeyLengthBytes + 0] = (byte)(obj & 0xFF);
             buffer[_fileKeyLengthBytes + 1] = (byte)((obj >> 8) & 0xFF);

@@ -21,7 +21,7 @@ namespace PdfReader.Parsing
         /// <summary>
         /// Cache of container object number -> decoded bytes so that repeated lazy loads do not re-decode filters.
         /// </summary>
-        private readonly Dictionary<int, ReadOnlyMemory<byte>> _decodedStreamCache = new Dictionary<int, ReadOnlyMemory<byte>>();
+        private readonly Dictionary<uint, ReadOnlyMemory<byte>> _decodedStreamCache = new Dictionary<uint, ReadOnlyMemory<byte>>();
 
         /// <summary>
         /// Create a new object stream parser bound to a PDF document.
@@ -112,7 +112,7 @@ namespace PdfReader.Parsing
             return pdfObject;
         }
 
-        private void EnsureOffsetsIndexed(int containerObjectNumber, ReadOnlyMemory<byte> decoded, int objectCount, int firstOffset)
+        private void EnsureOffsetsIndexed(uint containerObjectNumber, ReadOnlyMemory<byte> decoded, int objectCount, int firstOffset)
         {
             // If at least one compressed object for this container already has relative offset populated, assume done.
             foreach (var kvp in _pdfDocument.ObjectIndex)
@@ -148,7 +148,7 @@ namespace PdfReader.Parsing
                     break;
                 }
 
-                int objectNumber = objectNumberValue.AsInteger();
+                uint objectNumber = (uint)objectNumberValue.AsInteger();
                 int relativeOffset = offsetValue.AsInteger();
 
                 var reference = new PdfReference(objectNumber, 0);
@@ -162,7 +162,7 @@ namespace PdfReader.Parsing
             }
         }
 
-        private int? FindRelativeOffset(int containerObjectNumber, int targetIndex)
+        private int? FindRelativeOffset(uint containerObjectNumber, int targetIndex)
         {
             foreach (var kvp in _pdfDocument.ObjectIndex)
             {

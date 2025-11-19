@@ -1,12 +1,12 @@
 using System.Collections.Generic;
 using System.IO;
 
-namespace PdfReader.Fonts.Type1;
+namespace PdfReader.Fonts.Cff;
 
 /// <summary>
 /// Provides methods for encoding numbers in CFF/Type1 font dictionaries and charstrings.
 /// </summary>
-internal class FontNumberConverter
+internal class CffNumberConverter
 {
     /// <summary>
     /// Encodes a floating-point value using CFF DICT float encoding and writes it to the stream.
@@ -80,11 +80,11 @@ internal class FontNumberConverter
             byte encodedByte;
             if (nibbleIndex + 1 < nibbles.Count)
             {
-                encodedByte = (byte)((nibbles[nibbleIndex] << 4) | nibbles[nibbleIndex + 1]);
+                encodedByte = (byte)(nibbles[nibbleIndex] << 4 | nibbles[nibbleIndex + 1]);
             }
             else
             {
-                encodedByte = (byte)((nibbles[nibbleIndex] << 4) | 0xF);
+                encodedByte = (byte)(nibbles[nibbleIndex] << 4 | 0xF);
             }
 
             stream.WriteByte(encodedByte);
@@ -128,7 +128,7 @@ internal class FontNumberConverter
             stream.WriteByte(28);
             unchecked
             {
-                stream.WriteByte((byte)((value >> 8) & 0xFF));
+                stream.WriteByte((byte)(value >> 8 & 0xFF));
                 stream.WriteByte((byte)(value & 0xFF));
             }
             return;
@@ -137,15 +137,15 @@ internal class FontNumberConverter
         stream.WriteByte(29);
         unchecked
         {
-            stream.WriteByte((byte)((value >> 24) & 0xFF));
-            stream.WriteByte((byte)((value >> 16) & 0xFF));
-            stream.WriteByte((byte)((value >> 8) & 0xFF));
+            stream.WriteByte((byte)(value >> 24 & 0xFF));
+            stream.WriteByte((byte)(value >> 16 & 0xFF));
+            stream.WriteByte((byte)(value >> 8 & 0xFF));
             stream.WriteByte((byte)(value & 0xFF));
         }
     }
 
     /// <summary>
-    /// Encodes an integer value for Type1/Type2 charstrings and writes it to the stream.
+    /// Encodes an integer value for Type2 charstrings and writes it to the stream.
     /// </summary>
     /// <param name="stream">The output stream.</param>
     /// <param name="value">The integer value to encode.</param>
@@ -184,7 +184,7 @@ internal class FontNumberConverter
         if (value >= -32768 && value <= 32767)
         {
             stream.WriteByte(28); // shortint marker
-            stream.WriteByte((byte)((value >> 8) & 0xFF));
+            stream.WriteByte((byte)(value >> 8 & 0xFF));
             stream.WriteByte((byte)(value & 0xFF));
             return;
         }
@@ -202,9 +202,9 @@ internal class FontNumberConverter
         unchecked
         {
             int fixedPointValue = (int)(value * 65536.0f);
-            stream.WriteByte((byte)((fixedPointValue >> 24) & 0xFF));
-            stream.WriteByte((byte)((fixedPointValue >> 16) & 0xFF));
-            stream.WriteByte((byte)((fixedPointValue >> 8) & 0xFF));
+            stream.WriteByte((byte)(fixedPointValue >> 24 & 0xFF));
+            stream.WriteByte((byte)(fixedPointValue >> 16 & 0xFF));
+            stream.WriteByte((byte)(fixedPointValue >> 8 & 0xFF));
             stream.WriteByte((byte)(fixedPointValue & 0xFF));
         }
     }

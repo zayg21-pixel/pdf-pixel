@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using PdfReader.Fonts.Cff;
 using PdfReader.Models;
 using PdfReader.Text;
 
@@ -456,7 +457,7 @@ internal static class Type1CharStringConverter
         {
             if (value.Operation == ValueOperation.Div)
             {
-                FontNumberConverter.EncodeCharStringNumber(stream, (float)value.Value1 / value.Value2);
+                CffNumberConverter.EncodeCharStringNumber(stream, (float)value.Value1 / value.Value2);
             }
             else
             {
@@ -465,7 +466,7 @@ internal static class Type1CharStringConverter
         }
         else
         {
-            FontNumberConverter.EncodeCharStringNumber(stream, value.Value1);
+            CffNumberConverter.EncodeCharStringNumber(stream, value.Value1);
         }
     }
 }

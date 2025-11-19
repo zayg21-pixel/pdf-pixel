@@ -1,6 +1,5 @@
 using Microsoft.Extensions.Logging;
 using PdfReader.Color.Paint;
-using PdfReader.Fonts.Management;
 using PdfReader.Fonts.Types;
 using PdfReader.Forms;
 using PdfReader.Imaging.Model;
@@ -33,11 +32,11 @@ public class PdfRenderer : IPdfRenderer
     private readonly IFormRenderer _formRenderer;
     private readonly IShadingRenderer _shadingRenderer;
 
-    internal PdfRenderer(IFontCache fontCache, ILoggerFactory loggerFactory)
+    internal PdfRenderer(ILoggerFactory loggerFactory)
     {
         _loggerFactory = loggerFactory ?? throw new System.ArgumentNullException(nameof(loggerFactory));
         _logger = _loggerFactory.CreateLogger<PdfRenderer>();
-        _textRenderer = new PdfTextRenderer(this, fontCache, _loggerFactory);
+        _textRenderer = new PdfTextRenderer(this, _loggerFactory);
         _pathRenderer = new PathRenderer(this, _loggerFactory);
         _imageRenderer = new ImageRenderer(this, _loggerFactory);
         _formRenderer = new FormRenderer(this, _loggerFactory);
@@ -72,7 +71,7 @@ public class PdfRenderer : IPdfRenderer
     /// <summary>
     /// Render a form XObject onto the canvas with proper handling of transparency and soft masks.
     /// </summary>
-    public void DrawForm(SKCanvas canvas, PdfForm formXObject, PdfGraphicsState graphicsState, HashSet<int> processingXObjects)
+    public void DrawForm(SKCanvas canvas, PdfForm formXObject, PdfGraphicsState graphicsState, HashSet<uint> processingXObjects)
     {
         _formRenderer.DrawForm(canvas, formXObject, graphicsState, processingXObjects);
     }

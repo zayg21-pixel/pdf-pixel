@@ -176,7 +176,7 @@ public class TextOperators : IOperatorProcessor
             return;
         }
 
-        graphicsState.CurrentFont = fontName;
+        graphicsState.CurrentFont = _page.Cache.GetFont(fontName);
         graphicsState.FontSize = fontSize;
     }
 
@@ -347,6 +347,13 @@ public class TextOperators : IOperatorProcessor
 
     private void ProcessSetSpacingAndShowText(PdfGraphicsState graphicsState)
     {
+        if (!graphicsState.InTextObject)
+        {
+            return;
+        }
+
+        ProcessNextLine(graphicsState);
+
         var operands = PdfOperatorProcessor.GetOperands(3, _operandStack);
         if (operands.Count < 3 || !graphicsState.InTextObject)
         {
@@ -361,8 +368,7 @@ public class TextOperators : IOperatorProcessor
 
     private void ProcessSequence(PdfGraphicsState graphicsState, PdfTextSequence sequence)
     {
-        var font = _page.Cache.GetFont(graphicsState.CurrentFont);
-        var advancement = _renderer.DrawTextSequence(_canvas, sequence, graphicsState, font);
+        var advancement = _renderer.DrawTextSequence(_canvas, sequence, graphicsState, graphicsState.CurrentFont);
         var advanceMatrix = SKMatrix.CreateTranslation(advancement, 0);
         graphicsState.TextMatrix = SKMatrix.Concat(graphicsState.TextMatrix, advanceMatrix);
     }

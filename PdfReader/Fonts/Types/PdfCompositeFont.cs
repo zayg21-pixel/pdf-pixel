@@ -2,6 +2,7 @@ using PdfReader.Fonts.Mapping;
 using PdfReader.Models;
 using PdfReader.Parsing;
 using PdfReader.Text;
+using SkiaSharp;
 using System;
 using System.Collections.Generic;
 
@@ -10,13 +11,11 @@ namespace PdfReader.Fonts.Types
     /// <summary>
     /// Type0 (Composite) fonts: Multi-byte character support
     /// Acts as a wrapper that delegates to descendant CID fonts for actual rendering
-    /// Handles character encoding and script/language coordination
-    /// Uses thread-safe Lazy&lt;T&gt; pattern for heavy operations
+    /// Handles character encoding and script/language coordination.
     /// </summary>
     public class PdfCompositeFont : PdfFontBase
     {
-        // Thread-safe lazy loading using Lazy<T>
-        private readonly Lazy<List<PdfCIDFont>> _descendantFonts;
+        private readonly Lazy<List<PdfCidFont>> _descendantFonts;
         private readonly Lazy<PdfCMap> _codeToCidCMap;
 
         /// <summary>
@@ -25,29 +24,33 @@ namespace PdfReader.Fonts.Types
         /// <param name="fontObject">PDF dictionary containing the font definition</param>
         public PdfCompositeFont(PdfDictionary fontDictionary) : base(fontDictionary)
         {
+            CidEncoding = PdfFontEncodingParser.GetCidEncoding(fontDictionary);
             // Initialize thread-safe lazy loaders
-            _descendantFonts = new Lazy<List<PdfCIDFont>>(LoadDescendantFonts, isThreadSafe: true);
+            _descendantFonts = new Lazy<List<PdfCidFont>>(LoadDescendantFonts, isThreadSafe: true);
             _codeToCidCMap = new Lazy<PdfCMap>(LoadCodeToCidCMap, isThreadSafe: true);
         }
 
         /// <summary>
-        /// Get font descriptor (delegated to primary descendant)
-        /// Type0 fonts don't have their own FontDescriptor - it's in the descendant
+        /// CID font encoding (from /Encoding entry).
         /// </summary>
+        public PdfCidFontEncoding CidEncoding { get; }
+
         public override PdfFontDescriptor FontDescriptor => PrimaryDescendant?.FontDescriptor;
+
+        internal protected override SKTypeface Typeface => PrimaryDescendant?.Typeface;
         
         /// <summary>
         /// Descendant CID fonts that contain the actual font data
         /// Thread-safe lazy-loaded when first accessed - heavy operation
-        /// Usually contains one font, but can have multiple for multi-script support
+        /// Per PDF spec it's always one font.
         /// </summary>
-        public List<PdfCIDFont> DescendantFonts => _descendantFonts.Value;
+        public List<PdfCidFont> DescendantFonts => _descendantFonts.Value;
         
         /// <summary>
         /// Primary descendant font (first in array, handles most characters)
         /// This is where most properties are inherited from
         /// </summary>
-        public PdfCIDFont PrimaryDescendant => DescendantFonts.Count > 0 ? DescendantFonts[0] : null;
+        public PdfCidFont PrimaryDescendant => DescendantFonts.Count > 0 ? DescendantFonts[0] : null;
 
         /// <summary>
         /// Optional code->CID CMap derived from the parent /Encoding entry when it is a CMap stream.
@@ -89,7 +92,7 @@ namespace PdfReader.Fonts.Types
         public bool TryMapCodeToCid(PdfCharacterCode code, out uint cid)
         {
             // Identity encodings: code bytes represent CID directly
-            if (Encoding == PdfFontEncoding.IdentityH || Encoding == PdfFontEncoding.IdentityV)
+            if (CidEncoding == PdfCidFontEncoding.IdentityH || CidEncoding == PdfCidFontEncoding.IdentityV)
             {
                 cid = (uint)code;
                 return true;
@@ -109,9 +112,9 @@ namespace PdfReader.Fonts.Types
         /// <summary>
         /// Load descendant fonts (heavy operation - lazy loaded using GetPageObjects)
         /// </summary>
-        private List<PdfCIDFont> LoadDescendantFonts()
+        private List<PdfCidFont> LoadDescendantFonts()
         {
-            var descendants = new List<PdfCIDFont>();
+            var descendants = new List<PdfCidFont>();
 
             // Use GetPageObjects to get all descendant font objects
             var descendantObjects = Dictionary.GetObjects(PdfTokens.DescendantFontsKey);
@@ -124,7 +127,7 @@ namespace PdfReader.Fonts.Types
             {
                 var descendant = PdfFontFactory.CreateFont(descendantObj.Dictionary);
 
-                if (descendant is PdfCIDFont cidFont)
+                if (descendant is PdfCidFont cidFont)
                 {
                     descendants.Add(cidFont);
                 }
@@ -210,18 +213,18 @@ namespace PdfReader.Fonts.Types
         /// <returns>The code length in bytes (1 or 2).</returns>
         private int GetCharacterCodeLength()
         {
-            switch (Encoding)
+            switch (CidEncoding)
             {
-                case PdfFontEncoding.IdentityH:
-                case PdfFontEncoding.IdentityV:
-                case PdfFontEncoding.UniJIS_UTF16_H:
-                case PdfFontEncoding.UniJIS_UTF16_V:
-                case PdfFontEncoding.UniGB_UTF16_H:
-                case PdfFontEncoding.UniGB_UTF16_V:
-                case PdfFontEncoding.UniCNS_UTF16_H:
-                case PdfFontEncoding.UniCNS_UTF16_V:
-                case PdfFontEncoding.UniKS_UTF16_H:
-                case PdfFontEncoding.UniKS_UTF16_V:
+                case PdfCidFontEncoding.IdentityH:
+                case PdfCidFontEncoding.IdentityV:
+                case PdfCidFontEncoding.UniJIS_UTF16_H:
+                case PdfCidFontEncoding.UniJIS_UTF16_V:
+                case PdfCidFontEncoding.UniGB_UTF16_H:
+                case PdfCidFontEncoding.UniGB_UTF16_V:
+                case PdfCidFontEncoding.UniCNS_UTF16_H:
+                case PdfCidFontEncoding.UniCNS_UTF16_V:
+                case PdfCidFontEncoding.UniKS_UTF16_H:
+                case PdfCidFontEncoding.UniKS_UTF16_V:
                     return 2;
                 default:
                     return 1;

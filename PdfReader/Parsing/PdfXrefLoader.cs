@@ -172,7 +172,7 @@ namespace PdfReader.Parsing
 
                 for (int localIndex = 0; localIndex < entryCount; localIndex++)
                 {
-                    int entryObjectNumber = firstObject + localIndex;
+                    uint entryObjectNumber = (uint)(firstObject + localIndex);
                     if (!ParseSingleEntry(ref parser, entryObjectNumber))
                     {
                         _logger.LogWarning("PdfXrefLoader: Failed xref entry index {LocalIndex} (object {ObjectNumber}) at position {Position}.", localIndex, entryObjectNumber, parser.Position);
@@ -197,11 +197,11 @@ namespace PdfReader.Parsing
         /// Reads three tokens (offset, generation, status) without validating the first two types.
         /// Only the third (status) must be an operator 'n' or 'f'.
         /// </summary>
-        private bool ParseSingleEntry(ref PdfParser parser, int objectNumber)
+        private bool ParseSingleEntry(ref PdfParser parser, uint objectNumber)
         {
             int entryStart = parser.Position;
 
-            int offsetValue = parser.ReadNextValue().AsInteger();
+            uint offsetValue = (uint)parser.ReadNextValue().AsInteger();
             int generation = parser.ReadNextValue().AsInteger();
             PdfString statusString = parser.ReadNextValue().AsString();
 
@@ -322,7 +322,7 @@ namespace PdfReader.Parsing
                     position += w1;
                     long field3 = w2 == 0 ? 0 : ReadBigEndian(span.Slice(position, w2));
                     position += w2;
-                    int objNumber = start + localIndex;
+                    uint objNumber = (uint)(start + localIndex);
                     var reference = new PdfReference(objNumber, type == 1 ? (int)field3 : (type == 0 ? (int)field3 : 0));
                     PdfObjectInfo info;
                     switch (type)
@@ -343,7 +343,7 @@ namespace PdfReader.Parsing
                             {
                                 continue;
                             }
-                            info = PdfObjectInfo.ForCompressed(reference, (int)field2, (int)field3, true);
+                            info = PdfObjectInfo.ForCompressed(reference, (uint)field2, (int)field3, true);
                             break;
                         }
                         default:
