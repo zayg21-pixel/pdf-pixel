@@ -45,7 +45,6 @@ namespace PdfReader.Rendering.Text
             }
 
             var shapedGlyphs = new List<ShapedGlyph>();
-            float initialAdvance = 0f;
 
             for (int i = 0; i < textSequence.Items.Count; i++)
             {
@@ -74,8 +73,7 @@ namespace PdfReader.Rendering.Text
                         }
                         else
                         {
-                            shapedGlyphs.Insert(0, new ShapedGlyph(0, 0, initialAdvance));
-                            initialAdvance = adjustmentInUserSpace;
+                            shapedGlyphs.Insert(0, new ShapedGlyph(0, 0, adjustmentInUserSpace));
                         }
 
                         break;

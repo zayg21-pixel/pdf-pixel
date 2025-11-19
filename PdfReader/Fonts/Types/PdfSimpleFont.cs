@@ -44,7 +44,6 @@ namespace PdfReader.Fonts.Types
         /// </summary>
         public override bool IsEmbedded => FontDescriptor?.HasEmbeddedFont == true;
 
-
         public SKPath GetPath(PdfCharacterCode code)
         {
             return null;
@@ -68,10 +67,9 @@ namespace PdfReader.Fonts.Types
 
         private PdfFontEncoding GetResolvedEncoding(PdfFontEncoding baseEncoding)
         {
+            // TODO: handle CFF, gotta make an encoding vector instead of base + differences!
             if (baseEncoding == PdfFontEncoding.Unknown)
             {
-                // TODO: treat CFF correctly
-
                 switch (Type)
                 {
                     case PdfFontSubType.TrueType:

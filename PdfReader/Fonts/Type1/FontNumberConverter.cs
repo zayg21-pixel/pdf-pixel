@@ -184,22 +184,28 @@ internal class FontNumberConverter
         if (value >= -32768 && value <= 32767)
         {
             stream.WriteByte(28); // shortint marker
-            unchecked
-            {
-                stream.WriteByte((byte)((value >> 8) & 0xFF));
-                stream.WriteByte((byte)(value & 0xFF));
-            }
+            stream.WriteByte((byte)((value >> 8) & 0xFF));
+            stream.WriteByte((byte)(value & 0xFF));
             return;
         }
+    }
 
-        // LongInt (Type2 only):255 +4 bytes big-endian two's complement
+    /// <summary>
+    /// Encodes a floating-point value for Type1/Type2 charstrings and writes it to the stream as a signed 16.16 fixed-point number.
+    /// </summary>
+    /// <param name="stream">The output stream.</param>
+    /// <param name="value">The float value to encode.</param>
+    public static void EncodeCharStringNumber(Stream stream, float value)
+    {
+        // Always encode as long (255 marker) with 16.16 fixed-point
         stream.WriteByte(255);
         unchecked
         {
-            stream.WriteByte((byte)((value >> 24) & 0xFF));
-            stream.WriteByte((byte)((value >> 16) & 0xFF));
-            stream.WriteByte((byte)((value >> 8) & 0xFF));
-            stream.WriteByte((byte)(value & 0xFF));
+            int fixedPointValue = (int)(value * 65536.0f);
+            stream.WriteByte((byte)((fixedPointValue >> 24) & 0xFF));
+            stream.WriteByte((byte)((fixedPointValue >> 16) & 0xFF));
+            stream.WriteByte((byte)((fixedPointValue >> 8) & 0xFF));
+            stream.WriteByte((byte)(fixedPointValue & 0xFF));
         }
     }
 }

@@ -452,21 +452,20 @@ internal static class Type1CharStringConverter
 
     private static void WriteNumber(Stream stream, Type1CharStringNumber value)
     {
-        FontNumberConverter.EncodeCharStringNumber(stream, value.Value1);
         if (value.HasSecondValue)
         {
             if (value.Operation == ValueOperation.Div)
             {
-                // Division requires special handling – emit div operator after the two numbers.
-                FontNumberConverter.EncodeCharStringNumber(stream, value.Value2);
-                stream.WriteByte(OpEscape);
-                stream.WriteByte(EscDiv);
-                return;
+                FontNumberConverter.EncodeCharStringNumber(stream, (float)value.Value1 / value.Value2);
             }
             else
             {
                 throw new NotSupportedException("Unsupported second value operation in Type1 to Type2 CharString conversion.");
             }
+        }
+        else
+        {
+            FontNumberConverter.EncodeCharStringNumber(stream, value.Value1);
         }
     }
 }

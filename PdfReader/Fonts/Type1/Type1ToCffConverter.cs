@@ -18,12 +18,17 @@ internal static class Type1ToCffConverter
     /// <summary>
     /// Retrieves the CFF font data from a Type1 font program embedded in the given font descriptor.
     /// </summary>
-    /// <param name="descriptor">Font descriptor instance.</param>
+    /// <param name="font">Font instance.</param>
     /// <returns>CFF font bytes.</returns>
     /// <exception cref="InvalidDataException">Invalid font data.</exception>
-    public static byte[] GetCffFont(PdfFontDescriptor descriptor)
+    public static byte[] GetCffFont(PdfSimpleFont font)
     {
-        var file = descriptor.FontFileObject;
+        if (font.FontDescriptor == null)
+        {
+            throw new InvalidDataException("Missing FontDescriptor for Type1 font.");
+        }
+
+        var file = font.FontDescriptor.FontFileObject;
         var length1 = file.Dictionary.GetIntegerOrDefault(PdfTokens.Length1);
         var length2 = file.Dictionary.GetIntegerOrDefault(PdfTokens.Length2);
         var length3 = file.Dictionary.GetIntegerOrDefault(PdfTokens.Length3);
@@ -50,9 +55,9 @@ internal static class Type1ToCffConverter
             throw new InvalidDataException("Invalid Length2 for Type1 font stream (spec compliance required).");
         }
 
-        var parsedDictionary = ParseFontProgram(descriptor, rawData, length1, length2, file.Document.LoggerFactory);
+        var parsedDictionary = ParseFontProgram(font.FontDescriptor, rawData, length1, length2, file.Document.LoggerFactory);
 
-        return Type1DictionaryToCffConverter.GenerateCffFontDataFromDictionary(parsedDictionary, descriptor);
+        return Type1DictionaryToCffConverter.GenerateCffFontDataFromDictionary(parsedDictionary, font);
     }
 
     private static PostScriptDictionary ParseFontProgram(PdfFontDescriptor descriptor, ReadOnlyMemory<byte> rawData, int length1, int length2, ILoggerFactory loggerFactory)

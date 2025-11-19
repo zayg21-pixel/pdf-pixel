@@ -15,16 +15,18 @@ internal static class Type1DictionaryToCffConverter
 {
     private const int FirstCustomSid = 391; // CFF spec: custom strings start at SID391.
 
-    public static byte[] GenerateCffFontDataFromDictionary(PostScriptDictionary fontDictionary, PdfFontDescriptor descriptor)
+    public static byte[] GenerateCffFontDataFromDictionary(PostScriptDictionary fontDictionary, PdfSimpleFont font)
     {
         if (fontDictionary == null)
         {
             return null;
         }
-        if (descriptor == null)
+        if (font?.FontDescriptor == null)
         {
             return null;
         }
+
+        PdfFontDescriptor descriptor = font.FontDescriptor;
 
         Dictionary<PdfString, byte[]> type1CharStrings = Type1FontDictionaryUtilities.GetCharStrings(fontDictionary);
         Dictionary<int, byte[]> type1Subrs = Type1FontDictionaryUtilities.GetSubroutines(fontDictionary); // Source local subrs for flattening.
@@ -50,6 +52,19 @@ internal static class Type1DictionaryToCffConverter
         Dictionary<PdfString, byte[]> type2CharStrings = Type1CharStringConverter.ConvertAllCharStringsToType2Flatten(parameters);
 
         PdfString[] encodingVector = Type1FontDictionaryUtilities.GetEncodingVector(fontDictionary) ?? Array.Empty<PdfString>();
+        Array.Resize(ref encodingVector, 255);
+
+        foreach (var difference in font.Differences)
+        {
+            var code = difference.Key;
+            if (code < encodingVector.Length && type2CharStrings.ContainsKey(difference.Value))
+            {
+                encodingVector[code] = difference.Value;
+            }
+        }
+
+        // TODO: we need to not only merge differences, but also ensure that font gets correct encoding data!
+        // we also need to merge with font's base encoding if it's defined. Basically, override encoding vector if font defines it's own!
 
         var glyphCollections = BuildGlyphCollections(encodingVector, type2CharStrings);
         List<byte[]> orderedCharStrings = glyphCollections.OrderedCharStrings;

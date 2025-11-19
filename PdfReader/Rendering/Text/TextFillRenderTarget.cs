@@ -55,8 +55,12 @@ internal class TextFillRenderTarget : IRenderTarget
             canvas.Concat(textMatrix);
 
             using var blob = TextRenderUtilities.BuldTextBlob(_shapingResult, _font);
-            using var paint = PdfPaintFactory.CreateFillPaint(_state);
-            canvas.DrawText(blob, 0f, 0f, paint);
+
+            if (blob != null)
+            {
+                using var paint = PdfPaintFactory.CreateFillPaint(_state);
+                canvas.DrawText(blob, 0f, 0f, paint);
+            }
 
             canvas.Restore();
         }
