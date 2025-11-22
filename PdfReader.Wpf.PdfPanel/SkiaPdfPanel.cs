@@ -18,7 +18,7 @@ namespace PdfReader.Wpf.PdfPanel
     /// </summary>
     public partial class SkiaPdfPanel : FrameworkElement
     {
-        private const bool UseGpuAcceleration = false;
+        public static bool UseGpuAcceleration = false;
 
         private readonly VisualCollection children;
         private ConcurrentQueue<DrawingRequest> updateQueue;
@@ -354,7 +354,7 @@ namespace PdfReader.Wpf.PdfPanel
 
         private static SKSurface CreateSurface(SKSurface source, GRContext context, int width, int height)
         {
-            var info = new SKImageInfo(width, height, SKColorType.Rgba8888, SKAlphaType.Premul, SKColorSpace.CreateSrgb());
+            var info = new SKImageInfo(width, height, SKColorType.Bgra8888, SKAlphaType.Premul, SKColorSpace.CreateSrgb());
 
             var result = GetBaseSurface(info, context);
 

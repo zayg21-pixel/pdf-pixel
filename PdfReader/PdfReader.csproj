@@ -36,26 +36,7 @@
     </AssemblyAttribute>
   </ItemGroup>
   <ItemGroup>
-    <EmbeddedResource Include="Resources\Agl.bin">
-      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
-    </EmbeddedResource>
-    <EmbeddedResource Include="Resources\AnsiEncodings.bin">
-      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
-    </EmbeddedResource>
-    <EmbeddedResource Include="Resources\CompactCmyk.icc" />
-    <EmbeddedResource Include="Resources\ExpertStrings.bin" />
-    <EmbeddedResource Include="Resources\ExpertSubsetStrings.bin" />
-    <EmbeddedResource Include="Resources\IsoAdobeStrings.bin" />
-    <EmbeddedResource Include="Resources\MacExpertEncodings.bin">
-      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
-    </EmbeddedResource>
-    <EmbeddedResource Include="Resources\MacRomanEncodings.bin">
-      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
-    </EmbeddedResource>
-    <EmbeddedResource Include="Resources\StandardEncodings.bin">
-      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
-    </EmbeddedResource>
-    <EmbeddedResource Include="Resources\StandardStrings.bin" />
+    <EmbeddedResource Include="Resources\**\*" />
   </ItemGroup>
 
   <ItemGroup>

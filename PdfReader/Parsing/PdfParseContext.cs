@@ -239,6 +239,19 @@ namespace PdfReader.Parsing
             _currentChunkEnd = 0;
         }
 
+        public byte[] ToArray()
+        {
+            byte[] result = new byte[_length];
+            int destOffset = 0;
+            foreach (var chunk in _chunks)
+            {
+                var span = chunk.Span;
+                span.CopyTo(result.AsSpan(destOffset, span.Length));
+                destOffset += span.Length;
+            }
+            return result;
+        }
+
         public override string ToString()
         {
             StringBuilder builder = new StringBuilder();

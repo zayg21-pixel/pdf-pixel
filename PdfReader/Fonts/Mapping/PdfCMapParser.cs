@@ -3,6 +3,9 @@ using System.Text;
 using PdfReader.Parsing;
 using PdfReader.Models;
 using PdfReader.Text;
+using PdfReader.PostScript;
+using Microsoft.Extensions.Logging;
+using PdfReader.PostScript.Tokens;
 
 namespace PdfReader.Fonts.Mapping;
 
@@ -14,6 +17,13 @@ public static class PdfCMapParser
     public static PdfCMap ParseCMapFromContext(ref PdfParseContext context, PdfDocument document)
     {
         var cmap = new PdfCMap();
+        var array = context.ToArray();
+
+        var n = new PostScriptEvaluator(array, false, document.LoggerFactory.CreateLogger<PostScriptEvaluator>());
+        n.SetResourceValue("ProcSet", "CIDInit", new PostScriptDictionary());
+        var s = new System.Collections.Generic.Stack<PostScriptToken>();
+        n.EvaluateTokens(s);
+
         var parser = new PdfParser(context, document, allowReferences: false, decrypt: false);
         IPdfValue value;
 
@@ -52,7 +62,7 @@ public static class PdfCMapParser
     
     private static void ResolveAndMergeUseCMap(ref PdfParser parser, PdfDocument document, PdfCMap target)
     {
-        var cmapName = parser.ReadNextValue().AsName();
+        var cmapName = parser.ReadNextValue().AsString();
 
         // Prefer cached by name when available
         if (cmapName.IsEmpty)

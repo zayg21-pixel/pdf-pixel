@@ -12,6 +12,7 @@ using System.IO;
 using PdfReader.Color.ColorSpace;
 using PdfReader.Color.Icc.Model;
 using PdfReader.Functions;
+using PdfReader.Resources;
 
 namespace PdfReader.Models
 {
@@ -52,7 +53,10 @@ namespace PdfReader.Models
 
         public PdfCMap GetCmap(PdfString name)
         {
-            return null;
+            var cmapBytes = PdfResourceLoader.GetGZipCompressedResource("CMaps.zip", name.ToString());
+            var parseContext = new PdfParseContext(cmapBytes);
+            var cMap = PdfCMapParser.ParseCMapFromContext(ref parseContext, this);
+            return cMap;
             // TODO: Implement standard CMap retrieval (predefined and embedded)
         }
 

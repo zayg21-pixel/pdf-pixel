@@ -1,5 +1,8 @@
 ﻿using PdfReader.Text;
 using System.IO;
+using System.IO.Compression;
+using System.Linq;
+using System.Resources;
 
 namespace PdfReader.Resources
 {
@@ -25,6 +28,25 @@ namespace PdfReader.Resources
             using MemoryStream memoryStream = new MemoryStream();
             stream.CopyTo(memoryStream);
             return memoryStream.ToArray();
+        }
+
+        public static byte[] GetGZipCompressedResource(string resourceName, string catalogPath)
+        {
+            var assembly = typeof(PdfTextResourceConverter).Assembly;
+            using Stream compressedStream = assembly.GetManifestResourceStream($"PdfReader.Resources.{resourceName}");
+
+            if (compressedStream == null)
+            {
+                throw new FileNotFoundException($"Resource '{resourceName}' not found.");
+            }
+
+            using var zipArchive = new ZipArchive(compressedStream);
+            var entry = zipArchive.Entries.FirstOrDefault(e => string.Equals(e.FullName, catalogPath, System.StringComparison.OrdinalIgnoreCase));
+            
+            using var entryStream = entry.Open();
+            using var decompressedStream = new MemoryStream();
+            entryStream.CopyTo(decompressedStream);
+            return decompressedStream.ToArray();
         }
     }
 }

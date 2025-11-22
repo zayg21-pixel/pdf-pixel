@@ -89,6 +89,7 @@ public static class PdfPaintFactory
     public static SKPaint CreateImagePaint(PdfGraphicsState state)
     {
         var paint = CreateBasePaint(state);
+        paint.IsAntialias = false;
 
         // For images, we typically use fill alpha since images are considered non-stroking operations
         paint.Color = ApplyAlpha(SKColors.White, state.FillAlpha);
@@ -97,30 +98,39 @@ public static class PdfPaintFactory
     }
 
     /// <summary>
-    /// Paint for masked image drawing (no special blend mode).
+    /// Paint for masked image drawing (no special blend mode, antiliasing disabled).
     /// </summary>
     /// <returns></returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static SKPaint CreateMaskedImagePaint()
     {
+        return new SKPaint();
+    }
+
+    /// <summary>
+    /// Paint for filling masked images (No special blend mode, antiliasing enabled).
+    /// </summary>
+    /// <returns></returns>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static SKPaint CreateFillMaskedImagePaint()
+    {
         return new SKPaint { IsAntialias = true };
     }
 
     /// <summary>
-    /// Image mask paint (DstIn blend mode).
+    /// Image mask paint (DstIn blend mode, antiliasing disabled).
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static SKPaint CreateImageMaskPaint()
     {
         return new SKPaint
         {
-            IsAntialias = true,
             BlendMode = SKBlendMode.DstIn,
         };
     }
 
     /// <summary>
-    /// Image fill for stencil/mask images.
+    /// Image fill for stencil/mask images (from base fill paint, antiliasing enabled).
     /// </summary>
     /// <returns></returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -203,7 +213,7 @@ public static class PdfPaintFactory
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static SKSamplingOptions GetImageSamplingOptions(PdfImage image)
     {
-        if (image.Interpolate || image.BitsPerComponent >= 8)
+        if (image.Interpolate)
         {
             return new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.None);
         }

@@ -67,8 +67,6 @@ internal sealed partial class ColorSpaceResolver
     /// </summary>
     public PdfColorSpaceConverter ResolveDeviceConverter(PdfColorSpaceType colorSpace)
     {
-        var deviceName = colorSpace.AsPdfString();
-
         switch (colorSpace)
         {
             case PdfColorSpaceType.DeviceGray:

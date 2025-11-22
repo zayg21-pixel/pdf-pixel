@@ -19,6 +19,7 @@ namespace PdfReader.PostScript
         // Dictionary stack (system then user); executable names are resolved through this before builtins.
         private readonly Stack<PostScriptDictionary> _dictStack = new Stack<PostScriptDictionary>();
         private readonly PostScriptDictionary _systemDict = new PostScriptDictionary();
+        private readonly PostScriptDictionary _resources = new PostScriptDictionary();
         private readonly PostScriptDictionary _userDict = new PostScriptDictionary();
 
         private Random _random = new Random();
@@ -208,6 +209,12 @@ namespace PdfReader.PostScript
 
             // File-related stub operators (currentfile, closefile, eexec)
             if (TryExecuteIOOperator(name, stack))
+            {
+                return;
+            }
+
+
+            if (TryProcessResourceOperator(name, stack))
             {
                 return;
             }

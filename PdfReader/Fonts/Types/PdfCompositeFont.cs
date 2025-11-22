@@ -143,6 +143,13 @@ namespace PdfReader.Fonts.Types
         /// </summary>
         private PdfCMap LoadCodeToCidCMap()
         {
+            var predefinedName = Dictionary.GetName(PdfTokens.EncodingKey);
+
+            if (predefinedName != null)
+            {
+                return Document.GetCmap(predefinedName);
+            }
+
             var encodingObj = Dictionary.GetObject(PdfTokens.EncodingKey);
             if (encodingObj == null)
             {
