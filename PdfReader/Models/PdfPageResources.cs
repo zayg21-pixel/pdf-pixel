@@ -1,3 +1,4 @@
+using PdfReader.Rendering.Operators;
 using PdfReader.Text;
 using SkiaSharp;
 
@@ -86,11 +87,11 @@ namespace PdfReader.Models
             }
             if (dict.HasKey(PdfTokens.MediaBoxKey))
             {
-                MediaBoxRect = ParseRect(dict.GetValue(PdfTokens.MediaBoxKey).AsArray());
+                MediaBoxRect = PdfLocationUtilities.CreateBBox(dict.GetArray(PdfTokens.MediaBoxKey));
             }
             if (dict.HasKey(PdfTokens.CropBoxKey))
             {
-                CropBoxRect = ParseRect(dict.GetValue(PdfTokens.CropBoxKey).AsArray());
+                CropBoxRect = PdfLocationUtilities.CreateBBox(dict.GetArray(PdfTokens.CropBoxKey));
             }
             if (dict.HasKey(PdfTokens.RotateKey))
             {
@@ -98,43 +99,21 @@ namespace PdfReader.Models
             }
             if (dict.HasKey(PdfTokens.BleedBoxKey))
             {
-                BleedBoxRect = ParseRect(dict.GetValue(PdfTokens.BleedBoxKey).AsArray());
+                BleedBoxRect = PdfLocationUtilities.CreateBBox(dict.GetArray(PdfTokens.BleedBoxKey));
             }
             if (dict.HasKey(PdfTokens.TrimBoxKey))
             {
-                TrimBoxRect = ParseRect(dict.GetValue(PdfTokens.TrimBoxKey).AsArray());
+                TrimBoxRect = PdfLocationUtilities.CreateBBox(dict.GetArray(PdfTokens.TrimBoxKey));
             }
             if (dict.HasKey(PdfTokens.ArtBoxKey))
             {
-                ArtBoxRect = ParseRect(dict.GetValue(PdfTokens.ArtBoxKey).AsArray());
+                ArtBoxRect = PdfLocationUtilities.CreateBBox(dict.GetArray(PdfTokens.ArtBoxKey));
             }
-        }
-
-        /// <summary>
-        /// Convert a PDF box array [llx lly urx ury] (lower-left, lower-left, upper-right, upper-right) to an <see cref="SKRect"/>.
-        /// Returns null only if array is null or has fewer than4 items.
-        /// </summary>
-        /// <param name="array">Source PDF array.</param>
-        private SKRect? ParseRect(PdfArray array)
-        {
-            if (array == null)
-            {
-                return null;
-            }
-            if (array.Count <4)
-            {
-                return null;
-            }
-            float lowerLeftX = array.GetFloat(0);
-            float lowerLeftY = array.GetFloat(1);
-            float upperRightX = array.GetFloat(2);
-            float upperRightY = array.GetFloat(3);
-            return new SKRect(lowerLeftX, lowerLeftY, upperRightX, upperRightY);
         }
 
         private static int NormalizeRotation(int rotation)
         {
-            return (rotation %360 +360) %360;
+            return (rotation % 360 + 360) % 360;
         }
     }
 }
