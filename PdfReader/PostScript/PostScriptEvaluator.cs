@@ -101,6 +101,11 @@ namespace PdfReader.PostScript
                         stack.Push(textString);
                         break;
                     }
+                    case PostScriptDictionary dictionary:
+                    {
+                        stack.Push(dictionary);
+                        break;
+                    }
                     case PostScriptBinaryString binaryString:
                     {
                         stack.Push(binaryString);
@@ -207,12 +212,21 @@ namespace PdfReader.PostScript
                 return;
             }
 
+            if (TryProcessCollectionOperator(name, stack))
+            {
+                return;
+            }
+
             // File-related stub operators (currentfile, closefile, eexec)
             if (TryExecuteIOOperator(name, stack))
             {
                 return;
             }
 
+            if (TryProcessCMapOperator(name, stack))
+            {
+                return;
+            }
 
             if (TryProcessResourceOperator(name, stack))
             {
@@ -276,6 +290,8 @@ namespace PdfReader.PostScript
                 default:
                 {
                     _logger?.LogWarning("Unsupported PostScript operator/name: {Operator}", name);
+                    // push as literal name instead
+                    stack.Push(new PostScriptLiteralName(name));
                     break;
                 }
             }

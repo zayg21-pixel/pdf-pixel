@@ -1,7 +1,15 @@
+using PdfReader.Fonts.Types;
+using PdfReader.Models;
 using System;
 using System.Collections.Generic;
 
 namespace PdfReader.Fonts.Mapping;
+
+public enum CMapWMode
+{
+    Horizontal = 0,
+    Vertical = 1
+}
 
 /// <summary>
 /// General CMap for character mapping (length-aware, character code-based).
@@ -20,6 +28,21 @@ public class PdfCMap
     /// True if any codespace ranges are present.
     /// </summary>
     public bool HasCodeSpaceRanges => _codeSpaceRanges.Count > 0;
+
+    /// <summary>
+    /// Defined CMap name.
+    /// </summary>
+    public PdfString Name { get; internal set; }
+
+    /// <summary>
+    /// System info for CID mappings, if applicable.
+    /// </summary>
+    public PdfCidSystemInfo CidSystemInfo { get; internal set; }
+
+    /// <summary>
+    /// WMode for this CMap (horizontal/vertical).
+    /// </summary>
+    public CMapWMode WMode { get; internal set; }
 
     /// <summary>
     /// Add a codespace range pair. Start and end must have the same length (1..4 bytes).

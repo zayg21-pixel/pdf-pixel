@@ -4,6 +4,7 @@ using PdfReader.PostScript.Tokens;
 using PdfReader.Models;
 using PdfReader.Fonts.Types;
 using PdfReader.Text;
+using System.Text;
 
 namespace PdfReader.Fonts.Type1;
 
@@ -72,10 +73,6 @@ internal static class Type1FontDictionaryUtilities
             if (token is PostScriptLiteralName ln)
             {
                 return ln.Name;
-            }
-            if (token is PostScriptString ps)
-            {
-                return ps.Value;
             }
         }
         return null;

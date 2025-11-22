@@ -16,6 +16,7 @@ namespace PdfReader.PostScript
         private enum FrameKind
         {
             Procedure,
+            Dictionary,
             Array
         }
 
@@ -106,11 +107,70 @@ namespace PdfReader.PostScript
                         result.Add(new PostScriptArray(inner));
                         continue;
                     }
+                    case '>':
+                    {
+                        position++;
+                        if (position < length && data[position] == (byte)'>')
+                        {
+                            // Dictionary end '>>'
+                            position++;
+                            if (frames.Count == 0 || frames.Peek().Kind != FrameKind.Dictionary)
+                            {
+                                throw new InvalidOperationException("Unexpected closing dictionary '>>' with no matching '<<'.");
+                            }
+                            Frame frame = frames.Pop();
+                            int count = result.Count - frame.StartIndex;
+                            if (count < 0)
+                            {
+                                throw new InvalidOperationException("Internal tokenizer frame error for dictionary.");
+                            }
+                            var dict = new Dictionary<string, PostScriptToken>();
+                            for (int i = frame.StartIndex; i < result.Count; i += 2)
+                            {
+                                if (i + 1 >= result.Count)
+                                {
+                                    throw new InvalidOperationException("Odd number of elements in PostScript dictionary.");
+                                }
+
+                                var key = result[i];
+
+                                if (key is not PostScriptLiteralName keyName)
+                                {
+                                    throw new InvalidOperationException("Invalid dictionary key type.");
+                                }
+
+                                dict[keyName.Name] = result[i + 1];
+                            }
+                            result.RemoveRange(frame.StartIndex, count);
+                            result.Add(new PostScriptDictionary(dict));
+                            continue;
+                        }
+                        else
+                        {
+                            throw new InvalidOperationException("Unexpected single '>' character in PostScript data.");
+                        }
+                    }
                     case '(':
                     {
-                        string str = ReadLiteralString(data, ref position);
+                        byte[] str = ReadLiteralString(data, ref position);
                         result.Add(new PostScriptString(str));
                         continue;
+                    }
+                    case '<':
+                    {
+                        if (position + 1 < length && data[position + 1] == (byte)'<')
+                        {
+                            // Dictionary start '<<'
+                            position += 2;
+                            frames.Push(new Frame(FrameKind.Dictionary, result.Count));
+                            continue;
+                        }
+                        else
+                        {
+                            byte[] hex = ReadHexString(data, ref position);
+                            result.Add(new PostScriptString(hex));
+                            continue;
+                        }
                     }
                     case '/':
                     {
@@ -223,6 +283,8 @@ namespace PdfReader.PostScript
                 case (byte)'}':
                 case (byte)'[':
                 case (byte)']':
+                case (byte)'<':
+                case (byte)'>':
                     return true;
                 default:
                     return false;
@@ -258,44 +320,110 @@ namespace PdfReader.PostScript
             }
         }
 
-        private static string ReadLiteralString(ReadOnlySpan<byte> data, ref int position)
+        private static byte[] ReadLiteralString(ReadOnlySpan<byte> data, ref int position)
         {
             if (position >= data.Length || data[position] != (byte)'(')
             {
-                return string.Empty;
+                return Array.Empty<byte>();
             }
             position++; // consume '('
-            var builder = new StringBuilder();
+            var builder = new List<byte>();
             int depth = 1;
             int length = data.Length;
             while (position < length && depth > 0)
             {
                 byte b = data[position++];
-                char c = (char)b;
-                if (c == '(')
+                if (b == '(')
                 {
                     depth++;
-                    builder.Append(c);
+                    builder.Add(b);
                 }
-                else if (c == ')')
+                else if (b == ')')
                 {
                     depth--;
                     if (depth > 0)
                     {
-                        builder.Append(c);
+                        builder.Add(b);
                     }
                 }
-                else if (c == '\\' && position < length)
+                else if (b == '\\' && position < length)
                 {
-                    char escaped = (char)data[position++];
-                    builder.Append(escaped);
+                    var escaped = data[position++];
+                    builder.Add(escaped);
                 }
                 else
                 {
-                    builder.Append(c);
+                    builder.Add(b);
                 }
             }
-            return builder.ToString();
+            return builder.ToArray();
+        }
+
+        private static byte[] ReadHexString(ReadOnlySpan<byte> data, ref int position)
+        {
+            if (position >= data.Length || data[position] != (byte)'<')
+            {
+                return Array.Empty<byte>();
+            }
+            position++; // consume '<'
+            var bytes = new List<byte>();
+            int firstNibble = -1;
+            int length = data.Length;
+            while (position < length)
+            {
+                byte b = data[position];
+                if (b == (byte)'>')
+                {
+                    position++; // consume '>'
+                    break;
+                }
+                if (IsPsWhitespace(b))
+                {
+                    position++;
+                    continue;
+                }
+                int value = HexCharToInt((char)b);
+                if (value == -1)
+                {
+                    throw new InvalidOperationException($"Invalid hex character '{(char)b}' in PostScript hex string.");
+                }
+                if (firstNibble == -1)
+                {
+                    firstNibble = value;
+                }
+                else
+                {
+                    bytes.Add((byte)((firstNibble << 4) | value));
+                    firstNibble = -1;
+                }
+                position++;
+            }
+            if (firstNibble != -1)
+            {
+                // Odd number of digits: pad with 0
+                bytes.Add((byte)(firstNibble << 4));
+            }
+            return bytes.ToArray();
+        }
+
+        /// <summary>
+        /// Converts a hex character to its integer value, or -1 if invalid.
+        /// </summary>
+        private static int HexCharToInt(char c)
+        {
+            if (c >= '0' && c <= '9')
+            {
+                return c - '0';
+            }
+            if (c >= 'A' && c <= 'F')
+            {
+                return c - 'A' + 10;
+            }
+            if (c >= 'a' && c <= 'f')
+            {
+                return c - 'a' + 10;
+            }
+            return -1;
         }
     }
 }

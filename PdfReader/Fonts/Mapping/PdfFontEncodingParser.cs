@@ -74,25 +74,4 @@ public static class PdfFontEncodingParser
         // Fallback: unknown encoding representation
         return new PdfFontEncodingInfo(PdfFontEncoding.Unknown, PdfString.Empty, null);
     }
-
-    public static PdfCidFontEncoding GetCidEncoding(PdfDictionary dictionary)
-    {
-        var encodingValue = dictionary.GetValue(PdfTokens.EncodingKey);
-        if (encodingValue == null)
-        {
-            // No /Encoding specified, assume standard
-            return PdfCidFontEncoding.Unknown;
-        }
-
-        // Name case: /Encoding /UniJIS-UTF16-H, etc.
-        var name = encodingValue.AsName();
-
-        if (!name.IsEmpty)
-        {
-            return name.AsEnum<PdfCidFontEncoding>();
-        }
-
-        // Fallback: unknown encoding representation
-        return PdfCidFontEncoding.Unknown;
-    }
 }

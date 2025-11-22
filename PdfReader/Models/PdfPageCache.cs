@@ -127,30 +127,20 @@ namespace PdfReader.Models
             {
                 return null;
             }
-            var patternReference = _patternDictionary.GetReference(patternName);
-            PdfObject patternObject = null;
-            if (patternReference.IsValid)
-            {
-                patternObject = _page.Document.GetObject(patternReference);
-            }
-            else
-            {
-                var inlinePatternDictionary = _patternDictionary.GetDictionary(patternName);
-                if (inlinePatternDictionary != null)
-                {
-                    patternObject = new PdfObject(default, _page.Document, PdfValueFactory.Dictionary(inlinePatternDictionary));
-                }
-            }
+            PdfObject patternObject = _patternDictionary.GetObject(patternName);
+
             if (patternObject == null)
             {
                 return null;
             }
 
             var parsedPattern = PdfPatternParser.ParsePattern(renderer, patternObject, _page);
+
             if (parsedPattern != null)
             {
                 _patternsByName[patternName] = parsedPattern;
             }
+
             return parsedPattern;
         }
 

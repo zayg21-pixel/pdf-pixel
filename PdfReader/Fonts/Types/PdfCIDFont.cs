@@ -153,7 +153,7 @@ public class PdfCidFont : PdfFontBase
 
         var substitutedTypeface = Document.FontSubstitutor.SubstituteTypeface(BaseFont, FontDescriptor);
 
-        return (substitutedTypeface, null, false);
+        return (substitutedTypeface, null, true);
     }
 
     private PdfCidSystemInfo LoadCidSystemInfo()
@@ -228,7 +228,7 @@ public class PdfCidFont : PdfFontBase
 
     protected override void Dispose(bool disposing)
     {
-        if (_isSubstituted)
+        if (!_isSubstituted)
         {
             _typeface.Dispose();
         }

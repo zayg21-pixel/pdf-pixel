@@ -18,7 +18,6 @@ namespace PdfReader.Fonts.Types;
 public abstract class PdfFontBase : IDisposable
 {
     private readonly ConcurrentDictionary<PdfCharacterCode, PdfCharacterInfo> _characterInfoCache = new ConcurrentDictionary<PdfCharacterCode, PdfCharacterInfo>();
-    private bool disposedValue;
 
     /// <summary>
     /// Constructor for all PDF fonts with essential immutable properties
@@ -192,8 +191,7 @@ public abstract class PdfFontBase : IDisposable
             return null;
 
         var cmapData = toUnicodeObj.DecodeAsMemory();
-        var cMapContent = new PdfParseContext(cmapData);
-        return PdfCMapParser.ParseCMapFromContext(ref cMapContent, Document);
+        return PdfCMapParser.ParseCMap(cmapData, Document);
     }
 
     protected virtual void Dispose(bool disposing)

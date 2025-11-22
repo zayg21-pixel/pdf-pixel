@@ -19,6 +19,7 @@ namespace PdfReader.PostScript.Tokens
         }
 
         public Dictionary<string, PostScriptToken> Entries { get; }
+
         public override string ToString()
         {
             int count = Entries == null ? 0 : Entries.Count;

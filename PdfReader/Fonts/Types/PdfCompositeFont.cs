@@ -5,6 +5,7 @@ using PdfReader.Text;
 using SkiaSharp;
 using System;
 using System.Collections.Generic;
+using System.Text;
 
 namespace PdfReader.Fonts.Types
 {
@@ -15,8 +16,12 @@ namespace PdfReader.Fonts.Types
     /// </summary>
     public class PdfCompositeFont : PdfFontBase
     {
-        private readonly Lazy<List<PdfCidFont>> _descendantFonts;
-        private readonly Lazy<PdfCMap> _codeToCidCMap;
+        Encoding _cmapEncoding;
+
+        static PdfCompositeFont()
+        {
+            Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
+        }
 
         /// <summary>
         /// Constructor for composite fonts - lightweight operations only
@@ -24,27 +29,59 @@ namespace PdfReader.Fonts.Types
         /// <param name="fontObject">PDF dictionary containing the font definition</param>
         public PdfCompositeFont(PdfDictionary fontDictionary) : base(fontDictionary)
         {
-            CidEncoding = PdfFontEncodingParser.GetCidEncoding(fontDictionary);
-            // Initialize thread-safe lazy loaders
-            _descendantFonts = new Lazy<List<PdfCidFont>>(LoadDescendantFonts, isThreadSafe: true);
-            _codeToCidCMap = new Lazy<PdfCMap>(LoadCodeToCidCMap, isThreadSafe: true);
-        }
+            DescendantFonts = LoadDescendantFonts();
+            CodeToCidCMap = LoadCodeToCidCMap();
 
-        /// <summary>
-        /// CID font encoding (from /Encoding entry).
-        /// </summary>
-        public PdfCidFontEncoding CidEncoding { get; }
+            /*
+Japanese	*-RKSJ-*	932
+Japanese	EUC-*	EUC-JP
+Simplified Chinese	GB-EUC-*	gb2312
+Simplified Chinese	GBK-*	936
+Traditional Chinese	B5-*, ETen-*	950
+Korean	KSCms-UHC-*	949
+Korean	KSCpc-EUC-*	euc-kr
+Korean	KSC-Johab-*	1361
+             */
+
+            if (CodeToCidCMap != null && !CodeToCidCMap.Name.IsEmpty)
+            {
+                var splitTokens = new HashSet<string>(CodeToCidCMap.Name.ToString().Split('-'));
+
+                if (splitTokens.Contains("Identity"))
+                {
+                    _cmapEncoding = Encoding.BigEndianUnicode;
+                }
+                else if (splitTokens.Contains("RKSJ"))
+                {
+                    _cmapEncoding = Encoding.GetEncoding("shift_jis");
+                }
+                else if (splitTokens.Contains("GB") && splitTokens.Contains("EUC"))
+                {
+                    _cmapEncoding = Encoding.GetEncoding("EUC-JP");
+                }
+                else if (splitTokens.Contains("EUC"))
+                {
+                    _cmapEncoding = Encoding.GetEncoding("gb2312");
+                }
+                else if (splitTokens.Contains("UTF16"))
+                {
+                    _cmapEncoding = Encoding.BigEndianUnicode;
+                }
+                else if (splitTokens.Contains("UCS2"))
+                {
+                    _cmapEncoding = Encoding.BigEndianUnicode;
+                }
+            }
+        }
 
         public override PdfFontDescriptor FontDescriptor => PrimaryDescendant?.FontDescriptor;
 
         internal protected override SKTypeface Typeface => PrimaryDescendant?.Typeface;
         
         /// <summary>
-        /// Descendant CID fonts that contain the actual font data
-        /// Thread-safe lazy-loaded when first accessed - heavy operation
-        /// Per PDF spec it's always one font.
+        /// Descendant CID fonts that contain the actual font data.
         /// </summary>
-        public List<PdfCidFont> DescendantFonts => _descendantFonts.Value;
+        public List<PdfCidFont> DescendantFonts { get; }
         
         /// <summary>
         /// Primary descendant font (first in array, handles most characters)
@@ -56,7 +93,7 @@ namespace PdfReader.Fonts.Types
         /// Optional code->CID CMap derived from the parent /Encoding entry when it is a CMap stream.
         /// May be null if /Encoding is a predefined name without an embedded stream (e.g., Identity-H).
         /// </summary>
-        public PdfCMap CodeToCidCMap => _codeToCidCMap.Value;
+        public PdfCMap CodeToCidCMap { get; }
 
         /// <summary>
         /// Check if font has embedded data (delegated to primary descendant)
@@ -91,13 +128,7 @@ namespace PdfReader.Fonts.Types
         /// </summary>
         public bool TryMapCodeToCid(PdfCharacterCode code, out uint cid)
         {
-            // Identity encodings: code bytes represent CID directly
-            if (CidEncoding == PdfCidFontEncoding.IdentityH || CidEncoding == PdfCidFontEncoding.IdentityV)
-            {
-                cid = (uint)code;
-                return true;
-            }
-
+            // TODO: optimize for Identity-H/V
             var map = CodeToCidCMap;
             if (map != null && map.TryGetCid(code, out int mapped))
             {
@@ -145,7 +176,7 @@ namespace PdfReader.Fonts.Types
         {
             var predefinedName = Dictionary.GetName(PdfTokens.EncodingKey);
 
-            if (predefinedName != null)
+            if (!predefinedName.IsEmpty)
             {
                 return Document.GetCmap(predefinedName);
             }
@@ -162,8 +193,16 @@ namespace PdfReader.Fonts.Types
                 return null;
             }
 
-            var ctx = new PdfParseContext(data);
-            return PdfCMapParser.ParseCMapFromContext(ref ctx, Document);
+            var result = PdfCMapParser.ParseCMap(data, Document);
+            // PdfTokens.CMapNameKey
+            var cmapNameToken = PdfString.FromString("CMapName");
+            var cmapName = encodingObj.Dictionary.GetName(cmapNameToken);
+            if (!cmapName.IsEmpty)
+            {
+                result.Name = cmapName;
+            };
+
+            return result;
         }
 
         /// <summary>
@@ -197,13 +236,8 @@ namespace PdfReader.Fonts.Types
                 return characterCodes.ToArray();
             }
 
-            int codeLength = GetCharacterCodeLength();
-            if (codeLength == 2 && bytes.Length % 2 != 0)
-            {
-                // Odd byte count with 2-byte expectation, fallback to 1-byte segmentation
-                codeLength = 1;
-            }
-
+            // fallback: fixed 2-byte codes
+            const int codeLength = 2;
             int count = bytes.Length / codeLength;
             var result = new PdfCharacterCode[count];
             for (int index = 0; index < count; index++)
@@ -212,30 +246,6 @@ namespace PdfReader.Fonts.Types
                 result[index] = new PdfCharacterCode(bytes.Slice(offset, codeLength));
             }
             return result;
-        }
-
-        /// <summary>
-        /// Determines the character code length for this composite font.
-        /// </summary>
-        /// <returns>The code length in bytes (1 or 2).</returns>
-        private int GetCharacterCodeLength()
-        {
-            switch (CidEncoding)
-            {
-                case PdfCidFontEncoding.IdentityH:
-                case PdfCidFontEncoding.IdentityV:
-                case PdfCidFontEncoding.UniJIS_UTF16_H:
-                case PdfCidFontEncoding.UniJIS_UTF16_V:
-                case PdfCidFontEncoding.UniGB_UTF16_H:
-                case PdfCidFontEncoding.UniGB_UTF16_V:
-                case PdfCidFontEncoding.UniCNS_UTF16_H:
-                case PdfCidFontEncoding.UniCNS_UTF16_V:
-                case PdfCidFontEncoding.UniKS_UTF16_H:
-                case PdfCidFontEncoding.UniKS_UTF16_V:
-                    return 2;
-                default:
-                    return 1;
-            }
         }
 
         /// <summary>
@@ -266,6 +276,25 @@ namespace PdfReader.Fonts.Types
 
             // Call GetGlyphId of CID font directly
             return descendant.GetGidByCid(cid);
+        }
+
+        public override string GetUnicodeString(PdfCharacterCode code)
+        {
+            var baseCode = base.GetUnicodeString(code);
+
+            if (baseCode != null)
+            {
+                return baseCode;
+            }
+
+            // TODO: this seems to work fine, but font substitution should use encoding as hint
+            if (_cmapEncoding != null)
+            {
+                var result = _cmapEncoding.GetString(code.Bytes);
+                return result;
+            }
+
+            return null;
         }
     }
 }

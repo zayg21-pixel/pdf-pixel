@@ -1,4 +1,5 @@
 using System;
+using System.Text;
 
 namespace PdfReader.PostScript.Tokens
 {
@@ -7,11 +8,12 @@ namespace PdfReader.PostScript.Tokens
     /// </summary>
     public sealed class PostScriptString : PostScriptToken
     {
-        public PostScriptString(string value)
+        public PostScriptString(byte[] value)
         {
             Value = value;
         }
-        public string Value { get; private set; }
+
+        public byte[] Value { get; }
 
         public override string ToString()
         {
@@ -19,27 +21,71 @@ namespace PdfReader.PostScript.Tokens
             {
                 return "String: (null)";
             }
-            string escaped = Value.Replace("\\", "\\\\").Replace("\"", "\\\"");
-            return "String: \"" + escaped + "\"";
+            return "String: \"" + Encoding.UTF8.GetString(Value) + "\"";
         }
 
         public override bool EqualsToken(PostScriptToken other)
         {
-            return other is PostScriptString s && string.Equals(Value, s.Value, StringComparison.Ordinal);
+            return CompareToToken(other) == 0;
         }
 
         public override int GetHashCode()
         {
-            return Value == null ? 0 : StringComparer.Ordinal.GetHashCode(Value);
+            if (Value == null)
+            {
+                return 0;
+            }
+            var hash = new HashCode();
+
+            foreach (var b in Value)
+            {
+                hash.Add(b);
+            }
+
+            return hash.ToHashCode();
         }
 
         public override int CompareToToken(PostScriptToken other)
         {
-            if (other is not PostScriptString s)
+            if (other is null)
+            {
+                return 1;
+            }
+
+            if (other is not PostScriptString otherString)
             {
                 throw new InvalidOperationException("String comparison requires string operand.");
             }
-            return string.Compare(Value, s.Value, StringComparison.Ordinal);
+
+            byte[] a = Value;
+            byte[] b = otherString.Value;
+
+            if (ReferenceEquals(a, b))
+            {
+                return 0;
+            }
+
+            if (a == null)
+            {
+                return -1;
+            }
+            if (b == null)
+            {
+                return 1;
+            }
+
+            int minLength = Math.Min(a.Length, b.Length);
+
+            for (int i = 0; i < minLength; i++)
+            {
+                int difference = a[i].CompareTo(b[i]);
+
+                if (difference != 0)
+                {
+                    return difference;
+                }
+            }
+            return a.Length.CompareTo(b.Length);
         }
 
         public override PostScriptToken GetValue(PostScriptToken keyOrIndex)
@@ -78,15 +124,12 @@ namespace PdfReader.PostScript.Tokens
             {
                 throw new InvalidOperationException("rangecheck: string index out of range");
             }
-            int codePoint = (int)repl.Value;
-            if (codePoint < 0 || codePoint > 255)
+            var item = repl.Value;
+            if (item < 0 || item > 255)
             {
-                throw new InvalidOperationException("rangecheck: replacement code outside0-255");
+                throw new InvalidOperationException("rangecheck: replacement code outside 0-255");
             }
-            char replaceChar = (char)codePoint;
-            char[] chars = Value.ToCharArray();
-            chars[index] = replaceChar;
-            Value = new string(chars);
+            Value[index] = (byte)item;
         }
     }
 }

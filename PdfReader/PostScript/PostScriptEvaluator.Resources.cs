@@ -37,6 +37,10 @@ namespace PdfReader.PostScript
 
                     SetResourceValue(FontResourceCategory, resourceName.Name, value);
 
+                    value.SetAccessLevel(PostScriptAccess.ReadOnly);
+
+                    stack.Push(value);
+
                     return true;
                 }
                 case "defineresource":
@@ -46,6 +50,10 @@ namespace PdfReader.PostScript
                     var resourceName = PopOfType<PostScriptLiteralName>(stack);
 
                     SetResourceValue(category.Name, resourceName.Name, value);
+
+                    value.SetAccessLevel(PostScriptAccess.ReadOnly);
+
+                    stack.Push(value);
 
                     return true;
                 }
@@ -119,6 +127,23 @@ namespace PdfReader.PostScript
                 && categoryDict.Entries.TryGetValue(name, out PostScriptToken resourceValue))
             {
                 return resourceValue;
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Returns the entire resource category dictionary or null if not found.
+        /// </summary>
+        public PostScriptDictionary GetResourceCategory(string category)
+        {
+            if (string.IsNullOrWhiteSpace(category))
+            {
+                return null;
+            }
+            if (_resources.Entries.TryGetValue(category, out PostScriptToken categoryToken) && categoryToken is PostScriptDictionary categoryDict)
+            {
+                return categoryDict;
             }
 
             return null;

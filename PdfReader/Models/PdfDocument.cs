@@ -23,11 +23,13 @@ namespace PdfReader.Models
     public class PdfDocument : IDisposable
     {
         private readonly Dictionary<PdfReference, PdfObject> _objects = new Dictionary<PdfReference, PdfObject>();
+        private readonly ILogger<PdfDocument> _logger;
         private readonly PdfObjectParser _pdfObjectParser;
 
         public PdfDocument(ILoggerFactory loggerFactory, Stream fileStream)
         {
             LoggerFactory = loggerFactory;
+            _logger = loggerFactory.CreateLogger<PdfDocument>();
             StreamDecoder = new PdfStreamDecoder(loggerFactory);
             FontSubstitutor = new SkiaFontSubstitutor();
             _pdfObjectParser = new PdfObjectParser(this);
@@ -53,11 +55,16 @@ namespace PdfReader.Models
 
         public PdfCMap GetCmap(PdfString name)
         {
-            var cmapBytes = PdfResourceLoader.GetGZipCompressedResource("CMaps.zip", name.ToString());
-            var parseContext = new PdfParseContext(cmapBytes);
-            var cMap = PdfCMapParser.ParseCMapFromContext(ref parseContext, this);
-            return cMap;
-            // TODO: Implement standard CMap retrieval (predefined and embedded)
+            try
+            {
+                var cmapBytes = PdfResourceLoader.GetZipCompressedResource("CMaps.zip", name.ToString());
+                return PdfCMapParser.ParseCMap(cmapBytes, this);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to load CMap '{CMapName}'", name.ToString());
+                return null;
+            }
         }
 
         /// <summary>

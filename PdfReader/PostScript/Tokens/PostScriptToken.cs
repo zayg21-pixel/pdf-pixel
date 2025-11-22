@@ -178,8 +178,17 @@ namespace PdfReader.PostScript.Tokens
 
         public static bool operator ==(PostScriptToken left, PostScriptToken right)
         {
+            if (left is null && right is null)
+            {
+                return true;
+            }
 
-            return left?.EqualsToken(right) == true;
+            if (left is null || right is null)
+            {
+                return false;
+            }
+
+            return left.EqualsToken(right);
         }
 
         public static bool operator !=(PostScriptToken left, PostScriptToken right)
@@ -189,45 +198,37 @@ namespace PdfReader.PostScript.Tokens
 
         public static bool operator >(PostScriptToken left, PostScriptToken right)
         {
-
             return left?.CompareToToken(right) > 0;
         }
         public static bool operator <(PostScriptToken left, PostScriptToken right)
         {
-
             return left?.CompareToToken(right) < 0;
         }
         public static bool operator >=(PostScriptToken left, PostScriptToken right)
         {
-
             return left?.CompareToToken(right) >= 0;
         }
         public static bool operator <=(PostScriptToken left, PostScriptToken right)
         {
-
             return left?.CompareToToken(right) <= 0;
         }
 
         public static PostScriptToken operator &(PostScriptToken left, PostScriptToken right)
         {
-
             return left?.LogicalAnd(right);
         }
         public static PostScriptToken operator |(PostScriptToken left, PostScriptToken right)
         {
-
             return left?.LogicalOr(right);
         }
 
         public static PostScriptToken operator ^(PostScriptToken left, PostScriptToken right)
         {
-
             return left?.LogicalXor(right);
         }
 
         public static PostScriptToken operator !(PostScriptToken operand)
         {
-
             return operand?.LogicalNot();
         }
 

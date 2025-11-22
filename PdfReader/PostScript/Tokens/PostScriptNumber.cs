@@ -31,6 +31,11 @@ namespace PdfReader.PostScript.Tokens
 
         public override int CompareToToken(PostScriptToken other)
         {
+            if (other == null)
+            {
+                return 1;
+            }
+
             if (other is not PostScriptNumber n)
             {
                 throw new InvalidOperationException("Numeric comparison requires numeric right operand.");

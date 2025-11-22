@@ -1,4 +1,5 @@
 using PdfReader.Models;
+using PdfReader.PostScript.Tokens;
 using PdfReader.Text;
 
 namespace PdfReader.Fonts.Types;
@@ -29,20 +30,50 @@ public class PdfCidSystemInfo
     /// <summary>
     /// Creates a <see cref="PdfCidSystemInfo"/> instance from a PDF dictionary.
     /// </summary>
-    /// <param name="dict">The PDF dictionary containing CIDSystemInfo keys.</param>
+    /// <param name="dictionary">The PDF dictionary containing CIDSystemInfo keys.</param>
     /// <returns>A populated <see cref="PdfCidSystemInfo"/> or null if the dictionary is null.</returns>
-    public static PdfCidSystemInfo FromDictionary(PdfDictionary dict)
+    public static PdfCidSystemInfo FromDictionary(PdfDictionary dictionary)
     {
-        if (dict == null)
+        if (dictionary == null)
         {
             return null;
         }
 
         return new PdfCidSystemInfo
         {
-            Registry = dict.GetString(PdfTokens.RegistryKey),
-            Ordering = dict.GetString(PdfTokens.OrderingKey),
-            Supplement = dict.GetIntegerOrDefault(PdfTokens.SupplementKey)
+            Registry = dictionary.GetString(PdfTokens.RegistryKey),
+            Ordering = dictionary.GetString(PdfTokens.OrderingKey),
+            Supplement = dictionary.GetIntegerOrDefault(PdfTokens.SupplementKey)
         };
+    }
+
+    /// <summary>
+    /// Generates a <see cref="PdfCidSystemInfo"/> from a PostScript dictionary.
+    /// </summary>
+    /// <param name="dictionary">Dictionary containing CID system information.</param>
+    /// <returns>A populated <see cref="PdfCidSystemInfo"/> or null if the dictionary is null.</returns>
+    public static PdfCidSystemInfo FromPostscriptDictionary(PostScriptDictionary dictionary)
+    {
+        if (dictionary == null)
+        {
+            return null;
+        }
+
+        var info = new PdfCidSystemInfo();
+
+        if (dictionary.Entries.TryGetValue(PdfTokens.RegistryKey.ToString(), out var registryValue) && registryValue is PostScriptString registryString)
+        {
+            info.Registry = new PdfString(registryString.Value);
+        }
+        if (dictionary.Entries.TryGetValue(PdfTokens.OrderingKey.ToString(), out var orderingValue) && orderingValue is PostScriptString orderingString)
+        {
+            info.Ordering = new PdfString(orderingString.Value);
+        }
+        if (dictionary.Entries.TryGetValue(PdfTokens.SupplementKey.ToString(), out var supplementValue) && supplementValue is PostScriptNumber supplementInteger)
+        {
+            info.Supplement = (int)supplementInteger.Value;
+        }
+
+        return info;
     }
 }

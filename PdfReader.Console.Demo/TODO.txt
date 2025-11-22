@@ -22,4 +22,4 @@ Need example with matte
 
 Bugs:
 fit11-talk.pdf - not rendered some text (couple of slashes), but a lot is not resolved from TTF
-
+freeculture.pdf - 171 page, CCITT decoder fails

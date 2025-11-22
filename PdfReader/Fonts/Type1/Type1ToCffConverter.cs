@@ -84,7 +84,8 @@ internal static class Type1ToCffConverter
         eexecEvaluator.SetSystemValue(Type1FontDictionaryUtilities.FontDirectoryKey, fontDirectory);
         eexecEvaluator.EvaluateTokens(operandStack);
 
-        PostScriptDictionary fontDictionary = eexecEvaluator.GetResourceValue(PostScriptEvaluator.FontResourceCategory, descriptor.FontName.ToString()) as PostScriptDictionary;
+        PostScriptDictionary fontResources = eexecEvaluator.GetResourceCategory(PostScriptEvaluator.FontResourceCategory);
+        var fontDictionary = fontResources?.Entries.FirstOrDefault().Value as PostScriptDictionary;
 
         if (fontDictionary == null)
         {
