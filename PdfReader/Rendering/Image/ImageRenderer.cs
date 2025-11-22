@@ -148,15 +148,17 @@ public class ImageRenderer : IImageRenderer
 
         var sampling = PdfPaintFactory.GetImageSamplingOptions(pdfImage);
         var layerPaint = PdfPaintFactory.CreateLayerPaint(state);
+
+        // it's important to invert mask/target here, otherwise image would be misaligned
         using var fillPaint = PdfPaintFactory.CreateMaskImageFillPaint(state);
 
-        using var maskPaint = PdfPaintFactory.CreateImageMaskPaint();
+        using var maskPaint = PdfPaintFactory.CreateMaskedImagePaint();
         ImagePostProcessingFilters.ApplyImageFilters(maskPaint, pdfImage, decoder.IsColorConverted);
 
         canvas.SaveLayer(destRect, layerPaint);
 
-        canvas.DrawRect(destRect, fillPaint);
         canvas.DrawImage(alphaMask, destRect, sampling, maskPaint);
+        canvas.DrawRect(destRect, fillPaint);
 
         canvas.Restore();
     }
@@ -223,7 +225,15 @@ public class ImageRenderer : IImageRenderer
         canvas.SaveLayer(destRect, layerPaint);
 
         canvas.DrawImage(baseImage, destRect, sampling, imagePaint);
-        canvas.DrawImage(maskImage, destRect, maskSampling, maskPaint);
+
+        // drawing mask to a separate picture eliminates image misalignment
+        using var recorder = new SKPictureRecorder();
+        using var recCanvas = recorder.BeginRecording(destRect.Standardized);
+
+        recCanvas.DrawImage(maskImage, destRect, maskSampling);
+
+        using var picture = recorder.EndRecording();
+        canvas.DrawPicture(picture, maskPaint);
 
         canvas.Restore();
     }

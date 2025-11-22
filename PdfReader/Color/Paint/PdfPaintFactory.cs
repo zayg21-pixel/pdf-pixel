@@ -97,36 +97,37 @@ public static class PdfPaintFactory
     }
 
     /// <summary>
-    /// Paint for masked image drawing (no special blend mode, no antialiasing).
+    /// Paint for masked image drawing (no special blend mode).
     /// </summary>
     /// <returns></returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static SKPaint CreateMaskedImagePaint()
     {
-        return new SKPaint();
+        return new SKPaint { IsAntialias = true };
     }
 
     /// <summary>
-    /// Image mask paint (DstIn blend mode, no antialiasing).
+    /// Image mask paint (DstIn blend mode).
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static SKPaint CreateImageMaskPaint()
     {
         return new SKPaint
         {
+            IsAntialias = true,
             BlendMode = SKBlendMode.DstIn,
         };
     }
 
     /// <summary>
-    /// Image fill for stencil/mask images (no antialiasing).
+    /// Image fill for stencil/mask images.
     /// </summary>
     /// <returns></returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static SKPaint CreateMaskImageFillPaint(PdfGraphicsState state)
     {
         var basePaint = CreateFillPaint(state);
-        basePaint.IsAntialias = false; // Disable antialiasing for mask images
+        basePaint.BlendMode = SKBlendMode.SrcIn;
         return basePaint;
     }
 

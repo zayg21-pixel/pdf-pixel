@@ -52,9 +52,6 @@ internal static class Type1DictionaryToCffConverter
 
         PdfString[] encodingVector = Type1FontDictionaryUtilities.GetEncodingVector(fontDictionary) ?? Array.Empty<PdfString>();
 
-        // TODO: we need to not only merge differences, but also ensure that font gets correct encoding data!
-        // we also need to merge with font's base encoding if it's defined. Basically, override encoding vector if font defines it's own!
-
         var glyphCollections = BuildGlyphCollections(type2CharStrings);
         List<byte[]> orderedCharStrings = glyphCollections.OrderedCharStrings;
         ushort[] sids = glyphCollections.Sids;

@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using PdfReader.Color.Paint;
-using PdfReader.Models;
 using PdfReader.Parsing;
 using PdfReader.Rendering;
 using PdfReader.Rendering.State;
@@ -119,7 +118,6 @@ public sealed class SoftMaskDrawingScope : IDisposable
                 var maskGs = _softMask.Subtype == PdfSoftMaskSubtype.Luminosity
                     ? SoftMaskUtilities.CreateLuminosityMaskGraphicsState()
                     : SoftMaskUtilities.CreateAlphaMaskGraphicsState();
-
                 var page = _softMask.MaskForm.GetFormPage();
                 var contentRenderer = new PdfContentStreamRenderer(_renderer, page);
                 contentRenderer.RenderContext(recCanvas, ref parseContext, maskGs, new HashSet<uint>());

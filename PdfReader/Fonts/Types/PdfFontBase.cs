@@ -198,14 +198,6 @@ public abstract class PdfFontBase : IDisposable
 
     protected virtual void Dispose(bool disposing)
     {
-        if (!disposedValue)
-        {
-            if (disposing)
-            {
-                // TODO: dispose managed state (managed objects)
-            }
-            disposedValue = true;
-        }
     }
 
     ~PdfFontBase()

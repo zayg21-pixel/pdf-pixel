@@ -247,7 +247,8 @@ public class PathOperators : IOperatorProcessor
             return;
         }
         _currentPath.FillType = fillType;
-        _canvas.ClipPath(_currentPath, SKClipOperation.Intersect, antialias: true);
+        // It's important to avoid antialiasing when clipping path, as it might cause image render artifacts
+        _canvas.ClipPath(_currentPath, SKClipOperation.Intersect, antialias: false);
     }
 
     private void ProcessStrokePath(PdfGraphicsState graphicsState)
