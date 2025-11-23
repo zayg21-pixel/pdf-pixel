@@ -35,6 +35,8 @@ public class FormRenderer : IFormRenderer
 
         processingXObjects.Add(objectNumber);
 
+        int count = canvas.Save();
+
         // Use form paint to composite the whole form with correct alpha/blend when needed
         using var formPaint = PdfPaintFactory.CreateLayerPaint(graphicsState);
 
@@ -43,32 +45,35 @@ public class FormRenderer : IFormRenderer
 
         // Clip to /BBox
         canvas.ClipRect(formXObject.BBox, antialias: true);
-        canvas.SaveLayer(formXObject.BBox, formPaint);
+
+        if (formXObject.TransparencyGroup != null)
+        {
+            canvas.SaveLayer(formXObject.BBox, formPaint);
+        }
 
         using var softMaskScope = new SoftMaskDrawingScope(_renderer, canvas, graphicsState);
         softMaskScope.BeginDrawContent();
 
-        try
+        // Decode and render content with a cloned state that clears parent soft mask
+        var content = formXObject.GetFormData();
+        if (!content.IsEmpty)
         {
-            // Decode and render content with a cloned state that clears parent soft mask
-            var content = formXObject.GetFormData();
-            if (!content.IsEmpty)
-            {
-                var parseContext = new PdfParseContext(content);
-                var formPage = formXObject.GetFormPage();
-                var localGs = graphicsState.Clone();
-                // Prevent double-application: global soft mask is applied by outer wrapper
-                localGs.SoftMask = null;
-                var renderer = new PdfContentStreamRenderer(_renderer, formPage);
-                renderer.RenderContext(canvas, ref parseContext, localGs, processingXObjects);
-            }
-        }
-        finally
-        {
-            canvas.Restore();
+            var parseContext = new PdfParseContext(content);
+            var formPage = formXObject.GetFormPage();
+            var localGs = graphicsState.Clone();
+            localGs.CTM = formXObject.Matrix.PostConcat(graphicsState.CTM);
 
-            softMaskScope.EndDrawContent();
-            processingXObjects.Remove(objectNumber);
+            // Prevent double-application: global soft mask is applied by outer wrapper
+            localGs.SoftMask = null;
+
+            var renderer = new PdfContentStreamRenderer(_renderer, formPage);
+            renderer.RenderContext(canvas, ref parseContext, localGs, processingXObjects);
         }
+
+        softMaskScope.EndDrawContent();
+
+        canvas.RestoreToCount(count);
+
+        processingXObjects.Remove(objectNumber);
     }
 }

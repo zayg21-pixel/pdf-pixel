@@ -55,10 +55,10 @@ namespace PdfReader.Rendering
         /// Draws a sequence of PDF text fragments and positioning adjustments onto the specified canvas using the given graphics state and font.
         /// </summary>
         /// <param name="canvas">The SkiaSharp canvas to draw on.</param>
-        /// <param name="sequence">The text sequence to render.</param>
+        /// <param name="glyphs">Collection of glyphs to render.</param>
         /// <param name="state">The current graphics state for rendering.</param>
         /// <param name="font">The font to use for rendering the text.</param>
         /// <returns>The total width of the rendered text sequence.</returns>
-        float DrawTextSequence(SKCanvas canvas, PdfTextSequence sequence, PdfGraphicsState state, PdfFontBase font);
+        float DrawTextSequence(SKCanvas canvas, List<ShapedGlyph> glyphs, PdfGraphicsState state, PdfFontBase font);
     }
 }

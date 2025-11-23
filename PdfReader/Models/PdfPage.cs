@@ -1,6 +1,8 @@
 using PdfReader.Rendering;
+using PdfReader.TextExtraction;
 using SkiaSharp;
 using System;
+using System.Collections.Generic;
 using System.Threading;
 
 namespace PdfReader.Models
@@ -117,6 +119,20 @@ namespace PdfReader.Models
             {
                 Cache.ReleaseCache();
             }
+        }
+
+        public List<PdfCharacter> ExtractText()
+        {
+            using var recorder = new SKPictureRecorder();
+            using var canvas = recorder.BeginRecording(new SKRect(0, 0, 1, 1));
+
+            var textExtractor = new PdfTextExtractionRenderer();
+            
+            var contentRenderer = new PdfContentStreamRenderer(textExtractor, this);
+            contentRenderer.ApplyPageTransformations(canvas);
+            contentRenderer.RenderContent(canvas);
+
+            return textExtractor.PageCharacters;
         }
     }
 }

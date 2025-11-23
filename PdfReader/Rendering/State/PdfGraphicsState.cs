@@ -208,6 +208,16 @@ namespace PdfReader.Rendering.State
         /// </summary>
         public SKMatrix CTM { get; set; } = IdentityMatrix;
 
+        public SKMatrix GetFullMatrix()
+        {
+            return SKMatrix.Concat(DeviceMatrix, CTM);
+        }
+
+        public SKMatrix GetFullMatrix(SKMatrix localMatrix)
+        {
+            return SKMatrix.Concat(DeviceMatrix, SKMatrix.Concat(CTM, localMatrix));
+        }
+
         /// <summary>
         /// True while inside a text object (between BT and ET).
         /// </summary>

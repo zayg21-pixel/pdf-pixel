@@ -12,6 +12,8 @@ namespace PdfReader.Rendering.Operators;
 /// </summary>
 public class TextOperators : IOperatorProcessor
 {
+    private readonly List<ShapedGlyph> buffer = new List<ShapedGlyph>();
+
     private static readonly HashSet<string> SupportedOperators = new HashSet<string>
     {
         // Text object operators
@@ -293,8 +295,8 @@ public class TextOperators : IOperatorProcessor
             return;
         }
 
-        var sequence = PdfTextSequence.FromText(operands[0]);
-        ProcessSequence(graphicsState, sequence);
+        ShapedGlyphBuilder.BuildFromString(operands[0], graphicsState, buffer);
+        ProcessSequence(graphicsState, buffer);
     }
 
     private void ProcessShowTextNextLine(PdfGraphicsState graphicsState)
@@ -316,8 +318,8 @@ public class TextOperators : IOperatorProcessor
             return;
         }
 
-        var sequence = PdfTextSequence.FromArray(operands[0]);
-        ProcessSequence(graphicsState, sequence);
+        ShapedGlyphBuilder.BuildFromArray(operands[0], graphicsState, buffer);
+        ProcessSequence(graphicsState, buffer);
     }
 
     private void ProcessNextLine(PdfGraphicsState graphicsState)
@@ -362,13 +364,13 @@ public class TextOperators : IOperatorProcessor
 
         graphicsState.WordSpacing = operands[0].AsFloat();
         graphicsState.CharacterSpacing = operands[1].AsFloat();
-        var sequence = PdfTextSequence.FromText(operands[2]);
-        ProcessSequence(graphicsState, sequence);
+        ShapedGlyphBuilder.BuildFromString(operands[2], graphicsState, buffer);
+        ProcessSequence(graphicsState, buffer);
     }
 
-    private void ProcessSequence(PdfGraphicsState graphicsState, PdfTextSequence sequence)
+    private void ProcessSequence(PdfGraphicsState graphicsState, List<ShapedGlyph> glyphs)
     {
-        var advancement = _renderer.DrawTextSequence(_canvas, sequence, graphicsState, graphicsState.CurrentFont);
+        var advancement = _renderer.DrawTextSequence(_canvas, glyphs, graphicsState, graphicsState.CurrentFont);
         var advanceMatrix = SKMatrix.CreateTranslation(advancement, 0);
         graphicsState.TextMatrix = SKMatrix.Concat(graphicsState.TextMatrix, advanceMatrix);
     }

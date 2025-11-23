@@ -1,7 +1,9 @@
 ﻿using PdfReader.Color.Paint;
 using PdfReader.Pattern.Model;
 using PdfReader.Rendering.State;
+using PdfReader.Text;
 using SkiaSharp;
+using System.Collections.Generic;
 
 namespace PdfReader.Rendering.Text;
 
@@ -11,12 +13,12 @@ namespace PdfReader.Rendering.Text;
 internal class TextFillRenderTarget : IRenderTarget
 {
     private readonly SKFont _font;
-    private readonly ShapedGlyph[] _shapingResult;
+    private readonly List<ShapedGlyph> _shapingResult;
     private readonly PdfGraphicsState _state;
     private readonly PdfPattern _pattern;
     private SKPath _clipPath;
 
-    public TextFillRenderTarget(SKFont font, ShapedGlyph[] shapingResult, PdfGraphicsState state)
+    public TextFillRenderTarget(SKFont font, List<ShapedGlyph> shapingResult, PdfGraphicsState state)
     {
         _font = font;
         _shapingResult = shapingResult;
@@ -54,7 +56,7 @@ internal class TextFillRenderTarget : IRenderTarget
             // Apply text matrix transformation
             canvas.Concat(textMatrix);
 
-            using var blob = TextRenderUtilities.BuldTextBlob(_shapingResult, _font);
+            using var blob = TextRenderUtilities.BuildTextBlob(_shapingResult, _font);
 
             if (blob != null)
             {

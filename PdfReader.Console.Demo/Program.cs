@@ -1,7 +1,10 @@
 ﻿using Microsoft.Extensions.Logging;
 using PdfReader;
 using PdfReader.Models;
+using PdfReader.TextExtraction;
 using SkiaSharp;
+using System.Diagnostics;
+using Vortice.Win32;
 
 namespace PdfReader.Console.Demo
 {
@@ -29,7 +32,7 @@ namespace PdfReader.Console.Demo
                 //"pdfs//LATTICE1.pdf",
                 //"pdfs//inks.pdf",
                 //"pdfs//canvas.pdf",
-                "pdfs//personwithdog.pdf",
+                //"pdfs//personwithdog.pdf",
                 //"pdfs//alphatrans.pdf",
                 //"pdfs//ArabicCIDTrueType.pdf",
                 //"pdfs//asciihexdecode.pdf",
@@ -64,7 +67,7 @@ namespace PdfReader.Console.Demo
                 //"PDF32000_2008.pdf",
                 //"ch14.pdf"
                 //@"documentS.pdf",
-                //@"documentC.pdf",
+                @"documentC.pdf",
                 //@"sample.pdf",
                 //"Adyen.pdf",
                 //"Adyen 2023.pdf",
@@ -77,11 +80,42 @@ namespace PdfReader.Console.Demo
 
             foreach (var file in testFiles)
             {
-                await TestPdfFile(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, file));
+                //await TestPdfFile(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, file));
+                TextTextExtraction(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, file));
             }
         }
 
-        static async Task TestPdfFile(string filename)
+        static void TextTextExtraction(string fileName)
+        {
+            if (!File.Exists(fileName))
+            {
+                Logger.LogWarning("File not found: {File}", fileName);
+                Logger.LogInformation(string.Empty);
+                return;
+            }
+
+            Stopwatch sw = Stopwatch.StartNew();
+            Logger.LogInformation("Extracting text from file: {File}", fileName);
+
+            var reader = new PdfDocumentReader(LoggerFactoryInstance);
+            using var file = File.OpenRead(fileName);
+            using var document = reader.Read(file);
+
+            Dictionary<int, List<PdfCharacter>> extractedText = new Dictionary<int, List<PdfCharacter>>();
+
+            for (int i = 0; i < document.PageCount; i++)
+            {
+                var page = document.Pages[i];
+                var textContent = page.ExtractText();
+                extractedText[page.PageNumber] = textContent;
+            }
+
+            sw.Stop();
+
+            Logger.LogInformation("Extracted text from PDF: {File} in {ElapsedMilliseconds} ms", fileName, sw.ElapsedMilliseconds);
+        }
+
+        static async Task TestPdfFile(string fileName)
         {
             await Task.Yield();
 
@@ -93,12 +127,12 @@ namespace PdfReader.Console.Demo
             //// Create GRContext for Direct3D
             //using var grContext = GRContext.CreateDirect3D(backend);
 
-            Logger.LogInformation("Testing file: {File}", filename);
+            Logger.LogInformation("Testing file: {File}", fileName);
             Logger.LogInformation(new string('=', 50));
 
-            if (!File.Exists(filename))
+            if (!File.Exists(fileName))
             {
-                Logger.LogWarning("File not found: {File}", filename);
+                Logger.LogWarning("File not found: {File}", fileName);
                 Logger.LogInformation(string.Empty);
                 return;
             }
@@ -107,10 +141,10 @@ namespace PdfReader.Console.Demo
             {
                 
                 var reader = new PdfDocumentReader(LoggerFactoryInstance);
-                using var file = File.OpenRead(filename);
+                using var file = File.OpenRead(fileName);
                 using var document = reader.Read(file);
 
-                Logger.LogInformation("Successfully read PDF: {File}", filename);
+                Logger.LogInformation("Successfully read PDF: {File}", fileName);
                 Logger.LogInformation("Total pages: {Count}", document.PageCount);
                 Logger.LogInformation("Actual pages found: {Count}", document.Pages.Count);
                 Logger.LogInformation("Root object: {Root}", document.RootObject);
@@ -146,8 +180,8 @@ namespace PdfReader.Console.Demo
 
                         Logger.LogInformation("  === PAGE RENDERING COMPLETE ===");
 
-                        var basePath = Path.Combine(Path.GetDirectoryName(filename), "Test");
-                        var name = Path.GetFileNameWithoutExtension(filename);
+                        var basePath = Path.Combine(Path.GetDirectoryName(fileName), "Test");
+                        var name = Path.GetFileNameWithoutExtension(fileName);
 
                         if (!Directory.Exists(basePath))
                         {
@@ -181,7 +215,7 @@ namespace PdfReader.Console.Demo
             }
             catch (Exception ex)
             {
-                Logger.LogError(ex, "Error reading PDF: {File}", filename);
+                Logger.LogError(ex, "Error reading PDF: {File}", fileName);
                 Logger.LogError(ex, "Stack trace logged");
             }
         }

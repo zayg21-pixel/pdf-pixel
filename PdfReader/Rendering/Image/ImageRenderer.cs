@@ -151,7 +151,7 @@ public class ImageRenderer : IImageRenderer
         // it's important to invert mask/target here, otherwise image would be misaligned
         using var fillPaint = PdfPaintFactory.CreateMaskImageFillPaint(state);
 
-        using var maskPaint = PdfPaintFactory.CreateFillMaskedImagePaint();
+        using var maskPaint = PdfPaintFactory.CreateMaskImagePaint();
         maskPaint.ColorFilter = ImagePostProcessingFilters.BuildImageFilter(pdfImage, decoder.IsColorConverted);
 
         canvas.SaveLayer(destRect, layerPaint);
@@ -212,7 +212,7 @@ public class ImageRenderer : IImageRenderer
         }
 
         using var layerPaint = PdfPaintFactory.CreateLayerPaint(state);
-        using var imagePaint = PdfPaintFactory.CreateMaskedImagePaint();
+        using var imagePaint = PdfPaintFactory.CreateMaskImagePaint();
         imagePaint.ColorFilter = ImagePostProcessingFilters.BuildImageFilter(pdfImage, baseDecoder.IsColorConverted);
 
         using var maskPaint = PdfPaintFactory.CreateImageMaskPaint();
@@ -224,7 +224,17 @@ public class ImageRenderer : IImageRenderer
         canvas.SaveLayer(destRect, layerPaint);
 
         canvas.DrawImage(baseImage, destRect, sampling, imagePaint);
-        canvas.DrawImage(maskImage, destRect, maskSampling, maskPaint);
+
+        // purpose of separate picture is the same as with mask paint, it allows to set filter effect on the whole picture
+        // that eliminates edge effect
+        using var maskRecorder = new SKPictureRecorder();
+        using var maskCanvas = maskRecorder.BeginRecording(destRect);
+
+        maskCanvas.DrawImage(maskImage, destRect, maskSampling);
+
+        using var maskPicture = maskRecorder.EndRecording();
+
+        canvas.DrawPicture(maskPicture, maskPaint);
 
         canvas.Restore();
     }

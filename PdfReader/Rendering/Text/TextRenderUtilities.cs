@@ -1,5 +1,7 @@
 ﻿using PdfReader.Rendering.State;
+using PdfReader.Text;
 using SkiaSharp;
+using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 
 namespace PdfReader.Rendering.Text;
@@ -10,13 +12,13 @@ namespace PdfReader.Rendering.Text;
 public class TextRenderUtilities
 {
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static SKPath GetTextPath(ShapedGlyph[] shapingResult, SKFont font, PdfGraphicsState state)
+    public static SKPath GetTextPath(List<ShapedGlyph> shapingResult, SKFont font, PdfGraphicsState state)
     {
         var textPath = new SKPath();
 
         float x = 0f;
 
-        for (int i = 0; i < shapingResult.Length; i++)
+        for (int i = 0; i < shapingResult.Count; i++)
         {
             var glyphId = shapingResult[i].GlyphId;
             if (glyphId != 0)
@@ -39,11 +41,11 @@ public class TextRenderUtilities
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static float GetTextWidth(ShapedGlyph[] shapingResult)
+    public static float GetTextWidth(List<ShapedGlyph> shapingResult)
     {
         float width = 0f;
 
-        for (int i = 0; i < shapingResult.Length; i++)
+        for (int i = 0; i < shapingResult.Count; i++)
         {
             width += shapingResult[i].TotalWidth;
         }
@@ -70,13 +72,13 @@ public class TextRenderUtilities
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static SKTextBlob BuldTextBlob(ShapedGlyph[] shapingResult, SKFont font)
+    public static SKTextBlob BuildTextBlob(List<ShapedGlyph> shapingResult, SKFont font)
     {
         float currentAdvance = 0f;
 
         // Pre-count drawable glyphs (gid != 0) while computing positions using full advance including skipped glyphs.
         int drawableCount = 0;
-        for (int i = 0; i < shapingResult.Length; i++)
+        for (int i = 0; i < shapingResult.Count; i++)
         {
             if (shapingResult[i].GlyphId != 0)
             {
@@ -90,9 +92,9 @@ public class TextRenderUtilities
         var positionSpan = run.Positions;
 
         int drawIndex = 0;
-        for (int index = 0; index < shapingResult.Length; index++)
+        for (int index = 0; index < shapingResult.Count; index++)
         {
-            ref var shapedGlyph = ref shapingResult[index];
+            var shapedGlyph = shapingResult[index];
             // Record position regardless to advance subsequent glyphs.
             if (shapedGlyph.GlyphId != 0)
             {

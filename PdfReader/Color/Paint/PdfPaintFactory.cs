@@ -98,33 +98,24 @@ public static class PdfPaintFactory
     }
 
     /// <summary>
-    /// Paint for masked image drawing (no special blend mode, antiliasing disabled).
-    /// </summary>
-    /// <returns></returns>
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static SKPaint CreateMaskedImagePaint()
-    {
-        return new SKPaint();
-    }
-
-    /// <summary>
     /// Paint for filling masked images (No special blend mode, antiliasing enabled).
     /// </summary>
     /// <returns></returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static SKPaint CreateFillMaskedImagePaint()
+    public static SKPaint CreateMaskImagePaint()
     {
         return new SKPaint { IsAntialias = true };
     }
 
     /// <summary>
-    /// Image mask paint (DstIn blend mode, antiliasing disabled).
+    /// Image mask paint (DstIn blend mode).
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static SKPaint CreateImageMaskPaint()
     {
         return new SKPaint
         {
+            IsAntialias = true,
             BlendMode = SKBlendMode.DstIn,
         };
     }

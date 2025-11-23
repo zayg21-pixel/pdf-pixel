@@ -69,6 +69,28 @@ namespace PdfReader.Wpf.PdfPanel.Rendering
 
             pdfPage.Draw(canvas);
 
+            // TODO: move to view model of Demo app
+            //var chars = pdfPage.ExtractText();
+            //var chunker = new TextExtraction.PdfTextChunker();
+            //var words = chunker.ChunkCharacters(chars);
+            //var paint = new SKPaint
+            //{
+            //    Style = SKPaintStyle.Stroke,
+            //    Color = SKColors.Red,
+            //    StrokeWidth = 0.5f,
+            //    IsAntialias = true
+            //};
+
+            //foreach (var word in words)
+            //{
+            //    canvas.DrawRect(word.BoundingBox, paint);
+            //}
+
+            //foreach (var c in chars)
+            //{
+            //    canvas.DrawRect(c.BoundingBox, paint);
+            //}
+
             canvas.Flush();
             return recorder.EndRecording();
         }

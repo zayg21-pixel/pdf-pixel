@@ -33,10 +33,7 @@ internal class PathFillRenderTarget : IRenderTarget
     {
         if (_pattern != null)
         {
-            canvas.Save();
-            canvas.ClipPath(_path, SKClipOperation.Intersect, antialias: true);
             _pattern.RenderPattern(canvas, _state, this);
-            canvas.Restore();
         }
         else
         {

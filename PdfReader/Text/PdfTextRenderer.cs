@@ -2,15 +2,16 @@ using Microsoft.Extensions.Logging;
 using PdfReader.Color.Paint;
 using PdfReader.Fonts.Management;
 using PdfReader.Fonts.Types;
+using PdfReader.Rendering;
 using PdfReader.Rendering.State;
-using PdfReader.Text;
+using PdfReader.Rendering.Text;
 using PdfReader.Transparency.Utilities;
 using SkiaSharp;
 using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 
-namespace PdfReader.Rendering.Text
+namespace PdfReader.Text
 {
     /// <summary>
     /// Manages text drawing with proper selection and positioning.
@@ -31,57 +32,13 @@ namespace PdfReader.Rendering.Text
             _logger = loggerFactory.CreateLogger<PdfTextRenderer>();
         }
 
-        /// <summary>
-        /// Draw text with positioning adjustments (TJ operator) and return total advancement
-        /// Updated to use PdfFontBase hierarchy
-        /// </summary>
-        public float DrawTextSequence(SKCanvas canvas, PdfTextSequence textSequence, PdfGraphicsState state, PdfFontBase font)
+        /// <inheritdoc/>
+        public float DrawTextSequence(SKCanvas canvas, List<ShapedGlyph> glyphs, PdfGraphicsState state, PdfFontBase font)
         {
-            if (textSequence.Items.Count == 0)
-            {
-                return 0;
-            }
-
-            var shapedGlyphs = new List<ShapedGlyph>();
-
-            for (int i = 0; i < textSequence.Items.Count; i++)
-            {
-                var item = textSequence.Items[i];
-
-                switch (item.Kind)
-                {
-                    case PdfTextPositioningKind.Text:
-                    {
-                        var text = item.Text;
-                        var glyphs = ShapeText(ref text, state, font);
-                        shapedGlyphs.AddRange(glyphs);
-
-                        break;
-                    }
-                    case PdfTextPositioningKind.Adjustment:
-                    {
-                        var adjustment = item.Adjustment;
-                        var adjustmentInUserSpace = -adjustment / 1000f;
-
-                        if (shapedGlyphs.Count > 0)
-                        {
-                            // Add advance to last glyph
-                            var last = shapedGlyphs[shapedGlyphs.Count - 1];
-                            shapedGlyphs[shapedGlyphs.Count - 1] = new ShapedGlyph(last.GlyphId, last.Width, last.AdvanceAfter + adjustmentInUserSpace);
-                        }
-                        else
-                        {
-                            shapedGlyphs.Insert(0, new ShapedGlyph(0, 0, adjustmentInUserSpace));
-                        }
-
-                        break;
-                    }
-                }
-            }
 
             float width = 0f;
 
-            if (shapedGlyphs.Count > 0)
+            if (glyphs.Count > 0)
             {
                 using var softMaskScope = new SoftMaskDrawingScope(_renderer, canvas, state);
 
@@ -89,7 +46,7 @@ namespace PdfReader.Rendering.Text
 
                 using var skFont = font.GetSkiaFont();
 
-                width = DrawShapedText(canvas, skFont, shapedGlyphs.ToArray(), state);
+                width = DrawShapedText(canvas, skFont, glyphs, state);
 
                 softMaskScope.EndDrawContent();
             }
@@ -97,33 +54,10 @@ namespace PdfReader.Rendering.Text
             return width;
         }
 
-        /// <summary>
-        /// Shapes text by extracting character codes and character info for each code.
-        /// Handles both direct mapping and shaping cases using unified logic.
-        /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private ShapedGlyph[] ShapeText(ref PdfText pdfText, PdfGraphicsState state, PdfFontBase font)
+        private float DrawShapedText(SKCanvas canvas, SKFont font, List<ShapedGlyph> shapingResult, PdfGraphicsState state)
         {
-            var codes = font.ExtractCharacterCodes(pdfText.RawBytes);
-            ShapedGlyph[] shapedGlyphs = new ShapedGlyph[codes.Length];
-
-            for (int codeIndex = 0; codeIndex < codes.Length; codeIndex++)
-            {
-                PdfCharacterInfo info = font.ExtractCharacterInfo(codes[codeIndex]);
-                string unicode = info.Unicode;
-                bool isSpace = unicode == " ";
-                float spacing = state.CharacterSpacing + (isSpace ? state.WordSpacing : 0f);
-
-                shapedGlyphs[codeIndex] = new ShapedGlyph(info.Gid, info.Width, spacing / state.FontSize);
-            }
-
-            return shapedGlyphs;
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private float DrawShapedText(SKCanvas canvas, SKFont font, ShapedGlyph[] shapingResult, PdfGraphicsState state)
-        {
-            if (shapingResult.Length == 0)
+            if (shapingResult.Count == 0)
             {
                 return 0;
             }

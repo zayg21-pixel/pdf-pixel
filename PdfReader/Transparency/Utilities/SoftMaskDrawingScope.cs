@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using PdfReader.Color.Paint;
 using PdfReader.Parsing;
 using PdfReader.Rendering;
@@ -92,15 +93,15 @@ public sealed class SoftMaskDrawingScope : IDisposable
             return;
         }
 
+        // recording to separate picture follows 2 aims:
+        // - luminocity filter is applied to pixels, that means that if mask is slightly off, filter will still be applied to picture, that eliminates artifacts on edges
+        // - we can omit clipping to bbox, because picture will be drawn only inside bbox anyway
+
         try
         {
             // Record the soft mask content into a picture.
             using var recorder = new SKPictureRecorder();
-            using var recCanvas = recorder.BeginRecording(_softMask.MaskForm.GetTransformedBounds());
-
-            recCanvas.Save();
-
-            recCanvas.Concat(_softMask.MaskForm.Matrix);
+            using var recCanvas = recorder.BeginRecording(_softMask.MaskForm.BBox);
 
             // Background for luminosity masks (BC in group color space).
             if (_softMask.Subtype == PdfSoftMaskSubtype.Luminosity)
@@ -123,8 +124,6 @@ public sealed class SoftMaskDrawingScope : IDisposable
                 contentRenderer.RenderContext(recCanvas, ref parseContext, maskGs, new HashSet<uint>());
             }
 
-            recCanvas.Restore();
-
             using var picture = recorder.EndRecording();
             using var maskPaint = PdfPaintFactory.CreateMaskPaint();
 
@@ -133,6 +132,8 @@ public sealed class SoftMaskDrawingScope : IDisposable
                 : null;
 
             maskPaint.ColorFilter = alphaFilter;
+
+            _canvas.Concat(_softMask.MaskForm.Matrix);
 
             _canvas.DrawPicture(picture, maskPaint);
         }
