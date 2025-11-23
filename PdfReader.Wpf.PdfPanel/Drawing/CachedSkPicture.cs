@@ -9,13 +9,11 @@ namespace PdfReader.Wpf.PdfPanel.Drawing
     /// </summary>
     internal sealed class CachedSkPicture : IDisposable
     {
-        public CachedSkPicture(SKPicture picture, SKImage thumbnail, int pageNumber, double scale, PageGraphicsInfo graphicsInfo)
+        public CachedSkPicture(SKPicture picture, SKImage thumbnail, int pageNumber)
         {
             Picture = picture;
             Thumbnail = thumbnail;
             PageNumber = pageNumber;
-            Scale = scale;
-            GraphicsInfo = graphicsInfo;
         }
 
         public SKPicture Picture { get; }
@@ -23,26 +21,6 @@ namespace PdfReader.Wpf.PdfPanel.Drawing
         public SKImage Thumbnail { get; }
 
         public int PageNumber { get; }
-
-        public double Scale { get; }
-
-        public PageGraphicsInfo GraphicsInfo { get; }
-
-        public bool ShouldUpdateCache(double requiredScale)
-        {
-            if (Scale == requiredScale)
-            {
-                return false;
-            }
-            if (!GraphicsInfo.HasImages)
-            {
-                return false;
-            }
-            else
-            {
-                return !(Scale >= GraphicsInfo.MaxImageScale && requiredScale >= GraphicsInfo.MaxImageScale);
-            }
-        }
 
         public object DisposeLocker { get; } = new object();
 

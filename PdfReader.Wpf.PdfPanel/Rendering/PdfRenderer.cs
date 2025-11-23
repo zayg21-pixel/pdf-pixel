@@ -37,9 +37,8 @@ namespace PdfReader.Wpf.PdfPanel.Rendering
             }
             else
             {
-                double maxScale = 1;
-                bool hasImages = false;
-                var info = new PageGraphicsInfo(maxScale, hasImages);
+                bool hasImages = true; // TODO: estimate if the page has images
+                var info = new PageGraphicsInfo(hasImages);
 
                 pageGraphicsInfoDictionary.TryAdd(pageNumber, info);
 
@@ -64,21 +63,9 @@ namespace PdfReader.Wpf.PdfPanel.Rendering
             var pdfPage = document.Pages[pageNumber - 1];
             var pageInfo = GetPageGraphicsInfo(pageNumber);
 
-            double scaleFactor;
-
-            if (pageInfo.HasImages)
-            {
-                scaleFactor = Math.Min(scale, pageInfo.MaxImageScale);
-            }
-            else
-            {
-                scaleFactor = 1;
-            }
             using var recorder = new SKPictureRecorder();
-            using var canvas = recorder.BeginRecording(SKRect.Create((float)(pdfPage.CropBox.Width * scaleFactor), (float)(pdfPage.CropBox.Height * scaleFactor)));
-            canvas.ClipRect(new SKRect(0, 0, (float)(pdfPage.CropBox.Width * scaleFactor), (float)(pdfPage.CropBox.Height * scaleFactor)));
-
-            canvas.Scale((float)scaleFactor, (float)scaleFactor);
+            using var canvas = recorder.BeginRecording(SKRect.Create(pdfPage.CropBox.Width, pdfPage.CropBox.Height));
+            canvas.ClipRect(new SKRect(0, 0, pdfPage.CropBox.Width, pdfPage.CropBox.Height));
 
             pdfPage.Draw(canvas);
 

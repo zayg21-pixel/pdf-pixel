@@ -25,7 +25,6 @@ namespace PdfReader.Wpf.PdfPanel.Drawing
 
             if (CanDrawCached(request))
             {
-                canvas.Clear(request.BackgroundColor);
                 DrawCached(surface, request, lastRequest);
                 await DrawOnWritableBitmapAsync(panel, surface, request).ConfigureAwait(false);
 
@@ -111,6 +110,9 @@ namespace PdfReader.Wpf.PdfPanel.Drawing
         private static void DrawCached(SKSurface surface, PagesDrawingRequest request, PagesDrawingRequest lastRequest)
         {
             var canvas = surface.Canvas;
+            using var surfaceImage = surface.Snapshot();
+
+            canvas.Clear(request.BackgroundColor);
 
             foreach (var page in request.VisiblePages)
             {
@@ -142,7 +144,7 @@ namespace PdfReader.Wpf.PdfPanel.Drawing
                     var thumbnail = cached.Thumbnail;
                     var thumbnailRect = SKRect.Create(0, 0, thumbnail.Width, thumbnail.Height);
 
-                    var samplingOption = new SKSamplingOptions(SKFilterMode.Nearest, SKMipmapMode.None);
+                    var samplingOption = new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.None);
                     canvas.DrawImage(thumbnail, thumbnailRect, destRect, samplingOption);
                 }
 
@@ -157,6 +159,10 @@ namespace PdfReader.Wpf.PdfPanel.Drawing
                 }
 
                 var lastPage = lastRequest.VisiblePages.FirstOrDefault(x => x.PageNumber == page.PageNumber);
+
+                var sourceRect = lastPage.GetSkScaledBounds(lastRequest.Scale);
+
+                canvas.DrawImage(surfaceImage, sourceRect, destRect);
             }
         }
 

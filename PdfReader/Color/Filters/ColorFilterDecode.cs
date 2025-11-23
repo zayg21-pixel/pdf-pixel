@@ -10,6 +10,88 @@ namespace PdfReader.Color.Filters;
 /// </summary>
 internal class ColorFilterDecode
 {
+    // Static cache for runtime effects
+    private static readonly SKRuntimeEffect GrayscaleEffect;
+    private static readonly SKRuntimeEffect RgbEffect;
+    private static readonly SKRuntimeEffect CmykEffect;
+    private static readonly SKRuntimeEffect MaskEffect;
+
+    static ColorFilterDecode()
+    {
+        string shaderGray = @"
+                uniform float decodeMin0;
+                uniform float decodeMax0;
+                half4 main(half4 color) {
+                    half gray = color.r;
+                    half decoded = decodeMin0 + (decodeMax0 - decodeMin0) * gray;
+                    return half4(decoded, decoded, decoded, color.a);
+                }
+            ";
+        GrayscaleEffect = SKRuntimeEffect.CreateColorFilter(shaderGray, out var errorGray);
+        if (GrayscaleEffect == null)
+        {
+            throw new InvalidOperationException($"Failed to compile grayscale decode shader: {errorGray}");
+        }
+
+        string shaderRgb = @"
+                uniform float decodeMin0;
+                uniform float decodeMax0;
+                uniform float decodeMin1;
+                uniform float decodeMax1;
+                uniform float decodeMin2;
+                uniform float decodeMax2;
+                half4 main(half4 color) {
+                    half r = decodeMin0 + (decodeMax0 - decodeMin0) * color.r;
+                    half g = decodeMin1 + (decodeMax1 - decodeMin1) * color.g;
+                    half b = decodeMin2 + (decodeMax2 - decodeMin2) * color.b;
+                    return half4(r, g, b, color.a);
+                }
+            ";
+        RgbEffect = SKRuntimeEffect.CreateColorFilter(shaderRgb, out var errorRgb);
+        if (RgbEffect == null)
+        {
+            throw new InvalidOperationException($"Failed to compile RGB decode shader: {errorRgb}");
+        }
+
+        string shaderCmyk = @"
+                uniform float decodeMin0;
+                uniform float decodeMax0;
+                uniform float decodeMin1;
+                uniform float decodeMax1;
+                uniform float decodeMin2;
+                uniform float decodeMax2;
+                uniform float decodeMin3;
+                uniform float decodeMax3;
+                half4 main(half4 color) {
+                    half c = decodeMin0 + (decodeMax0 - decodeMin0) * color.r;
+                    half m = decodeMin1 + (decodeMax1 - decodeMin1) * color.g;
+                    half y = decodeMin2 + (decodeMax2 - decodeMin2) * color.b;
+                    half k = decodeMin3 + (decodeMax3 - decodeMin3) * color.a;
+                    return half4(c, m, y, k);
+                }
+            ";
+        CmykEffect = SKRuntimeEffect.CreateColorFilter(shaderCmyk, out var errorCmyk);
+        if (CmykEffect == null)
+        {
+            throw new InvalidOperationException($"Failed to compile CMYK decode shader: {errorCmyk}");
+        }
+
+        string shaderMask = @"
+                uniform float decodeMin0;
+                uniform float decodeMax0;
+                half4 main(half4 color) {
+                    half lum = 0.299 * color.r + 0.587 * color.g + 0.114 * color.b;
+                    half decoded = decodeMin0 + (decodeMax0 - decodeMin0) * lum;
+                    return half4(0, 0, 0, decoded);
+                }
+            ";
+        MaskEffect = SKRuntimeEffect.CreateColorFilter(shaderMask, out var errorMask);
+        if (MaskEffect == null)
+        {
+            throw new InvalidOperationException($"Failed to compile mask decode shader: {errorMask}");
+        }
+    }
+
     /// <summary>
     /// Builds a decode color filter for the specified number of channels (not for masks).
     /// </summary>
@@ -29,13 +111,20 @@ internal class ColorFilterDecode
             throw new ArgumentOutOfRangeException(nameof(channelCount), channelCount, "Only 1, 3, or 4 channels are supported.");
         }
 
-
-
-        string shaderSource = BuildShaderSource(channelCount);
-        var effect = SKRuntimeEffect.CreateColorFilter(shaderSource, out var error);
-        if (effect == null)
+        SKRuntimeEffect effect;
+        switch (channelCount)
         {
-            throw new InvalidOperationException($"Failed to compile decode shader: {error}");
+            case 1:
+                effect = GrayscaleEffect;
+                break;
+            case 3:
+                effect = RgbEffect;
+                break;
+            case 4:
+                effect = CmykEffect;
+                break;
+            default:
+                throw new ArgumentOutOfRangeException(nameof(channelCount), channelCount, "Only 1, 3, or 4 channels are supported.");
         }
 
         var uniforms = new SKRuntimeEffectUniforms(effect);
@@ -73,89 +162,12 @@ internal class ColorFilterDecode
         float decodeMin = decodeArray[1];
         float decodeMax = decodeArray[0];
 
-        // SKSL: Compute luminosity for RGB, or use value for Gray
-        string shaderSource = @"
-                uniform float decodeMin0;
-                uniform float decodeMax0;
-                half4 main(half4 color) {
-                    half lum = 0.299 * color.r + 0.587 * color.g + 0.114 * color.b;
-                    half decoded = decodeMin0 + (decodeMax0 - decodeMin0) * lum;
-                    return half4(0, 0, 0, decoded);
-                }
-            ";
-
-        var effect = SKRuntimeEffect.CreateColorFilter(shaderSource, out var error);
-        if (effect == null)
-        {
-            throw new InvalidOperationException($"Failed to compile mask decode shader: {error}");
-        }
-
-        var uniforms = new SKRuntimeEffectUniforms(effect)
+        var uniforms = new SKRuntimeEffectUniforms(MaskEffect)
         {
             ["decodeMin0"] = decodeMin,
             ["decodeMax0"] = decodeMax
         };
 
-        return effect.ToColorFilter(uniforms);
-    }
-
-    private static string BuildShaderSource(int channelCount)
-    {
-        if (channelCount == 1)
-        {
-            // Grayscale
-            return @"
-                    uniform float decodeMin0;
-                    uniform float decodeMax0;
-                    half4 main(half4 color) {
-                        half gray = color.r;
-                        half decoded = decodeMin0 + (decodeMax0 - decodeMin0) * gray;
-                        return half4(decoded, decoded, decoded, color.a);
-                    }
-                ";
-        }
-        else if (channelCount == 3)
-        {
-            // RGB
-            return @"
-                    uniform float decodeMin0;
-                    uniform float decodeMax0;
-                    uniform float decodeMin1;
-                    uniform float decodeMax1;
-                    uniform float decodeMin2;
-                    uniform float decodeMax2;
-                    half4 main(half4 color) {
-                        half r = decodeMin0 + (decodeMax0 - decodeMin0) * color.r;
-                        half g = decodeMin1 + (decodeMax1 - decodeMin1) * color.g;
-                        half b = decodeMin2 + (decodeMax2 - decodeMin2) * color.b;
-                        return half4(r, g, b, color.a);
-                    }
-                ";
-        }
-        else if (channelCount == 4)
-        {
-            // CMYK (pass through, decode each channel, conversion to RGB should be done in next filter)
-            return @"
-                    uniform float decodeMin0;
-                    uniform float decodeMax0;
-                    uniform float decodeMin1;
-                    uniform float decodeMax1;
-                    uniform float decodeMin2;
-                    uniform float decodeMax2;
-                    uniform float decodeMin3;
-                    uniform float decodeMax3;
-                    half4 main(half4 color) {
-                        half c = decodeMin0 + (decodeMax0 - decodeMin0) * color.r;
-                        half m = decodeMin1 + (decodeMax1 - decodeMin1) * color.g;
-                        half y = decodeMin2 + (decodeMax2 - decodeMin2) * color.b;
-                        half k = decodeMin3 + (decodeMax3 - decodeMin3) * color.a;
-                        return half4(c, m, y, k);
-                    }
-                ";
-        }
-        else
-        {
-            throw new ArgumentOutOfRangeException(nameof(channelCount), channelCount, "Only 1, 3, or 4 channels are supported.");
-        }
+        return MaskEffect.ToColorFilter(uniforms);
     }
 }

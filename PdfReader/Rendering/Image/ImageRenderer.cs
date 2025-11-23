@@ -1,5 +1,4 @@
 using Microsoft.Extensions.Logging;
-using PdfReader.Color.Filters;
 using PdfReader.Color.Paint;
 using PdfReader.Imaging.Decoding;
 using PdfReader.Imaging.Model;
@@ -108,7 +107,7 @@ public class ImageRenderer : IImageRenderer
         }
 
         using var imagePaint = PdfPaintFactory.CreateImagePaint(state);
-        ImagePostProcessingFilters.ApplyImageFilters(imagePaint, pdfImage, decoder.IsColorConverted);
+        imagePaint.ColorFilter = ImagePostProcessingFilters.BuildImageFilter(pdfImage, decoder.IsColorConverted);
 
         var sampling = PdfPaintFactory.GetImageSamplingOptions(pdfImage);
         canvas.DrawImage(baseImage, destRect, sampling, imagePaint);
@@ -153,7 +152,7 @@ public class ImageRenderer : IImageRenderer
         using var fillPaint = PdfPaintFactory.CreateMaskImageFillPaint(state);
 
         using var maskPaint = PdfPaintFactory.CreateFillMaskedImagePaint();
-        ImagePostProcessingFilters.ApplyImageFilters(maskPaint, pdfImage, decoder.IsColorConverted);
+        maskPaint.ColorFilter = ImagePostProcessingFilters.BuildImageFilter(pdfImage, decoder.IsColorConverted);
 
         canvas.SaveLayer(destRect, layerPaint);
 
@@ -214,10 +213,10 @@ public class ImageRenderer : IImageRenderer
 
         using var layerPaint = PdfPaintFactory.CreateLayerPaint(state);
         using var imagePaint = PdfPaintFactory.CreateMaskedImagePaint();
-        ImagePostProcessingFilters.ApplyImageFilters(imagePaint, pdfImage, baseDecoder.IsColorConverted);
+        imagePaint.ColorFilter = ImagePostProcessingFilters.BuildImageFilter(pdfImage, baseDecoder.IsColorConverted);
 
         using var maskPaint = PdfPaintFactory.CreateImageMaskPaint();
-        ImagePostProcessingFilters.ApplyImageFilters(maskPaint, pdfImage.SoftMask, softMaskDecoder.IsColorConverted);
+        maskPaint.ColorFilter = ImagePostProcessingFilters.BuildImageFilter(pdfImage.SoftMask, softMaskDecoder.IsColorConverted);
 
         var sampling = PdfPaintFactory.GetImageSamplingOptions(pdfImage);
         var maskSampling = PdfPaintFactory.GetImageSamplingOptions(pdfImage.SoftMask);

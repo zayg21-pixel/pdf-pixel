@@ -124,7 +124,7 @@ namespace PdfReader.Wpf.PdfPanel
 
             foreach (var page in visiblePages)
             {
-                if (pictureCache.TryGetValue(page, out var cachedPicture) && !cachedPicture.ShouldUpdateCache(scale))
+                if (pictureCache.TryGetValue(page, out var cachedPicture))
                 {
                     yield return cachedPicture;
                 }
@@ -176,7 +176,7 @@ namespace PdfReader.Wpf.PdfPanel
                         }
                         else
                         {
-                            cachedPicture = new CachedSkPicture(picture, thumbnail, page, scale, graphicsInfo);
+                            cachedPicture = new CachedSkPicture(picture, thumbnail, page);
                             pictureCache.TryAdd(page, cachedPicture);
                         }
                     }

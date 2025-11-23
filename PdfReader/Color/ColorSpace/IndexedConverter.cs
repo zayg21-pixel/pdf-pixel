@@ -108,6 +108,6 @@ internal sealed class IndexedConverter : PdfColorSpaceConverter
 
     protected override SKColorFilter BuldColorFilter(PdfRenderingIntent intent)
     {
-        return IndexedColorFilter.BuildIndexedColorFilter(BuildPalette(intent));
+        return ColorFilterClut.BuildIndexedColorFilter(BuildPalette(intent));
     }
 }

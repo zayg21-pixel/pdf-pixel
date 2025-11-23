@@ -8,6 +8,52 @@ namespace PdfReader.Color.Filters;
 /// </summary>
 internal static class SoftMaskFilter
 {
+    // Static cache for runtime effects
+    private static readonly SKRuntimeEffect MaskEffect;
+    private static readonly SKRuntimeEffect DematteEffect;
+
+    static SoftMaskFilter()
+    {
+        string shaderSourceMask = @"
+                uniform shader maskLut;
+                half4 main(half4 inColor) {
+                    float rTexCoord = clamp(inColor.r * 255.0, 0.0, 255.0) + 0.5;
+                    float gTexCoord = clamp(inColor.g * 255.0, 0.0, 255.0) + 0.5;
+                    float bTexCoord = clamp(inColor.b * 255.0, 0.0, 255.0) + 0.5;
+                    half rMask = maskLut.eval(float2(rTexCoord, 0.5)).a;
+                    half gMask = maskLut.eval(float2(gTexCoord, 1.5)).a;
+                    half bMask = maskLut.eval(float2(bTexCoord, 2.5)).a;
+                    half alpha = (rMask == 0.0 && gMask == 0.0 && bMask == 0.0) ? 0.0 : 1.0;
+                    return half4(inColor.rgb, alpha);
+                }
+            ";
+        MaskEffect = SKRuntimeEffect.CreateColorFilter(shaderSourceMask, out var errorMask);
+        if (MaskEffect == null)
+        {
+            throw new InvalidOperationException($"Failed to compile SoftMaskFilter shader: {errorMask}");
+        }
+
+        string shaderSourceDematte = @"
+                uniform half3 matte;
+                half4 main(half4 color) {
+                    float alpha = color.a * 255.0;
+                    half3 result;
+                    if (alpha == 0.0) {
+                        result = matte;
+                    } else {
+                        result = matte + (color.rgb * 255.0 - matte) * 255.0 / alpha;
+                    }
+                    result = clamp(result, 0.0, 255.0) / 255.0;
+                    return half4(result, 1.0);
+                }
+            ";
+        DematteEffect = SKRuntimeEffect.CreateColorFilter(shaderSourceDematte, out var errorDematte);
+        if (DematteEffect == null)
+        {
+            throw new InvalidOperationException($"Failed to compile DematteColorFilter shader: {errorDematte}");
+        }
+    }
+
     /// <summary>
     /// Builds an <see cref="SKColorFilter"/> that applies an alpha mask based on the provided mask ranges for grayscale or RGB images.
     /// The filter maps each component to alpha values according to the PDF /Mask specification.
@@ -77,33 +123,13 @@ internal static class SoftMaskFilter
         using var maskBitmap = new SKBitmap(256, 3, SKColorType.Alpha8, SKAlphaType.Premul);
         System.Runtime.InteropServices.Marshal.Copy(maskLut, 0, maskBitmap.GetPixels(), maskLut.Length);
 
-        string shaderSource = @"
-                uniform shader maskLut;
-                half4 main(half4 inColor) {
-                    float rTexCoord = clamp(inColor.r * 255.0, 0.0, 255.0) + 0.5;
-                    float gTexCoord = clamp(inColor.g * 255.0, 0.0, 255.0) + 0.5;
-                    float bTexCoord = clamp(inColor.b * 255.0, 0.0, 255.0) + 0.5;
-                    half rMask = maskLut.eval(float2(rTexCoord, 0.5)).a;
-                    half gMask = maskLut.eval(float2(gTexCoord, 1.5)).a;
-                    half bMask = maskLut.eval(float2(bTexCoord, 2.5)).a;
-                    half alpha = (rMask == 0.0 && gMask == 0.0 && bMask == 0.0) ? 0.0 : 1.0;
-                    return half4(inColor.rgb, alpha);
-                }
-            ";
-
-        var effect = SKRuntimeEffect.CreateColorFilter(shaderSource, out var error);
-        if (effect == null)
-        {
-            throw new InvalidOperationException($"Failed to compile SoftMaskFilter shader: {error}");
-        }
-
-        var uniforms = new SKRuntimeEffectUniforms(effect);
-        var children = new SKRuntimeEffectChildren(effect)
+        var uniforms = new SKRuntimeEffectUniforms(MaskEffect);
+        var children = new SKRuntimeEffectChildren(MaskEffect)
         {
             { "maskLut", maskBitmap.ToShader() }
         };
 
-        return effect.ToColorFilter(uniforms, children);
+        return MaskEffect.ToColorFilter(uniforms, children);
     }
 
     /// <summary>
@@ -116,33 +142,11 @@ internal static class SoftMaskFilter
     /// <exception cref="InvalidOperationException">Thrown if the shader cannot be compiled.</exception>
     public static SKColorFilter BuildDematteColorFilter(SKColor matte)
     {
-        // Pass matte color as uniform
-        string shaderSource = @"
-                uniform half3 matte;
-                half4 main(half4 color) {
-                    float alpha = color.a * 255.0;
-                    half3 result;
-                    if (alpha == 0.0) {
-                        result = matte;
-                    } else {
-                        result = matte + (color.rgb * 255.0 - matte) * 255.0 / alpha;
-                    }
-                    result = clamp(result, 0.0, 255.0) / 255.0;
-                    return half4(result, 1.0);
-                }
-            ";
-
-        var effect = SKRuntimeEffect.CreateColorFilter(shaderSource, out var error);
-        if (effect == null)
+        var uniforms = new SKRuntimeEffectUniforms(DematteEffect)
         {
-            throw new InvalidOperationException($"Failed to compile DematteColorFilter shader: {error}");
-        }
-
-        var uniforms = new SKRuntimeEffectUniforms(effect)
-        {
-            ["matte"] = new SKColor(matte.Red, matte.Green, matte.Blue, 255) // matte as float3
+            ["matte"] = new SKColor(matte.Red, matte.Green, matte.Blue, 255)
         };
 
-        return effect.ToColorFilter(uniforms);
+        return DematteEffect.ToColorFilter(uniforms);
     }
 }
