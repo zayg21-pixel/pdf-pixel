@@ -23,6 +23,8 @@ internal sealed class DeviceCmykConverter : PdfColorSpaceConverter
         _iccCmykConverter = new IccCmykColorConverter(cmykProfile);
     }
 
+    public IccProfile Profile => _iccCmykConverter.IccProfile;
+
     public override int Components => 4;
 
     public override bool IsDevice => true;

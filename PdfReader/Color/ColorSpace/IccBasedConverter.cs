@@ -40,6 +40,8 @@ internal sealed class IccBasedConverter : PdfColorSpaceConverter
     public IccBasedConverter(int n, PdfColorSpaceConverter alternate, IccProfile profile)
         : this(n, alternate)
     {
+        Profile = profile;
+
         if (profile != null)
         {
             switch (n)
@@ -68,6 +70,8 @@ internal sealed class IccBasedConverter : PdfColorSpaceConverter
         : this(n, alternate, IccProfile.Parse(iccProfileBytes))
     {
     }
+
+    public IccProfile Profile { get; }
 
     public override int Components => _default.Components;
 

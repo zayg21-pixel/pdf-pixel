@@ -1,5 +1,7 @@
-﻿using PdfReader.Imaging.Model;
+﻿using PdfReader.Color.Icc.Model;
+using PdfReader.Imaging.Model;
 using PdfReader.Imaging.Processing;
+using SkiaSharp;
 
 namespace PdfReader.Imaging.Skia;
 
@@ -32,5 +34,31 @@ internal class SkiaImageHelpers
         }
 
         return false;
+    }
+
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="image"></param>
+    /// <param name="icc"></param>
+    /// <returns></returns>
+    public static SKImage UpdateIccColorSpace(SKImage image, IccProfile icc)
+    {
+        if (image == null)
+        {
+            return null;
+        }
+
+        using var iccProfile = SKColorSpace.CreateIcc(icc.Bytes) ?? SKColorSpace.CreateSrgb();
+        SKImageInfo info = new SKImageInfo(image.Width, image.Height, SKImageInfo.PlatformColorType, SKAlphaType.Unpremul, iccProfile);
+        // this is the important part. set the destination `ColorSpace` as
+        // `SKColorSpace.CreateSrgb()`. Skia will then automatically convert the original CMYK
+        // colorspace, to this new sRGB colorspace. (Though the conversion is extremely slow!
+        // More on this in at the end of this post.)
+        SKImage newImg = SKImage.Create(info);
+        image.ReadPixels(newImg.PeekPixels());
+
+        return newImg;
+
     }
 }

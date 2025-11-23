@@ -24,6 +24,8 @@ internal sealed class IccCmykColorConverter
         _bpcScale = IccProfileHelpers.GetBlackLstarScale(_srcBlackL);
     }
 
+    public IccProfile IccProfile => _iccProfile;
+
     /// <summary>
     /// Convert a CMYK device color (0..1 components) to sRGB (0..1) given a rendering intent.
     /// Uses layered LUT acceleration when enabled and available; otherwise executes analytic pipeline.

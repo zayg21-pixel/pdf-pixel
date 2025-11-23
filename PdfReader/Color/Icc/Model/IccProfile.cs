@@ -10,6 +10,11 @@ namespace PdfReader.Color.Icc.Model;
 internal sealed partial class IccProfile
 {
     /// <summary>
+    /// Original ICC profile bytes.
+    /// </summary>
+    public byte[] Bytes { get; set; }
+
+    /// <summary>
     /// Full ICC profile header (fixed 128-byte structure) containing high-level metadata such as
     /// device class, data color space, PCS, version, rendering intent hint and illuminant.
     /// </summary>

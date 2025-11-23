@@ -26,6 +26,7 @@ internal sealed partial class IccProfile
         var reader = new BigEndianReader(data);
         var profile = new IccProfile
         {
+            Bytes = data,
             Header = IccProfileHeader.Read(reader)
         };
 
