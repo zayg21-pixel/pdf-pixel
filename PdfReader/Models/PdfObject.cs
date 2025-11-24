@@ -1,4 +1,3 @@
-using CommunityToolkit.HighPerformance;
 using PdfReader.Streams;
 using System;
 using System.IO;
@@ -52,7 +51,7 @@ namespace PdfReader.Models
         {
             if (!EmbaddedStream.IsEmpty)
             {
-                return EmbaddedStream.AsStream();
+                return new MemoryStream(EmbaddedStream.ToArray());
             }
 
             if (!HasStream)
