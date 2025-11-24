@@ -1,12 +1,14 @@
-using System;
-using System.Runtime.InteropServices;
 using Microsoft.Extensions.Logging;
-using SkiaSharp;
-using System.Runtime.CompilerServices;
+using PdfReader.Color.ColorSpace;
+using PdfReader.Color.Filters;
+using PdfReader.Color.Structures;
+using PdfReader.Imaging.Decoding;
 using PdfReader.Imaging.Model;
 using PdfReader.Imaging.Sampling;
-using PdfReader.Color.ColorSpace;
-using PdfReader.Color.Structures;
+using SkiaSharp;
+using System;
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 
 namespace PdfReader.Imaging.Processing;
 
@@ -276,7 +278,7 @@ internal sealed class PdfImageRowProcessor : IDisposable
     /// <summary>
     /// Returns an SKImage wrapping the unmanaged buffer. Ownership of buffer transfers to Skia.
     /// </summary>
-    public unsafe SKImage GetSkImage()
+    public unsafe PdfImageDecodingResult GetDecoded()
     {
         if (!_initialized)
         {
@@ -289,21 +291,29 @@ internal sealed class PdfImageRowProcessor : IDisposable
 
         SKColorType colorType;
         SKAlphaType alphaType = SKAlphaType.Premul;
+        SKColorSpace skColorSpace = null;
+        bool decodeApplied = !ColorFilterDecode.ShouldApplyDecode(_image.DecodeArray, _converter.Components);
+        bool maskApplied = _image.MaskArray == null;
+        bool canApplyColorSpace = decodeApplied && maskApplied;
 
         switch (_outputMode)
         {
             case OutputMode.Gray:
             {
+                skColorSpace = canApplyColorSpace ? _converter.AsSkiaColorSpace(_image.RenderingIntent) : null;
                 colorType = SKColorType.Gray8;
                 break;
             }
             case OutputMode.RgbaColorApplied:
             {
+                skColorSpace = null;
                 colorType = SKColorType.Rgba8888;
                 break;
             }
             default:
             {
+                skColorSpace = canApplyColorSpace ? _converter.AsSkiaColorSpace(_image.RenderingIntent) : null;
+
                 if (_bitsPerComponent == 16)
                 {
                     colorType = SKColorType.Rgba16161616;
@@ -316,7 +326,8 @@ internal sealed class PdfImageRowProcessor : IDisposable
             }
         }
 
-        SKImageInfo info = new SKImageInfo(_width, _height, colorType, alphaType);
+
+        SKImageInfo info = new SKImageInfo(_width, _height, colorType, alphaType, skColorSpace ?? SKColorSpace.CreateSrgb());
         SKPixmap pixmap = new SKPixmap(info, _buffer, _rowStride);
         SKImageRasterReleaseDelegate release = (addr, ctx) => Marshal.FreeHGlobal(addr);
         SKImage image = SKImage.FromPixels(pixmap, release);
@@ -327,7 +338,23 @@ internal sealed class PdfImageRowProcessor : IDisposable
         }
 
         _completed = true;
-        return image;
+        var result = new PdfImageDecodingResult(image);
+
+        if (_outputMode == OutputMode.RgbaColorApplied)
+        {
+            result.ColorConverted = true;
+            result.MaskRemoved = true;
+            result.DecodeApplied = true;
+        }
+        else
+        {
+            // Decode and mask should be applied before color, but color space is applied 
+            result.ColorConverted = skColorSpace != null;
+            result.DecodeApplied = decodeApplied;
+            result.MaskRemoved = maskApplied;
+        }
+
+        return result;
     }
 
     public void Dispose()

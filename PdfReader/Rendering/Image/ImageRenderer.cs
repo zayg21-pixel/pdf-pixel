@@ -107,10 +107,10 @@ public class ImageRenderer : IImageRenderer
         }
 
         using var imagePaint = PdfPaintFactory.CreateImagePaint(state);
-        imagePaint.ColorFilter = ImagePostProcessingFilters.BuildImageFilter(pdfImage, decoder.IsColorConverted);
+        imagePaint.ColorFilter = ImagePostProcessingFilters.BuildImageFilter(pdfImage, baseImage);
 
         var sampling = PdfPaintFactory.GetImageSamplingOptions(pdfImage);
-        canvas.DrawImage(baseImage, destRect, sampling, imagePaint);
+        canvas.DrawImage(baseImage.Image, destRect, sampling, imagePaint);
     }
 
     /// <summary>
@@ -152,11 +152,11 @@ public class ImageRenderer : IImageRenderer
         using var fillPaint = PdfPaintFactory.CreateMaskImageFillPaint(state);
 
         using var maskPaint = PdfPaintFactory.CreateMaskImagePaint();
-        maskPaint.ColorFilter = ImagePostProcessingFilters.BuildImageFilter(pdfImage, decoder.IsColorConverted);
+        maskPaint.ColorFilter = ImagePostProcessingFilters.BuildImageFilter(pdfImage, alphaMask);
 
         canvas.SaveLayer(destRect, layerPaint);
 
-        canvas.DrawImage(alphaMask, destRect, sampling, maskPaint);
+        canvas.DrawImage(alphaMask.Image, destRect, sampling, maskPaint);
         canvas.DrawRect(destRect, fillPaint);
 
         canvas.Restore();
@@ -213,24 +213,24 @@ public class ImageRenderer : IImageRenderer
 
         using var layerPaint = PdfPaintFactory.CreateLayerPaint(state);
         using var imagePaint = PdfPaintFactory.CreateMaskImagePaint();
-        imagePaint.ColorFilter = ImagePostProcessingFilters.BuildImageFilter(pdfImage, baseDecoder.IsColorConverted);
+        imagePaint.ColorFilter = ImagePostProcessingFilters.BuildImageFilter(pdfImage, baseImage);
 
         using var maskPaint = PdfPaintFactory.CreateImageMaskPaint();
-        maskPaint.ColorFilter = ImagePostProcessingFilters.BuildImageFilter(pdfImage.SoftMask, softMaskDecoder.IsColorConverted);
+        maskPaint.ColorFilter = ImagePostProcessingFilters.BuildImageFilter(pdfImage.SoftMask, maskImage);
 
         var sampling = PdfPaintFactory.GetImageSamplingOptions(pdfImage);
         var maskSampling = PdfPaintFactory.GetImageSamplingOptions(pdfImage.SoftMask);
 
         canvas.SaveLayer(destRect, layerPaint);
 
-        canvas.DrawImage(baseImage, destRect, sampling, imagePaint);
+        canvas.DrawImage(baseImage.Image, destRect, sampling, imagePaint);
 
         // purpose of separate picture is the same as with mask paint, it allows to set filter effect on the whole picture
         // that eliminates edge effect
         using var maskRecorder = new SKPictureRecorder();
         using var maskCanvas = maskRecorder.BeginRecording(destRect);
 
-        maskCanvas.DrawImage(maskImage, destRect, maskSampling);
+        maskCanvas.DrawImage(maskImage.Image, destRect, maskSampling);
 
         using var maskPicture = maskRecorder.EndRecording();
 

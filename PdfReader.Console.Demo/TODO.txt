@@ -2,11 +2,13 @@
 Add AES decryption and all other algorithms
 Crypt in streams
 
-Fonts:
+Fonts/Text:
 Type3 font
 MMType1 font (need example, only found CFF MM)
 Predefined CMaps
 differentiate between embedded and system fonts for cmap
+Cleanup text extraction
+Move encoding handling to separate class
 
 Color:
 TR curves for GS and SoftMask
@@ -19,7 +21,13 @@ apply patterns to stencil image (need example)
 Images:
 Add JPEG2000 decoder and JBIG2 decoder
 Need example with matte
+Need correct filter for image mask, luma is incorrect
+Apply ICC as color space for 3 component images
+Decoder should return full information about what has been decoded
+
+Document
+Move cache to separate cache class
+Minimize references to PdfDocument in other classes
 
 Bugs:
-fit11-talk.pdf - not rendered some text (couple of slashes), but a lot is not resolved from TTF
-freeculture.pdf - 171 page, CCITT decoder fails
+fit11-talk.pdf - a lot is not resolved from TTF

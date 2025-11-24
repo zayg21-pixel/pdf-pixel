@@ -1,25 +1,34 @@
-﻿using PdfReader.Imaging.Model;
+﻿using PdfReader.Color.ColorSpace;
+using PdfReader.Color.Filters;
+using PdfReader.Imaging.Decoding;
+using PdfReader.Imaging.Model;
+using PdfReader.Imaging.Processing;
 using PdfReader.Streams;
 using SkiaSharp;
 using System;
 using System.IO;
+using System.IO.Compression;
+using System.Text;
 
 namespace PdfReader.Imaging.Skia;
 
+/// <summary>
+/// Decodes PNG images using SkiaSharp with an fast path for compatible FlateDecode + PNG predictor images.
+/// </summary>
 internal class PngSkiaDecoder
 {
     /// <summary>
     /// Fast PNG path: wrap original FlateDecode zlib stream (header + deflate blocks + Adler32) into a PNG
     /// without recompression or recomputing Adler32. Returns null when incompatibilities are detected.
     /// </summary>
-    public static SKImage DecodeAsPng(PdfImage image)
+    public static PdfImageDecodingResult DecodeAsPng(PdfImage image)
     {
         if (image == null)
         {
             return null;
         }
 
-        if (!SkiaImageHelpers.CanUseSkiaFastPath(image))
+        if (PdfImageRowProcessor.ShouldConvertColor(image) || (image.ColorSpaceConverter.Components != 1 && image.ColorSpaceConverter.Components != 3))
         {
             return null;
         }
@@ -43,11 +52,21 @@ internal class PngSkiaDecoder
         int width = image.Width;
         int height = image.Height;
         int bpc = image.BitsPerComponent;
+        SKColor[] palette = null;
 
         var converter = image.ColorSpaceConverter;
+        bool canApplyColorSpace = !ColorFilterDecode.ShouldApplyDecode(image.DecodeArray, image.ColorSpaceConverter.Components) && image.MaskArray == null;
+        bool colorConverted = false;
 
         byte colorType;
-        if (converter.Components == 1)
+
+        if (canApplyColorSpace && converter is IndexedConverter indexed)
+        {
+            colorConverted = true;
+            palette = indexed.BuildPalette(image.RenderingIntent);
+            colorType = 3; // Palette
+        }
+        else if (converter.Components == 1)
         {
             colorType = 0; // Grayscale
         }
@@ -71,10 +90,29 @@ internal class PngSkiaDecoder
             return null;
         }
 
+        byte[] iccBytes = null;
+
+        if (image.ColorSpaceConverter is IccBasedConverter iccBased)
+        {
+            iccBytes = iccBased.Profile?.Bytes;
+            colorConverted = true;
+        }
+
         // Build PNG: reuse original zlib stream bytes directly as IDAT payload.
         using var pngStream = new MemoryStream();
         WritePngSignature(pngStream);
         WriteIhdrChunk(pngStream, width, height, (byte)bpc, colorType);
+
+        if (palette != null && palette.Length > 0)
+        {
+            WritePlteChunk(pngStream, palette);
+        }
+
+        if (iccBytes != null && iccBytes.Length > 0)
+        {
+            WriteIccpChunk(pngStream, iccBytes);
+        }
+
         byte[] idatPayload = rawEncodedData;
         WriteChunk(pngStream, "IDAT", idatPayload, 0, idatPayload.Length);
         WriteChunk(pngStream, "IEND", Array.Empty<byte>(), 0, 0);
@@ -82,7 +120,12 @@ internal class PngSkiaDecoder
         pngStream.Flush();
         pngStream.Position = 0;
 
-        return SKImage.FromEncodedData(pngStream);
+        return new PdfImageDecodingResult(SKImage.FromEncodedData(pngStream))
+        {
+            DecodeApplied = colorConverted,
+            MaskRemoved = colorConverted,
+            ColorConverted = colorConverted,
+        };
     }
 
     private static bool IsValidPdgStream(ReadOnlyMemory<byte> rawEncoded)
@@ -120,6 +163,39 @@ internal class PngSkiaDecoder
         stream.WriteByte(0x0A);
         stream.WriteByte(0x1A);
         stream.WriteByte(0x0A);
+    }
+
+    private static void WriteIccpChunk(Stream stream, byte[] iccProfile)
+    {
+        // Profile name: "ICC profile" (PDF and PNG spec), null-terminated
+        const string ProfileName = "ICC profile";
+        byte[] nameBytes = Encoding.ASCII.GetBytes(ProfileName);
+        using (var chunkData = new MemoryStream())
+        {
+            chunkData.Write(nameBytes, 0, nameBytes.Length);
+            chunkData.WriteByte(0); // Null terminator
+            chunkData.WriteByte(0); // Compression method: 0 = deflate
+            using (var deflate = new DeflateStream(chunkData, CompressionLevel.Optimal, true))
+            {
+                deflate.Write(iccProfile, 0, iccProfile.Length);
+            }
+            byte[] chunkBytes = chunkData.ToArray();
+            WriteChunk(stream, "iCCP", chunkBytes, 0, chunkBytes.Length);
+        }
+    }
+
+    private static void WritePlteChunk(Stream stream, SKColor[] palette)
+    {
+        // Each entry is 3 bytes: R, G, B
+        int count = palette.Length;
+        byte[] plte = new byte[count * 3];
+        for (int i = 0; i < count; i++)
+        {
+            plte[i * 3 + 0] = palette[i].Red;
+            plte[i * 3 + 1] = palette[i].Green;
+            plte[i * 3 + 2] = palette[i].Blue;
+        }
+        WriteChunk(stream, "PLTE", plte, 0, plte.Length);
     }
 
     private static void WriteIhdrChunk(Stream stream, int width, int height, byte bitDepth, byte colorType)

@@ -24,4 +24,9 @@ internal sealed class DeviceGrayConverter : PdfColorSpaceConverter
     {
         return null;
     }
+
+    public override SKColorSpace AsSkiaColorSpace(PdfRenderingIntent intent)
+    {
+        return SKColorSpace.CreateSrgb();
+    }
 }

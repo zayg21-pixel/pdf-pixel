@@ -94,14 +94,15 @@ internal class ColorFilterDecode
 
     /// <summary>
     /// Builds a decode color filter for the specified number of channels (not for masks).
+    /// Returns null if the decode array is near-identity (no filter needed).
     /// </summary>
     /// <param name="decode">Decode array (2 values per channel).</param>
     /// <param name="channelCount">Number of color channels (1, 3, or 4).</param>
-    /// <returns>SKColorFilter that applies decode mapping.</returns>
+    /// <returns>SKColorFilter that applies decode mapping, or null if near-identity.</returns>
     /// <exception cref="ArgumentOutOfRangeException">Thrown if channelCount is not 1, 3, or 4.</exception>
     public static SKColorFilter BuildDecodeColorFilter(float[] decode, int channelCount)
     {
-        if (decode == null || decode.Length != channelCount * 2)
+        if (!ShouldApplyDecode(decode, channelCount))
         {
             return null;
         }
@@ -135,6 +136,30 @@ internal class ColorFilterDecode
         }
 
         return effect.ToColorFilter(uniforms);
+    }
+
+    /// <summary>
+    /// Determines if the decode array should be applied and different from identity.
+    /// </summary>
+    public static bool ShouldApplyDecode(float[] decode, int channelCount)
+    {
+        if (decode == null || decode.Length != channelCount * 2)
+        {
+            return false;
+        }
+
+        const float Epsilon = 1e-5f;
+        for (int i = 0; i < channelCount; i++)
+        {
+            float min = decode[i * 2];
+            float max = decode[i * 2 + 1];
+            if (Math.Abs(min - 0f) > Epsilon || Math.Abs(max - 1f) > Epsilon)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /// <summary>

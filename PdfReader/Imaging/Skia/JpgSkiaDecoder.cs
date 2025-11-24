@@ -1,4 +1,9 @@
-﻿using PdfReader.Imaging.Model;
+﻿using PdfReader.Color.ColorSpace;
+using PdfReader.Color.Filters;
+using PdfReader.Imaging.Decoding;
+using PdfReader.Imaging.Jpg.Color;
+using PdfReader.Imaging.Model;
+using PdfReader.Imaging.Processing;
 using SkiaSharp;
 
 namespace PdfReader.Imaging.Skia;
@@ -10,15 +15,36 @@ internal static class JpgSkiaDecoder
     /// </summary>
     /// <param name="image">Image instance.</param>
     /// <returns>Decoded image.</returns>
-    public static SKImage DecodeAsJpg(PdfImage image)
+    public static PdfImageDecodingResult DecodeAsJpg(PdfImage image)
     {
-        if (!SkiaImageHelpers.CanUseSkiaFastPath(image))
+        if (PdfImageRowProcessor.ShouldConvertColor(image) || (image.ColorSpaceConverter.Components != 1 && image.ColorSpaceConverter.Components != 3))
         {
             return null;
         }
 
-        var stream = image.GetImageDataStream();
+        var data = image.GetImageData();
 
-        return SKImage.FromEncodedData(stream);
+        bool canApplyColorSpace = !ColorFilterDecode.ShouldApplyDecode(image.DecodeArray, image.ColorSpaceConverter.Components) && image.MaskArray == null;
+        bool colorConverted = false;
+
+        if (canApplyColorSpace && image.ColorSpaceConverter is IccBasedConverter iccBased)
+        {
+            data = JpgIccProfileUpdater.UpdateIccProfile(data, iccBased.Profile?.Bytes);
+            colorConverted = true;
+        }
+
+        var result = SKImage.FromEncodedData(data.Span);
+
+        if (result == null)
+        {
+            return null;
+        }
+
+        return new PdfImageDecodingResult(result)
+        {
+            DecodeApplied = colorConverted,
+            MaskRemoved = colorConverted,
+            ColorConverted = colorConverted
+        };
     }
 }

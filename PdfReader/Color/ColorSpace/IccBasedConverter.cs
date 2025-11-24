@@ -111,6 +111,17 @@ internal sealed class IccBasedConverter : PdfColorSpaceConverter
         return _default.ToSrgb(comps01, intent);
     }
 
+    public override SKColorSpace AsSkiaColorSpace(PdfRenderingIntent intent)
+    {
+        // TODO: override for calibrated
+        if (Profile?.Bytes == null)
+        {
+            return null;
+        }
+
+        return SKColorSpace.CreateIcc(Profile?.Bytes);
+    }
+
     private static Vector3 ConvertTyByte(Vector3 rgb01)
     {
         Vector3 converted = rgb01 * _vectorToByte3 + _vectorRounding3;

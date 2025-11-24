@@ -337,6 +337,28 @@ internal static class IccProfileHelpers
     }
 
     /// <summary>
+    /// Convert ICC profile header rendering intent to corresponding PDF rendering intent.
+    /// </summary>
+    /// <param name="profile">Profile instance.</param>
+    /// <returns>Intent value.</returns>
+    public static PdfRenderingIntent ToPdfRenderingIntent(IccProfile profile)
+    {
+        switch (profile.Header.RenderingIntent)
+        {
+            case 0u:
+                return PdfRenderingIntent.Perceptual;
+            case 1u:
+                return PdfRenderingIntent.RelativeColorimetric;
+            case 2u:
+                return PdfRenderingIntent.Saturation;
+            case 3u:
+                return PdfRenderingIntent.AbsoluteColorimetric;
+            default:
+                return PdfRenderingIntent.Perceptual;
+        }
+    }
+
+    /// <summary>
     /// Overload that selects a parsed A2B LUT pipeline using the rendering intent stored in the profile header.
     /// Caller-specified intent should be preferred when available; this method is a convenience fallback.
     /// Header intent values: 0=Perceptual, 1=Relative Colorimetric, 2=Saturation, 3=Absolute Colorimetric.

@@ -64,12 +64,11 @@ internal static class SoftMaskFilter
     /// <returns>
     /// An <see cref="SKColorFilter"/> that sets alpha to 0.0 if all input components are in their mask range, otherwise 1.0. Returns null if maskRanges is not for grayscale or RGB.
     /// </returns>
-    /// <exception cref="ArgumentNullException">Thrown if <paramref name="maskRanges"/> is null.</exception>
     public static SKColorFilter BuildMaskColorFilter(int[] maskRanges, bool upsample, int bitsPerComponent)
     {
-        if (maskRanges == null)
+        if (maskRanges == null || maskRanges.Length == 0)
         {
-            throw new ArgumentNullException(nameof(maskRanges));
+            return null;
         }
 
         if (bitsPerComponent < 1 || bitsPerComponent > 16)

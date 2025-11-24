@@ -97,7 +97,22 @@ public abstract class PdfColorSpaceConverter : IDisposable
         return (byte)value;
     }
 
-    public virtual SKColorFilter AsColorFilter(PdfRenderingIntent intent)
+    /// <summary>
+    /// Returns color space as <see cref="SKColorSpace"/>, or null if not applicable.
+    /// </summary>
+    /// <param name="intent">Rendering intent to apply.</param>
+    /// <returns><see cref="SKColorSpace"/> instance representing the color space.</returns>
+    public virtual SKColorSpace AsSkiaColorSpace(PdfRenderingIntent intent)
+    {
+        return null;
+    }
+
+    /// <summary>
+    /// Retrieves or creates a cached SKColorFilter for the specified rendering intent.
+    /// </summary>
+    /// <param name="intent">Rendering intent to apply.</param>
+    /// <returns><see cref="SKColorFilter"/> instance that applies intent.</returns>
+    public virtual SKColorFilter AsColorFilter(PdfRenderingIntent intent) // TODO: remove intent processing at all
     {
         return _colorFilterCache.GetOrAdd(intent, key => BuldColorFilter(intent));
     }
