@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 
 namespace PdfReader.Imaging.Ccitt;
 
@@ -9,18 +10,16 @@ namespace PdfReader.Imaging.Ccitt;
 /// </summary>
 internal static class CcittG4TwoDDecoder
 {
-    internal static void DecodeTwoDLine(ref CcittBitReader reader, int width, List<int> referenceChanges, List<int> runs, List<int> nextReferenceChanges)
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    internal static void DecodeTwoDLine(ref CcittBitReader reader, int width, Span<int> referenceChanges, List<int> runs)
     {
         runs.Clear();
-        nextReferenceChanges.Clear();
 
         int a0 = 0;
         int currentRunLength = 0;
 
         while (a0 < width)
         {
-            bool currentColor = runs.Count % 2 == 1;
-
             if (!CcittModeReader.TryPeekAndConsumeMode(ref reader, out var mode))
             {
                 int extPeek10 = reader.PeekBits(10);
@@ -40,7 +39,7 @@ internal static class CcittG4TwoDDecoder
                 case ModeType.Pass:
                 {
                     bool colorBefore = runs.Count % 2 == 1;
-                    GetPassPair(referenceChanges, a0, colorBefore, out int b1, out int b2);
+                    GetB1B2(referenceChanges, a0, colorBefore, out int b1, out int b2);
                     if (b1 < a0 || b2 <= b1 || b2 > width)
                     {
                         throw new InvalidOperationException("CCITT G4 decode error: invalid pass pair a0=" + a0 + " b1=" + b1 + " b2=" + b2 + ".");
@@ -73,8 +72,7 @@ internal static class CcittG4TwoDDecoder
                 {
                     bool colorBefore = runs.Count % 2 == 1;
                     var firstRun = CcittRunDecoder.DecodeRun(ref reader, colorBefore);
-                    bool allowZeroFirst = firstRun.Length == 0 && a0 == 0 && !colorBefore;
-                    if (firstRun.Length < 0 || !allowZeroFirst && firstRun.Length == 0 || !firstRun.HasTerminating || firstRun.IsEndOfLine)
+                    if (!firstRun.HasTerminating)
                     {
                         throw new InvalidOperationException("CCITT G4 decode error: invalid first horizontal run a0=" + a0 + " len=" + firstRun.Length + ".");
                     }
@@ -86,12 +84,9 @@ internal static class CcittG4TwoDDecoder
                     a0 += firstRun.Length;
                     FinalizeRun(runs, ref currentRunLength);
                     bool colorAfterFirst = runs.Count % 2 == 1;
-                    if (a0 >= width)
-                    {
-                        break;
-                    }
+
                     var secondRun = CcittRunDecoder.DecodeRun(ref reader, colorAfterFirst);
-                    if (secondRun.Length <= 0 || !secondRun.HasTerminating || secondRun.IsEndOfLine)
+                    if (!secondRun.HasTerminating)
                     {
                         throw new InvalidOperationException("CCITT G4 decode error: invalid second horizontal run a0=" + a0 + " len=" + secondRun.Length + ".");
                     }
@@ -115,58 +110,60 @@ internal static class CcittG4TwoDDecoder
         {
             FinalizeRun(runs, ref currentRunLength);
         }
-
-        CcittRaster.BuildReferenceChangeList(runs, width, nextReferenceChanges);
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static void FinalizeRun(List<int> runs, ref int currentLength)
     {
         runs.Add(currentLength);
         currentLength = 0;
     }
 
-    internal static int GetB1(List<int> referenceChanges, int a0, bool a0Color)
+    /// <summary>
+    /// Finds the first reference change after a0 (or at 0 if a0 is 0) where the color after the change
+    /// is not equal to a0Color. Returns the last change if no such change is found.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    internal static int GetB1(Span<int> referenceChanges, int a0, bool a0Color)
     {
-        bool refColor = false;
-        for (int i = 0; i < referenceChanges.Count; i++)
+        ref int start = ref referenceChanges[0];
+        int length = referenceChanges.Length;
+
+        for (int i = 0; i < length; i++)
         {
-            int change = referenceChanges[i];
-            bool colorAfter = !refColor;
-            if (change > a0 || a0 == 0 && change == 0)
+            int changePosition = start;
+
+            if ((changePosition > a0 || (a0 == 0 && changePosition == 0)) && (i % 2) == 0 != a0Color)
             {
-                if (colorAfter != a0Color)
-                {
-                    return change;
-                }
+                return changePosition;
             }
-            refColor = !refColor;
+
+            start = ref Unsafe.Add(ref start, 1);
         }
-        return referenceChanges[referenceChanges.Count - 1];
+        // If not found, return the last change
+        return referenceChanges[referenceChanges.Length - 1];
     }
 
-    internal static void GetPassPair(List<int> referenceChanges, int a0, bool a0Color, out int b1, out int b2)
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    internal static void GetB1B2(Span<int> referenceChanges, int a0, bool a0Color, out int b1, out int b2)
     {
-        bool refColor = false;
-        b1 = -1; b2 = -1;
-        for (int i = 0; i < referenceChanges.Count; i++)
+        ref int start = ref referenceChanges[0];
+        int length = referenceChanges.Length;
+
+        for (int i = 0; i < length; i++)
         {
-            int change = referenceChanges[i];
-            if (change > a0 || a0 == 0 && change == 0)
+            int changePosition = start;
+            if ((changePosition > a0 || (a0 == 0 && changePosition == 0)) && (i % 2) == 0 != a0Color)
             {
-                bool colorAfter = !refColor;
-                if (colorAfter != a0Color && b1 < 0)
-                {
-                    b1 = change;
-                    b2 = i + 1 < referenceChanges.Count ? referenceChanges[i + 1] : referenceChanges[referenceChanges.Count - 1];
-                    return;
-                }
+                b1 = changePosition;
+                b2 = i + 1 < referenceChanges.Length ? referenceChanges[i + 1] : referenceChanges[referenceChanges.Length - 1];
+                return;
             }
-            refColor = !refColor;
+
+            start = ref Unsafe.Add(ref start, 1);
         }
-        if (b1 < 0)
-        {
-            b1 = referenceChanges[referenceChanges.Count - 1];
-            b2 = b1;
-        }
+        // Fallback: assign last change for both b1 and b2
+        b1 = referenceChanges[referenceChanges.Length - 1];
+        b2 = b1;
     }
 }

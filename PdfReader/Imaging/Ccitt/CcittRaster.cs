@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 
 namespace PdfReader.Imaging.Ccitt;
 
@@ -11,22 +12,6 @@ namespace PdfReader.Imaging.Ccitt;
 internal static class CcittRaster
 {
     /// <summary>
-    /// Validate that the sum of run lengths matches the expected width.
-    /// </summary>
-    public static void ValidateRunLengths(List<int> runs, int expectedWidth, int rowIndex, string decoderName)
-    {
-        int total = 0;
-        for (int i = 0; i < runs.Count; i++)
-        {
-            total += runs[i];
-        }
-        if (total != expectedWidth)
-        {
-            throw new InvalidOperationException(decoderName + " decode error: row length mismatch row=" + rowIndex + " got=" + total + " expected=" + expectedWidth + ".");
-        }
-    }
-
-    /// <summary>
     /// Rasterize run-length data into the packed bit buffer. First run is white (may be zero) and colors alternate.
     /// Background was pre-initialized to white; only the black runs are written by flipping bits when necessary.
     /// </summary>
@@ -35,6 +20,7 @@ internal static class CcittRaster
     /// <param name="rowIndex">Row index being written.</param>
     /// <param name="width">Row width in pixels.</param>
     /// <param name="blackIs1">Bit polarity (1=black when true).</param>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static void RasterizeRuns(Span<byte> buffer, List<int> runs, int rowIndex, int width, bool blackIs1)
     {
         int rowBytes = (width + 7) / 8;
@@ -58,28 +44,36 @@ internal static class CcittRaster
     /// <summary>
     /// Build reference change list from run lengths for subsequent 2D line processing.
     /// </summary>
-    public static void BuildReferenceChangeList(List<int> runs, int width, List<int> nextReferenceChanges)
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static int BuildReferenceChangeList(List<int> runs, int width, int[] buffer)
     {
-        nextReferenceChanges.Clear();
+        int position = 0;
         if (runs.Count > 0 && runs[0] == 0)
         {
-            nextReferenceChanges.Add(0);
+            buffer[position] = 0;
+            position++;
         }
+
         int accumulator = 0;
         for (int i = 0; i < runs.Count; i++)
         {
             accumulator += runs[i];
             if (accumulator > 0 && accumulator < width)
             {
-                nextReferenceChanges.Add(accumulator);
+                buffer[position] = accumulator;
+                position++;
             }
         }
-        if (nextReferenceChanges.Count == 0 || nextReferenceChanges[nextReferenceChanges.Count - 1] != width)
+        if (position == 0 || buffer[position - 1] != width)
         {
-            nextReferenceChanges.Add(width);
+            buffer[position] = width;
+            position++;
         }
+
+        return position;
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static void WriteBlackRun(Span<byte> buffer, int rowBase, int startX, int length, int blackBit)
     {
         if (length <= 0)

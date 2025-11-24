@@ -27,8 +27,8 @@ internal sealed class CcittRowDecoder
     private int _bitsRemaining;
     private byte _currentByte;
 
-    private List<int> _referenceChanges;
-    private List<int> _nextReferenceChanges;
+    private readonly int[] _referenceChanges;
+    private int _changesCount;
     private readonly List<int> _runs;
 
     private int _currentRowIndex;
@@ -67,8 +67,9 @@ internal sealed class CcittRowDecoder
         _currentByte = 0;
 
         _runs = new List<int>(256);
-        _referenceChanges = new List<int>(width + 8) { width };
-        _nextReferenceChanges = new List<int>(width + 8);
+        _referenceChanges = new int[_width + 1];
+        _referenceChanges[0] = _width;
+        _changesCount = 1;
         _currentRowIndex = 0;
         _completed = false;
         _rtcConsumed = false;
@@ -117,10 +118,8 @@ internal sealed class CcittRowDecoder
         }
         else
         {
-            CcittG4TwoDDecoder.DecodeTwoDLine(ref reader, _width, _referenceChanges, _runs, _nextReferenceChanges);
+            CcittG4TwoDDecoder.DecodeTwoDLine(ref reader, _width, _referenceChanges.AsSpan().Slice(0, _changesCount), _runs);
         }
-
-        CcittRaster.ValidateRunLengths(_runs, _width, _currentRowIndex, "CCITT Streamed");
 
         Span<byte> rowSpan = destinationRow.Slice(0, RowStride);
 
@@ -128,11 +127,7 @@ internal sealed class CcittRowDecoder
 
         CcittRaster.RasterizeRuns(rowSpan, _runs, 0, _width, _blackIs1);
 
-        CcittRaster.BuildReferenceChangeList(_runs, _width, _nextReferenceChanges);
-        var tmp = _referenceChanges;
-        _referenceChanges = _nextReferenceChanges;
-        _nextReferenceChanges = tmp;
-        _nextReferenceChanges.Clear();
+        _changesCount = CcittRaster.BuildReferenceChangeList(_runs, _width, _referenceChanges);
 
         // Snapshot updated reader state
         _byteIndex = reader.ByteIndex;

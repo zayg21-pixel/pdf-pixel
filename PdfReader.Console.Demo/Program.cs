@@ -20,6 +20,7 @@ namespace PdfReader.Console.Demo
 
             // Test with some sample PDFs
             string[] testFiles = {
+                "pdfs//freeculture.pdf"
                 //"pdfs//100mb.pdf",
                 //"pdfs//PDF-Horizontal-Scaling.pdf",
                 //"pdfs//pattern_text_embedded_font.pdf",
@@ -71,7 +72,7 @@ namespace PdfReader.Console.Demo
                 //@"sample.pdf",
                 //"Adyen.pdf",
                 //"Adyen 2023.pdf",
-                "adyen_2020.pdf",
+                //"adyen_2020.pdf",
                 //"adyen_2020_debug.pdf",
                 //"pdfs\\emojies.pdf",
                 //"documentEd.pdf",
@@ -80,10 +81,9 @@ namespace PdfReader.Console.Demo
 
             foreach (var file in testFiles)
             {
-                //await TestPdfFile(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, file));
                 for (int i = 0; i < 10; i++)
                 {
-                    TextTextExtraction(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, file));
+                    await TestPdfFile(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, file));
                 }
                 //TextTextExtraction(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, file));
             }
@@ -153,9 +153,9 @@ namespace PdfReader.Console.Demo
                 Logger.LogInformation("Actual pages found: {Count}", document.Pages.Count);
                 Logger.LogInformation("Root object: {Root}", document.RootObject);
 
-                var start = 1;
-                var max = 1000;
-                float scaleX = 4f; // Scale factor for rendering
+                var start = 170;
+                var max = 171;
+                float scaleX = 1f; // Scale factor for rendering
 
                 // Analyze pages with detailed content stream debugging
                 for (int i = start; i < Math.Min(max, document.PageCount); i++)

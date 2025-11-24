@@ -38,7 +38,6 @@ internal static class CcittG3OneDDecoder
 
         int xPosition = 0;
         bool currentIsBlack = false;
-        bool leadingZeroAllowed = true;
 
         while (xPosition < width)
         {
@@ -47,6 +46,7 @@ internal static class CcittG3OneDDecoder
             {
                 throw new InvalidOperationException("CCITT G3 1D decode error: invalid code at x=" + xPosition + ".");
             }
+
             if (result.IsEndOfLine)
             {
                 if (xPosition != width)
@@ -55,23 +55,14 @@ internal static class CcittG3OneDDecoder
                 }
                 break;
             }
+
             if (!result.HasTerminating)
             {
                 throw new InvalidOperationException("CCITT G3 1D decode error: missing terminating code at x=" + xPosition + ".");
             }
 
             int runLength = result.Length;
-            if (runLength == 0)
-            {
-                if (xPosition == 0 && !currentIsBlack && leadingZeroAllowed)
-                {
-                    runs.Add(0);
-                    currentIsBlack = true;
-                    leadingZeroAllowed = false;
-                    continue;
-                }
-                throw new InvalidOperationException("CCITT G3 1D decode error: zero-length run encountered mid line at x=" + xPosition + ".");
-            }
+
             if (runLength > width - xPosition)
             {
                 throw new InvalidOperationException("CCITT G3 1D decode error: run overruns line (run=" + runLength + ", x=" + xPosition + ").");
