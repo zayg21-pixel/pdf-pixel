@@ -187,11 +187,27 @@ public abstract class PdfFontBase : IDisposable
     {
         // Use GetPageObject instead of storing reference
         var toUnicodeObj = Dictionary.GetObject(PdfTokens.ToUnicodeKey);
+
         if (toUnicodeObj == null)
+        {
             return null;
+        }
+
+        if (toUnicodeObj.Reference.IsValid && Document.CMapStreamCache.TryGetValue(toUnicodeObj.Reference, out var cachedCMap))
+        {
+            return cachedCMap;
+        }
 
         var cmapData = toUnicodeObj.DecodeAsMemory();
-        return PdfCMapParser.ParseCMap(cmapData, Document);
+
+        var parsedCMap = PdfCMapParser.ParseCMap(cmapData, Document);
+
+        if (toUnicodeObj.Reference.IsValid)
+        {
+            Document.CMapStreamCache[toUnicodeObj.Reference] = parsedCMap;
+        }
+
+        return parsedCMap;
     }
 
     protected virtual void Dispose(bool disposing)

@@ -41,12 +41,16 @@ namespace PdfReader.Models
         /// <summary>
         /// Document level font substitution engine.
         /// </summary>
-        internal SkiaFontSubstitutor FontSubstitutor { get; }
+        internal SkiaFontSubstitutor FontSubstitutor { get; } // TODO: move substitutor to a separate context class, can be shared across documents
 
         /// <summary>
         /// Document font cache.
         /// </summary>
         internal Dictionary<PdfReference, PdfFontBase> Fonts { get; } = new Dictionary<PdfReference, PdfFontBase>();
+
+        internal static Dictionary<PdfString, PdfCMap> CMapCache { get; } = new Dictionary<PdfString, PdfCMap>();
+
+        internal Dictionary<PdfReference, PdfCMap> CMapStreamCache { get; } = new Dictionary<PdfReference, PdfCMap>(); // TODO: move all caches to a separate class
 
         /// <summary>
         /// Document color space converter cache.
@@ -55,10 +59,22 @@ namespace PdfReader.Models
 
         public PdfCMap GetCmap(PdfString name)
         {
+            if (CMapCache.TryGetValue(name, out var existing))
+            {
+                return existing;
+            }
+
             try
             {
                 var cmapBytes = PdfResourceLoader.GetZipCompressedResource("CMaps.zip", name.ToString());
-                return PdfCMapParser.ParseCMap(cmapBytes, this);
+                var cmap = PdfCMapParser.ParseCMap(cmapBytes, this);
+
+                if (cmap != null)
+                {
+                    CMapCache[name] = cmap;
+                }
+
+                return cmap;
             }
             catch (Exception ex)
             {

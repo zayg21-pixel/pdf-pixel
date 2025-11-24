@@ -67,11 +67,11 @@ namespace PdfReader.Console.Demo
                 //"PDF32000_2008.pdf",
                 //"ch14.pdf"
                 //@"documentS.pdf",
-                @"documentC.pdf",
+                //@"documentC.pdf",
                 //@"sample.pdf",
                 //"Adyen.pdf",
                 //"Adyen 2023.pdf",
-                //"adyen_2020.pdf",
+                "adyen_2020.pdf",
                 //"adyen_2020_debug.pdf",
                 //"pdfs\\emojies.pdf",
                 //"documentEd.pdf",
@@ -81,7 +81,11 @@ namespace PdfReader.Console.Demo
             foreach (var file in testFiles)
             {
                 //await TestPdfFile(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, file));
-                TextTextExtraction(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, file));
+                for (int i = 0; i < 10; i++)
+                {
+                    TextTextExtraction(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, file));
+                }
+                //TextTextExtraction(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, file));
             }
         }
 

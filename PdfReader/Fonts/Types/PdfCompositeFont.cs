@@ -32,6 +32,7 @@ namespace PdfReader.Fonts.Types
             DescendantFonts = LoadDescendantFonts();
             CodeToCidCMap = LoadCodeToCidCMap();
 
+            // TODO: cleanup
             /*
 Japanese	*-RKSJ-*	932
 Japanese	EUC-*	EUC-JP
@@ -187,6 +188,11 @@ Korean	KSC-Johab-*	1361
                 return null;
             }
 
+            if (encodingObj.Reference.IsValid && Document.CMapStreamCache.TryGetValue(encodingObj.Reference, out var cachedCMap))
+            {
+                return cachedCMap;
+            }
+
             var data = encodingObj.DecodeAsMemory();
             if (data.IsEmpty || data.Length == 0)
             {
@@ -201,6 +207,11 @@ Korean	KSC-Johab-*	1361
             {
                 result.Name = cmapName;
             };
+
+            if (encodingObj.Reference.IsValid)
+            {
+                Document.CMapStreamCache[encodingObj.Reference] = result;
+            }
 
             return result;
         }

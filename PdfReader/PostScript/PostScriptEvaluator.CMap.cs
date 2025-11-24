@@ -84,7 +84,7 @@ namespace PdfReader.PostScript
                 case "usecmap":
                 {
                     Ensure(stack, 1);
-                    PostScriptToken cmapNameToken = stack.Pop();
+                    PostScriptToken cmapNameToken = stack.Pop(); // TODO: combine in array
 
                     PostScriptDictionary topDict = _dictStack.Peek();
                     topDict.EnsureAccess(PostScriptAccessOperation.Modify);
