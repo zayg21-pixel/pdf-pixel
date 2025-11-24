@@ -55,7 +55,7 @@ namespace PdfReader.TextExtraction
                 float charWidth = ch.BoundingBox.Width;
 
                 // New line detection
-                if (lastY.HasValue && Math.Abs(y - lastY.Value) > 0.1f)
+                if (lastY.HasValue && Math.Abs(y - lastY.Value) > (prevCharWidth ?? 1) / 2)
                 {
                     if (currentWord.Count > 0)
                     {

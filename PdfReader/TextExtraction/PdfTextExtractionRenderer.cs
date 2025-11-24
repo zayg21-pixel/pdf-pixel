@@ -58,13 +58,11 @@ namespace PdfReader.TextExtraction
 
         public float DrawTextSequence(SKCanvas canvas, List<ShapedGlyph> glyphs, PdfGraphicsState state, PdfFontBase font)
         {
-            canvas.Save();
-
-            var textMatrix = TextRenderUtilities.GetFullTextMatrix(state);
-            canvas.Concat(textMatrix);
             using var skFont = font.GetSkiaFont();
 
-            var currentMatrix = canvas.TotalMatrix;
+            var currentMatrix = SKMatrix.Concat(canvas.TotalMatrix, TextRenderUtilities.GetFullTextMatrix(state));
+            var rawTextMatrix = SKMatrix.Concat(canvas.TotalMatrix, state.TextMatrix);
+
             float advance = 0;
 
             // Use font metrics for correct vertical bounds
@@ -85,8 +83,6 @@ namespace PdfReader.TextExtraction
 
                 advance += glyph.TotalWidth;
             }
-
-            canvas.Restore();
 
             return advance * state.FontSize * state.HorizontalScaling / 100f;
         }
