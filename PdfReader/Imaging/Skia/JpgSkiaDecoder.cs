@@ -24,7 +24,7 @@ internal static class JpgSkiaDecoder
 
         var data = image.GetImageData();
 
-        bool canApplyColorSpace = !ColorFilterDecode.ShouldApplyDecode(image.DecodeArray, image.ColorSpaceConverter.Components) && image.MaskArray == null;
+        bool canApplyColorSpace = image.DecodeArray == null && image.MaskArray == null;
         bool colorConverted = false;
 
         if (canApplyColorSpace && image.ColorSpaceConverter is IccBasedConverter iccBased)

@@ -292,7 +292,7 @@ internal sealed class PdfImageRowProcessor : IDisposable
         SKColorType colorType;
         SKAlphaType alphaType = SKAlphaType.Premul;
         SKColorSpace skColorSpace = null;
-        bool decodeApplied = !ColorFilterDecode.ShouldApplyDecode(_image.DecodeArray, _converter.Components);
+        bool decodeApplied = _image.DecodeArray == null;
         bool maskApplied = _image.MaskArray == null;
         bool canApplyColorSpace = decodeApplied && maskApplied;
 

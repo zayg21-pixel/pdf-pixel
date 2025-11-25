@@ -55,7 +55,7 @@ internal class PngSkiaDecoder
         SKColor[] palette = null;
 
         var converter = image.ColorSpaceConverter;
-        bool canApplyColorSpace = !ColorFilterDecode.ShouldApplyDecode(image.DecodeArray, image.ColorSpaceConverter.Components) && image.MaskArray == null;
+        bool canApplyColorSpace = image.DecodeArray == null && image.MaskArray == null;
         bool colorConverted = false;
 
         byte colorType;

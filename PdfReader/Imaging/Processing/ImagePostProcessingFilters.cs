@@ -28,7 +28,7 @@ internal class ImagePostProcessingFilters
         // Step 1: Apply Decode filter if present.
         if (!decodingResult.DecodeApplied && !pdfImage.HasImageMask)
         {
-            ComposeColorFilter(ref filter, ColorFilterDecode.BuildDecodeColorFilter(pdfImage.DecodeArray, pdfImage.ColorSpaceConverter.Components));
+            ComposeColorFilter(ref filter, MatrixColorFilters.BuildDecodeColorMatrix(pdfImage.DecodeArray, pdfImage.ColorSpaceConverter.Components));
         }
 
         // Step 2: Apply Mask filter (color key mask or soft mask) if present and supported.
@@ -49,16 +49,17 @@ internal class ImagePostProcessingFilters
         }
 
         // Step 4: If this image is a soft mask, apply luminocity-to-alpha filter.
-        if (!decodingResult.AlphaSet && pdfImage.IsSoftMask)
+        if (!decodingResult.AlphaSet)
         {
-            ComposeColorFilter(ref filter, BuildGrayAlphaColorMatrix(inverse: false));
-        }
-
-        if (!decodingResult.AlphaSet && pdfImage.HasImageMask)
-        {
-            var decode = pdfImage.DecodeArray ?? [0, 1];
-            bool inverse = decode.Length == 2 && decode[0] < decode[1];
-            ComposeColorFilter(ref filter, BuildGrayAlphaColorMatrix(inverse));
+            if (pdfImage.IsSoftMask)
+            {
+                ComposeColorFilter(ref filter, MatrixColorFilters.BuildGrayAlphaColorMatrix(inverse: false));
+            }
+            else if (pdfImage.HasImageMask)
+            {
+                bool inverse = pdfImage.DecodeArray == null || (pdfImage.DecodeArray.Length == 2 && pdfImage.DecodeArray[0] < pdfImage.DecodeArray[1]);
+                ComposeColorFilter(ref filter, MatrixColorFilters.BuildGrayAlphaColorMatrix(inverse));
+            }
         }
 
         // Step 5: Apply Matte dematting filter if pdfImage.MatteArray is present.
@@ -70,34 +71,6 @@ internal class ImagePostProcessingFilters
         }
 
         return filter;
-    }
-
-    private static SKColorFilter BuildGrayAlphaColorMatrix(bool inverse)
-    {
-        float[] rToAlphaMatrix;
-
-        if (inverse)
-        {
-            rToAlphaMatrix =
-            [
-                0, 0, 0, 0, 0,  // R output: 0
-                0, 0, 0, 0, 0,  // G output: 0
-                0, 0, 0, 0, 0,  // B output: 0
-               -1, 0, 0, 0, 1   // A output: 1 - R channel
-            ];
-        }
-        else
-        {
-            rToAlphaMatrix =
-            [
-                0, 0, 0, 0, 0, // R output: 0
-                0, 0, 0, 0, 0, // G output: 0
-                0, 0, 0, 0, 0, // B output: 0
-                1, 0, 0, 0, 0  // A output: R channel
-            ];
-        }
-
-        return SKColorFilter.CreateColorMatrix(rToAlphaMatrix);
     }
 
     /// <summary>

@@ -83,25 +83,9 @@ public sealed class JpegImageDecoder : PdfImageDecoder
             throw new InvalidOperationException($"JPEG header invalid or missing content segment (Image={Image.Name}).");
         }
 
-        try
+        if (Image.ColorSpaceConverter.IsDevice && JpgIccProfileReader.TryAssembleIccProfile(header, out var profileBytes))
         {
-            Image.UpdateColorSpace(header.ComponentCount);
-        }
-        catch (Exception ex)
-        {
-            throw new InvalidOperationException($"Color space update failed (Image={Image.Name}).", ex);
-        }
-
-        try
-        {
-            if (Image.ColorSpaceConverter.IsDevice && JpgIccProfileReader.TryAssembleIccProfile(header, out var profileBytes))
-            {
-                Image.UpdateColorSpace(new IccBasedConverter(header.ComponentCount, Image.ColorSpaceConverter, profileBytes));
-            }
-        }
-        catch (Exception ex)
-        {
-            Logger.LogWarning(ex, "Ignoring embedded ICC profile due to assembly failure (Name={Name}).", Image.Name);
+            Image.UpdateColorSpace(new IccBasedConverter(header.ComponentCount, Image.ColorSpaceConverter, profileBytes));
         }
 
         int imageWidth = header.Width;

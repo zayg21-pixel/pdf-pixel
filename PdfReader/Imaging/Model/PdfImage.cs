@@ -108,64 +108,6 @@ public class PdfImage
     public PdfImage SoftMask { get; internal set; }
 
     /// <summary>
-    /// Update the image color space converter when the actual component count extracted from a decoded
-    /// image stream (e.g. JPEG SOF) does not match the current converter's component count.
-    /// This is a defensive fix-up for malformed PDFs where /ColorSpace is inconsistent with the encoded data.
-    /// Only device color spaces (Gray, RGB, CMYK) are auto-corrected. Non-device (Cal*, ICCBased, Indexed, etc.)
-    /// converters are preserved to avoid discarding profile or calibration data – a mismatch in those cases is
-    /// logged by callers but not overridden here.
-    /// </summary>
-    /// <param name="componentCount">The component count discovered in the encoded image (1,3,4 are supported).</param>
-    public void UpdateColorSpace(int componentCount)
-    {
-        if (componentCount <= 0)
-        {
-            return;
-        }
-
-        var current = ColorSpaceConverter;
-        if (current != null && current.Components == componentCount)
-        {
-            return; // Already consistent.
-        }
-
-        // Only auto-fix for standard device component counts.
-        switch (componentCount)
-        {
-            case 1:
-            {
-                if (current == null || !(current is DeviceGrayConverter))
-                {
-                    ColorSpaceConverter = DeviceGrayConverter.Instance;
-                }
-                break;
-            }
-            case 3:
-            {
-                // Replace only if null or clearly wrong (different component size or a different device set).
-                if (current == null || current.Components != 3 || !(current is DeviceRgbConverter))
-                {
-                    ColorSpaceConverter = DeviceRgbConverter.Instance;
-                }
-                break;
-            }
-            case 4:
-            {
-                if (current == null || current.Components != 4 || !(current is DeviceCmykConverter))
-                {
-                    ColorSpaceConverter = DeviceCmykConverter.Instance;
-                }
-                break;
-            }
-            default:
-            {
-                // Unsupported component count for auto-correction – leave as-is.
-                break;
-            }
-        }
-    }
-
-    /// <summary>
     /// Explicitly replace the current <see cref="ColorSpaceConverter"/> with the provided converter.
     /// This helper is used when a higher-level parser (e.g., embedded ICC profile detection) determines
     /// a more accurate color space than the originally declared one. The method validates the argument
@@ -209,7 +151,14 @@ public class PdfImage
         image.HasImageMask = imageXObject.Dictionary.GetBooleanOrDefault(PdfTokens.ImageMaskKey);
         image.Interpolate = imageXObject.Dictionary.GetBooleanOrDefault(PdfTokens.InterpolateKey);
 
-        image.DecodeArray = imageXObject.Dictionary.GetArray(PdfTokens.DecodeKey)?.GetFloatArray();
+        float[] decodeArray = imageXObject.Dictionary.GetArray(PdfTokens.DecodeKey)?.GetFloatArray();
+
+        // don't set near-identical decode or decode for indexed as in indexed it's just a clamp-hint
+        if (!(image.ColorSpaceConverter is IndexedConverter || !ShouldApplyDecode(decodeArray, image.ColorSpaceConverter.Components)))
+        {
+            image.DecodeArray = decodeArray;
+        }
+
         image.MaskArray = imageXObject.Dictionary.GetArray(PdfTokens.MaskKey)?.GetIntegerArray();
 
         // Parse /Matte as raw float array (for dematting at render time)
@@ -254,6 +203,27 @@ public class PdfImage
         }
 
         return image;
+    }
+
+    private static bool ShouldApplyDecode(float[] decode, int channelCount)
+    {
+        if (decode == null || decode.Length != channelCount * 2)
+        {
+            return false;
+        }
+
+        const float Epsilon = 1e-5f;
+        for (int i = 0; i < channelCount; i++)
+        {
+            float min = decode[i * 2];
+            float max = decode[i * 2 + 1];
+            if (Math.Abs(min - 0f) > Epsilon || Math.Abs(max - 1f) > Epsilon)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static int GetDefaultComponents(int bitsPerComponent)
