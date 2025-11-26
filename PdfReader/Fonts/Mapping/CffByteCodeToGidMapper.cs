@@ -46,7 +46,7 @@ internal class CffByteCodeToGidMapper : IByteCodeToGidMapper
     public ushort GetGid(byte code)
     {
         PdfString glyphName = SingleByteEncodings.GetNameByCode(code, _encoding, _differences);
-        if (glyphName != null && _cffInfo.NameToGid.TryGetValue(glyphName, out ushort gidByName))
+        if (!glyphName.IsEmpty && _cffInfo.NameToGid.TryGetValue(glyphName, out ushort gidByName))
         {
             return gidByName;
         }

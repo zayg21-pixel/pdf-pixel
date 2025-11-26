@@ -5,6 +5,7 @@ using System;
 using System.Buffers.Text;
 using System.Collections.Generic;
 using System.IO;
+using System.Runtime.InteropServices;
 using System.Runtime.InteropServices.JavaScript;
 using System.Runtime.Versioning;
 using System.Text;
@@ -33,7 +34,8 @@ namespace PdfReader.Web.Demo
         internal static partial void Log([JSMarshalAs<JSType.String>] string message);
 
         [JSExport]
-        public static byte[] RenderPageToSkp(int pageIndex)
+        [return: JSMarshalAs<JSType.MemoryView>]
+        public static Span<byte> RenderPageToSkp(int pageIndex)
         {
             try
             {
@@ -44,7 +46,7 @@ namespace PdfReader.Web.Demo
 
                 using var picture = pageRecorder.EndRecording();
 
-                return picture.Serialize().ToArray();
+                return picture.Serialize().Span;
             }
             catch (Exception ex)
             {

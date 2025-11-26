@@ -61,7 +61,7 @@ internal class SntfByteCodeToGidMapper : IByteCodeToGidMapper
 
         PdfString name = SingleByteEncodings.GetNameByCode(code, _encoding, _differences);
 
-        if (name == null)
+        if (name.IsEmpty)
         {
             return 0;
         }

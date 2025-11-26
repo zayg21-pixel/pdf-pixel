@@ -258,7 +258,7 @@ namespace PdfReader.Parsing
 
             foreach (var chunk in _chunks)
             {
-                builder.Append(EncodingExtensions.PdfDefault.GetString(chunk));
+                builder.Append(Text.EncodingExtensions.PdfDefault.GetString(chunk));
             }
 
             return builder.ToString();

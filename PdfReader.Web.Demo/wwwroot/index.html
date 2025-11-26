@@ -101,7 +101,7 @@
                 locateFile: (file) => 'https://unpkg.com/canvaskit-wasm/bin/full/' + file
             });
             const sharpInterop = await GetInterop();
-            const documentResponse = await fetch('test/ThuluthFeatures.pdf');
+            const documentResponse = await fetch('test/demo.pdf');
             const documentData = await documentResponse.arrayBuffer();
             await sharpInterop.LoadDocument(new Uint8Array(documentData));
             const pageInfoJson = await sharpInterop.GetAllPageInfo();
@@ -189,8 +189,8 @@
             // --- Lazy load/unload logic ---
             async function ensurePageLoaded(pageIndex) {
                 if (loadedPages.has(pageIndex)) return loadedPages.get(pageIndex);
-                const skpData = await sharpInterop.RenderPageToSkp(pageIndex);
-                const pict = CanvasKit.MakePicture(skpData);
+                const skpData = sharpInterop.RenderPageToSkp(pageIndex);
+                const pict = CanvasKit.MakePicture(skpData.slice());
                 loadedPages.set(pageIndex, pict);
                 return pict;
             }
@@ -355,20 +355,6 @@
         }
 
         main();
-
-        var saveByteArray = (function () {
-            var a = document.createElement("a");
-            document.body.appendChild(a);
-            a.style = "display: none";
-            return function (data, name) {
-                var blob = new Blob(data, { type: "octet/stream" }),
-                    url = window.URL.createObjectURL(blob);
-                a.href = url;
-                a.download = name;
-                a.click();
-                window.URL.revokeObjectURL(url);
-            };
-        }());
     </script>
 </body>
 
