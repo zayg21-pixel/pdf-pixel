@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<!--  Licensed to the .NET Foundation under one or more agreements. -->
+<!-- The .NET Foundation licenses this file to you under the MIT license. -->
+<html>
+
+<head>
+    <title>WASM Browser App</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script type='module' src="./main.js"></script>
+    <style>
+        html,
+        body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+        }
+
+        #skp {
+            display: block;
+            width: 100vw;
+            height: 100vh;
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+
+        .scrollbar {
+            position: absolute;
+            background: rgba(0, 0, 0, 0.1);
+            z-index: 10;
+            user-select: none;
+        }
+
+        .scrollbar-thumb {
+            position: absolute;
+            background: rgba(80, 80, 80, 0.5);
+            border-radius: 4px;
+            cursor: pointer;
+            min-width: 30px;
+            min-height: 30px;
+        }
+
+        #scrollbar-x {
+            left: 0;
+            right: 0;
+            bottom: 2px;
+            height: 12px;
+        }
+
+        #thumb-x {
+            height: 100%;
+            top: 0;
+            bottom: 0;
+        }
+
+        #scrollbar-y {
+            top: 0;
+            bottom: 0;
+            right: 2px;
+            width: 12px;
+        }
+
+        #thumb-y {
+            width: 100%;
+            left: 0;
+            right: 0;
+        }
+    </style>
+</head>
+
+<body>
+    <canvas id="skp"></canvas>
+    <div id="scrollbar-x" class="scrollbar"><div class="scrollbar-thumb" id="thumb-x"></div></div>
+    <div id="scrollbar-y" class="scrollbar"><div class="scrollbar-thumb" id="thumb-y"></div></div>
+    <script type="text/javascript" src="https://unpkg.com/canvaskit-wasm/bin/full/canvaskit.js"></script>
+    <script type="module">
+        import { GetInterop } from './main.js';
+
+        // Hide scrollbars initially
+        document.getElementById('scrollbar-x').style.display = 'none';
+        document.getElementById('scrollbar-y').style.display = 'none';
+
+        function resizeCanvasToDisplaySize(canvas) {
+            const dpr = window.devicePixelRatio || 1;
+            const width = window.innerWidth;
+            const height = window.innerHeight;
+            if (canvas.width !== width * dpr || canvas.height !== height * dpr) {
+                canvas.width = width * dpr;
+                canvas.height = height * dpr;
+                canvas.style.width = width + 'px';
+                canvas.style.height = height + 'px';
+                return true;
+            }
+            return false;
+        }
+
+        async function main() {
+            const CanvasKit = await CanvasKitInit({
+                locateFile: (file) => 'https://unpkg.com/canvaskit-wasm/bin/full/' + file
+            });
+            const sharpInterop = await GetInterop();
+            const documentResponse = await fetch('test/ThuluthFeatures.pdf');
+            const documentData = await documentResponse.arrayBuffer();
+            await sharpInterop.LoadDocument(new Uint8Array(documentData));
+            const pageInfoJson = await sharpInterop.GetAllPageInfo();
+            const pageInfo = JSON.parse(pageInfoJson);
+            // --- Layout calculation ---
+            const PAGE_PADDING = 24;
+            // Calculate positions for each page (vertical stacking, but can be extended for grid)
+            let positions = [];
+            let y = 0, x = 0, maxWidth = 0, maxHeight = 0;
+            for (let i = 0; i < pageInfo.length; i++) {
+                positions.push({ x, y });
+                y += pageInfo[i].Height + PAGE_PADDING;
+                if (pageInfo[i].Width > maxWidth) maxWidth = pageInfo[i].Width;
+                if (pageInfo[i].Height > maxHeight) maxHeight = pageInfo[i].Height;
+            }
+            const totalHeight = y - PAGE_PADDING;
+            const totalWidth = maxWidth;
+            // --- State ---
+            let scale = 1;
+            let panX = 0;
+            let panY = 0;
+            let isPanning = false;
+            let lastX = 0;
+            let lastY = 0;
+            // Cache for loaded pages: { [pageIndex]: { pict } }
+            const loadedPages = new Map();
+            // --- Canvas and surface ---
+            const canvasElem = document.getElementById('skp');
+            resizeCanvasToDisplaySize(canvasElem);
+            const surface = CanvasKit.MakeWebGLCanvasSurface('skp');
+            if (!surface) {
+                console.error('Could not make surface');
+                return;
+            }
+            // --- Scrollbar elements ---
+            const scrollbarX = document.getElementById('scrollbar-x');
+            const scrollbarY = document.getElementById('scrollbar-y');
+            const thumbX = document.getElementById('thumb-x');
+            const thumbY = document.getElementById('thumb-y');
+            // --- Scrollbar logic ---
+            function updateScrollbars() {
+                const viewW = window.innerWidth;
+                const viewH = window.innerHeight;
+                const contentW = totalWidth * scale;
+                const contentH = totalHeight * scale;
+                // Horizontal
+                const visibleRatioX = Math.min(1, viewW / contentW);
+                const thumbW = Math.max(30, visibleRatioX * viewW);
+                const maxPanX = Math.max(0, contentW - viewW);
+                const panXClamped = Math.max(0, Math.min(-panX, maxPanX));
+                const thumbXPos = (panXClamped / (maxPanX || 1)) * (viewW - thumbW);
+                thumbX.style.width = thumbW + 'px';
+                thumbX.style.left = thumbXPos + 'px';
+                // Vertical
+                const visibleRatioY = Math.min(1, viewH / contentH);
+                const thumbH = Math.max(30, visibleRatioY * viewH);
+                const maxPanY = Math.max(0, contentH - viewH);
+                const panYClamped = Math.max(0, Math.min(-panY, maxPanY));
+                const thumbYPos = (panYClamped / (maxPanY || 1)) * (viewH - thumbH);
+                thumbY.style.height = thumbH + 'px';
+                thumbY.style.top = thumbYPos + 'px';
+                // Show/hide
+                scrollbarX.style.display = (visibleRatioX < 1) ? 'block' : 'none';
+                scrollbarY.style.display = (visibleRatioY < 1) ? 'block' : 'none';
+            }
+
+            function clampPan() {
+                const viewW = window.innerWidth;
+                const viewH = window.innerHeight;
+                const contentW = totalWidth * scale;
+                const contentH = totalHeight * scale;
+                // Allow panning so any part of the content can be brought into view
+                if (contentW > viewW) {
+                    panX = Math.min(0, Math.max(viewW - contentW, panX));
+                } else {
+                    panX = Math.max(0, Math.min(viewW - contentW, panX));
+                }
+                if (contentH > viewH) {
+                    panY = Math.min(0, Math.max(viewH - contentH, panY));
+                } else {
+                    panY = Math.max(0, Math.min(viewH - contentH, panY));
+                }
+            }
+
+            // --- Lazy load/unload logic ---
+            async function ensurePageLoaded(pageIndex) {
+                if (loadedPages.has(pageIndex)) return loadedPages.get(pageIndex);
+                const skpData = await sharpInterop.RenderPageToSkp(pageIndex);
+                const pict = CanvasKit.MakePicture(skpData);
+                loadedPages.set(pageIndex, pict);
+                return pict;
+            }
+
+            function unloadPage(pageIndex) {
+                const entry = loadedPages.get(pageIndex);
+                if (entry && entry) {
+                    entry.delete();
+                }
+                loadedPages.delete(pageIndex);
+            }
+
+            // --- Drawing only visible pages ---
+            async function drawFrame(canvas) {
+                resizeCanvasToDisplaySize(canvasElem);
+                clampPan();
+                const dpr = window.devicePixelRatio || 1;
+                canvas.clear(CanvasKit.TRANSPARENT);
+                canvas.save();
+                canvas.translate(panX * dpr, panY * dpr);
+                canvas.scale(scale * dpr, scale * dpr);
+                // Determine visible pages
+                const viewW = window.innerWidth / scale;
+                const viewH = window.innerHeight / scale;
+                const left = -panX / scale;
+                const top = -panY / scale;
+                const right = left + viewW;
+                const bottom = top + viewH;
+                // Add a small margin for preloading
+                const preloadMargin = 100;
+                for (let i = 0; i < pageInfo.length; i++) {
+                    const pos = positions[i];
+                    const pageW = pageInfo[i].Width;
+                    const pageH = pageInfo[i].Height;
+                    // Check if page is in (or near) viewport
+                    if (
+                        pos.x + pageW < left - preloadMargin ||
+                        pos.x > right + preloadMargin ||
+                        pos.y + pageH < top - preloadMargin ||
+                        pos.y > bottom + preloadMargin
+                    ) {
+                        // Unload if out of view
+                        if (loadedPages.has(i)) {
+                            unloadPage(i);
+                        }
+                        continue;
+                    }
+                    // Load and draw if in view
+                    if (!loadedPages.has(i)) {
+                        // Lazy load, but must await and then redraw
+                        ensurePageLoaded(i).then(() => {
+                            surface.requestAnimationFrame(drawFrame);
+                        });
+                        continue;
+                    }
+                    const pict = loadedPages.get(i);
+                    if (pict) {
+                        canvas.save();
+                        canvas.translate(pos.x, pos.y);
+                        canvas.drawPicture(pict);
+                        canvas.restore();
+                    }
+                }
+                canvas.restore();
+                updateScrollbars();
+            }
+
+            // --- Mouse/scroll/zoom logic (same as before, but now for virtual area) ---
+            canvasElem.addEventListener('wheel', function (e) {
+                e.preventDefault();
+                const mouseX = e.offsetX;
+                const mouseY = e.offsetY;
+                if (e.ctrlKey) {
+                    const scaleAmount = 1.1;
+                    let newScale = scale;
+                    if (e.deltaY < 0) {
+                        newScale *= scaleAmount;
+                    } else {
+                        newScale /= scaleAmount;
+                    }
+                    panX = mouseX - ((mouseX - panX) * (newScale / scale));
+                    panY = mouseY - ((mouseY - panY) * (newScale / scale));
+                    scale = newScale;
+                } else {
+                    panX -= e.deltaX;
+                    panY -= e.deltaY;
+                }
+                surface.requestAnimationFrame(drawFrame);
+            }, { passive: false });
+
+            canvasElem.addEventListener('mousedown', function (e) {
+                isPanning = true;
+                lastX = e.clientX;
+                lastY = e.clientY;
+            });
+            window.addEventListener('mousemove', function (e) {
+                if (!isPanning) return;
+                const dx = e.clientX - lastX;
+                const dy = e.clientY - lastY;
+                panX += dx;
+                panY += dy;
+                lastX = e.clientX;
+                lastY = e.clientY;
+                surface.requestAnimationFrame(drawFrame);
+            });
+            window.addEventListener('mouseup', function () {
+                isPanning = false;
+            });
+
+            // Scrollbar drag logic (unchanged)
+            let draggingX = false, draggingY = false, dragOffsetX = 0, dragOffsetY = 0;
+            thumbX.addEventListener('mousedown', function (e) {
+                draggingX = true;
+                dragOffsetX = e.clientX - thumbX.offsetLeft;
+                e.stopPropagation();
+                e.preventDefault();
+            });
+            thumbY.addEventListener('mousedown', function (e) {
+                draggingY = true;
+                dragOffsetY = e.clientY - thumbY.offsetTop;
+                e.stopPropagation();
+                e.preventDefault();
+            });
+            window.addEventListener('mousemove', function (e) {
+                const viewW = window.innerWidth;
+                const viewH = window.innerHeight;
+                const contentW = totalWidth * scale;
+                const contentH = totalHeight * scale;
+                if (draggingX) {
+                    const thumbW = thumbX.offsetWidth;
+                    let x = e.clientX - dragOffsetX;
+                    x = Math.max(0, Math.min(viewW - thumbW, x));
+                    const maxPanX = Math.max(0, contentW - viewW);
+                    panX = -((x / (viewW - thumbW)) * maxPanX);
+                    surface.requestAnimationFrame(drawFrame);
+                }
+                if (draggingY) {
+                    const thumbH = thumbY.offsetHeight;
+                    let y = e.clientY - dragOffsetY;
+                    y = Math.max(0, Math.min(viewH - thumbH, y));
+                    const maxPanY = Math.max(0, contentH - viewH);
+                    panY = -((y / (viewH - thumbH)) * maxPanY);
+                    surface.requestAnimationFrame(drawFrame);
+                }
+            });
+            window.addEventListener('mouseup', function () {
+                draggingX = false;
+                draggingY = false;
+            });
+
+            // Redraw on resize
+            window.addEventListener('resize', function () {
+                resizeCanvasToDisplaySize(canvasElem);
+                surface.requestAnimationFrame(drawFrame);
+            });
+            surface.requestAnimationFrame(drawFrame);
+            window.addEventListener('unload', function () {
+                for (const entry of loadedPages.values()) {
+                    if (entry) entry.delete();
+                }
+            });
+        }
+
+        main();
+
+        var saveByteArray = (function () {
+            var a = document.createElement("a");
+            document.body.appendChild(a);
+            a.style = "display: none";
+            return function (data, name) {
+                var blob = new Blob(data, { type: "octet/stream" }),
+                    url = window.URL.createObjectURL(blob);
+                a.href = url;
+                a.download = name;
+                a.click();
+                window.URL.revokeObjectURL(url);
+            };
+        }());
+    </script>
+</body>
+
+</html>

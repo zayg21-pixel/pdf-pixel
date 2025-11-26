@@ -15,6 +15,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PdfReader.Wpf.PdfPanel", "P
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PdfReader.Wpf.Demo", "PdfReader.Wpf.Demo\PdfReader.Wpf.Demo.csproj", "{F3E18A43-0D48-9E0D-27CE-650AB5EB4144}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PdfReader.Web.Demo", "PdfReader.Web.Demo\PdfReader.Web.Demo.csproj", "{A3DAC9F0-DFCF-443F-969C-0B950C17A653}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -45,6 +47,10 @@ Global
 		{F3E18A43-0D48-9E0D-27CE-650AB5EB4144}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{F3E18A43-0D48-9E0D-27CE-650AB5EB4144}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{F3E18A43-0D48-9E0D-27CE-650AB5EB4144}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A3DAC9F0-DFCF-443F-969C-0B950C17A653}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A3DAC9F0-DFCF-443F-969C-0B950C17A653}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A3DAC9F0-DFCF-443F-969C-0B950C17A653}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A3DAC9F0-DFCF-443F-969C-0B950C17A653}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

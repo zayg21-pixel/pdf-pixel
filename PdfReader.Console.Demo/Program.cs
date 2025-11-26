@@ -20,14 +20,14 @@ namespace PdfReader.Console.Demo
 
             // Test with some sample PDFs
             string[] testFiles = {
-                "pdfs//freeculture.pdf"
+                //"pdfs//freeculture.pdf"
                 //"pdfs//100mb.pdf",
                 //"pdfs//PDF-Horizontal-Scaling.pdf",
                 //"pdfs//pattern_text_embedded_font.pdf",
                 //"pdfs//textframe-gradient.pdf",
                 //"pdfs//chrome-text-selection-markedContent.pdf", // interesting, some odd boxes on text
                 //"pdfs//colorkeymask.pdf",
-                //"pdfs//coons-allflags-withfunction.pdf",
+                "pdfs//coons-allflags-withfunction.pdf",
                 //"pdfs//lamp_cairo.pdf",
                 //"pdfs//tensor4-nofunction.pdf",
                 //"pdfs//LATTICE1.pdf",
@@ -66,7 +66,7 @@ namespace PdfReader.Console.Demo
                 //"pdfs//5091.Design_MM_Fonts.pdf",
                 //"pdfs//2009science11_12.pdf",
                 //"PDF32000_2008.pdf",
-                //"ch14.pdf"
+                "ch14.pdf"
                 //@"documentS.pdf",
                 //@"documentC.pdf",
                 //@"sample.pdf",
@@ -81,10 +81,7 @@ namespace PdfReader.Console.Demo
 
             foreach (var file in testFiles)
             {
-                for (int i = 0; i < 10; i++)
-                {
-                    await TestPdfFile(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, file));
-                }
+                await TestPdfFile(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, file));
                 //TextTextExtraction(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, file));
             }
         }
@@ -153,8 +150,8 @@ namespace PdfReader.Console.Demo
                 Logger.LogInformation("Actual pages found: {Count}", document.Pages.Count);
                 Logger.LogInformation("Root object: {Root}", document.RootObject);
 
-                var start = 170;
-                var max = 171;
+                var start = 0;
+                var max = 1000;
                 float scaleX = 1f; // Scale factor for rendering
 
                 // Analyze pages with detailed content stream debugging
@@ -198,15 +195,16 @@ namespace PdfReader.Console.Demo
                         //}
 
                         // Save as PNG (optional)
-                        var filename_png = $"{basePath}\\{name}_page_{page.PageNumber}.jpg";
-                        using (var image = surface.Snapshot())
-                        using (var data = image.Encode(SKEncodedImageFormat.Jpeg, 100))
-                        using (var fileStream = File.OpenWrite(filename_png))
-                        {
-                            data.SaveTo(fileStream);
-                        }
+                        //var filename_png = $"{basePath}\\{name}_page_{page.PageNumber}.jpg";
+                        //using (var image = surface.Snapshot())
+                        //using (var data = image.Encode(SKEncodedImageFormat.Jpeg, 100))
+                        //using (var fileStream = File.OpenWrite(filename_png))
+                        //{
+                        //    data.SaveTo(fileStream);
+                        //}
 
-                        //var recording = CreateRecording(page);
+                        using var recording = CreateRecording(page);
+                        SaveSkp(recording, $"{basePath}\\{name}_page_{page.PageNumber}.skp");
                         //SaveRecording(recording, scaleX, filename_png);
                     }
                     catch (Exception ex)
@@ -235,6 +233,12 @@ namespace PdfReader.Console.Demo
 
             canvas.Flush();
             return recorder.EndRecording();
+        }
+
+        private static void SaveSkp(SKPicture picture, string path)
+        {
+            using var fileStream = File.OpenWrite(path);
+            picture.Serialize(fileStream);
         }
 
         private static void SaveRecording(SKPicture picture, float scale, string path)

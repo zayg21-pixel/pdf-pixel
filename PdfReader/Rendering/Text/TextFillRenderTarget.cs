@@ -49,6 +49,10 @@ internal class TextFillRenderTarget : IRenderTarget
         }
         else
         {
+            //using var paint = PdfPaintFactory.CreateFillPaint(_state);
+            //using var path = TextRenderUtilities.GetTextPath(_shapingResult, _font, _state);
+            //canvas.DrawPath(path, paint);
+
             var textMatrix = TextRenderUtilities.GetFullTextMatrix(_state);
 
             canvas.Save();
