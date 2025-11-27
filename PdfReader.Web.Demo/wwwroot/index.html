@@ -18,6 +18,7 @@
         }
 
         #skp {
+            background-color:lightgrey;
             display: block;
             width: 100vw;
             height: 100vh;
@@ -87,6 +88,8 @@
             const width = window.innerWidth;
             const height = window.innerHeight;
             if (canvas.width !== width * dpr || canvas.height !== height * dpr) {
+                canvas.x = 0;
+                canvas.y = 0;
                 canvas.width = width * dpr;
                 canvas.height = height * dpr;
                 canvas.style.width = width + 'px';
@@ -136,6 +139,12 @@
                 console.error('Could not make surface');
                 return;
             }
+
+            const pagePaint = new CanvasKit.Paint();
+            pagePaint.setColor(CanvasKit.Color4f(1.0, 1.0, 1.0, 1.0));
+            pagePaint.setStyle(CanvasKit.PaintStyle.Fill);
+            pagePaint.setAntiAlias(true);
+
             // --- Scrollbar elements ---
             const scrollbarX = document.getElementById('scrollbar-x');
             const scrollbarY = document.getElementById('scrollbar-y');
@@ -197,7 +206,7 @@
 
             function unloadPage(pageIndex) {
                 const entry = loadedPages.get(pageIndex);
-                if (entry && entry) {
+                if (entry) {
                     entry.delete();
                 }
                 loadedPages.delete(pageIndex);
@@ -225,6 +234,8 @@
                     const pos = positions[i];
                     const pageW = pageInfo[i].Width;
                     const pageH = pageInfo[i].Height;
+
+
                     // Check if page is in (or near) viewport
                     if (
                         pos.x + pageW < left - preloadMargin ||
@@ -238,21 +249,28 @@
                         }
                         continue;
                     }
+
+                    canvas.save();
+                    canvas.translate(pos.x, pos.y);
+
+                    const rr = CanvasKit.RRectXY(CanvasKit.LTRBRect(0, 0, pageW, pageH), 5, 5);
+                    canvas.drawRRect(rr, pagePaint);
+
                     // Load and draw if in view
                     if (!loadedPages.has(i)) {
                         // Lazy load, but must await and then redraw
                         ensurePageLoaded(i).then(() => {
                             surface.requestAnimationFrame(drawFrame);
                         });
+                        canvas.restore();
                         continue;
                     }
                     const pict = loadedPages.get(i);
                     if (pict) {
-                        canvas.save();
-                        canvas.translate(pos.x, pos.y);
                         canvas.drawPicture(pict);
-                        canvas.restore();
                     }
+
+                    canvas.restore();
                 }
                 canvas.restore();
                 updateScrollbars();
