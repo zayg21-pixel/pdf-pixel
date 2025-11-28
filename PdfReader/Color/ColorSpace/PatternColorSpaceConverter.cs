@@ -1,5 +1,6 @@
-using System;
 using SkiaSharp;
+using System;
+using System.Runtime.CompilerServices;
 
 namespace PdfReader.Color.ColorSpace;
 
@@ -22,6 +23,7 @@ internal sealed class PatternColorSpaceConverter : PdfColorSpaceConverter
 
     public override int Components => _baseColorSpace.Components;
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     protected override SKColor ToSrgbCore(ReadOnlySpan<float> comps01, PdfRenderingIntent intent)
     {
         if (_baseColorSpace == null)

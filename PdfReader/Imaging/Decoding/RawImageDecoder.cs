@@ -4,7 +4,7 @@ using System;
 using System.IO;
 using PdfReader.Imaging.Model;
 using PdfReader.Imaging.Processing;
-using PdfReader.Imaging.Skia;
+using PdfReader.Imaging.Png;
 
 namespace PdfReader.Imaging.Decoding;
 
@@ -26,14 +26,14 @@ public class RawImageDecoder : PdfImageDecoder
     /// Attempts an experimental fast PNG wrapping path first (no recompression) when the encoded PDF image
     /// matches a restricted PNG compatible profile.
     /// </summary>
-    public override PdfImageDecodingResult Decode()
+    public override SKImage Decode()
     {
         if (!ValidateImageParameters())
         {
             return null;
         }
 
-        PdfImageDecodingResult fastPng = PngSkiaDecoder.DecodeAsPng(Image);
+        SKImage fastPng = PngSkiaDecoder.DecodeAsPng(Image);
         if (fastPng != null)
         {
             return fastPng;
@@ -61,7 +61,7 @@ public class RawImageDecoder : PdfImageDecoder
     /// Stream-based row decoding: computes expected per-row byte count and processes each row sequentially.
     /// For bitsPerComponent &lt; 8 data remains packed; packing is handled downstream by the row processor.
     /// </summary>
-    private PdfImageDecodingResult DecodeStream(Stream imageStream)
+    private SKImage DecodeStream(Stream imageStream)
     {
         using PdfImageRowProcessor rowProcessor = new PdfImageRowProcessor(Image, LoggerFactory.CreateLogger<PdfImageRowProcessor>());
         rowProcessor.InitializeBuffer();

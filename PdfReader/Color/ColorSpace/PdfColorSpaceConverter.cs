@@ -1,4 +1,6 @@
 using PdfReader.Color.Filters;
+using PdfReader.Color.Lut;
+using PdfReader.Color.Structures;
 using SkiaSharp;
 using System;
 using System.Collections.Concurrent;
@@ -15,7 +17,7 @@ public abstract class PdfColorSpaceConverter : IDisposable
     private const float ToFloat = 1f / 255f;
     private const int MaxByte = 255;
 
-    private readonly ConcurrentDictionary<PdfRenderingIntent, SKColorFilter> _colorFilterCache = new ConcurrentDictionary<PdfRenderingIntent, SKColorFilter>();
+    private readonly ConcurrentDictionary<PdfRenderingIntent, IRgbaSampler> _colorSamplerCache = new ConcurrentDictionary<PdfRenderingIntent, IRgbaSampler>();
     private bool _disposed;
 
     /// <summary>
@@ -43,6 +45,7 @@ public abstract class PdfColorSpaceConverter : IDisposable
     /// <param name="comps01">Component values in the range 0..1.</param>
     /// <param name="intent">Rendering intent to apply.</param>
     /// <returns>Converted sRGB color.</returns>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     protected abstract SKColor ToSrgbCore(ReadOnlySpan<float> comps01, PdfRenderingIntent intent);
 
     /// <summary>
@@ -53,7 +56,7 @@ public abstract class PdfColorSpaceConverter : IDisposable
     /// <returns>sRGB color.</returns>
     public virtual SKColor ToSrgb(ReadOnlySpan<float> comps01, PdfRenderingIntent intent)
     {
-        return ToSrgbCore(comps01, intent);
+        return GetRgbaSampler(intent).SampleColor(comps01);
     }
 
     /// <summary>
@@ -98,32 +101,23 @@ public abstract class PdfColorSpaceConverter : IDisposable
     }
 
     /// <summary>
-    /// Returns color space as <see cref="SKColorSpace"/>, or null if not applicable.
+    /// Returns an RGBA sampler for the specified rendering intent.
     /// </summary>
-    /// <param name="intent">Rendering intent to apply.</param>
-    /// <returns><see cref="SKColorSpace"/> instance representing the color space.</returns>
-    public virtual SKColorSpace AsSkiaColorSpace(PdfRenderingIntent intent)
+    /// <param name="intent">Rendering intent.</param>
+    /// <returns>Sampler value.</returns>
+    public IRgbaSampler GetRgbaSampler(PdfRenderingIntent intent)
     {
-        return null;
+        return _colorSamplerCache.GetOrAdd(intent, key => GetRgbaSamplerCore(intent));
     }
 
     /// <summary>
-    /// Retrieves or creates a cached SKColorFilter for the specified rendering intent.
+    /// Default implementation to create an RGBA sampler for the specified rendering intent.
     /// </summary>
-    /// <param name="intent">Rendering intent to apply.</param>
-    /// <returns><see cref="SKColorFilter"/> instance that applies intent.</returns>
-    public virtual SKColorFilter AsColorFilter(PdfRenderingIntent intent) // TODO: remove intent processing at all
+    /// <param name="intent">Rendering intent.</param>
+    /// <returns>RGBA sampler.</returns>
+    protected virtual IRgbaSampler GetRgbaSamplerCore(PdfRenderingIntent intent)
     {
-        return _colorFilterCache.GetOrAdd(intent, key => BuldColorFilter(intent));
-    }
-
-    protected virtual SKColorFilter BuldColorFilter(PdfRenderingIntent intent)
-    {
-        return ColorFilterClut.BuildClutColorFilter(
-                ColorFilterClutResolution.Normal,
-                Components,
-                intent,
-                ToSrgbCore);
+        return new DefaultSampler(intent, ToSrgbCore);
     }
 
     /// <summary>
@@ -145,16 +139,7 @@ public abstract class PdfColorSpaceConverter : IDisposable
         {
             return;
         }
-
-        // Always dispose unmanaged resources
-        foreach (var filterPair in _colorFilterCache)
-        {
-            filterPair.Value?.Dispose();
-        }
-        _colorFilterCache.Clear();
-
-        // If disposing, release managed resources here (none currently)
-
+        // If disposing, release managed resources here.
         _disposed = true;
     }
 }

@@ -2,6 +2,7 @@ using PdfReader.Color.Filters;
 using SkiaSharp;
 using System;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 
 namespace PdfReader.Color.ColorSpace;
 
@@ -89,6 +90,7 @@ internal sealed class IndexedConverter : PdfColorSpaceConverter
         return ToSrgbCore(comps01, intent);
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     protected override SKColor ToSrgbCore(ReadOnlySpan<float> comps01, PdfRenderingIntent renderingIntent)
     {
         int idx = 0;
@@ -104,10 +106,5 @@ internal sealed class IndexedConverter : PdfColorSpaceConverter
             return palette[idx];
         }
         return SKColors.Black;
-    }
-
-    protected override SKColorFilter BuldColorFilter(PdfRenderingIntent intent)
-    {
-        return ColorFilterClut.BuildIndexedColorFilter(BuildPalette(intent));
     }
 }

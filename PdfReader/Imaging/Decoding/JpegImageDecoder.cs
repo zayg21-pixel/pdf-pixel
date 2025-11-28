@@ -29,7 +29,7 @@ public sealed class JpegImageDecoder : PdfImageDecoder
     /// Decode the JPEG image returning an <see cref="SKImage"/> or null on failure (errors are logged).
     /// Attempts custom streaming decode first; falls back to Skia's built‑in decoder if custom path fails.
     /// </summary>
-    public override PdfImageDecodingResult Decode()
+    public override SKImage Decode()
     {
         if (!ValidateImageParameters())
         {
@@ -58,7 +58,7 @@ public sealed class JpegImageDecoder : PdfImageDecoder
         catch (Exception ex)
         {
             Logger.LogWarning(ex, "Primary JPEG decode path failed; attempting Skia fallback (Name={Name}).", Image.Name);
-            return new PdfImageDecodingResult(SKImage.FromEncodedData(encodedImageData.Span));
+            return SKImage.FromEncodedData(encodedImageData.Span);
         }
     }
 
@@ -66,7 +66,7 @@ public sealed class JpegImageDecoder : PdfImageDecoder
     /// Decode using custom streaming pipeline. Throws on failure.
     /// Row data is streamed row-by-row directly into a <see cref="PdfImageRowProcessor"/> without allocating a full intermediate buffer.
     /// </summary>
-    private PdfImageDecodingResult DecodeInternal(ReadOnlyMemory<byte> encoded)
+    private SKImage DecodeInternal(ReadOnlyMemory<byte> encoded)
     {
         JpgHeader header;
         try

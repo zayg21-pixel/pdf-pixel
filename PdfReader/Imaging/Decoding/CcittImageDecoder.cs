@@ -2,6 +2,7 @@ using Microsoft.Extensions.Logging;
 using PdfReader.Imaging.Ccitt;
 using PdfReader.Imaging.Model;
 using PdfReader.Imaging.Processing;
+using SkiaSharp;
 using System;
 
 namespace PdfReader.Imaging.Decoding;
@@ -39,7 +40,7 @@ internal sealed class CcittImageDecoder : PdfImageDecoder
         _rows = parameters?.Rows ?? image.Height;
     }
 
-    public override PdfImageDecodingResult Decode()
+    public override SKImage Decode()
     {
         int width = _columns;
         int height = _rows;

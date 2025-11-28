@@ -1,8 +1,10 @@
 using PdfReader.Color.Icc.Converters;
 using PdfReader.Color.Icc.Model;
+using PdfReader.Color.Lut;
 using PdfReader.Resources;
 using SkiaSharp;
 using System;
+using System.Runtime.CompilerServices;
 
 namespace PdfReader.Color.ColorSpace;
 
@@ -29,9 +31,15 @@ internal sealed class DeviceCmykConverter : PdfColorSpaceConverter
 
     public override bool IsDevice => true;
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     protected override SKColor ToSrgbCore(ReadOnlySpan<float> comps01, PdfRenderingIntent renderingIntent)
     {
         _iccCmykConverter.TryToSrgb01(comps01, renderingIntent, out var srgb01);
         return new SKColor(ToByte(srgb01.X), ToByte(srgb01.Y), ToByte(srgb01.Z));
+    }
+
+    protected override IRgbaSampler GetRgbaSamplerCore(PdfRenderingIntent intent)
+    {
+        return LayeredThreeDLut.Build(intent, ToSrgbCore);
     }
 }

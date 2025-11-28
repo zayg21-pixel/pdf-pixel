@@ -2,6 +2,7 @@
 using PdfReader.Color.ColorSpace;
 using PdfReader.Imaging.Model;
 using PdfReader.Imaging.Processing;
+using SkiaSharp;
 using System;
 
 namespace PdfReader.Imaging.Decoding;
@@ -72,10 +73,10 @@ public abstract class PdfImageDecoder
     }
 
     /// <summary>
-    /// Returns the decoded image as an <see cref="PdfImageDecodingResult"/>, or null on failure (errors are logged).
+    /// Returns the decoded image as an <see cref="SKImage"/>, or null on failure (errors are logged).
     /// </summary>
     /// <returns></returns>
-    public abstract PdfImageDecodingResult Decode();
+    public abstract SKImage Decode();
 
     /// <summary>
     /// Validate image parameters and return key values needed for processing.

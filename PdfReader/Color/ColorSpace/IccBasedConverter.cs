@@ -1,8 +1,10 @@
 using PdfReader.Color.Icc.Converters;
 using PdfReader.Color.Icc.Model;
+using PdfReader.Color.Lut;
 using SkiaSharp;
 using System;
 using System.Numerics;
+using System.Runtime.CompilerServices;
 
 namespace PdfReader.Color.ColorSpace;
 
@@ -79,6 +81,7 @@ internal sealed class IccBasedConverter : PdfColorSpaceConverter
 
     public int N => _n;
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     protected override SKColor ToSrgbCore(ReadOnlySpan<float> comps01, PdfRenderingIntent intent)
     {
         if (_useDefault || comps01.Length != N)
@@ -111,15 +114,28 @@ internal sealed class IccBasedConverter : PdfColorSpaceConverter
         return _default.ToSrgb(comps01, intent);
     }
 
-    public override SKColorSpace AsSkiaColorSpace(PdfRenderingIntent intent)
+    protected override IRgbaSampler GetRgbaSamplerCore(PdfRenderingIntent intent)
     {
-        // TODO: override for calibrated
-        if (Profile?.Bytes == null)
+        if (_useDefault)
         {
-            return null;
+            return new DefaultSampler(intent, ToSrgbCore);
         }
 
-        return SKColorSpace.CreateIcc(Profile?.Bytes);
+        switch (N)
+        {
+            case 1:
+                return OneDLutGray.Build(intent, ToSrgbCore);
+            case 3:
+            {
+                return TreeDLut.Build(intent, ToSrgbCore);
+            }
+            case 4:
+            {
+                return LayeredThreeDLut.Build(intent, ToSrgbCore);
+            }
+            default:
+                return new DefaultSampler(intent, ToSrgbCore);
+        }
     }
 
     private static Vector3 ConvertTyByte(Vector3 rgb01)

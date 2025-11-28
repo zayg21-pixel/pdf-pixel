@@ -1,7 +1,8 @@
-using System;
-using SkiaSharp;
-using PdfReader.Models;
 using PdfReader.Functions;
+using PdfReader.Models;
+using SkiaSharp;
+using System;
+using System.Runtime.CompilerServices;
 
 namespace PdfReader.Color.ColorSpace;
 
@@ -27,6 +28,7 @@ internal sealed class SeparationColorSpaceConverter : PdfColorSpaceConverter
 
     public override bool IsDevice => false;
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     protected override SKColor ToSrgbCore(ReadOnlySpan<float> comps01, PdfRenderingIntent intent)
     {
         float tint = comps01.Length > 0 ? comps01[0] : 0f;

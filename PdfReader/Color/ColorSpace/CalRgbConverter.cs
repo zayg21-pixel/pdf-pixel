@@ -1,8 +1,10 @@
-using System;
-using SkiaSharp;
-using System.Numerics;
 using PdfReader.Color.Icc.Model;
 using PdfReader.Color.Icc.Utilities;
+using PdfReader.Color.Lut;
+using SkiaSharp;
+using System;
+using System.Numerics;
+using System.Runtime.CompilerServices;
 
 namespace PdfReader.Color.ColorSpace;
 
@@ -70,6 +72,7 @@ internal sealed class CalRgbConverter : PdfColorSpaceConverter
 
     public override bool IsDevice => false;
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     protected override SKColor ToSrgbCore(ReadOnlySpan<float> comps01, PdfRenderingIntent renderingIntent)
     {
         var c0 = comps01.Length > 0 ? comps01[0] : 0f;
@@ -98,5 +101,10 @@ internal sealed class CalRgbConverter : PdfColorSpaceConverter
         byte G = ToByte(srgb01.Y);
         byte B = ToByte(srgb01.Z);
         return new SKColor(R, G, B, 255);
+    }
+
+    protected override IRgbaSampler GetRgbaSamplerCore(PdfRenderingIntent intent)
+    {
+        return TreeDLut.Build(intent, ToSrgbCore);
     }
 }

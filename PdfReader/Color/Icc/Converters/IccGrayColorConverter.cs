@@ -24,8 +24,6 @@ internal sealed class IccGrayColorConverter
     private readonly float _inverseWhitePointY;
     private readonly Vector3 _whitePointYNormalized; // White scaled so Y = 1 (for absolute style intents)
 
-    private readonly IccTrc _grayTrc;
-    private readonly bool _hasGrayTrc;
     private readonly float[] _grayTrcLut;
 
     private readonly float _sourceBlackLstar;
@@ -56,9 +54,11 @@ internal sealed class IccGrayColorConverter
 
         if (_iccProfile.GrayTrc != null)
         {
-            _grayTrc = _iccProfile.GrayTrc;
-            _hasGrayTrc = true;
-            _grayTrcLut = IccProfileHelpers.IccTrcToLut(_grayTrc, IccProfileHelpers.TrcLutSize);
+            _grayTrcLut = IccProfileHelpers.IccTrcToLut(_iccProfile.GrayTrc, IccProfileHelpers.TrcLutSize);
+        }
+        else
+        {
+            _grayTrcLut = IccProfileHelpers.IccTrcToLut(IccTrc.FromGamma(2.2f), IccProfileHelpers.TrcLutSize); // default gamma 2.2
         }
 
         _sourceBlackLstar = IccProfileHelpers.GetSourceBlackLstar(_iccProfile);
@@ -76,16 +76,7 @@ internal sealed class IccGrayColorConverter
     {
         rgb01 = default;
 
-        float grayLinear;
-        if (_hasGrayTrc)
-        {
-            // Map through pre-expanded TRC LUT to linearized luminance fraction.
-            grayLinear = ColorMath.LookupLinear(_grayTrcLut, gray01);
-        }
-        else
-        {
-            grayLinear = gray01;
-        }
+        float grayLinear = ColorMath.LookupLinear(_grayTrcLut, gray01);
 
         // Build source XYZ.
         // Relative colorimetric: scale D50 reference white by linear luminance (maps neutral axis using D50 reference).

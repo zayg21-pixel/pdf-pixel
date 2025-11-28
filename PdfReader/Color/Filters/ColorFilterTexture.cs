@@ -28,8 +28,8 @@ internal static class ColorFilterTexture
         var lutImageInfo = new SKImageInfo(
             width: lutAxisSize,
             height: lutAxisSize * lutAxisSize,
-            colorType: SKColorType.Rgba8888,
-            alphaType: SKAlphaType.Unpremul);
+            colorType: SKColorType.Bgra8888,
+            alphaType: SKAlphaType.Premul);
 
         var lutBitmap = new SKBitmap(lutImageInfo);
         uint* lutPixelPointer = (uint*)lutBitmap.GetPixels();
@@ -84,8 +84,8 @@ internal static class ColorFilterTexture
         var lutImageInfo = new SKImageInfo(
             width: lutAxisSize,
             height: lutImageHeight,
-            colorType: SKColorType.Rgba8888,
-            alphaType: SKAlphaType.Unpremul);
+            colorType: SKColorType.Bgra8888,
+            alphaType: SKAlphaType.Premul);
 
         var lutBitmap = new SKBitmap(lutImageInfo);
         uint* lutPixelPointer = (uint*)lutBitmap.GetPixels();

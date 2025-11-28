@@ -2,6 +2,7 @@ using System;
 using SkiaSharp;
 using System.Numerics;
 using PdfReader.Color.Icc.Utilities;
+using PdfReader.Color.Lut;
 
 namespace PdfReader.Color.ColorSpace;
 
@@ -87,5 +88,10 @@ internal sealed class LabColorSpaceConverter : PdfColorSpaceConverter
         byte G = ToByte(srgb01.Y);
         byte B = ToByte(srgb01.Z);
         return new SKColor(R, G, B);
+    }
+
+    protected override IRgbaSampler GetRgbaSamplerCore(PdfRenderingIntent intent)
+    {
+        return TreeDLut.Build(intent, ToSrgbCore);
     }
 }

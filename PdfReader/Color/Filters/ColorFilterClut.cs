@@ -72,7 +72,7 @@ internal class ColorFilterClut
                 uniform float kSliceCount;
 
                 half4 main(half4 cmykColor) {
-                    half3 cmyColor = saturate(cmykColor.rgb);
+                    half3 cmyColor = saturate(cmykColor.bgr);
                     half blackChannel = saturate(cmykColor.a);
 
                     // Convert to LUT index space

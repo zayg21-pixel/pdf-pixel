@@ -49,16 +49,17 @@ namespace PdfReader.Streams
 
         private Stream DecodeAsStream(Stream current, List<PdfFilterType> filters, List<PdfDictionary> decodeParameters)
         {
-            if (filters == null || filters.Count == 0)
-            {
-                return ApplyPredictorIfNeeded(current, null); // May still have predictor parameters.
-            }
-
             for (int filterIndex = 0; filterIndex < filters.Count; filterIndex++)
             {
                 PdfFilterType filter = filters[filterIndex];
+
                 switch (filter)
                 {
+                    case PdfFilterType.Unknown:
+                    {
+                        // no filter.
+                        break;
+                    }
                     case PdfFilterType.DCTDecode:
                     case PdfFilterType.JPXDecode:
                     case PdfFilterType.JBIG2Decode:
@@ -134,19 +135,13 @@ namespace PdfReader.Streams
                 for (int index = 0; index < filterArray.Count; index++)
                 {
                     var filterType = filterArray.GetName(index).AsEnum<PdfFilterType>();
-                    if (filterType != PdfFilterType.Unknown)
-                    {
-                        filters.Add(filterType);
-                    }
+                    filters.Add(filterType);
                 }
             }
             else
             {
                 var filterType = obj.Dictionary.GetName(PdfTokens.FilterKey).AsEnum<PdfFilterType>();
-                if (filterType != PdfFilterType.Unknown)
-                {
-                    filters.Add(filterType);
-                }
+                filters.Add(filterType);
             }
 
             return filters;
