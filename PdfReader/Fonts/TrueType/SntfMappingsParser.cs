@@ -21,7 +21,7 @@ public class SntfFontTables
     public ushort[] SingleByteCodeToGid { get; set; }
 
     /// <summary>
-    /// Maps glyph names (<see cref="PdfString"/>) to glyph IDs (GIDs).
+    /// Maps glyph names (<see cref="PdfString"/>) to glyph ID (GIDs).
     /// </summary>
     public Dictionary<PdfString, ushort> NameToGid { get; set; }
 
@@ -147,6 +147,24 @@ internal class SntfFontTableParser
             }
         }
 
+        // Merge CMap format 6 (only for codes 0-255)
+        if (info.CmapData != null && info.Format6Offset >= 0)
+        {
+            var cmapMap = SnftCMapParser.ParseFormat6(info.CmapData, info.Format6Offset);
+            foreach (var kvp in cmapMap)
+            {
+                int code = kvp.Key;
+                if (code >= 0 && code <= 255)
+                {
+                    PdfString glyphName = SingleByteEncodings.GetNameByCode((byte)code, info.Format6Encoding);
+                    if (!glyphName.IsEmpty)
+                    {
+                        nameToGid[glyphName] = kvp.Value;
+                    }
+                }
+            }
+        }
+
         return nameToGid;
     }
 
@@ -159,6 +177,7 @@ internal class SntfFontTableParser
     {
         var unicodeToGid = new Dictionary<string, ushort>();
 
+        // Prefer Format 4 for Unicode mapping if available
         if (info.CmapData != null && info.Format4Offset >= 0)
         {
             var format4Map = SnftCMapParser.ParseFormat4(info.CmapData, info.Format4Offset);
@@ -169,7 +188,22 @@ internal class SntfFontTableParser
             }
         }
 
-        // TODO: Add support for format 12 (for large Unicode fonts)
+        // Add Format 6 support for Unicode mapping (if present)
+        if (info.CmapData != null && info.Format6Offset >= 0)
+        {
+            var format6Map = SnftCMapParser.ParseFormat6(info.CmapData, info.Format6Offset);
+            foreach (var kvp in format6Map)
+            {
+                string unicodeString = char.ConvertFromUtf32(kvp.Key);
+                // Only add if not already present (Format 4 takes precedence)
+                if (!unicodeToGid.ContainsKey(unicodeString))
+                {
+                    unicodeToGid[unicodeString] = kvp.Value;
+                }
+            }
+        }
+
+        // TODO: Add support for format 10/12
 
         return unicodeToGid;
     }

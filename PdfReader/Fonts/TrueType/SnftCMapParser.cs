@@ -90,6 +90,44 @@ internal static class SnftCMapParser
     }
 
     /// <summary>
+    /// Parses a CMap format 6 subtable and returns a mapping from character codes to glyph IDs.
+    /// </summary>
+    /// <param name="data">The font table data.</param>
+    /// <param name="offset">The offset to the format 6 subtable.</param>
+    /// <returns>Dictionary mapping character codes to glyph IDs.</returns>
+    public static Dictionary<int, ushort> ParseFormat6(byte[] data, int offset)
+    {
+        // Format 6 subtable structure:
+        // format:      2 bytes (should be 6)
+        // length:      2 bytes
+        // language:    2 bytes
+        // firstCode:   2 bytes
+        // entryCount:  2 bytes
+        // glyphIdArray: entryCount * 2 bytes
+        if (data == null || data.Length < offset + 12)
+        {
+            return new Dictionary<int, ushort>();
+        }
+
+        ushort firstCode = SnftExtractHelpers.ReadUInt16(data, offset + 6);
+        ushort entryCount = SnftExtractHelpers.ReadUInt16(data, offset + 8);
+        int glyphIdArrayOffset = offset + 10;
+
+        var codeToGid = new Dictionary<int, ushort>();
+        for (int i = 0; i < entryCount; i++)
+        {
+            int glyphOffset = glyphIdArrayOffset + i * 2;
+            if (glyphOffset + 1 >= data.Length)
+            {
+                break;
+            }
+            ushort glyphId = SnftExtractHelpers.ReadUInt16(data, glyphOffset);
+            codeToGid[firstCode + i] = glyphId;
+        }
+        return codeToGid;
+    }
+
+    /// <summary>
     /// Determines the encoding of a format 0 CMap subtable by inspecting platform and encoding IDs.
     /// </summary>
     /// <param name="cmapData">The raw bytes of the font's CMap table.</param>
