@@ -3,8 +3,11 @@ using PdfReader.Fonts.Mapping;
 using PdfReader.Models;
 using PdfReader.Text;
 using SkiaSharp;
+using SkiaSharp.HarfBuzz;
 using System;
 using System.Collections.Concurrent;
+using System.Linq;
+using static PdfReader.Fonts.Model.CidFontVerticalMetrics;
 
 namespace PdfReader.Fonts.Model;
 
@@ -40,12 +43,28 @@ public abstract class PdfFontBase : IDisposable
     internal protected abstract SKTypeface Typeface { get; }
 
     /// <summary>
+    /// Writing mode for this font's CMap (horizontal/vertical).
+    /// </summary>
+    internal protected virtual CMapWMode WritingMode { get; } = CMapWMode.Horizontal;
+
+    internal protected bool SubstituteFont => Typeface == null;
+
+    /// <summary>
     /// Returns a SkiaSharp SKFont instance for this PDF font.
     /// </summary>
+    /// <param name="unicode">Hint for font substitution.</param>
     /// <returns>SKFont instance.</returns>
-    public SKFont GetSkiaFont()
+    public SKFont GetSkiaFont(string unicode)
     {
-        return PdfPaintFactory.CreateTextFont(Typeface);
+        if (Typeface != null)
+        {
+            return PdfPaintFactory.CreateTextFont(Typeface);
+        }
+        else
+        {
+            var substitutedTypeface = Document.FontSubstitutor.SubstituteTypeface(BaseFont, unicode, FontDescriptor);
+            return PdfPaintFactory.CreateTextFont(substitutedTypeface);
+        }
     }
 
     /// <summary>
@@ -90,6 +109,12 @@ public abstract class PdfFontBase : IDisposable
     /// Implementation varies by font type
     /// </summary>
     public abstract float GetWidth(PdfCharacterCode code);
+
+    /// <summary>
+    /// Returns the vertical displacement vector for the specified character code.
+    /// </summary>
+    /// <param name="code"></param>
+    public abstract VerticalMetric GetVerticalDisplacement(PdfCharacterCode code);
 
     /// <summary>
     /// Converts a <see cref="PdfCharacterCode"/> to its corresponding Unicode string representation.
@@ -153,30 +178,43 @@ public abstract class PdfFontBase : IDisposable
         ushort gid = GetGid(characterCode);
         float width = GetWidth(characterCode);
         string unicode = GetUnicodeString(characterCode);
+        var displacement = GetVerticalDisplacement(characterCode);
 
         if (gid != 0 && width != 0)
         {
-            return new PdfCharacterInfo(characterCode, unicode, gid, width);
+            return new PdfCharacterInfo(characterCode, unicode, [gid], [width], displacement);
         }
         else if (gid != 0 && unicode?.Length > 0)
         {
-            using SKFont skFont = GetSkiaFont();
-            float[] widths = skFont.GetGlyphWidths([gid]);
-            float measuredWidth = widths.Length > 0 ? widths[0] : 1f;
-            return new PdfCharacterInfo(characterCode, unicode, gid, measuredWidth);
+            using SKFont skFont = GetSkiaFont(unicode);
+            width = skFont.GetGlyphWidths(unicode).Sum();
+
+            return new PdfCharacterInfo(characterCode, unicode, [gid], [width], displacement);
         }
-        else if (unicode?.Length > 0) // last resort: try to get GID and width from Skia
+        else if (gid == 0 && width != 0 && unicode?.Length > 0) // try to get GID from Skia for missing GID
         {
-            using SKFont skFont = GetSkiaFont();
-
+            using SKFont skFont = GetSkiaFont(unicode);
             ushort[] gids = skFont.GetGlyphs(unicode);
-            ushort extractedGid = gids.Length > 0 ? gids[0] : (ushort)0;
+
+            float[] widths = new float[gids.Length];
+
+            for (int i = 0; i < gids.Length; i++)
+            {
+                widths[i] = width / gids.Length; // TODO: all this incorrect, we need to sub with from real glyph widths
+            }
+
+            return new PdfCharacterInfo(characterCode, unicode, gids, widths, displacement);
+        }
+        else if (unicode?.Length > 0) // last resort: try to get GID and width from Skia + Shaper for ligatures/complex Arabic
+        {
+            using SKFont skFont = GetSkiaFont(unicode);
+            ushort[] gids = skFont.GetGlyphs(unicode);
             float[] widths = skFont.GetGlyphWidths(unicode);
-            float measuredWidth = widths.Length > 0 ? widths[0] : 1f;
-            return new PdfCharacterInfo(characterCode, unicode, extractedGid, measuredWidth);
+
+            return new PdfCharacterInfo(characterCode, unicode, gids, widths, displacement);
         }
 
-        return new PdfCharacterInfo(characterCode, string.Empty, 0, 0f);
+        return new PdfCharacterInfo(characterCode, string.Empty, [0], [0], default);
     }
 
     /// <summary>

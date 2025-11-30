@@ -371,7 +371,7 @@ public class TextOperators : IOperatorProcessor
     private void ProcessSequence(PdfGraphicsState graphicsState, List<ShapedGlyph> glyphs)
     {
         var advancement = _renderer.DrawTextSequence(_canvas, glyphs, graphicsState, graphicsState.CurrentFont);
-        var advanceMatrix = SKMatrix.CreateTranslation(advancement, 0);
+        var advanceMatrix = SKMatrix.CreateTranslation(advancement.Width, advancement.Height);
         graphicsState.TextMatrix = SKMatrix.Concat(graphicsState.TextMatrix, advanceMatrix);
     }
 }

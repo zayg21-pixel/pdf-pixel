@@ -86,6 +86,23 @@ namespace PdfReader.Parsing
                 parameters.StringCryptFilterName = encryptDict.GetName(PdfTokens.StrFKey);
                 parameters.EmbeddedFileCryptFilterName = encryptDict.GetName(PdfTokens.EffKey);
                 parameters.CryptFilterDictionary = encryptDict.GetDictionary(PdfTokens.CFKey);
+
+                if (parameters.CryptFilterDictionary != null)
+                {
+                    var streamCfEntry = parameters.CryptFilterDictionary.GetDictionary(parameters.StreamCryptFilterName);
+                    if (streamCfEntry != null)
+                    {
+                        parameters.StreamCryptFilterMethod = streamCfEntry.GetName(PdfTokens.CfmKey);
+                        parameters.StreamCryptFilterLength = streamCfEntry.GetInteger(PdfTokens.LengthKey);
+                    }
+
+                    var stringCfEntry = parameters.CryptFilterDictionary.GetDictionary(parameters.StringCryptFilterName);
+                    if (stringCfEntry != null)
+                    {
+                        parameters.StringCryptFilterMethod = stringCfEntry.GetName(PdfTokens.CfmKey);
+                        parameters.StringCryptFilterLength = stringCfEntry.GetInteger(PdfTokens.LengthKey);
+                    }
+                }
             }
 
             var idArray = trailer.GetArray(PdfTokens.IdKey);

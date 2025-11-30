@@ -4,6 +4,7 @@ using PdfReader.Text;
 using PdfReader.Color.Paint;
 using PdfReader.Transparency.Model;
 using PdfReader.Fonts.Model;
+using PdfReader.Fonts.Mapping;
 
 namespace PdfReader.Rendering.State
 {

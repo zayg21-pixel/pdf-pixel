@@ -1,4 +1,5 @@
 using PdfReader.Fonts.Mapping;
+using SkiaSharp;
 
 namespace PdfReader.Fonts.Model;
 
@@ -13,13 +14,15 @@ public struct PdfCharacterInfo
     public PdfCharacterInfo(
         PdfCharacterCode characterCode,
         string unicode,
-        ushort gid,
-        float width)
+        ushort[] gid,
+        float[] width,
+        VerticalMetric displacement)
     {
         CharacterCode = characterCode;
         Unicode = unicode;
         Gid = gid;
         Width = width;
+        Displacement = displacement;
     }
 
     /// <summary>
@@ -33,12 +36,17 @@ public struct PdfCharacterInfo
     public string Unicode { get; }
 
     /// <summary>
-    /// The glyph ID for this character code.
+    /// The glyph ID collection for this character code.
     /// </summary>
-    public ushort Gid { get; }
+    public ushort[] Gid { get; }
 
     /// <summary>
-    /// The width for current glyph.
+    /// The width collection for current code.
     /// </summary>
-    public float Width { get; }
+    public float[] Width { get; }
+
+    /// <summary>
+    /// Displacement metric for vertical character.
+    /// </summary>
+    public VerticalMetric Displacement { get; }
 }

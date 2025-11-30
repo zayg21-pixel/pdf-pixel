@@ -1,16 +1,17 @@
 using System;
+using System.IO;
 using System.Security.Cryptography;
 using PdfReader.Models;
+using PdfReader.Text;
 
 namespace PdfReader.Encryption
 {
     /// <summary>
-    /// Standard security handler implementation for revisions R=3 and R=4 (legacy RC4 mode only here).
-    /// Implements Algorithm 3.2 (file key derivation, including /O and optional metadata flag)
-    /// and Algorithm 3.5 (user password validation RC4 20-iteration loop) per PDF specification.
-    /// AESV2 crypt filter support is not implemented yet.
+    /// Unified decryptor for Standard security handler revisions R=3 and R=4.
+    /// Implements common key derivation and supports RC4 (V2) and AESV2 per crypt filter method.
+    /// Uses distinct paths for streams and strings honoring CF overrides.
     /// </summary>
-    internal sealed class StandardR3R4Decryptor : BasePdfDecryptor
+    internal sealed class R3R4Decryptor : BasePdfDecryptor
     {
         private const int PasswordPadLength = 32;
         private static readonly byte[] PasswordPadding = new byte[]
@@ -26,34 +27,51 @@ namespace PdfReader.Encryption
         private string _lastPassword = string.Empty;
         private bool _userValidated;
 
-        public StandardR3R4Decryptor(PdfDecryptorParameters parameters) : base(parameters)
+        public R3R4Decryptor(PdfDecryptorParameters parameters) : base(parameters)
         {
         }
 
-        public override ReadOnlyMemory<byte> DecryptBytes(ReadOnlyMemory<byte> data, PdfReference reference)
+        public override ReadOnlyMemory<byte> DecryptString(ReadOnlyMemory<byte> data, PdfReference reference)
+        {
+            // Treat as string path
+            return DecryptInternal(data, reference, useStreamPath: false);
+        }
+
+        public override Stream DecryptStream(Stream stream, PdfReference reference)
+        {
+            using var memoryStream = new MemoryStream();
+            stream.CopyTo(memoryStream);
+            var decryptedBytes = DecryptInternal(memoryStream.ToArray(), reference, useStreamPath: true);
+            return new MemoryStream(decryptedBytes.ToArray());
+        }
+
+        private ReadOnlyMemory<byte> DecryptInternal(ReadOnlyMemory<byte> data, PdfReference reference, bool useStreamPath)
         {
             if (data.IsEmpty)
             {
                 return data;
             }
+
             EnsureFileKey();
             if (_fileKey == null)
             {
                 return data;
             }
-            var objectKey = DeriveObjectKey(reference);
-            return Rc4(objectKey, data.Span);
-        }
 
-        public override void UpdatePassword(string password)
-        {
-            base.UpdatePassword(password);
-            if (password != _lastPassword)
+            // Choose CF method and length override
+            PdfString method = useStreamPath ? Parameters.StreamCryptFilterMethod : Parameters.StringCryptFilterMethod;
+            int? overrideLenBytes = useStreamPath ? Parameters.StreamCryptFilterLength : Parameters.StringCryptFilterLength;
+            bool useAes = method == PdfTokens.AESV2;
+
+            var objectKey = DeriveObjectKey(reference, useAes, overrideLenBytes);
+
+            if (useAes)
             {
-                _fileKey = null;
-                _userValidated = false;
-                _lastPassword = password;
+                return AesV2(objectKey, data.Span);
             }
+
+            // Default RC4
+            return Rc4(objectKey, data.Span);
         }
 
         private void EnsureFileKey()
@@ -65,7 +83,6 @@ namespace PdfReader.Encryption
 
             if (Parameters.FileIdFirst == null)
             {
-                // Cannot derive key reliably without file ID.
                 return;
             }
 
@@ -86,7 +103,6 @@ namespace PdfReader.Encryption
 
             using (var md5 = MD5.Create())
             {
-                // Order (Algorithm 3.2): padded password, owner entry (/O), permissions (LE 4), file ID (first), optional 0xFFFFFFFF if !EncryptMetadata
                 var pwdBytes = GetPasswordBytes();
                 md5.TransformBlock(pwdBytes, 0, pwdBytes.Length, null, 0);
 
@@ -109,7 +125,6 @@ namespace PdfReader.Encryption
                 md5.TransformFinalBlock(Array.Empty<byte>(), 0, 0);
                 byte[] digest = md5.Hash;
 
-                // Strengthening loop: hash first key length bytes 50 times.
                 for (int i = 0; i < 50; i++)
                 {
                     digest = md5.ComputeHash(digest.AsSpan(0, _fileKeyLengthBytes).ToArray());
@@ -149,20 +164,19 @@ namespace PdfReader.Encryption
             }
             catch
             {
-                // Safe to ignore; decryption may still proceed for lenient consumers.
+                // Intentionally ignored; some producers accept decryption without strict validation.
             }
         }
 
         private byte[] ComputeUserEntryR3R4()
         {
-            // Algorithm 3.5: MD5(padding + fileID), then 20 iterative RC4 encryptions with fileKey XOR i.
             byte[] digest;
             using (var md5 = MD5.Create())
             {
                 md5.TransformBlock(PasswordPadding, 0, PasswordPadding.Length, null, 0);
                 md5.TransformBlock(Parameters.FileIdFirst, 0, Parameters.FileIdFirst.Length, null, 0);
                 md5.TransformFinalBlock(Array.Empty<byte>(), 0, 0);
-                digest = md5.Hash; // 16 bytes
+                digest = md5.Hash;
             }
 
             byte[] block = new byte[16];
@@ -178,12 +192,12 @@ namespace PdfReader.Encryption
                 block = Rc4Raw(tempKey, block);
             }
 
-            return block; // Compare first 16 bytes only
+            return block;
         }
 
-        private byte[] DeriveObjectKey(PdfReference reference)
+        private byte[] DeriveObjectKey(PdfReference reference, bool useAes, int? cryptFilterKeyLengthBytesOverride = null)
         {
-            Span<byte> buffer = stackalloc byte[_fileKeyLengthBytes + 5];
+            Span<byte> buffer = stackalloc byte[_fileKeyLengthBytes + 5 + (useAes ? 4 : 0)];
             _fileKey.AsSpan(0, _fileKeyLengthBytes).CopyTo(buffer);
             uint obj = reference.ObjectNumber;
             int gen = reference.Generation;
@@ -193,18 +207,26 @@ namespace PdfReader.Encryption
             buffer[_fileKeyLengthBytes + 3] = (byte)(gen & 0xFF);
             buffer[_fileKeyLengthBytes + 4] = (byte)((gen >> 8) & 0xFF);
 
-            using (var md5 = MD5.Create())
+            if (useAes)
             {
-                var digest = md5.ComputeHash(buffer.ToArray());
-                int keyLen = _fileKeyLengthBytes + 5;
-                if (keyLen > 16)
-                {
-                    keyLen = 16;
-                }
-                var objectKey = new byte[keyLen];
-                Buffer.BlockCopy(digest, 0, objectKey, 0, keyLen);
-                return objectKey;
+                buffer[_fileKeyLengthBytes + 5] = (byte)'s';
+                buffer[_fileKeyLengthBytes + 6] = (byte)'A';
+                buffer[_fileKeyLengthBytes + 7] = (byte)'l';
+                buffer[_fileKeyLengthBytes + 8] = (byte)'T';
             }
+
+            using var md5 = MD5.Create();
+
+            var digest = md5.ComputeHash(buffer.ToArray());
+            int baseLen = cryptFilterKeyLengthBytesOverride ?? _fileKeyLengthBytes;
+            int keyLen = baseLen + 5;
+            if (keyLen > 16)
+            {
+                keyLen = 16;
+            }
+            var objectKey = new byte[keyLen];
+            Buffer.BlockCopy(digest, 0, objectKey, 0, keyLen);
+            return objectKey;
         }
 
         private static ReadOnlyMemory<byte> Rc4(byte[] key, ReadOnlySpan<byte> data)
@@ -247,6 +269,31 @@ namespace PdfReader.Encryption
             }
         }
 
+        private static ReadOnlyMemory<byte> AesV2(byte[] objectKey, ReadOnlySpan<byte> data)
+        {
+            if (data.Length < 16)
+            {
+                return data.ToArray();
+            }
+
+            byte[] iv = data.Slice(0, 16).ToArray();
+            byte[] ciphertext = data.Slice(16).ToArray();
+
+            using var aes = Aes.Create();
+            byte[] key = objectKey.Length >= 16 ? objectKey.AsSpan(0, 16).ToArray() : PadKeyTo16(objectKey);
+            using ICryptoTransform decryptor = aes.CreateDecryptor(key, iv);
+            byte[] plain = decryptor.TransformFinalBlock(ciphertext, 0, ciphertext.Length);
+            return plain;
+        }
+
+        private static byte[] PadKeyTo16(byte[] key)
+        {
+            byte[] padded = new byte[16];
+            int copy = Math.Min(16, key.Length);
+            Buffer.BlockCopy(key, 0, padded, 0, copy);
+            return padded;
+        }
+
         private byte[] GetPasswordBytes()
         {
             string pwd = Password ?? string.Empty;
@@ -261,6 +308,17 @@ namespace PdfReader.Encryption
             Buffer.BlockCopy(bytes, 0, padded, 0, bytes.Length);
             Buffer.BlockCopy(PasswordPadding, 0, padded, bytes.Length, PasswordPadLength - bytes.Length);
             return padded;
+        }
+
+        public override void UpdatePassword(string password)
+        {
+            base.UpdatePassword(password);
+            if (password != _lastPassword)
+            {
+                _fileKey = null;
+                _userValidated = false;
+                _lastPassword = password;
+            }
         }
     }
 }

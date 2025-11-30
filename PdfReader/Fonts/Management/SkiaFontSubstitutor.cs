@@ -11,38 +11,18 @@ namespace PdfReader.Fonts.Management;
 /// </summary>
 internal sealed class SkiaFontSubstitutor : IDisposable
 {
-    private static readonly Dictionary<string, string[]> MergedFamilyMap = new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase)
+    private static readonly Dictionary<string, Standard14Info> Standard14Map = new Dictionary<string, Standard14Info>(StringComparer.OrdinalIgnoreCase)
     {
-        { "Times", new[] { "Times New Roman", "Times", "Liberation Serif", "Nimbus Roman" } },
-        { "TimesNewRoman", new[] { "Times New Roman", "Times", "Liberation Serif", "Nimbus Roman" } },
-        { "TimesNewRomanPS", new[] { "Times New Roman", "Times", "Liberation Serif", "Nimbus Roman" } },
-        { "Helvetica", new[] { "Helvetica", "Arial", "Liberation Sans", "Nimbus Sans" } },
-        { "Arial", new[] { "Arial", "Helvetica", "Liberation Sans", "Nimbus Sans" } },
-        { "Courier", new[] { "Courier New", "Courier", "Liberation Mono", "Nimbus Mono" } },
-        { "CourierNew", new[] { "Courier New", "Courier", "Liberation Mono", "Nimbus Mono" } },
-        { "CourierNewPS", new[] { "Courier New", "Courier", "Liberation Mono", "Nimbus Mono" } },
-        { "Symbol", new[] { "Symbol", "Segoe UI Symbol" } },
-        { "ZapfDingbats", new[] { "Zapf Dingbats", "Segoe UI Symbol", "Wingdings" } },
-        { "LiberationSans", new[] { "Liberation Sans", "Helvetica", "Arial", "Nimbus Sans" } },
-        { "LiberationSerif", new[] { "Liberation Serif", "Times New Roman", "Times", "Nimbus Roman" } },
-        { "LiberationMono", new[] { "Liberation Mono", "Courier New", "Courier", "Nimbus Mono" } },
-        { "DejaVuSans", new[] { "DejaVu Sans", "Liberation Sans", "Arial", "Helvetica" } },
-        { "DejaVuSerif", new[] { "DejaVu Serif", "Liberation Serif", "Times New Roman", "Times" } },
-        { "DejaVuSansMono", new[] { "DejaVu Sans Mono", "Liberation Mono", "Courier New", "Courier" } },
-        { "NimbusSans", new[] { "Nimbus Sans", "Helvetica", "Arial", "Liberation Sans" } },
-        { "NimbusRoman", new[] { "Nimbus Roman", "Times New Roman", "Times", "Liberation Serif" } },
-        { "NimbusMono", new[] { "Nimbus Mono", "Courier New", "Courier", "Liberation Mono" } },
-        { "SourceSansPro", new[] { "Source Sans Pro", "Helvetica", "Arial", "Liberation Sans" } },
-        { "SourceSerifPro", new[] { "Source Serif Pro", "Times New Roman", "Times", "Liberation Serif" } },
-        { "SourceCodePro", new[] { "Source Code Pro", "Courier New", "Courier", "Liberation Mono" } },
-        { "DroidSans", new[] { "Droid Sans", "Helvetica", "Arial", "Liberation Sans" } },
-        { "DroidSerif", new[] { "Droid Serif", "Times New Roman", "Times", "Liberation Serif" } },
-        { "DroidSansMono", new[] { "Droid Sans Mono", "Liberation Mono", "Courier New", "Courier" } },
-        { "HelveticaNeue", new[] { "Helvetica Neue", "Helvetica", "Arial", "Liberation Sans" } },
-        { "ArialUnicodeMS", new[] { "Arial Unicode MS", "Arial", "Helvetica" } },
-        { "SegoeUI", new[] { "Segoe UI", "Arial", "Helvetica" } },
-        { "SegoeUISymbol", new[] { "Segoe UI Symbol", "Segoe UI", "Arial", "Symbol" } },
-        { "SegoeUIEmoji", new[] { "Segoe UI Emoji", "Segoe UI Symbol", "Segoe UI" } }
+        { "Times", new Standard14Info(new[] { "Times New Roman", "Times", "Liberation Serif", "Nimbus Roman" }, PdfFontEncoding.StandardEncoding) },
+        { "TimesNewRoman", new Standard14Info(new[] { "Times New Roman", "Times", "Liberation Serif", "Nimbus Roman" }, PdfFontEncoding.StandardEncoding) },
+        { "TimesNewRomanPS", new Standard14Info(new[] { "Times New Roman", "Times", "Liberation Serif", "Nimbus Roman" }, PdfFontEncoding.StandardEncoding) },
+        { "Helvetica", new Standard14Info(new[] { "Helvetica", "Arial", "Liberation Sans", "Nimbus Sans" }, PdfFontEncoding.StandardEncoding) },
+        { "Arial", new Standard14Info(new[] { "Arial", "Helvetica", "Liberation Sans", "Nimbus Sans" }, PdfFontEncoding.StandardEncoding) },
+        { "Courier", new Standard14Info(new[] { "Courier New", "Courier", "Liberation Mono", "Nimbus Mono" }, PdfFontEncoding.StandardEncoding) },
+        { "CourierNew", new Standard14Info(new[] { "Courier New", "Courier", "Liberation Mono", "Nimbus Mono" }, PdfFontEncoding.StandardEncoding) },
+        { "CourierNewPS", new Standard14Info(new[] { "Courier New", "Courier", "Liberation Mono", "Nimbus Mono" }, PdfFontEncoding.StandardEncoding) },
+        { "Symbol", new Standard14Info(new[] { "Times New Roman", "Segoe UI Symbol" }, PdfFontEncoding.SymbolEncoding) },
+        { "ZapfDingbats", new Standard14Info(new[] { "Zapf Dingbats", "Segoe UI Symbol", "Wingdings" }, PdfFontEncoding.ZapfDingbatsEncoding) }
     };
 
     private readonly Dictionary<PdfFontName, SKTypeface> _typefaceCache = new Dictionary<PdfFontName, SKTypeface>();
@@ -54,15 +34,15 @@ internal sealed class SkiaFontSubstitutor : IDisposable
     /// <param name="baseFont">PDF font base name.</param>
     /// <param name="fontDescriptor">Font descriptor for style hints.</param>
     /// <returns>Matching SKTypeface or SKTypeface.Default if not found.</returns>
-    public SKTypeface SubstituteTypeface(PdfString baseFont, PdfFontDescriptor fontDescriptor)
+    public SKTypeface SubstituteTypeface(PdfString baseFont, string unicode, PdfFontDescriptor fontDescriptor)
     {
         var parsed = PdfFontName.Parse(baseFont, fontDescriptor);
         // TODO: PdfFontName should be generated by caller, we substitute font for every char individually, best to achieve by separate cache layer.
 
-        if (_typefaceCache.TryGetValue(parsed, out var cachedTypeface))
-        {
-            return cachedTypeface;
-        }
+        //if (_typefaceCache.TryGetValue(parsed, out var cachedTypeface))
+        //{
+        //    return cachedTypeface;
+        //}
 
         SKFontStyle style = SKFontStyle.Normal;
         if (parsed.BoldHint && parsed.ItalicHint)
@@ -79,24 +59,37 @@ internal sealed class SkiaFontSubstitutor : IDisposable
         }
 
         // Stage 1: direct match using normalized stem itself
-        var direct = SKFontManager.Default.MatchFamily(parsed.NormalizedStem, style);
-        if (direct != null)
-        {
-            _typefaceCache[parsed] = direct;
-            return direct;
-        }
+        //var direct = SKFontManager.Default.MatchFamily(parsed.NormalizedStem, style);
+
+        //if (direct != null && (unicode == null || direct.ContainsGlyphs(unicode)))
+        //{
+        //    _typefaceCache[parsed] = direct;
+        //    return direct;
+        //}
 
         // Stage 2: fallback list
-        if (MergedFamilyMap.TryGetValue(parsed.NormalizedStem, out var list))
+        if (Standard14Map.TryGetValue(parsed.NormalizedStem, out var info))
         {
+            var list = info.SubstitutionCandidates;
             for (int i = 0; i < list.Length; i++)
             {
                 var tf = SKFontManager.Default.MatchFamily(list[i], style);
-                if (tf != null)
+                if (tf != null && (unicode == null || tf.ContainsGlyphs(unicode)))
                 {
                     _typefaceCache[parsed] = tf;
                     return tf;
                 }
+            }
+        }
+
+        if (unicode != null && unicode.Length >= 1)
+        {
+            // Additional attempt: try to find any font that contains the glyph
+            var anyFont = SKFontManager.Default.MatchCharacter(default, style, default, unicode[0]);
+            if (anyFont != null)
+            {
+                _typefaceCache[parsed] = anyFont;
+                return anyFont;
             }
         }
 
@@ -111,6 +104,31 @@ internal sealed class SkiaFontSubstitutor : IDisposable
         // Final fallback: default typeface
         _typefaceCache[parsed] = SKTypeface.Default;
         return SKTypeface.Default;
+    }
+
+    /// <summary>
+    /// Returns the expected encoding for a given standard 14 PDF font name.
+    /// For non-standard fonts, returns null.
+    /// For Symbol and ZapfDingbats, returns their respective encodings.
+    /// </summary>
+    /// <param name="baseFont">The PDF BaseFont name.</param>
+    /// <returns>The expected PdfFontEncoding for the font name.</returns>
+    public static PdfFontEncoding? GetEncodingByName(PdfString baseFont)
+    {
+        if (baseFont.IsEmpty)
+        {
+            return default;
+        }
+
+        var parsed = PdfFontName.Parse(baseFont, default);
+        string stem = parsed.NormalizedStem;
+
+        if (Standard14Map.TryGetValue(stem, out var info))
+        {
+            return info.DefaultEncoding;
+        }
+
+        return default;
     }
 
     public void Dispose()

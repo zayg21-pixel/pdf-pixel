@@ -56,34 +56,35 @@ internal class PdfTextExtractionRenderer : IPdfRenderer
         // no op
     }
 
-    public float DrawTextSequence(SKCanvas canvas, List<ShapedGlyph> glyphs, PdfGraphicsState state, PdfFontBase font)
+    public SKSize DrawTextSequence(SKCanvas canvas, List<ShapedGlyph> glyphs, PdfGraphicsState state, PdfFontBase font)
     {
-        using var skFont = font.GetSkiaFont();
+        using var skFont = font.GetSkiaFont(null); // TODO: use same approach as in PdfRenderer to get correct typeface for shaping
+        throw new System.NotImplementedException();
 
-        var currentMatrix = SKMatrix.Concat(canvas.TotalMatrix, TextRenderUtilities.GetFullTextMatrix(state));
-        var rawTextMatrix = SKMatrix.Concat(canvas.TotalMatrix, state.TextMatrix);
+        //var currentMatrix = SKMatrix.Concat(canvas.TotalMatrix, TextRenderUtilities.GetFullTextMatrix(0, state));
+        //var rawTextMatrix = SKMatrix.Concat(canvas.TotalMatrix, state.TextMatrix);
 
-        float advance = 0;
+        //float advance = 0;
 
-        // Use font metrics for correct vertical bounds
-        var metrics = skFont.Metrics;
-        float top = metrics.Ascent;
-        float bottom = metrics.Descent;
+        //// Use font metrics for correct vertical bounds
+        //var metrics = skFont.Metrics;
+        //float top = metrics.Ascent;
+        //float bottom = metrics.Descent;
 
-        foreach (var glyph in glyphs)
-        {
-            // Use font metrics for vertical bounds
-            var rect = new SKRect(advance, top, advance + glyph.Width, bottom);
-            rect = currentMatrix.MapRect(rect).Standardized;
+        //foreach (var glyph in glyphs)
+        //{
+        //    // Use font metrics for vertical bounds
+        //    var rect = new SKRect(advance, top, advance + glyph.Width, bottom);
+        //    rect = currentMatrix.MapRect(rect).Standardized;
 
-            if (rect.Width != 0)
-            {
-                PageCharacters.Add(new PdfCharacter(glyph.Unicode, rect));
-            }
+        //    if (rect.Width != 0)
+        //    {
+        //        PageCharacters.Add(new PdfCharacter(glyph.Unicode, rect));
+        //    }
 
-            advance += glyph.TotalWidth;
-        }
+        //    advance += glyph.TotalWidth;
+        //}
 
-        return advance * state.FontSize * state.HorizontalScaling / 100f;
+        //return advance * state.FontSize * state.HorizontalScaling / 100f;
     }
 }

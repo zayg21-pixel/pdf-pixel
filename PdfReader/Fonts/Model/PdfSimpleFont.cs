@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging;
 using PdfReader.Fonts.Cff;
+using PdfReader.Fonts.Management;
 using PdfReader.Fonts.Mapping;
 using PdfReader.Fonts.TrueType;
 using PdfReader.Fonts.Type1;
@@ -28,14 +29,14 @@ public class PdfSimpleFont : PdfSingleByteFont
     public PdfSimpleFont(PdfDictionary fontDictionary) : base(fontDictionary)
     {
         _logger = fontDictionary.Document.LoggerFactory.CreateLogger<PdfSimpleFont>();
-        (_typeface, _mapper, _substituted) = GetTypefaceAndMapper();
+        (_typeface, _mapper) = GetTypefaceAndMapper();
     }
 
     public override bool IsEmbedded => FontDescriptor?.HasEmbeddedFont == true;
 
     internal protected override SKTypeface Typeface => _typeface;
 
-    private (SKTypeface, IByteCodeToGidMapper, bool) GetTypefaceAndMapper()
+    private (SKTypeface, IByteCodeToGidMapper) GetTypefaceAndMapper()
     {
         try
         {
@@ -62,12 +63,13 @@ public class PdfSimpleFont : PdfSingleByteFont
                     // If still unknown, default to StandardEncoding
                     if (Encoding.BaseEncoding == PdfFontEncoding.Unknown)
                     {
-                        Encoding.Update(PdfFontEncoding.StandardEncoding, default);
+                        var encoding = SkiaFontSubstitutor.GetEncodingByName(BaseFont) ?? PdfFontEncoding.StandardEncoding;
+                        Encoding.Update(encoding, default);
                     }
 
                     var mapper = new CffByteCodeToGidMapper(cffInfo, FontDescriptor.Flags, Encoding);
 
-                    return (typeface, mapper, false);
+                    return (typeface, mapper);
                 }
                 case PdfFontFileFormat.Type1C:
                 {
@@ -97,22 +99,22 @@ public class PdfSimpleFont : PdfSingleByteFont
 
                     var mapper = new CffByteCodeToGidMapper(cffInfo, FontDescriptor.Flags, Encoding);
 
-                    return (typeface, mapper, false);
+                    return (typeface, mapper);
                 }
 
                 case PdfFontFileFormat.TrueType:
                 {
                     var typeface = SKTypeface.FromStream(FontDescriptor.FontFileObject.DecodeAsStream());
-                    var snftTables = SntfFontTableParser.GetSntfFontTables(typeface);
+                    var sfntTables = SfntFontTableParser.GetSfntFontTables(typeface);
 
                     if (Encoding.BaseEncoding == PdfFontEncoding.Unknown)
                     {
                         Encoding.Update(PdfFontEncoding.StandardEncoding, default);
                     }
 
-                    var mapper = new SntfByteCodeToGidMapper(snftTables, FontDescriptor.Flags, substituted: false, Encoding, ToUnicodeCMap);
+                    var mapper = new SfntByteCodeToGidMapper(sfntTables, FontDescriptor.Flags, substituted: false, Encoding, ToUnicodeCMap);
 
-                    return (typeface, mapper, false);
+                    return (typeface, mapper);
                 }
             }
         }
@@ -121,18 +123,13 @@ public class PdfSimpleFont : PdfSingleByteFont
             _logger.LogWarning(ex, "Error loading embedded font for font '{FontName}', will attempt substitution", BaseFont);
         }
 
-        var substitutedTypeface = Document.FontSubstitutor.SubstituteTypeface(BaseFont, FontDescriptor);
-        var substitutedSnftTables = SntfFontTableParser.GetSntfFontTables(substitutedTypeface);
-
-        // we're substituting, so always use StandardEncoding if none specified
         if (Encoding.BaseEncoding == PdfFontEncoding.Unknown)
         {
-            Encoding.Update(PdfFontEncoding.StandardEncoding, default);
+            var encoding = SkiaFontSubstitutor.GetEncodingByName(BaseFont) ?? PdfFontEncoding.StandardEncoding;
+            Encoding.Update(encoding, default);
         }
 
-        var snftMapper = new SntfByteCodeToGidMapper(substitutedSnftTables, default, substituted: true, Encoding, ToUnicodeCMap);
-
-        return (substitutedTypeface, snftMapper, true);
+        return default;
     }
 
     /// <summary>

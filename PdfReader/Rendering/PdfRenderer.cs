@@ -47,7 +47,7 @@ public class PdfRenderer : IPdfRenderer
     /// <summary>
     /// Draw text with positioning adjustments (if any) and return total advancement.
     /// </summary>
-    public float DrawTextSequence(SKCanvas canvas, List<ShapedGlyph> glyphs, PdfGraphicsState state, PdfFontBase font)
+    public SKSize DrawTextSequence(SKCanvas canvas, List<ShapedGlyph> glyphs, PdfGraphicsState state, PdfFontBase font)
     {
         return _textRenderer.DrawTextSequence(canvas, glyphs, state, font);
     }

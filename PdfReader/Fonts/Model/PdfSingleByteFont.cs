@@ -1,6 +1,7 @@
 using PdfReader.Fonts.Mapping;
 using PdfReader.Models;
 using PdfReader.Text;
+using SkiaSharp;
 using System;
 
 namespace PdfReader.Fonts.Model;
@@ -45,6 +46,11 @@ public abstract class PdfSingleByteFont : PdfFontBase
         }
         // Fallback: PDF spec recommends 0 if not defined for single-byte fonts
         return 0f;
+    }
+
+    public override VerticalMetric GetVerticalDisplacement(PdfCharacterCode code)
+    {
+        return default;
     }
 
     public override string GetUnicodeString(PdfCharacterCode code)

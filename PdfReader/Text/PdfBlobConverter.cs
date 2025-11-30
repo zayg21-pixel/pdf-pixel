@@ -80,10 +80,10 @@ namespace PdfReader.Text
         /// Uses only <see cref="ReadOnlyMemory{T}"/> slices for key/value extraction.
         /// </summary>
         /// <param name="blob">The binary blob.</param>
-        /// <returns>A new <see cref="Dictionary{TKey, TValue}"/> of <see cref="PdfString"/> to Unicode string mappings.</returns>
+        /// <param name="target">Target dictionary to store mappings.</param>
         /// <exception cref="ArgumentNullException">Thrown when <paramref name="blob"/> is null.</exception>
         /// <exception cref="FormatException">Thrown when the blob is malformed.</exception>
-        public static Dictionary<PdfString, string> ReadFromCharacterMapBlob(byte[] blob)
+        public static void ReadFromCharacterMapBlob(byte[] blob, Dictionary<PdfString, string> target)
         {
             if (blob == null)
             {
@@ -92,7 +92,6 @@ namespace PdfReader.Text
 
             ReadOnlyMemory<byte> blobMemory = blob.AsMemory();
 
-            var map = new Dictionary<PdfString, string>();
             int index = 0;
 
             while (index < blob.Length)
@@ -129,15 +128,13 @@ namespace PdfReader.Text
                 string value = Encoding.UTF8.GetString(blobMemory.Slice(index, valueLength));
                 index += valueLength;
 
-                map[pdfString] = value;
+                target[pdfString] = value;
             }
 
             if (index != blob.Length)
             {
                 throw new FormatException("Blob parsing ended at unexpected position.");
             }
-
-            return map;
         }
 
 

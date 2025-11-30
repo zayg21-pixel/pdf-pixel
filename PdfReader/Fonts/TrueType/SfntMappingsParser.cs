@@ -2,13 +2,14 @@
 using PdfReader.Text;
 using SkiaSharp;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace PdfReader.Fonts.TrueType;
 
 /// <summary>
 /// Holds extracted font table mappings and related information for a TrueType font.
 /// </summary>
-public class SntfFontTables
+public class SfntFontTables
 {
     /// <summary>
     /// Information about the font's tables and offsets.
@@ -34,16 +35,16 @@ public class SntfFontTables
 /// <summary>
 /// Provides methods for extracting font table mappings from a TrueType font using SkiaSharp.
 /// </summary>
-internal class SntfFontTableParser
+internal class SfntFontTableParser
 {
     /// <summary>
     /// Extracts all relevant font table mappings from the specified <see cref="SKTypeface"/>.
     /// </summary>
     /// <param name="typeface">The SkiaSharp typeface to extract mappings from.</param>
-    /// <returns>A <see cref="SntfFontTables"/> instance containing all extracted mappings and table info.</returns>
-    public static SntfFontTables GetSntfFontTables(SKTypeface typeface)
+    /// <returns>A <see cref="SfntFontTables"/> instance containing all extracted mappings and table info.</returns>
+    public static SfntFontTables GetSfntFontTables(SKTypeface typeface)
     {
-        var tableInfo = SntfFontTableInfoParser.GetFontTableInfo(typeface);
+        var tableInfo = SfntFontTableInfoParser.GetFontTableInfo(typeface);
 
         var codeToGid = ExtractCodeToGidFormat0(tableInfo);
 
@@ -52,7 +53,7 @@ internal class SntfFontTableParser
             codeToGid = ExtractCodeToGidFormat4(tableInfo);
         }
 
-        return new SntfFontTables
+        return new SfntFontTables
         {
             FontTableInfo = tableInfo,
             SingleByteCodeToGid = codeToGid,
@@ -67,10 +68,13 @@ internal class SntfFontTableParser
     /// </summary>
     private static ushort[] ExtractCodeToGidFormat0(FontTableInfo info)
     {
-        if (info.CmapData != null && info.Format0Offset >= 0)
+        var format0CMap = info.CMapEntries.FirstOrDefault(cmap => cmap.Format == 0);
+
+        if (info.CmapData != null && format0CMap != null)
         {
-            return SnftCMapParser.ParseFormat0(info.CmapData, info.Format0Offset);
+            return SnftCMapParser.ParseFormat0(info.CmapData, format0CMap.Offset);
         }
+
         return null;
     }
 
@@ -79,12 +83,14 @@ internal class SntfFontTableParser
     /// </summary>
     private static ushort[] ExtractCodeToGidFormat4(FontTableInfo info)
     {
-        if (info.CmapData != null && info.Format4Offset >= 0)
+        var format4CMap = info.CMapEntries.FirstOrDefault(cmap => cmap.Format == 4);
+
+        if (info.CmapData != null && format4CMap != null)
         {
-            var subResult = SnftCMapParser.ParseFormat4(info.CmapData, info.Format4Offset);
+            var subResult = SnftCMapParser.ParseFormat4(info.CmapData, format4CMap.Offset);
             ushort[] result = new ushort[256];
             // map is used for symbol fonts with single-byte codes
-            // SNTF format 4 mapping uses reserved area for single-byte codes with offset, simple mapping
+            // SFNT format 4 mapping uses reserved area for single-byte codes with offset, simple mapping
             // to byte works exactly as expected.
 
             foreach (var item in subResult)
@@ -115,51 +121,67 @@ internal class SntfFontTableParser
                 var postMap = SfntPostTableParser.GetNameToGidFormat1(info.PostData);
                 foreach (var kvp in postMap)
                 {
-                    nameToGid[kvp.Key] = kvp.Value;
+                    var key = kvp.Key;
+                    var value = kvp.Value;
+                    if (value != 0 && !nameToGid.ContainsKey(key))
+                    {
+                        nameToGid[key] = value;
+                    }
                 }
             }
             else if (info.PostDataFormat == 2.0f)
             {
                 var postMap = SfntPostTableParser.GetNameToGidFormat2(info.PostData);
+
                 foreach (var kvp in postMap)
                 {
-                    nameToGid[kvp.Key] = kvp.Value;
-                }
-            }
-        }
+                    var key = kvp.Key;
+                    var value = kvp.Value;
 
-        // Merge CMap format 0
-        if (info.CmapData != null && info.Format0Offset >= 0)
-        {
-            PdfString[] encodingNames = SingleByteEncodings.GetEncodingSet(info.Format0Encoding);
-            if (encodingNames != null)
-            {
-                var cmapMap = SnftCMapParser.ParseFormat0(info.CmapData, info.Format0Offset);
-                for (int code = 0; code < 256; code++)
-                {
-                    PdfString glyphName = encodingNames[code];
-
-                    if (!glyphName.IsEmpty)
+                    if (value != 0 && !nameToGid.ContainsKey(key))
                     {
-                        nameToGid[glyphName] = cmapMap[code];
+                        nameToGid[kvp.Key] = kvp.Value;
                     }
                 }
             }
         }
 
-        // Merge CMap format 6 (only for codes 0-255)
-        if (info.CmapData != null && info.Format6Offset >= 0)
+
+        foreach (var cmap in info.CMapEntries)
         {
-            var cmapMap = SnftCMapParser.ParseFormat6(info.CmapData, info.Format6Offset);
-            foreach (var kvp in cmapMap)
+            // Merge CMap format 0
+            if (cmap.Format == 0 && cmap.Encoding.HasValue)
             {
-                int code = kvp.Key;
-                if (code >= 0 && code <= 255)
+                PdfString[] encodingNames = SingleByteEncodings.GetEncodingSet(cmap.Encoding.Value);
+
+                var cmapMap = SnftCMapParser.ParseFormat0(info.CmapData, cmap.Offset);
+
+                for (int code = 0; code < 256; code++)
                 {
-                    PdfString glyphName = SingleByteEncodings.GetNameByCode((byte)code, info.Format6Encoding);
-                    if (!glyphName.IsEmpty)
+                    PdfString glyphName = encodingNames[code];
+
+                    if (!glyphName.IsEmpty && !nameToGid.ContainsKey(glyphName) && cmapMap[code] != 0)
                     {
-                        nameToGid[glyphName] = kvp.Value;
+                        nameToGid[glyphName] = cmapMap[code];
+                    }
+                }
+            }
+            // Merge CMap format 6 (only for codes 0-255)
+            else if (cmap.Format == 6 && cmap.Encoding.HasValue)
+            {
+                var cmapMap = SnftCMapParser.ParseFormat6(info.CmapData, cmap.Offset);
+
+                foreach (var kvp in cmapMap)
+                {
+                    int code = kvp.Key;
+                    if (code >= 0 && code <= 255)
+                    {
+                        PdfString glyphName = SingleByteEncodings.GetNameByCode((byte)code, cmap.Encoding.Value);
+
+                        if (!glyphName.IsEmpty && !nameToGid.ContainsKey(glyphName) && kvp.Value != 0)
+                        {
+                            nameToGid[glyphName] = kvp.Value;
+                        }
                     }
                 }
             }
@@ -177,34 +199,54 @@ internal class SntfFontTableParser
     {
         var unicodeToGid = new Dictionary<string, ushort>();
 
-        // Prefer Format 4 for Unicode mapping if available
-        if (info.CmapData != null && info.Format4Offset >= 0)
+        foreach (var cmap in info.CMapEntries)
         {
-            var format4Map = SnftCMapParser.ParseFormat4(info.CmapData, info.Format4Offset);
-            foreach (var kvp in format4Map)
+            if (cmap.Format == 4)
             {
-                string unicodeString = char.ConvertFromUtf32(kvp.Key);
-                unicodeToGid[unicodeString] = kvp.Value;
-            }
-        }
+                var format4Map = SnftCMapParser.ParseFormat4(info.CmapData, cmap.Offset);
 
-        // Add Format 6 support for Unicode mapping (if present)
-        if (info.CmapData != null && info.Format6Offset >= 0)
-        {
-            var format6Map = SnftCMapParser.ParseFormat6(info.CmapData, info.Format6Offset);
-            foreach (var kvp in format6Map)
-            {
-                string unicodeString = char.ConvertFromUtf32(kvp.Key);
-                // Only add if not already present (Format 4 takes precedence)
-                if (!unicodeToGid.ContainsKey(unicodeString))
+                foreach (var kvp in format4Map)
                 {
-                    unicodeToGid[unicodeString] = kvp.Value;
+                    if (!IsValidUnicodeCodepoint(kvp.Key))
+                    {
+                        continue;
+                    }
+
+                    string unicodeString = char.ConvertFromUtf32(kvp.Key);
+
+                    if (!unicodeToGid.ContainsKey(unicodeString))
+                    {
+                        unicodeToGid[unicodeString] = kvp.Value;
+                    }
+                }
+            }
+            else if (cmap.Format == 6)
+            {
+                var format6Map = SnftCMapParser.ParseFormat6(info.CmapData, cmap.Offset);
+
+                foreach (var kvp in format6Map)
+                {
+                    if (!IsValidUnicodeCodepoint(kvp.Key))
+                    {
+                        continue;
+                    }
+
+                    string unicodeString = char.ConvertFromUtf32(kvp.Key);
+
+                    if (!unicodeToGid.ContainsKey(unicodeString))
+                    {
+                        unicodeToGid[unicodeString] = kvp.Value;
+                    }
                 }
             }
         }
 
         // TODO: Add support for format 10/12
-
         return unicodeToGid;
+    }
+
+    private static bool IsValidUnicodeCodepoint(int codepoint)
+    {
+        return codepoint >= 0 && codepoint <= 0x10FFFF && (codepoint < 0xD800 || codepoint > 0xDFFF);
     }
 }

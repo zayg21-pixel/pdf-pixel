@@ -30,7 +30,7 @@ namespace PdfReader.Encryption
         {
         }
 
-        public override ReadOnlyMemory<byte> DecryptBytes(ReadOnlyMemory<byte> data, PdfReference reference)
+        public override ReadOnlyMemory<byte> DecryptString(ReadOnlyMemory<byte> data, PdfReference reference)
         {
             if (data.IsEmpty)
             {

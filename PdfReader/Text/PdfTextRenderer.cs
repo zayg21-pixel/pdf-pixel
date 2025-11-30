@@ -31,48 +31,67 @@ public class PdfTextRenderer : IPdfTextRenderer
     }
 
     /// <inheritdoc/>
-    public float DrawTextSequence(SKCanvas canvas, List<ShapedGlyph> glyphs, PdfGraphicsState state, PdfFontBase font)
+    public SKSize DrawTextSequence(SKCanvas canvas, List<ShapedGlyph> glyphs, PdfGraphicsState state, PdfFontBase font)
     {
+        using var softMaskScope = new SoftMaskDrawingScope(_renderer, canvas, state);
+        softMaskScope.BeginDrawContent();
 
-        float width = 0f;
-
-        if (glyphs.Count > 0)
+        if (font.SubstituteFont)
         {
-            using var softMaskScope = new SoftMaskDrawingScope(_renderer, canvas, state);
-
-            softMaskScope.BeginDrawContent();
-
-            using var skFont = font.GetSkiaFont();
-
-            width = DrawShapedText(canvas, skFont, glyphs, state);
-
-            softMaskScope.EndDrawContent();
+            SKFont currentFont = null;
+            List<ShapedGlyph> currentGlyphs = new List<ShapedGlyph>();
+            for (int i = 0; i < glyphs.Count; i++)
+            {
+                var glyph = glyphs[i];
+                var glyphFont = font.GetSkiaFont(glyph.Unicode);
+                if (currentFont == null)
+                {
+                    currentFont = glyphFont;
+                    currentGlyphs.Add(glyph);
+                }
+                else if (glyphFont.Typeface == currentFont.Typeface)
+                {
+                    currentGlyphs.Add(glyph);
+                    glyphFont.Dispose();
+                }
+                else
+                {
+                    DrawShapedText(canvas, currentFont, currentGlyphs, state);
+                    currentFont.Dispose();
+                    currentFont = glyphFont;
+                    currentGlyphs = new List<ShapedGlyph> { glyph };
+                }
+            }
+            if (currentFont != null && currentGlyphs.Count > 0)
+            {
+                DrawShapedText(canvas, currentFont, currentGlyphs, state);
+                currentFont.Dispose();
+            }
+        }
+        else
+        {
+            using var skFont = font.GetSkiaFont(default);
+            DrawShapedText(canvas, skFont, glyphs, state);
         }
 
-        return width;
+        softMaskScope.EndDrawContent();
+
+        if (state.CurrentFont.WritingMode == Fonts.Mapping.CMapWMode.Vertical)
+        {
+            return new SKSize(0, TextRenderUtilities.GetTextHeight(glyphs) * state.FontSize);
+        }
+        else
+        {
+            // Apply font size, horizontal scaling, and vertical flip
+            var fullHorizontalScale = state.FontSize * state.HorizontalScaling / 100f;
+
+            return new SKSize(TextRenderUtilities.GetTextWidth(glyphs) * fullHorizontalScale, 0);
+        }
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private float DrawShapedText(SKCanvas canvas, SKFont font, List<ShapedGlyph> shapingResult, PdfGraphicsState state)
+    private void DrawShapedText(SKCanvas canvas, SKFont font, List<ShapedGlyph> shapingResult, PdfGraphicsState state)
     {
-        if (shapingResult.Count == 0)
-        {
-            return 0;
-        }
-
-        // this produces the combined text matrix with rise and font size applied, needed to draw outlines correctly
-        var textMatrix = state.TextMatrix;
-
-        if (state.Rise != 0)
-        {
-            textMatrix = SKMatrix.Concat(textMatrix, SKMatrix.CreateTranslation(0, state.Rise));
-        }
-
-        // Apply font size, horizontal scaling, and vertical flip
-        var fullHorizontalScale = state.FontSize * state.HorizontalScaling / 100f;
-        var fontScalingMatrix = SKMatrix.CreateScale(fullHorizontalScale, -state.FontSize);
-        textMatrix = SKMatrix.Concat(textMatrix, fontScalingMatrix);
-
         if (ShouldFill(state.TextRenderingMode))
         {
             using var textFillTarget = new TextFillRenderTarget(font, shapingResult, state);
@@ -95,8 +114,6 @@ public class PdfTextRenderer : IPdfTextRenderer
                 state.TextClipPath.AddPath(textPath);
             }
         }
-
-        return TextRenderUtilities.GetTextWidth(shapingResult) * fullHorizontalScale;
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]

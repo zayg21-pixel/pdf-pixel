@@ -17,7 +17,6 @@ public class PdfCidFont : PdfFontBase
 {
     private readonly ILogger<PdfCidFont> _logger;
     private readonly SKTypeface _typeface;
-    private readonly bool _isSubstituted;
 
     /// <summary>
     /// Constructor for CID fonts - lightweight operations only
@@ -27,11 +26,11 @@ public class PdfCidFont : PdfFontBase
     {
         _logger = fontDictionary.Document.LoggerFactory.CreateLogger<PdfCidFont>();
         Widths = CidFontWidths.Parse(fontDictionary);
+        VerticalMetrics = CidFontVerticalMetrics.Parse(fontDictionary);
         CidSystemInfo = LoadCidSystemInfo();
         CidToGidMap = LoadCidToGidMap();
         var typefaceInfo = GetTypeface();
         _typeface = typefaceInfo.Typeface;
-        _isSubstituted = typefaceInfo.IsSubstituted;
 
         if (typefaceInfo.CffInfo != null && CidToGidMap == null)
         {
@@ -51,6 +50,11 @@ public class PdfCidFont : PdfFontBase
     /// Initialized during construction
     /// </summary>
     public CidFontWidths Widths { get; }
+
+    /// <summary>
+    /// Gets the vertical metrics for the CID font.
+    /// </summary>
+    public CidFontVerticalMetrics VerticalMetrics { get; }
 
     /// <summary>
     /// Loaded CID-to-GID mapping.
@@ -84,6 +88,11 @@ public class PdfCidFont : PdfFontBase
         return 0f;
     }
 
+    public VerticalMetric GetVerticalDisplacementByCid(uint cid)
+    {
+        return VerticalMetrics.GetMetrics(cid);
+    }
+
     /// <summary>
     /// Get character width for a given character code
     /// </summary>
@@ -91,14 +100,20 @@ public class PdfCidFont : PdfFontBase
     {
         return GetWidthByCid((uint)code);
     }
-    
+
+    public override VerticalMetric GetVerticalDisplacement(PdfCharacterCode code)
+    {
+        return VerticalMetrics.GetMetrics((uint)code);
+    }
+
     /// <summary>
     /// Convert Character ID (CID) to Glyph ID (GID) for font rendering.
     /// Uses lazy-loaded CIDToGIDMap or returns 0 if no mapping exists.
     /// </summary>
     public ushort GetGidByCid(uint cid)
     {
-        if (_isSubstituted)
+        // font is substituted, no mapping available
+        if (Typeface == null)
         {
             return 0;
         }
@@ -115,7 +130,7 @@ public class PdfCidFont : PdfFontBase
         return 0;
     }
 
-    private (SKTypeface Typeface, CffInfo CffInfo, bool IsSubstituted) GetTypeface()
+    private (SKTypeface Typeface, CffInfo CffInfo) GetTypeface()
     {
         try
         {
@@ -135,13 +150,13 @@ public class PdfCidFont : PdfFontBase
                     var typefaceData = CffOpenTypeWrapper.Wrap(FontDescriptor, cffInfo);
                     var typeface = SKTypeface.FromData(SKData.CreateCopy(typefaceData));
 
-                    return (typeface, cffInfo, false);
+                    return (typeface, cffInfo);
                 }
 
                 case PdfFontFileFormat.TrueType:
                 {
                     var typeface = SKTypeface.FromStream(FontDescriptor.FontFileObject.DecodeAsStream());
-                    return (typeface, null, false);
+                    return (typeface, null);
                 }
             }
         }
@@ -150,9 +165,7 @@ public class PdfCidFont : PdfFontBase
             _logger.LogWarning(ex, "Error loading embedded font for font '{FontName}', will attempt substitution", BaseFont);
         }
 
-        var substitutedTypeface = Document.FontSubstitutor.SubstituteTypeface(BaseFont, FontDescriptor);
-
-        return (substitutedTypeface, null, true);
+        return default;
     }
 
     private PdfCidSystemInfo LoadCidSystemInfo()
@@ -227,11 +240,7 @@ public class PdfCidFont : PdfFontBase
 
     protected override void Dispose(bool disposing)
     {
-        if (!_isSubstituted)
-        {
-            _typeface.Dispose();
-        }
-
+        _typeface?.Dispose();
         base.Dispose(disposing);
     }
 }

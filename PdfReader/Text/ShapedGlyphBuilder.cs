@@ -34,7 +34,12 @@ public static class ShapedGlyphBuilder
             return;
         }
 
+        bool isVertical = font.WritingMode == Fonts.Mapping.CMapWMode.Vertical;
+
         var array = arrayOperand.AsArray();
+        float x = 0f;
+        float y = 0f;
+
         if (array != null)
         {
             for (int i = 0; i < array.Count; i++)
@@ -43,21 +48,21 @@ public static class ShapedGlyphBuilder
                 if (item.Type == PdfValueType.String)
                 {
                     var pdfText = PdfText.FromOperand(item);
-                    AddShapedGlyphsForText(pdfText, font, state, buffer);
+                    AddShapedGlyphsForText(pdfText, font, state, buffer, ref x, ref y);
                 }
                 else
                 {
                     // Positioning adjustment (negative = move left, positive = move right)
                     var adjustment = item.AsFloat();
                     var adjustmentInUserSpace = -adjustment / 1000f;
-                    if (buffer.Count > 0)
+
+                    if (isVertical)
                     {
-                        var last = buffer[buffer.Count - 1];
-                        buffer[buffer.Count - 1] = new ShapedGlyph(last.GlyphId, last.Unicode, last.Width, last.AdvanceAfter + adjustmentInUserSpace);
+                        y += -adjustmentInUserSpace;
                     }
                     else
                     {
-                        buffer.Add(new ShapedGlyph(0,  null, 0, adjustmentInUserSpace));
+                        x += adjustmentInUserSpace;
                     }
                 }
             }
@@ -79,6 +84,7 @@ public static class ShapedGlyphBuilder
         {
             return;
         }
+
         buffer.Clear();
 
         var font = state?.CurrentFont;
@@ -88,22 +94,62 @@ public static class ShapedGlyphBuilder
         }
 
         var pdfText = PdfText.FromOperand(stringOperand);
-        AddShapedGlyphsForText(pdfText, font, state, buffer);
+        float x = 0f;
+        float y = 0f;
+
+        AddShapedGlyphsForText(pdfText, font, state, buffer, ref x, ref y);
     }
 
     /// <summary>
     /// Shapes a PdfText and appends the resulting glyphs to the output list.
     /// </summary>
-    private static void AddShapedGlyphsForText(PdfText pdfText, PdfFontBase font, PdfGraphicsState state, List<ShapedGlyph> output)
+    private static void AddShapedGlyphsForText(PdfText pdfText, PdfFontBase font, PdfGraphicsState state, List<ShapedGlyph> output, ref float x, ref float y)
     {
         var codes = font.ExtractCharacterCodes(pdfText.RawBytes);
+        bool isVertical = font.WritingMode == Fonts.Mapping.CMapWMode.Vertical;
+
         for (int codeIndex = 0; codeIndex < codes.Length; codeIndex++)
         {
             var info = font.ExtractCharacterInfo(codes[codeIndex]);
             string unicode = info.Unicode;
             bool isSpace = unicode == " ";
             float spacing = state.CharacterSpacing + (isSpace ? state.WordSpacing : 0f);
-            output.Add(new ShapedGlyph(info.Gid, info.Unicode, info.Width, spacing / state.FontSize));
+            float advance = spacing / state.FontSize;
+
+            if (isVertical)
+            {
+                // In vertical mode, all GIDs for a single character are positioned horizontally.
+                // Apply vertical advance once after placing all GIDs.
+                float totalWidth = 0f;
+                for (int i = 0; i < info.Width.Length; i++)
+                {
+                    totalWidth += info.Width[i];
+                }
+
+                float xOffset = -(info.Displacement.V1X ?? totalWidth / 2f);
+                float yOffset = info.Displacement.V1;
+
+                float xCursor = x + xOffset;
+                for (int i = 0; i < info.Gid.Length; i++)
+                {
+                    uint gid = info.Gid[i];
+                    float width = info.Width[i];
+                    output.Add(new ShapedGlyph(gid, info.Unicode, width, xCursor, y + yOffset));
+                    xCursor += width;
+                }
+
+                y += -info.Displacement.W1 - advance;
+            }
+            else
+            {
+                for (int i = 0; i < info.Gid.Length; i++)
+                {
+                    uint gid = info.Gid[i];
+                    float width = info.Width[i];
+                    output.Add(new ShapedGlyph(gid, info.Unicode, width, x, y));
+                    x += width + advance;
+                }
+            }
         }
     }
 }

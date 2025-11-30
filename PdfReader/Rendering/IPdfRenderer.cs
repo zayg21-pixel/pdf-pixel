@@ -58,7 +58,7 @@ namespace PdfReader.Rendering
         /// <param name="glyphs">Collection of glyphs to render.</param>
         /// <param name="state">The current graphics state for rendering.</param>
         /// <param name="font">The font to use for rendering the text.</param>
-        /// <returns>The total width of the rendered text sequence.</returns>
-        float DrawTextSequence(SKCanvas canvas, List<ShapedGlyph> glyphs, PdfGraphicsState state, PdfFontBase font);
+        /// <returns>The total advancement of the text sequence.</returns>
+        SKSize DrawTextSequence(SKCanvas canvas, List<ShapedGlyph> glyphs, PdfGraphicsState state, PdfFontBase font);
     }
 }

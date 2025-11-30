@@ -1,4 +1,5 @@
-﻿using PdfReader.Rendering.State;
+﻿using PdfReader.Fonts.Model;
+using PdfReader.Rendering.State;
 using PdfReader.Text;
 using SkiaSharp;
 using System.Collections.Generic;
@@ -16,8 +17,6 @@ public class TextRenderUtilities
     {
         var textPath = new SKPath();
 
-        float x = 0f;
-
         for (int i = 0; i < shapingResult.Count; i++)
         {
             var glyphId = shapingResult[i].GlyphId;
@@ -27,11 +26,9 @@ public class TextRenderUtilities
                 if (glyphPath != null)
                 {
                     // Translate glyph outline by current advance
-                    textPath.AddPath(glyphPath, SKMatrix.CreateTranslation(x, 0f));
+                    textPath.AddPath(glyphPath, SKMatrix.CreateTranslation(shapingResult[i].X, shapingResult[i].Y));
                 }
             }
-
-            x += shapingResult[i].TotalWidth;
         }
 
         var matrix = GetFullTextMatrix(state);
@@ -43,14 +40,23 @@ public class TextRenderUtilities
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static float GetTextWidth(List<ShapedGlyph> shapingResult)
     {
-        float width = 0f;
-
-        for (int i = 0; i < shapingResult.Count; i++)
+        if (shapingResult.Count == 0)
         {
-            width += shapingResult[i].TotalWidth;
+            return 0;
         }
 
-        return width;
+        return shapingResult[shapingResult.Count - 1].X + shapingResult[shapingResult.Count - 1].Width;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static float GetTextHeight(List<ShapedGlyph> shapingResult)
+    {
+        if (shapingResult.Count == 0)
+        {
+            return 0;
+        }
+
+        return shapingResult[shapingResult.Count - 1].Y + shapingResult[shapingResult.Count - 1].Width;
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -74,8 +80,6 @@ public class TextRenderUtilities
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static SKTextBlob BuildTextBlob(List<ShapedGlyph> shapingResult, SKFont font)
     {
-        float currentAdvance = 0f;
-
         // Pre-count drawable glyphs (gid != 0) while computing positions using full advance including skipped glyphs.
         int drawableCount = 0;
         for (int i = 0; i < shapingResult.Count; i++)
@@ -99,11 +103,9 @@ public class TextRenderUtilities
             if (shapedGlyph.GlyphId != 0)
             {
                 glyphSpan[drawIndex] = (ushort)shapedGlyph.GlyphId;
-                positionSpan[drawIndex] = new SKPoint(currentAdvance, 0f);
+                positionSpan[drawIndex] = new SKPoint(shapedGlyph.X, shapedGlyph.Y);
                 drawIndex++;
             }
-
-            currentAdvance += shapedGlyph.TotalWidth;
         }
 
         return builder.Build();

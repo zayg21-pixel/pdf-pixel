@@ -128,18 +128,18 @@ internal static class SnftCMapParser
     }
 
     /// <summary>
-    /// Determines the encoding of a format 0 CMap subtable by inspecting platform and encoding IDs.
+    /// Determines the encoding of a CMap subtable by inspecting platform and encoding IDs.
     /// </summary>
     /// <param name="cmapData">The raw bytes of the font's CMap table.</param>
-    /// <param name="subtableOffset">The offset to the format 0 subtable record.</param>
+    /// <param name="subtableOffset">The offset to the subtable record.</param>
     /// <returns>The detected PdfFontEncoding value, or PdfFontEncoding.Unknown if not recognized.</returns>
-    public static PdfFontEncoding GetFormat0Encoding(byte[] cmapData, int subtableOffset)
+    public static PdfFontEncoding? GetFormatEncoding(byte[] cmapData, int subtableOffset)
     {
         // Each subtable record is 8 bytes: platformID (2), encodingID (2), offset (4)
         // The subtableOffset here should be the offset to the record, not the subtable itself
         if (cmapData == null || cmapData.Length < subtableOffset + 8)
         {
-            return PdfFontEncoding.Unknown;
+            return default;
         }
 
         ushort platformId = SnftExtractHelpers.ReadUInt16(cmapData, subtableOffset);
@@ -165,8 +165,7 @@ internal static class SnftCMapParser
         {
             return PdfFontEncoding.StandardEncoding;
         }
-        // IdentityH/IdentityV and CJK encodings are not represented in format 0
 
-        return PdfFontEncoding.Unknown;
+        return default;
     }
 }

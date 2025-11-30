@@ -54,6 +54,8 @@ public static class PdfTokens
     public static readonly PdfString StrFKey = (PdfString)"StrF"u8;       // encryption string crypt filter name
     public static readonly PdfString EffKey = (PdfString)"EFF"u8;         // encryption embedded file crypt filter name
     public static readonly PdfString CFKey = (PdfString)"CF"u8;           // encryption crypt filter dictionary
+    public static readonly PdfString CfmKey = (PdfString)"CFM"u8;         // crypt filter method (e.g., /AESV2)
+    public static readonly PdfString AESV2 = (PdfString)"AESV2"u8;        // crypt filter method value
 
     // Image/XObject specific
     public static readonly PdfString DecodeKey = (PdfString)"Decode"u8;
@@ -117,6 +119,8 @@ public static class PdfTokens
     public static readonly PdfString SupplementKey = (PdfString)"Supplement"u8;
     public static readonly PdfString DWKey = (PdfString)"DW"u8;
     public static readonly PdfString WKey = (PdfString)"W"u8;
+    public static readonly PdfString DW2Key = (PdfString)"DW2"u8;
+    public static readonly PdfString W2Key = (PdfString)"W2"u8;
     public static readonly PdfString DescendantFontsKey = (PdfString)"DescendantFonts"u8;
     public static readonly PdfString CidToGidMapKey = (PdfString)"CIDToGIDMap"u8;
     public static readonly PdfString CMapKey = (PdfString)"CMap"u8;

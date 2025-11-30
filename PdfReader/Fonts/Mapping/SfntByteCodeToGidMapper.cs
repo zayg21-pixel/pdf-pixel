@@ -12,9 +12,9 @@ namespace PdfReader.Fonts.Mapping;
 /// For single-byte fonts, uses direct code-to-GID mapping (Format 0 CMap) as the primary method.
 /// Name-to-GID and Unicode-to-GID are used only as fallbacks if direct mapping is unavailable.
 /// </summary>
-internal class SntfByteCodeToGidMapper : IByteCodeToGidMapper
+internal class SfntByteCodeToGidMapper : IByteCodeToGidMapper
 {
-    private readonly SntfFontTables _sntfTables;
+    private readonly SfntFontTables _sfntTables;
     private readonly PdfFontFlags _flags;
     private readonly PdfFontEncoding _encoding;
     private readonly Dictionary<int, PdfString> _differences;
@@ -22,21 +22,21 @@ internal class SntfByteCodeToGidMapper : IByteCodeToGidMapper
     private readonly bool _isSubstituted;
 
     /// <summary>
-    /// Initializes a new instance of <see cref="SntfByteCodeToGidMapper"/> for the specified typeface and encoding.
+    /// Initializes a new instance of <see cref="SfntByteCodeToGidMapper"/> for the specified typeface and encoding.
     /// </summary>
     /// <param name="fontTables">The mapped font tables.</param>
     /// <param name="flags">Flags defined in PDF font.</param>
     /// <param name="substituted">Indicates if the font is substituted.</param>
     /// <param name="encodingInfo">The PDF font encoding.</param>
     /// <param name="toUnicodeCMap">ToUnicode CMap for character mapping.</param>
-    public SntfByteCodeToGidMapper(
-        SntfFontTables fontTables,
+    public SfntByteCodeToGidMapper(
+        SfntFontTables fontTables,
         PdfFontFlags flags,
         bool substituted,
         PdfFontEncodingInfo encodingInfo,
         PdfCMap toUnicodeCMap)
     {
-        _sntfTables = fontTables ?? throw new ArgumentNullException(nameof(fontTables));
+        _sfntTables = fontTables ?? throw new ArgumentNullException(nameof(fontTables));
 
         _flags = flags;
         _isSubstituted = substituted;
@@ -54,19 +54,24 @@ internal class SntfByteCodeToGidMapper : IByteCodeToGidMapper
     /// <returns>The glyph ID (GID) for the character code, or 0 if not found.</returns>
     public ushort GetGid(byte code)
     {
-        if (!_isSubstituted && _flags.HasFlag(PdfFontFlags.Symbolic) && _sntfTables.SingleByteCodeToGid != null)
+        if (!_isSubstituted && _flags.HasFlag(PdfFontFlags.Symbolic) && _sfntTables.SingleByteCodeToGid != null)
         {
-            return _sntfTables.SingleByteCodeToGid[code];
+            return _sfntTables.SingleByteCodeToGid[code];
         }
 
         PdfString name = SingleByteEncodings.GetNameByCode(code, _encoding, _differences);
+
+        if (code == 0xAF)
+        {
+
+        }
 
         if (name.IsEmpty)
         {
             return 0;
         }
 
-        if (_sntfTables.NameToGid.TryGetValue(name, out var gidByName))
+        if (_sfntTables.NameToGid.TryGetValue(name, out var gidByName))
         {
             return gidByName;
         }
@@ -78,7 +83,7 @@ internal class SntfByteCodeToGidMapper : IByteCodeToGidMapper
             AdobeGlyphList.CharacterMap.TryGetValue(name, out unicode);
         }
 
-        if (unicode != null && _sntfTables.UnicodeToGid.TryGetValue(unicode, out var gidByUnicode))
+        if (unicode != null && _sfntTables.UnicodeToGid.TryGetValue(unicode, out var gidByUnicode))
         {
             return gidByUnicode;
         }

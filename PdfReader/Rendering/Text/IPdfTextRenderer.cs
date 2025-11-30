@@ -20,6 +20,6 @@ public interface IPdfTextRenderer
     /// <param name="glyphs">Collection of pre-shaped glyphs to render.</param>
     /// <param name="state">The current graphics state.</param>
     /// <param name="font">The font to use for rendering.</param>
-    /// <returns>The total horizontal advancement after drawing the text array.</returns>
-    float DrawTextSequence(SKCanvas canvas, List<ShapedGlyph> glyphs, PdfGraphicsState state, PdfFontBase font);
+    /// <returns>The total advancement after drawing the text array.</returns>
+    SKSize DrawTextSequence(SKCanvas canvas, List<ShapedGlyph> glyphs, PdfGraphicsState state, PdfFontBase font);
 }

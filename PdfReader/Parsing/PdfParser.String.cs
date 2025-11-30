@@ -52,7 +52,7 @@ namespace PdfReader.Parsing
 
             if (_decrypt && _document.Decryptor != null && _currentReference.IsValid)
             {
-                bytes = _document.Decryptor.DecryptBytes(bytes, _currentReference);
+                bytes = _document.Decryptor.DecryptString(bytes, _currentReference);
             }
 
             return PdfValueFactory.String(new PdfString(bytes));
@@ -149,7 +149,7 @@ namespace PdfReader.Parsing
 
             if (_decrypt && _document.Decryptor != null && _currentReference.IsValid)
             {
-                bytes = _document.Decryptor.DecryptBytes(bytes, _currentReference);
+                bytes = _document.Decryptor.DecryptString(bytes, _currentReference);
             }
 
             return PdfValueFactory.String(new PdfString(bytes));

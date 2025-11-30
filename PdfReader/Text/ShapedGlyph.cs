@@ -9,14 +9,17 @@ public readonly struct ShapedGlyph
     /// Initializes a new instance of the <see cref="ShapedGlyph"/> struct.
     /// </summary>
     /// <param name="glyphId">The glyph identifier.</param>
-    /// <param name="width">The width of the glyph.</param>
-    /// <param name="advanceAfter">The additional advance after the glyph, such as for spaces.</param>
-    public ShapedGlyph(uint glyphId, string unicode, float width, float advanceAfter)
+    /// <param name="unicode">Unique representation of the glyph.</param>
+    /// <param name="width">Shaped width of the glyph.</param>
+    /// <param name="x">The X position of the glyph.</param>
+    /// <param name="y">The Y position of the glyph.</param>
+    public ShapedGlyph(uint glyphId, string unicode, float width, float x, float y)
     {
         GlyphId = glyphId;
         Unicode = unicode;
         Width = width;
-        AdvanceAfter = advanceAfter;
+        X = x;
+        Y = y;
     }
 
     /// <summary>
@@ -30,17 +33,17 @@ public readonly struct ShapedGlyph
     public string Unicode { get; }
 
     /// <summary>
-    /// Gets the width of the glyph.
+    /// Shaped width of the glyph.
     /// </summary>
     public float Width { get; }
 
     /// <summary>
-    /// Gets the additional advance after the glyph, such as for spaces.
+    /// X position of the glyph.
     /// </summary>
-    public float AdvanceAfter { get; }
+    public float X { get; }
 
     /// <summary>
-    /// Gets the total width including advance after the glyph.
+    /// Y position of the glyph.
     /// </summary>
-    public float TotalWidth => Width + AdvanceAfter;
+    public float Y { get; } 
 }

@@ -16,6 +16,7 @@ namespace PdfReader.Fonts.Model;
 public class PdfCompositeFont : PdfFontBase
 {
     Encoding _cmapEncoding;
+    private CMapWMode _writingMode;
 
     static PdfCompositeFont()
     {
@@ -29,7 +30,8 @@ public class PdfCompositeFont : PdfFontBase
     public PdfCompositeFont(PdfDictionary fontDictionary) : base(fontDictionary)
     {
         DescendantFonts = LoadDescendantFonts();
-        CodeToCidCMap = LoadCodeToCidCMap();
+        (CodeToCidCMap, CMapName) = LoadCodeToCidCMap();
+        _writingMode = CodeToCidCMap?.WMode ?? CMapWMode.Horizontal;
 
         // TODO: cleanup
         /*
@@ -43,15 +45,13 @@ Korean	KSCpc-EUC-*	euc-kr
 Korean	KSC-Johab-*	1361
          */
 
-        if (CodeToCidCMap != null && !CodeToCidCMap.Name.IsEmpty)
+        if (!CMapName.IsEmpty)
         {
-            var splitTokens = new HashSet<string>(CodeToCidCMap.Name.ToString().Split('-'));
+            // TODO: this is incorrect, we need cid2code maps for proper handling. We don't even need those complex heuristics here,
+            // what we should do is to map to UTF-16 column directly using cid2code maps
+            var splitTokens = new HashSet<string>(CMapName.ToString().Split('-'));
 
-            if (splitTokens.Contains("Identity"))
-            {
-                _cmapEncoding = Encoding.BigEndianUnicode;
-            }
-            else if (splitTokens.Contains("RKSJ"))
+            if (splitTokens.Contains("RKSJ"))
             {
                 _cmapEncoding = Encoding.GetEncoding("shift_jis");
             }
@@ -63,6 +63,10 @@ Korean	KSC-Johab-*	1361
             {
                 _cmapEncoding = Encoding.GetEncoding("gb2312");
             }
+            else if (splitTokens.Contains("UTF8"))
+            {
+                _cmapEncoding = Encoding.UTF8;
+            }
             else if (splitTokens.Contains("UTF16"))
             {
                 _cmapEncoding = Encoding.BigEndianUnicode;
@@ -71,12 +75,25 @@ Korean	KSC-Johab-*	1361
             {
                 _cmapEncoding = Encoding.BigEndianUnicode;
             }
+            else if (splitTokens.Contains("Identity"))
+            {
+                if (PrimaryDescendant.CidSystemInfo.Ordering.ToString().Contains("Japan"))
+                {
+                    _cmapEncoding = Encoding.GetEncoding("gb2312");
+                }
+                else
+                {
+                    _cmapEncoding = Encoding.BigEndianUnicode;
+                }
+            }
         }
     }
 
     public override PdfFontDescriptor FontDescriptor => PrimaryDescendant?.FontDescriptor;
 
     internal protected override SKTypeface Typeface => PrimaryDescendant?.Typeface;
+
+    protected internal override CMapWMode WritingMode => _writingMode;
     
     /// <summary>
     /// Descendant CID fonts that contain the actual font data.
@@ -94,6 +111,11 @@ Korean	KSC-Johab-*	1361
     /// May be null if /Encoding is a predefined name without an embedded stream (e.g., Identity-H).
     /// </summary>
     public PdfCMap CodeToCidCMap { get; }
+
+    /// <summary>
+    /// CMap name from /Encoding entry (either predefined name or name from embedded CMap).
+    /// </summary>
+    public PdfString CMapName { get; }
 
     /// <summary>
     /// Check if font has embedded data (delegated to primary descendant)
@@ -119,6 +141,29 @@ Korean	KSC-Johab-*	1361
         }
 
         return descendant.GetWidthByCid(cid);
+    }
+
+    public override VerticalMetric GetVerticalDisplacement(PdfCharacterCode code)
+    {
+        if (_writingMode == CMapWMode.Horizontal)
+        {
+            return default;
+        }
+
+        var descendant = PrimaryDescendant;
+        if (descendant == null)
+        {
+            return default;
+        }
+
+        uint cid;
+
+        if (!TryMapCodeToCid(code, out cid))
+        {
+            return default;
+        }
+
+        return descendant.GetVerticalDisplacementByCid(cid);
     }
 
     /// <summary>
@@ -172,36 +217,37 @@ Korean	KSC-Johab-*	1361
     /// Load an embedded /Encoding CMap stream (if present) into a code->CID map.
     /// Returns null if /Encoding is a name or if parsing fails.
     /// </summary>
-    private PdfCMap LoadCodeToCidCMap()
+    private (PdfCMap CMap, PdfString CMapName) LoadCodeToCidCMap()
     {
         var predefinedName = Dictionary.GetName(PdfTokens.EncodingKey);
 
         if (!predefinedName.IsEmpty)
         {
-            return Document.GetCmap(predefinedName);
+            return (Document.GetCmap(predefinedName), predefinedName);
         }
 
         var encodingObj = Dictionary.GetObject(PdfTokens.EncodingKey);
         if (encodingObj == null)
         {
-            return null;
+            return default;
         }
 
         if (encodingObj.Reference.IsValid && Document.CMapStreamCache.TryGetValue(encodingObj.Reference, out var cachedCMap))
         {
-            return cachedCMap;
+            return (cachedCMap, cachedCMap.Name);
         }
 
         var data = encodingObj.DecodeAsMemory();
         if (data.IsEmpty || data.Length == 0)
         {
-            return null;
+            return default;
         }
 
         var result = PdfCMapParser.ParseCMap(data, Document);
         // PdfTokens.CMapNameKey
-        var cmapNameToken = PdfString.FromString("CMapName");
+        var cmapNameToken = PdfString.FromString("CMapName"); // TODO: we need to cleanup the rest here, some other properties are coming from CMap
         var cmapName = encodingObj.Dictionary.GetName(cmapNameToken);
+
         if (!cmapName.IsEmpty)
         {
             result.Name = cmapName;
@@ -212,7 +258,7 @@ Korean	KSC-Johab-*	1361
             Document.CMapStreamCache[encodingObj.Reference] = result;
         }
 
-        return result;
+        return (result, result.Name);
     }
 
     /// <summary>

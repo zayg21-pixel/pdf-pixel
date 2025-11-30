@@ -18,5 +18,9 @@ public enum PdfFontEncoding
     [PdfEnumValue("WinAnsiEncoding")]
     WinAnsiEncoding,
     [PdfEnumValue("MacExpertEncoding")]
-    MacExpertEncoding
+    MacExpertEncoding,
+    [PdfEnumValue("SymbolEncoding")]
+    SymbolEncoding,
+    [PdfEnumValue("ZapfDingbatsEncoding")]
+    ZapfDingbatsEncoding
 }
