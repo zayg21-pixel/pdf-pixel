@@ -1,6 +1,6 @@
 using PdfReader.Fonts.Mapping;
 
-namespace PdfReader.Fonts.Types;
+namespace PdfReader.Fonts.Model;
 
 /// <summary>
 /// Holds all resolved information for a single PDF character code.

@@ -1,4 +1,4 @@
-using PdfReader.Fonts.Types;
+using PdfReader.Fonts.Model;
 using System.Collections.Generic;
 
 namespace PdfReader.Fonts.TrueType;

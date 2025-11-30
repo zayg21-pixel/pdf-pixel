@@ -1,5 +1,5 @@
 using System.Collections.Generic;
-using PdfReader.Fonts.Types;
+using PdfReader.Fonts.Model;
 using PdfReader.Models;
 using PdfReader.Text;
 

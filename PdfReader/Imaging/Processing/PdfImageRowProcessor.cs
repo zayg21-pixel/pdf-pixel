@@ -30,7 +30,6 @@ internal sealed class PdfImageRowProcessor : IDisposable
     private readonly int _height;
     private readonly int _bitsPerComponent;
     private readonly int _components;
-    private readonly bool _colorConverted;
 
     private readonly OutputMode _outputMode;
     private readonly PngImageBuilder _pngBuilder;
@@ -66,7 +65,6 @@ internal sealed class PdfImageRowProcessor : IDisposable
             _sampler = _image.ColorSpaceConverter.GetRgbaSampler(_image.RenderingIntent);
             _outputMode = OutputMode.RgbaColorApplied;
             _pngBuilder = new PngImageBuilder(4, 8, _width, _height);
-            _colorConverted = true;
             _pngBuilder.Init(null, null);
         }
         else
@@ -80,12 +78,10 @@ internal sealed class PdfImageRowProcessor : IDisposable
             if (_image.ColorSpaceConverter is IndexedConverter indexed)
             {
                 palette = indexed.BuildPalette(_image.RenderingIntent);
-                _colorConverted = true;
             }
             if (canApplyColorSpace && _image.ColorSpaceConverter is IccBasedConverter iccBased && iccBased.Profile?.Bytes != null)
             {
                 iccProfile = iccBased.Profile.Bytes;
-                _colorConverted = true;
             }
             _pngBuilder.Init(palette, iccProfile);
         }

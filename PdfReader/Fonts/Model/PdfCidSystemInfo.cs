@@ -2,7 +2,7 @@ using PdfReader.Models;
 using PdfReader.PostScript.Tokens;
 using PdfReader.Text;
 
-namespace PdfReader.Fonts.Types;
+namespace PdfReader.Fonts.Model;
 
 /// <summary>
 /// Represents the CIDSystemInfo dictionary for a PDF font, describing the character collection registry, ordering, and supplement.

@@ -1,13 +1,12 @@
 using Microsoft.Extensions.Logging;
 using PdfReader.Fonts.Cff;
-using PdfReader.Fonts.Management;
 using PdfReader.Fonts.Mapping;
-using PdfReader.Fonts.Type1;
 using PdfReader.Models;
 using PdfReader.Text;
 using SkiaSharp;
 using System;
-namespace PdfReader.Fonts.Types;
+
+namespace PdfReader.Fonts.Model;
 
 /// <summary>
 /// CID fonts: CIDFontType0, CIDFontType2

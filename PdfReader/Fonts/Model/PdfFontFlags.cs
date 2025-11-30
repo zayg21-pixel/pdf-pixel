@@ -1,6 +1,6 @@
 using System;
 
-namespace PdfReader.Fonts.Types;
+namespace PdfReader.Fonts.Model;
 
 [Flags]
 public enum PdfFontFlags

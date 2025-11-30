@@ -3,7 +3,7 @@ using PdfReader.Rendering.Operators;
 using PdfReader.Text;
 using SkiaSharp;
 
-namespace PdfReader.Fonts.Types;
+namespace PdfReader.Fonts.Model;
 
 /// <summary>
 /// Font file format enumeration

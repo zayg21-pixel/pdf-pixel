@@ -4,7 +4,7 @@ using PdfReader.Text;
 using SkiaSharp;
 using System;
 
-namespace PdfReader.Fonts.Types;
+namespace PdfReader.Fonts.Model;
 
 /// <summary>
 /// Type 3 fonts (user-defined fonts)

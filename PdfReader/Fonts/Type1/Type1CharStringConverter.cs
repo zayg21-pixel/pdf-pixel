@@ -287,7 +287,7 @@ internal static class Type1CharStringConverter
                 var achar = operandStack[operandStack.Count - 1];
                 operandStack.Clear();
 
-                var standardEncoding = SingleByteEncodings.GetEncodingSet(Types.PdfFontEncoding.StandardEncoding);
+                var standardEncoding = SingleByteEncodings.GetEncodingSet(Model.PdfFontEncoding.StandardEncoding);
 
                 var nameA = standardEncoding[achar.Value1];
                 var nameB = standardEncoding[bchar.Value1];

@@ -1,6 +1,6 @@
 using PdfReader.Text;
 
-namespace PdfReader.Fonts;
+namespace PdfReader.Fonts.Model;
 
 [PdfEnum]
 public enum PdfFontSubType

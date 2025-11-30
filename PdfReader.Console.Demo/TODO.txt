@@ -21,9 +21,9 @@ apply patterns to stencil image (need example)
 Images:
 Add JPEG2000 decoder and JBIG2 decoder
 Need example with matte
-Need correct filter for image mask, luma is incorrect
 Apply ICC as color space for 3 component images
-Decoder should return full information about what has been decoded
+Write intent to PNG
+Verify that ColorSpace is applied correctly in all cases (PNG, JPG)
 
 Document
 Move cache to separate cache class

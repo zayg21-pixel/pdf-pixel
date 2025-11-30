@@ -2,7 +2,7 @@ using PdfReader.Models;
 using PdfReader.Fonts.Mapping;
 using PdfReader.Text;
 
-namespace PdfReader.Fonts.Types;
+namespace PdfReader.Fonts.Model;
 
 /// <summary>
 /// Font width information for single-byte fonts (Type1, TrueType, MMType1, Type3).

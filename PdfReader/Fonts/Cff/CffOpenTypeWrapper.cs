@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Text;
 using PdfReader.Fonts.Management;
-using PdfReader.Fonts.Types;
+using PdfReader.Fonts.Model;
 
 namespace PdfReader.Fonts.Cff;
 

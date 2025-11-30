@@ -1,4 +1,4 @@
-﻿using PdfReader.Fonts.Types;
+﻿using PdfReader.Fonts.Model;
 using SkiaSharp;
 
 namespace PdfReader.Fonts.TrueType;

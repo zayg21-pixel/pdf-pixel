@@ -1,13 +1,12 @@
 using PdfReader.Color.Paint;
 using PdfReader.Fonts.Mapping;
 using PdfReader.Models;
-using PdfReader.Parsing;
 using PdfReader.Text;
 using SkiaSharp;
 using System;
 using System.Collections.Concurrent;
 
-namespace PdfReader.Fonts.Types;
+namespace PdfReader.Fonts.Model;
 
 /// <summary>
 /// Base class for all PDF font types with common properties and interface

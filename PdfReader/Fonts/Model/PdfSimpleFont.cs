@@ -7,7 +7,7 @@ using PdfReader.Models;
 using SkiaSharp;
 using System;
 
-namespace PdfReader.Fonts.Types;
+namespace PdfReader.Fonts.Model;
 
 /// <summary>
 /// Simple fonts: Type1, TrueType, MMType1 (excluding Type3)

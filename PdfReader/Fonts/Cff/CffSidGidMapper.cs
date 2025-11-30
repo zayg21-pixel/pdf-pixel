@@ -1,10 +1,10 @@
 using Microsoft.Extensions.Logging;
-using PdfReader.Fonts.Types;
+using PdfReader.Fonts.Model;
 using PdfReader.Models;
-using PdfReader.Text;
 using System;
 using System.Collections.Generic;
 using System.Text;
+using PdfReader.Text;
 
 namespace PdfReader.Fonts.Cff;
 

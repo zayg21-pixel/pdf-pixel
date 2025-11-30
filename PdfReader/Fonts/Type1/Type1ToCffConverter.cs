@@ -1,6 +1,6 @@
 using Microsoft.Extensions.Logging;
 using PdfReader.Fonts.Cff;
-using PdfReader.Fonts.Types;
+using PdfReader.Fonts.Model;
 using PdfReader.PostScript;
 using PdfReader.PostScript.Tokens;
 using PdfReader.Text;

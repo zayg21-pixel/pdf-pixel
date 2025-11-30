@@ -1,5 +1,5 @@
-﻿using PdfReader.Fonts.TrueType;
-using PdfReader.Fonts.Types;
+﻿using PdfReader.Fonts.Model;
+using PdfReader.Fonts.TrueType;
 using PdfReader.Models;
 using PdfReader.Text;
 using System;

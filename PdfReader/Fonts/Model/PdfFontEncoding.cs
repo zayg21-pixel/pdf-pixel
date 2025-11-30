@@ -1,6 +1,6 @@
 using PdfReader.Text;
 
-namespace PdfReader.Fonts.Types;
+namespace PdfReader.Fonts.Model;
 
 /// <summary>
 /// Encoding for single byte fonts (Type1, TrueType, etc...)

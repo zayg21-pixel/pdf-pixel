@@ -1,5 +1,5 @@
 ﻿using PdfReader.Color.Paint;
-using PdfReader.Fonts.Types;
+using PdfReader.Fonts.Model;
 using PdfReader.Forms;
 using PdfReader.Imaging.Model;
 using PdfReader.Rendering.State;

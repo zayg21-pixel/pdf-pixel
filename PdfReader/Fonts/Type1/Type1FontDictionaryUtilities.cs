@@ -2,9 +2,8 @@
 using System.Collections.Generic;
 using PdfReader.PostScript.Tokens;
 using PdfReader.Models;
-using PdfReader.Fonts.Types;
 using PdfReader.Text;
-using System.Text;
+using PdfReader.Fonts.Model;
 
 namespace PdfReader.Fonts.Type1;
 

@@ -5,8 +5,8 @@ using PdfReader.Text;
 using PdfReader.PostScript;
 using Microsoft.Extensions.Logging;
 using PdfReader.PostScript.Tokens;
-using PdfReader.Fonts.Types;
 using System.Linq;
+using PdfReader.Fonts.Model;
 
 namespace PdfReader.Fonts.Mapping;
 

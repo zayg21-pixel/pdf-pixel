@@ -1,7 +1,6 @@
 using SkiaSharp;
-using System;
 using PdfReader.Transparency.Model;
-using PdfReader.Fonts.Types;
+using PdfReader.Fonts.Model;
 using PdfReader.Color.ColorSpace;
 
 namespace PdfReader.Rendering.State

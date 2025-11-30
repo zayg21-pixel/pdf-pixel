@@ -2,7 +2,7 @@ using System.Collections.Generic;
 using PdfReader.Models;
 using PdfReader.Text;
 
-namespace PdfReader.Fonts.Types;
+namespace PdfReader.Fonts.Model;
 
 /// <summary>
 /// Font width information for CID fonts (Type0 descendant fonts).

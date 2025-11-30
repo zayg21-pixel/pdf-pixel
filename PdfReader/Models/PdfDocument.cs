@@ -2,7 +2,6 @@ using Microsoft.Extensions.Logging;
 using PdfReader.Encryption;
 using PdfReader.Fonts.Management;
 using PdfReader.Fonts.Mapping;
-using PdfReader.Fonts.Types;
 using PdfReader.Parsing;
 using PdfReader.Streams;
 using System;
@@ -13,6 +12,7 @@ using PdfReader.Color.ColorSpace;
 using PdfReader.Color.Icc.Model;
 using PdfReader.Functions;
 using PdfReader.Resources;
+using PdfReader.Fonts.Model;
 
 namespace PdfReader.Models
 {
