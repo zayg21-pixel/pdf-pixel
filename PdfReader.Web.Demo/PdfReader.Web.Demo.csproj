@@ -7,7 +7,6 @@
     <RunAOTCompilation>true</RunAOTCompilation>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="HarfBuzzSharp.NativeAssets.WebAssembly" Version="8.3.1.2" />
     <PackageReference Include="Microsoft.Extensions.Logging" Version="9.0.10" />
     <!--<PackageReference Include="Microsoft.NET.WebAssembly.Threading" Version="9.0.0" />-->
     <PackageReference Include="SkiaSharp.NativeAssets.WebAssembly" Version="3.119.1" />

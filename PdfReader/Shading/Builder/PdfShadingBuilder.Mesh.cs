@@ -74,6 +74,8 @@ internal static partial class PdfShadingBuilder
 
         var area = meshBounds.Width * meshBounds.Height;
         var maxCount = MathF.Sqrt(area / patches.Count * MathF.Sqrt(3) / 4f); // average triangle side size in pixels
+        // TODO: technically, this is still completely incorrect, we need to estimate how curvy surface is instead as square size has nothing to do
+        // with actual pixels (zoom in)
         if (maxCount < 1)
         {
             maxCount = 1;

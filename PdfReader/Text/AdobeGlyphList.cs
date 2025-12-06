@@ -1,9 +1,6 @@
 ﻿using PdfReader.Models;
 using PdfReader.Resources;
-using System;
 using System.Collections.Generic;
-using System.IO;
-using System.Linq;
 
 namespace PdfReader.Text
 {

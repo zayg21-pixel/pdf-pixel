@@ -3,11 +3,9 @@ using PdfReader.Fonts.Mapping;
 using PdfReader.Models;
 using PdfReader.Text;
 using SkiaSharp;
-using SkiaSharp.HarfBuzz;
 using System;
 using System.Collections.Concurrent;
 using System.Linq;
-using static PdfReader.Fonts.Model.CidFontVerticalMetrics;
 
 namespace PdfReader.Fonts.Model;
 
@@ -56,6 +54,8 @@ public abstract class PdfFontBase : IDisposable
     /// <returns>SKFont instance.</returns>
     public SKFont GetSkiaFont(string unicode)
     {
+        // TODO: font can be cached per character code, we can have some "internal" GetSkiaFont that always resolves from Document.FontSubstitutor, otherwise use from _characterInfoCache.
+        // also method can use PdfCharacterCode instead of string unicode
         if (Typeface != null)
         {
             return PdfPaintFactory.CreateTextFont(Typeface);

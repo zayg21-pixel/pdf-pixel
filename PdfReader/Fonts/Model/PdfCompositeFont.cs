@@ -1,10 +1,10 @@
 using PdfReader.Fonts.Mapping;
 using PdfReader.Models;
+using PdfReader.Resources;
 using PdfReader.Text;
 using SkiaSharp;
 using System;
 using System.Collections.Generic;
-using System.Text;
 
 namespace PdfReader.Fonts.Model;
 
@@ -15,13 +15,8 @@ namespace PdfReader.Fonts.Model;
 /// </summary>
 public class PdfCompositeFont : PdfFontBase
 {
-    Encoding _cmapEncoding;
-    private CMapWMode _writingMode;
-
-    static PdfCompositeFont()
-    {
-        Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
-    }
+    private readonly CMapWMode _writingMode;
+    private readonly Dictionary<uint, string> _toUnicode; // TODO: move to Descendant
 
     /// <summary>
     /// Constructor for composite fonts - lightweight operations only
@@ -32,61 +27,7 @@ public class PdfCompositeFont : PdfFontBase
         DescendantFonts = LoadDescendantFonts();
         (CodeToCidCMap, CMapName) = LoadCodeToCidCMap();
         _writingMode = CodeToCidCMap?.WMode ?? CMapWMode.Horizontal;
-
-        // TODO: cleanup
-        /*
-Japanese	*-RKSJ-*	932
-Japanese	EUC-*	EUC-JP
-Simplified Chinese	GB-EUC-*	gb2312
-Simplified Chinese	GBK-*	936
-Traditional Chinese	B5-*, ETen-*	950
-Korean	KSCms-UHC-*	949
-Korean	KSCpc-EUC-*	euc-kr
-Korean	KSC-Johab-*	1361
-         */
-
-        if (!CMapName.IsEmpty)
-        {
-            // TODO: this is incorrect, we need cid2code maps for proper handling. We don't even need those complex heuristics here,
-            // what we should do is to map to UTF-16 column directly using cid2code maps
-            var splitTokens = new HashSet<string>(CMapName.ToString().Split('-'));
-
-            if (splitTokens.Contains("RKSJ"))
-            {
-                _cmapEncoding = Encoding.GetEncoding("shift_jis");
-            }
-            else if (splitTokens.Contains("GB") && splitTokens.Contains("EUC"))
-            {
-                _cmapEncoding = Encoding.GetEncoding("EUC-JP");
-            }
-            else if (splitTokens.Contains("EUC"))
-            {
-                _cmapEncoding = Encoding.GetEncoding("gb2312");
-            }
-            else if (splitTokens.Contains("UTF8"))
-            {
-                _cmapEncoding = Encoding.UTF8;
-            }
-            else if (splitTokens.Contains("UTF16"))
-            {
-                _cmapEncoding = Encoding.BigEndianUnicode;
-            }
-            else if (splitTokens.Contains("UCS2"))
-            {
-                _cmapEncoding = Encoding.BigEndianUnicode;
-            }
-            else if (splitTokens.Contains("Identity"))
-            {
-                if (PrimaryDescendant.CidSystemInfo.Ordering.ToString().Contains("Japan"))
-                {
-                    _cmapEncoding = Encoding.GetEncoding("gb2312");
-                }
-                else
-                {
-                    _cmapEncoding = Encoding.BigEndianUnicode;
-                }
-            }
-        }
+        _toUnicode = PdfToUnicodeMapProvider.GetToUnicodeMap(PrimaryDescendant?.CidSystemInfo);
     }
 
     public override PdfFontDescriptor FontDescriptor => PrimaryDescendant?.FontDescriptor;
@@ -343,11 +284,16 @@ Korean	KSC-Johab-*	1361
             return baseCode;
         }
 
-        // TODO: this seems to work fine, but font substitution should use encoding as hint
-        if (_cmapEncoding != null)
+        uint cid;
+
+        if (!TryMapCodeToCid(code, out cid))
         {
-            var result = _cmapEncoding.GetString(code.Bytes);
-            return result;
+            return null;
+        }
+
+        if (_toUnicode != null && _toUnicode.TryGetValue(cid, out var resultString))
+        {
+            return resultString;
         }
 
         return null;

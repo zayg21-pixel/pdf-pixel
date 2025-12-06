@@ -39,7 +39,7 @@ public class PdfTextRenderer : IPdfTextRenderer
         if (font.SubstituteFont)
         {
             SKFont currentFont = null;
-            List<ShapedGlyph> currentGlyphs = new List<ShapedGlyph>();
+            List<ShapedGlyph> currentGlyphs = new List<ShapedGlyph>(); // TODO: we might want to store SkiaFont along with glyphs to avoid repeated GetSkiaFont calls
             for (int i = 0; i < glyphs.Count; i++)
             {
                 var glyph = glyphs[i];

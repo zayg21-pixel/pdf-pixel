@@ -129,22 +129,14 @@ internal sealed class IccProfileHeader
         int minute = reader.ReadUInt16(OffsetCreationDate + 8);
         int second = reader.ReadUInt16(OffsetCreationDate + 10);
 
-        DateTime? created = null;
-        try
-        {
-            created = new DateTime(
-                Math.Max(1, year),
-                Math.Max(1, month),
-                Math.Max(1, day),
-                Math.Min(23, hour),
-                Math.Min(59, minute),
-                Math.Min(59, second),
-                DateTimeKind.Utc);
-        }
-        catch
-        {
-            // Keep null when invalid – no rethrow (spec allows zeros in some fields).
-        }
+        DateTime created = new DateTime(
+            Math.Max(1, Math.Min(9999, year)),
+            Math.Max(1, Math.Min(12, month)),
+            Math.Max(1, Math.Min(31, day)),
+            Math.Max(0, Math.Min(23, hour)),
+            Math.Max(0, Math.Min(59, minute)),
+            Math.Max(0, Math.Min(59, second)),
+            DateTimeKind.Utc);
 
         // Illuminant (XYZ, s15Fixed16 each)
         int ix = reader.ReadInt32(OffsetIlluminant + 0);
