@@ -2,7 +2,9 @@ using System;
 
 namespace PdfReader.Models;
 
-// Strongly-typed PDF reference
+/// <summary>
+/// Represents a reference to a PDF object.
+/// </summary>
 public readonly struct PdfReference : IEquatable<PdfReference>
 {
     public PdfReference(uint objectNumber, int generation = 0)

@@ -159,9 +159,8 @@ namespace PdfReader.Wpf.PdfPanel
                     }
 
                     var viewerPage = this[page - 1];
-                    var graphicsInfo = Renderer.GetPageGraphicsInfo(page);
 
-                    if (thumbnail == null && graphicsInfo.HasImages)
+                    if (thumbnail == null)
                     {
                         thumbnail = ThumbnailDrawing.GetThumbnail(picture, maxThumbnailSize, viewerPage.Info, viewerPage.UserRotation);
                     }

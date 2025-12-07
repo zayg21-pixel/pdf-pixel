@@ -186,7 +186,7 @@ public class ColorOperators : IOperatorProcessor
         var components = new float[converter.Components];
         for (int componentIndex = 0; componentIndex < components.Length && componentIndex < operands.Count; componentIndex++)
         {
-            components[componentIndex] = operands[componentIndex].ResolveToNonReference(_page.Document).AsFloat();
+            components[componentIndex] = operands[componentIndex].AsFloat();
         }
 
         var color = converter.ToSrgb(components, state.RenderingIntent);

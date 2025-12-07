@@ -22,6 +22,12 @@ namespace PdfReader.Imaging.Png
         private readonly int _bitsPerComponent;
         private readonly int _width;
         private readonly int _height;
+        private readonly int _encodedRowLength;
+        private readonly int _rowWithFilter;
+        private readonly int _numBlocks;
+        private readonly int _totalUncompressed;
+        private readonly int _totalData;
+
         private readonly SKDynamicMemoryWStream _pngStream = new SKDynamicMemoryWStream();
         private PngImageBuilderState _state = PngImageBuilderState.Init;
 
@@ -34,6 +40,7 @@ namespace PdfReader.Imaging.Png
         private const int MaxDeflateBlockSize = 65535;
         private int _rowStreamingBlockBytesRemaining;
         private int _rowStreamingUncompressedBytesLeft; // Track uncompressed bytes left
+        private byte[] _rowBuffer;
 
         public PngImageBuilder(int channels, int bitsPerComponent, int width, int height)
         {
@@ -62,6 +69,12 @@ namespace PdfReader.Imaging.Png
             _bitsPerComponent = bitsPerComponent;
             _width = width;
             _height = height;
+            _encodedRowLength = (width * channels * bitsPerComponent + 7) / 8;
+
+            _rowWithFilter = 1 + _encodedRowLength;
+            _totalUncompressed = _height * _rowWithFilter;
+            _numBlocks = (_totalUncompressed + MaxDeflateBlockSize - 1) / MaxDeflateBlockSize;
+            _totalData = 2 + _totalUncompressed + _numBlocks * 5;
         }
 
         /// <summary>
@@ -111,17 +124,18 @@ namespace PdfReader.Imaging.Png
                 PngHelpers.WriteIccpChunk(_pngStream, iccProfile);
             }
 
+            _rowBuffer = new byte[_encodedRowLength];
             _state = PngImageBuilderState.BuildImage;
         }
 
-        public void SetPngImageBytes(ReadOnlyMemory<byte> data)
+        public void SetPngImageBytes(byte[] data)
         {
             EnsureState(PngImageBuilderState.BuildImage);
-            if (data.IsEmpty)
+            if (data == null)
             {
                 throw new ArgumentNullException(nameof(data));
             }
-            PngHelpers.WriteChunk(_pngStream, "IDAT", data);
+            PngHelpers.WriteChunk(_pngStream, "IDAT", data, data.Length);
             _state = PngImageBuilderState.ImageDataWritten;
         }
 
@@ -134,7 +148,7 @@ namespace PdfReader.Imaging.Png
             }
             using var ms = new MemoryStream();
             dataStream.CopyTo(ms);
-            PngHelpers.WriteChunk(_pngStream, "IDAT", ms.ToArray());
+            PngHelpers.WriteChunk(_pngStream, "IDAT", ms.ToArray(), (int)ms.Length);
             _state = PngImageBuilderState.ImageDataWritten;
         }
 
@@ -154,12 +168,6 @@ namespace PdfReader.Imaging.Png
                 throw new InvalidOperationException("WritePngImageRow can only be called after Init and before Build.");
             }
 
-            int encodedRowLength = (_width * _channels * _bitsPerComponent + 7) / 8;
-            int rowWithFilter = 1 + encodedRowLength;
-            int totalUncompressed = _height * rowWithFilter;
-            int numBlocks = (totalUncompressed + MaxDeflateBlockSize - 1) / MaxDeflateBlockSize;
-            int totalData = 2 + totalUncompressed + numBlocks * 5;
-
             if (!_rowStreamingActive)
             {
                 _rowStreamingActive = true;
@@ -167,8 +175,8 @@ namespace PdfReader.Imaging.Png
                 _rowStreamingCrc32 = new System.IO.Hashing.Crc32();
                 _rowStreamingBlockHeader = new byte[5];
                 _rowStreamingBlockBytesRemaining = 0;
-                _rowStreamingUncompressedBytesLeft = totalUncompressed;
-                PngHelpers.WriteChunkHeader(_pngStream, "IDAT", totalData, _rowStreamingCrc32);
+                _rowStreamingUncompressedBytesLeft = _totalUncompressed;
+                PngHelpers.WriteChunkHeader(_pngStream, "IDAT", _totalData, _rowStreamingCrc32);
                 PngHelpers.WriteZLibSignature(_pngStream, _rowStreamingCrc32);
             }
 
@@ -187,14 +195,14 @@ namespace PdfReader.Imaging.Png
                     int blockSize = Math.Min(MaxDeflateBlockSize, _rowStreamingUncompressedBytesLeft);
                     bool isFinalBlock = (blockSize == _rowStreamingUncompressedBytesLeft);
                     PngHelpers.UpdateDeflateBlockHeader(_rowStreamingBlockHeader, blockSize, isFinalBlock);
-                    PngHelpers.WriteChunkData(_pngStream, _rowStreamingBlockHeader, _rowStreamingCrc32);
+                    PngHelpers.WriteChunkData(_pngStream, _rowStreamingBlockHeader, 5, _rowStreamingCrc32);
                     _rowStreamingBlockBytesRemaining = blockSize;
                 }
 
                 // Write filter byte if not yet written
                 if (!filterByteWritten)
                 {
-                    PngHelpers.WriteChunkData(_pngStream, [0], _rowStreamingCrc32);
+                    PngHelpers.WriteChunkData(_pngStream, [0], 1, _rowStreamingCrc32);
                     _rowStreamingBlockBytesRemaining--;
                     _rowStreamingUncompressedBytesLeft--;
                     filterByteWritten = true;
@@ -205,7 +213,8 @@ namespace PdfReader.Imaging.Png
                 int toWrite = Math.Min(_rowStreamingBlockBytesRemaining, rowDataRemaining);
                 if (toWrite > 0)
                 {
-                    PngHelpers.WriteChunkData(_pngStream, row.Slice(rowDataOffset, toWrite), _rowStreamingCrc32);
+                    row.Slice(rowDataOffset, toWrite).CopyTo(_rowBuffer);
+                    PngHelpers.WriteChunkData(_pngStream, _rowBuffer, toWrite, _rowStreamingCrc32);
                     _rowStreamingBlockBytesRemaining -= toWrite;
                     _rowStreamingUncompressedBytesLeft -= toWrite;
                     rowDataOffset += toWrite;
@@ -233,7 +242,7 @@ namespace PdfReader.Imaging.Png
             {
                 EnsureState(PngImageBuilderState.ImageDataWritten);
             }
-            PngHelpers.WriteChunk(_pngStream, "IEND", ReadOnlyMemory<byte>.Empty);
+            PngHelpers.WriteChunk(_pngStream, "IEND", Array.Empty<byte>(), 0);
             _pngStream.Flush();
             _state = PngImageBuilderState.Completed;
             using var data = _pngStream.DetachAsData();

@@ -11,10 +11,7 @@ using System.Linq;
 namespace PdfReader.Fonts.Model;
 
 /// <summary>
-/// Base class for all PDF font types with common properties and interface
-/// Provides the foundation for the proper font hierarchy according to PDF specification
-/// Essential properties are read-only and set through constructor for immutability
-/// Heavy operations are lazy-loaded using thread-safe Lazy&lt;T&gt; pattern
+/// Base class for all PDF font types with common properties and interface.
 /// </summary>
 public abstract class PdfFontBase : IDisposable
 {

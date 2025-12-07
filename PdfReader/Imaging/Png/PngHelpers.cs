@@ -63,7 +63,7 @@ namespace PdfReader.Imaging.Png
             }
 
             // Write the iCCP chunk using the buffer (including adler)
-            WriteChunk(stream, "iCCP", chunkData.ToArray().AsMemory());
+            WriteChunk(stream, "iCCP", chunkData.ToArray(), (int)chunkData.Length);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -77,7 +77,7 @@ namespace PdfReader.Imaging.Png
                 plte[i * 3 + 1] = palette[i].Green;
                 plte[i * 3 + 2] = palette[i].Blue;
             }
-            WriteChunk(stream, "PLTE", plte.AsMemory());
+            WriteChunk(stream, "PLTE", plte, plte.Length);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -91,7 +91,7 @@ namespace PdfReader.Imaging.Png
             ihdr[10] = 0; // Compression method (deflate)
             ihdr[11] = 0; // Filter method
             ihdr[12] = 0; // Interlace method (none)
-            WriteChunk(stream, "IHDR", ihdr.AsMemory());
+            WriteChunk(stream, "IHDR", ihdr, ihdr.Length);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -114,12 +114,12 @@ namespace PdfReader.Imaging.Png
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static void WriteChunkData(SKDynamicMemoryWStream stream, ReadOnlySpan<byte> data, Crc32 crc32)
+        public static void WriteChunkData(SKDynamicMemoryWStream stream, byte[] data, int length, Crc32 crc32)
         {
-            if (data.Length > 0)
+            if (length > 0)
             {
-                stream.Write(data.ToArray(), data.Length); // TODO: find a better option to write ReadOnlySpan<byte>
-                crc32.Append(data);
+                stream.Write(data, length);
+                crc32.Append(data.AsSpan().Slice(0, length));
             }
         }
 
@@ -131,11 +131,11 @@ namespace PdfReader.Imaging.Png
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static void WriteChunk(SKDynamicMemoryWStream stream, string type, ReadOnlyMemory<byte> data)
+        public static void WriteChunk(SKDynamicMemoryWStream stream, string type, byte[] data, int length)
         {
             Crc32 crc32 = new Crc32();
-            WriteChunkHeader(stream, type, data.Length, crc32);
-            WriteChunkData(stream, data.Span, crc32);
+            WriteChunkHeader(stream, type, length, crc32);
+            WriteChunkData(stream, data, length, crc32);
             CompleteChunk(stream, crc32);
         }
 

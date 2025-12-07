@@ -3,188 +3,182 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.CompilerServices;
 
-namespace PdfReader.Models
+namespace PdfReader.Models;
+
+/// <summary>
+/// Strongly-typed PDF array wrapper providing type-safe indexed access.
+/// </summary>
+public class PdfArray
 {
-    /// <summary>
-    /// Strongly-typed PDF array wrapper providing type-safe indexed access.
-    /// </summary>
-    public class PdfArray
+    private readonly IPdfValue[] _items;
+
+    public PdfArray(PdfDocument document, IPdfValue[] items)
     {
-        private readonly IPdfValue[] _items;
+        Document = document;
+        _items = items ?? Array.Empty<IPdfValue>();
+    }
 
-        public PdfArray(PdfDocument document, IPdfValue[] items)
+    public PdfArray(PdfDocument document, IList<IPdfValue> items)
+    {
+        Document = document;
+        _items = items?.ToArray() ?? Array.Empty<IPdfValue>();
+    }
+
+    /// <summary>
+    /// Owning document used for reference resolution.
+    /// </summary>
+    public PdfDocument Document { get; }
+
+    /// <summary>
+    /// Number of items in the array.
+    /// </summary>
+    public int Count => _items.Length;
+
+    /// <summary>
+    /// Get the raw (resolved) value at an index or null if out of range.
+    /// Follows references to the first non-reference value.
+    /// </summary>
+    public IPdfValue GetValue(int index)
+    {
+        if (!IsValidIndex(index))
         {
-            Document = document;
-            _items = items ?? Array.Empty<IPdfValue>();
+            return null;
         }
 
-        public PdfArray(PdfDocument document, IList<IPdfValue> items)
+        var storedValue = _items[index];
+        return storedValue.ResolveToNonReference(Document);
+    }
+
+    /// <summary>
+    /// Get a name value (e.g. /Subtype) at an index. Returns null if not a name.
+    /// </summary>
+    public PdfString GetName(int index)
+    {
+        var value = GetValue(index);
+        if (value == null)
         {
-            Document = document;
-            _items = items?.ToArray() ?? Array.Empty<IPdfValue>();
+            return default;
         }
 
-        /// <summary>
-        /// Raw values for internal access.
-        /// </summary>
-        internal IList<IPdfValue> RawValues => _items;
+        return value.AsName();
+    }
 
-        /// <summary>
-        /// Owning document used for reference resolution.
-        /// </summary>
-        public PdfDocument Document { get; }
+    /// <summary>
+    /// Get a string value at an index (text, hex, or name coerced). Returns null if not a string-like value.
+    /// </summary>
+    public PdfString GetString(int index)
+    {
+        var value = GetValue(index);
 
-        /// <summary>
-        /// Number of items in the array.
-        /// </summary>
-        public int Count => _items.Length;
-
-        /// <summary>
-        /// Get the raw (resolved) value at an index or null if out of range.
-        /// Follows references to the first non-reference value.
-        /// </summary>
-        public IPdfValue GetValue(int index)
+        if (value == null)
         {
-            if (!IsValidIndex(index))
-            {
-                return null;
-            }
+            return default;
+        }
+        return value.AsString();
+    }
 
-            var storedValue = _items[index];
-            return storedValue.ResolveToNonReference(Document);
+    /// <summary>
+    /// Get an integer value at an index or 0 if not numeric.
+    /// </summary>
+    public int GetInteger(int index)
+    {
+        var value = GetValue(index);
+        if (value == null)
+        {
+            return 0;
+        }
+        return value.AsInteger();
+    }
+
+    /// <summary>
+    /// Get a float value at an index or 0 if not numeric.
+    /// </summary>
+    public float GetFloat(int index)
+    {
+        var value = GetValue(index);
+        if (value == null)
+        {
+            return 0f;
+        }
+        return value.AsFloat();
+    }
+
+    /// <summary>
+    /// Get a boolean value (interprets names /true /false).
+    /// </summary>
+    public bool GetBoolean(int index)
+    {
+        var value = GetValue(index);
+        if (value == null)
+        {
+            return false;
+        }
+        return value.AsBoolean();
+    }
+
+    /// <summary>
+    /// Get an inner array as a resolved list of values. Returns null if not an array.
+    /// </summary>
+    public PdfArray GetArray(int index)
+    {
+        var value = GetValue(index);
+
+        if (value == null)
+        {
+            return null;
         }
 
-        /// <summary>
-        /// Get a name value (e.g. /Subtype) at an index. Returns null if not a name.
-        /// </summary>
-        public PdfString GetName(int index)
-        {
-            var value = GetValue(index);
-            if (value == null)
-            {
-                return default;
-            }
+        return value.AsArray();
+    }
 
-            return value.AsName();
+    /// <summary>
+    /// Get an inner dictionary value. Returns null if not a dictionary.
+    /// </summary>
+    public PdfDictionary GetDictionary(int index)
+    {
+        var value = GetValue(index);
+
+        if (value == null)
+        {
+            return null;
         }
 
-        /// <summary>
-        /// Get a string value at an index (text, hex, or name coerced). Returns null if not a string-like value.
-        /// </summary>
-        public PdfString GetString(int index)
-        {
-            var value = GetValue(index);
+        return value.AsDictionary();
+    }
 
-            if (value == null)
-            {
-                return default;
-            }
-            return value.AsString();
+    /// <summary>
+    /// Get a page object (resolves reference, arrays-of-references to first, or wraps inline value).
+    /// </summary>
+    public PdfObject GetObject(int index)
+    {
+        if (!IsValidIndex(index))
+        {
+            return null;
         }
 
-        /// <summary>
-        /// Get an integer value at an index or 0 if not numeric.
-        /// </summary>
-        public int GetInteger(int index)
+        var storedValue = _items[index];
+
+        // Array of references case
+        var referenceArray = storedValue.AsArray();
+        if (referenceArray != null)
         {
-            var value = GetValue(index);
-            if (value == null)
-            {
-                return 0;
-            }
-            return value.AsInteger();
+            return referenceArray.GetObject(0);
         }
 
-        /// <summary>
-        /// Get a float value at an index or 0 if not numeric.
-        /// </summary>
-        public float GetFloat(int index)
+        // Single reference case
+        if (storedValue is IPdfValue<PdfReference> referenceValue)
         {
-            var value = GetValue(index);
-            if (value == null)
-            {
-                return 0f;
-            }
-            return value.AsFloat();
+            var reference = referenceValue.Value;
+            return Document.ObjectCache.GetObject(reference);
         }
 
-        /// <summary>
-        /// Get a boolean value (interprets names /true /false, numbers, and strings heuristically).
-        /// </summary>
-        public bool GetBoolean(int index)
-        {
-            var value = GetValue(index);
-            if (value == null)
-            {
-                return false;
-            }
-            return value.AsBool();
-        }
+        // return synthetic object
+        return new PdfObject(default, Document, storedValue);
+    }
 
-        /// <summary>
-        /// Get an inner array as a resolved list of values. Returns null if not an array.
-        /// </summary>
-        public PdfArray GetArray(int index)
-        {
-            var value = GetValue(index);
-
-            if (value == null)
-            {
-                return null;
-            }
-
-            return value.AsArray();
-        }
-
-        /// <summary>
-        /// Get an inner dictionary value. Returns null if not a dictionary.
-        /// </summary>
-        public PdfDictionary GetDictionary(int index)
-        {
-            var value = GetValue(index);
-
-            if (value == null)
-            {
-                return null;
-            }
-
-            return value.AsDictionary();
-        }
-
-        /// <summary>
-        /// Get a page object (resolves reference, arrays-of-references to first, or wraps inline value).
-        /// </summary>
-        public PdfObject GetObject(int index)
-        {
-            if (!IsValidIndex(index))
-            {
-                return null;
-            }
-
-            var storedValue = _items[index];
-
-            // Array of references case
-            var referenceArray = storedValue.AsArray();
-            if (referenceArray != null)
-            {
-                return referenceArray.GetObject(0);
-            }
-
-            // Single reference case
-            if (storedValue is IPdfValue<PdfReference> referenceValue)
-            {
-                var reference = referenceValue.Value;
-                return Document.ObjectCache.GetObject(reference);
-            }
-
-            // return synthetic object
-            return new PdfObject(default, Document, storedValue);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private bool IsValidIndex(int index)
-        {
-            return index >= 0 && index < _items.Length;
-        }
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private bool IsValidIndex(int index)
+    {
+        return index >= 0 && index < _items.Length;
     }
 }

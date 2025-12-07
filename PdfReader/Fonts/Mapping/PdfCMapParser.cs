@@ -100,12 +100,18 @@ public static class PdfCMapParser
             }
         }
 
-        if (cmapDictionary.Entries.TryGetValue("usecmap", out var useCMapToken) && useCMapToken is PostScriptLiteralName useCMapName)
+        if (cmapDictionary.Entries.TryGetValue("usecmap", out var useCMapToken) && useCMapToken is PostScriptArray useCMapArray)
         {
-            var baseCMap = document.CMapCache.GetCmap(PdfString.FromString(useCMapName.Name));
-            if (baseCMap != null)
+            foreach (var element in useCMapArray.Elements)
             {
-                cmap.MergeFrom(baseCMap);
+                if (element is PostScriptLiteralName useCMapName)
+                {
+                    var baseCMap = document.CMapCache.GetCmap(PdfString.FromString(useCMapName.Name));
+                    if (baseCMap != null)
+                    {
+                        cmap.MergeFrom(baseCMap);
+                    }
+                }
             }
         }
 

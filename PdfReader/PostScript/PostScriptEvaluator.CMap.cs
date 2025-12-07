@@ -84,11 +84,12 @@ namespace PdfReader.PostScript
                 case "usecmap":
                 {
                     Ensure(stack, 1);
-                    PostScriptToken cmapNameToken = stack.Pop(); // TODO: combine in array
+                    PostScriptToken cmapNameToken = stack.Pop();
 
                     PostScriptDictionary topDict = _dictStack.Peek();
                     topDict.EnsureAccess(PostScriptAccessOperation.Modify);
-                    topDict.Entries["usecmap"] = cmapNameToken;
+
+                    AddCMapToUseCMapArray(topDict, cmapNameToken);
                     return true;
                 }
                 default:
@@ -135,6 +136,22 @@ namespace PdfReader.PostScript
             {
                 // Create new array of arrays
                 topDict.Entries[key] = new PostScriptArray([groupArray]);
+            }
+        }
+
+
+        private static void AddCMapToUseCMapArray(PostScriptDictionary dict, PostScriptToken cmapToken)
+        {
+            if (dict.Entries.TryGetValue("usecmap", out PostScriptToken existingToken) && existingToken is PostScriptArray existingArray)
+            {
+                var merged = new List<PostScriptToken>(existingArray.Elements.Length + 1);
+                merged.AddRange(existingArray.Elements);
+                merged.Add(cmapToken);
+                dict.Entries["usecmap"] = new PostScriptArray(merged.ToArray());
+            }
+            else
+            {
+                dict.Entries["usecmap"] = new PostScriptArray([cmapToken]);
             }
         }
     }

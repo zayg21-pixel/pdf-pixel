@@ -1,6 +1,5 @@
 ﻿using SkiaSharp;
 using System;
-using System.Collections.Concurrent;
 using PdfReader.Models;
 
 namespace PdfReader.Wpf.PdfPanel.Rendering
@@ -11,7 +10,6 @@ namespace PdfReader.Wpf.PdfPanel.Rendering
     internal sealed class PdfRenderer : IPdfRenderer
     {
         private readonly PdfDocument document;
-        private readonly ConcurrentDictionary<int, PageGraphicsInfo> pageGraphicsInfoDictionary = new ConcurrentDictionary<int, PageGraphicsInfo>();
 
         public PdfRenderer(PdfDocument document)
         {
@@ -29,23 +27,6 @@ namespace PdfReader.Wpf.PdfPanel.Rendering
             return Array.Empty<AnnotationPopup>();
         }
 
-        public PageGraphicsInfo GetPageGraphicsInfo(int pageNumber)
-        {
-            if (pageGraphicsInfoDictionary.TryGetValue(pageNumber, out var pageInfo))
-            {
-                return pageInfo;
-            }
-            else
-            {
-                bool hasImages = true; // TODO: estimate if the page has images
-                var info = new PageGraphicsInfo(hasImages);
-
-                pageGraphicsInfoDictionary.TryAdd(pageNumber, info);
-
-                return info;
-            }
-        }
-
         public SKPicture GetPicture(int pageNumber, double scale)
         {
             try
@@ -61,7 +42,6 @@ namespace PdfReader.Wpf.PdfPanel.Rendering
         private SKPicture GetPictureInternal(int pageNumber, double scale)
         {
             var pdfPage = document.Pages[pageNumber - 1];
-            var pageInfo = GetPageGraphicsInfo(pageNumber);
 
             using var recorder = new SKPictureRecorder();
             using var canvas = recorder.BeginRecording(SKRect.Create(pdfPage.CropBox.Width, pdfPage.CropBox.Height));

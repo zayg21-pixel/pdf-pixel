@@ -96,9 +96,7 @@ public class PdfCompositeFont : PdfFontBase
             return default;
         }
 
-        uint cid;
-
-        if (!TryMapCodeToCid(code, out cid))
+        if (!TryMapCodeToCid(code, out uint cid))
         {
             return default;
         }
@@ -113,7 +111,6 @@ public class PdfCompositeFont : PdfFontBase
     /// </summary>
     public bool TryMapCodeToCid(PdfCharacterCode code, out uint cid)
     {
-        // TODO: optimize for Identity-H/V
         var map = CodeToCidCMap;
         if (map != null && map.TryGetCid(code, out int mapped))
         {

@@ -9,8 +9,6 @@ namespace PdfReader.Wpf.PdfPanel.Rendering
     /// </summary>
     internal interface IPdfRenderer : IDisposable
     {
-        PageGraphicsInfo GetPageGraphicsInfo(int pageNumber);
-
         PageInfo GetPageInfo(int pageNumber);
 
         SKPicture GetPicture(int pageNumber, double scale);
