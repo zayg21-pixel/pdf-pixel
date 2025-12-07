@@ -154,6 +154,7 @@ public class PdfFontDescriptor
     /// PANOSE classification bytes (PDF 1.5+, /Panose).
     /// </summary>
     public byte[] Panose { get; set; }
+
     /// <summary>
     /// The embedded font file object (only one exists at a time).
     /// </summary>

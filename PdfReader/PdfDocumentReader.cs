@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.Logging;
+using PdfReader.Fonts.Management;
 using PdfReader.Models;
 using PdfReader.Parsing;
 using System;
@@ -14,11 +15,13 @@ namespace PdfReader
     public class PdfDocumentReader
     {
         private readonly ILoggerFactory _loggerFactory;
+        private readonly ISkiaFontProvider _skiaFontProvider;
         private readonly ILogger _logger;
 
-        public PdfDocumentReader(ILoggerFactory loggerFactory)
+        public PdfDocumentReader(ILoggerFactory loggerFactory, ISkiaFontProvider fontProvider)
         {
             _loggerFactory = loggerFactory ?? throw new ArgumentNullException(nameof(loggerFactory));
+            _skiaFontProvider = fontProvider ?? throw new ArgumentNullException(nameof(fontProvider));
             _logger = loggerFactory.CreateLogger<PdfDocumentReader>();
         }
 
@@ -54,10 +57,10 @@ namespace PdfReader
             if (length <= 0)
             {
                 _logger.LogWarning("Empty stream encountered when attempting to read PDF.");
-                return new PdfDocument(_loggerFactory, stream);
+                return new PdfDocument(_loggerFactory, _skiaFontProvider, stream);
             }
 
-            var document = new PdfDocument(_loggerFactory, stream);
+            var document = new PdfDocument(_loggerFactory, _skiaFontProvider, stream);
             var xrefLoader = new PdfXrefLoader(document);
             var pageExtractor = new PdfPageExtractor(document);
             var outputIntentParser = new PdfOutputIntentParser(document);
@@ -71,7 +74,7 @@ namespace PdfReader
                 pageExtractor.ExtractPages();
                 outputIntentParser.ParseFirstOutputIntentProfile();
 
-                _logger.LogInformation("Parsed PDF with {PageCount} page(s).", document.PageCount);
+                _logger.LogInformation("Parsed PDF with {PageCount} page(s).", document.Pages.Count);
             }
             catch (Exception ex)
             {

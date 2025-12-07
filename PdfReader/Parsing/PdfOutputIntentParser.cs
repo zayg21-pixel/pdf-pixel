@@ -131,7 +131,7 @@ namespace PdfReader.Parsing
                 }
             }
 
-            _document.OutputIntentProfile = bestProfile ?? firstFallback;
+            _document.ObjectCache.OutputIntentProfile = bestProfile ?? firstFallback;
         }
     }
 }

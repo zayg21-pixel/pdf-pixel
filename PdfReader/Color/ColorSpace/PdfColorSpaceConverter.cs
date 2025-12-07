@@ -1,6 +1,4 @@
-using PdfReader.Color.Filters;
 using PdfReader.Color.Lut;
-using PdfReader.Color.Structures;
 using SkiaSharp;
 using System;
 using System.Collections.Concurrent;
@@ -12,21 +10,12 @@ namespace PdfReader.Color.ColorSpace;
 /// Base type for PDF color space converters producing sRGB output.
 /// Implements IDisposable to release cached color filters.
 /// </summary>
-public abstract class PdfColorSpaceConverter : IDisposable
+public abstract class PdfColorSpaceConverter
 {
     private const float ToFloat = 1f / 255f;
     private const int MaxByte = 255;
 
     private readonly ConcurrentDictionary<PdfRenderingIntent, IRgbaSampler> _colorSamplerCache = new ConcurrentDictionary<PdfRenderingIntent, IRgbaSampler>();
-    private bool _disposed;
-
-    /// <summary>
-    /// Finalizer to ensure unmanaged resources are released.
-    /// </summary>
-    ~PdfColorSpaceConverter()
-    {
-        Dispose(false);
-    }
 
     /// <summary>
     /// Gets the number of input components for the color space (e.g. 1=Gray, 3=RGB, 4=CMYK).
@@ -118,28 +107,5 @@ public abstract class PdfColorSpaceConverter : IDisposable
     protected virtual IRgbaSampler GetRgbaSamplerCore(PdfRenderingIntent intent)
     {
         return new DefaultSampler(intent, ToSrgbCore);
-    }
-
-    /// <summary>
-    /// Releases all resources used by the converter, including cached color filters.
-    /// </summary>
-    public void Dispose()
-    {
-        Dispose(true);
-        GC.SuppressFinalize(this);
-    }
-
-    /// <summary>
-    /// Releases unmanaged and optionally managed resources.
-    /// </summary>
-    /// <param name="disposing">True if called from Dispose; false if called from finalizer.</param>
-    protected virtual void Dispose(bool disposing)
-    {
-        if (_disposed)
-        {
-            return;
-        }
-        // If disposing, release managed resources here.
-        _disposed = true;
     }
 }

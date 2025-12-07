@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging;
+using PdfReader.Color.Paint;
 using PdfReader.Fonts.Model;
 using PdfReader.Rendering;
 using PdfReader.Rendering.State;
@@ -38,39 +39,40 @@ public class PdfTextRenderer : IPdfTextRenderer
 
         if (font.SubstituteFont)
         {
-            SKFont currentFont = null;
-            List<ShapedGlyph> currentGlyphs = new List<ShapedGlyph>(); // TODO: we might want to store SkiaFont along with glyphs to avoid repeated GetSkiaFont calls
+            SKTypeface currentTypeface = null;
+            List<ShapedGlyph> currentGlyphs = new List<ShapedGlyph>();
             for (int i = 0; i < glyphs.Count; i++)
             {
                 var glyph = glyphs[i];
-                var glyphFont = font.GetSkiaFont(glyph.Unicode);
-                if (currentFont == null)
+                var typeface = glyph.CharacterInfo.Typeface;
+
+                if (currentTypeface == null)
                 {
-                    currentFont = glyphFont;
+                    currentTypeface = typeface;
                     currentGlyphs.Add(glyph);
                 }
-                else if (glyphFont.Typeface == currentFont.Typeface)
+                else if (typeface == currentTypeface)
                 {
                     currentGlyphs.Add(glyph);
-                    glyphFont.Dispose();
                 }
                 else
                 {
-                    DrawShapedText(canvas, currentFont, currentGlyphs, state);
-                    currentFont.Dispose();
-                    currentFont = glyphFont;
-                    currentGlyphs = new List<ShapedGlyph> { glyph };
+                    using var skFont = PdfPaintFactory.CreateTextFont(currentTypeface);
+                    DrawShapedText(canvas, skFont, currentGlyphs, state);
+                    currentTypeface = typeface;
+                    currentGlyphs = [glyph];
                 }
             }
-            if (currentFont != null && currentGlyphs.Count > 0)
+            if (currentTypeface != null && currentGlyphs.Count > 0)
             {
-                DrawShapedText(canvas, currentFont, currentGlyphs, state);
-                currentFont.Dispose();
+                using var skFont = PdfPaintFactory.CreateTextFont(currentTypeface);
+                DrawShapedText(canvas, skFont, currentGlyphs, state);
             }
         }
-        else
+        else if (glyphs.Count > 0)
         {
-            using var skFont = font.GetSkiaFont(default);
+            var baseTypeface = glyphs[0].CharacterInfo.Typeface;
+            using var skFont = PdfPaintFactory.CreateTextFont(baseTypeface);
             DrawShapedText(canvas, skFont, glyphs, state);
         }
 

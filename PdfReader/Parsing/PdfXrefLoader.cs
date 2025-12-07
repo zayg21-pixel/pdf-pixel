@@ -366,9 +366,9 @@ namespace PdfReader.Parsing
         /// <param name="info">Parsed xref information describing the object.</param>
         private void TryAddObjectIndexEntry(PdfReference reference, PdfObjectInfo info)
         {
-            if (!_document.ObjectIndex.ContainsKey(reference))
+            if (!_document.ObjectCache.ObjectIndex.ContainsKey(reference))
             {
-                _document.ObjectIndex[reference] = info;
+                _document.ObjectCache.ObjectIndex[reference] = info;
                 return;
             }
 

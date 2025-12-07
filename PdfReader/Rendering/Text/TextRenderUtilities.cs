@@ -45,7 +45,7 @@ public class TextRenderUtilities
             return 0;
         }
 
-        return shapingResult[shapingResult.Count - 1].X + shapingResult[shapingResult.Count - 1].Width;
+        return shapingResult[shapingResult.Count - 1].X + shapingResult[shapingResult.Count - 1].Advance;
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -56,7 +56,7 @@ public class TextRenderUtilities
             return 0;
         }
 
-        return shapingResult[shapingResult.Count - 1].Y + shapingResult[shapingResult.Count - 1].Width;
+        return shapingResult[shapingResult.Count - 1].Y + shapingResult[shapingResult.Count - 1].Advance;
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]

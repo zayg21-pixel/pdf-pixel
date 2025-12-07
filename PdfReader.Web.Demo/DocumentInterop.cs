@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.Logging;
+using PdfReader.Fonts.Management;
 using PdfReader.Models;
 using SkiaSharp;
 using System;
@@ -11,7 +12,6 @@ using System.Runtime.Versioning;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using System.Threading.Tasks;
 
 namespace PdfReader.Web.Demo
 {
@@ -20,12 +20,13 @@ namespace PdfReader.Web.Demo
     {
         private static PdfDocument _document;
         private static readonly InteropSerializerContext context = new InteropSerializerContext();
+        private static readonly ISkiaFontProvider _fontProvider = new WindowsSkiaFontProvider();
 
         [JSExport]
         public static bool LoadDocument(byte[] documentData)
         {
             var factory = new LoggerFactory();
-            var reader = new PdfDocumentReader(factory);
+            var reader = new PdfDocumentReader(factory, _fontProvider);
             _document = reader.Read(new MemoryStream(documentData), string.Empty);
             return true;
         }
@@ -66,7 +67,7 @@ namespace PdfReader.Web.Demo
             try
             {
                 var allPageInfo = new List<PageInfo>();
-                for (int i = 0; i < _document.PageCount; i++)
+                for (int i = 0; i < _document.Pages.Count; i++)
                 {
                     var page = _document.Pages[i];
                     var pageInfo = new PageInfo

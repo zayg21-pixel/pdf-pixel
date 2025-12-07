@@ -91,7 +91,7 @@ namespace PdfReader.Models
                 return null;
             }
 
-            if (fontObject.Reference.IsValid && _page.Document.Fonts.TryGetValue(fontObject.Reference, out var documentCachedFont))
+            if (fontObject.Reference.IsValid && _page.Document.ObjectCache.Fonts.TryGetValue(fontObject.Reference, out var documentCachedFont))
             {
                 return documentCachedFont;
             }
@@ -102,7 +102,7 @@ namespace PdfReader.Models
             {
                 if (fontObject.Reference.IsValid)
                 {
-                    _page.Document.Fonts[fontObject.Reference] = newFont;
+                    _page.Document.ObjectCache.Fonts[fontObject.Reference] = newFont;
                 }
             }
 

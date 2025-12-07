@@ -1,4 +1,5 @@
 using PdfReader.Color.Paint;
+using PdfReader.Fonts.Management;
 using PdfReader.Fonts.Mapping;
 using PdfReader.Models;
 using PdfReader.Text;
@@ -33,6 +34,7 @@ public abstract class PdfFontBase : IDisposable
         BaseFont = fontDictionary.GetString(PdfTokens.BaseFontKey);
         ToUnicodeCMap = LoadToUnicodeCMap();
         FontDescriptor = PdfFontDescriptor.FromDictionary(fontDictionary.GetDictionary(PdfTokens.FontDescriptorKey));
+        SubstitutionInfo = PdfSubstitutionInfo.Parse(BaseFont, FontDescriptor);
     }
 
     /// <summary>
@@ -45,25 +47,27 @@ public abstract class PdfFontBase : IDisposable
     /// </summary>
     internal protected virtual CMapWMode WritingMode { get; } = CMapWMode.Horizontal;
 
+    /// <summary>
+    /// Information required for font substitution.
+    /// </summary>
+    internal protected virtual PdfSubstitutionInfo SubstitutionInfo { get; }
+
     internal protected bool SubstituteFont => Typeface == null;
 
     /// <summary>
-    /// Returns a SkiaSharp SKFont instance for this PDF font.
+    /// Returns the SkiaSharp SKTypeface instance for this PDF font.
     /// </summary>
     /// <param name="unicode">Hint for font substitution.</param>
-    /// <returns>SKFont instance.</returns>
-    public SKFont GetSkiaFont(string unicode)
+    /// <returns>SKTypeface instance, should not be disposed.</returns>
+    internal SKTypeface GetTypeface(string unicode)
     {
-        // TODO: font can be cached per character code, we can have some "internal" GetSkiaFont that always resolves from Document.FontSubstitutor, otherwise use from _characterInfoCache.
-        // also method can use PdfCharacterCode instead of string unicode
         if (Typeface != null)
         {
-            return PdfPaintFactory.CreateTextFont(Typeface);
+            return Typeface;
         }
         else
         {
-            var substitutedTypeface = Document.FontSubstitutor.SubstituteTypeface(BaseFont, unicode, FontDescriptor);
-            return PdfPaintFactory.CreateTextFont(substitutedTypeface);
+            return Document.FontSubstitutor.SubstituteTypeface(SubstitutionInfo, unicode);
         }
     }
 
@@ -179,42 +183,38 @@ public abstract class PdfFontBase : IDisposable
         float width = GetWidth(characterCode);
         string unicode = GetUnicodeString(characterCode);
         var displacement = GetVerticalDisplacement(characterCode);
+        var typeface = GetTypeface(unicode);
 
         if (gid != 0 && width != 0)
         {
-            return new PdfCharacterInfo(characterCode, unicode, [gid], [width], displacement);
+            return new PdfCharacterInfo(characterCode, typeface, unicode, [gid], width, [width], displacement);
         }
         else if (gid != 0 && unicode?.Length > 0)
         {
-            using SKFont skFont = GetSkiaFont(unicode);
+            using SKFont skFont = PdfPaintFactory.CreateTextFont(typeface);
             width = skFont.GetGlyphWidths(unicode).Sum();
 
-            return new PdfCharacterInfo(characterCode, unicode, [gid], [width], displacement);
+            return new PdfCharacterInfo(characterCode, typeface, unicode, [gid], width, [width], displacement);
         }
-        else if (gid == 0 && width != 0 && unicode?.Length > 0) // try to get GID from Skia for missing GID
+        else if (gid == 0 && width != 0 && unicode?.Length > 0)
         {
-            using SKFont skFont = GetSkiaFont(unicode);
-            ushort[] gids = skFont.GetGlyphs(unicode);
-
-            float[] widths = new float[gids.Length];
-
-            for (int i = 0; i < gids.Length; i++)
-            {
-                widths[i] = width / gids.Length; // TODO: all this incorrect, we need to sub with from real glyph widths
-            }
-
-            return new PdfCharacterInfo(characterCode, unicode, gids, widths, displacement);
-        }
-        else if (unicode?.Length > 0) // last resort: try to get GID and width from Skia + Shaper for ligatures/complex Arabic
-        {
-            using SKFont skFont = GetSkiaFont(unicode);
+            using SKFont skFont = PdfPaintFactory.CreateTextFont(typeface);
             ushort[] gids = skFont.GetGlyphs(unicode);
             float[] widths = skFont.GetGlyphWidths(unicode);
 
-            return new PdfCharacterInfo(characterCode, unicode, gids, widths, displacement);
+            return new PdfCharacterInfo(characterCode, typeface, unicode, gids, width, widths, displacement);
+        }
+        else if (unicode?.Length > 0) // last resort: try to get both GID and width from Skia
+        {
+            using SKFont skFont = PdfPaintFactory.CreateTextFont(typeface);
+            ushort[] gids = skFont.GetGlyphs(unicode);
+            float[] widths = skFont.GetGlyphWidths(unicode);
+            width = widths.Sum();
+
+            return new PdfCharacterInfo(characterCode, typeface, unicode, gids, width, widths, displacement);
         }
 
-        return new PdfCharacterInfo(characterCode, string.Empty, [0], [0], default);
+        return new PdfCharacterInfo(characterCode, typeface, string.Empty, [0], 0, [0], default);
     }
 
     /// <summary>
@@ -230,7 +230,7 @@ public abstract class PdfFontBase : IDisposable
             return null;
         }
 
-        if (toUnicodeObj.Reference.IsValid && Document.CMapStreamCache.TryGetValue(toUnicodeObj.Reference, out var cachedCMap))
+        if (toUnicodeObj.Reference.IsValid && Document.CMapCache.CMapStreams.TryGetValue(toUnicodeObj.Reference, out var cachedCMap))
         {
             return cachedCMap;
         }
@@ -241,7 +241,7 @@ public abstract class PdfFontBase : IDisposable
 
         if (toUnicodeObj.Reference.IsValid)
         {
-            Document.CMapStreamCache[toUnicodeObj.Reference] = parsedCMap;
+            Document.CMapCache.CMapStreams[toUnicodeObj.Reference] = parsedCMap;
         }
 
         return parsedCMap;

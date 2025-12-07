@@ -59,7 +59,7 @@ internal static class PdfFunctions
 
         if (functionObject.Reference.IsValid && functionObject.Document != null)
         {
-            var cache = functionObject.Document.FunctionObjectCache;
+            var cache = functionObject.Document.ObjectCache.Functions;
             if (cache.TryGetValue(functionObject.Reference, out PdfFunction cachedFunction))
             {
                 return cachedFunction;
@@ -89,7 +89,7 @@ internal static class PdfFunctions
 
         if (function != null && functionObject.Reference.IsValid && functionObject.Document != null)
         {
-            var cache = functionObject.Document.FunctionObjectCache;
+            var cache = functionObject.Document.ObjectCache.Functions;
             cache[functionObject.Reference] = function;
         }
 

@@ -58,7 +58,6 @@ internal class PdfTextExtractionRenderer : IPdfRenderer
 
     public SKSize DrawTextSequence(SKCanvas canvas, List<ShapedGlyph> glyphs, PdfGraphicsState state, PdfFontBase font)
     {
-        using var skFont = font.GetSkiaFont(null); // TODO: use same approach as in PdfRenderer to get correct typeface for shaping
         throw new System.NotImplementedException();
 
         //var currentMatrix = SKMatrix.Concat(canvas.TotalMatrix, TextRenderUtilities.GetFullTextMatrix(0, state));

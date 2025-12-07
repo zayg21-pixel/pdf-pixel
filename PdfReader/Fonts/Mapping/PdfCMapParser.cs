@@ -102,7 +102,7 @@ public static class PdfCMapParser
 
         if (cmapDictionary.Entries.TryGetValue("usecmap", out var useCMapToken) && useCMapToken is PostScriptLiteralName useCMapName)
         {
-            var baseCMap = document.GetCmap(PdfString.FromString(useCMapName.Name));
+            var baseCMap = document.CMapCache.GetCmap(PdfString.FromString(useCMapName.Name));
             if (baseCMap != null)
             {
                 cmap.MergeFrom(baseCMap);

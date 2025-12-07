@@ -1,31 +1,21 @@
 using Microsoft.Extensions.Logging;
 using PdfReader.Fonts.Cff;
-using PdfReader.Fonts.Management;
 using PdfReader.Fonts.Mapping;
 using PdfReader.Fonts.TrueType;
 using PdfReader.Fonts.Type1;
 using PdfReader.Models;
+using PdfReader.Text;
 using SkiaSharp;
 using System;
 
 namespace PdfReader.Fonts.Model;
 
-/// <summary>
-/// Simple fonts: Type1, TrueType, MMType1 (excluding Type3)
-/// Self-contained fonts with direct character-to-glyph mapping
-/// Limited to 256 characters (single-byte encoding).
-/// </summary>
 public class PdfSimpleFont : PdfSingleByteFont
 {
     private readonly ILogger<PdfSimpleFont> _logger;
     private readonly SKTypeface _typeface;
     private readonly IByteCodeToGidMapper _mapper;
-    private readonly bool _substituted;
 
-    /// <summary>
-    /// Constructor for simple fonts - lightweight operations only
-    /// </summary>
-    /// <param name="fontObject">PDF dictionary containing the font definition</param>
     public PdfSimpleFont(PdfDictionary fontDictionary) : base(fontDictionary)
     {
         _logger = fontDictionary.Document.LoggerFactory.CreateLogger<PdfSimpleFont>();
@@ -54,16 +44,14 @@ public class PdfSimpleFont : PdfSingleByteFont
                         throw new InvalidOperationException("Failed to create typeface from embedded Type1 font data.");
                     }
 
-                    // Per spec, if no encoding is specified, use the font's built-in encoding
                     if (Encoding.BaseEncoding == PdfFontEncoding.Unknown && Encoding.Differences.Count == 0)
                     {
                         Encoding.Update(cffInfo.Encoding, cffInfo.CodeToName);
                     }
 
-                    // If still unknown, default to StandardEncoding
                     if (Encoding.BaseEncoding == PdfFontEncoding.Unknown)
                     {
-                        var encoding = SkiaFontSubstitutor.GetEncodingByName(BaseFont) ?? PdfFontEncoding.StandardEncoding;
+                        var encoding = SingleByteEncodings.GetEncodingByName(BaseFont) ?? PdfFontEncoding.StandardEncoding;
                         Encoding.Update(encoding, default);
                     }
 
@@ -82,13 +70,11 @@ public class PdfSimpleFont : PdfSingleByteFont
                         throw new InvalidOperationException("Failed to parse embedded Type1C font data.");
                     }
 
-                    // Per spec, if no encoding is specified, use the font's built-in encoding
                     if (Encoding.BaseEncoding == PdfFontEncoding.Unknown && Encoding.Differences.Count == 0)
                     {
                         Encoding.Update(cffInfo.Encoding, cffInfo.CodeToName);
                     }
 
-                    // If still unknown, default to StandardEncoding
                     if (Encoding.BaseEncoding == PdfFontEncoding.Unknown)
                     {
                         Encoding.Update(PdfFontEncoding.StandardEncoding, default);
@@ -125,19 +111,13 @@ public class PdfSimpleFont : PdfSingleByteFont
 
         if (Encoding.BaseEncoding == PdfFontEncoding.Unknown)
         {
-            var encoding = SkiaFontSubstitutor.GetEncodingByName(BaseFont) ?? PdfFontEncoding.StandardEncoding;
+            var encoding = SingleByteEncodings.GetEncodingByName(BaseFont) ?? PdfFontEncoding.StandardEncoding;
             Encoding.Update(encoding, default);
         }
 
         return default;
     }
 
-    /// <summary>
-    /// Gets the glyph ID (GID) for the specified character code in a simple font.
-    /// Returns 0 if no valid GID is found.
-    /// </summary>
-    /// <param name="code">The character code to map to a glyph ID.</param>
-    /// <returns>The glyph ID (GID) for the character code, or 0 if not found.</returns>
     public override ushort GetGid(PdfCharacterCode code)
     {
         if (code == null)
@@ -155,11 +135,7 @@ public class PdfSimpleFont : PdfSingleByteFont
 
     protected override void Dispose(bool disposing)
     {
-        if (_substituted)
-        {
-            _typeface.Dispose();
-        }
-
+        _typeface?.Dispose();
         base.Dispose(disposing);
     }
 }

@@ -138,7 +138,7 @@ public class PdfDictionary
         if (storedValue is IPdfValue<PdfReference> referenceValue)
         {
             var reference = referenceValue.Value;
-            return Document.GetObject(reference);
+            return Document.ObjectCache.GetObject(reference);
         }
 
         // return synthetic object

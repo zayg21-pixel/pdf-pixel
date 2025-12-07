@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.Logging;
+using PdfReader.Fonts.Management;
 using PdfReader.Models;
 using PdfReader.Wpf.PdfPanel;
 using System;
@@ -14,12 +15,13 @@ namespace PdfReader.Wpf.Demo
     {
         private readonly string[] pdfFiles;
         private readonly PdfDocumentReader reader;
+        private static readonly ISkiaFontProvider FontProvider = new WindowsSkiaFontProvider();
 
         public MainWindow()
         {
             InitializeComponent();
 
-            reader = new PdfDocumentReader(new LoggerFactory());
+            reader = new PdfDocumentReader(new LoggerFactory(), FontProvider);
 
             pdfFiles = Directory.GetFiles("./Pdfs", "*.pdf");
             FilesCombo.ItemsSource = pdfFiles;

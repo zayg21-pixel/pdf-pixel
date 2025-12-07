@@ -103,9 +103,9 @@ internal sealed partial class ColorSpaceResolver
             }
         }
 
-        if (_page.Document.OutputIntentProfile != null)
+        if (_page.Document.ObjectCache.OutputIntentProfile != null)
         {
-            return new IccBasedConverter(n, null, _page.Document.OutputIntentProfile);
+            return new IccBasedConverter(n, null, _page.Document.ObjectCache.OutputIntentProfile);
         }
 
         return null;
@@ -230,7 +230,7 @@ internal sealed partial class ColorSpaceResolver
 
     private bool TryResolveFromCache(PdfObject pdfObject, out PdfColorSpaceConverter converter)
     {
-        if (pdfObject.Reference.IsValid && _page.Document.ColorSpaceConverters.TryGetValue(pdfObject.Reference, out var existing))
+        if (pdfObject.Reference.IsValid && _page.Document.ObjectCache.ColorSpaceConverters.TryGetValue(pdfObject.Reference, out var existing))
         {
             converter = existing;
             return true;
@@ -243,7 +243,7 @@ internal sealed partial class ColorSpaceResolver
     {
         if (pdfObject.Reference.IsValid)
         {
-            _page.Document.ColorSpaceConverters[pdfObject.Reference] = converter;
+            _page.Document.ObjectCache.ColorSpaceConverters[pdfObject.Reference] = converter;
             return true;
         }
         return false;

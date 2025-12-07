@@ -1,3 +1,4 @@
+using PdfReader.Fonts.Management;
 using PdfReader.Fonts.Mapping;
 using PdfReader.Models;
 using PdfReader.Resources;
@@ -16,12 +17,8 @@ namespace PdfReader.Fonts.Model;
 public class PdfCompositeFont : PdfFontBase
 {
     private readonly CMapWMode _writingMode;
-    private readonly Dictionary<uint, string> _toUnicode; // TODO: move to Descendant
+    private readonly Dictionary<uint, string> _toUnicode;
 
-    /// <summary>
-    /// Constructor for composite fonts - lightweight operations only
-    /// </summary>
-    /// <param name="fontObject">PDF dictionary containing the font definition</param>
     public PdfCompositeFont(PdfDictionary fontDictionary) : base(fontDictionary)
     {
         DescendantFonts = LoadDescendantFonts();
@@ -35,6 +32,8 @@ public class PdfCompositeFont : PdfFontBase
     internal protected override SKTypeface Typeface => PrimaryDescendant?.Typeface;
 
     protected internal override CMapWMode WritingMode => _writingMode;
+
+    protected internal override PdfSubstitutionInfo SubstitutionInfo => PrimaryDescendant?.SubstitutionInfo ?? default;
     
     /// <summary>
     /// Descendant CID fonts that contain the actual font data.
@@ -45,7 +44,7 @@ public class PdfCompositeFont : PdfFontBase
     /// Primary descendant font (first in array, handles most characters)
     /// This is where most properties are inherited from
     /// </summary>
-    public PdfCidFont PrimaryDescendant => DescendantFonts.Count > 0 ? DescendantFonts[0] : null;
+    public PdfCidFont PrimaryDescendant => DescendantFonts?.Count > 0 ? DescendantFonts[0] : null;
 
     /// <summary>
     /// Optional code->CID CMap derived from the parent /Encoding entry when it is a CMap stream.
@@ -164,7 +163,7 @@ public class PdfCompositeFont : PdfFontBase
 
         if (!predefinedName.IsEmpty)
         {
-            return (Document.GetCmap(predefinedName), predefinedName);
+            return (Document.CMapCache.GetCmap(predefinedName), predefinedName);
         }
 
         var encodingObj = Dictionary.GetObject(PdfTokens.EncodingKey);
@@ -173,7 +172,7 @@ public class PdfCompositeFont : PdfFontBase
             return default;
         }
 
-        if (encodingObj.Reference.IsValid && Document.CMapStreamCache.TryGetValue(encodingObj.Reference, out var cachedCMap))
+        if (encodingObj.Reference.IsValid && Document.CMapCache.CMapStreams.TryGetValue(encodingObj.Reference, out var cachedCMap))
         {
             return (cachedCMap, cachedCMap.Name);
         }
@@ -196,7 +195,7 @@ public class PdfCompositeFont : PdfFontBase
 
         if (encodingObj.Reference.IsValid)
         {
-            Document.CMapStreamCache[encodingObj.Reference] = result;
+            Document.CMapCache.CMapStreams[encodingObj.Reference] = result;
         }
 
         return (result, result.Name);

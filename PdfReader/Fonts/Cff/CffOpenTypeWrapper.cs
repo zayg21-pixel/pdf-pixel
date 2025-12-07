@@ -305,7 +305,7 @@ internal static class CffOpenTypeWrapper
 
     private static byte[] BuildName(PdfFontDescriptor descriptor)
     {
-        var parsed = PdfFontName.Parse(descriptor.FontName, descriptor);
+        var parsed = PdfSubstitutionInfo.Parse(descriptor.FontName, descriptor);
 
         string family = parsed.NormalizedStem;
         if (string.IsNullOrWhiteSpace(family))
@@ -313,8 +313,8 @@ internal static class CffOpenTypeWrapper
             family = DefaultFamilyBaseName;
         }
 
-        bool boldHint = parsed.BoldHint;
-        bool italicHint = parsed.ItalicHint;
+        bool boldHint = parsed.IsBold;
+        bool italicHint = parsed.IsItalic;
 
         string subfamily;
         if (boldHint && italicHint)

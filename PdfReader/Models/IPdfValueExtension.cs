@@ -114,7 +114,7 @@ namespace PdfReader.Models
 
             var reference = (IPdfValue<PdfReference>)value;
 
-            var referencedObject = document.GetObject(reference.Value);
+            var referencedObject = document.ObjectCache.GetObject(reference.Value);
 
             if (referencedObject == null)
             {

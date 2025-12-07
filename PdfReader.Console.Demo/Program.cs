@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
 using PdfReader;
+using PdfReader.Fonts.Management;
 using PdfReader.Models;
 using PdfReader.TextExtraction;
 using SkiaSharp;
@@ -12,6 +13,8 @@ namespace PdfReader.Console.Demo
     {
         private static readonly ILoggerFactory LoggerFactoryInstance = LoggerFactory.Create(builder => builder.AddConsole(LogLevel.Information));
         private static readonly ILogger Logger = LoggerFactoryInstance.CreateLogger<Program>();
+        private static readonly ISkiaFontProvider FontProvider = new WindowsSkiaFontProvider();
+
         static async Task Main(string[] args)
         {
             Logger.LogInformation("PDF Direct Rendering Library");
@@ -98,13 +101,13 @@ namespace PdfReader.Console.Demo
             Stopwatch sw = Stopwatch.StartNew();
             Logger.LogInformation("Extracting text from file: {File}", fileName);
 
-            var reader = new PdfDocumentReader(LoggerFactoryInstance);
+            var reader = new PdfDocumentReader(LoggerFactoryInstance, FontProvider);
             using var file = File.OpenRead(fileName);
             using var document = reader.Read(file);
 
             Dictionary<int, List<PdfCharacter>> extractedText = new Dictionary<int, List<PdfCharacter>>();
 
-            for (int i = 0; i < document.PageCount; i++)
+            for (int i = 0; i < document.Pages.Count; i++)
             {
                 var page = document.Pages[i];
                 var textContent = page.ExtractText();
@@ -141,21 +144,19 @@ namespace PdfReader.Console.Demo
             try
             {
                 
-                var reader = new PdfDocumentReader(LoggerFactoryInstance);
+                var reader = new PdfDocumentReader(LoggerFactoryInstance, FontProvider);
                 using var file = File.OpenRead(fileName);
                 using var document = reader.Read(file);
 
                 Logger.LogInformation("Successfully read PDF: {File}", fileName);
-                Logger.LogInformation("Total pages: {Count}", document.PageCount);
-                Logger.LogInformation("Actual pages found: {Count}", document.Pages.Count);
-                Logger.LogInformation("Root object: {Root}", document.RootObject);
+                Logger.LogInformation("Total pages: {Count}", document.Pages.Count);
 
                 var start = 0;
                 var max = 1000;
                 float scaleX = 1f; // Scale factor for rendering
 
                 // Analyze pages with detailed content stream debugging
-                for (int i = start; i < Math.Min(max, document.PageCount); i++)
+                for (int i = start; i < Math.Min(max, document.Pages.Count); i++)
                 {
                     var page = document.Pages[i];
                     Logger.LogInformation("Page {PageNumber}:", page.PageNumber);

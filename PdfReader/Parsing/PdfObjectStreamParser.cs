@@ -43,7 +43,7 @@ namespace PdfReader.Parsing
         public PdfObject ParseSingleCompressed(PdfObjectInfo info)
         {
             var containerReference = new PdfReference(info.ObjectStreamNumber.Value, 0);
-            var containerObject = _pdfDocument.GetObject(containerReference);
+            var containerObject = _pdfDocument.ObjectCache.GetObject(containerReference);
             if (containerObject == null || containerObject.Dictionary == null)
             {
                 return null;
@@ -115,7 +115,7 @@ namespace PdfReader.Parsing
         private void EnsureOffsetsIndexed(uint containerObjectNumber, ReadOnlyMemory<byte> decoded, int objectCount, int firstOffset)
         {
             // If at least one compressed object for this container already has relative offset populated, assume done.
-            foreach (var kvp in _pdfDocument.ObjectIndex)
+            foreach (var kvp in _pdfDocument.ObjectCache.ObjectIndex)
             {
                 var entry = kvp.Value;
                 if (entry.IsCompressed && entry.ObjectStreamNumber == containerObjectNumber && entry.ObjectStreamRelativeOffset != null)
@@ -152,7 +152,7 @@ namespace PdfReader.Parsing
                 int relativeOffset = offsetValue.AsInteger();
 
                 var reference = new PdfReference(objectNumber, 0);
-                if (_pdfDocument.ObjectIndex.TryGetValue(reference, out var info))
+                if (_pdfDocument.ObjectCache.ObjectIndex.TryGetValue(reference, out var info))
                 {
                     if (info.IsCompressed && info.ObjectStreamNumber == containerObjectNumber)
                     {
@@ -164,7 +164,7 @@ namespace PdfReader.Parsing
 
         private int? FindRelativeOffset(uint containerObjectNumber, int targetIndex)
         {
-            foreach (var kvp in _pdfDocument.ObjectIndex)
+            foreach (var kvp in _pdfDocument.ObjectCache.ObjectIndex)
             {
                 var entry = kvp.Value;
                 if (entry.IsCompressed && entry.ObjectStreamNumber == containerObjectNumber && entry.ObjectStreamIndex == targetIndex)

@@ -1,3 +1,5 @@
+using PdfReader.Fonts.Model;
+
 namespace PdfReader.Text;
 
 /// <summary>
@@ -5,22 +7,26 @@ namespace PdfReader.Text;
 /// </summary>
 public readonly struct ShapedGlyph
 {
-    /// <summary>
-    /// Initializes a new instance of the <see cref="ShapedGlyph"/> struct.
-    /// </summary>
-    /// <param name="glyphId">The glyph identifier.</param>
-    /// <param name="unicode">Unique representation of the glyph.</param>
-    /// <param name="width">Shaped width of the glyph.</param>
-    /// <param name="x">The X position of the glyph.</param>
-    /// <param name="y">The Y position of the glyph.</param>
-    public ShapedGlyph(uint glyphId, string unicode, float width, float x, float y)
+    public ShapedGlyph(
+        PdfCharacterInfo pdfCharacterInfo,
+        int? groupId,
+        uint glyphId,
+        float advance,
+        float x,
+        float y)
     {
+        CharacterInfo = pdfCharacterInfo;
+        GroupId = groupId;
         GlyphId = glyphId;
-        Unicode = unicode;
-        Width = width;
+        Advance = advance;
         X = x;
         Y = y;
     }
+
+    /// <summary>
+    /// Original character information.
+    /// </summary>
+    public PdfCharacterInfo CharacterInfo { get; }
 
     /// <summary>
     /// Gets the glyph identifier.
@@ -28,14 +34,15 @@ public readonly struct ShapedGlyph
     public uint GlyphId { get; }
 
     /// <summary>
-    /// Unique representation of the glyph.
+    /// If appears in the of multiple glyphs for a single character, indicates the group index.
+    /// Then <see cref="CharacterInfo"/> can be used to retrieve the original character information.
     /// </summary>
-    public string Unicode { get; }
+    public int? GroupId { get; }
 
     /// <summary>
-    /// Shaped width of the glyph.
+    /// Advance after X till the right edge.
     /// </summary>
-    public float Width { get; }
+    public float Advance { get; }
 
     /// <summary>
     /// X position of the glyph.

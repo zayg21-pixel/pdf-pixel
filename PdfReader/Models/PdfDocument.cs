@@ -1,159 +1,89 @@
 using Microsoft.Extensions.Logging;
 using PdfReader.Encryption;
 using PdfReader.Fonts.Management;
-using PdfReader.Fonts.Mapping;
 using PdfReader.Parsing;
 using PdfReader.Streams;
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
-using PdfReader.Color.ColorSpace;
-using PdfReader.Color.Icc.Model;
-using PdfReader.Functions;
-using PdfReader.Resources;
-using PdfReader.Fonts.Model;
+using PdfReader.Fonts.Mapping;
 
-namespace PdfReader.Models
+namespace PdfReader.Models;
+
+/// <summary>
+/// Represents a parsed PDF document, exposing its pages and providing resource management for PDF processing.
+/// </summary>
+public class PdfDocument : IDisposable
 {
+    private readonly ILogger<PdfDocument> _logger;
+
     /// <summary>
-    /// Represents a parsed PDF document with object table, pages, resources and renderer.
-    /// Adds lazy object resolution support via an object index.
+    /// Initializes a new instance of the <see cref="PdfDocument"/> class.
     /// </summary>
-    public class PdfDocument : IDisposable
+    /// <param name="loggerFactory">The logger factory for creating loggers.</param>
+    /// <param name="fontProvider">The font provider for font substitution and resolution.</param>
+    /// <param name="fileStream">The input stream containing the PDF file data.</param>
+    public PdfDocument(ILoggerFactory loggerFactory, ISkiaFontProvider fontProvider, Stream fileStream)
     {
-        private readonly Dictionary<PdfReference, PdfObject> _objects = new Dictionary<PdfReference, PdfObject>();
-        private readonly ILogger<PdfDocument> _logger;
-        private readonly PdfObjectParser _pdfObjectParser;
+        LoggerFactory = loggerFactory;
+        _logger = loggerFactory.CreateLogger<PdfDocument>();
+        StreamDecoder = new PdfStreamDecoder(loggerFactory);
+        FontSubstitutor = new SkiaFontSubstitutor(fontProvider);
+        ObjectCache = new PdfDocumentObjectCache(new PdfObjectParser(this));
+        Stream = new BufferedStream(fileStream);
+        CMapCache = new CMapCache(this, _logger);
+    }
 
-        public PdfDocument(ILoggerFactory loggerFactory, Stream fileStream)
-        {
-            LoggerFactory = loggerFactory;
-            _logger = loggerFactory.CreateLogger<PdfDocument>();
-            StreamDecoder = new PdfStreamDecoder(loggerFactory);
-            FontSubstitutor = new SkiaFontSubstitutor();
-            _pdfObjectParser = new PdfObjectParser(this);
-            Stream = new BufferedStream(fileStream);
-        }
+    /// <summary>
+    /// Gets the list of pages in the PDF document.
+    /// </summary>
+    public List<PdfPage> Pages { get; } = new List<PdfPage>();
 
-        internal ILoggerFactory LoggerFactory { get; }
+    /// <summary>
+    /// Gets or sets the root object of the PDF document.
+    /// </summary>
+    internal PdfObject RootObject { get; set; }
 
-        /// <summary>
-        /// Document level font substitution engine.
-        /// </summary>
-        internal SkiaFontSubstitutor FontSubstitutor { get; } // TODO: move substitutor to a separate context class, can be shared across documents
+    /// <summary>
+    /// Gets the logger factory used for creating loggers.
+    /// </summary>
+    internal ILoggerFactory LoggerFactory { get; }
 
-        /// <summary>
-        /// Document font cache.
-        /// </summary>
-        internal Dictionary<PdfReference, PdfFontBase> Fonts { get; } = new Dictionary<PdfReference, PdfFontBase>();
+    /// <summary>
+    /// Gets the document-level font substitution engine.
+    /// </summary>
+    internal SkiaFontSubstitutor FontSubstitutor { get; }
 
-        internal static Dictionary<PdfString, PdfCMap> CMapCache { get; } = new Dictionary<PdfString, PdfCMap>();
+    /// <summary>
+    /// Gets the object cache for PDF objects in the document.
+    /// </summary>
+    internal PdfDocumentObjectCache ObjectCache { get; }
 
-        internal Dictionary<PdfReference, PdfCMap> CMapStreamCache { get; } = new Dictionary<PdfReference, PdfCMap>(); // TODO: move all caches to a separate class
+    /// <summary>
+    /// Gets the CMap cache manager for the document.
+    /// </summary>
+    internal CMapCache CMapCache { get; }
 
-        /// <summary>
-        /// Document color space converter cache.
-        /// </summary>
-        internal Dictionary<PdfReference, PdfColorSpaceConverter> ColorSpaceConverters { get; } = new Dictionary<PdfReference, PdfColorSpaceConverter>();
+    /// <summary>
+    /// Gets the stream decoder for decoding PDF streams.
+    /// </summary>
+    internal PdfStreamDecoder StreamDecoder { get; }
 
-        public PdfCMap GetCmap(PdfString name)
-        {
-            if (CMapCache.TryGetValue(name, out var existing))
-            {
-                return existing;
-            }
+    /// <summary>
+    /// Gets or sets the decryptor for encrypted PDF content.
+    /// </summary>
+    internal BasePdfDecryptor Decryptor { get; set; }
 
-            try
-            {
-                var cmapBytes = PdfResourceLoader.GetZipCompressedResource("CMaps.zip", name.ToString());
-                var cmap = PdfCMapParser.ParseCMap(cmapBytes, this);
+    /// <summary>
+    /// Gets the original PDF file stream for internal parser use (lazy object loading).
+    /// </summary>
+    internal BufferedStream Stream { get; }
 
-                if (cmap != null)
-                {
-                    CMapCache[name] = cmap;
-                }
-
-                return cmap;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "Failed to load CMap '{CMapName}'", name.ToString());
-                return null;
-            }
-        }
-
-        /// <summary>
-        /// High-level cache for parsed PDF functions, keyed by reference.
-        /// </summary>
-        internal ConcurrentDictionary<PdfReference, PdfFunction> FunctionObjectCache { get; } = new ConcurrentDictionary<PdfReference, PdfFunction>();
-
-        internal PdfStreamDecoder StreamDecoder { get; }
-
-        public List<PdfPage> Pages { get; } = new List<PdfPage>();
-
-        public int PageCount => Pages.Count;
-
-        public PdfObject RootObject { get; set; }
-
-        public BasePdfDecryptor Decryptor { get; internal set; }
-
-        internal Dictionary<PdfReference, PdfObjectInfo> ObjectIndex { get; } = new Dictionary<PdfReference, PdfObjectInfo>();
-
-        /// <summary>
-        /// Exposes the original PDF file bytes for internal parser use (lazy object loading).
-        /// </summary>
-        internal BufferedStream Stream { get; }
-
-        /// <summary>
-        /// Parsed catalog output intent ICC profile (first preferred or first valid). Null when none present or invalid.
-        /// Populated by <see cref="Parsing.PdfOutputIntentParser"/> post xref/catalog load.
-        /// </summary>
-        internal IccProfile OutputIntentProfile { get; set; }
-
-        /// <summary>
-        /// Retrieve an object by reference, parsing it lazily if present in the index but not yet materialized.
-        /// Only uncompressed indexed objects are currently supported in the lazy path.
-        /// </summary>
-        /// <param name="reference">Target object reference.</param>
-        /// <returns>Materialized <see cref="PdfObject"/> or null if unavailable.</returns>
-        public PdfObject GetObject(PdfReference reference)
-        {
-            if (!reference.IsValid)
-            {
-                return null;
-            }
-
-            if (_objects.TryGetValue(reference, out var existing))
-            {
-                return existing;
-            }
-
-            if (!ObjectIndex.TryGetValue(reference, out var info))
-            {
-                return null;
-            }
-
-            var parsed = _pdfObjectParser.ParseSingleIndexedObject(info);
-            if (parsed != null)
-            {
-                _objects[parsed.Reference] = parsed;
-            }
-            return parsed;
-        }
-
-        public void Dispose()
-        {
-            FontSubstitutor.Dispose();
-
-            foreach (var converter in ColorSpaceConverters.Values)
-            {
-                converter.Dispose();
-            }
-
-            ColorSpaceConverters.Clear();
-
-            Stream.Dispose();
-        }
+    /// <summary>
+    /// Releases all resources used by the <see cref="PdfDocument"/>.
+    /// </summary>
+    public void Dispose()
+    {
+        Stream.Dispose();
     }
 }
