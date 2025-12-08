@@ -13,12 +13,12 @@ namespace PdfReader.Rendering.Text;
 internal class TextFillRenderTarget : IRenderTarget
 {
     private readonly SKFont _font;
-    private readonly List<ShapedGlyph> _shapingResult;
+    private readonly IList<ShapedGlyph> _shapingResult;
     private readonly PdfGraphicsState _state;
     private readonly PdfPattern _pattern;
     private SKPath _clipPath;
 
-    public TextFillRenderTarget(SKFont font, List<ShapedGlyph> shapingResult, PdfGraphicsState state)
+    public TextFillRenderTarget(SKFont font, IList<ShapedGlyph> shapingResult, PdfGraphicsState state)
     {
         _font = font;
         _shapingResult = shapingResult;

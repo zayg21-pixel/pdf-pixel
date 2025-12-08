@@ -8,7 +8,9 @@ using PdfReader.Transparency.Utilities;
 using SkiaSharp;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Runtime.CompilerServices;
+using static System.Net.Mime.MediaTypeNames;
 
 namespace PdfReader.Text;
 
@@ -39,35 +41,39 @@ public class PdfTextRenderer : IPdfTextRenderer
 
         if (font.SubstituteFont)
         {
-            SKTypeface currentTypeface = null;
-            List<ShapedGlyph> currentGlyphs = new List<ShapedGlyph>();
+            const float ScaleTolerancePercent = 0.01f; // 1%
+            var glyphBuffer = new List<ShapedGlyph>();
+            SKFont skFont = null;
+
             for (int i = 0; i < glyphs.Count; i++)
             {
                 var glyph = glyphs[i];
                 var typeface = glyph.CharacterInfo.Typeface;
+                var scale = glyph.Scale;
 
-                if (currentTypeface == null)
+                if (skFont?.Typeface != typeface || Math.Abs(scale - skFont.ScaleX) / skFont.ScaleX >= ScaleTolerancePercent)
                 {
-                    currentTypeface = typeface;
-                    currentGlyphs.Add(glyph);
+                    if (glyphBuffer.Count > 0 && skFont != null)
+                    {
+                        DrawShapedText(canvas, skFont, glyphBuffer, state);
+                    }
+
+                    glyphBuffer.Clear();
+                    skFont?.Dispose();
+
+                    skFont = PdfPaintFactory.CreateTextFont(typeface);
+                    skFont.ScaleX = scale;
                 }
-                else if (typeface == currentTypeface)
-                {
-                    currentGlyphs.Add(glyph);
-                }
-                else
-                {
-                    using var skFont = PdfPaintFactory.CreateTextFont(currentTypeface);
-                    DrawShapedText(canvas, skFont, currentGlyphs, state);
-                    currentTypeface = typeface;
-                    currentGlyphs = [glyph];
-                }
+
+                glyphBuffer.Add(glyph);
             }
-            if (currentTypeface != null && currentGlyphs.Count > 0)
+
+            if (glyphBuffer.Count > 0 && skFont != null)
             {
-                using var skFont = PdfPaintFactory.CreateTextFont(currentTypeface);
-                DrawShapedText(canvas, skFont, currentGlyphs, state);
+                DrawShapedText(canvas, skFont, glyphBuffer, state);
             }
+
+            skFont?.Dispose();
         }
         else if (glyphs.Count > 0)
         {
@@ -92,7 +98,7 @@ public class PdfTextRenderer : IPdfTextRenderer
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private void DrawShapedText(SKCanvas canvas, SKFont font, List<ShapedGlyph> shapingResult, PdfGraphicsState state)
+    private void DrawShapedText(SKCanvas canvas, SKFont font, IList<ShapedGlyph> shapingResult, PdfGraphicsState state)
     {
         if (ShouldFill(state.TextRenderingMode))
         {

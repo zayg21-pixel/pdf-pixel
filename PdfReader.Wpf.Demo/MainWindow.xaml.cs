@@ -1,6 +1,5 @@
 ﻿using Microsoft.Extensions.Logging;
 using PdfReader.Fonts.Management;
-using PdfReader.Models;
 using PdfReader.Wpf.PdfPanel;
 using System;
 using System.IO;
@@ -15,7 +14,7 @@ namespace PdfReader.Wpf.Demo
     {
         private readonly string[] pdfFiles;
         private readonly PdfDocumentReader reader;
-        private static readonly ISkiaFontProvider FontProvider = new WindowsSkiaFontProvider();
+        private static readonly ISkiaFontProvider FontProvider = new WindowsSkiaFontProvider("Times New Roman");
 
         public MainWindow()
         {

@@ -116,63 +116,27 @@ public static class ShapedGlyphBuilder
             float spacing = state.CharacterSpacing + (isSpace ? state.WordSpacing : 0f);
             float advance = spacing / state.FontSize;
 
+            float xCursor = x + info.Offset.X;
+            float rightEdge = xCursor + info.OriginalWidth;
+
+            for (int i = 0; i < info.Gid.Length; i++)
+            {
+                int? id = info.Gid.Length > 1 ? i : null;
+                uint gid = info.Gid[i];
+                float width = info.Width[i];
+                float glyphRightAdvance = rightEdge - xCursor;
+                float advacementToEnd = isVertical ? -info.Advancement : glyphRightAdvance;
+                output.Add(new ShapedGlyph(info, id, gid, advacementToEnd, info.XScale, xCursor, y + info.Offset.Y));
+                xCursor += width;
+            }
+
             if (isVertical)
             {
-                // In vertical mode, all GIDs for a single character are positioned horizontally.
-                // Apply vertical advance once after placing all GIDs.
-                float totalWidth = 0f;
-                for (int i = 0; i < info.Width.Length; i++)
-                {
-                    totalWidth += info.Width[i];
-                }
-
-                float xOffset = -(info.Displacement.V1X ?? totalWidth / 2f);
-                float yOffset = info.Displacement.V1;
-
-                float xCursor = x + xOffset;
-                float rightEdge = xCursor + totalWidth;
-                for (int i = 0; i < info.Gid.Length; i++)
-                {
-                    int? id = info.Gid.Length > 1 ? i : null;
-                    uint gid = info.Gid[i];
-                    float width = info.Width[i];
-                    float glyphAdvance = rightEdge - xCursor;
-                    output.Add(new ShapedGlyph(info, id, gid, glyphAdvance, xCursor, y + yOffset));
-                    xCursor += width;
-                }
-
-                y += -info.Displacement.W1 - advance;
+                y -= info.Advancement + advance;
             }
             else
             {
-                // In horizontal mode, draw the GID group at current x and advance the local cursor by shaped widths.
-                float shapedTotalWidth = 0f;
-                for (int i = 0; i < info.Width.Length; i++)
-                {
-                    shapedTotalWidth += info.Width[i];
-                }
-
-                float groupStartX = x;
-                if (shapedTotalWidth != info.OriginalWidth)
-                {
-                    // Center the shaped glyphs within the OriginalWidth block when they differ.
-                    groupStartX = x + (info.OriginalWidth - shapedTotalWidth) / 2f;
-                }
-
-                float xCursor = groupStartX;
-                float rightEdge = groupStartX + info.OriginalWidth;
-                for (int i = 0; i < info.Gid.Length; i++)
-                {
-                    int? id = info.Gid.Length > 1 ? i : null;
-                    uint gid = info.Gid[i];
-                    float width = info.Width[i];
-                    float glyphAdvance = rightEdge - xCursor;
-                    output.Add(new ShapedGlyph(info, id, gid, glyphAdvance, xCursor, y));
-                    xCursor += width;
-                }
-
-                // After the whole GID group, advance the main cursor by the OriginalWidth plus spacing once.
-                x += info.OriginalWidth + advance;
+                x += info.Advancement + advance;
             }
         }
     }

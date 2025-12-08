@@ -1,5 +1,4 @@
-﻿using PdfReader.Fonts.Model;
-using PdfReader.Rendering.State;
+﻿using PdfReader.Rendering.State;
 using PdfReader.Text;
 using SkiaSharp;
 using System.Collections.Generic;
@@ -13,7 +12,7 @@ namespace PdfReader.Rendering.Text;
 public class TextRenderUtilities
 {
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static SKPath GetTextPath(List<ShapedGlyph> shapingResult, SKFont font, PdfGraphicsState state)
+    public static SKPath GetTextPath(IList<ShapedGlyph> shapingResult, SKFont font, PdfGraphicsState state)
     {
         var textPath = new SKPath();
 
@@ -38,7 +37,7 @@ public class TextRenderUtilities
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static float GetTextWidth(List<ShapedGlyph> shapingResult)
+    public static float GetTextWidth(IList<ShapedGlyph> shapingResult)
     {
         if (shapingResult.Count == 0)
         {
@@ -49,7 +48,7 @@ public class TextRenderUtilities
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static float GetTextHeight(List<ShapedGlyph> shapingResult)
+    public static float GetTextHeight(IList<ShapedGlyph> shapingResult)
     {
         if (shapingResult.Count == 0)
         {
@@ -78,7 +77,7 @@ public class TextRenderUtilities
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static SKTextBlob BuildTextBlob(List<ShapedGlyph> shapingResult, SKFont font)
+    public static SKTextBlob BuildTextBlob(IList<ShapedGlyph> shapingResult, SKFont font)
     {
         // Pre-count drawable glyphs (gid != 0) while computing positions using full advance including skipped glyphs.
         int drawableCount = 0;

@@ -18,7 +18,9 @@ public struct PdfCharacterInfo
         ushort[] gid,
         float originalWidth,
         float[] width,
-        VerticalMetric displacement)
+        float xScale,
+        SKPoint offset,
+        float advancement)
     {
         CharacterCode = characterCode;
         Typeface = typeface;
@@ -26,7 +28,9 @@ public struct PdfCharacterInfo
         Gid = gid;
         OriginalWidth = originalWidth;
         Width = width;
-        Displacement = displacement;
+        XScale = xScale;
+        Offset = offset;
+        Advancement = advancement;
     }
 
     /// <summary>
@@ -60,7 +64,17 @@ public struct PdfCharacterInfo
     public float[] Width { get; }
 
     /// <summary>
-    /// Displacement metric for vertical character.
+    /// X Scale factor of the character.
     /// </summary>
-    public VerticalMetric Displacement { get; }
+    public float XScale { get; }
+
+    /// <summary>
+    /// Rendering offset of the character.
+    /// </summary>
+    public SKPoint Offset { get; }
+
+    /// <summary>
+    /// Horizontal or vertical displacement after rendering the character.
+    /// </summary>
+    public float Advancement { get; }
 }

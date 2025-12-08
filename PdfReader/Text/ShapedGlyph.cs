@@ -12,6 +12,7 @@ public readonly struct ShapedGlyph
         int? groupId,
         uint glyphId,
         float advance,
+        float scale,
         float x,
         float y)
     {
@@ -19,6 +20,7 @@ public readonly struct ShapedGlyph
         GroupId = groupId;
         GlyphId = glyphId;
         Advance = advance;
+        Scale = scale;
         X = x;
         Y = y;
     }
@@ -40,9 +42,14 @@ public readonly struct ShapedGlyph
     public int? GroupId { get; }
 
     /// <summary>
-    /// Advance after X till the right edge.
+    /// Advance after X/Y till the edge depending of writing mode.
     /// </summary>
     public float Advance { get; }
+
+    /// <summary>
+    /// Scale factor applied to the glyph.
+    /// </summary>
+    public float Scale { get; }
 
     /// <summary>
     /// X position of the glyph.
