@@ -17,11 +17,13 @@ internal sealed class LayeredThreeDLut : IRgbaSampler
 {
     private readonly Vector3[][] _kSlices; // Array of CMY 3D LUTs (one per sampled K). Each slice stores packed Vector3 RGB values.
     private readonly float[] _kLevels;     // Normalized K level positions for slices (0..1 ascending).
+    private readonly ThreeDLutProfile _profile;
 
-    private LayeredThreeDLut(Vector3[][] kSlices, float[] kLevels)
+    private LayeredThreeDLut(Vector3[][] kSlices, float[] kLevels, ThreeDLutProfile profile)
     {
         _kSlices = kSlices;
         _kLevels = kLevels;
+        _profile = profile;
     }
 
     /// <summary>
@@ -30,7 +32,9 @@ internal sealed class LayeredThreeDLut : IRgbaSampler
     /// </summary>
     /// <param name="intent">Rendering intent controlling device to sRGB conversion.</param>
     /// <param name="converter">Delegate converting CMYK (normalized 0..1) to sRGB SKColor.</param>
-    internal static LayeredThreeDLut Build(PdfRenderingIntent intent, DeviceToSrgbCore converter)
+    /// <param name="lutSize">Size of the LUT (default is 16).</param>
+    /// <param name="layerCount">Number of K (black) layers to sample (default is 8).</param>
+    internal static LayeredThreeDLut Build(PdfRenderingIntent intent, DeviceToSrgbCore converter, int lutSize = 16, int layerCount = 8)
     {
         if (converter == null)
         {
@@ -38,13 +42,20 @@ internal sealed class LayeredThreeDLut : IRgbaSampler
         }
 
         // Tunable K sampling distribution (denser near ends for smoother highlight / shadow transitions).
-        float[] kLevels = [0f, 0.05f, 0.15f, 0.30f, 0.50f, 0.70f, 0.85f, 1.0f];
+        float[] kLevels = new float[layerCount];
+
+        for (int i = 0; i < layerCount; i++)
+        {
+            kLevels[i] = (float)i / (layerCount - 1);
+        }
 
         int sliceCount = kLevels.Length;
         var slices = new Vector3[sliceCount][];
 
-        int gridSize = TreeDLut.GridSize; // 17
-        int pointCount = gridSize * gridSize * gridSize; // 4913
+        int gridSize = 16;
+        int pointCount = gridSize * gridSize * gridSize;
+        var profile = new ThreeDLutProfile(gridSize);
+
         Span<float> components = stackalloc float[4]; // CMYK
 
         for (int sliceIndex = 0; sliceIndex < sliceCount; sliceIndex++)
@@ -79,7 +90,7 @@ internal sealed class LayeredThreeDLut : IRgbaSampler
             slices[sliceIndex] = slice;
         }
 
-        return new LayeredThreeDLut(slices, kLevels);
+        return new LayeredThreeDLut(slices, kLevels, profile);
     }
 
     /// <inheritdoc />
@@ -110,12 +121,12 @@ internal sealed class LayeredThreeDLut : IRgbaSampler
         if (upperSliceIndex == 0)
         {
             Vector3[] firstSlice = _kSlices[0];
-            TreeDLut.Sample(ref firstSlice[0], source, ref destination);
+            TreeDLut.Sample(ref firstSlice[0], _profile, source, ref destination);
         }
         else if (upperSliceIndex >= _kLevels.Length)
         {
             Vector3[] lastSlice = _kSlices[_kLevels.Length - 1];
-            TreeDLut.Sample(ref lastSlice[0], source, ref destination);
+            TreeDLut.Sample(ref lastSlice[0], _profile, source, ref destination);
         }
         else
         {
@@ -137,8 +148,8 @@ internal sealed class LayeredThreeDLut : IRgbaSampler
 
             RgbaPacked lowerSample = default;
             RgbaPacked upperSample = default;
-            TreeDLut.Sample(ref lowerSlice[0], source, ref lowerSample);
-            TreeDLut.Sample(ref upperSlice[0], source, ref upperSample);
+            TreeDLut.Sample(ref lowerSlice[0], _profile, source, ref lowerSample);
+            TreeDLut.Sample(ref upperSlice[0], _profile, source, ref upperSample);
 
             float blendLowerWeight = 1f - t;
             float blendUpperWeight = t;

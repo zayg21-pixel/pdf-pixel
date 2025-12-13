@@ -61,7 +61,9 @@ public class FormRenderer : IFormRenderer
             var parseContext = new PdfParseContext(content);
             var formPage = formXObject.GetFormPage();
             var localGs = graphicsState.Clone();
-            localGs.CTM = formXObject.Matrix.PostConcat(graphicsState.CTM);
+
+            // CTM is used for patterns, form space is isolated for pattern rendering, so only form matrix is applied
+            localGs.CTM = formXObject.Matrix;
 
             // Prevent double-application: global soft mask is applied by outer wrapper
             localGs.SoftMask = null;

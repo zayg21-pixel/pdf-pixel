@@ -39,8 +39,8 @@ public sealed class PdfShading
             ExtendEnd = extendArr.GetBoolean(1);
         }
 
-        var colorSpaceValue = rawDictionary.GetValue(PdfTokens.ColorSpaceKey);
-        ColorSpaceConverter = page.Cache.ColorSpace.ResolveByValue(colorSpaceValue);
+        var colorSpaceValue = rawDictionary.GetObject(PdfTokens.ColorSpaceKey);
+        ColorSpaceConverter = page.Cache.ColorSpace.ResolveByObject(colorSpaceValue);
         Functions = new List<PdfFunction>();
 
         var functionObjects = rawDictionary.GetObjects(PdfTokens.FunctionKey);

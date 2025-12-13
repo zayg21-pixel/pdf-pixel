@@ -41,4 +41,9 @@ internal sealed class IccTagEntry
     /// Convenience string representation of the signature (4 printable ASCII characters when valid).
     /// </summary>
     public string SignatureString => BigEndianReader.FourCCToString(Signature);
+
+    public override string ToString()
+    {
+        return SignatureString;
+    }
 }

@@ -137,7 +137,9 @@ internal static partial class PdfShadingBuilder
 
         if (shading.Functions.Count > 0)
         {
-            const int SampleCount = 64;
+            const int SampleCount = 256;
+            // TODO: well, this does not really work, we need a better sampling strategy, basically, same issue as with shading type 1
+            // when where's sampled function involved, we need a pixel-accurate sampling based on the actual gradient length in device space
             colors = new SKColor[SampleCount];
             positions = new float[SampleCount];
             for (int sampleIndex = 0; sampleIndex < SampleCount; sampleIndex++)

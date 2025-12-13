@@ -32,7 +32,7 @@ internal class PdfTextExtractionRenderer : IPdfRenderer
             var parseContext = new PdfParseContext(content);
             var formPage = formXObject.GetFormPage();
             var localGs = graphicsState.Clone();
-            localGs.CTM = formXObject.Matrix.PostConcat(graphicsState.CTM);
+            localGs.CTM = formXObject.Matrix;
 
             var renderer = new PdfContentStreamRenderer(this, formPage);
             renderer.RenderContext(canvas, ref parseContext, localGs, processingXObjects);

@@ -42,13 +42,6 @@ internal sealed partial class IccProfile
             return ParseMab(reader, tag.Offset, tag.Size);
         }
 
-        /*
-         * Remaining (future) work – B2A (mBA) reverse direction support:
-         * - Parse B2A0 / B2A1 / B2A2 tags (lut8 / lut16 / 'mBA ').
-         * - Build reverse-direction pipelines mirroring the A2B stage ordering.
-         * - Implement evaluator for PCS -> device (proofing / overprint / special workflows).
-         * This is currently deferred because only device -> sRGB conversion is required.
-         */
         return null;
     }
 
@@ -57,6 +50,7 @@ internal sealed partial class IccProfile
     /// </summary>
     private static IccLutPipeline ParseLut8(BigEndianReader reader, int tagOffset, int tagSize)
     {
+        // TODO: move to common with Lut16
         int inputChannels = reader.ReadByte(tagOffset + 8);
         int outputChannels = reader.ReadByte(tagOffset + 9);
         int uniformGridPoints = reader.ReadByte(tagOffset + 10);
@@ -113,18 +107,13 @@ internal sealed partial class IccProfile
             }
         }
 
-        IccLutPipeline pipeline = new IccLutPipeline(inputChannels, outputChannels, uniformGridPoints, inputTables, clut, outputTables)
-        {
-            Matrix3x3 = inputChannels == 3 ? matrix : null
-        };
-
-        pipeline.GridPointsPerDim = new int[inputChannels];
+        var gridPerDim = new int[inputChannels];
         for (int i = 0; i < inputChannels; i++)
         {
-            pipeline.GridPointsPerDim[i] = uniformGridPoints;
+            gridPerDim[i] = uniformGridPoints;
         }
-        pipeline.ClutPrecisionBytes = 1;
-        return pipeline;
+
+        return new IccLutPipeline(inputChannels, outputChannels, gridPerDim, inputTables, clut, outputTables, matrix);
     }
 
     /// <summary>
@@ -188,18 +177,13 @@ internal sealed partial class IccProfile
             outputTables[channel] = table;
         }
 
-        IccLutPipeline pipeline = new IccLutPipeline(inputChannels, outputChannels, uniformGridPoints, inputTables, clut, outputTables)
-        {
-            Matrix3x3 = inputChannels == 3 ? matrix : null
-        };
-
-        pipeline.GridPointsPerDim = new int[inputChannels];
+        var gridPerDim = new int[inputChannels];
         for (int i = 0; i < inputChannels; i++)
         {
-            pipeline.GridPointsPerDim[i] = uniformGridPoints;
+            gridPerDim[i] = uniformGridPoints;
         }
-        pipeline.ClutPrecisionBytes = 2;
-        return pipeline;
+
+        return new IccLutPipeline(inputChannels, outputChannels, gridPerDim, inputTables, clut, outputTables, matrix);
     }
 
     /// <summary>
@@ -298,10 +282,6 @@ internal sealed partial class IccProfile
         if (offsetClut != 0)
         {
             int clutPos = tagStart + (int)offsetClut;
-            if (!IsInsideTag(clutPos, tagStart, tagSize))
-            {
-                return null;
-            }
 
             gridPerDim = new int[inputChannels];
             for (int i = 0; i < inputChannels; i++)
@@ -310,15 +290,15 @@ internal sealed partial class IccProfile
                 gridPerDim[i] = gp <= 0 ? 1 : gp;
             }
 
-            precision = reader.ReadByte(clutPos + inputChannels);
+            // Precision is fixed at payload offset + 16 per ICC spec
+            precision = reader.ReadByte(clutPos + 16);
             if (precision != 1 && precision != 2)
             {
                 return null;
             }
 
-            int dataStart = clutPos + inputChannels + 1;
-            int pad = (4 - (dataStart & 3)) & 3;
-            dataStart += pad;
+            // Data starts after 4 bytes of padding at payload + 20
+            int dataStart = clutPos + 20;
             if (!IsInsideTag(dataStart, tagStart, tagSize))
             {
                 return null;
@@ -364,7 +344,7 @@ internal sealed partial class IccProfile
             }
         }
 
-        IccLutPipeline pipeline = IccLutPipeline.CreateMab(inputChannels, outputChannels, gridPerDim, precision, curvesA, curvesM, curvesB, clut, matrix3x3, matrixOffset);
+        IccLutPipeline pipeline = IccLutPipeline.CreateMab(inputChannels, outputChannels, gridPerDim, curvesA, curvesM, curvesB, clut, matrix3x3, matrixOffset);
         return pipeline;
     }
 
@@ -379,48 +359,11 @@ internal sealed partial class IccProfile
         int cursor = sequenceStart;
         for (int i = 0; i < count; i++)
         {
-            list[i] = ReadCurveAt(reader, cursor, out int curveSize);
+            list[i] = ReadTrcPayload(reader, cursor, out int curveSize);
             int next = cursor + curveSize;
             int pad = (4 - (next & 3)) & 3;
             cursor = next + pad;
         }
         return list;
-    }
-
-    private static IccTrc ReadCurveAt(BigEndianReader reader, int pos, out int size)
-    {
-        size = 0;
-        uint type = reader.ReadUInt32(pos);
-
-        if (type == BigEndianReader.FourCC(IccConstants.TypeCurv))
-        {
-            uint count = reader.ReadUInt32(pos + 8);
-            if (count == 1)
-            {
-                ushort gammaFixed = reader.ReadUInt16(pos + 12);
-                size = 12 + 2; // 14 bytes total; padding handled by caller.
-                return IccTrc.FromGamma(BigEndianReader.U8Fixed8ToSingle(gammaFixed));
-            }
-
-            // Sampled curves (not yet expanded here; higher level builds LUT if needed)
-            size = 12 + (int)count * 2;
-            return IccTrc.Sampled((int)count);
-        }
-
-        if (type == BigEndianReader.FourCC(IccConstants.TypePara))
-        {
-            ushort funcType = reader.ReadUInt16(pos + 8);
-            int paramCount = GetParamCount(funcType);
-            size = 12 + paramCount * 4;
-            if (funcType == 0 && paramCount >= 1)
-            {
-                int gammaRaw = reader.ReadInt32(pos + 12);
-                return IccTrc.FromGamma(BigEndianReader.S15Fixed16ToSingle(gammaRaw));
-            }
-            return IccTrc.UnsupportedParametric(funcType);
-        }
-
-        size = 12;
-        return IccTrc.UnsupportedParametric(-1);
     }
 }

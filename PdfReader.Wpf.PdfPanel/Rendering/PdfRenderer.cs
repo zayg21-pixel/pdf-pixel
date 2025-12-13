@@ -1,6 +1,8 @@
-﻿using SkiaSharp;
+﻿using PdfReader.Models;
+using SkiaSharp;
 using System;
-using PdfReader.Models;
+using System.IO;
+using System.Windows.Shapes;
 
 namespace PdfReader.Wpf.PdfPanel.Rendering
 {
@@ -72,7 +74,13 @@ namespace PdfReader.Wpf.PdfPanel.Rendering
             //}
 
             canvas.Flush();
-            return recorder.EndRecording();
+            var picture = recorder.EndRecording();
+
+            //string path = $"page_{pageNumber}.skp";
+            //using var fileStream = File.OpenWrite(path);
+            //picture.Serialize(fileStream);
+
+            return picture;
         }
 
         public void Dispose()

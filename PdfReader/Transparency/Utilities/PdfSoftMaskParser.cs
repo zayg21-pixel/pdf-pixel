@@ -46,8 +46,8 @@ internal class PdfSoftMaskParser
         {
             return null;
         }
-        var csValue = groupDict.GetValue(PdfTokens.GroupColorSpaceKey);
-        group.ColorSpaceConverter = page.Cache.ColorSpace.ResolveByValue(csValue);
+        var csValue = groupDict.GetObject(PdfTokens.GroupColorSpaceKey);
+        group.ColorSpaceConverter = page.Cache.ColorSpace.ResolveByObject(csValue);
         group.Isolated = groupDict.GetBooleanOrDefault(PdfTokens.GroupIsolatedKey);
         group.Knockout = groupDict.GetBooleanOrDefault(PdfTokens.GroupKnockoutKey);
         return group;

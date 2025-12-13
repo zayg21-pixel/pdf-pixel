@@ -22,6 +22,36 @@ internal sealed partial class ColorSpaceResolver
     }
 
     /// <summary>
+    /// Resolves the appropriate <see cref="PdfColorSpaceConverter"/> for the specified <paramref name="pdfObject"/>.
+    /// </summary>
+    /// <remarks>If <paramref name="pdfObject"/> has a valid reference and a matching converter is found in
+    /// the cache, the cached converter is returned. Otherwise, the converter is resolved from the object's value and
+    /// may be cached for future use.</remarks>
+    /// <param name="pdfObject">The PDF object representing a color space definition. Must not be <c>null</c>.</param>
+    /// <param name="defaultComponents">The default number of color components to assume if the color space type cannot be determined. Must be a
+    /// positive integer. The default is 3.</param>
+    /// <returns>A <see cref="PdfColorSpaceConverter"/> instance corresponding to the color space described by <paramref
+    /// name="pdfObject"/>.</returns>
+    public PdfColorSpaceConverter ResolveByObject(PdfObject pdfObject, int defaultComponents = 3)
+    {
+        if (pdfObject == null)
+        {
+            return ResolveDeviceConverter(defaultComponents);
+        }
+
+        if (TryResolveFromCache(pdfObject, out var cached))
+        {
+            return cached;
+        }
+
+        var result = ResolveByValue(pdfObject.Value, defaultComponents);
+
+        TryStoreByReference(pdfObject, result);
+
+        return result;
+    }
+
+    /// <summary>
     /// Resolve a color space converter from a generic value which may be:
     ///1) A name (device or resource key)
     ///2) A parameter array (e.g. [/ICCBased obj])

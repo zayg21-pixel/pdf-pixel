@@ -15,16 +15,13 @@ namespace PdfReader.Color.Lut;
 /// </summary>
 internal sealed class OneDLutGray : IRgbaSampler
 {
-    internal const int GridSize = 64; // 64 lattice points
-    private const int GridIndexShift = 6; // Upper 6 bits: lattice index, lower 2 bits: fractional component
-    private const int GridIndexMask = 0x3F; // Mask for fractional component (0..63)
-    private const float Inv63 = 1f / 63f; // Fraction conversion for index (0..63 -> 0..1)
-
     private readonly Vector3[] _lut;
+    private readonly int _lutSize;
 
-    private OneDLutGray(Vector3[] lut)
+    private OneDLutGray(Vector3[] lut, int lutSize)
     {
         _lut = lut;
+        _lutSize = lutSize;
     }
 
     /// <summary>
@@ -33,25 +30,26 @@ internal sealed class OneDLutGray : IRgbaSampler
     /// </summary>
     /// <param name="intent">The rendering intent controlling device to sRGB conversion.</param>
     /// <param name="converter">Delegate converting normalized device color to sRGB SKColor.</param>
+    /// <param name="lutSize">Size of the LUT (default is 64).</param>
     /// <returns>A new <see cref="OneDLutGray"/> instance containing the sampled LUT, or null if converter is null.</returns>
-    public static OneDLutGray Build(PdfRenderingIntent intent, DeviceToSrgbCore converter)
+    public static OneDLutGray Build(PdfRenderingIntent intent, DeviceToSrgbCore converter, int lutSize = 64)
     {
         if (converter == null)
         {
             return default;
         }
-        int n = GridSize;
-        Vector3[] lut = new Vector3[n];
+
+        Vector3[] lut = new Vector3[lutSize];
         Span<float> input = stackalloc float[1];
 
-        for (int i = 0; i < n; i++)
+        for (int i = 0; i < lutSize; i++)
         {
-            float grayNorm = (float)i / (n - 1);
+            float grayNorm = (float)i / (lutSize - 1);
             input[0] = grayNorm;
             SKColor color = converter(input, intent);
             lut[i] = new Vector3(color.Red, color.Green, color.Blue);
         }
-        return new OneDLutGray(lut);
+        return new OneDLutGray(lut, lutSize);
     }
 
     /// <inheritdoc />
@@ -67,7 +65,7 @@ internal sealed class OneDLutGray : IRgbaSampler
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void Sample(ReadOnlySpan<float> source, ref RgbaPacked destination)
     {
-        Sample(ref _lut[0], source, ref destination);
+        Sample(ref _lut[0], _lutSize, source, ref destination);
     }
 
     /// <summary>
@@ -77,19 +75,20 @@ internal sealed class OneDLutGray : IRgbaSampler
     /// The result is written to the destination pixel.
     /// </summary>
     /// <param name="lut">Reference to the first element of the LUT array.</param>
+    /// <param name="lutSize">Size of the LUT array.</param>
     /// <param name="source">The source pixel to sample (gray component in [0,1]).</param>
     /// <param name="destination">The destination pixel to receive the sampled color.</param>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static void Sample(ref Vector3 lut, ReadOnlySpan<float> source, ref RgbaPacked destination)
+    public static void Sample(ref Vector3 lut, int lutSize, ReadOnlySpan<float> source, ref RgbaPacked destination)
     {
         float gray = source[0];
-        float scaled = gray * (GridSize - 1);
+        float scaled = gray * (lutSize - 1);
         int index = (int)scaled;
         float frac = scaled - index;
 
         ref Vector3 c0 = ref Unsafe.Add(ref lut, index);
         ref Vector3 c1 = ref lut;
-        if (index < GridSize - 1)
+        if (index < lutSize - 1)
         {
             c1 = ref Unsafe.Add(ref lut, index + 1);
         }

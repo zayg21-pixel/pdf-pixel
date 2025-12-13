@@ -119,6 +119,9 @@ public sealed class SoftMaskDrawingScope : IDisposable
                 var maskGs = _softMask.Subtype == PdfSoftMaskSubtype.Luminosity
                     ? SoftMaskUtilities.CreateLuminosityMaskGraphicsState()
                     : SoftMaskUtilities.CreateAlphaMaskGraphicsState();
+
+                maskGs.CTM = SKMatrix.Concat(_graphicsState.CTM, _softMask.MaskForm.Matrix);
+
                 var page = _softMask.MaskForm.GetFormPage();
                 var contentRenderer = new PdfContentStreamRenderer(_renderer, page);
                 contentRenderer.RenderContext(recCanvas, ref parseContext, maskGs, new HashSet<uint>());

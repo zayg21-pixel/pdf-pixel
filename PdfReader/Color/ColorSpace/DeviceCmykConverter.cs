@@ -1,5 +1,5 @@
-using PdfReader.Color.Icc.Converters;
 using PdfReader.Color.Icc.Model;
+using PdfReader.Color.Icc.Transform;
 using PdfReader.Color.Lut;
 using PdfReader.Resources;
 using SkiaSharp;
@@ -16,16 +16,14 @@ namespace PdfReader.Color.ColorSpace;
 internal sealed class DeviceCmykConverter : PdfColorSpaceConverter
 {
     public static readonly DeviceCmykConverter Instance = new DeviceCmykConverter();
-    private static readonly IccCmykColorConverter _iccCmykConverter;
+    private static readonly IccProfileTransform _iccTransform;
 
     static DeviceCmykConverter()
     {
         var cmykIccBytes = PdfResourceLoader.GetResource("CompactCmyk.icc");
         var cmykProfile = IccProfile.Parse(cmykIccBytes);
-        _iccCmykConverter = new IccCmykColorConverter(cmykProfile);
+        _iccTransform = new IccProfileTransform(cmykProfile);
     }
-
-    public IccProfile Profile => _iccCmykConverter.IccProfile;
 
     public override int Components => 4;
 
@@ -34,7 +32,7 @@ internal sealed class DeviceCmykConverter : PdfColorSpaceConverter
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     protected override SKColor ToSrgbCore(ReadOnlySpan<float> comps01, PdfRenderingIntent renderingIntent)
     {
-        _iccCmykConverter.TryToSrgb01(comps01, renderingIntent, out var srgb01);
+        var srgb01 = _iccTransform.Transform(comps01, renderingIntent);
         return new SKColor(ToByte(srgb01.X), ToByte(srgb01.Y), ToByte(srgb01.Z));
     }
 

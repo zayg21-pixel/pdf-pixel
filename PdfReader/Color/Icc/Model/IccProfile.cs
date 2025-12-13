@@ -9,16 +9,22 @@ namespace PdfReader.Color.Icc.Model;
 /// </summary>
 internal sealed partial class IccProfile
 {
+    public IccProfile(byte[] bytes, IccProfileHeader header)
+    {
+        Bytes = bytes;
+        Header = header;
+    }
+
     /// <summary>
     /// Original ICC profile bytes.
     /// </summary>
-    public byte[] Bytes { get; set; }
+    public byte[] Bytes { get; }
 
     /// <summary>
     /// Full ICC profile header (fixed 128-byte structure) containing high-level metadata such as
     /// device class, data color space, PCS, version, rendering intent hint and illuminant.
     /// </summary>
-    public IccProfileHeader Header { get; set; }
+    public IccProfileHeader Header { get; }
 
     /// <summary>
     /// Raw tag directory entries as parsed from the profile. Maintained mainly for diagnostics
@@ -80,46 +86,6 @@ internal sealed partial class IccProfile
     /// Human-readable profile description (desc or first mluc record).
     /// </summary>
     public string Description { get; set; }
-
-    /// <summary>
-    /// A2B0 (Perceptual) legacy / v2 AToB LUT structural metadata (if present).
-    /// </summary>
-    public IccLutAToB A2B0 { get; set; }
-
-    /// <summary>
-    /// A2B1 (Relative Colorimetric) legacy / v2 AToB LUT structural metadata (if present).
-    /// </summary>
-    public IccLutAToB A2B1 { get; set; }
-
-    /// <summary>
-    /// A2B2 (Saturation) legacy / v2 AToB LUT structural metadata (if present).
-    /// </summary>
-    public IccLutAToB A2B2 { get; set; }
-
-    /// <summary>
-    /// B2A0 (Perceptual) legacy / v2 BToA LUT structural metadata (if present).
-    /// </summary>
-    public IccLutBToA B2A0 { get; set; }
-
-    /// <summary>
-    /// B2A1 (Relative Colorimetric) legacy / v2 BToA LUT structural metadata (if present).
-    /// </summary>
-    public IccLutBToA B2A1 { get; set; }
-
-    /// <summary>
-    /// B2A2 (Saturation) legacy / v2 BToA LUT structural metadata (if present).
-    /// </summary>
-    public IccLutBToA B2A2 { get; set; }
-
-    /// <summary>
-    /// Fast flag indicating presence of a perceptual A2B transform.
-    /// </summary>
-    public bool HasA2B0 { get; set; }
-
-    /// <summary>
-    /// Fast flag indicating presence of a perceptual B2A transform.
-    /// </summary>
-    public bool HasB2A0 { get; set; }
 
     /// <summary>
     /// Parsed A2B LUT pipeline (Perceptual intent) if available – contains raw tables and CLUT.

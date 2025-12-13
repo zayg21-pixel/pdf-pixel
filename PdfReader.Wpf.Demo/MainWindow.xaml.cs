@@ -55,7 +55,9 @@ namespace PdfReader.Wpf.Demo
 
         private void FilesCombo_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
         {
-            pdfPanel.Pages?.Dispose();
+            var currentPages = pdfPanel.Pages;
+            pdfPanel.Pages = null;
+            currentPages?.Dispose();
 
             var fileStream = File.OpenRead(pdfFiles[FilesCombo.SelectedIndex]);
             reader.Read(fileStream);

@@ -50,7 +50,7 @@ internal sealed class IccProfileHeader
     /// <summary>
     /// Data color space signature (e.g. 'RGB ', 'CMYK', 'GRAY').
     /// </summary>
-    public string ColorSpace { get; set; }
+    public string ColorSpace { get; set; } // TODO: replace with enum?
 
     /// <summary>
     /// Profile Connection Space (PCS) signature (e.g. 'XYZ ', 'Lab ').
@@ -58,9 +58,9 @@ internal sealed class IccProfileHeader
     public string Pcs { get; set; }
 
     /// <summary>
-    /// Profile creation timestamp (UTC) if valid; otherwise null when date/time fields are out-of-range.
+    /// Profile creation timestamp (UTC).
     /// </summary>
-    public DateTime? CreationTime { get; set; }
+    public DateTime CreationTime { get; set; }
 
     /// <summary>
     /// Primary platform signature (e.g. 'MSFT', 'APPL').
@@ -88,9 +88,9 @@ internal sealed class IccProfileHeader
     public uint RenderingIntent { get; set; }
 
     /// <summary>
-    /// Profile illuminant XYZ (typically D50) if valid.
+    /// Profile illuminant XYZ (typically D50)
     /// </summary>
-    public IccXyz? Illuminant { get; set; }
+    public IccXyz Illuminant { get; set; }
 
     /// <summary>
     /// Profile creator signature (4-character code identifying the creator application/tool).
@@ -142,18 +142,10 @@ internal sealed class IccProfileHeader
         int ix = reader.ReadInt32(OffsetIlluminant + 0);
         int iy = reader.ReadInt32(OffsetIlluminant + 4);
         int iz = reader.ReadInt32(OffsetIlluminant + 8);
-        IccXyz? illuminant = null;
-        try
-        {
-            illuminant = new IccXyz(
-                BigEndianReader.S15Fixed16ToSingle(ix),
-                BigEndianReader.S15Fixed16ToSingle(iy),
-                BigEndianReader.S15Fixed16ToSingle(iz));
-        }
-        catch
-        {
-            // Leave null if conversion invalid.
-        }
+        IccXyz illuminant = new IccXyz(
+            BigEndianReader.S15Fixed16ToSingle(ix),
+            BigEndianReader.S15Fixed16ToSingle(iy),
+            BigEndianReader.S15Fixed16ToSingle(iz));
 
         header.Size = size;
         header.CmmType = BigEndianReader.FourCCToString(reader.ReadUInt32(OffsetCmmType));

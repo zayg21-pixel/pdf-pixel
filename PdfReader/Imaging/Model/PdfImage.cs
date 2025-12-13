@@ -144,7 +144,7 @@ public class PdfImage
             Height = imageXObject.Dictionary.GetIntegerOrDefault(PdfTokens.HeightKey),
             BitsPerComponent = bitsPerComponent,
             IsSoftMask = isSoftMask,
-            ColorSpaceConverter = page.Cache.ColorSpace.ResolveByValue(imageXObject.Dictionary.GetValue(PdfTokens.ColorSpaceKey), defaultComponents),
+            ColorSpaceConverter = page.Cache.ColorSpace.ResolveByObject(imageXObject.Dictionary.GetObject(PdfTokens.ColorSpaceKey), defaultComponents),
             Name = name
         };
 

@@ -24,7 +24,9 @@ namespace PdfReader.Imaging.Jpg.Color
         {
             // JPEG marker constants
             const ushort APP2 = 0xFFE2;
-            const int MaxSegmentData = 65519; // 65535 - 2 (length) - 12 (ICC header) - 2 (marker)
+            // The JPEG segment length includes the two length bytes. ICC APP2 payload has 14 bytes of header (12 for "ICC_PROFILE\0" + 2 for sequence info).
+            // Therefore, the maximum ICC data per segment is: 65535 (max length) - 2 (length field itself) - 14 (ICC header) = 65519.
+            const int MaxSegmentData = 65519;
             byte[] src = sourceBytes.ToArray();
             if (src.Length < 2 || src[0] != 0xFF || src[1] != 0xD8)
             {
@@ -125,8 +127,8 @@ namespace PdfReader.Imaging.Jpg.Color
                 // APP2 marker
                 output.WriteByte(0xFF);
                 output.WriteByte(0xE2);
-                // Length: 2 + 12 (ICC header) + count
-                int segLen = 2 + 12 + count;
+                // Length: 2 (length field itself) + 14 (ICC header including sequence) + count
+                int segLen = 2 + 14 + count;
                 output.WriteByte((byte)(segLen >> 8));
                 output.WriteByte((byte)(segLen & 0xFF));
                 // ICC_PROFILE\0

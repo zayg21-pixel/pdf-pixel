@@ -27,6 +27,11 @@ internal class PdfDocumentObjectCache
     internal IccProfile OutputIntentProfile { get; set; }
 
     /// <summary>
+    /// Catalog output intent converter parsed from <see cref="IccProfile"/>. Null when none present or invalid.
+    /// </summary>
+    internal IccBasedConverter OutputIntentConverter { get; set; }
+
+    /// <summary>
     /// Document font cache.
     /// </summary>
     internal Dictionary<PdfReference, PdfFontBase> Fonts { get; } = new Dictionary<PdfReference, PdfFontBase>();

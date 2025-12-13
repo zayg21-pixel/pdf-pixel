@@ -1,5 +1,5 @@
-using PdfReader.Color.Icc.Converters;
 using PdfReader.Color.Icc.Model;
+using PdfReader.Color.Icc.Transform;
 using PdfReader.Color.Lut;
 using SkiaSharp;
 using System;
@@ -13,11 +13,9 @@ internal sealed class IccBasedConverter : PdfColorSpaceConverter
     private readonly int _n;
     private readonly bool _useDefault;
     private readonly PdfColorSpaceConverter _default;
-    private static readonly Vector3 _vectorToByte3 = new Vector3(255f);
-    private static readonly Vector3 _vectorRounding3 = new Vector3(0.5f);
-    private readonly IccGrayColorConverter _grayConverter;
-    private readonly IccRgbColorConverter _rgbConverter;
-    private readonly IccCmykColorConverter _cmykConverter;
+    private static readonly Vector4 _vectorToByte = new Vector4(255f);
+    private static readonly Vector4 _vectorRounding = new Vector4(0.5f);
+    private readonly IccProfileTransform _iccTransform;
 
     private IccBasedConverter(int n, PdfColorSpaceConverter alternate)
     {
@@ -46,20 +44,11 @@ internal sealed class IccBasedConverter : PdfColorSpaceConverter
 
         if (profile != null)
         {
-            switch (n)
+            _iccTransform = new IccProfileTransform(profile);
+
+            if (!_iccTransform.IsValid || _iccTransform.NChannels != n)
             {
-                case 1:
-                    _grayConverter = new IccGrayColorConverter(profile);
-                    break;
-                case 3:
-                    _rgbConverter = new IccRgbColorConverter(profile);
-                    break;
-                case 4:
-                    _cmykConverter = new IccCmykColorConverter(profile);
-                    break;
-                default:
-                    _useDefault = true;
-                    break;
+                _useDefault = true;
             }
         }
         else
@@ -84,34 +73,16 @@ internal sealed class IccBasedConverter : PdfColorSpaceConverter
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     protected override SKColor ToSrgbCore(ReadOnlySpan<float> comps01, PdfRenderingIntent intent)
     {
-        if (_useDefault || comps01.Length != N)
+        if (_useDefault)
         {
             return _default.ToSrgb(comps01, intent);
         }
 
-        Vector3 result = default;
-        bool converterUsed = false;
+        var result = _iccTransform.Transform(comps01, intent);
 
-        switch (comps01.Length)
-        {
-            case 1:
-                converterUsed = _grayConverter.TryToSrgb01(comps01[0], intent, out result);
-                break;
-            case 3:
-                converterUsed = _rgbConverter.TryToSrgb01(comps01, intent, out result);
-                break;
-            case 4:
-                converterUsed = _cmykConverter.TryToSrgb01(comps01, intent, out result);
-                break;
-        }
+        var converted = ConvertTyByte(result);
 
-        if (converterUsed)
-        {
-            Vector3 converted = ConvertTyByte(result);
-            return new SKColor((byte)converted.X, (byte)converted.Y, (byte)converted.Z);
-        }
-
-        return _default.ToSrgb(comps01, intent);
+        return new SKColor((byte)converted.X, (byte)converted.Y, (byte)converted.Z);
     }
 
     protected override IRgbaSampler GetRgbaSamplerCore(PdfRenderingIntent intent)
@@ -138,9 +109,10 @@ internal sealed class IccBasedConverter : PdfColorSpaceConverter
         }
     }
 
-    private static Vector3 ConvertTyByte(Vector3 rgb01)
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static Vector4 ConvertTyByte(Vector4 rgb01)
     {
-        Vector3 converted = rgb01 * _vectorToByte3 + _vectorRounding3;
-        return Vector3.Clamp(converted, Vector3.Zero, _vectorToByte3);
+        Vector4 converted = rgb01 * _vectorToByte + _vectorRounding;
+        return Vector4.Clamp(converted, Vector4.Zero, _vectorToByte);
     }
 }

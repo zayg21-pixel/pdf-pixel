@@ -24,11 +24,7 @@ internal sealed partial class IccProfile
         }
 
         var reader = new BigEndianReader(data);
-        var profile = new IccProfile
-        {
-            Bytes = data,
-            Header = IccProfileHeader.Read(reader)
-        };
+        var profile = new IccProfile(data, IccProfileHeader.Read(reader));
 
         ParseTagDirectory(reader, profile);
         ParseSelectedTags(reader, profile);
@@ -107,27 +103,13 @@ internal sealed partial class IccProfile
                     }
                     break;
                 case IccConstants.TagA2B0:
-                    profile.A2B0 = ReadAToB(reader, tag);
-                    profile.HasA2B0 = profile.A2B0 != null;
                     profile.A2BLut0 = ParseA2BLut(reader, tag);
                     break;
                 case IccConstants.TagA2B1:
-                    profile.A2B1 = ReadAToB(reader, tag);
                     profile.A2BLut1 = ParseA2BLut(reader, tag);
                     break;
                 case IccConstants.TagA2B2:
-                    profile.A2B2 = ReadAToB(reader, tag);
                     profile.A2BLut2 = ParseA2BLut(reader, tag);
-                    break;
-                case IccConstants.TagB2A0:
-                    profile.B2A0 = ReadBToA(reader, tag);
-                    profile.HasB2A0 = profile.B2A0 != null;
-                    break;
-                case IccConstants.TagB2A1:
-                    profile.B2A1 = ReadBToA(reader, tag);
-                    break;
-                case IccConstants.TagB2A2:
-                    profile.B2A2 = ReadBToA(reader, tag);
                     break;
             }
         }
@@ -155,58 +137,87 @@ internal sealed partial class IccProfile
             BigEndianReader.S15Fixed16ToSingle(z));
     }
 
-    private static IccTrc ReadTrcType(BigEndianReader reader, IccTagEntry tag)
+    /// <summary>
+    /// Common TRC payload reader. Handles both 'curv' and 'para' types at the given position.
+    /// Returns the decoded <see cref="IccTrc"/> and outputs the payload size for alignment.
+    /// </summary>
+    private static IccTrc ReadTrcPayload(BigEndianReader reader, int pos, out int payloadSize)
     {
-        if (!reader.CanRead(tag.Offset, 12))
+        payloadSize = 12;
+        if (!reader.CanRead(pos, 12))
         {
             return null;
         }
-        uint type = reader.ReadUInt32(tag.Offset);
+
+        uint type = reader.ReadUInt32(pos);
         if (type == BigEndianReader.FourCC(IccConstants.TypeCurv))
         {
-            uint count = reader.ReadUInt32(tag.Offset + 8);
+            uint count = reader.ReadUInt32(pos + 8);
             if (count == 1)
             {
-                if (!reader.CanRead(tag.Offset + 12, 2))
+                if (!reader.CanRead(pos + 12, 2))
                 {
+                    payloadSize = 14;
                     return null;
                 }
-                ushort u8f8 = reader.ReadUInt16(tag.Offset + 12);
-                return IccTrc.FromGamma(BigEndianReader.U8Fixed8ToSingle(u8f8));
+                ushort gammaFixed = reader.ReadUInt16(pos + 12);
+                payloadSize = 14;
+                return IccTrc.FromGamma(BigEndianReader.U8Fixed8ToSingle(gammaFixed));
             }
+
             int sampleCount = (int)Math.Min(int.MaxValue, count);
-            if (!reader.CanRead(tag.Offset + 12, sampleCount * 2))
+            payloadSize = 12 + sampleCount * 2;
+
+            if (!reader.CanRead(pos + 12, sampleCount * 2))
             {
-                return IccTrc.Sampled(sampleCount);
+                return IccTrc.FromSamples(new float[sampleCount]);
             }
+
             float[] samples = new float[sampleCount];
-            int pos = tag.Offset + 12;
+            int dataPos = pos + 12;
             for (int i = 0; i < sampleCount; i++)
             {
-                samples[i] = reader.ReadUInt16(pos + i * 2) / 65535f;
+                samples[i] = reader.ReadUInt16(dataPos + i * 2) / 65535f;
             }
             return IccTrc.FromSamples(samples);
         }
+
         if (type == BigEndianReader.FourCC(IccConstants.TypePara))
         {
-            if (!reader.CanRead(tag.Offset, 16))
+            if (!reader.CanRead(pos, 16))
             {
+                payloadSize = 16;
                 return null;
             }
-            ushort funcType = reader.ReadUInt16(tag.Offset + 8);
+
+            ushort funcType = reader.ReadUInt16(pos + 8);
             int paramCount = GetParamCount(funcType);
-            if (!reader.CanRead(tag.Offset + 12, paramCount * 4))
+            payloadSize = 12 + paramCount * 4;
+            if (!reader.CanRead(pos + 12, paramCount * 4))
             {
                 return IccTrc.UnsupportedParametric(funcType);
             }
+
+            if (funcType == 0 && paramCount >= 1)
+            {
+                int gammaRaw = reader.ReadInt32(pos + 12);
+                return IccTrc.FromGamma(BigEndianReader.S15Fixed16ToSingle(gammaRaw));
+            }
+
             float[] parameters = new float[paramCount];
             for (int i = 0; i < paramCount; i++)
             {
-                parameters[i] = BigEndianReader.S15Fixed16ToSingle(reader.ReadInt32(tag.Offset + 12 + i * 4));
+                parameters[i] = BigEndianReader.S15Fixed16ToSingle(reader.ReadInt32(pos + 12 + i * 4));
             }
             return IccTrc.FromParametric(funcType, parameters);
         }
+
         return null;
+    }
+
+    private static IccTrc ReadTrcType(BigEndianReader reader, IccTagEntry tag)
+    {
+        return ReadTrcPayload(reader, tag.Offset, out _);
     }
 
     private static float[,] ReadChadMatrix(BigEndianReader reader, IccTagEntry tag)

@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging;
 using PdfReader.Color.ColorSpace;
+using PdfReader.Color.Icc.Model;
 using PdfReader.Color.Lut;
 using PdfReader.Color.Structures;
 using PdfReader.Imaging.Decoding;
@@ -89,6 +90,8 @@ internal sealed class PdfImageRowProcessor : IDisposable
 
     public static bool ShouldConvertColor(PdfImage image)
     {
+        // TODO: we need to investigate, what kind of profiles are supported by Skia PNG/JPG encoder,
+        // looks like ICC profiles are not fully supported, so we need to convert colors to RGB anyway.
         var converter = image.ColorSpaceConverter;
 
         if (converter == null)
@@ -125,6 +128,16 @@ internal sealed class PdfImageRowProcessor : IDisposable
         if (!(converter is DeviceRgbConverter || converter is DeviceGrayConverter || converter is IndexedConverter || converter is IccBasedConverter))
         {
             return true;
+        }
+
+        if (converter is IccBasedConverter iccBased)
+        {
+            using var skiaIcc = SKColorSpace.CreateIcc(iccBased.Profile.Bytes);
+            
+            if (skiaIcc == null)
+            {
+                return true;
+            }
         }
 
         return false;

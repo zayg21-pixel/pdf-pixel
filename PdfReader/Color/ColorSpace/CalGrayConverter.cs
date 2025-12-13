@@ -1,4 +1,3 @@
-using PdfReader.Color.Lut;
 using SkiaSharp;
 using System;
 using System.Runtime.CompilerServices;
@@ -29,10 +28,5 @@ internal sealed class CalGrayConverter : PdfColorSpaceConverter
     {
         float g01 = comps01.Length > 0 ? comps01[0] : 0f;
         return _sourceCalRgb.ToSrgb([g01, g01, g01], renderingIntent);
-    }
-
-    protected override IRgbaSampler GetRgbaSamplerCore(PdfRenderingIntent intent)
-    {
-        return OneDLutGray.Build(intent, ToSrgbCore);
     }
 }

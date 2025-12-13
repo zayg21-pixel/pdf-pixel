@@ -1,0 +1,141 @@
+﻿using System;
+using System.Numerics;
+using System.Runtime.CompilerServices;
+
+namespace PdfReader.Color.Icc.Transform
+{
+    // TODO: document
+    internal static class IccTransforms
+    {
+        private static readonly Matrix4x4 XyzD65ToRgbLinearMatrix = new Matrix4x4(
+            3.2406f,  -1.5372f, -0.4986f, 0f,
+            -0.9689f,  1.8758f,  0.0415f, 0f,
+            0.0557f,  -0.2040f,  1.0570f, 0f,
+            0f,        0f,       0f,      1f);
+
+        private static Matrix4x4 BradfordMatrix = new Matrix4x4(
+            0.8951f, 0.2664f, -0.1614f, 0f,
+            -0.7502f, 1.7135f, 0.0367f, 0f,
+            0.0389f, -0.0685f, 1.0296f, 0f,
+            0f, 0f, 0f, 1f);
+
+        private static Matrix4x4 BradfordTransposedMatrix;
+        private static Matrix4x4 BradfordInvertedMatrix;
+
+        private static Matrix4x4 LabMatrixTransform = new Matrix4x4(
+            // column 1 (fx):  X*(100/116), Y*(255/500), Z*0, W*(16/116 - 128/500)
+            100f / 116f, 100f / 116f, 100f / 116f, 0f,
+            // column 2 (fy):  X*(100/116), Y*0,        Z*0,  W*(16/116)
+            255f / 500f, 0f, 0f, 0f,
+            // column 3 (fz):  X*(100/116), Y*0,        Z*(-255/200), W*(16/116 + 128/200)
+            0f, 0f, -255f / 200f, 0f,
+            // column 4 (w):   X*0,        Y*0,        Z*0,  W*1
+            16f / 116f - 128f / 500f, 16f / 116f, 16f / 116f + 128f / 200f, 1f);
+
+        private static IIccTransform SrgbLinearToSrgbTransform = BuildSrgbLinearToSrgbTransform();
+
+        static IccTransforms()
+        {
+            BradfordTransposedMatrix = Matrix4x4.Transpose(BradfordMatrix);
+            Matrix4x4.Invert(BradfordMatrix, out BradfordInvertedMatrix);
+            XyzD50ToSrgbTransform = BuildXyzD50ToSrgbTransform();
+            LabD50ToXyzTransform = BuildLabD50ToXyzTransform();
+        }
+
+        public static IIccTransform XyzD50ToSrgbTransform { get; }
+
+        public static IIccTransform LabD50ToXyzTransform { get; }
+
+        public static Vector4 D50WhitePoint { get; } = new Vector4(0.9642f, 1.0000f, 0.8249f, 1.0f);
+
+        public static Vector4 D65WhitePoint { get; } = new Vector4(0.9505f, 1.0000f, 1.0890f, 1.0f);
+
+        public static IIccTransform BuildXyzD50ToSrgbTransform()
+        {
+            var d50ToD65 = BuildBradfordAdaptMatrix(D50WhitePoint, D65WhitePoint);
+            return BuildXyzToSrgbTransform(d50ToD65);
+        }
+
+        public static IIccTransform BuildXyzToSrgbTransform(Vector4 sourceWhite)
+        {
+            var adaptationMatrix4x4 = BuildBradfordAdaptMatrix(sourceWhite, D65WhitePoint);
+            return BuildXyzToSrgbTransform(adaptationMatrix4x4);
+        }
+
+        public static IIccTransform BuildXyzToSrgbTransform(Matrix4x4 adaptationMatrix)
+        {
+            var D50ToSrgbLinearMatrix4x4 = Matrix4x4.Multiply(XyzD65ToRgbLinearMatrix, adaptationMatrix);
+            var transposed = Matrix4x4.Transpose(D50ToSrgbLinearMatrix4x4);
+
+            return new IccChainedTransform(new IccMatrixTransform(transposed), SrgbLinearToSrgbTransform);
+        }
+
+        private static IIccTransform BuildSrgbLinearToSrgbTransform(int lutSize = 1024)
+        {
+            var srgbCompLut = new float[lutSize];
+
+            for (int index = 0; index < lutSize; index++)
+            {
+                float x = (float)index / (lutSize - 1);
+                srgbCompLut[index] = ComputeSrgbCompandScalar(x);
+            }
+
+            float[][] luts = new float[3][];
+
+            for (int channel = 0; channel < luts.Length; channel++)
+            {
+                luts[channel] = srgbCompLut;
+            }
+
+            return new IccPerChannelLutTransform(luts);
+        }
+
+        private static float ComputeSrgbCompandScalar(float componentLinear)
+        {
+            if (componentLinear <= 0f)
+            {
+                return 0f;
+            }
+            if (componentLinear <= 0.0031308f)
+            {
+                return 12.92f * componentLinear;
+            }
+            return 1.055f * MathF.Pow(componentLinear, 1.0f / 2.4f) - 0.055f;
+        }
+
+        public static Matrix4x4 BuildBradfordAdaptMatrix(Vector4 sourceWhite, Vector4 destinationWhite)
+        {
+            Vector4 s = Vector4.Transform(sourceWhite, BradfordTransposedMatrix);
+            Vector4 d = Vector4.Transform(destinationWhite, BradfordTransposedMatrix);
+
+            Vector4 r = d / s;
+            var r3 = Unsafe.As<Vector4, Vector3>(ref r);
+
+            Matrix4x4 diagonalScaling = Matrix4x4.CreateScale(r3);
+
+            // Adaptation matrix: Minv * D * M
+            Matrix4x4 DM = Matrix4x4.Multiply(diagonalScaling, BradfordMatrix);
+            Matrix4x4 result = Matrix4x4.Multiply(BradfordInvertedMatrix, DM);
+            return result;
+        }
+
+        public static IIccTransform BuildLabD50ToXyzTransform()
+        {
+            return BuildLabToXyzTransform(D50WhitePoint);
+        }
+
+        public static IIccTransform BuildLabToXyzTransform(Vector4 whitePoint)
+        {
+            var matrixTransform = new IccMatrixTransform(LabMatrixTransform);
+
+            // Cube function to apply f^3, specification also uses conditional logic which we handle
+            // but it creates minimal (<= 0.03) difference in results.
+            // Original function:
+            //  if f^3 >= 0.008856f ? f^3 : (f - 0.137931034) * 0.12841855;
+            var cubeWhitePointTransform = new IccFunctionTransform(x => x * x * x * whitePoint);
+
+
+            return new IccChainedTransform(matrixTransform, cubeWhitePointTransform);
+        }
+    }
+}

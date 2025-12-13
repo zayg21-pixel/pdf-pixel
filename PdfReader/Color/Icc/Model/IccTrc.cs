@@ -1,3 +1,5 @@
+using PdfReader.Color.Icc.Utilities;
+
 namespace PdfReader.Color.Icc.Model;
 
 /// <summary>
@@ -61,12 +63,12 @@ internal sealed class IccTrc
     /// <summary>
     /// True when the TRC is a supported parametric curve (parametricCurveType 0..4).
     /// </summary>
-    public bool IsParametric { get; }
+    public bool IsParametric { get; } // TODO: we should have it as enum
 
     /// <summary>
     /// Parametric curve type identifier (matches ICC spec enumeration 0..4 for supported types; value retained for unsupported as well).
     /// </summary>
-    public int ParametricType { get; }
+    public int ParametricType { get; } // TODO: support rest of parametric types
 
     /// <summary>
     /// Parameter array for parametric curves (contents depend on <see cref="ParametricType"/>).
@@ -104,20 +106,37 @@ internal sealed class IccTrc
     }
 
     /// <summary>
-    /// Create a placeholder sampled TRC with a specified sample count but without actual sample values.
-    /// Used when the profile provides a sampled curve not yet expanded.
-    /// </summary>
-    public static IccTrc Sampled(int count)
-    {
-        int safeCount = count < 0 ? 0 : count;
-        return new IccTrc(false, 0f, true, safeCount, null, false, 0, null, false);
-    }
-
-    /// <summary>
     /// Create a placeholder for an unsupported parametric TRC type.
     /// </summary>
     public static IccTrc UnsupportedParametric(int type)
     {
         return new IccTrc(false, 0f, false, 0, null, false, type, null, true);
+    }
+
+    /// <summary>
+    /// Converts TRC to LUT with preferred size.
+    /// Size is ignored for sampled and identity TRCs.
+    /// </summary>
+    /// <param name="preferredSize">Preferred LUT size.</param>
+    /// <returns>TRC as sampled LUT.</returns>
+    public float[] ToLut(int preferredSize)
+    {
+        if (IsSampled)
+        {
+            if (Samples.Length == 0)
+            {
+                return [0, 1f];
+            }
+
+            return Samples;
+        }
+
+        float[] lut = new float[preferredSize];
+        for (int index = 0; index < preferredSize; index++)
+        {
+            float x = index / (float)(preferredSize - 1);
+            lut[index] = IccTrcEvaluator.EvaluateTrc(this, x);
+        }
+        return lut;
     }
 }

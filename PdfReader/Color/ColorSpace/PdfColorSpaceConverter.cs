@@ -45,7 +45,10 @@ public abstract class PdfColorSpaceConverter
     /// <returns>sRGB color.</returns>
     public virtual SKColor ToSrgb(ReadOnlySpan<float> comps01, PdfRenderingIntent intent)
     {
-        return GetRgbaSampler(intent).SampleColor(comps01);
+        return ToSrgbCore(comps01, intent);
+        // we can use sampler for performance, but it may be less efficient for single conversions and also less precise
+        // let's keep it for images only for now
+        //return GetRgbaSampler(intent).SampleColor(comps01);
     }
 
     /// <summary>

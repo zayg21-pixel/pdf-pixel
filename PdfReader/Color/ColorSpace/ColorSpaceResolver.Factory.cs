@@ -23,8 +23,8 @@ namespace PdfReader.Color.ColorSpace
                 return null;
             }
 
-            var baseColorSpaceValue = colorSpaceArray.GetValue(1);
-            var baseConverter = ResolveByValue(baseColorSpaceValue);
+            var baseColorSpaceValue = colorSpaceArray.GetObject(1);
+            var baseConverter = ResolveByObject(baseColorSpaceValue);
             if (baseConverter == null)
             {
                 return null;
@@ -70,7 +70,7 @@ namespace PdfReader.Color.ColorSpace
             }
 
             var colorantName = colorSpaceArray.GetName(1);
-            var alternateConverter = ResolveByValue(colorSpaceArray.GetValue(2));
+            var alternateConverter = ResolveByObject(colorSpaceArray.GetObject(2));
             var tintFunction = ResolveTintFunction(colorSpaceArray, 3);
             return new SeparationColorSpaceConverter(colorantName, alternateConverter, tintFunction);
         }
@@ -99,7 +99,7 @@ namespace PdfReader.Color.ColorSpace
                 colorantNames[i] = namesArray.GetString(i);
             }
 
-            var alternateConverter = ResolveByValue(colorSpaceArray.GetValue(2));
+            var alternateConverter = ResolveByObject(colorSpaceArray.GetObject(2));
             var tintFunction = ResolveTintFunction(colorSpaceArray, 3);
             return new DeviceNColorSpaceConverter(colorantNames, alternateConverter, tintFunction);
         }
@@ -181,7 +181,7 @@ namespace PdfReader.Color.ColorSpace
             PdfColorSpaceConverter alternateConverter = null;
             var dictionary = pdfObject.Dictionary;
             componentCount = dictionary.GetIntegerOrDefault(PdfTokens.NKey);
-            var alternateValue = ResolveByValue(dictionary.GetValue(PdfTokens.AlternateKey), componentCount);
+            var alternateValue = ResolveByObject(dictionary.GetObject(PdfTokens.AlternateKey), componentCount);
 
             byte[] iccProfileBytes = null;
             if (pdfObject.HasStream)
@@ -200,8 +200,8 @@ namespace PdfReader.Color.ColorSpace
                 var colorSpaceArray = colorSpaceValue.AsArray();
                 if (colorSpaceArray != null && colorSpaceArray.Count >= 2)
                 {
-                    var baseColorSpaceValue = colorSpaceArray.GetValue(1);
-                    var baseConverter = ResolveByValue(baseColorSpaceValue);
+                    var baseColorSpaceValue = colorSpaceArray.GetObject(1);
+                    var baseConverter = ResolveByObject(baseColorSpaceValue);
                     return new PatternColorSpaceConverter(baseConverter);
                 }
             }
@@ -217,10 +217,10 @@ namespace PdfReader.Color.ColorSpace
             }
 
             var whitePoint = dictionary.GetArray(PdfTokens.WhitePointKey)?.GetFloatArray();
+            var blackPoint = dictionary.GetArray(PdfTokens.BlackPointKey)?.GetFloatArray();
             var range = dictionary.GetArray(PdfTokens.RangeKey)?.GetFloatArray();
 
-
-            return new LabColorSpaceConverter(whitePoint, range);
+            return new LabColorSpaceConverter(whitePoint, blackPoint, range);
         }
 
         private PdfFunction ResolveTintFunction(PdfArray colorSpaceArray, int tintFunctionIndex)
