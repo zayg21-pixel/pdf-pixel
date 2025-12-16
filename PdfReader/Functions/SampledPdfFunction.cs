@@ -16,10 +16,8 @@ public sealed class SampledPdfFunction : PdfFunction
     private readonly int _componentCount;
     private readonly int[] _strides;
     private readonly float[] _table;
-    private readonly float[] _rangePairs;
-    private readonly float[] _decodePairs;
-    private readonly float[] _encodePairs;
-    private readonly float[] _domainPairs;
+    private readonly float[] _decode;
+    private readonly float[] _encode;
 
     private SampledPdfFunction(
         int[] sizes,
@@ -27,20 +25,18 @@ public sealed class SampledPdfFunction : PdfFunction
         int componentCount,
         int[] strides,
         float[] table,
-        float[] rangePairs,
-        float[] decodePairs,
-        float[] encodePairs,
-        float[] domainPairs)
+        float[] range,
+        float[] decode,
+        float[] encode,
+        float[] domain) : base(domain, range)
     {
         _sizes = sizes;
         _dimensions = dimensions;
         _componentCount = componentCount;
         _strides = strides;
         _table = table;
-        _rangePairs = rangePairs;
-        _decodePairs = decodePairs;
-        _encodePairs = encodePairs;
-        _domainPairs = domainPairs;
+        _decode = decode;
+        _encode = encode;
     }
 
     /// <summary>
@@ -63,8 +59,8 @@ public sealed class SampledPdfFunction : PdfFunction
         }
         int dimensions = sizeSource.Length;
 
-        float[] domainPairs = dictionary.GetArray(PdfTokens.DomainKey)?.GetFloatArray();
-        if (domainPairs == null || domainPairs.Length < 2 * dimensions)
+        float[] domain = dictionary.GetArray(PdfTokens.DomainKey)?.GetFloatArray();
+        if (domain == null || domain.Length < 2 * dimensions)
         {
             return null;
         }
@@ -81,15 +77,15 @@ public sealed class SampledPdfFunction : PdfFunction
             return null;
         }
 
-        float[] rangePairs = dictionary.GetArray(PdfTokens.RangeKey)?.GetFloatArray();
-        if (rangePairs == null || rangePairs.Length < 2)
+        float[] range = dictionary.GetArray(PdfTokens.RangeKey)?.GetFloatArray();
+        if (range == null || range.Length < 2)
         {
             return null;
         }
-        int componentCount = rangePairs.Length / 2;
+        int componentCount = range.Length / 2;
 
-        float[] encodePairs = dictionary.GetArray(PdfTokens.EncodeKey)?.GetFloatArray();
-        float[] decodePairs = dictionary.GetArray(PdfTokens.DecodeKey)?.GetFloatArray();
+        float[] encode = dictionary.GetArray(PdfTokens.EncodeKey)?.GetFloatArray();
+        float[] decode = dictionary.GetArray(PdfTokens.DecodeKey)?.GetFloatArray();
 
         // Compute strides dimension 0 fastest
         int[] strides = new int[dimensions];
@@ -124,15 +120,15 @@ public sealed class SampledPdfFunction : PdfFunction
 
                 float outMin;
                 float outMax;
-                if (decodePairs != null && decodePairs.Length >= 2 * componentCount)
+                if (decode != null && decode.Length >= 2 * componentCount)
                 {
-                    outMin = decodePairs[2 * componentIndex];
-                    outMax = decodePairs[2 * componentIndex + 1];
+                    outMin = decode[2 * componentIndex];
+                    outMax = decode[2 * componentIndex + 1];
                 }
                 else
                 {
-                    outMin = rangePairs[2 * componentIndex];
-                    outMax = rangePairs[2 * componentIndex + 1];
+                    outMin = range[2 * componentIndex];
+                    outMax = range[2 * componentIndex + 1];
                 }
 
                 table[linearIndex * componentCount + componentIndex] = outMin + normalized * (outMax - outMin);
@@ -145,10 +141,10 @@ public sealed class SampledPdfFunction : PdfFunction
             componentCount,
             strides,
             table,
-            rangePairs,
-            decodePairs,
-            encodePairs,
-            domainPairs);
+            range,
+            decode,
+            encode,
+            domain);
     }
 
     /// <summary>
@@ -183,17 +179,17 @@ public sealed class SampledPdfFunction : PdfFunction
 
         for (int dimensionIndex = 0; dimensionIndex < _dimensions; dimensionIndex++)
         {
-            float domainMin = _domainPairs[2 * dimensionIndex];
-            float domainMax = _domainPairs[2 * dimensionIndex + 1];
+            float domainMin = Domain[2 * dimensionIndex];
+            float domainMax = Domain[2 * dimensionIndex + 1];
             float inputValue = dimensionIndex < inputs.Length ? inputs[dimensionIndex] : 0f;
             // Clamp input to domain
-            inputValue = Clamp(inputValue, _domainPairs, dimensionIndex);
+            inputValue = Clamp(inputValue, Domain, dimensionIndex);
 
-            float decodeMin = _decodePairs != null && _decodePairs.Length >= 2 * _dimensions
-                ? _decodePairs[2 * dimensionIndex]
+            float decodeMin = _decode != null && _decode.Length >= 2 * _dimensions
+                ? _decode[2 * dimensionIndex]
                 : domainMin;
-            float decodeMax = _decodePairs != null && _decodePairs.Length >= 2 * _dimensions
-                ? _decodePairs[2 * dimensionIndex + 1]
+            float decodeMax = _decode != null && _decode.Length >= 2 * _dimensions
+                ? _decode[2 * dimensionIndex + 1]
                 : domainMax;
 
             float domainT = (inputValue - domainMin) / (domainMax - domainMin);
@@ -201,10 +197,10 @@ public sealed class SampledPdfFunction : PdfFunction
 
             float encodeMin = 0f;
             float encodeMax = _sizes[dimensionIndex] - 1;
-            if (_encodePairs != null && _encodePairs.Length >= 2 * _dimensions)
+            if (_encode != null && _encode.Length >= 2 * _dimensions)
             {
-                encodeMin = _encodePairs[2 * dimensionIndex];
-                encodeMax = _encodePairs[2 * dimensionIndex + 1];
+                encodeMin = _encode[2 * dimensionIndex];
+                encodeMax = _encode[2 * dimensionIndex + 1];
                 if (Math.Abs(encodeMax - encodeMin) < 1e-12f)
                 {
                     encodeMax = encodeMin + 1f;
@@ -268,7 +264,7 @@ public sealed class SampledPdfFunction : PdfFunction
         }
 
         // Clamp output to range
-        Clamp(output, _rangePairs);
+        Clamp(output, Range);
 
         return output;
     }

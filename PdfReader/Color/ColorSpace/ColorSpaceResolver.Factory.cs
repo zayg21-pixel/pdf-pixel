@@ -177,11 +177,9 @@ namespace PdfReader.Color.ColorSpace
                 return null;
             }
 
-            int componentCount = 3;
-            PdfColorSpaceConverter alternateConverter = null;
             var dictionary = pdfObject.Dictionary;
-            componentCount = dictionary.GetIntegerOrDefault(PdfTokens.NKey);
-            var alternateValue = ResolveByObject(dictionary.GetObject(PdfTokens.AlternateKey), componentCount);
+            int componentCount = dictionary.GetIntegerOrDefault(PdfTokens.NKey);
+            var alternateConverter = ResolveByObject(dictionary.GetObject(PdfTokens.AlternateKey), componentCount);
 
             byte[] iccProfileBytes = null;
             if (pdfObject.HasStream)

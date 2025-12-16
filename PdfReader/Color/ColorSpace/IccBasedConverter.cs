@@ -10,37 +10,16 @@ namespace PdfReader.Color.ColorSpace;
 
 internal sealed class IccBasedConverter : PdfColorSpaceConverter
 {
-    private readonly int _n;
     private readonly bool _useDefault;
     private readonly PdfColorSpaceConverter _default;
     private static readonly Vector4 _vectorToByte = new Vector4(255f);
     private static readonly Vector4 _vectorRounding = new Vector4(0.5f);
     private readonly IccProfileTransform _iccTransform;
 
-    private IccBasedConverter(int n, PdfColorSpaceConverter alternate)
-    {
-        _n = n;
-
-        if (alternate == null)
-        {
-            _default = n switch
-            {
-                1 => DeviceGrayConverter.Instance,
-                3 => DeviceRgbConverter.Instance,
-                4 => DeviceCmykConverter.Instance,
-                _ => DeviceRgbConverter.Instance,
-            };
-        }
-        else
-        {
-            _default = alternate;
-        }
-    }
-
     public IccBasedConverter(int n, PdfColorSpaceConverter alternate, IccProfile profile)
-        : this(n, alternate)
     {
         Profile = profile;
+        N = n;
 
         if (profile != null)
         {
@@ -55,6 +34,26 @@ internal sealed class IccBasedConverter : PdfColorSpaceConverter
         {
             _useDefault = true;
         }
+
+        if (alternate == null)
+        {
+            _default = n switch
+            {
+                1 => DeviceGrayConverter.Instance,
+                3 => DeviceRgbConverter.Instance,
+                4 => DeviceCmykConverter.Instance,
+                _ => DeviceRgbConverter.Instance,
+            };
+        }
+        else
+        {
+            _default = alternate;
+
+            // when alternate is Lab, we cannot use ICC profile either
+            // this is violation from specs, but there's ambiguity in how to handle Lab coordinates
+            // as LAB color space coordinates are in different ranges than 0..1
+            _useDefault = alternate is LabColorSpaceConverter;
+        }
     }
 
     public IccBasedConverter(int n, PdfColorSpaceConverter alternate, byte[] iccProfileBytes)
@@ -68,14 +67,14 @@ internal sealed class IccBasedConverter : PdfColorSpaceConverter
 
     public override bool IsDevice => false;
 
-    public int N => _n;
+    public int N { get; }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     protected override SKColor ToSrgbCore(ReadOnlySpan<float> comps01, PdfRenderingIntent intent)
     {
         if (_useDefault)
         {
-            return _default.ToSrgb(comps01, intent);
+            return _default.GetRgbaSampler(intent).SampleColor(comps01);
         }
 
         var result = _iccTransform.Transform(comps01, intent);

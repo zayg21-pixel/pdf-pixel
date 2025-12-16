@@ -26,24 +26,17 @@ internal sealed class IccProfileTransform
         if (lut != null)
         {
             _hasLut = true;
-            NChannels = lut.InChannels;
-            IsValid = true;
         }
         else if (profile.GrayTrc != null)
         {
-            NChannels = 1;
             _transform = new IccChainedTransform(
                 new IccPerChannelLutTransform([profile.GrayTrc]),
                 new IccFunctionTransform(x => x * 0.5f),
                 new IccFunctionTransform(x => new Vector4(x.X, x.X, x.X, 1)));
-
-            IsValid = true;
         }
         else if (profile.Header.ColorSpace == IccConstants.SpaceLab)
         {
-            NChannels = 3;
             _transform = IccTransforms.LabD50ToXyzTransform;
-            IsValid = true;
         }
         else if (profile.RedMatrix.HasValue && profile.GreenMatrix.HasValue && profile.BlueMatrix.HasValue)
         {
@@ -61,10 +54,6 @@ internal sealed class IccProfileTransform
             matrixTransforms.Add(new IccFunctionTransform(x => x * 0.5f)); // by specification, matrix transform is 2.0 scale in comparison with LUT/mAB
 
             _transform = new IccChainedTransform(matrixTransforms.ToArray());
-
-            NChannels = 3;
-
-            IsValid = true;
         }
 
         if (profile.Header.Pcs == IccConstants.TypeLab)
@@ -89,9 +78,9 @@ internal sealed class IccProfileTransform
     }
 
 
-    public int NChannels { get; }
+    public int NChannels => _iccProfile.ChannelsCount;
 
-    public bool IsValid { get; }
+    public bool IsValid => NChannels > 0;
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public Vector4 Transform(ReadOnlySpan<float> values, PdfRenderingIntent intent)

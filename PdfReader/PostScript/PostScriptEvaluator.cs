@@ -3,6 +3,7 @@ using PdfReader.PostScript.Tokens;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 
 namespace PdfReader.PostScript
 {
@@ -32,6 +33,7 @@ namespace PdfReader.PostScript
         {
             _logger = logger;
             _tokens = Tokenize(code);
+            string codeString = Encoding.ASCII.GetString(code.ToArray());
 
             if (appendExec)
             {
@@ -44,6 +46,50 @@ namespace PdfReader.PostScript
             _exitRequested = false;
             _stopRequested = false;
             _stoppedDepth = 0;
+        }
+
+        /// <summary>
+        /// Attempts to compile the root tokens (procedure) into a math-only vector delegate using expression trees.
+        /// Only supports operators used by PDF PostScript functions. Returns false if unsupported tokens are found.
+        /// </summary>
+        /// <param name="parameterNames">Input parameter names in order.</param>
+        /// <param name="fn">Compiled delegate if successful; otherwise null.</param>
+        /// <returns>True if compilation succeeded; otherwise false.</returns>
+        public bool TryCompile(IReadOnlyList<string> parameterNames, out Func<float[], float[]> fn)
+        {
+            fn = null;
+            if (parameterNames == null || parameterNames.Count == 0)
+            {
+                return false;
+            }
+
+            // The root program should have a single procedure to execute (due to appended exec).
+            // Extract the first procedure or build a synthetic one from tokens.
+            PostScriptProcedure rootProc = null;
+            foreach (PostScriptToken token in _tokens)
+            {
+                if (token is PostScriptProcedure proc)
+                {
+                    rootProc = proc;
+                    break;
+                }
+            }
+
+            if (rootProc == null)
+            {
+                // Fallback: wrap all tokens as a procedure (common for simple streams).
+                rootProc = new PostScriptProcedure(_tokens.ToList());
+            }
+
+            var compiler = new PostScriptExpressionCompiler();
+            bool ok = compiler.TryCompileMath(rootProc, parameterNames, out var compiled);
+            if (!ok || compiled == null)
+            {
+                return false;
+            }
+
+            fn = compiled;
+            return true;
         }
 
         /// <summary>

@@ -15,7 +15,7 @@ public abstract class PdfColorSpaceConverter
     private const float ToFloat = 1f / 255f;
     private const int MaxByte = 255;
 
-    private readonly ConcurrentDictionary<PdfRenderingIntent, IRgbaSampler> _colorSamplerCache = new ConcurrentDictionary<PdfRenderingIntent, IRgbaSampler>();
+    private readonly IRgbaSampler[] _colorSamplers = new IRgbaSampler[Enum.GetValues(typeof(PdfRenderingIntent)).Length];
 
     /// <summary>
     /// Gets the number of input components for the color space (e.g. 1=Gray, 3=RGB, 4=CMYK).
@@ -45,10 +45,10 @@ public abstract class PdfColorSpaceConverter
     /// <returns>sRGB color.</returns>
     public virtual SKColor ToSrgb(ReadOnlySpan<float> comps01, PdfRenderingIntent intent)
     {
-        return ToSrgbCore(comps01, intent);
+        //return ToSrgbCore(comps01, intent);
         // we can use sampler for performance, but it may be less efficient for single conversions and also less precise
         // let's keep it for images only for now
-        //return GetRgbaSampler(intent).SampleColor(comps01);
+        return GetRgbaSampler(intent).SampleColor(comps01);
     }
 
     /// <summary>
@@ -99,7 +99,14 @@ public abstract class PdfColorSpaceConverter
     /// <returns>Sampler value.</returns>
     public IRgbaSampler GetRgbaSampler(PdfRenderingIntent intent)
     {
-        return _colorSamplerCache.GetOrAdd(intent, key => GetRgbaSamplerCore(intent));
+        if (_colorSamplers[(int)intent] is IRgbaSampler sampler)
+        {
+            return sampler;
+        }
+
+        var newSampler = GetRgbaSamplerCore(intent);
+        _colorSamplers[(int)intent] = newSampler;
+        return newSampler;
     }
 
     /// <summary>

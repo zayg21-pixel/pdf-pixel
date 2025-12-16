@@ -27,6 +27,11 @@ internal sealed partial class IccProfile
     public IccProfileHeader Header { get; }
 
     /// <summary>
+    /// Number of channels in the profile's data color space.
+    /// </summary>
+    public int ChannelsCount { get; set; }
+
+    /// <summary>
     /// Raw tag directory entries as parsed from the profile. Maintained mainly for diagnostics
     /// or future extension if additional tag types need to be interrogated.
     /// </summary>

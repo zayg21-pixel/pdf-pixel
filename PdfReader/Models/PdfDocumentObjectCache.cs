@@ -27,6 +27,11 @@ internal class PdfDocumentObjectCache
     internal IccProfile OutputIntentProfile { get; set; }
 
     /// <summary>
+    /// Parsed catalog output intent profile converter. Null when none present or invalid.
+    /// </summary>
+    internal IccBasedConverter OutputIntentProfileConverter { get; set; }
+
+    /// <summary>
     /// Catalog output intent converter parsed from <see cref="IccProfile"/>. Null when none present or invalid.
     /// </summary>
     internal IccBasedConverter OutputIntentConverter { get; set; }

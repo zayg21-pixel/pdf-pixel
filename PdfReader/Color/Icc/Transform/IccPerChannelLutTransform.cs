@@ -42,6 +42,16 @@ internal class IccPerChannelLutTransform : IIccTransform
             {
                 colorRef = EvaluateLut(in lutRef, colorRef);
             }
+            else if (lutRef.UseSimpleIndex)
+            {
+                var index = (int)(colorRef * lutRef.LastIndex + 0.5f);
+#if NET8_0_OR_GREATER
+                index = Math.Clamp(index, 0, lutRef.LastIndex);
+#else
+                index = index > lutRef.LastIndex ? lutRef.LastIndex : index < 0 ? 0 : index;
+#endif
+                colorRef = lutRef.Lut[index];
+            }
 
             colorRef = ref Unsafe.Add(ref colorRef, 1);
             lutRef = ref Unsafe.Add(ref lutRef, 1);
@@ -86,12 +96,14 @@ internal class IccPerChannelLutTransform : IIccTransform
         public readonly float[] Lut;
         public readonly bool IsIdentity;
         public readonly int LastIndex;
+        public readonly bool UseSimpleIndex;
 
         public LutChannelInfo(float[] lut)
         {
             Lut = lut;
             LastIndex = lut.Length - 1;
             IsIdentity = IsIdentityLut(lut);
+            UseSimpleIndex = lut.Length >= 256;
         }
     }
 
@@ -107,6 +119,7 @@ internal class IccPerChannelLutTransform : IIccTransform
                 return false;
             }
         }
+
         return true;
     }
 }

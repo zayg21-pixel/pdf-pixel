@@ -1,7 +1,9 @@
+using PdfReader.Color.Lut;
 using PdfReader.Functions;
 using PdfReader.Models;
 using SkiaSharp;
 using System;
+using System.Linq;
 using System.Runtime.CompilerServices;
 
 namespace PdfReader.Color.ColorSpace;
@@ -31,19 +33,19 @@ internal sealed class SeparationColorSpaceConverter : PdfColorSpaceConverter
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     protected override SKColor ToSrgbCore(ReadOnlySpan<float> comps01, PdfRenderingIntent intent)
     {
-        // TODO: does not really work
         float tint = comps01.Length > 0 ? comps01[0] : 0f;
         ReadOnlySpan<float> mapped = comps01;
 
         if (_tintFunction != null)
         {
             mapped = _tintFunction.Evaluate(tint);
+
             if (mapped == null || mapped.Length == 0)
             {
                 mapped = comps01;
             }
         }
 
-        return _alternate.ToSrgb(mapped, intent);
+        return _alternate.GetRgbaSampler(intent).SampleColor(mapped);
     }
 }

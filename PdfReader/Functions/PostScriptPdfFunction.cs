@@ -15,8 +15,7 @@ namespace PdfReader.Functions;
 public sealed class PostScriptPdfFunction : PdfFunction
 {
     private readonly PostScriptEvaluator _evaluator;
-    private readonly float[] _domain;
-    private readonly float[] _range;
+    private readonly Func<float[], float[]> _compiled;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="PostScriptPdfFunction"/> class.
@@ -25,10 +24,22 @@ public sealed class PostScriptPdfFunction : PdfFunction
     /// <param name="domain">Domain array.</param>
     /// <param name="range">Range array.</param>
     private PostScriptPdfFunction(PostScriptEvaluator evaluator, float[] domain, float[] range)
+        : base(domain, range)
     {
         _evaluator = evaluator ?? throw new ArgumentNullException(nameof(evaluator));
-        _domain = domain ?? throw new ArgumentNullException(nameof(domain));
-        _range = range ?? throw new ArgumentNullException(nameof(range));
+
+        // Attempt to compile a fast path producing all outputs.
+        var parameterNames = new List<string>(capacity: Domain.Length / 2);
+        int paramCount = Domain.Length / 2;
+        for (int i = 0; i < paramCount; i++)
+        {
+            parameterNames.Add(i == 0 ? "x" : "x" + i);
+        }
+
+        if (_evaluator.TryCompile(parameterNames, out var fn))
+        {
+            _compiled = fn;
+        }
     }
 
     /// <summary>
@@ -84,20 +95,49 @@ public sealed class PostScriptPdfFunction : PdfFunction
             return Array.Empty<float>();
         }
 
+        int outputCount = Range.Length / 2;
+
+        // Fast path: compiled vector function if available.
+        if (_compiled != null)
+        {
+            int paramCount = Domain.Length / 2;
+            float[] args = new float[paramCount];
+            for (int i = 0; i < paramCount && i < values.Length; i++)
+            {
+                float clamped = Clamp(values[i], Domain, i);
+                args[i] = clamped;
+            }
+
+            float[] raw = _compiled(args);
+            if (raw == null || raw.Length == 0)
+            {
+                return Array.Empty<float>();
+            }
+
+            // Clamp output to range
+            int n = Math.Min(outputCount, raw.Length);
+            float[] result = new float[n];
+            for (int i = 0; i < n; i++)
+            {
+                result[i] = Clamp(raw[i], Range, i);
+            }
+
+            return result;
+        }
+
         var stack = new Stack<PostScriptToken>();
 
         // Clamp and push input parameters to domain
         for (int inputIndex = 0; inputIndex < values.Length; inputIndex++)
         {
             float inputValue = values[inputIndex];
-            float clampedValue = Clamp(inputValue, _domain, inputIndex);
+            float clampedValue = Clamp(inputValue, Range, inputIndex);
             stack.Push(new PostScriptNumber(clampedValue));
         }
 
         _evaluator.EvaluateTokens(stack);
 
-        int outputCount = _range.Length / 2;
-        float[] result = new float[outputCount];
+        float[] resultInterp = new float[outputCount];
         for (int outputIndex = outputCount - 1; outputIndex >= 0; outputIndex--)
         {
             while (stack.Count > 0)
@@ -106,12 +146,12 @@ public sealed class PostScriptPdfFunction : PdfFunction
 
                 if (value is PostScriptNumber number)
                 {
-                    result[outputIndex] = Clamp(number.Value, _range, outputIndex);
+                    resultInterp[outputIndex] = Clamp(number.Value, Range, outputIndex);
                     break;
                 }
             }
         }
 
-        return result;
+        return resultInterp;
     }
 }

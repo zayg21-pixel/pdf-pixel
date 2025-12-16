@@ -28,6 +28,26 @@ internal sealed partial class IccProfile
 
         ParseTagDirectory(reader, profile);
         ParseSelectedTags(reader, profile);
+
+        var lut = profile.A2BLut0 ?? profile.A2BLut1 ?? profile.A2BLut2;
+
+        if (lut != null)
+        {
+            profile.ChannelsCount = lut.InChannels;
+        }
+        else if (profile.Header.ColorSpace == IccConstants.SpaceLab)
+        {
+            profile.ChannelsCount = 3;
+        }
+        else if (profile.RedMatrix != null && profile.GreenMatrix != null && profile.BlueMatrix != null)
+        {
+            profile.ChannelsCount = 3;
+        }
+        else if (profile.GrayTrc != null)
+        {
+            profile.ChannelsCount = 1;
+        }
+
         return profile;
     }
 

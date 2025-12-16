@@ -133,9 +133,9 @@ internal sealed partial class ColorSpaceResolver
             }
         }
 
-        if (_page.Document.ObjectCache.OutputIntentProfile != null)
+        if (_page.Document.ObjectCache.OutputIntentProfileConverter != null && _page.Document.ObjectCache.OutputIntentProfileConverter.N == n)
         {
-            return new IccBasedConverter(n, null, _page.Document.ObjectCache.OutputIntentProfile);
+            return _page.Document.ObjectCache.OutputIntentProfileConverter;
         }
 
         return null;
@@ -203,29 +203,19 @@ internal sealed partial class ColorSpaceResolver
                 if (_colorSpaceDictionary != null)
                 {
                     var resourceValue = _colorSpaceDictionary.GetObject(name);
-                    bool hasRef = resourceValue?.Reference.IsValid == true;
 
-                    if (hasRef)
+                    if (TryResolveFromCache(resourceValue, out var cached))
                     {
-                        if (TryResolveFromCache(resourceValue, out var cached))
-                        {
-                            return cached;
-                        }
+                        return cached;
                     }
 
-                    if (resourceValue != null)
+                    var resolved = ResolveByValue(resourceValue?.Value);
+
+                    if (resolved != null)
                     {
-                        var resolved = ResolveByValue(resourceValue.Value);
+                        TryStoreByReference(resourceValue, resolved);
 
-                        if (resolved != null)
-                        {
-                            if (hasRef)
-                            {
-                                TryStoreByReference(resourceValue, resolved);
-                            }
-
-                            return resolved;
-                        }
+                        return resolved;
                     }
                 }
                 return DeviceRgbConverter.Instance;
@@ -260,6 +250,12 @@ internal sealed partial class ColorSpaceResolver
 
     private bool TryResolveFromCache(PdfObject pdfObject, out PdfColorSpaceConverter converter)
     {
+        if (pdfObject == null)
+        {
+            converter = null;
+            return false;
+        }
+
         if (pdfObject.Reference.IsValid && _page.Document.ObjectCache.ColorSpaceConverters.TryGetValue(pdfObject.Reference, out var existing))
         {
             converter = existing;
@@ -271,6 +267,11 @@ internal sealed partial class ColorSpaceResolver
 
     private bool TryStoreByReference(PdfObject pdfObject, PdfColorSpaceConverter converter)
     {
+        if (pdfObject == null)
+        {
+            return false;
+        }
+
         if (pdfObject.Reference.IsValid)
         {
             _page.Document.ObjectCache.ColorSpaceConverters[pdfObject.Reference] = converter;

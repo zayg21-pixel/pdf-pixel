@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using PdfReader.Color.ColorSpace;
 using PdfReader.Color.Icc.Model;
 using PdfReader.Models;
 using PdfReader.Text;
@@ -132,5 +133,10 @@ internal sealed class PdfOutputIntentParser
         }
 
         _document.ObjectCache.OutputIntentProfile = bestProfile ?? firstFallback;
+
+        if (_document.ObjectCache.OutputIntentProfile != null && _document.ObjectCache.OutputIntentProfile.ChannelsCount != 0)
+        {
+            _document.ObjectCache.OutputIntentConverter = new IccBasedConverter(_document.ObjectCache.OutputIntentProfile.ChannelsCount, default, _document.ObjectCache.OutputIntentProfile);
+        }
     }
 }

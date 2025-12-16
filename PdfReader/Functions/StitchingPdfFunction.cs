@@ -13,14 +13,12 @@ public sealed class StitchingPdfFunction : PdfFunction
     private readonly List<PdfFunction> _subFunctions;
     private readonly float[] _bounds;
     private readonly float[] _encode;
-    private readonly float[] _domain;
 
-    private StitchingPdfFunction(List<PdfFunction> subFunctions, float[] bounds, float[] encode, float[] domain)
+    private StitchingPdfFunction(List<PdfFunction> subFunctions, float[] bounds, float[] encode, float[] domain, float[] range) : base(domain, range)
     {
         _subFunctions = subFunctions;
         _bounds = bounds;
         _encode = encode;
-        _domain = domain;
     }
 
     /// <summary>
@@ -60,8 +58,9 @@ public sealed class StitchingPdfFunction : PdfFunction
         float[] bounds = dictionary.GetArray(PdfTokens.BoundsKey)?.GetFloatArray();
         float[] encode = dictionary.GetArray(PdfTokens.EncodeKey)?.GetFloatArray();
         float[] domain = dictionary.GetArray(PdfTokens.DomainKey)?.GetFloatArray();
+        float[] range = dictionary.GetArray(PdfTokens.RangeKey)?.GetFloatArray();
 
-        return new StitchingPdfFunction(subFunctions, bounds, encode, domain);
+        return new StitchingPdfFunction(subFunctions, bounds, encode, domain, range);
     }
 
     /// <inheritdoc />
@@ -69,10 +68,10 @@ public sealed class StitchingPdfFunction : PdfFunction
     {
         float domainStart = 0f;
         float domainEnd = 1f;
-        if (_domain != null && _domain.Length >= 2)
+        if (Domain != null && Domain.Length >= 2)
         {
-            domainStart = _domain[0];
-            domainEnd = _domain[1];
+            domainStart = Domain[0];
+            domainEnd = Domain[1];
         }
 
         int segmentIndex = 0;
@@ -106,6 +105,7 @@ public sealed class StitchingPdfFunction : PdfFunction
         {
             return childFunction.Evaluate(mappedInput);
         }
+
         return Array.Empty<float>();
     }
 

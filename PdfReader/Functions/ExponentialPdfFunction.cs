@@ -13,23 +13,20 @@ public sealed class ExponentialPdfFunction : PdfFunction
     private readonly float[] _c1;
     private readonly float _exponent;
     private readonly int _componentCount;
-    private readonly float[] _range;
-    private readonly float[] _domain;
 
     private ExponentialPdfFunction(float[] c0, float[] c1, float exponent, float[] domain, float[] range)
+        : base(domain, range)
     {
         _c0 = c0;
         _c1 = c1;
         _exponent = exponent;
         _componentCount = Math.Min(c0.Length, c1.Length);
-        _domain = domain;
-        _range = range;
     }
 
     /// <inheritdoc />
     public override ReadOnlySpan<float> Evaluate(float value)
     {
-        float x = Clamp(value, _domain, 0);
+        float x = Clamp(value, Domain, 0);
 
         float xExp = _exponent <= 0f ? x : MathF.Pow(x, _exponent);
 
@@ -39,11 +36,7 @@ public sealed class ExponentialPdfFunction : PdfFunction
             buffer[componentIndex] = _c0[componentIndex] + xExp * (_c1[componentIndex] - _c0[componentIndex]);
         }
 
-        // Clamp output to range if available
-        if (_range != null && _range.Length >= _componentCount * 2)
-        {
-            Clamp(buffer, _range);
-        }
+        Clamp(buffer, Range);
 
         return buffer;
     }

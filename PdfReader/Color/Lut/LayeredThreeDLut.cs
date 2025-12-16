@@ -119,19 +119,15 @@ internal sealed class LayeredThreeDLut : IRgbaSampler
 
         if (upperSliceIndex == 0)
         {
-            Vector3[] firstSlice = _kSlices[0];
-            ThreeDLut.Sample(ref firstSlice[0], _profile, source, ref destination);
+            ThreeDLut.Sample(ref _kSlices[0][0], _profile, source, ref destination);
         }
         else if (upperSliceIndex >= _kLevels.Length)
         {
-            Vector3[] lastSlice = _kSlices[_kLevels.Length - 1];
-            ThreeDLut.Sample(ref lastSlice[0], _profile, source, ref destination);
+            ThreeDLut.Sample(ref _kSlices[_kLevels.Length - 1][0], _profile, source, ref destination);
         }
         else
         {
             int lowerSliceIndex = upperSliceIndex - 1;
-            Vector3[] lowerSlice = _kSlices[lowerSliceIndex];
-            Vector3[] upperSlice = _kSlices[upperSliceIndex];
 
             float kLower = _kLevels[lowerSliceIndex];
             float kUpper = _kLevels[upperSliceIndex];
@@ -147,8 +143,8 @@ internal sealed class LayeredThreeDLut : IRgbaSampler
 
             RgbaPacked lowerSample = default;
             RgbaPacked upperSample = default;
-            ThreeDLut.Sample(ref lowerSlice[0], _profile, source, ref lowerSample);
-            ThreeDLut.Sample(ref upperSlice[0], _profile, source, ref upperSample);
+            ThreeDLut.Sample(ref _kSlices[lowerSliceIndex][0], _profile, source, ref lowerSample);
+            ThreeDLut.Sample(ref _kSlices[upperSliceIndex][0], _profile, source, ref upperSample);
 
             float blendLowerWeight = 1f - t;
             float blendUpperWeight = t;

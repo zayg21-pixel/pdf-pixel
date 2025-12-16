@@ -21,6 +21,16 @@ public enum PdfFunctionType
 /// </summary>
 public abstract class PdfFunction
 {
+    public PdfFunction(float[] domain, float[] range)
+    {
+        Domain = domain;
+        Range = range;
+    }
+
+    public float[] Domain { get; }
+
+    public float[] Range { get; }
+
     /// <summary>
     /// Evaluate the function for a single input value.
     /// </summary>
@@ -71,6 +81,11 @@ public abstract class PdfFunction
     /// <param name="range">Range span, as [min0, max0, min1, max1, ...].</param>
     protected static void Clamp(Span<float> values, ReadOnlySpan<float> range)
     {
+        if (range.IsEmpty)
+        {
+            return;
+        }
+
         int count = Math.Min(values.Length, range.Length / 2);
         for (int i = 0; i < count; i++)
         {
