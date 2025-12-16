@@ -89,7 +89,7 @@ internal sealed class IccBasedConverter : PdfColorSpaceConverter
     {
         if (_useDefault)
         {
-            return new DefaultSampler(intent, ToSrgbCore);
+            return _default.GetRgbaSampler(intent);
         }
 
         switch (N)
@@ -98,7 +98,7 @@ internal sealed class IccBasedConverter : PdfColorSpaceConverter
                 return OneDLutGray.Build(intent, ToSrgbCore);
             case 3:
             {
-                return TreeDLut.Build(intent, ToSrgbCore);
+                return ThreeDLut.Build(intent, ToSrgbCore);
             }
             case 4:
             {

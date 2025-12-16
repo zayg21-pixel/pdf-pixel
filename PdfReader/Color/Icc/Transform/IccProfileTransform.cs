@@ -32,7 +32,11 @@ internal sealed class IccProfileTransform
         else if (profile.GrayTrc != null)
         {
             NChannels = 1;
-            _transform = new IccPerChannelLutTransform([profile.GrayTrc]);
+            _transform = new IccChainedTransform(
+                new IccPerChannelLutTransform([profile.GrayTrc]),
+                new IccFunctionTransform(x => x * 0.5f),
+                new IccFunctionTransform(x => new Vector4(x.X, x.X, x.X, 1)));
+
             IsValid = true;
         }
         else if (profile.Header.ColorSpace == IccConstants.SpaceLab)

@@ -31,6 +31,7 @@ internal sealed class SeparationColorSpaceConverter : PdfColorSpaceConverter
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     protected override SKColor ToSrgbCore(ReadOnlySpan<float> comps01, PdfRenderingIntent intent)
     {
+        // TODO: does not really work
         float tint = comps01.Length > 0 ? comps01[0] : 0f;
         ReadOnlySpan<float> mapped = comps01;
 

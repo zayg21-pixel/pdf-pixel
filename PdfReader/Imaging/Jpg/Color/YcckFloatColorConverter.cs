@@ -54,7 +54,7 @@ internal sealed class YcckFloatColorConverter : IJpgColorConverter
         Block8x8F[] yBlocks = upsampledBandBlocks[0];
         Block8x8F[] cbBlocks = upsampledBandBlocks[1];
         Block8x8F[] crBlocks = upsampledBandBlocks[2];
-        Block8x8F[] kBlocks = upsampledBandBlocks[3]; // Preserved as-is
+        Block8x8F[] kBlocks = upsampledBandBlocks[3];
 
         int totalBlocks = yBlocks.Length;
         for (int blockIndex = 0; blockIndex < totalBlocks; blockIndex++)
@@ -62,17 +62,20 @@ internal sealed class YcckFloatColorConverter : IJpgColorConverter
             ref Block8x8F yBlock = ref yBlocks[blockIndex];
             ref Block8x8F cbBlock = ref cbBlocks[blockIndex];
             ref Block8x8F crBlock = ref crBlocks[blockIndex];
+            ref Block8x8F kBlock = ref kBlocks[blockIndex];
 
             // Obtain refs to the first Vector4 of each block to stride with Unsafe.Add.
             ref Vector4 yVecRef = ref Unsafe.As<Block8x8F, Vector4>(ref yBlock);
             ref Vector4 cbVecRef = ref Unsafe.As<Block8x8F, Vector4>(ref cbBlock);
             ref Vector4 crVecRef = ref Unsafe.As<Block8x8F, Vector4>(ref crBlock);
+            ref Vector4 kVecRef = ref Unsafe.As<Block8x8F, Vector4>(ref kBlock);
 
             for (int vectorIndex = 0; vectorIndex < Block8x8F.VectorCount; vectorIndex++)
             {
                 Vector4 yVec = Unsafe.Add(ref yVecRef, vectorIndex);
                 Vector4 cbVec = Unsafe.Add(ref cbVecRef, vectorIndex);
                 Vector4 crVec = Unsafe.Add(ref crVecRef, vectorIndex);
+                Vector4 kVec = Unsafe.Add(ref kVecRef, vectorIndex);
 
                 Vector4 cbCentered = cbVec - Offset;
                 Vector4 crCentered = crVec - Offset;
@@ -89,6 +92,8 @@ internal sealed class YcckFloatColorConverter : IJpgColorConverter
                 Unsafe.Add(ref yVecRef, vectorIndex) = Vector255 - rVec; // C
                 Unsafe.Add(ref cbVecRef, vectorIndex) = Vector255 - gVec; // M
                 Unsafe.Add(ref crVecRef, vectorIndex) = Vector255 - bVec; // Y
+                Unsafe.Add(ref kVecRef, vectorIndex) = Vector4.Clamp(kVec, VectorZero, Vector255); // K
+
             }
         }
     }

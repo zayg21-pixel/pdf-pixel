@@ -75,6 +75,6 @@ internal sealed class CalRgbConverter : PdfColorSpaceConverter
 
     protected override IRgbaSampler GetRgbaSamplerCore(PdfRenderingIntent intent)
     {
-        return TreeDLut.Build(intent, ToSrgbCore);
+        return ThreeDLut.Build(intent, ToSrgbCore);
     }
 }

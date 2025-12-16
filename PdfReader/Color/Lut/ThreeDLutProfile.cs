@@ -15,6 +15,7 @@ internal sealed class ThreeDLutProfile
     public ThreeDLutProfile(int gridSize)
     {
         GridSize = gridSize;
+        GridSizeMinusOne = gridSize - 1;
         TripleStrideG = GridSize;
         TripleStrideR = GridSize * GridSize;
         TripleStrideRG = TripleStrideR + TripleStrideG;
@@ -26,6 +27,11 @@ internal sealed class ThreeDLutProfile
     /// Gets the number of lattice points on each axis of the cubic LUT.
     /// </summary>
     public int GridSize { get; }
+
+    /// <summary>
+    /// Grid size minus one.
+    /// </summary>
+    public int GridSizeMinusOne { get; }
 
     /// <summary>
     /// Gets the linear index increment to advance by one step along the G axis.

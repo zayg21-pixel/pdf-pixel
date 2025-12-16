@@ -135,6 +135,14 @@ public class PdfImage
     public static PdfImage FromXObject(PdfObject imageXObject, PdfPage page, PdfString name, bool isSoftMask)
     {
         int bitsPerComponent = imageXObject.Dictionary.GetIntegerOrDefault(PdfTokens.BitsPerComponentKey);
+
+        if (bitsPerComponent == 0)
+        {
+            // allowed for 1 bit images.
+            // TODO: for JPX, when added support, bitsPerComponent can be 0
+            bitsPerComponent = 1;
+        }
+
         int defaultComponents = GetDefaultComponents(bitsPerComponent);
 
         var image = new PdfImage
@@ -230,6 +238,7 @@ public class PdfImage
     {
         return bitsPerComponent switch
         {
+            0 => 1,
             1 => 1,
             _ => 3,
         };

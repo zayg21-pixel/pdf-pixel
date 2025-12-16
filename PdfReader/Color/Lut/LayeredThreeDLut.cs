@@ -52,9 +52,8 @@ internal sealed class LayeredThreeDLut : IRgbaSampler
         int sliceCount = kLevels.Length;
         var slices = new Vector3[sliceCount][];
 
-        int gridSize = 16;
-        int pointCount = gridSize * gridSize * gridSize;
-        var profile = new ThreeDLutProfile(gridSize);
+        int pointCount = lutSize * lutSize * lutSize;
+        var profile = new ThreeDLutProfile(lutSize);
 
         Span<float> components = stackalloc float[4]; // CMYK
 
@@ -64,15 +63,15 @@ internal sealed class LayeredThreeDLut : IRgbaSampler
             var slice = new Vector3[pointCount];
             int writeIndex = 0;
 
-            for (int cIndex = 0; cIndex < gridSize; cIndex++)
+            for (int cIndex = 0; cIndex < lutSize; cIndex++)
             {
-                float c = (float)cIndex / (gridSize - 1);
-                for (int mIndex = 0; mIndex < gridSize; mIndex++)
+                float c = (float)cIndex / (lutSize - 1);
+                for (int mIndex = 0; mIndex < lutSize; mIndex++)
                 {
-                    float m = (float)mIndex / (gridSize - 1);
-                    for (int yIndex = 0; yIndex < gridSize; yIndex++)
+                    float m = (float)mIndex / (lutSize - 1);
+                    for (int yIndex = 0; yIndex < lutSize; yIndex++)
                     {
-                        float y = (float)yIndex / (gridSize - 1);
+                        float y = (float)yIndex / (lutSize - 1);
 
                         components[0] = c;
                         components[1] = m;
@@ -121,12 +120,12 @@ internal sealed class LayeredThreeDLut : IRgbaSampler
         if (upperSliceIndex == 0)
         {
             Vector3[] firstSlice = _kSlices[0];
-            TreeDLut.Sample(ref firstSlice[0], _profile, source, ref destination);
+            ThreeDLut.Sample(ref firstSlice[0], _profile, source, ref destination);
         }
         else if (upperSliceIndex >= _kLevels.Length)
         {
             Vector3[] lastSlice = _kSlices[_kLevels.Length - 1];
-            TreeDLut.Sample(ref lastSlice[0], _profile, source, ref destination);
+            ThreeDLut.Sample(ref lastSlice[0], _profile, source, ref destination);
         }
         else
         {
@@ -148,8 +147,8 @@ internal sealed class LayeredThreeDLut : IRgbaSampler
 
             RgbaPacked lowerSample = default;
             RgbaPacked upperSample = default;
-            TreeDLut.Sample(ref lowerSlice[0], _profile, source, ref lowerSample);
-            TreeDLut.Sample(ref upperSlice[0], _profile, source, ref upperSample);
+            ThreeDLut.Sample(ref lowerSlice[0], _profile, source, ref lowerSample);
+            ThreeDLut.Sample(ref upperSlice[0], _profile, source, ref upperSample);
 
             float blendLowerWeight = 1f - t;
             float blendUpperWeight = t;

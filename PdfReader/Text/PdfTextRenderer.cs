@@ -34,6 +34,11 @@ public class PdfTextRenderer : IPdfTextRenderer
     /// <inheritdoc/>
     public SKSize DrawTextSequence(SKCanvas canvas, List<ShapedGlyph> glyphs, PdfGraphicsState state, PdfFontBase font)
     {
+        if (font == null || glyphs.Count == 0)
+        {
+            return SKSize.Empty;
+        }
+
         using var softMaskScope = new SoftMaskDrawingScope(_renderer, canvas, state);
         softMaskScope.BeginDrawContent();
 

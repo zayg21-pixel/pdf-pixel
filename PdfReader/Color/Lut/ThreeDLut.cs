@@ -14,12 +14,12 @@ namespace PdfReader.Color.Lut;
 /// LUT layout: contiguous packed RGB triples for each lattice point in (R,G,B) iteration order.
 /// Trilinear sampling uses precomputed weights that sum to 1 (normalized floats).
 /// </summary>
-internal sealed class TreeDLut : IRgbaSampler
+internal sealed class ThreeDLut : IRgbaSampler
 {
     private readonly Vector3[] _lut;
     private readonly ThreeDLutProfile _profile;
 
-    private TreeDLut(Vector3[] lut, ThreeDLutProfile profile)
+    private ThreeDLut(Vector3[] lut, ThreeDLutProfile profile)
     {
         _lut = lut;
         _profile = profile;
@@ -33,8 +33,8 @@ internal sealed class TreeDLut : IRgbaSampler
     /// <param name="intent">The rendering intent controlling device to sRGB conversion.</param>
     /// <param name="converter">Delegate converting normalized device color to sRGB SKColor.</param>
     /// <param name="lutSize">The desired size of the LUT along each dimension (e.g., 16 for a 16x16x16 LUT).</param>
-    /// <returns>A new <see cref="TreeDLut"/> instance containing the sampled LUT, or null if converter is null.</returns>
-    public static TreeDLut Build(PdfRenderingIntent intent, DeviceToSrgbCore converter, int lutSize = 16)
+    /// <returns>A new <see cref="ThreeDLut"/> instance containing the sampled LUT, or null if converter is null.</returns>
+    public static ThreeDLut Build(PdfRenderingIntent intent, DeviceToSrgbCore converter, int lutSize = 32)
     {
         if (converter == null)
         {
@@ -72,7 +72,7 @@ internal sealed class TreeDLut : IRgbaSampler
             }
         }
 
-        return new TreeDLut(lut, profile);
+        return new ThreeDLut(lut, profile);
     }
 
     /// <inheritdoc />
@@ -85,6 +85,7 @@ internal sealed class TreeDLut : IRgbaSampler
     /// </summary>
     /// <param name="source">The source pixel to sample (R, G, B components).</param>
     /// <param name="destination">The destination pixel to receive the sampled color.</param>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void Sample(ReadOnlySpan<float> source, ref RgbaPacked destination)
     {
         Sample(ref _lut[0], _profile, source, ref destination);
@@ -105,18 +106,14 @@ internal sealed class TreeDLut : IRgbaSampler
         ref var sourceRef = ref MemoryMarshal.GetReference(source);
         var sourceVector = Unsafe.As<float, Vector3>(ref sourceRef);
         var normalized = Vector3.Clamp(sourceVector, Vector3.Zero, Vector3.One);
-        var scaled = normalized * (profile.GridSize - 1);
-
-        // Clamp once with a cached vector to avoid repeated construction.
-        var scaledClamped = Vector3.Clamp(scaled, Vector3.Zero, profile.LatticeMax);
+        var scaled = normalized * profile.GridSizeMinusOne;
 
         // Integer lattice coordinates packed in a vector.
-        Vector3 sourceLattice = new Vector3((int)scaledClamped.X, (int)scaledClamped.Y, (int)scaledClamped.Z);
+        Vector3 sourceLattice = Vector3.Min(new Vector3((int)scaled.X, (int)scaled.Y, (int)scaled.Z), profile.LatticeMax);
 
         // Fractional part vector and its complement.
         var fraction = scaled - sourceLattice;
-        var one = Vector3.One;
-        var complement = one - fraction; // (wR0, wG0, wB0)
+        var complement = Vector3.One - fraction; // (wR0, wG0, wB0)
 
         float wR0 = complement.X;
         float wG0 = complement.Y;
