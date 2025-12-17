@@ -46,22 +46,22 @@ internal sealed class DeviceNColorSpaceConverter : PdfColorSpaceConverter
         return _alternate.GetRgbaSampler(intent).SampleColor(mapped);
     }
 
-    //protected override IRgbaSampler GetRgbaSamplerCore(PdfRenderingIntent intent)
-    //{
-    //    switch (Components)
-    //    {
-    //        case 1:
-    //        {
-    //            return OneDLutGray.Build(intent, ToSrgbCore);
-    //        }
-    //        case 3:
-    //        {
-    //            return ThreeDLut.Build(intent, ToSrgbCore);
-    //        }
-    //        default:
-    //        {
-    //            return base.GetRgbaSamplerCore(intent);
-    //        }
-    //    }
-    //}
+    protected override IRgbaSampler GetRgbaSamplerCore(PdfRenderingIntent intent)
+    {
+        switch (Components)
+        {
+            case 1:
+            {
+                return new SeparationColorSpaceConverter.SeparationSampler(_tintFunction, _alternate.GetRgbaSampler(intent));
+            }
+            //case 3:
+            //{
+            //    return ThreeDLut.Build(intent, ToSrgbCore);
+            //}
+            default:
+            {
+                return base.GetRgbaSamplerCore(intent);
+            }
+        }
+    }
 }

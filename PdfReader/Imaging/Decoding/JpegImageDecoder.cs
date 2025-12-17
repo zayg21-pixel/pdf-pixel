@@ -21,6 +21,7 @@ namespace PdfReader.Imaging.Decoding;
 /// </summary>
 public sealed class JpegImageDecoder : PdfImageDecoder
 {
+    // TODO: freeculture pages 136-137 bugs!
     public JpegImageDecoder(PdfImage image, ILoggerFactory loggerFactory) : base(image, loggerFactory)
     {
     }

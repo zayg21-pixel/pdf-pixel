@@ -1,6 +1,5 @@
 using PdfReader.Color.Icc.Model;
 using PdfReader.Color.Icc.Transform;
-using PdfReader.Color.Icc.Utilities;
 using PdfReader.Color.Lut;
 using SkiaSharp;
 using System;
@@ -12,7 +11,7 @@ namespace PdfReader.Color.ColorSpace;
 /// <summary>
 /// Converter for PDF CalRGB (CIEBasedCalRGB) color space.
 /// </summary>
-internal sealed class CalRgbConverter : PdfColorSpaceConverter
+internal class CalRgbConverter : PdfColorSpaceConverter
 {
     private readonly bool _hasBlackPoint;
     private readonly IIccTransform _toSrgbTransform;
@@ -23,7 +22,7 @@ internal sealed class CalRgbConverter : PdfColorSpaceConverter
 
         if (whitePoint != null && whitePoint.Length >= 3)
         {
-            whitePointVector = IccVectorUtilities.ToVector4(whitePoint);
+            whitePointVector = IccVectorUtilities.ToVector4WithOnePadding(whitePoint);
         }
         else
         {
@@ -63,7 +62,7 @@ internal sealed class CalRgbConverter : PdfColorSpaceConverter
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     protected override SKColor ToSrgbCore(ReadOnlySpan<float> comps01, PdfRenderingIntent renderingIntent)
     {
-        var result = IccVectorUtilities.ToVector4(comps01);
+        var result = IccVectorUtilities.ToVector4WithOnePadding(comps01);
         _toSrgbTransform.Transform(ref result);
 
         byte R = ToByte(result.X);
@@ -75,6 +74,6 @@ internal sealed class CalRgbConverter : PdfColorSpaceConverter
 
     protected override IRgbaSampler GetRgbaSamplerCore(PdfRenderingIntent intent)
     {
-        return ThreeDLut.Build(intent, ToSrgbCore);
+        return IccClutTransform.Build(intent, ToSrgbCore, 3, 3, 16);
     }
 }

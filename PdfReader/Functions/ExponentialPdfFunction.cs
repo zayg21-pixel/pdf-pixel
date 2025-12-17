@@ -1,4 +1,5 @@
 using System;
+using System.Runtime.CompilerServices;
 using PdfReader.Models;
 using PdfReader.Text;
 
@@ -9,10 +10,15 @@ namespace PdfReader.Functions;
 /// </summary>
 public sealed class ExponentialPdfFunction : PdfFunction
 {
+    private const int LutSize = 1024;
+
     private readonly float[] _c0;
     private readonly float[] _c1;
     private readonly float _exponent;
     private readonly int _componentCount;
+
+    // LUT optimization when range is defined
+    private readonly float[] _lut;
 
     private ExponentialPdfFunction(float[] c0, float[] c1, float exponent, float[] domain, float[] range)
         : base(domain, range)
@@ -21,13 +27,107 @@ public sealed class ExponentialPdfFunction : PdfFunction
         _c1 = c1;
         _exponent = exponent;
         _componentCount = Math.Min(c0.Length, c1.Length);
+        _lut = BuildLut();
+    }
+
+    /// <summary>
+    /// Builds a lookup table for exponential function evaluation with linear interpolation.
+    /// </summary>
+    private float[] BuildLut()
+    {
+        float[] lut = new float[LutSize * _componentCount];
+        float lutSizeMinusOne = LutSize - 1;
+
+        for (int i = 0; i < LutSize; i++)
+        {
+            // Normalize input to domain range [0, 1]
+            float normalizedInput = i / lutSizeMinusOne;
+
+            // Apply exponential function
+            float xExp = _exponent <= 0f ? normalizedInput : MathF.Pow(normalizedInput, _exponent);
+
+            for (int componentIndex = 0; componentIndex < _componentCount; componentIndex++)
+            {
+                float result = _c0[componentIndex] + xExp * (_c1[componentIndex] - _c0[componentIndex]);
+
+                // Apply range clamping during LUT build
+                if (Range != null && Range.Length >= 2 * (componentIndex + 1))
+                {
+                    float rangeMin = Range[2 * componentIndex];
+                    float rangeMax = Range[2 * componentIndex + 1];
+#if NET8_0_OR_GREATER
+                    result = Math.Clamp(result, rangeMin, rangeMax);
+#else
+                    result = result < rangeMin ? rangeMin : result > rangeMax ? rangeMax : result;
+#endif
+                }
+
+                lut[i * _componentCount + componentIndex] = result;
+            }
+        }
+
+        return lut;
     }
 
     /// <inheritdoc />
     public override ReadOnlySpan<float> Evaluate(float value)
     {
         float x = Clamp(value, Domain, 0);
+        return EvaluateWithLut(x);
+    }
 
+    /// <summary>
+    /// Evaluates the function using LUT with linear interpolation.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private ReadOnlySpan<float> EvaluateWithLut(float x)
+    {
+        float[] buffer = new float[_componentCount];
+
+        // Scale input to LUT index space
+        float scaled = x * (LutSize - 1);
+        int index = (int)scaled;
+        float fraction = scaled - index;
+
+        // Clamp index to valid range
+        if (index >= LutSize - 1)
+        {
+            index = LutSize - 1;
+            fraction = 0f;
+        }
+
+        int baseOffset = index * _componentCount;
+        int nextOffset = (index + 1) * _componentCount;
+
+        for (int componentIndex = 0; componentIndex < _componentCount; componentIndex++)
+        {
+            if (fraction == 0f || index == LutSize - 1)
+            {
+                // No interpolation needed
+                buffer[componentIndex] = _lut[baseOffset + componentIndex];
+            }
+            else
+            {
+                // Linear interpolation between adjacent LUT entries
+                float value0 = _lut[baseOffset + componentIndex];
+                float value1 = _lut[nextOffset + componentIndex];
+#if NET8_0_OR_GREATER
+                buffer[componentIndex] = MathF.FusedMultiplyAdd(fraction, value1 - value0, value0);
+#else
+                buffer[componentIndex] = value0 + fraction * (value1 - value0);
+#endif
+            }
+        }
+
+        return buffer;
+    }
+
+    /// <summary>
+    /// Evaluates the function using direct computation.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private ReadOnlySpan<float> EvaluateDirect(float x)
+    {
         float xExp = _exponent <= 0f ? x : MathF.Pow(x, _exponent);
 
         float[] buffer = new float[_componentCount];

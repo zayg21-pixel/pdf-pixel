@@ -4,6 +4,7 @@ using PdfReader.Color.Lut;
 using PdfReader.Color.Structures;
 using PdfReader.Imaging.Model;
 using PdfReader.Imaging.Png;
+using PdfReader.Parsing;
 using SkiaSharp;
 using System;
 using System.Runtime.CompilerServices;
@@ -88,6 +89,7 @@ internal sealed class PdfImageRowProcessor : IDisposable
 
     public static bool ShouldConvertColor(PdfImage image)
     {
+        return true;
         var converter = image.ColorSpaceConverter;
 
         if (converter == null)
@@ -192,6 +194,8 @@ internal sealed class PdfImageRowProcessor : IDisposable
     {
         ref byte destRowByte = ref _rgbaBuffer[0];
         ref RgbaPacked destRowColor = ref Unsafe.As<byte, RgbaPacked>(ref destRowByte);
+        var bitReader = new UintBitReader(decodedRow);
+        ref byte decodedRowRef = ref decodedRow[0];
 
         int width = _width;
         int componentCount = _components;
@@ -199,14 +203,12 @@ internal sealed class PdfImageRowProcessor : IDisposable
 
         Span<float> componentValues = stackalloc float[componentCount];
 
+
         bool applyDecode = _image.DecodeArray != null && _image.DecodeArray.Length == componentCount * 2;
         float[] decodeArray = _image.DecodeArray; // May be null when applyDecode is false.
 
         bool applyMask = _image.MaskArray != null && _image.MaskArray.Length == componentCount * 2;
         int[] maskArray = _image.MaskArray; // Raw sample code ranges (min,max) per component.
-
-        int byteCursor = 0;
-        int bitOffset = 0; // Bit cursor for packed path (1,2,4).
 
         int maxCode = (1 << bitsPerComponent) - 1;
         float scale;
@@ -226,27 +228,7 @@ internal sealed class PdfImageRowProcessor : IDisposable
 
             for (int c = 0; c < componentCount; c++)
             {
-                int sample;
-                if (bitsPerComponent == 16)
-                {
-                    int hi = decodedRow[byteCursor];
-                    int lo = decodedRow[byteCursor + 1];
-                    sample = hi << 8 | lo; // Big-endian.
-                    byteCursor += 2;
-                }
-                else if (bitsPerComponent == 8)
-                {
-                    sample = decodedRow[byteCursor];
-                    byteCursor += 1;
-                }
-                else
-                {
-                    int byteIndex = bitOffset >> 3;
-                    int bitInByte = bitOffset & 7;
-                    int shift = 8 - bitInByte - bitsPerComponent;
-                    sample = decodedRow[byteIndex] >> shift & maxCode;
-                    bitOffset += bitsPerComponent;
-                }
+                uint sample = bitReader.ReadBits(bitsPerComponent);
 
                 if (applyMask && maskMatch)
                 {
@@ -273,6 +255,7 @@ internal sealed class PdfImageRowProcessor : IDisposable
             }
             ref RgbaPacked destinationPixel = ref Unsafe.Add(ref destRowColor, x);
             _sampler.Sample(componentValues, ref destinationPixel);
+
 
             if (applyMask && maskMatch)
             {

@@ -178,6 +178,7 @@ namespace PdfReader.Color.Icc.Transform
 
     internal static class IccVectorUtilities
     {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Matrix4x4 ToMatrix4x4(float[,] matrix3x3)
         {
             return new Matrix4x4(
@@ -187,9 +188,26 @@ namespace PdfReader.Color.Icc.Transform
                 0, 0, 0, 1);
         }
 
-        public static Vector4 ToVector4(ReadOnlySpan<float> data)
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Vector4 ToVector4WithOnePadding(ReadOnlySpan<float> data)
         {
             var result = Vector4.One;
+
+            ref var resultRef = ref Unsafe.As<Vector4, float>(ref result);
+           
+            for (int i = 0; i < data.Length && i < 4; i++)
+            {
+                resultRef = data[i];
+                resultRef = ref Unsafe.Add(ref resultRef, 1);
+            }
+
+            return result;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Vector4 ToVector4WithZeroPadding(ReadOnlySpan<float> data)
+        {
+            var result = Vector4.Zero;
 
             ref var resultRef = ref Unsafe.As<Vector4, float>(ref result);
            

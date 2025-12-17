@@ -103,6 +103,7 @@ internal sealed class ThreeDLut : IRgbaSampler
     {
         ref var sourceRef = ref MemoryMarshal.GetReference(source);
         var sourceVector = Unsafe.As<float, Vector3>(ref sourceRef);
+
         var scaled = sourceVector * profile.GridSizeMinusOne;
 
         // Integer lattice coordinates packed in a vector.

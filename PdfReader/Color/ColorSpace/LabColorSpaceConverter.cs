@@ -19,15 +19,15 @@ internal sealed class LabColorSpaceConverter : PdfColorSpaceConverter
     private static readonly Vector4 _defaultMin = new Vector4(0f, -100f, -100f, 0f);
     private static readonly Vector4 _defaultMax = new Vector4(100f, 100f, 100f, 1f);
 
-    private readonly IIccTransform _normalizeTransform;
-    private readonly IIccTransform _labTransform;
+    private readonly IccFunctionTransform _normalizeTransform;
+    private readonly IccChainedTransform _labTransform;
 
     public LabColorSpaceConverter(float[] whitePoint, float[] blackPoint, float[] rangeArray)
     {
         Vector4 whitePointVector;
         if (whitePoint != null && whitePoint.Length >= 3)
         {
-            whitePointVector = IccVectorUtilities.ToVector4(whitePoint);
+            whitePointVector = IccVectorUtilities.ToVector4WithOnePadding(whitePoint);
         }
         else
         {
@@ -48,7 +48,7 @@ internal sealed class LabColorSpaceConverter : PdfColorSpaceConverter
             labMaxVector = _defaultMax;
         }
 
-        var normalizeTransform = new IccFunctionTransform(x => (Vector4.Clamp(x, labMinVector, labMaxVector) + _labOffset) * _labScale);
+        var normalizeTransform = new IccFunctionTransform(x => (x + _labOffset) * _labScale);
         var toXyzTransform = IccTransforms.BuildLabToXyzTransform(whitePointVector);
         var toSrgbTransform = IccTransforms.BuildXyzToSrgbTransform(whitePointVector);
 
@@ -62,7 +62,7 @@ internal sealed class LabColorSpaceConverter : PdfColorSpaceConverter
 
     protected override SKColor ToSrgbCore(ReadOnlySpan<float> comps, PdfRenderingIntent intent)
     {
-        var labVector = IccVectorUtilities.ToVector4(comps);
+        var labVector = IccVectorUtilities.ToVector4WithOnePadding(comps);
 
         _normalizeTransform.Transform(ref labVector);
         _labTransform.Transform(ref labVector);
@@ -76,7 +76,7 @@ internal sealed class LabColorSpaceConverter : PdfColorSpaceConverter
 
     private SKColor NormalizedToSrgbCore(ReadOnlySpan<float> comps, PdfRenderingIntent intent)
     {
-        var labVector = IccVectorUtilities.ToVector4(comps);
+        var labVector = IccVectorUtilities.ToVector4WithOnePadding(comps);
         _labTransform.Transform(ref labVector);
 
         byte R = ToByte(labVector.X);
@@ -88,55 +88,40 @@ internal sealed class LabColorSpaceConverter : PdfColorSpaceConverter
 
     protected override IRgbaSampler GetRgbaSamplerCore(PdfRenderingIntent intent)
     {
-        var lut = ThreeDLut.Build(intent, NormalizedToSrgbCore);
-        return new LabSampler(_normalizeTransform, lut);
+        var labClut = IccClutTransform.Build(intent, NormalizedToSrgbCore, 3, 3);
+        return new LabSampler(_normalizeTransform, labClut);
     }
 
-    private sealed class LabSampler : IRgbaSampler
+    private class LabSampler : IRgbaSampler
     {
-        private readonly IIccTransform _normalizeTransform;
-        private readonly ThreeDLut _threeDLut;
+        private readonly IccFunctionTransform _normalizeFunction;
+        private readonly IccClutTransform _labClut;
 
-        public LabSampler(IIccTransform normalizeTransform, ThreeDLut threeDLut)
+        public LabSampler(IccFunctionTransform normalizeFunction, IccClutTransform labClut)
         {
-            _normalizeTransform = normalizeTransform;
-            _threeDLut = threeDLut;
+            _normalizeFunction = normalizeFunction;
+            _labClut = labClut;
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public bool IsDefault => false;
+
         public void Sample(ReadOnlySpan<float> source, ref RgbaPacked destination)
         {
-            var labVector = IccVectorUtilities.ToVector4(source);
-            _normalizeTransform.Transform(ref labVector);
-            var buffer = CreateSpanOver(ref labVector);
-            _threeDLut.Sample(buffer, ref destination);
+            var labVector = IccVectorUtilities.ToVector4WithOnePadding(source);
+            _normalizeFunction.Transform(ref labVector);
+            _labClut.Transform(ref labVector);
+            labVector = labVector * 255f;
+            destination = new RgbaPacked((byte)labVector.X, (byte)labVector.Y, (byte)labVector.Z, 255);
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public SKColor SampleColor(ReadOnlySpan<float> source)
         {
-            var labVector = IccVectorUtilities.ToVector4(source);
-            _normalizeTransform.Transform(ref labVector);
-            var buffer = CreateSpanOver(ref labVector);
-            return _threeDLut.SampleColor(buffer);
-        }
+            var labVector = IccVectorUtilities.ToVector4WithOnePadding(source);
+            _normalizeFunction.Transform(ref labVector);
+            _labClut.Transform(ref labVector);
+            labVector = labVector * 255f;
 
-        public bool IsDefault { get; }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static Span<float> CreateSpanOver(ref Vector4 v)
-        {
-#if NETSTANDARD2_0
-            unsafe
-            {
-                ref float first = ref Unsafe.As<Vector4, float>(ref v);
-                void* ptr = Unsafe.AsPointer(ref first);
-                return new Span<float>(ptr, 4);
-            }
-#else
-            ref float first = ref Unsafe.As<Vector4, float>(ref v);
-            return MemoryMarshal.CreateSpan(ref first, 4);
-#endif
+            return new SKColor((byte)labVector.X, (byte)labVector.Y, (byte)labVector.Z);
         }
     }
 }

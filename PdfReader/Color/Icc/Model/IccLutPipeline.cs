@@ -1,5 +1,4 @@
 ﻿using PdfReader.Color.Icc.Transform;
-using PdfReader.Color.Icc.Utilities;
 using System;
 using System.Collections.Generic;
 using System.Numerics;

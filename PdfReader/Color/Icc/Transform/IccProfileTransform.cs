@@ -14,14 +14,12 @@ internal sealed class IccProfileTransform
     private readonly IIccTransform _transform;
     private readonly IIccTransform _postTransform;
     private readonly IccProfile _iccProfile;
-    private readonly IIccTransform _defaultLutTransform;
-    private readonly PdfRenderingIntent _defaultIntent = PdfRenderingIntent.RelativeColorimetric;
 
     public IccProfileTransform(IccProfile profile)
     {
         _iccProfile = profile ?? throw new ArgumentNullException(nameof(profile));
 
-        var lut = GetA2BLutByIntent(profile, _defaultIntent);
+        var lut = GetA2BLutByIntent(profile, PdfRenderingIntent.RelativeColorimetric);
 
         if (lut != null)
         {
@@ -66,17 +64,6 @@ internal sealed class IccProfileTransform
         }
     }
 
-    public IccProfileTransform(IccProfile profile, PdfRenderingIntent defaultIntent)
-        : this(profile)
-    {
-        _defaultIntent = defaultIntent;
-
-        if (_hasLut)
-        {
-            _defaultLutTransform = GetA2BLutByIntent(profile, defaultIntent).Transform;
-        }
-    }
-
 
     public int NChannels => _iccProfile.ChannelsCount;
 
@@ -85,7 +72,7 @@ internal sealed class IccProfileTransform
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public Vector4 Transform(ReadOnlySpan<float> values, PdfRenderingIntent intent)
     {
-        var result = IccVectorUtilities.ToVector4(values);
+        var result = IccVectorUtilities.ToVector4WithOnePadding(values);
 
         if (!IsValid)
         {
@@ -108,27 +95,15 @@ internal sealed class IccProfileTransform
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public Vector4 Transform(ReadOnlySpan<float> values)
+    public IccChainedTransform GetIntentTransform(PdfRenderingIntent intent)
     {
-        var result = IccVectorUtilities.ToVector4(values);
+        List<IIccTransform> transforms =
+        [
+            _hasLut ? GetA2BLutByIntent(_iccProfile, intent).Transform : _transform,
+            _postTransform,
+        ];
 
-        if (!IsValid)
-        {
-            return result;
-        }
-
-        if (_hasLut)
-        {
-            _defaultLutTransform.Transform(ref result);
-        }
-        else
-        {
-            _transform.Transform(ref result);
-        }
-
-        _postTransform.Transform(ref result);
-
-        return result;
+        return new IccChainedTransform(transforms.ToArray());
     }
 
     /// <summary>

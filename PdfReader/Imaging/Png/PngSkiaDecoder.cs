@@ -1,5 +1,4 @@
 ﻿using PdfReader.Color.ColorSpace;
-using PdfReader.Imaging.Decoding;
 using PdfReader.Imaging.Model;
 using PdfReader.Imaging.Processing;
 using PdfReader.Streams;

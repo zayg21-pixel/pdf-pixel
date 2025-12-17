@@ -1,6 +1,7 @@
 using PdfReader.Color.Icc.Model;
 using PdfReader.Color.Icc.Transform;
 using PdfReader.Color.Lut;
+using PdfReader.Color.Structures;
 using SkiaSharp;
 using System;
 using System.Numerics;
@@ -91,20 +92,53 @@ internal sealed class IccBasedConverter : PdfColorSpaceConverter
             return _default.GetRgbaSampler(intent);
         }
 
-        switch (N)
+        return new IccSampler(intent, _iccTransform);
+    }
+
+    //protected override IRgbaSampler GetRgbaSamplerCore(PdfRenderingIntent intent)
+    //{
+    //    if (_useDefault)
+    //    {
+    //        return _default.GetRgbaSampler(intent);
+    //    }
+
+    //    switch (N)
+    //    {
+    //        case 1:
+    //            return IccClutTransform.Build(intent, ToSrgbCore, 3, 1, 256);
+    //        case 3:
+    //            return IccClutTransform.Build(intent, ToSrgbCore, 3, 3, 16);
+    //        case 4:
+    //            return IccClutTransform.Build(intent, ToSrgbCore, 3, 4, 16);
+    //        default:
+    //            return new DefaultSampler(intent, ToSrgbCore);
+    //    }
+    //}
+
+    private sealed class IccSampler : IRgbaSampler
+    {
+        public bool IsDefault => false;
+        private readonly IccChainedTransform _transforms;
+
+        public IccSampler(PdfRenderingIntent intent, IccProfileTransform iccProfileTransform)
         {
-            case 1:
-                return OneDLutGray.Build(intent, ToSrgbCore);
-            case 3:
-            {
-                return ThreeDLut.Build(intent, ToSrgbCore);
-            }
-            case 4:
-            {
-                return LayeredThreeDLut.Build(intent, ToSrgbCore);
-            }
-            default:
-                return new DefaultSampler(intent, ToSrgbCore);
+            _transforms = iccProfileTransform.GetIntentTransform(intent);
+        }
+
+        public void Sample(ReadOnlySpan<float> source, ref RgbaPacked destination)
+        {
+            var value = IccVectorUtilities.ToVector4WithOnePadding(source);
+            _transforms.Transform(ref value);
+            value *= 255;
+            destination = new RgbaPacked((byte)value.X, (byte)value.Y, (byte)value.Z, 255);
+        }
+
+        public SKColor SampleColor(ReadOnlySpan<float> source)
+        {
+            var value = IccVectorUtilities.ToVector4WithOnePadding(source);
+            _transforms.Transform(ref value);
+            value *= 255;
+            return new SKColor((byte)value.X, (byte)value.Y, (byte)value.Z);
         }
     }
 
