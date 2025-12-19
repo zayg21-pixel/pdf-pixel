@@ -72,8 +72,8 @@ internal static partial class PdfShadingBuilder
         float reversedR0 = r1;
         float reversedR1 = r0;
 
-        var reversedColors = colors.Reverse().ToArray();
-        var reversedPositions = positions.Reverse().ToArray();
+        var reversedColors = colors.AsEnumerable().Reverse().ToArray();
+        var reversedPositions = positions.AsEnumerable().Reverse().ToArray();
 
         for (int i = 0; i < reversedPositions.Length; i++)
         {

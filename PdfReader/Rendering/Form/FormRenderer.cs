@@ -23,17 +23,16 @@ public class FormRenderer : IFormRenderer
         _loggerFactory = loggerFactory;
     }
 
-    public void DrawForm(SKCanvas canvas, PdfForm formXObject, PdfGraphicsState graphicsState, HashSet<uint> processingXObjects)
+    public void DrawForm(SKCanvas canvas, PdfForm formXObject, PdfGraphicsState graphicsState)
     {
         uint objectNumber = formXObject.XObject.Reference.ObjectNumber;
 
-        if (processingXObjects.Contains(objectNumber))
+        if (graphicsState.RecursionGuard.Contains(objectNumber))
         {
-            // avoid circular
             return;
         }
 
-        processingXObjects.Add(objectNumber);
+        graphicsState.RecursionGuard.Add(objectNumber);
 
         int count = canvas.Save();
 
@@ -69,13 +68,13 @@ public class FormRenderer : IFormRenderer
             localGs.SoftMask = null;
 
             var renderer = new PdfContentStreamRenderer(_renderer, formPage);
-            renderer.RenderContext(canvas, ref parseContext, localGs, processingXObjects);
+            renderer.RenderContext(canvas, ref parseContext, localGs);
         }
 
         softMaskScope.EndDrawContent();
 
         canvas.RestoreToCount(count);
 
-        processingXObjects.Remove(objectNumber);
+        graphicsState.RecursionGuard.Remove(objectNumber);
     }
 }

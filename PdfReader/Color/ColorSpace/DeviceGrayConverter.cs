@@ -1,5 +1,8 @@
+using PdfReader.Color.Sampling;
+using PdfReader.Color.Transform;
 using SkiaSharp;
 using System;
+using System.Numerics;
 using System.Runtime.CompilerServices;
 
 namespace PdfReader.Color.ColorSpace;
@@ -15,10 +18,9 @@ internal sealed class DeviceGrayConverter : PdfColorSpaceConverter
 
     public override bool IsDevice => true;
 
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    protected override SKColor ToSrgbCore(ReadOnlySpan<float> comps01, PdfRenderingIntent renderingIntent)
+    protected override IRgbaSampler GetRgbaSamplerCore(PdfRenderingIntent intent)
     {
-        byte g = ToByte(comps01.Length > 0 ? comps01[0] : 0f);
-        return new SKColor(g, g, g);
+        var chained = new ChainedColorTransform(new FunctionColorTransform((ref Vector4 x) => x = new Vector4(x.X, x.X, x.X, 1f)));
+        return new ColorTransformSampler(chained);
     }
 }

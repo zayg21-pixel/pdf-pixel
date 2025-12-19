@@ -22,8 +22,7 @@ namespace PdfReader.Rendering
         /// <param name="canvas">The SkiaSharp canvas to draw on.</param>
         /// <param name="formXObject">The PDF Form XObject to render.</param>
         /// <param name="graphicsState">The current graphics state for rendering.</param>
-        /// <param name="processingXObjects">A set of XObject references currently being processed to prevent recursion.</param>
-        void DrawForm(SKCanvas canvas, PdfForm formXObject, PdfGraphicsState graphicsState, HashSet<uint> processingXObjects);
+        void DrawForm(SKCanvas canvas, PdfForm formXObject, PdfGraphicsState graphicsState);
 
         /// <summary>
         /// Draws a PDF image onto the specified canvas using the given graphics state.

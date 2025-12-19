@@ -21,16 +21,17 @@ public abstract class PdfFontBase : IDisposable
     /// Constructor for all PDF fonts with essential immutable properties
     /// Performs only lightweight dictionary operations
     /// </summary>
-    /// <param name="fontObject">PDF dictionary containing the font definition</param>
-    protected PdfFontBase(PdfDictionary fontDictionary)
+    /// <param name="fontObject">PDF object containing the font definition</param>
+    protected PdfFontBase(PdfObject fontObject)
     {
-        Dictionary = fontDictionary ?? throw new ArgumentNullException(nameof(fontDictionary));
+        FontObject = fontObject ?? throw new ArgumentNullException(nameof(fontObject));
+        Dictionary = fontObject.Dictionary ?? throw new ArgumentNullException(nameof(fontObject));
 
         // Parse essential properties from the font object (lightweight operations)
-        Type = fontDictionary.GetName(PdfTokens.SubtypeKey).AsEnum<PdfFontSubType>();
-        BaseFont = fontDictionary.GetString(PdfTokens.BaseFontKey);
+        Type = Dictionary.GetName(PdfTokens.SubtypeKey).AsEnum<PdfFontSubType>();
+        BaseFont = Dictionary.GetString(PdfTokens.BaseFontKey);
         ToUnicodeCMap = LoadToUnicodeCMap();
-        FontDescriptor = PdfFontDescriptor.FromDictionary(fontDictionary.GetDictionary(PdfTokens.FontDescriptorKey));
+        FontDescriptor = PdfFontDescriptor.FromDictionary(Dictionary.GetDictionary(PdfTokens.FontDescriptorKey));
         SubstitutionInfo = PdfSubstitutionInfo.Parse(BaseFont, FontDescriptor);
     }
 
@@ -67,6 +68,11 @@ public abstract class PdfFontBase : IDisposable
             return Document.FontSubstitutor.SubstituteTypeface(SubstitutionInfo, unicode);
         }
     }
+
+    /// <summary>
+    /// Original PDF font object.
+    /// </summary>
+    public PdfObject FontObject { get; }
 
     /// <summary>
     /// Font dictionary.

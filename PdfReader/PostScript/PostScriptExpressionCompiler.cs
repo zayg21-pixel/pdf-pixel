@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Linq.Expressions;
 using PdfReader.PostScript.Tokens;
 
@@ -9,8 +8,8 @@ namespace PdfReader.PostScript
     // TODO: cleanup and add missing operators
     /// <summary>
     /// Compiles a math-only subset of PostScript procedures into expression tree delegates for PDF Functions.
-    /// Produces a vector delegate Func<float[], float[]> where inputs come from the args array in the order
-    /// defined by <paramref name="parameterNames"/> and outputs reflect the final operand stack top-to-bottom.
+    /// Produces a vector delegate Action<float[], float[]> where inputs come from the first array in the order
+    /// defined by <paramref name="parameterNames"/> and outputs are written to the second array (buffer).
     /// Unsupported tokens/operators cause compilation to fail and the caller should fall back to the interpreter.
     /// NOTE: Only operators commonly used in PDF Type 4 PostScript functions are implemented.
     /// </summary>
@@ -20,7 +19,7 @@ namespace PdfReader.PostScript
         /// Attempts to compile a math-only PostScript procedure into a reusable vector delegate.
         /// Treats the input parameters as already pushed on the operand stack before executing tokens.
         /// </summary>
-        public bool TryCompileMath(PostScriptProcedure procedure, IReadOnlyList<string> parameterNames, out Func<float[], float[]> fn)
+        public bool TryCompileMath(PostScriptProcedure procedure, IReadOnlyList<string> parameterNames, out Action<float[], float[]> fn)
         {
             fn = null;
             if (procedure == null)
@@ -34,6 +33,7 @@ namespace PdfReader.PostScript
             }
 
             var argsParam = Expression.Parameter(typeof(float[]), "args");
+            var bufferParam = Expression.Parameter(typeof(float[]), "buffer");
             var stack = new Stack<Expression>();
 
             for (int i = 0; i < parameterNames.Count; i++)
@@ -89,13 +89,7 @@ namespace PdfReader.PostScript
             }
 
             int outputCount = stack.Count;
-            var outputsVar = Expression.Variable(typeof(float[]), "outputs");
-            var assignOutputs = Expression.Assign(outputsVar, Expression.NewArrayBounds(typeof(float), Expression.Constant(outputCount)));
-
-            var bodyExpressions = new List<Expression>
-            {
-                assignOutputs
-            };
+            var bodyExpressions = new List<Expression>();
 
             var temp = new List<Expression>(outputCount);
             while (stack.Count > 0)
@@ -107,16 +101,14 @@ namespace PdfReader.PostScript
             {
                 int targetIndex = temp.Count - 1 - i;
                 var assign = Expression.Assign(
-                    Expression.ArrayAccess(outputsVar, Expression.Constant(targetIndex)),
+                    Expression.ArrayAccess(bufferParam, Expression.Constant(targetIndex)),
                     temp[i]
                 );
                 bodyExpressions.Add(assign);
             }
 
-            bodyExpressions.Add(outputsVar);
-
-            var block = Expression.Block(new[] { outputsVar }, bodyExpressions);
-            var lambda = Expression.Lambda<Func<float[], float[]>>(block, argsParam);
+            var block = Expression.Block(bodyExpressions);
+            var lambda = Expression.Lambda<Action<float[], float[]>>(block, argsParam, bufferParam);
             try
             {
                 fn = lambda.Compile();

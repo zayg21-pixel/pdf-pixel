@@ -80,7 +80,7 @@ public sealed class PdfTilingPattern : PdfPattern
 
     internal override void RenderPattern(SKCanvas canvas, PdfGraphicsState state, IRenderTarget renderTarget)
     {
-        var tile = TilingPatternShaderBuilder.RenderTilingCell(_renderer, this);
+        var tile = TilingPatternShaderBuilder.RenderTilingCell(_renderer, this, state.Page, state.RecursionGuard);
 
         var matrix = SKMatrix.Concat(state.CTM.Invert(), PatternMatrix);
         canvas.Save();

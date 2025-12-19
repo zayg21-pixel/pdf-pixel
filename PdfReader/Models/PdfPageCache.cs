@@ -92,9 +92,9 @@ internal sealed class PdfPageCache
         {
             return documentCachedFont;
         }
-        var fontObjectDictionary = fontObject.Dictionary;
+        var fontObjectDictionary = fontObject;
 
-        var newFont = PdfFontFactory.CreateFont(fontObjectDictionary);
+        var newFont = PdfFontFactory.CreateFont(fontObject);
         if (newFont != null)
         {
             if (fontObject.Reference.IsValid)

@@ -1,4 +1,4 @@
-using PdfReader.Color.Lut;
+using PdfReader.Color.Sampling;
 using PdfReader.Functions;
 using PdfReader.Models;
 using SkiaSharp;
@@ -30,37 +30,22 @@ internal sealed class DeviceNColorSpaceConverter : PdfColorSpaceConverter
 
     public override bool IsDevice => false;
 
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    protected override SKColor ToSrgbCore(ReadOnlySpan<float> comps01, PdfRenderingIntent intent)
-    {
-        ReadOnlySpan<float> mapped = comps01;
-        if (_tintFunction != null)
-        {
-            mapped = _tintFunction.Evaluate(comps01);
-            if (mapped == null || mapped.Length == 0)
-            {
-                mapped = comps01;
-            }
-        }
-
-        return _alternate.GetRgbaSampler(intent).SampleColor(mapped);
-    }
-
     protected override IRgbaSampler GetRgbaSamplerCore(PdfRenderingIntent intent)
     {
+        if (_tintFunction == null)
+        {
+            return _alternate.GetRgbaSampler(intent);
+        }
+
         switch (Components)
         {
             case 1:
             {
-                return new SeparationColorSpaceConverter.SeparationSampler(_tintFunction, _alternate.GetRgbaSampler(intent));
+                return new SingleChannelFunctionSampler(_tintFunction, _alternate.GetRgbaSampler(intent));
             }
-            //case 3:
-            //{
-            //    return ThreeDLut.Build(intent, ToSrgbCore);
-            //}
             default:
             {
-                return base.GetRgbaSamplerCore(intent);
+                return new FunctionSampler(_tintFunction, _alternate.GetRgbaSampler(intent));
             }
         }
     }

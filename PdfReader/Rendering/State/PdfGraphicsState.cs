@@ -5,6 +5,8 @@ using PdfReader.Color.Paint;
 using PdfReader.Transparency.Model;
 using PdfReader.Fonts.Model;
 using PdfReader.Fonts.Mapping;
+using PdfReader.Models;
+using System.Collections.Generic;
 
 namespace PdfReader.Rendering.State
 {
@@ -21,6 +23,22 @@ namespace PdfReader.Rendering.State
     /// </summary>
     public class PdfGraphicsState
     {
+        public PdfGraphicsState(PdfPage statePage, HashSet<uint> recursionGuard)
+        {
+            Page = statePage;
+            RecursionGuard = recursionGuard;
+        }
+
+        /// <summary>
+        /// Page associated with this graphics state (needed for resource lookups, etc.).
+        /// </summary>
+        public PdfPage Page { get; }
+
+        /// <summary>
+        /// Recursion guard to prevent infinite loops.
+        /// </summary>
+        public HashSet<uint> RecursionGuard { get; }
+
         /// <summary>
         /// Identity matrix shortcut used for initializing text matrices, etc.
         /// </summary>
@@ -219,11 +237,23 @@ namespace PdfReader.Rendering.State
         public SKPath TextClipPath { get; set; }
 
         /// <summary>
+        /// Type 3 glyph advancement vector (wx, wy) as provided by d0/d1 operators inside the glyph stream.
+        /// Default is (0,0) until set.
+        /// </summary>
+        public SKSize Type3Advancement { get; set; } = SKSize.Empty;
+
+        /// <summary>
+        /// Type 3 glyph bounding box (llx, lly, urx, ury) as provided by d1 operator inside the glyph stream.
+        /// Null until set via d1. d0 resets it to null per glyph.
+        /// </summary>
+        public SKRect? Type3BoundingBox { get; set; }
+
+        /// <summary>
         /// Create a deep copy for stack push (q operator). Paint objects are reference-copied (immutable usage expected).
         /// </summary>
-        public PdfGraphicsState Clone()
+        public PdfGraphicsState Clone(PdfPage pageOverride = null)
         {
-            return new PdfGraphicsState
+            return new PdfGraphicsState(pageOverride ?? Page, RecursionGuard)
             {
                 StrokePaint = StrokePaint,
                 FillPaint = FillPaint,
@@ -257,7 +287,9 @@ namespace PdfReader.Rendering.State
                 InTextObject = InTextObject,
                 CTM = CTM,
                 DeviceMatrix = DeviceMatrix,
-                TextClipPath = TextClipPath
+                TextClipPath = TextClipPath,
+                Type3Advancement = Type3Advancement,
+                Type3BoundingBox = Type3BoundingBox
             };
         }
     }

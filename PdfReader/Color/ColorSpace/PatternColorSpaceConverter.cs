@@ -1,6 +1,5 @@
-using SkiaSharp;
-using System;
-using System.Runtime.CompilerServices;
+using PdfReader.Color.Sampling;
+using PdfReader.Color.Transform;
 
 namespace PdfReader.Color.ColorSpace;
 
@@ -23,14 +22,8 @@ internal sealed class PatternColorSpaceConverter : PdfColorSpaceConverter
 
     public override int Components => _baseColorSpace.Components;
 
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    protected override SKColor ToSrgbCore(ReadOnlySpan<float> comps01, PdfRenderingIntent intent)
+    protected override IRgbaSampler GetRgbaSamplerCore(PdfRenderingIntent intent)
     {
-        if (_baseColorSpace == null)
-        {
-            return SKColors.Black; // Colored pattern: color defined by pattern content stream; return black as placeholder.
-        }
-
-        return _baseColorSpace.ToSrgb(comps01, intent);
+        return _baseColorSpace?.GetRgbaSampler(intent) ?? new ColorTransformSampler(new ChainedColorTransform());
     }
 }

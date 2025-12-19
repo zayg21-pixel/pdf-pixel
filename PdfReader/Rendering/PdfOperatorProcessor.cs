@@ -25,10 +25,9 @@ public class PdfOperatorProcessor
     private readonly ColorOperators _colorOperators;
     private readonly InlineImageOperators _inlineImageOperators;
     private readonly MiscellaneousOperators _miscOperators;
-    private readonly HashSet<uint> _processingXObjects;
     private readonly ILogger<PdfOperatorProcessor> _logger;
 
-    public PdfOperatorProcessor(IPdfRenderer renderer, PdfPage page, SKCanvas canvas, Stack<IPdfValue> operandStack, Stack<PdfGraphicsState> graphicsStack, SKPath currentPath, HashSet<uint> processingXObjects)
+    public PdfOperatorProcessor(IPdfRenderer renderer, PdfPage page, SKCanvas canvas, Stack<IPdfValue> operandStack, Stack<PdfGraphicsState> graphicsStack, SKPath currentPath)
     {
         _renderer = renderer;
         _page = page;
@@ -36,13 +35,12 @@ public class PdfOperatorProcessor
         _operandStack = operandStack;
         _graphicsStack = graphicsStack;
         _currentPath = currentPath;
-        _processingXObjects = processingXObjects;
         _graphicsStateOperators = new GraphicsStateOperators(page, canvas, operandStack, graphicsStack);
         _textOperators = new TextOperators(renderer, page, canvas, operandStack);
         _pathOperators = new PathOperators(renderer, operandStack, canvas, currentPath, page);
         _colorOperators = new ColorOperators(renderer, operandStack, page);
         _inlineImageOperators = new InlineImageOperators(renderer, operandStack, page, canvas);
-        _miscOperators = new MiscellaneousOperators(renderer, operandStack, page, canvas, processingXObjects);
+        _miscOperators = new MiscellaneousOperators(renderer, operandStack, page, canvas);
         _logger = page.Document.LoggerFactory.CreateLogger<PdfOperatorProcessor>();
     }
 

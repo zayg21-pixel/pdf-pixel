@@ -1,7 +1,6 @@
 ﻿using PdfReader.Forms;
 using PdfReader.Rendering.State;
 using SkiaSharp;
-using System.Collections.Generic;
 
 namespace PdfReader.Rendering.Form;
 
@@ -17,6 +16,5 @@ public interface IFormRenderer
     /// <param name="canvas">The SkiaSharp canvas to draw on.</param>
     /// <param name="formXObject">The PDF Form XObject to render.</param>
     /// <param name="graphicsState">The current graphics state for rendering.</param>
-    /// <param name="processingXObjects">A set of XObject references currently being processed to prevent recursion.</param>
-    void DrawForm(SKCanvas canvas, PdfForm formXObject, PdfGraphicsState graphicsState, HashSet<uint> processingXObjects);
+    void DrawForm(SKCanvas canvas, PdfForm formXObject, PdfGraphicsState graphicsState);
 }

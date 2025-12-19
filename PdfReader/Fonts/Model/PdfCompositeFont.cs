@@ -19,7 +19,7 @@ public class PdfCompositeFont : PdfFontBase
     private readonly CMapWMode _writingMode;
     private readonly Dictionary<uint, string> _toUnicode;
 
-    public PdfCompositeFont(PdfDictionary fontDictionary) : base(fontDictionary)
+    public PdfCompositeFont(PdfObject fontObject) : base(fontObject)
     {
         DescendantFonts = LoadDescendantFonts();
         (CodeToCidCMap, CMapName) = LoadCodeToCidCMap();
@@ -138,7 +138,7 @@ public class PdfCompositeFont : PdfFontBase
 
         foreach (var descendantObj in descendantObjects)
         {
-            var descendant = PdfFontFactory.CreateFont(descendantObj.Dictionary);
+            var descendant = PdfFontFactory.CreateFont(descendantObj);
 
             if (descendant is PdfCidFont cidFont)
             {

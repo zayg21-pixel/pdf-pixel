@@ -59,7 +59,7 @@ public class TextRenderUtilities
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static SKMatrix GetFullTextMatrix(PdfGraphicsState state)
+    public static SKMatrix GetFullTextMatrix(PdfGraphicsState state, bool inverse = true)
     {
         var textMatrix = state.TextMatrix;
 
@@ -70,7 +70,8 @@ public class TextRenderUtilities
 
         // Apply font size, horizontal scaling, and vertical flip
         var fullHorizontalScale = state.FontSize * state.HorizontalScaling / 100f;
-        var fontScalingMatrix = SKMatrix.CreateScale(fullHorizontalScale, -state.FontSize);
+        int verticalFlip = inverse ? -1 : 1;
+        var fontScalingMatrix = SKMatrix.CreateScale(fullHorizontalScale, state.FontSize * verticalFlip);
         textMatrix = SKMatrix.Concat(textMatrix, fontScalingMatrix);
 
         return textMatrix;

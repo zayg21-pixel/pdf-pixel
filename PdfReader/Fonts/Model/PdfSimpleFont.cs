@@ -16,9 +16,9 @@ public class PdfSimpleFont : PdfSingleByteFont
     private readonly SKTypeface _typeface;
     private readonly IByteCodeToGidMapper _mapper;
 
-    public PdfSimpleFont(PdfDictionary fontDictionary) : base(fontDictionary)
+    public PdfSimpleFont(PdfObject fontObject) : base(fontObject)
     {
-        _logger = fontDictionary.Document.LoggerFactory.CreateLogger<PdfSimpleFont>();
+        _logger = fontObject.Document.LoggerFactory.CreateLogger<PdfSimpleFont>();
         (_typeface, _mapper) = GetTypefaceAndMapper();
     }
 
@@ -43,6 +43,20 @@ public class PdfSimpleFont : PdfSingleByteFont
                         _logger.LogWarning("Failed to create typeface from embedded Type1 font data for font '{FontName}'", BaseFont);
                         throw new InvalidOperationException("Failed to create typeface from embedded Type1 font data.");
                     }
+
+                    /*
+                     TODO: as we PDF specification, we should treat Encoding entry as follows, that means that we currently incorrectly setting base encoding as we ignore symbolic/non-sumbolic:
+                     * (Optional) The base encoding — that is, the encoding from which the
+Differences entry (if present) describes differences — shall be the name of 
+one of the predefined encodings MacRomanEncoding, MacExpertEncoding, or
+WinAnsiEncoding (see Annex D, "Character Sets and Encodings").
+If this entry is absent, the Differences entry shall describe differences from a 
+default base encoding. For a font program that is embedded in the PDF file, 
+the default base encoding shall be the font program’s built-in encoding, as 
+described in 9.6.5, "Character encoding" and further elaborated in the 
+subclauses on specific font types. Otherwise, for a nonsymbolic font, it shall be 
+StandardEncoding
+                     */
 
                     if (Encoding.BaseEncoding == PdfFontEncoding.Unknown && Encoding.Differences.Count == 0)
                     {

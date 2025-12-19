@@ -54,11 +54,10 @@ public class PdfContentStreamRenderer
         // Create unified context that treats all streams as one continuous stream
         var parseContext = new PdfParseContext(contentStreams);
 
-        var state = new PdfGraphicsState();
+        var state = new PdfGraphicsState(_page, new HashSet<uint>());
         state.DeviceMatrix = canvas.TotalMatrix;
-        var processingXObjects = new HashSet<uint>();
 
-        RenderContext(canvas, ref parseContext, state, processingXObjects);
+        RenderContext(canvas, ref parseContext, state);
     }
 
     private List<ReadOnlyMemory<byte>> GetPageContentStreams()
@@ -89,12 +88,12 @@ public class PdfContentStreamRenderer
     /// Renders a content stream directly to canvas using stack-based approach with PdfParsers.
     /// Includes XObject recursion tracking to prevent infinite loops.
     /// </summary>
-    public void RenderContext(SKCanvas canvas, ref PdfParseContext parseContext, PdfGraphicsState graphicsState, HashSet<uint> processingXObjects)
+    public void RenderContext(SKCanvas canvas, ref PdfParseContext parseContext, PdfGraphicsState graphicsState)
     {
         var graphicsStack = new Stack<PdfGraphicsState>();
         var operandStack = new Stack<IPdfValue>();
         using var currentPath = new SKPath();
-        var operatorProcessor = new PdfOperatorProcessor(_renderer, _page, canvas, operandStack, graphicsStack, currentPath, processingXObjects);
+        var operatorProcessor = new PdfOperatorProcessor(_renderer, _page, canvas, operandStack, graphicsStack, currentPath);
         var parser = new PdfParser(parseContext, _page.Document, allowReferences: false, decrypt: false);
         IPdfValue value;
 

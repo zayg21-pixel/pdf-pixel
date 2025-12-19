@@ -34,16 +34,14 @@ public class MiscellaneousOperators : IOperatorProcessor
     private readonly Stack<IPdfValue> _operandStack;
     private readonly PdfPage _page;
     private readonly SKCanvas _canvas;
-    private readonly HashSet<uint> _processingXObjects;
     private readonly ILogger<MiscellaneousOperators> _logger;
 
-    public MiscellaneousOperators(IPdfRenderer renderer, Stack<IPdfValue> operandStack, PdfPage page, SKCanvas canvas, HashSet<uint> processingXObjects)
+    public MiscellaneousOperators(IPdfRenderer renderer, Stack<IPdfValue> operandStack, PdfPage page, SKCanvas canvas)
     {
         _renderer = renderer;
         _operandStack = operandStack;
         _page = page;
         _canvas = canvas;
-        _processingXObjects = processingXObjects;
         _logger = page.Document.LoggerFactory.CreateLogger<MiscellaneousOperators>();
     }
 
@@ -98,12 +96,12 @@ public class MiscellaneousOperators : IOperatorProcessor
             }
             case "d0":
             {
-                ProcessSetGlyphWidth();
+                ProcessSetGlyphWidth(ref graphicsState);
                 break;
             }
             case "d1":
             {
-                ProcessSetGlyphWidthAndBoundingBox();
+                ProcessSetGlyphWidthAndBoundingBox(ref graphicsState);
                 break;
             }
             case "sh":
@@ -146,7 +144,7 @@ public class MiscellaneousOperators : IOperatorProcessor
             }
             case PdfXObjectSubtype.Form:
                 var formXObject = PdfForm.FromXObject(pageObject.XObject, _page);
-                _renderer.DrawForm(_canvas, formXObject, graphicsState, _processingXObjects);
+                _renderer.DrawForm(_canvas, formXObject, graphicsState);
                 break;
             default:
                 _logger.LogWarning("Unsupported XObject subtype '{XObjectSubtype}' for XObject '{XObjectName}'", pageObject.Subtype, xObjectName);
@@ -203,7 +201,7 @@ public class MiscellaneousOperators : IOperatorProcessor
         // Ignored per PDF spec (compatibility section end).
     }
 
-    private void ProcessSetGlyphWidth()
+    private void ProcessSetGlyphWidth(ref PdfGraphicsState graphicsState)
     {
         var operands = PdfOperatorProcessor.GetOperands(2, _operandStack);
         if (operands.Count < 2)
@@ -211,12 +209,13 @@ public class MiscellaneousOperators : IOperatorProcessor
             return;
         }
 
-        var glyphWidthX = operands[0].AsFloat();
-        var glyphWidthY = operands[1].AsFloat();
-        _logger.LogDebug("Type3 glyph width: ({GlyphWidthX},{GlyphWidthY})", glyphWidthX, glyphWidthY);
+        var wx = operands[0].AsFloat();
+        var wy = operands[1].AsFloat();
+        graphicsState.Type3Advancement = new SKSize(wx, wy);
+        graphicsState.Type3BoundingBox = null; // d0 implies colored glyph; no bbox supplied
     }
 
-    private void ProcessSetGlyphWidthAndBoundingBox()
+    private void ProcessSetGlyphWidthAndBoundingBox(ref PdfGraphicsState graphicsState)
     {
         var operands = PdfOperatorProcessor.GetOperands(6, _operandStack);
         if (operands.Count < 6)
@@ -224,13 +223,15 @@ public class MiscellaneousOperators : IOperatorProcessor
             return;
         }
 
-        var glyphWidthX = operands[0].AsFloat();
-        var glyphWidthY = operands[1].AsFloat();
+        var wx = operands[0].AsFloat();
+        var wy = operands[1].AsFloat();
         var llx = operands[2].AsFloat();
         var lly = operands[3].AsFloat();
         var urx = operands[4].AsFloat();
         var ury = operands[5].AsFloat();
-        _logger.LogDebug("Type3 glyph width and bbox: w=({GlyphWidthX},{GlyphWidthY}) bbox=({Llx},{Lly},{Urx},{Ury})", glyphWidthX, glyphWidthY, llx, lly, urx, ury);
+
+        graphicsState.Type3Advancement = new SKSize(wx, wy);
+        graphicsState.Type3BoundingBox = new SKRect(llx, lly, urx, ury);
     }
 
     private void ProcessShading(PdfGraphicsState graphicsState)

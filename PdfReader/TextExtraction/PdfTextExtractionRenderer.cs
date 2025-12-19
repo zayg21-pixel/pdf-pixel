@@ -17,7 +17,7 @@ internal class PdfTextExtractionRenderer : IPdfRenderer
 {
     public List<PdfCharacter> PageCharacters { get; } = new List<PdfCharacter>();
 
-    public void DrawForm(SKCanvas canvas, PdfForm formXObject, PdfGraphicsState graphicsState, HashSet<uint> processingXObjects)
+    public void DrawForm(SKCanvas canvas, PdfForm formXObject, PdfGraphicsState graphicsState)
     {
         canvas.Save();
 
@@ -35,7 +35,7 @@ internal class PdfTextExtractionRenderer : IPdfRenderer
             localGs.CTM = formXObject.Matrix;
 
             var renderer = new PdfContentStreamRenderer(this, formPage);
-            renderer.RenderContext(canvas, ref parseContext, localGs, processingXObjects);
+            renderer.RenderContext(canvas, ref parseContext, localGs);
         }
 
         canvas.Restore();

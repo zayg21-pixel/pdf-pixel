@@ -1,4 +1,5 @@
-using PdfReader.Color.Lut;
+using PdfReader.Color.Sampling;
+using PdfReader.Color.Structures;
 using SkiaSharp;
 using System;
 using System.Runtime.CompilerServices;
@@ -28,15 +29,6 @@ public abstract class PdfColorSpaceConverter
     public abstract bool IsDevice { get; }
 
     /// <summary>
-    /// Core float (0..1) component to sRGB conversion implemented by derived types.
-    /// </summary>
-    /// <param name="comps01">Component values in the range 0..1.</param>
-    /// <param name="intent">Rendering intent to apply.</param>
-    /// <returns>Converted sRGB color.</returns>
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    protected abstract SKColor ToSrgbCore(ReadOnlySpan<float> comps01, PdfRenderingIntent intent);
-
-    /// <summary>
     /// Converts normalized (0..1) component values to sRGB using the derived converter implementation.
     /// </summary>
     /// <param name="comps01">Component values in the range 0..1.</param>
@@ -44,7 +36,9 @@ public abstract class PdfColorSpaceConverter
     /// <returns>sRGB color.</returns>
     public virtual SKColor ToSrgb(ReadOnlySpan<float> comps01, PdfRenderingIntent intent)
     {
-        return GetRgbaSampler(intent).SampleColor(comps01);
+        RgbaPacked packed = default;
+        GetRgbaSampler(intent).Sample(comps01, ref packed);
+        return packed.ToSkiaColor();
     }
 
     /// <summary>
@@ -110,8 +104,5 @@ public abstract class PdfColorSpaceConverter
     /// </summary>
     /// <param name="intent">Rendering intent.</param>
     /// <returns>RGBA sampler.</returns>
-    protected virtual IRgbaSampler GetRgbaSamplerCore(PdfRenderingIntent intent)
-    {
-        return new DefaultSampler(intent, ToSrgbCore);
-    }
+    protected abstract IRgbaSampler GetRgbaSamplerCore(PdfRenderingIntent intent);
 }

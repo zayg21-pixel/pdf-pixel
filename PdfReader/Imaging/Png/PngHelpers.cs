@@ -1,4 +1,5 @@
-﻿using SkiaSharp;
+﻿using PdfReader.Color.Structures;
+using SkiaSharp;
 using System;
 using System.IO;
 using System.IO.Compression;
@@ -67,15 +68,15 @@ namespace PdfReader.Imaging.Png
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static void WritePlteChunk(SKDynamicMemoryWStream stream, SKColor[] palette)
+        public static void WritePlteChunk(SKDynamicMemoryWStream stream, RgbaPacked[] palette)
         {
             int count = palette.Length;
             byte[] plte = new byte[count * 3];
             for (int i = 0; i < count; i++)
             {
-                plte[i * 3 + 0] = palette[i].Red;
-                plte[i * 3 + 1] = palette[i].Green;
-                plte[i * 3 + 2] = palette[i].Blue;
+                plte[i * 3 + 0] = palette[i].R;
+                plte[i * 3 + 1] = palette[i].G;
+                plte[i * 3 + 2] = palette[i].B;
             }
             WriteChunk(stream, "PLTE", plte, plte.Length);
         }

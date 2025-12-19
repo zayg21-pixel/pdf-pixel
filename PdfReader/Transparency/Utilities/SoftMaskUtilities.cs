@@ -3,6 +3,7 @@ using PdfReader.Models;
 using PdfReader.Rendering.State;
 using PdfReader.Transparency.Model;
 using SkiaSharp;
+using System.Collections.Generic;
 
 namespace PdfReader.Transparency.Utilities;
 
@@ -19,9 +20,9 @@ internal static class SoftMaskUtilities
     /// (e.g. ca/CA) or explicit painting. Using white ensures that stroke/fill operations that do not explicitly
     /// change color contribute a full 1.0 channel and the eventual mask derives only from transparency semantics.
     /// </summary>
-    public static PdfGraphicsState CreateAlphaMaskGraphicsState()
+    public static PdfGraphicsState CreateAlphaMaskGraphicsState(PdfPage page, HashSet<uint> recursionGuard)
     {
-        return new PdfGraphicsState
+        return new PdfGraphicsState(page, recursionGuard)
         {
             // White stroke/fill -> maximum channel; alpha modulation derives from transparency settings.
             StrokePaint = PdfPaint.Solid(SKColors.White),
@@ -41,9 +42,9 @@ internal static class SoftMaskUtilities
     /// values from the luminance of the group result. Black base simplifies interpretation and avoids unintended
     /// bias toward full alpha when colors are not explicitly set.
     /// </summary>
-    public static PdfGraphicsState CreateLuminosityMaskGraphicsState()
+    public static PdfGraphicsState CreateLuminosityMaskGraphicsState(PdfPage page, HashSet<uint> recursionGuard)
     {
-        return new PdfGraphicsState
+        return new PdfGraphicsState(page, recursionGuard)
         {
             // Black stroke/fill -> preserves true luminance contribution of painted colors.
             StrokePaint = PdfPaint.Solid(SKColors.Black),

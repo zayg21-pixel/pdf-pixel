@@ -32,33 +32,33 @@ public static class PdfFontFactory
     }
 
     /// <summary>
-    /// Creates a font object based on the specified PDF dictionary.
+    /// Creates a font object based on the specified PDF object.
     /// </summary>
     /// <remarks>The method determines the font subtype from the dictionary and returns an appropriate
     /// font object instance. Supported font subtypes include Type0, CIDFontType0, CIDFontType2,  Type1, TrueType,
     /// Type3, and MMType1. If the subtype is unrecognized, a simple font object  is returned as a
     /// fallback.</remarks>
-    /// <param name="dictionary">The PDF dictionary containing font metadata and properties.  This dictionary must represent a valid font
+    /// <param name="fontObject">The PDF object containing font metadata and properties. Must represent a valid font
     /// object.</param>
-    public static PdfFontBase CreateFont(PdfDictionary dictionary)
+    public static PdfFontBase CreateFont(PdfObject fontObject)
     {
-        if (!IsFont(dictionary))
+        if (!IsFont(fontObject.Dictionary))
         {
             return null;
         }
 
-        var subtype = dictionary.GetName(PdfTokens.SubtypeKey).AsEnum<PdfFontSubType>();
+        var subtype = fontObject.Dictionary.GetName(PdfTokens.SubtypeKey).AsEnum<PdfFontSubType>();
 
         return subtype switch
         {
-            PdfFontSubType.Type0 => new PdfCompositeFont(dictionary),
-            PdfFontSubType.CidFontType0 => new PdfCidFont(dictionary),
-            PdfFontSubType.CidFontType2 => new PdfCidFont(dictionary),
-            PdfFontSubType.Type1 => new PdfSimpleFont(dictionary),
-            PdfFontSubType.TrueType => new PdfSimpleFont(dictionary),
-            PdfFontSubType.Type3 => new PdfType3Font(dictionary),
-            PdfFontSubType.MMType1 => new PdfSimpleFont(dictionary),
-            _ => new PdfSimpleFont(dictionary) // Fallback for unknown subtypes under /Font
+            PdfFontSubType.Type0 => new PdfCompositeFont(fontObject),
+            PdfFontSubType.CidFontType0 => new PdfCidFont(fontObject),
+            PdfFontSubType.CidFontType2 => new PdfCidFont(fontObject),
+            PdfFontSubType.Type1 => new PdfSimpleFont(fontObject),
+            PdfFontSubType.TrueType => new PdfSimpleFont(fontObject),
+            PdfFontSubType.Type3 => new PdfType3Font(fontObject),
+            PdfFontSubType.MMType1 => new PdfSimpleFont(fontObject),
+            _ => new PdfSimpleFont(fontObject) // Fallback for unknown subtypes under /Font
         };
     }
 }

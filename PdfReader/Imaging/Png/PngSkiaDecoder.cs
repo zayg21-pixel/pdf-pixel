@@ -1,4 +1,5 @@
 ﻿using PdfReader.Color.ColorSpace;
+using PdfReader.Color.Structures;
 using PdfReader.Imaging.Model;
 using PdfReader.Imaging.Processing;
 using PdfReader.Streams;
@@ -44,7 +45,7 @@ internal class PngSkiaDecoder
         int width = image.Width;
         int height = image.Height;
         int bpc = image.BitsPerComponent;
-        SKColor[] palette = null;
+        RgbaPacked[] palette = null;
 
         var converter = image.ColorSpaceConverter;
 

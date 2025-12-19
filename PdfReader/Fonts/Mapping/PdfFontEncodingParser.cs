@@ -39,7 +39,8 @@ public static class PdfFontEncodingParser
         if (encodingDictionary != null)
         {
             // Base encoding name (optional); default per spec is StandardEncoding for Type1/Type3, WinAnsi for TrueType
-            var baseEncoding = encodingDictionary.GetName(PdfTokens.BaseEncodingKey).AsEnum<PdfFontEncoding>();
+            name = encodingDictionary.GetName(PdfTokens.BaseEncodingKey);
+            var baseEncoding = name.AsEnum<PdfFontEncoding>();
 
             var differences = new Dictionary<int, PdfString>();
             var diffs = encodingDictionary.GetArray(PdfTokens.DifferencesKey);
@@ -68,7 +69,7 @@ public static class PdfFontEncodingParser
                 }
             }
 
-            return new PdfFontEncodingInfo(baseEncoding, PdfString.Empty, differences);
+            return new PdfFontEncodingInfo(baseEncoding, name, differences);
         }
 
         // Fallback: unknown encoding representation

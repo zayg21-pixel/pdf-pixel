@@ -71,9 +71,9 @@ public class PdfRenderer : IPdfRenderer
     /// <summary>
     /// Render a form XObject onto the canvas with proper handling of transparency and soft masks.
     /// </summary>
-    public void DrawForm(SKCanvas canvas, PdfForm formXObject, PdfGraphicsState graphicsState, HashSet<uint> processingXObjects)
+    public void DrawForm(SKCanvas canvas, PdfForm formXObject, PdfGraphicsState graphicsState)
     {
-        _formRenderer.DrawForm(canvas, formXObject, graphicsState, processingXObjects);
+        _formRenderer.DrawForm(canvas, formXObject, graphicsState);
     }
 
     /// <summary>

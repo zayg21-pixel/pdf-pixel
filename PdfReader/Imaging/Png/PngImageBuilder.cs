@@ -1,4 +1,5 @@
-﻿using SkiaSharp;
+﻿using PdfReader.Color.Structures;
+using SkiaSharp;
 using System;
 using System.IO;
 using System.Runtime.CompilerServices;
@@ -82,7 +83,7 @@ namespace PdfReader.Imaging.Png
         /// </summary>
         /// <param name="palette">The color palette to use (can be null).</param>
         /// <param name="iccProfile">The ICC profile to use (can be empty).</param>
-        public void Init(SKColor[] palette, ReadOnlyMemory<byte> iccProfile)
+        public void Init(RgbaPacked[] palette, ReadOnlyMemory<byte> iccProfile)
         {
             EnsureState(PngImageBuilderState.Init);
             PngHelpers.WritePngSignature(_pngStream);

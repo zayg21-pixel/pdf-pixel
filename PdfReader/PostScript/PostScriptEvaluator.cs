@@ -55,7 +55,7 @@ namespace PdfReader.PostScript
         /// <param name="parameterNames">Input parameter names in order.</param>
         /// <param name="fn">Compiled delegate if successful; otherwise null.</param>
         /// <returns>True if compilation succeeded; otherwise false.</returns>
-        public bool TryCompile(IReadOnlyList<string> parameterNames, out Func<float[], float[]> fn)
+        public bool TryCompile(IReadOnlyList<string> parameterNames, out Action<float[], float[]> fn)
         {
             fn = null;
             if (parameterNames == null || parameterNames.Count == 0)

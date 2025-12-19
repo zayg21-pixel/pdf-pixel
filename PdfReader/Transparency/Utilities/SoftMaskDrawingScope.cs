@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.ComponentModel;
 using PdfReader.Color.Paint;
 using PdfReader.Parsing;
 using PdfReader.Rendering;
@@ -97,55 +96,62 @@ public sealed class SoftMaskDrawingScope : IDisposable
         // - luminocity filter is applied to pixels, that means that if mask is slightly off, filter will still be applied to picture, that eliminates artifacts on edges
         // - we can omit clipping to bbox, because picture will be drawn only inside bbox anyway
 
-        try
-        {
-            // Record the soft mask content into a picture.
-            using var recorder = new SKPictureRecorder();
-            using var recCanvas = recorder.BeginRecording(_softMask.MaskForm.BBox);
+        // Record the soft mask content into a picture.
+        using var recorder = new SKPictureRecorder();
+        using var recCanvas = recorder.BeginRecording(_softMask.MaskForm.BBox);
 
-            // Background for luminosity masks (BC in group color space).
-            if (_softMask.Subtype == PdfSoftMaskSubtype.Luminosity)
+        // Background for luminosity masks (BC in group color space).
+        if (_softMask.Subtype == PdfSoftMaskSubtype.Luminosity)
+        {
+            var backgroundColor = _softMask.GetBackgroundColor(_graphicsState.RenderingIntent);
+            using var backgroundPaint = PdfPaintFactory.CreateBackgroundPaint(backgroundColor);
+            recCanvas.DrawRect(_softMask.MaskForm.BBox, backgroundPaint);
+        }
+
+        // Render mask content stream.
+        var contentData = _softMask.MaskForm.GetFormData();
+        if (!contentData.IsEmpty)
+        {
+            var softMaskObjectNumber = _softMask.MaskForm.XObject.Reference.ObjectNumber;
+            if (_graphicsState.RecursionGuard.Contains(softMaskObjectNumber))
             {
-                var backgroundColor = _softMask.GetBackgroundColor(_graphicsState.RenderingIntent);
-                using var backgroundPaint = PdfPaintFactory.CreateBackgroundPaint(backgroundColor);
-                recCanvas.DrawRect(_softMask.MaskForm.BBox, backgroundPaint);
+                // Prevent infinite recursion.
+                return;
             }
 
-            // Render mask content stream.
-            var contentData = _softMask.MaskForm.GetFormData();
-            if (!contentData.IsEmpty)
-            {
-                var parseContext = new PdfParseContext(contentData);
-                var maskGs = _softMask.Subtype == PdfSoftMaskSubtype.Luminosity
-                    ? SoftMaskUtilities.CreateLuminosityMaskGraphicsState()
-                    : SoftMaskUtilities.CreateAlphaMaskGraphicsState();
+            _graphicsState.RecursionGuard.Add(softMaskObjectNumber);
 
-                maskGs.CTM = SKMatrix.Concat(_graphicsState.CTM, _softMask.MaskForm.Matrix);
+            var page = _softMask.MaskForm.GetFormPage();
 
-                var page = _softMask.MaskForm.GetFormPage();
-                var contentRenderer = new PdfContentStreamRenderer(_renderer, page);
-                contentRenderer.RenderContext(recCanvas, ref parseContext, maskGs, new HashSet<uint>());
-            }
+            var parseContext = new PdfParseContext(contentData);
+            var maskGs = _softMask.Subtype == PdfSoftMaskSubtype.Luminosity
+                ? SoftMaskUtilities.CreateLuminosityMaskGraphicsState(page, _graphicsState.RecursionGuard)
+                : SoftMaskUtilities.CreateAlphaMaskGraphicsState(page, _graphicsState.RecursionGuard);
 
-            using var picture = recorder.EndRecording();
-            using var maskPaint = PdfPaintFactory.CreateMaskPaint();
+            maskGs.CTM = SKMatrix.Concat(_graphicsState.CTM, _softMask.MaskForm.Matrix);
 
-            using var alphaFilter = _softMask.Subtype == PdfSoftMaskSubtype.Luminosity
-                ? SKColorFilter.CreateLumaColor()
-                : null;
+            var contentRenderer = new PdfContentStreamRenderer(_renderer, page);
+            contentRenderer.RenderContext(recCanvas, ref parseContext, maskGs);
 
-            maskPaint.ColorFilter = alphaFilter;
-
-            _canvas.Concat(_softMask.MaskForm.Matrix);
-
-            _canvas.DrawPicture(picture, maskPaint);
+            _graphicsState.RecursionGuard.Remove(softMaskObjectNumber);
         }
-        finally
-        {
-            // Close the layer started in BeginDrawContent.
-            _canvas.Restore();
-            shouldApplyMask = false;
-        }
+
+        using var picture = recorder.EndRecording();
+        using var maskPaint = PdfPaintFactory.CreateMaskPaint();
+
+        using var alphaFilter = _softMask.Subtype == PdfSoftMaskSubtype.Luminosity
+            ? SKColorFilter.CreateLumaColor()
+            : null;
+
+        maskPaint.ColorFilter = alphaFilter;
+
+        _canvas.Concat(_softMask.MaskForm.Matrix);
+
+        _canvas.DrawPicture(picture, maskPaint);
+
+        // Close the layer started in BeginDrawContent.
+        _canvas.Restore();
+        shouldApplyMask = false;
     }
 
     /// <summary>

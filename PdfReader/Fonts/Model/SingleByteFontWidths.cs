@@ -49,6 +49,21 @@ public class SingleByteFontWidths
     }
 
     /// <summary>
+    /// Applies a scaling factor to all defined widths.
+    /// </summary>
+    /// <param name="scale">Scale factor to apply.</param>
+    public void RescaleWidths(float scale)
+    {
+        if (Widths != null)
+        {
+            for (int i = 0; i < Widths.Length; i++)
+            {
+                Widths[i] *= scale;
+            }
+        }
+    }
+
+    /// <summary>
     /// Parses font widths for a single-byte font from a PDF dictionary.
     /// All widths are stored in user space units (PDF spec: multiply by WidthToUserSpaceCoeff).
     /// </summary>

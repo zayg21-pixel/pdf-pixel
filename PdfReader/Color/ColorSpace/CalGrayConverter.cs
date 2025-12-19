@@ -1,7 +1,9 @@
 using PdfReader.Color.Icc.Transform;
-using PdfReader.Color.Lut;
+using PdfReader.Color.Sampling;
+using PdfReader.Color.Transform;
 using SkiaSharp;
 using System;
+using System.Numerics;
 using System.Runtime.CompilerServices;
 
 namespace PdfReader.Color.ColorSpace;
@@ -20,15 +22,9 @@ internal sealed class CalGrayConverter : CalRgbConverter
 
     public override bool IsDevice => false;
 
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    protected override SKColor ToSrgbCore(ReadOnlySpan<float> comps01, PdfRenderingIntent renderingIntent)
-    {
-        float g01 = comps01.Length > 0 ? comps01[0] : 0f;
-        return base.ToSrgbCore([g01, g01, g01], renderingIntent);
-    }
-
     protected override IRgbaSampler GetRgbaSamplerCore(PdfRenderingIntent intent)
     {
-        return IccClutTransform.Build(intent, ToSrgbCore, 3, 1, 256);
+        var toGrayChain = new ChainedColorTransform(new FunctionColorTransform((ref Vector4 x) => x = new Vector4(x.X, x.X, x.X, 1f)), ToSrgbTransform);
+        return new ColorTransformSampler(toGrayChain);
     }
 }

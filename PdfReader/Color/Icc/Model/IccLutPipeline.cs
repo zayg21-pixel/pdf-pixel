@@ -1,4 +1,5 @@
 ﻿using PdfReader.Color.Icc.Transform;
+using PdfReader.Color.Transform;
 using System;
 using System.Collections.Generic;
 using System.Numerics;
@@ -13,7 +14,7 @@ namespace PdfReader.Color.Icc.Model;
 /// </summary>
 internal sealed class IccLutPipeline
 {
-    private readonly Lazy<IIccTransform> _lazyTransform;
+    private readonly Lazy<IColorTransform> _lazyTransform;
 
     /// <summary>
     /// Create a uniform-grid (lut8 / lut16) pipeline.
@@ -29,7 +30,7 @@ internal sealed class IccLutPipeline
         OutputTables = outTables;
         Matrix3x3 = matrix3x3;
         IsMab = false;
-        _lazyTransform = new Lazy<IIccTransform>(CreateTransform);
+        _lazyTransform = new Lazy<IColorTransform>(CreateTransform);
     }
 
     /// <summary>
@@ -97,7 +98,7 @@ internal sealed class IccLutPipeline
     /// <summary>
     /// ICC transform representing this pipeline (lazily created).
     /// </summary>
-    public IIccTransform Transform => _lazyTransform.Value;
+    public IColorTransform Transform => _lazyTransform.Value;
 
     /// <summary>
     /// Factory for a multi-process element (mAB) pipeline.
@@ -116,62 +117,62 @@ internal sealed class IccLutPipeline
         return pipeline;
     }
 
-    private IIccTransform CreateTransform()
+    private IColorTransform CreateTransform()
     {
-        List<IIccTransform> transforms = new List<IIccTransform>();
+        List<IColorTransform> transforms = new List<IColorTransform>();
 
         if (IsMab)
         {
             if (CurvesA != null)
             {
-                transforms.Add(new IccPerChannelLutTransform(CurvesA));
+                transforms.Add(new PerChannelLutTransform(CurvesA));
             }
 
             if (Clut != null)
             {
-                transforms.Add(new IccClutTransform(Clut, OutChannels, GridPointsPerDim));
+                transforms.Add(new ClutTransform(Clut, OutChannels, GridPointsPerDim));
             }
 
             if (CurvesM != null)
             {
-                transforms.Add(new IccPerChannelLutTransform(CurvesM));
+                transforms.Add(new PerChannelLutTransform(CurvesM));
             }
 
             if (Matrix3x3 != null)
             {
-                transforms.Add(new IccMatrixTransform(Matrix3x3, MatrixOffset));
+                transforms.Add(new MatrixColorTransform(Matrix3x3, MatrixOffset));
             }
 
             if (CurvesB != null)
             {
-                transforms.Add(new IccPerChannelLutTransform(CurvesB));
+                transforms.Add(new PerChannelLutTransform(CurvesB));
             }
         }
         else
         {
             if (InputTables != null)
             {
-                transforms.Add(new IccPerChannelLutTransform(InputTables));
+                transforms.Add(new PerChannelLutTransform(InputTables));
             }
 
             if (Matrix3x3 != null)
             {
-                var matrix = IccVectorUtilities.ToMatrix4x4(Matrix3x3);
+                var matrix = ColorVectorUtilities.ToMatrix4x4(Matrix3x3);
                 matrix = Matrix4x4.Transpose(matrix);
-                transforms.Add(new IccMatrixTransform(matrix));
+                transforms.Add(new MatrixColorTransform(matrix));
             }
 
             if (Clut != null)
             {
-                transforms.Add(new IccClutTransform(Clut, OutChannels, GridPointsPerDim));
+                transforms.Add(new ClutTransform(Clut, OutChannels, GridPointsPerDim));
             }
 
             if (OutputTables != null)
             {
-                transforms.Add(new IccPerChannelLutTransform(OutputTables));
+                transforms.Add(new PerChannelLutTransform(OutputTables));
             }
         }
 
-        return new IccChainedTransform(transforms.ToArray());
+        return new ChainedColorTransform(transforms.ToArray());
     }
 }

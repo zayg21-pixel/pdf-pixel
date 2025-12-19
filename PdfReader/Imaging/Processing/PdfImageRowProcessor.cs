@@ -1,6 +1,6 @@
 using Microsoft.Extensions.Logging;
 using PdfReader.Color.ColorSpace;
-using PdfReader.Color.Lut;
+using PdfReader.Color.Sampling;
 using PdfReader.Color.Structures;
 using PdfReader.Imaging.Model;
 using PdfReader.Imaging.Png;
@@ -71,7 +71,7 @@ internal sealed class PdfImageRowProcessor : IDisposable
         {
             _pngBuilder = new PngImageBuilder(_components, _bitsPerComponent, _width, _height);
 
-            SKColor[] palette = null;
+            RgbaPacked[] palette = null;
             ReadOnlyMemory<byte> iccProfile = ReadOnlyMemory<byte>.Empty;
             bool canApplyColorSpace = _image.DecodeArray == null && _image.MaskArray == null;
 
@@ -89,7 +89,6 @@ internal sealed class PdfImageRowProcessor : IDisposable
 
     public static bool ShouldConvertColor(PdfImage image)
     {
-        return true;
         var converter = image.ColorSpaceConverter;
 
         if (converter == null)
@@ -255,7 +254,6 @@ internal sealed class PdfImageRowProcessor : IDisposable
             }
             ref RgbaPacked destinationPixel = ref Unsafe.Add(ref destRowColor, x);
             _sampler.Sample(componentValues, ref destinationPixel);
-
 
             if (applyMask && maskMatch)
             {

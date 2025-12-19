@@ -1,3 +1,4 @@
+using SkiaSharp;
 using System;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
@@ -24,11 +25,18 @@ public struct RgbaPacked : IEquatable<RgbaPacked>
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public SKColor ToSkiaColor()
+    {
+        return new SKColor(R, G, B, A);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public override int GetHashCode()
     {
         return HashCode.Combine(R, G, B, A);
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public override bool Equals(object obj)
     {
         return obj is RgbaPacked other && Equals(other);

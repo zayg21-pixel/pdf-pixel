@@ -21,8 +21,9 @@ internal sealed class TilingPatternShaderBuilder
     /// </summary>
     /// <param name="renderer">PDF renderer instance.</param>
     /// <param name="pattern">Tiling pattern definition.</param>
+    /// <param name="page">PDF page context for rendering.</param>
     /// <returns><see cref="SKPicture"/> Containing the rendered pattern cell.</returns>
-    public static SKPicture RenderTilingCell(IPdfRenderer renderer, PdfTilingPattern pattern)
+    public static SKPicture RenderTilingCell(IPdfRenderer renderer, PdfTilingPattern pattern, PdfPage page, HashSet<uint> recursionGuard)
     {
         var streamData = pattern.SourceObject.DecodeAsMemory();
 
@@ -31,16 +32,25 @@ internal sealed class TilingPatternShaderBuilder
             return null;
         }
 
-        var cellState = new PdfGraphicsState();
-        var recorder = new SKPictureRecorder();
-        var canvas = recorder.BeginRecording(pattern.BBox);
+        if (recursionGuard.Contains(pattern.SourceObject.Reference.ObjectNumber))
+        {
+            // Prevent infinite recursion.
+            return null;
+        }
+
+        recursionGuard.Add(pattern.SourceObject.Reference.ObjectNumber);
+
+        var cellState = new PdfGraphicsState(page, recursionGuard);
+        using var recorder = new SKPictureRecorder();
+        using var canvas = recorder.BeginRecording(pattern.BBox);
 
         // Render pattern cell without tint or color filter
-        var recursionGuard = new HashSet<uint>();
         var patternPage = new FormXObjectPageWrapper(pattern.SourceObject);
         var contentRenderer = new PdfContentStreamRenderer(renderer, patternPage);
         var parseContext = new PdfParseContext(streamData);
-        contentRenderer.RenderContext(canvas, ref parseContext, cellState, recursionGuard);
+        contentRenderer.RenderContext(canvas, ref parseContext, cellState);
+
+        recursionGuard.Remove(pattern.SourceObject.Reference.ObjectNumber);
 
         return recorder.EndRecording();
     }

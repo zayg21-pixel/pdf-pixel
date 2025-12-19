@@ -42,7 +42,11 @@ public class PdfTextRenderer : IPdfTextRenderer
         using var softMaskScope = new SoftMaskDrawingScope(_renderer, canvas, state);
         softMaskScope.BeginDrawContent();
 
-        if (font.SubstituteFont)
+        if (font is PdfType3Font type3Font)
+        {
+            RenderType3(canvas, glyphs, state, type3Font);
+        }
+        else if (font.SubstituteFont)
         {
             const float ScaleTolerancePercent = 0.01f; // 1%
             var glyphBuffer = new List<ShapedGlyph>();
@@ -98,6 +102,49 @@ public class PdfTextRenderer : IPdfTextRenderer
 
             return new SKSize(TextRenderUtilities.GetTextWidth(glyphs) * fullHorizontalScale, 0);
         }
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private void RenderType3(SKCanvas canvas, List<ShapedGlyph> glyphs, PdfGraphicsState state, PdfType3Font type3Font)
+    {
+        // Skip rendering for Invisible or Clip modes as per PDF spec.
+        if (state.TextRenderingMode == PdfTextRenderingMode.Invisible || state.TextRenderingMode == PdfTextRenderingMode.Clip)
+        {
+            return;
+        }
+
+        // Type3 glyphs are pictures rendered in glyph space (after FontMatrix). Apply text matrix and per-glyph offsets.
+        canvas.Save();
+        var fullTextMatrix = TextRenderUtilities.GetFullTextMatrix(state, inverse: false);
+        canvas.Concat(fullTextMatrix);
+
+        using var paint = PdfPaintFactory.CreateFillPaint(state);
+        paint.ColorFilter = SKColorFilter.CreateBlendMode(state.FillPaint.Color, SKBlendMode.SrcIn);
+
+        for (int i = 0; i < glyphs.Count; i++)
+        {
+            var glyph = glyphs[i];
+            var charInfo = type3Font.GetCharacterInfo(glyph.CharacterInfo.CharacterCode, _renderer, state.Page, state.RecursionGuard);
+            if (charInfo.IsDefined)
+            {
+                canvas.Save();
+                // Translate by glyph X/Y (already in text space units after fullTextMatrix).
+                canvas.Translate(glyph.X, glyph.Y);
+
+                if (charInfo.IsColored)
+                {
+                    canvas.DrawPicture(charInfo.Picture);
+                }
+                else
+                {
+                    canvas.DrawPicture(charInfo.Picture, paint);
+                }
+
+                canvas.Restore();
+            }
+        }
+
+        canvas.Restore();
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]

@@ -21,12 +21,12 @@ public class PdfCidFont : PdfFontBase
     /// <summary>
     /// Constructor for CID fonts - lightweight operations only
     /// </summary>
-    /// <param name="fontObject">PDF dictionary containing the font definition</param>
-    public PdfCidFont(PdfDictionary fontDictionary) : base(fontDictionary)
+    /// <param name="fontObject">PDF object containing the font definition</param>
+    public PdfCidFont(PdfObject fontObject) : base(fontObject)
     {
-        _logger = fontDictionary.Document.LoggerFactory.CreateLogger<PdfCidFont>();
-        Widths = CidFontWidths.Parse(fontDictionary);
-        VerticalMetrics = CidFontVerticalMetrics.Parse(fontDictionary);
+        _logger = fontObject.Document.LoggerFactory.CreateLogger<PdfCidFont>();
+        Widths = CidFontWidths.Parse(Dictionary);
+        VerticalMetrics = CidFontVerticalMetrics.Parse(Dictionary);
         CidSystemInfo = LoadCidSystemInfo();
         CidToGidMap = LoadCidToGidMap();
         var typefaceInfo = GetTypeface();

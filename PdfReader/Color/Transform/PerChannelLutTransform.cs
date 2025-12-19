@@ -3,10 +3,9 @@ using System;
 using System.Numerics;
 using System.Runtime.CompilerServices;
 
-namespace PdfReader.Color.Icc.Transform;
+namespace PdfReader.Color.Transform;
 
-// TODO: Optimize memory usage and performance
-internal class IccPerChannelLutTransform : IIccTransform
+internal sealed class PerChannelLutTransform : IColorTransform
 {
     private readonly float[] _channel1Lut;
     private readonly float[] _channel2Lut;
@@ -20,7 +19,7 @@ internal class IccPerChannelLutTransform : IIccTransform
     private readonly Vector4 _maxIndices;
     private const int StandardLutSize = 1024;
 
-    public IccPerChannelLutTransform(float[][] luts, int preferredLutSize = StandardLutSize)
+    public PerChannelLutTransform(float[][] luts, int preferredLutSize = StandardLutSize)
     {
         if (luts == null || luts.Length == 0)
         {
@@ -60,11 +59,12 @@ internal class IccPerChannelLutTransform : IIccTransform
         }
     }
 
-    public IccPerChannelLutTransform(IccTrc[] trcs, int preferredLutSize = StandardLutSize)
+    public PerChannelLutTransform(IccTrc[] trcs, int preferredLutSize = StandardLutSize)
         : this(ConvertTrcsToLuts(trcs, preferredLutSize), preferredLutSize)
     {
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static float[][] ConvertTrcsToLuts(IccTrc[] trcs, int preferredLutSize)
     {
         if (trcs == null || trcs.Length == 0)
@@ -102,20 +102,27 @@ internal class IccPerChannelLutTransform : IIccTransform
         switch (_channelCount)
         {
             case 1:
-                color = new Vector4(_channel1Lut[(int)clampedIndices.X], 0f, 0f, 0f);
+                color.X = _channel1Lut[(int)clampedIndices.X];
                 break;
             case 2:
-                color = new Vector4(_channel1Lut[(int)clampedIndices.X], _channel2Lut[(int)clampedIndices.Y], 0f, 0f);
+                color.X = _channel1Lut[(int)clampedIndices.X];
+                color.Y = _channel2Lut[(int)clampedIndices.Y];
                 break;
             case 3:
-                color = new Vector4(_channel1Lut[(int)clampedIndices.X], _channel2Lut[(int)clampedIndices.Y], _channel3Lut[(int)clampedIndices.Z], 0f);
+                color.X = _channel1Lut[(int)clampedIndices.X];
+                color.Y = _channel2Lut[(int)clampedIndices.Y];
+                color.Z = _channel3Lut[(int)clampedIndices.Z];
                 break;
             case 4:
-                color = new Vector4(_channel1Lut[(int)clampedIndices.X], _channel2Lut[(int)clampedIndices.Y], _channel3Lut[(int)clampedIndices.Z], _channel4Lut[(int)clampedIndices.W]);
+                color.X = _channel1Lut[(int)clampedIndices.X];
+                color.Y = _channel2Lut[(int)clampedIndices.Y];
+                color.Z = _channel3Lut[(int)clampedIndices.Z];
+                color.W = _channel4Lut[(int)clampedIndices.W];
                 break;
         }
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static float[][] NormalizeLuts(float[][] luts, int preferredLutSize)
     {
         if (luts == null || luts.Length == 0)
@@ -158,6 +165,7 @@ internal class IccPerChannelLutTransform : IIccTransform
         return luts;
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static float[] RescaleLut(float[] originalLut, int newSize)
     {
         if (originalLut.Length == newSize)
@@ -196,6 +204,7 @@ internal class IccPerChannelLutTransform : IIccTransform
         return rescaledLut;
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static bool IsPassthroughTransform(float[][] luts)
     {
         foreach (var lut in luts)
@@ -208,6 +217,7 @@ internal class IccPerChannelLutTransform : IIccTransform
         return true;
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static bool IsIdentityLut(float[] lut)
     {
         int length = lut.Length;
