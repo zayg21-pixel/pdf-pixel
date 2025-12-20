@@ -1,5 +1,6 @@
 using PdfReader.Color.Icc;
 using PdfReader.Color.Icc.Model;
+using PdfReader.Color.Icc.Transform;
 using PdfReader.Color.Sampling;
 using PdfReader.Resources;
 

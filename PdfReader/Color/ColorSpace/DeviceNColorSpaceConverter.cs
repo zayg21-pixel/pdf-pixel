@@ -37,16 +37,6 @@ internal sealed class DeviceNColorSpaceConverter : PdfColorSpaceConverter
             return _alternate.GetRgbaSampler(intent);
         }
 
-        switch (Components)
-        {
-            case 1:
-            {
-                return new SingleChannelFunctionSampler(_tintFunction, _alternate.GetRgbaSampler(intent));
-            }
-            default:
-            {
-                return new FunctionSampler(_tintFunction, _alternate.GetRgbaSampler(intent));
-            }
-        }
+        return new FunctionSampler(_tintFunction, _alternate.GetRgbaSampler(intent));
     }
 }

@@ -1,5 +1,3 @@
-using System;
-using SkiaSharp;
 using System.Numerics;
 using PdfReader.Color.Sampling;
 using PdfReader.Color.Transform;
@@ -46,7 +44,7 @@ internal sealed class LabColorSpaceConverter : PdfColorSpaceConverter
             labMaxVector = _defaultMax;
         }
 
-        var normalizeTransform = new FunctionColorTransform((ref Vector4 x) => x = (x + _labOffset) * _labScale);
+        var normalizeTransform = new FunctionColorTransform(x => (Vector4.Clamp(x, labMinVector, labMaxVector) + _labOffset) * _labScale);
         var toXyzTransform = IccTransforms.BuildLabToXyzTransform(whitePointVector);
         var toSrgbTransform = IccTransforms.BuildXyzToSrgbTransform(whitePointVector);
 

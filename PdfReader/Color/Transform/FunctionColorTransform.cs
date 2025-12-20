@@ -3,21 +3,23 @@ using System.Runtime.CompilerServices;
 
 namespace PdfReader.Color.Transform
 {
+    public delegate Vector4 PixelProcessorFunction(Vector4 input);
+
     internal sealed class FunctionColorTransform : IColorTransform
     {
-        private readonly PixelProcessorCallback _function;
+        private readonly PixelProcessorFunction _function;
 
-        public FunctionColorTransform(PixelProcessorCallback function)
+        public FunctionColorTransform(PixelProcessorFunction function)
         {
             _function = function;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Transform(ref Vector4 color)
+        public Vector4 Transform(Vector4 color)
         {
-            _function(ref color);
+            return _function(color);
         }
 
-        public PixelProcessorCallback Function => _function;
+        public PixelProcessorFunction Function => _function;
     }
 }

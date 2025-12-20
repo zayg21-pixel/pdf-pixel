@@ -53,6 +53,10 @@ internal class PngSkiaDecoder
         {
             palette = indexed.BuildPalette(image.RenderingIntent);
         }
+        if (converter.Components == 1 && bpc <= 8)
+        {
+            palette = PdfImageRowProcessor.BuildSingleChannelPalette(image);
+        }
 
         byte[] iccBytes = null;
         if (image.ColorSpaceConverter is IccBasedConverter iccBased)

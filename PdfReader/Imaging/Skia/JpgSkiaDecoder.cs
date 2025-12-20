@@ -20,6 +20,12 @@ internal static class JpgSkiaDecoder
             return null;
         }
 
+        // those cases requires palette building, but JPG does not support palette
+        if (image.ColorSpaceConverter.Components == 1 && !(image.ColorSpaceConverter is DeviceGrayConverter || image.ColorSpaceConverter is IccBasedConverter))
+        {
+            return null;
+        }
+
         var data = image.GetImageData();
 
         if (image.ColorSpaceConverter is IccBasedConverter iccBased)

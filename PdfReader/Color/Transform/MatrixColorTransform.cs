@@ -116,9 +116,9 @@ namespace PdfReader.Color.Transform
         public Matrix4x4 Matrix { get; }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Transform(ref Vector4 color)
+        public Vector4 Transform(Vector4 color)
         {
-            color = Vector4.Transform(color, Matrix);
+            return Vector4.Transform(color, Matrix);
         }
     }
 }

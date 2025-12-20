@@ -4,8 +4,6 @@ using System.Runtime.CompilerServices;
 
 namespace PdfReader.Color.Transform
 {
-    public delegate void PixelProcessorCallback(ref Vector4 y);
-
     internal sealed class ChainedColorTransform : IColorTransform
     {
         private readonly IColorTransform[] _transforms;
@@ -30,33 +28,25 @@ namespace PdfReader.Color.Transform
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Transform(ref Vector4 color)
+        public Vector4 Transform(Vector4 color)
         {
-            ref IColorTransform transformRef = ref _transforms[0];
+            if (_transforms.Length == 0)
+            {
+                return color;
+            }
 
+            ref IColorTransform currentTransform = ref _transforms[0];
             for (int i = 0; i < _transforms.Length; i++)
             {
-                transformRef.Transform(ref color);
-                transformRef = ref Unsafe.Add(ref transformRef, 1);
-            }
-        }
+                color = currentTransform.Transform(color);
 
-        public PixelProcessorCallback GetCallback()
-        {
-            PixelProcessorCallback pixelProcessorCallback = default;
-
-            foreach (var transform in _transforms)
-            {
-                if (transform is FunctionColorTransform functionTransform)
+                if (i != _transforms.Length - 1)
                 {
-                    var function = functionTransform.Function;
-                    pixelProcessorCallback += function;
-                    continue;
+                    currentTransform = ref Unsafe.Add(ref currentTransform, 1);
                 }
-                pixelProcessorCallback += transform.Transform;
             }
 
-            return pixelProcessorCallback;
+            return color;
         }
     }
 }

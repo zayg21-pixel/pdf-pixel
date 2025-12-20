@@ -35,6 +35,8 @@ internal sealed class SeparationColorSpaceConverter : PdfColorSpaceConverter
             return alternateSampler;
         }
 
-        return new SingleChannelFunctionSampler(_tintFunction, alternateSampler);
+        return new FunctionSampler(_tintFunction, _alternate.GetRgbaSampler(intent));
+
+        //return new SingleChannelFunctionSampler(_tintFunction, alternateSampler);
     }
 }

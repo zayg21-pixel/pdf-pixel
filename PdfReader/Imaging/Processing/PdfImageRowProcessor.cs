@@ -73,18 +73,49 @@ internal sealed class PdfImageRowProcessor : IDisposable
 
             RgbaPacked[] palette = null;
             ReadOnlyMemory<byte> iccProfile = ReadOnlyMemory<byte>.Empty;
-            bool canApplyColorSpace = _image.DecodeArray == null && _image.MaskArray == null;
 
             if (_image.ColorSpaceConverter is IndexedConverter indexed)
             {
                 palette = indexed.BuildPalette(_image.RenderingIntent);
             }
-            if (canApplyColorSpace && _image.ColorSpaceConverter is IccBasedConverter iccBased && iccBased.Profile?.Bytes != null)
+            else if (_components == 1 && _bitsPerComponent <= 8)
+            {
+                // Build palette for single-channel color spaces (e.g., Separation/DeviceN with one component)
+                palette = BuildSingleChannelPalette(_image);
+            }
+
+            if (_image.ColorSpaceConverter is IccBasedConverter iccBased && iccBased.Profile?.Bytes != null)
             {
                 iccProfile = iccBased.Profile.Bytes;
             }
             _pngBuilder.Init(palette, iccProfile);
         }
+    }
+
+    public static RgbaPacked[] BuildSingleChannelPalette(PdfImage image)
+    {
+        if (image.ColorSpaceConverter is DeviceGrayConverter)
+        {
+            return null;
+        }
+
+        var sampler = image.ColorSpaceConverter.GetRgbaSampler(image.RenderingIntent);
+        int bitsPerComponent = image.BitsPerComponent;
+        int maxCode = (1 << bitsPerComponent) - 1;
+        int paletteSize = maxCode + 1;
+        var palette = new RgbaPacked[paletteSize];
+        Span<float> comps = stackalloc float[1];
+
+        for (int code = 0; code < paletteSize; code++)
+        {
+            float value01 = maxCode == 0 ? 0f : (float)code / maxCode;
+            comps[0] = value01;
+            RgbaPacked rgba = default;
+            sampler.Sample(comps, ref rgba);
+            palette[code] = rgba;
+        }
+
+        return palette;
     }
 
     public static bool ShouldConvertColor(PdfImage image)
@@ -102,12 +133,6 @@ internal sealed class PdfImageRowProcessor : IDisposable
             return false;
         }
 
-        // non-standard number of components, always convert color, including CMYK
-        if (converter.Components != 1 && converter.Components != 3)
-        {
-            return true;
-        }
-
         // If decode is present, we should convert color after decode, so we need full color conversion
         if (image.DecodeArray != null)
         {
@@ -120,24 +145,38 @@ internal sealed class PdfImageRowProcessor : IDisposable
             return true;
         }
 
-        // Standard color spaces that can be directly represented in PNG without conversion,
-        // all other color spaces require conversion, e.g., DeviceCMYK, Separation, etc.
-        if (!(converter is DeviceRgbConverter || converter is DeviceGrayConverter || converter is IndexedConverter || converter is IccBasedConverter))
+        // Indexed can be represented directly
+        if (converter is IndexedConverter)
         {
-            return true;
+            return false;
         }
 
+        // ICC-based can be represented directly only when profile is valid
         if (converter is IccBasedConverter iccBased)
         {
             using var skiaIcc = SKColorSpace.CreateIcc(iccBased.Profile.Bytes);
-            
             if (skiaIcc == null)
             {
                 return true;
             }
+
+            return false;
         }
 
-        return false;
+        // Device RGB and Device Gray can be represented directly
+        if (converter is DeviceRgbConverter || converter is DeviceGrayConverter)
+        {
+            return false;
+        }
+
+        // Special-case: single-component color spaces without decode/mask and <=8 bpc
+        if (converter.Components == 1 && image.BitsPerComponent <= 8)
+        {
+            return false;
+        }
+
+        // All other color spaces require conversion (CMYK, Lab, DeviceN with >1 component, Separation with alternate not single channel, etc.)
+        return true;
     }
 
     /// <summary>

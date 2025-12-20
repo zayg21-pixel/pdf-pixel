@@ -133,7 +133,7 @@ internal static class IccTransforms
         // but it creates minimal (<= 0.03) difference in results.
         // Original function:
         //  if f^3 >= 0.008856f ? f^3 : (f - 0.137931034) * 0.12841855;
-        var cubeWhitePointTransform = new FunctionColorTransform((ref Vector4 x) => x = x * x * x * whitePoint);
+        var cubeWhitePointTransform = new FunctionColorTransform(x => x = x * x * x * whitePoint);
 
 
         return new ChainedColorTransform(matrixTransform, cubeWhitePointTransform);

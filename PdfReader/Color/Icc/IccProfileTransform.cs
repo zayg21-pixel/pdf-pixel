@@ -29,7 +29,7 @@ internal sealed class IccProfileTransform
         {
             _transform = new ChainedColorTransform(
                 new PerChannelLutTransform([profile.GrayTrc]),
-                new FunctionColorTransform((ref x) => x = new Vector4(x.X, x.X, x.X, 1)));
+                new FunctionColorTransform(x => new Vector4(x.X, x.X, x.X, 1)));
         }
         else if (profile.Header.ColorSpace == IccConstants.SpaceLab)
         {
@@ -59,7 +59,7 @@ internal sealed class IccProfileTransform
         {
             if (_hasLut)
             {
-                _postTransform = new ChainedColorTransform(new FunctionColorTransform((ref x) => x = x * 2.0f), IccTransforms.XyzD50ToSrgbTransform);
+                _postTransform = new ChainedColorTransform(new FunctionColorTransform(x => x * 2.0f), IccTransforms.XyzD50ToSrgbTransform);
             }
             else
             {

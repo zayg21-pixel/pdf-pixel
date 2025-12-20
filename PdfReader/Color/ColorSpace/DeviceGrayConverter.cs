@@ -20,7 +20,7 @@ internal sealed class DeviceGrayConverter : PdfColorSpaceConverter
 
     protected override IRgbaSampler GetRgbaSamplerCore(PdfRenderingIntent intent)
     {
-        var chained = new ChainedColorTransform(new FunctionColorTransform((ref Vector4 x) => x = new Vector4(x.X, x.X, x.X, 1f)));
+        var chained = new ChainedColorTransform(new FunctionColorTransform(x => new Vector4(x.X, x.X, x.X, 1f)));
         return new ColorTransformSampler(chained);
     }
 }

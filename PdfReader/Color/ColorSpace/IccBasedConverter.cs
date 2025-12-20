@@ -1,5 +1,6 @@
 using PdfReader.Color.Icc;
 using PdfReader.Color.Icc.Model;
+using PdfReader.Color.Icc.Transform;
 using PdfReader.Color.Sampling;
 
 namespace PdfReader.Color.ColorSpace;
@@ -15,8 +16,8 @@ internal sealed class IccBasedConverter : PdfColorSpaceConverter
         Profile = profile;
         N = n;
 
-        // note that if alternate is LAB we expect input in LAB coordinates, since LAB does not define any color correction,
-        // we simply fallback to alternate here, as ICC requires 0-1 input
+        //note that if alternate is LAB we expect input in LAB coordinates, since LAB does not define any color correction,
+        // we simply fallback to alternate here, as ICC requires 0 - 1 input
         if (alternate is LabColorSpaceConverter || profile == null || profile.ChannelsCount != n || IccProfileAnalyzer.IsStandardSrgb(profile) || IccProfileAnalyzer.IsStandardGray(profile))
         {
             _useDefault = true;
@@ -62,6 +63,18 @@ internal sealed class IccBasedConverter : PdfColorSpaceConverter
             return _default.GetRgbaSampler(intent);
         }
 
+
         return new ColorTransformSampler(_iccTransform.GetIntentTransform(intent));
+
+        //if (N == 3)
+        //{
+        //    return ClutTransform.Build(sampler, 3, 3);
+        //}
+        //else if (N == 4)
+        //{
+        //    return ClutTransform.Build(sampler, 3, [16, 16, 16, 8]);
+        //}
+
+        //return sampler;
     }
 }

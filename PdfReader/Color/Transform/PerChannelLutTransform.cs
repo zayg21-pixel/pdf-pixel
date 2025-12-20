@@ -84,11 +84,11 @@ internal sealed class PerChannelLutTransform : IColorTransform
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public void Transform(ref Vector4 color)
+    public Vector4 Transform(Vector4 color)
     {
         if (_isPassthrough)
         {
-            return;
+            return color;
         }
 
         // Calculate indices for all channels at once using vectorized operations
@@ -99,27 +99,14 @@ internal sealed class PerChannelLutTransform : IColorTransform
 
         // Use switch statement for direct channel assignment based on channel count
         // Writing all 4 components at once is faster than individual assignments
-        switch (_channelCount)
+        return _channelCount switch
         {
-            case 1:
-                color.X = _channel1Lut[(int)clampedIndices.X];
-                break;
-            case 2:
-                color.X = _channel1Lut[(int)clampedIndices.X];
-                color.Y = _channel2Lut[(int)clampedIndices.Y];
-                break;
-            case 3:
-                color.X = _channel1Lut[(int)clampedIndices.X];
-                color.Y = _channel2Lut[(int)clampedIndices.Y];
-                color.Z = _channel3Lut[(int)clampedIndices.Z];
-                break;
-            case 4:
-                color.X = _channel1Lut[(int)clampedIndices.X];
-                color.Y = _channel2Lut[(int)clampedIndices.Y];
-                color.Z = _channel3Lut[(int)clampedIndices.Z];
-                color.W = _channel4Lut[(int)clampedIndices.W];
-                break;
-        }
+            1 => new Vector4(_channel1Lut[(int)clampedIndices.X], 1, 1, 1),
+            2 => new Vector4(_channel1Lut[(int)clampedIndices.X], _channel2Lut[(int)clampedIndices.Y], 1, 1),
+            3 => new Vector4(_channel1Lut[(int)clampedIndices.X], _channel2Lut[(int)clampedIndices.Y], _channel3Lut[(int)clampedIndices.Z], 1),
+            4 => new Vector4(_channel1Lut[(int)clampedIndices.X], _channel2Lut[(int)clampedIndices.Y], _channel3Lut[(int)clampedIndices.Z], _channel4Lut[(int)clampedIndices.W]),
+            _ => color,
+        };
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]

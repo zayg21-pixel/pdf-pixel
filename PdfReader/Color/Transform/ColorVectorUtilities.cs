@@ -1,4 +1,5 @@
-﻿using System;
+﻿using PdfReader.Color.Structures;
+using System;
 using System.Numerics;
 using System.Runtime.CompilerServices;
 
@@ -6,6 +7,9 @@ namespace PdfReader.Color.Transform
 {
     internal static class ColorVectorUtilities
     {
+        private static readonly Vector4 MaxByte = new Vector4(255f);
+        private static readonly Vector4 ByteOffset = new Vector4(0.5f);
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Matrix4x4 ToMatrix4x4(float[,] matrix3x3)
         {
@@ -34,6 +38,18 @@ namespace PdfReader.Color.Transform
                     return new Vector4(data[0], data[1], data[2], data[3]);
             }
         }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static void Load01ToRgba(Vector4 source, ref RgbaPacked destination)
+        {
+            var scaled = Vector4.Clamp(source * 255f, Vector4.Zero, MaxByte) + ByteOffset;
+
+            destination.R = (byte)scaled.X;
+            destination.G = (byte)scaled.Y;
+            destination.B = (byte)scaled.Z;
+            destination.A = (byte)scaled.W;
+        }
+
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Vector4 ToVector4WithZeroPadding(ReadOnlySpan<float> data)

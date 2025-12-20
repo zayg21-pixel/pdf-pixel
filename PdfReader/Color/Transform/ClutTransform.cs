@@ -1,7 +1,6 @@
 ﻿using PdfReader.Color.Sampling;
 using PdfReader.Color.Structures;
 using PdfReader.Color.Transform;
-using SkiaSharp;
 using System;
 using System.Numerics;
 using System.Runtime.CompilerServices;
@@ -80,7 +79,7 @@ internal sealed partial class ClutTransform : IColorTransform, IRgbaSampler
                 : 0f;
         }
         _scaleFactors = ColorVectorUtilities.ToVector4WithZeroPadding(scaleValues);
-        _maxValues = _scaleFactors; // Same values for clamping
+        _maxValues = _scaleFactors - new Vector4(10e-5f); // TODO: verify small epsilon
 
         // Precompute dimension enable mask using utility with zero padding
         Span<float> dimensionMask = stackalloc float[4];
@@ -143,24 +142,51 @@ internal sealed partial class ClutTransform : IColorTransform, IRgbaSampler
         return vector4Clut;
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void Sample(ReadOnlySpan<float> source, ref RgbaPacked destination)
     {
         var vector = ColorVectorUtilities.ToVector4WithOnePadding(source);
-        Transform(ref vector);
-        vector *= 255f;
-        destination = new RgbaPacked((byte)vector.X, (byte)vector.Y, (byte)vector.Z, (byte)255f);
+
+        //Transform(ref vector);
+        switch (_actualDimensions)
+        {
+            case 3:
+                vector = Transform3D(vector); // TODO: add missing
+                break;
+            case 4:
+                vector = Transform4D(vector);
+                break;
+            default:
+                vector = Transform(vector);
+                break;
+        }
+
+        vector = Vector4.Clamp(vector, Vector4.Zero, Vector4.One) * 255f;
+
+        destination.R = (byte)vector.X;
+        destination.G = (byte)vector.Y;
+        destination.B = (byte)vector.Z;
+        destination.A = 255;
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public void Transform(ref Vector4 color)
+    public Vector4 Transform(Vector4 color)
     {
+        switch (_actualDimensions)
+        {
+            case 3:
+                return Transform3D(color);
+            case 4:
+                return Transform4D(color);
+        }
+
+
         Vector4 scaledPositions = color * _scaleFactors;
         scaledPositions = Vector4.Clamp(scaledPositions, Vector4.Zero, _maxValues);
 
-        // Pre-calculate factors per dimension for vectorized operations
         Vector4 flooredPositions = new Vector4(
             (int)scaledPositions.X,
-            (int)scaledPositions.Y, 
+            (int)scaledPositions.Y,
             (int)scaledPositions.Z,
             (int)scaledPositions.W
         );
@@ -168,30 +194,23 @@ internal sealed partial class ClutTransform : IColorTransform, IRgbaSampler
         Vector4 fractions = scaledPositions - flooredPositions;
         Vector4 oneMinusFractions = Vector4.One - fractions;
 
-        // Compute base offset via dot-product with stride vector
         int baseOffset = (int)Vector4.Dot(flooredPositions, _strideVector);
 
-        // Precompute difference for selection: select = g + (f - g) * mask
         Vector4 diff = fractions - oneMinusFractions;
 
-        // Initialize result vector
         Vector4 result = Vector4.Zero;
         int vertexCount = _vertexCount;
 
-        // Use precomputed dimensionEnabled
         Vector4 dimensionEnabled = _dimensionEnabled;
 
-        // Get references to array start for unsafe operations
         ref Vector4 vertexMasksRef = ref _vertexMasks[0];
         ref int vertexStrideDotsRef = ref _vertexStrideDots[0];
         ref Vector4 clutRef = ref _clut[0];
 
         for (int mask = 0; mask < vertexCount; mask++)
         {
-            // Select per-dimension contribution: oneMinus + (fraction - oneMinus) * mask
             Vector4 selected = oneMinusFractions + diff * Unsafe.Add(ref vertexMasksRef, mask);
 
-            // Neutralize disabled dimensions without branches
             selected = selected * dimensionEnabled + _oneMinusDimensionEnabled;
 
             float weight = selected.X * selected.Y * selected.Z * selected.W;
@@ -201,13 +220,125 @@ internal sealed partial class ClutTransform : IColorTransform, IRgbaSampler
                 continue;
             }
 
-            // Compute offset using cached stride dot-products with unsafe access
             int offset = baseOffset + Unsafe.Add(ref vertexStrideDotsRef, mask);
 
             result += Unsafe.Add(ref clutRef, offset) * weight;
         }
 
-        // Copy result back, respecting output channel count
-        color = result;
+        return result;
+    }
+
+    // Tetrahedral interpolation specialized for 3D CLUTs (branchless sorting network)
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private Vector4 Transform3D(Vector4 color)
+    {
+        Vector4 scaled = color * _scaleFactors;
+        scaled = Vector4.Clamp(scaled, Vector4.Zero, _maxValues);
+
+        Vector4 floored = new Vector4((int)scaled.X, (int)scaled.Y, (int)scaled.Z, 0f);
+        Vector4 frac = scaled - floored;
+
+        int baseOffset = (int)Vector4.Dot(floored, _strideVector);
+
+        float a = frac.X; int sa = _strides[0];
+        float b = frac.Y; int sb = _strides[1];
+        float c = frac.Z; int sc = _strides[2];
+
+        if (a < b)
+        {
+            (b, a) = (a, b);
+            (sb, sa) = (sa, sb);
+        }
+        if (b < c)
+        {
+            (c, b) = (b, c);
+            (sc, sb) = (sb, sc);
+        }
+        if (a < b)
+        {
+            (b, a) = (a, b);
+            (sb, sa) = (sa, sb);
+        }
+
+        float w0 = 1f - a;
+        float w1 = a - b;
+        float w2 = b - c;
+        float w3 = c;
+
+        int o0 = baseOffset;
+        int o1 = baseOffset + sa;
+        int o2 = o1 + sb;
+        int o3 = o2 + sc;
+
+        ref Vector4 clutRef = ref _clut[0];
+        return
+            Unsafe.Add(ref clutRef, o0) * w0 +
+            Unsafe.Add(ref clutRef, o1) * w1 +
+            Unsafe.Add(ref clutRef, o2) * w2 +
+            Unsafe.Add(ref clutRef, o3) * w3;
+    }
+
+    // Tetrahedral interpolation specialized for 4D CLUTs (5-vertex simplex inside hypercube)
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private Vector4 Transform4D(Vector4 color)
+    {
+        Vector4 scaled = color * _scaleFactors;
+        scaled = Vector4.Clamp(scaled, Vector4.Zero, _maxValues);
+
+        Vector4 floored = new Vector4((int)scaled.X, (int)scaled.Y, (int)scaled.Z, (int)scaled.W);
+        Vector4 frac = scaled - floored;
+
+        int baseOffset = (int)Vector4.Dot(floored, _strideVector);
+
+        float a = frac.X; int sa = _strides[0];
+        float b = frac.Y; int sb = _strides[1];
+        float c = frac.Z; int sc = _strides[2];
+        float d = frac.W; int sd = _strides[3];
+
+        if (a < b)
+        {
+            (b, a) = (a, b);
+            (sb, sa) = (sa, sb);
+        }
+        if (c < d)
+        {
+            (d, c) = (c, d);
+            (sd, sc) = (sc, sd);
+        }
+        if (a < c)
+        {
+            (c, a) = (a, c);
+            (sc, sa) = (sa, sc);
+        }
+        if (b < d)
+        {
+            (d, b) = (b, d);
+            (sd, sb) = (sb, sd);
+        }
+        if (b < c)
+        {
+            (c, b) = (b, c);
+            (sc, sb) = (sb, sc);
+        }
+
+        float w0 = 1f - a;
+        float w1 = a - b;
+        float w2 = b - c;
+        float w3 = c - d;
+        float w4 = d;
+
+        int o0 = baseOffset;
+        int o1 = baseOffset + sa;
+        int o2 = o1 + sb;
+        int o3 = o2 + sc;
+        int o4 = o3 + sd;
+
+        ref Vector4 clutRef = ref _clut[0];
+        return
+            Unsafe.Add(ref clutRef, o0) * w0 +
+            Unsafe.Add(ref clutRef, o1) * w1 +
+            Unsafe.Add(ref clutRef, o2) * w2 +
+            Unsafe.Add(ref clutRef, o3) * w3 +
+            Unsafe.Add(ref clutRef, o4) * w4;
     }
 }

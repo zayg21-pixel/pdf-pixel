@@ -169,14 +169,7 @@ public sealed class SoftMaskDrawingScope : IDisposable
         // Ensure proper teardown if the caller forgot to call EndDrawContent.
         if (began && shouldApplyMask)
         {
-            try
-            {
-                EndDrawContent();
-            }
-            catch
-            {
-                // Best effort; avoid throwing from Dispose.
-            }
+            EndDrawContent();
         }
     }
 }
