@@ -13,6 +13,8 @@ namespace PdfReader.Wpf.PdfPanel.Rendering
 
         SKPicture GetPicture(int pageNumber, double scale);
 
+        SKPicture GetThumbnailPicture(int pageNumber, int maxThumbnailSize);
+
         AnnotationPopup[] GetAnnotationPopups(int pageNumber);
     }
 }

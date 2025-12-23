@@ -63,7 +63,7 @@ namespace PdfReader.Wpf.PdfPanel.Drawing
         {
             lock (picture.DisposeLocker)
             {
-                if (picture.IsDisposed)
+                if (picture.IsDisposed || picture.Picture == null)
                 {
                     return;
                 }

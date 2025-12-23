@@ -43,7 +43,7 @@ namespace PdfReader.Web.Demo
                 using var pageRecorder = new SKPictureRecorder();
                 var page = _document.Pages[pageIndex];
                 using var pageCanvas = pageRecorder.BeginRecording(page.CropBox);
-                page.Draw(pageCanvas);
+                page.Draw(pageCanvas, new PdfRenderingParameters());
 
                 using var picture = pageRecorder.EndRecording();
 

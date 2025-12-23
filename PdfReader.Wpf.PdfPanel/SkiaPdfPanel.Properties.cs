@@ -52,7 +52,7 @@ namespace PdfReader.Wpf.PdfPanel
             new FrameworkPropertyMetadata(1, FrameworkPropertyMetadataOptions.AffectsRender | FrameworkPropertyMetadataOptions.BindsTwoWayByDefault, CurrentPageProperty_Changed));
 
         public static readonly DependencyProperty MaxThumbnailSizeProperty = DependencyProperty.Register(nameof(MaxThumbnailSize), typeof(int), typeof(SkiaPdfPanel),
-            new FrameworkPropertyMetadata(512, FrameworkPropertyMetadataOptions.AffectsRender));
+            new FrameworkPropertyMetadata(256, FrameworkPropertyMetadataOptions.AffectsRender));
 
         public static readonly DependencyProperty BackgroundColorProperty = DependencyProperty.Register(nameof(BackgroundColor), typeof(System.Windows.Media.Color), typeof(SkiaPdfPanel),
             new FrameworkPropertyMetadata(Colors.LightGray, FrameworkPropertyMetadataOptions.AffectsRender));

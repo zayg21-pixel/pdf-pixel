@@ -1,5 +1,4 @@
-﻿using PdfReader.Wpf.PdfPanel.Rendering;
-using SkiaSharp;
+﻿using SkiaSharp;
 using System;
 
 namespace PdfReader.Wpf.PdfPanel.Drawing
@@ -9,14 +8,15 @@ namespace PdfReader.Wpf.PdfPanel.Drawing
     /// </summary>
     internal sealed class CachedSkPicture : IDisposable
     {
-        public CachedSkPicture(SKPicture picture, SKImage thumbnail, int pageNumber)
+        public CachedSkPicture(SKImage thumbnail, int pageNumber)
         {
-            Picture = picture;
             Thumbnail = thumbnail;
             PageNumber = pageNumber;
         }
 
-        public SKPicture Picture { get; }
+        public SKPicture Picture { get; private set; }
+
+        public double Scale { get; private set; }
 
         public SKImage Thumbnail { get; }
 
@@ -25,6 +25,17 @@ namespace PdfReader.Wpf.PdfPanel.Drawing
         public object DisposeLocker { get; } = new object();
 
         public bool IsDisposed { get; private set; }
+
+        public void UpdatePicture(SKPicture picture, double scale)
+        {
+            lock (DisposeLocker)
+            {
+                Picture?.Dispose();
+                Picture = picture;
+                Scale = scale;
+            }
+        }
+
 
         public void Dispose()
         {
@@ -36,7 +47,7 @@ namespace PdfReader.Wpf.PdfPanel.Drawing
                 }
 
                 IsDisposed = true;
-                Picture.Dispose();
+                Picture?.Dispose();
                 Thumbnail?.Dispose();
             }
         }

@@ -97,7 +97,7 @@ public class ImageRenderer : IImageRenderer
             return;
         }
 
-        using var baseImage = decoder.Decode();
+        using var baseImage = decoder.Decode(state, canvas);
         if (baseImage == null)
         {
             _logger.LogWarning(
@@ -109,7 +109,7 @@ public class ImageRenderer : IImageRenderer
         using var imagePaint = PdfPaintFactory.CreateImagePaint(state);
         imagePaint.ColorFilter = ImagePostProcessingFilters.BuildImageFilter(pdfImage);
 
-        var sampling = PdfPaintFactory.GetImageSamplingOptions(pdfImage);
+        var sampling = PdfPaintFactory.GetImageSamplingOptions(pdfImage, state);
         canvas.DrawImage(baseImage, destRect, sampling, imagePaint);
     }
 
@@ -136,7 +136,7 @@ public class ImageRenderer : IImageRenderer
             return;
         }
 
-        using var alphaMask = decoder.Decode();
+        using var alphaMask = decoder.Decode(state, canvas);
         if (alphaMask == null)
         {
             _logger.LogWarning(
@@ -145,7 +145,7 @@ public class ImageRenderer : IImageRenderer
             return;
         }
 
-        var sampling = PdfPaintFactory.GetImageSamplingOptions(pdfImage);
+        var sampling = PdfPaintFactory.GetImageSamplingOptions(pdfImage, state);
         var layerPaint = PdfPaintFactory.CreateLayerPaint(state);
 
         // it's important to invert mask/target here, otherwise image would be misaligned
@@ -190,7 +190,7 @@ public class ImageRenderer : IImageRenderer
             return;
         }
 
-        using var baseImage = baseDecoder.Decode();
+        using var baseImage = baseDecoder.Decode(state, canvas);
         if (baseImage == null)
         {
             _logger.LogWarning("Decoder returned null for image '{ImageName}'. Skipping soft mask drawing.", pdfImage?.Name);
@@ -204,7 +204,7 @@ public class ImageRenderer : IImageRenderer
             return;
         }
 
-        using var maskImage = softMaskDecoder.Decode();
+        using var maskImage = softMaskDecoder.Decode(state, canvas);
         if (maskImage == null)
         {
             _logger.LogWarning("Decoder returned null for soft mask of image '{ImageName}'. Skipping soft mask drawing.", pdfImage?.Name);
@@ -218,8 +218,8 @@ public class ImageRenderer : IImageRenderer
         using var maskPaint = PdfPaintFactory.CreateImageMaskPaint();
         maskPaint.ColorFilter = ImagePostProcessingFilters.BuildImageFilter(pdfImage.SoftMask);
 
-        var sampling = PdfPaintFactory.GetImageSamplingOptions(pdfImage);
-        var maskSampling = PdfPaintFactory.GetImageSamplingOptions(pdfImage.SoftMask);
+        var sampling = PdfPaintFactory.GetImageSamplingOptions(pdfImage, state);
+        var maskSampling = PdfPaintFactory.GetImageSamplingOptions(pdfImage.SoftMask, state);
 
         canvas.SaveLayer(destRect, layerPaint);
 

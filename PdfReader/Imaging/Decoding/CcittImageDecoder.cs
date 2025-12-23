@@ -2,6 +2,8 @@ using Microsoft.Extensions.Logging;
 using PdfReader.Imaging.Ccitt;
 using PdfReader.Imaging.Model;
 using PdfReader.Imaging.Processing;
+using PdfReader.Models;
+using PdfReader.Rendering.State;
 using SkiaSharp;
 using System;
 
@@ -40,7 +42,7 @@ internal sealed class CcittImageDecoder : PdfImageDecoder
         _rows = parameters?.Rows ?? image.Height;
     }
 
-    public override SKImage Decode()
+    public override SKImage Decode(PdfGraphicsState state, SKCanvas canvas)
     {
         int width = _columns;
         int height = _rows;
@@ -60,7 +62,7 @@ internal sealed class CcittImageDecoder : PdfImageDecoder
             }
 
             // Initialize row processor (8-bit pipeline; will read packed 1-bit samples per row).
-            using var rowProcessor = new PdfImageRowProcessor(Image, LoggerFactory.CreateLogger<PdfImageRowProcessor>());
+            using var rowProcessor = new PdfImageRowProcessor(Image, LoggerFactory.CreateLogger<PdfImageRowProcessor>(), state, canvas);
             rowProcessor.InitializeBuffer();
 
             // Row decoder (produces packed 1-bit rows, MSB-first).

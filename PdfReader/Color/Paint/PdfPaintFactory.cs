@@ -22,7 +22,7 @@ public static class PdfPaintFactory
     {
         var paint = new SKPaint
         {
-            IsAntialias = true,
+            IsAntialias = !state.RenderingParameters.PreviewMode,
             // Default blend is Normal (SrcOver). Map gstate blend to Skia.
             BlendMode = PdfBlendModeNames.ToSkiaBlendMode(state.BlendMode)
         };
@@ -202,8 +202,13 @@ public static class PdfPaintFactory
     /// and image type.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static SKSamplingOptions GetImageSamplingOptions(PdfImage image)
+    public static SKSamplingOptions GetImageSamplingOptions(PdfImage image, PdfGraphicsState state)
     {
+        if (state.RenderingParameters.ScaleFactor < 1 || state.RenderingParameters.PreviewMode)
+        {
+            return new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.None);
+        }
+
         if (image.Interpolate)
         {
             return new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.None);

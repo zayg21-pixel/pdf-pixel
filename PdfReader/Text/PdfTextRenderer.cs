@@ -124,7 +124,7 @@ public class PdfTextRenderer : IPdfTextRenderer
         for (int i = 0; i < glyphs.Count; i++)
         {
             var glyph = glyphs[i];
-            var charInfo = type3Font.GetCharacterInfo(glyph.CharacterInfo.CharacterCode, _renderer, state.Page, state.RecursionGuard);
+            var charInfo = type3Font.GetCharacterInfo(glyph.CharacterInfo.CharacterCode, _renderer, state);
             if (charInfo.IsDefined)
             {
                 canvas.Save();

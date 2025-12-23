@@ -95,7 +95,8 @@ public class PdfPage
     /// Render the page content to a Skia canvas.
     /// </summary>
     /// <param name="canvas">Destination canvas.</param>
-    public void Draw(SKCanvas canvas)
+    /// <param name="renderingParameters">Rendering parameters for rendering in defined canvas.</param>
+    public void Draw(SKCanvas canvas, PdfRenderingParameters renderingParameters)
     {
         if (canvas == null)
         {
@@ -110,7 +111,7 @@ public class PdfPage
         var renderer = new PdfRenderer(Document.LoggerFactory);
         var contentRenderer = new PdfContentStreamRenderer(renderer, this);
         contentRenderer.ApplyPageTransformations(canvas);
-        contentRenderer.RenderContent(canvas);
+        contentRenderer.RenderContent(canvas, renderingParameters);
         canvas.Restore();
     }
 
@@ -127,7 +128,7 @@ public class PdfPage
         
         var contentRenderer = new PdfContentStreamRenderer(textExtractor, this);
         contentRenderer.ApplyPageTransformations(canvas);
-        contentRenderer.RenderContent(canvas);
+        contentRenderer.RenderContent(canvas, new PdfRenderingParameters());
 
         return textExtractor.PageCharacters;
     }

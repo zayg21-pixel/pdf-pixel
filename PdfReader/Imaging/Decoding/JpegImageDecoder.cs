@@ -7,6 +7,7 @@ using PdfReader.Imaging.Jpg.Readers;
 using PdfReader.Imaging.Model;
 using PdfReader.Imaging.Processing;
 using PdfReader.Imaging.Skia;
+using PdfReader.Rendering.State;
 using SkiaSharp;
 using System;
 
@@ -21,7 +22,6 @@ namespace PdfReader.Imaging.Decoding;
 /// </summary>
 public sealed class JpegImageDecoder : PdfImageDecoder
 {
-    // TODO: freeculture pages 136-137 bugs!
     public JpegImageDecoder(PdfImage image, ILoggerFactory loggerFactory) : base(image, loggerFactory)
     {
     }
@@ -30,7 +30,7 @@ public sealed class JpegImageDecoder : PdfImageDecoder
     /// Decode the JPEG image returning an <see cref="SKImage"/> or null on failure (errors are logged).
     /// Attempts custom streaming decode first; falls back to Skia's built‑in decoder if custom path fails.
     /// </summary>
-    public override SKImage Decode()
+    public override SKImage Decode(PdfGraphicsState state, SKCanvas canvas)
     {
         if (!ValidateImageParameters())
         {
@@ -54,12 +54,11 @@ public sealed class JpegImageDecoder : PdfImageDecoder
 
         try
         {
-            return DecodeInternal(encodedImageData);
+            return DecodeInternal(encodedImageData, state, canvas);
         }
         catch (Exception ex)
         {
             Logger.LogWarning(ex, "Primary JPEG decode path failed; attempting Skia fallback (Name={Name}).", Image.Name);
-            return null;
             return SKImage.FromEncodedData(encodedImageData.Span);
         }
     }
@@ -68,7 +67,7 @@ public sealed class JpegImageDecoder : PdfImageDecoder
     /// Decode using custom streaming pipeline. Throws on failure.
     /// Row data is streamed row-by-row directly into a <see cref="PdfImageRowProcessor"/> without allocating a full intermediate buffer.
     /// </summary>
-    private SKImage DecodeInternal(ReadOnlyMemory<byte> encoded)
+    private SKImage DecodeInternal(ReadOnlyMemory<byte> encoded, PdfGraphicsState state, SKCanvas canvas)
     {
         JpgHeader header;
         try
@@ -117,7 +116,7 @@ public sealed class JpegImageDecoder : PdfImageDecoder
 
         try
         {
-            rowProcessor = new PdfImageRowProcessor(Image, LoggerFactory.CreateLogger<PdfImageRowProcessor>());
+            rowProcessor = new PdfImageRowProcessor(Image, LoggerFactory.CreateLogger<PdfImageRowProcessor>(), state, canvas);
             rowProcessor.InitializeBuffer();
 
             Span<byte> rowBuffer = new byte[rowStride];

@@ -74,7 +74,7 @@ public class PdfType3Font : PdfSingleByteFont
     /// Renders a Type 3 character CharProc to a recorded picture and extracts d0/d1 metrics from the glyph graphics state.
     /// Results are cached per character code for reuse.
     /// </summary>
-    public PdfType3CharacterInfo GetCharacterInfo(PdfCharacterCode charCode, IPdfRenderer renderer, PdfPage page, HashSet<uint> recursionGuard)
+    public PdfType3CharacterInfo GetCharacterInfo(PdfCharacterCode charCode, IPdfRenderer renderer, PdfGraphicsState sourceState)
     {
         if (CharProcs == null)
         {
@@ -106,16 +106,16 @@ public class PdfType3Font : PdfSingleByteFont
             return PdfType3CharacterInfo.Undefined;
         }
 
-        if (recursionGuard.Contains(charObject.Reference.ObjectNumber))
+        if (sourceState.RecursionGuard.Contains(charObject.Reference.ObjectNumber))
         {
             return PdfType3CharacterInfo.Undefined;
         }
 
-        recursionGuard.Add(charObject.Reference.ObjectNumber);
+        sourceState.RecursionGuard.Add(charObject.Reference.ObjectNumber);
 
         float width = Widths.GetWidth(charCode) ?? 1f;
         float height = 1f;
-        var charState = new PdfGraphicsState(page, recursionGuard);
+        var charState = new PdfGraphicsState(sourceState);
 
         var recorder = new SKPictureRecorder();
         var canvas = recorder.BeginRecording(FontMatrix.Invert().MapRect(new SKRect(0, 0, width, height)));
@@ -124,7 +124,7 @@ public class PdfType3Font : PdfSingleByteFont
         canvas.Concat(FontMatrix);
 
         // Render glyph content stream without recursion (independent from page rendering)
-        var glyphPage = new FormXObjectPageWrapper(page, FontObject);
+        var glyphPage = new FormXObjectPageWrapper(sourceState.Page, FontObject);
         var contentRenderer = new PdfContentStreamRenderer(renderer, glyphPage);
         var parseContext = new PdfParseContext(streamData);
 
@@ -139,7 +139,7 @@ public class PdfType3Font : PdfSingleByteFont
         var info = new PdfType3CharacterInfo(picture, bbox, adv);
         type3Cache[charCode] = info;
 
-        recursionGuard.Remove(charObject.Reference.ObjectNumber);
+        sourceState.RecursionGuard.Remove(charObject.Reference.ObjectNumber);
 
         return info;
     }

@@ -1,10 +1,12 @@
 ﻿using SkiaSharp;
 using System;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using System.Windows.Media.Imaging;
 using System.Windows;
-using System.Collections.Concurrent;
+using System.Windows.Controls;
+using System.Windows.Media.Imaging;
 
 namespace PdfReader.Wpf.PdfPanel.Drawing
 {
@@ -61,6 +63,7 @@ namespace PdfReader.Wpf.PdfPanel.Drawing
             }
 
             bool allDrawn = true;
+            HashSet<int> drawnPages = new HashSet<int>();
 
             foreach (var picture in request.Pages.UpdateCacheAndGetPictures(extendedVisiblePages, request.Scale, request.MaxThumbnailSize))
             {
@@ -69,8 +72,62 @@ namespace PdfReader.Wpf.PdfPanel.Drawing
                     continue;
                 }
 
-                canvas.DrawPageFromRequest(picture.PageNumber, request, PageDrawFlags.Background | PageDrawFlags.Content);
+                if (picture.Picture == null)
+                {
+                    // TODO: move to separate common method with caching check
+                    var page = request.VisiblePages.First(x => x.PageNumber == picture.PageNumber);
+                    var destRect = page.GetSkScaledBounds(request.Scale);
+                    lock (picture.DisposeLocker)
+                    {
+                        if (picture.IsDisposed)
+                        {
+                            continue;
+                        }
+
+                        var thumbnail = picture.Thumbnail;
+                        var thumbnailRect = SKRect.Create(0, 0, thumbnail.Width, thumbnail.Height);
+
+                        var samplingOption = new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.None);
+                        canvas.DrawImage(thumbnail, thumbnailRect, destRect, samplingOption);
+                    }
+                }
+                else
+                {
+                    drawnPages.Add(picture.PageNumber);
+                    canvas.DrawPageFromRequest(picture.PageNumber, request, PageDrawFlags.Background | PageDrawFlags.Content);
+                }
+
                 await DrawOnWritableBitmapAsync(panel, surface, request).ConfigureAwait(false);
+
+                if (!updateQueue.IsEmpty)
+                {
+                    allDrawn = false;
+                    break;
+                }
+            }
+
+            if (!updateQueue.IsEmpty || drawnPages.Count == extendedVisiblePages.Count())
+            {
+                return allDrawn;
+            }
+
+            foreach (var picture in request.Pages.UpdateCacheAndGetPictures(extendedVisiblePages, request.Scale, request.MaxThumbnailSize))
+            {
+                if (drawnPages.Contains(picture.PageNumber))
+                {
+                    continue;
+                }
+
+                if (!visiblePages.Contains(picture.PageNumber))
+                {
+                    continue;
+                }
+
+                if (picture.Picture != null)
+                {
+                    canvas.DrawPageFromRequest(picture.PageNumber, request, PageDrawFlags.Background | PageDrawFlags.Content);
+                    await DrawOnWritableBitmapAsync(panel, surface, request).ConfigureAwait(false);
+                }
 
                 if (!updateQueue.IsEmpty)
                 {

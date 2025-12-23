@@ -21,9 +21,9 @@ internal sealed class TilingPatternShaderBuilder
     /// </summary>
     /// <param name="renderer">PDF renderer instance.</param>
     /// <param name="pattern">Tiling pattern definition.</param>
-    /// <param name="page">PDF page context for rendering.</param>
+    /// <param name="sourceState">Source state for rendering.</param>
     /// <returns><see cref="SKPicture"/> Containing the rendered pattern cell.</returns>
-    public static SKPicture RenderTilingCell(IPdfRenderer renderer, PdfTilingPattern pattern, PdfPage page, HashSet<uint> recursionGuard)
+    public static SKPicture RenderTilingCell(IPdfRenderer renderer, PdfTilingPattern pattern, PdfGraphicsState sourceState)
     {
         var streamData = pattern.SourceObject.DecodeAsMemory();
 
@@ -32,15 +32,15 @@ internal sealed class TilingPatternShaderBuilder
             return null;
         }
 
-        if (recursionGuard.Contains(pattern.SourceObject.Reference.ObjectNumber))
+        if (sourceState.RecursionGuard.Contains(pattern.SourceObject.Reference.ObjectNumber))
         {
             // Prevent infinite recursion.
             return null;
         }
 
-        recursionGuard.Add(pattern.SourceObject.Reference.ObjectNumber);
+        sourceState.RecursionGuard.Add(pattern.SourceObject.Reference.ObjectNumber);
 
-        var cellState = new PdfGraphicsState(page, recursionGuard);
+        var cellState = new PdfGraphicsState(sourceState);
         using var recorder = new SKPictureRecorder();
         using var canvas = recorder.BeginRecording(pattern.BBox);
 
@@ -50,7 +50,7 @@ internal sealed class TilingPatternShaderBuilder
         var parseContext = new PdfParseContext(streamData);
         contentRenderer.RenderContext(canvas, ref parseContext, cellState);
 
-        recursionGuard.Remove(pattern.SourceObject.Reference.ObjectNumber);
+        sourceState.RecursionGuard.Remove(pattern.SourceObject.Reference.ObjectNumber);
 
         return recorder.EndRecording();
     }

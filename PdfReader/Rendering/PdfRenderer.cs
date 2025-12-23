@@ -3,6 +3,7 @@ using PdfReader.Color.Paint;
 using PdfReader.Fonts.Model;
 using PdfReader.Forms;
 using PdfReader.Imaging.Model;
+using PdfReader.Models;
 using PdfReader.Rendering.Form;
 using PdfReader.Rendering.Image;
 using PdfReader.Rendering.Path;
@@ -31,6 +32,7 @@ public class PdfRenderer : IPdfRenderer
     private readonly IImageRenderer _imageRenderer;
     private readonly IFormRenderer _formRenderer;
     private readonly IShadingRenderer _shadingRenderer;
+    private readonly PdfRenderingParameters _pdfRenderingParameters;
 
     internal PdfRenderer(ILoggerFactory loggerFactory)
     {

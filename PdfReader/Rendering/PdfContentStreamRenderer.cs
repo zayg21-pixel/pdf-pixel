@@ -44,7 +44,7 @@ public class PdfContentStreamRenderer
     /// Render multiple content streams sequentially as one continuous stream without memory allocation.
     /// This treats all content streams as logically one stream while preserving graphics state continuity.
     /// </summary>
-    public void RenderContent(SKCanvas canvas)
+    public void RenderContent(SKCanvas canvas, PdfRenderingParameters renderingParameters)
     {
         var contentStreams = GetPageContentStreams();
 
@@ -54,7 +54,7 @@ public class PdfContentStreamRenderer
         // Create unified context that treats all streams as one continuous stream
         var parseContext = new PdfParseContext(contentStreams);
 
-        var state = new PdfGraphicsState(_page, new HashSet<uint>());
+        var state = new PdfGraphicsState(_page, new HashSet<uint>(), renderingParameters);
         state.DeviceMatrix = canvas.TotalMatrix;
 
         RenderContext(canvas, ref parseContext, state);

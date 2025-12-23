@@ -178,7 +178,7 @@ namespace PdfReader.Console.Demo
                         canvas.Clear(SKColors.White);
 
                         // Render the page (this will show transformation debug info)
-                        page.Draw(canvas);
+                        page.Draw(canvas, new PdfRenderingParameters());
 
                         Logger.LogInformation("  === PAGE RENDERING COMPLETE ===");
 
@@ -230,7 +230,7 @@ namespace PdfReader.Console.Demo
             canvas.ClipRect(new SKRect(0, 0, pdfPage.CropBox.Width, pdfPage.CropBox.Height));
 
             canvas.Clear(SKColors.White);
-            pdfPage.Draw(canvas);
+            pdfPage.Draw(canvas, new PdfRenderingParameters());
 
             canvas.Flush();
             return recorder.EndRecording();

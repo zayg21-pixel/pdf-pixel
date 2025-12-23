@@ -4,9 +4,9 @@ using PdfReader.Text;
 using PdfReader.Color.Paint;
 using PdfReader.Transparency.Model;
 using PdfReader.Fonts.Model;
-using PdfReader.Fonts.Mapping;
 using PdfReader.Models;
 using System.Collections.Generic;
+using System;
 
 namespace PdfReader.Rendering.State
 {
@@ -23,10 +23,16 @@ namespace PdfReader.Rendering.State
     /// </summary>
     public class PdfGraphicsState
     {
-        public PdfGraphicsState(PdfPage statePage, HashSet<uint> recursionGuard)
+        public PdfGraphicsState(PdfPage statePage, HashSet<uint> recursionGuard, PdfRenderingParameters renderingParameters)
         {
-            Page = statePage;
-            RecursionGuard = recursionGuard;
+            Page = statePage ?? throw new ArgumentNullException(nameof(renderingParameters));
+            RecursionGuard = recursionGuard ?? throw new ArgumentNullException(nameof(renderingParameters));
+            RenderingParameters = renderingParameters ?? throw new ArgumentNullException(nameof(renderingParameters));
+        }
+
+        public PdfGraphicsState(PdfGraphicsState sourceState)
+            : this(sourceState.Page, sourceState.RecursionGuard, sourceState.RenderingParameters)
+        {
         }
 
         /// <summary>
@@ -38,6 +44,11 @@ namespace PdfReader.Rendering.State
         /// Recursion guard to prevent infinite loops.
         /// </summary>
         public HashSet<uint> RecursionGuard { get; }
+
+        /// <summary>
+        /// Rendering parameters of a current graphics state.
+        /// </summary>
+        public PdfRenderingParameters RenderingParameters { get; }
 
         /// <summary>
         /// Identity matrix shortcut used for initializing text matrices, etc.
@@ -253,7 +264,7 @@ namespace PdfReader.Rendering.State
         /// </summary>
         public PdfGraphicsState Clone(PdfPage pageOverride = null)
         {
-            return new PdfGraphicsState(pageOverride ?? Page, RecursionGuard)
+            return new PdfGraphicsState(pageOverride ?? Page, RecursionGuard, RenderingParameters)
             {
                 StrokePaint = StrokePaint,
                 FillPaint = FillPaint,

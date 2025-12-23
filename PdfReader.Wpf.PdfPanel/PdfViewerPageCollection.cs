@@ -18,6 +18,7 @@ namespace PdfReader.Wpf.PdfPanel
     /// </summary>
     public sealed class PdfViewerPageCollection : ReadOnlyCollection<PdfViewerPage>, IDisposable
     {
+        private const double PictureScaleTolerance = 10e-3;
         private readonly ConcurrentDictionary<int, CachedSkPicture> pictureCache = new ConcurrentDictionary<int, CachedSkPicture>();
         private readonly ConcurrentDictionary<int, AnnotationPopup[]> popupCache = new ConcurrentDictionary<int, AnnotationPopup[]>();
         private readonly int[] cachedRotations;
@@ -112,11 +113,11 @@ namespace PdfReader.Wpf.PdfPanel
 
         internal IEnumerable<CachedSkPicture> UpdateCacheAndGetPictures(IEnumerable<int> visiblePages, double scale, int maxThumbnailSize)
         {
-            var cachedPages = pictureCache.Keys.ToArray();
+            var cachedPages = pictureCache.ToArray();
 
             foreach (var cachedPage in cachedPages)
             {
-                if (!visiblePages.Contains(cachedPage) && pictureCache.TryRemove(cachedPage, out var removedPicture))
+                if (!visiblePages.Contains(cachedPage.Key) && pictureCache.TryRemove(cachedPage.Key, out var removedPicture))
                 {
                     removedPicture.Dispose();
                 }
@@ -126,6 +127,11 @@ namespace PdfReader.Wpf.PdfPanel
             {
                 if (pictureCache.TryGetValue(page, out var cachedPicture))
                 {
+                    if (cachedPicture.Picture == null || Math.Abs(cachedPicture.Scale - scale) > PictureScaleTolerance)
+                    {
+                        cachedPicture.UpdatePicture(Renderer.GetPicture(page, scale), scale);
+                    }
+
                     yield return cachedPicture;
                 }
                 else
@@ -136,46 +142,19 @@ namespace PdfReader.Wpf.PdfPanel
                         popupCache.TryAdd(page, popups);
                     }
 
-                    SKPicture picture = Renderer.GetPicture(page, scale);
-
-                    if (picture == null)
-                    {
-                        continue;
-                    }
-
-                    SKImage thumbnail = null;
-
-                    if (pictureCache.TryRemove(page, out var removedPicture))
-                    {
-                        lock (removedPicture.DisposeLocker)
-                        {
-                            if (!removedPicture.IsDisposed && removedPicture.Thumbnail != null)
-                            {
-                                thumbnail = SKImage.FromEncodedData(removedPicture.Thumbnail.Encode());
-                            }
-                        }
-
-                        removedPicture.Dispose();
-                    }
-
-                    var viewerPage = this[page - 1];
-
-                    if (thumbnail == null)
-                    {
-                        thumbnail = ThumbnailDrawing.GetThumbnail(picture, maxThumbnailSize, viewerPage.Info, viewerPage.UserRotation);
-                    }
+                    using SKPicture thumbnailPicture = Renderer.GetThumbnailPicture(page, maxThumbnailSize);
+                    SKImage thumbnail = SKImage.FromPicture(thumbnailPicture, new SKSizeI((int)thumbnailPicture.CullRect.Width, (int)thumbnailPicture.CullRect.Height));
+                    cachedPicture = new CachedSkPicture(thumbnail, page);
 
                     lock (disposeLocker)
                     {
                         if (isDisposed)
                         {
-                            picture.Dispose();
-                            thumbnail?.Dispose();
+                            cachedPicture.Dispose();
                             yield break;
                         }
                         else
                         {
-                            cachedPicture = new CachedSkPicture(picture, thumbnail, page);
                             pictureCache.TryAdd(page, cachedPicture);
                         }
                     }

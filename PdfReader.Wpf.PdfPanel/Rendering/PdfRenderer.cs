@@ -33,7 +33,7 @@ namespace PdfReader.Wpf.PdfPanel.Rendering
         {
             try
             {
-                return GetPictureInternal(pageNumber, scale);
+                return GetPictureInternal(pageNumber, scale, previewMode: false);
             }
             catch
             {
@@ -41,7 +41,22 @@ namespace PdfReader.Wpf.PdfPanel.Rendering
             }
         }
 
-        private SKPicture GetPictureInternal(int pageNumber, double scale)
+        public SKPicture GetThumbnailPicture(int pageNumber, int maxThumbnailSize)
+        {
+            try
+            {
+                var pdfPage = document.Pages[pageNumber - 1];
+                var maxDimension = Math.Max(pdfPage.CropBox.Width, pdfPage.CropBox.Height);
+                var scale = maxThumbnailSize / maxDimension;
+                return GetPictureInternal(pageNumber, scale, previewMode: true);
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        private SKPicture GetPictureInternal(int pageNumber, double scale, bool previewMode)
         {
             var pdfPage = document.Pages[pageNumber - 1];
 
@@ -49,7 +64,8 @@ namespace PdfReader.Wpf.PdfPanel.Rendering
             using var canvas = recorder.BeginRecording(SKRect.Create(pdfPage.CropBox.Width, pdfPage.CropBox.Height));
             canvas.ClipRect(new SKRect(0, 0, pdfPage.CropBox.Width, pdfPage.CropBox.Height));
 
-            pdfPage.Draw(canvas);
+            var parameters = new PdfRenderingParameters { ScaleFactor = (float)scale, PreviewMode = false };
+            pdfPage.Draw(canvas, parameters);
 
             // TODO: move to view model of Demo app
             //var chars = pdfPage.ExtractText();
