@@ -234,9 +234,13 @@ public static class PdfCMapParser
                     {
                         break;
                     }
-                    string unicode = char.ConvertFromUtf32(scalar);
-                    var packed = PdfCharacterCode.PackUIntToBigEndian(current, codeLength);
-                    cmap.AddMapping(new PdfCharacterCode(packed), unicode);
+
+                    if (PdfCMap.IsValidCodePoint(scalar))
+                    {
+                        string unicode = char.ConvertFromUtf32(scalar);
+                        var packed = PdfCharacterCode.PackUIntToBigEndian(current, codeLength);
+                        cmap.AddMapping(new PdfCharacterCode(packed), unicode);
+                    }
                 }
             }
             else if (thirdToken is PostScriptArray array)

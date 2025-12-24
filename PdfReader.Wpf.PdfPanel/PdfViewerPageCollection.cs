@@ -142,9 +142,16 @@ namespace PdfReader.Wpf.PdfPanel
                         popupCache.TryAdd(page, popups);
                     }
 
-                    using SKPicture thumbnailPicture = Renderer.GetThumbnailPicture(page, maxThumbnailSize);
-                    SKImage thumbnail = SKImage.FromPicture(thumbnailPicture, new SKSizeI((int)thumbnailPicture.CullRect.Width, (int)thumbnailPicture.CullRect.Height));
-                    cachedPicture = new CachedSkPicture(thumbnail, page);
+                    var thumbnailPicture = Renderer.GetThumbnail(page, maxThumbnailSize);
+
+                    if (thumbnailPicture == null)
+                    {
+                        cachedPicture = new CachedSkPicture(null, page);
+                    }
+                    else
+                    {
+                        cachedPicture = new CachedSkPicture(thumbnailPicture, page);
+                    }
 
                     lock (disposeLocker)
                     {

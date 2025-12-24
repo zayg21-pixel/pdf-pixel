@@ -9,7 +9,6 @@ using System.Collections.Concurrent;
 using System.Linq;
 
 namespace PdfReader.Fonts.Model;
-
 /// <summary>
 /// Base class for all PDF font types with common properties and interface.
 /// </summary>

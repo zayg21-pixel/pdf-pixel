@@ -148,7 +148,11 @@ public class PdfCMap
         {
             int codePoint = startUnicode + delta;
             var codeBytes = PdfCharacterCode.PackUIntToBigEndian(v, len);
-            _characterCodeToUnicode[new PdfCharacterCode(codeBytes)] = char.ConvertFromUtf32(codePoint);
+
+            if (IsValidCodePoint(codePoint))
+            {
+                _characterCodeToUnicode[new PdfCharacterCode(codeBytes)] = char.ConvertFromUtf32(codePoint);
+            }
         }
     }
 
@@ -239,6 +243,11 @@ public class PdfCMap
         {
             _codeSpaceRanges.Add(range);
         }
+    }
+
+    public static bool IsValidCodePoint(int codePoint)
+    {
+        return codePoint >= 0 && codePoint <= 0x10FFFF && (codePoint < 0xD800 || codePoint > 0xDFFF);
     }
 
     private readonly struct CodeSpaceRange

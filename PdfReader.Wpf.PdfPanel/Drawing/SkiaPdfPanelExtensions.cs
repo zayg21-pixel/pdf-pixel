@@ -85,10 +85,14 @@ namespace PdfReader.Wpf.PdfPanel.Drawing
                         }
 
                         var thumbnail = picture.Thumbnail;
-                        var thumbnailRect = SKRect.Create(0, 0, thumbnail.Width, thumbnail.Height);
 
-                        var samplingOption = new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.None);
-                        canvas.DrawImage(thumbnail, thumbnailRect, destRect, samplingOption);
+                        if (thumbnail != null)
+                        {
+                            var thumbnailRect = SKRect.Create(0, 0, thumbnail.Width, thumbnail.Height);
+
+                            var samplingOption = new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.None);
+                            canvas.DrawImage(thumbnail, thumbnailRect, destRect, samplingOption);
+                        }
                     }
                 }
                 else
@@ -199,10 +203,14 @@ namespace PdfReader.Wpf.PdfPanel.Drawing
                     }
 
                     var thumbnail = cached.Thumbnail;
-                    var thumbnailRect = SKRect.Create(0, 0, thumbnail.Width, thumbnail.Height);
 
-                    var samplingOption = new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.None);
-                    canvas.DrawImage(thumbnail, thumbnailRect, destRect, samplingOption);
+                    if (thumbnail != null)
+                    {
+                        var thumbnailRect = SKRect.Create(0, 0, thumbnail.Width, thumbnail.Height);
+
+                        var samplingOption = new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.None);
+                        canvas.DrawImage(thumbnail, thumbnailRect, destRect, samplingOption);
+                    }
                 }
 
                 if (lastRequest == null)

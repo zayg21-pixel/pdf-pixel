@@ -1,4 +1,4 @@
-using SkiaSharp;
+ï»¿using SkiaSharp;
 using System.Numerics;
 using System.Runtime.CompilerServices;
 using System.Collections.Generic;
@@ -8,7 +8,7 @@ using PdfReader.Shading.Model;
 namespace PdfReader.Shading.Builder;
 
 /// <summary>
-/// Provides static methods for evaluating tensor-product Bézier surfaces and interpolating corner colors for mesh patches.
+/// Provides static methods for evaluating tensor-product BÃ©zier surfaces and interpolating corner colors for mesh patches.
 /// </summary>
 internal static class MeshEvaluator
 {
@@ -19,16 +19,29 @@ internal static class MeshEvaluator
     private const int P30 = 9;   // (3,0)
     private const int P01 = 1;   // (0,1)
     private const int P11 = 12;  // (1,1)
-    private const int P21 = 14;  // (2,1)
+    private const int P21 = 15;  // (2,1)
     private const int P31 = 8;   // (3,1)
     private const int P02 = 2;   // (0,2)
     private const int P12 = 13;  // (1,2)
-    private const int P22 = 15;  // (2,2)
+    private const int P22 = 14;  // (2,2)
     private const int P32 = 7;   // (3,2)
     private const int P03 = 3;   // (0,3)
     private const int P13 = 4;   // (1,3)
     private const int P23 = 5;   // (2,3)
     private const int P33 = 6;   // (3,3)
+
+    // Branch-free lookup table mapping (j * 4 + i) â†’ spiral index constants
+    private static readonly int[] ControlPointIndexMap = new int[16]
+    {
+        // j = 0 row: (0,0..3)
+        P00, P10, P20, P30,
+        // j = 1 row: (1,0..3)
+        P01, P11, P21, P31,
+        // j = 2 row: (2,0..3)
+        P02, P12, P22, P32,
+        // j = 3 row: (3,0..3)
+        P03, P13, P23, P33
+    };
 
     /// <summary>
     /// Creates tessellated vertices for a Type 7 mesh patch as an SKVertices instance.
@@ -114,6 +127,12 @@ internal static class MeshEvaluator
             throw new ArgumentOutOfRangeException(nameof(tessellation), "Tessellation must be >= 1.");
         }
 
+        // Adjust tessellation to avoid 16-bit index overflow in SKVertices.
+        // totalVertices = patches.Count * (tessellation + 1)^2 must be <= 65535.
+        int maxVertices = ushort.MaxValue;
+        int safeVertexCountPerPatch = (int)MathF.Floor(MathF.Sqrt(maxVertices / (float)patches.Count));
+        tessellation = Math.Max(1, Math.Min(tessellation, safeVertexCountPerPatch - 1));
+
         int vertexCountPerAxis = tessellation + 1;
         int verticesPerPatch = vertexCountPerAxis * vertexCountPerAxis;
         int quadsPerPatch = tessellation * tessellation;
@@ -169,7 +188,7 @@ internal static class MeshEvaluator
     }
 
     /// <summary>
-    /// Evaluates the tensor-product Bézier surface for a 4x4 patch at (u, v) using direct vectorized operations.
+    /// Evaluates the tensor-product BÃ©zier surface for a 4x4 patch at (u, v) using direct vectorized operations.
     /// </summary>
     /// <param name="u">Normalized horizontal coordinate (0..1).</param>
     /// <param name="v">Normalized vertical coordinate (0..1).</param>
@@ -186,63 +205,27 @@ internal static class MeshEvaluator
         Vector4 bu = ComputeVectorBezierCoefficients(u);
         Vector4 bv = ComputeVectorBezierCoefficients(v);
 
-        // Load control points in spiral order for each row
-        Vector4 x0 = new Vector4(
-            controlPoints[P00].X,
-            controlPoints[P10].X,
-            controlPoints[P20].X,
-            controlPoints[P30].X);
-        Vector4 x1 = new Vector4(
-            controlPoints[P01].X,
-            controlPoints[P11].X,
-            controlPoints[P21].X,
-            controlPoints[P31].X);
-        Vector4 x2 = new Vector4(
-            controlPoints[P02].X,
-            controlPoints[P12].X,
-            controlPoints[P22].X,
-            controlPoints[P32].X);
-        Vector4 x3 = new Vector4(
-            controlPoints[P03].X,
-            controlPoints[P13].X,
-            controlPoints[P23].X,
-            controlPoints[P33].X);
+        // Build X and Y coefficient matrices directly using Unsafe to write into Matrix4x4 storage
+        Matrix4x4 mx = default;
+        Matrix4x4 my = default;
+        ref float mxRef = ref Unsafe.As<Matrix4x4, float>(ref mx);
+        ref float myRef = ref Unsafe.As<Matrix4x4, float>(ref my);
 
-        Vector4 y0 = new Vector4(
-            controlPoints[P00].Y,
-            controlPoints[P10].Y,
-            controlPoints[P20].Y,
-            controlPoints[P30].Y);
-        Vector4 y1 = new Vector4(
-            controlPoints[P01].Y,
-            controlPoints[P11].Y,
-            controlPoints[P21].Y,
-            controlPoints[P31].Y);
-        Vector4 y2 = new Vector4(
-            controlPoints[P02].Y,
-            controlPoints[P12].Y,
-            controlPoints[P22].Y,
-            controlPoints[P32].Y);
-        Vector4 y3 = new Vector4(
-            controlPoints[P03].Y,
-            controlPoints[P13].Y,
-            controlPoints[P23].Y,
-            controlPoints[P33].Y);
+        // Single loop over 16 entries (row-major) using ControlPointIndexMap
+        for (int matrixIndex = 0; matrixIndex < 16; matrixIndex++)
+        {
+            int controlPointIndex = ControlPointIndexMap[matrixIndex];
+            SKPoint p = controlPoints[controlPointIndex];
+            Unsafe.Add(ref mxRef, matrixIndex) = p.X;
+            Unsafe.Add(ref myRef, matrixIndex) = p.Y;
+        }
 
-        Vector4 dx = new Vector4(
-            Vector4.Dot(x0, bu),
-            Vector4.Dot(x1, bu),
-            Vector4.Dot(x2, bu),
-            Vector4.Dot(x3, bu));
+        // Evaluate bu^T * M * bv using one transform and one dot per axis
+        Vector4 cx = Vector4.Transform(bv, mx);
+        Vector4 cy = Vector4.Transform(bv, my);
 
-        Vector4 dy = new Vector4(
-            Vector4.Dot(y0, bu),
-            Vector4.Dot(y1, bu),
-            Vector4.Dot(y2, bu),
-            Vector4.Dot(y3, bu));
-
-        float x = Vector4.Dot(dx, bv);
-        float y = Vector4.Dot(dy, bv);
+        float x = Vector4.Dot(bu, cx);
+        float y = Vector4.Dot(bu, cy);
 
         return new SKPoint(x, y);
     }
@@ -308,7 +291,7 @@ internal static class MeshEvaluator
     }
 
     /// <summary>
-    /// Precomputes the cubic Bézier coefficients for a given parameter as a Vector4.
+    /// Precomputes the cubic BÃ©zier coefficients for a given parameter as a Vector4.
     /// </summary>
     /// <param name="t">Normalized parameter (0..1).</param>
     /// <returns>Vector4 of 4 coefficients.</returns>

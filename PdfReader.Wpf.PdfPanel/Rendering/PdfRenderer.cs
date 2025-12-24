@@ -41,14 +41,36 @@ namespace PdfReader.Wpf.PdfPanel.Rendering
             }
         }
 
-        public SKPicture GetThumbnailPicture(int pageNumber, int maxThumbnailSize)
+        public SKImage GetThumbnail(int pageNumber, int maxThumbnailSize)
         {
             try
             {
                 var pdfPage = document.Pages[pageNumber - 1];
                 var maxDimension = Math.Max(pdfPage.CropBox.Width, pdfPage.CropBox.Height);
                 var scale = maxThumbnailSize / maxDimension;
-                return GetPictureInternal(pageNumber, scale, previewMode: true);
+
+                var width = (int)Math.Max(1, Math.Round(pdfPage.CropBox.Width * scale));
+                var height = (int)Math.Max(1, Math.Round(pdfPage.CropBox.Height * scale));
+
+                var bitmapInfo = new SKImageInfo(width, height, SKColorType.Bgra8888, SKAlphaType.Premul);
+                using var bitmap = new SKBitmap(bitmapInfo);
+
+                using var canvas = new SKCanvas(bitmap);
+
+                canvas.Clear(SKColors.Transparent);
+                canvas.Scale((float)scale);
+                canvas.ClipRect(new SKRect(0, 0, pdfPage.CropBox.Width, pdfPage.CropBox.Height));
+
+                var parameters = new PdfRenderingParameters
+                {
+                    ScaleFactor = (float)scale,
+                    PreviewMode = true
+                };
+
+                pdfPage.Draw(canvas, parameters);
+                canvas.Flush();
+
+                return SKImage.FromBitmap(bitmap);
             }
             catch
             {

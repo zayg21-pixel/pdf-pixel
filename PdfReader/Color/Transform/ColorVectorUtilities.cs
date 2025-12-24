@@ -47,7 +47,7 @@ namespace PdfReader.Color.Transform
             destination.R = (byte)scaled.X;
             destination.G = (byte)scaled.Y;
             destination.B = (byte)scaled.Z;
-            destination.A = (byte)scaled.W;
+            destination.A = 255;
         }
 
 

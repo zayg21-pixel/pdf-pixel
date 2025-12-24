@@ -115,7 +115,7 @@ public class PdfType3Font : PdfSingleByteFont
 
         float width = Widths.GetWidth(charCode) ?? 1f;
         float height = 1f;
-        var charState = new PdfGraphicsState(sourceState);
+        var charState = new PdfGraphicsState(sourceState.Page, sourceState.RecursionGuard, new PdfRenderingParameters());
 
         var recorder = new SKPictureRecorder();
         var canvas = recorder.BeginRecording(FontMatrix.Invert().MapRect(new SKRect(0, 0, width, height)));

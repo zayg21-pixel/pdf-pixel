@@ -36,18 +36,22 @@ public class FormRenderer : IFormRenderer
 
         int count = canvas.Save();
 
-        // Use form paint to composite the whole form with correct alpha/blend when needed
-        using var formPaint = PdfPaintFactory.CreateLayerPaint(graphicsState);
-
         // Apply form matrix if present
         canvas.Concat(formXObject.Matrix);
 
         // Clip to /BBox
         canvas.ClipRect(formXObject.BBox, antialias: true);
 
+        var localGs = graphicsState.Clone();
+        localGs.SoftMask = null;
+
         if (formXObject.TransparencyGroup != null)
         {
+            using var formPaint = PdfPaintFactory.CreateCompositionLayerPaint(graphicsState);
             canvas.SaveLayer(formXObject.BBox, formPaint);
+
+            localGs.BlendMode = Transparency.Model.PdfBlendMode.Normal;
+            localGs.FillAlpha = 1.0f;
         }
 
         using var softMaskScope = new SoftMaskDrawingScope(_renderer, canvas, graphicsState);
@@ -59,13 +63,9 @@ public class FormRenderer : IFormRenderer
         {
             var parseContext = new PdfParseContext(content);
             var formPage = formXObject.GetFormPage();
-            var localGs = graphicsState.Clone();
 
             // CTM is used for patterns, form space is isolated for pattern rendering, so only form matrix is applied
             localGs.CTM = formXObject.Matrix;
-
-            // Prevent double-application: global soft mask is applied by outer wrapper
-            localGs.SoftMask = null;
 
             var renderer = new PdfContentStreamRenderer(_renderer, formPage);
             renderer.RenderContext(canvas, ref parseContext, localGs);

@@ -146,7 +146,7 @@ public class ImageRenderer : IImageRenderer
         }
 
         var sampling = PdfPaintFactory.GetImageSamplingOptions(pdfImage, state);
-        var layerPaint = PdfPaintFactory.CreateLayerPaint(state);
+        using var layerPaint = PdfPaintFactory.CreateCompositionLayerPaint(state);
 
         // it's important to invert mask/target here, otherwise image would be misaligned
         using var fillPaint = PdfPaintFactory.CreateMaskImageFillPaint(state);
@@ -211,7 +211,7 @@ public class ImageRenderer : IImageRenderer
             return;
         }
 
-        using var layerPaint = PdfPaintFactory.CreateLayerPaint(state);
+        using var layerPaint = PdfPaintFactory.CreateCompositionLayerPaint(state);
         using var imagePaint = PdfPaintFactory.CreateMaskImagePaint();
         imagePaint.ColorFilter = ImagePostProcessingFilters.BuildImageFilter(pdfImage);
 

@@ -146,47 +146,6 @@ internal class SfntFontTableParser
             }
         }
 
-
-        foreach (var cmap in info.CMapEntries)
-        {
-            // Merge CMap format 0
-            if (cmap.Format == 0 && cmap.Encoding.HasValue)
-            {
-                PdfString[] encodingNames = SingleByteEncodings.GetEncodingSet(cmap.Encoding.Value);
-
-                var cmapMap = SnftCMapParser.ParseFormat0(info.CmapData, cmap.Offset);
-
-                for (int code = 0; code < 256; code++)
-                {
-                    PdfString glyphName = encodingNames[code];
-
-                    if (!glyphName.IsEmpty && !nameToGid.ContainsKey(glyphName) && cmapMap[code] != 0)
-                    {
-                        nameToGid[glyphName] = cmapMap[code];
-                    }
-                }
-            }
-            // Merge CMap format 6 (only for codes 0-255)
-            else if (cmap.Format == 6 && cmap.Encoding.HasValue)
-            {
-                var cmapMap = SnftCMapParser.ParseFormat6(info.CmapData, cmap.Offset);
-
-                foreach (var kvp in cmapMap)
-                {
-                    int code = kvp.Key;
-                    if (code >= 0 && code <= 255)
-                    {
-                        PdfString glyphName = SingleByteEncodings.GetNameByCode((byte)code, cmap.Encoding.Value);
-
-                        if (!glyphName.IsEmpty && !nameToGid.ContainsKey(glyphName) && kvp.Value != 0)
-                        {
-                            nameToGid[glyphName] = kvp.Value;
-                        }
-                    }
-                }
-            }
-        }
-
         return nameToGid;
     }
 

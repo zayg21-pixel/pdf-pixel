@@ -16,4 +16,6 @@ public class PdfRenderingParameters
     /// to fit exact device scale, otherwise decoded in full size.
     /// </summary>
     public float? ScaleFactor { get; set; }
+
+    public bool ForceAntiAliasing { get; set; } // TODO: use for type 3 fonts
 }

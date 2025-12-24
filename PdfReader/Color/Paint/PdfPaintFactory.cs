@@ -127,21 +127,38 @@ public static class PdfPaintFactory
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static SKPaint CreateMaskImageFillPaint(PdfGraphicsState state)
     {
-        var basePaint = CreateFillPaint(state);
-        basePaint.BlendMode = SKBlendMode.SrcIn;
-        return basePaint;
+        return new SKPaint
+        {
+            IsAntialias = true,
+            Style = SKPaintStyle.Fill,
+            Color = state.FillPaint.Color,
+            BlendMode = SKBlendMode.SrcIn,
+        };
     }
 
     /// <summary>
-    /// Mask for layer paint (form or soft mask).
+    /// Layer paint for soft mask.
     /// </summary>
     /// <returns></returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static SKPaint CreateLayerPaint(PdfGraphicsState state)
+    public static SKPaint CreateMaskLayerPaint(PdfGraphicsState state)
     {
-        var paint = CreateBasePaint(state);
-        paint.Color = ApplyAlpha(SKColors.White, state.FillAlpha);
-        return paint;
+        return new SKPaint
+        {
+            IsAntialias = true,
+        };
+    }
+
+    /// <summary>
+    /// Layer paint for composition operations, all blending and composing operations are delegated to layer.
+    /// </summary>
+    /// <returns></returns>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static SKPaint CreateCompositionLayerPaint(PdfGraphicsState state)
+    {
+        var basePaint = CreateBasePaint(state);
+        basePaint.Color = ApplyAlpha(SKColors.White, state.FillAlpha);
+        return basePaint;
     }
 
     /// <summary>
@@ -204,6 +221,7 @@ public static class PdfPaintFactory
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static SKSamplingOptions GetImageSamplingOptions(PdfImage image, PdfGraphicsState state)
     {
+        // TODO: this is incorrect, we need to consider effective scale factor
         if (state.RenderingParameters.ScaleFactor < 1 || state.RenderingParameters.PreviewMode)
         {
             return new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.None);
@@ -236,7 +254,7 @@ public static class PdfPaintFactory
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static SKColor ApplyAlpha(SKColor color, float alpha)
+    public static SKColor ApplyAlpha(SKColor color, float alpha)
     {
         // Clamp alpha to valid range
         alpha = Math.Max(0f, Math.Min(1f, alpha));

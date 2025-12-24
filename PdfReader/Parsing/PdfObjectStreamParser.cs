@@ -22,6 +22,12 @@ public class PdfObjectStreamParser
     private readonly Dictionary<uint, ReadOnlyMemory<byte>> _decodedStreamCache = new Dictionary<uint, ReadOnlyMemory<byte>>();
 
     /// <summary>
+    /// Cache of container object number -> mapping of object stream index to relative offset.
+    /// Populated when header offsets are first indexed to avoid repeated scans.
+    /// </summary>
+    private readonly Dictionary<uint, Dictionary<int, int>> _indexToOffsetCache = new Dictionary<uint, Dictionary<int, int>>();
+
+    /// <summary>
     /// Create a new object stream parser bound to a PDF document.
     /// </summary>
     /// <param name="document">Owning <see cref="PdfDocument"/> that provides access to objects and logging.</param>
@@ -80,7 +86,17 @@ public class PdfObjectStreamParser
         int objectEnd = span.Length;
         // Find next object's relative offset (same container) with a higher index.
         int targetNextIndex = info.ObjectStreamIndex.Value + 1;
-        int? nextRelative = FindRelativeOffset(containerReference.ObjectNumber, targetNextIndex);
+        int? nextRelative = null;
+
+        // Prefer cached lookup to avoid scanning the entire object index.
+        if (_indexToOffsetCache.TryGetValue(containerReference.ObjectNumber, out var indexMap))
+        {
+            if (indexMap.TryGetValue(targetNextIndex, out var offset))
+            {
+                nextRelative = offset;
+            }
+        }
+
         if (nextRelative != null)
         {
             int candidate = firstOffset + nextRelative.Value;
@@ -112,14 +128,10 @@ public class PdfObjectStreamParser
 
     private void EnsureOffsetsIndexed(uint containerObjectNumber, ReadOnlyMemory<byte> decoded, int objectCount, int firstOffset)
     {
-        // If at least one compressed object for this container already has relative offset populated, assume done.
-        foreach (var kvp in _pdfDocument.ObjectCache.ObjectIndex)
+        // If this container is already cached, no work needed.
+        if (_indexToOffsetCache.ContainsKey(containerObjectNumber))
         {
-            var entry = kvp.Value;
-            if (entry.IsCompressed && entry.ObjectStreamNumber == containerObjectNumber && entry.ObjectStreamRelativeOffset != null)
-            {
-                return;
-            }
+            return;
         }
 
         if (firstOffset > decoded.Length)
@@ -132,6 +144,10 @@ public class PdfObjectStreamParser
         var headerContext = new PdfParseContext(headerMemory);
         // Unified parsing via PdfParser for header: sequence of objectNumber relativeOffset pairs.
         var headerParser = new PdfParser(headerContext, _pdfDocument, allowReferences: false, decrypt: false);
+
+        // Prepare cache for this container.
+        var indexMap = new Dictionary<int, int>(capacity: objectCount);
+        _indexToOffsetCache[containerObjectNumber] = indexMap;
 
         for (int index = 0; index < objectCount; index++)
         {
@@ -149,6 +165,12 @@ public class PdfObjectStreamParser
             uint objectNumber = (uint)objectNumberValue.AsInteger();
             int relativeOffset = offsetValue.AsInteger();
 
+            // Cache the index -> offset mapping for fast lookup.
+            if (!indexMap.ContainsKey(index))
+            {
+                indexMap[index] = relativeOffset;
+            }
+
             var reference = new PdfReference(objectNumber, 0);
             if (_pdfDocument.ObjectCache.ObjectIndex.TryGetValue(reference, out var info))
             {
@@ -158,18 +180,5 @@ public class PdfObjectStreamParser
                 }
             }
         }
-    }
-
-    private int? FindRelativeOffset(uint containerObjectNumber, int targetIndex)
-    {
-        foreach (var kvp in _pdfDocument.ObjectCache.ObjectIndex)
-        {
-            var entry = kvp.Value;
-            if (entry.IsCompressed && entry.ObjectStreamNumber == containerObjectNumber && entry.ObjectStreamIndex == targetIndex)
-            {
-                return entry.ObjectStreamRelativeOffset;
-            }
-        }
-        return null;
     }
 }

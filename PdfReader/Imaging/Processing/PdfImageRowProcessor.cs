@@ -74,23 +74,33 @@ internal sealed class PdfImageRowProcessor : IDisposable
 
         _components = _converter.Components;
 
-        // Canvas is already transformed. Compute effective pixel size for unit square, then relative scale to actual image size.
-        SKMatrix m = canvas?.TotalMatrix ?? SKMatrix.CreateIdentity();
-        float unitPixelsX = (float)Math.Sqrt(m.ScaleX * m.ScaleX + m.SkewX * m.SkewX);
-        float unitPixelsY = (float)Math.Sqrt(m.ScaleY * m.ScaleY + m.SkewY * m.SkewY);
-        // Include RenderingParameters.ScaleFactor; use magnitude to handle negative scale.
-        float paramScale = state?.RenderingParameters?.ScaleFactor ?? 1f;
-        float absParamScale = Math.Abs(paramScale);
-        unitPixelsX *= absParamScale;
-        unitPixelsY *= absParamScale;
-        float relScaleX = _srcWidth > 0 ? unitPixelsX / _srcWidth : 1f;
-        float relScaleY = _srcHeight > 0 ? unitPixelsY / _srcHeight : 1f;
-        float effectiveScale = Math.Max(relScaleX, relScaleY);
-        _scale = effectiveScale > 0f ? effectiveScale : 1f;
+        if (state.RenderingParameters.ScaleFactor.HasValue)
+        {
+            // Canvas is already transformed. Compute effective pixel size for unit square, then relative scale to actual image size.
+            SKMatrix m = canvas?.TotalMatrix ?? SKMatrix.CreateIdentity();
+            float unitPixelsX = (float)Math.Sqrt(m.ScaleX * m.ScaleX + m.SkewX * m.SkewX);
+            float unitPixelsY = (float)Math.Sqrt(m.ScaleY * m.ScaleY + m.SkewY * m.SkewY);
+            // Include RenderingParameters.ScaleFactor; use magnitude to handle negative scale.
+            float paramScale = state.RenderingParameters.ScaleFactor.Value;
+            float absParamScale = Math.Abs(paramScale);
+            unitPixelsX *= absParamScale;
+            unitPixelsY *= absParamScale;
+            float relScaleX = _srcWidth > 0 ? unitPixelsX / _srcWidth : 1f;
+            float relScaleY = _srcHeight > 0 ? unitPixelsY / _srcHeight : 1f;
+            float effectiveScale = Math.Max(relScaleX, relScaleY);
+            _scale = effectiveScale > 0f ? effectiveScale : 1f;
 
-        _downscaleEnabled = _scale < 1f;
-        _width = _downscaleEnabled ? Math.Max(1, (int)Math.Floor(_srcWidth * _scale)) : _srcWidth;
-        _height = _downscaleEnabled ? Math.Max(1, (int)Math.Floor(_srcHeight * _scale)) : _srcHeight;
+            _downscaleEnabled = _scale < 1f;
+            _width = _downscaleEnabled ? Math.Max(1, (int)Math.Floor(_srcWidth * _scale)) : _srcWidth;
+            _height = _downscaleEnabled ? Math.Max(1, (int)Math.Floor(_srcHeight * _scale)) : _srcHeight;
+        }
+        else
+        {
+            _downscaleEnabled = false;
+            _scale = 1f;
+            _width = _srcWidth;
+            _height = _srcHeight;
+        }
 
         if (ShouldConvertColor(_image))
         {

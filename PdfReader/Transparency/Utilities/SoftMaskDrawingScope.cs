@@ -72,7 +72,7 @@ public sealed class SoftMaskDrawingScope : IDisposable
             return;
         }
 
-        var layerPaint = PdfPaintFactory.CreateLayerPaint(_graphicsState);
+        var layerPaint = PdfPaintFactory.CreateMaskLayerPaint(_graphicsState);
         _canvas.SaveLayer(layerPaint);
     }
 
