@@ -13,12 +13,19 @@ public sealed class StitchingPdfFunction : PdfFunction
     private readonly List<PdfFunction> _subFunctions;
     private readonly float[] _bounds;
     private readonly float[] _encode;
+    private readonly float[] _buffer;
 
     private StitchingPdfFunction(List<PdfFunction> subFunctions, float[] bounds, float[] encode, float[] domain, float[] range) : base(domain, range)
     {
         _subFunctions = subFunctions;
         _bounds = bounds;
         _encode = encode;
+
+        if (Range != null && Range.Length >= 2)
+        {
+            int outputCount = Range.Length / 2;
+            _buffer = new float[outputCount];
+        }
     }
 
     /// <summary>
@@ -66,6 +73,8 @@ public sealed class StitchingPdfFunction : PdfFunction
     /// <inheritdoc />
     public override ReadOnlySpan<float> Evaluate(float value)
     {
+        float x = Clamp(value, Domain, 0);
+
         float domainStart = 0f;
         float domainEnd = 1f;
         if (Domain != null && Domain.Length >= 2)
@@ -77,7 +86,7 @@ public sealed class StitchingPdfFunction : PdfFunction
         int segmentIndex = 0;
         if (_bounds != null && _bounds.Length > 0)
         {
-            while (segmentIndex < _bounds.Length && value > _bounds[segmentIndex])
+            while (segmentIndex < _bounds.Length && x >= _bounds[segmentIndex])
             {
                 segmentIndex++;
             }
@@ -88,7 +97,7 @@ public sealed class StitchingPdfFunction : PdfFunction
             }
         }
 
-        float mappedInput = value;
+        float mappedInput = x;
         if (_bounds != null && _encode != null && _encode.Length >= 2 * _subFunctions.Count)
         {
             float a = segmentIndex == 0 ? domainStart : _bounds[segmentIndex - 1];
@@ -96,17 +105,27 @@ public sealed class StitchingPdfFunction : PdfFunction
             float e0 = _encode[2 * segmentIndex];
             float e1 = _encode[2 * segmentIndex + 1];
             float length = b - a;
-            float localT = length != 0f ? (value - a) / length : 0f;
+            float localT = length != 0f ? (x - a) / length : 0f;
             mappedInput = e0 + localT * (e1 - e0);
         }
 
         PdfFunction childFunction = segmentIndex < _subFunctions.Count ? _subFunctions[segmentIndex] : null;
         if (childFunction != null)
         {
-            return childFunction.Evaluate(mappedInput);
+            ReadOnlySpan<float> childResult = childFunction.Evaluate(mappedInput);
+
+            if (_buffer == null)
+            {
+                return childResult;
+            }
+
+            childResult.CopyTo(_buffer);
+
+            Clamp(_buffer, Range);
+            return _buffer;
         }
 
-        return Array.Empty<float>();
+        return [];
     }
 
     /// <inheritdoc />

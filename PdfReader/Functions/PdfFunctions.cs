@@ -33,7 +33,7 @@ internal static class PdfFunctions
         foreach (PdfFunction function in functions)
         {
             ReadOnlySpan<float> part = function.Evaluate(input);
-            if (part != null && part.Length > 0)
+            if (!part.IsEmpty)
             {
                 foreach (float item in part)
                 {
