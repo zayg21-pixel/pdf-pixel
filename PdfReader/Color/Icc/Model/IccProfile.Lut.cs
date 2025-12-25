@@ -50,7 +50,6 @@ internal sealed partial class IccProfile
     /// </summary>
     private static IccLutPipeline ParseLut8(BigEndianReader reader, int tagOffset, int tagSize)
     {
-        // TODO: move to common with Lut16
         int inputChannels = reader.ReadByte(tagOffset + 8);
         int outputChannels = reader.ReadByte(tagOffset + 9);
         int uniformGridPoints = reader.ReadByte(tagOffset + 10);

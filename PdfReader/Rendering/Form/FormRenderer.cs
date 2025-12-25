@@ -5,7 +5,6 @@ using PdfReader.Parsing;
 using PdfReader.Rendering.State;
 using PdfReader.Transparency.Utilities;
 using SkiaSharp;
-using System.Collections.Generic;
 
 namespace PdfReader.Rendering.Form;
 
@@ -42,16 +41,13 @@ public class FormRenderer : IFormRenderer
         // Clip to /BBox
         canvas.ClipRect(formXObject.BBox, antialias: true);
 
-        var localGs = graphicsState.Clone();
-        localGs.SoftMask = null;
+        var localGs = new PdfGraphicsState(graphicsState.Page, graphicsState.RecursionGuard, graphicsState.RenderingParameters);
+        localGs.CTM = formXObject.Matrix;
 
         if (formXObject.TransparencyGroup != null)
         {
             using var formPaint = PdfPaintFactory.CreateCompositionLayerPaint(graphicsState);
             canvas.SaveLayer(formXObject.BBox, formPaint);
-
-            localGs.BlendMode = Transparency.Model.PdfBlendMode.Normal;
-            localGs.FillAlpha = 1.0f;
         }
 
         using var softMaskScope = new SoftMaskDrawingScope(_renderer, canvas, graphicsState);
@@ -63,9 +59,6 @@ public class FormRenderer : IFormRenderer
         {
             var parseContext = new PdfParseContext(content);
             var formPage = formXObject.GetFormPage();
-
-            // CTM is used for patterns, form space is isolated for pattern rendering, so only form matrix is applied
-            localGs.CTM = formXObject.Matrix;
 
             var renderer = new PdfContentStreamRenderer(_renderer, formPage);
             renderer.RenderContext(canvas, ref parseContext, localGs);

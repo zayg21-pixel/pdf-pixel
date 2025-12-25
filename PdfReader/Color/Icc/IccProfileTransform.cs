@@ -8,6 +8,9 @@ using System.Runtime.CompilerServices;
 
 namespace PdfReader.Color.Icc;
 
+/// <summary>
+/// Provides color transformation functionality using ICC profiles for color space conversion.
+/// </summary>
 internal sealed class IccProfileTransform
 {
     private readonly bool _hasLut;
@@ -15,6 +18,11 @@ internal sealed class IccProfileTransform
     private readonly IColorTransform _postTransform;
     private readonly IccProfile _iccProfile;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="IccProfileTransform"/> class using the specified ICC profile.
+    /// </summary>
+    /// <param name="profile">The ICC profile to use for color transformation.</param>
+    /// <exception cref="ArgumentNullException">Thrown if <paramref name="profile"/> is null.</exception>
     public IccProfileTransform(IccProfile profile)
     {
         _iccProfile = profile ?? throw new ArgumentNullException(nameof(profile));
@@ -31,7 +39,7 @@ internal sealed class IccProfileTransform
                 new PerChannelLutTransform([profile.GrayTrc]),
                 new FunctionColorTransform(x => new Vector4(x.X, x.X, x.X, 1)));
         }
-        else if (profile.Header.ColorSpace == IccConstants.SpaceLab)
+        else if (profile.Header.ColorSpace == IccColorSpace.Lab)
         {
             _transform = IccTransforms.LabD50ToXyzTransform;
         }
@@ -51,7 +59,7 @@ internal sealed class IccProfileTransform
             _transform = new ChainedColorTransform(matrixTransforms.ToArray());
         }
 
-        if (profile.Header.Pcs == IccConstants.TypeLab)
+        if (profile.Header.Pcs == IccColorSpace.Lab)
         {
             _postTransform = new ChainedColorTransform(IccTransforms.LabD50ToXyzTransform, IccTransforms.XyzD50ToSrgbTransform);
         }
@@ -68,6 +76,11 @@ internal sealed class IccProfileTransform
         }
     }
 
+    /// <summary>
+    /// Gets a chained color transform for the specified PDF rendering intent.
+    /// </summary>
+    /// <param name="intent">The PDF rendering intent to use for the transformation.</param>
+    /// <returns>A <see cref="ChainedColorTransform"/> representing the color transformation pipeline.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public ChainedColorTransform GetIntentTransform(PdfRenderingIntent intent)
     {

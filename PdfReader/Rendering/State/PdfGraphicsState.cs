@@ -76,12 +76,12 @@ namespace PdfReader.Rendering.State
         /// <summary>
         /// Current color space converter for stroking operations.
         /// </summary>
-        public PdfColorSpaceConverter StrokeColorConverter { get; set; } = DeviceRgbConverter.Instance;
+        public PdfColorSpaceConverter StrokeColorConverter { get; set; } = DeviceGrayConverter.Instance;
 
         /// <summary>
         /// Current color space converter for non-stroking (fill) operations.
         /// </summary>
-        public PdfColorSpaceConverter FillColorConverter { get; set; } = DeviceRgbConverter.Instance;
+        public PdfColorSpaceConverter FillColorConverter { get; set; } = DeviceGrayConverter.Instance;
 
         // --------------------------------------------------------------------------------------
         // Line state (see PDF 2.0 spec 8.4 Graphics State)

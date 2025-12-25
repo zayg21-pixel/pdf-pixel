@@ -5,7 +5,9 @@ using System.Runtime.CompilerServices;
 
 namespace PdfReader.Color.Icc;
 
-// TODO: document
+/// <summary>
+/// Provides ICC color space transformation utilities and standard color space transforms.
+/// </summary>
 internal static class IccTransforms
 {
     private static readonly Matrix4x4 XyzD65ToRgbLinearMatrix = new Matrix4x4(
@@ -43,26 +45,52 @@ internal static class IccTransforms
         LabD50ToXyzTransform = BuildLabD50ToXyzTransform();
     }
 
+    /// <summary>
+    /// Gets the color transform that converts from CIE XYZ (D50) to sRGB.
+    /// </summary>
     public static IColorTransform XyzD50ToSrgbTransform { get; }
 
+    /// <summary>
+    /// Gets the color transform that converts from CIE Lab (D50) to CIE XYZ.
+    /// </summary>
     public static IColorTransform LabD50ToXyzTransform { get; }
 
+    /// <summary>
+    /// Gets the D50 white point as a Vector4.
+    /// </summary>
     public static Vector4 D50WhitePoint { get; } = new Vector4(0.9642f, 1.0000f, 0.8249f, 1.0f);
 
+    /// <summary>
+    /// Gets the D65 white point as a Vector4.
+    /// </summary>
     public static Vector4 D65WhitePoint { get; } = new Vector4(0.9505f, 1.0000f, 1.0890f, 1.0f);
 
+    /// <summary>
+    /// Builds a color transform from CIE XYZ (D50) to sRGB.
+    /// </summary>
+    /// <returns>An <see cref="IColorTransform"/> that converts XYZ D50 to sRGB.</returns>
     public static IColorTransform BuildXyzD50ToSrgbTransform()
     {
         var d50ToD65 = BuildBradfordAdaptMatrix(D50WhitePoint, D65WhitePoint);
         return BuildXyzToSrgbTransform(d50ToD65);
     }
 
+    /// <summary>
+    /// Builds a color transform from CIE XYZ (with the specified source white point) to sRGB.
+    /// </summary>
+    /// <param name="sourceWhite">The source white point.</param>
+    /// <returns>An <see cref="IColorTransform"/> that converts XYZ to sRGB.</returns>
     public static IColorTransform BuildXyzToSrgbTransform(Vector4 sourceWhite)
     {
         var adaptationMatrix4x4 = BuildBradfordAdaptMatrix(sourceWhite, D65WhitePoint);
         return BuildXyzToSrgbTransform(adaptationMatrix4x4);
     }
 
+    /// <summary>
+    /// Builds a color transform from CIE XYZ to sRGB using the specified adaptation matrix.
+    /// </summary>
+    /// <param name="adaptationMatrix">The chromatic adaptation matrix.</param>
+    /// <returns>An <see cref="IColorTransform"/> that converts XYZ to sRGB.</returns>
     public static IColorTransform BuildXyzToSrgbTransform(Matrix4x4 adaptationMatrix)
     {
         var D50ToSrgbLinearMatrix4x4 = Matrix4x4.Multiply(XyzD65ToRgbLinearMatrix, adaptationMatrix);
@@ -104,6 +132,12 @@ internal static class IccTransforms
         return 1.055f * MathF.Pow(componentLinear, 1.0f / 2.4f) - 0.055f;
     }
 
+    /// <summary>
+    /// Builds a chromatic adaptation matrix using the Bradford method.
+    /// </summary>
+    /// <param name="sourceWhite">The source white point.</param>
+    /// <param name="destinationWhite">The destination white point.</param>
+    /// <returns>A <see cref="Matrix4x4"/> representing the adaptation matrix.</returns>
     public static Matrix4x4 BuildBradfordAdaptMatrix(Vector4 sourceWhite, Vector4 destinationWhite)
     {
         Vector4 s = Vector4.Transform(sourceWhite, BradfordTransposedMatrix);
@@ -120,11 +154,20 @@ internal static class IccTransforms
         return result;
     }
 
+    /// <summary>
+    /// Builds a color transform from CIE Lab (D50) to CIE XYZ.
+    /// </summary>
+    /// <returns>An <see cref="IColorTransform"/> that converts Lab D50 to XYZ.</returns>
     public static IColorTransform BuildLabD50ToXyzTransform()
     {
         return BuildLabToXyzTransform(D50WhitePoint);
     }
 
+    /// <summary>
+    /// Builds a color transform from CIE Lab to CIE XYZ using the specified white point.
+    /// </summary>
+    /// <param name="whitePoint">The reference white point.</param>
+    /// <returns>An <see cref="IColorTransform"/> that converts Lab to XYZ.</returns>
     public static IColorTransform BuildLabToXyzTransform(Vector4 whitePoint)
     {
         var matrixTransform = new MatrixColorTransform(LabMatrixTransform);

@@ -5,6 +5,10 @@ using System.Runtime.CompilerServices;
 
 namespace PdfReader.Color.Transform;
 
+/// <summary>
+/// Implements <see cref="IColorTransform"/> using per-channel lookup tables (LUTs) for efficient color component mapping.
+/// Supports up to four channels and automatic LUT normalization.
+/// </summary>
 internal sealed class PerChannelLutTransform : IColorTransform
 {
     private readonly float[] _channel1Lut;
@@ -19,6 +23,11 @@ internal sealed class PerChannelLutTransform : IColorTransform
     private readonly Vector4 _maxIndices;
     private const int StandardLutSize = 1024;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="PerChannelLutTransform"/> class from an array of LUTs.
+    /// </summary>
+    /// <param name="luts">Array of per-channel LUT arrays.</param>
+    /// <param name="preferredLutSize">Preferred LUT size for normalization (default: 1024).</param>
     public PerChannelLutTransform(float[][] luts, int preferredLutSize = StandardLutSize)
     {
         if (luts == null || luts.Length == 0)
@@ -59,30 +68,21 @@ internal sealed class PerChannelLutTransform : IColorTransform
         }
     }
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="PerChannelLutTransform"/> class from ICC transfer curves.
+    /// </summary>
+    /// <param name="trcs">Array of ICC transfer curves.</param>
+    /// <param name="preferredLutSize">Preferred LUT size for normalization (default: 1024).</param>
     public PerChannelLutTransform(IccTrc[] trcs, int preferredLutSize = StandardLutSize)
         : this(ConvertTrcsToLuts(trcs, preferredLutSize), preferredLutSize)
     {
     }
 
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static float[][] ConvertTrcsToLuts(IccTrc[] trcs, int preferredLutSize)
-    {
-        if (trcs == null || trcs.Length == 0)
-        {
-            return null;
-        }
-
-        // Limit to maximum 4 channels early
-        int channelCount = Math.Min(trcs.Length, 4);
-        var luts = new float[channelCount][];
-        for (int i = 0; i < channelCount; i++)
-        {
-            luts[i] = trcs[i].ToLut(preferredLutSize);
-        }
-        
-        return luts;
-    }
-
+    /// <summary>
+    /// Transforms the input color vector by mapping each channel through its corresponding LUT.
+    /// </summary>
+    /// <param name="color">The input color vector.</param>
+    /// <returns>The transformed color vector.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public Vector4 Transform(Vector4 color)
     {
@@ -107,6 +107,25 @@ internal sealed class PerChannelLutTransform : IColorTransform
             4 => new Vector4(_channel1Lut[(int)clampedIndices.X], _channel2Lut[(int)clampedIndices.Y], _channel3Lut[(int)clampedIndices.Z], _channel4Lut[(int)clampedIndices.W]),
             _ => color,
         };
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static float[][] ConvertTrcsToLuts(IccTrc[] trcs, int preferredLutSize)
+    {
+        if (trcs == null || trcs.Length == 0)
+        {
+            return null;
+        }
+
+        // Limit to maximum 4 channels early
+        int channelCount = Math.Min(trcs.Length, 4);
+        var luts = new float[channelCount][];
+        for (int i = 0; i < channelCount; i++)
+        {
+            luts[i] = trcs[i].ToLut(preferredLutSize);
+        }
+        
+        return luts;
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]

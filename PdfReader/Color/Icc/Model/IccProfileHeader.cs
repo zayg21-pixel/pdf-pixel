@@ -4,6 +4,26 @@ using System;
 namespace PdfReader.Color.Icc.Model;
 
 /// <summary>
+/// Known ICC color space signatures (4CC codes) for ColorSpaceName and PCS.
+/// </summary>
+internal enum IccColorSpace
+{
+    Unknown,
+    Rgb,
+    Cmyk,
+    Gray,
+    Lab,
+    Xyz,
+    Luv,
+    Ycbcr,
+    Yxy,
+    Hsv,
+    Hls,
+    Cmy,
+    // Add more as needed
+}
+
+/// <summary>
 /// Represents the fixed 128-byte ICC profile header (only the subset of fields required by the PDF color workflows).
 /// See ICC specification (v4) for authoritative field definitions and layout.
 /// </summary>
@@ -50,12 +70,22 @@ internal sealed class IccProfileHeader
     /// <summary>
     /// Data color space signature (e.g. 'RGB ', 'CMYK', 'GRAY').
     /// </summary>
-    public string ColorSpace { get; set; } // TODO: replace with enum?
+    public string ColorSpaceName { get; set; }
+
+    /// <summary>
+    /// Known color space as enum, or Unknown if not recognized.
+    /// </summary>
+    public IccColorSpace ColorSpace { get; set; }
 
     /// <summary>
     /// Profile Connection Space (PCS) signature (e.g. 'XYZ ', 'Lab ').
     /// </summary>
-    public string Pcs { get; set; }
+    public string PcsName { get; set; }
+
+    /// <summary>
+    /// Known PCS as enum, or Unknown if not recognized.
+    /// </summary>
+    public IccColorSpace Pcs { get; set; }
 
     /// <summary>
     /// Profile creation timestamp (UTC).
@@ -154,8 +184,10 @@ internal sealed class IccProfileHeader
             (int)(versionPacked >> 20 & 0x0F),
             (int)(versionPacked >> 16 & 0x0F));
         header.DeviceClass = BigEndianReader.FourCCToString(reader.ReadUInt32(OffsetDeviceClass));
-        header.ColorSpace = BigEndianReader.FourCCToString(reader.ReadUInt32(OffsetColorSpace));
-        header.Pcs = BigEndianReader.FourCCToString(reader.ReadUInt32(OffsetPcs));
+        header.ColorSpaceName = BigEndianReader.FourCCToString(reader.ReadUInt32(OffsetColorSpace));
+        header.ColorSpace = FromSignature(header.ColorSpaceName);
+        header.PcsName = BigEndianReader.FourCCToString(reader.ReadUInt32(OffsetPcs));
+        header.Pcs = FromSignature(header.PcsName);
         header.CreationTime = created;
         // Signature at OffsetSignature is typically 'acsp'; we currently ignore verifying it for leniency.
         header.Platform = BigEndianReader.FourCCToString(reader.ReadUInt32(OffsetPlatform));
@@ -169,5 +201,24 @@ internal sealed class IccProfileHeader
         header.Creator = BigEndianReader.FourCCToString(reader.ReadUInt32(OffsetCreator));
 
         return header;
+    }
+
+    private static IccColorSpace FromSignature(string signature)
+    {
+        return signature switch
+        {
+            IccConstants.SpaceRgb => IccColorSpace.Rgb,
+            IccConstants.SpaceCmyk => IccColorSpace.Cmyk,
+            IccConstants.SpaceGray => IccColorSpace.Gray,
+            IccConstants.SpaceLab => IccColorSpace.Lab,
+            IccConstants.SpaceXyz => IccColorSpace.Xyz,
+            IccConstants.SpaceLuv => IccColorSpace.Luv,
+            IccConstants.SpaceYcbcr => IccColorSpace.Ycbcr,
+            IccConstants.SpaceYxy => IccColorSpace.Yxy,
+            IccConstants.SpaceHsv => IccColorSpace.Hsv,
+            IccConstants.SpaceHls => IccColorSpace.Hls,
+            IccConstants.SpaceCmy => IccColorSpace.Cmy,
+            _ => IccColorSpace.Unknown
+        };
     }
 }

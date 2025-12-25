@@ -3,57 +3,85 @@ using PdfReader.Color.Icc.Utilities;
 namespace PdfReader.Color.Icc.Model;
 
 /// <summary>
-/// Represents a tone reproduction curve (TRC) associated with an ICC profile channel (Gray / RGB).
-/// A TRC can be one of:
-///  - Simple gamma value (IsGamma)
-///  - Sampled curve (IsSampled) with equally spaced samples (Samples)
-///  - Parametric curve (IsParametric) with parameters per ICC parametricCurveType (0..4 supported here)
-///  - Unsupported parametric variant recorded only for diagnostics (IsUnsupportedParametric)
-/// Helper factory methods construct appropriately flagged instances; evaluation is performed elsewhere.
+/// Represents a tone reproduction curve (TRC) abstraction for an ICC profile channel (Gray or RGB).
+/// Encapsulates gamma, sampled, or parametric curve data for color transformations.
+/// </summary>
+internal enum IccTrcType
+{
+    /// <summary>
+    /// Unspecified or unknown TRC kind; treated as identity (linear) by evaluators.
+    /// </summary>
+    None,
+    /// <summary>
+    /// Simple gamma exponent curve where y = x^Gamma.
+    /// </summary>
+    Gamma,
+    /// <summary>
+    /// Sampled curve with equally spaced samples over input domain [0..1].
+    /// </summary>
+    Sampled,
+    /// <summary>
+    /// Parametric curve defined by ICC parametricCurveType and associated parameters.
+    /// </summary>
+    Parametric,
+}
+
+/// <summary>
+/// ICC parametric curve type identifiers per ICC spec (0..4 currently supported).
+/// </summary>
+internal enum IccTrcParametricType
+{
+    /// <summary>
+    /// y = x^g
+    /// </summary>
+    Gamma = 0,
+    /// <summary>
+    /// y = (a·x + b)^g for x ? ?b/a; else 0
+    /// </summary>
+    PowerWithOffset = 1,
+    /// <summary>
+    /// y = (a·x + b)^g + c for x ? ?b/a; else c
+    /// </summary>
+    PowerWithOffsetAndC = 2,
+    /// <summary>
+    /// y = (a·x + b)^g for x ? d; else c·x
+    /// </summary>
+    PowerWithLinearSegment = 3,
+    /// <summary>
+    /// y = (a·x + b)^g + e for x ? d; else c·x + f
+    /// </summary>
+    PowerWithLinearSegmentAndOffset = 4
+}
+
+/// <summary>
+/// Represents a tone reproduction curve (TRC) for an ICC profile channel.
+/// Supports gamma, sampled, and parametric curve forms for color processing.
 /// </summary>
 internal sealed class IccTrc
 {
     private IccTrc(
-        bool isGamma,
+        IccTrcType type,
         float gamma,
-        bool isSampled,
-        int sampleCount,
         float[] samples,
-        bool isParametric,
-        int paramType,
-        float[] parameters,
-        bool isUnsupportedParametric)
+        IccTrcParametricType paramType,
+        float[] parameters)
     {
-        IsGamma = isGamma;
+        Type = type;
         Gamma = gamma;
-        IsSampled = isSampled;
-        SampleCount = sampleCount;
         Samples = samples;
-        IsParametric = isParametric;
         ParametricType = paramType;
         Parameters = parameters;
-        IsUnsupportedParametric = isUnsupportedParametric;
     }
 
     /// <summary>
-    /// True when the TRC is a simple gamma value.
+    /// TRC kind discriminator.
     /// </summary>
-    public bool IsGamma { get; }
+    public IccTrcType Type { get; }
 
     /// <summary>
-    /// The gamma exponent when <see cref="IsGamma"/> is true.
+    /// The gamma exponent when <see cref="Type"/> is <see cref="IccTrcType.Gamma"/> is true.
     /// </summary>
     public float Gamma { get; }
-
-    /// <summary>
-    /// True when the TRC is a sampled curve (equally spaced samples covering 0..1 input domain).
-    /// </summary>
-    public bool IsSampled { get; }
-
-    /// <summary>
-    /// Number of samples reported for a sampled curve (may be non-zero even if <see cref="Samples"/> is null when placeholder only).
-    /// </summary>
-    public int SampleCount { get; }
 
     /// <summary>
     /// Sample values (normalized 0..1) for a sampled curve, or null for gamma/parametric/placeholder sampled descriptors.
@@ -61,14 +89,9 @@ internal sealed class IccTrc
     public float[] Samples { get; }
 
     /// <summary>
-    /// True when the TRC is a supported parametric curve (parametricCurveType 0..4).
-    /// </summary>
-    public bool IsParametric { get; } // TODO: we should have it as enum
-
-    /// <summary>
     /// Parametric curve type identifier (matches ICC spec enumeration 0..4 for supported types; value retained for unsupported as well).
     /// </summary>
-    public int ParametricType { get; } // TODO: support rest of parametric types
+    public IccTrcParametricType ParametricType { get; }
 
     /// <summary>
     /// Parameter array for parametric curves (contents depend on <see cref="ParametricType"/>).
@@ -76,16 +99,11 @@ internal sealed class IccTrc
     public float[] Parameters { get; }
 
     /// <summary>
-    /// True when the TRC refers to a parametric type not supported for evaluation (recorded for completeness).
-    /// </summary>
-    public bool IsUnsupportedParametric { get; }
-
-    /// <summary>
     /// Create a gamma TRC representation.
     /// </summary>
     public static IccTrc FromGamma(float gamma)
     {
-        return new IccTrc(true, gamma, false, 0, null, false, 0, null, false);
+        return new IccTrc(IccTrcType.Gamma, gamma, null, default, null);
     }
 
     /// <summary>
@@ -94,23 +112,15 @@ internal sealed class IccTrc
     public static IccTrc FromSamples(float[] samples)
     {
         float[] sampleArray = samples ?? System.Array.Empty<float>();
-        return new IccTrc(false, 0f, true, sampleArray.Length, sampleArray, false, 0, null, false);
+        return new IccTrc(IccTrcType.Sampled, 0f, sampleArray, default, null);
     }
 
     /// <summary>
     /// Create a supported parametric TRC representation.
     /// </summary>
-    public static IccTrc FromParametric(int type, float[] parameters)
+    public static IccTrc FromParametric(IccTrcParametricType type, float[] parameters)
     {
-        return new IccTrc(false, 0f, false, 0, null, true, type, parameters ?? System.Array.Empty<float>(), false);
-    }
-
-    /// <summary>
-    /// Create a placeholder for an unsupported parametric TRC type.
-    /// </summary>
-    public static IccTrc UnsupportedParametric(int type)
-    {
-        return new IccTrc(false, 0f, false, 0, null, false, type, null, true);
+        return new IccTrc(IccTrcType.Parametric, 0f, null, type, parameters ?? System.Array.Empty<float>());
     }
 
     /// <summary>
@@ -121,7 +131,7 @@ internal sealed class IccTrc
     /// <returns>TRC as sampled LUT.</returns>
     public float[] ToLut(int preferredSize)
     {
-        if (IsSampled)
+        if (Type == IccTrcType.Sampled)
         {
             if (Samples.Length == 0)
             {

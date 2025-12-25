@@ -35,7 +35,7 @@ internal sealed partial class IccProfile
         {
             profile.ChannelsCount = lut.InChannels;
         }
-        else if (profile.Header.ColorSpace == IccConstants.SpaceLab)
+        else if (profile.Header.ColorSpace == IccColorSpace.Lab)
         {
             profile.ChannelsCount = 3;
         }
@@ -215,7 +215,7 @@ internal sealed partial class IccProfile
             payloadSize = 12 + paramCount * 4;
             if (!reader.CanRead(pos + 12, paramCount * 4))
             {
-                return IccTrc.UnsupportedParametric(funcType);
+                return IccTrc.FromParametric((IccTrcParametricType)funcType, default);
             }
 
             if (funcType == 0 && paramCount >= 1)
@@ -229,7 +229,7 @@ internal sealed partial class IccProfile
             {
                 parameters[i] = BigEndianReader.S15Fixed16ToSingle(reader.ReadInt32(pos + 12 + i * 4));
             }
-            return IccTrc.FromParametric(funcType, parameters);
+            return IccTrc.FromParametric((IccTrcParametricType)funcType, parameters);
         }
 
         return null;

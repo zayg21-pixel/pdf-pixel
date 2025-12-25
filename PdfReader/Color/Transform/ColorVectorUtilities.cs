@@ -3,68 +3,81 @@ using System;
 using System.Numerics;
 using System.Runtime.CompilerServices;
 
-namespace PdfReader.Color.Transform
+namespace PdfReader.Color.Transform;
+
+/// <summary>
+/// Provides utility methods for converting and manipulating color vectors and matrices for color transformations.
+/// </summary>
+internal static class ColorVectorUtilities
 {
-    internal static class ColorVectorUtilities
+    private static readonly Vector4 MaxByte = new Vector4(255f);
+    private static readonly Vector4 ByteOffset = new Vector4(0.5f);
+
+    /// <summary>
+    /// Converts a 3x3 float matrix to a 4x4 matrix suitable for use with <see cref="System.Numerics.Matrix4x4"/>.
+    /// </summary>
+    /// <param name="matrix3x3">A 3x3 matrix as a two-dimensional float array.</param>
+    /// <returns>A 4x4 matrix with the 3x3 values in the upper-left and the rest padded appropriately.</returns>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static Matrix4x4 ToMatrix4x4(float[,] matrix3x3)
     {
-        private static readonly Vector4 MaxByte = new Vector4(255f);
-        private static readonly Vector4 ByteOffset = new Vector4(0.5f);
+        return new Matrix4x4(
+            matrix3x3[0, 0], matrix3x3[0, 1], matrix3x3[0, 2], 0,
+            matrix3x3[1, 0], matrix3x3[1, 1], matrix3x3[1, 2], 0,
+            matrix3x3[2, 0], matrix3x3[2, 1], matrix3x3[2, 2], 0,
+            0, 0, 0, 1);
+    }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static Matrix4x4 ToMatrix4x4(float[,] matrix3x3)
+    /// <summary>
+    /// Converts a span of floats to a <see cref="Vector4"/>, padding with 1.0 for missing components.
+    /// </summary>
+    /// <param name="data">Input span of float values (0-4 elements).</param>
+    /// <returns>A <see cref="Vector4"/> with missing elements padded with 1.0.</returns>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static Vector4 ToVector4WithOnePadding(ReadOnlySpan<float> data)
+    {
+        return data.Length switch
         {
-            return new Matrix4x4(
-                matrix3x3[0, 0], matrix3x3[0, 1], matrix3x3[0, 2], 0,
-                matrix3x3[1, 0], matrix3x3[1, 1], matrix3x3[1, 2], 0,
-                matrix3x3[2, 0], matrix3x3[2, 1], matrix3x3[2, 2], 0,
-                0, 0, 0, 1);
-        }
+            0 => Vector4.One,
+            1 => new Vector4(data[0], 1, 1, 1),
+            2 => new Vector4(data[0], data[1], 1, 1),
+            3 => new Vector4(data[0], data[1], data[2], 1),
+            _ => new Vector4(data[0], data[1], data[2], data[3]),
+        };
+    }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static Vector4 ToVector4WithOnePadding(ReadOnlySpan<float> data)
+    /// <summary>
+    /// Converts a normalized <see cref="Vector4"/> (0-1 range) to a packed RGBA byte structure.
+    /// </summary>
+    /// <param name="source">Source color vector (0-1 range).</param>
+    /// <param name="destination">Destination packed RGBA value (by reference).</param>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static void Load01ToRgba(Vector4 source, ref RgbaPacked destination)
+    {
+        var scaled = Vector4.Clamp(source * 255f, Vector4.Zero, MaxByte) + ByteOffset;
+
+        destination.R = (byte)scaled.X;
+        destination.G = (byte)scaled.Y;
+        destination.B = (byte)scaled.Z;
+        destination.A = 255;
+    }
+
+
+    /// <summary>
+    /// Converts a span of floats to a <see cref="Vector4"/>, padding with 0.0 for missing components.
+    /// </summary>
+    /// <param name="data">Input span of float values (0-4 elements).</param>
+    /// <returns>A <see cref="Vector4"/> with missing elements padded with 0.0.</returns>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static Vector4 ToVector4WithZeroPadding(ReadOnlySpan<float> data)
+    {
+        return data.Length switch
         {
-            switch (data.Length)
-            {
-                case 0:
-                    return Vector4.One;
-                case 1:
-                    return new Vector4(data[0], 1, 1, 1);
-                case 2:
-                    return new Vector4(data[0], data[1], 1, 1);
-
-                case 3:
-                    return new Vector4(data[0], data[1], data[2], 1);
-                default:
-                    return new Vector4(data[0], data[1], data[2], data[3]);
-            }
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static void Load01ToRgba(Vector4 source, ref RgbaPacked destination)
-        {
-            var scaled = Vector4.Clamp(source * 255f, Vector4.Zero, MaxByte) + ByteOffset;
-
-            destination.R = (byte)scaled.X;
-            destination.G = (byte)scaled.Y;
-            destination.B = (byte)scaled.Z;
-            destination.A = 255;
-        }
-
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static Vector4 ToVector4WithZeroPadding(ReadOnlySpan<float> data)
-        {
-            var result = Vector4.Zero;
-
-            ref var resultRef = ref Unsafe.As<Vector4, float>(ref result);
-           
-            for (int i = 0; i < data.Length && i < 4; i++)
-            {
-                resultRef = data[i];
-                resultRef = ref Unsafe.Add(ref resultRef, 1);
-            }
-
-            return result;
-        }
+            0 => Vector4.One,
+            1 => new Vector4(data[0], 0, 0, 0),
+            2 => new Vector4(data[0], data[1], 0, 0),
+            3 => new Vector4(data[0], data[1], data[2], 0),
+            _ => new Vector4(data[0], data[1], data[2], data[3]),
+        };
     }
 }

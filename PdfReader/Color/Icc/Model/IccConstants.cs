@@ -6,11 +6,17 @@ internal static class IccConstants
     public const string SpaceGray = "GRAY";
     public const string SpaceRgb  = "RGB ";
     public const string SpaceCmyk = "CMYK";
-    public const string SpaceLab  = "Lab "; // Added for Lab device profiles
+    public const string SpaceLab  = "Lab ";
+    public const string SpaceXyz  = "XYZ ";
+    public const string SpaceLuv  = "Luv ";
+    public const string SpaceYcbcr = "YCbr";
+    public const string SpaceYxy  = "Yxy ";
+    public const string SpaceHsv  = "HSV ";
+    public const string SpaceHls  = "HLS ";
+    public const string SpaceCmy  = "CMY ";
 
     // Type signatures (4CC)
     public const string TypeXYZ   = "XYZ ";
-    public const string TypeLab   = "Lab ";
     public const string TypeCurv  = "curv";
     public const string TypePara  = "para";
     public const string TypeDesc  = "desc";

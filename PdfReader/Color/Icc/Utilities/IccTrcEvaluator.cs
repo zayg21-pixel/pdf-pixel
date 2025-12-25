@@ -23,39 +23,44 @@ internal static class IccTrcEvaluator
             return x;
         }
 
-        if (trc.IsGamma)
+        switch (trc.Type)
         {
-            return MathF.Pow(x, trc.Gamma);
-        }
-
-        if (trc.IsSampled)
-        {
-            float[] samples = trc.Samples;
-            if (samples == null || samples.Length == 0)
+            case IccTrcType.Gamma:
             {
-                return x; // Placeholder sampled curve – treat as linear.
+                return MathF.Pow(x, trc.Gamma);
             }
-
-            float scaled = x * (samples.Length - 1);
-            int index0 = (int)scaled;
-            if (index0 >= samples.Length - 1)
+            case IccTrcType.Sampled:
             {
-                return samples[samples.Length - 1];
+                float[] samples = trc.Samples;
+                if (samples == null || samples.Length == 0)
+                {
+                    return x; // Placeholder sampled curve – treat as linear.
+                }
+
+                float scaled = x * (samples.Length - 1);
+                int index0 = (int)scaled;
+                if (index0 >= samples.Length - 1)
+                {
+                    return samples[samples.Length - 1];
+                }
+
+                int index1 = index0 + 1;
+                float fraction = scaled - index0;
+                float v0 = samples[index0];
+                float v1 = samples[index1];
+                return v0 + (v1 - v0) * fraction;
             }
-            int index1 = index0 + 1;
-            float fraction = scaled - index0;
-            float v0 = samples[index0];
-            float v1 = samples[index1];
-            return v0 + (v1 - v0) * fraction;
+            case IccTrcType.Parametric:
+            {
+                return ApplyParametric(trc.ParametricType, trc.Parameters, x);
+            }
+            case IccTrcType.None:
+            default:
+            {
+                // Unsupported or unknown kinds fall back to linear.
+                return x;
+            }
         }
-
-        if (trc.IsParametric)
-        {
-            return ApplyParametric(trc.ParametricType, trc.Parameters, x);
-        }
-
-        // Unsupported or unknown kinds fall back to linear.
-        return x;
     }
 
     /// <summary>
@@ -66,11 +71,11 @@ internal static class IccTrcEvaluator
     /// <param name="parameters">Parameter array (length depends on type).</param>
     /// <param name="x">Normalized input value.</param>
     /// <returns>Normalized output value.</returns>
-    public static float ApplyParametric(int type, float[] parameters, float x)
+    private static float ApplyParametric(IccTrcParametricType type, float[] parameters, float x)
     {
         switch (type)
         {
-            case 0:
+            case IccTrcParametricType.Gamma:
             {
                 if (parameters == null || parameters.Length < 1)
                 {
@@ -79,7 +84,7 @@ internal static class IccTrcEvaluator
                 float g = parameters[0];
                 return MathF.Pow(x, g);
             }
-            case 1:
+            case IccTrcParametricType.PowerWithOffset:
             {
                 if (parameters == null || parameters.Length < 3)
                 {
@@ -95,7 +100,7 @@ internal static class IccTrcEvaluator
                 }
                 return MathF.Pow(a * x + b, g);
             }
-            case 2:
+            case IccTrcParametricType.PowerWithOffsetAndC:
             {
                 if (parameters == null || parameters.Length < 4)
                 {
@@ -108,7 +113,7 @@ internal static class IccTrcEvaluator
                 float breakpoint = -b / (a == 0f ? 1e-20f : a);
                 return x < breakpoint ? c : MathF.Pow(a * x + b, g) + c;
             }
-            case 3:
+            case IccTrcParametricType.PowerWithLinearSegment:
             {
                 if (parameters == null || parameters.Length < 5)
                 {
@@ -121,7 +126,7 @@ internal static class IccTrcEvaluator
                 float d = parameters[4];
                 return x < d ? c * x : MathF.Pow(a * x + b, g);
             }
-            case 4:
+            case IccTrcParametricType.PowerWithLinearSegmentAndOffset:
             {
                 if (parameters == null || parameters.Length < 7)
                 {

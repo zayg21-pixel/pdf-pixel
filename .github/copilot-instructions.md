@@ -36,6 +36,7 @@ C# style
 - Prefer pattern matching and null-coalescing operators for clarity.
 - Use var for obvious types; otherwise specify the type explicitly.
 - Always use braces for conditional/loop bodies.
+- LangVersion: 12. Use and support all C# 12 features across targets unless constrained by specific TFM.
 
 Error handling
 - Fail fast on invalid input using guard clauses.
@@ -45,15 +46,5 @@ Testing and diagnostics
 - Write testable code; keep logic out of UI/IO boundaries.
 - Add logging or comments for non-trivial operations.
 
-Performance
-- Avoid unnecessary allocations in hot paths.
-- Use spans/readonly structs only when justified by measurements.
-
-PDF-specific
-- Separate responsibilities when decoding images.
-- Follow PDF spec ordering; document deviations.
-- ToUnicode/CMap: Prefer length-aware CIDs; use PdfCid.
-- Codespace ranges: treat source bytes as raw 1–4 bytes; implement longest-match.
-- usecmap: Cache and merge base CMaps before local overrides.
 
 These rules guide Copilot Chat and completions for this repo. Add specific examples below as the codebase evolves.
