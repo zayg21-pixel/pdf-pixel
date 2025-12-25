@@ -1,5 +1,6 @@
 ﻿using PdfReader.Color.Paint;
 using PdfReader.Functions;
+using PdfReader.Rendering.State;
 using PdfReader.Shading.Model;
 using SkiaSharp;
 using System;
@@ -10,14 +11,14 @@ namespace PdfReader.Shading;
 
 internal static partial class PdfShadingBuilder
 {
-    private static SKPicture BuildAxial(PdfShading shading, SKRect bounds)
+    private static SKPicture BuildAxial(PdfShading shading, PdfGraphicsState state, SKRect bounds)
     {
         if (shading.Coords?.Length != 4)
         {
             return null;
         }
 
-        BuildShadingColorsAndStops(shading, out var colors, out var positions);
+        BuildShadingColorsAndStops(shading, state, out var colors, out var positions);
         if (colors == null || colors.Length == 0)
         {
             return null;
@@ -44,7 +45,7 @@ internal static partial class PdfShadingBuilder
         return pictureRecorder.EndRecording();
     }
 
-    private static SKPicture BuildRadial(PdfShading shading, SKRect bounds)
+    private static SKPicture BuildRadial(PdfShading shading, PdfGraphicsState state, SKRect bounds)
     {
         if (shading.Coords?.Length != 6)
         {
@@ -56,7 +57,7 @@ internal static partial class PdfShadingBuilder
         float r0 = shading.Coords[2];
         float r1 = shading.Coords[5];
 
-        BuildShadingColorsAndStops(shading, out var colors, out var positions);
+        BuildShadingColorsAndStops(shading, state, out var colors, out var positions);
 
         if (colors == null || colors.Length == 0)
         {
@@ -118,10 +119,11 @@ internal static partial class PdfShadingBuilder
     /// <param name="positions">Output array of gradient positions.</param>
     private static void BuildShadingColorsAndStops(
         PdfShading shading,
+        PdfGraphicsState state,
         out SKColor[] colors,
         out float[] positions)
     {
-        var converter = shading.ColorSpaceConverter;
+        var converter = state.Page.Cache.ColorSpace.ResolveByObject(shading.ColorSpaceConverter);
 
         float domainStart = 0f;
         float domainEnd = 1f;
@@ -129,10 +131,6 @@ internal static partial class PdfShadingBuilder
         {
             domainStart = shading.Domain[0];
             domainEnd = shading.Domain[1];
-            if (Math.Abs(domainEnd - domainStart) < 1e-9f)
-            {
-                domainEnd = domainStart + 1f;
-            }
         }
 
         if (shading.Functions.Count > 0)
@@ -154,7 +152,7 @@ internal static partial class PdfShadingBuilder
                 float x = sampleXs[i];
                 float t = (x - domainStart) / domainLength;
                 var comps = PdfFunctions.EvaluateColorFunctions(shading.Functions, x);
-                colors[i] = converter.ToSrgb(comps, shading.RenderingIntent);
+                colors[i] = converter.ToSrgb(comps, state.RenderingIntent);
                 positions[i] = t;
             }
         }

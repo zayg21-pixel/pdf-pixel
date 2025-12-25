@@ -1,4 +1,5 @@
 ﻿using PdfReader.Color.Paint;
+using PdfReader.Rendering.State;
 using PdfReader.Shading.Builder;
 using PdfReader.Shading.Decoding;
 using PdfReader.Shading.Model;
@@ -20,10 +21,11 @@ internal static partial class PdfShadingBuilder
     /// Builds an SKPicture for Gouraud-shaded triangle mesh (Type 4 and Type 5).
     /// </summary>
     /// <param name="shading">Parsed shading model.</param>
+    /// <param name="state">Current graphics state.</param>
     /// <returns>SKShader instance or null if decoding or rendering fails.</returns>
-    private static SKPicture BuildGouraud(PdfShading shading)
+    private static SKPicture BuildGouraud(PdfShading shading, PdfGraphicsState state)
     {
-        var decoder = new GouraudMeshDecoder(shading);
+        var decoder = new GouraudMeshDecoder(shading, state);
         List<MeshData> triangles = decoder.Decode();
         if (triangles.Count == 0)
         {
@@ -60,10 +62,11 @@ internal static partial class PdfShadingBuilder
     /// Builds an SKPicture for type 7 (Tensor-Product Patch Mesh).
     /// </summary>
     /// <param name="shading">Parsed shading model.</param>
+    /// <param name="state">Current graphics state.</param>
     /// <returns>SKShader instance or null if decoding or rendering fails.</returns>
-    private static SKPicture BuildType7(PdfShading shading)
+    private static SKPicture BuildType7(PdfShading shading, PdfGraphicsState state)
     {
-        var decoder = new MeshDecoder(shading);
+        var decoder = new MeshDecoder(shading, state);
         List<MeshData> patches = decoder.Decode();
         if (patches.Count == 0)
         {
@@ -88,10 +91,11 @@ internal static partial class PdfShadingBuilder
     /// Uses MeshDecoder to extract patches, each with 12 control points.
     /// </summary>
     /// <param name="shading">Parsed shading model.</param>
+    /// <param name="state">Current graphics state.</param>
     /// <returns>SKShader instance or null if decoding or rendering fails.</returns>
-    private static SKPicture BuildType6(PdfShading shading)
+    private static SKPicture BuildType6(PdfShading shading, PdfGraphicsState state)
     {
-        var decoder = new MeshDecoder(shading);
+        var decoder = new MeshDecoder(shading, state);
         var patches = decoder.Decode();
         if (patches.Count == 0)
         {

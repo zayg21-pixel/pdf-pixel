@@ -257,7 +257,7 @@ public class MiscellaneousOperators : IOperatorProcessor
             return;
         }
 
-        var shading = new PdfShading(shadingObject, _page);
+        var shading = new PdfShading(shadingObject);
 
         _renderer.DrawShading(_canvas, shading, graphicsState);
     }

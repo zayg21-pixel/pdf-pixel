@@ -1,9 +1,10 @@
+using PdfReader.Color.ColorSpace;
+using PdfReader.Functions;
 using PdfReader.Parsing;
 using SkiaSharp;
 using System;
-using System.Runtime.CompilerServices;
 using System.Collections.Generic;
-using PdfReader.Shading.Model;
+using System.Runtime.CompilerServices;
 
 namespace PdfReader.Shading.Decoding;
 
@@ -34,7 +35,9 @@ internal static class MeshReader
         int bitsPerComponent,
         ColorMinAndScale[] colorComponentMinAndScale,
         int numColorComponents,
-        PdfShading shading)
+        List<PdfFunction> functions,
+        PdfColorSpaceConverter colorSpace,
+        PdfRenderingIntent intent)
     {
         var components = new float[numColorComponents];
         for (int componentIndex = 0; componentIndex < numColorComponents; componentIndex++)
@@ -44,31 +47,24 @@ internal static class MeshReader
             float decoded = minAndScale.Min + rawValue * minAndScale.Scale;
             components[componentIndex] = decoded;
         }
-        return EvaluatePatchColor(components, shading);
+        return EvaluatePatchColor(components, functions, colorSpace, intent);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static SKColor EvaluatePatchColor(
         ReadOnlySpan<float> input,
-        PdfShading shading)
+        List<PdfFunction> functions,
+        PdfColorSpaceConverter colorSpace,
+        PdfRenderingIntent intent)
     {
-        if (shading.Functions != null && shading.Functions.Count > 0)
+        if (functions != null && functions.Count > 0)
         {
-            var final = new List<float>();
-            for (int f = 0; f < shading.Functions.Count; f++)
-            {
-                var function = shading.Functions[f];
-                var evaluated = function.Evaluate(input);
-                foreach (var item in evaluated)
-                {
-                    final.Add(item);
-                }
-            }
-            return shading.ColorSpaceConverter.ToSrgb(final.ToArray(), shading.RenderingIntent);
+            var evaluated = PdfFunctions.EvaluateColorFunctions(functions, input);
+            return colorSpace.ToSrgb(evaluated, intent);
         }
         else
         {
-            return shading.ColorSpaceConverter.ToSrgb(input, shading.RenderingIntent);
+            return colorSpace.ToSrgb(input, intent);
         }
     }
 

@@ -18,21 +18,20 @@ internal static class PdfPatternParser
     /// return value.</remarks>
     /// <param name="renderer">The PDF renderer instance used for context during parsing.</param>
     /// <param name="patternObject">The PDF object representing the pattern. Must contain a valid dictionary with a <c>PatternType</c> key.</param>
-    /// <param name="page">The <see cref="PdfPage"/> associated with the pattern, used for resolving resources.</param>
     /// <returns>A <see cref="PdfPattern"/> instance representing the parsed pattern, or <see langword="null"/> if the
     /// pattern type is unsupported.</returns>
-    public static PdfPattern ParsePattern(IPdfRenderer renderer, PdfObject patternObject, PdfPage page)
+    public static PdfPattern ParsePattern(IPdfRenderer renderer, PdfObject patternObject)
     {
         int patternType = patternObject.Dictionary.GetIntegerOrDefault(PdfTokens.PatternTypeKey);
         return patternType switch
         {
-            1 => ParseTilingPattern(renderer, patternObject, page),
-            2 => ParseShadingPattern(patternObject, page),
+            1 => ParseTilingPattern(renderer, patternObject),
+            2 => ParseShadingPattern(patternObject),
             _ => null,// Unsupported pattern type
         };
     }
 
-    private static PdfTilingPattern ParseTilingPattern(IPdfRenderer renderer, PdfObject patternObject, PdfPage page)
+    private static PdfTilingPattern ParseTilingPattern(IPdfRenderer renderer, PdfObject patternObject)
     {
         var dictionary = patternObject.Dictionary;
 
@@ -66,7 +65,7 @@ internal static class PdfPatternParser
             matrix);
     }
 
-    private static PdfShadingPattern ParseShadingPattern(PdfObject patternObject, PdfPage page)
+    private static PdfShadingPattern ParseShadingPattern(PdfObject patternObject)
     {
         var dictionary = patternObject.Dictionary;
 
@@ -81,7 +80,7 @@ internal static class PdfPatternParser
         }
 
         PdfDictionary extGState = dictionary.GetDictionary(PdfTokens.ExtGStateKey);
-        var shading = new PdfShading(shadingObject, page);
+        var shading = new PdfShading(shadingObject);
 
         return new PdfShadingPattern(patternObject, shading, matrix, extGState);
     }

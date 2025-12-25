@@ -1,5 +1,7 @@
+using PdfReader.Color.ColorSpace;
 using PdfReader.Models;
 using PdfReader.Parsing;
+using PdfReader.Rendering.State;
 using PdfReader.Shading.Model;
 using PdfReader.Text;
 using SkiaSharp;
@@ -17,6 +19,8 @@ namespace PdfReader.Shading.Decoding;
 class MeshDecoder
 {
     private readonly PdfShading _shading;
+    private readonly PdfColorSpaceConverter _colorSpaceConverter;
+    private readonly PdfRenderingIntent _renderingIntent;
     private readonly int _bitsPerFlag;
     private readonly int _bitsPerCoordinate;
     private readonly int _bitsPerComponent;
@@ -29,7 +33,7 @@ class MeshDecoder
     private readonly float _yScale;
     private readonly ColorMinAndScale[] _colorComponentMinAndScale;
 
-    public MeshDecoder(PdfShading shading)
+    public MeshDecoder(PdfShading shading, PdfGraphicsState state)
     {
         if (shading.ShadingType != 6 &&  shading.ShadingType != 7)
         {
@@ -37,6 +41,8 @@ class MeshDecoder
         }
 
         _shading = shading;
+        _colorSpaceConverter = state.Page.Cache.ColorSpace.ResolveByObject(shading.ColorSpaceConverter);
+        _renderingIntent = state.RenderingIntent;
         PdfDictionary shadingDictionary = shading.SourceObject.Dictionary;
 
         _bitsPerCoordinate = shadingDictionary.GetIntegerOrDefault(PdfTokens.BitsPerCoordinateKey);
@@ -114,7 +120,7 @@ class MeshDecoder
             }
             for (int c = 0; c < 4; c++)
             {
-                cornerColors[c] = MeshReader.ReadColorComponents(ref bitReader, _bitsPerComponent, _colorComponentMinAndScale, _numColorComponents, _shading);
+                cornerColors[c] = MeshReader.ReadColorComponents(ref bitReader, _bitsPerComponent, _colorComponentMinAndScale, _numColorComponents, _shading.Functions, _colorSpaceConverter, _renderingIntent);
             }
         }
         else
@@ -127,8 +133,8 @@ class MeshDecoder
             {
                 controlPoints[i] = MeshReader.ReadPoint(ref bitReader, _bitsPerCoordinate, _xmin, _ymin, _xScale, _yScale);
             }
-            cornerColors[2] = MeshReader.ReadColorComponents(ref bitReader, _bitsPerComponent, _colorComponentMinAndScale, _numColorComponents, _shading);
-            cornerColors[3] = MeshReader.ReadColorComponents(ref bitReader, _bitsPerComponent, _colorComponentMinAndScale, _numColorComponents, _shading);
+            cornerColors[2] = MeshReader.ReadColorComponents(ref bitReader, _bitsPerComponent, _colorComponentMinAndScale, _numColorComponents, _shading.Functions, _colorSpaceConverter, _renderingIntent);
+            cornerColors[3] = MeshReader.ReadColorComponents(ref bitReader, _bitsPerComponent, _colorComponentMinAndScale, _numColorComponents, _shading.Functions, _colorSpaceConverter, _renderingIntent);
             switch (flag)
             {
                 case 1:

@@ -15,7 +15,7 @@ namespace PdfReader.Shading.Model;
 /// </summary>
 public sealed class PdfShading
 {
-    public PdfShading(PdfObject pdfObject, PdfPage page)
+    public PdfShading(PdfObject pdfObject)
     {
         var rawDictionary = pdfObject.Dictionary;
         SourceObject = pdfObject;
@@ -39,8 +39,7 @@ public sealed class PdfShading
             ExtendEnd = extendArr.GetBoolean(1);
         }
 
-        var colorSpaceValue = rawDictionary.GetObject(PdfTokens.ColorSpaceKey);
-        ColorSpaceConverter = page.Cache.ColorSpace.ResolveByObject(colorSpaceValue);
+        ColorSpaceConverter = rawDictionary.GetObject(PdfTokens.ColorSpaceKey);
         Functions = new List<PdfFunction>();
 
         var functionObjects = rawDictionary.GetObjects(PdfTokens.FunctionKey);
@@ -58,13 +57,7 @@ public sealed class PdfShading
 
         var bboxArray = rawDictionary.GetArray(PdfTokens.BBoxKey);
         BBox = PdfLocationUtilities.CreateBBox(bboxArray);
-        var backgroundComponents = rawDictionary.GetArray(PdfTokens.BackgroundKey)?.GetFloatArray();
-
-        if (backgroundComponents != null)
-        {
-            Background = ColorSpaceConverter.ToSrgb(backgroundComponents, RenderingIntent);
-        }
-
+        Background = rawDictionary.GetArray(PdfTokens.BackgroundKey)?.GetFloatArray();
         AntiAlias = rawDictionary.GetBooleanOrDefault(PdfTokens.AntiAliasKey);
     }
 
@@ -99,15 +92,9 @@ public sealed class PdfShading
     public bool ExtendEnd { get; }
 
     /// <summary>
-    /// Color space value (/ColorSpace) resolved object.
+    /// Color space value (/ColorSpace) object.
     /// </summary>
-    public PdfColorSpaceConverter ColorSpaceConverter { get; }
-
-    /// <summary>
-    /// Gets the rendering intent used to control color rendering in the PDF.
-    /// TODO: remove, intent is not specified per-shading.
-    /// </summary>
-    public PdfRenderingIntent RenderingIntent { get; }
+    public PdfObject ColorSpaceConverter { get; }
 
     /// <summary>
     /// List of resolved PdfFunction(s) for function-based color evaluation.
@@ -117,7 +104,7 @@ public sealed class PdfShading
     /// <summary>
     /// Shading background color (/Background), if defined.
     /// </summary>
-    public SKColor? Background { get; }
+    public float[] Background { get; }
 
     /// <summary>
     /// Gets the optional bbox (/BBox) for this shading, if defined.

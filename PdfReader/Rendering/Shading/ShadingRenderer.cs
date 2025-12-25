@@ -52,7 +52,7 @@ public class ShadingRenderer : IShadingRenderer
     /// </summary>
     private void DrawShadingCore(SKCanvas canvas, PdfShading shading, PdfGraphicsState state)
     {
-        using var shaderPicture = PdfShadingBuilder.ToPicture(shading, canvas.DeviceClipBounds);
+        using var shaderPicture = PdfShadingBuilder.ToPicture(shading, state, canvas.DeviceClipBounds);
 
         if (shaderPicture == null)
         {
@@ -66,9 +66,12 @@ public class ShadingRenderer : IShadingRenderer
             canvas.ClipRect(shading.BBox.Value, SKClipOperation.Intersect, antialias: true);
         }
 
-        if (shading.Background.HasValue)
+        if (shading.Background != null)
         {
-            using var backgroundPaint = PdfPaintFactory.CreateBackgroundPaint(shading.Background.Value);
+            var colorSpace = state.Page.Cache.ColorSpace.ResolveByObject(shading.ColorSpaceConverter);
+            var backgroundColor = colorSpace.ToSrgb(shading.Background, state.RenderingIntent);
+
+            using var backgroundPaint = PdfPaintFactory.CreateBackgroundPaint(backgroundColor);
             canvas.DrawRect(canvas.LocalClipBounds, backgroundPaint);
         }
 

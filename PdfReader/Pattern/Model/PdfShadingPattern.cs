@@ -49,7 +49,7 @@ public sealed class PdfShadingPattern : PdfPattern
         var matrix = SKMatrix.Concat(state.CTM.Invert(), PatternMatrix);
         var bounds = matrix.Invert().MapRect(renderTarget.ClipPath.Bounds);
 
-        using var shadingPicture = PdfShadingBuilder.ToPicture(Shading, bounds);
+        using var shadingPicture = PdfShadingBuilder.ToPicture(Shading, state, bounds);
         
         if (shadingPicture != null)
         {
@@ -65,9 +65,11 @@ public sealed class PdfShadingPattern : PdfPattern
                 canvas.ClipRect(Shading.BBox.Value, SKClipOperation.Intersect, antialias: true);
             }
 
-            if (Shading.Background.HasValue)
+            if (Shading.Background != null)
             {
-                using var backgroundPaint = PdfPaintFactory.CreateBackgroundPaint(Shading.Background.Value);
+                var colorSpace = state.Page.Cache.ColorSpace.ResolveByObject(Shading.ColorSpaceConverter);
+                var backgroundColor = colorSpace.ToSrgb(Shading.Background, state.RenderingIntent);
+                using var backgroundPaint = PdfPaintFactory.CreateBackgroundPaint(backgroundColor);
                 canvas.DrawRect(canvas.LocalClipBounds, backgroundPaint);
             }
 

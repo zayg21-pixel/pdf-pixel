@@ -1,5 +1,6 @@
 ﻿using PdfReader.Functions;
 using PdfReader.Rendering.Operators;
+using PdfReader.Rendering.State;
 using PdfReader.Shading.Model;
 using PdfReader.Text;
 using SkiaSharp;
@@ -14,15 +15,16 @@ internal static partial class PdfShadingBuilder
     /// Samples the function(s) over the domain rectangle using function-provided sampling points.
     /// </summary>
     /// <param name="shading">Parsed shading model.</param>
+    /// <param name="state">Current graphics state.</param>
     /// <returns>SKPicture instance or null if input is invalid.</returns>
-    private static SKPicture BuildFunctionBased(PdfShading shading)
+    private static SKPicture BuildFunctionBased(PdfShading shading, PdfGraphicsState state)
     {
         if (shading.Functions == null || shading.Functions.Count == 0 || shading.ColorSpaceConverter == null)
         {
             return null;
         }
 
-        var converter = shading.ColorSpaceConverter;
+        var converter = state.Page.Cache.ColorSpace.ResolveByObject(shading.ColorSpaceConverter);
         PdfFunction function = shading.Functions[0];
 
         float domainX0 = 0f;
@@ -59,7 +61,7 @@ internal static partial class PdfShadingBuilder
             {
                 float domainX = xSamples[xIndex];
                 var comps = function.Evaluate([domainX, domainY]);
-                SKColor color = converter.ToSrgb(comps, shading.RenderingIntent);
+                SKColor color = converter.ToSrgb(comps, state.RenderingIntent);
                 pixelColors[yIndex * bitmapWidth + xIndex] = color;
             }
         }

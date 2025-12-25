@@ -1,5 +1,7 @@
+using PdfReader.Color.ColorSpace;
 using PdfReader.Models;
 using PdfReader.Parsing;
+using PdfReader.Rendering.State;
 using PdfReader.Shading.Model;
 using PdfReader.Text;
 using SkiaSharp;
@@ -16,6 +18,8 @@ namespace PdfReader.Shading.Decoding;
 class GouraudMeshDecoder
 {
     private readonly PdfShading _shading;
+    private readonly PdfColorSpaceConverter _colorSpaceConverter;
+    private readonly PdfRenderingIntent _renderingIntent;
     private readonly int _bitsPerFlag;
     private readonly int _bitsPerCoordinate;
     private readonly int _bitsPerComponent;
@@ -27,7 +31,7 @@ class GouraudMeshDecoder
     private readonly ColorMinAndScale[] _colorComponentMinAndScale;
     private readonly int _verticesPerRow;
 
-    public GouraudMeshDecoder(PdfShading shading)
+    public GouraudMeshDecoder(PdfShading shading, PdfGraphicsState state)
     {
         if (shading.ShadingType != 4 && shading.ShadingType != 5)
         {
@@ -35,6 +39,8 @@ class GouraudMeshDecoder
         }
 
         _shading = shading;
+        _colorSpaceConverter = state.Page.Cache.ColorSpace.ResolveByObject(shading.ColorSpaceConverter);
+        _renderingIntent = state.RenderingIntent;
         PdfDictionary shadingDictionary = shading.SourceObject.Dictionary;
 
         _bitsPerFlag = shadingDictionary.GetIntegerOrDefault(PdfTokens.BitsPerFlagKey);
@@ -124,7 +130,7 @@ class GouraudMeshDecoder
                         bitReader.ReadBits(_bitsPerFlag); // Ignore edge flag for vb and vc
                     }
                     vertices[i] = MeshReader.ReadPoint(ref bitReader, _bitsPerCoordinate, _xmin, _ymin, _xScale, _yScale);
-                    colors[i] = MeshReader.ReadColorComponents(ref bitReader, _bitsPerComponent, _colorComponentMinAndScale, _numColorComponents, _shading);
+                    colors[i] = MeshReader.ReadColorComponents(ref bitReader, _bitsPerComponent, _colorComponentMinAndScale, _numColorComponents, _shading.Functions, _colorSpaceConverter, _renderingIntent);
                     // Skip padding bits for each vertex
                     if (!bitReader.IsByteAligned)
                     {
@@ -141,7 +147,7 @@ class GouraudMeshDecoder
                 colors[0] = previousColors[1];
                 colors[1] = previousColors[2];
                 vertices[2] = MeshReader.ReadPoint(ref bitReader, _bitsPerCoordinate, _xmin, _ymin, _xScale, _yScale);
-                colors[2] = MeshReader.ReadColorComponents(ref bitReader, _bitsPerComponent, _colorComponentMinAndScale, _numColorComponents, _shading);
+                colors[2] = MeshReader.ReadColorComponents(ref bitReader, _bitsPerComponent, _colorComponentMinAndScale, _numColorComponents, _shading.Functions, _colorSpaceConverter, _renderingIntent);
                 // Skip padding bits for the new vertex
                 if (!bitReader.IsByteAligned)
                 {
@@ -157,7 +163,7 @@ class GouraudMeshDecoder
                 colors[0] = previousColors[0];
                 colors[2] = previousColors[2];
                 vertices[1] = MeshReader.ReadPoint(ref bitReader, _bitsPerCoordinate, _xmin, _ymin, _xScale, _yScale);
-                colors[1] = MeshReader.ReadColorComponents(ref bitReader, _bitsPerComponent, _colorComponentMinAndScale, _numColorComponents, _shading);
+                colors[1] = MeshReader.ReadColorComponents(ref bitReader, _bitsPerComponent, _colorComponentMinAndScale, _numColorComponents, _shading.Functions, _colorSpaceConverter, _renderingIntent);
                 // Skip padding bits for the new vertex
                 if (!bitReader.IsByteAligned)
                 {
@@ -186,7 +192,7 @@ class GouraudMeshDecoder
         while (!bitReader.EndOfData)
         {
             SKPoint point = MeshReader.ReadPoint(ref bitReader, _bitsPerCoordinate, _xmin, _ymin, _xScale, _yScale);
-            SKColor color = MeshReader.ReadColorComponents(ref bitReader, _bitsPerComponent, _colorComponentMinAndScale, _numColorComponents, _shading);
+            SKColor color = MeshReader.ReadColorComponents(ref bitReader, _bitsPerComponent, _colorComponentMinAndScale, _numColorComponents, _shading.Functions, _colorSpaceConverter, _renderingIntent);
 
             if (!bitReader.IsByteAligned)
             {
