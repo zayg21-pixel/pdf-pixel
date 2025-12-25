@@ -137,19 +137,25 @@ internal static partial class PdfShadingBuilder
 
         if (shading.Functions.Count > 0)
         {
-            const int SampleCount = 256;
-            // TODO: well, this does not really work, we need a better sampling strategy, basically, same issue as with shading type 1
-            // when where's sampled function involved, we need a pixel-accurate sampling based on the actual gradient length in device space
-            colors = new SKColor[SampleCount];
-            positions = new float[SampleCount];
-            for (int sampleIndex = 0; sampleIndex < SampleCount; sampleIndex++)
-            {
-                float t = sampleIndex / (float)(SampleCount - 1);
-                float x = domainStart + t * (domainEnd - domainStart);
-                var comps = PdfFunctions.EvaluateColorFunctions(shading.Functions, x);
-                colors[sampleIndex] = converter.ToSrgb(comps, shading.RenderingIntent);
+            PdfFunction primaryFunction = shading.Functions[0];
+            float[] sampleXs = primaryFunction.GetSamplingPoints(0, domainStart, domainEnd);
 
-                positions[sampleIndex] = t;
+            positions = new float[sampleXs.Length];
+            colors = new SKColor[sampleXs.Length];
+
+            float domainLength = domainEnd - domainStart;
+            if (domainLength == 0f)
+            {
+                domainLength = 1f;
+            }
+
+            for (int i = 0; i < sampleXs.Length; i++)
+            {
+                float x = sampleXs[i];
+                float t = (x - domainStart) / domainLength;
+                var comps = PdfFunctions.EvaluateColorFunctions(shading.Functions, x);
+                colors[i] = converter.ToSrgb(comps, shading.RenderingIntent);
+                positions[i] = t;
             }
         }
         else

@@ -268,4 +268,48 @@ public sealed class SampledPdfFunction : PdfFunction
 
         return output;
     }
+
+    /// <summary>
+    /// For sampled functions, return sample grid coordinates for the requested dimension mapped to the domain.
+    /// </summary>
+    public override float[] GetSamplingPoints(int dimension, float domainStart, float domainEnd, int fallbackSamplesCount = 256)
+    {
+        if (dimension < 0 || dimension >= _dimensions)
+        {
+            return base.GetSamplingPoints(dimension, domainStart, domainEnd, fallbackSamplesCount);
+        }
+
+        int size = _sizes[dimension];
+        float start = Domain[2 * dimension];
+        float end = Domain[2 * dimension + 1];
+
+        // If encode specifies a custom range, respect it when mapping sample indices to domain
+        float encodeMin = 0f;
+        float encodeMax = size - 1;
+        if (_encode != null && _encode.Length >= 2 * _dimensions)
+        {
+            encodeMin = _encode[2 * dimension];
+            encodeMax = _encode[2 * dimension + 1];
+            if (Math.Abs(encodeMax - encodeMin) < 1e-12f)
+            {
+                encodeMax = encodeMin + 1f;
+            }
+        }
+
+        float[] points = new float[size];
+        if (size == 1)
+        {
+            points[0] = start;
+            return points;
+        }
+
+        for (int i = 0; i < size; i++)
+        {
+            float u = i;
+            float t = (u - encodeMin) / (encodeMax - encodeMin);
+            points[i] = start + t * (end - start);
+        }
+
+        return points;
+    }
 }

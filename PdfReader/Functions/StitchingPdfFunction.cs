@@ -134,4 +134,63 @@ public sealed class StitchingPdfFunction : PdfFunction
         float x = values.Length > 0 ? values[0] : 0f;
         return Evaluate(x);
     }
+
+    /// <summary>
+    /// For stitching functions, combine sampling points from each sub-function.
+    /// Each sub-function is sampled in its Encode range and mapped back to the parent domain segment.
+    /// No extra points or heuristics are added.
+    /// </summary>
+    public override float[] GetSamplingPoints(int dimension, float domainStart, float domainEnd, int fallbackSamplesCount = 256)
+    {
+        float start = domainStart;
+        float end = domainEnd;
+
+        var points = new List<float>();
+
+        int segmentCount = _subFunctions != null ? _subFunctions.Count : 0;
+        if (segmentCount == 0)
+        {
+            return base.GetSamplingPoints(dimension, start, end, fallbackSamplesCount);
+        }
+
+        int perSegmentCount = Math.Max(2, fallbackSamplesCount / Math.Max(1, segmentCount));
+
+        for (int seg = 0; seg < segmentCount; seg++)
+        {
+            float a = seg == 0 ? start : _bounds != null && _bounds.Length >= seg ? _bounds[seg - 1] : start;
+            float b = _bounds != null && _bounds.Length > seg ? _bounds[seg] : end;
+
+            PdfFunction child = _subFunctions[seg];
+            if (child == null)
+            {
+                continue;
+            }
+
+            if (_encode != null && _encode.Length >= 2 * segmentCount)
+            {
+                float e0 = _encode[2 * seg];
+                float e1 = _encode[2 * seg + 1];
+
+                float[] childSamples = child.GetSamplingPoints(dimension, e0, e1, perSegmentCount);
+                float denom = e1 - e0;
+                for (int i = 0; i < childSamples.Length; i++)
+                {
+                    float t = denom == 0f ? 0f : (childSamples[i] - e0) / denom;
+                    float x = a + t * (b - a);
+                    points.Add(x);
+                }
+            }
+            else
+            {
+                float[] segSamples = base.GetSamplingPoints(dimension, a, b, perSegmentCount);
+                for (int i = 0; i < segSamples.Length; i++)
+                {
+                    points.Add(segSamples[i]);
+                }
+            }
+        }
+
+        // No clamping or sorting; duplicate or unordered positions are acceptable
+        return points.ToArray();
+    }
 }

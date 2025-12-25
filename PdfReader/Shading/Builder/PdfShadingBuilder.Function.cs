@@ -11,8 +11,7 @@ internal static partial class PdfShadingBuilder
 {
     /// <summary>
     /// Builds a PDF-spec compliant function-based (Type 1) shading picture using SKBitmap.
-    /// If the function is sampled, uses the sample grid size mapped to shading.Domain.
-    /// Otherwise, samples the function(s) over the domain rectangle at a fixed resolution.
+    /// Samples the function(s) over the domain rectangle using function-provided sampling points.
     /// </summary>
     /// <param name="shading">Parsed shading model.</param>
     /// <returns>SKPicture instance or null if input is invalid.</returns>
@@ -37,6 +36,7 @@ internal static partial class PdfShadingBuilder
             domainY0 = shading.Domain[2];
             domainY1 = shading.Domain[3];
         }
+
         float domainWidth = Math.Abs(domainX1 - domainX0);
         float domainHeight = Math.Abs(domainY1 - domainY0);
         if (domainWidth < 1e-6f || domainHeight < 1e-6f)
@@ -44,40 +44,26 @@ internal static partial class PdfShadingBuilder
             return null;
         }
 
-        int bitmapWidth;
-        int bitmapHeight;
+        float[] xSamples = function.GetSamplingPoints(0, domainX0, domainX1);
+        float[] ySamples = function.GetSamplingPoints(1, domainY0, domainY1);
 
-        if (function is SampledPdfFunction sampled)
-        {
-            bitmapWidth = sampled.Dimensions > 0 ? sampled.Sizes[0] : 1;
-            bitmapHeight = sampled.Dimensions > 1 ? sampled.Sizes[1] : 1;
-        }
-        else
-        {
-            const int DefaultResolution = 128;
-            bitmapWidth = DefaultResolution;
-            bitmapHeight = (int)(DefaultResolution * domainHeight / domainWidth);
-            if (bitmapHeight < 2)
-            {
-                bitmapHeight = 2;
-            }
-        }
+        int bitmapWidth = Math.Max(1, xSamples.Length);
+        int bitmapHeight = Math.Max(1, ySamples.Length);
 
         using var bitmap = new SKBitmap(bitmapWidth, bitmapHeight);
         SKColor[] pixelColors = new SKColor[bitmapWidth * bitmapHeight];
         for (int yIndex = 0; yIndex < bitmapHeight; yIndex++)
         {
-            float fy = yIndex / (float)(bitmapHeight - 1);
-            float domainY = domainY0 + fy * (domainY1 - domainY0);
+            float domainY = ySamples[yIndex];
             for (int xIndex = 0; xIndex < bitmapWidth; xIndex++)
             {
-                float fx = xIndex / (float)(bitmapWidth - 1);
-                float domainX = domainX0 + fx * (domainX1 - domainX0);
+                float domainX = xSamples[xIndex];
                 var comps = function.Evaluate([domainX, domainY]);
                 SKColor color = converter.ToSrgb(comps, shading.RenderingIntent);
                 pixelColors[yIndex * bitmapWidth + xIndex] = color;
             }
         }
+
         bitmap.Pixels = pixelColors;
 
         // Compute matrix to map bitmap pixel space to domain rectangle

@@ -187,4 +187,22 @@ public sealed class ExponentialPdfFunction : PdfFunction
 
         return new ExponentialPdfFunction(c0, c1, exponent, domain, range);
     }
+
+    /// <summary>
+    /// For exponential functions, return even points matching LUT size across the specified domain.
+    /// </summary>
+    public override float[] GetSamplingPoints(int dimension, float domainStart, float domainEnd, int fallbackSamplesCount = 256)
+    {
+        float start = domainStart;
+        float end = domainEnd;
+        int count = LutSize;
+        float[] points = new float[count];
+        float countMinusOne = count - 1;
+        for (int i = 0; i < count; i++)
+        {
+            float t = i / countMinusOne;
+            points[i] = start + t * (end - start);
+        }
+        return points;
+    }
 }

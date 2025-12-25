@@ -115,4 +115,33 @@ public abstract class PdfFunction
         float max = range[index * 2 + 1];
         return Math.Max(min, Math.Min(max, value));
     }
+
+    /// <summary>
+    /// Returns sampling points for the specified input dimension in the given domain range.
+    /// Default implementation returns evenly spaced points using <paramref name="fallbackSamplesCount"/>.
+    /// Derived types should override to provide type-specific sampling.
+    /// </summary>
+    /// <param name="dimension">Input dimension index.</param>
+    /// <param name="domainStart">Domain start (inclusive).</param>
+    /// <param name="domainEnd">Domain end (inclusive).</param>
+    /// <param name="fallbackSamplesCount">Fallback number of samples.</param>
+    /// <returns>Array of sampling coordinates.</returns>
+    public virtual float[] GetSamplingPoints(int dimension, float domainStart, float domainEnd, int fallbackSamplesCount = 256)
+    {
+        if (fallbackSamplesCount < 2)
+        {
+            fallbackSamplesCount = 2;
+        }
+
+        float start = domainStart;
+        float end = domainEnd;
+        float[] points = new float[fallbackSamplesCount];
+        float countMinusOne = fallbackSamplesCount - 1;
+        for (int i = 0; i < fallbackSamplesCount; i++)
+        {
+            float t = i / countMinusOne;
+            points[i] = start + t * (end - start);
+        }
+        return points;
+    }
 }
