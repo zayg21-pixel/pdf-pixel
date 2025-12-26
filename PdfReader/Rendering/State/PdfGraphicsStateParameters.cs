@@ -182,6 +182,8 @@ namespace PdfReader.Rendering.State
             {
                 graphicsState.RenderingIntent = PdfRenderingIntent.Value;
             }
+
+            // TODO: TR curves for GS and SoftMask
         }
     }
 }

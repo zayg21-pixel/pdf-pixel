@@ -11,7 +11,7 @@ namespace PdfReader.Color.ColorSpace;
 /// </summary>
 internal class CalRgbConverter : PdfColorSpaceConverter
 {
-    private readonly bool _hasBlackPoint;
+    private readonly bool _hasBlackPoint;// TODO: use black point
 
     public CalRgbConverter(float[] whitePoint, float[] blackPoint, float[] gamma, float[,] matrix3x3)
     {

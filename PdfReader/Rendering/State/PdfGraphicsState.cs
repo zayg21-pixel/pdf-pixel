@@ -28,6 +28,9 @@ namespace PdfReader.Rendering.State
             Page = statePage ?? throw new ArgumentNullException(nameof(renderingParameters));
             RecursionGuard = recursionGuard ?? throw new ArgumentNullException(nameof(renderingParameters));
             RenderingParameters = renderingParameters ?? throw new ArgumentNullException(nameof(renderingParameters));
+            FillColorConverter = statePage.Cache.ColorSpace.ResolveDeviceConverter(PdfColorSpaceType.DeviceGray);
+            StrokeColorConverter = statePage.Cache.ColorSpace.ResolveDeviceConverter(PdfColorSpaceType.DeviceGray);
+
         }
 
         public PdfGraphicsState(PdfGraphicsState sourceState)
@@ -76,12 +79,12 @@ namespace PdfReader.Rendering.State
         /// <summary>
         /// Current color space converter for stroking operations.
         /// </summary>
-        public PdfColorSpaceConverter StrokeColorConverter { get; set; } = DeviceGrayConverter.Instance;
+        public PdfColorSpaceConverter StrokeColorConverter { get; set; }
 
         /// <summary>
         /// Current color space converter for non-stroking (fill) operations.
         /// </summary>
-        public PdfColorSpaceConverter FillColorConverter { get; set; } = DeviceGrayConverter.Instance;
+        public PdfColorSpaceConverter FillColorConverter { get; set; }
 
         // --------------------------------------------------------------------------------------
         // Line state (see PDF 2.0 spec 8.4 Graphics State)

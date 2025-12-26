@@ -136,6 +136,8 @@ public class ImageRenderer : IImageRenderer
             return;
         }
 
+        // TODO: apply patterns to stencil image 
+
         using var alphaMask = decoder.Decode(state, canvas);
         if (alphaMask == null)
         {

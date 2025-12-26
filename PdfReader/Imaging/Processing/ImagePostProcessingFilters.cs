@@ -43,6 +43,8 @@ internal class ImagePostProcessingFilters
             ComposeColorFilter(ref filter, dematteFilter);
         }
 
+        // TODO: matte need example, maybe we can apply it as background composition
+
         return filter;
     }
 

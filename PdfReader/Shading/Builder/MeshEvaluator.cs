@@ -210,7 +210,7 @@ internal static class MeshEvaluator
         Matrix4x4 my = default;
         ref float mxRef = ref Unsafe.As<Matrix4x4, float>(ref mx);
         ref float myRef = ref Unsafe.As<Matrix4x4, float>(ref my);
-
+        // TODO: this is slow - consider unrolling or other optimizations
         // Single loop over 16 entries (row-major) using ControlPointIndexMap
         for (int matrixIndex = 0; matrixIndex < 16; matrixIndex++)
         {

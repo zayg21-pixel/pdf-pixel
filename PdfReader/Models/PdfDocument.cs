@@ -9,6 +9,7 @@ using System.IO;
 using PdfReader.Fonts.Mapping;
 
 namespace PdfReader.Models;
+// TODO: minimize references to PDF Document, use interface instead for unit testing later
 
 /// <summary>
 /// Represents a parsed PDF document, exposing its pages and providing resource management for PDF processing.

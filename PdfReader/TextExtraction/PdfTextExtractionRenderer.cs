@@ -13,6 +13,7 @@ using System.Collections.Generic;
 
 namespace PdfReader.TextExtraction;
 
+// TODO: refactor
 internal class PdfTextExtractionRenderer : IPdfRenderer
 {
     public List<PdfCharacter> PageCharacters { get; } = new List<PdfCharacter>();

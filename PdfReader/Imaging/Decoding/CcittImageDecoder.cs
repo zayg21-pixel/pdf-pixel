@@ -44,6 +44,7 @@ internal sealed class CcittImageDecoder : PdfImageDecoder
 
     public override SKImage Decode(PdfGraphicsState state, SKCanvas canvas)
     {
+        // TODO: add recovery
         int width = _columns;
         int height = _rows;
         if (width <= 0 || height <= 0)
