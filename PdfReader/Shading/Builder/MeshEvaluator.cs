@@ -210,8 +210,7 @@ internal static class MeshEvaluator
         Matrix4x4 my = default;
         ref float mxRef = ref Unsafe.As<Matrix4x4, float>(ref mx);
         ref float myRef = ref Unsafe.As<Matrix4x4, float>(ref my);
-        // TODO: this is slow - consider unrolling or other optimizations
-        // Single loop over 16 entries (row-major) using ControlPointIndexMap
+
         for (int matrixIndex = 0; matrixIndex < 16; matrixIndex++)
         {
             int controlPointIndex = ControlPointIndexMap[matrixIndex];
@@ -241,10 +240,12 @@ internal static class MeshEvaluator
     private static SKColor InterpolateCornerColors(float u, float v, SKColor[] cornerColors)
     {
         // Compute bilinear weights for each corner
-        float bottomLeftWeight = (1.0f - u) * (1.0f - v);
-        float topLeftWeight = (1.0f - u) * v;
+        var oneMinusU = 1.0f - u;
+        var oneMinusV = 1.0f - v;
+        float bottomLeftWeight = oneMinusU * oneMinusV;
+        float topLeftWeight = oneMinusU * v;
         float topRightWeight = u * v;
-        float bottomRightWeight = u * (1.0f - v);
+        float bottomRightWeight = u * oneMinusV;
 
         var weights = new Vector4(bottomLeftWeight, topLeftWeight, topRightWeight, bottomRightWeight);
 

@@ -38,7 +38,7 @@ internal class CalRgbConverter : PdfColorSpaceConverter
             { 0, 0, 1 }
         };
 
-        var trcTransform = new PerChannelLutTransform([IccTrc.FromGamma(gamma[0]), IccTrc.FromGamma(gamma[1]), IccTrc.FromGamma(gamma[2])]);
+        var trcTransform = new PerChannelTrcTransform([IccTrc.FromGamma(gamma[0]), IccTrc.FromGamma(gamma[1]), IccTrc.FromGamma(gamma[2])]);
 
         var chadMatrix = IccTransforms.BuildBradfordAdaptMatrix(whitePointVector, IccTransforms.D50WhitePoint);
         var primariesMatrix = ColorVectorUtilities.ToMatrix4x4(matrix3x3);

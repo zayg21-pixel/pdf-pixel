@@ -1,5 +1,5 @@
-﻿using PdfReader.Color.Transform;
-using System;
+﻿using PdfReader.Color.Icc.Model;
+using PdfReader.Color.Transform;
 using System.Numerics;
 using System.Runtime.CompilerServices;
 
@@ -99,37 +99,25 @@ internal static class IccTransforms
         return new ChainedColorTransform(new MatrixColorTransform(transposed), SrgbLinearToSrgbTransform);
     }
 
-    private static IColorTransform BuildSrgbLinearToSrgbTransform(int lutSize = 1024)
+    private static IColorTransform BuildSrgbLinearToSrgbTransform()
     {
-        var srgbCompLut = new float[lutSize];
+        // sRGB OETF (linear → sRGB) as ICC parametric type 4:
+        // y = (a·x + b)^g + e for x ≥ d; else y = c·x + f
+        // Standard sRGB parameters:
+        // g = 1/2.4, a = 1, b = 0, c = 12.92, d = 0.0031308, e = -0.055, f = 0
+        const float G = 1.0f / 2.4f;
+        const float A = 1.0f;
+        const float B = 0.0f;
+        const float C = 12.92f;
+        const float D = 0.0031308f;
+        const float E = -0.055f;
+        const float F = 0.0f;
 
-        for (int index = 0; index < lutSize; index++)
-        {
-            float x = (float)index / (lutSize - 1);
-            srgbCompLut[index] = ComputeSrgbCompandScalar(x);
-        }
+        var srgbParametric = IccTrc.FromParametric(
+            IccTrcParametricType.PowerWithLinearSegmentAndOffset,
+            [G, A, B, C, D, E, F]);
 
-        float[][] luts = new float[3][];
-
-        for (int channel = 0; channel < luts.Length; channel++)
-        {
-            luts[channel] = srgbCompLut;
-        }
-
-        return new PerChannelLutTransform(luts);
-    }
-
-    private static float ComputeSrgbCompandScalar(float componentLinear)
-    {
-        if (componentLinear <= 0f)
-        {
-            return 0f;
-        }
-        if (componentLinear <= 0.0031308f)
-        {
-            return 12.92f * componentLinear;
-        }
-        return 1.055f * MathF.Pow(componentLinear, 1.0f / 2.4f) - 0.055f;
+        return new PerChannelTrcTransform(srgbParametric, srgbParametric, srgbParametric);
     }
 
     /// <summary>

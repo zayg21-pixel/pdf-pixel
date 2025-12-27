@@ -20,7 +20,7 @@ internal sealed class IccLutPipeline
     /// Create a uniform-grid (lut8 / lut16) pipeline.
     /// Input and output tables are assumed to be already normalized (0..1).
     /// </summary>
-    public IccLutPipeline(int inCh, int outCh, int[] gridPointsPerDim, float[][] inTables, float[] clut, float[][] outTables, float[,] matrix3x3)
+    public IccLutPipeline(int inCh, int outCh, int[] gridPointsPerDim, IccTrc[] inTables, float[] clut, IccTrc[] outTables, float[,] matrix3x3)
     {
         InChannels = inCh;
         OutChannels = outCh;
@@ -52,7 +52,7 @@ internal sealed class IccLutPipeline
     /// Input tables (lut8/lut16) holding channel-wise normalized samples.
     /// Null for mAB pipelines where A curves are stored separately.
     /// </summary>
-    public float[][] InputTables { get; }
+    public IccTrc[] InputTables { get; }
 
     /// <summary>
     /// Flattened CLUT sample data (interleaved output channels) or null when no CLUT stage is present.
@@ -63,7 +63,7 @@ internal sealed class IccLutPipeline
     /// Output tables (lut8/lut16) holding channel-wise normalized samples.
     /// Null for mAB pipelines where B curves are stored separately.
     /// </summary>
-    public float[][] OutputTables { get; }
+    public IccTrc[] OutputTables { get; }
 
     /// <summary>
     /// True when this pipeline represents a multi-process element (mAB) sequence.
@@ -125,7 +125,7 @@ internal sealed class IccLutPipeline
         {
             if (CurvesA != null)
             {
-                transforms.Add(new PerChannelLutTransform(CurvesA));
+                transforms.Add(new PerChannelTrcTransform(CurvesA));
             }
 
             if (Clut != null)
@@ -135,7 +135,7 @@ internal sealed class IccLutPipeline
 
             if (CurvesM != null)
             {
-                transforms.Add(new PerChannelLutTransform(CurvesM));
+                transforms.Add(new PerChannelTrcTransform(CurvesM));
             }
 
             if (Matrix3x3 != null)
@@ -145,14 +145,14 @@ internal sealed class IccLutPipeline
 
             if (CurvesB != null)
             {
-                transforms.Add(new PerChannelLutTransform(CurvesB));
+                transforms.Add(new PerChannelTrcTransform(CurvesB));
             }
         }
         else
         {
             if (InputTables != null)
             {
-                transforms.Add(new PerChannelLutTransform(InputTables));
+                transforms.Add(new PerChannelTrcTransform(InputTables));
             }
 
             if (Matrix3x3 != null)
@@ -169,7 +169,7 @@ internal sealed class IccLutPipeline
 
             if (OutputTables != null)
             {
-                transforms.Add(new PerChannelLutTransform(OutputTables));
+                transforms.Add(new PerChannelTrcTransform(OutputTables));
             }
         }
 

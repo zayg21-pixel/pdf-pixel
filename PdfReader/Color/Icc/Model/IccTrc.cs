@@ -122,31 +122,4 @@ internal sealed class IccTrc
     {
         return new IccTrc(IccTrcType.Parametric, 0f, null, type, parameters ?? System.Array.Empty<float>());
     }
-
-    /// <summary>
-    /// Converts TRC to LUT with preferred size.
-    /// Size is ignored for sampled and identity TRCs.
-    /// </summary>
-    /// <param name="preferredSize">Preferred LUT size.</param>
-    /// <returns>TRC as sampled LUT.</returns>
-    public float[] ToLut(int preferredSize)
-    {
-        if (Type == IccTrcType.Sampled)
-        {
-            if (Samples.Length == 0)
-            {
-                return [0, 1f];
-            }
-
-            return Samples;
-        }
-
-        float[] lut = new float[preferredSize];
-        for (int index = 0; index < preferredSize; index++)
-        {
-            float x = index / (float)(preferredSize - 1);
-            lut[index] = IccTrcEvaluator.EvaluateTrc(this, x);
-        }
-        return lut;
-    }
 }

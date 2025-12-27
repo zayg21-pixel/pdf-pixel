@@ -37,6 +37,7 @@ C# style
 - Use var for obvious types; otherwise specify the type explicitly.
 - Always use braces for conditional/loop bodies.
 - LangVersion: 12. Use and support all C# 12 features across targets unless constrained by specific TFM.
+- NEVER ignore the repository’s LangVersion. Always assume C# 12 when generating or editing code. If a specific target framework restricts a feature, explicitly state the constraint in the PR/changes and provide a C# 12-compliant alternative.
 
 Error handling
 - Fail fast on invalid input using guard clauses.

@@ -4,6 +4,7 @@ using PdfReader.Rendering.State;
 using PdfReader.Transparency.Utilities;
 using SkiaSharp;
 using System;
+using System.Runtime.CompilerServices;
 
 namespace PdfReader.Rendering.Path;
 
@@ -57,6 +58,7 @@ public class PathRenderer : IPathRenderer
     /// Core path drawing logic for each paint operation.
     /// SaveLayer for FillAndStroke now uses the current clip region (no explicit bounds) simplifying logic.
     /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private void DrawPathCore(SKCanvas canvas, SKPath path, PdfGraphicsState state, PaintOperation operation)
     {
         switch (operation)

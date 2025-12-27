@@ -69,14 +69,16 @@ internal sealed partial class IccProfile
         int cursor = matrixPos + 9 * 4;
 
         // Input tables: inputChannels * 256 bytes each
-        float[][] inputTables = new float[inputChannels][];
+        IccTrc[] inputTables = new IccTrc[inputChannels];
         for (int channel = 0; channel < inputChannels; channel++)
         {
-            inputTables[channel] = new float[256];
+            float[] table = new float[256];
             for (int i = 0; i < 256; i++)
             {
-                inputTables[channel][i] = reader.ReadByte(cursor + channel * 256 + i) / 255f;
+                table[i] = reader.ReadByte(cursor + channel * 256 + i) / 255f;
             }
+
+            inputTables[channel] = IccTrc.FromSamples(table);
         }
         cursor += inputChannels * 256;
 
@@ -96,14 +98,16 @@ internal sealed partial class IccProfile
         cursor += clutSampleCount;
 
         // Output tables
-        float[][] outputTables = new float[outputChannels][];
+        IccTrc[] outputTables = new IccTrc[outputChannels];
         for (int channel = 0; channel < outputChannels; channel++)
         {
-            outputTables[channel] = new float[256];
+            float[] table = new float[256];
             for (int i = 0; i < 256; i++)
             {
-                outputTables[channel][i] = reader.ReadByte(cursor + channel * 256 + i) / 255f;
+                table[i] = reader.ReadByte(cursor + channel * 256 + i) / 255f;
             }
+
+            outputTables[channel] = IccTrc.FromSamples(table);
         }
 
         var gridPerDim = new int[inputChannels];
@@ -140,7 +144,7 @@ internal sealed partial class IccProfile
         int outputTableEntries = reader.ReadUInt16(cursor + 2);
         cursor += 4;
 
-        float[][] inputTables = new float[inputChannels][];
+        IccTrc[] inputTables = new IccTrc[inputChannels];
         for (int channel = 0; channel < inputChannels; channel++)
         {
             float[] table = new float[inputTableEntries];
@@ -148,7 +152,7 @@ internal sealed partial class IccProfile
             {
                 table[i] = reader.ReadUInt16(cursor + (channel * inputTableEntries + i) * 2) / 65535f;
             }
-            inputTables[channel] = table;
+            inputTables[channel] = IccTrc.FromSamples(table);
         }
         cursor += inputChannels * inputTableEntries * 2;
 
@@ -165,7 +169,7 @@ internal sealed partial class IccProfile
         }
         cursor += clutSampleCount * 2;
 
-        float[][] outputTables = new float[outputChannels][];
+        IccTrc[] outputTables = new IccTrc[outputChannels];
         for (int channel = 0; channel < outputChannels; channel++)
         {
             float[] table = new float[outputTableEntries];
@@ -173,7 +177,7 @@ internal sealed partial class IccProfile
             {
                 table[i] = reader.ReadUInt16(cursor + (channel * outputTableEntries + i) * 2) / 65535f;
             }
-            outputTables[channel] = table;
+            outputTables[channel] = IccTrc.FromSamples(table);
         }
 
         var gridPerDim = new int[inputChannels];

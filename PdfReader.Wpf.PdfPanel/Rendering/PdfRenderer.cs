@@ -43,7 +43,6 @@ namespace PdfReader.Wpf.PdfPanel.Rendering
 
         public SKImage GetThumbnail(int pageNumber, int maxThumbnailSize)
         {
-            return null;
             try
             {
                 var pdfPage = document.Pages[pageNumber - 1];

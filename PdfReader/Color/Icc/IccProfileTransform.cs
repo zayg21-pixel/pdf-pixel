@@ -36,7 +36,7 @@ internal sealed class IccProfileTransform
         else if (profile.GrayTrc != null)
         {
             _transform = new ChainedColorTransform(
-                new PerChannelLutTransform([profile.GrayTrc]),
+                new PerChannelTrcTransform([profile.GrayTrc]),
                 new FunctionColorTransform(x => new Vector4(x.X, x.X, x.X, 1)));
         }
         else if (profile.Header.ColorSpace == IccColorSpace.Lab)
@@ -49,7 +49,7 @@ internal sealed class IccProfileTransform
 
             if (profile.RedTrc != null && profile.GreenTrc != null && profile.BlueTrc != null)
             {
-                var trcLuts = new PerChannelLutTransform([profile.RedTrc, profile.GreenTrc, profile.BlueTrc]);
+                var trcLuts = new PerChannelTrcTransform([profile.RedTrc, profile.GreenTrc, profile.BlueTrc]);
                 matrixTransforms.Add(trcLuts);
             }
 

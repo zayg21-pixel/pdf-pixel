@@ -1,5 +1,6 @@
-using PdfReader.Color.Icc.Model;
+﻿using PdfReader.Color.Icc.Model;
 using System;
+using System.Runtime.CompilerServices;
 
 namespace PdfReader.Color.Icc.Utilities;
 
@@ -16,6 +17,7 @@ internal static class IccTrcEvaluator
     /// <param name="trc">TRC definition (gamma, sampled or parametric). Null returns the input unchanged.</param>
     /// <param name="x">Normalized input value (expected 0..1; values outside are not clamped here).</param>
     /// <returns>Curve output (0..1 nominal range).</returns>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static float EvaluateTrc(IccTrc trc, float x)
     {
         if (trc == null)
@@ -34,7 +36,7 @@ internal static class IccTrcEvaluator
                 float[] samples = trc.Samples;
                 if (samples == null || samples.Length == 0)
                 {
-                    return x; // Placeholder sampled curve � treat as linear.
+                    return x; // Placeholder sampled curve – treat as linear.
                 }
 
                 float scaled = x * (samples.Length - 1);
@@ -71,6 +73,7 @@ internal static class IccTrcEvaluator
     /// <param name="parameters">Parameter array (length depends on type).</param>
     /// <param name="x">Normalized input value.</param>
     /// <returns>Normalized output value.</returns>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static float ApplyParametric(IccTrcParametricType type, float[] parameters, float x)
     {
         switch (type)
