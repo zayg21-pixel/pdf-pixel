@@ -1,5 +1,6 @@
 ﻿using PdfReader.Color.Icc.Model;
 using PdfReader.Color.Transform;
+using System;
 using System.Numerics;
 using System.Runtime.CompilerServices;
 
@@ -11,9 +12,9 @@ namespace PdfReader.Color.Icc;
 internal static class IccTransforms
 {
     private static readonly Matrix4x4 XyzD65ToRgbLinearMatrix = new Matrix4x4(
-        3.2406f,  -1.5372f, -0.4986f, 0f,
-        -0.9689f,  1.8758f,  0.0415f, 0f,
-        0.0557f,  -0.2040f,  1.0570f, 0f,
+        3.2406255f,  -1.5372080f, -0.4986286f, 0f,
+        -0.9689307f,  1.8757561f,  0.0415175f, 0f,
+        0.0557101f,  -0.2040211f,  1.0569959f, 0f,
         0f,        0f,       0f,      1f);
 
     private static Matrix4x4 BradfordMatrix = new Matrix4x4(
@@ -101,21 +102,22 @@ internal static class IccTransforms
 
     private static IColorTransform BuildSrgbLinearToSrgbTransform()
     {
-        // sRGB OETF (linear → sRGB) as ICC parametric type 4:
-        // y = (a·x + b)^g + e for x ≥ d; else y = c·x + f
-        // Standard sRGB parameters:
-        // g = 1/2.4, a = 1, b = 0, c = 12.92, d = 0.0031308, e = -0.055, f = 0
-        const float G = 1.0f / 2.4f;
-        const float A = 1.0f;
-        const float B = 0.0f;
-        const float C = 12.92f;
-        const float D = 0.0031308f;
-        const float E = -0.055f;
-        const float F = 0.0f;
+        // Build ICC parametric type 4 TRC matching sRGB companding.
+        // For x < d: y = c * x + f
+        // For x >= d: y = (a * x + b)^g + e
+        // sRGB forward companding: if x <= 0.0031308 -> 12.92 * x; else 1.055 * x^(1/2.4) - 0.055
+        // In type 4, the 1.055 factor is inside the power: a^g == 1.055, so a == 1.055^(2.4) ≈ 1.13712.
+        float g = 1.0f / 2.4f;
+        float a = 1.13712f; // 1.055^(2.4)
+        float b = 0.0f;
+        float c = 12.92f;
+        float d = 0.0031308f;
+        float e = -0.055f;
+        float f = 0.0f;
 
-        var srgbParametric = IccTrc.FromParametric(
-            IccTrcParametricType.PowerWithLinearSegmentAndOffset,
-            [G, A, B, C, D, E, F]);
+        float[] parameters = [g, a, b, c, d, e, f];
+
+        var srgbParametric = IccTrc.FromParametric(IccTrcParametricType.PowerWithLinearSegmentAndOffset, parameters);
 
         return new PerChannelTrcTransform(srgbParametric, srgbParametric, srgbParametric);
     }

@@ -11,13 +11,20 @@ namespace PdfReader.Color.Transform;
 /// </summary>
 internal sealed class MatrixColorTransform : IColorTransform
 {
+    private readonly Matrix4x4 _matrix;
+    private readonly Vector4 _col1;
+    private readonly Vector4 _col2;
+    private readonly Vector4 _col3;
+    private readonly Vector4 _col4;
+
     /// <summary>
     /// Initializes a new instance of the <see cref="MatrixColorTransform"/> class with a specified 4x4 matrix.
     /// </summary>
     /// <param name="matrix">The transformation matrix.</param>
     public MatrixColorTransform(Matrix4x4 matrix)
     {
-        Matrix = matrix;
+        _matrix = matrix;
+        (_col1, _col2, _col3, _col4) = DecomposeColumns(_matrix);
     }
 
     /// <summary>
@@ -42,7 +49,8 @@ internal sealed class MatrixColorTransform : IColorTransform
             matrix4X4.M43 = offset[2];
         }
 
-        Matrix = matrix4X4;
+        _matrix = matrix4X4;
+        (_col1, _col2, _col3, _col4) = DecomposeColumns(_matrix);
     }
 
     /// <summary>
@@ -125,13 +133,9 @@ internal sealed class MatrixColorTransform : IColorTransform
             m44 = 1;
         }
 
-        Matrix = new Matrix4x4(m11, m12, m13, m14, m21, m22, m23, m24, m31, m32, m33, m34, m41, m42, m43, m44);
+        _matrix = new Matrix4x4(m11, m12, m13, m14, m21, m22, m23, m24, m31, m32, m33, m34, m41, m42, m43, m44);
+        (_col1, _col2, _col3, _col4) = DecomposeColumns(_matrix);
     }
-
-    /// <summary>
-    /// Gets the transformation matrix used for color conversion.
-    /// </summary>
-    public Matrix4x4 Matrix { get; }
 
     /// <summary>
     /// Transforms the input color vector using the transformation matrix.
@@ -141,6 +145,30 @@ internal sealed class MatrixColorTransform : IColorTransform
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public Vector4 Transform(Vector4 color)
     {
-        return Vector4.Transform(color, Matrix);
+        // Using precomputed column vectors for efficient matrix-vector multiplication.
+        Vector4 vx = new Vector4(color.X);
+        Vector4 vy = new Vector4(color.Y);
+        Vector4 vz = new Vector4(color.Z);
+        Vector4 vw = new Vector4(color.W);
+
+        Vector4 res = (vx * _col1) + (vy * _col2);
+        res = res + (vz * _col3);
+        res = res + (vw * _col4);
+        return res;
+    }
+
+    /// <summary>
+    /// Decomposes a Matrix4x4 into its column vectors.
+    /// </summary>
+    /// <param name="matrix">Source matrix.</param>
+    /// <returns>Tuple of four columns (c1, c2, c3, c4).</returns>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static (Vector4 c1, Vector4 c2, Vector4 c3, Vector4 c4) DecomposeColumns(Matrix4x4 matrix)
+    {
+        Vector4 c1 = new Vector4(matrix.M11, matrix.M12, matrix.M13, matrix.M14);
+        Vector4 c2 = new Vector4(matrix.M21, matrix.M22, matrix.M23, matrix.M24);
+        Vector4 c3 = new Vector4(matrix.M31, matrix.M32, matrix.M33, matrix.M34);
+        Vector4 c4 = new Vector4(matrix.M41, matrix.M42, matrix.M43, matrix.M44);
+        return (c1, c2, c3, c4);
     }
 }

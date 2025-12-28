@@ -80,7 +80,7 @@ internal sealed class PerChannelTrcTransform : IColorTransform
                 IccTrcEvaluator.EvaluateTrc(_channel2Trc, color.Y),
                 IccTrcEvaluator.EvaluateTrc(_channel3Trc, color.Z),
                 IccTrcEvaluator.EvaluateTrc(_channel4Trc, color.W)),
-            
+
             _ => color,
         };
     }

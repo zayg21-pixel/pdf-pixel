@@ -6,7 +6,7 @@ namespace Benchmarks
     {
         public static void Main(string[] args)
         {
-            // Run all benchmarks in the assembly, including JpgIdctTransformBench and others.
+            //// Run all benchmarks in the assembly, including JpgIdctTransformBench and others.
             BenchmarkSwitcher.FromAssembly(typeof(Program).Assembly).Run(args);
         }
     }
