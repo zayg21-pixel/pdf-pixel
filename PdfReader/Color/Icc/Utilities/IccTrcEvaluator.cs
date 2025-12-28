@@ -33,29 +33,7 @@ internal static class IccTrcEvaluator
             }
             case IccTrcType.Sampled:
             {
-                float[] samples = trc.Samples;
-                if (samples == null || samples.Length == 0)
-                {
-                    return x; // Placeholder sampled curve – treat as linear.
-                }
-
-                float scaled = x * (samples.Length - 1);
-                int index0 = (int)scaled;
-
-                if (index0 < 0)
-                {
-                    return samples[0];
-                }
-                else if (index0 >= samples.Length - 1)
-                {
-                    return samples[samples.Length - 1];
-                }
-
-                int index1 = index0 + 1;
-                float fraction = scaled - index0;
-                float v0 = samples[index0];
-                float v1 = samples[index1];
-                return v0 + (v1 - v0) * fraction;
+                return EvaluateSampled(x, trc.Samples);
             }
             case IccTrcType.Parametric:
             {
@@ -68,6 +46,43 @@ internal static class IccTrcEvaluator
                 return x;
             }
         }
+    }
+
+    /// <summary>
+    /// Evaluates a sampled curve at the specified normalized position using linear interpolation.
+    /// </summary>
+    /// <remarks>If x is less than 0, the first sample value is returned. If x is greater than or equal to 1,
+    /// the last sample value is returned. For values of x between 0 and 1, the method performs linear interpolation
+    /// between the nearest sample points.</remarks>
+    /// <param name="x">The normalized position at which to evaluate the curve. Typically in the range [0, 1].</param>
+    /// <param name="samples">An array of sample values representing the curve to be evaluated. Must not be null or empty.</param>
+    /// <returns>The interpolated value of the curve at the specified position. If the samples array is null or empty, returns
+    /// the input value x.</returns>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static float EvaluateSampled(float x, float[] samples)
+    {
+        if (samples == null || samples.Length == 0)
+        {
+            return x; // Placeholder sampled curve – treat as linear.
+        }
+
+        float scaled = x * (samples.Length - 1);
+        int index0 = (int)scaled;
+
+        if (index0 < 0)
+        {
+            return samples[0];
+        }
+        else if (index0 >= samples.Length - 1)
+        {
+            return samples[samples.Length - 1];
+        }
+
+        int index1 = index0 + 1;
+        float fraction = scaled - index0;
+        float v0 = samples[index0];
+        float v1 = samples[index1];
+        return v0 + (v1 - v0) * fraction;
     }
 
     /// <summary>
@@ -210,14 +225,14 @@ internal static class IccTrcEvaluator
             float m = mant * (1.0f / (1 << 23)); // m in [1,2)
 
             // t = (m - 1) / (m + 1) in ~[-0.1716, 0.1716]
-            float t = (m - 1.0f) / (m + 1.0f);
+            //float t = (m - 1.0f) / (m + 1.0f);
+            float t = 1 - 2 / (m + 1.0f);
             float t2 = t * t;
             float t3 = t2 * t;
-            //float t5 = t3 * t2; // unused, can add additional term if higher accuracy needed
+            float t5 = t3 * t2;
 
             // ln(m) ≈ 2(t + t^3/3 + t^5/5)  [odd atanh series], fast and low-bias on this range.
-            //float lnM = 2.0f * (t + (1.0f / 3.0f) * t3 + (1.0f / 5.0f) * t5);
-            float lnM = 2.0f * (t + (1.0f / 3.0f) * t3);
+            float lnM = 2.0f * (t + (1.0f / 3.0f) * t3 + (1.0f / 5.0f) * t5);
             float log2m = lnM * InvLn2;
             return exp + log2m;
         }
