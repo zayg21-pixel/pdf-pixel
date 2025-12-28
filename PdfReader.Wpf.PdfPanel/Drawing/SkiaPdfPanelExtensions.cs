@@ -74,7 +74,7 @@ namespace PdfReader.Wpf.PdfPanel.Drawing
 
                 if (picture.Picture == null)
                 {
-                    // TODO: move to separate common method with caching check
+                    // TODO: [HIGH] move to separate common method with caching check
                     var page = request.VisiblePages.First(x => x.PageNumber == picture.PageNumber);
                     var destRect = page.GetSkScaledBounds(request.Scale);
                     lock (picture.DisposeLocker)

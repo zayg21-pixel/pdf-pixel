@@ -200,7 +200,7 @@ internal class SfntFontTableParser
             }
         }
 
-        // TODO: Add support for format 10/12
+        // TODO: [HIGH] Add support for format 10/12
         return unicodeToGid;
     }
 

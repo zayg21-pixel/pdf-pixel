@@ -89,7 +89,7 @@ namespace PdfReader.Wpf.PdfPanel.Rendering
             var parameters = new PdfRenderingParameters { ScaleFactor = (float)scale, PreviewMode = false };
             pdfPage.Draw(canvas, parameters);
 
-            // TODO: move to view model of Demo app
+            // TODO: [HIGH] move to view model of Demo app
             //var chars = pdfPage.ExtractText();
             //var chunker = new TextExtraction.PdfTextChunker();
             //var words = chunker.ChunkCharacters(chars);

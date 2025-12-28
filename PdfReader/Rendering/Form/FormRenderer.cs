@@ -39,7 +39,7 @@ public class FormRenderer : IFormRenderer
         canvas.Concat(formXObject.Matrix);
 
         // Clip to /BBox
-        canvas.ClipRect(formXObject.BBox, antialias: true);
+        canvas.ClipRect(formXObject.BBox, antialias: !graphicsState.RenderingParameters.PreviewMode);
 
         var localGs = new PdfGraphicsState(graphicsState.Page, graphicsState.RecursionGuard, graphicsState.RenderingParameters);
         localGs.CTM = formXObject.Matrix;

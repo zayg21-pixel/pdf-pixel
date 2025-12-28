@@ -136,7 +136,7 @@ public class ImageRenderer : IImageRenderer
             return;
         }
 
-        // TODO: apply patterns to stencil image 
+        // TODO: [MEDIUM] apply patterns to stencil image 
 
         using var alphaMask = decoder.Decode(state, canvas);
         if (alphaMask == null)
@@ -153,7 +153,7 @@ public class ImageRenderer : IImageRenderer
         // it's important to invert mask/target here, otherwise image would be misaligned
         using var fillPaint = PdfPaintFactory.CreateMaskImageFillPaint(state);
 
-        using var maskPaint = PdfPaintFactory.CreateMaskImagePaint();
+        using var maskPaint = PdfPaintFactory.CreateMaskImagePaint(state);
         maskPaint.ColorFilter = ImagePostProcessingFilters.BuildImageFilter(pdfImage);
 
         canvas.SaveLayer(destRect, layerPaint);
@@ -214,10 +214,10 @@ public class ImageRenderer : IImageRenderer
         }
 
         using var layerPaint = PdfPaintFactory.CreateCompositionLayerPaint(state);
-        using var imagePaint = PdfPaintFactory.CreateMaskImagePaint();
+        using var imagePaint = PdfPaintFactory.CreateMaskImagePaint(state);
         imagePaint.ColorFilter = ImagePostProcessingFilters.BuildImageFilter(pdfImage);
 
-        using var maskPaint = PdfPaintFactory.CreateImageMaskPaint();
+        using var maskPaint = PdfPaintFactory.CreateImageMaskPaint(state);
         maskPaint.ColorFilter = ImagePostProcessingFilters.BuildImageFilter(pdfImage.SoftMask);
 
         var sampling = PdfPaintFactory.GetImageSamplingOptions(pdfImage, state);

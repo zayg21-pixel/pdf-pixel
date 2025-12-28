@@ -182,7 +182,8 @@ public class PdfCompositeFont : PdfFontBase
 
         var result = PdfCMapParser.ParseCMap(data, Document);
         // PdfTokens.CMapNameKey
-        var cmapNameToken = PdfString.FromString("CMapName"); // TODO: we need to cleanup the rest here, some other properties are coming from CMap
+        
+        var cmapNameToken = PdfString.FromString("CMapName"); // TODO: [HIGH] we need to cleanup the rest here, some other properties are coming from CMap
         var cmapName = encodingObj.Dictionary.GetName(cmapNameToken);
 
         if (!cmapName.IsEmpty)

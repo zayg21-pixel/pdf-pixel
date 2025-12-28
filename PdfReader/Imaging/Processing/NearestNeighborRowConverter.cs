@@ -11,13 +11,12 @@ internal sealed class NearestNeighborRowConverter : IRowConverter
     private readonly int _dstWidth;
     private readonly int _srcHeight;
     private readonly int _dstHeight;
-    private readonly float _scale;
 
     private readonly int[] _srcRowForDest;
     private readonly int[] _srcXForDest;
     private int _nextDestRowToWrite;
 
-    public NearestNeighborRowConverter(int components, int bitsPerComponent, int srcWidth, int dstWidth, int srcHeight, int dstHeight, float scale)
+    public NearestNeighborRowConverter(int components, int bitsPerComponent, int srcWidth, int dstWidth, int srcHeight, int dstHeight)
     {
         _components = components;
         _bitsPerComponent = bitsPerComponent;
@@ -25,10 +24,9 @@ internal sealed class NearestNeighborRowConverter : IRowConverter
         _dstWidth = dstWidth;
         _srcHeight = srcHeight;
         _dstHeight = dstHeight;
-        _scale = scale;
 
-        _srcRowForDest = PrecomputeSrcIndices(_srcHeight, _dstHeight, _scale);
-        _srcXForDest = PrecomputeSrcIndices(_srcWidth, _dstWidth, _scale);
+        _srcRowForDest = PrecomputeSrcIndices(_srcHeight, _dstHeight);
+        _srcXForDest = PrecomputeSrcIndices(_srcWidth, _dstWidth);
         _nextDestRowToWrite = 0;
     }
 
@@ -102,9 +100,11 @@ internal sealed class NearestNeighborRowConverter : IRowConverter
         return true;
     }
 
-    private static int[] PrecomputeSrcIndices(int srcLength, int dstLength, float scale)
+    private static int[] PrecomputeSrcIndices(int srcLength, int dstLength)
     {
         var map = new int[dstLength];
+        float scale = (float)dstLength / srcLength;
+
         for (int d = 0; d < dstLength; d++)
         {
             float srcPos = ((d + 0.5f) / scale) - 0.5f;

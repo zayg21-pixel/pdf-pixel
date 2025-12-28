@@ -1,4 +1,7 @@
-﻿namespace PdfReader.Models;
+﻿using SkiaSharp;
+using System;
+
+namespace PdfReader.Models;
 
 /// <summary>
 /// Rendering parameters for <see cref="PdfPage"/>.
@@ -17,5 +20,44 @@ public class PdfRenderingParameters
     /// </summary>
     public float? ScaleFactor { get; set; }
 
-    public bool ForceAntiAliasing { get; set; } // TODO: use for type 3 fonts
+    /// <summary>
+    /// Force image interpolation even if not downscaling.
+    /// </summary>
+    public bool ForceImageInterpolation { get; set; }
+
+    /// <summary>
+    /// Returns a scaled size for the given original size based on the current
+    /// </summary>
+    /// <param name="size">Source size.</param>
+    /// <param name="ctm">Current transformation matrix.</param>
+    /// <returns>Null if size should not be changed, downscaled size otherwise.</returns>
+    public SKSizeI? GetScaledSize(SKSizeI size, SKMatrix ctm)
+    {
+        if (!ScaleFactor.HasValue)
+        {
+            return default;
+        }
+
+        var unitMapped = ctm.MapPoint(new SKPoint(1, 1)) - ctm.MapPoint(new SKPoint(0, 0));
+
+        float absParamScale = Math.Abs(ScaleFactor.Value);
+
+        float unitPixelsX = Math.Abs(unitMapped.X) * absParamScale;
+        float unitPixelsY = Math.Abs(unitMapped.Y) * absParamScale;
+
+        float relScaleX = unitPixelsX / size.Width;
+        float relScaleY = unitPixelsY / size.Height;
+
+        float maxScale = Math.Max(relScaleX, relScaleY);
+
+        // only down-scaling is supported
+        if (maxScale < 1f)
+        {
+            var newWidth = Math.Max(1, (int)Math.Floor(size.Width * maxScale));
+            var newHeight = Math.Max(1, (int)Math.Floor(size.Height * maxScale));
+            return new SKSizeI(newWidth, newHeight);
+        }
+
+        return default;
+    }
 }

@@ -4,7 +4,7 @@ using System.IO;
 
 namespace PdfReader.Encryption
 {
-    // TODO: implement missing decryptions
+    // TODO: [MEDIUM] implement missing decryptions
     /// <summary>
     /// Base decryptor that exposes unified byte decryption for both streams and string objects.
     /// Implementations derive file and object specific keys internally.
@@ -42,7 +42,7 @@ namespace PdfReader.Encryption
             stream.CopyTo(memoryStream);
             var decryptedBytes = DecryptString(memoryStream.ToArray(), reference);
             return new MemoryStream(decryptedBytes.ToArray());
-        } // TODO: need to optimize to avoid double memory copy
+        } // TODO: [MEDIUM] need to optimize to avoid double memory copy
 
         protected string Password { get; private set; }
 

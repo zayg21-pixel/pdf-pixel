@@ -102,20 +102,20 @@ public static class PdfPaintFactory
     /// </summary>
     /// <returns></returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static SKPaint CreateMaskImagePaint()
+    public static SKPaint CreateMaskImagePaint(PdfGraphicsState state)
     {
-        return new SKPaint { IsAntialias = true };
+        return new SKPaint { IsAntialias = !state.RenderingParameters.PreviewMode };
     }
 
     /// <summary>
     /// Image mask paint (DstIn blend mode).
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static SKPaint CreateImageMaskPaint()
+    public static SKPaint CreateImageMaskPaint(PdfGraphicsState state)
     {
         return new SKPaint
         {
-            IsAntialias = true,
+            IsAntialias = !state.RenderingParameters.PreviewMode,
             BlendMode = SKBlendMode.DstIn,
         };
     }
@@ -129,7 +129,7 @@ public static class PdfPaintFactory
     {
         return new SKPaint
         {
-            IsAntialias = true,
+            IsAntialias = !state.RenderingParameters.PreviewMode,
             Style = SKPaintStyle.Fill,
             Color = state.FillPaint.Color,
             BlendMode = SKBlendMode.SrcIn,
@@ -145,7 +145,7 @@ public static class PdfPaintFactory
     {
         return new SKPaint
         {
-            IsAntialias = true,
+            IsAntialias = !state.RenderingParameters.PreviewMode,
         };
     }
 
@@ -166,11 +166,11 @@ public static class PdfPaintFactory
     /// </summary>
     /// <param name="background">Background color.</param>
     /// <returns></returns>
-    public static SKPaint CreateBackgroundPaint(SKColor background)
+    public static SKPaint CreateBackgroundPaint(SKColor background, PdfGraphicsState state)
     {
         return new SKPaint
         {
-            IsAntialias = true,
+            IsAntialias = !state.RenderingParameters.PreviewMode,
             Style = SKPaintStyle.Fill,
             Color = background
         };
@@ -180,11 +180,11 @@ public static class PdfPaintFactory
     /// Create paint for mask application (DstIn blend mode)
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static SKPaint CreateMaskPaint()
+    public static SKPaint CreateMaskPaint(PdfGraphicsState state)
     {
         return new SKPaint
         {
-            IsAntialias = true,
+            IsAntialias = !state.RenderingParameters.PreviewMode,
             BlendMode = SKBlendMode.DstIn,
         };
     }
@@ -221,8 +221,8 @@ public static class PdfPaintFactory
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static SKSamplingOptions GetImageSamplingOptions(PdfImage image, PdfGraphicsState state)
     {
-        // TODO: this is incorrect, we need to consider effective scale factor
-        if (state.RenderingParameters.ScaleFactor < 1 || state.RenderingParameters.PreviewMode)
+        if (state.RenderingParameters.GetScaledSize(new SKSizeI(image.Width, image.Height), state.CTM).HasValue
+            || state.RenderingParameters.PreviewMode || state.RenderingParameters.ForceImageInterpolation)
         {
             return new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.None);
         }

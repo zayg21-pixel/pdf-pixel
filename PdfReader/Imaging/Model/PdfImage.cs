@@ -139,7 +139,6 @@ public class PdfImage
         if (bitsPerComponent == 0)
         {
             // allowed for 1 bit images.
-            // TODO: for JPX, when added support, bitsPerComponent can be 0
             bitsPerComponent = 1;
         }
 

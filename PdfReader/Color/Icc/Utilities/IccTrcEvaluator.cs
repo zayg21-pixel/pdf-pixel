@@ -1,4 +1,5 @@
 ﻿using PdfReader.Color.Icc.Model;
+using PdfReader.Functions;
 using System;
 using System.Runtime.CompilerServices;
 
@@ -29,7 +30,7 @@ internal static class IccTrcEvaluator
         {
             case IccTrcType.Gamma:
             {
-                return FastPowPade.Evaluate(x, trc.Gamma);
+                return MathF.Pow(x, trc.Gamma);
             }
             case IccTrcType.Sampled:
             {
@@ -105,7 +106,7 @@ internal static class IccTrcEvaluator
                     return x;
                 }
                 float g = parameters[0];
-                return FastPowPade.Evaluate(x, g);
+                return MathF.Pow(x, g);
             }
             case IccTrcParametricType.PowerWithOffset:
             {
@@ -121,7 +122,7 @@ internal static class IccTrcEvaluator
                 {
                     return 0f;
                 }
-                return FastPowPade.Evaluate(a * x + b, g);
+                return MathF.Pow(a * x + b, g);
             }
             case IccTrcParametricType.PowerWithOffsetAndC:
             {
@@ -134,7 +135,7 @@ internal static class IccTrcEvaluator
                 float b = parameters[2];
                 float c = parameters[3];
                 float breakpoint = -b / (a == 0f ? 1e-20f : a);
-                return x < breakpoint ? c : FastPowPade.Evaluate(a * x + b, g) + c;
+                return x < breakpoint ? c : MathF.Pow(a * x + b, g) + c;
             }
             case IccTrcParametricType.PowerWithLinearSegment:
             {
@@ -147,7 +148,7 @@ internal static class IccTrcEvaluator
                 float b = parameters[2];
                 float c = parameters[3];
                 float d = parameters[4];
-                return x < d ? c * x : FastPowPade.Evaluate(a * x + b, g);
+                return x < d ? c * x : MathF.Pow(a * x + b, g);
             }
             case IccTrcParametricType.PowerWithLinearSegmentAndOffset:
             {
@@ -162,102 +163,12 @@ internal static class IccTrcEvaluator
                 float d = parameters[4];
                 float e = parameters[5];
                 float f = parameters[6];
-                return x < d ? c * x + f : FastPowPade.Evaluate(a * x + b, g) + e;
+                return x < d ? c * x + f : MathF.Pow(a * x + b, g) + e;
             }
             default:
             {
                 return x;
             }
-        }
-    }
-
-    /// <summary>
-    /// Fast approximation of x^p on [0,1] using range reduction and Pade series that converge fast.
-    /// x^p = 2^(p * log2(x)).
-    /// - log2(x): exponent/mantissa split with normalization to m in [sqrt(0.5), sqrt(2)],
-    ///   then ln(m) via odd atanh series (Pade-like) in t=(m-1)/(m+1), converted to log2.
-    /// - exp2(y): y = k + f with k = round(y), f in [-0.5, 0.5]. Use Pade [2/2] on u = f*ln2.
-    /// Pade based method is 3-4 times faster than MathF.Pow with good accuracy for TRC use (around ~0.1 percent difference), also
-    /// does not depend on different Pow implementations.
-    /// </summary>
-    private static class FastPowPade
-    {
-        private const float Ln2 = 0.693147180559945309417232121458176568f;
-        private const float InvLn2 = 1.4426950408889634073599246810018921f; // 1/ln(2)
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static unsafe int FloatToIntBits(float value)
-        {
-            return *(int*)&value;
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static unsafe float IntToFloatBits(int value)
-        {
-            return *(float*)&value;
-        }
-
-        /// <summary>
-        /// Approximate x^p for x in [0,1]. Inputs outside [0,1] are clamped.
-        /// </summary>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static float Evaluate(float x, float p)
-        {
-            if (x == 0)
-            {
-                return 0;
-            }
-
-            float log2x = ApproxLog2(x);
-            float y = p * log2x;
-            return ApproxExp2(y);
-        }
-
-        /// <summary>
-        /// log2(x) via exponent split
-        /// </summary>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static float ApproxLog2(float x)
-        {
-            int bits = FloatToIntBits(x);
-            int exp = ((bits >> 23) & 0xFF) - 127;
-            int mant = (bits & 0x7FFFFF) | (1 << 23);
-            float m = mant * (1.0f / (1 << 23)); // m in [1,2)
-
-            // t = (m - 1) / (m + 1) in ~[-0.1716, 0.1716]
-            //float t = (m - 1.0f) / (m + 1.0f);
-            float t = 1 - 2 / (m + 1.0f);
-            float t2 = t * t;
-            float t3 = t2 * t;
-            float t5 = t3 * t2;
-
-            // ln(m) ≈ 2(t + t^3/3 + t^5/5)  [odd atanh series], fast and low-bias on this range.
-            float lnM = 2.0f * (t + (1.0f / 3.0f) * t3 + (1.0f / 5.0f) * t5);
-            float log2m = lnM * InvLn2;
-            return exp + log2m;
-        }
-
-        /// <summary>
-        /// 2^y via y = k + f, k = round(y), f in [-0.5, 0.5].
-        /// Pade [2/2] on u = f*ln2: exp(u) ≈ (1 + u/2 + u^2/10) / (1 - u/2 + u^2/10).
-        /// </summary>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static float ApproxExp2(float y)
-        {
-            int k = (int)MathF.Round(y);
-            float f = y - k;
-            float u = f * Ln2;
-            float u2 = u * u;
-
-            float num = 1.0f + 0.5f * u + 0.1f * u2;
-            float den = 1.0f - 0.5f * u + 0.1f * u2;
-            float ef = num / den;
-
-            int kk = k + 127;
-
-            int ik = kk << 23;
-            float twoPowK = IntToFloatBits(ik);
-            return twoPowK * ef;
         }
     }
 }

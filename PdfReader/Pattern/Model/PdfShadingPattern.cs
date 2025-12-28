@@ -42,7 +42,7 @@ public sealed class PdfShadingPattern : PdfPattern
     /// <summary>
     /// Gets the optional extended graphics state dictionary (may be null).
     /// </summary>
-    public PdfDictionary ExtGState { get; } // TODO: use
+    public PdfDictionary ExtGState { get; } // TODO: [LOW] use
 
     internal override void RenderPattern(SKCanvas canvas, PdfGraphicsState state, IRenderTarget renderTarget)
     {
@@ -56,20 +56,20 @@ public sealed class PdfShadingPattern : PdfPattern
             using var paint = PdfPaintFactory.CreateShadingPaint(state);
             canvas.Save();
 
-            canvas.ClipPath(renderTarget.ClipPath, SKClipOperation.Intersect, antialias: true);
+            canvas.ClipPath(renderTarget.ClipPath, SKClipOperation.Intersect, antialias: !state.RenderingParameters.PreviewMode);
 
             canvas.Concat(matrix);
 
             if (Shading.BBox.HasValue)
             {
-                canvas.ClipRect(Shading.BBox.Value, SKClipOperation.Intersect, antialias: true);
+                canvas.ClipRect(Shading.BBox.Value, SKClipOperation.Intersect, antialias: !state.RenderingParameters.PreviewMode);
             }
 
             if (Shading.Background != null)
             {
                 var colorSpace = state.Page.Cache.ColorSpace.ResolveByObject(Shading.ColorSpaceConverter);
                 var backgroundColor = colorSpace.ToSrgb(Shading.Background, state.RenderingIntent);
-                using var backgroundPaint = PdfPaintFactory.CreateBackgroundPaint(backgroundColor);
+                using var backgroundPaint = PdfPaintFactory.CreateBackgroundPaint(backgroundColor, state);
                 canvas.DrawRect(canvas.LocalClipBounds, backgroundPaint);
             }
 

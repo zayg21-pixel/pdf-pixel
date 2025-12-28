@@ -29,8 +29,6 @@ internal sealed class PdfImageRowProcessor : IDisposable
     private readonly PdfGraphicsState _state;
     private readonly SKCanvas _canvas;
 
-    private readonly int _srcWidth;
-    private readonly int _srcHeight;
     private readonly int _bitsPerComponent;
     private readonly int _components;
 
@@ -42,11 +40,8 @@ internal sealed class PdfImageRowProcessor : IDisposable
     private bool _initialized;
     private bool _completed;
 
-    private readonly bool _downscaleEnabled;
-    private readonly float _scale;
     private readonly int _width;
     private readonly int _height;
-    private int _lastWrittenDestRow = -1;
 
     private readonly IRowConverter _rowConverter;
     private byte[] _convertedRowBuffer;
@@ -58,12 +53,12 @@ internal sealed class PdfImageRowProcessor : IDisposable
         _state = state ?? throw new ArgumentNullException(nameof(state));
         _canvas = canvas;
 
-        _srcWidth = image.Width;
-        _srcHeight = image.Height;
+        var sourceWidth = image.Width;
+        var sourceHeight = image.Height;
         _bitsPerComponent = image.BitsPerComponent;
         _converter = image.ColorSpaceConverter ?? throw new InvalidOperationException("Color space converter must not be null for row processing.");
 
-        if (_srcWidth <= 0 || _srcHeight <= 0)
+        if (sourceWidth <= 0 || sourceHeight <= 0)
         {
             throw new ArgumentException("Image dimensions must be positive.");
         }
@@ -74,32 +69,18 @@ internal sealed class PdfImageRowProcessor : IDisposable
 
         _components = _converter.Components;
 
-        if (state.RenderingParameters.ScaleFactor.HasValue)
-        {
-            // Canvas is already transformed. Compute effective pixel size for unit square, then relative scale to actual image size.
-            SKMatrix m = canvas?.TotalMatrix ?? SKMatrix.CreateIdentity();
-            float unitPixelsX = (float)Math.Sqrt(m.ScaleX * m.ScaleX + m.SkewX * m.SkewX);
-            float unitPixelsY = (float)Math.Sqrt(m.ScaleY * m.ScaleY + m.SkewY * m.SkewY);
-            // Include RenderingParameters.ScaleFactor; use magnitude to handle negative scale.
-            float paramScale = state.RenderingParameters.ScaleFactor.Value;
-            float absParamScale = Math.Abs(paramScale);
-            unitPixelsX *= absParamScale;
-            unitPixelsY *= absParamScale;
-            float relScaleX = _srcWidth > 0 ? unitPixelsX / _srcWidth : 1f;
-            float relScaleY = _srcHeight > 0 ? unitPixelsY / _srcHeight : 1f;
-            float effectiveScale = Math.Max(relScaleX, relScaleY);
-            _scale = effectiveScale > 0f ? effectiveScale : 1f;
+        var downscaleSize = state.RenderingParameters.GetScaledSize(new SKSizeI(sourceWidth, sourceHeight), state.CTM);
 
-            _downscaleEnabled = _scale < 1f;
-            _width = _downscaleEnabled ? Math.Max(1, (int)Math.Floor(_srcWidth * _scale)) : _srcWidth;
-            _height = _downscaleEnabled ? Math.Max(1, (int)Math.Floor(_srcHeight * _scale)) : _srcHeight;
+        if (downscaleSize.HasValue)
+        {
+            _width = downscaleSize.Value.Width;
+            _height = downscaleSize.Value.Height;
+            _rowConverter = new NearestNeighborRowConverter(_components, _bitsPerComponent, sourceWidth, _width, sourceHeight, _height);
         }
         else
         {
-            _downscaleEnabled = false;
-            _scale = 1f;
-            _width = _srcWidth;
-            _height = _srcHeight;
+            _width = sourceWidth;
+            _height = sourceHeight;
         }
 
         if (ShouldConvertColor(_image))
@@ -131,11 +112,6 @@ internal sealed class PdfImageRowProcessor : IDisposable
                 iccProfile = iccBased.Profile.Bytes;
             }
             _pngBuilder.Init(palette, iccProfile);
-        }
-
-        if (_downscaleEnabled)
-        {
-            _rowConverter = new NearestNeighborRowConverter(_components, _bitsPerComponent, _srcWidth, _width, _srcHeight, _height, _scale);
         }
     }
 
@@ -246,7 +222,7 @@ internal sealed class PdfImageRowProcessor : IDisposable
                 break;
         }
 
-        if (_downscaleEnabled)
+        if (_rowConverter != null)
         {
             int outLen = (_width * _components * _bitsPerComponent + 7) / 8;
             _convertedRowBuffer = new byte[outLen];
@@ -263,12 +239,7 @@ internal sealed class PdfImageRowProcessor : IDisposable
             throw new InvalidOperationException("InitializeBuffer must be called before WriteRow.");
         }
 
-        if (rowIndex < 0 || rowIndex >= _srcHeight)
-        {
-            throw new ArgumentOutOfRangeException(nameof(rowIndex));
-        }
-
-        if (_downscaleEnabled)
+        if (_rowConverter != null)
         {
             if (!_rowConverter.TryConvertRow(rowIndex, decodedRow, _convertedRowBuffer))
             {

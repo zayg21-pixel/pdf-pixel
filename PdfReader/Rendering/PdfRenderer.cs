@@ -32,7 +32,6 @@ public class PdfRenderer : IPdfRenderer
     private readonly IImageRenderer _imageRenderer;
     private readonly IFormRenderer _formRenderer;
     private readonly IShadingRenderer _shadingRenderer;
-    private readonly PdfRenderingParameters _pdfRenderingParameters;
 
     internal PdfRenderer(ILoggerFactory loggerFactory)
     {

@@ -37,7 +37,7 @@ internal static partial class PdfShadingBuilder
         using var pictureRecorder = new SKPictureRecorder();
         using var canvas = pictureRecorder.BeginRecording(bounds);
 
-        using var basePaint = PdfPaintFactory.CreateShaderPaint(shading.AntiAlias);
+        using var basePaint = PdfPaintFactory.CreateShaderPaint(shading.AntiAlias && !state.RenderingParameters.PreviewMode);
         basePaint.Shader = shader;
 
         canvas.DrawPaint(basePaint);
@@ -81,7 +81,7 @@ internal static partial class PdfShadingBuilder
             reversedPositions[i] = 1 - reversedPositions[i];
         }
 
-        using var reversedPaint = PdfPaintFactory.CreateShaderPaint(shading.AntiAlias);
+        using var reversedPaint = PdfPaintFactory.CreateShaderPaint(shading.AntiAlias && !state.RenderingParameters.PreviewMode);
 
         using var reversedShader = SKShader.CreateTwoPointConicalGradient(
             reversedCenter0, reversedR0,
@@ -95,7 +95,7 @@ internal static partial class PdfShadingBuilder
         // second pass, draw outer surface part
         canvas.DrawPaint(reversedPaint);
 
-        using var basePaint = PdfPaintFactory.CreateShaderPaint(shading.AntiAlias);
+        using var basePaint = PdfPaintFactory.CreateShaderPaint(shading.AntiAlias && !state.RenderingParameters.PreviewMode);
 
         using var shader = SKShader.CreateTwoPointConicalGradient(
             center0, r0,

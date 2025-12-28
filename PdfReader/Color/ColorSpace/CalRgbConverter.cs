@@ -13,7 +13,7 @@ internal class CalRgbConverter : PdfColorSpaceConverter
 {
     public CalRgbConverter(float[] whitePoint, float[] blackPoint, float[] gamma, float[,] matrix3x3)
     {
-        // TODO: Handle blackPoint if needed, it's unused currently and seems to be ignored by all major PDF viewers.
+        // TODO: [LOW] Handle blackPoint if needed, it's unused currently and seems to be ignored by all major PDF viewers.
         Vector4 whitePointVector;
 
         if (whitePoint != null && whitePoint.Length >= 3)

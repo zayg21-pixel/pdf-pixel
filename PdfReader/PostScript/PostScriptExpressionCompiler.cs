@@ -5,7 +5,7 @@ using PdfReader.PostScript.Tokens;
 
 namespace PdfReader.PostScript
 {
-    // TODO: cleanup and add missing operators
+    // TODO: [HIGH] cleanup and add missing operators
     /// <summary>
     /// Compiles a math-only subset of PostScript procedures into expression tree delegates for PDF Functions.
     /// Produces a vector delegate Action<float[], float[]> where inputs come from the first array in the order

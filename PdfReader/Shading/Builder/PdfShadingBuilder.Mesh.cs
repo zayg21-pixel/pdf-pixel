@@ -50,7 +50,7 @@ internal static partial class PdfShadingBuilder
         using var recorder = new SKPictureRecorder();
         using var canvas = recorder.BeginRecording(meshBounds);
 
-        using var paint = PdfPaintFactory.CreateShaderPaint(shading.AntiAlias);
+        using var paint = PdfPaintFactory.CreateShaderPaint(shading.AntiAlias && !state.RenderingParameters.PreviewMode);
 
         // Batch draw all triangles in one call
         using var vertices = SKVertices.CreateCopy(SKVertexMode.Triangles, allPoints, allColors);
@@ -78,7 +78,7 @@ internal static partial class PdfShadingBuilder
         using var recorder = new SKPictureRecorder();
         using var canvas = recorder.BeginRecording(meshBounds);
 
-        using var paint = PdfPaintFactory.CreateShaderPaint(shading.AntiAlias);
+        using var paint = PdfPaintFactory.CreateShaderPaint(shading.AntiAlias && !state.RenderingParameters.PreviewMode);
 
         using var vertices = MeshEvaluator.CreateVerticesForPatches(patches, MaxTessellationVertices);
         canvas.DrawVertices(vertices, SKBlendMode.DstIn, paint);
@@ -104,7 +104,7 @@ internal static partial class PdfShadingBuilder
 
         SKRect meshBounds = ComputeMeshBounds(patches);
 
-        using var paint = PdfPaintFactory.CreateShaderPaint(shading.AntiAlias);
+        using var paint = PdfPaintFactory.CreateShaderPaint(shading.AntiAlias && !state.RenderingParameters.PreviewMode);
 
         using var recorder = new SKPictureRecorder();
         using var canvas = recorder.BeginRecording(meshBounds);

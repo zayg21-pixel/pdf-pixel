@@ -104,7 +104,7 @@ public sealed class SoftMaskDrawingScope : IDisposable
         if (_softMask.Subtype == PdfSoftMaskSubtype.Luminosity)
         {
             var backgroundColor = _softMask.GetBackgroundColor(_graphicsState.RenderingIntent);
-            using var backgroundPaint = PdfPaintFactory.CreateBackgroundPaint(backgroundColor);
+            using var backgroundPaint = PdfPaintFactory.CreateBackgroundPaint(backgroundColor, _graphicsState);
             recCanvas.DrawRect(_softMask.MaskForm.BBox, backgroundPaint);
         }
 
@@ -137,7 +137,7 @@ public sealed class SoftMaskDrawingScope : IDisposable
         }
 
         using var picture = recorder.EndRecording();
-        using var maskPaint = PdfPaintFactory.CreateMaskPaint();
+        using var maskPaint = PdfPaintFactory.CreateMaskPaint(_graphicsState);
 
         using var alphaFilter = _softMask.Subtype == PdfSoftMaskSubtype.Luminosity
             ? SKColorFilter.CreateLumaColor()

@@ -215,7 +215,7 @@ internal class CffSidGidMapper
                 }
             }
 
-            // TODO: we could also parse the Encoding table here for code->GID mapping.
+            // TODO: [MEDIUM] we could also parse the Encoding table here for code->GID mapping.
 
             PdfFontEncoding encoding = encodingOffset switch
             {

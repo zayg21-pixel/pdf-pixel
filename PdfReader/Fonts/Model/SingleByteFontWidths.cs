@@ -8,7 +8,7 @@ namespace PdfReader.Fonts.Model;
 /// Font width information for single-byte fonts (Type1, TrueType, MMType1, Type3).
 /// All widths are stored in user space units (PDF spec: multiply by WidthToUserSpaceCoeff).
 /// </summary>
-public class SingleByteFontWidths //TODO: need pre-defined for standard fonts
+public class SingleByteFontWidths //TODO: [HIGH] need pre-defined for standard fonts
 {
     /// <summary>
     /// Coefficient to convert PDF font units to user space units.

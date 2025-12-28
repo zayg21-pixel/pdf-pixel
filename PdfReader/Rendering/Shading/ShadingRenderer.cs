@@ -63,7 +63,7 @@ public class ShadingRenderer : IShadingRenderer
 
         if (shading.BBox.HasValue)
         {
-            canvas.ClipRect(shading.BBox.Value, SKClipOperation.Intersect, antialias: true);
+            canvas.ClipRect(shading.BBox.Value, SKClipOperation.Intersect, antialias: !state.RenderingParameters.PreviewMode);
         }
 
         if (shading.Background != null)
@@ -71,7 +71,7 @@ public class ShadingRenderer : IShadingRenderer
             var colorSpace = state.Page.Cache.ColorSpace.ResolveByObject(shading.ColorSpaceConverter);
             var backgroundColor = colorSpace.ToSrgb(shading.Background, state.RenderingIntent);
 
-            using var backgroundPaint = PdfPaintFactory.CreateBackgroundPaint(backgroundColor);
+            using var backgroundPaint = PdfPaintFactory.CreateBackgroundPaint(backgroundColor, state);
             canvas.DrawRect(canvas.LocalClipBounds, backgroundPaint);
         }
 
