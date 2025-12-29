@@ -1,4 +1,5 @@
 using PdfReader.Color.Icc.Utilities;
+using PdfReader.Functions;
 
 namespace PdfReader.Color.Icc.Model;
 
@@ -71,12 +72,30 @@ internal sealed class IccTrc
         Samples = samples;
         ParametricType = paramType;
         Parameters = parameters;
+
+        if (type == IccTrcType.Parametric)
+        {
+            TrcParameters = new IccTrcParameters(parameters, paramType);
+            Gamma = TrcParameters.Gamma;
+        }
+
+        Evaluator = IccTrcEvaluatorFactory.Create(this);
     }
 
     /// <summary>
     /// TRC kind discriminator.
     /// </summary>
     public IccTrcType Type { get; }
+
+    /// <summary>
+    /// Value evaluator for this TRC.
+    /// </summary>
+    public IIccTrcEvaluator Evaluator { get; }
+
+    /// <summary>
+    /// Named parameters for parametric TRC curves. Null for non-parametric types.
+    /// </summary>
+    public IccTrcParameters TrcParameters { get; }
 
     /// <summary>
     /// The gamma exponent when <see cref="Type"/> is <see cref="IccTrcType.Gamma"/> is true.
@@ -121,5 +140,27 @@ internal sealed class IccTrc
     public static IccTrc FromParametric(IccTrcParametricType type, float[] parameters)
     {
         return new IccTrc(IccTrcType.Parametric, 0f, null, type, parameters ?? System.Array.Empty<float>());
+    }
+
+    /// <summary>
+    /// Generates an array of evenly spaced sample values evaluated by the associated evaluator.
+    /// </summary>
+    /// <remarks>The samples are distributed uniformly in the range [0, 1], inclusive. The first element
+    /// corresponds to 0, and the last element corresponds to 1.</remarks>
+    /// <param name="sampleCount">The number of samples to generate. Must be greater than 1.</param>
+    /// <returns>An array of floating-point values representing the evaluated samples. The length of the array is equal to
+    /// sampleCount.</returns>
+    public float[] Sample(int sampleCount = 1024)
+    {
+        float[] samples = new float[sampleCount];
+        float scale = sampleCount - 1;
+
+        for (int i = 0; i < samples.Length; i++)
+        {
+            float value = i / scale;
+            samples[i] = Evaluator.Evaluate(value);
+        }
+
+        return samples;
     }
 }

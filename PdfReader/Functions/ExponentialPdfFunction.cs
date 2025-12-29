@@ -12,6 +12,7 @@ public sealed class ExponentialPdfFunction : PdfFunction
     private readonly float[] _c0;
     private readonly float[] _cDifference;
     private readonly float _exponent;
+    private readonly FastPowSeriesDegree3 _fastPow;
     private readonly int _componentCount;
     private readonly float[] _buffer;
 
@@ -29,6 +30,7 @@ public sealed class ExponentialPdfFunction : PdfFunction
         }
 
         _exponent = exponent;
+        _fastPow = new FastPowSeriesDegree3(_exponent);
         _buffer = new float[_componentCount];
     }
 
@@ -37,7 +39,7 @@ public sealed class ExponentialPdfFunction : PdfFunction
     {
         float x = Clamp(value, Domain, 0);
 
-        float xExp = _exponent <= 0f ? x : MathF.Pow(x, _exponent);
+        float xExp = _fastPow.Evaluate(x);
 
         for (int componentIndex = 0; componentIndex < _componentCount; componentIndex++)
         {

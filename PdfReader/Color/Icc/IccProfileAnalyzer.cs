@@ -144,8 +144,8 @@ internal static class IccProfileAnalyzer
         for (int i = 0; i < points; i++)
         {
             float x = i / (float)(points - 1);
-            float value1 = IccTrcEvaluator.EvaluateTrc(trc1, x);
-            float value2 = IccTrcEvaluator.EvaluateTrc(trc2, x);
+            float value1 = trc1.Evaluator.Evaluate(x);
+            float value2 = trc2.Evaluator.Evaluate(x);
 
             if (Math.Abs(value1 - value2) > tolerance)
             {

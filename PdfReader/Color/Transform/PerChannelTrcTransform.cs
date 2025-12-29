@@ -8,15 +8,12 @@ namespace PdfReader.Color.Transform;
 
 /// <summary>
 /// Implements <see cref="IColorTransform"/> using direct ICC TRC evaluation for per-channel color mapping.
-/// Uses <see cref="IccTrcEvaluator"/> for efficient curve evaluation without intermediate LUT generation.
+/// Uses <see cref="IIccTrcEvaluator"/> for efficient curve evaluation without intermediate LUT generation.
 /// Optimized for high-precision color transformations with minimal memory overhead.
 /// </summary>
 internal sealed class PerChannelTrcTransform : IColorTransform
 {
-    private readonly IccTrc _channel1Trc;
-    private readonly IccTrc _channel2Trc;
-    private readonly IccTrc _channel3Trc;
-    private readonly IccTrc _channel4Trc;
+    private readonly IIccTrcVectorEvaluator _vectorEvaluator;
     private readonly int _channelCount;
     private readonly bool _isPassthrough;
 
@@ -33,20 +30,29 @@ internal sealed class PerChannelTrcTransform : IColorTransform
             return;
         }
 
-        // Limit to maximum 4 channels and assign to individual fields for better performance
         _channelCount = Math.Min(trcs.Length, 4);
-        _channel1Trc = _channelCount > 0 ? trcs[0] : null;
-        _channel2Trc = _channelCount > 1 ? trcs[1] : null;
-        _channel3Trc = _channelCount > 2 ? trcs[2] : null;
-        _channel4Trc = _channelCount > 3 ? trcs[3] : null;
-        
-        // Check if all TRCs are identity (passthrough)
         _isPassthrough = IsPassthroughTransform(trcs, _channelCount);
+
+        if (!_isPassthrough)
+        {
+            IccTrc[] vectorizableTrcs = trcs;
+
+            if (!IccTrcVectorEvaluatorFactory.IsVectorizable(trcs))
+            {
+                vectorizableTrcs = new IccTrc[_channelCount];
+                for (int i = 0; i < _channelCount; i++)
+                {
+                    // Replace with sampled version
+                    vectorizableTrcs[i] = IccTrc.FromSamples(trcs[i].Sample());
+                }
+            }
+
+            _vectorEvaluator = IccTrcVectorEvaluatorFactory.Create(vectorizableTrcs);
+        }
     }
 
     /// <summary>
     /// Transforms the input color vector by evaluating each channel through its corresponding TRC.
-    /// Uses <see cref="IccTrcEvaluator.EvaluateTrc"/> with optimized Taylor series pow implementation.
     /// </summary>
     /// <param name="color">The input color vector (normalized 0-1 range expected).</param>
     /// <returns>The transformed color vector.</returns>
@@ -58,31 +64,7 @@ internal sealed class PerChannelTrcTransform : IColorTransform
             return color;
         }
 
-        return _channelCount switch
-        {
-            1 => new Vector4(
-                IccTrcEvaluator.EvaluateTrc(_channel1Trc, color.X), 
-                1.0f, 1.0f, 1.0f),
-            
-            2 => new Vector4(
-                IccTrcEvaluator.EvaluateTrc(_channel1Trc, color.X),
-                IccTrcEvaluator.EvaluateTrc(_channel2Trc, color.Y),
-                1.0f, 1.0f),
-            
-            3 => new Vector4(
-                IccTrcEvaluator.EvaluateTrc(_channel1Trc, color.X),
-                IccTrcEvaluator.EvaluateTrc(_channel2Trc, color.Y),
-                IccTrcEvaluator.EvaluateTrc(_channel3Trc, color.Z),
-                1.0f),
-            
-            4 => new Vector4(
-                IccTrcEvaluator.EvaluateTrc(_channel1Trc, color.X),
-                IccTrcEvaluator.EvaluateTrc(_channel2Trc, color.Y),
-                IccTrcEvaluator.EvaluateTrc(_channel3Trc, color.Z),
-                IccTrcEvaluator.EvaluateTrc(_channel4Trc, color.W)),
-
-            _ => color,
-        };
+        return _vectorEvaluator.Evaluate(color);
     }
 
     /// <summary>
