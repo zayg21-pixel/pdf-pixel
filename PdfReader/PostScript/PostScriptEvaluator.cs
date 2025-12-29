@@ -1,9 +1,9 @@
 using Microsoft.Extensions.Logging;
+using PdfReader.PostScript.Compiler;
 using PdfReader.PostScript.Tokens;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 
 namespace PdfReader.PostScript
 {
@@ -33,7 +33,6 @@ namespace PdfReader.PostScript
         {
             _logger = logger;
             _tokens = Tokenize(code);
-            string codeString = Encoding.ASCII.GetString(code.ToArray());
 
             if (appendExec)
             {
