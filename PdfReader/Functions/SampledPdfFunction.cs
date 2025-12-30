@@ -272,7 +272,7 @@ public sealed class SampledPdfFunction : PdfFunction
     /// <summary>
     /// For sampled functions, return sample grid coordinates for the requested dimension mapped to the domain.
     /// </summary>
-    public override float[] GetSamplingPoints(int dimension, float domainStart, float domainEnd, int fallbackSamplesCount = 256)
+    public override float[] GetSamplingPoints(int dimension, float domainStart, float domainEnd, int fallbackSamplesCount)
     {
         if (dimension < 0 || dimension >= _dimensions)
         {

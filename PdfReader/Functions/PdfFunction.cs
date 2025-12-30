@@ -124,7 +124,7 @@ public abstract class PdfFunction
     /// <param name="domainEnd">Domain end (inclusive).</param>
     /// <param name="fallbackSamplesCount">Fallback number of samples.</param>
     /// <returns>Array of sampling coordinates.</returns>
-    public virtual float[] GetSamplingPoints(int dimension, float domainStart, float domainEnd, int fallbackSamplesCount = 256)
+    public virtual float[] GetSamplingPoints(int dimension, float domainStart, float domainEnd, int fallbackSamplesCount)
     {
         if (fallbackSamplesCount < 2)
         {

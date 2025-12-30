@@ -138,9 +138,8 @@ public sealed class StitchingPdfFunction : PdfFunction
     /// <summary>
     /// For stitching functions, combine sampling points from each sub-function.
     /// Each sub-function is sampled in its Encode range and mapped back to the parent domain segment.
-    /// No extra points or heuristics are added.
     /// </summary>
-    public override float[] GetSamplingPoints(int dimension, float domainStart, float domainEnd, int fallbackSamplesCount = 256)
+    public override float[] GetSamplingPoints(int dimension, float domainStart, float domainEnd, int fallbackSamplesCount)
     {
         float start = domainStart;
         float end = domainEnd;
@@ -152,8 +151,6 @@ public sealed class StitchingPdfFunction : PdfFunction
         {
             return base.GetSamplingPoints(dimension, start, end, fallbackSamplesCount);
         }
-
-        int perSegmentCount = Math.Max(2, fallbackSamplesCount / Math.Max(1, segmentCount));
 
         for (int seg = 0; seg < segmentCount; seg++)
         {
@@ -171,7 +168,7 @@ public sealed class StitchingPdfFunction : PdfFunction
                 float e0 = _encode[2 * seg];
                 float e1 = _encode[2 * seg + 1];
 
-                float[] childSamples = child.GetSamplingPoints(dimension, e0, e1, perSegmentCount);
+                float[] childSamples = child.GetSamplingPoints(dimension, e0, e1, fallbackSamplesCount);
                 float denom = e1 - e0;
                 for (int i = 0; i < childSamples.Length; i++)
                 {
@@ -182,7 +179,7 @@ public sealed class StitchingPdfFunction : PdfFunction
             }
             else
             {
-                float[] segSamples = base.GetSamplingPoints(dimension, a, b, perSegmentCount);
+                float[] segSamples = base.GetSamplingPoints(dimension, a, b, fallbackSamplesCount);
                 for (int i = 0; i < segSamples.Length; i++)
                 {
                     points.Add(segSamples[i]);

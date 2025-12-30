@@ -88,11 +88,15 @@ internal static class IccTrcEvaluatorFactory
 
     private sealed class SampledTrcEvaluator : IIccTrcEvaluator
     {
+        private const int TargetSamples = 1024;
         private readonly float[] _samples;
+        private readonly float _scale;
 
         public SampledTrcEvaluator(float[] samples)
         {
-            _samples = samples ?? System.Array.Empty<float>();
+            var src = samples ?? System.Array.Empty<float>();
+            _samples = src.Length < TargetSamples ? SamplesUpsampler.UpsampleTo(src, TargetSamples) : src;
+            _scale = _samples.Length > 1 ? _samples.Length - 1 : 1f;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -103,23 +107,17 @@ internal static class IccTrcEvaluatorFactory
                 return x;
             }
 
-            float scaled = x * (_samples.Length - 1);
-            int index0 = (int)scaled;
-
-            if (index0 < 0)
+            float scaled = x * _scale;
+            int index = (int)scaled;
+            if (index < 0)
             {
                 return _samples[0];
             }
-            else if (index0 >= _samples.Length - 1)
+            if (index >= _samples.Length)
             {
                 return _samples[_samples.Length - 1];
             }
-
-            int index1 = index0 + 1;
-            float fraction = scaled - index0;
-            float v0 = _samples[index0];
-            float v1 = _samples[index1];
-            return v0 + (v1 - v0) * fraction;
+            return _samples[index];
         }
     }
 

@@ -4,6 +4,8 @@ using PdfReader.Imaging.Jpg.Decoding;
 using PdfReader.Imaging.Jpg.Model;
 using PdfReader.Imaging.Jpg.Readers;
 using SkiaSharp;
+using System;
+using System.IO;
 using System.Runtime.InteropServices;
 
 namespace Benchmarks

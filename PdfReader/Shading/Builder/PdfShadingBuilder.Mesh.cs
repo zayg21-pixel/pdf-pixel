@@ -15,8 +15,6 @@ namespace PdfReader.Shading;
 /// </summary>
 internal static partial class PdfShadingBuilder
 {
-    private const int MaxTessellationVertices = 32;
-
     /// <summary>
     /// Builds an SKPicture for Gouraud-shaded triangle mesh (Type 4 and Type 5).
     /// </summary>
@@ -66,6 +64,29 @@ internal static partial class PdfShadingBuilder
     /// <returns>SKShader instance or null if decoding or rendering fails.</returns>
     private static SKPicture BuildType7(PdfShading shading, PdfGraphicsState state)
     {
+        return BuildPatchMesh(shading, state);
+    }
+
+    /// <summary>
+    /// Builds an SKPicture for type 6 (Coons Patch Mesh) shading using SkiaSharp.
+    /// Uses MeshDecoder to extract patches, each with 12 control points.
+    /// </summary>
+    /// <param name="shading">Parsed shading model.</param>
+    /// <param name="state">Current graphics state.</param>
+    /// <returns>SKShader instance or null if decoding or rendering fails.</returns>
+    private static SKPicture BuildType6(PdfShading shading, PdfGraphicsState state)
+    {
+        return BuildPatchMesh(shading, state);
+    }
+
+    /// <summary>
+    /// Universal builder for both type 6 and 7 meshes.
+    /// </summary>
+    /// <param name="shading">Parsed shading model.</param>
+    /// <param name="state">Current graphics state.</param>
+    /// <returns>SKShader instance or null if decoding or rendering fails.</returns>
+    private static SKPicture BuildPatchMesh(PdfShading shading, PdfGraphicsState state)
+    {
         var decoder = new MeshDecoder(shading, state);
         List<MeshData> patches = decoder.Decode();
         if (patches.Count == 0)
@@ -80,42 +101,12 @@ internal static partial class PdfShadingBuilder
 
         using var paint = PdfPaintFactory.CreateShaderPaint(shading.AntiAlias && !state.RenderingParameters.PreviewMode);
 
-        using var vertices = MeshEvaluator.CreateVerticesForPatches(patches, MaxTessellationVertices);
+        int verticesPerPatch = state.RenderingParameters.PreviewMode
+            ? state.RenderingParameters.PreviewMaxTessellationVertices
+            : state.RenderingParameters.MaxTessellationVertices;
+
+        using var vertices = MeshEvaluator.CreateVerticesForPatches(patches, verticesPerPatch);
         canvas.DrawVertices(vertices, SKBlendMode.DstIn, paint);
-
-        return recorder.EndRecording();
-    }
-
-    /// <summary>
-    /// Builds an SKPicture for type 6 (Coons Patch Mesh) shading using SkiaSharp.
-    /// Uses MeshDecoder to extract patches, each with 12 control points.
-    /// </summary>
-    /// <param name="shading">Parsed shading model.</param>
-    /// <param name="state">Current graphics state.</param>
-    /// <returns>SKShader instance or null if decoding or rendering fails.</returns>
-    private static SKPicture BuildType6(PdfShading shading, PdfGraphicsState state)
-    {
-        var decoder = new MeshDecoder(shading, state);
-        var patches = decoder.Decode();
-        if (patches.Count == 0)
-        {
-            return null;
-        }
-
-        SKRect meshBounds = ComputeMeshBounds(patches);
-
-        using var paint = PdfPaintFactory.CreateShaderPaint(shading.AntiAlias && !state.RenderingParameters.PreviewMode);
-
-        using var recorder = new SKPictureRecorder();
-        using var canvas = recorder.BeginRecording(meshBounds);
-
-        foreach (var patch in patches)
-        {
-            var controlPoints = patch.Points;
-            Array.Resize(ref controlPoints, 12);
-
-            canvas.DrawPatch(controlPoints, patch.CornerColors, null, SKBlendMode.DstIn, paint);
-        }
 
         return recorder.EndRecording();
     }

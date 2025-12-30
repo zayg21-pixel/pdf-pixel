@@ -1,6 +1,5 @@
 ﻿using PdfReader.Color.Structures;
 using System;
-using System.Runtime.CompilerServices;
 
 namespace PdfReader.Color.Sampling;
 
@@ -15,6 +14,5 @@ public interface IRgbaSampler
     /// </summary>
     /// <param name="source">The source components array containing unconverted color.</param>
     /// <param name="destination">The destination <see cref="RgbaPacked"/> structure.</param>
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     void Sample(ReadOnlySpan<float> source, ref RgbaPacked destination);
 }

@@ -46,8 +46,12 @@ internal static partial class PdfShadingBuilder
             return null;
         }
 
-        float[] xSamples = function.GetSamplingPoints(0, domainX0, domainX1);
-        float[] ySamples = function.GetSamplingPoints(1, domainY0, domainY1);
+        int sampleCount = state.RenderingParameters.PreviewMode
+            ? state.RenderingParameters.PreviewModeFunctionSamples
+            : state.RenderingParameters.DefaultFunctionSamples;
+
+        float[] xSamples = function.GetSamplingPoints(0, domainX0, domainX1, sampleCount);
+        float[] ySamples = function.GetSamplingPoints(1, domainY0, domainY1, sampleCount);
 
         int bitmapWidth = Math.Max(1, xSamples.Length);
         int bitmapHeight = Math.Max(1, ySamples.Length);

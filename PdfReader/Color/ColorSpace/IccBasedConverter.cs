@@ -65,16 +65,5 @@ internal sealed class IccBasedConverter : PdfColorSpaceConverter
 
 
         return new ColorTransformSampler(_iccTransform.GetIntentTransform(intent));
-
-        //if (N == 3)
-        //{
-        //    return ClutTransform.Build(sampler, 3, 3);
-        //}
-        //else if (N == 4)
-        //{
-        //    return ClutTransform.Build(sampler, 3, [16, 16, 16, 8]);
-        //}
-
-        //return sampler;
     }
 }

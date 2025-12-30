@@ -26,6 +26,8 @@ internal sealed class FunctionColorTransform : IColorTransform
         _function = function;
     }
 
+    public bool IsIdentity => false;
+
     /// <summary>
     /// Transforms the input color vector using the provided pixel processor function.
     /// </summary>

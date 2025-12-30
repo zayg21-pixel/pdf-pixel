@@ -1,3 +1,4 @@
+using PdfReader.Color.Transform;
 using System.Numerics;
 using System.Runtime.CompilerServices;
 
@@ -17,15 +18,15 @@ internal sealed partial class ClutTransform
     private Vector4 Transform1D(Vector4 color)
     {
         Vector4 scaled = color * _scaleFactors;
-        scaled = Vector4.Clamp(scaled, Vector4.Zero, _maxValues);
+        scaled = Vector4.Clamp(scaled, Vector4.Zero, _scaleFactors);
 
         Vector4 floored = new Vector4((int)scaled.X, 0f, 0f, 0f);
         Vector4 frac = scaled - floored;
 
-        int baseOffset = (int)Vector4.Dot(floored, _strideVector);
+        int baseOffset = (int)ColorVectorUtilities.CustomDot(floored, _strideVector);
 
         float a = frac.X;
-        int sa = _strides[0];
+        int sa = floored.X == _scaleX ? 0 : _strides[0];
 
         float w0 = 1f - a;
         float w1 = a;
@@ -48,17 +49,17 @@ internal sealed partial class ClutTransform
     private Vector4 Transform2D(Vector4 color)
     {
         Vector4 scaled = color * _scaleFactors;
-        scaled = Vector4.Clamp(scaled, Vector4.Zero, _maxValues);
+        scaled = Vector4.Clamp(scaled, Vector4.Zero, _scaleFactors);
 
         Vector4 floored = new Vector4((int)scaled.X, (int)scaled.Y, 0f, 0f);
         Vector4 frac = scaled - floored;
 
-        int baseOffset = (int)Vector4.Dot(floored, _strideVector);
+        int baseOffset = (int)ColorVectorUtilities.CustomDot(floored, _strideVector);
 
         float a = frac.X;
-        int sa = _strides[0];
+        int sa = floored.X == _scaleX ? 0 : _strides[0];
         float b = frac.Y;
-        int sb = _strides[1];
+        int sb = floored.Y == _scaleY ? 0 : _strides[1];
 
         if (a < b)
         {
@@ -90,16 +91,16 @@ internal sealed partial class ClutTransform
     private Vector4 Transform3D(Vector4 color)
     {
         Vector4 scaled = color * _scaleFactors;
-        scaled = Vector4.Clamp(scaled, Vector4.Zero, _maxValues);
+        scaled = Vector4.Clamp(scaled, Vector4.Zero, _scaleFactors);
 
         Vector4 floored = new Vector4((int)scaled.X, (int)scaled.Y, (int)scaled.Z, 0f);
         Vector4 frac = scaled - floored;
 
-        int baseOffset = (int)Vector4.Dot(floored, _strideVector);
+        int baseOffset = (int)ColorVectorUtilities.CustomDot(floored, _strideVector);
 
-        float a = frac.X; int sa = _strides[0];
-        float b = frac.Y; int sb = _strides[1];
-        float c = frac.Z; int sc = _strides[2];
+        float a = frac.X; int sa = floored.X == _scaleX ? 0 : _strides[0];
+        float b = frac.Y; int sb = floored.Y == _scaleY ? 0 : _strides[1];
+        float c = frac.Z; int sc = floored.Z == _scaleZ ? 0 : _strides[2];
 
         if (a < b)
         {
@@ -144,17 +145,17 @@ internal sealed partial class ClutTransform
     private Vector4 Transform4D(Vector4 color)
     {
         Vector4 scaled = color * _scaleFactors;
-        scaled = Vector4.Clamp(scaled, Vector4.Zero, _maxValues);
+        scaled = Vector4.Clamp(scaled, Vector4.Zero, _scaleFactors);
 
         Vector4 floored = new Vector4((int)scaled.X, (int)scaled.Y, (int)scaled.Z, (int)scaled.W);
         Vector4 frac = scaled - floored;
 
-        int baseOffset = (int)Vector4.Dot(floored, _strideVector);
+        int baseOffset = (int)ColorVectorUtilities.CustomDot(floored, _strideVector);
 
-        float a = frac.X; int sa = _strides[0];
-        float b = frac.Y; int sb = _strides[1];
-        float c = frac.Z; int sc = _strides[2];
-        float d = frac.W; int sd = _strides[3];
+        float a = frac.X; int sa = floored.X == _scaleX ? 0 : _strides[0];
+        float b = frac.Y; int sb = floored.Y == _scaleY ? 0 : _strides[1];
+        float c = frac.Z; int sc = floored.Z == _scaleZ ? 0 : _strides[2];
+        float d = frac.W; int sd = floored.W == _scaleW ? 0 : _strides[3];
 
         if (a < b)
         {

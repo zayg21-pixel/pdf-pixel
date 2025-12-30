@@ -80,4 +80,21 @@ internal static class ColorVectorUtilities
             _ => new Vector4(data[0], data[1], data[2], data[3]),
         };
     }
+
+    /// <summary>
+    /// Custom dot product implementation for Vector4 that guarantees
+    /// that at least multiplication operation would be vectorized.
+    /// </summary>
+    /// <param name="a"></param>
+    /// <param name="b"></param>
+    /// <returns></returns>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static float CustomDot(Vector4 a, Vector4 b)
+    {
+        // .NET runtime prefers DPPS instruction for Dot, which is slower than VDPPS by a huge margin.
+        // to avoid that, we implement our own version of Dot that uses
+        // multiply + manual sum implementation which is surprisingly extremely fast and as fast as VDPPS.
+        var ab = a * b;
+        return ab.X + ab.Y + ab.Z + ab.W;
+    }
 }

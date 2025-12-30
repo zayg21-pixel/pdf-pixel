@@ -1,6 +1,10 @@
 ﻿using System.Collections.Generic;
+using System.Linq;
 using System.Numerics;
 using System.Runtime.CompilerServices;
+using System.Linq.Expressions;
+using System.Reflection;
+using System;
 
 namespace PdfReader.Color.Transform;
 
@@ -10,6 +14,8 @@ namespace PdfReader.Color.Transform;
 internal sealed class ChainedColorTransform : IColorTransform
 {
     private readonly IColorTransform[] _transforms;
+    private readonly bool _isIdentity;
+    private readonly PixelProcessorFunction _callback;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="ChainedColorTransform"/> class with the specified transforms.
@@ -33,8 +39,12 @@ internal sealed class ChainedColorTransform : IColorTransform
             }
         }
 
-        _transforms = flattenedTransforms.ToArray();
+        _transforms = flattenedTransforms.Where(x => !x.IsIdentity).ToArray();
+        _isIdentity = _transforms.Length == 0;
+        _callback = BuildCallback();
     }
+
+    public bool IsIdentity => _isIdentity;
 
     /// <summary>
     /// Applies the chained color transforms to the specified color vector in sequence.
@@ -42,20 +52,40 @@ internal sealed class ChainedColorTransform : IColorTransform
     /// <param name="color">The input color as a <see cref="Vector4"/>.</param>
     /// <returns>The transformed color as a <see cref="Vector4"/> after all chained transforms are applied.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public Vector4 Transform(Vector4 color)
+    public Vector4 Transform(Vector4 color) => _callback(color);
+
+    /// <summary>
+    /// Returns a compiled callback that applies all transforms without a runtime loop by composing direct calls.
+    /// </summary>
+    public PixelProcessorFunction GetTransformCallback()
     {
-        if (_transforms.Length == 0)
+        return _callback;
+    }
+
+    private PixelProcessorFunction BuildCallback()
+    {
+        if (_isIdentity)
         {
-            return color;
+            return static (Vector4 input) => input;
         }
 
-        ref IColorTransform currentTransform = ref _transforms[0];
-        for (int index = 0; index < _transforms.Length; index++)
+        // For small chains, hand-compose a straight-line delegate to eliminate expression overhead entirely.
+        // This also helps JIT devirtualize and inline calls for sealed types.
+        int length = _transforms.Length;
+
+        ParameterExpression inputParam = Expression.Parameter(typeof(Vector4), "input");
+        Expression body = inputParam;
+
+        for (int i = 0; i < length; i++)
         {
-            color = currentTransform.Transform(color);
-            currentTransform = ref Unsafe.Add(ref currentTransform, 1);
+            IColorTransform instance = _transforms[i];
+            Type concreteType = instance.GetType();
+            MethodInfo concreteMethod = concreteType.GetMethod(nameof(IColorTransform.Transform), types: [typeof(Vector4)]);
+            Expression target = Expression.Constant(instance, concreteType);
+            body = Expression.Call(target, concreteMethod, body);
         }
 
-        return color;
+        var lambda = Expression.Lambda<PixelProcessorFunction>(body, inputParam);
+        return lambda.Compile();
     }
 }

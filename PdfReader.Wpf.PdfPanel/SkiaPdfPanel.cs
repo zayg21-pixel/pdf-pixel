@@ -18,8 +18,6 @@ namespace PdfReader.Wpf.PdfPanel
     /// </summary>
     public partial class SkiaPdfPanel : FrameworkElement
     {
-        public static bool UseGpuAcceleration = false;
-
         private readonly VisualCollection children;
         private ConcurrentQueue<DrawingRequest> updateQueue;
         private SemaphoreSlim queueSemaphore;
@@ -270,13 +268,6 @@ namespace PdfReader.Wpf.PdfPanel
             PagesDrawingRequest previousPagesDrawingRequest = null;
             bool pagesUpdated = false;
             GRContext context = null;
-
-            if (UseGpuAcceleration)
-            {
-                using var d3dContext = new VorticeDirect3DContext();
-                using var backend = d3dContext.CreateBackendContext();
-                context = GRContext.CreateDirect3D(backend);
-            }
 
             while (true)
             {

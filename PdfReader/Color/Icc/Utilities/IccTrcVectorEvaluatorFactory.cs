@@ -12,19 +12,15 @@ namespace PdfReader.Color.Icc.Utilities
         /// <summary>
         /// Returns a vector evaluator for the given TRC definitions.
         /// </summary>
-        /// <param name="trcs">Array of ICC TRC definitions (1-4 channels).</param>
+        /// <param name="trcs">Array of ICC TRC definitions (0-4 channels).</param>
         /// <returns>Vector evaluator instance for the curves.</returns>
-        /// <exception cref="ArgumentException">If trcs is null, empty, or not all types match.</exception>
         public static IIccTrcVectorEvaluator Create(params IccTrc[] trcs)
         {
-            if (!IsVectorizable(trcs))
+            if (!IsVectorizable(trcs) || trcs.Length == 1)
             {
-                throw new ArgumentException("TRCs must be a non-empty array of 1 to 4 items, all with the same IccTrcType and (if parametric) IccTrcParametricType.", nameof(trcs));
+                return new PerChannelTrcVectorEvaluator(trcs);
             }
-            if (trcs.Length == 1)
-            {
-                return new SingleChannelTrcVectorEvaluator(trcs[0]);
-            }
+
             var type = trcs[0].Type;
             switch (type)
             {
@@ -82,7 +78,7 @@ namespace PdfReader.Color.Icc.Utilities
         /// </summary>
         /// <param name="trcs">Array of ICC TRC definitions (1-4 channels).</param>
         /// <returns>True if all TRCs have the same type and parametric type (if applicable), and the array is not empty; otherwise, false.</returns>
-        public static bool IsVectorizable(params IccTrc[] trcs)
+        private static bool IsVectorizable(params IccTrc[] trcs)
         {
             if (trcs == null || trcs.Length == 0 || trcs.Length > 4)
             {

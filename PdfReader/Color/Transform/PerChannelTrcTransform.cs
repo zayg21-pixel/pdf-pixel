@@ -35,21 +35,11 @@ internal sealed class PerChannelTrcTransform : IColorTransform
 
         if (!_isPassthrough)
         {
-            IccTrc[] vectorizableTrcs = trcs;
-
-            if (!IccTrcVectorEvaluatorFactory.IsVectorizable(trcs))
-            {
-                vectorizableTrcs = new IccTrc[_channelCount];
-                for (int i = 0; i < _channelCount; i++)
-                {
-                    // Replace with sampled version
-                    vectorizableTrcs[i] = IccTrc.FromSamples(trcs[i].Sample());
-                }
-            }
-
-            _vectorEvaluator = IccTrcVectorEvaluatorFactory.Create(vectorizableTrcs);
+            _vectorEvaluator = IccTrcVectorEvaluatorFactory.Create(trcs);
         }
     }
+
+    public bool IsIdentity => _isPassthrough;
 
     /// <summary>
     /// Transforms the input color vector by evaluating each channel through its corresponding TRC.

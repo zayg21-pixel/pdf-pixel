@@ -136,7 +136,10 @@ internal static partial class PdfShadingBuilder
         if (shading.Functions.Count > 0)
         {
             PdfFunction primaryFunction = shading.Functions[0];
-            float[] sampleXs = primaryFunction.GetSamplingPoints(0, domainStart, domainEnd);
+            int sampleCount = state.RenderingParameters.PreviewMode
+                ? state.RenderingParameters.PreviewModeFunctionSamples
+                : state.RenderingParameters.DefaultFunctionSamples;
+            float[] sampleXs = primaryFunction.GetSamplingPoints(0, domainStart, domainEnd, sampleCount);
 
             positions = new float[sampleXs.Length];
             colors = new SKColor[sampleXs.Length];

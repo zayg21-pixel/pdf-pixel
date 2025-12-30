@@ -56,7 +56,7 @@ public sealed class PostScriptPdfFunction : PdfFunction
     /// <inheritdoc />
     public override ReadOnlySpan<float> Evaluate(ReadOnlySpan<float> values)
     {
-        if (values == null || values.Length == 0)
+        if (values.IsEmpty)
         {
             return Array.Empty<float>();
         }

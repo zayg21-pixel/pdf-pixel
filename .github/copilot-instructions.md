@@ -12,6 +12,7 @@ General
 - Preserve existing comments; update them if they become outdated instead of removing.
 - NEVER remove TODO comments. Preserve every TODO exactly as written. If the surrounding code changes, you may add clarification after the existing TODO but must not delete or rewrite the original TODO marker or text.
 - BEFORE MODIFYING ANY EXISTING FILE: fetch and read its current contents fully, then apply minimal, targeted edits without wholesale rewrites. Do not overwrite user code unintentionally.
+- IMPORTANT: Do not change code that was not explicitly requested. Only modify the specific areas/files and behaviors the task asks for. Preserve unrelated code as-is.
 
 Formatting and compactness
 - Never place multiple statements on a single line. One statement per line.

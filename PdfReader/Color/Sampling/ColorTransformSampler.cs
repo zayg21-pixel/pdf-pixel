@@ -8,10 +8,12 @@ namespace PdfReader.Color.Sampling;
 internal sealed class ColorTransformSampler : IRgbaSampler
 {
     private readonly ChainedColorTransform _colorTransform;
+    private readonly PixelProcessorFunction _processorFunction;
 
     public ColorTransformSampler(ChainedColorTransform chainedTransform)
     {
         _colorTransform = chainedTransform;
+        _processorFunction = chainedTransform.GetTransformCallback();
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -19,7 +21,7 @@ internal sealed class ColorTransformSampler : IRgbaSampler
     {
         var value = ColorVectorUtilities.ToVector4WithOnePadding(source);
 
-        value = _colorTransform.Transform(value);
+        value = _processorFunction(value);
 
         ColorVectorUtilities.Load01ToRgba(value, ref destination);
     }

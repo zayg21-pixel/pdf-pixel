@@ -26,6 +26,26 @@ public class PdfRenderingParameters
     public bool ForceImageInterpolation { get; set; }
 
     /// <summary>
+    /// Default number of samples for Postscript and Exponential functions when the point count is unknown.
+    /// </summary>
+    public int DefaultFunctionSamples { get; set; } = 64;
+
+    /// <summary>
+    /// Number of samples for Postscript and Exponential functions in preview mode when the point count is unknown.
+    /// </summary>
+    public int PreviewModeFunctionSamples { get; set; } = 8;
+
+    /// <summary>
+    /// Maximum number of tessellation vertices for mesh-based shadings.
+    /// </summary>
+    public int MaxTessellationVertices { get; set; } = 32;
+
+    /// <summary>
+    /// Maximum number of tessellation vertices for mesh-based shadings in preview mode.
+    /// </summary>
+    public int PreviewMaxTessellationVertices { get; set; } = 1;
+
+    /// <summary>
     /// Returns a scaled size for the given original size based on the current
     /// </summary>
     /// <param name="size">Source size.</param>

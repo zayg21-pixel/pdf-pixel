@@ -14,8 +14,6 @@ namespace PdfReader.Color.Icc.Transform;
 /// </summary>
 internal sealed partial class ClutTransform : IColorTransform, IRgbaSampler
 {
-    private const float ScaleOffset = 10e-5f;
-
     private readonly Vector4[] _clut;
     private readonly int _outChannels;
     private readonly int[] _gridPointsPerDimension;
@@ -23,8 +21,12 @@ internal sealed partial class ClutTransform : IColorTransform, IRgbaSampler
     private readonly int _dimensionCount;
     private readonly int _actualDimensions;
     private readonly Vector4 _scaleFactors; // Pre-computed scaling factors for vectorization
-    private readonly Vector4 _maxValues;    // Pre-computed max values for clamping
+    private readonly float _scaleX;
+    private readonly float _scaleY;
+    private readonly float _scaleZ;
+    private readonly float _scaleW;
     private readonly Vector4 _strideVector; // Strides for up to 4 dims (disabled dims are 0)
+    private readonly PixelProcessorFunction _callback;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="ClutTransform"/> class from a float array CLUT.
@@ -50,9 +52,8 @@ internal sealed partial class ClutTransform : IColorTransform, IRgbaSampler
         _dimensionCount = gridPointsPerDimension.Length;
         _actualDimensions = Math.Min(_dimensionCount, 4);
 
-        // Pre-compute strides for better performance
         _strides = new int[_dimensionCount];
-        int cumulative = 1; // Each entry is now a Vector4, not individual floats
+        int cumulative = 1;
         for (int d = _dimensionCount - 1; d >= 0; d--)
         {
             _strides[d] = cumulative;
@@ -60,7 +61,6 @@ internal sealed partial class ClutTransform : IColorTransform, IRgbaSampler
             cumulative *= grid;
         }
 
-        // Pre-compute vectorized scaling factors and max values using utility with zero padding
         Span<float> scaleValues = stackalloc float[4];
         for (int i = 0; i < 4; i++)
         {
@@ -69,19 +69,41 @@ internal sealed partial class ClutTransform : IColorTransform, IRgbaSampler
                 : 0f;
         }
         _scaleFactors = ColorVectorUtilities.ToVector4WithZeroPadding(scaleValues);
-        _maxValues = _scaleFactors - new Vector4(ScaleOffset);
+        _scaleX = scaleValues[0];
+        _scaleY = scaleValues[1];
+        _scaleZ = scaleValues[2];
+        _scaleW = scaleValues[3];
         _strideVector = ColorVectorUtilities.ToVector4WithZeroPadding(_strides.Select(x => (float)x).ToArray());
 
-        // Use the provided Vector4 array directly
         _clut = clut ?? throw new ArgumentNullException(nameof(clut));
         
-        // Validate that the clut array has the expected size
         int expectedSize = cumulative;
         if (_clut.Length != expectedSize)
         {
             throw new ArgumentException($"CLUT array size mismatch. Expected {expectedSize} entries, got {_clut.Length}.", nameof(clut));
         }
+
+        switch (_actualDimensions)
+        {
+            case 1:
+                _callback = Transform1D;
+                break;
+            case 2:
+                _callback = Transform2D;
+                break;
+            case 3:
+                _callback = Transform3D;
+                break;
+            case 4:
+                _callback = Transform4D;
+                break;
+            default:
+                _callback = static (Vector4 c) => c;
+                break;
+        }
     }
+
+    public bool IsIdentity => false;
 
     /// <summary>
     /// Converts a flat float array CLUT to a Vector4 array, padding with 1.0 if needed.
@@ -117,10 +139,8 @@ internal sealed partial class ClutTransform : IColorTransform, IRgbaSampler
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void Sample(ReadOnlySpan<float> source, ref RgbaPacked destination)
     {
-        var vector = ColorVectorUtilities.ToVector4WithOnePadding(source);
-
+        Vector4 vector = ColorVectorUtilities.ToVector4WithOnePadding(source);
         vector = Transform(vector);
-
         ColorVectorUtilities.Load01ToRgba(vector, ref destination);
     }
 
@@ -132,13 +152,6 @@ internal sealed partial class ClutTransform : IColorTransform, IRgbaSampler
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public Vector4 Transform(Vector4 color)
     {
-        return _actualDimensions switch
-        {
-            1 => Transform1D(color),
-            2 => Transform2D(color),
-            3 => Transform3D(color),
-            4 => Transform4D(color),
-            _ => color,
-        };
+        return _callback(color);
     }
 }

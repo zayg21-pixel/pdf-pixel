@@ -16,6 +16,7 @@ internal sealed class MatrixColorTransform : IColorTransform
     private readonly Vector4 _col2;
     private readonly Vector4 _col3;
     private readonly Vector4 _col4;
+    private readonly bool _isIdentity;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="MatrixColorTransform"/> class with a specified 4x4 matrix.
@@ -24,6 +25,7 @@ internal sealed class MatrixColorTransform : IColorTransform
     public MatrixColorTransform(Matrix4x4 matrix)
     {
         _matrix = matrix;
+        _isIdentity = _matrix.IsIdentity;
         (_col1, _col2, _col3, _col4) = DecomposeColumns(_matrix);
     }
 
@@ -50,8 +52,11 @@ internal sealed class MatrixColorTransform : IColorTransform
         }
 
         _matrix = matrix4X4;
+        _isIdentity = _matrix.IsIdentity;
         (_col1, _col2, _col3, _col4) = DecomposeColumns(_matrix);
     }
+
+    public bool IsIdentity => _isIdentity;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="MatrixColorTransform"/> class from an array of ICC XYZ components.
@@ -134,6 +139,7 @@ internal sealed class MatrixColorTransform : IColorTransform
         }
 
         _matrix = new Matrix4x4(m11, m12, m13, m14, m21, m22, m23, m24, m31, m32, m33, m34, m41, m42, m43, m44);
+        _isIdentity = _matrix.IsIdentity;
         (_col1, _col2, _col3, _col4) = DecomposeColumns(_matrix);
     }
 
@@ -145,6 +151,11 @@ internal sealed class MatrixColorTransform : IColorTransform
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public Vector4 Transform(Vector4 color)
     {
+        if (_isIdentity)
+        {
+            return color;
+        }
+
         // Using precomputed column vectors for efficient matrix-vector multiplication.
         Vector4 vx = new Vector4(color.X);
         Vector4 vy = new Vector4(color.Y);

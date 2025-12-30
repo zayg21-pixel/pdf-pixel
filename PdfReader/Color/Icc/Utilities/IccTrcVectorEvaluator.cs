@@ -1,7 +1,7 @@
-using System.Numerics;
-using PdfReader.Functions;
 using PdfReader.Color.Icc.Model;
+using PdfReader.Functions;
 using System;
+using System.Numerics;
 using System.Runtime.CompilerServices;
 
 namespace PdfReader.Color.Icc.Utilities
@@ -61,11 +61,11 @@ namespace PdfReader.Color.Icc.Utilities
         public PowerWithLinearSegmentTrcVectorEvaluator(IccTrcParameters[] parameters)
         {
             parameters = IccTrcVectorEvaluatorHelpers.FillParams(parameters);
-            _breakpoint = new Vector4(parameters[0].Breakpoint, parameters[1].Breakpoint, parameters[2].Breakpoint, parameters[3].Breakpoint);
-            _constantC = new Vector4(parameters[0].ConstantC, parameters[1].ConstantC, parameters[2].ConstantC, parameters[3].ConstantC);
-            _scale = new Vector4(parameters[0].Scale, parameters[1].Scale, parameters[2].Scale, parameters[3].Scale);
-            _offset = new Vector4(parameters[0].Offset, parameters[1].Offset, parameters[2].Offset, parameters[3].Offset);
-            var gammaVector = new Vector4(parameters[0].Gamma, parameters[1].Gamma, parameters[2].Gamma, parameters[3].Gamma);
+            _breakpoint = IccTrcVectorEvaluatorHelpers.FromParameters(parameters, x => x.Breakpoint);
+            _constantC = IccTrcVectorEvaluatorHelpers.FromParameters(parameters, x => x.ConstantC);
+            _scale = IccTrcVectorEvaluatorHelpers.FromParameters(parameters, x => x.Scale);
+            _offset = IccTrcVectorEvaluatorHelpers.FromParameters(parameters, x => x.Offset);
+            var gammaVector = IccTrcVectorEvaluatorHelpers.FromParameters(parameters, x => x.Gamma);
             _pow = new FastPowSeriesDegree3Vector4(gammaVector);
         }
 
@@ -98,7 +98,11 @@ namespace PdfReader.Color.Icc.Utilities
     /// </summary>
     internal sealed class SampledTrcVectorEvaluator : IIccTrcVectorEvaluator
     {
-        private readonly float[][] _samples;
+        private const int TargetSamples = 1024;
+        private readonly float[] _samples0;
+        private readonly float[] _samples1;
+        private readonly float[] _samples2;
+        private readonly float[] _samples3;
         private readonly Vector4 _scale;
 
         public SampledTrcVectorEvaluator(float[][] samples)
@@ -107,23 +111,29 @@ namespace PdfReader.Color.Icc.Utilities
             {
                 throw new ArgumentException("samples must be an array of 1 to 4 float[]", nameof(samples));
             }
-            _samples = new float[4][];
+            float[][] normalized = new float[4][];
             for (int i = 0; i < 4; i++)
             {
                 if (i < samples.Length && samples[i] != null && samples[i].Length > 0)
                 {
-                    _samples[i] = samples[i];
+                    normalized[i] = samples[i];
                 }
                 else
                 {
-                    _samples[i] = new float[] { 0f, 1f };
+                    normalized[i] = [0f, 1f];
                 }
             }
+
+            _samples0 = normalized[0].Length < TargetSamples ? SamplesUpsampler.UpsampleTo(normalized[0], TargetSamples) : normalized[0];
+            _samples1 = normalized[1].Length < TargetSamples ? SamplesUpsampler.UpsampleTo(normalized[1], TargetSamples) : normalized[1];
+            _samples2 = normalized[2].Length < TargetSamples ? SamplesUpsampler.UpsampleTo(normalized[2], TargetSamples) : normalized[2];
+            _samples3 = normalized[3].Length < TargetSamples ? SamplesUpsampler.UpsampleTo(normalized[3], TargetSamples) : normalized[3];
+
             _scale = new Vector4(
-                _samples[0].Length - 1,
-                _samples[1].Length - 1,
-                _samples[2].Length - 1,
-                _samples[3].Length - 1
+                _samples0.Length - 1,
+                _samples1.Length - 1,
+                _samples2.Length - 1,
+                _samples3.Length - 1
             );
         }
 
@@ -131,36 +141,19 @@ namespace PdfReader.Color.Icc.Utilities
         public Vector4 Evaluate(Vector4 x)
         {
             Vector4 scaled = x * _scale;
-            Vector4 clamped = Vector4.Clamp(scaled, Vector4.Zero, _scale);
+            scaled = Vector4.Clamp(scaled, Vector4.Zero, _scale);
 
-            int idx0x = (int)clamped.X;
-            int idx0y = (int)clamped.Y;
-            int idx0z = (int)clamped.Z;
-            int idx0w = (int)clamped.W;
+            int idxX = (int)scaled.X;
+            int idxY = (int)scaled.Y;
+            int idxZ = (int)scaled.Z;
+            int idxW = (int)scaled.W;
 
-            int idx1x = Math.Min(idx0x + 1, _samples[0].Length - 1);
-            int idx1y = Math.Min(idx0y + 1, _samples[1].Length - 1);
-            int idx1z = Math.Min(idx0z + 1, _samples[2].Length - 1);
-            int idx1w = Math.Min(idx0w + 1, _samples[3].Length - 1);
+            float r = _samples0[idxX];
+            float g = _samples1[idxY];
+            float b = _samples2[idxZ];
+            float a = _samples3[idxW];
 
-            Vector4 idx0 = new Vector4(idx0x, idx0y, idx0z, idx0w);
-            Vector4 frac = clamped - idx0;
-
-            float v0x = _samples[0][idx0x];
-            float v0y = _samples[1][idx0y];
-            float v0z = _samples[2][idx0z];
-            float v0w = _samples[3][idx0w];
-
-            float v1x = _samples[0][idx1x];
-            float v1y = _samples[1][idx1y];
-            float v1z = _samples[2][idx1z];
-            float v1w = _samples[3][idx1w];
-
-            Vector4 v0 = new Vector4(v0x, v0y, v0z, v0w);
-            Vector4 v1 = new Vector4(v1x, v1y, v1z, v1w);
-            Vector4 result = v0 + (v1 - v0) * frac;
-
-            return result;
+            return new Vector4(r, g, b, a);
         }
     }
 
@@ -180,13 +173,13 @@ namespace PdfReader.Color.Icc.Utilities
         public PowerWithLinearSegmentAndOffsetTrcVectorEvaluator(IccTrcParameters[] parameters)
         {
             parameters = IccTrcVectorEvaluatorHelpers.FillParams(parameters);
-            _breakpoint = new Vector4(parameters[0].Breakpoint, parameters[1].Breakpoint, parameters[2].Breakpoint, parameters[3].Breakpoint);
-            _constantC = new Vector4(parameters[0].ConstantC, parameters[1].ConstantC, parameters[2].ConstantC, parameters[3].ConstantC);
-            _scale = new Vector4(parameters[0].Scale, parameters[1].Scale, parameters[2].Scale, parameters[3].Scale);
-            _offset = new Vector4(parameters[0].Offset, parameters[1].Offset, parameters[2].Offset, parameters[3].Offset);
-            _powerOffset = new Vector4(parameters[0].PowerOffset, parameters[1].PowerOffset, parameters[2].PowerOffset, parameters[3].PowerOffset);
-            _linearOffset = new Vector4(parameters[0].LinearOffset, parameters[1].LinearOffset, parameters[2].LinearOffset, parameters[3].LinearOffset);
-            var gammaVector = new Vector4(parameters[0].Gamma, parameters[1].Gamma, parameters[2].Gamma, parameters[3].Gamma);
+            _breakpoint = IccTrcVectorEvaluatorHelpers.FromParameters(parameters, x => x.Breakpoint);
+            _constantC = IccTrcVectorEvaluatorHelpers.FromParameters(parameters, x => x.ConstantC);
+            _scale = IccTrcVectorEvaluatorHelpers.FromParameters(parameters, x => x.Scale);
+            _offset = IccTrcVectorEvaluatorHelpers.FromParameters(parameters, x => x.Offset);
+            _powerOffset = IccTrcVectorEvaluatorHelpers.FromParameters(parameters, x => x.PowerOffset);
+            _linearOffset = IccTrcVectorEvaluatorHelpers.FromParameters(parameters, x => x.LinearOffset);
+            var gammaVector = IccTrcVectorEvaluatorHelpers.FromParameters(parameters, x => x.Gamma);
             _pow = new FastPowSeriesDegree3Vector4(gammaVector);
         }
 
@@ -228,11 +221,11 @@ namespace PdfReader.Color.Icc.Utilities
         public PowerWithOffsetAndCTrcVectorEvaluator(IccTrcParameters[] parameters)
         {
             parameters = IccTrcVectorEvaluatorHelpers.FillParams(parameters);
-            _breakpoint = new Vector4(parameters[0].Breakpoint, parameters[1].Breakpoint, parameters[2].Breakpoint, parameters[3].Breakpoint);
-            _constantC = new Vector4(parameters[0].ConstantC, parameters[1].ConstantC, parameters[2].ConstantC, parameters[3].ConstantC);
-            _scale = new Vector4(parameters[0].Scale, parameters[1].Scale, parameters[2].Scale, parameters[3].Scale);
-            _offset = new Vector4(parameters[0].Offset, parameters[1].Offset, parameters[2].Offset, parameters[3].Offset);
-            var gammaVector = new Vector4(parameters[0].Gamma, parameters[1].Gamma, parameters[2].Gamma, parameters[3].Gamma);
+            _breakpoint = IccTrcVectorEvaluatorHelpers.FromParameters(parameters, x => x.Breakpoint);
+            _constantC = IccTrcVectorEvaluatorHelpers.FromParameters(parameters, x => x.ConstantC);
+            _scale = IccTrcVectorEvaluatorHelpers.FromParameters(parameters, x => x.Scale);
+            _offset = IccTrcVectorEvaluatorHelpers.FromParameters(parameters, x => x.Offset);
+            var gammaVector = IccTrcVectorEvaluatorHelpers.FromParameters(parameters, x => x.Gamma);
             _pow = new FastPowSeriesDegree3Vector4(gammaVector);
         }
 
@@ -273,10 +266,10 @@ namespace PdfReader.Color.Icc.Utilities
         public PowerWithOffsetTrcVectorEvaluator(IccTrcParameters[] parameters)
         {
             parameters = IccTrcVectorEvaluatorHelpers.FillParams(parameters);
-            _breakpoint = new Vector4(parameters[0].Breakpoint, parameters[1].Breakpoint, parameters[2].Breakpoint, parameters[3].Breakpoint);
-            _scale = new Vector4(parameters[0].Scale, parameters[1].Scale, parameters[2].Scale, parameters[3].Scale);
-            _offset = new Vector4(parameters[0].Offset, parameters[1].Offset, parameters[2].Offset, parameters[3].Offset);
-            var gammaVector = new Vector4(parameters[0].Gamma, parameters[1].Gamma, parameters[2].Gamma, parameters[3].Gamma);
+            _breakpoint = IccTrcVectorEvaluatorHelpers.FromParameters(parameters, x => x.Breakpoint);
+            _scale = IccTrcVectorEvaluatorHelpers.FromParameters(parameters, x => x.Scale);
+            _offset = IccTrcVectorEvaluatorHelpers.FromParameters(parameters, x => x.Offset);
+            var gammaVector = IccTrcVectorEvaluatorHelpers.FromParameters(parameters, x => x.Gamma);
             _pow = new FastPowSeriesDegree3Vector4(gammaVector);
         }
 
@@ -305,26 +298,35 @@ namespace PdfReader.Color.Icc.Utilities
     }
 
     /// <summary>
-    /// Optimized evaluator for single-channel ICC TRC using the scalar IIccTrcEvaluator directly.
+    /// Evaluator for per-channel ICC TRC using individual IIccTrcEvaluator fields for each channel.
     /// </summary>
-    internal sealed class SingleChannelTrcVectorEvaluator : IIccTrcVectorEvaluator
+    internal sealed class PerChannelTrcVectorEvaluator : IIccTrcVectorEvaluator
     {
-        private readonly IIccTrcEvaluator _evaluator;
+        private readonly IIccTrcEvaluator _evaluator0;
+        private readonly IIccTrcEvaluator _evaluator1;
+        private readonly IIccTrcEvaluator _evaluator2;
+        private readonly IIccTrcEvaluator _evaluator3;
 
-        public SingleChannelTrcVectorEvaluator(IccTrc trc)
+        public PerChannelTrcVectorEvaluator(IccTrc[] trcs)
         {
-            if (trc == null)
+            if (trcs == null || trcs.Length == 0 || trcs.Length > 4)
             {
-                throw new ArgumentNullException(nameof(trc));
+                throw new ArgumentException("trcs must be an array of 1 to 4 IccTrc", nameof(trcs));
             }
-            _evaluator = trc.Evaluator;
+            _evaluator0 = trcs.Length > 0 ? IccTrcEvaluatorFactory.Create(trcs[0]) : IccTrcEvaluatorFactory.Create(null);
+            _evaluator1 = trcs.Length > 1 ? IccTrcEvaluatorFactory.Create(trcs[1]) : IccTrcEvaluatorFactory.Create(null);
+            _evaluator2 = trcs.Length > 2 ? IccTrcEvaluatorFactory.Create(trcs[2]) : IccTrcEvaluatorFactory.Create(null);
+            _evaluator3 = trcs.Length > 3 ? IccTrcEvaluatorFactory.Create(trcs[3]) : IccTrcEvaluatorFactory.Create(null);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Vector4 Evaluate(Vector4 x)
         {
-            float result = _evaluator.Evaluate(x.X);
-            return new Vector4(result, 1.0f, 1.0f, 1.0f);
+            float r = _evaluator0.Evaluate(x.X);
+            float g = _evaluator1.Evaluate(x.Y);
+            float b = _evaluator2.Evaluate(x.Z);
+            float a = _evaluator3.Evaluate(x.W);
+            return new Vector4(r, g, b, a);
         }
     }
 
@@ -343,6 +345,12 @@ namespace PdfReader.Color.Icc.Utilities
                     : IdentityParams;
             }
             return arr;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Vector4 FromParameters(IccTrcParameters[] parameters, Func<IccTrcParameters, float> func)
+        {
+            return new Vector4(func(parameters[0]), func(parameters[1]), func(parameters[2]), func(parameters[3]));
         }
     }
 }

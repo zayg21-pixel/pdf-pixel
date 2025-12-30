@@ -5,7 +5,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
-using System.Windows.Controls;
 using System.Windows.Media.Imaging;
 
 namespace PdfReader.Wpf.PdfPanel.Drawing
@@ -29,11 +28,6 @@ namespace PdfReader.Wpf.PdfPanel.Drawing
             {
                 DrawCached(surface, request, lastRequest);
                 await DrawOnWritableBitmapAsync(panel, surface, request).ConfigureAwait(false);
-
-                if (!updateQueue.IsEmpty)
-                {
-                    return false;
-                }
             }
             else
             {
@@ -43,6 +37,11 @@ namespace PdfReader.Wpf.PdfPanel.Drawing
                 {
                     canvas.DrawPageFromRequest(page.PageNumber, request, PageDrawFlags.Background | PageDrawFlags.Shadow);
                 }
+            }
+
+            if (!updateQueue.IsEmpty)
+            {
+                return false;
             }
 
             var visiblePages = request.VisiblePages.Select(x => x.PageNumber);
