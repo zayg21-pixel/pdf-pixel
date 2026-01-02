@@ -33,6 +33,9 @@ public class FormRenderer : IFormRenderer
 
         graphicsState.RecursionGuard.Add(objectNumber);
 
+        using var softMaskScope = new SoftMaskDrawingScope(_renderer, canvas, graphicsState);
+        softMaskScope.BeginDrawContent();
+
         int count = canvas.Save();
 
         // Apply form matrix if present
@@ -41,17 +44,11 @@ public class FormRenderer : IFormRenderer
         // Clip to /BBox
         canvas.ClipRect(formXObject.BBox, antialias: !graphicsState.RenderingParameters.PreviewMode);
 
-        var localGs = new PdfGraphicsState(graphicsState.Page, graphicsState.RecursionGuard, graphicsState.RenderingParameters);
-        localGs.CTM = formXObject.Matrix;
-
         if (formXObject.TransparencyGroup != null)
         {
             using var formPaint = PdfPaintFactory.CreateCompositionLayerPaint(graphicsState);
             canvas.SaveLayer(formXObject.BBox, formPaint);
         }
-
-        using var softMaskScope = new SoftMaskDrawingScope(_renderer, canvas, graphicsState);
-        softMaskScope.BeginDrawContent();
 
         // Decode and render content with a cloned state that clears parent soft mask
         var content = formXObject.GetFormData();
@@ -60,14 +57,79 @@ public class FormRenderer : IFormRenderer
             var parseContext = new PdfParseContext(content);
             var formPage = formXObject.GetFormPage();
 
+            var localGs = new PdfGraphicsState(formPage, graphicsState.RecursionGuard, graphicsState.RenderingParameters, graphicsState.ExternalTransferFunction);
+            localGs.CTM = formXObject.Matrix;
+
             var renderer = new PdfContentStreamRenderer(_renderer, formPage);
             renderer.RenderContext(canvas, ref parseContext, localGs);
         }
 
-        softMaskScope.EndDrawContent();
 
         canvas.RestoreToCount(count);
 
+        softMaskScope.EndDrawContent();
+
+
         graphicsState.RecursionGuard.Remove(objectNumber);
     }
+
+    //public void DrawForm(SKCanvas canvas, PdfForm formXObject, PdfGraphicsState graphicsState)
+    //{
+    //    uint objectNumber = formXObject.XObject.Reference.ObjectNumber;
+
+    //    if (graphicsState.RecursionGuard.Contains(objectNumber))
+    //    {
+    //        return;
+    //    }
+
+    //    graphicsState.RecursionGuard.Add(objectNumber);
+
+    //    // Record the form content into a picture first
+    //    using var recorder = new SKPictureRecorder();
+    //    using var recCanvas = recorder.BeginRecording(formXObject.BBox);
+
+    //    var localGs = new PdfGraphicsState(graphicsState.Page, graphicsState.RecursionGuard, graphicsState.RenderingParameters);
+    //    localGs.CTM = formXObject.Matrix;
+
+    //    // Render content to the recording canvas
+    //    var content = formXObject.GetFormData();
+    //    if (!content.IsEmpty)
+    //    {
+    //        var parseContext = new PdfParseContext(content);
+    //        var formPage = formXObject.GetFormPage();
+
+    //        var renderer = new PdfContentStreamRenderer(_renderer, formPage);
+    //        renderer.RenderContext(recCanvas, ref parseContext, localGs);
+    //    }
+
+    //    // End recording and get the picture
+    //    using var picture = recorder.EndRecording();
+
+    //    // Now draw the recorded picture to the actual canvas
+    //    canvas.Save();
+
+    //    // Apply form matrix if present
+    //    canvas.Concat(formXObject.Matrix);
+
+    //    using var softMaskScope = new SoftMaskDrawingScope(_renderer, canvas, graphicsState);
+    //    softMaskScope.BeginDrawContent();
+
+    //    if (formXObject.TransparencyGroup != null)
+    //    {
+    //        using var formPaint = PdfPaintFactory.CreateCompositionLayerPaint(graphicsState);
+    //       canvas.SaveLayer(formXObject.BBox, formPaint);
+    //        canvas.DrawPicture(picture);
+    //        canvas.Restore();
+    //    }
+    //    else
+    //    {
+    //        canvas.DrawPicture(picture);
+    //    }
+
+    //    softMaskScope.EndDrawContent();
+
+    //    canvas.Restore();
+
+    //    graphicsState.RecursionGuard.Remove(objectNumber);
+    //}
 }

@@ -2,6 +2,7 @@ using SkiaSharp;
 using PdfReader.Transparency.Model;
 using PdfReader.Fonts.Model;
 using PdfReader.Color.ColorSpace;
+using PdfReader.Color.Transform;
 
 namespace PdfReader.Rendering.State
 {
@@ -102,6 +103,16 @@ namespace PdfReader.Rendering.State
         public PdfRenderingIntent? PdfRenderingIntent { get; set; }
 
         /// <summary>
+        /// Parsed alpha-is-shape flag (/AIS). Null when absent.
+        /// </summary>
+        public bool? AlphaIsShape { get; set; }
+
+        /// <summary>
+        /// Optional transfer function (TR) parsed from ExtGState.
+        /// </summary>
+        public TransferFunctionTransform TransferFunction { get; set; }
+
+        /// <summary>
         /// Apply parsed parameter values to a target graphics state instance. Only non-null entries are applied.
         /// </summary>
         /// <param name="graphicsState">Target graphics state.</param>
@@ -149,6 +160,10 @@ namespace PdfReader.Rendering.State
             {
                 graphicsState.SoftMask = SoftMask;
             }
+            if (TransferFunction != null || (TransferFunction == null && graphicsState.TransferFunction != null))
+            {
+                graphicsState.TransferFunction = TransferFunction;
+            }
             if (Knockout.HasValue)
             {
                 graphicsState.Knockout = Knockout.Value;
@@ -182,8 +197,10 @@ namespace PdfReader.Rendering.State
             {
                 graphicsState.RenderingIntent = PdfRenderingIntent.Value;
             }
-
-            // TODO: [LOW] TR curves for GS and SoftMask
+            if (AlphaIsShape.HasValue)
+            {
+                graphicsState.AlphaIsShape = AlphaIsShape.Value;
+            }
         }
     }
 }

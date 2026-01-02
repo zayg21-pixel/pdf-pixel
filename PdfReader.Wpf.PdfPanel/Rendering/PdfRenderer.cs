@@ -114,7 +114,12 @@ namespace PdfReader.Wpf.PdfPanel.Rendering
             canvas.Flush();
             var picture = recorder.EndRecording();
 
-            //string path = $"page_{pageNumber}.skp";
+            //if (!Directory.Exists("Dev"))
+            //{
+            //    Directory.CreateDirectory("Dev");
+            //}
+
+            //string path = $"Dev/page_{pageNumber}.skp";
             //using var fileStream = File.OpenWrite(path);
             //picture.Serialize(fileStream);
 

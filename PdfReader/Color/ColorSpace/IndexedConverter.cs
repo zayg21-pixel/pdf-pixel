@@ -1,7 +1,9 @@
 using PdfReader.Color.Sampling;
 using PdfReader.Color.Structures;
+using PdfReader.Color.Transform;
 using System;
 using System.Collections.Generic;
+using System.Numerics;
 
 namespace PdfReader.Color.ColorSpace;
 
@@ -15,7 +17,7 @@ internal sealed partial class IndexedConverter : PdfColorSpaceConverter
     private readonly byte[] _lookup; // packed by base components (sequential entries)
 
     // Cache of palettes per rendering intent
-    private readonly Dictionary<PdfRenderingIntent, RgbaPacked[]> _paletteCache = new Dictionary<PdfRenderingIntent, RgbaPacked[]>(4);
+    private readonly Dictionary<PdfRenderingIntent, Vector4[]> _paletteCache = new Dictionary<PdfRenderingIntent, Vector4[]>(4); // TODO: improve caching strategy!
 
     public IndexedConverter(PdfColorSpaceConverter baseConv, int hiVal, byte[] lookup)
     {
@@ -31,9 +33,9 @@ internal sealed partial class IndexedConverter : PdfColorSpaceConverter
     /// <summary>
     /// Build (or retrieve cached) palette for this Indexed color space under the specified rendering intent.
     /// </summary>
-    public RgbaPacked[] BuildPalette(PdfRenderingIntent renderingIntent)
+    public Vector4[] BuildPalette(PdfRenderingIntent renderingIntent, IColorTransform postTransform)
     {
-        var sampler = _baseConv.GetRgbaSampler(renderingIntent);
+        var sampler = _baseConv.GetRgbaSampler(renderingIntent, postTransform);
         if (_paletteCache.TryGetValue(renderingIntent, out var existing))
         {
             return existing;
@@ -41,7 +43,7 @@ internal sealed partial class IndexedConverter : PdfColorSpaceConverter
 
         int baseComps = _baseConv.Components;
         int paletteSize = _hiVal + 1;
-        var palette = new RgbaPacked[paletteSize];
+        var palette = new Vector4[paletteSize];
 
         var comps = new float[baseComps];
 
@@ -54,18 +56,29 @@ internal sealed partial class IndexedConverter : PdfColorSpaceConverter
                 byte b = p >= 0 && p < _lookup.Length ? _lookup[p] : (byte)0;
                 comps[c] = b / 255f;
             }
-            RgbaPacked result = default;
-            sampler.Sample(comps, ref result);
 
-            palette[index] = result;
+            palette[index] = sampler.Sample(comps);
         }
 
         _paletteCache[renderingIntent] = palette;
         return palette;
     }
 
-    protected override IRgbaSampler GetRgbaSamplerCore(PdfRenderingIntent intent)
+    public RgbaPacked[] BuildPackedPalette(PdfRenderingIntent renderingIntent, IColorTransform postTransform)
     {
-        return new IndexedSampler(BuildPalette(intent), _hiVal);
+        var palette = BuildPalette(renderingIntent, postTransform);
+        int paletteSize = palette.Length;
+        var packedPalette = new RgbaPacked[paletteSize];
+        for (int i = 0; i < paletteSize; i++)
+        {
+            
+            packedPalette[i] = ColorVectorUtilities.From01ToRgba(palette[i]);
+        }
+        return packedPalette;
+    }
+
+    protected override IRgbaSampler GetRgbaSamplerCore(PdfRenderingIntent intent, IColorTransform postTransform)
+    {
+        return new IndexedSampler(BuildPalette(intent, postTransform), _hiVal);
     }
 }

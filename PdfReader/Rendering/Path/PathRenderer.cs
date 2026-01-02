@@ -31,7 +31,7 @@ public class PathRenderer : IPathRenderer
     /// Handles pattern paints, soft masks, and combined fill+stroke layering.
     /// Note: FlatnessTolerance from graphics state is ignored, as SkiaSharp does not support curve flattening control.
     /// </summary>
-    public void DrawPath(SKCanvas canvas, SKPath path, PdfGraphicsState state, PaintOperation operation, SKPathFillType fillType)
+    public void DrawPath(SKCanvas canvas, SKPath path, PdfGraphicsState state, PaintOperation operation)
     {
         if (canvas == null)
         {
@@ -42,8 +42,6 @@ public class PathRenderer : IPathRenderer
         {
             return;
         }
-
-        path.FillType = fillType;
 
         // FlatnessTolerance is ignored in SkiaSharp rendering.
         // See PDF spec 8.4.5: Most modern renderers ignore or clamp this value for performance.

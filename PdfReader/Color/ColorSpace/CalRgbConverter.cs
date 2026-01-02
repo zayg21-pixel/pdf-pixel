@@ -57,8 +57,8 @@ internal class CalRgbConverter : PdfColorSpaceConverter
 
     protected ChainedColorTransform ToSrgbTransform { get; }
 
-    protected override IRgbaSampler GetRgbaSamplerCore(PdfRenderingIntent intent)
+    protected override IRgbaSampler GetRgbaSamplerCore(PdfRenderingIntent intent, IColorTransform postTransform)
     {
-        return new ColorTransformSampler(ToSrgbTransform);
+        return new ColorTransformSampler(new ChainedColorTransform(ToSrgbTransform, postTransform));
     }
 }

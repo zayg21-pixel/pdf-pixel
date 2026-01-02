@@ -1,5 +1,6 @@
 ﻿using PdfReader.Color.Structures;
 using System;
+using System.Numerics;
 
 namespace PdfReader.Color.Sampling;
 
@@ -13,6 +14,6 @@ public interface IRgbaSampler
     /// structure.
     /// </summary>
     /// <param name="source">The source components array containing unconverted color.</param>
-    /// <param name="destination">The destination <see cref="RgbaPacked"/> structure.</param>
-    void Sample(ReadOnlySpan<float> source, ref RgbaPacked destination);
+    /// <returns><see cref="Vector4"/> that represents converted to RGBa color components, note, that they are not guaranteed to be normalized to 0-1.</returns>
+    Vector4 Sample(ReadOnlySpan<float> source);
 }

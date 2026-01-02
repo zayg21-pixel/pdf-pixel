@@ -2,6 +2,7 @@ using PdfReader.Color.Icc;
 using PdfReader.Color.Icc.Model;
 using PdfReader.Color.Icc.Transform;
 using PdfReader.Color.Sampling;
+using PdfReader.Color.Transform;
 
 namespace PdfReader.Color.ColorSpace;
 
@@ -56,14 +57,14 @@ internal sealed class IccBasedConverter : PdfColorSpaceConverter
 
     public int N { get; }
 
-    protected override IRgbaSampler GetRgbaSamplerCore(PdfRenderingIntent intent)
+    protected override IRgbaSampler GetRgbaSamplerCore(PdfRenderingIntent intent, IColorTransform postTransform)
     {
         if (_useDefault)
         {
-            return _default.GetRgbaSampler(intent);
+            return _default.GetRgbaSampler(intent, postTransform);
         }
 
 
-        return new ColorTransformSampler(_iccTransform.GetIntentTransform(intent));
+        return new ColorTransformSampler(new ChainedColorTransform(_iccTransform.GetIntentTransform(intent), postTransform));
     }
 }

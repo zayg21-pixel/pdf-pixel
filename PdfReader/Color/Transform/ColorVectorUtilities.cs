@@ -1,4 +1,5 @@
 ﻿using PdfReader.Color.Structures;
+using SkiaSharp;
 using System;
 using System.Numerics;
 using System.Runtime.CompilerServices;
@@ -60,6 +61,44 @@ internal static class ColorVectorUtilities
         destination.G = (byte)scaled.Y;
         destination.B = (byte)scaled.Z;
         destination.A = 255;
+    }
+
+    /// <summary>
+    /// Converts a Vector4 with components in the range [0, 1] to an RgbaPacked structure with 8-bit per channel color
+    /// values.
+    /// </summary>
+    /// <param name="source">The source vector containing normalized color components, where each component should be in the range [0, 1].</param>
+    /// <returns>An RgbaPacked structure representing the color, with each channel mapped to the 0–255 byte range and the alpha
+    /// channel set to 255.</returns>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static RgbaPacked From01ToRgba(this Vector4 source)
+    {
+        var scaled = Vector4.Clamp(source * 255f, Vector4.Zero, MaxByte) + ByteOffset;
+        return new RgbaPacked
+        {
+            R = (byte)scaled.X,
+            G = (byte)scaled.Y,
+            B = (byte)scaled.Z,
+            A = 255
+        };
+    }
+
+    /// <summary>
+    /// Converts a Vector4 with color channel values in the range [0, 1] to an SKColor with 8-bit per channel RGB
+    /// values.
+    /// </summary>
+    /// <param name="source">A Vector4 representing the source color, where the X, Y, and Z components correspond to the red, green, and blue
+    /// channels, respectively. Each component should be in the range [0, 1].</param>
+    /// <returns>An SKColor representing the equivalent color with 8-bit RGB channels. The alpha channel is set to fully opaque.</returns>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static SKColor From01ToSkiaColor(this Vector4 source)
+    {
+        var scaled = Vector4.Clamp(source * 255f, Vector4.Zero, MaxByte) + ByteOffset;
+        return new SKColor(
+            (byte)scaled.X,
+            (byte)scaled.Y,
+            (byte)scaled.Z,
+            255);
     }
 
 

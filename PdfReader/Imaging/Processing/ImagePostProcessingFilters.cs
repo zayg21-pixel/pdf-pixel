@@ -38,7 +38,7 @@ internal class ImagePostProcessingFilters
         // Step 2: Apply Decode mapping if needed.
         if (pdfImage.MatteArray != null)
         {
-            SKColor matteColor = pdfImage.ColorSpaceConverter.ToSrgb(pdfImage.MatteArray, pdfImage.RenderingIntent);
+            SKColor matteColor = pdfImage.ColorSpaceConverter.ToSrgb(pdfImage.MatteArray, pdfImage.RenderingIntent, default);
             var dematteFilter = SoftMaskFilter.BuildDematteColorFilter(matteColor);
             ComposeColorFilter(ref filter, dematteFilter);
         }

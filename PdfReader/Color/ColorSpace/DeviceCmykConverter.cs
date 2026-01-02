@@ -32,8 +32,13 @@ internal sealed class DeviceCmykConverter : PdfColorSpaceConverter
 
     public override bool IsDevice => true;
 
-    protected override IRgbaSampler GetRgbaSamplerCore(PdfRenderingIntent intent)
+    protected override IRgbaSampler GetRgbaSamplerCore(PdfRenderingIntent intent, IColorTransform postTransform)
     {
+        if (postTransform != null)
+        {
+            return new CmykSampler(postTransform);
+        }
+
         return CmykSampler.Instance; // Looks like a good approximation, TODO: remove CompactCmyk
     }
 }
@@ -88,28 +93,20 @@ internal sealed class CmykSampler : IRgbaSampler
     // Bias vector for b channel
     private static readonly Vector4 B0 = new Vector4(Bc0, Bm0, By0, Bk0);
 
-    private CmykSampler()
+    private readonly IColorTransform _postTransform;
+
+    public CmykSampler()
     {
+    }
+
+    public CmykSampler(IColorTransform postTransform)
+    {
+        _postTransform = postTransform;
     }
 
     public static CmykSampler Instance { get; } = new CmykSampler();
 
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static byte ToByte(float value)
-    {
-        if (value < 0f)
-        {
-            value = 0f;
-        }
-        else if (value > 255f)
-        {
-            value = 255f;
-        }
-
-        return (byte)value;
-    }
-
-    public void Sample(ReadOnlySpan<float> source, ref RgbaPacked destination)
+    public Vector4 Sample(ReadOnlySpan<float> source)
     {
         var c = source[0];
         var m = source[1];
@@ -126,9 +123,8 @@ internal sealed class CmykSampler : IRgbaSampler
         var g = 255f + ColorVectorUtilities.CustomDot(gWeights, cmyk);
         var b = 255f + ColorVectorUtilities.CustomDot(bWeights, cmyk);
 
-        destination.R = ToByte(r);
-        destination.G = ToByte(g);
-        destination.B = ToByte(b);
-        destination.A = 255;
+        var result = new Vector4(r, g, b, 255f) / 255f;
+
+        return _postTransform?.Transform(result) ?? result;
     }
 }

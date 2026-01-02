@@ -17,6 +17,5 @@ public interface IPathRenderer
     /// <param name="state">Graphics state containing style information</param>
     /// <param name="operation">Paint operation (stroke, fill, or both)</param>
     /// <param name="page">PDF page context for soft mask processing (optional)</param>
-    /// <param name="fillType">Fill type for the path</param>
-    void DrawPath(SKCanvas canvas, SKPath path, PdfGraphicsState state, PaintOperation operation, SKPathFillType fillType);
+    void DrawPath(SKCanvas canvas, SKPath path, PdfGraphicsState state, PaintOperation operation);
 }

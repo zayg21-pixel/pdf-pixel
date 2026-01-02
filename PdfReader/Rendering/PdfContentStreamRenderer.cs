@@ -54,7 +54,7 @@ public class PdfContentStreamRenderer
         // Create unified context that treats all streams as one continuous stream
         var parseContext = new PdfParseContext(contentStreams);
 
-        var state = new PdfGraphicsState(_page, new HashSet<uint>(), renderingParameters);
+        var state = new PdfGraphicsState(_page, new HashSet<uint>(), renderingParameters, externalTransform: null);
         state.DeviceMatrix = canvas.TotalMatrix;
 
         RenderContext(canvas, ref parseContext, state);

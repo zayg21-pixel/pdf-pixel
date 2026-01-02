@@ -56,9 +56,9 @@ public class PdfRenderer : IPdfRenderer
     /// <summary>
     /// Draw a path with the specified operation and fill type.
     /// </summary>
-    public void DrawPath(SKCanvas canvas, SKPath path, PdfGraphicsState state, PaintOperation operation, SKPathFillType fillType)
+    public void DrawPath(SKCanvas canvas, SKPath path, PdfGraphicsState state, PaintOperation operation)
     {
-        _pathRenderer.DrawPath(canvas, path, state, operation, fillType);
+        _pathRenderer.DrawPath(canvas, path, state, operation);
     }
 
     /// <summary>

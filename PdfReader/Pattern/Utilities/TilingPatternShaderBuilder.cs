@@ -1,6 +1,4 @@
-using System.Collections.Generic;
 using SkiaSharp;
-using PdfReader.Models;
 using PdfReader.Parsing;
 using PdfReader.Rendering;
 using PdfReader.Pattern.Model;
@@ -40,12 +38,12 @@ internal sealed class TilingPatternShaderBuilder
 
         sourceState.RecursionGuard.Add(pattern.SourceObject.Reference.ObjectNumber);
 
-        var cellState = new PdfGraphicsState(sourceState);
         using var recorder = new SKPictureRecorder();
         using var canvas = recorder.BeginRecording(pattern.BBox);
 
         // Render pattern cell without tint or color filter
         var patternPage = new FormXObjectPageWrapper(pattern.SourceObject);
+        var cellState = new PdfGraphicsState(patternPage, sourceState.RecursionGuard, sourceState.RenderingParameters, sourceState.ExternalTransferFunction);
         var contentRenderer = new PdfContentStreamRenderer(renderer, patternPage);
         var parseContext = new PdfParseContext(streamData);
         contentRenderer.RenderContext(canvas, ref parseContext, cellState);

@@ -65,7 +65,7 @@ internal static partial class PdfShadingBuilder
             {
                 float domainX = xSamples[xIndex];
                 var comps = function.Evaluate([domainX, domainY]);
-                SKColor color = converter.ToSrgb(comps, state.RenderingIntent);
+                SKColor color = converter.ToSrgb(comps, state.RenderingIntent, state.FullTransferFunction);
                 pixelColors[yIndex * bitmapWidth + xIndex] = color;
             }
         }

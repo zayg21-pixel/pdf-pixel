@@ -1,10 +1,10 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Linq;
-using System.Numerics;
-using System.Runtime.CompilerServices;
 using System.Linq.Expressions;
+using System.Numerics;
 using System.Reflection;
-using System;
+using System.Runtime.CompilerServices;
 
 namespace PdfReader.Color.Transform;
 
@@ -15,7 +15,7 @@ internal sealed class ChainedColorTransform : IColorTransform
 {
     private readonly IColorTransform[] _transforms;
     private readonly bool _isIdentity;
-    private readonly PixelProcessorFunction _callback;
+    private readonly Lazy<PixelProcessorFunction> _processorFunction;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="ChainedColorTransform"/> class with the specified transforms.
@@ -39,9 +39,9 @@ internal sealed class ChainedColorTransform : IColorTransform
             }
         }
 
-        _transforms = flattenedTransforms.Where(x => !x.IsIdentity).ToArray();
+        _transforms = flattenedTransforms.Where(x => x != null && !x.IsIdentity).ToArray();
         _isIdentity = _transforms.Length == 0;
-        _callback = BuildCallback();
+        _processorFunction = new Lazy<PixelProcessorFunction>(BuildCallback, isThreadSafe: false);
     }
 
     public bool IsIdentity => _isIdentity;
@@ -52,14 +52,9 @@ internal sealed class ChainedColorTransform : IColorTransform
     /// <param name="color">The input color as a <see cref="Vector4"/>.</param>
     /// <returns>The transformed color as a <see cref="Vector4"/> after all chained transforms are applied.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public Vector4 Transform(Vector4 color) => _callback(color);
-
-    /// <summary>
-    /// Returns a compiled callback that applies all transforms without a runtime loop by composing direct calls.
-    /// </summary>
-    public PixelProcessorFunction GetTransformCallback()
+    public Vector4 Transform(Vector4 color)
     {
-        return _callback;
+        return _processorFunction.Value(color);
     }
 
     private PixelProcessorFunction BuildCallback()

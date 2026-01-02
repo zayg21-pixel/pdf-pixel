@@ -1,6 +1,7 @@
 using PdfReader.Color.Sampling;
 using PdfReader.Color.Structures;
 using System;
+using System.Numerics;
 
 namespace PdfReader.Color.Icc.Transform;
 
@@ -102,29 +103,28 @@ internal sealed partial class ClutTransform
         if (dimension >= gridPointsPerDimension.Length)
         {
             // Base case: convert the input and store the result
-            RgbaPacked color = default;
-            sampler.Sample(input, ref color);
+            var color = Vector4.Clamp(sampler.Sample(input), Vector4.Zero, Vector4.One);
 
             // Store based on output channels
             switch (outChannels)
             {
                 case 1: // Grayscale
-                    clut[writeIndex++] = color.R / 255f; // Use red channel for gray
+                    clut[writeIndex++] = color.X; // Use red channel for gray
                     break;
                 case 2: // Two-channel (e.g., grayscale + alpha)
-                    clut[writeIndex++] = color.R / 255f;
-                    clut[writeIndex++] = color.A / 255f;
+                    clut[writeIndex++] = color.X;
+                    clut[writeIndex++] = color.Y;
                     break;
                 case 3: // RGB
-                    clut[writeIndex++] = color.R / 255f;
-                    clut[writeIndex++] = color.G / 255f;
-                    clut[writeIndex++] = color.B / 255f;
+                    clut[writeIndex++] = color.X;
+                    clut[writeIndex++] = color.Y;
+                    clut[writeIndex++] = color.Z;
                     break;
                 case 4: // RGBA or CMYK
-                    clut[writeIndex++] = color.R / 255f;
-                    clut[writeIndex++] = color.G / 255f;
-                    clut[writeIndex++] = color.B / 255f;
-                    clut[writeIndex++] = color.A / 255f;
+                    clut[writeIndex++] = color.X;
+                    clut[writeIndex++] = color.Y;
+                    clut[writeIndex++] = color.Z;
+                    clut[writeIndex++] = color.W;
                     break;
             }
             return;

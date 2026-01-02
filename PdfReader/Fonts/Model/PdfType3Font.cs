@@ -115,7 +115,6 @@ public class PdfType3Font : PdfSingleByteFont
 
         float width = Widths.GetWidth(charCode) ?? 1f;
         float height = 1f;
-        var charState = new PdfGraphicsState(sourceState.Page, sourceState.RecursionGuard, new PdfRenderingParameters { ForceImageInterpolation = true});
 
         var recorder = new SKPictureRecorder();
         var canvas = recorder.BeginRecording(FontMatrix.Invert().MapRect(new SKRect(0, 0, width, height)));
@@ -127,6 +126,7 @@ public class PdfType3Font : PdfSingleByteFont
         var glyphPage = new FormXObjectPageWrapper(sourceState.Page, FontObject);
         var contentRenderer = new PdfContentStreamRenderer(renderer, glyphPage);
         var parseContext = new PdfParseContext(streamData);
+        var charState = new PdfGraphicsState(glyphPage, sourceState.RecursionGuard, new PdfRenderingParameters { ForceImageInterpolation = true }, default);
 
         contentRenderer.RenderContext(canvas, ref parseContext, charState);
 

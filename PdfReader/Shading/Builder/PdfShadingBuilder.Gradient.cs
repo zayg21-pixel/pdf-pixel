@@ -155,7 +155,7 @@ internal static partial class PdfShadingBuilder
                 float x = sampleXs[i];
                 float t = (x - domainStart) / domainLength;
                 var comps = PdfFunctions.EvaluateColorFunctions(shading.Functions, x);
-                colors[i] = converter.ToSrgb(comps, state.RenderingIntent);
+                colors[i] = converter.ToSrgb(comps, state.RenderingIntent, state.FullTransferFunction);
                 positions[i] = t;
             }
         }

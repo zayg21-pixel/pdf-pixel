@@ -1,6 +1,7 @@
 using System;
-using System.Collections.Generic;
+using PdfReader.Color.Filters;
 using PdfReader.Color.Paint;
+using PdfReader.Color.Transform;
 using PdfReader.Parsing;
 using PdfReader.Rendering;
 using PdfReader.Rendering.State;
@@ -103,7 +104,7 @@ public sealed class SoftMaskDrawingScope : IDisposable
         // Background for luminosity masks (BC in group color space).
         if (_softMask.Subtype == PdfSoftMaskSubtype.Luminosity)
         {
-            var backgroundColor = _softMask.GetBackgroundColor(_graphicsState.RenderingIntent);
+            var backgroundColor = _softMask.GetBackgroundColor(_graphicsState.RenderingIntent, _graphicsState.FullTransferFunction);
             using var backgroundPaint = PdfPaintFactory.CreateBackgroundPaint(backgroundColor, _graphicsState);
             recCanvas.DrawRect(_softMask.MaskForm.BBox, backgroundPaint);
         }
@@ -125,8 +126,18 @@ public sealed class SoftMaskDrawingScope : IDisposable
 
             var parseContext = new PdfParseContext(contentData);
             var maskGs = _softMask.Subtype == PdfSoftMaskSubtype.Luminosity
-                ? SoftMaskUtilities.CreateLuminosityMaskGraphicsState(page, _graphicsState.RecursionGuard, _graphicsState.RenderingParameters)
-                : SoftMaskUtilities.CreateAlphaMaskGraphicsState(page, _graphicsState.RecursionGuard, _graphicsState.RenderingParameters);
+                ? SoftMaskUtilities.CreateLuminosityMaskGraphicsState(page, _graphicsState)
+                : SoftMaskUtilities.CreateAlphaMaskGraphicsState(page, _graphicsState);
+
+            // Use TR from soft mask definition as external transfer function for local GS
+            if (maskGs.ExternalTransferFunction == null)
+            {
+                maskGs.ExternalTransferFunction = _softMask.TransferFunction;
+            }
+            else
+            {
+                maskGs.ExternalTransferFunction = new ChainedColorTransform(maskGs.ExternalTransferFunction, _softMask.TransferFunction);
+            }
 
             maskGs.CTM = SKMatrix.Concat(_graphicsState.CTM, _softMask.MaskForm.Matrix);
 

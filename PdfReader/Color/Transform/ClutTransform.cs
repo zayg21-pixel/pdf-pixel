@@ -1,5 +1,4 @@
 ﻿using PdfReader.Color.Sampling;
-using PdfReader.Color.Structures;
 using PdfReader.Color.Transform;
 using System;
 using System.Linq;
@@ -137,11 +136,10 @@ internal sealed partial class ClutTransform : IColorTransform, IRgbaSampler
     /// <param name="source">Source color as a span of floats.</param>
     /// <param name="destination">Destination packed RGBA value (by reference).</param>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public void Sample(ReadOnlySpan<float> source, ref RgbaPacked destination)
+    public Vector4 Sample(ReadOnlySpan<float> source)
     {
         Vector4 vector = ColorVectorUtilities.ToVector4WithOnePadding(source);
-        vector = Transform(vector);
-        ColorVectorUtilities.Load01ToRgba(vector, ref destination);
+        return Transform(vector);
     }
 
     /// <summary>

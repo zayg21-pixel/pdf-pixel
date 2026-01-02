@@ -249,37 +249,43 @@ public class PathOperators : IOperatorProcessor
         _currentPath.FillType = fillType;
         // It's important to avoid antialiasing when clipping path, as it might cause image render artifacts
         _canvas.ClipPath(_currentPath, SKClipOperation.Intersect, antialias: false);
+        _currentPath.Reset();
     }
 
     private void ProcessStrokePath(PdfGraphicsState graphicsState)
     {
-        _renderer.DrawPath(_canvas, _currentPath, graphicsState, PaintOperation.Stroke, default);
+        _currentPath.FillType = SKPathFillType.Winding;
+        _renderer.DrawPath(_canvas, _currentPath, graphicsState, PaintOperation.Stroke);
         _currentPath.Reset();
     }
 
     private void ProcessCloseAndStrokePath(PdfGraphicsState graphicsState)
     {
         _currentPath.Close();
-        _renderer.DrawPath(_canvas, _currentPath, graphicsState, PaintOperation.Stroke, default);
+        _currentPath.FillType = SKPathFillType.Winding;
+        _renderer.DrawPath(_canvas, _currentPath, graphicsState, PaintOperation.Stroke);
         _currentPath.Reset();
     }
 
     private void ProcessFillPath(PdfGraphicsState graphicsState, SKPathFillType fillType)
     {
-        _renderer.DrawPath(_canvas, _currentPath, graphicsState, PaintOperation.Fill, fillType);
+        _currentPath.FillType = fillType;
+        _renderer.DrawPath(_canvas, _currentPath, graphicsState, PaintOperation.Fill);
         _currentPath.Reset();
     }
 
     private void ProcessFillAndStrokePath(PdfGraphicsState graphicsState, SKPathFillType fillType)
     {
-        _renderer.DrawPath(_canvas, _currentPath, graphicsState, PaintOperation.FillAndStroke, fillType);
+        _currentPath.FillType = fillType;
+        _renderer.DrawPath(_canvas, _currentPath, graphicsState, PaintOperation.FillAndStroke);
         _currentPath.Reset();
     }
 
     private void ProcessCloseFillAndStrokePath(PdfGraphicsState graphicsState, SKPathFillType fillType)
     {
         _currentPath.Close();
-        _renderer.DrawPath(_canvas, _currentPath, graphicsState, PaintOperation.FillAndStroke, fillType);
+        _currentPath.FillType = fillType;
+        _renderer.DrawPath(_canvas, _currentPath, graphicsState, PaintOperation.FillAndStroke);
         _currentPath.Reset();
     }
 

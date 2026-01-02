@@ -6,6 +6,7 @@ using PdfReader.Rendering.Operators;
 using PdfReader.Transparency.Utilities;
 using PdfReader.Transparency.Model;
 using PdfReader.Color.ColorSpace;
+using PdfReader.Color.Transform;
 
 namespace PdfReader.Rendering.State
 {
@@ -28,6 +29,11 @@ namespace PdfReader.Rendering.State
             if (gsDict == null)
             {
                 return parameters;
+            }
+
+            if (gsDict.HasKey(PdfTokens.AlphaIsShapeKey))
+            {
+                parameters.AlphaIsShape = gsDict.GetBooleanOrDefault(PdfTokens.AlphaIsShapeKey);
             }
 
             if (gsDict.HasKey(PdfTokens.LineWidthKey))
@@ -149,6 +155,13 @@ namespace PdfReader.Rendering.State
                     var softMaskDict = gsDict.GetDictionary(PdfTokens.SoftMaskKey);
                     parameters.SoftMask = PdfSoftMaskParser.ParseSoftMaskDictionary(softMaskDict, page);
                 }
+            }
+
+            // Transfer Function (/TR)
+            if (gsDict.HasKey(PdfTokens.TransferFunctionKey))
+            {
+                var trObject = gsDict.GetObject(PdfTokens.TransferFunctionKey);
+                parameters.TransferFunction = TransferFunctionTransform.FromPdfObject(trObject);
             }
 
             // Knockout (/TK)

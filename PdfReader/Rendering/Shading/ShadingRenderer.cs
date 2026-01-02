@@ -69,7 +69,7 @@ public class ShadingRenderer : IShadingRenderer
         if (shading.Background != null)
         {
             var colorSpace = state.Page.Cache.ColorSpace.ResolveByObject(shading.ColorSpaceConverter);
-            var backgroundColor = colorSpace.ToSrgb(shading.Background, state.RenderingIntent);
+            var backgroundColor = colorSpace.ToSrgb(shading.Background, state.RenderingIntent, state.FullTransferFunction);
 
             using var backgroundPaint = PdfPaintFactory.CreateBackgroundPaint(backgroundColor, state);
             canvas.DrawRect(canvas.LocalClipBounds, backgroundPaint);

@@ -1,4 +1,5 @@
 using PdfReader.Color.Sampling;
+using PdfReader.Color.Transform;
 using PdfReader.Functions;
 using PdfReader.Models;
 
@@ -26,17 +27,15 @@ internal sealed class SeparationColorSpaceConverter : PdfColorSpaceConverter
 
     public override bool IsDevice => false;
 
-    protected override IRgbaSampler GetRgbaSamplerCore(PdfRenderingIntent intent)
+    protected override IRgbaSampler GetRgbaSamplerCore(PdfRenderingIntent intent, IColorTransform postTransform)
     {
-        var alternateSampler = _alternate.GetRgbaSampler(intent);
+        var alternateSampler = _alternate.GetRgbaSampler(intent, postTransform);
 
         if (_tintFunction == null)
         {
             return alternateSampler;
         }
 
-        return new FunctionSampler(_tintFunction, _alternate.GetRgbaSampler(intent));
-
-        //return new SingleChannelFunctionSampler(_tintFunction, alternateSampler);
+        return new FunctionSampler(_tintFunction, _alternate.GetRgbaSampler(intent, postTransform));
     }
 }

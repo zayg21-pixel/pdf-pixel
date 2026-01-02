@@ -68,7 +68,7 @@ public sealed class PdfShadingPattern : PdfPattern
             if (Shading.Background != null)
             {
                 var colorSpace = state.Page.Cache.ColorSpace.ResolveByObject(Shading.ColorSpaceConverter);
-                var backgroundColor = colorSpace.ToSrgb(Shading.Background, state.RenderingIntent);
+                var backgroundColor = colorSpace.ToSrgb(Shading.Background, state.RenderingIntent, state.FullTransferFunction);
                 using var backgroundPaint = PdfPaintFactory.CreateBackgroundPaint(backgroundColor, state);
                 canvas.DrawRect(canvas.LocalClipBounds, backgroundPaint);
             }

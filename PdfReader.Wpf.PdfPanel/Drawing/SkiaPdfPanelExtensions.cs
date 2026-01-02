@@ -250,18 +250,14 @@ namespace PdfReader.Wpf.PdfPanel.Drawing
             WriteableBitmap writeableBitmap = pagesDrawingRequest.WritableBitmap;
             writeableBitmap.Lock();
 
-            SKImageInfo imageInfo = new SKImageInfo(writeableBitmap.PixelWidth, writeableBitmap.PixelHeight, SKImageInfo.PlatformColorType, SKAlphaType.Premul);
-            SKSurface drawingSurface = SKSurface.Create(new SKImageInfo(writeableBitmap.PixelWidth, writeableBitmap.PixelHeight));
-            SKSurface surface = SKSurface.Create(imageInfo, writeableBitmap.BackBuffer, writeableBitmap.BackBufferStride);
+            SKImageInfo imageInfo = new SKImageInfo(writeableBitmap.PixelWidth, writeableBitmap.PixelHeight, SKColorType.Bgra8888, SKAlphaType.Premul);
 
-            using (drawingSurface)
+            sourceSurface.ReadPixels(imageInfo, writeableBitmap.BackBuffer, writeableBitmap.BackBufferStride, 0, 0);
+
+            if (pagesDrawingRequest.Pages.OnAfterDraw != null)
             {
-                using (surface)
-                {
-                    surface.Canvas.DrawSurface(sourceSurface, SKPoint.Empty);
-                    pagesDrawingRequest.Pages.OnAfterDraw?.Invoke(drawingSurface.Canvas, pagesDrawingRequest.VisiblePages, pagesDrawingRequest.Scale);
-                    surface.Canvas.DrawSurface(drawingSurface, SKPoint.Empty);
-                }
+                using SKSurface surface = SKSurface.Create(imageInfo, writeableBitmap.BackBuffer, writeableBitmap.BackBufferStride);
+                pagesDrawingRequest.Pages.OnAfterDraw?.Invoke(surface.Canvas, pagesDrawingRequest.VisiblePages, pagesDrawingRequest.Scale);
             }
 
             writeableBitmap.AddDirtyRect(new Int32Rect(0, 0, imageInfo.Width, imageInfo.Height));

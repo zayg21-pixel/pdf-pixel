@@ -160,6 +160,7 @@ public static class PdfTokens
     public static readonly PdfString BlendModeKey = (PdfString)"BM"u8;
     public static readonly PdfString MatrixKey = (PdfString)"Matrix"u8;
     public static readonly PdfString CTMKey = (PdfString)"CTM"u8;
+    public static readonly PdfString AlphaIsShapeKey = (PdfString)"AIS"u8;
     
     // Resource Dictionary Keys
     public static readonly PdfString ColorSpaceKey = (PdfString)"ColorSpace"u8;
@@ -221,6 +222,7 @@ public static class PdfTokens
     public static readonly PdfString SoftMaskSubtypeKey = (PdfString)"S"u8;
     public static readonly PdfString SoftMaskGroupKey = (PdfString)"G"u8;
     public static readonly PdfString SoftMaskBCKey = (PdfString)"BC"u8;
+    public static readonly PdfString TransferFunctionKey = (PdfString)"TR"u8;
     
     // Transparency Group Subtypes
     public static readonly PdfString TransparencyGroupValue = (PdfString)"Transparency"u8;

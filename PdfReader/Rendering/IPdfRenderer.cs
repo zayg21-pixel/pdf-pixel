@@ -39,8 +39,7 @@ namespace PdfReader.Rendering
         /// <param name="path">The path to render.</param>
         /// <param name="state">The current graphics state for rendering.</param>
         /// <param name="operation">The paint operation (stroke, fill, etc.).</param>
-        /// <param name="fillType">The fill type for the path.</param>
-        void DrawPath(SKCanvas canvas, SKPath path, PdfGraphicsState state, PaintOperation operation, SKPathFillType fillType);
+        void DrawPath(SKCanvas canvas, SKPath path, PdfGraphicsState state, PaintOperation operation);
 
         /// <summary>
         /// Draws a shading pattern onto the specified canvas using the given graphics state.

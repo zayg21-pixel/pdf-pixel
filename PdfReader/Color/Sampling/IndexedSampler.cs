@@ -1,15 +1,15 @@
-using PdfReader.Color.Structures;
 using System;
+using System.Numerics;
 using System.Runtime.CompilerServices;
 
 namespace PdfReader.Color.Sampling;
 
 internal sealed class IndexedSampler : IRgbaSampler
 {
-    private readonly RgbaPacked[] _palette;
+    private readonly Vector4[] _palette;
     private readonly int _highValue;
 
-    public IndexedSampler(RgbaPacked[] palette, int highValue)
+    public IndexedSampler(Vector4[] palette, int highValue)
     {
         _palette = palette;
         _highValue = highValue;
@@ -17,7 +17,7 @@ internal sealed class IndexedSampler : IRgbaSampler
 
     public bool IsDefault => false;
 
-    public void Sample(ReadOnlySpan<float> source, ref RgbaPacked destination)
+    public Vector4 Sample(ReadOnlySpan<float> source)
     {
         int idx = 0;
         if (source.Length > 0)
@@ -25,7 +25,7 @@ internal sealed class IndexedSampler : IRgbaSampler
             idx = ClampIndex(source[0]);
         }
 
-        destination = _palette[idx];
+        return _palette[idx];
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]

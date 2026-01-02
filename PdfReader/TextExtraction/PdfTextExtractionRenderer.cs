@@ -47,7 +47,7 @@ internal class PdfTextExtractionRenderer : IPdfRenderer
         // no op
     }
 
-    public void DrawPath(SKCanvas canvas, SKPath path, PdfGraphicsState state, PaintOperation operation, SKPathFillType fillType)
+    public void DrawPath(SKCanvas canvas, SKPath path, PdfGraphicsState state, PaintOperation operation)
     {
         // no op
     }

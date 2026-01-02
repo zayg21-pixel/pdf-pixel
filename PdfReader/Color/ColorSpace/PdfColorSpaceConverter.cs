@@ -1,8 +1,7 @@
 using PdfReader.Color.Sampling;
-using PdfReader.Color.Structures;
+using PdfReader.Color.Transform;
 using SkiaSharp;
 using System;
-using System.Runtime.CompilerServices;
 
 namespace PdfReader.Color.ColorSpace;
 
@@ -12,9 +11,6 @@ namespace PdfReader.Color.ColorSpace;
 /// </summary>
 public abstract class PdfColorSpaceConverter
 {
-    private const float ToFloat = 1f / 255f;
-    private const int MaxByte = 255;
-
     private readonly IRgbaSampler[] _colorSamplers = new IRgbaSampler[Enum.GetValues(typeof(PdfRenderingIntent)).Length];
 
     /// <summary>
@@ -33,76 +29,43 @@ public abstract class PdfColorSpaceConverter
     /// </summary>
     /// <param name="comps01">Component values in the range 0..1.</param>
     /// <param name="intent">Rendering intent.</param>
+    /// <param name="postTransform">Post color transform (if defined).</param>
     /// <returns>sRGB color.</returns>
-    public virtual SKColor ToSrgb(ReadOnlySpan<float> comps01, PdfRenderingIntent intent)
+    public virtual SKColor ToSrgb(ReadOnlySpan<float> comps01, PdfRenderingIntent intent, IColorTransform postTransform)
     {
-        RgbaPacked packed = default;
-        GetRgbaSampler(intent).Sample(comps01, ref packed);
-        return packed.ToSkiaColor();
-    }
-
-    /// <summary>
-    /// Clamps a value to the 0..1 interval.
-    /// </summary>
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    protected static float Clamp01(float v)
-    {
-        return v < 0f ? 0f : v > 1f ? 1f : v;
-    }
-
-    /// <summary>
-    /// Converts an 8-bit unsigned integer to a normalized floating-point value in the range [0, 1].
-    /// </summary>
-    /// <param name="b">The 8-bit unsigned integer to convert.</param>
-    /// <returns>A floating-point value between 0 and 1, inclusive, representing the normalized value of <paramref name="b"/>.</returns>
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    protected static float ToFloat01(byte b)
-    {
-        return b * ToFloat;
-    }
-
-    /// <summary>
-    /// Converts a normalized value (0..1) to an 8-bit unsigned byte with rounding.
-    /// </summary>
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    protected static byte ToByte(float v01)
-    {
-        var value = v01 * MaxByte + 0.5f;
-
-        if (value <= 0f)
-        {
-            return 0;
-        }
-
-        if (value >= MaxByte)
-        {
-            return MaxByte;
-        }
-
-        return (byte)value;
+        return ColorVectorUtilities.From01ToSkiaColor(GetRgbaSampler(intent, postTransform).Sample(comps01));
     }
 
     /// <summary>
     /// Returns an RGBA sampler for the specified rendering intent.
     /// </summary>
     /// <param name="intent">Rendering intent.</param>
+    /// <param name="postTransform">Post color transform (if defined).</param>
     /// <returns>Sampler value.</returns>
-    public IRgbaSampler GetRgbaSampler(PdfRenderingIntent intent)
+    public IRgbaSampler GetRgbaSampler(PdfRenderingIntent intent, IColorTransform postTransform)
     {
-        if (_colorSamplers[(int)intent] is IRgbaSampler sampler)
+        if (postTransform == null && _colorSamplers[(int)intent] is IRgbaSampler sampler)
         {
             return sampler;
         }
+        var newSampler = GetRgbaSamplerCore(intent, postTransform);
 
-        var newSampler = GetRgbaSamplerCore(intent);
-        _colorSamplers[(int)intent] = newSampler;
-        return newSampler;
+        if (postTransform == null)
+        {
+            _colorSamplers[(int)intent] = newSampler;
+            return newSampler;
+        }
+        else
+        {
+            return newSampler;
+        }
     }
 
     /// <summary>
     /// Default implementation to create an RGBA sampler for the specified rendering intent.
     /// </summary>
     /// <param name="intent">Rendering intent.</param>
+    /// <param name="postTransform">Post color transform (if defined).</param>
     /// <returns>RGBA sampler.</returns>
-    protected abstract IRgbaSampler GetRgbaSamplerCore(PdfRenderingIntent intent);
+    protected abstract IRgbaSampler GetRgbaSamplerCore(PdfRenderingIntent intent, IColorTransform postTransform);
 }

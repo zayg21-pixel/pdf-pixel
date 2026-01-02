@@ -2,6 +2,7 @@
 using PdfReader.Color.Structures;
 using PdfReader.Imaging.Model;
 using PdfReader.Imaging.Processing;
+using PdfReader.Rendering.State;
 using PdfReader.Streams;
 using SkiaSharp;
 
@@ -16,7 +17,7 @@ internal class PngSkiaDecoder
     /// Decodes a PDF image as PNG using PngImageBuilder for both FlateDecode and PNG predictor images.
     /// Returns null when incompatibilities are detected.
     /// </summary>
-    public static SKImage DecodeAsPng(PdfImage image)
+    public static SKImage DecodeAsPng(PdfImage image, PdfGraphicsState state)
     {
         if (image == null)
         {
@@ -51,11 +52,11 @@ internal class PngSkiaDecoder
 
         if (converter is IndexedConverter indexed)
         {
-            palette = indexed.BuildPalette(image.RenderingIntent);
+            palette = indexed.BuildPackedPalette(image.RenderingIntent, state.FullTransferFunction);
         }
         if (converter.Components == 1 && bpc <= 8)
         {
-            palette = PdfImageRowProcessor.BuildSingleChannelPalette(image);
+            palette = PdfImageRowProcessor.BuildSingleChannelPalette(image, state);
         }
 
         byte[] iccBytes = null;

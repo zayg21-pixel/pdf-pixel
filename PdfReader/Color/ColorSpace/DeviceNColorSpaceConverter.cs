@@ -1,9 +1,8 @@
 using PdfReader.Color.Sampling;
+using PdfReader.Color.Transform;
 using PdfReader.Functions;
 using PdfReader.Models;
-using SkiaSharp;
 using System;
-using System.Runtime.CompilerServices;
 
 namespace PdfReader.Color.ColorSpace;
 
@@ -30,13 +29,13 @@ internal sealed class DeviceNColorSpaceConverter : PdfColorSpaceConverter
 
     public override bool IsDevice => false;
 
-    protected override IRgbaSampler GetRgbaSamplerCore(PdfRenderingIntent intent)
+    protected override IRgbaSampler GetRgbaSamplerCore(PdfRenderingIntent intent, IColorTransform postTransform)
     {
         if (_tintFunction == null)
         {
-            return _alternate.GetRgbaSampler(intent);
+            return _alternate.GetRgbaSampler(intent, postTransform);
         }
 
-        return new FunctionSampler(_tintFunction, _alternate.GetRgbaSampler(intent));
+        return new FunctionSampler(_tintFunction, _alternate.GetRgbaSampler(intent, postTransform));
     }
 }

@@ -1,4 +1,5 @@
 using PdfReader.Color.ColorSpace;
+using PdfReader.Color.Transform;
 using PdfReader.Forms;
 using PdfReader.Text;
 using SkiaSharp;
@@ -52,21 +53,28 @@ public class PdfSoftMask
     public float[] BackgroundColor { get; set; }
 
     /// <summary>
+    /// Optional transfer function transform (TR) applied to device output before using as soft mask input.
+    /// Internal to avoid exposing internal transform type on a public API.
+    /// </summary>
+    public TransferFunctionTransform TransferFunction { get; set; }
+
+    /// <summary>
     /// Retrieves the background color as an SKColor, converting it to sRGB if necessary.
     /// </summary>
     /// <param name="intent">Current intent.</param>
+    /// <param name="postTransform"></param>Post color transform (if defined).</param>
     /// <returns>SKColor instance.</returns>
-    public SKColor GetBackgroundColor(PdfRenderingIntent intent)
+    public SKColor GetBackgroundColor(PdfRenderingIntent intent, IColorTransform postTransform)
     {
         SKColor backgroundColor;
 
         if (BackgroundColor != null)
         {
-            backgroundColor = MaskForm.TransparencyGroup?.ColorSpaceConverter?.ToSrgb(BackgroundColor, intent) ?? SKColors.White;
+            backgroundColor = MaskForm.TransparencyGroup?.ColorSpaceConverter?.ToSrgb(BackgroundColor, intent, postTransform) ?? SKColors.Black;
         }
         else
         {
-            backgroundColor = SKColors.White;
+            backgroundColor = SKColors.Black;
         }
 
         return backgroundColor;

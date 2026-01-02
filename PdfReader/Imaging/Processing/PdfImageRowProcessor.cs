@@ -2,6 +2,7 @@ using Microsoft.Extensions.Logging;
 using PdfReader.Color.ColorSpace;
 using PdfReader.Color.Sampling;
 using PdfReader.Color.Structures;
+using PdfReader.Color.Transform;
 using PdfReader.Imaging.Model;
 using PdfReader.Imaging.Png;
 using PdfReader.Parsing;
@@ -85,7 +86,7 @@ internal sealed class PdfImageRowProcessor : IDisposable
 
         if (ShouldConvertColor(_image))
         {
-            _sampler = _image.ColorSpaceConverter.GetRgbaSampler(_image.RenderingIntent);
+            _sampler = _image.ColorSpaceConverter.GetRgbaSampler(_image.RenderingIntent, _state.FullTransferFunction);
             _outputMode = OutputMode.RgbaColorApplied;
             _pngBuilder = new PngImageBuilder(4, 8, _width, _height);
             _pngBuilder.Init(null, null);
@@ -100,11 +101,11 @@ internal sealed class PdfImageRowProcessor : IDisposable
 
             if (_image.ColorSpaceConverter is IndexedConverter indexed)
             {
-                palette = indexed.BuildPalette(_image.RenderingIntent);
+                palette = indexed.BuildPackedPalette(_image.RenderingIntent, state.FullTransferFunction);
             }
             else if (_components == 1 && _bitsPerComponent <= 8)
             {
-                palette = BuildSingleChannelPalette(_image);
+                palette = BuildSingleChannelPalette(_image, state);
             }
 
             if (_image.ColorSpaceConverter is IccBasedConverter iccBased && iccBased.Profile?.Bytes != null)
@@ -115,14 +116,14 @@ internal sealed class PdfImageRowProcessor : IDisposable
         }
     }
 
-    public static RgbaPacked[] BuildSingleChannelPalette(PdfImage image)
+    public static RgbaPacked[] BuildSingleChannelPalette(PdfImage image, PdfGraphicsState state)
     {
         if (image.ColorSpaceConverter is DeviceGrayConverter)
         {
             return null;
         }
 
-        var sampler = image.ColorSpaceConverter.GetRgbaSampler(image.RenderingIntent);
+        var sampler = image.ColorSpaceConverter.GetRgbaSampler(image.RenderingIntent, state.FullTransferFunction);
         int bitsPerComponent = image.BitsPerComponent;
         int maxCode = (1 << bitsPerComponent) - 1;
         int paletteSize = maxCode + 1;
@@ -133,9 +134,7 @@ internal sealed class PdfImageRowProcessor : IDisposable
         {
             float value01 = maxCode == 0 ? 0f : (float)code / maxCode;
             comps[0] = value01;
-            RgbaPacked rgba = default;
-            sampler.Sample(comps, ref rgba);
-            palette[code] = rgba;
+            palette[code] = ColorVectorUtilities.From01ToRgba(sampler.Sample(comps));
         }
 
         return palette;
@@ -321,7 +320,8 @@ internal sealed class PdfImageRowProcessor : IDisposable
                 componentValues[c] = value01;
             }
             ref RgbaPacked destinationPixel = ref Unsafe.Add(ref destRowColor, x);
-            _sampler.Sample(componentValues, ref destinationPixel);
+            var colorVector = _sampler.Sample(componentValues);
+            ColorVectorUtilities.Load01ToRgba(colorVector, ref destinationPixel);
 
             if (applyMask && maskMatch)
             {

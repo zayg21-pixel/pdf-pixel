@@ -6,7 +6,7 @@ namespace PdfReader.Color.Transform;
 /// Defines a universal interface for color transformation operations.
 /// Implementations can transform any color vector, including grayscale, RGB, CMYK, and RGBA.
 /// </summary>
-internal interface IColorTransform
+public interface IColorTransform
 {
     /// <summary>
     /// Returns true if the transformation is an identity operation (i.e., input colors remain unchanged).

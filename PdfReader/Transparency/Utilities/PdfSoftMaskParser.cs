@@ -1,4 +1,5 @@
 ﻿using PdfReader.Color.ColorSpace;
+using PdfReader.Color.Transform;
 using PdfReader.Forms;
 using PdfReader.Models;
 using PdfReader.Rendering.Operators;
@@ -15,13 +16,16 @@ internal class PdfSoftMaskParser
         {
             return null;
         }
+
         var softMask = new PdfSoftMask();
         softMask.Subtype = softMaskDict.GetName(PdfTokens.SoftMaskSubtypeKey).AsEnum<PdfSoftMaskSubtype>();
+
         var groupObject = softMaskDict.GetObject(PdfTokens.SoftMaskGroupKey);
         if (groupObject == null)
         {
             return null;
         }
+
         var formObject = PdfForm.FromXObject(groupObject, page);
         softMask.MaskForm = formObject;
 
@@ -29,6 +33,13 @@ internal class PdfSoftMaskParser
         if (bcArray != null && bcArray.Count > 0)
         {
             softMask.BackgroundColor = bcArray.GetFloatArray();
+        }
+
+        // Parse optional TR transfer function
+        var trObject = softMaskDict.GetObject(PdfTokens.TransferFunctionKey);
+        if (trObject != null)
+        {
+            softMask.TransferFunction = TransferFunctionTransform.FromPdfObject(trObject);
         }
 
         return softMask;
@@ -40,12 +51,14 @@ internal class PdfSoftMaskParser
         {
             return null;
         }
+
         var group = new PdfTransparencyGroup();
         var subtype = groupDict.GetName(PdfTokens.GroupSubtypeKey);
         if (subtype != PdfTokens.TransparencyGroupValue)
         {
             return null;
         }
+
         var csValue = groupDict.GetObject(PdfTokens.GroupColorSpaceKey);
         group.ColorSpaceConverter = page.Cache.ColorSpace.ResolveByObject(csValue);
         group.Isolated = groupDict.GetBooleanOrDefault(PdfTokens.GroupIsolatedKey);

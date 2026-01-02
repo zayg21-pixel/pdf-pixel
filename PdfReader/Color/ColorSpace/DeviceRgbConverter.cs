@@ -13,10 +13,9 @@ internal sealed class DeviceRgbConverter : PdfColorSpaceConverter
     public override int Components => 3;
     public override bool IsDevice => true;
 
-    protected override IRgbaSampler GetRgbaSamplerCore(PdfRenderingIntent intent)
+    protected override IRgbaSampler GetRgbaSamplerCore(PdfRenderingIntent intent, IColorTransform postTransform)
     {
-        // no-op transform
-        var chained = new ChainedColorTransform();
+        var chained = new ChainedColorTransform(postTransform);
         return new ColorTransformSampler(chained);
     }
 }

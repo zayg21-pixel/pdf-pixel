@@ -34,7 +34,7 @@ public class RawImageDecoder : PdfImageDecoder
             return null;
         }
 
-        SKImage fastPng = PngSkiaDecoder.DecodeAsPng(Image);
+        SKImage fastPng = PngSkiaDecoder.DecodeAsPng(Image, state);
         if (fastPng != null)
         {
             return fastPng;

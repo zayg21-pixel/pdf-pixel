@@ -7,6 +7,8 @@ using PdfReader.Fonts.Model;
 using PdfReader.Models;
 using System.Collections.Generic;
 using System;
+using PdfReader.Color.Transform;
+using PdfReader.Color.Sampling;
 
 namespace PdfReader.Rendering.State
 {
@@ -23,19 +25,25 @@ namespace PdfReader.Rendering.State
     /// </summary>
     public class PdfGraphicsState
     {
-        public PdfGraphicsState(PdfPage statePage, HashSet<uint> recursionGuard, PdfRenderingParameters renderingParameters)
+        private IRgbaSampler _fillRgbaSampler;
+        private IRgbaSampler _strokeRgbaSampler;
+        private IColorTransform _fullTransferFunction;
+
+        private PdfRenderingIntent _renderingIntent = PdfRenderingIntent.RelativeColorimetric;
+        private PdfColorSpaceConverter _strokeColorConverter;
+        private PdfColorSpaceConverter _fillColorConverter;
+        private TransferFunctionTransform _transferFunction;
+        private IColorTransform _externalTransferFunction;
+
+        public PdfGraphicsState(PdfPage statePage, HashSet<uint> recursionGuard, PdfRenderingParameters renderingParameters, IColorTransform externalTransform)
         {
             Page = statePage ?? throw new ArgumentNullException(nameof(renderingParameters));
+            ExternalTransferFunction = externalTransform;
             RecursionGuard = recursionGuard ?? throw new ArgumentNullException(nameof(renderingParameters));
             RenderingParameters = renderingParameters ?? throw new ArgumentNullException(nameof(renderingParameters));
             FillColorConverter = statePage.Cache.ColorSpace.ResolveDeviceConverter(PdfColorSpaceType.DeviceGray);
             StrokeColorConverter = statePage.Cache.ColorSpace.ResolveDeviceConverter(PdfColorSpaceType.DeviceGray);
 
-        }
-
-        public PdfGraphicsState(PdfGraphicsState sourceState)
-            : this(sourceState.Page, sourceState.RecursionGuard, sourceState.RenderingParameters)
-        {
         }
 
         /// <summary>
@@ -53,11 +61,6 @@ namespace PdfReader.Rendering.State
         /// </summary>
         public PdfRenderingParameters RenderingParameters { get; }
 
-        /// <summary>
-        /// Identity matrix shortcut used for initializing text matrices, etc.
-        /// </summary>
-        public static SKMatrix IdentityMatrix = SKMatrix.Identity;
-
         // --------------------------------------------------------------------------------------
         // Consolidated paint objects (new API)
         // --------------------------------------------------------------------------------------
@@ -72,19 +75,141 @@ namespace PdfReader.Rendering.State
         public PdfPaint FillPaint { get; set; } = PdfPaint.Solid(SKColors.Black);
 
         /// <summary>
+        /// Gets the IRgbaSampler for fill operations, cached and invalidated as needed.
+        /// </summary>
+        public IRgbaSampler FillRgbaSampler
+        {
+            get
+            {
+                _fillRgbaSampler ??= FillColorConverter.GetRgbaSampler(RenderingIntent, FullTransferFunction);
+
+                return _fillRgbaSampler;
+            }
+        }
+
+        /// <summary>
+        /// Gets the IRgbaSampler for stroke operations, cached and invalidated as needed.
+        /// </summary>
+        public IRgbaSampler StrokeRgbaSampler
+        {
+            get
+            {
+                _strokeRgbaSampler ??= StrokeColorConverter.GetRgbaSampler(RenderingIntent, FullTransferFunction);
+                return _strokeRgbaSampler;
+            }
+        }
+
+        /// <summary>
         /// Rendering intent (ri operator). Defaults to RelativeColorimetric per spec.
         /// </summary>
-        public PdfRenderingIntent RenderingIntent { get; set; } = PdfRenderingIntent.RelativeColorimetric;
+        public PdfRenderingIntent RenderingIntent
+        {
+            get => _renderingIntent;
+            set
+            {
+                if (_renderingIntent != value)
+                {
+                    _renderingIntent = value;
+                    InvalidateRgbaSamplers();
+                }
+            }
+        }
 
         /// <summary>
         /// Current color space converter for stroking operations.
         /// </summary>
-        public PdfColorSpaceConverter StrokeColorConverter { get; set; }
+        public PdfColorSpaceConverter StrokeColorConverter
+        {
+            get => _strokeColorConverter;
+            set
+            {
+                if (_strokeColorConverter != value)
+                {
+                    _strokeColorConverter = value;
+                    _strokeRgbaSampler = null;
+                }
+            }
+        }
 
         /// <summary>
         /// Current color space converter for non-stroking (fill) operations.
         /// </summary>
-        public PdfColorSpaceConverter FillColorConverter { get; set; }
+        public PdfColorSpaceConverter FillColorConverter
+        {
+            get { return _fillColorConverter; }
+            set
+            {
+                if (_fillColorConverter != value)
+                {
+                    _fillColorConverter = value;
+                    _fillRgbaSampler = null;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Optional transfer function (TR) applied to device output prior to soft mask input or blending.
+        /// </summary>
+        public TransferFunctionTransform TransferFunction
+        {
+            get { return _transferFunction; }
+            set
+            {
+                if (_transferFunction != value)
+                {
+                    _transferFunction = value;
+                    _fullTransferFunction = null;
+                    InvalidateRgbaSamplers();
+                }
+            }
+        }
+
+        /// <summary>
+        /// Optional external transfer function (TR) provided from caller.
+        /// </summary>
+        public IColorTransform ExternalTransferFunction
+        {
+            get { return _externalTransferFunction; }
+            set
+            {
+                if (_externalTransferFunction != value)
+                {
+                    _externalTransferFunction = value;
+                    _fullTransferFunction = null;
+                    InvalidateRgbaSamplers();
+                }
+            }
+        }
+
+        /// <summary>
+        /// Gets the complete color transfer function by combining the internal and external transfer functions, if both
+        /// are available.
+        /// </summary>
+        public IColorTransform FullTransferFunction
+        {
+            get
+            {
+                if (_fullTransferFunction != null)
+                {
+                    return _fullTransferFunction;
+                }
+
+                if (TransferFunction == null && ExternalTransferFunction == null)
+                {
+                    return null;
+                }
+                else if (TransferFunction != null && ExternalTransferFunction != null)
+                {
+                    _fullTransferFunction = new ChainedColorTransform(TransferFunction, ExternalTransferFunction);
+                }
+                else
+                {
+                    _fullTransferFunction = TransferFunction ?? ExternalTransferFunction;
+                }
+
+                return _fullTransferFunction;
+            }
+        }
 
         // --------------------------------------------------------------------------------------
         // Line state (see PDF 2.0 spec 8.4 Graphics State)
@@ -150,6 +275,12 @@ namespace PdfReader.Rendering.State
         /// Active soft mask (SMask entry in ExtGState) or null when none.
         /// </summary>
         public PdfSoftMask SoftMask { get; set; }
+
+        /// <summary>
+        /// Alpha-is-shape flag (AIS entry in ExtGState). When true, alpha is treated as shape, not opacity.
+        /// Default false.
+        /// </summary>
+        public bool AlphaIsShape { get; set; } = false;
 
         /// <summary>
         /// Gets or sets the transformation matrix applied to the device.
@@ -227,18 +358,18 @@ namespace PdfReader.Rendering.State
         /// <summary>
         /// Current text matrix (Tm).
         /// </summary>
-        public SKMatrix TextMatrix { get; set; } = IdentityMatrix;
+        public SKMatrix TextMatrix { get; set; } = SKMatrix.Identity;
 
         /// <summary>
         /// Current text line matrix (start of line position).
         /// </summary>
-        public SKMatrix TextLineMatrix { get; set; } = IdentityMatrix;
+        public SKMatrix TextLineMatrix { get; set; } = SKMatrix.Identity;
 
         /// <summary>
         /// Current transformation matrix (CTM) from user space to device space.
         /// Stored to enable proper coordinate system transformations for patterns and other operations.
         /// </summary>
-        public SKMatrix CTM { get; set; } = IdentityMatrix;
+        public SKMatrix CTM { get; set; } = SKMatrix.Identity;
 
         /// <summary>
         /// True while inside a text object (between BT and ET).
@@ -265,9 +396,9 @@ namespace PdfReader.Rendering.State
         /// <summary>
         /// Create a deep copy for stack push (q operator). Paint objects are reference-copied (immutable usage expected).
         /// </summary>
-        public PdfGraphicsState Clone(PdfPage pageOverride = null)
+        public PdfGraphicsState Clone()
         {
-            return new PdfGraphicsState(pageOverride ?? Page, RecursionGuard, RenderingParameters)
+            return new PdfGraphicsState(Page, RecursionGuard, RenderingParameters, ExternalTransferFunction)
             {
                 StrokePaint = StrokePaint,
                 FillPaint = FillPaint,
@@ -285,6 +416,8 @@ namespace PdfReader.Rendering.State
                 FillColorConverter = FillColorConverter,
                 RenderingIntent = RenderingIntent,
                 SoftMask = SoftMask,
+                TransferFunction = TransferFunction,
+                AlphaIsShape = AlphaIsShape,
                 OverprintMode = OverprintMode,
                 OverprintStroke = OverprintStroke,
                 OverprintFill = OverprintFill,
@@ -305,6 +438,12 @@ namespace PdfReader.Rendering.State
                 Type3Advancement = Type3Advancement,
                 Type3BoundingBox = Type3BoundingBox
             };
+        }
+
+        private void InvalidateRgbaSamplers()
+        {
+            _fillRgbaSampler = null;
+            _strokeRgbaSampler = null;
         }
     }
 }
