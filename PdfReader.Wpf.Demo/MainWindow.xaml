@@ -30,6 +30,7 @@
         <ScrollViewer Grid.Row="1" CanContentScroll="True" VerticalScrollBarVisibility="Visible" HorizontalScrollBarVisibility="Visible">
             <pdfPanel:SkiaPdfPanel x:Name="pdfPanel"
                                    CurrentPage="{Binding PageNumber}"
+                                   Pages="{Binding Pages, Mode=OneWayToSource}"
                                    AutoScaleMode="{Binding AutoScaleMode}">
                 <pdfPanel:SkiaPdfPanel.AnnotationToolTip>
                     <ToolTip Background="Transparent" BorderThickness="0">
