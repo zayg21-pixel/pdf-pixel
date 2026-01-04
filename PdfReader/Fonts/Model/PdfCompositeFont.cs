@@ -1,7 +1,6 @@
 using PdfReader.Fonts.Management;
 using PdfReader.Fonts.Mapping;
 using PdfReader.Models;
-using PdfReader.Resources;
 using PdfReader.Text;
 using SkiaSharp;
 using System;

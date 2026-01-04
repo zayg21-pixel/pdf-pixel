@@ -14,11 +14,11 @@ namespace PdfReader.Fonts.Mapping;
 /// Parser for PDF CMaps used in CID fonts.
 /// </summary>
 public static class PdfCMapParser
-{        
-    public static PdfCMap ParseCMap(ReadOnlyMemory<byte> cmapBytes, PdfDocument document)
+{
+    public static PdfCMap ParseCMap(ReadOnlyMemory<byte> cmapBytes, ILoggerFactory loggerFactory, Func<PdfString, PdfCMap> cmapProvider)
     {
         var cmap = new PdfCMap();
-        var evaluator = new PostScriptEvaluator(cmapBytes.Span, false, document.LoggerFactory.CreateLogger<PostScriptEvaluator>());
+        var evaluator = new PostScriptEvaluator(cmapBytes.Span, false, loggerFactory.CreateLogger<PostScriptEvaluator>());
 
         evaluator.SetResourceValue("ProcSet", "CIDInit", new PostScriptDictionary());
         var stack = new System.Collections.Generic.Stack<PostScriptToken>();
@@ -106,7 +106,7 @@ public static class PdfCMapParser
             {
                 if (element is PostScriptLiteralName useCMapName)
                 {
-                    var baseCMap = document.CMapCache.GetCmap(PdfString.FromString(useCMapName.Name));
+                    var baseCMap = cmapProvider?.Invoke(PdfString.FromString(useCMapName.Name));
                     if (baseCMap != null)
                     {
                         cmap.MergeFrom(baseCMap);
@@ -126,6 +126,15 @@ public static class PdfCMapParser
         }
 
         return cmap;
+    }
+
+    public static PdfCMap ParseCMap(ReadOnlyMemory<byte> cmapBytes, PdfDocument document)
+    {
+        return ParseCMap(
+            cmapBytes,
+            document.LoggerFactory,
+            document.CMapCache.GetCmap
+        );
     }
 
     private static PdfCidSystemInfo GetInfo(PostScriptDictionary dictionary)

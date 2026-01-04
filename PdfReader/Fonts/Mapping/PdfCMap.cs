@@ -2,6 +2,7 @@ using PdfReader.Fonts.Model;
 using PdfReader.Models;
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 
 namespace PdfReader.Fonts.Mapping;
 
@@ -17,11 +18,12 @@ public enum CMapWMode
 /// </summary>
 public class PdfCMap
 {
-    // Length-aware mappings keyed by PdfCharacterCode (byte-sequence equality)
     private readonly Dictionary<PdfCharacterCode, string> _characterCodeToUnicode = new Dictionary<PdfCharacterCode, string>();
     private readonly Dictionary<PdfCharacterCode, int> _codeToCid = new Dictionary<PdfCharacterCode, int>();
 
-    // Codespace ranges: define valid code byte lengths and value intervals
+    private readonly LengthBuckets<UnicodeRangeMap> _unicodeRangesByLength = new LengthBuckets<UnicodeRangeMap>();
+    private readonly LengthBuckets<CidRangeMap> _cidRangesByLength = new LengthBuckets<CidRangeMap>();
+
     private readonly List<CodeSpaceRange> _codeSpaceRanges = new List<CodeSpaceRange>();
 
     /// <summary>
@@ -126,6 +128,7 @@ public class PdfCMap
     /// <summary>
     /// Add a sequential range mapping using length-aware start/end codes to Unicode.
     /// Both start and end must be the same length (1..4 bytes), inclusive.
+    /// Stored as a compressed range for efficient lookup and memory usage.
     /// </summary>
     public void AddRangeMapping(ReadOnlySpan<byte> startCode, ReadOnlySpan<byte> endCode, int startUnicode)
     {
@@ -143,22 +146,14 @@ public class PdfCMap
             vEnd = temp;
         }
 
-        int delta = 0;
-        for (uint v = vStart; v <= vEnd; v++, delta++)
-        {
-            int codePoint = startUnicode + delta;
-            var codeBytes = PdfCharacterCode.PackUIntToBigEndian(v, len);
-
-            if (IsValidCodePoint(codePoint))
-            {
-                _characterCodeToUnicode[new PdfCharacterCode(codeBytes)] = char.ConvertFromUtf32(codePoint);
-            }
-        }
+        var list = _unicodeRangesByLength[len];
+        PdfCMapUtilities.InsertUnicodeRangeSorted(list, new UnicodeRangeMap(len, vStart, vEnd, startUnicode));
     }
 
     /// <summary>
     /// Add a sequential range mapping using length-aware start/end codes to CIDs.
     /// Both start and end must be the same length (1..4 bytes), inclusive.
+    /// Stored as a compressed range for efficient lookup and memory usage.
     /// </summary>
     public void AddCidRangeMapping(ReadOnlySpan<byte> startCode, ReadOnlySpan<byte> endCode, int startCid)
     {
@@ -176,13 +171,8 @@ public class PdfCMap
             vEnd = temp;
         }
 
-        int delta = 0;
-        for (uint v = vStart; v <= vEnd; v++, delta++)
-        {
-            int cid = startCid + delta;
-            var codeBytes = PdfCharacterCode.PackUIntToBigEndian(v, len);
-            _codeToCid[new PdfCharacterCode(codeBytes)] = cid;
-        }
+        var list = _cidRangesByLength[len];
+        PdfCMapUtilities.InsertCidRangeSorted(list, new CidRangeMap(len, vStart, vEnd, startCid));
     }
 
     /// <summary>
@@ -198,6 +188,33 @@ public class PdfCMap
         {
             return unicode;
         }
+
+        ReadOnlySpan<byte> bytes = code.Bytes.Span;
+        int len = bytes.Length;
+        if (len < 1 || len > 4)
+        {
+            return null;
+        }
+
+        uint value = PdfCharacterCode.UnpackBigEndianToUInt(bytes);
+        var ranges = _unicodeRangesByLength[len];
+        if (ranges == null || ranges.Count == 0)
+        {
+            return null;
+        }
+
+        int index = PdfCMapUtilities.BinarySearchUnicode(ranges, value);
+        if (index >= 0)
+        {
+            var r = ranges[index];
+            int delta = (int)(value - r.Start);
+            int codePoint = r.StartUnicode + delta;
+            if (IsValidCodePoint(codePoint))
+            {
+                return char.ConvertFromUtf32(codePoint);
+            }
+        }
+
         return null;
     }
 
@@ -211,12 +228,44 @@ public class PdfCMap
             cid = 0;
             return false;
         }
-        return _codeToCid.TryGetValue(code, out cid);
+        if (_codeToCid.TryGetValue(code, out cid))
+        {
+            return true;
+        }
+
+        ReadOnlySpan<byte> bytes = code.Bytes.Span;
+        int len = bytes.Length;
+        if (len < 1 || len > 4)
+        {
+            cid = 0;
+            return false;
+        }
+
+        uint value = PdfCharacterCode.UnpackBigEndianToUInt(bytes);
+        var ranges = _cidRangesByLength[len];
+        if (ranges == null || ranges.Count == 0)
+        {
+            cid = 0;
+            return false;
+        }
+
+        int index = PdfCMapUtilities.BinarySearchCid(ranges, value);
+        if (index >= 0)
+        {
+            var r = ranges[index];
+            int delta = (int)(value - r.Start);
+            cid = r.StartCid + delta;
+            return true;
+        }
+
+        cid = 0;
+        return false;
     }
 
     /// <summary>
     /// Merge mappings from another CMap. Keys are treated the same (PdfCharacterCode).
     /// Codespace ranges are merged and Min/Max recalculated.
+    /// Also merges range-based maps per code length (1..4).
     /// </summary>
     public void MergeFrom(PdfCMap other, bool overwriteExisting = false)
     {
@@ -243,23 +292,36 @@ public class PdfCMap
         {
             _codeSpaceRanges.Add(range);
         }
+
+        for (int len = LengthBuckets<object>.MinLength; len <= LengthBuckets<object>.MaxLength; len++)
+        {
+            var otherUnicodeRanges = other._unicodeRangesByLength[len];
+            if (otherUnicodeRanges != null)
+            {
+                for (int i = 0; i < otherUnicodeRanges.Count; i++)
+                {
+                    PdfCMapUtilities.InsertUnicodeRangeSorted(_unicodeRangesByLength[len], otherUnicodeRanges[i]);
+                }
+            }
+
+            var otherCidRanges = other._cidRangesByLength[len];
+            if (otherCidRanges != null)
+            {
+                for (int i = 0; i < otherCidRanges.Count; i++)
+                {
+                    PdfCMapUtilities.InsertCidRangeSorted(_cidRangesByLength[len], otherCidRanges[i]);
+                }
+            }
+        }
     }
+
+    public ReadOnlyDictionary<PdfCharacterCode, int> GetCodeToCid() => new ReadOnlyDictionary<PdfCharacterCode, int>(_codeToCid);
+
+    public IReadOnlyList<CodeSpaceRange> GetCodeSpaceRanges() => _codeSpaceRanges.ToArray();
+
 
     public static bool IsValidCodePoint(int codePoint)
     {
         return codePoint >= 0 && codePoint <= 0x10FFFF && (codePoint < 0xD800 || codePoint > 0xDFFF);
-    }
-
-    private readonly struct CodeSpaceRange
-    {
-        public CodeSpaceRange(int length, uint start, uint end)
-        {
-            Length = length;
-            Start = start;
-            End = end;
-        }
-        public int Length { get; }
-        public uint Start { get; }
-        public uint End { get; }
     }
 }

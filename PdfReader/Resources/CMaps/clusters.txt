@@ -1,0 +1,260 @@
+CMap clusters by column agreement:
+Cluster 1 (size=4):
+  78-EUC-H
+  78-EUC-V
+  EUC-H
+  EUC-V
+Cluster 2 (size=10):
+  78-H
+  78-V
+  Add-H
+  Add-V
+  Ext-H
+  Ext-V
+  H
+  NWP-H
+  NWP-V
+  V
+Cluster 3 (size=17):
+  78-RKSJ-H
+  78-RKSJ-V
+  78ms-RKSJ-H
+  78ms-RKSJ-V
+  83pv-RKSJ-H
+  90ms-RKSJ-H
+  90ms-RKSJ-V
+  90msp-RKSJ-H
+  90msp-RKSJ-V
+  90pv-RKSJ-H
+  90pv-RKSJ-V
+  Add-RKSJ-H
+  Add-RKSJ-V
+  Ext-RKSJ-H
+  Ext-RKSJ-V
+  RKSJ-H
+  RKSJ-V
+Cluster 4 (size=9):
+  Adobe-CNS1-0
+  Adobe-CNS1-1
+  Adobe-CNS1-2
+  Adobe-Japan1-4
+  Adobe-KR-2
+  Adobe-KR-3
+  Adobe-KR-4
+  Adobe-KR-5
+  Adobe-KR-6
+Cluster 5 (size=16):
+  Adobe-CNS1-3
+  Adobe-CNS1-4
+  Adobe-CNS1-5
+  Adobe-CNS1-6
+  Adobe-CNS1-7
+  Adobe-GB1-2
+  Adobe-GB1-3
+  Adobe-Japan1-5
+  Adobe-Japan1-6
+  Adobe-Japan1-7
+  Adobe-Korea1-1
+  Adobe-Korea1-2
+  Adobe-KR-7
+  Adobe-KR-8
+  Adobe-KR-9
+  Adobe-Manga1-0
+Cluster 6 (size=6):
+  Adobe-GB1-0
+  Adobe-Japan1-0
+  Adobe-Japan1-1
+  Adobe-Japan1-2
+  Adobe-Japan1-3
+  Adobe-Korea1-0
+Cluster 7 (size=1):
+  Adobe-GB1-1
+Cluster 8 (size=3):
+  Adobe-GB1-4
+  Adobe-GB1-5
+  Adobe-GB1-6
+Cluster 9 (size=1):
+  Adobe-Japan2-0
+Cluster 10 (size=1):
+  Adobe-KR-0
+Cluster 11 (size=1):
+  Adobe-KR-1
+Cluster 12 (size=18):
+  B5-H
+  B5-V
+  B5pc-H
+  B5pc-V
+  ETen-B5-H
+  ETen-B5-V
+  ETenms-B5-H
+  ETenms-B5-V
+  HKdla-B5-H
+  HKdla-B5-V
+  HKdlb-B5-H
+  HKdlb-B5-V
+  HKgccs-B5-H
+  HKgccs-B5-V
+  HKm314-B5-H
+  HKm314-B5-V
+  HKm471-B5-H
+  HKm471-B5-V
+Cluster 13 (size=2):
+  CNS-EUC-H
+  CNS-EUC-V
+Cluster 14 (size=2):
+  CNS1-H
+  CNS1-V
+Cluster 15 (size=2):
+  CNS2-H
+  CNS2-V
+Cluster 16 (size=4):
+  ETHK-B5-H
+  ETHK-B5-V
+  HKscs-B5-H
+  HKscs-B5-V
+Cluster 17 (size=4):
+  GB-EUC-H
+  GB-EUC-V
+  GBpc-EUC-H
+  GBpc-EUC-V
+Cluster 18 (size=2):
+  GB-H
+  GB-V
+Cluster 19 (size=4):
+  GBK-EUC-H
+  GBK-EUC-V
+  GBKp-EUC-H
+  GBKp-EUC-V
+Cluster 20 (size=2):
+  GBK2K-H
+  GBK2K-V
+Cluster 21 (size=4):
+  GBT-EUC-H
+  GBT-EUC-V
+  GBTpc-EUC-H
+  GBTpc-EUC-V
+Cluster 22 (size=2):
+  GBT-H
+  GBT-V
+Cluster 23 (size=1):
+  Hankaku
+Cluster 24 (size=1):
+  Hiragana
+Cluster 25 (size=2):
+  Hojo-EUC-H
+  Hojo-EUC-V
+Cluster 26 (size=2):
+  Hojo-H
+  Hojo-V
+Cluster 27 (size=2):
+  Identity-H
+  Identity-V
+Cluster 28 (size=1):
+  Katakana
+Cluster 29 (size=4):
+  KSC-EUC-H
+  KSC-EUC-V
+  KSCpc-EUC-H
+  KSCpc-EUC-V
+Cluster 30 (size=2):
+  KSC-H
+  KSC-V
+Cluster 31 (size=2):
+  KSC-Johab-H
+  KSC-Johab-V
+Cluster 32 (size=4):
+  KSCms-UHC-H
+  KSCms-UHC-HW-H
+  KSCms-UHC-HW-V
+  KSCms-UHC-V
+Cluster 33 (size=1):
+  Roman
+Cluster 34 (size=1):
+  UniAKR-UTF16-H
+Cluster 35 (size=1):
+  UniAKR-UTF32-H
+Cluster 36 (size=1):
+  UniAKR-UTF8-H
+Cluster 37 (size=2):
+  UniCNS-UCS2-H
+  UniCNS-UCS2-V
+Cluster 38 (size=2):
+  UniCNS-UTF16-H
+  UniCNS-UTF16-V
+Cluster 39 (size=2):
+  UniCNS-UTF32-H
+  UniCNS-UTF32-V
+Cluster 40 (size=2):
+  UniCNS-UTF8-H
+  UniCNS-UTF8-V
+Cluster 41 (size=4):
+  UniGB-UCS2-H
+  UniGB-UCS2-V
+  UniGB-UTF16-H
+  UniGB-UTF16-V
+Cluster 42 (size=2):
+  UniGB-UTF32-H
+  UniGB-UTF32-V
+Cluster 43 (size=2):
+  UniGB-UTF8-H
+  UniGB-UTF8-V
+Cluster 44 (size=4):
+  UniHojo-UCS2-H
+  UniHojo-UCS2-V
+  UniHojo-UTF16-H
+  UniHojo-UTF16-V
+Cluster 45 (size=2):
+  UniHojo-UTF32-H
+  UniHojo-UTF32-V
+Cluster 46 (size=2):
+  UniHojo-UTF8-H
+  UniHojo-UTF8-V
+Cluster 47 (size=6):
+  UniJIS-UCS2-H
+  UniJIS-UCS2-HW-H
+  UniJIS-UCS2-HW-V
+  UniJIS-UCS2-V
+  UniJISPro-UCS2-HW-V
+  UniJISPro-UCS2-V
+Cluster 48 (size=4):
+  UniJIS-UTF16-H
+  UniJIS-UTF16-V
+  UniJIS2004-UTF16-H
+  UniJIS2004-UTF16-V
+Cluster 49 (size=8):
+  UniJIS-UTF32-H
+  UniJIS-UTF32-V
+  UniJIS2004-UTF32-H
+  UniJIS2004-UTF32-V
+  UniJISX0213-UTF32-H
+  UniJISX0213-UTF32-V
+  UniJISX02132004-UTF32-H
+  UniJISX02132004-UTF32-V
+Cluster 50 (size=5):
+  UniJIS-UTF8-H
+  UniJIS-UTF8-V
+  UniJIS2004-UTF8-H
+  UniJIS2004-UTF8-V
+  UniJISPro-UTF8-V
+Cluster 51 (size=4):
+  UniKS-UCS2-H
+  UniKS-UCS2-V
+  UniKS-UTF16-H
+  UniKS-UTF16-V
+Cluster 52 (size=2):
+  UniKS-UTF32-H
+  UniKS-UTF32-V
+Cluster 53 (size=2):
+  UniKS-UTF8-H
+  UniKS-UTF8-V
+Cluster 54 (size=2):
+  UniManga-UTF16-H
+  UniManga-UTF16-V
+Cluster 55 (size=2):
+  UniManga-UTF32-H
+  UniManga-UTF32-V
+Cluster 56 (size=2):
+  UniManga-UTF8-H
+  UniManga-UTF8-V
+Cluster 57 (size=1):
+  WP-Symbol

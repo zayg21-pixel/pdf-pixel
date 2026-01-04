@@ -15,17 +15,17 @@ public class PdfCidSystemInfo
     /// <summary>
     /// The registry name identifying the character collection (e.g., "Adobe").
     /// </summary>
-    public PdfString Registry { get; private set; }
+    public PdfString Registry { get; internal set; }
 
     /// <summary>
     /// The ordering name specifying the character collection (e.g., "GB1", "CNS1").
     /// </summary>
-    public PdfString Ordering { get; private set; }
+    public PdfString Ordering { get; internal set; }
 
     /// <summary>
     /// The supplement number indicating the version of the character collection.
     /// </summary>
-    public int Supplement { get; private set; }
+    public int Supplement { get; internal set; }
 
     /// <summary>
     /// Creates a <see cref="PdfCidSystemInfo"/> instance from a PDF dictionary.
