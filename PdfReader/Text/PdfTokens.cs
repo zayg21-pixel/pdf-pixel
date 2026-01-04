@@ -271,4 +271,31 @@ public static class PdfTokens
     // Function related (added)
     public static readonly PdfString BitsPerSampleKey = (PdfString)"BitsPerSample"u8; // Function type 0 sampled function BPS
     public static readonly PdfString TintTransformKey = (PdfString)"TintTransform"u8; // Separation/DeviceN attribute (when dictionary form used)
+
+    // Annotation-related Dictionary Keys
+    public static readonly PdfString AnnotationKey = (PdfString)"Annot"u8;            // Annotation type
+    public static readonly PdfString AnnotsKey = (PdfString)"Annots"u8;               // Page annotations array
+    public static readonly PdfString RectKey = (PdfString)"Rect"u8;                   // Annotation rectangle
+    public static readonly PdfString ModificationDateKey = (PdfString)"M"u8;          // Modification date
+    public static readonly PdfString AppearanceKey = (PdfString)"AP"u8;               // Appearance dictionary
+    public static readonly PdfString AppearanceStateKey = (PdfString)"AS"u8;          // Appearance state
+    public static readonly PdfString BorderStyleKey = (PdfString)"BS"u8;              // Border style dictionary
+    public static readonly PdfString ColorKey = (PdfString)"C"u8;                     // Color array
+    public static readonly PdfString StructParentKey = (PdfString)"StructParent"u8;   // Structural parent
+    public static readonly PdfString OptionalContentKey = (PdfString)"OC"u8;          // Optional content
+
+    // Text Annotation specific keys
+    public static readonly PdfString OpenKey = (PdfString)"Open"u8;                   // Text annotation open state
+    public static readonly PdfString StateModelKey = (PdfString)"StateModel"u8;       // Annotation state model
+    public static readonly PdfString StateKey = (PdfString)"State"u8;                 // Annotation state
+    
+    // Ink Annotation specific keys
+    public static readonly PdfString InkListKey = (PdfString)"InkList"u8;             // Ink annotation path list
+    public static readonly PdfString BorderKey = (PdfString)"Border"u8;               // Annotation border style
+    
+    // Annotation popup and metadata keys
+    public static readonly PdfString TitleKey = (PdfString)"T"u8;                     // Annotation title/author
+    public static readonly PdfString SubjectKey = (PdfString)"Subj"u8;               // Annotation subject
+    public static readonly PdfString CreationDateKey = (PdfString)"CreationDate"u8;  // Annotation creation date
+    public static readonly PdfString PopupKey = (PdfString)"Popup"u8;                // Reference to popup annotation
 }

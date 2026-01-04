@@ -1,6 +1,9 @@
 using PdfReader.Rendering.Operators;
 using PdfReader.Text;
+using PdfReader.Annotations;
+using PdfReader.Annotations.Models;
 using SkiaSharp;
+using System.Collections.Generic;
 
 namespace PdfReader.Models;
 
@@ -48,6 +51,11 @@ public sealed class PdfPageResources
     public SKRect? ArtBoxRect { get; private set; }
 
     /// <summary>
+    /// Current effective /Annots array - parsed annotation objects.
+    /// </summary>
+    public List<PdfAnnotationBase> Annotations { get; private set; }
+
+    /// <summary>
     /// Create a shallow clone of the current effective values. Resource dictionary reference is reused.
     /// </summary>
     /// <returns>New <see cref="PdfPageResources"/> instance with copied values.</returns>
@@ -61,6 +69,7 @@ public sealed class PdfPageResources
         copy.BleedBoxRect = BleedBoxRect;
         copy.TrimBoxRect = TrimBoxRect;
         copy.ArtBoxRect = ArtBoxRect;
+        copy.Annotations = Annotations; // reuse reference (immutable usage expected)
         return copy;
     }
 
@@ -109,10 +118,33 @@ public sealed class PdfPageResources
         {
             ArtBoxRect = PdfLocationUtilities.CreateBBox(dict.GetArray(PdfTokens.ArtBoxKey));
         }
+        if (dict.HasKey(PdfTokens.AnnotsKey))
+        {
+            Annotations = ParseAnnotations(dict.GetObjects(PdfTokens.AnnotsKey));
+        }
     }
 
     private static int NormalizeRotation(int rotation)
     {
         return (rotation % 360 + 360) % 360;
+    }
+
+    private static List<PdfAnnotationBase> ParseAnnotations(List<PdfObject> annotationObjects)
+    {
+        var annotations = new List<PdfAnnotationBase>();
+        
+        if (annotationObjects != null)
+        {
+            foreach (var annotationObject in annotationObjects)
+            {
+                var annotation = PdfAnnotationFactory.CreateAnnotation(annotationObject);
+                if (annotation != null)
+                {
+                    annotations.Add(annotation);
+                }
+            }
+        }
+
+        return annotations;
     }
 }

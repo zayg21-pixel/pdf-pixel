@@ -1,5 +1,6 @@
 using PdfReader.Rendering;
 using PdfReader.TextExtraction;
+using PdfReader.Annotations.Models;
 using SkiaSharp;
 using System;
 using System.Collections.Generic;
@@ -43,6 +44,7 @@ public class PdfPage
         CropBox = crop;
         Rotation = pageResources.Rotate ?? 0;
         ResourceDictionary = pageResources.Resources ?? new PdfDictionary(document);
+        Annotations = pageResources.Annotations ?? [];
     }
 
     /// <summary>
@@ -92,6 +94,12 @@ public class PdfPage
     public PdfDocument Document { get; }
 
     /// <summary>
+    /// Gets the annotations for this page.
+    /// Resolved during page construction from the /Annots array and inheritable annotations.
+    /// </summary>
+    public IReadOnlyList<PdfAnnotationBase> Annotations { get; }
+
+    /// <summary>
     /// Render the page content to a Skia canvas.
     /// </summary>
     /// <param name="canvas">Destination canvas.</param>
@@ -111,7 +119,14 @@ public class PdfPage
         var renderer = new PdfRenderer(Document.LoggerFactory);
         var contentRenderer = new PdfContentStreamRenderer(renderer, this);
         contentRenderer.ApplyPageTransformations(canvas);
+        
+        // Render page content first
         contentRenderer.RenderContent(canvas, renderingParameters);
+        
+        // Render annotations on top of content
+        var annotationRenderer = new PdfAnnotationRenderer(renderer, this);
+        annotationRenderer.RenderAnnotations(canvas, renderingParameters);
+        
         canvas.Restore();
     }
 

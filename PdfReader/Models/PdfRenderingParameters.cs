@@ -15,6 +15,12 @@ public class PdfRenderingParameters
     public bool PreviewMode { get; set; }
 
     /// <summary>
+    /// Indicates whether the rendering is intended for printing.
+    /// When true, affects annotation visibility (only annotations with Print flag are rendered).
+    /// </summary>
+    public bool PrintMode { get; set; }
+
+    /// <summary>
     /// Actual device scale factor, if defined, all images will be downscaled
     /// to fit exact device scale, otherwise decoded in full size.
     /// </summary>

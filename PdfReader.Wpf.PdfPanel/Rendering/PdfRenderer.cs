@@ -1,8 +1,11 @@
-﻿using PdfReader.Models;
+﻿using PdfReader.Annotations.Models;
+using PdfReader.Models;
+using PdfReader.Text;
 using SkiaSharp;
 using System;
+using System.Collections.Generic;
 using System.IO;
-using System.Windows.Shapes;
+using System.Windows;
 
 namespace PdfReader.Wpf.PdfPanel.Rendering
 {
@@ -26,7 +29,108 @@ namespace PdfReader.Wpf.PdfPanel.Rendering
 
         public AnnotationPopup[] GetAnnotationPopups(int pageNumber)
         {
-            return Array.Empty<AnnotationPopup>();
+            if (pageNumber < 1 || pageNumber > document.Pages.Count)
+            {
+                return Array.Empty<AnnotationPopup>();
+            }
+
+            var pdfPage = document.Pages[pageNumber - 1];
+            if (pdfPage.Annotations.Count == 0)
+            {
+                return Array.Empty<AnnotationPopup>();
+            }
+
+            var popups = new List<AnnotationPopup>();
+
+            foreach (var annotation in pdfPage.Annotations)
+            {
+                // Skip annotations that don't have meaningful popup content
+                if (annotation.Contents.IsEmpty && 
+                    annotation.Title.IsEmpty &&
+                    annotation.Subject.IsEmpty)
+                {
+                    continue;
+                }
+
+                var messages = CreateAnnotationMessages(annotation);
+                if (messages.Length > 0)
+                {
+                    // Convert PDF coordinates to WPF coordinates
+                    var rect = FromPdfRect(pdfPage, annotation.Rectangle);
+                    popups.Add(new AnnotationPopup(messages, rect));
+                }
+            }
+
+            return popups.ToArray();
+        }
+
+        /// <summary>
+        /// Converts PDF rectangle coordinates to WPF coordinates.
+        /// </summary>
+        /// <param name="pdfPage">The PDF page for coordinate system reference.</param>
+        /// <param name="pdfRect">Rectangle in PDF coordinates.</param>
+        /// <returns>Rectangle in WPF coordinates.</returns>
+        private static Rect FromPdfRect(PdfPage pdfPage, SKRect pdfRect)
+        {
+            // PDF coordinate system: origin at bottom-left, Y increases upward
+            // WPF coordinate system: origin at top-left, Y increases downward
+            // Convert from PDF coordinates to WPF coordinates with proper Y-axis flip
+            return new Rect(
+                pdfRect.Left - pdfPage.CropBox.Left, 
+                pdfPage.CropBox.Height - (pdfRect.Bottom - pdfPage.CropBox.Top), 
+                pdfRect.Width, 
+                pdfRect.Height);
+        }
+
+        /// <summary>
+        /// Creates annotation messages from an annotation's metadata.
+        /// </summary>
+        private static AnnotationMessage[] CreateAnnotationMessages(PdfAnnotationBase annotation)
+        {
+            var messages = new List<AnnotationMessage>();
+
+            // Get annotation metadata from properties
+            var title = annotation.Title.ToString();
+            var subject = annotation.Subject.ToString();
+            var contents = annotation.Contents.ToString();
+            var creationDate = annotation.CreationDate;
+            var modificationDate = annotation.ModificationDate;
+
+            // Create primary message from contents
+            if (!string.IsNullOrEmpty(contents))
+            {
+                var messageDate = creationDate ?? modificationDate;
+                var messageTitle = !string.IsNullOrEmpty(title) ? title : "Annotation";
+                
+                messages.Add(new AnnotationMessage(
+                    messageDate.HasValue ? new DateTimeOffset(messageDate.Value) : null,
+                    messageTitle,
+                    contents));
+            }
+
+            // Create additional message for subject if different from contents
+            if (!string.IsNullOrEmpty(subject) && subject != contents)
+            {
+                var messageDate = modificationDate ?? creationDate;
+                
+                messages.Add(new AnnotationMessage(
+                    messageDate.HasValue ? new DateTimeOffset(messageDate.Value) : null,
+                    "Subject",
+                    subject));
+            }
+
+            // If we have title/author but no other content, create a basic message
+            if (messages.Count == 0 && !string.IsNullOrEmpty(title))
+            {
+                var messageDate = creationDate ?? modificationDate;
+                
+                messages.Add(new AnnotationMessage(
+                    messageDate.HasValue ? new DateTimeOffset(messageDate.Value) : null,
+                    "Author",
+                    title));
+            }
+
+            return messages.ToArray();
         }
 
         public SKPicture GetPicture(int pageNumber, double scale)
