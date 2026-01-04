@@ -345,7 +345,7 @@ namespace PdfReader.Wpf.PdfPanel
 
         private static SKSurface CreateSurface(SKSurface source, GRContext context, int width, int height)
         {
-            var info = new SKImageInfo(width, height, SKColorType.Bgra8888, SKAlphaType.Premul, SKColorSpace.CreateSrgb());
+            var info = new SKImageInfo(width, height, SKColorType.Bgra8888, SKAlphaType.Premul);
 
             var result = GetBaseSurface(info, context);
 

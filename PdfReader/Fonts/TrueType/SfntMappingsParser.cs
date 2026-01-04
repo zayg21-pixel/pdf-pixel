@@ -17,7 +17,7 @@ public class SfntFontTables
     public FontTableInfo FontTableInfo { get; set; }
 
     /// <summary>
-    /// Maps single-byte codes (0-255) to glyph IDs (GIDs).
+    /// Maps single-byte codes (0-255) to glyph ID (GIDs).
     /// </summary>
     public ushort[] SingleByteCodeToGid { get; set; }
 
@@ -46,61 +46,78 @@ internal class SfntFontTableParser
     {
         var tableInfo = SfntFontTableInfoParser.GetFontTableInfo(typeface);
 
-        var codeToGid = ExtractCodeToGidFormat0(tableInfo);
-
-        if (codeToGid == null)
-        {
-            codeToGid = ExtractCodeToGidFormat4(tableInfo);
-        }
-
         return new SfntFontTables
         {
             FontTableInfo = tableInfo,
-            SingleByteCodeToGid = codeToGid,
+            SingleByteCodeToGid = ExtractSingleByteCodeToGid(tableInfo),
             NameToGid = ExtractNameToGid(tableInfo),
             UnicodeToGid = ExtractUnicodeToGid(tableInfo)
         };
     }
 
     /// <summary>
-    /// Extracts a direct mapping from byte code to GID using Format 0 CMap.
-    /// Used as the primary mapping for single-byte fonts.
+    /// Builds a single-byte code to GID mapping by combining multiple CMap formats.
+    /// Uses format 0 (byte-to-gid array) as the base and merges fallback mappings from formats 4 and 6.
     /// </summary>
-    private static ushort[] ExtractCodeToGidFormat0(FontTableInfo info)
+    private static ushort[] ExtractSingleByteCodeToGid(FontTableInfo info)
     {
-        var format0CMap = info.CMapEntries.FirstOrDefault(cmap => cmap.Format == 0);
-
-        if (info.CmapData != null && format0CMap != null)
+        if (info == null)
         {
-            return SnftCMapParser.ParseFormat0(info.CmapData, format0CMap.Offset);
+            return null;
         }
 
-        return null;
+        if (info.CmapData == null || info.CMapEntries == null || info.CMapEntries.Count == 0)
+        {
+            return null;
+        }
+
+        ushort[] result = null;
+
+        // Base: format 0
+        var format0CMap = info.CMapEntries.FirstOrDefault(c => c.Format == 0);
+        if (format0CMap != null)
+        {
+            // ParseFormat0 already returns 256 entries
+            result = SnftCMapParser.ParseFormat0(info.CmapData, format0CMap.Offset);
+        }
+
+        // Merge fallbacks (formats 4 and 6) in a single pass
+        foreach (var cmap in info.CMapEntries)
+        {
+            if (cmap.Format == 4)
+            {
+                var format4Map = SnftCMapParser.ParseFormat4(info.CmapData, cmap.Offset);
+                result ??= new ushort[256];
+                ApplyDictionaryToByteArray(format4Map, result);
+            }
+            else if (cmap.Format == 6)
+            {
+                var format6Map = SnftCMapParser.ParseFormat6(info.CmapData, cmap.Offset);
+                result ??= new ushort[256];
+                ApplyDictionaryToByteArray(format6Map, result);
+            }
+        }
+
+        return result;
     }
 
     /// <summary>
-    /// Extracts a direct mapping from byte code to GID using Format 4 CMap.
+    /// Applies parsed CMap dictionary entries to a single-byte mapping array.
+    /// Keys outside byte range are truncated to byte, consistent with symbol font behavior.
     /// </summary>
-    private static ushort[] ExtractCodeToGidFormat4(FontTableInfo info)
+    private static void ApplyDictionaryToByteArray(Dictionary<int, ushort> map, ushort[] target)
     {
-        var format4CMap = info.CMapEntries.FirstOrDefault(cmap => cmap.Format == 4);
-
-        if (info.CmapData != null && format4CMap != null)
+        if (map == null || target == null)
         {
-            var subResult = SnftCMapParser.ParseFormat4(info.CmapData, format4CMap.Offset);
-            ushort[] result = new ushort[256];
-            // map is used for symbol fonts with single-byte codes
-            // SFNT format 4 mapping uses reserved area for single-byte codes with offset, simple mapping
-            // to byte works exactly as expected.
-
-            foreach (var item in subResult)
-            {
-                result[(byte)item.Key] = item.Value;
-            }
-
-            return result;
+            return;
         }
-        return null;
+
+        foreach (var kvp in map)
+        {
+            int key = kvp.Key;
+            ushort value = kvp.Value;
+            target[(byte)key] = value;
+        }
     }
 
     /// <summary>

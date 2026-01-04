@@ -63,6 +63,7 @@ namespace PdfReader.Wpf.Demo
             reader.Read(fileStream);
             var pdfDocument = reader.Read(fileStream);
             pdfPanel.Pages = PdfViewerPageCollection.FromDocument(pdfDocument);
+            pdfPanel.AutoScaleMode = PdfPanelAutoScaleMode.ScaleToWidth;
         }
 
         private void FitVisible_Click(object sender, RoutedEventArgs e)

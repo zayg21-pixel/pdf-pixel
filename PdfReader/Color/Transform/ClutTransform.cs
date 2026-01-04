@@ -25,7 +25,6 @@ internal sealed partial class ClutTransform : IColorTransform, IRgbaSampler
     private readonly float _scaleZ;
     private readonly float _scaleW;
     private readonly Vector4 _strideVector; // Strides for up to 4 dims (disabled dims are 0)
-    private readonly PixelProcessorFunction _callback;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="ClutTransform"/> class from a float array CLUT.
@@ -81,25 +80,6 @@ internal sealed partial class ClutTransform : IColorTransform, IRgbaSampler
         {
             throw new ArgumentException($"CLUT array size mismatch. Expected {expectedSize} entries, got {_clut.Length}.", nameof(clut));
         }
-
-        switch (_actualDimensions)
-        {
-            case 1:
-                _callback = Transform1D;
-                break;
-            case 2:
-                _callback = Transform2D;
-                break;
-            case 3:
-                _callback = Transform3D;
-                break;
-            case 4:
-                _callback = Transform4D;
-                break;
-            default:
-                _callback = static (Vector4 c) => c;
-                break;
-        }
     }
 
     public bool IsIdentity => false;
@@ -150,6 +130,13 @@ internal sealed partial class ClutTransform : IColorTransform, IRgbaSampler
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public Vector4 Transform(Vector4 color)
     {
-        return _callback(color);
+        return _actualDimensions switch
+        {
+            1 => Transform1D(color),
+            2 => Transform2D(color),
+            3 => Transform3D(color),
+            4 => Transform4D(color),
+            _ => color,
+        };
     }
 }
