@@ -10,39 +10,34 @@ namespace PdfReader.Functions
     internal static class SamplesUpsampler
     {
         /// <summary>
-        /// Resamples the input samples to the specified target length using Catmull-Rom interpolation.
+        /// Resamples a 1D array of samples to the specified target length using Catmull-Rom bicubic interpolation.
+        /// Input samples are assumed to be uniformly spaced over [0..1].
         /// </summary>
-        public static float[] UpsampleTo(float[] source, int targetLength)
+        public static float[] ResampleCubic(float[] src, int targetLength)
         {
-            if (source == null || source.Length == 0 || targetLength <= 0)
+            int n = src.Length;
+            if (n == 0 || targetLength <= 0)
             {
                 return Array.Empty<float>();
             }
-
-            if (source.Length == targetLength)
-            {
-                return (float[])source.Clone();
-            }
-
-            if (source.Length == 1)
+            if (n == 1)
             {
                 float[] single = new float[targetLength];
                 for (int i = 0; i < targetLength; i++)
                 {
-                    single[i] = source[0];
+                    single[i] = src[0];
                 }
                 return single;
             }
 
-            int n = source.Length;
             float[] dst = new float[targetLength];
             float scale = (n - 1) / (float)(targetLength - 1);
 
             for (int i = 0; i < targetLength; i++)
             {
-                float u = i * scale;
-                int i1 = (int)u;
-                float t = u - i1;
+                float u = i * scale; // position in source index space
+                int i1 = (int)u; // base index
+                float t = u - i1; // local fraction
 
                 int i0 = i1 - 1;
                 int i2 = i1 + 1;
@@ -50,10 +45,11 @@ namespace PdfReader.Functions
 
                 if (i1 >= n - 1)
                 {
+                    // Clamp to last segment
                     i1 = n - 2;
                     i0 = i1 - 1;
                     i2 = i1 + 1;
-                    i3 = i2;
+                    i3 = i2; // duplicate last
                     t = 1f;
                 }
 
@@ -66,10 +62,10 @@ namespace PdfReader.Functions
                     i3 = n - 1;
                 }
 
-                float p0 = source[i0];
-                float p1 = source[i1];
-                float p2 = source[i2];
-                float p3 = source[i3];
+                float p0 = src[i0];
+                float p1 = src[i1];
+                float p2 = src[i2];
+                float p3 = src[i3];
 
                 dst[i] = CatmullRom(p0, p1, p2, p3, t);
             }
@@ -77,15 +73,20 @@ namespace PdfReader.Functions
             return dst;
         }
 
+        /// <summary>
+        /// Catmull-Rom spline interpolation for four successive samples.
+        /// </summary>
         private static float CatmullRom(float p0, float p1, float p2, float p3, float t)
         {
             float t2 = t * t;
             float t3 = t2 * t;
+            // Standard Catmull-Rom with tension = 0.5
             float a0 = -0.5f * p0 + 1.5f * p1 - 1.5f * p2 + 0.5f * p3;
             float a1 = p0 - 2.5f * p1 + 2f * p2 - 0.5f * p3;
             float a2 = -0.5f * p0 + 0.5f * p2;
             float a3 = p1;
-            return a0 * t3 + a1 * t2 + a2 * t + a3;
+            float value = a0 * t3 + a1 * t2 + a2 * t + a3;
+            return value;
         }
     }
 }

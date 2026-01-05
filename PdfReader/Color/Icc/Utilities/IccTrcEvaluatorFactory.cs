@@ -88,14 +88,13 @@ internal static class IccTrcEvaluatorFactory
 
     private sealed class SampledTrcEvaluator : IIccTrcEvaluator
     {
-        private const int TargetSamples = 1024;
         private readonly float[] _samples;
         private readonly float _scale;
 
         public SampledTrcEvaluator(float[] samples)
         {
             var src = samples ?? System.Array.Empty<float>();
-            _samples = src.Length < TargetSamples ? SamplesUpsampler.UpsampleTo(src, TargetSamples) : src;
+            _samples = src;
             _scale = _samples.Length > 1 ? _samples.Length - 1 : 1f;
         }
 
@@ -109,14 +108,16 @@ internal static class IccTrcEvaluatorFactory
 
             float scaled = x * _scale;
             int index = (int)scaled;
+
             if (index < 0)
             {
-                return _samples[0];
+                return 0;
             }
             if (index >= _samples.Length)
             {
-                return _samples[_samples.Length - 1];
+                return 1;
             }
+
             return _samples[index];
         }
     }

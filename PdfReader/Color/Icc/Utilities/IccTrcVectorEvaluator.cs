@@ -98,7 +98,7 @@ namespace PdfReader.Color.Icc.Utilities
     /// </summary>
     internal sealed class SampledTrcVectorEvaluator : IIccTrcVectorEvaluator
     {
-        private const int TargetSamples = 1024;
+        private readonly int _channelsCount;
         private readonly float[] _samples0;
         private readonly float[] _samples1;
         private readonly float[] _samples2;
@@ -111,30 +111,28 @@ namespace PdfReader.Color.Icc.Utilities
             {
                 throw new ArgumentException("samples must be an array of 1 to 4 float[]", nameof(samples));
             }
-            float[][] normalized = new float[4][];
-            for (int i = 0; i < 4; i++)
+            _channelsCount = samples.Length;
+            _samples0 = samples.Length > 0 ? samples[0] : null;
+            _samples1 = samples.Length > 1 ? samples[1] : null;
+            _samples2 = samples.Length > 2 ? samples[2] : null;
+            _samples3 = samples.Length > 3 ? samples[3] : null;
+
+            switch (_channelsCount)
             {
-                if (i < samples.Length && samples[i] != null && samples[i].Length > 0)
-                {
-                    normalized[i] = samples[i];
-                }
-                else
-                {
-                    normalized[i] = [0f, 1f];
-                }
+                case 1:
+                    _scale = new Vector4(_samples0.Length - 1, 1f, 1f, 1f);
+                    break;
+                case 2:
+                    _scale = new Vector4(_samples0.Length - 1, _samples1.Length - 1, 1f, 1f);
+                    break;
+                case 3:
+                    _scale = new Vector4(_samples0.Length - 1, _samples1.Length - 1, _samples2.Length - 1, 1f);
+                    break;
+                case 4:
+                default:
+                    _scale = new Vector4(_samples0.Length - 1, _samples1.Length - 1, _samples2.Length - 1, _samples3.Length - 1);
+                    break;
             }
-
-            _samples0 = normalized[0].Length < TargetSamples ? SamplesUpsampler.UpsampleTo(normalized[0], TargetSamples) : normalized[0];
-            _samples1 = normalized[1].Length < TargetSamples ? SamplesUpsampler.UpsampleTo(normalized[1], TargetSamples) : normalized[1];
-            _samples2 = normalized[2].Length < TargetSamples ? SamplesUpsampler.UpsampleTo(normalized[2], TargetSamples) : normalized[2];
-            _samples3 = normalized[3].Length < TargetSamples ? SamplesUpsampler.UpsampleTo(normalized[3], TargetSamples) : normalized[3];
-
-            _scale = new Vector4(
-                _samples0.Length - 1,
-                _samples1.Length - 1,
-                _samples2.Length - 1,
-                _samples3.Length - 1
-            );
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -143,17 +141,46 @@ namespace PdfReader.Color.Icc.Utilities
             Vector4 scaled = x * _scale;
             scaled = Vector4.Clamp(scaled, Vector4.Zero, _scale);
 
-            int idxX = (int)scaled.X;
-            int idxY = (int)scaled.Y;
-            int idxZ = (int)scaled.Z;
-            int idxW = (int)scaled.W;
-
-            float r = _samples0[idxX];
-            float g = _samples1[idxY];
-            float b = _samples2[idxZ];
-            float a = _samples3[idxW];
-
-            return new Vector4(r, g, b, a);
+            switch (_channelsCount)
+            {
+                case 1:
+                {
+                    int idxX = (int)scaled.X;
+                    float r = _samples0[idxX];
+                    return new Vector4(r, 1f, 1f, 1f);
+                }
+                case 2:
+                {
+                    int idxX = (int)scaled.X;
+                    int idxY = (int)scaled.Y;
+                    float r = _samples0[idxX];
+                    float g = _samples1[idxY];
+                    return new Vector4(r, g, 1f, 1f);
+                }
+                case 3:
+                {
+                    int idxX = (int)scaled.X;
+                    int idxY = (int)scaled.Y;
+                    int idxZ = (int)scaled.Z;
+                    float r = _samples0[idxX];
+                    float g = _samples1[idxY];
+                    float b = _samples2[idxZ];
+                    return new Vector4(r, g, b, 1f);
+                }
+                case 4:
+                default:
+                {
+                    int idxX = (int)scaled.X;
+                    int idxY = (int)scaled.Y;
+                    int idxZ = (int)scaled.Z;
+                    int idxW = (int)scaled.W;
+                    float r = _samples0[idxX];
+                    float g = _samples1[idxY];
+                    float b = _samples2[idxZ];
+                    float a = _samples3[idxW];
+                    return new Vector4(r, g, b, a);
+                }
+            }
         }
     }
 
