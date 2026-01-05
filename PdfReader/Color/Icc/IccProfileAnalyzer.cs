@@ -1,5 +1,4 @@
 using PdfReader.Color.Icc.Model;
-using PdfReader.Color.Icc.Utilities;
 using System;
 
 namespace PdfReader.Color.Icc;

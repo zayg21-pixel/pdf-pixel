@@ -65,7 +65,7 @@ internal enum IccTrcParametricType
 /// </summary>
 internal sealed class IccTrc
 {
-    private const int TargetSampleCount = 1024;
+    public const int MinSampleCount = 1024;
 
     private IccTrc(
         IccTrcType type,
@@ -82,9 +82,9 @@ internal sealed class IccTrc
 
         if (type == IccTrcType.Sampled)
         {
-            if (Samples != null && Samples.Length > 0 && Samples.Length < TargetSampleCount)
+            if (Samples != null && Samples.Length > 0 && Samples.Length < MinSampleCount)
             {
-                Samples = SamplesUpsampler.ResampleCubic(Samples, TargetSampleCount);
+                Samples = SamplesUpsampler.ResampleCubic(Samples, MinSampleCount);
             }
         }
 
@@ -119,6 +119,7 @@ internal sealed class IccTrc
 
     /// <summary>
     /// Sample values (normalized 0..1) for a sampled curve, or null for gamma/parametric/placeholder sampled descriptors.
+    /// Guaranteed to have at least <see cref="MinSampleCount"/> entries when not null.
     /// </summary>
     public float[] Samples { get; }
 
