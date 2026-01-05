@@ -64,7 +64,6 @@ internal sealed class IccBasedConverter : PdfColorSpaceConverter
             return _default.GetRgbaSampler(intent, postTransform);
         }
 
-
         return new ColorTransformSampler(new ChainedColorTransform(_iccTransform.GetIntentTransform(intent), postTransform));
     }
 }

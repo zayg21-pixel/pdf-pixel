@@ -106,14 +106,14 @@ namespace PdfReader.Wpf.PdfPanel.Drawing
 
             if (!pageRectangle.Contains(canvas.LocalClipBounds))
             {
-                const float ShadowSigma = 3f; // approximate previous DropShadow sigma
+                const float ShadowSigma = 3f;
                 const byte ShadowAlpha = 160;
 
                 using var shadowPaint = new SKPaint
                 {
                     Style = SKPaintStyle.Fill,
                     IsAntialias = true,
-                    Color = new SKColor(SKColors.Gray.Red, SKColors.Gray.Green, SKColors.Gray.Blue, ShadowAlpha),
+                    Color = SKColors.Gray.WithAlpha(ShadowAlpha),
                     MaskFilter = SKMaskFilter.CreateBlur(SKBlurStyle.Normal, ShadowSigma)
                 };
 

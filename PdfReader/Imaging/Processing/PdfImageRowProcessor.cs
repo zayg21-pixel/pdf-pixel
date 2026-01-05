@@ -174,15 +174,17 @@ internal sealed class PdfImageRowProcessor : IDisposable
         }
 
         // ICC-based can be represented directly only when profile is valid
-        if (converter is IccBasedConverter iccBased)
+        if (converter is IccBasedConverter)
         {
-            using var skiaIcc = SKColorSpace.CreateIcc(iccBased.Profile.Bytes);
-            if (skiaIcc == null)
-            {
-                return true;
-            }
+            // TODO: Skia seems to ignore ICC profiles in images, so we always convert for now.
+            return true;
+            //using var skiaIcc = SKColorSpace.CreateIcc(iccBased.Profile.Bytes);
+            //if (skiaIcc == null)
+            //{
+            //    return true;
+            //}
 
-            return false;
+            //return false;
         }
 
         // Device RGB and Device Gray can be represented directly
