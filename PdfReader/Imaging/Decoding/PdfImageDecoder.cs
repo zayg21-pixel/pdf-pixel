@@ -58,8 +58,7 @@ public abstract class PdfImageDecoder
                 return new JpegImageDecoder(pdfImage, loggerFactory);
 
             case PdfImageType.JPEG2000:
-                // TODO: [MEDIUM] add JPEG2000 support (for JPX, when added support, bitsPerComponent can be 0)
-                return null;
+                return new JpxImageDecoder(pdfImage, loggerFactory);
 
             case PdfImageType.CCITT:
                 return new CcittImageDecoder(pdfImage, loggerFactory);
