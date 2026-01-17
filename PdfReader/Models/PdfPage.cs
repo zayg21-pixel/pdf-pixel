@@ -125,7 +125,7 @@ public class PdfPage
         
         // Render annotations on top of content
         var annotationRenderer = new PdfAnnotationRenderer(renderer, this);
-        annotationRenderer.RenderAnnotations(canvas, renderingParameters);
+        annotationRenderer.RenderAnnotations(canvas, renderingParameters); // TODO: move to separate method
         
         canvas.Restore();
     }
