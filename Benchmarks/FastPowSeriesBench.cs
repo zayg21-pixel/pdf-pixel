@@ -1,5 +1,5 @@
 ﻿using BenchmarkDotNet.Attributes;
-using PdfReader.Functions;
+using PdfRender.Functions;
 using System;
 using System.Numerics;
 using System.Runtime.InteropServices;

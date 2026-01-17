@@ -9,7 +9,7 @@
     <PackageReference Include="BenchmarkDotNet" Version="0.15.4" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\PdfReader\PdfReader.csproj" />
+    <ProjectReference Include="..\PdfRender\PdfRender.csproj" />
   </ItemGroup>
   <ItemGroup>
     <None Update="Im10.dat">

@@ -1,8 +1,8 @@
 ﻿using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Jobs;
-using PdfReader.Imaging.Jpg.Decoding;
-using PdfReader.Imaging.Jpg.Model;
-using PdfReader.Imaging.Jpg.Readers;
+using PdfRender.Imaging.Jpg.Decoding;
+using PdfRender.Imaging.Jpg.Model;
+using PdfRender.Imaging.Jpg.Readers;
 using SkiaSharp;
 using System;
 using System.IO;
