@@ -1,9 +1,9 @@
-﻿using PdfRender.View.Requests;
+﻿using PdfRender.Canvas.Requests;
 using SkiaSharp;
 using System;
 using System.Linq;
 
-namespace PdfRender.View;
+namespace PdfRender.Canvas;
 
 [Flags]
 internal enum PageDrawFlags
@@ -64,7 +64,7 @@ internal static class SkCanvasExtensions
                 return;
             }
 
-            var transformMatrix = GetPictureTransformMatrix(picture.Picture.CullRect.Width, picture.Picture.CullRect.Height, page.PageInfo, page.UserRotation);
+            var transformMatrix = GetPictureTransformMatrix(picture.Picture.CullRect.Width, picture.Picture.CullRect.Height, page.Info, page.UserRotation);
             canvas.DrawPicture(picture.Picture, in transformMatrix);
         }
     }
@@ -96,9 +96,9 @@ internal static class SkCanvasExtensions
         return SKMatrix.Concat(SKMatrix.Concat(matrixRotation, matrixTranslation), matrixScale);
     }
 
-    private static void DrawPageShadow(SKCanvas canvas, VisiblePageInfo pageInfo)
+    private static void DrawPageShadow(SKCanvas canvas, VisiblePageInfo page)
     {
-        var pageRectangle = new SKRect(0, 0, (float)pageInfo.RotatedSize.Width, (float)pageInfo.RotatedSize.Height);
+        var pageRectangle = new SKRect(0, 0, page.Info.Width, page.Info.Height);
 
         if (!pageRectangle.Contains(canvas.LocalClipBounds))
         {
@@ -120,9 +120,10 @@ internal static class SkCanvasExtensions
         }
     }
 
-    private static void DrawPageBackground(SKCanvas canvas, VisiblePageInfo pageInfo)
+    private static void DrawPageBackground(SKCanvas canvas, VisiblePageInfo page)
     {
-        var pageRectangle = new SKRect(0, 0, (float)pageInfo.RotatedSize.Width, (float)pageInfo.RotatedSize.Height);
+        var rotatedSize = page.RotatedSize; // TODO: why it's rotated size?
+        var pageRectangle = new SKRect(0, 0, rotatedSize.Width, rotatedSize.Height);
 
         using var backgroundFill = new SKPaint
         {

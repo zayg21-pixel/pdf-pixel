@@ -1,4 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
+using PdfReader;
+using PdfRender.Canvas;
 using PdfRender.Fonts.Management;
 using PdfRender.Wpf.PdfPanel;
 using System;

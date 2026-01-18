@@ -1,7 +1,7 @@
 ﻿using SkiaSharp;
 using System;
 
-namespace PdfRender.View;
+namespace PdfRender.Canvas;
 
 /// <summary>
 /// Contains a cached <see cref="SKPicture"/> and its thumbnail.

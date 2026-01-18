@@ -2,7 +2,7 @@
 using System;
 using System.Linq;
 
-namespace PdfRender.View;
+namespace PdfRender.Canvas;
 
 /// <summary>
 /// Contains information about an annotation popup and it's location.

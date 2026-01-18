@@ -1,11 +1,11 @@
 ﻿using SkiaSharp;
 
-namespace PdfRender.View;
+namespace PdfRender.Canvas;
 
 /// <summary>
 /// Information about a page in a PDF document.
 /// </summary>
-public readonly struct PageInfo
+public readonly struct PageInfo // TODO: remove
 {
     public PageInfo(float width, float height, int rotation)
     {

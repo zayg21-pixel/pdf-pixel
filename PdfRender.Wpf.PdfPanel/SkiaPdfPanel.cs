@@ -1,30 +1,23 @@
-﻿using PdfRender.Wpf.PdfPanel.Drawing;
+﻿using PdfRender.Canvas;
+using PdfRender.Wpf.PdfPanel.Drawing;
 using SkiaSharp;
-using System;
-using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading;
 using System.Windows;
-using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
-using System.Windows.Media.Imaging;
 
 namespace PdfRender.Wpf.PdfPanel
 {
+
     /// <summary>
     /// Represents a panel that displays a PDF document using SkiaSharp.
     /// </summary>
     public partial class SkiaPdfPanel : FrameworkElement
     {
         private readonly VisualCollection children;
-        private ConcurrentQueue<DrawingRequest> updateQueue;
-        private SemaphoreSlim queueSemaphore;
 
-        private WriteableBitmap writeableBitmap = null;
-        private PagesDrawingRequest lastPagesDrawingRequest;
-        private bool isReadingFromQueue;
+        private PdfViewerCanvas _viewerCanvas;
+        private PdfRenderingQueue renderingQueue;
+        private ICanvasRenderTargetFactory renderTargetFactory;
 
         private bool pageChangedLocally;
 
@@ -72,39 +65,7 @@ namespace PdfRender.Wpf.PdfPanel
                 return;
             }
 
-            EnqueueRequest(GetBaseDrawingRequest<RefreshGraphicsDrawingRequest>());
-        }
-
-        /// <summary>
-        /// Returns collection of pages that are visible on panel.
-        /// </summary>
-        /// <returns>Visible pages.</returns>
-        public IEnumerable<VisiblePageInfo> GetVisiblePages()
-        {
-            if (Pages == null)
-            {
-                yield break;
-            }
-
-            double verticalOffset = -VerticalOffset / Scale + PagesPadding.Top;
-            double horizontalOffset = -HorizontalOffset / Scale;
-
-            var centerOffset = GetCenterOffset() / Scale;
-            horizontalOffset += centerOffset;
-
-            for (int i = 0; i < Pages.Count; i++)
-            {
-                var page = Pages[i];
-                var rotatedSize = page.Info.GetRotatedSize(page.UserRotation);
-
-                if (page.IsVisible(verticalOffset, CanvasSize.Height / Scale))
-                {
-                    var pageOffsetLeft = (ExtentWidth / Scale - rotatedSize.Width) / 2;
-                    yield return new VisiblePageInfo(i + 1, new Point(horizontalOffset + pageOffsetLeft, verticalOffset), page.Info, page.UserRotation);
-                }
-
-                verticalOffset += rotatedSize.Height + PageGap;
-            }
+            //EnqueueRequest(GetBaseDrawingRequest<RefreshGraphicsDrawingRequest>());
         }
 
         /// <summary>
@@ -122,57 +83,21 @@ namespace PdfRender.Wpf.PdfPanel
             var source = PresentationSource.FromVisual(this);
             ((HwndSource)source)?.AddHook(Hook);
 
-            if (isReadingFromQueue)
-            {
-                return;
-            }
-
-            updateQueue = new ConcurrentQueue<DrawingRequest>();
-            queueSemaphore = new SemaphoreSlim(0);
-            StartReadFromQueue(queueSemaphore, updateQueue);
-
             InvalidateVisual();
-
-            isReadingFromQueue = true;
         }
 
         private void OnUnloaded(object sender, RoutedEventArgs e)
         {
             var source = PresentationSource.FromVisual(this);
             ((HwndSource)source)?.RemoveHook(Hook);
-
-            if (!isReadingFromQueue)
-            {
-                return;
-            }
-
-            queueSemaphore.Release();
-            queueSemaphore.Dispose();
-            queueSemaphore = null;
-            updateQueue = null;
-
-            isReadingFromQueue = false;
         }
 
         protected override Size ArrangeOverride(Size finalSize)
         {
             (Size size, Point scale, Point offset) = this.MeasureCanvas(finalSize);
 
-            if (size != CanvasSize || scale != CanvasScale)
-            {
-                CanvasSize = size;
-                CanvasScale = scale;
-
-                if (this.IsCanvasSizeValid(size))
-                {
-                    writeableBitmap = new WriteableBitmap((int)size.Width, (int)size.Height, 96.0 * scale.X, 96.0 * scale.Y, PixelFormats.Pbgra32, null);
-                }
-                else
-                {
-                    writeableBitmap = null;
-                }
-            }
-
+            CanvasSize = size;
+            CanvasScale = scale;
             CanvasOffset = offset;
 
             if (!CanRedraw())
@@ -181,9 +106,9 @@ namespace PdfRender.Wpf.PdfPanel
             }
 
             Update();
-            RequestRedrawPages();
+            _viewerCanvas?.Render();
 
-            RaiseEvent(GetCanvasEvent(new MouseEventArgs(Mouse.PrimaryDevice, 0), CanvasMouseMoveEvent));
+            //RaiseEvent(GetCanvasEvent(new MouseEventArgs(Mouse.PrimaryDevice, 0), CanvasMouseMoveEvent));
 
             return base.ArrangeOverride(finalSize);
         }
@@ -195,9 +120,9 @@ namespace PdfRender.Wpf.PdfPanel
             HorizontalOffset = 0;
             VerticalOffset = 0;
 
-            if (writeableBitmap != null && this.IsCanvasSizeValid(CanvasSize))
+            if (this.IsCanvasSizeValid(CanvasSize))
             {
-                EnqueueRequest(GetBaseDrawingRequest<ResetDrawingRequest>());
+                //EnqueueRequest(GetBaseDrawingRequest<ResetDrawingRequest>());
             }
         }
 
@@ -217,20 +142,21 @@ namespace PdfRender.Wpf.PdfPanel
 
         private int GetCurrentPage()
         {
-            double verticalOffset = -VerticalOffset / Scale;
-            for (int i = 0; i < Pages.Count; i++)
-            {
-                var page = Pages[i];
+            return 0;
+            //double verticalOffset = -VerticalOffset / Scale;
+            //for (int i = 0; i < Pages.Count; i++)
+            //{
+            //    var page = Pages[i];
 
-                if (page.IsCurrent(verticalOffset, PageGap, CanvasSize.Height / Scale))
-                {
-                    return page.PageNumber;
-                }
+            //    if (page.IsCurrent(verticalOffset, PageGap, CanvasSize.Height / Scale))
+            //    {
+            //        return page.PageNumber;
+            //    }
 
-                verticalOffset += page.Info.GetRotatedSize(page.UserRotation).Height + PageGap;
-            }
+            //    verticalOffset += page.Info.GetRotatedSize(page.UserRotation).Height + PageGap;
+            //}
 
-            return Pages.Count;
+            //return Pages.Count;
         }
 
         private void Update()
@@ -240,201 +166,73 @@ namespace PdfRender.Wpf.PdfPanel
                 return;
             }
 
-            if (Pages.CheckDocumentUpdates())
-            {
-                var currentPage = CurrentPage;
 
-                UpdateAutoScale();
-                UpdateScrollInfo();
-                ScrollToPage(currentPage);
-            }
-            else
-            {
-                UpdateAutoScale();
-                UpdateScrollInfo();
-            }
+            //if (Pages.CheckDocumentUpdates())
+            //{
+            //    var currentPage = CurrentPage;
 
+            //    UpdateAutoScale();
+            //    UpdateScrollInfo();
+            //    ScrollToPage(currentPage);
+            //}
+            //else
+            //{
+            UpdateAutoScale();
+            UpdateScrollInfo();
+            //}
+
+            // TODO: incorrect
             ValidateMargins();
 
+            SyncViewerCanvasState();
+
             pageChangedLocally = true;
-            CurrentPage = GetCurrentPage();
+            //CurrentPage = GetCurrentPage();
             pageChangedLocally = false;
         }
 
-        private async void StartReadFromQueue(SemaphoreSlim semaphore, ConcurrentQueue<DrawingRequest> queue)
+        private void EnsureViewerCanvas()
         {
-            SKSurface surface = null;
-            PagesDrawingRequest activePagesDrawingRequest = null;
-            PagesDrawingRequest previousPagesDrawingRequest = null;
-            bool pagesUpdated = false;
-            GRContext context = null;
-
-            while (true)
-            {
-                try
-                {
-                    try
-                    {
-                        await semaphore.WaitAsync().ConfigureAwait(false);
-                    }
-                    catch (ObjectDisposedException)
-                    {
-                        break;
-                    }
-
-                    if (!queue.TryDequeue(out var request))
-                    {
-                        break;
-                    }
-
-                    if (!queue.IsEmpty)
-                    {
-                        if (request is PagesDrawingRequest skippedPagesDrawingRequest)
-                        {
-                            activePagesDrawingRequest = skippedPagesDrawingRequest;
-                            pagesUpdated = true;
-                        }
-
-                        continue;
-                    }
-
-                    var width = (int)request.CanvasSize.Width;
-                    var height = (int)request.CanvasSize.Height;
-
-                    if (surface == null || surface.Canvas.DeviceClipBounds.Width != width || surface.Canvas.DeviceClipBounds.Height != height)
-                    {
-                        var newSurface = CreateSurface(surface, context, width, height);
-
-                        surface?.Dispose();
-                        surface = newSurface;
-                    }
-
-                    if (request is PagesDrawingRequest pagesDrawingRequest)
-                    {
-                        activePagesDrawingRequest = pagesDrawingRequest;
-                        pagesUpdated = true;
-                    }
-                    else if (request is ResetDrawingRequest)
-                    {
-                        surface?.Dispose();
-                        surface = CreateSurface(null, context, width, height);
-                        pagesUpdated = false;
-                    }
-
-                    if (pagesUpdated)
-                    {
-                        pagesUpdated = !await this.ProcessPagesDrawing(surface, activePagesDrawingRequest, previousPagesDrawingRequest, queue).ConfigureAwait(false);
-                        previousPagesDrawingRequest = activePagesDrawingRequest;
-                    }
-                    else if (surface != null && activePagesDrawingRequest != null)
-                    {
-                        await this.DrawOnWritableBitmapAsync(surface, activePagesDrawingRequest).ConfigureAwait(false);
-                    }
-                }
-                catch
-                {
-#if DEBUG
-                    throw;
-#endif
-                }
-            }
-
-            context?.Dispose();
-            surface?.Dispose();
-        }
-
-        private static SKSurface CreateSurface(SKSurface source, GRContext context, int width, int height)
-        {
-            var info = new SKImageInfo(width, height, SKColorType.Bgra8888, SKAlphaType.Premul);
-
-            var result = GetBaseSurface(info, context);
-
-            if (source != null)
-            {
-                result.Canvas.DrawSurface(source, SKPoint.Empty);
-            }
-
-            return result;
-        }
-
-        private static SKSurface GetBaseSurface(SKImageInfo info, GRContext context)
-        {
-            if (context != null)
-            {
-                return SKSurface.Create(context, false, info);
-            }
-            return SKSurface.Create(info);
-        }
-
-        private void RequestRedrawPages()
-        {
-            if (!CanRedraw())
+            if (_viewerCanvas != null && _viewerCanvas.Pages == Pages)
             {
                 return;
             }
 
-            var drawingRequest = GetPagesDrawingRequest();
+            renderingQueue?.Dispose();
+            renderingQueue = new PdfRenderingQueue(null);
+            renderTargetFactory = new SkiaPdfPanelRenderTargetFactory(this);
+            _viewerCanvas = new PdfViewerCanvas(Pages, renderingQueue, renderTargetFactory);
+        }
 
-            if (!drawingRequest.Equals(lastPagesDrawingRequest))
-            {
-                lastPagesDrawingRequest = drawingRequest;
-                EnqueueRequest(drawingRequest);
-            }
+        private void SyncViewerCanvasState()
+        {
+            EnsureViewerCanvas();
+
+            _viewerCanvas.Width = (float)CanvasSize.Width;
+            _viewerCanvas.Height = (float)CanvasSize.Height;
+            _viewerCanvas.Scale = (float)Scale;
+            _viewerCanvas.HorizontalOffset = (float)HorizontalOffset;
+            _viewerCanvas.VerticalOffset = (float)VerticalOffset;
+            _viewerCanvas.MinimumPageGap = (float)PageGap;
+            _viewerCanvas.PagesPadding = new SKRect(
+                (float)PagesPadding.Left,
+                (float)PagesPadding.Top,
+                (float)PagesPadding.Right,
+                (float)PagesPadding.Bottom);
+
+            var backgroundColor = BackgroundColor;
+            _viewerCanvas.BackgroundColor = new SKColor(backgroundColor.R, backgroundColor.G, backgroundColor.B, backgroundColor.A);
+            _viewerCanvas.MaxThumbnailSize = MaxThumbnailSize;
+            _viewerCanvas.CurrentPage = CurrentPage;
+
+            _viewerCanvas.Update();
         }
 
         private bool CanRedraw()
         {
             return Pages != null &&
                 this.IsCanvasSizeValid(CanvasSize) &&
-                writeableBitmap != null &&
                 IsLoaded && IsVisible;
-        }
-
-        private void EnqueueRequest(DrawingRequest drawingRequest)
-        {
-            if (!isReadingFromQueue)
-            {
-                return;
-            }
-
-            try
-            {
-                updateQueue.Enqueue(drawingRequest);
-                queueSemaphore.Release();
-            }
-            catch (ObjectDisposedException)
-            {
-                // request enqueued after the panel was unloaded
-            }
-        }
-
-        private PagesDrawingRequest GetPagesDrawingRequest()
-        {
-            if (Pages == null)
-            {
-                return null;
-            }
-
-            var drawingRequest = GetBaseDrawingRequest<PagesDrawingRequest>();
-            drawingRequest.Pages = Pages;
-            drawingRequest.VisiblePages = GetVisiblePages().ToArray();
-            drawingRequest.BackgroundColor = BackgroundColor;
-            drawingRequest.MaxThumbnailSize = MaxThumbnailSize;
-
-            return drawingRequest;
-        }
-
-        private T GetBaseDrawingRequest<T>() where T : DrawingRequest, new()
-        {
-            return new T
-            {
-                Scale = Scale,
-                Offset = new Point(HorizontalOffset, VerticalOffset),
-                CanvasSize = CanvasSize,
-                CanvasScale = CanvasScale,
-                CanvasOffset = CanvasOffset,
-                WritableBitmap = writeableBitmap,
-            };
         }
     }
 }

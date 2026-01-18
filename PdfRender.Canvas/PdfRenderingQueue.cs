@@ -1,4 +1,4 @@
-﻿using PdfRender.View.Requests;
+﻿using PdfRender.Canvas.Requests;
 using SkiaSharp;
 using System;
 using System.Collections.Concurrent;
@@ -7,7 +7,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace PdfRender.View;
+namespace PdfRender.Canvas;
 
 public interface ISkSurfaceFactory // TODO: use
 {
@@ -21,23 +21,30 @@ public interface ICanvasRenderTarget
 
 public interface ICanvasRenderTargetFactory
 {
-    ICanvasRenderTarget GetRenderTarget(PagesDrawingRequest request);
+    ICanvasRenderTarget GetRenderTarget(PdfViewerCanvas renderCanvas);
 }
 
 public sealed class PdfRenderingQueue : IDisposable
 {
     private readonly SemaphoreSlim _semaphore = new SemaphoreSlim(0);
     private readonly ConcurrentQueue<DrawingRequest> _updateQueue = new ConcurrentQueue<DrawingRequest>();
+    private DrawingRequest _lastRequest;
 
     public PdfRenderingQueue(ISkSurfaceFactory surfaceFactory)
     {
         StartReadFromQueue(_semaphore, _updateQueue);
     }
 
-    public void EnqueueDrawingRequest(DrawingRequest request)
+    internal void EnqueueDrawingRequest(DrawingRequest request)
     {
+        if (_lastRequest != null && _lastRequest.Equals(request))
+        {
+            return;
+        }
+
         _updateQueue.Enqueue(request);
         _semaphore.Release();
+        _lastRequest = request;
     }
 
     private async void StartReadFromQueue(SemaphoreSlim semaphore, ConcurrentQueue<DrawingRequest> queue)
@@ -122,7 +129,7 @@ public sealed class PdfRenderingQueue : IDisposable
         surface?.Dispose();
     }
 
-    public static async Task<bool> ProcessPagesDrawing(
+    private static async Task<bool> ProcessPagesDrawing(
         SKSurface surface,
         PagesDrawingRequest request,
         PagesDrawingRequest lastRequest,
@@ -259,7 +266,7 @@ public sealed class PdfRenderingQueue : IDisposable
         return true;
     }
 
-    public static bool CanDrawCached(PagesDrawingRequest request)
+    private static bool CanDrawCached(PagesDrawingRequest request)
     {
         bool shouldDraw = false;
 

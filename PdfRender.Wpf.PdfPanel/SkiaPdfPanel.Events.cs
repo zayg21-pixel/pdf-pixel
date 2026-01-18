@@ -62,7 +62,7 @@ namespace PdfRender.Wpf.PdfPanel
 
             if (Pages != null)
             {
-                RaiseEvent(GetCanvasEvent(e, CanvasMouseMoveDownEvent));
+                //RaiseEvent(GetCanvasEvent(e, CanvasMouseMoveDownEvent));
             }
         }
 
@@ -72,7 +72,7 @@ namespace PdfRender.Wpf.PdfPanel
 
             if (Pages != null)
             {
-                RaiseEvent(GetCanvasEvent(e, CanvasMouseMoveUpEvent));
+                //RaiseEvent(GetCanvasEvent(e, CanvasMouseMoveUpEvent));
             }
         }
 
@@ -82,55 +82,56 @@ namespace PdfRender.Wpf.PdfPanel
 
             if (Pages != null)
             {
-                RaiseEvent(GetCanvasEvent(e, CanvasMouseMoveEvent));
+               //RaiseEvent(GetCanvasEvent(e, CanvasMouseMoveEvent));
             }
         }
 
         private CanvasMouseEventArgs GetCanvasEvent(MouseEventArgs args, RoutedEvent routedEvent)
         {
-            VisiblePageInfo[] visiblePages = lastPagesDrawingRequest?.VisiblePages;
-            Point position = args.GetPosition(this);
-            Point relativePosition = GetCanvasPosition(position);
-            VisiblePageInfo? pageInfo = visiblePages?.Select(x => (VisiblePageInfo?)x).FirstOrDefault(x => x.Value.GetScaledBounds(Scale).Contains(relativePosition));
+            return null;
+            //VisiblePageInfo[] visiblePages = lastPagesDrawingRequest?.VisiblePages;
+            //Point position = args.GetPosition(this);
+            //Point relativePosition = GetCanvasPosition(position);
+            //VisiblePageInfo? pageInfo = visiblePages?.Select(x => (VisiblePageInfo?)x).FirstOrDefault(x => x.Value.GetScaledBounds(Scale).Contains(relativePosition));
 
-            int? pageNumber = pageInfo?.PageNumber;
-            Point? positionOnPage = pageInfo?.ToPagePosition(relativePosition, Scale);
+            //int? pageNumber = pageInfo?.PageNumber;
+            //Point? positionOnPage = pageInfo?.ToPagePosition(relativePosition, Scale);
 
-            UpdateAnnotationPopup(pageInfo, pageNumber, positionOnPage);
+            //UpdateAnnotationPopup(pageInfo, pageNumber, positionOnPage);
 
-            return new CanvasMouseEventArgs(routedEvent, this, relativePosition, pageNumber, positionOnPage, args);
+            //return new CanvasMouseEventArgs(routedEvent, this, relativePosition, pageNumber, positionOnPage, args);
         }
 
-        private void UpdateAnnotationPopup(VisiblePageInfo? pageInfo, int? pageNumber, Point? positionOnPage)
-        {
-            AnnotationPopup newPopup;
+        //private void UpdateAnnotationPopup(VisiblePageInfo? pageInfo, int? pageNumber, Point? positionOnPage)
+        //{
+        //    AnnotationPopup newPopup;
 
-            if (pageInfo.HasValue && Pages.TryGetPopup(pageNumber.Value, positionOnPage.Value, out var popup))
-            {
-                newPopup = popup;
-            }
-            else
-            {
-                newPopup = null;
-            }
+        //    if (pageInfo.HasValue && Pages.TryGetPopup(pageNumber.Value, positionOnPage.Value, out var popup))
+        //    {
+        //        newPopup = popup;
+        //    }
+        //    else
+        //    {
+        //        newPopup = null;
+        //    }
 
-            if (Equals(AnnotationPopup, newPopup))
-            {
-                return;
-            }
+        //    if (Equals(AnnotationPopup, newPopup))
+        //    {
+        //        return;
+        //    }
 
-            AnnotationPopup = newPopup;
+        //    AnnotationPopup = newPopup;
 
-            if (AnnotationToolTip != null)
-            {
-                if (newPopup != null)
-                {
-                    AnnotationToolTip.Content = AnnotationPopup;
-                }
+        //    if (AnnotationToolTip != null)
+        //    {
+        //        if (newPopup != null)
+        //        {
+        //            AnnotationToolTip.Content = AnnotationPopup;
+        //        }
 
-                AnnotationToolTip.IsOpen = AnnotationPopup != null;
-            }
-        }
+        //        AnnotationToolTip.IsOpen = AnnotationPopup != null;
+        //    }
+        //}
 
         public static readonly RoutedEvent DrawingErrorEvent = EventManager.RegisterRoutedEvent(
             nameof(DrawingError),

@@ -7,6 +7,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\PdfRender.Canvas\PdfRender.Canvas.csproj" />
     <ProjectReference Include="..\PdfRender\PdfRender.csproj" />
   </ItemGroup>
 

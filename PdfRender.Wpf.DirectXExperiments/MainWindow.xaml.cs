@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging;
 using Microsoft.Win32;
+using PdfReader;
 using PdfRender.Fonts.Management;
 using PdfRender.Models;
 using SkiaSharp;

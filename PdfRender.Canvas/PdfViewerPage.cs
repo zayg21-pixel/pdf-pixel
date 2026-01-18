@@ -1,4 +1,6 @@
-﻿namespace PdfRender.View;
+﻿using SkiaSharp;
+
+namespace PdfRender.Canvas;
 
 /// <summary>
 /// Represents a page in the PDF document in <see cref="PdfViewerPageCollection"/>.
@@ -22,26 +24,16 @@ public class PdfViewerPage
     public int PageNumber { get; }
 
     /// <summary>
+    /// Gets the offset of the page.
+    /// Page offset is the unscaled distance from the top-left corner of the page to the top-left corner of the document.
+    /// </summary>
+    public SKPoint Offset { get; internal set; }
+
+    /// <summary>
     /// User defined rotation of the page in degrees.
     /// Can be any value that is a multiple of 90.
     /// </summary>
     public int UserRotation { get; set; }
 
-    internal bool IsVisible(double offset, double canvasHeight)
-    {
-        var pageHeight = Info.GetRotatedSize(UserRotation).Height;
-        var pageTop = offset;
-        var pageBottom = offset + pageHeight;
-
-        return (pageTop >= 0 && pageTop <= canvasHeight) || (pageBottom >= 0 && pageBottom <= canvasHeight) || (pageTop <= 0 && pageBottom >= canvasHeight);
-    }
-
-    internal bool IsCurrent(double offset, double pageGap, double canvasHeight)
-    {
-        var pageHeight = Info.GetRotatedSize(UserRotation).Height;
-        var pageTop = offset;
-        var pageBottom = offset + pageHeight + pageGap;
-
-        return (pageTop >= -pageGap && pageTop <= canvasHeight / 2) || (pageTop <= -pageGap && pageBottom >= canvasHeight / 2);
-    }
+    // TODO: both point and rotation should be moved to request
 }

@@ -6,9 +6,9 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 
-namespace PdfRender.View;
+namespace PdfRender.Canvas;
 
-public delegate void AfterDrawDelegate(SKCanvas canvas, VisiblePageInfo[] visiblePages, double scale);
+public delegate void AfterDrawDelegate(SKCanvas canvas, PdfViewerPage[] visiblePages, float scale); // TODO: remove?
 
 /// <summary>
 /// Page collection for binding to <see cref="SkiaPdfPanel"/>.
@@ -179,6 +179,7 @@ public sealed class PdfViewerPageCollection : ReadOnlyCollection<PdfViewerPage>,
 
     internal bool CheckDocumentUpdates()
     {
+        // TODO: use in canvas!
         bool documentUpdated = false;
 
         foreach (var page in this)
@@ -196,28 +197,6 @@ public sealed class PdfViewerPageCollection : ReadOnlyCollection<PdfViewerPage>,
         }
 
         return documentUpdated;
-    }
-
-    internal SKSize GetAreaSize(float pageGap)
-    {
-        float width = 0;
-        float height = 0;
-
-        for (int i = 0; i < Count; i++)
-        {
-            var page = this[i];
-            var rotatedSize = page.Info.GetRotatedSize(page.UserRotation);
-            width = Math.Max(width, rotatedSize.Width);
-
-            height += rotatedSize.Height;
-
-            if (i != Count - 1)
-            {
-                height += pageGap;
-            }
-        }
-
-        return new SKSize(width, height);
     }
 
     public void Dispose()

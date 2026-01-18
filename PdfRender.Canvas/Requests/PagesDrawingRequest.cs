@@ -2,12 +2,12 @@
 using System;
 using System.Linq;
 
-namespace PdfRender.View.Requests;
+namespace PdfRender.Canvas.Requests;
 
 /// <summary>
 /// Request to draw pages on rendering panel.
 /// </summary>
-public class PagesDrawingRequest : DrawingRequest
+internal class PagesDrawingRequest : DrawingRequest
 {
     public PdfViewerPageCollection Pages { get; set; }
 
@@ -16,8 +16,6 @@ public class PagesDrawingRequest : DrawingRequest
     public SKColor BackgroundColor { get; set; }
 
     public int MaxThumbnailSize { get; set; }
-
-    public ICanvasRenderTarget RenderTarget { get; set; } 
 
     public override bool Equals(object obj)
     {

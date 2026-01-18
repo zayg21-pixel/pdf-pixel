@@ -1,9 +1,7 @@
 ﻿using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using PdfRender.Models;
+using PdfRender.Canvas;
 using PdfRender.Wpf.PdfPanel;
-using SkiaSharp;
-using System.Drawing;
 using System.Windows.Input;
 
 namespace PdfRender.Wpf.Demo

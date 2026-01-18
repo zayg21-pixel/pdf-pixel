@@ -4,7 +4,7 @@ using SkiaSharp;
 using System;
 using System.Collections.Generic;
 
-namespace PdfRender.View;
+namespace PdfRender.Canvas;
 
 /// <summary>
 /// Implements the IPdfRenderer interface.

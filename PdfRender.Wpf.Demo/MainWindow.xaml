@@ -34,7 +34,7 @@
                                    AutoScaleMode="{Binding AutoScaleMode}">
                 <pdfPanel:SkiaPdfPanel.AnnotationToolTip>
                     <ToolTip Background="Transparent" BorderThickness="0">
-                        <ToolTip.ContentTemplate>
+                        <!--<ToolTip.ContentTemplate>
                             <DataTemplate DataType="{x:Type pdfPanel:AnnotationPopup}">
                                 <ItemsControl ItemsSource="{Binding Messages}">
                                     <ItemsControl.ItemTemplate>
@@ -50,7 +50,7 @@
                                     </ItemsControl.ItemTemplate>
                                 </ItemsControl>
                             </DataTemplate>
-                        </ToolTip.ContentTemplate>
+                        </ToolTip.ContentTemplate>-->
                     </ToolTip>
                 </pdfPanel:SkiaPdfPanel.AnnotationToolTip>
             </pdfPanel:SkiaPdfPanel>

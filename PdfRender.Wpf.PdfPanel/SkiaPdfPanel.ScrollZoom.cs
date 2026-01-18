@@ -5,6 +5,7 @@ using System.Windows;
 using System;
 using System.Windows.Input;
 using System.Linq;
+using System.Diagnostics;
 
 namespace PdfRender.Wpf.PdfPanel
 {
@@ -41,33 +42,21 @@ namespace PdfRender.Wpf.PdfPanel
                 return;
             }
 
-            double verticalOffset = 0;
+            //double verticalOffset = 0;
 
-            for (int i = 0; i < Pages.Count; i++)
-            {
-                var page = Pages[i];
+            //for (int i = 0; i < Pages.Count; i++)
+            //{
+            //    var page = Pages[i];
 
-                if (page.PageNumber == pageNumber)
-                {
-                    break;
-                }
+            //    if (page.PageNumber == pageNumber)
+            //    {
+            //        break;
+            //    }
 
-                verticalOffset += page.Info.GetRotatedSize(page.UserRotation).Height + PageGap;
-            }
+            //    verticalOffset += page.Info.GetRotatedSize(page.UserRotation).Height + PageGap;
+            //}
 
-            SetVerticalOffset(verticalOffset * Scale);
-        }
-
-        public double GetCenterOffset()
-        {
-            var centerOffset = (CanvasSize.Width - ExtentWidth) / 2;
-
-            if (centerOffset < 0)
-            {
-                centerOffset = 0;
-            }
-
-            return centerOffset;
+            //SetVerticalOffset(verticalOffset * Scale);
         }
 
         public void LineDown()
@@ -102,6 +91,11 @@ namespace PdfRender.Wpf.PdfPanel
                 return;
             }
 
+            if (Pages.Count == 0)
+            {
+                return;
+            }
+
             switch (AutoScaleMode)
             {
                 case PdfPanelAutoScaleMode.NoAutoScale:
@@ -117,10 +111,11 @@ namespace PdfRender.Wpf.PdfPanel
                     }
                 case PdfPanelAutoScaleMode.ScaleToVisible:
                     {
-                        var maxVisibleWidth = GetVisiblePages().Max(x => x.RotatedSize.Width) + PagesPadding.Left + PagesPadding.Right + 1;
-                        var scale = CanvasSize.Width / maxVisibleWidth;
+                        // TODO: Implement scale to visible
+                        //var maxVisibleWidth = GetVisiblePages().Max(x => x.RotatedSize.Width) + PagesPadding.Left + PagesPadding.Right + 1;
+                        //var scale = CanvasSize.Width / maxVisibleWidth;
 
-                        SetAutoScale(scale);
+                        //SetAutoScale(scale);
                         break;
                     }
             }
@@ -133,10 +128,9 @@ namespace PdfRender.Wpf.PdfPanel
                 return;
             }
 
-            var size = Pages.GetAreaSize(PageGap);
-
-            ExtentHeight = size.Height * Scale + PagesPadding.Top * Scale + PagesPadding.Bottom * Scale;
-            ExtentWidth = size.Width * Scale + PagesPadding.Left * Scale + PagesPadding.Right * Scale;
+            SyncViewerCanvasState();
+            ExtentHeight = _viewerCanvas.ExtentHeight;
+            ExtentWidth = _viewerCanvas.ExtentWidth;
             ViewportWidth = CanvasSize.Width;
             ViewportHeight = CanvasSize.Height;
 
@@ -222,14 +216,14 @@ namespace PdfRender.Wpf.PdfPanel
             double centerY;
             double centerX;
 
-            if (IsMouseOver)
-            {
-                var mousePosition = Mouse.GetPosition(this);
+            //if (IsMouseOver)
+            //{
+            //    var mousePosition = Mouse.GetPosition(this);
 
-                centerY = mousePosition.Y * CanvasSize.Height / ActualHeight;
-                centerX = mousePosition.X * CanvasSize.Width / ActualWidth;
-            }
-            else
+            //    centerY = mousePosition.Y * CanvasSize.Height / ActualHeight;
+            //    centerX = mousePosition.X * CanvasSize.Width / ActualWidth;
+            //}
+            //else
             {
                 centerY = CanvasSize.Height / 2;
                 centerX = CanvasSize.Width / 2;
@@ -241,10 +235,13 @@ namespace PdfRender.Wpf.PdfPanel
         private void UpdatePositionOnZoom(double oldScale, double centerX, double centerY)
         {
             var centerVerticalDiff = centerY / oldScale * Scale - centerY;
-            SetVerticalOffset(VerticalOffset / oldScale * Scale + centerVerticalDiff);
+            VerticalOffset = VerticalOffset / oldScale * Scale + centerVerticalDiff;
 
             var centerHorizontalDiff = centerX / oldScale * Scale - centerX;
-            SetHorizontalOffset(HorizontalOffset / oldScale * Scale + centerHorizontalDiff);
+            HorizontalOffset = HorizontalOffset / oldScale * Scale + centerHorizontalDiff;
+
+            ValidateMargins();
+            InvalidateVisual();
         }
 
         public void MouseWheelLeft()

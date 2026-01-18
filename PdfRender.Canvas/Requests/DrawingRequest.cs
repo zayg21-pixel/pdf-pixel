@@ -1,11 +1,11 @@
 ﻿using SkiaSharp;
 
-namespace PdfRender.View.Requests;
+namespace PdfRender.Canvas.Requests;
 
 /// <summary>
 /// Request to draw on <see cref="SkiaPdfPanel"/>.
 /// </summary>
-public abstract class DrawingRequest
+internal abstract class DrawingRequest
 {
     public float Scale { get; set; }
 
@@ -13,9 +13,7 @@ public abstract class DrawingRequest
 
     public SKSize CanvasSize { get; set; }
 
-    public SKPoint CanvasScale { get; set; }
-
-    public SKPoint CanvasOffset { get; set; }
+    public ICanvasRenderTarget RenderTarget { get; set; }
 
     public override bool Equals(object obj)
     {
@@ -24,8 +22,7 @@ public abstract class DrawingRequest
             return Scale == request.Scale &&
                 Offset == request.Offset &&
                 CanvasSize == request.CanvasSize &&
-                CanvasScale == request.CanvasScale &&
-                CanvasOffset == request.CanvasOffset;
+                RenderTarget == request.RenderTarget;
         }
         else
         {
