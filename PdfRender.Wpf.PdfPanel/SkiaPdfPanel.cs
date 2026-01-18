@@ -199,7 +199,7 @@ namespace PdfRender.Wpf.PdfPanel
             }
 
             renderingQueue?.Dispose();
-            renderingQueue = new PdfRenderingQueue(null);
+            renderingQueue = new PdfRenderingQueue(new CpuSkSurfaceFactory());
             renderTargetFactory = new SkiaPdfPanelRenderTargetFactory(this);
             _viewerCanvas = new PdfViewerCanvas(Pages, renderingQueue, renderTargetFactory);
         }

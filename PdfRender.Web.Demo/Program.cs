@@ -1,9 +1,22 @@
-using System.Threading.Tasks;
+using Microsoft.AspNetCore.Builder;
 
-internal partial class Program
+WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
+
+WebApplication app = builder.Build();
+
+app.Use(async (context, next) =>
 {
-    private static Task Main(string[] args)
-    {
-        return Task.CompletedTask;
-    }
-}
+    context.Response.Headers["Cross-Origin-Opener-Policy"] = "same-origin";
+    context.Response.Headers["Cross-Origin-Embedder-Policy"] = "require-corp";
+    await next();
+});
+
+app.UseDefaultFiles();
+app.UseStaticFiles(new StaticFileOptions
+{
+    ServeUnknownFileTypes = true,
+    DefaultContentType = "application/octet-stream"
+});
+
+app.Run();
+

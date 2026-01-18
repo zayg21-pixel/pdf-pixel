@@ -1,0 +1,12 @@
+{
+  "profiles": {
+    "PdfRender.Web.PdfPanel": {
+      "commandName": "Project",
+      "launchBrowser": true,
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      },
+      "applicationUrl": "https://localhost:60386;http://localhost:60387"
+    }
+  }
+}

@@ -64,23 +64,34 @@ internal sealed class ChainedColorTransform : IColorTransform
             return static (Vector4 input) => input;
         }
 
-        // For small chains, hand-compose a straight-line delegate to eliminate expression overhead entirely.
-        // This also helps JIT devirtualize and inline calls for sealed types.
-        int length = _transforms.Length;
-
-        ParameterExpression inputParam = Expression.Parameter(typeof(Vector4), "input");
-        Expression body = inputParam;
-
-        for (int i = 0; i < length; i++)
+        return (Vector4 input) =>
         {
-            IColorTransform instance = _transforms[i];
-            Type concreteType = instance.GetType();
-            MethodInfo concreteMethod = concreteType.GetMethod(nameof(IColorTransform.Transform), types: [typeof(Vector4)]);
-            Expression target = Expression.Constant(instance, concreteType);
-            body = Expression.Call(target, concreteMethod, body);
-        }
+            Vector4 result = input;
+            foreach (IColorTransform transform in _transforms)
+            {
+                result = transform.Transform(result);
+            }
+            return result;
+        };
 
-        var lambda = Expression.Lambda<PixelProcessorFunction>(body, inputParam);
-        return lambda.Compile();
+        // TODO: Benchmark this against the expression tree approach for long chains.
+        //// For small chains, hand-compose a straight-line delegate to eliminate expression overhead entirely.
+        //// This also helps JIT devirtualize and inline calls for sealed types.
+        //int length = _transforms.Length;
+
+        //ParameterExpression inputParam = Expression.Parameter(typeof(Vector4), "input");
+        //Expression body = inputParam;
+
+        //for (int i = 0; i < length; i++)
+        //{
+        //    IColorTransform instance = _transforms[i];
+        //    Type concreteType = instance.GetType();
+        //    MethodInfo concreteMethod = concreteType.GetMethod(nameof(IColorTransform.Transform), types: [typeof(Vector4)]);
+        //    Expression target = Expression.Constant(instance, concreteType);
+        //    body = Expression.Call(target, concreteMethod, body);
+        //}
+
+        //var lambda = Expression.Lambda<PixelProcessorFunction>(body, inputParam);
+        //return lambda.Compile();
     }
 }

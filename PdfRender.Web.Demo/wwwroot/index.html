@@ -1,379 +1,392 @@
 <!DOCTYPE html>
-<!--  Licensed to the .NET Foundation under one or more agreements. -->
-<!-- The .NET Foundation licenses this file to you under the MIT license. -->
 <html>
-
 <head>
-    <title>WASM Browser App</title>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <script type='module' src="./main.js"></script>
+    <meta charset="utf-8">
+    <title>PDF Render WASM Thread Demo</title>
     <style>
-        html,
-        body {
-            height: 100%;
+        html, body {
             margin: 0;
             padding: 0;
+            height: 100%;
+            overflow: hidden;
+            font-family: Arial, sans-serif;
+        }
+
+        body {
+            display: flex;
+            flex-direction: column;
+        }
+
+        #header {
+            flex: 0 0 auto;
+            padding: 8px;
+            background: #f5f5f5;
+            border-bottom: 1px solid #ccc;
+        }
+
+        #header h1 {
+            margin: 0 0 10px 0;
+            font-size: 24px;
+        }
+
+        #header button {
+            margin-right: 5px;
+        }
+
+        #canvasContainer {
+            flex: 1 1 auto;
+            position: relative;
             overflow: hidden;
         }
 
-        #skp {
-            background-color:lightgrey;
+        #footer {
+            flex: 0 0 auto;
+            padding: 10px 20px;
+            background: #f5f5f5;
+            border-top: 1px solid #ccc;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        #skiaCanvas {
             display: block;
-            width: 100vw;
-            height: 100vh;
-            position: absolute;
-            top: 0;
-            left: 0;
         }
 
         .scrollbar {
             position: absolute;
-            background: rgba(0, 0, 0, 0.1);
+            background: #f0f0f0;
             z-index: 10;
-            user-select: none;
         }
 
         .scrollbar-thumb {
             position: absolute;
-            background: rgba(80, 80, 80, 0.5);
-            border-radius: 4px;
+            background: #888;
             cursor: pointer;
-            min-width: 30px;
+            border-radius: 4px;
+        }
+
+        .scrollbar-thumb:hover {
+            background: #555;
+        }
+
+        #verticalScrollbar {
+            right: 0;
+            top: 0;
+            width: 16px;
+            height: 100%;
+        }
+
+        #horizontalScrollbar {
+            left: 0;
+            bottom: 0;
+            width: 100%;
+            height: 16px;
+        }
+
+        #verticalThumb {
+            width: 100%;
             min-height: 30px;
         }
 
-        #scrollbar-x {
-            left: 0;
-            right: 0;
-            bottom: 2px;
-            height: 12px;
-        }
-
-        #thumb-x {
+        #horizontalThumb {
             height: 100%;
-            top: 0;
-            bottom: 0;
+            min-width: 30px;
         }
 
-        #scrollbar-y {
-            top: 0;
-            bottom: 0;
-            right: 2px;
-            width: 12px;
-        }
-
-        #thumb-y {
-            width: 100%;
-            left: 0;
-            right: 0;
+        #zoomLevel {
+            display: inline-block;
+            min-width: 60px;
+            text-align: center;
         }
     </style>
 </head>
-
 <body>
-    <canvas id="skp"></canvas>
-    <div id="scrollbar-x" class="scrollbar"><div class="scrollbar-thumb" id="thumb-x"></div></div>
-    <div id="scrollbar-y" class="scrollbar"><div class="scrollbar-thumb" id="thumb-y"></div></div>
-    <script type="text/javascript" src="https://unpkg.com/canvaskit-wasm/bin/full/canvaskit.js"></script>
+    <div id="header">
+        <div>
+            <button id="zoomOut">Zoom Out</button>
+            <span id="zoomLevel">100%</span>
+            <button id="zoomIn">Zoom In</button>
+            <button id="resetZoom">Reset Zoom</button>
+        </div>
+    </div>
+<div id="canvasContainer">
+    <canvas id="skiaCanvas"></canvas>
+    <div id="verticalScrollbar" class="scrollbar">
+        <div id="verticalThumb" class="scrollbar-thumb"></div>
+    </div>
+    <div id="horizontalScrollbar" class="scrollbar">
+        <div id="horizontalThumb" class="scrollbar-thumb"></div>
+    </div>
+</div>
+<div id="footer">
+    <div id="output"></div>
+</div>
+    
+    
     <script type="module">
-        import { GetInterop } from './main.js';
+        import { dotnet } from './_framework/dotnet.js';
 
-        // Hide scrollbars initially
-        document.getElementById('scrollbar-x').style.display = 'none';
-        document.getElementById('scrollbar-y').style.display = 'none';
+        const { setModuleImports, getAssemblyExports, getConfig } = await dotnet
+            .withDiagnosticTracing(false)
+            .withApplicationArgumentsFromQuery()
+            .create();
 
-        function resizeCanvasToDisplaySize(canvas) {
-            const dpr = window.devicePixelRatio || 1;
-            const width = window.innerWidth;
-            const height = window.innerHeight;
-            if (canvas.width !== width * dpr || canvas.height !== height * dpr) {
-                canvas.x = 0;
-                canvas.y = 0;
-                canvas.width = width * dpr;
-                canvas.height = height * dpr;
-                canvas.style.width = width + 'px';
-                canvas.style.height = height + 'px';
-                return true;
+        const config = getConfig();
+        const exports = await getAssemblyExports(config.mainAssemblyName);
+        const interop = exports.PdfRender.Web.PdfPanel.PdfPanelIntrop;
+
+        await interop.Initialize();
+
+        const canvasId = 'skiaCanvas';
+        const canvas = document.getElementById(canvasId);
+        const container = document.getElementById('canvasContainer');
+        const verticalScrollbar = document.getElementById('verticalScrollbar');
+        const horizontalScrollbar = document.getElementById('horizontalScrollbar');
+        const verticalThumb = document.getElementById('verticalThumb');
+        const horizontalThumb = document.getElementById('horizontalThumb');
+
+        interop.RegisterCanvas(canvasId, canvas);
+
+        const documentResponse = await fetch('test/demo.pdf');
+        const documentData = await documentResponse.arrayBuffer();
+        await interop.SetDocument(canvasId, new Uint8Array(documentData));
+
+        let state = {
+            verticalOffset: 0,
+            horizontalOffset: 0,
+            scale: 1.0,
+            scrollWidth: 0,
+            scrollHeight: 0,
+            isDraggingVertical: false,
+            isDraggingHorizontal: false,
+            dragStartY: 0,
+            dragStartX: 0,
+            dragStartOffset: 0
+        };
+
+        function getBrowserZoom() {
+            if (window.visualViewport && window.visualViewport.scale) {
+                return window.visualViewport.scale;
             }
-            return false;
+            return 1;
         }
 
-        async function main() {
-            const CanvasKit = await CanvasKitInit({
-                locateFile: (file) => 'https://unpkg.com/canvaskit-wasm/bin/full/' + file
-            });
-            const sharpInterop = await GetInterop();
-            const documentResponse = await fetch('test/demo.pdf');
-            const documentData = await documentResponse.arrayBuffer();
-            await sharpInterop.LoadDocument(new Uint8Array(documentData));
-            const pageInfoJson = await sharpInterop.GetAllPageInfo();
-            const pageInfo = JSON.parse(pageInfoJson);
-            // --- Layout calculation ---
-            const PAGE_PADDING = 24;
-            // Calculate positions for each page (vertical stacking, but can be extended for grid)
-            let positions = [];
-            let y = 0, x = 0, maxWidth = 0, maxHeight = 0;
-            for (let i = 0; i < pageInfo.length; i++) {
-                positions.push({ x, y });
-                y += pageInfo[i].Height + PAGE_PADDING;
-                if (pageInfo[i].Width > maxWidth) maxWidth = pageInfo[i].Width;
-                if (pageInfo[i].Height > maxHeight) maxHeight = pageInfo[i].Height;
+        function clampOffsets() {
+            const cssWidth = container.clientWidth;
+            const cssHeight = container.clientHeight;
+
+            const maxVerticalOffset = Math.max(0, state.scrollHeight - cssHeight);
+            const maxHorizontalOffset = Math.max(0, state.scrollWidth - cssWidth);
+
+            state.verticalOffset = Math.max(0, Math.min(state.verticalOffset, maxVerticalOffset));
+            state.horizontalOffset = Math.max(0, Math.min(state.horizontalOffset, maxHorizontalOffset));
+        }
+
+        function updateScrollbars() {
+            const cssWidth = container.clientWidth - 16;
+            const cssHeight = container.clientHeight - 16;
+
+            const verticalVisible = state.scrollHeight > cssHeight;
+            const horizontalVisible = state.scrollWidth > cssWidth;
+
+            verticalScrollbar.style.display = verticalVisible ? 'block' : 'none';
+            horizontalScrollbar.style.display = horizontalVisible ? 'block' : 'none';
+
+            if (verticalVisible) {
+                const thumbHeight = Math.max(30, (cssHeight / state.scrollHeight) * cssHeight);
+                const maxThumbTop = cssHeight - thumbHeight;
+                const maxScroll = state.scrollHeight - cssHeight;
+                const thumbTop = maxScroll > 0 ? (state.verticalOffset / maxScroll) * maxThumbTop : 0;
+
+                verticalThumb.style.height = thumbHeight + 'px';
+                verticalThumb.style.top = thumbTop + 'px';
             }
-            const totalHeight = y - PAGE_PADDING;
-            const totalWidth = maxWidth;
-            // --- State ---
-            let scale = 1;
-            let panX = 0;
-            let panY = 0;
-            let isPanning = false;
-            let lastX = 0;
-            let lastY = 0;
-            // Cache for loaded pages: { [pageIndex]: { pict } }
-            const loadedPages = new Map();
-            // --- Canvas and surface ---
-            const canvasElem = document.getElementById('skp');
-            resizeCanvasToDisplaySize(canvasElem);
-            const surface = CanvasKit.MakeWebGLCanvasSurface('skp');
-            if (!surface) {
-                console.error('Could not make surface');
+
+            if (horizontalVisible) {
+                const thumbWidth = Math.max(30, (cssWidth / state.scrollWidth) * cssWidth);
+                const maxThumbLeft = cssWidth - thumbWidth;
+                const maxScroll = state.scrollWidth - cssWidth;
+                const thumbLeft = maxScroll > 0 ? (state.horizontalOffset / maxScroll) * maxThumbLeft : 0;
+
+                horizontalThumb.style.width = thumbWidth + 'px';
+                horizontalThumb.style.left = thumbLeft + 'px';
+            }
+        }
+
+        function updateZoomDisplay() {
+            document.getElementById('zoomLevel').textContent = Math.round(state.scale * 100) + '%';
+        }
+
+        let renderFrameRequestId = null;
+        let requestedRender = false;
+        let renderInProgress = false;
+        let renderVersion = 0;
+
+        function requestRender() {
+            renderVersion++;
+            requestedRender = true;
+
+            if (renderFrameRequestId !== null) {
                 return;
             }
 
-            const pagePaint = new CanvasKit.Paint();
-            pagePaint.setColor(CanvasKit.Color4f(1.0, 1.0, 1.0, 1.0));
-            pagePaint.setStyle(CanvasKit.PaintStyle.Fill);
-            pagePaint.setAntiAlias(true);
-
-            // --- Scrollbar elements ---
-            const scrollbarX = document.getElementById('scrollbar-x');
-            const scrollbarY = document.getElementById('scrollbar-y');
-            const thumbX = document.getElementById('thumb-x');
-            const thumbY = document.getElementById('thumb-y');
-            // --- Scrollbar logic ---
-            function updateScrollbars() {
-                const viewW = window.innerWidth;
-                const viewH = window.innerHeight;
-                const contentW = totalWidth * scale;
-                const contentH = totalHeight * scale;
-                // Horizontal
-                const visibleRatioX = Math.min(1, viewW / contentW);
-                const thumbW = Math.max(30, visibleRatioX * viewW);
-                const maxPanX = Math.max(0, contentW - viewW);
-                const panXClamped = Math.max(0, Math.min(-panX, maxPanX));
-                const thumbXPos = (panXClamped / (maxPanX || 1)) * (viewW - thumbW);
-                thumbX.style.width = thumbW + 'px';
-                thumbX.style.left = thumbXPos + 'px';
-                // Vertical
-                const visibleRatioY = Math.min(1, viewH / contentH);
-                const thumbH = Math.max(30, visibleRatioY * viewH);
-                const maxPanY = Math.max(0, contentH - viewH);
-                const panYClamped = Math.max(0, Math.min(-panY, maxPanY));
-                const thumbYPos = (panYClamped / (maxPanY || 1)) * (viewH - thumbH);
-                thumbY.style.height = thumbH + 'px';
-                thumbY.style.top = thumbYPos + 'px';
-                // Show/hide
-                scrollbarX.style.display = (visibleRatioX < 1) ? 'block' : 'none';
-                scrollbarY.style.display = (visibleRatioY < 1) ? 'block' : 'none';
-            }
-
-            function clampPan() {
-                const viewW = window.innerWidth;
-                const viewH = window.innerHeight;
-                const contentW = totalWidth * scale;
-                const contentH = totalHeight * scale;
-                // Allow panning so any part of the content can be brought into view
-                if (contentW > viewW) {
-                    panX = Math.min(0, Math.max(viewW - contentW, panX));
-                } else {
-                    panX = Math.max(0, Math.min(viewW - contentW, panX));
-                }
-                if (contentH > viewH) {
-                    panY = Math.min(0, Math.max(viewH - contentH, panY));
-                } else {
-                    panY = Math.max(0, Math.min(viewH - contentH, panY));
-                }
-            }
-
-            // --- Lazy load/unload logic ---
-            async function ensurePageLoaded(pageIndex) {
-                if (loadedPages.has(pageIndex)) return loadedPages.get(pageIndex);
-                const skpData = sharpInterop.RenderPageToSkp(pageIndex);
-                const pict = CanvasKit.MakePicture(skpData.slice());
-                loadedPages.set(pageIndex, pict);
-                return pict;
-            }
-
-            function unloadPage(pageIndex) {
-                const entry = loadedPages.get(pageIndex);
-                if (entry) {
-                    entry.delete();
-                }
-                loadedPages.delete(pageIndex);
-            }
-
-            // --- Drawing only visible pages ---
-            async function drawFrame(canvas) {
-                resizeCanvasToDisplaySize(canvasElem);
-                clampPan();
-                const dpr = window.devicePixelRatio || 1;
-                canvas.clear(CanvasKit.TRANSPARENT);
-                canvas.save();
-                canvas.translate(panX * dpr, panY * dpr);
-                canvas.scale(scale * dpr, scale * dpr);
-                // Determine visible pages
-                const viewW = window.innerWidth / scale;
-                const viewH = window.innerHeight / scale;
-                const left = -panX / scale;
-                const top = -panY / scale;
-                const right = left + viewW;
-                const bottom = top + viewH;
-                // Add a small margin for preloading
-                const preloadMargin = 100;
-                for (let i = 0; i < pageInfo.length; i++) {
-                    const pos = positions[i];
-                    const pageW = pageInfo[i].Width;
-                    const pageH = pageInfo[i].Height;
-
-
-                    // Check if page is in (or near) viewport
-                    if (
-                        pos.x + pageW < left - preloadMargin ||
-                        pos.x > right + preloadMargin ||
-                        pos.y + pageH < top - preloadMargin ||
-                        pos.y > bottom + preloadMargin
-                    ) {
-                        // Unload if out of view
-                        if (loadedPages.has(i)) {
-                            unloadPage(i);
-                        }
-                        continue;
-                    }
-
-                    canvas.save();
-                    canvas.translate(pos.x, pos.y);
-
-                    const rr = CanvasKit.RRectXY(CanvasKit.LTRBRect(0, 0, pageW, pageH), 5, 5);
-                    canvas.drawRRect(rr, pagePaint);
-
-                    // Load and draw if in view
-                    if (!loadedPages.has(i)) {
-                        // Lazy load, but must await and then redraw
-                        ensurePageLoaded(i).then(() => {
-                            surface.requestAnimationFrame(drawFrame);
-                        });
-                        canvas.restore();
-                        continue;
-                    }
-                    const pict = loadedPages.get(i);
-                    if (pict) {
-                        canvas.drawPicture(pict);
-                    }
-
-                    canvas.restore();
-                }
-                canvas.restore();
-                updateScrollbars();
-            }
-
-            // --- Mouse/scroll/zoom logic (same as before, but now for virtual area) ---
-            canvasElem.addEventListener('wheel', function (e) {
-                e.preventDefault();
-                const mouseX = e.offsetX;
-                const mouseY = e.offsetY;
-                if (e.ctrlKey) {
-                    const scaleAmount = 1.1;
-                    let newScale = scale;
-                    if (e.deltaY < 0) {
-                        newScale *= scaleAmount;
-                    } else {
-                        newScale /= scaleAmount;
-                    }
-                    panX = mouseX - ((mouseX - panX) * (newScale / scale));
-                    panY = mouseY - ((mouseY - panY) * (newScale / scale));
-                    scale = newScale;
-                } else {
-                    panX -= e.deltaX;
-                    panY -= e.deltaY;
-                }
-                surface.requestAnimationFrame(drawFrame);
-            }, { passive: false });
-
-            canvasElem.addEventListener('mousedown', function (e) {
-                isPanning = true;
-                lastX = e.clientX;
-                lastY = e.clientY;
-            });
-            window.addEventListener('mousemove', function (e) {
-                if (!isPanning) return;
-                const dx = e.clientX - lastX;
-                const dy = e.clientY - lastY;
-                panX += dx;
-                panY += dy;
-                lastX = e.clientX;
-                lastY = e.clientY;
-                surface.requestAnimationFrame(drawFrame);
-            });
-            window.addEventListener('mouseup', function () {
-                isPanning = false;
-            });
-
-            // Scrollbar drag logic (unchanged)
-            let draggingX = false, draggingY = false, dragOffsetX = 0, dragOffsetY = 0;
-            thumbX.addEventListener('mousedown', function (e) {
-                draggingX = true;
-                dragOffsetX = e.clientX - thumbX.offsetLeft;
-                e.stopPropagation();
-                e.preventDefault();
-            });
-            thumbY.addEventListener('mousedown', function (e) {
-                draggingY = true;
-                dragOffsetY = e.clientY - thumbY.offsetTop;
-                e.stopPropagation();
-                e.preventDefault();
-            });
-            window.addEventListener('mousemove', function (e) {
-                const viewW = window.innerWidth;
-                const viewH = window.innerHeight;
-                const contentW = totalWidth * scale;
-                const contentH = totalHeight * scale;
-                if (draggingX) {
-                    const thumbW = thumbX.offsetWidth;
-                    let x = e.clientX - dragOffsetX;
-                    x = Math.max(0, Math.min(viewW - thumbW, x));
-                    const maxPanX = Math.max(0, contentW - viewW);
-                    panX = -((x / (viewW - thumbW)) * maxPanX);
-                    surface.requestAnimationFrame(drawFrame);
-                }
-                if (draggingY) {
-                    const thumbH = thumbY.offsetHeight;
-                    let y = e.clientY - dragOffsetY;
-                    y = Math.max(0, Math.min(viewH - thumbH, y));
-                    const maxPanY = Math.max(0, contentH - viewH);
-                    panY = -((y / (viewH - thumbH)) * maxPanY);
-                    surface.requestAnimationFrame(drawFrame);
-                }
-            });
-            window.addEventListener('mouseup', function () {
-                draggingX = false;
-                draggingY = false;
-            });
-
-            // Redraw on resize
-            window.addEventListener('resize', function () {
-                resizeCanvasToDisplaySize(canvasElem);
-                surface.requestAnimationFrame(drawFrame);
-            });
-            surface.requestAnimationFrame(drawFrame);
-            window.addEventListener('unload', function () {
-                for (const entry of loadedPages.values()) {
-                    if (entry) entry.delete();
-                }
+            renderFrameRequestId = window.requestAnimationFrame(() => {
+                renderFrameRequestId = null;
+                void performRender();
             });
         }
 
-        main();
+        async function performRender() {
+            if (renderInProgress) {
+                return;
+            }
+
+            if (!requestedRender) {
+                return;
+            }
+
+            requestedRender = false;
+            renderInProgress = true;
+
+            const currentRenderVersion = ++renderVersion;
+
+            try {
+                const cssWidth = container.clientWidth;
+                const cssHeight = container.clientHeight;
+
+                const dpr = window.devicePixelRatio || 1;
+                const zoom = getBrowserZoom();
+                const effectiveScale = dpr * zoom;
+
+                const redrawState = {
+                    cssWidth: cssWidth,
+                    cssHeight: cssHeight,
+                    effectiveScale: effectiveScale,
+                    verticalOffset: state.verticalOffset,
+                    horizontalOffset: state.horizontalOffset,
+                    scale: state.scale,
+                    scrollWidth: 0,
+                    scrollHeight: 0
+                };
+
+                await interop.RequestRedraw(canvasId, redrawState);
+
+                if (currentRenderVersion !== renderVersion) {
+                    return;
+                }
+
+                state.scrollWidth = redrawState.scrollWidth;
+                state.scrollHeight = redrawState.scrollHeight;
+
+                clampOffsets();
+                updateScrollbars();
+                updateZoomDisplay();
+            }
+            finally {
+                renderInProgress = false;
+
+                if (requestedRender) {
+                    requestRender();
+                }
+            }
+        }
+
+        function updateCanvas() {
+            requestRender();
+        }
+
+        verticalThumb.addEventListener('mousedown', (e) => {
+            state.isDraggingVertical = true;
+            state.dragStartY = e.clientY;
+            state.dragStartOffset = state.verticalOffset;
+            e.preventDefault();
+        });
+
+        horizontalThumb.addEventListener('mousedown', (e) => {
+            state.isDraggingHorizontal = true;
+            state.dragStartX = e.clientX;
+            state.dragStartOffset = state.horizontalOffset;
+            e.preventDefault();
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            if (state.isDraggingVertical) {
+                const cssHeight = container.clientHeight - 16;
+                const thumbHeight = parseFloat(verticalThumb.style.height);
+                const maxThumbTop = cssHeight - thumbHeight;
+                const maxScroll = state.scrollHeight - cssHeight;
+
+                const deltaY = e.clientY - state.dragStartY;
+                const deltaScroll = maxThumbTop > 0 ? (deltaY / maxThumbTop) * maxScroll : 0;
+
+                state.verticalOffset = state.dragStartOffset + deltaScroll;
+                clampOffsets();
+                requestRender();
+            }
+
+            if (state.isDraggingHorizontal) {
+                const cssWidth = container.clientWidth - 16;
+                const thumbWidth = parseFloat(horizontalThumb.style.width);
+                const maxThumbLeft = cssWidth - thumbWidth;
+                const maxScroll = state.scrollWidth - cssWidth;
+
+                const deltaX = e.clientX - state.dragStartX;
+                const deltaScroll = maxThumbLeft > 0 ? (deltaX / maxThumbLeft) * maxScroll : 0;
+
+                state.horizontalOffset = state.dragStartOffset + deltaScroll;
+                clampOffsets();
+                requestRender();
+            }
+        });
+
+        document.addEventListener('mouseup', () => {
+            state.isDraggingVertical = false;
+            state.isDraggingHorizontal = false;
+        });
+
+        container.addEventListener('wheel', (e) => {
+            e.preventDefault();
+
+            if (e.ctrlKey) {
+                const zoomDelta = -e.deltaY * 0.001;
+                state.scale = Math.max(0.1, Math.min(5.0, state.scale + zoomDelta));
+            }
+            else {
+                state.verticalOffset += e.deltaY;
+                state.horizontalOffset += e.deltaX;
+            }
+
+            requestRender();
+        });
+
+        document.getElementById('zoomIn').addEventListener('click', async () => {
+            state.scale = Math.min(5.0, state.scale * 1.25);
+            requestRender();
+        });
+
+        document.getElementById('zoomOut').addEventListener('click', async () => {
+            state.scale = Math.max(0.1, state.scale / 1.25);
+            requestRender();
+        });
+
+        document.getElementById('resetZoom').addEventListener('click', async () => {
+            state.scale = 1.0;
+            state.verticalOffset = 0;
+            state.horizontalOffset = 0;
+            requestRender();
+        });
+
+        window.addEventListener('resize', requestRender);
+
+        if (window.visualViewport) {
+            window.visualViewport.addEventListener('resize', requestRender);
+        }
+
+        const resizeObserver = new ResizeObserver(requestRender);
+        resizeObserver.observe(container);
+
+        requestRender();
     </script>
 </body>
-
 </html>

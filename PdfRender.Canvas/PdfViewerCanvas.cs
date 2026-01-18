@@ -3,7 +3,6 @@ using SkiaSharp;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Drawing;
 using System.Linq;
 
 namespace PdfRender.Canvas;
@@ -55,21 +54,21 @@ public class PdfViewerCanvas
 
     public float HorizontalOffset { get; set; }
 
-    public float Scale { get; set; }
+    public float Scale { get; set; } = 1.0f;
 
     /// <summary>
     /// Padding from the edges of the viewing area to the pages.
     /// </summary>
-    public SKRect PagesPadding { get; set; }
+    public SKRect PagesPadding { get; set; } = SKRect.Create(10, 10, 10, 10);
 
     /// <summary>
     /// Gets or sets the spacing, between pages in the layout.
     /// </summary>
-    public float MinimumPageGap { get; set; }
+    public float MinimumPageGap { get; set; } = 10;
 
-    public SKColor BackgroundColor { get; set; }
+    public SKColor BackgroundColor { get; set; } = SKColors.LightGray;
 
-    public int MaxThumbnailSize { get; set; }
+    public int MaxThumbnailSize { get; set; } = 400;
 
     public PdfViewerPageCollection Pages { get; }
 

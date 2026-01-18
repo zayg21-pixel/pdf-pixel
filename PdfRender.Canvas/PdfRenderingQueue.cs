@@ -3,16 +3,12 @@ using SkiaSharp;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
 namespace PdfRender.Canvas;
-
-public interface ISkSurfaceFactory // TODO: use
-{
-    void GetSurface(float widht, float height);
-}
 
 public interface ICanvasRenderTarget
 {
@@ -26,14 +22,18 @@ public interface ICanvasRenderTargetFactory
 
 public sealed class PdfRenderingQueue : IDisposable
 {
+    private readonly ISkSurfaceFactory _surfaceFactory;
     private readonly SemaphoreSlim _semaphore = new SemaphoreSlim(0);
     private readonly ConcurrentQueue<DrawingRequest> _updateQueue = new ConcurrentQueue<DrawingRequest>();
     private DrawingRequest _lastRequest;
 
     public PdfRenderingQueue(ISkSurfaceFactory surfaceFactory)
     {
-        StartReadFromQueue(_semaphore, _updateQueue);
+        _surfaceFactory = surfaceFactory;
+        StartReadFromQueue();
     }
+
+    public Action<string> OnLog;
 
     internal void EnqueueDrawingRequest(DrawingRequest request)
     {
@@ -47,13 +47,12 @@ public sealed class PdfRenderingQueue : IDisposable
         _lastRequest = request;
     }
 
-    private async void StartReadFromQueue(SemaphoreSlim semaphore, ConcurrentQueue<DrawingRequest> queue)
+    private async void StartReadFromQueue()
     {
         SKSurface surface = null;
         PagesDrawingRequest activePagesDrawingRequest = null;
         PagesDrawingRequest previousPagesDrawingRequest = null;
         bool pagesUpdated = false;
-        GRContext context = null;
 
         while (true)
         {
@@ -61,19 +60,19 @@ public sealed class PdfRenderingQueue : IDisposable
             {
                 try
                 {
-                    await semaphore.WaitAsync().ConfigureAwait(false);
+                    await _semaphore.WaitAsync().ConfigureAwait(false);
                 }
                 catch (ObjectDisposedException)
                 {
                     break;
                 }
 
-                if (!queue.TryDequeue(out var request))
+                if (!_updateQueue.TryDequeue(out var request))
                 {
                     break;
                 }
 
-                if (!queue.IsEmpty)
+                if (!_updateQueue.IsEmpty)
                 {
                     if (request is PagesDrawingRequest skippedPagesDrawingRequest)
                     {
@@ -89,7 +88,7 @@ public sealed class PdfRenderingQueue : IDisposable
 
                 if (surface == null || surface.Canvas.DeviceClipBounds.Width != width || surface.Canvas.DeviceClipBounds.Height != height)
                 {
-                    var newSurface = CreateSurface(surface, context, width, height);
+                    var newSurface = CreateSurface(surface, width, height);
 
                     surface?.Dispose();
                     surface = newSurface;
@@ -103,13 +102,13 @@ public sealed class PdfRenderingQueue : IDisposable
                 else if (request is ResetDrawingRequest)
                 {
                     surface?.Dispose();
-                    surface = CreateSurface(null, context, width, height);
+                    surface = CreateSurface(null, width, height);
                     pagesUpdated = false;
                 }
 
                 if (pagesUpdated)
                 {
-                    pagesUpdated = !await ProcessPagesDrawing(surface, activePagesDrawingRequest, previousPagesDrawingRequest, queue).ConfigureAwait(false);
+                    pagesUpdated = !await ProcessPagesDrawing(surface, activePagesDrawingRequest, previousPagesDrawingRequest, _updateQueue).ConfigureAwait(false);
                     previousPagesDrawingRequest = activePagesDrawingRequest;
                 }
                 else if (surface != null && activePagesDrawingRequest != null)
@@ -117,19 +116,19 @@ public sealed class PdfRenderingQueue : IDisposable
                     await activePagesDrawingRequest.RenderTarget.RenderAsync(surface);
                 }
             }
-            catch
+            catch (Exception ex)
             {
+                OnLog?.Invoke($"Error in PdfRenderingQueue: {ex}");
 #if DEBUG
                 throw;
 #endif
             }
         }
 
-        context?.Dispose();
         surface?.Dispose();
     }
 
-    private static async Task<bool> ProcessPagesDrawing(
+    private async Task<bool> ProcessPagesDrawing(
         SKSurface surface,
         PagesDrawingRequest request,
         PagesDrawingRequest lastRequest,
@@ -151,6 +150,8 @@ public sealed class PdfRenderingQueue : IDisposable
             {
                 canvas.DrawPageFromRequest(page.PageNumber, request, PageDrawFlags.Background | PageDrawFlags.Shadow);
             }
+
+            await request.RenderTarget.RenderAsync(surface).ConfigureAwait(false);
         }
 
         if (!updateQueue.IsEmpty)
@@ -344,11 +345,11 @@ public sealed class PdfRenderingQueue : IDisposable
         }
     }
 
-    private static SKSurface CreateSurface(SKSurface source, GRContext context, int width, int height)
+    private SKSurface CreateSurface(SKSurface source, int width, int height)
     {
         var info = new SKImageInfo(width, height, SKColorType.Bgra8888, SKAlphaType.Premul);
 
-        var result = GetBaseSurface(info, context);
+        var result = _surfaceFactory.GetSurface(info);
 
         if (source != null)
         {
@@ -356,15 +357,6 @@ public sealed class PdfRenderingQueue : IDisposable
         }
 
         return result;
-    }
-
-    private static SKSurface GetBaseSurface(SKImageInfo info, GRContext context)
-    {
-        if (context != null)
-        {
-            return SKSurface.Create(context, false, info);
-        }
-        return SKSurface.Create(info);
     }
 
     public void Dispose()

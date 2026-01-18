@@ -2,8 +2,6 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Linq;
-using System.Reflection;
 using System.Runtime.CompilerServices;
 
 namespace PdfRender.Text
@@ -119,49 +117,59 @@ namespace PdfRender.Text
         /// <returns>Dictionary mapping <see cref="PdfString"/> to enum value</returns>
         private static Dictionary<PdfString, Enum> BuildEnumValueMap<T>() where T : Enum
         {
-            var enumType = typeof(T);
-            if (!enumType.GetCustomAttributes(typeof(PdfEnumAttribute), inherit: false).Any())
-            {
-                throw new ArgumentException($"Enum type '{enumType.FullName}' must be decorated with [PdfEnum] attribute.", nameof(T));
-            }
-
             var map = new Dictionary<PdfString, Enum>();
-            FieldInfo defaultField = null;
-            foreach (var field in enumType.GetFields(BindingFlags.Public | BindingFlags.Static))
-            {
-                var valueAttr = field.GetCustomAttribute<PdfEnumValueAttribute>();
-                var defaultAttr = field.GetCustomAttribute<PdfEnumDefaultValueAttribute>();
-                if (valueAttr == null && defaultAttr == null)
-                {
-                    throw new ArgumentException($"Enum field '{field.Name}' in '{enumType.FullName}' must be decorated with either [PdfEnumValue] or [PdfEnumDefaultValue] attribute.", nameof(T));
-                }
-                if (defaultAttr != null)
-                {
-                    defaultField = field;
-                }
 
-                string name = valueAttr?.Name ?? string.Empty;
-                if (defaultAttr != null)
-                {
-                    name = valueAttr?.Name ?? string.Empty;
-                }
-                var pdfString = new PdfString(EncodingExtensions.PdfDefault.GetBytes(name));
-                var enumValue = (Enum)field.GetValue(null);
-                map[pdfString] = enumValue;
-            }
-
-            if (defaultField == null)
+            foreach (var t in Enum.GetValues(typeof(T)))
             {
-                throw new ArgumentException($"Enum type '{enumType.FullName}' must have one field decorated with [PdfEnumDefaultValue] attribute.", nameof(T));
-            }
-
-            var defaultValue = (Enum)defaultField.GetValue(null);
-            if (!defaultValue.Equals(default(T)))
-            {
-                throw new ArgumentException($"Enum type '{enumType.FullName}': the field marked with [PdfEnumDefaultValue] must be equal to default({enumType.Name}).", nameof(T));
+                map.Add(PdfString.FromString(t.ToString()), (Enum)t);
             }
 
             return map;
+
+            // TODO: find AOT friendly way to do this with attributes
+            //var enumType = typeof(T);
+            //if (!enumType.GetCustomAttributes(typeof(PdfEnumAttribute), inherit: false).Any())
+            //{
+            //    throw new ArgumentException($"Enum type '{enumType.FullName}' must be decorated with [PdfEnum] attribute.", nameof(T));
+            //}
+
+            //var map = new Dictionary<PdfString, Enum>();
+            //FieldInfo defaultField = null;
+            //foreach (var field in enumType.GetFields(BindingFlags.Public | BindingFlags.Static))
+            //{
+            //    var valueAttr = field.GetCustomAttribute<PdfEnumValueAttribute>();
+            //    var defaultAttr = field.GetCustomAttribute<PdfEnumDefaultValueAttribute>();
+            //    if (valueAttr == null && defaultAttr == null)
+            //    {
+            //        throw new ArgumentException($"Enum field '{field.Name}' in '{enumType.FullName}' must be decorated with either [PdfEnumValue] or [PdfEnumDefaultValue] attribute.", nameof(T));
+            //    }
+            //    if (defaultAttr != null)
+            //    {
+            //        defaultField = field;
+            //    }
+
+            //    string name = valueAttr?.Name ?? string.Empty;
+            //    if (defaultAttr != null)
+            //    {
+            //        name = valueAttr?.Name ?? string.Empty;
+            //    }
+            //    var pdfString = new PdfString(EncodingExtensions.PdfDefault.GetBytes(name));
+            //    var enumValue = (Enum)field.GetValue(null);
+            //    map[pdfString] = enumValue;
+            //}
+
+            //if (defaultField == null)
+            //{
+            //    throw new ArgumentException($"Enum type '{enumType.FullName}' must have one field decorated with [PdfEnumDefaultValue] attribute.", nameof(T));
+            //}
+
+            //var defaultValue = (Enum)defaultField.GetValue(null);
+            //if (!defaultValue.Equals(default(T)))
+            //{
+            //    throw new ArgumentException($"Enum type '{enumType.FullName}': the field marked with [PdfEnumDefaultValue] must be equal to default({enumType.Name}).", nameof(T));
+            //}
+
+            //return map;
         }
 
         /// <summary>
