@@ -2,6 +2,7 @@
 using PdfReader;
 using PdfRender.Canvas;
 using PdfRender.Fonts.Management;
+using SkiaSharp;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -20,62 +21,70 @@ namespace PdfRender.Web.PdfPanel
         [JSImport("globalThis.console.log")]
         internal static partial void Log([JSMarshalAs<JSType.String>] string message);
 
-        [JSImport("registerCanvas", "canvasInterop.js")]
-        internal static partial bool JSRegisterCanvas(
-            [JSMarshalAs<JSType.String>] string id,
-            [JSMarshalAs<JSType.Object>] JSObject canvas);
-
-        [JSImport("unregisterCanvas", "canvasInterop.js")]
-        internal static partial bool JSUnregisterCanvas([JSMarshalAs<JSType.String>] string id);
-
-        [JSImport("getCanvasWidth", "canvasInterop.js")]
-        internal static partial int JSGetCanvasWidth([JSMarshalAs<JSType.String>] string id);
-
-        [JSImport("getCanvasHeight", "canvasInterop.js")]
-        internal static partial int JSGetCanvasHeight([JSMarshalAs<JSType.String>] string id);
-
-        [JSImport("renderRgbaToCanvas", "canvasInterop.js")]
+        [JSImport("_renderRgbaToCanvas", "canvasInterop.js")]
         internal static partial void JSRenderRgbaToCanvas([JSMarshalAs<JSType.String>] string id, int width, int height, [JSMarshalAs<JSType.MemoryView>] Span<byte> rgbaBytes);
-
-        [JSImport("resizeCanvas", "canvasInterop.js")]
-        internal static partial bool JSResizeCanvas([JSMarshalAs<JSType.String>] string id, double cssWidth, double cssHeight, double effectiveScale);
 
         [JSExport]
         internal static async Task Initialize()
         {
-            await JSHost.ImportAsync("canvasInterop.js", "../canvasInterop.js");
             UiInvoker.Capture();
         }
 
         [JSExport]
-        public static async Task<bool> RegisterCanvas(string id, JSObject canvas)
+        public static async Task RegisterCanvas(string id, JSObject configuration)
         {
-            bool result = JSRegisterCanvas(id, canvas);
-            if (result)
+            if (CanvasResourcesMap.ContainsKey(id))
             {
-                var resources = new CanvasResources
-                {
-                    SkSurfaceFactory = new CpuSkSurfaceFactory(),
-                    RenderTargetFactory = new WebRenderTargetFactory(id)
-                };
-                resources.RenderingQueue = new PdfRenderingQueue(resources.SkSurfaceFactory);
-                resources.RenderingQueue.OnLog += (e) => Log($"[CanvasRenderingQueue:{id}] {e}");
-                CanvasResourcesMap[id] = resources;
+                return;
             }
-            return result;
+
+            var resources = new CanvasResources
+            {
+                SkSurfaceFactory = new CpuSkSurfaceFactory(),
+                RenderTargetFactory = new WebRenderTargetFactory(id)
+            };
+
+            // Parse configuration immediately into a strongly-typed struct
+            var parsed = new PdfPanelConfiguration
+            {
+                MinZoom = (float)(double)configuration.GetPropertyAsDouble("minZoom"),
+                MaxZoom = (float)(double)configuration.GetPropertyAsDouble("maxZoom"),
+                MaxThumbnailSize = configuration.GetPropertyAsInt32("maxThumbnailSize"),
+                MinimumPageGap = (float)(double)configuration.GetPropertyAsDouble("minimumPageGap"),
+                PagesPadding = SKRect.Create(
+                    (float)(double)configuration.GetPropertyAsJSObject("pagesPadding")?.GetPropertyAsDouble("left"),
+                    (float)(double)configuration.GetPropertyAsJSObject("pagesPadding")?.GetPropertyAsDouble("top"),
+                    (float)(double)configuration.GetPropertyAsJSObject("pagesPadding")?.GetPropertyAsDouble("right"),
+                    (float)(double)configuration.GetPropertyAsJSObject("pagesPadding")?.GetPropertyAsDouble("bottom")
+                )
+            };
+
+            var background = configuration.GetPropertyAsString("backgroundColor");
+            if (!string.IsNullOrEmpty(background) && SKColor.TryParse(background, out var backgroundColor))
+            {
+                parsed.BackgroundColor = backgroundColor;
+            }
+            else
+            {
+                parsed.BackgroundColor = SKColors.LightGray;
+            }
+
+            resources.Configuration = parsed;
+
+            resources.RenderingQueue = new PdfRenderingQueue(resources.SkSurfaceFactory);
+            resources.RenderingQueue.OnLog += (e) => Log($"[CanvasRenderingQueue:{id}] {e}");
+            CanvasResourcesMap[id] = resources;
         }
 
         [JSExport]
-        public static async Task<bool> UnregisterCanvas(string id)
+        public static async Task UnregisterCanvas(string id)
         {
-            bool result = JSUnregisterCanvas(id);
-            if (result)
+            if (CanvasResourcesMap.TryGetValue(id, out var resources))
             {
+                resources.RenderingQueue.Dispose();
                 CanvasResourcesMap.Remove(id);
             }
-            return result;
         }
-
 
         [JSExport]
         internal static async Task SetDocument(string id, byte[] documentData)
@@ -95,63 +104,21 @@ namespace PdfRender.Web.PdfPanel
             var pages = PdfViewerPageCollection.FromDocument(document);
             resources.ViewerCanvas = new PdfViewerCanvas(pages, resources.RenderingQueue, resources.RenderTargetFactory);
 
+            var panelConfiguration = resources.Configuration;
+            resources.ViewerCanvas.BackgroundColor = panelConfiguration.BackgroundColor;
+            if (panelConfiguration.MaxThumbnailSize > 0)
+            {
+                resources.ViewerCanvas.MaxThumbnailSize = panelConfiguration.MaxThumbnailSize;
+            }
+            if (panelConfiguration.MinimumPageGap > 0)
+            {
+                resources.ViewerCanvas.MinimumPageGap = panelConfiguration.MinimumPageGap;
+            }
+            resources.ViewerCanvas.PagesPadding = panelConfiguration.PagesPadding;
+
             Log($"PDF document loaded for canvas '{id}' with {pages.Count} pages.");
         }
 
-        [JSExport]
-        public static async Task DrawOnCanvas(string id)
-        {
-            int width = JSGetCanvasWidth(id);
-            int height = JSGetCanvasHeight(id);
-
-            if (!CanvasResourcesMap.TryGetValue(id, out var resources) || resources.ViewerCanvas == null)
-            {
-                Log($"View is not initialized for canvas '{id}'");
-                return;
-            }
-
-            try
-            {
-                resources.ViewerCanvas.Width = width;
-                resources.ViewerCanvas.Height = height;
-                resources.ViewerCanvas.Update();
-                resources.ViewerCanvas.Render();
-            }
-            catch (Exception ex)
-            {
-                Log($"Error in canvas '{id}': {ex}");
-            }
-        }
-
-        [JSExport]
-        public static async Task<bool> ResizeCanvas(string id, double cssWidth, double cssHeight, double effectiveScale)
-        {
-            return JSResizeCanvas(id, cssWidth, cssHeight, effectiveScale);
-        }
-
-        [JSExport]
-        public static async Task<float> GetScrollWidth(string id)
-        {
-            if (!CanvasResourcesMap.TryGetValue(id, out var resources) || resources.ViewerCanvas == null)
-            {
-                Log($"View is not initialized for canvas '{id}'");
-                return 0f;
-            }
-
-            return resources.ViewerCanvas.ExtentWidth;
-        }
-
-        [JSExport]
-        public static async Task<float> GetScrollHeight(string id)
-        {
-            if (!CanvasResourcesMap.TryGetValue(id, out var resources) || resources.ViewerCanvas == null)
-            {
-                Log($"View is not initialized for canvas '{id}'");
-                return 0f;
-            }
-
-            return resources.ViewerCanvas.ExtentHeight;
-        }
 
         [JSExport]
         public static async Task UpdateView(string id, float verticalOffset, float horizontalOffset, float scale)
@@ -179,30 +146,33 @@ namespace PdfRender.Web.PdfPanel
 
             try
             {
-                double cssWidth = state.GetPropertyAsDouble("cssWidth");
-                double cssHeight = state.GetPropertyAsDouble("cssHeight");
-                double effectiveScale = state.GetPropertyAsDouble("effectiveScale");
-
-                JSResizeCanvas(id, cssWidth, cssHeight, effectiveScale);
+                int width = state.GetPropertyAsInt32("viewportWidth");
+                int height = state.GetPropertyAsInt32("viewportHeight");
 
                 float verticalOffset = (float)(double)state.GetPropertyAsDouble("verticalOffset");
                 float horizontalOffset = (float)(double)state.GetPropertyAsDouble("horizontalOffset");
                 float scale = (float)(double)state.GetPropertyAsDouble("scale");
 
+                // Sync configuration on each redraw in case it changed
+                var panelConfiguration = resources.Configuration;
+                resources.ViewerCanvas.BackgroundColor = panelConfiguration.BackgroundColor;
+                resources.ViewerCanvas.MaxThumbnailSize = panelConfiguration.MaxThumbnailSize;
+                resources.ViewerCanvas.MinimumPageGap = panelConfiguration.MinimumPageGap;
+                resources.ViewerCanvas.PagesPadding = panelConfiguration.PagesPadding;
+
                 resources.ViewerCanvas.VerticalOffset = verticalOffset;
                 resources.ViewerCanvas.HorizontalOffset = horizontalOffset;
                 resources.ViewerCanvas.Scale = scale;
+                resources.ViewerCanvas.Width = width;
+                resources.ViewerCanvas.Height = height;
+
                 resources.ViewerCanvas.Update();
 
                 state.SetProperty("scrollWidth", resources.ViewerCanvas.ExtentWidth);
                 state.SetProperty("scrollHeight", resources.ViewerCanvas.ExtentHeight);
+                state.SetProperty("verticalOffset", resources.ViewerCanvas.VerticalOffset);
+                state.SetProperty("horizontalOffset", resources.ViewerCanvas.HorizontalOffset);
 
-                int width = JSGetCanvasWidth(id);
-                int height = JSGetCanvasHeight(id);
-
-                resources.ViewerCanvas.Width = width;
-                resources.ViewerCanvas.Height = height;
-                resources.ViewerCanvas.Update();
                 resources.ViewerCanvas.Render();
             }
             catch (Exception ex)

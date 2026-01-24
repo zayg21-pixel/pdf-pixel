@@ -4,6 +4,10 @@
     <meta charset="utf-8">
     <title>PDF Render WASM Thread Demo</title>
     <style>
+        :root {
+            --scrollbar-size: 16px;
+        }
+
         html, body {
             margin: 0;
             padding: 0;
@@ -39,6 +43,22 @@
             overflow: hidden;
         }
 
+        .pdf-panel-viewport {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+        }
+
+        #canvasContainer.has-vertical-scrollbar .pdf-panel-viewport {
+            right: var(--scrollbar-size);
+        }
+
+        #canvasContainer.has-horizontal-scrollbar .pdf-panel-viewport {
+            bottom: var(--scrollbar-size);
+        }
+
         #footer {
             flex: 0 0 auto;
             padding: 10px 20px;
@@ -49,47 +69,67 @@
             gap: 10px;
         }
 
-        #skiaCanvas {
+        .pdf-panel-canvas {
             display: block;
+            width: 100%;
+            height: 100%;
         }
 
-        .scrollbar {
+        .pdf-panel-scrollbar {
             position: absolute;
             background: #f0f0f0;
             z-index: 10;
         }
 
-        .scrollbar-thumb {
+        .pdf-panel-scrollbar-thumb {
             position: absolute;
             background: #888;
             cursor: pointer;
             border-radius: 4px;
         }
 
-        .scrollbar-thumb:hover {
+        .pdf-panel-scrollbar-thumb:hover {
             background: #555;
         }
 
-        #verticalScrollbar {
+        .pdf-panel-vertical-scrollbar {
             right: 0;
             top: 0;
-            width: 16px;
-            height: 100%;
-        }
-
-        #horizontalScrollbar {
-            left: 0;
             bottom: 0;
-            width: 100%;
-            height: 16px;
+            width: var(--scrollbar-size);
+            display: none;
         }
 
-        #verticalThumb {
+        #canvasContainer.has-horizontal-scrollbar .pdf-panel-vertical-scrollbar {
+            bottom: var(--scrollbar-size);
+        }
+
+        #canvasContainer.has-vertical-scrollbar .pdf-panel-vertical-scrollbar {
+            display: block;
+        }
+
+        .pdf-panel-horizontal-scrollbar {
+            left: 0;
+            right: 0;
+            bottom: 0;
+            height: var(--scrollbar-size);
+            display: none;
+        }
+
+        #canvasContainer.has-vertical-scrollbar .pdf-panel-horizontal-scrollbar {
+            right: var(--scrollbar-size);
+        }
+
+        #canvasContainer.has-horizontal-scrollbar .pdf-panel-horizontal-scrollbar {
+            display: block;
+        }
+
+        .pdf-panel-vertical-thumb {
             width: 100%;
             min-height: 30px;
         }
 
-        #horizontalThumb {
+        .pdf-panel-horizontal-thumb {
             height: 100%;
             min-width: 30px;
         }
@@ -111,12 +151,14 @@
         </div>
     </div>
 <div id="canvasContainer">
-    <canvas id="skiaCanvas"></canvas>
-    <div id="verticalScrollbar" class="scrollbar">
-        <div id="verticalThumb" class="scrollbar-thumb"></div>
+    <div class="pdf-panel-viewport">
+        <canvas class="pdf-panel-canvas"></canvas>
     </div>
-    <div id="horizontalScrollbar" class="scrollbar">
-        <div id="horizontalThumb" class="scrollbar-thumb"></div>
+    <div class="pdf-panel-scrollbar pdf-panel-vertical-scrollbar">
+        <div class="pdf-panel-scrollbar-thumb pdf-panel-vertical-thumb"></div>
+    </div>
+    <div class="pdf-panel-scrollbar pdf-panel-horizontal-scrollbar">
+        <div class="pdf-panel-scrollbar-thumb pdf-panel-horizontal-thumb"></div>
     </div>
 </div>
 <div id="footer">
@@ -125,268 +167,25 @@
     
     
     <script type="module">
+        import * as canvasInterop from './canvasInterop.js';
         import { dotnet } from './_framework/dotnet.js';
 
-        const { setModuleImports, getAssemblyExports, getConfig } = await dotnet
+        const { setModuleImports, getAssemblyExports } = await dotnet
             .withDiagnosticTracing(false)
             .withApplicationArgumentsFromQuery()
             .create();
 
-        const config = getConfig();
-        const exports = await getAssemblyExports(config.mainAssemblyName);
-        const interop = exports.PdfRender.Web.PdfPanel.PdfPanelIntrop;
+        await canvasInterop.initialize(setModuleImports, getAssemblyExports);
 
-        await interop.Initialize();
-
-        const canvasId = 'skiaCanvas';
-        const canvas = document.getElementById(canvasId);
         const container = document.getElementById('canvasContainer');
-        const verticalScrollbar = document.getElementById('verticalScrollbar');
-        const horizontalScrollbar = document.getElementById('horizontalScrollbar');
-        const verticalThumb = document.getElementById('verticalThumb');
-        const horizontalThumb = document.getElementById('horizontalThumb');
+        const containerId = container.id;
 
-        interop.RegisterCanvas(canvasId, canvas);
+        await canvasInterop.registerPanel(containerId, container);
 
         const documentResponse = await fetch('test/demo.pdf');
         const documentData = await documentResponse.arrayBuffer();
-        await interop.SetDocument(canvasId, new Uint8Array(documentData));
-
-        let state = {
-            verticalOffset: 0,
-            horizontalOffset: 0,
-            scale: 1.0,
-            scrollWidth: 0,
-            scrollHeight: 0,
-            isDraggingVertical: false,
-            isDraggingHorizontal: false,
-            dragStartY: 0,
-            dragStartX: 0,
-            dragStartOffset: 0
-        };
-
-        function getBrowserZoom() {
-            if (window.visualViewport && window.visualViewport.scale) {
-                return window.visualViewport.scale;
-            }
-            return 1;
-        }
-
-        function clampOffsets() {
-            const cssWidth = container.clientWidth;
-            const cssHeight = container.clientHeight;
-
-            const maxVerticalOffset = Math.max(0, state.scrollHeight - cssHeight);
-            const maxHorizontalOffset = Math.max(0, state.scrollWidth - cssWidth);
-
-            state.verticalOffset = Math.max(0, Math.min(state.verticalOffset, maxVerticalOffset));
-            state.horizontalOffset = Math.max(0, Math.min(state.horizontalOffset, maxHorizontalOffset));
-        }
-
-        function updateScrollbars() {
-            const cssWidth = container.clientWidth - 16;
-            const cssHeight = container.clientHeight - 16;
-
-            const verticalVisible = state.scrollHeight > cssHeight;
-            const horizontalVisible = state.scrollWidth > cssWidth;
-
-            verticalScrollbar.style.display = verticalVisible ? 'block' : 'none';
-            horizontalScrollbar.style.display = horizontalVisible ? 'block' : 'none';
-
-            if (verticalVisible) {
-                const thumbHeight = Math.max(30, (cssHeight / state.scrollHeight) * cssHeight);
-                const maxThumbTop = cssHeight - thumbHeight;
-                const maxScroll = state.scrollHeight - cssHeight;
-                const thumbTop = maxScroll > 0 ? (state.verticalOffset / maxScroll) * maxThumbTop : 0;
-
-                verticalThumb.style.height = thumbHeight + 'px';
-                verticalThumb.style.top = thumbTop + 'px';
-            }
-
-            if (horizontalVisible) {
-                const thumbWidth = Math.max(30, (cssWidth / state.scrollWidth) * cssWidth);
-                const maxThumbLeft = cssWidth - thumbWidth;
-                const maxScroll = state.scrollWidth - cssWidth;
-                const thumbLeft = maxScroll > 0 ? (state.horizontalOffset / maxScroll) * maxThumbLeft : 0;
-
-                horizontalThumb.style.width = thumbWidth + 'px';
-                horizontalThumb.style.left = thumbLeft + 'px';
-            }
-        }
-
-        function updateZoomDisplay() {
-            document.getElementById('zoomLevel').textContent = Math.round(state.scale * 100) + '%';
-        }
-
-        let renderFrameRequestId = null;
-        let requestedRender = false;
-        let renderInProgress = false;
-        let renderVersion = 0;
-
-        function requestRender() {
-            renderVersion++;
-            requestedRender = true;
-
-            if (renderFrameRequestId !== null) {
-                return;
-            }
-
-            renderFrameRequestId = window.requestAnimationFrame(() => {
-                renderFrameRequestId = null;
-                void performRender();
-            });
-        }
-
-        async function performRender() {
-            if (renderInProgress) {
-                return;
-            }
-
-            if (!requestedRender) {
-                return;
-            }
-
-            requestedRender = false;
-            renderInProgress = true;
-
-            const currentRenderVersion = ++renderVersion;
-
-            try {
-                const cssWidth = container.clientWidth;
-                const cssHeight = container.clientHeight;
-
-                const dpr = window.devicePixelRatio || 1;
-                const zoom = getBrowserZoom();
-                const effectiveScale = dpr * zoom;
-
-                const redrawState = {
-                    cssWidth: cssWidth,
-                    cssHeight: cssHeight,
-                    effectiveScale: effectiveScale,
-                    verticalOffset: state.verticalOffset,
-                    horizontalOffset: state.horizontalOffset,
-                    scale: state.scale,
-                    scrollWidth: 0,
-                    scrollHeight: 0
-                };
-
-                await interop.RequestRedraw(canvasId, redrawState);
-
-                if (currentRenderVersion !== renderVersion) {
-                    return;
-                }
-
-                state.scrollWidth = redrawState.scrollWidth;
-                state.scrollHeight = redrawState.scrollHeight;
-
-                clampOffsets();
-                updateScrollbars();
-                updateZoomDisplay();
-            }
-            finally {
-                renderInProgress = false;
-
-                if (requestedRender) {
-                    requestRender();
-                }
-            }
-        }
-
-        function updateCanvas() {
-            requestRender();
-        }
-
-        verticalThumb.addEventListener('mousedown', (e) => {
-            state.isDraggingVertical = true;
-            state.dragStartY = e.clientY;
-            state.dragStartOffset = state.verticalOffset;
-            e.preventDefault();
-        });
-
-        horizontalThumb.addEventListener('mousedown', (e) => {
-            state.isDraggingHorizontal = true;
-            state.dragStartX = e.clientX;
-            state.dragStartOffset = state.horizontalOffset;
-            e.preventDefault();
-        });
-
-        document.addEventListener('mousemove', (e) => {
-            if (state.isDraggingVertical) {
-                const cssHeight = container.clientHeight - 16;
-                const thumbHeight = parseFloat(verticalThumb.style.height);
-                const maxThumbTop = cssHeight - thumbHeight;
-                const maxScroll = state.scrollHeight - cssHeight;
-
-                const deltaY = e.clientY - state.dragStartY;
-                const deltaScroll = maxThumbTop > 0 ? (deltaY / maxThumbTop) * maxScroll : 0;
-
-                state.verticalOffset = state.dragStartOffset + deltaScroll;
-                clampOffsets();
-                requestRender();
-            }
-
-            if (state.isDraggingHorizontal) {
-                const cssWidth = container.clientWidth - 16;
-                const thumbWidth = parseFloat(horizontalThumb.style.width);
-                const maxThumbLeft = cssWidth - thumbWidth;
-                const maxScroll = state.scrollWidth - cssWidth;
-
-                const deltaX = e.clientX - state.dragStartX;
-                const deltaScroll = maxThumbLeft > 0 ? (deltaX / maxThumbLeft) * maxScroll : 0;
-
-                state.horizontalOffset = state.dragStartOffset + deltaScroll;
-                clampOffsets();
-                requestRender();
-            }
-        });
-
-        document.addEventListener('mouseup', () => {
-            state.isDraggingVertical = false;
-            state.isDraggingHorizontal = false;
-        });
-
-        container.addEventListener('wheel', (e) => {
-            e.preventDefault();
-
-            if (e.ctrlKey) {
-                const zoomDelta = -e.deltaY * 0.001;
-                state.scale = Math.max(0.1, Math.min(5.0, state.scale + zoomDelta));
-            }
-            else {
-                state.verticalOffset += e.deltaY;
-                state.horizontalOffset += e.deltaX;
-            }
-
-            requestRender();
-        });
-
-        document.getElementById('zoomIn').addEventListener('click', async () => {
-            state.scale = Math.min(5.0, state.scale * 1.25);
-            requestRender();
-        });
-
-        document.getElementById('zoomOut').addEventListener('click', async () => {
-            state.scale = Math.max(0.1, state.scale / 1.25);
-            requestRender();
-        });
-
-        document.getElementById('resetZoom').addEventListener('click', async () => {
-            state.scale = 1.0;
-            state.verticalOffset = 0;
-            state.horizontalOffset = 0;
-            requestRender();
-        });
-
-        window.addEventListener('resize', requestRender);
-
-        if (window.visualViewport) {
-            window.visualViewport.addEventListener('resize', requestRender);
-        }
-
-        const resizeObserver = new ResizeObserver(requestRender);
-        resizeObserver.observe(container);
-
-        requestRender();
+        await canvasInterop.setDocument(containerId, new Uint8Array(documentData));
+        canvasInterop.refreshPanel(containerId);
     </script>
 </body>
 </html>

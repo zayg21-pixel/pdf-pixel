@@ -1,11 +1,12 @@
-﻿using System.Windows.Controls.Primitives;
-using System.Windows.Controls;
-using System.Windows.Media;
-using System.Windows;
+﻿using PdfRender.Canvas;
 using System;
-using System.Windows.Input;
 using System.Linq;
-using System.Diagnostics;
+using System.Numerics;
+using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
+using System.Windows.Input;
+using System.Windows.Media;
 
 namespace PdfRender.Wpf.PdfPanel
 {
@@ -15,7 +16,6 @@ namespace PdfRender.Wpf.PdfPanel
     public partial class SkiaPdfPanel : IScrollInfo
     {
         const int WM_MOUSEHWHEEL = 0x020E;
-        private bool autoScaling;
 
         public bool CanHorizontallyScroll { get; set; } = true;
 
@@ -37,104 +37,51 @@ namespace PdfRender.Wpf.PdfPanel
 
         public void ScrollToPage(int pageNumber)
         {
-            if (Pages == null)
+            if (_viewerCanvas != null)
             {
-                return;
+                _viewerCanvas.ScrollToPage(pageNumber);
             }
-
-            //double verticalOffset = 0;
-
-            //for (int i = 0; i < Pages.Count; i++)
-            //{
-            //    var page = Pages[i];
-
-            //    if (page.PageNumber == pageNumber)
-            //    {
-            //        break;
-            //    }
-
-            //    verticalOffset += page.Info.GetRotatedSize(page.UserRotation).Height + PageGap;
-            //}
-
-            //SetVerticalOffset(verticalOffset * Scale);
         }
 
         public void LineDown()
         {
-            SetVerticalOffset(VerticalOffset + ScrollTick);
+            if (_viewerCanvas != null)
+            {
+                _viewerCanvas.VerticalOffset += ScrollTick;
+                InvalidateVisual();
+            }
         }
 
         public void LineUp()
         {
-            SetVerticalOffset(VerticalOffset - ScrollTick);
+            if (_viewerCanvas != null)
+            {
+                _viewerCanvas.VerticalOffset -= ScrollTick;
+                InvalidateVisual();
+            }
         }
 
         public void LineLeft()
         {
-            SetHorizontalOffset(HorizontalOffset - ScrollTick);
+            if (_viewerCanvas != null)
+            {
+                _viewerCanvas.HorizontalOffset -= ScrollTick;
+                InvalidateVisual();
+            }
         }
 
         public void LineRight()
         {
-            SetHorizontalOffset(HorizontalOffset + ScrollTick);
+            if (_viewerCanvas != null)
+                {
+                _viewerCanvas.HorizontalOffset += ScrollTick;
+                InvalidateVisual();
+            }
         }
 
         public Rect MakeVisible(Visual visual, Rect rectangle)
         {
             return rectangle;
-        }
-
-        private void UpdateAutoScale()
-        {
-            if (Pages == null)
-            {
-                return;
-            }
-
-            if (Pages.Count == 0)
-            {
-                return;
-            }
-
-            switch (AutoScaleMode)
-            {
-                case PdfPanelAutoScaleMode.NoAutoScale:
-                    {
-                        break;
-                    }
-                case PdfPanelAutoScaleMode.ScaleToWidth:
-                    {
-                        var maxVisibleWidth = Pages.Max(x => x.Info.GetRotatedSize(x.UserRotation).Width) + PagesPadding.Left + PagesPadding.Right + 1;
-                        var scale = CanvasSize.Width / maxVisibleWidth;
-                        SetAutoScale(scale);
-                        break;
-                    }
-                case PdfPanelAutoScaleMode.ScaleToVisible:
-                    {
-                        // TODO: Implement scale to visible
-                        //var maxVisibleWidth = GetVisiblePages().Max(x => x.RotatedSize.Width) + PagesPadding.Left + PagesPadding.Right + 1;
-                        //var scale = CanvasSize.Width / maxVisibleWidth;
-
-                        //SetAutoScale(scale);
-                        break;
-                    }
-            }
-        }
-
-        private void UpdateScrollInfo()
-        {
-            if (Pages == null || ScrollOwner == null)
-            {
-                return;
-            }
-
-            SyncViewerCanvasState();
-            ExtentHeight = _viewerCanvas.ExtentHeight;
-            ExtentWidth = _viewerCanvas.ExtentWidth;
-            ViewportWidth = CanvasSize.Width;
-            ViewportHeight = CanvasSize.Height;
-
-            ScrollOwner.InvalidateScrollInfo();
         }
 
         private IntPtr Hook(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
@@ -178,7 +125,11 @@ namespace PdfRender.Wpf.PdfPanel
             }
             else
             {
-                SetVerticalOffset(VerticalOffset + ScrollTick);
+                if (_viewerCanvas != null)
+                {
+                    _viewerCanvas.VerticalOffset += ScrollTick;
+                    InvalidateVisual();
+                }
             }
         }
 
@@ -190,135 +141,119 @@ namespace PdfRender.Wpf.PdfPanel
             }
             else
             {
-                SetVerticalOffset(VerticalOffset - ScrollTick);
+                if (_viewerCanvas != null)
+                {
+                    _viewerCanvas.VerticalOffset -= ScrollTick;
+                    InvalidateVisual();
+                }
             }
         }
 
         public void ZoomIn()
         {
-            Scale = Clamp(Scale + Scale * ScaleFactor, MinScale, MaxScale);
+            Scale = Scale + Scale * ScaleFactor;
         }
 
         public void ZoomOut()
         {
-            Scale = Clamp(Scale - Scale * ScaleFactor, MinScale, MaxScale);
+            Scale = Scale - Scale * ScaleFactor;
         }
 
-        private void OnScaleChanged(double oldScale)
+        private void OnScaleChanged()
         {
-            UpdateScrollInfo();
-            UpdatePositionOnZoom(oldScale);
-            ValidateMargins();
-        }
-
-        private void UpdatePositionOnZoom(double oldScale)
-        {
-            double centerY;
-            double centerX;
-
-            //if (IsMouseOver)
-            //{
-            //    var mousePosition = Mouse.GetPosition(this);
-
-            //    centerY = mousePosition.Y * CanvasSize.Height / ActualHeight;
-            //    centerX = mousePosition.X * CanvasSize.Width / ActualWidth;
-            //}
-            //else
+            if (_viewerCanvas != null)
             {
-                centerY = CanvasSize.Height / 2;
-                centerX = CanvasSize.Width / 2;
+                float centerY;
+                float centerX;
+
+                if (IsMouseOver)
+                {
+                    var mousePosition = Mouse.GetPosition(this);
+
+                    centerY = (float)(mousePosition.Y * CanvasScale.X);
+                    centerX = (float)(mousePosition.X * CanvasScale.Y);
+                }
+                else
+                {
+                    centerY = _viewerCanvas.Height / 2;
+                    centerX = _viewerCanvas.Width / 2;
+                }
+
+                _viewerCanvas.UpdateScalePreserveOffset((float)Scale, centerX, centerY);
+                InvalidateVisual();
             }
-
-            UpdatePositionOnZoom(oldScale, centerX, centerY);
-        }
-
-        private void UpdatePositionOnZoom(double oldScale, double centerX, double centerY)
-        {
-            var centerVerticalDiff = centerY / oldScale * Scale - centerY;
-            VerticalOffset = VerticalOffset / oldScale * Scale + centerVerticalDiff;
-
-            var centerHorizontalDiff = centerX / oldScale * Scale - centerX;
-            HorizontalOffset = HorizontalOffset / oldScale * Scale + centerHorizontalDiff;
-
-            ValidateMargins();
-            InvalidateVisual();
         }
 
         public void MouseWheelLeft()
         {
-            SetHorizontalOffset(HorizontalOffset - ScrollTick);
+            if (_viewerCanvas != null)
+            {
+                _viewerCanvas.HorizontalOffset -= ScrollTick;
+                InvalidateVisual();
+            }
         }
 
         public void MouseWheelRight()
         {
-            SetHorizontalOffset(HorizontalOffset + ScrollTick);
+            if (_viewerCanvas != null)
+            {
+                _viewerCanvas.HorizontalOffset += ScrollTick;
+                InvalidateVisual();
+            }
         }
 
         public void PageDown()
         {
-            SetVerticalOffset(VerticalOffset + CanvasSize.Height);
+            if (_viewerCanvas != null)
+            {
+                _viewerCanvas.VerticalOffset += _viewerCanvas.Height;
+                InvalidateVisual();
+            }
         }
 
         public void PageUp()
         {
-            SetVerticalOffset(VerticalOffset - CanvasSize.Height);
+            if (_viewerCanvas != null)
+            {
+                _viewerCanvas.VerticalOffset -= _viewerCanvas.Height;
+                InvalidateVisual();
+            }
         }
 
         public void PageLeft()
         {
-            SetHorizontalOffset(HorizontalOffset - CanvasSize.Width);
+            if (_viewerCanvas != null)
+            {
+                _viewerCanvas.HorizontalOffset -= _viewerCanvas.Width;
+                InvalidateVisual();
+            }
         }
 
         public void PageRight()
         {
-            SetHorizontalOffset(HorizontalOffset + CanvasSize.Width);
-        }
-
-        public void SetHorizontalOffset(double offset)
-        {
-            HorizontalOffset = offset;
-            ValidateMargins();
-            InvalidateVisual();
+            if (_viewerCanvas != null)
+            {
+                _viewerCanvas.HorizontalOffset += _viewerCanvas.Width;
+                InvalidateVisual();
+            }
         }
 
         public void SetVerticalOffset(double offset)
         {
-            VerticalOffset = offset;
-            ValidateMargins();
-            InvalidateVisual();
-        }
-
-        private void ValidateMargins()
-        {
-            var scrollHeight = Math.Max(0, ExtentHeight - ViewportHeight);
-            VerticalOffset = Clamp(VerticalOffset, 0, scrollHeight);
-
-            var scrollWidth = Math.Max(0, ExtentWidth - ViewportWidth);
-            HorizontalOffset = Clamp(HorizontalOffset, 0, scrollWidth);
-        }
-
-        private void SetAutoScale(double scale)
-        {
-            if (scale == Scale)
+            if (_viewerCanvas != null)
             {
-                return;
+                _viewerCanvas.VerticalOffset = (float)offset;
+                InvalidateVisual();
             }
-
-            autoScaling = true;
-
-            var oldScale = Scale;
-            Scale = scale;
-
-            UpdateScrollInfo();
-            UpdatePositionOnZoom(oldScale, 0, 0);
-            HorizontalOffset = (ExtentWidth - ViewportWidth) / 2;
-
-            autoScaling = false;
         }
 
-        public static double Clamp(double value, double min, double max)
+        public void SetHorizontalOffset(double offset)
         {
-            return Math.Max(min, Math.Min(max, value));
+            if (_viewerCanvas != null)
+            {
+                _viewerCanvas.HorizontalOffset = (float)offset;
+                InvalidateVisual();
+            }
         }
     }
 }

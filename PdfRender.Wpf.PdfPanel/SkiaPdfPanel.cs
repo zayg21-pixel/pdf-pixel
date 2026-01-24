@@ -18,6 +18,7 @@ namespace PdfRender.Wpf.PdfPanel
         private PdfViewerCanvas _viewerCanvas;
         private PdfRenderingQueue renderingQueue;
         private ICanvasRenderTargetFactory renderTargetFactory;
+        private bool updatingScale;
 
         private bool pageChangedLocally;
 
@@ -142,21 +143,11 @@ namespace PdfRender.Wpf.PdfPanel
 
         private int GetCurrentPage()
         {
+            if (_viewerCanvas != null)
+            {
+                return _viewerCanvas.CurrentPage;
+            }
             return 0;
-            //double verticalOffset = -VerticalOffset / Scale;
-            //for (int i = 0; i < Pages.Count; i++)
-            //{
-            //    var page = Pages[i];
-
-            //    if (page.IsCurrent(verticalOffset, PageGap, CanvasSize.Height / Scale))
-            //    {
-            //        return page.PageNumber;
-            //    }
-
-            //    verticalOffset += page.Info.GetRotatedSize(page.UserRotation).Height + PageGap;
-            //}
-
-            //return Pages.Count;
         }
 
         private void Update()
@@ -177,17 +168,10 @@ namespace PdfRender.Wpf.PdfPanel
             //}
             //else
             //{
-            UpdateAutoScale();
-            UpdateScrollInfo();
-            //}
-
-            // TODO: incorrect
-            ValidateMargins();
-
             SyncViewerCanvasState();
 
             pageChangedLocally = true;
-            //CurrentPage = GetCurrentPage();
+            CurrentPage = GetCurrentPage();
             pageChangedLocally = false;
         }
 
@@ -210,9 +194,6 @@ namespace PdfRender.Wpf.PdfPanel
 
             _viewerCanvas.Width = (float)CanvasSize.Width;
             _viewerCanvas.Height = (float)CanvasSize.Height;
-            _viewerCanvas.Scale = (float)Scale;
-            _viewerCanvas.HorizontalOffset = (float)HorizontalOffset;
-            _viewerCanvas.VerticalOffset = (float)VerticalOffset;
             _viewerCanvas.MinimumPageGap = (float)PageGap;
             _viewerCanvas.PagesPadding = new SKRect(
                 (float)PagesPadding.Left,
@@ -223,9 +204,26 @@ namespace PdfRender.Wpf.PdfPanel
             var backgroundColor = BackgroundColor;
             _viewerCanvas.BackgroundColor = new SKColor(backgroundColor.R, backgroundColor.G, backgroundColor.B, backgroundColor.A);
             _viewerCanvas.MaxThumbnailSize = MaxThumbnailSize;
-            _viewerCanvas.CurrentPage = CurrentPage;
 
             _viewerCanvas.Update();
+
+            _viewerCanvas.SetAutoScaleMode(AutoScaleMode);
+            _viewerCanvas.Update();
+
+            ExtentHeight = _viewerCanvas.ExtentHeight;
+            ExtentWidth = _viewerCanvas.ExtentWidth;
+            VerticalOffset = _viewerCanvas.VerticalOffset;
+            HorizontalOffset = _viewerCanvas.HorizontalOffset;
+            ViewportWidth = _viewerCanvas.Width;
+            ViewportHeight = _viewerCanvas.Height;
+            ExtentHeight = _viewerCanvas.ExtentHeight;
+            ExtentWidth = _viewerCanvas.ExtentWidth;
+
+            updatingScale = true;
+            Scale = _viewerCanvas.Scale;
+            updatingScale = false;
+
+            ScrollOwner.InvalidateScrollInfo();
         }
 
         private bool CanRedraw()

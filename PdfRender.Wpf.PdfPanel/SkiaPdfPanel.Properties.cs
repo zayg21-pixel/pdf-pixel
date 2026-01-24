@@ -5,24 +5,6 @@ using System.Windows.Media;
 
 namespace PdfRender.Wpf.PdfPanel
 {
-    public enum PdfPanelAutoScaleMode
-    {
-        /// <summary>
-        /// No automatic scaling.
-        /// </summary>
-        NoAutoScale,
-
-        /// <summary>
-        /// Scale to visible pages.
-        /// </summary>
-        ScaleToVisible,
-
-        /// <summary>
-        /// Scale to all pages.
-        /// </summary>
-        ScaleToWidth
-    }
-
     public partial class SkiaPdfPanel
     {
         public static readonly DependencyProperty PagesProperty = DependencyProperty.Register(nameof(Pages), typeof(PdfViewerPageCollection), typeof(SkiaPdfPanel),
@@ -213,10 +195,10 @@ namespace PdfRender.Wpf.PdfPanel
                 source.Scale = source.MaxScale;
             }
 
-            if (!source.autoScaling)
+            if (!source.updatingScale)
             {
-                source.OnScaleChanged(oldValue);
                 source.AutoScaleMode = PdfPanelAutoScaleMode.NoAutoScale;
+                source.OnScaleChanged();
             }
         }
 

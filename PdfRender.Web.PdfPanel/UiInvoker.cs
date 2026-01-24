@@ -16,21 +16,20 @@ public static class UiInvoker
     {
         if (_uiContext == null) throw new InvalidOperationException("UI context not captured");
 
-        // If already on UI thread, run synchronously
         if (SynchronizationContext.Current == _uiContext)
         {
             action();
             return Task.CompletedTask;
         }
 
-        var tcs = new TaskCompletionSource<object?>();
+        var tcs = new TaskCompletionSource();
 
         _uiContext.Post(_ =>
         {
             try
             {
                 action();
-                tcs.SetResult(null);
+                tcs.SetResult();
             }
             catch (Exception ex)
             {

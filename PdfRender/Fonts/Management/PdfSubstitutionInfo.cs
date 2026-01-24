@@ -59,6 +59,14 @@ public readonly struct PdfSubstitutionInfo
 
     public bool IsItalic => FontStyle.Slant != SKFontStyleSlant.Upright;
 
+    public PdfSubstitutionInfo()
+    {
+        NormalizedStem = string.Empty;
+        FontStyle = SKFontStyle.Normal;
+    }
+
+    public static PdfSubstitutionInfo Detault { get; } = new PdfSubstitutionInfo();
+
     private PdfSubstitutionInfo(
         string normalizedStem,
         SKFontStyle style)

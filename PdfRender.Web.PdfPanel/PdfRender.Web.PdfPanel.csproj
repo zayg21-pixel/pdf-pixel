@@ -5,9 +5,12 @@
     <RuntimeIdentifier>browser-wasm</RuntimeIdentifier>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <WasmEnableThreads>true</WasmEnableThreads>
-    <IsAotCompatible>true</IsAotCompatible>
+    <WasmEnableSIMD>true</WasmEnableSIMD>
     <RunAOTCompilation>true</RunAOTCompilation>
+    <WasmStripILAfterAOT>true</WasmStripILAfterAOT>
+    <WasmStripSymbols>true</WasmStripSymbols>
     <PublishTrimmed>true</PublishTrimmed>
+    <InvariantGlobalization>true</InvariantGlobalization>
     <EnableDefaultContentItems>false</EnableDefaultContentItems>
   </PropertyGroup>
 

@@ -64,23 +64,6 @@ namespace PdfRender.Canvas
             return new SKPoint((pagePosition.X + page.Offset.X) * scale, (pagePosition.Y + page.Offset.Y) * scale);
         }
 
-        internal static bool IsVisible(this PdfViewerPage page, float offset, float canvasHeight)
-        {
-            var pageHeight = page.Info.GetRotatedSize(page.UserRotation).Height;
-            var pageTop = offset;
-            var pageBottom = offset + pageHeight;
-
-            return (pageTop >= 0 && pageTop <= canvasHeight) || (pageBottom >= 0 && pageBottom <= canvasHeight) || (pageTop <= 0 && pageBottom >= canvasHeight);
-        }
-
-        internal static bool IsCurrent(this PdfViewerPage page, float offset, float pageGap, float canvasHeight)
-        {
-            var pageHeight = page.Info.GetRotatedSize(page.UserRotation).Height;
-            var pageTop = offset;
-            var pageBottom = offset + pageHeight + pageGap;
-
-            return (pageTop >= -pageGap && pageTop <= canvasHeight / 2) || (pageTop <= -pageGap && pageBottom >= canvasHeight / 2);
-        }
 
         // TODO: rework below to create some "TO PAGE" matrix
         ///// <summary>

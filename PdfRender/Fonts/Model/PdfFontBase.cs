@@ -26,7 +26,6 @@ public abstract class PdfFontBase : IDisposable
         FontObject = fontObject ?? throw new ArgumentNullException(nameof(fontObject));
         Dictionary = fontObject.Dictionary ?? throw new ArgumentNullException(nameof(fontObject));
 
-        // Parse essential properties from the font object (lightweight operations)
         Type = Dictionary.GetName(PdfTokens.SubtypeKey).AsEnum<PdfFontSubType>();
         BaseFont = Dictionary.GetString(PdfTokens.BaseFontKey);
         ToUnicodeCMap = LoadToUnicodeCMap();

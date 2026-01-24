@@ -11,7 +11,11 @@ namespace PdfRender.Color.ColorSpace;
 /// </summary>
 public abstract class PdfColorSpaceConverter
 {
+#if !NETSTANDARD2_0
+    private readonly IRgbaSampler[] _colorSamplers = new IRgbaSampler[Enum.GetValues<PdfRenderingIntent>().Length];
+#else
     private readonly IRgbaSampler[] _colorSamplers = new IRgbaSampler[Enum.GetValues(typeof(PdfRenderingIntent)).Length];
+#endif
 
     /// <summary>
     /// Gets the number of input components for the color space (e.g. 1=Gray, 3=RGB, 4=CMYK).

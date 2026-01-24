@@ -85,7 +85,5 @@ internal sealed class JpxTileDecoder : IJpxTileDecoder
         // Stage 6: Level shifting and component assembly
         // TODO: Implement level shifting
         // throw new NotImplementedException("JPEG2000 level shifting not yet implemented.");
-
-        return tile;
     }
 }

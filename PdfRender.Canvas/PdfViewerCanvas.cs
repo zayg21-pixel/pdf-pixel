@@ -2,7 +2,6 @@
 using SkiaSharp;
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
 
 namespace PdfRender.Canvas;
@@ -45,16 +44,17 @@ public class PdfViewerCanvas
     /// </summary>
     public float ExtentHeight { get; private set; }
 
-    /// <summary>
-    /// Gets or sets the index of the current page in a paginated collection.
-    /// </summary>
-    public int CurrentPage { get; set; }
+    public int CurrentPage { get; private set; }
 
     public float VerticalOffset { get; set; }
 
     public float HorizontalOffset { get; set; }
 
     public float Scale { get; set; } = 1.0f;
+
+    public float MinScale { get; set; } = 0.1f;
+
+    public float MaxScale { get; set; } = 10.0f;
 
     /// <summary>
     /// Padding from the edges of the viewing area to the pages.
@@ -72,21 +72,6 @@ public class PdfViewerCanvas
 
     public PdfViewerPageCollection Pages { get; }
 
-    /// <summary>
-    /// Returns collection of pages that are visible on panel.
-    /// </summary>
-    /// <returns>Visible pages.</returns>
-    //public IEnumerable<PdfViewerPage> GetVisiblePages()
-    //{
-    //    for (int i = 0; i < Pages.Count; i++)
-    //    {
-    //        var page = Pages[i];
-    //        if (IsPageVisible(page))
-    //        {
-    //            yield return page;
-    //        }
-    //    }
-    //}
     private IEnumerable<VisiblePageInfo> GetVisiblePages()
     {
         if (Pages == null)
@@ -105,7 +90,7 @@ public class PdfViewerCanvas
             var page = Pages[i];
             var rotatedSize = page.Info.GetRotatedSize(page.UserRotation);
 
-            if (page.IsVisible(verticalOffset, Height / Scale))
+            if (IsPageVisible(page))
             {
                 var pageOffsetLeft = (ExtentWidth / Scale - rotatedSize.Width) / 2;
                 var offset = new SKPoint(horizontalOffset + pageOffsetLeft, verticalOffset);
@@ -135,12 +120,18 @@ public class PdfViewerCanvas
             throw new ArgumentNullException(nameof(page));
         }
 
-        var pageHeight = page.Info.GetRotatedSize(page.UserRotation).Height;
-        float canvasHeight = Height / Scale;
-        var pageTop = page.Offset.X;
-        var pageBottom = page.Offset.X + pageHeight;
+        float visibleTop = VerticalOffset;
+        float visibleBottom = VerticalOffset + Height;
 
-        return (pageTop >= 0 && pageTop <= canvasHeight) || (pageBottom >= 0 && pageBottom <= canvasHeight) || (pageTop <= 0 && pageBottom >= canvasHeight);
+        SKSize rotatedSize = page.Info.GetRotatedSize(page.UserRotation);
+        float pageTop = page.Offset.Y;
+        float pageBottom = pageTop + rotatedSize.Height * Scale;
+
+        bool topInside = pageTop >= visibleTop && pageTop <= visibleBottom;
+        bool bottomInside = pageBottom >= visibleTop && pageBottom <= visibleBottom;
+        bool coversViewport = pageTop <= visibleTop && pageBottom >= visibleBottom;
+
+        return topInside || bottomInside || coversViewport;
     }
 
     private PagesDrawingRequest GetPagesDrawingRequest()
@@ -175,6 +166,8 @@ public class PdfViewerCanvas
     {
         var pageCount = Pages.Count;
 
+        Scale = Clamp(Scale, MinScale, MaxScale);
+
         var maxPageWidth = 0f;
         var totalHeight = 0f;
 
@@ -193,22 +186,57 @@ public class PdfViewerCanvas
         ExtentWidth = (maxPageWidth + PagesPadding.Left + PagesPadding.Right) * Scale;
         ExtentHeight = (PagesPadding.Top + totalHeight + PagesPadding.Bottom) * Scale;
 
-        float horizontalOffset = (-HorizontalOffset + MathF.Max(0, (Width - ExtentWidth) / 2)) / Scale;
-        float verticalOffset = -VerticalOffset / Scale + PagesPadding.Top;
+        float contentWidth = ExtentWidth;
+        float verticalOffset = PagesPadding.Top * Scale;
 
         for (int i = 0; i < pageCount; i++)
         {
-            var page = Pages[i];
-            var rotatedSize = page.Info.GetRotatedSize(page.UserRotation);
-            var pageOffsetLeft = (ExtentWidth / Scale - rotatedSize.Width) / 2;
-            page.Offset = new SKPoint(horizontalOffset + pageOffsetLeft, verticalOffset);
-            verticalOffset += rotatedSize.Height + MinimumPageGap;
+            PdfViewerPage page = Pages[i];
+            SKSize rotatedSize = page.Info.GetRotatedSize(page.UserRotation);
+
+            float pageWidthScaled = rotatedSize.Width * Scale;
+            float pageHeightScaled = rotatedSize.Height * Scale;
+
+            float pageOffsetLeft = (contentWidth - pageWidthScaled) / 2f;
+
+            page.Offset = new SKPoint(pageOffsetLeft, verticalOffset);
+
+            verticalOffset += pageHeightScaled + MinimumPageGap * Scale;
         }
+
+        float currentPageVerticalOffset = -VerticalOffset;
+
+        for (int i = 0; i < pageCount; i++)
+        {
+            PdfViewerPage page = Pages[i];
+
+            float pageHeightScaled = page.Info.GetRotatedSize(page.UserRotation).Height * Scale;
+            float pageTop = currentPageVerticalOffset;
+            float pageBottom = currentPageVerticalOffset + pageHeightScaled + MinimumPageGap * Scale;
+
+            if ((pageTop >= -MinimumPageGap * Scale && pageTop <= Height / 2) || (pageTop <= -MinimumPageGap * Scale && pageBottom >= Height / 2))
+            {
+                CurrentPage = page.PageNumber;
+                break;
+            }
+
+            currentPageVerticalOffset += pageHeightScaled + MinimumPageGap * Scale;
+        }
+
+        var scrollHeight = Math.Max(0, ExtentHeight - Height);
+        VerticalOffset = Clamp(VerticalOffset, 0, scrollHeight);
+
+        var scrollWidth = Math.Max(0, ExtentWidth - Width);
+        HorizontalOffset = Clamp(HorizontalOffset, 0, scrollWidth);
+    }
+
+    public static float Clamp(float value, float min, float max)
+    {
+        return Math.Max(min, Math.Min(max, value));
     }
 
     public void Render()
     {
-        Debug.WriteLine($"HorizontalOffset: {HorizontalOffset};VerticalOffset: {VerticalOffset};Scale: {Scale}");
         var request = GetPagesDrawingRequest();
         _pdfRenderingQueue.EnqueueDrawingRequest(request);
     }

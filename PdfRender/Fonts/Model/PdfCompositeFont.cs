@@ -32,7 +32,7 @@ public class PdfCompositeFont : PdfFontBase
 
     protected internal override CMapWMode WritingMode => _writingMode;
 
-    protected internal override PdfSubstitutionInfo SubstitutionInfo => PrimaryDescendant?.SubstitutionInfo ?? default;
+    protected internal override PdfSubstitutionInfo SubstitutionInfo => PrimaryDescendant?.SubstitutionInfo ?? PdfSubstitutionInfo.Detault;
     
     /// <summary>
     /// Descendant CID fonts that contain the actual font data.

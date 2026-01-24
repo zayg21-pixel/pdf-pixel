@@ -2,7 +2,12 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Linq;
+using System.Reflection;
 using System.Runtime.CompilerServices;
+#if !NETSTANDARD2_0
+using System.Diagnostics.CodeAnalysis;
+#endif
 
 namespace PdfRender.Text
 {
@@ -67,7 +72,12 @@ namespace PdfRender.Text
         /// <param name="value">PDF string value to convert</param>
         /// <returns>Enum value of type <typeparamref name="T"/></returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static T AsEnum<T>(this PdfString value) where T : Enum
+        public static T AsEnum<
+#if !NETSTANDARD2_0
+            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicFields)]
+#endif
+        T
+            >(this PdfString value) where T : Enum
         {
             var enumType = typeof(T);
             var map = EnumValueCache.GetOrAdd(enumType, _ => BuildEnumValueMap<T>());
@@ -115,61 +125,55 @@ namespace PdfRender.Text
         /// </summary>
         /// <typeparam name="T">Enum type</typeparam>
         /// <returns>Dictionary mapping <see cref="PdfString"/> to enum value</returns>
-        private static Dictionary<PdfString, Enum> BuildEnumValueMap<T>() where T : Enum
+        private static Dictionary<PdfString, Enum> BuildEnumValueMap<
+#if !NETSTANDARD2_0
+            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicFields)]
+#endif
+        T>() where T : Enum
         {
-            var map = new Dictionary<PdfString, Enum>();
-
-            foreach (var t in Enum.GetValues(typeof(T)))
+            var enumType = typeof(T);
+            if (!enumType.GetCustomAttributes(typeof(PdfEnumAttribute), inherit: false).Any())
             {
-                map.Add(PdfString.FromString(t.ToString()), (Enum)t);
+                throw new ArgumentException($"Enum type '{enumType.FullName}' must be decorated with [PdfEnum] attribute.", nameof(T));
+            }
+
+            var map = new Dictionary<PdfString, Enum>();
+            FieldInfo defaultField = null;
+            foreach (var field in enumType.GetFields(BindingFlags.Public | BindingFlags.Static))
+            {
+                var valueAttr = field.GetCustomAttribute<PdfEnumValueAttribute>();
+                var defaultAttr = field.GetCustomAttribute<PdfEnumDefaultValueAttribute>();
+                if (valueAttr == null && defaultAttr == null)
+                {
+                    throw new ArgumentException($"Enum field '{field.Name}' in '{enumType.FullName}' must be decorated with either [PdfEnumValue] or [PdfEnumDefaultValue] attribute.", nameof(T));
+                }
+                if (defaultAttr != null)
+                {
+                    defaultField = field;
+                }
+
+                string name = valueAttr?.Name ?? string.Empty;
+                if (defaultAttr != null)
+                {
+                    name = valueAttr?.Name ?? string.Empty;
+                }
+                var pdfString = new PdfString(EncodingExtensions.PdfDefault.GetBytes(name));
+                var enumValue = (Enum)field.GetValue(null);
+                map[pdfString] = enumValue;
+            }
+
+            if (defaultField == null)
+            {
+                throw new ArgumentException($"Enum type '{enumType.FullName}' must have one field decorated with [PdfEnumDefaultValue] attribute.", nameof(T));
+            }
+
+            var defaultValue = (Enum)defaultField.GetValue(null);
+            if (!defaultValue.Equals(default(T)))
+            {
+                throw new ArgumentException($"Enum type '{enumType.FullName}': the field marked with [PdfEnumDefaultValue] must be equal to default({enumType.Name}).", nameof(T));
             }
 
             return map;
-
-            // TODO: find AOT friendly way to do this with attributes
-            //var enumType = typeof(T);
-            //if (!enumType.GetCustomAttributes(typeof(PdfEnumAttribute), inherit: false).Any())
-            //{
-            //    throw new ArgumentException($"Enum type '{enumType.FullName}' must be decorated with [PdfEnum] attribute.", nameof(T));
-            //}
-
-            //var map = new Dictionary<PdfString, Enum>();
-            //FieldInfo defaultField = null;
-            //foreach (var field in enumType.GetFields(BindingFlags.Public | BindingFlags.Static))
-            //{
-            //    var valueAttr = field.GetCustomAttribute<PdfEnumValueAttribute>();
-            //    var defaultAttr = field.GetCustomAttribute<PdfEnumDefaultValueAttribute>();
-            //    if (valueAttr == null && defaultAttr == null)
-            //    {
-            //        throw new ArgumentException($"Enum field '{field.Name}' in '{enumType.FullName}' must be decorated with either [PdfEnumValue] or [PdfEnumDefaultValue] attribute.", nameof(T));
-            //    }
-            //    if (defaultAttr != null)
-            //    {
-            //        defaultField = field;
-            //    }
-
-            //    string name = valueAttr?.Name ?? string.Empty;
-            //    if (defaultAttr != null)
-            //    {
-            //        name = valueAttr?.Name ?? string.Empty;
-            //    }
-            //    var pdfString = new PdfString(EncodingExtensions.PdfDefault.GetBytes(name));
-            //    var enumValue = (Enum)field.GetValue(null);
-            //    map[pdfString] = enumValue;
-            //}
-
-            //if (defaultField == null)
-            //{
-            //    throw new ArgumentException($"Enum type '{enumType.FullName}' must have one field decorated with [PdfEnumDefaultValue] attribute.", nameof(T));
-            //}
-
-            //var defaultValue = (Enum)defaultField.GetValue(null);
-            //if (!defaultValue.Equals(default(T)))
-            //{
-            //    throw new ArgumentException($"Enum type '{enumType.FullName}': the field marked with [PdfEnumDefaultValue] must be equal to default({enumType.Name}).", nameof(T));
-            //}
-
-            //return map;
         }
 
         /// <summary>
@@ -177,7 +181,12 @@ namespace PdfRender.Text
         /// </summary>
         /// <typeparam name="T">Enum type</typeparam>
         /// <returns>Dictionary mapping enum value to <see cref="PdfString"/></returns>
-        private static Dictionary<Enum, PdfString> BuildEnumInverseValueMap<T>() where T : Enum
+        private static Dictionary<Enum, PdfString> BuildEnumInverseValueMap<
+#if !NETSTANDARD2_0
+            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicFields)]
+#endif
+        T
+            >() where T : Enum
         {
             var enumType = typeof(T);
             var forwardMap = EnumValueCache.GetOrAdd(enumType, _ => BuildEnumValueMap<T>());

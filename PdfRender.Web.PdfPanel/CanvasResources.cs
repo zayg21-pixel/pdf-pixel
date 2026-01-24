@@ -26,5 +26,10 @@ namespace PdfRender.Web.PdfPanel
         /// Gets or sets the PDF viewer canvas instance.
         /// </summary>
         public PdfViewerCanvas ViewerCanvas { get; set; }
+
+        /// <summary>
+        /// Gets or sets the parsed configuration for the canvas.
+        /// </summary>
+        public PdfPanelConfiguration Configuration { get; set; }
     }
 }
