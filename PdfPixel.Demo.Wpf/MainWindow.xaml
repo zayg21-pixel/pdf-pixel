@@ -1,0 +1,59 @@
+﻿<Window x:Class="PdfPixel.Wpf.Demo.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:PdfPixel.Wpf.Demo"
+        xmlns:pdfPanel="clr-namespace:PdfPixel.PdfPanel.Wpf;assembly=PdfPixel.PdfPanel.Wpf"
+        mc:Ignorable="d"
+        Title="MainWindow" Height="450" Width="800">
+    <Grid>
+        <Grid.DataContext>
+            <local:MainWindowsViewModel />
+        </Grid.DataContext>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition />
+        </Grid.RowDefinitions>
+
+        <StackPanel Orientation="Horizontal" Height="40">
+            <Button Content="Zoom In" Click="ZoomIn_Click" Margin="5" />
+            <Button Content="Zoom Out" Click="ZoomOut_Click" Margin="5" />
+            <Button Content="Rotate Current" Command="{Binding RotatePageCommand}" Margin="5" />
+            <Button Content="Rotate All" Command="{Binding RotateAllPagesCommand}" Margin="5" />
+            <ComboBox x:Name="FilesCombo" SelectionChanged="FilesCombo_SelectionChanged" Margin="5" />
+            <ComboBox x:Name="AutoScaleModeCombo" Margin="5" SelectedItem="{Binding AutoScaleMode}" />
+            <Label Content="Page:" Margin="5" />
+            <TextBox Text="{Binding PageNumber}" Margin="5" MinWidth="50" />
+        </StackPanel>
+
+        <ScrollViewer Grid.Row="1" CanContentScroll="True" VerticalScrollBarVisibility="Visible" HorizontalScrollBarVisibility="Visible">
+            <pdfPanel:SkiaPdfPanel x:Name="pdfPanel"
+                                   CurrentPage="{Binding PageNumber}"
+                                   Pages="{Binding Pages, Mode=OneWayToSource}"
+                                   AutoScaleMode="{Binding AutoScaleMode}">
+                <pdfPanel:SkiaPdfPanel.AnnotationToolTip>
+                    <ToolTip Background="Transparent" BorderThickness="0">
+                        <!--<ToolTip.ContentTemplate>
+                            <DataTemplate DataType="{x:Type pdfPanel:AnnotationPopup}">
+                                <ItemsControl ItemsSource="{Binding Messages}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border BorderBrush="Gray" CornerRadius="4" BorderThickness="1" Background="#EEEEEE" Margin="4">
+                                                <StackPanel>
+                                                    <TextBlock Text="{Binding Title}" Margin="4" FontSize="14" FontWeight="Bold" />
+                                                    <TextBlock Text="{Binding Contents}" Margin="4" FontSize="12" />
+                                                    <TextBlock Text="{Binding CreationDate}" Margin="4" FontSize="10" />
+                                                </StackPanel>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </DataTemplate>
+                        </ToolTip.ContentTemplate>-->
+                    </ToolTip>
+                </pdfPanel:SkiaPdfPanel.AnnotationToolTip>
+            </pdfPanel:SkiaPdfPanel>
+        </ScrollViewer>
+    </Grid>
+</Window>

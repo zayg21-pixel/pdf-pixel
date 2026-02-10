@@ -3,25 +3,25 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 18
 VisualStudioVersion = 18.1.11312.151
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PdfPixel.Console.Demo", "PdfPixel.Console.Demo\PdfPixel.Console.Demo.csproj", "{F3B40DF3-08DC-43B3-8EBA-D08902B1CC73}"
-EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PdfPixel", "PdfPixel\PdfPixel.csproj", "{1BCBF5B2-08D5-4B8A-B5DB-72108AC220C4}"
-EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PdfPixel.Benchmarks", "PdfPixel.Benchmarks\PdfPixel.Benchmarks.csproj", "{2311A35A-630F-8D56-15CD-BBB525570F8F}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PdfPixel.Tests", "PdfPixel.Tests\PdfPixel.Tests.csproj", "{B4D304AF-C86B-C9FE-E9BD-FCC2C832CE5C}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PdfPixel.Wpf.PdfPanel", "PdfPixel.Wpf.PdfPanel\PdfPixel.Wpf.PdfPanel.csproj", "{D26755B5-7B8B-C1EE-8388-E03E97FFFDB3}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PdfPixel.Benchmarks", "PdfPixel.Benchmarks\PdfPixel.Benchmarks.csproj", "{2311A35A-630F-8D56-15CD-BBB525570F8F}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PdfPixel.Wpf.Demo", "PdfPixel.Wpf.Demo\PdfPixel.Wpf.Demo.csproj", "{F3E18A43-0D48-9E0D-27CE-650AB5EB4144}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PdfPixel.PdfPanel", "PdfPixel.PdfPanel\PdfPixel.PdfPanel.csproj", "{4CA0C839-F1E5-4674-957B-D93A7C0AFD93}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PdfPixel.Web.Demo", "PdfPixel.Web.Demo\PdfPixel.Web.Demo.csproj", "{A3DAC9F0-DFCF-443F-969C-0B950C17A653}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PdfPixel.PdfPanel.Web", "PdfPixel.PdfPanel.Web\PdfPixel.PdfPanel.Web.csproj", "{460AA18B-1096-4C51-8EE2-106A4EBE861F}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PdfPixel.PdfPanel.Wpf", "PdfPixel.PdfPanel.Wpf\PdfPixel.PdfPanel.Wpf.csproj", "{D26755B5-7B8B-C1EE-8388-E03E97FFFDB3}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PdfPixel.Demo.Wpf", "PdfPixel.Demo.Wpf\PdfPixel.Demo.Wpf.csproj", "{F3E18A43-0D48-9E0D-27CE-650AB5EB4144}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PdfPixel.Demo.Web", "PdfPixel.Demo.Web\PdfPixel.Demo.Web.csproj", "{A3DAC9F0-DFCF-443F-969C-0B950C17A653}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PdfPixel.Demo.Console", "PdfPixel.Demo.Console\PdfPixel.Demo.Console.csproj", "{F3B40DF3-08DC-43B3-8EBA-D08902B1CC73}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PdfPixel.Wpf.DirectXExperiments", "PdfPixel.Wpf.DirectXExperiments\PdfPixel.Wpf.DirectXExperiments.csproj", "{58B232FB-BC3A-CF90-A740-381BE06C313C}"
-EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PdfPixel.Canvas", "PdfPixel.Canvas\PdfPixel.Canvas.csproj", "{4CA0C839-F1E5-4674-957B-D93A7C0AFD93}"
-EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PdfPixel.Web.PdfPanel", "PdfPixel.Web.PdfPanel\PdfPixel.Web.PdfPanel.csproj", "{460AA18B-1096-4C51-8EE2-106A4EBE861F}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -29,22 +29,22 @@ Global
 		Release|Any CPU = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{F3B40DF3-08DC-43B3-8EBA-D08902B1CC73}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{F3B40DF3-08DC-43B3-8EBA-D08902B1CC73}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{F3B40DF3-08DC-43B3-8EBA-D08902B1CC73}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{F3B40DF3-08DC-43B3-8EBA-D08902B1CC73}.Release|Any CPU.Build.0 = Release|Any CPU
 		{1BCBF5B2-08D5-4B8A-B5DB-72108AC220C4}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{1BCBF5B2-08D5-4B8A-B5DB-72108AC220C4}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{1BCBF5B2-08D5-4B8A-B5DB-72108AC220C4}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{1BCBF5B2-08D5-4B8A-B5DB-72108AC220C4}.Release|Any CPU.Build.0 = Release|Any CPU
-		{2311A35A-630F-8D56-15CD-BBB525570F8F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{2311A35A-630F-8D56-15CD-BBB525570F8F}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{2311A35A-630F-8D56-15CD-BBB525570F8F}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{2311A35A-630F-8D56-15CD-BBB525570F8F}.Release|Any CPU.Build.0 = Release|Any CPU
 		{B4D304AF-C86B-C9FE-E9BD-FCC2C832CE5C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{B4D304AF-C86B-C9FE-E9BD-FCC2C832CE5C}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{B4D304AF-C86B-C9FE-E9BD-FCC2C832CE5C}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{B4D304AF-C86B-C9FE-E9BD-FCC2C832CE5C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{2311A35A-630F-8D56-15CD-BBB525570F8F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2311A35A-630F-8D56-15CD-BBB525570F8F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2311A35A-630F-8D56-15CD-BBB525570F8F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2311A35A-630F-8D56-15CD-BBB525570F8F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F3B40DF3-08DC-43B3-8EBA-D08902B1CC73}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F3B40DF3-08DC-43B3-8EBA-D08902B1CC73}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F3B40DF3-08DC-43B3-8EBA-D08902B1CC73}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F3B40DF3-08DC-43B3-8EBA-D08902B1CC73}.Release|Any CPU.Build.0 = Release|Any CPU
 		{D26755B5-7B8B-C1EE-8388-E03E97FFFDB3}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{D26755B5-7B8B-C1EE-8388-E03E97FFFDB3}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{D26755B5-7B8B-C1EE-8388-E03E97FFFDB3}.Release|Any CPU.ActiveCfg = Release|Any CPU
