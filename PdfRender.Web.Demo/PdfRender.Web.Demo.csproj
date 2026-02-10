@@ -1,9 +1,0 @@
-﻿<Project Sdk="Microsoft.NET.Sdk.Web">
-  <PropertyGroup>
-    <TargetFramework>net10.0</TargetFramework>
-  </PropertyGroup>
-  <ItemGroup>
-    <ProjectReference Include="..\PdfRender.Web.PdfPanel\PdfRender.Web.PdfPanel.csproj" />
-  </ItemGroup>
-  
-</Project>
