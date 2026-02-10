@@ -1,6 +1,6 @@
-using SkiaSharp;
+﻿using SkiaSharp;
 
-namespace PdfPixel.PdfPanel;
+namespace PdfPixel.PdfPanel.Extensions;
 
 /// <summary>
 /// Extension methods for <see cref="PdfPanelPage"/> and <see cref="PdfPanelPageInfo"/>.
@@ -134,78 +134,105 @@ public static class PdfPanelPageExtensions
         return viewportRectangle.IntersectsWith(pageBounds);
     }
 
-    //internal static SKPoint ToPagePosition(this PdfPanelPage page, SKPoint canvasPosition, float scale, bool cropToMargins = false)
-    //{
-    //    SKPoint scaledPosition = new SKPoint(canvasPosition.X / scale, canvasPosition.Y / scale);
-    //    SKPoint result = new SKPoint(scaledPosition.X - page.Offset.X, scaledPosition.Y - page.Offset.Y);
+    /// <summary>
+    /// Determines whether a point in page coordinates is within the page bounds.
+    /// </summary>
+    /// <param name="page">The page.</param>
+    /// <param name="pagePoint">Point in page coordinate space (unrotated).</param>
+    /// <returns><see langword="true"/> if the point is within the page bounds; otherwise, <see langword="false"/>.</returns>
+    public static bool IsPointInPageBounds(this PdfPanelPage page, SKPoint pagePoint)
+    {
+        if (page == null)
+        {
+            throw new System.ArgumentNullException(nameof(page));
+        }
 
-    //    if (cropToMargins)
-    //    {
-    //        if (result.X < 0)
-    //        {
-    //            result.X = 0;
-    //        }
+        return pagePoint.X >= 0 && pagePoint.X <= page.Info.Width &&
+               pagePoint.Y >= 0 && pagePoint.Y <= page.Info.Height;
+    }
 
-    //        if (result.Y < 0)
-    //        {
-    //            result.Y = 0;
-    //        }
+    /// <summary>
+    /// Gets the transformation matrix from viewport coordinates to page coordinates.
+    /// Transforms from viewport space (with scroll, scale, offset, and rotation) to unrotated page space.
+    /// </summary>
+    /// <param name="page">The page.</param>
+    /// <param name="context">The panel context providing viewport and scroll information.</param>
+    /// <returns>Matrix that transforms viewport coordinates to page coordinates.</returns>
+    public static SKMatrix ViewportToPageMatrix(this PdfPanelPage page, PdfPanelContext context)
+    {
+        if (context == null)
+        {
+            throw new System.ArgumentNullException(nameof(context));
+        }
 
-    //        SKSize rotatedSize = page.GetRotatedSize();
+        return page.ViewportToPageMatrix(context.Scale, context.HorizontalOffset, context.VerticalOffset);
+    }
 
-    //        if (result.X > rotatedSize.Width)
-    //        {
-    //            result.X = rotatedSize.Width;
-    //        }
+    /// <summary>
+    /// Gets the transformation matrix from viewport coordinates to page coordinates.
+    /// Transforms from viewport space (with scroll, scale, offset, and rotation) to unrotated page space.
+    /// </summary>
+    /// <param name="page">The page.</param>
+    /// <param name="scale">Scale factor.</param>
+    /// <param name="horizontalOffset">Horizontal scroll offset.</param>
+    /// <param name="verticalOffset">Vertical scroll offset.</param>
+    /// <returns>Matrix that transforms viewport coordinates to page coordinates.</returns>
+    public static SKMatrix ViewportToPageMatrix(this PdfPanelPage page, float scale, float horizontalOffset, float verticalOffset)
+    {
+        if (page == null)
+        {
+            throw new System.ArgumentNullException(nameof(page));
+        }
 
-    //        if (result.Y > rotatedSize.Height)
-    //        {
-    //            result.Y = rotatedSize.Height;
-    //        }
-    //    }
+        var matrix = SKMatrix.Identity;
 
-    //    return result;
-    //}
+        // Step 1: Add scroll offset to reverse viewport translation
+        matrix = matrix.PostConcat(SKMatrix.CreateTranslation(horizontalOffset, verticalOffset));
 
-    //internal static SKPoint ToCanvasPosition(this PdfPanelPage page, SKPoint pagePosition, float scale)
-    //{
-    //    return new SKPoint((pagePosition.X + page.Offset.X) * scale, (pagePosition.Y + page.Offset.Y) * scale);
-    //}
+        // Step 2: Subtract page offset (in scaled space) to get to page origin
+        matrix = matrix.PostConcat(SKMatrix.CreateTranslation(-page.Offset.X, -page.Offset.Y));
 
+        // Step 3: Apply inverse scale to get to unscaled page space
+        matrix = matrix.PostConcat(SKMatrix.CreateScale(1f / scale, 1f / scale));
 
-    // TODO: rework below to create some "TO PAGE" matrix
-    ///// <summary>
-    ///// Returns the matrix that represents the rotation of the page.
-    ///// </summary>
-    ///// <param name="width">Page width.</param>
-    ///// <param name="height">Page height.</param>
-    ///// <param name="rotation">Rotation in degrees.</param>
-    ///// <returns></returns>
-    //public static SKMatrix GetPageRotationMatrix(double width, double height, int rotation)
-    //{
-    //    rotation = rotation % 360;
+        // Step 4: Apply inverse rotation to get to unrotated page space
+        int totalRotation = page.GetTotalRotation();
+        if (totalRotation != 0)
+        {
+            SKSize unrotatedSize = new SKSize(page.Info.Width, page.Info.Height);
+            matrix = matrix.PostConcat(GetInverseRotationMatrix(unrotatedSize.Width, unrotatedSize.Height, totalRotation));
+        }
 
-    //    if (rotation < 0)
-    //    {
-    //        rotation += 360;
-    //    }
+        return matrix;
+    }
 
-    //    Matrix matrix = new Matrix();
-    //    matrix.Rotate(-rotation);
+    private static SKMatrix GetInverseRotationMatrix(float width, float height, int rotationDegrees)
+    {
+        rotationDegrees = rotationDegrees % 360;
+        if (rotationDegrees < 0)
+        {
+            rotationDegrees += 360;
+        }
 
-    //    switch (rotation)
-    //    {
-    //        case 90:
-    //            matrix.Translate(0, height);
-    //            break;
-    //        case 180:
-    //            matrix.Translate(width, height);
-    //            break;
-    //        case 270:
-    //            matrix.Translate(width, 0);
-    //            break;
-    //    }
+        var matrix = SKMatrix.Identity;
 
-    //    return matrix;
-    //}
+        switch (rotationDegrees)
+        {
+            case 90:
+                matrix = matrix.PostConcat(SKMatrix.CreateTranslation(-height, 0));
+                matrix = matrix.PostConcat(SKMatrix.CreateRotationDegrees(-90));
+                break;
+            case 180:
+                matrix = matrix.PostConcat(SKMatrix.CreateTranslation(-width, -height));
+                matrix = matrix.PostConcat(SKMatrix.CreateRotationDegrees(-180));
+                break;
+            case 270:
+                matrix = matrix.PostConcat(SKMatrix.CreateTranslation(0, -width));
+                matrix = matrix.PostConcat(SKMatrix.CreateRotationDegrees(-270));
+                break;
+        }
+
+        return matrix;
+    }
 }
+

@@ -47,11 +47,19 @@ public abstract class PdfAnnotationBase
         Flags = (PdfAnnotationFlags)annotationObject.Dictionary.GetIntegerOrDefault(PdfTokens.FlagsKey);
         AppearanceDictionary = annotationObject.Dictionary.GetDictionary(PdfTokens.AppearanceKey);
         AppearanceState = annotationObject.Dictionary.GetString(PdfTokens.AppearanceStateKey);
-        BorderStyle = annotationObject.Dictionary.GetDictionary(PdfTokens.BorderStyleKey);
+
+        var borderStyleDict = annotationObject.Dictionary.GetDictionary(PdfTokens.BorderStyleKey);
+        var borderArray = annotationObject.Dictionary.GetArray(PdfTokens.BorderKey);
+        BorderStyle = PdfBorderStyle.FromDictionary(borderStyleDict, borderArray);
+
         Color = annotationObject.Dictionary.GetArray(PdfTokens.ColorKey)?.GetFloatArray();
+        InteriorColor = annotationObject.Dictionary.GetArray(PdfTokens.InteriorColorKey)?.GetFloatArray();
         PageReference = annotationObject.Dictionary.GetValue(PdfTokens.PageKey)?.AsReference();
         StructuralParent = annotationObject.Dictionary.GetInteger(PdfTokens.StructParentKey);
         OptionalContent = annotationObject.Dictionary.GetDictionary(PdfTokens.OptionalContentKey);
+        InReplyTo = annotationObject.Dictionary.GetValue(PdfTokens.InReplyToKey)?.AsReference();
+        ReplyType = annotationObject.Dictionary.GetName(PdfTokens.ReplyTypeKey).AsEnum<PdfAnnotationReplyType>();
+        SupportedVisualStates = DetectSupportedVisualStates();
     }
 
     /// <summary>
@@ -72,6 +80,46 @@ public abstract class PdfAnnotationBase
     /// represents the annotation's bounding box.
     /// </remarks>
     public SKRect Rectangle { get; }
+
+    /// <summary>
+    /// Gets whether this annotation should display a content bubble indicator.
+    /// </summary>
+    /// <remarks>
+    /// When true, indicates that the annotation has content (like comments) that should
+    /// be accessible through a bubble indicator. The HoverRectangle will be the bubble area only.
+    /// </remarks>
+    public virtual bool ShouldDisplayBubble => !Contents.Value.IsEmpty;
+
+    /// <summary>
+    /// Gets the hover rectangle for interaction purposes (hit testing, popups, etc.).
+    /// </summary>
+    /// <remarks>
+    /// If ShouldDisplayBubble is true, this returns a small rectangle for the bubble indicator
+    /// positioned just above and to the left of the annotation content. The bubble does not
+    /// overlap the annotation's own Rectangle. Coordinates are in PDF space where the origin
+    /// is at the bottom-left of the page.
+    /// </remarks>
+    public SKRect HoverRectangle
+    {
+        get
+        {
+            if (!ShouldDisplayBubble)
+            {
+                return Rectangle;
+            }
+
+            const float bubbleSize = 16.0f;
+
+            var bubbleLeft = Rectangle.Left - bubbleSize;
+            var bubbleTop = Rectangle.Bottom;
+
+            return SKRect.Create(
+                bubbleLeft,
+                bubbleTop,
+                bubbleSize,
+                bubbleSize);
+        }
+    }
 
     /// <summary>
     /// Gets the annotation's contents, which is typically the text displayed 
@@ -141,12 +189,26 @@ public abstract class PdfAnnotationBase
     /// <summary>
     /// Gets the border style dictionary that specifies the characteristics of the annotation's border.
     /// </summary>
-    public PdfDictionary BorderStyle { get; }
+    /// <remarks>
+    /// The border style includes width, style type (Solid, Dashed, Beveled, Inset, Underline),
+    /// and dash pattern for dashed borders. This is parsed from the BS (Border Style) dictionary
+    /// or the older Border array entry. Returns null if no border information is present.
+    /// </remarks>
+    public PdfBorderStyle BorderStyle { get; }
 
     /// <summary>
     /// Gets the color array that specifies the annotation's color.
     /// </summary>
     public float[] Color { get; }
+
+    /// <summary>
+    /// Gets the interior color array that specifies the annotation's fill color.
+    /// </summary>
+    /// <remarks>
+    /// Used by annotations that support filled shapes (Circle, Square, Line, Polygon, etc.).
+    /// The array format depends on the color space (grayscale, RGB, or CMYK).
+    /// </remarks>
+    public float[] InteriorColor { get; }
 
     /// <summary>
     /// Gets the page reference that specifies which page this annotation appears on.
@@ -169,16 +231,76 @@ public abstract class PdfAnnotationBase
     public PdfDictionary OptionalContent { get; }
 
     /// <summary>
+    /// Gets the reference to the annotation that this annotation is in reply to.
+    /// </summary>
+    /// <remarks>
+    /// Used to create threaded discussions where annotations can reply to other annotations.
+    /// Returns null if this annotation is not a reply.
+    /// </remarks>
+    public PdfReference? InReplyTo { get; }
+
+    /// <summary>
+    /// Gets the reply type indicating the relationship between this annotation and the one specified by InReplyTo.
+    /// </summary>
+    /// <remarks>
+    /// Reply (R) creates a linear thread, Group allows multiple replies to same parent.
+    /// Returns None if not specified or if this annotation is not a reply.
+    /// </remarks>
+    public PdfAnnotationReplyType ReplyType { get; }
+
+    /// <summary>
+    /// Gets the visual states supported by this annotation's appearance dictionary.
+    /// </summary>
+    /// <remarks>
+    /// This property indicates which visual states (Normal, Rollover, Down) have appearance streams
+    /// defined in the annotation's appearance dictionary. It is used to optimize rendering by
+    /// avoiding lookups for states that don't exist.
+    /// </remarks>
+    public PdfAnnotationVisualStateKind SupportedVisualStates { get; }
+
+    /// <summary>
+    /// Detects which visual states are supported by examining the appearance dictionary.
+    /// </summary>
+    private PdfAnnotationVisualStateKind DetectSupportedVisualStates()
+    {
+        if (AppearanceDictionary == null)
+        {
+            return PdfAnnotationVisualStateKind.None;
+        }
+
+        var supported = PdfAnnotationVisualStateKind.None;
+
+        if (AppearanceDictionary.HasKey(PdfTokens.NKey))
+        {
+            supported |= PdfAnnotationVisualStateKind.Normal;
+        }
+
+        if (AppearanceDictionary.HasKey(PdfTokens.RolloverKey))
+        {
+            supported |= PdfAnnotationVisualStateKind.Rollover;
+        }
+
+        if (AppearanceDictionary.HasKey(PdfTokens.DownKey))
+        {
+            supported |= PdfAnnotationVisualStateKind.Down;
+        }
+
+        return supported;
+    }
+
+    /// <summary>
     /// Creates a fallback rendering for this annotation when no appearance stream is available.
     /// </summary>
     /// <param name="page">The PDF page containing this annotation.</param>
+    /// <param name="visualStateKind">The visual state to render (Normal, Rollover, Down).</param>
     /// <returns>An SKPicture containing the fallback rendering, or null if no fallback is available.</returns>
     /// <remarks>
     /// This method allows each annotation type to provide its own custom rendering logic
     /// when the annotation doesn't have an appearance stream. The returned SKPicture
     /// should be scaled and positioned appropriately for the annotation's rectangle.
+    /// The visual state allows annotations to change their appearance based on user interaction.
     /// </remarks>
-    public abstract SKPicture CreateFallbackRender(PdfPage page);
+    public abstract SKPicture CreateFallbackRender(PdfPage page, PdfAnnotationVisualStateKind visualStateKind);
 
     /// <summary>
     /// Resolves the annotation color using proper color space conversion.
@@ -205,6 +327,33 @@ public abstract class PdfAnnotationBase
         }
 
         return converter.ToSrgb(Color, PdfRenderingIntent.RelativeColorimetric, null);
+    }
+
+    /// <summary>
+    /// Resolves the annotation interior color using proper color space conversion.
+    /// </summary>
+    /// <param name="page">The PDF page for color space resolution.</param>
+    /// <param name="defaultColor">Default color to use if annotation has no interior color specified. If null, returns transparent.</param>
+    /// <returns>The resolved SKColor for rendering.</returns>
+    internal SKColor ResolveInteriorColor(PdfPage page, SKColor? defaultColor = null)
+    {
+        if (InteriorColor == null || InteriorColor.Length == 0)
+        {
+            return defaultColor ?? SKColors.Transparent;
+        }
+
+        // Get the appropriate color space converter based on component count
+        var converter = page.Cache.ColorSpace.ResolveDeviceConverter(InteriorColor.Length);
+        if (converter == null)
+        {
+            // Fallback to DeviceRGB for unknown component counts
+            converter = page.Cache.ColorSpace.ResolveDeviceConverter(3);
+            var paddedColor = InteriorColor;
+            Array.Resize(ref paddedColor, 3);
+            return converter.ToSrgb(paddedColor, PdfRenderingIntent.RelativeColorimetric, null);
+        }
+
+        return converter.ToSrgb(InteriorColor, PdfRenderingIntent.RelativeColorimetric, null);
     }
 
     /// <summary>

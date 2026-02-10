@@ -1,4 +1,5 @@
-﻿using SkiaSharp;
+﻿using PdfPixel.Annotations.Models;
+using SkiaSharp;
 using System;
 
 namespace PdfPixel.PdfPanel;
@@ -8,33 +9,50 @@ namespace PdfPixel.PdfPanel;
 /// </summary>
 internal sealed class CachedSkPicture : IDisposable
 {
-    public CachedSkPicture(SKImage thumbnail, int pageNumber)
+    public CachedSkPicture(SKImage thumbnail, int pageNumber, bool hasAnnotations)
     {
         Thumbnail = thumbnail;
         PageNumber = pageNumber;
+        HasAnnotations = hasAnnotations;
     }
 
     public SKPicture Picture { get; private set; }
 
-    public SKPicture AnnotationPicture { get; private set; } // TODO: use
+    public SKPicture AnnotationPicture { get; private set; }
 
-    public float Scale { get; private set; }
+    public float Scale { get; set; }
 
     public SKImage Thumbnail { get; }
 
     public int PageNumber { get; }
 
+    public bool HasAnnotations { get; }
+
+    public SKPoint? PointerPosition { get; set; }
+
+    public PdfPanelPointerState PointerState { get; set; }
+
+    public PdfAnnotationBase ActiveAnnotation { get; set; }
+
     public object DisposeLocker { get; } = new object();
 
     public bool IsDisposed { get; private set; }
 
-    public void UpdatePicture(SKPicture picture, float scale)
+    public void UpdatePicture(SKPicture picture)
     {
         lock (DisposeLocker)
         {
             Picture?.Dispose();
             Picture = picture;
-            Scale = scale;
+        }
+    }
+
+    public void UpdateAnnotationPicture(SKPicture annotationPicture)
+    {
+        lock (DisposeLocker)
+        {
+            AnnotationPicture?.Dispose();
+            AnnotationPicture = annotationPicture;
         }
     }
 
@@ -49,6 +67,7 @@ internal sealed class CachedSkPicture : IDisposable
 
             IsDisposed = true;
             Picture?.Dispose();
+            AnnotationPicture?.Dispose();
             Thumbnail?.Dispose();
         }
     }

@@ -115,19 +115,38 @@ public class PdfPage
             throw new InvalidOperationException("Document reference not set. This page was not properly loaded from a document.");
         }
 
-        canvas.SaveLayer();
         var renderer = new PdfRenderer(Document.LoggerFactory);
         var contentRenderer = new PdfContentStreamRenderer(renderer, this);
-        contentRenderer.ApplyPageTransformations(canvas);
-        
-        // Render page content first
+
         contentRenderer.RenderContent(canvas, renderingParameters);
-        
-        // Render annotations on top of content
+    }
+
+    /// <summary>
+    /// Render annotations for this page on the provided canvas with an optional active annotation and visual state.
+    /// </summary>
+    /// <param name="canvas">Destination canvas.</param>
+    /// <param name="renderingParameters">Rendering parameters for rendering in defined canvas.</param>
+    /// <param name="activeAnnotation">Annotation that should be rendered in a non-normal visual state, or null.</param>
+    /// <param name="visualStateKind">Visual state to apply to the active annotation.</param>
+    public void RenderAnnotations(
+        SKCanvas canvas,
+        PdfRenderingParameters renderingParameters,
+        PdfAnnotationBase activeAnnotation,
+        PdfAnnotationVisualStateKind visualStateKind)
+    {
+        if (canvas == null)
+        {
+            throw new ArgumentNullException(nameof(canvas));
+        }
+
+        if (Document == null)
+        {
+            throw new InvalidOperationException("Document reference not set. This page was not properly loaded from a document.");
+        }
+
+        var renderer = new PdfRenderer(Document.LoggerFactory);
         var annotationRenderer = new PdfAnnotationRenderer(renderer, this);
-        annotationRenderer.RenderAnnotations(canvas, renderingParameters); // TODO: move to separate method
-        
-        canvas.Restore();
+        annotationRenderer.RenderAnnotations(canvas, renderingParameters, activeAnnotation, visualStateKind);
     }
 
     /// <summary>
@@ -142,7 +161,6 @@ public class PdfPage
         var textExtractor = new PdfTextExtractionRenderer();
         
         var contentRenderer = new PdfContentStreamRenderer(textExtractor, this);
-        contentRenderer.ApplyPageTransformations(canvas);
         contentRenderer.RenderContent(canvas, new PdfRenderingParameters());
 
         return textExtractor.PageCharacters;

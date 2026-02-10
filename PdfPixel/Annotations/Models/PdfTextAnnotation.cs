@@ -1,6 +1,7 @@
 using PdfPixel.Models;
 using PdfPixel.Text;
 using SkiaSharp;
+using System;
 
 namespace PdfPixel.Annotations.Models;
 
@@ -45,6 +46,8 @@ public class PdfTextAnnotation : PdfAnnotationBase
     /// </remarks>
     public PdfString IconName { get; }
 
+    public override bool ShouldDisplayBubble => false;
+
     /// <summary>
     /// Gets the icon name with fallback to the default "Note" icon.
     /// </summary>
@@ -77,11 +80,53 @@ public class PdfTextAnnotation : PdfAnnotationBase
     /// Creates a fallback rendering for text annotations.
     /// </summary>
     /// <param name="page">The PDF page containing this annotation.</param>
-    /// <returns>Null - text annotations use the existing default rendering logic in PdfAnnotationRenderer.</returns>
-    public override SKPicture CreateFallbackRender(PdfPage page)
+    /// <param name="visualStateKind">The visual state to render (Normal, Rollover, Down).</param>
+    /// <returns>An SKPicture containing the rendered text annotation icon.</returns>
+    public override SKPicture CreateFallbackRender(PdfPage page, PdfAnnotationVisualStateKind visualStateKind)
     {
-        // Text annotations use the existing default rendering in PdfAnnotationRenderer.RenderAnnotationDefault
-        return null;
+        using var recorder = new SKPictureRecorder();
+        using var canvas = recorder.BeginRecording(Rectangle);
+
+        var width = Rectangle.Width;
+        var height = Rectangle.Height;
+
+        var iconSize = Math.Min(width, height) * 0.8f;
+        var centerX = Rectangle.Left + width / 2;
+        var centerY = Rectangle.Top + height / 2;
+
+        var iconRect = new SKRect(
+            centerX - iconSize / 2,
+            centerY - iconSize / 2,
+            centerX + iconSize / 2,
+            centerY + iconSize / 2);
+
+        var color = ResolveColor(page, new SKColor(255, 165, 0));
+
+        using var iconPaint = new SKPaint
+        {
+            Style = SKPaintStyle.Fill,
+            Color = color,
+            IsAntialias = true
+        };
+
+        canvas.DrawOval(iconRect, iconPaint);
+
+        using var font = new SKFont(SKTypeface.Default, iconSize * 0.4f);
+        using var textPaint = new SKPaint
+        {
+            Style = SKPaintStyle.Fill,
+            Color = SKColors.White,
+            IsAntialias = true
+        };
+
+        var text = "?";
+        var textWidth = font.MeasureText(text);
+        var textX = iconRect.MidX - textWidth / 2;
+        var textY = iconRect.MidY + font.Size / 3;
+
+        canvas.DrawText(text, textX, textY, font, textPaint);
+
+        return recorder.EndRecording();
     }
 
     /// <summary>

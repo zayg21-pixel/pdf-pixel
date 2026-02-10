@@ -1,4 +1,6 @@
-﻿using PdfPixel.Models;
+﻿using PdfPixel.Annotations.Models;
+using PdfPixel.Models;
+using PdfPixel.PdfPanel.Extensions;
 using SkiaSharp;
 using System;
 using System.Collections.Concurrent;
@@ -16,7 +18,6 @@ public delegate void AfterDrawDelegate(SKCanvas canvas, PdfPanelPage[] visiblePa
 public sealed class PdfPanelPageCollection : ReadOnlyCollection<PdfPanelPage>, IDisposable
 {
     private readonly ConcurrentDictionary<int, CachedSkPicture> pictureCache = new ConcurrentDictionary<int, CachedSkPicture>();
-    private readonly ConcurrentDictionary<int, PdfAnnotationPopup[]> popupCache = new ConcurrentDictionary<int, PdfAnnotationPopup[]>();
     private readonly int[] cachedRotations;
     private readonly object disposeLocker = new object();
     private bool isDisposed;
@@ -104,14 +105,22 @@ public sealed class PdfPanelPageCollection : ReadOnlyCollection<PdfPanelPage>, I
         {
             var pageNumber = i + 1;
             var info = renderer.GetPageInfo(pageNumber);
-            var page = new PdfPanelPage(info, pageNumber);
+            var popups = renderer.CreateAnnotationPopups(pageNumber);
+            var page = new PdfPanelPage(info, pageNumber, popups);
             pages.Add(page);
         }
 
         return new PdfPanelPageCollection(renderer, pages);
     }
 
-    internal IEnumerable<CachedSkPicture> UpdateCacheWithThumbnails(IEnumerable<int> visiblePages, float scale, int maxThumbnailSize)
+    internal IEnumerable<CachedSkPicture> UpdateCacheWithThumbnails(
+        IEnumerable<int> visiblePages,
+        float scale,
+        int maxThumbnailSize,
+        SKPoint? pointerPosition,
+        PdfPanelPointerState pointerState,
+        float horizontalOffset,
+        float verticalOffset)
     {
         var cachedPages = pictureCache.ToArray();
 
@@ -127,33 +136,57 @@ public sealed class PdfPanelPageCollection : ReadOnlyCollection<PdfPanelPage>, I
         {
             if (pictureCache.TryGetValue(page, out var cachedPicture))
             {
-                if (Math.Abs(cachedPicture.Scale - scale) != 0)
+                bool scaleChanged = Math.Abs(cachedPicture.Scale - scale) != 0;
+
+                PdfAnnotationBase activeAnnotation = null;
+                SKPoint? pagePointerPosition = null;
+                if (cachedPicture.HasAnnotations && pointerPosition.HasValue && TryGetPage(page, out var panelPage))
                 {
-                    cachedPicture.UpdatePicture(null, scale);
+                    SKMatrix matrix = panelPage.ViewportToPageMatrix(scale, horizontalOffset, verticalOffset);
+                    SKPoint testPagePoint = matrix.MapPoint(pointerPosition.Value);
+
+                    if (panelPage.IsPointInPageBounds(testPagePoint))
+                    {
+                        pagePointerPosition = testPagePoint;
+                        activeAnnotation = Renderer.GetActiveAnnotation(page, pagePointerPosition.Value);
+                    }
+                }
+
+                bool annotationChanged = !Equals(cachedPicture.ActiveAnnotation, activeAnnotation);
+                bool stateChangedWithinAnnotation = cachedPicture.PointerState != pointerState && activeAnnotation != null;
+
+                cachedPicture.Scale = scale;
+                cachedPicture.PointerPosition = pagePointerPosition;
+                cachedPicture.PointerState = pointerState;
+                cachedPicture.ActiveAnnotation = activeAnnotation;
+
+                if (scaleChanged)
+                {
+                    cachedPicture.UpdatePicture(null);
+                    cachedPicture.UpdateAnnotationPicture(null);
+                }
+                else if (annotationChanged || stateChangedWithinAnnotation)
+                {
+                    cachedPicture.UpdateAnnotationPicture(null);
                 }
 
                 yield return cachedPicture;
                 continue;
             }
 
-            if (!popupCache.ContainsKey(page))
+            bool hasAnnotations = false;
+            if (TryGetPage(page, out var newPage))
             {
-                var popups = Renderer.GetAnnotationPopups(page);
-                popupCache.TryAdd(page, popups);
+                hasAnnotations = newPage.Popups.Length > 0;
             }
 
             var thumbnailPicture = Renderer.GetThumbnail(page, maxThumbnailSize);
-
-            if (thumbnailPicture == null)
+            cachedPicture = new CachedSkPicture(thumbnailPicture, page, hasAnnotations)
             {
-                cachedPicture = new CachedSkPicture(null, page);
-            }
-            else
-            {
-                cachedPicture = new CachedSkPicture(thumbnailPicture, page);
-            }
-
-            cachedPicture.UpdatePicture(null, scale);
+                Scale = scale,
+                PointerPosition = null,
+                PointerState = pointerState
+            };
 
             lock (disposeLocker)
             {
@@ -182,7 +215,12 @@ public sealed class PdfPanelPageCollection : ReadOnlyCollection<PdfPanelPage>, I
 
             if (cachedPicture.Picture == null)
             {
-                cachedPicture.UpdatePicture(Renderer.GetPicture(cachedPage.Key, cachedPicture.Scale), cachedPicture.Scale);
+                cachedPicture.UpdatePicture(Renderer.GetPicture(cachedPage.Key, cachedPicture.Scale));
+            }
+
+            if (cachedPicture.AnnotationPicture == null)
+            {
+                cachedPicture.UpdateAnnotationPicture(Renderer.GetAnnotationPicture(cachedPage.Key, cachedPicture.Scale, cachedPicture.PointerPosition, cachedPicture.PointerState));
             }
 
             yield return cachedPicture;

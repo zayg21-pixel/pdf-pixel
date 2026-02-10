@@ -26,21 +26,6 @@ public class PdfContentStreamRenderer
     }
 
     /// <summary>
-    /// Apply page-level transformations for coordinate system conversion
-    /// This properly transforms from PDF coordinate system (bottom-left origin, Y-up) 
-    /// to Skia coordinate system (top-left origin, Y-down)
-    /// </summary>
-    public void ApplyPageTransformations(SKCanvas canvas)
-    {
-        // Step 1: Translate to move origin from bottom-left to top-left with crop box offset
-        canvas.Translate(-_page.CropBox.Left, _page.CropBox.Height + _page.CropBox.Top);
-
-        // Step 2: Flip Y-axis to convert from Y-up to Y-down
-        // This will handle ALL coordinate transformations at once
-        canvas.Scale(1, -1);
-    }
-
-    /// <summary>
     /// Render multiple content streams sequentially as one continuous stream without memory allocation.
     /// This treats all content streams as logically one stream while preserving graphics state continuity.
     /// </summary>

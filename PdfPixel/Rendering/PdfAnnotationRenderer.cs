@@ -1,6 +1,6 @@
 using Microsoft.Extensions.Logging;
 using PdfPixel.Annotations.Models;
-using PdfPixel.Color.ColorSpace;
+using PdfPixel.Annotations.Rendering;
 using PdfPixel.Forms;
 using PdfPixel.Imaging.Model;
 using PdfPixel.Models;
@@ -32,16 +32,26 @@ public class PdfAnnotationRenderer
     /// Render all annotations for the page.
     /// Annotations are rendered on top of page content using their appearance streams or default rendering.
     /// </summary>
-    public void RenderAnnotations(SKCanvas canvas, PdfRenderingParameters renderingParameters)
+    public void RenderAnnotations(
+        SKCanvas canvas,
+        PdfRenderingParameters renderingParameters,
+        PdfAnnotationBase activeAnnotation,
+        PdfAnnotationVisualStateKind visualStateKind)
     {
         if (_page.Annotations.Count == 0)
+        {
             return;
+        }
 
         foreach (var annotation in _page.Annotations)
         {
             try
             {
-                RenderAnnotation(canvas, annotation, renderingParameters);
+                var effectiveState = annotation == activeAnnotation
+                    ? visualStateKind
+                    : PdfAnnotationVisualStateKind.Normal;
+
+                RenderAnnotation(canvas, annotation, renderingParameters, effectiveState);
             }
             catch (Exception ex)
             {
@@ -53,7 +63,11 @@ public class PdfAnnotationRenderer
     /// <summary>
     /// Render a single annotation using its appearance stream or default rendering.
     /// </summary>
-    private void RenderAnnotation(SKCanvas canvas, PdfAnnotationBase annotation, PdfRenderingParameters renderingParameters)
+    private void RenderAnnotation(
+        SKCanvas canvas,
+        PdfAnnotationBase annotation,
+        PdfRenderingParameters renderingParameters,
+        PdfAnnotationVisualStateKind visualStateKind)
     {
         // Skip invisible annotations
         if (annotation.Flags.HasFlag(PdfAnnotationFlags.Invisible) || 
@@ -78,24 +92,24 @@ public class PdfAnnotationRenderer
 
         try
         {
+            // Render bubble indicator if applicable
+            if (annotation.ShouldDisplayBubble)
+            {
+                PdfAnnotationBubbleRenderer.RenderBubble(canvas, annotation, _page, visualStateKind);
+            }
+
             // Try to render using appearance dictionary first
-            if (annotation.AppearanceDictionary != null && RenderAnnotationAppearance(canvas, annotation, renderingParameters))
+            if (annotation.AppearanceDictionary != null && RenderAnnotationAppearance(canvas, annotation, renderingParameters, visualStateKind))
             {
                 return; // Successfully rendered with appearance stream
             }
 
             // Try annotation-specific fallback rendering
-            var fallbackPicture = annotation.CreateFallbackRender(_page);
+            var fallbackPicture = annotation.CreateFallbackRender(_page, visualStateKind);
             if (fallbackPicture != null)
             {
-                // Position and draw the fallback picture
-                canvas.Translate(annotation.Rectangle.Left, annotation.Rectangle.Top);
                 canvas.DrawPicture(fallbackPicture);
-                return;
             }
-
-            // Final fallback to default rendering
-            RenderAnnotationDefault(canvas, annotation);
         }
         finally
         {
@@ -107,42 +121,91 @@ public class PdfAnnotationRenderer
     /// Render annotation using its appearance dictionary (/AP entry).
     /// Supports Form XObjects, Image XObjects, and other XObject subtypes.
     /// </summary>
-    private bool RenderAnnotationAppearance(SKCanvas canvas, PdfAnnotationBase annotation, PdfRenderingParameters renderingParameters)
+    private bool RenderAnnotationAppearance(
+        SKCanvas canvas,
+        PdfAnnotationBase annotation,
+        PdfRenderingParameters renderingParameters,
+        PdfAnnotationVisualStateKind visualStateKind)
     {
         if (annotation.AppearanceDictionary == null)
+        {
             return false;
+        }
 
-        // Get normal appearance (could extend to support other states like Down, Rollover)
-        var normalAppearance = annotation.AppearanceDictionary.GetObject(PdfTokens.NKey);
-        if (normalAppearance == null)
+        var effectiveState = ResolveVisualState(annotation, visualStateKind);
+        var appearanceObject = GetAppearanceObjectForState(annotation.AppearanceDictionary, effectiveState);
+
+        if (appearanceObject == null)
+        {
             return false;
+        }
 
-        // Create XObject wrapper to get strongly-typed subtype
-        var xObject = PdfXObject.FromObject(normalAppearance);
-        
+        var xObject = PdfXObject.FromObject(appearanceObject);
+
         canvas.Save();
-        
-        // Position and scale the appearance to fit the annotation rectangle
+
         var annotationRect = annotation.Rectangle;
         var success = false;
 
         switch (xObject.Subtype)
         {
             case PdfXObjectSubtype.Form:
-                success = RenderFormAppearance(canvas, normalAppearance, annotationRect, renderingParameters);
+                success = RenderFormAppearance(canvas, appearanceObject, annotationRect, renderingParameters);
                 break;
 
             case PdfXObjectSubtype.Image:
-                success = RenderImageAppearance(canvas, normalAppearance, annotationRect, renderingParameters);
+                success = RenderImageAppearance(canvas, appearanceObject, annotationRect, renderingParameters);
                 break;
 
             default:
                 _logger.LogWarning("Unsupported XObject subtype '{XObjectSubtype}' in annotation appearance", xObject.Subtype);
                 break;
         }
-        
+
         canvas.Restore();
         return success;
+    }
+
+    /// <summary>
+    /// Resolves the best available visual state for the annotation based on what's supported.
+    /// </summary>
+    private static PdfAnnotationVisualStateKind ResolveVisualState(
+        PdfAnnotationBase annotation,
+        PdfAnnotationVisualStateKind requestedState)
+    {
+        if ((annotation.SupportedVisualStates & requestedState) != 0)
+        {
+            return requestedState;
+        }
+
+        if ((annotation.SupportedVisualStates & PdfAnnotationVisualStateKind.Rollover) != 0 && 
+            requestedState == PdfAnnotationVisualStateKind.Down)
+        {
+            return PdfAnnotationVisualStateKind.Rollover;
+        }
+
+        if ((annotation.SupportedVisualStates & PdfAnnotationVisualStateKind.Normal) != 0)
+        {
+            return PdfAnnotationVisualStateKind.Normal;
+        }
+
+        return PdfAnnotationVisualStateKind.None;
+    }
+
+    /// <summary>
+    /// Gets the appearance object for the specified visual state from the appearance dictionary.
+    /// </summary>
+    private static PdfObject GetAppearanceObjectForState(
+        PdfDictionary appearanceDictionary,
+        PdfAnnotationVisualStateKind state)
+    {
+        return state switch
+        {
+            PdfAnnotationVisualStateKind.Normal => appearanceDictionary.GetObject(PdfTokens.NKey),
+            PdfAnnotationVisualStateKind.Rollover => appearanceDictionary.GetObject(PdfTokens.RolloverKey),
+            PdfAnnotationVisualStateKind.Down => appearanceDictionary.GetObject(PdfTokens.DownKey),
+            _ => null
+        };
     }
 
     /// <summary>
@@ -196,79 +259,10 @@ public class PdfAnnotationRenderer
     }
 
     /// <summary>
-    /// Default rendering for annotations without appearance streams.
-    /// </summary>
-    private void RenderAnnotationDefault(SKCanvas canvas, PdfAnnotationBase annotation)
-    {
-        var rect = annotation.Rectangle;
-        
-        // Skip rendering if rectangle is too small to be visible
-        if (rect.Width < 1 || rect.Height < 1)
-            return;
-        
-        canvas.Save();
-        
-        using var paint = new SKPaint
-        {
-            Style = SKPaintStyle.Stroke,
-            Color = GetAnnotationColor(annotation),
-            StrokeWidth = Math.Max(1.0f, Math.Min(rect.Width, rect.Height) * 0.02f), // Scale stroke with annotation size
-            PathEffect = SKPathEffect.CreateDash([3, 3], 0) // Dashed outline
-        };
-
-        canvas.DrawRect(rect, paint);
-
-        // For text annotations, draw the icon
-        if (annotation is PdfTextAnnotation textAnnotation)
-        {
-            RenderTextAnnotationIcon(canvas, textAnnotation, rect);
-        }
-        
-        canvas.Restore();
-    }
-
-    /// <summary>
     /// Get color for annotation rendering using proper color space conversion.
     /// </summary>
     private SKColor GetAnnotationColor(PdfAnnotationBase annotation)
     {
-        // Use the new ResolveColor method from the base class with orange/yellow default
-        return annotation.ResolveColor(_page, new SKColor(255, 165, 0)); // TODO: just for tests, not complient
-    }
-
-    /// <summary>
-    /// Render a simple icon for text annotations.
-    /// </summary>
-    private void RenderTextAnnotationIcon(SKCanvas canvas, PdfTextAnnotation textAnnotation, SKRect rect)
-    {
-        var iconSize = Math.Min(rect.Width, rect.Height) * 0.8f;
-        var iconRect = new SKRect(
-            rect.Left + (rect.Width - iconSize) / 2,
-            rect.Top + (rect.Height - iconSize) / 2,
-            rect.Left + (rect.Width + iconSize) / 2,
-            rect.Top + (rect.Height + iconSize) / 2
-        );
-
-        using var iconPaint = new SKPaint
-        {
-            Style = SKPaintStyle.Fill,
-            Color = GetAnnotationColor(textAnnotation)
-        };
-
-        // Simple note icon (could be enhanced based on IconNameWithDefault)
-        canvas.DrawOval(iconRect, iconPaint);
-        
-        // Add a small text indicator
-        using var textPaint = new SKPaint
-        {
-            Style = SKPaintStyle.Fill,
-            Color = SKColors.White,
-            TextSize = iconSize * 0.4f,
-            TextAlign = SKTextAlign.Center,
-            Typeface = SKTypeface.Default
-        };
-
-        var textY = iconRect.MidY + textPaint.TextSize / 3;
-        canvas.DrawText("?", iconRect.MidX, textY, textPaint);
+        return annotation.ResolveColor(_page, new SKColor(255, 165, 0));
     }
 }

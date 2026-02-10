@@ -1,7 +1,6 @@
 using PdfPixel.Models;
 using PdfPixel.Text;
 using SkiaSharp;
-using System;
 
 namespace PdfPixel.Annotations.Models;
 
@@ -22,23 +21,7 @@ public class PdfInkAnnotation : PdfAnnotationBase
     public PdfInkAnnotation(PdfObject annotationObject) 
         : base(annotationObject, PdfAnnotationSubType.Ink)
     {
-        // Initialize ink annotation specific properties
         InkList = annotationObject.Dictionary.GetArray(PdfTokens.InkListKey);
-        
-        // Get border style for line width
-        var borderArray = annotationObject.Dictionary.GetArray(PdfTokens.BorderKey);
-        if (borderArray != null && borderArray.Count >= 3)
-        {
-            LineWidth = borderArray.GetFloat(2);
-        }
-        else if (BorderStyle != null)
-        {
-            LineWidth = BorderStyle.GetFloat(PdfTokens.WKey) ?? 1.0f;
-        }
-        else
-        {
-            LineWidth = 1.0f;
-        }
     }
 
     /// <summary>
@@ -51,16 +34,12 @@ public class PdfInkAnnotation : PdfAnnotationBase
     public PdfArray InkList { get; }
 
     /// <summary>
-    /// Gets the line width for rendering the ink paths.
-    /// </summary>
-    public float LineWidth { get; }
-
-    /// <summary>
     /// Creates a fallback rendering for ink annotations when no appearance stream is available.
     /// </summary>
     /// <param name="page">The PDF page containing this annotation.</param>
+    /// <param name="visualStateKind">The visual state to render (Normal, Rollover, Down).</param>
     /// <returns>An SKPicture containing the rendered ink paths.</returns>
-    public override SKPicture CreateFallbackRender(PdfPage page)
+    public override SKPicture CreateFallbackRender(PdfPage page, PdfAnnotationVisualStateKind visualStateKind)
     {
         if (InkList == null || InkList.Count == 0)
         {
@@ -69,17 +48,21 @@ public class PdfInkAnnotation : PdfAnnotationBase
 
         using var recorder = new SKPictureRecorder();
         using var canvas = recorder.BeginRecording(Rectangle);
-        
-        // Create paint for the ink strokes
+
+        var lineWidth = BorderStyle?.Width ?? 1.0f;
+        var inkColor = ResolveColor(page, SKColors.Black);
+
         using var paint = new SKPaint
         {
             Style = SKPaintStyle.Stroke,
-            StrokeWidth = LineWidth,
+            StrokeWidth = lineWidth,
             StrokeCap = SKStrokeCap.Round,
             StrokeJoin = SKStrokeJoin.Round,
             IsAntialias = true,
-            Color = ResolveColor(page, SKColors.Black) // Ink annotations default to black if no color specified
+            Color = inkColor
         };
+
+        BorderStyle?.TryApplyEffect(paint, inkColor);
 
         // Render each path in the ink list
         for (int i = 0; i < InkList.Count; i++)
@@ -90,23 +73,17 @@ public class PdfInkAnnotation : PdfAnnotationBase
 
             using var path = new SKPath();
             var coords = pathArray.GetFloatArray();
-            
+
             if (coords == null || coords.Length < 4)
                 continue;
 
-            // Move to first point (convert from PDF coordinates to annotation-relative coordinates)
-            float startX = coords[0] - Rectangle.Left;
-            float startY = coords[1] - Rectangle.Top;
-            path.MoveTo(startX, startY);
-            
-            // Add lines to subsequent points
+            path.MoveTo(coords[0], coords[1]);
+
             for (int j = 2; j < coords.Length - 1; j += 2)
             {
-                float x = coords[j] - Rectangle.Left;
-                float y = coords[j + 1] - Rectangle.Top;
-                path.LineTo(x, y);
+                path.LineTo(coords[j], coords[j + 1]);
             }
-            
+
             canvas.DrawPath(path, paint);
         }
 

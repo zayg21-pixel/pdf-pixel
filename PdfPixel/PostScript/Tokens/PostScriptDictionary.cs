@@ -11,11 +11,11 @@ namespace PdfPixel.PostScript.Tokens
     {
         public PostScriptDictionary()
         {
-            Entries = new Dictionary<string, PostScriptToken>(StringComparer.Ordinal);
+            Entries = new Dictionary<string, PostScriptToken>(StringComparer.OrdinalIgnoreCase);
         }
         public PostScriptDictionary(Dictionary<string, PostScriptToken> entries)
         {
-            Entries = entries ?? new Dictionary<string, PostScriptToken>(StringComparer.Ordinal);
+            Entries = entries ?? new Dictionary<string, PostScriptToken>(StringComparer.OrdinalIgnoreCase);
         }
 
         public Dictionary<string, PostScriptToken> Entries { get; }

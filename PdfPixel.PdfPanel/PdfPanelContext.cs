@@ -1,4 +1,5 @@
-﻿using PdfPixel.PdfPanel.Requests;
+﻿using PdfPixel.PdfPanel.Extensions;
+using PdfPixel.PdfPanel.Requests;
 using PdfPixel.PdfPanel.Layout;
 using SkiaSharp;
 using System;
@@ -95,14 +96,19 @@ public class PdfPanelContext
     public int MaxThumbnailSize { get; set; } = 400;
 
     /// <summary>
+    /// Current pointer position in viewport coordinates, or null if pointer is not over the panel.
+    /// </summary>
+    public SKPoint? PointerPosition { get; set; }
+
+    /// <summary>
+    /// Current pointer button state.
+    /// </summary>
+    public PdfPanelPointerState PointerState { get; set; }
+
+    /// <summary>
     /// Collection of PDF pages to display.
     /// </summary>
     public PdfPanelPageCollection Pages { get; }
-
-    /// <summary>
-    /// Layout strategy used to position pages within the viewport.
-    /// </summary>
-    public IPdfPanelLayout Layout => _layout;
 
     /// <summary>
     /// Gets the viewport rectangle in scaled coordinate space.
@@ -180,6 +186,8 @@ public class PdfPanelContext
         drawingRequest.VisiblePages = GetVisiblePages().ToArray();
         drawingRequest.BackgroundColor = BackgroundColor;
         drawingRequest.MaxThumbnailSize = MaxThumbnailSize;
+        drawingRequest.PointerPosition = PointerPosition;
+        drawingRequest.PointerState = PointerState;
 
         return drawingRequest;
     }

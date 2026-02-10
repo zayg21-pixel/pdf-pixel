@@ -4,7 +4,8 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:PdfPixel.Wpf.Demo"
-        xmlns:pdfPanel="clr-namespace:PdfPixel.PdfPanel.Wpf;assembly=PdfPixel.PdfPanel.Wpf"
+        xmlns:pdfPanel="clr-namespace:PdfPixel.PdfPanel;assembly=PdfPixel.PdfPanel"
+        xmlns:wpfPdfPanel="clr-namespace:PdfPixel.PdfPanel.Wpf;assembly=PdfPixel.PdfPanel.Wpf"
         mc:Ignorable="d"
         Title="MainWindow" Height="450" Width="800">
     <Grid>
@@ -28,15 +29,15 @@
         </StackPanel>
 
         <ScrollViewer Grid.Row="1" CanContentScroll="True" VerticalScrollBarVisibility="Visible" HorizontalScrollBarVisibility="Visible">
-            <pdfPanel:WpfPdfPanel x:Name="pdfPanel"
+            <wpfPdfPanel:WpfPdfPanel x:Name="pdfPanel"
                                    CurrentPage="{Binding PageNumber}"
                                    Pages="{Binding Pages}"
                                    AutoScaleMode="{Binding AutoScaleMode}"
                                    PanelInterface="{Binding PanelInterface}">
-                <pdfPanel:WpfPdfPanel.AnnotationToolTip>
+                <wpfPdfPanel:WpfPdfPanel.AnnotationToolTip>
                     <ToolTip Background="Transparent" BorderThickness="0">
-                        <!--<ToolTip.ContentTemplate>
-                            <DataTemplate DataType="{x:Type pdfPanel:AnnotationPopup}">
+                        <ToolTip.ContentTemplate>
+                            <DataTemplate DataType="{x:Type pdfPanel:PdfAnnotationPopup}">
                                 <ItemsControl ItemsSource="{Binding Messages}">
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate>
@@ -51,10 +52,10 @@
                                     </ItemsControl.ItemTemplate>
                                 </ItemsControl>
                             </DataTemplate>
-                        </ToolTip.ContentTemplate>-->
+                        </ToolTip.ContentTemplate>
                     </ToolTip>
-                </pdfPanel:WpfPdfPanel.AnnotationToolTip>
-            </pdfPanel:WpfPdfPanel>
+                </wpfPdfPanel:WpfPdfPanel.AnnotationToolTip>
+            </wpfPdfPanel:WpfPdfPanel>
         </ScrollViewer>
     </Grid>
 </Window>

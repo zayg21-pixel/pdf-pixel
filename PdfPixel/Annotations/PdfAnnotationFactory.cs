@@ -37,11 +37,20 @@ public static class PdfAnnotationFactory
         return subtype switch
         {
             PdfAnnotationSubType.Text => new PdfTextAnnotation(annotationObject),
+            PdfAnnotationSubType.Link => new PdfLinkAnnotation(annotationObject),
             PdfAnnotationSubType.Ink => new PdfInkAnnotation(annotationObject),
+            PdfAnnotationSubType.Circle => new PdfCircleAnnotation(annotationObject),
+            PdfAnnotationSubType.Square => new PdfSquareAnnotation(annotationObject),
+            PdfAnnotationSubType.Line => new PdfLineAnnotation(annotationObject),
+            PdfAnnotationSubType.Polygon => new PdfPolygonAnnotation(annotationObject),
+            PdfAnnotationSubType.PolyLine => new PdfPolyLineAnnotation(annotationObject),
+            PdfAnnotationSubType.Highlight => new PdfHighlightAnnotation(annotationObject),
+            PdfAnnotationSubType.Underline => new PdfUnderlineAnnotation(annotationObject),
+            PdfAnnotationSubType.Squiggly => new PdfSquigglyAnnotation(annotationObject),
+            PdfAnnotationSubType.StrikeOut => new PdfStrikeOutAnnotation(annotationObject),
+            PdfAnnotationSubType.Popup => new PdfPopupAnnotation(annotationObject),
             // TODO: Add more annotation types as they are implemented
-            // PdfAnnotationSubType.Link => new PdfLinkAnnotation(annotationObject),
             // PdfAnnotationSubType.Widget => new PdfWidgetAnnotation(annotationObject),
-            // PdfAnnotationSubType.Highlight => new PdfHighlightAnnotation(annotationObject),
             // etc.
             _ => new PdfGenericAnnotation(annotationObject, subtype)
         };

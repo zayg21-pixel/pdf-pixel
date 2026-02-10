@@ -56,6 +56,7 @@ internal static class SkCanvasExtensions
         if (drawFlags.HasFlag(PageDrawFlags.Content))
         {
             DrawCachedPicture(canvas, picture, page);
+            DrawCachedAnnotationPicture(canvas, picture, page);
         }
 
         canvas.RestoreToCount(savedPageCount);
@@ -72,6 +73,20 @@ internal static class SkCanvasExtensions
 
             var transformMatrix = GetPictureTransformMatrix(picture.Picture.CullRect.Width, picture.Picture.CullRect.Height, page.Info, page.UserRotation);
             canvas.DrawPicture(picture.Picture, in transformMatrix);
+        }
+    }
+
+    private static void DrawCachedAnnotationPicture(SKCanvas canvas, CachedSkPicture picture, VisiblePageInfo page)
+    {
+        lock (picture.DisposeLocker)
+        {
+            if (picture.IsDisposed || picture.AnnotationPicture == null)
+            {
+                return;
+            }
+
+            var transformMatrix = GetPictureTransformMatrix(picture.AnnotationPicture.CullRect.Width, picture.AnnotationPicture.CullRect.Height, page.Info, page.UserRotation);
+            canvas.DrawPicture(picture.AnnotationPicture, in transformMatrix);
         }
     }
 

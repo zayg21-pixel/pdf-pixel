@@ -212,12 +212,14 @@ public sealed class PdfRenderingQueue : IDisposable
 
         var extendedVisiblePages = GetExtendedVisiblePages(request, previousRequest, visiblePages);
 
-        foreach (var picture in request.Pages.UpdateCacheWithThumbnails(extendedVisiblePages, request.Scale, request.MaxThumbnailSize))
+        foreach (var picture in request.Pages.UpdateCacheWithThumbnails(extendedVisiblePages, request.Scale, request.MaxThumbnailSize, request.PointerPosition, request.PointerState, request.Offset.X, request.Offset.Y))
         {
             if (!visiblePages.Contains(picture.PageNumber))
             {
                 continue;
             }
+
+            bool contentComplete = picture.Picture != null && (!picture.HasAnnotations || picture.AnnotationPicture != null);
 
             if (picture.Picture == null)
             {
@@ -227,7 +229,7 @@ public sealed class PdfRenderingQueue : IDisposable
                     pagesWithThumbnailsDrawn.Add(picture.PageNumber);
                 }
             }
-            else
+            else if (contentComplete)
             {
                 canvas.DrawPageFromRequest(picture.PageNumber, request, PageDrawFlags.Background | PageDrawFlags.Content);
                 pagesWithContentDrawn.Add(picture.PageNumber);

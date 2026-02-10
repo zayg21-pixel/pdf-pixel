@@ -17,6 +17,10 @@ internal class PagesDrawingRequest : DrawingRequest
 
     public int MaxThumbnailSize { get; set; }
 
+    public SKPoint? PointerPosition { get; set; }
+
+    public PdfPanelPointerState PointerState { get; set; }
+
     public override bool Equals(object obj)
     {
         if (obj is PagesDrawingRequest parameters)
@@ -24,6 +28,8 @@ internal class PagesDrawingRequest : DrawingRequest
             return base.Equals(obj) &&
                 MaxThumbnailSize == parameters.MaxThumbnailSize &&
                 Pages == parameters.Pages &&
+                PointerPosition == parameters.PointerPosition &&
+                PointerState == parameters.PointerState &&
                 VisiblePages.SequenceEqual(parameters.VisiblePages);
         }
         else

@@ -6,7 +6,6 @@ using PdfPixel.Text;
 using SkiaSharp;
 using System;
 using System.Collections.Generic;
-using System.Runtime.CompilerServices;
 
 namespace PdfPixel.Rendering.Operators;
 
@@ -259,7 +258,7 @@ public class GraphicsStateOperators : IOperatorProcessor
         graphicsState.FlatnessTolerance = flatness;
     }
 
-    private static float[] GetDashPattern(float[] pattern)
+    public static float[] GetDashPattern(float[] pattern)
     {
         if (pattern == null || pattern.Length == 0)
         {

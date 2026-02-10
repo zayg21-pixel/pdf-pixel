@@ -1,4 +1,5 @@
 ﻿using SkiaSharp;
+using System;
 
 namespace PdfPixel.PdfPanel;
 
@@ -7,10 +8,11 @@ namespace PdfPixel.PdfPanel;
 /// </summary>
 public class PdfPanelPage
 {
-    internal PdfPanelPage(PdfPanelPageInfo info, int pageNumber)
+    internal PdfPanelPage(PdfPanelPageInfo info, int pageNumber, PdfAnnotationPopup[] popups)
     {
         Info = info;
         PageNumber = pageNumber;
+        Popups = popups ?? Array.Empty<PdfAnnotationPopup>();
     }
 
     /// <summary>
@@ -22,6 +24,11 @@ public class PdfPanelPage
     /// Number of the page.
     /// </summary>
     public int PageNumber { get; }
+
+    /// <summary>
+    /// Collection of annotation popups for this page.
+    /// </summary>
+    public PdfAnnotationPopup[] Popups { get; }
 
     /// <summary>
     /// Gets the offset of the page.

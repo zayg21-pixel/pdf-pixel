@@ -2,8 +2,8 @@
 using PdfPixel.PdfPanel.Layout;
 using PdfPixel.PdfPanel.Wpf.Drawing;
 using SkiaSharp;
-using System;
 using System.Windows;
+using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
 
@@ -96,23 +96,14 @@ namespace PdfPixel.PdfPanel.Wpf
             Update();
             _viewerContext?.Render();
 
-            //RaiseEvent(GetCanvasEvent(new MouseEventArgs(Mouse.PrimaryDevice, 0), CanvasMouseMoveEvent));
+            RaiseEvent(GetCanvasEvent(new MouseEventArgs(Mouse.PrimaryDevice, 0), CanvasMouseMoveEvent));
 
             return base.ArrangeOverride(finalSize);
         }
 
-        private void RequestRedraw()
-        {
-            if (!CanRedraw())
-            {
-                return;
-            }
-
-            _viewerContext?.Render();
-        }
-
         private void ResetContent()
         {
+            // TODO: complete
             Scale = 1;
             CurrentPage = 1;
             HorizontalOffset = 0;

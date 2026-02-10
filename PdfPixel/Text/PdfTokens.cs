@@ -279,10 +279,16 @@ public static class PdfTokens
     public static readonly PdfString ModificationDateKey = (PdfString)"M"u8;          // Modification date
     public static readonly PdfString AppearanceKey = (PdfString)"AP"u8;               // Appearance dictionary
     public static readonly PdfString AppearanceStateKey = (PdfString)"AS"u8;          // Appearance state
+    public static readonly PdfString RolloverKey = (PdfString)"R"u8;                  // Rollover appearance state
+    public static readonly PdfString DownKey = (PdfString)"D"u8;                      // Down appearance state
     public static readonly PdfString BorderStyleKey = (PdfString)"BS"u8;              // Border style dictionary
     public static readonly PdfString ColorKey = (PdfString)"C"u8;                     // Color array
     public static readonly PdfString StructParentKey = (PdfString)"StructParent"u8;   // Structural parent
     public static readonly PdfString OptionalContentKey = (PdfString)"OC"u8;          // Optional content
+
+    // Border style dictionary keys
+    public static readonly PdfString SKey = (PdfString)"S"u8;                         // Style (also used for action subtype)
+    public static readonly PdfString DashArrayKey = (PdfString)"D"u8;                 // Dash array (reuses "D")
 
     // Text Annotation specific keys
     public static readonly PdfString OpenKey = (PdfString)"Open"u8;                   // Text annotation open state
@@ -292,10 +298,42 @@ public static class PdfTokens
     // Ink Annotation specific keys
     public static readonly PdfString InkListKey = (PdfString)"InkList"u8;             // Ink annotation path list
     public static readonly PdfString BorderKey = (PdfString)"Border"u8;               // Annotation border style
-    
+
+    // Circle/Square Annotation specific keys
+    public static readonly PdfString InteriorColorKey = (PdfString)"IC"u8;            // Interior color for circle/square annotations
+
+    // Line Annotation specific keys
+    public static readonly PdfString LKey = (PdfString)"L"u8;                         // Line coordinates [x1, y1, x2, y2]
+    public static readonly PdfString LineEndingKey = (PdfString)"LE"u8;               // Line ending styles array
+    public static readonly PdfString LeaderLineKey = (PdfString)"LL"u8;               // Leader line length
+    public static readonly PdfString LeaderLineExtensionKey = (PdfString)"LLE"u8;     // Leader line extension
+    public static readonly PdfString LeaderLineOffsetKey = (PdfString)"LLO"u8;        // Leader line offset
+    public static readonly PdfString CaptionKey = (PdfString)"Cap"u8;                 // Caption flag
+    public static readonly PdfString CaptionPositionKey = (PdfString)"CP"u8;          // Caption position
+    public static readonly PdfString MeasureKey = (PdfString)"Measure"u8;             // Measure dictionary
+    public static readonly PdfString CaptionOffsetKey = (PdfString)"CO"u8;            // Caption offset
+
+    // Polygon/PolyLine Annotation specific keys
+    public static readonly PdfString VerticesKey = (PdfString)"Vertices"u8;           // Polygon/PolyLine vertices array
+
+    // Text markup annotation keys
+    public static readonly PdfString QuadPointsKey = (PdfString)"QuadPoints"u8;       // Text markup quadrilaterals array
+
     // Annotation popup and metadata keys
     public static readonly PdfString TitleKey = (PdfString)"T"u8;                     // Annotation title/author
     public static readonly PdfString SubjectKey = (PdfString)"Subj"u8;               // Annotation subject
     public static readonly PdfString CreationDateKey = (PdfString)"CreationDate"u8;  // Annotation creation date
     public static readonly PdfString PopupKey = (PdfString)"Popup"u8;                // Reference to popup annotation
+    public static readonly PdfString InReplyToKey = (PdfString)"IRT"u8;              // Annotation reply reference
+    public static readonly PdfString ReplyTypeKey = (PdfString)"RT"u8;               // Annotation reply type
+
+    // Link annotation specific keys
+    public static readonly PdfString AKey = (PdfString)"A"u8;                         // Action dictionary
+    public static readonly PdfString DestKey = (PdfString)"Dest"u8;                   // Destination
+    public static readonly PdfString HighlightModeKey = (PdfString)"H"u8;             // Highlight mode
+    public static readonly PdfString PAKey = (PdfString)"PA"u8;                       // URI action dictionary
+    public static readonly PdfString URIKey = (PdfString)"URI"u8;                     // URI string
+    public static readonly PdfString SActionKey = (PdfString)"S"u8;                   // Action subtype (alias for SKey)
+    public static readonly PdfString NextKey = (PdfString)"Next"u8;                   // Next action
+    public static readonly PdfString IsMapKey = (PdfString)"IsMap"u8;                 // URI action IsMap flag
 }

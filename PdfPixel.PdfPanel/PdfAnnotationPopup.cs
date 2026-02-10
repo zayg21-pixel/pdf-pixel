@@ -1,6 +1,6 @@
-﻿using SkiaSharp;
+﻿using PdfPixel.Annotations.Models;
+using SkiaSharp;
 using System;
-using System.Linq;
 
 namespace PdfPixel.PdfPanel;
 
@@ -9,14 +9,21 @@ namespace PdfPixel.PdfPanel;
 /// </summary>
 public class PdfAnnotationPopup
 {
-    public PdfAnnotationPopup(AnnotationMessage[] messages, SKRect rect)
+    public PdfAnnotationPopup(PdfAnnotationBase annotation, AnnotationMessage[] messages, SKRect rect)
     {
-        Messages = messages;
+        Annotation = annotation ?? throw new ArgumentNullException(nameof(annotation));
+        Messages = messages ?? throw new ArgumentNullException(nameof(messages));
         Rect = rect;
     }
 
     /// <summary>
-    /// Collection of popup messages.
+    /// Reference to the original PDF annotation.
+    /// </summary>
+    public PdfAnnotationBase Annotation { get; }
+
+    /// <summary>
+    /// Thread of annotation messages (from oldest to newest).
+    /// First message is the root annotation, subsequent messages are replies in chronological order.
     /// </summary>
     public AnnotationMessage[] Messages { get; }
 
@@ -27,26 +34,14 @@ public class PdfAnnotationPopup
 
     public override int GetHashCode()
     {
-        var code = 0;
-
-        foreach (var message in Messages)
-        {
-            code ^= message.GetHashCode();
-        }
-
-        return code;
+        return HashCode.Combine(Annotation, Rect);
     }
 
     public override bool Equals(object obj)
     {
-        if (obj is PdfAnnotationPopup other)
-        {
-            return Messages.SequenceEqual(other.Messages);
-        }
-        else
-        {
-            return false;
-        }
+        return obj is PdfAnnotationPopup other && 
+               Equals(Annotation, other.Annotation) && 
+               Rect.Equals(other.Rect);
     }
 }
 

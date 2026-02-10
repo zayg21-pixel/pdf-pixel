@@ -1,3 +1,4 @@
+using PdfPixel.PdfPanel.Extensions;
 using SkiaSharp;
 using System;
 

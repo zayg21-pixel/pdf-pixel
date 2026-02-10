@@ -3,6 +3,9 @@ using System.Linq;
 
 namespace PdfPixel.PdfPanel.Extensions;
 
+/// <summary>
+/// Extension methods for <see cref="PdfPanelContext"/>.
+/// </summary>
 public static class PdfPanelContextExtensions
 {
     public static int GetCurrentPage(this PdfPanelContext context)
@@ -97,5 +100,42 @@ public static class PdfPanelContextExtensions
                     break;
                 }
         }
+    }
+
+    /// <summary>
+    /// Finds the page at the specified viewport point.
+    /// </summary>
+    /// <param name="context">The panel context.</param>
+    /// <param name="viewportPoint">Point in viewport coordinate space.</param>
+    /// <returns>The page at the specified point, or <see langword="null"/> if no page is found.</returns>
+    public static PdfPanelPage GetPageAtViewportPoint(this PdfPanelContext context, SKPoint viewportPoint)
+    {
+        if (context == null)
+        {
+            throw new System.ArgumentNullException(nameof(context));
+        }
+
+        if (context.Pages == null)
+        {
+            return null;
+        }
+
+        foreach (PdfPanelPage page in context.Pages)
+        {
+            if (!page.IsPageVisible(context.ViewportRectangle, context.Scale))
+            {
+                continue;
+            }
+
+            SKMatrix matrix = page.ViewportToPageMatrix(context);
+            SKPoint testPagePoint = matrix.MapPoint(viewportPoint);
+
+            if (page.IsPointInPageBounds(testPagePoint))
+            {
+                return page;
+            }
+        }
+
+        return null;
     }
 }

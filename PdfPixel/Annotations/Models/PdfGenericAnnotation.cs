@@ -28,8 +28,9 @@ public class PdfGenericAnnotation : PdfAnnotationBase
     /// Creates a fallback rendering for generic annotations.
     /// </summary>
     /// <param name="page">The PDF page containing this annotation.</param>
+    /// <param name="visualStateKind">The visual state to render (Normal, Rollover, Down).</param>
     /// <returns>Null - generic annotations don't have specific fallback rendering.</returns>
-    public override SKPicture CreateFallbackRender(PdfPage page)
+    public override SKPicture CreateFallbackRender(PdfPage page, PdfAnnotationVisualStateKind visualStateKind)
     {
         // Generic annotations don't provide custom fallback rendering
         return null;

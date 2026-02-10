@@ -1,6 +1,5 @@
-﻿using PdfPixel.PdfPanel.Wpf.Events;
-using System;
-using System.Linq;
+﻿using PdfPixel.PdfPanel.Extensions;
+using SkiaSharp;
 using System.Windows;
 using System.Windows.Input;
 
@@ -60,9 +59,10 @@ namespace PdfPixel.PdfPanel.Wpf
         {
             base.OnMouseDown(e);
 
-            if (Pages != null)
+            if (Pages != null && _viewerContext != null)
             {
-                //RaiseEvent(GetCanvasEvent(e, CanvasMouseMoveDownEvent));
+                UpdatePointerState(e, PdfPanelPointerState.Pressed);
+                RaiseEvent(GetCanvasEvent(e, CanvasMouseMoveDownEvent));
             }
         }
 
@@ -70,9 +70,10 @@ namespace PdfPixel.PdfPanel.Wpf
         {
             base.OnMouseUp(e);
 
-            if (Pages != null)
+            if (Pages != null && _viewerContext != null)
             {
-                //RaiseEvent(GetCanvasEvent(e, CanvasMouseMoveUpEvent));
+                UpdatePointerState(e, PdfPanelPointerState.Default);
+                RaiseEvent(GetCanvasEvent(e, CanvasMouseMoveUpEvent));
             }
         }
 
@@ -80,78 +81,89 @@ namespace PdfPixel.PdfPanel.Wpf
         {
             base.OnMouseMove(e);
 
-            if (Pages != null)
+            if (Pages != null && _viewerContext != null)
             {
-               //RaiseEvent(GetCanvasEvent(e, CanvasMouseMoveEvent));
+                Point position = e.GetPosition(this);
+                Point canvasPosition = GetCanvasPosition(position);
+                var viewportPoint = new SKPoint((float)canvasPosition.X, (float)canvasPosition.Y);
+
+                _viewerContext.PointerPosition = viewportPoint;
+                _viewerContext.Render();
+
+                RaiseEvent(GetCanvasEvent(e, CanvasMouseMoveEvent));
             }
+        }
+
+        private void UpdatePointerState(MouseEventArgs e, PdfPanelPointerState state)
+        {
+            Point position = e.GetPosition(this);
+            Point canvasPosition = GetCanvasPosition(position);
+            var viewportPoint = new SKPoint((float)canvasPosition.X, (float)canvasPosition.Y);
+
+            _viewerContext.PointerPosition = viewportPoint;
+            _viewerContext.PointerState = state;
+            _viewerContext.Render();
         }
 
         private CanvasMouseEventArgs GetCanvasEvent(MouseEventArgs args, RoutedEvent routedEvent)
         {
-            return null;
-            //VisiblePageInfo[] visiblePages = lastPagesDrawingRequest?.VisiblePages;
-            //Point position = args.GetPosition(this);
-            //Point relativePosition = GetCanvasPosition(position);
-            //VisiblePageInfo? pageInfo = visiblePages?.Select(x => (VisiblePageInfo?)x).FirstOrDefault(x => x.Value.GetScaledBounds(Scale).Contains(relativePosition));
+            Point position = args.GetPosition(this);
+            Point canvasPosition = GetCanvasPosition(position);
 
-            //int? pageNumber = pageInfo?.PageNumber;
-            //Point? positionOnPage = pageInfo?.ToPagePosition(relativePosition, Scale);
+            var viewportPoint = new SKPoint((float)canvasPosition.X, (float)canvasPosition.Y);
 
-            //UpdateAnnotationPopup(pageInfo, pageNumber, positionOnPage);
+            PdfPanelPage page = _viewerContext?.GetPageAtViewportPoint(viewportPoint);
 
-            //return new CanvasMouseEventArgs(routedEvent, this, relativePosition, pageNumber, positionOnPage, args);
+            int? pageNumber = page?.PageNumber;
+            Point? positionOnPage = null;
+
+            if (page != null)
+            {
+                SKMatrix matrix = page.ViewportToPageMatrix(_viewerContext);
+                SKPoint pagePoint = matrix.MapPoint(viewportPoint);
+                positionOnPage = new Point(pagePoint.X, pagePoint.Y);
+            }
+
+            UpdateAnnotationPopup(page, pageNumber, positionOnPage);
+
+            return new CanvasMouseEventArgs(routedEvent, this, canvasPosition, pageNumber, positionOnPage, args);
         }
 
-        //private void UpdateAnnotationPopup(VisiblePageInfo? pageInfo, int? pageNumber, Point? positionOnPage)
-        //{
-        //    AnnotationPopup newPopup;
-
-        //    if (pageInfo.HasValue && Pages.TryGetPopup(pageNumber.Value, positionOnPage.Value, out var popup))
-        //    {
-        //        newPopup = popup;
-        //    }
-        //    else
-        //    {
-        //        newPopup = null;
-        //    }
-
-        //    if (Equals(AnnotationPopup, newPopup))
-        //    {
-        //        return;
-        //    }
-
-        //    AnnotationPopup = newPopup;
-
-        //    if (AnnotationToolTip != null)
-        //    {
-        //        if (newPopup != null)
-        //        {
-        //            AnnotationToolTip.Content = AnnotationPopup;
-        //        }
-
-        //        AnnotationToolTip.IsOpen = AnnotationPopup != null;
-        //    }
-        //}
-
-        public static readonly RoutedEvent DrawingErrorEvent = EventManager.RegisterRoutedEvent(
-            nameof(DrawingError),
-            RoutingStrategy.Bubble,
-            typeof(DrawingErrorEventHandler),
-            typeof(WpfPdfPanel));
-
-        /// <summary>
-        /// Occurs when an error happens during drawing operations.
-        /// </summary>
-        public event DrawingErrorEventHandler DrawingError
+        private void UpdateAnnotationPopup(PdfPanelPage page, int? pageNumber, Point? positionOnPage)
         {
-            add { AddHandler(DrawingErrorEvent, value); }
-            remove { RemoveHandler(DrawingErrorEvent, value); }
-        }
+            PdfAnnotationPopup newPopup = null;
 
-        public void RaiseDrawingError(Exception exception, string context)
-        {
-            var args = new DrawingErrorEventArgs(DrawingErrorEvent, this, exception, context);
-            RaiseEvent(args);
+            if (page != null && positionOnPage.HasValue)
+            {
+                var skPoint = new SKPoint((float)positionOnPage.Value.X, (float)positionOnPage.Value.Y);
+                
+                foreach (var popup in page.Popups)
+                {
+                    if (popup.Rect.Contains(skPoint))
+                    {
+                        newPopup = popup;
+                        break;
+                    }
+                }
+            }
+
+            if (Equals(AnnotationPopup, newPopup))
+            {
+                return;
+            }
+
+            AnnotationPopup = newPopup;
+
+            if (AnnotationToolTip != null)
+            {
+                if (newPopup != null)
+                {
+                    AnnotationToolTip.Content = AnnotationPopup;
+                }
+
+                AnnotationToolTip.IsOpen = AnnotationPopup != null;
+            }
         }
     }
 }
+
