@@ -11,7 +11,7 @@ namespace PdfPixel.PdfPanel.Wpf
     /// <summary>
     /// Contains implementation of the IScrollInfo interface and methods for scrolling and zooming.
     /// </summary>
-    public partial class SkiaPdfPanel : IScrollInfo
+    public partial class WpfPdfPanel : IScrollInfo
     {
         const int WM_MOUSEHWHEEL = 0x020E;
 
@@ -173,8 +173,8 @@ namespace PdfPixel.PdfPanel.Wpf
                 }
                 else
                 {
-                    centerY = _viewerContext.Height / 2;
-                    centerX = _viewerContext.Width / 2;
+                    centerY = _viewerContext.ViewportHeight / 2;
+                    centerX = _viewerContext.ViewportWidth / 2;
                 }
 
                 _viewerContext.UpdateScalePreserveOffset((float)Scale, centerX, centerY);
@@ -204,7 +204,7 @@ namespace PdfPixel.PdfPanel.Wpf
         {
             if (_viewerContext != null)
             {
-                _viewerContext.VerticalOffset += _viewerContext.Height;
+                _viewerContext.VerticalOffset += _viewerContext.ViewportHeight;
                 InvalidateVisual();
             }
         }
@@ -213,7 +213,7 @@ namespace PdfPixel.PdfPanel.Wpf
         {
             if (_viewerContext != null)
             {
-                _viewerContext.VerticalOffset -= _viewerContext.Height;
+                _viewerContext.VerticalOffset -= _viewerContext.ViewportHeight;
                 InvalidateVisual();
             }
         }
@@ -222,7 +222,7 @@ namespace PdfPixel.PdfPanel.Wpf
         {
             if (_viewerContext != null)
             {
-                _viewerContext.HorizontalOffset -= _viewerContext.Width;
+                _viewerContext.HorizontalOffset -= _viewerContext.ViewportWidth;
                 InvalidateVisual();
             }
         }
@@ -231,7 +231,7 @@ namespace PdfPixel.PdfPanel.Wpf
         {
             if (_viewerContext != null)
             {
-                _viewerContext.HorizontalOffset += _viewerContext.Width;
+                _viewerContext.HorizontalOffset += _viewerContext.ViewportWidth;
                 InvalidateVisual();
             }
         }

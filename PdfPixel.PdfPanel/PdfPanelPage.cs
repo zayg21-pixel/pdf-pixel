@@ -1,5 +1,4 @@
-﻿using PdfPixel.PdfPanel.Requests;
-using SkiaSharp;
+﻿using SkiaSharp;
 
 namespace PdfPixel.PdfPanel;
 
@@ -8,7 +7,7 @@ namespace PdfPixel.PdfPanel;
 /// </summary>
 public class PdfPanelPage
 {
-    internal PdfPanelPage(PageInfo info, int pageNumber)
+    internal PdfPanelPage(PdfPanelPageInfo info, int pageNumber)
     {
         Info = info;
         PageNumber = pageNumber;
@@ -17,7 +16,7 @@ public class PdfPanelPage
     /// <summary>
     /// Information about the page, it's size and rotation.
     /// </summary>
-    public PageInfo Info { get; set; }
+    public PdfPanelPageInfo Info { get; set; }
 
     /// <summary>
     /// Number of the page.
@@ -26,9 +25,11 @@ public class PdfPanelPage
 
     /// <summary>
     /// Gets the offset of the page.
-    /// Page offset is the unscaled distance from the top-left corner of the page to the top-left corner of the document.
+    /// Offset is expressed in the scaled canvas space (affected by the current zoom factor) and
+    /// represents the distance in device pixels from the top-left corner of the content area to
+    /// the top-left corner of this page.
     /// </summary>
-    public SKPoint Offset { get; internal set; }
+    public SKPoint Offset { get; set; }
 
     /// <summary>
     /// User defined rotation of the page in degrees.

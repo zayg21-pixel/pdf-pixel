@@ -1,9 +1,40 @@
-﻿using System.Linq;
+﻿using SkiaSharp;
+using System.Linq;
 
 namespace PdfPixel.PdfPanel.Extensions;
 
 public static class PdfPanelContextExtensions
 {
+    public static int GetCurrentPage(this PdfPanelContext context)
+    {
+        int pageCount = context.Pages.Count;
+        float viewportCenterX = context.HorizontalOffset + context.ViewportWidth / 2f;
+        float viewportCenterY = context.VerticalOffset + context.ViewportHeight / 2f;
+        int closestPageNumber = 1;
+        float closestDistance = float.MaxValue;
+
+        for (int i = 0; i < pageCount; i++)
+        {
+            PdfPanelPage page = context.Pages[i];
+            SKSize rotatedScaledSize = page.GetRotatedScaledSize(context.Scale);
+
+            float pageCenterX = page.Offset.X + rotatedScaledSize.Width / 2f;
+            float pageCenterY = page.Offset.Y + rotatedScaledSize.Height / 2f;
+
+            float deltaX = pageCenterX - viewportCenterX;
+            float deltaY = pageCenterY - viewportCenterY;
+            float distanceSquared = deltaX * deltaX + deltaY * deltaY;
+
+            if (distanceSquared < closestDistance)
+            {
+                closestDistance = distanceSquared;
+                closestPageNumber = page.PageNumber;
+            }
+        }
+
+        return closestPageNumber;
+    }
+
     public static void ScrollToPage(this PdfPanelContext context, int pageNumber)
     {
         var page = context.Pages.FirstOrDefault(p => p.PageNumber == pageNumber);
@@ -52,15 +83,15 @@ public static class PdfPanelContextExtensions
                 {
                     // TODO: implement correctly depending on layout
                     var maxVisibleWidth = context.Pages.Max(x => x.Info.GetRotatedSize(x.UserRotation).Width) + context.PagesPadding.Left + context.PagesPadding.Right + 1;
-                    var scale = context.Width / maxVisibleWidth;
+                    var scale = context.ViewportWidth / maxVisibleWidth;
                     UpdateScalePreserveOffset(context, scale, 0, 0);
                     break;
                 }
             case PdfPanelAutoScaleMode.ScaleToVisible:
                 {
-                    var visiblePages = context.Pages.Where(p => context.IsPageVisible(p)).ToList();
+                    var visiblePages = context.Pages.Where(p => p.IsPageVisible(context.ViewportRectangle, context.Scale)).ToList();
                     var maxVisibleWidth = visiblePages.Max(x => x.Info.GetRotatedSize(x.UserRotation).Width) + context.PagesPadding.Left + context.PagesPadding.Right + 1;
-                    var scale = context.Width / maxVisibleWidth;
+                    var scale = context.ViewportWidth / maxVisibleWidth;
 
                     UpdateScalePreserveOffset(context, scale, 0, 0);
                     break;

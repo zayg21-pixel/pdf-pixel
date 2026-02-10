@@ -15,7 +15,6 @@ public delegate void AfterDrawDelegate(SKCanvas canvas, PdfPanelPage[] visiblePa
 /// </summary>
 public sealed class PdfPanelPageCollection : ReadOnlyCollection<PdfPanelPage>, IDisposable
 {
-    private const double PictureScaleTolerance = 10e-3; // TODO: don't like it here
     private readonly ConcurrentDictionary<int, CachedSkPicture> pictureCache = new ConcurrentDictionary<int, CachedSkPicture>();
     private readonly ConcurrentDictionary<int, PdfAnnotationPopup[]> popupCache = new ConcurrentDictionary<int, PdfAnnotationPopup[]>();
     private readonly int[] cachedRotations;
@@ -112,7 +111,7 @@ public sealed class PdfPanelPageCollection : ReadOnlyCollection<PdfPanelPage>, I
         return new PdfPanelPageCollection(renderer, pages);
     }
 
-    internal IEnumerable<CachedSkPicture> UpdateCacheAndGetPictures(IEnumerable<int> visiblePages, float scale, int maxThumbnailSize)
+    internal IEnumerable<CachedSkPicture> UpdateCacheWithThumbnails(IEnumerable<int> visiblePages, float scale, int maxThumbnailSize)
     {
         var cachedPages = pictureCache.ToArray();
 
@@ -128,47 +127,65 @@ public sealed class PdfPanelPageCollection : ReadOnlyCollection<PdfPanelPage>, I
         {
             if (pictureCache.TryGetValue(page, out var cachedPicture))
             {
-                if (cachedPicture.Picture == null || Math.Abs(cachedPicture.Scale - scale) > PictureScaleTolerance)
+                if (Math.Abs(cachedPicture.Scale - scale) != 0)
                 {
-                    cachedPicture.UpdatePicture(Renderer.GetPicture(page, scale), scale);
+                    cachedPicture.UpdatePicture(null, scale);
                 }
 
                 yield return cachedPicture;
+                continue;
+            }
+
+            if (!popupCache.ContainsKey(page))
+            {
+                var popups = Renderer.GetAnnotationPopups(page);
+                popupCache.TryAdd(page, popups);
+            }
+
+            var thumbnailPicture = Renderer.GetThumbnail(page, maxThumbnailSize);
+
+            if (thumbnailPicture == null)
+            {
+                cachedPicture = new CachedSkPicture(null, page);
             }
             else
             {
-                if (!popupCache.ContainsKey(page))
-                {
-                    var popups = Renderer.GetAnnotationPopups(page);
-                    popupCache.TryAdd(page, popups);
-                }
+                cachedPicture = new CachedSkPicture(thumbnailPicture, page);
+            }
 
-                var thumbnailPicture = Renderer.GetThumbnail(page, maxThumbnailSize);
+            cachedPicture.UpdatePicture(null, scale);
 
-                if (thumbnailPicture == null)
+            lock (disposeLocker)
+            {
+                if (isDisposed)
                 {
-                    cachedPicture = new CachedSkPicture(null, page);
+                    cachedPicture.Dispose();
+                    yield break;
                 }
                 else
                 {
-                    cachedPicture = new CachedSkPicture(thumbnailPicture, page);
+                    pictureCache.TryAdd(page, cachedPicture);
                 }
-
-                lock (disposeLocker)
-                {
-                    if (isDisposed)
-                    {
-                        cachedPicture.Dispose();
-                        yield break;
-                    }
-                    else
-                    {
-                        pictureCache.TryAdd(page, cachedPicture);
-                    }
-                }
-
-                yield return cachedPicture;
             }
+
+            yield return cachedPicture;
+        }
+    }
+
+    internal IEnumerable<CachedSkPicture> GeneratePicturesForCachedPages()
+    {
+        var cachedPages = pictureCache.ToArray();
+
+        foreach (var cachedPage in cachedPages)
+        {
+            var cachedPicture = cachedPage.Value;
+
+            if (cachedPicture.Picture == null)
+            {
+                cachedPicture.UpdatePicture(Renderer.GetPicture(cachedPage.Key, cachedPicture.Scale), cachedPicture.Scale);
+            }
+
+            yield return cachedPicture;
         }
     }
 

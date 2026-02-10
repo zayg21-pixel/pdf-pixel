@@ -1,40 +1,46 @@
 ﻿using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using Microsoft.Extensions.Logging;
+using PdfPixel.Fonts.Management;
 using PdfPixel.PdfPanel;
+using PdfPixel.PdfPanel.Wpf;
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
 using System.Windows.Input;
 
 namespace PdfPixel.Wpf.Demo
 {
     public class MainWindowsViewModel : ObservableObject
     {
+        private static readonly ISkiaFontProvider FontProvider = new WindowsSkiaFontProvider("Times New Roman");
+        private readonly PdfDocumentReader reader;
+
         private int pageNumber;
-        private int rotation;
-        private int currentPageRotation;
         private PdfPanelAutoScaleMode autoScaleMode;
         private PdfPanelPageCollection pages;
+        private string selectedPdfFile;
 
         public MainWindowsViewModel()
         {
+            reader = new PdfDocumentReader(new LoggerFactory(), FontProvider);
+
+            PanelInterface = new WpfPdfPanelInterface();
             RotatePageCommand = new RelayCommand(RotatePage);
             RotateAllPagesCommand = new RelayCommand(RotateAllPages);
+            ZoomInCommand = new RelayCommand(() => PanelInterface.ZoomIn());
+            ZoomOutCommand = new RelayCommand(() => PanelInterface.ZoomOut());
+
+            LoadPdfFiles();
+            AutoScaleModes = Enum.GetValues(typeof(PdfPanelAutoScaleMode)).Cast<PdfPanelAutoScaleMode>().ToList();
+            AutoScaleMode = PdfPanelAutoScaleMode.ScaleToWidth;
         }
 
         public int PageNumber
         {
             get => pageNumber;
             set => SetProperty(ref pageNumber, value);
-        }
-
-        public int Rotation
-        {
-            get => rotation;
-            set => SetProperty(ref rotation, value);
-        }
-
-        public int CurrentPageRotation
-        {
-            get => currentPageRotation;
-            set => SetProperty(ref currentPageRotation, value);
         }
 
         public PdfPanelAutoScaleMode AutoScaleMode
@@ -46,6 +52,28 @@ namespace PdfPixel.Wpf.Demo
         public ICommand RotatePageCommand { get; }
 
         public ICommand RotateAllPagesCommand { get; }
+
+        public ICommand ZoomInCommand { get; }
+
+        public ICommand ZoomOutCommand { get; }
+
+        public WpfPdfPanelInterface PanelInterface { get; }
+
+        public List<string> PdfFiles { get; private set; }
+
+        public List<PdfPanelAutoScaleMode> AutoScaleModes { get; }
+
+        public string SelectedPdfFile
+        {
+            get => selectedPdfFile;
+            set
+            {
+                if (SetProperty(ref selectedPdfFile, value))
+                {
+                    LoadSelectedPdf();
+                }
+            }
+        }
 
         public PdfPanelPageCollection Pages
         {
@@ -77,18 +105,64 @@ namespace PdfPixel.Wpf.Demo
 
         private void RotatePage()
         {
-            CurrentPageRotation = GetNextRotation(CurrentPageRotation);
+            if (Pages == null || PageNumber < 1 || PageNumber > Pages.Count)
+            {
+                return;
+            }
+
             Pages[PageNumber - 1].UserRotation += 90;
+            PanelInterface.RequestRedraw();
         }
 
         private void RotateAllPages()
         {
-            Rotation = GetNextRotation(Rotation);
+            if (Pages == null)
+            {
+                return;
+            }
+
+            foreach (var page in Pages)
+            {
+                page.UserRotation += 90;
+            }
+
+            PanelInterface.RequestRedraw();
         }
 
-        private int GetNextRotation(int userRotation)
+        private void LoadPdfFiles()
         {
-            return (userRotation + 90) % 360;
+            var pdfDirectory = "./Pdfs";
+
+            if (Directory.Exists(pdfDirectory))
+            {
+                PdfFiles = Directory.GetFiles(pdfDirectory, "*.pdf").ToList();
+
+                if (PdfFiles.Count > 0)
+                {
+                    SelectedPdfFile = PdfFiles[0];
+                }
+            }
+            else
+            {
+                PdfFiles = new List<string>();
+            }
+        }
+
+        private void LoadSelectedPdf()
+        {
+            if (string.IsNullOrEmpty(SelectedPdfFile) || !File.Exists(SelectedPdfFile))
+            {
+                return;
+            }
+
+            var currentPages = Pages;
+            Pages = null;
+            currentPages?.Dispose();
+
+            var fileStream = File.OpenRead(SelectedPdfFile);
+            var pdfDocument = reader.Read(fileStream);
+            Pages = PdfPanelPageCollection.FromDocument(pdfDocument);
+            AutoScaleMode = PdfPanelAutoScaleMode.ScaleToWidth;
         }
     }
 }

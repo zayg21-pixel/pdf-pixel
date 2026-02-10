@@ -10,7 +10,8 @@ internal enum PageDrawFlags
 {
     Content = 1,
     Shadow = 2,
-    Background = 4
+    Background = 4,
+    Thumbnail = 8
 }
 
 /// <summary>
@@ -47,6 +48,11 @@ internal static class SkCanvasExtensions
             return;
         }
 
+        if (drawFlags.HasFlag(PageDrawFlags.Thumbnail))
+        {
+            DrawCachedThumbnail(canvas, picture, page);
+        }
+
         if (drawFlags.HasFlag(PageDrawFlags.Content))
         {
             DrawCachedPicture(canvas, picture, page);
@@ -69,13 +75,40 @@ internal static class SkCanvasExtensions
         }
     }
 
-    public static SKMatrix GetPictureTransformMatrix(float pictureWidth, float pictureHeight, PageInfo pageInfo, int userRotation)
+    private static void DrawCachedThumbnail(SKCanvas canvas, CachedSkPicture picture, VisiblePageInfo page)
+    {
+        lock (picture.DisposeLocker)
+        {
+            if (picture.IsDisposed)
+            {
+                return;
+            }
+
+            var thumbnail = picture.Thumbnail;
+
+            if (thumbnail == null)
+            {
+                return;
+            }
+
+            int saveCount = canvas.Save();
+            var thumbnailRect = SKRect.Create(0, 0, thumbnail.Width, thumbnail.Height);
+            var destRect = SKRect.Create(0, 0, page.Info.Width, page.Info.Height);
+            var transformMatrix = GetRotationTranslationMatrix(page.Info, page.UserRotation);
+            canvas.Concat(in transformMatrix);
+
+            var samplingOption = new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.None);
+            canvas.DrawImage(thumbnail, thumbnailRect, destRect, samplingOption);
+            canvas.RestoreToCount(saveCount);
+        }
+    }
+
+    private static SKMatrix GetRotationTranslationMatrix(PdfPanelPageInfo pageInfo, int userRotation)
     {
         var rotation = pageInfo.GetTotalRotation(userRotation);
         var infoWidth = pageInfo.Width;
         var infoHeight = pageInfo.Height;
 
-        var matrixScale = SKMatrix.CreateScale((float)(infoWidth / pictureWidth), (float)(infoHeight / pictureHeight));
         var matrixRotation = SKMatrix.CreateRotationDegrees(rotation);
 
         var translateX = rotation switch
@@ -93,12 +126,24 @@ internal static class SkCanvasExtensions
 
         var matrixTranslation = SKMatrix.CreateTranslation((float)translateX, (float)translateY);
 
-        return SKMatrix.Concat(SKMatrix.Concat(matrixRotation, matrixTranslation), matrixScale);
+        return SKMatrix.Concat(matrixRotation, matrixTranslation);
+    }
+
+    public static SKMatrix GetPictureTransformMatrix(float pictureWidth, float pictureHeight, PdfPanelPageInfo pageInfo, int userRotation)
+    {
+        var infoWidth = pageInfo.Width;
+        var infoHeight = pageInfo.Height;
+
+        var matrixScale = SKMatrix.CreateScale((float)(infoWidth / pictureWidth), (float)(infoHeight / pictureHeight));
+        var matrixRotationTranslation = GetRotationTranslationMatrix(pageInfo, userRotation);
+
+        return SKMatrix.Concat(matrixRotationTranslation, matrixScale);
     }
 
     private static void DrawPageShadow(SKCanvas canvas, VisiblePageInfo page)
     {
-        var pageRectangle = new SKRect(0, 0, page.Info.Width, page.Info.Height);
+        var rotatedSize = page.RotatedSize;
+        var pageRectangle = new SKRect(0, 0, rotatedSize.Width, rotatedSize.Height);
 
         if (!pageRectangle.Contains(canvas.LocalClipBounds))
         {
@@ -122,7 +167,7 @@ internal static class SkCanvasExtensions
 
     private static void DrawPageBackground(SKCanvas canvas, VisiblePageInfo page)
     {
-        var rotatedSize = page.RotatedSize; // TODO: why it's rotated size?
+        var rotatedSize = page.RotatedSize;
         var pageRectangle = new SKRect(0, 0, rotatedSize.Width, rotatedSize.Height);
 
         using var backgroundFill = new SKPaint

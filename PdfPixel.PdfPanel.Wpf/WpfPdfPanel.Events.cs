@@ -8,25 +8,25 @@ namespace PdfPixel.PdfPanel.Wpf
 {
     public delegate void CanvasMouseEventHandler(object sender, CanvasMouseEventArgs e);
 
-    public partial class SkiaPdfPanel
+    public partial class WpfPdfPanel
     {
         public static readonly RoutedEvent CanvasMouseMoveDownEvent = EventManager.RegisterRoutedEvent(
             nameof(CanvasMouseDown),
             RoutingStrategy.Bubble,
             typeof(CanvasMouseEventHandler),
-            typeof(SkiaPdfPanel));
+            typeof(WpfPdfPanel));
 
         public static readonly RoutedEvent CanvasMouseMoveUpEvent = EventManager.RegisterRoutedEvent(
             nameof(CanvasMouseUp),
             RoutingStrategy.Bubble,
             typeof(CanvasMouseEventHandler),
-            typeof(SkiaPdfPanel));
+            typeof(WpfPdfPanel));
 
         public static readonly RoutedEvent CanvasMouseMoveEvent = EventManager.RegisterRoutedEvent(
             nameof(CanvasMouseMove),
             RoutingStrategy.Bubble,
             typeof(CanvasMouseEventHandler),
-            typeof(SkiaPdfPanel));
+            typeof(WpfPdfPanel));
 
         /// <summary>
         /// Occurs when the mouse is moved over the canvas.
@@ -137,7 +137,7 @@ namespace PdfPixel.PdfPanel.Wpf
             nameof(DrawingError),
             RoutingStrategy.Bubble,
             typeof(DrawingErrorEventHandler),
-            typeof(SkiaPdfPanel));
+            typeof(WpfPdfPanel));
 
         /// <summary>
         /// Occurs when an error happens during drawing operations.

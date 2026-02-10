@@ -1,6 +1,8 @@
 ﻿using PdfPixel.PdfPanel.Extensions;
+using PdfPixel.PdfPanel.Layout;
 using PdfPixel.PdfPanel.Wpf.Drawing;
 using SkiaSharp;
+using System;
 using System.Windows;
 using System.Windows.Interop;
 using System.Windows.Media;
@@ -11,18 +13,17 @@ namespace PdfPixel.PdfPanel.Wpf
     /// <summary>
     /// Represents a panel that displays a PDF document using SkiaSharp.
     /// </summary>
-    public partial class SkiaPdfPanel : FrameworkElement
+    public partial class WpfPdfPanel : FrameworkElement
     {
         private readonly VisualCollection children;
 
         private PdfPanelContext _viewerContext;
         private PdfRenderingQueue renderingQueue;
         private IPdfPanelRenderTargetFactory renderTargetFactory;
-        private bool updatingScale;
+        private bool _updatingScale;
+        private bool _updatingPages;
 
-        private bool pageChangedLocally;
-
-        public SkiaPdfPanel()
+        public WpfPdfPanel()
         {
             UseLayoutRounding = true;
             RenderOptions.SetBitmapScalingMode(this, BitmapScalingMode.NearestNeighbor);
@@ -54,20 +55,6 @@ namespace PdfPixel.PdfPanel.Wpf
         /// Absolute position of canvas relative to parent window.
         /// </summary>
         public Point CanvasOffset { get; private set; }
-
-        /// <summary>
-        /// Requests a redraw of the panel to invoke <see cref="PdfViewerPageCollection.OnAfterDraw"/> delegate.
-        /// To redraw all pages use <see cref="UIElement.InvalidateVisual"/> method.
-        /// </summary>
-        public void RequestRedraw()
-        {
-            if (!CanRedraw())
-            {
-                return;
-            }
-
-            //EnqueueRequest(GetBaseDrawingRequest<RefreshGraphicsDrawingRequest>());
-        }
 
         /// <summary>
         /// Returns the position on the canvas.
@@ -114,6 +101,16 @@ namespace PdfPixel.PdfPanel.Wpf
             return base.ArrangeOverride(finalSize);
         }
 
+        private void RequestRedraw()
+        {
+            if (!CanRedraw())
+            {
+                return;
+            }
+
+            _viewerContext?.Render();
+        }
+
         private void ResetContent()
         {
             Scale = 1;
@@ -141,15 +138,6 @@ namespace PdfPixel.PdfPanel.Wpf
             return children[index];
         }
 
-        private int GetCurrentPage()
-        {
-            if (_viewerContext != null)
-            {
-                return _viewerContext.CurrentPage;
-            }
-            return 0;
-        }
-
         private void Update()
         {
             if (Pages == null)
@@ -157,22 +145,20 @@ namespace PdfPixel.PdfPanel.Wpf
                 return;
             }
 
-
-            //if (Pages.CheckDocumentUpdates())
-            //{
-            //    var currentPage = CurrentPage;
-
-            //    UpdateAutoScale();
-            //    UpdateScrollInfo();
-            //    ScrollToPage(currentPage);
-            //}
-            //else
-            //{
             SyncViewerCanvasState();
 
-            pageChangedLocally = true;
+            _updatingPages = true;
             CurrentPage = GetCurrentPage();
-            pageChangedLocally = false;
+            _updatingPages = false;
+        }
+
+        private int GetCurrentPage()
+        {
+            if (_viewerContext != null)
+            {
+                return _viewerContext.GetCurrentPage();
+            }
+            return 0;
         }
 
         private void EnsureViewerCanvas()
@@ -184,16 +170,16 @@ namespace PdfPixel.PdfPanel.Wpf
 
             renderingQueue?.Dispose();
             renderingQueue = new PdfRenderingQueue(new CpuSkSurfaceFactory());
-            renderTargetFactory = new SkiaPdfPanelRenderTargetFactory(this);
-            _viewerContext = new PdfPanelContext(Pages, renderingQueue, renderTargetFactory);
+            renderTargetFactory = new WpfPdfPanelRenderTargetFactory(this);
+            _viewerContext = new PdfPanelContext(Pages, renderingQueue, renderTargetFactory, new PdfPanelVerticalLayout());
         }
 
         private void SyncViewerCanvasState()
         {
             EnsureViewerCanvas();
 
-            _viewerContext.Width = (float)CanvasSize.Width;
-            _viewerContext.Height = (float)CanvasSize.Height;
+            _viewerContext.ViewportWidth = (float)CanvasSize.Width;
+            _viewerContext.ViewportHeight = (float)CanvasSize.Height;
             _viewerContext.MinimumPageGap = (float)PageGap;
             _viewerContext.PagesPadding = new SKRect(
                 (float)PagesPadding.Left,
@@ -214,14 +200,14 @@ namespace PdfPixel.PdfPanel.Wpf
             ExtentWidth = _viewerContext.ExtentWidth;
             VerticalOffset = _viewerContext.VerticalOffset;
             HorizontalOffset = _viewerContext.HorizontalOffset;
-            ViewportWidth = _viewerContext.Width;
-            ViewportHeight = _viewerContext.Height;
+            ViewportWidth = _viewerContext.ViewportWidth;
+            ViewportHeight = _viewerContext.ViewportHeight;
             ExtentHeight = _viewerContext.ExtentHeight;
             ExtentWidth = _viewerContext.ExtentWidth;
 
-            updatingScale = true;
+            _updatingScale = true;
             Scale = _viewerContext.Scale;
-            updatingScale = false;
+            _updatingScale = false;
 
             ScrollOwner.InvalidateScrollInfo();
         }
@@ -231,6 +217,24 @@ namespace PdfPixel.PdfPanel.Wpf
             return Pages != null &&
                 this.IsCanvasSizeValid(CanvasSize) &&
                 IsLoaded && IsVisible;
+        }
+
+        private void HandleInterfaceRequest(PdfPanelInterfaceAction action)
+        {
+            switch (action)
+            {
+                case PdfPanelInterfaceAction.ZoomIn:
+                    ZoomIn();
+                    break;
+
+                case PdfPanelInterfaceAction.ZoomOut:
+                    ZoomOut();
+                    break;
+
+                case PdfPanelInterfaceAction.RequestRedraw:
+                    InvalidateVisual();
+                    break;
+            }
         }
     }
 }

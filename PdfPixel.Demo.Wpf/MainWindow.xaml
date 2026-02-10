@@ -17,22 +17,23 @@
         </Grid.RowDefinitions>
 
         <StackPanel Orientation="Horizontal" Height="40">
-            <Button Content="Zoom In" Click="ZoomIn_Click" Margin="5" />
-            <Button Content="Zoom Out" Click="ZoomOut_Click" Margin="5" />
+            <Button Content="Zoom In" Command="{Binding ZoomInCommand}" Margin="5" />
+            <Button Content="Zoom Out" Command="{Binding ZoomOutCommand}" Margin="5" />
             <Button Content="Rotate Current" Command="{Binding RotatePageCommand}" Margin="5" />
             <Button Content="Rotate All" Command="{Binding RotateAllPagesCommand}" Margin="5" />
-            <ComboBox x:Name="FilesCombo" SelectionChanged="FilesCombo_SelectionChanged" Margin="5" />
-            <ComboBox x:Name="AutoScaleModeCombo" Margin="5" SelectedItem="{Binding AutoScaleMode}" />
+            <ComboBox Margin="5" ItemsSource="{Binding PdfFiles}" SelectedItem="{Binding SelectedPdfFile}" />
+            <ComboBox Margin="5" ItemsSource="{Binding AutoScaleModes}" SelectedItem="{Binding AutoScaleMode}" />
             <Label Content="Page:" Margin="5" />
             <TextBox Text="{Binding PageNumber}" Margin="5" MinWidth="50" />
         </StackPanel>
 
         <ScrollViewer Grid.Row="1" CanContentScroll="True" VerticalScrollBarVisibility="Visible" HorizontalScrollBarVisibility="Visible">
-            <pdfPanel:SkiaPdfPanel x:Name="pdfPanel"
+            <pdfPanel:WpfPdfPanel x:Name="pdfPanel"
                                    CurrentPage="{Binding PageNumber}"
-                                   Pages="{Binding Pages, Mode=OneWayToSource}"
-                                   AutoScaleMode="{Binding AutoScaleMode}">
-                <pdfPanel:SkiaPdfPanel.AnnotationToolTip>
+                                   Pages="{Binding Pages}"
+                                   AutoScaleMode="{Binding AutoScaleMode}"
+                                   PanelInterface="{Binding PanelInterface}">
+                <pdfPanel:WpfPdfPanel.AnnotationToolTip>
                     <ToolTip Background="Transparent" BorderThickness="0">
                         <!--<ToolTip.ContentTemplate>
                             <DataTemplate DataType="{x:Type pdfPanel:AnnotationPopup}">
@@ -52,8 +53,8 @@
                             </DataTemplate>
                         </ToolTip.ContentTemplate>-->
                     </ToolTip>
-                </pdfPanel:SkiaPdfPanel.AnnotationToolTip>
-            </pdfPanel:SkiaPdfPanel>
+                </pdfPanel:WpfPdfPanel.AnnotationToolTip>
+            </pdfPanel:WpfPdfPanel>
         </ScrollViewer>
     </Grid>
 </Window>

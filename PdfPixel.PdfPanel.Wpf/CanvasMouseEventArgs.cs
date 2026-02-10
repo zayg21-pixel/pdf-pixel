@@ -4,11 +4,11 @@ using System.Windows.Input;
 namespace PdfPixel.PdfPanel.Wpf
 {
     /// <summary>
-    /// Represents the event data for mouse events on the <see cref="SkiaPdfPanel"/>.
+    /// Represents the event data for mouse events on the <see cref="WpfPdfPanel"/>.
     /// </summary>
     public class CanvasMouseEventArgs : RoutedEventArgs
     {
-        public CanvasMouseEventArgs(RoutedEvent routedEvent, SkiaPdfPanel source, Point positionOnCanvas, int? pageNumber, Point? positionOnPage, MouseEventArgs mouseEventArgs)
+        public CanvasMouseEventArgs(RoutedEvent routedEvent, WpfPdfPanel source, Point positionOnCanvas, int? pageNumber, Point? positionOnPage, MouseEventArgs mouseEventArgs)
             : base(routedEvent, source)
         {
             PositionOnCanvas = positionOnCanvas;

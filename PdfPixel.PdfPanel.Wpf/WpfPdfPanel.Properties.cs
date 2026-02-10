@@ -5,46 +5,49 @@ using System.Windows.Media;
 
 namespace PdfPixel.PdfPanel.Wpf
 {
-    public partial class SkiaPdfPanel
+    public partial class WpfPdfPanel
     {
-        public static readonly DependencyProperty PagesProperty = DependencyProperty.Register(nameof(Pages), typeof(PdfPanelPageCollection), typeof(SkiaPdfPanel),
+        public static readonly DependencyProperty PagesProperty = DependencyProperty.Register(nameof(Pages), typeof(PdfPanelPageCollection), typeof(WpfPdfPanel),
             new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.AffectsRender, PagesProperty_Changed));
 
-        public static readonly DependencyProperty ScrollTickProperty = DependencyProperty.Register(nameof(ScrollTick), typeof(int), typeof(SkiaPdfPanel),
+        public static readonly DependencyProperty ScrollTickProperty = DependencyProperty.Register(nameof(ScrollTick), typeof(int), typeof(WpfPdfPanel),
             new FrameworkPropertyMetadata(100, FrameworkPropertyMetadataOptions.AffectsRender));
 
-        public static readonly DependencyProperty ScaleProperty = DependencyProperty.Register(nameof(Scale), typeof(double), typeof(SkiaPdfPanel),
+        public static readonly DependencyProperty ScaleProperty = DependencyProperty.Register(nameof(Scale), typeof(double), typeof(WpfPdfPanel),
             new FrameworkPropertyMetadata(1d, FrameworkPropertyMetadataOptions.AffectsRender | FrameworkPropertyMetadataOptions.BindsTwoWayByDefault, ScaleProperty_Changed));
 
-        public static readonly DependencyProperty ScaleFactorProperty = DependencyProperty.Register(nameof(ScaleFactor), typeof(double), typeof(SkiaPdfPanel),
+        public static readonly DependencyProperty ScaleFactorProperty = DependencyProperty.Register(nameof(ScaleFactor), typeof(double), typeof(WpfPdfPanel),
             new FrameworkPropertyMetadata(0.1d, FrameworkPropertyMetadataOptions.AffectsRender));
 
-        public static readonly DependencyProperty MinScaleProperty = DependencyProperty.Register(nameof(MinScale), typeof(double), typeof(SkiaPdfPanel),
+        public static readonly DependencyProperty MinScaleProperty = DependencyProperty.Register(nameof(MinScale), typeof(double), typeof(WpfPdfPanel),
             new FrameworkPropertyMetadata(0.1d, FrameworkPropertyMetadataOptions.AffectsRender));
 
-        public static readonly DependencyProperty MaxScaleProperty = DependencyProperty.Register(nameof(MaxScale), typeof(double), typeof(SkiaPdfPanel),
+        public static readonly DependencyProperty MaxScaleProperty = DependencyProperty.Register(nameof(MaxScale), typeof(double), typeof(WpfPdfPanel),
             new FrameworkPropertyMetadata(10d, FrameworkPropertyMetadataOptions.AffectsRender));
 
-        public static readonly DependencyProperty PageGapProperty = DependencyProperty.Register(nameof(PageGap), typeof(double), typeof(SkiaPdfPanel),
+        public static readonly DependencyProperty PageGapProperty = DependencyProperty.Register(nameof(PageGap), typeof(double), typeof(WpfPdfPanel),
             new FrameworkPropertyMetadata(20d, FrameworkPropertyMetadataOptions.AffectsRender));
 
-        public static readonly DependencyProperty PagesPaddingProperty = DependencyProperty.Register(nameof(PagesPadding), typeof(Thickness), typeof(SkiaPdfPanel),
+        public static readonly DependencyProperty PagesPaddingProperty = DependencyProperty.Register(nameof(PagesPadding), typeof(Thickness), typeof(WpfPdfPanel),
             new FrameworkPropertyMetadata(new Thickness(20), FrameworkPropertyMetadataOptions.AffectsRender));
 
-        public static readonly DependencyProperty CurrentPageProperty = DependencyProperty.Register(nameof(CurrentPage), typeof(int), typeof(SkiaPdfPanel),
+        public static readonly DependencyProperty CurrentPageProperty = DependencyProperty.Register(nameof(CurrentPage), typeof(int), typeof(WpfPdfPanel),
             new FrameworkPropertyMetadata(1, FrameworkPropertyMetadataOptions.AffectsRender | FrameworkPropertyMetadataOptions.BindsTwoWayByDefault, CurrentPageProperty_Changed));
 
-        public static readonly DependencyProperty MaxThumbnailSizeProperty = DependencyProperty.Register(nameof(MaxThumbnailSize), typeof(int), typeof(SkiaPdfPanel),
+        public static readonly DependencyProperty MaxThumbnailSizeProperty = DependencyProperty.Register(nameof(MaxThumbnailSize), typeof(int), typeof(WpfPdfPanel),
             new FrameworkPropertyMetadata(256, FrameworkPropertyMetadataOptions.AffectsRender));
 
-        public static readonly DependencyProperty BackgroundColorProperty = DependencyProperty.Register(nameof(BackgroundColor), typeof(System.Windows.Media.Color), typeof(SkiaPdfPanel),
+        public static readonly DependencyProperty BackgroundColorProperty = DependencyProperty.Register(nameof(BackgroundColor), typeof(System.Windows.Media.Color), typeof(WpfPdfPanel),
             new FrameworkPropertyMetadata(Colors.LightGray, FrameworkPropertyMetadataOptions.AffectsRender));
 
-        public static readonly DependencyProperty AutoScaleModeProperty = DependencyProperty.Register(nameof(AutoScaleMode), typeof(PdfPanelAutoScaleMode), typeof(SkiaPdfPanel),
+        public static readonly DependencyProperty AutoScaleModeProperty = DependencyProperty.Register(nameof(AutoScaleMode), typeof(PdfPanelAutoScaleMode), typeof(WpfPdfPanel),
             new FrameworkPropertyMetadata(PdfPanelAutoScaleMode.NoAutoScale, FrameworkPropertyMetadataOptions.AffectsRender | FrameworkPropertyMetadataOptions.BindsTwoWayByDefault));
 
-        public static readonly DependencyProperty AnnotationPopupProperty = DependencyProperty.Register(nameof(AnnotationPopup), typeof(PdfAnnotationPopup), typeof(SkiaPdfPanel),
+        public static readonly DependencyProperty AnnotationPopupProperty = DependencyProperty.Register(nameof(AnnotationPopup), typeof(PdfAnnotationPopup), typeof(WpfPdfPanel),
             new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.AffectsRender));
+
+        public static readonly DependencyProperty PanelInterfaceProperty = DependencyProperty.Register(nameof(PanelInterface), typeof(WpfPdfPanelInterface), typeof(WpfPdfPanel),
+            new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.None, PanelInterfaceProperty_Changed));
 
         /// <summary>
         /// Gets or sets the collection of pages.
@@ -170,9 +173,18 @@ namespace PdfPixel.PdfPanel.Wpf
         /// </summary>
         public ToolTip AnnotationToolTip { get; set; }
 
+        /// <summary>
+        /// Gets or sets the panel interface for controlling panel operations via MVVM.
+        /// </summary>
+        public WpfPdfPanelInterface PanelInterface
+        {
+            get => (WpfPdfPanelInterface)GetValue(PanelInterfaceProperty);
+            set => SetValue(PanelInterfaceProperty, value);
+        }
+
         private static void PagesProperty_Changed(DependencyObject d, DependencyPropertyChangedEventArgs e)
         {
-            var source = (SkiaPdfPanel)d;
+            var source = (WpfPdfPanel)d;
 
             if (e.NewValue is null)
             {
@@ -182,7 +194,7 @@ namespace PdfPixel.PdfPanel.Wpf
 
         private static void ScaleProperty_Changed(DependencyObject d, DependencyPropertyChangedEventArgs e)
         {
-            var source = (SkiaPdfPanel)d;
+            var source = (WpfPdfPanel)d;
             var oldValue = (e.OldValue as double?) ?? 1;
 
             if (source.Scale < source.MinScale)
@@ -195,7 +207,7 @@ namespace PdfPixel.PdfPanel.Wpf
                 source.Scale = source.MaxScale;
             }
 
-            if (!source.updatingScale)
+            if (!source._updatingScale)
             {
                 source.AutoScaleMode = PdfPanelAutoScaleMode.NoAutoScale;
                 source.OnScaleChanged();
@@ -204,7 +216,7 @@ namespace PdfPixel.PdfPanel.Wpf
 
         private static void CurrentPageProperty_Changed(DependencyObject d, DependencyPropertyChangedEventArgs e)
         {
-            var source = (SkiaPdfPanel)d;
+            var source = (WpfPdfPanel)d;
 
             if (source.Pages == null)
             {
@@ -226,9 +238,24 @@ namespace PdfPixel.PdfPanel.Wpf
                 source.CurrentPage = source.Pages.Count;
             }
 
-            if (!source.pageChangedLocally)
+            if (!source._updatingPages)
             {
                 source.ScrollToPage(source.CurrentPage);
+            }
+        }
+
+        private static void PanelInterfaceProperty_Changed(DependencyObject d, DependencyPropertyChangedEventArgs e)
+        {
+            var source = (WpfPdfPanel)d;
+
+            if (e.OldValue is WpfPdfPanelInterface oldInterface)
+            {
+                oldInterface.OnRequest = null;
+            }
+
+            if (e.NewValue is WpfPdfPanelInterface newInterface)
+            {
+                newInterface.OnRequest = source.HandleInterfaceRequest;
             }
         }
     }

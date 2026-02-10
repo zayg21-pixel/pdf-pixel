@@ -1,11 +1,10 @@
-﻿using PdfPixel.PdfPanel.Requests;
-using SkiaSharp;
+﻿using SkiaSharp;
 
 namespace PdfPixel.PdfPanel;
 
 internal readonly struct VisiblePageInfo
 {
-    public VisiblePageInfo(int pageNumber, SKPoint offset, PageInfo pageInfo, int userRotation)
+    public VisiblePageInfo(int pageNumber, SKPoint offset, PdfPanelPageInfo pageInfo, int userRotation)
     {
         PageNumber = pageNumber;
         Offset = offset;
@@ -35,7 +34,7 @@ internal readonly struct VisiblePageInfo
     /// <summary>
     /// Gets the page information.
     /// </summary>
-    public PageInfo Info { get; }
+    public PdfPanelPageInfo Info { get; }
 
     /// <summary>
     /// Gets the user rotation of the page.

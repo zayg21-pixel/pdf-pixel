@@ -16,7 +16,7 @@ internal sealed class CachedSkPicture : IDisposable
 
     public SKPicture Picture { get; private set; }
 
-    public SKPicture AnnitationPicture { get; private set; } // TODO: use
+    public SKPicture AnnotationPicture { get; private set; } // TODO: use
 
     public float Scale { get; private set; }
 

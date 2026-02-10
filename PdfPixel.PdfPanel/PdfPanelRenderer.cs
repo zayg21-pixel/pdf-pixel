@@ -1,6 +1,5 @@
 ﻿using PdfPixel.Annotations.Models;
 using PdfPixel.Models;
-using PdfPixel.PdfPanel.Requests;
 using SkiaSharp;
 using System;
 using System.Collections.Generic;
@@ -19,10 +18,10 @@ internal sealed class PdfPanelRenderer
         this.document = document;
     }
 
-    public PageInfo GetPageInfo(int pageNumber)
+    public PdfPanelPageInfo GetPageInfo(int pageNumber)
     {
         var pdfPage = document.Pages[pageNumber - 1];
-        return new PageInfo(pdfPage.CropBox.Width, pdfPage.CropBox.Height, pdfPage.Rotation);
+        return new PdfPanelPageInfo(pdfPage.CropBox.Width, pdfPage.CropBox.Height, pdfPage.Rotation);
     }
 
     public PdfAnnotationPopup[] GetAnnotationPopups(int pageNumber)
