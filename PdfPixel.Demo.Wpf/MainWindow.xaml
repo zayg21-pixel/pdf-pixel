@@ -7,8 +7,18 @@
         xmlns:pdfPanel="clr-namespace:PdfPixel.PdfPanel;assembly=PdfPixel.PdfPanel"
         xmlns:wpfPdfPanel="clr-namespace:PdfPixel.PdfPanel.Wpf;assembly=PdfPixel.PdfPanel.Wpf"
         mc:Ignorable="d"
-        Title="MainWindow" Height="450" Width="800">
-    <Grid>
+        ThemeMode="System"
+        Title="PDF Pixel" Width="800" Height="600">
+    <Window.Resources>
+        <Style x:Key="SeparatorStyle" TargetType="Separator">
+        </Style>
+        <Style x:Key="PageTextBox" TargetType="TextBox">
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Background" Value="Red" />
+        </Style>
+    </Window.Resources>
+        
+    <Grid Background="{DynamicResource {x:Static SystemColors.ControlBrushKey}}">
         <Grid.DataContext>
             <local:MainWindowsViewModel />
         </Grid.DataContext>
@@ -17,23 +27,65 @@
             <RowDefinition />
         </Grid.RowDefinitions>
 
-        <StackPanel Orientation="Horizontal" Height="40">
-            <Button Content="Zoom In" Command="{Binding ZoomInCommand}" Margin="5" />
-            <Button Content="Zoom Out" Command="{Binding ZoomOutCommand}" Margin="5" />
-            <Button Content="Rotate Current" Command="{Binding RotatePageCommand}" Margin="5" />
-            <Button Content="Rotate All" Command="{Binding RotateAllPagesCommand}" Margin="5" />
-            <ComboBox Margin="5" ItemsSource="{Binding PdfFiles}" SelectedItem="{Binding SelectedPdfFile}" />
-            <ComboBox Margin="5" ItemsSource="{Binding AutoScaleModes}" SelectedItem="{Binding AutoScaleMode}" />
-            <Label Content="Page:" Margin="5" />
-            <TextBox Text="{Binding PageNumber}" Margin="5" MinWidth="50" />
-        </StackPanel>
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <ToolBar ToolBarTray.IsLocked="True" Grid.Column="0">
+                <ComboBox ItemsSource="{Binding PdfFiles}" SelectedItem="{Binding SelectedPdfFile}" MaxWidth="300" />
+            </ToolBar>
+
+            <ToolBar Grid.Column="1" HorizontalAlignment="Center" ToolBarTray.IsLocked="True">
+
+                <Button Command="{Binding ZoomInCommand}" ToolTip="Zoom In (Ctrl++)" Cursor="Hand">
+                    <TextBlock Text="&#xE8A3;" FontFamily="{StaticResource SymbolThemeFontFamily}" FontSize="16" VerticalAlignment="Center" />
+                </Button>
+
+                <Button Command="{Binding ZoomOutCommand}" ToolTip="Zoom Out (Ctrl+-)" Cursor="Hand">
+                    <TextBlock Text="&#xE71F;" FontFamily="{StaticResource SymbolThemeFontFamily}" FontSize="16" VerticalAlignment="Center" />
+                </Button>
+
+                <Separator VerticalAlignment="Center" Height="20" Margin="4 0" />
+
+                <TextBox Text="{Binding PageNumber, UpdateSourceTrigger=PropertyChanged}"
+                         VerticalAlignment="Center" MinWidth="30" />
+
+                <TextBlock Text="of" VerticalAlignment="Center" Margin="0 0 4 0" />
+                <TextBlock Text="{Binding Pages.Count}" VerticalAlignment="Center" />
+
+                <Separator VerticalAlignment="Center" Height="20" Margin="4 0" />
+
+                <Button Command="{Binding RotatePageCommand}" ToolTip="Rotate Current Page">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="&#xE7AD;" FontFamily="{StaticResource SymbolThemeFontFamily}" FontSize="16" Margin="0 0 4 0" VerticalAlignment="Center" />
+                        <TextBlock Text="Rotate" />
+                    </StackPanel>
+                </Button>
+
+                <Button Command="{Binding RotateAllPagesCommand}" ToolTip="Rotate All Pages">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="&#xE7AD;" FontFamily="{StaticResource SymbolThemeFontFamily}" FontSize="16" Margin="0 0 4 0" VerticalAlignment="Center"  />
+                        <TextBlock Text="Rotate All" />
+                    </StackPanel>
+                </Button>
+
+            </ToolBar>
+
+            <ToolBar ToolBarTray.IsLocked="True" Grid.Column="2">
+                <TextBlock Text="Scale:" VerticalAlignment="Center" Margin="0 0 4 0" />
+                <ComboBox ItemsSource="{Binding AutoScaleModes}" SelectedItem="{Binding AutoScaleMode}" />
+            </ToolBar>
+        </Grid>
 
         <ScrollViewer Grid.Row="1" CanContentScroll="True" VerticalScrollBarVisibility="Visible" HorizontalScrollBarVisibility="Visible">
             <wpfPdfPanel:WpfPdfPanel x:Name="pdfPanel"
-                                   CurrentPage="{Binding PageNumber}"
-                                   Pages="{Binding Pages}"
-                                   AutoScaleMode="{Binding AutoScaleMode}"
-                                   PanelInterface="{Binding PanelInterface}">
+                                     CurrentPage="{Binding PageNumber}"
+                                     Pages="{Binding Pages}"
+                                     PageCornerRadius="8"
+                                     AutoScaleMode="{Binding AutoScaleMode}"
+                                     PanelInterface="{Binding PanelInterface}">
                 <wpfPdfPanel:WpfPdfPanel.AnnotationToolTip>
                     <ToolTip Background="Transparent" BorderThickness="0">
                         <ToolTip.ContentTemplate>

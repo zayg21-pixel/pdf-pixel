@@ -9,7 +9,7 @@ namespace PdfPixel.PdfPanel;
 /// </summary>
 public class PdfAnnotationPopup
 {
-    public PdfAnnotationPopup(PdfAnnotationBase annotation, AnnotationMessage[] messages, SKRect rect)
+    public PdfAnnotationPopup(PdfAnnotationBase annotation, PdfAnnotationMessage[] messages, SKRect rect)
     {
         Annotation = annotation ?? throw new ArgumentNullException(nameof(annotation));
         Messages = messages ?? throw new ArgumentNullException(nameof(messages));
@@ -25,12 +25,34 @@ public class PdfAnnotationPopup
     /// Thread of annotation messages (from oldest to newest).
     /// First message is the root annotation, subsequent messages are replies in chronological order.
     /// </summary>
-    public AnnotationMessage[] Messages { get; }
+    public PdfAnnotationMessage[] Messages { get; }
 
     /// <summary>
     /// Position of the popup rectangle in PDF coordinates.
     /// </summary>
     public SKRect Rect { get; }
+
+    /// <summary>
+    /// Determines if this annotation popup is interactive (e.g., link, bubble, or has special visual states).
+    /// </summary>
+    /// <returns>True if the annotation is interactive; otherwise, false.</returns>
+    public bool IsInteractive()
+    {
+        if (Annotation is PdfLinkAnnotation)
+        {
+            return true;
+        }
+        if (Annotation.ShouldDisplayBubble == true)
+        {
+            return true;
+        }
+        if (Annotation.SupportedVisualStates != PdfAnnotationVisualStateKind.Normal &&
+            Annotation.SupportedVisualStates != PdfAnnotationVisualStateKind.None)
+        {
+            return true;
+        }
+        return false;
+    }
 
     public override int GetHashCode()
     {
@@ -43,32 +65,4 @@ public class PdfAnnotationPopup
                Equals(Annotation, other.Annotation) && 
                Rect.Equals(other.Rect);
     }
-}
-
-/// <summary>
-/// Contains information about a single annotation message.
-/// </summary>
-public readonly struct AnnotationMessage
-{
-    public AnnotationMessage(DateTimeOffset? date, string title, string contents)
-    {
-        CreationDate = date;
-        Title = title;
-        Contents = contents;
-    }
-
-    /// <summary>
-    /// Date when the message was created.
-    /// </summary>
-    public DateTimeOffset? CreationDate { get; }
-
-    /// <summary>
-    /// Title of the message.
-    /// </summary>
-    public string Title { get; }
-
-    /// <summary>
-    /// Contents of the message.
-    /// </summary>
-    public string Contents { get; }
 }

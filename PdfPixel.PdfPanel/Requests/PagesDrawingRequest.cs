@@ -7,15 +7,15 @@ namespace PdfPixel.PdfPanel.Requests;
 /// <summary>
 /// Request to draw pages on rendering panel.
 /// </summary>
-public class PagesDrawingRequest : DrawingRequest
+internal class PagesDrawingRequest : DrawingRequest
 {
     public PdfPanelPageCollection Pages { get; set; }
-
-    public VisiblePageInfo[] VisiblePages { get; set; }
 
     public SKColor BackgroundColor { get; set; }
 
     public int MaxThumbnailSize { get; set; }
+
+    public float PageCornerRadius { get; set; }
 
     public override bool Equals(object obj)
     {
@@ -24,8 +24,8 @@ public class PagesDrawingRequest : DrawingRequest
             return base.Equals(obj) &&
                 BackgroundColor == parameters.BackgroundColor &&
                 MaxThumbnailSize == parameters.MaxThumbnailSize &&
-                Pages == parameters.Pages &&
-                VisiblePages.SequenceEqual(parameters.VisiblePages);
+                PageCornerRadius == parameters.PageCornerRadius &&
+                Pages == parameters.Pages;
         }
         else
         {

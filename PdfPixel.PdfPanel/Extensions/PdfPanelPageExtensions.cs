@@ -207,7 +207,16 @@ public static class PdfPanelPageExtensions
         return matrix;
     }
 
-    private static SKMatrix GetInverseRotationMatrix(float width, float height, int rotationDegrees)
+    /// <summary>
+    /// Calculates the inverse rotation transformation matrix for a rectangular area with the specified width, height,
+    /// and rotation angle.
+    /// </summary>
+    /// <param name="width">The width of the area to which the rotation is applied. Must be a positive value.</param>
+    /// <param name="height">The height of the area to which the rotation is applied. Must be a positive value.</param>
+    /// <param name="rotationDegrees">The rotation angle, in degrees, to invert. Valid values are between 0 and 359; negative values are normalized to
+    /// this range.</param>
+    /// <returns>An SKMatrix representing the inverse rotation transformation for the specified area and angle.</returns>
+    public static SKMatrix GetInverseRotationMatrix(float width, float height, int rotationDegrees)
     {
         rotationDegrees = rotationDegrees % 360;
         if (rotationDegrees < 0)

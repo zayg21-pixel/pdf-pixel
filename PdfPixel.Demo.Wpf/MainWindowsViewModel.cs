@@ -3,7 +3,9 @@ using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
 using PdfPixel.Fonts.Management;
 using PdfPixel.PdfPanel;
+using PdfPixel.PdfPanel.Requests;
 using PdfPixel.PdfPanel.Wpf;
+using SkiaSharp;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -27,13 +29,14 @@ namespace PdfPixel.Wpf.Demo
             reader = new PdfDocumentReader(new LoggerFactory(), FontProvider);
 
             PanelInterface = new WpfPdfPanelInterface();
+            PanelInterface.OnAfterDraw = OnAfterDraw;
             RotatePageCommand = new RelayCommand(RotatePage);
             RotateAllPagesCommand = new RelayCommand(RotateAllPages);
             ZoomInCommand = new RelayCommand(() => PanelInterface.ZoomIn());
             ZoomOutCommand = new RelayCommand(() => PanelInterface.ZoomOut());
 
             LoadPdfFiles();
-            AutoScaleModes = Enum.GetValues(typeof(PdfPanelAutoScaleMode)).Cast<PdfPanelAutoScaleMode>().ToList();
+            AutoScaleModes = new List<PdfPanelAutoScaleMode> { PdfPanelAutoScaleMode.NoAutoScale, PdfPanelAutoScaleMode.ScaleToWidth };
             AutoScaleMode = PdfPanelAutoScaleMode.ScaleToWidth;
         }
 
@@ -78,14 +81,21 @@ namespace PdfPixel.Wpf.Demo
         public PdfPanelPageCollection Pages
         {
             get => pages;
-            set
-            {
-                SetProperty(ref pages, value);
+            set => SetProperty(ref pages, value);
+        }
 
-                //if (value != null)
-                //{
-                //    pages.OnAfterDraw = AfterDrawDelegate;
-                //}
+        private void OnAfterDraw(SKCanvas canvas, DrawingRequest request)
+        {
+            foreach (var page in request.VisiblePages)
+            {
+                canvas.Save();
+                var matrix = page.GetToPageMatrix(request.Scale);
+                canvas.Concat(matrix);
+
+                canvas.DrawRect(new SKRect(0, 0, 10, 10), new SKPaint { Style = SKPaintStyle.Fill, Color = SKColors.Red });
+
+                canvas.Restore();
+
             }
         }
 
@@ -121,12 +131,16 @@ namespace PdfPixel.Wpf.Demo
                 return;
             }
 
+            var oldPage = PageNumber;
+
             foreach (var page in Pages)
             {
                 page.UserRotation += 90;
             }
 
             PanelInterface.RequestRedraw();
+
+            PageNumber = oldPage;
         }
 
         private void LoadPdfFiles()

@@ -3,6 +3,8 @@ using PdfPixel.PdfPanel.Extensions;
 using PdfPixel.PdfPanel.Layout;
 using PdfPixel.PdfPanel.Wpf.Drawing;
 using SkiaSharp;
+using System;
+using System.Diagnostics;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Interop;
@@ -23,10 +25,8 @@ namespace PdfPixel.PdfPanel.Wpf
         private IPdfPanelRenderTargetFactory renderTargetFactory;
         private bool _updatingScale;
         private bool _updatingPages;
+        private PdfAnnotationPopup _lastAnnotationPopup;
         private PdfPanelPointerState _lastAnnotationState;
-        private PdfAnnotationPopup _lastClickedAnnotation;
-        private PdfWidgetAnnotation _focusedWidget;
-        private PdfWidgetAnnotation _lastHoveredWidget;
 
         public WpfPdfPanel()
         {
@@ -108,16 +108,12 @@ namespace PdfPixel.PdfPanel.Wpf
 
         private void ResetContent()
         {
-            // TODO: complete
             Scale = 1;
             CurrentPage = 1;
             HorizontalOffset = 0;
             VerticalOffset = 0;
 
-            if (this.IsCanvasSizeValid(CanvasSize))
-            {
-                //EnqueueRequest(GetBaseDrawingRequest<ResetDrawingRequest>());
-            }
+            _viewerContext?.Reset();
         }
 
         protected override void OnRender(DrawingContext drawingContext)
@@ -144,7 +140,13 @@ namespace PdfPixel.PdfPanel.Wpf
             SyncViewerCanvasState();
 
             _updatingPages = true;
-            CurrentPage = GetCurrentPage();
+            var newPage = GetCurrentPage();
+
+            if (newPage != CurrentPage)
+            {
+                CurrentPage = newPage;
+            }
+
             _updatingPages = false;
         }
 
@@ -182,12 +184,17 @@ namespace PdfPixel.PdfPanel.Wpf
                 (float)PagesPadding.Top,
                 (float)PagesPadding.Right,
                 (float)PagesPadding.Bottom);
+            _viewerContext.PageCornerRadius = (float)PageCornerRadius;
 
             var backgroundColor = BackgroundColor;
             _viewerContext.BackgroundColor = new SKColor(backgroundColor.R, backgroundColor.G, backgroundColor.B, backgroundColor.A);
             _viewerContext.MaxThumbnailSize = MaxThumbnailSize;
 
+            UpdatePointerState();
+
             _viewerContext.Update();
+
+            UpdateAnnotationState();
 
             _viewerContext.SetAutoScaleMode(AutoScaleMode);
             _viewerContext.Update();
@@ -228,8 +235,123 @@ namespace PdfPixel.PdfPanel.Wpf
                     break;
 
                 case PdfPanelInterfaceAction.RequestRedraw:
-                    InvalidateVisual();
+                    Update();
+                    _viewerContext?.Render();
                     break;
+                case PdfPanelInterfaceAction.RequestRefresh:
+                    _viewerContext?.Refresh();
+                    break;
+            }
+        }
+
+        private void UpdatePointerState()
+        {
+            Point position = Mouse.GetPosition(this);
+            Point canvasPosition = GetCanvasPosition(position);
+            var viewportPoint = new SKPoint((float)canvasPosition.X, (float)canvasPosition.Y);
+            var state = Mouse.LeftButton == MouseButtonState.Pressed ? PdfPanelButtonState.Pressed : PdfPanelButtonState.Default;
+
+            _viewerContext.PointerPosition = viewportPoint;
+            _viewerContext.PointerState = state;
+        }
+
+        private void UpdateAnnotationState()
+        {
+            PdfAnnotationPopup currentPopup = _viewerContext.ActiveAnnotation;
+
+            bool wasPressed = _lastAnnotationPopup != null && _lastAnnotationState == PdfPanelPointerState.Pressed;
+            bool isPressed = currentPopup != null && _viewerContext.ActiveAnnotationState == PdfPanelPointerState.Pressed;
+
+            if (wasPressed && !isPressed && _lastAnnotationPopup.Annotation is PdfLinkAnnotation linkAnnotation)
+            {
+                HandleLinkAnnotationClick(linkAnnotation);
+            }
+
+            UpdateAnnotationPopup(currentPopup);
+
+            _lastAnnotationPopup = currentPopup;
+            _lastAnnotationState = _viewerContext.ActiveAnnotationState;
+        }
+
+        private void UpdateAnnotationPopup(PdfAnnotationPopup currentPopup)
+        {
+            if (AnnotationPopup != currentPopup)
+            {
+                AnnotationPopup = currentPopup;
+
+                UpdateCursorForAnnotation(currentPopup);
+
+                if (AnnotationToolTip != null)
+                {
+                    if (currentPopup != null)
+                    {
+                        AnnotationToolTip.Content = AnnotationPopup;
+                    }
+
+                    AnnotationToolTip.IsOpen = AnnotationPopup != null;
+                }
+            }
+        }
+
+        private void UpdateCursorForAnnotation(PdfAnnotationPopup popup)
+        {
+            if (popup != null && popup.IsInteractive())
+            {
+                Cursor = Cursors.Hand;
+            }
+            else
+            {
+                Cursor = Cursors.Arrow;
+            }
+        }
+
+        private void HandleLinkAnnotationClick(PdfLinkAnnotation linkAnnotation)
+        {
+            if (linkAnnotation.Action is PdfUriAction uriAction)
+            {
+                HandleUriAction(uriAction);
+            }
+            else if (linkAnnotation.Action is PdfGoToAction goToAction)
+            {
+                HandleGoToAction(goToAction);
+            }
+            else if (linkAnnotation.Destination != null)
+            {
+                _viewerContext?.ScrollToDestination(linkAnnotation.Destination);
+                InvalidateVisual();
+            }
+        }
+
+        private void HandleUriAction(PdfUriAction uriAction)
+        {
+            string uriString = uriAction.Uri.ToString();
+            if (string.IsNullOrEmpty(uriString))
+            {
+                return;
+            }
+
+            try
+            {
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = uriString,
+                    UseShellExecute = true
+                });
+            }
+            catch (Exception ex)
+            {
+#if DEBUG
+                MessageBox.Show($"Failed to open URI: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+#endif
+            }
+        }
+
+        private void HandleGoToAction(PdfGoToAction goToAction)
+        {
+            if (goToAction.Destination != null)
+            {
+                _viewerContext?.ScrollToDestination(goToAction.Destination);
+                InvalidateVisual();
             }
         }
     }

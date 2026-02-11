@@ -28,6 +28,9 @@ namespace PdfPixel.PdfPanel.Wpf
         public static readonly DependencyProperty PageGapProperty = DependencyProperty.Register(nameof(PageGap), typeof(double), typeof(WpfPdfPanel),
             new FrameworkPropertyMetadata(20d, FrameworkPropertyMetadataOptions.AffectsRender));
 
+        public static readonly DependencyProperty PageCornerRadiusProperty = DependencyProperty.Register(nameof(PageCornerRadius), typeof(double), typeof(WpfPdfPanel),
+            new FrameworkPropertyMetadata(0d, FrameworkPropertyMetadataOptions.AffectsRender));
+
         public static readonly DependencyProperty PagesPaddingProperty = DependencyProperty.Register(nameof(PagesPadding), typeof(Thickness), typeof(WpfPdfPanel),
             new FrameworkPropertyMetadata(new Thickness(20), FrameworkPropertyMetadataOptions.AffectsRender));
 
@@ -180,6 +183,15 @@ namespace PdfPixel.PdfPanel.Wpf
         {
             get => (WpfPdfPanelInterface)GetValue(PanelInterfaceProperty);
             set => SetValue(PanelInterfaceProperty, value);
+        }
+
+        /// <summary>
+        /// Gets or sets the page corner radius (in unscaled page space).
+        /// </summary>
+        public double PageCornerRadius
+        {
+            get => (double)GetValue(PageCornerRadiusProperty);
+            set => SetValue(PageCornerRadiusProperty, value);
         }
 
         private static void PagesProperty_Changed(DependencyObject d, DependencyPropertyChangedEventArgs e)

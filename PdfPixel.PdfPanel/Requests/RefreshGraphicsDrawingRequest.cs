@@ -2,8 +2,9 @@
 
 /// <summary>
 /// Request to refresh graphics on PDF Panel.
-/// Triggers <see cref="PdfPanelPageCollection.OnAfterDraw"/> without redrawing all page content.
+/// Triggers <see cref="IPdfPanelRenderTarget.RenderAsync(SkiaSharp.SKSurface, DrawingRequest)"/>
+/// without redrawing all page content.
 /// </summary>
-public class RefreshGraphicsDrawingRequest : DrawingRequest
+internal class RefreshGraphicsDrawingRequest : DrawingRequest
 {
 }

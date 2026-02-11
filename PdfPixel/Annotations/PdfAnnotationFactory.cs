@@ -51,7 +51,7 @@ public static class PdfAnnotationFactory
             // Caret, Stamp, FileAttachment
             PdfAnnotationSubType.Ink => new PdfInkAnnotation(annotationObject),
             PdfAnnotationSubType.Popup => new PdfPopupAnnotation(annotationObject),
-            PdfAnnotationSubType.Widget => new PdfWidgetAnnotation(annotationObject),
+            //PdfAnnotationSubType.Widget => new PdfWidgetAnnotation(annotationObject), // Widget is not fully implemented yet
             // TODO: Add more annotation types as they are implemented
             // etc.
             _ => new PdfGenericAnnotation(annotationObject, subtype)

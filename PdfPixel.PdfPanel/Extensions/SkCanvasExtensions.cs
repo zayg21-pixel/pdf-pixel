@@ -34,12 +34,20 @@ internal static class SkCanvasExtensions
 
         if (drawFlags.HasFlag(PageDrawFlags.Shadow))
         {
-            DrawPageShadow(canvas, page);
+            DrawPageShadow(canvas, page, request.PageCornerRadius);
         }
 
         if (drawFlags.HasFlag(PageDrawFlags.Background))
         {
-            DrawPageBackground(canvas, page);
+            DrawPageBackground(canvas, page, request.PageCornerRadius);
+        }
+
+        if (request.PageCornerRadius > 0)
+        {
+            var pageRectangle = new SKRect(0, 0, page.RotatedSize.Width, page.RotatedSize.Height);
+            using var clipPath = new SKPath();
+            clipPath.AddRoundRect(pageRectangle, request.PageCornerRadius, request.PageCornerRadius);
+            canvas.ClipPath(clipPath, SKClipOperation.Intersect, true);
         }
 
         if (!request.Pages.TryGetPictureFromCache(page.PageNumber, out var picture))
@@ -86,6 +94,7 @@ internal static class SkCanvasExtensions
             }
 
             var transformMatrix = GetPictureTransformMatrix(picture.AnnotationPicture.CullRect.Width, picture.AnnotationPicture.CullRect.Height, page.Info, page.UserRotation);
+
             canvas.DrawPicture(picture.AnnotationPicture, in transformMatrix);
         }
     }
@@ -155,7 +164,7 @@ internal static class SkCanvasExtensions
         return SKMatrix.Concat(matrixRotationTranslation, matrixScale);
     }
 
-    private static void DrawPageShadow(SKCanvas canvas, VisiblePageInfo page)
+    private static void DrawPageShadow(SKCanvas canvas, VisiblePageInfo page, float cornerRadius)
     {
         var rotatedSize = page.RotatedSize;
         var pageRectangle = new SKRect(0, 0, rotatedSize.Width, rotatedSize.Height);
@@ -174,13 +183,22 @@ internal static class SkCanvasExtensions
             };
 
             int saveCount = canvas.Save();
-            canvas.ClipRect(pageRectangle, SKClipOperation.Difference, true);
-            canvas.DrawRect(pageRectangle, shadowPaint);
+
+            if (cornerRadius > 0)
+            {
+                canvas.DrawRoundRect(pageRectangle, cornerRadius, cornerRadius, shadowPaint);
+            }
+            else
+            {
+                canvas.ClipRect(pageRectangle, SKClipOperation.Difference, true);
+                canvas.DrawRect(pageRectangle, shadowPaint);
+            }
+
             canvas.RestoreToCount(saveCount);
         }
     }
 
-    private static void DrawPageBackground(SKCanvas canvas, VisiblePageInfo page)
+    private static void DrawPageBackground(SKCanvas canvas, VisiblePageInfo page, float cornerRadius)
     {
         var rotatedSize = page.RotatedSize;
         var pageRectangle = new SKRect(0, 0, rotatedSize.Width, rotatedSize.Height);
@@ -188,9 +206,17 @@ internal static class SkCanvasExtensions
         using var backgroundFill = new SKPaint
         {
             Style = SKPaintStyle.Fill,
-            Color = SKColors.White
+            Color = SKColors.White,
+            IsAntialias = true
         };
 
-        canvas.DrawRect(pageRectangle, backgroundFill);
+        if (cornerRadius > 0)
+        {
+            canvas.DrawRoundRect(pageRectangle, cornerRadius, cornerRadius, backgroundFill);
+        }
+        else
+        {
+            canvas.DrawRect(pageRectangle, backgroundFill);
+        }
     }
 }

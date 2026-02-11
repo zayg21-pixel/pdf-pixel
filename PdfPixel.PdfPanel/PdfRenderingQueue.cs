@@ -77,7 +77,6 @@ public sealed class PdfRenderingQueue : IDisposable
                 if (surface == null || surface.Canvas.DeviceClipBounds.Width != width || surface.Canvas.DeviceClipBounds.Height != height)
                 {
                     var newSurface = CreateSurface(surface, width, height);
-
                     surface?.Dispose();
                     surface = newSurface;
                 }
@@ -86,6 +85,10 @@ public sealed class PdfRenderingQueue : IDisposable
                 {
                     activePagesDrawingRequest = pagesDrawingRequest;
                     requiresRedraw = true;
+                }
+                else if (request is RefreshGraphicsDrawingRequest refreshGraphicsRequest)
+                {
+                    requiresRedraw = false;
                 }
                 else if (request is ResetDrawingRequest)
                 {
@@ -104,7 +107,7 @@ public sealed class PdfRenderingQueue : IDisposable
                     await activePagesDrawingRequest.RenderTarget.RenderAsync(surface, request);
                 }
             }
-            catch (Exception ex)
+            catch (Exception)
             {
 #if DEBUG // TODO: inject logger
                 throw;
@@ -212,7 +215,7 @@ public sealed class PdfRenderingQueue : IDisposable
 
         var extendedVisiblePages = GetExtendedVisiblePages(request, previousRequest, visiblePages);
 
-        foreach (var picture in request.Pages.UpdateCacheWithThumbnails(extendedVisiblePages, request.Scale, request.MaxThumbnailSize, request.PointerPosition, request.PointerState, request.Offset.X, request.Offset.Y))
+        foreach (var picture in request.Pages.UpdateCacheWithThumbnails(extendedVisiblePages, request.Scale, request.MaxThumbnailSize, request.ActiveAnnotation, request.ActiveAnnotationState))
         {
             if (!visiblePages.Contains(picture.PageNumber))
             {
@@ -336,11 +339,22 @@ public sealed class PdfRenderingQueue : IDisposable
                 continue;
             }
 
+            canvas.Save();
+
             var lastPage = previousRequest.VisiblePages.FirstOrDefault(x => x.PageNumber == page.PageNumber);
             var sourceRect = lastPage.GetScaledBounds(previousRequest.Scale);
             var destRect = page.GetScaledBounds(request.Scale);
 
+            if (request.PageCornerRadius > 0)
+            {
+                using var clipPath = new SKPath();
+                clipPath.AddRoundRect(destRect, request.PageCornerRadius * request.Scale, request.PageCornerRadius * request.Scale);
+                canvas.ClipPath(clipPath, SKClipOperation.Intersect, antialias: true);
+            }
+
             canvas.DrawImage(surfaceSnapshot, sourceRect, destRect);
+
+            canvas.Restore();
         }
     }
 
@@ -352,6 +366,7 @@ public sealed class PdfRenderingQueue : IDisposable
 
         if (source != null)
         {
+            using var snapshot = source.Snapshot();
             result.Canvas.DrawSurface(source, SKPoint.Empty);
         }
 

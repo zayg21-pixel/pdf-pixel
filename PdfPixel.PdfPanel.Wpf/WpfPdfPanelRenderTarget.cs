@@ -4,6 +4,7 @@ using SkiaSharp;
 using System;
 using System.Threading.Tasks;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 
@@ -34,12 +35,11 @@ partial class WpfPdfPanelRenderTarget : IPdfPanelRenderTarget
     {
         await Panel.Dispatcher.InvokeAsync(async () =>
         {
-            DrawOnWritableBitmap(surface);
-            Panel.UpdateAnnotationPopup(request);
+            DrawOnWritableBitmap(surface, request);
         });
     }
 
-    private void DrawOnWritableBitmap(SKSurface surface)
+    private void DrawOnWritableBitmap(SKSurface surface, DrawingRequest request)
     {
         if (WriteableBitmap.PixelWidth != surface.Canvas.DeviceClipBounds.Width || WriteableBitmap.PixelHeight != surface.Canvas.DeviceClipBounds.Height)
         {
@@ -52,12 +52,12 @@ partial class WpfPdfPanelRenderTarget : IPdfPanelRenderTarget
 
         surface.ReadPixels(imageInfo, WriteableBitmap.BackBuffer, WriteableBitmap.BackBufferStride, 0, 0);
 
-        // TODO: Re-enable after testing
-        //if (pagesDrawingRequest.Pages.OnAfterDraw != null)
-        //{
-        //    using SKSurface surface = SKSurface.Create(imageInfo, writeableBitmap.BackBuffer, writeableBitmap.BackBufferStride);
-        //    pagesDrawingRequest.Pages.OnAfterDraw?.Invoke(surface.Canvas, pagesDrawingRequest.VisiblePages, pagesDrawingRequest.Scale);
-        //}
+        Panel.PanelInterface.OnAfterDraw?.Invoke(surface.Canvas, request);
+        if (Panel.PanelInterface.OnAfterDraw != null)
+        {
+            using SKSurface drawSurface = SKSurface.Create(imageInfo, WriteableBitmap.BackBuffer, WriteableBitmap.BackBufferStride);
+            Panel.PanelInterface.OnAfterDraw(drawSurface.Canvas, request);
+        }
 
         WriteableBitmap.AddDirtyRect(new Int32Rect(0, 0, imageInfo.Width, imageInfo.Height));
 

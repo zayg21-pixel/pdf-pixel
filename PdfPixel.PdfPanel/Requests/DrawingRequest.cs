@@ -1,4 +1,5 @@
 ﻿using SkiaSharp;
+using System.Linq;
 
 namespace PdfPixel.PdfPanel.Requests;
 
@@ -15,20 +16,23 @@ public abstract class DrawingRequest
 
     public IPdfPanelRenderTarget RenderTarget { get; set; }
 
-    public SKPoint? PointerPosition { get; set; }
+    public PdfAnnotationPopup ActiveAnnotation { get; set; }
 
-    public PdfPanelPointerState PointerState { get; set; }
+    public PdfPanelPointerState ActiveAnnotationState { get; set; }
+
+    public VisiblePageInfo[] VisiblePages { get; set; }
 
     public override bool Equals(object obj)
     {
         if (obj is DrawingRequest request)
         {
             return Scale == request.Scale &&
-                PointerPosition == request.PointerPosition &&
-                PointerState == request.PointerState &&
+                ActiveAnnotation == request.ActiveAnnotation &&
+                ActiveAnnotationState == request.ActiveAnnotationState &&
                 Offset == request.Offset &&
                 CanvasSize == request.CanvasSize &&
-                RenderTarget == request.RenderTarget;
+                RenderTarget == request.RenderTarget &&
+                VisiblePages.SequenceEqual(request.VisiblePages);
         }
         else
         {

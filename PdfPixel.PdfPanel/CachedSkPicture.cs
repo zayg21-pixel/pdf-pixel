@@ -28,9 +28,7 @@ internal sealed class CachedSkPicture : IDisposable
 
     public bool HasAnnotations { get; }
 
-    public SKPoint? PointerPosition { get; set; }
-
-    public PdfPanelPointerState PointerState { get; set; }
+    public PdfPanelPointerState ActiveAnnotationState { get; set; }
 
     public PdfAnnotationBase ActiveAnnotation { get; set; }
 

@@ -78,12 +78,12 @@ internal sealed class PdfPanelRenderer
         return map;
     }
 
-    private AnnotationMessage[] BuildAnnotationThread(
+    private PdfAnnotationMessage[] BuildAnnotationThread(
         PdfAnnotationBase rootAnnotation,
         Dictionary<PdfReference, PdfAnnotationBase> annotationMap,
         HashSet<PdfAnnotationBase> processedAnnotations)
     {
-        var messages = new List<AnnotationMessage>();
+        var messages = new List<PdfAnnotationMessage>();
         
         var rootMessage = CreateAnnotationMessage(rootAnnotation);
         if (rootMessage.HasValue)
@@ -180,7 +180,7 @@ internal sealed class PdfPanelRenderer
     /// <summary>
     /// Creates annotation message from an annotation's metadata.
     /// </summary>
-    private static AnnotationMessage? CreateAnnotationMessage(PdfAnnotationBase annotation)
+    private static PdfAnnotationMessage? CreateAnnotationMessage(PdfAnnotationBase annotation)
     {
         var title = annotation.Title.ToString();
         var contents = annotation.Contents.ToString();
@@ -193,7 +193,7 @@ internal sealed class PdfPanelRenderer
         var messageTitle = !string.IsNullOrEmpty(title) ? title : null;
         var messageDate = annotation.CreationDate.HasValue ? new DateTimeOffset(annotation.CreationDate.Value) : (DateTimeOffset?)null;
 
-        return new AnnotationMessage(messageDate, messageTitle, contents);
+        return new PdfAnnotationMessage(messageDate, messageTitle, contents);
     }
 
     /// <summary>
@@ -241,7 +241,7 @@ internal sealed class PdfPanelRenderer
             }
 
             PdfAnnotationBase activeAnnotation = GetActiveAnnotation(pageNumber, pointerPosition);
-            var visualStateKind = ConvertToVisualStateKind(pointerState, activeAnnotation != null);
+            var visualStateKind = ConvertToVisualStateKind(pointerState);
 
             using var recorder = new SKPictureRecorder();
             using var canvas = recorder.BeginRecording(SKRect.Create(pdfPage.CropBox.Width, pdfPage.CropBox.Height));
@@ -293,28 +293,14 @@ internal sealed class PdfPanelRenderer
         return null;
     }
 
-    private static PdfAnnotationVisualStateKind ConvertToVisualStateKind(
-        PdfPanelPointerState pointerState,
-        bool isPointerOverAnnotation)
+    private static PdfAnnotationVisualStateKind ConvertToVisualStateKind(PdfPanelPointerState pointerState)
     {
-        if (pointerState == PdfPanelPointerState.Pressed && isPointerOverAnnotation)
+        return pointerState switch
         {
-            return PdfAnnotationVisualStateKind.Down;
-        }
-
-        if (isPointerOverAnnotation)
-        {
-            return PdfAnnotationVisualStateKind.Rollover;
-        }
-
-        return PdfAnnotationVisualStateKind.Normal;
-    }
-
-    private static SKPoint ToPdfPoint(PdfPage pdfPage, SKPoint point)
-    {
-        float pdfX = point.X + pdfPage.CropBox.Left;
-        float pdfY = pdfPage.CropBox.Height + pdfPage.CropBox.Top - point.Y;
-        return new SKPoint(pdfX, pdfY);
+            PdfPanelPointerState.Pressed => PdfAnnotationVisualStateKind.Down,
+            PdfPanelPointerState.Hovered => PdfAnnotationVisualStateKind.Rollover,
+            _ => PdfAnnotationVisualStateKind.Normal
+        };
     }
 
     public SKImage GetThumbnail(int pageNumber, int maxThumbnailSize)

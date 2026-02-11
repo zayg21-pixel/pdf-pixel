@@ -10,15 +10,12 @@ using System.Linq;
 
 namespace PdfPixel.PdfPanel;
 
-public delegate void AfterDrawDelegate(SKCanvas canvas, PdfPanelPage[] visiblePages, float scale); // TODO: remove?
-
 /// <summary>
-/// Page collection for binding to <see cref="SkiaPdfPanel"/>.
+/// Page collection for binding to <see cref="PdfPanelContext"/>.
 /// </summary>
 public sealed class PdfPanelPageCollection : ReadOnlyCollection<PdfPanelPage>, IDisposable
 {
     private readonly ConcurrentDictionary<int, CachedSkPicture> pictureCache = new ConcurrentDictionary<int, CachedSkPicture>();
-    private readonly int[] cachedRotations;
     private readonly object disposeLocker = new object();
     private bool isDisposed;
 
@@ -26,18 +23,7 @@ public sealed class PdfPanelPageCollection : ReadOnlyCollection<PdfPanelPage>, I
         : base(pages)
     {
         Renderer = renderer;
-        cachedRotations = new int[Count];
-
-        for (int i = 0; i < pages.Count; i++)
-        {
-            cachedRotations[i] = pages[i].UserRotation;
-        }
     }
-
-    /// <summary>
-    /// Delegate that is called after the pages are drawn.
-    /// </summary>
-    public AfterDrawDelegate OnAfterDraw { get; set; }
 
     internal PdfPanelRenderer Renderer { get; }
 
@@ -46,7 +32,7 @@ public sealed class PdfPanelPageCollection : ReadOnlyCollection<PdfPanelPage>, I
     /// </summary>
     /// <param name="pageNumber">Number of the page.</param>
     /// <param name="page">Viewer page.</param>
-    /// <returns></returns>
+    /// <returns>True if page found.</returns>
     public bool TryGetPage(int pageNumber, out PdfPanelPage page)
     {
         if (pageNumber < 1 || pageNumber > Count)
@@ -60,35 +46,33 @@ public sealed class PdfPanelPageCollection : ReadOnlyCollection<PdfPanelPage>, I
     }
 
     /// <summary>
-    /// Returns annotation pupup at given rotated page location if it exists on visible pages.
+    /// Gets the annotation popup at the specified page position.
     /// </summary>
-    /// <param name="pageNumber">Page number.</param>
-    /// <param name="point">Rotated location.</param>
-    /// <param name="popup">Annotation popup.</param>
-    /// <returns></returns>
-    public bool TryGetPopup(int pageNumber, SKPoint point, out PdfAnnotationPopup popup)
+    /// <param name="pageNumber">Number of the page.</param>
+    /// <param name="pagePosition">Position on the page in PDF coordinates.</param>
+    /// <returns>The annotation popup if found; otherwise, null.</returns>
+    public PdfAnnotationPopup GetAnnotationPopupAt(int pageNumber, SKPoint pagePosition)
     {
-        // TODO: makes no sense, sould be page invariant
         if (!TryGetPage(pageNumber, out var page))
         {
-            popup = default;
-            return false;
+            return null;
         }
 
-        popup = default;
-        return false;
+        var activeAnnotation = Renderer.GetActiveAnnotation(pageNumber, pagePosition);
+        if (activeAnnotation == null)
+        {
+            return null;
+        }
 
-        //if (!popupCache.TryGetValue(pageNumber, out var pagePopups))
-        //{
-        //    popup = default;
-        //    return false;
-        //}
+        foreach (var popup in page.Popups)
+        {
+            if (popup.Annotation == activeAnnotation)
+            {
+                return popup;
+            }
+        }
 
-        //var matrix = VisiblePageInfo.GetPageRotationMatrix(page.Info.Width, page.Info.Height, page.UserRotation + page.Info.Rotation);
-        //point = matrix.Transform(point);
-
-        //popup = pagePopups.FirstOrDefault(x => x.Rect.Contains(point));
-        //return popup != null;
+        return null;
     }
 
     /// <summary>
@@ -117,10 +101,8 @@ public sealed class PdfPanelPageCollection : ReadOnlyCollection<PdfPanelPage>, I
         IEnumerable<int> visiblePages,
         float scale,
         int maxThumbnailSize,
-        SKPoint? pointerPosition,
-        PdfPanelPointerState pointerState,
-        float horizontalOffset,
-        float verticalOffset)
+        PdfAnnotationPopup activeAnnotationPopup,
+        PdfPanelPointerState activeAnnotationState)
     {
         var cachedPages = pictureCache.ToArray();
 
@@ -146,8 +128,7 @@ public sealed class PdfPanelPageCollection : ReadOnlyCollection<PdfPanelPage>, I
                 cachedPicture = new CachedSkPicture(thumbnailPicture, page, hasAnnotations)
                 {
                     Scale = scale,
-                    PointerPosition = null,
-                    PointerState = pointerState
+                    ActiveAnnotationState = PdfPanelPointerState.None
                 };
 
                 lock (disposeLocker)
@@ -164,32 +145,30 @@ public sealed class PdfPanelPageCollection : ReadOnlyCollection<PdfPanelPage>, I
                 }
             }
 
-            // Update parameters for both new and existing cached pictures
             bool scaleChanged = Math.Abs(cachedPicture.Scale - scale) != 0;
 
-            PdfAnnotationBase activeAnnotation = null;
-            SKPoint? pagePointerPosition = null;
-            if (cachedPicture.HasAnnotations && pointerPosition.HasValue && TryGetPage(page, out var panelPage))
-            {
-                SKMatrix matrix = panelPage.ViewportToPageMatrix(scale, horizontalOffset, verticalOffset);
-                SKPoint testPagePoint = matrix.MapPoint(pointerPosition.Value);
+            PdfAnnotationBase pageActiveAnnotation = null;
+            PdfPanelPointerState pointerState = PdfPanelPointerState.None;
 
-                if (panelPage.IsPointInPageBounds(testPagePoint))
+            if (cachedPicture.HasAnnotations && activeAnnotationPopup != null && TryGetPage(page, out var panelPage))
+            {
+                foreach (var popup in panelPage.Popups)
                 {
-                    pagePointerPosition = testPagePoint;
-                    activeAnnotation = Renderer.GetActiveAnnotation(page, pagePointerPosition.Value);
-                    panelPage.ActivePopup = panelPage.Popups.FirstOrDefault(p => p.Annotation == activeAnnotation);
+                    if (popup == activeAnnotationPopup)
+                    {
+                        pageActiveAnnotation = activeAnnotationPopup.Annotation;
+                        pointerState = activeAnnotationState;
+                        break;
+                    }
                 }
             }
 
-            bool annotationChanged = !Equals(cachedPicture.ActiveAnnotation, activeAnnotation);
-            bool stateChangedWithinAnnotation = cachedPicture.PointerState != pointerState && activeAnnotation != null;
+            bool annotationChanged = cachedPicture.ActiveAnnotation != pageActiveAnnotation;
+            bool stateChangedWithinAnnotation = cachedPicture.ActiveAnnotationState != pointerState && pageActiveAnnotation != null;
 
             cachedPicture.Scale = scale;
-            cachedPicture.PointerPosition = pagePointerPosition;
-            cachedPicture.PointerState = pointerState;
-            cachedPicture.ActiveAnnotation = activeAnnotation;
-            
+            cachedPicture.ActiveAnnotationState = pointerState;
+            cachedPicture.ActiveAnnotation = pageActiveAnnotation;
 
             if (scaleChanged)
             {
@@ -220,7 +199,7 @@ public sealed class PdfPanelPageCollection : ReadOnlyCollection<PdfPanelPage>, I
 
             if (cachedPicture.AnnotationPicture == null)
             {
-                cachedPicture.UpdateAnnotationPicture(Renderer.GetAnnotationPicture(cachedPage.Key, cachedPicture.Scale, cachedPicture.PointerPosition, cachedPicture.PointerState));
+                cachedPicture.UpdateAnnotationPicture(Renderer.GetAnnotationPicture(cachedPage.Key, cachedPicture.Scale, null, cachedPicture.ActiveAnnotationState));
             }
 
             yield return cachedPicture;
@@ -230,28 +209,6 @@ public sealed class PdfPanelPageCollection : ReadOnlyCollection<PdfPanelPage>, I
     internal bool TryGetPictureFromCache(int pageNumber, out CachedSkPicture picture)
     {
         return pictureCache.TryGetValue(pageNumber, out picture);
-    }
-
-    internal bool CheckDocumentUpdates()
-    {
-        // TODO: use in canvas!
-        bool documentUpdated = false;
-
-        foreach (var page in this)
-        {
-            if (cachedRotations[page.PageNumber - 1] != page.UserRotation)
-            {
-                documentUpdated = true;
-                cachedRotations[page.PageNumber - 1] = page.UserRotation;
-
-                if (pictureCache.TryRemove(page.PageNumber, out var removedPicture))
-                {
-                    removedPicture.Dispose();
-                }
-            }
-        }
-
-        return documentUpdated;
     }
 
     public void Dispose()

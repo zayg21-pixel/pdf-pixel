@@ -31,11 +31,6 @@ public class PdfPanelPage
     public PdfAnnotationPopup[] Popups { get; }
 
     /// <summary>
-    /// Currently active PDF annotation popup under cursor.
-    /// </summary>
-    public PdfAnnotationPopup ActivePopup { get; set; }
-
-    /// <summary>
     /// Gets the offset of the page.
     /// Offset is expressed in the scaled canvas space (affected by the current zoom factor) and
     /// represents the distance in device pixels from the top-left corner of the content area to
@@ -48,6 +43,4 @@ public class PdfPanelPage
     /// Can be any value that is a multiple of 90.
     /// </summary>
     public int UserRotation { get; set; }
-
-    // TODO: both point and rotation should be moved to request
 }

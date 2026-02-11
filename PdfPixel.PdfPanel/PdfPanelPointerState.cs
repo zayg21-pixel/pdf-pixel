@@ -1,17 +1,22 @@
 namespace PdfPixel.PdfPanel;
 
 /// <summary>
-/// Represents the pointer button state for the PDF panel.
+/// Represents the interaction state of the pointer in the PDF panel.
 /// </summary>
 public enum PdfPanelPointerState
 {
     /// <summary>
-    /// Pointer button is not pressed.
+    /// No UI element is active.
     /// </summary>
-    Default,
+    None,
 
     /// <summary>
-    /// Pointer button is pressed.
+    /// Pointer is hovering over UI element.
+    /// </summary>
+    Hovered,
+
+    /// <summary>
+    /// Pointer button is pressed on UI element.
     /// </summary>
     Pressed
 }
