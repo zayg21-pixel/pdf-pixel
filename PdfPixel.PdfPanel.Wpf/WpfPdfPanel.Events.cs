@@ -1,4 +1,5 @@
 ﻿using PdfPixel.Annotations.Models;
+using PdfPixel.Forms;
 using PdfPixel.PdfPanel.Extensions;
 using PdfPixel.PdfPanel.Requests;
 using SkiaSharp;
@@ -191,17 +192,56 @@ namespace PdfPixel.PdfPanel.Wpf
             PdfPanelPage page = _viewerContext.GetPageAtViewportPoint(request.PointerPosition.Value);
             PdfAnnotationPopup newPopup = page?.ActivePopup;
 
+            SKMatrix matrix = page?.ViewportToPageMatrix(_viewerContext) ?? SKMatrix.Identity;
+            SKPoint skiaPagePoint = matrix.MapPoint(request.PointerPosition.Value);
 
-            if (request.PointerState == PdfPanelPointerState.Pressed &&
-                newPopup?.Annotation is PdfLinkAnnotation linkAnnotation &&
-                _lastClickedAnnotation != newPopup && _lastAnnotationState != request.PointerState)
+            bool isPressed = request.PointerState == PdfPanelPointerState.Pressed;
+            bool isMouseUp = !isPressed && _lastAnnotationState == PdfPanelPointerState.Pressed;
+
+            if (newPopup?.Annotation is PdfWidgetAnnotation widget)
             {
-                _lastClickedAnnotation = newPopup;
-                HandleLinkAnnotationClick(linkAnnotation, page);
+                if (_lastHoveredWidget != null && _lastHoveredWidget != widget)
+                {
+                    _lastHoveredWidget.HandleMouseLeave();
+                    _lastHoveredWidget = null;
+                }
+
+                if (_lastHoveredWidget != widget)
+                {
+                    widget.HandleMouseEnter();
+                    _lastHoveredWidget = widget;
+                }
+
+                SKPoint pdfPagePoint = ConvertSkiaPagePointToPdfPagePoint(skiaPagePoint, page);
+
+                if (isPressed || isMouseUp)
+                {
+                    HandleWidgetAnnotationInteraction(widget, page, pdfPagePoint, request.PointerState, isMouseUp);
+                }
+                else
+                {
+                    HandleWidgetMouseMove(widget, pdfPagePoint, request.PointerState);
+                }
             }
-            else if (request.PointerState == PdfPanelPointerState.Default)
+            else
             {
-                _lastClickedAnnotation = null;
+                if (_lastHoveredWidget != null)
+                {
+                    _lastHoveredWidget.HandleMouseLeave();
+                    _lastHoveredWidget = null;
+                }
+
+                if (isPressed &&
+                    newPopup?.Annotation is PdfLinkAnnotation linkAnnotation &&
+                    _lastClickedAnnotation != newPopup && _lastAnnotationState != request.PointerState)
+                {
+                    _lastClickedAnnotation = newPopup;
+                    HandleLinkAnnotationClick(linkAnnotation, page);
+                }
+                else if (request.PointerState == PdfPanelPointerState.Default)
+                {
+                    _lastClickedAnnotation = null;
+                }
             }
 
             _lastAnnotationState = request.PointerState;
@@ -226,9 +266,36 @@ namespace PdfPixel.PdfPanel.Wpf
             }
         }
 
+        /// <summary>
+        /// Converts a point from Skia page coordinates (top-left origin, Y down) to PDF page coordinates (bottom-left origin, Y up).
+        /// </summary>
+        /// <param name="skiaPagePoint">Point in Skia page coordinates.</param>
+        /// <param name="page">The page for coordinate system reference.</param>
+        /// <returns>Point in PDF page coordinates.</returns>
+        private static SKPoint ConvertSkiaPagePointToPdfPagePoint(SKPoint skiaPagePoint, PdfPanelPage page)
+        {
+            if (page == null)
+            {
+                return skiaPagePoint;
+            }
+
+            return new SKPoint(
+                skiaPagePoint.X,
+                page.Info.Height - skiaPagePoint.Y);
+        }
+
         private void UpdateCursorForAnnotation(PdfAnnotationPopup popup)
         {
-            if (popup?.Annotation is PdfLinkAnnotation || popup?.Annotation.ShouldDisplayBubble == true)
+            if (popup?.Annotation is PdfWidgetAnnotation widget)
+            {
+                Cursor = widget.GetCursorType() switch
+                {
+                    WidgetCursorType.Hand => Cursors.Hand,
+                    WidgetCursorType.IBeam => Cursors.IBeam,
+                    _ => Cursors.Arrow
+                };
+            }
+            else if (popup?.Annotation is PdfLinkAnnotation || popup?.Annotation.ShouldDisplayBubble == true)
             {
                 Cursor = Cursors.Hand;
             }
@@ -236,6 +303,180 @@ namespace PdfPixel.PdfPanel.Wpf
             {
                 Cursor = Cursors.Arrow;
             }
+        }
+
+        private void HandleWidgetAnnotationInteraction(PdfWidgetAnnotation widget, PdfPanelPage page, SKPoint pagePoint, PdfPanelPointerState pointerState, bool isMouseUp)
+        {
+            if (widget.Field == null)
+            {
+                return;
+            }
+
+            var formFieldState = ConvertToFormFieldPointerState(pointerState);
+
+            if (isMouseUp)
+            {
+                bool handled = widget.HandleMouseUp(pagePoint, formFieldState);
+
+                if (handled)
+                {
+                    if (widget.Field is PdfButtonFormField buttonField && buttonField.IsPushButton && widget.Action != null)
+                    {
+                        if (widget.Action is PdfUriAction uriAction)
+                        {
+                            HandleUriAction(uriAction);
+                        }
+                        else if (widget.Action is PdfGoToAction goToAction)
+                        {
+                            HandleGoToAction(goToAction);
+                        }
+                    }
+
+                    if (widget.CanReceiveFocus && !widget.HasFocus)
+                    {
+                        SetFocusedWidget(widget);
+                    }
+
+                    InvalidateVisual();
+                }
+            }
+            else
+            {
+                bool handled = widget.HandleMouseDown(pagePoint, formFieldState);
+
+                if (handled)
+                {
+                    InvalidateVisual();
+                }
+            }
+        }
+
+        private void HandleWidgetMouseMove(PdfWidgetAnnotation widget, SKPoint pagePoint, PdfPanelPointerState pointerState)
+        {
+            if (widget.Field == null)
+            {
+                return;
+            }
+
+            var formFieldState = ConvertToFormFieldPointerState(pointerState);
+            bool handled = widget.HandleMouseMove(pagePoint, formFieldState);
+
+            if (handled)
+            {
+                InvalidateVisual();
+            }
+        }
+
+        private void SetFocusedWidget(PdfWidgetAnnotation widget)
+        {
+            if (_focusedWidget != null && _focusedWidget != widget)
+            {
+                _focusedWidget.Blur();
+            }
+
+            _focusedWidget = widget;
+
+            if (widget != null)
+            {
+                widget.Focus();
+                Focusable = true;
+                Focus();
+            }
+        }
+
+        private static FormFieldPointerState ConvertToFormFieldPointerState(PdfPanelPointerState state)
+        {
+            return state switch
+            {
+                PdfPanelPointerState.Pressed => FormFieldPointerState.Pressed,
+                _ => FormFieldPointerState.Hover
+            };
+        }
+
+        protected override void OnKeyDown(KeyEventArgs e)
+        {
+            base.OnKeyDown(e);
+
+            if (_focusedWidget != null && _focusedWidget.HasFocus)
+            {
+                var key = ConvertToFormFieldKey(e.Key);
+                var modifiers = ConvertToFormFieldModifiers(e.KeyboardDevice.Modifiers);
+
+                if (_focusedWidget.HandleKeyDown(key, modifiers))
+                {
+                    e.Handled = true;
+                    InvalidateVisual();
+                }
+            }
+        }
+
+        protected override void OnTextInput(TextCompositionEventArgs e)
+        {
+            base.OnTextInput(e);
+
+            if (_focusedWidget != null && _focusedWidget.HasFocus && !string.IsNullOrEmpty(e.Text))
+            {
+                if (_focusedWidget.HandleTextInput(e.Text))
+                {
+                    e.Handled = true;
+                    InvalidateVisual();
+                }
+            }
+        }
+
+        protected override void OnLostFocus(RoutedEventArgs e)
+        {
+            base.OnLostFocus(e);
+
+            if (_focusedWidget != null)
+            {
+                _focusedWidget.Blur();
+                _focusedWidget = null;
+            }
+        }
+
+        private static FormFieldKey ConvertToFormFieldKey(Key key)
+        {
+            return key switch
+            {
+                Key.Enter => FormFieldKey.Enter,
+                Key.Tab => FormFieldKey.Tab,
+                Key.Escape => FormFieldKey.Escape,
+                Key.Back => FormFieldKey.Backspace,
+                Key.Delete => FormFieldKey.Delete,
+                Key.Left => FormFieldKey.Left,
+                Key.Right => FormFieldKey.Right,
+                Key.Up => FormFieldKey.Up,
+                Key.Down => FormFieldKey.Down,
+                Key.Home => FormFieldKey.Home,
+                Key.End => FormFieldKey.End,
+                Key.PageUp => FormFieldKey.PageUp,
+                Key.PageDown => FormFieldKey.PageDown,
+                Key.Space => FormFieldKey.Space,
+                _ => FormFieldKey.Unknown
+            };
+        }
+
+        private static FormFieldKeyModifiers ConvertToFormFieldModifiers(ModifierKeys modifiers)
+        {
+            var result = FormFieldKeyModifiers.None;
+
+            if (modifiers.HasFlag(ModifierKeys.Shift))
+            {
+                result |= FormFieldKeyModifiers.Shift;
+            }
+
+            if (modifiers.HasFlag(ModifierKeys.Control))
+            {
+                result |= FormFieldKeyModifiers.Control;
+            }
+
+            if (modifiers.HasFlag(ModifierKeys.Alt))
+            {
+                result |= FormFieldKeyModifiers.Alt;
+            }
+
+            return result;
         }
     }
 }

@@ -1,4 +1,5 @@
-﻿using PdfPixel.PdfPanel.Extensions;
+﻿using PdfPixel.Annotations.Models;
+using PdfPixel.PdfPanel.Extensions;
 using PdfPixel.PdfPanel.Layout;
 using PdfPixel.PdfPanel.Wpf.Drawing;
 using SkiaSharp;
@@ -24,6 +25,8 @@ namespace PdfPixel.PdfPanel.Wpf
         private bool _updatingPages;
         private PdfPanelPointerState _lastAnnotationState;
         private PdfAnnotationPopup _lastClickedAnnotation;
+        private PdfWidgetAnnotation _focusedWidget;
+        private PdfWidgetAnnotation _lastHoveredWidget;
 
         public WpfPdfPanel()
         {

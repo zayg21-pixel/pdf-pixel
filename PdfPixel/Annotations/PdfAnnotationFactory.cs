@@ -37,21 +37,22 @@ public static class PdfAnnotationFactory
         return subtype switch
         {
             PdfAnnotationSubType.Text => new PdfTextAnnotation(annotationObject),
-            PdfAnnotationSubType.FreeText => new PdfFreeTextAnnotation(annotationObject),
             PdfAnnotationSubType.Link => new PdfLinkAnnotation(annotationObject),
-            PdfAnnotationSubType.Ink => new PdfInkAnnotation(annotationObject),
-            PdfAnnotationSubType.Circle => new PdfCircleAnnotation(annotationObject),
-            PdfAnnotationSubType.Square => new PdfSquareAnnotation(annotationObject),
+            PdfAnnotationSubType.FreeText => new PdfFreeTextAnnotation(annotationObject),
             PdfAnnotationSubType.Line => new PdfLineAnnotation(annotationObject),
+            PdfAnnotationSubType.Square => new PdfSquareAnnotation(annotationObject),
+            PdfAnnotationSubType.Circle => new PdfCircleAnnotation(annotationObject),
             PdfAnnotationSubType.Polygon => new PdfPolygonAnnotation(annotationObject),
             PdfAnnotationSubType.PolyLine => new PdfPolyLineAnnotation(annotationObject),
             PdfAnnotationSubType.Highlight => new PdfHighlightAnnotation(annotationObject),
             PdfAnnotationSubType.Underline => new PdfUnderlineAnnotation(annotationObject),
             PdfAnnotationSubType.Squiggly => new PdfSquigglyAnnotation(annotationObject),
             PdfAnnotationSubType.StrikeOut => new PdfStrikeOutAnnotation(annotationObject),
+            // Caret, Stamp, FileAttachment
+            PdfAnnotationSubType.Ink => new PdfInkAnnotation(annotationObject),
             PdfAnnotationSubType.Popup => new PdfPopupAnnotation(annotationObject),
+            PdfAnnotationSubType.Widget => new PdfWidgetAnnotation(annotationObject),
             // TODO: Add more annotation types as they are implemented
-            // PdfAnnotationSubType.Widget => new PdfWidgetAnnotation(annotationObject),
             // etc.
             _ => new PdfGenericAnnotation(annotationObject, subtype)
         };

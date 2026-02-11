@@ -341,4 +341,18 @@ public static class PdfTokens
     public static readonly PdfString SActionKey = (PdfString)"S"u8;                   // Action subtype (alias for SKey)
     public static readonly PdfString NextKey = (PdfString)"Next"u8;                   // Next action
     public static readonly PdfString IsMapKey = (PdfString)"IsMap"u8;                 // URI action IsMap flag
+
+    // Form field and widget annotation keys
+    public static readonly PdfString AcroFormKey = (PdfString)"AcroForm"u8;           // Catalog AcroForm dictionary
+    public static readonly PdfString FieldsKey = (PdfString)"Fields"u8;               // Form fields array
+    public static readonly PdfString FieldTypeKey = (PdfString)"FT"u8;                // Field type
+    public static readonly PdfString ValueKey = (PdfString)"V"u8;                     // Field value (reuses "V")
+    public static readonly PdfString DefaultValueKey = (PdfString)"DV"u8;             // Default field value
+    public static readonly PdfString QuadKey = (PdfString)"Q"u8;                      // Quadding/alignment (0=left, 1=center, 2=right)
+    public static readonly PdfString DefaultAppearanceKey = (PdfString)"DA"u8;        // Default appearance string
+    public static readonly PdfString MaxLenKey = (PdfString)"MaxLen"u8;               // Maximum length for text field
+    public static readonly PdfString OptKey = (PdfString)"Opt"u8;                     // Options array for choice fields
+    public static readonly PdfString TopIndexKey = (PdfString)"TI"u8;                 // Top index for list box
+    public static readonly PdfString IndicesKey = (PdfString)"I"u8;                   // Selected indices for list box
+    public static readonly PdfString AppearanceCharacteristicsKey = (PdfString)"MK"u8; // Appearance characteristics dictionary
 }
