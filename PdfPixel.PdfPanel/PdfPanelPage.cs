@@ -18,7 +18,7 @@ public class PdfPanelPage
     /// <summary>
     /// Information about the page, it's size and rotation.
     /// </summary>
-    public PdfPanelPageInfo Info { get; set; }
+    public PdfPanelPageInfo Info { get; }
 
     /// <summary>
     /// Number of the page.
@@ -29,6 +29,11 @@ public class PdfPanelPage
     /// Collection of annotation popups for this page.
     /// </summary>
     public PdfAnnotationPopup[] Popups { get; }
+
+    /// <summary>
+    /// Currently active PDF annotation popup under cursor.
+    /// </summary>
+    public PdfAnnotationPopup ActivePopup { get; set; }
 
     /// <summary>
     /// Gets the offset of the page.

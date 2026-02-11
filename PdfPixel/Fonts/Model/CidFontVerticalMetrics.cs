@@ -60,8 +60,8 @@ public class CidFontVerticalMetrics
         float defaultV1;
         if (dw2Array != null && dw2Array.Count >= 2)
         {
-            defaultV1 = dw2Array.GetFloat(0) * VerticalToUserSpaceCoeff; // V1y
-            defaultW1 = dw2Array.GetFloat(1) * VerticalToUserSpaceCoeff; // W1y
+            defaultV1 = dw2Array.GetFloatOrDefault(0) * VerticalToUserSpaceCoeff; // V1y
+            defaultW1 = dw2Array.GetFloatOrDefault(1) * VerticalToUserSpaceCoeff; // W1y
         }
         else
         {
@@ -97,9 +97,9 @@ public class CidFontVerticalMetrics
                     uint currentCid = firstCid;
                     while (j + 2 < arr.Count)
                     {
-                        float w1y = arr.GetFloat(j++) * VerticalToUserSpaceCoeff; // W1y
-                        float v1x = arr.GetFloat(j++) * VerticalToUserSpaceCoeff; // V1x
-                        float v1y = arr.GetFloat(j++) * VerticalToUserSpaceCoeff; // V1y
+                        float w1y = arr.GetFloatOrDefault(j++) * VerticalToUserSpaceCoeff; // W1y
+                        float v1x = arr.GetFloatOrDefault(j++) * VerticalToUserSpaceCoeff; // V1x
+                        float v1y = arr.GetFloatOrDefault(j++) * VerticalToUserSpaceCoeff; // V1y
                         metrics[currentCid++] = new VerticalMetric(w1y, v1y, v1x);
                     }
                 }
@@ -112,9 +112,9 @@ public class CidFontVerticalMetrics
                         break;
                     }
 
-                    float w1y = w2Array.GetFloat(i++) * VerticalToUserSpaceCoeff; // W1y
-                    float v1x = w2Array.GetFloat(i++) * VerticalToUserSpaceCoeff; // V1x
-                    float v1y = w2Array.GetFloat(i++) * VerticalToUserSpaceCoeff; // V1y
+                    float w1y = w2Array.GetFloatOrDefault(i++) * VerticalToUserSpaceCoeff; // W1y
+                    float v1x = w2Array.GetFloatOrDefault(i++) * VerticalToUserSpaceCoeff; // V1x
+                    float v1y = w2Array.GetFloatOrDefault(i++) * VerticalToUserSpaceCoeff; // V1y
 
                     for (uint cid = firstCid; cid <= lastCid; cid++)
                     {

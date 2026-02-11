@@ -22,6 +22,8 @@ namespace PdfPixel.PdfPanel.Wpf
         private IPdfPanelRenderTargetFactory renderTargetFactory;
         private bool _updatingScale;
         private bool _updatingPages;
+        private PdfPanelPointerState _lastAnnotationState;
+        private PdfAnnotationPopup _lastClickedAnnotation;
 
         public WpfPdfPanel()
         {

@@ -72,7 +72,7 @@ namespace PdfPixel.Rendering.State
                 if (dashArray != null && dashArray.Count >= 2)
                 {
                     var patternArray = dashArray.GetArray(0)?.GetFloatArray();
-                    var phase = dashArray.GetFloat(1);
+                    var phase = dashArray.GetFloatOrDefault(1);
 
                     if (patternArray != null && patternArray.Length > 0)
                     {
@@ -195,7 +195,7 @@ namespace PdfPixel.Rendering.State
                 if (fontArray != null && fontArray.Count == 2)
                 {
                     var fontObject = fontArray.GetObject(0);
-                    var fontSize = fontArray.GetFloat(1);
+                    var fontSize = fontArray.GetFloatOrDefault(1);
 
                     parameters.Font = page.Cache.GetFont(fontObject);
                     parameters.FontSize = fontSize;

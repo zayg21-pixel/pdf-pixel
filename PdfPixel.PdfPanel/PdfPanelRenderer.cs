@@ -3,6 +3,7 @@ using PdfPixel.Models;
 using SkiaSharp;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace PdfPixel.PdfPanel;
 
@@ -280,13 +281,8 @@ internal sealed class PdfPanelRenderer
             return null;
         }
 
-        foreach (var annotation in pdfPage.Annotations)
+        foreach (var annotation in pdfPage.Annotations.Where(x => !x.InReplyTo.HasValue).OrderByDescending(x => x.ShouldDisplayBubble))
         {
-            if (annotation.InReplyTo.HasValue)
-            {
-                continue;
-            }
-
             var pageRect = FromPdfRect(pdfPage, annotation.HoverRectangle);
             if (pageRect.Contains(pagePosition.Value))
             {

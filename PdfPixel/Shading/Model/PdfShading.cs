@@ -35,8 +35,8 @@ public sealed class PdfShading
         var extendArr = rawDictionary.GetArray(PdfTokens.ExtendKey);
         if (extendArr != null && extendArr.Count >= 2)
         {
-            ExtendStart = extendArr.GetBoolean(0);
-            ExtendEnd = extendArr.GetBoolean(1);
+            ExtendStart = extendArr.GetBooleanOrDefault(0);
+            ExtendEnd = extendArr.GetBooleanOrDefault(1);
         }
 
         ColorSpaceConverter = rawDictionary.GetObject(PdfTokens.ColorSpaceKey);

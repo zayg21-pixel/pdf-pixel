@@ -63,6 +63,7 @@ namespace PdfPixel
             var document = new PdfDocument(_loggerFactory, _skiaFontProvider, stream);
             var xrefLoader = new PdfXrefLoader(document);
             var pageExtractor = new PdfPageExtractor(document);
+            var namedDestinationParser = new PdfNamedDestinationParser(document);
             var outputIntentParser = new PdfOutputIntentParser(document);
 
             try
@@ -71,6 +72,7 @@ namespace PdfPixel
 
                 document.Decryptor?.UpdatePassword(password ?? string.Empty);
 
+                namedDestinationParser.ParseNamedDestinations();
                 pageExtractor.ExtractPages();
                 outputIntentParser.ParseFirstOutputIntentProfile();
 

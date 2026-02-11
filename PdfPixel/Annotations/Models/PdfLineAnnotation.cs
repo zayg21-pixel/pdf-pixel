@@ -24,10 +24,10 @@ public class PdfLineAnnotation : PdfAnnotationBase
         var lineArray = annotationObject.Dictionary.GetArray(PdfTokens.LKey);
         if (lineArray != null && lineArray.Count >= 4)
         {
-            StartX = lineArray.GetFloat(0);
-            StartY = lineArray.GetFloat(1);
-            EndX = lineArray.GetFloat(2);
-            EndY = lineArray.GetFloat(3);
+            StartX = lineArray.GetFloatOrDefault(0);
+            StartY = lineArray.GetFloatOrDefault(1);
+            EndX = lineArray.GetFloatOrDefault(2);
+            EndY = lineArray.GetFloatOrDefault(3);
         }
 
         var lineEndingArray = annotationObject.Dictionary.GetArray(PdfTokens.LineEndingKey);

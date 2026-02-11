@@ -15,16 +15,14 @@ public class PdfGoToAction : PdfAction
     public PdfGoToAction(PdfDictionary actionDictionary)
         : base(actionDictionary, PdfActionType.GoTo)
     {
-        Destination = actionDictionary.GetValue(PdfTokens.DestKey);
+        var destValue = actionDictionary.GetValue(PdfTokens.DKey);
+        Destination = PdfDestination.Parse(destValue, actionDictionary.Document);
     }
 
     /// <summary>
-    /// Gets the destination to display when this action is activated.
+    /// Gets the parsed destination to display when this action is activated.
     /// </summary>
-    /// <remarks>
-    /// The destination can be a name, string, or array describing where to navigate.
-    /// </remarks>
-    public IPdfValue Destination { get; }
+    public PdfDestination Destination { get; }
 
     /// <summary>
     /// Returns a string representation of this GoTo action.

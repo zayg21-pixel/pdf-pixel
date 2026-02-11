@@ -1,9 +1,9 @@
 ﻿namespace PdfPixel.PdfPanel.Requests;
 
 /// <summary>
-/// Clears graphics on the <see cref="SkiaPdfPanel"/>.
+/// Clears graphics on PDF Panel.
 /// Used to reset content when pages are unset.
 /// </summary>
-internal class ResetDrawingRequest : DrawingRequest
+public class ResetDrawingRequest : DrawingRequest
 {
 }

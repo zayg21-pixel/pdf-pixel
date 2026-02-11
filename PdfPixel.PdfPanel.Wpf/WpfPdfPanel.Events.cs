@@ -1,5 +1,9 @@
-﻿using PdfPixel.PdfPanel.Extensions;
+﻿using PdfPixel.Annotations.Models;
+using PdfPixel.PdfPanel.Extensions;
+using PdfPixel.PdfPanel.Requests;
 using SkiaSharp;
+using System;
+using System.Diagnostics;
 using System.Windows;
 using System.Windows.Input;
 
@@ -61,8 +65,58 @@ namespace PdfPixel.PdfPanel.Wpf
 
             if (Pages != null && _viewerContext != null)
             {
-                UpdatePointerState(e, PdfPanelPointerState.Pressed);
+                UpdatePointerState(e);
                 RaiseEvent(GetCanvasEvent(e, CanvasMouseMoveDownEvent));
+            }
+        }
+
+        private void HandleLinkAnnotationClick(PdfLinkAnnotation linkAnnotation, PdfPanelPage page)
+        {
+            if (linkAnnotation.Action is PdfUriAction uriAction)
+            {
+                HandleUriAction(uriAction);
+            }
+            else if (linkAnnotation.Action is PdfGoToAction goToAction)
+            {
+                HandleGoToAction(goToAction);
+            }
+            else if (linkAnnotation.Destination != null)
+            {
+                _viewerContext?.ScrollToDestination(linkAnnotation.Destination);
+                InvalidateVisual();
+            }
+        }
+
+        private void HandleUriAction(PdfUriAction uriAction)
+        {
+            string uriString = uriAction.Uri.ToString();
+            if (string.IsNullOrEmpty(uriString))
+            {
+                return;
+            }
+
+            try
+            {
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = uriString,
+                    UseShellExecute = true
+                });
+            }
+            catch (Exception ex)
+            {
+#if DEBUG
+                MessageBox.Show($"Failed to open URI: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+#endif
+            }
+        }
+
+        private void HandleGoToAction(PdfGoToAction goToAction)
+        {
+            if (goToAction.Destination != null)
+            {
+                _viewerContext?.ScrollToDestination(goToAction.Destination);
+                InvalidateVisual();
             }
         }
 
@@ -72,7 +126,7 @@ namespace PdfPixel.PdfPanel.Wpf
 
             if (Pages != null && _viewerContext != null)
             {
-                UpdatePointerState(e, PdfPanelPointerState.Default);
+                UpdatePointerState(e);
                 RaiseEvent(GetCanvasEvent(e, CanvasMouseMoveUpEvent));
             }
         }
@@ -83,26 +137,21 @@ namespace PdfPixel.PdfPanel.Wpf
 
             if (Pages != null && _viewerContext != null)
             {
-                Point position = e.GetPosition(this);
-                Point canvasPosition = GetCanvasPosition(position);
-                var viewportPoint = new SKPoint((float)canvasPosition.X, (float)canvasPosition.Y);
-
-                _viewerContext.PointerPosition = viewportPoint;
-                _viewerContext.Render();
-
+                UpdatePointerState(e);
                 RaiseEvent(GetCanvasEvent(e, CanvasMouseMoveEvent));
             }
         }
 
-        private void UpdatePointerState(MouseEventArgs e, PdfPanelPointerState state)
+        private void UpdatePointerState(MouseEventArgs e)
         {
             Point position = e.GetPosition(this);
             Point canvasPosition = GetCanvasPosition(position);
             var viewportPoint = new SKPoint((float)canvasPosition.X, (float)canvasPosition.Y);
+            var state = e.LeftButton == MouseButtonState.Pressed ? PdfPanelPointerState.Pressed : PdfPanelPointerState.Default;
 
             _viewerContext.PointerPosition = viewportPoint;
             _viewerContext.PointerState = state;
-            _viewerContext.Render();
+            InvalidateVisual();
         }
 
         private CanvasMouseEventArgs GetCanvasEvent(MouseEventArgs args, RoutedEvent routedEvent)
@@ -124,28 +173,38 @@ namespace PdfPixel.PdfPanel.Wpf
                 positionOnPage = new Point(pagePoint.X, pagePoint.Y);
             }
 
-            UpdateAnnotationPopup(page, pageNumber, positionOnPage);
-
             return new CanvasMouseEventArgs(routedEvent, this, canvasPosition, pageNumber, positionOnPage, args);
         }
 
-        private void UpdateAnnotationPopup(PdfPanelPage page, int? pageNumber, Point? positionOnPage)
+        internal void UpdateAnnotationPopup(DrawingRequest request)
         {
-            PdfAnnotationPopup newPopup = null;
-
-            if (page != null && positionOnPage.HasValue)
+            if (_viewerContext == null)
             {
-                var skPoint = new SKPoint((float)positionOnPage.Value.X, (float)positionOnPage.Value.Y);
-                
-                foreach (var popup in page.Popups)
-                {
-                    if (popup.Rect.Contains(skPoint))
-                    {
-                        newPopup = popup;
-                        break;
-                    }
-                }
+                return;
             }
+
+            if (request.PointerPosition == null)
+            {
+                return;
+            }
+
+            PdfPanelPage page = _viewerContext.GetPageAtViewportPoint(request.PointerPosition.Value);
+            PdfAnnotationPopup newPopup = page?.ActivePopup;
+
+
+            if (request.PointerState == PdfPanelPointerState.Pressed &&
+                newPopup?.Annotation is PdfLinkAnnotation linkAnnotation &&
+                _lastClickedAnnotation != newPopup && _lastAnnotationState != request.PointerState)
+            {
+                _lastClickedAnnotation = newPopup;
+                HandleLinkAnnotationClick(linkAnnotation, page);
+            }
+            else if (request.PointerState == PdfPanelPointerState.Default)
+            {
+                _lastClickedAnnotation = null;
+            }
+
+            _lastAnnotationState = request.PointerState;
 
             if (Equals(AnnotationPopup, newPopup))
             {
@@ -153,6 +212,8 @@ namespace PdfPixel.PdfPanel.Wpf
             }
 
             AnnotationPopup = newPopup;
+
+            UpdateCursorForAnnotation(newPopup);
 
             if (AnnotationToolTip != null)
             {
@@ -162,6 +223,18 @@ namespace PdfPixel.PdfPanel.Wpf
                 }
 
                 AnnotationToolTip.IsOpen = AnnotationPopup != null;
+            }
+        }
+
+        private void UpdateCursorForAnnotation(PdfAnnotationPopup popup)
+        {
+            if (popup?.Annotation is PdfLinkAnnotation || popup?.Annotation.ShouldDisplayBubble == true)
+            {
+                Cursor = Cursors.Hand;
+            }
+            else
+            {
+                Cursor = Cursors.Arrow;
             }
         }
     }

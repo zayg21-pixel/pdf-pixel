@@ -267,9 +267,9 @@ internal sealed class PdfXrefLoader
             _logger.LogWarning("PdfXrefLoader: XRef stream missing /W array.");
             return;
         }
-        int w0 = wArray.GetInteger(0);
-        int w1 = wArray.GetInteger(1);
-        int w2 = wArray.GetInteger(2);
+        int w0 = wArray.GetIntegerOrDefault(0);
+        int w1 = wArray.GetIntegerOrDefault(1);
+        int w2 = wArray.GetIntegerOrDefault(2);
         if (w0 < 0 || w1 < 0 || w2 < 0)
         {
             _logger.LogWarning("PdfXrefLoader: Invalid negative /W widths.");
@@ -287,8 +287,8 @@ internal sealed class PdfXrefLoader
         {
             for (int rangeIndex = 0; rangeIndex < indexArray.Count; rangeIndex += 2)
             {
-                int start = indexArray.GetInteger(rangeIndex);
-                int count = indexArray.GetInteger(rangeIndex + 1);
+                int start = indexArray.GetIntegerOrDefault(rangeIndex);
+                int count = indexArray.GetIntegerOrDefault(rangeIndex + 1);
                 if (count > 0)
                 {
                     ranges.Add((start, count));

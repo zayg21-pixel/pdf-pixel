@@ -186,8 +186,6 @@ public class PdfPanelContext
         drawingRequest.VisiblePages = GetVisiblePages().ToArray();
         drawingRequest.BackgroundColor = BackgroundColor;
         drawingRequest.MaxThumbnailSize = MaxThumbnailSize;
-        drawingRequest.PointerPosition = PointerPosition;
-        drawingRequest.PointerState = PointerState;
 
         return drawingRequest;
     }
@@ -197,6 +195,8 @@ public class PdfPanelContext
         return new T
         {
             Scale = Scale,
+            PointerPosition = PointerPosition,
+            PointerState = PointerState,
             Offset = new SKPoint(HorizontalOffset, VerticalOffset),
             CanvasSize = new SKSize(ViewportWidth, ViewportHeight),
             RenderTarget = _renderTargetFactory.GetRenderTarget(this),

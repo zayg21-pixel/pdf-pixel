@@ -40,7 +40,15 @@ public abstract class PdfTextMarkupAnnotation : PdfAnnotationBase
     /// <summary>
     /// Parses QuadPoints into individual quadrilaterals.
     /// </summary>
-    /// <returns>An array of SKPoint arrays, where each inner array contains 4 points forming a quadrilateral.</returns>
+    /// <returns>An array of SKPoint arrays, where each inner array contains 4 points forming a quadrilateral in spec order: bottom-left, bottom-right, top-right, top-left.</returns>
+    /// <remarks>
+    /// Returns points in the order specified by the PDF spec:
+    /// - Point 0 (x1, y1): Bottom-left corner
+    /// - Point 1 (x2, y2): Bottom-right corner (text baseline edge is from point 0 to 1)
+    /// - Point 2 (x3, y3): Top-right corner
+    /// - Point 3 (x4, y4): Top-left corner
+    /// Points are in counter-clockwise order with text orientation from (x1,y1) to (x2,y2).
+    /// </remarks>
     protected SKPoint[][] GetQuadrilaterals()
     {
         if (QuadPoints == null || QuadPoints.Length < 8 || QuadPoints.Length % 8 != 0)
@@ -56,10 +64,10 @@ public abstract class PdfTextMarkupAnnotation : PdfAnnotationBase
             var offset = i * 8;
             quads[i] =
             [
+                new SKPoint(QuadPoints[offset + 6], QuadPoints[offset + 7]),
+                new SKPoint(QuadPoints[offset + 4], QuadPoints[offset + 5]),
                 new SKPoint(QuadPoints[offset + 0], QuadPoints[offset + 1]),
                 new SKPoint(QuadPoints[offset + 2], QuadPoints[offset + 3]),
-                new SKPoint(QuadPoints[offset + 4], QuadPoints[offset + 5]),
-                new SKPoint(QuadPoints[offset + 6], QuadPoints[offset + 7])
             ];
         }
 

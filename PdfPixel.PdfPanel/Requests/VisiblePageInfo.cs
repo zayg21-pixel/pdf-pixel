@@ -3,7 +3,7 @@ using SkiaSharp;
 
 namespace PdfPixel.PdfPanel;
 
-internal readonly struct VisiblePageInfo
+public readonly struct VisiblePageInfo
 {
     public VisiblePageInfo(int pageNumber, SKPoint offset, PdfPanelPageInfo pageInfo, int userRotation)
     {

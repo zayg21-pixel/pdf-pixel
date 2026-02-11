@@ -51,10 +51,10 @@ public class PdfSquigglyAnnotation : PdfTextMarkupAnnotation
 
         foreach (var quad in quads)
         {
-            var startX = quad[3].X;
-            var startY = quad[3].Y;
-            var endX = quad[2].X;
-            var endY = quad[2].Y;
+            var startX = quad[0].X;
+            var startY = quad[0].Y;
+            var endX = quad[1].X;
+            var endY = quad[1].Y;
 
             using var path = new SKPath();
             DrawSquigglyLine(path, startX, startY, endX, endY);

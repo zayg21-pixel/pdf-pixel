@@ -101,7 +101,7 @@ public sealed class PdfRenderingQueue : IDisposable
                 }
                 else if (surface != null && activePagesDrawingRequest != null)
                 {
-                    await activePagesDrawingRequest.RenderTarget.RenderAsync(surface);
+                    await activePagesDrawingRequest.RenderTarget.RenderAsync(surface, request);
                 }
             }
             catch (Exception ex)
@@ -133,7 +133,7 @@ public sealed class PdfRenderingQueue : IDisposable
         RenderSurfaceSnapshot(canvas, surfaceSnapshot, request, previousRequest);
         surfaceSnapshot?.Dispose();
 
-        await request.RenderTarget.RenderAsync(surface).ConfigureAwait(false);
+        await request.RenderTarget.RenderAsync(surface, request).ConfigureAwait(false);
 
         if (!updateQueue.IsEmpty)
         {
@@ -235,7 +235,7 @@ public sealed class PdfRenderingQueue : IDisposable
                 pagesWithContentDrawn.Add(picture.PageNumber);
             }
 
-            await request.RenderTarget.RenderAsync(surface).ConfigureAwait(false);
+            await request.RenderTarget.RenderAsync(surface, request).ConfigureAwait(false);
 
             if (!updateQueue.IsEmpty)
             {
@@ -273,7 +273,7 @@ public sealed class PdfRenderingQueue : IDisposable
             {
                 canvas.DrawPageFromRequest(picture.PageNumber, request, PageDrawFlags.Background | PageDrawFlags.Content);
                 pagesWithContentDrawn.Add(picture.PageNumber);
-                await request.RenderTarget.RenderAsync(surface).ConfigureAwait(false);
+                await request.RenderTarget.RenderAsync(surface, request).ConfigureAwait(false);
             }
 
             if (!updateQueue.IsEmpty)

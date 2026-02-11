@@ -78,7 +78,7 @@ public class PdfBorderStyle
 
         if (borderArray != null && borderArray.Count >= 3)
         {
-            var width = borderArray.GetFloat(2);
+            var width = borderArray.GetFloatOrDefault(2);
             var style = PdfBorderStyleType.Solid;
 
             float[] dashPattern = null;

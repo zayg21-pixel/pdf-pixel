@@ -30,7 +30,7 @@ namespace PdfPixel.Color.ColorSpace
                 return null;
             }
 
-            int highestIndex = colorSpaceArray.GetInteger(2);
+            int highestIndex = colorSpaceArray.GetIntegerOrDefault(2);
             if (highestIndex < 0)
             {
                 highestIndex = 0;

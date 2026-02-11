@@ -22,10 +22,10 @@ public static class PdfLocationUtilities
             return null;
         }
 
-        float x0 = bboxArray.GetFloat(0);
-        float y0 = bboxArray.GetFloat(1);
-        float x1 = bboxArray.GetFloat(2);
-        float y1 = bboxArray.GetFloat(3);
+        float x0 = bboxArray.GetFloatOrDefault(0);
+        float y0 = bboxArray.GetFloatOrDefault(1);
+        float x1 = bboxArray.GetFloatOrDefault(2);
+        float y1 = bboxArray.GetFloatOrDefault(3);
 
         return new SKRect(x0, y0, x1, y1).Standardized;
     }
@@ -66,12 +66,12 @@ public static class PdfLocationUtilities
             return null;
         }
 
-        float a = operands.GetFloat(0);
-        float b = operands.GetFloat(1);
-        float c = operands.GetFloat(2);
-        float d = operands.GetFloat(3);
-        float e = operands.GetFloat(4);
-        float f = operands.GetFloat(5);
+        float a = operands.GetFloatOrDefault(0);
+        float b = operands.GetFloatOrDefault(1);
+        float c = operands.GetFloatOrDefault(2);
+        float d = operands.GetFloatOrDefault(3);
+        float e = operands.GetFloatOrDefault(4);
+        float f = operands.GetFloatOrDefault(5);
 
         var result = new SKMatrix(
             a, c, e,

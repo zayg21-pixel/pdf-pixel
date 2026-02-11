@@ -1,4 +1,5 @@
 ﻿using SkiaSharp;
+using System;
 
 namespace PdfPixel.PdfPanel.Extensions;
 
@@ -233,6 +234,44 @@ public static class PdfPanelPageExtensions
         }
 
         return matrix;
+    }
+
+    /// <summary>
+    /// Converts a point from PDF coordinates (bottom-left origin, Y-up) to page coordinates (top-left origin, Y-down).
+    /// </summary>
+    /// <param name="page">The page.</param>
+    /// <param name="pdfPoint">Point in PDF coordinates.</param>
+    /// <returns>Point in page coordinates.</returns>
+    public static SKPoint FromPdfPoint(this PdfPanelPage page, SKPoint pdfPoint)
+    {
+        if (page == null)
+        {
+            throw new ArgumentNullException(nameof(page));
+        }
+
+        return new SKPoint(
+            pdfPoint.X,
+            page.Info.Height - pdfPoint.Y);
+    }
+
+    /// <summary>
+    /// Converts a rectangle from PDF coordinates (bottom-left origin, Y-up) to page coordinates (top-left origin, Y-down).
+    /// </summary>
+    /// <param name="page">The page.</param>
+    /// <param name="pdfRect">Rectangle in PDF coordinates.</param>
+    /// <returns>Rectangle in page coordinates.</returns>
+    public static SKRect FromPdfRect(this PdfPanelPage page, SKRect pdfRect)
+    {
+        if (page == null)
+        {
+            throw new ArgumentNullException(nameof(page));
+        }
+
+        return SKRect.Create(
+            pdfRect.Left,
+            page.Info.Height - pdfRect.Bottom,
+            pdfRect.Width,
+            pdfRect.Height);
     }
 }
 

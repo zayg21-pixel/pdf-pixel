@@ -1,4 +1,5 @@
-﻿using SkiaSharp;
+﻿using PdfPixel.Annotations.Models;
+using SkiaSharp;
 using System.Linq;
 
 namespace PdfPixel.PdfPanel.Extensions;
@@ -137,5 +138,57 @@ public static class PdfPanelContextExtensions
         }
 
         return null;
+    }
+
+    /// <summary>
+    /// Scrolls to the specified PDF destination.
+    /// </summary>
+    /// <param name="context">The panel context.</param>
+    /// <param name="destination">The destination to navigate to.</param>
+    public static void ScrollToDestination(this PdfPanelContext context, PdfDestination destination)
+    {
+        if (context == null)
+        {
+            throw new System.ArgumentNullException(nameof(context));
+        }
+
+        if (destination == null)
+        {
+            return;
+        }
+
+        var destinationPage = destination.GetPdfPage();
+        if (destinationPage == null)
+        {
+            return;
+        }
+
+        if (!context.Pages.TryGetPage(destinationPage.PageNumber, out var targetPage))
+        {
+            return;
+        }
+
+        if (destination.Zoom.HasValue && destination.Zoom.Value > 0)
+        {
+            context.Scale = destination.Zoom.Value;
+        }
+
+        SKRect? targetLocation = destination.GetTargetLocation();
+        if (targetLocation.HasValue)
+        {
+            SKRect pdfRect = targetLocation.Value;
+            SKPoint pdfLocation = new SKPoint(pdfRect.Left, pdfRect.Top);
+            SKPoint pageLocation = targetPage.FromPdfPoint(pdfLocation);
+
+            SKMatrix pageToCanvas = targetPage.ViewportToPageMatrix(context.Scale, 0, 0).Invert();
+            SKPoint canvasLocation = pageToCanvas.MapPoint(pageLocation);
+
+            context.HorizontalOffset = canvasLocation.X;
+            context.VerticalOffset = canvasLocation.Y;
+        }
+        else
+        {
+            context.ScrollToPage(targetPage.PageNumber);
+        }
     }
 }

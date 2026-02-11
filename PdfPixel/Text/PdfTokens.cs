@@ -244,6 +244,10 @@ public static class PdfTokens
     public static readonly PdfString InfoKey = (PdfString)"Info"u8;
     public static readonly PdfString EncryptKey = (PdfString)"Encrypt"u8; // Trailer encryption dictionary reference key
     public static readonly PdfString IdKey = (PdfString)"ID"u8;           // Trailer file identifier array key
+
+    // Named Destinations
+    public static readonly PdfString DestsKey = (PdfString)"Dests"u8;     // Catalog named destinations dictionary
+    public static readonly PdfString NamesKey = (PdfString)"Names"u8;     // Catalog name dictionary
     
     // PDF Special Values
     public static readonly PdfString NoneValue = (PdfString)"None"u8;
@@ -329,7 +333,8 @@ public static class PdfTokens
 
     // Link annotation specific keys
     public static readonly PdfString AKey = (PdfString)"A"u8;                         // Action dictionary
-    public static readonly PdfString DestKey = (PdfString)"Dest"u8;                   // Destination
+    public static readonly PdfString DestKey = (PdfString)"Dest"u8;                   // Destination (for link annotations)
+    public static readonly PdfString DKey = (PdfString)"D"u8;                         // Destination (for GoTo actions)
     public static readonly PdfString HighlightModeKey = (PdfString)"H"u8;             // Highlight mode
     public static readonly PdfString PAKey = (PdfString)"PA"u8;                       // URI action dictionary
     public static readonly PdfString URIKey = (PdfString)"URI"u8;                     // URI string

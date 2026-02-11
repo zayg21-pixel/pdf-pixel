@@ -1,9 +1,9 @@
 ﻿namespace PdfPixel.PdfPanel.Requests;
 
 /// <summary>
-/// Request to refresh graphics on <see cref="SkiaPdfPanel"/>.
+/// Request to refresh graphics on PDF Panel.
 /// Triggers <see cref="PdfPanelPageCollection.OnAfterDraw"/> without redrawing all page content.
 /// </summary>
-internal class RefreshGraphicsDrawingRequest : DrawingRequest
+public class RefreshGraphicsDrawingRequest : DrawingRequest
 {
 }

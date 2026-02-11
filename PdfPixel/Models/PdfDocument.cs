@@ -41,6 +41,12 @@ public class PdfDocument : IDisposable
     public List<PdfPage> Pages { get; } = new List<PdfPage>();
 
     /// <summary>
+    /// Gets or sets the named destinations dictionary from the PDF document catalog.
+    /// Can be from /Dests (older) or /Names/Dests (newer) structure.
+    /// </summary>
+    public PdfDictionary NamedDestinations { get; set; }
+
+    /// <summary>
     /// Gets or sets the root object of the PDF document.
     /// </summary>
     internal PdfObject RootObject { get; set; }

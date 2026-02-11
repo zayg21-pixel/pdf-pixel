@@ -68,14 +68,14 @@ public class CidFontWidths
                     var widthsArr = second.AsArray();
                     for (int j = 0; j < widthsArr.Count; j++)
                     {
-                        cidWidths[firstCid + (uint)j] = widthsArr.GetFloat(j) * WidthToUserSpaceCoeff;
+                        cidWidths[firstCid + (uint)j] = widthsArr.GetFloatOrDefault(j) * WidthToUserSpaceCoeff;
                     }
                 }
                 else
                 {
                     // Range: firstCid to secondCid, all have the same width
                     uint lastCid = (uint)second.AsInteger();
-                    float width = wArray.GetFloat(i++) * WidthToUserSpaceCoeff;
+                    float width = wArray.GetFloatOrDefault(i++) * WidthToUserSpaceCoeff;
                     for (uint cid = firstCid; cid <= lastCid; cid++)
                     {
                         cidWidths[cid] = width;

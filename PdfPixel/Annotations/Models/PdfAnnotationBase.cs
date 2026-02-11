@@ -3,6 +3,8 @@ using PdfPixel.Text;
 using PdfPixel.Rendering.Operators;
 using PdfPixel.Parsing;
 using PdfPixel.Color.ColorSpace;
+using PdfPixel.Rendering;
+using PdfPixel.Annotations.Rendering;
 using SkiaSharp;
 using System;
 
@@ -289,6 +291,56 @@ public abstract class PdfAnnotationBase
     }
 
     /// <summary>
+    /// Renders this annotation to the canvas.
+    /// </summary>
+    /// <param name="canvas">The canvas to render to.</param>
+    /// <param name="page">The PDF page containing this annotation.</param>
+    /// <param name="visualStateKind">The visual state to render (Normal, Rollover, Down).</param>
+    /// <param name="renderer">The renderer context for rendering appearance streams.</param>
+    /// <param name="renderingParameters">Rendering parameters.</param>
+    /// <returns>True if the annotation was rendered, false otherwise.</returns>
+    /// <remarks>
+    /// This method handles all rendering logic including bubble indicators, appearance streams,
+    /// and fallback rendering. Derived classes can override this to customize rendering behavior
+    /// such as applying blend modes or special effects.
+    /// </remarks>
+    public virtual bool Render(
+        SKCanvas canvas,
+        PdfPage page,
+        PdfAnnotationVisualStateKind visualStateKind,
+        IPdfRenderer renderer,
+        PdfRenderingParameters renderingParameters)
+    {
+        canvas.Save();
+
+        try
+        {
+            if (ShouldDisplayBubble)
+            {
+                PdfAnnotationBubbleRenderer.RenderBubble(canvas, this, page, visualStateKind);
+            }
+
+            if (AppearanceDictionary != null && RenderAppearanceStream(canvas, page, visualStateKind, renderer, renderingParameters))
+            {
+                return true;
+            }
+
+            var fallbackPicture = CreateFallbackRender(page, visualStateKind);
+            if (fallbackPicture != null)
+            {
+                canvas.DrawPicture(fallbackPicture);
+                return true;
+            }
+
+            return false;
+        }
+        finally
+        {
+            canvas.Restore();
+        }
+    }
+
+    /// <summary>
     /// Creates a fallback rendering for this annotation when no appearance stream is available.
     /// </summary>
     /// <param name="page">The PDF page containing this annotation.</param>
@@ -303,6 +355,31 @@ public abstract class PdfAnnotationBase
     public abstract SKPicture CreateFallbackRender(PdfPage page, PdfAnnotationVisualStateKind visualStateKind);
 
     /// <summary>
+    /// Renders the appearance stream for this annotation.
+    /// </summary>
+    /// <param name="canvas">The canvas to render to.</param>
+    /// <param name="page">The PDF page containing this annotation.</param>
+    /// <param name="visualStateKind">The visual state to render.</param>
+    /// <param name="renderer">The renderer context.</param>
+    /// <param name="renderingParameters">Rendering parameters.</param>
+    /// <returns>True if the appearance stream was rendered successfully.</returns>
+    protected virtual bool RenderAppearanceStream(
+        SKCanvas canvas,
+        PdfPage page,
+        PdfAnnotationVisualStateKind visualStateKind,
+        IPdfRenderer renderer,
+        PdfRenderingParameters renderingParameters)
+    {
+        return PdfAnnotationAppearanceRenderer.RenderAppearanceStream(
+            canvas,
+            this,
+            page,
+            visualStateKind,
+            renderer,
+            renderingParameters);
+    }
+
+    /// <summary>
     /// Resolves the annotation color using proper color space conversion.
     /// </summary>
     /// <param name="page">The PDF page for color space resolution.</param>
@@ -310,23 +387,7 @@ public abstract class PdfAnnotationBase
     /// <returns>The resolved SKColor for rendering.</returns>
     internal SKColor ResolveColor(PdfPage page, SKColor? defaultColor = null)
     {
-        if (Color == null || Color.Length == 0)
-        {
-            return defaultColor ?? SKColors.Transparent;
-        }
-
-        // Get the appropriate color space converter based on component count
-        var converter = page.Cache.ColorSpace.ResolveDeviceConverter(Color.Length);
-        if (converter == null)
-        {
-            // Fallback to DeviceRGB for unknown component counts
-            converter = page.Cache.ColorSpace.ResolveDeviceConverter(3);
-            var paddedColor = Color;
-            Array.Resize(ref paddedColor, 3);
-            return converter.ToSrgb(paddedColor, PdfRenderingIntent.RelativeColorimetric, null);
-        }
-
-        return converter.ToSrgb(Color, PdfRenderingIntent.RelativeColorimetric, null);
+        return PdfAnnotationColorResolver.ResolveColor(Color, page, defaultColor);
     }
 
     /// <summary>
@@ -337,23 +398,7 @@ public abstract class PdfAnnotationBase
     /// <returns>The resolved SKColor for rendering.</returns>
     internal SKColor ResolveInteriorColor(PdfPage page, SKColor? defaultColor = null)
     {
-        if (InteriorColor == null || InteriorColor.Length == 0)
-        {
-            return defaultColor ?? SKColors.Transparent;
-        }
-
-        // Get the appropriate color space converter based on component count
-        var converter = page.Cache.ColorSpace.ResolveDeviceConverter(InteriorColor.Length);
-        if (converter == null)
-        {
-            // Fallback to DeviceRGB for unknown component counts
-            converter = page.Cache.ColorSpace.ResolveDeviceConverter(3);
-            var paddedColor = InteriorColor;
-            Array.Resize(ref paddedColor, 3);
-            return converter.ToSrgb(paddedColor, PdfRenderingIntent.RelativeColorimetric, null);
-        }
-
-        return converter.ToSrgb(InteriorColor, PdfRenderingIntent.RelativeColorimetric, null);
+        return PdfAnnotationColorResolver.ResolveColor(InteriorColor, page, defaultColor);
     }
 
     /// <summary>

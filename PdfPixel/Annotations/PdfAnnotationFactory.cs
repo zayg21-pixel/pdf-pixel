@@ -37,6 +37,7 @@ public static class PdfAnnotationFactory
         return subtype switch
         {
             PdfAnnotationSubType.Text => new PdfTextAnnotation(annotationObject),
+            PdfAnnotationSubType.FreeText => new PdfFreeTextAnnotation(annotationObject),
             PdfAnnotationSubType.Link => new PdfLinkAnnotation(annotationObject),
             PdfAnnotationSubType.Ink => new PdfInkAnnotation(annotationObject),
             PdfAnnotationSubType.Circle => new PdfCircleAnnotation(annotationObject),

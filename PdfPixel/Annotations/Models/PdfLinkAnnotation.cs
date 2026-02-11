@@ -20,7 +20,8 @@ public class PdfLinkAnnotation : PdfAnnotationBase
     public PdfLinkAnnotation(PdfObject annotationObject)
         : base(annotationObject, PdfAnnotationSubType.Link)
     {
-        Destination = annotationObject.Dictionary.GetValue(PdfTokens.DestKey);
+        var destValue = annotationObject.Dictionary.GetValue(PdfTokens.DestKey);
+        Destination = PdfDestination.Parse(destValue, annotationObject.Dictionary.Document);
 
         var actionDict = annotationObject.Dictionary.GetDictionary(PdfTokens.AKey);
         Action = PdfAction.FromDictionary(actionDict);
@@ -29,13 +30,13 @@ public class PdfLinkAnnotation : PdfAnnotationBase
     }
 
     /// <summary>
-    /// Gets the destination that should be displayed when the annotation is activated.
+    /// Gets the parsed destination that should be displayed when the annotation is activated.
     /// </summary>
     /// <remarks>
-    /// The destination can be a name, string, or array describing where to navigate.
     /// This property is null if the link uses an Action instead.
+    /// Per PDF spec, a link annotation can have either a Dest entry or an A (action) entry, but not both.
     /// </remarks>
-    public IPdfValue Destination { get; }
+    public PdfDestination Destination { get; }
 
     /// <summary>
     /// Gets the action dictionary that defines the action to be performed when the annotation is activated.
