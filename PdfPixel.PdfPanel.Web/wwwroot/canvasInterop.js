@@ -374,8 +374,8 @@ class PdfPanelView {
  * @returns {Promise<void>} Resolves when interop is ready.
  */
 export async function initialize(setModuleImports, getAssemblyExports) {
-    const exports = await getAssemblyExports(`PdfPixel.Web.PdfPanel`);
-    const panelInterop = exports.PdfPixel.Web.PdfPanel.PdfPanelIntrop;
+    const exports = await getAssemblyExports(`PdfPixel.PdfPanel.Web`);
+    const panelInterop = exports.PdfPixel.PdfPanel.Web.PdfPanelInterop;
 
     setModuleImports('canvasInterop.js', this);
 

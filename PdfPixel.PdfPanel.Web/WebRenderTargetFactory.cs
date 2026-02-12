@@ -1,21 +1,19 @@
-﻿using PdfPixel.PdfPanel;
-using System.Runtime.Versioning;
+﻿using System.Runtime.Versioning;
 
-namespace PdfPixel.Web.PdfPanel
+namespace PdfPixel.PdfPanel.Web;
+
+[SupportedOSPlatform("browser")]
+internal class WebRenderTargetFactory : IPdfPanelRenderTargetFactory
 {
-    [SupportedOSPlatform("browser")]
-    internal class WebRenderTargetFactory : ICanvasRenderTargetFactory
+    private readonly string _canvasId;
+
+    public WebRenderTargetFactory(string canvasId)
     {
-        private readonly string _canvasId;
+        _canvasId = canvasId;
+    }
 
-        public WebRenderTargetFactory(string canvasId)
-        {
-            _canvasId = canvasId;
-        }
-
-        public ICanvasRenderTarget GetRenderTarget(PdfViewerCanvas renderCanvas)
-        {
-            return new SkiaPdfPanelRenderTarget(_canvasId);
-        }
+    public IPdfPanelRenderTarget GetRenderTarget(PdfPanelContext context)
+    {
+        return new SkiaPdfPanelRenderTarget(_canvasId);
     }
 }

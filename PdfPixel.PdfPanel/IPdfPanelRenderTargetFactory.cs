@@ -8,7 +8,7 @@ public interface IPdfPanelRenderTargetFactory
     /// <summary>
     /// Creates a new <see cref="IPdfPanelRenderTarget"/> for the specified panel context.
     /// </summary>
-    /// <param name="panel">The panel context used to configure the render target.</param>
+    /// <param name="context">The panel context used to configure the render target.</param>
     /// <returns>A new <see cref="IPdfPanelRenderTarget"/> instance.</returns>
-    IPdfPanelRenderTarget GetRenderTarget(PdfPanelContext panel);
+    IPdfPanelRenderTarget GetRenderTarget(PdfPanelContext context);
 }

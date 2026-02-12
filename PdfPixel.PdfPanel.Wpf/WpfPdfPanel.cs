@@ -20,7 +20,7 @@ namespace PdfPixel.PdfPanel.Wpf
     {
         private readonly VisualCollection children;
 
-        private PdfPanelContext _viewerContext;
+        private PdfPanelContext _context;
         private PdfRenderingQueue renderingQueue;
         private IPdfPanelRenderTargetFactory renderTargetFactory;
         private bool _updatingScale;
@@ -99,7 +99,7 @@ namespace PdfPixel.PdfPanel.Wpf
             }
 
             Update();
-            _viewerContext?.Render();
+            _context?.Render();
 
             RaiseEvent(GetCanvasEvent(new MouseEventArgs(Mouse.PrimaryDevice, 0), CanvasMouseMoveEvent));
 
@@ -113,7 +113,7 @@ namespace PdfPixel.PdfPanel.Wpf
             HorizontalOffset = 0;
             VerticalOffset = 0;
 
-            _viewerContext?.Reset();
+            _context?.Reset();
         }
 
         protected override void OnRender(DrawingContext drawingContext)
@@ -152,16 +152,16 @@ namespace PdfPixel.PdfPanel.Wpf
 
         private int GetCurrentPage()
         {
-            if (_viewerContext != null)
+            if (_context != null)
             {
-                return _viewerContext.GetCurrentPage();
+                return _context.GetCurrentPage();
             }
             return 0;
         }
 
         private void EnsureViewerCanvas()
         {
-            if (_viewerContext != null && _viewerContext.Pages == Pages)
+            if (_context != null && _context.Pages == Pages)
             {
                 return;
             }
@@ -169,47 +169,47 @@ namespace PdfPixel.PdfPanel.Wpf
             renderingQueue?.Dispose();
             renderingQueue = new PdfRenderingQueue(new CpuSkSurfaceFactory());
             renderTargetFactory = new WpfPdfPanelRenderTargetFactory(this);
-            _viewerContext = new PdfPanelContext(Pages, renderingQueue, renderTargetFactory, new PdfPanelVerticalLayout());
+            _context = new PdfPanelContext(Pages, renderingQueue, renderTargetFactory, new PdfPanelVerticalLayout());
         }
 
         private void SyncViewerCanvasState()
         {
             EnsureViewerCanvas();
 
-            _viewerContext.ViewportWidth = (float)CanvasSize.Width;
-            _viewerContext.ViewportHeight = (float)CanvasSize.Height;
-            _viewerContext.MinimumPageGap = (float)PageGap;
-            _viewerContext.PagesPadding = new SKRect(
+            _context.ViewportWidth = (float)CanvasSize.Width;
+            _context.ViewportHeight = (float)CanvasSize.Height;
+            _context.MinimumPageGap = (float)PageGap;
+            _context.PagesPadding = new SKRect(
                 (float)PagesPadding.Left,
                 (float)PagesPadding.Top,
                 (float)PagesPadding.Right,
                 (float)PagesPadding.Bottom);
-            _viewerContext.PageCornerRadius = (float)PageCornerRadius;
+            _context.PageCornerRadius = (float)PageCornerRadius;
 
             var backgroundColor = BackgroundColor;
-            _viewerContext.BackgroundColor = new SKColor(backgroundColor.R, backgroundColor.G, backgroundColor.B, backgroundColor.A);
-            _viewerContext.MaxThumbnailSize = MaxThumbnailSize;
+            _context.BackgroundColor = new SKColor(backgroundColor.R, backgroundColor.G, backgroundColor.B, backgroundColor.A);
+            _context.MaxThumbnailSize = MaxThumbnailSize;
 
             UpdatePointerState();
 
-            _viewerContext.Update();
+            _context.Update();
 
             UpdateAnnotationState();
 
-            _viewerContext.SetAutoScaleMode(AutoScaleMode);
-            _viewerContext.Update();
+            _context.SetAutoScaleMode(AutoScaleMode);
+            _context.Update();
 
-            ExtentHeight = _viewerContext.ExtentHeight;
-            ExtentWidth = _viewerContext.ExtentWidth;
-            VerticalOffset = _viewerContext.VerticalOffset;
-            HorizontalOffset = _viewerContext.HorizontalOffset;
-            ViewportWidth = _viewerContext.ViewportWidth;
-            ViewportHeight = _viewerContext.ViewportHeight;
-            ExtentHeight = _viewerContext.ExtentHeight;
-            ExtentWidth = _viewerContext.ExtentWidth;
+            ExtentHeight = _context.ExtentHeight;
+            ExtentWidth = _context.ExtentWidth;
+            VerticalOffset = _context.VerticalOffset;
+            HorizontalOffset = _context.HorizontalOffset;
+            ViewportWidth = _context.ViewportWidth;
+            ViewportHeight = _context.ViewportHeight;
+            ExtentHeight = _context.ExtentHeight;
+            ExtentWidth = _context.ExtentWidth;
 
             _updatingScale = true;
-            Scale = _viewerContext.Scale;
+            Scale = _context.Scale;
             _updatingScale = false;
 
             ScrollOwner.InvalidateScrollInfo();
@@ -236,10 +236,10 @@ namespace PdfPixel.PdfPanel.Wpf
 
                 case PdfPanelInterfaceAction.RequestRedraw:
                     Update();
-                    _viewerContext?.Render();
+                    _context?.Render();
                     break;
                 case PdfPanelInterfaceAction.RequestRefresh:
-                    _viewerContext?.Refresh();
+                    _context?.Refresh();
                     break;
             }
         }
@@ -251,16 +251,16 @@ namespace PdfPixel.PdfPanel.Wpf
             var viewportPoint = new SKPoint((float)canvasPosition.X, (float)canvasPosition.Y);
             var state = Mouse.LeftButton == MouseButtonState.Pressed ? PdfPanelButtonState.Pressed : PdfPanelButtonState.Default;
 
-            _viewerContext.PointerPosition = viewportPoint;
-            _viewerContext.PointerState = state;
+            _context.PointerPosition = viewportPoint;
+            _context.PointerState = state;
         }
 
         private void UpdateAnnotationState()
         {
-            PdfAnnotationPopup currentPopup = _viewerContext.ActiveAnnotation;
+            PdfAnnotationPopup currentPopup = _context.ActiveAnnotation;
 
             bool wasPressed = _lastAnnotationPopup != null && _lastAnnotationState == PdfPanelPointerState.Pressed;
-            bool isPressed = currentPopup != null && _viewerContext.ActiveAnnotationState == PdfPanelPointerState.Pressed;
+            bool isPressed = currentPopup != null && _context.ActiveAnnotationState == PdfPanelPointerState.Pressed;
 
             if (wasPressed && !isPressed && _lastAnnotationPopup.Annotation is PdfLinkAnnotation linkAnnotation)
             {
@@ -270,7 +270,7 @@ namespace PdfPixel.PdfPanel.Wpf
             UpdateAnnotationPopup(currentPopup);
 
             _lastAnnotationPopup = currentPopup;
-            _lastAnnotationState = _viewerContext.ActiveAnnotationState;
+            _lastAnnotationState = _context.ActiveAnnotationState;
         }
 
         private void UpdateAnnotationPopup(PdfAnnotationPopup currentPopup)
@@ -317,7 +317,7 @@ namespace PdfPixel.PdfPanel.Wpf
             }
             else if (linkAnnotation.Destination != null)
             {
-                _viewerContext?.ScrollToDestination(linkAnnotation.Destination);
+                _context?.ScrollToDestination(linkAnnotation.Destination);
                 InvalidateVisual();
             }
         }
@@ -350,7 +350,7 @@ namespace PdfPixel.PdfPanel.Wpf
         {
             if (goToAction.Destination != null)
             {
-                _viewerContext?.ScrollToDestination(goToAction.Destination);
+                _context?.ScrollToDestination(goToAction.Destination);
                 InvalidateVisual();
             }
         }

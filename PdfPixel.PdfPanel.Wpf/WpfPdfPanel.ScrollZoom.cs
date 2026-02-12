@@ -35,44 +35,44 @@ namespace PdfPixel.PdfPanel.Wpf
 
         public void ScrollToPage(int pageNumber)
         {
-            if (_viewerContext != null)
+            if (_context != null)
             {
-                _viewerContext.ScrollToPage(pageNumber);
+                _context.ScrollToPage(pageNumber);
             }
         }
 
         public void LineDown()
         {
-            if (_viewerContext != null)
+            if (_context != null)
             {
-                _viewerContext.VerticalOffset += ScrollTick;
+                _context.VerticalOffset += ScrollTick;
                 InvalidateVisual();
             }
         }
 
         public void LineUp()
         {
-            if (_viewerContext != null)
+            if (_context != null)
             {
-                _viewerContext.VerticalOffset -= ScrollTick;
+                _context.VerticalOffset -= ScrollTick;
                 InvalidateVisual();
             }
         }
 
         public void LineLeft()
         {
-            if (_viewerContext != null)
+            if (_context != null)
             {
-                _viewerContext.HorizontalOffset -= ScrollTick;
+                _context.HorizontalOffset -= ScrollTick;
                 InvalidateVisual();
             }
         }
 
         public void LineRight()
         {
-            if (_viewerContext != null)
+            if (_context != null)
                 {
-                _viewerContext.HorizontalOffset += ScrollTick;
+                _context.HorizontalOffset += ScrollTick;
                 InvalidateVisual();
             }
         }
@@ -123,9 +123,9 @@ namespace PdfPixel.PdfPanel.Wpf
             }
             else
             {
-                if (_viewerContext != null)
+                if (_context != null)
                 {
-                    _viewerContext.VerticalOffset += ScrollTick;
+                    _context.VerticalOffset += ScrollTick;
                     InvalidateVisual();
                 }
             }
@@ -139,9 +139,9 @@ namespace PdfPixel.PdfPanel.Wpf
             }
             else
             {
-                if (_viewerContext != null)
+                if (_context != null)
                 {
-                    _viewerContext.VerticalOffset -= ScrollTick;
+                    _context.VerticalOffset -= ScrollTick;
                     InvalidateVisual();
                 }
             }
@@ -159,7 +159,7 @@ namespace PdfPixel.PdfPanel.Wpf
 
         private void OnScaleChanged()
         {
-            if (_viewerContext != null)
+            if (_context != null)
             {
                 float centerY;
                 float centerX;
@@ -173,83 +173,83 @@ namespace PdfPixel.PdfPanel.Wpf
                 }
                 else
                 {
-                    centerY = _viewerContext.ViewportHeight / 2;
-                    centerX = _viewerContext.ViewportWidth / 2;
+                    centerY = _context.ViewportHeight / 2;
+                    centerX = _context.ViewportWidth / 2;
                 }
 
-                _viewerContext.UpdateScalePreserveOffset((float)Scale, centerX, centerY);
+                _context.UpdateScalePreserveOffset((float)Scale, centerX, centerY);
                 InvalidateVisual();
             }
         }
 
         public void MouseWheelLeft()
         {
-            if (_viewerContext != null)
+            if (_context != null)
             {
-                _viewerContext.HorizontalOffset -= ScrollTick;
+                _context.HorizontalOffset -= ScrollTick;
                 InvalidateVisual();
             }
         }
 
         public void MouseWheelRight()
         {
-            if (_viewerContext != null)
+            if (_context != null)
             {
-                _viewerContext.HorizontalOffset += ScrollTick;
+                _context.HorizontalOffset += ScrollTick;
                 InvalidateVisual();
             }
         }
 
         public void PageDown()
         {
-            if (_viewerContext != null)
+            if (_context != null)
             {
-                _viewerContext.VerticalOffset += _viewerContext.ViewportHeight;
+                _context.VerticalOffset += _context.ViewportHeight;
                 InvalidateVisual();
             }
         }
 
         public void PageUp()
         {
-            if (_viewerContext != null)
+            if (_context != null)
             {
-                _viewerContext.VerticalOffset -= _viewerContext.ViewportHeight;
+                _context.VerticalOffset -= _context.ViewportHeight;
                 InvalidateVisual();
             }
         }
 
         public void PageLeft()
         {
-            if (_viewerContext != null)
+            if (_context != null)
             {
-                _viewerContext.HorizontalOffset -= _viewerContext.ViewportWidth;
+                _context.HorizontalOffset -= _context.ViewportWidth;
                 InvalidateVisual();
             }
         }
 
         public void PageRight()
         {
-            if (_viewerContext != null)
+            if (_context != null)
             {
-                _viewerContext.HorizontalOffset += _viewerContext.ViewportWidth;
+                _context.HorizontalOffset += _context.ViewportWidth;
                 InvalidateVisual();
             }
         }
 
         public void SetVerticalOffset(double offset)
         {
-            if (_viewerContext != null)
+            if (_context != null)
             {
-                _viewerContext.VerticalOffset = (float)offset;
+                _context.VerticalOffset = (float)offset;
                 InvalidateVisual();
             }
         }
 
         public void SetHorizontalOffset(double offset)
         {
-            if (_viewerContext != null)
+            if (_context != null)
             {
-                _viewerContext.HorizontalOffset = (float)offset;
+                _context.HorizontalOffset = (float)offset;
                 InvalidateVisual();
             }
         }

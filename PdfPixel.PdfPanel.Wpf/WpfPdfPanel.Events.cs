@@ -59,7 +59,7 @@ namespace PdfPixel.PdfPanel.Wpf
         {
             base.OnMouseDown(e);
 
-            if (Pages != null && _viewerContext != null)
+            if (Pages != null && _context != null)
             {
                 InvalidateVisual();
                 RaiseEvent(GetCanvasEvent(e, CanvasMouseMoveDownEvent));
@@ -70,7 +70,7 @@ namespace PdfPixel.PdfPanel.Wpf
         {
             base.OnMouseUp(e);
 
-            if (Pages != null && _viewerContext != null)
+            if (Pages != null && _context != null)
             {
                 InvalidateVisual();
                 RaiseEvent(GetCanvasEvent(e, CanvasMouseMoveUpEvent));
@@ -81,7 +81,7 @@ namespace PdfPixel.PdfPanel.Wpf
         {
             base.OnMouseMove(e);
 
-            if (Pages != null && _viewerContext != null)
+            if (Pages != null && _context != null)
             {
                 InvalidateVisual();
                 RaiseEvent(GetCanvasEvent(e, CanvasMouseMoveEvent));
@@ -95,14 +95,14 @@ namespace PdfPixel.PdfPanel.Wpf
 
             var viewportPoint = new SKPoint((float)canvasPosition.X, (float)canvasPosition.Y);
 
-            PdfPanelPage page = _viewerContext?.GetPageAtViewportPoint(viewportPoint);
+            PdfPanelPage page = _context?.GetPageAtViewportPoint(viewportPoint);
 
             int? pageNumber = page?.PageNumber;
             Point? positionOnPage = null;
 
             if (page != null)
             {
-                SKMatrix matrix = page.ViewportToPageMatrix(_viewerContext);
+                SKMatrix matrix = page.ViewportToPageMatrix(_context);
                 SKPoint pagePoint = matrix.MapPoint(viewportPoint);
                 positionOnPage = new Point(pagePoint.X, pagePoint.Y);
             }

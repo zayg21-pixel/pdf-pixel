@@ -19,6 +19,10 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PdfPixel.Demo.Console", "Pd
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PdfPixel.Wpf.DirectXExperiments", "PdfPixel.Wpf.DirectXExperiments\PdfPixel.Wpf.DirectXExperiments.csproj", "{58B232FB-BC3A-CF90-A740-381BE06C313C}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PdfPixel.PdfPanel.Web", "PdfPixel.PdfPanel.Web\PdfPixel.PdfPanel.Web.csproj", "{F78B09B6-992F-5D63-DE3C-80E18E99A912}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PdfPixel.Demo.Web", "PdfPixel.Demo.Web\PdfPixel.Demo.Web.csproj", "{1287CCBE-04DB-99EE-7FFA-D17BCB24F593}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -57,6 +61,14 @@ Global
 		{58B232FB-BC3A-CF90-A740-381BE06C313C}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{58B232FB-BC3A-CF90-A740-381BE06C313C}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{58B232FB-BC3A-CF90-A740-381BE06C313C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F78B09B6-992F-5D63-DE3C-80E18E99A912}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F78B09B6-992F-5D63-DE3C-80E18E99A912}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F78B09B6-992F-5D63-DE3C-80E18E99A912}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F78B09B6-992F-5D63-DE3C-80E18E99A912}.Release|Any CPU.Build.0 = Release|Any CPU
+		{1287CCBE-04DB-99EE-7FFA-D17BCB24F593}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1287CCBE-04DB-99EE-7FFA-D17BCB24F593}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1287CCBE-04DB-99EE-7FFA-D17BCB24F593}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1287CCBE-04DB-99EE-7FFA-D17BCB24F593}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

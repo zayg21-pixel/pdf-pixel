@@ -1,33 +1,32 @@
-﻿using PdfPixel.PdfPanel;
+﻿using PdfPixel.PdfPanel.Requests;
 using SkiaSharp;
 using System.Runtime.Versioning;
 using System.Threading.Tasks;
 
-namespace PdfPixel.Web.PdfPanel
+namespace PdfPixel.PdfPanel.Web;
+
+[SupportedOSPlatform("browser")]
+partial class SkiaPdfPanelRenderTarget : IPdfPanelRenderTarget
 {
-    [SupportedOSPlatform("browser")]
-    partial class SkiaPdfPanelRenderTarget : ICanvasRenderTarget
+    private readonly string _canvasId;
+
+    public SkiaPdfPanelRenderTarget(string canvasId)
     {
-        private readonly string _canvasId;
+        _canvasId = canvasId;
+    }
 
-        public SkiaPdfPanelRenderTarget(string canvasId)
+    public async Task RenderAsync(SKSurface surface, DrawingRequest request)
+    {
+        surface.Canvas.Flush();
+
+        await UiInvoker.InvokeAsync(() =>
         {
-            _canvasId = canvasId;
-        }
+            var imageInfo = new SKImageInfo(surface.Canvas.DeviceClipBounds.Width, surface.Canvas.DeviceClipBounds.Height, SKColorType.Rgba8888, SKAlphaType.Premul);
+            using var bitmap = new SKBitmap(imageInfo);
+            surface.ReadPixels(imageInfo, bitmap.GetPixels(), bitmap.RowBytes, 0, 0);
+            var rgbaBytes = bitmap.Bytes;
 
-        public async Task RenderAsync(SKSurface surface)
-        {
-            surface.Canvas.Flush();
-
-            await UiInvoker.InvokeAsync(() =>
-            {
-                var imageInfo = new SKImageInfo(surface.Canvas.DeviceClipBounds.Width, surface.Canvas.DeviceClipBounds.Height, SKColorType.Rgba8888, SKAlphaType.Premul);
-                using var bitmap = new SKBitmap(imageInfo);
-                surface.ReadPixels(imageInfo, bitmap.GetPixels(), bitmap.RowBytes, 0, 0);
-                var rgbaBytes = bitmap.Bytes;
-
-                PdfPanelIntrop.JSRenderRgbaToCanvas(_canvasId, surface.Canvas.DeviceClipBounds.Width, surface.Canvas.DeviceClipBounds.Height, rgbaBytes);
-            });
-        }
+            PdfPanelInterop.JSRenderRgbaToCanvas(_canvasId, surface.Canvas.DeviceClipBounds.Width, surface.Canvas.DeviceClipBounds.Height, rgbaBytes);
+        });
     }
 }

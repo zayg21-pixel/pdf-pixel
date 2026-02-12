@@ -2,6 +2,11 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 
+namespace PdfPixel.PdfPanel.Web;
+
+/// <summary>
+/// Invokes action in UI thread.
+/// </summary>
 public static class UiInvoker
 {
     private static SynchronizationContext _uiContext;

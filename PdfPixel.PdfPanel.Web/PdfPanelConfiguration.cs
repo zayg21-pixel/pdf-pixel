@@ -1,6 +1,6 @@
 using SkiaSharp;
 
-namespace PdfPixel.Web.PdfPanel;
+namespace PdfPixel.PdfPanel.Web;
 
 /// <summary>
 /// Strongly-typed configuration parsed from JS for the web PDF panel.
