@@ -150,30 +150,23 @@ public static class PdfPanelContextExtensions
         switch (mode)
         {
             case PdfPanelAutoScaleMode.NoAutoScale:
-                {
-                    break;
-                }
+            {
+                break;
+            }
             case PdfPanelAutoScaleMode.ScaleToWidth:
-                {
-                    ApplyScaleToPages(context, context.Pages);
-                    break;
-                }
-            case PdfPanelAutoScaleMode.ScaleToVisible:
-                {
-                    var visiblePages = context.Pages.Where(p => p.IsPageVisible(context.ViewportRectangle, context.Scale)).ToList();
-                    ApplyScaleToPages(context, visiblePages);
-                    break;
-                }
+            {
+                ApplyScaleToPages(context, context.Pages);
+                break;
+            }
+            case PdfPanelAutoScaleMode.ScaleToHeight:
+            {
+                ApplyScaleToPagesHeight(context, context.Pages);
+                break;
+            }
         }
     }
 
-    /// <summary>
-    /// Computes and applies a scale so the provided pages fit the viewport width.
-    /// </summary>
-    /// <param name="context">The panel context used to compute viewport and padding values.</param>
-    /// <param name="pages">The pages to consider when computing the target scale.</param>
-    /// <exception cref="ArgumentNullException">Thrown when <paramref name="context"/> is <see langword="null"/>.</exception>
-    private static void ApplyScaleToPages(PdfPanelContext context, IReadOnlyList<PdfPanelPage> pages)
+    private static void ApplyScaleToPages(PdfPanelContext context, PdfPanelPageCollection pages)
     {
         if (context == null)
         {
@@ -211,6 +204,39 @@ public static class PdfPanelContextExtensions
 
         UpdateScalePreserveOffset(context, scale, 0, 0);
     }
+
+    private static void ApplyScaleToPagesHeight(PdfPanelContext context, PdfPanelPageCollection pages)
+    {
+        if (context == null)
+        {
+            throw new ArgumentNullException(nameof(context));
+        }
+
+        if (pages == null || pages.Count == 0)
+        {
+            return;
+        }
+
+        float contentHeight = 0;
+
+        foreach (var page in pages)
+        {
+            var rect = page.GetScaledPageBounds(context.Scale);
+            contentHeight = Math.Max(contentHeight, rect.Height);
+        }
+
+        float padding = context.MinimumPageGap * context.Scale;
+        var targetHeight = contentHeight + padding + 1;
+        var scale = context.ViewportHeight * context.Scale / targetHeight;
+
+        if (Math.Abs(scale - context.Scale) / context.Scale <= ScaleTolerance)
+        {
+            return;
+        }
+
+        UpdateScalePreserveOffset(context, scale, 0, 0);
+    }
+
 
     /// <summary>
     /// Finds the page at the specified viewport point.

@@ -39,7 +39,7 @@ public partial class PdfPanelInterop
 
         var resources = new PdfPanelResources
         {
-            SkSurfaceFactory = new CpuSkSurfaceFactory(),
+            SkSurfaceFactory = new CpuSkSurfaceFactory(SKColorType.Rgba8888, SKAlphaType.Premul),
             RenderTargetFactory = new WebRenderTargetFactory(id)
         };
 

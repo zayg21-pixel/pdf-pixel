@@ -52,7 +52,6 @@ partial class WpfPdfPanelRenderTarget : IPdfPanelRenderTarget
 
         surface.ReadPixels(imageInfo, WriteableBitmap.BackBuffer, WriteableBitmap.BackBufferStride, 0, 0);
 
-        Panel.PanelInterface.OnAfterDraw?.Invoke(surface.Canvas, request);
         if (Panel.PanelInterface.OnAfterDraw != null)
         {
             using SKSurface drawSurface = SKSurface.Create(imageInfo, WriteableBitmap.BackBuffer, WriteableBitmap.BackBufferStride);

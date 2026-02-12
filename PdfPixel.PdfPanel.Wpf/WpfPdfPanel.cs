@@ -167,7 +167,7 @@ namespace PdfPixel.PdfPanel.Wpf
             }
 
             renderingQueue?.Dispose();
-            renderingQueue = new PdfRenderingQueue(new CpuSkSurfaceFactory());
+            renderingQueue = new PdfRenderingQueue(new CpuSkSurfaceFactory(SKColorType.Bgra8888, SKAlphaType.Premul));
             renderTargetFactory = new WpfPdfPanelRenderTargetFactory(this);
             _context = new PdfPanelContext(Pages, renderingQueue, renderTargetFactory, new PdfPanelVerticalLayout());
         }

@@ -360,9 +360,7 @@ public sealed class PdfRenderingQueue : IDisposable
 
     private SKSurface CreateSurface(SKSurface source, int width, int height)
     {
-        var info = new SKImageInfo(width, height, SKColorType.Bgra8888, SKAlphaType.Premul);
-
-        var result = _surfaceFactory.GetSurface(info);
+        var result = _surfaceFactory.GetSurface(width, height);
 
         if (source != null)
         {

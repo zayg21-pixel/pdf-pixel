@@ -1,0 +1,23 @@
+<svg width="200" height="120" viewBox="0 0 200 120" xmlns="http://www.w3.org/2000/svg">
+  <!-- Pixel Grid Icon -->
+  <g id="pixel-grid">
+    <!-- Define the 3x3 squares -->
+    <rect x="0" y="0" width="20" height="20" fill="#21232B"/>
+    <rect x="24" y="0" width="20" height="20" fill="#21232B"/>
+    <rect x="48" y="0" width="20" height="20" fill="#21232B"/>
+
+    <rect x="0" y="24" width="20" height="20" fill="#21232B"/>
+    <rect x="24" y="24" width="20" height="20" fill="	"/> <!-- center accent -->
+    <rect x="48" y="24" width="20" height="20" fill="#21232B"/>
+
+    <rect x="0" y="48" width="20" height="20" fill="#21232B"/>
+    <rect x="24" y="48" width="20" height="20" fill="#21232B"/>
+    <rect x="48" y="48" width="20" height="20" fill="#21232B"/>
+  </g>
+
+  <!-- Wordmark -->
+  <text x="80" y="40" font-family="Inter, sans-serif" font-size="32" font-weight="600">
+    <tspan fill="#21232B">PDF</tspan>
+    <tspan fill="#4695EB">Pixel</tspan>
+  </text>
+</svg>

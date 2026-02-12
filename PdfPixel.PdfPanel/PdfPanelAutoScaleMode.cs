@@ -8,12 +8,12 @@ public enum PdfPanelAutoScaleMode
     NoAutoScale,
 
     /// <summary>
-    /// Scale to visible pages.
+    /// Scale to pages width.
     /// </summary>
-    ScaleToVisible,
+    ScaleToWidth,
 
     /// <summary>
-    /// Scale to all pages.
+    /// Scale to height of pages.
     /// </summary>
-    ScaleToWidth
+    ScaleToHeight
 }

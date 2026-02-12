@@ -15,4 +15,8 @@
     <ProjectReference Include="..\PdfPixel.PdfPanel.Wpf\PdfPixel.PdfPanel.Wpf.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Resource Include="../logo.ico" Link="logo.ico" />
+  </ItemGroup>
+
 </Project>

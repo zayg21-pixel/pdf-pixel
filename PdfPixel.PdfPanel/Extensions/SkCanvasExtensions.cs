@@ -47,7 +47,7 @@ internal static class SkCanvasExtensions
             var pageRectangle = new SKRect(0, 0, page.RotatedSize.Width, page.RotatedSize.Height);
             using var clipPath = new SKPath();
             clipPath.AddRoundRect(pageRectangle, request.PageCornerRadius, request.PageCornerRadius);
-            canvas.ClipPath(clipPath, SKClipOperation.Intersect, true);
+            canvas.ClipPath(clipPath, SKClipOperation.Intersect, antialias: true);
         }
 
         if (!request.Pages.TryGetPictureFromCache(page.PageNumber, out var picture))
@@ -94,7 +94,6 @@ internal static class SkCanvasExtensions
             }
 
             var transformMatrix = GetPictureTransformMatrix(picture.AnnotationPicture.CullRect.Width, picture.AnnotationPicture.CullRect.Height, page.Info, page.UserRotation);
-
             canvas.DrawPicture(picture.AnnotationPicture, in transformMatrix);
         }
     }
@@ -190,7 +189,6 @@ internal static class SkCanvasExtensions
             }
             else
             {
-                canvas.ClipRect(pageRectangle, SKClipOperation.Difference, true);
                 canvas.DrawRect(pageRectangle, shadowPaint);
             }
 

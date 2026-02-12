@@ -7,13 +7,19 @@ namespace PdfPixel.PdfPanel;
 /// </summary>
 public class CpuSkSurfaceFactory : ISkSurfaceFactory
 {
-    /// <summary>
-    /// Creates a CPU-backed <see cref="SKSurface"/> using the specified image information.
-    /// </summary>
-    /// <param name="imageInfo">The image information describing the surface properties.</param>
-    /// <returns>A new CPU-backed <see cref="SKSurface"/> instance.</returns>
-    public SKSurface GetSurface(SKImageInfo imageInfo)
+    private readonly SKColorType _colorType;
+    private readonly SKAlphaType _alphaType;
+
+    public CpuSkSurfaceFactory(SKColorType colorType, SKAlphaType alphaType)
     {
-        return SKSurface.Create(imageInfo);
+        _colorType = colorType;
+        _alphaType = alphaType;
+    }
+
+    /// <inheritdoc />
+    public SKSurface GetSurface(int width, int height)
+    {
+        var info = new SKImageInfo(width, height, _colorType, _alphaType);
+        return SKSurface.Create(info);
     }
 }
