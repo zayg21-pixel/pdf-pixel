@@ -11,7 +11,7 @@ namespace PdfPixel.PdfPanel.Wpf
             new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.AffectsRender, PagesProperty_Changed));
 
         public static readonly DependencyProperty ScrollTickProperty = DependencyProperty.Register(nameof(ScrollTick), typeof(int), typeof(WpfPdfPanel),
-            new FrameworkPropertyMetadata(100, FrameworkPropertyMetadataOptions.AffectsRender));
+            new FrameworkPropertyMetadata(50, FrameworkPropertyMetadataOptions.AffectsRender));
 
         public static readonly DependencyProperty ScaleProperty = DependencyProperty.Register(nameof(Scale), typeof(double), typeof(WpfPdfPanel),
             new FrameworkPropertyMetadata(1d, FrameworkPropertyMetadataOptions.AffectsRender | FrameworkPropertyMetadataOptions.BindsTwoWayByDefault, ScaleProperty_Changed));

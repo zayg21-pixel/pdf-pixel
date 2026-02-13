@@ -1,3 +1,4 @@
+using PdfPixel.Annotations.Rendering;
 using PdfPixel.Models;
 using PdfPixel.Text;
 using SkiaSharp;
@@ -24,7 +25,7 @@ public class PdfTextAnnotation : PdfAnnotationBase
     {
         // Initialize all text annotation specific properties
         IsOpen = annotationObject.Dictionary.GetBooleanOrDefault(PdfTokens.OpenKey);
-        IconName = annotationObject.Dictionary.GetName(PdfTokens.NameKey);
+        Icon = annotationObject.Dictionary.GetName(PdfTokens.NameKey).AsEnum<PdfTextAnnotationIcon>();
         StateModel = annotationObject.Dictionary.GetName(PdfTokens.StateModelKey);
         State = annotationObject.Dictionary.GetName(PdfTokens.StateKey);
     }
@@ -40,23 +41,13 @@ public class PdfTextAnnotation : PdfAnnotationBase
     /// <summary>
     /// Gets the name of an icon to be displayed when the annotation is closed.
     /// </summary>
-    /// <remarks>
-    /// Typical values include: Comment, Key, Note, Help, NewParagraph, Paragraph, Insert.
-    /// If not present, the default is "Note".
-    /// </remarks>
-    public PdfString IconName { get; }
+    public PdfTextAnnotationIcon Icon { get; }
 
     public override bool ShouldDisplayBubble => false;
 
-    /// <summary>
-    /// Gets the icon name with fallback to the default "Note" icon.
-    /// </summary>
-    public string IconNameWithDefault
+    public override SKRect GetHoverRectangle(PdfPage page, float defaultBubbleSize = 16)
     {
-        get
-        {
-            return IconName.IsEmpty ? "Note" : IconName.ToString();
-        }
+        return Rectangle;
     }
 
     /// <summary>
@@ -86,46 +77,7 @@ public class PdfTextAnnotation : PdfAnnotationBase
     {
         using var recorder = new SKPictureRecorder();
         using var canvas = recorder.BeginRecording(Rectangle);
-
-        var width = Rectangle.Width;
-        var height = Rectangle.Height;
-
-        var iconSize = Math.Min(width, height) * 0.8f;
-        var centerX = Rectangle.Left + width / 2;
-        var centerY = Rectangle.Top + height / 2;
-
-        var iconRect = new SKRect(
-            centerX - iconSize / 2,
-            centerY - iconSize / 2,
-            centerX + iconSize / 2,
-            centerY + iconSize / 2);
-
-        var color = ResolveColor(page, new SKColor(255, 165, 0));
-
-        using var iconPaint = new SKPaint
-        {
-            Style = SKPaintStyle.Fill,
-            Color = color,
-            IsAntialias = true
-        };
-
-        canvas.DrawOval(iconRect, iconPaint);
-
-        using var font = new SKFont(SKTypeface.Default, iconSize * 0.4f);
-        using var textPaint = new SKPaint
-        {
-            Style = SKPaintStyle.Fill,
-            Color = SKColors.White,
-            IsAntialias = true
-        };
-
-        var text = "?";
-        var textWidth = font.MeasureText(text);
-        var textX = iconRect.MidX - textWidth / 2;
-        var textY = iconRect.MidY + font.Size / 3;
-
-        canvas.DrawText(text, textX, textY, font, textPaint);
-
+        PdfAnnotationBubbleRenderer.RenderBubble(canvas, this, page, visualStateKind);
         return recorder.EndRecording();
     }
 
@@ -139,9 +91,9 @@ public class PdfTextAnnotation : PdfAnnotationBase
         
         if (!string.IsNullOrEmpty(contentsText))
         {
-            return $"Text Annotation ({IconNameWithDefault}): {contentsText}";
+            return $"Text Annotation ({Icon}): {contentsText}";
         }
         
-        return $"Text Annotation ({IconNameWithDefault})";
+        return $"Text Annotation ({Icon})";
     }
 }

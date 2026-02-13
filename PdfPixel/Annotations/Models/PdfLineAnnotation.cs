@@ -42,6 +42,8 @@ public class PdfLineAnnotation : PdfAnnotationBase
         LeaderLineOffset = annotationObject.Dictionary.GetFloat(PdfTokens.LeaderLineOffsetKey);
     }
 
+    protected override SKPoint ContentStart => new SKPoint(StartX, StartY);
+
     /// <summary>
     /// Gets the X coordinate of the line's start point.
     /// </summary>

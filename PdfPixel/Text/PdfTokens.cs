@@ -331,6 +331,12 @@ public static class PdfTokens
     public static readonly PdfString InReplyToKey = (PdfString)"IRT"u8;              // Annotation reply reference
     public static readonly PdfString ReplyTypeKey = (PdfString)"RT"u8;               // Annotation reply type
 
+    // File attachment / filespec keys
+    public static readonly PdfString FSKey = (PdfString)"FS"u8;                      // File specification dictionary key (for file attachment annotations)
+    public static readonly PdfString EFKey = (PdfString)"EF"u8;                      // Embedded file dictionary key inside a filespec
+    public static readonly PdfString UFKey = (PdfString)"UF"u8;                      // Unicode file name key inside filespec
+    public static readonly PdfString FKey = (PdfString)"F"u8;                        // File name key inside filespec
+
     // Link annotation specific keys
     public static readonly PdfString AKey = (PdfString)"A"u8;                         // Action dictionary
     public static readonly PdfString DestKey = (PdfString)"Dest"u8;                   // Destination (for link annotations)

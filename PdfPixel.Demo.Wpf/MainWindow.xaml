@@ -47,14 +47,17 @@
             </Setter>
         </Style>
     </Window.Resources>
-        
+
+    <Window.DataContext>
+        <local:MainWindowsViewModel />
+    </Window.DataContext>
+
     <Grid Background="{DynamicResource {x:Static SystemColors.ControlBrushKey}}">
-        <Grid.DataContext>
-            <local:MainWindowsViewModel />
-        </Grid.DataContext>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
-            <RowDefinition />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="100" />
         </Grid.RowDefinitions>
         <Grid>
             <Grid.ColumnDefinitions>
@@ -162,5 +165,14 @@
                 </wpfPdfPanel:WpfPdfPanel.AnnotationToolTip>
             </wpfPdfPanel:WpfPdfPanel>
         </ScrollViewer>
+        <GridSplitter Grid.Row="2" Height="5" HorizontalAlignment="Stretch" VerticalAlignment="Center"  />
+        <DataGrid x:Name="LogDataGrid" Grid.Row="3" ItemsSource="{Binding LogMessages}" AutoGenerateColumns="False" IsReadOnly="True" Margin="4">
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="Time" Binding="{Binding DateTime, StringFormat=G}" Width="120" />
+                <DataGridTextColumn Header="Level" Binding="{Binding LogLevel}" Width="80" />
+                <DataGridTextColumn Header="Category" Binding="{Binding CategoryName}" Width="150" />
+                <DataGridTextColumn Header="Message" Binding="{Binding FormattedMessage}" Width="*" />
+            </DataGrid.Columns>
+        </DataGrid>
     </Grid>
 </Window>

@@ -173,7 +173,7 @@ public class TextOperators : IOperatorProcessor
 
         var fontName = operands[0].AsName();
         var fontSize = operands[1].AsFloat();
-        if (fontName.IsEmpty || fontSize <= 0)
+        if (fontName.IsEmpty)
         {
             return;
         }

@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 
@@ -11,14 +12,25 @@ namespace PdfPixel.PostScript.Tokens
     {
         public PostScriptDictionary()
         {
-            Entries = new Dictionary<string, PostScriptToken>(StringComparer.OrdinalIgnoreCase);
+            Entries = new CaseInsensitiveGetterDictionary<PostScriptToken>();
         }
-        public PostScriptDictionary(Dictionary<string, PostScriptToken> entries)
+        public PostScriptDictionary(IDictionary<string, PostScriptToken> entries)
         {
-            Entries = entries ?? new Dictionary<string, PostScriptToken>(StringComparer.OrdinalIgnoreCase);
+            var caseInsensitiveEntries = new CaseInsensitiveGetterDictionary<PostScriptToken>();
+
+            if (entries != null)
+            {
+                foreach (var entry in entries)
+                {
+                    caseInsensitiveEntries[entry.Key] = entry.Value;
+                }
+
+            }
+
+            Entries = caseInsensitiveEntries;
         }
 
-        public Dictionary<string, PostScriptToken> Entries { get; }
+        public IDictionary<string, PostScriptToken> Entries { get; }
 
         public override string ToString()
         {

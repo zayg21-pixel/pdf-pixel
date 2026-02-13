@@ -11,6 +11,7 @@ namespace PdfPixel.Rendering.Path;
 internal class PathStrokeRenderTarget : IRenderTarget
 {
     private readonly SKPath _path;
+    private readonly SKPath _clipPath;
     private readonly PdfGraphicsState _state;
     private readonly PdfPattern _pattern;
     private readonly SKPaint _basePaint;
@@ -20,15 +21,16 @@ internal class PathStrokeRenderTarget : IRenderTarget
         _path = path;
         _state = state;
         _basePaint = PdfPaintFactory.CreateStrokePaint(state);
+        _clipPath = _basePaint.GetFillPath(path);
 
         if (state.StrokePaint.IsPattern)
         {
             _pattern = state.StrokePaint.Pattern;
-            _path = _basePaint.GetFillPath(path);
+            _path = _clipPath;
         }
     }
 
-    public SKPath ClipPath => _path;
+    public SKPath ClipPath => _clipPath;
 
     public SKColor Color => _state.StrokePaint.Color;
 

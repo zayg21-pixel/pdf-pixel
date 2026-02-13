@@ -56,10 +56,10 @@ public abstract class PdfAnnotationBase
 
         Color = annotationObject.Dictionary.GetArray(PdfTokens.ColorKey)?.GetFloatArray();
         InteriorColor = annotationObject.Dictionary.GetArray(PdfTokens.InteriorColorKey)?.GetFloatArray();
-        PageReference = annotationObject.Dictionary.GetValue(PdfTokens.PageKey)?.AsReference();
+        PageReference = annotationObject.Dictionary.GetObject(PdfTokens.PageKey)?.Reference;
         StructuralParent = annotationObject.Dictionary.GetInteger(PdfTokens.StructParentKey);
         OptionalContent = annotationObject.Dictionary.GetDictionary(PdfTokens.OptionalContentKey);
-        InReplyTo = annotationObject.Dictionary.GetValue(PdfTokens.InReplyToKey)?.AsReference();
+        InReplyTo = annotationObject.Dictionary.GetObject(PdfTokens.InReplyToKey)?.Reference;
         ReplyType = annotationObject.Dictionary.GetName(PdfTokens.ReplyTypeKey).AsEnum<PdfAnnotationReplyType>();
         SupportedVisualStates = DetectSupportedVisualStates();
     }
@@ -84,6 +84,11 @@ public abstract class PdfAnnotationBase
     public SKRect Rectangle { get; }
 
     /// <summary>
+    /// Starting point of actual content.
+    /// </summary>
+    protected virtual SKPoint ContentStart => new SKPoint(Rectangle.Left, Rectangle.Bottom);
+
+    /// <summary>
     /// Gets whether this annotation should display a content bubble indicator.
     /// </summary>
     /// <remarks>
@@ -91,37 +96,6 @@ public abstract class PdfAnnotationBase
     /// be accessible through a bubble indicator. The HoverRectangle will be the bubble area only.
     /// </remarks>
     public virtual bool ShouldDisplayBubble => !Contents.Value.IsEmpty;
-
-    /// <summary>
-    /// Gets the hover rectangle for interaction purposes (hit testing, popups, etc.).
-    /// </summary>
-    /// <remarks>
-    /// If ShouldDisplayBubble is true, this returns a small rectangle for the bubble indicator
-    /// positioned just above and to the left of the annotation content. The bubble does not
-    /// overlap the annotation's own Rectangle. Coordinates are in PDF space where the origin
-    /// is at the bottom-left of the page.
-    /// </remarks>
-    public SKRect HoverRectangle
-    {
-        get
-        {
-            if (!ShouldDisplayBubble)
-            {
-                return Rectangle;
-            }
-
-            const float bubbleSize = 16.0f;
-
-            var bubbleLeft = Rectangle.Left - bubbleSize;
-            var bubbleTop = Rectangle.Bottom;
-
-            return SKRect.Create(
-                bubbleLeft,
-                bubbleTop,
-                bubbleSize,
-                bubbleSize);
-        }
-    }
 
     /// <summary>
     /// Gets the annotation's contents, which is typically the text displayed 
@@ -259,6 +233,59 @@ public abstract class PdfAnnotationBase
     /// avoiding lookups for states that don't exist.
     /// </remarks>
     public PdfAnnotationVisualStateKind SupportedVisualStates { get; }
+
+    /// <summary>
+    /// Gets the hover rectangle for interaction purposes (hit testing, popups, etc.).
+    /// </summary>
+    /// <remarks>
+    /// If ShouldDisplayBubble is true, this returns a small rectangle for the bubble indicator
+    /// positioned just above and to the left of the annotation content. The bubble does not
+    /// overlap the annotation's own Rectangle. Coordinates are in PDF space where the origin
+    /// is at the bottom-left of the page.
+    /// </remarks>
+    /// <param name="page">Owning PDF page to crop margins to.</param>
+    /// <param name="defaultBubbleSize">Bubble size used when <see cref="ShouldDisplayBubble"/> is true.</param>
+    public virtual SKRect GetHoverRectangle(PdfPage page, float defaultBubbleSize = 16)
+    {
+        if (page == null)
+        {
+            throw new ArgumentNullException(nameof(page));
+        }
+
+        var hoverRect = ShouldDisplayBubble
+            ? SKRect.Create(ContentStart.X - defaultBubbleSize, ContentStart.Y, defaultBubbleSize, defaultBubbleSize)
+            : Rectangle;
+
+        if (hoverRect.Width <= 0 || hoverRect.Height <= 0)
+        {
+            return SKRect.Empty;
+        }
+
+        var crop = page.CropBox;
+
+        var dx = 0f;
+        if (hoverRect.Left < crop.Left)
+        {
+            dx = crop.Left - hoverRect.Left;
+        }
+        else if (hoverRect.Right > crop.Right)
+        {
+            dx = crop.Right - hoverRect.Right;
+        }
+
+        var dy = 0f;
+        if (hoverRect.Top < crop.Top)
+        {
+            dy = crop.Top - hoverRect.Top;
+        }
+        else if (hoverRect.Bottom > crop.Bottom)
+        {
+            dy = crop.Bottom - hoverRect.Bottom;
+        }
+
+        hoverRect.Offset(dx, dy);
+        return hoverRect;
+    }
 
     /// <summary>
     /// Detects which visual states are supported by examining the appearance dictionary.

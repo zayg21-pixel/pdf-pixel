@@ -76,12 +76,16 @@ public class PathRenderer : IPathRenderer
             case PaintOperation.FillAndStroke:
             {
                 // Fill phase.
-                using var fillTarget = new PathFillRenderTarget(path, state);
+                var strokeOutline = PdfPaintFactory.CreateStrokePaint(state).GetFillPath(path);
+                var fillOutline = path.Op(strokeOutline, SKPathOp.Difference);
+
+                using var fillTarget = new PathFillRenderTarget(fillOutline, state);
                 fillTarget.Render(canvas);
 
                 // Stroke phase.
                 using var strokeTarget = new PathStrokeRenderTarget(path, state);
                 strokeTarget.Render(canvas);
+
                 break;
             }
         }

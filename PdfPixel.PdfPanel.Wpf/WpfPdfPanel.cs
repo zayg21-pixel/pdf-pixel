@@ -262,9 +262,9 @@ namespace PdfPixel.PdfPanel.Wpf
             bool wasPressed = _lastAnnotationPopup != null && _lastAnnotationState == PdfPanelPointerState.Pressed;
             bool isPressed = currentPopup != null && _context.ActiveAnnotationState == PdfPanelPointerState.Pressed;
 
-            if (wasPressed && !isPressed && _lastAnnotationPopup.Annotation is PdfLinkAnnotation linkAnnotation)
+            if (wasPressed && !isPressed)
             {
-                HandleLinkAnnotationClick(linkAnnotation);
+                HandleAnnotationClick(_lastAnnotationPopup.Annotation);
             }
 
             UpdateAnnotationPopup(currentPopup);
@@ -275,21 +275,23 @@ namespace PdfPixel.PdfPanel.Wpf
 
         private void UpdateAnnotationPopup(PdfAnnotationPopup currentPopup)
         {
-            if (AnnotationPopup != currentPopup)
+            if (AnnotationPopup == currentPopup)
             {
-                AnnotationPopup = currentPopup;
+                return;
+            }
 
-                UpdateCursorForAnnotation(currentPopup);
+            AnnotationPopup = currentPopup;
 
-                if (AnnotationToolTip != null)
+            UpdateCursorForAnnotation(currentPopup);
+
+            if (AnnotationToolTip != null)
+            {
+                if (currentPopup != null)
                 {
-                    if (currentPopup != null)
-                    {
-                        AnnotationToolTip.Content = AnnotationPopup;
-                    }
-
-                    AnnotationToolTip.IsOpen = AnnotationPopup != null;
+                    AnnotationToolTip.Content = AnnotationPopup;
                 }
+
+                AnnotationToolTip.IsOpen = AnnotationPopup != null && AnnotationPopup.Messages.Length > 0;
             }
         }
 
@@ -305,20 +307,27 @@ namespace PdfPixel.PdfPanel.Wpf
             }
         }
 
-        private void HandleLinkAnnotationClick(PdfLinkAnnotation linkAnnotation)
+        private void HandleAnnotationClick(PdfAnnotationBase annotation)
         {
-            if (linkAnnotation.Action is PdfUriAction uriAction)
+            if (annotation is PdfFileAttachmentAnnotation fileAttachment)
             {
-                HandleUriAction(uriAction);
+                // TODO: implement file attachment handling
             }
-            else if (linkAnnotation.Action is PdfGoToAction goToAction)
+            else if (annotation is PdfLinkAnnotation linkAnnotation)
             {
-                HandleGoToAction(goToAction);
-            }
-            else if (linkAnnotation.Destination != null)
-            {
-                _context?.ScrollToDestination(linkAnnotation.Destination);
-                InvalidateVisual();
+                if (linkAnnotation.Action is PdfUriAction uriAction)
+                {
+                    HandleUriAction(uriAction);
+                }
+                else if (linkAnnotation.Action is PdfGoToAction goToAction)
+                {
+                    HandleGoToAction(goToAction);
+                }
+                else if (linkAnnotation.Destination != null)
+                {
+                    _context?.ScrollToDestination(linkAnnotation.Destination);
+                    InvalidateVisual();
+                }
             }
         }
 
@@ -332,16 +341,22 @@ namespace PdfPixel.PdfPanel.Wpf
 
             try
             {
-                Process.Start(new ProcessStartInfo
+                Dispatcher.BeginInvoke(new Action(() =>
                 {
-                    FileName = uriString,
-                    UseShellExecute = true
-                });
+                    Process.Start(new ProcessStartInfo
+                    {
+                        FileName = uriString,
+                        UseShellExecute = true
+                    });
+                }));
             }
             catch (Exception ex)
             {
 #if DEBUG
-                MessageBox.Show($"Failed to open URI: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                Dispatcher.BeginInvoke(new Action(() =>
+                {
+                    MessageBox.Show($"Failed to open URI: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                }));
 #endif
             }
         }

@@ -43,7 +43,6 @@ namespace PdfPixel.Rendering.State
             RenderingParameters = renderingParameters ?? throw new ArgumentNullException(nameof(renderingParameters));
             FillColorConverter = statePage.Cache.ColorSpace.ResolveDeviceConverter(PdfColorSpaceType.DeviceGray);
             StrokeColorConverter = statePage.Cache.ColorSpace.ResolveDeviceConverter(PdfColorSpaceType.DeviceGray);
-
         }
 
         /// <summary>
@@ -382,18 +381,6 @@ namespace PdfPixel.Rendering.State
         public SKPath TextClipPath { get; set; }
 
         /// <summary>
-        /// Type 3 glyph advancement vector (wx, wy) as provided by d0/d1 operators inside the glyph stream.
-        /// Default is (0,0) until set.
-        /// </summary>
-        public SKSize Type3Advancement { get; set; } = SKSize.Empty;
-
-        /// <summary>
-        /// Type 3 glyph bounding box (llx, lly, urx, ury) as provided by d1 operator inside the glyph stream.
-        /// Null until set via d1. d0 resets it to null per glyph.
-        /// </summary>
-        public SKRect? Type3BoundingBox { get; set; }
-
-        /// <summary>
         /// Create a deep copy for stack push (q operator). Paint objects are reference-copied (immutable usage expected).
         /// </summary>
         public PdfGraphicsState Clone()
@@ -435,8 +422,6 @@ namespace PdfPixel.Rendering.State
                 CTM = CTM,
                 DeviceMatrix = DeviceMatrix,
                 TextClipPath = TextClipPath,
-                Type3Advancement = Type3Advancement,
-                Type3BoundingBox = Type3BoundingBox
             };
         }
 

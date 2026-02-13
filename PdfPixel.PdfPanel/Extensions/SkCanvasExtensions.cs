@@ -42,13 +42,16 @@ internal static class SkCanvasExtensions
             DrawPageBackground(canvas, page, request.PageCornerRadius);
         }
 
+        var pageRectangle = new SKRect(0, 0, page.RotatedSize.Width, page.RotatedSize.Height);
+
         if (request.PageCornerRadius > 0)
         {
-            var pageRectangle = new SKRect(0, 0, page.RotatedSize.Width, page.RotatedSize.Height);
             using var clipPath = new SKPath();
             clipPath.AddRoundRect(pageRectangle, request.PageCornerRadius, request.PageCornerRadius);
             canvas.ClipPath(clipPath, SKClipOperation.Intersect, antialias: true);
         }
+
+        canvas.SaveLayer(pageRectangle, default);
 
         if (!request.Pages.TryGetPictureFromCache(page.PageNumber, out var picture))
         {

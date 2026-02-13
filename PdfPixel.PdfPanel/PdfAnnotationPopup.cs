@@ -38,11 +38,12 @@ public class PdfAnnotationPopup
     /// <returns>True if the annotation is interactive; otherwise, false.</returns>
     public bool IsInteractive()
     {
-        if (Annotation is PdfLinkAnnotation)
+        if (Annotation is PdfLinkAnnotation || Annotation is PdfFileAttachmentAnnotation)
         {
             return true;
         }
-        if (Annotation.ShouldDisplayBubble == true)
+
+        if (Annotation.ShouldDisplayBubble)
         {
             return true;
         }

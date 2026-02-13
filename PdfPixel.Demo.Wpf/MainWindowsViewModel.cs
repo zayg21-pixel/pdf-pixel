@@ -9,6 +9,9 @@ using SkiaSharp;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Windows.Input;
+using PdfPixel.Demo.Wpf;
+using PdfPixel.Models;
+using System.Linq;
 
 namespace PdfPixel.Demo.Wpf;
 
@@ -25,20 +28,28 @@ public class PdfFileLocation
     public string FileName { get; }
 }
 
+
+
 public class MainWindowsViewModel : ObservableObject
 {
     private static readonly ISkiaFontProvider FontProvider = new WindowsSkiaFontProvider("Times New Roman");
     private readonly PdfDocumentReader _reader;
+    private readonly ObservableLoggerFactory _loggerFactory;
+    private readonly object _logMessagesLock = new object();
 
     private int _pageNumber;
     private PdfPanelAutoScaleMode _autoScaleMode;
     private PdfPanelPageCollection _pages;
+    private PdfDocument _document;
     private PdfFileLocation _selectedPdfFile;
     private bool _hasFiles;
 
     public MainWindowsViewModel()
     {
-        _reader = new PdfDocumentReader(new LoggerFactory(), FontProvider);
+        LogMessages = new ObservableCollection<LogMessage>();
+        System.Windows.Data.BindingOperations.EnableCollectionSynchronization(LogMessages, _logMessagesLock);
+        _loggerFactory = new ObservableLoggerFactory(LogMessages, _logMessagesLock);
+        _reader = new PdfDocumentReader(_loggerFactory, FontProvider);
 
         PanelInterface = new WpfPdfPanelInterface();
         PanelInterface.OnAfterDraw = OnAfterDraw;
@@ -53,6 +64,8 @@ public class MainWindowsViewModel : ObservableObject
 
         OpenFileCommand = new RelayCommand(OpenFile);
     }
+
+    public ObservableCollection<LogMessage> LogMessages { get; }
 
     public int PageNumber
     {
@@ -231,7 +244,7 @@ public class MainWindowsViewModel : ObservableObject
 
         if (Directory.Exists(pdfDirectory))
         {
-            var files = Directory.GetFiles(pdfDirectory, "*.pdf");
+            var files = Directory.GetFiles(pdfDirectory, "*.pdf").OrderBy(x => x);
 
             foreach (var file in files)
             {
@@ -256,11 +269,12 @@ public class MainWindowsViewModel : ObservableObject
 
         var currentPages = Pages;
         Pages = null;
+        _document?.Dispose();
         currentPages?.Dispose();
 
         var fileStream = File.OpenRead(SelectedPdfFile.FilePath);
-        var pdfDocument = _reader.Read(fileStream);
-        Pages = PdfPanelPageCollection.FromDocument(pdfDocument);
+        _document = _reader.Read(fileStream);
+        Pages = PdfPanelPageCollection.FromDocument(_document);
         AutoScaleMode = PdfPanelAutoScaleMode.ScaleToWidth;
     }
 }

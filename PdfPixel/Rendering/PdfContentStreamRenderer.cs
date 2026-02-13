@@ -95,8 +95,9 @@ public class PdfContentStreamRenderer
                 catch
                 {
                     _logger.LogError("Error processing PDF content stream operator {Operator}. Continuing to next.", op);
-                    operandStack.Clear();
                 }
+
+                operandStack.Clear();
             }
             else
             {

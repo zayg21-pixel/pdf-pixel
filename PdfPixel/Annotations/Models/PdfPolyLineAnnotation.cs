@@ -22,7 +22,17 @@ public class PdfPolyLineAnnotation : PdfAnnotationBase
     public PdfPolyLineAnnotation(PdfObject annotationObject)
         : base(annotationObject, PdfAnnotationSubType.PolyLine)
     {
-        Vertices = annotationObject.Dictionary.GetArray(PdfTokens.VerticesKey)?.GetFloatArray();
+        var vertices = annotationObject.Dictionary.GetArray(PdfTokens.VerticesKey)?.GetFloatArray();
+
+        if (vertices != null)
+        {
+            Vertices = new SKPoint[vertices.Length / 2];
+
+            for (int i = 0; i < vertices.Length; i += 2)
+            {
+                Vertices[i / 2] = new SKPoint(vertices[i], vertices[i + 1]);
+            }
+        }
 
         var lineEndingArray = annotationObject.Dictionary.GetArray(PdfTokens.LineEndingKey);
         if (lineEndingArray != null && lineEndingArray.Count >= 2)
@@ -32,10 +42,12 @@ public class PdfPolyLineAnnotation : PdfAnnotationBase
         }
     }
 
+    protected override SKPoint ContentStart => Vertices != null && Vertices.Length > 0 ? Vertices[0] : base.ContentStart;
+
     /// <summary>
-    /// Gets the vertices array containing alternating x,y coordinates of the polyline vertices.
+    /// Gets the vertices array containing coordinates of the polyline vertices.
     /// </summary>
-    public float[] Vertices { get; }
+    public SKPoint[] Vertices { get; }
 
     /// <summary>
     /// Gets the line ending style at the start point.
@@ -55,7 +67,7 @@ public class PdfPolyLineAnnotation : PdfAnnotationBase
     /// <returns>An SKPicture containing the rendered polyline.</returns>
     public override SKPicture CreateFallbackRender(PdfPage page, PdfAnnotationVisualStateKind visualStateKind)
     {
-        if (Vertices == null || Vertices.Length < 4)
+        if (Vertices == null || Vertices.Length < 2)
         {
             return null;
         }
@@ -68,14 +80,11 @@ public class PdfPolyLineAnnotation : PdfAnnotationBase
 
         using var path = new SKPath();
 
-        path.MoveTo(Vertices[0], Vertices[1]);
+        path.MoveTo(Vertices[0]);
 
-        for (int i = 2; i < Vertices.Length; i += 2)
+        for (int i = 1; i < Vertices.Length; i++)
         {
-            if (i + 1 < Vertices.Length)
-            {
-                path.LineTo(Vertices[i], Vertices[i + 1]);
-            }
+            path.LineTo(Vertices[i]);
         }
 
         using var linePaint = new SKPaint
@@ -98,10 +107,10 @@ public class PdfPolyLineAnnotation : PdfAnnotationBase
         {
             PdfAnnotationLineEndingRenderer.DrawLineEnding(
                 canvas,
-                Vertices[0],
-                Vertices[1],
-                Vertices[2],
-                Vertices[3],
+                Vertices[0].X,
+                Vertices[0].Y,
+                Vertices[1].X,
+                Vertices[1].Y,
                 StartLineEnding,
                 lineWidth,
                 lineColor,
@@ -112,10 +121,10 @@ public class PdfPolyLineAnnotation : PdfAnnotationBase
         {
             PdfAnnotationLineEndingRenderer.DrawLineEnding(
                 canvas,
-                Vertices[Vertices.Length - 2],
-                Vertices[Vertices.Length - 1],
-                Vertices[Vertices.Length - 4],
-                Vertices[Vertices.Length - 3],
+                Vertices[Vertices.Length - 1].X,
+                Vertices[Vertices.Length - 1].Y,
+                Vertices[Vertices.Length - 2].X,
+                Vertices[Vertices.Length - 2].Y,
                 EndLineEnding,
                 lineWidth,
                 lineColor,

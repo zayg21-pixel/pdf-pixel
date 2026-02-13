@@ -130,7 +130,7 @@ public class PdfTextRenderer : IPdfTextRenderer
                 canvas.Save();
                 // Translate by glyph X/Y (already in text space units after fullTextMatrix).
                 canvas.Translate(glyph.X, glyph.Y);
-
+                canvas.Concat(type3Font.FontMatrix);
                 if (charInfo.IsColored)
                 {
                     canvas.DrawPicture(charInfo.Picture);

@@ -199,7 +199,7 @@ public sealed class PdfPanelPageCollection : ReadOnlyCollection<PdfPanelPage>, I
 
             if (cachedPicture.AnnotationPicture == null)
             {
-                cachedPicture.UpdateAnnotationPicture(Renderer.GetAnnotationPicture(cachedPage.Key, cachedPicture.Scale, null, cachedPicture.ActiveAnnotationState));
+                cachedPicture.UpdateAnnotationPicture(Renderer.GetAnnotationPicture(cachedPage.Key, cachedPicture.Scale, cachedPicture.ActiveAnnotation, cachedPicture.ActiveAnnotationState));
             }
 
             yield return cachedPicture;

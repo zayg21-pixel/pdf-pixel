@@ -17,9 +17,9 @@ public class PdfPanelVerticalLayout : IPdfPanelLayout
         int pageCount = pages.Count;
 
         float scaledPaddingLeft = pagesPadding.Left * scale;
-        float scaledPaddingRight = pagesPadding.Width * scale;
+        float scaledPaddingRight = pagesPadding.Right * scale;
         float scaledPaddingTop = pagesPadding.Top * scale;
-        float scaledPaddingBottom = pagesPadding.Height * scale;
+        float scaledPaddingBottom = pagesPadding.Bottom * scale;
         float scaledPageGap = pageGap * scale;
 
         float maxPageWidthScaled = 0f;

@@ -28,7 +28,7 @@ public class PdfUnderlineAnnotation : PdfTextMarkupAnnotation
     /// <returns>An SKPicture containing the rendered underline.</returns>
     public override SKPicture CreateFallbackRender(PdfPage page, PdfAnnotationVisualStateKind visualStateKind)
     {
-        var quads = GetQuadrilaterals();
+        var quads = Quadrilaterals;
         if (quads.Length == 0)
         {
             return null;

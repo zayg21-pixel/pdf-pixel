@@ -1,5 +1,4 @@
 using PdfPixel.Models;
-using System;
 using System.Runtime.CompilerServices;
 
 namespace PdfPixel.Parsing;
@@ -41,7 +40,7 @@ partial struct PdfParser
                 }
             }
 
-            _localBuffer.Add(current);
+            //_localBuffer.Add(current);
             previousByte = current;
         }
 

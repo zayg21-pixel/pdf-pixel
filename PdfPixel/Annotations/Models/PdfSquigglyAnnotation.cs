@@ -30,7 +30,7 @@ public class PdfSquigglyAnnotation : PdfTextMarkupAnnotation
     /// <returns>An SKPicture containing the rendered squiggly underline.</returns>
     public override SKPicture CreateFallbackRender(PdfPage page, PdfAnnotationVisualStateKind visualStateKind)
     {
-        var quads = GetQuadrilaterals();
+        var quads = Quadrilaterals;
         if (quads.Length == 0)
         {
             return null;

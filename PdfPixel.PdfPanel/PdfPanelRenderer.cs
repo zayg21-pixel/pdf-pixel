@@ -1,5 +1,6 @@
 ﻿using PdfPixel.Annotations.Models;
 using PdfPixel.Models;
+using PdfPixel.Text;
 using SkiaSharp;
 using System;
 using System.Collections.Generic;
@@ -55,7 +56,7 @@ internal sealed class PdfPanelRenderer
             }
 
             var thread = BuildAnnotationThread(annotation, annotationMap, processedAnnotations);
-            var rect = FromPdfRect(pdfPage, annotation.HoverRectangle);
+            var rect = FromPdfRect(pdfPage, annotation.GetHoverRectangle(pdfPage));
             popups.Add(new PdfAnnotationPopup(annotation, thread, rect));
         }
 
@@ -182,8 +183,8 @@ internal sealed class PdfPanelRenderer
     /// </summary>
     private static PdfAnnotationMessage? CreateAnnotationMessage(PdfAnnotationBase annotation)
     {
-        var title = annotation.Title.ToString();
-        var contents = annotation.Contents.ToString();
+        var title = annotation.Title.DecodePdfString();
+        var contents = annotation.Contents.DecodePdfString();
 
         if (string.IsNullOrEmpty(contents))
         {
@@ -228,7 +229,7 @@ internal sealed class PdfPanelRenderer
     public SKPicture GetAnnotationPicture(
         int pageNumber,
         double scale,
-        SKPoint? pointerPosition,
+        PdfAnnotationBase activeAnnotation,
         PdfPanelPointerState pointerState)
     {
         try
@@ -240,7 +241,6 @@ internal sealed class PdfPanelRenderer
                 return null;
             }
 
-            PdfAnnotationBase activeAnnotation = GetActiveAnnotation(pageNumber, pointerPosition);
             var visualStateKind = ConvertToVisualStateKind(pointerState);
 
             using var recorder = new SKPictureRecorder();
@@ -283,7 +283,7 @@ internal sealed class PdfPanelRenderer
 
         foreach (var annotation in pdfPage.Annotations.Where(x => !x.InReplyTo.HasValue).OrderByDescending(x => x.ShouldDisplayBubble))
         {
-            var pageRect = FromPdfRect(pdfPage, annotation.HoverRectangle);
+            var pageRect = FromPdfRect(pdfPage, annotation.GetHoverRectangle(pdfPage));
             if (pageRect.Contains(pagePosition.Value))
             {
                 return annotation;

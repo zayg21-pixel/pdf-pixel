@@ -178,9 +178,11 @@ public class PdfDestination
             return null;
         }
 
-        if (destination is PdfArray destArray)
+        var destinationArray = destination.AsArray();
+
+        if (destinationArray != null)
         {
-            return ParseExplicitDestination(destArray, document);
+            return ParseExplicitDestination(destinationArray, document);
         }
 
         if (document != null && destination.Type == PdfValueType.String)

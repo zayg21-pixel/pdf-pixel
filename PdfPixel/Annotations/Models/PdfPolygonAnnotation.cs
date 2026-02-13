@@ -2,6 +2,7 @@ using PdfPixel.Color.ColorSpace;
 using PdfPixel.Models;
 using PdfPixel.Text;
 using SkiaSharp;
+using System.Collections.Generic;
 
 namespace PdfPixel.Annotations.Models;
 
@@ -21,13 +22,25 @@ public class PdfPolygonAnnotation : PdfAnnotationBase
     public PdfPolygonAnnotation(PdfObject annotationObject)
         : base(annotationObject, PdfAnnotationSubType.Polygon)
     {
-        Vertices = annotationObject.Dictionary.GetArray(PdfTokens.VerticesKey)?.GetFloatArray();
+        var vertices = annotationObject.Dictionary.GetArray(PdfTokens.VerticesKey)?.GetFloatArray();
+        
+        if (vertices != null)
+        {
+            Vertices = new SKPoint[vertices.Length / 2];
+
+            for (int i = 0; i < vertices.Length; i += 2)
+            {
+                Vertices[i / 2] = new SKPoint(vertices[i], vertices[i + 1]);
+            }
+        }
     }
 
+    protected override SKPoint ContentStart => Vertices?.Length > 0 ? Vertices[0] : base.ContentStart;
+
     /// <summary>
-    /// Gets the vertices array containing alternating x,y coordinates of the polygon vertices.
+    /// Gets the vertices array containing coordinates of the polygon vertices.
     /// </summary>
-    public float[] Vertices { get; }
+    public SKPoint[] Vertices { get; }
 
     /// <summary>
     /// Creates a fallback rendering for polygon annotations when no appearance stream is available.
@@ -37,7 +50,7 @@ public class PdfPolygonAnnotation : PdfAnnotationBase
     /// <returns>An SKPicture containing the rendered polygon.</returns>
     public override SKPicture CreateFallbackRender(PdfPage page, PdfAnnotationVisualStateKind visualStateKind)
     {
-        if (Vertices == null || Vertices.Length < 6)
+        if (Vertices == null || Vertices.Length < 3)
         {
             return null;
         }
@@ -47,14 +60,11 @@ public class PdfPolygonAnnotation : PdfAnnotationBase
 
         using var path = new SKPath();
 
-        path.MoveTo(Vertices[0], Vertices[1]);
+        path.MoveTo(Vertices[0]);
 
-        for (int i = 2; i < Vertices.Length; i += 2)
+        for (int i = 1; i < Vertices.Length; i++)
         {
-            if (i + 1 < Vertices.Length)
-            {
-                path.LineTo(Vertices[i], Vertices[i + 1]);
-            }
+            path.LineTo(Vertices[i]);
         }
 
         path.Close();

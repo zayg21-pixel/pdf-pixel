@@ -178,19 +178,4 @@ public static class IPdfValueExtension
 
         return ResolveToNonReference(referencedObject.Value, document, maxDepth - 1);
     }
-
-    /// <summary>
-    /// Returns the value as a PDF reference if the type is <see cref="PdfValueType.Reference"/>; otherwise returns <c>null</c>.
-    /// </summary>
-    /// <param name="value">The PDF value to convert.</param>
-    /// <returns>The <see cref="PdfReference"/> value, or <c>null</c> if not a reference.</returns>
-    public static PdfReference? AsReference(this IPdfValue value)
-    {
-        if (value is IPdfValue<PdfReference> referenceValue && referenceValue.Type == PdfValueType.Reference)
-        {
-            return referenceValue.Value;
-        }
-
-        return null;
-    }
 }

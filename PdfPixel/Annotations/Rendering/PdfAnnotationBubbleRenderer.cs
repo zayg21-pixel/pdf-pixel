@@ -25,7 +25,7 @@ public static class PdfAnnotationBubbleRenderer
         PdfPage page,
         PdfAnnotationVisualStateKind visualStateKind)
     {
-        var bubbleRect = annotation.HoverRectangle;
+        var bubbleRect = annotation.GetHoverRectangle(page);
 
         var isHovered = visualStateKind.HasFlag(PdfAnnotationVisualStateKind.Rollover) ||
                         visualStateKind.HasFlag(PdfAnnotationVisualStateKind.Down);
@@ -42,7 +42,7 @@ public static class PdfAnnotationBubbleRenderer
     /// <summary>
     /// Draws a standard speech bubble with a rounded rectangle and a bottom-center tail.
     /// </summary>
-    private static void DrawSpeechBubble(
+    public static void DrawSpeechBubble(
         SKCanvas canvas,
         SKRect bubbleRect,
         SKColor backgroundColor,

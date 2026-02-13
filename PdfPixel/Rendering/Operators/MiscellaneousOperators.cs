@@ -96,12 +96,12 @@ public class MiscellaneousOperators : IOperatorProcessor
             }
             case "d0":
             {
-                ProcessSetGlyphWidth(ref graphicsState);
+                // handled by type 3 font.
                 break;
             }
             case "d1":
             {
-                ProcessSetGlyphWidthAndBoundingBox(ref graphicsState);
+                // handled by type 3 font.
                 break;
             }
             case "sh":
@@ -199,39 +199,6 @@ public class MiscellaneousOperators : IOperatorProcessor
     private void ProcessEndCompatibility()
     {
         // Ignored per PDF spec (compatibility section end).
-    }
-
-    private void ProcessSetGlyphWidth(ref PdfGraphicsState graphicsState)
-    {
-        var operands = PdfOperatorProcessor.GetOperands(2, _operandStack);
-        if (operands.Count < 2)
-        {
-            return;
-        }
-
-        var wx = operands[0].AsFloat();
-        var wy = operands[1].AsFloat();
-        graphicsState.Type3Advancement = new SKSize(wx, wy);
-        graphicsState.Type3BoundingBox = null; // d0 implies colored glyph; no bbox supplied
-    }
-
-    private void ProcessSetGlyphWidthAndBoundingBox(ref PdfGraphicsState graphicsState)
-    {
-        var operands = PdfOperatorProcessor.GetOperands(6, _operandStack);
-        if (operands.Count < 6)
-        {
-            return;
-        }
-
-        var wx = operands[0].AsFloat();
-        var wy = operands[1].AsFloat();
-        var llx = operands[2].AsFloat();
-        var lly = operands[3].AsFloat();
-        var urx = operands[4].AsFloat();
-        var ury = operands[5].AsFloat();
-
-        graphicsState.Type3Advancement = new SKSize(wx, wy);
-        graphicsState.Type3BoundingBox = new SKRect(llx, lly, urx, ury);
     }
 
     private void ProcessShading(PdfGraphicsState graphicsState)

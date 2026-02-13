@@ -117,31 +117,91 @@ public class PdfType3Font : PdfSingleByteFont
         float height = 1f;
 
         var recorder = new SKPictureRecorder();
-        var canvas = recorder.BeginRecording(FontMatrix.Invert().MapRect(new SKRect(0, 0, width, height)));
-
-        // Apply Type3 font matrix to draw glyph stream in glyph space
-        canvas.Concat(FontMatrix);
 
         // Render glyph content stream without recursion (independent from page rendering)
         var glyphPage = new FormXObjectPageWrapper(sourceState.Page, FontObject);
         var contentRenderer = new PdfContentStreamRenderer(renderer, glyphPage);
         var parseContext = new PdfParseContext(streamData);
+
+        var (advancement, boundingBox) = ParseMetrics(parseContext);
+
+        var bbox = boundingBox ?? new SKRect(0, 0, width, height);
+        var canvas = recorder.BeginRecording(bbox);
+
         var charState = new PdfGraphicsState(glyphPage, sourceState.RecursionGuard, new PdfRenderingParameters { ForceImageInterpolation = true }, default);
 
         contentRenderer.RenderContext(canvas, ref parseContext, charState);
 
         var picture = recorder.EndRecording();
 
-        // Extract d0/d1 metrics captured into charState by MiscellaneousOperators (d0/d1)
-        SKRect? bbox = charState.Type3BoundingBox;
-        SKSize adv = charState.Type3Advancement; // default SKSize.Empty when not set
-
-        var info = new PdfType3CharacterInfo(picture, bbox, adv);
+        var info = new PdfType3CharacterInfo(picture, boundingBox, advancement);
         type3Cache[charCode] = info;
 
         sourceState.RecursionGuard.Remove(charObject.Reference.ObjectNumber);
 
         return info;
+    }
+
+    private (SKSize advancement, SKRect? boundingBox) ParseMetrics(PdfParseContext parseContext)
+    {
+        var parser = new PdfParser(parseContext, Document, allowReferences: false, decrypt: false);
+        IPdfValue value;
+        var operandStack = new Stack<IPdfValue>();
+
+        SKSize type3Advancement = new SKSize(0, 0);
+        SKRect? type3BoundingBox = null;
+        while ((value = parser.ReadNextValue()) != null)
+        {
+            if (value.Type == PdfValueType.Operator)
+            {
+                var op = value.AsString().ToString();
+
+                switch (op)
+                {
+                    case "d0":
+                    {
+                        var operands = PdfOperatorProcessor.GetOperands(6, operandStack);
+
+                        if (operands.Count < 2)
+                        {
+                            break;
+                        }
+
+                        var wx = operands[0].AsFloat();
+                        var wy = operands[1].AsFloat();
+                        type3Advancement = new SKSize(wx, wy);
+                        return (type3Advancement, type3BoundingBox);
+                    }
+                    case "d1":
+                    {
+                        var operands = PdfOperatorProcessor.GetOperands(6, operandStack);
+
+                        if (operands.Count < 6)
+                        {
+                            break;
+                        }
+
+                        var wx = operands[0].AsFloat();
+                        var wy = operands[1].AsFloat();
+                        var llx = operands[2].AsFloat();
+                        var lly = operands[3].AsFloat();
+                        var urx = operands[4].AsFloat();
+                        var ury = operands[5].AsFloat();
+
+                        type3Advancement = new SKSize(wx, wy);
+                        type3BoundingBox = new SKRect(llx, lly, urx, ury).Standardized;
+
+                        return (type3Advancement, type3BoundingBox);
+                    }
+                }
+            }
+            else
+            {
+                operandStack.Push(value);
+            }
+        }
+
+        return (type3Advancement, type3BoundingBox);
     }
 
     /// <summary>

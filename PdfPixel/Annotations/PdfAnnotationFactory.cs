@@ -48,10 +48,11 @@ public static class PdfAnnotationFactory
             PdfAnnotationSubType.Underline => new PdfUnderlineAnnotation(annotationObject),
             PdfAnnotationSubType.Squiggly => new PdfSquigglyAnnotation(annotationObject),
             PdfAnnotationSubType.StrikeOut => new PdfStrikeOutAnnotation(annotationObject),
-            // Caret, Stamp, FileAttachment
+            // Caret, Stamp
             PdfAnnotationSubType.Ink => new PdfInkAnnotation(annotationObject),
             PdfAnnotationSubType.Popup => new PdfPopupAnnotation(annotationObject),
-            //PdfAnnotationSubType.Widget => new PdfWidgetAnnotation(annotationObject), // Widget is not fully implemented yet
+            PdfAnnotationSubType.FileAttachment => new PdfFileAttachmentAnnotation(annotationObject),
+            PdfAnnotationSubType.Widget => new PdfWidgetAnnotation(annotationObject), // Widget is not fully implemented yet
             // TODO: Add more annotation types as they are implemented
             // etc.
             _ => new PdfGenericAnnotation(annotationObject, subtype)
