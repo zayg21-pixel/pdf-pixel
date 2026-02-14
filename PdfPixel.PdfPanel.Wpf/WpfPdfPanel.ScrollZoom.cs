@@ -17,7 +17,7 @@ namespace PdfPixel.PdfPanel.Wpf
         private AnimationClock _verticalOffsetAnimationClock;
         private AnimationClock _horizontalOffsetAnimationClock;
         private const double ScrollAnimationDuration = 200; // milliseconds
-        private bool _enableScrollAnimation = true;
+        private bool _enableScrollAnimation = false;
 
         const int WM_MOUSEHWHEEL = 0x020E;
 
