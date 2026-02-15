@@ -32,9 +32,9 @@ internal class CalRgbConverter : PdfColorSpaceConverter
 
         matrix3x3 ??= new float[3, 3]
         {
-            { 1, 0, 0 },
+            { 0, 0, 1 },
             { 0, 1, 0 },
-            { 0, 0, 1 }
+            { 1, 0, 0 }
         };
 
         var trcTransform = new PerChannelTrcTransform([IccTrc.FromGamma(gamma[0]), IccTrc.FromGamma(gamma[1]), IccTrc.FromGamma(gamma[2])]);

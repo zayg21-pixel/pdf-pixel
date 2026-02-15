@@ -32,15 +32,18 @@ public class PdfPageExtractor
     /// </summary>
     public void ExtractPages()
     {
-        // Primary path: follow stored RootRef if available.
+        PdfPageLabelResolver labelResolver = null;
         if (_document.RootObject != null)
         {
+            // Try to resolve page labels from the catalog
+            labelResolver = new PdfPageLabelResolver(_document.RootObject.Dictionary);
+
             var rootPagesObject = _document.RootObject.Dictionary.GetObject(PdfTokens.PagesKey);
             if (rootPagesObject != null)
             {
                 var initialResources = new PdfPageResources();
                 initialResources.UpdateFrom(rootPagesObject); // seed from root /Pages
-                ExtractPagesFromPagesObject(rootPagesObject, 1, initialResources);
+                ExtractPagesFromPagesObject(rootPagesObject, 1, initialResources, labelResolver);
                 return;
             }
             _logger.LogWarning("Root object (ref {RootRef}) present but /Pages tree not found.", _document.RootObject);
@@ -54,7 +57,7 @@ public class PdfPageExtractor
     /// <summary>
     /// Recursively extract pages from a /Pages node, handling nested page trees with inherited attributes.
     /// </summary>
-    private int ExtractPagesFromPagesObject(PdfObject pagesObj, int currentPageNum, PdfPageResources inherited)
+    private int ExtractPagesFromPagesObject(PdfObject pagesObj, int currentPageNum, PdfPageResources inherited, PdfPageLabelResolver labelResolver)
     {
         if (pagesObj == null)
         {
@@ -87,13 +90,14 @@ public class PdfPageExtractor
                 // Page-level overrides
                 var pageResources = levelResources.Clone();
                 pageResources.UpdateFrom(kidObject);
-                var page = new PdfPage(currentPageNum, _document, kidObject, pageResources);
+                var pageLabel = labelResolver.GetLabel(currentPageNum - 1);
+                var page = new PdfPage(currentPageNum, pageLabel, _document, kidObject, pageResources);
                 _document.Pages.Add(page);
                 currentPageNum++;
             }
             else if (typeName == PdfTokens.PagesKey)
             {
-                currentPageNum = ExtractPagesFromPagesObject(kidObject, currentPageNum, levelResources);
+                currentPageNum = ExtractPagesFromPagesObject(kidObject, currentPageNum, levelResources, labelResolver);
             }
             else
             {

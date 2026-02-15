@@ -40,7 +40,7 @@ partial struct PdfParser
                 }
             }
 
-            //_localBuffer.Add(current);
+            _localBuffer.Add(current);
             previousByte = current;
         }
 

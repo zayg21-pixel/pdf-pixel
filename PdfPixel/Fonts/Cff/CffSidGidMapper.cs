@@ -43,18 +43,22 @@ internal class CffSidGidMapper
             // Header
             if (!reader.TryReadByte(out _))
             {
+                _logger.LogWarning("Failed to read CFF header: missing major version byte.");
                 return false; // major
             }
             if (!reader.TryReadByte(out _))
             {
+                _logger.LogWarning("Failed to read CFF header: missing minor version byte.");
                 return false; // minor
             }
             if (!reader.TryReadByte(out byte headerSize))
             {
+                _logger.LogWarning("Failed to read CFF header: missing header size byte.");
                 return false;
             }
             if (!reader.TryReadByte(out _))
             {
+                _logger.LogWarning("Failed to read CFF header: missing offSize byte.");
                 return false; // offSize
             }
 
@@ -62,6 +66,7 @@ internal class CffSidGidMapper
             reader.Position = headerSize;
             if (!CffIndexReader.TryReadIndex(ref reader, out int nameIndexCount, out int nameIndexDataStart, out int[] nameIndexOffsets, out int topDictIndexStart))
             {
+                _logger.LogWarning("Failed to read CFF Name INDEX.");
                 return false;
             }
 
@@ -69,10 +74,12 @@ internal class CffSidGidMapper
             reader.Position = topDictIndexStart;
             if (!CffIndexReader.TryReadIndex(ref reader, out int topDictCount, out int topDictDataStart, out int[] topDictOffsets, out int stringIndexStart))
             {
+                _logger.LogWarning("Failed to read CFF Top DICT INDEX.");
                 return false;
             }
             if (topDictCount < 1)
             {
+                _logger.LogWarning("CFF Top DICT INDEX contains no dictionaries.");
                 return false;
             }
 
@@ -86,6 +93,7 @@ internal class CffSidGidMapper
             var topDictEnd = topDictDataStart + (topDictOffsets[1] - 1);
             if (topDictStart < 0 || topDictEnd > cffBytes.Length || topDictEnd <= topDictStart)
             {
+                _logger.LogWarning("Invalid Top DICT range: start={TopDictStart}, end={TopDictEnd}, length={CffLength}.", topDictStart, topDictEnd, cffBytes.Length);
                 return false;
             }
             var topDictBytes = cffBytes.Slice(topDictStart, topDictEnd - topDictStart);
@@ -95,11 +103,7 @@ internal class CffSidGidMapper
 
             if (!topDictData.CharStringsOffset.HasValue || topDictData.CharStringsOffset.Value >= cffBytes.Length)
             {
-                return false;
-            }
-
-            if (topDictData.IsCidKeyed)
-            {
+                _logger.LogWarning("Top DICT missing or invalid CharStrings offset.");
                 return false;
             }
 
@@ -110,10 +114,12 @@ internal class CffSidGidMapper
             };
             if (!CffIndexReader.TryReadIndex(ref charStringsReader, out int glyphCount, out _, out int[] _, out _))
             {
+                _logger.LogWarning("Failed to read CharStrings INDEX.");
                 return false;
             }
             if (glyphCount <= 0)
             {
+                _logger.LogWarning("CharStrings INDEX contains no glyphs.");
                 return false;
             }
 
@@ -139,6 +145,7 @@ internal class CffSidGidMapper
             var metricsParser = new CffCharStringMetricsParser();
             if (!metricsParser.TryParseCharStringMetrics(cffBytes.Span, topDictData.CharStringsOffset.Value, glyphCount, out CffCharacterMetrics[] charMetrics))
             {
+                _logger.LogWarning("Failed to parse charstring metrics.");
                 return false;
             }
 
@@ -170,6 +177,7 @@ internal class CffSidGidMapper
             var charsetParser = new CffCharsetParser();
             if (!topDictData.CharsetOffset.HasValue || !charsetParser.TryParseCharset(cffBytes.Span, topDictData.CharsetOffset.Value, glyphCount, out ushort[] sidByGlyph))
             {
+                _logger.LogWarning("Failed to parse CFF charset or missing charset offset.");
                 return false;
             }
 
@@ -180,6 +188,7 @@ internal class CffSidGidMapper
             };
             if (!CffIndexReader.TryReadIndex(ref stringIndexReader, out int stringIndexCount, out int stringIndexDataStart, out int[] stringIndexOffsets, out _))
             {
+                _logger.LogWarning("Failed to read CFF String INDEX.");
                 return false;
             }
             var customStrings = new PdfString[stringIndexCount];

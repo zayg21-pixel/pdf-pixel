@@ -52,6 +52,19 @@ namespace PdfPixel.PdfPanel.Wpf
         public static readonly DependencyProperty PanelInterfaceProperty = DependencyProperty.Register(nameof(PanelInterface), typeof(WpfPdfPanelInterface), typeof(WpfPdfPanel),
             new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.None, PanelInterfaceProperty_Changed));
 
+        public static readonly DependencyPropertyKey PageLabelPropertyKey = DependencyProperty.RegisterReadOnly(
+            nameof(PageLabel), typeof(string), typeof(WpfPdfPanel),
+            new FrameworkPropertyMetadata(string.Empty, FrameworkPropertyMetadataOptions.None));
+        public static readonly DependencyProperty PageLabelProperty = PageLabelPropertyKey.DependencyProperty;
+
+        /// <summary>
+        /// Gets the page label string for the current page.
+        /// </summary>
+        public string PageLabel
+        {
+            get => (string)GetValue(PageLabelProperty);
+        }
+
         /// <summary>
         /// Gets or sets the collection of pages.
         /// </summary>
@@ -202,6 +215,15 @@ namespace PdfPixel.PdfPanel.Wpf
             {
                 source.ResetContent();
             }
+            else
+            {
+                if (source.CurrentPage > 0 && source.CurrentPage <= source.Pages.Count)
+                {
+                    var page = source.Pages[source.CurrentPage - 1];
+                    var label = page.Info.Label;
+                    source.SetValue(PageLabelPropertyKey, label);
+                }
+            }
         }
 
         private static void ScaleProperty_Changed(DependencyObject d, DependencyPropertyChangedEventArgs e)
@@ -232,11 +254,14 @@ namespace PdfPixel.PdfPanel.Wpf
 
             if (source.Pages == null)
             {
+                source.ResetContent();
+                source.SetValue(PageLabelPropertyKey, string.Empty);
                 return;
             }
 
             if (source.Pages.Count == 0)
             {
+                source.SetValue(PageLabelPropertyKey, string.Empty);
                 return;
             }
 
@@ -249,6 +274,10 @@ namespace PdfPixel.PdfPanel.Wpf
             {
                 source.CurrentPage = source.Pages.Count;
             }
+
+            var page = source.Pages[source.CurrentPage - 1];
+            var label = page.Info.Label;
+            source.SetValue(PageLabelPropertyKey, label);
 
             if (!source._updatingPages)
             {

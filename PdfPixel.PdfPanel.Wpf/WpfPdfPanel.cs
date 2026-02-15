@@ -9,6 +9,8 @@ using System.Windows;
 using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
+using PdfPixel.Text;
+using System.IO;
 
 namespace PdfPixel.PdfPanel.Wpf
 {
@@ -323,6 +325,10 @@ namespace PdfPixel.PdfPanel.Wpf
                 {
                     HandleGoToAction(goToAction);
                 }
+                else if (linkAnnotation.Action is PdfGoToRemoteAction goToRemoteAction)
+                {
+                    HandleGoToRemoteAction(goToRemoteAction);
+                }
                 else if (linkAnnotation.Destination != null)
                 {
                     _context?.ScrollToDestination(linkAnnotation.Destination);
@@ -368,6 +374,20 @@ namespace PdfPixel.PdfPanel.Wpf
                 _context?.ScrollToDestination(goToAction.Destination);
                 InvalidateVisual();
             }
+        }
+
+        private void HandleGoToRemoteAction(PdfGoToRemoteAction goToRemoteAction)
+        {
+            // TODO: complete implementation here, we need to handle request for file loading, that is practically not extremely safe, so maybe we should log some warning instead.
+
+            //string fileName = goToRemoteAction.FileSpecification.DecodePdfString();
+
+
+            //if (goToRemoteAction.Destination != null)
+            //{
+            //    _context?.ScrollToDestination(goToRemoteAction.Destination);
+            //    InvalidateVisual();
+            //}
         }
     }
 }

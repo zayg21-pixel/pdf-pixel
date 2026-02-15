@@ -24,10 +24,12 @@ public class PdfPage
     /// Initializes a new instance using <see cref="PdfPageResources"/> snapshot (rotation already normalized there).
     /// </summary>
     /// <param name="pageNumber">1-based page index.</param>
+    /// <param name="pageLabel">Resolved page label for this page.</param>
     /// <param name="document">Owning document.</param>
     /// <param name="pageObject">Underlying /Page object.</param>
     /// <param name="pageResources">Resolved inheritable page resources snapshot.</param>
     public PdfPage(int pageNumber,
+                   PdfString pageLabel,
                    PdfDocument document,
                    PdfObject pageObject,
                    PdfPageResources pageResources)
@@ -45,6 +47,7 @@ public class PdfPage
         Rotation = pageResources.Rotate ?? 0;
         ResourceDictionary = pageResources.Resources ?? new PdfDictionary(document);
         Annotations = pageResources.Annotations ?? [];
+        PageLabel = pageLabel;
     }
 
     /// <summary>
@@ -98,6 +101,11 @@ public class PdfPage
     /// Resolved during page construction from the /Annots array and inheritable annotations.
     /// </summary>
     public IReadOnlyList<PdfAnnotationBase> Annotations { get; }
+
+    /// <summary>
+    /// Gets the resolved page label for this page (may be null if not present in the document).
+    /// </summary>
+    public PdfString PageLabel { get; }
 
     /// <summary>
     /// Render the page content to a Skia canvas.

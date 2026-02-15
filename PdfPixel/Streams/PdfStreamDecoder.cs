@@ -213,7 +213,7 @@ namespace PdfPixel.Streams
             }
             if (predictor != 2 && (predictor < 10 || predictor > 15))
             {
-                _logger.LogWarning("PdfStreamDecoder: unsupported predictor {Predictor}; skipping predictor stage.", predictor);
+                _logger.LogWarning("Unsupported predictor {Predictor}; skipping predictor stage.", predictor);
                 return decoded; // Unsupported predictor variant.
             }
 
@@ -223,7 +223,7 @@ namespace PdfPixel.Streams
 
             if (columns <= 0)
             {
-                _logger.LogWarning("PdfStreamDecoder: predictor specified without valid /Columns; skipping predictor stage.");
+                _logger.LogWarning("Predictor specified without valid /Columns; skipping predictor stage.");
                 return decoded; // Cannot proceed without a positive column count.
             }
 
@@ -242,7 +242,7 @@ namespace PdfPixel.Streams
                 {
                     if (compressed.Length - compressed.Position < 2)
                     {
-                        _logger.LogWarning("PdfStreamDecoder: FlateDecode: insufficient data for zlib header; returning original stream.");
+                        _logger.LogWarning("FlateDecode: insufficient data for zlib header; returning original stream.");
                         return compressed;
                     }
                     compressed.ReadByte();
@@ -254,7 +254,7 @@ namespace PdfPixel.Streams
                     int readCount = compressed.Read(headerBytes, 0, 2);
                     if (readCount < 2)
                     {
-                        _logger.LogWarning("PdfStreamDecoder: FlateDecode: insufficient data for zlib header (non-seekable); returning original stream.");
+                        _logger.LogWarning("Insufficient data for zlib header (non-seekable); returning original stream.");
                         return compressed;
                     }
                 }
@@ -262,7 +262,7 @@ namespace PdfPixel.Streams
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "PdfStreamDecoder: FlateDecode: exception during decompression; returning original stream.");
+                _logger.LogWarning(ex, "Exception during decompression; returning original stream.");
                 return compressed;
             }
         }

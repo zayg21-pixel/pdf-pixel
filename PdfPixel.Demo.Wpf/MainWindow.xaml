@@ -85,6 +85,8 @@
 
                 <Separator VerticalAlignment="Center" Height="20" Margin="4 0" />
 
+                <TextBlock Text="{Binding PageLabel, ElementName=pdfPanel}" VerticalAlignment="Center" Margin="4 0" />
+
                 <local:PageTextBox
                     Style="{StaticResource PageTextBoxStyle}"
                     Page="{Binding PageNumber, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"

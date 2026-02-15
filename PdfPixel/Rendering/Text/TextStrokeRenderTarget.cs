@@ -39,7 +39,7 @@ internal class TextStrokeRenderTarget : IRenderTarget
             if (_clipPath == null)
             {
                 using var sourcePath = TextRenderUtilities.GetTextPath(_shapingResult, _font, _state);
-                _clipPath = _strokePaint.GetFillPath(sourcePath);
+                _clipPath = _strokePaint.GetFillPath(sourcePath) ?? sourcePath;
             }
 
             return _clipPath;

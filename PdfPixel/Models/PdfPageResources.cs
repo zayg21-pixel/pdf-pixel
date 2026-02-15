@@ -1,7 +1,7 @@
-using PdfPixel.Rendering.Operators;
-using PdfPixel.Text;
 using PdfPixel.Annotations;
 using PdfPixel.Annotations.Models;
+using PdfPixel.Rendering.Operators;
+using PdfPixel.Text;
 using SkiaSharp;
 using System.Collections.Generic;
 
@@ -62,14 +62,14 @@ public sealed class PdfPageResources
     public PdfPageResources Clone()
     {
         var copy = new PdfPageResources();
-        copy.Resources = Resources; // reuse reference (immutable usage expected)
+        copy.Resources = Resources;
         copy.MediaBoxRect = MediaBoxRect;
         copy.CropBoxRect = CropBoxRect;
         copy.Rotate = Rotate;
         copy.BleedBoxRect = BleedBoxRect;
         copy.TrimBoxRect = TrimBoxRect;
         copy.ArtBoxRect = ArtBoxRect;
-        copy.Annotations = Annotations; // reuse reference (immutable usage expected)
+        copy.Annotations = Annotations;
         return copy;
     }
 

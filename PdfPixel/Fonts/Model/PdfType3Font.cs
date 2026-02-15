@@ -123,7 +123,7 @@ public class PdfType3Font : PdfSingleByteFont
         var bbox = boundingBox ?? new SKRect(0, 0, width, height);
         var canvas = recorder.BeginRecording(bbox);
 
-        var charState = new PdfGraphicsState(glyphPage, sourceState.RecursionGuard, new PdfRenderingParameters { ForceImageInterpolation = true }, default);
+        var charState = new PdfGraphicsState(glyphPage, sourceState.RecursionGuard, new PdfRenderingParameters { IsType3Rendering = true }, default);
 
         contentRenderer.RenderContext(canvas, ref parseContext, charState);
 

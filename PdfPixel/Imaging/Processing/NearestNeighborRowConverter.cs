@@ -16,6 +16,8 @@ internal sealed class NearestNeighborRowConverter : IRowConverter
     private readonly int[] _srcXForDest;
     private int _nextDestRowToWrite;
 
+    public int BitsPerComponent => _bitsPerComponent;
+
     public NearestNeighborRowConverter(int components, int bitsPerComponent, int srcWidth, int dstWidth, int srcHeight, int dstHeight)
     {
         _components = components;

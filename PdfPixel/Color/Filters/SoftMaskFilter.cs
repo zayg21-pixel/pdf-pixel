@@ -36,15 +36,15 @@ internal static class SoftMaskFilter
         string shaderSourceDematte = @"
                 uniform half3 matte;
                 half4 main(half4 color) {
-                    float alpha = color.a * 255.0;
+                    float alpha = color.a;
                     half3 result;
                     if (alpha == 0.0) {
-                        result = matte;
+                        result = half3(1.0, 1.0, 1.0);
                     } else {
-                        result = matte + (color.rgb * 255.0 - matte) * 255.0 / alpha;
+                        result = matte + (color.rgb - matte) / alpha + matte;
                     }
-                    result = clamp(result, 0.0, 255.0) / 255.0;
-                    return half4(result, 1.0);
+
+                    return half4(result, color.a);
                 }
             ";
         DematteEffect = SKRuntimeEffect.CreateColorFilter(shaderSourceDematte, out var errorDematte);

@@ -60,6 +60,7 @@ public abstract class PdfAction
         {
             PdfActionType.Uri => new PdfUriAction(actionDictionary),
             PdfActionType.GoTo => new PdfGoToAction(actionDictionary),
+            PdfActionType.GoToRemote => new PdfGoToRemoteAction(actionDictionary),
             _ => new PdfGenericAction(actionDictionary, actionType)
         };
     }

@@ -71,12 +71,14 @@ internal sealed class PdfImageRowProcessor : IDisposable
         _components = _converter.Components;
 
         var downscaleSize = state.RenderingParameters.GetScaledSize(new SKSizeI(sourceWidth, sourceHeight), state.CTM);
+        bool isIndexed = _converter is IndexedConverter;
 
-        if (downscaleSize.HasValue)
+        if (!isIndexed && !state.RenderingParameters.IsType3Rendering && downscaleSize.HasValue)
         {
             _width = downscaleSize.Value.Width;
             _height = downscaleSize.Value.Height;
-            _rowConverter = new NearestNeighborRowConverter(_components, _bitsPerComponent, sourceWidth, _width, sourceHeight, _height);
+
+            _rowConverter = new AveragingDownsampleRowConverter(_components, _bitsPerComponent, sourceWidth, _width, sourceHeight, _height);
         }
         else
         {
@@ -94,7 +96,10 @@ internal sealed class PdfImageRowProcessor : IDisposable
         else
         {
             _outputMode = OutputMode.Default;
-            _pngBuilder = new PngImageBuilder(_components, _bitsPerComponent, _width, _height);
+
+            int outputBitsPerComponent = _rowConverter?.BitsPerComponent ?? _bitsPerComponent;
+
+            _pngBuilder = new PngImageBuilder(_components, outputBitsPerComponent, _width, _height);
 
             RgbaPacked[] palette = null;
             ReadOnlyMemory<byte> iccProfile = ReadOnlyMemory<byte>.Empty;
@@ -103,9 +108,9 @@ internal sealed class PdfImageRowProcessor : IDisposable
             {
                 palette = indexed.BuildPackedPalette(_image.RenderingIntent, state.FullTransferFunction);
             }
-            else if (_components == 1 && _bitsPerComponent <= 8)
+            else if (_components == 1 && outputBitsPerComponent <= 8)
             {
-                palette = BuildSingleChannelPalette(_image, state);
+                palette = BuildSingleChannelPalette(_image, state, outputBitsPerComponent);
             }
 
             if (_image.ColorSpaceConverter is IccBasedConverter iccBased && iccBased.Profile?.Bytes != null)
@@ -116,7 +121,7 @@ internal sealed class PdfImageRowProcessor : IDisposable
         }
     }
 
-    public static RgbaPacked[] BuildSingleChannelPalette(PdfImage image, PdfGraphicsState state)
+    public static RgbaPacked[] BuildSingleChannelPalette(PdfImage image, PdfGraphicsState state, int outputBitsPerComponent)
     {
         if (image.ColorSpaceConverter is DeviceGrayConverter)
         {
@@ -124,8 +129,7 @@ internal sealed class PdfImageRowProcessor : IDisposable
         }
 
         var sampler = image.ColorSpaceConverter.GetRgbaSampler(image.RenderingIntent, state.FullTransferFunction);
-        int bitsPerComponent = image.BitsPerComponent;
-        int maxCode = (1 << bitsPerComponent) - 1;
+        int maxCode = (1 << outputBitsPerComponent) - 1;
         int paletteSize = maxCode + 1;
         var palette = new RgbaPacked[paletteSize];
         Span<float> comps = stackalloc float[1];
@@ -225,7 +229,8 @@ internal sealed class PdfImageRowProcessor : IDisposable
 
         if (_rowConverter != null)
         {
-            int outLen = (_width * _components * _bitsPerComponent + 7) / 8;
+            int outputBitsPerComponent = _rowConverter.BitsPerComponent;
+            int outLen = (_width * _components * outputBitsPerComponent + 7) / 8;
             _convertedRowBuffer = new byte[outLen];
         }
 

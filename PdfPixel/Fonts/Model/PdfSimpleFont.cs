@@ -26,6 +26,7 @@ public class PdfSimpleFont : PdfSingleByteFont
     {
         float width = base.GetWidth(code);
 
+        // TODO: [MEDIUM] we need to use same fallaback for CID fonts
         if (width == 0 && _mapper != null)
         {
             width = (float)_mapper.GetWidth((byte)(code));

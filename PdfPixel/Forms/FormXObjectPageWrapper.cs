@@ -17,7 +17,7 @@ internal class FormXObjectPageWrapper : PdfPage
     private readonly PdfPageCache _pageCache;
 
     public FormXObjectPageWrapper(PdfPage originalPage, PdfObject formXObject)
-        : base(originalPage.PageNumber, originalPage.Document, originalPage.PageObject, originalPage.PageResources)
+        : base(originalPage.PageNumber, originalPage.PageLabel, originalPage.Document, originalPage.PageObject, originalPage.PageResources)
     {
         _originalPage = originalPage;
 
@@ -38,7 +38,7 @@ internal class FormXObjectPageWrapper : PdfPage
     }
 
     public FormXObjectPageWrapper(PdfObject formXObject)
-        : base(0, formXObject.Document, formXObject, new PdfPageResources())
+        : base(0, default, formXObject.Document, formXObject, new PdfPageResources())
     {
         var formResources = formXObject.Dictionary.GetDictionary(PdfTokens.ResourcesKey);
         _resourcePageObject = formXObject;

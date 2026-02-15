@@ -42,14 +42,14 @@ internal sealed class PdfXrefLoader
         long startxrefPos = LocateLastStartXref();
         if (startxrefPos < 0)
         {
-            _logger.LogWarning("PdfXrefLoader: 'startxref' keyword not found – falling back to legacy full scan.");
+            _logger.LogWarning("'startxref' keyword not found – falling back to legacy full scan.");
             return;
         }
 
         int xrefOffset = ParseStartXrefOffset(startxrefPos);
         if (xrefOffset < 0 || xrefOffset >= _document.Stream.Length)
         {
-            _logger.LogWarning("PdfXrefLoader: Parsed startxref offset {Offset} is invalid (file length {Length}).", xrefOffset, _document.Stream.Length);
+            _logger.LogWarning("Parsed startxref offset {Offset} is invalid (file length {Length}).", xrefOffset, _document.Stream.Length);
             return;
         }
         var parser = new PdfParser(_document.Stream, _document, allowReferences: true, decrypt: false);
@@ -67,7 +67,7 @@ internal sealed class PdfXrefLoader
                 while ((prevOffset = _trailerParser.GetPrevOffset(trailer)).HasValue)
                 {
                     int offsetValue = prevOffset.Value;
-                    _logger.LogDebug("PdfXrefLoader: Following /Prev chain to offset {Offset} (classic path).", offsetValue);
+                    _logger.LogDebug("Following /Prev chain to offset {Offset} (classic path).", offsetValue);
                     if (MatchSequenceAt(offsetValue, PdfTokens.Xref))
                     {
                         parser.Position = offsetValue + PdfTokens.Xref.Length;
@@ -83,7 +83,7 @@ internal sealed class PdfXrefLoader
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "PdfXrefLoader: Exception while parsing classic xref – continuing without index.");
+                _logger.LogWarning(ex, "Exception while parsing classic xref – continuing without index.");
             }
             return;
         }
@@ -98,7 +98,7 @@ internal sealed class PdfXrefLoader
             while ((prevOffset = _trailerParser.GetPrevOffset(streamTrailer)).HasValue)
             {
                 int offsetValue = prevOffset.Value;
-                _logger.LogDebug("PdfXrefLoader: Following /Prev chain to offset {Offset} (stream path).", offsetValue);
+                _logger.LogDebug("Following /Prev chain to offset {Offset} (stream path).", offsetValue);
                 if (MatchSequenceAt(offsetValue, PdfTokens.Xref))
                 {
                     parser.Position = offsetValue + PdfTokens.Xref.Length;
@@ -113,7 +113,7 @@ internal sealed class PdfXrefLoader
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "PdfXrefLoader: Exception while parsing xref stream – continuing without index.");
+            _logger.LogWarning(ex, "Exception while parsing xref stream – continuing without index.");
         }
     }
 
@@ -130,7 +130,7 @@ internal sealed class PdfXrefLoader
             IPdfValue firstValue = parser.ReadNextValue();
             if (firstValue == null)
             {
-                _logger.LogDebug("PdfXrefLoader: Finished parsing classic xref (EOF).");
+                _logger.LogDebug("Finished parsing classic xref (EOF).");
                 break;
             }
 
@@ -146,26 +146,26 @@ internal sealed class PdfXrefLoader
                     {
                         TryApplyTrailer(trailerDict);
                     }
-                    _logger.LogTrace("PdfXrefLoader: Encountered 'trailer' after subsection {Index}. Ending xref parse.", subsectionIndex);
+                    _logger.LogTrace("Encountered 'trailer' after subsection {Index}. Ending xref parse.", subsectionIndex);
                     return trailerDict;
                 }
 
                 // Unexpected operator -> treat as end.
-                _logger.LogDebug("PdfXrefLoader: Unexpected operator instead of subsection header; ending parse.");
+                _logger.LogDebug("Unexpected operator instead of subsection header; ending parse.");
                 break;
             }
 
             if (firstValue.Type != PdfValueType.Integer)
             {
                 // Not integer and not trailer -> end.
-                _logger.LogDebug("PdfXrefLoader: Non-integer subsection start value; ending classic xref parse.");
+                _logger.LogDebug("Non-integer subsection start value; ending classic xref parse.");
                 break;
             }
 
             IPdfValue countValue = parser.ReadNextValue();
             if (countValue == null || countValue.Type != PdfValueType.Integer)
             {
-                _logger.LogWarning("PdfXrefLoader: Failed to read entry count for subsection {Index} (start {First}) at position {Pos}.", subsectionIndex, firstValue.AsInteger(), parser.Position);
+                _logger.LogWarning("Failed to read entry count for subsection {Index} (start {First}) at position {Pos}.", subsectionIndex, firstValue.AsInteger(), parser.Position);
                 break;
             }
 
@@ -178,7 +178,7 @@ internal sealed class PdfXrefLoader
                 uint entryObjectNumber = (uint)(firstObject + localIndex);
                 if (!ParseSingleEntry(ref parser, entryObjectNumber))
                 {
-                    _logger.LogWarning("PdfXrefLoader: Failed xref entry index {LocalIndex} (object {ObjectNumber}) at position {Position}.", localIndex, entryObjectNumber, parser.Position);
+                    _logger.LogWarning("Failed xref entry index {LocalIndex} (object {ObjectNumber}) at position {Position}.", localIndex, entryObjectNumber, parser.Position);
                     break;
                 }
                 parsedCount++;
@@ -186,7 +186,7 @@ internal sealed class PdfXrefLoader
 
             if (parsedCount != entryCount)
             {
-                _logger.LogWarning("PdfXrefLoader: Parsed {Parsed} of {Declared} entries in subsection {Index} (start {First}).", parsedCount, entryCount, subsectionIndex, firstObject);
+                _logger.LogWarning("Parsed {Parsed} of {Declared} entries in subsection {Index} (start {First}).", parsedCount, entryCount, subsectionIndex, firstObject);
             }
 
             subsectionIndex++;
@@ -243,14 +243,14 @@ internal sealed class PdfXrefLoader
         PdfObject xrefObject = parser.ReadObject();
         if (xrefObject == null || xrefObject.Dictionary == null)
         {
-            _logger.LogDebug("PdfXrefLoader: startxref offset {Offset} did not yield a dictionary stream object.", parser.Position);
+            _logger.LogDebug("startxref offset {Offset} did not yield a dictionary stream object.", parser.Position);
             return null;
         }
 
         var decoded = xrefObject.DecodeAsMemory();
         if (decoded.IsEmpty)
         {
-            _logger.LogWarning("PdfXrefLoader: Decoded xref stream empty.");
+            _logger.LogWarning("Decoded xref stream empty.");
             return null;
         }
 
@@ -264,7 +264,7 @@ internal sealed class PdfXrefLoader
         var wArray = dict.GetArray(PdfTokens.WKey);
         if (wArray == null || wArray.Count < 3)
         {
-            _logger.LogWarning("PdfXrefLoader: XRef stream missing /W array.");
+            _logger.LogWarning("XRef stream missing /W array.");
             return;
         }
         int w0 = wArray.GetIntegerOrDefault(0);
@@ -272,13 +272,13 @@ internal sealed class PdfXrefLoader
         int w2 = wArray.GetIntegerOrDefault(2);
         if (w0 < 0 || w1 < 0 || w2 < 0)
         {
-            _logger.LogWarning("PdfXrefLoader: Invalid negative /W widths.");
+            _logger.LogWarning("Invalid negative /W widths.");
             return;
         }
         int entrySize = w0 + w1 + w2;
         if (entrySize <= 0)
         {
-            _logger.LogWarning("PdfXrefLoader: Computed xref stream entry size is zero.");
+            _logger.LogWarning("Computed xref stream entry size is zero.");
             return;
         }
         var indexArray = dict.GetArray(PdfTokens.IndexKey);
@@ -305,7 +305,7 @@ internal sealed class PdfXrefLoader
         }
         if (ranges.Count == 0)
         {
-            _logger.LogWarning("PdfXrefLoader: No ranges to iterate in xref stream.");
+            _logger.LogWarning("No ranges to iterate in xref stream.");
             return;
         }
         var span = decoded.Span;
@@ -316,7 +316,7 @@ internal sealed class PdfXrefLoader
             {
                 if (position + entrySize > span.Length)
                 {
-                    _logger.LogWarning("PdfXrefLoader: Truncated xref stream (needed {Need} got {Rem}).", entrySize, span.Length - position);
+                    _logger.LogWarning("Truncated xref stream (needed {Need} got {Rem}).", entrySize, span.Length - position);
                     return;
                 }
                 long type = w0 == 0 ? 1 : ReadBigEndian(span.Slice(position, w0));
@@ -351,7 +351,7 @@ internal sealed class PdfXrefLoader
                     }
                     default:
                     {
-                        _logger.LogWarning("PdfXrefLoader: Unsupported xref stream entry type {Type} for object {Obj} (fields {F2},{F3}).", type, objNumber, field2, field3);
+                        _logger.LogWarning("Unsupported xref stream entry type {Type} for object {Obj} (fields {F2},{F3}).", type, objNumber, field2, field3);
                         continue;
                     }
                 }
@@ -375,7 +375,7 @@ internal sealed class PdfXrefLoader
             return;
         }
 
-        _logger.LogDebug("PdfXrefLoader: Skipping older revision entry for object {Object} gen {Gen}.", reference.ObjectNumber, reference.Generation);
+        _logger.LogDebug("Skipping older revision entry for object {Object} gen {Gen}.", reference.ObjectNumber, reference.Generation);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]

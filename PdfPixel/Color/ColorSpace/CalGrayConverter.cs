@@ -20,7 +20,7 @@ internal sealed class CalGrayConverter : CalRgbConverter
 
     protected override IRgbaSampler GetRgbaSamplerCore(PdfRenderingIntent intent, IColorTransform postTransform)
     {
-        var toGrayChain = new ChainedColorTransform(new FunctionColorTransform(x => new Vector4(x.X, x.X, x.X, 1f)), ToSrgbTransform, postTransform);
+        var toGrayChain = new ChainedColorTransform(new FunctionColorTransform(x => new Vector4(x.X, x.X, x.X, 1f)), ToSrgbTransform, postTransform, new FunctionColorTransform(x => new Vector4(x.X, x.X, x.X, 1f)));
         return new ColorTransformSampler(toGrayChain);
     }
 }

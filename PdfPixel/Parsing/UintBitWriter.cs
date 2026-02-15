@@ -29,4 +29,31 @@ internal ref struct UintBitWriter
             _bitPosition++;
         }
     }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public void Write8Bits(byte value)
+    {
+        if ((_bitPosition & 7) != 0)
+        {
+            throw new InvalidOperationException("Writer is not byte-aligned.");
+        }
+
+        int byteIndex = _bitPosition >> 3;
+        _buffer[byteIndex] = value;
+        _bitPosition += 8;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public void Write16Bits(ushort value)
+    {
+        if ((_bitPosition & 7) != 0)
+        {
+            throw new InvalidOperationException("Writer is not byte-aligned.");
+        }
+
+        int byteIndex = _bitPosition >> 3;
+        _buffer[byteIndex] = (byte)(value >> 8);
+        _buffer[byteIndex + 1] = (byte)value;
+        _bitPosition += 16;
+    }
 }

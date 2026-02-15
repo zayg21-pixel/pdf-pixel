@@ -27,11 +27,6 @@ public class PdfRenderingParameters
     public float? ScaleFactor { get; set; }
 
     /// <summary>
-    /// Force image interpolation even if not downscaling.
-    /// </summary>
-    public bool ForceImageInterpolation { get; set; }
-
-    /// <summary>
     /// Default number of samples for Postscript and Exponential functions when the point count is unknown.
     /// </summary>
     public int DefaultFunctionSamples { get; set; } = 64;
@@ -50,6 +45,11 @@ public class PdfRenderingParameters
     /// Maximum number of tessellation vertices for mesh-based shadings in preview mode.
     /// </summary>
     public int PreviewMaxTessellationVertices { get; set; } = 1;
+
+    /// <summary>
+    /// Force image interpolation even if not downscaling.
+    /// </summary>
+    internal bool IsType3Rendering { get; set; }
 
     /// <summary>
     /// Returns a scaled size for the given original size based on the current

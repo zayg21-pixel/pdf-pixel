@@ -148,6 +148,10 @@ public static class PdfTokens
     
     // CID Font Encodings (CMaps)
     public static readonly PdfString IdentityKey = (PdfString)"Identity";      // Identity CMap for CID fonts
+    /// <summary>
+    /// Key for the NewWindow flag in GoToRemote actions.
+    /// </summary>
+    public static readonly PdfString NewWindowKey = (PdfString)"NewWindow"u8;
     
     // Graphics State Dictionary Keys
     public static readonly PdfString LineWidthKey = (PdfString)"LW"u8;
@@ -361,4 +365,11 @@ public static class PdfTokens
     public static readonly PdfString TopIndexKey = (PdfString)"TI"u8;                 // Top index for list box
     public static readonly PdfString IndicesKey = (PdfString)"I"u8;                   // Selected indices for list box
     public static readonly PdfString AppearanceCharacteristicsKey = (PdfString)"MK"u8; // Appearance characteristics dictionary
+
+    // Page label number tree keys
+    public static readonly PdfString PageLabelsKey = (PdfString)"PageLabels"u8;
+    public static readonly PdfString NumsKey = (PdfString)"Nums"u8;
+    public static readonly PdfString PrefixKey = (PdfString)"P"u8;
+    public static readonly PdfString StyleKey = (PdfString)"S"u8;
+    public static readonly PdfString StartKey = (PdfString)"St"u8;
 }

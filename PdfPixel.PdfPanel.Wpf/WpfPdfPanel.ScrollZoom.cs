@@ -127,7 +127,7 @@ namespace PdfPixel.PdfPanel.Wpf
             {
                 if (_context != null)
                 {
-                    AnimateVerticalOffset(GetCurrentVerticalOffsetTarget() + ScrollTick * Scale);
+                    AnimateVerticalOffset(GetCurrentVerticalOffsetTarget() + ScrollTick);
                 }
             }
         }
@@ -142,7 +142,7 @@ namespace PdfPixel.PdfPanel.Wpf
             {
                 if (_context != null)
                 {
-                    AnimateVerticalOffset(GetCurrentVerticalOffsetTarget() - ScrollTick * Scale);
+                    AnimateVerticalOffset(GetCurrentVerticalOffsetTarget() - ScrollTick);
                 }
             }
         }

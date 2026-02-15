@@ -1,15 +1,13 @@
 using PdfPixel.Fonts.Mapping;
 using PdfPixel.Models;
 using PdfPixel.Text;
-using SkiaSharp;
 using System;
 
 namespace PdfPixel.Fonts.Model;
 
 /// <summary>
 /// Intermediate base class for single-byte fonts (Simple fonts and Type3 fonts)
-/// Provides common functionality for fonts limited to 256 characters with single-byte encoding
-/// Uses thread-safe Lazy&lt;T&gt; pattern for heavy operations
+/// Provides common functionality for fonts limited to 256 characters with single-byte encoding.
 /// </summary>
 public abstract class PdfSingleByteFont : PdfFontBase
 {

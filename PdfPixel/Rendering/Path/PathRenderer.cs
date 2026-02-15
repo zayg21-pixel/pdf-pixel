@@ -77,7 +77,16 @@ public class PathRenderer : IPathRenderer
             {
                 // Fill phase.
                 var strokeOutline = PdfPaintFactory.CreateStrokePaint(state).GetFillPath(path);
-                var fillOutline = path.Op(strokeOutline, SKPathOp.Difference);
+                SKPath fillOutline;
+
+                if (strokeOutline != null)
+                {
+                    fillOutline = path.Op(strokeOutline, SKPathOp.Difference);
+                }
+                else
+                {
+                    fillOutline = path;
+                }
 
                 using var fillTarget = new PathFillRenderTarget(fillOutline, state);
                 fillTarget.Render(canvas);

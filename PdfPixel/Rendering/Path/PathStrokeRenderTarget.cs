@@ -21,7 +21,7 @@ internal class PathStrokeRenderTarget : IRenderTarget
         _path = path;
         _state = state;
         _basePaint = PdfPaintFactory.CreateStrokePaint(state);
-        _clipPath = _basePaint.GetFillPath(path);
+        _clipPath = _basePaint.GetFillPath(path) ?? path;
 
         if (state.StrokePaint.IsPattern)
         {

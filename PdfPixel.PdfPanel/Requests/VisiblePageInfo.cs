@@ -1,5 +1,6 @@
 ﻿using PdfPixel.PdfPanel.Extensions;
 using SkiaSharp;
+using System;
 
 namespace PdfPixel.PdfPanel;
 
@@ -78,5 +79,20 @@ public readonly struct VisiblePageInfo
         matrix = matrix.PostConcat(SKMatrix.CreateScale((float)scale, (float)scale));
 
         return matrix;
+    }
+
+    /// <summary>
+    /// Converts a rectangle from PDF coordinates (bottom-left origin, Y-up) to page coordinates (top-left origin, Y-down).
+    /// </summary>
+    /// <param name="page">The page.</param>
+    /// <param name="pdfRect">Rectangle in PDF coordinates.</param>
+    /// <returns>Rectangle in page coordinates.</returns>
+    public SKRect FromPdfRect(SKRect pdfRect)
+    {
+        return SKRect.Create(
+            pdfRect.Left,
+            Info.Height - pdfRect.Bottom,
+            pdfRect.Width,
+            pdfRect.Height);
     }
 }

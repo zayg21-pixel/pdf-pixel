@@ -222,14 +222,14 @@ public static class PdfPaintFactory
     public static SKSamplingOptions GetImageSamplingOptions(PdfImage image, PdfGraphicsState state)
     {
         if (state.RenderingParameters.GetScaledSize(new SKSizeI(image.Width, image.Height), state.CTM).HasValue
-            || state.RenderingParameters.PreviewMode || state.RenderingParameters.ForceImageInterpolation)
+            || state.RenderingParameters.PreviewMode || state.RenderingParameters.IsType3Rendering)
         {
-            return new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.None);
+            return new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.Linear);
         }
 
         if (image.Interpolate)
         {
-            return new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.None);
+            return new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.Linear);
         }
 
         return new SKSamplingOptions(SKFilterMode.Nearest, SKMipmapMode.None);

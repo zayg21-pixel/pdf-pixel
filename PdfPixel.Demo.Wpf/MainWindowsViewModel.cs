@@ -1,6 +1,5 @@
 ﻿using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using Microsoft.Extensions.Logging;
 using PdfPixel.Fonts.Management;
 using PdfPixel.PdfPanel;
 using PdfPixel.PdfPanel.Requests;
@@ -9,9 +8,11 @@ using SkiaSharp;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Windows.Input;
-using PdfPixel.Demo.Wpf;
 using PdfPixel.Models;
 using System.Linq;
+using System.Windows.Documents;
+using PdfPixel.TextExtraction;
+using System.Collections.Generic;
 
 namespace PdfPixel.Demo.Wpf;
 
@@ -28,11 +29,11 @@ public class PdfFileLocation
     public string FileName { get; }
 }
 
-
-
 public class MainWindowsViewModel : ObservableObject
 {
     private static readonly ISkiaFontProvider FontProvider = new WindowsSkiaFontProvider("Times New Roman");
+    private static readonly Dictionary<int, List<PdfWord>> _extractedWords = new Dictionary<int, List<PdfWord>>();
+    private readonly PdfTextChunker _chunker = new PdfTextChunker();
     private readonly PdfDocumentReader _reader;
     private readonly ObservableLoggerFactory _loggerFactory;
     private readonly object _logMessagesLock = new object();
@@ -124,6 +125,35 @@ public class MainWindowsViewModel : ObservableObject
 
     private void OnAfterDraw(SKCanvas canvas, DrawingRequest request)
     {
+        // TODO: add as result of page rendering
+        //using var paint = new SKPaint
+        //{
+        //    Color = SKColors.Red.WithAlpha(128),
+        //    Style = SKPaintStyle.Stroke,
+        //    IsAntialias = true
+        //};
+
+        //foreach (var page in request.VisiblePages)
+        //{
+        //    if (!_extractedWords.TryGetValue(PageNumber, out var words))
+        //    {
+        //        var text = _document.Pages[page.PageNumber - 1].ExtractText();
+        //        words = _chunker.ChunkCharacters(text).ToList();
+        //        _extractedWords[page.PageNumber] = words;
+        //    }
+
+        //    canvas.Save();
+        //    var pageMatrix = page.GetToPageMatrix(request.Scale);
+        //    canvas.Concat(in pageMatrix);
+
+        //    foreach (var word in words)
+        //    {
+        //        canvas.DrawRect(page.FromPdfRect(word.BoundingBox), paint);
+        //    }
+
+        //    canvas.Restore();
+        //}
+
         SKColor defaultColor = SKColor.Parse("#21232B");
         SKColor accentColor = SKColor.Parse("#4695EB");
 
@@ -244,7 +274,8 @@ public class MainWindowsViewModel : ObservableObject
 
         if (Directory.Exists(pdfDirectory))
         {
-            var files = Directory.GetFiles(pdfDirectory, "*.pdf").OrderBy(x => x);
+            var files = Directory.GetFiles(pdfDirectory, "*.pdf")
+                .OrderBy(x => Path.GetFileName(x), new NaturalStringComparer());
 
             foreach (var file in files)
             {
@@ -267,6 +298,7 @@ public class MainWindowsViewModel : ObservableObject
             return;
         }
 
+        _extractedWords.Clear();
         var currentPages = Pages;
         Pages = null;
         _document?.Dispose();

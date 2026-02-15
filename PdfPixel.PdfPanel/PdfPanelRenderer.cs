@@ -23,7 +23,8 @@ internal sealed class PdfPanelRenderer
     public PdfPanelPageInfo GetPageInfo(int pageNumber)
     {
         var pdfPage = document.Pages[pageNumber - 1];
-        return new PdfPanelPageInfo(pdfPage.CropBox.Width, pdfPage.CropBox.Height, pdfPage.Rotation);
+        string label = document.Pages[pageNumber - 1].PageLabel.DecodePdfString();
+        return new PdfPanelPageInfo(label, pdfPage.CropBox.Width, pdfPage.CropBox.Height, pdfPage.Rotation);
     }
 
     public PdfAnnotationPopup[] CreateAnnotationPopups(int pageNumber)
