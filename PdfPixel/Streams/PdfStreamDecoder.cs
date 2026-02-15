@@ -32,9 +32,17 @@ namespace PdfPixel.Streams
             var decodeParameters = GetDecodeParms(obj);
             using Stream final = DecodeAsStream(rawStream, filters, decodeParameters);
 
-            using var memoryStream = new MemoryStream();
-            final.CopyTo(memoryStream);
-            return memoryStream.ToArray();
+            try
+            {
+                using var memoryStream = new MemoryStream();
+                final.CopyTo(memoryStream);
+                return memoryStream.ToArray();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Content stream has incorrect format: {message}", ex.Message);
+                return ReadOnlyMemory<byte>.Empty;
+            }
         }
 
         /// <summary>
@@ -96,12 +104,12 @@ namespace PdfPixel.Streams
                     }
                     case PdfFilterType.Crypt:
                     {
-                        _logger.LogWarning("PdfStreamDecoder: TODO implement Crypt filter integration; returning partially decoded stream.");
+                        _logger.LogWarning("TODO implement Crypt filter integration; returning partially decoded stream.");
                         return current; // TODO: [MEDIUM] implement Crypt filter integration; returning partially decoded stream.
                     }
                     default:
                     {
-                        _logger.LogWarning("PdfStreamDecoder: unknown filter '{FilterName}'; returning partially decoded stream.", filter);
+                        _logger.LogWarning("unknown filter '{FilterName}'; returning partially decoded stream.", filter);
                         return current; // Unknown filter – return partially decoded stream.
                     }
                 }

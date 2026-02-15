@@ -62,11 +62,6 @@ public class PdfCidFont : PdfFontBase
     public PdfCidToGidMap CidToGidMap { get; }
 
     /// <summary>
-    /// Check if font has embedded data (uses lazy-loaded FontDescriptor)
-    /// </summary>
-    public override bool IsEmbedded => FontDescriptor?.HasEmbeddedFont == true;
-
-    /// <summary>
     /// Gets the width for a given CID in this CID font.
     /// Returns explicit width if defined, otherwise DefaultWidth, otherwise 0f.
     /// </summary>

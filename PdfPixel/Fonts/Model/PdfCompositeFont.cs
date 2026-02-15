@@ -57,11 +57,6 @@ public class PdfCompositeFont : PdfFontBase
     public PdfString CMapName { get; }
 
     /// <summary>
-    /// Check if font has embedded data (delegated to primary descendant)
-    /// </summary>
-    public override bool IsEmbedded => PrimaryDescendant?.IsEmbedded == true;
-
-    /// <summary>
     /// Get character width (delegated to appropriate descendant CID font by CID).
     /// </summary>
     public override float GetWidth(PdfCharacterCode code)

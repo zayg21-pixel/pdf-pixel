@@ -12,7 +12,7 @@ namespace PdfPixel.Fonts.Mapping;
 /// For single-byte fonts, resolves code to glyph name using encoding and differences, then maps name to GID via CFF metadata.
 /// Name-to-GID is the only mapping available for CFF fonts; code-to-GID is achieved through encoding-to-name resolution.
 /// </summary>
-internal class CffByteCodeToGidMapper : IByteCodeToGidMapper // TODO: this needs to be cleaned up significantly and optimized. We also need to extract font metrics from subroutines
+internal class CffByteCodeToGidMapper : IByteCodeToGidMapper
 {
     private readonly CffInfo _cffInfo;
     private readonly PdfFontFlags _flags;
@@ -52,5 +52,22 @@ internal class CffByteCodeToGidMapper : IByteCodeToGidMapper // TODO: this needs
         }
 
         return 0;
+    }
+
+    /// <summary>
+    /// Gets the glyph width for the specified character code.
+    /// Returns the width from CFF charstring metrics, or 0 if not found.
+    /// </summary>
+    /// <param name="code">The PDF character code.</param>
+    /// <returns>The glyph width for the character code, or 0 if not found.</returns>
+    public float GetWidth(byte code)
+    {
+        ushort gid = GetGid(code);
+        if (gid == 0 || _cffInfo.GidWidths == null || gid >= _cffInfo.GidWidths.Length)
+        {
+            return 0;
+        }
+
+        return _cffInfo.GidWidths[gid];
     }
 }

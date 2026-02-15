@@ -51,23 +51,6 @@ public abstract class PdfFontBase : IDisposable
     internal protected bool SubstituteFont => Typeface == null;
 
     /// <summary>
-    /// Returns the SkiaSharp SKTypeface instance for this PDF font.
-    /// </summary>
-    /// <param name="unicode">Hint for font substitution.</param>
-    /// <returns>SKTypeface instance, should not be disposed.</returns>
-    internal SKTypeface GetTypeface(string unicode)
-    {
-        if (Typeface != null)
-        {
-            return Typeface;
-        }
-        else
-        {
-            return Document.FontSubstitutor.SubstituteTypeface(SubstitutionInfo, unicode);
-        }
-    }
-
-    /// <summary>
     /// Original PDF font object.
     /// </summary>
     public PdfObject FontObject { get; }
@@ -98,11 +81,6 @@ public abstract class PdfFontBase : IDisposable
     public PdfCMap ToUnicodeCMap { get; }
 
     /// <summary>
-    /// Check if this font has embedded font data
-    /// </summary>
-    public abstract bool IsEmbedded { get; }
-    
-    /// <summary>
     /// Get the font descriptor (contains metrics and embedding info)
     /// May be direct or inherited from descendant fonts
     /// Implementation may use lazy loading
@@ -120,6 +98,23 @@ public abstract class PdfFontBase : IDisposable
     /// </summary>
     /// <param name="code"></param>
     public abstract VerticalMetric GetVerticalDisplacement(PdfCharacterCode code);
+
+    /// <summary>
+    /// Returns the SkiaSharp SKTypeface instance for this PDF font.
+    /// </summary>
+    /// <param name="unicode">Hint for font substitution.</param>
+    /// <returns>SKTypeface instance, should not be disposed.</returns>
+    internal SKTypeface GetTypeface(string unicode)
+    {
+        if (Typeface != null)
+        {
+            return Typeface;
+        }
+        else
+        {
+            return Document.FontSubstitutor.SubstituteTypeface(SubstitutionInfo, unicode);
+        }
+    }
 
     /// <summary>
     /// Converts a <see cref="PdfCharacterCode"/> to its corresponding Unicode string representation.

@@ -1,10 +1,10 @@
 using Microsoft.Extensions.Logging;
 using PdfPixel.Fonts.Model;
+using PdfPixel.Text;
 using PdfPixel.Models;
 using System;
 using System.Collections.Generic;
 using System.Text;
-using PdfPixel.Text;
 
 namespace PdfPixel.Fonts.Cff;
 
@@ -14,62 +14,14 @@ namespace PdfPixel.Fonts.Cff;
 /// </summary>
 internal class CffSidGidMapper
 {
-    // Constants (avoid magic numbers)
-    private static readonly PdfString NotDefGlyphName = (PdfString)".notdef"u8;
-
-    private const int PredefinedCharsetIsoAdobe = 0;      // ISOAdobe charset id
-    private const int PredefinedCharsetExpert = 1;        // Expert charset id
-    private const int PredefinedCharsetExpertSubset = 2;  // ExpertSubset charset id
-
     private const int PredefinedEncodingStandard = 0;     // StandardEncoding id
     private const int PredefinedEncodingExpert = 1;       // ExpertEncoding id
-
-    // DICT operator bytes (single byte unless escape operator 12 precedes)
-    private const byte OperatorEscape = 12;               // Escape marker for 2-byte operators
-    private const byte OperatorEscapedRos = 30;           // 12 30 => ROS (CID-keyed) operator
-    private const int OperatorCharset = 15;               // Charset offset operator
-    private const int OperatorEncoding = 16;              // Encoding offset operator
-    private const int OperatorCharStrings = 17;           // CharStrings offset operator
-    private const int OperatorPrivate = 18;               // Private DICT (size + offset) operator (unused here but must be skipped)
-    private const int OperatorTopDictMax = 21;            // Highest single-byte top DICT operator code (21 = SyntheticBase)
-
-    // Number encoding boundaries (CFF DICT operand encoding spec)
-    private const byte OperandIntLow = 32;                // Inclusive start of single byte int encoding
-    private const byte OperandIntHigh = 246;              // Inclusive end of single byte int encoding
-    private const byte OperandPositiveIntStart = 247;     // Start of two-byte positive int encoding
-    private const byte OperandPositiveIntEnd = 250;       // End of two-byte positive int encoding
-    private const byte OperandNegativeIntStart = 251;     // Start of two-byte negative int encoding
-    private const byte OperandNegativeIntEnd = 254;       // End of two-byte negative int encoding
-    private const byte OperandShortInt = 28;              // Marker for 16-bit int (big endian)
-    private const byte OperandLongInt = 29;               // Marker for 32-bit int (big endian)
-    private const byte OperandRealNumber = 30;            // Marker for real number (nibbles)
-
-    private const int NotDefSid = 0;                      // SID for .notdef
-    private const int FirstRealGlyphGid = 1;              // GID 0 reserved for .notdef
-
-    // Cache for fast name->SID lookup over the StandardStrings table (O(1) instead of O(n)).
-    private static readonly Dictionary<PdfString, ushort> StandardNameToSid = BuildStandardNameToSid();
 
     private readonly ILogger<CffSidGidMapper> _logger;
 
     public CffSidGidMapper(ILoggerFactory loggerFactory)
     {
         _logger = loggerFactory.CreateLogger<CffSidGidMapper>();
-    }
-
-    private static Dictionary<PdfString, ushort> BuildStandardNameToSid()
-    {
-        var standardNameToSidMap = new Dictionary<PdfString, ushort>(CffData.StandardStrings.Length);
-        for (ushort sid = 0; sid < CffData.StandardStrings.Length; sid++)
-        {
-            var standardName = CffData.StandardStrings[sid];
-            if (!standardName.IsEmpty && !standardNameToSidMap.ContainsKey(standardName))
-            {
-                standardNameToSidMap[standardName] = sid;
-            }
-        }
-
-        return standardNameToSidMap;
     }
 
     /// <summary>
@@ -108,14 +60,14 @@ internal class CffSidGidMapper
 
             // Name INDEX
             reader.Position = headerSize;
-            if (!TryReadIndex(ref reader, out int nameIndexCount, out int nameIndexDataStart, out int[] nameIndexOffsets, out int topDictIndexStart))
+            if (!CffIndexReader.TryReadIndex(ref reader, out int nameIndexCount, out int nameIndexDataStart, out int[] nameIndexOffsets, out int topDictIndexStart))
             {
                 return false;
             }
 
             // Top DICT INDEX
             reader.Position = topDictIndexStart;
-            if (!TryReadIndex(ref reader, out int topDictCount, out int topDictDataStart, out int[] topDictOffsets, out int stringIndexStart))
+            if (!CffIndexReader.TryReadIndex(ref reader, out int topDictCount, out int topDictDataStart, out int[] topDictOffsets, out int stringIndexStart))
             {
                 return false;
             }
@@ -138,12 +90,15 @@ internal class CffSidGidMapper
             }
             var topDictBytes = cffBytes.Slice(topDictStart, topDictEnd - topDictStart);
 
-            if (!TryParseTopDict(topDictBytes.Span, out int charsetOffset, out int charStringsOffset, out int encodingOffset, out bool isCidKeyed))
+            var topDictReader = new CffTopDictReader();
+            CffTopDictData topDictData = topDictReader.ParseTopDict(topDictBytes.Span);
+
+            if (!topDictData.CharStringsOffset.HasValue || topDictData.CharStringsOffset.Value >= cffBytes.Length)
             {
                 return false;
             }
 
-            if (charStringsOffset <= 0 || charStringsOffset >= cffBytes.Length)
+            if (topDictData.IsCidKeyed)
             {
                 return false;
             }
@@ -151,9 +106,9 @@ internal class CffSidGidMapper
             // CharStrings INDEX (determine glyph count)
             var charStringsReader = new CffDataReader(cffBytes.Span)
             {
-                Position = charStringsOffset
+                Position = topDictData.CharStringsOffset.Value
             };
-            if (!TryReadIndex(ref charStringsReader, out int glyphCount, out _, out int[] _, out _))
+            if (!CffIndexReader.TryReadIndex(ref charStringsReader, out int glyphCount, out _, out int[] _, out _))
             {
                 return false;
             }
@@ -162,21 +117,60 @@ internal class CffSidGidMapper
                 return false;
             }
 
-            // Charset -> SID list
-            ushort[] sidByGlyph;
-            if (charsetOffset <= PredefinedCharsetExpertSubset)
+            // Parse Private DICT for default/nominal widths
+            double defaultWidthX = 0;
+            double nominalWidthX = 0;
+            if (topDictData.PrivateDictOffset.HasValue && topDictData.PrivateDictSize.HasValue)
             {
-                if (!TryBuildPredefinedCharsetSids(charsetOffset, glyphCount, out sidByGlyph))
+                int privateDictStart = topDictData.PrivateDictOffset.Value;
+                int privateDictSize = topDictData.PrivateDictSize.Value;
+                if (privateDictStart >= 0 && privateDictStart + privateDictSize <= cffBytes.Length)
                 {
-                    return false;
+                    var privateDictBytes = cffBytes.Slice(privateDictStart, privateDictSize);
+                    var privateDictParser = new CffPrivateDictParser();
+                    CffPrivateDictData privateDictData = privateDictParser.ParsePrivateDict(privateDictBytes.Span);
+
+                    defaultWidthX = privateDictData.DefaultWidthX ?? 0;
+                    nominalWidthX = privateDictData.NominalWidthX ?? 0;
                 }
             }
-            else
+
+            // Parse charstring metrics
+            var metricsParser = new CffCharStringMetricsParser();
+            if (!metricsParser.TryParseCharStringMetrics(cffBytes.Span, topDictData.CharStringsOffset.Value, glyphCount, out CffCharacterMetrics[] charMetrics))
             {
-                if (!TryReadExplicitCharsetSids(cffBytes.Span, charsetOffset, glyphCount, out sidByGlyph))
+                return false;
+            }
+
+            // Get font matrix for width transformation
+            double fontMatrixScaleX = 0.001;
+            if (topDictData.FontMatrix != null && topDictData.FontMatrix.Length >= 1)
+            {
+                fontMatrixScaleX = (double)topDictData.FontMatrix[0];
+            }
+
+            // Compute final widths: actualWidth = (nominalWidthX + width) * fontMatrixScaleX (or defaultWidthX * fontMatrixScaleX if width not specified)
+            var gidWidths = new float[glyphCount];
+            for (int gid = 0; gid < glyphCount; gid++)
+            {
+                double glyphSpaceWidth;
+                if (charMetrics[gid].Width.HasValue)
                 {
-                    return false;
+                    glyphSpaceWidth = nominalWidthX + charMetrics[gid].Width.Value;
                 }
+                else
+                {
+                    glyphSpaceWidth = defaultWidthX;
+                }
+
+                gidWidths[gid] = (float)(glyphSpaceWidth * fontMatrixScaleX);
+            }
+
+            // Charset -> SID list
+            var charsetParser = new CffCharsetParser();
+            if (!topDictData.CharsetOffset.HasValue || !charsetParser.TryParseCharset(cffBytes.Span, topDictData.CharsetOffset.Value, glyphCount, out ushort[] sidByGlyph))
+            {
+                return false;
             }
 
             // String INDEX (custom strings after StandardStrings)
@@ -184,7 +178,7 @@ internal class CffSidGidMapper
             {
                 Position = stringIndexStart
             };
-            if (!TryReadIndex(ref stringIndexReader, out int stringIndexCount, out int stringIndexDataStart, out int[] stringIndexOffsets, out _))
+            if (!CffIndexReader.TryReadIndex(ref stringIndexReader, out int stringIndexCount, out int stringIndexDataStart, out int[] stringIndexOffsets, out _))
             {
                 return false;
             }
@@ -217,7 +211,7 @@ internal class CffSidGidMapper
 
             // TODO: [MEDIUM] we could also parse the Encoding table here for code->GID mapping.
 
-            PdfFontEncoding encoding = encodingOffset switch
+            PdfFontEncoding encoding = topDictData.EncodingOffset.GetValueOrDefault() switch
             {
                 PredefinedEncodingStandard => PdfFontEncoding.StandardEncoding,
                 PredefinedEncodingExpert => PdfFontEncoding.MacExpertEncoding,
@@ -228,8 +222,9 @@ internal class CffSidGidMapper
             {
                 GlyphCount = glyphCount,
                 NameToGid = glyphNameToGid,
-                IsCidFont = isCidKeyed,
+                IsCidFont = topDictData.IsCidKeyed,
                 GidToSid = sidByGlyph,
+                GidWidths = gidWidths,
                 Encoding = encoding,
                 CffData = cffDataMemory
             };
@@ -290,301 +285,5 @@ internal class CffSidGidMapper
         }
 
         return default;
-    }
-
-    private static PdfString[] GetCharsetNames(int charsetId)
-    {
-        switch (charsetId)
-        {
-            case PredefinedCharsetIsoAdobe:
-                return CffData.IsoAdobeStrings; // ISOAdobe charset
-            case PredefinedCharsetExpert:
-                return CffData.ExpertStrings; // Expert charset
-            case PredefinedCharsetExpertSubset:
-                return CffData.ExpertSubsetStrings; // ExpertSubset charset
-            default:
-                return Array.Empty<PdfString>();
-        }
-    }
-
-    // Charset / encoding helpers
-    private static bool TryReadExplicitCharsetSids(ReadOnlySpan<byte> cffData, int charsetOffset, int glyphCount, out ushort[] sidByGlyph)
-    {
-        sidByGlyph = new ushort[glyphCount];
-        sidByGlyph[0] = NotDefSid; // .notdef
-
-        int nextGlyphId = FirstRealGlyphGid;
-        var charsetReader = new CffDataReader(cffData)
-        {
-            Position = charsetOffset
-        };
-        if (!charsetReader.TryReadByte(out byte format))
-        {
-            return false;
-        }
-
-        switch (format)
-        {
-            case 0:
-                for (; nextGlyphId < glyphCount; nextGlyphId++)
-                {
-                    if (!charsetReader.TryReadUInt16BE(out sidByGlyph[nextGlyphId]))
-                    {
-                        return false;
-                    }
-                }
-                break;
-            case 1:
-                while (nextGlyphId < glyphCount)
-                {
-                    if (!charsetReader.TryReadUInt16BE(out ushort rangeFirstSid))
-                    {
-                        return false;
-                    }
-                    if (!charsetReader.TryReadByte(out byte rangeLeftCount))
-                    {
-                        return false;
-                    }
-                    int rangeCount = rangeLeftCount + 1;
-                    for (int i = 0; i < rangeCount && nextGlyphId < glyphCount; i++)
-                    {
-                        sidByGlyph[nextGlyphId++] = (ushort)(rangeFirstSid + i);
-                    }
-                }
-                break;
-            case 2:
-                while (nextGlyphId < glyphCount)
-                {
-                    if (!charsetReader.TryReadUInt16BE(out ushort rangeFirstSid2))
-                    {
-                        return false;
-                    }
-                    if (!charsetReader.TryReadUInt16BE(out ushort rangeLeftCount2))
-                    {
-                        return false;
-                    }
-                    int rangeCount2 = rangeLeftCount2 + 1;
-                    for (int i = 0; i < rangeCount2 && nextGlyphId < glyphCount; i++)
-                    {
-                        sidByGlyph[nextGlyphId++] = (ushort)(rangeFirstSid2 + i);
-                    }
-                }
-                break;
-            default:
-                return false;
-        }
-
-        return true;
-    }
-
-    private static bool TryBuildPredefinedCharsetSids(int charsetId, int glyphCount, out ushort[] sidByGlyph)
-    {
-        sidByGlyph = new ushort[glyphCount];
-        sidByGlyph[0] = NotDefSid; // .notdef
-
-        PdfString[] charsetGlyphNames = GetCharsetNames(charsetId);
-        var seenNames = new HashSet<PdfString>();
-
-        int glyphId = FirstRealGlyphGid;
-        for (int i = 0; i < charsetGlyphNames.Length && glyphId < glyphCount; i++)
-        {
-            var glyphName = charsetGlyphNames[i];
-            if (glyphName.IsEmpty || glyphName == NotDefGlyphName)
-            {
-                continue;
-            }
-            if (seenNames.Add(glyphName) && TryGetStandardSid(glyphName, out ushort sid))
-            {
-                sidByGlyph[glyphId++] = sid;
-            }
-        }
-
-        for (; glyphId < glyphCount; glyphId++)
-        {
-            sidByGlyph[glyphId] = NotDefSid;
-        }
-
-        return true;
-    }
-
-    private static bool TryGetStandardSid(PdfString name, out ushort sid)
-    {
-        if (StandardNameToSid != null && StandardNameToSid.TryGetValue(name, out sid))
-        {
-            return true;
-        }
-        sid = NotDefSid;
-        return false;
-    }
-
-    // DICT / INDEX parsing helpers
-    private static bool TryParseTopDict(ReadOnlySpan<byte> topDictBytes, out int charsetOffset, out int charStringsOffset, out int encodingOffset, out bool isCidKeyed)
-    {
-        charsetOffset = 0;
-        charStringsOffset = 0;
-        encodingOffset = 0;
-        isCidKeyed = false;
-
-        var operandStack = new List<double>(capacity: 4);
-        int position = 0;
-        while (position < topDictBytes.Length)
-        {
-            byte opByte = topDictBytes[position++];
-            if (opByte == OperatorEscape)
-            {
-                if (position >= topDictBytes.Length)
-                {
-                    break; // truncated escaped operator
-                }
-
-                byte escapedOperator = topDictBytes[position++];
-                if (escapedOperator == OperatorEscapedRos)
-                {
-                    isCidKeyed = true;
-                }
-                operandStack.Clear();
-                continue;
-            }
-
-            // Handle all single-byte top DICT operators (0..21). We only use 15,16,17 for mapping.
-            if (opByte <= OperatorTopDictMax)
-            {
-                if (opByte == OperatorCharset)
-                {
-                    if (operandStack.Count > 0)
-                    {
-                        charsetOffset = (int)operandStack[operandStack.Count - 1];
-                    }
-                }
-                else if (opByte == OperatorEncoding)
-                {
-                    if (operandStack.Count > 0)
-                    {
-                        encodingOffset = (int)operandStack[operandStack.Count - 1];
-                    }
-                }
-                else if (opByte == OperatorCharStrings)
-                {
-                    if (operandStack.Count > 0)
-                    {
-                        charStringsOffset = (int)operandStack[operandStack.Count - 1];
-                    }
-                }
-                // OperatorPrivate (18) and others are intentionally ignored for current mapping needs.
-                operandStack.Clear();
-                continue;
-            }
-
-            // Operand decoding
-            if (opByte >= OperandIntLow && opByte <= OperandIntHigh)
-            {
-                operandStack.Add(opByte - 139);
-                continue;
-            }
-            if (opByte >= OperandPositiveIntStart && opByte <= OperandPositiveIntEnd)
-            {
-                if (position >= topDictBytes.Length)
-                {
-                    return false;
-                }
-                byte nextByte = topDictBytes[position++];
-                int operandInt = (opByte - 247) * 256 + nextByte + 108;
-                operandStack.Add(operandInt);
-                continue;
-            }
-            if (opByte >= OperandNegativeIntStart && opByte <= OperandNegativeIntEnd)
-            {
-                if (position >= topDictBytes.Length)
-                {
-                    return false;
-                }
-                byte nextByte = topDictBytes[position++];
-                int operandInt = -(opByte - 251) * 256 - nextByte - 108;
-                operandStack.Add(operandInt);
-                continue;
-            }
-            if (opByte == OperandShortInt)
-            {
-                if (position + 1 >= topDictBytes.Length)
-                {
-                    return false;
-                }
-                short operandShort = (short)(topDictBytes[position] << 8 | topDictBytes[position + 1]);
-                position += 2;
-                operandStack.Add(operandShort);
-                continue;
-            }
-            if (opByte == OperandLongInt)
-            {
-                if (position + 3 >= topDictBytes.Length)
-                {
-                    return false;
-                }
-                int operandInt = topDictBytes[position] << 24 | topDictBytes[position + 1] << 16 | topDictBytes[position + 2] << 8 | topDictBytes[position + 3];
-                position += 4;
-                operandStack.Add(operandInt);
-                continue;
-            }
-            if (opByte == OperandRealNumber)
-            {
-                bool finished = false;
-                while (!finished && position < topDictBytes.Length)
-                {
-                    byte nibblePair = topDictBytes[position++];
-                    if ((nibblePair & 0xF) == 0xF || ((nibblePair >> 4) & 0xF) == 0xF)
-                    {
-                        finished = true;
-                    }
-                }
-                continue;
-            }
-
-            // Unknown byte pattern -> treat as failure (malformed DICT)
-            return false;
-        }
-
-        // Success if we obtained a CharStrings offset (charset may be predefined 0/1/2)
-        return charStringsOffset != 0;
-    }
-
-    private static bool TryReadIndex(ref CffDataReader reader, out int count, out int dataStart, out int[] offsets, out int nextAfterIndex)
-    {
-        count = 0;
-        dataStart = 0;
-        nextAfterIndex = 0;
-        offsets = Array.Empty<int>();
-
-        if (!reader.TryReadUInt16BE(out ushort entryCount))
-        {
-            return false;
-        }
-        count = entryCount;
-        if (count == 0)
-        {
-            nextAfterIndex = reader.Position;
-            return true;
-        }
-
-        if (!reader.TryReadByte(out byte offSize))
-        {
-            return false;
-        }
-
-        int offsetEntryCount = count + 1;
-        offsets = new int[offsetEntryCount];
-        for (int offsetIndex = 0; offsetIndex < offsetEntryCount; offsetIndex++)
-        {
-            if (!reader.TryReadOffset(offSize, out int entryOffset))
-            {
-                return false;
-            }
-            offsets[offsetIndex] = entryOffset;
-        }
-
-        dataStart = reader.Position; // absolute
-        int dataSize = offsets[offsetEntryCount - 1] - 1; // last offset - 1 gives total data size
-        nextAfterIndex = dataStart + dataSize;
-        reader.Position = nextAfterIndex;
-        return true;
     }
 }

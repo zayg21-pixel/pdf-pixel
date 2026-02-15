@@ -190,10 +190,24 @@ public class PdfDestination
             var destName = destination.AsString();
             if (document.NamedDestinations != null)
             {
-                var resolvedDest = document.NamedDestinations.GetArray(destName);
-                if (resolvedDest != null)
+                var resolvedDest = document.NamedDestinations.GetValue(destName);
+
+                var resolvedDestArray = resolvedDest?.AsArray();
+                if (resolvedDestArray != null)
                 {
-                    return ParseExplicitDestination(resolvedDest, document);
+                    return ParseExplicitDestination(resolvedDestArray, document);
+                }
+
+                var resolvedDestDictionary = resolvedDest?.AsDictionary();
+
+                if (resolvedDestDictionary != null)
+                {
+                    var destArray = resolvedDestDictionary.GetArray(PdfTokens.DKey);
+
+                    if (destArray != null)
+                    {
+                        return ParseExplicitDestination(destArray, document);
+                    }
                 }
             }
         }

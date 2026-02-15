@@ -66,11 +66,6 @@ public class PdfType3Font : PdfSingleByteFont
     public SKMatrix FontMatrix { get; }
 
     /// <summary>
-    /// Type3 fonts don't have embedded font files, but their glyphs are defined within the PDF itself.
-    /// </summary>
-    public override bool IsEmbedded => true;
-
-    /// <summary>
     /// Renders a Type 3 character CharProc to a recorded picture and extracts d0/d1 metrics from the glyph graphics state.
     /// Results are cached per character code for reuse.
     /// </summary>

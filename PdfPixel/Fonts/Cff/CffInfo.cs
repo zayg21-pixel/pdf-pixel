@@ -42,6 +42,11 @@ internal sealed class CffInfo
     public ushort[] GidToSid { get; set; }
 
     /// <summary>
+    /// Gets or sets the glyph widths indexed by GID.
+    /// </summary>
+    public float[] GidWidths { get; set; }
+
+    /// <summary>
     /// Gets or sets the raw CFF font data.
     /// </summary>
     public ReadOnlyMemory<byte> CffData { get; set; }

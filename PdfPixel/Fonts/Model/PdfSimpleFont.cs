@@ -22,7 +22,17 @@ public class PdfSimpleFont : PdfSingleByteFont
         (_typeface, _mapper) = GetTypefaceAndMapper();
     }
 
-    public override bool IsEmbedded => FontDescriptor?.HasEmbeddedFont == true;
+    public override float GetWidth(PdfCharacterCode code)
+    {
+        float width = base.GetWidth(code);
+
+        if (width == 0 && _mapper != null)
+        {
+            width = (float)_mapper.GetWidth((byte)(code));
+        }
+
+        return width;
+    }
 
     internal protected override SKTypeface Typeface => _typeface;
 

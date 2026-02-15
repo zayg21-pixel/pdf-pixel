@@ -85,4 +85,15 @@ internal class SfntByteCodeToGidMapper : IByteCodeToGidMapper
 
         return 0;
     }
+
+    /// <summary>
+    /// Gets the glyph width for the specified character code.
+    /// Returns 0 for now (not yet implemented for SFNT fonts).
+    /// </summary>
+    /// <param name="code">The PDF character code.</param>
+    /// <returns>The glyph width for the character code, or 0.</returns>
+    public float GetWidth(byte code)
+    {
+        return 0;
+    }
 }
