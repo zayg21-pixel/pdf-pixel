@@ -30,12 +30,6 @@ jobs:
       - name: Install wasm-tools workload
         run: dotnet workload install wasm-tools
 
-      - name: Restore dependencies
-        run: dotnet restore
-
-      - name: Build
-        run: dotnet build --configuration Release --no-restore
-
       - name: Publish
         run: dotnet publish PdfPixel.Demo.Web/PdfPixel.Demo.Web.csproj --configuration Release --output publish
 
