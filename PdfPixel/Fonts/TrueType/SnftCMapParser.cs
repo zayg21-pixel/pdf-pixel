@@ -150,6 +150,13 @@ internal static class SnftCMapParser
         {
             return PdfFontEncoding.MacRomanEncoding;
         }
+
+        // Symbol: platform 3, encoding 0
+        if (platformId == 3 && encodingId == 0)
+        {
+            return PdfFontEncoding.SymbolEncoding;
+        }
+
         // WinAnsi: platform 3, encoding 1
         if (platformId == 3 && encodingId == 1)
         {

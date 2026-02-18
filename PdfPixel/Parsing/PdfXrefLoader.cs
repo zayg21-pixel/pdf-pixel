@@ -42,7 +42,7 @@ internal sealed class PdfXrefLoader
         long startxrefPos = LocateLastStartXref();
         if (startxrefPos < 0)
         {
-            _logger.LogWarning("'startxref' keyword not found – falling back to legacy full scan.");
+            _logger.LogError("'startxref' keyword not found.");
             return;
         }
 

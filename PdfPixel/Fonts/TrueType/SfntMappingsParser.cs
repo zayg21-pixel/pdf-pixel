@@ -73,32 +73,51 @@ internal class SfntFontTableParser
 
         ushort[] result = null;
 
-        // Base: format 0
-        var format0CMap = info.CMapEntries.FirstOrDefault(c => c.Format == 0);
-        if (format0CMap != null)
+        // as per PDF spec, symbol encoding should be preferred for single-byte fonts, followed by mac roman, then any other encoding as fallback
+        ApplyEncodings(ref result, info, info.CMapEntries.Where(x => x.Encoding == Model.PdfFontEncoding.SymbolEncoding));
+
+        if (result != null)
         {
-            // ParseFormat0 already returns 256 entries
-            result = SnftCMapParser.ParseFormat0(info.CmapData, format0CMap.Offset);
+            return result;
         }
 
-        // Merge fallbacks (formats 4 and 6) in a single pass
-        foreach (var cmap in info.CMapEntries)
+
+        ApplyEncodings(ref result, info, info.CMapEntries.Where(x => x.Encoding == Model.PdfFontEncoding.MacRomanEncoding));
+
+        if (result != null)
         {
-            if (cmap.Format == 4)
-            {
-                var format4Map = SnftCMapParser.ParseFormat4(info.CmapData, cmap.Offset);
-                result ??= new ushort[256];
-                ApplyDictionaryToByteArray(format4Map, result);
-            }
-            else if (cmap.Format == 6)
-            {
-                var format6Map = SnftCMapParser.ParseFormat6(info.CmapData, cmap.Offset);
-                result ??= new ushort[256];
-                ApplyDictionaryToByteArray(format6Map, result);
-            }
+            return result;
         }
+
+        ApplyEncodings(ref result, info, info.CMapEntries);
 
         return result;
+    }
+
+    private static void ApplyEncodings(ref ushort[] result, FontTableInfo info, IEnumerable<CMapEntry> entries)
+    {
+        foreach (var entry in entries)
+        {
+            if (entry.Format == 0)
+            {
+                result = SnftCMapParser.ParseFormat0(info.CmapData, entry.Offset);
+                return;
+            }
+            else if (entry.Format == 4)
+            {
+                var format4Map = SnftCMapParser.ParseFormat4(info.CmapData, entry.Offset);
+                result ??= new ushort[256];
+                ApplyDictionaryToByteArray(format4Map, result);
+                return;
+            }
+            else if (entry.Format == 6)
+            {
+                var format6Map = SnftCMapParser.ParseFormat6(info.CmapData, entry.Offset);
+                result ??= new ushort[256];
+                ApplyDictionaryToByteArray(format6Map, result);
+                return;
+            }
+        }
     }
 
     /// <summary>
@@ -174,6 +193,8 @@ internal class SfntFontTableParser
     private static Dictionary<string, ushort> ExtractUnicodeToGid(FontTableInfo info)
     {
         var unicodeToGid = new Dictionary<string, ushort>();
+
+        // TODO: [HIGH] according to PDF spec, we should use both font encoding and UnicodeToGid encoding to map char, this is incorrect
 
         foreach (var cmap in info.CMapEntries)
         {

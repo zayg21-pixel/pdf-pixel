@@ -106,7 +106,7 @@ public class PdfSimpleFont : PdfSingleByteFont
 
                     if (Encoding.BaseEncoding == PdfFontEncoding.Unknown)
                     {
-                        Encoding.Update(PdfFontEncoding.StandardEncoding, default);
+                        Encoding.Update(PdfFontEncoding.WinAnsiEncoding, default);
                     }
 
                     var mapper = new SfntByteCodeToGidMapper(sfntTables, FontDescriptor.Flags, substituted: false, Encoding, ToUnicodeCMap);
