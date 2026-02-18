@@ -144,10 +144,12 @@
 <body>
     <div id="header">
         <div>
+            <input type="file" id="pdfFileInput" accept="application/pdf" style="display:none" />
             <button id="zoomOut">Zoom Out</button>
             <span id="zoomLevel">100%</span>
             <button id="zoomIn">Zoom In</button>
             <button id="resetZoom">Reset Zoom</button>
+            <button id="loadPdf">Load PDF</button>
         </div>
     </div>
 <div id="canvasContainer">
@@ -182,10 +184,23 @@
 
         await canvasInterop.registerPanel(containerId, container);
 
-        const documentResponse = await fetch('test/demo.pdf');
-        const documentData = await documentResponse.arrayBuffer();
-        await canvasInterop.setDocument(containerId, new Uint8Array(documentData));
-        canvasInterop.refreshPanel(containerId);
+        const loadPdfButton = document.getElementById('loadPdf');
+        const pdfFileInput = document.getElementById('pdfFileInput');
+
+        loadPdfButton.addEventListener('click', () => {
+            pdfFileInput.value = '';
+            pdfFileInput.click();
+        });
+
+        pdfFileInput.addEventListener('change', async (event) => {
+            const file = event.target.files && event.target.files[0];
+            if (!file) {
+                return;
+            }
+            const arrayBuffer = await file.arrayBuffer();
+            await canvasInterop.setDocument(containerId, new Uint8Array(arrayBuffer));
+            canvasInterop.refreshPanel(containerId);
+        });
     </script>
 </body>
 </html>
