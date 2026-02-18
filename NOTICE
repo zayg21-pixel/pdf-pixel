@@ -1,0 +1,15 @@
+NOTICE
+======
+
+This project is licensed under the MIT License, except for certain third-party resources.
+
+Adobe CMap Resources Attribution
+--------------------------------
+
+The files located in 'PdfPixel/Resources/External' are copyright Adobe and licensed under the BSD 3-Clause License. The BSD 3-Clause license text is included in that directory.
+
+
+All other code in this repository is licensed under the MIT License.
+
+
+For details, see the LICENSE file and the Adobe BSD 3-Clause license in 'PdfPixel/Resources/External'.

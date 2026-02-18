@@ -13,7 +13,7 @@ public static class PdfToUnicodeMapProvider
 {
     private static readonly Lazy<Dictionary<uint, string>> _japanToUnicode = new Lazy<Dictionary<uint, string>>(() =>
     {
-        var resource = PdfResourceLoader.GetResource("AdobeJapanEncodings.bin");
+        var resource = PdfResourceLoader.GetResource("External/AdobeJapanEncodings.bin");
         var dict = new Dictionary<uint, string>();
         PdfTextResourceConverter.ReadFromCidToUnicodeMapBlob(resource, dict);
         return dict;
@@ -21,7 +21,7 @@ public static class PdfToUnicodeMapProvider
 
     private static readonly Lazy<Dictionary<uint, string>> _cnsToUnicode = new Lazy<Dictionary<uint, string>>(() =>
     {
-        var resource = PdfResourceLoader.GetResource("AdobeCnsEncodings.bin");
+        var resource = PdfResourceLoader.GetResource("External.AdobeCnsEncodings.bin");
         var dict = new Dictionary<uint, string>();
         PdfTextResourceConverter.ReadFromCidToUnicodeMapBlob(resource, dict);
         return dict;
@@ -29,7 +29,7 @@ public static class PdfToUnicodeMapProvider
 
     private static readonly Lazy<Dictionary<uint, string>> _gbToUnicode = new Lazy<Dictionary<uint, string>>(() =>
     {
-        var resource = PdfResourceLoader.GetResource("AdobeGbEncodings.bin");
+        var resource = PdfResourceLoader.GetResource("External.AdobeGbEncodings.bin");
         var dict = new Dictionary<uint, string>();
         PdfTextResourceConverter.ReadFromCidToUnicodeMapBlob(resource, dict);
         return dict;
@@ -37,7 +37,7 @@ public static class PdfToUnicodeMapProvider
 
     private static readonly Lazy<Dictionary<uint, string>> _koreaToUnicode = new Lazy<Dictionary<uint, string>>(() =>
     {
-        var resource = PdfResourceLoader.GetResource("AdobeKoreaEncodings.bin");
+        var resource = PdfResourceLoader.GetResource("External.AdobeKoreaEncodings.bin");
         var dict = new Dictionary<uint, string>();
         PdfTextResourceConverter.ReadFromCidToUnicodeMapBlob(resource, dict);
         return dict;
@@ -45,7 +45,7 @@ public static class PdfToUnicodeMapProvider
 
     private static readonly Lazy<Dictionary<uint, string>> _krToUnicode = new Lazy<Dictionary<uint, string>>(() =>
     {
-        var resource = PdfResourceLoader.GetResource("AdobeKrEncodings.bin");
+        var resource = PdfResourceLoader.GetResource("External.AdobeKrEncodings.bin");
         var dict = new Dictionary<uint, string>();
         PdfTextResourceConverter.ReadFromCidToUnicodeMapBlob(resource, dict);
         return dict;
@@ -53,7 +53,7 @@ public static class PdfToUnicodeMapProvider
 
     private static readonly Lazy<Dictionary<uint, string>> _mangaToUnicode = new Lazy<Dictionary<uint, string>>(() =>
     {
-        var resource = PdfResourceLoader.GetResource("AdobeMangaEncodings.bin");
+        var resource = PdfResourceLoader.GetResource("External.AdobeMangaEncodings.bin");
         var dict = new Dictionary<uint, string>();
         PdfTextResourceConverter.ReadFromCidToUnicodeMapBlob(resource, dict);
         return dict;

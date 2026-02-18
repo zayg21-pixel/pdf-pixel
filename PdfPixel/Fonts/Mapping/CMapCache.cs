@@ -44,7 +44,7 @@ internal class CMapCache
 
         try
         {
-            var cmapBytes = PdfResourceLoader.GetResource($"CMaps.{name}.bin");
+            var cmapBytes = PdfResourceLoader.GetResource($"External.CMaps.{name}.bin");
             var cmap = PdfCmapBinary.ParseCMapBinary(cmapBytes, GetCmap);
 
             if (cmap != null)
