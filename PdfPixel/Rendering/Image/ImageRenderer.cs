@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging;
+using PdfPixel.Color.Filters;
 using PdfPixel.Color.Paint;
 using PdfPixel.Imaging.Decoding;
 using PdfPixel.Imaging.Model;
@@ -213,31 +214,36 @@ public class ImageRenderer : IImageRenderer
             return;
         }
 
-        using var layerPaint = PdfPaintFactory.CreateCompositionLayerPaint(state);
-        using var imagePaint = PdfPaintFactory.CreateMaskImagePaint(state);
-        imagePaint.ColorFilter = ImagePostProcessingFilters.BuildImageFilter(pdfImage);
-
-        using var maskPaint = PdfPaintFactory.CreateImageMaskPaint(state);
-        maskPaint.ColorFilter = ImagePostProcessingFilters.BuildImageFilter(pdfImage.SoftMask);
-
         var sampling = PdfPaintFactory.GetImageSamplingOptions(pdfImage, state);
-        var maskSampling = PdfPaintFactory.GetImageSamplingOptions(pdfImage.SoftMask, state);
 
-        canvas.SaveLayer(destRect, layerPaint);
-
-        canvas.DrawImage(baseImage, destRect, sampling, imagePaint);
-
-        // purpose of separate picture is the same as with mask paint, it allows to set filter effect on the whole picture
-        // that eliminates edge effect
         using var maskRecorder = new SKPictureRecorder();
-        using var maskCanvas = maskRecorder.BeginRecording(destRect);
+        var unitRectangle = new SKRect(0, 0, 1, 1);
+        using var compoisitionCanvas = maskRecorder.BeginRecording(unitRectangle);
+        compoisitionCanvas.ClipRect(unitRectangle, antialias: true);
+        SKColor? matteColor;
 
-        maskCanvas.DrawImage(maskImage, destRect, maskSampling);
+        if (pdfImage.SoftMask.MatteArray != null)
+        {
+            matteColor = pdfImage.SoftMask.ColorSpaceConverter.ToSrgb(pdfImage.SoftMask.MatteArray, pdfImage.SoftMask.RenderingIntent, default);
+        }
+        else
+        {
+            matteColor = default;
+        }
 
-        using var maskPicture = maskRecorder.EndRecording();
+        using var shader = ImageBlending.CreateSoftMaskBlendingShader(baseImage, maskImage, matteColor, sampling);
+        using var compositionPaint = PdfPaintFactory.CreateSoftMaskShaderPaint(state, shader);
 
-        canvas.DrawPicture(maskPicture, maskPaint);
+        compoisitionCanvas.DrawPaint(compositionPaint);
 
-        canvas.Restore();
+        var result = maskRecorder.EndRecording();
+
+        SKMatrix scale = SKMatrix.CreateScale(destRect.Width, destRect.Height);
+        SKMatrix translate = SKMatrix.CreateTranslation(destRect.Left, destRect.Top);
+        SKMatrix matrix = SKMatrix.Concat(scale, translate);
+
+        using var imagePaint = PdfPaintFactory.CreateImagePaint(state);
+
+        canvas.DrawPicture(result, matrix, imagePaint);
     }
 }

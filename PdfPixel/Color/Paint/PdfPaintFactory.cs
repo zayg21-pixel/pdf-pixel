@@ -89,10 +89,22 @@ public static class PdfPaintFactory
     public static SKPaint CreateImagePaint(PdfGraphicsState state)
     {
         var paint = CreateBasePaint(state);
-        paint.IsAntialias = false;
 
         // For images, we typically use fill alpha since images are considered non-stroking operations
         paint.Color = ApplyAlpha(SKColors.White, state.FillAlpha);
+
+        return paint;
+    }
+
+    /// <summary>
+    /// Creates a paint object for soft mask rendering.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static SKPaint CreateSoftMaskShaderPaint(PdfGraphicsState state, SKShader maskShader)
+    {
+        var paint = CreateBasePaint(state);
+        paint.Color = SKColors.White;
+        paint.Shader = maskShader;
 
         return paint;
     }

@@ -248,7 +248,7 @@ public class PathOperators : IOperatorProcessor
         }
         _currentPath.FillType = fillType;
         // It's important to avoid antialiasing when clipping path, as it might cause image render artifacts
-        _canvas.ClipPath(_currentPath, SKClipOperation.Intersect, antialias: false);
+        _canvas.ClipPath(_currentPath, SKClipOperation.Intersect, antialias: false); // TODO: this is only place so far, we need to investigate why exactly this happens, BAM, 37
         _currentPath.Reset();
     }
 

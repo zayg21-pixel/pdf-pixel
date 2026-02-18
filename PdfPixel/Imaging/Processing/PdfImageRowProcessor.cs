@@ -79,6 +79,7 @@ internal sealed class PdfImageRowProcessor : IDisposable
             _height = downscaleSize.Value.Height;
 
             _rowConverter = new AveragingDownsampleRowConverter(_components, _bitsPerComponent, sourceWidth, _width, sourceHeight, _height);
+            _bitsPerComponent = _rowConverter.BitsPerComponent;
         }
         else
         {
@@ -97,9 +98,7 @@ internal sealed class PdfImageRowProcessor : IDisposable
         {
             _outputMode = OutputMode.Default;
 
-            int outputBitsPerComponent = _rowConverter?.BitsPerComponent ?? _bitsPerComponent;
-
-            _pngBuilder = new PngImageBuilder(_components, outputBitsPerComponent, _width, _height);
+            _pngBuilder = new PngImageBuilder(_components, _bitsPerComponent, _width, _height);
 
             RgbaPacked[] palette = null;
             ReadOnlyMemory<byte> iccProfile = ReadOnlyMemory<byte>.Empty;
@@ -108,9 +107,9 @@ internal sealed class PdfImageRowProcessor : IDisposable
             {
                 palette = indexed.BuildPackedPalette(_image.RenderingIntent, state.FullTransferFunction);
             }
-            else if (_components == 1 && outputBitsPerComponent <= 8)
+            else if (_components == 1 && _bitsPerComponent <= 8)
             {
-                palette = BuildSingleChannelPalette(_image, state, outputBitsPerComponent);
+                palette = BuildSingleChannelPalette(_image, state, _bitsPerComponent);
             }
 
             if (_image.ColorSpaceConverter is IccBasedConverter iccBased && iccBased.Profile?.Bytes != null)
