@@ -168,6 +168,17 @@
 </div>
     
     
+    <!--
+        coi-serviceworker.js registers a Service Worker that injects the
+        Cross-Origin-Opener-Policy and Cross-Origin-Embedder-Policy headers
+        client-side. This is required on GitHub Pages (a static host that
+        cannot set HTTP headers) so that SharedArrayBuffer is available for
+        Blazor WASM threading. When running locally, Program.cs middleware
+        already provides those headers, so the service worker skips registration.
+        This script must be a plain (non-module) blocking script loaded before
+        the dotnet module to ensure the page reloads before the runtime starts.
+    -->
+    <script src="coi-serviceworker.js"></script>
     <script type="module">
         import * as canvasInterop from './canvasInterop.js';
         import { dotnet } from './_framework/dotnet.js';
