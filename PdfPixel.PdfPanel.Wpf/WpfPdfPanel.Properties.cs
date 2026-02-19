@@ -66,6 +66,11 @@ namespace PdfPixel.PdfPanel.Wpf
         }
 
         /// <summary>
+        /// Enables experimental GPU rendering. Works for .NET 8 or greater.
+        /// </summary>
+        public bool UseGpuRendering { get; set; } = true;
+
+        /// <summary>
         /// Gets or sets the collection of pages.
         /// </summary>
         public PdfPanelPageCollection Pages

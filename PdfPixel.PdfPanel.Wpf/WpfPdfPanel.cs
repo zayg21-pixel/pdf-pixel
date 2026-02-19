@@ -6,11 +6,10 @@ using SkiaSharp;
 using System;
 using System.Diagnostics;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
-using PdfPixel.Text;
-using System.IO;
 
 namespace PdfPixel.PdfPanel.Wpf
 {
@@ -23,30 +22,29 @@ namespace PdfPixel.PdfPanel.Wpf
         private readonly VisualCollection children;
 
         private PdfPanelContext _context;
-        private PdfRenderingQueue renderingQueue;
-        private IPdfPanelRenderTargetFactory renderTargetFactory;
+        private PdfRenderingQueue _renderingQueue;
+        private IPdfPanelRenderTargetFactory _renderTargetFactory;
+        private ISkSurfaceFactory _surfaceFactory;
         private bool _updatingScale;
         private bool _updatingPages;
         private PdfAnnotationPopup _lastAnnotationPopup;
         private PdfPanelPointerState _lastAnnotationState;
+        private Image _d3dImageChild;
 
         public WpfPdfPanel()
         {
             UseLayoutRounding = true;
             RenderOptions.SetBitmapScalingMode(this, BitmapScalingMode.NearestNeighbor);
-
-            children = new VisualCollection(this)
-            {
-                DrawingVisual
-            };
-
+            children = new VisualCollection(this);
             Loaded += OnLoaded;
             Unloaded += OnUnloaded;
         }
 
         protected override int VisualChildrenCount => children.Count;
 
-        internal DrawingVisual DrawingVisual { get; } = new DrawingVisual();
+        internal DrawingVisual DrawingVisual { get; private set; }
+
+        internal D3DImage D3DImage { get; private set; }
 
         /// <summary>
         /// Size of the drawing canvas.
@@ -78,6 +76,18 @@ namespace PdfPixel.PdfPanel.Wpf
             var source = PresentationSource.FromVisual(this);
             ((HwndSource)source)?.AddHook(Hook);
 
+            if (UseGpuRendering)
+            {
+                D3DImage = new D3DImage();
+                _d3dImageChild = new Image { Source = D3DImage, Stretch = Stretch.Fill };
+                children.Add(_d3dImageChild);
+            }
+            else
+            {
+                DrawingVisual = new DrawingVisual();
+                children.Add(DrawingVisual);
+            }
+
             InvalidateVisual();
         }
 
@@ -94,6 +104,12 @@ namespace PdfPixel.PdfPanel.Wpf
             CanvasSize = size;
             CanvasScale = scale;
             CanvasOffset = offset;
+
+            if (_d3dImageChild != null)
+            {
+                _d3dImageChild.Measure(finalSize);
+                _d3dImageChild.Arrange(new Rect(finalSize));
+            }
 
             if (!CanRedraw())
             {
@@ -123,8 +139,19 @@ namespace PdfPixel.PdfPanel.Wpf
             var brush = new SolidColorBrush(BackgroundColor);
             brush.Freeze();
 
-            drawingContext.DrawRectangle(brush, null, new Rect(0, 0, ActualWidth, ActualHeight));
-            drawingContext.DrawDrawing(DrawingVisual.Drawing);
+            var size = new Size(ActualWidth, ActualHeight);
+
+            drawingContext.DrawRectangle(brush, null, new Rect(size));
+
+            if (DrawingVisual != null)
+            {
+                drawingContext.DrawDrawing(DrawingVisual.Drawing);
+            }
+
+            if (_d3dImageChild != null)
+            {
+                drawingContext.DrawImage(_d3dImageChild.Source, new Rect(size));
+            }
         }
 
         protected override Visual GetVisualChild(int index)
@@ -168,10 +195,25 @@ namespace PdfPixel.PdfPanel.Wpf
                 return;
             }
 
-            renderingQueue?.Dispose();
-            renderingQueue = new PdfRenderingQueue(new CpuSkSurfaceFactory(SKColorType.Bgra8888, SKAlphaType.Premul));
-            renderTargetFactory = new WpfPdfPanelRenderTargetFactory(this);
-            _context = new PdfPanelContext(Pages, renderingQueue, renderTargetFactory, new PdfPanelVerticalLayout());
+            _renderingQueue?.Dispose();
+            _surfaceFactory?.Dispose();
+
+            if (UseGpuRendering)
+            {
+#if NET8_0_OR_GREATER
+                var imageFactory = new PdfPixel.Wpf.DirectXExperiments.D3DImageRenderTargetFactory(D3DImage);
+                _surfaceFactory = imageFactory;
+                _renderTargetFactory = imageFactory;
+#endif
+            }
+            else
+            {
+                _surfaceFactory = new CpuSkSurfaceFactory(SKColorType.Bgra8888, SKAlphaType.Premul);
+                _renderTargetFactory = new WpfPdfPanelRenderTargetFactory(this);
+            }
+
+            _renderingQueue = new PdfRenderingQueue(_surfaceFactory);
+            _context = new PdfPanelContext(Pages, _renderingQueue, _renderTargetFactory, new PdfPanelVerticalLayout());
         }
 
         private void SyncViewerCanvasState()

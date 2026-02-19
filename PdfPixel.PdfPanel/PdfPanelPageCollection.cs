@@ -101,7 +101,7 @@ public sealed class PdfPanelPageCollection : ReadOnlyCollection<PdfPanelPage>, I
     internal IEnumerable<CachedSkPicture> UpdateCacheWithThumbnails(
         IEnumerable<int> visiblePages,
         float scale,
-        int maxThumbnailSize,
+        SKSurface thumbnailSurface,
         PdfAnnotationPopup activeAnnotationPopup,
         PdfPanelPointerState activeAnnotationState)
     {
@@ -125,7 +125,7 @@ public sealed class PdfPanelPageCollection : ReadOnlyCollection<PdfPanelPage>, I
                     hasAnnotations = newPage.Popups.Length > 0;
                 }
 
-                var thumbnailPicture = Renderer.GetThumbnail(page, maxThumbnailSize);
+                var thumbnailPicture = Renderer.GetThumbnail(page, thumbnailSurface);
                 cachedPicture = new CachedSkPicture(thumbnailPicture, page, hasAnnotations)
                 {
                     Scale = scale,

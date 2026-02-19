@@ -11,4 +11,8 @@
     <ProjectReference Include="..\PdfPixel\PdfPixel.csproj" />
   </ItemGroup>
 
-</Project>
+  <ItemGroup Condition="'$(TargetFramework)' != 'net48'">
+    <ProjectReference Include="..\PdfPixel.Wpf.DirectXExperiments\PdfPixel.Wpf.DirectXExperiments.csproj" />
+  </ItemGroup>
+
+  </Project>

@@ -16,10 +16,10 @@ public class PdfPanelVerticalLayout : IPdfPanelLayout
     {
         int pageCount = pages.Count;
 
-        float scaledPaddingLeft = pagesPadding.Left * scale;
-        float scaledPaddingRight = pagesPadding.Right * scale;
-        float scaledPaddingTop = pagesPadding.Top * scale;
-        float scaledPaddingBottom = pagesPadding.Bottom * scale;
+        float paddingLeft = pagesPadding.Left;
+        float paddingRight = pagesPadding.Right;
+        float paddingTop = pagesPadding.Top;
+        float paddingBottom = pagesPadding.Bottom;
         float scaledPageGap = pageGap * scale;
 
         float maxPageWidthScaled = 0f;
@@ -39,9 +39,9 @@ public class PdfPanelVerticalLayout : IPdfPanelLayout
             totalHeightScaled += scaledPageGap * (pageCount - 1);
         }
 
-        float contentWidth = maxPageWidthScaled + scaledPaddingLeft + scaledPaddingRight;
+        float contentWidth = maxPageWidthScaled + paddingLeft + paddingRight;
         float extentWidth = Math.Max(viewportWidth, contentWidth);
-        float extentHeight = totalHeightScaled + scaledPaddingTop + scaledPaddingBottom;
+        float extentHeight = totalHeightScaled + paddingTop + paddingBottom;
 
         return new SKSize(extentWidth, extentHeight);
     }
@@ -55,9 +55,9 @@ public class PdfPanelVerticalLayout : IPdfPanelLayout
         float extentHeight)
     {
         int pageCount = pages.Count;
-        float scaledPaddingTop = pagesPadding.Top * scale;
+        float paddingTop = pagesPadding.Top;
         float scaledPageGap = pageGap * scale;
-        float verticalOffset = scaledPaddingTop;
+        float verticalOffset = paddingTop;
 
         for (int i = 0; i < pageCount; i++)
         {

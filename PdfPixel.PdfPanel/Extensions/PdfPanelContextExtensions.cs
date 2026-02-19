@@ -193,7 +193,7 @@ public static class PdfPanelContextExtensions
         }
 
         float contentWidth = Math.Max(0, maxRight - minLeft);
-        float padding = (context.PagesPadding.Left + context.PagesPadding.Right) * context.Scale;
+        float padding = context.PagesPadding.Left + context.PagesPadding.Right;
         var targetWidth = contentWidth + padding + 1;
         var scale = context.ViewportWidth * context.Scale / targetWidth;
 

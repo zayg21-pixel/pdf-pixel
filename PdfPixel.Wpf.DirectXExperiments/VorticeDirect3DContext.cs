@@ -10,123 +10,116 @@ namespace PdfPixel.Wpf.DirectXExperiments
 {
     public class VorticeDirect3DContext : IDisposable
     {
-        private readonly IDXGIFactory4 _factory;
-        private readonly IDXGIAdapter1 _adapter;
-        private readonly ID3D12Device2 _d3d12Device;
-        private readonly ID3D11Device _d3d11Device;
-        private readonly Direct3D9.IDirect3D9Ex _d3d9;
-        private readonly Direct3D9.IDirect3DDevice9Ex _d3d9Device;
+        private IDXGIFactory4 _factory;
+        private IDXGIAdapter1 _adapter;
+        private ID3D12Device2 _d3d12Device;
+        private ID3D11Device _d3d11Device;
+        private Direct3D9.IDirect3D9Ex _d3d9;
+        private Direct3D9.IDirect3DDevice9Ex _d3d9Device;
         private ID3D12CommandQueue _queue;
         private ID3D11DeviceContext _d3d11Context;
         private bool _disposed;
 
-        public VorticeDirect3DContext()
+        private VorticeDirect3DContext() { }
+
+        /// <summary>Creates and fully initializes a new <see cref="VorticeDirect3DContext"/>.</summary>
+        public static VorticeDirect3DContext Create()
         {
-            var factory = DXGI.CreateDXGIFactory1<IDXGIFactory4>();
+            var context = new VorticeDirect3DContext();
+            context.Initialize();
+            return context;
+        }
 
-            IDXGIAdapter1 adapter = null;
-            ID3D12Device2 d3d12Device = null;
-            ID3D11Device d3d11Device = null;
-            ID3D11DeviceContext d3d11Context = null;
-            Direct3D9.IDirect3D9Ex d3d9 = null;
-            Direct3D9.IDirect3DDevice9Ex d3d9Device = null;
-            
-            using (var factory6 = factory.QueryInterfaceOrNull<IDXGIFactory6>())
+        /// <summary>
+        /// Initializes all DirectX devices anchored to the D3D9-visible display adapter.
+        /// D3D9Ex only enumerates adapters that are actively driving a monitor, which is
+        /// the same adapter WPF's compositor uses. Anchoring D3D11 and D3D12 to the same
+        /// adapter is required for D3DImage shared surface compatibility.
+        /// </summary>
+        private void Initialize()
+        {
+            _factory = DXGI.CreateDXGIFactory1<IDXGIFactory4>();
+
+            Direct3D9.D3D9.Direct3DCreate9Ex(out _d3d9);
+
+            if (_d3d9 == null)
             {
-                if (factory6 != null)
+                throw new NotSupportedException("Unable to create Direct3D 9Ex instance.");
+            }
+
+            uint d3d9AdapterCount = _d3d9.AdapterCount;
+            for (uint d3d9Index = 0; d3d9Index < d3d9AdapterCount; d3d9Index++)
+            {
+                var d3d9Luid = _d3d9.GetAdapterLuid(d3d9Index);
+                IDXGIAdapter1 candidateAdapter = null;
+
+                for (uint dxgiIndex = 0; _factory.EnumAdapters1(dxgiIndex, out candidateAdapter).Success; dxgiIndex++)
                 {
-                    for (uint i = 0; factory6.EnumAdapterByGpuPreference(i, GpuPreference.HighPerformance, out adapter).Success; i++)
+                    var adapterLuid = candidateAdapter.Description.Luid;
+                    bool luidMatches = adapterLuid.LowPart == d3d9Luid.LowPart &&
+                                       adapterLuid.HighPart == d3d9Luid.HighPart;
+
+                    if (!luidMatches)
                     {
-                        if (D3D12.D3D12CreateDevice(adapter, FeatureLevel.Level_11_0, out d3d12Device).Success)
-                        {
-                            var creationFlags = DeviceCreationFlags.BgraSupport;
-                            var result = D3D11.D3D11CreateDevice(
-                                adapter,
-                                DriverType.Unknown,
-                                creationFlags,
-                                new[] { FeatureLevel.Level_11_1, FeatureLevel.Level_11_0 },
-                                out d3d11Device,
-                                out _,
-                                out d3d11Context);
-
-                            if (result.Success)
-                            {
-                                break;
-                            }
-                        }
-
-                        d3d12Device?.Dispose();
-                        d3d11Device?.Dispose();
-                        d3d11Context?.Dispose();
-                        adapter?.Dispose();
-                        adapter = null;
-                        d3d12Device = null;
-                        d3d11Device = null;
-                        d3d11Context = null;
+                        candidateAdapter.Dispose();
+                        candidateAdapter = null;
+                        continue;
                     }
-                }
-                else
-                {
-                    for (uint i = 0; factory.EnumAdapters1(i, out adapter).Success; i++)
+
+                    if (!D3D12.D3D12CreateDevice(candidateAdapter, FeatureLevel.Level_11_0, out ID3D12Device2 d3d12Device).Success)
                     {
-                        if (D3D12.D3D12CreateDevice(adapter, FeatureLevel.Level_11_0, out d3d12Device).Success)
-                        {
-                            var creationFlags = DeviceCreationFlags.BgraSupport;
-                            var result = D3D11.D3D11CreateDevice(
-                                adapter,
-                                DriverType.Unknown,
-                                creationFlags,
-                                new[] { FeatureLevel.Level_11_1, FeatureLevel.Level_11_0 },
-                                out d3d11Device,
-                                out _,
-                                out d3d11Context);
-
-                            if (result.Success)
-                            {
-                                break;
-                            }
-                        }
-
-                        d3d12Device?.Dispose();
-                        d3d11Device?.Dispose();
-                        d3d11Context?.Dispose();
-                        adapter?.Dispose();
-                        adapter = null;
-                        d3d12Device = null;
-                        d3d11Device = null;
-                        d3d11Context = null;
+                        candidateAdapter.Dispose();
+                        break;
                     }
+
+                    var d3d11Result = D3D11.D3D11CreateDevice(
+                        candidateAdapter,
+                        DriverType.Unknown,
+                        DeviceCreationFlags.BgraSupport,
+                        new[] { FeatureLevel.Level_11_1, FeatureLevel.Level_11_0 },
+                        out var d3d11Device,
+                        out _,
+                        out var d3d11Context);
+
+                    if (!d3d11Result.Success)
+                    {
+                        d3d12Device.Dispose();
+                        candidateAdapter.Dispose();
+                        break;
+                    }
+
+                    var presentParams = new Direct3D9.PresentParameters
+                    {
+                        Windowed = true,
+                        SwapEffect = Direct3D9.SwapEffect.Discard,
+                        DeviceWindowHandle = IntPtr.Zero,
+                        PresentationInterval = Direct3D9.PresentInterval.Default,
+                        BackBufferFormat = Direct3D9.Format.Unknown,
+                        BackBufferWidth = 1,
+                        BackBufferHeight = 1
+                    };
+
+                    _d3d9Device = _d3d9.CreateDeviceEx(
+                        d3d9Index,
+                        Direct3D9.DeviceType.Hardware,
+                        IntPtr.Zero,
+                        Direct3D9.CreateFlags.HardwareVertexProcessing | Direct3D9.CreateFlags.Multithreaded | Direct3D9.CreateFlags.FpuPreserve,
+                        presentParams);
+
+                    _adapter = candidateAdapter;
+                    _d3d12Device = d3d12Device;
+                    _d3d11Device = d3d11Device;
+                    _d3d11Context = d3d11Context;
+                    _queue = _d3d12Device.CreateCommandQueue(new CommandQueueDescription
+                    {
+                        Flags = CommandQueueFlags.None,
+                        Type = CommandListType.Direct
+                    });
+                    return;
                 }
             }
 
-            _factory = factory;
-            _adapter = adapter ?? throw new NotSupportedException("No suitable graphics adapter found.");
-            _d3d12Device = d3d12Device ?? throw new NotSupportedException("Unable to create Direct3D 12 device.");
-            _d3d11Device = d3d11Device ?? throw new NotSupportedException("Unable to create Direct3D 11 device.");
-            _d3d11Context = d3d11Context;
-
-            Direct3D9.D3D9.Direct3DCreate9Ex(out d3d9);
-
-            var presentParams = new Direct3D9.PresentParameters
-            {
-                Windowed = true,
-                SwapEffect = Direct3D9.SwapEffect.Discard,
-                DeviceWindowHandle = IntPtr.Zero,
-                PresentationInterval = Direct3D9.PresentInterval.Default,
-                BackBufferFormat = Direct3D9.Format.Unknown,
-                BackBufferWidth = 1,
-                BackBufferHeight = 1
-            };
-
-            d3d9Device = d3d9.CreateDeviceEx(
-                0,
-                Direct3D9.DeviceType.Hardware,
-                IntPtr.Zero,
-                Direct3D9.CreateFlags.HardwareVertexProcessing | Direct3D9.CreateFlags.Multithreaded | Direct3D9.CreateFlags.FpuPreserve,
-                presentParams);
-
-            _d3d9 = d3d9;
-            _d3d9Device = d3d9Device;
+            throw new NotSupportedException("No suitable adapter found that supports D3D9Ex, D3D11, and D3D12.");
         }
 
         public IDXGIFactory4 Factory => _factory;
@@ -143,12 +136,7 @@ namespace PdfPixel.Wpf.DirectXExperiments
 
         public Direct3D9.IDirect3DDevice9Ex D3D9Device => _d3d9Device;
 
-        public ID3D12CommandQueue Queue =>
-            _queue ??= _d3d12Device.CreateCommandQueue(new CommandQueueDescription
-            {
-                Flags = CommandQueueFlags.None,
-                Type = CommandListType.Direct
-            });
+        public ID3D12CommandQueue Queue => _queue;
 
         public GRD3DBackendContext CreateBackendContext()
         {

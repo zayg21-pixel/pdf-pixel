@@ -86,9 +86,7 @@ public sealed class PdfRenderingQueue : IDisposable
 
                 if (surface == null || surface.Canvas.DeviceClipBounds.Width != width || surface.Canvas.DeviceClipBounds.Height != height)
                 {
-                    var newSurface = CreateSurface(surface, width, height);
-                    surface?.Dispose();
-                    surface = newSurface;
+                    surface = _surfaceFactory.GetDrawingSurface(width, height);
                 }
 
                 if (request is PagesDrawingRequest pagesDrawingRequest)
@@ -102,8 +100,7 @@ public sealed class PdfRenderingQueue : IDisposable
                 }
                 else if (request is ResetDrawingRequest)
                 {
-                    surface?.Dispose();
-                    surface = CreateSurface(null, width, height);
+                    surface = _surfaceFactory.GetDrawingSurface(width, height);
                     requiresRedraw = false;
                 }
 
@@ -131,8 +128,6 @@ public sealed class PdfRenderingQueue : IDisposable
 #endif
             }
         }
-
-        surface?.Dispose();
     }
 
     private async Task<bool> ProcessPagesDrawing(
@@ -163,11 +158,16 @@ public sealed class PdfRenderingQueue : IDisposable
 
         var visiblePages = request.VisiblePages.Select(x => x.PageNumber);
 
+        var thumbnailSurface = request.MaxThumbnailSize > 0
+            ? _surfaceFactory.CreateThumbnailSurface(request.MaxThumbnailSize, request.MaxThumbnailSize)
+            : null;
+
         bool allDrawn = await RenderThumbnailsAndContent(
             surface,
             request,
             previousRequest,
             visiblePages,
+            thumbnailSurface,
             pagesWithThumbnailsDrawn,
             pagesWithContentDrawn,
             updateQueue).ConfigureAwait(false);
@@ -225,6 +225,7 @@ public sealed class PdfRenderingQueue : IDisposable
         PagesDrawingRequest request,
         PagesDrawingRequest previousRequest,
         IEnumerable<int> visiblePages,
+        SKSurface thumbnailSurface,
         HashSet<int> pagesWithThumbnailsDrawn,
         HashSet<int> pagesWithContentDrawn,
         ConcurrentQueue<DrawingRequest> updateQueue)
@@ -234,7 +235,7 @@ public sealed class PdfRenderingQueue : IDisposable
 
         var extendedVisiblePages = GetExtendedVisiblePages(request, previousRequest, visiblePages);
 
-        foreach (var picture in request.Pages.UpdateCacheWithThumbnails(extendedVisiblePages, request.Scale, request.MaxThumbnailSize, request.ActiveAnnotation, request.ActiveAnnotationState))
+        foreach (var picture in request.Pages.UpdateCacheWithThumbnails(extendedVisiblePages, request.Scale, thumbnailSurface, request.ActiveAnnotation, request.ActiveAnnotationState))
         {
             if (!visiblePages.Contains(picture.PageNumber))
             {
@@ -384,19 +385,6 @@ public sealed class PdfRenderingQueue : IDisposable
 
             canvas.Restore();
         }
-    }
-
-    private SKSurface CreateSurface(SKSurface source, int width, int height)
-    {
-        var result = _surfaceFactory.GetSurface(width, height);
-
-        if (source != null)
-        {
-            using var snapshot = source.Snapshot();
-            result.Canvas.DrawSurface(source, SKPoint.Empty);
-        }
-
-        return result;
     }
 
     public void Dispose()

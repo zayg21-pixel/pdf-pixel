@@ -75,8 +75,8 @@ public class PdfPanelContext
     public float MaxScale { get; set; } = 10.0f;
 
     /// <summary>
-    /// Padding from the edges of the viewing area to the pages, in unscaled page space.
-    /// The effective on-screen padding is affected by <see cref="Scale"/>.
+    /// Padding from the edges of the viewing area to the pages, in device pixels.
+    /// Unlike <see cref="MinimumPageGap"/>, this value is not scaled with <see cref="Scale"/>.
     /// </summary>
     public SKRect PagesPadding { get; set; } = SKRect.Create(10, 10, 10, 10);
 

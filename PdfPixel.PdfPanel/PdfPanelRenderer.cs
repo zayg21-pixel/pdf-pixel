@@ -306,23 +306,23 @@ internal sealed class PdfPanelRenderer
         };
     }
 
-    public SKImage GetThumbnail(int pageNumber, int maxThumbnailSize)
+    public SKImage GetThumbnail(int pageNumber, SKSurface surface)
     {
+        if (surface == null)
+        {
+            return null;
+        }
+
         try
         {
             var pdfPage = document.Pages[pageNumber - 1];
+            var bounds = surface.Canvas.DeviceClipBounds;
             var maxDimension = Math.Max(pdfPage.CropBox.Width, pdfPage.CropBox.Height);
-            var scale = maxThumbnailSize / maxDimension;
+            var scale = Math.Min(bounds.Width, bounds.Height) / maxDimension;
 
-            var width = (int)Math.Max(1, Math.Round(pdfPage.CropBox.Width * scale));
-            var height = (int)Math.Max(1, Math.Round(pdfPage.CropBox.Height * scale));
-
-            var bitmapInfo = new SKImageInfo(width, height, SKColorType.Bgra8888, SKAlphaType.Premul);
-            using var bitmap = new SKBitmap(bitmapInfo);
-
-            using var canvas = new SKCanvas(bitmap);
-
+            var canvas = surface.Canvas;
             canvas.Clear(SKColors.Transparent);
+            canvas.Save();
             canvas.Scale((float)scale);
             canvas.ClipRect(new SKRect(0, 0, pdfPage.CropBox.Width, pdfPage.CropBox.Height));
 
@@ -335,9 +335,13 @@ internal sealed class PdfPanelRenderer
             };
 
             pdfPage.Draw(canvas, parameters, CancellationToken.None);
+            canvas.Restore();
             canvas.Flush();
 
-            return SKImage.FromBitmap(bitmap);
+            var drawnWidth = (int)Math.Max(1, Math.Round(pdfPage.CropBox.Width * scale));
+            var drawnHeight = (int)Math.Max(1, Math.Round(pdfPage.CropBox.Height * scale));
+
+            return surface.Snapshot(new SKRectI(0, 0, drawnWidth, drawnHeight));
         }
         catch
         {
