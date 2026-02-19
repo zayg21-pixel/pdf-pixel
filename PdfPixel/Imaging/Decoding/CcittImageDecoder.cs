@@ -53,51 +53,43 @@ internal sealed class CcittImageDecoder : PdfImageDecoder
             return null;
         }
 
-        try
+        ReadOnlyMemory<byte> encoded = Image.GetImageData();
+        if (encoded.IsEmpty)
         {
-            ReadOnlyMemory<byte> encoded = Image.GetImageData();
-            if (encoded.IsEmpty)
-            {
-                Logger.LogError("CCITT image data empty (Name={Name}).", Image.Name);
-                return null;
-            }
-
-            // Initialize row processor (8-bit pipeline; will read packed 1-bit samples per row).
-            using var rowProcessor = new PdfImageRowProcessor(Image, LoggerFactory.CreateLogger<PdfImageRowProcessor>(), state, canvas);
-            rowProcessor.InitializeBuffer();
-
-            // Row decoder (produces packed 1-bit rows, MSB-first).
-            var rowDecoder = new CcittRowDecoder(
-                encoded.Span,
-                width,
-                height,
-                _blackIs1,
-                _k,
-                _endOfLine,
-                _byteAlign,
-                _endOfBlock);
-
-            int packedRowBytes = rowDecoder.RowStride;
-            byte[] rowBuffer = new byte[packedRowBytes];
-
-            int rowIndex = 0;
-            while (rowDecoder.DecodeNextRow(rowBuffer))
-            {
-                rowProcessor.WriteRow(rowIndex, rowBuffer);
-                rowIndex++;
-            }
-
-            if (rowIndex != height)
-            {
-                Logger.LogWarning("CCITT row decoder ended early (Decoded={Decoded} Expected={Expected}) (Name={Name}).", rowIndex, height, Image.Name);
-            }
-
-            return rowProcessor.GetDecoded();
-        }
-        catch (Exception ex)
-        {
-            Logger.LogError(ex, "CCITT streaming decode failed (Name={Name}).", Image.Name);
+            Logger.LogError("CCITT image data empty (Name={Name}).", Image.Name);
             return null;
         }
+
+        // Initialize row processor (8-bit pipeline; will read packed 1-bit samples per row).
+        using var rowProcessor = new PdfImageRowProcessor(Image, LoggerFactory.CreateLogger<PdfImageRowProcessor>(), state, canvas);
+        rowProcessor.InitializeBuffer();
+
+        // Row decoder (produces packed 1-bit rows, MSB-first).
+        var rowDecoder = new CcittRowDecoder(
+            encoded.Span,
+            width,
+            height,
+            _blackIs1,
+            _k,
+            _endOfLine,
+            _byteAlign,
+            _endOfBlock);
+
+        int packedRowBytes = rowDecoder.RowStride;
+        byte[] rowBuffer = new byte[packedRowBytes];
+
+        int rowIndex = 0;
+        while (rowDecoder.DecodeNextRow(rowBuffer))
+        {
+            rowProcessor.WriteRow(rowIndex, rowBuffer);
+            rowIndex++;
+        }
+
+        if (rowIndex != height)
+        {
+            Logger.LogWarning("CCITT row decoder ended early (Decoded={Decoded} Expected={Expected}) (Name={Name}).", rowIndex, height, Image.Name);
+        }
+
+        return rowProcessor.GetDecoded();
     }
 }

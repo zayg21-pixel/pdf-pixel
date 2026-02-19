@@ -112,7 +112,8 @@ public class PdfPage
     /// </summary>
     /// <param name="canvas">Destination canvas.</param>
     /// <param name="renderingParameters">Rendering parameters for rendering in defined canvas.</param>
-    public void Draw(SKCanvas canvas, PdfRenderingParameters renderingParameters)
+    /// <param name="token">Rendering cancellation token.</param>
+    public void Draw(SKCanvas canvas, PdfRenderingParameters renderingParameters, CancellationToken token)
     {
         if (canvas == null)
         {
@@ -126,7 +127,7 @@ public class PdfPage
         var renderer = new PdfRenderer(Document.LoggerFactory);
         var contentRenderer = new PdfContentStreamRenderer(renderer, this);
 
-        contentRenderer.RenderContent(canvas, renderingParameters);
+        contentRenderer.RenderContent(canvas, renderingParameters, token);
     }
 
     /// <summary>
@@ -136,11 +137,13 @@ public class PdfPage
     /// <param name="renderingParameters">Rendering parameters for rendering in defined canvas.</param>
     /// <param name="activeAnnotation">Annotation that should be rendered in a non-normal visual state, or null.</param>
     /// <param name="visualStateKind">Visual state to apply to the active annotation.</param>
+    /// <param name="token">Rendering cancellation token.</param>
     public void RenderAnnotations(
         SKCanvas canvas,
         PdfRenderingParameters renderingParameters,
         PdfAnnotationBase activeAnnotation,
-        PdfAnnotationVisualStateKind visualStateKind)
+        PdfAnnotationVisualStateKind visualStateKind,
+        CancellationToken token)
     {
         if (canvas == null)
         {
@@ -154,7 +157,7 @@ public class PdfPage
 
         var renderer = new PdfRenderer(Document.LoggerFactory);
         var annotationRenderer = new PdfAnnotationRenderer(renderer, this);
-        annotationRenderer.RenderAnnotations(canvas, renderingParameters, activeAnnotation, visualStateKind);
+        annotationRenderer.RenderAnnotations(canvas, renderingParameters, activeAnnotation, visualStateKind, token);
     }
 
     /// <summary>
@@ -169,7 +172,7 @@ public class PdfPage
         var textExtractor = new PdfTextExtractionRenderer();
         
         var contentRenderer = new PdfContentStreamRenderer(textExtractor, this);
-        contentRenderer.RenderContent(canvas, new PdfRenderingParameters());
+        contentRenderer.RenderContent(canvas, new PdfRenderingParameters(), CancellationToken.None);
 
         return textExtractor.PageCharacters;
     }

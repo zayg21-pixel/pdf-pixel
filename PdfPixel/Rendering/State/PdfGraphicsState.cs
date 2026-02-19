@@ -9,6 +9,7 @@ using System.Collections.Generic;
 using System;
 using PdfPixel.Color.Transform;
 using PdfPixel.Color.Sampling;
+using System.Threading;
 
 namespace PdfPixel.Rendering.State
 {
@@ -35,14 +36,20 @@ namespace PdfPixel.Rendering.State
         private TransferFunctionTransform _transferFunction;
         private IColorTransform _externalTransferFunction;
 
-        public PdfGraphicsState(PdfPage statePage, HashSet<uint> recursionGuard, PdfRenderingParameters renderingParameters, IColorTransform externalTransform)
+        public PdfGraphicsState(PdfPage statePage, HashSet<uint> recursionGuard, PdfRenderingParameters renderingParameters, IColorTransform externalTransform, CancellationToken token)
         {
             Page = statePage ?? throw new ArgumentNullException(nameof(renderingParameters));
             ExternalTransferFunction = externalTransform;
             RecursionGuard = recursionGuard ?? throw new ArgumentNullException(nameof(renderingParameters));
             RenderingParameters = renderingParameters ?? throw new ArgumentNullException(nameof(renderingParameters));
+            CancellationToken = token;
             FillColorConverter = statePage.Cache.ColorSpace.ResolveDeviceConverter(PdfColorSpaceType.DeviceGray);
             StrokeColorConverter = statePage.Cache.ColorSpace.ResolveDeviceConverter(PdfColorSpaceType.DeviceGray);
+        }
+
+        public PdfGraphicsState(PdfPage statePage, PdfGraphicsState sourceState)
+            : this(statePage, sourceState.RecursionGuard, sourceState.RenderingParameters, sourceState.ExternalTransferFunction, sourceState.CancellationToken)
+        {
         }
 
         /// <summary>
@@ -60,9 +67,11 @@ namespace PdfPixel.Rendering.State
         /// </summary>
         public PdfRenderingParameters RenderingParameters { get; }
 
-        // --------------------------------------------------------------------------------------
-        // Consolidated paint objects (new API)
-        // --------------------------------------------------------------------------------------
+        /// <summary>
+        /// Cancellation token to support cooperative cancellation during rendering operations.
+        /// </summary>
+        public CancellationToken CancellationToken { get; }
+
         /// <summary>
         /// Current stroking paint (solid color or pattern). Replaces legacy StrokeColor / StrokePattern* fields.
         /// </summary>
@@ -385,7 +394,7 @@ namespace PdfPixel.Rendering.State
         /// </summary>
         public PdfGraphicsState Clone()
         {
-            return new PdfGraphicsState(Page, RecursionGuard, RenderingParameters, ExternalTransferFunction)
+            return new PdfGraphicsState(Page, this)
             {
                 StrokePaint = StrokePaint,
                 FillPaint = FillPaint,

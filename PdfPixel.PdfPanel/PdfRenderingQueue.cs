@@ -16,6 +16,7 @@ public sealed class PdfRenderingQueue : IDisposable
     private readonly SemaphoreSlim _semaphore = new SemaphoreSlim(0);
     private readonly ConcurrentQueue<DrawingRequest> _updateQueue = new ConcurrentQueue<DrawingRequest>();
     private DrawingRequest _lastRequest;
+    private CancellationTokenSource _currentRenderCts;
 
     public PdfRenderingQueue(ISkSurfaceFactory surfaceFactory)
     {
@@ -33,6 +34,15 @@ public sealed class PdfRenderingQueue : IDisposable
         _updateQueue.Enqueue(request);
         _semaphore.Release();
         _lastRequest = request;
+
+        try
+        {
+            _currentRenderCts?.Cancel();
+        }
+        catch (ObjectDisposedException)
+        {
+            // CTS was disposed between the null-check and Cancel; cancellation is no longer needed.
+        }
     }
 
     private async void StartReadFromQueue()
@@ -99,7 +109,12 @@ public sealed class PdfRenderingQueue : IDisposable
 
                 if (requiresRedraw)
                 {
-                    requiresRedraw = !await ProcessPagesDrawing(surface, activePagesDrawingRequest, previousPagesDrawingRequest, _updateQueue).ConfigureAwait(false);
+                    var cts = new CancellationTokenSource();
+                    _currentRenderCts = cts;
+                    requiresRedraw = !await ProcessPagesDrawing(surface, activePagesDrawingRequest, previousPagesDrawingRequest, _updateQueue, cts.Token).ConfigureAwait(false);
+                    _currentRenderCts = null;
+                    cts.Dispose();
+
                     previousPagesDrawingRequest = activePagesDrawingRequest;
                 }
                 else if (surface != null && activePagesDrawingRequest != null)
@@ -109,6 +124,8 @@ public sealed class PdfRenderingQueue : IDisposable
             }
             catch (Exception)
             {
+                _currentRenderCts?.Dispose();
+                _currentRenderCts = null;
 #if DEBUG // TODO: inject logger
                 throw;
 #endif
@@ -122,7 +139,8 @@ public sealed class PdfRenderingQueue : IDisposable
         SKSurface surface,
         PagesDrawingRequest request,
         PagesDrawingRequest previousRequest,
-        ConcurrentQueue<DrawingRequest> updateQueue)
+        ConcurrentQueue<DrawingRequest> updateQueue,
+        CancellationToken cancellationToken)
     {
         var canvas = surface.Canvas;
         canvas.ClipRect(new SKRect(0, 0, (float)request.CanvasSize.Width, (float)request.CanvasSize.Height));
@@ -164,7 +182,8 @@ public sealed class PdfRenderingQueue : IDisposable
             request,
             visiblePages,
             pagesWithContentDrawn,
-            updateQueue).ConfigureAwait(false);
+            updateQueue,
+            cancellationToken).ConfigureAwait(false);
 
         return allDrawn;
     }
@@ -255,35 +274,44 @@ public sealed class PdfRenderingQueue : IDisposable
         PagesDrawingRequest request,
         IEnumerable<int> visiblePages,
         HashSet<int> pagesWithContentDrawn,
-        ConcurrentQueue<DrawingRequest> updateQueue)
+        ConcurrentQueue<DrawingRequest> updateQueue,
+        CancellationToken cancellationToken)
     {
         var canvas = surface.Canvas;
         bool allDrawn = true;
 
-        foreach (var picture in request.Pages.GeneratePicturesForCachedPages())
+        try
         {
-            if (pagesWithContentDrawn.Contains(picture.PageNumber))
+            foreach (var picture in request.Pages.GeneratePicturesForCachedPages(cancellationToken))
             {
-                continue;
-            }
+                if (pagesWithContentDrawn.Contains(picture.PageNumber))
+                {
+                    continue;
+                }
 
-            if (!visiblePages.Contains(picture.PageNumber))
-            {
-                continue;
-            }
+                if (!visiblePages.Contains(picture.PageNumber))
+                {
+                    continue;
+                }
 
-            if (picture.Picture != null)
-            {
-                canvas.DrawPageFromRequest(picture.PageNumber, request, PageDrawFlags.Background | PageDrawFlags.Content);
-                pagesWithContentDrawn.Add(picture.PageNumber);
-                await request.RenderTarget.RenderAsync(surface, request).ConfigureAwait(false);
-            }
+                if (picture.Picture != null)
+                {
+                    canvas.DrawPageFromRequest(picture.PageNumber, request, PageDrawFlags.Background | PageDrawFlags.Content);
+                    pagesWithContentDrawn.Add(picture.PageNumber);
+                    await request.RenderTarget.RenderAsync(surface, request).ConfigureAwait(false);
+                }
 
-            if (!updateQueue.IsEmpty)
-            {
-                allDrawn = false;
-                break;
+                if (!updateQueue.IsEmpty)
+                {
+                    allDrawn = false;
+                    break;
+                }
             }
+        }
+        catch (OperationCanceledException)
+        {
+            // A new request was enqueued; stop rendering and signal that not everything was drawn.
+            allDrawn = false;
         }
 
         return allDrawn;
@@ -373,6 +401,7 @@ public sealed class PdfRenderingQueue : IDisposable
 
     public void Dispose()
     {
+        _currentRenderCts?.Cancel();
         _semaphore.Dispose();
     }
 }

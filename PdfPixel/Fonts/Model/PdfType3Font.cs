@@ -10,6 +10,7 @@ using SkiaSharp;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 
 namespace PdfPixel.Fonts.Model;
 
@@ -123,7 +124,7 @@ public class PdfType3Font : PdfSingleByteFont
         var bbox = boundingBox ?? new SKRect(0, 0, width, height);
         var canvas = recorder.BeginRecording(bbox);
 
-        var charState = new PdfGraphicsState(glyphPage, sourceState.RecursionGuard, new PdfRenderingParameters { IsType3Rendering = true }, default);
+        var charState = new PdfGraphicsState(glyphPage, sourceState.RecursionGuard, new PdfRenderingParameters { IsType3Rendering = true }, default, default);
 
         contentRenderer.RenderContext(canvas, ref parseContext, charState);
 

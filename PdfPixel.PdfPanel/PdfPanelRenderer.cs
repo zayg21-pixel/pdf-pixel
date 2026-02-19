@@ -5,6 +5,7 @@ using SkiaSharp;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 
 namespace PdfPixel.PdfPanel;
 
@@ -215,11 +216,11 @@ internal sealed class PdfPanelRenderer
         canvas.Scale(1, -1);
     }
 
-    public SKPicture GetPicture(int pageNumber, double scale)
+    public SKPicture GetPicture(int pageNumber, double scale, CancellationToken token)
     {
         try
         {
-            return GetPictureInternal(pageNumber, scale, previewMode: false);
+            return GetPictureInternal(pageNumber, scale, previewMode: false, token);
         }
         catch
         {
@@ -231,7 +232,8 @@ internal sealed class PdfPanelRenderer
         int pageNumber,
         double scale,
         PdfAnnotationBase activeAnnotation,
-        PdfPanelPointerState pointerState)
+        PdfPanelPointerState pointerState,
+        CancellationToken token)
     {
         try
         {
@@ -251,7 +253,7 @@ internal sealed class PdfPanelRenderer
             ApplyPageTransformations(canvas, pdfPage);
 
             var parameters = new PdfRenderingParameters { ScaleFactor = (float)scale, PreviewMode = false };
-            pdfPage.RenderAnnotations(canvas, parameters, activeAnnotation, visualStateKind);
+            pdfPage.RenderAnnotations(canvas, parameters, activeAnnotation, visualStateKind, token);
 
             canvas.Flush();
             var picture = recorder.EndRecording();
@@ -332,7 +334,7 @@ internal sealed class PdfPanelRenderer
                 PreviewMode = true
             };
 
-            pdfPage.Draw(canvas, parameters);
+            pdfPage.Draw(canvas, parameters, CancellationToken.None);
             canvas.Flush();
 
             return SKImage.FromBitmap(bitmap);
@@ -343,7 +345,7 @@ internal sealed class PdfPanelRenderer
         }
     }
 
-    private SKPicture GetPictureInternal(int pageNumber, double scale, bool previewMode)
+    private SKPicture GetPictureInternal(int pageNumber, double scale, bool previewMode, CancellationToken token)
     {
         var pdfPage = document.Pages[pageNumber - 1];
 
@@ -353,8 +355,8 @@ internal sealed class PdfPanelRenderer
 
         ApplyPageTransformations(canvas, pdfPage);
 
-        var parameters = new PdfRenderingParameters { ScaleFactor = (float)scale, PreviewMode = false };
-        pdfPage.Draw(canvas, parameters);
+        var parameters = new PdfRenderingParameters { ScaleFactor = (float)scale, PreviewMode = previewMode };
+        pdfPage.Draw(canvas, parameters, token);
 
         canvas.Flush();
         var picture = recorder.EndRecording();

@@ -9,6 +9,7 @@ using PdfPixel.Text;
 using SkiaSharp;
 using System;
 using System.Collections.Generic;
+using System.Threading;
 
 namespace PdfPixel.Rendering;
 
@@ -36,7 +37,8 @@ public class PdfAnnotationRenderer
         SKCanvas canvas,
         PdfRenderingParameters renderingParameters,
         PdfAnnotationBase activeAnnotation,
-        PdfAnnotationVisualStateKind visualStateKind)
+        PdfAnnotationVisualStateKind visualStateKind,
+        CancellationToken token)
     {
         if (_page.Annotations.Count == 0)
         {
@@ -51,7 +53,9 @@ public class PdfAnnotationRenderer
                     ? visualStateKind
                     : PdfAnnotationVisualStateKind.Normal;
 
-                RenderAnnotation(canvas, annotation, renderingParameters, effectiveState);
+                RenderAnnotation(canvas, annotation, renderingParameters, effectiveState, token);
+
+                token.ThrowIfCancellationRequested();
             }
             catch (Exception ex)
             {
@@ -67,7 +71,8 @@ public class PdfAnnotationRenderer
         SKCanvas canvas,
         PdfAnnotationBase annotation,
         PdfRenderingParameters renderingParameters,
-        PdfAnnotationVisualStateKind visualStateKind)
+        PdfAnnotationVisualStateKind visualStateKind,
+        CancellationToken token)
     {
         if (annotation.Flags.HasFlag(PdfAnnotationFlags.Invisible) || 
             annotation.Flags.HasFlag(PdfAnnotationFlags.Hidden))
@@ -85,6 +90,6 @@ public class PdfAnnotationRenderer
             return;
         }
 
-        annotation.Render(canvas, _page, visualStateKind, _renderer, renderingParameters);
+        annotation.Render(canvas, _page, visualStateKind, _renderer, renderingParameters, token);
     }
 }

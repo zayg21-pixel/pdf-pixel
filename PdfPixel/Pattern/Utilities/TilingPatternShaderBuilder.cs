@@ -43,7 +43,7 @@ internal sealed class TilingPatternShaderBuilder
 
         // Render pattern cell without tint or color filter
         var patternPage = new FormXObjectPageWrapper(pattern.SourceObject);
-        var cellState = new PdfGraphicsState(patternPage, sourceState.RecursionGuard, sourceState.RenderingParameters, sourceState.ExternalTransferFunction);
+        var cellState = new PdfGraphicsState(patternPage, sourceState);
         var contentRenderer = new PdfContentStreamRenderer(renderer, patternPage);
         var parseContext = new PdfParseContext(streamData);
         contentRenderer.RenderContext(canvas, ref parseContext, cellState);

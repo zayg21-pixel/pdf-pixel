@@ -57,7 +57,7 @@ public class FormRenderer : IFormRenderer
             var parseContext = new PdfParseContext(content);
             var formPage = formXObject.GetFormPage();
 
-            var localGs = new PdfGraphicsState(formPage, graphicsState.RecursionGuard, graphicsState.RenderingParameters, graphicsState.ExternalTransferFunction);
+            var localGs = new PdfGraphicsState(formPage, graphicsState);
             localGs.CTM = formXObject.Matrix;
 
             var renderer = new PdfContentStreamRenderer(_renderer, formPage);

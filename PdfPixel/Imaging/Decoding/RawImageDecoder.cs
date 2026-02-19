@@ -47,15 +47,7 @@ public class RawImageDecoder : PdfImageDecoder
             return null;
         }
 
-        try
-        {
-            return DecodeStream(dataStream, state, canvas);
-        }
-        catch (Exception ex)
-        {
-            Logger.LogWarning(ex, "Raw image decode failed (Name={Name}).", Image.Name);
-            return null;
-        }
+        return DecodeStream(dataStream, state, canvas);
     }
 
     /// <summary>

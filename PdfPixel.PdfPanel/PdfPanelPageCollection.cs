@@ -7,6 +7,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
+using System.Threading;
 
 namespace PdfPixel.PdfPanel;
 
@@ -184,7 +185,7 @@ public sealed class PdfPanelPageCollection : ReadOnlyCollection<PdfPanelPage>, I
         }
     }
 
-    internal IEnumerable<CachedSkPicture> GeneratePicturesForCachedPages()
+    internal IEnumerable<CachedSkPicture> GeneratePicturesForCachedPages(CancellationToken token)
     {
         var cachedPages = pictureCache.ToArray();
 
@@ -194,12 +195,12 @@ public sealed class PdfPanelPageCollection : ReadOnlyCollection<PdfPanelPage>, I
 
             if (cachedPicture.Picture == null)
             {
-                cachedPicture.UpdatePicture(Renderer.GetPicture(cachedPage.Key, cachedPicture.Scale));
+                cachedPicture.UpdatePicture(Renderer.GetPicture(cachedPage.Key, cachedPicture.Scale, token));
             }
 
             if (cachedPicture.AnnotationPicture == null)
             {
-                cachedPicture.UpdateAnnotationPicture(Renderer.GetAnnotationPicture(cachedPage.Key, cachedPicture.Scale, cachedPicture.ActiveAnnotation, cachedPicture.ActiveAnnotationState));
+                cachedPicture.UpdateAnnotationPicture(Renderer.GetAnnotationPicture(cachedPage.Key, cachedPicture.Scale, cachedPicture.ActiveAnnotation, cachedPicture.ActiveAnnotationState, token));
             }
 
             yield return cachedPicture;

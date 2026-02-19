@@ -258,6 +258,7 @@ internal sealed class PdfImageRowProcessor : IDisposable
             WriteWithFullColor(rowIndex, decodedRow);
             return;
         }
+        _state.CancellationToken.ThrowIfCancellationRequested();
 
         _pngBuilder.WritePngImageRow(decodedRow);
     }
@@ -334,6 +335,8 @@ internal sealed class PdfImageRowProcessor : IDisposable
                 destinationPixel.A = 0;
             }
         }
+
+        _state.CancellationToken.ThrowIfCancellationRequested();
 
         _pngBuilder.WritePngImageRow(_rgbaBuffer);
     }

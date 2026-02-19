@@ -1,6 +1,7 @@
 using PdfPixel.Models;
 using PdfPixel.Rendering;
 using SkiaSharp;
+using System.Threading;
 
 namespace PdfPixel.Annotations.Models;
 
@@ -30,7 +31,8 @@ public class PdfHighlightAnnotation : PdfTextMarkupAnnotation
         PdfPage page,
         PdfAnnotationVisualStateKind visualStateKind,
         IPdfRenderer renderer,
-        PdfRenderingParameters renderingParameters)
+        PdfRenderingParameters renderingParameters,
+        CancellationToken token)
     {
         using var paint = new SKPaint
         {
@@ -40,7 +42,7 @@ public class PdfHighlightAnnotation : PdfTextMarkupAnnotation
 
         try
         {
-            return base.Render(canvas, page, visualStateKind, renderer, renderingParameters);
+            return base.Render(canvas, page, visualStateKind, renderer, renderingParameters, token);
         }
         finally
         {

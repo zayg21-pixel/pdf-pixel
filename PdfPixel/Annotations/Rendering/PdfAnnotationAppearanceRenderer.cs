@@ -7,6 +7,7 @@ using PdfPixel.Rendering.State;
 using PdfPixel.Text;
 using SkiaSharp;
 using System.Collections.Generic;
+using System.Threading;
 
 namespace PdfPixel.Annotations.Rendering;
 
@@ -24,6 +25,7 @@ internal static class PdfAnnotationAppearanceRenderer
     /// <param name="visualStateKind">The visual state to render.</param>
     /// <param name="renderer">The renderer context.</param>
     /// <param name="renderingParameters">Rendering parameters.</param>
+    /// <param name="token">Token to cancel rendering.</param>
     /// <returns>True if the appearance stream was rendered successfully.</returns>
     public static bool RenderAppearanceStream(
         SKCanvas canvas,
@@ -31,7 +33,8 @@ internal static class PdfAnnotationAppearanceRenderer
         PdfPage page,
         PdfAnnotationVisualStateKind visualStateKind,
         IPdfRenderer renderer,
-        PdfRenderingParameters renderingParameters)
+        PdfRenderingParameters renderingParameters,
+        CancellationToken token)
     {
         if (annotation.AppearanceDictionary == null)
         {
@@ -55,11 +58,11 @@ internal static class PdfAnnotationAppearanceRenderer
         switch (xObject.Subtype)
         {
             case PdfXObjectSubtype.Form:
-                success = RenderFormAppearance(canvas, appearanceObject, annotation.Rectangle, page, renderer, renderingParameters);
+                success = RenderFormAppearance(canvas, appearanceObject, annotation.Rectangle, page, renderer, renderingParameters, token);
                 break;
 
             case PdfXObjectSubtype.Image:
-                success = RenderImageAppearance(canvas, appearanceObject, annotation.Rectangle, page, renderer, renderingParameters);
+                success = RenderImageAppearance(canvas, appearanceObject, annotation.Rectangle, page, renderer, renderingParameters, token);
                 break;
         }
 
@@ -118,7 +121,8 @@ internal static class PdfAnnotationAppearanceRenderer
         SKRect annotationRect,
         PdfPage page,
         IPdfRenderer renderer,
-        PdfRenderingParameters renderingParameters)
+        PdfRenderingParameters renderingParameters,
+        CancellationToken token)
     {
         var formXObject = PdfForm.FromXObject(formObject, page);
         if (formXObject == null)
@@ -134,7 +138,7 @@ internal static class PdfAnnotationAppearanceRenderer
 
         canvas.Concat(in alignmentMatrix);
 
-        var state = new PdfGraphicsState(page, new HashSet<uint>(), renderingParameters, externalTransform: null);
+        var state = new PdfGraphicsState(page, new HashSet<uint>(), renderingParameters, externalTransform: null, token);
         renderer.DrawForm(canvas, formXObject, state);
 
         return true;
@@ -164,7 +168,8 @@ internal static class PdfAnnotationAppearanceRenderer
         SKRect annotationRect,
         PdfPage page,
         IPdfRenderer renderer,
-        PdfRenderingParameters renderingParameters)
+        PdfRenderingParameters renderingParameters,
+        CancellationToken token)
     {
         var pdfImage = PdfImage.FromXObject(imageObject, page, PdfString.Empty, isSoftMask: false);
         if (pdfImage == null)
@@ -178,7 +183,7 @@ internal static class PdfAnnotationAppearanceRenderer
             canvas.Scale(annotationRect.Width, annotationRect.Height);
         }
 
-        var state = new PdfGraphicsState(page, new HashSet<uint>(), renderingParameters, externalTransform: null);
+        var state = new PdfGraphicsState(page, new HashSet<uint>(), renderingParameters, externalTransform: null, token);
         renderer.DrawImage(canvas, pdfImage, state);
 
         return true;

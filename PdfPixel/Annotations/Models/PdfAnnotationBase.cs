@@ -7,6 +7,7 @@ using PdfPixel.Rendering;
 using PdfPixel.Annotations.Rendering;
 using SkiaSharp;
 using System;
+using System.Threading;
 
 namespace PdfPixel.Annotations.Models;
 
@@ -325,18 +326,15 @@ public abstract class PdfAnnotationBase
     /// <param name="visualStateKind">The visual state to render (Normal, Rollover, Down).</param>
     /// <param name="renderer">The renderer context for rendering appearance streams.</param>
     /// <param name="renderingParameters">Rendering parameters.</param>
+    /// <param name="token">Token to cancel rendering.</param>
     /// <returns>True if the annotation was rendered, false otherwise.</returns>
-    /// <remarks>
-    /// This method handles all rendering logic including bubble indicators, appearance streams,
-    /// and fallback rendering. Derived classes can override this to customize rendering behavior
-    /// such as applying blend modes or special effects.
-    /// </remarks>
     public virtual bool Render(
         SKCanvas canvas,
         PdfPage page,
         PdfAnnotationVisualStateKind visualStateKind,
         IPdfRenderer renderer,
-        PdfRenderingParameters renderingParameters)
+        PdfRenderingParameters renderingParameters,
+        CancellationToken token)
     {
         canvas.Save();
 
@@ -347,7 +345,7 @@ public abstract class PdfAnnotationBase
                 PdfAnnotationBubbleRenderer.RenderBubble(canvas, this, page, visualStateKind);
             }
 
-            if (AppearanceDictionary != null && RenderAppearanceStream(canvas, page, visualStateKind, renderer, renderingParameters))
+            if (AppearanceDictionary != null && RenderAppearanceStream(canvas, page, visualStateKind, renderer, renderingParameters, token))
             {
                 return true;
             }
@@ -389,13 +387,15 @@ public abstract class PdfAnnotationBase
     /// <param name="visualStateKind">The visual state to render.</param>
     /// <param name="renderer">The renderer context.</param>
     /// <param name="renderingParameters">Rendering parameters.</param>
+    /// <param name="token">Token to cancel rendering.</param>
     /// <returns>True if the appearance stream was rendered successfully.</returns>
     protected virtual bool RenderAppearanceStream(
         SKCanvas canvas,
         PdfPage page,
         PdfAnnotationVisualStateKind visualStateKind,
         IPdfRenderer renderer,
-        PdfRenderingParameters renderingParameters)
+        PdfRenderingParameters renderingParameters,
+        CancellationToken token)
     {
         return PdfAnnotationAppearanceRenderer.RenderAppearanceStream(
             canvas,
@@ -403,7 +403,8 @@ public abstract class PdfAnnotationBase
             page,
             visualStateKind,
             renderer,
-            renderingParameters);
+            renderingParameters,
+            token);
     }
 
     /// <summary>

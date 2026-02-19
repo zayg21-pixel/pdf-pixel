@@ -176,7 +176,7 @@ namespace PdfPixel.Console.Demo
                         canvas.Clear(SKColors.White);
 
                         // Render the page (this will show transformation debug info)
-                        page.Draw(canvas, new PdfRenderingParameters());
+                        page.Draw(canvas, new PdfRenderingParameters(), CancellationToken.None);
 
                         Logger.LogInformation("  === PAGE RENDERING COMPLETE ===");
 
@@ -228,7 +228,7 @@ namespace PdfPixel.Console.Demo
             canvas.ClipRect(new SKRect(0, 0, pdfPage.CropBox.Width, pdfPage.CropBox.Height));
 
             canvas.Clear(SKColors.White);
-            pdfPage.Draw(canvas, new PdfRenderingParameters());
+            pdfPage.Draw(canvas, new PdfRenderingParameters(), CancellationToken.None);
 
             canvas.Flush();
             return recorder.EndRecording();

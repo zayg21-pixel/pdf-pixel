@@ -52,15 +52,7 @@ public sealed class JpegImageDecoder : PdfImageDecoder
             return null;
         }
 
-        try
-        {
-            return DecodeInternal(encodedImageData, state, canvas);
-        }
-        catch (Exception ex)
-        {
-            Logger.LogWarning(ex, "Primary JPEG decode path failed; attempting Skia fallback (Name={Name}).", Image.Name);
-            return SKImage.FromEncodedData(encodedImageData.Span);
-        }
+        return DecodeInternal(encodedImageData, state, canvas);
     }
 
     /// <summary>

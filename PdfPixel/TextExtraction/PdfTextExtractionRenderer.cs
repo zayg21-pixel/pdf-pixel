@@ -10,7 +10,6 @@ using PdfPixel.Shading.Model;
 using PdfPixel.Text;
 using SkiaSharp;
 using System.Collections.Generic;
-using System.Linq;
 
 namespace PdfPixel.TextExtraction;
 
@@ -33,7 +32,7 @@ internal class PdfTextExtractionRenderer : IPdfRenderer
         {
             var parseContext = new PdfParseContext(content);
             var formPage = formXObject.GetFormPage();
-            var localGs = new PdfGraphicsState(formPage, graphicsState.RecursionGuard, graphicsState.RenderingParameters, graphicsState.ExternalTransferFunction);
+            var localGs = new PdfGraphicsState(formPage, graphicsState);
             localGs.CTM = formXObject.Matrix;
 
             var renderer = new PdfContentStreamRenderer(this, formPage);

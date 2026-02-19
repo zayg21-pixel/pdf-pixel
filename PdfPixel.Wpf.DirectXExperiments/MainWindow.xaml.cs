@@ -5,6 +5,7 @@ using PdfPixel.Models;
 using SkiaSharp;
 using System;
 using System.IO;
+using System.Threading;
 using System.Windows;
 
 namespace PdfPixel.Wpf.DirectXExperiments
@@ -121,7 +122,7 @@ namespace PdfPixel.Wpf.DirectXExperiments
                 {
                     canvas.Clear(SKColors.White);
                     canvas.ClipRect(new SKRect(0, 0, renderingBounds.Width, renderingBounds.Height));
-                    page.Draw(canvas, new PdfRenderingParameters());
+                    page.Draw(canvas, new PdfRenderingParameters(), CancellationToken.None);
                 });
 
                 StatusTextBlock.Text = $"Page {_currentPageNumber} rendered using DirectX + D3DImage";
