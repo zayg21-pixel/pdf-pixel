@@ -1,6 +1,7 @@
 using PdfPixel.PdfPanel;
 using SkiaSharp;
 using System;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Interop;
 
@@ -43,12 +44,12 @@ namespace PdfPixel.Wpf.DirectXExperiments
         /// is updated atomically with already-drawn content, and only then are the old resources released.
         /// </summary>
         /// <inheritdoc />
-        public SKSurface GetDrawingSurface(int width, int height)
+        public async Task<SKSurface> GetDrawingSurfaceAsync(int width, int height)
         {
             var newTexture = _sharedResources.CreateD3D9Texture(width, height);
             var newSurface = _sharedResources.CreateSurface(newTexture, width, height, _grContext);
 
-            _d3dImage.Dispatcher.Invoke(() =>
+            await _d3dImage.Dispatcher.InvokeAsync(() =>
             {
                 _d3dImage.Lock();
                 try
@@ -88,7 +89,7 @@ namespace PdfPixel.Wpf.DirectXExperiments
         /// Uses the existing <see cref="GRContext"/> directly — no shared D3D9/D3D11/D3D12 resources.
         /// </summary>
         /// <inheritdoc />
-        public SKSurface CreateThumbnailSurface(int width, int height)
+        public Task<SKSurface> CreateThumbnailSurfaceAsync(int width, int height)
         {
             var info = new SKImageInfo(width, height, SKColorType.Bgra8888, SKAlphaType.Premul);
             var newSurface = SKSurface.Create(_grContext, false, info);
@@ -97,7 +98,7 @@ namespace PdfPixel.Wpf.DirectXExperiments
             _grContext.PurgeResources();
             _currentThumbnailSurface = newSurface;
 
-            return newSurface;
+            return Task.FromResult(newSurface);
         }
 
         /// <inheritdoc />

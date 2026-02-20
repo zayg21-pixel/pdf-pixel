@@ -1,5 +1,6 @@
 ﻿using SkiaSharp;
 using System;
+using System.Threading.Tasks;
 
 namespace PdfPixel.PdfPanel;
 
@@ -15,7 +16,7 @@ public interface ISkSurfaceFactory : IDisposable
     /// <param name="width">Required surface width.</param>
     /// <param name="height">Required surface height.</param>
     /// <returns>A new <see cref="SKSurface"/> instance.</returns>
-    SKSurface GetDrawingSurface(int width, int height);
+    Task<SKSurface> GetDrawingSurfaceAsync(int width, int height);
 
     /// <summary>
     /// Creates a <see cref="SKSurface"/> suitable for thumbnail rendering.
@@ -24,5 +25,5 @@ public interface ISkSurfaceFactory : IDisposable
     /// <param name="width">Required surface width.</param>
     /// <param name="height">Required surface height.</param>
     /// <returns>A new <see cref="SKSurface"/> instance.</returns>
-    SKSurface CreateThumbnailSurface(int width, int height);
+    Task<SKSurface> CreateThumbnailSurfaceAsync(int width, int height);
 }

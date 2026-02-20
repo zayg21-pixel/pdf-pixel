@@ -10,7 +10,7 @@ namespace PdfPixel.Wpf.DirectXExperiments
     /// <summary>
     /// Flushes the completed GPU frame to a <see cref="D3DImage"/>.
     /// The <see cref="SKSurface"/> passed to <see cref="RenderAsync"/> is the D3D12-backed GPU surface
-    /// returned by <see cref="D3DImageRenderTargetFactory.GetDrawingSurface"/>, so no copy or snapshot is needed.
+    /// returned by <see cref="D3DImageRenderTargetFactory.GetDrawingSurfaceAsync"/>, so no copy or snapshot is needed.
     /// </summary>
     internal sealed class D3DImageRenderTarget : IPdfPanelRenderTarget
     {

@@ -8,6 +8,7 @@ using System.Runtime.InteropServices.JavaScript;
 using System.Runtime.Versioning;
 using System.Threading.Tasks;
 using PdfPixel.PdfPanel.Layout;
+using WebGL.Sample;
 
 namespace PdfPixel.PdfPanel.Web;
 
@@ -16,6 +17,14 @@ public partial class PdfPanelInterop
 {
     private static ISkiaFontProvider FontProvider = new WindowsSkiaFontProvider();
     private static readonly Dictionary<string, PdfPanelResources> ResourcesMap = new();
+    private static EglGlobalContext _eglGlobalContext;
+
+    private static void SetEmscriptenCanvas(JSObject canvas)
+    {
+        using var dotnet = JSHost.DotnetInstance;
+        using var module = dotnet.GetPropertyAsJSObject("Module");
+        module.SetProperty("canvas", canvas);
+    }
 
     [JSImport("globalThis.console.log")]
     internal static partial void Log([JSMarshalAs<JSType.String>] string message);
@@ -23,24 +32,36 @@ public partial class PdfPanelInterop
     [JSImport("_renderRgbaToCanvas", "canvasInterop.js")]
     internal static partial void JSRenderRgbaToCanvas([JSMarshalAs<JSType.String>] string id, int width, int height, [JSMarshalAs<JSType.MemoryView>] Span<byte> rgbaBytes);
 
+    [JSImport("_initWebGlContext", "canvasInterop.js")]
+    internal static partial void InitWebGlContext(JSObject canvas);
+
     [JSExport]
     internal static async Task Initialize()
     {
         UiInvoker.Capture();
+        _eglGlobalContext = SkiaInitializer.InitializeDisplay();
     }
 
     [JSExport]
-    public static async Task RegisterCanvas(string id, JSObject configuration)
+    public static async Task RegisterCanvas(string id, JSObject canvas, JSObject configuration)
     {
         if (ResourcesMap.ContainsKey(id))
         {
             return;
         }
 
+        // Pre-create the WebGL2 context with preserveDrawingBuffer before Emscripten's EGL
+        // initializes. The browser guarantees all subsequent getContext('webgl2') calls on
+        // the same canvas return this same context, so Emscripten will pick it up.
+        InitWebGlContext(canvas);
+        SetEmscriptenCanvas(canvas);
+        var glContext = await SkiaInitializer.CreateCanvasContextAsync(_eglGlobalContext);
+        var renderer = new WebGlSkiaRenderer(glContext);
+
         var resources = new PdfPanelResources
         {
-            SkSurfaceFactory = new CpuSkSurfaceFactory(SKColorType.Rgba8888, SKAlphaType.Premul),
-            RenderTargetFactory = new WebRenderTargetFactory(id)
+            SkSurfaceFactory = renderer,
+            RenderTargetFactory = renderer
         };
 
         // Parse configuration immediately into a strongly-typed struct
@@ -67,9 +88,9 @@ public partial class PdfPanelInterop
         {
             parsed.BackgroundColor = SKColors.LightGray;
         }
-
+        
         resources.Configuration = parsed;
-        resources.RenderingQueue = new PdfRenderingQueue(resources.SkSurfaceFactory);
+        resources.RenderingQueue = new PdfRenderingQueue(resources.SkSurfaceFactory, Emscripten.RunOnMainThreadAsync);
 
         ResourcesMap[id] = resources;
     }
@@ -104,14 +125,8 @@ public partial class PdfPanelInterop
 
         var panelConfiguration = resources.Configuration;
         resources.Context.BackgroundColor = panelConfiguration.BackgroundColor;
-        if (panelConfiguration.MaxThumbnailSize > 0)
-        {
-            resources.Context.MaxThumbnailSize = panelConfiguration.MaxThumbnailSize;
-        }
-        if (panelConfiguration.MinimumPageGap > 0)
-        {
-            resources.Context.MinimumPageGap = panelConfiguration.MinimumPageGap;
-        }
+        resources.Context.MaxThumbnailSize = panelConfiguration.MaxThumbnailSize;
+        resources.Context.MinimumPageGap = panelConfiguration.MinimumPageGap;
         resources.Context.PagesPadding = panelConfiguration.PagesPadding;
 
         Log($"PDF document loaded for canvas '{id}' with {pages.Count} pages.");

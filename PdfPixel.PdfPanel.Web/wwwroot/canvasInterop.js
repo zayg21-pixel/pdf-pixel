@@ -28,25 +28,6 @@ class PdfPanelView {
         };
         this.configuration = Object.assign({}, defaults, configuration || {});
 
-        const ctx = this.canvas.getContext('2d', { alpha: false, willReadFrequently: true });
-        if (!ctx) {
-            throw new Error(`Failed to get 2D context for canvas '${id}'`);
-        }
-        this.ctx = ctx;
-
-        this.ctx.imageSmoothingEnabled = false;
-        this.ctx.mozImageSmoothingEnabled = false;
-        this.ctx.webkitImageSmoothingEnabled = false;
-        this.ctx.msImageSmoothingEnabled = false;
-
-        // Initial background fill
-        this.ctx.fillStyle = this.configuration.backgroundColor;
-        this.ctx.fillRect(0, 0, this.canvas.width || 0, this.canvas.height || 0);
-
-        this.canvas.style.imageRendering = 'pixelated';
-        this.canvas.style.imageRendering = '-moz-crisp-edges';
-        this.canvas.style.imageRendering = 'crisp-edges';
-
         this.state = {
             verticalOffset: 0,
             horizontalOffset: 0,
@@ -172,6 +153,9 @@ class PdfPanelView {
 
             await interop.RequestRedraw(this.id, redrawState);
 
+            // Hide the background snapshot now that the new frame has been committed.
+            this.backgroundCanvas.style.display = 'none';
+
             if (currentRenderVersion !== this.renderVersion) {
                 return;
             }
@@ -206,23 +190,42 @@ class PdfPanelView {
             return true;
         }
 
-        let snapshot = null;
+        // Capture the current WebGL frame into the background 2D canvas before resizing.
+        // drawImage works because the WebGL2 context was created with preserveDrawingBuffer: true.
+        // The background canvas sits behind the WebGL canvas in the DOM and holds the old frame
+        // while the WebGL context resets and Skia renders the new one.
         if (oldWidth > 0 && oldHeight > 0) {
-            snapshot = this.ctx.getImageData(0, 0, oldWidth, oldHeight);
+            const oldCssWidth = this.canvas.style.width;
+            const oldCssHeight = this.canvas.style.height;
+            this.backgroundCanvas.width = oldWidth;
+            this.backgroundCanvas.height = oldHeight;
+            this.backgroundCanvas.style.width = oldCssWidth;
+            this.backgroundCanvas.style.height = oldCssHeight;
+            this.backgroundCanvas.getContext('2d').drawImage(this.canvas, 0, 0);
+            this.backgroundCanvas.style.display = 'block';
         }
 
         this.canvas.width = physicalWidth;
         this.canvas.height = physicalHeight;
-
         this.canvas.style.width = containerWidth + 'px';
         this.canvas.style.height = containerHeight + 'px';
 
-        this.ctx.fillStyle = this.configuration.backgroundColor;
-        this.ctx.fillRect(0, 0, physicalWidth, physicalHeight);
-        if (snapshot) {
-            this.ctx.putImageData(snapshot, 0, 0);
-        }
         return true;
+    }
+
+    /**
+     * Creates a 2D background canvas inserted immediately before the WebGL canvas in the DOM.
+     * It is used to hold the previous frame during a resize so the WebGL context reset is invisible.
+     */
+    _createBackgroundCanvas() {
+
+        this.backgroundCanvas = document.createElement('canvas');
+        this.backgroundCanvas.style.position = 'absolute';
+        this.backgroundCanvas.style.top = '0';
+        this.backgroundCanvas.style.left = '0';
+        this.backgroundCanvas.style.pointerEvents = 'none';
+        this.backgroundCanvas.style.display = 'none';
+        this.canvas.parentElement.insertBefore(this.backgroundCanvas, this.canvas);
     }
 
     onWheel(e) {
@@ -352,10 +355,12 @@ class PdfPanelView {
     }
 
     async initInterop() {
-        await interop.RegisterCanvas(this.id, this.configuration);
+        await interop.RegisterCanvas(this.id, this.canvas, this.configuration);
     }
 
     async start() {
+        this.container.style.backgroundColor = this.configuration.backgroundColor;
+        this._createBackgroundCanvas();
         this.attachEvents();
         await this.initInterop();
         this.requestRender();
@@ -364,6 +369,10 @@ class PdfPanelView {
 
     dispose() {
         this.detachEvents();
+        if (this.backgroundCanvas && this.backgroundCanvas.parentElement) {
+            this.backgroundCanvas.parentElement.removeChild(this.backgroundCanvas);
+            this.backgroundCanvas = null;
+        }
     }
 }
 
@@ -480,4 +489,20 @@ export function _renderRgbaToCanvas(id, width, height, rgbaBytes) {
     const imageData = new ImageData(new Uint8ClampedArray(rgbaBytes.slice()), width, height);
     ctx.putImageData(imageData, 0, 0);
     return true;
+}
+
+/**
+ * Pre-creates the WebGL2 context on the canvas with preserveDrawingBuffer enabled.
+ * Must be called before Emscripten's EGL initialization.
+ * The browser spec guarantees that all subsequent getContext('webgl2') calls on the
+ * same canvas return the same context object, so Emscripten will use this one.
+ * @param {HTMLCanvasElement} canvas
+ */
+export function _initWebGlContext(canvas) {
+    canvas.getContext('webgl2', {
+        preserveDrawingBuffer: true,
+        antialias: true,
+        depth: true,
+        stencil: true
+    });
 }

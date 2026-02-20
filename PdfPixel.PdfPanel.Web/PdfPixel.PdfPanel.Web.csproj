@@ -19,6 +19,12 @@
   </ItemGroup>
 
   <ItemGroup>
+    <NativeFileReference Include="Native/libEGL.c" ScanForPInvokes="true" />
+    <NativeFileReference Include="Native/openal32.c" ScanForPInvokes="true" />
+    <NativeFileReference Include="Native/emscripten.c" ScanForPInvokes="true" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="SkiaSharp.NativeAssets.WebAssembly" Version="3.119.1" />
     <PackageReference Include="Microsoft.Extensions.Logging" Version="9.0.10" />
 

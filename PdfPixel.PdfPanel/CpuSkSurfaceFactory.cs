@@ -1,4 +1,5 @@
 ﻿using SkiaSharp;
+using System.Threading.Tasks;
 
 namespace PdfPixel.PdfPanel;
 
@@ -19,7 +20,7 @@ public class CpuSkSurfaceFactory : ISkSurfaceFactory
     }
 
     /// <inheritdoc />
-    public SKSurface GetDrawingSurface(int width, int height)
+    public Task<SKSurface> GetDrawingSurfaceAsync(int width, int height)
     {
         var info = new SKImageInfo(width, height, _colorType, _alphaType);
         var surface = SKSurface.Create(info);
@@ -31,18 +32,18 @@ public class CpuSkSurfaceFactory : ISkSurfaceFactory
 
         _currentSurface?.Dispose();
         _currentSurface = surface;
-        return surface;
+        return Task.FromResult(surface);
     }
 
     /// <inheritdoc />
-    public SKSurface CreateThumbnailSurface(int width, int height)
+    public Task<SKSurface> CreateThumbnailSurfaceAsync(int width, int height)
     {
         var info = new SKImageInfo(width, height, _colorType, _alphaType);
         var surface = SKSurface.Create(info);
 
         _currentThumbnailSurface?.Dispose();
         _currentThumbnailSurface = surface;
-        return surface;
+        return Task.FromResult(surface);
     }
 
     /// <inheritdoc />
