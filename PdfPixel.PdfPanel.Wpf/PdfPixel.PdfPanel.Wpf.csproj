@@ -4,15 +4,12 @@
     <TargetFrameworks>net48;net8.0-windows;net9.0-windows;net10.0-windows</TargetFrameworks>
     <LangVersion>12.0</LangVersion>
     <UseWPF>true</UseWPF>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\PdfPixel.PdfPanel\PdfPixel.PdfPanel.csproj" />
     <ProjectReference Include="..\PdfPixel\PdfPixel.csproj" />
-  </ItemGroup>
-
-  <ItemGroup Condition="'$(TargetFramework)' != 'net48'">
-    <ProjectReference Include="..\PdfPixel.Wpf.DirectXExperiments\PdfPixel.Wpf.DirectXExperiments.csproj" />
   </ItemGroup>
 
   </Project>

@@ -1,9 +1,7 @@
+using PdfPixel.Wpf.DirectXExperiments.Interop;
 using SkiaSharp;
 using System;
-using Vortice.Direct3D11;
-using Vortice.Direct3D12;
-using Vortice.DXGI;
-using Direct3D9 = Vortice.Direct3D9;
+using static PdfPixel.Wpf.DirectXExperiments.Interop.DirectXInterop;
 
 namespace PdfPixel.Wpf.DirectXExperiments
 {
@@ -15,10 +13,10 @@ namespace PdfPixel.Wpf.DirectXExperiments
     /// </summary>
     internal class SharedDirectXResources : IDisposable
     {
-        private readonly VorticeDirect3DContext _context;
+        private readonly Direct3DContext _context;
         private bool _disposed;
 
-        internal SharedDirectXResources(VorticeDirect3DContext context)
+        internal SharedDirectXResources(Direct3DContext context)
         {
             _context = context ?? throw new ArgumentNullException(nameof(context));
         }
@@ -34,38 +32,49 @@ namespace PdfPixel.Wpf.DirectXExperiments
                 throw new ArgumentException("Width and height must be positive.");
             }
 
-            var d3d11TextureDesc = new Texture2DDescription
+            var textureDesc = new D3D11Texture2DDesc
             {
                 Width = (uint)width,
                 Height = (uint)height,
                 MipLevels = 1,
                 ArraySize = 1,
-                Format = Format.B8G8R8A8_UNorm,
-                SampleDescription = new SampleDescription(1, 0),
-                Usage = ResourceUsage.Default,
-                BindFlags = BindFlags.RenderTarget | BindFlags.ShaderResource,
-                CPUAccessFlags = CpuAccessFlags.None,
-                MiscFlags = ResourceOptionFlags.Shared
+                Format = DxgiFormatB8G8R8A8UNorm,
+                SampleDesc = new DxgiSampleDesc { Count = 1, Quality = 0 },
+                Usage = D3D11UsageDefault,
+                BindFlags = D3D11BindRenderTarget | D3D11BindShaderResource,
+                CpuAccessFlags = 0,
+                MiscFlags = D3D11ResourceMiscShared
             };
 
-            var d3d11RenderTarget = _context.D3D11Device.CreateTexture2D(d3d11TextureDesc);
+            ThrowIfFailed(D3D11DeviceCreateTexture2D(_context.D3D11DevicePointer, ref textureDesc, out var d3d11TexturePtr));
+            var d3d11Texture = new DirectXHandle(d3d11TexturePtr);
 
-            using var dxgiResource = d3d11RenderTarget.QueryInterface<IDXGIResource>();
-            var sharedHandle = dxgiResource.SharedHandle;
+            ThrowIfFailed(ComQueryInterface(d3d11TexturePtr, ref IidDxgiResource, out var dxgiResourcePtr));
+            try
+            {
+                ThrowIfFailed(DxgiResourceGetSharedHandle(dxgiResourcePtr, out var sharedHandle));
 
-            using var d3d12Device1 = _context.D3D12Device.QueryInterface<ID3D12Device1>();
-            var d3d12RenderTarget = d3d12Device1.OpenSharedHandle<ID3D12Resource>(sharedHandle);
+                ThrowIfFailed(D3D12DeviceOpenSharedHandle(_context.D3D12DevicePointer, sharedHandle, out var d3d12ResourcePtr));
+                var d3d12Resource = new DirectXHandle(d3d12ResourcePtr);
 
-            var d3d9Surface = _context.D3D9Device.CreateRenderTarget(
-                (uint)width,
-                (uint)height,
-                Direct3D9.Format.A8R8G8B8,
-                Direct3D9.MultisampleType.None,
-                0,
-                false,
-                ref sharedHandle);
+                ThrowIfFailed(D3D9DeviceCreateRenderTarget(
+                    _context.D3D9DevicePointer,
+                    (uint)width,
+                    (uint)height,
+                    D3D9FormatA8R8G8B8,
+                    D3D9MultisampleNone,
+                    0,
+                    0,
+                    out var d3d9SurfacePtr,
+                    ref sharedHandle));
+                var d3d9Surface = new DirectXHandle(d3d9SurfacePtr);
 
-            return new D3D9Texture(d3d12RenderTarget, d3d11RenderTarget, d3d9Surface);
+                return new D3D9Texture(d3d12Resource, d3d11Texture, d3d9Surface);
+            }
+            finally
+            {
+                ComRelease(dxgiResourcePtr);
+            }
         }
 
         /// <summary>
@@ -87,8 +96,8 @@ namespace PdfPixel.Wpf.DirectXExperiments
             var renderTargetInfo = new GRD3DTextureResourceInfo
             {
                 Resource = texture.D3D12ResourcePointer,
-                ResourceState = (uint)ResourceStates.RenderTarget,
-                Format = (uint)Format.B8G8R8A8_UNorm,
+                ResourceState = D3D12ResourceStateRenderTarget,
+                Format = DxgiFormatB8G8R8A8UNorm,
                 SampleCount = 1,
                 LevelCount = 1,
                 SampleQualityPattern = 0,

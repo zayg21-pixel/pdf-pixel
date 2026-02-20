@@ -8,6 +8,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace PdfPixel.PdfPanel;
 
@@ -98,10 +99,11 @@ public sealed class PdfPanelPageCollection : ReadOnlyCollection<PdfPanelPage>, I
         return new PdfPanelPageCollection(renderer, pages);
     }
 
-    internal IEnumerable<CachedSkPicture> UpdateCacheWithThumbnails(
+    internal async IAsyncEnumerable<CachedSkPicture> UpdateCacheWithThumbnails(
         IEnumerable<int> visiblePages,
         float scale,
         SKSurface thumbnailSurface,
+        Func<Action, Task> thumbnailDrawInvoker,
         PdfAnnotationPopup activeAnnotationPopup,
         PdfPanelPointerState activeAnnotationState)
     {
@@ -125,7 +127,13 @@ public sealed class PdfPanelPageCollection : ReadOnlyCollection<PdfPanelPage>, I
                     hasAnnotations = newPage.Popups.Length > 0;
                 }
 
-                var thumbnailPicture = Renderer.GetThumbnail(page, thumbnailSurface);
+                SKImage thumbnailPicture = null;
+
+                await thumbnailDrawInvoker(() =>
+                {
+                    thumbnailPicture = Renderer.GetThumbnail(page, thumbnailSurface);
+                });
+
                 cachedPicture = new CachedSkPicture(thumbnailPicture, page, hasAnnotations)
                 {
                     Scale = scale,

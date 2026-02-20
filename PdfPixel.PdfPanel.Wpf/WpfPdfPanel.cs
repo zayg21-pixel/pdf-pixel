@@ -1,6 +1,7 @@
 ﻿using PdfPixel.Annotations.Models;
 using PdfPixel.PdfPanel.Extensions;
 using PdfPixel.PdfPanel.Layout;
+using PdfPixel.PdfPanel.Wpf.D3D;
 using PdfPixel.PdfPanel.Wpf.Drawing;
 using SkiaSharp;
 using System;
@@ -200,11 +201,9 @@ namespace PdfPixel.PdfPanel.Wpf
 
             if (UseGpuRendering)
             {
-#if NET8_0_OR_GREATER
-                var imageFactory = new PdfPixel.Wpf.DirectXExperiments.D3DImageRenderTargetFactory(D3DImage);
+                var imageFactory = new D3DImageRenderTargetFactory(D3DImage);
                 _surfaceFactory = imageFactory;
                 _renderTargetFactory = imageFactory;
-#endif
             }
             else
             {

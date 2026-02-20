@@ -6,13 +6,10 @@ class PdfPanelView {
         this.id = id;
         this.container = containerElement;
         this.canvas = containerElement.querySelector('.pdf-panel-canvas');
-        this.viewport = containerElement.querySelector('.pdf-panel-viewport');
-        this.verticalScrollbar = containerElement.querySelector('.pdf-panel-vertical-scrollbar');
-        this.horizontalScrollbar = containerElement.querySelector('.pdf-panel-horizontal-scrollbar');
-        this.verticalThumb = this.verticalScrollbar ? this.verticalScrollbar.querySelector('.pdf-panel-scrollbar-thumb') : null;
-        this.horizontalThumb = this.horizontalScrollbar ? this.horizontalScrollbar.querySelector('.pdf-panel-scrollbar-thumb') : null;
+        this.scrollHost = containerElement.querySelector('.pdf-panel-scroll-host');
+        this.spacer = this.scrollHost ? this.scrollHost.querySelector('.pdf-panel-scroll-spacer') : null;
 
-        if (!this.canvas || !this.viewport || !this.verticalScrollbar || !this.horizontalScrollbar || !this.verticalThumb || !this.horizontalThumb) {
+        if (!this.canvas || !this.scrollHost || !this.spacer) {
             throw new Error(`Container structure is invalid for id '${id}'`);
         }
 
@@ -20,32 +17,13 @@ class PdfPanelView {
             zoomFactor: 0.1,
             minZoom: 0.1,
             maxZoom: 5.0,
-            scrollStep: 2,
             backgroundColor: '#D3D3D3',
             maxThumbnailSize: 400,
             pagesPadding: { left: 10, top: 10, right: 10, bottom: 10 },
-            minimumPageGap: 10
+            minimumPageGap: 10,
+            scrollStep: 20
         };
         this.configuration = Object.assign({}, defaults, configuration || {});
-
-        const ctx = this.canvas.getContext('2d', { alpha: false, willReadFrequently: true });
-        if (!ctx) {
-            throw new Error(`Failed to get 2D context for canvas '${id}'`);
-        }
-        this.ctx = ctx;
-
-        this.ctx.imageSmoothingEnabled = false;
-        this.ctx.mozImageSmoothingEnabled = false;
-        this.ctx.webkitImageSmoothingEnabled = false;
-        this.ctx.msImageSmoothingEnabled = false;
-
-        // Initial background fill
-        this.ctx.fillStyle = this.configuration.backgroundColor;
-        this.ctx.fillRect(0, 0, this.canvas.width || 0, this.canvas.height || 0);
-
-        this.canvas.style.imageRendering = 'pixelated';
-        this.canvas.style.imageRendering = '-moz-crisp-edges';
-        this.canvas.style.imageRendering = 'crisp-edges';
 
         this.state = {
             verticalOffset: 0,
@@ -58,13 +36,12 @@ class PdfPanelView {
             containerWidth: 0,
             containerHeight: 0,
             devicePixelScale: 1,
-            isDraggingVertical: false,
-            isDraggingHorizontal: false,
-            dragStartY: 0,
-            dragStartX: 0,
-            dragStartOffset: 0,
             mouseX: null,
-            mouseY: null
+            mouseY: null,
+            currentPage: 0,
+            pageCount: 0,
+            forcePageSet: 0,
+            pointerPressed: false
         };
 
         this.renderFrameRequestId = null;
@@ -72,52 +49,18 @@ class PdfPanelView {
         this.renderInProgress = false;
         this.renderVersion = 0;
 
+        // Tracks the scroll position we set programmatically so onScroll can
+        // ignore those events and only react to genuine user-initiated scrolls.
+        this._expectedScrollLeft = 0;
+        this._expectedScrollTop = 0;
+        this.onStateChanged = null;
+
         this.onWheel = this.onWheel.bind(this);
+        this.onScroll = this.onScroll.bind(this);
         this.onMouseMove = this.onMouseMove.bind(this);
-        this.onMouseUp = this.onMouseUp.bind(this);
-        this.onVerticalThumbMouseDown = this.onVerticalThumbMouseDown.bind(this);
-        this.onHorizontalThumbMouseDown = this.onHorizontalThumbMouseDown.bind(this);
         this.onResizeRequested = this.onResizeRequested.bind(this);
-    }
-
-    getBrowserZoom() {
-        if (window.visualViewport && window.visualViewport.scale) {
-            return window.visualViewport.scale;
-        }
-        return 1;
-    }
-
-    updateScrollbars() {
-        const cssWidth = this.state.containerWidth;
-        const cssHeight = this.state.containerHeight;
-        const canvasWidth = this.state.viewportWidth;
-        const canvasHeight = this.state.viewportHeight;
-
-        const verticalVisible = this.state.scrollHeight > canvasHeight;
-        const horizontalVisible = this.state.scrollWidth > canvasWidth;
-
-        this.container.classList.toggle('has-vertical-scrollbar', verticalVisible);
-        this.container.classList.toggle('has-horizontal-scrollbar', horizontalVisible);
-
-        if (verticalVisible) {
-            const thumbHeight = Math.max(30, (canvasHeight / this.state.scrollHeight) * cssHeight);
-            const maxThumbTop = cssHeight - thumbHeight;
-            const maxScroll = this.state.scrollHeight - canvasHeight;
-            const thumbTop = maxScroll > 0 ? (this.state.verticalOffset / maxScroll) * maxThumbTop : 0;
-
-            this.verticalThumb.style.height = thumbHeight + 'px';
-            this.verticalThumb.style.top = thumbTop + 'px';
-        }
-
-        if (horizontalVisible) {
-            const thumbWidth = Math.max(30, (canvasWidth / this.state.scrollWidth) * cssWidth);
-            const maxThumbLeft = cssWidth - thumbWidth;
-            const maxScroll = this.state.scrollWidth - canvasWidth;
-            const thumbLeft = maxScroll > 0 ? (this.state.horizontalOffset / maxScroll) * maxThumbLeft : 0;
-
-            this.horizontalThumb.style.width = thumbWidth + 'px';
-            this.horizontalThumb.style.left = thumbLeft + 'px';
-        }
+        this.onPointerDown = this.onPointerDown.bind(this);
+        this.onPointerUp = this.onPointerUp.bind(this);
     }
 
     requestRender() {
@@ -148,29 +91,41 @@ class PdfPanelView {
         this.renderVersion = currentRenderVersion;
 
         try {
-            const containerWidth = this.viewport.clientWidth;
-            const containerHeight = this.viewport.clientHeight;
+            const containerWidth = this.scrollHost.clientWidth;
+            const containerHeight = this.scrollHost.clientHeight;
 
             const dpr = window.devicePixelRatio || 1;
-            const zoom = this.getBrowserZoom();
+            const zoom = (window.visualViewport && window.visualViewport.scale) ? window.visualViewport.scale : 1;
             const devicePixelScale = dpr * zoom;
 
-            this.resizeCanvas(containerWidth, containerHeight, devicePixelScale);
+            const physicalWidth = Math.round(containerWidth * devicePixelScale);
+            const physicalHeight = Math.round(containerHeight * devicePixelScale);
+
+            const pointerInside = this.state.mouseX !== null && this.state.mouseY !== null;
+            const pointerX = pointerInside ? this.state.mouseX * devicePixelScale : 0;
+            const pointerY = pointerInside ? this.state.mouseY * devicePixelScale : 0;
 
             const redrawState = {
                 containerWidth: containerWidth,
                 containerHeight: containerHeight,
-                viewportWidth: this.canvas.width,
-                viewportHeight: this.canvas.height,
+                viewportWidth: physicalWidth,
+                viewportHeight: physicalHeight,
                 devicePixelScale: devicePixelScale,
                 verticalOffset: this.state.verticalOffset,
                 horizontalOffset: this.state.horizontalOffset,
                 scale: this.state.scale,
                 scrollWidth: 0,
-                scrollHeight: 0
+                scrollHeight: 0,
+                forcePageSet: this.state.forcePageSet,
+                pointerInside: pointerInside,
+                pointerX: pointerX,
+                pointerY: pointerY,
+                pointerPressed: this.state.pointerPressed
             };
 
             await interop.RequestRedraw(this.id, redrawState);
+
+            this.state.forcePageSet = 0;
 
             if (currentRenderVersion !== this.renderVersion) {
                 return;
@@ -185,8 +140,31 @@ class PdfPanelView {
             this.state.scrollHeight = redrawState.scrollHeight;
             this.state.verticalOffset = redrawState.verticalOffset;
             this.state.horizontalOffset = redrawState.horizontalOffset;
+            this.state.currentPage = redrawState.currentPage;
+            this.state.pageCount = redrawState.pageCount;
 
-            this.updateScrollbars();
+            this.spacer.style.width = (this.state.scrollWidth / dpr) + 'px';
+            this.spacer.style.height = (this.state.scrollHeight / dpr) + 'px';
+
+            // Force a synchronous layout so the new spacer dimensions are applied to
+            // the scroll bounds before we set the position. Without this, scrollLeft/
+            // scrollTop would be validated against the old bounds and may be clamped.
+            void this.scrollHost.offsetHeight;
+
+            this.scrollHost.style.overflow = 'auto';
+            this.scrollHost.scrollLeft = this.state.horizontalOffset / dpr;
+            this.scrollHost.scrollTop = this.state.verticalOffset / dpr;
+
+            // Read back the browser-clamped values so onScroll can recognise
+            // and suppress the scroll event that this programmatic set fires.
+            this._expectedScrollLeft = this.scrollHost.scrollLeft;
+            this._expectedScrollTop = this.scrollHost.scrollTop;
+
+            void this.scrollHost.offsetHeight;
+
+            if (typeof this.onStateChanged === 'function') {
+                this.onStateChanged({ ...this.state });
+            }
 
         } finally {
             this.renderInProgress = false;
@@ -196,68 +174,59 @@ class PdfPanelView {
         }
     }
 
-    resizeCanvas(containerWidth, containerHeight, devicePixelScale) {
-        const physicalWidth = Math.round(containerWidth * devicePixelScale);
-        const physicalHeight = Math.round(containerHeight * devicePixelScale);
-
-        const oldWidth = this.canvas.width;
-        const oldHeight = this.canvas.height;
-        if (oldWidth === physicalWidth && oldHeight === physicalHeight) {
-            return true;
+    onWheel(e) {
+        if (!e.ctrlKey) {
+            return;
         }
 
-        let snapshot = null;
-        if (oldWidth > 0 && oldHeight > 0) {
-            snapshot = this.ctx.getImageData(0, 0, oldWidth, oldHeight);
+        e.preventDefault();
+
+        const oldScale = this.state.scale;
+        const zoomDelta = this.configuration.zoomFactor;
+        const nextScaleRequest = e.deltaY > 0 ? oldScale * (1 - zoomDelta) : oldScale * (1 + zoomDelta);
+        const nextScale = Math.max(this.configuration.minZoom, Math.min(this.configuration.maxZoom, nextScaleRequest));
+
+        // Compute center coordinates for zoom from mouse if available; otherwise center
+        let centerX = this.state.viewportWidth / 2;
+        let centerY = this.state.viewportHeight / 2;
+
+        if (this.state.mouseX !== null && this.state.mouseY !== null) {
+            centerX = this.state.mouseX * this.state.devicePixelScale;
+            centerY = this.state.mouseY * this.state.devicePixelScale;
         }
 
-        this.canvas.width = physicalWidth;
-        this.canvas.height = physicalHeight;
+        // Update offsets to keep zoom centered around pointer (or center)
+        this.state.verticalOffset = (this.state.verticalOffset + centerY) * (nextScale / oldScale) - centerY;
+        this.state.horizontalOffset = (this.state.horizontalOffset + centerX) * (nextScale / oldScale) - centerX;
 
-        this.canvas.style.width = containerWidth + 'px';
-        this.canvas.style.height = containerHeight + 'px';
+        this.state.scale = nextScale;
 
-        this.ctx.fillStyle = this.configuration.backgroundColor;
-        this.ctx.fillRect(0, 0, physicalWidth, physicalHeight);
-        if (snapshot) {
-            this.ctx.putImageData(snapshot, 0, 0);
-        }
-        return true;
+        this.requestRender();
     }
 
-    onWheel(e) {
-        e.preventDefault();
-        if (e.ctrlKey) {
-            const oldScale = this.state.scale;
-            const zoomDelta = this.configuration.zoomFactor;
-            const nextScaleRequest = e.deltaY > 0 ? oldScale * (1 - zoomDelta) : oldScale * (1 + zoomDelta);
-            const nextScale = Math.max(this.configuration.minZoom, Math.min(this.configuration.maxZoom, nextScaleRequest));
-
-            // Compute center coordinates for zoom from mouse if available; otherwise center
-            let centerX = this.state.viewportWidth / 2;
-            let centerY = this.state.viewportHeight / 2;
-
-            if (this.state.mouseX && this.state.mouseY) {
-                centerX = this.state.mouseX * this.state.devicePixelScale;
-                centerY = this.state.mouseY * this.state.devicePixelScale;
-            }
-
-            // Update offsets to keep zoom centered around pointer (or center)
-            this.state.verticalOffset = (this.state.verticalOffset + centerY) * (nextScale / oldScale) - centerY;
-            this.state.horizontalOffset = (this.state.horizontalOffset + centerX) * (nextScale / oldScale) - centerX;
-
-            this.state.scale = nextScale;
-        } else {
-            this.state.verticalOffset = this.state.verticalOffset + e.deltaY * this.configuration.scrollStep;
-            this.state.horizontalOffset = this.state.horizontalOffset + e.deltaX * this.configuration.scrollStep;
+    onScroll() {
+        // Suppress scroll events that were fired by our own programmatic
+        // scrollLeft/scrollTop assignments inside performRender().
+        if (this.scrollHost.scrollLeft === this._expectedScrollLeft &&
+            this.scrollHost.scrollTop === this._expectedScrollTop) {
+            return;
         }
+
+        const dpr = this.state.devicePixelScale || window.devicePixelRatio || 1;
+        this.state.verticalOffset = this.scrollHost.scrollTop * dpr;
+        this.state.horizontalOffset = this.scrollHost.scrollLeft * dpr;
         this.requestRender();
     }
 
     onMouseMove(e) {
-        // Track mouse position relative to viewport for zoom-centering
-        const rect = this.viewport.getBoundingClientRect();
-        const insideViewport = e.clientX >= rect.left && e.clientX <= rect.right && e.clientY >= rect.top && e.clientY <= rect.bottom;
+        // Track mouse position relative to the scroll host for zoom-centering.
+        const rect = this.scrollHost.getBoundingClientRect();
+        const insideViewport =
+            e.clientX >= rect.left &&
+            e.clientX <= rect.right &&
+            e.clientY >= rect.top &&
+            e.clientY <= rect.bottom;
+
         if (insideViewport) {
             this.state.mouseX = e.clientX - rect.left;
             this.state.mouseY = e.clientY - rect.top;
@@ -266,84 +235,46 @@ class PdfPanelView {
             this.state.mouseY = null;
         }
 
-        if (this.state.isDraggingVertical) {
-            const cssHeight = this.state.containerHeight;
-            const thumbHeight = parseFloat(this.verticalThumb.style.height);
-            const maxThumbTop = cssHeight - thumbHeight;
-            const maxScroll = this.state.scrollHeight - this.state.viewportHeight;
-
-            const deltaY = e.clientY - this.state.dragStartY;
-            const deltaScroll = maxThumbTop > 0 ? (deltaY / maxThumbTop) * maxScroll : 0;
-
-            this.state.verticalOffset = this.state.dragStartOffset + deltaScroll;
-            this.requestRender();
-        }
-
-        if (this.state.isDraggingHorizontal) {
-            const cssWidth = this.state.containerWidth;
-            const thumbWidth = parseFloat(this.horizontalThumb.style.width);
-            const maxThumbLeft = cssWidth - thumbWidth;
-            const maxScroll = this.state.scrollWidth - this.state.viewportWidth;
-
-            const deltaX = e.clientX - this.state.dragStartX;
-            const deltaScroll = maxThumbLeft > 0 ? (deltaX / maxThumbLeft) * maxScroll : 0;
-
-            this.state.horizontalOffset = this.state.dragStartOffset + deltaScroll;
-            this.requestRender();
-        }
+        this.requestRender();
     }
 
-    onMouseUp() {
-        this.state.isDraggingVertical = false;
-        this.state.isDraggingHorizontal = false;
+    onPointerDown() {
+        this.state.pointerPressed = true;
+        this.requestRender();
     }
 
-    onVerticalThumbMouseDown(e) {
-        this.state.isDraggingVertical = true;
-        this.state.dragStartY = e.clientY;
-        this.state.dragStartOffset = this.state.verticalOffset;
-        e.preventDefault();
-    }
-
-    onHorizontalThumbMouseDown(e) {
-        this.state.isDraggingHorizontal = true;
-        this.state.dragStartX = e.clientX;
-        this.state.dragStartOffset = this.state.horizontalOffset;
-        e.preventDefault();
+    onPointerUp() {
+        this.state.pointerPressed = false;
+        this.requestRender();
     }
 
     onResizeRequested() {
+        const hasHorizontalScrollbar = this.state.scrollWidth > this.state.viewportWidth;
+        const hasVerticalScrollbar = this.state.scrollHeight > this.state.viewportHeight;
+
+        this.scrollHost.style.overflowX = hasHorizontalScrollbar ? 'scroll' : 'hidden';
+        this.scrollHost.style.overflowY = hasVerticalScrollbar ? 'scroll' : 'hidden';
+
         this.requestRender();
     }
 
     attachEvents() {
         this.container.addEventListener('wheel', this.onWheel, { passive: false });
+        this.scrollHost.addEventListener('scroll', this.onScroll);
+        this.scrollHost.addEventListener('pointerdown', this.onPointerDown);
         document.addEventListener('mousemove', this.onMouseMove);
-        document.addEventListener('mouseup', this.onMouseUp);
-        this.verticalThumb.addEventListener('mousedown', this.onVerticalThumbMouseDown);
-        this.horizontalThumb.addEventListener('mousedown', this.onHorizontalThumbMouseDown);
-
-        window.addEventListener('resize', this.onResizeRequested);
-        if (window.visualViewport) {
-            window.visualViewport.addEventListener('resize', this.onResizeRequested);
-        }
+        document.addEventListener('pointerup', this.onPointerUp);
 
         this.resizeObserver = new ResizeObserver(this.onResizeRequested);
         this.resizeObserver.observe(this.container);
-        this.resizeObserver.observe(this.viewport);
     }
 
     detachEvents() {
         this.container.removeEventListener('wheel', this.onWheel);
+        this.scrollHost.removeEventListener('scroll', this.onScroll);
+        this.scrollHost.removeEventListener('pointerdown', this.onPointerDown);
         document.removeEventListener('mousemove', this.onMouseMove);
-        document.removeEventListener('mouseup', this.onMouseUp);
-        this.verticalThumb.removeEventListener('mousedown', this.onVerticalThumbMouseDown);
-        this.horizontalThumb.removeEventListener('mousedown', this.onHorizontalThumbMouseDown);
-
-        window.removeEventListener('resize', this.onResizeRequested);
-        if (window.visualViewport) {
-            window.visualViewport.removeEventListener('resize', this.onResizeRequested);
-        }
+        document.removeEventListener('pointerup', this.onPointerUp);
 
         if (this.resizeObserver) {
             this.resizeObserver.disconnect();
@@ -352,10 +283,19 @@ class PdfPanelView {
     }
 
     async initInterop() {
+        const thumbnailSize = this.configuration.maxThumbnailSize || 400;
+        this.thumbnailCanvas = document.createElement('canvas');
+        this.thumbnailCanvas.classList.add('pdf-thumbnail-canvas');
+        this.thumbnailCanvas.width = thumbnailSize;
+        this.thumbnailCanvas.height = thumbnailSize;
+        this.thumbnailCanvas.style.cssText = 'position:fixed; visibility:hidden; pointer-events:none;';
+        this.container.appendChild(this.thumbnailCanvas);
+
         await interop.RegisterCanvas(this.id, this.configuration);
     }
 
     async start() {
+        this.container.style.backgroundColor = this.configuration.backgroundColor;
         this.attachEvents();
         await this.initInterop();
         this.requestRender();
@@ -364,6 +304,10 @@ class PdfPanelView {
 
     dispose() {
         this.detachEvents();
+        if (this.thumbnailCanvas) {
+            this.thumbnailCanvas.remove();
+            this.thumbnailCanvas = null;
+        }
     }
 }
 
@@ -445,11 +389,11 @@ export async function setDocument(id, documentData) {
 }
 
 /**
- * Request a render for the specified view.
+ * Request a redraw for the specified view.
  * @param {string} id View id.
  * @returns {boolean} True if the view was found and a render was enqueued.
  */
-export function refreshPanel(id) {
+export function requestRedraw(id) {
     const view = views.get(id);
     if (!view) {
         console.error(`View not found for id '${id}'`);
@@ -459,25 +403,37 @@ export function refreshPanel(id) {
     return true;
 }
 
-export function _renderRgbaToCanvas(id, width, height, rgbaBytes) {
-    const entry = views.get(id);
-    if (!entry || !entry.canvas || !entry.ctx) {
-        console.error(`Canvas or context not initialized for id '${id}'`);
+/**
+ * Navigate to a specific page in the specified view.
+ * Sets forcePageSet on the view state and requests a redraw.
+ * @param {string} id View id.
+ * @param {number} pageNumber 1-based page number to navigate to.
+ * @returns {boolean} True if the view was found and navigation was requested.
+ */
+export function setPage(id, pageNumber) {
+    const view = views.get(id);
+    if (!view) {
+        console.error(`View not found for id '${id}'`);
         return false;
     }
+    view.state.forcePageSet = pageNumber;
+    view.requestRender();
+    return true;
+}
 
-    if (!rgbaBytes) {
-        console.error('No pixel buffer provided');
+/**
+ * Subscribe to state change notifications for the specified view.
+ * The callback receives a snapshot of the full view state after every completed render.
+ * @param {string} id View id.
+ * @param {(state: object) => void} callback Called with the current state snapshot.
+ * @returns {boolean} True if the view was found and the callback was registered.
+ */
+export function setOnStateChanged(id, callback) {
+    const view = views.get(id);
+    if (!view) {
+        console.error(`View not found for id '${id}'`);
         return false;
     }
-
-    if (width !== entry.canvas.width || height !== entry.canvas.height) {
-        console.trace(`Dimension mismatch: render ${width}x${height}, canvas ${entry.canvas.width}x${entry.canvas.height}`);
-        return false;
-    }
-
-    const ctx = entry.ctx;
-    const imageData = new ImageData(new Uint8ClampedArray(rgbaBytes.slice()), width, height);
-    ctx.putImageData(imageData, 0, 0);
+    view.onStateChanged = callback;
     return true;
 }

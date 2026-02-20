@@ -4,10 +4,6 @@
     <meta charset="utf-8">
     <title>PDF Render WASM Thread Demo</title>
     <style>
-        :root {
-            --scrollbar-size: 16px;
-        }
-
         html, body {
             margin: 0;
             padding: 0;
@@ -43,20 +39,35 @@
             overflow: hidden;
         }
 
-        .pdf-panel-viewport {
+        /*
+         * The canvas is the visual rendering layer. It is sized to the scroll
+         * host's client area (excluding scrollbar tracks) and never moves in
+         * the DOM. pointer-events: none lets events fall through to the scroll
+         * host above it.
+         */
+        .pdf-panel-canvas {
+            display: block;
+            position: absolute;
+            top: 0;
+            left: 0;
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        /*
+         * The scroll host is a transparent overlay that provides native
+         * scrollbars. Its scroll-spacer child is sized to the total content
+         * dimensions so the browser knows how far to scroll. Being above the
+         * canvas (z-index: 2) it captures all pointer and scroll events.
+         */
+        .pdf-panel-scroll-host {
             position: absolute;
             top: 0;
             left: 0;
             right: 0;
             bottom: 0;
-        }
-
-        #canvasContainer.has-vertical-scrollbar .pdf-panel-viewport {
-            right: var(--scrollbar-size);
-        }
-
-        #canvasContainer.has-horizontal-scrollbar .pdf-panel-viewport {
-            bottom: var(--scrollbar-size);
+            overflow: auto;
+            z-index: 2;
         }
 
         #footer {
@@ -67,71 +78,6 @@
             display: flex;
             align-items: center;
             gap: 10px;
-        }
-
-        .pdf-panel-canvas {
-            display: block;
-            width: 100%;
-            height: 100%;
-        }
-
-        .pdf-panel-scrollbar {
-            position: absolute;
-            background: #f0f0f0;
-            z-index: 10;
-        }
-
-        .pdf-panel-scrollbar-thumb {
-            position: absolute;
-            background: #888;
-            cursor: pointer;
-            border-radius: 4px;
-        }
-
-        .pdf-panel-scrollbar-thumb:hover {
-            background: #555;
-        }
-
-        .pdf-panel-vertical-scrollbar {
-            right: 0;
-            top: 0;
-            bottom: 0;
-            width: var(--scrollbar-size);
-            display: none;
-        }
-
-        #canvasContainer.has-horizontal-scrollbar .pdf-panel-vertical-scrollbar {
-            bottom: var(--scrollbar-size);
-        }
-
-        #canvasContainer.has-vertical-scrollbar .pdf-panel-vertical-scrollbar {
-            display: block;
-        }
-
-        .pdf-panel-horizontal-scrollbar {
-            left: 0;
-            right: 0;
-            bottom: 0;
-            height: var(--scrollbar-size);
-            display: none;
-        }
-
-        #canvasContainer.has-vertical-scrollbar .pdf-panel-horizontal-scrollbar {
-            right: var(--scrollbar-size);
-        }
-
-        #canvasContainer.has-horizontal-scrollbar .pdf-panel-horizontal-scrollbar {
-            display: block;
-        }
-
-        .pdf-panel-vertical-thumb {
-            width: 100%;
-            min-height: 30px;
-        }
-
-        .pdf-panel-horizontal-thumb {
-            height: 100%;
-            min-width: 30px;
         }
 
         #zoomLevel {
@@ -153,17 +99,15 @@
         </div>
     </div>
 <div id="canvasContainer">
-    <div class="pdf-panel-viewport">
-        <canvas class="pdf-panel-canvas"></canvas>
-    </div>
-    <div class="pdf-panel-scrollbar pdf-panel-vertical-scrollbar">
-        <div class="pdf-panel-scrollbar-thumb pdf-panel-vertical-thumb"></div>
-    </div>
-    <div class="pdf-panel-scrollbar pdf-panel-horizontal-scrollbar">
-        <div class="pdf-panel-scrollbar-thumb pdf-panel-horizontal-thumb"></div>
+    <canvas class="pdf-panel-canvas"></canvas>
+    <div class="pdf-panel-scroll-host">
+        <div class="pdf-panel-scroll-spacer"></div>
     </div>
 </div>
 <div id="footer">
+    <button id="prevPage" disabled>&#8249; Prev</button>
+    <span id="pageInfo">-</span>
+    <button id="nextPage" disabled>Next &#8250;</button>
     <div id="output"></div>
 </div>
     
@@ -197,6 +141,32 @@
 
         const loadPdfButton = document.getElementById('loadPdf');
         const pdfFileInput = document.getElementById('pdfFileInput');
+        const prevPageButton = document.getElementById('prevPage');
+        const nextPageButton = document.getElementById('nextPage');
+        const pageInfo = document.getElementById('pageInfo');
+
+        let currentPageState = { currentPage: 0, pageCount: 0 };
+
+        canvasInterop.setOnStateChanged(containerId, (state) => {
+            currentPageState = state;
+            pageInfo.textContent = state.pageCount > 0
+                ? `Page ${state.currentPage} of ${state.pageCount}`
+                : '-';
+            prevPageButton.disabled = state.pageCount === 0 || state.currentPage <= 1;
+            nextPageButton.disabled = state.pageCount === 0 || state.currentPage >= state.pageCount;
+        });
+
+        prevPageButton.addEventListener('click', () => {
+            if (currentPageState.currentPage > 1) {
+                canvasInterop.setPage(containerId, currentPageState.currentPage - 1);
+            }
+        });
+
+        nextPageButton.addEventListener('click', () => {
+            if (currentPageState.currentPage < currentPageState.pageCount) {
+                canvasInterop.setPage(containerId, currentPageState.currentPage + 1);
+            }
+        });
 
         loadPdfButton.addEventListener('click', () => {
             pdfFileInput.value = '';
@@ -210,7 +180,7 @@
             }
             const arrayBuffer = await file.arrayBuffer();
             await canvasInterop.setDocument(containerId, new Uint8Array(arrayBuffer));
-            canvasInterop.refreshPanel(containerId);
+            canvasInterop.requestRedraw(containerId);
         });
     </script>
 </body>

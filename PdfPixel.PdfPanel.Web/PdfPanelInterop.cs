@@ -7,7 +7,9 @@ using System.IO;
 using System.Runtime.InteropServices.JavaScript;
 using System.Runtime.Versioning;
 using System.Threading.Tasks;
+using PdfPixel.PdfPanel.Extensions;
 using PdfPixel.PdfPanel.Layout;
+using WebGL.Sample;
 
 namespace PdfPixel.PdfPanel.Web;
 
@@ -17,12 +19,6 @@ public partial class PdfPanelInterop
     private static ISkiaFontProvider FontProvider = new WindowsSkiaFontProvider();
     private static readonly Dictionary<string, PdfPanelResources> ResourcesMap = new();
 
-    [JSImport("globalThis.console.log")]
-    internal static partial void Log([JSMarshalAs<JSType.String>] string message);
-
-    [JSImport("_renderRgbaToCanvas", "canvasInterop.js")]
-    internal static partial void JSRenderRgbaToCanvas([JSMarshalAs<JSType.String>] string id, int width, int height, [JSMarshalAs<JSType.MemoryView>] Span<byte> rgbaBytes);
-
     [JSExport]
     internal static async Task Initialize()
     {
@@ -30,17 +26,21 @@ public partial class PdfPanelInterop
     }
 
     [JSExport]
-    public static async Task RegisterCanvas(string id, JSObject configuration)
+    public static async Task RegisterCanvas(string containerId, JSObject configuration)
     {
-        if (ResourcesMap.ContainsKey(id))
+        if (ResourcesMap.ContainsKey(containerId))
         {
             return;
         }
 
+        var glContext = await CanvasGlContext.CreateAsync($"#{containerId} .pdf-panel-canvas");
+        var thumbnailGlContext = await CanvasGlContext.CreateAsync($"#{containerId} .pdf-thumbnail-canvas");
+        var renderer = new WebGlSkiaRenderer(glContext, thumbnailGlContext);
+
         var resources = new PdfPanelResources
         {
-            SkSurfaceFactory = new CpuSkSurfaceFactory(SKColorType.Rgba8888, SKAlphaType.Premul),
-            RenderTargetFactory = new WebRenderTargetFactory(id)
+            SkSurfaceFactory = renderer,
+            RenderTargetFactory = renderer
         };
 
         // Parse configuration immediately into a strongly-typed struct
@@ -67,54 +67,89 @@ public partial class PdfPanelInterop
         {
             parsed.BackgroundColor = SKColors.LightGray;
         }
-
+        
         resources.Configuration = parsed;
-        resources.RenderingQueue = new PdfRenderingQueue(resources.SkSurfaceFactory);
 
-        ResourcesMap[id] = resources;
+        Task renderInvoker(Action action)
+        {
+            return Emscripten.RunOnMainThreadAsync(() =>
+            {
+                Emscripten.WebGlMakeContextCurrent(glContext.WebGlContext);
+
+                try
+                {
+                    action();
+                }
+                catch (Exception ex)
+                {
+                    Console.Error.WriteLine($"Error in canvas '{containerId}': {ex}");
+                }
+            });
+        }
+
+        Task thumbnailRenderInvoker(Action action)
+        {
+            return Emscripten.RunOnMainThreadAsync(() =>
+            {
+                Emscripten.WebGlMakeContextCurrent(thumbnailGlContext.WebGlContext);
+
+                try
+                {
+                    action();
+                }
+                catch (Exception ex)
+                {
+                    Console.Error.WriteLine($"Error in canvas '{containerId}': {ex}");
+                }
+            });
+        }
+
+        resources.RenderingQueue = new PdfRenderingQueue(resources.SkSurfaceFactory, renderInvoker, thumbnailRenderInvoker);
+
+        ResourcesMap[containerId] = resources;
     }
 
     [JSExport]
-    public static async Task UnregisterCanvas(string id)
+    public static async Task UnregisterCanvas(string containerId)
     {
-        if (ResourcesMap.TryGetValue(id, out var resources))
+        if (ResourcesMap.TryGetValue(containerId, out var resources))
         {
             resources.RenderingQueue.Dispose();
-            ResourcesMap.Remove(id);
+            ResourcesMap.Remove(containerId);
         }
     }
 
     [JSExport]
     internal static async Task SetDocument(string id, byte[] documentData)
     {
-        UiInvoker.Capture();
-        Log($"Loading PDF document for canvas '{id}' in ThreadDemoInterop...");
+        Console.WriteLine($"Loading PDF document for canvas '{id}' in ThreadDemoInterop...");
         if (!ResourcesMap.TryGetValue(id, out var resources))
         {
-            Log($"Canvas resources not found for id '{id}'");
+            Console.WriteLine($"Canvas resources not found for id '{id}'");
             return;
         }
-        var factory = new LoggerFactory();
-        var reader = new PdfDocumentReader(factory, FontProvider);
-        Log($"Reading PDF document... {documentData.Length}");
-        var document = reader.Read(new MemoryStream(documentData), string.Empty);
-        Log($"PDF document loaded with {document.Pages.Count} pages.");
-        var pages = PdfPanelPageCollection.FromDocument(document);
-        resources.Context = new PdfPanelContext(pages, resources.RenderingQueue, resources.RenderTargetFactory, new PdfPanelVerticalLayout());
-
-        var panelConfiguration = resources.Configuration;
-        resources.Context.BackgroundColor = panelConfiguration.BackgroundColor;
-        if (panelConfiguration.MaxThumbnailSize > 0)
+        var factory = LoggerFactory.Create(builder => builder.AddConsole());
+        try
         {
+            var reader = new PdfDocumentReader(factory, FontProvider);
+            Console.WriteLine($"Reading PDF document... {documentData.Length}");
+            var document = reader.Read(new MemoryStream(documentData), string.Empty);
+            Console.WriteLine($"PDF document loaded with {document.Pages.Count} pages.");
+            var pages = PdfPanelPageCollection.FromDocument(document);
+            resources.Context = new PdfPanelContext(pages, resources.RenderingQueue, resources.RenderTargetFactory, new PdfPanelVerticalLayout());
+
+            var panelConfiguration = resources.Configuration;
+            resources.Context.BackgroundColor = panelConfiguration.BackgroundColor;
             resources.Context.MaxThumbnailSize = panelConfiguration.MaxThumbnailSize;
-        }
-        if (panelConfiguration.MinimumPageGap > 0)
-        {
             resources.Context.MinimumPageGap = panelConfiguration.MinimumPageGap;
-        }
-        resources.Context.PagesPadding = panelConfiguration.PagesPadding;
+            resources.Context.PagesPadding = panelConfiguration.PagesPadding;
 
-        Log($"PDF document loaded for canvas '{id}' with {pages.Count} pages.");
+            Console.WriteLine($"PDF document loaded for canvas '{id}' with {pages.Count} pages.");
+        }
+        catch(Exception ex)
+        {
+            Console.Error.WriteLine($"Error loading PDF document for canvas '{id}': {ex}");
+        }
     }
 
 
@@ -123,7 +158,7 @@ public partial class PdfPanelInterop
     {
         if (!ResourcesMap.TryGetValue(id, out var resources) || resources.Context == null)
         {
-            Log($"View is not initialized for canvas '{id}'");
+            Console.WriteLine($"View is not initialized for canvas '{id}'");
             return;
         }
 
@@ -138,7 +173,7 @@ public partial class PdfPanelInterop
     {
         if (!ResourcesMap.TryGetValue(id, out var resources) || resources.Context == null)
         {
-            Log($"View is not initialized for canvas '{id}'");
+            Console.Error.WriteLine($"View is not initialized for canvas '{id}'");
             return;
         }
 
@@ -153,6 +188,7 @@ public partial class PdfPanelInterop
 
             // Sync configuration on each redraw in case it changed
             var panelConfiguration = resources.Configuration;
+
             resources.Context.BackgroundColor = panelConfiguration.BackgroundColor;
             resources.Context.MaxThumbnailSize = panelConfiguration.MaxThumbnailSize;
             resources.Context.MinimumPageGap = panelConfiguration.MinimumPageGap;
@@ -164,18 +200,41 @@ public partial class PdfPanelInterop
             resources.Context.ViewportWidth = width;
             resources.Context.ViewportHeight = height;
 
+            int forcePageSet = state.GetPropertyAsInt32("forcePageSet");
+            if (forcePageSet > 0)
+            {
+                resources.Context.ScrollToPage(forcePageSet);
+            }
+
+            bool pointerInside = state.GetPropertyAsBoolean("pointerInside");
+            if (pointerInside)
+            {
+                float pointerX = (float)(double)state.GetPropertyAsDouble("pointerX");
+                float pointerY = (float)(double)state.GetPropertyAsDouble("pointerY");
+                resources.Context.PointerPosition = new SKPoint(pointerX, pointerY);
+            }
+            else
+            {
+                resources.Context.PointerPosition = null;
+            }
+
+            bool pointerPressed = state.GetPropertyAsBoolean("pointerPressed");
+            resources.Context.PointerState = pointerPressed ? PdfPanelButtonState.Pressed : PdfPanelButtonState.Default;
+
             resources.Context.Update();
 
             state.SetProperty("scrollWidth", resources.Context.ExtentWidth);
             state.SetProperty("scrollHeight", resources.Context.ExtentHeight);
             state.SetProperty("verticalOffset", resources.Context.VerticalOffset);
             state.SetProperty("horizontalOffset", resources.Context.HorizontalOffset);
+            state.SetProperty("currentPage", resources.Context.GetCurrentPage());
+            state.SetProperty("pageCount", resources.Context.Pages.Count);
 
             resources.Context.Render();
         }
         catch (Exception ex)
         {
-            Log($"Error in canvas '{id}': {ex}");
+            Console.Error.WriteLine($"Error in canvas '{id}': {ex}");
         }
     }
 }

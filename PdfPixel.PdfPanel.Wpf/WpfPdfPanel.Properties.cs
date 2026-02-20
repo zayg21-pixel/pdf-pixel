@@ -11,7 +11,7 @@ namespace PdfPixel.PdfPanel.Wpf
             new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.AffectsRender, PagesProperty_Changed));
 
         public static readonly DependencyProperty ScrollTickProperty = DependencyProperty.Register(nameof(ScrollTick), typeof(int), typeof(WpfPdfPanel),
-            new FrameworkPropertyMetadata(50, FrameworkPropertyMetadataOptions.AffectsRender));
+            new FrameworkPropertyMetadata(100, FrameworkPropertyMetadataOptions.AffectsRender));
 
         public static readonly DependencyProperty ScaleProperty = DependencyProperty.Register(nameof(Scale), typeof(double), typeof(WpfPdfPanel),
             new FrameworkPropertyMetadata(1d, FrameworkPropertyMetadataOptions.AffectsRender | FrameworkPropertyMetadataOptions.BindsTwoWayByDefault, ScaleProperty_Changed));
@@ -66,7 +66,7 @@ namespace PdfPixel.PdfPanel.Wpf
         }
 
         /// <summary>
-        /// Enables experimental GPU rendering. Works for .NET 8 or greater.
+        /// Enables experimental GPU rendering.
         /// </summary>
         public bool UseGpuRendering { get; set; } = true;
 

@@ -12,6 +12,7 @@
     <PublishTrimmed>true</PublishTrimmed>
     <InvariantGlobalization>true</InvariantGlobalization>
     <EnableDefaultContentItems>false</EnableDefaultContentItems>
+    <EmccFlags>-s FULL_ES3=1 -s OFFSCREEN_FRAMEBUFFER=1</EmccFlags>
   </PropertyGroup>
 
   <ItemGroup>
@@ -19,8 +20,15 @@
   </ItemGroup>
 
   <ItemGroup>
+    <NativeFileReference Include="Native/libEGL.c" ScanForPInvokes="true" />
+    <NativeFileReference Include="Native/openal32.c" ScanForPInvokes="true" />
+    <NativeFileReference Include="Native/emscripten.c" ScanForPInvokes="true" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="SkiaSharp.NativeAssets.WebAssembly" Version="3.119.1" />
     <PackageReference Include="Microsoft.Extensions.Logging" Version="9.0.10" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="9.0.10" />
 
   </ItemGroup>
 
