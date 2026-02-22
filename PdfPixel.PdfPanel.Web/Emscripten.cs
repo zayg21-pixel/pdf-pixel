@@ -38,8 +38,18 @@ internal static class Emscripten
 	[DefaultDllImportSearchPaths(DllImportSearchPath.SafeDirectories)]
 	private static extern unsafe void AsyncRunInMainRuntimeThread(delegate* unmanaged<nint, void> func, nint arg);
 
+	// Cached WASM function-table index for AsyncMainThreadCallback, resolved once during
+	// type initialization to guarantee a stable index across threads.
+	// Repeated '&AsyncMainThreadCallback' evaluation in multi-threaded WASM can race
+	// with the runtime's function-table growth, yielding a stale or out-of-bounds index.
+	private static readonly nint AsyncMainThreadCallbackPtr;
 
-    // Returns the WebGL context handle current on the calling thread (0 if none).
+	static unsafe Emscripten()
+	{
+		AsyncMainThreadCallbackPtr = (nint)(delegate* unmanaged<nint, void>)&AsyncMainThreadCallback;
+	}
+
+	// Returns the WebGL context handle current on the calling thread (0 if none).
     [DllImport("emscripten", EntryPoint = "dotnet_webgl_get_current_context")]
     [DefaultDllImportSearchPaths(DllImportSearchPath.SafeDirectories)]
     internal static extern int WebGlGetCurrentContext();
@@ -69,6 +79,12 @@ internal static class Emscripten
 	[UnmanagedCallersOnly]
 	private static void AsyncMainThreadCallback(nint ptr)
 	{
+		if (ptr == 0)
+		{
+			Console.Error.WriteLine("Emscripten.AsyncMainThreadCallback called with null pointer.");
+			return;
+		}
+
 		GCHandle handle = default;
 		try
 		{
@@ -76,8 +92,9 @@ internal static class Emscripten
 			var action = (Action)handle.Target!;
 			action();
 		}
-		catch
+		catch (Exception ex)
 		{
+			Console.Error.WriteLine($"Emscripten.AsyncMainThreadCallback failed: {ex}");
 		}
 		finally
 		{
@@ -97,11 +114,11 @@ internal static class Emscripten
 			catch (Exception ex) { tcs.SetException(ex); }
 		};
 		var handle = GCHandle.Alloc(wrapper);
-		AsyncRunInMainRuntimeThread(&AsyncMainThreadCallback, GCHandle.ToIntPtr(handle));
+		AsyncRunInMainRuntimeThread((delegate* unmanaged<nint, void>)AsyncMainThreadCallbackPtr, GCHandle.ToIntPtr(handle));
 		return tcs.Task;
 	}
 
-    internal static unsafe Task<Out> RunOnMainThreadAsync<In, Out>(Func<In, Out> func, In parameter)
+	internal static unsafe Task<Out> RunOnMainThreadAsync<In, Out>(Func<In, Out> func, In parameter)
     {
         var tcs = new TaskCompletionSource<Out>(TaskCreationOptions.RunContinuationsAsynchronously);
         Action wrapper = () =>
@@ -109,12 +126,12 @@ internal static class Emscripten
             try { tcs.SetResult(func(parameter)); }
             catch (Exception ex) { tcs.SetException(ex); }
         };
-        var handle = GCHandle.Alloc(wrapper);
-        AsyncRunInMainRuntimeThread(&AsyncMainThreadCallback, GCHandle.ToIntPtr(handle));
-        return tcs.Task;
-    }
+		var handle = GCHandle.Alloc(wrapper);
+		AsyncRunInMainRuntimeThread((delegate* unmanaged<nint, void>)AsyncMainThreadCallbackPtr, GCHandle.ToIntPtr(handle));
+		return tcs.Task;
+	}
 
-    // Same, but runs func() on the main thread and returns its result as Task<T>.
+	// Same, but runs func() on the main thread and returns its result as Task<T>.
     internal static unsafe Task<T> RunOnMainThreadAsync<T>(Func<T> func)
 	{
 		var tcs = new TaskCompletionSource<T>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -124,7 +141,7 @@ internal static class Emscripten
 			catch (Exception ex) { tcs.SetException(ex); }
 		};
 		var handle = GCHandle.Alloc(wrapper);
-		AsyncRunInMainRuntimeThread(&AsyncMainThreadCallback, GCHandle.ToIntPtr(handle));
+		AsyncRunInMainRuntimeThread((delegate* unmanaged<nint, void>)AsyncMainThreadCallbackPtr, GCHandle.ToIntPtr(handle));
 		return tcs.Task;
 	}
 
@@ -139,7 +156,7 @@ internal static class Emscripten
 			catch (Exception ex) { tcs.SetException(ex); }
 		};
 		var handle = GCHandle.Alloc(wrapper);
-		AsyncRunInMainRuntimeThread(&AsyncMainThreadCallback, GCHandle.ToIntPtr(handle));
+		AsyncRunInMainRuntimeThread((delegate* unmanaged<nint, void>)AsyncMainThreadCallbackPtr, GCHandle.ToIntPtr(handle));
 		return tcs.Task;
 	}
 }
