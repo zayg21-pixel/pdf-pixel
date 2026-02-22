@@ -1,6 +1,5 @@
 ﻿using PdfPixel.Annotations.Models;
 using PdfPixel.Models;
-using PdfPixel.PdfPanel.Extensions;
 using SkiaSharp;
 using System;
 using System.Collections.Concurrent;
@@ -8,7 +7,6 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Threading;
-using System.Threading.Tasks;
 
 namespace PdfPixel.PdfPanel;
 
@@ -99,13 +97,7 @@ public sealed class PdfPanelPageCollection : ReadOnlyCollection<PdfPanelPage>, I
         return new PdfPanelPageCollection(renderer, pages);
     }
 
-    internal async IAsyncEnumerable<CachedSkPicture> UpdateCacheWithThumbnails(
-        IEnumerable<int> visiblePages,
-        float scale,
-        SKSurface thumbnailSurface,
-        Func<Action, Task> thumbnailDrawInvoker,
-        PdfAnnotationPopup activeAnnotationPopup,
-        PdfPanelPointerState activeAnnotationState)
+    internal void UpdateCache(IEnumerable<int> visiblePages)
     {
         var cachedPages = pictureCache.ToArray();
 
@@ -116,103 +108,107 @@ public sealed class PdfPanelPageCollection : ReadOnlyCollection<PdfPanelPage>, I
                 removedPicture.Dispose();
             }
         }
-
-        foreach (var page in visiblePages)
-        {
-            if (!pictureCache.TryGetValue(page, out CachedSkPicture cachedPicture))
-            {
-                bool hasAnnotations = false;
-                if (TryGetPage(page, out var newPage))
-                {
-                    hasAnnotations = newPage.Popups.Length > 0;
-                }
-
-                SKImage thumbnailPicture = null;
-
-                await thumbnailDrawInvoker(() =>
-                {
-                    thumbnailPicture = Renderer.GetThumbnail(page, thumbnailSurface);
-                });
-
-                cachedPicture = new CachedSkPicture(thumbnailPicture, page, hasAnnotations)
-                {
-                    Scale = scale,
-                    ActiveAnnotationState = PdfPanelPointerState.None
-                };
-
-                lock (disposeLocker)
-                {
-                    if (isDisposed)
-                    {
-                        cachedPicture.Dispose();
-                        yield break;
-                    }
-                    else
-                    {
-                        pictureCache.TryAdd(page, cachedPicture);
-                    }
-                }
-            }
-
-            bool scaleChanged = Math.Abs(cachedPicture.Scale - scale) != 0;
-
-            PdfAnnotationBase pageActiveAnnotation = null;
-            PdfPanelPointerState pointerState = PdfPanelPointerState.None;
-
-            if (cachedPicture.HasAnnotations && activeAnnotationPopup != null && TryGetPage(page, out var panelPage))
-            {
-                foreach (var popup in panelPage.Popups)
-                {
-                    if (popup == activeAnnotationPopup)
-                    {
-                        pageActiveAnnotation = activeAnnotationPopup.Annotation;
-                        pointerState = activeAnnotationState;
-                        break;
-                    }
-                }
-            }
-
-            bool annotationChanged = cachedPicture.ActiveAnnotation != pageActiveAnnotation;
-            bool stateChangedWithinAnnotation = cachedPicture.ActiveAnnotationState != pointerState && pageActiveAnnotation != null;
-
-            cachedPicture.Scale = scale;
-            cachedPicture.ActiveAnnotationState = pointerState;
-            cachedPicture.ActiveAnnotation = pageActiveAnnotation;
-
-            if (scaleChanged)
-            {
-                cachedPicture.UpdatePicture(null);
-                cachedPicture.UpdateAnnotationPicture(null);
-            }
-            else if (annotationChanged || stateChangedWithinAnnotation)
-            {
-                cachedPicture.UpdateAnnotationPicture(null);
-            }
-
-            yield return cachedPicture;
-        }
     }
 
-    internal IEnumerable<CachedSkPicture> GeneratePicturesForCachedPages(CancellationToken token)
+    internal CachedSkPicture InitializePageWithThumbnail(
+        int pageNumber,
+        float scale,
+        SKSurface thumbnailSurface,
+        PdfAnnotationPopup activeAnnotationPopup,
+        PdfPanelPointerState activeAnnotationState)
     {
-        var cachedPages = pictureCache.ToArray();
-
-        foreach (var cachedPage in cachedPages)
+        if (!pictureCache.TryGetValue(pageNumber, out CachedSkPicture cachedPicture))
         {
-            var cachedPicture = cachedPage.Value;
-
-            if (cachedPicture.Picture == null)
+            bool hasAnnotations = false;
+            if (TryGetPage(pageNumber, out var newPage))
             {
-                cachedPicture.UpdatePicture(Renderer.GetPicture(cachedPage.Key, cachedPicture.Scale, token));
+                hasAnnotations = newPage.Popups.Length > 0;
             }
 
-            if (cachedPicture.AnnotationPicture == null)
-            {
-                cachedPicture.UpdateAnnotationPicture(Renderer.GetAnnotationPicture(cachedPage.Key, cachedPicture.Scale, cachedPicture.ActiveAnnotation, cachedPicture.ActiveAnnotationState, token));
-            }
+            SKImage thumbnailPicture = Renderer.GetThumbnail(pageNumber, thumbnailSurface);
 
-            yield return cachedPicture;
+            cachedPicture = new CachedSkPicture(thumbnailPicture, pageNumber, hasAnnotations)
+            {
+                Scale = scale,
+                ActiveAnnotationState = PdfPanelPointerState.None
+            };
+
+            lock (disposeLocker)
+            {
+                if (isDisposed)
+                {
+                    cachedPicture.Dispose();
+                }
+                else
+                {
+                    pictureCache.TryAdd(pageNumber, cachedPicture);
+                }
+            }
         }
+
+        bool scaleChanged = Math.Abs(cachedPicture.Scale - scale) != 0;
+
+        PdfAnnotationBase pageActiveAnnotation = null;
+        PdfPanelPointerState pointerState = PdfPanelPointerState.None;
+
+        if (cachedPicture.HasAnnotations && activeAnnotationPopup != null && TryGetPage(pageNumber, out var panelPage))
+        {
+            foreach (var popup in panelPage.Popups)
+            {
+                if (popup == activeAnnotationPopup)
+                {
+                    pageActiveAnnotation = activeAnnotationPopup.Annotation;
+                    pointerState = activeAnnotationState;
+                    break;
+                }
+            }
+        }
+
+        bool annotationChanged = cachedPicture.ActiveAnnotation != pageActiveAnnotation;
+        bool stateChangedWithinAnnotation = cachedPicture.ActiveAnnotationState != pointerState && pageActiveAnnotation != null;
+
+        cachedPicture.Scale = scale;
+        cachedPicture.ActiveAnnotationState = pointerState;
+        cachedPicture.ActiveAnnotation = pageActiveAnnotation;
+
+        if (scaleChanged)
+        {
+            cachedPicture.UpdatePicture(null);
+            cachedPicture.UpdateAnnotationPicture(null);
+        }
+        else if (annotationChanged || stateChangedWithinAnnotation)
+        {
+            cachedPicture.UpdateAnnotationPicture(null);
+        }
+
+        return cachedPicture;
+    }
+
+    internal CachedSkPicture GeneratePicturesForPage(int pageNumber, CancellationToken token)
+    {
+        var cachedPicture = GetCachedPicture(pageNumber);
+
+        if (cachedPicture.Picture == null)
+        {
+            cachedPicture.UpdatePicture(Renderer.GetPicture(pageNumber, cachedPicture.Scale, token));
+        }
+
+        if (cachedPicture.AnnotationPicture == null)
+        {
+            cachedPicture.UpdateAnnotationPicture(Renderer.GetAnnotationPicture(pageNumber, cachedPicture.Scale, cachedPicture.ActiveAnnotation, cachedPicture.ActiveAnnotationState, token));
+        }
+
+        return cachedPicture;
+    }
+
+    internal CachedSkPicture GetCachedPicture(int pageNumber)
+    {
+        if (pictureCache.TryGetValue(pageNumber, out CachedSkPicture cachedPicture))
+        {
+            return cachedPicture;
+        }
+
+        throw new InvalidOperationException("Cached picture not found for page " + pageNumber);
     }
 
     internal bool TryGetPictureFromCache(int pageNumber, out CachedSkPicture picture)

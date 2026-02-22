@@ -7,12 +7,13 @@
     <WasmEnableThreads>true</WasmEnableThreads>
     <WasmEnableSIMD>true</WasmEnableSIMD>
     <RunAOTCompilation>true</RunAOTCompilation>
-    <WasmStripILAfterAOT>true</WasmStripILAfterAOT>
-    <WasmStripSymbols>true</WasmStripSymbols>
-    <PublishTrimmed>true</PublishTrimmed>
+    <WasmBuildNative>true</WasmBuildNative>
     <InvariantGlobalization>true</InvariantGlobalization>
     <EnableDefaultContentItems>false</EnableDefaultContentItems>
-    <EmccFlags>-s FULL_ES3=1 -s OFFSCREEN_FRAMEBUFFER=1</EmccFlags>
+    <WasmNativeDebugSymbols>true</WasmNativeDebugSymbols>
+    <WasmEmitSymbolMap>true</WasmEmitSymbolMap>
+    <WasmEmitSourceMap>true</WasmEmitSourceMap>
+    <EmccFlags>-s FULL_ES3=1 -s ASSERTIONS=2 -s OFFSCREENCANVAS_SUPPORT=1</EmccFlags>
   </PropertyGroup>
 
   <ItemGroup>

@@ -1,42 +1,59 @@
-﻿using PdfPixel.PdfPanel.Extensions;
+﻿using Microsoft.Extensions.Logging;
+using PdfPixel.PdfPanel.Extensions;
 using PdfPixel.PdfPanel.Requests;
 using SkiaSharp;
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
-using System.Threading.Tasks;
 
 namespace PdfPixel.PdfPanel;
 
 public sealed class PdfRenderingQueue : IDisposable
 {
+    private const int DisposeWaitTimeout = 10000;
     private readonly ISkSurfaceFactory _surfaceFactory;
-    private readonly SemaphoreSlim _semaphore = new SemaphoreSlim(0);
-    private readonly Func<Action, Task> _canvasDrawInvoker;
-    private readonly Func<Action, Task> _thumbnailDrawInvoker;
-    private readonly ConcurrentQueue<DrawingRequest> _updateQueue = new ConcurrentQueue<DrawingRequest>();
+    private readonly IRenderLoopRunner _loopRunner;
+    private readonly ILoggerFactory _loggerFactory;
+    private readonly ILogger _logger;
+    private readonly Thread _renderThread;
     private DrawingRequest _lastRequest;
-    // volatile ensures the rendering worker's writes are immediately visible to the
-    // enqueueing thread (typically the JS/main thread) that calls Cancel().
-    private volatile CancellationTokenSource _currentRenderCts;
+    private volatile bool _disposed;
 
-    public PdfRenderingQueue(ISkSurfaceFactory surfaceFactory, Func<Action, Task> canvasDrawInvoker = null, Func<Action, Task> thumbnailDrawInvoker = null)
+    // State preserved across iterations
+    private SKSurface _surface;
+    private SKSurface _thumbnailSurface;
+    private int _thumbnailSurfaceSize;
+    private PagesDrawingRequest _activePagesDrawingRequest;
+    private PdfPanelRenderCommand _activeCommand;
+    private PagesDrawingRequest _previousPagesDrawingRequest;
+    private List<int> _backgroundRenderedForPages = new List<int>();
+    private bool _requiresRedraw;
+
+    public PdfRenderingQueue(ILoggerFactory loggerFactory, ISkSurfaceFactory surfaceFactory)
+        : this(loggerFactory, surfaceFactory, new DefaultRenderLoopRunner())
     {
-        _canvasDrawInvoker = canvasDrawInvoker ?? (action =>
-        {
-            action();
-            return Task.CompletedTask;
-        });
-        _thumbnailDrawInvoker = thumbnailDrawInvoker ?? (action =>
-        {
-            action();
-            return Task.CompletedTask;
-        });
+    }
 
+    public PdfRenderingQueue(ILoggerFactory loggerFactory, ISkSurfaceFactory surfaceFactory, IRenderLoopRunner loopRunner)
+    {
+        _loggerFactory = loggerFactory;
+        _logger = loggerFactory.CreateLogger<PdfRenderingQueue>();
         _surfaceFactory = surfaceFactory;
-        StartReadFromQueue();
+        _loopRunner = loopRunner ?? throw new ArgumentNullException(nameof(loopRunner));
+        _renderThread = new Thread(RenderThreadEntry)
+        {
+            IsBackground = true,
+            Name = "PdfRenderingQueue"
+        };
+        _renderThread.Start();
+    }
+
+    private void RenderThreadEntry()
+    {
+        _surfaceFactory.Initialize();
+        //_loopRunner.Start(RenderLoopIteration);
+        _loopRunner.Start(RenderCommandLoopIteration);
     }
 
     internal void EnqueueDrawingRequest(DrawingRequest request)
@@ -46,177 +63,186 @@ public sealed class PdfRenderingQueue : IDisposable
             return;
         }
 
-        _updateQueue.Enqueue(request);
-        _semaphore.Release();
+        _loopRunner.Enqueue(request);
         _lastRequest = request;
+    }
+
+    /// <summary>
+    /// Single iteration of the render loop. Called by IRenderLoopRunner with the render frame.
+    /// </summary>
+    private void RenderCommandLoopIteration(RenderFrameCommand frame)
+    {
+        if (_disposed)
+        {
+            return;
+        }
+
+        var command = frame.Command;
+        var cancellationToken = frame.CancellationToken;
+        bool sameRequest = _activePagesDrawingRequest == command.DrawingRequest;
+        _activePagesDrawingRequest = command.DrawingRequest;
+        _activeCommand = command;
+
+        if (_activePagesDrawingRequest != null)
+        {
+            EnsureSurfaceForRequest(_activePagesDrawingRequest, cancellationToken);
+            EnsureThumbnailSurfaceForRequest(_activePagesDrawingRequest, cancellationToken);
+        }
 
         try
         {
-            _currentRenderCts?.Cancel();
+            switch (command.Type)
+            {
+                case PdfPanelRenderCommandType.Dispose:
+                {
+                    DisposeFromCommand();
+                    break;
+                }
+                case PdfPanelRenderCommandType.DrawBackground:
+                {
+                    DrawBackground();
+                    break;
+                }
+                case PdfPanelRenderCommandType.Render:
+                {
+                    _activePagesDrawingRequest.RenderTarget.Render(_surface, _activePagesDrawingRequest, cancellationToken);
+                    break;
+                }
+                case PdfPanelRenderCommandType.InitializePage:
+                {
+                    InitializePage();
+                    break;
+                }
+                case PdfPanelRenderCommandType.DrawThumbnail:
+                {
+                    DrawThumbnail();
+                    break;
+                }
+                case PdfPanelRenderCommandType.GenerateContent:
+                {
+                    InitializePageContent(cancellationToken);
+                    break;
+                }
+                case PdfPanelRenderCommandType.DrawContent:
+                {
+                    DrawPageContent();
+                    break;
+                }
+            }
+        }
+        catch (OperationCanceledException)
+        {
         }
         catch (ObjectDisposedException)
         {
-            // CTS was disposed between the null-check and Cancel; cancellation is no longer needed.
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error occurred on execution of render command");
+        }
+        finally
+        {
+            if (!sameRequest)
+            {
+                _previousPagesDrawingRequest = _activePagesDrawingRequest;
+            }
         }
     }
 
-    private async void StartReadFromQueue()
+    private void DisposeFromCommand()
     {
-        SKSurface surface = null;
-        PagesDrawingRequest activePagesDrawingRequest = null;
-        PagesDrawingRequest previousPagesDrawingRequest = null;
-        bool requiresRedraw = false;
-
-        while (true)
-        {
-            try
-            {
-                try
-                {
-                    await _semaphore.WaitAsync().ConfigureAwait(false);
-                }
-                catch (ObjectDisposedException)
-                {
-                    break;
-                }
-
-                if (!_updateQueue.TryDequeue(out var request))
-                {
-                    break;
-                }
-
-                if (!_updateQueue.IsEmpty)
-                {
-                    if (request is PagesDrawingRequest skippedPagesDrawingRequest)
-                    {
-                        activePagesDrawingRequest = skippedPagesDrawingRequest;
-                        requiresRedraw = true;
-                    }
-
-                    continue;
-                }
-
-                var width = (int)request.CanvasSize.Width;
-                var height = (int)request.CanvasSize.Height;
-
-                if (surface == null || surface.Canvas.DeviceClipBounds.Width != width || surface.Canvas.DeviceClipBounds.Height != height)
-                {
-                    surface = await _surfaceFactory.GetDrawingSurfaceAsync(width, height);
-                }
-
-                if (request is PagesDrawingRequest pagesDrawingRequest)
-                {
-                    activePagesDrawingRequest = pagesDrawingRequest;
-                    requiresRedraw = true;
-                }
-                else if (request is RefreshGraphicsDrawingRequest refreshGraphicsRequest)
-                {
-                    requiresRedraw = false;
-                }
-                else if (request is ResetDrawingRequest)
-                {
-                    surface = await _surfaceFactory.GetDrawingSurfaceAsync(width, height);
-                    requiresRedraw = false;
-                }
-
-                if (requiresRedraw)
-                {
-                    var cts = new CancellationTokenSource();
-                    _currentRenderCts = cts;
-                    requiresRedraw = !await ProcessPagesDrawing(surface, activePagesDrawingRequest, previousPagesDrawingRequest, cts.Token).ConfigureAwait(false);
-                    _currentRenderCts = null;
-                    cts.Dispose();
-
-                    previousPagesDrawingRequest = activePagesDrawingRequest;
-                }
-                else if (surface != null && activePagesDrawingRequest != null)
-                {
-                    await activePagesDrawingRequest.RenderTarget.RenderAsync(surface, request);
-                }
-            }
-            catch (OperationCanceledException)
-            {
-                // A new request was enqueued while processing the current one; loop back to process the new request.
-            }
-            catch (ObjectDisposedException)
-            {
-            }
-            catch (Exception ex)
-            {
-                _currentRenderCts?.Dispose();
-                _currentRenderCts = null;
-#if DEBUG // TODO: inject logger
-                throw;
-#endif
-                Console.WriteLine($"Error processing drawing request: {ex}");
-
-            }
-        }
+        _disposed = true;
+        _surface?.Dispose();
+        _surface = null;
+        _thumbnailSurface?.Dispose();
+        _thumbnailSurface = null;
+        _surfaceFactory.Dispose();
+        _loopRunner.Stop();
     }
 
-    private async Task<bool> ProcessPagesDrawing(
-        SKSurface surface,
-        PagesDrawingRequest request,
-        PagesDrawingRequest previousRequest,
-        CancellationToken cancellationToken)
+    private void EnsureSurfaceForRequest(PagesDrawingRequest request, CancellationToken cancellationToken)
     {
-        SKCanvas canvas = null;
-        await _canvasDrawInvoker.Invoke(() =>
+        var width = (int)request.CanvasSize.Width;
+        var height = (int)request.CanvasSize.Height;
+        if (_surface == null || _surface.Canvas.DeviceClipBounds.Width != width || _surface.Canvas.DeviceClipBounds.Height != height)
         {
-            canvas = surface.Canvas;
-            canvas.ClipRect(new SKRect(0, 0, (float)request.CanvasSize.Width, (float)request.CanvasSize.Height));
-        }).ConfigureAwait(false);
-
-        HashSet<int> pagesWithThumbnailsDrawn = new HashSet<int>();
-        HashSet<int> pagesWithContentDrawn = new HashSet<int>();
-
-        await _canvasDrawInvoker.Invoke(() =>
-        {
-            var surfaceSnapshot = previousRequest == null ? null : surface.Snapshot();
-            DrawBackgroundAndShadows(canvas, request);
-            DrawExistingThumbnails(canvas, request, pagesWithThumbnailsDrawn);
-            RenderSurfaceSnapshot(canvas, surfaceSnapshot, request, previousRequest);
-            surfaceSnapshot?.Dispose();
-        });
-
-        await request.RenderTarget.RenderAsync(surface, request).ConfigureAwait(false);
-
-        if (!_updateQueue.IsEmpty)
-        {
-            return false;
+            _surface = _surfaceFactory.GetDrawingSurface(width, height, cancellationToken);
         }
-
-        var visiblePages = request.VisiblePages.Select(x => x.PageNumber);
-
-        var thumbnailSurface = request.MaxThumbnailSize > 0
-            ? await _surfaceFactory.CreateThumbnailSurfaceAsync(request.MaxThumbnailSize, request.MaxThumbnailSize)
-            : null;
-
-        bool allDrawn = await RenderThumbnailsAndContent(
-            surface,
-            request,
-            previousRequest,
-            visiblePages,
-            thumbnailSurface,
-            pagesWithThumbnailsDrawn,
-            pagesWithContentDrawn).ConfigureAwait(false);
-
-        if (!_updateQueue.IsEmpty || pagesWithContentDrawn.Count == visiblePages.Count())
-        {
-            return allDrawn;
-        }
-
-        allDrawn = await RenderRemainingContent(
-            surface,
-            request,
-            visiblePages,
-            pagesWithContentDrawn,
-            cancellationToken).ConfigureAwait(false);
-
-        return allDrawn;
     }
 
-    private void DrawBackgroundAndShadows(SKCanvas canvas, PagesDrawingRequest request)
+    private void EnsureThumbnailSurfaceForRequest(PagesDrawingRequest request, CancellationToken cancellationToken)
+    {
+        if (request.MaxThumbnailSize > 0)
+        {
+            if (_thumbnailSurfaceSize != request.MaxThumbnailSize)
+            {
+                _thumbnailSurface = _surfaceFactory.CreateThumbnailSurface(request.MaxThumbnailSize, request.MaxThumbnailSize, cancellationToken);
+                _thumbnailSurfaceSize = request.MaxThumbnailSize;
+            }
+        }
+        else
+        {
+            _thumbnailSurface?.Dispose();
+            _thumbnailSurface = null;
+        }
+    }
+
+    private void DrawBackground()
+    {
+        _backgroundRenderedForPages.Clear();
+        var canvas = _surface.Canvas;
+        _surfaceFactory.SetCurrentSurface(_surface);
+
+        if (_previousPagesDrawingRequest != null)
+        {
+            _surface.Flush();
+            using var surfaceSnapshot = _surface.Snapshot();
+            using var rasterSnapshot = surfaceSnapshot.ToRasterImage();
+            DrawBackgroundAndShadows(canvas, _activePagesDrawingRequest);
+            DrawExistingThumbnails(canvas, _activePagesDrawingRequest);
+            RenderSurfaceSnapshot(canvas, rasterSnapshot, _activePagesDrawingRequest, _previousPagesDrawingRequest);
+        }
+        else
+        {
+            DrawBackgroundAndShadows(canvas, _activePagesDrawingRequest);
+            DrawExistingThumbnails(canvas, _activePagesDrawingRequest);
+        }
+    }
+
+    private void InitializePage()
+    {
+        var visiblePages = GetExtendedVisiblePages(_activePagesDrawingRequest, _previousPagesDrawingRequest);
+        _activePagesDrawingRequest.Pages.UpdateCache(visiblePages);
+        _surfaceFactory.SetCurrentSurface(_thumbnailSurface);
+
+        _activePagesDrawingRequest.Pages.InitializePageWithThumbnail(_activeCommand.PageNumber.Value, _activePagesDrawingRequest.Scale, _thumbnailSurface, _activePagesDrawingRequest.ActiveAnnotation, _activePagesDrawingRequest.ActiveAnnotationState);
+    }
+
+    private void DrawThumbnail()
+    {
+        if (_backgroundRenderedForPages.Contains(_activeCommand.PageNumber.Value))
+        {
+            return;
+        }
+        var picture = _activePagesDrawingRequest.Pages.GetCachedPicture(_activeCommand.PageNumber.Value);
+        _surfaceFactory.SetCurrentSurface(_surface);
+        _surface.Canvas.DrawPageFromRequest(picture.PageNumber, _activePagesDrawingRequest, PageDrawFlags.Background | PageDrawFlags.Thumbnail);
+    }
+
+    private void InitializePageContent(CancellationToken token)
+    {
+        _surfaceFactory.SetCurrentSurface(_surface);
+        _activePagesDrawingRequest.Pages.GeneratePicturesForPage(_activeCommand.PageNumber.Value, token);
+    }
+
+    private void DrawPageContent()
+    {
+        var picture = _activePagesDrawingRequest.Pages.GetCachedPicture(_activeCommand.PageNumber.Value);
+        _surfaceFactory.SetCurrentSurface(_surface);
+        _surface.Canvas.DrawPageFromRequest(picture.PageNumber, _activePagesDrawingRequest, PageDrawFlags.Background | PageDrawFlags.Content);
+    }
+
+    private static void DrawBackgroundAndShadows(SKCanvas canvas, PagesDrawingRequest request)
     {
         canvas.Clear(request.BackgroundColor);
 
@@ -226,12 +252,11 @@ public sealed class PdfRenderingQueue : IDisposable
         }
     }
 
-    private IEnumerable<int> GetExtendedVisiblePages(
+    private static IEnumerable<int> GetExtendedVisiblePages(
         PagesDrawingRequest request,
-        PagesDrawingRequest previousRequest,
-        IEnumerable<int> visiblePages)
+        PagesDrawingRequest previousRequest)
     {
-        var extendedVisiblePages = visiblePages;
+        var extendedVisiblePages = request.VisiblePages.Select(x => x.PageNumber);
 
         if (previousRequest != null && previousRequest.Scale == request.Scale)
         {
@@ -248,113 +273,9 @@ public sealed class PdfRenderingQueue : IDisposable
         return extendedVisiblePages;
     }
 
-    private async Task<bool> RenderThumbnailsAndContent(
-        SKSurface surface,
-        PagesDrawingRequest request,
-        PagesDrawingRequest previousRequest,
-        IEnumerable<int> visiblePages,
-        SKSurface thumbnailSurface,
-        HashSet<int> pagesWithThumbnailsDrawn,
-        HashSet<int> pagesWithContentDrawn)
-    {
-        bool allDrawn = true;
-
-        var extendedVisiblePages = GetExtendedVisiblePages(request, previousRequest, visiblePages);
-
-        await foreach (var picture in request.Pages.UpdateCacheWithThumbnails(extendedVisiblePages, request.Scale, thumbnailSurface, _thumbnailDrawInvoker, request.ActiveAnnotation, request.ActiveAnnotationState))
-        {
-            if (!visiblePages.Contains(picture.PageNumber))
-            {
-                continue;
-            }
-
-            bool contentComplete = picture.Picture != null && (!picture.HasAnnotations || picture.AnnotationPicture != null);
-
-            if (picture.Picture == null)
-            {
-                if (!pagesWithThumbnailsDrawn.Contains(picture.PageNumber))
-                {
-                    await _canvasDrawInvoker.Invoke(() =>
-                    {
-                        surface.Canvas.DrawPageFromRequest(picture.PageNumber, request, PageDrawFlags.Background | PageDrawFlags.Thumbnail);
-                    }).ConfigureAwait(false);
-                    pagesWithThumbnailsDrawn.Add(picture.PageNumber);
-                }
-            }
-            else if (contentComplete)
-            {
-                await _canvasDrawInvoker.Invoke(() =>
-                {
-                    surface.Canvas.DrawPageFromRequest(picture.PageNumber, request, PageDrawFlags.Background | PageDrawFlags.Content);
-                }).ConfigureAwait(false);
-                pagesWithContentDrawn.Add(picture.PageNumber);
-            }
-
-            await request.RenderTarget.RenderAsync(surface, request).ConfigureAwait(false);
-
-            if (!_updateQueue.IsEmpty)
-            {
-                allDrawn = false;
-                break;
-            }
-        }
-
-        return allDrawn;
-    }
-
-    private async Task<bool> RenderRemainingContent(
-        SKSurface surface,
-        PagesDrawingRequest request,
-        IEnumerable<int> visiblePages,
-        HashSet<int> pagesWithContentDrawn,
-        CancellationToken cancellationToken)
-    {
-        bool allDrawn = true;
-
-        try
-        {
-            foreach (var picture in request.Pages.GeneratePicturesForCachedPages(cancellationToken))
-            {
-                if (pagesWithContentDrawn.Contains(picture.PageNumber))
-                {
-                    continue;
-                }
-
-                if (!visiblePages.Contains(picture.PageNumber))
-                {
-                    continue;
-                }
-
-                if (picture.Picture != null)
-                {
-                    await _canvasDrawInvoker.Invoke(() =>
-                    {
-                        surface.Canvas.DrawPageFromRequest(picture.PageNumber, request, PageDrawFlags.Background | PageDrawFlags.Content);
-                    }).ConfigureAwait(false);
-                    pagesWithContentDrawn.Add(picture.PageNumber);
-                    await request.RenderTarget.RenderAsync(surface, request).ConfigureAwait(false);
-                }
-
-                if (!_updateQueue.IsEmpty)
-                {
-                    allDrawn = false;
-                    break;
-                }
-            }
-        }
-        catch (OperationCanceledException)
-        {
-            // A new request was enqueued; stop rendering and signal that not everything was drawn.
-            allDrawn = false;
-        }
-
-        return allDrawn;
-    }
-
     private void DrawExistingThumbnails(
         SKCanvas canvas,
-        PagesDrawingRequest request,
-        HashSet<int> pagesWithThumbnailsDrawn)
+        PagesDrawingRequest request)
     {
         foreach (var page in request.VisiblePages)
         {
@@ -369,11 +290,11 @@ public sealed class PdfRenderingQueue : IDisposable
             }
 
             canvas.DrawPageFromRequest(page.PageNumber, request, PageDrawFlags.Thumbnail);
-            pagesWithThumbnailsDrawn.Add(page.PageNumber);
+            _backgroundRenderedForPages.Add(page.PageNumber);
         }
     }
 
-    private void RenderSurfaceSnapshot(
+    private static void RenderSurfaceSnapshot(
         SKCanvas canvas,
         SKImage surfaceSnapshot,
         PagesDrawingRequest request,
@@ -412,7 +333,9 @@ public sealed class PdfRenderingQueue : IDisposable
 
     public void Dispose()
     {
-        _currentRenderCts?.Cancel();
-        _semaphore.Dispose();
+        _loopRunner.Enqueue(new DisposeRequest());
+
+        SpinWait.SpinUntil(() => _disposed, DisposeWaitTimeout);
+        _loopRunner.Dispose();
     }
 }

@@ -1,6 +1,5 @@
 ﻿using SkiaSharp;
-using System;
-using System.Threading.Tasks;
+using System.Threading;
 
 namespace PdfPixel.PdfPanel;
 
@@ -9,12 +8,10 @@ namespace PdfPixel.PdfPanel;
 /// </summary>
 public class CpuSkSurfaceFactory : ISkSurfaceFactory
 {
-    private readonly object _lock = new object();
     private readonly SKColorType _colorType;
     private readonly SKAlphaType _alphaType;
     private SKSurface _currentSurface;
     private SKSurface _currentThumbnailSurface;
-    private bool _disposed;
 
     public CpuSkSurfaceFactory(SKColorType colorType, SKAlphaType alphaType)
     {
@@ -23,71 +20,55 @@ public class CpuSkSurfaceFactory : ISkSurfaceFactory
     }
 
     /// <inheritdoc />
-    public Task<SKSurface> GetDrawingSurfaceAsync(int width, int height)
+    public void Initialize()
     {
-        lock (_lock)
-        {
-            if (_disposed)
-            {
-                throw new ObjectDisposedException(GetType().FullName);
-            }
-
-            var info = new SKImageInfo(width, height, _colorType, _alphaType);
-            var newSurface = SKSurface.Create(info);
-
-            if (_currentSurface != null)
-            {
-                newSurface.Canvas.DrawSurface(_currentSurface, SKPoint.Empty);
-            }
-
-            var oldSurface = _currentSurface;
-            _currentSurface = newSurface;
-
-            oldSurface?.Dispose();
-
-            return Task.FromResult(newSurface);
-        }
+        // CPU factory doesn't need initialization
     }
 
     /// <inheritdoc />
-    public Task<SKSurface> CreateThumbnailSurfaceAsync(int width, int height)
+    public SKSurface GetDrawingSurface(int width, int height, CancellationToken token)
     {
-        lock (_lock)
+        var info = new SKImageInfo(width, height, _colorType, _alphaType);
+        var newSurface = SKSurface.Create(info);
+
+        if (_currentSurface != null)
         {
-            if (_disposed)
-            {
-                throw new ObjectDisposedException(GetType().FullName);
-            }
-
-            var info = new SKImageInfo(width, height, _colorType, _alphaType);
-            var newSurface = SKSurface.Create(info);
-
-            var oldSurface = _currentThumbnailSurface;
-            _currentThumbnailSurface = newSurface;
-
-            oldSurface?.Dispose();
-
-            return Task.FromResult(newSurface);
+            newSurface.Canvas.DrawSurface(_currentSurface, SKPoint.Empty);
         }
+
+        var oldSurface = _currentSurface;
+        _currentSurface = newSurface;
+
+        oldSurface?.Dispose();
+
+        return newSurface;
+    }
+
+    /// <inheritdoc />
+    public SKSurface CreateThumbnailSurface(int width, int height, CancellationToken token)
+    {
+        var info = new SKImageInfo(width, height, _colorType, _alphaType);
+        var newSurface = SKSurface.Create(info);
+
+        var oldSurface = _currentThumbnailSurface;
+        _currentThumbnailSurface = newSurface;
+
+        oldSurface?.Dispose();
+
+        return newSurface;
+    }
+
+    /// <inheritdoc />
+    /// <remarks>CPU-backed surfaces do not require context switching.</remarks>
+    public void SetCurrentSurface(SKSurface surface)
+    {
+        // No-op for CPU surfaces
     }
 
     /// <inheritdoc />
     public void Dispose()
     {
-        lock (_lock)
-        {
-            if (_disposed)
-            {
-                return;
-            }
-
-            _disposed = true;
-
-            _currentSurface?.Dispose();
-            _currentSurface = null;
-
-            _currentThumbnailSurface?.Dispose();
-            _currentThumbnailSurface = null;
-        }
+        _currentSurface?.Dispose();
+        _currentThumbnailSurface?.Dispose();
     }
 }

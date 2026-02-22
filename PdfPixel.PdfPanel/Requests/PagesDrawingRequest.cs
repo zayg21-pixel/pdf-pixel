@@ -1,13 +1,11 @@
 ﻿using SkiaSharp;
-using System;
-using System.Linq;
 
 namespace PdfPixel.PdfPanel.Requests;
 
 /// <summary>
 /// Request to draw pages on rendering panel.
 /// </summary>
-internal class PagesDrawingRequest : DrawingRequest
+public class PagesDrawingRequest : DrawingRequest
 {
     public PdfPanelPageCollection Pages { get; set; }
 

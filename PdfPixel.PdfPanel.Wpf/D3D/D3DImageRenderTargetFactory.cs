@@ -1,7 +1,7 @@
 using PdfPixel.PdfPanel.Requests;
 using SkiaSharp;
 using System;
-using System.Threading.Tasks;
+using System.Threading;
 using System.Windows;
 using System.Windows.Interop;
 
@@ -15,7 +15,6 @@ namespace PdfPixel.PdfPanel.Wpf.D3D;
 /// </summary>
 public sealed class D3DImageRenderTargetFactory : IPdfPanelRenderTargetFactory, IPdfPanelRenderTarget, ISkSurfaceFactory, IDisposable
 {
-    private readonly object _lock = new object();
     private readonly D3DImage _d3dImage;
     private readonly Direct3DContext _d3dContext;
     private readonly GRContext _grContext;
@@ -23,7 +22,6 @@ public sealed class D3DImageRenderTargetFactory : IPdfPanelRenderTargetFactory, 
     private D3D9Texture _currentTexture;
     private SKSurface _currentSurface;
     private SKSurface _currentThumbnailSurface;
-    private bool _disposed;
 
     /// <summary>
     /// Initializes a new <see cref="D3DImageRenderTargetFactory"/> and creates all underlying DirectX devices.
@@ -37,121 +35,68 @@ public sealed class D3DImageRenderTargetFactory : IPdfPanelRenderTargetFactory, 
         _sharedResources = new SharedDirectXResources(_d3dContext);
     }
 
+    public void Initialize()
+    {
+        // no op
+    }
+
+    public void SetCurrentSurface(SKSurface surface)
+    {
+        // no op
+    }
+
     /// <summary>
     /// Returns the GPU-backed <see cref="SKSurface"/> for the given dimensions.
     /// A new <see cref="D3D9Texture"/> and <see cref="SKSurface"/> are created, the D3DImage back buffer
     /// is updated atomically with already-drawn content, and only then are the old resources released.
     /// </summary>
     /// <inheritdoc />
-    public async Task<SKSurface> GetDrawingSurfaceAsync(int width, int height)
+    public SKSurface GetDrawingSurface(int width, int height, CancellationToken token)
     {
         D3D9Texture newTexture;
         SKSurface newSurface;
         D3D9Texture oldTexture = null;
         SKSurface oldSurface = null;
 
-        lock (_lock)
+        newTexture = _sharedResources.CreateD3D9Texture(width, height);
+        newSurface = _sharedResources.CreateSurface(newTexture, width, height, _grContext);
+
+        _d3dImage.Dispatcher.Invoke(() =>
         {
-            if (_disposed)
+            _d3dImage.Lock();
+            try
             {
-                throw new ObjectDisposedException(GetType().FullName);
-            }
+                // SetBackBuffer and AddDirtyRect are in the same Lock/Unlock so WPF never
+                // composites an empty surface. The snapshot is flushed to the GPU before
+                // AddDirtyRect so the first presented frame already has content.
+                _d3dImage.SetBackBuffer(D3DResourceType.IDirect3DSurface9, newTexture.D3D9SurfacePointer);
 
-            newTexture = _sharedResources.CreateD3D9Texture(width, height);
-            newSurface = _sharedResources.CreateSurface(newTexture, width, height, _grContext);
-        }
-
-        await _d3dImage.Dispatcher.InvokeAsync(() =>
-        {
-            lock (_lock)
-            {
-                if (_disposed)
+                if (_currentSurface != null)
                 {
-                    newSurface?.Dispose();
-                    newTexture?.Dispose();
-                    return;
-                }
+                    _currentSurface.Flush();
+                    newSurface.Canvas.DrawSurface(_currentSurface, SKPoint.Empty);
+                    newSurface.Flush();
 
-                _d3dImage.Lock();
-                try
-                {
-                    // SetBackBuffer and AddDirtyRect are in the same Lock/Unlock so WPF never
-                    // composites an empty surface. The snapshot is flushed to the GPU before
-                    // AddDirtyRect so the first presented frame already has content.
-                    _d3dImage.SetBackBuffer(D3DResourceType.IDirect3DSurface9, newTexture.D3D9SurfacePointer);
-
-                    if (_currentSurface != null)
-                    {
-                        _currentSurface.Flush();
-                        newSurface.Canvas.DrawSurface(_currentSurface, SKPoint.Empty);
-                        newSurface.Flush();
-
-                        _d3dImage.AddDirtyRect(new Int32Rect(0, 0, width, height));
-                    }
-                }
-                finally
-                {
-                    _d3dImage.Unlock();
-                }
-
-                oldSurface = _currentSurface;
-                oldTexture = _currentTexture;
-
-                _currentTexture = newTexture;
-                _currentSurface = newSurface;
-            }
-        });
-
-        lock (_lock)
-        {
-            if (_disposed)
-            {
-                return null;
-            }
-
-            oldSurface?.Dispose();
-            _grContext.PurgeResources();
-            oldTexture?.Dispose();
-
-            return _currentSurface;
-        }
-    }
-
-    /// <inheritdoc />
-    public async Task RenderAsync(SKSurface surface, DrawingRequest request)
-    {
-        lock (_lock)
-        {
-            if (_disposed)
-            {
-                throw new ObjectDisposedException(GetType().FullName);
-            }
-        }
-
-        surface.Flush();
-
-        await _d3dImage.Dispatcher.InvokeAsync(() =>
-        {
-            lock (_lock)
-            {
-                if (_disposed)
-                {
-                    return;
-                }
-
-                var bounds = surface.Canvas.DeviceClipBounds;
-
-                _d3dImage.Lock();
-                try
-                {
-                    _d3dImage.AddDirtyRect(new Int32Rect(0, 0, bounds.Width, bounds.Height));
-                }
-                finally
-                {
-                    _d3dImage.Unlock();
+                    _d3dImage.AddDirtyRect(new Int32Rect(0, 0, width, height));
                 }
             }
-        });
+            finally
+            {
+                _d3dImage.Unlock();
+            }
+
+            oldSurface = _currentSurface;
+            oldTexture = _currentTexture;
+
+            _currentTexture = newTexture;
+            _currentSurface = newSurface;
+        }, System.Windows.Threading.DispatcherPriority.Render, token);
+
+        oldSurface?.Dispose();
+        _grContext.PurgeResources();
+        oldTexture?.Dispose();
+
+        return _currentSurface;
     }
 
     /// <summary>
@@ -159,65 +104,61 @@ public sealed class D3DImageRenderTargetFactory : IPdfPanelRenderTargetFactory, 
     /// Uses the existing <see cref="GRContext"/> directly — no shared D3D9/D3D11/D3D12 resources.
     /// </summary>
     /// <inheritdoc />
-    public Task<SKSurface> CreateThumbnailSurfaceAsync(int width, int height)
+    public SKSurface CreateThumbnailSurface(int width, int height, CancellationToken token)
     {
-        lock (_lock)
+        var info = new SKImageInfo(width, height, SKColorType.Bgra8888, SKAlphaType.Premul);
+        var newSurface = SKSurface.Create(_grContext, false, info);
+
+        var oldSurface = _currentThumbnailSurface;
+        _currentThumbnailSurface = newSurface;
+
+        oldSurface?.Dispose();
+        _grContext.PurgeResources();
+
+        return newSurface;
+    }
+
+    /// <inheritdoc />
+    public void Render(SKSurface surface, DrawingRequest request, CancellationToken token)
+    {
+        surface.Flush();
+
+        _d3dImage.Dispatcher.Invoke(() =>
         {
-            if (_disposed)
+            var bounds = surface.Canvas.DeviceClipBounds;
+
+            _d3dImage.Lock();
+            try
             {
-                throw new ObjectDisposedException(GetType().FullName);
+                _d3dImage.AddDirtyRect(new Int32Rect(0, 0, bounds.Width, bounds.Height));
             }
-
-            var info = new SKImageInfo(width, height, SKColorType.Bgra8888, SKAlphaType.Premul);
-            var newSurface = SKSurface.Create(_grContext, false, info);
-
-            var oldSurface = _currentThumbnailSurface;
-            _currentThumbnailSurface = newSurface;
-
-            oldSurface?.Dispose();
-            _grContext.PurgeResources();
-
-            return Task.FromResult(newSurface);
-        }
+            finally
+            {
+                _d3dImage.Unlock();
+            }
+        }, System.Windows.Threading.DispatcherPriority.Render, token);
     }
 
     /// <inheritdoc />
     public IPdfPanelRenderTarget GetRenderTarget(PdfPanelContext context)
     {
-        lock (_lock)
-        {
-            if (_disposed)
-            {
-                throw new ObjectDisposedException(GetType().FullName);
-            }
-            return this;
-        }
+        return this;
     }
 
     /// <inheritdoc />
     public void Dispose()
     {
-        lock (_lock)
-        {
-            if (_disposed)
-            {
-                return;
-            }
+        _currentSurface?.Dispose();
+        _currentSurface = null;
 
-            _disposed = true;
+        _currentThumbnailSurface?.Dispose();
+        _currentThumbnailSurface = null;
 
-            _currentSurface?.Dispose();
-            _currentSurface = null;
+        _currentTexture?.Dispose();
+        _currentTexture = null;
 
-            _currentThumbnailSurface?.Dispose();
-            _currentThumbnailSurface = null;
-
-            _currentTexture?.Dispose();
-            _currentTexture = null;
-
-            _sharedResources?.Dispose();
-            _grContext?.Dispose();
-            _d3dContext?.Dispose();
-        }
+        _sharedResources?.Dispose();
+        _grContext?.Dispose();
+        _d3dContext?.Dispose();
     }
 }

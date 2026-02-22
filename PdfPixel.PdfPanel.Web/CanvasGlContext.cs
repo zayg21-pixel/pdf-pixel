@@ -1,7 +1,5 @@
 using SkiaSharp;
 using System;
-using System.Threading.Tasks;
-using WebGL.Sample;
 
 namespace PdfPixel.PdfPanel.Web;
 
@@ -19,7 +17,7 @@ public sealed class CanvasGlContext : IDisposable
 {
     private bool _disposed;
 
-    private CanvasGlContext(
+    internal CanvasGlContext(
     string canvasSelector,
     int webGlContext,
     GRContext grContext)
@@ -36,94 +34,54 @@ public sealed class CanvasGlContext : IDisposable
     /// <summary>Gets the Skia GPU context for this canvas.</summary>
     public GRContext GrContext { get; }
 
-    public static async Task<CanvasGlContext> CreateAsync(string canvasSelector)
-    {
-        CanvasGlContext context = null;
-        await Emscripten.RunOnMainThreadAsync(() =>
-        {
-            var webglCtx = Emscripten.WebGlCreateContext(
-                canvasId: canvasSelector, alpha: 1, depth: 1, stencil: 1, antialias: 1, majorVersion: 2);
-            if (webglCtx <= 0)
-                throw new Exception($"emscripten_webgl_create_context failed for {canvasSelector}: {webglCtx}");
-
-            var result = Emscripten.WebGlMakeContextCurrent(webglCtx);
-            if (result != 0)
-                throw new Exception($"emscripten_webgl_make_context_current failed for {canvasSelector}: {result}");
-
-            Console.WriteLine($"WebGL context handle for {canvasSelector}: {webglCtx}");
-
-            using var glInterface = GRGlInterface.Create();
-            if (glInterface == null)
-            {
-                Console.WriteLine("Failed to create GRGlInterface");
-            }
-
-            var grContext = GRContext.CreateGl(glInterface);
-            Console.WriteLine("Done trying hard");
-            Console.WriteLine(grContext == null
-                ? "Failed to create GRContext"
-                : "SkiaSharp GRContext created successfully!");
-
-            context = new CanvasGlContext(canvasSelector, webglCtx, grContext);
-        });
-
-        return context;
-    }
-
     /// <summary>
     /// Creates an <see cref="SKSurface"/> targeting framebuffer 0 of this canvas.
-    /// Must be called on the browser main thread.
+    /// Must be called on the dedicated render thread that owns the OffscreenCanvas.
     /// </summary>
     /// <param name="width">The surface width in pixels.</param>
     /// <param name="height">The surface height in pixels.</param>
     /// <param name="oldSurface">Old surface that existed before to be disposed.</param>
     /// <returns>A new <see cref="SKSurface"/> backed by this canvas's WebGL framebuffer.</returns>
-    public async Task<SKSurface> CreateSurfaceAsync(int width, int height, SKSurface oldSurface = null)
+    public SKSurface CreateSurface(int width, int height, SKSurface oldSurface = null)
     {
-        SKSurface surface = null;
-        await Emscripten.RunOnMainThreadAsync(() =>
+        Emscripten.WebGlMakeContextCurrent(WebGlContext);
+
+        // Read back the old surface content into CPU memory BEFORE resizing the canvas.
+        // SetCanvasSize invalidates/clears the WebGL framebuffer, so a GPU snapshot
+        // taken after that point would be empty. We must flush and copy pixels now.
+        SKImage cpuSnapshot = null;
+        if (oldSurface != null)
         {
-            Emscripten.WebGlMakeContextCurrent(WebGlContext);
+            oldSurface.Flush();
+            using var gpuSnapshot = oldSurface.Snapshot();
+            cpuSnapshot = gpuSnapshot?.ToRasterImage();
+        }
 
-            // Read back the old surface content into CPU memory BEFORE resizing the canvas.
-            // SetCanvasSize invalidates/clears the WebGL framebuffer, so a GPU snapshot
-            // taken after that point would be empty. We must flush and copy pixels now.
-            SKImage cpuSnapshot = null;
-            if (oldSurface != null)
-            {
-                oldSurface.Flush();
-                using var gpuSnapshot = oldSurface.Snapshot();
-                cpuSnapshot = gpuSnapshot?.ToRasterImage();
-            }
+        Emscripten.SetCanvasSize(CanvasSelector, width, height);
 
-            Emscripten.SetCanvasSize(CanvasSelector, width, height);
+        var glInfo = new GRGlFramebufferInfo(
+            fboId: 0,
+            format: 0x8058); // GL_RGBA8
 
-            var glInfo = new GRGlFramebufferInfo(
-                fboId: 1, // still have no idea why this is 1, but it works ¯\_(ツ)_/¯
-                format: 0x8058); // GL_RGBA8
+        var renderTarget = new GRBackendRenderTarget(
+            width,
+            height,
+            sampleCount: 0,
+            stencilBits: 8,
+            glInfo);
 
-            var renderTarget = new GRBackendRenderTarget(
-                width,
-                height,
-                sampleCount: 0,
-                stencilBits: 8,
-                glInfo);
+        var surface = SKSurface.Create(
+            GrContext,
+            renderTarget,
+            GRSurfaceOrigin.BottomLeft,
+            SKColorType.Rgba8888);
 
-            surface = SKSurface.Create(
-                GrContext,
-                renderTarget,
-                GRSurfaceOrigin.BottomLeft,
-                SKColorType.Rgba8888);
-
-            if (cpuSnapshot != null)
-            {
-                surface.Canvas.DrawImage(cpuSnapshot, new SKPoint(0, 0));
-                surface.Flush();
-                cpuSnapshot.Dispose();
-            }
-
-            oldSurface?.Dispose();
-        });
+        if (cpuSnapshot != null && surface != null)
+        {
+            surface.Canvas.DrawImage(cpuSnapshot, new SKPoint(0, 0));
+            surface.Flush();
+            cpuSnapshot.Dispose();
+        }
 
         return surface;
     }

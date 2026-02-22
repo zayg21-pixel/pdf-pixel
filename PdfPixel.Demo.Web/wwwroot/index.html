@@ -324,7 +324,7 @@
             .withApplicationArgumentsFromQuery()
             .create();
 
-        await canvasInterop.initialize(setModuleImports, getAssemblyExports);
+        await canvasInterop.initialize(setModuleImports, getAssemblyExports, dotnet.instance.Module);
 
         // Register free metric-compatible fonts for standard PDF font families.
         // Tinos ≈ Times New Roman, Arimo ≈ Arial/Helvetica, Cousine ≈ Courier New.

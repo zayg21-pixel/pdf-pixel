@@ -1,5 +1,6 @@
 const views = new Map();
 let interop = null;
+let emscriptenModule = null;
 
 class PdfPanelView {
     constructor(id, containerElement, configuration) {
@@ -54,6 +55,23 @@ class PdfPanelView {
         this._expectedScrollLeft = 0;
         this._expectedScrollTop = 0;
         this.onStateChanged = null;
+
+        this.canvas.offscreenCanvas = this.canvas.transferControlToOffscreen();
+        this.canvas.transferControlToOffscreen = true;
+
+        const thumbnailSize = this.configuration.maxThumbnailSize || 400;
+        this.thumbnailCanvas = document.createElement('canvas');
+        this.thumbnailCanvas.classList.add('pdf-thumbnail-canvas');
+        this.thumbnailCanvas.width = thumbnailSize;
+        this.thumbnailCanvas.height = thumbnailSize;
+        // Hide the thumbnail canvas completely - it's only used for offscreen rendering
+        // Use display:none would prevent transfer, so we position it off-screen and make it invisible
+        this.thumbnailCanvas.style.cssText = 'position:absolute; left:-9999px; top:-9999px; visibility:hidden; pointer-events:none;';
+        this.container.appendChild(this.thumbnailCanvas);
+
+        // Transfer both main and thumbnail canvases to offscreen for HW rendering
+        this.thumbnailCanvas.offscreenCanvas = this.thumbnailCanvas.transferControlToOffscreen();
+        this.thumbnailCanvas.transferControlToOffscreen = true;
 
         this.onWheel = this.onWheel.bind(this);
         this.onScroll = this.onScroll.bind(this);
@@ -283,13 +301,65 @@ class PdfPanelView {
     }
 
     async initInterop() {
-        const thumbnailSize = this.configuration.maxThumbnailSize || 400;
-        this.thumbnailCanvas = document.createElement('canvas');
-        this.thumbnailCanvas.classList.add('pdf-thumbnail-canvas');
-        this.thumbnailCanvas.width = thumbnailSize;
-        this.thumbnailCanvas.height = thumbnailSize;
-        this.thumbnailCanvas.style.cssText = 'position:fixed; visibility:hidden; pointer-events:none;';
-        this.container.appendChild(this.thumbnailCanvas);
+        const offscreenCanvas = this.canvas.offscreenCanvas;
+        const offscreenThumbnailCanvas = this.thumbnailCanvas.offscreenCanvas;
+
+        const canvasId = `#${this.id} .pdf-panel-canvas`;
+        const thumbnailCanvasId = `#${this.id} .pdf-thumbnail-canvas`;
+
+        // Keys for offscreenCanvases: strip leading '#'
+        const canvasKey = canvasId.substring(1);
+        const thumbnailCanvasKey = thumbnailCanvasId.substring(1);
+
+        if (offscreenCanvas && offscreenThumbnailCanvas && emscriptenModule && emscriptenModule.PThread) {
+            const pThread = emscriptenModule.PThread;
+            const originalLoadWasmModuleToWorker = pThread.loadWasmModuleToWorker.bind(pThread);
+
+            console.log('[PdfPanel] Patching pThread.loadWasmModuleToWorker');
+
+            pThread.loadWasmModuleToWorker = (worker, onFinishedLoading) => {
+                console.log('[PdfPanel] loadWasmModuleToWorker called, worker:', worker);
+
+                const originalPrototypePostMessage = Worker.prototype.postMessage;
+                let transferred = false;
+
+                // Patch Worker.prototype.postMessage to add canvases to offscreenCanvases on 'run'
+                Worker.prototype.postMessage = function(message, transfer) {
+                    const transferList = transfer ? [...transfer] : [];
+
+                    // Add both canvases to the 'run' command's offscreenCanvases
+                    if (!transferred && message && message.cmd === 'run') {
+                        // Ensure offscreenCanvases exists
+                        if (!message.offscreenCanvases) {
+                            message.offscreenCanvases = {};
+                        }
+                        message.offscreenCanvases[canvasKey] = offscreenCanvas;
+                        message.offscreenCanvases[thumbnailCanvasKey] = offscreenThumbnailCanvas;
+                        transferList.push(offscreenCanvas);
+                        transferList.push(offscreenThumbnailCanvas);
+                        transferred = true;
+                        console.log(`[PdfPanel] Added OffscreenCanvases to 'run' command, keys: ${canvasKey}, ${thumbnailCanvasKey}`);
+                        // Restore original prototype after transfer
+                        Worker.prototype.postMessage = originalPrototypePostMessage;
+                    }
+
+                    return originalPrototypePostMessage.call(this, message, transferList);
+                };
+
+                // Restore original loadWasmModuleToWorker after first worker
+                pThread.loadWasmModuleToWorker = originalLoadWasmModuleToWorker;
+
+                return originalLoadWasmModuleToWorker(worker, onFinishedLoading);
+            };
+        } else {
+            console.warn('[PdfPanel] PThread not available:', {
+                hasOffscreenCanvas: !!offscreenCanvas,
+                hasOffscreenThumbnailCanvas: !!offscreenThumbnailCanvas,
+                hasEmscriptenModule: !!emscriptenModule,
+                hasPThread: !!(emscriptenModule && emscriptenModule.PThread)
+            });
+        }
+
 
         await interop.RegisterCanvas(this.id, this.configuration);
     }
@@ -315,14 +385,16 @@ class PdfPanelView {
  * Initialize PDF panel interop and bind JS module imports.
  * @param {(name: string, module: any) => void} setModuleImports Binds a logical module name to an ESM object for [JSImport].
  * @param {(assemblyName: string) => Promise<any>} getAssemblyExports Retrieves .NET assembly exports.
+ * @param {object} wasmModule The Emscripten Module object (captured via dotnet.withModuleConfig).
  * @returns {Promise<void>} Resolves when interop is ready.
  */
-export async function initialize(setModuleImports, getAssemblyExports) {
+export async function initialize(setModuleImports, getAssemblyExports, wasmModule) {
     const exports = await getAssemblyExports(`PdfPixel.PdfPanel.Web`);
     const panelInterop = exports.PdfPixel.PdfPanel.Web.PdfPanelInterop;
 
     setModuleImports('canvasInterop.js', this);
 
+    emscriptenModule = wasmModule;
     interop = panelInterop;
     await interop.Initialize();
 
@@ -387,7 +459,7 @@ export async function unregisterPanel(id) {
  * @returns {Promise<void>} Resolves when the font is registered.
  */
 export async function setFont(name, fontData) {
-    interop.SetFont(name, fontData);
+    await interop.SetFont(name, fontData);
 }
 
 /**

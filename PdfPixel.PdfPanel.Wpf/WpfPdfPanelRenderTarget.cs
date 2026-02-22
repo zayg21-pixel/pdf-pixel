@@ -2,9 +2,8 @@
 using PdfPixel.PdfPanel.Wpf.Drawing;
 using SkiaSharp;
 using System;
-using System.Threading.Tasks;
+using System.Threading;
 using System.Windows;
-using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 
@@ -31,12 +30,12 @@ partial class WpfPdfPanelRenderTarget : IPdfPanelRenderTarget
 
     public SKPoint CanvasOffset { get; }
 
-    public async Task RenderAsync(SKSurface surface, DrawingRequest request)
+    public void Render(SKSurface surface, DrawingRequest request, CancellationToken token)
     {
-        await Panel.Dispatcher.InvokeAsync(async () =>
+        Panel.Dispatcher.Invoke(() =>
         {
             DrawOnWritableBitmap(surface, request);
-        });
+        }, System.Windows.Threading.DispatcherPriority.Render, token);
     }
 
     private void DrawOnWritableBitmap(SKSurface surface, DrawingRequest request)

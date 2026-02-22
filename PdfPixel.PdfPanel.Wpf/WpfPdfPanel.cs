@@ -1,4 +1,5 @@
-﻿using PdfPixel.Annotations.Models;
+﻿using Microsoft.Extensions.Logging.Abstractions;
+using PdfPixel.Annotations.Models;
 using PdfPixel.PdfPanel.Extensions;
 using PdfPixel.PdfPanel.Layout;
 using PdfPixel.PdfPanel.Wpf.D3D;
@@ -211,7 +212,7 @@ namespace PdfPixel.PdfPanel.Wpf
                 _renderTargetFactory = new WpfPdfPanelRenderTargetFactory(this);
             }
 
-            _renderingQueue = new PdfRenderingQueue(_surfaceFactory);
+            _renderingQueue = new PdfRenderingQueue(new NullLoggerFactory(), _surfaceFactory);
             _context = new PdfPanelContext(Pages, _renderingQueue, _renderTargetFactory, new PdfPanelVerticalLayout());
         }
 

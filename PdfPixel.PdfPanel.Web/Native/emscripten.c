@@ -1,5 +1,6 @@
 #include "emscripten.h"
 #include <emscripten/threading.h>
+#include <emscripten/console.h>
 
 // Run func() on the browser main thread and block until it returns.
 // Safe to call from any thread, including the main thread itself.
@@ -27,40 +28,21 @@ void dotnet_sync_main_thread(void (*func)(void)) {
 // On the C# side use nint / delegate* unmanaged<nint, void> — nint matches em_ptr_int_t
 // on both wasm32 and wasm64.
 void dotnet_sync_main_thread_arg(void (*func)(em_ptr_int_t), em_ptr_int_t arg) {
-    if (emscripten_is_main_browser_thread()) {
+    if (emscripten_is_main_runtime_thread()) {
         func(arg);
     } else {
         emscripten_sync_run_in_main_runtime_thread(EM_FUNC_SIG_VPTR, func, arg);
     }
 }
 
-// Non-blocking variant: posts func(arg) to the main thread and returns immediately.
-// Used to implement C# async/await dispatch — the worker thread suspends via
-// TaskCompletionSource rather than blocking, so neither thread can deadlock on the other.
-void dotnet_async_run_in_main_runtime_thread(void (*func)(em_ptr_int_t), em_ptr_int_t arg) {
-    if (emscripten_is_main_browser_thread()) {
-        func(arg);
-    } else {
-        emscripten_async_run_in_main_runtime_thread(EM_FUNC_SIG_VPTR, func, arg);
-    }
-}
-
-// Returns the WebGL context handle that is current on the calling thread (0 if none).
-// With OFFSCREEN_FRAMEBUFFER=1 this works correctly from any pthread.
-int dotnet_webgl_get_current_context(void) {
-    return (int)emscripten_webgl_get_current_context();
-}
-
 // Makes the given WebGL context current on the calling thread.
-// With OFFSCREEN_FRAMEBUFFER=1, calling this from a pthread sets up the offscreen proxy
-// so that all subsequent GL calls are forwarded to the main browser thread.
 int dotnet_webgl_make_context_current(int ctx) {
-    return (int)emscripten_webgl_make_context_current((EMSCRIPTEN_WEBGL_CONTEXT_HANDLE)ctx);
+	return (int)emscripten_webgl_make_context_current((EMSCRIPTEN_WEBGL_CONTEXT_HANDLE)ctx);
 }
 
 // Creates a WebGL context on the specified canvas.
-// renderViaOffscreenBackBuffer=1 is required for OFFSCREEN_FRAMEBUFFER cross-thread rendering:
-// it activates the per-context offscreen proxy that forwards worker GL calls to the main thread.
+// The OffscreenCanvas must already be registered in GL.offscreenCanvases
+// (transferred via the 'run' command's offscreenCanvases property).
 // Returns the handle (> 0) on success, or a negative EMSCRIPTEN_RESULT error code.
 int dotnet_webgl_create_context(const char* canvasId, int alpha, int depth, int stencil, int antialias, int majorVersion) {
 	EmscriptenWebGLContextAttributes attrs;
@@ -72,30 +54,84 @@ int dotnet_webgl_create_context(const char* canvasId, int alpha, int depth, int 
 	attrs.majorVersion = majorVersion;
 	attrs.minorVersion = 0;
 	attrs.enableExtensionsByDefault = 1;
-	attrs.renderViaOffscreenBackBuffer = 0;
-	attrs.explicitSwapControl = 0;
 	attrs.preserveDrawingBuffer = 1;
-	attrs.proxyContextToMainThread = EMSCRIPTEN_WEBGL_CONTEXT_PROXY_ALWAYS;
+
 	return (int)emscripten_webgl_create_context(canvasId, &attrs);
 }
 
-// Sets the canvas size directly. This must be called from the main browser thread.
-// Setting canvas.width/height clears the canvas content, so this should be called
-// just before recreating the render target to minimize flicker.
-EM_JS(void, dotnet_set_canvas_size_js, (const char* canvasId, int width, int height), {
-	const canvasIdStr = UTF8ToString(canvasId);
-	const canvas = document.querySelector(canvasIdStr);
+// Writes a log message to the browser console using the channel that matches log_level.
+// log_level mirrors Microsoft.Extensions.Logging.LogLevel:
+//   0=Trace, 1=Debug, 2=Information  → console.log
+//   3=Warning                        → console.warn
+//   4=Error, 5=Critical              → console.error
+// Safe to call from any pthread — emscripten_console_* never synchronise with the main thread.
+void dotnet_console_log(const char* message, int log_level) {
+	if (log_level >= 4) {
+		emscripten_console_error(message);
+	} else if (log_level == 3) {
+		emscripten_console_warn(message);
+	} else {
+		emscripten_console_log(message);
+	}
+}
+
+// Sets the OffscreenCanvas size from the worker thread.
+// The canvas must be registered in GL.offscreenCanvases (transferred via 'run' command).
+// Key is canvasId with leading '#' stripped (substring(1)).
+EM_JS(void, dotnet_set_offscreen_canvas_size_js, (const char* canvasIdPtr, int width, int height), {
+	const canvasId = UTF8ToString(canvasIdPtr);
+	const key = canvasId.substring(1);
+
+	if (typeof GL === 'undefined' || !GL.offscreenCanvases) {
+		return;
+	}
+
+	const canvas = GL.offscreenCanvases[key];
 	if (canvas) {
-        const dpr = window.devicePixelRatio || 1;
-        const zoom = (window.visualViewport && window.visualViewport.scale) ? window.visualViewport.scale : 1;
-        const devicePixelScale = dpr * zoom;
 		canvas.width = width;
 		canvas.height = height;
-        canvas.style.width = (width / devicePixelScale) + 'px';
-        canvas.style.height = (height / devicePixelScale) + 'px';
 	}
 });
 
+// Sets canvas size: OffscreenCanvas on worker, main canvas dispatched to main thread.
+// Can be called from any thread.
 void dotnet_set_canvas_size(const char* canvasId, int width, int height) {
-	dotnet_set_canvas_size_js(canvasId, width, height);
+	dotnet_set_offscreen_canvas_size_js(canvasId, width, height);
+
+	double dpr = emscripten_get_device_pixel_ratio();
+	emscripten_set_element_css_size(canvasId, width / dpr, height / dpr);
+}
+
+// Render loop callback - stored globally since emscripten_set_main_loop doesn't support userData.
+static void (*g_render_callback)(void) = NULL;
+
+static void main_loop_iteration(void) {
+	if (g_render_callback != NULL) {
+		g_render_callback();
+	}
+}
+
+// Starts the render loop. The callback is called once per frame by the browser.
+// fps: target frames per second. Use 0 to use requestAnimationFrame timing (recommended).
+// simulate_infinite_loop: if 1, this function never returns (use for main thread).
+//                         if 0, returns immediately and the loop runs asynchronously.
+void dotnet_start_main_loop(void (*callback)(void), int fps, int simulate_infinite_loop) {
+	g_render_callback = callback;
+	emscripten_set_main_loop(main_loop_iteration, fps, simulate_infinite_loop);
+}
+
+// Stops the render loop.
+void dotnet_stop_main_loop(void) {
+	emscripten_cancel_main_loop();
+	g_render_callback = NULL;
+}
+
+// Pauses the render loop without canceling it.
+void dotnet_pause_main_loop(void) {
+	emscripten_pause_main_loop();
+}
+
+// Resumes a paused render loop.
+void dotnet_resume_main_loop(void) {
+	emscripten_resume_main_loop();
 }

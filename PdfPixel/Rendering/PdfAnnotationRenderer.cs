@@ -57,6 +57,14 @@ public class PdfAnnotationRenderer
 
                 token.ThrowIfCancellationRequested();
             }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (ObjectDisposedException)
+            {
+                throw;
+            }
             catch (Exception ex)
             {
                 _logger.LogWarning(ex, "Failed to render {AnnotationType} annotation", annotation.Subtype);
