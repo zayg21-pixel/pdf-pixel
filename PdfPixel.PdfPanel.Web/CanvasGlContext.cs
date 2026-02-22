@@ -36,9 +36,10 @@ public sealed class CanvasGlContext : IDisposable
     /// <summary>Gets the Skia GPU context for this canvas.</summary>
     public GRContext GrContext { get; }
 
-    public static Task<CanvasGlContext> CreateAsync(string canvasSelector)
+    public static async Task<CanvasGlContext> CreateAsync(string canvasSelector)
     {
-        return Emscripten.RunOnMainThreadAsync(() =>
+        CanvasGlContext context = null;
+        await Emscripten.RunOnMainThreadAsync(() =>
         {
             var webglCtx = Emscripten.WebGlCreateContext(
                 canvasId: canvasSelector, alpha: 1, depth: 1, stencil: 1, antialias: 1, majorVersion: 2);
@@ -63,8 +64,10 @@ public sealed class CanvasGlContext : IDisposable
                 ? "Failed to create GRContext"
                 : "SkiaSharp GRContext created successfully!");
 
-            return new CanvasGlContext(canvasSelector, webglCtx, grContext);
+            context = new CanvasGlContext(canvasSelector, webglCtx, grContext);
         });
+
+        return context;
     }
 
     /// <summary>
@@ -75,9 +78,10 @@ public sealed class CanvasGlContext : IDisposable
     /// <param name="height">The surface height in pixels.</param>
     /// <param name="oldSurface">Old surface that existed before to be disposed.</param>
     /// <returns>A new <see cref="SKSurface"/> backed by this canvas's WebGL framebuffer.</returns>
-    public Task<SKSurface> CreateSurfaceAsync(int width, int height, SKSurface oldSurface = null)
+    public async Task<SKSurface> CreateSurfaceAsync(int width, int height, SKSurface oldSurface = null)
     {
-        return Emscripten.RunOnMainThreadAsync(() =>
+        SKSurface surface = null;
+        await Emscripten.RunOnMainThreadAsync(() =>
         {
             Emscripten.WebGlMakeContextCurrent(WebGlContext);
 
@@ -105,7 +109,7 @@ public sealed class CanvasGlContext : IDisposable
                 stencilBits: 8,
                 glInfo);
 
-            var surface = SKSurface.Create(
+            surface = SKSurface.Create(
                 GrContext,
                 renderTarget,
                 GRSurfaceOrigin.BottomLeft,
@@ -119,9 +123,9 @@ public sealed class CanvasGlContext : IDisposable
             }
 
             oldSurface?.Dispose();
-
-            return surface;
         });
+
+        return surface;
     }
 
     /// <inheritdoc />

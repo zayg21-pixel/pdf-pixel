@@ -107,56 +107,8 @@ internal static class Emscripten
 
 	internal static unsafe Task RunOnMainThreadAsync(Action action)
 	{
-		var tcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-		Action wrapper = () =>
-		{
-			try { action(); tcs.SetResult(); }
-			catch (Exception ex) { tcs.SetException(ex); }
-		};
-		var handle = GCHandle.Alloc(wrapper);
-		AsyncRunInMainRuntimeThread((delegate* unmanaged<nint, void>)AsyncMainThreadCallbackPtr, GCHandle.ToIntPtr(handle));
-		return tcs.Task;
-	}
-
-	internal static unsafe Task<Out> RunOnMainThreadAsync<In, Out>(Func<In, Out> func, In parameter)
-    {
-        var tcs = new TaskCompletionSource<Out>(TaskCreationOptions.RunContinuationsAsynchronously);
-        Action wrapper = () =>
-        {
-            try { tcs.SetResult(func(parameter)); }
-            catch (Exception ex) { tcs.SetException(ex); }
-        };
-		var handle = GCHandle.Alloc(wrapper);
-		AsyncRunInMainRuntimeThread((delegate* unmanaged<nint, void>)AsyncMainThreadCallbackPtr, GCHandle.ToIntPtr(handle));
-		return tcs.Task;
-	}
-
-	// Same, but runs func() on the main thread and returns its result as Task<T>.
-    internal static unsafe Task<T> RunOnMainThreadAsync<T>(Func<T> func)
-	{
-		var tcs = new TaskCompletionSource<T>(TaskCreationOptions.RunContinuationsAsynchronously);
-		Action wrapper = () =>
-		{
-			try { tcs.SetResult(func()); }
-			catch (Exception ex) { tcs.SetException(ex); }
-		};
-		var handle = GCHandle.Alloc(wrapper);
-		AsyncRunInMainRuntimeThread((delegate* unmanaged<nint, void>)AsyncMainThreadCallbackPtr, GCHandle.ToIntPtr(handle));
-		return tcs.Task;
-	}
-
-	// Same as RunOnMainThreadAsync(Action), but passes data to the action directly.
-	// Avoids a closure allocation when the action only needs a single piece of state.
-	internal static unsafe Task RunOnMainThreadAsync<T>(Action<T> action, T data)
-	{
-		var tcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-		Action wrapper = () =>
-		{
-			try { action(data); tcs.SetResult(); }
-			catch (Exception ex) { tcs.SetException(ex); }
-		};
-		var handle = GCHandle.Alloc(wrapper);
-		AsyncRunInMainRuntimeThread((delegate* unmanaged<nint, void>)AsyncMainThreadCallbackPtr, GCHandle.ToIntPtr(handle));
-		return tcs.Task;
+		var handle = GCHandle.Alloc(action);
+		SyncMainThread((delegate* unmanaged<nint, void>)AsyncMainThreadCallbackPtr, GCHandle.ToIntPtr(handle));
+		return Task.CompletedTask;
 	}
 }
