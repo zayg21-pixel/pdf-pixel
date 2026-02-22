@@ -1,239 +1,245 @@
 using System;
+using System.Runtime.CompilerServices;
 
-namespace PdfPixel.Encryption
+namespace PdfPixel.Encryption;
+
+/// <summary>
+/// Pure managed MD5 implementation based on RFC 1321.
+/// Used in place of <see cref="System.Security.Cryptography.MD5"/> to support
+/// platforms where the native implementation is unavailable (e.g., Blazor WASM).
+/// </summary>
+internal sealed class ManagedMd5 : IDisposable
 {
-    /// <summary>
-    /// Pure managed MD5 implementation based on RFC 1321.
-    /// Used in place of <see cref="System.Security.Cryptography.MD5"/> to support
-    /// platforms where the native implementation is unavailable (e.g., Blazor WASM).
-    /// </summary>
-    internal sealed class ManagedMd5 : IDisposable
+    private const uint InitA = 0x67452301;
+    private const uint InitB = 0xefcdab89;
+    private const uint InitC = 0x98badcfe;
+    private const uint InitD = 0x10325476;
+
+    /// <summary>Per-round shift amounts (RFC 1321, section 3.4).</summary>
+    private static readonly int[] ShiftAmounts = new int[]
     {
-        private const uint InitA = 0x67452301;
-        private const uint InitB = 0xefcdab89;
-        private const uint InitC = 0x98badcfe;
-        private const uint InitD = 0x10325476;
+         7, 12, 17, 22,  7, 12, 17, 22,  7, 12, 17, 22,  7, 12, 17, 22,
+         5,  9, 14, 20,  5,  9, 14, 20,  5,  9, 14, 20,  5,  9, 14, 20,
+         4, 11, 16, 23,  4, 11, 16, 23,  4, 11, 16, 23,  4, 11, 16, 23,
+         6, 10, 15, 21,  6, 10, 15, 21,  6, 10, 15, 21,  6, 10, 15, 21
+    };
 
-        /// <summary>Per-round shift amounts (RFC 1321, section 3.4).</summary>
-        private static readonly int[] ShiftAmounts = new int[]
+    /// <summary>Pre-computed sine-derived constants (RFC 1321, section 3.4).</summary>
+    private static readonly uint[] SineTable = new uint[]
+    {
+        0xd76aa478, 0xe8c7b756, 0x242070db, 0xc1bdceee,
+        0xf57c0faf, 0x4787c62a, 0xa8304613, 0xfd469501,
+        0x698098d8, 0x8b44f7af, 0xffff5bb1, 0x895cd7be,
+        0x6b901122, 0xfd987193, 0xa679438e, 0x49b40821,
+        0xf61e2562, 0xc040b340, 0x265e5a51, 0xe9b6c7aa,
+        0xd62f105d, 0x02441453, 0xd8a1e681, 0xe7d3fbc8,
+        0x21e1cde6, 0xc33707d6, 0xf4d50d87, 0x455a14ed,
+        0xa9e3e905, 0xfcefa3f8, 0x676f02d9, 0x8d2a4c8a,
+        0xfffa3942, 0x8771f681, 0x6d9d6122, 0xfde5380c,
+        0xa4beea44, 0x4bdecfa9, 0xf6bb4b60, 0xbebfbc70,
+        0x289b7ec6, 0xeaa127fa, 0xd4ef3085, 0x04881d05,
+        0xd9d4d039, 0xe6db99e5, 0x1fa27cf8, 0xc4ac5665,
+        0xf4292244, 0x432aff97, 0xab9423a7, 0xfc93a039,
+        0x655b59c3, 0x8f0ccc92, 0xffeff47d, 0x85845dd1,
+        0x6fa87e4f, 0xfe2ce6e0, 0xa3014314, 0x4e0811a1,
+        0xf7537e82, 0xbd3af235, 0x2ad7d2bb, 0xeb86d391
+    };
+
+    private uint _a;
+    private uint _b;
+    private uint _c;
+    private uint _d;
+
+    /// <summary>64-byte internal block buffer.</summary>
+    private readonly byte[] _block = new byte[64];
+
+    /// <summary>Reusable buffer for the sixteen 32-bit words decoded from each block.</summary>
+    private readonly uint[] _messageWords = new uint[16];
+
+    private int _blockOffset;
+    private long _messageLength;
+
+    /// <summary>Gets the computed hash after <see cref="TransformFinalBlock"/> is called.</summary>
+    public byte[] Hash { get; private set; }
+
+    /// <summary>Creates a new <see cref="ManagedMd5"/> instance.</summary>
+    public static ManagedMd5 Create() => new ManagedMd5();
+
+    /// <summary>Initialises a new instance and resets state to the MD5 initial values.</summary>
+    public ManagedMd5()
+    {
+        Reset();
+    }
+
+    /// <summary>
+    /// Feeds a block of input data into the hash computation.
+    /// Mirrors the API of <see cref="System.Security.Cryptography.HashAlgorithm.TransformBlock"/>.
+    /// </summary>
+    public int TransformBlock(byte[] inputBuffer, int inputOffset, int inputCount, byte[] outputBuffer, int outputOffset)
+    {
+        for (int i = 0; i < inputCount; i++)
         {
-             7, 12, 17, 22,  7, 12, 17, 22,  7, 12, 17, 22,  7, 12, 17, 22,
-             5,  9, 14, 20,  5,  9, 14, 20,  5,  9, 14, 20,  5,  9, 14, 20,
-             4, 11, 16, 23,  4, 11, 16, 23,  4, 11, 16, 23,  4, 11, 16, 23,
-             6, 10, 15, 21,  6, 10, 15, 21,  6, 10, 15, 21,  6, 10, 15, 21
-        };
-
-        /// <summary>Pre-computed sine-derived constants (RFC 1321, section 3.4).</summary>
-        private static readonly uint[] SineTable = new uint[]
-        {
-            0xd76aa478, 0xe8c7b756, 0x242070db, 0xc1bdceee,
-            0xf57c0faf, 0x4787c62a, 0xa8304613, 0xfd469501,
-            0x698098d8, 0x8b44f7af, 0xffff5bb1, 0x895cd7be,
-            0x6b901122, 0xfd987193, 0xa679438e, 0x49b40821,
-            0xf61e2562, 0xc040b340, 0x265e5a51, 0xe9b6c7aa,
-            0xd62f105d, 0x02441453, 0xd8a1e681, 0xe7d3fbc8,
-            0x21e1cde6, 0xc33707d6, 0xf4d50d87, 0x455a14ed,
-            0xa9e3e905, 0xfcefa3f8, 0x676f02d9, 0x8d2a4c8a,
-            0xfffa3942, 0x8771f681, 0x6d9d6122, 0xfde5380c,
-            0xa4beea44, 0x4bdecfa9, 0xf6bb4b60, 0xbebfbc70,
-            0x289b7ec6, 0xeaa127fa, 0xd4ef3085, 0x04881d05,
-            0xd9d4d039, 0xe6db99e5, 0x1fa27cf8, 0xc4ac5665,
-            0xf4292244, 0x432aff97, 0xab9423a7, 0xfc93a039,
-            0x655b59c3, 0x8f0ccc92, 0xffeff47d, 0x85845dd1,
-            0x6fa87e4f, 0xfe2ce6e0, 0xa3014314, 0x4e0811a1,
-            0xf7537e82, 0xbd3af235, 0x2ad7d2bb, 0xeb86d391
-        };
-
-        private uint _a;
-        private uint _b;
-        private uint _c;
-        private uint _d;
-
-        /// <summary>64-byte internal block buffer.</summary>
-        private readonly byte[] _block = new byte[64];
-        private int _blockOffset;
-        private long _messageLength;
-
-        /// <summary>Gets the computed hash after <see cref="TransformFinalBlock"/> is called.</summary>
-        public byte[] Hash { get; private set; }
-
-        /// <summary>Creates a new <see cref="ManagedMd5"/> instance.</summary>
-        public static ManagedMd5 Create() => new ManagedMd5();
-
-        /// <summary>Initialises a new instance and resets state to the MD5 initial values.</summary>
-        public ManagedMd5()
-        {
-            Reset();
-        }
-
-        /// <summary>
-        /// Feeds a block of input data into the hash computation.
-        /// Mirrors the API of <see cref="System.Security.Cryptography.HashAlgorithm.TransformBlock"/>.
-        /// </summary>
-        public int TransformBlock(byte[] inputBuffer, int inputOffset, int inputCount, byte[] outputBuffer, int outputOffset)
-        {
-            for (int i = 0; i < inputCount; i++)
+            _block[_blockOffset++] = inputBuffer[inputOffset + i];
+            _messageLength++;
+            if (_blockOffset == 64)
             {
-                _block[_blockOffset++] = inputBuffer[inputOffset + i];
-                _messageLength++;
-                if (_blockOffset == 64)
-                {
-                    ProcessBlock();
-                    _blockOffset = 0;
-                }
-            }
-
-            return inputCount;
-        }
-
-        /// <summary>
-        /// Finalises the hash computation, applying MD5 length-padding and storing the result in <see cref="Hash"/>.
-        /// Mirrors the API of <see cref="System.Security.Cryptography.HashAlgorithm.TransformFinalBlock"/>.
-        /// </summary>
-        public byte[] TransformFinalBlock(byte[] inputBuffer, int inputOffset, int inputCount)
-        {
-            for (int i = 0; i < inputCount; i++)
-            {
-                _block[_blockOffset++] = inputBuffer[inputOffset + i];
-                _messageLength++;
-                if (_blockOffset == 64)
-                {
-                    ProcessBlock();
-                    _blockOffset = 0;
-                }
-            }
-
-            // Append 0x80 padding byte.
-            long totalBits = _messageLength * 8;
-            _block[_blockOffset++] = 0x80;
-
-            // If there is not enough room for the 8-byte length, flush and start a new block.
-            if (_blockOffset > 56)
-            {
-                while (_blockOffset < 64)
-                {
-                    _block[_blockOffset++] = 0x00;
-                }
                 ProcessBlock();
                 _blockOffset = 0;
             }
+        }
 
-            while (_blockOffset < 56)
+        return inputCount;
+    }
+
+    /// <summary>
+    /// Finalises the hash computation, applying MD5 length-padding and storing the result in <see cref="Hash"/>.
+    /// Mirrors the API of <see cref="System.Security.Cryptography.HashAlgorithm.TransformFinalBlock"/>.
+    /// </summary>
+    public byte[] TransformFinalBlock(byte[] inputBuffer, int inputOffset, int inputCount)
+    {
+        for (int i = 0; i < inputCount; i++)
+        {
+            _block[_blockOffset++] = inputBuffer[inputOffset + i];
+            _messageLength++;
+            if (_blockOffset == 64)
+            {
+                ProcessBlock();
+                _blockOffset = 0;
+            }
+        }
+
+        // Append 0x80 padding byte.
+        long totalBits = _messageLength * 8;
+        _block[_blockOffset++] = 0x80;
+
+        // If there is not enough room for the 8-byte length, flush and start a new block.
+        if (_blockOffset > 56)
+        {
+            while (_blockOffset < 64)
             {
                 _block[_blockOffset++] = 0x00;
             }
-
-            // Append original message length as little-endian 64-bit integer.
-            for (int i = 0; i < 8; i++)
-            {
-                _block[56 + i] = (byte)(totalBits >> (i * 8));
-            }
             ProcessBlock();
-
-            Hash = new byte[16];
-            WriteUInt32Le(Hash, 0, _a);
-            WriteUInt32Le(Hash, 4, _b);
-            WriteUInt32Le(Hash, 8, _c);
-            WriteUInt32Le(Hash, 12, _d);
-
-            return Array.Empty<byte>();
-        }
-
-        /// <summary>
-        /// Computes the MD5 hash of <paramref name="data"/> in a single call, resetting any prior state.
-        /// </summary>
-        public byte[] ComputeHash(byte[] data)
-        {
-            Reset();
-            TransformFinalBlock(data, 0, data.Length);
-            return Hash;
-        }
-
-        private void Reset()
-        {
-            _a = InitA;
-            _b = InitB;
-            _c = InitC;
-            _d = InitD;
             _blockOffset = 0;
-            _messageLength = 0;
-            Hash = null;
         }
 
-        private void ProcessBlock()
+        while (_blockOffset < 56)
         {
-            // Decode the 64-byte block into sixteen 32-bit little-endian words.
-            uint[] messageWords = new uint[16];
-            for (int i = 0; i < 16; i++)
+            _block[_blockOffset++] = 0x00;
+        }
+
+        // Append original message length as little-endian 64-bit integer.
+        for (int i = 0; i < 8; i++)
+        {
+            _block[56 + i] = (byte)(totalBits >> (i * 8));
+        }
+        ProcessBlock();
+
+        Hash = new byte[16];
+        WriteUInt32Le(Hash, 0, _a);
+        WriteUInt32Le(Hash, 4, _b);
+        WriteUInt32Le(Hash, 8, _c);
+        WriteUInt32Le(Hash, 12, _d);
+
+        return Array.Empty<byte>();
+    }
+
+    /// <summary>
+    /// Computes the MD5 hash of <paramref name="data"/> in a single call, resetting any prior state.
+    /// </summary>
+    public byte[] ComputeHash(byte[] data)
+    {
+        Reset();
+        TransformFinalBlock(data, 0, data.Length);
+        return Hash;
+    }
+
+    private void Reset()
+    {
+        _a = InitA;
+        _b = InitB;
+        _c = InitC;
+        _d = InitD;
+        _blockOffset = 0;
+        _messageLength = 0;
+        Hash = null;
+    }
+
+    private void ProcessBlock()
+    {
+        // Decode the 64-byte block into sixteen 32-bit little-endian words.
+        uint[] messageWords = _messageWords;
+        for (int i = 0; i < 16; i++)
+        {
+            messageWords[i] = (uint)(
+                _block[i * 4 + 0] |
+                (_block[i * 4 + 1] << 8) |
+                (_block[i * 4 + 2] << 16) |
+                (_block[i * 4 + 3] << 24));
+        }
+
+        uint a = _a;
+        uint b = _b;
+        uint c = _c;
+        uint d = _d;
+
+        for (int i = 0; i < 64; i++)
+        {
+            uint f;
+            int g;
+
+            if (i < 16)
             {
-                messageWords[i] = (uint)(
-                    _block[i * 4 + 0] |
-                    (_block[i * 4 + 1] << 8) |
-                    (_block[i * 4 + 2] << 16) |
-                    (_block[i * 4 + 3] << 24));
+                f = (b & c) | (~b & d);
+                g = i;
+            }
+            else if (i < 32)
+            {
+                f = (d & b) | (~d & c);
+                g = (5 * i + 1) % 16;
+            }
+            else if (i < 48)
+            {
+                f = b ^ c ^ d;
+                g = (3 * i + 5) % 16;
+            }
+            else
+            {
+                f = c ^ (b | ~d);
+                g = (7 * i) % 16;
             }
 
-            uint a = _a;
-            uint b = _b;
-            uint c = _c;
-            uint d = _d;
-
-            for (int i = 0; i < 64; i++)
-            {
-                uint f;
-                int g;
-
-                if (i < 16)
-                {
-                    f = (b & c) | (~b & d);
-                    g = i;
-                }
-                else if (i < 32)
-                {
-                    f = (d & b) | (~d & c);
-                    g = (5 * i + 1) % 16;
-                }
-                else if (i < 48)
-                {
-                    f = b ^ c ^ d;
-                    g = (3 * i + 5) % 16;
-                }
-                else
-                {
-                    f = c ^ (b | ~d);
-                    g = (7 * i) % 16;
-                }
-
-                uint temp = d;
-                d = c;
-                c = b;
-                b = b + LeftRotate(a + f + SineTable[i] + messageWords[g], ShiftAmounts[i]);
-                a = temp;
-            }
-
-            _a += a;
-            _b += b;
-            _c += c;
-            _d += d;
+            uint temp = d;
+            d = c;
+            c = b;
+            b = b + LeftRotate(a + f + SineTable[i] + messageWords[g], ShiftAmounts[i]);
+            a = temp;
         }
 
-        private static uint LeftRotate(uint value, int amount)
-        {
-            return (value << amount) | (value >> (32 - amount));
-        }
+        _a += a;
+        _b += b;
+        _c += c;
+        _d += d;
+    }
 
-        private static void WriteUInt32Le(byte[] buffer, int offset, uint value)
-        {
-            buffer[offset + 0] = (byte)(value & 0xFF);
-            buffer[offset + 1] = (byte)((value >> 8) & 0xFF);
-            buffer[offset + 2] = (byte)((value >> 16) & 0xFF);
-            buffer[offset + 3] = (byte)((value >> 24) & 0xFF);
-        }
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static uint LeftRotate(uint value, int amount)
+    {
+        return (value << amount) | (value >> (32 - amount));
+    }
 
-        /// <inheritdoc/>
-        public void Dispose()
-        {
-            // Nothing to release; implemented so callers may use the 'using' pattern.
-        }
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static void WriteUInt32Le(byte[] buffer, int offset, uint value)
+    {
+        buffer[offset + 0] = (byte)(value & 0xFF);
+        buffer[offset + 1] = (byte)((value >> 8) & 0xFF);
+        buffer[offset + 2] = (byte)((value >> 16) & 0xFF);
+        buffer[offset + 3] = (byte)((value >> 24) & 0xFF);
+    }
+
+    /// <inheritdoc/>
+    public void Dispose()
+    {
+        // Nothing to release; implemented so callers may use the 'using' pattern.
     }
 }

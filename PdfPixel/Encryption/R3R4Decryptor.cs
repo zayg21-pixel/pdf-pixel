@@ -25,6 +25,7 @@ namespace PdfPixel.Encryption
         private int _fileKeyLengthBytes;
         private string _lastPassword = string.Empty;
         private bool _userValidated;
+        private readonly ManagedAes128Cbc _aes = new ManagedAes128Cbc();
 
         public R3R4Decryptor(PdfDecryptorParameters parameters) : base(parameters)
         {
@@ -268,7 +269,7 @@ namespace PdfPixel.Encryption
             }
         }
 
-        private static ReadOnlyMemory<byte> AesV2(byte[] objectKey, ReadOnlySpan<byte> data)
+        private ReadOnlyMemory<byte> AesV2(byte[] objectKey, ReadOnlySpan<byte> data)
         {
             if (data.Length < 16)
             {
@@ -279,7 +280,7 @@ namespace PdfPixel.Encryption
             byte[] ciphertext = data.Slice(16).ToArray();
 
             byte[] key = objectKey.Length >= 16 ? objectKey.AsSpan(0, 16).ToArray() : PadKeyTo16(objectKey);
-            return ManagedAes128Cbc.Decrypt(key, iv, ciphertext);
+            return _aes.Decrypt(key, iv, ciphertext);
         }
 
         private static byte[] PadKeyTo16(byte[] key)
