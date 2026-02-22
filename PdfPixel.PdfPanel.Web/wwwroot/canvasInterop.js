@@ -379,6 +379,18 @@ export async function unregisterPanel(id) {
 }
 
 /**
+ * Register font data for a standard PDF font by name.
+ * The name must match a PdfStandardFontName enum value (e.g. "Times", "Helvetica", "Courier").
+ * Must be called before loading documents that use the font.
+ * @param {string} name Standard font name (case-insensitive).
+ * @param {Uint8Array} fontData Raw font file bytes (TTF, OTF, etc.).
+ * @returns {Promise<void>} Resolves when the font is registered.
+ */
+export async function setFont(name, fontData) {
+    interop.SetFont(name, fontData);
+}
+
+/**
  * Set the PDF document for the specified view.
  * @param {string} id View id.
  * @param {Uint8Array} documentData PDF file bytes.

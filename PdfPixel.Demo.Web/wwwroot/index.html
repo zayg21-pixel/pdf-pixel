@@ -326,6 +326,32 @@
 
         await canvasInterop.initialize(setModuleImports, getAssemblyExports);
 
+        // Register free metric-compatible fonts for standard PDF font families.
+        // Tinos ≈ Times New Roman, Arimo ≈ Arial/Helvetica, Cousine ≈ Courier New.
+        // All are Apache 2.0 licensed from the Google Fonts project.
+        const fontBaseUrl = 'https://cdn.jsdelivr.net/gh/google/fonts@main/apache';
+        const fontMappings = [
+            { names: ['Times', 'TimesNewRoman', 'TimesNewRomanPS'], url: `${fontBaseUrl}/tinos/Tinos-Regular.ttf` },
+            { names: ['Helvetica', 'Arial'], url: `${fontBaseUrl}/arimo/static/Arimo-Regular.ttf` },
+            { names: ['Courier', 'CourierNew', 'CourierNewPS'], url: `${fontBaseUrl}/cousine/Cousine-Regular.ttf` },
+        ];
+
+        await Promise.all(fontMappings.map(async ({ names, url }) => {
+            try {
+                const response = await fetch(url);
+                if (!response.ok) {
+                    console.warn(`Failed to fetch font from ${url}: ${response.status}`);
+                    return;
+                }
+                const bytes = new Uint8Array(await response.arrayBuffer());
+                for (const name of names) {
+                    await canvasInterop.setFont(name, bytes);
+                }
+            } catch (err) {
+                console.warn(`Failed to load font for ${names.join(', ')}:`, err);
+            }
+        }));
+
         const container = document.getElementById('canvasContainer');
         const containerId = container.id;
 

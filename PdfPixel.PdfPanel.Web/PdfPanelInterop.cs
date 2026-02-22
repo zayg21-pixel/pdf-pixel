@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
 using PdfPixel.Fonts.Management;
+using PdfPixel.Fonts.Mapping;
 using SkiaSharp;
 using System;
 using System.Collections.Generic;
@@ -16,13 +17,31 @@ namespace PdfPixel.PdfPanel.Web;
 [SupportedOSPlatform("browser")]
 public partial class PdfPanelInterop
 {
-    private static ISkiaFontProvider FontProvider = new WindowsSkiaFontProvider();
+    private static readonly InMemorySkiaFontProvider FontProvider = new();
     private static readonly Dictionary<string, PdfPanelResources> ResourcesMap = new();
 
     [JSExport]
     internal static async Task Initialize()
     {
         UiInvoker.Capture();
+    }
+
+    /// <summary>
+    /// Registers font data for a standard PDF font identified by its <see cref="PdfStandardFontName"/> text name.
+    /// Must be called before loading any PDF documents that use the font.
+    /// </summary>
+    [JSExport]
+    public static void SetFont(string name, byte[] fontData)
+    {
+        if (Enum.TryParse<PdfStandardFontName>(name, ignoreCase: true, out var standardFont))
+        {
+            FontProvider.RegisterStandardFont(standardFont, fontData);
+            Console.WriteLine($"Registered standard font '{name}'");
+        }
+        else
+        {
+            Console.Error.WriteLine($"Unknown standard font name '{name}'. Expected one of: {string.Join(", ", Enum.GetNames<PdfStandardFontName>())}");
+        }
     }
 
     [JSExport]
