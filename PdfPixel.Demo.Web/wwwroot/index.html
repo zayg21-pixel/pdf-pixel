@@ -2,14 +2,24 @@
 <html>
 <head>
     <meta charset="utf-8">
-    <title>PDF Render WASM Thread Demo</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF Pixel</title>
+    <link rel="icon" type="image/png" href="logo.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet">
     <style>
+        *, *::before, *::after {
+            box-sizing: border-box;
+        }
+
         html, body {
             margin: 0;
             padding: 0;
             height: 100%;
             overflow: hidden;
-            font-family: Arial, sans-serif;
+            font-family: Roboto, Arial, sans-serif;
         }
 
         body {
@@ -17,22 +27,185 @@
             flex-direction: column;
         }
 
+        /* ── Toolbar ─────────────────────────────────────────────── */
         #header {
             flex: 0 0 auto;
-            padding: 8px;
-            background: #f5f5f5;
-            border-bottom: 1px solid #ccc;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            padding: 0 12px;
+            height: 40px;
+            background: #f0f0f0;
+            color: #1a1a1a;
+            border-bottom: 1px solid #c8c8c8;
+            z-index: 10;
         }
 
-        #header h1 {
-            margin: 0 0 10px 0;
-            font-size: 24px;
+        .app-brand {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            margin-right: 8px;
+            flex-shrink: 0;
+            text-decoration: none;
+            user-select: none;
         }
 
-        #header button {
-            margin-right: 5px;
+        .app-logo {
+            width: 22px;
+            height: 22px;
+            flex-shrink: 0;
         }
 
+        .app-title {
+            margin: 0;
+            font-size: 14px;
+            font-weight: 600;
+            letter-spacing: 0.1px;
+            white-space: nowrap;
+            color: #1a1a1a;
+        }
+
+        .title-accent {
+            color: #4695eb;
+        }
+
+        /* Pushes the GitHub button to the far right */
+        .hdr-spacer {
+            flex: 1 1 auto;
+        }
+
+        .header-sep {
+            width: 1px;
+            height: 24px;
+            background: rgba(0, 0, 0, 0.15);
+            margin: 0 6px;
+            flex-shrink: 0;
+        }
+
+        /* ── Toolbar icon buttons ────────────────────────────────── */
+        .hdr-icon-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 28px;
+            height: 28px;
+            padding: 0;
+            background: none;
+            border: none;
+            border-radius: 3px;
+            color: #3c3c3c;
+            cursor: pointer;
+            transition: background 0.15s;
+            flex-shrink: 0;
+        }
+
+        .hdr-icon-btn:hover:not(:disabled) {
+            background: rgba(0, 0, 0, 0.07);
+        }
+
+        .hdr-icon-btn:active:not(:disabled) {
+            background: rgba(0, 0, 0, 0.13);
+        }
+
+        .hdr-icon-btn:disabled {
+            color: rgba(0, 0, 0, 0.28);
+            cursor: default;
+        }
+
+        .hdr-icon-btn .material-symbols-outlined {
+            font-size: 20px;
+            user-select: none;
+        }
+
+        /* ── "Open PDF" button ───────────────────────────────────── */
+        #loadPdfBtn {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            height: 28px;
+            padding: 0 10px 0 8px;
+            background: #e8e8e8;
+            border: 1px solid #c0c0c0;
+            border-radius: 3px;
+            color: #1a1a1a;
+            font-family: Roboto, Arial, sans-serif;
+            font-size: 13px;
+            font-weight: 400;
+            cursor: pointer;
+            transition: background 0.15s;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+
+        #loadPdfBtn:hover {
+            background: #dedede;
+        }
+
+        #loadPdfBtn:active {
+            background: #d0d0d0;
+        }
+
+        #loadPdfBtn .material-symbols-outlined {
+            font-size: 17px;
+        }
+
+        /* ── Page navigation: [<] [input] / N [>] ─────────────────── */
+        .page-nav {
+            display: inline-flex;
+            align-items: center;
+            gap: 2px;
+        }
+
+        #pageInput {
+            width: 44px;
+            height: 24px;
+            padding: 0 4px;
+            background: #ffffff;
+            border: 1px solid #c0c0c0;
+            border-radius: 3px;
+            color: #1a1a1a;
+            font-family: Roboto, Arial, sans-serif;
+            font-size: 13px;
+            font-weight: 400;
+            text-align: center;
+            outline: none;
+            transition: border-color 0.15s;
+            -moz-appearance: textfield;
+        }
+
+        #pageInput::-webkit-inner-spin-button,
+        #pageInput::-webkit-outer-spin-button {
+            -webkit-appearance: none;
+        }
+
+        #pageInput:focus {
+            border-color: #555555;
+        }
+
+        #pageInput:disabled {
+            opacity: 0.45;
+            cursor: default;
+        }
+
+        .page-total {
+            font-size: 13px;
+            color: rgba(0, 0, 0, 0.55);
+            white-space: nowrap;
+            padding-left: 4px;
+            user-select: none;
+        }
+
+        /* ── Zoom controls ────────────────────────────────────────── */
+        #zoomLevel {
+            min-width: 46px;
+            text-align: center;
+            font-size: 13px;
+            color: rgba(0, 0, 0, 0.65);
+            user-select: none;
+        }
+
+        /* ── Canvas container ─────────────────────────────────────── */
         #canvasContainer {
             flex: 1 1 auto;
             position: relative;
@@ -69,49 +242,68 @@
             overflow: auto;
             z-index: 2;
         }
-
-        #footer {
-            flex: 0 0 auto;
-            padding: 10px 20px;
-            background: #f5f5f5;
-            border-top: 1px solid #ccc;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        #zoomLevel {
-            display: inline-block;
-            min-width: 60px;
-            text-align: center;
-        }
     </style>
 </head>
 <body>
-    <div id="header">
-        <div>
-            <input type="file" id="pdfFileInput" accept="application/pdf" style="display:none" />
-            <button id="loadPdf">Load PDF</button>
-            <button id="zoomOut">Zoom Out</button>
-            <span id="zoomLevel">100%</span>
-            <button id="zoomIn">Zoom In</button>
-            <button id="resetZoom">Reset Zoom</button>
+    <header id="header">
+        <h1 class="app-title">PDF <span class="title-accent">Pixel</span></h1>
+        <div class="header-sep"></div>
+
+        <input type="file" id="pdfFileInput" accept="application/pdf" style="display:none">
+        <button id="loadPdfBtn" title="Open a PDF file">
+            <span class="material-symbols-outlined">upload_file</span>
+            Open PDF
+        </button>
+
+        <div class="header-sep"></div>
+
+        <div class="page-nav">
+            <button id="prevPage" class="hdr-icon-btn" disabled title="Previous page">
+                <span class="material-symbols-outlined">chevron_left</span>
+            </button>
+            <input id="pageInput" type="number" value="" placeholder="–" disabled min="1" title="Go to page" aria-label="Current page">
+            <span id="pageTotal" class="page-total">/ –</span>
+            <button id="nextPage" class="hdr-icon-btn" disabled title="Next page">
+                <span class="material-symbols-outlined">chevron_right</span>
+            </button>
+        </div>
+
+        <div class="header-sep"></div>
+
+        <button id="zoomOut" class="hdr-icon-btn" title="Zoom out (Ctrl+scroll)">
+            <span class="material-symbols-outlined">zoom_out</span>
+        </button>
+        <span id="zoomLevel">100%</span>
+        <button id="zoomIn" class="hdr-icon-btn" title="Zoom in (Ctrl+scroll)">
+            <span class="material-symbols-outlined">zoom_in</span>
+        </button>
+        <button id="resetZoom" class="hdr-icon-btn" title="Reset zoom">
+            <span class="material-symbols-outlined">zoom_in_map</span>
+        </button>
+
+        <div class="hdr-spacer"></div>
+
+        <a id="githubBtn" class="hdr-icon-btn" href="https://github.com/zayg21-pixel/pdf-pixel" target="_blank" rel="noopener" title="View on GitHub">
+            <svg viewBox="0 0 16 16" width="18" height="18" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+                <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38
+                    0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13
+                    -.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66
+                    .07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15
+                    -.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0
+                    1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82
+                    1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01
+                    1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z" />
+            </svg>
+        </a>
+    </header>
+
+    <div id="canvasContainer">
+        <canvas class="pdf-panel-canvas"></canvas>
+        <div class="pdf-panel-scroll-host">
+            <div class="pdf-panel-scroll-spacer"></div>
         </div>
     </div>
-<div id="canvasContainer">
-    <canvas class="pdf-panel-canvas"></canvas>
-    <div class="pdf-panel-scroll-host">
-        <div class="pdf-panel-scroll-spacer"></div>
-    </div>
-</div>
-<div id="footer">
-    <button id="prevPage" disabled>&#8249; Prev</button>
-    <span id="pageInfo">-</span>
-    <button id="nextPage" disabled>Next &#8250;</button>
-    <div id="output"></div>
-</div>
-    
-    
+
     <!--
         coi-serviceworker.js registers a Service Worker that injects the
         Cross-Origin-Opener-Policy and Cross-Origin-Embedder-Policy headers
@@ -139,36 +331,73 @@
 
         await canvasInterop.registerPanel(containerId, container);
 
-        const loadPdfButton = document.getElementById('loadPdf');
+        const loadPdfBtn = document.getElementById('loadPdfBtn');
         const pdfFileInput = document.getElementById('pdfFileInput');
         const prevPageButton = document.getElementById('prevPage');
         const nextPageButton = document.getElementById('nextPage');
-        const pageInfo = document.getElementById('pageInfo');
+        const pageInput = document.getElementById('pageInput');
+        const pageTotalLabel = document.getElementById('pageTotal');
+        const zoomLevelLabel = document.getElementById('zoomLevel');
+        const zoomOutButton = document.getElementById('zoomOut');
+        const zoomInButton = document.getElementById('zoomIn');
+        const resetZoomButton = document.getElementById('resetZoom');
 
-        let currentPageState = { currentPage: 0, pageCount: 0 };
+        let currentState = { currentPage: 0, pageCount: 0, scale: 1.0 };
 
         canvasInterop.setOnStateChanged(containerId, (state) => {
-            currentPageState = state;
-            pageInfo.textContent = state.pageCount > 0
-                ? `Page ${state.currentPage} of ${state.pageCount}`
-                : '-';
-            prevPageButton.disabled = state.pageCount === 0 || state.currentPage <= 1;
-            nextPageButton.disabled = state.pageCount === 0 || state.currentPage >= state.pageCount;
+            currentState = state;
+            const hasDocument = state.pageCount > 0;
+            pageInput.disabled = !hasDocument;
+            if (document.activeElement !== pageInput) {
+                pageInput.value = hasDocument ? String(state.currentPage) : '';
+                pageInput.max = hasDocument ? String(state.pageCount) : '';
+            }
+            pageTotalLabel.textContent = hasDocument ? `/ ${state.pageCount}` : '/ –';
+            prevPageButton.disabled = !hasDocument || state.currentPage <= 1;
+            nextPageButton.disabled = !hasDocument || state.currentPage >= state.pageCount;
+            zoomLevelLabel.textContent = `${Math.round(state.scale * 100)}%`;
         });
 
         prevPageButton.addEventListener('click', () => {
-            if (currentPageState.currentPage > 1) {
-                canvasInterop.setPage(containerId, currentPageState.currentPage - 1);
+            if (currentState.currentPage > 1) {
+                canvasInterop.setPage(containerId, currentState.currentPage - 1);
             }
         });
 
         nextPageButton.addEventListener('click', () => {
-            if (currentPageState.currentPage < currentPageState.pageCount) {
-                canvasInterop.setPage(containerId, currentPageState.currentPage + 1);
+            if (currentState.currentPage < currentState.pageCount) {
+                canvasInterop.setPage(containerId, currentState.currentPage + 1);
             }
         });
 
-        loadPdfButton.addEventListener('click', () => {
+        pageInput.addEventListener('change', () => {
+            const requestedPage = parseInt(pageInput.value, 10);
+            if (!isNaN(requestedPage) && requestedPage >= 1 && requestedPage <= currentState.pageCount) {
+                canvasInterop.setPage(containerId, requestedPage);
+            } else {
+                pageInput.value = String(currentState.currentPage);
+            }
+        });
+
+        pageInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                pageInput.blur();
+            }
+        });
+
+        zoomOutButton.addEventListener('click', () => {
+            canvasInterop.setScale(containerId, currentState.scale * 0.9);
+        });
+
+        zoomInButton.addEventListener('click', () => {
+            canvasInterop.setScale(containerId, currentState.scale * 1.1);
+        });
+
+        resetZoomButton.addEventListener('click', () => {
+            canvasInterop.setScale(containerId, 1.0);
+        });
+
+        loadPdfBtn.addEventListener('click', () => {
             pdfFileInput.value = '';
             pdfFileInput.click();
         });

@@ -437,3 +437,29 @@ export function setOnStateChanged(id, callback) {
     view.onStateChanged = callback;
     return true;
 }
+
+/**
+ * Set the zoom scale for the specified view, keeping the viewport center fixed.
+ * @param {string} id View id.
+ * @param {number} scale The desired scale factor (e.g. 1.0 = 100%).
+ * @returns {boolean} True if the view was found and the scale was updated.
+ */
+export function setScale(id, scale) {
+    const view = views.get(id);
+    if (!view) {
+        console.error(`View not found for id '${id}'`);
+        return false;
+    }
+    const clampedScale = Math.max(
+        view.configuration.minZoom,
+        Math.min(view.configuration.maxZoom, scale)
+    );
+    const oldScale = view.state.scale;
+    const centerX = view.state.viewportWidth / 2;
+    const centerY = view.state.viewportHeight / 2;
+    view.state.verticalOffset = (view.state.verticalOffset + centerY) * (clampedScale / oldScale) - centerY;
+    view.state.horizontalOffset = (view.state.horizontalOffset + centerX) * (clampedScale / oldScale) - centerX;
+    view.state.scale = clampedScale;
+    view.requestRender();
+    return true;
+}
