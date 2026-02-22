@@ -1,5 +1,4 @@
 using System;
-using System.Security.Cryptography;
 using PdfPixel.Models;
 
 namespace PdfPixel.Encryption
@@ -81,7 +80,7 @@ namespace PdfPixel.Encryption
             }
             _fileKeyLengthBytes = bits / 8;
 
-            using (var md5 = MD5.Create())
+            using (var md5 = ManagedMd5.Create())
             {
                 // Step order per Algorithm 3.2: padded password, owner entry, permissions (LE 4), file ID (first element)
                 var pwdBytes = GetPasswordBytes();
@@ -143,7 +142,7 @@ namespace PdfPixel.Encryption
 
         private byte[] ComputeUserEntryR2()
         {
-            using (var md5 = MD5.Create())
+            using (var md5 = ManagedMd5.Create())
             {
                 md5.TransformBlock(PasswordPadding, 0, PasswordPadding.Length, null, 0);
                 if (Parameters.FileIdFirst != null)
@@ -175,7 +174,7 @@ namespace PdfPixel.Encryption
             buffer[_fileKeyLengthBytes + 3] = (byte)(gen & 0xFF);
             buffer[_fileKeyLengthBytes + 4] = (byte)((gen >> 8) & 0xFF);
 
-            using (var md5 = MD5.Create())
+            using (var md5 = ManagedMd5.Create())
             {
                 var digest = md5.ComputeHash(buffer.ToArray());
                 int keyLen = _fileKeyLengthBytes + 5;

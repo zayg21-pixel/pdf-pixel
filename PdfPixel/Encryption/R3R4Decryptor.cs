@@ -1,6 +1,5 @@
 using System;
 using System.IO;
-using System.Security.Cryptography;
 using PdfPixel.Models;
 using PdfPixel.Text;
 
@@ -101,7 +100,7 @@ namespace PdfPixel.Encryption
             }
             _fileKeyLengthBytes = bits / 8;
 
-            using (var md5 = MD5.Create())
+            using (var md5 = ManagedMd5.Create())
             {
                 var pwdBytes = GetPasswordBytes();
                 md5.TransformBlock(pwdBytes, 0, pwdBytes.Length, null, 0);
@@ -171,7 +170,7 @@ namespace PdfPixel.Encryption
         private byte[] ComputeUserEntryR3R4()
         {
             byte[] digest;
-            using (var md5 = MD5.Create())
+            using (var md5 = ManagedMd5.Create())
             {
                 md5.TransformBlock(PasswordPadding, 0, PasswordPadding.Length, null, 0);
                 md5.TransformBlock(Parameters.FileIdFirst, 0, Parameters.FileIdFirst.Length, null, 0);
@@ -215,7 +214,7 @@ namespace PdfPixel.Encryption
                 buffer[_fileKeyLengthBytes + 8] = (byte)'T';
             }
 
-            using var md5 = MD5.Create();
+            using var md5 = ManagedMd5.Create();
 
             var digest = md5.ComputeHash(buffer.ToArray());
             int baseLen = cryptFilterKeyLengthBytesOverride ?? _fileKeyLengthBytes;
@@ -279,11 +278,8 @@ namespace PdfPixel.Encryption
             byte[] iv = data.Slice(0, 16).ToArray();
             byte[] ciphertext = data.Slice(16).ToArray();
 
-            using var aes = Aes.Create();
             byte[] key = objectKey.Length >= 16 ? objectKey.AsSpan(0, 16).ToArray() : PadKeyTo16(objectKey);
-            using ICryptoTransform decryptor = aes.CreateDecryptor(key, iv);
-            byte[] plain = decryptor.TransformFinalBlock(ciphertext, 0, ciphertext.Length);
-            return plain;
+            return ManagedAes128Cbc.Decrypt(key, iv, ciphertext);
         }
 
         private static byte[] PadKeyTo16(byte[] key)
