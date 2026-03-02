@@ -46,9 +46,6 @@ public sealed class CanvasGlContext : IDisposable
     {
         Emscripten.WebGlMakeContextCurrent(WebGlContext);
 
-        // Read back the old surface content into CPU memory BEFORE resizing the canvas.
-        // SetCanvasSize invalidates/clears the WebGL framebuffer, so a GPU snapshot
-        // taken after that point would be empty. We must flush and copy pixels now.
         SKImage cpuSnapshot = null;
         if (oldSurface != null)
         {
@@ -76,7 +73,14 @@ public sealed class CanvasGlContext : IDisposable
             GRSurfaceOrigin.BottomLeft,
             SKColorType.Rgba8888);
 
-        if (cpuSnapshot != null && surface != null)
+        if (surface == null)
+        {
+            throw new InvalidOperationException("Failed to create Skia surface for WebGL context.");
+        }
+
+        surface.Canvas.ClipRect(new SKRect(0, 0, width, height));
+
+        if (cpuSnapshot != null)
         {
             surface.Canvas.DrawImage(cpuSnapshot, new SKPoint(0, 0));
             surface.Flush();

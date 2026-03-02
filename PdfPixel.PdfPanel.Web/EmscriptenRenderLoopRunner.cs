@@ -46,7 +46,7 @@ public sealed class EmscriptenRenderLoopRunner : IRenderLoopRunner
             // Start the main loop only when first instance registers
             if (wasEmpty)
             {
-                Emscripten.StartMainLoop(&OnFrame, fps: 60, simulateInfiniteLoop: 1);
+                Emscripten.StartMainLoop(&OnFrame, fps: 0, simulateInfiniteLoop: 1);
             }
         }
     }
@@ -81,15 +81,13 @@ public sealed class EmscriptenRenderLoopRunner : IRenderLoopRunner
             return;
         }
 
-        var currentReuqest = Interlocked.Exchange(ref _pendingRequest, null);
-        currentReuqest?.CancellationTokenSource.Cancel();
-
         var commands = PdfPanelRenderCommand.GenerateCommandsFromRequest(request);
         var commandQueue = new Queue<PdfPanelRenderCommand>(commands);
-
         var newRequest = new RequestAndToken(commandQueue, new CancellationTokenSource());
 
-        Interlocked.Exchange(ref _pendingRequest, newRequest);
+        var oldRequest = Interlocked.Exchange(ref _pendingRequest, newRequest);
+        oldRequest?.CancellationTokenSource.Cancel();
+        oldRequest?.CancellationTokenSource.Dispose();
     }
 
     [UnmanagedCallersOnly]
@@ -109,9 +107,8 @@ public sealed class EmscriptenRenderLoopRunner : IRenderLoopRunner
 
         var request = instance._pendingRequest;
 
-        if (request == null || request.Commands.Count == 0 || request.CancellationTokenSource.IsCancellationRequested)
+        if (request == null || request.CancellationTokenSource.IsCancellationRequested)
         {
-            request?.CancellationTokenSource.Dispose();
             return;
         }
 
@@ -123,7 +120,13 @@ public sealed class EmscriptenRenderLoopRunner : IRenderLoopRunner
 
         if (request.Commands.Count == 0)
         {
-            request.CancellationTokenSource.Dispose();
+            // Only clear and dispose if no newer request has replaced this one.
+            // If Enqueue already swapped in a new request, it owns and has disposed the old CTS.
+            var replaced = Interlocked.CompareExchange(ref instance._pendingRequest, null, request);
+            if (replaced == request)
+            {
+                request.CancellationTokenSource.Dispose();
+            }
         }
     }
 
@@ -135,11 +138,11 @@ public sealed class EmscriptenRenderLoopRunner : IRenderLoopRunner
             return;
         }
 
-        _pendingRequest?.CancellationTokenSource.Cancel();
-        _pendingRequest?.CancellationTokenSource.Dispose();
-        _pendingRequest = null;
-
         Stop();
+
+        var pendingRequest = Interlocked.Exchange(ref _pendingRequest, null);
+        pendingRequest?.CancellationTokenSource.Cancel();
+        pendingRequest?.CancellationTokenSource.Dispose();
 
         _disposed = true;
     }

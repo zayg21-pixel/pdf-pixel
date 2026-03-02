@@ -1,6 +1,7 @@
 using PdfPixel.PdfPanel.Requests;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Threading;
 
 namespace PdfPixel.PdfPanel;
@@ -41,8 +42,7 @@ public sealed class DefaultRenderLoopRunner : IRenderLoopRunner
                 break;
             }
 
-            // Take the pending request atomically
-            var request = Interlocked.Exchange(ref _pendingRequest, null);
+            var request = _pendingRequest;
             if (request == null)
             {
                 continue;
@@ -59,7 +59,13 @@ public sealed class DefaultRenderLoopRunner : IRenderLoopRunner
                 _iteration(frame);
             }
 
-            request.CancellationTokenSource.Dispose();
+            // Only clear and dispose if no newer request has replaced this one.
+            // If Enqueue already swapped in a new request, it owns and has disposed the old CTS.
+            var replaced = Interlocked.CompareExchange(ref _pendingRequest, null, request);
+            if (replaced == request)
+            {
+                request.CancellationTokenSource.Dispose();
+            }
         }
     }
 

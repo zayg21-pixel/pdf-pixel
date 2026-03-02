@@ -60,6 +60,7 @@ public sealed class D3DImageRenderTargetFactory : IPdfPanelRenderTargetFactory, 
 
         newTexture = _sharedResources.CreateD3D9Texture(width, height);
         newSurface = _sharedResources.CreateSurface(newTexture, width, height, _grContext);
+        newSurface.Canvas.ClipRect(new SKRect(0, 0, width, height));
 
         _d3dImage.Dispatcher.Invoke(() =>
         {
@@ -108,6 +109,7 @@ public sealed class D3DImageRenderTargetFactory : IPdfPanelRenderTargetFactory, 
     {
         var info = new SKImageInfo(width, height, SKColorType.Bgra8888, SKAlphaType.Premul);
         var newSurface = SKSurface.Create(_grContext, false, info);
+        newSurface.Canvas.ClipRect(new SKRect(0, 0, width, height));
 
         var oldSurface = _currentThumbnailSurface;
         _currentThumbnailSurface = newSurface;

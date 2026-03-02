@@ -218,14 +218,7 @@ internal sealed class PdfPanelRenderer
 
     public SKPicture GetPicture(int pageNumber, double scale, CancellationToken token)
     {
-        try
-        {
-            return GetPictureInternal(pageNumber, scale, previewMode: false, token);
-        }
-        catch
-        {
-            return null;
-        }
+        return GetPictureInternal(pageNumber, scale, previewMode: false, token);
     }
 
     public SKPicture GetAnnotationPicture(
@@ -235,35 +228,28 @@ internal sealed class PdfPanelRenderer
         PdfPanelPointerState pointerState,
         CancellationToken token)
     {
-        try
-        {
-            var pdfPage = document.Pages[pageNumber - 1];
+        var pdfPage = document.Pages[pageNumber - 1];
 
-            if (pdfPage.Annotations.Count == 0)
-            {
-                return null;
-            }
-
-            var visualStateKind = ConvertToVisualStateKind(pointerState);
-
-            using var recorder = new SKPictureRecorder();
-            using var canvas = recorder.BeginRecording(SKRect.Create(pdfPage.CropBox.Width, pdfPage.CropBox.Height));
-            canvas.ClipRect(new SKRect(0, 0, pdfPage.CropBox.Width, pdfPage.CropBox.Height));
-
-            ApplyPageTransformations(canvas, pdfPage);
-
-            var parameters = new PdfRenderingParameters { ScaleFactor = (float)scale, PreviewMode = false };
-            pdfPage.RenderAnnotations(canvas, parameters, activeAnnotation, visualStateKind, token);
-
-            canvas.Flush();
-            var picture = recorder.EndRecording();
-
-            return picture;
-        }
-        catch
+        if (pdfPage.Annotations.Count == 0)
         {
             return null;
         }
+
+        var visualStateKind = ConvertToVisualStateKind(pointerState);
+
+        using var recorder = new SKPictureRecorder();
+        using var canvas = recorder.BeginRecording(SKRect.Create(pdfPage.CropBox.Width, pdfPage.CropBox.Height));
+        canvas.ClipRect(new SKRect(0, 0, pdfPage.CropBox.Width, pdfPage.CropBox.Height));
+
+        ApplyPageTransformations(canvas, pdfPage);
+
+        var parameters = new PdfRenderingParameters { ScaleFactor = (float)scale, PreviewMode = false };
+        pdfPage.RenderAnnotations(canvas, parameters, activeAnnotation, visualStateKind, token);
+
+        canvas.Flush();
+        var picture = recorder.EndRecording();
+
+        return picture;
     }
 
     public PdfAnnotationBase GetActiveAnnotation(int pageNumber, SKPoint? pagePosition)

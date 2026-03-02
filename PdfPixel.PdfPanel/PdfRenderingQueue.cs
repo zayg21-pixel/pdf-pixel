@@ -4,6 +4,7 @@ using PdfPixel.PdfPanel.Requests;
 using SkiaSharp;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 
@@ -28,7 +29,6 @@ public sealed class PdfRenderingQueue : IDisposable
     private PdfPanelRenderCommand _activeCommand;
     private PagesDrawingRequest _previousPagesDrawingRequest;
     private List<int> _backgroundRenderedForPages = new List<int>();
-    private bool _requiresRedraw;
 
     public PdfRenderingQueue(ILoggerFactory loggerFactory, ISkSurfaceFactory surfaceFactory)
         : this(loggerFactory, surfaceFactory, new DefaultRenderLoopRunner())
@@ -193,6 +193,9 @@ public sealed class PdfRenderingQueue : IDisposable
         var canvas = _surface.Canvas;
         _surfaceFactory.SetCurrentSurface(_surface);
 
+        var visiblePages = _activePagesDrawingRequest.VisiblePages.Select(x => x.PageNumber);
+        _activePagesDrawingRequest.Pages.UpdateCache(visiblePages);
+
         if (_previousPagesDrawingRequest != null)
         {
             _surface.Flush();
@@ -211,8 +214,6 @@ public sealed class PdfRenderingQueue : IDisposable
 
     private void InitializePage()
     {
-        var visiblePages = GetExtendedVisiblePages(_activePagesDrawingRequest, _previousPagesDrawingRequest);
-        _activePagesDrawingRequest.Pages.UpdateCache(visiblePages);
         _surfaceFactory.SetCurrentSurface(_thumbnailSurface);
 
         _activePagesDrawingRequest.Pages.InitializePageWithThumbnail(_activeCommand.PageNumber.Value, _activePagesDrawingRequest.Scale, _thumbnailSurface, _activePagesDrawingRequest.ActiveAnnotation, _activePagesDrawingRequest.ActiveAnnotationState);
@@ -232,7 +233,15 @@ public sealed class PdfRenderingQueue : IDisposable
     private void InitializePageContent(CancellationToken token)
     {
         _surfaceFactory.SetCurrentSurface(_surface);
-        _activePagesDrawingRequest.Pages.GeneratePicturesForPage(_activeCommand.PageNumber.Value, token);
+        try
+        {
+            _activePagesDrawingRequest.Pages.GeneratePicturesForPage(_activeCommand.PageNumber.Value, token);
+        }
+        catch (OperationCanceledException)
+        {
+            Debug.WriteLine("Page content generation cancelled for page");
+            _logger.LogInformation("Page content generation cancelled for page {PageNumber}", _activeCommand.PageNumber.Value);
+        }
     }
 
     private void DrawPageContent()
@@ -250,27 +259,6 @@ public sealed class PdfRenderingQueue : IDisposable
         {
             canvas.DrawPageFromRequest(page.PageNumber, request, PageDrawFlags.Background | PageDrawFlags.Shadow);
         }
-    }
-
-    private static IEnumerable<int> GetExtendedVisiblePages(
-        PagesDrawingRequest request,
-        PagesDrawingRequest previousRequest)
-    {
-        var extendedVisiblePages = request.VisiblePages.Select(x => x.PageNumber);
-
-        if (previousRequest != null && previousRequest.Scale == request.Scale)
-        {
-            if (previousRequest.Offset.Y <= request.Offset.Y && extendedVisiblePages.Any() && extendedVisiblePages.Max() != request.Pages.Count)
-            {
-                extendedVisiblePages = extendedVisiblePages.Append(extendedVisiblePages.Max() + 1);
-            }
-            else if (previousRequest.Offset.Y > request.Offset.Y && extendedVisiblePages.Any() && extendedVisiblePages.Min() != 1)
-            {
-                extendedVisiblePages = extendedVisiblePages.OrderByDescending(x => x).Append(extendedVisiblePages.Min() - 1);
-            }
-        }
-
-        return extendedVisiblePages;
     }
 
     private void DrawExistingThumbnails(
