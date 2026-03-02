@@ -56,6 +56,10 @@ class PdfPanelView {
         this._expectedScrollTop = 0;
         this.onStateChanged = null;
 
+        // Tracks the initial pinch distance and scale for two-finger zoom gestures.
+        this._touchStartDistance = 0;
+        this._touchStartScale = null;
+
         this.canvas.offscreenCanvas = this.canvas.transferControlToOffscreen();
         this.canvas.transferControlToOffscreen = true;
 
@@ -79,6 +83,9 @@ class PdfPanelView {
         this.onResizeRequested = this.onResizeRequested.bind(this);
         this.onPointerDown = this.onPointerDown.bind(this);
         this.onPointerUp = this.onPointerUp.bind(this);
+        this.onTouchStart = this.onTouchStart.bind(this);
+        this.onTouchMove = this.onTouchMove.bind(this);
+        this.onTouchEnd = this.onTouchEnd.bind(this);
     }
 
     requestRender() {
@@ -266,6 +273,61 @@ class PdfPanelView {
         this.requestRender();
     }
 
+    _getTouchDistance(touches) {
+        const dx = touches[0].clientX - touches[1].clientX;
+        const dy = touches[0].clientY - touches[1].clientY;
+        return Math.sqrt(dx * dx + dy * dy);
+    }
+
+    _getTouchMidpoint(touches) {
+        return {
+            x: (touches[0].clientX + touches[1].clientX) / 2,
+            y: (touches[0].clientY + touches[1].clientY) / 2
+        };
+    }
+
+    onTouchStart(e) {
+        if (e.touches.length === 2) {
+            e.preventDefault();
+            this._touchStartDistance = this._getTouchDistance(e.touches);
+            this._touchStartScale = this.state.scale;
+        }
+    }
+
+    onTouchMove(e) {
+        if (e.touches.length !== 2 || this._touchStartDistance === 0) {
+            return;
+        }
+
+        e.preventDefault();
+
+        const currentDistance = this._getTouchDistance(e.touches);
+        const scaleFactor = currentDistance / this._touchStartDistance;
+        const newScale = Math.max(
+            this.configuration.minZoom,
+            Math.min(this.configuration.maxZoom, this._touchStartScale * scaleFactor)
+        );
+
+        const oldScale = this.state.scale;
+        const midpoint = this._getTouchMidpoint(e.touches);
+        const rect = this.scrollHost.getBoundingClientRect();
+        const centerX = (midpoint.x - rect.left) * this.state.devicePixelScale;
+        const centerY = (midpoint.y - rect.top) * this.state.devicePixelScale;
+
+        this.state.verticalOffset = (this.state.verticalOffset + centerY) * (newScale / oldScale) - centerY;
+        this.state.horizontalOffset = (this.state.horizontalOffset + centerX) * (newScale / oldScale) - centerX;
+        this.state.scale = newScale;
+
+        this.requestRender();
+    }
+
+    onTouchEnd(e) {
+        if (e.touches.length < 2) {
+            this._touchStartDistance = 0;
+            this._touchStartScale = null;
+        }
+    }
+
     onResizeRequested() {
         const hasHorizontalScrollbar = this.state.scrollWidth > this.state.viewportWidth;
         const hasVerticalScrollbar = this.state.scrollHeight > this.state.viewportHeight;
@@ -280,6 +342,9 @@ class PdfPanelView {
         this.container.addEventListener('wheel', this.onWheel, { passive: false });
         this.scrollHost.addEventListener('scroll', this.onScroll);
         this.scrollHost.addEventListener('pointerdown', this.onPointerDown);
+        this.scrollHost.addEventListener('touchstart', this.onTouchStart, { passive: false });
+        this.scrollHost.addEventListener('touchmove', this.onTouchMove, { passive: false });
+        this.scrollHost.addEventListener('touchend', this.onTouchEnd);
         document.addEventListener('mousemove', this.onMouseMove);
         document.addEventListener('pointerup', this.onPointerUp);
 
@@ -291,6 +356,9 @@ class PdfPanelView {
         this.container.removeEventListener('wheel', this.onWheel);
         this.scrollHost.removeEventListener('scroll', this.onScroll);
         this.scrollHost.removeEventListener('pointerdown', this.onPointerDown);
+        this.scrollHost.removeEventListener('touchstart', this.onTouchStart);
+        this.scrollHost.removeEventListener('touchmove', this.onTouchMove);
+        this.scrollHost.removeEventListener('touchend', this.onTouchEnd);
         document.removeEventListener('mousemove', this.onMouseMove);
         document.removeEventListener('pointerup', this.onPointerUp);
 

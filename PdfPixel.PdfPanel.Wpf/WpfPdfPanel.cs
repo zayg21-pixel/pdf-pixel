@@ -196,7 +196,7 @@ namespace PdfPixel.PdfPanel.Wpf
             {
                 return;
             }
-
+            // TODO: [HIGH] there's no need to dispose it every time
             _renderingQueue?.Dispose();
             _surfaceFactory?.Dispose();
 

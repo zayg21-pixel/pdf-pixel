@@ -1,5 +1,6 @@
 using PdfPixel.PdfPanel.Requests;
 using System;
+using System.Collections.Generic;
 using System.Threading;
 
 namespace PdfPixel.PdfPanel;
@@ -14,11 +15,9 @@ public sealed class DefaultRenderLoopRunner : IRenderLoopRunner
     private volatile bool _running;
     private Action<RenderFrameCommand> _iteration;
 
-    // Latest pending request, exchanged atomically. Enqueue writes, Start loop reads.
-    private volatile DrawingRequest _pendingRequest;
-
-    // CTS owned by the render loop, cancelled when a new request is picked up.
-    private volatile CancellationTokenSource _activeCts;
+    // Latest pending request with pre-generated commands and fresh CTS, exchanged atomically.
+    // Enqueue writes and cancels the previous; the render loop takes ownership by swapping to null.
+    private volatile RequestAndToken _pendingRequest;
 
     /// <inheritdoc />
     public void Start(Action<RenderFrameCommand> iteration)
@@ -49,22 +48,18 @@ public sealed class DefaultRenderLoopRunner : IRenderLoopRunner
                 continue;
             }
 
-            // Create fresh CTS for this frame (previous frame already completed)
-            _activeCts?.Dispose();
-            _activeCts = new CancellationTokenSource();
-
-            var commands = PdfPanelRenderCommand.GenerateCommandsFromRequest(request);
-
-            foreach (var command in commands)
+            foreach (var command in request.Commands)
             {
-                if (_activeCts.IsCancellationRequested)
+                if (request.CancellationTokenSource.IsCancellationRequested)
                 {
                     break;
                 }
 
-                var frame = new RenderFrameCommand(command, _activeCts.Token);
+                var frame = new RenderFrameCommand(command, request.CancellationTokenSource.Token);
                 _iteration(frame);
             }
+
+            request.CancellationTokenSource.Dispose();
         }
     }
 
@@ -88,10 +83,13 @@ public sealed class DefaultRenderLoopRunner : IRenderLoopRunner
             return;
         }
 
-        // Cancel the currently rendering frame (running on render thread)
-        _activeCts?.Cancel();
+        var commands = PdfPanelRenderCommand.GenerateCommandsFromRequest(request);
+        var newRequest = new RequestAndToken(commands, new CancellationTokenSource());
 
-        Interlocked.Exchange(ref _pendingRequest, request);
+        var oldRequest = Interlocked.Exchange(ref _pendingRequest, newRequest);
+        oldRequest?.CancellationTokenSource.Cancel();
+        oldRequest?.CancellationTokenSource.Dispose();
+
         _semaphore.Release();
     }
 
@@ -104,11 +102,30 @@ public sealed class DefaultRenderLoopRunner : IRenderLoopRunner
 
         Stop();
 
-        _activeCts?.Cancel();
-        _activeCts?.Dispose();
-        _activeCts = null;
+        var pendingRequest = Interlocked.Exchange(ref _pendingRequest, null);
+        pendingRequest?.CancellationTokenSource.Cancel();
+        pendingRequest?.CancellationTokenSource.Dispose();
 
         _semaphore.Dispose();
         _disposed = true;
+    }
+
+    private sealed class RequestAndToken
+    {
+        public RequestAndToken(List<PdfPanelRenderCommand> commands, CancellationTokenSource cancellationTokenSource)
+        {
+            Commands = commands;
+            CancellationTokenSource = cancellationTokenSource;
+        }
+
+        /// <summary>
+        /// The pre-generated list of render commands to execute for this request.
+        /// </summary>
+        public List<PdfPanelRenderCommand> Commands { get; }
+
+        /// <summary>
+        /// The cancellation token source for this request, cancelled when a newer request replaces it.
+        /// </summary>
+        public CancellationTokenSource CancellationTokenSource { get; }
     }
 }

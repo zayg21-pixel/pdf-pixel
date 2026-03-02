@@ -13,7 +13,7 @@ public static class PdfToUnicodeMapProvider
 {
     private static readonly Lazy<Dictionary<uint, string>> _japanToUnicode = new Lazy<Dictionary<uint, string>>(() =>
     {
-        var resource = PdfResourceLoader.GetResource("External/AdobeJapanEncodings.bin");
+        var resource = PdfResourceLoader.GetResource("External.AdobeJapanEncodings.bin");
         var dict = new Dictionary<uint, string>();
         PdfTextResourceConverter.ReadFromCidToUnicodeMapBlob(resource, dict);
         return dict;

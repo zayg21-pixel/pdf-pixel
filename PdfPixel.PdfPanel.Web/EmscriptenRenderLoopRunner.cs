@@ -16,21 +16,9 @@ namespace PdfPixel.PdfPanel.Web;
 [SupportedOSPlatform("browser")]
 public sealed class EmscriptenRenderLoopRunner : IRenderLoopRunner
 {
-    private class RequestAndToken
-    {
-        public RequestAndToken(Queue<PdfPanelRenderCommand> commands, CancellationTokenSource cancellationTokenSource)
-        {
-            Commands = commands;
-            CancellationTokenSource = cancellationTokenSource;
-        }
-
-        public Queue<PdfPanelRenderCommand> Commands { get; }
-
-        public CancellationTokenSource CancellationTokenSource { get; }
-    }
-
-    private bool _disposed;
     private static readonly object SyncRoot = new object();
+    private bool _disposed;
+    private volatile bool _isRunning;
     private Action<RenderFrameCommand> _iteration;
     private int _threadId;
     private volatile RequestAndToken _pendingRequest;
@@ -41,8 +29,14 @@ public sealed class EmscriptenRenderLoopRunner : IRenderLoopRunner
     /// <inheritdoc />
     public unsafe void Start(Action<RenderFrameCommand> iteration)
     {
+        if (_disposed)
+        {
+            return;
+        }
+
         _iteration = iteration ?? throw new ArgumentNullException(nameof(iteration));
         _threadId = Environment.CurrentManagedThreadId;
+        _isRunning = true;
 
         lock (SyncRoot)
         {
@@ -65,6 +59,8 @@ public sealed class EmscriptenRenderLoopRunner : IRenderLoopRunner
             return;
         }
 
+        _isRunning = false;
+
         lock (SyncRoot)
         {
             Instances.TryRemove(_threadId, out _);
@@ -80,7 +76,7 @@ public sealed class EmscriptenRenderLoopRunner : IRenderLoopRunner
     /// <inheritdoc />
     public void Enqueue(DrawingRequest request)
     {
-        if (_disposed)
+        if (_disposed || !_isRunning)
         {
             return;
         }
@@ -106,7 +102,7 @@ public sealed class EmscriptenRenderLoopRunner : IRenderLoopRunner
             return;
         }
 
-        if (instance._disposed)
+        if (instance._disposed || !instance._isRunning)
         {
             return;
         }
@@ -146,5 +142,18 @@ public sealed class EmscriptenRenderLoopRunner : IRenderLoopRunner
         Stop();
 
         _disposed = true;
+    }
+
+    private class RequestAndToken
+    {
+        public RequestAndToken(Queue<PdfPanelRenderCommand> commands, CancellationTokenSource cancellationTokenSource)
+        {
+            Commands = commands;
+            CancellationTokenSource = cancellationTokenSource;
+        }
+
+        public Queue<PdfPanelRenderCommand> Commands { get; }
+
+        public CancellationTokenSource CancellationTokenSource { get; }
     }
 }
