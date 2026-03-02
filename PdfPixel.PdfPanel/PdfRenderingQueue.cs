@@ -122,6 +122,14 @@ public sealed class PdfRenderingQueue : IDisposable
                     DrawPageContent(surface);
                     break;
                 }
+                case PdfPanelRenderCommandType.Reset:
+                {
+                    var surface = GetDrawingSurface(cancellationToken);
+                    surface.Canvas.Clear(SKColors.Transparent);
+                    _activePagesDrawingRequest.RenderTarget.Render(surface, _activePagesDrawingRequest, cancellationToken);
+
+                    break;
+                }
             }
         }
         catch (OperationCanceledException)

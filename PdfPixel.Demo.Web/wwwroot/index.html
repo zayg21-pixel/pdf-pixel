@@ -242,6 +242,43 @@
             overflow: auto;
             z-index: 2;
         }
+
+        /* ── Annotation popup tooltip ─────────────────────────────── */
+        .annotation-popup {
+            display: none;
+            position: absolute;
+            z-index: 10;
+            max-width: 320px;
+            padding: 8px 12px;
+            background: #fff;
+            border: 1px solid #c0c0c0;
+            border-radius: 6px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+            font-size: 13px;
+            color: #1a1a1a;
+            pointer-events: none;
+            line-height: 1.4;
+        }
+
+        .annotation-popup.visible {
+            display: block;
+        }
+
+        .annotation-popup-title {
+            font-weight: 600;
+            margin-bottom: 2px;
+        }
+
+        .annotation-popup-content {
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        .annotation-popup-date {
+            margin-top: 4px;
+            font-size: 11px;
+            color: rgba(0, 0, 0, 0.45);
+        }
     </style>
 </head>
 <body>
@@ -302,6 +339,7 @@
         <div class="pdf-panel-scroll-host">
             <div class="pdf-panel-scroll-spacer"></div>
         </div>
+        <div id="annotationPopup" class="annotation-popup"></div>
     </div>
 
     <!--
@@ -367,8 +405,62 @@
         const zoomOutButton = document.getElementById('zoomOut');
         const zoomInButton = document.getElementById('zoomIn');
         const resetZoomButton = document.getElementById('resetZoom');
+        const annotationPopupEl = document.getElementById('annotationPopup');
 
         let currentState = { currentPage: 0, pageCount: 0, scale: 1.0 };
+
+        function updateAnnotationPopup(state) {
+            const popup = state.annotationPopup;
+            const hasMessages = popup && popup.messages && popup.messages.length > 0;
+
+            if (!hasMessages || state.mouseX == null || state.mouseY == null) {
+                annotationPopupEl.classList.remove('visible');
+                return;
+            }
+
+            let html = '';
+            for (const msg of popup.messages) {
+                if (msg.title) {
+                    html += `<div class="annotation-popup-title">${escapeHtml(msg.title)}</div>`;
+                }
+                if (msg.content) {
+                    html += `<div class="annotation-popup-content">${escapeHtml(msg.content)}</div>`;
+                }
+                if (msg.date) {
+                    const dateStr = new Date(msg.date).toLocaleString();
+                    html += `<div class="annotation-popup-date">${dateStr}</div>`;
+                }
+            }
+
+            annotationPopupEl.innerHTML = html;
+
+            // Position below and to the right of the cursor
+            const containerRect = container.getBoundingClientRect();
+            const offsetX = 12;
+            const offsetY = 16;
+            let left = state.mouseX + offsetX;
+            let top = state.mouseY + offsetY;
+
+            // Clamp so popup stays within the container
+            const maxLeft = containerRect.width - annotationPopupEl.offsetWidth - 4;
+            const maxTop = containerRect.height - annotationPopupEl.offsetHeight - 4;
+            if (left > maxLeft) {
+                left = state.mouseX - annotationPopupEl.offsetWidth - offsetX;
+            }
+            if (top > maxTop) {
+                top = state.mouseY - annotationPopupEl.offsetHeight - offsetY;
+            }
+
+            annotationPopupEl.style.left = Math.max(0, left) + 'px';
+            annotationPopupEl.style.top = Math.max(0, top) + 'px';
+            annotationPopupEl.classList.add('visible');
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
 
         canvasInterop.setOnStateChanged(containerId, (state) => {
             currentState = state;
@@ -382,6 +474,8 @@
             prevPageButton.disabled = !hasDocument || state.currentPage <= 1;
             nextPageButton.disabled = !hasDocument || state.currentPage >= state.pageCount;
             zoomLevelLabel.textContent = `${Math.round(state.scale * 100)}%`;
+
+            updateAnnotationPopup(state);
         });
 
         prevPageButton.addEventListener('click', () => {

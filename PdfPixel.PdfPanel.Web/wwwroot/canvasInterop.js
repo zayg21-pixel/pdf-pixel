@@ -42,7 +42,9 @@ class PdfPanelView {
             currentPage: 0,
             pageCount: 0,
             forcePageSet: 0,
-            pointerPressed: false
+            pointerPressed: false,
+            annotationPopup: null,
+            cursorStyle: 'default'
         };
 
         // Tracks the scroll position we set programmatically so onScroll can
@@ -120,6 +122,15 @@ class PdfPanelView {
         this.state.horizontalOffset = redrawState.horizontalOffset;
         this.state.currentPage = redrawState.currentPage;
         this.state.pageCount = redrawState.pageCount;
+
+        // Annotation handling: cursor, popup, and URI open
+        this.state.annotationPopup = redrawState.annotationPopup || null;
+        this.state.cursorStyle = redrawState.cursorStyle || 'default';
+        this.scrollHost.style.cursor = this.state.cursorStyle;
+
+        if (redrawState.openUri) {
+            window.open(redrawState.openUri, '_blank', 'noopener,noreferrer');
+        }
 
         this.spacer.style.width = (this.state.scrollWidth / dpr) + 'px';
         this.spacer.style.height = (this.state.scrollHeight / dpr) + 'px';
@@ -547,4 +558,46 @@ export function setScale(id, scale) {
     view.state.scale = clampedScale;
     view.requestRender();
     return true;
+}
+
+/**
+ * Creates an annotation popup object on the state.
+ * Called from C# via JSImport to build the popup as a JS object.
+ * @param {object} state The redraw state object.
+ * @param {string} type Annotation type name (e.g. "link", "annotation").
+ * @param {boolean} isInteractive Whether the annotation is interactive.
+ */
+export function createAnnotationPopupState(state, type, isInteractive) {
+    state.annotationPopup = {
+        type: type,
+        isInteractive: isInteractive,
+        messages: []
+    };
+}
+
+/**
+ * Adds a message to the annotation popup on the state.
+ * Called from C# via JSImport for each message in the annotation thread.
+ * @param {object} state The redraw state object.
+ * @param {string} title Message author/title.
+ * @param {string} content Message text content.
+ * @param {string} date ISO 8601 creation date, or empty string.
+ */
+export function addAnnotationPopupMessage(state, title, content, date) {
+    if (state.annotationPopup) {
+        state.annotationPopup.messages.push({
+            title: title,
+            content: content,
+            date: date
+        });
+    }
+}
+
+/**
+ * Clears the annotation popup from the state.
+ * Called from C# via JSImport when no annotation is active.
+ * @param {object} state The redraw state object.
+ */
+export function clearAnnotationPopupState(state) {
+    state.annotationPopup = null;
 }
