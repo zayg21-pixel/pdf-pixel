@@ -16,16 +16,24 @@ namespace PdfPixel.PdfPanel.Web;
 [SupportedOSPlatform("browser")]
 public sealed class EmscriptenRenderLoopRunner : IRenderLoopRunner
 {
+    private class RequestAndToken
+    {
+        public RequestAndToken(Queue<PdfPanelRenderCommand> commands, CancellationTokenSource cancellationTokenSource)
+        {
+            Commands = commands;
+            CancellationTokenSource = cancellationTokenSource;
+        }
+
+        public Queue<PdfPanelRenderCommand> Commands { get; }
+
+        public CancellationTokenSource CancellationTokenSource { get; }
+    }
+
     private bool _disposed;
     private static readonly object SyncRoot = new object();
     private Action<RenderFrameCommand> _iteration;
     private int _threadId;
-
-    // Latest pending request, exchanged atomically. Enqueue writes, OnFrame reads.
-    private volatile Queue<PdfPanelRenderCommand> _pendingRequestCommands;
-
-    // CTS owned by the render loop, cancelled when a new request is picked up.
-    private volatile CancellationTokenSource _activeCts;
+    private volatile RequestAndToken _pendingRequest;
 
     // Instances keyed by thread ID - each render thread has its own runner
     private static readonly ConcurrentDictionary<int, EmscriptenRenderLoopRunner> Instances = new();
@@ -77,13 +85,15 @@ public sealed class EmscriptenRenderLoopRunner : IRenderLoopRunner
             return;
         }
 
-        // Cancel the currently rendering frame (running on render thread)
-        _activeCts?.Cancel();
+        var currentReuqest = Interlocked.Exchange(ref _pendingRequest, null);
+        currentReuqest?.CancellationTokenSource.Cancel();
 
         var commands = PdfPanelRenderCommand.GenerateCommandsFromRequest(request);
-
         var commandQueue = new Queue<PdfPanelRenderCommand>(commands);
-        Interlocked.Exchange(ref _pendingRequestCommands, commandQueue);
+
+        var newRequest = new RequestAndToken(commandQueue, new CancellationTokenSource());
+
+        Interlocked.Exchange(ref _pendingRequest, newRequest);
     }
 
     [UnmanagedCallersOnly]
@@ -101,20 +111,23 @@ public sealed class EmscriptenRenderLoopRunner : IRenderLoopRunner
             return;
         }
 
-        var commands = instance._pendingRequestCommands;
+        var request = instance._pendingRequest;
 
-        if (commands == null || commands.Count == 0)
+        if (request == null || request.Commands.Count == 0 || request.CancellationTokenSource.IsCancellationRequested)
         {
+            request?.CancellationTokenSource.Dispose();
             return;
         }
 
-        var activeCts  = instance._activeCts;
-        instance._activeCts = new CancellationTokenSource();
-
-        if (commands.TryDequeue(out var renderCommand))
+        if (request.Commands.TryDequeue(out var renderCommand))
         {
-            var frame = new RenderFrameCommand(renderCommand, instance._activeCts.Token);
+            var frame = new RenderFrameCommand(renderCommand, request.CancellationTokenSource.Token);
             instance._iteration?.Invoke(frame);
+        }
+
+        if (request.Commands.Count == 0)
+        {
+            request.CancellationTokenSource.Dispose();
         }
     }
 
@@ -126,9 +139,9 @@ public sealed class EmscriptenRenderLoopRunner : IRenderLoopRunner
             return;
         }
 
-        _activeCts?.Cancel();
-        _activeCts?.Dispose();
-        _activeCts = null;
+        _pendingRequest?.CancellationTokenSource.Cancel();
+        _pendingRequest?.CancellationTokenSource.Dispose();
+        _pendingRequest = null;
 
         Stop();
 
