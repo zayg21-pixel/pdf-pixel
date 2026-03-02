@@ -47,6 +47,11 @@ class PdfPanelView {
             cursorStyle: 'default'
         };
 
+        this.renderFrameRequestId = null;
+        this.requestedRender = false;
+        this.renderInProgress = false;
+        this.renderVersion = 0;
+
         // Tracks the scroll position we set programmatically so onScroll can
         // ignore those events and only react to genuine user-initiated scrolls.
         this._expectedScrollLeft = 0;
@@ -72,87 +77,120 @@ class PdfPanelView {
     }
 
     requestRender() {
-        void this.performRender();
+        this.renderVersion = this.renderVersion + 1;
+        this.requestedRender = true;
+
+        if (this.renderFrameRequestId !== null) {
+            return;
+        }
+
+        this.renderFrameRequestId = window.requestAnimationFrame(() => {
+            this.renderFrameRequestId = null;
+            void this.performRender();
+        });
     }
 
     async performRender() {
-        const containerWidth = this.scrollHost.clientWidth;
-        const containerHeight = this.scrollHost.clientHeight;
-
-        const dpr = window.devicePixelRatio || 1;
-        const zoom = (window.visualViewport && window.visualViewport.scale) ? window.visualViewport.scale : 1;
-        const devicePixelScale = dpr * zoom;
-
-        const physicalWidth = Math.round(containerWidth * devicePixelScale);
-        const physicalHeight = Math.round(containerHeight * devicePixelScale);
-
-        const pointerInside = this.state.mouseX !== null && this.state.mouseY !== null;
-        const pointerX = pointerInside ? this.state.mouseX * devicePixelScale : 0;
-        const pointerY = pointerInside ? this.state.mouseY * devicePixelScale : 0;
-
-        const redrawState = {
-            containerWidth: containerWidth,
-            containerHeight: containerHeight,
-            viewportWidth: physicalWidth,
-            viewportHeight: physicalHeight,
-            devicePixelScale: devicePixelScale,
-            verticalOffset: this.state.verticalOffset,
-            horizontalOffset: this.state.horizontalOffset,
-            scale: this.state.scale,
-            scrollWidth: 0,
-            scrollHeight: 0,
-            forcePageSet: this.state.forcePageSet,
-            pointerInside: pointerInside,
-            pointerX: pointerX,
-            pointerY: pointerY,
-            pointerPressed: this.state.pointerPressed
-        };
-
-        await interop.RequestRedraw(this.id, redrawState);
-
-        this.state.forcePageSet = 0;
-        this.state.containerWidth = redrawState.containerWidth;
-        this.state.containerHeight = redrawState.containerHeight;
-        this.state.devicePixelScale = redrawState.devicePixelScale;
-        this.state.viewportWidth = redrawState.viewportWidth;
-        this.state.viewportHeight = redrawState.viewportHeight;
-        this.state.scrollWidth = redrawState.scrollWidth;
-        this.state.scrollHeight = redrawState.scrollHeight;
-        this.state.verticalOffset = redrawState.verticalOffset;
-        this.state.horizontalOffset = redrawState.horizontalOffset;
-        this.state.currentPage = redrawState.currentPage;
-        this.state.pageCount = redrawState.pageCount;
-
-        // Annotation handling: cursor, popup, and URI open
-        this.state.annotationPopup = redrawState.annotationPopup || null;
-        this.state.cursorStyle = redrawState.cursorStyle || 'default';
-        this.scrollHost.style.cursor = this.state.cursorStyle;
-
-        if (redrawState.openUri) {
-            window.open(redrawState.openUri, '_blank', 'noopener,noreferrer');
+        if (this.renderInProgress) {
+            return;
         }
+        if (!this.requestedRender) {
+            return;
+        }
+        this.requestedRender = false;
+        this.renderInProgress = true;
 
-        this.spacer.style.width = (this.state.scrollWidth / dpr) + 'px';
-        this.spacer.style.height = (this.state.scrollHeight / dpr) + 'px';
+        const currentRenderVersion = this.renderVersion + 1;
+        this.renderVersion = currentRenderVersion;
 
-        // Force a synchronous layout so the new spacer dimensions are applied to
-        // the scroll bounds before we set the position. Without this, scrollLeft/
-        // scrollTop would be validated against the old bounds and may be clamped.
-        void this.scrollHost.offsetHeight;
+        try {
+            const containerWidth = this.scrollHost.clientWidth;
+            const containerHeight = this.scrollHost.clientHeight;
 
-        this.scrollHost.style.overflow = 'auto';
-        this.scrollHost.scrollLeft = this.state.horizontalOffset / dpr;
-        this.scrollHost.scrollTop = this.state.verticalOffset / dpr;
+            const dpr = window.devicePixelRatio || 1;
+            const zoom = (window.visualViewport && window.visualViewport.scale) ? window.visualViewport.scale : 1;
+            const devicePixelScale = dpr * zoom;
 
-        // Read back the browser-clamped values so onScroll can recognise
-        // and suppress the scroll event that this programmatic set fires.
-        this._expectedScrollLeft = this.scrollHost.scrollLeft;
-        this._expectedScrollTop = this.scrollHost.scrollTop;
+            const physicalWidth = Math.round(containerWidth * devicePixelScale);
+            const physicalHeight = Math.round(containerHeight * devicePixelScale);
 
-        void this.scrollHost.offsetHeight;
+            const pointerInside = this.state.mouseX !== null && this.state.mouseY !== null;
+            const pointerX = pointerInside ? this.state.mouseX * devicePixelScale : 0;
+            const pointerY = pointerInside ? this.state.mouseY * devicePixelScale : 0;
 
-        if (typeof this.onStateChanged === 'function') {
-            this.onStateChanged({ ...this.state });
+            const redrawState = {
+                containerWidth: containerWidth,
+                containerHeight: containerHeight,
+                viewportWidth: physicalWidth,
+                viewportHeight: physicalHeight,
+                devicePixelScale: devicePixelScale,
+                verticalOffset: this.state.verticalOffset,
+                horizontalOffset: this.state.horizontalOffset,
+                scale: this.state.scale,
+                scrollWidth: 0,
+                scrollHeight: 0,
+                forcePageSet: this.state.forcePageSet,
+                pointerInside: pointerInside,
+                pointerX: pointerX,
+                pointerY: pointerY,
+                pointerPressed: this.state.pointerPressed
+            };
+
+                await interop.RequestRedraw(this.id, redrawState);
+
+                if (currentRenderVersion !== this.renderVersion) {
+                    return;
+                }
+
+            this.state.forcePageSet = 0;
+            this.state.containerWidth = redrawState.containerWidth;
+            this.state.containerHeight = redrawState.containerHeight;
+            this.state.devicePixelScale = redrawState.devicePixelScale;
+            this.state.viewportWidth = redrawState.viewportWidth;
+            this.state.viewportHeight = redrawState.viewportHeight;
+            this.state.scrollWidth = redrawState.scrollWidth;
+            this.state.scrollHeight = redrawState.scrollHeight;
+            this.state.verticalOffset = redrawState.verticalOffset;
+            this.state.horizontalOffset = redrawState.horizontalOffset;
+            this.state.currentPage = redrawState.currentPage;
+            this.state.pageCount = redrawState.pageCount;
+
+            // Annotation handling: cursor, popup, and URI open
+            this.state.annotationPopup = redrawState.annotationPopup || null;
+            this.state.cursorStyle = redrawState.cursorStyle || 'default';
+            this.scrollHost.style.cursor = this.state.cursorStyle;
+
+            if (redrawState.openUri) {
+                window.open(redrawState.openUri, '_blank', 'noopener,noreferrer');
+            }
+
+            this.spacer.style.width = (this.state.scrollWidth / dpr) + 'px';
+            this.spacer.style.height = (this.state.scrollHeight / dpr) + 'px';
+
+            // Force a synchronous layout so the new spacer dimensions are applied to
+            // the scroll bounds before we set the position. Without this, scrollLeft/
+            // scrollTop would be validated against the old bounds and may be clamped.
+            void this.scrollHost.offsetHeight;
+
+            this.scrollHost.style.overflow = 'auto';
+            this.scrollHost.scrollLeft = this.state.horizontalOffset / dpr;
+            this.scrollHost.scrollTop = this.state.verticalOffset / dpr;
+
+            // Read back the browser-clamped values so onScroll can recognise
+            // and suppress the scroll event that this programmatic set fires.
+            this._expectedScrollLeft = this.scrollHost.scrollLeft;
+            this._expectedScrollTop = this.scrollHost.scrollTop;
+
+            void this.scrollHost.offsetHeight;
+
+            if (typeof this.onStateChanged === 'function') {
+                this.onStateChanged({ ...this.state });
+            }
+        } finally {
+            this.renderInProgress = false;
+            if (this.requestedRender) {
+                this.requestRender();
+            }
         }
     }
 
