@@ -1,9 +1,12 @@
+using Microsoft.Extensions.Logging;
 using PdfPixel.PdfPanel.Requests;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
+using System.Text;
 using System.Threading;
 
 namespace PdfPixel.PdfPanel.Web;
@@ -16,6 +19,11 @@ namespace PdfPixel.PdfPanel.Web;
 [SupportedOSPlatform("browser")]
 public sealed class EmscriptenRenderLoopRunner : IRenderLoopRunner
 {
+    /// <summary>
+    /// Number of commands processed between statistics dumps.
+    /// </summary>
+    private const int StatsDumpInterval = 200;
+
     private static readonly object SyncRoot = new object();
     private bool _disposed;
     private volatile bool _isRunning;
@@ -23,8 +31,24 @@ public sealed class EmscriptenRenderLoopRunner : IRenderLoopRunner
     private int _threadId;
     private volatile RequestAndToken _pendingRequest;
 
+    private readonly ILogger<EmscriptenRenderLoopRunner> _logger;
+
+    // Per-instance statistics: accumulated count and total processing time per command type.
+    // Accessed only from the owning render thread, so no locking is required.
+    private int _commandsProcessedSinceLastDump;
+    private readonly Dictionary<PdfPanelRenderCommandType, (int Count, double TotalMs)> _statsPerType = new();
+
     // Instances keyed by thread ID - each render thread has its own runner
     private static readonly ConcurrentDictionary<int, EmscriptenRenderLoopRunner> Instances = new();
+
+    /// <summary>
+    /// Creates a new <see cref="EmscriptenRenderLoopRunner"/>.
+    /// </summary>
+    /// <param name="logger">The logger used to emit periodic render statistics.</param>
+    public EmscriptenRenderLoopRunner(ILogger<EmscriptenRenderLoopRunner> logger)
+    {
+        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+    }
 
     /// <inheritdoc />
     public unsafe void Start(Action<RenderFrameCommand> iteration)
@@ -115,7 +139,10 @@ public sealed class EmscriptenRenderLoopRunner : IRenderLoopRunner
         if (request.Commands.TryDequeue(out var renderCommand))
         {
             var frame = new RenderFrameCommand(renderCommand, request.CancellationTokenSource.Token);
+            var startTimestamp = Stopwatch.GetTimestamp();
             instance._iteration?.Invoke(frame);
+            var elapsedMs = Stopwatch.GetElapsedTime(startTimestamp).TotalMilliseconds;
+            instance.RecordStats(renderCommand.Type, elapsedMs);
         }
 
         if (request.Commands.Count == 0)
@@ -128,6 +155,51 @@ public sealed class EmscriptenRenderLoopRunner : IRenderLoopRunner
                 request.CancellationTokenSource.Dispose();
             }
         }
+    }
+
+    /// <summary>
+    /// Records processing time for a single command and triggers a statistics dump every
+    /// <see cref="StatsDumpInterval"/> commands.
+    /// </summary>
+    /// <param name="commandType">The type of command that was processed.</param>
+    /// <param name="elapsedMs">The time taken to process the command, in milliseconds.</param>
+    private void RecordStats(PdfPanelRenderCommandType commandType, double elapsedMs)
+    {
+        if (_statsPerType.TryGetValue(commandType, out var existing))
+        {
+            _statsPerType[commandType] = (existing.Count + 1, existing.TotalMs + elapsedMs);
+        }
+        else
+        {
+            _statsPerType[commandType] = (1, elapsedMs);
+        }
+
+        _commandsProcessedSinceLastDump++;
+
+        if (_commandsProcessedSinceLastDump >= StatsDumpInterval)
+        {
+            DumpStats();
+        }
+    }
+
+    /// <summary>
+    /// Logs accumulated per-type statistics as a single message and resets the accumulators.
+    /// </summary>
+    private void DumpStats()
+    {
+        var builder = new StringBuilder();
+        builder.Append($"Render loop statistics ({_commandsProcessedSinceLastDump} commands):");
+
+        foreach (var (type, stats) in _statsPerType)
+        {
+            var averageMs = stats.Count > 0 ? stats.TotalMs / stats.Count : 0.0;
+            builder.Append($"\n  {type}: count={stats.Count}, avg={averageMs:F2}ms");
+        }
+
+        _logger.LogInformation(builder.ToString());
+
+        _statsPerType.Clear();
+        _commandsProcessedSinceLastDump = 0;
     }
 
     /// <inheritdoc />

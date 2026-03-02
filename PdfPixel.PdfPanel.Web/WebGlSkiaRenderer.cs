@@ -10,7 +10,7 @@ namespace PdfPixel.PdfPanel.Web;
 /// <summary>
 /// Implements <see cref="IPdfPanelRenderTargetFactory"/>, <see cref="ISkSurfaceFactory"/>,
 /// and <see cref="IPdfPanelRenderTarget"/> for a single WebGL-backed canvas.
-/// The drawing surface is the WebGL framebuffer itself; rendering is a plain Skia flush.
+/// The drawing surface is an offscreen GPU texture; at present time it is blitted to FBO 0.
 /// Canvas transfer is handled by JS during panel registration.
 /// All methods are called from the render thread - no locking required.
 /// </summary>
@@ -18,29 +18,24 @@ namespace PdfPixel.PdfPanel.Web;
 internal sealed class WebGlSkiaRenderer : IPdfPanelRenderTargetFactory, ISkSurfaceFactory, IPdfPanelRenderTarget
 {
     private readonly string _canvasSelector;
-    private readonly string _thumbnailCanvasSelector;
     private readonly ILogger _logger;
     private CanvasGlContext _glContext;
-    private CanvasGlContext _thumbnailGlContext;
-    private SKSurface _currentSurface;
-    private SKSurface _currentThumbnailSurface;
+    private int _currentWebGlContext;
 
-    public WebGlSkiaRenderer(ILogger logger, string canvasSelector, string thumbnailCanvasSelector)
+    public WebGlSkiaRenderer(ILogger logger, string canvasSelector)
     {
         _logger = logger;
         _canvasSelector = canvasSelector;
-        _thumbnailCanvasSelector = thumbnailCanvasSelector;
     }
 
     /// <inheritdoc />
     /// <remarks>
-    /// Creates the WebGL contexts for both canvases. Canvas transfer is handled by JS
+    /// Creates the WebGL context for the main canvas. Canvas transfer is handled by JS
     /// during panel registration before this method is called.
     /// </remarks>
     public void Initialize()
     {
         _glContext = CreateGlContext(_canvasSelector);
-        _thumbnailGlContext = CreateGlContext(_thumbnailCanvasSelector);
     }
 
     /// <summary>
@@ -57,7 +52,7 @@ internal sealed class WebGlSkiaRenderer : IPdfPanelRenderTargetFactory, ISkSurfa
             alpha: 1,
             depth: 1,
             stencil: 1,
-            antialias: 1,
+            antialias: 0,
             majorVersion: 2);
 
         if (webglCtx <= 0)
@@ -72,6 +67,8 @@ internal sealed class WebGlSkiaRenderer : IPdfPanelRenderTargetFactory, ISkSurfa
             _logger.LogError("WebGlMakeContextCurrent failed for {CanvasSelector}: {Result}", canvasSelector, result);
             throw new InvalidOperationException($"WebGlMakeContextCurrent failed for {canvasSelector}: {result}");
         }
+
+        _currentWebGlContext = webglCtx;
 
         _logger.LogInformation("WebGL context {Context} made current for {CanvasSelector}", webglCtx, canvasSelector);
 
@@ -102,78 +99,43 @@ internal sealed class WebGlSkiaRenderer : IPdfPanelRenderTargetFactory, ISkSurfa
 
     /// <inheritdoc />
     /// <remarks>
-    /// Creates a GPU-backed <see cref="SKSurface"/> targeting framebuffer 0 of the WebGL canvas.
-    /// The previous surface is disposed before the new one is created.
-    /// Updates the OffscreenCanvas size if the dimensions have changed.
+    /// Returns an offscreen GPU texture-backed <see cref="SKSurface"/>.
+    /// Delegates to <see cref="CanvasGlContext.CreateSurface"/> which manages the
+    /// offscreen surface and FBO 0 present surface internally.
+    /// Makes the WebGL context current before returning.
     /// </remarks>
     public SKSurface GetDrawingSurface(int width, int height, CancellationToken token)
     {
-        return CreateSurface(_glContext, ref _currentSurface, width, height, preserveContent: true, nameof(GetDrawingSurface));
+        if (_glContext == null)
+        {
+            throw new InvalidOperationException("Initialize must be called before GetDrawingSurface");
+        }
+
+        MakeContextCurrent(_glContext.WebGlContext);
+        return _glContext.CreateSurface(width, height, preserveContent: true);
     }
 
     /// <inheritdoc />
     /// <remarks>
-    /// Creates a GPU-backed <see cref="SKSurface"/> targeting framebuffer 0 of the thumbnail WebGL canvas.
-    /// The previous surface is disposed before the new one is created.
-    /// Updates the OffscreenCanvas size if the dimensions have changed.
+    /// Returns an offscreen GPU texture-backed <see cref="SKSurface"/> for thumbnail rendering.
+    /// Uses the main <see cref="CanvasGlContext"/> so that <see cref="SKSurface.Snapshot"/> returns
+    /// a GPU image on the same <see cref="GRContext"/> as the main drawing surface, allowing it
+    /// to be drawn directly without a slow <c>ToRasterImage</c> / <c>glReadPixels</c> call.
     /// </remarks>
-    public SKSurface CreateThumbnailSurface(int width, int height, CancellationToken token)
+    public SKSurface GetThumbnailSurface(int width, int height, CancellationToken token)
     {
-        return CreateSurface(_thumbnailGlContext, ref _currentThumbnailSurface, width, height, preserveContent: false, nameof(CreateThumbnailSurface));
+        if (_glContext == null)
+        {
+            throw new InvalidOperationException("Initialize must be called before GetThumbnailSurface");
+        }
+
+        MakeContextCurrent(_glContext.WebGlContext);
+        return _glContext.CreateThumbnailSurface(width, height);
     }
 
     /// <inheritdoc />
     /// <remarks>
-    /// Makes the WebGL context current for the specified surface.
-    /// Must be called before any drawing operations on the surface.
-    /// </remarks>
-    public void SetCurrentSurface(SKSurface surface)
-    {
-        CanvasGlContext context = null;
-
-        if (surface == _currentSurface)
-        {
-            context = _glContext;
-        }
-        else if (surface == _currentThumbnailSurface)
-        {
-            context = _thumbnailGlContext;
-        }
-
-        if (context != null)
-        {
-            Emscripten.WebGlMakeContextCurrent(context.WebGlContext);
-        }
-    }
-
-    /// <summary>
-    /// Creates a GPU-backed surface for the specified GL context.
-    /// </summary>
-    /// <param name="glContext">The GL context to create the surface for.</param>
-    /// <param name="currentSurface">Reference to the current surface field.</param>
-    /// <param name="width">Surface width in pixels.</param>
-    /// <param name="height">Surface height in pixels.</param>
-    /// <param name="preserveContent">If true, copies old surface content to new surface.</param>
-    /// <param name="callerName">Name of the calling method for error messages.</param>
-    private SKSurface CreateSurface(CanvasGlContext glContext, ref SKSurface currentSurface, int width, int height, bool preserveContent, string callerName)
-    {
-        if (glContext == null)
-        {
-            throw new InvalidOperationException($"Initialize must be called before {callerName}");
-        }
-
-        var oldSurface = currentSurface;
-        var newSurface = glContext.CreateSurface(width, height, preserveContent ? oldSurface : null);
-        oldSurface?.Dispose();
-
-        currentSurface = newSurface;
-        return currentSurface;
-    }
-
-    /// <inheritdoc />
-    /// <remarks>
-    /// For a WebGL-backed surface the canvas is updated by flushing the Skia command buffer
-    /// and committing the frame (required when using explicitSwapControl).
+    /// Blits the offscreen surface to FBO 0 for display via <see cref="CanvasGlContext.Present"/>.
     /// Must be called on the dedicated render thread that owns the OffscreenCanvas.
     /// </remarks>
     public void Render(SKSurface surface, DrawingRequest request, CancellationToken token)
@@ -183,18 +145,36 @@ internal sealed class WebGlSkiaRenderer : IPdfPanelRenderTargetFactory, ISkSurfa
             return;
         }
 
-        SetCurrentSurface(surface);
-        surface.Flush();
+        MakeContextCurrent(_glContext.WebGlContext);
+        _glContext.Present();
+    }
+
+    /// <summary>
+    /// Makes the specified WebGL context current on this thread, skipping the native call
+    /// when it is already current. Safe to call from multiple <see cref="WebGlSkiaRenderer"/>
+    /// instances because <see cref="_currentWebGlContext"/> is shared across all of them.
+    /// </summary>
+    /// <param name="webGlContext">The WebGL context handle to make current.</param>
+    private void MakeContextCurrent(int webGlContext)
+    {
+        // TODO: [MEDIUM] we need a proper MT support here. We can have multiple threads for rendering. I guess, eveything should potentially work out
+        // of the box as long as we make sure to call WebGlMakeContextCurrent on the right thread. But we need to verify that and add some tests for MT rendering.
+        if (_currentWebGlContext == webGlContext)
+        {
+            return;
+        }
+
+        Emscripten.WebGlMakeContextCurrent(webGlContext);
+        _currentWebGlContext = webGlContext;
     }
 
     /// <inheritdoc />
     /// <remarks>
     /// Called from the render thread via DisposeRequest.
-    /// Disposes GL contexts - surfaces are disposed by PdfRenderingQueue.
+    /// Disposes GL contexts (which dispose their owned surfaces).
     /// </remarks>
     public void Dispose()
     {
         _glContext?.Dispose();
-        _thumbnailGlContext?.Dispose();
     }
 }

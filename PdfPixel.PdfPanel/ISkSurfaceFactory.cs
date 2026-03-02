@@ -5,7 +5,9 @@ using System.Threading;
 namespace PdfPixel.PdfPanel;
 
 /// <summary>
-/// Defines a factory for creating <see cref="SKSurface"/> instances.
+/// Defines a factory for creating and caching <see cref="SKSurface"/> instances.
+/// Implementations track the current surface dimensions internally and only
+/// recreate a surface when the requested size changes.
 /// </summary>
 public interface ISkSurfaceFactory : IDisposable
 {
@@ -16,29 +18,26 @@ public interface ISkSurfaceFactory : IDisposable
     void Initialize();
 
     /// <summary>
-    /// Creates a new drawing <see cref="SKSurface"/> with the specified dimensions
-    /// and disposes existing surface if any.
+    /// Returns the drawing <see cref="SKSurface"/> for the specified dimensions.
+    /// The factory tracks the current size and only creates a new surface when the
+    /// dimensions change. The caller should request the surface each time it is needed
+    /// rather than caching the returned instance.
     /// </summary>
     /// <param name="width">Required surface width.</param>
     /// <param name="height">Required surface height.</param>
     /// <param name="token">Token to cancel surface request.</param>
-    /// <returns>A new <see cref="SKSurface"/> instance.</returns>
+    /// <returns>The current drawing <see cref="SKSurface"/> instance.</returns>
     SKSurface GetDrawingSurface(int width, int height, CancellationToken token);
 
     /// <summary>
-    /// Creates a <see cref="SKSurface"/> suitable for thumbnail rendering.
-    /// The previous thumbnail surface is disposed on each call.
+    /// Returns the thumbnail <see cref="SKSurface"/> for the specified dimensions.
+    /// The factory tracks the current size and only creates a new surface when the
+    /// dimensions change. The caller should request the surface each time it is needed
+    /// rather than caching the returned instance.
     /// </summary>
     /// <param name="width">Required surface width.</param>
     /// <param name="height">Required surface height.</param>
     /// <param name="token">Token to cancel surface request.</param>
-    /// <returns>A new <see cref="SKSurface"/> instance.</returns>
-    SKSurface CreateThumbnailSurface(int width, int height, CancellationToken token);
-
-    /// <summary>
-    /// Sets the specified surface as the current rendering target.
-    /// For GPU-backed implementations, this ensures the correct graphics context is active.
-    /// </summary>
-    /// <param name="surface">The surface to make current.</param>
-    void SetCurrentSurface(SKSurface surface);
+    /// <returns>The current thumbnail <see cref="SKSurface"/> instance.</returns>
+    SKSurface GetThumbnailSurface(int width, int height, CancellationToken token);
 }

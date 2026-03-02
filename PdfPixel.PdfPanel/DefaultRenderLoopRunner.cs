@@ -1,7 +1,6 @@
 using PdfPixel.PdfPanel.Requests;
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Threading;
 
 namespace PdfPixel.PdfPanel;

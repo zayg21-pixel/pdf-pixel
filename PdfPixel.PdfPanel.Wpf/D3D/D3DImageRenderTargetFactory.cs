@@ -22,6 +22,10 @@ public sealed class D3DImageRenderTargetFactory : IPdfPanelRenderTargetFactory, 
     private D3D9Texture _currentTexture;
     private SKSurface _currentSurface;
     private SKSurface _currentThumbnailSurface;
+    private int _currentWidth;
+    private int _currentHeight;
+    private int _currentThumbnailWidth;
+    private int _currentThumbnailHeight;
 
     /// <summary>
     /// Initializes a new <see cref="D3DImageRenderTargetFactory"/> and creates all underlying DirectX devices.
@@ -40,19 +44,20 @@ public sealed class D3DImageRenderTargetFactory : IPdfPanelRenderTargetFactory, 
         // no op
     }
 
-    public void SetCurrentSurface(SKSurface surface)
-    {
-        // no op
-    }
-
     /// <summary>
     /// Returns the GPU-backed <see cref="SKSurface"/> for the given dimensions.
-    /// A new <see cref="D3D9Texture"/> and <see cref="SKSurface"/> are created, the D3DImage back buffer
-    /// is updated atomically with already-drawn content, and only then are the old resources released.
+    /// A new <see cref="D3D9Texture"/> and <see cref="SKSurface"/> are created only when the
+    /// dimensions change. The D3DImage back buffer is updated atomically with already-drawn
+    /// content, and only then are the old resources released.
     /// </summary>
     /// <inheritdoc />
     public SKSurface GetDrawingSurface(int width, int height, CancellationToken token)
     {
+        if (_currentSurface != null && _currentWidth == width && _currentHeight == height)
+        {
+            return _currentSurface;
+        }
+
         D3D9Texture newTexture;
         SKSurface newSurface;
         D3D9Texture oldTexture = null;
@@ -93,6 +98,9 @@ public sealed class D3DImageRenderTargetFactory : IPdfPanelRenderTargetFactory, 
             _currentSurface = newSurface;
         }, System.Windows.Threading.DispatcherPriority.Render, token);
 
+        _currentWidth = width;
+        _currentHeight = height;
+
         oldSurface?.Dispose();
         _grContext.PurgeResources();
         oldTexture?.Dispose();
@@ -101,18 +109,26 @@ public sealed class D3DImageRenderTargetFactory : IPdfPanelRenderTargetFactory, 
     }
 
     /// <summary>
-    /// Creates a GPU-backed offscreen surface for thumbnail rendering.
+    /// Returns a GPU-backed offscreen surface for thumbnail rendering.
     /// Uses the existing <see cref="GRContext"/> directly — no shared D3D9/D3D11/D3D12 resources.
+    /// Only creates a new surface when the dimensions change.
     /// </summary>
     /// <inheritdoc />
-    public SKSurface CreateThumbnailSurface(int width, int height, CancellationToken token)
+    public SKSurface GetThumbnailSurface(int width, int height, CancellationToken token)
     {
+        if (_currentThumbnailSurface != null && _currentThumbnailWidth == width && _currentThumbnailHeight == height)
+        {
+            return _currentThumbnailSurface;
+        }
+
         var info = new SKImageInfo(width, height, SKColorType.Bgra8888, SKAlphaType.Premul);
         var newSurface = SKSurface.Create(_grContext, false, info);
         newSurface.Canvas.ClipRect(new SKRect(0, 0, width, height));
 
         var oldSurface = _currentThumbnailSurface;
         _currentThumbnailSurface = newSurface;
+        _currentThumbnailWidth = width;
+        _currentThumbnailHeight = height;
 
         oldSurface?.Dispose();
         _grContext.PurgeResources();

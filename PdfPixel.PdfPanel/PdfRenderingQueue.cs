@@ -4,7 +4,6 @@ using PdfPixel.PdfPanel.Requests;
 using SkiaSharp;
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 
@@ -22,9 +21,6 @@ public sealed class PdfRenderingQueue : IDisposable
     private volatile bool _disposed;
 
     // State preserved across iterations
-    private SKSurface _surface;
-    private SKSurface _thumbnailSurface;
-    private int _thumbnailSurfaceSize;
     private PagesDrawingRequest _activePagesDrawingRequest;
     private PdfPanelRenderCommand _activeCommand;
     private PagesDrawingRequest _previousPagesDrawingRequest;
@@ -52,7 +48,6 @@ public sealed class PdfRenderingQueue : IDisposable
     private void RenderThreadEntry()
     {
         _surfaceFactory.Initialize();
-        //_loopRunner.Start(RenderLoopIteration);
         _loopRunner.Start(RenderCommandLoopIteration);
     }
 
@@ -83,12 +78,6 @@ public sealed class PdfRenderingQueue : IDisposable
         _activePagesDrawingRequest = command.DrawingRequest;
         _activeCommand = command;
 
-        if (_activePagesDrawingRequest != null)
-        {
-            EnsureSurfaceForRequest(_activePagesDrawingRequest, cancellationToken);
-            EnsureThumbnailSurfaceForRequest(_activePagesDrawingRequest, cancellationToken);
-        }
-
         try
         {
             switch (command.Type)
@@ -100,22 +89,26 @@ public sealed class PdfRenderingQueue : IDisposable
                 }
                 case PdfPanelRenderCommandType.DrawBackground:
                 {
-                    DrawBackground();
+                    var surface = GetDrawingSurface(cancellationToken);
+                    DrawBackground(surface);
                     break;
                 }
                 case PdfPanelRenderCommandType.Render:
                 {
-                    _activePagesDrawingRequest.RenderTarget.Render(_surface, _activePagesDrawingRequest, cancellationToken);
+                    var surface = GetDrawingSurface(cancellationToken);
+                    _activePagesDrawingRequest.RenderTarget.Render(surface, _activePagesDrawingRequest, cancellationToken);
                     break;
                 }
                 case PdfPanelRenderCommandType.InitializePage:
                 {
-                    InitializePage();
+                    var thumbnailSurface = GetThumbnailSurface(cancellationToken);
+                    InitializePage(thumbnailSurface);
                     break;
                 }
                 case PdfPanelRenderCommandType.DrawThumbnail:
                 {
-                    DrawThumbnail();
+                    var surface = GetDrawingSurface(cancellationToken);
+                    DrawThumbnail(surface);
                     break;
                 }
                 case PdfPanelRenderCommandType.GenerateContent:
@@ -125,7 +118,8 @@ public sealed class PdfRenderingQueue : IDisposable
                 }
                 case PdfPanelRenderCommandType.DrawContent:
                 {
-                    DrawPageContent();
+                    var surface = GetDrawingSurface(cancellationToken);
+                    DrawPageContent(surface);
                     break;
                 }
             }
@@ -152,58 +146,38 @@ public sealed class PdfRenderingQueue : IDisposable
     private void DisposeFromCommand()
     {
         _disposed = true;
-        _surface?.Dispose();
-        _surface = null;
-        _thumbnailSurface?.Dispose();
-        _thumbnailSurface = null;
         _surfaceFactory.Dispose();
         _loopRunner.Stop();
     }
 
-    private void EnsureSurfaceForRequest(PagesDrawingRequest request, CancellationToken cancellationToken)
+    private SKSurface GetDrawingSurface(CancellationToken cancellationToken)
     {
-        var width = (int)request.CanvasSize.Width;
-        var height = (int)request.CanvasSize.Height;
-        if (_surface == null || _surface.Canvas.DeviceClipBounds.Width != width || _surface.Canvas.DeviceClipBounds.Height != height)
-        {
-            _surface = _surfaceFactory.GetDrawingSurface(width, height, cancellationToken);
-        }
+        var width = (int)_activePagesDrawingRequest.CanvasSize.Width;
+        var height = (int)_activePagesDrawingRequest.CanvasSize.Height;
+        return _surfaceFactory.GetDrawingSurface(width, height, cancellationToken);
     }
 
-    private void EnsureThumbnailSurfaceForRequest(PagesDrawingRequest request, CancellationToken cancellationToken)
+    private SKSurface GetThumbnailSurface(CancellationToken cancellationToken)
     {
-        if (request.MaxThumbnailSize > 0)
-        {
-            if (_thumbnailSurfaceSize != request.MaxThumbnailSize)
-            {
-                _thumbnailSurface = _surfaceFactory.CreateThumbnailSurface(request.MaxThumbnailSize, request.MaxThumbnailSize, cancellationToken);
-                _thumbnailSurfaceSize = request.MaxThumbnailSize;
-            }
-        }
-        else
-        {
-            _thumbnailSurface?.Dispose();
-            _thumbnailSurface = null;
-        }
+        var size = _activePagesDrawingRequest.MaxThumbnailSize;
+        return _surfaceFactory.GetThumbnailSurface(size, size, cancellationToken);
     }
 
-    private void DrawBackground()
+    private void DrawBackground(SKSurface surface)
     {
         _backgroundRenderedForPages.Clear();
-        var canvas = _surface.Canvas;
-        _surfaceFactory.SetCurrentSurface(_surface);
+        var canvas = surface.Canvas;
 
         var visiblePages = _activePagesDrawingRequest.VisiblePages.Select(x => x.PageNumber);
         _activePagesDrawingRequest.Pages.UpdateCache(visiblePages);
 
         if (_previousPagesDrawingRequest != null)
         {
-            _surface.Flush();
-            using var surfaceSnapshot = _surface.Snapshot();
-            using var rasterSnapshot = surfaceSnapshot.ToRasterImage();
+            surface.Flush();
+            using var surfaceSnapshot = surface.Snapshot();
             DrawBackgroundAndShadows(canvas, _activePagesDrawingRequest);
             DrawExistingThumbnails(canvas, _activePagesDrawingRequest);
-            RenderSurfaceSnapshot(canvas, rasterSnapshot, _activePagesDrawingRequest, _previousPagesDrawingRequest);
+            RenderSurfaceSnapshot(canvas, surfaceSnapshot, _activePagesDrawingRequest, _previousPagesDrawingRequest);
         }
         else
         {
@@ -212,43 +186,30 @@ public sealed class PdfRenderingQueue : IDisposable
         }
     }
 
-    private void InitializePage()
+    private void InitializePage(SKSurface thumbnailSurface)
     {
-        _surfaceFactory.SetCurrentSurface(_thumbnailSurface);
-
-        _activePagesDrawingRequest.Pages.InitializePageWithThumbnail(_activeCommand.PageNumber.Value, _activePagesDrawingRequest.Scale, _thumbnailSurface, _activePagesDrawingRequest.ActiveAnnotation, _activePagesDrawingRequest.ActiveAnnotationState);
+        _activePagesDrawingRequest.Pages.InitializePageWithThumbnail(_activeCommand.PageNumber.Value, _activePagesDrawingRequest.Scale, thumbnailSurface, _activePagesDrawingRequest.ActiveAnnotation, _activePagesDrawingRequest.ActiveAnnotationState);
     }
 
-    private void DrawThumbnail()
+    private void DrawThumbnail(SKSurface surface)
     {
         if (_backgroundRenderedForPages.Contains(_activeCommand.PageNumber.Value))
         {
             return;
         }
         var picture = _activePagesDrawingRequest.Pages.GetCachedPicture(_activeCommand.PageNumber.Value);
-        _surfaceFactory.SetCurrentSurface(_surface);
-        _surface.Canvas.DrawPageFromRequest(picture.PageNumber, _activePagesDrawingRequest, PageDrawFlags.Background | PageDrawFlags.Thumbnail);
+        surface.Canvas.DrawPageFromRequest(picture.PageNumber, _activePagesDrawingRequest, PageDrawFlags.Background | PageDrawFlags.Thumbnail);
     }
 
     private void InitializePageContent(CancellationToken token)
     {
-        _surfaceFactory.SetCurrentSurface(_surface);
-        try
-        {
-            _activePagesDrawingRequest.Pages.GeneratePicturesForPage(_activeCommand.PageNumber.Value, token);
-        }
-        catch (OperationCanceledException)
-        {
-            Debug.WriteLine("Page content generation cancelled for page");
-            _logger.LogInformation("Page content generation cancelled for page {PageNumber}", _activeCommand.PageNumber.Value);
-        }
+        _activePagesDrawingRequest.Pages.GeneratePicturesForPage(_activeCommand.PageNumber.Value, token);
     }
 
-    private void DrawPageContent()
+    private void DrawPageContent(SKSurface surface)
     {
         var picture = _activePagesDrawingRequest.Pages.GetCachedPicture(_activeCommand.PageNumber.Value);
-        _surfaceFactory.SetCurrentSurface(_surface);
-        _surface.Canvas.DrawPageFromRequest(picture.PageNumber, _activePagesDrawingRequest, PageDrawFlags.Background | PageDrawFlags.Content);
+        surface.Canvas.DrawPageFromRequest(picture.PageNumber, _activePagesDrawingRequest, PageDrawFlags.Background | PageDrawFlags.Content);
     }
 
     private static void DrawBackgroundAndShadows(SKCanvas canvas, PagesDrawingRequest request)

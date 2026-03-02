@@ -40,6 +40,20 @@ int dotnet_webgl_make_context_current(int ctx) {
 	return (int)emscripten_webgl_make_context_current((EMSCRIPTEN_WEBGL_CONTEXT_HANDLE)ctx);
 }
 
+// Acquires the WEBGL_debug_renderer_info extension on the given context handle so that
+// Emscripten's glGetString shim can call getParameter(UNMASKED_RENDERER/VENDOR_WEBGL)
+// without triggering an INVALID_ENUM browser warning.
+// Must be called from the same thread that owns the context (worker for OffscreenCanvas).
+EM_JS(void, dotnet_webgl_enable_debug_renderer_info, (int ctx), {
+	if (typeof GL === 'undefined' || !GL.contexts || !GL.contexts[ctx]) {
+		return;
+	}
+	const glCtx = GL.contexts[ctx].GLctx;
+	if (glCtx) {
+		glCtx.getExtension('WEBGL_debug_renderer_info');
+	}
+});
+
 // Creates a WebGL context on the specified canvas.
 // The OffscreenCanvas must already be registered in GL.offscreenCanvases
 // (transferred via the 'run' command's offscreenCanvases property).
@@ -56,7 +70,11 @@ int dotnet_webgl_create_context(const char* canvasId, int alpha, int depth, int 
 	attrs.enableExtensionsByDefault = 1;
 	attrs.preserveDrawingBuffer = 1;
 
-	return (int)emscripten_webgl_create_context(canvasId, &attrs);
+	int handle = (int)emscripten_webgl_create_context(canvasId, &attrs);
+	if (handle > 0) {
+		dotnet_webgl_enable_debug_renderer_info(handle);
+	}
+	return handle;
 }
 
 // Writes a log message to the browser console using the channel that matches log_level.

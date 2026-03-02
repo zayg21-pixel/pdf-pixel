@@ -83,7 +83,7 @@ public partial class PdfPanelInterop
 
         try
         {
-            var renderer = new WebGlSkiaRenderer(LoggerFactory.CreateLogger<WebGlSkiaRenderer>(), $"#{containerId} .pdf-panel-canvas", $"#{containerId} .pdf-thumbnail-canvas");
+            var renderer = new WebGlSkiaRenderer(LoggerFactory.CreateLogger<WebGlSkiaRenderer>(), $"#{containerId} .pdf-panel-canvas");
 
             var resources = new PdfPanelResources
             {
@@ -118,7 +118,7 @@ public partial class PdfPanelInterop
 
             resources.Configuration = parsed;
 
-            resources.RenderingQueue = new PdfRenderingQueue(LoggerFactory, resources.SkSurfaceFactory, new EmscriptenRenderLoopRunner());
+            resources.RenderingQueue = new PdfRenderingQueue(LoggerFactory, resources.SkSurfaceFactory, new EmscriptenRenderLoopRunner(LoggerFactory.CreateLogger<EmscriptenRenderLoopRunner>()));
 
             ResourcesMap[containerId] = resources;
         }

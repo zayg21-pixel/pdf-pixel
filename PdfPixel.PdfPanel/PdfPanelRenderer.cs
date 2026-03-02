@@ -326,8 +326,7 @@ internal sealed class PdfPanelRenderer
 
             var drawnWidth = (int)Math.Max(1, Math.Round(pdfPage.CropBox.Width * scale));
             var drawnHeight = (int)Math.Max(1, Math.Round(pdfPage.CropBox.Height * scale));
-            using var snapshot = surface.Snapshot(new SKRectI(0, 0, drawnWidth, drawnHeight));
-            return snapshot.ToRasterImage();
+            return surface.Snapshot(new SKRectI(0, 0, drawnWidth, drawnHeight));
         }
         catch
         {

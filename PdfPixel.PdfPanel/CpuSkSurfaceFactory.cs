@@ -5,6 +5,7 @@ namespace PdfPixel.PdfPanel;
 
 /// <summary>
 /// Provides a factory for creating CPU-backed <see cref="SKSurface"/> instances.
+/// Tracks surface dimensions internally and only recreates when the size changes.
 /// </summary>
 public class CpuSkSurfaceFactory : ISkSurfaceFactory
 {
@@ -12,6 +13,10 @@ public class CpuSkSurfaceFactory : ISkSurfaceFactory
     private readonly SKAlphaType _alphaType;
     private SKSurface _currentSurface;
     private SKSurface _currentThumbnailSurface;
+    private int _currentWidth;
+    private int _currentHeight;
+    private int _currentThumbnailWidth;
+    private int _currentThumbnailHeight;
 
     public CpuSkSurfaceFactory(SKColorType colorType, SKAlphaType alphaType)
     {
@@ -28,6 +33,11 @@ public class CpuSkSurfaceFactory : ISkSurfaceFactory
     /// <inheritdoc />
     public SKSurface GetDrawingSurface(int width, int height, CancellationToken token)
     {
+        if (_currentSurface != null && _currentWidth == width && _currentHeight == height)
+        {
+            return _currentSurface;
+        }
+
         var info = new SKImageInfo(width, height, _colorType, _alphaType);
         var newSurface = SKSurface.Create(info);
 
@@ -38,6 +48,8 @@ public class CpuSkSurfaceFactory : ISkSurfaceFactory
 
         var oldSurface = _currentSurface;
         _currentSurface = newSurface;
+        _currentWidth = width;
+        _currentHeight = height;
 
         oldSurface?.Dispose();
 
@@ -45,24 +57,24 @@ public class CpuSkSurfaceFactory : ISkSurfaceFactory
     }
 
     /// <inheritdoc />
-    public SKSurface CreateThumbnailSurface(int width, int height, CancellationToken token)
+    public SKSurface GetThumbnailSurface(int width, int height, CancellationToken token)
     {
+        if (_currentThumbnailSurface != null && _currentThumbnailWidth == width && _currentThumbnailHeight == height)
+        {
+            return _currentThumbnailSurface;
+        }
+
         var info = new SKImageInfo(width, height, _colorType, _alphaType);
         var newSurface = SKSurface.Create(info);
 
         var oldSurface = _currentThumbnailSurface;
         _currentThumbnailSurface = newSurface;
+        _currentThumbnailWidth = width;
+        _currentThumbnailHeight = height;
 
         oldSurface?.Dispose();
 
         return newSurface;
-    }
-
-    /// <inheritdoc />
-    /// <remarks>CPU-backed surfaces do not require context switching.</remarks>
-    public void SetCurrentSurface(SKSurface surface)
-    {
-        // No-op for CPU surfaces
     }
 
     /// <inheritdoc />

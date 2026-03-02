@@ -13,7 +13,7 @@
     <WasmNativeDebugSymbols>true</WasmNativeDebugSymbols>
     <WasmEmitSymbolMap>true</WasmEmitSymbolMap>
     <WasmEmitSourceMap>true</WasmEmitSourceMap>
-    <EmccFlags>-s FULL_ES3=1 -s ASSERTIONS=2 -s OFFSCREENCANVAS_SUPPORT=1</EmccFlags>
+    <EmccFlags>-s FULL_ES3=1 -s OFFSCREENCANVAS_SUPPORT=1</EmccFlags>
   </PropertyGroup>
 
   <ItemGroup>
