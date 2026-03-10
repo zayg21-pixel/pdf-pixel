@@ -7,4 +7,5 @@
 /// </summary>
 internal class RefreshGraphicsDrawingRequest : DrawingRequest
 {
+    public override bool IsSkippable => true;
 }

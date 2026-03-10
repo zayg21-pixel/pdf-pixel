@@ -100,7 +100,7 @@ public static class PdfPaintFactory
     /// Creates a paint object for soft mask rendering.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static SKPaint CreateSoftMaskShaderPaint(PdfGraphicsState state, SKShader maskShader)
+    public static SKPaint CreateImageShaderPaint(PdfGraphicsState state, SKShader maskShader)
     {
         var paint = CreateBasePaint(state);
         paint.Color = SKColors.White;

@@ -1,12 +1,9 @@
-using Microsoft.Extensions.Logging;
 using PdfPixel.PdfPanel.Requests;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
-using System.Text;
 using System.Threading;
 
 namespace PdfPixel.PdfPanel.Web;
@@ -19,24 +16,28 @@ namespace PdfPixel.PdfPanel.Web;
 [SupportedOSPlatform("browser")]
 public sealed class EmscriptenRenderLoopRunner : IRenderLoopRunner
 {
-    /// <summary>
-    /// Number of commands processed between statistics dumps.
-    /// </summary>
-    private const int StatsDumpInterval = 200;
-
     private static readonly object SyncRoot = new object();
     private bool _disposed;
     private volatile bool _isRunning;
     private Action<RenderFrameCommand> _iteration;
     private int _threadId;
-    private volatile RequestAndToken _pendingRequest;
 
-    private readonly ILogger<EmscriptenRenderLoopRunner> _logger;
+    /// <summary>
+    /// Cross-thread queue: produced by <see cref="Enqueue"/> on thread 1,
+    /// consumed by <see cref="OnFrame"/> on thread 2.
+    /// </summary>
+    private readonly ConcurrentQueue<RequestEntry> _requestQueue = new();
 
-    // Per-instance statistics: accumulated count and total processing time per command type.
-    // Accessed only from the owning render thread, so no locking is required.
-    private int _commandsProcessedSinceLastDump;
-    private readonly Dictionary<PdfPanelRenderCommandType, (int Count, double TotalMs)> _statsPerType = new();
+    /// <summary>
+    /// Shared <see cref="CancellationTokenSource"/> for all pending skippable requests.
+    /// Replaced each time a new request is enqueued, cancelling all previously queued skippable work.
+    /// </summary>
+    private CancellationTokenSource _skippableCts = new();
+
+    /// <summary>
+    /// Entry currently being drained by <see cref="OnFrame"/>. Accessed only from thread 2.
+    /// </summary>
+    private RequestEntry _currentEntry;
 
     // Instances keyed by thread ID - each render thread has its own runner
     private static readonly ConcurrentDictionary<int, EmscriptenRenderLoopRunner> Instances = new();
@@ -44,10 +45,8 @@ public sealed class EmscriptenRenderLoopRunner : IRenderLoopRunner
     /// <summary>
     /// Creates a new <see cref="EmscriptenRenderLoopRunner"/>.
     /// </summary>
-    /// <param name="logger">The logger used to emit periodic render statistics.</param>
-    public EmscriptenRenderLoopRunner(ILogger<EmscriptenRenderLoopRunner> logger)
+    public EmscriptenRenderLoopRunner()
     {
-        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
     /// <inheritdoc />
@@ -107,11 +106,16 @@ public sealed class EmscriptenRenderLoopRunner : IRenderLoopRunner
 
         var commands = PdfPanelRenderCommand.GenerateCommandsFromRequest(request);
         var commandQueue = new Queue<PdfPanelRenderCommand>(commands);
-        var newRequest = new RequestAndToken(commandQueue, new CancellationTokenSource());
 
-        var oldRequest = Interlocked.Exchange(ref _pendingRequest, newRequest);
-        oldRequest?.CancellationTokenSource.Cancel();
-        oldRequest?.CancellationTokenSource.Dispose();
+        // Cancel all previously queued skippable requests.
+        var newCts = new CancellationTokenSource();
+        var oldCts = Interlocked.Exchange(ref _skippableCts, newCts);
+        oldCts.Cancel();
+        oldCts.Dispose();
+
+        // Non-skippable requests receive CancellationToken.None so they are never cancelled.
+        var token = request.IsSkippable ? newCts.Token : CancellationToken.None;
+        _requestQueue.Enqueue(new RequestEntry(commandQueue, token));
     }
 
     [UnmanagedCallersOnly]
@@ -129,77 +133,47 @@ public sealed class EmscriptenRenderLoopRunner : IRenderLoopRunner
             return;
         }
 
-        var request = instance._pendingRequest;
+        // Advance to the next non-cancelled entry when the current one is exhausted.
+        while (instance._currentEntry == null || instance._currentEntry.Commands.Count == 0)
+        {
+            instance._currentEntry = null;
 
-        if (request == null || request.CancellationTokenSource.IsCancellationRequested)
+            if (!instance._requestQueue.TryDequeue(out var next))
+            {
+                return;
+            }
+
+            if (!next.CancellationToken.IsCancellationRequested)
+            {
+                instance._currentEntry = next;
+                break;
+            }
+        }
+
+        var entry = instance._currentEntry;
+
+        if (entry == null)
         {
             return;
         }
 
-        if (request.Commands.TryDequeue(out var renderCommand))
+        // The entry may have been cancelled while earlier commands were being processed.
+        if (entry.CancellationToken.IsCancellationRequested)
         {
-            var frame = new RenderFrameCommand(renderCommand, request.CancellationTokenSource.Token);
-            var startTimestamp = Stopwatch.GetTimestamp();
+            instance._currentEntry = null;
+            return;
+        }
+
+        if (entry.Commands.TryDequeue(out var renderCommand))
+        {
+            var frame = new RenderFrameCommand(renderCommand, entry.CancellationToken);
             instance._iteration?.Invoke(frame);
-            var elapsedMs = Stopwatch.GetElapsedTime(startTimestamp).TotalMilliseconds;
-            instance.RecordStats(renderCommand.Type, elapsedMs);
         }
 
-        if (request.Commands.Count == 0)
+        if (entry.Commands.Count == 0)
         {
-            // Only clear and dispose if no newer request has replaced this one.
-            // If Enqueue already swapped in a new request, it owns and has disposed the old CTS.
-            var replaced = Interlocked.CompareExchange(ref instance._pendingRequest, null, request);
-            if (replaced == request)
-            {
-                request.CancellationTokenSource.Dispose();
-            }
+            instance._currentEntry = null;
         }
-    }
-
-    /// <summary>
-    /// Records processing time for a single command and triggers a statistics dump every
-    /// <see cref="StatsDumpInterval"/> commands.
-    /// </summary>
-    /// <param name="commandType">The type of command that was processed.</param>
-    /// <param name="elapsedMs">The time taken to process the command, in milliseconds.</param>
-    private void RecordStats(PdfPanelRenderCommandType commandType, double elapsedMs)
-    {
-        if (_statsPerType.TryGetValue(commandType, out var existing))
-        {
-            _statsPerType[commandType] = (existing.Count + 1, existing.TotalMs + elapsedMs);
-        }
-        else
-        {
-            _statsPerType[commandType] = (1, elapsedMs);
-        }
-
-        _commandsProcessedSinceLastDump++;
-
-        if (_commandsProcessedSinceLastDump >= StatsDumpInterval)
-        {
-            DumpStats();
-        }
-    }
-
-    /// <summary>
-    /// Logs accumulated per-type statistics as a single message and resets the accumulators.
-    /// </summary>
-    private void DumpStats()
-    {
-        var builder = new StringBuilder();
-        builder.Append($"Render loop statistics ({_commandsProcessedSinceLastDump} commands):");
-
-        foreach (var (type, stats) in _statsPerType)
-        {
-            var averageMs = stats.Count > 0 ? stats.TotalMs / stats.Count : 0.0;
-            builder.Append($"\n  {type}: count={stats.Count}, avg={averageMs:F2}ms");
-        }
-
-        _logger.LogInformation(builder.ToString());
-
-        _statsPerType.Clear();
-        _commandsProcessedSinceLastDump = 0;
     }
 
     /// <inheritdoc />
@@ -212,23 +186,17 @@ public sealed class EmscriptenRenderLoopRunner : IRenderLoopRunner
 
         Stop();
 
-        var pendingRequest = Interlocked.Exchange(ref _pendingRequest, null);
-        pendingRequest?.CancellationTokenSource.Cancel();
-        pendingRequest?.CancellationTokenSource.Dispose();
+        var cts = Interlocked.Exchange(ref _skippableCts, null);
+        cts?.Cancel();
+        cts?.Dispose();
 
+        // Drain the queue.
+        while (_requestQueue.TryDequeue(out _))
+        {
+        }
+
+        _currentEntry = null;
         _disposed = true;
     }
 
-    private class RequestAndToken
-    {
-        public RequestAndToken(Queue<PdfPanelRenderCommand> commands, CancellationTokenSource cancellationTokenSource)
-        {
-            Commands = commands;
-            CancellationTokenSource = cancellationTokenSource;
-        }
-
-        public Queue<PdfPanelRenderCommand> Commands { get; }
-
-        public CancellationTokenSource CancellationTokenSource { get; }
     }
-}

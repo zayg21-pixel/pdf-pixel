@@ -1,5 +1,6 @@
 using PdfPixel.PdfPanel.Requests;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Threading;
 
@@ -7,6 +8,9 @@ namespace PdfPixel.PdfPanel;
 
 /// <summary>
 /// Default render loop runner that blocks on a semaphore waiting for work.
+/// Uses a <see cref="ConcurrentQueue{T}"/> of <see cref="RequestEntry"/> items and a shared
+/// <see cref="CancellationTokenSource"/> to batch-cancel pending skippable requests while
+/// guaranteeing that non-skippable requests are never dropped.
 /// </summary>
 public sealed class DefaultRenderLoopRunner : IRenderLoopRunner
 {
@@ -15,9 +19,17 @@ public sealed class DefaultRenderLoopRunner : IRenderLoopRunner
     private volatile bool _running;
     private Action<RenderFrameCommand> _iteration;
 
-    // Latest pending request with pre-generated commands and fresh CTS, exchanged atomically.
-    // Enqueue writes and cancels the previous; the render loop takes ownership by swapping to null.
-    private volatile RequestAndToken _pendingRequest;
+    /// <summary>
+    /// Cross-thread queue: produced by <see cref="Enqueue"/>,
+    /// consumed by the render loop in <see cref="Start"/>.
+    /// </summary>
+    private readonly ConcurrentQueue<RequestEntry> _requestQueue = new();
+
+    /// <summary>
+    /// Shared <see cref="CancellationTokenSource"/> for all pending skippable requests.
+    /// Replaced each time a new request is enqueued, cancelling all previously queued skippable work.
+    /// </summary>
+    private CancellationTokenSource _skippableCts = new();
 
     /// <inheritdoc />
     public void Start(Action<RenderFrameCommand> iteration)
@@ -41,30 +53,7 @@ public sealed class DefaultRenderLoopRunner : IRenderLoopRunner
                 break;
             }
 
-            var request = _pendingRequest;
-            if (request == null)
-            {
-                continue;
-            }
-
-            foreach (var command in request.Commands)
-            {
-                if (request.CancellationTokenSource.IsCancellationRequested)
-                {
-                    break;
-                }
-
-                var frame = new RenderFrameCommand(command, request.CancellationTokenSource.Token);
-                _iteration(frame);
-            }
-
-            // Only clear and dispose if no newer request has replaced this one.
-            // If Enqueue already swapped in a new request, it owns and has disposed the old CTS.
-            var replaced = Interlocked.CompareExchange(ref _pendingRequest, null, request);
-            if (replaced == request)
-            {
-                request.CancellationTokenSource.Dispose();
-            }
+            ProcessQueue();
         }
     }
 
@@ -89,15 +78,47 @@ public sealed class DefaultRenderLoopRunner : IRenderLoopRunner
         }
 
         var commands = PdfPanelRenderCommand.GenerateCommandsFromRequest(request);
-        var newRequest = new RequestAndToken(commands, new CancellationTokenSource());
+        var commandQueue = new Queue<PdfPanelRenderCommand>(commands);
 
-        var oldRequest = Interlocked.Exchange(ref _pendingRequest, newRequest);
-        oldRequest?.CancellationTokenSource.Cancel();
-        oldRequest?.CancellationTokenSource.Dispose();
+        // Cancel all previously queued skippable requests.
+        var newCts = new CancellationTokenSource();
+        var oldCts = Interlocked.Exchange(ref _skippableCts, newCts);
+        oldCts.Cancel();
+        oldCts.Dispose();
+
+        // Non-skippable requests receive CancellationToken.None so they are never cancelled.
+        var token = request.IsSkippable ? newCts.Token : CancellationToken.None;
+        _requestQueue.Enqueue(new RequestEntry(commandQueue, token));
 
         _semaphore.Release();
     }
 
+    /// <summary>
+    /// Drains all non-cancelled entries from the request queue, processing their commands in order.
+    /// </summary>
+    private void ProcessQueue()
+    {
+        while (_requestQueue.TryDequeue(out var entry))
+        {
+            if (entry.CancellationToken.IsCancellationRequested)
+            {
+                continue;
+            }
+
+            foreach (var command in entry.Commands)
+            {
+                if (entry.CancellationToken.IsCancellationRequested)
+                {
+                    break;
+                }
+
+                var frame = new RenderFrameCommand(command, entry.CancellationToken);
+                _iteration(frame);
+            }
+        }
+    }
+
+    /// <inheritdoc />
     public void Dispose()
     {
         if (_disposed)
@@ -107,30 +128,16 @@ public sealed class DefaultRenderLoopRunner : IRenderLoopRunner
 
         Stop();
 
-        var pendingRequest = Interlocked.Exchange(ref _pendingRequest, null);
-        pendingRequest?.CancellationTokenSource.Cancel();
-        pendingRequest?.CancellationTokenSource.Dispose();
+        var cts = Interlocked.Exchange(ref _skippableCts, null);
+        cts?.Cancel();
+        cts?.Dispose();
+
+        // Drain the queue.
+        while (_requestQueue.TryDequeue(out _))
+        {
+        }
 
         _semaphore.Dispose();
         _disposed = true;
-    }
-
-    private sealed class RequestAndToken
-    {
-        public RequestAndToken(List<PdfPanelRenderCommand> commands, CancellationTokenSource cancellationTokenSource)
-        {
-            Commands = commands;
-            CancellationTokenSource = cancellationTokenSource;
-        }
-
-        /// <summary>
-        /// The pre-generated list of render commands to execute for this request.
-        /// </summary>
-        public List<PdfPanelRenderCommand> Commands { get; }
-
-        /// <summary>
-        /// The cancellation token source for this request, cancelled when a newer request replaces it.
-        /// </summary>
-        public CancellationTokenSource CancellationTokenSource { get; }
     }
 }

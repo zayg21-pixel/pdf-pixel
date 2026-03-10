@@ -22,6 +22,8 @@ public abstract class DrawingRequest
 
     public VisiblePageInfo[] VisiblePages { get; set; }
 
+    public abstract bool IsSkippable { get; }
+
     public override bool Equals(object obj)
     {
         if (obj is DrawingRequest request)

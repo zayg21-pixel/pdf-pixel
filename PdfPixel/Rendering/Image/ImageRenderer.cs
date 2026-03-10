@@ -3,7 +3,6 @@ using PdfPixel.Color.Filters;
 using PdfPixel.Color.Paint;
 using PdfPixel.Imaging.Decoding;
 using PdfPixel.Imaging.Model;
-using PdfPixel.Imaging.Processing;
 using PdfPixel.Rendering.State;
 using PdfPixel.Transparency.Utilities;
 using SkiaSharp;
@@ -108,7 +107,6 @@ public class ImageRenderer : IImageRenderer
         }
 
         using var imagePaint = PdfPaintFactory.CreateImagePaint(state);
-        imagePaint.ColorFilter = ImagePostProcessingFilters.BuildImageFilter(pdfImage);
 
         var sampling = PdfPaintFactory.GetImageSamplingOptions(pdfImage, state);
         canvas.DrawImage(baseImage, destRect, sampling, imagePaint);
@@ -149,20 +147,15 @@ public class ImageRenderer : IImageRenderer
         }
 
         var sampling = PdfPaintFactory.GetImageSamplingOptions(pdfImage, state);
-        using var layerPaint = PdfPaintFactory.CreateCompositionLayerPaint(state);
+        bool inverse = pdfImage.DecodeArray == null || (pdfImage.DecodeArray.Length == 2 && pdfImage.DecodeArray[0] < pdfImage.DecodeArray[1]);
 
-        // it's important to invert mask/target here, otherwise image would be misaligned
-        using var fillPaint = PdfPaintFactory.CreateMaskImageFillPaint(state);
+        using var shader = ImageBlending.CreateImageMaskBlendingShader(
+            alphaMask,
+            state.FillPaint.Color,
+            inverse,
+            sampling);
 
-        using var maskPaint = PdfPaintFactory.CreateMaskImagePaint(state);
-        maskPaint.ColorFilter = ImagePostProcessingFilters.BuildImageFilter(pdfImage);
-
-        canvas.SaveLayer(destRect, layerPaint);
-
-        canvas.DrawImage(alphaMask, destRect, sampling, maskPaint);
-        canvas.DrawRect(destRect, fillPaint);
-
-        canvas.Restore();
+        DrawShaderToRect(canvas, shader, state, destRect);
     }
 
     /// <summary>
@@ -215,11 +208,6 @@ public class ImageRenderer : IImageRenderer
         }
 
         var sampling = PdfPaintFactory.GetImageSamplingOptions(pdfImage, state);
-
-        using var maskRecorder = new SKPictureRecorder();
-        var unitRectangle = new SKRect(0, 0, 1, 1);
-        using var compoisitionCanvas = maskRecorder.BeginRecording(unitRectangle);
-        compoisitionCanvas.ClipRect(unitRectangle, antialias: true);
         SKColor? matteColor;
 
         if (pdfImage.SoftMask.MatteArray != null)
@@ -232,18 +220,37 @@ public class ImageRenderer : IImageRenderer
         }
 
         using var shader = ImageBlending.CreateSoftMaskBlendingShader(baseImage, maskImage, matteColor, sampling);
-        using var compositionPaint = PdfPaintFactory.CreateSoftMaskShaderPaint(state, shader);
+        DrawShaderToRect(canvas, shader, state, destRect);
+    }
 
-        compoisitionCanvas.DrawPaint(compositionPaint);
+    /// <summary>
+    /// Records a full-unit-rectangle shader draw and composites the result onto <paramref name="canvas"/>
+    /// mapped to <paramref name="destRect"/>. Shared by image mask and soft mask rendering paths.
+    /// </summary>
+    /// <param name="canvas">Destination canvas.</param>
+    /// <param name="shader">Shader to fill the unit rectangle.</param>
+    /// <param name="state">Current graphics state (used for the composition paint).</param>
+    /// <param name="destRect">Destination rectangle on the canvas.</param>
+    private static void DrawShaderToRect(
+        SKCanvas canvas,
+        SKShader shader,
+        PdfGraphicsState state,
+        SKRect destRect)
+    {
+        using var drawPaint = PdfPaintFactory.CreateImagePaint(state);
+        using var compositionPaint = PdfPaintFactory.CreateImageShaderPaint(state, shader);
 
-        var result = maskRecorder.EndRecording();
+        using var recorder = new SKPictureRecorder();
+        var unitRectangle = new SKRect(0, 0, 1, 1);
+        using var compositionCanvas = recorder.BeginRecording(unitRectangle);
+        compositionCanvas.ClipRect(unitRectangle, antialias: true);
+        compositionCanvas.DrawPaint(compositionPaint);
+        using var result = recorder.EndRecording();
 
         SKMatrix scale = SKMatrix.CreateScale(destRect.Width, destRect.Height);
         SKMatrix translate = SKMatrix.CreateTranslation(destRect.Left, destRect.Top);
         SKMatrix matrix = SKMatrix.Concat(scale, translate);
 
-        using var imagePaint = PdfPaintFactory.CreateImagePaint(state);
-
-        canvas.DrawPicture(result, matrix, imagePaint);
+        canvas.DrawPicture(result, matrix, drawPaint);
     }
 }

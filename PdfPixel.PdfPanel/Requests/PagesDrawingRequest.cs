@@ -15,6 +15,8 @@ public class PagesDrawingRequest : DrawingRequest
 
     public float PageCornerRadius { get; set; }
 
+    public override bool IsSkippable => true;
+
     public override bool Equals(object obj)
     {
         if (obj is PagesDrawingRequest parameters)

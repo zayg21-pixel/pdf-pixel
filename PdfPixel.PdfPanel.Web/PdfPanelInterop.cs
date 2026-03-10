@@ -119,7 +119,7 @@ public partial class PdfPanelInterop
 
             resources.Configuration = parsed;
 
-            resources.RenderingQueue = new PdfRenderingQueue(LoggerFactory, resources.SkSurfaceFactory, new EmscriptenRenderLoopRunner(LoggerFactory.CreateLogger<EmscriptenRenderLoopRunner>()));
+            resources.RenderingQueue = new PdfRenderingQueue(LoggerFactory, resources.SkSurfaceFactory, new EmscriptenRenderLoopRunner());
 
             ResourcesMap[containerId] = resources;
         }

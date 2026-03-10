@@ -347,9 +347,11 @@ internal static class Type1CharStringConverter
                     {
                         if (context.FlexDeltas != null)
                         {
-                            UpdateCoordinates(ref context, OpRRCurveTo, context.FlexDeltas);
+                            var emitDeltas = MergeFlexReferencePoint(context.FlexDeltas);
 
-                            foreach (var item in context.FlexDeltas)
+                            UpdateCoordinates(ref context, OpRRCurveTo, emitDeltas);
+
+                            foreach (var item in emitDeltas)
                             {
                                 WriteNumber(output, item);
                             }
@@ -449,6 +451,39 @@ internal static class Type1CharStringConverter
                 }
                 break;
         }
+    }
+
+    /// <summary>
+    /// Merges the flex reference point (first dx/dy pair) into the first curve point
+    /// so the result contains exactly 12 values (two valid rrcurveto curves of 6 args each).
+    /// If the list doesn't have the expected 14 values it is returned unchanged.
+    /// </summary>
+    private static List<Type1CharStringNumber> MergeFlexReferencePoint(List<Type1CharStringNumber> flexDeltas)
+    {
+        // Standard flex: 7 points × 2 coords = 14 values.
+        // Points: ref(0,1)  p1(2,3)  p2(4,5)  p3(6,7)  p4(8,9)  p5(10,11)  p6(12,13)
+        // Merge ref into p1 so rrcurveto sees 12 args: (ref+p1), p2, p3 | p4, p5, p6.
+        if (flexDeltas.Count < 14)
+        {
+            return flexDeltas;
+        }
+
+        var merged = new List<Type1CharStringNumber>(flexDeltas.Count - 2);
+
+        var mergedDx = Type1CharStringNumber.FromDouble(
+            flexDeltas[0].GetAsDouble() + flexDeltas[2].GetAsDouble());
+        var mergedDy = Type1CharStringNumber.FromDouble(
+            flexDeltas[1].GetAsDouble() + flexDeltas[3].GetAsDouble());
+
+        merged.Add(mergedDx);
+        merged.Add(mergedDy);
+
+        for (int i = 4; i < flexDeltas.Count; i++)
+        {
+            merged.Add(flexDeltas[i]);
+        }
+
+        return merged;
     }
 
     private static void WriteNumber(Stream stream, Type1CharStringNumber value)

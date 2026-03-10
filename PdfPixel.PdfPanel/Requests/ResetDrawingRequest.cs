@@ -6,4 +6,5 @@
 /// </summary>
 internal class ResetDrawingRequest : DrawingRequest
 {
+    public override bool IsSkippable => false;
 }

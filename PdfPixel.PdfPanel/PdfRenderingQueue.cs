@@ -124,6 +124,11 @@ public sealed class PdfRenderingQueue : IDisposable
                 }
                 case PdfPanelRenderCommandType.Reset:
                 {
+                    if (_activePagesDrawingRequest == null)
+                    {
+                        return;
+                    }
+
                     var surface = GetDrawingSurface(cancellationToken);
                     surface.Canvas.Clear(SKColors.Transparent);
                     _activePagesDrawingRequest.RenderTarget.Render(surface, _activePagesDrawingRequest, cancellationToken);

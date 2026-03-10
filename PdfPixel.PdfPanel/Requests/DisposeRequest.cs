@@ -6,4 +6,5 @@
 /// </summary>
 public sealed class DisposeRequest : DrawingRequest
 {
+    public override bool IsSkippable => false;
 }

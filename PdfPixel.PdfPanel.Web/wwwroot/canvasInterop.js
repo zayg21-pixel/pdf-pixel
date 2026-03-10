@@ -48,9 +48,7 @@ class PdfPanelView {
         };
 
         this.renderFrameRequestId = null;
-        this.requestedRender = false;
-        this.renderInProgress = false;
-        this.renderVersion = 0;
+        this._rendering = false;
 
         // Tracks the scroll position we set programmatically so onScroll can
         // ignore those events and only react to genuine user-initiated scrolls.
@@ -77,10 +75,9 @@ class PdfPanelView {
     }
 
     requestRender() {
-        this.renderVersion = this.renderVersion + 1;
-        this.requestedRender = true;
+        this._dirty = true;
 
-        if (this.renderFrameRequestId !== null) {
+        if (this.renderFrameRequestId !== null || this._rendering) {
             return;
         }
 
@@ -91,17 +88,8 @@ class PdfPanelView {
     }
 
     async performRender() {
-        if (this.renderInProgress) {
-            return;
-        }
-        if (!this.requestedRender) {
-            return;
-        }
-        this.requestedRender = false;
-        this.renderInProgress = true;
-
-        const currentRenderVersion = this.renderVersion + 1;
-        this.renderVersion = currentRenderVersion;
+        this._rendering = true;
+        this._dirty = false;
 
         try {
             const containerWidth = this.scrollHost.clientWidth;
@@ -136,11 +124,7 @@ class PdfPanelView {
                 pointerPressed: this.state.pointerPressed
             };
 
-                await interop.RequestRedraw(this.id, redrawState);
-
-                if (currentRenderVersion !== this.renderVersion) {
-                    return;
-                }
+            await interop.RequestRedraw(this.id, redrawState);
 
             this.state.forcePageSet = 0;
             this.state.containerWidth = redrawState.containerWidth;
@@ -187,39 +171,55 @@ class PdfPanelView {
                 this.onStateChanged({ ...this.state });
             }
         } finally {
-            this.renderInProgress = false;
-            if (this.requestedRender) {
-                this.requestRender();
-            }
+            this._rendering = false;
+        }
+
+        // If input arrived during the render, schedule a follow-up immediately.
+        if (this._dirty) {
+            this.requestRender();
         }
     }
 
     onWheel(e) {
-        if (!e.ctrlKey) {
-            return;
-        }
-
         e.preventDefault();
 
-        const oldScale = this.state.scale;
-        const zoomDelta = this.configuration.zoomFactor;
-        const nextScaleRequest = e.deltaY > 0 ? oldScale * (1 - zoomDelta) : oldScale * (1 + zoomDelta);
-        const nextScale = Math.max(this.configuration.minZoom, Math.min(this.configuration.maxZoom, nextScaleRequest));
+        if (e.ctrlKey) {
+            const oldScale = this.state.scale;
+            const zoomDelta = this.configuration.zoomFactor;
+            const nextScaleRequest = e.deltaY > 0 ? oldScale * (1 - zoomDelta) : oldScale * (1 + zoomDelta);
+            const nextScale = Math.max(this.configuration.minZoom, Math.min(this.configuration.maxZoom, nextScaleRequest));
 
-        // Compute center coordinates for zoom from mouse if available; otherwise center
-        let centerX = this.state.viewportWidth / 2;
-        let centerY = this.state.viewportHeight / 2;
+            // Compute center coordinates for zoom from mouse if available; otherwise center
+            let centerX = this.state.viewportWidth / 2;
+            let centerY = this.state.viewportHeight / 2;
 
-        if (this.state.mouseX !== null && this.state.mouseY !== null) {
-            centerX = this.state.mouseX * this.state.devicePixelScale;
-            centerY = this.state.mouseY * this.state.devicePixelScale;
+            if (this.state.mouseX !== null && this.state.mouseY !== null) {
+                centerX = this.state.mouseX * this.state.devicePixelScale;
+                centerY = this.state.mouseY * this.state.devicePixelScale;
+            }
+
+            // Update offsets to keep zoom centered around pointer (or center)
+            this.state.verticalOffset = (this.state.verticalOffset + centerY) * (nextScale / oldScale) - centerY;
+            this.state.horizontalOffset = (this.state.horizontalOffset + centerX) * (nextScale / oldScale) - centerX;
+
+            this.state.scale = nextScale;
+        } else {
+            let deltaX = e.deltaX;
+            let deltaY = e.deltaY;
+
+            // Convert line/page deltas to pixel deltas
+            if (e.deltaMode === WheelEvent.DOM_DELTA_LINE) {
+                deltaX *= this.configuration.scrollStep;
+                deltaY *= this.configuration.scrollStep;
+            } else if (e.deltaMode === WheelEvent.DOM_DELTA_PAGE) {
+                deltaX *= this.scrollHost.clientWidth;
+                deltaY *= this.scrollHost.clientHeight;
+            }
+
+            const dpr = window.devicePixelRatio || 1;
+            this.state.verticalOffset += deltaY * dpr;
+            this.state.horizontalOffset += deltaX * dpr;
         }
-
-        // Update offsets to keep zoom centered around pointer (or center)
-        this.state.verticalOffset = (this.state.verticalOffset + centerY) * (nextScale / oldScale) - centerY;
-        this.state.horizontalOffset = (this.state.horizontalOffset + centerX) * (nextScale / oldScale) - centerX;
-
-        this.state.scale = nextScale;
 
         this.requestRender();
     }
@@ -232,7 +232,7 @@ class PdfPanelView {
             return;
         }
 
-        const dpr = this.state.devicePixelScale || window.devicePixelRatio || 1;
+        const dpr = window.devicePixelRatio || 1;
         this.state.verticalOffset = this.scrollHost.scrollTop * dpr;
         this.state.horizontalOffset = this.scrollHost.scrollLeft * dpr;
         this.requestRender();
