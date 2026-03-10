@@ -52,7 +52,7 @@ internal sealed class WebGlSkiaRenderer : IPdfPanelRenderTargetFactory, ISkSurfa
             alpha: 1,
             depth: 1,
             stencil: 1,
-            antialias: 0,
+            antialias: 1,
             majorVersion: 2);
 
         if (webglCtx <= 0)

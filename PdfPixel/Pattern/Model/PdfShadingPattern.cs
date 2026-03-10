@@ -56,13 +56,13 @@ public sealed class PdfShadingPattern : PdfPattern
             using var paint = PdfPaintFactory.CreateShadingPaint(state);
             canvas.Save();
 
-            canvas.ClipPath(renderTarget.ClipPath, SKClipOperation.Intersect, antialias: !state.RenderingParameters.PreviewMode);
+            canvas.ClipPath(renderTarget.ClipPath, SKClipOperation.Intersect, antialias: state.RenderingParameters.ShouldAnialiaze);
 
             canvas.Concat(matrix);
 
             if (Shading.BBox.HasValue)
             {
-                canvas.ClipRect(Shading.BBox.Value, SKClipOperation.Intersect, antialias: !state.RenderingParameters.PreviewMode);
+                canvas.ClipRect(Shading.BBox.Value, SKClipOperation.Intersect, antialias: state.RenderingParameters.ShouldAnialiaze);
             }
 
             if (Shading.Background != null)

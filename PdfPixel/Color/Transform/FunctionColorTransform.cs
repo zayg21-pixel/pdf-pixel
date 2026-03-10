@@ -26,6 +26,8 @@ internal sealed class FunctionColorTransform : IColorTransform
         _function = function;
     }
 
+    public ColorTransformKind Kind => ColorTransformKind.Function;
+
     public bool IsIdentity => false;
 
     /// <summary>

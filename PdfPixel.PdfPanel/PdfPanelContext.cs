@@ -6,6 +6,7 @@ using SkiaSharp;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using PdfPixel.Models;
 
 namespace PdfPixel.PdfPanel;
 
@@ -30,6 +31,12 @@ public class PdfPanelContext
     /// Width of the viewing area in device pixels (unscaled canvas space).
     /// </summary>
     public float ViewportWidth { get; set; }
+
+    /// <summary>
+    /// Rendering parameters used for PDF rendering.
+    /// These parameters are passed to the rendering queue and can be used to customize rendering behavior, such as enabling debug overlays or adjusting rendering quality.
+    /// </summary>
+    public PdfRenderingParameters PdfRenderingParameters { get; } = new PdfRenderingParameters();
 
     /// <summary>
     /// Height of the viewing area in device pixels (unscaled canvas space).
@@ -223,6 +230,7 @@ public class PdfPanelContext
         drawingRequest.BackgroundColor = BackgroundColor;
         drawingRequest.MaxThumbnailSize = MaxThumbnailSize;
         drawingRequest.PageCornerRadius = PageCornerRadius;
+        drawingRequest.RenderingParameters = PdfRenderingParameters;
 
         return drawingRequest;
     }

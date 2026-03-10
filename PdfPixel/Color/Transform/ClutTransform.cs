@@ -82,6 +82,8 @@ internal sealed partial class ClutTransform : IColorTransform, IRgbaSampler
         }
     }
 
+    public ColorTransformKind Kind => ColorTransformKind.Clut;
+
     public bool IsIdentity => false;
 
     /// <summary>

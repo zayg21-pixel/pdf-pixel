@@ -178,7 +178,8 @@ internal static class JpgReader
 
             if (code == SOS)
             {
-                // Next scan begins; stop header collection here
+                // Next scan begins; multi-scan layout detected.
+                header.HasMultipleScans = true;
                 break;
             }
 
@@ -281,8 +282,7 @@ internal static class JpgReader
             throw new InvalidDataException("Invalid SOF: too short");
         }
 
-        header.IsBaseline = marker == 0xC0;
-        header.IsProgressive = marker == 0xC2;
+        header.FrameType = (JpgFrameType)marker;
         header.SamplePrecision = payload[0];
         header.Height = ReadUInt16BE(payload.Slice(1));
         header.Width = ReadUInt16BE(payload.Slice(3));

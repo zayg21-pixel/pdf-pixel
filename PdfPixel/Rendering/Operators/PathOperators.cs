@@ -90,12 +90,12 @@ public class PathOperators : IOperatorProcessor
             // -----------------------------------------------------------------
             case "W":
             {
-                ProcessSetClippingPath(SKPathFillType.Winding);
+                ProcessSetClippingPath(SKPathFillType.Winding, graphicsState);
                 break;
             }
             case "W*":
             {
-                ProcessSetClippingPath(SKPathFillType.EvenOdd);
+                ProcessSetClippingPath(SKPathFillType.EvenOdd, graphicsState);
                 break;
             }
 
@@ -240,15 +240,14 @@ public class PathOperators : IOperatorProcessor
         _currentPath.AddRect(new SKRect(x, y, x + width, y + height));
     }
 
-    private void ProcessSetClippingPath(SKPathFillType fillType)
+    private void ProcessSetClippingPath(SKPathFillType fillType, PdfGraphicsState graphicsState)
     {
         if (_currentPath.IsEmpty)
         {
             return;
         }
         _currentPath.FillType = fillType;
-        // It's important to avoid antialiasing when clipping path, as it might cause image render artifacts
-        _canvas.ClipPath(_currentPath, SKClipOperation.Intersect, antialias: false); // TODO: this is only place so far, we need to investigate why exactly this happens, BAM, 37
+        _canvas.ClipPath(_currentPath, SKClipOperation.Intersect, antialias: graphicsState.RenderingParameters.ShouldAnialiaze);
         _currentPath.Reset();
     }
 

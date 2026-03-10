@@ -60,9 +60,9 @@ internal sealed class JpgProgressiveDecoder : IJpgDecoder
         {
             throw new ArgumentNullException(nameof(header));
         }
-        if (!header.IsProgressive)
+        if (header.FrameType != JpgFrameType.ProgressiveDct)
         {
-            throw new NotSupportedException("JpgProgressiveDecoder supports progressive JPEG only.");
+            throw new NotSupportedException($"JpgProgressiveDecoder supports progressive JPEG (SOF2) only. Got {header.FrameType}.");
         }
         if (header.ComponentCount <= 0 || header.Components == null || header.Components.Count != header.ComponentCount)
         {

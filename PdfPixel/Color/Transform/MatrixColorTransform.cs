@@ -56,6 +56,8 @@ internal sealed class MatrixColorTransform : IColorTransform
         (_col1, _col2, _col3, _col4) = DecomposeColumns(_matrix);
     }
 
+    public ColorTransformKind Kind => ColorTransformKind.Matrix;
+
     public bool IsIdentity => _isIdentity;
 
     /// <summary>

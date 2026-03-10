@@ -95,9 +95,12 @@ public sealed class JpegImageDecoder : PdfImageDecoder
         try
         {
             ReadOnlyMemory<byte> compressed = encoded.Slice(header.ContentOffset);
-            decoder = header.IsProgressive
-                ? new JpgProgressiveDecoder(header, compressed)
-                : new JpgBaselineDecoder(header, compressed);
+            decoder = header.FrameType switch
+            {
+                JpgFrameType.ProgressiveDct => new JpgProgressiveDecoder(header, compressed),
+                JpgFrameType.BaselineDct or JpgFrameType.ExtendedSequentialDct => new JpgBaselineDecoder(header, compressed),
+                _ => throw new NotSupportedException($"JPEG frame type {header.FrameType} is not supported (Image={Image.Name}).")
+            };
         }
         catch (Exception ex)
         {

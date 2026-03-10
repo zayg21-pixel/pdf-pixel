@@ -6,7 +6,7 @@ namespace PdfPixel.Models;
 /// <summary>
 /// Rendering parameters for <see cref="PdfPage"/>.
 /// </summary>
-public class PdfRenderingParameters
+public class PdfRenderingParameters : IEquatable<PdfRenderingParameters>
 {
 
     /// <summary>
@@ -19,6 +19,11 @@ public class PdfRenderingParameters
     /// When true, affects annotation visibility (only annotations with Print flag are rendered).
     /// </summary>
     public bool PrintMode { get; set; }
+
+    /// <summary>
+    /// If true - antialiazing will be enabled for rendering useful for CPU rendering to avoid jagged edges.
+    /// </summary>
+    public bool Antialize { get; set; }
 
     /// <summary>
     /// Actual device scale factor, if defined, all images will be downscaled
@@ -50,6 +55,11 @@ public class PdfRenderingParameters
     /// Force image interpolation even if not downscaling.
     /// </summary>
     internal bool IsType3Rendering { get; set; }
+
+    /// <summary>
+    /// If true - antialiazing will be applied.
+    /// </summary>
+    internal bool ShouldAnialiaze => Antialize && !PreviewMode;
 
     /// <summary>
     /// Returns a scaled size for the given original size based on the current
@@ -85,5 +95,69 @@ public class PdfRenderingParameters
         }
 
         return default;
+    }
+
+    /// <inheritdoc />
+    public bool Equals(PdfRenderingParameters other)
+    {
+        if (other is null)
+        {
+            return false;
+        }
+
+        if (ReferenceEquals(this, other))
+        {
+            return true;
+        }
+
+        return PreviewMode == other.PreviewMode &&
+            PrintMode == other.PrintMode &&
+            Antialize == other.Antialize &&
+            ScaleFactor == other.ScaleFactor &&
+            DefaultFunctionSamples == other.DefaultFunctionSamples &&
+            PreviewModeFunctionSamples == other.PreviewModeFunctionSamples &&
+            MaxTessellationVertices == other.MaxTessellationVertices &&
+            PreviewMaxTessellationVertices == other.PreviewMaxTessellationVertices;
+    }
+
+    /// <inheritdoc />
+    public override bool Equals(object obj)
+    {
+        return Equals(obj as PdfRenderingParameters);
+    }
+
+    /// <inheritdoc />
+    public override int GetHashCode()
+    {
+        return HashCode.Combine(
+            PreviewMode,
+            PrintMode,
+            Antialize,
+            ScaleFactor,
+            DefaultFunctionSamples,
+            PreviewModeFunctionSamples,
+            MaxTessellationVertices,
+            PreviewMaxTessellationVertices);
+    }
+
+    /// <summary>
+    /// Determines whether two <see cref="PdfRenderingParameters"/> instances are equal.
+    /// </summary>
+    public static bool operator ==(PdfRenderingParameters left, PdfRenderingParameters right)
+    {
+        if (left is null)
+        {
+            return right is null;
+        }
+
+        return left.Equals(right);
+    }
+
+    /// <summary>
+    /// Determines whether two <see cref="PdfRenderingParameters"/> instances are not equal.
+    /// </summary>
+    public static bool operator !=(PdfRenderingParameters left, PdfRenderingParameters right)
+    {
+        return !(left == right);
     }
 }

@@ -20,6 +20,7 @@ namespace PdfPixel.PdfPanel.Web;
 public sealed class CanvasGlContext : IDisposable
 {
     private bool _disposed;
+    private readonly int _sampleCount;
     private SKSurface _offscreenSurface;
     private SKSurface _presentSurface;
     private int _surfaceWidth;
@@ -36,6 +37,7 @@ public sealed class CanvasGlContext : IDisposable
         CanvasSelector = canvasSelector;
         WebGlContext = webGlContext;
         GrContext = grContext;
+        _sampleCount = Math.Min(4, Math.Max(1, grContext.GetMaxSurfaceSampleCount(SKColorType.Rgba8888)));
     }
 
     public string CanvasSelector { get; }
@@ -69,7 +71,7 @@ public sealed class CanvasGlContext : IDisposable
         Emscripten.WebGlMakeContextCurrent(WebGlContext);
 
         var info = new SKImageInfo(width, height, SKColorType.Rgba8888, SKAlphaType.Premul);
-        var newSurface = SKSurface.Create(GrContext, false, info, 0, GRSurfaceOrigin.BottomLeft);
+        var newSurface = SKSurface.Create(GrContext, false, info, _sampleCount, GRSurfaceOrigin.BottomLeft);
 
         if (newSurface == null)
         {
@@ -115,7 +117,7 @@ public sealed class CanvasGlContext : IDisposable
         Emscripten.WebGlMakeContextCurrent(WebGlContext);
 
         var info = new SKImageInfo(width, height, SKColorType.Rgba8888, SKAlphaType.Premul);
-        var newSurface = SKSurface.Create(GrContext, false, info, 0, GRSurfaceOrigin.BottomLeft);
+        var newSurface = SKSurface.Create(GrContext, false, info, _sampleCount, GRSurfaceOrigin.BottomLeft);
 
         if (newSurface == null)
         {

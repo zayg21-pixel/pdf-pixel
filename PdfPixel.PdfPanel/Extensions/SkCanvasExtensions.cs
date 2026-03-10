@@ -34,12 +34,12 @@ internal static class SkCanvasExtensions
 
         if (drawFlags.HasFlag(PageDrawFlags.Shadow))
         {
-            DrawPageShadow(canvas, page, request.PageCornerRadius);
+            DrawPageShadow(canvas, page, request.RenderingParameters.Antialize, request.PageCornerRadius);
         }
 
         if (drawFlags.HasFlag(PageDrawFlags.Background))
         {
-            DrawPageBackground(canvas, page, request.PageCornerRadius);
+            DrawPageBackground(canvas, page, request.RenderingParameters.Antialize, request.PageCornerRadius);
         }
 
         var pageRectangle = new SKRect(0, 0, page.RotatedSize.Width, page.RotatedSize.Height);
@@ -48,7 +48,7 @@ internal static class SkCanvasExtensions
         {
             using var clipPath = new SKPath();
             clipPath.AddRoundRect(pageRectangle, request.PageCornerRadius, request.PageCornerRadius);
-            canvas.ClipPath(clipPath, SKClipOperation.Intersect, antialias: true);
+            canvas.ClipPath(clipPath, SKClipOperation.Intersect, antialias: request.RenderingParameters.Antialize);
         }
 
         canvas.SaveLayer(pageRectangle, default);
@@ -166,7 +166,7 @@ internal static class SkCanvasExtensions
         return SKMatrix.Concat(matrixRotationTranslation, matrixScale);
     }
 
-    private static void DrawPageShadow(SKCanvas canvas, VisiblePageInfo page, float cornerRadius)
+    private static void DrawPageShadow(SKCanvas canvas, VisiblePageInfo page, bool antialias, float cornerRadius)
     {
         var rotatedSize = page.RotatedSize;
         var pageRectangle = new SKRect(0, 0, rotatedSize.Width, rotatedSize.Height);
@@ -179,7 +179,7 @@ internal static class SkCanvasExtensions
             using var shadowPaint = new SKPaint
             {
                 Style = SKPaintStyle.Fill,
-                IsAntialias = true,
+                IsAntialias = antialias,
                 Color = SKColors.Gray.WithAlpha(ShadowAlpha),
                 MaskFilter = SKMaskFilter.CreateBlur(SKBlurStyle.Normal, ShadowSigma)
             };
@@ -199,7 +199,7 @@ internal static class SkCanvasExtensions
         }
     }
 
-    private static void DrawPageBackground(SKCanvas canvas, VisiblePageInfo page, float cornerRadius)
+    private static void DrawPageBackground(SKCanvas canvas, VisiblePageInfo page, bool antialias, float cornerRadius)
     {
         var rotatedSize = page.RotatedSize;
         var pageRectangle = new SKRect(0, 0, rotatedSize.Width, rotatedSize.Height);
@@ -208,7 +208,7 @@ internal static class SkCanvasExtensions
         {
             Style = SKPaintStyle.Fill,
             Color = SKColors.White,
-            IsAntialias = true
+            IsAntialias = antialias
         };
 
         if (cornerRadius > 0)

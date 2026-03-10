@@ -42,9 +42,13 @@ internal sealed class JpgBaselineDecoder : IJpgDecoder
         {
             throw new ArgumentNullException(nameof(header));
         }
-        if (!header.IsBaseline)
+        if (header.FrameType != JpgFrameType.BaselineDct && header.FrameType != JpgFrameType.ExtendedSequentialDct)
         {
-            throw new NotSupportedException("JpgBaselineDecoder supports baseline (non-progressive) JPEG only.");
+            throw new NotSupportedException($"JpgBaselineDecoder supports baseline (SOF0) and extended sequential (SOF1) JPEG only. Got {header.FrameType}.");
+        }
+        if (header.FrameType == JpgFrameType.ExtendedSequentialDct && header.HasMultipleScans)
+        {
+            throw new NotSupportedException("Extended sequential JPEG (SOF1) with multiple scans is not supported.");
         }
         if (header.ComponentCount <= 0 || header.Components == null || header.Components.Count != header.ComponentCount)
         {

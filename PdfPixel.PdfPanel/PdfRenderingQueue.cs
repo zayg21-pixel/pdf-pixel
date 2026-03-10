@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.Logging;
+using PdfPixel.Models;
 using PdfPixel.PdfPanel.Extensions;
 using PdfPixel.PdfPanel.Requests;
 using SkiaSharp;
@@ -185,7 +186,7 @@ public sealed class PdfRenderingQueue : IDisposable
         var visiblePages = _activePagesDrawingRequest.VisiblePages.Select(x => x.PageNumber);
         _activePagesDrawingRequest.Pages.UpdateCache(visiblePages);
 
-        if (_previousPagesDrawingRequest != null)
+        if (_previousPagesDrawingRequest != null) // TODO: [HIGH] we have a bug here, previous request might only render white background, in this case we taking white snapshots and drawing on top of thumbnail, we need to keep track of actually rendered paged
         {
             surface.Flush();
             using var surfaceSnapshot = surface.Snapshot();
@@ -285,7 +286,7 @@ public sealed class PdfRenderingQueue : IDisposable
             {
                 using var clipPath = new SKPath();
                 clipPath.AddRoundRect(destRect, request.PageCornerRadius * request.Scale, request.PageCornerRadius * request.Scale);
-                canvas.ClipPath(clipPath, SKClipOperation.Intersect, antialias: true);
+                canvas.ClipPath(clipPath, SKClipOperation.Intersect, antialias: request.RenderingParameters.Antialize);
             }
 
             canvas.DrawImage(surfaceSnapshot, sourceRect, destRect);

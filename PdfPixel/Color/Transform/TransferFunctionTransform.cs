@@ -23,6 +23,8 @@ namespace PdfPixel.Color.Transform
             _fz = fz;
         }
 
+        public ColorTransformKind Kind => ColorTransformKind.TransferFunction;
+
         public bool IsIdentity => false;
 
         /// <summary>

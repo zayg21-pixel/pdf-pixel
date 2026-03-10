@@ -9,6 +9,12 @@ namespace PdfPixel.Color.Transform;
 public interface IColorTransform
 {
     /// <summary>
+    /// Gets the kind discriminator for this transform, enabling type-discriminated dispatch
+    /// in hot loops without interface vtable overhead.
+    /// </summary>
+    ColorTransformKind Kind { get; }
+
+    /// <summary>
     /// Returns true if the transformation is an identity operation (i.e., input colors remain unchanged).
     /// </summary>
     bool IsIdentity { get; }

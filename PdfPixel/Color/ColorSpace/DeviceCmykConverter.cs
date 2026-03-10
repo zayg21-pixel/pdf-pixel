@@ -1,13 +1,10 @@
 using PdfPixel.Color.Icc;
 using PdfPixel.Color.Icc.Model;
-using PdfPixel.Color.Icc.Transform;
 using PdfPixel.Color.Sampling;
-using PdfPixel.Color.Structures;
 using PdfPixel.Color.Transform;
 using PdfPixel.Resources;
 using System;
 using System.Numerics;
-using System.Runtime.CompilerServices;
 
 namespace PdfPixel.Color.ColorSpace;
 
@@ -34,12 +31,15 @@ internal sealed class DeviceCmykConverter : PdfColorSpaceConverter
 
     protected override IRgbaSampler GetRgbaSamplerCore(PdfRenderingIntent intent, IColorTransform postTransform)
     {
-        if (postTransform != null)
-        {
-            return new CmykSampler(postTransform);
-        }
+        //if (postTransform != null)
+        //{
+        //    return new CmykSampler(postTransform);
+        //}
 
-        return CmykSampler.Instance; // Looks like a good approximation, TODO: remove CompactCmyk
+        //return CmykSampler.Instance; // Looks like a good approximation, TODO: [MIDEUM] something wrong with color here, it's very "COLD", but issue is not
+        // reproducible in code source, so maybe it's something with post processing that happens there.
+
+        return new ColorTransformSampler(new ChainedColorTransform(_iccTransform.GetIntentTransform(intent), postTransform));
     }
 }
 

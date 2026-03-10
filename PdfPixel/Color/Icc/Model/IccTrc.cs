@@ -65,7 +65,7 @@ internal enum IccTrcParametricType
 /// </summary>
 internal sealed class IccTrc
 {
-    public const int MinSampleCount = 1024;
+    public const int MinSampleCount = 1024; // TODO: should be moved to some parameters.
 
     private IccTrc(
         IccTrcType type,

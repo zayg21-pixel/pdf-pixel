@@ -43,7 +43,7 @@ namespace Benchmarks
         [Benchmark]
         public unsafe SKImage BaselineStreamDecode()
         {
-            if (header.IsProgressive)
+            if (header.FrameType == JpgFrameType.ProgressiveDct)
             {
                 throw new InvalidOperationException("Test image must be baseline for this benchmark.");
             }

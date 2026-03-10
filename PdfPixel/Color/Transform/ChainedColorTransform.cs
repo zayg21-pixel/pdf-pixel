@@ -1,5 +1,8 @@
-﻿using System.Collections.Generic;
+using PdfPixel.Color.Icc.Transform;
+using System;
+using System.Collections.Generic;
 using System.Linq;
+using System.Linq.Expressions;
 using System.Numerics;
 using System.Runtime.CompilerServices;
 
@@ -11,6 +14,7 @@ namespace PdfPixel.Color.Transform;
 internal sealed class ChainedColorTransform : IColorTransform
 {
     private readonly IColorTransform[] _transforms;
+    private readonly Func<Vector4, Vector4> _compiled;
     private readonly bool _isIdentity;
 
     /// <summary>
@@ -38,7 +42,10 @@ internal sealed class ChainedColorTransform : IColorTransform
 
         _transforms = flattenedTransforms.Where(x => x != null && !x.IsIdentity).ToArray();
         _isIdentity = _transforms.Length == 0;
+        _compiled = CompilePipeline(_transforms);
     }
+
+    public ColorTransformKind Kind => ColorTransformKind.Chained;
 
     public bool IsIdentity => _isIdentity;
 
@@ -50,11 +57,71 @@ internal sealed class ChainedColorTransform : IColorTransform
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public Vector4 Transform(Vector4 color)
     {
-        for (int i = 0; i < _transforms.Length; i++)
+        return _compiled(color);
+    }
+
+    /// <summary>
+    /// Resolves the compile-time known <see cref="Type"/> for a concrete <see cref="IColorTransform"/>
+    /// implementation. Uses <c>typeof()</c> instead of <c>GetType()</c> so the trimmer can
+    /// statically preserve the required methods (no IL2075).
+    /// </summary>
+    /// <exception cref="NotSupportedException">Thrown when the transform type is not recognized.</exception>
+#if !NETSTANDARD2_0
+    [return: System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(
+        System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicMethods)]
+#endif
+    private static Type ResolveConcreteType(IColorTransform transform)
+    {
+        return transform switch
         {
-            color = _transforms[i].Transform(color);
+            PerChannelTrcTransform => typeof(PerChannelTrcTransform),
+            MatrixColorTransform => typeof(MatrixColorTransform),
+            ClutTransform => typeof(ClutTransform),
+            FunctionColorTransform => typeof(FunctionColorTransform),
+            TransferFunctionTransform => typeof(TransferFunctionTransform),
+            ChainedColorTransform => typeof(ChainedColorTransform),
+            _ => throw new NotSupportedException(
+                $"Unknown color transform type: {transform.GetType().Name}")
+        };
+    }
+
+    /// <summary>
+    /// Builds a single compiled delegate that calls each concrete transform's
+    /// <see cref="IColorTransform.Transform"/> method directly, eliminating per-pixel
+    /// interface dispatch and loop overhead.
+    /// On JIT platforms the delegate is IL-compiled; on AOT the expression interpreter is used.
+    /// Uses <see cref="ResolveConcreteType"/> to avoid <c>GetType()</c> reflection,
+    /// making the pipeline fully trimmer-safe (no IL2075).
+    /// </summary>
+    private static Func<Vector4, Vector4> CompilePipeline(IColorTransform[] transforms)
+    {
+        if (transforms.Length == 0)
+        {
+            return static color => color;
         }
 
-        return color;
+        ParameterExpression colorParam = Expression.Parameter(typeof(Vector4), "color");
+        Expression body = colorParam;
+
+        for (int i = 0; i < transforms.Length; i++)
+        {
+            Type concreteType = ResolveConcreteType(transforms[i]);
+            var transformMethod = concreteType.GetMethod(
+                nameof(IColorTransform.Transform),
+                new[] { typeof(Vector4) });
+
+            if (transformMethod == null)
+            {
+                throw new NotSupportedException(
+                    $"Color transform type '{concreteType.Name}' does not expose a public Transform(Vector4) method.");
+            }
+
+            body = Expression.Call(
+                Expression.Constant(transforms[i], concreteType),
+                transformMethod,
+                body);
+        }
+
+        return Expression.Lambda<Func<Vector4, Vector4>>(body, colorParam).Compile();
     }
 }

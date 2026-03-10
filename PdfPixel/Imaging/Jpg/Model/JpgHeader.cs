@@ -10,14 +10,15 @@ namespace PdfPixel.Imaging.Jpg.Model;
 internal sealed class JpgHeader
 {
     /// <summary>
-    /// Gets or sets a value indicating whether the JPEG uses baseline (non-progressive) encoding.
+    /// Gets or sets the JPEG frame type determined by the SOF marker (e.g. baseline, extended sequential, progressive).
     /// </summary>
-    public bool IsBaseline { get; set; }
+    public JpgFrameType FrameType { get; set; }
 
     /// <summary>
-    /// Gets or sets a value indicating whether the JPEG uses progressive encoding.
+    /// Gets or sets a value indicating whether the entropy-coded data contains more than one SOS scan.
+    /// Extended sequential (SOF1) images with multiple scans require dedicated multi-scan decoding.
     /// </summary>
-    public bool IsProgressive { get; set; }
+    public bool HasMultipleScans { get; set; }
 
     /// <summary>
     /// Gets or sets the sample precision (bits per sample, typically 8).

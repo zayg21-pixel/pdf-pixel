@@ -80,6 +80,8 @@ internal class SharedDirectXResources : IDisposable
     /// <summary>
     /// Creates an <see cref="SKSurface"/> backed by the D3D12 resource inside <paramref name="texture"/>.
     /// The returned surface is owned by the caller and must be disposed when no longer needed.
+    /// The wrapped resource is always single-sample because the D3D11→D3D9 shared surface chain
+    /// does not support multi-sampled textures.
     /// </summary>
     internal SKSurface CreateSurface(D3D9Texture texture, int width, int height, GRContext grContext)
     {

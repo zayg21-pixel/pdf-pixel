@@ -2,6 +2,7 @@
 using System;
 using System.Numerics;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 
 namespace PdfPixel.Color.Transform;
 
@@ -54,7 +55,7 @@ internal sealed class PerChannelTrcTransform : IColorTransform
 
             if (trc.Type == IccTrcType.Sampled)
             {
-                channelSamples = trc.Samples;
+                channelSamples = trc.Samples; // TODO: we can always use "Evaluate" method instead, in this case we can have LUT of same size always.
             }
             else
             {
@@ -72,23 +73,16 @@ internal sealed class PerChannelTrcTransform : IColorTransform
         _samples2 = _channelCount > 2 ? samples[2] : null;
         _samples3 = _channelCount > 3 ? samples[3] : null;
 
-        switch (_channelCount)
+        _scale = _channelCount switch
         {
-            case 1:
-                _scale = new Vector4(_samples0.Length - 1, 1f, 1f, 1f);
-                break;
-            case 2:
-                _scale = new Vector4(_samples0.Length - 1, _samples1.Length - 1, 1f, 1f);
-                break;
-            case 3:
-                _scale = new Vector4(_samples0.Length - 1, _samples1.Length - 1, _samples2.Length - 1, 1f);
-                break;
-            case 4:
-            default:
-                _scale = new Vector4(_samples0.Length - 1, _samples1.Length - 1, _samples2.Length - 1, _samples3.Length - 1);
-                break;
-        }
+            1 => new Vector4(_samples0.Length - 1, 1f, 1f, 1f),
+            2 => new Vector4(_samples0.Length - 1, _samples1.Length - 1, 1f, 1f),
+            3 => new Vector4(_samples0.Length - 1, _samples1.Length - 1, _samples2.Length - 1, 1f),
+            _ => new Vector4(_samples0.Length - 1, _samples1.Length - 1, _samples2.Length - 1, _samples3.Length - 1),
+        };
     }
+
+    public ColorTransformKind Kind => ColorTransformKind.PerChannelTrc;
 
     public bool IsIdentity => _isPassthrough;
 
@@ -112,15 +106,15 @@ internal sealed class PerChannelTrcTransform : IColorTransform
             case 1:
             {
                 int idxX = (int)scaled.X;
-                float r = (idxX < 0) ? 0f : (idxX >= _samples0.Length ? 1f : _samples0[idxX]);
+                float r = LookupSample(_samples0, idxX);
                 return new Vector4(r, 1f, 1f, 1f);
             }
             case 2:
             {
                 int idxX = (int)scaled.X;
                 int idxY = (int)scaled.Y;
-                float r = (idxX < 0) ? 0f : (idxX >= _samples0.Length ? 1f : _samples0[idxX]);
-                float g = (idxY < 0) ? 0f : (idxY >= _samples1.Length ? 1f : _samples1[idxY]);
+                float r = LookupSample(_samples0, idxX);
+                float g = LookupSample(_samples1, idxY);
                 return new Vector4(r, g, 1f, 1f);
             }
             case 3:
@@ -128,9 +122,9 @@ internal sealed class PerChannelTrcTransform : IColorTransform
                 int idxX = (int)scaled.X;
                 int idxY = (int)scaled.Y;
                 int idxZ = (int)scaled.Z;
-                float r = (idxX < 0) ? 0f : (idxX >= _samples0.Length ? 1f : _samples0[idxX]);
-                float g = (idxY < 0) ? 0f : (idxY >= _samples1.Length ? 1f : _samples1[idxY]);
-                float b = (idxZ < 0) ? 0f : (idxZ >= _samples2.Length ? 1f : _samples2[idxZ]);
+                float r = LookupSample(_samples0, idxX);
+                float g = LookupSample(_samples1, idxY);
+                float b = LookupSample(_samples2, idxZ);
                 return new Vector4(r, g, b, 1f);
             }
             case 4:
@@ -140,13 +134,36 @@ internal sealed class PerChannelTrcTransform : IColorTransform
                 int idxY = (int)scaled.Y;
                 int idxZ = (int)scaled.Z;
                 int idxW = (int)scaled.W;
-                float r = (idxX < 0) ? 0f : (idxX >= _samples0.Length ? 1f : _samples0[idxX]);
-                float g = (idxY < 0) ? 0f : (idxY >= _samples1.Length ? 1f : _samples1[idxY]);
-                float b = (idxZ < 0) ? 0f : (idxZ >= _samples2.Length ? 1f : _samples2[idxZ]);
-                float a = (idxW < 0) ? 0f : (idxW >= _samples3.Length ? 1f : _samples3[idxW]);
+                float r = LookupSample(_samples0, idxX);
+                float g = LookupSample(_samples1, idxY);
+                float b = LookupSample(_samples2, idxZ);
+                float a = LookupSample(_samples3, idxW);
                 return new Vector4(r, g, b, a);
             }
         }
+    }
+
+    /// <summary>
+    /// Performs a bounds-checked sample lookup with minimal branching.
+    /// Uses (uint) cast trick to combine negative and overflow checks into a single comparison,
+    /// and Unsafe.Add to bypass redundant JIT-emitted bounds checks after manual validation.
+    /// </summary>
+    /// <param name="samples">The sample array to look up.</param>
+    /// <param name="index">The index to look up.</param>
+    /// <returns>The sample value, clamped to 0 for negative indices and 1 for overflow.</returns>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static float LookupSample(float[] samples, int index)
+    {
+        if ((uint)index < (uint)samples.Length)
+        {
+#if !NETSTANDARD2_0
+            return Unsafe.Add(ref MemoryMarshal.GetArrayDataReference(samples), index);
+#else
+            return Unsafe.Add(ref samples[0], index);
+#endif
+        }
+
+        return index < 0 ? 0f : 1f;
     }
 
     /// <summary>

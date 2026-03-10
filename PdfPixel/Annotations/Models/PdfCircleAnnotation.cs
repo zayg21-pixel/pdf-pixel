@@ -41,7 +41,7 @@ public class PdfCircleAnnotation : PdfAnnotationBase
             using var fillPaint = new SKPaint
             {
                 Style = SKPaintStyle.Fill,
-                IsAntialias = true,
+                IsAntialias = true, // TODO: take from rendering parameters
                 Color = interiorSKColor
             };
 

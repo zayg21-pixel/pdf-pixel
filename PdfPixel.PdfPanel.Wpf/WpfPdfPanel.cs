@@ -202,7 +202,7 @@ namespace PdfPixel.PdfPanel.Wpf
 
             if (UseGpuRendering)
             {
-                var imageFactory = new D3DImageRenderTargetFactory(D3DImage);
+                var imageFactory = new D3DImageRenderTargetFactory(D3DImage, sampleCount: 4);
                 _surfaceFactory = imageFactory;
                 _renderTargetFactory = imageFactory;
             }

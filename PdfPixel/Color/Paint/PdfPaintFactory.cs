@@ -22,7 +22,7 @@ public static class PdfPaintFactory
     {
         var paint = new SKPaint
         {
-            IsAntialias = !state.RenderingParameters.PreviewMode,
+            IsAntialias = !state.RenderingParameters.ShouldAnialiaze,
             // Default blend is Normal (SrcOver). Map gstate blend to Skia.
             BlendMode = PdfBlendModeNames.ToSkiaBlendMode(state.BlendMode)
         };
@@ -46,7 +46,7 @@ public static class PdfPaintFactory
             Subpixel = true,
             LinearMetrics = true,
             Hinting = SKFontHinting.Normal,
-            Edging = SKFontEdging.SubpixelAntialias
+            Edging = SKFontEdging.SubpixelAntialias // TODO: make edging configurable based on rendering parameters (e.g. disable in preview mode)
         };
 
         // Skew/rotation are already represented in the text matrix applied at draw time.
@@ -110,45 +110,6 @@ public static class PdfPaintFactory
     }
 
     /// <summary>
-    /// Paint for filling masked images (No special blend mode, antiliasing enabled).
-    /// </summary>
-    /// <returns></returns>
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static SKPaint CreateMaskImagePaint(PdfGraphicsState state)
-    {
-        return new SKPaint { IsAntialias = !state.RenderingParameters.PreviewMode };
-    }
-
-    /// <summary>
-    /// Image mask paint (DstIn blend mode).
-    /// </summary>
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static SKPaint CreateImageMaskPaint(PdfGraphicsState state)
-    {
-        return new SKPaint
-        {
-            IsAntialias = !state.RenderingParameters.PreviewMode,
-            BlendMode = SKBlendMode.DstIn,
-        };
-    }
-
-    /// <summary>
-    /// Image fill for stencil/mask images (from base fill paint, antiliasing enabled).
-    /// </summary>
-    /// <returns></returns>
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static SKPaint CreateMaskImageFillPaint(PdfGraphicsState state)
-    {
-        return new SKPaint
-        {
-            IsAntialias = !state.RenderingParameters.PreviewMode,
-            Style = SKPaintStyle.Fill,
-            Color = state.FillPaint.Color,
-            BlendMode = SKBlendMode.SrcIn,
-        };
-    }
-
-    /// <summary>
     /// Layer paint for soft mask.
     /// </summary>
     /// <returns></returns>
@@ -157,7 +118,7 @@ public static class PdfPaintFactory
     {
         return new SKPaint
         {
-            IsAntialias = !state.RenderingParameters.PreviewMode,
+            IsAntialias = state.RenderingParameters.ShouldAnialiaze,
         };
     }
 
@@ -182,7 +143,7 @@ public static class PdfPaintFactory
     {
         return new SKPaint
         {
-            IsAntialias = !state.RenderingParameters.PreviewMode,
+            IsAntialias = state.RenderingParameters.ShouldAnialiaze,
             Style = SKPaintStyle.Fill,
             Color = background
         };
@@ -196,7 +157,7 @@ public static class PdfPaintFactory
     {
         return new SKPaint
         {
-            IsAntialias = !state.RenderingParameters.PreviewMode,
+            IsAntialias = state.RenderingParameters.ShouldAnialiaze,
             BlendMode = SKBlendMode.DstIn,
         };
     }
@@ -204,12 +165,12 @@ public static class PdfPaintFactory
     /// <summary>
     /// Creates a basic shader paint with white color and specified antialiasing.
     /// </summary>
-    /// <param name="antiAlias">If true, enables antialiasing.</param>
-    public static SKPaint CreateShaderPaint(bool antiAlias)
+    /// <param name="antiAliasHint">If true, enables antialiasing.</param>
+    public static SKPaint CreateShaderPaint(bool antiAliasHint, PdfGraphicsState state)
     {
         return new SKPaint
         {
-            IsAntialias = antiAlias,
+            IsAntialias = antiAliasHint || state.RenderingParameters.ShouldAnialiaze,
             Style = SKPaintStyle.Fill,
         };
     }

@@ -19,8 +19,10 @@ public sealed class D3DImageRenderTargetFactory : IPdfPanelRenderTargetFactory, 
     private readonly Direct3DContext _d3dContext;
     private readonly GRContext _grContext;
     private readonly SharedDirectXResources _sharedResources;
+    private readonly int _sampleCount;
     private D3D9Texture _currentTexture;
     private SKSurface _currentSurface;
+    private SKSurface _presentationSurface;
     private SKSurface _currentThumbnailSurface;
     private int _currentWidth;
     private int _currentHeight;
@@ -29,14 +31,38 @@ public sealed class D3DImageRenderTargetFactory : IPdfPanelRenderTargetFactory, 
 
     /// <summary>
     /// Initializes a new <see cref="D3DImageRenderTargetFactory"/> and creates all underlying DirectX devices.
+    /// When <paramref name="sampleCount"/> exceeds 1, a Skia-managed MSAA surface is used for all
+    /// drawing operations. On presentation the resolved content is copied to the single-sample
+    /// D3D texture that backs the <see cref="D3DImage"/>. This eliminates sub-pixel seam artifacts
+    /// caused by SrcOver compositing of independent per-path coverage.
     /// </summary>
     /// <param name="d3dImage">The WPF <see cref="D3DImage"/> that will display the rendered output.</param>
-    public D3DImageRenderTargetFactory(D3DImage d3dImage)
+    /// <param name="sampleCount">
+    /// GPU multi-sample anti-aliasing sample count (1 = disabled, 4/8 = typical MSAA levels).
+    /// Clamped to the maximum supported by the GPU.
+    /// </param>
+    public D3DImageRenderTargetFactory(D3DImage d3dImage, int sampleCount)
     {
         _d3dImage = d3dImage ?? throw new ArgumentNullException(nameof(d3dImage));
         _d3dContext = Direct3DContext.Create();
         _grContext = GRContext.CreateDirect3D(_d3dContext.CreateBackendContext());
         _sharedResources = new SharedDirectXResources(_d3dContext);
+        _sampleCount = ClampSampleCount(Math.Max(1, sampleCount));
+    }
+
+    /// <summary>
+    /// Returns the effective sample count clamped to the maximum the GPU supports
+    /// for <see cref="SKColorType.Bgra8888"/>.
+    /// </summary>
+    private int ClampSampleCount(int requested)
+    {
+        if (requested <= 1)
+        {
+            return 1;
+        }
+
+        int max = _grContext.GetMaxSurfaceSampleCount(SKColorType.Bgra8888);
+        return Math.Min(requested, Math.Max(1, max));
     }
 
     public void Initialize()
@@ -62,11 +88,18 @@ public sealed class D3DImageRenderTargetFactory : IPdfPanelRenderTargetFactory, 
         SKSurface newSurface;
         D3D9Texture oldTexture = null;
         SKSurface oldSurface = null;
+        SKSurface oldPresentationSurface = null;
 
         _d3dImage.Dispatcher.Invoke(() =>
         {
             newTexture = _sharedResources.CreateD3D9Texture(width, height);
-            newSurface = _sharedResources.CreateSurface(newTexture, width, height, _grContext);
+
+            // Single-sample wrapped surface for D3DImage presentation
+            var newPresentationSurface = _sharedResources.CreateSurface(newTexture, width, height, _grContext);
+
+            // Skia-managed drawing surface (MSAA when _sampleCount > 1)
+            var imageInfo = new SKImageInfo(width, height, SKColorType.Bgra8888, SKAlphaType.Premul);
+            newSurface = SKSurface.Create(_grContext, false, imageInfo, _sampleCount);
             newSurface.Canvas.ClipRect(new SKRect(0, 0, width, height));
 
             _d3dImage.Lock();
@@ -83,6 +116,9 @@ public sealed class D3DImageRenderTargetFactory : IPdfPanelRenderTargetFactory, 
                     newSurface.Canvas.DrawSurface(_currentSurface, SKPoint.Empty);
                     newSurface.Flush();
 
+                    newPresentationSurface.Canvas.DrawSurface(newSurface, SKPoint.Empty);
+                    newPresentationSurface.Flush();
+
                     _d3dImage.AddDirtyRect(new Int32Rect(0, 0, width, height));
                 }
             }
@@ -93,15 +129,18 @@ public sealed class D3DImageRenderTargetFactory : IPdfPanelRenderTargetFactory, 
 
             oldSurface = _currentSurface;
             oldTexture = _currentTexture;
+            oldPresentationSurface = _presentationSurface;
 
             _currentTexture = newTexture;
             _currentSurface = newSurface;
+            _presentationSurface = newPresentationSurface;
         }, System.Windows.Threading.DispatcherPriority.Render, token);
 
         _currentWidth = width;
         _currentHeight = height;
 
         oldSurface?.Dispose();
+        oldPresentationSurface?.Dispose();
         _grContext.PurgeResources();
         oldTexture?.Dispose();
 
@@ -122,7 +161,7 @@ public sealed class D3DImageRenderTargetFactory : IPdfPanelRenderTargetFactory, 
         }
 
         var info = new SKImageInfo(width, height, SKColorType.Bgra8888, SKAlphaType.Premul);
-        var newSurface = SKSurface.Create(_grContext, false, info);
+        var newSurface = SKSurface.Create(_grContext, false, info, _sampleCount);
         newSurface.Canvas.ClipRect(new SKRect(0, 0, width, height));
 
         var oldSurface = _currentThumbnailSurface;
@@ -139,7 +178,12 @@ public sealed class D3DImageRenderTargetFactory : IPdfPanelRenderTargetFactory, 
     /// <inheritdoc />
     public void Render(SKSurface surface, DrawingRequest request, CancellationToken token)
     {
+        // Resolve drawing surface content to the single-sample presentation surface
         surface.Flush();
+        _presentationSurface.Canvas.Clear(SKColors.Transparent);
+        _presentationSurface.Canvas.DrawSurface(surface, SKPoint.Empty);
+        _presentationSurface.Flush();
+        _grContext.Flush();
 
         _d3dImage.Dispatcher.Invoke(() =>
         {
@@ -168,6 +212,9 @@ public sealed class D3DImageRenderTargetFactory : IPdfPanelRenderTargetFactory, 
     {
         _currentSurface?.Dispose();
         _currentSurface = null;
+
+        _presentationSurface?.Dispose();
+        _presentationSurface = null;
 
         _currentThumbnailSurface?.Dispose();
         _currentThumbnailSurface = null;

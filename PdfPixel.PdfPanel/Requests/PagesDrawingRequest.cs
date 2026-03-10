@@ -1,4 +1,5 @@
-﻿using SkiaSharp;
+﻿using PdfPixel.Models;
+using SkiaSharp;
 
 namespace PdfPixel.PdfPanel.Requests;
 
@@ -15,6 +16,8 @@ public class PagesDrawingRequest : DrawingRequest
 
     public float PageCornerRadius { get; set; }
 
+    public PdfRenderingParameters RenderingParameters { get; set; }
+
     public override bool IsSkippable => true;
 
     public override bool Equals(object obj)
@@ -25,6 +28,7 @@ public class PagesDrawingRequest : DrawingRequest
                 BackgroundColor == parameters.BackgroundColor &&
                 MaxThumbnailSize == parameters.MaxThumbnailSize &&
                 PageCornerRadius == parameters.PageCornerRadius &&
+                RenderingParameters == parameters.RenderingParameters &&
                 Pages == parameters.Pages;
         }
         else

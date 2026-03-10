@@ -164,7 +164,6 @@ public class MainWindowsViewModel : ObservableObject
         {
             Color = SKColors.White.WithAlpha(128),
             Style = SKPaintStyle.Fill,
-            IsAntialias = true
         };
 
         canvas.SaveLayer(layerPaint);
