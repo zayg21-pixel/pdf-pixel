@@ -124,6 +124,7 @@ public sealed class PdfRenderingQueue : IDisposable
                 }
                 case PdfPanelRenderCommandType.Reset:
                 {
+                    // TODO: [HIGH] this is processed incorrectly
                     if (_activePagesDrawingRequest == null)
                     {
                         return;

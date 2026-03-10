@@ -63,12 +63,12 @@ public sealed class D3DImageRenderTargetFactory : IPdfPanelRenderTargetFactory, 
         D3D9Texture oldTexture = null;
         SKSurface oldSurface = null;
 
-        newTexture = _sharedResources.CreateD3D9Texture(width, height);
-        newSurface = _sharedResources.CreateSurface(newTexture, width, height, _grContext);
-        newSurface.Canvas.ClipRect(new SKRect(0, 0, width, height));
-
         _d3dImage.Dispatcher.Invoke(() =>
         {
+            newTexture = _sharedResources.CreateD3D9Texture(width, height);
+            newSurface = _sharedResources.CreateSurface(newTexture, width, height, _grContext);
+            newSurface.Canvas.ClipRect(new SKRect(0, 0, width, height));
+
             _d3dImage.Lock();
             try
             {
