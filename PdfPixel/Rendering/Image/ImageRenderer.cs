@@ -243,7 +243,7 @@ public class ImageRenderer : IImageRenderer
         using var recorder = new SKPictureRecorder();
         var unitRectangle = new SKRect(0, 0, 1, 1);
         using var compositionCanvas = recorder.BeginRecording(unitRectangle);
-        compositionCanvas.ClipRect(unitRectangle, antialias: state.RenderingParameters.ShouldAnialiaze);
+        compositionCanvas.ClipRect(unitRectangle, antialias: state.RenderingParameters.AntialiasClip);
         compositionCanvas.DrawPaint(compositionPaint);
         using var result = recorder.EndRecording();
 

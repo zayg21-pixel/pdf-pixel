@@ -42,7 +42,7 @@ public class FormRenderer : IFormRenderer
         canvas.Concat(formXObject.Matrix);
 
         // Clip to /BBox
-        canvas.ClipRect(formXObject.BBox, antialias: graphicsState.RenderingParameters.ShouldAnialiaze);
+        canvas.ClipRect(formXObject.BBox, antialias: graphicsState.RenderingParameters.AntialiasClip);
 
         if (formXObject.TransparencyGroup != null)
         {

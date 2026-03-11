@@ -286,7 +286,7 @@ public sealed class PdfRenderingQueue : IDisposable
             {
                 using var clipPath = new SKPath();
                 clipPath.AddRoundRect(destRect, request.PageCornerRadius * request.Scale, request.PageCornerRadius * request.Scale);
-                canvas.ClipPath(clipPath, SKClipOperation.Intersect, antialias: request.RenderingParameters.Antialize);
+                canvas.ClipPath(clipPath, SKClipOperation.Intersect, antialias: request.RenderingParameters.Antialias);
             }
 
             canvas.DrawImage(surfaceSnapshot, sourceRect, destRect);

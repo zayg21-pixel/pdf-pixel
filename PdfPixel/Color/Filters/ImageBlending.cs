@@ -45,7 +45,7 @@ namespace PdfPixel.Color.Filters
                     return half4(fillColor * maskAlpha, maskAlpha);
                 }
             ";
-
+            // TODO: [HIGH] imageMaskSksl renders incorrectly, background color leaks outside of image!
             _softMaskEffect = SKRuntimeEffect.CreateShader(softMaskSksl, out _);
             _imageMaskEffect = SKRuntimeEffect.CreateShader(imageMaskSksl, out _);
         }
@@ -73,8 +73,8 @@ namespace PdfPixel.Color.Filters
 
             var children = new SKRuntimeEffectChildren(_softMaskEffect)
             {
-                { "image", image.ToRawShader(SKShaderTileMode.Repeat, SKShaderTileMode.Repeat, sampling, SKMatrix.CreateScale(1 / (float)image.Width, 1 / (float)image.Height)) },
-                { "mask", mask.ToRawShader(SKShaderTileMode.Repeat, SKShaderTileMode.Repeat, sampling, SKMatrix.CreateScale(1 / (float)mask.Width, 1 / (float)mask.Height)) }
+                { "image", image.ToRawShader(SKShaderTileMode.Clamp, SKShaderTileMode.Clamp, sampling, SKMatrix.CreateScale(1 / (float)image.Width, 1 / (float)image.Height)) },
+                { "mask", mask.ToRawShader(SKShaderTileMode.Clamp, SKShaderTileMode.Clamp, sampling, SKMatrix.CreateScale(1 / (float)mask.Width, 1 / (float)mask.Height)) }
             };
 
             return _softMaskEffect.ToShader(uniforms, children);
@@ -105,7 +105,7 @@ namespace PdfPixel.Color.Filters
 
             var children = new SKRuntimeEffectChildren(_imageMaskEffect)
             {
-                { "mask", mask.ToRawShader(SKShaderTileMode.Repeat, SKShaderTileMode.Repeat, sampling, SKMatrix.CreateScale(1 / (float)mask.Width, 1 / (float)mask.Height)) }
+                { "mask", mask.ToRawShader(SKShaderTileMode.Clamp, SKShaderTileMode.Clamp, sampling, SKMatrix.CreateScale(1 / (float)mask.Width, 1 / (float)mask.Height)) }
             };
 
             return _imageMaskEffect.ToShader(uniforms, children);

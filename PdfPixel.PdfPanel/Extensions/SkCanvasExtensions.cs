@@ -34,12 +34,12 @@ internal static class SkCanvasExtensions
 
         if (drawFlags.HasFlag(PageDrawFlags.Shadow))
         {
-            DrawPageShadow(canvas, page, request.RenderingParameters.Antialize, request.PageCornerRadius);
+            DrawPageShadow(canvas, page, request.RenderingParameters.Antialias, request.PageCornerRadius);
         }
 
         if (drawFlags.HasFlag(PageDrawFlags.Background))
         {
-            DrawPageBackground(canvas, page, request.RenderingParameters.Antialize, request.PageCornerRadius);
+            DrawPageBackground(canvas, page, request.RenderingParameters.Antialias, request.PageCornerRadius);
         }
 
         var pageRectangle = new SKRect(0, 0, page.RotatedSize.Width, page.RotatedSize.Height);
@@ -48,7 +48,7 @@ internal static class SkCanvasExtensions
         {
             using var clipPath = new SKPath();
             clipPath.AddRoundRect(pageRectangle, request.PageCornerRadius, request.PageCornerRadius);
-            canvas.ClipPath(clipPath, SKClipOperation.Intersect, antialias: request.RenderingParameters.Antialize);
+            canvas.ClipPath(clipPath, SKClipOperation.Intersect, antialias: request.RenderingParameters.Antialias);
         }
 
         canvas.SaveLayer(pageRectangle, default);

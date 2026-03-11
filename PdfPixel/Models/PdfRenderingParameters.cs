@@ -12,7 +12,12 @@ public class PdfRenderingParameters : IEquatable<PdfRenderingParameters>
     /// <summary>
     /// Simplified more with lower rendering quality.
     /// </summary>
-    public bool PreviewMode { get; set; }
+    public bool PreviewMode { get; set; } // TODO: get rid and use granular properties.
+
+    /// <summary>
+    /// If true, clipping operations would be antialized, otherwise aliased.
+    /// </summary>
+    public bool AntialiasClip { get; set; } = false; // TODO: [HIGH] use in ALL clipping operations
 
     /// <summary>
     /// Indicates whether the rendering is intended for printing.
@@ -23,7 +28,7 @@ public class PdfRenderingParameters : IEquatable<PdfRenderingParameters>
     /// <summary>
     /// If true - antialiazing will be enabled for rendering useful for CPU rendering to avoid jagged edges.
     /// </summary>
-    public bool Antialize { get; set; }
+    public bool Antialias { get; set; }
 
     /// <summary>
     /// Actual device scale factor, if defined, all images will be downscaled
@@ -59,7 +64,7 @@ public class PdfRenderingParameters : IEquatable<PdfRenderingParameters>
     /// <summary>
     /// If true - antialiazing will be applied.
     /// </summary>
-    internal bool ShouldAnialiaze => Antialize && !PreviewMode;
+    internal bool ShouldAnialiaze => Antialias && !PreviewMode;
 
     /// <summary>
     /// Returns a scaled size for the given original size based on the current
@@ -112,7 +117,7 @@ public class PdfRenderingParameters : IEquatable<PdfRenderingParameters>
 
         return PreviewMode == other.PreviewMode &&
             PrintMode == other.PrintMode &&
-            Antialize == other.Antialize &&
+            Antialias == other.Antialias &&
             ScaleFactor == other.ScaleFactor &&
             DefaultFunctionSamples == other.DefaultFunctionSamples &&
             PreviewModeFunctionSamples == other.PreviewModeFunctionSamples &&
@@ -132,7 +137,7 @@ public class PdfRenderingParameters : IEquatable<PdfRenderingParameters>
         return HashCode.Combine(
             PreviewMode,
             PrintMode,
-            Antialize,
+            Antialias,
             ScaleFactor,
             DefaultFunctionSamples,
             PreviewModeFunctionSamples,

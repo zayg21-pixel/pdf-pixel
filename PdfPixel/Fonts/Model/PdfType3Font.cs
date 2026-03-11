@@ -41,6 +41,10 @@ public class PdfType3Font : PdfSingleByteFont
         // Get FontMatrix (required for Type3 fonts)
         FontMatrix = PdfLocationUtilities.CreateMatrix(Dictionary.GetArray(PdfTokens.FontMatrixKey)) ?? SKMatrix.CreateScale(0.001f, 0.001f);
 
+        // Get FontBBox (required for Type3 fonts per PDF spec §9.6.5, Table 110)
+        // Used as the recording bounds for d0 glyphs that do not specify a per-glyph bounding box
+        FontBBox = PdfLocationUtilities.CreateBBox(Dictionary.GetArray(PdfTokens.FontBBoxKey));
+
         // Rescale width to glyph space
         Widths.RescaleWidths(FontMatrix.ScaleX / SingleByteFontWidths.WidthToUserSpaceCoeff);
 
@@ -65,6 +69,12 @@ public class PdfType3Font : PdfSingleByteFont
     /// Maps from glyph space to text space
     /// </summary>
     public SKMatrix FontMatrix { get; }
+
+    /// <summary>
+    /// Font bounding box in glyph coordinate space (required for Type3 fonts per PDF spec §9.6.5, Table 110).
+    /// Used as the recording bounds for d0 glyphs that do not define a per-glyph bounding box via d1.
+    /// </summary>
+    public SKRect? FontBBox { get; }
 
     /// <summary>
     /// Renders a Type 3 character CharProc to a recorded picture and extracts d0/d1 metrics from the glyph graphics state.
@@ -109,9 +119,6 @@ public class PdfType3Font : PdfSingleByteFont
 
         sourceState.RecursionGuard.Add(charObject.Reference.ObjectNumber);
 
-        float width = Widths.GetWidth(charCode) ?? 1f;
-        float height = 1f;
-
         var recorder = new SKPictureRecorder();
 
         // Render glyph content stream without recursion (independent from page rendering)
@@ -121,12 +128,15 @@ public class PdfType3Font : PdfSingleByteFont
 
         var (advancement, boundingBox) = ParseMetrics(parseContext);
 
-        var bbox = boundingBox ?? new SKRect(0, 0, width, height);
+        var bbox = boundingBox ?? FontBBox ?? FontMatrix.Invert().MapRect(new SKRect(0, 0, 1f, 1f));
         var canvas = recorder.BeginRecording(bbox);
+        canvas.Save();
 
         var charState = new PdfGraphicsState(glyphPage, sourceState.RecursionGuard, new PdfRenderingParameters { IsType3Rendering = true }, default, default);
 
         contentRenderer.RenderContext(canvas, ref parseContext, charState);
+
+        canvas.Restore();
 
         var picture = recorder.EndRecording();
 

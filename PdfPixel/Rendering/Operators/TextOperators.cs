@@ -157,7 +157,7 @@ public class TextOperators : IOperatorProcessor
 
         if (graphicsState.TextClipPath != null)
         {
-            _canvas.ClipPath(graphicsState.TextClipPath, SKClipOperation.Intersect, antialias: graphicsState.RenderingParameters.ShouldAnialiaze);
+            _canvas.ClipPath(graphicsState.TextClipPath, SKClipOperation.Intersect, antialias: graphicsState.RenderingParameters.AntialiasClip);
             graphicsState.TextClipPath.Dispose();
             graphicsState.TextClipPath = null;
         }

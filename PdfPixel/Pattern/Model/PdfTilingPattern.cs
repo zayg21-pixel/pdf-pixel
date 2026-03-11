@@ -86,7 +86,7 @@ public sealed class PdfTilingPattern : PdfPattern
         canvas.Save();
 
         var clipPath = renderTarget.ClipPath;
-        canvas.ClipPath(clipPath, SKClipOperation.Intersect, antialias: state.RenderingParameters.ShouldAnialiaze);
+        canvas.ClipPath(clipPath, SKClipOperation.Intersect, antialias: state.RenderingParameters.AntialiasClip);
 
         canvas.Concat(matrix);
 

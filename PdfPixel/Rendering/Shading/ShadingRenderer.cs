@@ -63,7 +63,7 @@ public class ShadingRenderer : IShadingRenderer
 
         if (shading.BBox.HasValue)
         {
-            canvas.ClipRect(shading.BBox.Value, SKClipOperation.Intersect, antialias: state.RenderingParameters.ShouldAnialiaze);
+            canvas.ClipRect(shading.BBox.Value, SKClipOperation.Intersect, antialias: state.RenderingParameters.AntialiasClip);
         }
 
         if (shading.Background != null)
