@@ -1,8 +1,8 @@
+using PdfPixel.Commands;
 using PdfPixel.Models;
 using PdfPixel.Text;
 using SkiaSharp;
 using System;
-using System.IO;
 
 namespace PdfPixel.Annotations.Models;
 
@@ -66,35 +66,24 @@ public class PdfFileAttachmentAnnotation : PdfAnnotationBase
     public PdfObject EmbeddedFileObject { get; }
 
     /// <summary>
-    /// Creates a simple fallback rendering showing a paperclip icon and file name.
+    /// Renders the fallback content showing an icon and file name.
     /// </summary>
-    public override SKPicture CreateFallbackRender(PdfPage page, PdfAnnotationVisualStateKind visualStateKind)
+    public override bool RenderFallback(IPdfCommandProcessor processor, PdfPage page, PdfAnnotationVisualStateKind visualStateKind)
     {
-        using var recorder = new SKPictureRecorder();
-        using var canvas = recorder.BeginRecording(Rectangle);
-
         var color = ResolveColor(page, SKColors.DarkSlateGray);
 
-        canvas.Save();
+        processor.Process(new SaveStateCommand());
         try
         {
             // Flip 180 degrees around center to account for PDF coordinate system
-            canvas.Translate(Rectangle.MidX, Rectangle.MidY);
-            canvas.RotateDegrees(180);
-            canvas.Translate(-Rectangle.MidX, -Rectangle.MidY);
+            processor.Process(new ConcatMatrixCommand(SKMatrix.CreateTranslation(Rectangle.MidX, Rectangle.MidY)));
+            processor.Process(new ConcatMatrixCommand(SKMatrix.CreateRotationDegrees(180)));
+            processor.Process(new ConcatMatrixCommand(SKMatrix.CreateTranslation(-Rectangle.MidX, -Rectangle.MidY)));
 
             var inset = Math.Min(Rectangle.Width, Rectangle.Height) * 0.15f;
             var r = new SKRect(Rectangle.Left + inset, Rectangle.Top + inset, Rectangle.Right - inset, Rectangle.Bottom - inset);
 
-            using var paint = new SKPaint
-            {
-                Style = SKPaintStyle.Stroke,
-                StrokeWidth = Math.Max(1f, Math.Min(r.Width, r.Height) * 0.07f),
-                Color = color,
-                IsAntialias = true,
-                StrokeCap = SKStrokeCap.Round,
-                StrokeJoin = SKStrokeJoin.Round
-            };
+            var strokeWidth = Math.Max(1f, Math.Min(r.Width, r.Height) * 0.07f);
 
             // Use the parsed icon enum (default to PushPin if unspecified)
             var iconToDraw = Icon == PdfFileAttachmentIcon.Unknown ? PdfFileAttachmentIcon.PushPin : Icon;
@@ -103,42 +92,69 @@ public class PdfFileAttachmentAnnotation : PdfAnnotationBase
             {
                 case PdfFileAttachmentIcon.Paperclip:
 
-
                     // Draw paperclip icon scaled to annotation rectangle
-                    var path = new SKPath();
-                    float ScaleX(float x) { return r.Left + x * r.Width; }
-                    float ScaleY(float y) { return r.Top + y * r.Height; }
+                    using (var path = new SKPath())
+                    {
+                        float ScaleX(float x) { return r.Left + x * r.Width; }
+                        float ScaleY(float y) { return r.Top + y * r.Height; }
 
-                    // Paperclip parameters (unit square)
-                    const float centerX = 0.5f;
-                    const float outerRadius = 0.35f;
-                    const float innerRadius = 0.22f;
-                    float leftOuter = centerX - outerRadius;
-                    float rightOuter = centerX + outerRadius;
-                    float leftInner = centerX - innerRadius;
-                    float rightInner = centerX + innerRadius;
+                        // Paperclip parameters (unit square)
+                        const float centerX = 0.5f;
+                        const float outerRadius = 0.35f;
+                        const float innerRadius = 0.22f;
+                        float leftOuter = centerX - outerRadius;
+                        float rightOuter = centerX + outerRadius;
+                        float leftInner = centerX - innerRadius;
+                        float rightInner = centerX + innerRadius;
 
-                    // Build path
-                    path.MoveTo(ScaleX(rightInner), ScaleY(0.2f));
-                    path.LineTo(ScaleX(rightInner), ScaleY(0.65f));
-                    path.ArcTo(new SKRect(ScaleX(leftInner), ScaleY(0.55f), ScaleX(rightInner), ScaleY(0.85f)), 0, 180, false);
-                    path.LineTo(ScaleX(leftInner), ScaleY(0.2f));
-                    path.ArcTo(new SKRect(ScaleX(leftInner), ScaleY(0.0f), ScaleX(rightOuter), ScaleY(0.45f)), 180, 180, false);
-                    path.LineTo(ScaleX(rightOuter), ScaleY(0.65f));
-                    path.ArcTo(new SKRect(ScaleX(leftOuter), ScaleY(0.45f), ScaleX(rightOuter), ScaleY(0.95f)), 0, 180, false);
-                    path.LineTo(ScaleX(leftOuter), ScaleY(0.1f));
+                        // Build path
+                        path.MoveTo(ScaleX(rightInner), ScaleY(0.2f));
+                        path.LineTo(ScaleX(rightInner), ScaleY(0.65f));
+                        path.ArcTo(new SKRect(ScaleX(leftInner), ScaleY(0.55f), ScaleX(rightInner), ScaleY(0.85f)), 0, 180, false);
+                        path.LineTo(ScaleX(leftInner), ScaleY(0.2f));
+                        path.ArcTo(new SKRect(ScaleX(leftInner), ScaleY(0.0f), ScaleX(rightOuter), ScaleY(0.45f)), 180, 180, false);
+                        path.LineTo(ScaleX(rightOuter), ScaleY(0.65f));
+                        path.ArcTo(new SKRect(ScaleX(leftOuter), ScaleY(0.45f), ScaleX(rightOuter), ScaleY(0.95f)), 0, 180, false);
+                        path.LineTo(ScaleX(leftOuter), ScaleY(0.1f));
 
-                    canvas.DrawPath(path, paint);
+                        var paint = new SKPaint
+                        {
+                            Style = SKPaintStyle.Stroke,
+                            StrokeWidth = strokeWidth,
+                            Color = color,
+                            IsAntialias = true,
+                            StrokeCap = SKStrokeCap.Round,
+                            StrokeJoin = SKStrokeJoin.Round
+                        };
+                        processor.Process(new DrawPathCommand(path, paint));
+                    }
                     break;
 
                 case PdfFileAttachmentIcon.PushPin:
                     // Draw a simple pushpin: head + shaft
-                    using (var fill = new SKPaint { Style = SKPaintStyle.Fill, Color = color.WithAlpha(180), IsAntialias = true })
+                    var headRect = new SKRect(r.Left, r.Top, r.Right, r.Top + r.Height * 0.45f);
+                    var fillPaint = new SKPaint { Style = SKPaintStyle.Fill, Color = color.WithAlpha(180), IsAntialias = true };
+                    using (var headPath = new SKPath())
                     {
-                        var head = new SKRect(r.Left, r.Top, r.Right, r.Top + r.Height * 0.45f);
-                        canvas.DrawRoundRect(head, 2, 2, fill);
+                        headPath.AddRoundRect(headRect, 2, 2);
+                        processor.Process(new DrawPathCommand(headPath, fillPaint));
                     }
-                    canvas.DrawLine(r.MidX, r.Top + r.Height * 0.45f, r.MidX, r.Bottom, paint);
+
+                    var shaftPaint = new SKPaint
+                    {
+                        Style = SKPaintStyle.Stroke,
+                        StrokeWidth = strokeWidth,
+                        Color = color,
+                        IsAntialias = true,
+                        StrokeCap = SKStrokeCap.Round,
+                        StrokeJoin = SKStrokeJoin.Round
+                    };
+                    using (var shaftPath = new SKPath())
+                    {
+                        shaftPath.MoveTo(r.MidX, r.Top + r.Height * 0.45f);
+                        shaftPath.LineTo(r.MidX, r.Bottom);
+                        processor.Process(new DrawPathCommand(shaftPath, shaftPaint));
+                    }
                     break;
 
                 case PdfFileAttachmentIcon.Graph:
@@ -150,19 +166,41 @@ public class PdfFileAttachmentAnnotation : PdfAnnotationBase
                         var bh = r.Height * (0.3f + i * 0.25f);
                         var by = r.Bottom - bh;
                         var barRect = new SKRect(bx, by, bx + barWidth, r.Bottom);
-                        canvas.DrawRect(barRect, paint);
+                        var barPaint = new SKPaint
+                        {
+                            Style = SKPaintStyle.Stroke,
+                            StrokeWidth = strokeWidth,
+                            Color = color,
+                            IsAntialias = true,
+                            StrokeCap = SKStrokeCap.Round,
+                            StrokeJoin = SKStrokeJoin.Round
+                        };
+                        using var barPath = new SKPath();
+                        barPath.AddRect(barRect);
+                        processor.Process(new DrawPathCommand(barPath, barPaint));
                     }
                     break;
 
                 case PdfFileAttachmentIcon.Tag:
                     // Draw a tag shape (diamond with hole)
-                    var tagPath = new SKPath();
-                    tagPath.MoveTo(r.Left + r.Width * 0.1f, r.Top + r.Height * 0.5f);
-                    tagPath.LineTo(r.Left + r.Width * 0.5f, r.Top + r.Height * 0.1f);
-                    tagPath.LineTo(r.Right - r.Width * 0.1f, r.Top + r.Height * 0.5f);
-                    tagPath.LineTo(r.Left + r.Width * 0.5f, r.Bottom - r.Height * 0.1f);
-                    tagPath.Close();
-                    canvas.DrawPath(tagPath, paint);
+                    using (var tagPath = new SKPath())
+                    {
+                        tagPath.MoveTo(r.Left + r.Width * 0.1f, r.Top + r.Height * 0.5f);
+                        tagPath.LineTo(r.Left + r.Width * 0.5f, r.Top + r.Height * 0.1f);
+                        tagPath.LineTo(r.Right - r.Width * 0.1f, r.Top + r.Height * 0.5f);
+                        tagPath.LineTo(r.Left + r.Width * 0.5f, r.Bottom - r.Height * 0.1f);
+                        tagPath.Close();
+                        var tagPaint = new SKPaint
+                        {
+                            Style = SKPaintStyle.Stroke,
+                            StrokeWidth = strokeWidth,
+                            Color = color,
+                            IsAntialias = true,
+                            StrokeCap = SKStrokeCap.Round,
+                            StrokeJoin = SKStrokeJoin.Round
+                        };
+                        processor.Process(new DrawPathCommand(tagPath, tagPaint));
+                    }
                     break;
             }
 
@@ -170,19 +208,23 @@ public class PdfFileAttachmentAnnotation : PdfAnnotationBase
             if (!FileName.IsEmpty)
             {
                 using var font = new SKFont(SKTypeface.Default, Math.Max(8, r.Height * 0.18f));
-                using var textPaint = new SKPaint { Color = color, IsAntialias = true };
+                var textPaint = new SKPaint { Color = color, IsAntialias = true };
                 var text = FileName.ToString();
                 var x = r.Left + 2;
                 var y = r.Bottom - 2;
-                canvas.DrawText(text, x, y, font, textPaint);
+                var blob = SKTextBlob.Create(text, font);
+                processor.Process(new SaveStateCommand());
+                processor.Process(new ConcatMatrixCommand(SKMatrix.CreateTranslation(x, y)));
+                processor.Process(new DrawTextBlobCommand(blob, textPaint));
+                processor.Process(new RestoreStateCommand());
             }
         }
         finally
         {
-            canvas.Restore();
+            processor.Process(new RestoreStateCommand());
         }
 
-        return recorder.EndRecording();
+        return true;
     }
 
     public override string ToString()

@@ -1,11 +1,14 @@
 ﻿using PdfPixel.Annotations.Models;
+using PdfPixel.Commands;
 using SkiaSharp;
 using System;
 
 namespace PdfPixel.PdfPanel;
 
 /// <summary>
-/// Contains a cached <see cref="SKPicture"/> and its thumbnail.
+/// Contains cached command recordings and a thumbnail for a single PDF page.
+/// Recordings capture all draw commands at scale 1 (page coordinate space)
+/// and can be replayed on any canvas with an arbitrary transform.
 /// </summary>
 internal sealed class CachedSkPicture : IDisposable
 {
@@ -16,10 +19,21 @@ internal sealed class CachedSkPicture : IDisposable
         HasAnnotations = hasAnnotations;
     }
 
-    public SKPicture Picture { get; private set; }
+    /// <summary>
+    /// Recorded page-content commands. Replayed onto the final canvas during drawing.
+    /// </summary>
+    public PdfCommandRecorder Recording { get; private set; }
 
-    public SKPicture AnnotationPicture { get; private set; }
+    /// <summary>
+    /// Recorded annotation commands. Replayed on top of page content.
+    /// </summary>
+    public PdfCommandRecorder AnnotationRecording { get; private set; }
 
+    /// <summary>
+    /// The rendering scale at which the recordings were produced.
+    /// Recordings are always in page coordinate space (scale 1) but internal
+    /// quality decisions (e.g. image down-sampling) depend on this value.
+    /// </summary>
     public float Scale { get; set; }
 
     public SKImage Thumbnail { get; }
@@ -36,21 +50,21 @@ internal sealed class CachedSkPicture : IDisposable
 
     public bool IsDisposed { get; private set; }
 
-    public void UpdatePicture(SKPicture picture)
+    public void UpdateRecording(PdfCommandRecorder recording)
     {
         lock (DisposeLocker)
         {
-            Picture?.Dispose();
-            Picture = picture;
+            Recording?.Dispose();
+            Recording = recording;
         }
     }
 
-    public void UpdateAnnotationPicture(SKPicture annotationPicture)
+    public void UpdateAnnotationRecording(PdfCommandRecorder recording)
     {
         lock (DisposeLocker)
         {
-            AnnotationPicture?.Dispose();
-            AnnotationPicture = annotationPicture;
+            AnnotationRecording?.Dispose();
+            AnnotationRecording = recording;
         }
     }
 
@@ -64,8 +78,8 @@ internal sealed class CachedSkPicture : IDisposable
             }
 
             IsDisposed = true;
-            Picture?.Dispose();
-            AnnotationPicture?.Dispose();
+            Recording?.Dispose();
+            AnnotationRecording?.Dispose();
             Thumbnail?.Dispose();
         }
     }

@@ -1,3 +1,4 @@
+using PdfPixel.Commands;
 using PdfPixel.Models;
 using SkiaSharp;
 
@@ -22,32 +23,33 @@ public class PdfCircleAnnotation : PdfAnnotationBase
     }
 
     /// <summary>
-    /// Creates a fallback rendering for circle annotations when no appearance stream is available.
+    /// Renders the fallback content for circle annotations when no appearance stream is available.
     /// </summary>
+    /// <param name="processor">The command processor to emit commands to.</param>
     /// <param name="page">The PDF page containing this annotation.</param>
     /// <param name="visualStateKind">The visual state to render (Normal, Rollover, Down).</param>
-    /// <returns>An SKPicture containing the rendered circle.</returns>
-    public override SKPicture CreateFallbackRender(PdfPage page, PdfAnnotationVisualStateKind visualStateKind)
+    /// <returns>True if fallback rendering was emitted.</returns>
+    public override bool RenderFallback(IPdfCommandProcessor processor, PdfPage page, PdfAnnotationVisualStateKind visualStateKind)
     {
-        using var recorder = new SKPictureRecorder();
-        using var canvas = recorder.BeginRecording(Rectangle);
-
         var width = Rectangle.Width;
         var height = Rectangle.Height;
         var interiorSKColor = ResolveInteriorColor(page);
 
+        var centerX = Rectangle.Left + width / 2;
+        var centerY = Rectangle.Top + height / 2;
+
         if (interiorSKColor != SKColors.Transparent)
         {
-            using var fillPaint = new SKPaint
+            var fillPaint = new SKPaint
             {
                 Style = SKPaintStyle.Fill,
                 IsAntialias = true, // TODO: take from rendering parameters
                 Color = interiorSKColor
             };
 
-            var centerX = Rectangle.Left + width / 2;
-            var centerY = Rectangle.Top + height / 2;
-            canvas.DrawOval(centerX, centerY, width / 2, height / 2, fillPaint);
+            using var fillPath = new SKPath();
+            fillPath.AddOval(new SKRect(centerX - width / 2, centerY - height / 2, centerX + width / 2, centerY + height / 2));
+            processor.Process(new DrawPathCommand(fillPath, fillPaint));
         }
 
         if (BorderStyle != null && BorderStyle.Width > 0 && Color != null && Color.Length > 0)
@@ -55,7 +57,7 @@ public class PdfCircleAnnotation : PdfAnnotationBase
             var borderWidth = BorderStyle.Width;
             var strokeColor = ResolveColor(page, SKColors.Black);
 
-            using var strokePaint = new SKPaint
+            var strokePaint = new SKPaint
             {
                 Style = SKPaintStyle.Stroke,
                 StrokeWidth = borderWidth,
@@ -65,21 +67,19 @@ public class PdfCircleAnnotation : PdfAnnotationBase
 
             BorderStyle.TryApplyEffect(strokePaint, strokeColor);
 
-            var halfBorder = BorderStyle.Width / 2;
             var adjustedWidth = width - BorderStyle.Width;
             var adjustedHeight = height - BorderStyle.Width;
 
-            var centerX = Rectangle.Left + width / 2;
-            var centerY = Rectangle.Top + height / 2;
-            canvas.DrawOval(
-                centerX,
-                centerY,
-                adjustedWidth / 2,
-                adjustedHeight / 2,
-                strokePaint);
+            using var strokePath = new SKPath();
+            strokePath.AddOval(new SKRect(
+                centerX - adjustedWidth / 2,
+                centerY - adjustedHeight / 2,
+                centerX + adjustedWidth / 2,
+                centerY + adjustedHeight / 2));
+            processor.Process(new DrawPathCommand(strokePath, strokePaint));
         }
 
-        return recorder.EndRecording();
+        return true;
     }
 
     /// <summary>

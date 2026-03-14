@@ -1,3 +1,4 @@
+using PdfPixel.Commands;
 using PdfPixel.Models;
 using PdfPixel.Text;
 using SkiaSharp;
@@ -70,35 +71,21 @@ public class PdfInkAnnotation : PdfAnnotationBase
     }
 
     /// <summary>
-    /// Creates a fallback rendering for ink annotations when no appearance stream is available.
+    /// Renders the fallback content for ink annotations when no appearance stream is available.
     /// </summary>
+    /// <param name="processor">The command processor to emit commands to.</param>
     /// <param name="page">The PDF page containing this annotation.</param>
     /// <param name="visualStateKind">The visual state to render (Normal, Rollover, Down).</param>
-    /// <returns>An SKPicture containing the rendered ink paths.</returns>
-    public override SKPicture CreateFallbackRender(PdfPage page, PdfAnnotationVisualStateKind visualStateKind)
+    /// <returns>True if fallback rendering was emitted.</returns>
+    public override bool RenderFallback(IPdfCommandProcessor processor, PdfPage page, PdfAnnotationVisualStateKind visualStateKind)
     {
         if (InkList == null || InkList.Length == 0)
         {
-            return null;
+            return false;
         }
-
-        using var recorder = new SKPictureRecorder();
-        using var canvas = recorder.BeginRecording(Rectangle);
 
         var lineWidth = BorderStyle?.Width ?? 1.0f;
         var inkColor = ResolveColor(page, SKColors.Black);
-
-        using var paint = new SKPaint
-        {
-            Style = SKPaintStyle.Stroke,
-            StrokeWidth = lineWidth,
-            StrokeCap = SKStrokeCap.Round,
-            StrokeJoin = SKStrokeJoin.Round,
-            IsAntialias = true,
-            Color = inkColor
-        };
-
-        BorderStyle?.TryApplyEffect(paint, inkColor);
 
         // Render each path in the parsed ink list
         foreach (var points in InkList)
@@ -114,10 +101,23 @@ public class PdfInkAnnotation : PdfAnnotationBase
             {
                 path.LineTo(points[j]);
             }
-            canvas.DrawPath(path, paint);
+
+            var paint = new SKPaint
+            {
+                Style = SKPaintStyle.Stroke,
+                StrokeWidth = lineWidth,
+                StrokeCap = SKStrokeCap.Round,
+                StrokeJoin = SKStrokeJoin.Round,
+                IsAntialias = true,
+                Color = inkColor
+            };
+
+            BorderStyle?.TryApplyEffect(paint, inkColor);
+
+            processor.Process(new DrawPathCommand(path, paint));
         }
 
-        return recorder.EndRecording();
+        return true;
     }
 
     /// <summary>

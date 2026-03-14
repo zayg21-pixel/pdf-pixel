@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using PdfPixel.Commands;
 using PdfPixel.Models;
 using PdfPixel.Rendering.State;
 using PdfPixel.Text;
@@ -28,14 +29,14 @@ public class TextOperators : IOperatorProcessor
 
     private readonly IPdfRenderer _renderer;
     private readonly PdfPage _page;
-    private readonly SKCanvas _canvas;
+    private readonly IPdfCommandProcessor _processor;
     private readonly Stack<IPdfValue> _operandStack;
 
-    public TextOperators(IPdfRenderer renderer, PdfPage page, SKCanvas canvas, Stack<IPdfValue> operandStack)
+    public TextOperators(IPdfRenderer renderer, PdfPage page, IPdfCommandProcessor processor, Stack<IPdfValue> operandStack)
     {
         _renderer = renderer;
         _page = page;
-        _canvas = canvas;
+        _processor = processor;
         _operandStack = operandStack;
     }
 
@@ -157,7 +158,7 @@ public class TextOperators : IOperatorProcessor
 
         if (graphicsState.TextClipPath != null)
         {
-            _canvas.ClipPath(graphicsState.TextClipPath, SKClipOperation.Intersect, antialias: graphicsState.RenderingParameters.AntialiasClip);
+            _processor.Process(new ClipPathCommand(graphicsState.TextClipPath, SKClipOperation.Intersect, graphicsState.RenderingParameters.AntialiasClip));
             graphicsState.TextClipPath.Dispose();
             graphicsState.TextClipPath = null;
         }
@@ -370,7 +371,7 @@ public class TextOperators : IOperatorProcessor
 
     private void ProcessSequence(PdfGraphicsState graphicsState, List<ShapedGlyph> glyphs)
     {
-        var advancement = _renderer.DrawTextSequence(_canvas, glyphs, graphicsState, graphicsState.CurrentFont);
+        var advancement = _renderer.DrawTextSequence(_processor, glyphs, graphicsState, graphicsState.CurrentFont);
         var advanceMatrix = SKMatrix.CreateTranslation(advancement.Width, advancement.Height);
         graphicsState.TextMatrix = SKMatrix.Concat(graphicsState.TextMatrix, advanceMatrix);
     }

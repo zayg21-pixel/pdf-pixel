@@ -1,4 +1,5 @@
 using PdfPixel.Annotations.Rendering;
+using PdfPixel.Commands;
 using PdfPixel.Models;
 using PdfPixel.Text;
 using SkiaSharp;
@@ -60,20 +61,18 @@ public class PdfPolyLineAnnotation : PdfAnnotationBase
     public PdfLineEndingStyle EndLineEnding { get; }
 
     /// <summary>
-    /// Creates a fallback rendering for polyline annotations when no appearance stream is available.
+    /// Renders the fallback content for polyline annotations when no appearance stream is available.
     /// </summary>
+    /// <param name="processor">The command processor to emit commands to.</param>
     /// <param name="page">The PDF page containing this annotation.</param>
     /// <param name="visualStateKind">The visual state to render (Normal, Rollover, Down).</param>
-    /// <returns>An SKPicture containing the rendered polyline.</returns>
-    public override SKPicture CreateFallbackRender(PdfPage page, PdfAnnotationVisualStateKind visualStateKind)
+    /// <returns>True if fallback rendering was emitted.</returns>
+    public override bool RenderFallback(IPdfCommandProcessor processor, PdfPage page, PdfAnnotationVisualStateKind visualStateKind)
     {
         if (Vertices == null || Vertices.Length < 2)
         {
-            return null;
+            return false;
         }
-
-        using var recorder = new SKPictureRecorder();
-        using var canvas = recorder.BeginRecording(Rectangle);
 
         var lineColor = ResolveColor(page, SKColors.Black);
         var lineWidth = BorderStyle?.Width ?? 1.0f;
@@ -87,7 +86,7 @@ public class PdfPolyLineAnnotation : PdfAnnotationBase
             path.LineTo(Vertices[i]);
         }
 
-        using var linePaint = new SKPaint
+        var linePaint = new SKPaint
         {
             Style = SKPaintStyle.Stroke,
             StrokeWidth = lineWidth,
@@ -99,14 +98,14 @@ public class PdfPolyLineAnnotation : PdfAnnotationBase
 
         BorderStyle?.TryApplyEffect(linePaint, lineColor);
 
-        canvas.DrawPath(path, linePaint);
+        processor.Process(new DrawPathCommand(path, linePaint));
 
         var interiorSKColor = ResolveInteriorColor(page);
 
         if (StartLineEnding != PdfLineEndingStyle.None && Vertices.Length >= 4)
         {
             PdfAnnotationLineEndingRenderer.DrawLineEnding(
-                canvas,
+                processor,
                 Vertices[0].X,
                 Vertices[0].Y,
                 Vertices[1].X,
@@ -120,7 +119,7 @@ public class PdfPolyLineAnnotation : PdfAnnotationBase
         if (EndLineEnding != PdfLineEndingStyle.None && Vertices.Length >= 4)
         {
             PdfAnnotationLineEndingRenderer.DrawLineEnding(
-                canvas,
+                processor,
                 Vertices[Vertices.Length - 1].X,
                 Vertices[Vertices.Length - 1].Y,
                 Vertices[Vertices.Length - 2].X,
@@ -131,7 +130,7 @@ public class PdfPolyLineAnnotation : PdfAnnotationBase
                 interiorSKColor);
         }
 
-        return recorder.EndRecording();
+        return true;
     }
 
     /// <summary>

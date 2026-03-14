@@ -1,4 +1,5 @@
 ﻿using PdfPixel.Color.Paint;
+using PdfPixel.Commands;
 using PdfPixel.Pattern.Model;
 using PdfPixel.Rendering.State;
 using PdfPixel.Text;
@@ -41,11 +42,11 @@ internal class TextFillRenderTarget : IRenderTarget
 
     public SKColor Color => _state.FillPaint.Color;
 
-    public void Render(SKCanvas canvas)
+    public void Render(IPdfCommandProcessor processor)
     {
         if (_pattern != null)
         {
-            _pattern.RenderPattern(canvas, _state, this);
+            _pattern.RenderPattern(processor, _state, this);
         }
         else
         {
@@ -55,20 +56,20 @@ internal class TextFillRenderTarget : IRenderTarget
 
             var textMatrix = TextRenderUtilities.GetFullTextMatrix(_state);
 
-            canvas.Save();
+            processor.Process(new SaveStateCommand());
 
             // Apply text matrix transformation
-            canvas.Concat(textMatrix);
+            processor.Process(new ConcatMatrixCommand(textMatrix));
 
-            using var blob = TextRenderUtilities.BuildTextBlob(_shapingResult, _font);
+            var blob = TextRenderUtilities.BuildTextBlob(_shapingResult, _font);
 
             if (blob != null)
             {
-                using var paint = PdfPaintFactory.CreateFillPaint(_state);
-                canvas.DrawText(blob, 0f, 0f, paint);
+                var paint = PdfPaintFactory.CreateFillPaint(_state);
+                processor.Process(new DrawTextBlobCommand(blob, paint));
             }
 
-            canvas.Restore();
+            processor.Process(new RestoreStateCommand());
         }
     }
 

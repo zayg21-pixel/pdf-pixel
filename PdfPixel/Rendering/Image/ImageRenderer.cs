@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Logging;
 using PdfPixel.Color.Filters;
 using PdfPixel.Color.Paint;
+using PdfPixel.Commands;
 using PdfPixel.Imaging.Decoding;
 using PdfPixel.Imaging.Model;
 using PdfPixel.Rendering.State;
@@ -27,15 +28,16 @@ public class ImageRenderer : IImageRenderer
     }
 
     /// <summary>
-    /// Renders a PDF image onto the specified canvas using the provided graphics state.
+    /// Renders a PDF image using the provided command processor and graphics state.
+    /// Emits drawing commands through the processor for all image types.
     /// </summary>
-    /// <param name="canvas">The <see cref="SKCanvas"/> on which the image will be drawn. Must not be <see langword="null"/>.</param>
+    /// <param name="processor">The command processor to draw through.</param>
     /// <param name="pdfImage">The <see cref="PdfImage"/> to be rendered. Must not be <see langword="null"/> and must have positive
     /// dimensions.</param>
     /// <param name="state">The <see cref="PdfGraphicsState"/> that defines the rendering state for the image.</param>
-    public void DrawImage(SKCanvas canvas, PdfImage pdfImage, PdfGraphicsState state)
+    public void DrawImage(IPdfCommandProcessor processor, PdfImage pdfImage, PdfGraphicsState state)
     {
-        if (canvas == null)
+        if (processor == null)
         {
             return;
         }
@@ -45,44 +47,44 @@ public class ImageRenderer : IImageRenderer
             return;
         }
 
-        canvas.Save();
-        canvas.Scale(1, -1);
+        processor.Process(new SaveStateCommand());
+        processor.Process(new ConcatMatrixCommand(SKMatrix.CreateScale(1, -1)));
         var destRect = new SKRect(0, -1, 1, 0);
 
-        ImageRenderCore(canvas, pdfImage, state, destRect);
+        ImageRenderCore(processor, pdfImage, state, destRect);
 
-        canvas.Restore();
+        processor.Process(new RestoreStateCommand());
     }
 
-    private void ImageRenderCore(SKCanvas canvas, PdfImage pdfImage, PdfGraphicsState state, SKRect destRect)
+    private void ImageRenderCore(IPdfCommandProcessor processor, PdfImage pdfImage, PdfGraphicsState state, SKRect destRect)
     {
-        using var softMaskScope = new SoftMaskDrawingScope(_renderer, canvas, state);
+        using var softMaskScope = new SoftMaskDrawingScope(_renderer, processor, state);
         softMaskScope.BeginDrawContent();
 
         if (pdfImage.HasImageMask)
         {
-            DrawImageMask(canvas, pdfImage, state, destRect);
+            DrawImageMask(processor, pdfImage, state, destRect);
             return;
         }
 
         if (pdfImage.SoftMask != null)
         {
-            DrawWithSoftMask(canvas, pdfImage, state, destRect);
+            DrawWithSoftMask(processor, pdfImage, state, destRect);
             return;
         }
 
-        DrawNormalImage(canvas, pdfImage, state, destRect);
+        DrawNormalImage(processor, pdfImage, state, destRect);
     }
 
     /// <summary>
-    /// Draws a normal PDF image (no image mask or soft mask) to the specified canvas.
+    /// Draws a normal PDF image (no image mask or soft mask) via the command processor.
     /// </summary>
-    /// <param name="canvas">Destination canvas.</param>
+    /// <param name="processor">Command processor to emit drawing commands through.</param>
     /// <param name="pdfImage">Image definition.</param>
     /// <param name="state">Current graphics state.</param>
     /// <param name="destRect">Destination rectangle.</param>
     private void DrawNormalImage(
-        SKCanvas canvas,
+        IPdfCommandProcessor processor,
         PdfImage pdfImage,
         PdfGraphicsState state,
         SKRect destRect)
@@ -97,7 +99,7 @@ public class ImageRenderer : IImageRenderer
             return;
         }
 
-        using var baseImage = decoder.Decode(state, canvas);
+        var baseImage = decoder.Decode(state);
         if (baseImage == null)
         {
             _logger.LogWarning(
@@ -106,22 +108,21 @@ public class ImageRenderer : IImageRenderer
             return;
         }
 
-        using var imagePaint = PdfPaintFactory.CreateImagePaint(state);
-
+        var imagePaint = PdfPaintFactory.CreateImagePaint(state);
         var sampling = PdfPaintFactory.GetImageSamplingOptions(pdfImage, state);
-        canvas.DrawImage(baseImage, destRect, sampling, imagePaint);
+        processor.Process(new DrawImageCommand(baseImage, destRect, sampling, imagePaint));
     }
 
     /// <summary>
-    /// Draws an image mask (stencil mask) to the specified canvas.
+    /// Draws an image mask (stencil mask) via the command processor.
     /// Decodes the image mask, applies the decode filter, and fills using the current fill paint.
     /// </summary>
-    /// <param name="canvas">Destination canvas.</param>
+    /// <param name="processor">Command processor to emit drawing commands through.</param>
     /// <param name="pdfImage">The image mask definition.</param>
     /// <param name="state">Current graphics state.</param>
     /// <param name="destRect">Destination rectangle.</param>
     private void DrawImageMask(
-        SKCanvas canvas,
+        IPdfCommandProcessor processor,
         PdfImage pdfImage,
         PdfGraphicsState state,
         SKRect destRect)
@@ -137,7 +138,7 @@ public class ImageRenderer : IImageRenderer
 
         // TODO: [MEDIUM] apply patterns to stencil image 
 
-        using var alphaMask = decoder.Decode(state, canvas);
+        using var alphaMask = decoder.Decode(state);
         if (alphaMask == null)
         {
             _logger.LogWarning(
@@ -155,20 +156,19 @@ public class ImageRenderer : IImageRenderer
             inverse,
             sampling);
 
-        DrawShaderToRect(canvas, shader, state, destRect);
+        DrawShaderToRect(processor, shader, state, destRect);
     }
 
     /// <summary>
-    /// Draws a PDF image with a soft mask applied, compositing directly onto the destination canvas using a layer.
+    /// Draws a PDF image with a soft mask applied via the command processor.
     /// If any step fails, logs a warning and does not draw.
     /// </summary>
-    /// <param name="canvas">Destination canvas.</param>
+    /// <param name="processor">Command processor to emit drawing commands through.</param>
     /// <param name="pdfImage">The base image definition (may have SoftMask property).</param>
     /// <param name="state">Current graphics state.</param>
-    /// <param name="page">Owning page.</param>
     /// <param name="destRect">Destination rectangle.</param>
     private void DrawWithSoftMask(
-        SKCanvas canvas,
+        IPdfCommandProcessor processor,
         PdfImage pdfImage,
         PdfGraphicsState state,
         SKRect destRect)
@@ -186,7 +186,7 @@ public class ImageRenderer : IImageRenderer
             return;
         }
 
-        using var baseImage = baseDecoder.Decode(state, canvas);
+        using var baseImage = baseDecoder.Decode(state);
         if (baseImage == null)
         {
             _logger.LogWarning("Decoder returned null for image '{ImageName}'. Skipping soft mask drawing.", pdfImage?.Name);
@@ -200,7 +200,7 @@ public class ImageRenderer : IImageRenderer
             return;
         }
 
-        using var maskImage = softMaskDecoder.Decode(state, canvas);
+        using var maskImage = softMaskDecoder.Decode(state);
         if (maskImage == null)
         {
             _logger.LogWarning("Decoder returned null for soft mask of image '{ImageName}'. Skipping soft mask drawing.", pdfImage?.Name);
@@ -220,37 +220,34 @@ public class ImageRenderer : IImageRenderer
         }
 
         using var shader = ImageBlending.CreateSoftMaskBlendingShader(baseImage, maskImage, matteColor, sampling);
-        DrawShaderToRect(canvas, shader, state, destRect);
+        DrawShaderToRect(processor, shader, state, destRect);
     }
 
     /// <summary>
-    /// Records a full-unit-rectangle shader draw and composites the result onto <paramref name="canvas"/>
-    /// mapped to <paramref name="destRect"/>. Shared by image mask and soft mask rendering paths.
+    /// Emits commands for a full-unit-rectangle shader draw mapped to <paramref name="destRect"/>.
+    /// Shared by image mask and soft mask rendering paths.
     /// </summary>
-    /// <param name="canvas">Destination canvas.</param>
+    /// <param name="processor">Command processor to emit drawing commands through.</param>
     /// <param name="shader">Shader to fill the unit rectangle.</param>
     /// <param name="state">Current graphics state (used for the composition paint).</param>
     /// <param name="destRect">Destination rectangle on the canvas.</param>
     private static void DrawShaderToRect(
-        SKCanvas canvas,
+        IPdfCommandProcessor processor,
         SKShader shader,
         PdfGraphicsState state,
         SKRect destRect)
     {
-        using var drawPaint = PdfPaintFactory.CreateImagePaint(state);
-        using var compositionPaint = PdfPaintFactory.CreateImageShaderPaint(state, shader);
-
-        using var recorder = new SKPictureRecorder();
-        var unitRectangle = new SKRect(0, 0, 1, 1);
-        using var compositionCanvas = recorder.BeginRecording(unitRectangle);
-        compositionCanvas.ClipRect(unitRectangle, antialias: state.RenderingParameters.AntialiasClip);
-        compositionCanvas.DrawPaint(compositionPaint);
-        using var result = recorder.EndRecording();
+        var imageShaderPaint = PdfPaintFactory.CreateImageShaderPaint(state, shader);
 
         SKMatrix scale = SKMatrix.CreateScale(destRect.Width, destRect.Height);
         SKMatrix translate = SKMatrix.CreateTranslation(destRect.Left, destRect.Top);
         SKMatrix matrix = SKMatrix.Concat(scale, translate);
 
-        canvas.DrawPicture(result, matrix, drawPaint);
+        processor.Process(new SaveStateCommand());
+        processor.Process(new ConcatMatrixCommand(matrix));
+        var unitRectangle = new SKRect(0, 0, 1, 1);
+        processor.Process(new ClipRectCommand(unitRectangle, SKClipOperation.Intersect, state.RenderingParameters.AntialiasClip));
+        processor.Process(new DrawPaintCommand(imageShaderPaint));
+        processor.Process(new RestoreStateCommand());
     }
 }

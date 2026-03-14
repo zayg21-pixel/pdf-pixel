@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Logging;
 using PdfPixel.Annotations.Models;
 using PdfPixel.Annotations.Rendering;
+using PdfPixel.Commands;
 using PdfPixel.Forms;
 using PdfPixel.Imaging.Model;
 using PdfPixel.Models;
@@ -34,7 +35,7 @@ public class PdfAnnotationRenderer
     /// Annotations are rendered on top of page content using their appearance streams or default rendering.
     /// </summary>
     public void RenderAnnotations(
-        SKCanvas canvas,
+        IPdfCommandProcessor processor,
         PdfRenderingParameters renderingParameters,
         PdfAnnotationBase activeAnnotation,
         PdfAnnotationVisualStateKind visualStateKind,
@@ -53,7 +54,7 @@ public class PdfAnnotationRenderer
                     ? visualStateKind
                     : PdfAnnotationVisualStateKind.Normal;
 
-                RenderAnnotation(canvas, annotation, renderingParameters, effectiveState, token);
+                RenderAnnotation(processor, annotation, renderingParameters, effectiveState, token);
 
                 token.ThrowIfCancellationRequested();
             }
@@ -76,7 +77,7 @@ public class PdfAnnotationRenderer
     /// Render a single annotation using its appearance stream or default rendering.
     /// </summary>
     private void RenderAnnotation(
-        SKCanvas canvas,
+        IPdfCommandProcessor processor,
         PdfAnnotationBase annotation,
         PdfRenderingParameters renderingParameters,
         PdfAnnotationVisualStateKind visualStateKind,
@@ -98,6 +99,6 @@ public class PdfAnnotationRenderer
             return;
         }
 
-        annotation.Render(canvas, _page, visualStateKind, _renderer, renderingParameters, token);
+        annotation.Render(processor, _page, visualStateKind, _renderer, renderingParameters, token);
     }
 }

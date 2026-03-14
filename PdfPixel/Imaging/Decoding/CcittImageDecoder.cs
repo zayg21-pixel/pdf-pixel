@@ -42,7 +42,7 @@ internal sealed class CcittImageDecoder : PdfImageDecoder
         _rows = parameters?.Rows ?? image.Height;
     }
 
-    public override SKImage Decode(PdfGraphicsState state, SKCanvas canvas)
+    public override SKImage Decode(PdfGraphicsState state)
     {
         // TODO: [LOW] add recovery
         int width = _columns;
@@ -61,7 +61,7 @@ internal sealed class CcittImageDecoder : PdfImageDecoder
         }
 
         // Initialize row processor (8-bit pipeline; will read packed 1-bit samples per row).
-        using var rowProcessor = new PdfImageRowProcessor(Image, LoggerFactory.CreateLogger<PdfImageRowProcessor>(), state, canvas);
+        using var rowProcessor = new PdfImageRowProcessor(Image, LoggerFactory.CreateLogger<PdfImageRowProcessor>(), state);
         rowProcessor.InitializeBuffer();
 
         // Row decoder (produces packed 1-bit rows, MSB-first).

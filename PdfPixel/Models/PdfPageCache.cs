@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using PdfPixel.Commands;
 using PdfPixel.Fonts;
 using SkiaSharp;
 using PdfPixel.Rendering.State;
@@ -146,15 +147,15 @@ internal sealed class PdfPageCache
     /// Parses and caches the parameters; applies them to the graphicsState and concatenates any transform matrix.
     /// </summary>
     /// <param name="graphicsStateName">Name of the ExtGState resource (/GS)</param>
-    /// <param name="canvas">Target canvas for matrix concatenation</param>
+    /// <param name="processor">Command processor for matrix concatenation</param>
     /// <param name="graphicsState">Graphics state to update</param>
-    internal void ApplyGraphicsStateParameters(PdfString graphicsStateName, SKCanvas canvas, PdfGraphicsState graphicsState)
+    internal void ApplyGraphicsStateParameters(PdfString graphicsStateName, IPdfCommandProcessor processor, PdfGraphicsState graphicsState)
     {
         if (graphicsStateName.IsEmpty)
         {
             return;
         }
-        if (canvas == null || graphicsState == null)
+        if (processor == null || graphicsState == null)
         {
             return;
         }
@@ -175,7 +176,7 @@ internal sealed class PdfPageCache
         parameters.ApplyToGraphicsState(graphicsState);
         if (parameters.TransformMatrix.HasValue)
         {
-            canvas.Concat(parameters.TransformMatrix.Value);
+            processor.Process(new ConcatMatrixCommand(parameters.TransformMatrix.Value));
         }
     }
 }

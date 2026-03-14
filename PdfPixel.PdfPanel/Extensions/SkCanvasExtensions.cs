@@ -1,4 +1,5 @@
-﻿using PdfPixel.PdfPanel.Requests;
+﻿using PdfPixel.Commands;
+using PdfPixel.PdfPanel.Requests;
 using SkiaSharp;
 using System;
 using System.Linq;
@@ -77,13 +78,20 @@ internal static class SkCanvasExtensions
     {
         lock (picture.DisposeLocker)
         {
-            if (picture.IsDisposed || picture.Picture == null)
+            if (picture.IsDisposed || picture.Recording == null)
             {
                 return;
             }
 
-            var transformMatrix = GetPictureTransformMatrix(picture.Picture.CullRect.Width, picture.Picture.CullRect.Height, page.Info, page.UserRotation);
-            canvas.DrawPicture(picture.Picture, in transformMatrix);
+            // Recordings are at scale 1 (page coordinate space).
+            var transformMatrix = GetPictureTransformMatrix(page.Info.Width, page.Info.Height, page.Info, page.UserRotation);
+            canvas.Save();
+            canvas.Concat(in transformMatrix);
+
+            using var modifier = new DefaultPdfCommandModifier();
+            picture.Recording.Replay(canvas, [modifier]);
+
+            canvas.Restore();
         }
     }
 
@@ -91,13 +99,20 @@ internal static class SkCanvasExtensions
     {
         lock (picture.DisposeLocker)
         {
-            if (picture.IsDisposed || picture.AnnotationPicture == null)
+            if (picture.IsDisposed || picture.AnnotationRecording == null)
             {
                 return;
             }
 
-            var transformMatrix = GetPictureTransformMatrix(picture.AnnotationPicture.CullRect.Width, picture.AnnotationPicture.CullRect.Height, page.Info, page.UserRotation);
-            canvas.DrawPicture(picture.AnnotationPicture, in transformMatrix);
+            // Recordings are at scale 1 (page coordinate space).
+            var transformMatrix = GetPictureTransformMatrix(page.Info.Width, page.Info.Height, page.Info, page.UserRotation);
+            canvas.Save();
+            canvas.Concat(in transformMatrix);
+
+            using var modifier = new DefaultPdfCommandModifier();
+            picture.AnnotationRecording.Replay(canvas, [modifier]);
+
+            canvas.Restore();
         }
     }
 
@@ -208,7 +223,8 @@ internal static class SkCanvasExtensions
         {
             Style = SKPaintStyle.Fill,
             Color = SKColors.White,
-            IsAntialias = antialias
+            IsAntialias = antialias,
+            //BlendMode = SKBlendMode.SrcIn
         };
 
         if (cornerRadius > 0)

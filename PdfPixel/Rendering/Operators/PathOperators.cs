@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using PdfPixel.Color.Paint;
+using PdfPixel.Commands;
 using PdfPixel.Models;
 using PdfPixel.Rendering.State;
 using SkiaSharp;
@@ -24,15 +25,15 @@ public class PathOperators : IOperatorProcessor
 
     private readonly IPdfRenderer _renderer;
     private readonly Stack<IPdfValue> _operandStack;
-    private readonly SKCanvas _canvas;
+    private readonly IPdfCommandProcessor _processor;
     private readonly SKPath _currentPath;
     private readonly PdfPage _page;
 
-    public PathOperators(IPdfRenderer renderer, Stack<IPdfValue> operandStack, SKCanvas canvas, SKPath currentPath, PdfPage page)
+    public PathOperators(IPdfRenderer renderer, Stack<IPdfValue> operandStack, IPdfCommandProcessor processor, SKPath currentPath, PdfPage page)
     {
         _renderer = renderer;
         _operandStack = operandStack;
-        _canvas = canvas;
+        _processor = processor;
         _currentPath = currentPath;
         _page = page;
     }
@@ -247,14 +248,14 @@ public class PathOperators : IOperatorProcessor
             return;
         }
         _currentPath.FillType = fillType;
-        _canvas.ClipPath(_currentPath, SKClipOperation.Intersect, antialias: graphicsState.RenderingParameters.AntialiasClip);
+        _processor.Process(new ClipPathCommand(_currentPath, SKClipOperation.Intersect, graphicsState.RenderingParameters.AntialiasClip));
         _currentPath.Reset();
     }
 
     private void ProcessStrokePath(PdfGraphicsState graphicsState)
     {
         _currentPath.FillType = SKPathFillType.Winding;
-        _renderer.DrawPath(_canvas, _currentPath, graphicsState, PaintOperation.Stroke);
+        _renderer.DrawPath(_processor, _currentPath, graphicsState, PaintOperation.Stroke);
         _currentPath.Reset();
     }
 
@@ -262,21 +263,21 @@ public class PathOperators : IOperatorProcessor
     {
         _currentPath.Close();
         _currentPath.FillType = SKPathFillType.Winding;
-        _renderer.DrawPath(_canvas, _currentPath, graphicsState, PaintOperation.Stroke);
+        _renderer.DrawPath(_processor, _currentPath, graphicsState, PaintOperation.Stroke);
         _currentPath.Reset();
     }
 
     private void ProcessFillPath(PdfGraphicsState graphicsState, SKPathFillType fillType)
     {
         _currentPath.FillType = fillType;
-        _renderer.DrawPath(_canvas, _currentPath, graphicsState, PaintOperation.Fill);
+        _renderer.DrawPath(_processor, _currentPath, graphicsState, PaintOperation.Fill);
         _currentPath.Reset();
     }
 
     private void ProcessFillAndStrokePath(PdfGraphicsState graphicsState, SKPathFillType fillType)
     {
         _currentPath.FillType = fillType;
-        _renderer.DrawPath(_canvas, _currentPath, graphicsState, PaintOperation.FillAndStroke);
+        _renderer.DrawPath(_processor, _currentPath, graphicsState, PaintOperation.FillAndStroke);
         _currentPath.Reset();
     }
 
@@ -284,7 +285,7 @@ public class PathOperators : IOperatorProcessor
     {
         _currentPath.Close();
         _currentPath.FillType = fillType;
-        _renderer.DrawPath(_canvas, _currentPath, graphicsState, PaintOperation.FillAndStroke);
+        _renderer.DrawPath(_processor, _currentPath, graphicsState, PaintOperation.FillAndStroke);
         _currentPath.Reset();
     }
 

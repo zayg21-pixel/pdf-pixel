@@ -27,7 +27,7 @@ public class RawImageDecoder : PdfImageDecoder
     /// Attempts an experimental fast PNG wrapping path first (no recompression) when the encoded PDF image
     /// matches a restricted PNG compatible profile.
     /// </summary>
-    public override SKImage Decode(PdfGraphicsState state, SKCanvas canvas)
+    public override SKImage Decode(PdfGraphicsState state)
     {
         if (!ValidateImageParameters())
         {
@@ -47,16 +47,16 @@ public class RawImageDecoder : PdfImageDecoder
             return null;
         }
 
-        return DecodeStream(dataStream, state, canvas);
+        return DecodeStream(dataStream, state);
     }
 
     /// <summary>
     /// Stream-based row decoding: computes expected per-row byte count and processes each row sequentially.
     /// For bitsPerComponent &lt; 8 data remains packed; packing is handled downstream by the row processor.
     /// </summary>
-    private SKImage DecodeStream(Stream imageStream, PdfGraphicsState state, SKCanvas canvas)
+    private SKImage DecodeStream(Stream imageStream, PdfGraphicsState state)
     {
-        using PdfImageRowProcessor rowProcessor = new PdfImageRowProcessor(Image, LoggerFactory.CreateLogger<PdfImageRowProcessor>(), state, canvas);
+        using PdfImageRowProcessor rowProcessor = new PdfImageRowProcessor(Image, LoggerFactory.CreateLogger<PdfImageRowProcessor>(), state);
         rowProcessor.InitializeBuffer();
 
         int imageHeight = Image.Height;

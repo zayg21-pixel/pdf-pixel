@@ -1,3 +1,4 @@
+using PdfPixel.Commands;
 using PdfPixel.Models;
 using SkiaSharp;
 
@@ -22,31 +23,21 @@ public class PdfStrikeOutAnnotation : PdfTextMarkupAnnotation
     }
 
     /// <summary>
-    /// Creates a fallback rendering for strikeout annotations when no appearance stream is available.
+    /// Renders the fallback content for strikeout annotations when no appearance stream is available.
     /// </summary>
+    /// <param name="processor">The command processor to emit commands to.</param>
     /// <param name="page">The PDF page containing this annotation.</param>
     /// <param name="visualStateKind">The visual state to render (Normal, Rollover, Down).</param>
-    /// <returns>An SKPicture containing the rendered strikeout line.</returns>
-    public override SKPicture CreateFallbackRender(PdfPage page, PdfAnnotationVisualStateKind visualStateKind)
+    /// <returns>True if fallback rendering was emitted.</returns>
+    public override bool RenderFallback(IPdfCommandProcessor processor, PdfPage page, PdfAnnotationVisualStateKind visualStateKind)
     {
         var quads = Quadrilaterals;
         if (quads.Length == 0)
         {
-            return null;
+            return false;
         }
 
-        using var recorder = new SKPictureRecorder();
-        using var canvas = recorder.BeginRecording(Rectangle);
-
         var color = ResolveColor(page, SKColors.Red);
-
-        using var paint = new SKPaint
-        {
-            Style = SKPaintStyle.Stroke,
-            StrokeWidth = 1.0f,
-            Color = color,
-            IsAntialias = true
-        };
 
         foreach (var quad in quads)
         {
@@ -55,10 +46,21 @@ public class PdfStrikeOutAnnotation : PdfTextMarkupAnnotation
             var endX = (quad[1].X + quad[2].X) / 2;
             var endY = (quad[1].Y + quad[2].Y) / 2;
 
-            canvas.DrawLine(startX, startY, endX, endY, paint);
+            var paint = new SKPaint
+            {
+                Style = SKPaintStyle.Stroke,
+                StrokeWidth = 1.0f,
+                Color = color,
+                IsAntialias = true
+            };
+
+            using var linePath = new SKPath();
+            linePath.MoveTo(startX, startY);
+            linePath.LineTo(endX, endY);
+            processor.Process(new DrawPathCommand(linePath, paint));
         }
 
-        return recorder.EndRecording();
+        return true;
     }
 
     /// <summary>

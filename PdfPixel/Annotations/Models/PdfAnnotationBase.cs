@@ -5,6 +5,7 @@ using PdfPixel.Parsing;
 using PdfPixel.Color.ColorSpace;
 using PdfPixel.Rendering;
 using PdfPixel.Annotations.Rendering;
+using PdfPixel.Commands;
 using SkiaSharp;
 using System;
 using System.Threading;
@@ -319,9 +320,9 @@ public abstract class PdfAnnotationBase
     }
 
     /// <summary>
-    /// Renders this annotation to the canvas.
+    /// Renders this annotation via the command processor.
     /// </summary>
-    /// <param name="canvas">The canvas to render to.</param>
+    /// <param name="processor">The command processor to emit commands to.</param>
     /// <param name="page">The PDF page containing this annotation.</param>
     /// <param name="visualStateKind">The visual state to render (Normal, Rollover, Down).</param>
     /// <param name="renderer">The renderer context for rendering appearance streams.</param>
@@ -329,60 +330,53 @@ public abstract class PdfAnnotationBase
     /// <param name="token">Token to cancel rendering.</param>
     /// <returns>True if the annotation was rendered, false otherwise.</returns>
     public virtual bool Render(
-        SKCanvas canvas,
+        IPdfCommandProcessor processor,
         PdfPage page,
         PdfAnnotationVisualStateKind visualStateKind,
         IPdfRenderer renderer,
         PdfRenderingParameters renderingParameters,
         CancellationToken token)
     {
-        canvas.Save();
+        processor.Process(new SaveStateCommand());
 
         try
         {
             if (ShouldDisplayBubble)
             {
-                PdfAnnotationBubbleRenderer.RenderBubble(canvas, this, page, visualStateKind);
+                PdfAnnotationBubbleRenderer.RenderBubble(processor, this, page, visualStateKind);
             }
 
-            if (AppearanceDictionary != null && RenderAppearanceStream(canvas, page, visualStateKind, renderer, renderingParameters, token))
+            if (AppearanceDictionary != null && RenderAppearanceStream(processor, page, visualStateKind, renderer, renderingParameters, token))
             {
                 return true;
             }
 
-            var fallbackPicture = CreateFallbackRender(page, visualStateKind);
-            if (fallbackPicture != null)
-            {
-                canvas.DrawPicture(fallbackPicture);
-                return true;
-            }
-
-            return false;
+            return RenderFallback(processor, page, visualStateKind);
         }
         finally
         {
-            canvas.Restore();
+            processor.Process(new RestoreStateCommand());
         }
     }
 
     /// <summary>
-    /// Creates a fallback rendering for this annotation when no appearance stream is available.
+    /// Renders the fallback content for this annotation when no appearance stream is available.
     /// </summary>
+    /// <param name="processor">The command processor to emit commands to.</param>
     /// <param name="page">The PDF page containing this annotation.</param>
     /// <param name="visualStateKind">The visual state to render (Normal, Rollover, Down).</param>
-    /// <returns>An SKPicture containing the fallback rendering, or null if no fallback is available.</returns>
+    /// <returns>True if fallback rendering was emitted, false if no fallback is available.</returns>
     /// <remarks>
     /// This method allows each annotation type to provide its own custom rendering logic
-    /// when the annotation doesn't have an appearance stream. The returned SKPicture
-    /// should be scaled and positioned appropriately for the annotation's rectangle.
+    /// when the annotation doesn't have an appearance stream.
     /// The visual state allows annotations to change their appearance based on user interaction.
     /// </remarks>
-    public abstract SKPicture CreateFallbackRender(PdfPage page, PdfAnnotationVisualStateKind visualStateKind);
+    public abstract bool RenderFallback(IPdfCommandProcessor processor, PdfPage page, PdfAnnotationVisualStateKind visualStateKind);
 
     /// <summary>
     /// Renders the appearance stream for this annotation.
     /// </summary>
-    /// <param name="canvas">The canvas to render to.</param>
+    /// <param name="processor">The command processor to emit commands to.</param>
     /// <param name="page">The PDF page containing this annotation.</param>
     /// <param name="visualStateKind">The visual state to render.</param>
     /// <param name="renderer">The renderer context.</param>
@@ -390,7 +384,7 @@ public abstract class PdfAnnotationBase
     /// <param name="token">Token to cancel rendering.</param>
     /// <returns>True if the appearance stream was rendered successfully.</returns>
     protected virtual bool RenderAppearanceStream(
-        SKCanvas canvas,
+        IPdfCommandProcessor processor,
         PdfPage page,
         PdfAnnotationVisualStateKind visualStateKind,
         IPdfRenderer renderer,
@@ -398,7 +392,7 @@ public abstract class PdfAnnotationBase
         CancellationToken token)
     {
         return PdfAnnotationAppearanceRenderer.RenderAppearanceStream(
-            canvas,
+            processor,
             this,
             page,
             visualStateKind,

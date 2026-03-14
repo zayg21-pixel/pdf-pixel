@@ -1,4 +1,6 @@
-﻿using PdfPixel.Color.Paint;
+﻿using Microsoft.Extensions.Logging;
+using PdfPixel.Color.Paint;
+using PdfPixel.Commands;
 using PdfPixel.Rendering.State;
 using PdfPixel.Shading.Builder;
 using PdfPixel.Shading.Decoding;
@@ -11,26 +13,26 @@ using System.Runtime.CompilerServices;
 namespace PdfPixel.Shading;
 
 /// <summary>
-/// Provides mesh patch rendering for PDF Type 6 and Type 7 shading using SkiaSharp and SkSL runtime effects.
+/// Provides mesh patch rendering for PDF Type 4–7 shading using SkiaSharp.
 /// </summary>
-internal static partial class PdfShadingBuilder
+internal partial class PdfShadingBuilder
 {
     /// <summary>
-    /// Builds an SKPicture for Gouraud-shaded triangle mesh (Type 4 and Type 5).
+    /// Builds a command for Gouraud-shaded triangle mesh (Type 4 and Type 5).
     /// </summary>
+    /// <param name="processor">The command processor that receives generated commands.</param>
     /// <param name="shading">Parsed shading model.</param>
     /// <param name="state">Current graphics state.</param>
-    /// <returns>SKShader instance or null if decoding or rendering fails.</returns>
-    private static SKPicture BuildGouraud(PdfShading shading, PdfGraphicsState state)
+    /// <returns><see langword="true"/> if commands were produced; otherwise <see langword="false"/>.</returns>
+    private void BuildGouraudCommand(IPdfCommandProcessor processor, PdfShading shading, PdfGraphicsState state)
     {
         var decoder = new GouraudMeshDecoder(shading, state);
         List<MeshData> triangles = decoder.Decode();
         if (triangles.Count == 0)
         {
-            return null;
+            _logger.LogWarning("Gouraud mesh shading produced no triangles");
+            return;
         }
-
-        SKRect meshBounds = ComputeMeshBounds(triangles);
 
         // Aggregate all triangle points and colors into single arrays for batch drawing
         int triangleCount = triangles.Count;
@@ -45,102 +47,63 @@ internal static partial class PdfShadingBuilder
             Array.Copy(triangle.CornerColors, 0, allColors, triangleIndex * 3, 3);
         }
 
-        using var recorder = new SKPictureRecorder();
-        using var canvas = recorder.BeginRecording(meshBounds);
-
-        using var paint = PdfPaintFactory.CreateShaderPaint(shading.AntiAlias, state);
+        var paint = PdfPaintFactory.CreateShaderPaint(shading.AntiAlias, state);
 
         // Batch draw all triangles in one call
-        using var vertices = SKVertices.CreateCopy(SKVertexMode.Triangles, allPoints, allColors);
-        canvas.DrawVertices(vertices, SKBlendMode.DstIn, paint);
+        var vertices = SKVertices.CreateCopy(SKVertexMode.Triangles, allPoints, allColors);
 
-        return recorder.EndRecording();
+        processor.Process(new DrawVerticesCommand(vertices, paint));
     }
+
     /// <summary>
-    /// Builds an SKPicture for type 7 (Tensor-Product Patch Mesh).
+    /// Builds a command for type 7 (Tensor-Product Patch Mesh).
     /// </summary>
+    /// <param name="processor">The command processor that receives generated commands.</param>
     /// <param name="shading">Parsed shading model.</param>
     /// <param name="state">Current graphics state.</param>
-    /// <returns>SKShader instance or null if decoding or rendering fails.</returns>
-    private static SKPicture BuildType7(PdfShading shading, PdfGraphicsState state)
+    /// <returns><see langword="true"/> if commands were produced; otherwise <see langword="false"/>.</returns>
+    private void BuildType7Command(IPdfCommandProcessor processor, PdfShading shading, PdfGraphicsState state)
     {
-        return BuildPatchMesh(shading, state);
+        BuildPatchMeshCommand(processor, shading, state);
     }
 
     /// <summary>
-    /// Builds an SKPicture for type 6 (Coons Patch Mesh) shading using SkiaSharp.
-    /// Uses MeshDecoder to extract patches, each with 12 control points.
+    /// Builds a command for type 6 (Coons Patch Mesh) shading.
     /// </summary>
+    /// <param name="processor">The command processor that receives generated commands.</param>
     /// <param name="shading">Parsed shading model.</param>
     /// <param name="state">Current graphics state.</param>
-    /// <returns>SKShader instance or null if decoding or rendering fails.</returns>
-    private static SKPicture BuildType6(PdfShading shading, PdfGraphicsState state)
+    /// <returns><see langword="true"/> if commands were produced; otherwise <see langword="false"/>.</returns>
+    private void BuildType6Command(IPdfCommandProcessor processor, PdfShading shading, PdfGraphicsState state)
     {
-        return BuildPatchMesh(shading, state);
+        BuildPatchMeshCommand(processor, shading, state);
     }
 
     /// <summary>
-    /// Universal builder for both type 6 and 7 meshes.
+    /// Universal command builder for both type 6 and 7 meshes.
     /// </summary>
+    /// <param name="processor">The command processor that receives generated commands.</param>
     /// <param name="shading">Parsed shading model.</param>
     /// <param name="state">Current graphics state.</param>
-    /// <returns>SKShader instance or null if decoding or rendering fails.</returns>
-    private static SKPicture BuildPatchMesh(PdfShading shading, PdfGraphicsState state)
+    /// <returns><see langword="true"/> if commands were produced; otherwise <see langword="false"/>.</returns>
+    private void BuildPatchMeshCommand(IPdfCommandProcessor processor, PdfShading shading, PdfGraphicsState state)
     {
         var decoder = new MeshDecoder(shading, state);
         List<MeshData> patches = decoder.Decode();
         if (patches.Count == 0)
         {
-            return null;
+            _logger.LogWarning("Patch mesh shading produced no patches");
+            return;
         }
 
-        SKRect meshBounds = ComputeMeshBounds(patches);
-
-        using var recorder = new SKPictureRecorder();
-        using var canvas = recorder.BeginRecording(meshBounds);
-
-        using var paint = PdfPaintFactory.CreateShaderPaint(shading.AntiAlias, state);
+        var paint = PdfPaintFactory.CreateShaderPaint(shading.AntiAlias, state);
 
         int verticesPerPatch = state.RenderingParameters.PreviewMode
             ? state.RenderingParameters.PreviewMaxTessellationVertices
             : state.RenderingParameters.MaxTessellationVertices;
 
-        using var vertices = MeshEvaluator.CreateVerticesForPatches(patches, verticesPerPatch);
-        canvas.DrawVertices(vertices, SKBlendMode.DstIn, paint);
+        var vertices = MeshEvaluator.CreateVerticesForPatches(patches, verticesPerPatch);
 
-        return recorder.EndRecording();
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static SKRect ComputeMeshBounds(List<MeshData> patches)
-    {
-        float minX = float.MaxValue;
-        float minY = float.MaxValue;
-        float maxX = float.MinValue;
-        float maxY = float.MinValue;
-
-        foreach (var patch in patches)
-        {
-            foreach (var point in patch.Points)
-            {
-                if (point.X < minX)
-                {
-                    minX = point.X;
-                }
-                if (point.Y < minY)
-                {
-                    minY = point.Y;
-                }
-                if (point.X > maxX)
-                {
-                    maxX = point.X;
-                }
-                if (point.Y > maxY)
-                {
-                    maxY = point.Y;
-                }
-            }
-        }
-        return new SKRect(minX, minY, maxX, maxY);
+        processor.Process(new DrawVerticesCommand(vertices, paint));
     }
 }

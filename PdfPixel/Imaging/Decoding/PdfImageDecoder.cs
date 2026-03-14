@@ -77,7 +77,7 @@ public abstract class PdfImageDecoder
     /// Returns the decoded image as an <see cref="SKImage"/>, or null on failure (errors are logged).
     /// </summary>
     /// <returns></returns>
-    public abstract SKImage Decode(PdfGraphicsState state, SKCanvas canvas);
+    public abstract SKImage Decode(PdfGraphicsState state);
 
     /// <summary>
     /// Validate image parameters and return key values needed for processing.

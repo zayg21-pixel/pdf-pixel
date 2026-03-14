@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging;
+using PdfPixel.Commands;
 using PdfPixel.Forms;
 using PdfPixel.Imaging.Model;
 using PdfPixel.Models;
@@ -33,15 +34,15 @@ public class MiscellaneousOperators : IOperatorProcessor
     private readonly IPdfRenderer _renderer;
     private readonly Stack<IPdfValue> _operandStack;
     private readonly PdfPage _page;
-    private readonly SKCanvas _canvas;
+    private readonly IPdfCommandProcessor _processor;
     private readonly ILogger<MiscellaneousOperators> _logger;
 
-    public MiscellaneousOperators(IPdfRenderer renderer, Stack<IPdfValue> operandStack, PdfPage page, SKCanvas canvas)
+    public MiscellaneousOperators(IPdfRenderer renderer, Stack<IPdfValue> operandStack, PdfPage page, IPdfCommandProcessor processor)
     {
         _renderer = renderer;
         _operandStack = operandStack;
         _page = page;
-        _canvas = canvas;
+        _processor = processor;
         _logger = page.Document.LoggerFactory.CreateLogger<MiscellaneousOperators>();
     }
 
@@ -139,12 +140,12 @@ public class MiscellaneousOperators : IOperatorProcessor
             case PdfXObjectSubtype.Image:
             {
                 var pdfImage = PdfImage.FromXObject(pageObject.XObject, _page, xObjectName, isSoftMask: false);
-                _renderer.DrawImage(_canvas, pdfImage, graphicsState);
+                _renderer.DrawImage(_processor, pdfImage, graphicsState);
                 break;
             }
             case PdfXObjectSubtype.Form:
                 var formXObject = PdfForm.FromXObject(pageObject.XObject, _page);
-                _renderer.DrawForm(_canvas, formXObject, graphicsState);
+                _renderer.DrawForm(_processor, formXObject, graphicsState);
                 break;
             default:
                 _logger.LogWarning("Unsupported XObject subtype '{XObjectSubtype}' for XObject '{XObjectName}'", pageObject.Subtype, xObjectName);
@@ -226,6 +227,6 @@ public class MiscellaneousOperators : IOperatorProcessor
 
         var shading = new PdfShading(shadingObject);
 
-        _renderer.DrawShading(_canvas, shading, graphicsState);
+        _renderer.DrawShading(_processor, shading, graphicsState);
     }
 }

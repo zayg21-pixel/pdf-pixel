@@ -1,4 +1,6 @@
-﻿using PdfPixel.Functions;
+﻿using Microsoft.Extensions.Logging;
+using PdfPixel.Commands;
+using PdfPixel.Functions;
 using PdfPixel.Rendering.Operators;
 using PdfPixel.Rendering.State;
 using PdfPixel.Shading.Model;
@@ -8,20 +10,22 @@ using System;
 
 namespace PdfPixel.Shading;
 
-internal static partial class PdfShadingBuilder
+internal partial class PdfShadingBuilder
 {
     /// <summary>
-    /// Builds a PDF-spec compliant function-based (Type 1) shading picture using SKBitmap.
+    /// Builds a PDF-spec compliant function-based (Type 1) shading command using SKBitmap.
     /// Samples the function(s) over the domain rectangle using function-provided sampling points.
     /// </summary>
+    /// <param name="processor">The command processor that receives generated commands.</param>
     /// <param name="shading">Parsed shading model.</param>
     /// <param name="state">Current graphics state.</param>
-    /// <returns>SKPicture instance or null if input is invalid.</returns>
-    private static SKPicture BuildFunctionBased(PdfShading shading, PdfGraphicsState state)
+    /// <returns><see langword="true"/> if commands were produced; otherwise <see langword="false"/>.</returns>
+    private void BuildFunctionBasedCommand(IPdfCommandProcessor processor, PdfShading shading, PdfGraphicsState state)
     {
         if (shading.Functions == null || shading.Functions.Count == 0 || shading.ColorSpaceConverter == null)
         {
-            return null;
+            _logger.LogWarning("Function-based shading has no functions or color space converter");
+            return;
         }
 
         var converter = state.Page.Cache.ColorSpace.ResolveByObject(shading.ColorSpaceConverter);
@@ -43,7 +47,8 @@ internal static partial class PdfShadingBuilder
         float domainHeight = Math.Abs(domainY1 - domainY0);
         if (domainWidth < 1e-6f || domainHeight < 1e-6f)
         {
-            return null;
+            _logger.LogWarning("Function-based shading has degenerate domain dimensions");
+            return;
         }
 
         int sampleCount = state.RenderingParameters.PreviewMode
@@ -56,7 +61,7 @@ internal static partial class PdfShadingBuilder
         int bitmapWidth = Math.Max(1, xSamples.Length);
         int bitmapHeight = Math.Max(1, ySamples.Length);
 
-        using var bitmap = new SKBitmap(bitmapWidth, bitmapHeight);
+        var bitmap = new SKBitmap(bitmapWidth, bitmapHeight);
         SKColor[] pixelColors = new SKColor[bitmapWidth * bitmapHeight];
         for (int yIndex = 0; yIndex < bitmapHeight; yIndex++)
         {
@@ -88,12 +93,9 @@ internal static partial class PdfShadingBuilder
             ? SKMatrix.Concat(matrix.Value, pixelToDomain)
             : pixelToDomain;
 
-        using var recorder = new SKPictureRecorder();
-        using var canvas = recorder.BeginRecording(new SKRect(0, 0, bitmap.Width, bitmap.Height));
-
-        canvas.Concat(finalMatrix);
-        canvas.DrawBitmap(bitmap, SKPoint.Empty);
-
-        return recorder.EndRecording();
+        processor.Process(new SaveStateCommand());
+        processor.Process(new ConcatMatrixCommand(finalMatrix));
+        processor.Process(new DrawBitmapCommand(bitmap));
+        processor.Process(new RestoreStateCommand());
     }
 }

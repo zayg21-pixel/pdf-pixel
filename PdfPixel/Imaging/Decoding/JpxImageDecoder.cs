@@ -26,7 +26,7 @@ public class JpxImageDecoder : PdfImageDecoder
     {
     }
 
-    public override SKImage Decode(PdfGraphicsState state, SKCanvas canvas)
+    public override SKImage Decode(PdfGraphicsState state)
     {
         if (!ValidateImageParameters())
         {
@@ -43,7 +43,7 @@ public class JpxImageDecoder : PdfImageDecoder
 
         try
         {
-            return DecodeInternal(encodedImageData, state, canvas);
+            return DecodeInternal(encodedImageData, state);
         }
         catch (Exception ex)
         {
@@ -55,7 +55,7 @@ public class JpxImageDecoder : PdfImageDecoder
     /// <summary>
     /// Decode using custom JPX implementation with tile-to-row conversion.
     /// </summary>
-    private SKImage DecodeInternal(ReadOnlyMemory<byte> encoded, PdfGraphicsState state, SKCanvas canvas)
+    private SKImage DecodeInternal(ReadOnlyMemory<byte> encoded, PdfGraphicsState state)
     {
         // Parse JPX header
         JpxHeader header;
@@ -109,7 +109,7 @@ public class JpxImageDecoder : PdfImageDecoder
             using var rowProvider = jpxDecoder.Decode(header, codestreamData);
             
             // Stream decoded data through PdfImageRowProcessor
-            return ProcessWithRowProvider(rowProvider, state, canvas);
+            return ProcessWithRowProvider(rowProvider, state);
         }
         catch (NotImplementedException)
         {
@@ -122,13 +122,13 @@ public class JpxImageDecoder : PdfImageDecoder
     /// <summary>
     /// Process decoded JPX data using the existing PDF image row processor.
     /// </summary>
-    private SKImage ProcessWithRowProvider(IJpxRowProvider rowProvider, PdfGraphicsState state, SKCanvas canvas)
+    private SKImage ProcessWithRowProvider(IJpxRowProvider rowProvider, PdfGraphicsState state)
     {
         PdfImageRowProcessor rowProcessor = null;
-        
+
         try
         {
-            rowProcessor = new PdfImageRowProcessor(Image, LoggerFactory.CreateLogger<PdfImageRowProcessor>(), state, canvas);
+            rowProcessor = new PdfImageRowProcessor(Image, LoggerFactory.CreateLogger<PdfImageRowProcessor>(), state);
             rowProcessor.InitializeBuffer();
 
             Span<byte> rowBuffer = new byte[rowProvider.Width * rowProvider.ComponentCount];

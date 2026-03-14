@@ -1,3 +1,4 @@
+using PdfPixel.Commands;
 using PdfPixel.Models;
 using SkiaSharp;
 
@@ -18,9 +19,9 @@ public class PdfFreeTextAnnotation : PdfAnnotationBase
 
     public override bool ShouldDisplayBubble => false;
 
-    public override SKPicture CreateFallbackRender(PdfPage page, PdfAnnotationVisualStateKind visualStateKind)
+    public override bool RenderFallback(IPdfCommandProcessor processor, PdfPage page, PdfAnnotationVisualStateKind visualStateKind)
     {
         // FreeText annotations should always have an appearance stream, so fallback rendering is not implemented.
-        return null;
+        return false;
     }
 }

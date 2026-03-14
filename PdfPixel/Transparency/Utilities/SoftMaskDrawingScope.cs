@@ -2,6 +2,7 @@ using System;
 using PdfPixel.Color.Filters;
 using PdfPixel.Color.Paint;
 using PdfPixel.Color.Transform;
+using PdfPixel.Commands;
 using PdfPixel.Parsing;
 using PdfPixel.Rendering;
 using PdfPixel.Rendering.State;
@@ -13,7 +14,7 @@ namespace PdfPixel.Transparency.Utilities;
 /// <summary>
 /// Disposable scope to render content with an optional soft mask and transparency group applied.
 /// Usage:
-/// using (var scope = new SoftMaskDrawingScope(canvas, graphicsState, currentPage))
+/// using (var scope = new SoftMaskDrawingScope(processor, graphicsState))
 /// {
 ///     scope.BeginDrawContent();
 ///     // draw page/form content here
@@ -23,28 +24,28 @@ namespace PdfPixel.Transparency.Utilities;
 public sealed class SoftMaskDrawingScope : IDisposable
 {
     private readonly IPdfRenderer _renderer;
-    private readonly SKCanvas _canvas;
+    private readonly IPdfCommandProcessor _processor;
     private readonly PdfSoftMask _softMask;
     private readonly PdfGraphicsState _graphicsState;
 
-    private bool began;
-    private bool shouldApplyMask;
-    private bool disposed;
+    private SKRect _maskBounds;
+    private bool _began;
+    private bool _shouldApplyMask;
+    private bool _disposed;
 
     /// <summary>
     /// Create a new soft mask drawing scope.
-    /// Bounds are derived internally from the soft mask transformed bounds intersected with the current canvas clip.
     /// </summary>
     /// <param name="renderer">PDF renderer instance.</param>
-    /// <param name="canvas">Target canvas.</param>
+    /// <param name="processor">Command processor to emit drawing commands through.</param>
     /// <param name="graphicsState">Current graphics state (provides the soft mask).</param>
     public SoftMaskDrawingScope(
         IPdfRenderer renderer,
-        SKCanvas canvas,
+        IPdfCommandProcessor processor,
         PdfGraphicsState graphicsState)
     {
         _renderer = renderer;
-        _canvas = canvas;
+        _processor = processor;
         _softMask = graphicsState.SoftMask;
         _graphicsState = graphicsState;
     }
@@ -54,69 +55,84 @@ public sealed class SoftMaskDrawingScope : IDisposable
     /// </summary>
     public void BeginDrawContent()
     {
-        if (began)
+        if (_began)
         {
             return;
         }
 
-        began = true;
+        _began = true;
 
-        if (_canvas == null)
+        if (_processor == null)
         {
             return;
         }
 
-        shouldApplyMask = _softMask != null && _softMask.MaskForm != null;
+        _shouldApplyMask = _softMask != null && _softMask.MaskForm != null;
 
-        if (!shouldApplyMask)
+        if (!_shouldApplyMask)
         {
             return;
         }
+
+        // Use the mask form's transformed BBox as tight bounds for both layers.
+        // Content outside the mask region is masked to transparent anyway,
+        // so constraining the layer avoids a full-clip-sized GPU texture.
+        _maskBounds = _softMask.MaskForm.GetTransformedBounds();
 
         var layerPaint = PdfPaintFactory.CreateMaskLayerPaint(_graphicsState);
-        _canvas.SaveLayer(layerPaint);
+        _processor.Process(new SaveLayerCommand(_maskBounds, layerPaint)); // TODO: [HIGH] BAM page 20 is broken again. And 37 either.
     }
 
     /// <summary>
-    /// Ends the drawing scope. When a soft mask is active, records the mask picture and applies it using DstIn.
-    /// Ensures the canvas restore is called when a layer was created.
+    /// Ends the drawing scope. When a soft mask is active, opens a second layer with DstIn
+    /// blend mode (and an optional luma color filter for luminosity masks), renders the mask
+    /// content into it, then restores both layers so the mask composites onto the content.
     /// </summary>
     public void EndDrawContent()
     {
-        if (!began)
+        if (!_began)
         {
             return;
         }
 
-        if (!shouldApplyMask)
+        if (!_shouldApplyMask)
         {
             return;
         }
 
-        // recording to separate picture follows 2 aims:
-        // - luminocity filter is applied to pixels, that means that if mask is slightly off, filter will still be applied to picture, that eliminates artifacts on edges
-        // - we can omit clipping to bbox, because picture will be drawn only inside bbox anyway
+        // Layer 2: mask content, composited with DstIn onto the content layer when restored.
+        // For luminosity masks the luma color filter converts the mask RGB → alpha during flatten.
+        var maskLayerPaint = PdfPaintFactory.CreateMaskPaint(_graphicsState);
 
-        // Record the soft mask content into a picture.
-        using var recorder = new SKPictureRecorder();
-        using var recCanvas = recorder.BeginRecording(_softMask.MaskForm.BBox);
+        if (_softMask.Subtype == PdfSoftMaskSubtype.Luminosity)
+        {
+            maskLayerPaint.ColorFilter = SKColorFilter.CreateLumaColor();
+        }
+
+        _processor.Process(new SaveLayerCommand(_maskBounds, maskLayerPaint));
+
+        // Position the mask form.
+        _processor.Process(new ConcatMatrixCommand(_softMask.MaskForm.Matrix));
 
         // Background for luminosity masks (BC in group color space).
         if (_softMask.Subtype == PdfSoftMaskSubtype.Luminosity)
         {
             var backgroundColor = _softMask.GetBackgroundColor(_graphicsState.RenderingIntent, _graphicsState.FullTransferFunction);
-            using var backgroundPaint = PdfPaintFactory.CreateBackgroundPaint(backgroundColor, _graphicsState);
-            recCanvas.DrawRect(_softMask.MaskForm.BBox, backgroundPaint);
+            var backgroundPaint = PdfPaintFactory.CreateBackgroundPaint(backgroundColor, _graphicsState);
+            _processor.Process(new DrawRectCommand(backgroundPaint));
         }
 
-        // Render mask content stream.
+        // Render mask content stream directly into the processor (inside Layer 2).
         var contentData = _softMask.MaskForm.GetFormData();
         if (!contentData.IsEmpty)
         {
             var softMaskObjectNumber = _softMask.MaskForm.XObject.Reference.ObjectNumber;
             if (_graphicsState.RecursionGuard.Contains(softMaskObjectNumber))
             {
-                // Prevent infinite recursion.
+                // Prevent infinite recursion — still need to restore both layers.
+                _processor.Process(new RestoreStateCommand());
+                _processor.Process(new RestoreStateCommand());
+                _shouldApplyMask = false;
                 return;
             }
 
@@ -142,27 +158,17 @@ public sealed class SoftMaskDrawingScope : IDisposable
             maskGs.CTM = SKMatrix.Concat(_graphicsState.CTM, _softMask.MaskForm.Matrix);
 
             var contentRenderer = new PdfContentStreamRenderer(_renderer, page);
-            contentRenderer.RenderContext(recCanvas, ref parseContext, maskGs);
+            contentRenderer.RenderContext(_processor, ref parseContext, maskGs);
 
             _graphicsState.RecursionGuard.Remove(softMaskObjectNumber);
         }
 
-        using var picture = recorder.EndRecording();
-        using var maskPaint = PdfPaintFactory.CreateMaskPaint(_graphicsState);
+        // Restore Layer 2 (DstIn composites mask onto content)
+        _processor.Process(new RestoreStateCommand());
 
-        using var alphaFilter = _softMask.Subtype == PdfSoftMaskSubtype.Luminosity
-            ? SKColorFilter.CreateLumaColor()
-            : null;
-
-        maskPaint.ColorFilter = alphaFilter;
-
-        _canvas.Concat(_softMask.MaskForm.Matrix);
-
-        _canvas.DrawPicture(picture, maskPaint);
-
-        // Close the layer started in BeginDrawContent.
-        _canvas.Restore();
-        shouldApplyMask = false;
+        // Restore Layer 1 (composites masked content onto parent)
+        _processor.Process(new RestoreStateCommand());
+        _shouldApplyMask = false;
     }
 
     /// <summary>
@@ -170,15 +176,15 @@ public sealed class SoftMaskDrawingScope : IDisposable
     /// </summary>
     public void Dispose()
     {
-        if (disposed)
+        if (_disposed)
         {
             return;
         }
 
-        disposed = true;
+        _disposed = true;
 
         // Ensure proper teardown if the caller forgot to call EndDrawContent.
-        if (began && shouldApplyMask)
+        if (_began && _shouldApplyMask)
         {
             EndDrawContent();
         }

@@ -1,4 +1,5 @@
 ﻿using PdfPixel.Annotations.Models;
+using PdfPixel.Commands;
 using PdfPixel.Models;
 using PdfPixel.Text;
 using SkiaSharp;
@@ -216,12 +217,22 @@ internal sealed class PdfPanelRenderer
         canvas.Scale(1, -1);
     }
 
-    public SKPicture GetPicture(int pageNumber, double scale, CancellationToken token)
+    /// <summary>
+    /// Emits page-level coordinate transformation commands into a command processor.
+    /// </summary>
+    private static void ApplyPageTransformations(IPdfCommandProcessor processor, PdfPage pdfPage)
     {
-        return GetPictureInternal(pageNumber, scale, previewMode: false, token);
+        processor.Process(new ConcatMatrixCommand(
+            SKMatrix.CreateTranslation(-pdfPage.CropBox.Left, pdfPage.CropBox.Height + pdfPage.CropBox.Top)));
+        processor.Process(new ConcatMatrixCommand(SKMatrix.CreateScale(1, -1)));
     }
 
-    public SKPicture GetAnnotationPicture(
+    public PdfCommandRecorder GetRecording(int pageNumber, double scale, CancellationToken token)
+    {
+        return GetRecordingInternal(pageNumber, scale, previewMode: false, token);
+    }
+
+    public PdfCommandRecorder GetAnnotationRecording(
         int pageNumber,
         double scale,
         PdfAnnotationBase activeAnnotation,
@@ -237,19 +248,17 @@ internal sealed class PdfPanelRenderer
 
         var visualStateKind = ConvertToVisualStateKind(pointerState);
 
-        using var recorder = new SKPictureRecorder();
-        using var canvas = recorder.BeginRecording(SKRect.Create(pdfPage.CropBox.Width, pdfPage.CropBox.Height));
-        canvas.ClipRect(new SKRect(0, 0, pdfPage.CropBox.Width, pdfPage.CropBox.Height));
+        var recorder = new PdfCommandRecorder();
+        recorder.Process(new ClipRectCommand(
+            new SKRect(0, 0, pdfPage.CropBox.Width, pdfPage.CropBox.Height),
+            SKClipOperation.Intersect, false));
 
-        ApplyPageTransformations(canvas, pdfPage);
+        ApplyPageTransformations(recorder, pdfPage);
 
         var parameters = new PdfRenderingParameters { ScaleFactor = (float)scale, PreviewMode = false };
-        pdfPage.RenderAnnotations(canvas, parameters, activeAnnotation, visualStateKind, token);
+        pdfPage.RenderAnnotations(recorder, parameters, activeAnnotation, visualStateKind, token);
 
-        canvas.Flush();
-        var picture = recorder.EndRecording();
-
-        return picture;
+        return recorder;
     }
 
     public PdfAnnotationBase GetActiveAnnotation(int pageNumber, SKPoint? pagePosition)
@@ -320,7 +329,8 @@ internal sealed class PdfPanelRenderer
                 PreviewMode = true
             };
 
-            pdfPage.Draw(canvas, parameters, CancellationToken.None);
+            using var processor = new SkCanvasCommandProcessor(canvas);
+            pdfPage.Draw(processor, parameters, CancellationToken.None);
             canvas.Restore();
             canvas.Flush();
 
@@ -334,23 +344,21 @@ internal sealed class PdfPanelRenderer
         }
     }
 
-    private SKPicture GetPictureInternal(int pageNumber, double scale, bool previewMode, CancellationToken token)
+    private PdfCommandRecorder GetRecordingInternal(int pageNumber, double scale, bool previewMode, CancellationToken token)
     {
         var pdfPage = document.Pages[pageNumber - 1];
 
-        using var recorder = new SKPictureRecorder();
-        using var canvas = recorder.BeginRecording(SKRect.Create(pdfPage.CropBox.Width, pdfPage.CropBox.Height));
-        canvas.ClipRect(new SKRect(0, 0, pdfPage.CropBox.Width, pdfPage.CropBox.Height));
+        var recorder = new PdfCommandRecorder();
+        recorder.Process(new ClipRectCommand(
+            new SKRect(0, 0, pdfPage.CropBox.Width, pdfPage.CropBox.Height),
+            SKClipOperation.Intersect, false));
 
-        ApplyPageTransformations(canvas, pdfPage);
+        ApplyPageTransformations(recorder, pdfPage);
 
         var parameters = new PdfRenderingParameters { ScaleFactor = (float)scale, PreviewMode = previewMode };
-        pdfPage.Draw(canvas, parameters, token);
+        pdfPage.Draw(recorder, parameters, token);
 
-        canvas.Flush();
-        var picture = recorder.EndRecording();
-
-        return picture;
+        return recorder;
     }
 
     public void Dispose()

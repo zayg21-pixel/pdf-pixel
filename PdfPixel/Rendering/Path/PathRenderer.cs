@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging;
 using PdfPixel.Color.Paint;
+using PdfPixel.Commands;
 using PdfPixel.Rendering.State;
 using PdfPixel.Transparency.Utilities;
 using SkiaSharp;
@@ -31,9 +32,9 @@ public class PathRenderer : IPathRenderer
     /// Handles pattern paints, soft masks, and combined fill+stroke layering.
     /// Note: FlatnessTolerance from graphics state is ignored, as SkiaSharp does not support curve flattening control.
     /// </summary>
-    public void DrawPath(SKCanvas canvas, SKPath path, PdfGraphicsState state, PaintOperation operation)
+    public void DrawPath(IPdfCommandProcessor processor, SKPath path, PdfGraphicsState state, PaintOperation operation)
     {
-        if (canvas == null)
+        if (processor == null)
         {
             return;
         }
@@ -46,9 +47,9 @@ public class PathRenderer : IPathRenderer
         // FlatnessTolerance is ignored in SkiaSharp rendering.
         // See PDF spec 8.4.5: Most modern renderers ignore or clamp this value for performance.
 
-        using var softMaskScope = new SoftMaskDrawingScope(_renderer, canvas, state);
+        using var softMaskScope = new SoftMaskDrawingScope(_renderer, processor, state);
         softMaskScope.BeginDrawContent();
-        DrawPathCore(canvas, path, state, operation);
+        DrawPathCore(processor, path, state, operation);
         softMaskScope.EndDrawContent();
     }
 
@@ -57,20 +58,20 @@ public class PathRenderer : IPathRenderer
     /// SaveLayer for FillAndStroke now uses the current clip region (no explicit bounds) simplifying logic.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private void DrawPathCore(SKCanvas canvas, SKPath path, PdfGraphicsState state, PaintOperation operation)
+    private void DrawPathCore(IPdfCommandProcessor processor, SKPath path, PdfGraphicsState state, PaintOperation operation)
     {
         switch (operation)
         {
             case PaintOperation.Stroke:
             {
                 using var target = new PathStrokeRenderTarget(path, state);
-                target.Render(canvas);
+                target.Render(processor);
                 break;
             }
             case PaintOperation.Fill:
             {
                 using var target = new PathFillRenderTarget(path, state);
-                target.Render(canvas);
+                target.Render(processor);
                 break;
             }
             case PaintOperation.FillAndStroke:
@@ -89,11 +90,11 @@ public class PathRenderer : IPathRenderer
                 }
 
                 using var fillTarget = new PathFillRenderTarget(fillOutline, state);
-                fillTarget.Render(canvas);
+                fillTarget.Render(processor);
 
                 // Stroke phase.
                 using var strokeTarget = new PathStrokeRenderTarget(path, state);
-                strokeTarget.Render(canvas);
+                strokeTarget.Render(processor);
 
                 break;
             }

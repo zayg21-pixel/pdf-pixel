@@ -30,7 +30,7 @@ public sealed class JpegImageDecoder : PdfImageDecoder
     /// Decode the JPEG image returning an <see cref="SKImage"/> or null on failure (errors are logged).
     /// Attempts custom streaming decode first; falls back to Skia's built‑in decoder if custom path fails.
     /// </summary>
-    public override SKImage Decode(PdfGraphicsState state, SKCanvas canvas)
+    public override SKImage Decode(PdfGraphicsState state)
     {
         if (!ValidateImageParameters())
         {
@@ -52,14 +52,14 @@ public sealed class JpegImageDecoder : PdfImageDecoder
             return null;
         }
 
-        return DecodeInternal(encodedImageData, state, canvas);
+        return DecodeInternal(encodedImageData, state);
     }
 
     /// <summary>
     /// Decode using custom streaming pipeline. Throws on failure.
     /// Row data is streamed row-by-row directly into a <see cref="PdfImageRowProcessor"/> without allocating a full intermediate buffer.
     /// </summary>
-    private SKImage DecodeInternal(ReadOnlyMemory<byte> encoded, PdfGraphicsState state, SKCanvas canvas)
+    private SKImage DecodeInternal(ReadOnlyMemory<byte> encoded, PdfGraphicsState state)
     {
         JpgHeader header;
         try
@@ -111,7 +111,7 @@ public sealed class JpegImageDecoder : PdfImageDecoder
 
         try
         {
-            rowProcessor = new PdfImageRowProcessor(Image, LoggerFactory.CreateLogger<PdfImageRowProcessor>(), state, canvas);
+            rowProcessor = new PdfImageRowProcessor(Image, LoggerFactory.CreateLogger<PdfImageRowProcessor>(), state);
             rowProcessor.InitializeBuffer();
 
             Span<byte> rowBuffer = new byte[rowStride];

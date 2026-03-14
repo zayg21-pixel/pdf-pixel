@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging;
+using PdfPixel.Commands;
 using PdfPixel.Models;
 using PdfPixel.Parsing;
 using PdfPixel.Rendering.State;
@@ -30,7 +31,7 @@ public class PdfContentStreamRenderer
     /// Render multiple content streams sequentially as one continuous stream without memory allocation.
     /// This treats all content streams as logically one stream while preserving graphics state continuity.
     /// </summary>
-    public void RenderContent(SKCanvas canvas, PdfRenderingParameters renderingParameters, CancellationToken token)
+    public void RenderContent(IPdfCommandProcessor processor, PdfRenderingParameters renderingParameters, CancellationToken token)
     {
         var contentStreams = GetPageContentStreams();
 
@@ -41,9 +42,9 @@ public class PdfContentStreamRenderer
         var parseContext = new PdfParseContext(contentStreams);
 
         var state = new PdfGraphicsState(_page, new HashSet<uint>(), renderingParameters, externalTransform: null, token);
-        state.DeviceMatrix = canvas.TotalMatrix;
+        state.DeviceMatrix = processor.TotalMatrix;
 
-        RenderContext(canvas, ref parseContext, state);
+        RenderContext(processor, ref parseContext, state);
     }
 
     private List<ReadOnlyMemory<byte>> GetPageContentStreams()
@@ -71,15 +72,15 @@ public class PdfContentStreamRenderer
     }
 
     /// <summary>
-    /// Renders a content stream directly to canvas using stack-based approach with PdfParsers.
+    /// Renders a content stream using the given command processor with stack-based approach.
     /// Includes XObject recursion tracking to prevent infinite loops.
     /// </summary>
-    public void RenderContext(SKCanvas canvas, ref PdfParseContext parseContext, PdfGraphicsState graphicsState)
+    public void RenderContext(IPdfCommandProcessor processor, ref PdfParseContext parseContext, PdfGraphicsState graphicsState)
     {
         var graphicsStack = new Stack<PdfGraphicsState>();
         var operandStack = new Stack<IPdfValue>();
         using var currentPath = new SKPath();
-        var operatorProcessor = new PdfOperatorProcessor(_renderer, _page, canvas, operandStack, graphicsStack, currentPath);
+        var operatorProcessor = new PdfOperatorProcessor(_renderer, _page, processor, operandStack, graphicsStack, currentPath);
         var parser = new PdfParser(parseContext, _page.Document, allowReferences: false, decrypt: false);
         IPdfValue value;
 

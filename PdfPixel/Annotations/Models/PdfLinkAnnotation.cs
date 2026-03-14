@@ -1,3 +1,4 @@
+using PdfPixel.Commands;
 using PdfPixel.Models;
 using PdfPixel.Text;
 using SkiaSharp;
@@ -62,25 +63,23 @@ public class PdfLinkAnnotation : PdfTextMarkupAnnotation
     public PdfLinkHighlightMode HighlightMode { get; }
 
     /// <summary>
-    /// Creates a fallback rendering for link annotations when no appearance stream is available.
+    /// Renders the fallback content for link annotations when no appearance stream is available.
     /// </summary>
+    /// <param name="processor">The command processor to emit commands to.</param>
     /// <param name="page">The PDF page containing this annotation.</param>
     /// <param name="visualStateKind">The visual state to render (Normal, Rollover, Down).</param>
-    /// <returns>An SKPicture containing the rendered link border, or null if the link is invisible.</returns>
-    public override SKPicture CreateFallbackRender(PdfPage page, PdfAnnotationVisualStateKind visualStateKind)
+    /// <returns>True if fallback rendering was emitted, false if the link is invisible.</returns>
+    public override bool RenderFallback(IPdfCommandProcessor processor, PdfPage page, PdfAnnotationVisualStateKind visualStateKind)
     {
         if (BorderStyle == null || BorderStyle.Width <= 0)
         {
-            return null;
+            return false;
         }
-
-        using var recorder = new SKPictureRecorder();
-        using var canvas = recorder.BeginRecording(Rectangle);
 
         var color = ResolveColor(page, SKColors.Black);
         var borderWidth = BorderStyle.Width;
 
-        using var paint = new SKPaint
+        var paint = new SKPaint
         {
             Style = SKPaintStyle.Stroke,
             StrokeWidth = borderWidth,
@@ -93,7 +92,10 @@ public class PdfLinkAnnotation : PdfTextMarkupAnnotation
         if (!needsNormalDraw && BorderStyle.Style == PdfBorderStyleType.Underline)
         {
             var y = Rectangle.Top - borderWidth / 2;
-            canvas.DrawLine(Rectangle.Left, y, Rectangle.Right, y, paint);
+            using var linePath = new SKPath();
+            linePath.MoveTo(Rectangle.Left, y);
+            linePath.LineTo(Rectangle.Right, y);
+            processor.Process(new DrawPathCommand(linePath, paint));
         }
         else
         {
@@ -103,10 +105,12 @@ public class PdfLinkAnnotation : PdfTextMarkupAnnotation
                 Rectangle.Right - borderWidth / 2,
                 Rectangle.Bottom - borderWidth / 2);
 
-            canvas.DrawRect(rect, paint);
+            using var rectPath = new SKPath();
+            rectPath.AddRect(rect);
+            processor.Process(new DrawPathCommand(rectPath, paint));
         }
 
-        return recorder.EndRecording();
+        return true;
     }
 
     /// <summary>

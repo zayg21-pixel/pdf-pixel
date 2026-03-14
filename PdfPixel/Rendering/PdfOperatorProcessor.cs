@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using Microsoft.Extensions.Logging;
+using PdfPixel.Commands;
 using PdfPixel.Models;
 using PdfPixel.Rendering.Operators;
 using PdfPixel.Rendering.State;
@@ -15,7 +16,7 @@ public class PdfOperatorProcessor
 {
     private readonly IPdfRenderer _renderer;
     private readonly PdfPage _page;
-    private readonly SKCanvas _canvas;
+    private readonly IPdfCommandProcessor _processor;
     private readonly Stack<IPdfValue> _operandStack;
     private readonly Stack<PdfGraphicsState> _graphicsStack;
     private readonly SKPath _currentPath;
@@ -27,20 +28,20 @@ public class PdfOperatorProcessor
     private readonly MiscellaneousOperators _miscOperators;
     private readonly ILogger<PdfOperatorProcessor> _logger;
 
-    public PdfOperatorProcessor(IPdfRenderer renderer, PdfPage page, SKCanvas canvas, Stack<IPdfValue> operandStack, Stack<PdfGraphicsState> graphicsStack, SKPath currentPath)
+    public PdfOperatorProcessor(IPdfRenderer renderer, PdfPage page, IPdfCommandProcessor processor, Stack<IPdfValue> operandStack, Stack<PdfGraphicsState> graphicsStack, SKPath currentPath)
     {
         _renderer = renderer;
         _page = page;
-        _canvas = canvas;
+        _processor = processor;
         _operandStack = operandStack;
         _graphicsStack = graphicsStack;
         _currentPath = currentPath;
-        _graphicsStateOperators = new GraphicsStateOperators(page, canvas, operandStack, graphicsStack);
-        _textOperators = new TextOperators(renderer, page, canvas, operandStack);
-        _pathOperators = new PathOperators(renderer, operandStack, canvas, currentPath, page);
+        _graphicsStateOperators = new GraphicsStateOperators(page, processor, operandStack, graphicsStack);
+        _textOperators = new TextOperators(renderer, page, processor, operandStack);
+        _pathOperators = new PathOperators(renderer, operandStack, processor, currentPath, page);
         _colorOperators = new ColorOperators(renderer, operandStack, page);
-        _inlineImageOperators = new InlineImageOperators(renderer, operandStack, page, canvas);
-        _miscOperators = new MiscellaneousOperators(renderer, operandStack, page, canvas);
+        _inlineImageOperators = new InlineImageOperators(renderer, operandStack, page, processor);
+        _miscOperators = new MiscellaneousOperators(renderer, operandStack, page, processor);
         _logger = page.Document.LoggerFactory.CreateLogger<PdfOperatorProcessor>();
     }
 

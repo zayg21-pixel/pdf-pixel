@@ -1,3 +1,4 @@
+using PdfPixel.Commands;
 using PdfPixel.Models;
 using SkiaSharp;
 using System;
@@ -23,31 +24,21 @@ public class PdfSquigglyAnnotation : PdfTextMarkupAnnotation
     }
 
     /// <summary>
-    /// Creates a fallback rendering for squiggly annotations when no appearance stream is available.
+    /// Renders the fallback content for squiggly annotations when no appearance stream is available.
     /// </summary>
+    /// <param name="processor">The command processor to emit commands to.</param>
     /// <param name="page">The PDF page containing this annotation.</param>
     /// <param name="visualStateKind">The visual state to render (Normal, Rollover, Down).</param>
-    /// <returns>An SKPicture containing the rendered squiggly underline.</returns>
-    public override SKPicture CreateFallbackRender(PdfPage page, PdfAnnotationVisualStateKind visualStateKind)
+    /// <returns>True if fallback rendering was emitted.</returns>
+    public override bool RenderFallback(IPdfCommandProcessor processor, PdfPage page, PdfAnnotationVisualStateKind visualStateKind)
     {
         var quads = Quadrilaterals;
         if (quads.Length == 0)
         {
-            return null;
+            return false;
         }
 
-        using var recorder = new SKPictureRecorder();
-        using var canvas = recorder.BeginRecording(Rectangle);
-
         var color = ResolveColor(page, SKColors.Red);
-
-        using var paint = new SKPaint
-        {
-            Style = SKPaintStyle.Stroke,
-            StrokeWidth = 1.0f,
-            Color = color,
-            IsAntialias = true
-        };
 
         foreach (var quad in quads)
         {
@@ -59,10 +50,18 @@ public class PdfSquigglyAnnotation : PdfTextMarkupAnnotation
             using var path = new SKPath();
             DrawSquigglyLine(path, startX, startY, endX, endY);
 
-            canvas.DrawPath(path, paint);
+            var paint = new SKPaint
+            {
+                Style = SKPaintStyle.Stroke,
+                StrokeWidth = 1.0f,
+                Color = color,
+                IsAntialias = true
+            };
+
+            processor.Process(new DrawPathCommand(path, paint));
         }
 
-        return recorder.EndRecording();
+        return true;
     }
 
     private static void DrawSquigglyLine(SKPath path, float startX, float startY, float endX, float endY)

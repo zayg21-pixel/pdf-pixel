@@ -1,6 +1,7 @@
 using PdfPixel.Rendering;
 using PdfPixel.TextExtraction;
 using PdfPixel.Annotations.Models;
+using PdfPixel.Commands;
 using SkiaSharp;
 using System;
 using System.Collections.Generic;
@@ -108,16 +109,16 @@ public class PdfPage
     public PdfString PageLabel { get; }
 
     /// <summary>
-    /// Render the page content to a Skia canvas.
+    /// Render the page content via the command processor.
     /// </summary>
-    /// <param name="canvas">Destination canvas.</param>
+    /// <param name="processor">The command processor to emit drawing commands to.</param>
     /// <param name="renderingParameters">Rendering parameters for rendering in defined canvas.</param>
     /// <param name="token">Rendering cancellation token.</param>
-    public void Draw(SKCanvas canvas, PdfRenderingParameters renderingParameters, CancellationToken token)
+    public void Draw(IPdfCommandProcessor processor, PdfRenderingParameters renderingParameters, CancellationToken token)
     {
-        if (canvas == null)
+        if (processor == null)
         {
-            throw new ArgumentNullException(nameof(canvas));
+            throw new ArgumentNullException(nameof(processor));
         }
         if (Document == null)
         {
@@ -127,27 +128,27 @@ public class PdfPage
         var renderer = new PdfRenderer(Document.LoggerFactory);
         var contentRenderer = new PdfContentStreamRenderer(renderer, this);
 
-        contentRenderer.RenderContent(canvas, renderingParameters, token);
+        contentRenderer.RenderContent(processor, renderingParameters, token);
     }
 
     /// <summary>
-    /// Render annotations for this page on the provided canvas with an optional active annotation and visual state.
+    /// Render annotations for this page via the command processor with an optional active annotation and visual state.
     /// </summary>
-    /// <param name="canvas">Destination canvas.</param>
+    /// <param name="processor">The command processor to emit annotation commands to.</param>
     /// <param name="renderingParameters">Rendering parameters for rendering in defined canvas.</param>
     /// <param name="activeAnnotation">Annotation that should be rendered in a non-normal visual state, or null.</param>
     /// <param name="visualStateKind">Visual state to apply to the active annotation.</param>
     /// <param name="token">Rendering cancellation token.</param>
     public void RenderAnnotations(
-        SKCanvas canvas,
+        IPdfCommandProcessor processor,
         PdfRenderingParameters renderingParameters,
         PdfAnnotationBase activeAnnotation,
         PdfAnnotationVisualStateKind visualStateKind,
         CancellationToken token)
     {
-        if (canvas == null)
+        if (processor == null)
         {
-            throw new ArgumentNullException(nameof(canvas));
+            throw new ArgumentNullException(nameof(processor));
         }
 
         if (Document == null)
@@ -157,7 +158,7 @@ public class PdfPage
 
         var renderer = new PdfRenderer(Document.LoggerFactory);
         var annotationRenderer = new PdfAnnotationRenderer(renderer, this);
-        annotationRenderer.RenderAnnotations(canvas, renderingParameters, activeAnnotation, visualStateKind, token);
+        annotationRenderer.RenderAnnotations(processor, renderingParameters, activeAnnotation, visualStateKind, token);
     }
 
     /// <summary>
@@ -170,9 +171,10 @@ public class PdfPage
         using var canvas = recorder.BeginRecording(new SKRect(0, 0, 1, 1));
 
         var textExtractor = new PdfTextExtractionRenderer();
-        
+
         var contentRenderer = new PdfContentStreamRenderer(textExtractor, this);
-        contentRenderer.RenderContent(canvas, new PdfRenderingParameters(), CancellationToken.None);
+        using var processor = new SkCanvasCommandProcessor(canvas);
+        contentRenderer.RenderContent(processor, new PdfRenderingParameters(), CancellationToken.None);
 
         return textExtractor.PageCharacters;
     }

@@ -1,4 +1,5 @@
-﻿using SkiaSharp;
+﻿using PdfPixel.Commands;
+using SkiaSharp;
 using System;
 
 namespace PdfPixel.Rendering
@@ -13,8 +14,8 @@ namespace PdfPixel.Rendering
         /// <summary>
         /// Request to render single drawing item.
         /// </summary>
-        /// <param name="canvas">Target canvas.</param>
-        void Render(SKCanvas canvas);
+        /// <param name="processor">Command processor to draw through.</param>
+        void Render(IPdfCommandProcessor processor);
 
         /// <summary>
         /// Gets the clipping path used to define the visible region of the drawing surface.

@@ -1,4 +1,5 @@
 using PdfPixel.Annotations.Models;
+using PdfPixel.Commands;
 using PdfPixel.Forms;
 using PdfPixel.Models;
 using PdfPixel.Text;
@@ -94,18 +95,18 @@ public class PdfWidgetAnnotation : PdfAnnotationBase
     public override bool ShouldDisplayBubble => false;
 
     /// <summary>
-    /// Creates a fallback rendering for widget annotations when no appearance stream is available.
+    /// Renders the fallback content for widget annotations when no appearance stream is available.
     /// </summary>
+    /// <param name="processor">The command processor to emit commands to.</param>
     /// <param name="page">The PDF page containing this annotation.</param>
     /// <param name="visualStateKind">The visual state to render (Normal, Rollover, Down).</param>
-    /// <returns>An empty SKPicture since widgets rely on appearance streams.</returns>
+    /// <returns>False since widgets rely on appearance streams.</returns>
     /// <remarks>
     /// Widget annotations should always have appearance streams defined.
-    /// This method returns null.
     /// </remarks>
-    public override SKPicture CreateFallbackRender(PdfPage page, PdfAnnotationVisualStateKind visualStateKind)
+    public override bool RenderFallback(IPdfCommandProcessor processor, PdfPage page, PdfAnnotationVisualStateKind visualStateKind)
     {
-        return null;
+        return false;
     }
 
     /// <summary>

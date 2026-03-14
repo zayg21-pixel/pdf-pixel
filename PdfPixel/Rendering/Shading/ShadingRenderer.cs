@@ -1,6 +1,7 @@
 using System;
 using SkiaSharp;
 using Microsoft.Extensions.Logging;
+using PdfPixel.Commands;
 using PdfPixel.Shading;
 using PdfPixel.Shading.Model;
 using PdfPixel.Color.Paint;
@@ -18,20 +19,22 @@ public class ShadingRenderer : IShadingRenderer
     private readonly IPdfRenderer _renderer;
     private readonly ILoggerFactory _loggerFactory;
     private readonly ILogger<ShadingRenderer> _logger;
+    private readonly PdfShadingBuilder _shadingBuilder;
 
     public ShadingRenderer(IPdfRenderer renderer, ILoggerFactory loggerFactory)
     {
         _renderer = renderer ?? throw new ArgumentNullException(nameof(renderer));
         _loggerFactory = loggerFactory ?? throw new ArgumentNullException(nameof(loggerFactory));
         _logger = loggerFactory.CreateLogger<ShadingRenderer>();
+        _shadingBuilder = new PdfShadingBuilder(loggerFactory);
     }
 
     /// <summary>
     /// Draw a shading fill described by a parsed shading model, applying soft mask if present.
     /// </summary>
-    public void DrawShading(SKCanvas canvas, PdfShading shading, PdfGraphicsState state)
+    public void DrawShading(IPdfCommandProcessor processor, PdfShading shading, PdfGraphicsState state)
     {
-        if (canvas == null)
+        if (processor == null)
         {
             return;
         }
@@ -40,30 +43,31 @@ public class ShadingRenderer : IShadingRenderer
             return;
         }
 
-        using var softMaskScope = new SoftMaskDrawingScope(_renderer, canvas, state);
+        using var softMaskScope = new SoftMaskDrawingScope(_renderer, processor, state);
         softMaskScope.BeginDrawContent();
-        DrawShadingCore(canvas, shading, state);
+        DrawShadingCore(processor, shading, state);
         softMaskScope.EndDrawContent();
     }
 
     /// <summary>
     /// Core shading dispatch logic without soft mask handling.
-    /// Uses ToShader for both axial and radial shading. No special clipping for radial shading.
+    /// Builds shading commands into a recorder, then replays through the processor.
     /// </summary>
-    private void DrawShadingCore(SKCanvas canvas, PdfShading shading, PdfGraphicsState state)
+    private void DrawShadingCore(IPdfCommandProcessor processor, PdfShading shading, PdfGraphicsState state)
     {
-        using var shaderPicture = PdfShadingBuilder.ToPicture(shading, state, canvas.DeviceClipBounds);
+        var recorder = new PdfCommandRecorder();
 
-        if (shaderPicture == null)
+        _shadingBuilder.Build(recorder, shading, state);
+
+        if (recorder.Commands.Count == 0)
         {
-            _logger.LogWarning("Shading type " + shading.ShadingType + " not implemented or invalid shading data");
+            recorder.Dispose();
             return;
         }
-        using var paint = PdfPaintFactory.CreateShadingPaint(state);
 
         if (shading.BBox.HasValue)
         {
-            canvas.ClipRect(shading.BBox.Value, SKClipOperation.Intersect, antialias: state.RenderingParameters.AntialiasClip);
+            processor.Process(new ClipRectCommand(shading.BBox.Value, SKClipOperation.Intersect, state.RenderingParameters.AntialiasClip));
         }
 
         if (shading.Background != null)
@@ -71,10 +75,10 @@ public class ShadingRenderer : IShadingRenderer
             var colorSpace = state.Page.Cache.ColorSpace.ResolveByObject(shading.ColorSpaceConverter);
             var backgroundColor = colorSpace.ToSrgb(shading.Background, state.RenderingIntent, state.FullTransferFunction);
 
-            using var backgroundPaint = PdfPaintFactory.CreateBackgroundPaint(backgroundColor, state);
-            canvas.DrawRect(canvas.LocalClipBounds, backgroundPaint);
+            var backgroundPaint = PdfPaintFactory.CreateBackgroundPaint(backgroundColor, state);
+            processor.Process(new DrawRectCommand(backgroundPaint));
         }
 
-        canvas.DrawPicture(shaderPicture, paint);
+        processor.Process(new DrawRecordingCommand(recorder, new DefaultPdfCommandModifier()));
     }
 }

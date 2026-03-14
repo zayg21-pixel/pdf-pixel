@@ -1,4 +1,4 @@
-using SkiaSharp;
+using PdfPixel.Commands;
 using PdfPixel.Shading.Model;
 using PdfPixel.Rendering.State;
 
@@ -13,8 +13,8 @@ public interface IShadingRenderer
     /// <summary>
     /// Draw a shading fill described by a parsed shading model.
     /// </summary>
-    /// <param name="canvas">Canvas to draw on.</param>
+    /// <param name="processor">Command processor to draw through.</param>
     /// <param name="shading">Parsed shading model.</param>
     /// <param name="state">Current graphics state.</param>
-    void DrawShading(SKCanvas canvas, PdfShading shading, PdfGraphicsState state);
+    void DrawShading(IPdfCommandProcessor processor, PdfShading shading, PdfGraphicsState state);
 }

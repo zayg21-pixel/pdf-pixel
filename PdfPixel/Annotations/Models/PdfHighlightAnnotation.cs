@@ -1,3 +1,4 @@
+using PdfPixel.Commands;
 using PdfPixel.Models;
 using PdfPixel.Rendering;
 using SkiaSharp;
@@ -24,57 +25,47 @@ public class PdfHighlightAnnotation : PdfTextMarkupAnnotation
     }
 
     /// <summary>
-    /// Renders this highlight annotation with multiply blend mode for proper color blending.
+    /// Renders the appearance stream for this highlight annotation with multiply blend mode
+    /// by recording commands and replaying them through a <see cref="BlendModePaintModifier"/>.
     /// </summary>
-    public override bool Render(
-        SKCanvas canvas,
+    protected override bool RenderAppearanceStream(
+        IPdfCommandProcessor processor,
         PdfPage page,
         PdfAnnotationVisualStateKind visualStateKind,
         IPdfRenderer renderer,
         PdfRenderingParameters renderingParameters,
         CancellationToken token)
     {
-        using var paint = new SKPaint
-        {
-            BlendMode = SKBlendMode.Multiply
-        };
-        canvas.SaveLayer(Rectangle, paint);
+        var recorder = new PdfCommandRecorder();
+        var recorded = base.RenderAppearanceStream(recorder, page, visualStateKind, renderer, renderingParameters, token);
 
-        try
+        if (!recorded)
         {
-            return base.Render(canvas, page, visualStateKind, renderer, renderingParameters, token);
+            recorder.Dispose();
+            return false;
         }
-        finally
-        {
-            canvas.Restore();
-        }
+
+        var modifier = new BlendModePaintModifier(SKBlendMode.Multiply);
+        processor.Process(new DrawRecordingCommand(recorder, modifier));
+        return true;
     }
 
     /// <summary>
-    /// Creates a fallback rendering for highlight annotations when no appearance stream is available.
+    /// Renders the fallback content for highlight annotations when no appearance stream is available.
     /// </summary>
+    /// <param name="processor">The command processor to emit commands to.</param>
     /// <param name="page">The PDF page containing this annotation.</param>
     /// <param name="visualStateKind">The visual state to render (Normal, Rollover, Down).</param>
-    /// <returns>An SKPicture containing the rendered highlight.</returns>
-    public override SKPicture CreateFallbackRender(PdfPage page, PdfAnnotationVisualStateKind visualStateKind)
+    /// <returns>True if fallback rendering was emitted.</returns>
+    public override bool RenderFallback(IPdfCommandProcessor processor, PdfPage page, PdfAnnotationVisualStateKind visualStateKind)
     {
         var quads = Quadrilaterals;
         if (quads.Length == 0)
         {
-            return null;
+            return false;
         }
 
-        using var recorder = new SKPictureRecorder();
-        using var canvas = recorder.BeginRecording(Rectangle);
-
         var color = ResolveColor(page, new SKColor(255, 255, 0));
-
-        using var paint = new SKPaint
-        {
-            Style = SKPaintStyle.Fill,
-            Color = color,
-            IsAntialias = true
-        };
 
         foreach (var quad in quads)
         {
@@ -85,10 +76,18 @@ public class PdfHighlightAnnotation : PdfTextMarkupAnnotation
             path.LineTo(quad[3]);
             path.Close();
 
-            canvas.DrawPath(path, paint);
+            var paint = new SKPaint
+            {
+                Style = SKPaintStyle.Fill,
+                Color = color,
+                IsAntialias = true,
+                BlendMode = SKBlendMode.Multiply
+            };
+
+            processor.Process(new DrawPathCommand(path, paint));
         }
 
-        return recorder.EndRecording();
+        return true;
     }
 
     /// <summary>

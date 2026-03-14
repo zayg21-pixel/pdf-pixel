@@ -1,4 +1,5 @@
 using PdfPixel.Color.ColorSpace;
+using PdfPixel.Commands;
 using PdfPixel.Models;
 using PdfPixel.Text;
 using SkiaSharp;
@@ -43,20 +44,18 @@ public class PdfPolygonAnnotation : PdfAnnotationBase
     public SKPoint[] Vertices { get; }
 
     /// <summary>
-    /// Creates a fallback rendering for polygon annotations when no appearance stream is available.
+    /// Renders the fallback content for polygon annotations when no appearance stream is available.
     /// </summary>
+    /// <param name="processor">The command processor to emit commands to.</param>
     /// <param name="page">The PDF page containing this annotation.</param>
     /// <param name="visualStateKind">The visual state to render (Normal, Rollover, Down).</param>
-    /// <returns>An SKPicture containing the rendered polygon.</returns>
-    public override SKPicture CreateFallbackRender(PdfPage page, PdfAnnotationVisualStateKind visualStateKind)
+    /// <returns>True if fallback rendering was emitted.</returns>
+    public override bool RenderFallback(IPdfCommandProcessor processor, PdfPage page, PdfAnnotationVisualStateKind visualStateKind)
     {
         if (Vertices == null || Vertices.Length < 3)
         {
-            return null;
+            return false;
         }
-
-        using var recorder = new SKPictureRecorder();
-        using var canvas = recorder.BeginRecording(Rectangle);
 
         using var path = new SKPath();
 
@@ -72,21 +71,21 @@ public class PdfPolygonAnnotation : PdfAnnotationBase
         var interiorSKColor = ResolveInteriorColor(page);
         if (interiorSKColor != SKColors.Transparent)
         {
-            using var fillPaint = new SKPaint
+            var fillPaint = new SKPaint
             {
                 Style = SKPaintStyle.Fill,
                 IsAntialias = true,
                 Color = interiorSKColor
             };
 
-            canvas.DrawPath(path, fillPaint);
+            processor.Process(new DrawPathCommand(path, fillPaint));
         }
 
         if (BorderStyle != null && BorderStyle.Width > 0 && Color != null && Color.Length > 0)
         {
             var strokeColor = ResolveColor(page, SKColors.Black);
 
-            using var strokePaint = new SKPaint
+            var strokePaint = new SKPaint
             {
                 Style = SKPaintStyle.Stroke,
                 StrokeWidth = BorderStyle.Width,
@@ -97,10 +96,10 @@ public class PdfPolygonAnnotation : PdfAnnotationBase
 
             BorderStyle.TryApplyEffect(strokePaint, strokeColor);
 
-            canvas.DrawPath(path, strokePaint);
+            processor.Process(new DrawPathCommand(path, strokePaint));
         }
 
-        return recorder.EndRecording();
+        return true;
     }
 
     /// <summary>

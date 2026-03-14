@@ -1,3 +1,4 @@
+using PdfPixel.Commands;
 using PdfPixel.Models;
 using PdfPixel.Rendering;
 using PdfPixel.Rendering.State;
@@ -35,10 +36,10 @@ public abstract class PdfPattern
     public PdfPatternType PatternType { get; }
 
     /// <summary>
-    /// Renders the pattern onto the provided canvas using the given graphics state.
+    /// Renders the pattern using the given command processor and graphics state.
     /// </summary>
-    /// <param name="canvas">Current canvas with CTM applied.</param>
+    /// <param name="processor">Command processor to draw through.</param>
     /// <param name="state">Actual graphics state.</param>
     /// <param name="renderTarget">Pattern render target.</param>
-    internal abstract void RenderPattern(SKCanvas canvas, PdfGraphicsState state, IRenderTarget renderTarget);
+    internal abstract void RenderPattern(IPdfCommandProcessor processor, PdfGraphicsState state, IRenderTarget renderTarget);
 }

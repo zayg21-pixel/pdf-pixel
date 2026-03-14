@@ -1,3 +1,4 @@
+using PdfPixel.Commands;
 using PdfPixel.Models;
 using PdfPixel.Text;
 using SkiaSharp;
@@ -23,37 +24,37 @@ public class PdfSquareAnnotation : PdfAnnotationBase
     }
 
     /// <summary>
-    /// Creates a fallback rendering for square annotations when no appearance stream is available.
+    /// Renders the fallback content for square annotations when no appearance stream is available.
     /// </summary>
+    /// <param name="processor">The command processor to emit commands to.</param>
     /// <param name="page">The PDF page containing this annotation.</param>
     /// <param name="visualStateKind">The visual state to render (Normal, Rollover, Down).</param>
-    /// <returns>An SKPicture containing the rendered square.</returns>
-    public override SKPicture CreateFallbackRender(PdfPage page, PdfAnnotationVisualStateKind visualStateKind)
+    /// <returns>True if fallback rendering was emitted.</returns>
+    public override bool RenderFallback(IPdfCommandProcessor processor, PdfPage page, PdfAnnotationVisualStateKind visualStateKind)
     {
-        using var recorder = new SKPictureRecorder();
-        using var canvas = recorder.BeginRecording(Rectangle);
-
         var width = Rectangle.Width;
         var height = Rectangle.Height;
         var interiorSKColor = ResolveInteriorColor(page);
 
         if (interiorSKColor != SKColors.Transparent)
         {
-            using var fillPaint = new SKPaint
+            var fillPaint = new SKPaint
             {
                 Style = SKPaintStyle.Fill,
                 IsAntialias = true,
                 Color = interiorSKColor
             };
 
-            canvas.DrawRect(Rectangle.Left, Rectangle.Top, width, height, fillPaint);
+            using var fillPath = new SKPath();
+            fillPath.AddRect(new SKRect(Rectangle.Left, Rectangle.Top, Rectangle.Left + width, Rectangle.Top + height));
+            processor.Process(new DrawPathCommand(fillPath, fillPaint));
         }
 
         if (BorderStyle != null && BorderStyle.Width > 0 && Color != null && Color.Length > 0)
         {
             var strokeColor = ResolveColor(page, SKColors.Black);
 
-            using var strokePaint = new SKPaint
+            var strokePaint = new SKPaint
             {
                 Style = SKPaintStyle.Stroke,
                 StrokeWidth = BorderStyle.Width,
@@ -70,10 +71,12 @@ public class PdfSquareAnnotation : PdfAnnotationBase
                 Rectangle.Right - halfBorder,
                 Rectangle.Bottom - halfBorder);
 
-            canvas.DrawRect(adjustedRect, strokePaint);
+            using var strokePath = new SKPath();
+            strokePath.AddRect(adjustedRect);
+            processor.Process(new DrawPathCommand(strokePath, strokePaint));
         }
 
-        return recorder.EndRecording();
+        return true;
     }
 
     /// <summary>

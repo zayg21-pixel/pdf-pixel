@@ -1,0 +1,35 @@
+﻿using SkiaSharp;
+using System;
+using System.Collections.Generic;
+
+namespace PdfPixel.Commands;
+
+/// <summary>
+/// Base class for all PDF drawing commands, providing the disposable pattern.
+/// </summary>
+public abstract class PdfCommand : IPdfCommand
+{
+    ~PdfCommand()
+    {
+        Dispose(disposing: false);
+    }
+
+    /// <inheritdoc />
+    public abstract void Execute(SKCanvas canvas, IEnumerable<IPdfCommandModifier> modifiers);
+
+    /// <summary>
+    /// Releases resources owned by this command.
+    /// </summary>
+    /// <param name="disposing">True when called from <see cref="Dispose()"/>; false from the finalizer.</param>
+    protected virtual void Dispose(bool disposing)
+    {
+    }
+
+    /// <inheritdoc />
+    public void Dispose()
+    {
+        // Do not change this code. Put cleanup code in 'Dispose(bool disposing)' method
+        Dispose(disposing: true);
+        GC.SuppressFinalize(this);
+    }
+}

@@ -1,4 +1,5 @@
 using SkiaSharp;
+using PdfPixel.Commands;
 using PdfPixel.Parsing;
 using PdfPixel.Rendering;
 using PdfPixel.Pattern.Model;
@@ -8,20 +9,20 @@ using PdfPixel.Rendering.State;
 namespace PdfPixel.Pattern.Utilities;
 
 /// <summary>
-/// Converts PDF tiling and shading patterns into SkiaSharp <see cref="SKShader"/> instances for rendering.
-/// Ensures patterns are anchored, transformed, and optimized for device-space rendering and performance.
+/// Renders a single tiling pattern cell into a <see cref="PdfCommandRecorder"/> for deferred replay.
 /// </summary>
 internal sealed class TilingPatternShaderBuilder
 {
     /// <summary>
-    /// Renders a single tiling pattern cell to an <see cref="SKPicture"/>. Does not apply tint or color filter.
-    /// The returned picture is suitable for use with <see cref="SKShader"/> and post-factum color filtering.
+    /// Renders a single tiling pattern cell into a <see cref="PdfCommandRecorder"/>.
+    /// Does not apply tint or color filter; the caller applies an <see cref="IPdfCommandModifier"/>
+    /// during replay for uncolored patterns.
     /// </summary>
     /// <param name="renderer">PDF renderer instance.</param>
     /// <param name="pattern">Tiling pattern definition.</param>
     /// <param name="sourceState">Source state for rendering.</param>
-    /// <returns><see cref="SKPicture"/> Containing the rendered pattern cell.</returns>
-    public static SKPicture RenderTilingCell(IPdfRenderer renderer, PdfTilingPattern pattern, PdfGraphicsState sourceState)
+    /// <returns>A <see cref="PdfCommandRecorder"/> containing the recorded pattern cell, or null if the cell is empty.</returns>
+    public static PdfCommandRecorder RenderTilingCell(IPdfRenderer renderer, PdfTilingPattern pattern, PdfGraphicsState sourceState)
     {
         var streamData = pattern.SourceObject.DecodeAsMemory();
 
@@ -38,18 +39,26 @@ internal sealed class TilingPatternShaderBuilder
 
         sourceState.RecursionGuard.Add(pattern.SourceObject.Reference.ObjectNumber);
 
-        using var recorder = new SKPictureRecorder();
-        using var canvas = recorder.BeginRecording(pattern.BBox);
+        var recorder = new PdfCommandRecorder();
+
+        // Clip to pattern cell bounds
+        recorder.Process(new ClipRectCommand(pattern.BBox, SKClipOperation.Intersect, false));
 
         // Render pattern cell without tint or color filter
         var patternPage = new FormXObjectPageWrapper(pattern.SourceObject);
         var cellState = new PdfGraphicsState(patternPage, sourceState);
         var contentRenderer = new PdfContentStreamRenderer(renderer, patternPage);
         var parseContext = new PdfParseContext(streamData);
-        contentRenderer.RenderContext(canvas, ref parseContext, cellState);
+        contentRenderer.RenderContext(recorder, ref parseContext, cellState);
 
         sourceState.RecursionGuard.Remove(pattern.SourceObject.Reference.ObjectNumber);
 
-        return recorder.EndRecording();
+        if (recorder.Commands.Count == 0)
+        {
+            recorder.Dispose();
+            return null;
+        }
+
+        return recorder;
     }
 }

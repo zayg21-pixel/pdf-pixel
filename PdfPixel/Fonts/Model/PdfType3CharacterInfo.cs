@@ -1,3 +1,4 @@
+using PdfPixel.Commands;
 using SkiaSharp;
 
 namespace PdfPixel.Fonts.Model
@@ -9,32 +10,32 @@ namespace PdfPixel.Fonts.Model
     public sealed class PdfType3CharacterInfo
     {
         /// <summary>
-        /// Gets a singleton instance representing an undefined character (no picture/metrics available).
+        /// Gets a singleton instance representing an undefined character (no recording/metrics available).
         /// </summary>
         public static PdfType3CharacterInfo Undefined { get; } = new PdfType3CharacterInfo(null, null, SKSize.Empty);
 
         /// <summary>
         /// Initializes a new instance of the <see cref="PdfType3CharacterInfo"/> class.
         /// </summary>
-        /// <param name="picture">Recorded drawing operations for the glyph; null when not defined.</param>
+        /// <param name="recording">Recorded drawing commands for the glyph; null when not defined.</param>
         /// <param name="bbox">Bounding box parsed by d1 (llx, lly, urx, ury). Null when not provided.</param>
         /// <param name="advancement">Glyph advancement vector parsed by d0/d1 (wx, wy). If not provided, use <see cref="SKSize.Empty"/>.</param>
-        public PdfType3CharacterInfo(SKPicture picture, SKRect? bbox, SKSize advancement)
+        public PdfType3CharacterInfo(PdfCommandRecorder recording, SKRect? bbox, SKSize advancement)
         {
-            Picture = picture;
+            Recording = recording;
             BBox = bbox;
             Advancement = advancement;
         }
 
         /// <summary>
-        /// True when the character procedure was found and rendered (i.e., picture is not null).
+        /// True when the character procedure was found and rendered (i.e., recording is not null).
         /// </summary>
-        public bool IsDefined => Picture != null;
+        public bool IsDefined => Recording != null;
 
         /// <summary>
-        /// Gets the recorded picture that draws the glyph in glyph space.
+        /// Gets the recorded commands that draw the glyph in glyph space.
         /// </summary>
-        public SKPicture Picture { get; }
+        public PdfCommandRecorder Recording { get; }
 
         /// <summary>
         /// Gets the character bounding box from d1 if provided; otherwise null.

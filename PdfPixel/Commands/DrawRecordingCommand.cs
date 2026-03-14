@@ -1,0 +1,42 @@
+using SkiaSharp;
+using System.Collections.Generic;
+using System.Linq;
+
+namespace PdfPixel.Commands;
+
+/// <summary>
+/// Replays a recorded set of commands with a specified paint modifier.
+/// When <c>disposeRecording</c> is true (default), the recorder and modifier are disposed with the command.
+/// When false, the caller manages their lifetime (e.g. tiling patterns that replay the same recording many times).
+/// </summary>
+public sealed class DrawRecordingCommand : PdfCommand
+{
+    private readonly PdfCommandRecorder _recorder;
+    private readonly IPdfCommandModifier _modifier;
+    private readonly bool _disposeRecording;
+
+    public DrawRecordingCommand(PdfCommandRecorder recorder, IPdfCommandModifier modifier, bool disposeRecording = true)
+    {
+        _recorder = recorder;
+        _modifier = modifier;
+        _disposeRecording = disposeRecording;
+    }
+
+    /// <inheritdoc />
+    public override void Execute(SKCanvas canvas, IEnumerable<IPdfCommandModifier> modifiers)
+    {
+        // Append the recording-specific modifier so it composes on top of any outer modifiers.
+        _recorder.Replay(canvas, modifiers.Append(_modifier));
+    }
+
+    /// <inheritdoc />
+    protected override void Dispose(bool disposing)
+    {
+        if (_disposeRecording)
+        {
+            _recorder.Dispose();
+        }
+
+        _modifier.Dispose();
+    }
+}

@@ -1,3 +1,4 @@
+using PdfPixel.Commands;
 using PdfPixel.Models;
 using SkiaSharp;
 
@@ -21,31 +22,21 @@ public class PdfUnderlineAnnotation : PdfTextMarkupAnnotation
     }
 
     /// <summary>
-    /// Creates a fallback rendering for underline annotations when no appearance stream is available.
+    /// Renders the fallback content for underline annotations when no appearance stream is available.
     /// </summary>
+    /// <param name="processor">The command processor to emit commands to.</param>
     /// <param name="page">The PDF page containing this annotation.</param>
     /// <param name="visualStateKind">The visual state to render (Normal, Rollover, Down).</param>
-    /// <returns>An SKPicture containing the rendered underline.</returns>
-    public override SKPicture CreateFallbackRender(PdfPage page, PdfAnnotationVisualStateKind visualStateKind)
+    /// <returns>True if fallback rendering was emitted.</returns>
+    public override bool RenderFallback(IPdfCommandProcessor processor, PdfPage page, PdfAnnotationVisualStateKind visualStateKind)
     {
         var quads = Quadrilaterals;
         if (quads.Length == 0)
         {
-            return null;
+            return false;
         }
 
-        using var recorder = new SKPictureRecorder();
-        using var canvas = recorder.BeginRecording(Rectangle);
-
         var color = ResolveColor(page, SKColors.Black);
-
-        using var paint = new SKPaint
-        {
-            Style = SKPaintStyle.Stroke,
-            StrokeWidth = 1.0f,
-            Color = color,
-            IsAntialias = true
-        };
 
         foreach (var quad in quads)
         {
@@ -54,10 +45,21 @@ public class PdfUnderlineAnnotation : PdfTextMarkupAnnotation
             var endX = quad[1].X;
             var endY = quad[1].Y;
 
-            canvas.DrawLine(startX, startY, endX, endY, paint);
+            var paint = new SKPaint
+            {
+                Style = SKPaintStyle.Stroke,
+                StrokeWidth = 1.0f,
+                Color = color,
+                IsAntialias = true
+            };
+
+            using var linePath = new SKPath();
+            linePath.MoveTo(startX, startY);
+            linePath.LineTo(endX, endY);
+            processor.Process(new DrawPathCommand(linePath, paint));
         }
 
-        return recorder.EndRecording();
+        return true;
     }
 
     /// <summary>

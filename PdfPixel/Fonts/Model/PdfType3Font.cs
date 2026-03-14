@@ -1,3 +1,4 @@
+using PdfPixel.Commands;
 using PdfPixel.Fonts.Mapping;
 using PdfPixel.Forms;
 using PdfPixel.Models;
@@ -119,7 +120,7 @@ public class PdfType3Font : PdfSingleByteFont
 
         sourceState.RecursionGuard.Add(charObject.Reference.ObjectNumber);
 
-        var recorder = new SKPictureRecorder();
+        var recorder = new PdfCommandRecorder();
 
         // Render glyph content stream without recursion (independent from page rendering)
         var glyphPage = new FormXObjectPageWrapper(sourceState.Page, FontObject);
@@ -128,19 +129,13 @@ public class PdfType3Font : PdfSingleByteFont
 
         var (advancement, boundingBox) = ParseMetrics(parseContext);
 
-        var bbox = boundingBox ?? FontBBox ?? FontMatrix.Invert().MapRect(new SKRect(0, 0, 1f, 1f));
-        var canvas = recorder.BeginRecording(bbox);
-        canvas.Save();
-
         var charState = new PdfGraphicsState(glyphPage, sourceState.RecursionGuard, new PdfRenderingParameters { IsType3Rendering = true }, default, default);
 
-        contentRenderer.RenderContext(canvas, ref parseContext, charState);
+        recorder.Process(new SaveStateCommand());
+        contentRenderer.RenderContext(recorder, ref parseContext, charState);
+        recorder.Process(new RestoreStateCommand());
 
-        canvas.Restore();
-
-        var picture = recorder.EndRecording();
-
-        var info = new PdfType3CharacterInfo(picture, boundingBox, advancement);
+        var info = new PdfType3CharacterInfo(recorder, boundingBox, advancement);
         type3Cache[charCode] = info;
 
         sourceState.RecursionGuard.Remove(charObject.Reference.ObjectNumber);
@@ -237,7 +232,7 @@ public class PdfType3Font : PdfSingleByteFont
         {
             foreach (var info in type3Cache.Values)
             {
-                info.Picture?.Dispose();
+                info.Recording?.Dispose();
             }
 
             type3Cache.Clear();

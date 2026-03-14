@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using Microsoft.Extensions.Logging;
 using PdfPixel.Color.ColorSpace;
+using PdfPixel.Commands;
 using PdfPixel.Imaging.Model;
 using PdfPixel.Models;
 using PdfPixel.Rendering.State;
@@ -25,15 +26,15 @@ internal class InlineImageOperators : IOperatorProcessor
     private readonly IPdfRenderer _renderer;
     private readonly Stack<IPdfValue> _operandStack;
     private readonly PdfPage _page;
-    private readonly SKCanvas _canvas;
+    private readonly IPdfCommandProcessor _processor;
     private readonly ILogger<InlineImageOperators> _logger;
 
-    public InlineImageOperators(IPdfRenderer renderer, Stack<IPdfValue> operandStack, PdfPage page, SKCanvas canvas)
+    public InlineImageOperators(IPdfRenderer renderer, Stack<IPdfValue> operandStack, PdfPage page, IPdfCommandProcessor processor)
     {
         _renderer = renderer;
         _operandStack = operandStack;
         _page = page;
-        _canvas = canvas;
+        _processor = processor;
         _logger = page.Document.LoggerFactory.CreateLogger<InlineImageOperators>();
     }
 
@@ -85,7 +86,7 @@ internal class InlineImageOperators : IOperatorProcessor
             };
 
             var pdfImage = PdfImage.FromXObject(inlineObject, _page, name: PdfString.Empty, isSoftMask: false);
-            _renderer.DrawImage(_canvas, pdfImage, graphicsState);
+            _renderer.DrawImage(_processor, pdfImage, graphicsState);
         }
         catch (Exception ex)
         {

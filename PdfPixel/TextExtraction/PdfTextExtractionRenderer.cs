@@ -1,4 +1,5 @@
 ﻿using PdfPixel.Color.Paint;
+using PdfPixel.Commands;
 using PdfPixel.Fonts.Model;
 using PdfPixel.Forms;
 using PdfPixel.Imaging.Model;
@@ -17,14 +18,14 @@ internal class PdfTextExtractionRenderer : IPdfRenderer
 {
     public List<PdfCharacter> PageCharacters { get; } = new List<PdfCharacter>();
 
-    public void DrawForm(SKCanvas canvas, PdfForm formXObject, PdfGraphicsState graphicsState)
+    public void DrawForm(IPdfCommandProcessor processor, PdfForm formXObject, PdfGraphicsState graphicsState)
     {
-        int count = canvas.Save();
+        processor.Process(new SaveStateCommand());
 
         // Apply form matrix
-        canvas.Concat(formXObject.Matrix);
+        processor.Process(new ConcatMatrixCommand(formXObject.Matrix));
 
-        canvas.ClipRect(formXObject.BBox);
+        processor.Process(new ClipRectCommand(formXObject.BBox, SKClipOperation.Intersect, false));
 
         // Decode and render content with a cloned state
         var content = formXObject.GetFormData();
@@ -36,30 +37,30 @@ internal class PdfTextExtractionRenderer : IPdfRenderer
             localGs.CTM = formXObject.Matrix;
 
             var renderer = new PdfContentStreamRenderer(this, formPage);
-            renderer.RenderContext(canvas, ref parseContext, localGs);
+            renderer.RenderContext(processor, ref parseContext, localGs);
         }
 
-        canvas.RestoreToCount(count);
+        processor.Process(new RestoreStateCommand());
     }
 
-    public void DrawImage(SKCanvas canvas, PdfImage pdfImage, PdfGraphicsState state)
+    public void DrawImage(IPdfCommandProcessor processor, PdfImage pdfImage, PdfGraphicsState state)
     {
         // no op
     }
 
-    public void DrawPath(SKCanvas canvas, SKPath path, PdfGraphicsState state, PaintOperation operation)
+    public void DrawPath(IPdfCommandProcessor processor, SKPath path, PdfGraphicsState state, PaintOperation operation)
     {
         // no op
     }
 
-    public void DrawShading(SKCanvas canvas, PdfShading shading, PdfGraphicsState state)
+    public void DrawShading(IPdfCommandProcessor processor, PdfShading shading, PdfGraphicsState state)
     {
         // no op
     }
 
-    public SKSize DrawTextSequence(SKCanvas canvas, List<ShapedGlyph> glyphs, PdfGraphicsState state, PdfFontBase font)
+    public SKSize DrawTextSequence(IPdfCommandProcessor processor, List<ShapedGlyph> glyphs, PdfGraphicsState state, PdfFontBase font)
     {
-        var currentMatrix = SKMatrix.Concat(canvas.TotalMatrix, TextRenderUtilities.GetFullTextMatrix(state));
+        var currentMatrix = SKMatrix.Concat(processor.TotalMatrix, TextRenderUtilities.GetFullTextMatrix(state));
         float advance = 0;
         int i = 0;
         while (i < glyphs.Count)

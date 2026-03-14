@@ -1,4 +1,6 @@
-﻿using PdfPixel.Color.Paint;
+﻿using Microsoft.Extensions.Logging;
+using PdfPixel.Color.Paint;
+using PdfPixel.Commands;
 using PdfPixel.Functions;
 using PdfPixel.Rendering.State;
 using PdfPixel.Shading.Model;
@@ -9,19 +11,28 @@ using System.Linq;
 
 namespace PdfPixel.Shading;
 
-internal static partial class PdfShadingBuilder
+internal partial class PdfShadingBuilder
 {
-    private static SKPicture BuildAxial(PdfShading shading, PdfGraphicsState state, SKRect bounds)
+    /// <summary>
+    /// Builds a command for axial (Type 2) shading using a linear gradient shader.
+    /// </summary>
+    /// <param name="processor">The command processor that receives generated commands.</param>
+    /// <param name="shading">Parsed shading model.</param>
+    /// <param name="state">Current graphics state.</param>
+    /// <returns><see langword="true"/> if commands were produced; otherwise <see langword="false"/>.</returns>
+    private void BuildAxialCommand(IPdfCommandProcessor processor, PdfShading shading, PdfGraphicsState state)
     {
         if (shading.Coords?.Length != 4)
         {
-            return null;
+            _logger.LogWarning("Axial shading requires exactly 4 coordinates");
+            return;
         }
 
         BuildShadingColorsAndStops(shading, state, out var colors, out var positions);
         if (colors == null || colors.Length == 0)
         {
-            return null;
+            _logger.LogWarning("Axial shading produced no color stops");
+            return;
         }
 
         SKPoint start = new SKPoint(shading.Coords[0], shading.Coords[1]);
@@ -34,22 +45,26 @@ internal static partial class PdfShadingBuilder
             positions,
             SKShaderTileMode.Clamp);
 
-        using var pictureRecorder = new SKPictureRecorder();
-        using var canvas = pictureRecorder.BeginRecording(bounds);
+        var paint = PdfPaintFactory.CreateShaderPaint(shading.AntiAlias, state);
+        paint.Shader = shader;
 
-        using var basePaint = PdfPaintFactory.CreateShaderPaint(shading.AntiAlias, state);
-        basePaint.Shader = shader;
-
-        canvas.DrawPaint(basePaint);
-
-        return pictureRecorder.EndRecording();
+        processor.Process(new DrawPaintCommand(paint));
     }
 
-    private static SKPicture BuildRadial(PdfShading shading, PdfGraphicsState state, SKRect bounds)
+    /// <summary>
+    /// Builds commands for radial (Type 3) shading using two-point conical gradients.
+    /// Pushes the reversed inner surface first, then the outer surface.
+    /// </summary>
+    /// <param name="processor">The command processor that receives generated commands.</param>
+    /// <param name="shading">Parsed shading model.</param>
+    /// <param name="state">Current graphics state.</param>
+    /// <returns><see langword="true"/> if commands were produced; otherwise <see langword="false"/>.</returns>
+    private void BuildRadialCommand(IPdfCommandProcessor processor, PdfShading shading, PdfGraphicsState state)
     {
         if (shading.Coords?.Length != 6)
         {
-            return null;
+            _logger.LogWarning("Radial shading requires exactly 6 coordinates");
+            return;
         }
 
         SKPoint center0 = new SKPoint(shading.Coords[0], shading.Coords[1]);
@@ -61,11 +76,9 @@ internal static partial class PdfShadingBuilder
 
         if (colors == null || colors.Length == 0)
         {
-            return null;
+            _logger.LogWarning("Radial shading produced no color stops");
+            return;
         }
-
-        using var pictureRecorder = new SKPictureRecorder();
-        using var canvas = pictureRecorder.BeginRecording(bounds);
 
         // first pass, draw inner surface part
         SKPoint reversedCenter0 = center1;
@@ -81,7 +94,7 @@ internal static partial class PdfShadingBuilder
             reversedPositions[i] = 1 - reversedPositions[i];
         }
 
-        using var reversedPaint = PdfPaintFactory.CreateShaderPaint(shading.AntiAlias, state);
+        var innerPaint = PdfPaintFactory.CreateShaderPaint(shading.AntiAlias, state);
 
         using var reversedShader = SKShader.CreateTwoPointConicalGradient(
             reversedCenter0, reversedR0,
@@ -90,12 +103,12 @@ internal static partial class PdfShadingBuilder
             reversedPositions,
             SKShaderTileMode.Clamp);
 
-        reversedPaint.Shader = reversedShader;
+        innerPaint.Shader = reversedShader;
+
+        processor.Process(new DrawPaintCommand(innerPaint));
 
         // second pass, draw outer surface part
-        canvas.DrawPaint(reversedPaint);
-
-        using var basePaint = PdfPaintFactory.CreateShaderPaint(shading.AntiAlias, state);
+        var outerPaint = PdfPaintFactory.CreateShaderPaint(shading.AntiAlias, state);
 
         using var shader = SKShader.CreateTwoPointConicalGradient(
             center0, r0,
@@ -104,11 +117,9 @@ internal static partial class PdfShadingBuilder
             positions,
             SKShaderTileMode.Clamp);
 
-        basePaint.Shader = shader;
+        outerPaint.Shader = shader;
 
-        canvas.DrawPaint(basePaint);
-
-        return pictureRecorder.EndRecording();
+        processor.Process(new DrawPaintCommand(outerPaint));
     }
 
     /// <summary>
@@ -117,7 +128,7 @@ internal static partial class PdfShadingBuilder
     /// <param name="shading">Parsed shading model.</param>
     /// <param name="colors">Output array of SKColor stops.</param>
     /// <param name="positions">Output array of gradient positions.</param>
-    private static void BuildShadingColorsAndStops(
+    private void BuildShadingColorsAndStops(
         PdfShading shading,
         PdfGraphicsState state,
         out SKColor[] colors,

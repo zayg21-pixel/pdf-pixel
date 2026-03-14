@@ -1,4 +1,5 @@
 using PdfPixel.Color.Paint;
+using PdfPixel.Commands;
 using PdfPixel.Pattern.Model;
 using PdfPixel.Rendering.State;
 using SkiaSharp;
@@ -34,15 +35,15 @@ internal class PathStrokeRenderTarget : IRenderTarget
 
     public SKColor Color => _state.StrokePaint.Color;
 
-    public void Render(SKCanvas canvas)
+    public void Render(IPdfCommandProcessor processor)
     {
         if (_pattern != null)
         {
-            _pattern.RenderPattern(canvas, _state, this);
+            _pattern.RenderPattern(processor, _state, this);
         }
         else
         {
-            canvas.DrawPath(_path, _basePaint);
+            processor.Process(new DrawPathCommand(_path, _basePaint.Clone()));
         }
     }
 

@@ -1,4 +1,5 @@
 using PdfPixel.Annotations.Rendering;
+using PdfPixel.Commands;
 using PdfPixel.Models;
 using PdfPixel.Text;
 using SkiaSharp;
@@ -68,17 +69,16 @@ public class PdfTextAnnotation : PdfAnnotationBase
     public PdfString State { get; }
 
     /// <summary>
-    /// Creates a fallback rendering for text annotations.
+    /// Renders the fallback content for text annotations.
     /// </summary>
+    /// <param name="processor">The command processor to emit commands to.</param>
     /// <param name="page">The PDF page containing this annotation.</param>
     /// <param name="visualStateKind">The visual state to render (Normal, Rollover, Down).</param>
-    /// <returns>An SKPicture containing the rendered text annotation icon.</returns>
-    public override SKPicture CreateFallbackRender(PdfPage page, PdfAnnotationVisualStateKind visualStateKind)
+    /// <returns>True if fallback rendering was emitted.</returns>
+    public override bool RenderFallback(IPdfCommandProcessor processor, PdfPage page, PdfAnnotationVisualStateKind visualStateKind)
     {
-        using var recorder = new SKPictureRecorder();
-        using var canvas = recorder.BeginRecording(Rectangle);
-        PdfAnnotationBubbleRenderer.RenderBubble(canvas, this, page, visualStateKind);
-        return recorder.EndRecording();
+        PdfAnnotationBubbleRenderer.RenderBubble(processor, this, page, visualStateKind);
+        return true;
     }
 
     /// <summary>

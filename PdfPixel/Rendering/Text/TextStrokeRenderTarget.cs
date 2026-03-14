@@ -1,4 +1,5 @@
 ﻿using PdfPixel.Color.Paint;
+using PdfPixel.Commands;
 using PdfPixel.Pattern.Model;
 using PdfPixel.Rendering.State;
 using PdfPixel.Text;
@@ -48,16 +49,16 @@ internal class TextStrokeRenderTarget : IRenderTarget
 
     public SKColor Color => _state.StrokePaint.Color;
 
-    public void Render(SKCanvas canvas)
+    public void Render(IPdfCommandProcessor processor)
     {
         if (_pattern != null)
         {
-            _pattern.RenderPattern(canvas, _state, this);
+            _pattern.RenderPattern(processor, _state, this);
         }
         else
         {
             using var path = TextRenderUtilities.GetTextPath(_shapingResult, _font, _state);
-            canvas.DrawPath(path, _strokePaint);
+            processor.Process(new DrawPathCommand(path, _strokePaint.Clone()));
         }
     }
 

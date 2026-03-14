@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.Logging;
+using PdfPixel.Commands;
 using PdfPixel.Fonts.Management;
 using PdfPixel.Models;
 using PdfPixel.TextExtraction;
@@ -176,7 +177,10 @@ namespace PdfPixel.Console.Demo
                         canvas.Clear(SKColors.White);
 
                         // Render the page (this will show transformation debug info)
-                        page.Draw(canvas, new PdfRenderingParameters(), CancellationToken.None);
+                        using (var processor = new SkCanvasCommandProcessor(canvas))
+                        {
+                            page.Draw(processor, new PdfRenderingParameters(), CancellationToken.None);
+                        }
 
                         Logger.LogInformation("  === PAGE RENDERING COMPLETE ===");
 
@@ -228,7 +232,8 @@ namespace PdfPixel.Console.Demo
             canvas.ClipRect(new SKRect(0, 0, pdfPage.CropBox.Width, pdfPage.CropBox.Height));
 
             canvas.Clear(SKColors.White);
-            pdfPage.Draw(canvas, new PdfRenderingParameters(), CancellationToken.None);
+            using var processor = new SkCanvasCommandProcessor(canvas);
+            pdfPage.Draw(processor, new PdfRenderingParameters(), CancellationToken.None);
 
             canvas.Flush();
             return recorder.EndRecording();

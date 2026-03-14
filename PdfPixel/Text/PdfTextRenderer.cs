@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging;
 using PdfPixel.Color.Paint;
+using PdfPixel.Commands;
 using PdfPixel.Fonts.Model;
 using PdfPixel.Rendering;
 using PdfPixel.Rendering.State;
@@ -32,19 +33,19 @@ public class PdfTextRenderer : IPdfTextRenderer
     }
 
     /// <inheritdoc/>
-    public SKSize DrawTextSequence(SKCanvas canvas, List<ShapedGlyph> glyphs, PdfGraphicsState state, PdfFontBase font)
+    public SKSize DrawTextSequence(IPdfCommandProcessor processor, List<ShapedGlyph> glyphs, PdfGraphicsState state, PdfFontBase font)
     {
         if (font == null || glyphs.Count == 0)
         {
             return SKSize.Empty;
         }
 
-        using var softMaskScope = new SoftMaskDrawingScope(_renderer, canvas, state);
+        using var softMaskScope = new SoftMaskDrawingScope(_renderer, processor, state);
         softMaskScope.BeginDrawContent();
 
         if (font is PdfType3Font type3Font)
         {
-            RenderType3(canvas, glyphs, state, type3Font);
+            RenderType3(processor, glyphs, state, type3Font);
         }
         else if (font.SubstituteFont)
         {
@@ -62,7 +63,7 @@ public class PdfTextRenderer : IPdfTextRenderer
                 {
                     if (glyphBuffer.Count > 0 && skFont != null)
                     {
-                        DrawShapedText(canvas, skFont, glyphBuffer, state);
+                        DrawShapedText(processor, skFont, glyphBuffer, state);
                     }
 
                     glyphBuffer.Clear();
@@ -77,7 +78,7 @@ public class PdfTextRenderer : IPdfTextRenderer
 
             if (glyphBuffer.Count > 0 && skFont != null)
             {
-                DrawShapedText(canvas, skFont, glyphBuffer, state);
+                DrawShapedText(processor, skFont, glyphBuffer, state);
             }
 
             skFont?.Dispose();
@@ -86,7 +87,7 @@ public class PdfTextRenderer : IPdfTextRenderer
         {
             var baseTypeface = glyphs[0].CharacterInfo.Typeface;
             using var skFont = PdfPaintFactory.CreateTextFont(baseTypeface);
-            DrawShapedText(canvas, skFont, glyphs, state);
+            DrawShapedText(processor, skFont, glyphs, state);
         }
 
         softMaskScope.EndDrawContent();
@@ -105,7 +106,7 @@ public class PdfTextRenderer : IPdfTextRenderer
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private void RenderType3(SKCanvas canvas, List<ShapedGlyph> glyphs, PdfGraphicsState state, PdfType3Font type3Font)
+    private void RenderType3(IPdfCommandProcessor processor, List<ShapedGlyph> glyphs, PdfGraphicsState state, PdfType3Font type3Font)
     {
         // Skip rendering for Invisible or Clip modes as per PDF spec.
         if (state.TextRenderingMode == PdfTextRenderingMode.Invisible || state.TextRenderingMode == PdfTextRenderingMode.Clip)
@@ -113,13 +114,10 @@ public class PdfTextRenderer : IPdfTextRenderer
             return;
         }
 
-        // Type3 glyphs are pictures rendered in glyph space (after FontMatrix). Apply text matrix and per-glyph offsets.
-        canvas.Save();
+        // Type3 glyphs are recorded commands in glyph space (after FontMatrix). Apply text matrix and per-glyph offsets.
+        processor.Process(new SaveStateCommand());
         var fullTextMatrix = TextRenderUtilities.GetFullTextMatrix(state, inverse: false);
-        canvas.Concat(fullTextMatrix);
-
-        using var paint = PdfPaintFactory.CreateFillPaint(state);
-        paint.ColorFilter = SKColorFilter.CreateBlendMode(state.FillPaint.Color, SKBlendMode.SrcIn);
+        processor.Process(new ConcatMatrixCommand(fullTextMatrix));
 
         for (int i = 0; i < glyphs.Count; i++)
         {
@@ -127,39 +125,37 @@ public class PdfTextRenderer : IPdfTextRenderer
             var charInfo = type3Font.GetCharacterInfo(glyph.CharacterInfo.CharacterCode, _renderer, state);
             if (charInfo.IsDefined)
             {
-                canvas.Save();
-                // Translate by glyph X/Y (already in text space units after fullTextMatrix).
-                canvas.Translate(glyph.X, glyph.Y);
-                canvas.Concat(type3Font.FontMatrix);
-                if (charInfo.IsColored)
-                {
-                    canvas.DrawPicture(charInfo.Picture);
-                }
-                else
-                {
-                    canvas.DrawPicture(charInfo.Picture, paint);
-                }
+                IPdfCommandModifier modifier = charInfo.IsColored
+                    ? new DefaultPdfCommandModifier()
+                    : new UncoloredPaintModifier(state.FillPaint.Color);
 
-                canvas.Restore();
+                processor.Process(new SaveStateCommand());
+                // Translate by glyph X/Y (already in text space units after fullTextMatrix).
+                processor.Process(new ConcatMatrixCommand(SKMatrix.CreateTranslation(glyph.X, glyph.Y)));
+                processor.Process(new ConcatMatrixCommand(type3Font.FontMatrix));
+                processor.Process(new DrawRecordingCommand(charInfo.Recording, modifier, disposeRecording: false));
+                processor.Process(new RestoreStateCommand());
+
+                modifier.Dispose();
             }
         }
 
-        canvas.Restore();
+        processor.Process(new RestoreStateCommand());
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private void DrawShapedText(SKCanvas canvas, SKFont font, IList<ShapedGlyph> shapingResult, PdfGraphicsState state)
+    private void DrawShapedText(IPdfCommandProcessor processor, SKFont font, IList<ShapedGlyph> shapingResult, PdfGraphicsState state)
     {
         if (ShouldFill(state.TextRenderingMode))
         {
             using var textFillTarget = new TextFillRenderTarget(font, shapingResult, state);
-            textFillTarget.Render(canvas);
+            textFillTarget.Render(processor);
         }
 
         if (ShouldStroke(state.TextRenderingMode))
         {
             using var textStrokeTarget = new TextStrokeRenderTarget(font, shapingResult, state);
-            textStrokeTarget.Render(canvas);
+            textStrokeTarget.Render(processor);
         }
 
         // Apply clipping if requested (modes with Clip). Pure clip mode skips drawing above.

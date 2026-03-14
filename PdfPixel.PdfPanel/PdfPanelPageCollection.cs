@@ -173,12 +173,12 @@ public sealed class PdfPanelPageCollection : ReadOnlyCollection<PdfPanelPage>, I
 
         if (scaleChanged)
         {
-            cachedPicture.UpdatePicture(null);
-            cachedPicture.UpdateAnnotationPicture(null);
+            cachedPicture.UpdateRecording(null);
+            cachedPicture.UpdateAnnotationRecording(null);
         }
         else if (annotationChanged || stateChangedWithinAnnotation)
         {
-            cachedPicture.UpdateAnnotationPicture(null);
+            cachedPicture.UpdateAnnotationRecording(null);
         }
 
         return cachedPicture;
@@ -188,14 +188,14 @@ public sealed class PdfPanelPageCollection : ReadOnlyCollection<PdfPanelPage>, I
     {
         var cachedPicture = GetCachedPicture(pageNumber);
 
-        if (cachedPicture.Picture == null)
+        if (cachedPicture.Recording == null)
         {
-            cachedPicture.UpdatePicture(Renderer.GetPicture(pageNumber, cachedPicture.Scale, token));
+            cachedPicture.UpdateRecording(Renderer.GetRecording(pageNumber, cachedPicture.Scale, token));
         }
 
-        if (cachedPicture.AnnotationPicture == null)
+        if (cachedPicture.AnnotationRecording == null)
         {
-            cachedPicture.UpdateAnnotationPicture(Renderer.GetAnnotationPicture(pageNumber, cachedPicture.Scale, cachedPicture.ActiveAnnotation, cachedPicture.ActiveAnnotationState, token));
+            cachedPicture.UpdateAnnotationRecording(Renderer.GetAnnotationRecording(pageNumber, cachedPicture.Scale, cachedPicture.ActiveAnnotation, cachedPicture.ActiveAnnotationState, token));
         }
 
         return cachedPicture;

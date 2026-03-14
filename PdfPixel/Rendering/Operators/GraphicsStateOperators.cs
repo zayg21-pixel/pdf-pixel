@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging;
 using PdfPixel.Color.ColorSpace;
+using PdfPixel.Commands;
 using PdfPixel.Models;
 using PdfPixel.Rendering.State;
 using PdfPixel.Text;
@@ -17,15 +18,15 @@ public class GraphicsStateOperators : IOperatorProcessor
     };
 
     private readonly PdfPage _page;
-    private readonly SKCanvas _canvas;
+    private readonly IPdfCommandProcessor _processor;
     private readonly Stack<IPdfValue> _operandStack;
     private readonly Stack<PdfGraphicsState> _graphicsStack;
     private readonly ILogger<GraphicsStateOperators> _logger;
 
-    public GraphicsStateOperators(PdfPage page, SKCanvas canvas, Stack<IPdfValue> operandStack, Stack<PdfGraphicsState> graphicsStack)
+    public GraphicsStateOperators(PdfPage page, IPdfCommandProcessor processor, Stack<IPdfValue> operandStack, Stack<PdfGraphicsState> graphicsStack)
     {
         _page = page;
-        _canvas = canvas;
+        _processor = processor;
         _operandStack = operandStack;
         _graphicsStack = graphicsStack;
         _logger = page.Document.LoggerFactory.CreateLogger<GraphicsStateOperators>();
@@ -123,7 +124,7 @@ public class GraphicsStateOperators : IOperatorProcessor
     private void ProcessSaveGraphicsState(PdfGraphicsState graphicsState)
     {
         _graphicsStack.Push(graphicsState.Clone());
-        _canvas.Save();
+        _processor.Process(new SaveStateCommand());
     }
 
     private void ProcessRestoreGraphicsState(ref PdfGraphicsState graphicsState)
@@ -134,7 +135,7 @@ public class GraphicsStateOperators : IOperatorProcessor
         }
 
         graphicsState = _graphicsStack.Pop();
-        _canvas.Restore();
+        _processor.Process(new RestoreStateCommand());
     }
 
     private void ProcessConcatenateMatrix(PdfGraphicsState graphicsState)
@@ -146,7 +147,7 @@ public class GraphicsStateOperators : IOperatorProcessor
         }
 
         var matrix = PdfLocationUtilities.CreateMatrix(operands);
-        _canvas.Concat(matrix);
+        _processor.Process(new ConcatMatrixCommand(matrix));
 
         // Update CTM in graphics state - concatenate with existing CTM
         graphicsState.CTM = matrix.PostConcat(graphicsState.CTM);
@@ -243,7 +244,7 @@ public class GraphicsStateOperators : IOperatorProcessor
         }
 
         var gsName = operands[0].AsName();
-        _page.Cache.ApplyGraphicsStateParameters(gsName, _canvas, graphicsState);
+        _page.Cache.ApplyGraphicsStateParameters(gsName, _processor, graphicsState);
     }
 
     private void ProcessSetFlatnessTolerance(PdfGraphicsState graphicsState)

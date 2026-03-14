@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
 using PdfPixel.Color.Paint;
+using PdfPixel.Commands;
 using PdfPixel.Forms;
 using PdfPixel.Parsing;
 using PdfPixel.Rendering.State;
@@ -22,7 +23,7 @@ public class FormRenderer : IFormRenderer
         _loggerFactory = loggerFactory;
     }
 
-    public void DrawForm(SKCanvas canvas, PdfForm formXObject, PdfGraphicsState graphicsState)
+    public void DrawForm(IPdfCommandProcessor processor, PdfForm formXObject, PdfGraphicsState graphicsState)
     {
         uint objectNumber = formXObject.XObject.Reference.ObjectNumber;
 
@@ -33,21 +34,21 @@ public class FormRenderer : IFormRenderer
 
         graphicsState.RecursionGuard.Add(objectNumber);
 
-        using var softMaskScope = new SoftMaskDrawingScope(_renderer, canvas, graphicsState);
+        using var softMaskScope = new SoftMaskDrawingScope(_renderer, processor, graphicsState);
         softMaskScope.BeginDrawContent();
 
-        int count = canvas.Save();
+        processor.Process(new SaveStateCommand());
 
         // Apply form matrix if present
-        canvas.Concat(formXObject.Matrix);
+        processor.Process(new ConcatMatrixCommand(formXObject.Matrix));
 
         // Clip to /BBox
-        canvas.ClipRect(formXObject.BBox, antialias: graphicsState.RenderingParameters.AntialiasClip);
+        processor.Process(new ClipRectCommand(formXObject.BBox, SKClipOperation.Intersect, graphicsState.RenderingParameters.AntialiasClip));
 
         if (formXObject.TransparencyGroup != null)
         {
-            using var formPaint = PdfPaintFactory.CreateCompositionLayerPaint(graphicsState);
-            canvas.SaveLayer(formXObject.BBox, formPaint);
+            var formPaint = PdfPaintFactory.CreateCompositionLayerPaint(graphicsState);
+            processor.Process(new SaveLayerCommand(formXObject.BBox, formPaint));
         }
 
         // Decode and render content with a cloned state that clears parent soft mask
@@ -61,11 +62,15 @@ public class FormRenderer : IFormRenderer
             localGs.CTM = formXObject.Matrix;
 
             var renderer = new PdfContentStreamRenderer(_renderer, formPage);
-            renderer.RenderContext(canvas, ref parseContext, localGs);
+            renderer.RenderContext(processor, ref parseContext, localGs);
         }
 
+        if (formXObject.TransparencyGroup != null)
+        {
+            processor.Process(new RestoreStateCommand());
+        }
 
-        canvas.RestoreToCount(count);
+        processor.Process(new RestoreStateCommand());
 
         softMaskScope.EndDrawContent();
 

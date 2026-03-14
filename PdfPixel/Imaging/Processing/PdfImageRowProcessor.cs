@@ -28,7 +28,6 @@ internal sealed class PdfImageRowProcessor : IDisposable
     private readonly PdfColorSpaceConverter _converter;
     private readonly ILogger _logger;
     private readonly PdfGraphicsState _state;
-    private readonly SKCanvas _canvas;
 
     private readonly int _bitsPerComponent;
     private readonly int _components;
@@ -47,12 +46,11 @@ internal sealed class PdfImageRowProcessor : IDisposable
     private readonly IRowConverter _rowConverter;
     private byte[] _convertedRowBuffer;
 
-    public PdfImageRowProcessor(PdfImage image, ILogger logger, PdfGraphicsState state, SKCanvas canvas)
+    public PdfImageRowProcessor(PdfImage image, ILogger logger, PdfGraphicsState state)
     {
         _image = image ?? throw new ArgumentNullException(nameof(image));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _state = state ?? throw new ArgumentNullException(nameof(state));
-        _canvas = canvas;
 
         var sourceWidth = image.Width;
         var sourceHeight = image.Height;

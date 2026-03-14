@@ -1,4 +1,5 @@
 using PdfPixel.Color.Paint;
+using PdfPixel.Commands;
 using PdfPixel.Models;
 using PdfPixel.Rendering;
 using PdfPixel.Rendering.State;
@@ -44,38 +45,36 @@ public sealed class PdfShadingPattern : PdfPattern
     /// </summary>
     public PdfDictionary ExtGState { get; } // TODO: [LOW] use
 
-    internal override void RenderPattern(SKCanvas canvas, PdfGraphicsState state, IRenderTarget renderTarget)
+    internal override void RenderPattern(IPdfCommandProcessor processor, PdfGraphicsState state, IRenderTarget renderTarget)
     {
         var matrix = SKMatrix.Concat(state.CTM.Invert(), PatternMatrix);
         var bounds = matrix.Invert().MapRect(renderTarget.ClipPath.Bounds);
+        bool antialias = state.RenderingParameters.AntialiasClip;
 
-        using var shadingPicture = PdfShadingBuilder.ToPicture(Shading, state, bounds);
-        
-        if (shadingPicture != null)
+        var recorder = new PdfCommandRecorder();
+
+        recorder.Process(new SaveStateCommand());
+        recorder.Process(new ClipPathCommand(renderTarget.ClipPath, SKClipOperation.Intersect, antialias));
+        recorder.Process(new ConcatMatrixCommand(matrix));
+
+        if (Shading.BBox.HasValue)
         {
-            using var paint = PdfPaintFactory.CreateShadingPaint(state);
-            canvas.Save();
-
-            canvas.ClipPath(renderTarget.ClipPath, SKClipOperation.Intersect, antialias: state.RenderingParameters.AntialiasClip);
-
-            canvas.Concat(matrix);
-
-            if (Shading.BBox.HasValue)
-            {
-                canvas.ClipRect(Shading.BBox.Value, SKClipOperation.Intersect, antialias: state.RenderingParameters.AntialiasClip);
-            }
-
-            if (Shading.Background != null)
-            {
-                var colorSpace = state.Page.Cache.ColorSpace.ResolveByObject(Shading.ColorSpaceConverter);
-                var backgroundColor = colorSpace.ToSrgb(Shading.Background, state.RenderingIntent, state.FullTransferFunction);
-                using var backgroundPaint = PdfPaintFactory.CreateBackgroundPaint(backgroundColor, state);
-                canvas.DrawRect(canvas.LocalClipBounds, backgroundPaint);
-            }
-
-            canvas.DrawPicture(shadingPicture, paint);
-
-            canvas.Restore();
+            recorder.Process(new ClipRectCommand(Shading.BBox.Value, SKClipOperation.Intersect, antialias));
         }
+
+        if (Shading.Background != null)
+        {
+            var colorSpace = state.Page.Cache.ColorSpace.ResolveByObject(Shading.ColorSpaceConverter);
+            var backgroundColor = colorSpace.ToSrgb(Shading.Background, state.RenderingIntent, state.FullTransferFunction);
+            var backgroundPaint = PdfPaintFactory.CreateBackgroundPaint(backgroundColor, state);
+            recorder.Process(new DrawRectCommand(backgroundPaint));
+        }
+
+        var shadingBuilder = new PdfShadingBuilder(state.Page.Document.LoggerFactory);
+        shadingBuilder.Build(recorder, Shading, state);
+
+        recorder.Process(new RestoreStateCommand());
+
+        processor.Process(new DrawRecordingCommand(recorder, new DefaultPdfCommandModifier()));
     }
 }

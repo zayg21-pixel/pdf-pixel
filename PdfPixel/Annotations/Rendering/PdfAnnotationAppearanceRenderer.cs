@@ -1,4 +1,5 @@
 using PdfPixel.Annotations.Models;
+using PdfPixel.Commands;
 using PdfPixel.Forms;
 using PdfPixel.Imaging.Model;
 using PdfPixel.Models;
@@ -19,7 +20,7 @@ internal static class PdfAnnotationAppearanceRenderer
     /// <summary>
     /// Renders the appearance stream for an annotation.
     /// </summary>
-    /// <param name="canvas">The canvas to render to.</param>
+    /// <param name="processor">The command processor to emit commands to.</param>
     /// <param name="annotation">The annotation to render.</param>
     /// <param name="page">The PDF page containing the annotation.</param>
     /// <param name="visualStateKind">The visual state to render.</param>
@@ -28,7 +29,7 @@ internal static class PdfAnnotationAppearanceRenderer
     /// <param name="token">Token to cancel rendering.</param>
     /// <returns>True if the appearance stream was rendered successfully.</returns>
     public static bool RenderAppearanceStream(
-        SKCanvas canvas,
+        IPdfCommandProcessor processor,
         PdfAnnotationBase annotation,
         PdfPage page,
         PdfAnnotationVisualStateKind visualStateKind,
@@ -51,22 +52,22 @@ internal static class PdfAnnotationAppearanceRenderer
 
         var xObject = PdfXObject.FromObject(appearanceObject);
 
-        canvas.Save();
+        processor.Process(new SaveStateCommand());
 
         var success = false;
 
         switch (xObject.Subtype)
         {
             case PdfXObjectSubtype.Form:
-                success = RenderFormAppearance(canvas, appearanceObject, annotation.Rectangle, page, renderer, renderingParameters, token);
+                success = RenderFormAppearance(processor, appearanceObject, annotation.Rectangle, page, renderer, renderingParameters, token);
                 break;
 
             case PdfXObjectSubtype.Image:
-                success = RenderImageAppearance(canvas, appearanceObject, annotation.Rectangle, page, renderer, renderingParameters, token);
+                success = RenderImageAppearance(processor, appearanceObject, annotation.Rectangle, page, renderer, renderingParameters, token);
                 break;
         }
 
-        canvas.Restore();
+        processor.Process(new RestoreStateCommand());
         return success;
     }
 
@@ -116,7 +117,7 @@ internal static class PdfAnnotationAppearanceRenderer
     /// Renders a Form XObject appearance.
     /// </summary>
     private static bool RenderFormAppearance(
-        SKCanvas canvas,
+        IPdfCommandProcessor processor,
         PdfObject formObject,
         SKRect annotationRect,
         PdfPage page,
@@ -136,10 +137,10 @@ internal static class PdfAnnotationAppearanceRenderer
         var transformedBBox = matrix.MapRect(appearanceBBox);
         var alignmentMatrix = ComputeAlignmentMatrix(transformedBBox, annotationRect);
 
-        canvas.Concat(in alignmentMatrix);
+        processor.Process(new ConcatMatrixCommand(alignmentMatrix));
 
         var state = new PdfGraphicsState(page, new HashSet<uint>(), renderingParameters, externalTransform: null, token);
-        renderer.DrawForm(canvas, formXObject, state);
+        renderer.DrawForm(processor, formXObject, state);
 
         return true;
     }
@@ -163,7 +164,7 @@ internal static class PdfAnnotationAppearanceRenderer
     /// Renders an Image XObject appearance.
     /// </summary>
     private static bool RenderImageAppearance(
-        SKCanvas canvas,
+        IPdfCommandProcessor processor,
         PdfObject imageObject,
         SKRect annotationRect,
         PdfPage page,
@@ -179,12 +180,12 @@ internal static class PdfAnnotationAppearanceRenderer
 
         if (annotationRect != SKRect.Empty)
         {
-            canvas.Translate(annotationRect.Left, annotationRect.Top);
-            canvas.Scale(annotationRect.Width, annotationRect.Height);
+            processor.Process(new ConcatMatrixCommand(SKMatrix.CreateTranslation(annotationRect.Left, annotationRect.Top)));
+            processor.Process(new ConcatMatrixCommand(SKMatrix.CreateScale(annotationRect.Width, annotationRect.Height)));
         }
 
         var state = new PdfGraphicsState(page, new HashSet<uint>(), renderingParameters, externalTransform: null, token);
-        renderer.DrawImage(canvas, pdfImage, state);
+        renderer.DrawImage(processor, pdfImage, state);
 
         return true;
     }

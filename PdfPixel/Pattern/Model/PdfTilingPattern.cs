@@ -1,5 +1,6 @@
 using System;
 using PdfPixel.Color.Paint;
+using PdfPixel.Commands;
 using PdfPixel.Models;
 using PdfPixel.Pattern.Utilities;
 using PdfPixel.Rendering;
@@ -78,24 +79,27 @@ public sealed class PdfTilingPattern : PdfPattern
     /// </summary>
     public PdfTilingSpacingType TilingTypeKind { get; }
 
-    internal override void RenderPattern(SKCanvas canvas, PdfGraphicsState state, IRenderTarget renderTarget)
+    internal override void RenderPattern(IPdfCommandProcessor processor, PdfGraphicsState state, IRenderTarget renderTarget)
     {
-        var tile = TilingPatternShaderBuilder.RenderTilingCell(_renderer, this, state);
+        var tileRecorder = TilingPatternShaderBuilder.RenderTilingCell(_renderer, this, state);
+
+        if (tileRecorder == null)
+        {
+            return;
+        }
 
         var matrix = SKMatrix.Concat(state.CTM.Invert(), PatternMatrix);
-        canvas.Save();
+
+        processor.Process(new SaveStateCommand());
 
         var clipPath = renderTarget.ClipPath;
-        canvas.ClipPath(clipPath, SKClipOperation.Intersect, antialias: state.RenderingParameters.AntialiasClip);
+        processor.Process(new ClipPathCommand(clipPath, SKClipOperation.Intersect, state.RenderingParameters.AntialiasClip));
 
-        canvas.Concat(matrix);
+        processor.Process(new ConcatMatrixCommand(matrix));
 
-        using var paint = PdfPaintFactory.CreateShadingPaint(state);
-
-        if (PaintTypeKind == PdfTilingPaintType.Uncolored)
-        {
-            paint.ColorFilter = SKColorFilter.CreateBlendMode(renderTarget.Color, SKBlendMode.SrcIn);
-        }
+        IPdfCommandModifier modifier = PaintTypeKind == PdfTilingPaintType.Uncolored
+            ? new UncoloredPaintModifier(renderTarget.Color)
+            : new DefaultPdfCommandModifier();
 
         var bounds = matrix.Invert().MapRect(clipPath.Bounds);
 
@@ -113,10 +117,17 @@ public sealed class PdfTilingPattern : PdfPattern
             for (int j = 0; j <= yCount; j++)
             {
                 float y = startY + j * YStep;
-                canvas.DrawPicture(tile, x, y, paint);
+
+                processor.Process(new SaveStateCommand());
+                processor.Process(new ConcatMatrixCommand(SKMatrix.CreateTranslation(x, y)));
+                processor.Process(new DrawRecordingCommand(tileRecorder, modifier, disposeRecording: false));
+                processor.Process(new RestoreStateCommand());
             }
         }
 
-        canvas.Restore();
+        processor.Process(new RestoreStateCommand());
+
+        tileRecorder.Dispose();
+        modifier.Dispose();
     }
 }
