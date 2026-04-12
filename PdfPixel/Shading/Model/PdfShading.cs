@@ -22,12 +22,12 @@ public sealed class PdfShading
 
         if (rawDictionary == null)
         {
-            ShadingType = 0;
+            ShadingType = PdfShadingType.Unknown;
             Functions = new List<PdfFunction>();
             return;
         }
 
-        ShadingType = rawDictionary.GetIntegerOrDefault(PdfTokens.ShadingTypeKey);
+        ShadingType = (PdfShadingType)rawDictionary.GetIntegerOrDefault(PdfTokens.ShadingTypeKey);
         var coordsArr = rawDictionary.GetArray(PdfTokens.CoordsKey)?.GetFloatArray();
         Coords = coordsArr;
         var domainArr = rawDictionary.GetArray(PdfTokens.DomainKey)?.GetFloatArray();
@@ -69,7 +69,7 @@ public sealed class PdfShading
     /// <summary>
     /// Shading type (1 - 7 types).
     /// </summary>
-    public int ShadingType { get; }
+    public PdfShadingType ShadingType { get; }
 
     /// <summary>
     /// Coordinates array (/Coords). Axial: [x0 y0 x1 y1]. Radial: [x0 y0 r0 x1 y1 r1], type 2, 3 specific.

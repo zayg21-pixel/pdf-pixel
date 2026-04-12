@@ -8,17 +8,6 @@ namespace PdfPixel.Models;
 /// </summary>
 public class PdfRenderingParameters : IEquatable<PdfRenderingParameters>
 {
-
-    /// <summary>
-    /// Simplified more with lower rendering quality.
-    /// </summary>
-    public bool PreviewMode { get; set; } // TODO: get rid and use granular properties.
-
-    /// <summary>
-    /// If true, clipping operations would be antialized, otherwise aliased.
-    /// </summary>
-    public bool AntialiasClip { get; set; } = false; // TODO: [HIGH] use in ALL clipping operations
-
     /// <summary>
     /// Indicates whether the rendering is intended for printing.
     /// When true, affects annotation visibility (only annotations with Print flag are rendered).
@@ -42,29 +31,9 @@ public class PdfRenderingParameters : IEquatable<PdfRenderingParameters>
     public int DefaultFunctionSamples { get; set; } = 64;
 
     /// <summary>
-    /// Number of samples for Postscript and Exponential functions in preview mode when the point count is unknown.
-    /// </summary>
-    public int PreviewModeFunctionSamples { get; set; } = 8;
-
-    /// <summary>
     /// Maximum number of tessellation vertices for mesh-based shadings.
     /// </summary>
     public int MaxTessellationVertices { get; set; } = 32;
-
-    /// <summary>
-    /// Maximum number of tessellation vertices for mesh-based shadings in preview mode.
-    /// </summary>
-    public int PreviewMaxTessellationVertices { get; set; } = 1;
-
-    /// <summary>
-    /// Force image interpolation even if not downscaling.
-    /// </summary>
-    internal bool IsType3Rendering { get; set; }
-
-    /// <summary>
-    /// If true - antialiazing will be applied.
-    /// </summary>
-    internal bool ShouldAnialiaze => Antialias && !PreviewMode;
 
     /// <summary>
     /// Returns a scaled size for the given original size based on the current
@@ -115,14 +84,11 @@ public class PdfRenderingParameters : IEquatable<PdfRenderingParameters>
             return true;
         }
 
-        return PreviewMode == other.PreviewMode &&
-            PrintMode == other.PrintMode &&
+        return PrintMode == other.PrintMode &&
             Antialias == other.Antialias &&
             ScaleFactor == other.ScaleFactor &&
             DefaultFunctionSamples == other.DefaultFunctionSamples &&
-            PreviewModeFunctionSamples == other.PreviewModeFunctionSamples &&
-            MaxTessellationVertices == other.MaxTessellationVertices &&
-            PreviewMaxTessellationVertices == other.PreviewMaxTessellationVertices;
+            MaxTessellationVertices == other.MaxTessellationVertices;
     }
 
     /// <inheritdoc />
@@ -135,14 +101,11 @@ public class PdfRenderingParameters : IEquatable<PdfRenderingParameters>
     public override int GetHashCode()
     {
         return HashCode.Combine(
-            PreviewMode,
             PrintMode,
             Antialias,
             ScaleFactor,
             DefaultFunctionSamples,
-            PreviewModeFunctionSamples,
-            MaxTessellationVertices,
-            PreviewMaxTessellationVertices);
+            MaxTessellationVertices);
     }
 
     /// <summary>

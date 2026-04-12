@@ -1,8 +1,8 @@
 ﻿using Microsoft.Extensions.Logging;
-using PdfPixel.Commands;
+using PdfPixel.Color.ColorSpace;
+using PdfPixel.Color.Transform;
 using PdfPixel.Functions;
 using PdfPixel.Rendering.Operators;
-using PdfPixel.Rendering.State;
 using PdfPixel.Shading.Model;
 using PdfPixel.Text;
 using SkiaSharp;
@@ -13,22 +13,29 @@ namespace PdfPixel.Shading;
 internal partial class PdfShadingBuilder
 {
     /// <summary>
-    /// Builds a PDF-spec compliant function-based (Type 1) shading command using SKBitmap.
-    /// Samples the function(s) over the domain rectangle using function-provided sampling points.
+    /// Builds a function-based (Type 1) shading bitmap and the matrix that maps
+    /// bitmap pixel space into the shading coordinate system.
+    /// Returns <see langword="null"/> if the shading is invalid or degenerate.
     /// </summary>
-    /// <param name="processor">The command processor that receives generated commands.</param>
     /// <param name="shading">Parsed shading model.</param>
-    /// <param name="state">Current graphics state.</param>
-    /// <returns><see langword="true"/> if commands were produced; otherwise <see langword="false"/>.</returns>
-    private void BuildFunctionBasedCommand(IPdfCommandProcessor processor, PdfShading shading, PdfGraphicsState state)
+    /// <param name="converter">Resolved color space converter.</param>
+    /// <param name="renderingIntent">Rendering intent for color conversion.</param>
+    /// <param name="fullTransferFunction">Transfer function for color conversion.</param>
+    /// <param name="defaultFunctionSamples">Number of function samples to use.</param>
+    /// <returns>A <see cref="FunctionShadingResult"/> containing the bitmap and matrix, or <see langword="null"/> on failure.</returns>
+    public FunctionShadingResult? BuildFunctionBasedBitmap(
+        PdfShading shading,
+        PdfColorSpaceConverter converter,
+        PdfRenderingIntent renderingIntent,
+        IColorTransform fullTransferFunction,
+        int defaultFunctionSamples)
     {
         if (shading.Functions == null || shading.Functions.Count == 0 || shading.ColorSpaceConverter == null)
         {
             _logger.LogWarning("Function-based shading has no functions or color space converter");
-            return;
+            return null;
         }
 
-        var converter = state.Page.Cache.ColorSpace.ResolveByObject(shading.ColorSpaceConverter);
         PdfFunction function = shading.Functions[0];
 
         float domainX0 = 0f;
@@ -48,15 +55,11 @@ internal partial class PdfShadingBuilder
         if (domainWidth < 1e-6f || domainHeight < 1e-6f)
         {
             _logger.LogWarning("Function-based shading has degenerate domain dimensions");
-            return;
+            return null;
         }
 
-        int sampleCount = state.RenderingParameters.PreviewMode
-            ? state.RenderingParameters.PreviewModeFunctionSamples
-            : state.RenderingParameters.DefaultFunctionSamples;
-
-        float[] xSamples = function.GetSamplingPoints(0, domainX0, domainX1, sampleCount);
-        float[] ySamples = function.GetSamplingPoints(1, domainY0, domainY1, sampleCount);
+        float[] xSamples = function.GetSamplingPoints(0, domainX0, domainX1, defaultFunctionSamples);
+        float[] ySamples = function.GetSamplingPoints(1, domainY0, domainY1, defaultFunctionSamples);
 
         int bitmapWidth = Math.Max(1, xSamples.Length);
         int bitmapHeight = Math.Max(1, ySamples.Length);
@@ -70,7 +73,7 @@ internal partial class PdfShadingBuilder
             {
                 float domainX = xSamples[xIndex];
                 var comps = function.Evaluate([domainX, domainY]);
-                SKColor color = converter.ToSrgb(comps, state.RenderingIntent, state.FullTransferFunction);
+                SKColor color = converter.ToSrgb(comps, renderingIntent, fullTransferFunction);
                 pixelColors[yIndex * bitmapWidth + xIndex] = color;
             }
         }
@@ -86,16 +89,13 @@ internal partial class PdfShadingBuilder
         pixelToDomain = SKMatrix.Concat(SKMatrix.CreateTranslation(translateX, translateY), pixelToDomain);
 
         var matrixArray = shading.SourceObject.Dictionary.GetArray(PdfTokens.MatrixKey);
-        var matrix = PdfLocationUtilities.CreateMatrix(matrixArray);
+        var shadingMatrix = PdfLocationUtilities.CreateMatrix(matrixArray);
 
         // Concatenate with shading.Matrix if present
-        SKMatrix finalMatrix = matrix.HasValue
-            ? SKMatrix.Concat(matrix.Value, pixelToDomain)
+        SKMatrix finalMatrix = shadingMatrix.HasValue
+            ? SKMatrix.Concat(shadingMatrix.Value, pixelToDomain)
             : pixelToDomain;
 
-        processor.Process(new SaveStateCommand());
-        processor.Process(new ConcatMatrixCommand(finalMatrix));
-        processor.Process(new DrawBitmapCommand(bitmap));
-        processor.Process(new RestoreStateCommand());
+        return new FunctionShadingResult(bitmap, finalMatrix);
     }
 }

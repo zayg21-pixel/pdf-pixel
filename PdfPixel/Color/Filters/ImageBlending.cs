@@ -7,11 +7,22 @@ namespace PdfPixel.Color.Filters
     /// </summary>
     internal static class ImageBlending
     {
+        private static readonly SKRuntimeEffect _imageEffect;
         private static readonly SKRuntimeEffect _softMaskEffect;
         private static readonly SKRuntimeEffect _imageMaskEffect;
 
         static ImageBlending()
         {
+            var imageSksl = @"
+                uniform shader image;
+
+                half4 main(float2 coord) {
+                    return image.eval(coord);
+                }
+            ";
+
+            _imageEffect = SKRuntimeEffect.CreateShader(imageSksl, out _);
+
             var softMaskSksl = @"
                 uniform shader image;
                 uniform shader mask;
@@ -48,6 +59,23 @@ namespace PdfPixel.Color.Filters
             // TODO: [HIGH] imageMaskSksl renders incorrectly, background color leaks outside of image!
             _softMaskEffect = SKRuntimeEffect.CreateShader(softMaskSksl, out _);
             _imageMaskEffect = SKRuntimeEffect.CreateShader(imageMaskSksl, out _);
+        }
+
+        /// <summary>
+        /// Creates a simple image shader that samples the given image with specified sampling options.
+        /// </summary>
+        /// <param name="image">The source <see cref="SKImage"/>.</param>
+        /// <param name="sampling">The sampling options for the image.</param>
+        /// <returns>An <see cref="SKShader"/> that samples the image.</returns>
+        public static SKShader CreateImageShader(SKImage image, SKSamplingOptions sampling)
+        {
+            var uniforms = new SKRuntimeEffectUniforms(_imageEffect);
+            var children = new SKRuntimeEffectChildren(_imageEffect)
+            {
+                { "image", image.ToRawShader(SKShaderTileMode.Clamp, SKShaderTileMode.Clamp, sampling, SKMatrix.CreateScale(1 / (float)image.Width, 1 / (float)image.Height)) }
+            };
+
+            return _imageEffect.ToShader(uniforms, children);
         }
 
         /// <summary>

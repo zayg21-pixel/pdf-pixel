@@ -3,7 +3,6 @@ using PdfPixel.Commands;
 using PdfPixel.Models;
 using PdfPixel.Rendering;
 using PdfPixel.Rendering.State;
-using PdfPixel.Shading;
 using PdfPixel.Shading.Model;
 using SkiaSharp;
 
@@ -48,33 +47,35 @@ public sealed class PdfShadingPattern : PdfPattern
     internal override void RenderPattern(IPdfCommandProcessor processor, PdfGraphicsState state, IRenderTarget renderTarget)
     {
         var matrix = SKMatrix.Concat(state.CTM.Invert(), PatternMatrix);
-        var bounds = matrix.Invert().MapRect(renderTarget.ClipPath.Bounds);
-        bool antialias = state.RenderingParameters.AntialiasClip;
 
         var recorder = new PdfCommandRecorder();
 
         recorder.Process(new SaveStateCommand());
-        recorder.Process(new ClipPathCommand(renderTarget.ClipPath, SKClipOperation.Intersect, antialias));
+        recorder.Process(new ClipPathCommand(renderTarget.ClipPath, SKClipOperation.Intersect));
         recorder.Process(new ConcatMatrixCommand(matrix));
 
         if (Shading.BBox.HasValue)
         {
-            recorder.Process(new ClipRectCommand(Shading.BBox.Value, SKClipOperation.Intersect, antialias));
+            recorder.Process(new ClipRectCommand(Shading.BBox.Value, SKClipOperation.Intersect));
         }
 
-        if (Shading.Background != null)
+        if (Shading.Background != null && Shading.BBox.HasValue)
         {
             var colorSpace = state.Page.Cache.ColorSpace.ResolveByObject(Shading.ColorSpaceConverter);
             var backgroundColor = colorSpace.ToSrgb(Shading.Background, state.RenderingIntent, state.FullTransferFunction);
-            var backgroundPaint = PdfPaintFactory.CreateBackgroundPaint(backgroundColor, state);
-            recorder.Process(new DrawRectCommand(backgroundPaint));
+            var backgroundPaint = PdfPaintFactory.CreateBackgroundPaint(backgroundColor);
+
+            using var rectPath = new SKPath();
+            rectPath.AddRect(Shading.BBox.Value);
+
+            recorder.Process(new DrawPathCommand(rectPath, backgroundPaint));
         }
 
-        var shadingBuilder = new PdfShadingBuilder(state.Page.Document.LoggerFactory);
-        shadingBuilder.Build(recorder, Shading, state);
+        var context = new ShadingDecodingContext(state, Shading);
+        recorder.Process(new PdfDrawShadingCommand(Shading, context, state.Page.Document.LoggerFactory));
 
         recorder.Process(new RestoreStateCommand());
 
-        processor.Process(new DrawRecordingCommand(recorder, new DefaultPdfCommandModifier()));
+        processor.Process(new DrawRecordingCommand(recorder));
     }
 }

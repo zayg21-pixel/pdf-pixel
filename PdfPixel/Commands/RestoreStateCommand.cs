@@ -9,7 +9,7 @@ namespace PdfPixel.Commands;
 public sealed class RestoreStateCommand : PdfCommand
 {
     /// <inheritdoc />
-    public override void Execute(SKCanvas canvas, IEnumerable<IPdfCommandModifier> modifiers)
+    public override void Execute(SKCanvas canvas, IEnumerable<IPdfCommandModifier> modifiers, PdfCommandExecutionContext executionContext)
     {
         canvas.Restore();
     }

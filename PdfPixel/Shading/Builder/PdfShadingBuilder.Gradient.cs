@@ -1,8 +1,8 @@
 ﻿using Microsoft.Extensions.Logging;
+using PdfPixel.Color.ColorSpace;
 using PdfPixel.Color.Paint;
-using PdfPixel.Commands;
+using PdfPixel.Color.Transform;
 using PdfPixel.Functions;
-using PdfPixel.Rendering.State;
 using PdfPixel.Shading.Model;
 using SkiaSharp;
 using System;
@@ -14,25 +14,19 @@ namespace PdfPixel.Shading;
 internal partial class PdfShadingBuilder
 {
     /// <summary>
-    /// Builds a command for axial (Type 2) shading using a linear gradient shader.
+    /// Builds an axial (Type 2) gradient paint with a linear gradient shader.
+    /// Returns null if the shading coordinates are invalid.
     /// </summary>
-    /// <param name="processor">The command processor that receives generated commands.</param>
     /// <param name="shading">Parsed shading model.</param>
-    /// <param name="state">Current graphics state.</param>
-    /// <returns><see langword="true"/> if commands were produced; otherwise <see langword="false"/>.</returns>
-    private void BuildAxialCommand(IPdfCommandProcessor processor, PdfShading shading, PdfGraphicsState state)
+    /// <param name="colors">Pre-computed color stops.</param>
+    /// <param name="positions">Pre-computed gradient positions.</param>
+    /// <returns>Paint with gradient shader, or null on failure.</returns>
+    public SKPaint BuildAxialPaint(PdfShading shading, SKColor[] colors, float[] positions)
     {
         if (shading.Coords?.Length != 4)
         {
             _logger.LogWarning("Axial shading requires exactly 4 coordinates");
-            return;
-        }
-
-        BuildShadingColorsAndStops(shading, state, out var colors, out var positions);
-        if (colors == null || colors.Length == 0)
-        {
-            _logger.LogWarning("Axial shading produced no color stops");
-            return;
+            return null;
         }
 
         SKPoint start = new SKPoint(shading.Coords[0], shading.Coords[1]);
@@ -45,26 +39,26 @@ internal partial class PdfShadingBuilder
             positions,
             SKShaderTileMode.Clamp);
 
-        var paint = PdfPaintFactory.CreateShaderPaint(shading.AntiAlias, state);
+        var paint = PdfPaintFactory.CreateShaderPaint();
         paint.Shader = shader;
 
-        processor.Process(new DrawPaintCommand(paint));
+        return paint;
     }
 
     /// <summary>
-    /// Builds commands for radial (Type 3) shading using two-point conical gradients.
-    /// Pushes the reversed inner surface first, then the outer surface.
+    /// Builds radial (Type 3) gradient paints using two-point conical gradients.
+    /// Returns an inner (reversed) and outer paint for the two rendering passes.
     /// </summary>
-    /// <param name="processor">The command processor that receives generated commands.</param>
     /// <param name="shading">Parsed shading model.</param>
-    /// <param name="state">Current graphics state.</param>
-    /// <returns><see langword="true"/> if commands were produced; otherwise <see langword="false"/>.</returns>
-    private void BuildRadialCommand(IPdfCommandProcessor processor, PdfShading shading, PdfGraphicsState state)
+    /// <param name="colors">Pre-computed color stops.</param>
+    /// <param name="positions">Pre-computed gradient positions.</param>
+    /// <returns>A <see cref="RadialShadingPaints"/> with inner and outer paints, or <see langword="null"/> if coordinates are invalid.</returns>
+    public RadialShadingPaints BuildRadialPaints(PdfShading shading, SKColor[] colors, float[] positions)
     {
         if (shading.Coords?.Length != 6)
         {
             _logger.LogWarning("Radial shading requires exactly 6 coordinates");
-            return;
+            return null;
         }
 
         SKPoint center0 = new SKPoint(shading.Coords[0], shading.Coords[1]);
@@ -72,15 +66,7 @@ internal partial class PdfShadingBuilder
         float r0 = shading.Coords[2];
         float r1 = shading.Coords[5];
 
-        BuildShadingColorsAndStops(shading, state, out var colors, out var positions);
-
-        if (colors == null || colors.Length == 0)
-        {
-            _logger.LogWarning("Radial shading produced no color stops");
-            return;
-        }
-
-        // first pass, draw inner surface part
+        // Inner surface (reversed direction)
         SKPoint reversedCenter0 = center1;
         SKPoint reversedCenter1 = center0;
         float reversedR0 = r1;
@@ -94,8 +80,6 @@ internal partial class PdfShadingBuilder
             reversedPositions[i] = 1 - reversedPositions[i];
         }
 
-        var innerPaint = PdfPaintFactory.CreateShaderPaint(shading.AntiAlias, state);
-
         using var reversedShader = SKShader.CreateTwoPointConicalGradient(
             reversedCenter0, reversedR0,
             reversedCenter1, reversedR1,
@@ -103,13 +87,10 @@ internal partial class PdfShadingBuilder
             reversedPositions,
             SKShaderTileMode.Clamp);
 
+        var innerPaint = PdfPaintFactory.CreateShaderPaint();
         innerPaint.Shader = reversedShader;
 
-        processor.Process(new DrawPaintCommand(innerPaint));
-
-        // second pass, draw outer surface part
-        var outerPaint = PdfPaintFactory.CreateShaderPaint(shading.AntiAlias, state);
-
+        // Outer surface
         using var shader = SKShader.CreateTwoPointConicalGradient(
             center0, r0,
             center1, r1,
@@ -117,25 +98,32 @@ internal partial class PdfShadingBuilder
             positions,
             SKShaderTileMode.Clamp);
 
+        var outerPaint = PdfPaintFactory.CreateShaderPaint();
         outerPaint.Shader = shader;
 
-        processor.Process(new DrawPaintCommand(outerPaint));
+        return new RadialShadingPaints(innerPaint, outerPaint);
     }
 
     /// <summary>
-    /// Builds the color and position arrays for a shading, used in gradient creation.
+    /// Builds the color and position arrays for a shading by evaluating its functions
+    /// across the domain range.
     /// </summary>
     /// <param name="shading">Parsed shading model.</param>
+    /// <param name="converter">Resolved color space converter.</param>
+    /// <param name="renderingIntent">Rendering intent for color conversion.</param>
+    /// <param name="fullTransferFunction">Transfer function for color conversion.</param>
+    /// <param name="defaultFunctionSamples">Number of function samples to use.</param>
     /// <param name="colors">Output array of SKColor stops.</param>
     /// <param name="positions">Output array of gradient positions.</param>
-    private void BuildShadingColorsAndStops(
+    public void BuildShadingColorsAndStops(
         PdfShading shading,
-        PdfGraphicsState state,
+        PdfColorSpaceConverter converter,
+        PdfRenderingIntent renderingIntent,
+        IColorTransform fullTransferFunction,
+        int defaultFunctionSamples,
         out SKColor[] colors,
         out float[] positions)
     {
-        var converter = state.Page.Cache.ColorSpace.ResolveByObject(shading.ColorSpaceConverter);
-
         float domainStart = 0f;
         float domainEnd = 1f;
         if (shading.Domain != null && shading.Domain.Length >= 2)
@@ -147,10 +135,8 @@ internal partial class PdfShadingBuilder
         if (shading.Functions.Count > 0)
         {
             PdfFunction primaryFunction = shading.Functions[0];
-            int sampleCount = state.RenderingParameters.PreviewMode
-                ? state.RenderingParameters.PreviewModeFunctionSamples
-                : state.RenderingParameters.DefaultFunctionSamples;
-            float[] sampleXs = primaryFunction.GetSamplingPoints(0, domainStart, domainEnd, sampleCount);
+
+            float[] sampleXs = primaryFunction.GetSamplingPoints(0, domainStart, domainEnd, defaultFunctionSamples);
 
             positions = new float[sampleXs.Length];
             colors = new SKColor[sampleXs.Length];
@@ -166,7 +152,7 @@ internal partial class PdfShadingBuilder
                 float x = sampleXs[i];
                 float t = (x - domainStart) / domainLength;
                 var comps = PdfFunctions.EvaluateColorFunctions(shading.Functions, x);
-                colors[i] = converter.ToSrgb(comps, state.RenderingIntent, state.FullTransferFunction);
+                colors[i] = converter.ToSrgb(comps, renderingIntent, fullTransferFunction);
                 positions[i] = t;
             }
         }

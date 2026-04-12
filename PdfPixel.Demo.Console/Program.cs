@@ -68,8 +68,9 @@ namespace PdfPixel.Console.Demo
                 //"pdfs//5091.Design_MM_Fonts.pdf",
                 //"pdfs//2009science11_12.pdf",
                 //"PDF32000_2008.pdf",
-                "ch14.pdf"
+                //"ch14.pdf"
                 //@"documentS.pdf",
+                "pdfs/BAM.pdf",
                 //@"documentC.pdf",
                 //@"sample.pdf",
                 //"Adyen.pdf",
@@ -177,9 +178,9 @@ namespace PdfPixel.Console.Demo
                         canvas.Clear(SKColors.White);
 
                         // Render the page (this will show transformation debug info)
-                        using (var processor = new SkCanvasCommandProcessor(canvas))
+                        using (var processor = new SkCanvasCommandProcessor(canvas, new PdfCommandExecutionContext(new PdfRenderingParameters(), CancellationToken.None)))
                         {
-                            page.Draw(processor, new PdfRenderingParameters(), CancellationToken.None);
+                            page.Draw(processor, CancellationToken.None);
                         }
 
                         Logger.LogInformation("  === PAGE RENDERING COMPLETE ===");
@@ -232,8 +233,8 @@ namespace PdfPixel.Console.Demo
             canvas.ClipRect(new SKRect(0, 0, pdfPage.CropBox.Width, pdfPage.CropBox.Height));
 
             canvas.Clear(SKColors.White);
-            using var processor = new SkCanvasCommandProcessor(canvas);
-            pdfPage.Draw(processor, new PdfRenderingParameters(), CancellationToken.None);
+            using var processor = new SkCanvasCommandProcessor(canvas, new PdfCommandExecutionContext(new PdfRenderingParameters(), CancellationToken.None));
+            pdfPage.Draw(processor, CancellationToken.None);
 
             canvas.Flush();
             return recorder.EndRecording();

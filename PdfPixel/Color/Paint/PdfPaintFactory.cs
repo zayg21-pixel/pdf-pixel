@@ -1,5 +1,4 @@
-﻿using PdfPixel.Imaging.Model;
-using PdfPixel.Rendering.State;
+﻿using PdfPixel.Rendering.State;
 using PdfPixel.Transparency.Model;
 using SkiaSharp;
 using System;
@@ -15,14 +14,13 @@ public static class PdfPaintFactory
 {
     /// <summary>
     /// Common initialization shared by all paints.
-    /// Sets antialiasing and the blend mode from graphics state.
+    /// Sets the blend mode from graphics state.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static SKPaint CreateBasePaint(PdfGraphicsState state)
     {
         var paint = new SKPaint
         {
-            IsAntialias = state.RenderingParameters.ShouldAnialiaze,
             // Default blend is Normal (SrcOver). Map gstate blend to Skia.
             BlendMode = PdfBlendModeNames.ToSkiaBlendMode(state.BlendMode)
         };
@@ -110,16 +108,32 @@ public static class PdfPaintFactory
     }
 
     /// <summary>
-    /// Layer paint for soft mask.
+    /// Creates a paint for image shader rendering with a specific blend mode.
+    /// Used by lazy image commands that capture blend mode at record time.
+    /// Antialiasing is deferred to command Execute time via <see cref="PdfCommandExecutionContext"/>.
     /// </summary>
-    /// <returns></returns>
+    /// <param name="blendMode">PDF blend mode captured from the graphics state.</param>
+    /// <param name="shader">The image shader to assign.</param>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static SKPaint CreateMaskLayerPaint(PdfGraphicsState state)
+    public static SKPaint CreateImageShaderPaint(PdfBlendMode blendMode, SKShader shader)
     {
         return new SKPaint
         {
-            IsAntialias = state.RenderingParameters.ShouldAnialiaze,
+            BlendMode = PdfBlendModeNames.ToSkiaBlendMode(blendMode),
+            Color = SKColors.White,
+            Shader = shader
         };
+    }
+
+    /// <summary>
+    /// Layer paint for soft mask.
+    /// Antialiasing is deferred to command Execute time via <see cref="PdfCommandExecutionContext"/>.
+    /// </summary>
+    /// <returns></returns>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static SKPaint CreateMaskLayerPaint()
+    {
+        return new SKPaint();
     }
 
     /// <summary>
@@ -136,41 +150,40 @@ public static class PdfPaintFactory
 
     /// <summary>
     /// Creates default background paint.
+    /// Antialiasing is deferred to command Execute time via <see cref="PdfCommandExecutionContext"/>.
     /// </summary>
     /// <param name="background">Background color.</param>
     /// <returns></returns>
-    public static SKPaint CreateBackgroundPaint(SKColor background, PdfGraphicsState state)
+    public static SKPaint CreateBackgroundPaint(SKColor background)
     {
         return new SKPaint
         {
-            IsAntialias = state.RenderingParameters.ShouldAnialiaze,
             Style = SKPaintStyle.Fill,
             Color = background
         };
     }
 
     /// <summary>
-    /// Create paint for mask application (DstIn blend mode)
+    /// Create paint for mask application (DstIn blend mode).
+    /// Antialiasing is deferred to command Execute time via <see cref="PdfCommandExecutionContext"/>.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static SKPaint CreateMaskPaint(PdfGraphicsState state)
+    public static SKPaint CreateMaskPaint()
     {
         return new SKPaint
         {
-            IsAntialias = state.RenderingParameters.ShouldAnialiaze,
             BlendMode = SKBlendMode.DstIn,
         };
     }
 
     /// <summary>
-    /// Creates a basic shader paint with white color and specified antialiasing.
+    /// Creates a basic shader paint with fill style.
+    /// Antialiasing is deferred to command Execute time via <see cref="PdfCommandExecutionContext"/>.
     /// </summary>
-    /// <param name="antiAliasHint">If true, enables antialiasing.</param>
-    public static SKPaint CreateShaderPaint(bool antiAliasHint, PdfGraphicsState state)
+    public static SKPaint CreateShaderPaint()
     {
         return new SKPaint
         {
-            IsAntialias = antiAliasHint || state.RenderingParameters.ShouldAnialiaze,
             Style = SKPaintStyle.Fill,
         };
     }
@@ -185,26 +198,6 @@ public static class PdfPaintFactory
         paint.Color = ApplyAlpha(SKColors.Black, state.FillAlpha);
 
         return paint;
-    }
-
-    /// <summary>
-    /// Return Skia sampling options for image and mask rendering based on the PDF image /Interpolate flag
-    /// and image type.
-    /// </summary>
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static SKSamplingOptions GetImageSamplingOptions(PdfImage image, PdfGraphicsState state)
-    {
-        if (state.RenderingParameters.GetScaledSize(new SKSizeI(image.Width, image.Height), state.CTM).HasValue || state.RenderingParameters.IsType3Rendering)
-        {
-            return new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.Linear);
-        }
-
-        if (image.Interpolate)
-        {
-            return new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.Linear);
-        }
-
-        return new SKSamplingOptions(SKFilterMode.Nearest, SKMipmapMode.None);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]

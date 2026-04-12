@@ -1,12 +1,15 @@
 ﻿using Microsoft.Extensions.Logging;
+using PdfPixel.Color.Filters;
+using PdfPixel.Color.Transform;
 using PdfPixel.Imaging.Jpx.Decoding;
 using PdfPixel.Imaging.Jpx.Model;
 using PdfPixel.Imaging.Jpx.Parsing;
 using PdfPixel.Imaging.Model;
 using PdfPixel.Imaging.Processing;
-using PdfPixel.Rendering.State;
+using PdfPixel.Models;
 using SkiaSharp;
 using System;
+using System.Threading;
 
 namespace PdfPixel.Imaging.Decoding;
 
@@ -26,7 +29,12 @@ public class JpxImageDecoder : PdfImageDecoder
     {
     }
 
-    public override SKImage Decode(PdfGraphicsState state)
+    public override SKImage Decode(
+        PdfRenderingParameters renderingParameters,
+        SKMatrix ctm,
+        IColorTransform fullTransferFunction,
+        bool isType3Rendering,
+        CancellationToken cancellationToken)
     {
         if (!ValidateImageParameters())
         {
@@ -43,7 +51,7 @@ public class JpxImageDecoder : PdfImageDecoder
 
         try
         {
-            return DecodeInternal(encodedImageData, state);
+            return DecodeInternal(encodedImageData, renderingParameters, ctm, fullTransferFunction, isType3Rendering, cancellationToken);
         }
         catch (Exception ex)
         {
@@ -55,7 +63,13 @@ public class JpxImageDecoder : PdfImageDecoder
     /// <summary>
     /// Decode using custom JPX implementation with tile-to-row conversion.
     /// </summary>
-    private SKImage DecodeInternal(ReadOnlyMemory<byte> encoded, PdfGraphicsState state)
+    private SKImage DecodeInternal(
+        ReadOnlyMemory<byte> encoded,
+        PdfRenderingParameters renderingParameters,
+        SKMatrix ctm,
+        IColorTransform fullTransferFunction,
+        bool isType3Rendering,
+        CancellationToken cancellationToken)
     {
         // Parse JPX header
         JpxHeader header;
@@ -109,7 +123,7 @@ public class JpxImageDecoder : PdfImageDecoder
             using var rowProvider = jpxDecoder.Decode(header, codestreamData);
             
             // Stream decoded data through PdfImageRowProcessor
-            return ProcessWithRowProvider(rowProvider, state);
+            return ProcessWithRowProvider(rowProvider, renderingParameters, ctm, fullTransferFunction, isType3Rendering, cancellationToken);
         }
         catch (NotImplementedException)
         {
@@ -122,13 +136,20 @@ public class JpxImageDecoder : PdfImageDecoder
     /// <summary>
     /// Process decoded JPX data using the existing PDF image row processor.
     /// </summary>
-    private SKImage ProcessWithRowProvider(IJpxRowProvider rowProvider, PdfGraphicsState state)
+    private SKImage ProcessWithRowProvider(
+        IJpxRowProvider rowProvider,
+        PdfRenderingParameters renderingParameters,
+        SKMatrix ctm,
+        IColorTransform fullTransferFunction,
+        bool isType3Rendering,
+        CancellationToken cancellationToken)
     {
         PdfImageRowProcessor rowProcessor = null;
 
         try
         {
-            rowProcessor = new PdfImageRowProcessor(Image, LoggerFactory.CreateLogger<PdfImageRowProcessor>(), state);
+            rowProcessor = new PdfImageRowProcessor(Image, LoggerFactory.CreateLogger<PdfImageRowProcessor>(),
+                renderingParameters, ctm, fullTransferFunction, isType3Rendering, cancellationToken);
             rowProcessor.InitializeBuffer();
 
             Span<byte> rowBuffer = new byte[rowProvider.Width * rowProvider.ComponentCount];

@@ -19,9 +19,10 @@ public sealed class DrawTextBlobCommand : PdfCommand
     }
 
     /// <inheritdoc />
-    public override void Execute(SKCanvas canvas, IEnumerable<IPdfCommandModifier> modifiers)
+    public override void Execute(SKCanvas canvas, IEnumerable<IPdfCommandModifier> modifiers, PdfCommandExecutionContext executionContext)
     {
         using var paint = _basePaint.Clone();
+        paint.IsAntialias = executionContext.RenderingParameters.Antialias;
         foreach (var modifier in modifiers)
         {
             modifier.ModifyPaint(paint);

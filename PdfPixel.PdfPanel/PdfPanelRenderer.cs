@@ -227,9 +227,9 @@ internal sealed class PdfPanelRenderer
         processor.Process(new ConcatMatrixCommand(SKMatrix.CreateScale(1, -1)));
     }
 
-    public PdfCommandRecorder GetRecording(int pageNumber, double scale, CancellationToken token)
+    public PdfCommandRecorder GetRecording(int pageNumber, CancellationToken token)
     {
-        return GetRecordingInternal(pageNumber, scale, previewMode: false, token);
+        return GetRecordingInternal(pageNumber, token);
     }
 
     public PdfCommandRecorder GetAnnotationRecording(
@@ -249,13 +249,10 @@ internal sealed class PdfPanelRenderer
         var visualStateKind = ConvertToVisualStateKind(pointerState);
 
         var recorder = new PdfCommandRecorder();
-        recorder.Process(new ClipRectCommand(
-            new SKRect(0, 0, pdfPage.CropBox.Width, pdfPage.CropBox.Height),
-            SKClipOperation.Intersect, false));
 
         ApplyPageTransformations(recorder, pdfPage);
 
-        var parameters = new PdfRenderingParameters { ScaleFactor = (float)scale, PreviewMode = false };
+        var parameters = new PdfRenderingParameters { ScaleFactor = (float)scale };
         pdfPage.RenderAnnotations(recorder, parameters, activeAnnotation, visualStateKind, token);
 
         return recorder;
@@ -301,9 +298,20 @@ internal sealed class PdfPanelRenderer
         };
     }
 
-    public SKImage GetThumbnail(int pageNumber, SKSurface surface)
+    /// <summary>
+    /// Generates a low-resolution thumbnail by replaying the provided recording
+    /// onto the given surface at a reduced scale.
+    /// </summary>
+    /// <param name="pageNumber">1-based page number for geometry lookup.</param>
+    /// <param name="recording">Page-content recording to replay.</param>
+    /// <param name="surface">Target surface to draw the thumbnail into.</param>
+    /// <returns>A snapshot of the drawn thumbnail, or null on failure.</returns>
+    public SKImage GetThumbnail(
+        int pageNumber,
+        PdfCommandRecorder recording,
+        SKSurface surface)
     {
-        if (surface == null)
+        if (surface == null || recording == null)
         {
             return null;
         }
@@ -321,16 +329,17 @@ internal sealed class PdfPanelRenderer
             canvas.Scale((float)scale);
             canvas.ClipRect(new SKRect(0, 0, pdfPage.CropBox.Width, pdfPage.CropBox.Height));
 
-            ApplyPageTransformations(canvas, pdfPage);
-
             var parameters = new PdfRenderingParameters
             {
                 ScaleFactor = (float)scale,
-                PreviewMode = true
+                MaxTessellationVertices = 8,
+                DefaultFunctionSamples = 8,
+                Antialias = false
             };
 
-            using var processor = new SkCanvasCommandProcessor(canvas);
-            pdfPage.Draw(processor, parameters, CancellationToken.None);
+            var executionContext = new PdfCommandExecutionContext(parameters, CancellationToken.None);
+            recording.Replay(canvas, Array.Empty<IPdfCommandModifier>(), executionContext);
+
             canvas.Restore();
             canvas.Flush();
 
@@ -344,19 +353,18 @@ internal sealed class PdfPanelRenderer
         }
     }
 
-    private PdfCommandRecorder GetRecordingInternal(int pageNumber, double scale, bool previewMode, CancellationToken token)
+    private PdfCommandRecorder GetRecordingInternal(int pageNumber, CancellationToken token)
     {
         var pdfPage = document.Pages[pageNumber - 1];
 
         var recorder = new PdfCommandRecorder();
         recorder.Process(new ClipRectCommand(
             new SKRect(0, 0, pdfPage.CropBox.Width, pdfPage.CropBox.Height),
-            SKClipOperation.Intersect, false));
+            SKClipOperation.Intersect));
 
         ApplyPageTransformations(recorder, pdfPage);
 
-        var parameters = new PdfRenderingParameters { ScaleFactor = (float)scale, PreviewMode = previewMode };
-        pdfPage.Draw(recorder, parameters, token);
+        pdfPage.Draw(recorder, token);
 
         return recorder;
     }

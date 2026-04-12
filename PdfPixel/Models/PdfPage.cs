@@ -112,9 +112,8 @@ public class PdfPage
     /// Render the page content via the command processor.
     /// </summary>
     /// <param name="processor">The command processor to emit drawing commands to.</param>
-    /// <param name="renderingParameters">Rendering parameters for rendering in defined canvas.</param>
     /// <param name="token">Rendering cancellation token.</param>
-    public void Draw(IPdfCommandProcessor processor, PdfRenderingParameters renderingParameters, CancellationToken token)
+    public void Draw(IPdfCommandProcessor processor, CancellationToken token)
     {
         if (processor == null)
         {
@@ -128,7 +127,7 @@ public class PdfPage
         var renderer = new PdfRenderer(Document.LoggerFactory);
         var contentRenderer = new PdfContentStreamRenderer(renderer, this);
 
-        contentRenderer.RenderContent(processor, renderingParameters, token);
+        contentRenderer.RenderContent(processor, token);
     }
 
     /// <summary>
@@ -173,8 +172,9 @@ public class PdfPage
         var textExtractor = new PdfTextExtractionRenderer();
 
         var contentRenderer = new PdfContentStreamRenderer(textExtractor, this);
-        using var processor = new SkCanvasCommandProcessor(canvas);
-        contentRenderer.RenderContent(processor, new PdfRenderingParameters(), CancellationToken.None);
+        var executionContext = new PdfCommandExecutionContext(new PdfRenderingParameters(), CancellationToken.None);
+        using var processor = new SkCanvasCommandProcessor(canvas, executionContext);
+        contentRenderer.RenderContent(processor, CancellationToken.None);
 
         return textExtractor.PageCharacters;
     }

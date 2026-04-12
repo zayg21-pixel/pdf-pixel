@@ -10,18 +10,16 @@ public sealed class ClipRectCommand : PdfCommand
 {
     private readonly SKRect _rect;
     private readonly SKClipOperation _operation;
-    private readonly bool _antialias;
 
-    public ClipRectCommand(SKRect rect, SKClipOperation operation, bool antialias)
+    public ClipRectCommand(SKRect rect, SKClipOperation operation)
     {
         _rect = rect;
         _operation = operation;
-        _antialias = antialias;
     }
 
     /// <inheritdoc />
-    public override void Execute(SKCanvas canvas, IEnumerable<IPdfCommandModifier> modifiers)
+    public override void Execute(SKCanvas canvas, IEnumerable<IPdfCommandModifier> modifiers, PdfCommandExecutionContext executionContext)
     {
-        canvas.ClipRect(_rect, _operation, _antialias);
+        canvas.ClipRect(_rect, _operation, antialias: executionContext.RenderingParameters.Antialias);
     }
 }

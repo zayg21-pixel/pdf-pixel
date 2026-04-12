@@ -126,7 +126,7 @@ public class PdfTextRenderer : IPdfTextRenderer
             if (charInfo.IsDefined)
             {
                 IPdfCommandModifier modifier = charInfo.IsColored
-                    ? new DefaultPdfCommandModifier()
+                    ? default
                     : new UncoloredPaintModifier(state.FillPaint.Color);
 
                 processor.Process(new SaveStateCommand());

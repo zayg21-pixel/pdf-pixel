@@ -1,5 +1,7 @@
 ﻿using Microsoft.Extensions.Logging;
 using PdfPixel.Color.ColorSpace;
+using PdfPixel.Color.Filters;
+using PdfPixel.Color.Transform;
 using PdfPixel.Imaging.Jpg.Color;
 using PdfPixel.Imaging.Jpg.Decoding;
 using PdfPixel.Imaging.Jpg.Model;
@@ -7,9 +9,10 @@ using PdfPixel.Imaging.Jpg.Readers;
 using PdfPixel.Imaging.Model;
 using PdfPixel.Imaging.Processing;
 using PdfPixel.Imaging.Skia;
-using PdfPixel.Rendering.State;
+using PdfPixel.Models;
 using SkiaSharp;
 using System;
+using System.Threading;
 
 namespace PdfPixel.Imaging.Decoding;
 
@@ -30,18 +33,16 @@ public sealed class JpegImageDecoder : PdfImageDecoder
     /// Decode the JPEG image returning an <see cref="SKImage"/> or null on failure (errors are logged).
     /// Attempts custom streaming decode first; falls back to Skia's built‑in decoder if custom path fails.
     /// </summary>
-    public override SKImage Decode(PdfGraphicsState state)
+    public override SKImage Decode(
+        PdfRenderingParameters renderingParameters,
+        SKMatrix ctm,
+        IColorTransform fullTransferFunction,
+        bool isType3Rendering,
+        CancellationToken cancellationToken)
     {
         if (!ValidateImageParameters())
         {
             return null;
-        }
-
-        var skiaJpg = JpgSkiaDecoder.DecodeAsJpg(Image);
-
-        if (skiaJpg != null)
-        {
-            return skiaJpg;
         }
 
         ReadOnlyMemory<byte> encodedImageData = Image.GetImageData();
@@ -52,14 +53,20 @@ public sealed class JpegImageDecoder : PdfImageDecoder
             return null;
         }
 
-        return DecodeInternal(encodedImageData, state);
+        return DecodeInternal(encodedImageData, renderingParameters, ctm, fullTransferFunction, isType3Rendering, cancellationToken);
     }
 
     /// <summary>
     /// Decode using custom streaming pipeline. Throws on failure.
     /// Row data is streamed row-by-row directly into a <see cref="PdfImageRowProcessor"/> without allocating a full intermediate buffer.
     /// </summary>
-    private SKImage DecodeInternal(ReadOnlyMemory<byte> encoded, PdfGraphicsState state)
+    private SKImage DecodeInternal(
+        ReadOnlyMemory<byte> encoded,
+        PdfRenderingParameters renderingParameters,
+        SKMatrix ctm,
+        IColorTransform fullTransferFunction,
+        bool isType3Rendering,
+        CancellationToken cancellationToken)
     {
         JpgHeader header;
         try
@@ -111,7 +118,8 @@ public sealed class JpegImageDecoder : PdfImageDecoder
 
         try
         {
-            rowProcessor = new PdfImageRowProcessor(Image, LoggerFactory.CreateLogger<PdfImageRowProcessor>(), state);
+            rowProcessor = new PdfImageRowProcessor(Image, LoggerFactory.CreateLogger<PdfImageRowProcessor>(),
+                renderingParameters, ctm, fullTransferFunction, isType3Rendering, cancellationToken);
             rowProcessor.InitializeBuffer();
 
             Span<byte> rowBuffer = new byte[rowStride];

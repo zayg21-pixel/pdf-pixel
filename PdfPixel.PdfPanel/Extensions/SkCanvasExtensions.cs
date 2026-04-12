@@ -1,8 +1,11 @@
 ﻿using PdfPixel.Commands;
+using PdfPixel.Models;
 using PdfPixel.PdfPanel.Requests;
 using SkiaSharp;
 using System;
+using System.Collections;
 using System.Linq;
+using System.Threading;
 
 namespace PdfPixel.PdfPanel.Extensions;
 
@@ -20,7 +23,7 @@ internal enum PageDrawFlags
 /// </summary>
 internal static class SkCanvasExtensions
 {
-    public static void DrawPageFromRequest(this SKCanvas canvas, int pageNumber, PagesDrawingRequest request, PageDrawFlags drawFlags)
+    public static void DrawPageFromRequest(this SKCanvas canvas, int pageNumber, PagesDrawingRequest request, PageDrawFlags drawFlags, CancellationToken cancellationToken)
     {
         if (!request.VisiblePages.Any(x => x.PageNumber == pageNumber))
         {
@@ -30,51 +33,57 @@ internal static class SkCanvasExtensions
         var page = request.VisiblePages.First(x => x.PageNumber == pageNumber);
 
         int savedPageCount = canvas.Save();
-        canvas.Scale((float)request.Scale, (float)request.Scale);
-        canvas.Translate((float)page.Offset.X, (float)page.Offset.Y);
-
-        if (drawFlags.HasFlag(PageDrawFlags.Shadow))
+        try
         {
-            DrawPageShadow(canvas, page, request.RenderingParameters.Antialias, request.PageCornerRadius);
+            canvas.Scale((float)request.Scale, (float)request.Scale);
+            canvas.Translate((float)page.Offset.X, (float)page.Offset.Y);
+
+            if (drawFlags.HasFlag(PageDrawFlags.Shadow))
+            {
+                DrawPageShadow(canvas, page, request.RenderingParameters.Antialias, request.PageCornerRadius);
+            }
+
+            if (drawFlags.HasFlag(PageDrawFlags.Background))
+            {
+                DrawPageBackground(canvas, page, request.RenderingParameters.Antialias, request.PageCornerRadius);
+            }
+
+            var pageRectangle = new SKRect(0, 0, page.RotatedSize.Width, page.RotatedSize.Height);
+
+            if (request.PageCornerRadius > 0)
+            {
+                using var clipPath = new SKPath();
+                clipPath.AddRoundRect(pageRectangle, request.PageCornerRadius, request.PageCornerRadius);
+                canvas.ClipPath(clipPath, SKClipOperation.Intersect, antialias: request.RenderingParameters.Antialias);
+            }
+
+            // TODO: [HIGH] this consume extra resources and so far commented out. Need to find a way to render on top of white background without SaveLayer.
+            //canvas.SaveLayer(pageRectangle, default);
+            //canvas.Clear();
+
+            if (!request.Pages.TryGetPictureFromCache(page.PageNumber, out var picture))
+            {
+                return;
+            }
+
+            if (drawFlags.HasFlag(PageDrawFlags.Thumbnail))
+            {
+                DrawCachedThumbnail(canvas, picture, page);
+            }
+
+            if (drawFlags.HasFlag(PageDrawFlags.Content))
+            {
+                DrawCachedPicture(canvas, picture, page, request.RenderingParameters, cancellationToken);
+                DrawCachedAnnotationPicture(canvas, picture, page, request.RenderingParameters, cancellationToken);
+            }
         }
-
-        if (drawFlags.HasFlag(PageDrawFlags.Background))
-        {
-            DrawPageBackground(canvas, page, request.RenderingParameters.Antialias, request.PageCornerRadius);
-        }
-
-        var pageRectangle = new SKRect(0, 0, page.RotatedSize.Width, page.RotatedSize.Height);
-
-        if (request.PageCornerRadius > 0)
-        {
-            using var clipPath = new SKPath();
-            clipPath.AddRoundRect(pageRectangle, request.PageCornerRadius, request.PageCornerRadius);
-            canvas.ClipPath(clipPath, SKClipOperation.Intersect, antialias: request.RenderingParameters.Antialias);
-        }
-
-        canvas.SaveLayer(pageRectangle, default);
-
-        if (!request.Pages.TryGetPictureFromCache(page.PageNumber, out var picture))
+        finally
         {
             canvas.RestoreToCount(savedPageCount);
-            return;
         }
-
-        if (drawFlags.HasFlag(PageDrawFlags.Thumbnail))
-        {
-            DrawCachedThumbnail(canvas, picture, page);
-        }
-
-        if (drawFlags.HasFlag(PageDrawFlags.Content))
-        {
-            DrawCachedPicture(canvas, picture, page);
-            DrawCachedAnnotationPicture(canvas, picture, page);
-        }
-
-        canvas.RestoreToCount(savedPageCount);
     }
 
-    private static void DrawCachedPicture(SKCanvas canvas, CachedSkPicture picture, VisiblePageInfo page)
+    private static void DrawCachedPicture(SKCanvas canvas, CachedSkPicture picture, VisiblePageInfo page, PdfRenderingParameters renderingParameters, CancellationToken cancellationToken)
     {
         lock (picture.DisposeLocker)
         {
@@ -85,17 +94,22 @@ internal static class SkCanvasExtensions
 
             // Recordings are at scale 1 (page coordinate space).
             var transformMatrix = GetPictureTransformMatrix(page.Info.Width, page.Info.Height, page.Info, page.UserRotation);
-            canvas.Save();
-            canvas.Concat(in transformMatrix);
+            int saveCount = canvas.Save();
+            try
+            {
+                canvas.Concat(in transformMatrix);
 
-            using var modifier = new DefaultPdfCommandModifier();
-            picture.Recording.Replay(canvas, [modifier]);
-
-            canvas.Restore();
+                var executionContext = new PdfCommandExecutionContext(renderingParameters, cancellationToken);
+                picture.Recording.Replay(canvas, Array.Empty<IPdfCommandModifier>(), executionContext);
+            }
+            finally
+            {
+                canvas.RestoreToCount(saveCount);
+            }
         }
     }
 
-    private static void DrawCachedAnnotationPicture(SKCanvas canvas, CachedSkPicture picture, VisiblePageInfo page)
+    private static void DrawCachedAnnotationPicture(SKCanvas canvas, CachedSkPicture picture, VisiblePageInfo page, PdfRenderingParameters renderingParameters, CancellationToken cancellationToken)
     {
         lock (picture.DisposeLocker)
         {
@@ -106,13 +120,18 @@ internal static class SkCanvasExtensions
 
             // Recordings are at scale 1 (page coordinate space).
             var transformMatrix = GetPictureTransformMatrix(page.Info.Width, page.Info.Height, page.Info, page.UserRotation);
-            canvas.Save();
-            canvas.Concat(in transformMatrix);
+            int saveCount = canvas.Save();
+            try
+            {
+                canvas.Concat(in transformMatrix);
 
-            using var modifier = new DefaultPdfCommandModifier();
-            picture.AnnotationRecording.Replay(canvas, [modifier]);
-
-            canvas.Restore();
+                var executionContext = new PdfCommandExecutionContext(renderingParameters, cancellationToken);
+                picture.AnnotationRecording.Replay(canvas, Array.Empty<IPdfCommandModifier>(), executionContext);
+            }
+            finally
+            {
+                canvas.RestoreToCount(saveCount);
+            }
         }
     }
 
@@ -224,7 +243,7 @@ internal static class SkCanvasExtensions
             Style = SKPaintStyle.Fill,
             Color = SKColors.White,
             IsAntialias = antialias,
-            //BlendMode = SKBlendMode.SrcIn
+            //BlendMode = SKBlendMode.DstOver
         };
 
         if (cornerRadius > 0)

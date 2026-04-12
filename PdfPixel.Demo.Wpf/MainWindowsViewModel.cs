@@ -125,6 +125,7 @@ public class MainWindowsViewModel : ObservableObject
 
     private void OnAfterDraw(SKCanvas canvas, DrawingRequest request)
     {
+        return;
         // TODO: add as result of page rendering
         //using var paint = new SKPaint
         //{

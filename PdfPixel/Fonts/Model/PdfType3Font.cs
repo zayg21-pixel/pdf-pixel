@@ -129,7 +129,10 @@ public class PdfType3Font : PdfSingleByteFont
 
         var (advancement, boundingBox) = ParseMetrics(parseContext);
 
-        var charState = new PdfGraphicsState(glyphPage, sourceState.RecursionGuard, new PdfRenderingParameters { IsType3Rendering = true }, default, default);
+        var charState = new PdfGraphicsState(glyphPage, sourceState.RecursionGuard, default, default)
+        {
+            IsType3Rendering = true
+        };
 
         recorder.Process(new SaveStateCommand());
         contentRenderer.RenderContext(recorder, ref parseContext, charState);

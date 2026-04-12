@@ -248,7 +248,7 @@ public class PathOperators : IOperatorProcessor
             return;
         }
         _currentPath.FillType = fillType;
-        _processor.Process(new ClipPathCommand(_currentPath, SKClipOperation.Intersect, graphicsState.RenderingParameters.AntialiasClip));
+        _processor.Process(new ClipPathCommand(_currentPath, SKClipOperation.Intersect));
         _currentPath.Reset();
     }
 

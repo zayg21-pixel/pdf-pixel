@@ -1,5 +1,4 @@
 using System;
-using PdfPixel.Color.Filters;
 using PdfPixel.Color.Paint;
 using PdfPixel.Color.Transform;
 using PdfPixel.Commands;
@@ -29,6 +28,7 @@ public sealed class SoftMaskDrawingScope : IDisposable
     private readonly PdfGraphicsState _graphicsState;
 
     private SKRect _maskBounds;
+    private SKMatrix _maskMatrix;
     private bool _began;
     private bool _shouldApplyMask;
     private bool _disposed;
@@ -74,13 +74,12 @@ public sealed class SoftMaskDrawingScope : IDisposable
             return;
         }
 
-        // Use the mask form's transformed BBox as tight bounds for both layers.
-        // Content outside the mask region is masked to transparent anyway,
-        // so constraining the layer avoids a full-clip-sized GPU texture.
-        _maskBounds = _softMask.MaskForm.GetTransformedBounds();
+        _maskMatrix = SKMatrix.Concat(_graphicsState.CTM.Invert(), _softMask.MaskForm.Matrix);
+        _maskBounds = _maskMatrix.MapRect(_softMask.MaskForm.BBox);
 
-        var layerPaint = PdfPaintFactory.CreateMaskLayerPaint(_graphicsState);
-        _processor.Process(new SaveLayerCommand(_maskBounds, layerPaint)); // TODO: [HIGH] BAM page 20 is broken again. And 37 either.
+        var layerPaint = PdfPaintFactory.CreateMaskLayerPaint();
+
+        _processor.Process(new SaveLayerCommand(_maskBounds, layerPaint));
     }
 
     /// <summary>
@@ -100,70 +99,70 @@ public sealed class SoftMaskDrawingScope : IDisposable
             return;
         }
 
-        // Layer 2: mask content, composited with DstIn onto the content layer when restored.
-        // For luminosity masks the luma color filter converts the mask RGB → alpha during flatten.
-        var maskLayerPaint = PdfPaintFactory.CreateMaskPaint(_graphicsState);
+        var recorder = new PdfCommandRecorder();
+        recorder.Process(new SaveStateCommand());
+        recorder.Process(new ConcatMatrixCommand(_maskMatrix));
+        recorder.Process(new ClipRectCommand(_softMask.MaskForm.BBox, SKClipOperation.Intersect));
 
-        if (_softMask.Subtype == PdfSoftMaskSubtype.Luminosity)
-        {
-            maskLayerPaint.ColorFilter = SKColorFilter.CreateLumaColor();
-        }
-
-        _processor.Process(new SaveLayerCommand(_maskBounds, maskLayerPaint));
-
-        // Position the mask form.
-        _processor.Process(new ConcatMatrixCommand(_softMask.MaskForm.Matrix));
-
-        // Background for luminosity masks (BC in group color space).
         if (_softMask.Subtype == PdfSoftMaskSubtype.Luminosity)
         {
             var backgroundColor = _softMask.GetBackgroundColor(_graphicsState.RenderingIntent, _graphicsState.FullTransferFunction);
-            var backgroundPaint = PdfPaintFactory.CreateBackgroundPaint(backgroundColor, _graphicsState);
-            _processor.Process(new DrawRectCommand(backgroundPaint));
+            var backgroundPaint = PdfPaintFactory.CreateBackgroundPaint(backgroundColor);
+
+            using var rectPath = new SKPath();
+            rectPath.AddRect(_softMask.MaskForm.BBox);
+
+            recorder.Process(new DrawPathCommand(rectPath, backgroundPaint));
         }
 
-        // Render mask content stream directly into the processor (inside Layer 2).
+        // Render mask content stream into the recorder (isolated from canvas transforms).
         var contentData = _softMask.MaskForm.GetFormData();
         if (!contentData.IsEmpty)
         {
             var softMaskObjectNumber = _softMask.MaskForm.XObject.Reference.ObjectNumber;
-            if (_graphicsState.RecursionGuard.Contains(softMaskObjectNumber))
+            if (!_graphicsState.RecursionGuard.Contains(softMaskObjectNumber))
             {
-                // Prevent infinite recursion — still need to restore both layers.
-                _processor.Process(new RestoreStateCommand());
-                _processor.Process(new RestoreStateCommand());
-                _shouldApplyMask = false;
-                return;
+                _graphicsState.RecursionGuard.Add(softMaskObjectNumber);
+
+                var page = _softMask.MaskForm.GetFormPage();
+
+                var parseContext = new PdfParseContext(contentData);
+                var maskGs = _softMask.Subtype == PdfSoftMaskSubtype.Luminosity
+                    ? SoftMaskUtilities.CreateLuminosityMaskGraphicsState(page, _graphicsState)
+                    : SoftMaskUtilities.CreateAlphaMaskGraphicsState(page, _graphicsState);
+
+                // Use TR from soft mask definition as external transfer function for local GS
+                if (maskGs.ExternalTransferFunction == null)
+                {
+                    maskGs.ExternalTransferFunction = _softMask.TransferFunction;
+                }
+                else
+                {
+                    maskGs.ExternalTransferFunction = new ChainedColorTransform(maskGs.ExternalTransferFunction, _softMask.TransferFunction);
+                }
+
+                maskGs.CTM = _softMask.MaskForm.Matrix;
+
+                var contentRenderer = new PdfContentStreamRenderer(_renderer, page);
+                contentRenderer.RenderContext(recorder, ref parseContext, maskGs);
+
+                _graphicsState.RecursionGuard.Remove(softMaskObjectNumber);
             }
-
-            _graphicsState.RecursionGuard.Add(softMaskObjectNumber);
-
-            var page = _softMask.MaskForm.GetFormPage();
-
-            var parseContext = new PdfParseContext(contentData);
-            var maskGs = _softMask.Subtype == PdfSoftMaskSubtype.Luminosity
-                ? SoftMaskUtilities.CreateLuminosityMaskGraphicsState(page, _graphicsState)
-                : SoftMaskUtilities.CreateAlphaMaskGraphicsState(page, _graphicsState);
-
-            // Use TR from soft mask definition as external transfer function for local GS
-            if (maskGs.ExternalTransferFunction == null)
-            {
-                maskGs.ExternalTransferFunction = _softMask.TransferFunction;
-            }
-            else
-            {
-                maskGs.ExternalTransferFunction = new ChainedColorTransform(maskGs.ExternalTransferFunction, _softMask.TransferFunction);
-            }
-
-            maskGs.CTM = SKMatrix.Concat(_graphicsState.CTM, _softMask.MaskForm.Matrix);
-
-            var contentRenderer = new PdfContentStreamRenderer(_renderer, page);
-            contentRenderer.RenderContext(_processor, ref parseContext, maskGs);
-
-            _graphicsState.RecursionGuard.Remove(softMaskObjectNumber);
         }
 
-        // Restore Layer 2 (DstIn composites mask onto content)
+        recorder.Process(new RestoreStateCommand());
+
+        var maskPaint = PdfPaintFactory.CreateMaskPaint();
+
+        if (_softMask.Subtype == PdfSoftMaskSubtype.Luminosity)
+        {
+            maskPaint.ColorFilter = SKColorFilter.CreateLumaColor();
+        }
+
+        // Position the mask form (matches old _canvas.Concat(Matrix)).
+        _processor.Process(new SaveLayerCommand(_maskBounds, maskPaint));
+
+        _processor.Process(new DrawRecordingCommand(recorder));
         _processor.Process(new RestoreStateCommand());
 
         // Restore Layer 1 (composites masked content onto parent)

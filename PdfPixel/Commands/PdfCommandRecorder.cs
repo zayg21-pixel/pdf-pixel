@@ -41,15 +41,17 @@ public sealed class PdfCommandRecorder : IPdfCommandProcessor
     public SKMatrix TotalMatrix => _totalMatrix;
 
     /// <summary>
-    /// Replays all recorded commands against the specified canvas and modifiers.
+    /// Replays all recorded commands against the specified canvas, modifiers, and execution context.
     /// </summary>
     /// <param name="canvas">The canvas to replay commands onto.</param>
     /// <param name="modifiers">The modifiers to apply during replay, applied in order.</param>
-    public void Replay(SKCanvas canvas, IEnumerable<IPdfCommandModifier> modifiers)
+    /// <param name="executionContext">Execution-time context containing rendering parameters and cancellation.</param>
+    public void Replay(SKCanvas canvas, IEnumerable<IPdfCommandModifier> modifiers, PdfCommandExecutionContext executionContext)
     {
         foreach (var command in _commands)
         {
-            command.Execute(canvas, modifiers);
+            command.Execute(canvas, modifiers, executionContext);
+            executionContext.CancellationToken.ThrowIfCancellationRequested();
         }
     }
 

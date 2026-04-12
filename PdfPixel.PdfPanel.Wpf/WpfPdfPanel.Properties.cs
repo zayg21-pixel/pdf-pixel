@@ -66,9 +66,9 @@ namespace PdfPixel.PdfPanel.Wpf
         }
 
         /// <summary>
-        /// Enables experimental GPU rendering.
+        /// Gets or sets the rendering backend for the panel.
         /// </summary>
-        public bool UseGpuRendering { get; set; } = true;
+        public WpfRenderMode RenderMode { get; set; } = WpfRenderMode.Software;
 
         /// <summary>
         /// Gets or sets the collection of pages.

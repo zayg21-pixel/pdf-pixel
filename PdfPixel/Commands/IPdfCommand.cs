@@ -14,5 +14,6 @@ public interface IPdfCommand : IDisposable
     /// </summary>
     /// <param name="canvas">The canvas to draw on.</param>
     /// <param name="modifiers">The modifiers to apply to paints before drawing, applied in order.</param>
-    void Execute(SKCanvas canvas, IEnumerable<IPdfCommandModifier> modifiers);
+    /// <param name="executionContext">Execution-time context containing rendering parameters and cancellation.</param>
+    void Execute(SKCanvas canvas, IEnumerable<IPdfCommandModifier> modifiers, PdfCommandExecutionContext executionContext);
 }

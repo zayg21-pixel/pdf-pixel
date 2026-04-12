@@ -4,6 +4,7 @@ using PdfPixel.PdfPanel.Extensions;
 using PdfPixel.PdfPanel.Layout;
 using PdfPixel.PdfPanel.Wpf.D3D;
 using PdfPixel.PdfPanel.Wpf.Drawing;
+using PdfPixel.PdfPanel.Wpf.OpenGl;
 using SkiaSharp;
 using System;
 using System.Diagnostics;
@@ -78,16 +79,20 @@ namespace PdfPixel.PdfPanel.Wpf
             var source = PresentationSource.FromVisual(this);
             ((HwndSource)source)?.AddHook(Hook);
 
-            if (UseGpuRendering)
+            switch (RenderMode)
             {
-                D3DImage = new D3DImage();
-                _d3dImageChild = new Image { Source = D3DImage, Stretch = Stretch.Fill };
-                children.Add(_d3dImageChild);
-            }
-            else
-            {
-                DrawingVisual = new DrawingVisual();
-                children.Add(DrawingVisual);
+                case WpfRenderMode.Direct3D:
+                    D3DImage = new D3DImage();
+                    _d3dImageChild = new Image { Source = D3DImage, Stretch = Stretch.Fill };
+                    children.Add(_d3dImageChild);
+                    break;
+
+                case WpfRenderMode.Software:
+                case WpfRenderMode.OpenGl:
+                default:
+                    DrawingVisual = new DrawingVisual();
+                    children.Add(DrawingVisual);
+                    break;
             }
 
             InvalidateVisual();
@@ -200,16 +205,31 @@ namespace PdfPixel.PdfPanel.Wpf
             _renderingQueue?.Dispose();
             _surfaceFactory?.Dispose();
 
-            if (UseGpuRendering)
+            switch (RenderMode)
             {
-                var imageFactory = new D3DImageRenderTargetFactory(D3DImage);
-                _surfaceFactory = imageFactory;
-                _renderTargetFactory = imageFactory;
-            }
-            else
-            {
-                _surfaceFactory = new CpuSkSurfaceFactory(SKColorType.Bgra8888, SKAlphaType.Premul);
-                _renderTargetFactory = new WpfPdfPanelRenderTargetFactory(this);
+                case WpfRenderMode.Direct3D:
+                {
+                    //var imageFactory = new D3DImageRenderTargetFactory(D3DImage, sampleCount: 4);
+                    var imageFactory = new D3DImageSimpleRenderTargetFactory(D3DImage);
+                    _surfaceFactory = imageFactory;
+                    _renderTargetFactory = imageFactory;
+                    break;
+                }
+
+                case WpfRenderMode.OpenGl:
+                {
+                    var glFactory = new OpenGlRenderTargetFactory(this);
+                    _surfaceFactory = glFactory;
+                    _renderTargetFactory = glFactory;
+                    break;
+                }
+
+                default:
+                {
+                    _surfaceFactory = new CpuSkSurfaceFactory(SKColorType.Bgra8888, SKAlphaType.Premul);
+                    _renderTargetFactory = new WpfPdfPanelRenderTargetFactory(this);
+                    break;
+                }
             }
 
             _renderingQueue = new PdfRenderingQueue(new NullLoggerFactory(), _surfaceFactory);

@@ -115,7 +115,8 @@ public sealed class PdfPanelPageCollection : ReadOnlyCollection<PdfPanelPage>, I
         float scale,
         SKSurface thumbnailSurface,
         PdfAnnotationPopup activeAnnotationPopup,
-        PdfPanelPointerState activeAnnotationState)
+        PdfPanelPointerState activeAnnotationState,
+        CancellationToken token)
     {
         if (!pictureCache.TryGetValue(pageNumber, out CachedSkPicture cachedPicture))
         {
@@ -125,11 +126,11 @@ public sealed class PdfPanelPageCollection : ReadOnlyCollection<PdfPanelPage>, I
                 hasAnnotations = newPage.Popups.Length > 0;
             }
 
-            SKImage thumbnailPicture = Renderer.GetThumbnail(pageNumber, thumbnailSurface);
+            var recording = Renderer.GetRecording(pageNumber, token);
+            SKImage thumbnailPicture = Renderer.GetThumbnail(pageNumber, recording, thumbnailSurface);
 
-            cachedPicture = new CachedSkPicture(thumbnailPicture, pageNumber, hasAnnotations)
+            cachedPicture = new CachedSkPicture(recording, thumbnailPicture, pageNumber, hasAnnotations)
             {
-                Scale = scale,
                 ActiveAnnotationState = PdfPanelPointerState.None
             };
 
@@ -145,8 +146,6 @@ public sealed class PdfPanelPageCollection : ReadOnlyCollection<PdfPanelPage>, I
                 }
             }
         }
-
-        bool scaleChanged = Math.Abs(cachedPicture.Scale - scale) != 0;
 
         PdfAnnotationBase pageActiveAnnotation = null;
         PdfPanelPointerState pointerState = PdfPanelPointerState.None;
@@ -167,16 +166,10 @@ public sealed class PdfPanelPageCollection : ReadOnlyCollection<PdfPanelPage>, I
         bool annotationChanged = cachedPicture.ActiveAnnotation != pageActiveAnnotation;
         bool stateChangedWithinAnnotation = cachedPicture.ActiveAnnotationState != pointerState && pageActiveAnnotation != null;
 
-        cachedPicture.Scale = scale;
         cachedPicture.ActiveAnnotationState = pointerState;
         cachedPicture.ActiveAnnotation = pageActiveAnnotation;
 
-        if (scaleChanged)
-        {
-            cachedPicture.UpdateRecording(null);
-            cachedPicture.UpdateAnnotationRecording(null);
-        }
-        else if (annotationChanged || stateChangedWithinAnnotation)
+        if (annotationChanged || stateChangedWithinAnnotation)
         {
             cachedPicture.UpdateAnnotationRecording(null);
         }
@@ -184,18 +177,14 @@ public sealed class PdfPanelPageCollection : ReadOnlyCollection<PdfPanelPage>, I
         return cachedPicture;
     }
 
-    internal CachedSkPicture GeneratePicturesForPage(int pageNumber, CancellationToken token)
+    internal CachedSkPicture GeneratePicturesForPage(int pageNumber, float scale, CancellationToken token)
     {
         var cachedPicture = GetCachedPicture(pageNumber);
 
-        if (cachedPicture.Recording == null)
-        {
-            cachedPicture.UpdateRecording(Renderer.GetRecording(pageNumber, cachedPicture.Scale, token));
-        }
-
         if (cachedPicture.AnnotationRecording == null)
         {
-            cachedPicture.UpdateAnnotationRecording(Renderer.GetAnnotationRecording(pageNumber, cachedPicture.Scale, cachedPicture.ActiveAnnotation, cachedPicture.ActiveAnnotationState, token));
+            cachedPicture.UpdateAnnotationRecording(
+                Renderer.GetAnnotationRecording(pageNumber, scale, cachedPicture.ActiveAnnotation, cachedPicture.ActiveAnnotationState, token));
         }
 
         return cachedPicture;

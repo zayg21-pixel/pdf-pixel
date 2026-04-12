@@ -43,7 +43,7 @@ public class FormRenderer : IFormRenderer
         processor.Process(new ConcatMatrixCommand(formXObject.Matrix));
 
         // Clip to /BBox
-        processor.Process(new ClipRectCommand(formXObject.BBox, SKClipOperation.Intersect, graphicsState.RenderingParameters.AntialiasClip));
+        processor.Process(new ClipRectCommand(formXObject.BBox, SKClipOperation.Intersect));
 
         if (formXObject.TransparencyGroup != null)
         {

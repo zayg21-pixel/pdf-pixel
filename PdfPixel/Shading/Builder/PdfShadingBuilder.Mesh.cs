@@ -1,14 +1,11 @@
 ﻿using Microsoft.Extensions.Logging;
-using PdfPixel.Color.Paint;
-using PdfPixel.Commands;
-using PdfPixel.Rendering.State;
+using PdfPixel.Color.Sampling;
 using PdfPixel.Shading.Builder;
 using PdfPixel.Shading.Decoding;
 using PdfPixel.Shading.Model;
 using SkiaSharp;
 using System;
 using System.Collections.Generic;
-using System.Runtime.CompilerServices;
 
 namespace PdfPixel.Shading;
 
@@ -18,20 +15,20 @@ namespace PdfPixel.Shading;
 internal partial class PdfShadingBuilder
 {
     /// <summary>
-    /// Builds a command for Gouraud-shaded triangle mesh (Type 4 and Type 5).
+    /// Builds Gouraud-shaded triangle mesh vertices (Type 4 and Type 5).
+    /// Returns null if no triangles are decoded.
     /// </summary>
-    /// <param name="processor">The command processor that receives generated commands.</param>
     /// <param name="shading">Parsed shading model.</param>
-    /// <param name="state">Current graphics state.</param>
-    /// <returns><see langword="true"/> if commands were produced; otherwise <see langword="false"/>.</returns>
-    private void BuildGouraudCommand(IPdfCommandProcessor processor, PdfShading shading, PdfGraphicsState state)
+    /// <param name="sampler">RGBA sampler for color conversion.</param>
+    /// <returns>Batched triangle vertices, or null on failure.</returns>
+    public SKVertices BuildGouraudVertices(PdfShading shading, IRgbaSampler sampler)
     {
-        var decoder = new GouraudMeshDecoder(shading, state);
+        var decoder = new GouraudMeshDecoder(shading, sampler);
         List<MeshData> triangles = decoder.Decode();
         if (triangles.Count == 0)
         {
             _logger.LogWarning("Gouraud mesh shading produced no triangles");
-            return;
+            return null;
         }
 
         // Aggregate all triangle points and colors into single arrays for batch drawing
@@ -47,63 +44,27 @@ internal partial class PdfShadingBuilder
             Array.Copy(triangle.CornerColors, 0, allColors, triangleIndex * 3, 3);
         }
 
-        var paint = PdfPaintFactory.CreateShaderPaint(shading.AntiAlias, state);
-
-        // Batch draw all triangles in one call
-        var vertices = SKVertices.CreateCopy(SKVertexMode.Triangles, allPoints, allColors);
-
-        processor.Process(new DrawVerticesCommand(vertices, paint));
+        return SKVertices.CreateCopy(SKVertexMode.Triangles, allPoints, allColors);
     }
 
     /// <summary>
-    /// Builds a command for type 7 (Tensor-Product Patch Mesh).
+    /// Builds patch mesh vertices for type 6 (Coons) and type 7 (Tensor-product) shadings.
+    /// Returns null if no patches are decoded.
     /// </summary>
-    /// <param name="processor">The command processor that receives generated commands.</param>
     /// <param name="shading">Parsed shading model.</param>
-    /// <param name="state">Current graphics state.</param>
-    /// <returns><see langword="true"/> if commands were produced; otherwise <see langword="false"/>.</returns>
-    private void BuildType7Command(IPdfCommandProcessor processor, PdfShading shading, PdfGraphicsState state)
+    /// <param name="sampler">RGBA sampler for color conversion.</param>
+    /// <param name="maxTessellationVertices">Maximum tessellation vertices per patch.</param>
+    /// <returns>Tessellated patch vertices, or null on failure.</returns>
+    public SKVertices BuildPatchMeshVertices(PdfShading shading, IRgbaSampler sampler, int maxTessellationVertices)
     {
-        BuildPatchMeshCommand(processor, shading, state);
-    }
-
-    /// <summary>
-    /// Builds a command for type 6 (Coons Patch Mesh) shading.
-    /// </summary>
-    /// <param name="processor">The command processor that receives generated commands.</param>
-    /// <param name="shading">Parsed shading model.</param>
-    /// <param name="state">Current graphics state.</param>
-    /// <returns><see langword="true"/> if commands were produced; otherwise <see langword="false"/>.</returns>
-    private void BuildType6Command(IPdfCommandProcessor processor, PdfShading shading, PdfGraphicsState state)
-    {
-        BuildPatchMeshCommand(processor, shading, state);
-    }
-
-    /// <summary>
-    /// Universal command builder for both type 6 and 7 meshes.
-    /// </summary>
-    /// <param name="processor">The command processor that receives generated commands.</param>
-    /// <param name="shading">Parsed shading model.</param>
-    /// <param name="state">Current graphics state.</param>
-    /// <returns><see langword="true"/> if commands were produced; otherwise <see langword="false"/>.</returns>
-    private void BuildPatchMeshCommand(IPdfCommandProcessor processor, PdfShading shading, PdfGraphicsState state)
-    {
-        var decoder = new MeshDecoder(shading, state);
+        var decoder = new MeshDecoder(shading, sampler);
         List<MeshData> patches = decoder.Decode();
         if (patches.Count == 0)
         {
             _logger.LogWarning("Patch mesh shading produced no patches");
-            return;
+            return null;
         }
 
-        var paint = PdfPaintFactory.CreateShaderPaint(shading.AntiAlias, state);
-
-        int verticesPerPatch = state.RenderingParameters.PreviewMode
-            ? state.RenderingParameters.PreviewMaxTessellationVertices
-            : state.RenderingParameters.MaxTessellationVertices;
-
-        var vertices = MeshEvaluator.CreateVerticesForPatches(patches, verticesPerPatch);
-
-        processor.Process(new DrawVerticesCommand(vertices, paint));
+        return MeshEvaluator.CreateVerticesForPatches(patches, maxTessellationVertices);
     }
 }

@@ -93,13 +93,13 @@ public sealed class PdfTilingPattern : PdfPattern
         processor.Process(new SaveStateCommand());
 
         var clipPath = renderTarget.ClipPath;
-        processor.Process(new ClipPathCommand(clipPath, SKClipOperation.Intersect, state.RenderingParameters.AntialiasClip));
+        processor.Process(new ClipPathCommand(clipPath, SKClipOperation.Intersect));
 
         processor.Process(new ConcatMatrixCommand(matrix));
 
         IPdfCommandModifier modifier = PaintTypeKind == PdfTilingPaintType.Uncolored
             ? new UncoloredPaintModifier(renderTarget.Color)
-            : new DefaultPdfCommandModifier();
+            : default;
 
         var bounds = matrix.Invert().MapRect(clipPath.Bounds);
 
@@ -128,6 +128,6 @@ public sealed class PdfTilingPattern : PdfPattern
         processor.Process(new RestoreStateCommand());
 
         tileRecorder.Dispose();
-        modifier.Dispose();
+        modifier?.Dispose();
     }
 }

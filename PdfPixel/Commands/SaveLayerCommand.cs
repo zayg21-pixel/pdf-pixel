@@ -10,22 +10,8 @@ namespace PdfPixel.Commands;
 /// </summary>
 public sealed class SaveLayerCommand : PdfCommand
 {
-    private readonly SKRect? _bounds;
+    private readonly SKRect _bounds;
     private readonly SKPaint _paint;
-
-    public SaveLayerCommand()
-    {
-    }
-
-    public SaveLayerCommand(SKPaint paint)
-    {
-        _paint = paint;
-    }
-
-    public SaveLayerCommand(SKRect bounds)
-    {
-        _bounds = bounds;
-    }
 
     public SaveLayerCommand(SKRect bounds, SKPaint paint)
     {
@@ -34,19 +20,17 @@ public sealed class SaveLayerCommand : PdfCommand
     }
 
     /// <inheritdoc />
-    public override void Execute(SKCanvas canvas, IEnumerable<IPdfCommandModifier> modifiers)
+    public override void Execute(SKCanvas canvas, IEnumerable<IPdfCommandModifier> modifiers, PdfCommandExecutionContext executionContext)
     {
-        if (_bounds.HasValue)
+        if (_paint != null)
         {
-            canvas.SaveLayer(_bounds.Value, _paint);
-        }
-        else if (_paint != null)
-        {
-            canvas.SaveLayer(_paint);
+            using var paint = _paint.Clone();
+            paint.IsAntialias = executionContext.RenderingParameters.Antialias;
+            canvas.SaveLayer(_bounds, paint);
         }
         else
         {
-            canvas.SaveLayer();
+            canvas.SaveLayer(_bounds, null);
         }
     }
 

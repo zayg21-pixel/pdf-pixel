@@ -11,7 +11,7 @@ namespace PdfPixel.Commands;
 /// </summary>
 public sealed class SkCanvasCommandProcessor : IPdfCommandProcessor
 {
-    private static readonly DefaultPdfCommandModifier DefaultModifier = new();
+    private readonly PdfCommandExecutionContext _executionContext;
 
     /// <summary>
     /// Gets the underlying <see cref="SKCanvas"/> for sub-renderers that still need direct canvas access
@@ -20,9 +20,10 @@ public sealed class SkCanvasCommandProcessor : IPdfCommandProcessor
     /// </summary>
     public SKCanvas Canvas { get; }
 
-    public SkCanvasCommandProcessor(SKCanvas canvas)
+    public SkCanvasCommandProcessor(SKCanvas canvas, PdfCommandExecutionContext executionContext)
     {
         Canvas = canvas ?? throw new ArgumentNullException(nameof(canvas));
+        _executionContext = executionContext ?? throw new ArgumentNullException(nameof(executionContext));
     }
 
     /// <inheritdoc />
@@ -31,7 +32,7 @@ public sealed class SkCanvasCommandProcessor : IPdfCommandProcessor
     /// <inheritdoc />
     public void Process(IPdfCommand command)
     {
-        command.Execute(Canvas, [DefaultModifier]);
+        command.Execute(Canvas, Array.Empty<IPdfCommandModifier>(), _executionContext);
         command.Dispose();
     }
 

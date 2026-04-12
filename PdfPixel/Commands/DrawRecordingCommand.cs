@@ -22,11 +22,24 @@ public sealed class DrawRecordingCommand : PdfCommand
         _disposeRecording = disposeRecording;
     }
 
+    public DrawRecordingCommand(PdfCommandRecorder recorder, bool disposeRecording = true)
+    {
+        _recorder = recorder;
+        _disposeRecording = disposeRecording;
+    }
+
     /// <inheritdoc />
-    public override void Execute(SKCanvas canvas, IEnumerable<IPdfCommandModifier> modifiers)
+    public override void Execute(SKCanvas canvas, IEnumerable<IPdfCommandModifier> modifiers, PdfCommandExecutionContext executionContext)
     {
         // Append the recording-specific modifier so it composes on top of any outer modifiers.
-        _recorder.Replay(canvas, modifiers.Append(_modifier));
+        if (_modifier != null)
+        {
+            _recorder.Replay(canvas, modifiers.Append(_modifier), executionContext);
+        }
+        else
+        {
+            _recorder.Replay(canvas, modifiers, executionContext);
+        }
     }
 
     /// <inheritdoc />
@@ -37,6 +50,6 @@ public sealed class DrawRecordingCommand : PdfCommand
             _recorder.Dispose();
         }
 
-        _modifier.Dispose();
+        _modifier?.Dispose();
     }
 }

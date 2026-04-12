@@ -1,7 +1,6 @@
 using PdfPixel.Color.Sampling;
 using PdfPixel.Models;
 using PdfPixel.Parsing;
-using PdfPixel.Rendering.State;
 using PdfPixel.Shading.Model;
 using PdfPixel.Text;
 using SkiaSharp;
@@ -30,16 +29,15 @@ class GouraudMeshDecoder
     private readonly ColorMinAndScale[] _colorComponentMinAndScale;
     private readonly int _verticesPerRow;
 
-    public GouraudMeshDecoder(PdfShading shading, PdfGraphicsState state)
+    public GouraudMeshDecoder(PdfShading shading, IRgbaSampler sampler)
     {
-        if (shading.ShadingType != 4 && shading.ShadingType != 5)
+        if (shading.ShadingType != PdfShadingType.FreeFormGouraud && shading.ShadingType != PdfShadingType.LatticeFormGouraud)
         {
             throw new ArgumentException($"Not supported shading type {shading.ShadingType}");
         }
 
         _shading = shading;
-        var converter = state.Page.Cache.ColorSpace.ResolveByObject(shading.ColorSpaceConverter);
-        _sampler = converter.GetRgbaSampler(state.RenderingIntent, state.FullTransferFunction);
+        _sampler = sampler;
         PdfDictionary shadingDictionary = shading.SourceObject.Dictionary;
 
         _bitsPerFlag = shadingDictionary.GetIntegerOrDefault(PdfTokens.BitsPerFlagKey);
@@ -62,9 +60,9 @@ class GouraudMeshDecoder
         _xScale = coordinateDenominator * xRange;
         _yScale = coordinateDenominator * yRange;
 
-        _readFlag = shading.ShadingType == 4;
+        _readFlag = shading.ShadingType == PdfShadingType.FreeFormGouraud;
 
-        if (shading.ShadingType == 5)
+        if (shading.ShadingType == PdfShadingType.LatticeFormGouraud)
         {
             _verticesPerRow = shadingDictionary.GetIntegerOrDefault(PdfTokens.VerticesPerRowKey);
             if (_verticesPerRow < 2)

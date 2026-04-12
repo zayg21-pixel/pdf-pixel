@@ -36,19 +36,18 @@ namespace PdfPixel.Rendering.State
         private TransferFunctionTransform _transferFunction;
         private IColorTransform _externalTransferFunction;
 
-        public PdfGraphicsState(PdfPage statePage, HashSet<uint> recursionGuard, PdfRenderingParameters renderingParameters, IColorTransform externalTransform, CancellationToken token)
+        public PdfGraphicsState(PdfPage statePage, HashSet<uint> recursionGuard, IColorTransform externalTransform, CancellationToken token)
         {
-            Page = statePage ?? throw new ArgumentNullException(nameof(renderingParameters));
+            Page = statePage ?? throw new ArgumentNullException(nameof(statePage));
             ExternalTransferFunction = externalTransform;
-            RecursionGuard = recursionGuard ?? throw new ArgumentNullException(nameof(renderingParameters));
-            RenderingParameters = renderingParameters ?? throw new ArgumentNullException(nameof(renderingParameters));
+            RecursionGuard = recursionGuard ?? throw new ArgumentNullException(nameof(recursionGuard));
             CancellationToken = token;
             FillColorConverter = statePage.Cache.ColorSpace.ResolveDeviceConverter(PdfColorSpaceType.DeviceGray);
             StrokeColorConverter = statePage.Cache.ColorSpace.ResolveDeviceConverter(PdfColorSpaceType.DeviceGray);
         }
 
         public PdfGraphicsState(PdfPage statePage, PdfGraphicsState sourceState)
-            : this(statePage, sourceState.RecursionGuard, sourceState.RenderingParameters, sourceState.ExternalTransferFunction, sourceState.CancellationToken)
+            : this(statePage, sourceState.RecursionGuard, sourceState.ExternalTransferFunction, sourceState.CancellationToken)
         {
         }
 
@@ -63,14 +62,15 @@ namespace PdfPixel.Rendering.State
         public HashSet<uint> RecursionGuard { get; }
 
         /// <summary>
-        /// Rendering parameters of a current graphics state.
-        /// </summary>
-        public PdfRenderingParameters RenderingParameters { get; }
-
-        /// <summary>
         /// Cancellation token to support cooperative cancellation during rendering operations.
         /// </summary>
         public CancellationToken CancellationToken { get; }
+
+        /// <summary>
+        /// Indicates whether this graphics state is being used for Type 3 glyph rendering.
+        /// When true, image downscaling is suppressed and linear filtering is forced.
+        /// </summary>
+        internal bool IsType3Rendering { get; set; }
 
         /// <summary>
         /// Current stroking paint (solid color or pattern). Replaces legacy StrokeColor / StrokePattern* fields.
@@ -431,6 +431,7 @@ namespace PdfPixel.Rendering.State
                 CTM = CTM,
                 DeviceMatrix = DeviceMatrix,
                 TextClipPath = TextClipPath,
+                IsType3Rendering = IsType3Rendering,
             };
         }
 

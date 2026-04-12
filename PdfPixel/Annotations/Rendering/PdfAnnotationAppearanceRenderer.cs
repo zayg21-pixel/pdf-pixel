@@ -139,7 +139,7 @@ internal static class PdfAnnotationAppearanceRenderer
 
         processor.Process(new ConcatMatrixCommand(alignmentMatrix));
 
-        var state = new PdfGraphicsState(page, new HashSet<uint>(), renderingParameters, externalTransform: null, token);
+        var state = new PdfGraphicsState(page, new HashSet<uint>(), externalTransform: null, token);
         renderer.DrawForm(processor, formXObject, state);
 
         return true;
@@ -184,7 +184,7 @@ internal static class PdfAnnotationAppearanceRenderer
             processor.Process(new ConcatMatrixCommand(SKMatrix.CreateScale(annotationRect.Width, annotationRect.Height)));
         }
 
-        var state = new PdfGraphicsState(page, new HashSet<uint>(), renderingParameters, externalTransform: null, token);
+        var state = new PdfGraphicsState(page, new HashSet<uint>(), externalTransform: null, token);
         renderer.DrawImage(processor, pdfImage, state);
 
         return true;

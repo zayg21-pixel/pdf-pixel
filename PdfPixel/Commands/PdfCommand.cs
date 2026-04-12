@@ -15,7 +15,7 @@ public abstract class PdfCommand : IPdfCommand
     }
 
     /// <inheritdoc />
-    public abstract void Execute(SKCanvas canvas, IEnumerable<IPdfCommandModifier> modifiers);
+    public abstract void Execute(SKCanvas canvas, IEnumerable<IPdfCommandModifier> modifiers, PdfCommandExecutionContext executionContext);
 
     /// <summary>
     /// Releases resources owned by this command.

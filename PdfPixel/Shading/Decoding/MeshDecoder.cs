@@ -1,8 +1,6 @@
-using PdfPixel.Color.ColorSpace;
 using PdfPixel.Color.Sampling;
 using PdfPixel.Models;
 using PdfPixel.Parsing;
-using PdfPixel.Rendering.State;
 using PdfPixel.Shading.Model;
 using PdfPixel.Text;
 using SkiaSharp;
@@ -33,16 +31,15 @@ class MeshDecoder
     private readonly float _yScale;
     private readonly ColorMinAndScale[] _colorComponentMinAndScale;
 
-    public MeshDecoder(PdfShading shading, PdfGraphicsState state)
+    public MeshDecoder(PdfShading shading, IRgbaSampler sampler)
     {
-        if (shading.ShadingType != 6 &&  shading.ShadingType != 7)
+        if (shading.ShadingType != PdfShadingType.CoonsPatchMesh &&  shading.ShadingType != PdfShadingType.TensorProductPatchMesh)
         {
             throw new ArgumentException($"Not supported shading type {shading.ShadingType}");
         }
 
         _shading = shading;
-        var converter = state.Page.Cache.ColorSpace.ResolveByObject(shading.ColorSpaceConverter);
-        _sampler = converter.GetRgbaSampler(state.RenderingIntent, state.FullTransferFunction);
+        _sampler = sampler;
         PdfDictionary shadingDictionary = shading.SourceObject.Dictionary;
 
         _bitsPerCoordinate = shadingDictionary.GetIntegerOrDefault(PdfTokens.BitsPerCoordinateKey);
@@ -60,7 +57,7 @@ class MeshDecoder
         float ymax = decodeArray[3];
         float xRange = xmax - _xmin;
         float yRange = ymax - _ymin;
-        _controlPointCount = shading.ShadingType == 7 ? 16 : 12;
+        _controlPointCount = shading.ShadingType == PdfShadingType.TensorProductPatchMesh ? 16 : 12;
         _componentDenominator = 1f / ((1UL << _bitsPerComponent) - 1);
         _coordinateDenominator = 1f / ((1UL << _bitsPerCoordinate) - 1);
         _xScale = _coordinateDenominator * xRange;

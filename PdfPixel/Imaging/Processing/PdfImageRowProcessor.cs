@@ -1,15 +1,17 @@
 using Microsoft.Extensions.Logging;
 using PdfPixel.Color.ColorSpace;
+using PdfPixel.Color.Filters;
 using PdfPixel.Color.Sampling;
 using PdfPixel.Color.Structures;
 using PdfPixel.Color.Transform;
 using PdfPixel.Imaging.Model;
 using PdfPixel.Imaging.Png;
+using PdfPixel.Models;
 using PdfPixel.Parsing;
-using PdfPixel.Rendering.State;
 using SkiaSharp;
 using System;
 using System.Runtime.CompilerServices;
+using System.Threading;
 
 namespace PdfPixel.Imaging.Processing;
 
@@ -27,7 +29,7 @@ internal sealed class PdfImageRowProcessor : IDisposable
     private readonly PdfImage _image;
     private readonly PdfColorSpaceConverter _converter;
     private readonly ILogger _logger;
-    private readonly PdfGraphicsState _state;
+    private readonly CancellationToken _cancellationToken;
 
     private readonly int _bitsPerComponent;
     private readonly int _components;
@@ -46,11 +48,23 @@ internal sealed class PdfImageRowProcessor : IDisposable
     private readonly IRowConverter _rowConverter;
     private byte[] _convertedRowBuffer;
 
-    public PdfImageRowProcessor(PdfImage image, ILogger logger, PdfGraphicsState state)
+    public PdfImageRowProcessor(
+        PdfImage image,
+        ILogger logger,
+        PdfRenderingParameters renderingParameters,
+        SKMatrix ctm,
+        IColorTransform fullTransferFunction,
+        bool isType3Rendering,
+        CancellationToken cancellationToken)
     {
         _image = image ?? throw new ArgumentNullException(nameof(image));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-        _state = state ?? throw new ArgumentNullException(nameof(state));
+        _cancellationToken = cancellationToken;
+
+        if (renderingParameters == null)
+        {
+            throw new ArgumentNullException(nameof(renderingParameters));
+        }
 
         var sourceWidth = image.Width;
         var sourceHeight = image.Height;
@@ -68,10 +82,10 @@ internal sealed class PdfImageRowProcessor : IDisposable
 
         _components = _converter.Components;
 
-        var downscaleSize = state.RenderingParameters.GetScaledSize(new SKSizeI(sourceWidth, sourceHeight), state.CTM);
+        var downscaleSize = renderingParameters.GetScaledSize(new SKSizeI(sourceWidth, sourceHeight), ctm);
         bool isIndexed = _converter is IndexedConverter;
 
-        if (!isIndexed && !state.RenderingParameters.IsType3Rendering && downscaleSize.HasValue)
+        if (!isIndexed && !isType3Rendering && downscaleSize.HasValue)
         {
             _width = downscaleSize.Value.Width;
             _height = downscaleSize.Value.Height;
@@ -87,7 +101,7 @@ internal sealed class PdfImageRowProcessor : IDisposable
 
         if (ShouldConvertColor(_image))
         {
-            _sampler = _image.ColorSpaceConverter.GetRgbaSampler(_image.RenderingIntent, _state.FullTransferFunction);
+            _sampler = _image.ColorSpaceConverter.GetRgbaSampler(_image.RenderingIntent, fullTransferFunction);
             _outputMode = OutputMode.RgbaColorApplied;
             _pngBuilder = new PngImageBuilder(4, 8, _width, _height);
             _pngBuilder.Init(null, null);
@@ -103,11 +117,11 @@ internal sealed class PdfImageRowProcessor : IDisposable
 
             if (_image.ColorSpaceConverter is IndexedConverter indexed)
             {
-                palette = indexed.BuildPackedPalette(_image.RenderingIntent, state.FullTransferFunction);
+                palette = indexed.BuildPackedPalette(_image.RenderingIntent, fullTransferFunction);
             }
             else if (_components == 1 && _bitsPerComponent <= 8)
             {
-                palette = BuildSingleChannelPalette(_image, state, _bitsPerComponent);
+                palette = BuildSingleChannelPalette(_image, fullTransferFunction, _bitsPerComponent);
             }
 
             if (_image.ColorSpaceConverter is IccBasedConverter iccBased && iccBased.Profile?.Bytes != null)
@@ -118,14 +132,14 @@ internal sealed class PdfImageRowProcessor : IDisposable
         }
     }
 
-    public static RgbaPacked[] BuildSingleChannelPalette(PdfImage image, PdfGraphicsState state, int outputBitsPerComponent)
+    public static RgbaPacked[] BuildSingleChannelPalette(PdfImage image, IColorTransform fullTransferFunction, int outputBitsPerComponent)
     {
         if (image.ColorSpaceConverter is DeviceGrayConverter)
         {
             return null;
         }
 
-        var sampler = image.ColorSpaceConverter.GetRgbaSampler(image.RenderingIntent, state.FullTransferFunction);
+        var sampler = image.ColorSpaceConverter.GetRgbaSampler(image.RenderingIntent, fullTransferFunction);
         int maxCode = (1 << outputBitsPerComponent) - 1;
         int paletteSize = maxCode + 1;
         var palette = new RgbaPacked[paletteSize];
@@ -256,7 +270,7 @@ internal sealed class PdfImageRowProcessor : IDisposable
             WriteWithFullColor(rowIndex, decodedRow);
             return;
         }
-        _state.CancellationToken.ThrowIfCancellationRequested();
+        _cancellationToken.ThrowIfCancellationRequested();
 
         _pngBuilder.WritePngImageRow(decodedRow);
     }
@@ -334,7 +348,7 @@ internal sealed class PdfImageRowProcessor : IDisposable
             }
         }
 
-        _state.CancellationToken.ThrowIfCancellationRequested();
+        _cancellationToken.ThrowIfCancellationRequested();
 
         _pngBuilder.WritePngImageRow(_rgbaBuffer);
     }

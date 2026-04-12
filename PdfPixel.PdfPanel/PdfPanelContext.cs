@@ -146,6 +146,7 @@ public class PdfPanelContext
     public void Update()
     {
         Scale = Clamp(Scale, MinScale, MaxScale);
+        PdfRenderingParameters.ScaleFactor = Scale;
 
         SKSize extentSize = _layout.CalculateDimensions(
             Pages,
