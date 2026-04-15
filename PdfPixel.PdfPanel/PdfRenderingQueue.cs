@@ -24,7 +24,7 @@ public sealed class PdfRenderingQueue : IDisposable
     // State preserved across iterations
     private PagesDrawingRequest _activePagesDrawingRequest;
     private PdfPanelRenderCommand _activeCommand;
-    private PagesDrawingRequest _previousPagesDrawingRequest;
+    private FinalizedRenderSnapshot _finalizedSnapshot;
     private List<int> _backgroundRenderedForPages = new List<int>();
 
     public PdfRenderingQueue(ILoggerFactory loggerFactory, ISkSurfaceFactory surfaceFactory)
@@ -75,7 +75,6 @@ public sealed class PdfRenderingQueue : IDisposable
 
         var command = frame.Command;
         var cancellationToken = frame.CancellationToken;
-        bool sameRequest = _activePagesDrawingRequest == command.DrawingRequest;
         _activePagesDrawingRequest = command.DrawingRequest;
         _activeCommand = command;
 
@@ -137,6 +136,11 @@ public sealed class PdfRenderingQueue : IDisposable
 
                     break;
                 }
+                case PdfPanelRenderCommandType.Finalize:
+                {
+                    FinalizeRenderPass(cancellationToken);
+                    break;
+                }
             }
         }
         catch (OperationCanceledException)
@@ -149,20 +153,33 @@ public sealed class PdfRenderingQueue : IDisposable
         {
             _logger.LogError(ex, "Error occurred on execution of render command");
         }
-        finally
-        {
-            if (!sameRequest)
-            {
-                _previousPagesDrawingRequest = _activePagesDrawingRequest;
-            }
-        }
     }
 
     private void DisposeFromCommand()
     {
         _disposed = true;
+        _finalizedSnapshot?.Dispose();
+        _finalizedSnapshot = null;
         _surfaceFactory.Dispose();
         _loopRunner.Stop();
+    }
+
+    /// <summary>
+    /// Captures a snapshot of the current fully rendered surface and stores it
+    /// along with the active request. The snapshot is consumed by the next
+    /// <see cref="DrawBackground"/> call. If the render pack was cancelled,
+    /// this command is never reached, so no stale data is stored.
+    /// </summary>
+    private void FinalizeRenderPass(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var surface = GetDrawingSurface(cancellationToken);
+        surface.Flush();
+        var snapshot = surface.Snapshot();
+
+        _finalizedSnapshot?.Dispose();
+        _finalizedSnapshot = new FinalizedRenderSnapshot(snapshot, _activePagesDrawingRequest);
     }
 
     private SKSurface GetDrawingSurface(CancellationToken cancellationToken)
@@ -186,13 +203,12 @@ public sealed class PdfRenderingQueue : IDisposable
         var visiblePages = _activePagesDrawingRequest.VisiblePages.Select(x => x.PageNumber);
         _activePagesDrawingRequest.Pages.UpdateCache(visiblePages);
 
-        if (_previousPagesDrawingRequest != null) // TODO: [HIGH] we have a bug here, previous request might only render white background, in this case we taking white snapshots and drawing on top of thumbnail, we need to keep track of actually rendered paged
+
+        if (_finalizedSnapshot != null)
         {
-            surface.Flush();
-            using var surfaceSnapshot = surface.Snapshot();
             DrawBackgroundAndShadows(canvas, _activePagesDrawingRequest, cancellationToken);
             DrawExistingThumbnails(canvas, _activePagesDrawingRequest, cancellationToken);
-            RenderSurfaceSnapshot(canvas, surfaceSnapshot, _activePagesDrawingRequest, _previousPagesDrawingRequest);
+            RenderSurfaceSnapshot(canvas, _finalizedSnapshot.SurfaceSnapshot, _activePagesDrawingRequest, _finalizedSnapshot.Request);
         }
         else
         {

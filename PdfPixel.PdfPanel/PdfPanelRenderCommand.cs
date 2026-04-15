@@ -111,6 +111,8 @@ public sealed class PdfPanelRenderCommand
             commands.Add(new PdfPanelRenderCommand(PdfPanelRenderCommandType.Render, request));
         }
 
+        commands.Add(new PdfPanelRenderCommand(PdfPanelRenderCommandType.Finalize, request));
+
         return commands;
     }
 }

@@ -46,4 +46,11 @@ public enum PdfPanelRenderCommandType
     /// Should be followed by new drawing commands if rendering is to continue.
     /// </summary>
     Reset,
+
+    /// <summary>
+    /// Captures a snapshot of the fully rendered surface for use as a backdrop in the next render pass.
+    /// Emitted as the last command in a successful render pack. If the pack is cancelled, this command
+    /// is never reached, so no stale or partial snapshot is stored.
+    /// </summary>
+    Finalize,
 }
