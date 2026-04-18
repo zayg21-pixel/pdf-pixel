@@ -325,4 +325,22 @@ public sealed class PdfRenderingQueue : IDisposable
         SpinWait.SpinUntil(() => _disposed, DisposeWaitTimeout);
         _loopRunner.Dispose();
     }
+
+    private class FinalizedRenderSnapshot : IDisposable
+    {
+        public FinalizedRenderSnapshot(SKImage surfaceSnapshot, PagesDrawingRequest request)
+        {
+            SurfaceSnapshot = surfaceSnapshot;
+            Request = request;
+        }
+
+        public SKImage SurfaceSnapshot { get; }
+
+        public PagesDrawingRequest Request { get; }
+
+        public void Dispose()
+        {
+            SurfaceSnapshot.Dispose();
+        }
+    }
 }

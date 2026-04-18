@@ -70,6 +70,7 @@ packages
 *.tmp
 *.tmp_proj
 *.log
+*.binlog
 *.vspscc
 *.vssscc
 .builds

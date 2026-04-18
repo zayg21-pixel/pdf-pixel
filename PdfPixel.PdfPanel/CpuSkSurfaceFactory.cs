@@ -25,7 +25,7 @@ public class CpuSkSurfaceFactory : ISkSurfaceFactory
     }
 
     /// <inheritdoc />
-    public void Initialize()
+    public virtual void Initialize()
     {
         // CPU factory doesn't need initialization
     }

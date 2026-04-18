@@ -2,6 +2,8 @@
 using PdfPixel.Annotations.Models;
 using PdfPixel.Fonts.Management;
 using PdfPixel.Fonts.Mapping;
+using PdfPixel.PdfPanel.Extensions;
+using PdfPixel.PdfPanel.Layout;
 using SkiaSharp;
 using System;
 using System.Collections.Generic;
@@ -9,8 +11,6 @@ using System.IO;
 using System.Runtime.InteropServices.JavaScript;
 using System.Runtime.Versioning;
 using System.Threading.Tasks;
-using PdfPixel.PdfPanel.Extensions;
-using PdfPixel.PdfPanel.Layout;
 
 namespace PdfPixel.PdfPanel.Web;
 
@@ -84,14 +84,29 @@ public partial class PdfPanelInterop
 
         try
         {
-            //var renderer = new WebGlSkiaRenderer(LoggerFactory.CreateLogger<WebGlSkiaRenderer>(), $"#{containerId} .pdf-panel-canvas");
-            var renderer = new CpuSkiaRenderer(LoggerFactory.CreateLogger<CpuSkiaRenderer>(), $"#{containerId} .pdf-panel-canvas");
+            var webGl = configuration.GetPropertyAsBoolean("useWebGL");
+            var selector = $"#{containerId} .pdf-panel-canvas";
 
-            var resources = new PdfPanelResources
+            PdfPanelResources resources;
+
+            if (webGl)
             {
-                SkSurfaceFactory = renderer,
-                RenderTargetFactory = renderer
-            };
+                var renderer = new WebGlSkiaRenderer(LoggerFactory.CreateLogger<WebGlSkiaRenderer>(), selector);
+                resources = new PdfPanelResources
+                {
+                    SkSurfaceFactory = renderer,
+                    RenderTargetFactory = renderer
+                };
+            }
+            else
+            {
+                var renderer = new CpuSkiaRenderer(LoggerFactory.CreateLogger<CpuSkiaRenderer>(), selector);
+                resources = new PdfPanelResources
+                {
+                    SkSurfaceFactory = renderer,
+                    RenderTargetFactory = renderer
+                };
+            }
 
             // Parse configuration immediately into a strongly-typed struct
             var parsed = new PdfPanelConfiguration
@@ -121,7 +136,6 @@ public partial class PdfPanelInterop
             resources.Configuration = parsed;
 
             resources.RenderingQueue = new PdfRenderingQueue(LoggerFactory, resources.SkSurfaceFactory, new EmscriptenRenderLoopRunner());
-
             ResourcesMap[containerId] = resources;
         }
         catch (Exception ex)

@@ -2,7 +2,6 @@ using Microsoft.Extensions.Logging;
 using PdfPixel.PdfPanel.Requests;
 using SkiaSharp;
 using System;
-using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
 using System.Threading;
 
@@ -34,6 +33,7 @@ internal sealed class CpuSkiaRenderer : CpuSkSurfaceFactory, IPdfPanelRenderTarg
 
     public override SKSurface GetDrawingSurface(int width, int height, CancellationToken token)
     {
+        // TODO: [HIGH] copy content from existing surface, add protected properties for surfaces
         var surface = base.GetDrawingSurface(width, height, token);
         Emscripten.SetCanvasSize(_canvasSelector, width, height);
 

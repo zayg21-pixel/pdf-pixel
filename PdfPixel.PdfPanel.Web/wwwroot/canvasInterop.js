@@ -22,7 +22,8 @@ class PdfPanelView {
             maxThumbnailSize: 400,
             pagesPadding: { left: 10, top: 10, right: 10, bottom: 10 },
             minimumPageGap: 10,
-            scrollStep: 20
+            scrollStep: 20,
+            useWebGL: false
         };
         this.configuration = Object.assign({}, defaults, configuration || {});
 
@@ -157,8 +158,9 @@ class PdfPanelView {
             void this.scrollHost.offsetHeight;
 
             this.scrollHost.style.overflow = 'auto';
-            this.scrollHost.scrollLeft = this.state.horizontalOffset / dpr;
-            this.scrollHost.scrollTop = this.state.verticalOffset / dpr;
+            // TODO: [HIGH] this does not work properly, scroll is jugged
+            //this.scrollHost.scrollLeft = this.state.horizontalOffset / dpr;
+            //this.scrollHost.scrollTop = this.state.verticalOffset / dpr;
 
             // Read back the browser-clamped values so onScroll can recognise
             // and suppress the scroll event that this programmatic set fires.

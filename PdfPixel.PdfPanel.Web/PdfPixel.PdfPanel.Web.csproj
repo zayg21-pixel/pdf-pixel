@@ -8,11 +8,11 @@
     <WasmEnableSIMD>true</WasmEnableSIMD>
     <RunAOTCompilation>true</RunAOTCompilation>
     <WasmBuildNative>true</WasmBuildNative>
+    <!-- <RunAOTCompilationAfterBuild>true</RunAOTCompilationAfterBuild> -->
     <InvariantGlobalization>true</InvariantGlobalization>
     <EnableDefaultContentItems>false</EnableDefaultContentItems>
     <WasmNativeDebugSymbols>true</WasmNativeDebugSymbols>
     <WasmEmitSymbolMap>true</WasmEmitSymbolMap>
-    <WasmEmitSourceMap>true</WasmEmitSourceMap>
     <EmccFlags>-s FULL_ES3=1 -s OFFSCREENCANVAS_SUPPORT=1</EmccFlags>
   </PropertyGroup>
 
