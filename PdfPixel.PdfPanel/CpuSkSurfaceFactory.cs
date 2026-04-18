@@ -31,7 +31,7 @@ public class CpuSkSurfaceFactory : ISkSurfaceFactory
     }
 
     /// <inheritdoc />
-    public SKSurface GetDrawingSurface(int width, int height, CancellationToken token)
+    public virtual SKSurface GetDrawingSurface(int width, int height, CancellationToken token)
     {
         if (_currentSurface != null && _currentWidth == width && _currentHeight == height)
         {
@@ -57,7 +57,7 @@ public class CpuSkSurfaceFactory : ISkSurfaceFactory
     }
 
     /// <inheritdoc />
-    public SKSurface GetThumbnailSurface(int width, int height, CancellationToken token)
+    public virtual SKSurface GetThumbnailSurface(int width, int height, CancellationToken token)
     {
         if (_currentThumbnailSurface != null && _currentThumbnailWidth == width && _currentThumbnailHeight == height)
         {
@@ -78,7 +78,7 @@ public class CpuSkSurfaceFactory : ISkSurfaceFactory
     }
 
     /// <inheritdoc />
-    public void Dispose()
+    public virtual void Dispose()
     {
         _currentSurface?.Dispose();
         _currentThumbnailSurface?.Dispose();

@@ -209,7 +209,6 @@ namespace PdfPixel.PdfPanel.Wpf
             {
                 case WpfRenderMode.Direct3D:
                 {
-                    //var imageFactory = new D3DImageRenderTargetFactory(D3DImage, sampleCount: 4);
                     var imageFactory = new D3DImageSimpleRenderTargetFactory(D3DImage);
                     _surfaceFactory = imageFactory;
                     _renderTargetFactory = imageFactory;
@@ -218,7 +217,7 @@ namespace PdfPixel.PdfPanel.Wpf
 
                 case WpfRenderMode.OpenGl:
                 {
-                    var glFactory = new OpenGlRenderTargetFactory(this);
+                    var glFactory = new OpenGlRenderTargetFactory(this, sampleCount: 1);
                     _surfaceFactory = glFactory;
                     _renderTargetFactory = glFactory;
                     break;
@@ -234,6 +233,17 @@ namespace PdfPixel.PdfPanel.Wpf
 
             _renderingQueue = new PdfRenderingQueue(new NullLoggerFactory(), _surfaceFactory);
             _context = new PdfPanelContext(Pages, _renderingQueue, _renderTargetFactory, new PdfPanelVerticalLayout());
+
+            switch (RenderMode)
+            {
+                case WpfRenderMode.Direct3D:
+                case WpfRenderMode.OpenGl:
+                    _context.PdfRenderingParameters.Antialias = true;
+                    break;
+                default:
+                    _context.PdfRenderingParameters.Antialias = true;
+                    break;
+            }
         }
 
         private void SyncViewerCanvasState()

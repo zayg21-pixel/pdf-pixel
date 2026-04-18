@@ -135,8 +135,6 @@ public class PdfTextRenderer : IPdfTextRenderer
                 processor.Process(new ConcatMatrixCommand(type3Font.FontMatrix));
                 processor.Process(new DrawRecordingCommand(charInfo.Recording, modifier, disposeRecording: false));
                 processor.Process(new RestoreStateCommand());
-
-                modifier.Dispose();
             }
         }
 

@@ -1,4 +1,3 @@
-using System;
 using SkiaSharp;
 
 namespace PdfPixel.Commands;
@@ -18,7 +17,27 @@ internal sealed class UncoloredPaintModifier : IPdfCommandModifier
     /// <param name="color">The tint color to apply.</param>
     public UncoloredPaintModifier(SKColor color)
     {
-        _colorFilter = SKColorFilter.CreateBlendMode(color, SKBlendMode.SrcIn);
+        // PDF uncolored semantics (concise):
+        // final RGB = paint.rgb * paint.alpha * srcA
+        // final A   = paint.alpha * srcA
+        var pr = color.Red / 255f;
+        var pg = color.Green / 255f;
+        var pb = color.Blue / 255f;
+        var pa = color.Alpha / 255f;
+
+        var rMul = pr * pa;
+        var gMul = pg * pa;
+        var bMul = pb * pa;
+
+        var matrix = new float[]
+        {
+            0f, 0f, 0f, rMul, 0f,
+            0f, 0f, 0f, gMul, 0f,
+            0f, 0f, 0f, bMul, 0f,
+            0f, 0f, 0f, pa,   0f
+        };
+
+        _colorFilter = SKColorFilter.CreateColorMatrix(matrix);
     }
 
     /// <summary>

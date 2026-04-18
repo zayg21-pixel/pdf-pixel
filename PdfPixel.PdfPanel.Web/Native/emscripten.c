@@ -1,6 +1,7 @@
 #include "emscripten.h"
 #include <emscripten/threading.h>
 #include <emscripten/console.h>
+#include <stdint.h>
 
 // Run func() on the browser main thread and block until it returns.
 // Safe to call from any thread, including the main thread itself.
@@ -53,6 +54,36 @@ EM_JS(void, dotnet_webgl_enable_debug_renderer_info, (int ctx), {
 		glCtx.getExtension('WEBGL_debug_renderer_info');
 	}
 });
+
+// Sets an RGBA image (bytes) to a canvas identified by selector (e.g. "#myCanvas").
+// pixelsPtr must point to width*height*4 bytes in RGBA order.
+EM_JS(void, dotnet_set_canvas_rgba_js, (const char* canvasIdPtr, const uint8_t* pixelsPtr, int width, int height), {
+	const canvasId = UTF8ToString(canvasIdPtr);
+	const key = canvasId.substring(1);
+
+	if (typeof GL === 'undefined' || !GL.offscreenCanvases) {
+		return;
+	}
+
+	const canvas = GL.offscreenCanvases[key];
+
+	const ctx = canvas.getContext('2d');
+	if (!ctx) {
+		return;
+	}
+
+	const size = width * height * 4;
+	const src = HEAPU8.subarray(pixelsPtr, pixelsPtr + size);
+	// Create a copy as Uint8ClampedArray required by ImageData
+	const clamped = new Uint8ClampedArray(src);
+	const imageData = new ImageData(clamped, width, height);
+	ctx.putImageData(imageData, 0, 0);
+});
+
+// C wrapper for the EM_JS function. Call this from C/C# with a pointer to RGBA bytes.
+void dotnet_set_canvas_rgba(const char* canvasId, const uint8_t* pixels, int width, int height) {
+	dotnet_set_canvas_rgba_js(canvasId, pixels, width, height);
+}
 
 // Creates a WebGL context on the specified canvas.
 // The OffscreenCanvas must already be registered in GL.offscreenCanvases

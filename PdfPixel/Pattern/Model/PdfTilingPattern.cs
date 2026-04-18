@@ -110,6 +110,7 @@ public sealed class PdfTilingPattern : PdfPattern
 
         int xCount = (int)Math.Ceiling((endX - startX) / XStep);
         int yCount = (int)Math.Ceiling((endY - startY) / YStep);
+        var recordingCommand = new DrawRecordingCommand(tileRecorder, modifier);
 
         for (int i = 0; i <= xCount; i++)
         {
@@ -120,14 +121,11 @@ public sealed class PdfTilingPattern : PdfPattern
 
                 processor.Process(new SaveStateCommand());
                 processor.Process(new ConcatMatrixCommand(SKMatrix.CreateTranslation(x, y)));
-                processor.Process(new DrawRecordingCommand(tileRecorder, modifier, disposeRecording: false));
+                processor.Process(recordingCommand);
                 processor.Process(new RestoreStateCommand());
             }
         }
 
         processor.Process(new RestoreStateCommand());
-
-        tileRecorder.Dispose();
-        modifier?.Dispose();
     }
 }

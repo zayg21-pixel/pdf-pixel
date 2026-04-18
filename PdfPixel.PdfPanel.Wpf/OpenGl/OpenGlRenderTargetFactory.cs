@@ -30,6 +30,7 @@ public sealed class OpenGlRenderTargetFactory : IPdfPanelRenderTargetFactory, IP
     private const long ResourceCacheLimitBytes = 128_000_000;
 
     private readonly WpfPdfPanel _panel;
+    private readonly int _sampleCount;
     private WglContext _glContext;
     private GRContext _grContext;
 
@@ -49,17 +50,16 @@ public sealed class OpenGlRenderTargetFactory : IPdfPanelRenderTargetFactory, IP
     private SKPoint _lastCanvasScale;
     private SKPoint _lastCanvasOffset;
 
-    // Pixel readback buffer (reused across frames on the render thread)
-    private byte[] _pixelBuffer;
-
     /// <summary>
     /// Initializes a new <see cref="OpenGlRenderTargetFactory"/> for the specified panel.
     /// The actual OpenGL context is created later in <see cref="Initialize"/> on the render thread.
     /// </summary>
     /// <param name="panel">The WPF panel that owns the <see cref="DrawingVisual"/>.</param>
-    public OpenGlRenderTargetFactory(WpfPdfPanel panel)
+    /// <param name="sampleCount">Number of samples for multisampling.</param>
+    public OpenGlRenderTargetFactory(WpfPdfPanel panel, int sampleCount = 1)
     {
         _panel = panel ?? throw new ArgumentNullException(nameof(panel));
+        _sampleCount = sampleCount;
     }
 
     /// <inheritdoc />
@@ -80,8 +80,7 @@ public sealed class OpenGlRenderTargetFactory : IPdfPanelRenderTargetFactory, IP
 
         var contextOptions = new GRContextOptions
         {
-            RuntimeProgramCacheSize = 128_000_000,
-            DoManualMipmapping = true
+            RuntimeProgramCacheSize = 128_000_000
         };
 
         _grContext = GRContext.CreateGl(glInterface, contextOptions);
@@ -113,7 +112,7 @@ public sealed class OpenGlRenderTargetFactory : IPdfPanelRenderTargetFactory, IP
         }
 
         var info = new SKImageInfo(width, height, SKColorType.Bgra8888, SKAlphaType.Premul);
-        var newSurface = SKSurface.Create(_grContext, budgeted: true, info, sampleCount: 1);
+        var newSurface = SKSurface.Create(_grContext, budgeted: true, info, sampleCount: _sampleCount);
 
         if (newSurface == null)
         {
@@ -206,38 +205,32 @@ public sealed class OpenGlRenderTargetFactory : IPdfPanelRenderTargetFactory, IP
     /// </remarks>
     public void Render(SKSurface surface, DrawingRequest request, CancellationToken token)
     {
-        var bounds = surface.Canvas.DeviceClipBounds;
-        var imageInfo = new SKImageInfo(bounds.Width, bounds.Height, SKColorType.Bgra8888, SKAlphaType.Premul);
-        int requiredBytes = imageInfo.RowBytes * imageInfo.Height;
-
-        if (_pixelBuffer == null || _pixelBuffer.Length < requiredBytes)
-        {
-            _pixelBuffer = new byte[requiredBytes];
-        }
+        var imageInfo = new SKImageInfo(_currentWidth, _currentHeight, SKColorType.Bgra8888, SKAlphaType.Premul);
 
         // Flush GPU commands and read pixels into CPU buffer (on render thread with GL context current)
         surface.Flush();
         _grContext.Flush();
 
-        var pinnedHandle = GCHandle.Alloc(_pixelBuffer, GCHandleType.Pinned);
-
-        try
-        {
-            surface.ReadPixels(imageInfo, pinnedHandle.AddrOfPinnedObject(), imageInfo.RowBytes, 0, 0);
-        }
-        finally
-        {
-            pinnedHandle.Free();
-        }
+        _glContext.ReleaseCurrent();
 
         // Dispatch to UI thread to copy pixels into WriteableBitmap and present
         _panel.Dispatcher.Invoke(() =>
         {
-            PresentToWriteableBitmap(imageInfo, request);
+            _glContext.MakeCurrent();
+
+            try
+            {
+                PresentToWriteableBitmap(imageInfo, surface, request);
+            }
+            finally
+            {
+                _glContext.ReleaseCurrent();
+            }
+
         }, System.Windows.Threading.DispatcherPriority.Render, token);
     }
 
-    private void PresentToWriteableBitmap(SKImageInfo imageInfo, DrawingRequest request)
+    private void PresentToWriteableBitmap(SKImageInfo imageInfo, SKSurface surface, DrawingRequest request)
     {
         if (_writeableBitmap == null)
         {
@@ -251,7 +244,7 @@ public sealed class OpenGlRenderTargetFactory : IPdfPanelRenderTargetFactory, IP
 
         _writeableBitmap.Lock();
 
-        Marshal.Copy(_pixelBuffer, 0, _writeableBitmap.BackBuffer, imageInfo.RowBytes * imageInfo.Height);
+        surface.ReadPixels(imageInfo, _writeableBitmap.BackBuffer, imageInfo.RowBytes, 0, 0);
 
         if (_panel.PanelInterface?.OnAfterDraw != null)
         {
@@ -288,7 +281,5 @@ public sealed class OpenGlRenderTargetFactory : IPdfPanelRenderTargetFactory, IP
 
         _glContext?.Dispose();
         _glContext = null;
-
-        _pixelBuffer = null;
     }
 }

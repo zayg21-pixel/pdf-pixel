@@ -84,7 +84,8 @@ public partial class PdfPanelInterop
 
         try
         {
-            var renderer = new WebGlSkiaRenderer(LoggerFactory.CreateLogger<WebGlSkiaRenderer>(), $"#{containerId} .pdf-panel-canvas");
+            //var renderer = new WebGlSkiaRenderer(LoggerFactory.CreateLogger<WebGlSkiaRenderer>(), $"#{containerId} .pdf-panel-canvas");
+            var renderer = new CpuSkiaRenderer(LoggerFactory.CreateLogger<CpuSkiaRenderer>(), $"#{containerId} .pdf-panel-canvas");
 
             var resources = new PdfPanelResources
             {

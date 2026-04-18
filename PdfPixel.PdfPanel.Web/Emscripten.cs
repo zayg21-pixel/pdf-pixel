@@ -1,3 +1,4 @@
+using System;
 using System.Runtime.InteropServices;
 
 namespace PdfPixel.PdfPanel.Web;
@@ -21,6 +22,14 @@ internal static class Emscripten
     [DllImport("emscripten", EntryPoint = "dotnet_set_canvas_size")]
     [DefaultDllImportSearchPaths(DllImportSearchPath.SafeDirectories)]
     internal static extern void SetCanvasSize(string canvasId, int width, int height);
+
+    // Sets an RGBA image (bytes) to a canvas identified by selector (e.g. "#myCanvas").
+    // pixels must point to width*height*4 bytes in RGBA order. The native side expects
+    // the pixel buffer to be in the WebAssembly linear heap; use the ReadOnlySpan wrapper
+    // below to pin managed memory and pass a pointer.
+    [DllImport("emscripten", EntryPoint = "dotnet_set_canvas_rgba")]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.SafeDirectories)]
+    internal static extern void SetCanvasRgba(string canvasId, nint pixels, int width, int height);
 
     // Starts the render loop. The callback is called once per frame by the browser.
     // fps: target frames per second. Use 0 to use requestAnimationFrame timing (recommended).
