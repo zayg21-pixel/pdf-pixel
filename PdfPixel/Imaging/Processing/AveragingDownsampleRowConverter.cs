@@ -4,6 +4,7 @@ using System.Runtime.CompilerServices;
 
 namespace PdfPixel.Imaging.Processing;
 
+// TODO: [HIGH] Needs urgent attention, it slows down
 /// <summary>
 /// Row converter that performs simple box averaging for downsampling.
 /// Accumulates source pixel values in integer buckets and averages them for each destination pixel.
@@ -103,7 +104,7 @@ internal sealed class AveragingDownsampleRowConverter : IRowConverter
             }
         }
 
-        AccumulateSourceRow(rowIndex);
+        AccumulateSourceRow();
         _nextSrcRowToRead++;
 
         if (destRowForThisSource == _nextDestRowToWrite && IsLastSourceRowForDestRow(rowIndex, _nextDestRowToWrite))
@@ -147,7 +148,7 @@ internal sealed class AveragingDownsampleRowConverter : IRowConverter
         return srcRow >= firstSrcRowForNextDest - 1;
     }
 
-    private void AccumulateSourceRow(int srcRow)
+    private void AccumulateSourceRow()
     {
         for (int sx = 0; sx < _srcWidth; sx++)
         {

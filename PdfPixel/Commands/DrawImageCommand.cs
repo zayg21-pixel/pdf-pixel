@@ -77,13 +77,6 @@ public sealed class DrawImageCommand : PdfCommand
         canvas.Restore();
     }
 
-    /// <inheritdoc />
-    protected override void Dispose(bool disposing)
-    {
-        DisposeCache();
-        base.Dispose(disposing);
-    }
-
     /// <summary>
     /// Rebuilds the decoded image cache when the scale factor has changed.
     /// </summary>
@@ -241,5 +234,12 @@ public sealed class DrawImageCommand : PdfCommand
         _cachedMaskImage = null;
 
         _cacheBuilt = false;
+    }
+
+    /// <inheritdoc />
+    protected override void Dispose(bool disposing)
+    {
+        DisposeCache();
+        base.Dispose(disposing);
     }
 }

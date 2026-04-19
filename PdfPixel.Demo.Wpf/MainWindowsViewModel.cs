@@ -293,7 +293,9 @@ public class MainWindowsViewModel : ObservableObject
 
     private void LoadSelectedPdf()
     {
-        if (!File.Exists(SelectedPdfFile.FilePath))
+        FileInfo fileInfo = new FileInfo(SelectedPdfFile.FilePath);
+
+        if (!fileInfo.Exists)
         {
             return;
         }
@@ -304,8 +306,19 @@ public class MainWindowsViewModel : ObservableObject
         _document?.Dispose();
         currentPages?.Dispose();
 
-        var fileStream = File.OpenRead(SelectedPdfFile.FilePath);
-        _document = _reader.Read(fileStream);
+        if (fileInfo.Length < 50_000_000)
+        {
+            var fileBytes = File.ReadAllBytes(SelectedPdfFile.FilePath);
+            var fileStream = new MemoryStream(fileBytes);
+            _document = _reader.Read(fileStream);
+        }
+        else
+        {
+            var fileStream = File.OpenRead(SelectedPdfFile.FilePath);
+            _document = _reader.Read(fileStream);
+        }
+
+
         Pages = PdfPanelPageCollection.FromDocument(_document);
         AutoScaleMode = PdfPanelAutoScaleMode.ScaleToWidth;
     }

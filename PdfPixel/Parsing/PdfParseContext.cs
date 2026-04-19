@@ -27,9 +27,9 @@ public ref struct PdfParseContext
     /// Construct context from a single memory block (wrapped as one chunk).
     /// </summary>
     /// <param name="memory">The memory block to parse.</param>
-    public PdfParseContext(ReadOnlyMemory<byte> memory)
+    public PdfParseContext(ReadOnlyMemory<byte> memory)// TODO: [MEDIUM] we might want to combine streams here to eliminate memory bound operations
     {
-        var chunkArray = memory.Length == 0 ? Array.Empty<ReadOnlyMemory<byte>>() : new[] { memory };
+        var chunkArray = memory.Length == 0 ? Array.Empty<ReadOnlyMemory<byte>>() : [memory];
         _chunks = chunkArray;
 
         var starts = new int[chunkArray.Length + 1];

@@ -90,7 +90,8 @@ internal sealed class PdfImageRowProcessor : IDisposable
             _width = downscaleSize.Value.Width;
             _height = downscaleSize.Value.Height;
 
-            _rowConverter = new AveragingDownsampleRowConverter(_components, _bitsPerComponent, sourceWidth, _width, sourceHeight, _height);
+            //_rowConverter = new AveragingDownsampleRowConverter(_components, _bitsPerComponent, sourceWidth, _width, sourceHeight, _height);
+            _rowConverter = new NearestNeighborRowConverter(_components, _bitsPerComponent, sourceWidth, _width, sourceHeight, _height);
             _bitsPerComponent = _rowConverter.BitsPerComponent;
         }
         else

@@ -98,10 +98,10 @@ public class PdfContentStreamRenderer
                 {
                     throw;
                 }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Error \"{Message}\" processing PDF content stream operator {Operator}. Continuing to next.", ex.Message, op);
-                }
+                //catch (Exception ex)
+                //{
+                //    _logger.LogError(ex, "Error \"{Message}\" processing PDF content stream operator {Operator}. Continuing to next.", ex.Message, op);
+                //}
 
                 operandStack.Clear();
             }

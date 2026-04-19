@@ -2,7 +2,6 @@ using PdfPixel.PdfPanel.Requests;
 using PdfPixel.PdfPanel.Wpf.Drawing;
 using SkiaSharp;
 using System;
-using System.Runtime.InteropServices;
 using System.Threading;
 using System.Windows;
 using System.Windows.Media;
@@ -80,7 +79,8 @@ public sealed class OpenGlRenderTargetFactory : IPdfPanelRenderTargetFactory, IP
 
         var contextOptions = new GRContextOptions
         {
-            RuntimeProgramCacheSize = 128_000_000
+            RuntimeProgramCacheSize = 128,
+            AllowPathMaskCaching = false
         };
 
         _grContext = GRContext.CreateGl(glInterface, contextOptions);
@@ -123,7 +123,6 @@ public sealed class OpenGlRenderTargetFactory : IPdfPanelRenderTargetFactory, IP
 
         if (_currentSurface != null)
         {
-            _currentSurface.Flush();
             newSurface.Canvas.DrawSurface(_currentSurface, SKPoint.Empty);
         }
 
@@ -206,10 +205,6 @@ public sealed class OpenGlRenderTargetFactory : IPdfPanelRenderTargetFactory, IP
     public void Render(SKSurface surface, DrawingRequest request, CancellationToken token)
     {
         var imageInfo = new SKImageInfo(_currentWidth, _currentHeight, SKColorType.Bgra8888, SKAlphaType.Premul);
-
-        // Flush GPU commands and read pixels into CPU buffer (on render thread with GL context current)
-        surface.Flush();
-        _grContext.Flush();
 
         _glContext.ReleaseCurrent();
 

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Runtime.CompilerServices;
 
 namespace PdfPixel.Streams
 {
@@ -84,6 +85,7 @@ namespace PdfPixel.Streams
         /// <summary>
         /// Performs a full initialization of decoder state (used at construction only).
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void InitializeAllState()
         {
             ResetDictionaryOnly();
@@ -98,6 +100,7 @@ namespace PdfPixel.Streams
         /// Resets only the dictionary-related state required when encountering a ClearCode.
         /// IMPORTANT: Does not reset bit buffer so that partially read bytes remain valid for subsequent codes.
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void ResetDictionaryOnly()
         {
             _dictionary.Clear();
@@ -114,6 +117,7 @@ namespace PdfPixel.Streams
             _previousDecoded = null;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public override int Read(byte[] buffer, int offset, int count)
         {
             if (buffer == null)
@@ -159,6 +163,7 @@ namespace PdfPixel.Streams
             return written;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private bool DecodeNextCode()
         {
             if (_endReached)
@@ -247,6 +252,7 @@ namespace PdfPixel.Streams
             }
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static byte[] ConcatPrevPlusByte(byte[] previous, byte next)
         {
             byte[] combined = new byte[previous.Length + 1];
@@ -255,6 +261,7 @@ namespace PdfPixel.Streams
             return combined;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private int ReadNextCode()
         {
             if (_endReached)

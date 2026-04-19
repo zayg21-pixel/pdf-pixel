@@ -172,8 +172,6 @@ public sealed class PdfRenderingQueue : IDisposable
     /// </summary>
     private void FinalizeRenderPass(CancellationToken cancellationToken)
     {
-        // TODO: [HIGH] uncomment and implement incremental updates bas
-        return;
         cancellationToken.ThrowIfCancellationRequested();
 
         var surface = GetDrawingSurface(cancellationToken);
@@ -205,20 +203,17 @@ public sealed class PdfRenderingQueue : IDisposable
         var visiblePages = _activePagesDrawingRequest.VisiblePages.Select(x => x.PageNumber);
         _activePagesDrawingRequest.Pages.UpdateCache(visiblePages);
 
-        // TODO: [HIGH] uncomment
-        DrawBackgroundAndShadows(canvas, _activePagesDrawingRequest, cancellationToken);
-
-        //if (_finalizedSnapshot != null)
-        //{
-        //    DrawBackgroundAndShadows(canvas, _activePagesDrawingRequest, cancellationToken);
-        //    DrawExistingThumbnails(canvas, _activePagesDrawingRequest, cancellationToken);
-        //    RenderSurfaceSnapshot(canvas, _finalizedSnapshot.SurfaceSnapshot, _activePagesDrawingRequest, _finalizedSnapshot.Request);
-        //}
-        //else
-        //{
-        //    DrawBackgroundAndShadows(canvas, _activePagesDrawingRequest, cancellationToken);
-        //    DrawExistingThumbnails(canvas, _activePagesDrawingRequest, cancellationToken);
-        //}
+        if (_finalizedSnapshot != null)
+        {
+            DrawBackgroundAndShadows(canvas, _activePagesDrawingRequest, cancellationToken);
+            DrawExistingThumbnails(canvas, _activePagesDrawingRequest, cancellationToken);
+            RenderSurfaceSnapshot(canvas, _finalizedSnapshot.SurfaceSnapshot, _activePagesDrawingRequest, _finalizedSnapshot.Request);
+        }
+        else
+        {
+            DrawBackgroundAndShadows(canvas, _activePagesDrawingRequest, cancellationToken);
+            DrawExistingThumbnails(canvas, _activePagesDrawingRequest, cancellationToken);
+        }
     }
 
     private void InitializePage(SKSurface thumbnailSurface, CancellationToken cancellationToken)
@@ -238,6 +233,7 @@ public sealed class PdfRenderingQueue : IDisposable
         {
             return;
         }
+
         var picture = _activePagesDrawingRequest.Pages.GetCachedPicture(_activeCommand.PageNumber.Value);
         surface.Canvas.DrawPageFromRequest(picture.PageNumber, _activePagesDrawingRequest, PageDrawFlags.Background | PageDrawFlags.Thumbnail, cancellationToken);
     }

@@ -49,10 +49,10 @@ internal sealed class WebGlSkiaRenderer : IPdfPanelRenderTargetFactory, ISkSurfa
 
         var webglCtx = Emscripten.WebGlCreateContext(
             canvasId: canvasSelector,
-            alpha: 1,
+            alpha: 0,
             depth: 1,
             stencil: 1,
-            antialias: 1,
+            antialias: 0,
             majorVersion: 2);
 
         if (webglCtx <= 0)

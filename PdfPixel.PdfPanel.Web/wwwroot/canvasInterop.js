@@ -159,8 +159,8 @@ class PdfPanelView {
 
             this.scrollHost.style.overflow = 'auto';
             // TODO: [HIGH] this does not work properly, scroll is jugged
-            //this.scrollHost.scrollLeft = this.state.horizontalOffset / dpr;
-            //this.scrollHost.scrollTop = this.state.verticalOffset / dpr;
+            this.scrollHost.scrollLeft = this.state.horizontalOffset / dpr;
+            this.scrollHost.scrollTop = this.state.verticalOffset / dpr;
 
             // Read back the browser-clamped values so onScroll can recognise
             // and suppress the scroll event that this programmatic set fires.

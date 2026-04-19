@@ -80,7 +80,7 @@ internal sealed class WglContext : IDisposable
             Flags = PfdDrawToWindow | PfdSupportOpengl | PfdDoubleBuffer,
             PixelType = PfdTypeRgba,
             ColorBits = 32,
-            AlphaBits = 8,
+            AlphaBits = 0,
             DepthBits = 24,
             StencilBits = 8,
             LayerType = PfdMainPlane

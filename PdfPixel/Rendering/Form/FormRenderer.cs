@@ -6,6 +6,7 @@ using PdfPixel.Parsing;
 using PdfPixel.Rendering.State;
 using PdfPixel.Transparency.Utilities;
 using SkiaSharp;
+using System.Collections.Generic;
 
 namespace PdfPixel.Rendering.Form;
 
@@ -32,6 +33,8 @@ public class FormRenderer : IFormRenderer
             return;
         }
 
+        // TODO: [HIGH] Introduce form recording cache in PDF Document
+
         graphicsState.RecursionGuard.Add(objectNumber);
 
         using var softMaskScope = new SoftMaskDrawingScope(_renderer, processor, graphicsState);
@@ -52,18 +55,24 @@ public class FormRenderer : IFormRenderer
         }
 
         // Decode and render content with a cloned state that clears parent soft mask
+        var recorder = new PdfCommandRecorder();
+
         var content = formXObject.GetFormData();
         if (!content.IsEmpty)
         {
-            var parseContext = new PdfParseContext(content);
             var formPage = formXObject.GetFormPage();
 
             var localGs = new PdfGraphicsState(formPage, graphicsState);
             localGs.CTM = formXObject.Matrix;
 
             var renderer = new PdfContentStreamRenderer(_renderer, formPage);
-            renderer.RenderContext(processor, ref parseContext, localGs);
+            var parseContext = new PdfParseContext(content);
+
+            renderer.RenderContext(recorder, ref parseContext, localGs);
         }
+
+        var recording = new DrawRecordingCommand(recorder);
+        processor.Process(recording);
 
         if (formXObject.TransparencyGroup != null)
         {

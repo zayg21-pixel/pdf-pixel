@@ -317,9 +317,6 @@ internal sealed class PdfPanelRenderer
             return null;
         }
 
-        // TODO: [HIGH] uncomment
-        return null;
-
         int count = surface.Canvas.Save();
 
         try
@@ -347,11 +344,15 @@ internal sealed class PdfPanelRenderer
             recording.Replay(canvas, Array.Empty<IPdfCommandModifier>(), executionContext);
 
             canvas.Restore();
-            canvas.Flush();
+            //canvas.Flush(); // seems like it's not needed here, snapshot makes lazy-render
 
             var drawnWidth = (int)Math.Max(1, Math.Round(pdfPage.CropBox.Width * scale));
             var drawnHeight = (int)Math.Max(1, Math.Round(pdfPage.CropBox.Height * scale));
             return surface.Snapshot(new SKRectI(0, 0, drawnWidth, drawnHeight));
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
         }
         catch
         {

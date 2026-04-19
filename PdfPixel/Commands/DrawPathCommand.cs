@@ -27,6 +27,7 @@ public sealed class DrawPathCommand : PdfCommand
         {
             modifier.ModifyPaint(paint);
         }
+
         canvas.DrawPath(_path, paint);
     }
 

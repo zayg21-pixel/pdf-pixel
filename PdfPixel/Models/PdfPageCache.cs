@@ -1,15 +1,14 @@
-using System;
-using System.Collections.Generic;
+using PdfPixel.Color.ColorSpace;
 using PdfPixel.Commands;
 using PdfPixel.Fonts;
-using SkiaSharp;
-using PdfPixel.Rendering.State;
-using PdfPixel.Color.ColorSpace;
+using PdfPixel.Fonts.Model;
 using PdfPixel.Pattern.Model;
 using PdfPixel.Pattern.Utilities;
-using PdfPixel.Text;
 using PdfPixel.Rendering;
-using PdfPixel.Fonts.Model;
+using PdfPixel.Rendering.State;
+using PdfPixel.Text;
+using System;
+using System.Collections.Generic;
 
 namespace PdfPixel.Models;
 
