@@ -317,6 +317,9 @@ internal sealed class PdfPanelRenderer
             return null;
         }
 
+        // TODO: [HIGH] uncomment
+        return null;
+
         int count = surface.Canvas.Save();
 
         try

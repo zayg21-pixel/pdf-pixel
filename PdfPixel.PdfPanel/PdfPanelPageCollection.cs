@@ -170,6 +170,7 @@ public sealed class PdfPanelPageCollection : ReadOnlyCollection<PdfPanelPage>, I
 
         if (annotationChanged || stateChangedWithinAnnotation)
         {
+            // TODO: [HIGH] we're leaving initial page without annotations
             cachedPicture.UpdateAnnotationRecording(null);
         }
 
@@ -182,8 +183,9 @@ public sealed class PdfPanelPageCollection : ReadOnlyCollection<PdfPanelPage>, I
 
         if (cachedPicture.AnnotationRecording == null)
         {
-            cachedPicture.UpdateAnnotationRecording(
-                Renderer.GetAnnotationRecording(pageNumber, scale, cachedPicture.ActiveAnnotation, cachedPicture.ActiveAnnotationState, token));
+            // TODO: uncomment
+            //cachedPicture.UpdateAnnotationRecording(
+            //    Renderer.GetAnnotationRecording(pageNumber, scale, cachedPicture.ActiveAnnotation, cachedPicture.ActiveAnnotationState, token));
         }
 
         return cachedPicture;
