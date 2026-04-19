@@ -146,7 +146,6 @@ public sealed class EmscriptenRenderLoopRunner : IRenderLoopRunner
             if (!next.CancellationToken.IsCancellationRequested)
             {
                 instance._currentEntry = next;
-                break;
             }
         }
 
