@@ -112,7 +112,6 @@ public sealed class PdfPanelPageCollection : ReadOnlyCollection<PdfPanelPage>, I
 
     internal CachedSkPicture InitializePageWithThumbnail(
         int pageNumber,
-        float scale,
         SKSurface thumbnailSurface,
         PdfAnnotationPopup activeAnnotationPopup,
         PdfPanelPointerState activeAnnotationState,
@@ -127,7 +126,7 @@ public sealed class PdfPanelPageCollection : ReadOnlyCollection<PdfPanelPage>, I
             }
 
             var recording = Renderer.GetRecording(pageNumber, token);
-            SKImage thumbnailPicture = Renderer.GetThumbnail(pageNumber, recording, thumbnailSurface);
+            SKImage thumbnailPicture = Renderer.GetThumbnail(pageNumber, recording, thumbnailSurface, token);
 
             cachedPicture = new CachedSkPicture(recording, thumbnailPicture, pageNumber, hasAnnotations)
             {

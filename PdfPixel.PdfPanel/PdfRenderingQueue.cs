@@ -219,9 +219,9 @@ public sealed class PdfRenderingQueue : IDisposable
 
     private void InitializePage(SKSurface thumbnailSurface, CancellationToken cancellationToken)
     {
+        // TODO: [HIGH] We need to split initialize and thumbnail rendering
         _activePagesDrawingRequest.Pages.InitializePageWithThumbnail(
             _activeCommand.PageNumber.Value,
-            _activePagesDrawingRequest.Scale,
             thumbnailSurface,
             _activePagesDrawingRequest.ActiveAnnotation,
             _activePagesDrawingRequest.ActiveAnnotationState,

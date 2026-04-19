@@ -305,16 +305,19 @@ internal sealed class PdfPanelRenderer
     /// <param name="pageNumber">1-based page number for geometry lookup.</param>
     /// <param name="recording">Page-content recording to replay.</param>
     /// <param name="surface">Target surface to draw the thumbnail into.</param>
+    /// <param name="token">Thumbnail render cancellation token.</param>
     /// <returns>A snapshot of the drawn thumbnail, or null on failure.</returns>
     public SKImage GetThumbnail(
         int pageNumber,
         PdfCommandRecorder recording,
-        SKSurface surface)
+        SKSurface surface, CancellationToken token)
     {
         if (surface == null || recording == null)
         {
             return null;
         }
+
+        int count = surface.Canvas.Save();
 
         try
         {
@@ -337,7 +340,7 @@ internal sealed class PdfPanelRenderer
                 Antialias = false
             };
 
-            var executionContext = new PdfCommandExecutionContext(parameters, CancellationToken.None);
+            var executionContext = new PdfCommandExecutionContext(parameters, token);
             recording.Replay(canvas, Array.Empty<IPdfCommandModifier>(), executionContext);
 
             canvas.Restore();
@@ -350,6 +353,10 @@ internal sealed class PdfPanelRenderer
         catch
         {
             return null;
+        }
+        finally
+        {
+            surface.Canvas.RestoreToCount(count);
         }
     }
 
