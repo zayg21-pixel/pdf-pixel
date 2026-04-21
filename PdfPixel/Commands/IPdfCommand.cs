@@ -16,4 +16,9 @@ public interface IPdfCommand : IDisposable
     /// <param name="modifiers">The modifiers to apply to paints before drawing, applied in order.</param>
     /// <param name="executionContext">Execution-time context containing rendering parameters and cancellation.</param>
     void Execute(SKCanvas canvas, IEnumerable<IPdfCommandModifier> modifiers, PdfCommandExecutionContext executionContext);
+
+    /// <summary>
+    /// If true - command will produce different result depending on scale.
+    /// </summary>
+    bool IsScaleDependant { get; }
 }

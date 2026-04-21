@@ -231,7 +231,8 @@ namespace PdfPixel.PdfPanel.Wpf
                 }
             }
 
-            _renderingQueue = new PdfRenderingQueue(new NullLoggerFactory(), _surfaceFactory);
+            var runner = new SingleThreadedRenderLoopRunner(Pages.ContentProvider);
+            _renderingQueue = new PdfRenderingQueue(new NullLoggerFactory(), _surfaceFactory, runner);
             _context = new PdfPanelContext(Pages, _renderingQueue, _renderTargetFactory, new PdfPanelVerticalLayout());
 
             switch (RenderMode)

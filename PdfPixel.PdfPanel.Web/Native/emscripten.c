@@ -129,6 +129,19 @@ void dotnet_console_log(const char* message, int log_level) {
 // Key is canvasId with leading '#' stripped (substring(1)).
 EM_JS(void, dotnet_set_offscreen_canvas_size_js, (const char* canvasIdPtr, int width, int height), {
 	const canvasId = UTF8ToString(canvasIdPtr);
+	const temp = document.querySelector(canvasId);
+	// TODO: find out why emscripten_set_canvas_element_size fails
+	if (temp)
+	{
+		temp.width = width;
+		temp.height = height;
+			console.log(`dotnet_set_offscreen_canvas_size_js: Set size of ${canvasId} to ${width}x${height}`);
+	}
+	else {
+		console.warn(`dotnet_set_offscreen_canvas_size_js: Could not find element with id ${canvasId}`);
+	}
+	return;
+
 	const key = canvasId.substring(1);
 
 	if (typeof GL === 'undefined' || !GL.offscreenCanvases) {
@@ -145,7 +158,8 @@ EM_JS(void, dotnet_set_offscreen_canvas_size_js, (const char* canvasIdPtr, int w
 // Sets canvas size: OffscreenCanvas on worker, main canvas dispatched to main thread.
 // Can be called from any thread.
 void dotnet_set_canvas_size(const char* canvasId, int width, int height) {
-	dotnet_set_offscreen_canvas_size_js(canvasId, width, height);
+	//dotnet_set_offscreen_canvas_size_js(canvasId, width, height);
+	emscripten_set_canvas_element_size(canvasId, width, height);
 
 	double dpr = emscripten_get_device_pixel_ratio();
 	emscripten_set_element_css_size(canvasId, width / dpr, height / dpr);

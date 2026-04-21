@@ -36,6 +36,11 @@ public class PdfDocument : IDisposable
     }
 
     /// <summary>
+    /// Gets the logger factory used for creating loggers.
+    /// </summary>
+    public ILoggerFactory LoggerFactory { get; }
+
+    /// <summary>
     /// Gets the list of pages in the PDF document.
     /// </summary>
     public List<PdfPage> Pages { get; } = new List<PdfPage>();
@@ -50,11 +55,6 @@ public class PdfDocument : IDisposable
     /// Gets or sets the root object of the PDF document.
     /// </summary>
     internal PdfObject RootObject { get; set; }
-
-    /// <summary>
-    /// Gets the logger factory used for creating loggers.
-    /// </summary>
-    internal ILoggerFactory LoggerFactory { get; }
 
     /// <summary>
     /// Gets the document-level font substitution engine.

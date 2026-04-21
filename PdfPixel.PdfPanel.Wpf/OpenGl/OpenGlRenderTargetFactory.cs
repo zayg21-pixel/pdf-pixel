@@ -206,23 +206,9 @@ public sealed class OpenGlRenderTargetFactory : IPdfPanelRenderTargetFactory, IP
     {
         var imageInfo = new SKImageInfo(_currentWidth, _currentHeight, SKColorType.Bgra8888, SKAlphaType.Premul);
 
-        _glContext.ReleaseCurrent();
+        _glContext.MakeCurrent();
 
-        // Dispatch to UI thread to copy pixels into WriteableBitmap and present
-        _panel.Dispatcher.Invoke(() =>
-        {
-            _glContext.MakeCurrent();
-
-            try
-            {
-                PresentToWriteableBitmap(imageInfo, surface, request);
-            }
-            finally
-            {
-                _glContext.ReleaseCurrent();
-            }
-
-        }, System.Windows.Threading.DispatcherPriority.Render, token);
+        PresentToWriteableBitmap(imageInfo, surface, request);
     }
 
     private void PresentToWriteableBitmap(SKImageInfo imageInfo, SKSurface surface, DrawingRequest request)

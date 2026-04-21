@@ -7,6 +7,11 @@ namespace PdfPixel.PdfPanel;
 public enum PdfPanelRenderCommandType
 {
     /// <summary>
+    /// Initialize rendering.
+    /// </summary>
+    Initialize,
+
+    /// <summary>
     /// Draw background color and page shadows.
     /// </summary>
     DrawBackground,
@@ -17,12 +22,17 @@ public enum PdfPanelRenderCommandType
     InitializePage,
 
     /// <summary>
+    /// Rasterize a thumbnail picture to the surface.
+    /// </summary>
+    RasterizeThumbnail,
+
+    /// <summary>
     /// Draw an already-generated thumbnail to the surface.
     /// </summary>
     DrawThumbnail,
 
     /// <summary>
-    /// Generate full content picture for a specific page (CPU/GPU work, slow).
+    /// Generate full content picture for a specific page.
     /// </summary>
     GenerateContent,
 
@@ -52,5 +62,5 @@ public enum PdfPanelRenderCommandType
     /// Emitted as the last command in a successful render pack. If the pack is cancelled, this command
     /// is never reached, so no stale or partial snapshot is stored.
     /// </summary>
-    Finalize,
+    Finalize
 }

@@ -1,9 +1,9 @@
 ﻿using PdfPixel.Commands;
 using PdfPixel.Models;
+using PdfPixel.PdfPanel.ContentProvider;
 using PdfPixel.PdfPanel.Requests;
 using SkiaSharp;
 using System;
-using System.Collections;
 using System.Linq;
 using System.Threading;
 
@@ -23,7 +23,7 @@ internal enum PageDrawFlags
 /// </summary>
 internal static class SkCanvasExtensions
 {
-    public static void DrawPageFromRequest(this SKCanvas canvas, int pageNumber, PagesDrawingRequest request, PageDrawFlags drawFlags, CancellationToken cancellationToken)
+    public static void DrawPageFromRequest(this SKCanvas canvas, int pageNumber, PagesDrawingRequest request, PdfPanelRenderCommand command, PageDrawFlags drawFlags, CancellationToken cancellationToken)
     {
         if (!request.VisiblePages.Any(x => x.PageNumber == pageNumber))
         {
@@ -61,20 +61,20 @@ internal static class SkCanvasExtensions
             //canvas.SaveLayer(pageRectangle, default);
             //canvas.Clear();
 
-            if (!request.Pages.TryGetPictureFromCache(page.PageNumber, out var picture))
-            {
-                return;
-            }
+            //if (!request.Pages.TryGetPictureFromCache(page.PageNumber, out var picture))
+            //{
+            //    return;
+            //}
 
-            if (drawFlags.HasFlag(PageDrawFlags.Thumbnail))
-            {
-                DrawCachedThumbnail(canvas, picture, page);
-            }
+            //if (drawFlags.HasFlag(PageDrawFlags.Thumbnail))
+            //{
+            //    DrawCachedThumbnail(canvas, picture, page);
+            //}
 
             if (drawFlags.HasFlag(PageDrawFlags.Content))
             {
-                DrawCachedPicture(canvas, picture, page, request.RenderingParameters, cancellationToken);
-                DrawCachedAnnotationPicture(canvas, picture, page, request.RenderingParameters, cancellationToken);
+                DrawPagePicture(canvas, command.Content, page, cancellationToken);
+                DrawPagePicture(canvas, command.Annotations, page, cancellationToken);
             }
         }
         finally
@@ -83,84 +83,51 @@ internal static class SkCanvasExtensions
         }
     }
 
-    private static void DrawCachedPicture(SKCanvas canvas, CachedSkPicture picture, VisiblePageInfo page, PdfRenderingParameters renderingParameters, CancellationToken cancellationToken)
+    private static void DrawPagePicture(SKCanvas canvas, ContentLocker<SKPicture> content, VisiblePageInfo page, CancellationToken cancellationToken)
     {
-        lock (picture.DisposeLocker)
+        if (content == null)
         {
-            if (picture.IsDisposed || picture.Recording == null)
-            {
-                return;
-            }
-
-            // Recordings are at scale 1 (page coordinate space).
-            var transformMatrix = GetPictureTransformMatrix(page.Info.Width, page.Info.Height, page.Info, page.UserRotation);
-            int saveCount = canvas.Save();
-            try
-            {
-                canvas.Concat(in transformMatrix);
-
-                var executionContext = new PdfCommandExecutionContext(renderingParameters, cancellationToken);
-                picture.Recording.Replay(canvas, Array.Empty<IPdfCommandModifier>(), executionContext);
-            }
-            finally
-            {
-                canvas.RestoreToCount(saveCount);
-            }
+            return;
         }
-    }
 
-    private static void DrawCachedAnnotationPicture(SKCanvas canvas, CachedSkPicture picture, VisiblePageInfo page, PdfRenderingParameters renderingParameters, CancellationToken cancellationToken)
-    {
-        lock (picture.DisposeLocker)
+        if (!content.HasContent)
         {
-            if (picture.IsDisposed || picture.AnnotationRecording == null)
-            {
-                return;
-            }
-
-            // Recordings are at scale 1 (page coordinate space).
-            var transformMatrix = GetPictureTransformMatrix(page.Info.Width, page.Info.Height, page.Info, page.UserRotation);
-            int saveCount = canvas.Save();
-            try
-            {
-                canvas.Concat(in transformMatrix);
-
-                var executionContext = new PdfCommandExecutionContext(renderingParameters, cancellationToken);
-                picture.AnnotationRecording.Replay(canvas, Array.Empty<IPdfCommandModifier>(), executionContext);
-            }
-            finally
-            {
-                canvas.RestoreToCount(saveCount);
-            }
+            return;
         }
-    }
 
-    private static void DrawCachedThumbnail(SKCanvas canvas, CachedSkPicture picture, VisiblePageInfo page)
-    {
-        lock (picture.DisposeLocker)
+        using var contentPicture = content.GetContent();
+
+        // Recordings are at scale 1 (page coordinate space).
+        var transformMatrix = GetPictureTransformMatrix(page.Info.Width, page.Info.Height, page.Info, page.UserRotation);
+        int saveCount = canvas.Save();
+        try
         {
-            if (picture.IsDisposed)
-            {
-                return;
-            }
-
-            var thumbnail = picture.Thumbnail;
-
-            if (thumbnail == null)
-            {
-                return;
-            }
-
-            int saveCount = canvas.Save();
-            var thumbnailRect = SKRect.Create(0, 0, thumbnail.Width, thumbnail.Height);
-            var destRect = SKRect.Create(0, 0, page.Info.Width, page.Info.Height);
-            var transformMatrix = GetRotationTranslationMatrix(page.Info, page.UserRotation);
             canvas.Concat(in transformMatrix);
-
-            var samplingOption = new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.None);
-            canvas.DrawImage(thumbnail, thumbnailRect, destRect, samplingOption);
+            canvas.DrawPicture(contentPicture.Content);
+        }
+        finally
+        {
             canvas.RestoreToCount(saveCount);
         }
+    }
+
+    private static void DrawCachedThumbnail(SKCanvas canvas, SKImage thumbnail, VisiblePageInfo page)
+    {
+        // TODO: remove if not needed
+        if (thumbnail == null)
+        {
+            return;
+        }
+
+        int saveCount = canvas.Save();
+        var thumbnailRect = SKRect.Create(0, 0, thumbnail.Width, thumbnail.Height);
+        var destRect = SKRect.Create(0, 0, page.Info.Width, page.Info.Height);
+        var transformMatrix = GetRotationTranslationMatrix(page.Info, page.UserRotation);
+        canvas.Concat(in transformMatrix);
+
+        var samplingOption = new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.None);
+        canvas.DrawImage(thumbnail, thumbnailRect, destRect, samplingOption);
+        canvas.RestoreToCount(saveCount);
     }
 
     private static SKMatrix GetRotationTranslationMatrix(PdfPanelPageInfo pageInfo, int userRotation)
@@ -243,7 +210,6 @@ internal static class SkCanvasExtensions
             Style = SKPaintStyle.Fill,
             Color = SKColors.White,
             IsAntialias = antialias,
-            //BlendMode = SKBlendMode.DstOver
         };
 
         if (cornerRadius > 0)

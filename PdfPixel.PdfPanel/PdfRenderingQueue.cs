@@ -1,5 +1,4 @@
 ﻿using Microsoft.Extensions.Logging;
-using PdfPixel.Models;
 using PdfPixel.PdfPanel.Extensions;
 using PdfPixel.PdfPanel.Requests;
 using SkiaSharp;
@@ -17,7 +16,6 @@ public sealed class PdfRenderingQueue : IDisposable
     private readonly IRenderLoopRunner _loopRunner;
     private readonly ILoggerFactory _loggerFactory;
     private readonly ILogger _logger;
-    private readonly Thread _renderThread;
     private DrawingRequest _lastRequest;
     private volatile bool _disposed;
 
@@ -27,28 +25,12 @@ public sealed class PdfRenderingQueue : IDisposable
     private FinalizedRenderSnapshot _finalizedSnapshot;
     private List<int> _backgroundRenderedForPages = new List<int>();
 
-    public PdfRenderingQueue(ILoggerFactory loggerFactory, ISkSurfaceFactory surfaceFactory)
-        : this(loggerFactory, surfaceFactory, new DefaultRenderLoopRunner())
-    {
-    }
-
     public PdfRenderingQueue(ILoggerFactory loggerFactory, ISkSurfaceFactory surfaceFactory, IRenderLoopRunner loopRunner)
     {
         _loggerFactory = loggerFactory;
         _logger = loggerFactory.CreateLogger<PdfRenderingQueue>();
         _surfaceFactory = surfaceFactory;
         _loopRunner = loopRunner ?? throw new ArgumentNullException(nameof(loopRunner));
-        _renderThread = new Thread(RenderThreadEntry)
-        {
-            IsBackground = true,
-            Name = "PdfRenderingQueue"
-        };
-        _renderThread.Start();
-    }
-
-    private void RenderThreadEntry()
-    {
-        _surfaceFactory.Initialize();
         _loopRunner.Start(RenderCommandLoopIteration);
     }
 
@@ -82,6 +64,11 @@ public sealed class PdfRenderingQueue : IDisposable
         {
             switch (command.Type)
             {
+                case PdfPanelRenderCommandType.Initialize:
+                {
+                    _surfaceFactory.Initialize();
+                    break;
+                }
                 case PdfPanelRenderCommandType.Dispose:
                 {
                     DisposeFromCommand();
@@ -97,23 +84,6 @@ public sealed class PdfRenderingQueue : IDisposable
                 {
                     var surface = GetDrawingSurface(cancellationToken);
                     _activePagesDrawingRequest.RenderTarget.Render(surface, _activePagesDrawingRequest, cancellationToken);
-                    break;
-                }
-                case PdfPanelRenderCommandType.InitializePage:
-                {
-                    var thumbnailSurface = GetThumbnailSurface(cancellationToken);
-                    InitializePage(thumbnailSurface, cancellationToken);
-                    break;
-                }
-                case PdfPanelRenderCommandType.DrawThumbnail:
-                {
-                    var surface = GetDrawingSurface(cancellationToken);
-                    DrawThumbnail(surface, cancellationToken);
-                    break;
-                }
-                case PdfPanelRenderCommandType.GenerateContent:
-                {
-                    InitializePageContent(cancellationToken);
                     break;
                 }
                 case PdfPanelRenderCommandType.DrawContent:
@@ -201,30 +171,7 @@ public sealed class PdfRenderingQueue : IDisposable
         var canvas = surface.Canvas;
 
         var visiblePages = _activePagesDrawingRequest.VisiblePages.Select(x => x.PageNumber);
-        _activePagesDrawingRequest.Pages.UpdateCache(visiblePages);
-
-        if (_finalizedSnapshot != null)
-        {
-            DrawBackgroundAndShadows(canvas, _activePagesDrawingRequest, cancellationToken);
-            DrawExistingThumbnails(canvas, _activePagesDrawingRequest, cancellationToken);
-            RenderSurfaceSnapshot(canvas, _finalizedSnapshot.SurfaceSnapshot, _activePagesDrawingRequest, _finalizedSnapshot.Request);
-        }
-        else
-        {
-            DrawBackgroundAndShadows(canvas, _activePagesDrawingRequest, cancellationToken);
-            DrawExistingThumbnails(canvas, _activePagesDrawingRequest, cancellationToken);
-        }
-    }
-
-    private void InitializePage(SKSurface thumbnailSurface, CancellationToken cancellationToken)
-    {
-        // TODO: [HIGH] We need to split initialize and thumbnail rendering
-        _activePagesDrawingRequest.Pages.InitializePageWithThumbnail(
-            _activeCommand.PageNumber.Value,
-            thumbnailSurface,
-            _activePagesDrawingRequest.ActiveAnnotation,
-            _activePagesDrawingRequest.ActiveAnnotationState,
-            cancellationToken);
+        DrawBackgroundAndShadows(canvas, _activePagesDrawingRequest, _activeCommand, cancellationToken);
     }
 
     private void DrawThumbnail(SKSurface surface, CancellationToken cancellationToken)
@@ -234,50 +181,21 @@ public sealed class PdfRenderingQueue : IDisposable
             return;
         }
 
-        var picture = _activePagesDrawingRequest.Pages.GetCachedPicture(_activeCommand.PageNumber.Value);
-        surface.Canvas.DrawPageFromRequest(picture.PageNumber, _activePagesDrawingRequest, PageDrawFlags.Background | PageDrawFlags.Thumbnail, cancellationToken);
-    }
-
-    private void InitializePageContent(CancellationToken token)
-    {
-        _activePagesDrawingRequest.Pages.GeneratePicturesForPage(_activeCommand.PageNumber.Value, _activePagesDrawingRequest.Scale, token);
+        surface.Canvas.DrawPageFromRequest(_activeCommand.PageNumber.Value, _activePagesDrawingRequest, _activeCommand, PageDrawFlags.Background | PageDrawFlags.Thumbnail, cancellationToken);
     }
 
     private void DrawPageContent(SKSurface surface, CancellationToken cancellationToken)
     {
-        var picture = _activePagesDrawingRequest.Pages.GetCachedPicture(_activeCommand.PageNumber.Value);
-        surface.Canvas.DrawPageFromRequest(picture.PageNumber, _activePagesDrawingRequest, PageDrawFlags.Background | PageDrawFlags.Content, cancellationToken);
+        surface.Canvas.DrawPageFromRequest(_activeCommand.PageNumber.Value, _activePagesDrawingRequest, _activeCommand, PageDrawFlags.Background | PageDrawFlags.Content, cancellationToken);
     }
 
-    private static void DrawBackgroundAndShadows(SKCanvas canvas, PagesDrawingRequest request, CancellationToken cancellationToken)
+    private static void DrawBackgroundAndShadows(SKCanvas canvas, PagesDrawingRequest request, PdfPanelRenderCommand command, CancellationToken cancellationToken)
     {
         canvas.Clear(request.BackgroundColor);
 
         foreach (var page in request.VisiblePages)
         {
-            canvas.DrawPageFromRequest(page.PageNumber, request, PageDrawFlags.Background | PageDrawFlags.Shadow, cancellationToken);
-        }
-    }
-
-    private void DrawExistingThumbnails(
-        SKCanvas canvas,
-        PagesDrawingRequest request,
-        CancellationToken cancellationToken)
-    {
-        foreach (var page in request.VisiblePages)
-        {
-            if (!request.Pages.TryGetPictureFromCache(page.PageNumber, out var cached))
-            {
-                continue;
-            }
-
-            if (cached.Thumbnail == null)
-            {
-                continue;
-            }
-
-            canvas.DrawPageFromRequest(page.PageNumber, request, PageDrawFlags.Thumbnail, cancellationToken);
-            _backgroundRenderedForPages.Add(page.PageNumber);
+            canvas.DrawPageFromRequest(page.PageNumber, request, command, PageDrawFlags.Background | PageDrawFlags.Shadow, cancellationToken);
         }
     }
 

@@ -57,6 +57,8 @@ public sealed class EmscriptenRenderLoopRunner : IRenderLoopRunner
             return;
         }
 
+        iteration(new RenderFrameCommand(new PdfPanelRenderCommand(PdfPanelRenderCommandType.Initialize), CancellationToken.None));
+
         _iteration = iteration ?? throw new ArgumentNullException(nameof(iteration));
         _threadId = Environment.CurrentManagedThreadId;
         _isRunning = true;

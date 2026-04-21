@@ -25,7 +25,7 @@ public readonly struct VisiblePageInfo
     /// <summary>
     /// Gets the page number.
     /// </summary>
-    public int PageNumber { get; }
+    public int PageNumber { get; } // TODO: remove afterwards
 
     /// <summary>
     /// Gets the offset of the page.

@@ -43,6 +43,8 @@ public sealed class DrawImageCommand : PdfCommand
         _logger = loggerFactory.CreateLogger<DrawImageCommand>();
     }
 
+    public override bool IsScaleDependant => true;
+
     /// <inheritdoc />
     public override void Execute(SKCanvas canvas, IEnumerable<IPdfCommandModifier> modifiers, PdfCommandExecutionContext executionContext)
     {

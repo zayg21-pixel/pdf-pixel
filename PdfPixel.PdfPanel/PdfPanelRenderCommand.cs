@@ -1,4 +1,6 @@
+using PdfPixel.PdfPanel.ContentProvider;
 using PdfPixel.PdfPanel.Requests;
+using SkiaSharp;
 using System.Collections.Generic;
 
 namespace PdfPixel.PdfPanel;
@@ -15,11 +17,13 @@ public sealed class PdfPanelRenderCommand
     /// <param name="type">The type of command.</param>
     /// <param name="request">Optional drawing request.</param>
     /// <param name="pageNumber">Optional page number for page-specific commands.</param>
-    public PdfPanelRenderCommand(PdfPanelRenderCommandType type, PagesDrawingRequest request = null, int? pageNumber = null)
+    /// <param name="content">Optional content for commands that generate or draw content.</param>
+    public PdfPanelRenderCommand(PdfPanelRenderCommandType type, PagesDrawingRequest request = null, int? pageNumber = null, ContentLocker<SKPicture> content = null)
     {
         Type = type;
         DrawingRequest = request;
         PageNumber = pageNumber;
+        Content = content;
     }
 
     /// <summary>
@@ -36,6 +40,10 @@ public sealed class PdfPanelRenderCommand
     /// The page number this command operates on. Null for commands that affect all pages.
     /// </summary>
     public int? PageNumber { get; }
+
+    public ContentLocker<SKPicture> Content { get; }
+
+    public ContentLocker<SKPicture> Annotations { get; }
 
     public static List<PdfPanelRenderCommand> GenerateCommandsFromRequest(DrawingRequest request)
     {
@@ -58,9 +66,56 @@ public sealed class PdfPanelRenderCommand
         }
         else
         {
-            // For unknown request types, return an empty command list or throw an exception
             return new List<PdfPanelRenderCommand>();
         }
+    }
+
+    public static List<PdfPanelRenderCommand> GenerateCommandsFromRequestNew(DrawingRequest request, IPdfPageContentProvider contentProvider)
+    {
+        if (request is PagesDrawingRequest pagesRequest)
+        {
+            return GenerateCommandsFromRequestNew(pagesRequest, contentProvider);
+        }
+        else if (request is DisposeRequest)
+        {
+            return [new PdfPanelRenderCommand(PdfPanelRenderCommandType.Dispose)];
+        }
+        else if (request is ResetDrawingRequest)
+        {
+            return [new PdfPanelRenderCommand(PdfPanelRenderCommandType.Reset)];
+
+        }
+        else if (request is RefreshGraphicsDrawingRequest)
+        {
+            return [new PdfPanelRenderCommand(PdfPanelRenderCommandType.Render)];
+        }
+        else
+        {
+            return new List<PdfPanelRenderCommand>();
+        }
+    }
+
+    private static List<PdfPanelRenderCommand> GenerateCommandsFromRequestNew(PagesDrawingRequest request, IPdfPageContentProvider contentProvider)
+    {
+        var commands = new List<PdfPanelRenderCommand>();
+
+        // 1. Draw background and shadows for all pages
+        commands.Add(new PdfPanelRenderCommand(PdfPanelRenderCommandType.DrawBackground, request));
+
+        // 3. Generate and draw full content for each visible page
+        foreach (var page in request.VisiblePages)
+        {
+            commands.Add(new PdfPanelRenderCommand(
+                PdfPanelRenderCommandType.DrawContent,
+                request,
+                page.PageNumber,
+                contentProvider.GetExistingContent(page.PageNumber)));
+
+        }
+
+        commands.Add(new PdfPanelRenderCommand(PdfPanelRenderCommandType.Render, request));
+
+        return commands;
     }
 
     /// <summary>

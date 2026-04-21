@@ -4,7 +4,6 @@
     <TargetFrameworks>net10.0</TargetFrameworks>
     <RuntimeIdentifier>browser-wasm</RuntimeIdentifier>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-    <WasmEnableThreads>true</WasmEnableThreads>
     <WasmEnableSIMD>true</WasmEnableSIMD>
     <RunAOTCompilation>true</RunAOTCompilation>
     <WasmBuildNative>true</WasmBuildNative>
@@ -13,7 +12,6 @@
     <EnableDefaultContentItems>false</EnableDefaultContentItems>
     <WasmNativeDebugSymbols>true</WasmNativeDebugSymbols>
     <WasmEmitSymbolMap>true</WasmEmitSymbolMap>
-    <EmccFlags>-s FULL_ES3=1 -s OFFSCREENCANVAS_SUPPORT=1</EmccFlags>
   </PropertyGroup>
 
   <ItemGroup>

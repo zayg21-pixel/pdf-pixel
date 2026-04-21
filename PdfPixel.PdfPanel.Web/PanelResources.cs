@@ -1,4 +1,6 @@
-﻿namespace PdfPixel.PdfPanel.Web;
+﻿using PdfPixel.PdfPanel.ContentProvider;
+
+namespace PdfPixel.PdfPanel.Web;
 
 /// <summary>
 /// Encapsulates all resources associated with a single PDF panel instance.
@@ -24,6 +26,11 @@ internal class PdfPanelResources
     /// Gets or sets the PDF panel context instance.
     /// </summary>
     public PdfPanelContext Context { get; set; }
+
+    /// <summary>
+    /// Document content provider.
+    /// </summary>
+    public WebDocumentContentProvider ContentProvider { get; set; }
 
     /// <summary>
     /// Gets or sets the parsed configuration for the panel.

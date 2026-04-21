@@ -25,8 +25,6 @@ public readonly struct RenderFrameCommand
 
 /// <summary>
 /// Provides platform-specific control over the render loop execution and request queuing.
-/// On browsers, implementations use <c>emscripten_set_main_loop</c> to yield to the event loop.
-/// On desktop, the default blocking semaphore approach is used.
 /// </summary>
 public interface IRenderLoopRunner : IDisposable
 {

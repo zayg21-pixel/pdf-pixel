@@ -110,6 +110,7 @@ public class PdfContentStreamRenderer
                 operandStack.Push(value);
             }
 
+            Thread.Yield(); // Yield to allow cancellation to be observed between operators 
             graphicsState.CancellationToken.ThrowIfCancellationRequested();
         }
 

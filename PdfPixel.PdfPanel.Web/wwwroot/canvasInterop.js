@@ -1,6 +1,7 @@
 const views = new Map();
 let interop = null;
 let emscriptenModule = null;
+let contentWorker = null;
 
 class PdfPanelView {
     constructor(id, containerElement, configuration) {
@@ -61,9 +62,6 @@ class PdfPanelView {
         this._touchStartDistance = 0;
         this._touchStartScale = null;
 
-        this.canvas.offscreenCanvas = this.canvas.transferControlToOffscreen();
-        this.canvas.transferControlToOffscreen = true;
-
         this.onWheel = this.onWheel.bind(this);
         this.onScroll = this.onScroll.bind(this);
         this.onMouseMove = this.onMouseMove.bind(this);
@@ -76,109 +74,93 @@ class PdfPanelView {
     }
 
     requestRender() {
-        this._dirty = true;
-
-        if (this.renderFrameRequestId !== null || this._rendering) {
-            return;
+        try {
+            this.performRender();
         }
-
-        this.renderFrameRequestId = window.requestAnimationFrame(() => {
-            this.renderFrameRequestId = null;
-            void this.performRender();
-        });
+        catch (err) {
+            console.error(`Error during render of view '${this.id}': ${err?.message || String(err)}`);
+        }
     }
 
-    async performRender() {
-        this._rendering = true;
-        this._dirty = false;
+    performRender() {
+        const containerWidth = this.scrollHost.clientWidth;
+        const containerHeight = this.scrollHost.clientHeight;
 
-        try {
-            const containerWidth = this.scrollHost.clientWidth;
-            const containerHeight = this.scrollHost.clientHeight;
+        const dpr = window.devicePixelRatio || 1;
+        const zoom = (window.visualViewport && window.visualViewport.scale) ? window.visualViewport.scale : 1;
+        const devicePixelScale = dpr * zoom;
 
-            const dpr = window.devicePixelRatio || 1;
-            const zoom = (window.visualViewport && window.visualViewport.scale) ? window.visualViewport.scale : 1;
-            const devicePixelScale = dpr * zoom;
+        const physicalWidth = Math.round(containerWidth * devicePixelScale);
+        const physicalHeight = Math.round(containerHeight * devicePixelScale);
 
-            const physicalWidth = Math.round(containerWidth * devicePixelScale);
-            const physicalHeight = Math.round(containerHeight * devicePixelScale);
+        const pointerInside = this.state.mouseX !== null && this.state.mouseY !== null;
+        const pointerX = pointerInside ? this.state.mouseX * devicePixelScale : 0;
+        const pointerY = pointerInside ? this.state.mouseY * devicePixelScale : 0;
 
-            const pointerInside = this.state.mouseX !== null && this.state.mouseY !== null;
-            const pointerX = pointerInside ? this.state.mouseX * devicePixelScale : 0;
-            const pointerY = pointerInside ? this.state.mouseY * devicePixelScale : 0;
+        const redrawState = {
+            containerWidth: containerWidth,
+            containerHeight: containerHeight,
+            viewportWidth: physicalWidth,
+            viewportHeight: physicalHeight,
+            devicePixelScale: devicePixelScale,
+            verticalOffset: this.state.verticalOffset,
+            horizontalOffset: this.state.horizontalOffset,
+            scale: this.state.scale,
+            scrollWidth: 0,
+            scrollHeight: 0,
+            forcePageSet: this.state.forcePageSet,
+            pointerInside: pointerInside,
+            pointerX: pointerX,
+            pointerY: pointerY,
+            pointerPressed: this.state.pointerPressed
+        };
 
-            const redrawState = {
-                containerWidth: containerWidth,
-                containerHeight: containerHeight,
-                viewportWidth: physicalWidth,
-                viewportHeight: physicalHeight,
-                devicePixelScale: devicePixelScale,
-                verticalOffset: this.state.verticalOffset,
-                horizontalOffset: this.state.horizontalOffset,
-                scale: this.state.scale,
-                scrollWidth: 0,
-                scrollHeight: 0,
-                forcePageSet: this.state.forcePageSet,
-                pointerInside: pointerInside,
-                pointerX: pointerX,
-                pointerY: pointerY,
-                pointerPressed: this.state.pointerPressed
-            };
+        interop.RequestRedraw(this.id, redrawState);
 
-            await interop.RequestRedraw(this.id, redrawState);
+        this.state.forcePageSet = 0;
+        this.state.containerWidth = redrawState.containerWidth;
+        this.state.containerHeight = redrawState.containerHeight;
+        this.state.devicePixelScale = redrawState.devicePixelScale;
+        this.state.viewportWidth = redrawState.viewportWidth;
+        this.state.viewportHeight = redrawState.viewportHeight;
+        this.state.scrollWidth = redrawState.scrollWidth;
+        this.state.scrollHeight = redrawState.scrollHeight;
+        this.state.verticalOffset = redrawState.verticalOffset;
+        this.state.horizontalOffset = redrawState.horizontalOffset;
+        this.state.currentPage = redrawState.currentPage;
+        this.state.pageCount = redrawState.pageCount;
 
-            this.state.forcePageSet = 0;
-            this.state.containerWidth = redrawState.containerWidth;
-            this.state.containerHeight = redrawState.containerHeight;
-            this.state.devicePixelScale = redrawState.devicePixelScale;
-            this.state.viewportWidth = redrawState.viewportWidth;
-            this.state.viewportHeight = redrawState.viewportHeight;
-            this.state.scrollWidth = redrawState.scrollWidth;
-            this.state.scrollHeight = redrawState.scrollHeight;
-            this.state.verticalOffset = redrawState.verticalOffset;
-            this.state.horizontalOffset = redrawState.horizontalOffset;
-            this.state.currentPage = redrawState.currentPage;
-            this.state.pageCount = redrawState.pageCount;
+        // Annotation handling: cursor, popup, and URI open
+        this.state.annotationPopup = redrawState.annotationPopup || null;
+        this.state.cursorStyle = redrawState.cursorStyle || 'default';
+        this.scrollHost.style.cursor = this.state.cursorStyle;
 
-            // Annotation handling: cursor, popup, and URI open
-            this.state.annotationPopup = redrawState.annotationPopup || null;
-            this.state.cursorStyle = redrawState.cursorStyle || 'default';
-            this.scrollHost.style.cursor = this.state.cursorStyle;
-
-            if (redrawState.openUri) {
-                window.open(redrawState.openUri, '_blank', 'noopener,noreferrer');
-            }
-
-            this.spacer.style.width = (this.state.scrollWidth / dpr) + 'px';
-            this.spacer.style.height = (this.state.scrollHeight / dpr) + 'px';
-
-            // Force a synchronous layout so the new spacer dimensions are applied to
-            // the scroll bounds before we set the position. Without this, scrollLeft/
-            // scrollTop would be validated against the old bounds and may be clamped.
-            void this.scrollHost.offsetHeight;
-
-            this.scrollHost.style.overflow = 'auto';
-            // TODO: [HIGH] this does not work properly, scroll is jugged
-            this.scrollHost.scrollLeft = this.state.horizontalOffset / dpr;
-            this.scrollHost.scrollTop = this.state.verticalOffset / dpr;
-
-            // Read back the browser-clamped values so onScroll can recognise
-            // and suppress the scroll event that this programmatic set fires.
-            this._expectedScrollLeft = this.scrollHost.scrollLeft;
-            this._expectedScrollTop = this.scrollHost.scrollTop;
-
-            void this.scrollHost.offsetHeight;
-
-            if (typeof this.onStateChanged === 'function') {
-                this.onStateChanged({ ...this.state });
-            }
-        } finally {
-            this._rendering = false;
+        if (redrawState.openUri) {
+            window.open(redrawState.openUri, '_blank', 'noopener,noreferrer');
         }
 
-        // If input arrived during the render, schedule a follow-up immediately.
-        if (this._dirty) {
-            this.requestRender();
+        this.spacer.style.width = (this.state.scrollWidth / dpr) + 'px';
+        this.spacer.style.height = (this.state.scrollHeight / dpr) + 'px';
+
+        // Force a synchronous layout so the new spacer dimensions are applied to
+        // the scroll bounds before we set the position. Without this, scrollLeft/
+        // scrollTop would be validated against the old bounds and may be clamped.
+        void this.scrollHost.offsetHeight;
+
+        this.scrollHost.style.overflow = 'auto';
+        // TODO: [HIGH] this does not work properly, scroll is jugged
+        this.scrollHost.scrollLeft = this.state.horizontalOffset / dpr;
+        this.scrollHost.scrollTop = this.state.verticalOffset / dpr;
+
+        // Read back the browser-clamped values so onScroll can recognise
+        // and suppress the scroll event that this programmatic set fires.
+        this._expectedScrollLeft = this.scrollHost.scrollLeft;
+        this._expectedScrollTop = this.scrollHost.scrollTop;
+
+        void this.scrollHost.offsetHeight;
+
+        if (typeof this.onStateChanged === 'function') {
+            this.onStateChanged({ ...this.state });
         }
     }
 
@@ -365,65 +347,14 @@ class PdfPanelView {
         }
     }
 
-    async initInterop() {
-        const offscreenCanvas = this.canvas.offscreenCanvas;
-
-        const canvasId = `#${this.id} .pdf-panel-canvas`;
-
-        // Key for offscreenCanvases: strip leading '#'
-        const canvasKey = canvasId.substring(1);
-
-        if (offscreenCanvas && emscriptenModule && emscriptenModule.PThread) {
-            const pThread = emscriptenModule.PThread;
-            const originalLoadWasmModuleToWorker = pThread.loadWasmModuleToWorker.bind(pThread);
-
-            pThread.loadWasmModuleToWorker = (worker, onFinishedLoading) => {
-
-                const originalPrototypePostMessage = Worker.prototype.postMessage;
-                let transferred = false;
-
-                // Patch Worker.prototype.postMessage to add canvas to offscreenCanvases on 'run'
-                Worker.prototype.postMessage = function(message, transfer) {
-                    const transferList = transfer ? [...transfer] : [];
-
-                    // Add canvas to the 'run' command's offscreenCanvases
-                    if (!transferred && message && message.cmd === 'run') {
-                        // Ensure offscreenCanvases exists
-                        if (!message.offscreenCanvases) {
-                            message.offscreenCanvases = {};
-                        }
-                        message.offscreenCanvases[canvasKey] = offscreenCanvas;
-                        transferList.push(offscreenCanvas);
-                        transferred = true;
-                        console.log(`[PdfPanel] Added OffscreenCanvas to 'run' command, key: ${canvasKey}`);
-                        // Restore original prototype after transfer
-                        Worker.prototype.postMessage = originalPrototypePostMessage;
-                    }
-
-                    return originalPrototypePostMessage.call(this, message, transferList);
-                };
-
-                // Restore original loadWasmModuleToWorker after first worker
-                pThread.loadWasmModuleToWorker = originalLoadWasmModuleToWorker;
-
-                return originalLoadWasmModuleToWorker(worker, onFinishedLoading);
-            };
-        } else {
-            console.warn('[PdfPanel] PThread not available:', {
-                hasOffscreenCanvas: !!offscreenCanvas,
-                hasEmscriptenModule: !!emscriptenModule,
-                hasPThread: !!(emscriptenModule && emscriptenModule.PThread)
-            });
-        }
-
-
-        await interop.RegisterCanvas(this.id, this.configuration);
+    initInterop() {
+        void interop.RegisterCanvas(this.id, this.configuration);
     }
 
-    async start() {
+    start() {
         this.container.style.backgroundColor = this.configuration.backgroundColor;
         this.attachEvents();
-        await this.initInterop();
+        this.initInterop();
         this.requestRender();
         console.log(`View '${this.id}' registered successfully`);
     }
@@ -448,9 +379,36 @@ export async function initialize(setModuleImports, getAssemblyExports, wasmModul
 
     emscriptenModule = wasmModule;
     interop = panelInterop;
-    await interop.Initialize();
+    interop.Initialize();
 
     console.log('Panel interop initialized');
+
+    contentWorker = new Worker('pdfContentWorker.js', { type: 'module' });
+
+    // Handshake with worker: send only 'initialize' and await same-format response
+    const handshakePromise = new Promise((resolve, reject) => {
+        function onHandshake(e) {
+            // Expecting: [null, 'initialized', null, null]
+            if (Array.isArray(e.data) && e.data[1] === 'initialized') {
+                contentWorker.removeEventListener('message', onHandshake);
+                resolve();
+            }
+        }
+        contentWorker.addEventListener('message', onHandshake);
+        sendToWorker(null, 'initialize', null, null);
+        setTimeout(() => {
+            contentWorker.removeEventListener('message', onHandshake);
+            reject(new Error('Worker handshake timeout'));
+        }, 30000);
+    });
+
+    await handshakePromise;
+
+    contentWorker.onmessage = (e) => {
+        panelInterop.ReceivedFromWorker(e.data[0], e.data[1], e.data[2], e.data[3]);
+    };
+
+    console.log('Content worker initialized');
 }
 
 /**
@@ -459,7 +417,7 @@ export async function initialize(setModuleImports, getAssemblyExports, wasmModul
  * @param {HTMLElement} containerElement The `.pdf-panel-*` container element.
  * @returns {Promise<boolean>} True if registration succeeded.
  */
-export async function registerPanel(id, containerElement, configuration) {
+export function registerPanel(id, containerElement, configuration) {
     if (!containerElement) {
         console.error(`Container element is null or undefined for id '${id}'`);
         return false;
@@ -478,7 +436,7 @@ export async function registerPanel(id, containerElement, configuration) {
     }
 
     views.set(id, view);
-    await view.start();
+    view.start();
     return true;
 }
 
@@ -487,7 +445,7 @@ export async function registerPanel(id, containerElement, configuration) {
  * @param {string} id View id to unregister.
  * @returns {Promise<boolean>} True if unregistered.
  */
-export async function unregisterPanel(id) {
+export function unregisterPanel(id) {
     if (!views.has(id)) {
         console.warn(`Canvas with id '${id}' is not registered`);
         return false;
@@ -498,7 +456,7 @@ export async function unregisterPanel(id) {
     }
     views.delete(id);
     console.log(`Canvas '${id}' unregistered successfully`);
-    await interop.UnregisterCanvas(id);
+    interop.UnregisterCanvas(id);
     return true;
 }
 
@@ -521,7 +479,7 @@ export async function setFont(name, fontData) {
  * @returns {Promise<void>} Resolves when the document is set.
  */
 export async function setDocument(id, documentData) {
-    await interop.SetDocument(id, documentData);
+     await interop.SetDocument(id, documentData);
 }
 
 /**
@@ -640,4 +598,8 @@ export function addAnnotationPopupMessage(state, title, content, date) {
  */
 export function clearAnnotationPopupState(state) {
     state.annotationPopup = null;
+}
+
+export function sendToWorker(id, message, parameters, data) {
+    contentWorker.postMessage([id, message, parameters, data]);
 }

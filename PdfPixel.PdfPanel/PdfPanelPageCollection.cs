@@ -1,12 +1,11 @@
-﻿using PdfPixel.Annotations.Models;
+﻿using Microsoft.Extensions.Logging;
 using PdfPixel.Models;
+using PdfPixel.PdfPanel.ContentProvider;
+using PdfPixel.PdfPanel.WorkQueue;
 using SkiaSharp;
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.Linq;
-using System.Threading;
 
 namespace PdfPixel.PdfPanel;
 
@@ -15,17 +14,19 @@ namespace PdfPixel.PdfPanel;
 /// </summary>
 public sealed class PdfPanelPageCollection : ReadOnlyCollection<PdfPanelPage>, IDisposable
 {
-    private readonly ConcurrentDictionary<int, CachedSkPicture> pictureCache = new ConcurrentDictionary<int, CachedSkPicture>();
     private readonly object disposeLocker = new object();
     private bool isDisposed;
 
-    internal PdfPanelPageCollection(PdfPanelRenderer renderer, IList<PdfPanelPage> pages)
+    internal PdfPanelPageCollection(IPdfPageContentProvider contentProvider, IList<PdfPanelPage> pages)
         : base(pages)
     {
-        Renderer = renderer;
+        ContentProvider = contentProvider;
     }
 
-    internal PdfPanelRenderer Renderer { get; }
+    /// <summary>
+    /// Pages content provider that handles rendering of page content and annotation layers.
+    /// </summary>
+    public IPdfPageContentProvider ContentProvider { get; }
 
     /// <summary>
     /// Returns the page if it exists.
@@ -53,26 +54,28 @@ public sealed class PdfPanelPageCollection : ReadOnlyCollection<PdfPanelPage>, I
     /// <returns>The annotation popup if found; otherwise, null.</returns>
     public PdfAnnotationPopup GetAnnotationPopupAt(int pageNumber, SKPoint pagePosition)
     {
-        if (!TryGetPage(pageNumber, out var page))
-        {
-            return null;
-        }
-
-        var activeAnnotation = Renderer.GetActiveAnnotation(pageNumber, pagePosition);
-        if (activeAnnotation == null)
-        {
-            return null;
-        }
-
-        foreach (var popup in page.Popups)
-        {
-            if (popup.Annotation == activeAnnotation)
-            {
-                return popup;
-            }
-        }
-
+        // TODO: use cached annotations instead
         return null;
+        //if (!TryGetPage(pageNumber, out var page))
+        //{
+        //    return null;
+        //}
+
+        //var activeAnnotation = Document.GetActiveAnnotation(pageNumber, pagePosition);
+        //if (activeAnnotation == null)
+        //{
+        //    return null;
+        //}
+
+        //foreach (var popup in page.Popups)
+        //{
+        //    if (popup.Annotation == activeAnnotation)
+        //    {
+        //        return popup;
+        //    }
+        //}
+
+        //return null;
     }
 
     /// <summary>
@@ -82,128 +85,37 @@ public sealed class PdfPanelPageCollection : ReadOnlyCollection<PdfPanelPage>, I
     /// <returns><see cref="PdfPanelPageCollection"/>.</returns>
     public static PdfPanelPageCollection FromDocument(PdfDocument document)
     {
-        var renderer = new PdfPanelRenderer(document);
         var pages = new List<PdfPanelPage>();
+        var contentProvider = new PdfPageContentProvider(document, new AsyncMultiProcessWorkQueue<PdfPageUpdateCacheWorkItem>(document.LoggerFactory.CreateLogger<AsyncMultiProcessWorkQueue<PdfPageUpdateCacheWorkItem>>()));
+        //var contentProvider = new AsyncPdfPageContentProvider(document, new AsyncWorkQueue<PdfPageUpdateCacheWorkItem>(document.LoggerFactory.CreateLogger<AsyncWorkQueue<PdfPageUpdateCacheWorkItem>>()));
 
         for (int i = 0; i < document.Pages.Count; i++)
         {
             var pageNumber = i + 1;
-            var info = renderer.GetPageInfo(pageNumber);
-            var popups = renderer.CreateAnnotationPopups(pageNumber);
+            var info = contentProvider.GetPageInfo(pageNumber);
+            var popups = document.CreateAnnotationPopups(pageNumber);
             var page = new PdfPanelPage(info, pageNumber, popups);
             pages.Add(page);
         }
 
-        return new PdfPanelPageCollection(renderer, pages);
+        return new PdfPanelPageCollection(contentProvider, pages);
     }
 
-    internal void UpdateCache(IEnumerable<int> visiblePages)
+    public static PdfPanelPageCollection FromContentProvider(IPdfPageContentProvider contentProvider)
     {
-        var cachedPages = pictureCache.ToArray();
+        var pages = new List<PdfPanelPage>();
+        //var contentProvider = new AsyncPdfPageContentProvider(document, new AsyncWorkQueue<PdfPageUpdateCacheWorkItem>(document.LoggerFactory.CreateLogger<AsyncWorkQueue<PdfPageUpdateCacheWorkItem>>()));
 
-        foreach (var cachedPage in cachedPages)
+        for (int i = 0; i < contentProvider.GetPagesCount(); i++)
         {
-            if (!visiblePages.Contains(cachedPage.Key) && pictureCache.TryRemove(cachedPage.Key, out var removedPicture))
-            {
-                removedPicture.Dispose();
-            }
-        }
-    }
-
-    internal CachedSkPicture InitializePageWithThumbnail(
-        int pageNumber,
-        SKSurface thumbnailSurface,
-        PdfAnnotationPopup activeAnnotationPopup,
-        PdfPanelPointerState activeAnnotationState,
-        CancellationToken token)
-    {
-        if (!pictureCache.TryGetValue(pageNumber, out CachedSkPicture cachedPicture))
-        {
-            bool hasAnnotations = false;
-            if (TryGetPage(pageNumber, out var newPage))
-            {
-                hasAnnotations = newPage.Popups.Length > 0;
-            }
-
-            var recording = Renderer.GetRecording(pageNumber, token);
-            SKImage thumbnailPicture = Renderer.GetThumbnail(pageNumber, recording, thumbnailSurface, token);
-
-            cachedPicture = new CachedSkPicture(recording, thumbnailPicture, pageNumber, hasAnnotations)
-            {
-                ActiveAnnotationState = PdfPanelPointerState.None
-            };
-
-            lock (disposeLocker)
-            {
-                if (isDisposed)
-                {
-                    cachedPicture.Dispose();
-                }
-                else
-                {
-                    pictureCache.TryAdd(pageNumber, cachedPicture);
-                }
-            }
+            var pageNumber = i + 1;
+            var info = contentProvider.GetPageInfo(pageNumber);
+            //var popups = document.CreateAnnotationPopups(pageNumber);
+            var page = new PdfPanelPage(info, pageNumber, null);
+            pages.Add(page);
         }
 
-        PdfAnnotationBase pageActiveAnnotation = null;
-        PdfPanelPointerState pointerState = PdfPanelPointerState.None;
-
-        if (cachedPicture.HasAnnotations && activeAnnotationPopup != null && TryGetPage(pageNumber, out var panelPage))
-        {
-            foreach (var popup in panelPage.Popups)
-            {
-                if (popup == activeAnnotationPopup)
-                {
-                    pageActiveAnnotation = activeAnnotationPopup.Annotation;
-                    pointerState = activeAnnotationState;
-                    break;
-                }
-            }
-        }
-
-        bool annotationChanged = cachedPicture.ActiveAnnotation != pageActiveAnnotation;
-        bool stateChangedWithinAnnotation = cachedPicture.ActiveAnnotationState != pointerState && pageActiveAnnotation != null;
-
-        cachedPicture.ActiveAnnotationState = pointerState;
-        cachedPicture.ActiveAnnotation = pageActiveAnnotation;
-
-        if (annotationChanged || stateChangedWithinAnnotation)
-        {
-            // TODO: [HIGH] we're leaving initial page without annotations
-            cachedPicture.UpdateAnnotationRecording(null);
-        }
-
-        return cachedPicture;
-    }
-
-    internal CachedSkPicture GeneratePicturesForPage(int pageNumber, float scale, CancellationToken token)
-    {
-        var cachedPicture = GetCachedPicture(pageNumber);
-
-        if (cachedPicture.AnnotationRecording == null)
-        {
-            // TODO: uncomment
-            //cachedPicture.UpdateAnnotationRecording(
-            //    Renderer.GetAnnotationRecording(pageNumber, scale, cachedPicture.ActiveAnnotation, cachedPicture.ActiveAnnotationState, token));
-        }
-
-        return cachedPicture;
-    }
-
-    internal CachedSkPicture GetCachedPicture(int pageNumber)
-    {
-        if (pictureCache.TryGetValue(pageNumber, out CachedSkPicture cachedPicture))
-        {
-            return cachedPicture;
-        }
-
-        throw new InvalidOperationException("Cached picture not found for page " + pageNumber);
-    }
-
-    internal bool TryGetPictureFromCache(int pageNumber, out CachedSkPicture picture)
-    {
-        return pictureCache.TryGetValue(pageNumber, out picture);
+        return new PdfPanelPageCollection(contentProvider, pages);
     }
 
     public void Dispose()
@@ -217,14 +129,7 @@ public sealed class PdfPanelPageCollection : ReadOnlyCollection<PdfPanelPage>, I
 
             isDisposed = true;
 
-            Renderer.Dispose();
-
-            foreach (var picture in pictureCache.Values)
-            {
-                picture.Dispose();
-            }
-
-            pictureCache.Clear();
+            ContentProvider.Dispose();
         }
     }
 }

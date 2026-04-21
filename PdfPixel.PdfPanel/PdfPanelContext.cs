@@ -227,7 +227,6 @@ public class PdfPanelContext
         }
 
         var drawingRequest = GetBaseDrawingRequest<PagesDrawingRequest>();
-        drawingRequest.Pages = Pages;
         drawingRequest.BackgroundColor = BackgroundColor;
         drawingRequest.MaxThumbnailSize = MaxThumbnailSize;
         drawingRequest.PageCornerRadius = PageCornerRadius;

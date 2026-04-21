@@ -10,6 +10,9 @@ using System.Collections.Generic;
 using System.IO;
 using System.Runtime.InteropServices.JavaScript;
 using System.Runtime.Versioning;
+using System.Text;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 
 namespace PdfPixel.PdfPanel.Web;
@@ -21,6 +24,9 @@ public partial class PdfPanelInterop
 
     private static readonly InMemorySkiaFontProvider FontProvider = new();
     private static readonly Dictionary<string, PdfPanelResources> ResourcesMap = new();
+    private static Dictionary<string, TaskCompletionSource<byte[]>> _pendingRequests = new Dictionary<string, TaskCompletionSource<byte[]>>();
+
+    public static event Action<string, byte[]> RequestCompleted;
 
     /// <summary>Gets the application-wide logger factory, available after <see cref="Initialize"/> has been called.</summary>
     public static ILoggerFactory LoggerFactory { get; private set; }
@@ -29,14 +35,36 @@ public partial class PdfPanelInterop
     public static ILogger Logger { get; private set; }
 
     [JSExport]
-    internal static async Task Initialize()
+    public static void ReceivedFromWorker(string id, string message, string parameters, byte[] data)
+    {
+        if (_pendingRequests.TryGetValue(id, out var taskCompletionSource))
+        {
+            taskCompletionSource.TrySetResult(data);
+            _pendingRequests.Remove(id);
+        }
+
+        RequestCompleted?.Invoke(id, data);
+    }
+
+    [JSImport("sendToWorker", "canvasInterop.js")]
+    public static partial void SendToWorker(string id, string message, string parameters, byte[] data);
+
+    public static Task<byte[]> SendToWorkerAsync(Guid id, string message, string parameters, byte[] data)
+    {
+        var tcs = new TaskCompletionSource<byte[]>();
+        _pendingRequests[id.ToString()] = tcs;
+        SendToWorker(id.ToString(), message, parameters, data);
+        return tcs.Task;
+    }
+
+    [JSExport]
+    internal static void Initialize()
     {
         if (_isInitialized)
         {
             return;
         }
 
-        UiInvoker.Capture();
         LoggerFactory = Microsoft.Extensions.Logging.LoggerFactory.Create(b => b.AddEmscriptenConsole());
         Logger = LoggerFactory.CreateLogger<PdfPanelInterop>();
         Logger.LogInformation("PdfPanelInterop initialized");
@@ -56,21 +84,12 @@ public partial class PdfPanelInterop
             return;
         }
 
-        if (Enum.TryParse<PdfStandardFontName>(name, ignoreCase: true, out var standardFont))
-        {
-            FontProvider.RegisterStandardFont(standardFont, fontData);
-            Logger.LogInformation("Registered standard font '{Name}'", name);
-        }
-        else
-        {
-            Logger.LogWarning("Unknown standard font name '{Name}'. Expected one of: {Names}", name, string.Join(", ", Enum.GetNames<PdfStandardFontName>()));
-        }
-
-        return;
+        await SendToWorkerAsync(Guid.NewGuid(), "setFont", name, fontData);
+        Logger.LogInformation("worker should be done by now");
     }
 
     [JSExport]
-    public static async Task RegisterCanvas(string containerId, JSObject configuration)
+    public static void RegisterCanvas(string containerId, JSObject configuration)
     {
         if (!_isInitialized)
         {
@@ -135,7 +154,13 @@ public partial class PdfPanelInterop
 
             resources.Configuration = parsed;
 
-            resources.RenderingQueue = new PdfRenderingQueue(LoggerFactory, resources.SkSurfaceFactory, new EmscriptenRenderLoopRunner());
+            var contentProvider = new WebDocumentContentProvider(containerId);
+
+            resources.ContentProvider = contentProvider;
+
+            var runner = new SingleThreadedRenderLoopRunner(contentProvider);
+            var renderingQueue = new PdfRenderingQueue(LoggerFactory, resources.SkSurfaceFactory, runner);
+            resources.RenderingQueue = renderingQueue;
             ResourcesMap[containerId] = resources;
         }
         catch (Exception ex)
@@ -145,7 +170,7 @@ public partial class PdfPanelInterop
     }
 
     [JSExport]
-    public static async Task UnregisterCanvas(string containerId)
+    public static void UnregisterCanvas(string containerId)
     {
         if (!_isInitialized)
         {
@@ -160,7 +185,7 @@ public partial class PdfPanelInterop
     }
 
     [JSExport]
-    internal static async Task SetDocument(string id, byte[] documentData)
+    internal static async Task SetDocument(string id, byte[] document)
     {
         if (!_isInitialized)
         {
@@ -169,36 +194,30 @@ public partial class PdfPanelInterop
 
         if (!ResourcesMap.TryGetValue(id, out var resources))
         {
+            Logger.LogWarning("Received document data for unknown canvas id '{Id}'", id);
             return;
         }
-        Logger.LogInformation("Loading PDF document for canvas '{Id}'", id);
 
-        try
-        {
-            var reader = new PdfDocumentReader(LoggerFactory, FontProvider);
-            Logger.LogInformation("Reading PDF document, size={Size} bytes", documentData.Length);
-            var document = reader.Read(new MemoryStream(documentData), string.Empty);
-            Logger.LogInformation("PDF document parsed, pages={PageCount}", document.Pages.Count);
-            var pages = PdfPanelPageCollection.FromDocument(document);
-            resources.Context = new PdfPanelContext(pages, resources.RenderingQueue, resources.RenderTargetFactory, new PdfPanelVerticalLayout());
+        var result = await SendToWorkerAsync(Guid.NewGuid(), "setDocument", id, document);
+        string json = Encoding.UTF8.GetString(result);
+        Logger.LogInformation("Received document data {json} for canvas '{Id}'", json, id);
+        var documentData = JsonSerializer.Deserialize(json, JsonSourceGenerationContext.Default.WebDocumentData);
 
-            var panelConfiguration = resources.Configuration;
-            resources.Context.BackgroundColor = panelConfiguration.BackgroundColor;
-            resources.Context.MaxThumbnailSize = panelConfiguration.MaxThumbnailSize;
-            resources.Context.MinimumPageGap = panelConfiguration.MinimumPageGap;
-            resources.Context.PagesPadding = panelConfiguration.PagesPadding;
+        resources.ContentProvider.UpdateDocument(documentData);
 
-            Logger.LogInformation("PDF document loaded for canvas '{Id}', pages={PageCount}", id, pages.Count);
-        }
-        catch (Exception ex)
-        {
-            Logger.LogError(ex, "Error loading PDF document for canvas '{Id}'", id);
-        }
+        var pages = PdfPanelPageCollection.FromContentProvider(resources.ContentProvider);
+        resources.Context = new PdfPanelContext(pages, resources.RenderingQueue, resources.RenderTargetFactory, new PdfPanelVerticalLayout());
+
+        var panelConfiguration = resources.Configuration;
+        resources.Context.BackgroundColor = panelConfiguration.BackgroundColor;
+        resources.Context.MaxThumbnailSize = panelConfiguration.MaxThumbnailSize;
+        resources.Context.MinimumPageGap = panelConfiguration.MinimumPageGap;
+        resources.Context.PagesPadding = panelConfiguration.PagesPadding;
     }
 
 
     [JSExport]
-    public static async Task UpdateView(string id, float verticalOffset, float horizontalOffset, float scale)
+    public static void UpdateView(string id, float verticalOffset, float horizontalOffset, float scale)
     {
         if (!_isInitialized)
         {
@@ -217,7 +236,7 @@ public partial class PdfPanelInterop
     }
 
     [JSExport]
-    public static async Task RequestRedraw(string id, JSObject state)
+    public static void RequestRedraw(string id, JSObject state)
     {
         if (!_isInitialized)
         {

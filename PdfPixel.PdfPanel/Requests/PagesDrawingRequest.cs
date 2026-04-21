@@ -8,8 +8,6 @@ namespace PdfPixel.PdfPanel.Requests;
 /// </summary>
 public class PagesDrawingRequest : DrawingRequest
 {
-    public PdfPanelPageCollection Pages { get; set; }
-
     public SKColor BackgroundColor { get; set; }
 
     public int MaxThumbnailSize { get; set; }
@@ -28,8 +26,7 @@ public class PagesDrawingRequest : DrawingRequest
                 BackgroundColor == parameters.BackgroundColor &&
                 MaxThumbnailSize == parameters.MaxThumbnailSize &&
                 PageCornerRadius == parameters.PageCornerRadius &&
-                RenderingParameters == parameters.RenderingParameters &&
-                Pages == parameters.Pages;
+                RenderingParameters == parameters.RenderingParameters;
         }
         else
         {
