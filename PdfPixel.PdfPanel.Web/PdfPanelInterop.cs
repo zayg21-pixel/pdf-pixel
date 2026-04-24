@@ -4,15 +4,16 @@ using PdfPixel.Fonts.Management;
 using PdfPixel.Fonts.Mapping;
 using PdfPixel.PdfPanel.Extensions;
 using PdfPixel.PdfPanel.Layout;
+using PdfPixel.PdfPanel.Web.Emscripten;
+using PdfPixel.PdfPanel.Web.Rendering;
+using PdfPixel.PdfPanel.Web.WorkerCommands;
+using PdfPixel.PdfPanel.Web.WorkerInterface;
 using SkiaSharp;
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Runtime.InteropServices.JavaScript;
 using System.Runtime.Versioning;
-using System.Text;
 using System.Text.Json;
-using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 
 namespace PdfPixel.PdfPanel.Web;
@@ -35,7 +36,7 @@ public partial class PdfPanelInterop
     public static ILogger Logger { get; private set; }
 
     [JSExport]
-    public static void ReceivedFromWorker(string id, string message, string parameters, byte[] data)
+    public static void ReceivedFromWorker(string id, string commandType, string header, byte[] data)
     {
         if (_pendingRequests.TryGetValue(id, out var taskCompletionSource))
         {
@@ -47,13 +48,13 @@ public partial class PdfPanelInterop
     }
 
     [JSImport("sendToWorker", "canvasInterop.js")]
-    public static partial void SendToWorker(string id, string message, string parameters, byte[] data);
+    public static partial void SendToWorker(string id, string commandType, string header, byte[] data);
 
-    public static Task<byte[]> SendToWorkerAsync(Guid id, string message, string parameters, byte[] data)
+    public static Task<byte[]> SendToWorkerAsync(Guid id, WorkerCommandType commandType, string header, byte[] data)
     {
         var tcs = new TaskCompletionSource<byte[]>();
         _pendingRequests[id.ToString()] = tcs;
-        SendToWorker(id.ToString(), message, parameters, data);
+        SendToWorker(id.ToString(), commandType.ToString(), header, data);
         return tcs.Task;
     }
 
@@ -83,9 +84,8 @@ public partial class PdfPanelInterop
         {
             return;
         }
-
-        await SendToWorkerAsync(Guid.NewGuid(), "setFont", name, fontData);
-        Logger.LogInformation("worker should be done by now");
+        var request = JsonSerializer.Serialize(new SetFontRequest { Name = name }, InterfaceJsonContext.Default.SetFontRequest);
+        await SendToWorkerAsync(Guid.NewGuid(), WorkerCommandType.SetFont, request, fontData);
     }
 
     [JSExport]
@@ -165,7 +165,7 @@ public partial class PdfPanelInterop
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, "Error registering canvas with id '{ContainerId}'", containerId);
+            Logger.LogError(ex, "Error registering container with id '{ContainerId}'", containerId);
         }
     }
 
@@ -185,23 +185,28 @@ public partial class PdfPanelInterop
     }
 
     [JSExport]
-    internal static async Task SetDocument(string id, byte[] document)
+    internal static async Task SetDocument(string containerId, byte[] document)
     {
         if (!_isInitialized)
         {
             return;
         }
 
-        if (!ResourcesMap.TryGetValue(id, out var resources))
+        if (!ResourcesMap.TryGetValue(containerId, out var resources))
         {
-            Logger.LogWarning("Received document data for unknown canvas id '{Id}'", id);
+            Logger.LogWarning("Received document data for unknown container id '{Id}'", containerId);
             return;
         }
 
-        var result = await SendToWorkerAsync(Guid.NewGuid(), "setDocument", id, document);
-        string json = Encoding.UTF8.GetString(result);
-        Logger.LogInformation("Received document data {json} for canvas '{Id}'", json, id);
-        var documentData = JsonSerializer.Deserialize(json, JsonSourceGenerationContext.Default.WebDocumentData);
+        var request = new SetDocumentRequest
+        {
+            ContainerId = containerId
+        };
+
+        var requestJson = JsonSerializer.Serialize(request, InterfaceJsonContext.Default.SetDocumentRequest);
+        var responseJson = await SendToWorkerAsync(Guid.NewGuid(), WorkerCommandType.SetDocument, requestJson, document);
+
+        var documentData = JsonSerializer.Deserialize(responseJson, InterfaceJsonContext.Default.WebDocumentData);
 
         resources.ContentProvider.UpdateDocument(documentData);
 
@@ -217,14 +222,14 @@ public partial class PdfPanelInterop
 
 
     [JSExport]
-    public static void UpdateView(string id, float verticalOffset, float horizontalOffset, float scale)
+    public static void UpdateView(string containerId, float verticalOffset, float horizontalOffset, float scale)
     {
         if (!_isInitialized)
         {
             return;
         }
 
-        if (!ResourcesMap.TryGetValue(id, out var resources) || resources.Context == null)
+        if (!ResourcesMap.TryGetValue(containerId, out var resources) || resources.Context == null)
         {
             return;
         }
@@ -350,7 +355,7 @@ public partial class PdfPanelInterop
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, "Error in canvas '{Id}'", id);
+            Logger.LogError(ex, "Error in container '{Id}'", id);
         }
     }
 

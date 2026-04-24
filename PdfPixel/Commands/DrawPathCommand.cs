@@ -1,5 +1,6 @@
 using SkiaSharp;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 
 namespace PdfPixel.Commands;
 
@@ -19,7 +20,7 @@ public sealed class DrawPathCommand : PdfCommand
     }
 
     /// <inheritdoc />
-    public override void Execute(SKCanvas canvas, IEnumerable<IPdfCommandModifier> modifiers, PdfCommandExecutionContext executionContext)
+    public override Task ExecuteAsync(SKCanvas canvas, IEnumerable<IPdfCommandModifier> modifiers, PdfCommandExecutionContext executionContext)
     {
         using var paint = _basePaint.Clone();
         paint.IsAntialias = executionContext.RenderingParameters.Antialias;
@@ -29,6 +30,8 @@ public sealed class DrawPathCommand : PdfCommand
         }
 
         canvas.DrawPath(_path, paint);
+
+        return Task.CompletedTask;
     }
 
     /// <inheritdoc />

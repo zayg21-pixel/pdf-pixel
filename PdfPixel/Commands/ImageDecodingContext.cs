@@ -1,9 +1,9 @@
+using PdfPixel.Color.Paint;
 using PdfPixel.Color.Transform;
 using PdfPixel.Models;
 using PdfPixel.Rendering.State;
 using PdfPixel.Transparency.Model;
 using SkiaSharp;
-using System.Threading;
 
 namespace PdfPixel.Commands;
 
@@ -20,11 +20,10 @@ public sealed class ImageDecodingContext
     /// <param name="state">The graphics state to snapshot.</param>
     public ImageDecodingContext(PdfGraphicsState state)
     {
-        Ctm = state.CTM;
+        CTM = state.CTM;
         FullTransferFunction = state.FullTransferFunction;
         IsType3Rendering = state.IsType3Rendering;
-        FillColor = state.FillPaint.Color;
-        FillAlpha = state.FillAlpha;
+        FillColor = PdfPaintFactory.ApplyAlpha(state.FillPaint.Color, state.FillAlpha);
         BlendMode = state.BlendMode;
     }
 
@@ -33,7 +32,7 @@ public sealed class ImageDecodingContext
     /// Used together with <see cref="PdfRenderingParameters.ScaleFactor"/> to compute
     /// any downscale target size.
     /// </summary>
-    public SKMatrix Ctm { get; }
+    public SKMatrix CTM { get; }
 
     /// <summary>
     /// Combined transfer function (internal + external) for color conversion.
@@ -49,11 +48,6 @@ public sealed class ImageDecodingContext
     /// Fill color from the graphics state, used for image mask (stencil) rendering.
     /// </summary>
     public SKColor FillColor { get; }
-
-    /// <summary>
-    /// Fill alpha from the graphics state, used for paint opacity.
-    /// </summary>
-    public float FillAlpha { get; }
 
     /// <summary>
     /// Blend mode from the graphics state, used for paint composition.

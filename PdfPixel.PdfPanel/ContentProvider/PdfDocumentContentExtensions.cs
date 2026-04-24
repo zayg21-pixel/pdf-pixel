@@ -6,6 +6,7 @@ using SkiaSharp;
 using System;
 using System.Linq;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace PdfPixel.PdfPanel.ContentProvider;
 
@@ -61,7 +62,7 @@ public static class PdfDocumentContentExtensions
         return commandRecording;
     }
 
-    public static SKPicture RecordingToSkPicture(PdfPanelPageInfo pageInfo, PdfCommandRecorder commandRecording, PdfCommandExecutionContext executionContext)
+    public static async Task<SKPicture> RecordingToSkPicture(PdfPanelPageInfo pageInfo, PdfCommandRecorder commandRecording, PdfCommandExecutionContext executionContext)
     {
         if (commandRecording == null)
         {
@@ -71,7 +72,7 @@ public static class PdfDocumentContentExtensions
         using var recorder = new SKPictureRecorder();
         using var canvas = recorder.BeginRecording(SKRect.Create(pageInfo.Width, pageInfo.Height));
 
-        commandRecording.Replay(canvas, Array.Empty<IPdfCommandModifier>(), executionContext);
+        await commandRecording.ReplayAsync(canvas, Array.Empty<IPdfCommandModifier>(), executionContext);
 
         canvas.Flush();
 

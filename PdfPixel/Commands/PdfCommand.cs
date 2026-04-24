@@ -1,6 +1,7 @@
 ﻿using SkiaSharp;
 using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 
 namespace PdfPixel.Commands;
 
@@ -15,7 +16,7 @@ public abstract class PdfCommand : IPdfCommand
     }
 
     /// <inheritdoc />
-    public abstract void Execute(SKCanvas canvas, IEnumerable<IPdfCommandModifier> modifiers, PdfCommandExecutionContext executionContext);
+    public abstract Task ExecuteAsync(SKCanvas canvas, IEnumerable<IPdfCommandModifier> modifiers, PdfCommandExecutionContext executionContext);
 
     /// <inheritdoc />
     public virtual bool IsScaleDependant => false;

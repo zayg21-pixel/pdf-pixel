@@ -1,9 +1,8 @@
-using System;
 using System.Runtime.InteropServices;
 
-namespace PdfPixel.PdfPanel.Web;
+namespace PdfPixel.PdfPanel.Web.Emscripten;
 
-internal static class Emscripten
+internal static class EmscriptenInterop
 {
     // Creates a WebGL context on the specified canvas with the given attributes.
     // renderViaOffscreenBackBuffer=1 is set internally — required for OFFSCREEN_FRAMEBUFFER

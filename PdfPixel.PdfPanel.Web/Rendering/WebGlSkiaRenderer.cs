@@ -1,11 +1,12 @@
 using Microsoft.Extensions.Logging;
 using PdfPixel.PdfPanel.Requests;
+using PdfPixel.PdfPanel.Web.Emscripten;
 using SkiaSharp;
 using System;
 using System.Runtime.Versioning;
 using System.Threading;
 
-namespace PdfPixel.PdfPanel.Web;
+namespace PdfPixel.PdfPanel.Web.Rendering;
 
 /// <summary>
 /// Implements <see cref="IPdfPanelRenderTargetFactory"/>, <see cref="ISkSurfaceFactory"/>,
@@ -47,9 +48,9 @@ internal sealed class WebGlSkiaRenderer : IPdfPanelRenderTargetFactory, ISkSurfa
     {
         _logger.LogInformation("Creating WebGL context for {CanvasSelector}", canvasSelector);
 
-        var webglCtx = Emscripten.WebGlCreateContext(
+        var webglCtx = EmscriptenInterop.WebGlCreateContext(
             canvasId: canvasSelector,
-            alpha: 0,
+            alpha: 1,
             depth: 1,
             stencil: 1,
             antialias: 0,
@@ -61,7 +62,7 @@ internal sealed class WebGlSkiaRenderer : IPdfPanelRenderTargetFactory, ISkSurfa
             throw new InvalidOperationException($"WebGlCreateContext failed for {canvasSelector}: {webglCtx}");
         }
 
-        var result = Emscripten.WebGlMakeContextCurrent(webglCtx);
+        var result = EmscriptenInterop.WebGlMakeContextCurrent(webglCtx);
         if (result != 0)
         {
             _logger.LogError("WebGlMakeContextCurrent failed for {CanvasSelector}: {Result}", canvasSelector, result);
@@ -157,14 +158,12 @@ internal sealed class WebGlSkiaRenderer : IPdfPanelRenderTargetFactory, ISkSurfa
     /// <param name="webGlContext">The WebGL context handle to make current.</param>
     private void MakeContextCurrent(int webGlContext)
     {
-        // TODO: [MEDIUM] we need a proper MT support here. We can have multiple threads for rendering. I guess, eveything should potentially work out
-        // of the box as long as we make sure to call WebGlMakeContextCurrent on the right thread. But we need to verify that and add some tests for MT rendering.
         if (_currentWebGlContext == webGlContext)
         {
             return;
         }
 
-        Emscripten.WebGlMakeContextCurrent(webGlContext);
+        EmscriptenInterop.WebGlMakeContextCurrent(webGlContext);
         _currentWebGlContext = webGlContext;
     }
 

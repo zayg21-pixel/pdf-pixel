@@ -36,6 +36,11 @@ public class PdfRenderingParameters : IEquatable<PdfRenderingParameters>
     public int MaxTessellationVertices { get; set; } = 32;
 
     /// <summary>
+    /// If true - rendering will be performed asynchronously using thread yield, otherwise - synchronously in a single pass.
+    /// </summary>
+    public bool AsyncExecution { get; set; } = true;
+
+    /// <summary>
     /// Returns a scaled size for the given original size based on the current
     /// </summary>
     /// <param name="size">Source size.</param>

@@ -1,6 +1,7 @@
 ﻿using Microsoft.Extensions.Logging;
 using PdfPixel.Color.Filters;
 using PdfPixel.Color.Transform;
+using PdfPixel.Commands;
 using PdfPixel.Imaging.Model;
 using PdfPixel.Imaging.Png;
 using PdfPixel.Imaging.Processing;
@@ -9,6 +10,7 @@ using SkiaSharp;
 using System;
 using System.IO;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace PdfPixel.Imaging.Decoding;
 
@@ -26,11 +28,9 @@ public class RawImageDecoder : PdfImageDecoder
     }
 
     /// <inheritdoc />
-    public override SKImage Decode(
+    public override Task<SKImage> DecodeAsync(
+        ImageDecodingContext context,
         PdfRenderingParameters renderingParameters,
-        SKMatrix ctm,
-        IColorTransform fullTransferFunction,
-        bool isType3Rendering,
         CancellationToken cancellationToken)
     {
         if (!ValidateImageParameters())
@@ -45,24 +45,22 @@ public class RawImageDecoder : PdfImageDecoder
             return null;
         }
 
-        return DecodeStream(dataStream, renderingParameters, ctm, fullTransferFunction, isType3Rendering, cancellationToken);
+        return DecodeStreamAsync(dataStream, context, renderingParameters, cancellationToken);
     }
 
     /// <summary>
     /// Stream-based row decoding: computes expected per-row byte count and processes each row sequentially.
     /// For bitsPerComponent &lt; 8 data remains packed; packing is handled downstream by the row processor.
     /// </summary>
-    private SKImage DecodeStream(
+    private async Task<SKImage> DecodeStreamAsync(
         Stream imageStream,
+        ImageDecodingContext context,
         PdfRenderingParameters renderingParameters,
-        SKMatrix ctm,
-        IColorTransform fullTransferFunction,
-        bool isType3Rendering,
         CancellationToken cancellationToken)
     {
         using PdfImageRowProcessor rowProcessor = new PdfImageRowProcessor(
             Image, LoggerFactory.CreateLogger<PdfImageRowProcessor>(),
-            renderingParameters, ctm, fullTransferFunction, isType3Rendering, cancellationToken);
+            context, renderingParameters);
         rowProcessor.InitializeBuffer();
 
         int imageHeight = Image.Height;
@@ -105,6 +103,13 @@ public class RawImageDecoder : PdfImageDecoder
             }
 
             rowProcessor.WriteRow(rowIndex, rowBuffer);
+
+            if (renderingParameters.AsyncExecution)
+            {
+                await Task.Yield();
+            }
+
+            cancellationToken.ThrowIfCancellationRequested();
         }
 
         return rowProcessor.GetDecoded();

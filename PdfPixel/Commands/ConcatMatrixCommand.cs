@@ -1,5 +1,6 @@
 using SkiaSharp;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 
 namespace PdfPixel.Commands;
 
@@ -21,8 +22,9 @@ public sealed class ConcatMatrixCommand : PdfCommand
     public SKMatrix Matrix => _matrix;
 
     /// <inheritdoc />
-    public override void Execute(SKCanvas canvas, IEnumerable<IPdfCommandModifier> modifiers, PdfCommandExecutionContext executionContext)
+    public override Task ExecuteAsync(SKCanvas canvas, IEnumerable<IPdfCommandModifier> modifiers, PdfCommandExecutionContext executionContext)
     {
         canvas.Concat(_matrix);
+        return Task.CompletedTask;
     }
 }

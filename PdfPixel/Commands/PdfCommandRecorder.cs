@@ -1,6 +1,7 @@
 using SkiaSharp;
 using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 
 namespace PdfPixel.Commands;
 
@@ -46,11 +47,17 @@ public sealed class PdfCommandRecorder : IPdfCommandProcessor
     /// <param name="canvas">The canvas to replay commands onto.</param>
     /// <param name="modifiers">The modifiers to apply during replay, applied in order.</param>
     /// <param name="executionContext">Execution-time context containing rendering parameters and cancellation.</param>
-    public void Replay(SKCanvas canvas, IEnumerable<IPdfCommandModifier> modifiers, PdfCommandExecutionContext executionContext)
+    public async Task ReplayAsync(SKCanvas canvas, IEnumerable<IPdfCommandModifier> modifiers, PdfCommandExecutionContext executionContext)
     {
         foreach (var command in _commands)
         {
-            command.Execute(canvas, modifiers, executionContext);
+            await command.ExecuteAsync(canvas, modifiers, executionContext);
+
+            if (executionContext.RenderingParameters.AsyncExecution)
+            {
+                await Task.Yield();
+            }
+
             executionContext.CancellationToken.ThrowIfCancellationRequested();
         }
     }

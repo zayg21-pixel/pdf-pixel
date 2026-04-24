@@ -1,6 +1,7 @@
 using SkiaSharp;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 
 namespace PdfPixel.Commands;
 
@@ -29,16 +30,16 @@ public sealed class DrawRecordingCommand : PdfCommand
     }
 
     /// <inheritdoc />
-    public override void Execute(SKCanvas canvas, IEnumerable<IPdfCommandModifier> modifiers, PdfCommandExecutionContext executionContext)
+    public override async Task ExecuteAsync(SKCanvas canvas, IEnumerable<IPdfCommandModifier> modifiers, PdfCommandExecutionContext executionContext)
     {
         // Append the recording-specific modifier so it composes on top of any outer modifiers.
         if (_modifier != null)
         {
-            _recorder.Replay(canvas, modifiers.Append(_modifier), executionContext);
+            await _recorder.ReplayAsync(canvas, modifiers.Append(_modifier), executionContext);
         }
         else
         {
-            _recorder.Replay(canvas, modifiers, executionContext);
+            await _recorder.ReplayAsync(canvas, modifiers, executionContext);
         }
     }
 

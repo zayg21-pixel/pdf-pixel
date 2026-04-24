@@ -2,12 +2,14 @@
 using PdfPixel.Color.ColorSpace;
 using PdfPixel.Color.Filters;
 using PdfPixel.Color.Transform;
+using PdfPixel.Commands;
 using PdfPixel.Imaging.Model;
 using PdfPixel.Imaging.Processing;
 using PdfPixel.Models;
 using SkiaSharp;
 using System;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace PdfPixel.Imaging.Decoding;
 
@@ -79,17 +81,13 @@ public abstract class PdfImageDecoder
     /// <summary>
     /// Returns the decoded image as an <see cref="SKImage"/>, or null on failure (errors are logged).
     /// </summary>
+    /// <param name="context">graphics state values needed for image decoding..</param>
     /// <param name="renderingParameters">Rendering parameters (may differ between replays).</param>
-    /// <param name="ctm">Current transformation matrix captured at command creation time.</param>
-    /// <param name="fullTransferFunction">Combined transfer function for color conversion.</param>
-    /// <param name="isType3Rendering">Whether this decode is for a Type 3 glyph (suppresses downscaling).</param>
     /// <param name="cancellationToken">Cancellation token for cooperative cancellation.</param>
     /// <returns>The decoded <see cref="SKImage"/>, or null on failure.</returns>
-    public abstract SKImage Decode(
+    public abstract Task<SKImage> DecodeAsync(
+        ImageDecodingContext context,
         PdfRenderingParameters renderingParameters,
-        SKMatrix ctm,
-        IColorTransform fullTransferFunction,
-        bool isType3Rendering,
         CancellationToken cancellationToken);
 
     /// <summary>

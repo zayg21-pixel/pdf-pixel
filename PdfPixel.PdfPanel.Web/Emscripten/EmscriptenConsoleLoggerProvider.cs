@@ -3,7 +3,7 @@ using System;
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
 
-namespace PdfPixel.PdfPanel.Web;
+namespace PdfPixel.PdfPanel.Web.Emscripten;
 
 /// <summary>
 /// An <see cref="ILoggerProvider"/> that writes to the browser console via

@@ -166,16 +166,18 @@ public class PdfPage
     /// <returns></returns>
     public List<PdfCharacter> ExtractText()
     {
-        using var recorder = new SKPictureRecorder();
-        using var canvas = recorder.BeginRecording(new SKRect(0, 0, 1, 1));
+        // TODO: text extraction should be done from commands
+        return new List<PdfCharacter>();
+        //using var recorder = new SKPictureRecorder();
+        //using var canvas = recorder.BeginRecording(new SKRect(0, 0, 1, 1));
 
-        var textExtractor = new PdfTextExtractionRenderer();
+        //var textExtractor = new PdfTextExtractionRenderer();
 
-        var contentRenderer = new PdfContentStreamRenderer(textExtractor, this);
-        var executionContext = new PdfCommandExecutionContext(new PdfRenderingParameters(), CancellationToken.None);
-        using var processor = new SkCanvasCommandProcessor(canvas, executionContext);
-        contentRenderer.RenderContent(processor, CancellationToken.None);
+        //var contentRenderer = new PdfContentStreamRenderer(textExtractor, this);
+        //var executionContext = new PdfCommandExecutionContext(new PdfRenderingParameters(), CancellationToken.None);
+        //using var processor = new SkCanvasCommandProcessor(canvas, executionContext);
+        //contentRenderer.RenderContent(processor, CancellationToken.None);
 
-        return textExtractor.PageCharacters;
+        //return textExtractor.PageCharacters;
     }
 }

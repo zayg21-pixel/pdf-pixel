@@ -62,7 +62,7 @@ public class SingleThreadedRenderLoopRunner : IRenderLoopRunner
 
         if (request is PagesDrawingRequest pagesDrawingRequest)
         {
-            contentProvider.RefreshCache(pagesDrawingRequest.VisiblePages.Select(x => x.PageNumber));
+            contentProvider.RefreshCache(pagesDrawingRequest.VisiblePages.Select(x => x.PageNumber), newCts);
 
             foreach (var visiblePage in pagesDrawingRequest.VisiblePages)
             {
@@ -72,7 +72,7 @@ public class SingleThreadedRenderLoopRunner : IRenderLoopRunner
                     PageNumber = visiblePage.PageNumber,
                     RenderingParameters = pagesDrawingRequest.RenderingParameters,
                     CancellationTokenSource = newCts,
-                    OnPageContentUpdated = RequestReRender
+                    OnPageUpdated = RequestReRender
                 };
                 contentProvider.UpdateContent(contentRequest);
             }

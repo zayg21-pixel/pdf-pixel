@@ -87,7 +87,6 @@ public sealed class PdfPanelPageCollection : ReadOnlyCollection<PdfPanelPage>, I
     {
         var pages = new List<PdfPanelPage>();
         var contentProvider = new PdfPageContentProvider(document, new AsyncMultiProcessWorkQueue<PdfPageUpdateCacheWorkItem>(document.LoggerFactory.CreateLogger<AsyncMultiProcessWorkQueue<PdfPageUpdateCacheWorkItem>>()));
-        //var contentProvider = new AsyncPdfPageContentProvider(document, new AsyncWorkQueue<PdfPageUpdateCacheWorkItem>(document.LoggerFactory.CreateLogger<AsyncWorkQueue<PdfPageUpdateCacheWorkItem>>()));
 
         for (int i = 0; i < document.Pages.Count; i++)
         {
@@ -104,7 +103,6 @@ public sealed class PdfPanelPageCollection : ReadOnlyCollection<PdfPanelPage>, I
     public static PdfPanelPageCollection FromContentProvider(IPdfPageContentProvider contentProvider)
     {
         var pages = new List<PdfPanelPage>();
-        //var contentProvider = new AsyncPdfPageContentProvider(document, new AsyncWorkQueue<PdfPageUpdateCacheWorkItem>(document.LoggerFactory.CreateLogger<AsyncWorkQueue<PdfPageUpdateCacheWorkItem>>()));
 
         for (int i = 0; i < contentProvider.GetPagesCount(); i++)
         {

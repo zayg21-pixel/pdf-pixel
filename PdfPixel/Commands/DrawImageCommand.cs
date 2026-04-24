@@ -5,8 +5,9 @@ using PdfPixel.Imaging.Decoding;
 using PdfPixel.Imaging.Model;
 using PdfPixel.Models;
 using SkiaSharp;
-using System;
 using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace PdfPixel.Commands;
 
@@ -46,12 +47,12 @@ public sealed class DrawImageCommand : PdfCommand
     public override bool IsScaleDependant => true;
 
     /// <inheritdoc />
-    public override void Execute(SKCanvas canvas, IEnumerable<IPdfCommandModifier> modifiers, PdfCommandExecutionContext executionContext)
+    public override async Task ExecuteAsync(SKCanvas canvas, IEnumerable<IPdfCommandModifier> modifiers, PdfCommandExecutionContext executionContext)
     {
         var renderingParameters = executionContext.RenderingParameters;
         bool antialias = renderingParameters.Antialias;
 
-        RebuildCacheIfNeeded(renderingParameters, executionContext.CancellationToken);
+        await RebuildCacheIfNeeded(renderingParameters, executionContext.CancellationToken);
 
         if (_cachedImage == null)
         {
@@ -82,7 +83,7 @@ public sealed class DrawImageCommand : PdfCommand
     /// <summary>
     /// Rebuilds the decoded image cache when the scale factor has changed.
     /// </summary>
-    private void RebuildCacheIfNeeded(PdfRenderingParameters renderingParameters, System.Threading.CancellationToken cancellationToken)
+    private async Task RebuildCacheIfNeeded(PdfRenderingParameters renderingParameters, CancellationToken cancellationToken)
     {
         if (_cacheBuilt && _cachedScaleFactor == renderingParameters.ScaleFactor)
         {
@@ -100,11 +101,9 @@ public sealed class DrawImageCommand : PdfCommand
             return;
         }
 
-        _cachedImage = decoder.Decode(
+        _cachedImage = await decoder.DecodeAsync(
+            _decodingContext,
             renderingParameters,
-            _decodingContext.Ctm,
-            _decodingContext.FullTransferFunction,
-            _decodingContext.IsType3Rendering,
             cancellationToken);
 
         if (_cachedImage == null)
@@ -118,11 +117,9 @@ public sealed class DrawImageCommand : PdfCommand
             var softMaskDecoder = PdfImageDecoder.GetDecoder(_pdfImage.SoftMask, _loggerFactory);
             if (softMaskDecoder != null)
             {
-                _cachedMaskImage = softMaskDecoder.Decode(
+                _cachedMaskImage = await softMaskDecoder.DecodeAsync(
+                    _decodingContext,
                     renderingParameters,
-                    _decodingContext.Ctm,
-                    _decodingContext.FullTransferFunction,
-                    _decodingContext.IsType3Rendering,
                     cancellationToken);
 
                 if (_cachedMaskImage == null)
@@ -208,7 +205,7 @@ public sealed class DrawImageCommand : PdfCommand
     private SKSamplingOptions GetSamplingOptions(PdfRenderingParameters renderingParameters)
     {
         bool isDownscaled = renderingParameters
-            .GetScaledSize(new SKSizeI(_pdfImage.Width, _pdfImage.Height), _decodingContext.Ctm)
+            .GetScaledSize(new SKSizeI(_pdfImage.Width, _pdfImage.Height), _decodingContext.CTM)
             .HasValue;
 
         if (isDownscaled || _decodingContext.IsType3Rendering)

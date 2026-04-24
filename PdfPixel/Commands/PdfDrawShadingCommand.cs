@@ -4,6 +4,8 @@ using PdfPixel.Shading;
 using PdfPixel.Shading.Model;
 using SkiaSharp;
 using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace PdfPixel.Commands;
 
@@ -53,8 +55,9 @@ public sealed class PdfDrawShadingCommand : PdfCommand
     }
 
     /// <inheritdoc />
-    public override void Execute(SKCanvas canvas, IEnumerable<IPdfCommandModifier> modifiers, PdfCommandExecutionContext executionContext)
+    public override async Task ExecuteAsync(SKCanvas canvas, IEnumerable<IPdfCommandModifier> modifiers, PdfCommandExecutionContext executionContext)
     {
+        // TODO: [HIGH] we need add async execution here
         bool antialias = executionContext.RenderingParameters.Antialias;
         int defaultFunctionSamples = executionContext.RenderingParameters.DefaultFunctionSamples;
         int maxTessellationVertices = executionContext.RenderingParameters.MaxTessellationVertices;
@@ -62,7 +65,7 @@ public sealed class PdfDrawShadingCommand : PdfCommand
         switch (_shading.ShadingType)
         {
             case PdfShadingType.FunctionBased:
-                ExecuteFunctionBased(canvas, antialias, defaultFunctionSamples);
+                await ExecuteFunctionBasedAsync(canvas, defaultFunctionSamples, executionContext.CancellationToken);
                 break;
 
             case PdfShadingType.Axial:
@@ -80,7 +83,7 @@ public sealed class PdfDrawShadingCommand : PdfCommand
 
             case PdfShadingType.CoonsPatchMesh:
             case PdfShadingType.TensorProductPatchMesh:
-                ExecutePatchMesh(canvas, modifiers, antialias, maxTessellationVertices);
+                await ExecutePatchMeshAsync(canvas, modifiers, antialias, maxTessellationVertices, executionContext.CancellationToken);
                 break;
         }
     }
@@ -89,17 +92,18 @@ public sealed class PdfDrawShadingCommand : PdfCommand
     /// Executes function-based (Type 1) shading by rendering a cached sampled bitmap.
     /// Rebuilds the bitmap when <paramref name="defaultFunctionSamples"/> changes.
     /// </summary>
-    private void ExecuteFunctionBased(SKCanvas canvas, bool antialias, int defaultFunctionSamples)
+    private async Task ExecuteFunctionBasedAsync(SKCanvas canvas, int defaultFunctionSamples, CancellationToken token)
     {
         if (_functionCacheSamples != defaultFunctionSamples)
         {
             _functionCache?.Dispose();
-            _functionCache = _builder.BuildFunctionBasedBitmap(
+            _functionCache = await _builder.BuildFunctionBasedBitmapAsync(
                 _shading,
                 _context.Converter,
                 _context.RenderingIntent,
                 _context.FullTransferFunction,
-                defaultFunctionSamples);
+                defaultFunctionSamples,
+                token);
             _functionCacheSamples = defaultFunctionSamples;
         }
 
@@ -182,13 +186,13 @@ public sealed class PdfDrawShadingCommand : PdfCommand
     /// Executes Coons (Type 6) or Tensor-product (Type 7) patch mesh shading.
     /// Rebuilds the mesh when <paramref name="maxTessellationVertices"/> changes.
     /// </summary>
-    private void ExecutePatchMesh(SKCanvas canvas, IEnumerable<IPdfCommandModifier> modifiers, bool antialias, int maxTessellationVertices)
+    private async Task ExecutePatchMeshAsync(SKCanvas canvas, IEnumerable<IPdfCommandModifier> modifiers, bool antialias, int maxTessellationVertices, CancellationToken token)
     {
         if (_patchMeshCacheMaxVertices != maxTessellationVertices)
         {
             _patchMeshCache?.Dispose();
             var sampler = _context.Converter.GetRgbaSampler(_context.RenderingIntent, _context.FullTransferFunction);
-            _patchMeshCache = _builder.BuildPatchMeshVertices(_shading, sampler, maxTessellationVertices);
+            _patchMeshCache = await _builder.BuildPatchMeshVerticesAsync(_shading, sampler, maxTessellationVertices, token);
             _patchMeshCacheMaxVertices = maxTessellationVertices;
         }
 

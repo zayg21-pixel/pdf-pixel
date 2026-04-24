@@ -1,5 +1,6 @@
 using SkiaSharp;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 
 namespace PdfPixel.Commands;
 
@@ -19,9 +20,10 @@ public sealed class ClipPathCommand : PdfCommand
     }
 
     /// <inheritdoc />
-    public override void Execute(SKCanvas canvas, IEnumerable<IPdfCommandModifier> modifiers, PdfCommandExecutionContext executionContext)
+    public override Task ExecuteAsync(SKCanvas canvas, IEnumerable<IPdfCommandModifier> modifiers, PdfCommandExecutionContext executionContext)
     {
         canvas.ClipPath(_path, _operation, executionContext.RenderingParameters.Antialias);
+        return Task.CompletedTask;
     }
 
     /// <inheritdoc />

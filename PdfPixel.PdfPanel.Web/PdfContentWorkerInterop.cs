@@ -3,20 +3,22 @@ using PdfPixel.Fonts.Management;
 using PdfPixel.Fonts.Mapping;
 using PdfPixel.Models;
 using PdfPixel.PdfPanel.ContentProvider;
+using PdfPixel.PdfPanel.Web.Emscripten;
+using PdfPixel.PdfPanel.Web.WorkerInterface;
 using PdfPixel.PdfPanel.WorkQueue;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Reflection.Metadata;
 using System.Runtime.InteropServices.JavaScript;
 using System.Runtime.Versioning;
+using System.Text.Json;
 using System.Threading;
-using static System.Runtime.InteropServices.JavaScript.JSType;
+using System.Threading.Tasks;
 
 namespace PdfPixel.PdfPanel.Web;
 
-public class WorkerDocumentData
+public sealed class WorkerDocumentData
 {
     public string Id { get; set; }
 
@@ -25,6 +27,14 @@ public class WorkerDocumentData
     public PdfDocument Document { get; set; }
 
     public PdfPanelPageCollection Pages { get; set; }
+
+    public ImmidiateWorkQueue<PdfPageUpdateCacheWorkItem> WorkQueue { get; set; }
+
+    public void Dispose()
+    {
+        Document.Dispose();
+        Pages.Dispose();
+    }
 }
 
 [SupportedOSPlatform("browser")]
@@ -33,14 +43,16 @@ public partial class PdfContentWorkerInterop
     private static readonly InMemorySkiaFontProvider FontProvider = new();
     private static bool _isInitialized = false;
     private static readonly Dictionary<string, WorkerDocumentData> _documents = new();
+    private static readonly Dictionary<string, (CancellationTokenSource Token, Guid Id)> _cancellationTokens = new();
 
     /// <summary>Gets the application-wide logger factory, available after <see cref="Initialize"/> has been called.</summary>
     public static ILoggerFactory LoggerFactory { get; private set; }
 
-    private static CancellationTokenSource _current;
-
     /// <summary>Gets the logger for <see cref="PdfPanelInterop"/>, available after <see cref="Initialize"/> has been called.</summary>
     public static ILogger Logger { get; private set; }
+
+    [JSImport("onDataReady", "pdfContentWorker.js")]
+    public static partial void OnDataReady(string id, string commandType, string header, byte[] response);
 
     [JSExport]
     internal static void Initialize()
@@ -58,76 +70,119 @@ public partial class PdfContentWorkerInterop
     }
 
     [JSExport]
-    internal static void ProcessMessage(JSObject state)
+    internal static async void ProcessMessage(string id, string commandType, string header, byte[] data)
     {
-        Logger.LogInformation("Received message from main thread");
+        var commandTypeEnum = Enum.Parse<WorkerCommandType>(commandType);
 
-        var message = state.GetPropertyAsString("message");
-        var data = state.GetPropertyAsByteArray("data");
-        var parameters = state.GetPropertyAsString("parameters");
-
-        Logger.LogInformation("Message: {Message}, Parameters: {Parameters}, Data Length: {DataLength}", message, parameters, data?.Length ?? 0);
-
-        switch (message)
+        switch (commandTypeEnum)
         {
-            case "setFont":
+            case WorkerCommandType.SetFont:
             {
-                SetFont(parameters, data);
+                var request = JsonSerializer.Deserialize(header, InterfaceJsonContext.Default.SetFontRequest);
+
+                SetFont(request.Name, data);
+                OnDataReady(id, commandType, header, default);
                 break;
             }
-            case "updateContent":
+            case WorkerCommandType.UpdateCache:
             {
-                string [] parts = parameters.Split(' ');
-                string canvasId = parts[0];
-                int pageNumber = int.Parse(parts[1]);
-                float scaleFactor = float.Parse(parts[2]);
+                var request = JsonSerializer.Deserialize(header, InterfaceJsonContext.Default.UpdateCacheRequest);
 
-                var document = _documents[canvasId];
-
-                _current?.Cancel();
-                _current?.Dispose();
-                _current = new CancellationTokenSource();
-
-                var request = new ContentProviderRequest
+                if (!_documents.TryGetValue(request.ContainerId, out var document))
                 {
-                    PageNumber = pageNumber,
-                    RenderingParameters = new PdfRenderingParameters
-                    {
-                        ScaleFactor = scaleFactor
-                    },
-                    CancellationTokenSource = _current, // TODO: store separately and cancel by ID
-                    //OnPageContentUpdated = (pageNum, content) =>
-                    //{
-                    //    Logger.LogInformation("Content updated for canvas '{CanvasId}', page {PageNumber}, scale {ScaleFactor}", canvasId, pageNum, scaleFactor);
-                    //    using var picture = content.GetContent();
-                        
-                    //    if (picture.Content != null)
-                    //    {
-                    //        state.SetProperty("data", picture.Content.Serialize().Span.ToArray());
-                    //    }
-                    //}
-                };
-
-                document.Pages.ContentProvider.UpdateContent(request);
-                var content = document.Pages.ContentProvider.GetExistingContent(pageNumber);
-                using var picture = content.GetContent();
-
-                if (picture.HasContent)
-                {
-                    state.SetProperty("data", picture.Content.Serialize().Span.ToArray());
+                    Logger.LogWarning("No document found for container '{ContainerId}' when trying to update cache", request.ContainerId);
+                    break;
                 }
 
-                Logger.LogInformation("data updated for canvas '{CanvasId}', page {PageNumber}, scale {ScaleFactor}", canvasId, pageNumber, scaleFactor);
+                CancellationTokenSource cancellationTokenSource = await GetCancellationTokenSource(request);
+
+                document.Pages.ContentProvider.RefreshCache(request.PagesToStore, cancellationTokenSource);
+                OnDataReady(id, commandType, header, default);
+                break;
+            }
+            case WorkerCommandType.UpdateContent:
+            {
+                var request = JsonSerializer.Deserialize(header, InterfaceJsonContext.Default.UpdateContentRequest);
+
+                if (!_documents.TryGetValue(request.ContainerId, out var document))
+                {
+                    Logger.LogWarning("No document found for container '{ContainerId}' when trying to update content", request.ContainerId);
+                    break;
+                }
+
+                CancellationTokenSource cancellationTokenSource = await GetCancellationTokenSource(request);
+
+                byte[] contentData = null;
+
+                var updatePagesRequest = new ContentProviderRequest
+                {
+                    PageNumber = request.PageNumber,
+                    RenderingParameters = new PdfRenderingParameters
+                    {
+                        ScaleFactor = request.Scale
+                    },
+                    CancellationTokenSource = cancellationTokenSource,
+                    OnPageUpdated = (pageNum, content) =>
+                    {
+                        using var picture = content.GetContent();
+                        contentData = picture.Content.Serialize().Span.ToArray();
+                        OnDataReady(id, commandType, header, contentData);
+                    }
+                };
+
+                document.Pages.ContentProvider.UpdateContent(updatePagesRequest);
 
                 break;
             }
-            case "setDocument":
+            case WorkerCommandType.SetDocument:
             {
-                var result = SetDocument(parameters, data);
-                state.SetProperty("data", result);
+                var parameters = JsonSerializer.Deserialize(header, InterfaceJsonContext.Default.SetDocumentRequest);
+                var documentInfo = SetDocument(parameters.ContainerId, data);
+                OnDataReady(id, commandType, header, documentInfo);
                 break;
             }
         }
+    }
+
+    private static async Task<CancellationTokenSource> GetCancellationTokenSource(ContentRequest request)
+    {
+        CancellationTokenSource cancellationTokenSource;
+
+        if (_cancellationTokens.TryGetValue(request.ContainerId, out var existingToken))
+        {
+            if (existingToken.Id == request.CancellationId)
+            {
+                cancellationTokenSource = existingToken.Token;
+            }
+            else
+            {
+                try
+                {
+                    existingToken.Token.Cancel();
+                }
+                catch (ObjectDisposedException)
+                {
+                }
+
+                existingToken.Token.Dispose();
+                cancellationTokenSource = new CancellationTokenSource();
+                _cancellationTokens[request.ContainerId] = (cancellationTokenSource, request.CancellationId);
+            }
+        }
+        else
+        {
+            cancellationTokenSource = new CancellationTokenSource();
+            _cancellationTokens[request.ContainerId] = (cancellationTokenSource, request.CancellationId);
+        }
+
+        await Task.Yield();
+
+        return cancellationTokenSource;
+    }
+
+    private static void SetResponse(JSObject state, byte[] data)
+    {
+        state.SetProperty("response", data);
     }
 
     private static void SetFont(string name, byte[] fontData)
@@ -148,9 +203,9 @@ public partial class PdfContentWorkerInterop
         }
     }
 
-    private static byte[] SetDocument(string id, byte[] documentData)
+    private static byte[] SetDocument(string containerId, byte[] documentData)
     {
-        Logger.LogInformation("Loading PDF document for canvas '{Id}'", id);
+        Logger.LogInformation("Loading PDF document for container '{Id}'", containerId);
 
         try
         {
@@ -158,34 +213,43 @@ public partial class PdfContentWorkerInterop
             Logger.LogInformation("Reading PDF document, size={Size} bytes", documentData.Length);
             var document = reader.Read(new MemoryStream(documentData), string.Empty);
             Logger.LogInformation("PDF document parsed, pages={PageCount}", document.Pages.Count);
-            var contentProvider = new PdfPageContentProvider(document, new ImmidiateWorkQueue<PdfPageUpdateCacheWorkItem>());
+            var workQueue = new ImmidiateWorkQueue<PdfPageUpdateCacheWorkItem>();
+            var contentProvider = new PdfPageContentProvider(document, workQueue);
             var pages = PdfPanelPageCollection.FromContentProvider(contentProvider);
 
-            WorkerDocumentData data = new WorkerDocumentData
+            WorkerDocumentData workerDocumentData = new WorkerDocumentData
             {
                 Data = documentData,
                 Pages = pages,
-                Document = document
+                Document = document,
+                WorkQueue = workQueue
             };
 
             var pageInfos = pages.Select(x => x.Info).ToList();
 
             var parsedData = new WebDocumentData
             {
-                CanvasId = id,
+                ContainerId = containerId,
                 PageInfo = pageInfos.Select(WebDocumentPageInfo.FromPdfPanelPageInfo).ToList(),
                 PagesCount = pageInfos.Count
             };
 
-            _documents[id] = data;
+            if (_documents.TryGetValue(containerId, out WorkerDocumentData value))
+            {
+                value.Dispose();
+                _documents[containerId] = null;
+                Logger.LogWarning("Document for container '{Id}' already exists. It will be replaced.", containerId);
+            }
 
-            Logger.LogInformation("PDF document loaded for canvas '{Id}', pages={PageCount}", id, pages.Count);
-            return System.Text.Json.JsonSerializer.SerializeToUtf8Bytes(parsedData, JsonSourceGenerationContext.Default.WebDocumentData);
+            _documents[containerId] = workerDocumentData;
+
+            Logger.LogInformation("PDF document loaded for container '{Id}', pages={PageCount}", containerId, pages.Count);
+            return JsonSerializer.SerializeToUtf8Bytes(parsedData, InterfaceJsonContext.Default.WebDocumentData);
 
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, "Error loading PDF document for canvas '{Id}'", id);
+            Logger.LogError(ex, "Error loading PDF document for container '{Id}'", containerId);
             return null;
         }
     }

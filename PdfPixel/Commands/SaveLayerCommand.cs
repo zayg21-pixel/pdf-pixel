@@ -1,5 +1,6 @@
 using SkiaSharp;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 
 namespace PdfPixel.Commands;
 
@@ -20,7 +21,7 @@ public sealed class SaveLayerCommand : PdfCommand
     }
 
     /// <inheritdoc />
-    public override void Execute(SKCanvas canvas, IEnumerable<IPdfCommandModifier> modifiers, PdfCommandExecutionContext executionContext)
+    public override Task ExecuteAsync(SKCanvas canvas, IEnumerable<IPdfCommandModifier> modifiers, PdfCommandExecutionContext executionContext)
     {
         if (_paint != null)
         {
@@ -32,6 +33,8 @@ public sealed class SaveLayerCommand : PdfCommand
         {
             canvas.SaveLayer(_bounds, null);
         }
+
+        return Task.CompletedTask;
     }
 
     /// <inheritdoc />

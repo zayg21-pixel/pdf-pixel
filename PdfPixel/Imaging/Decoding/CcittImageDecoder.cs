@@ -1,6 +1,5 @@
 using Microsoft.Extensions.Logging;
-using PdfPixel.Color.Filters;
-using PdfPixel.Color.Transform;
+using PdfPixel.Commands;
 using PdfPixel.Imaging.Ccitt;
 using PdfPixel.Imaging.Model;
 using PdfPixel.Imaging.Processing;
@@ -8,6 +7,7 @@ using PdfPixel.Models;
 using SkiaSharp;
 using System;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace PdfPixel.Imaging.Decoding;
 
@@ -44,11 +44,9 @@ internal sealed class CcittImageDecoder : PdfImageDecoder
         _rows = parameters?.Rows ?? image.Height;
     }
 
-    public override SKImage Decode(
+    public override async Task<SKImage> DecodeAsync(
+        ImageDecodingContext context,
         PdfRenderingParameters renderingParameters,
-        SKMatrix ctm,
-        IColorTransform fullTransferFunction,
-        bool isType3Rendering,
         CancellationToken cancellationToken)
     {
         // TODO: [LOW] add recovery
@@ -68,8 +66,7 @@ internal sealed class CcittImageDecoder : PdfImageDecoder
         }
 
         // Initialize row processor (8-bit pipeline; will read packed 1-bit samples per row).
-        using var rowProcessor = new PdfImageRowProcessor(Image, LoggerFactory.CreateLogger<PdfImageRowProcessor>(),
-            renderingParameters, ctm, fullTransferFunction, isType3Rendering, cancellationToken);
+        using var rowProcessor = new PdfImageRowProcessor(Image, LoggerFactory.CreateLogger<PdfImageRowProcessor>(), context, renderingParameters);
         rowProcessor.InitializeBuffer();
 
         // Row decoder (produces packed 1-bit rows, MSB-first).
@@ -91,6 +88,13 @@ internal sealed class CcittImageDecoder : PdfImageDecoder
         {
             rowProcessor.WriteRow(rowIndex, rowBuffer);
             rowIndex++;
+
+            if (renderingParameters.AsyncExecution)
+            {
+                await Task.Yield();
+            }
+
+            cancellationToken.ThrowIfCancellationRequested();
         }
 
         if (rowIndex != height)

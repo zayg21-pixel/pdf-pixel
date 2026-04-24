@@ -1,27 +1,15 @@
+using PdfPixel.PdfPanel.Web.Emscripten;
 using SkiaSharp;
 using System;
 
 namespace PdfPixel.PdfPanel.Web;
 
 /// <summary>
-/// Encapsulates per-canvas WebGL handles, the Skia GPU context, and the paired
-/// offscreen / present surfaces.
-/// <para>
-/// All rendering targets an offscreen GPU texture. <see cref="SKSurface.Snapshot"/>
-/// on texture-backed surfaces evaluates eagerly via copy-on-write, unlike FBO 0
-/// surfaces where it is lazily evaluated and unreliable. The offscreen content is
-/// blitted to FBO 0 only when <see cref="Present"/> is called.
-/// </para>
+/// Encapsulates per-canvas WebGL handles.
 /// </summary>
-/// <remarks>
-/// Before calling <see cref="CreateAsync"/>, ensure <c>Module["canvas"]</c> is set to the target
-/// canvas element so that <c>eglCreateWindowSurface</c> binds to the correct WebGL context.
-/// </remarks>
 public sealed class CanvasGlContext : IDisposable
 {
     private bool _disposed;
-    private readonly int _sampleCount;
-    private SKSurface _offscreenSurface;
     private SKSurface _presentSurface;
     private int _surfaceWidth;
     private int _surfaceHeight;
@@ -37,7 +25,6 @@ public sealed class CanvasGlContext : IDisposable
         CanvasSelector = canvasSelector;
         WebGlContext = webGlContext;
         GrContext = grContext;
-        _sampleCount = Math.Min(4, Math.Max(1, grContext.GetMaxSurfaceSampleCount(SKColorType.Rgba8888)));
     }
 
     public string CanvasSelector { get; }
@@ -63,37 +50,37 @@ public sealed class CanvasGlContext : IDisposable
     /// <returns>The current offscreen <see cref="SKSurface"/> instance.</returns>
     public SKSurface CreateSurface(int width, int height, bool preserveContent)
     {
-        if (_offscreenSurface != null && _surfaceWidth == width && _surfaceHeight == height)
+        if (_presentSurface != null && _surfaceWidth == width && _surfaceHeight == height)
         {
-            return _offscreenSurface;
+            return _presentSurface;
         }
 
-        Emscripten.WebGlMakeContextCurrent(WebGlContext);
+        EmscriptenInterop.WebGlMakeContextCurrent(WebGlContext);
 
         var info = new SKImageInfo(width, height, SKColorType.Rgba8888, SKAlphaType.Premul);
-        var newSurface = SKSurface.Create(GrContext, false, info, _sampleCount, GRSurfaceOrigin.BottomLeft);
+        var newSurface = SKSurface.Create(GrContext, budgeted: true, info, sampleCount: 1, GRSurfaceOrigin.BottomLeft);
 
         if (newSurface == null)
         {
             throw new InvalidOperationException("Failed to create offscreen Skia surface for WebGL context.");
         }
 
-        if (preserveContent && _offscreenSurface != null)
+        if (preserveContent && _presentSurface != null)
         {
-            _offscreenSurface.Flush();
-            newSurface.Canvas.DrawSurface(_offscreenSurface, 0, 0);
+            _presentSurface.Flush();
+            newSurface.Canvas.DrawSurface(_presentSurface, 0, 0);
             newSurface.Flush();
         }
 
-        _offscreenSurface?.Dispose();
-        _offscreenSurface = newSurface;
+        _presentSurface?.Dispose();
+        _presentSurface = newSurface;
 
         RecreatePresentSurface(width, height);
 
         _surfaceWidth = width;
         _surfaceHeight = height;
 
-        return _offscreenSurface;
+        return _presentSurface;
     }
 
     /// <summary>
@@ -114,10 +101,10 @@ public sealed class CanvasGlContext : IDisposable
             return _thumbnailSurface;
         }
 
-        Emscripten.WebGlMakeContextCurrent(WebGlContext);
+        EmscriptenInterop.WebGlMakeContextCurrent(WebGlContext);
 
         var info = new SKImageInfo(width, height, SKColorType.Rgba8888, SKAlphaType.Premul);
-        var newSurface = SKSurface.Create(GrContext, false, info, _sampleCount, GRSurfaceOrigin.BottomLeft);
+        var newSurface = SKSurface.Create(GrContext, budgeted: true, info, 1, GRSurfaceOrigin.BottomLeft);
 
         if (newSurface == null)
         {
@@ -138,14 +125,12 @@ public sealed class CanvasGlContext : IDisposable
     /// </summary>
     public void Present()
     {
-        if (_offscreenSurface == null || _presentSurface == null)
+        if (_presentSurface == null)
         {
             return;
         }
 
-        Emscripten.WebGlMakeContextCurrent(WebGlContext);
-        _offscreenSurface.Flush();
-        _presentSurface.Canvas.DrawSurface(_offscreenSurface, 0, 0);
+        EmscriptenInterop.WebGlMakeContextCurrent(WebGlContext);
         _presentSurface.Flush();
     }
 
@@ -158,7 +143,7 @@ public sealed class CanvasGlContext : IDisposable
     {
         _presentSurface?.Dispose();
 
-        Emscripten.SetCanvasSize(CanvasSelector, width, height);
+        EmscriptenInterop.SetCanvasSize(CanvasSelector, width, height);
 
         var glInfo = new GRGlFramebufferInfo(
             fboId: 0,
@@ -200,7 +185,6 @@ public sealed class CanvasGlContext : IDisposable
 
         _disposed = true;
         _thumbnailSurface?.Dispose();
-        _offscreenSurface?.Dispose();
         _presentSurface?.Dispose();
         GrContext.Dispose();
         // TODO: destroy WebGlContext!!!

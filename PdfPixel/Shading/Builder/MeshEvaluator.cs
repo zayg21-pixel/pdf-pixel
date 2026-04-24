@@ -6,6 +6,8 @@ using System.Collections.Generic;
 using System.Numerics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace PdfPixel.Shading.Builder;
 
@@ -53,8 +55,9 @@ internal static class MeshEvaluator
     /// </summary>
     /// <param name="patches">List of mesh patches to tessellate.</param>
     /// <param name="tessellation">Number of subdivisions per axis (higher = smoother).</param>
+    /// <param name="token">Cancellation token for async operations.</param>
     /// <returns>SKVertices instance containing all tessellated mesh vertices, colors, and indices.</returns>
-    public static SKVertices CreateVerticesForPatches(List<MeshData> patches, int tessellation)
+    public static async Task<SKVertices> CreateVerticesForPatchesAsync(List<MeshData> patches, int tessellation, CancellationToken token)
     {
         if (patches == null || patches.Count == 0)
         {
@@ -114,6 +117,9 @@ internal static class MeshEvaluator
                     allColors[vertexOffset + vertexIndex] = InterpolateCornerColors(u, v, patch.CornerColors);
                     vertexIndex++;
                 }
+
+                await Task.Yield();
+                token.ThrowIfCancellationRequested();
             }
             int index = 0;
             for (int rowIndex = 0; rowIndex < tessellation; rowIndex++)

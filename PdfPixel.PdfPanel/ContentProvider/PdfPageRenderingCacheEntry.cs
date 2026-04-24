@@ -2,89 +2,13 @@ using PdfPixel.Commands;
 using SkiaSharp;
 using System;
 using System.Linq;
-using System.Threading;
 
 namespace PdfPixel.PdfPanel.ContentProvider;
-
-public sealed class LockedContent<T> : IDisposable
-{
-    private readonly ReaderWriterLockSlim _locker;
-
-    public LockedContent(T content, ReaderWriterLockSlim locker)
-    {
-        _locker = locker ?? throw new ArgumentNullException(nameof(locker));
-        _locker.EnterUpgradeableReadLock();
-        Content = content;
-    }
-
-    public T Content { get; }
-
-    public bool HasContent => Content != null;
-
-    public void Dispose()
-    {
-        _locker.ExitUpgradeableReadLock();
-    }
-}
-
-public sealed class ContentLocker<T> : IDisposable
-{
-    private readonly ReaderWriterLockSlim _lock = new ReaderWriterLockSlim();
-    private T _content;
-    private bool _disposed;
-
-    public void SetContent(T content)
-    {
-        _lock.EnterWriteLock();
-        try
-        {
-            CheckIfDisposed();
-
-            if (_content is IDisposable disposable)
-            {
-                disposable.Dispose();
-            }
-
-            _content = content;
-        }
-        finally
-        {
-            _lock.ExitWriteLock();
-        }
-    }
-
-    public bool HasContent => _content != null;
-
-    public LockedContent<T> GetContent()
-    {
-        CheckIfDisposed();
-        return new LockedContent<T>(_content, _lock);
-    }
-
-    private void CheckIfDisposed()
-    {
-        if (_disposed)
-        {
-            throw new ObjectDisposedException(nameof(ContentLocker<T>));
-        }
-    }
-
-    public void Dispose()
-    {
-        if (_content is IDisposable disposable)
-        {
-            disposable.Dispose();
-        }
-        _disposed = true;
-
-        _lock.Dispose();
-    }
-}
 
 /// <summary>
 /// Represents page cache content item. Main content or annotation content.
 /// </summary>
-public class PdfPageCacheEntryItem : IDisposable
+public sealed class PdfPageCacheEntryItem : IDisposable
 {
     private bool _disposed;
 

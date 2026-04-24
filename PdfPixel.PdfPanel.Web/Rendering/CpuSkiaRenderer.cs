@@ -1,11 +1,12 @@
 using Microsoft.Extensions.Logging;
 using PdfPixel.PdfPanel.Requests;
+using PdfPixel.PdfPanel.Web.Emscripten;
 using SkiaSharp;
 using System;
 using System.Runtime.Versioning;
 using System.Threading;
 
-namespace PdfPixel.PdfPanel.Web;
+namespace PdfPixel.PdfPanel.Web.Rendering;
 
 /// <summary>
 /// CPU-backed Skia renderer for browser canvases. Uses a raster <see cref="SKSurface"/>,
@@ -35,7 +36,7 @@ internal sealed class CpuSkiaRenderer : CpuSkSurfaceFactory, IPdfPanelRenderTarg
     {
         // TODO: [HIGH] copy content from existing surface, add protected properties for surfaces
         var surface = base.GetDrawingSurface(width, height, token);
-        Emscripten.SetCanvasSize(_canvasSelector, width, height);
+        EmscriptenInterop.SetCanvasSize(_canvasSelector, width, height);
 
         return surface;
     }
@@ -69,7 +70,7 @@ internal sealed class CpuSkiaRenderer : CpuSkSurfaceFactory, IPdfPanelRenderTarg
 
         try
         {
-            Emscripten.SetCanvasRgba(_canvasSelector, src, width, height);
+            EmscriptenInterop.SetCanvasRgba(_canvasSelector, src, width, height);
         }
         catch (Exception ex)
         {

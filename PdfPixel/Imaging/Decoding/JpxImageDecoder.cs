@@ -1,6 +1,7 @@
 ﻿using Microsoft.Extensions.Logging;
 using PdfPixel.Color.Filters;
 using PdfPixel.Color.Transform;
+using PdfPixel.Commands;
 using PdfPixel.Imaging.Jpx.Decoding;
 using PdfPixel.Imaging.Jpx.Model;
 using PdfPixel.Imaging.Jpx.Parsing;
@@ -10,6 +11,7 @@ using PdfPixel.Models;
 using SkiaSharp;
 using System;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace PdfPixel.Imaging.Decoding;
 
@@ -29,11 +31,9 @@ public class JpxImageDecoder : PdfImageDecoder
     {
     }
 
-    public override SKImage Decode(
+    public override Task<SKImage> DecodeAsync(
+        ImageDecodingContext context,
         PdfRenderingParameters renderingParameters,
-        SKMatrix ctm,
-        IColorTransform fullTransferFunction,
-        bool isType3Rendering,
         CancellationToken cancellationToken)
     {
         if (!ValidateImageParameters())
@@ -51,24 +51,22 @@ public class JpxImageDecoder : PdfImageDecoder
 
         try
         {
-            return DecodeInternal(encodedImageData, renderingParameters, ctm, fullTransferFunction, isType3Rendering, cancellationToken);
+            return DecodeInternalAsync(encodedImageData, context, renderingParameters, cancellationToken);
         }
         catch (Exception ex)
         {
             Logger.LogWarning(ex, "JPX decode failed; attempting Skia fallback (Name={Name}).", Image.Name);
-            return SKImage.FromEncodedData(encodedImageData.Span);
+            return Task.FromResult(SKImage.FromEncodedData(encodedImageData.Span));
         }
     }
 
     /// <summary>
     /// Decode using custom JPX implementation with tile-to-row conversion.
     /// </summary>
-    private SKImage DecodeInternal(
+    private Task<SKImage> DecodeInternalAsync(
         ReadOnlyMemory<byte> encoded,
+        ImageDecodingContext context,
         PdfRenderingParameters renderingParameters,
-        SKMatrix ctm,
-        IColorTransform fullTransferFunction,
-        bool isType3Rendering,
         CancellationToken cancellationToken)
     {
         // Parse JPX header
@@ -123,36 +121,33 @@ public class JpxImageDecoder : PdfImageDecoder
             using var rowProvider = jpxDecoder.Decode(header, codestreamData);
             
             // Stream decoded data through PdfImageRowProcessor
-            return ProcessWithRowProvider(rowProvider, renderingParameters, ctm, fullTransferFunction, isType3Rendering, cancellationToken);
+            return ProcessWithRowProviderAsync(rowProvider, context, renderingParameters, cancellationToken);
         }
         catch (NotImplementedException)
         {
             // Decoder not implemented yet, fall back to Skia
             Logger.LogInformation("JPX tile decoder not implemented for this image type, falling back to Skia decoder (Name={Name}).", Image.Name);
-            return SKImage.FromEncodedData(encoded.Span);
+            return Task.FromResult(SKImage.FromEncodedData(encoded.Span));
         }
     }
 
     /// <summary>
     /// Process decoded JPX data using the existing PDF image row processor.
     /// </summary>
-    private SKImage ProcessWithRowProvider(
+    private async Task<SKImage> ProcessWithRowProviderAsync(
         IJpxRowProvider rowProvider,
+        ImageDecodingContext context,
         PdfRenderingParameters renderingParameters,
-        SKMatrix ctm,
-        IColorTransform fullTransferFunction,
-        bool isType3Rendering,
         CancellationToken cancellationToken)
     {
         PdfImageRowProcessor rowProcessor = null;
 
         try
         {
-            rowProcessor = new PdfImageRowProcessor(Image, LoggerFactory.CreateLogger<PdfImageRowProcessor>(),
-                renderingParameters, ctm, fullTransferFunction, isType3Rendering, cancellationToken);
+            rowProcessor = new PdfImageRowProcessor(Image, LoggerFactory.CreateLogger<PdfImageRowProcessor>(), context, renderingParameters);
             rowProcessor.InitializeBuffer();
 
-            Span<byte> rowBuffer = new byte[rowProvider.Width * rowProvider.ComponentCount];
+            byte[] rowBuffer = new byte[rowProvider.Width * rowProvider.ComponentCount];
 
             for (int rowIndex = 0; rowIndex < rowProvider.Height; rowIndex++)
             {
@@ -162,6 +157,13 @@ public class JpxImageDecoder : PdfImageDecoder
                 }
 
                 rowProcessor.WriteRow(rowIndex, rowBuffer);
+
+                if (renderingParameters.AsyncExecution)
+                {
+                    await Task.Yield();
+                }
+
+                cancellationToken.ThrowIfCancellationRequested();
             }
 
             return rowProcessor.GetDecoded();

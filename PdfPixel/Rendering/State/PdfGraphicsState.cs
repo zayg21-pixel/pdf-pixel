@@ -73,12 +73,12 @@ namespace PdfPixel.Rendering.State
         internal bool IsType3Rendering { get; set; }
 
         /// <summary>
-        /// Current stroking paint (solid color or pattern). Replaces legacy StrokeColor / StrokePattern* fields.
+        /// Current stroking paint (solid color or pattern).
         /// </summary>
         public PdfPaint StrokePaint { get; set; } = PdfPaint.Solid(SKColors.Black);
 
         /// <summary>
-        /// Current non-stroking (fill) paint (solid color or pattern). Replaces legacy FillColor / FillPattern* fields.
+        /// Current non-stroking (fill) paint (solid color or pattern).
         /// </summary>
         public PdfPaint FillPaint { get; set; } = PdfPaint.Solid(SKColors.Black);
 

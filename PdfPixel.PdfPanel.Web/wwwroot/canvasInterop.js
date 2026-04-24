@@ -385,17 +385,15 @@ export async function initialize(setModuleImports, getAssemblyExports, wasmModul
 
     contentWorker = new Worker('pdfContentWorker.js', { type: 'module' });
 
-    // Handshake with worker: send only 'initialize' and await same-format response
     const handshakePromise = new Promise((resolve, reject) => {
         function onHandshake(e) {
-            // Expecting: [null, 'initialized', null, null]
-            if (Array.isArray(e.data) && e.data[1] === 'initialized') {
+            if (Array.isArray(e.data) && e.data[1] === 'Initialize') {
                 contentWorker.removeEventListener('message', onHandshake);
                 resolve();
             }
         }
         contentWorker.addEventListener('message', onHandshake);
-        sendToWorker(null, 'initialize', null, null);
+        sendToWorker(null, 'Initialize', null, null);
         setTimeout(() => {
             contentWorker.removeEventListener('message', onHandshake);
             reject(new Error('Worker handshake timeout'));
