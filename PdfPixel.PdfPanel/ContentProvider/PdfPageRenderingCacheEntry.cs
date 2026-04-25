@@ -99,7 +99,7 @@ public sealed class PdfPageCacheEntry : IDisposable
 {
     private bool _disposed;
 
-    public PdfPageCacheEntry(int pageNumber, PdfPanelPageInfo pageInfo)
+    public PdfPageCacheEntry(int pageNumber, PdfPanelPageInfo pageInfo, PdfAnnotationPopup[] annotations)
     {
         if (pageNumber < 1)
         {
@@ -109,6 +109,7 @@ public sealed class PdfPageCacheEntry : IDisposable
         PageNumber = pageNumber;
         PageInfo = pageInfo;
         Content = new PdfPageCacheEntryItem();
+        Annotations = annotations;
         AnnotationContent = new PdfPageCacheEntryItem();
     }
 
@@ -131,6 +132,11 @@ public sealed class PdfPageCacheEntry : IDisposable
     /// Page annotation content.
     /// </summary>
     public PdfPageCacheEntryItem AnnotationContent { get; }
+
+    /// <summary>
+    /// Page annotations.
+    /// </summary>
+    public PdfAnnotationPopup[] Annotations { get; }
 
     /// <summary>
     /// Clears cache entry.

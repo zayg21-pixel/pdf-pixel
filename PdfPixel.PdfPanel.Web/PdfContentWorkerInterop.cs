@@ -84,7 +84,7 @@ public partial class PdfContentWorkerInterop
                 OnDataReady(id, commandType, header, default);
                 break;
             }
-            case WorkerCommandType.UpdateCache:
+            case WorkerCommandType.RefreshCache:
             {
                 var request = JsonSerializer.Deserialize(header, InterfaceJsonContext.Default.RefreshCacheRequest);
 

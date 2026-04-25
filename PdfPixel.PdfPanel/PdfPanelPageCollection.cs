@@ -61,7 +61,7 @@ public sealed class PdfPanelPageCollection : ReadOnlyCollection<PdfPanelPage>, I
             return null;
         }
 
-        return page.Popups.FirstOrDefault(x => x.IsInteractive() && x.Rect.Contains(pagePosition));
+        return PdfDocumentAnnotationExtractor.GetActiveAnnotation(page.Popups, pagePosition);
     }
 
     /// <summary>

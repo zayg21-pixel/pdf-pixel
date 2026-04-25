@@ -132,7 +132,7 @@ public class WebDocumentContentProvider : IPdfPageContentProvider
 
         var requestJson = JsonSerializer.Serialize(refreshCacheRequest, InterfaceJsonContext.Default.RefreshCacheRequest);
 
-        PdfPanelInterop.SendToWorker(Guid.NewGuid().ToString(), WorkerCommandType.UpdateCache.ToString(), requestJson, null);
+        PdfPanelInterop.SendToWorker(Guid.NewGuid().ToString(), WorkerCommandType.RefreshCache.ToString(), requestJson, null);
     }
 
     public void UpdateContent(ContentProvider.UpdateContentRequest request)

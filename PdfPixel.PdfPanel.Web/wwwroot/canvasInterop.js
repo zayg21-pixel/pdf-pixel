@@ -24,7 +24,7 @@ class PdfPanelView {
             pagesPadding: { left: 10, top: 10, right: 10, bottom: 10 },
             minimumPageGap: 10,
             scrollStep: 20,
-            useWebGL: true
+            useWebGL: false
         };
         this.configuration = Object.assign({}, defaults, configuration || {});
 

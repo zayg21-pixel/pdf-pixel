@@ -4,11 +4,22 @@ using PdfPixel.Text;
 using SkiaSharp;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace PdfPixel.PdfPanel.ContentProvider;
 
 internal static class PdfDocumentAnnotationExtractor
 {
+    public static PdfAnnotationPopup GetActiveAnnotation(PdfAnnotationPopup[] popups, SKPoint pagePosition)
+    {
+        if (popups == null)
+        {
+            return null;
+        }
+
+        return popups.FirstOrDefault(x => x.IsInteractive() && x.Rect.Contains(pagePosition));
+    }
+
     public static PdfAnnotationPopup[] CreateAnnotationPopups(this PdfDocument document, int pageNumber)
     {
         if (pageNumber < 1 || pageNumber > document.Pages.Count)

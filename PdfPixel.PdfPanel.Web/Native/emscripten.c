@@ -59,13 +59,12 @@ EM_JS(void, dotnet_webgl_enable_debug_renderer_info, (int ctx), {
 // pixelsPtr must point to width*height*4 bytes in RGBA order.
 EM_JS(void, dotnet_set_canvas_rgba_js, (const char* canvasIdPtr, const uint8_t* pixelsPtr, int width, int height), {
 	const canvasId = UTF8ToString(canvasIdPtr);
-	const key = canvasId.substring(1);
 
-	if (typeof GL === 'undefined' || !GL.offscreenCanvases) {
+	const canvas = document.querySelector(canvasId);
+
+	if (!canvas) {
 		return;
 	}
-
-	const canvas = GL.offscreenCanvases[key];
 
 	const ctx = canvas.getContext('2d');
 	if (!ctx) {

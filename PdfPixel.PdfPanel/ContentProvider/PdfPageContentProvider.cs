@@ -12,7 +12,6 @@ public sealed class PdfPageContentProvider : IPdfPageContentProvider
     private readonly PdfDocument _document;
     private readonly IWorkQueue<PdfPageUpdateCacheWorkItem> _processingQueue;
     private readonly PdfPageCacheEntry[] _cache;
-    private readonly PdfAnnotationPopup[][] _popups;
 
     public PdfPageContentProvider(PdfDocument document, IWorkQueue<PdfPageUpdateCacheWorkItem> processingQueue)
     {
@@ -22,14 +21,7 @@ public sealed class PdfPageContentProvider : IPdfPageContentProvider
 
         for (int i = 0; i < document.Pages.Count; i++)
         {
-            _cache[i] = new PdfPageCacheEntry(i + 1, GetPageInfo(i + 1));
-        }
-
-        _popups = new PdfAnnotationPopup[document.Pages.Count][];
-
-        for (int i = 0; i < document.Pages.Count; i++)
-        {
-            _popups[i] = PdfDocumentAnnotationExtractor.CreateAnnotationPopups(_document, i + 1);
+            _cache[i] = new PdfPageCacheEntry(i + 1, PdfDocumentContentExtensions.GetPageInfo(_document, i + 1), PdfDocumentAnnotationExtractor.CreateAnnotationPopups(_document, i + 1));
         }
 
         _processingQueue = processingQueue;
@@ -39,7 +31,7 @@ public sealed class PdfPageContentProvider : IPdfPageContentProvider
 
     public PdfAnnotationPopup[] GetAnnotationPopups(int pageNumber)
     {
-        return _popups[pageNumber - 1];
+        return _cache[pageNumber - 1].Annotations;
     }
 
     public int GetPagesCount()
@@ -81,12 +73,7 @@ public sealed class PdfPageContentProvider : IPdfPageContentProvider
 
     public PdfPanelPageInfo GetPageInfo(int pageNumber)
     {
-        DocumentLocker.Wait();
-
-        var result = PdfDocumentContentExtensions.GetPageInfo(_document, pageNumber);
-
-        DocumentLocker.Release();
-        return result;
+        return _cache[pageNumber - 1].PageInfo;
     }
 
     public void Dispose()

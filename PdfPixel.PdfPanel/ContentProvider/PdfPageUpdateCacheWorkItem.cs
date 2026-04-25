@@ -2,6 +2,7 @@ using PdfPixel.Annotations.Models;
 using PdfPixel.Commands;
 using PdfPixel.Models;
 using PdfPixel.PdfPanel.WorkQueue;
+using SkiaSharp;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -82,8 +83,17 @@ public class PdfPageUpdateCacheWorkItem : IWorkItem
             _request.OnPageUpdated?.Invoke(CacheEntry.PageNumber, CacheEntry.Content.ContentPicture);
         }
 
+        var annotations = CacheEntry.Annotations;
+
+        if (annotations == null)
+        {
+            return;
+        }
+
         PdfAnnotationBase pageActiveAnnotation = null;
         PdfPanelPointerState pointerState = PdfPanelPointerState.None;
+
+        //var activeAnnotation = 
 
         //if (cachedPicture.HasAnnotations && activeAnnotationPopup != null && TryGetPage(pageNumber, out var panelPage))
         //{
