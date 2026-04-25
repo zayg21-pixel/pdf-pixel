@@ -32,10 +32,7 @@ partial class WpfPdfPanelRenderTarget : IPdfPanelRenderTarget
 
     public void Render(SKSurface surface, DrawingRequest request, CancellationToken token)
     {
-        Panel.Dispatcher.Invoke(() =>
-        {
-            DrawOnWritableBitmap(surface, request);
-        }, System.Windows.Threading.DispatcherPriority.Render, token);
+        DrawOnWritableBitmap(surface, request);
     }
 
     private void DrawOnWritableBitmap(SKSurface surface, DrawingRequest request)

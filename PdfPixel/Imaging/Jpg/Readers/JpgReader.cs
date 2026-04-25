@@ -3,6 +3,7 @@ using PdfPixel.Imaging.Jpg.Model;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 
 namespace PdfPixel.Imaging.Jpg.Readers;
 
@@ -291,6 +292,7 @@ internal static class JpgReader
 
         int offset = 6;
         header.Components.Clear();
+
         for (int i = 0; i < components; i++)
         {
             if (offset + 3 > payload.Length)
@@ -307,6 +309,23 @@ internal static class JpgReader
             };
             header.Components.Add(comp);
             offset += 3;
+        }
+
+        // TODO: [MEDIUM] this seems to be right optimization for our pipeline
+        if (header.Components.All(x => x.HorizontalSamplingFactor == header.Components[0].HorizontalSamplingFactor))
+        {
+            foreach (var comp in header.Components)
+            {
+                comp.HorizontalSamplingFactor = 1;
+            }
+        }
+
+        if (header.Components.All(x => x.VerticalSamplingFactor == header.Components[0].VerticalSamplingFactor))
+        {
+            foreach (var comp in header.Components)
+            {
+                comp.VerticalSamplingFactor = 1;
+            }
         }
     }
 

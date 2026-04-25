@@ -22,57 +22,20 @@ internal sealed class JpgDecodingParameters
             throw new ArgumentException("Invalid header components.", nameof(header));
         }
 
-        // Calculate original sampling factors
-        int originalHMax = 1;
-        int originalVMax = 1;
+        int hMax = 1;
+        int vMax = 1;
+
         for (int i = 0; i < header.Components.Count; i++)
         {
             var c = header.Components[i];
-            if (c.HorizontalSamplingFactor > originalHMax)
+            if (c.HorizontalSamplingFactor > hMax)
             {
-                originalHMax = c.HorizontalSamplingFactor;
+                hMax = c.HorizontalSamplingFactor;
             }
-            if (c.VerticalSamplingFactor > originalVMax)
+            if (c.VerticalSamplingFactor > vMax)
             {
-                originalVMax = c.VerticalSamplingFactor;
+                vMax = c.VerticalSamplingFactor;
             }
-        }
-
-        // Determine if normalization is needed
-        bool needsNormalization = false;
-        
-        if (header.ComponentCount == 1)
-        {
-            needsNormalization = originalHMax > 1 || originalVMax > 1;
-        }
-        else if (originalHMax > 1 || originalVMax > 1)
-        {
-            bool allComponentsHaveSameFactors = true;
-            for (int i = 0; i < header.Components.Count; i++)
-            {
-                var c = header.Components[i];
-                if (c.HorizontalSamplingFactor != originalHMax || c.VerticalSamplingFactor != originalVMax)
-                {
-                    allComponentsHaveSameFactors = false;
-                    break;
-                }
-            }
-            needsNormalization = allComponentsHaveSameFactors;
-        }
-
-        // Set the correct decoding parameters based on normalization requirement
-        int hMax, vMax;
-        if (needsNormalization)
-        {
-            // Normalize to (1,1) - treat each 8x8 block as its own MCU
-            hMax = 1;
-            vMax = 1;
-        }
-        else
-        {
-            // Use original sampling factors
-            hMax = originalHMax;
-            vMax = originalVMax;
         }
 
         HMax = hMax;
@@ -91,8 +54,8 @@ internal sealed class JpgDecodingParameters
         for (int ci = 0; ci < header.ComponentCount; ci++)
         {
             // For normalization cases, use (1,1) factors; otherwise use original factors
-            int h = needsNormalization ? 1 : header.Components[ci].HorizontalSamplingFactor;
-            int v = needsNormalization ? 1 : header.Components[ci].VerticalSamplingFactor;
+            int h = header.Components[ci].HorizontalSamplingFactor;
+            int v = header.Components[ci].VerticalSamplingFactor;
             int blocks = h * v;
             BlocksPerMcu[ci] = blocks;
             TotalBlocksPerBand[ci] = McuColumns * blocks;

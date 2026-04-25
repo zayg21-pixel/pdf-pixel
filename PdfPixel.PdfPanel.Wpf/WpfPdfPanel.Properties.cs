@@ -68,7 +68,7 @@ namespace PdfPixel.PdfPanel.Wpf
         /// <summary>
         /// Gets or sets the rendering backend for the panel.
         /// </summary>
-        public WpfRenderMode RenderMode { get; set; } = WpfRenderMode.OpenGl;
+        public WpfRenderMode RenderMode { get; set; } = WpfRenderMode.Software;
 
         /// <summary>
         /// Gets or sets the collection of pages.
