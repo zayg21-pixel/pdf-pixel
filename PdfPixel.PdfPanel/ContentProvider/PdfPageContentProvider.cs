@@ -39,7 +39,7 @@ public sealed class PdfPageContentProvider : IPdfPageContentProvider
 
     public PdfAnnotationPopup[] GetAnnotationPopups(int pageNumber)
     {
-        return _popups[pageNumber];
+        return _popups[pageNumber - 1];
     }
 
     public int GetPagesCount()
