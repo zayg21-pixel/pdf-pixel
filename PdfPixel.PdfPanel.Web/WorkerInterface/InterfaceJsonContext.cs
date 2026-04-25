@@ -13,7 +13,7 @@ namespace PdfPixel.PdfPanel.Web.WorkerInterface;
 [JsonSerializable(typeof(UpdateContentRequest))]
 [JsonSerializable(typeof(SetDocumentRequest))]
 [JsonSerializable(typeof(WebDocumentPageInfo))]
-[JsonSerializable(typeof(UpdateCacheRequest))]
+[JsonSerializable(typeof(RefreshCacheRequest))]
 internal partial class InterfaceJsonContext : JsonSerializerContext
 {
 }

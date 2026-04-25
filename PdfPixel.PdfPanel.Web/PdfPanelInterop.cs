@@ -220,26 +220,6 @@ public partial class PdfPanelInterop
         resources.Context.PagesPadding = panelConfiguration.PagesPadding;
     }
 
-
-    [JSExport]
-    public static void UpdateView(string containerId, float verticalOffset, float horizontalOffset, float scale)
-    {
-        if (!_isInitialized)
-        {
-            return;
-        }
-
-        if (!ResourcesMap.TryGetValue(containerId, out var resources) || resources.Context == null)
-        {
-            return;
-        }
-
-        resources.Context.VerticalOffset = verticalOffset;
-        resources.Context.HorizontalOffset = horizontalOffset;
-        resources.Context.Scale = scale;
-        resources.Context.Update();
-    }
-
     [JSExport]
     public static void RequestRedraw(string id, JSObject state)
     {

@@ -11,9 +11,9 @@ public class PdfPageUpdateCacheWorkItem : IWorkItem
 {
     private readonly SemaphoreSlim _documentLocker;
     private readonly PdfDocument _document;
-    private readonly ContentProviderRequest _request;
+    private readonly UpdateContentRequest _request;
 
-    public PdfPageUpdateCacheWorkItem(PdfPageCacheEntry cacheEntry, PdfDocument document, SemaphoreSlim documentLocker, ContentProviderRequest request)
+    public PdfPageUpdateCacheWorkItem(PdfPageCacheEntry cacheEntry, PdfDocument document, SemaphoreSlim documentLocker, UpdateContentRequest request)
     {
         CacheEntry = cacheEntry;
         _documentLocker = documentLocker;

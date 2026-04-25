@@ -4,42 +4,11 @@ using PdfPixel.Text;
 using SkiaSharp;
 using System;
 using System.Collections.Generic;
-using System.Linq;
 
 namespace PdfPixel.PdfPanel.ContentProvider;
 
 internal static class PdfDocumentAnnotationExtractor
 {
-    public static PdfAnnotationBase GetActiveAnnotation(this PdfDocument document, int pageNumber, SKPoint? pagePosition)
-    {
-        if (!pagePosition.HasValue)
-        {
-            return null;
-        }
-
-        if (pageNumber < 1 || pageNumber > document.Pages.Count)
-        {
-            return null;
-        }
-
-        var pdfPage = document.Pages[pageNumber - 1];
-        if (pdfPage.Annotations.Count == 0)
-        {
-            return null;
-        }
-
-        foreach (var annotation in pdfPage.Annotations.Where(x => !x.InReplyTo.HasValue).OrderByDescending(x => x.ShouldDisplayBubble))
-        {
-            var pageRect = FromPdfRect(pdfPage, annotation.GetHoverRectangle(pdfPage));
-            if (pageRect.Contains(pagePosition.Value))
-            {
-                return annotation;
-            }
-        }
-
-        return null;
-    }
-
     public static PdfAnnotationPopup[] CreateAnnotationPopups(this PdfDocument document, int pageNumber)
     {
         if (pageNumber < 1 || pageNumber > document.Pages.Count)

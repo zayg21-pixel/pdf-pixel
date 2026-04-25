@@ -234,17 +234,6 @@ namespace PdfPixel.PdfPanel.Wpf
             var runner = new SingleThreadedRenderLoopRunner(Pages.ContentProvider);
             _renderingQueue = new PdfRenderingQueue(new NullLoggerFactory(), _surfaceFactory, runner);
             _context = new PdfPanelContext(Pages, _renderingQueue, _renderTargetFactory, new PdfPanelVerticalLayout());
-
-            switch (RenderMode)
-            {
-                case WpfRenderMode.Direct3D:
-                case WpfRenderMode.OpenGl:
-                    _context.PdfRenderingParameters.Antialias = true;
-                    break;
-                default:
-                    _context.PdfRenderingParameters.Antialias = true;
-                    break;
-            }
         }
 
         private void SyncViewerCanvasState()

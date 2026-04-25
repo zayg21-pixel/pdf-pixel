@@ -111,9 +111,9 @@ public sealed class PdfPanelRenderCommand
                 page.PageNumber,
                 contentProvider.GetExistingContent(page.PageNumber)));
 
-        }
 
-        commands.Add(new PdfPanelRenderCommand(PdfPanelRenderCommandType.Render, request));
+            commands.Add(new PdfPanelRenderCommand(PdfPanelRenderCommandType.Render, request));
+        }
 
         return commands;
     }

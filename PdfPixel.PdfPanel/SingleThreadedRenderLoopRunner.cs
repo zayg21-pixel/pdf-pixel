@@ -62,12 +62,18 @@ public class SingleThreadedRenderLoopRunner : IRenderLoopRunner
 
         if (request is PagesDrawingRequest pagesDrawingRequest)
         {
-            contentProvider.RefreshCache(pagesDrawingRequest.VisiblePages.Select(x => x.PageNumber), newCts);
+            var refreshCacheRequest = new RefreshCacheRequest
+            {
+                VisiblePages = pagesDrawingRequest.VisiblePages.Select(x => x.PageNumber).ToList(),
+                CancellationTokenSource = newCts
+            };
+
+            contentProvider.RefreshCache(refreshCacheRequest);
 
             foreach (var visiblePage in pagesDrawingRequest.VisiblePages)
             {
                 var commandContext = new PdfCommandExecutionContext(pagesDrawingRequest.RenderingParameters, newCts.Token);
-                var contentRequest = new ContentProviderRequest
+                var contentRequest = new UpdateContentRequest
                 {
                     PageNumber = visiblePage.PageNumber,
                     RenderingParameters = pagesDrawingRequest.RenderingParameters,

@@ -4,5 +4,5 @@ public class UpdateContentRequest : ContentRequest
 {
     public int PageNumber { get; set; }
 
-    public int Scale { get; set; }
+    public float Scale { get; set; }
 }

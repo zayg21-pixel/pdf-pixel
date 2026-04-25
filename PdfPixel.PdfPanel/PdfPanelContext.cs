@@ -146,7 +146,6 @@ public class PdfPanelContext
     public void Update()
     {
         Scale = Clamp(Scale, MinScale, MaxScale);
-        PdfRenderingParameters.ScaleFactor = Scale;
 
         SKSize extentSize = _layout.CalculateDimensions(
             Pages,
@@ -226,11 +225,14 @@ public class PdfPanelContext
             return null;
         }
 
+        var localParameters = PdfRenderingParameters.Clone();
+        localParameters.ScaleFactor = Scale;
+
         var drawingRequest = GetBaseDrawingRequest<PagesDrawingRequest>();
         drawingRequest.BackgroundColor = BackgroundColor;
         drawingRequest.MaxThumbnailSize = MaxThumbnailSize;
         drawingRequest.PageCornerRadius = PageCornerRadius;
-        drawingRequest.RenderingParameters = PdfRenderingParameters;
+        drawingRequest.RenderingParameters = localParameters;
 
         return drawingRequest;
     }

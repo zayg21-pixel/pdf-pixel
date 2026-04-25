@@ -5,11 +5,7 @@ using PdfPixel.Commands;
 using PdfPixel.Forms;
 using PdfPixel.Imaging.Model;
 using PdfPixel.Models;
-using PdfPixel.Rendering.State;
-using PdfPixel.Text;
-using SkiaSharp;
 using System;
-using System.Collections.Generic;
 using System.Threading;
 
 namespace PdfPixel.Rendering;
@@ -76,7 +72,7 @@ public class PdfAnnotationRenderer
     /// <summary>
     /// Render a single annotation using its appearance stream or default rendering.
     /// </summary>
-    private void RenderAnnotation(
+    public void RenderAnnotation(
         IPdfCommandProcessor processor,
         PdfAnnotationBase annotation,
         PdfRenderingParameters renderingParameters,

@@ -17,7 +17,7 @@ public class WebDocumentContentProvider : IPdfPageContentProvider
     private readonly string _containerId;
     private readonly ILogger<WebDocumentContentProvider> _logger;
     private WebDocumentData _documentData;
-    private Dictionary<string, ContentProviderRequest> _pendingRequests = new Dictionary<string, ContentProviderRequest>();
+    private Dictionary<string, ContentProvider.UpdateContentRequest> _pendingRequests = new Dictionary<string, ContentProvider.UpdateContentRequest>();
     private PdfPageCacheEntryItem[] _cache;
     private Dictionary<CancellationTokenSource, Guid> _cancellationIds = new Dictionary<CancellationTokenSource, Guid>();
 
@@ -67,6 +67,11 @@ public class WebDocumentContentProvider : IPdfPageContentProvider
         }
     }
 
+    public PdfAnnotationPopup[] GetAnnotationPopups(int pageNumber)
+    {
+        return null;
+    }
+
     public ContentLocker<SKPicture> GetExistingAnnotationContent(int pageNumber)
     {
         return null;
@@ -97,7 +102,7 @@ public class WebDocumentContentProvider : IPdfPageContentProvider
         return _documentData?.PagesCount ?? 0;
     }
 
-    public void RefreshCache(IEnumerable<int> pagesToStore, CancellationTokenSource cancellationTokenSource)
+    public void RefreshCache(ContentProvider.RefreshCacheRequest request)
     {
         if (_cache == null)
         {
@@ -105,7 +110,7 @@ public class WebDocumentContentProvider : IPdfPageContentProvider
             return;
         }
 
-        var pagesToStoreSet = new HashSet<int>(pagesToStore);
+        var pagesToStoreSet = new HashSet<int>(request.VisiblePages);
 
         for (int i = 0; i < pagesToStoreSet.Count; i++)
         {
@@ -118,19 +123,19 @@ public class WebDocumentContentProvider : IPdfPageContentProvider
             }
         }
 
-        var request = new UpdateCacheRequest
+        var refreshCacheRequest = new WorkerInterface.RefreshCacheRequest
         {
             ContainerId = _containerId,
-            PagesToStore = pagesToStore.ToList(),
-            CancellationId = GetCancellationId(cancellationTokenSource)
+            PagesToStore = pagesToStoreSet.ToList(),
+            CancellationId = GetCancellationId(request.CancellationTokenSource)
         };
 
-        var requestJson = JsonSerializer.Serialize(request, InterfaceJsonContext.Default.UpdateCacheRequest);
+        var requestJson = JsonSerializer.Serialize(refreshCacheRequest, InterfaceJsonContext.Default.RefreshCacheRequest);
 
         PdfPanelInterop.SendToWorker(Guid.NewGuid().ToString(), WorkerCommandType.UpdateCache.ToString(), requestJson, null);
     }
 
-    public void UpdateContent(ContentProviderRequest request)
+    public void UpdateContent(ContentProvider.UpdateContentRequest request)
     {
         if (_cache == null)
         {
@@ -152,11 +157,11 @@ public class WebDocumentContentProvider : IPdfPageContentProvider
 
         Guid cancellationId = GetCancellationId(request.CancellationTokenSource);
 
-        var reqeuest = new UpdateContentRequest
+        var reqeuest = new WorkerInterface.UpdateContentRequest
         {
             ContainerId = _containerId,
             PageNumber = request.PageNumber,
-            Scale = (int)(request.RenderingParameters.ScaleFactor ?? 1),
+            Scale = request.RenderingParameters.ScaleFactor ?? 1,
             CancellationId = cancellationId
         };
 

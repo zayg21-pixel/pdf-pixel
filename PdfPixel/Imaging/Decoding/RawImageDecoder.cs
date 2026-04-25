@@ -28,7 +28,7 @@ public class RawImageDecoder : PdfImageDecoder
     }
 
     /// <inheritdoc />
-    public override Task<SKImage> DecodeAsync(
+    public override async Task<SKImage> DecodeAsync(
         ImageDecodingContext context,
         PdfRenderingParameters renderingParameters,
         CancellationToken cancellationToken)
@@ -45,7 +45,7 @@ public class RawImageDecoder : PdfImageDecoder
             return null;
         }
 
-        return DecodeStreamAsync(dataStream, context, renderingParameters, cancellationToken);
+        return await DecodeStreamAsync(dataStream, context, renderingParameters, cancellationToken);
     }
 
     /// <summary>

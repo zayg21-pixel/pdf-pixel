@@ -52,7 +52,7 @@ public sealed class DrawImageCommand : PdfCommand
         var renderingParameters = executionContext.RenderingParameters;
         bool antialias = renderingParameters.Antialias;
 
-        await RebuildCacheIfNeeded(renderingParameters, executionContext.CancellationToken);
+        await RebuildCacheIfNeededAsync(renderingParameters, executionContext.CancellationToken);
 
         if (_cachedImage == null)
         {
@@ -83,7 +83,7 @@ public sealed class DrawImageCommand : PdfCommand
     /// <summary>
     /// Rebuilds the decoded image cache when the scale factor has changed.
     /// </summary>
-    private async Task RebuildCacheIfNeeded(PdfRenderingParameters renderingParameters, CancellationToken cancellationToken)
+    private async Task RebuildCacheIfNeededAsync(PdfRenderingParameters renderingParameters, CancellationToken cancellationToken)
     {
         if (_cacheBuilt && _cachedScaleFactor == renderingParameters.ScaleFactor)
         {

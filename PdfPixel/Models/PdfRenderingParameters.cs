@@ -6,7 +6,7 @@ namespace PdfPixel.Models;
 /// <summary>
 /// Rendering parameters for <see cref="PdfPage"/>.
 /// </summary>
-public class PdfRenderingParameters : IEquatable<PdfRenderingParameters>
+public class PdfRenderingParameters : IEquatable<PdfRenderingParameters>, ICloneable
 {
     /// <summary>
     /// Indicates whether the rendering is intended for printing.
@@ -17,7 +17,7 @@ public class PdfRenderingParameters : IEquatable<PdfRenderingParameters>
     /// <summary>
     /// If true - antialiazing will be enabled for rendering useful for CPU rendering to avoid jagged edges.
     /// </summary>
-    public bool Antialias { get; set; }
+    public bool Antialias { get; set; } = true;
 
     /// <summary>
     /// Actual device scale factor, if defined, all images will be downscaled
@@ -38,7 +38,7 @@ public class PdfRenderingParameters : IEquatable<PdfRenderingParameters>
     /// <summary>
     /// If true - rendering will be performed asynchronously using thread yield, otherwise - synchronously in a single pass.
     /// </summary>
-    public bool AsyncExecution { get; set; } = true;
+    internal bool AsyncExecution { get; set; } = true; // TODO [HIGH] test flag, remove after verification
 
     /// <summary>
     /// Returns a scaled size for the given original size based on the current
@@ -132,5 +132,23 @@ public class PdfRenderingParameters : IEquatable<PdfRenderingParameters>
     public static bool operator !=(PdfRenderingParameters left, PdfRenderingParameters right)
     {
         return !(left == right);
+    }
+
+    public PdfRenderingParameters Clone()
+    {
+        return new PdfRenderingParameters
+        {
+            PrintMode = PrintMode,
+            Antialias = Antialias,
+            ScaleFactor = ScaleFactor,
+            DefaultFunctionSamples = DefaultFunctionSamples,
+            MaxTessellationVertices = MaxTessellationVertices,
+            AsyncExecution = AsyncExecution
+        };
+    }
+
+    object ICloneable.Clone()
+    {
+        return Clone();
     }
 }

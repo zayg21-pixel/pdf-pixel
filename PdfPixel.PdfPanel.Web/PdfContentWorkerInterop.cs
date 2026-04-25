@@ -86,7 +86,7 @@ public partial class PdfContentWorkerInterop
             }
             case WorkerCommandType.UpdateCache:
             {
-                var request = JsonSerializer.Deserialize(header, InterfaceJsonContext.Default.UpdateCacheRequest);
+                var request = JsonSerializer.Deserialize(header, InterfaceJsonContext.Default.RefreshCacheRequest);
 
                 if (!_documents.TryGetValue(request.ContainerId, out var document))
                 {
@@ -96,7 +96,13 @@ public partial class PdfContentWorkerInterop
 
                 CancellationTokenSource cancellationTokenSource = await GetCancellationTokenSource(request);
 
-                document.Pages.ContentProvider.RefreshCache(request.PagesToStore, cancellationTokenSource);
+                var refreshCacheRequest = new ContentProvider.RefreshCacheRequest
+                {
+                    VisiblePages = request.PagesToStore,
+                    CancellationTokenSource = cancellationTokenSource
+                };
+
+                document.Pages.ContentProvider.RefreshCache(refreshCacheRequest);
                 OnDataReady(id, commandType, header, default);
                 break;
             }
@@ -114,7 +120,7 @@ public partial class PdfContentWorkerInterop
 
                 byte[] contentData = null;
 
-                var updatePagesRequest = new ContentProviderRequest
+                var updatePagesRequest = new ContentProvider.UpdateContentRequest
                 {
                     PageNumber = request.PageNumber,
                     RenderingParameters = new PdfRenderingParameters

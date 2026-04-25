@@ -1,3 +1,4 @@
+using PdfPixel.Annotations.Models;
 using PdfPixel.Models;
 using PdfPixel.PdfPanel.WorkQueue;
 using SkiaSharp;
@@ -11,6 +12,7 @@ public sealed class PdfPageContentProvider : IPdfPageContentProvider
     private readonly PdfDocument _document;
     private readonly IWorkQueue<PdfPageUpdateCacheWorkItem> _processingQueue;
     private readonly PdfPageCacheEntry[] _cache;
+    private readonly PdfAnnotationPopup[][] _popups;
 
     public PdfPageContentProvider(PdfDocument document, IWorkQueue<PdfPageUpdateCacheWorkItem> processingQueue)
     {
@@ -23,19 +25,31 @@ public sealed class PdfPageContentProvider : IPdfPageContentProvider
             _cache[i] = new PdfPageCacheEntry(i + 1, GetPageInfo(i + 1));
         }
 
+        _popups = new PdfAnnotationPopup[document.Pages.Count][];
+
+        for (int i = 0; i < document.Pages.Count; i++)
+        {
+            _popups[i] = PdfDocumentAnnotationExtractor.CreateAnnotationPopups(_document, i + 1);
+        }
+
         _processingQueue = processingQueue;
     }
 
     public SemaphoreSlim DocumentLocker { get; }
+
+    public PdfAnnotationPopup[] GetAnnotationPopups(int pageNumber)
+    {
+        return _popups[pageNumber];
+    }
 
     public int GetPagesCount()
     {
         return _cache.Length;
     }
 
-    public void RefreshCache(IEnumerable<int> pagesToStore, CancellationTokenSource cancellationTokenSource)
+    public void RefreshCache(RefreshCacheRequest request)
     {
-        var pagesToStoreSet = new HashSet<int>(pagesToStore ?? []);
+        var pagesToStoreSet = new HashSet<int>(request.VisiblePages ?? []);
 
         foreach (var cacheEntry in _cache)
         {
@@ -58,7 +72,7 @@ public sealed class PdfPageContentProvider : IPdfPageContentProvider
         return cacheEntry.AnnotationContent.ContentPicture;
     }
 
-    public void UpdateContent(ContentProviderRequest request)
+    public void UpdateContent(UpdateContentRequest request)
     {
         var cacheEntry = _cache[request.PageNumber - 1];
         var workItem = new PdfPageUpdateCacheWorkItem(cacheEntry, _document, DocumentLocker, request);

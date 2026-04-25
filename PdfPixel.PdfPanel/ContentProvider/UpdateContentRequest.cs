@@ -5,7 +5,7 @@ using System.Threading;
 
 namespace PdfPixel.PdfPanel.ContentProvider;
 
-public class ContentProviderRequest
+public class UpdateContentRequest
 {
     public int PageNumber { get; set; }
 

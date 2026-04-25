@@ -6,6 +6,7 @@ using SkiaSharp;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Linq;
 
 namespace PdfPixel.PdfPanel;
 
@@ -54,28 +55,13 @@ public sealed class PdfPanelPageCollection : ReadOnlyCollection<PdfPanelPage>, I
     /// <returns>The annotation popup if found; otherwise, null.</returns>
     public PdfAnnotationPopup GetAnnotationPopupAt(int pageNumber, SKPoint pagePosition)
     {
-        // TODO: use cached annotations instead
-        return null;
-        //if (!TryGetPage(pageNumber, out var page))
-        //{
-        //    return null;
-        //}
+        
+        if (!TryGetPage(pageNumber, out var page))
+        {
+            return null;
+        }
 
-        //var activeAnnotation = Document.GetActiveAnnotation(pageNumber, pagePosition);
-        //if (activeAnnotation == null)
-        //{
-        //    return null;
-        //}
-
-        //foreach (var popup in page.Popups)
-        //{
-        //    if (popup.Annotation == activeAnnotation)
-        //    {
-        //        return popup;
-        //    }
-        //}
-
-        //return null;
+        return page.Popups.FirstOrDefault(x => x.IsInteractive() && x.Rect.Contains(pagePosition));
     }
 
     /// <summary>
@@ -85,21 +71,15 @@ public sealed class PdfPanelPageCollection : ReadOnlyCollection<PdfPanelPage>, I
     /// <returns><see cref="PdfPanelPageCollection"/>.</returns>
     public static PdfPanelPageCollection FromDocument(PdfDocument document)
     {
-        var pages = new List<PdfPanelPage>();
-        var contentProvider = new PdfPageContentProvider(document, new AsyncMultiProcessWorkQueue<PdfPageUpdateCacheWorkItem>(document.LoggerFactory.CreateLogger<AsyncMultiProcessWorkQueue<PdfPageUpdateCacheWorkItem>>()));
-
-        for (int i = 0; i < document.Pages.Count; i++)
-        {
-            var pageNumber = i + 1;
-            var info = contentProvider.GetPageInfo(pageNumber);
-            var popups = document.CreateAnnotationPopups(pageNumber);
-            var page = new PdfPanelPage(info, pageNumber, popups);
-            pages.Add(page);
-        }
-
-        return new PdfPanelPageCollection(contentProvider, pages);
+        var contentProvider = new PdfPageContentProvider(document, new AsyncWorkQueue<PdfPageUpdateCacheWorkItem>(document.LoggerFactory.CreateLogger<AsyncWorkQueue<PdfPageUpdateCacheWorkItem>>()));
+        return FromContentProvider(contentProvider);
     }
 
+    /// <summary>
+    /// Generates <see cref="PdfPanelPageCollection"/> from page content provider.
+    /// </summary>
+    /// <param name="contentProvider">Document content provider.</param>
+    /// <returns><see cref="PdfPanelPageCollection"/>.</returns>
     public static PdfPanelPageCollection FromContentProvider(IPdfPageContentProvider contentProvider)
     {
         var pages = new List<PdfPanelPage>();
@@ -108,8 +88,8 @@ public sealed class PdfPanelPageCollection : ReadOnlyCollection<PdfPanelPage>, I
         {
             var pageNumber = i + 1;
             var info = contentProvider.GetPageInfo(pageNumber);
-            //var popups = document.CreateAnnotationPopups(pageNumber);
-            var page = new PdfPanelPage(info, pageNumber, null);
+            var popups = contentProvider.GetAnnotationPopups(pageNumber);
+            var page = new PdfPanelPage(info, pageNumber, popups);
             pages.Add(page);
         }
 
