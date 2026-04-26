@@ -17,7 +17,7 @@ internal static class PdfDocumentAnnotationExtractor
             return null;
         }
 
-        return popups.FirstOrDefault(x => x.IsInteractive() && x.Rect.Contains(pagePosition));
+        return popups.FirstOrDefault(x => x.IsInteractive && x.Rect.Contains(pagePosition));
     }
 
     public static PdfAnnotationPopup[] CreateAnnotationPopups(this PdfDocument document, int pageNumber)
@@ -51,10 +51,34 @@ internal static class PdfDocumentAnnotationExtractor
 
             var thread = BuildAnnotationThread(annotation, annotationMap, processedAnnotations);
             var rect = FromPdfRect(pdfPage, annotation.GetHoverRectangle(pdfPage));
-            popups.Add(new PdfAnnotationPopup(annotation, thread, rect));
+            var action = ResolveAction(annotation);
+            bool isInteractive = IsInteractive(annotation);
+            popups.Add(new PdfAnnotationPopup(action, thread, rect, isInteractive)
+            {
+                Annotation = annotation,
+            });
         }
 
         return popups.ToArray();
+    }
+
+    private static bool IsInteractive(PdfAnnotationBase annotation)
+    {
+        if (annotation is PdfLinkAnnotation || annotation is PdfFileAttachmentAnnotation)
+        {
+            return true;
+        }
+
+        if (annotation.ShouldDisplayBubble)
+        {
+            return true;
+        }
+        if (annotation.SupportedVisualStates != PdfAnnotationVisualStateKind.Normal &&
+            annotation.SupportedVisualStates != PdfAnnotationVisualStateKind.None)
+        {
+            return true;
+        }
+        return false;
     }
 
     private static PdfAnnotationMessage[] BuildAnnotationThread(
@@ -165,6 +189,16 @@ internal static class PdfDocumentAnnotationExtractor
         }
 
         return replies;
+    }
+
+    private static PdfPanelAnnotationAction ResolveAction(PdfAnnotationBase annotation)
+    {
+        if (annotation is not PdfLinkAnnotation link)
+        {
+            return null;
+        }
+
+        return PdfPanelAnnotationAction.FromLinkAnnotation(link);
     }
 
     private static List<PdfAnnotationBase> FindDirectReplies(

@@ -328,7 +328,7 @@ namespace PdfPixel.PdfPanel.Wpf
 
             if (wasPressed && !isPressed)
             {
-                HandleAnnotationClick(_lastAnnotationPopup.Annotation);
+                HandleAnnotationClick(_lastAnnotationPopup);
             }
 
             UpdateAnnotationPopup(currentPopup);
@@ -361,7 +361,7 @@ namespace PdfPixel.PdfPanel.Wpf
 
         private void UpdateCursorForAnnotation(PdfAnnotationPopup popup)
         {
-            if (popup != null && popup.IsInteractive())
+            if (popup != null && popup.IsInteractive)
             {
                 Cursor = Cursors.Hand;
             }
@@ -371,37 +371,30 @@ namespace PdfPixel.PdfPanel.Wpf
             }
         }
 
-        private void HandleAnnotationClick(PdfAnnotationBase annotation)
+        private void HandleAnnotationClick(PdfAnnotationPopup popup)
         {
-            if (annotation is PdfFileAttachmentAnnotation fileAttachment)
+            if (popup.Action == null)
             {
-                // TODO: implement file attachment handling
+                return;
             }
-            else if (annotation is PdfLinkAnnotation linkAnnotation)
+
+            switch (popup.Action.ActionType)
             {
-                if (linkAnnotation.Action is PdfUriAction uriAction)
-                {
-                    HandleUriAction(uriAction);
-                }
-                else if (linkAnnotation.Action is PdfGoToAction goToAction)
-                {
-                    HandleGoToAction(goToAction);
-                }
-                else if (linkAnnotation.Action is PdfGoToRemoteAction goToRemoteAction)
-                {
-                    HandleGoToRemoteAction(goToRemoteAction);
-                }
-                else if (linkAnnotation.Destination != null)
-                {
-                    _context?.ScrollToDestination(linkAnnotation.Destination);
+                case PdfActionType.Uri:
+                    HandleUriAction(popup.Action.TargetName);
+                    break;
+                case PdfActionType.GoTo:
+                    _context?.ScrollToAction(popup.Action);
                     InvalidateVisual();
-                }
+                    break;
+                case PdfActionType.GoToRemote:
+                    // TODO: handle remote file loading
+                    break;
             }
         }
 
-        private void HandleUriAction(PdfUriAction uriAction)
+        private void HandleUriAction(string uriString)
         {
-            string uriString = uriAction.Uri.ToString();
             if (string.IsNullOrEmpty(uriString))
             {
                 return;
@@ -427,29 +420,6 @@ namespace PdfPixel.PdfPanel.Wpf
                 }));
 #endif
             }
-        }
-
-        private void HandleGoToAction(PdfGoToAction goToAction)
-        {
-            if (goToAction.Destination != null)
-            {
-                _context?.ScrollToDestination(goToAction.Destination);
-                InvalidateVisual();
-            }
-        }
-
-        private void HandleGoToRemoteAction(PdfGoToRemoteAction goToRemoteAction)
-        {
-            // TODO: complete implementation here, we need to handle request for file loading, that is practically not extremely safe, so maybe we should log some warning instead.
-
-            //string fileName = goToRemoteAction.FileSpecification.DecodePdfString();
-
-
-            //if (goToRemoteAction.Destination != null)
-            //{
-            //    _context?.ScrollToDestination(goToRemoteAction.Destination);
-            //    InvalidateVisual();
-            //}
         }
     }
 }

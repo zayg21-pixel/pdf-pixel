@@ -5,7 +5,7 @@ namespace PdfPixel.PdfPanel.Web.WorkerInterface;
 /// <summary>
 /// General document info available after initialization.
 /// </summary>
-public class WebDocumentData : RequestHeader
+public class WebDocumentData : RequestResponseHeader
 {
     /// <summary>
     /// Number of pages in document.

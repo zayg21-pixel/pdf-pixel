@@ -48,17 +48,16 @@ public sealed class PdfRenderingQueue : IDisposable
     /// <summary>
     /// Single iteration of the render loop. Called by IRenderLoopRunner with the render frame.
     /// </summary>
-    private void RenderCommandLoopIteration(RenderFrameCommand frame)
+    private void RenderCommandLoopIteration(PdfPanelRenderCommand command)
     {
         if (_disposed)
         {
             return;
         }
 
-        var command = frame.Command;
-        var cancellationToken = frame.CancellationToken;
         _activePagesDrawingRequest = command.DrawingRequest;
         _activeCommand = command;
+        var cancellationToken = CancellationToken.None;// TODO: [HIGH] we really don't want it
 
         try
         {

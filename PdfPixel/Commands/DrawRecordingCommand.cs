@@ -30,6 +30,9 @@ public sealed class DrawRecordingCommand : PdfCommand
     }
 
     /// <inheritdoc />
+    public override bool IsScaleDependant => _recorder.Commands.Any(x => x.IsScaleDependant);
+
+    /// <inheritdoc />
     public override async Task ExecuteAsync(SKCanvas canvas, IEnumerable<IPdfCommandModifier> modifiers, PdfCommandExecutionContext executionContext)
     {
         // Append the recording-specific modifier so it composes on top of any outer modifiers.

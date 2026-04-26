@@ -16,8 +16,6 @@ internal sealed class NearestNeighborRowConverter : IRowConverter
     private readonly int[] _srcXForDest;
     private int _nextDestRowToWrite;
 
-    public int BitsPerComponent => _bitsPerComponent;
-
     public NearestNeighborRowConverter(int components, int bitsPerComponent, int srcWidth, int dstWidth, int srcHeight, int dstHeight)
     {
         _components = components;
@@ -31,6 +29,8 @@ internal sealed class NearestNeighborRowConverter : IRowConverter
         _srcXForDest = PrecomputeSrcIndices(_srcWidth, _dstWidth);
         _nextDestRowToWrite = 0;
     }
+
+    public int BitsPerComponent => _bitsPerComponent;
 
     public bool TryConvertRow(int rowIndex, ReadOnlySpan<byte> sourceRow, Span<byte> destRow)
     {
@@ -47,7 +47,7 @@ internal sealed class NearestNeighborRowConverter : IRowConverter
 
         destRow.Clear();
 
-        var reader = new UintBitReader(sourceRow);
+        var reader = new UintBitReaderFixedLength(sourceRow, _bitsPerComponent);
         var writer = new UintBitWriter(destRow);
 
         Span<uint> sourceSamples = stackalloc uint[_components];
@@ -55,16 +55,13 @@ internal sealed class NearestNeighborRowConverter : IRowConverter
         int currentSourceX = _srcXForDest.Length > 0 ? _srcXForDest[0] : -1;
         if (currentSourceX >= 0)
         {
-            for (int pre = 0; pre < currentSourceX; pre++)
+            if (currentSourceX > 0)
             {
-                for (int c = 0; c < _components; c++)
-                {
-                    reader.ReadBits(_bitsPerComponent);
-                }
+                reader.Advance(currentSourceX * _components);
             }
             for (int c = 0; c < _components; c++)
             {
-                sourceSamples[c] = reader.ReadBits(_bitsPerComponent);
+                sourceSamples[c] = reader.Read();
             }
         }
 
@@ -77,17 +74,11 @@ internal sealed class NearestNeighborRowConverter : IRowConverter
                 int advance = sx - currentSourceX - 1;
                 if (advance > 0)
                 {
-                    for (int skip = 0; skip < advance; skip++)
-                    {
-                        for (int c = 0; c < _components; c++)
-                        {
-                            reader.ReadBits(_bitsPerComponent);
-                        }
-                    }
+                    reader.Advance(advance * _components);
                 }
                 for (int c = 0; c < _components; c++)
                 {
-                    sourceSamples[c] = reader.ReadBits(_bitsPerComponent);
+                    sourceSamples[c] = reader.Read();
                 }
                 currentSourceX = sx;
             }

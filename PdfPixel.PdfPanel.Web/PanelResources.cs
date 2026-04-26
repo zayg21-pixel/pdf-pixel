@@ -1,6 +1,4 @@
-﻿using PdfPixel.PdfPanel.ContentProvider;
-
-namespace PdfPixel.PdfPanel.Web;
+﻿namespace PdfPixel.PdfPanel.Web;
 
 /// <summary>
 /// Encapsulates all resources associated with a single PDF panel instance.

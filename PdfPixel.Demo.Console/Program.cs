@@ -178,10 +178,10 @@ namespace PdfPixel.Console.Demo
                         canvas.Clear(SKColors.White);
 
                         // Render the page (this will show transformation debug info)
-                        using (var processor = new SkCanvasCommandProcessor(canvas, new PdfCommandExecutionContext(new PdfRenderingParameters(), CancellationToken.None)))
-                        {
-                            page.Draw(processor, CancellationToken.None);
-                        }
+                        //using (var processor = new SkCanvasCommandProcessor(canvas, new PdfCommandExecutionContext(new PdfRenderingParameters(), CancellationToken.None)))
+                        //{
+                        //    page.Draw(processor, CancellationToken.None);
+                        //}
 
                         Logger.LogInformation("  === PAGE RENDERING COMPLETE ===");
 
@@ -228,16 +228,17 @@ namespace PdfPixel.Console.Demo
 
         private static SKPicture CreateRecording(PdfPage pdfPage)
         {
-            using var recorder = new SKPictureRecorder();
-            using var canvas = recorder.BeginRecording(SKRect.Create(pdfPage.CropBox.Width, pdfPage.CropBox.Height));
-            canvas.ClipRect(new SKRect(0, 0, pdfPage.CropBox.Width, pdfPage.CropBox.Height));
+            return null;
+            //using var recorder = new SKPictureRecorder();
+            //using var canvas = recorder.BeginRecording(SKRect.Create(pdfPage.CropBox.Width, pdfPage.CropBox.Height));
+            //canvas.ClipRect(new SKRect(0, 0, pdfPage.CropBox.Width, pdfPage.CropBox.Height));
 
-            canvas.Clear(SKColors.White);
-            using var processor = new SkCanvasCommandProcessor(canvas, new PdfCommandExecutionContext(new PdfRenderingParameters(), CancellationToken.None));
-            pdfPage.Draw(processor, CancellationToken.None);
+            //canvas.Clear(SKColors.White);
+            //using var processor = new SkCanvasCommandProcessor(canvas, new PdfCommandExecutionContext(new PdfRenderingParameters(), CancellationToken.None));
+            //pdfPage.Draw(processor, CancellationToken.None);
 
-            canvas.Flush();
-            return recorder.EndRecording();
+            //canvas.Flush();
+            //return recorder.EndRecording();
         }
 
         private static void SaveSkp(SKPicture picture, string path)

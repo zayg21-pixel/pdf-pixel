@@ -1,7 +1,6 @@
-using PdfPixel.Annotations.Models;
 using PdfPixel.Models;
 using PdfPixel.PdfPanel.WorkQueue;
-using SkiaSharp;
+using System;
 using System.Collections.Generic;
 using System.Threading;
 
@@ -29,6 +28,8 @@ public sealed class PdfPageContentProvider : IPdfPageContentProvider
 
     public SemaphoreSlim DocumentLocker { get; }
 
+    public Action<PageUpdatedArgs> OnPageUpdated { get; set; }
+
     public PdfAnnotationPopup[] GetAnnotationPopups(int pageNumber)
     {
         return _cache[pageNumber - 1].Annotations;
@@ -39,36 +40,50 @@ public sealed class PdfPageContentProvider : IPdfPageContentProvider
         return _cache.Length;
     }
 
-    public void RefreshCache(RefreshCacheRequest request)
-    {
-        var pagesToStoreSet = new HashSet<int>(request.VisiblePages ?? []);
-
-        foreach (var cacheEntry in _cache)
-        {
-            if (!pagesToStoreSet.Contains(cacheEntry.PageNumber))
-            {
-                cacheEntry.Clear();
-            }
-        }
-    }
-
-    public ContentLocker<SKPicture> GetExistingContent(int pageNumber)
+    public PdfContentPictures GetExistingContentPictures(int pageNumber)
     {
         var cacheEntry = _cache[pageNumber - 1];
-        return cacheEntry.Content.ContentPicture;
-    }
 
-    public ContentLocker<SKPicture> GetExistingAnnotationContent(int pageNumber)
-    {
-        var cacheEntry = _cache[pageNumber - 1];
-        return cacheEntry.AnnotationContent.ContentPicture;
+        return cacheEntry.GetContentPictures();
+
     }
 
     public void UpdateContent(UpdateContentRequest request)
     {
-        var cacheEntry = _cache[request.PageNumber - 1];
-        var workItem = new PdfPageUpdateCacheWorkItem(cacheEntry, _document, DocumentLocker, request);
-        _processingQueue.Enqueue(workItem);
+        var pagesToStoreSet = new HashSet<int>(request.VisiblePages ?? []);
+        List<int> pagesToSend = new List<int>();
+
+        foreach (var cacheEntry in _cache)
+        {
+            bool sendRequest = false;
+
+            if (!pagesToStoreSet.Contains(cacheEntry.PageNumber))
+            {
+                cacheEntry.Reset();
+            }
+            else if (!cacheEntry.PendingRequest)
+            {
+                sendRequest = true;
+            }
+            else if (cacheEntry.RenderingParameters != request.RenderingParameters)
+            {
+                sendRequest = true;
+            }
+
+            if (sendRequest)
+            {
+                pagesToSend.Add(cacheEntry.PageNumber);
+            }
+        }
+
+        foreach (var pageNumber in pagesToSend)
+        {
+            var cacheEntry = _cache[pageNumber - 1];
+            cacheEntry.InitializeForRendering(request);
+
+            var workItem = new PdfPageUpdateCacheWorkItem(cacheEntry, _document, DocumentLocker, request, OnPageUpdated);
+            _processingQueue.Enqueue(workItem);
+        }
     }
 
     public PdfPanelPageInfo GetPageInfo(int pageNumber)

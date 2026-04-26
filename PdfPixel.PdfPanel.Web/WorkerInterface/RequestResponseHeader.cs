@@ -3,7 +3,7 @@
 /// <summary>
 /// Base class for container-related web requests.
 /// </summary>
-public class RequestHeader
+public class RequestResponseHeader
 {
     /// <summary>
     /// ID of container of web canvas.

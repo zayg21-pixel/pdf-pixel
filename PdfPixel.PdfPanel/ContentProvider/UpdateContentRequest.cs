@@ -1,17 +1,16 @@
 using PdfPixel.Models;
-using SkiaSharp;
-using System;
-using System.Threading;
+using System.Collections.Generic;
 
 namespace PdfPixel.PdfPanel.ContentProvider;
 
 public class UpdateContentRequest
 {
-    public int PageNumber { get; set; }
-
-    public CancellationTokenSource CancellationTokenSource { get; set; }
+    public List<int> VisiblePages { get; set; }
 
     public PdfRenderingParameters RenderingParameters { get; set; }
 
-    public Action<int, ContentLocker<SKPicture>> OnPageUpdated { get; set; }
+    public PdfPanelPointerState PointerState { get; set; }
+
+    public PdfAnnotationPopup ActiveAnnotation { get; set; }
+
 }

@@ -107,7 +107,7 @@ public sealed class SampledPdfFunction : PdfFunction
             return null;
         }
 
-        var bitReader = new UintBitReader(raw.Span);
+        var bitReader = new UintBitReaderFixedLength(raw.Span, bitsPerSample);
         float[] table = new float[totalSamples * componentCount];
         float factor = 1f / ((1UL << bitsPerSample) - 1);
 
@@ -115,7 +115,7 @@ public sealed class SampledPdfFunction : PdfFunction
         {
             for (int componentIndex = 0; componentIndex < componentCount; componentIndex++)
             {
-                uint sample = bitReader.ReadBits(bitsPerSample);
+                uint sample = bitReader.Read();
                 float normalized = sample * factor;
 
                 float outMin;

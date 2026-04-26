@@ -45,22 +45,8 @@ public sealed class AsyncWorkQueue<T> : IWorkQueue<T> where T : IWorkItem
                     continue;
                 }
 
-                if (workItem.CancellationTokenSource?.IsCancellationRequested == true)
+                if (workItem.IsSkippable)
                 {
-                    continue;
-                }
-
-
-                if (workItem.IsSkippable && !_workItems.IsEmpty)
-                {
-                    try
-                    {
-                        workItem.CancellationTokenSource?.Cancel();
-                    }
-                    catch (ObjectDisposedException)
-                    {
-                    }
-
                     continue;
                 }
 

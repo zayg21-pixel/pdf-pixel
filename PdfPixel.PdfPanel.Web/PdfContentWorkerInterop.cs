@@ -8,6 +8,7 @@ using PdfPixel.PdfPanel.Web.WorkerInterface;
 using PdfPixel.PdfPanel.WorkQueue;
 using System;
 using System.Collections.Generic;
+using System.Data;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices.JavaScript;
@@ -84,28 +85,6 @@ public partial class PdfContentWorkerInterop
                 OnDataReady(id, commandType, header, default);
                 break;
             }
-            case WorkerCommandType.RefreshCache:
-            {
-                var request = JsonSerializer.Deserialize(header, InterfaceJsonContext.Default.RefreshCacheRequest);
-
-                if (!_documents.TryGetValue(request.ContainerId, out var document))
-                {
-                    Logger.LogWarning("No document found for container '{ContainerId}' when trying to update cache", request.ContainerId);
-                    break;
-                }
-
-                CancellationTokenSource cancellationTokenSource = await GetCancellationTokenSource(request);
-
-                var refreshCacheRequest = new ContentProvider.RefreshCacheRequest
-                {
-                    VisiblePages = request.PagesToStore,
-                    CancellationTokenSource = cancellationTokenSource
-                };
-
-                document.Pages.ContentProvider.RefreshCache(refreshCacheRequest);
-                OnDataReady(id, commandType, header, default);
-                break;
-            }
             case WorkerCommandType.UpdateContent:
             {
                 var request = JsonSerializer.Deserialize(header, InterfaceJsonContext.Default.UpdateContentRequest);
@@ -122,18 +101,31 @@ public partial class PdfContentWorkerInterop
 
                 var updatePagesRequest = new ContentProvider.UpdateContentRequest
                 {
-                    PageNumber = request.PageNumber,
+                    VisiblePages = request.VisiblePages,
                     RenderingParameters = new PdfRenderingParameters
                     {
                         ScaleFactor = request.Scale
-                    },
-                    CancellationTokenSource = cancellationTokenSource,
-                    OnPageUpdated = (pageNum, content) =>
-                    {
-                        using var picture = content.GetContent();
-                        contentData = picture.Content.Serialize().Span.ToArray();
-                        OnDataReady(id, commandType, header, contentData);
                     }
+                };
+
+                document.Pages.ContentProvider.OnPageUpdated = (args) =>
+                {
+                    var contentLocker = args.UpdatedContentType == UpdatedContentType.Content
+                        ? args.ContentPictures.Content
+                        : args.ContentPictures.Annotations;
+
+                    using var picture = contentLocker.GetContent();
+                    contentData = picture.Content.Serialize().Span.ToArray();
+
+                    var headerData = JsonSerializer.Serialize(new UpdateContentResponseHeader
+                    {
+                        ContainerId = request.ContainerId,
+                        PageNumber = args.PageNumber,
+                        Scale = request.Scale,
+                        ContentType = args.UpdatedContentType
+                    }, InterfaceJsonContext.Default.UpdateContentResponseHeader);
+
+                    OnDataReady(id, WorkerCommandType.PageContentReady.ToString(), headerData, contentData);
                 };
 
                 document.Pages.ContentProvider.UpdateContent(updatePagesRequest);

@@ -129,11 +129,7 @@ class GouraudMeshDecoder
                     vertices[i] = MeshReader.ReadPoint(ref bitReader, _bitsPerCoordinate, _xmin, _ymin, _xScale, _yScale);
                     colors[i] = MeshReader.ReadColorComponents(ref bitReader, _bitsPerComponent, _colorComponentMinAndScale, _numColorComponents, _shading.Functions, _sampler);
                     // Skip padding bits for each vertex
-                    if (!bitReader.IsByteAligned)
-                    {
-                        int bitsToPad = 8 - bitReader.BitPosition % 8;
-                        bitReader.ReadBits(bitsToPad);
-                    }
+                    bitReader.AlignToNextByte();
                 }
             }
             else if (flag == 1)
@@ -146,11 +142,7 @@ class GouraudMeshDecoder
                 vertices[2] = MeshReader.ReadPoint(ref bitReader, _bitsPerCoordinate, _xmin, _ymin, _xScale, _yScale);
                 colors[2] = MeshReader.ReadColorComponents(ref bitReader, _bitsPerComponent, _colorComponentMinAndScale, _numColorComponents, _shading.Functions, _sampler);
                 // Skip padding bits for the new vertex
-                if (!bitReader.IsByteAligned)
-                {
-                    int bitsToPad = 8 - bitReader.BitPosition % 8;
-                    bitReader.ReadBits(bitsToPad);
-                }
+                bitReader.AlignToNextByte();
             }
             else if (flag == 2)
             {
@@ -162,11 +154,7 @@ class GouraudMeshDecoder
                 vertices[1] = MeshReader.ReadPoint(ref bitReader, _bitsPerCoordinate, _xmin, _ymin, _xScale, _yScale);
                 colors[1] = MeshReader.ReadColorComponents(ref bitReader, _bitsPerComponent, _colorComponentMinAndScale, _numColorComponents, _shading.Functions, _sampler);
                 // Skip padding bits for the new vertex
-                if (!bitReader.IsByteAligned)
-                {
-                    int bitsToPad = 8 - bitReader.BitPosition % 8;
-                    bitReader.ReadBits(bitsToPad);
-                }
+                bitReader.AlignToNextByte();
             }
             else
             {
@@ -191,11 +179,7 @@ class GouraudMeshDecoder
             SKPoint point = MeshReader.ReadPoint(ref bitReader, _bitsPerCoordinate, _xmin, _ymin, _xScale, _yScale);
             SKColor color = MeshReader.ReadColorComponents(ref bitReader, _bitsPerComponent, _colorComponentMinAndScale, _numColorComponents, _shading.Functions, _sampler);
 
-            if (!bitReader.IsByteAligned)
-            {
-                int bitsToPad = 8 - bitReader.BitPosition % 8;
-                bitReader.ReadBits(bitsToPad);
-            }
+            bitReader.AlignToNextByte();
 
             vertexList.Add((point, color));
         }

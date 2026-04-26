@@ -1,8 +1,10 @@
-﻿namespace PdfPixel.PdfPanel.Web.WorkerInterface;
+﻿using System.Collections.Generic;
+
+namespace PdfPixel.PdfPanel.Web.WorkerInterface;
 
 public class UpdateContentRequest : ContentRequest
 {
-    public int PageNumber { get; set; }
+    public List<int> VisiblePages { get; set; }
 
     public float Scale { get; set; }
 }

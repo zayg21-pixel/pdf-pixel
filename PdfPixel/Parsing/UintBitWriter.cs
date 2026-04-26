@@ -9,51 +9,71 @@ namespace PdfPixel.Parsing;
 internal ref struct UintBitWriter
 {
     private Span<byte> _buffer;
-    private int _bitPosition;
+    private int _byteIndex;
+    private int _bitsAvailable;
 
     public UintBitWriter(Span<byte> buffer)
     {
         _buffer = buffer;
-        _bitPosition = 0;
+        _byteIndex = 0;
+        _bitsAvailable = 8;
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void WriteBits(int count, uint value)
     {
-        for (int i = count - 1; i >= 0; i--)
+        // One bounds check here; subsequent accesses via Unsafe.Add are unchecked.
+        ref byte cur = ref _buffer[_byteIndex];
+        int shift = _bitsAvailable - count;
+        if (shift >= 0)
         {
-            int bit = (int)((value >> i) & 1u);
-            int byteIndex = _bitPosition >> 3;
-            int bitIndex = 7 - (_bitPosition & 7);
-            _buffer[byteIndex] = (byte)(_buffer[byteIndex] | (bit << bitIndex));
-            _bitPosition++;
+            cur |= (byte)(value << shift);
+            _bitsAvailable = shift;
+            if (shift == 0)
+            {
+                _byteIndex++;
+                _bitsAvailable = 8;
+            }
+        }
+        else
+        {
+            // Value spans two bytes. Cast to byte naturally truncates upper bits for the lower portion.
+            int lowerBits = -shift;
+            cur |= (byte)(value >> lowerBits);
+            _byteIndex++;
+            Unsafe.Add(ref cur, 1) = (byte)(value << (8 - lowerBits));
+            _bitsAvailable = 8 - lowerBits;
+            if (_bitsAvailable == 0)
+            {
+                _byteIndex++;
+                _bitsAvailable = 8;
+            }
         }
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void Write8Bits(byte value)
     {
-        if ((_bitPosition & 7) != 0)
+        if (_bitsAvailable != 8)
         {
             throw new InvalidOperationException("Writer is not byte-aligned.");
         }
 
-        int byteIndex = _bitPosition >> 3;
-        _buffer[byteIndex] = value;
-        _bitPosition += 8;
+        _buffer[_byteIndex] = value;
+        _byteIndex++;
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void Write16Bits(ushort value)
     {
-        if ((_bitPosition & 7) != 0)
+        if (_bitsAvailable != 8)
         {
             throw new InvalidOperationException("Writer is not byte-aligned.");
         }
 
-        int byteIndex = _bitPosition >> 3;
-        _buffer[byteIndex] = (byte)(value >> 8);
-        _buffer[byteIndex + 1] = (byte)value;
-        _bitPosition += 16;
+        ref byte cur = ref _buffer[_byteIndex];
+        cur = (byte)(value >> 8);
+        Unsafe.Add(ref cur, 1) = (byte)value;
+        _byteIndex += 2;
     }
 }

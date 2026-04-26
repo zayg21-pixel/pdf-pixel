@@ -163,11 +163,7 @@ class MeshDecoder
 
         // PDF spec: Each patch record must be padded to the next byte boundary.
         // If not byte-aligned, skip the remaining bits in the current byte.
-        if (!bitReader.IsByteAligned)
-        {
-            int bitsToPad = 8 - bitReader.BitPosition % 8;
-            bitReader.ReadBits(bitsToPad);
-        }
+        bitReader.AlignToNextByte();
 
         return new MeshData(controlPoints, cornerColors, flag);
     }

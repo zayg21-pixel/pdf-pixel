@@ -4,7 +4,6 @@ using System.Runtime.CompilerServices;
 
 namespace PdfPixel.Imaging.Processing;
 
-// TODO: [HIGH] Needs urgent attention, it slows down
 /// <summary>
 /// Row converter that performs simple box averaging for downsampling.
 /// Accumulates source pixel values in integer buckets and averages them for each destination pixel.
@@ -14,7 +13,6 @@ internal sealed class AveragingDownsampleRowConverter : IRowConverter
 {
     private readonly int _components;
     private readonly int _sourceBitsPerComponent;
-    private readonly int _destinationBitsPerComponent;
     private readonly int _srcWidth;
     private readonly int _dstWidth;
     private readonly int _srcHeight;
@@ -22,25 +20,18 @@ internal sealed class AveragingDownsampleRowConverter : IRowConverter
 
     private readonly float _scaleX;
     private readonly float _scaleY;
+    private readonly float _inverseScaleY;
 
-    private readonly long[] _destRowAccumulators;
-    private readonly int[] _destRowCounts;
-    private readonly uint[] _sourceSamples;
+    private readonly Accumulator[] _destRowAccumulators;
+    private readonly byte[] _sourceSamples;
+
+    private readonly Range[] _srcSampleRangeForDestSample;
 
     private int _nextSrcRowToRead;
     private int _nextDestRowToWrite;
 
     private readonly uint _sourceMaxValue;
-    private readonly uint _destinationMaxValue;
     private readonly float _sourceToDestinationScale;
-
-    public int BitsPerComponent
-    {
-        get
-        {
-            return _destinationBitsPerComponent;
-        }
-    }
 
     public AveragingDownsampleRowConverter(int components, int sourceBitsPerComponent, int srcWidth, int dstWidth, int srcHeight, int dstHeight)
     {
@@ -56,7 +47,6 @@ internal sealed class AveragingDownsampleRowConverter : IRowConverter
 
         _components = components;
         _sourceBitsPerComponent = sourceBitsPerComponent;
-        _destinationBitsPerComponent = sourceBitsPerComponent == 16 ? 16 : 8;
         _srcWidth = srcWidth;
         _dstWidth = dstWidth;
         _srcHeight = srcHeight;
@@ -64,19 +54,39 @@ internal sealed class AveragingDownsampleRowConverter : IRowConverter
 
         _scaleX = (float)srcWidth / dstWidth;
         _scaleY = (float)srcHeight / dstHeight;
+        _inverseScaleY = 1.0f / _scaleY;
 
         _sourceMaxValue = sourceBitsPerComponent == 16 ? 65535u : ((1u << sourceBitsPerComponent) - 1u);
-        _destinationMaxValue = _destinationBitsPerComponent == 16 ? 65535u : 255u;
-        _sourceToDestinationScale = _sourceMaxValue == 0 ? 0.0f : (float)_destinationMaxValue / _sourceMaxValue;
+        _sourceToDestinationScale = _sourceMaxValue == 0 ? 0.0f : 255.0f / _sourceMaxValue;
 
         int totalDestSamples = _dstWidth * components;
-        _destRowAccumulators = new long[totalDestSamples];
-        _destRowCounts = new int[totalDestSamples];
-        _sourceSamples = new uint[_srcWidth * components];
+        _destRowAccumulators = new Accumulator[totalDestSamples];
+        _sourceSamples = new byte[_srcWidth * components];
+
+        // Precompute flat sample start/end indices for each destination sample (component)
+        _srcSampleRangeForDestSample = new Range[_dstWidth * components];
+        for (int dstCol = 0; dstCol < _dstWidth; dstCol++)
+        {
+            float srcStartF = dstCol * _scaleX;
+            float srcEndF = (dstCol + 1) * _scaleX;
+            int srcStart = (int)Math.Floor(srcStartF);
+            int srcEnd = (int)Math.Ceiling(srcEndF);
+            if (srcStart < 0) srcStart = 0;
+            if (srcEnd > _srcWidth) srcEnd = _srcWidth;
+            for (int c = 0; c < components; c++)
+            {
+                int dstIndex = dstCol * components + c;
+                int flatStart = srcStart * components + c;
+                int flatEnd = srcEnd * components + c;
+                _srcSampleRangeForDestSample[dstIndex] = new Range(flatStart, flatEnd);
+            }
+        }
 
         _nextSrcRowToRead = 0;
         _nextDestRowToWrite = 0;
     }
+
+    public int BitsPerComponent => 8;
 
     public bool TryConvertRow(int rowIndex, ReadOnlySpan<byte> sourceRow, Span<byte> destRow)
     {
@@ -121,18 +131,26 @@ internal sealed class AveragingDownsampleRowConverter : IRowConverter
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private void ReadSourceRowSamples(ReadOnlySpan<byte> sourceRow)
     {
-        var reader = new UintBitReader(sourceRow);
         int count = _srcWidth * _components;
+
+        if (_sourceBitsPerComponent == 8)
+        {
+            sourceRow.CopyTo(_sourceSamples);
+            return;
+        }
+
+        // Fallback
+        var reader = new UintBitReaderFixedLength(sourceRow, _sourceBitsPerComponent);
         for (int i = 0; i < count; i++)
         {
-            _sourceSamples[i] = reader.ReadBits(_sourceBitsPerComponent);
+            _sourceSamples[i] = (byte)reader.Read();
         }
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private int GetDestinationRow(int srcRow)
     {
-        return (int)((srcRow + 0.5f) / _scaleY);
+        return (int)((srcRow + 0.5f) * _inverseScaleY);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -150,38 +168,32 @@ internal sealed class AveragingDownsampleRowConverter : IRowConverter
 
     private void AccumulateSourceRow()
     {
-        for (int sx = 0; sx < _srcWidth; sx++)
+        int totalDestSamples = _dstWidth * _components;
+        ref var destAccumulatorsRef = ref _destRowAccumulators[0];
+        ReadOnlySpan<byte> sourceSamplesSpan = _sourceSamples.AsSpan();
+        ReadOnlySpan<Range> sampleRangesSpan = _srcSampleRangeForDestSample.AsSpan();
+
+        for (int dstIndex = 0; dstIndex < totalDestSamples; dstIndex++)
         {
-            int dx = GetDestinationColumn(sx);
-            if (dx < 0 || dx >= _dstWidth)
+            var range = sampleRangesSpan[dstIndex];
+            long sum = 0;
+            int count = 0;
+
+            for (int srcIndex = range.Start; srcIndex < range.End; srcIndex += _components)
             {
-                continue;
-            }
-
-            int srcBaseIndex = sx * _components;
-            int dstBaseIndex = dx * _components;
-
-            for (int c = 0; c < _components; c++)
-            {
-                int srcIndex = srcBaseIndex + c;
-                int dstIndex = dstBaseIndex + c;
-
-                uint value = _sourceSamples[srcIndex];
-                if (_destinationBitsPerComponent != _sourceBitsPerComponent)
+                uint value = sourceSamplesSpan[srcIndex];
+                if (_sourceBitsPerComponent != 8)
                 {
                     value = (uint)((value * _sourceToDestinationScale) + 0.5f);
                 }
-
-                _destRowAccumulators[dstIndex] += value;
-                _destRowCounts[dstIndex]++;
+                sum += value;
+                
+                count++;
             }
-        }
-    }
 
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private int GetDestinationColumn(int srcCol)
-    {
-        return (int)((srcCol + 0.5f) / _scaleX);
+            destAccumulatorsRef.Add(sum, count);
+            destAccumulatorsRef = ref Unsafe.Add(ref destAccumulatorsRef, 1);
+        }
     }
 
     private void WriteAveragedRow(Span<byte> destRow)
@@ -190,48 +202,59 @@ internal sealed class AveragingDownsampleRowConverter : IRowConverter
         var writer = new UintBitWriter(destRow);
         for (int i = 0; i < totalSamples; i++)
         {
-            int count = _destRowCounts[i];
-            uint value;
-
-            if (count > 0)
-            {
-                long average = (_destRowAccumulators[i] + (count >> 1)) / count;
-
-                if (average < 0)
-                {
-                    average = 0;
-                }
-                if (average > _destinationMaxValue)
-                {
-                    average = _destinationMaxValue;
-                }
-
-                value = (uint)average;
-            }
-            else
-            {
-                value = 0;
-            }
-
-            if (_destinationBitsPerComponent == 8)
-            {
-                writer.Write8Bits((byte)value);
-            }
-            else if (_destinationBitsPerComponent == 16)
-            {
-                writer.Write16Bits((ushort)value);
-            }
-            else
-            {
-                writer.WriteBits(_destinationBitsPerComponent, value);
-            }
+            byte value = _destRowAccumulators[i].GetAverage(255);
+            writer.Write8Bits(value);
         }
     }
+
+
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private void ResetAccumulators()
     {
         Array.Clear(_destRowAccumulators, 0, _destRowAccumulators.Length);
-        Array.Clear(_destRowCounts, 0, _destRowCounts.Length);
+    }
+
+    private struct Accumulator
+    {
+        public long Sum;
+        public int Count;
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void Add(long value, int count)
+        {
+            Sum += value;
+            Count += count;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public readonly byte GetAverage(uint maxValue)
+        {
+            if (Count == 0)
+            {
+                return 0;
+            }
+            long average = (Sum + (Count >> 1)) / Count;
+            if (average < 0)
+            {
+                average = 0;
+            }
+            if (average > maxValue)
+            {
+                average = maxValue;
+            }
+            return (byte)average;
+        }
+    }
+    private readonly struct Range
+    {
+        public int Start { get; }
+        public int End { get; }
+        public Range(int start, int end)
+        {
+            Start = start;
+            End = end;
+        }
     }
 }
+

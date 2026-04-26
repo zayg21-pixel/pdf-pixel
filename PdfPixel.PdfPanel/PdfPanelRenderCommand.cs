@@ -17,13 +17,13 @@ public sealed class PdfPanelRenderCommand
     /// <param name="type">The type of command.</param>
     /// <param name="request">Optional drawing request.</param>
     /// <param name="pageNumber">Optional page number for page-specific commands.</param>
-    /// <param name="content">Optional content for commands that generate or draw content.</param>
-    public PdfPanelRenderCommand(PdfPanelRenderCommandType type, PagesDrawingRequest request = null, int? pageNumber = null, ContentLocker<SKPicture> content = null)
+    /// <param name="contentPictures">Optional content pictures for commands that generate or draw content.</param>
+    public PdfPanelRenderCommand(PdfPanelRenderCommandType type, PagesDrawingRequest request = null, int? pageNumber = null, PdfContentPictures contentPictures = null)
     {
         Type = type;
         DrawingRequest = request;
         PageNumber = pageNumber;
-        Content = content;
+        ContentPictures = contentPictures;
     }
 
     /// <summary>
@@ -41,9 +41,10 @@ public sealed class PdfPanelRenderCommand
     /// </summary>
     public int? PageNumber { get; }
 
-    public ContentLocker<SKPicture> Content { get; }
-
-    public ContentLocker<SKPicture> Annotations { get; }
+    /// <summary>
+    /// Content pictures to use for content drawing commands.
+    /// </summary>
+    public PdfContentPictures ContentPictures { get; }
 
     public static List<PdfPanelRenderCommand> GenerateCommandsFromRequest(DrawingRequest request)
     {
@@ -109,7 +110,7 @@ public sealed class PdfPanelRenderCommand
                 PdfPanelRenderCommandType.DrawContent,
                 request,
                 page.PageNumber,
-                contentProvider.GetExistingContent(page.PageNumber)));
+                contentProvider.GetExistingContentPictures(page.PageNumber)));
 
 
             commands.Add(new PdfPanelRenderCommand(PdfPanelRenderCommandType.Render, request));

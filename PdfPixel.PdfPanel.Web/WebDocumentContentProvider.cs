@@ -1,10 +1,9 @@
-﻿using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging;
 using PdfPixel.PdfPanel.ContentProvider;
 using PdfPixel.PdfPanel.Web.WorkerInterface;
 using SkiaSharp;
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Runtime.Versioning;
 using System.Text.Json;
 using System.Threading;
@@ -17,38 +16,50 @@ public class WebDocumentContentProvider : IPdfPageContentProvider
     private readonly string _containerId;
     private readonly ILogger<WebDocumentContentProvider> _logger;
     private WebDocumentData _documentData;
-    private Dictionary<string, ContentProvider.UpdateContentRequest> _pendingRequests = new Dictionary<string, ContentProvider.UpdateContentRequest>();
-    private PdfPageCacheEntryItem[] _cache;
-    private Dictionary<CancellationTokenSource, Guid> _cancellationIds = new Dictionary<CancellationTokenSource, Guid>();
+    private PdfPageCacheEntry[] _cache;
 
     public WebDocumentContentProvider(string containerId)
     {
         _containerId = containerId;
-        PdfPanelInterop.RequestCompleted += PdfPanelInterop_RequestCompleted;
+        PdfPanelInterop.OnDataReceived += PdfPanelInterop_RequestCompleted;
         _logger = PdfPanelInterop.LoggerFactory.CreateLogger<WebDocumentContentProvider>();
     }
 
     public SemaphoreSlim DocumentLocker { get; } // not used
 
-    private void PdfPanelInterop_RequestCompleted(string id, byte[] data)
-    {
-        if (_pendingRequests.TryGetValue(id, out var request))
-        {
-            if (data != null)
-            {
-                var picture = SKPicture.Deserialize(data);
-                var cache = _cache[request.PageNumber - 1];
-                cache.UpdateContentPicture(picture, request.RenderingParameters.ScaleFactor ?? 1);
-                request.OnPageUpdated?.Invoke(request.PageNumber, cache.ContentPicture);
-            }
+    public Action<PageUpdatedArgs> OnPageUpdated { get; set; }
 
-            _pendingRequests.Remove(id);
+    private void PdfPanelInterop_RequestCompleted(EventData eventData)
+    {
+        if (eventData.CommandType != WorkerCommandType.PageContentReady || eventData.Data == null)
+        {
+            return;
         }
+
+        var response = JsonSerializer.Deserialize(eventData.Header, InterfaceJsonContext.Default.UpdateContentResponseHeader);
+
+        if (response.ContainerId != _containerId)
+        {
+            return;
+        }
+
+        var picture = SKPicture.Deserialize(eventData.Data);
+        var pageIndex = response.PageNumber - 1;
+
+        if (response.ContentType == UpdatedContentType.Content)
+        {
+            _cache[pageIndex].Content.UpdateContentPicture(picture, response.Scale);
+        }
+        else if (response.ContentType == UpdatedContentType.Annotations)
+        {
+            _cache[pageIndex].AnnotationContent.UpdateContentPicture(picture, response.Scale);
+        }
+
+        OnPageUpdated?.Invoke(new PageUpdatedArgs(response.PageNumber, GetExistingContentPictures(response.PageNumber), response.ContentType));
     }
 
     public void UpdateDocument(WebDocumentData documentData)
     {
-        _pendingRequests.Clear();
         _documentData = documentData;
 
         if (_cache != null)
@@ -59,31 +70,16 @@ public class WebDocumentContentProvider : IPdfPageContentProvider
             }
         }
 
-        _cache = new PdfPageCacheEntryItem[_documentData.PagesCount];
+        _cache = new PdfPageCacheEntry[_documentData.PagesCount];
 
         for (int i = 0; i < _documentData.PagesCount; i++)
         {
-            _cache[i] = new PdfPageCacheEntryItem();
+            _cache[i] = new PdfPageCacheEntry(i + 1, _documentData.PageInfo[i].ToPdfPanelPageInfo(), default);
         }
     }
 
     public PdfAnnotationPopup[] GetAnnotationPopups(int pageNumber)
     {
-        return null;
-    }
-
-    public ContentLocker<SKPicture> GetExistingAnnotationContent(int pageNumber)
-    {
-        return null;
-    }
-
-    public ContentLocker<SKPicture> GetExistingContent(int pageNumber)
-    {
-        if (_cache != null)
-        {
-            return _cache[pageNumber - 1].ContentPicture;
-        }
-
         return null;
     }
 
@@ -102,37 +98,13 @@ public class WebDocumentContentProvider : IPdfPageContentProvider
         return _documentData?.PagesCount ?? 0;
     }
 
-    public void RefreshCache(ContentProvider.RefreshCacheRequest request)
+    public PdfContentPictures GetExistingContentPictures(int pageNumber)
     {
-        if (_cache == null)
+        return new PdfContentPictures
         {
-            _logger.LogWarning("Cache is not initialized. Cannot refresh cache.");
-            return;
-        }
-
-        var pagesToStoreSet = new HashSet<int>(request.VisiblePages);
-
-        for (int i = 0; i < pagesToStoreSet.Count; i++)
-        {
-            var item = _cache[i];
-            int pageNumber = i + 1;
-
-            if (!pagesToStoreSet.Contains(pageNumber))
-            {
-                item.Clear();
-            }
-        }
-
-        var refreshCacheRequest = new WorkerInterface.RefreshCacheRequest
-        {
-            ContainerId = _containerId,
-            PagesToStore = pagesToStoreSet.ToList(),
-            CancellationId = GetCancellationId(request.CancellationTokenSource)
+            Content = _cache[pageNumber - 1].Content.ContentPicture,
+            Annotations = _cache[pageNumber - 1].AnnotationContent.ContentPicture
         };
-
-        var requestJson = JsonSerializer.Serialize(refreshCacheRequest, InterfaceJsonContext.Default.RefreshCacheRequest);
-
-        PdfPanelInterop.SendToWorker(Guid.NewGuid().ToString(), WorkerCommandType.RefreshCache.ToString(), requestJson, null);
     }
 
     public void UpdateContent(ContentProvider.UpdateContentRequest request)
@@ -143,48 +115,32 @@ public class WebDocumentContentProvider : IPdfPageContentProvider
             return;
         }
 
-        var cacheItem = _cache[request.PageNumber - 1];
+        var pageSet = new HashSet<int>(request.VisiblePages);
 
-        var existingContent = cacheItem.ContentPicture;
-
-        if (existingContent.HasContent && cacheItem.Scale == (request.RenderingParameters.ScaleFactor ?? 1f))
+        foreach (var cachedPage in _cache)
         {
-            return;
+            if (!pageSet.Contains(cachedPage.PageNumber))
+            {
+                cachedPage.Reset();
+            }
         }
 
-        string id = Guid.NewGuid().ToString();
-        _pendingRequests.Add(id, request);
-
-        Guid cancellationId = GetCancellationId(request.CancellationTokenSource);
-
-        var reqeuest = new WorkerInterface.UpdateContentRequest
+        var workerRequest = new WorkerInterface.UpdateContentRequest
         {
             ContainerId = _containerId,
-            PageNumber = request.PageNumber,
+            VisiblePages = request.VisiblePages,
             Scale = request.RenderingParameters.ScaleFactor ?? 1,
-            CancellationId = cancellationId
+            CancellationId = Guid.NewGuid()
         };
 
-        var requestJson = JsonSerializer.Serialize(reqeuest, InterfaceJsonContext.Default.UpdateContentRequest);
-        PdfPanelInterop.SendToWorker(id, WorkerCommandType.UpdateContent.ToString(), requestJson, null);
-    }
-
-    private Guid GetCancellationId(CancellationTokenSource cancellationTokenSource)
-    {
-        // TODO: [HIGH] clear IDs and verify that cancellationTokenSource is disposed, also in other places where cancellation IDs are used
-
-        if (!_cancellationIds.TryGetValue(cancellationTokenSource, out var cancellationId))
-        {
-            cancellationId = Guid.NewGuid();
-            _cancellationIds[cancellationTokenSource] = cancellationId;
-        }
-
-        return cancellationId;
+        var requestJson = JsonSerializer.Serialize(workerRequest, InterfaceJsonContext.Default.UpdateContentRequest);
+        PdfPanelInterop.SendToWorker(Guid.NewGuid().ToString(), WorkerCommandType.UpdateContent.ToString(), requestJson, null);
     }
 
     public void Dispose()
     {
-        _pendingRequests.Clear();
+        PdfPanelInterop.OnDataReceived -= PdfPanelInterop_RequestCompleted;
+
         if (_cache != null)
         {
             foreach (var cacheItem in _cache)

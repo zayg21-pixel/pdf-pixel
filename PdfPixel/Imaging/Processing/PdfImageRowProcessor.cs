@@ -31,7 +31,6 @@ internal sealed class PdfImageRowProcessor : IDisposable
     private readonly PdfImage _image;
     private readonly PdfColorSpaceConverter _converter;
     private readonly ILogger _logger;
-    private readonly CancellationToken _cancellationToken;
 
     private readonly int _bitsPerComponent;
     private readonly int _components;
@@ -68,7 +67,7 @@ internal sealed class PdfImageRowProcessor : IDisposable
         var sourceHeight = image.Height;
         _bitsPerComponent = image.BitsPerComponent;
         _converter = image.ColorSpaceConverter ?? throw new InvalidOperationException("Color space converter must not be null for row processing.");
-
+        
         if (sourceWidth <= 0 || sourceHeight <= 0)
         {
             throw new ArgumentException("Image dimensions must be positive.");
@@ -88,8 +87,8 @@ internal sealed class PdfImageRowProcessor : IDisposable
             _width = downscaleSize.Value.Width;
             _height = downscaleSize.Value.Height;
 
-            //_rowConverter = new AveragingDownsampleRowConverter(_components, _bitsPerComponent, sourceWidth, _width, sourceHeight, _height);
-            _rowConverter = new NearestNeighborRowConverter(_components, _bitsPerComponent, sourceWidth, _width, sourceHeight, _height);
+            //_rowConverter = new NearestNeighborRowConverter(_components, _bitsPerComponent, sourceWidth, _width, sourceHeight, _height);
+            _rowConverter = new AveragingDownsampleRowConverter(_components, _bitsPerComponent, sourceWidth, _width, sourceHeight, _height);
             _bitsPerComponent = _rowConverter.BitsPerComponent;
         }
         else
@@ -269,7 +268,7 @@ internal sealed class PdfImageRowProcessor : IDisposable
             WriteWithFullColor(rowIndex, decodedRow);
             return;
         }
-        _cancellationToken.ThrowIfCancellationRequested();
+
         _pngBuilder.WritePngImageRow(decodedRow);
     }
 
@@ -278,7 +277,7 @@ internal sealed class PdfImageRowProcessor : IDisposable
     {
         ref byte destRowByte = ref _rgbaBuffer[0];
         ref RgbaPacked destRowColor = ref Unsafe.As<byte, RgbaPacked>(ref destRowByte);
-        var bitReader = new UintBitReader(decodedRow);
+        var bitReader = new UintBitReaderFixedLength(decodedRow, _bitsPerComponent);
 
         int width = _width;
         int componentCount = _components;
@@ -311,7 +310,7 @@ internal sealed class PdfImageRowProcessor : IDisposable
 
             for (int c = 0; c < componentCount; c++)
             {
-                uint sample = bitReader.ReadBits(bitsPerComponent);
+                uint sample = bitReader.Read();
 
                 if (applyMask && maskMatch)
                 {
@@ -345,8 +344,6 @@ internal sealed class PdfImageRowProcessor : IDisposable
                 destinationPixel.A = 0;
             }
         }
-
-        _cancellationToken.ThrowIfCancellationRequested();
 
         _pngBuilder.WritePngImageRow(_rgbaBuffer);
     }

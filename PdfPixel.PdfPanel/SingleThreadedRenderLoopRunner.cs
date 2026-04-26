@@ -1,10 +1,8 @@
-using PdfPixel.Commands;
-using PdfPixel.PdfPanel.ContentProvider;
-using PdfPixel.PdfPanel.Requests;
-using SkiaSharp;
 using System;
 using System.Linq;
 using System.Threading;
+using PdfPixel.PdfPanel.ContentProvider;
+using PdfPixel.PdfPanel.Requests;
 
 namespace PdfPixel.PdfPanel;
 
@@ -13,8 +11,7 @@ public class SingleThreadedRenderLoopRunner : IRenderLoopRunner
     private readonly IPdfPageContentProvider _contentProvider;
     private readonly SynchronizationContext _syncContext;
     private bool _disposed;
-    private CancellationTokenSource _skippableCts = new CancellationTokenSource();
-    private Action<RenderFrameCommand> _iteration;
+    private Action<PdfPanelRenderCommand> _iteration;
     private DrawingRequest _lastRequest;
 
     public SingleThreadedRenderLoopRunner(IPdfPageContentProvider contentProvider)
@@ -24,10 +21,10 @@ public class SingleThreadedRenderLoopRunner : IRenderLoopRunner
     }
 
     /// <inheritdoc />
-    public void Start(Action<RenderFrameCommand> iteration)
+    public void Start(Action<PdfPanelRenderCommand> iteration)
     {
         _iteration = iteration ?? throw new ArgumentNullException(nameof(iteration));
-        _iteration(new RenderFrameCommand(new PdfPanelRenderCommand(PdfPanelRenderCommandType.Initialize), CancellationToken.None));
+        _iteration(new PdfPanelRenderCommand(PdfPanelRenderCommandType.Initialize));
     }
     /// <inheritdoc />
     public void Stop()
@@ -51,73 +48,62 @@ public class SingleThreadedRenderLoopRunner : IRenderLoopRunner
         }
 
         var commands = PdfPanelRenderCommand.GenerateCommandsFromRequestNew(request, contentProvider);
-        // Use a shared CancellationTokenSource for skippable work. Replacing it
-        // cancels any previously queued/processing skippable frames so that
-        // the current frame will observe cancellation after the next yield.
-        var newCts = new CancellationTokenSource();
-        var oldCts = _skippableCts;
-        _skippableCts = newCts;
-        oldCts?.Cancel();
-        oldCts?.Dispose();
-
-        if (request is PagesDrawingRequest pagesDrawingRequest)
-        {
-            var refreshCacheRequest = new RefreshCacheRequest
-            {
-                VisiblePages = pagesDrawingRequest.VisiblePages.Select(x => x.PageNumber).ToList(),
-                CancellationTokenSource = newCts
-            };
-
-            contentProvider.RefreshCache(refreshCacheRequest);
-
-            foreach (var visiblePage in pagesDrawingRequest.VisiblePages)
-            {
-                var commandContext = new PdfCommandExecutionContext(pagesDrawingRequest.RenderingParameters, newCts.Token);
-                var contentRequest = new UpdateContentRequest
-                {
-                    PageNumber = visiblePage.PageNumber,
-                    RenderingParameters = pagesDrawingRequest.RenderingParameters,
-                    CancellationTokenSource = newCts,
-                    OnPageUpdated = RequestReRender
-                };
-                contentProvider.UpdateContent(contentRequest);
-            }
-        }
-
-        // Non-skippable requests receive CancellationToken.None so they are never cancelled.
-        var token = request.IsSkippable ? newCts.Token : CancellationToken.None; // TODO: we can do it smarter here, cancel ONLY page requests that are not valid anymore.
 
         try
         {
             foreach (var command in commands)
             {
-                var frame = new RenderFrameCommand(command, token);
-                _iteration(frame);
+                _iteration(command);
             }
         }
         catch
         {
+        }
 
+        if (request is PagesDrawingRequest pagesDrawingRequest)
+        {
+            var pages = pagesDrawingRequest.VisiblePages.Select(x => x.PageNumber).OrderBy(x => x).ToList();
+
+            if (pages[0] != 1)
+            {
+                pages.Add(pages[0] - 1);
+            }
+
+            if (pages[pages.Count - 1] != contentProvider.GetPagesCount())
+            {
+                pages.Add(pages[pages.Count - 1] + 1);
+            }
+
+            contentProvider.OnPageUpdated = RequestReRender;
+
+            var contentRequest = new UpdateContentRequest
+            {
+                VisiblePages = pages,
+                RenderingParameters = pagesDrawingRequest.RenderingParameters,
+                ActiveAnnotation = pagesDrawingRequest.ActiveAnnotation,
+                PointerState = pagesDrawingRequest.ActiveAnnotationState
+            };
+
+            contentProvider.UpdateContent(contentRequest);
         }
     }
 
-    private void RequestReRender(int pageNumber, ContentLocker<SKPicture> pictureContent)
+    private void RequestReRender(PageUpdatedArgs args)
     {
-        //_skippableCts?.Dispose();
         if (_syncContext == null)
         {
-            RequestReRenderSync(pageNumber, pictureContent);
+            RequestReRenderSync(args);
         }
         else
         {
             _syncContext.Send(_ =>
             {
-                RequestReRenderSync(pageNumber, pictureContent);
+                RequestReRenderSync(args);
             }, null);
         }
     }
 
-    private bool RequestReRenderSync(int pageNumber, ContentLocker<SKPicture> pictureContent)
+    private bool RequestReRenderSync(PageUpdatedArgs args)
     {
         if (_disposed)
         {
@@ -125,17 +111,14 @@ public class SingleThreadedRenderLoopRunner : IRenderLoopRunner
         }
 
         if (_lastRequest is PagesDrawingRequest lastPagesDrawingRequest &&
-            lastPagesDrawingRequest.VisiblePages.Select(x => x.PageNumber).Contains(pageNumber))
+            lastPagesDrawingRequest.VisiblePages.Select(x => x.PageNumber).Contains(args.PageNumber))
         {
-            var token = CancellationToken.None; // TODO: use token wisely
-            var renderPageCommand = new PdfPanelRenderCommand(PdfPanelRenderCommandType.DrawContent, lastPagesDrawingRequest, pageNumber, pictureContent);
+            var renderPageCommand = new PdfPanelRenderCommand(PdfPanelRenderCommandType.DrawContent, lastPagesDrawingRequest, args.PageNumber, args.ContentPictures);
             var renderCommand = new PdfPanelRenderCommand(PdfPanelRenderCommandType.Render, lastPagesDrawingRequest);
 
-            var renderPageFrameCommand = new RenderFrameCommand(renderPageCommand, token);
-            _iteration(renderPageFrameCommand);
+            _iteration(renderPageCommand);
 
-            var renderFrameCommand = new RenderFrameCommand(renderCommand, token);
-            _iteration(renderFrameCommand);
+            _iteration(renderCommand);
         }
 
         return true;
@@ -151,10 +134,5 @@ public class SingleThreadedRenderLoopRunner : IRenderLoopRunner
         }
 
         _disposed = true;
-
-        var cts = _skippableCts;
-        _skippableCts = null;
-        cts?.Cancel();
-        cts?.Dispose();
     }
 }

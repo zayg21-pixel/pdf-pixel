@@ -9,11 +9,12 @@ namespace PdfPixel.PdfPanel.Web.WorkerInterface;
 [JsonSourceGenerationOptions(WriteIndented = false)]
 [JsonSerializable(typeof(WebDocumentData))]
 [JsonSerializable(typeof(SetFontRequest))]
-[JsonSerializable(typeof(RequestHeader))]
+[JsonSerializable(typeof(RequestResponseHeader))]
 [JsonSerializable(typeof(UpdateContentRequest))]
 [JsonSerializable(typeof(SetDocumentRequest))]
 [JsonSerializable(typeof(WebDocumentPageInfo))]
 [JsonSerializable(typeof(RefreshCacheRequest))]
+[JsonSerializable(typeof(UpdateContentResponseHeader))]
 internal partial class InterfaceJsonContext : JsonSerializerContext
 {
 }

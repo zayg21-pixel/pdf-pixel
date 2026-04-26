@@ -1,7 +1,6 @@
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.ObjectModel;
-using System.Globalization;
 
 namespace PdfPixel.Demo.Wpf
 {

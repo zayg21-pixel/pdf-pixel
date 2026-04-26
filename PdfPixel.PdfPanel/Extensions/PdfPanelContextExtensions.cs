@@ -282,6 +282,46 @@ public static class PdfPanelContextExtensions
     /// <param name="context">The panel context.</param>
     /// <param name="destination">The destination to navigate to.</param>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="context"/> is <see langword="null"/>.</exception>
+    public static void ScrollToAction(this PdfPanelContext context, PdfPanelAnnotationAction action)
+    {
+        if (context == null)
+        {
+            throw new ArgumentNullException(nameof(context));
+        }
+
+        if (action?.PageNumber == null)
+        {
+            return;
+        }
+
+        if (!context.Pages.TryGetPage(action.PageNumber.Value, out var targetPage))
+        {
+            return;
+        }
+
+        if (action.Zoom.HasValue && action.Zoom.Value > 0)
+        {
+            context.Scale = action.Zoom.Value;
+        }
+
+        if (action.TargetRect.HasValue)
+        {
+            SKRect pdfRect = action.TargetRect.Value;
+            SKPoint pdfLocation = new SKPoint(pdfRect.Left, pdfRect.Top);
+            SKPoint pageLocation = targetPage.FromPdfPoint(pdfLocation);
+
+            SKMatrix pageToCanvas = targetPage.ViewportToPageMatrix(context.Scale, 0, 0).Invert();
+            SKPoint canvasLocation = pageToCanvas.MapPoint(pageLocation);
+
+            context.HorizontalOffset = canvasLocation.X;
+            context.VerticalOffset = canvasLocation.Y;
+        }
+        else
+        {
+            context.ScrollToPage(action.PageNumber.Value);
+        }
+    }
+
     public static void ScrollToDestination(this PdfPanelContext context, PdfDestination destination)
     {
         if (context == null)

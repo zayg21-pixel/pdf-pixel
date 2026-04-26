@@ -3,6 +3,6 @@
 /// <summary>
 /// Request to set document data for a container.
 /// </summary>
-public class SetDocumentRequest : RequestHeader
+public class SetDocumentRequest : RequestResponseHeader
 {
 }

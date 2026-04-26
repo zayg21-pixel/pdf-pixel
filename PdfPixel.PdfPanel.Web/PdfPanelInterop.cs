@@ -11,12 +11,24 @@ using PdfPixel.PdfPanel.Web.WorkerInterface;
 using SkiaSharp;
 using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Runtime.InteropServices.JavaScript;
 using System.Runtime.Versioning;
 using System.Text.Json;
 using System.Threading.Tasks;
 
 namespace PdfPixel.PdfPanel.Web;
+
+public class EventData
+{
+    public Guid Id { get; set; }
+
+    public WorkerCommandType CommandType { get; set; }
+
+    public string Header { get; set; }
+
+    public byte[] Data { get; set; }
+}
 
 [SupportedOSPlatform("browser")]
 public partial class PdfPanelInterop
@@ -27,7 +39,7 @@ public partial class PdfPanelInterop
     private static readonly Dictionary<string, PdfPanelResources> ResourcesMap = new();
     private static Dictionary<string, TaskCompletionSource<byte[]>> _pendingRequests = new Dictionary<string, TaskCompletionSource<byte[]>>();
 
-    public static event Action<string, byte[]> RequestCompleted;
+    public static event Action<EventData> OnDataReceived;
 
     /// <summary>Gets the application-wide logger factory, available after <see cref="Initialize"/> has been called.</summary>
     public static ILoggerFactory LoggerFactory { get; private set; }
@@ -44,7 +56,7 @@ public partial class PdfPanelInterop
             _pendingRequests.Remove(id);
         }
 
-        RequestCompleted?.Invoke(id, data);
+        OnDataReceived?.Invoke(new EventData { Id = Guid.Parse(id), CommandType = Enum.Parse<WorkerCommandType>(commandType), Header = header, Data = data });
     }
 
     [JSImport("sendToWorker", "canvasInterop.js")]
@@ -291,7 +303,7 @@ public partial class PdfPanelInterop
 
             if (wasPressed && !isPressed)
             {
-                HandleAnnotationClick(resources, resources.LastAnnotationPopup.Annotation, out openUri);
+                HandleAnnotationClick(resources, resources.LastAnnotationPopup, out openUri);
                 resources.Context.Update();
                 activeAnnotation = resources.Context.ActiveAnnotation;
                 activeAnnotationState = resources.Context.ActiveAnnotationState;
@@ -300,14 +312,14 @@ public partial class PdfPanelInterop
             resources.LastAnnotationPopup = activeAnnotation;
             resources.LastAnnotationState = activeAnnotationState;
 
-            bool isInteractiveAnnotation = activeAnnotation != null && activeAnnotation.IsInteractive();
+            bool isInteractiveAnnotation = activeAnnotation != null && activeAnnotation.IsInteractive;
             state.SetProperty("cursorStyle", isInteractiveAnnotation ? "pointer" : "default");
             state.SetProperty("openUri", openUri);
 
             if (activeAnnotation != null)
             {
-                string annotationType = GetAnnotationTypeName(activeAnnotation.Annotation);
-                CreateAnnotationPopupState(state, annotationType, isInteractiveAnnotation);
+                // TODO: [HIGH] need to also parse type here or refactor JS to eliminate this entierly.
+                CreateAnnotationPopupState(state, string.Empty, isInteractiveAnnotation);
 
                 foreach (var message in activeAnnotation.Messages)
                 {
@@ -346,50 +358,28 @@ public partial class PdfPanelInterop
     /// </summary>
     private static void HandleAnnotationClick(
         PdfPanelResources resources,
-        PdfAnnotationBase annotation,
+        PdfAnnotationPopup popup,
         out string openUri)
     {
         openUri = string.Empty;
 
-        if (annotation is PdfLinkAnnotation linkAnnotation)
+        if (popup.Action == null)
         {
-            if (linkAnnotation.Action is PdfUriAction uriAction)
-            {
-                string uriString = uriAction.Uri.ToString();
-                if (!string.IsNullOrEmpty(uriString))
-                {
-                    openUri = uriString;
-                }
-            }
-            else if (linkAnnotation.Action is PdfGoToAction goToAction)
-            {
-                if (goToAction.Destination != null)
-                {
-                    resources.Context?.ScrollToDestination(goToAction.Destination);
-                }
-            }
-            else if (linkAnnotation.Action is PdfGoToRemoteAction)
-            {
-                // TODO: complete implementation here, we need to handle request for file loading
-            }
-            else if (linkAnnotation.Destination != null)
-            {
-                resources.Context?.ScrollToDestination(linkAnnotation.Destination);
-            }
+            return;
         }
-    }
 
-    /// <summary>
-    /// Returns a short type name for the given annotation, used in the JS popup state.
-    /// </summary>
-    private static string GetAnnotationTypeName(PdfAnnotationBase annotation)
-    {
-        return annotation switch
+        switch (popup.Action.ActionType)
         {
-            PdfLinkAnnotation => "link",
-            PdfFileAttachmentAnnotation => "fileAttachment",
-            _ => "annotation"
-        };
+            case PdfActionType.Uri:
+                openUri = popup.Action.TargetName ?? string.Empty;
+                break;
+            case PdfActionType.GoTo:
+                resources.Context?.ScrollToAction(popup.Action);
+                break;
+            case PdfActionType.GoToRemote:
+                // TODO: handle remote file loading
+                break;
+        }
     }
 
     [JSImport("createAnnotationPopupState", "canvasInterop.js")]

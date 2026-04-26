@@ -73,8 +73,11 @@ internal static class SkCanvasExtensions
 
             if (drawFlags.HasFlag(PageDrawFlags.Content))
             {
-                DrawPagePicture(canvas, command.Content, page, cancellationToken);
-                DrawPagePicture(canvas, command.Annotations, page, cancellationToken);
+                if (command.ContentPictures != null)
+                {
+                    DrawPagePicture(canvas, command.ContentPictures.Content, page, cancellationToken);
+                    DrawPagePicture(canvas, command.ContentPictures.Annotations, page, cancellationToken);
+                }
             }
         }
         finally

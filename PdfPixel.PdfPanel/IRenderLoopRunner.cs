@@ -4,25 +4,6 @@ using System.Threading;
 
 namespace PdfPixel.PdfPanel;
 
-public readonly struct RenderFrameCommand
-{
-    public RenderFrameCommand(PdfPanelRenderCommand command, CancellationToken cancellationToken)
-    {
-        Command = command;
-        CancellationToken = cancellationToken;
-    }
-
-    /// <summary>
-    /// The drawing command to process.
-    /// </summary>
-    public PdfPanelRenderCommand Command { get; }
-
-    /// <summary>
-    /// Cancellation token that is cancelled when a newer command arrives.
-    /// </summary>
-    public CancellationToken CancellationToken { get; }
-}
-
 /// <summary>
 /// Provides platform-specific control over the render loop execution and request queuing.
 /// </summary>
@@ -33,7 +14,7 @@ public interface IRenderLoopRunner : IDisposable
     /// The implementation controls timing, queuing, and yielding to the platform's event loop.
     /// </summary>
     /// <param name="iteration">The action to call for each render iteration with the render frame.</param>
-    void Start(Action<RenderFrameCommand> iteration);
+    void Start(Action<PdfPanelRenderCommand> iteration);
 
     /// <summary>
     /// Stops the render loop.
