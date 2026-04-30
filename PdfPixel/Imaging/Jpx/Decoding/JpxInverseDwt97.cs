@@ -180,6 +180,7 @@ internal sealed class JpxInverseDwt97 : IJpxInverseDwt
     /// in bits 30..0. We shift so the result is in fixed-point: value * 2^FracBits represents
     /// the true reconstructed coefficient.
     /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private int GetDequantShift(int stepIndex, int subbandGain)
     {
         if (_quantization?.StepSizes == null || stepIndex >= _quantization.StepSizes.Length)

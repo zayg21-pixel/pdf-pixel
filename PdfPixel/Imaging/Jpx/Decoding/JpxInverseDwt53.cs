@@ -160,6 +160,7 @@ internal sealed class JpxInverseDwt53 : IJpxInverseDwt
     /// Computes the right-shift amount for a given QCD step index.
     /// For reversible (type 0), shiftBits = 31 - magBits where magBits = guardBits + exponent - 1.
     /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private int GetShiftBits(int stepIndex)
     {
         int guardBits = _quantization.GuardBits;

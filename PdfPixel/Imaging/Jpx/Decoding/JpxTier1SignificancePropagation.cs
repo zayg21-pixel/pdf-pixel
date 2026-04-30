@@ -1,4 +1,5 @@
 using System;
+using System.Runtime.CompilerServices;
 using static PdfPixel.Imaging.Jpx.Decoding.JpxTier1Context;
 
 namespace PdfPixel.Imaging.Jpx.Decoding;
@@ -13,6 +14,7 @@ internal static class JpxTier1SignificancePropagation
     /// <summary>
     /// Executes the significance propagation pass over the code-block.
     /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     internal static void Execute(
         ref JpxMqDecoder mqDecoder,
         int[] coefficients,

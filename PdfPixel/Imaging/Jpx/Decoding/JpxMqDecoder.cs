@@ -82,8 +82,8 @@ internal ref struct JpxMqDecoder
     private int _ctCounter;    // CT counter (bits remaining before next byte fill)
 
     // Context states
-    private readonly byte[] _contextStates;  // State index per context
-    private readonly byte[] _contextMps;     // MPS value per context (0 or 1)
+    private readonly Span<byte> _contextStates;  // State index per context
+    private readonly Span<byte> _contextMps;     // MPS value per context (0 or 1)
 
     /// <summary>
     /// Initializes the MQ decoder for the given code-block data.
@@ -139,6 +139,7 @@ internal ref struct JpxMqDecoder
     /// INITDEC procedure per ITU-T T.800 C.2.7.
     /// Initializes the C and A registers from the first bytes of data.
     /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private void InitializeDecoder()
     {
         // Set A to 0x8000
@@ -226,11 +227,12 @@ internal ref struct JpxMqDecoder
     /// Resets all context states to their initial values per ITU-T T.800 Table D.7.
     /// Used when the OPT_RESET_MQ coding style flag is set.
     /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void Reset()
     {
         // Reset all contexts to state 0, MPS=0
-        Array.Clear(_contextStates, 0, ContextCount);
-        Array.Clear(_contextMps, 0, ContextCount);
+        _contextStates.Clear();
+        _contextMps.Clear();
 
         // Re-initialize special contexts
         _contextStates[0] = 46; // uniform
@@ -290,6 +292,7 @@ internal ref struct JpxMqDecoder
     /// Reads the next byte from the compressed data into the C register.
     /// Handles the 0xFF byte-stuffing convention.
     /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private void ByteIn()
     {
         if (_markerFound)
