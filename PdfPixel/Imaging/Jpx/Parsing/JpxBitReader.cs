@@ -5,19 +5,17 @@ namespace PdfPixel.Imaging.Jpx.Parsing;
 
 /// <summary>
 /// Bit reader for JPEG 2000 (JPX) entropy-coded packet data.
-/// Handles MSB-first bit reading for packet headers and tag-tree decoding.
+/// Handles MSB-first bit reading with bit-stuffing per ITU-T T.800 B.10.1:
+/// after a 0xFF byte, the next byte's MSB is a stuffing bit (discarded, only 7 bits valid).
 /// </summary>
 internal ref struct JpxBitReader
 {
-    private const int MaxReservoirBits = 64;
-    private const int ByteBitCount = 8;
-    private const int ReservoirAppendThreshold = MaxReservoirBits - ByteBitCount; // 56 for 64-bit reservoir
-
     private ReadOnlySpan<byte> _data;
     private int _pos;
     private int _remaining;
-    private ulong _bitBuf;   // Left-aligned bit reservoir (high bits contain oldest bits). Up to 64 bits stored.
-    private int _bits;       // Number of valid bits currently in _bitBuf (0..64).
+    private int _currentByte;  // Current byte buffer (-1 means empty)
+    private int _bitsLeft;     // Number of valid bits remaining in _currentByte (0..8)
+    private int _bitsConsumed; // Total bits consumed so far
 
     /// <summary>
     /// Creates a new bit reader over the specified data starting at position 0.
@@ -28,8 +26,9 @@ internal ref struct JpxBitReader
         _data = data;
         _remaining = data.Length;
         _pos = 0;
-        _bitBuf = 0;
-        _bits = 0;
+        _currentByte = 0;
+        _bitsLeft = 0;
+        _bitsConsumed = 0;
     }
 
     /// <summary>
@@ -45,80 +44,47 @@ internal ref struct JpxBitReader
     /// <summary>
     /// Gets the total number of bits consumed so far.
     /// </summary>
-    public int BitsConsumed => _pos * ByteBitCount - _bits;
+    public int BitsConsumed => _bitsConsumed;
 
     /// <summary>
-    /// Ensures at least the requested number of bits are available in the bit buffer.
+    /// Loads the next byte, applying bit-stuffing rules.
+    /// After a 0xFF byte, the next byte only has 7 valid bits (MSB is stuffing bit).
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private void EnsureBits(int requiredBits)
+    private void LoadNextByte()
     {
-        if (_bits >= requiredBits)
-        {
-            return;
-        }
+        bool previousWasFF = (_currentByte == 0xFF);
 
-        ulong bitBuffer = _bitBuf;
-        int bufferedBits = _bits;
-
-        while (bufferedBits < requiredBits && bufferedBits <= ReservoirAppendThreshold && _remaining > 0)
+        if (_remaining > 0)
         {
-            byte valueByte = _data[_pos];
+            _currentByte = _data[_pos];
             _pos++;
             _remaining--;
-            bitBuffer = bitBuffer << ByteBitCount | valueByte;
-            bufferedBits += ByteBitCount;
         }
-
-        // Pad with zero bits if we reach end-of-data and still need more bits
-        if (bufferedBits < requiredBits && _remaining == 0)
+        else
         {
-            int neededBits = requiredBits - bufferedBits;
-            int availableBits = MaxReservoirBits - bufferedBits;
-            if (neededBits > availableBits)
-            {
-                neededBits = availableBits;
-            }
-            int padBits = neededBits + (ByteBitCount - 1) & ~(ByteBitCount - 1);
-            if (padBits > 0)
-            {
-                bitBuffer <<= padBits;
-                bufferedBits += padBits;
-            }
+            _currentByte = 0; // Pad with zeros at end of data
         }
 
-        _bitBuf = bitBuffer;
-        _bits = bufferedBits;
-    }
-
-    /// <summary>
-    /// Peeks at the next bit without consuming it.
-    /// </summary>
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public int PeekBit()
-    {
-        EnsureBits(1);
-        if (_bits == 0)
-        {
-            return 0; // EOF
-        }
-        return (int)(_bitBuf >> (_bits - 1)) & 1;
+        // Per ITU-T T.800 B.10.1: after 0xFF, next byte has only 7 valid bits
+        _bitsLeft = previousWasFF ? 7 : 8;
     }
 
     /// <summary>
     /// Reads a single bit from the current position.
     /// </summary>
     /// <returns>0 or 1.</returns>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public int ReadBit()
     {
-        EnsureBits(1);
-        if (_bits == 0)
+        if (_bitsLeft == 0)
         {
-            return 0; // EOF
+            LoadNextByte();
         }
-        int bit = (int)(_bitBuf >> (_bits - 1)) & 1;
-        _bits--;
-        return bit;
+
+        _bitsLeft--;
+        _bitsConsumed++;
+        return (_currentByte >> _bitsLeft) & 1;
     }
 
     /// <summary>
@@ -147,10 +113,10 @@ internal ref struct JpxBitReader
     /// </summary>
     public void ByteAlign()
     {
-        int bitsToDiscard = _bits % ByteBitCount;
-        if (bitsToDiscard > 0)
+        if (_bitsLeft > 0)
         {
-            _bits -= bitsToDiscard;
+            _bitsConsumed += _bitsLeft;
+            _bitsLeft = 0;
         }
     }
 
@@ -161,14 +127,37 @@ internal ref struct JpxBitReader
     {
         while (bitCount > 0)
         {
-            int toSkip = Math.Min(bitCount, 32);
-            ReadBits(toSkip);
-            bitCount -= toSkip;
+            ReadBit();
+            bitCount--;
         }
     }
 
     /// <summary>
     /// Checks if more data is available for reading.
     /// </summary>
-    public bool HasMoreData => _bits > 0 || _remaining > 0;
+    public bool HasMoreData => _bitsLeft > 0 || _remaining > 0;
+
+
+    /// <summary>
+    /// Returns a <see cref="ReadOnlySpan{T}"/> slice of the underlying data without copying.
+    /// Must be called after <see cref="ByteAlign"/> (i.e., when no partial byte is buffered).
+    /// Advances the position by <paramref name="count"/> bytes.
+    /// </summary>
+    /// <param name="count">Number of bytes to read.</param>
+    /// <returns>A span over the raw data bytes.</returns>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public ReadOnlySpan<byte> ReadRawSpan(int count)
+    {
+        int available = Math.Min(count, _remaining);
+        var span = _data.Slice(_pos, available);
+        _pos += available;
+        _remaining -= available;
+
+        // Reset bit state
+        _currentByte = 0;
+        _bitsLeft = 0;
+        _bitsConsumed += count * 8;
+
+        return span;
+    }
 }

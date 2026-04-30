@@ -1,6 +1,4 @@
 ﻿using Microsoft.Extensions.Logging;
-using PdfPixel.Color.Filters;
-using PdfPixel.Color.Transform;
 using PdfPixel.Commands;
 using PdfPixel.Imaging.Jpx.Decoding;
 using PdfPixel.Imaging.Jpx.Model;
@@ -31,7 +29,7 @@ public class JpxImageDecoder : PdfImageDecoder
     {
     }
 
-    public override Task<SKImage> DecodeAsync(
+    public override async Task<SKImage> DecodeAsync(
         ImageDecodingContext context,
         PdfRenderingParameters renderingParameters,
         CancellationToken cancellationToken)
@@ -49,43 +47,14 @@ public class JpxImageDecoder : PdfImageDecoder
             return null;
         }
 
-        try
-        {
-            return DecodeInternalAsync(encodedImageData, context, renderingParameters, cancellationToken);
-        }
-        catch (Exception ex)
-        {
-            Logger.LogWarning(ex, "JPX decode failed; attempting Skia fallback (Name={Name}).", Image.Name);
-            return Task.FromResult(SKImage.FromEncodedData(encodedImageData.Span));
-        }
-    }
-
-    /// <summary>
-    /// Decode using custom JPX implementation with tile-to-row conversion.
-    /// </summary>
-    private Task<SKImage> DecodeInternalAsync(
-        ReadOnlyMemory<byte> encoded,
-        ImageDecodingContext context,
-        PdfRenderingParameters renderingParameters,
-        CancellationToken cancellationToken)
-    {
         // Parse JPX header
-        JpxHeader header;
-        try
-        {
-            header = JpxReader.ParseHeader(encoded.Span);
-        }
-        catch (Exception ex)
-        {
-            throw new InvalidOperationException($"JPX header parse exception (Image={Image.Name}).", ex);
-        }
+        JpxHeader header = JpxReader.ParseHeader(encodedImageData.Span);
 
         if (header == null)
         {
             throw new InvalidOperationException($"JPX header invalid or missing (Image={Image.Name}).");
         }
 
-        // Validate basic header information
         if (header.Width == 0 || header.Height == 0)
         {
             throw new InvalidOperationException($"Invalid JPX dimensions Width={header.Width} Height={header.Height} (Image={Image.Name}).");
@@ -96,7 +65,6 @@ public class JpxImageDecoder : PdfImageDecoder
             throw new InvalidOperationException($"Invalid JPX component count {header.ComponentCount} (Image={Image.Name}).");
         }
 
-        // Log header information for debugging
         Logger.LogDebug("JPX Header - Width: {Width}, Height: {Height}, Components: {Components}, Format: {Format}", 
             header.Width, header.Height, header.ComponentCount, header.IsRawCodestream ? "Raw Codestream" : "JP2");
 
@@ -108,38 +76,14 @@ public class JpxImageDecoder : PdfImageDecoder
                 header.CodingStyle.ProgressionOrder);
         }
 
-        // Extract codestream data
-        ReadOnlySpan<byte> codestreamData = encoded.Span.Slice(header.CodestreamOffset);
+        // Decode codestream into row provider
+        ReadOnlySpan<byte> codestreamData = encodedImageData.Span.Slice(header.CodestreamOffset);
+        var tileDecoder = JpxTileDecoderFactory.CreateDecoder(header);
+        var jpxDecoder = new JpxDecoder(tileDecoder);
 
-        try
-        {
-            // Create the appropriate decoder based on the header
-            var tileDecoder = JpxTileDecoderFactory.CreateDecoder(header);
-            var jpxDecoder = new JpxDecoder(tileDecoder);
-            
-            // Decode using tile-to-row conversion
-            using var rowProvider = jpxDecoder.Decode(header, codestreamData);
-            
-            // Stream decoded data through PdfImageRowProcessor
-            return ProcessWithRowProviderAsync(rowProvider, context, renderingParameters, cancellationToken);
-        }
-        catch (NotImplementedException)
-        {
-            // Decoder not implemented yet, fall back to Skia
-            Logger.LogInformation("JPX tile decoder not implemented for this image type, falling back to Skia decoder (Name={Name}).", Image.Name);
-            return Task.FromResult(SKImage.FromEncodedData(encoded.Span));
-        }
-    }
+        using var rowProvider = jpxDecoder.Decode(header, codestreamData);
 
-    /// <summary>
-    /// Process decoded JPX data using the existing PDF image row processor.
-    /// </summary>
-    private async Task<SKImage> ProcessWithRowProviderAsync(
-        IJpxRowProvider rowProvider,
-        ImageDecodingContext context,
-        PdfRenderingParameters renderingParameters,
-        CancellationToken cancellationToken)
-    {
+        // Stream decoded data through PdfImageRowProcessor
         PdfImageRowProcessor rowProcessor = null;
 
         try

@@ -266,3 +266,5 @@ InstallerStandalone/*.back*.aip
 *.pfx
 !DataSnipperFSS/development-certificate.pfx
 /PdfReadTests/kitten-progressive.jpg
+
+**/BenchmarkDotNet.Artifacts

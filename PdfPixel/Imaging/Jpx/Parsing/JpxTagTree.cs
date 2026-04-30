@@ -113,12 +113,13 @@ internal sealed class JpxTagTree
 
     /// <summary>
     /// Decodes a value from the tag tree for the specified leaf position.
+    /// Uses the standard root-to-leaf algorithm per ITU-T T.800 Annex B.10.2.
     /// </summary>
     /// <param name="bitReader">Bit reader positioned at the tag tree data.</param>
     /// <param name="leafX">X coordinate of the leaf node.</param>
     /// <param name="leafY">Y coordinate of the leaf node.</param>
-    /// <param name="threshold">Threshold value to decode against.</param>
-    /// <returns>True if the decoded value is less than the threshold.</returns>
+    /// <param name="threshold">Threshold value to decode up to.</param>
+    /// <returns>True if the leaf value is less than or equal to the threshold.</returns>
     public bool DecodeValue(ref JpxBitReader bitReader, int leafX, int leafY, int threshold)
     {
         if (leafX < 0 || leafX >= _width || leafY < 0 || leafY >= _height)
@@ -127,64 +128,100 @@ internal sealed class JpxTagTree
         }
 
         int leafIndex = leafY * _width + leafX;
-        return DecodeNodeValue(ref bitReader, leafIndex, threshold);
-    }
 
-    /// <summary>
-    /// Decodes the value for a specific node in the tree.
-    /// </summary>
-    private bool DecodeNodeValue(ref JpxBitReader bitReader, int nodeIndex, int threshold)
-    {
-        if (nodeIndex >= _totalNodes)
+        // Build path from leaf to root
+        Span<int> path = stackalloc int[32]; // Max tree depth
+        int pathLength = 0;
+        int current = leafIndex;
+
+        while (current >= 0 && current < _totalNodes)
         {
-            return false;
+            path[pathLength++] = current;
+            current = _nodes[current].Parent;
         }
 
-        ref var node = ref _nodes[nodeIndex];
-
-        // If we already know the value is below threshold
-        if (node.Known && node.Value < threshold)
+        // Decode from root to leaf (reverse order)
+        for (int i = pathLength - 1; i >= 0; i--)
         {
-            return true;
-        }
+            int nodeIndex = path[i];
+            ref var node = ref _nodes[nodeIndex];
 
-        // If lower bound is already at or above threshold
-        if (node.LowerBound >= threshold)
-        {
-            return false;
-        }
-
-        // Need to decode more bits
-        while (node.LowerBound < threshold && !node.Known)
-        {
-            // Check parent first (if exists) to maintain tree invariants
-            if (node.Parent >= 0)
+            if (node.Known)
             {
-                if (!DecodeNodeValue(ref bitReader, node.Parent, node.LowerBound + 1))
+                continue;
+            }
+
+            // Propagate lower bound from parent
+            if (node.Parent >= 0 && node.Parent < _totalNodes)
+            {
+                ref var parentNode = ref _nodes[node.Parent];
+                if (parentNode.LowerBound > node.LowerBound)
                 {
-                    // Parent's value is <= our lower bound, so our value is also <= lower bound
-                    node.Value = node.LowerBound;
-                    node.Known = true;
-                    break;
+                    node.LowerBound = parentNode.LowerBound;
                 }
             }
 
-            // Read a bit to determine if value is greater than current lower bound
-            int bit = bitReader.ReadBit();
-            if (bit == 0)
+            // Decode bits until value is known or lower bound reaches threshold
+            // Per ITU-T T.800 Annex B.10.2:
+            //   0 bit → value > current state (not yet equal, increment lower bound)
+            //   1 bit → value = current state (value is known)
+            while (node.LowerBound < threshold && !node.Known)
             {
-                // Value equals lower bound
-                node.Value = node.LowerBound;
-                node.Known = true;
-            }
-            else
-            {
-                // Value is greater, increment lower bound
-                node.LowerBound++;
+                int bit = bitReader.ReadBit();
+                if (bit == 1)
+                {
+                    // Value equals current lower bound
+                    node.Value = node.LowerBound;
+                    node.Known = true;
+                }
+                else
+                {
+                    // Value is greater, increment lower bound
+                    node.LowerBound++;
+                }
             }
         }
 
-        return node.Known && node.Value < threshold;
+        ref var leaf = ref _nodes[leafIndex];
+        return leaf.Known && leaf.Value <= threshold;
+    }
+
+    /// <summary>
+    /// Decodes and returns the actual value for the specified leaf position.
+    /// Keeps decoding until the leaf value is known.
+    /// </summary>
+    /// <param name="bitReader">Bit reader positioned at the tag tree data.</param>
+    /// <param name="leafX">X coordinate of the leaf node.</param>
+    /// <param name="leafY">Y coordinate of the leaf node.</param>
+    /// <returns>The decoded value for the leaf.</returns>
+    public int DecodeAbsoluteValue(ref JpxBitReader bitReader, int leafX, int leafY)
+    {
+        if (leafX < 0 || leafX >= _width || leafY < 0 || leafY >= _height)
+        {
+            return 0;
+        }
+
+        int leafIndex = leafY * _width + leafX;
+        ref var leaf = ref _nodes[leafIndex];
+
+        if (leaf.Known)
+        {
+            return leaf.Value;
+        }
+
+        // Decode with increasing thresholds until leaf is known
+        // Use a reasonable upper bound (bit depths rarely exceed 32)
+        for (int threshold = leaf.LowerBound; threshold < 256; threshold++)
+        {
+            DecodeValue(ref bitReader, leafX, leafY, threshold);
+
+            if (leaf.Known)
+            {
+                return leaf.Value;
+            }
+        }
+
+        return leaf.LowerBound;
     }
 
     /// <summary>

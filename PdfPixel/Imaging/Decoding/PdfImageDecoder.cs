@@ -63,8 +63,7 @@ public abstract class PdfImageDecoder
                 return new JpegImageDecoder(pdfImage, loggerFactory);
 
             case PdfImageType.JPEG2000:
-                return null;
-                //return new JpxImageDecoder(pdfImage, loggerFactory);
+                return new JpxImageDecoder(pdfImage, loggerFactory);
 
             case PdfImageType.CCITT:
                 return new CcittImageDecoder(pdfImage, loggerFactory);

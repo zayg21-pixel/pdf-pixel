@@ -15,7 +15,7 @@ internal interface IJpxPacketParser
     /// <param name="tileHeader">Tile-specific header information.</param>
     /// <returns>Array of parsed packets.</returns>
     JpxPacket[] ParsePackets(ReadOnlySpan<byte> packetData, JpxTileHeader tileHeader);
-    
+
     /// <summary>
     /// Gets the progression order that this parser handles.
     /// </summary>
