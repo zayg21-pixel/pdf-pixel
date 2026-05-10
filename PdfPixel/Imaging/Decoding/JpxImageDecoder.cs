@@ -1,15 +1,14 @@
 ﻿using Microsoft.Extensions.Logging;
+using PdfPixel.Color.ColorSpace;
 using PdfPixel.Commands;
 using PdfPixel.Imaging.Jpx.Decoding;
 using PdfPixel.Imaging.Jpx.Model;
 using PdfPixel.Imaging.Jpx.Parsing;
 using PdfPixel.Imaging.Model;
 using PdfPixel.Imaging.Processing;
-using PdfPixel.Models;
 using SkiaSharp;
 using System;
 using System.Threading;
-using System.Threading.Tasks;
 
 namespace PdfPixel.Imaging.Decoding;
 
@@ -33,10 +32,8 @@ public class JpxImageDecoder : PdfImageDecoder
         ImageDecodingContext context,
         CancellationToken cancellationToken)
     {
-        if (!ValidateImageParameters())
-        {
-            return null;
-        }
+        // For JPX, BitsPerComponent and ColorSpace in the PDF dictionary must be ignored per spec —
+        // the actual values come from the JPX header (SIZ / colr boxes). Skip base validation.
         // TODO: [MEDIUM] process alpha correctly
 
         ReadOnlyMemory<byte> encodedImageData = Image.GetImageData();
@@ -63,6 +60,29 @@ public class JpxImageDecoder : PdfImageDecoder
         if (header.ComponentCount == 0)
         {
             throw new InvalidOperationException($"Invalid JPX component count {header.ComponentCount} (Image={Image.Name}).");
+        }
+
+        // Override color space from JPX header component count when the PDF dict value is absent
+        // or doesn't match. Per spec, the JPX-declared color space takes precedence.
+        // TODO: use ICC profile from JPX colr/cdef boxes when present.
+        var converter = Image.ColorSpaceConverter;
+        if (converter == null || (converter is not IndexedConverter && converter.Components != header.ComponentCount))
+        {
+            converter = header.ComponentCount switch
+            {
+                1 => (PdfColorSpaceConverter)DeviceGrayConverter.Instance,
+                3 => DeviceRgbConverter.Instance,
+                4 => DeviceCmykConverter.Instance,
+                _ => null
+            };
+
+            if (converter == null)
+            {
+                Logger.LogError("Cannot determine color space for JPX image with {Count} components (Name={Name}).", header.ComponentCount, Image.Name);
+                return null;
+            }
+
+            Image.UpdateColorSpace(converter);
         }
 
         // Detect JPX-native opacity channel declared via the cdef box.
@@ -95,10 +115,11 @@ public class JpxImageDecoder : PdfImageDecoder
 
         try
         {
-            rowProcessor = new PdfImageRowProcessor(Image, LoggerFactory.CreateLogger<PdfImageRowProcessor>(), context, inputSizeOverride);
+            rowProcessor = new PdfImageRowProcessor(Image, LoggerFactory.CreateLogger<PdfImageRowProcessor>(), context, inputSizeOverride, rowProvider.BitsPerComponent);
             rowProcessor.InitializeBuffer();
 
-            byte[] rowBuffer = new byte[rowProvider.Width * rowProvider.ComponentCount];
+            int rowBytes = (rowProvider.Width * rowProvider.ComponentCount * rowProvider.BitsPerComponent + 7) / 8;
+            byte[] rowBuffer = new byte[rowBytes];
 
             for (int rowIndex = 0; rowIndex < rowProvider.Height; rowIndex++)
             {

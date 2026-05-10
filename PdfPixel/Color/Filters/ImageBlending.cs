@@ -7,23 +7,12 @@ namespace PdfPixel.Color.Filters
     /// </summary>
     internal static class ImageBlending
     {
-        private static readonly SKRuntimeEffect _imageEffect;
         private static readonly SKRuntimeEffect _softMaskEffect;
         private static readonly SKRuntimeEffect _imageMaskEffect;
         private static readonly SKRuntimeEffect _stencilMaskEffect;
 
         static ImageBlending()
         {
-            var imageSksl = @"
-                uniform shader image;
-
-                half4 main(float2 coord) {
-                    return image.eval(coord);
-                }
-            ";
-
-            _imageEffect = SKRuntimeEffect.CreateShader(imageSksl, out _);
-
             var softMaskSksl = @"
                 uniform shader image;
                 uniform shader mask;
@@ -57,7 +46,6 @@ namespace PdfPixel.Color.Filters
                     return half4(fillColor * maskAlpha, maskAlpha);
                 }
             ";
-            // TODO: [HIGH] imageMaskSksl renders incorrectly, background color leaks outside of image!
             _softMaskEffect = SKRuntimeEffect.CreateShader(softMaskSksl, out _);
             _imageMaskEffect = SKRuntimeEffect.CreateShader(imageMaskSksl, out _);
 
@@ -75,18 +63,13 @@ namespace PdfPixel.Color.Filters
             _stencilMaskEffect = SKRuntimeEffect.CreateShader(stencilMaskSksl, out _);
         }
 
-        /// <summary>
-        /// Creates a simple image shader from a pre-built image child shader.
-        /// </summary>
-        public static SKShader CreateImageShader(SKShader imageChild)
+        public static SKShader BuildImageShader(
+            SKImage source,
+            SKSamplingOptions sampling)
         {
-            var uniforms = new SKRuntimeEffectUniforms(_imageEffect);
-            var children = new SKRuntimeEffectChildren(_imageEffect)
-            {
-                { "image", imageChild }
-            };
-
-            return _imageEffect.ToShader(uniforms, children);
+            return source.ToShader(
+                SKShaderTileMode.Clamp,
+                SKShaderTileMode.Clamp, sampling, SKMatrix.CreateScale(1f / source.Width, 1f / source.Height));
         }
 
         /// <summary>

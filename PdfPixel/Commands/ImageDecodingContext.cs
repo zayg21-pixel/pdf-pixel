@@ -18,19 +18,31 @@ public sealed class ImageDecodingContext
     /// <summary>
     /// Creates a decoding context by capturing the relevant values from a <see cref="PdfGraphicsState"/>.
     /// </summary>
-    /// <param name="state">The graphics state to snapshot.</param>
     public ImageDecodingContext(PdfGraphicsState state)
     {
         FullTransferFunction = state.FullTransferFunction;
         IsType3Rendering = state.IsType3Rendering;
-        FillColor = PdfPaintFactory.ApplyAlpha(state.FillPaint.Color, state.FillAlpha);
-        BlendMode = state.BlendMode;
+        FillColor = state.FillPaint.Color;
+        FillAlpha = state.FillAlpha;
+        BlendMode = PdfBlendModeNames.ToSkiaBlendMode(state.BlendMode);
+    }
+
+    /// <summary>
+    /// Creates a context derived from <paramref name="source"/> but with explicit compositing overrides.
+    /// Used for cases such as pattern-layer masking, where the desired blend mode and fill colour
+    /// differ from the original graphics state.
+    /// </summary>
+    public ImageDecodingContext(ImageDecodingContext source, SKColor fillColor, float fillAlpha, SKBlendMode blendMode)
+    {
+        FullTransferFunction = source.FullTransferFunction;
+        IsType3Rendering = source.IsType3Rendering;
+        FillColor = fillColor;
+        FillAlpha = fillAlpha;
+        BlendMode = blendMode;
     }
 
     /// <summary>
     /// Current transformation matrix at the image position in the page coordinate space.
-    /// Used to compute
-    /// any downscale target size.
     /// </summary>
     public SKMatrix CTM { get; set; } = SKMatrix.Identity;
 
@@ -45,20 +57,23 @@ public sealed class ImageDecodingContext
     public bool IsType3Rendering { get; }
 
     /// <summary>
-    /// Fill color from the graphics state, used for image mask (stencil) rendering.
+    /// Fill color from the graphics state, used for stencil mask rendering.
     /// </summary>
     public SKColor FillColor { get; }
 
     /// <summary>
-    /// Blend mode from the graphics state, used for paint composition.
+    /// Image fill alpha.
     /// </summary>
-    public PdfBlendMode BlendMode { get; }
+    public float FillAlpha { get; }
 
     /// <summary>
-    /// Returns a scaled size for the given original size based on the current
+    /// Skia blend mode for paint composition, converted from the PDF blend mode at construction.
     /// </summary>
-    /// <param name="size">Source size.</param>
-    /// <returns>Null if size should not be changed, downscaled size otherwise.</returns>
+    public SKBlendMode BlendMode { get; }
+
+    /// <summary>
+    /// Returns a scaled size for the given original size based on the current CTM.
+    /// </summary>
     public SKSizeI? GetScaledSize(SKSizeI size)
     {
         var unitMapped = CTM.MapPoint(new SKPoint(1, 1)) - CTM.MapPoint(new SKPoint(0, 0));
@@ -71,7 +86,6 @@ public sealed class ImageDecodingContext
 
         float maxScale = Math.Max(relScaleX, relScaleY);
 
-        // only down-scaling is supported
         if (maxScale < 1f)
         {
             var newWidth = Math.Max(1, (int)Math.Floor(size.Width * maxScale));

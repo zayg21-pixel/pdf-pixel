@@ -26,9 +26,20 @@ internal class PathFillRenderTarget : IRenderTarget
         }
     }
 
-    public SKPath ClipPath => _path;
+    public SKRect Bounds => _path.Bounds;
 
     public SKColor Color => _state.FillPaint.Color;
+
+    public void BeforePatternRender(IPdfCommandProcessor processor)
+    {
+        processor.Process(new SaveStateCommand());
+        processor.Process(new ClipPathCommand(_path, SKClipOperation.Intersect));
+    }
+
+    public void AfterPatternRender(IPdfCommandProcessor processor)
+    {
+        processor.Process(new RestoreStateCommand());
+    }
 
     public void Render(IPdfCommandProcessor processor)
     {

@@ -252,9 +252,10 @@ public sealed class PdfDrawShadingCommand : PdfCommand
     /// <summary>
     /// Clones the given base paint, applies antialias and modifiers, then draws it onto the canvas.
     /// </summary>
-    private static void DrawPaintToCanvas(SKCanvas canvas, SKPaint basePaint, IEnumerable<IPdfCommandModifier> modifiers, bool antialias)
+    private void DrawPaintToCanvas(SKCanvas canvas, SKPaint basePaint, IEnumerable<IPdfCommandModifier> modifiers, bool antialias)
     {
         using var paint = basePaint.Clone();
+        paint.Color = PdfPaintFactory.ApplyAlpha(paint.Color, _context.FillAlpha);
         paint.IsAntialias = antialias;
         foreach (var modifier in modifiers)
         {
@@ -267,9 +268,10 @@ public sealed class PdfDrawShadingCommand : PdfCommand
     /// <summary>
     /// Creates a shader paint, applies antialias and modifiers, then draws the vertices onto the canvas.
     /// </summary>
-    private static void DrawVerticesToCanvas(SKCanvas canvas, SKVertices vertices, IEnumerable<IPdfCommandModifier> modifiers, bool antialias)
+    private void DrawVerticesToCanvas(SKCanvas canvas, SKVertices vertices, IEnumerable<IPdfCommandModifier> modifiers, bool antialias)
     {
         using var paint = PdfPaintFactory.CreateShaderPaint();
+        paint.Color = PdfPaintFactory.ApplyAlpha(paint.Color, _context.FillAlpha);
         paint.IsAntialias = antialias;
         foreach (var modifier in modifiers)
         {

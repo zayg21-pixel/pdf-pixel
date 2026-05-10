@@ -25,7 +25,7 @@ internal class PdfTextExtractionRenderer : IPdfRenderer
         // Apply form matrix
         processor.Process(new ConcatMatrixCommand(formXObject.Matrix));
 
-        processor.Process(new ClipRectCommand(formXObject.BBox, SKClipOperation.Intersect));
+        processor.Process(new ClipPathCommand(formXObject.BBox, SKClipOperation.Intersect));
 
         // Decode and render content with a cloned state
         var content = formXObject.GetFormData();

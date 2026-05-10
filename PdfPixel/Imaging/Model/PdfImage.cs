@@ -8,6 +8,30 @@ using System.IO;
 
 namespace PdfPixel.Imaging.Model;
 
+public enum PdfImageAlphaMode
+{
+    /// <summary>
+    /// No alpha.
+    /// </summary>
+    Normal,
+
+    /// <summary>
+    /// <see cref="PdfImage.HasImageMask"/> is true, background is defined by background color or pattern,
+    /// Image contents sets alpha transparency. <see cref="MaskArray"/> can contain properties to invert mask.
+    /// </summary>
+    StencilMask,
+
+    /// <summary>
+    /// Image transparency is defined by <see cref="PdfImage.SoftMask"/>.
+    /// </summary>
+    ImageWithSoftAlphaMask,
+
+    /// <summary>
+    /// Image transparency is defined by <see cref="PdfImage.StencilMask"/>.
+    /// </summary>
+    ImageWithStencilMask
+}
+
 /// <summary>
 /// Represents a PDF Image XObject with all its properties and data.
 /// Parsed values are populated in FromXObject to keep this data object immutable from outside.
@@ -47,11 +71,6 @@ public class PdfImage
     public int BitsPerComponent { get; internal set; }
 
     /// <summary>
-    /// Image is decoded from a soft mask (/Image XObject with /Subtype /Image and /SMask key in the parent image).
-    /// </summary>
-    public bool IsSoftMask { get; internal set; } // TODO: remove
-
-    /// <summary>
     /// Color space (/ColorSpace). Resolved to a strongly-typed converter for sample interpretation.
     /// </summary>
     public PdfColorSpaceConverter ColorSpaceConverter { get; internal set; }
@@ -65,6 +84,11 @@ public class PdfImage
     /// Simplified image type classification derived from /Filter (e.g., JPEG, JPEG2000, CCITT, JBIG2, Raw).
     /// </summary>
     public PdfImageType Type { get; internal set; } = PdfImageType.Raw;
+
+    /// <summary>
+    /// Image alpha mode depending on parameters.
+    /// </summary>
+    public PdfImageAlphaMode AlphaMode { get; internal set; } = PdfImageAlphaMode.Normal;
 
     /// <summary>
     /// Parsed /DecodeParms entries (single dictionary or first image-related entry when array) used by certain filters and predictors.
@@ -157,7 +181,6 @@ public class PdfImage
             Width = imageXObject.Dictionary.GetIntegerOrDefault(PdfTokens.WidthKey),
             Height = imageXObject.Dictionary.GetIntegerOrDefault(PdfTokens.HeightKey),
             BitsPerComponent = bitsPerComponent,
-            IsSoftMask = isSoftMask,
             ColorSpaceConverter = page.Cache.ColorSpace.ResolveByObject(imageXObject.Dictionary.GetObject(PdfTokens.ColorSpaceKey), defaultComponents),
             Name = name
         };
@@ -226,6 +249,19 @@ public class PdfImage
         if (softMaskObject != null)
         {
             image.SoftMask = FromXObject(softMaskObject, page, name, isSoftMask: true);
+        }
+
+        if (image.HasImageMask)
+        {
+            image.AlphaMode = PdfImageAlphaMode.StencilMask;
+        }
+        else if (image.SoftMask != null)
+        {
+            image.AlphaMode = PdfImageAlphaMode.ImageWithSoftAlphaMask;
+        }
+        else if (image.StencilMask != null)
+        {
+            image.AlphaMode = PdfImageAlphaMode.ImageWithStencilMask;
         }
 
         return image;

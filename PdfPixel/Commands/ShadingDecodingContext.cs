@@ -20,6 +20,7 @@ public sealed class ShadingDecodingContext
     public ShadingDecodingContext(PdfGraphicsState state, PdfShading shading)
     {
         Converter = state.Page.Cache.ColorSpace.ResolveByObject(shading.ColorSpaceConverter);
+        FillAlpha = state.FillAlpha;
         RenderingIntent = state.RenderingIntent;
         FullTransferFunction = state.FullTransferFunction;
     }
@@ -28,6 +29,11 @@ public sealed class ShadingDecodingContext
     /// Resolved color space converter for the shading's color space.
     /// </summary>
     public PdfColorSpaceConverter Converter { get; }
+
+    /// <summary>
+    /// Shading fill alpha.
+    /// </summary>
+    public float FillAlpha { get; }
 
     /// <summary>
     /// Rendering intent captured from the graphics state.

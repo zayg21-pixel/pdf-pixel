@@ -1,4 +1,5 @@
 using PdfPixel.Imaging.Jpx.Model;
+using PdfPixel.Parsing;
 using System;
 using System.Threading;
 
@@ -59,6 +60,11 @@ internal sealed class JpxTileToRowConverter : IDisposable
 
         _currentRow = 0;
         _currentTileRowTiles = new JpxTile[_tileProvider.TilesHorizontal];
+
+        // Use the JPX header's precision (per spec, ignore PDF BitsPerComponent for JPX).
+        // Cap at 16, the maximum supported by the row processor.
+        int headerBpc = header.Components.Count > 0 ? header.Components[0].PrecisionBits : 8;
+        BitsPerComponent = Math.Min(16, Math.Max(1, headerBpc));
     }
 
     /// <summary>
@@ -77,14 +83,20 @@ internal sealed class JpxTileToRowConverter : IDisposable
     public int ComponentCount { get; }
 
     /// <summary>
+    /// Gets the bit depth per component as declared in the JPX header (capped at 16).
+    /// Callers must use this value rather than the PDF /BitsPerComponent entry.
+    /// </summary>
+    public int BitsPerComponent { get; }
+
+    /// <summary>
     /// Gets the current row index (0-based).
     /// </summary>
     public int CurrentRow => _currentRow;
 
     /// <summary>
-    /// Attempts to read the next row of image data.
+    /// Attempts to read the next row of image data as bit-packed samples at <see cref="BitsPerComponent"/> depth.
     /// </summary>
-    /// <param name="rowBuffer">Buffer to receive the row data. Must be at least Width * ComponentCount bytes.</param>
+    /// <param name="rowBuffer">Buffer to receive the row data. Must be at least <c>(Width * ComponentCount * BitsPerComponent + 7) / 8</c> bytes.</param>
     /// <param name="cancellationToken">Token to cancel tile decoding between tiles.</param>
     /// <returns>True if a row was successfully read, false if at end of image.</returns>
     public bool TryGetNextRow(Span<byte> rowBuffer, CancellationToken cancellationToken = default)
@@ -94,72 +106,62 @@ internal sealed class JpxTileToRowConverter : IDisposable
             return false;
         }
 
-        if (rowBuffer.Length < Width * ComponentCount)
+        int requiredBytes = (Width * ComponentCount * BitsPerComponent + 7) / 8;
+        if (rowBuffer.Length < requiredBytes)
         {
-            throw new ArgumentException($"Row buffer too small. Required: {Width * ComponentCount}, provided: {rowBuffer.Length}");
+            throw new ArgumentException($"Row buffer too small. Required: {requiredBytes}, provided: {rowBuffer.Length}");
         }
 
-        // Determine which tile row this image row belongs to
+        rowBuffer.Slice(0, requiredBytes).Clear();
+
         int tileRow = _currentRow / _reducedTileHeight;
         int rowWithinTile = _currentRow % _reducedTileHeight;
 
-        // Decode this tile row lazily if we haven't already
         EnsureTileRowLoaded(tileRow, cancellationToken);
 
+        var writer = new UintBitWriter(rowBuffer);
         int outputPixelIndex = 0;
 
-        // Assemble row from horizontal tiles
         for (int tileCol = 0; tileCol < _tileProvider.TilesHorizontal; tileCol++)
         {
             int tileIndex = tileRow * _tileProvider.TilesHorizontal + tileCol;
 
             if (tileIndex >= _tileProvider.TotalTiles)
             {
-                // Fill remaining pixels with zeros if tile is missing
                 int remainingPixels = Width - outputPixelIndex;
                 for (int i = 0; i < remainingPixels * ComponentCount; i++)
-                {
-                    rowBuffer[outputPixelIndex * ComponentCount + i] = 0;
-                }
+                    writer.WriteBits(BitsPerComponent, 0);
                 break;
             }
 
             var tile = _currentTileRowTiles[tileCol];
             if (tile == null || rowWithinTile >= tile.Height)
             {
-                // Skip missing or invalid tile
+                int tileStartX = tileCol * _reducedTileWidth;
+                int missingPixels = Math.Min(_reducedTileWidth, Width - tileStartX);
+                for (int i = 0; i < missingPixels * ComponentCount; i++)
+                    writer.WriteBits(BitsPerComponent, 0);
+                outputPixelIndex += missingPixels;
                 continue;
             }
 
-            // Calculate how many pixels to copy from this tile
-            int tileStartX = tileCol * _reducedTileWidth;
-            int pixelsFromTile = Math.Min(tile.Width, Width - tileStartX);
+            int tileStartXPixel = tileCol * _reducedTileWidth;
+            int pixelsFromTile = Math.Min(tile.Width, Width - tileStartXPixel);
 
-            // Copy pixels from tile to row buffer
             for (int pixelInTile = 0; pixelInTile < pixelsFromTile; pixelInTile++)
             {
                 if (outputPixelIndex >= Width)
-                {
-                    break; // Don't exceed image width
-                }
+                    break;
 
-                // Copy each component for this pixel
-                for (int component = 0; component < ComponentCount && component < tile.ComponentCount; component++)
+                for (int component = 0; component < ComponentCount; component++)
                 {
-                    if (tile.ComponentData[component] != null)
+                    uint uValue = 0;
+                    if (component < tile.ComponentCount && tile.ComponentData[component] != null)
                     {
-                        // Use the tile's helper method to get the component value
-                        int componentValue = tile.GetComponentValue(component, pixelInTile, rowWithinTile);
-                        
-                        // Apply bit depth conversion and clamping
-                        byte byteValue = ConvertComponentToByte(componentValue, tile.ComponentBitDepths[component], tile.ComponentSigned[component]);
-                        
-                        rowBuffer[outputPixelIndex * ComponentCount + component] = byteValue;
+                        int rawValue = tile.GetComponentValue(component, pixelInTile, rowWithinTile);
+                        uValue = ConvertToUnsignedAtTargetDepth(rawValue, tile.ComponentBitDepths[component], tile.ComponentSigned[component], BitsPerComponent);
                     }
-                    else
-                    {
-                        rowBuffer[outputPixelIndex * ComponentCount + component] = 0;
-                    }
+                    writer.WriteBits(BitsPerComponent, uValue);
                 }
 
                 outputPixelIndex++;
@@ -170,45 +172,27 @@ internal sealed class JpxTileToRowConverter : IDisposable
         return true;
     }
 
-    private static byte ConvertComponentToByte(int value, int bitDepth, bool isSigned)
+    private static uint ConvertToUnsignedAtTargetDepth(int rawValue, int actualBitDepth, bool isSigned, int targetBitDepth)
     {
-        if (bitDepth <= 8)
+        uint uValue;
+        if (isSigned)
         {
-            // For 8 bits or less, scale to full byte range
-            if (isSigned)
-            {
-                // Signed: map from [-2^(n-1), 2^(n-1)-1] to [0, 255]
-                int minVal = -(1 << (bitDepth - 1));
-                int maxVal = (1 << (bitDepth - 1)) - 1;
-                value = Math.Max(minVal, Math.Min(maxVal, value));
-                return (byte)((value - minVal) * 255 / (maxVal - minVal));
-            }
-            else
-            {
-                // Unsigned: map from [0, 2^n-1] to [0, 255]
-                int maxVal = (1 << bitDepth) - 1;
-                value = Math.Max(0, Math.Min(maxVal, value));
-                return (byte)(value * 255 / maxVal);
-            }
+            // Bias signed [-(1<<(n-1)), (1<<(n-1))-1] into unsigned [0, (1<<n)-1]
+            int biasShift = Math.Min(actualBitDepth - 1, 30);
+            uValue = (uint)(rawValue + (1 << biasShift));
         }
         else
         {
-            // For more than 8 bits, take the most significant bits
-            int shift = bitDepth - 8;
-            if (isSigned)
-            {
-                // Handle signed values
-                value = Math.Max(-(1 << (bitDepth - 1)), Math.Min((1 << (bitDepth - 1)) - 1, value));
-                value = (value >> shift) + 128; // Shift to unsigned range
-            }
-            else
-            {
-                value = Math.Max(0, Math.Min((1 << bitDepth) - 1, value));
-                value = value >> shift;
-            }
-            
-            return (byte)Math.Max(0, Math.Min(255, value));
+            uValue = (uint)rawValue;
         }
+
+        int shift = actualBitDepth - targetBitDepth;
+        if (shift > 0)
+            uValue >>= shift;
+        else if (shift < 0)
+            uValue <<= -shift;
+
+        return uValue;
     }
 
     public void Dispose()

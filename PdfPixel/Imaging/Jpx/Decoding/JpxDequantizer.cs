@@ -54,11 +54,14 @@ internal static class JpxDequantizer
             }
             else
             {
-                // Fallback: derive from LL exponent
+                // Fallback: derive from LL exponent using correct level-based offset
+                // (same logic as scalar-derived: exponent decreases by 1 per resolution level,
+                // not by 1 per subband index)
                 int llExponent = (quantization.StepSizes != null && quantization.StepSizes.Length > 0)
                     ? (quantization.StepSizes[0] >> 11) & 0x1F
                     : 8;
-                exponent = llExponent - stepIndex;
+                int levelOffset = (stepIndex == 0) ? 0 : ((stepIndex - 1) / 3 + 1);
+                exponent = llExponent - levelOffset;
             }
         }
         else if (quantization.QuantizationType == 1)

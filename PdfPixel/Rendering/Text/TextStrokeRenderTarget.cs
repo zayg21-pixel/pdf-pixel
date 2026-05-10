@@ -1,4 +1,4 @@
-﻿using PdfPixel.Color.Paint;
+using PdfPixel.Color.Paint;
 using PdfPixel.Commands;
 using PdfPixel.Pattern.Model;
 using PdfPixel.Rendering.State;
@@ -18,7 +18,7 @@ internal class TextStrokeRenderTarget : IRenderTarget
     private readonly PdfGraphicsState _state;
     private readonly SKPaint _strokePaint;
     private readonly PdfPattern _pattern;
-    private SKPath _clipPath;
+    private readonly SKPath _clipPath;
 
     public TextStrokeRenderTarget(SKFont font, IList<ShapedGlyph> shapingResult, PdfGraphicsState state)
     {
@@ -30,24 +30,34 @@ internal class TextStrokeRenderTarget : IRenderTarget
         if (state.StrokePaint.IsPattern)
         {
             _pattern = state.StrokePaint.Pattern;
-        }
-    }
-
-    public SKPath ClipPath
-    {
-        get
-        {
-            if (_clipPath == null)
+            var sourcePath = TextRenderUtilities.GetTextPath(shapingResult, font, state);
+            var fillPath = _strokePaint.GetFillPath(sourcePath);
+            if (fillPath != null)
             {
-                using var sourcePath = TextRenderUtilities.GetTextPath(_shapingResult, _font, _state);
-                _clipPath = _strokePaint.GetFillPath(sourcePath) ?? sourcePath;
+                sourcePath.Dispose();
+                _clipPath = fillPath;
             }
-
-            return _clipPath;
+            else
+            {
+                _clipPath = sourcePath;
+            }
         }
     }
+
+    public SKRect Bounds => _clipPath.Bounds;
 
     public SKColor Color => _state.StrokePaint.Color;
+
+    public void BeforePatternRender(IPdfCommandProcessor processor)
+    {
+        processor.Process(new SaveStateCommand());
+        processor.Process(new ClipPathCommand(_clipPath, SKClipOperation.Intersect));
+    }
+
+    public void AfterPatternRender(IPdfCommandProcessor processor)
+    {
+        processor.Process(new RestoreStateCommand());
+    }
 
     public void Render(IPdfCommandProcessor processor)
     {

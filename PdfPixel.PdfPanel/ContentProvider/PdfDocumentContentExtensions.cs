@@ -80,7 +80,7 @@ public static class PdfDocumentContentExtensions
 
     private static void ApplyPageTransformations(PdfPage pdfPage, IPdfCommandProcessor commandRecording)
     {
-        commandRecording.Process(new ClipRectCommand(
+        commandRecording.Process(new ClipPathCommand(
             new SKRect(0, 0, pdfPage.CropBox.Width, pdfPage.CropBox.Height),
             SKClipOperation.Intersect));
 

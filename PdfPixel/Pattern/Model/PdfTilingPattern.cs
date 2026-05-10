@@ -90,18 +90,16 @@ public sealed class PdfTilingPattern : PdfPattern
 
         var matrix = SKMatrix.Concat(state.CTM.Invert(), PatternMatrix);
 
+        renderTarget.BeforePatternRender(processor);
+
         processor.Process(new SaveStateCommand());
-
-        var clipPath = renderTarget.ClipPath;
-        processor.Process(new ClipPathCommand(clipPath, SKClipOperation.Intersect));
-
         processor.Process(new ConcatMatrixCommand(matrix));
 
         IPdfCommandModifier modifier = PaintTypeKind == PdfTilingPaintType.Uncolored
             ? new UncoloredPaintModifier(renderTarget.Color)
             : default;
 
-        var bounds = matrix.Invert().MapRect(clipPath.Bounds);
+        var bounds = matrix.Invert().MapRect(renderTarget.Bounds);
 
         float startX = bounds.Left - bounds.Left % XStep;
         float startY = bounds.Top - bounds.Top % YStep;
@@ -127,5 +125,6 @@ public sealed class PdfTilingPattern : PdfPattern
         }
 
         processor.Process(new RestoreStateCommand());
+        renderTarget.AfterPatternRender(processor);
     }
 }

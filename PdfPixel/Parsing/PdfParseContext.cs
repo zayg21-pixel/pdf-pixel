@@ -1,53 +1,26 @@
 using PdfPixel.Text;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Runtime.CompilerServices;
-using System.Text;
 
 namespace PdfPixel.Parsing;
 
 /// <summary>
 /// High-performance PDF parse context over one or many memory chunks treated uniformly.
-/// Maintains a cached current chunk and performs lazy binary search when crossing chunk boundaries.
-/// Simplified (no single-chunk special casing) for maintainability.
 /// </summary>
 public ref struct PdfParseContext
 {
-    private readonly ReadOnlySpan<ReadOnlyMemory<byte>> _chunks;
-    private readonly ReadOnlySpan<int> _chunkStartPositions; // Cumulative start offsets per chunk (last element == total length)
-    private readonly int _length; // Total length across all chunks
-    private int _currentChunkIndex;
-    private int _currentChunkStart; // Absolute start position of current chunk
-    private int _currentChunkEnd; // Absolute end (exclusive) position of current chunk
-    private int _position; // Unified absolute position
-    private ReadOnlySpan<byte> _currentChunk;
-    private const int InvalidChunkIndex = -1;
+    private readonly ReadOnlySpan<byte> _data;
+    private int _position;
 
     /// <summary>
     /// Construct context from a single memory block (wrapped as one chunk).
     /// </summary>
     /// <param name="memory">The memory block to parse.</param>
-    public PdfParseContext(ReadOnlyMemory<byte> memory)// TODO: [MEDIUM] we might want to combine streams here to eliminate memory bound operations
+    public PdfParseContext(ReadOnlyMemory<byte> memory)
     {
-        var chunkArray = memory.Length == 0 ? Array.Empty<ReadOnlyMemory<byte>>() : [memory];
-        _chunks = chunkArray;
-
-        var starts = new int[chunkArray.Length + 1];
-        var running = 0;
-        for (var i = 0; i < chunkArray.Length; i++)
-        {
-            starts[i] = running;
-            running += chunkArray[i].Length;
-        }
-        starts[chunkArray.Length] = running;
-        _chunkStartPositions = starts;
-
-        _length = running;
-        _position = 0;
-        _currentChunkIndex = chunkArray.Length > 0 ? 0 : InvalidChunkIndex;
-        _currentChunk = chunkArray.Length > 0 ? chunkArray[0].Span : ReadOnlySpan<byte>.Empty;
-        _currentChunkStart = _currentChunkIndex >= 0 ? 0 : 0;
-        _currentChunkEnd = _currentChunkIndex >= 0 ? _currentChunk.Length : 0;
+        _data = memory.Span;
     }
 
     /// <summary>
@@ -61,25 +34,16 @@ public ref struct PdfParseContext
             throw new ArgumentNullException(nameof(chunks));
         }
 
-        var chunkArray = chunks.ToArray();
-        _chunks = chunkArray;
-
-        var starts = new int[chunkArray.Length + 1];
-        var running = 0;
-        for (var i = 0; i < chunkArray.Length; i++)
+        Memory<byte> total = new byte[chunks.Sum(x => x.Length + 1) - 1];
+        int start = 0;
+        for (int i = 0; i < chunks.Count; i++)
         {
-            starts[i] = running;
-            running += chunkArray[i].Length;
+            var chunk = chunks[i];
+            chunk.CopyTo(total.Slice(start, chunk.Length));
+            start += chunk.Length + 1; // add 1 padding byte between chunks to set correct /0 separator between chunks
         }
-        starts[chunkArray.Length] = running;
-        _chunkStartPositions = starts;
 
-        _length = running;
-        _position = 0;
-        _currentChunkIndex = chunkArray.Length > 0 ? 0 : InvalidChunkIndex;
-        _currentChunk = chunkArray.Length > 0 ? chunkArray[0].Span : ReadOnlySpan<byte>.Empty;
-        _currentChunkStart = _currentChunkIndex >= 0 ? 0 : 0;
-        _currentChunkEnd = _currentChunkIndex >= 0 ? _currentChunk.Length : 0;
+        _data = total.Span;
     }
 
     /// <summary>
@@ -96,12 +60,11 @@ public ref struct PdfParseContext
             {
                 value = 0;
             }
-            if (value > _length)
+            if (value > _data.Length)
             {
-                value = _length;
+                value = _data.Length;
             }
             _position = value;
-            SetCurrentChunkByPosition(value);
         }
     }
 
@@ -111,7 +74,7 @@ public ref struct PdfParseContext
     public int Length
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get { return _length; }
+        get { return _data.Length; }
     }
 
     /// <summary>
@@ -120,7 +83,7 @@ public ref struct PdfParseContext
     public bool IsAtEnd
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get { return _position >= _length; }
+        get { return _position >= _data.Length; }
     }
 
     /// <summary>
@@ -134,23 +97,12 @@ public ref struct PdfParseContext
     public byte PeekByte(int offset = 0)
     {
         var target = _position + offset;
-        if (target < 0 || target >= _length)
+        if (target < 0 || target >= _data.Length)
         {
             return 0;
         }
 
-        if (_currentChunkIndex >= 0 && target >= _currentChunkStart && target < _currentChunkEnd)
-        {
-            return _currentChunk[target - _currentChunkStart];
-        }
-
-        SetCurrentChunkByPosition(target);
-        if (_currentChunkIndex < 0)
-        {
-            return 0;
-        }
-
-        return _currentChunk[target - _currentChunkStart];
+        return _data[_position + offset];
     }
 
     /// <summary>
@@ -177,90 +129,15 @@ public ref struct PdfParseContext
         {
             newPosition = 0;
         }
-        if (newPosition > _length)
+        if (newPosition > _data.Length)
         {
-            newPosition = _length;
+            newPosition = _data.Length;
         }
         _position = newPosition;
-        SetCurrentChunkByPosition(newPosition);
-    }
-
-    /// <summary>
-    /// Sets the current chunk based on an absolute position. If position is outside the stream, sets to empty.
-    /// Fast path: if already inside current chunk, do nothing.
-    /// </summary>
-    /// <param name="position">Absolute position within the logical stream.</param>
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private void SetCurrentChunkByPosition(int position)
-    {
-        if (_currentChunkIndex >= 0 && position >= _currentChunkStart && position < _currentChunkEnd)
-        {
-            // Already within current chunk; nothing to update.
-            return;
-        }
-
-        if (position < 0 || position >= _length)
-        {
-            _currentChunkIndex = InvalidChunkIndex;
-            _currentChunk = ReadOnlySpan<byte>.Empty;
-            _currentChunkStart = 0;
-            _currentChunkEnd = 0;
-            return;
-        }
-
-        int left = 0;
-        int right = _chunks.Length - 1;
-        while (left <= right)
-        {
-            int mid = left + (right - left) / 2;
-            int chunkStart = _chunkStartPositions[mid];
-            int chunkEnd = _chunkStartPositions[mid + 1];
-            if (position >= chunkStart && position < chunkEnd)
-            {
-                _currentChunkIndex = mid;
-                _currentChunkStart = chunkStart;
-                _currentChunkEnd = chunkEnd;
-                _currentChunk = _chunks[mid].Span;
-                return;
-            }
-            if (position < chunkStart)
-            {
-                right = mid - 1;
-            }
-            else
-            {
-                left = mid + 1;
-            }
-        }
-
-        _currentChunkIndex = InvalidChunkIndex;
-        _currentChunk = ReadOnlySpan<byte>.Empty;
-        _currentChunkStart = 0;
-        _currentChunkEnd = 0;
-    }
-
-    public byte[] ToArray()
-    {
-        byte[] result = new byte[_length];
-        int destOffset = 0;
-        foreach (var chunk in _chunks)
-        {
-            var span = chunk.Span;
-            span.CopyTo(result.AsSpan(destOffset, span.Length));
-            destOffset += span.Length;
-        }
-        return result;
     }
 
     public override string ToString()
     {
-        StringBuilder builder = new StringBuilder();
-
-        foreach (var chunk in _chunks)
-        {
-            builder.Append(Text.EncodingExtensions.PdfDefault.GetString(chunk));
-        }
-
-        return builder.ToString();
+        return Text.EncodingExtensions.PdfDefault.GetString(_data);
     }
 }

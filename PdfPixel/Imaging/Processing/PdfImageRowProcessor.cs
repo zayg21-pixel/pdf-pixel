@@ -49,23 +49,24 @@ internal sealed class PdfImageRowProcessor : IDisposable
         PdfImage image,
         ILogger logger,
         ImageDecodingContext context,
-        SKSizeI? inputSizeOverride = null)
+        SKSizeI? inputSizeOverride = null,
+        int bitsPerComponentOverride = 0)
     {
         _image = image ?? throw new ArgumentNullException(nameof(image));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
         var sourceWidth = inputSizeOverride?.Width ?? image.Width;
         var sourceHeight = inputSizeOverride?.Height ?? image.Height;
-        _bitsPerComponent = image.BitsPerComponent;
+        _bitsPerComponent = bitsPerComponentOverride > 0 ? bitsPerComponentOverride : image.BitsPerComponent;
         _converter = image.ColorSpaceConverter ?? throw new InvalidOperationException("Color space converter must not be null for row processing.");
-        
+
         if (sourceWidth <= 0 || sourceHeight <= 0)
         {
             throw new ArgumentException("Image dimensions must be positive.");
         }
-        if (_bitsPerComponent != 1 && _bitsPerComponent != 2 && _bitsPerComponent != 4 && _bitsPerComponent != 8 && _bitsPerComponent != 16)
+        if (_bitsPerComponent > 16)
         {
-            throw new NotSupportedException("Row processor supports 1,2,4,8,16 bits per component only.");
+            throw new NotSupportedException($"Row processor supports up to 16 bits per component (got {_bitsPerComponent}).");
         }
 
         _components = _converter.Components;

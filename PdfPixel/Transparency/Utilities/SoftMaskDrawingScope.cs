@@ -102,7 +102,7 @@ public sealed class SoftMaskDrawingScope : IDisposable
         var recorder = new PdfCommandRecorder();
         recorder.Process(new SaveStateCommand());
         recorder.Process(new ConcatMatrixCommand(_maskMatrix));
-        recorder.Process(new ClipRectCommand(_softMask.MaskForm.BBox, SKClipOperation.Intersect));
+        recorder.Process(new ClipPathCommand(_softMask.MaskForm.BBox, SKClipOperation.Intersect));
 
         if (_softMask.Subtype == PdfSoftMaskSubtype.Luminosity)
         {

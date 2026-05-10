@@ -31,9 +31,20 @@ internal class PathStrokeRenderTarget : IRenderTarget
         }
     }
 
-    public SKPath ClipPath => _clipPath;
+    public SKRect Bounds => _clipPath.Bounds;
 
     public SKColor Color => _state.StrokePaint.Color;
+
+    public void BeforePatternRender(IPdfCommandProcessor processor)
+    {
+        processor.Process(new SaveStateCommand());
+        processor.Process(new ClipPathCommand(_clipPath, SKClipOperation.Intersect));
+    }
+
+    public void AfterPatternRender(IPdfCommandProcessor processor)
+    {
+        processor.Process(new RestoreStateCommand());
+    }
 
     public void Render(IPdfCommandProcessor processor)
     {

@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//c/Users/zayg2/repos/CoreJ2K/**)",
+      "Bash(grep -v \"//.*magbits\")"
+    ]
+  }
+}

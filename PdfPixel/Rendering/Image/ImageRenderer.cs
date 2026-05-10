@@ -47,7 +47,7 @@ public class ImageRenderer : IImageRenderer
         using var softMaskScope = new SoftMaskDrawingScope(_renderer, processor, state);
         softMaskScope.BeginDrawContent();
 
-        var decodingContext = new ImageDecodingContext(state);
-        processor.Process(new DrawImageCommand(pdfImage, decodingContext, _factory));
+        var target = new ImageFillRenderTarget(pdfImage, state, _factory);
+        target.Render(processor);
     }
 }

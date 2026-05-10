@@ -1,4 +1,4 @@
-﻿using PdfPixel.Commands;
+using PdfPixel.Commands;
 using SkiaSharp;
 using System;
 
@@ -18,13 +18,28 @@ namespace PdfPixel.Rendering
         void Render(IPdfCommandProcessor processor);
 
         /// <summary>
-        /// Gets the clipping path used to define the visible region of the drawing surface.
+        /// Bounding rectangle of this render target in current CTM space.
+        /// Used by pattern tiling to determine which tiles are needed.
+        /// For path/text targets this equals <see cref="ClipPath"/>.Bounds;
+        /// for image targets it is the unit square [0,0,1,1].
         /// </summary>
-        public SKPath ClipPath { get; }
+        SKRect Bounds { get; }
 
         /// <summary>
         /// Returns color of the render target if applicable.
         /// </summary>
-        public SKColor Color { get; }
+        SKColor Color { get; }
+
+        /// <summary>
+        /// Called by pattern implementations before they emit their tile/shading commands.
+        /// Path/text targets clip to <see cref="ClipPath"/>; image targets open a new layer.
+        /// </summary>
+        void BeforePatternRender(IPdfCommandProcessor processor);
+
+        /// <summary>
+        /// Called by pattern implementations after all tile/shading commands have been emitted.
+        /// No-op for path/text targets; image targets apply the stencil mask and close the layer.
+        /// </summary>
+        void AfterPatternRender(IPdfCommandProcessor processor);
     }
 }

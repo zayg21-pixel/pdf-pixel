@@ -51,12 +51,11 @@ public sealed class PdfShadingPattern : PdfPattern
         var recorder = new PdfCommandRecorder();
 
         recorder.Process(new SaveStateCommand());
-        recorder.Process(new ClipPathCommand(renderTarget.ClipPath, SKClipOperation.Intersect));
         recorder.Process(new ConcatMatrixCommand(matrix));
 
         if (Shading.BBox.HasValue)
         {
-            recorder.Process(new ClipRectCommand(Shading.BBox.Value, SKClipOperation.Intersect));
+            recorder.Process(new ClipPathCommand(Shading.BBox.Value, SKClipOperation.Intersect));
         }
 
         if (Shading.Background != null && Shading.BBox.HasValue)
@@ -76,6 +75,8 @@ public sealed class PdfShadingPattern : PdfPattern
 
         recorder.Process(new RestoreStateCommand());
 
+        renderTarget.BeforePatternRender(processor);
         processor.Process(new DrawRecordingCommand(recorder));
+        renderTarget.AfterPatternRender(processor);
     }
 }
