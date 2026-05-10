@@ -89,6 +89,14 @@ internal static class WglInterop
 
     [DllImport(OpenGl32, SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
+    internal static extern bool glEnable(uint cap);
+
+    [DllImport(OpenGl32, SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static extern bool glHint(uint target, uint mode);
+
+    [DllImport(OpenGl32, SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
     internal static extern bool wglDeleteContext(IntPtr hGLRC);
 
     [DllImport(OpenGl32)]

@@ -55,9 +55,9 @@ internal static class MeshEvaluator
     /// </summary>
     /// <param name="patches">List of mesh patches to tessellate.</param>
     /// <param name="tessellation">Number of subdivisions per axis (higher = smoother).</param>
-    /// <param name="token">Cancellation token for async operations.</param>
+    /// <param name="token">Cancellation token for long-running operations.</param>
     /// <returns>SKVertices instance containing all tessellated mesh vertices, colors, and indices.</returns>
-    public static async Task<SKVertices> CreateVerticesForPatchesAsync(List<MeshData> patches, int tessellation, CancellationToken token)
+    public static SKVertices CreateVerticesForPatches(List<MeshData> patches, int tessellation, CancellationToken token)
     {
         if (patches == null || patches.Count == 0)
         {
@@ -118,7 +118,6 @@ internal static class MeshEvaluator
                     vertexIndex++;
                 }
 
-                await Task.Yield();
                 token.ThrowIfCancellationRequested();
             }
             int index = 0;

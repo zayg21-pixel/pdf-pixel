@@ -172,7 +172,7 @@ public class JpxSubbandAssemblerTests
     public void AssembleAndReconstruct_EmptyPackets_DoesNotThrow()
     {
         var header = CreateHeader(8, 8, 1);
-        var tile = new JpxTile(header, CreateTileHeader());
+        var tile = new JpxTile(header, CreateTileHeader(), (int)header.Width, (int)header.Height);
 
         AssembleAndReconstruct(Array.Empty<JpxPacket>(), header, tile);
 
@@ -187,7 +187,7 @@ public class JpxSubbandAssemblerTests
     public void AssembleAndReconstruct_NullPackets_DoesNotThrow()
     {
         var header = CreateHeader(8, 8, 1);
-        var tile = new JpxTile(header, CreateTileHeader());
+        var tile = new JpxTile(header, CreateTileHeader(), (int)header.Width, (int)header.Height);
 
         AssembleAndReconstruct(null, header, tile);
 
@@ -198,7 +198,7 @@ public class JpxSubbandAssemblerTests
     public void AssembleAndReconstruct_ZeroDecomposition_PassesThroughDirectly()
     {
         var header = CreateHeader(4, 4, 0);
-        var tile = new JpxTile(header, CreateTileHeader());
+        var tile = new JpxTile(header, CreateTileHeader(), (int)header.Width, (int)header.Height);
 
         // With 0 decomposition levels, LL = full image, no DWT needed
         var sb = new JpxSubbandData(4, 4, 0);
@@ -214,7 +214,7 @@ public class JpxSubbandAssemblerTests
     public void AssembleAndReconstruct_LevelShift_AddsOffset()
     {
         var header = CreateHeader(2, 2, 1);
-        var tile = new JpxTile(header, CreateTileHeader());
+        var tile = new JpxTile(header, CreateTileHeader(), (int)header.Width, (int)header.Height);
 
         // Empty packets → all-zero coefficients → after DWT still zero → level shift adds 128
         AssembleAndReconstruct(new JpxPacket[0], header, tile);
@@ -232,7 +232,7 @@ public class JpxSubbandAssemblerTests
     public void AssembleAndReconstruct_Clamps_ToValidRange()
     {
         var header = CreateHeader(2, 2, 1);
-        var tile = new JpxTile(header, CreateTileHeader());
+        var tile = new JpxTile(header, CreateTileHeader(), (int)header.Width, (int)header.Height);
 
         AssembleAndReconstruct(new JpxPacket[0], header, tile);
 
@@ -249,7 +249,7 @@ public class JpxSubbandAssemblerTests
     public void InverseDwt53_DcOnlySignal_ProducesConstantOutput()
     {
         var header = CreateHeader(4, 4, 1);
-        var tile = new JpxTile(header, CreateTileHeader());
+        var tile = new JpxTile(header, CreateTileHeader(), (int)header.Width, (int)header.Height);
 
         // Create a packet at resolution 0 (LL) with a constant coefficient
         var codeBlock = new JpxCodeBlock
@@ -299,8 +299,8 @@ public class JpxSubbandAssemblerTests
     {
         var header = CreateHeader(4, 4, 1);
 
-        var tile1 = new JpxTile(header, CreateTileHeader());
-        var tile2 = new JpxTile(header, CreateTileHeader());
+        var tile1 = new JpxTile(header, CreateTileHeader(), (int)header.Width, (int)header.Height);
+        var tile2 = new JpxTile(header, CreateTileHeader(), (int)header.Width, (int)header.Height);
 
         AssembleAndReconstruct(new JpxPacket[0], header, tile1);
         AssembleAndReconstruct(new JpxPacket[0], header, tile2);

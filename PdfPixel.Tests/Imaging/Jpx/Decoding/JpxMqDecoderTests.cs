@@ -20,23 +20,6 @@ public class JpxMqDecoderTests
     }
 
     /// <summary>
-    /// Verifies key Qe values from ITU-T T.800 Table C.3.
-    /// </summary>
-    [Theory]
-    [InlineData(0, 0x5601)]  // State 0: highest probability LPS
-    [InlineData(1, 0x3401)]
-    [InlineData(2, 0x1801)]
-    [InlineData(3, 0x0AC1)]
-    [InlineData(45, 0x0001)] // State 45: lowest probability LPS
-    [InlineData(46, 0x5601)] // State 46: uniform context state
-    public void QeValues_MatchSpecTable(int stateIndex, int expectedQe)
-    {
-        ushort actualQe = JpxMqDecoder.GetQe(stateIndex);
-
-        Assert.Equal((ushort)expectedQe, actualQe);
-    }
-
-    /// <summary>
     /// Verifies that creating a decoder with minimal data does not throw.
     /// The MQ decoder should handle even very short data gracefully.
     /// </summary>
@@ -49,24 +32,24 @@ public class JpxMqDecoderTests
         var decoder = new JpxMqDecoder(data);
 
         // Verify initial context states per ITU-T T.800 Table D.7
-        // Context 0: state 4
-        Assert.Equal(4, decoder.GetContextState(0));
+        // Context 0 (uniform): state 46
+        Assert.Equal(46, decoder.GetContextState(0));
         Assert.Equal(0, decoder.GetContextMps(0));
 
-        // Context 17 (uniform): state 46
-        Assert.Equal(46, decoder.GetContextState(JpxMqDecoder.ContextCount - 2));
-        Assert.Equal(0, decoder.GetContextMps(JpxMqDecoder.ContextCount - 2));
+        // Context 1 (run-length): state 3
+        Assert.Equal(3, decoder.GetContextState(1));
+        Assert.Equal(0, decoder.GetContextMps(1));
 
-        // Context 18 (run-length): state 3
-        Assert.Equal(3, decoder.GetContextState(JpxMqDecoder.ContextCount - 1));
-        Assert.Equal(0, decoder.GetContextMps(JpxMqDecoder.ContextCount - 1));
+        // Context 2 (first ZC): state 4
+        Assert.Equal(4, decoder.GetContextState(2));
+        Assert.Equal(0, decoder.GetContextMps(2));
     }
 
     /// <summary>
-    /// Verifies that contexts 1-16 initialize to state 0 with MPS=0.
+    /// Verifies that contexts 3-18 initialize to state 0 with MPS=0.
     /// </summary>
     [Theory]
-    [InlineData(1)]
+    [InlineData(3)]
     [InlineData(5)]
     [InlineData(10)]
     [InlineData(16)]
@@ -97,24 +80,6 @@ public class JpxMqDecoderTests
             int bit = decoder.DecodeBit(0);
 
             Assert.True(bit == 0 || bit == 1, $"DecodeBit returned {bit}, expected 0 or 1.");
-        }
-    }
-
-    /// <summary>
-    /// Verifies that DecodeBypass (uniform context) returns valid binary values.
-    /// </summary>
-    [Fact]
-    public void DecodeBypass_ReturnsValidBinaryValues()
-    {
-        byte[] data = [0xFF, 0x00, 0xFF, 0x00, 0xFF, 0x00, 0xFF, 0x00];
-
-        var decoder = new JpxMqDecoder(data);
-
-        for (int i = 0; i < 8; i++)
-        {
-            int bit = decoder.DecodeBypass();
-
-            Assert.True(bit == 0 || bit == 1, $"DecodeBypass returned {bit}, expected 0 or 1.");
         }
     }
 

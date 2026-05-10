@@ -35,7 +35,7 @@ public class JpxTier1DecoderTests
         var codingStyle = CreateDefaultCodingStyle();
 
         Assert.Throws<ArgumentNullException>(() =>
-            JpxTier1Decoder.DecodeCodeBlock(null, codingStyle));
+            new JpxTier1Decoder(codingStyle, null).Decode());
     }
 
     [Fact]
@@ -44,7 +44,7 @@ public class JpxTier1DecoderTests
         var codeBlock = new JpxCodeBlock { Width = 4, Height = 4 };
 
         Assert.Throws<ArgumentNullException>(() =>
-            JpxTier1Decoder.DecodeCodeBlock(codeBlock, null));
+            new JpxTier1Decoder(null, codeBlock).Decode());
     }
 
     [Fact]
@@ -53,7 +53,7 @@ public class JpxTier1DecoderTests
         var codeBlock = new JpxCodeBlock { Width = 0, Height = 0 };
         var codingStyle = CreateDefaultCodingStyle();
 
-        int[] result = JpxTier1Decoder.DecodeCodeBlock(codeBlock, codingStyle);
+        int[] result = new JpxTier1Decoder(codingStyle, codeBlock).Decode();
 
         Assert.Equal(0, codeBlock.Height);
         Assert.Equal(0, codeBlock.Width);
@@ -72,7 +72,7 @@ public class JpxTier1DecoderTests
         };
         var codingStyle = CreateDefaultCodingStyle();
 
-        int[] result = JpxTier1Decoder.DecodeCodeBlock(codeBlock, codingStyle);
+        int[] result = new JpxTier1Decoder(codingStyle, codeBlock).Decode();
 
         Assert.Equal(4, codeBlock.Height);
         Assert.Equal(4, codeBlock.Width);
@@ -99,7 +99,7 @@ public class JpxTier1DecoderTests
         };
         var codingStyle = CreateDefaultCodingStyle();
 
-        int[] result = JpxTier1Decoder.DecodeCodeBlock(codeBlock, codingStyle);
+        int[] result = new JpxTier1Decoder(codingStyle, codeBlock).Decode();
 
         Assert.Equal(4, codeBlock.Height);
         Assert.Equal(4, codeBlock.Width);
@@ -118,7 +118,7 @@ public class JpxTier1DecoderTests
         };
         var codingStyle = CreateDefaultCodingStyle();
 
-        int[] result = JpxTier1Decoder.DecodeCodeBlock(codeBlock, codingStyle);
+        int[] result = new JpxTier1Decoder(codingStyle, codeBlock).Decode();
 
         for (int y = 0; y < 4; y++)
         {
@@ -153,7 +153,7 @@ public class JpxTier1DecoderTests
         };
         var codingStyle = CreateDefaultCodingStyle();
 
-        int[] result = JpxTier1Decoder.DecodeCodeBlock(codeBlock, codingStyle);
+        int[] result = new JpxTier1Decoder(codingStyle, codeBlock).Decode();
 
         Assert.Equal(4, codeBlock.Height);
         Assert.Equal(4, codeBlock.Width);
@@ -180,7 +180,7 @@ public class JpxTier1DecoderTests
         };
         var codingStyle = CreateDefaultCodingStyle();
 
-        int[] result = JpxTier1Decoder.DecodeCodeBlock(codeBlock, codingStyle);
+        int[] result = new JpxTier1Decoder(codingStyle, codeBlock).Decode();
 
         Assert.Equal(4, codeBlock.Height);
         Assert.Equal(4, codeBlock.Width);
@@ -204,7 +204,7 @@ public class JpxTier1DecoderTests
         };
         var codingStyle = CreateDefaultCodingStyle();
 
-        int[] result = JpxTier1Decoder.DecodeCodeBlock(codeBlock, codingStyle);
+        int[] result = new JpxTier1Decoder(codingStyle, codeBlock).Decode();
 
         Assert.Equal(2, codeBlock.Height);
         Assert.Equal(8, codeBlock.Width);
@@ -230,7 +230,7 @@ public class JpxTier1DecoderTests
         };
         var codingStyle = CreateDefaultCodingStyle();
 
-        int[] result = JpxTier1Decoder.DecodeCodeBlock(codeBlock, codingStyle);
+        int[] result = new JpxTier1Decoder(codingStyle, codeBlock).Decode();
 
         Assert.Equal(12, codeBlock.Height);
         Assert.Equal(4, codeBlock.Width);
@@ -257,7 +257,7 @@ public class JpxTier1DecoderTests
         };
         var codingStyle = CreateDefaultCodingStyle();
 
-        int[] result = JpxTier1Decoder.DecodeCodeBlock(codeBlock, codingStyle);
+        int[] result = new JpxTier1Decoder(codingStyle, codeBlock).Decode();
 
         // Any non-zero coefficients should have magnitude at bit position 3
         for (int y = 0; y < 4; y++)
@@ -300,8 +300,8 @@ public class JpxTier1DecoderTests
             CodingPasses = 4, ZeroBitPlanes = 0
         };
 
-        int[] result1 = JpxTier1Decoder.DecodeCodeBlock(codeBlock1, codingStyle);
-        int[] result2 = JpxTier1Decoder.DecodeCodeBlock(codeBlock2, codingStyle);
+        int[] result1 = new JpxTier1Decoder(codingStyle, codeBlock1).Decode();
+        int[] result2 = new JpxTier1Decoder(codingStyle, codeBlock2).Decode();
 
         for (int y = 0; y < 4; y++)
         {
@@ -337,7 +337,7 @@ public class JpxTier1DecoderTests
         // The cleanup pass will check for the segmentation symbol (0x0A)
         // With all-zero data, the MQ decoder will likely not produce 0x0A
         Assert.Throws<InvalidOperationException>(() =>
-            JpxTier1Decoder.DecodeCodeBlock(codeBlock, codingStyle));
+            new JpxTier1Decoder(codingStyle, codeBlock).Decode());
     }
 
     /// <summary>
@@ -362,7 +362,7 @@ public class JpxTier1DecoderTests
         var codingStyle = CreateDefaultCodingStyle();
         codingStyle.CodeBlockStyle = 0x02; // Reset contexts on each pass
 
-        int[] result = JpxTier1Decoder.DecodeCodeBlock(codeBlock, codingStyle);
+        int[] result = new JpxTier1Decoder(codingStyle, codeBlock).Decode();
 
         Assert.Equal(4, codeBlock.Height);
         Assert.Equal(4, codeBlock.Width);
@@ -386,7 +386,7 @@ public class JpxTier1DecoderTests
         };
         var codingStyle = CreateDefaultCodingStyle();
 
-        int[] result = JpxTier1Decoder.DecodeCodeBlock(codeBlock, codingStyle);
+        int[] result = new JpxTier1Decoder(codingStyle, codeBlock).Decode();
 
         Assert.Equal(1, codeBlock.Height);
         Assert.Equal(1, codeBlock.Width);

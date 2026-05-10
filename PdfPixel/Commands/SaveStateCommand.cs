@@ -1,6 +1,5 @@
 using SkiaSharp;
 using System.Collections.Generic;
-using System.Threading.Tasks;
 
 namespace PdfPixel.Commands;
 
@@ -10,9 +9,8 @@ namespace PdfPixel.Commands;
 public sealed class SaveStateCommand : PdfCommand
 {
     /// <inheritdoc />
-    public override Task ExecuteAsync(SKCanvas canvas, IEnumerable<IPdfCommandModifier> modifiers, PdfCommandExecutionContext executionContext)
+    public override void Execute(SKCanvas canvas, IEnumerable<IPdfCommandModifier> modifiers, PdfCommandExecutionContext executionContext)
     {
         canvas.Save();
-        return Task.CompletedTask;
     }
 }

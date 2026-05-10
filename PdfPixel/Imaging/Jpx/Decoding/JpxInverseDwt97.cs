@@ -44,48 +44,52 @@ internal sealed class JpxInverseDwt97 : IJpxInverseDwt
     }
 
     /// <inheritdoc/>
-    public void Transform(JpxSubbandData subbands, int[] destination)
+    public void Transform(JpxSubbandData subbands, int[] destination, int stopAtLevel = 0)
     {
         if (subbands == null)
         {
             throw new ArgumentNullException(nameof(subbands));
         }
 
-        int width = subbands.FullWidth;
-        int height = subbands.FullHeight;
+        int fullWidth = subbands.FullWidth;
+        int fullHeight = subbands.FullHeight;
         int levels = subbands.Levels;
+
+        // Compute output dimensions based on how many levels we reconstruct
+        int outputWidth = (stopAtLevel == 0) ? fullWidth : (fullWidth + (1 << stopAtLevel) - 1) >> stopAtLevel;
+        int outputHeight = (stopAtLevel == 0) ? fullHeight : (fullHeight + (1 << stopAtLevel) - 1) >> stopAtLevel;
 
         int currentWidth = subbands.LLWidth;
         int currentHeight = subbands.LLHeight;
 
         // Dequantize LL into destination (used as working buffer)
-        int llShift = GetDequantShift(0, 0);
+        var llParams = JpxDequantizer.ComputeIrreversibleParams(_quantization, 0, 0, _bitDepth, FracBits);
         for (int y = 0; y < currentHeight; y++)
         {
             for (int x = 0; x < currentWidth; x++)
             {
-                destination[y * width + x] = Dequantize(subbands.LL[y * subbands.LLWidth + x], llShift);
+                destination[y * outputWidth + x] = JpxDequantizer.DequantizeIrreversible(subbands.LL[y * subbands.LLWidth + x], llParams);
             }
         }
 
         // Ensure reusable buffers are large enough
-        int maxDimension = Math.Max(width, height);
+        int maxDimension = Math.Max(outputWidth, outputHeight);
         if (_columnBuffer.Length < maxDimension)
         {
             _columnBuffer = new int[maxDimension];
         }
 
-        int maxPixels = width * height;
+        int maxPixels = outputWidth * outputHeight;
         if (_interleavedBuffer.Length < maxPixels)
         {
             _interleavedBuffer = new int[maxPixels];
         }
 
         // Reconstruct level by level from coarsest to finest
-        for (int level = levels - 1; level >= 0; level--)
+        for (int level = levels - 1; level >= stopAtLevel; level--)
         {
-            int nextWidth = (level == 0) ? width : (width + (1 << level) - 1) >> level;
-            int nextHeight = (level == 0) ? height : (height + (1 << level) - 1) >> level;
+            int nextWidth = (level == 0) ? fullWidth : (fullWidth + (1 << level) - 1) >> level;
+            int nextHeight = (level == 0) ? fullHeight : (fullHeight + (1 << level) - 1) >> level;
 
             var hl = subbands.GetSubband(level, JpxSubbandType.HL);
             var lh = subbands.GetSubband(level, JpxSubbandType.LH);
@@ -100,9 +104,9 @@ internal sealed class JpxInverseDwt97 : IJpxInverseDwt
             // QCD step size indices: LL=0, then coarsest to finest detail
             // level (levels-1) → indices 1,2,3; level (levels-2) → 4,5,6; etc.
             int qcdBase = 1 + (levels - 1 - level) * 3;
-            int hlShift = GetDequantShift(qcdBase + 0, 1);
-            int lhShift = GetDequantShift(qcdBase + 1, 1);
-            int hhShift = GetDequantShift(qcdBase + 2, 2);
+            var hlParams = JpxDequantizer.ComputeIrreversibleParams(_quantization, qcdBase + 0, 1, _bitDepth, FracBits);
+            var lhParams = JpxDequantizer.ComputeIrreversibleParams(_quantization, qcdBase + 1, 1, _bitDepth, FracBits);
+            var hhParams = JpxDequantizer.ComputeIrreversibleParams(_quantization, qcdBase + 2, 2, _bitDepth, FracBits);
 
             int[] interleaved = _interleavedBuffer;
 
@@ -111,7 +115,7 @@ internal sealed class JpxInverseDwt97 : IJpxInverseDwt
             {
                 for (int x = 0; x < currentWidth && x * 2 < nextWidth; x++)
                 {
-                    interleaved[(y * 2) * nextWidth + (x * 2)] = destination[y * width + x];
+                    interleaved[(y * 2) * nextWidth + (x * 2)] = destination[y * outputWidth + x];
                 }
             }
 
@@ -120,7 +124,7 @@ internal sealed class JpxInverseDwt97 : IJpxInverseDwt
             {
                 for (int x = 0; x < hlWidth && x * 2 + 1 < nextWidth; x++)
                 {
-                    interleaved[(y * 2) * nextWidth + (x * 2 + 1)] = Dequantize(hl[y * hlWidth + x], hlShift);
+                    interleaved[(y * 2) * nextWidth + (x * 2 + 1)] = JpxDequantizer.DequantizeIrreversible(hl[y * hlWidth + x], hlParams);
                 }
             }
 
@@ -129,7 +133,7 @@ internal sealed class JpxInverseDwt97 : IJpxInverseDwt
             {
                 for (int x = 0; x < lhWidth && x * 2 < nextWidth; x++)
                 {
-                    interleaved[(y * 2 + 1) * nextWidth + (x * 2)] = Dequantize(lh[y * lhWidth + x], lhShift);
+                    interleaved[(y * 2 + 1) * nextWidth + (x * 2)] = JpxDequantizer.DequantizeIrreversible(lh[y * lhWidth + x], lhParams);
                 }
             }
 
@@ -138,7 +142,7 @@ internal sealed class JpxInverseDwt97 : IJpxInverseDwt
             {
                 for (int x = 0; x < hhWidth && x * 2 + 1 < nextWidth; x++)
                 {
-                    interleaved[(y * 2 + 1) * nextWidth + (x * 2 + 1)] = Dequantize(hh[y * hhWidth + x], hhShift);
+                    interleaved[(y * 2 + 1) * nextWidth + (x * 2 + 1)] = JpxDequantizer.DequantizeIrreversible(hh[y * hhWidth + x], hhParams);
                 }
             }
 
@@ -158,7 +162,7 @@ internal sealed class JpxInverseDwt97 : IJpxInverseDwt
             {
                 for (int x = 0; x < nextWidth; x++)
                 {
-                    destination[y * width + x] = interleaved[y * nextWidth + x];
+                    destination[y * outputWidth + x] = interleaved[y * nextWidth + x];
                 }
             }
 
@@ -167,73 +171,11 @@ internal sealed class JpxInverseDwt97 : IJpxInverseDwt
         }
 
         // Final right-shift to remove fixed-point fractional bits
-        int totalPixels = width * height;
+        int totalPixels = outputWidth * outputHeight;
         for (int i = 0; i < totalPixels; i++)
         {
             destination[i] = (destination[i] + Half) >> FracBits;
         }
-    }
-
-    /// <summary>
-    /// Computes the right-shift for dequantization that keeps coefficients in 13-bit
-    /// fixed-point representation. The input is sign-magnitude from Tier-1 with magnitude
-    /// in bits 30..0. We shift so the result is in fixed-point: value * 2^FracBits represents
-    /// the true reconstructed coefficient.
-    /// </summary>
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private int GetDequantShift(int stepIndex, int subbandGain)
-    {
-        if (_quantization?.StepSizes == null || stepIndex >= _quantization.StepSizes.Length)
-        {
-            return 31 - FracBits;
-        }
-
-        int guardBits = _quantization.GuardBits;
-        ushort encoded = _quantization.StepSizes[stepIndex];
-        int exponent = (encoded >> 11) & 0x1F;
-        int mantissa = encoded & 0x7FF;
-
-        // For irreversible, the effective shift combines the quantization step
-        // with the fixed-point scale. magBits = guardBits + exponent - 1.
-        // We need: coeff >> (31 - magBits - FracBits) but also apply mantissa.
-        // Since mantissa factor is (1 + m/2048), and we can't easily do that in pure shift,
-        // we use a two-step: shift then multiply by fixed-point mantissa factor.
-        int magBits = guardBits + exponent - 1;
-        int shift = 31 - magBits - FracBits;
-
-        return Math.Max(shift, 0);
-    }
-
-    /// <summary>
-    /// Dequantizes a sign-magnitude coefficient into 13-bit fixed-point,
-    /// applying the quantization step size mantissa factor.
-    /// </summary>
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private int Dequantize(int coefficient, int shift)
-    {
-        if (coefficient == 0)
-        {
-            return 0;
-        }
-
-        int sign;
-        int magnitude;
-
-        if (coefficient >= 0)
-        {
-            sign = 1;
-            magnitude = coefficient;
-        }
-        else
-        {
-            sign = -1;
-            magnitude = coefficient & 0x7FFFFFFF;
-        }
-
-        // Right-shift to fixed-point precision
-        int result = magnitude >> shift;
-
-        return sign * result;
     }
 
     /// <summary>
@@ -249,8 +191,8 @@ internal sealed class JpxInverseDwt97 : IJpxInverseDwt
             return;
         }
 
-        int evenCount = (height + 1) / 2;
-        int oddCount = height / 2;
+        int evenCount = (height + 1) >> 1;
+        int oddCount = height >> 1;
 
         if (oddCount == 0)
         {
@@ -347,8 +289,8 @@ internal sealed class JpxInverseDwt97 : IJpxInverseDwt
         }
 
         int offset = y * width;
-        int evenCount = (width + 1) / 2;
-        int oddCount = width / 2;
+        int evenCount = (width + 1) >> 1;
+        int oddCount = width >> 1;
 
         if (oddCount == 0)
         {

@@ -61,7 +61,7 @@ public static class PdfDocumentContentExtensions
         return commandRecording;
     }
 
-    public static async Task<SKPicture> RecordingToSkPicture(PdfPanelPageInfo pageInfo, PdfCommandRecorder commandRecording, PdfCommandExecutionContext executionContext)
+    public static SKPicture RecordingToSkPicture(PdfPanelPageInfo pageInfo, PdfCommandRecorder commandRecording, PdfCommandExecutionContext executionContext)
     {
         if (commandRecording == null)
         {
@@ -71,7 +71,7 @@ public static class PdfDocumentContentExtensions
         using var recorder = new SKPictureRecorder();
         using var canvas = recorder.BeginRecording(SKRect.Create(pageInfo.Width, pageInfo.Height));
 
-        await commandRecording.ReplayAsync(canvas, Array.Empty<IPdfCommandModifier>(), executionContext);
+        commandRecording.Replay(canvas, Array.Empty<IPdfCommandModifier>(), executionContext);
 
         canvas.Flush();
 

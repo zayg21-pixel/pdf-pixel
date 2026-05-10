@@ -29,15 +29,15 @@ public class JpxImageDecoder : PdfImageDecoder
     {
     }
 
-    public override async Task<SKImage> DecodeAsync(
+    public override SKImage Decode(
         ImageDecodingContext context,
-        PdfRenderingParameters renderingParameters,
         CancellationToken cancellationToken)
     {
         if (!ValidateImageParameters())
         {
             return null;
         }
+        // TODO: [MEDIUM] process alpha correctly
 
         ReadOnlyMemory<byte> encodedImageData = Image.GetImageData();
 
@@ -65,48 +65,49 @@ public class JpxImageDecoder : PdfImageDecoder
             throw new InvalidOperationException($"Invalid JPX component count {header.ComponentCount} (Image={Image.Name}).");
         }
 
-        Logger.LogDebug("JPX Header - Width: {Width}, Height: {Height}, Components: {Components}, Format: {Format}", 
-            header.Width, header.Height, header.ComponentCount, header.IsRawCodestream ? "Raw Codestream" : "JP2");
+        // Detect JPX-native opacity channel declared via the cdef box.
+        // Per ISO 32000-1 §8.9.5.4, when the JPX stream declares an opacity component
+        // it overrides any external SMask in the image dictionary.
+        // A single-component image whose sole cdef entry is type 1 or 2 carries only alpha
+        // data; its decoded pixel values map directly to opacity [0..max] with no colour.
+        bool isOpacityOnlyStream =
+            header.HasOpacityChannel &&
+            header.OpacityComponentIndex == 0 &&
+            header.ComponentCount == 1; // TODO: use.
 
-        if (header.CodingStyle != null)
-        {
-            Logger.LogDebug("JPX Coding Style - Decomposition Levels: {Levels}, Transform: {Transform}, Progressive Order: {Order}",
-                header.CodingStyle.DecompositionLevels, 
-                header.CodingStyle.IsReversibleTransform ? "Reversible (5-3)" : "Irreversible (9-7)",
-                header.CodingStyle.ProgressionOrder);
-        }
+        // Compute JPX-native descale factor from target rendering size
+        var decodingParameters = ComputeDecodingParameters(header, context);
 
         // Decode codestream into row provider
         ReadOnlySpan<byte> codestreamData = encodedImageData.Span.Slice(header.CodestreamOffset);
         var tileDecoder = JpxTileDecoderFactory.CreateDecoder(header);
-        var jpxDecoder = new JpxDecoder(tileDecoder);
+        var tileProvider = new JpxTileProvider(header, codestreamData, tileDecoder, decodingParameters);
 
-        using var rowProvider = jpxDecoder.Decode(header, codestreamData);
+        using var rowProvider = new JpxTileToRowConverter(header, tileProvider, decodingParameters);
 
+        // The row provider emits at the reduced resolution; tell the row processor
+        // so it can further downscale only the remainder (if any).
+        SKSizeI? inputSizeOverride = decodingParameters.DescaleFactor > 1
+            ? new SKSizeI(rowProvider.Width, rowProvider.Height)
+            : null;
         // Stream decoded data through PdfImageRowProcessor
         PdfImageRowProcessor rowProcessor = null;
 
         try
         {
-            rowProcessor = new PdfImageRowProcessor(Image, LoggerFactory.CreateLogger<PdfImageRowProcessor>(), context, renderingParameters);
+            rowProcessor = new PdfImageRowProcessor(Image, LoggerFactory.CreateLogger<PdfImageRowProcessor>(), context, inputSizeOverride);
             rowProcessor.InitializeBuffer();
 
             byte[] rowBuffer = new byte[rowProvider.Width * rowProvider.ComponentCount];
 
             for (int rowIndex = 0; rowIndex < rowProvider.Height; rowIndex++)
             {
-                if (!rowProvider.TryGetNextRow(rowBuffer))
+                if (!rowProvider.TryGetNextRow(rowBuffer, cancellationToken))
                 {
                     throw new InvalidOperationException($"JPX decode failed at row {rowIndex} (Image={Image.Name}).");
                 }
 
                 rowProcessor.WriteRow(rowIndex, rowBuffer);
-
-                if (renderingParameters.AsyncExecution)
-                {
-                    await Task.Yield();
-                }
-
                 cancellationToken.ThrowIfCancellationRequested();
             }
 
@@ -116,5 +117,45 @@ public class JpxImageDecoder : PdfImageDecoder
         {
             rowProcessor?.Dispose();
         }
+    }
+
+    /// <summary>
+    /// Computes the optimal JPX descale factor by comparing the full image size
+    /// to the target rendering size. The factor is the largest power of 2 that still
+    /// produces an image at least as large as the target.
+    /// </summary>
+    private static JpxDecodingParameters ComputeDecodingParameters(
+        JpxHeader header,
+        ImageDecodingContext context)
+    {
+        var sourceSize = new SKSizeI((int)header.Width, (int)header.Height);
+        SKSizeI? targetSize = context.GetScaledSize(sourceSize);
+
+        if (!targetSize.HasValue || header.CodingStyle == null)
+        {
+            return JpxDecodingParameters.Default;
+        }
+
+        int maxLevels = header.CodingStyle.DecompositionLevels;
+
+        // Find the largest power-of-2 factor where the reduced image is still >= target
+        int descaleFactor = 1;
+
+        for (int candidate = 2; candidate <= (1 << maxLevels); candidate *= 2)
+        {
+            int reducedWidth = Math.Max(1, (sourceSize.Width + candidate - 1) / candidate);
+            int reducedHeight = Math.Max(1, (sourceSize.Height + candidate - 1) / candidate);
+
+            if (reducedWidth >= targetSize.Value.Width && reducedHeight >= targetSize.Value.Height)
+            {
+                descaleFactor = candidate;
+            }
+            else
+            {
+                break;
+            }
+        }
+
+        return new JpxDecodingParameters(descaleFactor);
     }
 }

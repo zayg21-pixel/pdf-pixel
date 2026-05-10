@@ -20,18 +20,12 @@ public sealed class DrawPathCommand : PdfCommand
     }
 
     /// <inheritdoc />
-    public override Task ExecuteAsync(SKCanvas canvas, IEnumerable<IPdfCommandModifier> modifiers, PdfCommandExecutionContext executionContext)
+    public override void Execute(SKCanvas canvas, IEnumerable<IPdfCommandModifier> modifiers, PdfCommandExecutionContext executionContext)
     {
-        using var paint = _basePaint.Clone();
-        paint.IsAntialias = executionContext.RenderingParameters.Antialias;
-        foreach (var modifier in modifiers)
-        {
-            modifier.ModifyPaint(paint);
-        }
+        using var paint = CommandHelpers.ApplyModifiers(_basePaint, modifiers);
+        paint.IsAntialias = CommandHelpers.GetPathIsAntialias(_path, canvas, executionContext);
 
         canvas.DrawPath(_path, paint);
-
-        return Task.CompletedTask;
     }
 
     /// <inheritdoc />

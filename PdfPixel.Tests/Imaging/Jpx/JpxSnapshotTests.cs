@@ -127,8 +127,8 @@ public class JpxSnapshotTests
         ReadOnlySpan<byte> codestream = data.AsSpan(header.CodestreamOffset);
 
         var tileDecoder = JpxTileDecoderFactory.CreateDecoder(header);
-        var decoder = new JpxDecoder(tileDecoder);
-        using var rowProvider = decoder.Decode(header, codestream);
+        var tileProvider = new JpxTileProvider(header, codestream, tileDecoder);
+        using var rowProvider = new JpxTileToRowConverter(header, tileProvider);
 
         int rowSize = rowProvider.Width * rowProvider.ComponentCount;
         byte[] result = new byte[rowSize * rowProvider.Height];

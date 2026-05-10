@@ -1,19 +1,15 @@
 using Microsoft.Extensions.Logging;
 using PdfPixel.Color.ColorSpace;
-using PdfPixel.Color.Filters;
 using PdfPixel.Color.Sampling;
 using PdfPixel.Color.Structures;
 using PdfPixel.Color.Transform;
 using PdfPixel.Commands;
 using PdfPixel.Imaging.Model;
 using PdfPixel.Imaging.Png;
-using PdfPixel.Models;
 using PdfPixel.Parsing;
 using SkiaSharp;
 using System;
 using System.Runtime.CompilerServices;
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace PdfPixel.Imaging.Processing;
 
@@ -53,18 +49,13 @@ internal sealed class PdfImageRowProcessor : IDisposable
         PdfImage image,
         ILogger logger,
         ImageDecodingContext context,
-        PdfRenderingParameters renderingParameters)
+        SKSizeI? inputSizeOverride = null)
     {
         _image = image ?? throw new ArgumentNullException(nameof(image));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
-        if (renderingParameters == null)
-        {
-            throw new ArgumentNullException(nameof(renderingParameters));
-        }
-
-        var sourceWidth = image.Width;
-        var sourceHeight = image.Height;
+        var sourceWidth = inputSizeOverride?.Width ?? image.Width;
+        var sourceHeight = inputSizeOverride?.Height ?? image.Height;
         _bitsPerComponent = image.BitsPerComponent;
         _converter = image.ColorSpaceConverter ?? throw new InvalidOperationException("Color space converter must not be null for row processing.");
         
@@ -79,7 +70,7 @@ internal sealed class PdfImageRowProcessor : IDisposable
 
         _components = _converter.Components;
 
-        var downscaleSize = renderingParameters.GetScaledSize(new SKSizeI(sourceWidth, sourceHeight), context.CTM);
+        var downscaleSize = context.GetScaledSize(new SKSizeI(sourceWidth, sourceHeight));
         bool isIndexed = _converter is IndexedConverter;
 
         if (!isIndexed && !context.IsType3Rendering && downscaleSize.HasValue)

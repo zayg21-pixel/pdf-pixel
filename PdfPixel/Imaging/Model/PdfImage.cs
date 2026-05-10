@@ -49,7 +49,7 @@ public class PdfImage
     /// <summary>
     /// Image is decoded from a soft mask (/Image XObject with /Subtype /Image and /SMask key in the parent image).
     /// </summary>
-    public bool IsSoftMask { get; internal set; }
+    public bool IsSoftMask { get; internal set; } // TODO: remove
 
     /// <summary>
     /// Color space (/ColorSpace). Resolved to a strongly-typed converter for sample interpretation.
@@ -106,6 +106,13 @@ public class PdfImage
     /// The soft mask image associated with this image, if any.
     /// </summary>
     public PdfImage SoftMask { get; internal set; }
+
+    /// <summary>
+    /// External stencil mask image (/Mask referencing an image XObject).
+    /// Where the mask sample is 1 the corresponding image sample is painted; where 0 it is masked out.
+    /// Null when /Mask is not an image XObject reference.
+    /// </summary>
+    public PdfImage StencilMask { get; internal set; }
 
     /// <summary>
     /// Explicitly replace the current <see cref="ColorSpaceConverter"/> with the provided converter.
@@ -166,7 +173,19 @@ public class PdfImage
             image.DecodeArray = decodeArray;
         }
 
-        image.MaskArray = imageXObject.Dictionary.GetArray(PdfTokens.MaskKey)?.GetIntegerArray();
+        var maskArray = imageXObject.Dictionary.GetArray(PdfTokens.MaskKey);
+        if (maskArray != null)
+        {
+            image.MaskArray = maskArray.GetIntegerArray();
+        }
+        else
+        {
+            var maskObject = imageXObject.Dictionary.GetObject(PdfTokens.MaskKey);
+            if (maskObject != null && maskObject.HasStream)
+            {
+                image.StencilMask = FromXObject(maskObject, page, name, isSoftMask: true);
+            }
+        }
 
         // Parse /Matte as raw float array (for dematting at render time)
         image.MatteArray = imageXObject.Dictionary.GetArray(PdfTokens.MatteKey)?.GetFloatArray();

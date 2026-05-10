@@ -1,15 +1,10 @@
 ﻿using Microsoft.Extensions.Logging;
 using PdfPixel.Color.ColorSpace;
-using PdfPixel.Color.Filters;
-using PdfPixel.Color.Transform;
 using PdfPixel.Commands;
 using PdfPixel.Imaging.Model;
-using PdfPixel.Imaging.Processing;
-using PdfPixel.Models;
 using SkiaSharp;
 using System;
 using System.Threading;
-using System.Threading.Tasks;
 
 namespace PdfPixel.Imaging.Decoding;
 
@@ -69,8 +64,7 @@ public abstract class PdfImageDecoder
                 return new CcittImageDecoder(pdfImage, loggerFactory);
 
             case PdfImageType.JBIG2:
-                // TODO: [MEDIUM] add JBIG2 support
-                return null;
+                return new Jbig2ImageDecoder(pdfImage, loggerFactory);
 
             default:
                 return null;
@@ -78,15 +72,13 @@ public abstract class PdfImageDecoder
     }
 
     /// <summary>
-    /// Returns the decoded image as an <see cref="SKImage"/>, or null on failure (errors are logged).
+    /// Returns the decoded image as an <see cref="SKImage"/>.
     /// </summary>
     /// <param name="context">graphics state values needed for image decoding..</param>
-    /// <param name="renderingParameters">Rendering parameters (may differ between replays).</param>
     /// <param name="cancellationToken">Cancellation token for cooperative cancellation.</param>
-    /// <returns>The decoded <see cref="SKImage"/>, or null on failure.</returns>
-    public abstract Task<SKImage> DecodeAsync(
+    /// <returns>The decoded <see cref="SKImage"/>.</returns>
+    public abstract SKImage Decode(
         ImageDecodingContext context,
-        PdfRenderingParameters renderingParameters,
         CancellationToken cancellationToken);
 
     /// <summary>

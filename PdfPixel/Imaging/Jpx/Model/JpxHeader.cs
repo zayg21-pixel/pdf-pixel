@@ -104,6 +104,38 @@ internal sealed class JpxHeader
     public List<JpxColorSpecification> ColorSpecifications { get; } = new List<JpxColorSpecification>();
 
     /// <summary>
+    /// Gets the channel definitions declared in the cdef box, if present.
+    /// Each entry describes the role (colour / alpha) of one component.
+    /// </summary>
+    public List<JpxChannelDefinition> ChannelDefinitions { get; } = new List<JpxChannelDefinition>();
+
+    /// <summary>
+    /// Gets the zero-based index of the first opacity component declared in the cdef box,
+    /// or <c>-1</c> when no opacity component is present.
+    /// </summary>
+    public int OpacityComponentIndex
+    {
+        get
+        {
+            foreach (JpxChannelDefinition def in ChannelDefinitions)
+            {
+                if (def.IsAlpha)
+                {
+                    return def.ComponentIndex;
+                }
+            }
+
+            return -1;
+        }
+    }
+
+    /// <summary>
+    /// Gets a value indicating whether the JP2 header declares at least one opacity component
+    /// via the cdef box.
+    /// </summary>
+    public bool HasOpacityChannel => OpacityComponentIndex >= 0;
+
+    /// <summary>
     /// Gets or sets the offset to the first tile-part header (start of actual codestream data).
     /// </summary>
     public int CodestreamOffset { get; set; } = -1;

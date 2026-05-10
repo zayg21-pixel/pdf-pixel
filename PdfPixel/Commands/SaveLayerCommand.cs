@@ -21,7 +21,7 @@ public sealed class SaveLayerCommand : PdfCommand
     }
 
     /// <inheritdoc />
-    public override Task ExecuteAsync(SKCanvas canvas, IEnumerable<IPdfCommandModifier> modifiers, PdfCommandExecutionContext executionContext)
+    public override void Execute(SKCanvas canvas, IEnumerable<IPdfCommandModifier> modifiers, PdfCommandExecutionContext executionContext)
     {
         if (_paint != null)
         {
@@ -33,8 +33,6 @@ public sealed class SaveLayerCommand : PdfCommand
         {
             canvas.SaveLayer(_bounds, null);
         }
-
-        return Task.CompletedTask;
     }
 
     /// <inheritdoc />

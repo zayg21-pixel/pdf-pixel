@@ -362,27 +362,34 @@ internal sealed class JpxPacketHeaderParser
     }
 
     /// <summary>
-    /// Skips SOP marker if present (0xFF91 + 4-byte body).
+    /// Skips SOP marker (0xFF91 + 4-byte body) per ITU-T T.800 Annex A.8.1.
+    /// When the coding style signals SOP markers, they are unconditionally present
+    /// before each packet. The marker is 6 bytes: FF 91 00 04 Nsop(2 bytes).
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static void SkipSopMarker(ref JpxBitReader bitReader)
     {
         bitReader.ByteAlign();
 
-        // SOP is 6 bytes total: FF 91 00 04 Nsop(2 bytes)
-        // We'd need to peek to confirm, but for simplicity align and skip if matching
-        // TODO: Implement proper SOP marker detection
+        // SOP marker is 6 bytes total: FF 91 00 04 Nsop_high Nsop_low
+        // When HasSopMarkers is true, the marker is guaranteed to be present.
+        // Skip all 6 bytes (marker code + Lsop + Nsop).
+        bitReader.ReadRawSpan(6);
     }
 
     /// <summary>
-    /// Skips EPH marker if present (0xFF92, no body).
+    /// Skips EPH marker (0xFF92, no body) per ITU-T T.800 Annex A.8.2.
+    /// When the coding style signals EPH markers, they are unconditionally present
+    /// after each packet header. The marker is 2 bytes: FF 92.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static void SkipEphMarker(ref JpxBitReader bitReader)
     {
         bitReader.ByteAlign();
-        // EPH is 2 bytes: FF 92
-        // TODO: Implement proper EPH marker detection
+
+        // EPH marker is 2 bytes: FF 92
+        // When HasEphMarkers is true, the marker is guaranteed to be present.
+        bitReader.ReadRawSpan(2);
     }
 
     /// <summary>

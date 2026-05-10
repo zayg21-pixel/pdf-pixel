@@ -1,6 +1,5 @@
 using SkiaSharp;
 using System;
-using System.Threading;
 
 namespace PdfPixel.PdfPanel.ContentProvider;
 
@@ -35,7 +34,7 @@ public class PageUpdatedArgs
 
 public interface IPdfPageContentProvider : IDisposable
 {
-    SemaphoreSlim DocumentLocker { get; }
+    object DocumentLocker { get; }
 
     Action<PageUpdatedArgs> OnPageUpdated { get; set; }
 

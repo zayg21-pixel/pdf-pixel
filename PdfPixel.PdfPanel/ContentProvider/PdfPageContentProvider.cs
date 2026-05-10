@@ -2,7 +2,6 @@ using PdfPixel.Models;
 using PdfPixel.PdfPanel.WorkQueue;
 using System;
 using System.Collections.Generic;
-using System.Threading;
 
 namespace PdfPixel.PdfPanel.ContentProvider;
 
@@ -14,7 +13,6 @@ public sealed class PdfPageContentProvider : IPdfPageContentProvider
 
     public PdfPageContentProvider(PdfDocument document, IWorkQueue<PdfPageUpdateCacheWorkItem> processingQueue)
     {
-        DocumentLocker = new SemaphoreSlim(1, 1);
         _document = document;
         _cache = new PdfPageCacheEntry[document.Pages.Count];
 
@@ -26,7 +24,7 @@ public sealed class PdfPageContentProvider : IPdfPageContentProvider
         _processingQueue = processingQueue;
     }
 
-    public SemaphoreSlim DocumentLocker { get; }
+    public object DocumentLocker { get; } = new object();
 
     public Action<PageUpdatedArgs> OnPageUpdated { get; set; }
 
@@ -99,7 +97,5 @@ public sealed class PdfPageContentProvider : IPdfPageContentProvider
         {
             cacheEntry.Dispose();
         }
-
-        DocumentLocker.Dispose();
     }
 }

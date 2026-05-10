@@ -13,6 +13,7 @@ using System.Linq;
 using System.Windows.Documents;
 using PdfPixel.TextExtraction;
 using System.Collections.Generic;
+using PdfPixel.Imaging.Decoding;
 
 namespace PdfPixel.Demo.Wpf;
 

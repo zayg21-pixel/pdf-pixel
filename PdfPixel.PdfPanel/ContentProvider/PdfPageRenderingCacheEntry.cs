@@ -45,7 +45,7 @@ public sealed class PdfPageCacheEntryItem : IDisposable
 
         if (commandRecording != null)
         {
-            IsScaleDependant = commandRecording.Commands.Count > 0 && commandRecording.Commands.Any(x => x.IsScaleDependant);
+            IsScaleDependant = commandRecording.Commands.Count > 0 && commandRecording.Commands.Any(x => x.IsScaleDependent);
         }
         else
         {

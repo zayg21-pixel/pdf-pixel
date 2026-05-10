@@ -9,5 +9,6 @@ public enum WorkerCommandType
     SetFont,
     SetDocument,
     UpdateContent,
-    PageContentReady
+    PageContentReady,
+    TestSharedArrayBuffer
 }

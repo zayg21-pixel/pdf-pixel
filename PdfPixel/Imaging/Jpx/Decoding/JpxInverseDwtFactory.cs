@@ -24,7 +24,7 @@ internal static class JpxInverseDwtFactory
 
         if (header.CodingStyle.IsReversibleTransform)
         {
-            return new JpxInverseDwt53(header.Quantization, header.CodingStyle.DecompositionLevels);
+            return new JpxInverseDwt53(header.Quantization);
         }
 
         int bitDepth = header.Components[componentIndex].PrecisionBits;

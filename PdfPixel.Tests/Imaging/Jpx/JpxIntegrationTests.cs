@@ -155,8 +155,8 @@ public class JpxIntegrationTests
         try
         {
             var tileDecoder = JpxTileDecoderFactory.CreateDecoder(header);
-            var decoder = new JpxDecoder(tileDecoder);
-            using var rowProvider = decoder.Decode(header, codestream);
+            var tileProvider = new JpxTileProvider(header, codestream, tileDecoder);
+            using var rowProvider = new JpxTileToRowConverter(header, tileProvider);
 
             Assert.Equal((int)header.Width, rowProvider.Width);
             Assert.Equal((int)header.Height, rowProvider.Height);
@@ -264,8 +264,8 @@ public class JpxIntegrationTests
 
         // Full decode
         var tileDecoder = JpxTileDecoderFactory.CreateDecoder(header);
-        var decoder = new JpxDecoder(tileDecoder);
-        using var rowProvider = decoder.Decode(header, codestream);
+        var tileProvider = new JpxTileProvider(header, codestream, tileDecoder);
+        using var rowProvider = new JpxTileToRowConverter(header, tileProvider);
 
         // Check first few rows of pixel data
         byte[] rowBuffer = new byte[rowProvider.Width * rowProvider.ComponentCount];

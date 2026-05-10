@@ -63,7 +63,6 @@ internal sealed class TileContentExtractor : ITileContentExtractor
                 continue;
             }
 
-            int positionBeforeTileData = reader.Position;
             var tileHeader = ParseTileHeader(ref reader, tilesHorizontal, tilesVertical);
             int tileDataOffset = reader.Position;
             int tileDataLength = (int)tileHeader.TilePartLength - 12;

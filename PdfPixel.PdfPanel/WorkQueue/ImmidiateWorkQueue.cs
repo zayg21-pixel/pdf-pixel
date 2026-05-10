@@ -4,11 +4,11 @@ namespace PdfPixel.PdfPanel.WorkQueue;
 
 public sealed class ImmidiateWorkQueue<T> : IWorkQueue<T> where T : IWorkItem
 {
-    public async void Enqueue(T item)
+    public void Enqueue(T item)
     {
         try
         {
-            await item.ProcessAsync();
+            item.Process();
         }
         catch (ObjectDisposedException)
         {

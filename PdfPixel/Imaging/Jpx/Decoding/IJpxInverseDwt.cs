@@ -9,10 +9,14 @@ namespace PdfPixel.Imaging.Jpx.Decoding;
 internal interface IJpxInverseDwt
 {
     /// <summary>
-    /// Reconstructs a full-resolution component from its subband decomposition,
-    /// writing results directly into the provided destination buffer.
+    /// Reconstructs a component from its subband decomposition, optionally stopping
+    /// at a coarser resolution level for reduced-resolution decoding.
     /// </summary>
     /// <param name="subbands">Subband coefficient data for a single component.</param>
     /// <param name="destination">Pre-allocated buffer to receive reconstructed samples.</param>
-    void Transform(JpxSubbandData subbands, int[] destination);
+    /// <param name="stopAtLevel">
+    /// The finest decomposition level to skip. 0 means full reconstruction;
+    /// higher values produce smaller output (each increment halves both dimensions).
+    /// </param>
+    void Transform(JpxSubbandData subbands, int[] destination, int stopAtLevel = 0);
 }

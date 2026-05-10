@@ -1,5 +1,6 @@
 using PdfPixel.Parsing;
 using System;
+using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 
 namespace PdfPixel.Imaging.Processing;
@@ -9,33 +10,32 @@ namespace PdfPixel.Imaging.Processing;
 /// Accumulates source pixel values in integer buckets and averages them for each destination pixel.
 /// Always outputs 8-bit samples. Optimized for performance with minimal allocations.
 /// </summary>
-internal sealed class AveragingDownsampleRowConverter : IRowConverter
+internal sealed class AveragingDownsampleRowConverter : IRowConverter // TODO: high, still way to many operations, need correct ranges built to accommodate pixel spans.
 {
     private readonly int _components;
     private readonly int _sourceBitsPerComponent;
-    private readonly int _srcWidth;
-    private readonly int _dstWidth;
-    private readonly int _srcHeight;
-    private readonly int _dstHeight;
+    private readonly int _sourceWidth;
+    private readonly int _destinationWidth;
+    private readonly int _destinationHeight;
 
-    private readonly float _scaleX;
-    private readonly float _scaleY;
-    private readonly float _inverseScaleY;
-
-    private readonly Accumulator[] _destRowAccumulators;
+    private readonly Accumulator[] _destinationRowAccumulators;
     private readonly byte[] _sourceSamples;
 
-    private readonly Range[] _srcSampleRangeForDestSample;
+    // Horizontal: destination→source column ranges, expanded per-component into a flat table.
+    // Built from forward midpoint binning so it matches the vertical inverse grid for the same scale.
+    private readonly Range[] _sourceSampleRangeForDestinationSample;
 
-    private int _nextSrcRowToRead;
-    private int _nextDestRowToWrite;
+    // Vertical: inverse grid. Set of source-row indices whose arrival completes a destination row.
+    private readonly HashSet<int> _flushAfterSourceRow;
 
-    private readonly uint _sourceMaxValue;
-    private readonly float _sourceToDestinationScale;
+    private int _nextDestinationRowToWrite;
 
-    public AveragingDownsampleRowConverter(int components, int sourceBitsPerComponent, int srcWidth, int dstWidth, int srcHeight, int dstHeight)
+    private readonly uint _sourceMaximumValue;
+    private readonly byte _sourceToDestinationScale;
+
+    public AveragingDownsampleRowConverter(int components, int sourceBitsPerComponent, int sourceWidth, int destinationWidth, int sourceHeight, int destinationHeight)
     {
-        if (dstWidth > srcWidth || dstHeight > srcHeight)
+        if (destinationWidth > sourceWidth || destinationHeight > sourceHeight)
         {
             throw new NotSupportedException("Averaging downsample row converter only supports downsampling. Upsampling is not allowed.");
         }
@@ -47,81 +47,95 @@ internal sealed class AveragingDownsampleRowConverter : IRowConverter
 
         _components = components;
         _sourceBitsPerComponent = sourceBitsPerComponent;
-        _srcWidth = srcWidth;
-        _dstWidth = dstWidth;
-        _srcHeight = srcHeight;
-        _dstHeight = dstHeight;
+        _sourceWidth = sourceWidth;
+        _destinationWidth = destinationWidth;
+        _destinationHeight = destinationHeight;
 
-        _scaleX = (float)srcWidth / dstWidth;
-        _scaleY = (float)srcHeight / dstHeight;
-        _inverseScaleY = 1.0f / _scaleY;
+        _sourceMaximumValue = sourceBitsPerComponent == 16 ? 65535u : ((1u << sourceBitsPerComponent) - 1u);
+        _sourceToDestinationScale = _sourceMaximumValue == 0 ? (byte)0 : (byte)(255f / _sourceMaximumValue);
 
-        _sourceMaxValue = sourceBitsPerComponent == 16 ? 65535u : ((1u << sourceBitsPerComponent) - 1u);
-        _sourceToDestinationScale = _sourceMaxValue == 0 ? 0.0f : 255.0f / _sourceMaxValue;
+        int totalDestinationSamples = _destinationWidth * components;
+        _destinationRowAccumulators = new Accumulator[totalDestinationSamples];
+        _sourceSamples = new byte[_sourceWidth * components];
 
-        int totalDestSamples = _dstWidth * components;
-        _destRowAccumulators = new Accumulator[totalDestSamples];
-        _sourceSamples = new byte[_srcWidth * components];
-
-        // Precompute flat sample start/end indices for each destination sample (component)
-        _srcSampleRangeForDestSample = new Range[_dstWidth * components];
-        for (int dstCol = 0; dstCol < _dstWidth; dstCol++)
+        // Horizontal grid: forward midpoint binning maps each source column to a destination column
+        // via (sourceColumn + 0.5) * (destinationWidth / sourceWidth). We walk source columns and
+        // emit a destination range whenever the destination column changes, then expand each range
+        // per-component into the flat table used by AccumulateSourceRow.
+        _sourceSampleRangeForDestinationSample = new Range[_destinationWidth * components];
+        float inverseHorizontalScale = (float)_destinationWidth / sourceWidth;
+        int currentDestinationColumn = 0;
+        int sourceColumnRangeStart = 0;
+        for (int sourceColumn = 0; sourceColumn <= sourceWidth; sourceColumn++)
         {
-            float srcStartF = dstCol * _scaleX;
-            float srcEndF = (dstCol + 1) * _scaleX;
-            int srcStart = (int)Math.Floor(srcStartF);
-            int srcEnd = (int)Math.Ceiling(srcEndF);
-            if (srcStart < 0) srcStart = 0;
-            if (srcEnd > _srcWidth) srcEnd = _srcWidth;
-            for (int c = 0; c < components; c++)
+            int destinationColumn;
+            if (sourceColumn == sourceWidth)
             {
-                int dstIndex = dstCol * components + c;
-                int flatStart = srcStart * components + c;
-                int flatEnd = srcEnd * components + c;
-                _srcSampleRangeForDestSample[dstIndex] = new Range(flatStart, flatEnd);
+                destinationColumn = _destinationWidth; // sentinel forces closure of the final range
+            }
+            else
+            {
+                destinationColumn = (int)((sourceColumn + 0.5f) * inverseHorizontalScale);
+                if (destinationColumn >= _destinationWidth)
+                {
+                    destinationColumn = _destinationWidth - 1;
+                }
+            }
+
+            if (destinationColumn != currentDestinationColumn)
+            {
+                for (int component = 0; component < components; component++)
+                {
+                    int destinationIndex = currentDestinationColumn * components + component;
+                    int flatStart = sourceColumnRangeStart * components + component;
+                    int flatEnd = sourceColumn * components + component;
+                    _sourceSampleRangeForDestinationSample[destinationIndex] = new Range(flatStart, flatEnd);
+                }
+                sourceColumnRangeStart = sourceColumn;
+                currentDestinationColumn = destinationColumn;
             }
         }
 
-        _nextSrcRowToRead = 0;
-        _nextDestRowToWrite = 0;
+        // Vertical inverse grid: same forward midpoint binning. The last source row mapping to a
+        // given destination row triggers that row's flush. We walk source rows backwards: the first
+        // time we encounter each destination value is its last source row.
+        _flushAfterSourceRow = new HashSet<int>();
+        float inverseVerticalScale = (float)destinationHeight / sourceHeight;
+        int previousDestinationRow = -1;
+        for (int sourceRow = sourceHeight - 1; sourceRow >= 0; sourceRow--)
+        {
+            int destinationRow = (int)((sourceRow + 0.5f) * inverseVerticalScale);
+            if (destinationRow >= destinationHeight)
+            {
+                destinationRow = destinationHeight - 1;
+            }
+            if (destinationRow != previousDestinationRow)
+            {
+                _flushAfterSourceRow.Add(sourceRow);
+                previousDestinationRow = destinationRow;
+            }
+        }
+
+        _nextDestinationRowToWrite = 0;
     }
 
     public int BitsPerComponent => 8;
 
     public bool TryConvertRow(int rowIndex, ReadOnlySpan<byte> sourceRow, Span<byte> destRow)
     {
-        if (_nextDestRowToWrite >= _dstHeight)
-        {
-            return false;
-        }
-
-        if (rowIndex != _nextSrcRowToRead)
+        if (_nextDestinationRowToWrite >= _destinationHeight)
         {
             return false;
         }
 
         ReadSourceRowSamples(sourceRow);
-
-        int destRowForThisSource = GetDestinationRow(rowIndex);
-
-        if (destRowForThisSource > _nextDestRowToWrite)
-        {
-            if (_nextDestRowToWrite < _dstHeight)
-            {
-                WriteAveragedRow(destRow);
-                ResetAccumulators();
-                _nextDestRowToWrite++;
-            }
-        }
-
         AccumulateSourceRow();
-        _nextSrcRowToRead++;
 
-        if (destRowForThisSource == _nextDestRowToWrite && IsLastSourceRowForDestRow(rowIndex, _nextDestRowToWrite))
+        if (_flushAfterSourceRow.Contains(rowIndex))
         {
             WriteAveragedRow(destRow);
             ResetAccumulators();
-            _nextDestRowToWrite++;
+            _nextDestinationRowToWrite++;
             return true;
         }
 
@@ -131,7 +145,7 @@ internal sealed class AveragingDownsampleRowConverter : IRowConverter
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private void ReadSourceRowSamples(ReadOnlySpan<byte> sourceRow)
     {
-        int count = _srcWidth * _components;
+        int totalSourceSamples = _sourceWidth * _components;
 
         if (_sourceBitsPerComponent == 8)
         {
@@ -139,80 +153,55 @@ internal sealed class AveragingDownsampleRowConverter : IRowConverter
             return;
         }
 
-        // Fallback
         var reader = new UintBitReaderFixedLength(sourceRow, _sourceBitsPerComponent);
-        for (int i = 0; i < count; i++)
+        for (int sampleIndex = 0; sampleIndex < totalSourceSamples; sampleIndex++)
         {
-            _sourceSamples[i] = (byte)reader.Read();
+            _sourceSamples[sampleIndex] = (byte)reader.Read();
         }
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private int GetDestinationRow(int srcRow)
-    {
-        return (int)((srcRow + 0.5f) * _inverseScaleY);
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private bool IsLastSourceRowForDestRow(int srcRow, int destRow)
-    {
-        if (destRow >= _dstHeight - 1)
-        {
-            return srcRow >= _srcHeight - 1;
-        }
-
-        int nextDestRow = destRow + 1;
-        int firstSrcRowForNextDest = (int)(nextDestRow * _scaleY);
-        return srcRow >= firstSrcRowForNextDest - 1;
-    }
-
     private void AccumulateSourceRow()
     {
-        int totalDestSamples = _dstWidth * _components;
-        ref var destAccumulatorsRef = ref _destRowAccumulators[0];
-        ReadOnlySpan<byte> sourceSamplesSpan = _sourceSamples.AsSpan();
-        ReadOnlySpan<Range> sampleRangesSpan = _srcSampleRangeForDestSample.AsSpan();
+        int totalDestinationSamples = _destinationWidth * _components;
+        ref var destinationAccumulatorReference = ref _destinationRowAccumulators[0];
+        ref Range sampleRangeReference = ref _sourceSampleRangeForDestinationSample[0];
+        ref byte sourceSamplesReference = ref _sourceSamples[0];
 
-        for (int dstIndex = 0; dstIndex < totalDestSamples; dstIndex++)
+        for (int destinationIndex = 0; destinationIndex < totalDestinationSamples; destinationIndex++)
         {
-            var range = sampleRangesSpan[dstIndex];
+            ref readonly Range range = ref Unsafe.Add(ref sampleRangeReference, destinationIndex);
+
             long sum = 0;
             int count = 0;
 
-            for (int srcIndex = range.Start; srcIndex < range.End; srcIndex += _components)
+            for (int sourceIndex = range.Start; sourceIndex < range.End; sourceIndex += _components)
             {
-                uint value = sourceSamplesSpan[srcIndex];
-                if (_sourceBitsPerComponent != 8)
-                {
-                    value = (uint)((value * _sourceToDestinationScale) + 0.5f);
-                }
-                sum += value;
-                
+                sum += Unsafe.Add(ref sourceSamplesReference, sourceIndex);
                 count++;
             }
 
-            destAccumulatorsRef.Add(sum, count);
-            destAccumulatorsRef = ref Unsafe.Add(ref destAccumulatorsRef, 1);
+            destinationAccumulatorReference.Add(sum, count);
+            destinationAccumulatorReference = ref Unsafe.Add(ref destinationAccumulatorReference, 1);
         }
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private void WriteAveragedRow(Span<byte> destRow)
     {
-        int totalSamples = _dstWidth * _components;
+        int totalSamples = _destinationWidth * _components;
         var writer = new UintBitWriter(destRow);
-        for (int i = 0; i < totalSamples; i++)
+        for (int sampleIndex = 0; sampleIndex < totalSamples; sampleIndex++)
         {
-            byte value = _destRowAccumulators[i].GetAverage(255);
+            byte value = _destinationRowAccumulators[sampleIndex].GetAverage(255, _sourceToDestinationScale);
             writer.Write8Bits(value);
         }
     }
 
-
-
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private void ResetAccumulators()
     {
-        Array.Clear(_destRowAccumulators, 0, _destRowAccumulators.Length);
+        Array.Clear(_destinationRowAccumulators, 0, _destinationRowAccumulators.Length);
     }
 
     private struct Accumulator
@@ -228,28 +217,30 @@ internal sealed class AveragingDownsampleRowConverter : IRowConverter
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public readonly byte GetAverage(uint maxValue)
+        public readonly byte GetAverage(uint maximumValue, int scaleFactor)
         {
             if (Count == 0)
             {
                 return 0;
             }
-            long average = (Sum + (Count >> 1)) / Count;
+            long average = ((Sum * scaleFactor + (Count >> 1)) / Count);
             if (average < 0)
             {
                 average = 0;
             }
-            if (average > maxValue)
+            if (average > maximumValue)
             {
-                average = maxValue;
+                average = maximumValue;
             }
             return (byte)average;
         }
     }
+
     private readonly struct Range
     {
-        public int Start { get; }
-        public int End { get; }
+        public readonly int Start;
+        public readonly int End;
+
         public Range(int start, int end)
         {
             Start = start;
@@ -257,4 +248,3 @@ internal sealed class AveragingDownsampleRowConverter : IRowConverter
         }
     }
 }
-

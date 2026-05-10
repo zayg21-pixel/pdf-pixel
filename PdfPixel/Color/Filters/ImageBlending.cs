@@ -10,6 +10,7 @@ namespace PdfPixel.Color.Filters
         private static readonly SKRuntimeEffect _imageEffect;
         private static readonly SKRuntimeEffect _softMaskEffect;
         private static readonly SKRuntimeEffect _imageMaskEffect;
+        private static readonly SKRuntimeEffect _stencilMaskEffect;
 
         static ImageBlending()
         {
@@ -59,39 +60,44 @@ namespace PdfPixel.Color.Filters
             // TODO: [HIGH] imageMaskSksl renders incorrectly, background color leaks outside of image!
             _softMaskEffect = SKRuntimeEffect.CreateShader(softMaskSksl, out _);
             _imageMaskEffect = SKRuntimeEffect.CreateShader(imageMaskSksl, out _);
+
+            var stencilMaskSksl = @"
+                uniform shader image;
+                uniform shader mask;
+
+                half4 main(float2 coord) {
+                    half4 color = image.eval(coord);
+                    half maskAlpha = 1 - mask.eval(coord).r;
+                    return color * maskAlpha;
+                }
+            ";
+
+            _stencilMaskEffect = SKRuntimeEffect.CreateShader(stencilMaskSksl, out _);
         }
 
         /// <summary>
-        /// Creates a simple image shader that samples the given image with specified sampling options.
+        /// Creates a simple image shader from a pre-built image child shader.
         /// </summary>
-        /// <param name="image">The source <see cref="SKImage"/>.</param>
-        /// <param name="sampling">The sampling options for the image.</param>
-        /// <returns>An <see cref="SKShader"/> that samples the image.</returns>
-        public static SKShader CreateImageShader(SKImage image, SKSamplingOptions sampling)
+        public static SKShader CreateImageShader(SKShader imageChild)
         {
             var uniforms = new SKRuntimeEffectUniforms(_imageEffect);
             var children = new SKRuntimeEffectChildren(_imageEffect)
             {
-                { "image", image.ToRawShader(SKShaderTileMode.Clamp, SKShaderTileMode.Clamp, sampling, SKMatrix.CreateScale(1 / (float)image.Width, 1 / (float)image.Height)) }
+                { "image", imageChild }
             };
 
             return _imageEffect.ToShader(uniforms, children);
         }
 
         /// <summary>
-        /// Creates an <see cref="SKShader"/> that blends an image with a mask and matte color.
+        /// Creates a soft-mask blending shader from pre-built image and mask child shaders.
+        /// Both children are expected to interpret the runtime effect's <c>coord</c> consistently —
+        /// the caller is responsible for applying any local-matrix offsets needed for tile alignment.
         /// </summary>
-        /// <param name="image">The source <see cref="SKImage"/>.</param>
-        /// <param name="mask">The mask <see cref="SKImage"/> (alpha channel used).</param>
-        /// <param name="matte">The matte <see cref="SKColor"/> to use for dematting.</param>
-        /// <param name="inverseAlpha">If true, inverts the mask alpha.</param>
-        /// <param name="sampling">Sampling options for both images.</param>
-        /// <returns>An <see cref="SKShader"/> that blends the image and mask with matte and alpha options.</returns>
         public static SKShader CreateSoftMaskBlendingShader(
-            SKImage image,
-            SKImage mask,
-            SKColor? matte,
-            SKSamplingOptions sampling)
+            SKShader imageChild,
+            SKShader maskChild,
+            SKColor? matte)
         {
             var uniforms = new SKRuntimeEffectUniforms(_softMaskEffect)
             {
@@ -101,29 +107,21 @@ namespace PdfPixel.Color.Filters
 
             var children = new SKRuntimeEffectChildren(_softMaskEffect)
             {
-                { "image", image.ToRawShader(SKShaderTileMode.Clamp, SKShaderTileMode.Clamp, sampling, SKMatrix.CreateScale(1 / (float)image.Width, 1 / (float)image.Height)) },
-                { "mask", mask.ToRawShader(SKShaderTileMode.Clamp, SKShaderTileMode.Clamp, sampling, SKMatrix.CreateScale(1 / (float)mask.Width, 1 / (float)mask.Height)) }
+                { "image", imageChild },
+                { "mask", maskChild }
             };
 
             return _softMaskEffect.ToShader(uniforms, children);
         }
 
         /// <summary>
-        /// Creates an <see cref="SKShader"/> that renders a stencil image mask using the given fill color.
-        /// Handles gray-to-alpha conversion, optional inversion (decode array logic),
-        /// and applies fill color and fill alpha, producing a premultiplied output.
+        /// Creates an image-mask blending shader from a pre-built mask child shader.
+        /// The mask child is the stencil image itself (carrying any tile offset in its local matrix).
         /// </summary>
-        /// <param name="mask">The mask <see cref="SKImage"/> (grayscale; red channel used as mask alpha).</param>
-        /// <param name="fillColor">The fill color to paint where the mask is opaque.</param>
-        /// <param name="fillAlpha">The fill alpha (0..1) to modulate the final output alpha.</param>
-        /// <param name="inverse">If <see langword="true"/>, inverts the mask alpha (1 - gray).</param>
-        /// <param name="sampling">Sampling options for the mask image.</param>
-        /// <returns>An <see cref="SKShader"/> that composites the stencil mask with fill color and fill alpha.</returns>
         public static SKShader CreateImageMaskBlendingShader(
-            SKImage mask,
+            SKShader maskChild,
             SKColor fillColor,
-            bool inverse,
-            SKSamplingOptions sampling)
+            bool inverse)
         {
             var uniforms = new SKRuntimeEffectUniforms(_imageMaskEffect)
             {
@@ -133,10 +131,28 @@ namespace PdfPixel.Color.Filters
 
             var children = new SKRuntimeEffectChildren(_imageMaskEffect)
             {
-                { "mask", mask.ToRawShader(SKShaderTileMode.Clamp, SKShaderTileMode.Clamp, sampling, SKMatrix.CreateScale(1 / (float)mask.Width, 1 / (float)mask.Height)) }
+                { "mask", maskChild }
             };
 
             return _imageMaskEffect.ToShader(uniforms, children);
+        }
+
+        /// <summary>
+        /// Creates a stencil-mask shader from pre-built image and mask child shaders.
+        /// </summary>
+        public static SKShader CreateStencilMaskShader(
+            SKShader imageChild,
+            SKShader maskChild)
+        {
+            var uniforms = new SKRuntimeEffectUniforms(_stencilMaskEffect);
+
+            var children = new SKRuntimeEffectChildren(_stencilMaskEffect)
+            {
+                { "image", imageChild },
+                { "mask", maskChild }
+            };
+
+            return _stencilMaskEffect.ToShader(uniforms, children);
         }
     }
 }

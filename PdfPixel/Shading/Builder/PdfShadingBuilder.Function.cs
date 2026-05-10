@@ -8,7 +8,6 @@ using PdfPixel.Text;
 using SkiaSharp;
 using System;
 using System.Threading;
-using System.Threading.Tasks;
 
 namespace PdfPixel.Shading;
 
@@ -25,7 +24,7 @@ internal partial class PdfShadingBuilder
     /// <param name="fullTransferFunction">Transfer function for color conversion.</param>
     /// <param name="defaultFunctionSamples">Number of function samples to use.</param>
     /// <returns>A <see cref="FunctionShadingResult"/> containing the bitmap and matrix, or <see langword="null"/> on failure.</returns>
-    public async Task<FunctionShadingResult> BuildFunctionBasedBitmapAsync(
+    public FunctionShadingResult BuildFunctionBasedBitmap(
         PdfShading shading,
         PdfColorSpaceConverter converter,
         PdfRenderingIntent renderingIntent,
@@ -80,7 +79,6 @@ internal partial class PdfShadingBuilder
                 pixelColors[yIndex * bitmapWidth + xIndex] = color;
             }
 
-            await Task.Yield();
             token.ThrowIfCancellationRequested();
         }
 

@@ -209,7 +209,7 @@ namespace PdfPixel.PdfPanel.Wpf
             {
                 case WpfRenderMode.Direct3D:
                 {
-                    var imageFactory = new D3DImageSimpleRenderTargetFactory(D3DImage);
+                    var imageFactory = new D3DImageRenderTargetFactory(D3DImage, 4);
                     _surfaceFactory = imageFactory;
                     _renderTargetFactory = imageFactory;
                     break;

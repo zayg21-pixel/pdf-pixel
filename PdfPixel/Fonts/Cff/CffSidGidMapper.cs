@@ -174,10 +174,12 @@ internal class CffSidGidMapper
             }
 
             // Charset -> SID list
+            // Per CFF spec, default charset offset is 0 (ISOAdobe) when not explicitly specified.
+            int charsetOffset = topDictData.CharsetOffset ?? 0;
             var charsetParser = new CffCharsetParser();
-            if (!topDictData.CharsetOffset.HasValue || !charsetParser.TryParseCharset(cffBytes.Span, topDictData.CharsetOffset.Value, glyphCount, out ushort[] sidByGlyph))
+            if (!charsetParser.TryParseCharset(cffBytes.Span, charsetOffset, glyphCount, out ushort[] sidByGlyph))
             {
-                _logger.LogWarning("Failed to parse CFF charset or missing charset offset.");
+                _logger.LogWarning("Failed to parse CFF charset at offset {CharsetOffset}.", charsetOffset);
                 return false;
             }
 

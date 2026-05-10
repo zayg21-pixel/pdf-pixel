@@ -407,6 +407,36 @@ export async function initialize(setModuleImports, getAssemblyExports, wasmModul
     };
 
     console.log('Content worker initialized');
+
+    runSharedArrayBufferTest();
+}
+
+/**
+ * Design test for shared WebAssembly.Memory ⇄ C# Span<byte> aliasing.
+ * Allocates a shared WebAssembly.Memory on the main thread (its .buffer is a
+ * SharedArrayBuffer), hands a Uint8Array view to the worker — which spins inside
+ * C# TestSharedArrayBuffer until byte[0] == 1 — then 10s later writes 1 to
+ * byte[0] from the main thread. If the C# Span<byte> aliases the shared memory,
+ * the worker should print "Worker is done, value changed to 1!" right after.
+ */
+function runSharedArrayBufferTest() {
+    if (typeof SharedArrayBuffer === 'undefined' || self.crossOriginIsolated === false) {
+        console.warn('SharedArrayBuffer test skipped: cross-origin isolation is not enabled (need COOP/COEP headers).');
+        return;
+    }
+
+    // 1 page = 64 KiB; we only need 1 int32 slot but page is the minimum granularity.
+    const sharedMemory = new WebAssembly.Memory({ initial: 1, maximum: 1, shared: true });
+    const sharedView = new Int32Array(sharedMemory.buffer);
+    Atomics.store(sharedView, 0, 0);
+
+    console.log('SharedMemory test: posting SAB-backed Int32Array to worker, will flip view[0] to 1 in 10s');
+    sendToWorker(null, 'TestSharedArrayBuffer', null, sharedView);
+
+    setTimeout(() => {
+        console.log('SharedMemory test: Atomics.store(view, 0, 1) from main thread');
+        Atomics.store(sharedView, 0, 1);
+    }, 10000);
 }
 
 /**

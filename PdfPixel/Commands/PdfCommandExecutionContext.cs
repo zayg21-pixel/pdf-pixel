@@ -1,4 +1,5 @@
 using PdfPixel.Models;
+using SkiaSharp;
 using System;
 using System.Threading;
 

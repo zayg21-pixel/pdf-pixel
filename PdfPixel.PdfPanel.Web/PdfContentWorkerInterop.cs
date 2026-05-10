@@ -55,6 +55,33 @@ public partial class PdfContentWorkerInterop
     [JSImport("onDataReady", "pdfContentWorker.js")]
     public static partial void OnDataReady(string id, string commandType, string header, byte[] response);
 
+    // Reads the shared SAB stashed on the worker as self.testSharedView via an
+    // EM_JS Atomics.load. Bypasses JSExport marshaling entirely — the .NET runtime
+    // memory stays non-shared, and the SAB lives only on the JS side.
+    [JSExport]
+    public static void TestSharedArrayBuffer()
+    {
+        Console.WriteLine("Test command received (EM_JS + Atomics.load path)");
+        DateTime startTime = DateTime.Now;
+        while (true)
+        {
+            if (EmscriptenInterop.TestReadSharedByte() == 1)
+            {
+                break;
+            }
+
+            Thread.Yield();
+
+            if ((DateTime.Now - startTime).TotalSeconds > 20)
+            {
+                Console.WriteLine("Timeout waiting for value to change to 1.");
+                return;
+            }
+        }
+
+        Console.WriteLine("Worker is done, value changed to 1! Time elapsed: {0} ms", (DateTime.Now - startTime).TotalMilliseconds);
+    }
+
     [JSExport]
     internal static void Initialize()
     {

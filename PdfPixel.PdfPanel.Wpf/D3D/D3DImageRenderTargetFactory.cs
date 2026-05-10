@@ -69,7 +69,7 @@ public sealed class D3DImageRenderTargetFactory : IPdfPanelRenderTargetFactory, 
     {
         _d3dImage = d3dImage ?? throw new ArgumentNullException(nameof(d3dImage));
         _d3dContext = Direct3DContext.Create();
-        _grContext = GRContext.CreateDirect3D(_d3dContext.CreateBackendContext(), new GRContextOptions { AvoidStencilBuffers = true, RuntimeProgramCacheSize = 128_000_000 });
+        _grContext = GRContext.CreateDirect3D(_d3dContext.CreateBackendContext(), new GRContextOptions { AvoidStencilBuffers = true, RuntimeProgramCacheSize = 128 });
         _grContext.SetResourceCacheLimit(128_000_000); // 128 MB GPU resource cache limit to avoid OOM crashes with large documents
 
         _sharedResources = new SharedDirectXResources(_d3dContext);

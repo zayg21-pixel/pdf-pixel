@@ -73,6 +73,7 @@ public static class PdfTokens
     public static readonly PdfString EarlyChangeKey = (PdfString)"EarlyChange"u8;
     public static readonly PdfString ColorTransformKey = (PdfString)"ColorTransform"u8;
     public static readonly PdfString NameKey = (PdfString)"Name"u8;
+    public static readonly PdfString Jbig2GlobalsKey = (PdfString)"JBIG2Globals"u8;
 
     // Font-related Dictionary Keys
     public static readonly PdfString FontKey = (PdfString)"Font"u8;

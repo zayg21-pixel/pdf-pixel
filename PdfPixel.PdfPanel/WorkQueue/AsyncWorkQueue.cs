@@ -52,7 +52,7 @@ public sealed class AsyncWorkQueue<T> : IWorkQueue<T> where T : IWorkItem
 
                 try
                 {
-                    await workItem.ProcessAsync().ConfigureAwait(false);
+                    workItem.Process();
                 }
                 catch (ObjectDisposedException)
                 {
@@ -65,12 +65,10 @@ public sealed class AsyncWorkQueue<T> : IWorkQueue<T> where T : IWorkItem
             catch (ObjectDisposedException)
             {
             }
-#if !DEBUG
             catch (Exception ex)
             {
                 _logger.LogError(ex, "An error occurred while processing a work item {ex}.", ex);
             }
-#endif
         }
 
         _logger.LogInformation("AsyncWorkQueue processing loop stopped.");

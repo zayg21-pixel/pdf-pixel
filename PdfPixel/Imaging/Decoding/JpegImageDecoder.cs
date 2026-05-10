@@ -11,7 +11,6 @@ using PdfPixel.Models;
 using SkiaSharp;
 using System;
 using System.Threading;
-using System.Threading.Tasks;
 
 namespace PdfPixel.Imaging.Decoding;
 
@@ -32,9 +31,8 @@ public sealed class JpegImageDecoder : PdfImageDecoder
     /// Decode the JPEG image returning an <see cref="SKImage"/> or null on failure (errors are logged).
     /// Attempts custom streaming decode first; falls back to Skia's built‑in decoder if custom path fails.
     /// </summary>
-    public override Task<SKImage> DecodeAsync(
+    public override SKImage Decode(
         ImageDecodingContext context,
-        PdfRenderingParameters renderingParameters,
         CancellationToken cancellationToken)
     {
         if (!ValidateImageParameters())
@@ -50,17 +48,16 @@ public sealed class JpegImageDecoder : PdfImageDecoder
             return null;
         }
 
-        return DecodeInternalAsync(encodedImageData, context, renderingParameters, cancellationToken);
+        return DecodeInternal(encodedImageData, context, cancellationToken);
     }
 
     /// <summary>
     /// Decode using custom streaming pipeline. Throws on failure.
     /// Row data is streamed row-by-row directly into a <see cref="PdfImageRowProcessor"/> without allocating a full intermediate buffer.
     /// </summary>
-    private async Task<SKImage> DecodeInternalAsync(
+    private SKImage DecodeInternal(
         ReadOnlyMemory<byte> encoded,
         ImageDecodingContext context,
-        PdfRenderingParameters renderingParameters,
         CancellationToken cancellationToken)
     {
         JpgHeader header;
@@ -113,7 +110,7 @@ public sealed class JpegImageDecoder : PdfImageDecoder
 
         try
         {
-            rowProcessor = new PdfImageRowProcessor(Image, LoggerFactory.CreateLogger<PdfImageRowProcessor>(), context, renderingParameters);
+            rowProcessor = new PdfImageRowProcessor(Image, LoggerFactory.CreateLogger<PdfImageRowProcessor>(), context);
             rowProcessor.InitializeBuffer();
 
             byte[] rowBuffer = new byte[rowStride];
@@ -126,12 +123,6 @@ public sealed class JpegImageDecoder : PdfImageDecoder
                 }
 
                 rowProcessor.WriteRow(rowIndex, rowBuffer);
-
-                if (renderingParameters.AsyncExecution)
-                {
-                    await Task.Yield();
-                }
-
                 cancellationToken.ThrowIfCancellationRequested();
             }
 

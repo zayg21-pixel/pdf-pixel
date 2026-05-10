@@ -66,10 +66,10 @@ internal static class JpxReader
     private static void ParseJp2Format(ReadOnlySpan<byte> data, JpxHeader header)
     {
         var reader = new JpxSpanReader(data);
-        
+
         // Skip the signature box that was already validated in IsJp2Format
         reader.Skip(12); // JP2 signature box is always 12 bytes
-        
+
         while (!reader.EndOfSpan)
         {
             if (reader.Remaining < 8)
@@ -79,21 +79,31 @@ internal static class JpxReader
 
             uint boxLength = reader.ReadUInt32BE();
             uint boxType = reader.ReadUInt32BE();
-            
-            // Handle extended box length
-            if (boxLength == 1)
+
+            uint contentLength;
+
+            if (boxLength == 0)
             {
+                // Box extends to the end of the file (ISO/IEC 15444-1 §I.2.2)
+                contentLength = (uint)reader.Remaining;
+            }
+            else if (boxLength == 1)
+            {
+                // Extended 64-bit XLBox; read only lower 32 bits for simplicity
                 if (reader.Remaining < 8)
                 {
                     break;
                 }
-                boxLength = (uint)reader.ReadUInt32BE(); // We only read lower 32 bits for simplicity
-                reader.ReadUInt32BE(); // Skip upper 32 bits
+
+                reader.ReadUInt32BE(); // upper 32 bits (ignored; files this large are not supported)
+                uint extendedLength = reader.ReadUInt32BE();
+                contentLength = extendedLength - 16; // 16 = 4 (LBox) + 4 (TBox) + 8 (XLBox)
             }
-            
-            uint headerSize = boxLength == 1 ? 16u : 8u;
-            uint contentLength = boxLength - headerSize;
-            
+            else
+            {
+                contentLength = boxLength - 8; // 8 = 4 (LBox) + 4 (TBox)
+            }
+
             if (reader.Remaining < contentLength)
             {
                 break;
@@ -105,11 +115,16 @@ internal static class JpxReader
                     ParseFileTypeBox(reader.ReadBytes((int)contentLength), header);
                     break;
 
+                case JpxMarkers.HEADER_BOX:
+                    // jp2h is a superbox; parse its child boxes (ihdr, colr, etc.)
+                    ParseJp2HeaderSuperBox(reader.ReadBytes((int)contentLength), header);
+                    break;
+
                 case JpxMarkers.CONTIGUOUS_CODESTREAM_BOX:
-                    var codePosition = reader.Position;
+                    int codePosition = reader.Position;
                     header.CodestreamOffset = codePosition;
                     // Found the codestream - parse its header
-                    var codestreamData = reader.ReadBytes((int)contentLength);
+                    ReadOnlySpan<byte> codestreamData = reader.ReadBytes((int)contentLength);
                     ParseRawCodestream(codestreamData, codePosition, header);
                     return; // We've found the codestream, we're done
 
@@ -122,6 +137,100 @@ internal static class JpxReader
                     reader.Skip((int)contentLength);
                     break;
             }
+        }
+    }
+
+    /// <summary>
+    /// Parses the JP2 Header superbox (jp2h) and its child boxes.
+    /// Handles at minimum the Image Header Box (ihdr) and Color Specification Box (colr).
+    /// </summary>
+    private static void ParseJp2HeaderSuperBox(ReadOnlySpan<byte> data, JpxHeader header)
+    {
+        int offset = 0;
+
+        while (offset + 8 <= data.Length)
+        {
+            uint subBoxLength = ReadUInt32BE(data.Slice(offset));
+            uint subBoxType = ReadUInt32BE(data.Slice(offset + 4));
+
+            uint subContentLength;
+
+            if (subBoxLength == 0)
+            {
+                subContentLength = (uint)(data.Length - offset - 8);
+            }
+            else if (subBoxLength < 8)
+            {
+                // Malformed sub-box; stop parsing
+                break;
+            }
+            else
+            {
+                subContentLength = subBoxLength - 8;
+            }
+
+            int subContentStart = offset + 8;
+
+            if (subContentStart + subContentLength > data.Length)
+            {
+                break;
+            }
+
+            ReadOnlySpan<byte> subBoxContent = data.Slice(subContentStart, (int)subContentLength);
+
+            switch (subBoxType)
+            {
+                case JpxMarkers.IMAGE_HEADER_BOX:
+                    ParseImageHeaderBox(subBoxContent, header);
+                    break;
+
+                case JpxMarkers.COLOR_SPECIFICATION_BOX:
+                    ParseColorSpecificationBox(subBoxContent, header);
+                    break;
+
+                case JpxMarkers.CHANNEL_DEFINITION_BOX:
+                    ParseChannelDefinitionBox(subBoxContent, header);
+                    break;
+
+                default:
+                    break; // Skip unrecognised child boxes
+            }
+
+            offset = subBoxLength == 0 ? data.Length : (int)(offset + subBoxLength);
+        }
+    }
+
+    /// <summary>
+    /// Parses the Image Header Box (ihdr) to extract image dimensions and component count.
+    /// These values serve as a reliable fallback when the SIZ marker is not yet parsed.
+    /// </summary>
+    private static void ParseImageHeaderBox(ReadOnlySpan<byte> data, JpxHeader header)
+    {
+        // ihdr content: Height (4) + Width (4) + Components (2) + BPC (1) + Compression (1) + CSunk (1) + IPR (1) = 14 bytes
+        if (data.Length < 14)
+        {
+            return;
+        }
+
+        uint height = ReadUInt32BE(data);
+        uint width = ReadUInt32BE(data.Slice(4));
+        ushort componentCount = (ushort)(data[8] << 8 | data[9]);
+
+        // Set dimensions from ihdr; the SIZ segment (if parsed) will overwrite these
+        // with the reference-grid values, which are authoritative for decoding.
+        if (header.Width == 0)
+        {
+            header.Width = width;
+        }
+
+        if (header.Height == 0)
+        {
+            header.Height = height;
+        }
+
+        if (header.ComponentCount == 0)
+        {
+            header.ComponentCount = componentCount;
         }
     }
 
@@ -206,7 +315,7 @@ internal static class JpxReader
                     JpxMarkers.IsInformationalMarker(marker) || 
                     JpxMarkers.IsPointerMarker(marker))
                 {
-                    SkipSegmentWithLength(reader);
+                    SkipSegmentWithLength(ref reader);
                 }
                 break;
         }
@@ -491,6 +600,40 @@ internal static class JpxReader
     }
 
     /// <summary>
+    /// Parses the Channel Definition box (cdef) to identify which components carry
+    /// colour or alpha/opacity data (ISO/IEC 15444-1 Table I-11).
+    /// </summary>
+    private static void ParseChannelDefinitionBox(ReadOnlySpan<byte> data, JpxHeader header)
+    {
+        // cdef content: N (2 bytes) followed by N × 3 × 2-byte entries (i, typ, asoc)
+        if (data.Length < 2)
+        {
+            return;
+        }
+
+        int channelCount = (data[0] << 8) | data[1];
+        int requiredBytes = 2 + channelCount * 6;
+
+        if (data.Length < requiredBytes)
+        {
+            return;
+        }
+
+        for (int i = 0; i < channelCount; i++)
+        {
+            int offset = 2 + i * 6;
+            var definition = new JpxChannelDefinition
+            {
+                ComponentIndex = (ushort)((data[offset] << 8) | data[offset + 1]),
+                ChannelType    = (ushort)((data[offset + 2] << 8) | data[offset + 3]),
+                Association    = (ushort)((data[offset + 4] << 8) | data[offset + 5])
+            };
+
+            header.ChannelDefinitions.Add(definition);
+        }
+    }
+
+    /// <summary>
     /// Parses color specification box from JP2 format.
     /// </summary>
     private static void ParseColorSpecificationBox(ReadOnlySpan<byte> data, JpxHeader header)
@@ -555,7 +698,7 @@ internal static class JpxReader
     /// <summary>
     /// Skips a segment that has a length field.
     /// </summary>
-    private static void SkipSegmentWithLength(JpxSpanReader reader)
+    private static void SkipSegmentWithLength(ref JpxSpanReader reader)
     {
         if (reader.Remaining < 2)
         {

@@ -107,6 +107,7 @@ public static class PdfPaintFactory
         return paint;
     }
 
+
     /// <summary>
     /// Creates a paint for image shader rendering with a specific blend mode.
     /// Used by lazy image commands that capture blend mode at record time.
@@ -122,6 +123,15 @@ public static class PdfPaintFactory
             BlendMode = PdfBlendModeNames.ToSkiaBlendMode(blendMode),
             Color = SKColors.White,
             Shader = shader
+        };
+    }
+
+    public static SKPaint CreateImagePaint(PdfBlendMode blendMode)
+    {
+        return new SKPaint
+        {
+            BlendMode = PdfBlendModeNames.ToSkiaBlendMode(blendMode),
+            Color = SKColors.White,
         };
     }
 

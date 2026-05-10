@@ -193,6 +193,16 @@ void dotnet_pause_main_loop(void) {
 	emscripten_pause_main_loop();
 }
 
+// Reads byte 0 of an externally-managed SharedArrayBuffer-backed Uint8Array
+// stashed on the worker global as self.testSharedView. Used by the SAB design
+// test to let C# observe writes from another thread without pthread / shared
+// .NET heap — Atomics.load is a pure JS API, the SAB is allocated and shared
+// via JS only, and the worker's WASM module remains non-threaded.
+EM_JS(int, dotnet_test_read_shared_byte, (void), {
+	if (!self.testSharedView) return 0;
+	return Atomics.load(self.testSharedView, 0);
+});
+
 // Resumes a paused render loop.
 void dotnet_resume_main_loop(void) {
 	emscripten_resume_main_loop();

@@ -51,4 +51,11 @@ internal static class EmscriptenInterop
     [DllImport("emscripten", EntryPoint = "dotnet_resume_main_loop")]
     [DefaultDllImportSearchPaths(DllImportSearchPath.SafeDirectories)]
     internal static extern void ResumeMainLoop();
+
+    // Returns Atomics.load(self.testSharedView, 0). Used by the SAB design test;
+    // self.testSharedView is set on the worker by pdfContentWorker.js before
+    // calling the spinning JSExport.
+    [DllImport("emscripten", EntryPoint = "dotnet_test_read_shared_byte")]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.SafeDirectories)]
+    internal static extern int TestReadSharedByte();
 }

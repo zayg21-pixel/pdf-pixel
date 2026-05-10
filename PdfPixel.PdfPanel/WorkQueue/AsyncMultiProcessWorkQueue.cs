@@ -15,11 +15,11 @@ public sealed class AsyncMultiProcessWorkQueue<T> : IWorkQueue<T> where T : IWor
 
     public void Enqueue(T item)
     {
-        Task.Run(async () =>
+        Task.Run(() =>
         {
             try
             {
-                await item.ProcessAsync();
+                item.Process();
             }
             catch (OperationCanceledException)
             {

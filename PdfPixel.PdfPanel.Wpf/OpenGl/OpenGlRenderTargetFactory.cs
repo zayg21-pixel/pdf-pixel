@@ -80,7 +80,8 @@ public sealed class OpenGlRenderTargetFactory : IPdfPanelRenderTargetFactory, IP
         var contextOptions = new GRContextOptions
         {
             RuntimeProgramCacheSize = 128,
-            AllowPathMaskCaching = false
+            AllowPathMaskCaching = false,
+            DoManualMipmapping = true,
         };
 
         _grContext = GRContext.CreateGl(glInterface, contextOptions);

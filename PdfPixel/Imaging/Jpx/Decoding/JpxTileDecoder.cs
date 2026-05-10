@@ -10,7 +10,7 @@ namespace PdfPixel.Imaging.Jpx.Decoding;
 /// 1. Packet Parsing (progression order → packets → code-blocks)
 /// 2. Entropy Decoding (MQ arithmetic decoder)
 /// 3. Coefficient Assembly (code-blocks → subbands)
-/// 4. Inverse Quantization (integrated into DWT for 9-7)
+/// 4. Inverse Quantization (integrated into DWT for both 5-3 and 9-7)
 /// 5. Inverse Wavelet Transform (5-3 reversible or 9-7 irreversible)
 /// 6. Inverse MCT, Level Shifting, and Clamping
 /// </summary>
@@ -35,15 +35,28 @@ internal sealed class JpxTileDecoder : IJpxTileDecoder
         _inverseMct = new JpxInverseMct(_header.CodingStyle);
     }
 
-    public JpxTile DecodeTile(JpxTileHeader tileHeader, ReadOnlySpan<byte> tileData)
+    public JpxTile DecodeTile(JpxTileHeader tileHeader, ReadOnlySpan<byte> tileData, JpxDecodingParameters decodingParameters)
     {
         if (tileHeader == null)
         {
             throw new ArgumentNullException(nameof(tileHeader));
         }
 
-        // Create the output tile
-        var tile = new JpxTile(_header, tileHeader);
+        int decompositionLevels = _header.CodingStyle.DecompositionLevels;
+        int levelsToSkip = Math.Min(decodingParameters.LevelsToSkip, decompositionLevels);
+
+        // Compute full-resolution tile dimensions (needed for subband assembly)
+        int tileStartX = tileHeader.TileX * (int)_header.TileWidth;
+        int tileStartY = tileHeader.TileY * (int)_header.TileHeight;
+        int fullTileWidth = Math.Min((int)_header.TileWidth, (int)_header.Width - tileStartX);
+        int fullTileHeight = Math.Min((int)_header.TileHeight, (int)_header.Height - tileStartY);
+
+        // Compute reduced tile dimensions (identity when levelsToSkip == 0)
+        int reducedWidth = decodingParameters.ReduceDimension(fullTileWidth);
+        int reducedHeight = decodingParameters.ReduceDimension(fullTileHeight);
+
+        // Create the output tile with reduced dimensions
+        var tile = new JpxTile(_header, tileHeader, reducedWidth, reducedHeight);
 
         // Decode the tile through the JPEG2000 pipeline
         var reader = new JpxSpanReader(tileData);
@@ -98,23 +111,26 @@ internal sealed class JpxTileDecoder : IJpxTileDecoder
 
                 if (codeBlock.DecodedCoefficients == null)
                 {
-                    codeBlock.DecodedCoefficients = JpxTier1Decoder.DecodeCodeBlock(codeBlock, _header.CodingStyle);
+                    var tier1Decoder = new JpxTier1Decoder(_header.CodingStyle, codeBlock);
+                    codeBlock.DecodedCoefficients = tier1Decoder.Decode();
                 }
             }
         }
 
-        int decompositionLevels = _header.CodingStyle.DecompositionLevels;
+        int decompositionLevelsForDwt = decompositionLevels;
 
         // Stages 3-5: Assembly → Inverse DWT (with integrated quantization for 9-7)
         for (int component = 0; component < tile.ComponentCount; component++)
         {
-            // Stage 3: Assemble code-block coefficients into subbands
-            var subbands = new JpxSubbandData(tile.Width, tile.Height, decompositionLevels);
+            // Stage 3: Assemble code-block coefficients into subbands at full resolution
+            var subbands = new JpxSubbandData(fullTileWidth, fullTileHeight, decompositionLevelsForDwt);
             _assembler.Assemble(packets, component, subbands);
 
-            // Stages 4-5: Inverse DWT (quantization integrated for 9-7)
+            // Stages 4-5: Inverse Quantization + Inverse DWT
+            // Dequantization is integrated into the interleaving step of both
+            // the 5-3 (reversible) and 9-7 (irreversible) transforms.
             IJpxInverseDwt inverseDwt = JpxInverseDwtFactory.Create(_header, component);
-            inverseDwt.Transform(subbands, tile.ComponentData[component]);
+            inverseDwt.Transform(subbands, tile.ComponentData[component], levelsToSkip);
         }
 
         // Stage 6a: Inverse multi-component transform

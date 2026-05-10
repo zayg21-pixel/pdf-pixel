@@ -18,15 +18,19 @@ internal sealed class JpxRawDecoder : IJpxTileDecoder
         _header = header ?? throw new ArgumentNullException(nameof(header));
     }
 
-    public JpxTile DecodeTile(JpxTileHeader tileHeader, ReadOnlySpan<byte> tileData)
+    public JpxTile DecodeTile(JpxTileHeader tileHeader, ReadOnlySpan<byte> tileData, JpxDecodingParameters decodingParameters)
     {
         if (tileHeader == null)
         {
             throw new ArgumentNullException(nameof(tileHeader));
         }
 
-        // Create the tile
-        var tile = new JpxTile(_header, tileHeader);
+        // Create the tile (raw decoder has no DWT levels, so descale has no effect)
+        int tileStartX = tileHeader.TileX * (int)_header.TileWidth;
+        int tileStartY = tileHeader.TileY * (int)_header.TileHeight;
+        int tileWidth = Math.Min((int)_header.TileWidth, (int)_header.Width - tileStartX);
+        int tileHeight = Math.Min((int)_header.TileHeight, (int)_header.Height - tileStartY);
+        var tile = new JpxTile(_header, tileHeader, tileWidth, tileHeight);
 
         // Decode raw tile data
         DecodeRawTile(tileData, tile);
@@ -64,32 +68,13 @@ internal sealed class JpxRawDecoder : IJpxTileDecoder
     private static void DecodeRawComponent(ReadOnlySpan<byte> data, int[] componentData, int bitDepth, bool isSigned)
     {
         // Create a high-performance pixel reader for this component
-        var pixelReader = new JpxPixelReader(data, bitDepth, isSigned);
+        var pixelReader = new JpxPixelReader(data, bitDepth, isSigned); // TODO: [HIGH] well, looks like it's a code duplication.
         
         // Read pixels using the optimized reader
         int pixel = 0;
-        try
+        while (pixel < componentData.Length && pixelReader.CanRead)
         {
-            while (pixel < componentData.Length && pixelReader.CanRead)
-            {
-                componentData[pixel++] = pixelReader.ReadPixel();
-            }
-        }
-        catch (Exception)
-        {
-            // Fill remainder with appropriate default value if reading fails
-            FillRemainingPixels(componentData, pixel, bitDepth, isSigned);
-        }
-    }
-
-    private static void FillRemainingPixels(int[] componentData, int startPixel, int bitDepth, bool isSigned)
-    {
-        // Fill remainder with mid-gray value
-        int fillValue = isSigned ? 0 : (1 << Math.Min(bitDepth, 31)) / 2;
-        
-        for (int i = startPixel; i < componentData.Length; i++)
-        {
-            componentData[i] = fillValue;
+            componentData[pixel++] = pixelReader.ReadPixel();
         }
     }
 }

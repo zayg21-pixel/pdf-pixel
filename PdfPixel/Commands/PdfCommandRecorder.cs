@@ -47,17 +47,11 @@ public sealed class PdfCommandRecorder : IPdfCommandProcessor
     /// <param name="canvas">The canvas to replay commands onto.</param>
     /// <param name="modifiers">The modifiers to apply during replay, applied in order.</param>
     /// <param name="executionContext">Execution-time context containing rendering parameters and cancellation.</param>
-    public async Task ReplayAsync(SKCanvas canvas, IEnumerable<IPdfCommandModifier> modifiers, PdfCommandExecutionContext executionContext)
+    public void Replay(SKCanvas canvas, IEnumerable<IPdfCommandModifier> modifiers, PdfCommandExecutionContext executionContext)
     {
         foreach (var command in _commands)
         {
-            await command.ExecuteAsync(canvas, modifiers, executionContext);
-
-            if (executionContext.RenderingParameters.AsyncExecution)
-            {
-                await Task.Yield();
-            }
-
+            command.Execute(canvas, modifiers, executionContext);
             executionContext.CancellationToken.ThrowIfCancellationRequested();
         }
     }

@@ -10,7 +10,6 @@ using SkiaSharp;
 using System;
 using System.IO;
 using System.Threading;
-using System.Threading.Tasks;
 
 namespace PdfPixel.Imaging.Decoding;
 
@@ -28,9 +27,8 @@ public class RawImageDecoder : PdfImageDecoder
     }
 
     /// <inheritdoc />
-    public override async Task<SKImage> DecodeAsync(
+    public override SKImage Decode(
         ImageDecodingContext context,
-        PdfRenderingParameters renderingParameters,
         CancellationToken cancellationToken)
     {
         if (!ValidateImageParameters())
@@ -45,22 +43,21 @@ public class RawImageDecoder : PdfImageDecoder
             return null;
         }
 
-        return await DecodeStreamAsync(dataStream, context, renderingParameters, cancellationToken);
+        return DecodeStream(dataStream, context, cancellationToken);
     }
 
     /// <summary>
     /// Stream-based row decoding: computes expected per-row byte count and processes each row sequentially.
     /// For bitsPerComponent &lt; 8 data remains packed; packing is handled downstream by the row processor.
     /// </summary>
-    private async Task<SKImage> DecodeStreamAsync(
+    private SKImage DecodeStream(
         Stream imageStream,
         ImageDecodingContext context,
-        PdfRenderingParameters renderingParameters,
         CancellationToken cancellationToken)
     {
         using PdfImageRowProcessor rowProcessor = new PdfImageRowProcessor(
             Image, LoggerFactory.CreateLogger<PdfImageRowProcessor>(),
-            context, renderingParameters);
+            context);
         rowProcessor.InitializeBuffer();
 
         int imageHeight = Image.Height;
@@ -103,12 +100,6 @@ public class RawImageDecoder : PdfImageDecoder
             }
 
             rowProcessor.WriteRow(rowIndex, rowBuffer);
-
-            if (renderingParameters.AsyncExecution)
-            {
-                await Task.Yield();
-            }
-
             cancellationToken.ThrowIfCancellationRequested();
         }
 

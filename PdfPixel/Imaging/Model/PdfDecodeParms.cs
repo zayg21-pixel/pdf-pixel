@@ -78,6 +78,12 @@ public class PdfDecodeParameters
     public int? ColorTransform { get; private set; }
 
     /// <summary>
+    /// JBIG2 globals stream object (JBIG2Decode). References shared symbol dictionaries defined
+    /// outside the page stream. Should be decoded once and cached at the document level.
+    /// </summary>
+    public PdfObject Jbig2Globals { get; private set; }
+
+    /// <summary>
     /// Parse a /DecodeParms dictionary to a strongly-typed <see cref="PdfDecodeParameters"/> instance.
     /// Unrecognized keys are ignored.
     /// </summary>
@@ -109,6 +115,9 @@ public class PdfDecodeParameters
 
         // DCT
         parameters.ColorTransform = dictionary.GetInteger(PdfTokens.ColorTransformKey);
+
+        // JBIG2
+        parameters.Jbig2Globals = dictionary.GetObject(PdfTokens.Jbig2GlobalsKey);
 
         return parameters;
     }

@@ -44,12 +44,13 @@ internal sealed class JpxTile
     public bool[] ComponentSigned { get; }
 
     /// <summary>
-    /// Initializes a new JPX tile with the specified parameters.
-    /// Calculates tile dimensions automatically based on header and tile position.
+    /// Initializes a new JPX tile with the specified dimensions.
     /// </summary>
-    /// <param name="header">The JPX header containing image dimensions and component info.</param>
+    /// <param name="header">The JPX header containing component info.</param>
     /// <param name="tileHeader">The tile header containing metadata.</param>
-    public JpxTile(JpxHeader header, JpxTileHeader tileHeader)
+    /// <param name="width">Tile width in pixels.</param>
+    /// <param name="height">Tile height in pixels.</param>
+    public JpxTile(JpxHeader header, JpxTileHeader tileHeader, int width, int height)
     {
         TileHeader = tileHeader ?? throw new ArgumentNullException(nameof(tileHeader));
         if (header == null)
@@ -58,18 +59,13 @@ internal sealed class JpxTile
         }
 
         ComponentCount = header.ComponentCount;
-
-        // Calculate tile dimensions based on position in grid
-        int tileStartX = tileHeader.TileX * (int)header.TileWidth;
-        int tileStartY = tileHeader.TileY * (int)header.TileHeight;
-        
-        Width = Math.Min((int)header.TileWidth, (int)header.Width - tileStartX);
-        Height = Math.Min((int)header.TileHeight, (int)header.Height - tileStartY);
+        Width = width;
+        Height = height;
 
         // Initialize component metadata arrays
         ComponentBitDepths = new int[ComponentCount];
         ComponentSigned = new bool[ComponentCount];
-        
+
         for (int i = 0; i < ComponentCount; i++)
         {
             ComponentBitDepths[i] = header.Components[i].PrecisionBits;

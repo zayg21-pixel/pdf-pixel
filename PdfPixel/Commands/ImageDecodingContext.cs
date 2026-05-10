@@ -4,6 +4,7 @@ using PdfPixel.Models;
 using PdfPixel.Rendering.State;
 using PdfPixel.Transparency.Model;
 using SkiaSharp;
+using System;
 
 namespace PdfPixel.Commands;
 
@@ -20,7 +21,6 @@ public sealed class ImageDecodingContext
     /// <param name="state">The graphics state to snapshot.</param>
     public ImageDecodingContext(PdfGraphicsState state)
     {
-        CTM = state.CTM;
         FullTransferFunction = state.FullTransferFunction;
         IsType3Rendering = state.IsType3Rendering;
         FillColor = PdfPaintFactory.ApplyAlpha(state.FillPaint.Color, state.FillAlpha);
@@ -29,10 +29,10 @@ public sealed class ImageDecodingContext
 
     /// <summary>
     /// Current transformation matrix at the image position in the page coordinate space.
-    /// Used together with <see cref="PdfRenderingParameters.ScaleFactor"/> to compute
+    /// Used to compute
     /// any downscale target size.
     /// </summary>
-    public SKMatrix CTM { get; }
+    public SKMatrix CTM { get; set; } = SKMatrix.Identity;
 
     /// <summary>
     /// Combined transfer function (internal + external) for color conversion.
@@ -53,4 +53,32 @@ public sealed class ImageDecodingContext
     /// Blend mode from the graphics state, used for paint composition.
     /// </summary>
     public PdfBlendMode BlendMode { get; }
+
+    /// <summary>
+    /// Returns a scaled size for the given original size based on the current
+    /// </summary>
+    /// <param name="size">Source size.</param>
+    /// <returns>Null if size should not be changed, downscaled size otherwise.</returns>
+    public SKSizeI? GetScaledSize(SKSizeI size)
+    {
+        var unitMapped = CTM.MapPoint(new SKPoint(1, 1)) - CTM.MapPoint(new SKPoint(0, 0));
+
+        float unitPixelsX = Math.Abs(unitMapped.X);
+        float unitPixelsY = Math.Abs(unitMapped.Y);
+
+        float relScaleX = unitPixelsX / size.Width;
+        float relScaleY = unitPixelsY / size.Height;
+
+        float maxScale = Math.Max(relScaleX, relScaleY);
+
+        // only down-scaling is supported
+        if (maxScale < 1f)
+        {
+            var newWidth = Math.Max(1, (int)Math.Floor(size.Width * maxScale));
+            var newHeight = Math.Max(1, (int)Math.Floor(size.Height * maxScale));
+            return new SKSizeI(newWidth, newHeight);
+        }
+
+        return default;
+    }
 }

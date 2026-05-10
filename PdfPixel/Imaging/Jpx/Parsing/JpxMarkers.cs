@@ -7,7 +7,7 @@ internal static class JpxMarkers
 {
     // Delimiter markers
     public const ushort SOC = 0xFF4F; // Start of codestream
-    public const ushort EOC = 0xFF4C; // End of codestream
+    public const ushort EOC = 0xFFD9; // End of codestream
     public const ushort SOT = 0xFF90; // Start of tile-part
     public const ushort SOD = 0xFF93; // Start of data
 

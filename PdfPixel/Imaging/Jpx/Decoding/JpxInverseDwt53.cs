@@ -12,7 +12,6 @@ namespace PdfPixel.Imaging.Jpx.Decoding;
 internal sealed class JpxInverseDwt53 : IJpxInverseDwt
 {
     private readonly JpxQuantization _quantization;
-    private readonly int _decompositionLevels;
 
     // Reusable column buffer for cache-friendly column lifting
     private int[] _columnBuffer = Array.Empty<int>();
@@ -24,57 +23,59 @@ internal sealed class JpxInverseDwt53 : IJpxInverseDwt
     /// Creates an inverse 5-3 DWT instance with quantization parameters for dequantization.
     /// </summary>
     /// <param name="quantization">Quantization parameters from QCD/QCC marker.</param>
-    /// <param name="decompositionLevels">Number of decomposition levels.</param>
-    public JpxInverseDwt53(JpxQuantization quantization, int decompositionLevels)
+    public JpxInverseDwt53(JpxQuantization quantization)
     {
         _quantization = quantization ?? throw new ArgumentNullException(nameof(quantization));
-        _decompositionLevels = decompositionLevels;
     }
 
     /// <inheritdoc/>
-    public void Transform(JpxSubbandData subbands, int[] destination)
+    public void Transform(JpxSubbandData subbands, int[] destination, int stopAtLevel = 0)
     {
         if (subbands == null)
         {
             throw new ArgumentNullException(nameof(subbands));
         }
 
-        int width = subbands.FullWidth;
-        int height = subbands.FullHeight;
+        int fullWidth = subbands.FullWidth;
+        int fullHeight = subbands.FullHeight;
+
+        // Compute output dimensions based on how many levels we reconstruct
+        int outputWidth = (stopAtLevel == 0) ? fullWidth : (fullWidth + (1 << stopAtLevel) - 1) >> stopAtLevel;
+        int outputHeight = (stopAtLevel == 0) ? fullHeight : (fullHeight + (1 << stopAtLevel) - 1) >> stopAtLevel;
 
         int currentWidth = subbands.LLWidth;
         int currentHeight = subbands.LLHeight;
 
         // Dequantize LL subband (right-shift from MSB-aligned representation)
-        int llShift = GetShiftBits(0);
+        int llShift = JpxDequantizer.ComputeReversibleShift(_quantization, 0);
 
         // Use destination as working buffer directly — no separate allocation needed
         for (int y = 0; y < currentHeight; y++)
         {
             for (int x = 0; x < currentWidth; x++)
             {
-                destination[y * width + x] = Dequantize(subbands.LL[y * subbands.LLWidth + x], llShift);
+                destination[y * outputWidth + x] = JpxDequantizer.DequantizeReversible(subbands.LL[y * subbands.LLWidth + x], llShift);
             }
         }
 
         // Ensure reusable buffers are large enough
-        int maxDimension = Math.Max(width, height);
+        int maxDimension = Math.Max(outputWidth, outputHeight);
         if (_columnBuffer.Length < maxDimension)
         {
             _columnBuffer = new int[maxDimension];
         }
 
-        int maxPixels = width * height;
+        int maxPixels = outputWidth * outputHeight;
         if (_interleavedBuffer.Length < maxPixels)
         {
             _interleavedBuffer = new int[maxPixels];
         }
 
         // Reconstruct level by level from coarsest to finest
-        for (int level = subbands.Levels - 1; level >= 0; level--)
+        for (int level = subbands.Levels - 1; level >= stopAtLevel; level--)
         {
-            int nextWidth = (level == 0) ? width : (width + (1 << level) - 1) >> level;
-            int nextHeight = (level == 0) ? height : (height + (1 << level) - 1) >> level;
+            int nextWidth = (level == 0) ? fullWidth : (fullWidth + (1 << level) - 1) >> level;
+            int nextHeight = (level == 0) ? fullHeight : (fullHeight + (1 << level) - 1) >> level;
 
             int hlWidth = subbands.GetWidth(level, JpxSubbandType.HL);
             int hlHeight = subbands.GetHeight(level, JpxSubbandType.HL);
@@ -89,9 +90,9 @@ internal sealed class JpxInverseDwt53 : IJpxInverseDwt
 
             // QCD step size indices: LL=0, then per level (coarsest first) HL, LH, HH
             int qcdBase = 1 + (subbands.Levels - 1 - level) * 3;
-            int hlShift = GetShiftBits(qcdBase + 0);
-            int lhShift = GetShiftBits(qcdBase + 1);
-            int hhShift = GetShiftBits(qcdBase + 2);
+            int hlShift = JpxDequantizer.ComputeReversibleShift(_quantization, qcdBase + 0);
+            int lhShift = JpxDequantizer.ComputeReversibleShift(_quantization, qcdBase + 1);
+            int hhShift = JpxDequantizer.ComputeReversibleShift(_quantization, qcdBase + 2);
 
             int[] interleaved = _interleavedBuffer;
 
@@ -100,7 +101,7 @@ internal sealed class JpxInverseDwt53 : IJpxInverseDwt
             {
                 for (int x = 0; x < currentWidth && x * 2 < nextWidth; x++)
                 {
-                    interleaved[(y * 2) * nextWidth + (x * 2)] = destination[y * width + x];
+                    interleaved[(y * 2) * nextWidth + (x * 2)] = destination[y * outputWidth + x];
                 }
             }
 
@@ -109,7 +110,7 @@ internal sealed class JpxInverseDwt53 : IJpxInverseDwt
             {
                 for (int x = 0; x < hlWidth && x * 2 + 1 < nextWidth; x++)
                 {
-                    interleaved[(y * 2) * nextWidth + (x * 2 + 1)] = Dequantize(hl[y * hlWidth + x], hlShift);
+                    interleaved[(y * 2) * nextWidth + (x * 2 + 1)] = JpxDequantizer.DequantizeReversible(hl[y * hlWidth + x], hlShift);
                 }
             }
 
@@ -118,7 +119,7 @@ internal sealed class JpxInverseDwt53 : IJpxInverseDwt
             {
                 for (int x = 0; x < lhWidth && x * 2 < nextWidth; x++)
                 {
-                    interleaved[(y * 2 + 1) * nextWidth + (x * 2)] = Dequantize(lh[y * lhWidth + x], lhShift);
+                    interleaved[(y * 2 + 1) * nextWidth + (x * 2)] = JpxDequantizer.DequantizeReversible(lh[y * lhWidth + x], lhShift);
                 }
             }
 
@@ -127,7 +128,7 @@ internal sealed class JpxInverseDwt53 : IJpxInverseDwt
             {
                 for (int x = 0; x < hhWidth && x * 2 + 1 < nextWidth; x++)
                 {
-                    interleaved[(y * 2 + 1) * nextWidth + (x * 2 + 1)] = Dequantize(hh[y * hhWidth + x], hhShift);
+                    interleaved[(y * 2 + 1) * nextWidth + (x * 2 + 1)] = JpxDequantizer.DequantizeReversible(hh[y * hhWidth + x], hhShift);
                 }
             }
 
@@ -147,83 +148,13 @@ internal sealed class JpxInverseDwt53 : IJpxInverseDwt
             {
                 for (int x = 0; x < nextWidth; x++)
                 {
-                    destination[y * width + x] = interleaved[y * nextWidth + x];
+                    destination[y * outputWidth + x] = interleaved[y * nextWidth + x];
                 }
             }
 
             currentWidth = nextWidth;
             currentHeight = nextHeight;
         }
-    }
-
-    /// <summary>
-    /// Computes the right-shift amount for a given QCD step index.
-    /// For reversible (type 0), shiftBits = 31 - magBits where magBits = guardBits + exponent - 1.
-    /// </summary>
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private int GetShiftBits(int stepIndex)
-    {
-        int guardBits = _quantization.GuardBits;
-
-        int exponent;
-        if (_quantization.QuantizationType == 0)
-        {
-            // No quantization (reversible): each entry is just an exponent
-            if (_quantization.StepSizes != null && stepIndex < _quantization.StepSizes.Length)
-            {
-                exponent = (_quantization.StepSizes[stepIndex] >> 11) & 0x1F;
-            }
-            else
-            {
-                // Fallback: derive from LL exponent
-                int llExponent = (_quantization.StepSizes != null && _quantization.StepSizes.Length > 0)
-                    ? (_quantization.StepSizes[0] >> 11) & 0x1F
-                    : 8;
-                exponent = llExponent - stepIndex;
-            }
-        }
-        else if (_quantization.QuantizationType == 1)
-        {
-            // Scalar derived: single base entry, derive others
-            int baseExponent = (_quantization.StepSizes[0] >> 11) & 0x1F;
-            // Derived exponent decreases by 1 per resolution level
-            // QCD index 0=LL, then groups of 3 per level
-            int levelOffset = (stepIndex == 0) ? 0 : ((stepIndex - 1) / 3 + 1);
-            exponent = baseExponent - levelOffset;
-        }
-        else
-        {
-            // Scalar expounded: each subband has its own entry
-            if (_quantization.StepSizes != null && stepIndex < _quantization.StepSizes.Length)
-            {
-                exponent = (_quantization.StepSizes[stepIndex] >> 11) & 0x1F;
-            }
-            else
-            {
-                exponent = 8;
-            }
-        }
-
-        int magBits = guardBits + exponent - 1;
-        int shiftBits = 31 - magBits;
-
-        return Math.Max(shiftBits, 0);
-    }
-
-    /// <summary>
-    /// Dequantizes a single MSB-aligned coefficient by right-shifting.
-    /// Handles the sign-magnitude format from the Tier-1 decoder (sign in bit 31).
-    /// </summary>
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static int Dequantize(int coefficient, int shiftBits)
-    {
-        if (coefficient >= 0)
-        {
-            return coefficient >> shiftBits;
-        }
-
-        // Negative: sign bit is set, magnitude in lower 31 bits
-        return -((coefficient & 0x7FFFFFFF) >> shiftBits);
     }
 
     /// <summary>
@@ -240,8 +171,8 @@ internal sealed class JpxInverseDwt53 : IJpxInverseDwt
             return;
         }
 
-        int evenCount = (height + 1) / 2;
-        int oddCount = height / 2;
+        int evenCount = (height + 1) >> 1;
+        int oddCount = height >> 1;
 
         if (oddCount == 0)
         {
@@ -300,8 +231,8 @@ internal sealed class JpxInverseDwt53 : IJpxInverseDwt
         }
 
         int offset = y * width;
-        int evenCount = (width + 1) / 2;
-        int oddCount = width / 2;
+        int evenCount = (width + 1) >> 1;
+        int oddCount = width >> 1;
 
         if (oddCount == 0)
         {

@@ -1,6 +1,5 @@
 using SkiaSharp;
 using System.Collections.Generic;
-using System.Threading.Tasks;
 
 namespace PdfPixel.Commands;
 
@@ -19,9 +18,8 @@ public sealed class ClipRectCommand : PdfCommand
     }
 
     /// <inheritdoc />
-    public override Task ExecuteAsync(SKCanvas canvas, IEnumerable<IPdfCommandModifier> modifiers, PdfCommandExecutionContext executionContext)
+    public override void Execute(SKCanvas canvas, IEnumerable<IPdfCommandModifier> modifiers, PdfCommandExecutionContext executionContext)
     {
         canvas.ClipRect(_rect, _operation, antialias: executionContext.RenderingParameters.Antialias);
-        return Task.CompletedTask;
     }
 }

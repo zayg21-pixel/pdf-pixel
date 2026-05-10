@@ -226,6 +226,7 @@ public class PdfPanelContext
         }
 
         var localParameters = PdfRenderingParameters.Clone();
+
         localParameters.ScaleFactor = Scale;
 
         var drawingRequest = GetBaseDrawingRequest<PagesDrawingRequest>();

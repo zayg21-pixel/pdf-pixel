@@ -1,7 +1,6 @@
 ﻿using SkiaSharp;
 using System;
 using System.Collections.Generic;
-using System.Threading.Tasks;
 
 namespace PdfPixel.Commands;
 
@@ -16,10 +15,10 @@ public interface IPdfCommand : IDisposable
     /// <param name="canvas">The canvas to draw on.</param>
     /// <param name="modifiers">The modifiers to apply to paints before drawing, applied in order.</param>
     /// <param name="executionContext">Execution-time context containing rendering parameters and cancellation.</param>
-    Task ExecuteAsync(SKCanvas canvas, IEnumerable<IPdfCommandModifier> modifiers, PdfCommandExecutionContext executionContext);
+    void Execute(SKCanvas canvas, IEnumerable<IPdfCommandModifier> modifiers, PdfCommandExecutionContext executionContext);
 
     /// <summary>
     /// If true - command will produce different result depending on scale.
     /// </summary>
-    bool IsScaleDependant { get; }
+    bool IsScaleDependent { get; }
 }

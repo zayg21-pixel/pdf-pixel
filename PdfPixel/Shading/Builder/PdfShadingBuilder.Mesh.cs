@@ -7,7 +7,6 @@ using SkiaSharp;
 using System;
 using System.Collections.Generic;
 using System.Threading;
-using System.Threading.Tasks;
 
 namespace PdfPixel.Shading;
 
@@ -56,9 +55,9 @@ internal partial class PdfShadingBuilder
     /// <param name="shading">Parsed shading model.</param>
     /// <param name="sampler">RGBA sampler for color conversion.</param>
     /// <param name="maxTessellationVertices">Maximum tessellation vertices per patch.</param>
-    /// <param name="token">Cancellation token for async operations.</param>
+    /// <param name="token">Cancellation token for long-running operations.</param>
     /// <returns>Tessellated patch vertices, or null on failure.</returns>
-    public Task<SKVertices> BuildPatchMeshVerticesAsync(PdfShading shading, IRgbaSampler sampler, int maxTessellationVertices, CancellationToken token)
+    public SKVertices BuildPatchMeshVertices(PdfShading shading, IRgbaSampler sampler, int maxTessellationVertices, CancellationToken token)
     {
         var decoder = new MeshDecoder(shading, sampler);
         List<MeshData> patches = decoder.Decode();
@@ -68,6 +67,6 @@ internal partial class PdfShadingBuilder
             return null;
         }
 
-        return MeshEvaluator.CreateVerticesForPatchesAsync(patches, maxTessellationVertices, token);
+        return MeshEvaluator.CreateVerticesForPatches(patches, maxTessellationVertices, token);
     }
 }

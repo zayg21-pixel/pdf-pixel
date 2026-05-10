@@ -2,6 +2,7 @@ using PdfPixel.Color.ColorSpace;
 using PdfPixel.Color.Icc.Model;
 using PdfPixel.Fonts.Model;
 using PdfPixel.Functions;
+using PdfPixel.Imaging.Jbig2.Decoding;
 using PdfPixel.Parsing;
 using System.Collections.Generic;
 
@@ -50,6 +51,12 @@ internal class PdfDocumentObjectCache
     /// High-level cache for parsed PDF functions, keyed by reference.
     /// </summary>
     internal Dictionary<PdfReference, PdfFunction> Functions { get; } = new Dictionary<PdfReference, PdfFunction>();
+
+    /// <summary>
+    /// JBIG2 globals caches, keyed by the PDF reference of the /JBIG2Globals stream object.
+    /// Populated on first use so each globals stream is decoded only once per document.
+    /// </summary>
+    internal Dictionary<PdfReference, Jbig2SegmentCache> Jbig2GlobalCaches { get; } = new Dictionary<PdfReference, Jbig2SegmentCache>();
 
     /// <summary>
     /// Document object index collection.
