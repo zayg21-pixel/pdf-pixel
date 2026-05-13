@@ -128,7 +128,7 @@ public partial class PdfContentWorkerInterop
 
                 var updatePagesRequest = new ContentProvider.UpdateContentRequest
                 {
-                    VisiblePages = request.VisiblePages,
+                    VisiblePages = request.VisiblePages.ToArray(),
                     RenderingParameters = new PdfRenderingParameters
                     {
                         ScaleFactor = request.Scale

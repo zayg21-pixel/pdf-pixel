@@ -139,8 +139,8 @@ internal sealed class JpxTileDecoder : IJpxTileDecoder
         // Stage 6b: DC level shift and clamp for each component
         for (int component = 0; component < tile.ComponentCount; component++)
         {
-            int tileBitDepth = tile.ComponentBitDepths[component];
-            bool isSigned = tile.ComponentSigned[component];
+            int tileBitDepth = _header.Components[component].PrecisionBits;
+            bool isSigned = _header.Components[component].IsSigned;
             int[] data = tile.ComponentData[component];
 
             if (!isSigned)

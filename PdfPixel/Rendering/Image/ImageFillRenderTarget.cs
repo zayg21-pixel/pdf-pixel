@@ -53,7 +53,7 @@ internal class ImageFillRenderTarget : IRenderTarget
             var maskContext = new ImageDecodingContext(_context, SKColors.White, 1f, SKBlendMode.DstIn);
             processor.Process(new SaveStateCommand());
             processor.Process(new ConcatMatrixCommand(PdfImageCommandUtilities.GetImageMatrix()));
-            processor.Process(new DrawStencilMaskCommand(_image, maskContext, _loggerFactory));
+            ProcessTileCommands(processor, _image, maskContext);
             processor.Process(new RestoreStateCommand());
         }
 
@@ -72,16 +72,50 @@ internal class ImageFillRenderTarget : IRenderTarget
         processor.Process(new ClipPathCommand(new SKRect(0, 0, 1, 1), SKClipOperation.Intersect));
         processor.Process(new ConcatMatrixCommand(PdfImageCommandUtilities.GetImageMatrix()));
 
-        PdfCommand drawCommand = _image.AlphaMode switch
-        {
-            PdfImageAlphaMode.StencilMask => new DrawStencilMaskCommand(_image, _context, _loggerFactory),
-            PdfImageAlphaMode.ImageWithSoftAlphaMask => new DrawSoftMaskImageCommand(_image, _context, _loggerFactory),
-            PdfImageAlphaMode.ImageWithStencilMask => new DrawStencilMaskedImageCommand(_image, _context, _loggerFactory),
-            _ => new DrawNormalImageCommand(_image, _context, _loggerFactory),
-        };
+        ProcessTileCommands(processor, _image, _context);
 
-        processor.Process(drawCommand);
         processor.Process(new RestoreStateCommand());
+    }
+
+    private void ProcessTileCommands(IPdfCommandProcessor processor, PdfImage image, ImageDecodingContext context)
+    {
+        switch (image.AlphaMode)
+        {
+            case PdfImageAlphaMode.StencilMask:
+            {
+                var ctx = StencilMaskImageExecutionContext.Create(image, context, _loggerFactory);
+                processor.Process(new InitializeTileCacheCommand(ctx.TileCache, ctx.ImageSize, ctx));
+                for (int i = 0; i < ctx.TileInfo.TotalTiles; i++)
+                    processor.Process(new DrawStencilMaskImageTileCommand(ctx));
+                break;
+            }
+            case PdfImageAlphaMode.ImageWithSoftAlphaMask:
+            {
+                var ctx = SoftMaskImageExecutionContext.Create(image, context, _loggerFactory);
+                processor.Process(new InitializeTileCacheCommand(ctx.ImageCache, ctx.ImageSize, ctx));
+                processor.Process(new InitializeTileCacheCommand(ctx.MaskCache, ctx.MaskSize));
+                for (int i = 0; i < ctx.TileInfo.TotalTiles; i++)
+                    processor.Process(new DrawSoftMaskImageTileCommand(ctx));
+                break;
+            }
+            case PdfImageAlphaMode.ImageWithStencilMask:
+            {
+                var ctx = StencilMaskedImageExecutionContext.Create(image, context, _loggerFactory);
+                processor.Process(new InitializeTileCacheCommand(ctx.ImageCache, ctx.ImageSize, ctx));
+                processor.Process(new InitializeTileCacheCommand(ctx.MaskCache, ctx.MaskSize));
+                for (int i = 0; i < ctx.TileInfo.TotalTiles; i++)
+                    processor.Process(new DrawStencilMaskedImageTileCommand(ctx));
+                break;
+            }
+            default:
+            {
+                var ctx = NormalImageExecutionContext.Create(image, context, _loggerFactory);
+                processor.Process(new InitializeTileCacheCommand(ctx.TileCache, ctx.ImageSize, ctx));
+                for (int i = 0; i < ctx.TileInfo.TotalTiles; i++)
+                    processor.Process(new DrawNormalImageTileCommand(ctx));
+                break;
+            }
+        }
     }
 
     public void Dispose()

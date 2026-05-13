@@ -1,4 +1,4 @@
-﻿using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging;
 using PdfPixel.Color.ColorSpace;
 using PdfPixel.Commands;
 using PdfPixel.Imaging.Jpg.Color;
@@ -7,130 +7,93 @@ using PdfPixel.Imaging.Jpg.Model;
 using PdfPixel.Imaging.Jpg.Readers;
 using PdfPixel.Imaging.Model;
 using PdfPixel.Imaging.Processing;
-using PdfPixel.Models;
 using SkiaSharp;
 using System;
 using System.Threading;
 
 namespace PdfPixel.Imaging.Decoding;
 
-/// <summary>
-/// JPEG (DCTDecode) image decoder.
-/// Decodes a JPEG-encoded image stream (baseline or progressive) into an interleaved component row stream and
-/// performs row-level post processing (decode mapping, masking, color conversion, palette handling) via
-/// <see cref="PdfImageRowProcessor"/>. Mandatory JPEG color transforms (YCbCr ➜ RGB, YCCK ➜ CMYK) are applied
-/// during MCU decode so that emitted rows are already in the declared component space (Gray=1, RGB=3, CMYK=4).
-/// </summary>
 public sealed class JpegImageDecoder : PdfImageDecoder
 {
+    private readonly ReadOnlyMemory<byte> _encodedData;
+    private readonly JpgHeader _jpgHeader;
+    private readonly PdfColorSpaceConverter _resolvedConverter;
+
+    private IJpgDecoder _jpgRowDecoder;
+    private byte[] _fullWidthRowBuffer;
+    private PdfImageTilingContext _tilingContext;
+    private PdfImageRowDecodingParameters _imageParameters;
+    private int _currentImageRow;
+
     public JpegImageDecoder(PdfImage image, ILoggerFactory loggerFactory) : base(image, loggerFactory)
     {
+        _encodedData = image.GetImageData();
+        if (_encodedData.IsEmpty) return;
+
+        try { _jpgHeader = JpgReader.ParseHeader(_encodedData.Span); }
+        catch (Exception ex) { Logger.LogError(ex, "JPEG header parse failed (Name={Name}).", image.Name); return; }
+
+        if (_jpgHeader == null || _jpgHeader.ContentOffset < 0) return;
+
+        _resolvedConverter = image.ColorSpaceConverter;
+        if (_resolvedConverter.IsDevice && JpgIccProfileReader.TryAssembleIccProfile(_jpgHeader, out var profileBytes))
+            _resolvedConverter = new IccBasedConverter(_jpgHeader.ComponentCount, _resolvedConverter, profileBytes);
     }
 
-    /// <summary>
-    /// Decode the JPEG image returning an <see cref="SKImage"/> or null on failure (errors are logged).
-    /// Attempts custom streaming decode first; falls back to Skia's built‑in decoder if custom path fails.
-    /// </summary>
-    public override SKImage Decode(
-        ImageDecodingContext context,
-        CancellationToken cancellationToken)
+    public override void Initialize(PdfTileInfo tileInfo, ImageDecodingContext context, SKMatrix ctm, SKRectI regionOfInterest)
     {
         if (!ValidateImageParameters())
-        {
-            return null;
-        }
+            throw new InvalidOperationException($"JPEG image parameters are invalid (Name={Image.Name}).");
+        if (_encodedData.IsEmpty)
+            throw new InvalidOperationException($"JPEG image data is empty (Name={Image.Name}).");
+        if (_jpgHeader == null || _jpgHeader.ContentOffset < 0)
+            throw new InvalidOperationException($"JPEG header is invalid (Name={Image.Name}).");
 
-        ReadOnlyMemory<byte> encodedImageData = Image.GetImageData();
+        int imageWidth = _jpgHeader.Width;
+        int imageHeight = _jpgHeader.Height;
+        if (imageWidth <= 0 || imageHeight <= 0)
+            throw new InvalidOperationException($"Invalid JPEG dimensions (Image={Image.Name}).");
 
-        if (encodedImageData.Length == 0)
-        {
-            Logger.LogError("JPEG image data is empty (Name={Name}).", Image.Name);
-            return null;
-        }
+        _imageParameters = PdfImageRowDecodingParameters.FromImage(Image, context, ctm);
 
-        return DecodeInternal(encodedImageData, context, cancellationToken);
+        _jpgRowDecoder = CreateJpgDecoder();
+        _fullWidthRowBuffer = new byte[checked(_jpgHeader.ComponentCount * imageWidth)];
+        _tilingContext = new PdfImageTilingContext(new SKSizeI(tileInfo.TileWidth, tileInfo.TileHeight), _imageParameters, ctm, regionOfInterest, LoggerFactory);
+        _currentImageRow = 0;
     }
 
-    /// <summary>
-    /// Decode using custom streaming pipeline. Throws on failure.
-    /// Row data is streamed row-by-row directly into a <see cref="PdfImageRowProcessor"/> without allocating a full intermediate buffer.
-    /// </summary>
-    private SKImage DecodeInternal(
-        ReadOnlyMemory<byte> encoded,
-        ImageDecodingContext context,
-        CancellationToken cancellationToken)
+    public override PdfImageTile[] DecodeNextTiles(CancellationToken cancellationToken = default)
     {
-        JpgHeader header;
-        try
+        while (_currentImageRow < _imageParameters.Height)
         {
-            header = JpgReader.ParseHeader(encoded.Span);
+            if (!_jpgRowDecoder.TryReadRow(_fullWidthRowBuffer))
+                throw new InvalidOperationException($"JPEG decode failed at image row {_currentImageRow} (Image={Image.Name}).");
+            var tiles = _tilingContext.WriteRowAndTryGetTiles(_currentImageRow, _fullWidthRowBuffer, cancellationToken);
+            _currentImageRow++;
+            cancellationToken.ThrowIfCancellationRequested();
+            if (tiles != null) return tiles;
         }
-        catch (Exception ex)
+        return null;
+    }
+
+    public override void Cleanup()
+    {
+        _jpgRowDecoder = null;
+        _fullWidthRowBuffer = null;
+        _tilingContext?.Dispose();
+        _tilingContext = null;
+        _imageParameters = null;
+        _currentImageRow = 0;
+    }
+
+    private IJpgDecoder CreateJpgDecoder()
+    {
+        ReadOnlyMemory<byte> compressed = _encodedData.Slice(_jpgHeader.ContentOffset);
+        return _jpgHeader.FrameType switch
         {
-            throw new InvalidOperationException($"JPEG header parse exception (Image={Image.Name}).", ex);
-        }
-
-        if (header == null || header.ContentOffset < 0)
-        {
-            throw new InvalidOperationException($"JPEG header invalid or missing content segment (Image={Image.Name}).");
-        }
-
-        if (Image.ColorSpaceConverter.IsDevice && JpgIccProfileReader.TryAssembleIccProfile(header, out var profileBytes))
-        {
-            Image.UpdateColorSpace(new IccBasedConverter(header.ComponentCount, Image.ColorSpaceConverter, profileBytes));
-        }
-
-        int imageWidth = header.Width;
-        int imageHeight = header.Height;
-        if (imageWidth <= 0 || imageHeight <= 0)
-        {
-            throw new InvalidOperationException($"Invalid JPEG dimensions Width={imageWidth} Height={imageHeight} (Image={Image.Name}).");
-        }
-
-        int componentCount = header.ComponentCount; // After internal color transform stage
-        int rowStride = checked(componentCount * imageWidth);
-
-        IJpgDecoder decoder;
-        try
-        {
-            ReadOnlyMemory<byte> compressed = encoded.Slice(header.ContentOffset);
-            decoder = header.FrameType switch
-            {
-                JpgFrameType.ProgressiveDct => new JpgProgressiveDecoder(header, compressed),
-                JpgFrameType.BaselineDct or JpgFrameType.ExtendedSequentialDct => new JpgBaselineDecoder(header, compressed),
-                _ => throw new NotSupportedException($"JPEG frame type {header.FrameType} is not supported (Image={Image.Name}).")
-            };
-        }
-        catch (Exception ex)
-        {
-            throw new InvalidOperationException($"JPEG decoder initialization failed (Image={Image.Name}).", ex);
-        }
-
-        PdfImageRowProcessor rowProcessor = null;
-
-        try
-        {
-            rowProcessor = new PdfImageRowProcessor(Image, LoggerFactory.CreateLogger<PdfImageRowProcessor>(), context);
-            rowProcessor.InitializeBuffer();
-
-            byte[] rowBuffer = new byte[rowStride];
-
-            for (int rowIndex = 0; rowIndex < imageHeight; rowIndex++)
-            {
-                if (!decoder.TryReadRow(rowBuffer))
-                {
-                    throw new InvalidOperationException($"JPEG decode failed at row {rowIndex} (Image={Image.Name}).");
-                }
-
-                rowProcessor.WriteRow(rowIndex, rowBuffer);
-                cancellationToken.ThrowIfCancellationRequested();
-            }
-
-            return rowProcessor.GetDecoded();
-        }
-        finally
-        {
-            rowProcessor?.Dispose();
-        }
+            JpgFrameType.ProgressiveDct => new JpgProgressiveDecoder(_jpgHeader, compressed),
+            JpgFrameType.BaselineDct or JpgFrameType.ExtendedSequentialDct => new JpgBaselineDecoder(_jpgHeader, compressed),
+            _ => throw new NotSupportedException($"JPEG frame type {_jpgHeader.FrameType} is not supported (Image={Image.Name}).")
+        };
     }
 }

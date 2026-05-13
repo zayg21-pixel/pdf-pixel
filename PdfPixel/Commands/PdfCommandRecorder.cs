@@ -53,6 +53,7 @@ public sealed class PdfCommandRecorder : IPdfCommandProcessor
         {
             command.Execute(canvas, modifiers, executionContext);
             executionContext.CancellationToken.ThrowIfCancellationRequested();
+            executionContext.OnCommandExecuted?.Invoke();
         }
     }
 

@@ -1,8 +1,10 @@
-using System;
-using System.Linq;
-using System.Threading;
 using PdfPixel.PdfPanel.ContentProvider;
 using PdfPixel.PdfPanel.Requests;
+using SkiaSharp;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
 
 namespace PdfPixel.PdfPanel;
 
@@ -62,23 +64,11 @@ public class SingleThreadedRenderLoopRunner : IRenderLoopRunner
 
         if (request is PagesDrawingRequest pagesDrawingRequest)
         {
-            var pages = pagesDrawingRequest.VisiblePages.Select(x => x.PageNumber).OrderBy(x => x).ToList();
-
-            if (pages[0] != 1)
-            {
-                pages.Add(pages[0] - 1);
-            }
-
-            if (pages[pages.Count - 1] != contentProvider.GetPagesCount())
-            {
-                pages.Add(pages[pages.Count - 1] + 1);
-            }
-
             contentProvider.OnPageUpdated = RequestReRender;
 
             var contentRequest = new UpdateContentRequest
             {
-                VisiblePages = pages,
+                VisiblePages = ExpandVisiblePages(pagesDrawingRequest.VisiblePages, contentProvider.GetPagesCount()),
                 RenderingParameters = pagesDrawingRequest.RenderingParameters,
                 ActiveAnnotation = pagesDrawingRequest.ActiveAnnotation,
                 PointerState = pagesDrawingRequest.ActiveAnnotationState
@@ -86,6 +76,22 @@ public class SingleThreadedRenderLoopRunner : IRenderLoopRunner
 
             contentProvider.UpdateContent(contentRequest);
         }
+    }
+
+    private static int[] ExpandVisiblePages(VisiblePageInfo[] visiblePages, int totalPages)
+    {
+        if (visiblePages == null || visiblePages.Length == 0)
+            return [];
+
+        int first = visiblePages.Min(p => p.PageNumber);
+        int last = visiblePages.Max(p => p.PageNumber);
+
+        var expanded = new List<int>(visiblePages.Select(p => p.PageNumber));
+
+        if (first > 1) expanded.Add(first - 1);
+        if (last < totalPages) expanded.Add(last + 1);
+
+        return expanded.ToArray();
     }
 
     private void RequestReRender(PageUpdatedArgs args)

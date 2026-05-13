@@ -3,8 +3,6 @@ using PdfPixel.Color.ColorSpace;
 using PdfPixel.Color.Sampling;
 using PdfPixel.Color.Structures;
 using PdfPixel.Color.Transform;
-using PdfPixel.Commands;
-using PdfPixel.Imaging.Model;
 using PdfPixel.Imaging.Png;
 using PdfPixel.Parsing;
 using SkiaSharp;
@@ -24,7 +22,7 @@ internal sealed class PdfImageRowProcessor : IDisposable
         RgbaColorApplied
     }
 
-    private readonly PdfImage _image;
+    private readonly PdfImageRowDecodingParameters _parameters;
     private readonly PdfColorSpaceConverter _converter;
     private readonly ILogger _logger;
 
@@ -45,20 +43,15 @@ internal sealed class PdfImageRowProcessor : IDisposable
     private readonly IRowConverter _rowConverter;
     private byte[] _convertedRowBuffer;
 
-    public PdfImageRowProcessor(
-        PdfImage image,
-        ILogger logger,
-        ImageDecodingContext context,
-        SKSizeI? inputSizeOverride = null,
-        int bitsPerComponentOverride = 0)
+    public PdfImageRowProcessor(PdfImageRowDecodingParameters parameters, ILogger logger)
     {
-        _image = image ?? throw new ArgumentNullException(nameof(image));
+        _parameters = parameters ?? throw new ArgumentNullException(nameof(parameters));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
-        var sourceWidth = inputSizeOverride?.Width ?? image.Width;
-        var sourceHeight = inputSizeOverride?.Height ?? image.Height;
-        _bitsPerComponent = bitsPerComponentOverride > 0 ? bitsPerComponentOverride : image.BitsPerComponent;
-        _converter = image.ColorSpaceConverter ?? throw new InvalidOperationException("Color space converter must not be null for row processing.");
+        var sourceWidth = parameters.Width;
+        var sourceHeight = parameters.Height;
+        _bitsPerComponent = parameters.BitsPerComponent;
+        _converter = parameters.ColorSpaceConverter ?? throw new InvalidOperationException("Color space converter must not be null for row processing.");
 
         if (sourceWidth <= 0 || sourceHeight <= 0)
         {
@@ -71,15 +64,11 @@ internal sealed class PdfImageRowProcessor : IDisposable
 
         _components = _converter.Components;
 
-        var downscaleSize = context.GetScaledSize(new SKSizeI(sourceWidth, sourceHeight));
-        bool isIndexed = _converter is IndexedConverter;
-
-        if (!isIndexed && !context.IsType3Rendering && downscaleSize.HasValue)
+        if (parameters.DownscaledSize.HasValue)
         {
-            _width = downscaleSize.Value.Width;
-            _height = downscaleSize.Value.Height;
+            _width = parameters.DownscaledSize.Value.Width;
+            _height = parameters.DownscaledSize.Value.Height;
 
-            //_rowConverter = new NearestNeighborRowConverter(_components, _bitsPerComponent, sourceWidth, _width, sourceHeight, _height);
             _rowConverter = new AveragingDownsampleRowConverter(_components, _bitsPerComponent, sourceWidth, _width, sourceHeight, _height);
             _bitsPerComponent = _rowConverter.BitsPerComponent;
         }
@@ -89,9 +78,9 @@ internal sealed class PdfImageRowProcessor : IDisposable
             _height = sourceHeight;
         }
 
-        if (ShouldConvertColor(_image))
+        if (ShouldConvertColor(_parameters))
         {
-            _sampler = _image.ColorSpaceConverter.GetRgbaSampler(_image.RenderingIntent, context.FullTransferFunction);
+            _sampler = _parameters.ColorSpaceConverter.GetRgbaSampler(_parameters.RenderingIntent, _parameters.Context.FullTransferFunction);
             _outputMode = OutputMode.RgbaColorApplied;
             _pngBuilder = new PngImageBuilder(4, 8, _width, _height);
             _pngBuilder.Init(null, null);
@@ -105,16 +94,16 @@ internal sealed class PdfImageRowProcessor : IDisposable
             RgbaPacked[] palette = null;
             ReadOnlyMemory<byte> iccProfile = ReadOnlyMemory<byte>.Empty;
 
-            if (_image.ColorSpaceConverter is IndexedConverter indexed)
+            if (_parameters.ColorSpaceConverter is IndexedConverter indexed)
             {
-                palette = indexed.BuildPackedPalette(_image.RenderingIntent, context.FullTransferFunction);
+                palette = indexed.BuildPackedPalette(_parameters.RenderingIntent, _parameters.Context.FullTransferFunction);
             }
             else if (_components == 1 && _bitsPerComponent <= 8)
             {
-                palette = BuildSingleChannelPalette(_image, context.FullTransferFunction, _bitsPerComponent);
+                palette = BuildSingleChannelPalette(_parameters, _bitsPerComponent);
             }
 
-            if (_image.ColorSpaceConverter is IccBasedConverter iccBased && iccBased.Profile?.Bytes != null)
+            if (_parameters.ColorSpaceConverter is IccBasedConverter iccBased && iccBased.Profile?.Bytes != null)
             {
                 iccProfile = iccBased.Profile.Bytes;
             }
@@ -122,14 +111,14 @@ internal sealed class PdfImageRowProcessor : IDisposable
         }
     }
 
-    public static RgbaPacked[] BuildSingleChannelPalette(PdfImage image, IColorTransform fullTransferFunction, int outputBitsPerComponent)
+    public static RgbaPacked[] BuildSingleChannelPalette(PdfImageRowDecodingParameters parameters, int outputBitsPerComponent)
     {
-        if (image.ColorSpaceConverter is DeviceGrayConverter)
+        if (parameters.ColorSpaceConverter is DeviceGrayConverter)
         {
             return null;
         }
 
-        var sampler = image.ColorSpaceConverter.GetRgbaSampler(image.RenderingIntent, fullTransferFunction);
+        var sampler = parameters.ColorSpaceConverter.GetRgbaSampler(parameters.RenderingIntent, parameters.Context.FullTransferFunction);
         int maxCode = (1 << outputBitsPerComponent) - 1;
         int paletteSize = maxCode + 1;
         var palette = new RgbaPacked[paletteSize];
@@ -145,9 +134,9 @@ internal sealed class PdfImageRowProcessor : IDisposable
         return palette;
     }
 
-    public static bool ShouldConvertColor(PdfImage image)
+    public static bool ShouldConvertColor(PdfImageRowDecodingParameters parameters)
     {
-        var converter = image.ColorSpaceConverter;
+        var converter = parameters.ColorSpaceConverter;
 
         if (converter == null)
         {
@@ -155,19 +144,19 @@ internal sealed class PdfImageRowProcessor : IDisposable
         }
 
         // stencil mask, never convert color, they should have no color info
-        if (image.HasImageMask)
+        if (parameters.HasImageMask)
         {
             return false;
         }
 
         // If decode is present, we should convert color after decode, so we need full color conversion
-        if (image.DecodeArray != null)
+        if (parameters.DecodeArray != null)
         {
             return true;
         }
 
         // If mask is present, we should convert color after mask application, so we need full color conversion
-        if (image.MaskArray != null)
+        if (parameters.MaskArray != null)
         {
             return true;
         }
@@ -183,13 +172,6 @@ internal sealed class PdfImageRowProcessor : IDisposable
         {
             // TODO: Skia seems to ignore ICC profiles in images, so we always convert for now.
             return true;
-            //using var skiaIcc = SKColorSpace.CreateIcc(iccBased.Profile.Bytes);
-            //if (skiaIcc == null)
-            //{
-            //    return true;
-            //}
-
-            //return false;
         }
 
         // Device RGB and Device Gray can be represented directly
@@ -199,7 +181,7 @@ internal sealed class PdfImageRowProcessor : IDisposable
         }
 
         // Special-case: single-component color spaces without decode/mask and <=8 bpc
-        if (converter.Components == 1 && image.BitsPerComponent <= 8)
+        if (converter.Components == 1 && parameters.BitsPerComponent <= 8)
         {
             return false;
         }
@@ -277,19 +259,18 @@ internal sealed class PdfImageRowProcessor : IDisposable
 
         Span<float> componentValues = stackalloc float[componentCount];
 
+        bool applyDecode = _parameters.DecodeArray != null && _parameters.DecodeArray.Length == componentCount * 2;
+        float[] decodeArray = _parameters.DecodeArray;
 
-        bool applyDecode = _image.DecodeArray != null && _image.DecodeArray.Length == componentCount * 2;
-        float[] decodeArray = _image.DecodeArray; // May be null when applyDecode is false.
-
-        bool applyMask = _image.MaskArray != null && _image.MaskArray.Length == componentCount * 2;
-        int[] maskArray = _image.MaskArray; // Raw sample code ranges (min,max) per component.
+        bool applyMask = _parameters.MaskArray != null && _parameters.MaskArray.Length == componentCount * 2;
+        int[] maskArray = _parameters.MaskArray;
 
         int maxCode = (1 << bitsPerComponent) - 1;
         float scale;
 
         if (_converter is IndexedConverter)
         {
-            scale = 1f; // Indexed color spaces use direct sample codes.
+            scale = 1f;
         }
         else
         {
@@ -311,11 +292,11 @@ internal sealed class PdfImageRowProcessor : IDisposable
 
                     if (sample < minCode || sample > maxCodeRange)
                     {
-                        maskMatch = false; // Early reject for this pixel.
+                        maskMatch = false;
                     }
                 }
 
-                float value01 = sample * scale; // Normalize to 0..1.
+                float value01 = sample * scale;
 
                 if (applyDecode)
                 {
@@ -357,7 +338,6 @@ internal sealed class PdfImageRowProcessor : IDisposable
         _completed = true;
 
         return _pngBuilder.Build();
-
     }
 
     public void Dispose()

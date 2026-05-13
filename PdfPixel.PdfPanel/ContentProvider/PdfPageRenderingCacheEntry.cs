@@ -182,9 +182,9 @@ public sealed class PdfPageCacheEntry : IDisposable
     }
 
     /// <summary>
-    /// Clears cache entry.
+    /// Cancels any in-progress work tokens. Safe to call from any thread.
     /// </summary>
-    public void Reset()
+    public void Cancel()
     {
         ThrowIfDisposed();
 
@@ -194,10 +194,18 @@ public sealed class PdfPageCacheEntry : IDisposable
         ParseCancellationTokenSource = null;
         ContentCancellationTokenSource = null;
 
+        PendingRequest = false;
+    }
+
+    /// <summary>
+    /// Clears cached content. Must be called from the worker thread.
+    /// </summary>
+    public void Clear()
+    {
+        ThrowIfDisposed();
+
         Content.Clear();
         AnnotationContent.Clear();
-
-        PendingRequest = false;
     }
 
     /// <summary>
@@ -260,7 +268,8 @@ public sealed class PdfPageCacheEntry : IDisposable
             return;
         }
 
-        Reset();
+        Cancel();
+        Clear();
         _disposed = true;
     }
 }

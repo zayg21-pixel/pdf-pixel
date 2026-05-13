@@ -1,23 +1,23 @@
-﻿using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Concurrent;
 using System.Threading;
 
 namespace PdfPixel.PdfPanel.WorkQueue;
 
-public sealed class AsyncWorkQueue<T> : IWorkQueue<T> where T : IWorkItem
+public sealed class AsyncWorkQueue : IWorkQueue
 {
-    private readonly ConcurrentQueue<T> _workItems = new ConcurrentQueue<T>();
+    private readonly ConcurrentQueue<IWorkItem> _workItems = new ConcurrentQueue<IWorkItem>();
     private readonly SemaphoreSlim _semaphore = new SemaphoreSlim(0);
-    private readonly ILogger<AsyncWorkQueue<T>> _logger;
+    private readonly ILogger<AsyncWorkQueue> _logger;
 
-    public AsyncWorkQueue(ILogger<AsyncWorkQueue<T>> logger)
+    public AsyncWorkQueue(ILogger<AsyncWorkQueue> logger)
     {
         _logger = logger;
         ProcessingLoop();
     }
 
-    public void Enqueue(T item)
+    public void Enqueue(IWorkItem item)
     {
         _workItems.Enqueue(item);
         _semaphore.Release();
@@ -40,15 +40,11 @@ public sealed class AsyncWorkQueue<T> : IWorkQueue<T> where T : IWorkItem
                     break;
                 }
 
-                if (!_workItems.TryDequeue(out T workItem))
-                {
+                if (!_workItems.TryDequeue(out IWorkItem workItem))
                     continue;
-                }
 
                 if (workItem.IsSkippable)
-                {
                     continue;
-                }
 
                 try
                 {
@@ -59,7 +55,6 @@ public sealed class AsyncWorkQueue<T> : IWorkQueue<T> where T : IWorkItem
                 }
                 catch (OperationCanceledException)
                 {
-                    // silently ignore.
                 }
             }
             catch (ObjectDisposedException)

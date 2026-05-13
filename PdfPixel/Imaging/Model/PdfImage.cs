@@ -139,28 +139,6 @@ public class PdfImage
     public PdfImage StencilMask { get; internal set; }
 
     /// <summary>
-    /// Explicitly replace the current <see cref="ColorSpaceConverter"/> with the provided converter.
-    /// This helper is used when a higher-level parser (e.g., embedded ICC profile detection) determines
-    /// a more accurate color space than the originally declared one. The method validates the argument
-    /// and avoids unnecessary assignment when the instance is already identical.
-    /// </summary>
-    /// <param name="colorSpace">The new color space converter to install. Ignored if null.</param>
-    public void UpdateColorSpace(PdfColorSpaceConverter colorSpace)
-    {
-        if (colorSpace == null)
-        {
-            return;
-        }
-
-        if (ReferenceEquals(ColorSpaceConverter, colorSpace))
-        {
-            return; // No change needed.
-        }
-
-        ColorSpaceConverter = colorSpace;
-    }
-
-    /// <summary>
     /// Create a PdfImage from XObject data.
     /// </summary>
     public static PdfImage FromXObject(PdfObject imageXObject, PdfPage page, PdfString name, bool isSoftMask)

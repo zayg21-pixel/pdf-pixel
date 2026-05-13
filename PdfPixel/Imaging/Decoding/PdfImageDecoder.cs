@@ -2,6 +2,7 @@
 using PdfPixel.Color.ColorSpace;
 using PdfPixel.Commands;
 using PdfPixel.Imaging.Model;
+using PdfPixel.Imaging.Processing;
 using SkiaSharp;
 using System;
 using System.Threading;
@@ -71,15 +72,11 @@ public abstract class PdfImageDecoder
         }
     }
 
-    /// <summary>
-    /// Returns the decoded image as an <see cref="SKImage"/>.
-    /// </summary>
-    /// <param name="context">graphics state values needed for image decoding..</param>
-    /// <param name="cancellationToken">Cancellation token for cooperative cancellation.</param>
-    /// <returns>The decoded <see cref="SKImage"/>.</returns>
-    public abstract SKImage Decode(
-        ImageDecodingContext context,
-        CancellationToken cancellationToken);
+    public virtual void Initialize(PdfTileInfo tileInfo, ImageDecodingContext context, SKMatrix ctm, SKRectI regionOfInterest) { }
+
+    public virtual PdfImageTile[] DecodeNextTiles(CancellationToken cancellationToken = default) => null;
+
+    public virtual void Cleanup() { }
 
     /// <summary>
     /// Validate image parameters and return key values needed for processing.

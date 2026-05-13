@@ -158,8 +158,7 @@ internal sealed class JpxTileToRowConverter : IDisposable
                     uint uValue = 0;
                     if (component < tile.ComponentCount && tile.ComponentData[component] != null)
                     {
-                        int rawValue = tile.GetComponentValue(component, pixelInTile, rowWithinTile);
-                        uValue = ConvertToUnsignedAtTargetDepth(rawValue, tile.ComponentBitDepths[component], tile.ComponentSigned[component], BitsPerComponent);
+                        uValue = tile.GetUnsignedComponentValue(component, pixelInTile, rowWithinTile, _header.Components[component], BitsPerComponent);
                     }
                     writer.WriteBits(BitsPerComponent, uValue);
                 }
@@ -170,29 +169,6 @@ internal sealed class JpxTileToRowConverter : IDisposable
 
         _currentRow++;
         return true;
-    }
-
-    private static uint ConvertToUnsignedAtTargetDepth(int rawValue, int actualBitDepth, bool isSigned, int targetBitDepth)
-    {
-        uint uValue;
-        if (isSigned)
-        {
-            // Bias signed [-(1<<(n-1)), (1<<(n-1))-1] into unsigned [0, (1<<n)-1]
-            int biasShift = Math.Min(actualBitDepth - 1, 30);
-            uValue = (uint)(rawValue + (1 << biasShift));
-        }
-        else
-        {
-            uValue = (uint)rawValue;
-        }
-
-        int shift = actualBitDepth - targetBitDepth;
-        if (shift > 0)
-            uValue >>= shift;
-        else if (shift < 0)
-            uValue <<= -shift;
-
-        return uValue;
     }
 
     public void Dispose()

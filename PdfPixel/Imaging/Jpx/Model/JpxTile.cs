@@ -34,16 +34,6 @@ internal sealed class JpxTile
     public int[][] ComponentData { get; }
 
     /// <summary>
-    /// Gets the bit depth for each component.
-    /// </summary>
-    public int[] ComponentBitDepths { get; }
-
-    /// <summary>
-    /// Gets whether each component is signed.
-    /// </summary>
-    public bool[] ComponentSigned { get; }
-
-    /// <summary>
     /// Initializes a new JPX tile with the specified dimensions.
     /// </summary>
     /// <param name="header">The JPX header containing component info.</param>
@@ -61,16 +51,6 @@ internal sealed class JpxTile
         ComponentCount = header.ComponentCount;
         Width = width;
         Height = height;
-
-        // Initialize component metadata arrays
-        ComponentBitDepths = new int[ComponentCount];
-        ComponentSigned = new bool[ComponentCount];
-
-        for (int i = 0; i < ComponentCount; i++)
-        {
-            ComponentBitDepths[i] = header.Components[i].PrecisionBits;
-            ComponentSigned[i] = header.Components[i].IsSigned;
-        }
 
         // Initialize component data arrays
         ComponentData = new int[ComponentCount][];
@@ -96,12 +76,8 @@ internal sealed class JpxTile
     public int TileY => TileHeader.TileY;
 
     /// <summary>
-    /// Gets the component value at the specified coordinates.
+    /// Gets the raw signed-or-unsigned component value at the specified coordinates.
     /// </summary>
-    /// <param name="component">Component index (0-based).</param>
-    /// <param name="x">X coordinate within tile.</param>
-    /// <param name="y">Y coordinate within tile.</param>
-    /// <returns>Component value at the specified position.</returns>
     public int GetComponentValue(int component, int x, int y)
     {
         if (component < 0 || component >= ComponentCount || ComponentData[component] == null)
@@ -115,6 +91,40 @@ internal sealed class JpxTile
         }
 
         return ComponentData[component][y * Width + x];
+    }
+
+    /// <summary>
+    /// Returns the component value at (x, y) as an unsigned integer normalized to
+    /// <paramref name="normalizedBitsPerComponent"/> bits.
+    /// Signed samples are biased to unsigned using <paramref name="componentInfo"/>'s
+    /// actual precision before any depth rescaling is applied.
+    /// </summary>
+    public uint GetUnsignedComponentValue(int component, int x, int y, JpxComponent componentInfo, int normalizedBitsPerComponent)
+    {
+        if (component < 0 || component >= ComponentCount || ComponentData[component] == null)
+        {
+            return 0;
+        }
+
+        if (x < 0 || x >= Width || y < 0 || y >= Height)
+        {
+            return 0;
+        }
+
+        int rawValue = ComponentData[component][y * Width + x];
+        int actualBits = componentInfo.PrecisionBits;
+
+        uint uValue = componentInfo.IsSigned
+            ? (uint)(rawValue + (1 << (actualBits - 1)))
+            : (uint)rawValue;
+
+        int shift = actualBits - normalizedBitsPerComponent;
+        if (shift > 0)
+            uValue >>= shift;
+        else if (shift < 0)
+            uValue <<= -shift;
+
+        return uValue;
     }
 
     /// <summary>

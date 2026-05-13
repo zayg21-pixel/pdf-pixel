@@ -2,7 +2,9 @@ using PdfPixel.Annotations.Models;
 using PdfPixel.Commands;
 using PdfPixel.Models;
 using PdfPixel.PdfPanel.WorkQueue;
+using SkiaSharp;
 using System;
+using System.Diagnostics;
 using System.Threading;
 
 namespace PdfPixel.PdfPanel.ContentProvider;
@@ -49,30 +51,17 @@ public class PdfPageUpdateCacheWorkItem : IWorkItem
             }
         }
 
-        lock (_documentLocker)
+        // TODO: [MEDIUM] this can be moved out of locker if DrawImageCommand would not have access to PDF resource stream
+        if (!CacheEntry.Content.ContentPicture.HasContent || (CacheEntry.Content.IsScaleDependant && CacheEntry.Content.Scale != scaleFactor))
         {
-            // TODO: [MEDIUM] this can be moved out of locker if DrawImageCommand would not have access to PDF resource stream
-            if (!CacheEntry.Content.ContentPicture.HasContent || (CacheEntry.Content.IsScaleDependant && CacheEntry.Content.Scale != scaleFactor))
+            using var contentRecording = CacheEntry.Content.ContentCommandRecording.GetContent();
+
+            if (contentRecording.HasContent)
             {
-                var contentRecording = CacheEntry.Content.ContentCommandRecording.GetContent();
-                var contentRecordingScoped = contentRecording.Content;
-                contentRecording.Dispose(); // we can't pass recording itself to another thread, but we can pass its content, since content is only updated here, we don't need extra read lock
-
-                if (contentRecording.HasContent)
-                {
-                    var executionContext = new PdfCommandExecutionContext(_request.RenderingParameters, _tokenSnapshot.ContentToken);
-                    var contentPicture = PdfDocumentContentExtensions.RecordingToSkPicture(CacheEntry.PageInfo, contentRecordingScoped, executionContext);
-                    CacheEntry.Content.UpdateContentPicture(contentPicture, scaleFactor);
-
-                    updated = true;
-                }
+                var executionContext = new PdfCommandExecutionContext(_request.RenderingParameters, _tokenSnapshot.ContentToken);
+                RecordWithEarlyFlush(contentRecording.Content, executionContext, scaleFactor);
+                updated = true;
             }
-        }
-
-        if (updated)
-        {
-            _onPageUpdated?.Invoke(new PageUpdatedArgs(CacheEntry.PageNumber, CacheEntry.GetContentPictures(), UpdatedContentType.Content));
-            updated = false;
         }
 
         bool annotationRecordingUpdated = false;
@@ -93,12 +82,10 @@ public class PdfPageUpdateCacheWorkItem : IWorkItem
         {
             if (CacheEntry.AnnotationContent.ContentCommandRecording.HasContent && (annotationRecordingUpdated || !CacheEntry.AnnotationContent.ContentPicture.HasContent || (CacheEntry.AnnotationContent.IsScaleDependant && CacheEntry.AnnotationContent.Scale != scaleFactor)))
             {
-                var contentRecording = CacheEntry.AnnotationContent.ContentCommandRecording.GetContent();
-                var contentRecordingScoped = contentRecording.Content;
-                contentRecording.Dispose(); // we can't pass recording itself to another thread, but we can pass its content, since content is only updated here, we don't need extra read lock
+                using var contentRecording = CacheEntry.AnnotationContent.ContentCommandRecording.GetContent();
 
                 var executionContext = new PdfCommandExecutionContext(_request.RenderingParameters, _tokenSnapshot.ContentToken);
-                var contentPicture = PdfDocumentContentExtensions.RecordingToSkPicture(CacheEntry.PageInfo, contentRecordingScoped, executionContext);
+                var contentPicture = PdfDocumentContentExtensions.RecordingToSkPicture(CacheEntry.PageInfo, contentRecording.Content, executionContext);
                 CacheEntry.AnnotationContent.UpdateContentPicture(contentPicture, scaleFactor);
 
                 updated = true;
@@ -111,6 +98,61 @@ public class PdfPageUpdateCacheWorkItem : IWorkItem
             updated = false;
         }
     }
+
+    private void RecordWithEarlyFlush(PdfCommandRecorder commandRecording, PdfCommandExecutionContext executionContext, float scaleFactor)
+    {
+        // TODO: [HIGH] cleanup, make universal
+        const int FlushThresholdMs = 300;
+
+        var bounds = SKRect.Create(CacheEntry.PageInfo.Width, CacheEntry.PageInfo.Height);
+        using var recorder = new SKPictureRecorder();
+
+        int executedCount = 0;
+        int skipCount = 0;
+        var sw = new Stopwatch();
+
+        executionContext.OnCommandExecuted = () =>
+        {
+            executedCount++;
+            if (executedCount <= skipCount) return;
+            if (!sw.IsRunning) sw.Restart();
+            if (sw.ElapsedMilliseconds < FlushThresholdMs) return;
+            throw new TimeoutException();
+        };
+
+        var canvas = recorder.BeginRecording(bounds);
+        while (true)
+        {
+            try
+            {
+                lock (_documentLocker)
+                {
+                    commandRecording.Replay(canvas, [], executionContext);
+                }
+
+                break;
+            }
+            catch (TimeoutException)
+            {
+                canvas.Flush();
+                var snapshot = recorder.EndRecording();
+                CacheEntry.Content.UpdateContentPicture(snapshot, scaleFactor);
+                _onPageUpdated?.Invoke(new PageUpdatedArgs(CacheEntry.PageNumber, CacheEntry.GetContentPictures(), UpdatedContentType.Content));
+
+                skipCount = executedCount;
+                executedCount = 0;
+                sw.Reset();
+                canvas = recorder.BeginRecording(bounds);
+            }
+        }
+
+        canvas.Flush();
+        CacheEntry.Content.UpdateContentPicture(recorder.EndRecording(), scaleFactor);
+        executionContext.OnCommandExecuted = null;
+
+        _onPageUpdated?.Invoke(new PageUpdatedArgs(CacheEntry.PageNumber, CacheEntry.GetContentPictures(), UpdatedContentType.Content));
+    }
+
 
     private struct TokenSnapshot
     {

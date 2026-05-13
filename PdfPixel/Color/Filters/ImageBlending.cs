@@ -69,7 +69,17 @@ namespace PdfPixel.Color.Filters
         {
             return source.ToShader(
                 SKShaderTileMode.Clamp,
-                SKShaderTileMode.Clamp, sampling, SKMatrix.CreateScale(1f / source.Width, 1f / source.Height));
+                SKShaderTileMode.Clamp, sampling);
+        }
+
+        public static SKShader BuildImageShader(
+            SKImage source,
+            SKSizeI targetSize,
+            SKSamplingOptions sampling)
+        {
+            return source.ToShader(
+                SKShaderTileMode.Clamp,
+                SKShaderTileMode.Clamp, sampling, SKMatrix.CreateScale((float)targetSize.Width / source.Width, (float)targetSize.Height / source.Height));
         }
 
         /// <summary>

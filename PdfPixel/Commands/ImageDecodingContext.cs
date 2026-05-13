@@ -35,6 +35,7 @@ public sealed class ImageDecodingContext
     public ImageDecodingContext(ImageDecodingContext source, SKColor fillColor, float fillAlpha, SKBlendMode blendMode)
     {
         FullTransferFunction = source.FullTransferFunction;
+        DefaultTileSize = source.DefaultTileSize;
         IsType3Rendering = source.IsType3Rendering;
         FillColor = fillColor;
         FillAlpha = fillAlpha;
@@ -42,9 +43,9 @@ public sealed class ImageDecodingContext
     }
 
     /// <summary>
-    /// Current transformation matrix at the image position in the page coordinate space.
+    /// Default tile size.
     /// </summary>
-    public SKMatrix CTM { get; set; } = SKMatrix.Identity;
+    public int DefaultTileSize { get; set; } = 1024;
 
     /// <summary>
     /// Combined transfer function (internal + external) for color conversion.
@@ -70,29 +71,4 @@ public sealed class ImageDecodingContext
     /// Skia blend mode for paint composition, converted from the PDF blend mode at construction.
     /// </summary>
     public SKBlendMode BlendMode { get; }
-
-    /// <summary>
-    /// Returns a scaled size for the given original size based on the current CTM.
-    /// </summary>
-    public SKSizeI? GetScaledSize(SKSizeI size)
-    {
-        var unitMapped = CTM.MapPoint(new SKPoint(1, 1)) - CTM.MapPoint(new SKPoint(0, 0));
-
-        float unitPixelsX = Math.Abs(unitMapped.X);
-        float unitPixelsY = Math.Abs(unitMapped.Y);
-
-        float relScaleX = unitPixelsX / size.Width;
-        float relScaleY = unitPixelsY / size.Height;
-
-        float maxScale = Math.Max(relScaleX, relScaleY);
-
-        if (maxScale < 1f)
-        {
-            var newWidth = Math.Max(1, (int)Math.Floor(size.Width * maxScale));
-            var newHeight = Math.Max(1, (int)Math.Floor(size.Height * maxScale));
-            return new SKSizeI(newWidth, newHeight);
-        }
-
-        return default;
-    }
 }

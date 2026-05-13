@@ -1,10 +1,10 @@
-﻿using System;
+using System;
 
 namespace PdfPixel.PdfPanel.WorkQueue;
 
-public sealed class ImmidiateWorkQueue<T> : IWorkQueue<T> where T : IWorkItem
+public sealed class ImmidiateWorkQueue : IWorkQueue
 {
-    public void Enqueue(T item)
+    public void Enqueue(IWorkItem item)
     {
         try
         {
@@ -15,7 +15,6 @@ public sealed class ImmidiateWorkQueue<T> : IWorkQueue<T> where T : IWorkItem
         }
         catch (OperationCanceledException)
         {
-            // silently ignore.
         }
         catch
         {

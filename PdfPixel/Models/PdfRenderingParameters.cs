@@ -35,6 +35,11 @@ public class PdfRenderingParameters : IEquatable<PdfRenderingParameters>, IClone
     /// </summary>
     public int MaxTessellationVertices { get; set; } = 32;
 
+    /// <summary>
+    /// Standard image tile size.
+    /// </summary>
+    public int ImageTileSize { get; set; } = 1024;
+
     /// <inheritdoc />
     public bool Equals(PdfRenderingParameters other)
     {
@@ -69,7 +74,8 @@ public class PdfRenderingParameters : IEquatable<PdfRenderingParameters>, IClone
             Antialias,
             ScaleFactor,
             DefaultFunctionSamples,
-            MaxTessellationVertices);
+            MaxTessellationVertices,
+            ImageTileSize);
     }
 
     /// <summary>
@@ -102,6 +108,7 @@ public class PdfRenderingParameters : IEquatable<PdfRenderingParameters>, IClone
             ScaleFactor = ScaleFactor,
             DefaultFunctionSamples = DefaultFunctionSamples,
             MaxTessellationVertices = MaxTessellationVertices,
+            ImageTileSize = ImageTileSize
         };
     }
 

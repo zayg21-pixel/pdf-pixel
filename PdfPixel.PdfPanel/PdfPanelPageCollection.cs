@@ -71,7 +71,7 @@ public sealed class PdfPanelPageCollection : ReadOnlyCollection<PdfPanelPage>, I
     /// <returns><see cref="PdfPanelPageCollection"/>.</returns>
     public static PdfPanelPageCollection FromDocument(PdfDocument document)
     {
-        var contentProvider = new PdfPageContentProvider(document, new AsyncWorkQueue<PdfPageUpdateCacheWorkItem>(document.LoggerFactory.CreateLogger<AsyncWorkQueue<PdfPageUpdateCacheWorkItem>>()));
+        var contentProvider = new PdfPageContentProvider(document, new AsyncWorkQueue(document.LoggerFactory.CreateLogger<AsyncWorkQueue>()));
         return FromContentProvider(contentProvider);
     }
 

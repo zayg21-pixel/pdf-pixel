@@ -3,19 +3,12 @@ using PdfPixel.Commands;
 using PdfPixel.Imaging.Ccitt;
 using PdfPixel.Imaging.Model;
 using PdfPixel.Imaging.Processing;
-using PdfPixel.Models;
 using SkiaSharp;
 using System;
 using System.Threading;
 
 namespace PdfPixel.Imaging.Decoding;
 
-/// <summary>
-/// CCITT Fax (CCITTFaxDecode) image decoder.
-/// Streams CCITT rows through <see cref="CcittRowDecoder"/> and hands each packed 1-bit row
-/// to <see cref="PdfImageRowProcessor"/> for /Decode, masking and color conversion.
-/// No legacy full-buffer fallback is retained.
-/// </summary>
 internal sealed class CcittImageDecoder : PdfImageDecoder
 {
     private readonly int _k;
@@ -25,14 +18,16 @@ internal sealed class CcittImageDecoder : PdfImageDecoder
     private readonly bool _endOfBlock;
     private readonly int _columns;
     private readonly int _rows;
+    private readonly ReadOnlyMemory<byte> _encodedData;
+
+    private CcittRowDecoder _rowDecoder;
+    private byte[] _fullWidthRowBuffer;
+    private PdfImageTilingContext _tilingContext;
+    private PdfImageRowDecodingParameters _imageParameters;
+    private int _currentImageRow;
 
     public CcittImageDecoder(PdfImage image, ILoggerFactory loggerFactory) : base(image, loggerFactory)
     {
-        if (loggerFactory == null)
-        {
-            throw new ArgumentNullException(nameof(loggerFactory));
-        }
-
         var parameters = image.DecodeParms;
         _k = parameters?.K ?? 0;
         _endOfLine = parameters?.EndOfLine ?? false;
@@ -41,60 +36,50 @@ internal sealed class CcittImageDecoder : PdfImageDecoder
         _endOfBlock = parameters?.EndOfBlock ?? false;
         _columns = parameters?.Columns ?? image.Width;
         _rows = parameters?.Rows ?? image.Height;
+        _encodedData = image.GetImageData();
     }
 
-    public override SKImage Decode(
-        ImageDecodingContext context,
-        CancellationToken cancellationToken)
+    public override void Initialize(PdfTileInfo tileInfo, ImageDecodingContext context, SKMatrix ctm, SKRectI regionOfInterest)
     {
-        // TODO: [LOW] add recovery
-        int width = _columns;
-        int height = _rows;
-        if (width <= 0 || height <= 0)
+        int imageWidth = _columns;
+        int imageHeight = _rows;
+        if (imageWidth <= 0 || imageHeight <= 0)
+            throw new InvalidOperationException($"Invalid CCITT dimensions {imageWidth}x{imageHeight} (Name={Image.Name}).");
+        if (_encodedData.IsEmpty)
+            throw new InvalidOperationException($"CCITT image data is empty (Name={Image.Name}).");
+
+        _imageParameters = PdfImageRowDecodingParameters.FromImage(Image, context, ctm);
+
+        _rowDecoder = new CcittRowDecoder(_encodedData.Span, imageWidth, imageHeight, _blackIs1, _k, _endOfLine, _byteAlign, _endOfBlock);
+        _fullWidthRowBuffer = new byte[_rowDecoder.RowStride];
+        _tilingContext = new PdfImageTilingContext(new SKSizeI(tileInfo.TileWidth, tileInfo.TileHeight), _imageParameters, ctm, regionOfInterest, LoggerFactory);
+        _currentImageRow = 0;
+    }
+
+    public override PdfImageTile[] DecodeNextTiles(CancellationToken cancellationToken = default)
+    {
+        while (_currentImageRow < _imageParameters.Height)
         {
-            Logger.LogError("Invalid CCITT dimensions {Width}x{Height}.", width, height);
-            return null;
-        }
-
-        ReadOnlyMemory<byte> encoded = Image.GetImageData();
-        if (encoded.IsEmpty)
-        {
-            Logger.LogError("CCITT image data empty (Name={Name}).", Image.Name);
-            return null;
-        }
-
-        // Initialize row processor (8-bit pipeline; will read packed 1-bit samples per row).
-        using var rowProcessor = new PdfImageRowProcessor(Image, LoggerFactory.CreateLogger<PdfImageRowProcessor>(), context);
-        rowProcessor.InitializeBuffer();
-
-        // Row decoder (produces packed 1-bit rows, MSB-first).
-        var rowDecoder = new CcittRowDecoder(
-            encoded.Span,
-            width,
-            height,
-            _blackIs1,
-            _k,
-            _endOfLine,
-            _byteAlign,
-            _endOfBlock);
-
-        int packedRowBytes = rowDecoder.RowStride;
-        byte[] rowBuffer = new byte[packedRowBytes];
-
-        int rowIndex = 0;
-        while (rowDecoder.DecodeNextRow(rowBuffer))
-        {
-            rowProcessor.WriteRow(rowIndex, rowBuffer);
-            rowIndex++;
-
+            if (!_rowDecoder.DecodeNextRow(_fullWidthRowBuffer))
+            {
+                Logger.LogWarning("CCITT row decoder ended early at image row {Row} (Name={Name}).", _currentImageRow, Image.Name);
+                return null;
+            }
+            var tiles = _tilingContext.WriteRowAndTryGetTiles(_currentImageRow, _fullWidthRowBuffer, cancellationToken);
+            _currentImageRow++;
             cancellationToken.ThrowIfCancellationRequested();
+            if (tiles != null) return tiles;
         }
+        return null;
+    }
 
-        if (rowIndex != height)
-        {
-            Logger.LogWarning("CCITT row decoder ended early (Decoded={Decoded} Expected={Expected}) (Name={Name}).", rowIndex, height, Image.Name);
-        }
-
-        return rowProcessor.GetDecoded();
+    public override void Cleanup()
+    {
+        _rowDecoder = null;
+        _fullWidthRowBuffer = null;
+        _tilingContext?.Dispose();
+        _tilingContext = null;
+        _imageParameters = null;
+        _currentImageRow = 0;
     }
 }

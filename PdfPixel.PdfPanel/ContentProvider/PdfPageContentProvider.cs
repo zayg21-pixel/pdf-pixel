@@ -2,16 +2,17 @@ using PdfPixel.Models;
 using PdfPixel.PdfPanel.WorkQueue;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace PdfPixel.PdfPanel.ContentProvider;
 
 public sealed class PdfPageContentProvider : IPdfPageContentProvider
 {
     private readonly PdfDocument _document;
-    private readonly IWorkQueue<PdfPageUpdateCacheWorkItem> _processingQueue;
+    private readonly IWorkQueue _processingQueue;
     private readonly PdfPageCacheEntry[] _cache;
 
-    public PdfPageContentProvider(PdfDocument document, IWorkQueue<PdfPageUpdateCacheWorkItem> processingQueue)
+    public PdfPageContentProvider(PdfDocument document, IWorkQueue processingQueue)
     {
         _document = document;
         _cache = new PdfPageCacheEntry[document.Pages.Count];
@@ -48,39 +49,22 @@ public sealed class PdfPageContentProvider : IPdfPageContentProvider
 
     public void UpdateContent(UpdateContentRequest request)
     {
-        var pagesToStoreSet = new HashSet<int>(request.VisiblePages ?? []);
-        List<int> pagesToSend = new List<int>();
+        var visiblePageNumbers = new HashSet<int>(request.VisiblePages ?? []);
 
         foreach (var cacheEntry in _cache)
         {
-            bool sendRequest = false;
-
-            if (!pagesToStoreSet.Contains(cacheEntry.PageNumber))
+            if (!visiblePageNumbers.Contains(cacheEntry.PageNumber))
             {
-                cacheEntry.Reset();
-            }
-            else if (!cacheEntry.PendingRequest)
-            {
-                sendRequest = true;
-            }
-            else if (cacheEntry.RenderingParameters != request.RenderingParameters)
-            {
-                sendRequest = true;
+                cacheEntry.Cancel();
+                _processingQueue.Enqueue(new PdfPageClearCacheWorkItem(cacheEntry, DocumentLocker));
+                continue;
             }
 
-            if (sendRequest)
-            {
-                pagesToSend.Add(cacheEntry.PageNumber);
-            }
-        }
+            bool needsUpdate = !cacheEntry.PendingRequest || cacheEntry.RenderingParameters != request.RenderingParameters;
+            if (!needsUpdate) continue;
 
-        foreach (var pageNumber in pagesToSend)
-        {
-            var cacheEntry = _cache[pageNumber - 1];
             cacheEntry.InitializeForRendering(request);
-
-            var workItem = new PdfPageUpdateCacheWorkItem(cacheEntry, _document, DocumentLocker, request, OnPageUpdated);
-            _processingQueue.Enqueue(workItem);
+            _processingQueue.Enqueue(new PdfPageUpdateCacheWorkItem(cacheEntry, _document, DocumentLocker, request, OnPageUpdated));
         }
     }
 

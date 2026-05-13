@@ -37,7 +37,7 @@ internal sealed class JpxRawDecoder : IJpxTileDecoder
         return tile;
     }
 
-    private static void DecodeRawTile(ReadOnlySpan<byte> tileData, JpxTile tile)
+    private void DecodeRawTile(ReadOnlySpan<byte> tileData, JpxTile tile)
     {
         var reader = new JpxSpanReader(tileData);
         
@@ -58,9 +58,9 @@ internal sealed class JpxRawDecoder : IJpxTileDecoder
         for (int component = 0; component < tile.ComponentCount; component++)
         {
             var componentData = tile.ComponentData[component];
-            int bitDepth = tile.ComponentBitDepths[component];
-            bool isSigned = tile.ComponentSigned[component];
-            
+            int bitDepth = _header.Components[component].PrecisionBits;
+            bool isSigned = _header.Components[component].IsSigned;
+
             DecodeRawComponent(rawData, componentData, bitDepth, isSigned);
         }
     }

@@ -1,11 +1,7 @@
-﻿using Microsoft.Extensions.Logging;
-using PdfPixel.Color.Filters;
-using PdfPixel.Color.Transform;
+using Microsoft.Extensions.Logging;
 using PdfPixel.Commands;
 using PdfPixel.Imaging.Model;
-using PdfPixel.Imaging.Png;
 using PdfPixel.Imaging.Processing;
-using PdfPixel.Models;
 using SkiaSharp;
 using System;
 using System.IO;
@@ -13,96 +9,67 @@ using System.Threading;
 
 namespace PdfPixel.Imaging.Decoding;
 
-/// <summary>
-/// Decodes a raw PDF image (an image whose stream has already had its /Filter chain decoded including predictor undo).
-/// Stream-based implementation to reduce memory pressure: reads one decoded (predictor-processed, packed) row
-/// at a time from the underlying stream and forwards it to <see cref="PdfImageRowProcessor"/>.
-/// Includes an experimental fast path that attempts to wrap compatible PDF Flate + PNG predictor data directly
-/// into a PNG container without recompression.
-/// </summary>
 public class RawImageDecoder : PdfImageDecoder
 {
-    public RawImageDecoder(PdfImage image, ILoggerFactory loggerFactory) : base(image, loggerFactory)
-    {
-    }
+    private Stream _dataStream;
+    private byte[] _fullWidthRowBuffer;
+    private PdfImageTilingContext _tilingContext;
+    private PdfImageRowDecodingParameters _imageParameters;
+    private int _currentImageRow;
 
-    /// <inheritdoc />
-    public override SKImage Decode(
-        ImageDecodingContext context,
-        CancellationToken cancellationToken)
+    public RawImageDecoder(PdfImage image, ILoggerFactory loggerFactory) : base(image, loggerFactory) { }
+
+    public override void Initialize(PdfTileInfo tileInfo, ImageDecodingContext context, SKMatrix ctm, SKRectI regionOfInterest)
     {
         if (!ValidateImageParameters())
-        {
-            return null;
-        }
+            throw new InvalidOperationException($"Raw image parameters are invalid (Name={Image.Name}).");
 
-        using Stream dataStream = Image.GetImageDataStream();
-        if (dataStream == null)
-        {
-            Logger.LogError("Raw image data stream is null (Name={Name}).", Image.Name);
-            return null;
-        }
+        _imageParameters = PdfImageRowDecodingParameters.FromImage(Image, context, ctm);
 
-        return DecodeStream(dataStream, context, cancellationToken);
+        int rowBytes = checked((Image.Width * Image.ColorSpaceConverter.Components * Image.BitsPerComponent + 7) / 8);
+        _fullWidthRowBuffer = new byte[rowBytes];
+        _tilingContext = new PdfImageTilingContext(new SKSizeI(tileInfo.TileWidth, tileInfo.TileHeight), _imageParameters, ctm, regionOfInterest, LoggerFactory);
+        _dataStream = Image.GetImageDataStream();
+        _currentImageRow = 0;
     }
 
-    /// <summary>
-    /// Stream-based row decoding: computes expected per-row byte count and processes each row sequentially.
-    /// For bitsPerComponent &lt; 8 data remains packed; packing is handled downstream by the row processor.
-    /// </summary>
-    private SKImage DecodeStream(
-        Stream imageStream,
-        ImageDecodingContext context,
-        CancellationToken cancellationToken)
+    public override PdfImageTile[] DecodeNextTiles(CancellationToken cancellationToken = default)
     {
-        using PdfImageRowProcessor rowProcessor = new PdfImageRowProcessor(
-            Image, LoggerFactory.CreateLogger<PdfImageRowProcessor>(),
-            context);
-        rowProcessor.InitializeBuffer();
-
-        int imageHeight = Image.Height;
-        int imageWidth = Image.Width;
-        int componentCount = Image.ColorSpaceConverter.Components;
-        int bitsPerComponent = Image.BitsPerComponent;
-
-        // Compute packed bytes per input row (raw decoded samples prior to conversion).
-        int decodedRowBytes;
-        if (bitsPerComponent >= 8)
+        while (_currentImageRow < _imageParameters.Height)
         {
-            int bytesPerComponent = (bitsPerComponent + 7) / 8; // 8->1, 16->2
-            decodedRowBytes = checked(imageWidth * componentCount * bytesPerComponent);
-        }
-        else
-        {
-            decodedRowBytes = checked((imageWidth * componentCount * bitsPerComponent + 7) / 8);
-        }
-
-        if (decodedRowBytes <= 0)
-        {
-            throw new InvalidOperationException("Computed decoded row byte count is invalid.");
-        }
-
-        // Allocate a dedicated row buffer (no shared pool) per user instructions.
-        byte[] rowBuffer = new byte[decodedRowBytes];
-
-        for (int rowIndex = 0; rowIndex < imageHeight; rowIndex++)
-        {
-            int bytesReadThisRow = 0;
-            while (bytesReadThisRow < decodedRowBytes)
+            if (!ReadFull(_dataStream, _fullWidthRowBuffer))
             {
-                int read = imageStream.Read(rowBuffer, bytesReadThisRow, decodedRowBytes - bytesReadThisRow);
-                if (read == 0)
-                {
-                    Logger.LogWarning("Premature end of raw image stream at row {Row}/{Height} (Name={Name}).", rowIndex, imageHeight, Image.Name);
-                    return rowProcessor.GetDecoded();
-                }
-                bytesReadThisRow += read;
+                Logger.LogWarning("Premature end of raw stream at image row {Row} (Name={Name}).", _currentImageRow, Image.Name);
+                return null;
             }
-
-            rowProcessor.WriteRow(rowIndex, rowBuffer);
+            var tiles = _tilingContext.WriteRowAndTryGetTiles(_currentImageRow, _fullWidthRowBuffer, cancellationToken);
+            _currentImageRow++;
             cancellationToken.ThrowIfCancellationRequested();
+            if (tiles != null) return tiles;
         }
+        return null;
+    }
 
-        return rowProcessor.GetDecoded();
+    public override void Cleanup()
+    {
+        _dataStream?.Dispose();
+        _dataStream = null;
+        _tilingContext?.Dispose();
+        _tilingContext = null;
+        _imageParameters = null;
+        _fullWidthRowBuffer = null;
+        _currentImageRow = 0;
+    }
+
+    private static bool ReadFull(Stream stream, byte[] buffer)
+    {
+        int bytesRead = 0;
+        while (bytesRead < buffer.Length)
+        {
+            int read = stream.Read(buffer, bytesRead, buffer.Length - bytesRead);
+            if (read == 0) return false;
+            bytesRead += read;
+        }
+        return true;
     }
 }
