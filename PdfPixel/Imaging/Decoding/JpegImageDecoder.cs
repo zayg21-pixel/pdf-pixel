@@ -1,12 +1,12 @@
 using Microsoft.Extensions.Logging;
 using PdfPixel.Color.ColorSpace;
 using PdfPixel.Commands;
-using PdfPixel.Imaging.Jpg.Color;
-using PdfPixel.Imaging.Jpg.Decoding;
-using PdfPixel.Imaging.Jpg.Model;
-using PdfPixel.Imaging.Jpg.Readers;
 using PdfPixel.Imaging.Model;
 using PdfPixel.Imaging.Processing;
+using PdfPixel.Jpg.Color;
+using PdfPixel.Jpg.Decoding;
+using PdfPixel.Jpg.Model;
+using PdfPixel.Jpg.Readers;
 using SkiaSharp;
 using System;
 using System.Threading;

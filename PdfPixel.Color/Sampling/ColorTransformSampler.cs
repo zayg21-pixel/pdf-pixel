@@ -1,0 +1,27 @@
+using PdfPixel.Color.Transform;
+using System;
+using System.Numerics;
+using System.Runtime.CompilerServices;
+
+namespace PdfPixel.Color.Sampling;
+
+/// <summary>
+/// Samples <see cref="ChainedColorTransform"/> into <see cref="Vector4"/> value that represents color.
+/// </summary>
+public sealed class ColorTransformSampler : IRgbaSampler
+{
+    private readonly ChainedColorTransform _colorTransform;
+
+    public ColorTransformSampler(ChainedColorTransform chainedTransform)
+    {
+        _colorTransform = chainedTransform;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public Vector4 Sample(ReadOnlySpan<float> source)
+    {
+        var value = ColorVectorUtilities.ToVector4WithOnePadding(source);
+        return _colorTransform.Transform(value);
+
+    }
+}

@@ -39,7 +39,7 @@ internal sealed class DeviceCmykConverter : PdfColorSpaceConverter
         //return CmykSampler.Instance; // Looks like a good approximation, TODO: [MIDEUM] something wrong with color here, it's very "COLD", but issue is not
         // reproducible in code source, so maybe it's something with post processing that happens there.
 
-        return new ColorTransformSampler(new ChainedColorTransform(_iccTransform.GetIntentTransform(intent), postTransform));
+        return new ColorTransformSampler(new ChainedColorTransform(_iccTransform.GetIntentTransform(intent.ToIccRenderingIntent()), postTransform));
     }
 }
 

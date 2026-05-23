@@ -1,5 +1,4 @@
 using Microsoft.Extensions.Logging;
-using PdfPixel.Color.Filters;
 using PdfPixel.Commands.Image;
 using PdfPixel.Imaging.Decoding;
 using PdfPixel.Imaging.Model;

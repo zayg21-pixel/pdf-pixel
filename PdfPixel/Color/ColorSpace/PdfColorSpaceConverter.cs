@@ -37,7 +37,7 @@ public abstract class PdfColorSpaceConverter
     /// <returns>sRGB color.</returns>
     public virtual SKColor ToSrgb(ReadOnlySpan<float> comps01, PdfRenderingIntent intent, IColorTransform postTransform)
     {
-        return ColorVectorUtilities.From01ToSkiaColor(GetRgbaSampler(intent, postTransform).Sample(comps01));
+        return PdfColorTransformUtilities.From01ToSkiaColor(GetRgbaSampler(intent, postTransform).Sample(comps01));
     }
 
     /// <summary>

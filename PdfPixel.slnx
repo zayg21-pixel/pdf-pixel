@@ -1,0 +1,14 @@
+<Solution>
+  <Project Path="PdfPixel.Benchmarks/PdfPixel.Benchmarks.csproj" />
+  <Project Path="PdfPixel.Color/PdfPixel.Color.csproj" Id="41c01fd9-9377-4bd4-9b28-706f90a00866" />
+  <Project Path="PdfPixel.Demo.Console/PdfPixel.Demo.Console.csproj" />
+  <Project Path="PdfPixel.Demo.Web/PdfPixel.Demo.Web.csproj" />
+  <Project Path="PdfPixel.Demo.Wpf/PdfPixel.Demo.Wpf.csproj" />
+  <Project Path="PdfPixel.Jpg.Test/PdfPixel.Jpg.Test.csproj" Id="c79a0855-2a3c-4e8f-a20a-21b8556c1ff0" />
+  <Project Path="PdfPixel.Jpg/PdfPixel.Jpg.csproj" Id="04b48238-6889-4836-bbc7-948365e215af" />
+  <Project Path="PdfPixel.PdfPanel.Web/PdfPixel.PdfPanel.Web.csproj" />
+  <Project Path="PdfPixel.PdfPanel.Wpf/PdfPixel.PdfPanel.Wpf.csproj" />
+  <Project Path="PdfPixel.PdfPanel/PdfPixel.PdfPanel.csproj" />
+  <Project Path="PdfPixel.Tests/PdfPixel.Tests.csproj" />
+  <Project Path="PdfPixel/PdfPixel.csproj" />
+</Solution>

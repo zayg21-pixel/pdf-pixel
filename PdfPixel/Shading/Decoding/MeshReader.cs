@@ -60,11 +60,11 @@ internal static class MeshReader
         if (functions != null && functions.Count > 0)
         {
             var evaluated = PdfFunctions.EvaluateColorFunctions(functions, input);
-            return ColorVectorUtilities.From01ToSkiaColor(colorSampler.Sample(evaluated));
+            return PdfColorTransformUtilities.From01ToSkiaColor(colorSampler.Sample(evaluated));
         }
         else
         {
-            return ColorVectorUtilities.From01ToSkiaColor(colorSampler.Sample(input));
+            return PdfColorTransformUtilities.From01ToSkiaColor(colorSampler.Sample(input));
         }
     }
 }

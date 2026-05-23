@@ -59,7 +59,8 @@ public class PdfPageUpdateCacheWorkItem : IWorkItem
             if (contentRecording.HasContent)
             {
                 var executionContext = new PdfCommandExecutionContext(_request.RenderingParameters, _tokenSnapshot.ContentToken);
-                RecordWithEarlyFlush(contentRecording.Content, executionContext, scaleFactor);
+                var contentPicture = PdfDocumentContentExtensions.RecordingToSkPicture(CacheEntry.PageInfo, contentRecording.Content, executionContext);
+                CacheEntry.Content.UpdateContentPicture(contentPicture, scaleFactor);
                 updated = true;
             }
         }

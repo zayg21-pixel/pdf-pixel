@@ -1,4 +1,3 @@
-using PdfPixel.Color.Filters;
 using PdfPixel.Commands.Image;
 using PdfPixel.Imaging.Processing;
 using SkiaSharp;

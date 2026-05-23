@@ -1,4 +1,5 @@
 using System;
+using PdfPixel.Color.Functions;
 using PdfPixel.Models;
 using PdfPixel.Text;
 
