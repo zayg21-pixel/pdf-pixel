@@ -9,16 +9,11 @@ using PdfPixel.Jpg.Model;
 using PdfPixel.Jpg.Readers;
 using SkiaSharp;
 using System;
-using System.Threading;
 
 namespace PdfPixel.Imaging.Decoding;
 
 public sealed class JpegImageDecoder : PdfImageDecoder
 {
-    private readonly ReadOnlyMemory<byte> _encodedData;
-    private readonly JpgHeader _jpgHeader;
-    private readonly PdfColorSpaceConverter _resolvedConverter;
-
     private IJpgDecoder _jpgRowDecoder;
     private byte[] _fullWidthRowBuffer;
     private PdfImageTilingContext _tilingContext;
@@ -27,50 +22,51 @@ public sealed class JpegImageDecoder : PdfImageDecoder
 
     public JpegImageDecoder(PdfImage image, ILoggerFactory loggerFactory) : base(image, loggerFactory)
     {
-        _encodedData = image.GetImageData();
-        if (_encodedData.IsEmpty) return;
-
-        try { _jpgHeader = JpgReader.ParseHeader(_encodedData.Span); }
-        catch (Exception ex) { Logger.LogError(ex, "JPEG header parse failed (Name={Name}).", image.Name); return; }
-
-        if (_jpgHeader == null || _jpgHeader.ContentOffset < 0) return;
-
-        _resolvedConverter = image.ColorSpaceConverter;
-        if (_resolvedConverter.IsDevice && JpgIccProfileReader.TryAssembleIccProfile(_jpgHeader, out var profileBytes))
-            _resolvedConverter = new IccBasedConverter(_jpgHeader.ComponentCount, _resolvedConverter, profileBytes);
     }
 
-    public override void Initialize(PdfTileInfo tileInfo, ImageDecodingContext context, SKMatrix ctm, SKRectI regionOfInterest)
+    public override void Initialize(PdfTileInfo tileInfo, ImageDecodingContext context, object contentLocker, SKMatrix ctm, SKRectI regionOfInterest, IPdfExecutionObserver observer)
     {
         if (!ValidateImageParameters())
             throw new InvalidOperationException($"JPEG image parameters are invalid (Name={Image.Name}).");
-        if (_encodedData.IsEmpty)
-            throw new InvalidOperationException($"JPEG image data is empty (Name={Image.Name}).");
-        if (_jpgHeader == null || _jpgHeader.ContentOffset < 0)
+
+
+        ReadOnlyMemory<byte> encodedData;
+        lock (contentLocker)
+            encodedData = Image.GetImageData(observer);
+
+        var header = JpgReader.ParseHeader(encodedData.Span);
+
+        if (header == null || header.ContentOffset < 0)
             throw new InvalidOperationException($"JPEG header is invalid (Name={Image.Name}).");
 
-        int imageWidth = _jpgHeader.Width;
-        int imageHeight = _jpgHeader.Height;
+        var resolvedConverter = Image.ColorSpaceConverter;
+        if (resolvedConverter.IsDevice && JpgIccProfileReader.TryAssembleIccProfile(header, out var profileBytes))
+        {
+            resolvedConverter = new IccBasedConverter(header.ComponentCount, resolvedConverter, profileBytes);
+        }
+
+        int imageWidth = header.Width;
+        int imageHeight = header.Height;
         if (imageWidth <= 0 || imageHeight <= 0)
             throw new InvalidOperationException($"Invalid JPEG dimensions (Image={Image.Name}).");
 
         _imageParameters = PdfImageRowDecodingParameters.FromImage(Image, context, ctm);
 
-        _jpgRowDecoder = CreateJpgDecoder();
-        _fullWidthRowBuffer = new byte[checked(_jpgHeader.ComponentCount * imageWidth)];
+        _jpgRowDecoder = CreateJpgDecoder(encodedData, header);
+        _fullWidthRowBuffer = new byte[checked(header.ComponentCount * imageWidth)];
         _tilingContext = new PdfImageTilingContext(new SKSizeI(tileInfo.TileWidth, tileInfo.TileHeight), _imageParameters, ctm, regionOfInterest, LoggerFactory);
         _currentImageRow = 0;
     }
 
-    public override PdfImageTile[] DecodeNextTiles(CancellationToken cancellationToken = default)
+    public override PdfImageTile[] DecodeNextTiles(IPdfExecutionObserver observer)
     {
         while (_currentImageRow < _imageParameters.Height)
         {
             if (!_jpgRowDecoder.TryReadRow(_fullWidthRowBuffer))
                 throw new InvalidOperationException($"JPEG decode failed at image row {_currentImageRow} (Image={Image.Name}).");
-            var tiles = _tilingContext.WriteRowAndTryGetTiles(_currentImageRow, _fullWidthRowBuffer, cancellationToken);
+            var tiles = _tilingContext.WriteRowAndTryGetTiles(_currentImageRow, _fullWidthRowBuffer, observer);
             _currentImageRow++;
-            cancellationToken.ThrowIfCancellationRequested();
+            observer?.Notify();
             if (tiles != null) return tiles;
         }
         return null;
@@ -86,14 +82,29 @@ public sealed class JpegImageDecoder : PdfImageDecoder
         _currentImageRow = 0;
     }
 
-    private IJpgDecoder CreateJpgDecoder()
+    private IJpgDecoder CreateJpgDecoder(ReadOnlyMemory<byte> encodedData, JpgHeader header)
     {
-        ReadOnlyMemory<byte> compressed = _encodedData.Slice(_jpgHeader.ContentOffset);
-        return _jpgHeader.FrameType switch
+        ReadOnlyMemory<byte> compressed = encodedData.Slice(header.ContentOffset);
+        var colorTransform = Image.DecodeParms?.ColorTransform;
+
+        var yuvMode = colorTransform switch
         {
-            JpgFrameType.ProgressiveDct => new JpgProgressiveDecoder(_jpgHeader, compressed),
-            JpgFrameType.BaselineDct or JpgFrameType.ExtendedSequentialDct => new JpgBaselineDecoder(_jpgHeader, compressed),
-            _ => throw new NotSupportedException($"JPEG frame type {_jpgHeader.FrameType} is not supported (Image={Image.Name}).")
+            0 => JpgYuvMode.NoYuv,
+            1 => JpgYuvMode.ForceYuv,
+            _ => JpgYuvMode.Default
+        };
+
+        var colorParameters = new JpegColorConversionParameters
+        {
+            YuvMode = yuvMode,
+            InvertCmykColors = false
+        };
+
+        return header.FrameType switch
+        {
+            JpgFrameType.ProgressiveDct => new JpgProgressiveDecoder(header, compressed, colorParameters),
+            JpgFrameType.BaselineDct or JpgFrameType.ExtendedSequentialDct => new JpgBaselineDecoder(header, compressed, colorParameters),
+            _ => throw new NotSupportedException($"JPEG frame type {header.FrameType} is not supported (Image={Image.Name}).")
         };
     }
 }

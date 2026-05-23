@@ -1,15 +1,15 @@
-using SkiaSharp;
 using PdfPixel.Color.ColorSpace;
-using PdfPixel.Text;
 using PdfPixel.Color.Paint;
-using PdfPixel.Transparency.Model;
+using PdfPixel.Color.Sampling;
+using PdfPixel.Color.Transform;
+using PdfPixel.Commands;
 using PdfPixel.Fonts.Model;
 using PdfPixel.Models;
-using System.Collections.Generic;
+using PdfPixel.Text;
+using PdfPixel.Transparency.Model;
+using SkiaSharp;
 using System;
-using PdfPixel.Color.Transform;
-using PdfPixel.Color.Sampling;
-using System.Threading;
+using System.Collections.Generic;
 
 namespace PdfPixel.Rendering.State
 {
@@ -36,18 +36,18 @@ namespace PdfPixel.Rendering.State
         private TransferFunctionTransform _transferFunction;
         private IColorTransform _externalTransferFunction;
 
-        public PdfGraphicsState(PdfPage statePage, HashSet<uint> recursionGuard, IColorTransform externalTransform, CancellationToken token)
+        public PdfGraphicsState(PdfPage statePage, HashSet<uint> recursionGuard, IColorTransform externalTransform, IPdfExecutionObserver observer)
         {
             Page = statePage ?? throw new ArgumentNullException(nameof(statePage));
             ExternalTransferFunction = externalTransform;
             RecursionGuard = recursionGuard ?? throw new ArgumentNullException(nameof(recursionGuard));
-            CancellationToken = token;
+            ExecutionObserver = observer;
             FillColorConverter = statePage.Cache.ColorSpace.ResolveDeviceConverter(PdfColorSpaceType.DeviceGray);
             StrokeColorConverter = statePage.Cache.ColorSpace.ResolveDeviceConverter(PdfColorSpaceType.DeviceGray);
         }
 
         public PdfGraphicsState(PdfPage statePage, PdfGraphicsState sourceState)
-            : this(statePage, sourceState.RecursionGuard, sourceState.ExternalTransferFunction, sourceState.CancellationToken)
+            : this(statePage, sourceState.RecursionGuard, sourceState.ExternalTransferFunction, sourceState.ExecutionObserver)
         {
         }
 
@@ -62,9 +62,9 @@ namespace PdfPixel.Rendering.State
         public HashSet<uint> RecursionGuard { get; }
 
         /// <summary>
-        /// Cancellation token to support cooperative cancellation during rendering operations.
+        /// Observer to notify on PDF processing that some work has been done.
         /// </summary>
-        public CancellationToken CancellationToken { get; }
+        public IPdfExecutionObserver ExecutionObserver { get; }
 
         /// <summary>
         /// Indicates whether this graphics state is being used for Type 3 glyph rendering.

@@ -2,13 +2,11 @@ using PdfPixel.Models;
 using PdfPixel.Text;
 using PdfPixel.Rendering.Operators;
 using PdfPixel.Parsing;
-using PdfPixel.Color.ColorSpace;
 using PdfPixel.Rendering;
 using PdfPixel.Annotations.Rendering;
 using PdfPixel.Commands;
 using SkiaSharp;
 using System;
-using System.Threading;
 
 namespace PdfPixel.Annotations.Models;
 
@@ -327,7 +325,7 @@ public abstract class PdfAnnotationBase
     /// <param name="visualStateKind">The visual state to render (Normal, Rollover, Down).</param>
     /// <param name="renderer">The renderer context for rendering appearance streams.</param>
     /// <param name="renderingParameters">Rendering parameters.</param>
-    /// <param name="token">Token to cancel rendering.</param>
+    /// <param name="observer">Observer for long-running operations.</param>
     /// <returns>True if the annotation was rendered, false otherwise.</returns>
     public virtual bool Render(
         IPdfCommandProcessor processor,
@@ -335,7 +333,7 @@ public abstract class PdfAnnotationBase
         PdfAnnotationVisualStateKind visualStateKind,
         IPdfRenderer renderer,
         PdfRenderingParameters renderingParameters,
-        CancellationToken token)
+        IPdfExecutionObserver observer)
     {
         processor.Process(new SaveStateCommand());
 
@@ -346,7 +344,7 @@ public abstract class PdfAnnotationBase
                 PdfAnnotationBubbleRenderer.RenderBubble(processor, this, page, visualStateKind);
             }
 
-            if (AppearanceDictionary != null && RenderAppearanceStream(processor, page, visualStateKind, renderer, renderingParameters, token))
+            if (AppearanceDictionary != null && RenderAppearanceStream(processor, page, visualStateKind, renderer, renderingParameters, observer))
             {
                 return true;
             }
@@ -381,7 +379,7 @@ public abstract class PdfAnnotationBase
     /// <param name="visualStateKind">The visual state to render.</param>
     /// <param name="renderer">The renderer context.</param>
     /// <param name="renderingParameters">Rendering parameters.</param>
-    /// <param name="token">Token to cancel rendering.</param>
+    /// <param name="observer">Observer for long-running operations.</param>
     /// <returns>True if the appearance stream was rendered successfully.</returns>
     protected virtual bool RenderAppearanceStream(
         IPdfCommandProcessor processor,
@@ -389,7 +387,7 @@ public abstract class PdfAnnotationBase
         PdfAnnotationVisualStateKind visualStateKind,
         IPdfRenderer renderer,
         PdfRenderingParameters renderingParameters,
-        CancellationToken token)
+        IPdfExecutionObserver observer)
     {
         return PdfAnnotationAppearanceRenderer.RenderAppearanceStream(
             processor,
@@ -398,7 +396,7 @@ public abstract class PdfAnnotationBase
             visualStateKind,
             renderer,
             renderingParameters,
-            token);
+            observer);
     }
 
     /// <summary>

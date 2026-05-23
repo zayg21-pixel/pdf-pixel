@@ -7,7 +7,6 @@ using PdfPixel.Text;
 using SkiaSharp;
 using System;
 using System.Collections.Generic;
-using System.Threading;
 
 namespace PdfPixel.Rendering;
 
@@ -31,7 +30,7 @@ public class PdfContentStreamRenderer
     /// Render multiple content streams sequentially as one continuous stream without memory allocation.
     /// This treats all content streams as logically one stream while preserving graphics state continuity.
     /// </summary>
-    public void RenderContent(IPdfCommandProcessor processor, CancellationToken token)
+    public void RenderContent(IPdfCommandProcessor processor, IPdfExecutionObserver observer)
     {
         var contentStreams = GetPageContentStreams();
 
@@ -41,7 +40,7 @@ public class PdfContentStreamRenderer
         // Create unified context that treats all streams as one continuous stream
         var parseContext = new PdfParseContext(contentStreams);
 
-        var state = new PdfGraphicsState(_page, new HashSet<uint>(), externalTransform: null, token);
+        var state = new PdfGraphicsState(_page, new HashSet<uint>(), externalTransform: null, observer);
         state.DeviceMatrix = processor.TotalMatrix;
 
         RenderContext(processor, ref parseContext, state);
@@ -112,7 +111,7 @@ public class PdfContentStreamRenderer
                 operandStack.Push(value);
             }
 
-            graphicsState.CancellationToken.ThrowIfCancellationRequested();
+            graphicsState.ExecutionObserver?.Notify();
         }
 
         currentPath.Dispose();

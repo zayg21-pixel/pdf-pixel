@@ -23,9 +23,6 @@
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.0" />
     <PackageReference Include="SkiaSharp" Version="3.119.2" />
     <PackageReference Include="System.IO.Hashing" Version="10.0.1" />
-  </ItemGroup>
-
-  <ItemGroup Condition=" '$(TargetFramework)' == 'netstandard2.0' ">
     <PackageReference Include="System.Memory" Version="4.6.3" />
     <PackageReference Include="Microsoft.Bcl.Numerics" Version="10.0.1" />
     <PackageReference Include="Microsoft.Bcl.HashCode" Version="6.0.0" />
@@ -34,6 +31,9 @@
   <ItemGroup>
     <ProjectReference Include="..\PdfPixel.Color\PdfPixel.Color.csproj" />
     <ProjectReference Include="..\PdfPixel.Jpg\PdfPixel.Jpg.csproj" />
+    <ProjectReference Include="..\PdfPixel.Jpx\PdfPixel.Jpx.csproj" />
+    <ProjectReference Include="..\PdfPixel.Ccitt\PdfPixel.Ccitt.csproj" />
+    <ProjectReference Include="..\PdfPixel.Jbig2\PdfPixel.Jbig2.csproj" />
   </ItemGroup>
 
   <ItemGroup>

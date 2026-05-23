@@ -5,7 +5,6 @@ using PdfPixel.Commands;
 using SkiaSharp;
 using System;
 using System.Collections.Generic;
-using System.Threading;
 
 namespace PdfPixel.Models;
 
@@ -38,7 +37,7 @@ public class PdfPage
         Document = document ?? throw new ArgumentNullException(nameof(document));
         PageObject = pageObject ?? throw new ArgumentNullException(nameof(pageObject));
         PageResources = pageResources ?? throw new ArgumentNullException(nameof(pageResources));
-        _lazyPageCache = new Lazy<PdfPageCache>(() => new PdfPageCache(this), LazyThreadSafetyMode.ExecutionAndPublication);
+        _lazyPageCache = new Lazy<PdfPageCache>(() => new PdfPageCache(this));
 
         PageNumber = pageNumber;
         var media = pageResources.MediaBoxRect ?? DefaultMediaBox;
@@ -112,8 +111,8 @@ public class PdfPage
     /// Render the page content via the command processor.
     /// </summary>
     /// <param name="processor">The command processor to emit drawing commands to.</param>
-    /// <param name="token">Rendering cancellation token.</param>
-    public void Draw(IPdfCommandProcessor processor, CancellationToken token)
+    /// <param name="observer">Execution observer to notify on long-running operations.</param>
+    public void Draw(IPdfCommandProcessor processor, IPdfExecutionObserver observer)
     {
         if (processor == null)
         {
@@ -127,7 +126,7 @@ public class PdfPage
         var renderer = new PdfRenderer(Document.LoggerFactory);
         var contentRenderer = new PdfContentStreamRenderer(renderer, this);
 
-        contentRenderer.RenderContent(processor, token);
+        contentRenderer.RenderContent(processor, observer);
     }
 
     /// <summary>
@@ -137,13 +136,13 @@ public class PdfPage
     /// <param name="renderingParameters">Rendering parameters for rendering in defined canvas.</param>
     /// <param name="activeAnnotation">Annotation that should be rendered in a non-normal visual state, or null.</param>
     /// <param name="visualStateKind">Visual state to apply to the active annotation.</param>
-    /// <param name="token">Rendering cancellation token.</param>
+    /// <param name="observer">Execution observer to notify on long-running operations.</param>
     public void RenderAnnotations(
         IPdfCommandProcessor processor,
         PdfRenderingParameters renderingParameters,
         PdfAnnotationBase activeAnnotation,
         PdfAnnotationVisualStateKind visualStateKind,
-        CancellationToken token)
+        IPdfExecutionObserver observer)
     {
         if (processor == null)
         {
@@ -157,7 +156,7 @@ public class PdfPage
 
         var renderer = new PdfRenderer(Document.LoggerFactory);
         var annotationRenderer = new PdfAnnotationRenderer(renderer, this);
-        annotationRenderer.RenderAnnotations(processor, renderingParameters, activeAnnotation, visualStateKind, token);
+        annotationRenderer.RenderAnnotations(processor, renderingParameters, activeAnnotation, visualStateKind, observer);
     }
 
     /// <summary>

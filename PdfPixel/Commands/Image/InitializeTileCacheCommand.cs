@@ -24,7 +24,7 @@ internal sealed class InitializeTileCacheCommand : PdfCommand
     {
         var ctm = CommandHelpers.GetScaledMatrix(canvas, executionContext);
         var imageRegion = PdfImageCommandUtilities.ComputeImageRegionOfInterest(_imageSize, ctm, executionContext);
-        _tileCache.Initialize(ctm, imageRegion);
+        _tileCache.Initialize(ctm, imageRegion, executionContext.ContentLocker, executionContext.ExecutionObserver);
     }
 
     protected override void Dispose(bool disposing)

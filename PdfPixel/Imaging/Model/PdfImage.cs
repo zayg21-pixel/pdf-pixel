@@ -1,4 +1,5 @@
 using PdfPixel.Color.ColorSpace;
+using PdfPixel.Commands;
 using PdfPixel.Models;
 using PdfPixel.Streams;
 using PdfPixel.Text;
@@ -47,7 +48,7 @@ public class PdfImage
     /// Returns the raw image data decoded from the PDF stream after reversing the /Filter chain.
     /// </summary>
     /// <returns></returns>
-    public ReadOnlyMemory<byte> GetImageData() => SourceObject.DecodeAsMemory();
+    public ReadOnlyMemory<byte> GetImageData(IPdfExecutionObserver observer) => SourceObject.DecodeAsMemory(observer);
 
     /// <summary>
     /// Retrieves the image data as a stream (for large images).

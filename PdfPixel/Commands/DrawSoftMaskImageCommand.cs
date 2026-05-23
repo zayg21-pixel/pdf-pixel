@@ -52,8 +52,8 @@ internal sealed class DrawSoftMaskImageCommand : PdfCommand
 
         var imageRegion = PdfImageCommandUtilities.ComputeImageRegionOfInterest(_pdfImage, ctm, executionContext);
         var maskRegion = PdfImageCommandUtilities.ComputeImageRegionOfInterest(_maskImage, ctm, executionContext);
-        _imageCache.Initialize(ctm, imageRegion);
-        _maskCache.Initialize(ctm, maskRegion);
+        _imageCache.Initialize(ctm, imageRegion, executionContext.ContentLocker, executionContext.ExecutionObserver);
+        _maskCache.Initialize(ctm, maskRegion, executionContext.ContentLocker, executionContext.ExecutionObserver);
 
         var sampling = PdfImageCommandUtilities.GetSamplingOptions(ctm, _context, _pdfImage);
 
@@ -62,8 +62,8 @@ internal sealed class DrawSoftMaskImageCommand : PdfCommand
 
         for (int i = 0; i < _imageCache.TileInfo.TotalTiles; i++)
         {
-            PdfImageTile imageTile = _imageCache.GetNextTile(executionContext.CancellationToken);
-            PdfImageTile maskTile = _maskCache.GetNextTile(executionContext.CancellationToken);
+            PdfImageTile imageTile = _imageCache.GetNextTile(executionContext.ExecutionObserver);
+            PdfImageTile maskTile = _maskCache.GetNextTile(executionContext.ExecutionObserver);
 
             if (imageTile.IsSkipped || maskTile.IsSkipped) continue;
 

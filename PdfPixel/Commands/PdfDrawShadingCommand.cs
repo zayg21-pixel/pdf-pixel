@@ -4,8 +4,6 @@ using PdfPixel.Shading;
 using PdfPixel.Shading.Model;
 using SkiaSharp;
 using System.Collections.Generic;
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace PdfPixel.Commands;
 
@@ -61,29 +59,32 @@ public sealed class PdfDrawShadingCommand : PdfCommand
         int defaultFunctionSamples = executionContext.RenderingParameters.DefaultFunctionSamples;
         int maxTessellationVertices = executionContext.RenderingParameters.MaxTessellationVertices;
 
-        switch (_shading.ShadingType)
+        lock (executionContext.ContentLocker)
         {
-            case PdfShadingType.FunctionBased:
-                ExecuteFunctionBased(canvas, defaultFunctionSamples, executionContext.CancellationToken);
-                break;
+            switch (_shading.ShadingType)
+            {
+                case PdfShadingType.FunctionBased:
+                    ExecuteFunctionBased(canvas, defaultFunctionSamples, executionContext.ExecutionObserver);
+                    break;
 
-            case PdfShadingType.Axial:
-                ExecuteAxial(canvas, modifiers, antialias, defaultFunctionSamples);
-                break;
+                case PdfShadingType.Axial:
+                    ExecuteAxial(canvas, modifiers, antialias, defaultFunctionSamples);
+                    break;
 
-            case PdfShadingType.Radial:
-                ExecuteRadial(canvas, modifiers, antialias, defaultFunctionSamples);
-                break;
+                case PdfShadingType.Radial:
+                    ExecuteRadial(canvas, modifiers, antialias, defaultFunctionSamples);
+                    break;
 
-            case PdfShadingType.FreeFormGouraud:
-            case PdfShadingType.LatticeFormGouraud:
-                ExecuteGouraud(canvas, modifiers, antialias);
-                break;
+                case PdfShadingType.FreeFormGouraud:
+                case PdfShadingType.LatticeFormGouraud:
+                    ExecuteGouraud(canvas, modifiers, antialias);
+                    break;
 
-            case PdfShadingType.CoonsPatchMesh:
-            case PdfShadingType.TensorProductPatchMesh:
-                ExecutePatchMesh(canvas, modifiers, antialias, maxTessellationVertices, executionContext.CancellationToken);
-                break;
+                case PdfShadingType.CoonsPatchMesh:
+                case PdfShadingType.TensorProductPatchMesh:
+                    ExecutePatchMesh(canvas, modifiers, antialias, maxTessellationVertices, executionContext.ExecutionObserver);
+                    break;
+            }
         }
     }
 
@@ -91,7 +92,7 @@ public sealed class PdfDrawShadingCommand : PdfCommand
     /// Executes function-based (Type 1) shading by rendering a cached sampled bitmap.
     /// Rebuilds the bitmap when <paramref name="defaultFunctionSamples"/> changes.
     /// </summary>
-    private void ExecuteFunctionBased(SKCanvas canvas, int defaultFunctionSamples, CancellationToken token)
+    private void ExecuteFunctionBased(SKCanvas canvas, int defaultFunctionSamples, IPdfExecutionObserver observer)
     {
         if (_functionCacheSamples != defaultFunctionSamples)
         {
@@ -102,7 +103,7 @@ public sealed class PdfDrawShadingCommand : PdfCommand
                 _context.RenderingIntent,
                 _context.FullTransferFunction,
                 defaultFunctionSamples,
-                token);
+                observer);
             _functionCacheSamples = defaultFunctionSamples;
         }
 
@@ -185,13 +186,13 @@ public sealed class PdfDrawShadingCommand : PdfCommand
     /// Executes Coons (Type 6) or Tensor-product (Type 7) patch mesh shading.
     /// Rebuilds the mesh when <paramref name="maxTessellationVertices"/> changes.
     /// </summary>
-    private void ExecutePatchMesh(SKCanvas canvas, IEnumerable<IPdfCommandModifier> modifiers, bool antialias, int maxTessellationVertices, CancellationToken token)
+    private void ExecutePatchMesh(SKCanvas canvas, IEnumerable<IPdfCommandModifier> modifiers, bool antialias, int maxTessellationVertices, IPdfExecutionObserver observer)
     {
         if (_patchMeshCacheMaxVertices != maxTessellationVertices)
         {
             _patchMeshCache?.Dispose();
             var sampler = _context.Converter.GetRgbaSampler(_context.RenderingIntent, _context.FullTransferFunction);
-            _patchMeshCache = _builder.BuildPatchMeshVertices(_shading, sampler, maxTessellationVertices, token);
+            _patchMeshCache = _builder.BuildPatchMeshVertices(_shading, sampler, maxTessellationVertices, observer);
             _patchMeshCacheMaxVertices = maxTessellationVertices;
         }
 

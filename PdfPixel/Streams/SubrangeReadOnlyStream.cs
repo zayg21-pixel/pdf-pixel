@@ -1,7 +1,5 @@
 using System;
 using System.IO;
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace PdfPixel.Streams
 {
@@ -149,50 +147,6 @@ namespace PdfPixel.Streams
             }
 
             int read = _innerStream.Read(buffer, offset, count);
-            _position += read;
-            return read;
-        }
-
-        /// <summary>
-        /// Asynchronously reads bytes from the subrange.
-        /// </summary>
-        public override Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
-        {
-            if (_disposed)
-            {
-                throw new ObjectDisposedException(nameof(SubrangeReadOnlyStream));
-            }
-            if (buffer == null)
-            {
-                throw new ArgumentNullException(nameof(buffer));
-            }
-            if (offset < 0 || count < 0 || offset + count > buffer.Length)
-            {
-                throw new ArgumentOutOfRangeException("Invalid buffer offset/count.");
-            }
-            if (count == 0 || _position >= _subrangeLength)
-            {
-                return Task.FromResult(0);
-            }
-
-            long remaining = _subrangeLength - _position;
-            if (count > remaining)
-            {
-                count = (int)remaining;
-            }
-
-            long absolute = _subrangeOffset + _position;
-            if (_innerStream.Position != absolute)
-            {
-                _innerStream.Position = absolute;
-            }
-
-            return InternalReadAsync(buffer, offset, count, cancellationToken);
-        }
-
-        private async Task<int> InternalReadAsync(byte[] buffer, int offset, int count, CancellationToken ct)
-        {
-            int read = await _innerStream.ReadAsync(buffer, offset, count, ct).ConfigureAwait(false);
             _position += read;
             return read;
         }

@@ -18,7 +18,7 @@ internal sealed class DrawNormalImageTileCommand : PdfCommand
 
     public override void Execute(SKCanvas canvas, IEnumerable<IPdfCommandModifier> modifiers, PdfCommandExecutionContext executionContext)
     {
-        PdfImageTile tile = _context.TileCache.GetNextTile(executionContext.CancellationToken);
+        PdfImageTile tile = _context.TileCache.GetNextTile(executionContext.ExecutionObserver);
         if (tile.IsSkipped) return;
 
         var ctm = CommandHelpers.GetScaledMatrix(canvas, executionContext);

@@ -65,8 +65,6 @@ public enum IccTrcParametricType
 /// </summary>
 public sealed class IccTrc
 {
-    public const int MinSampleCount = 1024; // TODO: should be moved to some parameters.
-
     private IccTrc(
         IccTrcType type,
         float gamma,
@@ -79,14 +77,6 @@ public sealed class IccTrc
         Samples = samples;
         ParametricType = paramType;
         Parameters = parameters;
-
-        if (type == IccTrcType.Sampled)
-        {
-            if (Samples != null && Samples.Length > 0 && Samples.Length < MinSampleCount)
-            {
-                Samples = SamplesUpsampler.ResampleCubic(Samples, MinSampleCount);
-            }
-        }
 
         if (type == IccTrcType.Parametric)
         {

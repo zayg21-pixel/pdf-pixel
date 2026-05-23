@@ -246,7 +246,8 @@ internal sealed class JpgProgressiveBlockDecoder
                 }
                 else
                 {
-                    for (int zeroRunIndex = 0; zeroRunIndex < 16 && k <= spectralEnd; zeroRunIndex++)
+                    int zerosRemaining = 16;
+                    while (zerosRemaining > 0 && k <= spectralEnd)
                     {
                         int naturalIndex = JpgZigZag.Table[k];
                         int idx = coefficientBase + naturalIndex;
@@ -259,6 +260,10 @@ internal sealed class JpgProgressiveBlockDecoder
                                 int sign = existing >= 0 ? 1 : -1;
                                 coefficients[idx] = existing + sign * (1 << successiveApproxLow);
                             }
+                        }
+                        else
+                        {
+                            zerosRemaining--;
                         }
                         k++;
                     }

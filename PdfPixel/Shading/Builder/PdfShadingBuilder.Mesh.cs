@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
 using PdfPixel.Color.Sampling;
+using PdfPixel.Commands;
 using PdfPixel.Shading.Builder;
 using PdfPixel.Shading.Decoding;
 using PdfPixel.Shading.Model;
@@ -55,9 +56,9 @@ internal partial class PdfShadingBuilder
     /// <param name="shading">Parsed shading model.</param>
     /// <param name="sampler">RGBA sampler for color conversion.</param>
     /// <param name="maxTessellationVertices">Maximum tessellation vertices per patch.</param>
-    /// <param name="token">Cancellation token for long-running operations.</param>
+    /// <param name="observer">Execution observer for long-running operations.</param>
     /// <returns>Tessellated patch vertices, or null on failure.</returns>
-    public SKVertices BuildPatchMeshVertices(PdfShading shading, IRgbaSampler sampler, int maxTessellationVertices, CancellationToken token)
+    public SKVertices BuildPatchMeshVertices(PdfShading shading, IRgbaSampler sampler, int maxTessellationVertices, IPdfExecutionObserver observer)
     {
         var decoder = new MeshDecoder(shading, sampler);
         List<MeshData> patches = decoder.Decode();
@@ -67,6 +68,6 @@ internal partial class PdfShadingBuilder
             return null;
         }
 
-        return MeshEvaluator.CreateVerticesForPatches(patches, maxTessellationVertices, token);
+        return MeshEvaluator.CreateVerticesForPatches(patches, maxTessellationVertices, observer);
     }
 }

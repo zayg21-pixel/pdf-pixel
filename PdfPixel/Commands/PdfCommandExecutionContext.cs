@@ -1,7 +1,6 @@
 using PdfPixel.Models;
 using SkiaSharp;
 using System;
-using System.Threading;
 
 namespace PdfPixel.Commands;
 
@@ -13,10 +12,11 @@ namespace PdfPixel.Commands;
 /// </summary>
 public sealed class PdfCommandExecutionContext
 {
-    public PdfCommandExecutionContext(PdfRenderingParameters renderingParameters, CancellationToken cancellationToken, SKRect? pageRegionOfInterest = null)
+    public PdfCommandExecutionContext(PdfRenderingParameters renderingParameters, object contentLocker, IPdfExecutionObserver executionObserver, SKRect? pageRegionOfInterest = null)
     {
         RenderingParameters = renderingParameters ?? throw new ArgumentNullException(nameof(renderingParameters));
-        CancellationToken = cancellationToken;
+        ContentLocker = contentLocker ?? throw new ArgumentNullException(nameof(contentLocker));
+        ExecutionObserver = executionObserver;
         PageRegionOfInterest = pageRegionOfInterest;
     }
 
@@ -26,18 +26,18 @@ public sealed class PdfCommandExecutionContext
     public PdfRenderingParameters RenderingParameters { get; }
 
     /// <summary>
+    /// Locker to prevent multi-threaded access to PDF content stream and lazy-initialized data.
+    /// </summary>
+    public object ContentLocker { get; }
+
+    /// <summary>
     /// Cancellation token for cooperative cancellation of command execution.
     /// </summary>
-    public CancellationToken CancellationToken { get; }
+    public IPdfExecutionObserver ExecutionObserver { get; }
 
     /// <summary>
     /// Visible region of the page in page coordinates. Null means the full page is visible.
     /// Used to skip decoding of image tiles outside the visible area.
     /// </summary>
     public SKRect? PageRegionOfInterest { get; }
-
-    /// <summary>
-    /// Called after each command is executed during replay. Used for early-flush timing.
-    /// </summary>
-    public Action OnCommandExecuted { get; set; }
 }

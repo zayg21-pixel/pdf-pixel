@@ -1,10 +1,7 @@
-using PdfPixel.Annotations.Models;
 using PdfPixel.Commands;
 using PdfPixel.Models;
 using PdfPixel.PdfPanel.WorkQueue;
-using SkiaSharp;
 using System;
-using System.Diagnostics;
 using System.Threading;
 
 namespace PdfPixel.PdfPanel.ContentProvider;
@@ -46,19 +43,20 @@ public class PdfPageUpdateCacheWorkItem : IWorkItem
         {
             if (!CacheEntry.Content.ContentCommandRecording.HasContent)
             {
-                var recording = PdfDocumentContentExtensions.GeneratePageCommandRecording(_document, CacheEntry.PageNumber, _tokenSnapshot.ParseToken);
+                var observer = new PdfCancellationExecutionObserver(_tokenSnapshot.ParseToken);
+                var recording = PdfDocumentContentExtensions.GeneratePageCommandRecording(_document, CacheEntry.PageNumber, observer);
                 CacheEntry.Content.UpdateContentCommandRecording(recording);
             }
         }
 
-        // TODO: [MEDIUM] this can be moved out of locker if DrawImageCommand would not have access to PDF resource stream
         if (!CacheEntry.Content.ContentPicture.HasContent || (CacheEntry.Content.IsScaleDependant && CacheEntry.Content.Scale != scaleFactor))
         {
             using var contentRecording = CacheEntry.Content.ContentCommandRecording.GetContent();
 
             if (contentRecording.HasContent)
             {
-                var executionContext = new PdfCommandExecutionContext(_request.RenderingParameters, _tokenSnapshot.ContentToken);
+                var observer = new PdfCancellationExecutionObserver(_tokenSnapshot.ContentToken);
+                var executionContext = new PdfCommandExecutionContext(_request.RenderingParameters, _documentLocker, observer);
                 var contentPicture = PdfDocumentContentExtensions.RecordingToSkPicture(CacheEntry.PageInfo, contentRecording.Content, executionContext);
                 CacheEntry.Content.UpdateContentPicture(contentPicture, scaleFactor);
                 updated = true;
@@ -71,26 +69,24 @@ public class PdfPageUpdateCacheWorkItem : IWorkItem
         {
             if (CacheEntry.Annotations?.Length > 0 && (!CacheEntry.AnnotationContent.ContentCommandRecording.HasContent || CacheEntry.ActiveAnnotation != _request.ActiveAnnotation || CacheEntry.CurrentPointerState != _request.PointerState))
             {
-                var annotationRecording = PdfDocumentContentExtensions.GetAnnotationRecording(_document, CacheEntry.PageNumber, scaleFactor, _request.ActiveAnnotation?.Annotation, _request.PointerState, _tokenSnapshot.ContentToken);
+                var observer = new PdfCancellationExecutionObserver(_tokenSnapshot.ContentToken);
+                var annotationRecording = PdfDocumentContentExtensions.GetAnnotationRecording(_document, CacheEntry.PageNumber, scaleFactor, _request.ActiveAnnotation?.Annotation, _request.PointerState, observer);
                 CacheEntry.AnnotationContent.UpdateContentCommandRecording(annotationRecording);
                 CacheEntry.UpdateActiveAnnotationState(_request.ActiveAnnotation, _request.PointerState);
                 annotationRecordingUpdated = true;
             }// TODO: [MEDIUM] explore capabilities for partial update of annotation recording
         }
 
-
-        lock (_documentLocker)
+        if (CacheEntry.AnnotationContent.ContentCommandRecording.HasContent && (annotationRecordingUpdated || !CacheEntry.AnnotationContent.ContentPicture.HasContent || (CacheEntry.AnnotationContent.IsScaleDependant && CacheEntry.AnnotationContent.Scale != scaleFactor)))
         {
-            if (CacheEntry.AnnotationContent.ContentCommandRecording.HasContent && (annotationRecordingUpdated || !CacheEntry.AnnotationContent.ContentPicture.HasContent || (CacheEntry.AnnotationContent.IsScaleDependant && CacheEntry.AnnotationContent.Scale != scaleFactor)))
-            {
-                using var contentRecording = CacheEntry.AnnotationContent.ContentCommandRecording.GetContent();
+            using var contentRecording = CacheEntry.AnnotationContent.ContentCommandRecording.GetContent();
 
-                var executionContext = new PdfCommandExecutionContext(_request.RenderingParameters, _tokenSnapshot.ContentToken);
-                var contentPicture = PdfDocumentContentExtensions.RecordingToSkPicture(CacheEntry.PageInfo, contentRecording.Content, executionContext);
-                CacheEntry.AnnotationContent.UpdateContentPicture(contentPicture, scaleFactor);
+            var observer = new PdfCancellationExecutionObserver(_tokenSnapshot.ContentToken);
+            var executionContext = new PdfCommandExecutionContext(_request.RenderingParameters, _documentLocker, observer);
+            var contentPicture = PdfDocumentContentExtensions.RecordingToSkPicture(CacheEntry.PageInfo, contentRecording.Content, executionContext);
+            CacheEntry.AnnotationContent.UpdateContentPicture(contentPicture, scaleFactor);
 
-                updated = true;
-            }
+            updated = true;
         }
 
         if (updated)
@@ -99,61 +95,6 @@ public class PdfPageUpdateCacheWorkItem : IWorkItem
             updated = false;
         }
     }
-
-    private void RecordWithEarlyFlush(PdfCommandRecorder commandRecording, PdfCommandExecutionContext executionContext, float scaleFactor)
-    {
-        // TODO: [HIGH] cleanup, make universal
-        const int FlushThresholdMs = 300;
-
-        var bounds = SKRect.Create(CacheEntry.PageInfo.Width, CacheEntry.PageInfo.Height);
-        using var recorder = new SKPictureRecorder();
-
-        int executedCount = 0;
-        int skipCount = 0;
-        var sw = new Stopwatch();
-
-        executionContext.OnCommandExecuted = () =>
-        {
-            executedCount++;
-            if (executedCount <= skipCount) return;
-            if (!sw.IsRunning) sw.Restart();
-            if (sw.ElapsedMilliseconds < FlushThresholdMs) return;
-            throw new TimeoutException();
-        };
-
-        var canvas = recorder.BeginRecording(bounds);
-        while (true)
-        {
-            try
-            {
-                lock (_documentLocker)
-                {
-                    commandRecording.Replay(canvas, [], executionContext);
-                }
-
-                break;
-            }
-            catch (TimeoutException)
-            {
-                canvas.Flush();
-                var snapshot = recorder.EndRecording();
-                CacheEntry.Content.UpdateContentPicture(snapshot, scaleFactor);
-                _onPageUpdated?.Invoke(new PageUpdatedArgs(CacheEntry.PageNumber, CacheEntry.GetContentPictures(), UpdatedContentType.Content));
-
-                skipCount = executedCount;
-                executedCount = 0;
-                sw.Reset();
-                canvas = recorder.BeginRecording(bounds);
-            }
-        }
-
-        canvas.Flush();
-        CacheEntry.Content.UpdateContentPicture(recorder.EndRecording(), scaleFactor);
-        executionContext.OnCommandExecuted = null;
-
-        _onPageUpdated?.Invoke(new PageUpdatedArgs(CacheEntry.PageNumber, CacheEntry.GetContentPictures(), UpdatedContentType.Content));
-    }
-
 
     private struct TokenSnapshot
     {

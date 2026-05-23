@@ -19,6 +19,7 @@ public sealed class JpgProgressiveDecoder : IJpgDecoder
 
     private readonly JpgHeader _header;
     private readonly ReadOnlyMemory<byte> _entropyMemory;
+    private readonly JpegColorConversionParameters _conversionParams;
 
     private bool _decoderInitialized;
 
@@ -54,7 +55,7 @@ public sealed class JpgProgressiveDecoder : IJpgDecoder
 
     public int CurrentRow => _currentRow;
 
-    public JpgProgressiveDecoder(JpgHeader header, ReadOnlyMemory<byte> entropyData)
+    public JpgProgressiveDecoder(JpgHeader header, ReadOnlyMemory<byte> entropyData, JpegColorConversionParameters conversionParams = null)
     {
         if (header == null)
         {
@@ -71,6 +72,7 @@ public sealed class JpgProgressiveDecoder : IJpgDecoder
 
         _header = header;
         _entropyMemory = entropyData;
+        _conversionParams = conversionParams;
         _decoderInitialized = false;
         _currentMcuRow = 0;
         _currentRow = 0;
@@ -95,7 +97,7 @@ public sealed class JpgProgressiveDecoder : IJpgDecoder
         _decodingParameters = new JpgDecodingParameters(_header);
 
         // Decode all scans to final coefficient buffers before on-demand band production.
-        _coeffBuffers = InitializeCoefficientBuffers(_header, _decodingParameters.McuColumns, _decodingParameters.McuRows);
+        _coeffBuffers = InitializeCoefficientBuffers(_header, _decodingParameters);
         ProcessProgressiveScans(
             _header,
             _entropyMemory.Span,
@@ -134,8 +136,8 @@ public sealed class JpgProgressiveDecoder : IJpgDecoder
         }
 
         // Color conversion & band packing infrastructure.
-        _upsampler = new JpgUpsampler(_decodingParameters, _header);
-        _colorConverter = JpgColorConverterFactory.Create(_header, _decodingParameters);
+        _upsampler = _decodingParameters.NeedsUpsampling ? new JpgUpsampler(_decodingParameters, _header) : null;
+        _colorConverter = JpgColorConverterFactory.Create(_header, _decodingParameters, _conversionParams);
         _bandPacker = new JpgBandPacker(_header, _decodingParameters);
 
         _bandHeight = _decodingParameters.McuHeight;
@@ -197,8 +199,8 @@ public sealed class JpgProgressiveDecoder : IJpgDecoder
             for (int componentIndex = 0; componentIndex < _header.ComponentCount; componentIndex++)
             {
                 var component = _header.Components[componentIndex];
-                int hFactor = component.HorizontalSamplingFactor;
-                int vFactor = component.VerticalSamplingFactor;
+                int hFactor = _decodingParameters.ComponentBlocksH[componentIndex];
+                int vFactor = _decodingParameters.ComponentBlocksV[componentIndex];
                 int blocksPerMcu = _decodingParameters.BlocksPerMcu[componentIndex];
                 Block8x8F[] bandBlocks = _componentBandBlocks[componentIndex];
                 var coeffBuffer = _coeffBuffers[componentIndex];
@@ -256,15 +258,14 @@ public sealed class JpgProgressiveDecoder : IJpgDecoder
         _currentMcuRow++;
     }
 
-    private static CoeffBuffers[] InitializeCoefficientBuffers(JpgHeader header, int mcuColumns, int mcuRows)
+    private static CoeffBuffers[] InitializeCoefficientBuffers(JpgHeader header, JpgDecodingParameters parameters)
     {
         int componentCount = header.ComponentCount;
         var buffers = new CoeffBuffers[componentCount];
         for (int componentIndex = 0; componentIndex < componentCount; componentIndex++)
         {
-            var component = header.Components[componentIndex];
-            int blocksX = mcuColumns * component.HorizontalSamplingFactor;
-            int blocksY = mcuRows * component.VerticalSamplingFactor;
+            int blocksX = parameters.McuColumns * parameters.ComponentBlocksH[componentIndex];
+            int blocksY = parameters.McuRows * parameters.ComponentBlocksV[componentIndex];
             buffers[componentIndex].BlocksX = blocksX;
             buffers[componentIndex].BlocksY = blocksY;
             buffers[componentIndex].Coeffs = new int[blocksX * blocksY * DctBlockSize];
@@ -455,12 +456,22 @@ public sealed class JpgProgressiveDecoder : IJpgDecoder
             int componentIndex = scanToComponent[0];
             var dcDecoder = dcDecoders[0];
             var acDecoder = acDecoders[0];
-            int blocksX = coeffBuffers[componentIndex].BlocksX;
-            int blocksY = coeffBuffers[componentIndex].BlocksY;
+            int bufferBlocksX = coeffBuffers[componentIndex].BlocksX; // MCU-aligned, used for buffer stride
 
-            for (int blockRow = 0; blockRow < blocksY; blockRow++)
+            int hSamp = header.Components[componentIndex].HorizontalSamplingFactor;
+            int vSamp = header.Components[componentIndex].VerticalSamplingFactor;
+            int hMax = 1, vMax = 1;
+            for (int ci = 0; ci < header.Components.Count; ci++)
             {
-                for (int blockColumn = 0; blockColumn < blocksX; blockColumn++)
+                if (header.Components[ci].HorizontalSamplingFactor > hMax) hMax = header.Components[ci].HorizontalSamplingFactor;
+                if (header.Components[ci].VerticalSamplingFactor > vMax) vMax = header.Components[ci].VerticalSamplingFactor;
+            }
+            int scanBlocksX = (header.Width * hSamp + hMax * 8 - 1) / (hMax * 8);
+            int scanBlocksY = (header.Height * vSamp + vMax * 8 - 1) / (vMax * 8);
+
+            for (int blockRow = 0; blockRow < scanBlocksY; blockRow++)
+            {
+                for (int blockColumn = 0; blockColumn < scanBlocksX; blockColumn++)
                 {
                     if (restartManager.IsRestartNeeded)
                     {
@@ -468,7 +479,7 @@ public sealed class JpgProgressiveDecoder : IJpgDecoder
                         eobRun = 0;
                     }
 
-                    int blockIndex = (blockRow * blocksX + blockColumn) * DctBlockSize;
+                    int blockIndex = (blockRow * bufferBlocksX + blockColumn) * DctBlockSize;
                     if (isDcScan)
                     {
                         JpgProgressiveBlockDecoder.DecodeDcCoefficient(ref bitReader, dcDecoder, ref previousDc[componentIndex], coeffBuffers[componentIndex].Coeffs, blockIndex, firstPass, successiveApproxLow);

@@ -310,23 +310,6 @@ public static class JpgReader
             header.Components.Add(comp);
             offset += 3;
         }
-
-        // TODO: [MEDIUM] this seems to be right optimization for our pipeline
-        if (header.Components.All(x => x.HorizontalSamplingFactor == header.Components[0].HorizontalSamplingFactor))
-        {
-            foreach (var comp in header.Components)
-            {
-                comp.HorizontalSamplingFactor = 1;
-            }
-        }
-
-        if (header.Components.All(x => x.VerticalSamplingFactor == header.Components[0].VerticalSamplingFactor))
-        {
-            foreach (var comp in header.Components)
-            {
-                comp.VerticalSamplingFactor = 1;
-            }
-        }
     }
 
     private static void ParseApp0(ReadOnlySpan<byte> payload, JpgHeader header)

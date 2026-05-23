@@ -1,8 +1,8 @@
 using Microsoft.Extensions.Logging;
+using PdfPixel.Commands;
 using SkiaSharp;
 using System;
 using System.Runtime.CompilerServices;
-using System.Threading;
 
 namespace PdfPixel.Imaging.Processing;
 
@@ -45,7 +45,7 @@ internal sealed class PdfImageTilingContext : IDisposable
     public int TotalTiles { get; }
     public SKRectI RegionOfInterest { get; }
 
-    public PdfImageTile[] WriteRowAndTryGetTiles(int imageRowIndex, ReadOnlySpan<byte> fullWidthRow, CancellationToken cancellationToken)
+    public PdfImageTile[] WriteRowAndTryGetTiles(int imageRowIndex, ReadOnlySpan<byte> fullWidthRow, IPdfExecutionObserver observer)
     {
         int rowWithinTile = imageRowIndex % TileHeight;
         int tileRow = imageRowIndex / TileHeight;
@@ -75,7 +75,7 @@ internal sealed class PdfImageTilingContext : IDisposable
                 processor.InitializeBuffer();
                 _tileRowProcessors[col] = processor;
 
-                cancellationToken.ThrowIfCancellationRequested();
+                observer?.Notify();
             }
         }
 
@@ -89,7 +89,7 @@ internal sealed class PdfImageTilingContext : IDisposable
             int tileActualWidth = _tilePositions[tileRow * TilesHorizontal + col].Width;
             byte[] slice = ExtractTileRowSlice(fullWidthRow, tileStartPixel, tileActualWidth, bpc, componentCount);
             _tileRowProcessors[col].WriteRow(rowWithinTile, slice);
-            cancellationToken.ThrowIfCancellationRequested();
+            observer?.Notify();
         }
 
         bool isLastRowOfTile = rowWithinTile == TileHeight - 1 || imageRowIndex == _imageParameters.Height - 1;
@@ -111,7 +111,7 @@ internal sealed class PdfImageTilingContext : IDisposable
             _tileRowProcessors[col] = null;
             tiles[col] = new PdfImageTile(tileIndex, ScaleTilePosition(_tilePositions[tileIndex]), image, isSkipped: false);
 
-            cancellationToken.ThrowIfCancellationRequested();
+            observer?.Notify();
         }
 
         return tiles;

@@ -220,17 +220,29 @@ internal ref struct JpgBitReader
     }
 
     /// <summary>
-    /// Discard any buffered bits and align to the next byte boundary.
+    /// Discard any buffered bits and align to the next byte boundary in the source stream.
+    /// Rewinds _pos by the number of fully buffered but unconsumed bytes so that the
+    /// following TryReadMarker scan starts at the correct stream position.
+    /// When a marker is already pending (_markerPending=true) _pos is already at the 0xFF;
+    /// no rewind is needed in that case.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void ByteAlign()
     {
+        if (!_markerPending)
+        {
+            int unusedFullBytes = _bits >> 3;
+            _pos -= unusedFullBytes;
+            _remaining += unusedFullBytes;
+        }
         _bitBuf = 0;
         _bits = 0;
     }
 
     /// <summary>
-    /// Attempt to read the next marker. Returns false if no marker is present at the current position.
+    /// Attempt to read the next marker. Scans forward from the current position to locate the first
+    /// real marker (0xFF followed by a non-zero, non-stuffed byte). Returns false only if the end of
+    /// the data is reached without finding a marker.
     /// On success the internal state is byte-aligned at the first byte after the marker code.
     /// Stand-alone markers (SOI/EOI/RSTn/TEM) are treated the same as other markers here; payload handling is separate.
     /// </summary>
@@ -248,40 +260,50 @@ internal ref struct JpgBitReader
         int markerPos = _pos;
         int markerRemaining = _remaining;
 
-        if (_data[markerPos] != MarkerPrefix)
+        while (true)
         {
-            return false;
-        }
-        markerPos++;
-        markerRemaining--;
+            // Skip non-0xFF bytes (entropy padding / pre-fetched leftover bytes).
+            while (markerRemaining > 0 && _data[markerPos] != MarkerPrefix)
+            {
+                markerPos++;
+                markerRemaining--;
+            }
+            if (markerRemaining <= 0)
+            {
+                return false;
+            }
+            markerPos++;      // consume the 0xFF
+            markerRemaining--;
 
-        while (markerRemaining > 0 && _data[markerPos] == MarkerPrefix)
-        {
+            // Skip fill 0xFF bytes.
+            while (markerRemaining > 0 && _data[markerPos] == MarkerPrefix)
+            {
+                markerPos++;
+                markerRemaining--;
+            }
+            if (markerRemaining <= 0)
+            {
+                return false;
+            }
+
+            byte code = _data[markerPos];
             markerPos++;
             markerRemaining--;
-        }
 
-        if (markerRemaining <= 0)
-        {
-            return false;
-        }
+            if (code == StuffingZero)
+            {
+                // 0xFF 0x00 is a stuffed byte inside entropy data, not a real marker; keep scanning.
+                continue;
+            }
 
-        byte code = _data[markerPos];
-        markerPos++;
-        markerRemaining--;
-        if (code == StuffingZero)
-        {
-            return false;
+            _pos = markerPos;
+            _remaining = markerRemaining;
+            _markerPending = false;
+            _bitBuf = 0;
+            _bits = 0;
+            marker = code;
+            return true;
         }
-
-        int consumed = markerPos - _pos;
-        _pos = markerPos;
-        _remaining = markerRemaining;
-        _markerPending = false;
-        _bitBuf = 0;
-        _bits = 0;
-        marker = code;
-        return true;
     }
 
     /// <summary>

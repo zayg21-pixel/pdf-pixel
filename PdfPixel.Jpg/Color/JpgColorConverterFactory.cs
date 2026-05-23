@@ -1,103 +1,118 @@
 using System;
+using System.Numerics;
+using System.Runtime.CompilerServices;
 using PdfPixel.Jpg.Decoding;
 using PdfPixel.Jpg.Model;
 
 namespace PdfPixel.Jpg.Color;
 
-/// <summary>
-/// Factory for selecting an appropriate JPEG color converter implementation based on header metadata.
-/// Adds heuristic detection for files that are already RGB (component Ids 'R','G','B') to avoid redundant YCbCr transform.
-/// </summary>
 internal static class JpgColorConverterFactory
 {
-    public static IJpgColorConverter Create(JpgHeader header, JpgDecodingParameters parameters)
+    public static IJpgColorConverter Create(JpgHeader header, JpgDecodingParameters parameters, JpegColorConversionParameters conversionParams = null)
     {
         if (header == null)
-        {
             throw new ArgumentNullException(nameof(header));
-        }
         if (parameters == null)
-        {
             throw new ArgumentNullException(nameof(parameters));
-        }
 
-        // Single component (grayscale) requires no transform.
+        conversionParams ??= JpegColorConversionParameters.Default;
+
         if (header.ComponentCount == 1)
-        {
             return new ColorClampConverter();
-        }
 
-        // Three components: Distinguish between true RGB and YCbCr.
         if (header.ComponentCount == 3)
         {
-            if (LikelyRgb(header))
+            bool applyYuv = conversionParams.YuvMode switch
             {
-                // Already RGB; no in-place transform required.
-                return new ColorClampConverter();
-            }
-            return new YcbCrFloatColorConverter(header, parameters);
+                JpgYuvMode.NoYuv => false,
+                JpgYuvMode.ForceYuv => true,
+                _ => IsYuvNeeded(header),
+            };
+            return applyYuv ? new YcbCrFloatColorConverter(header, parameters) : new ColorClampConverter();
         }
 
-        // Four components: If Adobe APP14 transform = 2 this is YCCK needing conversion to CMYK.
-        if (header.ComponentCount == 4 && header.HasAdobeApp14 && header.AdobeColorTransform == 2)
-        {
-            return new YcckFloatColorConverter(header, parameters);
-        }
-
-        // Four components without YCCK transform: treat as native CMYK (no-op).
         if (header.ComponentCount == 4)
         {
-            return new ColorClampConverter();
+            bool applyYcck = conversionParams.YuvMode switch
+            {
+                JpgYuvMode.NoYuv => false,
+                JpgYuvMode.ForceYuv => !header.HasAdobeApp14 || header.AdobeColorTransform != 0,
+                _ => header.HasAdobeApp14 && header.AdobeColorTransform == 2,
+            };
+
+            IJpgColorConverter converter = applyYcck
+                ? new YcckFloatColorConverter(header, parameters)
+                : new ColorClampConverter();
+
+            return conversionParams.InvertCmykColors
+                ? new CmykInvertingConverter(converter)
+                : converter;
         }
 
         return new ColorClampConverter();
     }
 
     /// <summary>
-    /// Heuristic detection for already RGB triplets. Returns true when component identifiers match
-    /// ASCII 'R','G','B' (case-insensitive). Other common JPEG encodings use numeric ids 1,2,3 for Y,Cb,Cr.
+    /// Matches pdf.js _isColorConversionNeeded for 3-component images (colorTransform = -1 / Default).
+    /// Adobe APP14 marker overrides; otherwise falls back to RGB component ID heuristic.
     /// </summary>
+    private static bool IsYuvNeeded(JpgHeader header)
+    {
+        if (header.HasAdobeApp14)
+            return header.AdobeColorTransform != 0;
+        return !LikelyRgb(header);
+    }
+
     private static bool LikelyRgb(JpgHeader header)
     {
-        if (header == null)
-        {
-            return false;
-        }
         if (header.Components == null || header.Components.Count != 3)
-        {
             return false;
-        }
 
-        // Accept both uppercase and lowercase to be tolerant.
-        byte rId = header.Components[0].Id;
-        byte gId = header.Components[1].Id;
-        byte bId = header.Components[2].Id;
+        byte r = header.Components[0].Id;
+        byte g = header.Components[1].Id;
+        byte b = header.Components[2].Id;
 
-        bool isR = rId == (byte)'R' || rId == (byte)'r';
-        bool isG = gId == (byte)'G' || gId == (byte)'g';
-        bool isB = bId == (byte)'B' || bId == (byte)'b';
-
-        if (isR && isG && isB)
-        {
-            return true;
-        }
-
-        return false;
+        return (r == (byte)'R' || r == (byte)'r')
+            && (g == (byte)'G' || g == (byte)'g')
+            && (b == (byte)'B' || b == (byte)'b');
     }
 
     private sealed class ColorClampConverter : IJpgColorConverter
     {
         public void ConvertInPlace(Block8x8F[][] upsampledBandBlocks)
         {
-            for (int i = 0; i < upsampledBandBlocks.Length; i++)
-            {
-                Block8x8F[] bandBlocks = upsampledBandBlocks[i];
-                for (int j = 0; j < bandBlocks.Length; j++)
-                {
-                    ref Block8x8F block = ref bandBlocks[j];
+            foreach (var band in upsampledBandBlocks)
+                foreach (ref Block8x8F block in band.AsSpan())
                     block.ClampToByte();
+        }
+    }
+
+    private sealed class CmykInvertingConverter : IJpgColorConverter
+    {
+        private static readonly Vector4 _v255 = new Vector4(255f);
+
+        private readonly IJpgColorConverter _inner;
+
+        public CmykInvertingConverter(IJpgColorConverter inner) => _inner = inner;
+
+        public void ConvertInPlace(Block8x8F[][] upsampledBandBlocks)
+        {
+            for (int c = 0; c < 4; c++)
+            {
+                Block8x8F[] blocks = upsampledBandBlocks[c];
+                for (int b = 0; b < blocks.Length; b++)
+                {
+                    ref Block8x8F block = ref blocks[b];
+                    ref Vector4 vecRef = ref Unsafe.As<Block8x8F, Vector4>(ref block);
+                    for (int v = 0; v < Block8x8F.VectorCount; v++)
+                    {
+                        ref Vector4 lane = ref Unsafe.Add(ref vecRef, v);
+                        lane = _v255 - lane;
+                    }
                 }
             }
+
+            _inner.ConvertInPlace(upsampledBandBlocks);
         }
     }
 }

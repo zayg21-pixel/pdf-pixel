@@ -1,4 +1,5 @@
 ﻿using PdfPixel.Color.Transform;
+using PdfPixel.Commands;
 using PdfPixel.Shading.Model;
 using SkiaSharp;
 using System;
@@ -6,8 +7,6 @@ using System.Collections.Generic;
 using System.Numerics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace PdfPixel.Shading.Builder;
 
@@ -55,9 +54,9 @@ internal static class MeshEvaluator
     /// </summary>
     /// <param name="patches">List of mesh patches to tessellate.</param>
     /// <param name="tessellation">Number of subdivisions per axis (higher = smoother).</param>
-    /// <param name="token">Cancellation token for long-running operations.</param>
+    /// <param name="observer">Execution observer for long-running operations.</param>
     /// <returns>SKVertices instance containing all tessellated mesh vertices, colors, and indices.</returns>
-    public static SKVertices CreateVerticesForPatches(List<MeshData> patches, int tessellation, CancellationToken token)
+    public static SKVertices CreateVerticesForPatches(List<MeshData> patches, int tessellation, IPdfExecutionObserver observer)
     {
         if (patches == null || patches.Count == 0)
         {
@@ -118,7 +117,7 @@ internal static class MeshEvaluator
                     vertexIndex++;
                 }
 
-                token.ThrowIfCancellationRequested();
+                observer?.Notify();
             }
             int index = 0;
             for (int rowIndex = 0; rowIndex < tessellation; rowIndex++)

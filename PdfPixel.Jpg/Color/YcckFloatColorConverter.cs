@@ -15,7 +15,9 @@ internal sealed class YcckFloatColorConverter : IJpgColorConverter
 {
     private static readonly Vector4 VectorZero = Vector4.Zero;
     private static readonly Vector4 Vector255 = new Vector4(255f);
-    private static readonly Vector4 Offset = new Vector4(128f);
+    private static readonly Vector4 OffsetR = new Vector4(434.456f);
+    private static readonly Vector4 OffsetG = new Vector4(119.541f);
+    private static readonly Vector4 OffsetB = new Vector4(481.816f);
     private static readonly Vector4 CrToR = new Vector4(1.402f);
     private static readonly Vector4 CbToG = new Vector4(0.344136f);
     private static readonly Vector4 CrToG = new Vector4(0.714136f);
@@ -77,21 +79,14 @@ internal sealed class YcckFloatColorConverter : IJpgColorConverter
                 Vector4 crVec = Unsafe.Add(ref crVecRef, vectorIndex);
                 Vector4 kVec = Unsafe.Add(ref kVecRef, vectorIndex);
 
-                Vector4 cbCentered = cbVec - Offset;
-                Vector4 crCentered = crVec - Offset;
-
-                Vector4 rVec = yVec + crCentered * CrToR;
-                Vector4 gVec = yVec - cbCentered * CbToG - crCentered * CrToG;
-                Vector4 bVec = yVec + cbCentered * CbToB;
-
-                rVec = Vector4.Clamp(rVec, VectorZero, Vector255);
-                gVec = Vector4.Clamp(gVec, VectorZero, Vector255);
-                bVec = Vector4.Clamp(bVec, VectorZero, Vector255);
+                var cRVec = OffsetR - yVec - CrToR * crVec;
+                var mRVec = OffsetG - yVec + CbToG * cbVec + CrToG * crVec;
+                var yRVec = OffsetB - yVec - CbToB * cbVec;
 
                 // Overwrite source component blocks with CMY derived from provisional RGB.
-                Unsafe.Add(ref yVecRef, vectorIndex) = Vector255 - rVec; // C
-                Unsafe.Add(ref cbVecRef, vectorIndex) = Vector255 - gVec; // M
-                Unsafe.Add(ref crVecRef, vectorIndex) = Vector255 - bVec; // Y
+                Unsafe.Add(ref yVecRef, vectorIndex) = Vector4.Clamp(cRVec, VectorZero, Vector255); // C
+                Unsafe.Add(ref cbVecRef, vectorIndex) = Vector4.Clamp(mRVec, VectorZero, Vector255); // M
+                Unsafe.Add(ref crVecRef, vectorIndex) = Vector4.Clamp(yRVec, VectorZero, Vector255); // Y
                 Unsafe.Add(ref kVecRef, vectorIndex) = Vector4.Clamp(kVec, VectorZero, Vector255); // K
 
             }

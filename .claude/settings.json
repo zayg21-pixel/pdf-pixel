@@ -2,7 +2,8 @@
   "permissions": {
     "allow": [
       "Read(//c/Users/zayg2/repos/CoreJ2K/**)",
-      "Bash(grep -v \"//.*magbits\")"
+      "Bash(grep -v \"//.*magbits\")",
+      "PowerShell(Get-ChildItem -Path \"c:\\\\Users\\\\zayg2\\\\repos\\\\pdf-pixel\" -Recurse -Directory | Where-Object {$_.Name -match \"\\(Test|Jpg|Color|Icc\\)\" -or $_.Name -eq \"TestOutput\"} | Sort-Object FullName)"
     ]
   }
 }

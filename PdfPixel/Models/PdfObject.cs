@@ -1,3 +1,4 @@
+using PdfPixel.Commands;
 using PdfPixel.Streams;
 using System;
 using System.IO;
@@ -99,8 +100,8 @@ public class PdfObject
     /// Decodes the object's stream using the document's stream decoder and returns the decoded bytes as memory.
     /// </summary>
     /// <returns>A <see cref="ReadOnlyMemory{byte}"/> containing the decoded stream data.</returns>
-    public ReadOnlyMemory<byte> DecodeAsMemory()
+    public ReadOnlyMemory<byte> DecodeAsMemory(IPdfExecutionObserver observer = default)
     {
-        return Document.StreamDecoder.DecodeContentStream(this);
+        return Document.StreamDecoder.DecodeContentStream(this, observer);
     }
 }

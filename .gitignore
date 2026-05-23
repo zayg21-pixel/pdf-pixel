@@ -231,6 +231,8 @@ project.lock.json
 
 # VS code
 .vscode/
+# Claude code
+.claude/
 
 # Output folder used by Webpack or other FE stuff
 **/wwwroot/test/*

@@ -1,7 +1,6 @@
 using SkiaSharp;
 using System;
 using System.Collections.Generic;
-using System.Threading.Tasks;
 
 namespace PdfPixel.Commands;
 
@@ -52,8 +51,7 @@ public sealed class PdfCommandRecorder : IPdfCommandProcessor
         foreach (var command in _commands)
         {
             command.Execute(canvas, modifiers, executionContext);
-            executionContext.CancellationToken.ThrowIfCancellationRequested();
-            executionContext.OnCommandExecuted?.Invoke();
+            executionContext.ExecutionObserver?.Notify();
         }
     }
 

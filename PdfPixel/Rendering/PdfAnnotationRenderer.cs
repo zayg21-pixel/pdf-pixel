@@ -1,12 +1,8 @@
 using Microsoft.Extensions.Logging;
 using PdfPixel.Annotations.Models;
-using PdfPixel.Annotations.Rendering;
 using PdfPixel.Commands;
-using PdfPixel.Forms;
-using PdfPixel.Imaging.Model;
 using PdfPixel.Models;
 using System;
-using System.Threading;
 
 namespace PdfPixel.Rendering;
 
@@ -35,7 +31,7 @@ public class PdfAnnotationRenderer
         PdfRenderingParameters renderingParameters,
         PdfAnnotationBase activeAnnotation,
         PdfAnnotationVisualStateKind visualStateKind,
-        CancellationToken token)
+        IPdfExecutionObserver observer)
     {
         if (_page.Annotations.Count == 0)
         {
@@ -50,9 +46,9 @@ public class PdfAnnotationRenderer
                     ? visualStateKind
                     : PdfAnnotationVisualStateKind.Normal;
 
-                RenderAnnotation(processor, annotation, renderingParameters, effectiveState, token);
+                RenderAnnotation(processor, annotation, renderingParameters, effectiveState, observer);
 
-                token.ThrowIfCancellationRequested();
+                observer?.Notify();
             }
             catch (OperationCanceledException)
             {
@@ -77,7 +73,7 @@ public class PdfAnnotationRenderer
         PdfAnnotationBase annotation,
         PdfRenderingParameters renderingParameters,
         PdfAnnotationVisualStateKind visualStateKind,
-        CancellationToken token)
+        IPdfExecutionObserver observer)
     {
         if (annotation.Flags.HasFlag(PdfAnnotationFlags.Invisible) || 
             annotation.Flags.HasFlag(PdfAnnotationFlags.Hidden))
@@ -95,6 +91,6 @@ public class PdfAnnotationRenderer
             return;
         }
 
-        annotation.Render(processor, _page, visualStateKind, _renderer, renderingParameters, token);
+        annotation.Render(processor, _page, visualStateKind, _renderer, renderingParameters, observer);
     }
 }

@@ -18,8 +18,8 @@ internal sealed class DrawStencilMaskedImageTileCommand : PdfCommand
 
     public override void Execute(SKCanvas canvas, IEnumerable<IPdfCommandModifier> modifiers, PdfCommandExecutionContext executionContext)
     {
-        PdfImageTile imageTile = _context.ImageCache.GetNextTile(executionContext.CancellationToken);
-        PdfImageTile maskTile = _context.MaskCache.GetNextTile(executionContext.CancellationToken);
+        PdfImageTile imageTile = _context.ImageCache.GetNextTile(executionContext.ExecutionObserver);
+        PdfImageTile maskTile = _context.MaskCache.GetNextTile(executionContext.ExecutionObserver);
         if (imageTile.IsSkipped || maskTile.IsSkipped) return;
 
         var ctm = CommandHelpers.GetScaledMatrix(canvas, executionContext);

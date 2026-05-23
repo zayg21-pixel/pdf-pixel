@@ -5,7 +5,6 @@ using PdfPixel.Imaging.Model;
 using PdfPixel.Imaging.Processing;
 using SkiaSharp;
 using System;
-using System.Threading;
 
 namespace PdfPixel.Imaging.Decoding;
 
@@ -72,9 +71,9 @@ public abstract class PdfImageDecoder
         }
     }
 
-    public virtual void Initialize(PdfTileInfo tileInfo, ImageDecodingContext context, SKMatrix ctm, SKRectI regionOfInterest) { }
+    public virtual void Initialize(PdfTileInfo tileInfo, ImageDecodingContext context, object contentLocker, SKMatrix ctm, SKRectI regionOfInterest, IPdfExecutionObserver observer) { }
 
-    public virtual PdfImageTile[] DecodeNextTiles(CancellationToken cancellationToken = default) => null;
+    public virtual PdfImageTile[] DecodeNextTiles(IPdfExecutionObserver observer) => null;
 
     public virtual void Cleanup() { }
 

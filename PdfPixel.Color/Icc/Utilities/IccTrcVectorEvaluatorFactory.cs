@@ -1,5 +1,6 @@
 using System;
 using System.Linq;
+using PdfPixel.Color.Functions;
 using PdfPixel.Color.Icc.Model;
 
 namespace PdfPixel.Color.Icc.Utilities;
@@ -12,9 +13,10 @@ internal static class IccTrcVectorEvaluatorFactory
     /// <summary>
     /// Returns a vector evaluator for the given TRC definitions.
     /// </summary>
+    /// <param name="minSampledSize">Minimum amount of samples for sampled ICC.</param>
     /// <param name="trcs">Array of ICC TRC definitions (0-4 channels).</param>
     /// <returns>Vector evaluator instance for the curves.</returns>
-    public static IIccTrcVectorEvaluator Create(params IccTrc[] trcs)
+    public static IIccTrcVectorEvaluator Create(int minSampledSize, params IccTrc[] trcs)
     {
         if (!IsVectorizable(trcs) || trcs.Length == 1)
         {
@@ -38,7 +40,7 @@ internal static class IccTrcVectorEvaluatorFactory
                 float[][] samples = new float[trcs.Length][];
                 for (int i = 0; i < trcs.Length; i++)
                 {
-                    samples[i] = trcs[i].Samples;
+                    samples[i] = SamplesUpsampler.ResampleCubic(trcs[i].Samples, minSampledSize);
                 }
                 return new SampledTrcVectorEvaluator(samples);
             }

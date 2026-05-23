@@ -2,22 +2,18 @@ using Microsoft.Extensions.Logging;
 using PdfPixel.Color.ColorSpace;
 using PdfPixel.Commands;
 using PdfPixel.Commands.Image;
-using PdfPixel.Imaging.Jpx.Decoding;
-using PdfPixel.Imaging.Jpx.Model;
-using PdfPixel.Imaging.Jpx.Parsing;
 using PdfPixel.Imaging.Model;
 using PdfPixel.Imaging.Processing;
+using PdfPixel.Jpx.Decoding;
+using PdfPixel.Jpx.Model;
+using PdfPixel.Jpx.Parsing;
 using SkiaSharp;
 using System;
-using System.Threading;
 
 namespace PdfPixel.Imaging.Decoding;
 
 public class JpxImageDecoder : PdfImageDecoder
 {
-    private readonly ReadOnlyMemory<byte> _encodedData;
-    private readonly JpxHeader _jpxHeader;
-
     private JpxTileProvider _tileProvider;
     private IJpxTileDecoder _tileDecoder;
     private JpxDecodingParameters _jpxDecodingParameters;
@@ -31,30 +27,28 @@ public class JpxImageDecoder : PdfImageDecoder
     public JpxImageDecoder(PdfImage image, ILoggerFactory loggerFactory)
         : base(image, loggerFactory)
     {
-        _encodedData = image.GetImageData();
-        if (!_encodedData.IsEmpty)
-            _jpxHeader = JpxReader.ParseHeader(_encodedData.Span);
     }
 
-    public override void Initialize(PdfTileInfo tileInfo, ImageDecodingContext context, SKMatrix ctm, SKRectI regionOfInterest)
+    public override void Initialize(PdfTileInfo tileInfo, ImageDecodingContext context, object contentLocker, SKMatrix ctm, SKRectI regionOfInterest, IPdfExecutionObserver observer)
     {
-        if (_encodedData.IsEmpty || _jpxHeader == null
-            || _jpxHeader.Width == 0 || _jpxHeader.Height == 0 || _jpxHeader.ComponentCount == 0)
-            throw new InvalidOperationException($"JPX data or header is invalid (Name={Image.Name}).");
+        ReadOnlyMemory<byte> encodedData;
+        lock (contentLocker)
+            encodedData = Image.GetImageData(observer);
+        var jpxHeader = JpxReader.ParseHeader(encodedData.Span);
 
-        _resolvedConverter = ResolveConverter(_jpxHeader);
+        _resolvedConverter = ResolveConverter(jpxHeader);
         if (_resolvedConverter == null)
-            throw new InvalidOperationException($"Cannot determine color space for JPX image with {_jpxHeader.ComponentCount} components (Name={Image.Name}).");
+            throw new InvalidOperationException($"Cannot determine color space for JPX image with {jpxHeader.ComponentCount} components (Name={Image.Name}).");
 
-        _jpxDecodingParameters = ComputeDecodingParameters(_jpxHeader, ctm);
-        _tileDecoder = JpxTileDecoderFactory.CreateDecoder(_jpxHeader);
+        _jpxDecodingParameters = ComputeDecodingParameters(jpxHeader, ctm);
+        _tileDecoder = JpxTileDecoderFactory.CreateDecoder(jpxHeader);
         _tileProvider = new JpxTileProvider(
-            _jpxHeader,
-            _encodedData.Span.Slice(_jpxHeader.CodestreamOffset),
+            jpxHeader,
+            encodedData.Span.Slice(jpxHeader.CodestreamOffset),
             _tileDecoder,
             _jpxDecodingParameters);
 
-        _rowConverter = new JpxTileToRowConverter(_jpxHeader, _tileProvider, _jpxDecodingParameters);
+        _rowConverter = new JpxTileToRowConverter(jpxHeader, _tileProvider, _jpxDecodingParameters);
 
         var downscaledSize = PdfImageRowDecodingParameters.ComputeDownscaledSize(_rowConverter.Width, _rowConverter.Height, _resolvedConverter, context, ctm);
         _imageParameters = new PdfImageRowDecodingParameters(
@@ -75,15 +69,16 @@ public class JpxImageDecoder : PdfImageDecoder
         _currentImageRow = 0;
     }
 
-    public override PdfImageTile[] DecodeNextTiles(CancellationToken cancellationToken = default)
+    public override PdfImageTile[] DecodeNextTiles(IPdfExecutionObserver observer)
     {
+        var jpxObserver = new JpxObserver(observer);
         while (_currentImageRow < _imageParameters.Height)
         {
-            if (!_rowConverter.TryGetNextRow(_fullWidthRowBuffer, cancellationToken))
+            if (!_rowConverter.TryGetNextRow(_fullWidthRowBuffer, jpxObserver))
                 throw new InvalidOperationException($"JPX decode failed at row {_currentImageRow} (Image={Image.Name}).");
-            var tiles = _tilingContext.WriteRowAndTryGetTiles(_currentImageRow, _fullWidthRowBuffer, cancellationToken);
+            var tiles = _tilingContext.WriteRowAndTryGetTiles(_currentImageRow, _fullWidthRowBuffer, observer);
             _currentImageRow++;
-            cancellationToken.ThrowIfCancellationRequested();
+            observer?.Notify();
             if (tiles != null) return tiles;
         }
         return null;
@@ -141,5 +136,16 @@ public class JpxImageDecoder : PdfImageDecoder
         }
 
         return new JpxDecodingParameters(descaleFactor);
+    }
+
+    private sealed class JpxObserver : IJpxExectionObserver
+    {
+        private readonly IPdfExecutionObserver _pdfObserver;
+        public JpxObserver(IPdfExecutionObserver pdfObserver)
+        {
+            _pdfObserver = pdfObserver;
+        }
+
+        public void Notify() => _pdfObserver?.Notify();
     }
 }

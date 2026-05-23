@@ -2,7 +2,6 @@ using PdfPixel.Imaging.Decoding;
 using PdfPixel.Imaging.Processing;
 using SkiaSharp;
 using System;
-using System.Threading;
 
 namespace PdfPixel.Commands.Image;
 
@@ -29,7 +28,7 @@ internal sealed class PdfImageTileCacheEntry : IDisposable
 
     public PdfTileInfo TileInfo { get; }
 
-    public void Initialize(SKMatrix ctm, SKRectI imageRegion)
+    public void Initialize(SKMatrix ctm, SKRectI imageRegion, object contentLocker, IPdfExecutionObserver observer)
     {
         if (ctm.ScaleX != _cachedScaleX || ctm.ScaleY != _cachedScaleY)
             InvalidateCache();
@@ -40,15 +39,13 @@ internal sealed class PdfImageTileCacheEntry : IDisposable
 
         SKRectI regionToDecode = ComputeRegionToDecode(imageRegion);
 
-        _decoder.Initialize(TileInfo, _context, ctm, regionToDecode);
+        _decoder.Initialize(TileInfo, _context, contentLocker, ctm, regionToDecode, observer);
         _decoding = true;
         _pendingDecodeRegion = regionToDecode;
     }
 
-    public PdfImageTile GetNextTile(CancellationToken cancellationToken = default)
+    public PdfImageTile GetNextTile(IPdfExecutionObserver observer)
     {
-        cancellationToken.ThrowIfCancellationRequested();
-
         if (_currentTileIndex >= TileInfo.TotalTiles)
             throw new InvalidOperationException($"Tile index {_currentTileIndex} is out of range (TotalTiles={TileInfo.TotalTiles}).");
 
@@ -57,9 +54,9 @@ internal sealed class PdfImageTileCacheEntry : IDisposable
 
         while (_decoding)
         {
-            cancellationToken.ThrowIfCancellationRequested();
+            observer?.Notify();
 
-            PdfImageTile[] batch = _decoder.DecodeNextTiles(cancellationToken);
+            PdfImageTile[] batch = _decoder.DecodeNextTiles(observer);
             if (batch == null)
             {
                 _decoding = false;

@@ -1,6 +1,5 @@
 using SkiaSharp;
 using System.Collections.Generic;
-using System.Threading.Tasks;
 
 namespace PdfPixel.Commands;
 

@@ -1,4 +1,5 @@
-﻿using PdfPixel.Color.Icc.Model;
+﻿using PdfPixel.Color.Functions;
+using PdfPixel.Color.Icc.Model;
 using System;
 using System.Numerics;
 using System.Runtime.CompilerServices;
@@ -13,6 +14,7 @@ namespace PdfPixel.Color.Transform;
 /// </summary>
 public sealed class PerChannelTrcTransform : IColorTransform
 {
+    private const int MinSamplesCount = 512; // TODO: [LOW] move to parameters, use configuration for vector version (high quality), move to analyzers "pass through" path 
     private readonly int _channelCount;
     private readonly bool _isPassthrough;
     private readonly float[] _samples0;
@@ -20,6 +22,7 @@ public sealed class PerChannelTrcTransform : IColorTransform
     private readonly float[] _samples2;
     private readonly float[] _samples3;
     private readonly Vector4 _scale;
+
 
     /// <summary>
     /// Initializes a new instance of the <see cref="PerChannelTrcTransform"/> class from ICC transfer curves.
@@ -55,11 +58,11 @@ public sealed class PerChannelTrcTransform : IColorTransform
 
             if (trc.Type == IccTrcType.Sampled)
             {
-                channelSamples = trc.Samples; // TODO: we can always use "Evaluate" method instead, in this case we can have LUT of same size always.
+                channelSamples = SamplesUpsampler.ResampleCubic(trc.Samples, MinSamplesCount);
             }
             else
             {
-                channelSamples = new float[IccTrc.MinSampleCount];
+                channelSamples = new float[MinSamplesCount];
                 for (int j = 0; j < channelSamples.Length; j++)
                 {
                     float t = j / (float)(channelSamples.Length - 1);
@@ -154,7 +157,11 @@ public sealed class PerChannelTrcTransform : IColorTransform
     {
         if ((uint)index < (uint)samples.Length)
         {
+#if NETSTANDARD2_0
             return Unsafe.Add(ref samples[0], index);
+#else
+            return Unsafe.Add(ref MemoryMarshal.GetArrayDataReference(samples), index);
+#endif
         }
 
         return index < 0 ? 0f : 1f;

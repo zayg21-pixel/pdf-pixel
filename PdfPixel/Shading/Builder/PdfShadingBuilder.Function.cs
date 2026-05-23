@@ -1,13 +1,13 @@
 ﻿using Microsoft.Extensions.Logging;
 using PdfPixel.Color.ColorSpace;
 using PdfPixel.Color.Transform;
+using PdfPixel.Commands;
 using PdfPixel.Functions;
 using PdfPixel.Rendering.Operators;
 using PdfPixel.Shading.Model;
 using PdfPixel.Text;
 using SkiaSharp;
 using System;
-using System.Threading;
 
 namespace PdfPixel.Shading;
 
@@ -30,7 +30,7 @@ internal partial class PdfShadingBuilder
         PdfRenderingIntent renderingIntent,
         IColorTransform fullTransferFunction,
         int defaultFunctionSamples,
-        CancellationToken token)
+        IPdfExecutionObserver observer)
     {
         if (shading.Functions == null || shading.Functions.Count == 0 || shading.ColorSpaceConverter == null)
         {
@@ -79,7 +79,7 @@ internal partial class PdfShadingBuilder
                 pixelColors[yIndex * bitmapWidth + xIndex] = color;
             }
 
-            token.ThrowIfCancellationRequested();
+            observer?.Notify();
         }
 
         bitmap.Pixels = pixelColors;

@@ -39,14 +39,14 @@ internal sealed class DrawStencilMaskCommand : PdfCommand
         var ctm = CommandHelpers.GetScaledMatrix(canvas, executionContext);
 
         var imageRegion = PdfImageCommandUtilities.ComputeImageRegionOfInterest(_pdfImage, ctm, executionContext);
-        _imageCache.Initialize(ctm, imageRegion);
+        _imageCache.Initialize(ctm, imageRegion, executionContext.ContentLocker, executionContext.ExecutionObserver);
 
         canvas.Save();
         canvas.Scale(1f / _pdfImage.Width, 1f / _pdfImage.Height);
 
         for (int i = 0; i < _imageCache.TileInfo.TotalTiles; i++)
         {
-            PdfImageTile tile = _imageCache.GetNextTile(executionContext.CancellationToken);
+            PdfImageTile tile = _imageCache.GetNextTile(executionContext.ExecutionObserver);
             if (tile.IsSkipped) continue;
 
             canvas.Save();

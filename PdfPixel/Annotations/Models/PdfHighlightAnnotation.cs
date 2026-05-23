@@ -2,7 +2,6 @@ using PdfPixel.Commands;
 using PdfPixel.Models;
 using PdfPixel.Rendering;
 using SkiaSharp;
-using System.Threading;
 
 namespace PdfPixel.Annotations.Models;
 
@@ -34,10 +33,10 @@ public class PdfHighlightAnnotation : PdfTextMarkupAnnotation
         PdfAnnotationVisualStateKind visualStateKind,
         IPdfRenderer renderer,
         PdfRenderingParameters renderingParameters,
-        CancellationToken token)
+        IPdfExecutionObserver observer)
     {
         var recorder = new PdfCommandRecorder();
-        var recorded = base.RenderAppearanceStream(recorder, page, visualStateKind, renderer, renderingParameters, token);
+        var recorded = base.RenderAppearanceStream(recorder, page, visualStateKind, renderer, renderingParameters, observer);
 
         if (!recorded)
         {

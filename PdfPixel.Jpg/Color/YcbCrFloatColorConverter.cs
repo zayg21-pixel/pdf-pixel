@@ -15,7 +15,9 @@ internal sealed class YcbCrFloatColorConverter : IJpgColorConverter
 {
     private static readonly Vector4 VectorZero = Vector4.Zero;
     private static readonly Vector4 Vector255 = new Vector4(255f);
-    private static readonly Vector4 Offset = new Vector4(128f);
+    private static readonly Vector4 OffsetR = new Vector4(179.456f);
+    private static readonly Vector4 OffsetG = new Vector4(135.459f);
+    private static readonly Vector4 OffsetB = new Vector4(226.816f);
     private static readonly Vector4 CrToR = new Vector4(1.402f);
     private static readonly Vector4 CbToG = new Vector4(0.344136f);
     private static readonly Vector4 CrToG = new Vector4(0.714136f);
@@ -73,12 +75,9 @@ internal sealed class YcbCrFloatColorConverter : IJpgColorConverter
                 Vector4 cbVec = Unsafe.Add(ref cbVecRef, vectorIndex);
                 Vector4 crVec = Unsafe.Add(ref crVecRef, vectorIndex);
 
-                Vector4 cbCentered = cbVec - Offset;
-                Vector4 crCentered = crVec - Offset;
-
-                Vector4 r = yVec + crCentered * CrToR;
-                Vector4 g = yVec - cbCentered * CbToG - crCentered * CrToG;
-                Vector4 b = yVec + cbCentered * CbToB;
+                Vector4 r = yVec - OffsetR + crVec * CrToR;
+                Vector4 g = yVec + OffsetG - cbVec * CbToG - crVec * CrToG;
+                Vector4 b = yVec - OffsetB + cbVec * CbToB;
 
                 // Store clamped results directly back into the original component blocks (now representing R,G,B).
                 Unsafe.Add(ref yVecRef, vectorIndex) = Vector4.Clamp(r, VectorZero, Vector255);

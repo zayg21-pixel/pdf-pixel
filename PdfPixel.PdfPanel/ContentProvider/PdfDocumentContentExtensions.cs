@@ -17,7 +17,7 @@ public static class PdfDocumentContentExtensions
         double scale,
         PdfAnnotationBase activeAnnotation,
         PdfPanelPointerState pointerState,
-        CancellationToken token)
+        IPdfExecutionObserver observer)
     {
         var pdfPage = document.Pages[pageNumber - 1];
 
@@ -33,7 +33,7 @@ public static class PdfDocumentContentExtensions
         ApplyPageTransformations(pdfPage, recorder);
 
         var parameters = new PdfRenderingParameters { ScaleFactor = (float)scale };
-        pdfPage.RenderAnnotations(recorder, parameters, activeAnnotation, visualStateKind, token);
+        pdfPage.RenderAnnotations(recorder, parameters, activeAnnotation, visualStateKind, observer);
 
         return recorder;
     }
@@ -48,7 +48,7 @@ public static class PdfDocumentContentExtensions
         };
     }
 
-    public static PdfCommandRecorder GeneratePageCommandRecording(this PdfDocument document, int pageNumber, CancellationToken token)
+    public static PdfCommandRecorder GeneratePageCommandRecording(this PdfDocument document, int pageNumber, IPdfExecutionObserver observer)
     {
         var pdfPage = document.Pages[pageNumber - 1];
 
@@ -56,7 +56,7 @@ public static class PdfDocumentContentExtensions
 
         ApplyPageTransformations(pdfPage, commandRecording);
 
-        pdfPage.Draw(commandRecording, token);
+        pdfPage.Draw(commandRecording, observer);
 
         return commandRecording;
     }

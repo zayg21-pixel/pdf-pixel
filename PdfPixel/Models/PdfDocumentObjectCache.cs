@@ -2,7 +2,7 @@ using PdfPixel.Color.ColorSpace;
 using PdfPixel.Color.Icc.Model;
 using PdfPixel.Fonts.Model;
 using PdfPixel.Functions;
-using PdfPixel.Imaging.Jbig2.Decoding;
+using PdfPixel.Jbig2.Decoding;
 using PdfPixel.Parsing;
 using System.Collections.Generic;
 

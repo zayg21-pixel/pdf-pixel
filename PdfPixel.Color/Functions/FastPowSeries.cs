@@ -11,9 +11,10 @@ namespace PdfPixel.Color.Functions;
 internal static class FastPowSeries
 {
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static unsafe int FloatToIntBits(float value) // TODO: is there a way to avoid?
+    public static int FloatToIntBits(float value) // TODO: is there a way to avoid?
     {
-        return *(int*)&value;
+        return Unsafe.As<float, int>(ref value);
+        //return *(int*)&value;
     }
 
     /// <summary>

@@ -78,10 +78,10 @@ public sealed class IccProfileTransform
     /// <summary>
     /// Gets a chained color transform for the specified PDF rendering intent.
     /// </summary>
-    /// <param name="intent">The PDF rendering intent to use for the transformation.</param>
+    /// <param name="intent">The PDF rendering intent to use for the transformation. In null - default intent from ICC header will be used.</param>
     /// <returns>A <see cref="ChainedColorTransform"/> representing the color transformation pipeline.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public ChainedColorTransform GetIntentTransform(IccRenderingIntent? intent)
+    public ChainedColorTransform GetIntentTransform(IccRenderingIntent? intent = default)
     {
         List<IColorTransform> transforms =
         [

@@ -31,9 +31,8 @@ internal sealed class DrawNormalImageCommand : PdfCommand
     public override void Execute(SKCanvas canvas, IEnumerable<IPdfCommandModifier> modifiers, PdfCommandExecutionContext executionContext)
     {
         var ctm = CommandHelpers.GetScaledMatrix(canvas, executionContext);
-
         var imageRegion = PdfImageCommandUtilities.ComputeImageRegionOfInterest(_pdfImage, ctm, executionContext);
-        _tileCache.Initialize(ctm, imageRegion);
+        _tileCache.Initialize(ctm, imageRegion, executionContext.ContentLocker, executionContext.ExecutionObserver);
 
         var samplingOptions = PdfImageCommandUtilities.GetSamplingOptions(ctm, _context, _pdfImage);
 
@@ -42,7 +41,7 @@ internal sealed class DrawNormalImageCommand : PdfCommand
 
         for (int i = 0; i < _tileCache.TileInfo.TotalTiles; i++)
         {
-            PdfImageTile tile = _tileCache.GetNextTile(executionContext.CancellationToken);
+            PdfImageTile tile = _tileCache.GetNextTile(executionContext.ExecutionObserver);
             if (tile.IsSkipped) continue;
 
             canvas.Save();

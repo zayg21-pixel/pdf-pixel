@@ -11,7 +11,7 @@ public sealed class JpgBaselineDecoder : IJpgDecoder
     private readonly JpgHeader _header;
     private readonly ReadOnlyMemory<byte> _entropyMemory;
     private readonly JpgDecodingParameters _decodingParameters;
-    private readonly JpgUpsampler _upsampler;
+    private readonly JpgUpsampler _upsampler; // null when NeedsUpsampling is false
     private readonly IJpgColorConverter _colorConverter;
     private readonly JpgBandPacker _bandPacker;
     private readonly JpgScanSpec _scan;                       // now readonly, initialized in ctor
@@ -36,7 +36,7 @@ public sealed class JpgBaselineDecoder : IJpgDecoder
 
     public int CurrentRow => _currentRow;
 
-    public JpgBaselineDecoder(JpgHeader header, ReadOnlyMemory<byte> entropyData)
+    public JpgBaselineDecoder(JpgHeader header, ReadOnlyMemory<byte> entropyData, JpegColorConversionParameters conversionParams = null)
     {
         if (header == null)
         {
@@ -75,8 +75,8 @@ public sealed class JpgBaselineDecoder : IJpgDecoder
         }
         _restartManager = new JpgRestartManager(_header.RestartInterval);
 
-        _upsampler = new JpgUpsampler(_decodingParameters, _header);
-        _colorConverter = JpgColorConverterFactory.Create(_header, _decodingParameters);
+        _upsampler = _decodingParameters.NeedsUpsampling ? new JpgUpsampler(_decodingParameters, _header) : null;
+        _colorConverter = JpgColorConverterFactory.Create(_header, _decodingParameters, conversionParams);
         _bandPacker = new JpgBandPacker(_header, _decodingParameters);
 
         _decoderInitialized = false; // band-related allocations pending
@@ -199,8 +199,8 @@ public sealed class JpgBaselineDecoder : IJpgDecoder
                 var decoders = _decoderManager.GetDecodersForScanComponent(scanComponent);
                 var dcDecoder = decoders.dcDecoder;
                 var acDecoder = decoders.acDecoder;
-                int hFactor = component.HorizontalSamplingFactor;
-                int vFactor = component.VerticalSamplingFactor;
+                int hFactor = _decodingParameters.ComponentBlocksH[componentIndex];
+                int vFactor = _decodingParameters.ComponentBlocksV[componentIndex];
                 int blocksPerMcu = _decodingParameters.BlocksPerMcu[componentIndex];
                 Block8x8F[] bandBlocks = _componentBandBlocks[componentIndex];
                 for (int vBlock = 0; vBlock < vFactor; vBlock++)

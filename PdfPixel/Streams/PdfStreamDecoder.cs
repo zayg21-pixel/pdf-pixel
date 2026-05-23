@@ -1,10 +1,12 @@
-﻿using System;
+﻿using Microsoft.Extensions.Logging;
+using PdfPixel.Commands;
+using PdfPixel.Imaging.Model;
+using PdfPixel.Models;
+using PdfPixel.Text;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
-using PdfPixel.Models;
-using Microsoft.Extensions.Logging;
-using PdfPixel.Text;
 
 namespace PdfPixel.Streams
 {
@@ -21,11 +23,12 @@ namespace PdfPixel.Streams
             _logger = loggerFactory.CreateLogger<PdfStreamDecoder>();
         }
 
+        private const int DecodeChunkSize = 2048;
+
         /// <summary>
         /// Decode the full stream into memory (filters + predictor) and return the resulting bytes.
-        /// Note: should only be used for smaller streams that can fit into memory comfortably.
         /// </summary>
-        public ReadOnlyMemory<byte> DecodeContentStream(PdfObject obj)
+        public ReadOnlyMemory<byte> DecodeContentStream(PdfObject obj, IPdfExecutionObserver observer)
         {
             var filters = GetFilters(obj);
             var rawStream = obj.GetRawStream();
@@ -35,7 +38,13 @@ namespace PdfPixel.Streams
             try
             {
                 using var memoryStream = new MemoryStream();
-                final.CopyTo(memoryStream);
+                var buffer = new byte[DecodeChunkSize];
+                int read;
+                while ((read = final.Read(buffer, 0, buffer.Length)) > 0)
+                {
+                    memoryStream.Write(buffer, 0, read);
+                    observer?.Notify();
+                }
                 return memoryStream.ToArray();
             }
             catch (Exception ex)
@@ -92,8 +101,8 @@ namespace PdfPixel.Streams
                     }
                     case PdfFilterType.LZWDecode:
                     {
-                        var parametersForLzwFilter = GetDecodeParmsForIndex(filterIndex, decodeParameters);
-                        bool earlyChange = parametersForLzwFilter?.GetInteger(PdfTokens.EarlyChangeKey) != 0;
+                        var parameters = GetDecodeParmsForIndex(filterIndex, decodeParameters);
+                        bool earlyChange = parameters?.EarlyChange != 0;
                         current = new LzwDecodeStream(current, leaveOpen: false, earlyChange: earlyChange);
                         break;
                     }
@@ -182,7 +191,7 @@ namespace PdfPixel.Streams
             return list;
         }
 
-        private PdfDictionary GetDecodeParmsForIndex(int filterIndex, List<PdfDictionary> decodeParameters)
+        private PdfDecodeParameters GetDecodeParmsForIndex(int filterIndex, List<PdfDictionary> decodeParameters)
         {
             if (decodeParameters == null || decodeParameters.Count == 0)
             {
@@ -190,23 +199,23 @@ namespace PdfPixel.Streams
             }
             if (decodeParameters.Count == 1)
             {
-                return decodeParameters[0];
+                return PdfDecodeParameters.FromDictionary(decodeParameters[0]);
             }
             if (filterIndex >= 0 && filterIndex < decodeParameters.Count)
             {
-                return decodeParameters[filterIndex];
+                return PdfDecodeParameters.FromDictionary(decodeParameters[filterIndex]);
             }
             return null;
         }
 
-        private Stream ApplyPredictorIfNeeded(Stream decoded, PdfDictionary decodeParameterDictionary)
+        private Stream ApplyPredictorIfNeeded(Stream decoded, PdfDecodeParameters decodeParameters)
         {
-            if (decodeParameterDictionary == null)
+            if (decodeParameters == null)
             {
                 return decoded;
             }
 
-            int predictor = decodeParameterDictionary.GetInteger(PdfTokens.PredictorKey) ?? 1;
+            int predictor = decodeParameters.Predictor ?? 1;
             if (predictor <= 1)
             {
                 return decoded;
@@ -217,9 +226,9 @@ namespace PdfPixel.Streams
                 return decoded; // Unsupported predictor variant.
             }
 
-            int colors = decodeParameterDictionary.GetInteger(PdfTokens.ColorsKey) ?? 1;
-            int bitsPerComponent = decodeParameterDictionary.GetInteger(PdfTokens.BitsPerComponentKey) ?? 8;
-            int columns = decodeParameterDictionary.GetInteger(PdfTokens.ColumnsKey) ?? 1;
+            int colors = decodeParameters.Colors ?? 1;
+            int bitsPerComponent = decodeParameters.BitsPerComponent ?? 8;
+            int columns = decodeParameters.Columns ?? 1;
 
             if (columns <= 0)
             {
