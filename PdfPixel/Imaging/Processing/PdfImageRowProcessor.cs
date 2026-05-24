@@ -99,7 +99,6 @@ internal sealed class PdfImageRowProcessor : IDisposable
             _pngBuilder = new PngImageBuilder(_components, _bitsPerComponent, _width, _height);
 
             RgbaPacked[] palette = null;
-            ReadOnlyMemory<byte> iccProfile = ReadOnlyMemory<byte>.Empty;
 
             if (_parameters.ColorSpaceConverter is IndexedConverter indexed)
             {
@@ -110,11 +109,7 @@ internal sealed class PdfImageRowProcessor : IDisposable
                 palette = BuildSingleChannelPalette(_parameters, _bitsPerComponent);
             }
 
-            if (_parameters.ColorSpaceConverter is IccBasedConverter iccBased && iccBased.Profile?.Bytes != null)
-            {
-                iccProfile = iccBased.Profile.Bytes;
-            }
-            _pngBuilder.Init(palette, iccProfile);
+            _pngBuilder.Init(palette, default);
         }
 
         _maxCode = (1 << _bitsPerComponent) - 1;
@@ -184,7 +179,6 @@ internal sealed class PdfImageRowProcessor : IDisposable
         // ICC-based can be represented directly only when profile is valid
         if (converter is IccBasedConverter)
         {
-            // TODO: Skia seems to ignore ICC profiles in images, so we always convert for now.
             return true;
         }
 

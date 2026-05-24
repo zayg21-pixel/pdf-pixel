@@ -42,7 +42,7 @@ public sealed class PdfShadingPattern : PdfPattern
     /// <summary>
     /// Gets the optional extended graphics state dictionary (may be null).
     /// </summary>
-    public PdfDictionary ExtGState { get; } // TODO: [LOW] use
+    public PdfDictionary ExtGState { get; } // TODO: [LOW] implement support for ExtGState as per specification. Though, I could never find PDF with ExtGState in shading
 
     internal override void RenderPattern(IPdfCommandProcessor processor, PdfGraphicsState state, IRenderTarget renderTarget)
     {

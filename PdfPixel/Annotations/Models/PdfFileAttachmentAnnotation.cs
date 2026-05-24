@@ -91,7 +91,7 @@ public class PdfFileAttachmentAnnotation : PdfAnnotationBase
             switch (iconToDraw)
             {
                 case PdfFileAttachmentIcon.Paperclip:
-
+                    // TODO: [HIGH] for all graphics we shall use pre-defined resources
                     // Draw paperclip icon scaled to annotation rectangle
                     using (var path = new SKPath())
                     {
