@@ -59,8 +59,7 @@ public class JpxDecodePipelineBenchmarks
         JpxHeader header = JpxReader.ParseHeader(data);
         ReadOnlySpan<byte> codestream = data.AsSpan(header.CodestreamOffset);
 
-        var tileDecoder = JpxTileDecoderFactory.CreateDecoder(header);
-        var tileProvider = new JpxTileProvider(header, codestream, tileDecoder);
+        var tileProvider = new JpxTileProvider(header, codestream);
         using var rowProvider = new JpxTileToRowConverter(header, tileProvider);
 
         byte[] rowBuffer = new byte[rowProvider.Width * rowProvider.ComponentCount];

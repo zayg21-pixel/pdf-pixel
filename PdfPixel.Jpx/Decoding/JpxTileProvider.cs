@@ -1,4 +1,5 @@
 using PdfPixel.Jpx.Model;
+using PdfPixel.Jpx.Parsing;
 using System;
 using System.IO;
 
@@ -12,9 +13,45 @@ namespace PdfPixel.Jpx.Decoding;
 public readonly struct JpxTileProvider
 {
     private readonly ExtractedTileContent[] _extractedTiles;
-    private readonly IJpxTileDecoder _tileDecoder;
+    private readonly JpxTileDecoder _tileDecoder;
     private readonly JpxHeader _header;
     private readonly JpxDecodingParameters _decodingParameters;
+
+    /// <summary>
+    /// Initializes a new <see cref="JpxTileProvider"/> by extracting tile contents from the codestream.
+    /// </summary>
+    /// <param name="header">Parsed JPX header containing image and tile grid metadata.</param>
+    /// <param name="codestream">Raw codestream data starting from the first SOT marker.</param>
+    /// <param name="decodingParameters">Parameters controlling decoding resolution.</param>
+    public JpxTileProvider(
+        JpxHeader header,
+        ReadOnlySpan<byte> codestream,
+        JpxDecodingParameters decodingParameters = default)
+    {
+        _header = header ?? throw new ArgumentNullException(nameof(header));
+        _decodingParameters = decodingParameters.DescaleFactor >= 1 ? decodingParameters : JpxDecodingParameters.Default;
+        var tileContentExtractor = new TileContentExtractor();
+
+        if (tileContentExtractor == null)
+        {
+            throw new ArgumentNullException(nameof(tileContentExtractor));
+        }
+
+        if (header.CodingStyle == null)
+        {
+            throw new NotImplementedException("JPX images without coding style information are not supported.");
+        }
+
+        var progressionOrder = (JpxProgressionOrder)header.CodingStyle.ProgressionOrder;
+        var packetParser = JpxPacketParserFactory.CreateParser(progressionOrder, header);
+        _tileDecoder = new JpxTileDecoder(header, packetParser);
+
+        TilesHorizontal = (int)Math.Ceiling((double)header.Width / header.TileWidth);
+        TilesVertical = (int)Math.Ceiling((double)header.Height / header.TileHeight);
+        TotalTiles = TilesHorizontal * TilesVertical;
+
+        _extractedTiles = tileContentExtractor.ExtractTileContents(header, codestream);
+    }
 
     /// <summary>
     /// Gets the number of tiles horizontally in the tile grid.
@@ -31,49 +68,6 @@ public readonly struct JpxTileProvider
     /// </summary>
     public int TotalTiles { get; }
 
-    /// <summary>
-    /// Initializes a new <see cref="JpxTileProvider"/> by extracting tile contents from the codestream.
-    /// </summary>
-    /// <param name="header">Parsed JPX header containing image and tile grid metadata.</param>
-    /// <param name="codestream">Raw codestream data starting from the first SOT marker.</param>
-    /// <param name="tileDecoder">Decoder used to decode individual tiles on demand.</param>
-    /// <param name="decodingParameters">Parameters controlling decoding resolution.</param>
-    public JpxTileProvider(JpxHeader header, ReadOnlySpan<byte> codestream, IJpxTileDecoder tileDecoder, JpxDecodingParameters decodingParameters = default)
-        : this(header, codestream, tileDecoder, new TileContentExtractor(), decodingParameters)
-    {
-    }
-
-    /// <summary>
-    /// Initializes a new <see cref="JpxTileProvider"/> by extracting tile contents from the codestream.
-    /// </summary>
-    /// <param name="header">Parsed JPX header containing image and tile grid metadata.</param>
-    /// <param name="codestream">Raw codestream data starting from the first SOT marker.</param>
-    /// <param name="tileDecoder">Decoder used to decode individual tiles on demand.</param>
-    /// <param name="tileContentExtractor">Extractor used to parse tile-part data from the codestream.</param>
-    /// <param name="decodingParameters">Parameters controlling decoding resolution.</param>
-    public JpxTileProvider(
-        JpxHeader header,
-        ReadOnlySpan<byte> codestream,
-        IJpxTileDecoder tileDecoder,
-        ITileContentExtractor tileContentExtractor,
-        JpxDecodingParameters decodingParameters = default)
-    {
-        _header = header ?? throw new ArgumentNullException(nameof(header));
-        _tileDecoder = tileDecoder ?? throw new ArgumentNullException(nameof(tileDecoder));
-        _decodingParameters = decodingParameters.DescaleFactor >= 1 ? decodingParameters : JpxDecodingParameters.Default;
-
-        if (tileContentExtractor == null)
-        {
-            throw new ArgumentNullException(nameof(tileContentExtractor));
-        }
-
-        TilesHorizontal = (int)Math.Ceiling((double)header.Width / header.TileWidth);
-        TilesVertical = (int)Math.Ceiling((double)header.Height / header.TileHeight);
-        TotalTiles = TilesHorizontal * TilesVertical;
-
-        // Phase 1: Extract concatenated tile data from codestream (essentially free)
-        _extractedTiles = tileContentExtractor.ExtractTileContents(header, codestream);
-    }
 
     /// <summary>
     /// Decodes a single tile by its index. Returns an empty tile when no data is present

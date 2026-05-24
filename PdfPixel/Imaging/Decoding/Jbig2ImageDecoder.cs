@@ -6,7 +6,6 @@ using PdfPixel.Jbig2.Decoding;
 using PdfPixel.Jbig2.Model;
 using SkiaSharp;
 using System;
-using System.IO;
 using System.Runtime.CompilerServices;
 
 namespace PdfPixel.Imaging.Decoding;
@@ -77,14 +76,12 @@ internal sealed class Jbig2ImageDecoder : PdfImageDecoder
             imageData = Image.GetImageData(observer);
         }
 
-        File.WriteAllBytes($"test\\{Image.SourceObject.Document.Name}.jb2", imageData.ToArray());
-
         if (imageData.IsEmpty)
         {
             throw new InvalidOperationException($"JBIG2 image data is empty (Name={Image.Name}).");
         }
 
-        Jbig2SegmentCache globalCache = ResolveGlobalsCache();
+        Jbig2SegmentCache globalCache = ResolveGlobalsCache(contentLocker);
         var pageDecoder = new Jbig2PageDecoder();
         var jbig2Observer = new Jbig2Observer(observer);
         _cachedBitmap = pageDecoder.Decode(imageData.Span, Image.Width, Image.Height, globalCache, jbig2Observer);
@@ -99,7 +96,7 @@ internal sealed class Jbig2ImageDecoder : PdfImageDecoder
         }
     }
 
-    private Jbig2SegmentCache ResolveGlobalsCache()
+    private Jbig2SegmentCache ResolveGlobalsCache(object contentLocker)
     {
         var globalsObject = Image.DecodeParms?.Jbig2Globals;
         if (globalsObject == null) return null;
@@ -109,7 +106,13 @@ internal sealed class Jbig2ImageDecoder : PdfImageDecoder
             return existing;
 
         ReadOnlyMemory<byte> globalsData;
-        try { globalsData = globalsObject.DecodeAsMemory(); }
+        try
+        {
+            lock (contentLocker)
+            {
+                globalsData = globalsObject.DecodeAsMemory();
+            }
+        }
         catch (Exception ex)
         {
             Logger.LogWarning(ex, "Failed to decode JBIG2Globals stream.");

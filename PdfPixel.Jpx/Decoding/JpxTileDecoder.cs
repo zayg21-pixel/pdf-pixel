@@ -14,7 +14,7 @@ namespace PdfPixel.Jpx.Decoding;
 /// 5. Inverse Wavelet Transform (5-3 reversible or 9-7 irreversible)
 /// 6. Inverse MCT, Level Shifting, and Clamping
 /// </summary>
-internal sealed class JpxTileDecoder : IJpxTileDecoder
+internal sealed class JpxTileDecoder
 {
     private readonly JpxHeader _header;
     private readonly IJpxPacketParser _packetParser;

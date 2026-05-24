@@ -319,8 +319,6 @@ public class MainWindowsViewModel : ObservableObject
             _document = _reader.Read(fileStream);
         }
 
-        _document.Name = Path.GetFileNameWithoutExtension(SelectedPdfFile.FilePath);
-
         Pages = PdfPanelPageCollection.FromDocument(_document);
         AutoScaleMode = PdfPanelAutoScaleMode.ScaleToWidth;
     }

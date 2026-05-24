@@ -15,7 +15,6 @@ namespace PdfPixel.Imaging.Decoding;
 public class JpxImageDecoder : PdfImageDecoder
 {
     private JpxTileProvider _tileProvider;
-    private IJpxTileDecoder _tileDecoder;
     private JpxDecodingParameters _jpxDecodingParameters;
     private PdfColorSpaceConverter _resolvedConverter;
     private JpxTileToRowConverter _rowConverter;
@@ -41,11 +40,9 @@ public class JpxImageDecoder : PdfImageDecoder
             throw new InvalidOperationException($"Cannot determine color space for JPX image with {jpxHeader.ComponentCount} components (Name={Image.Name}).");
 
         _jpxDecodingParameters = ComputeDecodingParameters(jpxHeader, ctm);
-        _tileDecoder = JpxTileDecoderFactory.CreateDecoder(jpxHeader);
         _tileProvider = new JpxTileProvider(
             jpxHeader,
             encodedData.Span.Slice(jpxHeader.CodestreamOffset),
-            _tileDecoder,
             _jpxDecodingParameters);
 
         _rowConverter = new JpxTileToRowConverter(jpxHeader, _tileProvider, _jpxDecodingParameters);
@@ -89,7 +86,6 @@ public class JpxImageDecoder : PdfImageDecoder
         _rowConverter?.Dispose();
         _rowConverter = null;
         _tileProvider = default;
-        _tileDecoder = null;
         _resolvedConverter = null;
         _tilingContext?.Dispose();
         _tilingContext = null;

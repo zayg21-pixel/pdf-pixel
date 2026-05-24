@@ -36,12 +36,4 @@
     <ProjectReference Include="..\PdfPixel.Jbig2\PdfPixel.Jbig2.csproj" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Folder Include="Color\Filters\" />
-  </ItemGroup>
-
-  <PropertyGroup Condition=" '$(TargetFramework)' != 'netstandard2.0' ">
-    <PublishAot>true</PublishAot>
-  </PropertyGroup>
-
   </Project>
