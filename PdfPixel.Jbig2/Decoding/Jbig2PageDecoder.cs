@@ -2,7 +2,6 @@ using System;
 using System.Buffers.Binary;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
-using System.Threading;
 using PdfPixel.Jbig2.Model;
 using PdfPixel.Jbig2.Parsing;
 
@@ -61,7 +60,7 @@ public sealed class Jbig2PageDecoder
         int expectedWidth,
         int expectedHeight,
         Jbig2SegmentCache globalCache = null,
-        IJBig2ExectionObserver observer = default) // TODO: [HIGH] pass observer to JBIG2 images
+        IJBig2ExectionObserver observer = default)
     {
         if (globalCache != null)
         {
@@ -186,11 +185,11 @@ public sealed class Jbig2PageDecoder
 
                 case Jbig2SegmentType.ImmediateGenericRegion:
                 case Jbig2SegmentType.ImmediateLosslessGenericRegion:
-                    ProcessGenericRegion(segment, segmentData, pageBitmap, cache);
+                    ProcessGenericRegion(segment, segmentData, pageBitmap, cache, observer);
                     break;
 
                 case Jbig2SegmentType.IntermediateGenericRegion:
-                    ProcessGenericRegion(segment, segmentData, pageBitmap: null, cache);
+                    ProcessGenericRegion(segment, segmentData, pageBitmap: null, cache, observer);
                     break;
 
                 case Jbig2SegmentType.ImmediateTextRegion:
@@ -359,14 +358,14 @@ public sealed class Jbig2PageDecoder
         }
     }
 
-    private void ProcessGenericRegion(Jbig2SegmentHeader segment, ReadOnlySpan<byte> segmentData, Jbig2Bitmap pageBitmap, Jbig2SegmentCache cache)
+    private void ProcessGenericRegion(Jbig2SegmentHeader segment, ReadOnlySpan<byte> segmentData, Jbig2Bitmap pageBitmap, Jbig2SegmentCache cache, IJBig2ExectionObserver observer = null)
     {
         var regionHeader = Jbig2RegionHeader.Parse(segment, segmentData);
 
         // Flags byte and coded data follow the region header; Jbig2GenericRegionDecoder reads flags internally.
         ReadOnlySpan<byte> codedData = segmentData.Slice(Jbig2RegionHeader.Jbig2RegionHeaderLength);
 
-        Jbig2Bitmap regionBitmap = Jbig2GenericRegionDecoder.Decode(codedData, regionHeader);
+        Jbig2Bitmap regionBitmap = Jbig2GenericRegionDecoder.Decode(codedData, regionHeader, observer);
 
         // Composite onto page, or store for potential reference by later segments (e.g. refinement regions)
         if (pageBitmap == null)

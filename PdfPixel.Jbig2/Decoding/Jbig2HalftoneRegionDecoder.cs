@@ -194,27 +194,10 @@ internal static class Jbig2HalftoneRegionDecoder
         Jbig2Bitmap skipBitmap,
         Jbig2Bitmap[] planes)
     {
-        // Set up AT pixels (per reference: fixed values depending on template)
-        int atCount = templateId == 0 ? 4 : 1;
-        var atX = new sbyte[atCount];
-        var atY = new sbyte[atCount];
-
-        atX[0] = (sbyte)(templateId <= 1 ? 3 : 2);
-        atY[0] = -1;
-        if (templateId == 0)
-        {
-            atX[1] = -3;
-            atY[1] = -1;
-            atX[2] = 2;
-            atY[2] = -2;
-            atX[3] = -2;
-            atY[3] = -2;
-        } // TODO: this is repeated
-
+        Jbig2AtPixels atPixels = Jbig2Templates.GetDefaultAtPixels(templateId);
         var decoder = new Jbig2ArithmeticReader(data);
         int contextSize = Jbig2Templates.GetContextSize(templateId);
-
-                ReadOnlySpan<Jbig2ContextPixel> template = Jbig2Templates.ResolveTemplate(templateId, atX, atY);
+        ReadOnlySpan<Jbig2ContextPixel> template = Jbig2Templates.ResolveTemplate(templateId, atPixels.AtX, atPixels.AtY);
 
         // Contexts are shared across all bit planes (the probability model accumulates).
         // The arithmetic reader is also shared (single continuous stream).

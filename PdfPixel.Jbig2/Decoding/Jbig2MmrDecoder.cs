@@ -19,9 +19,9 @@ internal static class Jbig2MmrDecoder
     /// <param name="width">Region width in pixels.</param>
     /// <param name="height">Region height in pixels.</param>
     /// <returns>Decoded bitmap.</returns>
-    internal static Jbig2Bitmap Decode(ReadOnlySpan<byte> data, int width, int height)
+    internal static Jbig2Bitmap Decode(ReadOnlySpan<byte> data, int width, int height, IJBig2ExectionObserver observer = null)
     {
-        return Decode(data, width, height, out _);
+        return Decode(data, width, height, out _, observer);
     }
 
     /// <summary>
@@ -33,8 +33,9 @@ internal static class Jbig2MmrDecoder
     /// <param name="width">Region width in pixels.</param>
     /// <param name="height">Region height in pixels.</param>
     /// <param name="bytesConsumed">Number of bytes consumed from <paramref name="data"/>.</param>
+    /// <param name="observer">Observer to notify on each decoded row.</param>
     /// <returns>Decoded bitmap.</returns>
-    internal static Jbig2Bitmap Decode(ReadOnlySpan<byte> data, int width, int height, out int bytesConsumed)
+    internal static Jbig2Bitmap Decode(ReadOnlySpan<byte> data, int width, int height, out int bytesConsumed, IJBig2ExectionObserver observer = null)
     {
         var bitmap = new Jbig2Bitmap(width, height);
         var reader = new CcittBitReader(data, 0, 0, 0, msbFirst: true);
@@ -47,6 +48,8 @@ internal static class Jbig2MmrDecoder
 
         for (int y = 0; y < height; y++)
         {
+            observer?.Notify();
+
             CcittG4TwoDDecoder.DecodeTwoDLine(ref reader, width, new Span<int>(referenceChanges, 0, changesCount), runs);
 
             // Rasterize runs directly into the bitmap row (JBIG2 uses blackIs1=true)

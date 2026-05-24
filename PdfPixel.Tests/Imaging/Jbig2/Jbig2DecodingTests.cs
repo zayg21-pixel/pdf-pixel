@@ -3,8 +3,8 @@ using System.IO;
 using System.Numerics;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
-using PdfPixel.Imaging.Jbig2.Decoding;
-using PdfPixel.Imaging.Jbig2.Model;
+using PdfPixel.Jbig2.Decoding;
+using PdfPixel.Jbig2.Model;
 using Xunit;
 using Xunit.Abstractions;
 namespace PdfPixel.Tests.Imaging.Jbig2;
@@ -19,7 +19,7 @@ public class Jbig2DecodingTests
 {
     private const double MinimumSimilarity = 0.97;
     private const string Jbig2Folder = "jbig2";
-    private const string ReferenceFile = "0_bitmap-mmr.jb2";
+    private const string ReferenceFile = "bitmap-mmr.jb2";
 
     private readonly ITestOutputHelper _output;
     private readonly ILogger _logger;
@@ -235,7 +235,7 @@ public class Jbig2DecodingTests
         }
 
         byte[] data = File.ReadAllBytes(filePath);
-        var decoder = new Jbig2PageDecoder(_logger);
+        var decoder = new Jbig2PageDecoder();
 
         // For standalone .jb2 files, pass as page data with no globals
         return decoder.Decode(data, 0, 0);

@@ -115,6 +115,79 @@ internal static class Jbig2Templates
     ];
 
     // ─────────────────────────────────────────────────────────────────────────
+    // AT pixel readers and factories
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Returns the number of adaptive template pixel pairs for a generic template.
+    /// Template 0 uses 4 AT pixels; templates 1–3 use 1.
+    /// </summary>
+    internal static int AtPixelCount(int templateId) => templateId == 0 ? 4 : 1;
+
+    /// <summary>
+    /// Reads <paramref name="count"/> (X, Y) adaptive template pixel pairs from the front of
+    /// <paramref name="data"/>. Pairs that fall outside the available data are left as zero.
+    /// </summary>
+    internal static Jbig2AtPixels ReadAtPixelPairs(ReadOnlySpan<byte> data, int count)
+    {
+        var atX = new sbyte[count];
+        var atY = new sbyte[count];
+
+        for (int i = 0; i < count; i++)
+        {
+            int byteIndex = i * 2;
+            if (byteIndex + 1 < data.Length)
+            {
+                atX[i] = (sbyte)data[byteIndex];
+                atY[i] = (sbyte)data[byteIndex + 1];
+            }
+        }
+
+        return new Jbig2AtPixels(atX, atY);
+    }
+
+    /// <summary>
+    /// Returns the default AT pixels for generic region arithmetic decoding.
+    /// These are the fixed positions used by halftone regions (ITU-T T.88 Section 7.4.5.1.2).
+    /// </summary>
+    internal static Jbig2AtPixels GetDefaultAtPixels(int templateId)
+    {
+        int atCount = AtPixelCount(templateId);
+        var atX = new sbyte[atCount];
+        var atY = new sbyte[atCount];
+        atX[0] = (sbyte)(templateId <= 1 ? 3 : 2);
+        atY[0] = -1;
+        if (templateId == 0)
+        {
+            atX[1] = -3; atY[1] = -1;
+            atX[2] = 2;  atY[2] = -2;
+            atX[3] = -2; atY[3] = -2;
+        }
+        return new Jbig2AtPixels(atX, atY);
+    }
+
+    /// <summary>
+    /// Returns the AT pixels for pattern dictionary arithmetic decoding.
+    /// AT[0] = (-patternWidth, 0) prevents cross-pattern context contamination;
+    /// remaining positions follow the template defaults (ITU-T T.88 Section 7.4.4.1.2).
+    /// </summary>
+    internal static Jbig2AtPixels GetPatternDictionaryAtPixels(int templateId, int patternWidth)
+    {
+        int atCount = AtPixelCount(templateId);
+        var atX = new sbyte[atCount];
+        var atY = new sbyte[atCount];
+        atX[0] = (sbyte)(-patternWidth);
+        atY[0] = 0;
+        if (templateId == 0)
+        {
+            atX[1] = -3; atY[1] = -1;
+            atX[2] = 2;  atY[2] = -2;
+            atX[3] = -2; atY[3] = -2;
+        }
+        return new Jbig2AtPixels(atX, atY);
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
     // Generic template API
     // ─────────────────────────────────────────────────────────────────────────
 

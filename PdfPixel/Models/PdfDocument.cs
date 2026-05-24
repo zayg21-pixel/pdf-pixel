@@ -86,6 +86,9 @@ public class PdfDocument : IDisposable
     /// </summary>
     internal BufferedStream Stream { get; }
 
+    [Obsolete]
+    public string Name { get; set; } // TODO: [HIGH] remove
+
     /// <summary>
     /// Releases all resources used by the <see cref="PdfDocument"/>.
     /// </summary>

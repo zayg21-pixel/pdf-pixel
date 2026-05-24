@@ -30,7 +30,7 @@ internal static class Jbig2SymbolDictionaryDecoder
 
         var info = Jbig2SymbolDictionarySegmentInfo.Parse(segmentData);
 
-        // TODO: ContextUsed/ContextRetained (ITU-T T.88 Section 7.4.2.2 steps 3/7) is NYI
+        // TODO: [LOW] ContextUsed/ContextRetained (ITU-T T.88 Section 7.4.2.2 steps 3/7) is NYI
         if (info.Flags.ContextUsed || info.Flags.ContextRetained)
         {
             throw new NotImplementedException(
@@ -335,7 +335,7 @@ internal static class Jbig2SymbolDictionaryDecoder
 
         if (refAggNinst > 1)
         {
-            // TODO: REFAGGNINST > 1 requires a zero-padded Huffman word stream.
+            // TODO: [LOW] REFAGGNINST > 1 requires a zero-padded Huffman word stream.
             // This needs a dedicated ReadBit mode that
             // returns 0 past end + loop guards (NSYMSDECODED >= SDNUMNEWSYMS, emptyRuns cap)
             // to prevent infinite loops while still allowing the text region placement decode

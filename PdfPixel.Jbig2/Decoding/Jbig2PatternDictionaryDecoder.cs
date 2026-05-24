@@ -48,7 +48,7 @@ internal static class Jbig2PatternDictionaryDecoder
         ReadOnlySpan<byte> codedData = segmentData.Slice(headerSize);
 
         // Decode as one large bitmap and split into individual patterns
-        int collectiveWidth = patternWidth * patternCount; // TODO: why it's region decoder factory?
+        int collectiveWidth = patternWidth * patternCount;
         Jbig2Bitmap collectiveBitmap;
 
         if (genericFlags.UseMmr)
@@ -57,28 +57,10 @@ internal static class Jbig2PatternDictionaryDecoder
         }
         else
         {
-            // Pattern dictionaries use fixed AT pixel values (ITU-T T.88 Section 7.4.4.1.2).
-            // AT pixels are NOT embedded in the coded data — they are hardcoded:
-            //   AT[0] = (-patternWidth, 0) to prevent cross-pattern context dependencies.
             int templateId = genericFlags.TemplateId;
-            int atCount = templateId == 0 ? 4 : 1;
-            var atX = new sbyte[atCount];
-            var atY = new sbyte[atCount];
-
-            atX[0] = (sbyte)(-patternWidth);
-            atY[0] = 0;
-            if (templateId == 0)
-            {
-                atX[1] = -3;
-                atY[1] = -1;
-                atX[2] = 2;
-                atY[2] = -2;
-                atX[3] = -2;
-                atY[3] = -2;
-            } // TODO: this is repeated
-
             collectiveBitmap = Jbig2GenericRegionDecoder.DecodeWithAt(
-                genericFlags, codedData, collectiveWidth, patternHeight, new Jbig2AtPixels(atX, atY));
+                genericFlags, codedData, collectiveWidth, patternHeight,
+                Jbig2Templates.GetPatternDictionaryAtPixels(templateId, patternWidth));
         }
 
         // Split collective bitmap into individual patterns

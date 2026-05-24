@@ -1,12 +1,10 @@
 using PdfPixel.Jbig2.Model;
 using System;
 using System.Buffers.Binary;
-using System.Diagnostics;
-using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
-namespace PdfPixel.Jbig2.Decoding; // TODO: [MEDIUM] continue to optimize here
+namespace PdfPixel.Jbig2.Decoding;
 
 /// <summary>
 /// Shared row-level decode logic for JBIG2 generic and refinement regions.
@@ -65,7 +63,7 @@ internal static class Jbig2RowDecoder
     /// extracts all group bits with a single shift+mask.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    internal static void DecodeRowOld(
+    internal static void DecodeRowSlow(
         ref Jbig2ArithmeticReader decoder,
         Jbig2Bitmap bitmap,
         Span<byte> contexts,
@@ -181,7 +179,7 @@ internal static class Jbig2RowDecoder
     {
         if (tmpl.RequiresSlowPath)
         {
-            DecodeRowOld(ref decoder, bitmap, contexts, y, width, tmpl);
+            DecodeRowSlow(ref decoder, bitmap, contexts, y, width, tmpl);
             return;
         }
 

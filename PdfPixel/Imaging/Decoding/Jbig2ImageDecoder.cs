@@ -6,6 +6,8 @@ using PdfPixel.Jbig2.Decoding;
 using PdfPixel.Jbig2.Model;
 using SkiaSharp;
 using System;
+using System.IO;
+using System.Runtime.CompilerServices;
 
 namespace PdfPixel.Imaging.Decoding;
 
@@ -63,14 +65,24 @@ internal sealed class Jbig2ImageDecoder : PdfImageDecoder
 
     private void EnsureBitmapDecoded(object contentLocker, IPdfExecutionObserver observer)
     {
-        if (_cachedBitmap != null) return;
+        if (_cachedBitmap != null)
+        {
+            return;
+        }
 
         ReadOnlyMemory<byte> imageData;
+
         lock (contentLocker)
+        {
             imageData = Image.GetImageData(observer);
+        }
+
+        File.WriteAllBytes($"test\\{Image.SourceObject.Document.Name}.jb2", imageData.ToArray());
 
         if (imageData.IsEmpty)
+        {
             throw new InvalidOperationException($"JBIG2 image data is empty (Name={Image.Name}).");
+        }
 
         Jbig2SegmentCache globalCache = ResolveGlobalsCache();
         var pageDecoder = new Jbig2PageDecoder();
@@ -78,10 +90,13 @@ internal sealed class Jbig2ImageDecoder : PdfImageDecoder
         _cachedBitmap = pageDecoder.Decode(imageData.Span, Image.Width, Image.Height, globalCache, jbig2Observer);
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static void InvertRow(byte[] buffer)
     {
         for (int i = 0; i < buffer.Length; i++)
+        {
             buffer[i] = (byte)~buffer[i];
+        }
     }
 
     private Jbig2SegmentCache ResolveGlobalsCache()

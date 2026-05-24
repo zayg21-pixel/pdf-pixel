@@ -1,5 +1,6 @@
 using System;
 using System.Buffers.Binary;
+using PdfPixel.Jbig2.Decoding;
 
 namespace PdfPixel.Jbig2.Model;
 
@@ -63,8 +64,11 @@ internal readonly struct Jbig2TextRegionSegmentInfo
             offset += 2;
         }
 
-        var refinementAtPixels = flags.GetRefinementAtPixels(data.Slice(offset));
-        offset += flags.RefinementAtPixelsByteCount;
+        bool hasRefinAt = flags.UseRefinement && flags.RefinementTemplate == 0;
+        Jbig2AtPixels? refinementAtPixels = hasRefinAt
+            ? Jbig2Templates.ReadAtPixelPairs(data.Slice(offset), 2)
+            : null;
+        offset += hasRefinAt ? 4 : 0;
 
         int numberOfSymbolInstances = 0;
         if (data.Length >= offset + 4)

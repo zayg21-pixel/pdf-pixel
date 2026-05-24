@@ -9,7 +9,8 @@ namespace PdfPixel.Jbig2.Model;
 /// <remarks>
 /// Refinement adaptive template (AT) pixel coordinates are not flag bits; they are a
 /// data-dependent byte sequence that follows any Huffman table flags in the segment header.
-/// Use <see cref="GetRefinementAtPixels"/> to read them, passing the appropriate data slice.
+/// Read them via <c>Jbig2Templates.ReadAtPixelPairs</c> and advance the offset by 4 when
+/// <see cref="UseRefinement"/> is <see langword="true"/> and <see cref="RefinementTemplate"/> is 0.
 /// </remarks>
 internal readonly struct Jbig2TextRegionFlags
 {
@@ -61,12 +62,6 @@ internal readonly struct Jbig2TextRegionFlags
     public int RefinementTemplate { get; }
 
     /// <summary>
-    /// Number of bytes occupied by refinement adaptive template pixel pairs in the segment header.
-    /// Zero unless refinement is active and <see cref="RefinementTemplate"/> is 0.
-    /// </summary>
-    public int RefinementAtPixelsByteCount => (UseRefinement && RefinementTemplate == 0) ? 4 : 0;
-
-    /// <summary>
     /// Strip size (SBSTRIPS = 1 &lt;&lt; <see cref="LogStripSize"/>).
     /// </summary>
     public int StripSize => 1 << LogStripSize;
@@ -79,35 +74,4 @@ internal readonly struct Jbig2TextRegionFlags
     /// </summary>
     public static readonly Jbig2TextRegionFlags DefaultInlineFlags = new Jbig2TextRegionFlags(0x0012);
 
-    /// <summary>
-    /// Reads the refinement adaptive template pixel coordinate pairs from the supplied data slice.
-    /// The slice must begin at the first refinement AT pixel byte, which follows the optional
-    /// Huffman table flags word (present only when <see cref="UseHuffman"/> is <see langword="true"/>).
-    /// </summary>
-    /// <param name="data">Segment data starting at the first refinement AT pixel byte.</param>
-    /// <returns>
-    /// Refinement AT pixel coordinates initialised to <c>{-1, -1}</c> as defaults, or
-    /// <see langword="null"/> when refinement AT pixels are not present (refinement disabled or template ≠ 0).
-    /// </returns>
-    public Jbig2AtPixels? GetRefinementAtPixels(ReadOnlySpan<byte> data)
-    {
-        if (!UseRefinement || RefinementTemplate != 0)
-        {
-            return null;
-        }
-
-        // Default values per ITU-T T.88; overwritten below if data is available.
-        var atX = new sbyte[] { -1, -1 };
-        var atY = new sbyte[] { -1, -1 };
-
-        if (data.Length >= 4)
-        {
-            atX[0] = (sbyte)data[0];
-            atY[0] = (sbyte)data[1];
-            atX[1] = (sbyte)data[2];
-            atY[1] = (sbyte)data[3];
-        }
-
-        return new Jbig2AtPixels(atX, atY);
-    }
 }

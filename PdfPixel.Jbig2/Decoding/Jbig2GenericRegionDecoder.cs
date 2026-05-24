@@ -17,7 +17,7 @@ internal static class Jbig2GenericRegionDecoder
     /// <param name="data">Flags byte followed by encoded data.</param>
     /// <param name="regionHeader">Region header carrying dimensions and placement metadata.</param>
     /// <returns>Decoded bitmap.</returns>
-    internal static Jbig2Bitmap Decode(ReadOnlySpan<byte> data, Jbig2RegionHeader regionHeader)
+    internal static Jbig2Bitmap Decode(ReadOnlySpan<byte> data, Jbig2RegionHeader regionHeader, IJBig2ExectionObserver observer = null)
     {
         if (data.IsEmpty)
         {
@@ -25,7 +25,7 @@ internal static class Jbig2GenericRegionDecoder
         }
 
         var flags = new Jbig2GenericRegionFlags(data[0]);
-        return Decode(flags, data.Slice(1), regionHeader.Width, regionHeader.Height);
+        return Decode(flags, data.Slice(1), regionHeader.Width, regionHeader.Height, observer);
     }
 
     /// <summary>
@@ -38,31 +38,18 @@ internal static class Jbig2GenericRegionDecoder
     /// <param name="width">Region width in pixels.</param>
     /// <param name="height">Region height in pixels.</param>
     /// <returns>Decoded bitmap.</returns>
-    internal static Jbig2Bitmap Decode(Jbig2GenericRegionFlags flags, ReadOnlySpan<byte> codedData, int width, int height)
+    internal static Jbig2Bitmap Decode(Jbig2GenericRegionFlags flags, ReadOnlySpan<byte> codedData, int width, int height, IJBig2ExectionObserver observer = null)
     {
         if (flags.UseMmr)
         {
-            return Jbig2MmrDecoder.Decode(codedData, width, height);
+            return Jbig2MmrDecoder.Decode(codedData, width, height, observer);
         }
 
-        int atCount = flags.TemplateId == 0 ? 4 : 1;
-        var atX = new sbyte[atCount];
-        var atY = new sbyte[atCount];
-        int offset = 0;
+        int atCount = Jbig2Templates.AtPixelCount(flags.TemplateId);
+        Jbig2AtPixels atPixels = Jbig2Templates.ReadAtPixelPairs(codedData, atCount);
+        int offset = atCount * 2;
 
-        for (int i = 0; i < atCount; i++)
-        {
-            if (offset + 1 < codedData.Length)
-            {
-                atX[i] = (sbyte)codedData[offset];
-                atY[i] = (sbyte)codedData[offset + 1];
-                offset += 2;
-            }
-        }// TOOD: this is AGAIN repeated
-
-        var atPixels = new Jbig2AtPixels(atX, atY);
-
-        return DecodeArithmeticWithAt(flags.TemplateId, flags.TypicalPrediction, codedData.Slice(offset), width, height, atPixels);
+        return DecodeArithmeticWithAt(flags.TemplateId, flags.TypicalPrediction, codedData.Slice(offset), width, height, atPixels, observer);
     }
 
     /// <summary>
@@ -101,7 +88,8 @@ internal static class Jbig2GenericRegionDecoder
         ReadOnlySpan<byte> codedData,
         int width,
         int height,
-        Jbig2AtPixels atPixels)
+        Jbig2AtPixels atPixels,
+        IJBig2ExectionObserver observer = null)
     {
         var bitmap = new Jbig2Bitmap(width, height);
         scoped var decoder = new Jbig2ArithmeticReader(codedData);
@@ -124,6 +112,8 @@ internal static class Jbig2GenericRegionDecoder
 
         for (int y = 0; y < height; y++)
         {
+            observer?.Notify();
+
             if (typicalPrediction)
             {
                 int tpBit = decoder.DecodeBit(ref contexts[pseudoPixelContext]);

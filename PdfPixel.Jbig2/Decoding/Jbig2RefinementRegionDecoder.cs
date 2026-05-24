@@ -36,19 +36,8 @@ internal static class Jbig2RefinementRegionDecoder
 
         var flags = new Jbig2RefinementRegionFlags(data[0]);
         int atCount = flags.AtPixelCount;
-        var atX = new sbyte[Math.Max(atCount, 2)];
-        var atY = new sbyte[Math.Max(atCount, 2)];
-        int offset = 1;
-
-        for (int i = 0; i < atCount; i++)
-        {
-            if (offset + 1 < data.Length)
-            {
-                atX[i] = (sbyte)data[offset];
-                atY[i] = (sbyte)data[offset + 1];
-                offset += 2;
-            }
-        }
+        Jbig2AtPixels atPixels = Jbig2Templates.ReadAtPixelPairs(data.Slice(1), atCount);
+        int offset = 1 + atCount * 2;
 
         if (reference == null)
         {
@@ -71,8 +60,8 @@ internal static class Jbig2RefinementRegionDecoder
             reference,
             referenceOffsetX,
             referenceOffsetY,
-            atX,
-            atY,
+            atPixels.AtX,
+            atPixels.AtY,
             flags.TypicalPrediction);
 
         return bitmap;

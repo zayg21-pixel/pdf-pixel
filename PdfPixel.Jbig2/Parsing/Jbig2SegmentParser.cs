@@ -185,7 +185,7 @@ internal sealed class Jbig2SegmentParser
             }
 
             // Generic region segment flags byte immediately follows the 17-byte region info field.
-            bool isMmr = (data[offset + RegionInfoFieldLength] & 0x01) != 0; // TODO: move to constants
+            bool isMmr = (data[offset + RegionInfoFieldLength] & 0x01) != 0;
 
             const int EndMarkerPrefixLength = 2;
             const int EndMarkerTotalLength = 6; // 2-byte marker + 4-byte row count

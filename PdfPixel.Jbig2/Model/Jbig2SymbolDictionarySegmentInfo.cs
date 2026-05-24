@@ -1,5 +1,6 @@
 using System;
 using System.Buffers.Binary;
+using PdfPixel.Jbig2.Decoding;
 
 namespace PdfPixel.Jbig2.Model;
 
@@ -69,16 +70,22 @@ internal readonly struct Jbig2SymbolDictionarySegmentInfo
         var flags = new Jbig2SymbolDictionaryFlags(flagsWord);
 
         // Layout after the 2-byte flags word:
-        //   [AT pixel pairs  (AtPixelsByteCount bytes, only when !UseHuffman)]
-        //   [refinement AT   (RefinementAtPixelsByteCount bytes, conditional)]
+        //   [AT pixel pairs  (AtPixelCount(Template) * 2 bytes, only when !UseHuffman)]
+        //   [refinement AT   (4 bytes, only when UseRefinementAggregation && RefinementTemplate == 0)]
         //   exported symbol count (4 bytes)
         //   new symbol count      (4 bytes)
         int offset = 2;
-        var atPixels = flags.GetAtPixels(data.Slice(offset));
-        offset += flags.AtPixelsByteCount;
+        int atCount = flags.UseHuffman ? 0 : Jbig2Templates.AtPixelCount(flags.Template);
+        Jbig2AtPixels? atPixels = atCount > 0
+            ? Jbig2Templates.ReadAtPixelPairs(data.Slice(offset), atCount)
+            : null;
+        offset += atCount * 2;
 
-        var refinementAtPixels = flags.GetRefinementAtPixels(data.Slice(offset));
-        offset += flags.RefinementAtPixelsByteCount;
+        bool hasRefinAt = flags.UseRefinementAggregation && flags.RefinementTemplate == 0;
+        Jbig2AtPixels? refinementAtPixels = hasRefinAt
+            ? Jbig2Templates.ReadAtPixelPairs(data.Slice(offset), 2)
+            : null;
+        offset += hasRefinAt ? 4 : 0;
 
         int exportedSymbolCount = 0;
         int newSymbolCount = 0;
