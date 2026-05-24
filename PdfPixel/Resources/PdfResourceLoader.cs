@@ -18,7 +18,7 @@ public static class PdfResourceLoader
     /// <exception cref="FileNotFoundException"></exception>
     public static byte[] GetResource(string resourceName)
     {
-        var assembly = typeof(PdfTextResourceConverter).Assembly;
+        var assembly = typeof(PdfResourceLoader).Assembly;
         // Open the resource stream
         using Stream stream = assembly.GetManifestResourceStream($"PdfPixel.Resources.{resourceName}");
 

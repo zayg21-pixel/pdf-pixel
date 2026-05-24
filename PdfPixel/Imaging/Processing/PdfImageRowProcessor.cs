@@ -43,6 +43,13 @@ internal sealed class PdfImageRowProcessor : IDisposable
     private readonly IRowConverter _rowConverter;
     private byte[] _convertedRowBuffer;
 
+    private readonly bool _applyDecode;
+    private readonly float[] _decodeArray;
+    private readonly bool _applyMask;
+    private readonly int[] _maskArray;
+    private readonly int _maxCode;
+    private readonly float _scale;
+
     public PdfImageRowProcessor(PdfImageRowDecodingParameters parameters, ILogger logger)
     {
         _parameters = parameters ?? throw new ArgumentNullException(nameof(parameters));
@@ -109,6 +116,13 @@ internal sealed class PdfImageRowProcessor : IDisposable
             }
             _pngBuilder.Init(palette, iccProfile);
         }
+
+        _maxCode = (1 << _bitsPerComponent) - 1;
+        _scale = _converter is IndexedConverter ? 1f : 1f / _maxCode;
+        _applyDecode = _parameters.DecodeArray != null && _parameters.DecodeArray.Length == _components * 2;
+        _decodeArray = _parameters.DecodeArray;
+        _applyMask = _parameters.MaskArray != null && _parameters.MaskArray.Length == _components * 2;
+        _maskArray = _parameters.MaskArray;
     }
 
     public static RgbaPacked[] BuildSingleChannelPalette(PdfImageRowDecodingParameters parameters, int outputBitsPerComponent)
@@ -253,42 +267,20 @@ internal sealed class PdfImageRowProcessor : IDisposable
         ref RgbaPacked destRowColor = ref Unsafe.As<byte, RgbaPacked>(ref destRowByte);
         var bitReader = new UintBitReaderFixedLength(decodedRow, _bitsPerComponent);
 
-        int width = _width;
-        int componentCount = _components;
-        int bitsPerComponent = _bitsPerComponent;
+        Span<float> componentValues = stackalloc float[_components];
 
-        Span<float> componentValues = stackalloc float[componentCount];
-
-        bool applyDecode = _parameters.DecodeArray != null && _parameters.DecodeArray.Length == componentCount * 2;
-        float[] decodeArray = _parameters.DecodeArray;
-
-        bool applyMask = _parameters.MaskArray != null && _parameters.MaskArray.Length == componentCount * 2;
-        int[] maskArray = _parameters.MaskArray;
-
-        int maxCode = (1 << bitsPerComponent) - 1;
-        float scale;
-
-        if (_converter is IndexedConverter)
+        for (int x = 0; x < _width; x++)
         {
-            scale = 1f;
-        }
-        else
-        {
-            scale = 1f / maxCode;
-        }
+            bool maskMatch = _applyMask;
 
-        for (int x = 0; x < width; x++)
-        {
-            bool maskMatch = applyMask;
-
-            for (int c = 0; c < componentCount; c++)
+            for (int c = 0; c < _components; c++)
             {
                 uint sample = bitReader.Read();
 
-                if (applyMask && maskMatch)
+                if (_applyMask && maskMatch)
                 {
-                    int minCode = maskArray[c * 2];
-                    int maxCodeRange = maskArray[c * 2 + 1];
+                    int minCode = _maskArray[c * 2];
+                    int maxCodeRange = _maskArray[c * 2 + 1];
 
                     if (sample < minCode || sample > maxCodeRange)
                     {
@@ -296,13 +288,13 @@ internal sealed class PdfImageRowProcessor : IDisposable
                     }
                 }
 
-                float value01 = sample * scale;
+                float value01 = sample * _scale;
 
-                if (applyDecode)
+                if (_applyDecode)
                 {
                     int di = c * 2;
-                    float dMin = decodeArray[di];
-                    float dMax = decodeArray[di + 1];
+                    float dMin = _decodeArray[di];
+                    float dMax = _decodeArray[di + 1];
                     value01 = dMin + value01 * (dMax - dMin);
                 }
 
@@ -312,7 +304,7 @@ internal sealed class PdfImageRowProcessor : IDisposable
             var colorVector = _sampler.Sample(componentValues);
             ColorVectorUtilities.Load01ToRgba(colorVector, ref destinationPixel);
 
-            if (applyMask && maskMatch)
+            if (_applyMask && maskMatch)
             {
                 destinationPixel.A = 0;
             }

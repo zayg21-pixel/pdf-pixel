@@ -5,6 +5,8 @@ using PdfPixel.Imaging.Processing;
 using SkiaSharp;
 using System;
 using System.IO;
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 
 namespace PdfPixel.Imaging.Decoding;
 
@@ -41,19 +43,19 @@ public class RawImageDecoder : PdfImageDecoder
     {
         while (_currentImageRow < _imageParameters.Height)
         {
-            bool ok;
             lock (_contentLocker)
-                ok = ReadFull(_dataStream, _fullWidthRowBuffer);
-
-            if (!ok)
             {
-                Logger.LogWarning("Premature end of raw stream at image row {Row} (Name={Name}).", _currentImageRow, Image.Name);
-                return null;
+                ReadFull(_dataStream, _fullWidthRowBuffer);
             }
+
             var tiles = _tilingContext.WriteRowAndTryGetTiles(_currentImageRow, _fullWidthRowBuffer, observer);
             _currentImageRow++;
             observer?.Notify();
-            if (tiles != null) return tiles;
+
+            if (tiles != null)
+            {
+                return tiles;
+            }
         }
         return null;
     }
@@ -70,15 +72,18 @@ public class RawImageDecoder : PdfImageDecoder
         _currentImageRow = 0;
     }
 
-    private static bool ReadFull(Stream stream, byte[] buffer)
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static void ReadFull(Stream stream, byte[] buffer)
     {
         int bytesRead = 0;
         while (bytesRead < buffer.Length)
         {
             int read = stream.Read(buffer, bytesRead, buffer.Length - bytesRead);
-            if (read == 0) return false;
+            if (read == 0)
+            {
+                throw new Exception("Premature end of raw stream at image row");
+            }
             bytesRead += read;
         }
-        return true;
     }
 }

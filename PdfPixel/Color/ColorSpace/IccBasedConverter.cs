@@ -1,6 +1,5 @@
 using PdfPixel.Color.Icc;
 using PdfPixel.Color.Icc.Model;
-using PdfPixel.Color.Icc.Transform;
 using PdfPixel.Color.Sampling;
 using PdfPixel.Color.Transform;
 

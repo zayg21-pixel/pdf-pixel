@@ -15,8 +15,6 @@ internal sealed class IndexedSampler : IRgbaSampler
         _highValue = highValue;
     }
 
-    public bool IsDefault => false;
-
     public Vector4 Sample(ReadOnlySpan<float> source)
     {
         int idx = 0;

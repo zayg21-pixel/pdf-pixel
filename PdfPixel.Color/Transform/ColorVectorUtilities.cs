@@ -39,9 +39,9 @@ public static class ColorVectorUtilities
         return data.Length switch
         {
             0 => Vector4.One,
-            1 => new Vector4(data[0], 1, 1, 1),
-            2 => new Vector4(data[0], data[1], 1, 1),
-            3 => new Vector4(data[0], data[1], data[2], 1),
+            1 => new Vector4(data[0], 1f, 1f, 1f),
+            2 => new Vector4(data[0], data[1], 1f, 1f),
+            3 => new Vector4(data[0], data[1], data[2], 1f),
             _ => new Vector4(data[0], data[1], data[2], data[3]),
         };
     }

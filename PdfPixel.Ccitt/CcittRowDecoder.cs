@@ -97,14 +97,13 @@ public sealed class CcittRowDecoder
             return false;
         }
 
-        // TODO: [MEDIUM] add recovery
-
         // Reconstruct reader for current state
         var reader = new CcittBitReader(_encoded.Span, _byteIndex, _bitsRemaining, _currentByte);
 
         bool isOneDLine = DetermineLineKind(ref reader);
 
         _runs.Clear();
+
         if (isOneDLine)
         {
             CcittG3OneDDecoder.DecodeOneDCollectRuns(ref reader, _width, requireLeadingEol: false, byteAlign: false, runs: _runs);

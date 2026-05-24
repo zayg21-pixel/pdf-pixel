@@ -22,6 +22,5 @@ public sealed class ColorTransformSampler : IRgbaSampler
     {
         var value = ColorVectorUtilities.ToVector4WithOnePadding(source);
         return _colorTransform.Transform(value);
-
     }
 }

@@ -35,23 +35,16 @@ namespace PdfPixel.Streams
             var decodeParameters = GetDecodeParms(obj);
             using Stream final = DecodeAsStream(rawStream, filters, decodeParameters);
 
-            try
+            using var memoryStream = new MemoryStream();
+            var buffer = new byte[DecodeChunkSize];
+            int read;
+            while ((read = final.Read(buffer, 0, buffer.Length)) > 0)
             {
-                using var memoryStream = new MemoryStream();
-                var buffer = new byte[DecodeChunkSize];
-                int read;
-                while ((read = final.Read(buffer, 0, buffer.Length)) > 0)
-                {
-                    memoryStream.Write(buffer, 0, read);
-                    observer?.Notify();
-                }
-                return memoryStream.ToArray();
+                memoryStream.Write(buffer, 0, read);
+                observer?.Notify();
             }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Content stream has incorrect format: {message}", ex.Message);
-                return ReadOnlyMemory<byte>.Empty;
-            }
+
+            return memoryStream.ToArray();
         }
 
         /// <summary>
