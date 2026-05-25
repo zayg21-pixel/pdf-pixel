@@ -6,21 +6,22 @@ namespace PdfPixel.Ccitt;
 /// </summary>
 internal static class CcittModeReader
 {
-    private static readonly ModeCode[] Codes = new ModeCode[]
-    {
-        new ModeCode(4, 0b0001, ModeType.Pass, 0),
-        new ModeCode(3, 0b001, ModeType.Horizontal, 0),
-        new ModeCode(1, 0b1, ModeType.Vertical, 0),
-        new ModeCode(3, 0b011, ModeType.Vertical, +1),
-        new ModeCode(3, 0b010, ModeType.Vertical, -1),
-        new ModeCode(6, 0b000011, ModeType.Vertical, +2),
-        new ModeCode(6, 0b000010, ModeType.Vertical, -2),
-        new ModeCode(7, 0b0000011, ModeType.Vertical, +3),
-        new ModeCode(7, 0b0000010, ModeType.Vertical, -3)
-    };
+    private static readonly ModeCode[] Codes =
+    [
+        new(4, 0b0001, ModeType.Pass, 0),
+        new(3, 0b001, ModeType.Horizontal, 0),
+        new(1, 0b1, ModeType.Vertical, 0),
+        new(3, 0b011, ModeType.Vertical, +1),
+        new(3, 0b010, ModeType.Vertical, -1),
+        new(6, 0b000011, ModeType.Vertical, +2),
+        new(6, 0b000010, ModeType.Vertical, -2),
+        new(7, 0b0000011, ModeType.Vertical, +3),
+        new(7, 0b0000010, ModeType.Vertical, -3)
+    ];
 
     private const int MaxBits = 7;
     private const int LookupTableSize = 1 << MaxBits;
+
     private static readonly ModeCode?[] ModeLookup = BuildModeLookupTable();
 
     private static ModeCode?[] BuildModeLookupTable()
@@ -36,6 +37,7 @@ internal static class CcittModeReader
                 lookup[prefix | j] = code;
             }
         }
+
         return lookup;
     }
 
@@ -50,6 +52,7 @@ internal static class CcittModeReader
     {
         int bits = reader.PeekBits(MaxBits);
         ModeCode? found = ModeLookup[bits];
+
         if (found.HasValue)
         {
             ModeCode candidate = found.Value;
@@ -64,10 +67,12 @@ internal static class CcittModeReader
                         return false;
                     }
                 }
+
                 mode = candidate;
                 return true;
             }
         }
+
         mode = default;
         return false;
     }

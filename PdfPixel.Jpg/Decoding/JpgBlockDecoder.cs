@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Runtime.CompilerServices;
+
 using PdfPixel.Jpg.Huffman;
 using PdfPixel.Jpg.Model;
 using PdfPixel.Jpg.Readers;
@@ -11,7 +12,7 @@ namespace PdfPixel.Jpg.Decoding;
 /// Handles differential DC prediction and run-length / Huffman AC decoding.
 /// Outputs coefficients directly in natural (row-major) order to avoid a later de-zig-zag pass.
 /// </summary>
-internal sealed class JpgBlockDecoder
+internal static class JpgBlockDecoder
 {
     /// <summary>
     /// Decode a single 8x8 DCT block (baseline). Coefficients are written in natural (row-major) order.

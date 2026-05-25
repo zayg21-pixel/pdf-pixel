@@ -16,7 +16,7 @@ public sealed class JpxQuantization
     /// Gets or sets the quantization step sizes (SPqcd parameters).
     /// For scalar quantization, contains the step sizes for each subband.
     /// </summary>
-    public ushort[] StepSizes { get; set; }
+    public ushort[] StepSizes { get; set; } = [];
 
     /// <summary>
     /// Gets the number of guard bits (bits 5-7 of Sqcd per ITU-T T.800 Table A.28).

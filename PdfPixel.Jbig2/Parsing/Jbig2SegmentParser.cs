@@ -21,9 +21,9 @@ internal sealed class Jbig2SegmentParser
     /// </summary>
     /// <param name="data">Full JBIG2 data (globals + page data concatenated).</param>
     /// <returns>List of parsed segment headers.</returns>
-    public List<Jbig2SegmentHeader> ParseSegments(ReadOnlySpan<byte> data)
+    public List<Jbig2SegmentHeader> ParseSegments(in ReadOnlySpan<byte> data)
     {
-        var segments = new List<Jbig2SegmentHeader>();
+        List<Jbig2SegmentHeader> segments = [];
         int offset = 0;
 
         // Check for file header (not present in PDF embedded JBIG2)
@@ -41,7 +41,7 @@ internal sealed class Jbig2SegmentParser
 
         while (offset < data.Length)
         {
-            var header = ParseSegmentHeader(data, ref offset);
+            Jbig2SegmentHeader? header = ParseSegmentHeader(data, ref offset);
             if (header == null)
             {
                 break;
@@ -58,14 +58,14 @@ internal sealed class Jbig2SegmentParser
         return segments;
     }
 
-    private Jbig2SegmentHeader ParseSegmentHeader(ReadOnlySpan<byte> data, ref int offset)
+    private Jbig2SegmentHeader? ParseSegmentHeader(in ReadOnlySpan<byte> data, ref int offset)
     {
         if (offset + 6 > data.Length)
         {
             return null;
         }
 
-        var header = new Jbig2SegmentHeader();
+        Jbig2SegmentHeader header = new();
 
         // Segment number (4 bytes, big-endian)
         header.SegmentNumber = BinaryPrimitives.ReadUInt32BigEndian(data.Slice(offset, 4));
@@ -116,7 +116,7 @@ internal sealed class Jbig2SegmentParser
 
         // Read referred-to segment numbers
         header.ReferredToSegments = new uint[referredCount];
-        int segNumSize = header.SegmentNumber <= 256 ? 1 : (header.SegmentNumber <= 65536 ? 2 : 4);
+        int segNumSize = (header.SegmentNumber <= 256) ? 1 : ((header.SegmentNumber <= 65536) ? 2 : 4);
 
         for (int i = 0; i < referredCount; i++)
         {
@@ -178,27 +178,27 @@ internal sealed class Jbig2SegmentParser
 
             // Region segment information field is 17 bytes: width(4)+height(4)+x(4)+y(4)+flags(1).
             // Height is at offset + 4; segment flags (MMR = bit 0) is at offset + 16.
-            const int RegionInfoFieldLength = 17;
-            if (offset + RegionInfoFieldLength > data.Length)
+            const int regionInfoFieldLength = 17;
+            if (offset + regionInfoFieldLength > data.Length)
             {
                 return null;
             }
 
             // Generic region segment flags byte immediately follows the 17-byte region info field.
-            bool isMmr = (data[offset + RegionInfoFieldLength] & 0x01) != 0;
+            bool isMmr = (data[offset + regionInfoFieldLength] & 0x01) != 0;
 
-            const int EndMarkerPrefixLength = 2;
-            const int EndMarkerTotalLength = 6; // 2-byte marker + 4-byte row count
+            const int endMarkerPrefixLength = 2;
+            const int endMarkerTotalLength = 6; // 2-byte marker + 4-byte row count
             ReadOnlySpan<byte> endMarker = isMmr ? [0x00, 0x00] : [0xFF, 0xAC];
 
             // The end marker can appear anywhere after the 18th byte of the segment data part.
-            const int MinDataBeforeMarker = 18;
-            int searchStart = offset + MinDataBeforeMarker;
+            const int minDataBeforeMarker = 18;
+            int searchStart = offset + minDataBeforeMarker;
 
             int matchIndex = -1;
-            for (int searchPos = searchStart; searchPos <= data.Length - EndMarkerTotalLength; searchPos++)
+            for (int searchPos = searchStart; searchPos <= data.Length - endMarkerTotalLength; searchPos++)
             {
-                if (data.Slice(searchPos, EndMarkerPrefixLength).SequenceEqual(endMarker))
+                if (data.Slice(searchPos, endMarkerPrefixLength).SequenceEqual(endMarker))
                 {
                     matchIndex = searchPos;
                     break;
@@ -211,14 +211,14 @@ internal sealed class Jbig2SegmentParser
             }
 
             // Read the actual row count from the 4 bytes following the 2-byte end marker.
-            if (matchIndex + EndMarkerPrefixLength + 4 > data.Length)
+            if (matchIndex + endMarkerPrefixLength + 4 > data.Length)
             {
                 return null;
             }
 
             header.ActualRowCount = BinaryPrimitives.ReadUInt32BigEndian(
-                data.Slice(matchIndex + EndMarkerPrefixLength, 4));
-            header.DataLength = (matchIndex + EndMarkerTotalLength) - offset;
+                data.Slice(matchIndex + endMarkerPrefixLength, 4));
+            header.DataLength = (matchIndex + endMarkerTotalLength) - offset;
         }
         else
         {

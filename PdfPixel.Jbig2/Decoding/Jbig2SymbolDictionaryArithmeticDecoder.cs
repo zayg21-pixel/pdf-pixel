@@ -23,17 +23,17 @@ internal static class Jbig2SymbolDictionaryArithmeticDecoder
     /// when the export procedure fails to produce any output.
     /// </returns>
     internal static Jbig2Bitmap[] Decode(
-        ReadOnlySpan<byte> codedData,
+        in ReadOnlySpan<byte> codedData,
         Jbig2SymbolArithmeticContext context,
         List<Jbig2Bitmap> referredSymbols)
     {
         Jbig2SymbolDictionarySegmentInfo info = context.SegmentInfo;
         int newSymbolCount = info.NewSymbolCount;
         int templateId = info.Flags.Template;
-        var atPixels = info.AtPixels ?? new Jbig2AtPixels(Array.Empty<sbyte>(), Array.Empty<sbyte>());
+        Jbig2AtPixels atPixels = info.AtPixels ?? new Jbig2AtPixels(Array.Empty<sbyte>(), Array.Empty<sbyte>());
 
-        var decoder = new Jbig2ArithmeticReader(codedData);
-        var newSymbols = new List<Jbig2Bitmap>(newSymbolCount);
+        Jbig2ArithmeticReader decoder = new(codedData);
+        List<Jbig2Bitmap> newSymbols = new(newSymbolCount);
         int heightOffset = 0;
 
         // 6.5.6 – Decode height classes
@@ -49,13 +49,8 @@ internal static class Jbig2SymbolDictionaryArithmeticDecoder
             int symbolWidth = 0;
 
             // 6.5.7 – Decode symbol widths and bitmaps within this height class
-            while (true)
+            while (decoder.DecodeInteger(context.WidthContexts, out int deltaWidth))
             {
-                if (!decoder.DecodeInteger(context.WidthContexts, out int deltaWidth))
-                {
-                    // OOB signals end of height class
-                    break;
-                }
 
                 symbolWidth += deltaWidth;
 
@@ -91,6 +86,7 @@ internal static class Jbig2SymbolDictionaryArithmeticDecoder
                 newSymbols.Add(symbolBitmap);
             }
         }
+
         if (newSymbols.Count < newSymbolCount)
         {
             throw new InvalidOperationException(
@@ -98,7 +94,7 @@ internal static class Jbig2SymbolDictionaryArithmeticDecoder
         }
 
         // 6.5.10 – Export symbols
-        var exported = ExportSymbols(ref decoder, context.ExportContexts, referredSymbols, newSymbols);
+        Jbig2Bitmap[] exported = ExportSymbols(ref decoder, context.ExportContexts, referredSymbols, newSymbols);
         // Fall back to all new symbols if the export procedure produced nothing
         if (exported.Length == 0 && newSymbols.Count > 0)
         {
@@ -112,8 +108,6 @@ internal static class Jbig2SymbolDictionaryArithmeticDecoder
     /// Decodes a refinement/aggregate-coded symbol bitmap (ITU-T T.88 Section 6.5.8.2).
     /// Delegates to the inline text-region decoder for multi-instance aggregates, or to
     /// the refinement region decoder for single-instance refinement.
-    /// Tracks inline depth via <see cref="Jbig2SymbolArithmeticContext.InlineLevel"/> and
-    /// bails out with a blank bitmap when <see cref="Jbig2SymbolArithmeticContext.InlineLimit"/> is exceeded.
     /// </summary>
     private static Jbig2Bitmap DecodeAggregateSymbol(
         ref Jbig2ArithmeticReader decoder,
@@ -125,23 +119,23 @@ internal static class Jbig2SymbolDictionaryArithmeticDecoder
     {
         decoder.DecodeInteger(context.IaaiContexts, out int numberOfInstances);
 
-        var ac = context.AggregateContext;
+        Jbig2ArithmeticContext ac = context.AggregateContext;
         ac.InlineLevel++;
         if (ac.InlineLevel > Jbig2ArithmeticContext.InlineLimit)
         {
             ac.InlineLevel--;
-            return new Jbig2Bitmap(symbolWidth > 0 ? symbolWidth : 1, symbolHeight > 0 ? symbolHeight : 1);
+            return new Jbig2Bitmap((symbolWidth > 0) ? symbolWidth : 1, (symbolHeight > 0) ? symbolHeight : 1);
         }
 
         Jbig2Bitmap result;
         if (numberOfInstances > 1)
         {
             // Multi-instance aggregate: treat as an inline text region (Section 6.5.8.2)
-            var combinedSymbols = new List<Jbig2Bitmap>(referredSymbols.Count + newSymbols.Count);
+            List<Jbig2Bitmap> combinedSymbols = new(referredSymbols.Count + newSymbols.Count);
             combinedSymbols.AddRange(referredSymbols);
             combinedSymbols.AddRange(newSymbols);
 
-            var placements = Jbig2TextRegionDecoder.DecodeTextRegionInline(
+            Jbig2TextRegionPlacements placements = Jbig2TextRegionDecoder.DecodeTextRegionInline(
                 ref decoder,
                 symbolWidth,
                 symbolHeight,
@@ -167,7 +161,7 @@ internal static class Jbig2SymbolDictionaryArithmeticDecoder
             else
             {
                 int newIndex = symbolId - referredSymbols.Count;
-                refSymbol = newIndex < newSymbols.Count
+                refSymbol = (newIndex < newSymbols.Count)
                     ? newSymbols[newIndex]
                     : Jbig2Bitmap.Empty;
             }
@@ -191,14 +185,14 @@ internal static class Jbig2SymbolDictionaryArithmeticDecoder
     /// </summary>
     private static Jbig2Bitmap DecodeSymbolBitmap(
         ref Jbig2ArithmeticReader decoder,
-        Span<byte> contexts,
+        in Span<byte> contexts,
         int width,
         int height,
         int templateId,
-        Jbig2AtPixels atPixels)
+        in Jbig2AtPixels atPixels)
     {
-        var bitmap = new Jbig2Bitmap(width, height);
-        var fastTemplate = Jbig2Templates.BuildFastTemplate(templateId, atPixels);
+        Jbig2Bitmap bitmap = new(width, height);
+        Jbig2RowTemplate fastTemplate = Jbig2Templates.BuildFastTemplate(templateId, atPixels);
 
         for (int y = 0; y < height; y++)
         {
@@ -220,7 +214,7 @@ internal static class Jbig2SymbolDictionaryArithmeticDecoder
     {
         int totalSymbols = referredSymbols.Count + newSymbols.Count;
         var exportFlags = new bool[totalSymbols];
-        bool currentFlag = false;
+        var currentFlag = false;
         int flagIndex = 0;
 
         while (flagIndex < totalSymbols)
@@ -239,7 +233,7 @@ internal static class Jbig2SymbolDictionaryArithmeticDecoder
             currentFlag = !currentFlag;
         }
 
-        var exported = new List<Jbig2Bitmap>();
+        List<Jbig2Bitmap> exported = [];
         for (int i = 0; i < referredSymbols.Count; i++)
         {
             if (i < exportFlags.Length && exportFlags[i])

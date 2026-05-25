@@ -324,7 +324,7 @@ public abstract class PdfAnnotationBase
     /// <param name="page">The PDF page containing this annotation.</param>
     /// <param name="visualStateKind">The visual state to render (Normal, Rollover, Down).</param>
     /// <param name="renderer">The renderer context for rendering appearance streams.</param>
-    /// <param name="renderingParameters">Rendering parameters.</param>
+    /// <param name="renderingParameters">Rendering parameters instance.</param>
     /// <param name="observer">Observer for long-running operations.</param>
     /// <returns>True if the annotation was rendered, false otherwise.</returns>
     public virtual bool Render(
@@ -341,7 +341,7 @@ public abstract class PdfAnnotationBase
         {
             if (ShouldDisplayBubble)
             {
-                PdfAnnotationBubbleRenderer.RenderBubble(processor, this, page, visualStateKind);
+                PdfAnnotationBubbleRenderer.RenderBubble(processor, this, page, visualStateKind, renderingParameters);
             }
 
             if (AppearanceDictionary != null && RenderAppearanceStream(processor, page, visualStateKind, renderer, renderingParameters, observer))
@@ -349,7 +349,7 @@ public abstract class PdfAnnotationBase
                 return true;
             }
 
-            return RenderFallback(processor, page, visualStateKind);
+            return RenderFallback(processor, page, visualStateKind, renderingParameters);
         }
         finally
         {
@@ -363,13 +363,14 @@ public abstract class PdfAnnotationBase
     /// <param name="processor">The command processor to emit commands to.</param>
     /// <param name="page">The PDF page containing this annotation.</param>
     /// <param name="visualStateKind">The visual state to render (Normal, Rollover, Down).</param>
+    /// <param name="renderingParameters">Rendering parameters instance.</param>
     /// <returns>True if fallback rendering was emitted, false if no fallback is available.</returns>
     /// <remarks>
     /// This method allows each annotation type to provide its own custom rendering logic
     /// when the annotation doesn't have an appearance stream.
     /// The visual state allows annotations to change their appearance based on user interaction.
     /// </remarks>
-    public abstract bool RenderFallback(IPdfCommandProcessor processor, PdfPage page, PdfAnnotationVisualStateKind visualStateKind);
+    protected abstract bool RenderFallback(IPdfCommandProcessor processor, PdfPage page, PdfAnnotationVisualStateKind visualStateKind, PdfRenderingParameters renderingParameters);
 
     /// <summary>
     /// Renders the appearance stream for this annotation.

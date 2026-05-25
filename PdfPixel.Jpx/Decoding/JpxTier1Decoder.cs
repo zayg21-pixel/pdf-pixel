@@ -30,52 +30,82 @@ namespace PdfPixel.Jpx.Decoding;
 /// </list>
 /// </para>
 /// </remarks>
+#pragma warning disable RCS1019 // Order modifiers
 internal ref partial struct JpxTier1Decoder
+#pragma warning restore RCS1019 // Order modifiers
 {
     // --- Sample flag bits (bits 0–3) ---
 
-    /// <summary>Sample has become significant (magnitude > 0).</summary>
+    /// <summary>
+    /// Sample has become significant (magnitude > 0).
+    /// </summary>
     private const uint FlagSignificant = 0x001;
 
-    /// <summary>Sign bit: 0 = positive, 1 = negative.</summary>
+    /// <summary>
+    /// Sign bit: 0 = positive, 1 = negative.
+    /// </summary>
     private const uint FlagSign = 0x002;
 
-    /// <summary>Sample was coded in the current bit-plane (visited flag).</summary>
+    /// <summary>
+    /// Sample was coded in the current bit-plane (visited flag).
+    /// </summary>
     private const uint FlagCoded = 0x004;
 
-    /// <summary>Sample has been refined at least once (for magnitude refinement context).</summary>
+    /// <summary>
+    /// Sample has been refined at least once (for magnitude refinement context).
+    /// </summary>
     private const uint FlagRefined = 0x008;
 
     // --- Neighbor significance bits (bits 4–11) ---
 
-    /// <summary>Left neighbor is significant (bit 4).</summary>
+    /// <summary>
+    /// Left neighbor is significant (bit 4).
+    /// </summary>
     private const uint NeighborLeft = 0x010;
 
-    /// <summary>Right neighbor is significant (bit 5).</summary>
+    /// <summary>
+    /// Right neighbor is significant (bit 5).
+    /// </summary>
     private const uint NeighborRight = 0x020;
 
-    /// <summary>Top neighbor is significant (bit 6).</summary>
+    /// <summary>
+    /// Top neighbor is significant (bit 6).
+    /// </summary>
     private const uint NeighborTop = 0x040;
 
-    /// <summary>Bottom neighbor is significant (bit 7).</summary>
+    /// <summary>
+    /// Bottom neighbor is significant (bit 7).
+    /// </summary>
     private const uint NeighborBottom = 0x080;
 
-    /// <summary>Top-left neighbor is significant (bit 8).</summary>
+    /// <summary>
+    /// Top-left neighbor is significant (bit 8).
+    /// </summary>
     private const uint NeighborTopLeft = 0x100;
 
-    /// <summary>Top-right neighbor is significant (bit 9).</summary>
+    /// <summary>
+    /// Top-right neighbor is significant (bit 9).
+    /// </summary>
     private const uint NeighborTopRight = 0x200;
 
-    /// <summary>Bottom-left neighbor is significant (bit 10).</summary>
+    /// <summary>
+    /// Bottom-left neighbor is significant (bit 10).
+    /// </summary>
     private const uint NeighborBottomLeft = 0x400;
 
-    /// <summary>Bottom-right neighbor is significant (bit 11).</summary>
+    /// <summary>
+    /// Bottom-right neighbor is significant (bit 11).
+    /// </summary>
     private const uint NeighborBottomRight = 0x800;
 
-    /// <summary>Mask covering all 8 neighbor significance bits (bits 4–11).</summary>
+    /// <summary>
+    /// Mask covering all 8 neighbor significance bits (bits 4–11).
+    /// </summary>
     private const uint NeighborMask = 0xFF0;
 
-    /// <summary>Combined mask for significance-or-coded quick tests.</summary>
+    /// <summary>
+    /// Combined mask for significance-or-coded quick tests.
+    /// </summary>
     private const uint FlagSignificantOrCoded = FlagSignificant | FlagCoded;
 
     /// <summary>
@@ -86,19 +116,29 @@ internal ref partial struct JpxTier1Decoder
 
     // --- Context labels (ITU-T T.800 Table D.1 / D.2) ---
 
-    /// <summary>Context label for the uniform context (context 0).</summary>
+    /// <summary>
+    /// Context label for the uniform context (context 0).
+    /// </summary>
     private const int ContextUniform = 0;
 
-    /// <summary>Context label for the run-length context (context 1).</summary>
+    /// <summary>
+    /// Context label for the run-length context (context 1).
+    /// </summary>
     private const int ContextRunLength = 1;
 
-    /// <summary>Offset added to zero-coding (ZC) context values (0-8) to get context labels 2-10.</summary>
+    /// <summary>
+    /// Offset added to zero-coding (ZC) context values (0-8) to get context labels 2-10.
+    /// </summary>
     private const int ContextZcOffset = 2;
 
-    /// <summary>Offset added to sign-coding (SC) context values (0-4) to get context labels 11-15.</summary>
+    /// <summary>
+    /// Offset added to sign-coding (SC) context values (0-4) to get context labels 11-15.
+    /// </summary>
     private const int ContextScOffset = 11;
 
-    /// <summary>Offset added to magnitude-refinement (MR) context values (0-2) to get context labels 16-18.</summary>
+    /// <summary>
+    /// Offset added to magnitude-refinement (MR) context values (0-2) to get context labels 16-18.
+    /// </summary>
     private const int ContextMrOffset = 16;
 
     /// <summary>
@@ -262,19 +302,33 @@ internal ref partial struct JpxTier1Decoder
                 switch (passInSequence)
                 {
                     case 0:
-                        ExecuteSignificancePropagation(ref stripeStatePtr, ref stripeCoeffPtr,
-                            stripeHeight, currentBitPlane);
-                        break;
-
+                        {
+                            ExecuteSignificancePropagation(
+                                ref stripeStatePtr,
+                                ref stripeCoeffPtr,
+                                stripeHeight,
+                                currentBitPlane);
+                            break;
+                        }
                     case 1:
-                        ExecuteMagnitudeRefinement(ref stripeStatePtr, ref stripeCoeffPtr,
-                            stripeHeight, currentBitPlane);
-                        break;
-
+                        {
+                            ExecuteMagnitudeRefinement(
+                                ref stripeStatePtr,
+                                ref stripeCoeffPtr,
+                                stripeHeight,
+                                currentBitPlane);
+                            break;
+                        }
                     case 2:
-                        ExecuteCleanup(ref stripeStatePtr, ref stripeCoeffPtr,
-                            stripeTop, stripeHeight, currentBitPlane);
-                        break;
+                        {
+                            ExecuteCleanup(
+                                ref stripeStatePtr,
+                                ref stripeCoeffPtr,
+                                stripeTop,
+                                stripeHeight,
+                                currentBitPlane);
+                            break;
+                        }
                 }
 
                 // Advance stripe refs forward by 4 rows
@@ -313,14 +367,14 @@ internal ref partial struct JpxTier1Decoder
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private readonly int GetSignificanceContext(uint stateVal, bool verticallyCausal)
     {
-        int mask = (int)((stateVal >> 4) & 0xFF);
+        var mask = (int)((stateVal >> 4) & 0xFF);
 
         if (verticallyCausal)
         {
             mask &= VcNeighborMask;
         }
 
-        return _significanceContextLut[_orientation * 256 + mask];
+        return _significanceContextLut[(_orientation * 256) + mask];
     }
 
     /// <summary>
@@ -334,7 +388,7 @@ internal ref partial struct JpxTier1Decoder
             return 2;
         }
 
-        return (stateVal & NeighborMask) != 0 ? 1 : 0;
+        return ((stateVal & NeighborMask) != 0) ? 1 : 0;
     }
 
     /// <summary>
@@ -364,7 +418,7 @@ internal ref partial struct JpxTier1Decoder
 
         stateRef |= flags;
 
-        int setmask = (int)(((long)3 << bitPosition) >> 1);
+        var setmask = (int)(((long)3 << bitPosition) >> 1);
         coeffRef = (sign << 31) | setmask;
 
         // Propagate neighbor-significance bits to all 8 adjacent entries using relative offsets.
@@ -436,7 +490,7 @@ internal ref partial struct JpxTier1Decoder
 
         if (diagonal == 2)
         {
-            return hv >= 1 ? 7 : 6;
+            return (hv >= 1) ? 7 : 6;
         }
 
         if (diagonal == 1)
@@ -446,7 +500,7 @@ internal ref partial struct JpxTier1Decoder
                 return 5;
             }
 
-            return hv == 1 ? 4 : 3;
+            return (hv == 1) ? 4 : 3;
         }
 
         if (hv >= 2)
@@ -454,7 +508,7 @@ internal ref partial struct JpxTier1Decoder
             return 2;
         }
 
-        return hv == 1 ? 1 : 0;
+        return (hv == 1) ? 1 : 0;
     }
 
     /// <summary>
@@ -475,7 +529,7 @@ internal ref partial struct JpxTier1Decoder
                 return 7;
             }
 
-            return diagonal >= 1 ? 6 : 5;
+            return (diagonal >= 1) ? 6 : 5;
         }
 
         if (secondary >= 2)
@@ -493,7 +547,7 @@ internal ref partial struct JpxTier1Decoder
             return 2;
         }
 
-        return diagonal == 1 ? 1 : 0;
+        return (diagonal == 1) ? 1 : 0;
     }
 
     /// <summary>
@@ -537,7 +591,7 @@ internal ref partial struct JpxTier1Decoder
                     ctx = MapLLLHContext(primary, secondary, d);
                 }
 
-                lut[orient * 256 + mask] = (byte)ctx;
+                lut[(orient * 256) + mask] = (byte)ctx;
             }
         }
 

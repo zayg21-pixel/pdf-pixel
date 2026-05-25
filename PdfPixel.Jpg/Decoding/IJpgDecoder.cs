@@ -2,6 +2,9 @@ using System;
 
 namespace PdfPixel.Jpg.Decoding;
 
+/// <summary>
+/// Common interface for JPEG row-based decoders (baseline and progressive).
+/// </summary>
 public interface IJpgDecoder
 {
     /// <summary>

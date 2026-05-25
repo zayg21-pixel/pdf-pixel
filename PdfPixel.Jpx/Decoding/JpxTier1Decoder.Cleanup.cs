@@ -3,7 +3,9 @@ using System.Runtime.CompilerServices;
 
 namespace PdfPixel.Jpx.Decoding;
 
+#pragma warning disable RCS1019 // Order modifiers
 internal ref partial struct JpxTier1Decoder
+#pragma warning restore RCS1019 // Order modifiers
 {
     /// <summary>
     /// Cleanup Pass (ITU-T T.800 D.3.3) for a single stripe.
@@ -60,7 +62,7 @@ internal ref partial struct JpxTier1Decoder
 
                 // The sample at 'position' is significant
                 ref uint sigStatePtr = ref Unsafe.Add(ref colStatePtr, position * stateWidth);
-                ref int sigCoeffPtr = ref Unsafe.Add(ref stripeCoeffPtr, position * width + x);
+                ref int sigCoeffPtr = ref Unsafe.Add(ref stripeCoeffPtr, (position * width) + x);
                 int sign = DecodeSign(ref sigStatePtr);
                 SetSignificant(ref sigCoeffPtr, ref sigStatePtr, stateWidth, bitPosition, sign);
                 sigStatePtr |= FlagCoded;
@@ -70,7 +72,7 @@ internal ref partial struct JpxTier1Decoder
 
             // Process remaining samples in the stripe
             ref uint statePtr = ref Unsafe.Add(ref colStatePtr, rowsToSkip * stateWidth);
-            ref int coeffPtr = ref Unsafe.Add(ref stripeCoeffPtr, rowsToSkip * width + x);
+            ref int coeffPtr = ref Unsafe.Add(ref stripeCoeffPtr, (rowsToSkip * width) + x);
 
             for (int row = rowsToSkip; row < stripeHeight; row++)
             {

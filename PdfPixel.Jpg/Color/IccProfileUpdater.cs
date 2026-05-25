@@ -8,7 +8,7 @@ namespace PdfPixel.Jpg.Color
     /// <summary>
     /// Provides methods to update or insert ICC profiles in JPEG byte arrays.
     /// </summary>
-    public class JpgIccProfileUpdater
+    public static class JpgIccProfileUpdater
     {
         private static readonly byte[] IccProfileHeader = Encoding.ASCII.GetBytes("ICC_PROFILE\0");
 
@@ -20,7 +20,7 @@ namespace PdfPixel.Jpg.Color
         /// <param name="iccProfileBytes">The ICC profile to insert (may be null or empty to remove profile).</param>
         /// <returns>The JPEG file with the updated ICC profile.</returns>
         /// <exception cref="ArgumentException">Thrown if the JPEG is invalid or does not start with SOI marker.</exception>
-        public static ReadOnlyMemory<byte> UpdateIccProfile(ReadOnlyMemory<byte> sourceBytes, byte[] iccProfileBytes)
+        public static ReadOnlyMemory<byte> UpdateIccProfile(in ReadOnlyMemory<byte> sourceBytes, byte[] iccProfileBytes)
         {
             // JPEG marker constants
             const ushort APP2 = 0xFFE2;
@@ -34,14 +34,14 @@ namespace PdfPixel.Jpg.Color
             }
 
             // Parse and copy, skipping all APP2 ICC_PROFILE segments
-            var output = new MemoryStream(src.Length + (iccProfileBytes?.Length ?? 0));
+            MemoryStream output = new(src.Length + (iccProfileBytes?.Length ?? 0));
             int pos = 0;
             // Write SOI
             output.WriteByte(src[pos++]);
             output.WriteByte(src[pos++]);
 
             // Insert ICC profile after SOI and before first non-APP marker (usually after APP0/APP1)
-            bool iccInserted = false;
+            var iccInserted = false;
             while (pos + 4 <= src.Length)
             {
                 if (src[pos] != 0xFF)
@@ -50,23 +50,27 @@ namespace PdfPixel.Jpg.Color
                     output.Write(src, pos, src.Length - pos);
                     break;
                 }
+
                 byte marker = src[pos + 1];
                 if (marker == 0xD9) // EOI
                 {
                     output.Write(src, pos, src.Length - pos);
                     break;
                 }
+
                 if (marker == 0xDA) // SOS: start of scan, image data follows
                 {
                     // Insert ICC before scan data if not already inserted
-                    if (!iccInserted && iccProfileBytes != null && iccProfileBytes.Length > 0)
+                    if (!iccInserted && iccProfileBytes?.Length > 0)
                     {
                         WriteIccProfileSegments(output, iccProfileBytes, MaxSegmentData);
                         iccInserted = true;
                     }
+
                     output.Write(src, pos, src.Length - pos);
                     break;
                 }
+
                 // Read segment length
                 if (pos + 4 > src.Length)
                 {
@@ -74,7 +78,8 @@ namespace PdfPixel.Jpg.Color
                     output.Write(src, pos, src.Length - pos);
                     break;
                 }
-                ushort segMarker = (ushort)(src[pos] << 8 | src[pos + 1]);
+
+                var segMarker = (ushort)(src[pos] << 8 | src[pos + 1]);
                 int segLen = src[pos + 2] << 8 | src[pos + 3];
                 if (segLen < 2 || pos + 2 + segLen > src.Length)
                 {
@@ -82,31 +87,37 @@ namespace PdfPixel.Jpg.Color
                     output.Write(src, pos, src.Length - pos);
                     break;
                 }
-                bool isIccProfile = false;
+
+                var isIccProfile = false;
                 if (segMarker == APP2 && segLen >= 16)
                 {
                     // Compare segment header to ICC_PROFILE\0
-                    var segmentHeader = new ReadOnlySpan<byte>(src, pos + 4, IccProfileHeader.Length);
+                    ReadOnlySpan<byte> segmentHeader = new(src, pos + 4, IccProfileHeader.Length);
                     isIccProfile = segmentHeader.SequenceEqual(IccProfileHeader);
                 }
+
                 if (!isIccProfile)
                 {
                     // Copy this segment
                     output.Write(src, pos, 2 + segLen);
                 }
+
                 // Insert ICC profile after last APPn marker if not already inserted
-                if (!iccInserted && (marker < 0xE0 || marker > 0xEF) && iccProfileBytes != null && iccProfileBytes.Length > 0)
+                if (!iccInserted && (marker < 0xE0 || marker > 0xEF) && iccProfileBytes?.Length > 0)
                 {
                     WriteIccProfileSegments(output, iccProfileBytes, MaxSegmentData);
                     iccInserted = true;
                 }
+
                 pos += 2 + segLen;
             }
+
             // If ICC not inserted and we reached the end, insert now (handles JPEGs with no APP markers)
-            if (!iccInserted && iccProfileBytes != null && iccProfileBytes.Length > 0)
+            if (!iccInserted && iccProfileBytes?.Length > 0)
             {
                 WriteIccProfileSegments(output, iccProfileBytes, MaxSegmentData);
             }
+
             return output.ToArray();
         }
 
@@ -119,6 +130,7 @@ namespace PdfPixel.Jpg.Color
             {
                 return;
             }
+
             int totalSegments = (iccProfileBytes.Length + maxSegmentData - 1) / maxSegmentData;
             for (int i = 0; i < totalSegments; i++)
             {

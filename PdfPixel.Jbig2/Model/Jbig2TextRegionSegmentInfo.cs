@@ -16,10 +16,10 @@ namespace PdfPixel.Jbig2.Model;
 internal readonly struct Jbig2TextRegionSegmentInfo
 {
     private Jbig2TextRegionSegmentInfo(
-        Jbig2TextRegionFlags flags,
-        Jbig2AtPixels? refinementAtPixels,
-        int numberOfSymbolInstances,
-        int symbolIdCodeLength)
+    in Jbig2TextRegionFlags flags,
+    Jbig2AtPixels? refinementAtPixels,
+    int numberOfSymbolInstances,
+    int symbolIdCodeLength)
     {
         Flags = flags;
         RefinementAtPixels = refinementAtPixels;
@@ -27,7 +27,9 @@ internal readonly struct Jbig2TextRegionSegmentInfo
         SymbolIdCodeLength = symbolIdCodeLength;
     }
 
-    /// <summary>Parsed flag bits from the 2-byte segment flags word.</summary>
+    /// <summary>
+    /// Parsed flag bits from the 2-byte segment flags word.
+    /// </summary>
     public Jbig2TextRegionFlags Flags { get; }
 
     /// <summary>
@@ -36,10 +38,14 @@ internal readonly struct Jbig2TextRegionSegmentInfo
     /// </summary>
     public Jbig2AtPixels? RefinementAtPixels { get; }
 
-    /// <summary>Total number of symbol instances to place in the region.</summary>
+    /// <summary>
+    /// Total number of symbol instances to place in the region.
+    /// </summary>
     public int NumberOfSymbolInstances { get; }
 
-    /// <summary>Symbol ID code length in bits, derived from the total available symbol count.</summary>
+    /// <summary>
+    /// Symbol ID code length in bits, derived from the total available symbol count.
+    /// </summary>
     public int SymbolIdCodeLength { get; }
 
     /// <summary>
@@ -49,10 +55,10 @@ internal readonly struct Jbig2TextRegionSegmentInfo
     /// <param name="data">Segment data beginning at the first byte of the 2-byte flags word.</param>
     /// <param name="totalSymbolCount">Total number of symbols available for placement.</param>
     /// <returns>Parsed segment info.</returns>
-    public static Jbig2TextRegionSegmentInfo Parse(ReadOnlySpan<byte> data, int totalSymbolCount)
+    public static Jbig2TextRegionSegmentInfo Parse(in ReadOnlySpan<byte> data, int totalSymbolCount)
     {
-        ushort flagsWord = (ushort)((data[0] << 8) | data[1]);
-        var flags = new Jbig2TextRegionFlags(flagsWord);
+        var flagsWord = (ushort)((data[0] << 8) | data[1]);
+        Jbig2TextRegionFlags flags = new(flagsWord);
 
         // Layout after the 2-byte flags word:
         //   [Huffman table flags (2 bytes, only when UseHuffman)]

@@ -63,12 +63,12 @@ internal sealed class JpxInverseDwt97 : IJpxInverseDwt
         int currentHeight = subbands.LLHeight;
 
         // Dequantize LL into destination (used as working buffer)
-        var llParams = JpxDequantizer.ComputeIrreversibleParams(_quantization, 0, 0, _bitDepth, FracBits);
+        JpxDequantizer.IrreversibleStepParams llParams = JpxDequantizer.ComputeIrreversibleParams(_quantization, 0, 0, _bitDepth, FracBits);
         for (int y = 0; y < currentHeight; y++)
         {
             for (int x = 0; x < currentWidth; x++)
             {
-                destination[y * outputWidth + x] = JpxDequantizer.DequantizeIrreversible(subbands.LL[y * subbands.LLWidth + x], llParams);
+                destination[(y * outputWidth) + x] = JpxDequantizer.DequantizeIrreversible(subbands.LL[(y * subbands.LLWidth) + x], llParams);
             }
         }
 
@@ -91,9 +91,9 @@ internal sealed class JpxInverseDwt97 : IJpxInverseDwt
             int nextWidth = (level == 0) ? fullWidth : (fullWidth + (1 << level) - 1) >> level;
             int nextHeight = (level == 0) ? fullHeight : (fullHeight + (1 << level) - 1) >> level;
 
-            var hl = subbands.GetSubband(level, JpxSubbandType.HL);
-            var lh = subbands.GetSubband(level, JpxSubbandType.LH);
-            var hh = subbands.GetSubband(level, JpxSubbandType.HH);
+            int[] hl = subbands.GetSubband(level, JpxSubbandType.HL);
+            int[] lh = subbands.GetSubband(level, JpxSubbandType.LH);
+            int[] hh = subbands.GetSubband(level, JpxSubbandType.HH);
             int hlWidth = subbands.GetWidth(level, JpxSubbandType.HL);
             int hlHeight = subbands.GetHeight(level, JpxSubbandType.HL);
             int lhWidth = subbands.GetWidth(level, JpxSubbandType.LH);
@@ -103,10 +103,10 @@ internal sealed class JpxInverseDwt97 : IJpxInverseDwt
 
             // QCD step size indices: LL=0, then coarsest to finest detail
             // level (levels-1) → indices 1,2,3; level (levels-2) → 4,5,6; etc.
-            int qcdBase = 1 + (levels - 1 - level) * 3;
-            var hlParams = JpxDequantizer.ComputeIrreversibleParams(_quantization, qcdBase + 0, 1, _bitDepth, FracBits);
-            var lhParams = JpxDequantizer.ComputeIrreversibleParams(_quantization, qcdBase + 1, 1, _bitDepth, FracBits);
-            var hhParams = JpxDequantizer.ComputeIrreversibleParams(_quantization, qcdBase + 2, 2, _bitDepth, FracBits);
+            int qcdBase = 1 + ((levels - 1 - level) * 3);
+            JpxDequantizer.IrreversibleStepParams hlParams = JpxDequantizer.ComputeIrreversibleParams(_quantization, qcdBase + 0, 1, _bitDepth, FracBits);
+            JpxDequantizer.IrreversibleStepParams lhParams = JpxDequantizer.ComputeIrreversibleParams(_quantization, qcdBase + 1, 1, _bitDepth, FracBits);
+            JpxDequantizer.IrreversibleStepParams hhParams = JpxDequantizer.ComputeIrreversibleParams(_quantization, qcdBase + 2, 2, _bitDepth, FracBits);
 
             int[] interleaved = _interleavedBuffer;
 
@@ -115,34 +115,34 @@ internal sealed class JpxInverseDwt97 : IJpxInverseDwt
             {
                 for (int x = 0; x < currentWidth && x * 2 < nextWidth; x++)
                 {
-                    interleaved[(y * 2) * nextWidth + (x * 2)] = destination[y * outputWidth + x];
+                    interleaved[(y * 2 * nextWidth) + (x * 2)] = destination[(y * outputWidth) + x];
                 }
             }
 
             // HL → even rows, odd columns (dequantize during copy)
             for (int y = 0; y < hlHeight && y * 2 < nextHeight; y++)
             {
-                for (int x = 0; x < hlWidth && x * 2 + 1 < nextWidth; x++)
+                for (int x = 0; x < hlWidth && (x * 2) + 1 < nextWidth; x++)
                 {
-                    interleaved[(y * 2) * nextWidth + (x * 2 + 1)] = JpxDequantizer.DequantizeIrreversible(hl[y * hlWidth + x], hlParams);
+                    interleaved[(y * 2 * nextWidth) + ((x * 2) + 1)] = JpxDequantizer.DequantizeIrreversible(hl[(y * hlWidth) + x], hlParams);
                 }
             }
 
             // LH → odd rows, even columns
-            for (int y = 0; y < lhHeight && y * 2 + 1 < nextHeight; y++)
+            for (int y = 0; y < lhHeight && (y * 2) + 1 < nextHeight; y++)
             {
                 for (int x = 0; x < lhWidth && x * 2 < nextWidth; x++)
                 {
-                    interleaved[(y * 2 + 1) * nextWidth + (x * 2)] = JpxDequantizer.DequantizeIrreversible(lh[y * lhWidth + x], lhParams);
+                    interleaved[(((y * 2) + 1) * nextWidth) + (x * 2)] = JpxDequantizer.DequantizeIrreversible(lh[(y * lhWidth) + x], lhParams);
                 }
             }
 
             // HH → odd rows, odd columns
-            for (int y = 0; y < hhHeight && y * 2 + 1 < nextHeight; y++)
+            for (int y = 0; y < hhHeight && (y * 2) + 1 < nextHeight; y++)
             {
-                for (int x = 0; x < hhWidth && x * 2 + 1 < nextWidth; x++)
+                for (int x = 0; x < hhWidth && (x * 2) + 1 < nextWidth; x++)
                 {
-                    interleaved[(y * 2 + 1) * nextWidth + (x * 2 + 1)] = JpxDequantizer.DequantizeIrreversible(hh[y * hhWidth + x], hhParams);
+                    interleaved[(((y * 2) + 1) * nextWidth) + ((x * 2) + 1)] = JpxDequantizer.DequantizeIrreversible(hh[(y * hhWidth) + x], hhParams);
                 }
             }
 
@@ -162,7 +162,7 @@ internal sealed class JpxInverseDwt97 : IJpxInverseDwt
             {
                 for (int x = 0; x < nextWidth; x++)
                 {
-                    destination[y * outputWidth + x] = interleaved[y * nextWidth + x];
+                    destination[(y * outputWidth) + x] = interleaved[(y * nextWidth) + x];
                 }
             }
 
@@ -202,76 +202,76 @@ internal sealed class JpxInverseDwt97 : IJpxInverseDwt
         // Gather column into contiguous buffer
         for (int n = 0; n < height; n++)
         {
-            buffer[n] = data[n * stride + x];
+            buffer[n] = data[(n * stride) + x];
         }
 
         // Scale: even *= K, odd *= InvK (fixed-point multiply)
         for (int n = 0; n < evenCount; n++)
         {
-            buffer[n * 2] = (int)(((long)buffer[n * 2] * KFix + Half) >> FracBits);
+            buffer[n * 2] = (int)((((long)buffer[n * 2] * KFix) + Half) >> FracBits);
         }
 
         for (int n = 0; n < oddCount; n++)
         {
-            buffer[n * 2 + 1] = (int)(((long)buffer[n * 2 + 1] * InvKFix + Half) >> FracBits);
+            buffer[(n * 2) + 1] = (int)((((long)buffer[(n * 2) + 1] * InvKFix) + Half) >> FracBits);
         }
 
         // Step 4: undo update 2
-        buffer[0] -= (int)(((long)DeltaFix * (buffer[1] + buffer[1]) + Half) >> FracBits);
+        buffer[0] -= (int)((((long)DeltaFix * (buffer[1] + buffer[1])) + Half) >> FracBits);
         for (int n = 1; n < evenCount - 1; n++)
         {
-            buffer[n * 2] -= (int)(((long)DeltaFix * (buffer[n * 2 - 1] + buffer[n * 2 + 1]) + Half) >> FracBits);
+            buffer[n * 2] -= (int)((((long)DeltaFix * (buffer[(n * 2) - 1] + buffer[(n * 2) + 1])) + Half) >> FracBits);
         }
 
         if (evenCount > 1)
         {
             int lastEven = (evenCount - 1) * 2;
             int dCurr = (evenCount - 1 < oddCount) ? buffer[lastEven + 1] : buffer[height - 2];
-            buffer[lastEven] -= (int)(((long)DeltaFix * (buffer[lastEven - 1] + dCurr) + Half) >> FracBits);
+            buffer[lastEven] -= (int)((((long)DeltaFix * (buffer[lastEven - 1] + dCurr)) + Half) >> FracBits);
         }
 
         // Step 3: undo predict 2
         for (int n = 0; n < oddCount - 1; n++)
         {
-            buffer[n * 2 + 1] -= (int)(((long)GammaFix * (buffer[n * 2] + buffer[(n + 1) * 2]) + Half) >> FracBits);
+            buffer[(n * 2) + 1] -= (int)((((long)GammaFix * (buffer[n * 2] + buffer[(n + 1) * 2])) + Half) >> FracBits);
         }
 
         {
-            int lastOdd = (oddCount - 1) * 2 + 1;
+            int lastOdd = ((oddCount - 1) * 2) + 1;
             int eNext = (oddCount < evenCount) ? buffer[oddCount * 2] : buffer[(oddCount - 1) * 2];
-            buffer[lastOdd] -= (int)(((long)GammaFix * (buffer[(oddCount - 1) * 2] + eNext) + Half) >> FracBits);
+            buffer[lastOdd] -= (int)((((long)GammaFix * (buffer[(oddCount - 1) * 2] + eNext)) + Half) >> FracBits);
         }
 
         // Step 2: undo update 1
-        buffer[0] -= (int)(((long)BetaFix * (buffer[1] + buffer[1]) + Half) >> FracBits);
+        buffer[0] -= (int)((((long)BetaFix * (buffer[1] + buffer[1])) + Half) >> FracBits);
         for (int n = 1; n < evenCount - 1; n++)
         {
-            buffer[n * 2] -= (int)(((long)BetaFix * (buffer[n * 2 - 1] + buffer[n * 2 + 1]) + Half) >> FracBits);
+            buffer[n * 2] -= (int)((((long)BetaFix * (buffer[(n * 2) - 1] + buffer[(n * 2) + 1])) + Half) >> FracBits);
         }
 
         if (evenCount > 1)
         {
             int lastEven = (evenCount - 1) * 2;
             int dCurr = (evenCount - 1 < oddCount) ? buffer[lastEven + 1] : buffer[height - 2];
-            buffer[lastEven] -= (int)(((long)BetaFix * (buffer[lastEven - 1] + dCurr) + Half) >> FracBits);
+            buffer[lastEven] -= (int)((((long)BetaFix * (buffer[lastEven - 1] + dCurr)) + Half) >> FracBits);
         }
 
         // Step 1: undo predict 1
         for (int n = 0; n < oddCount - 1; n++)
         {
-            buffer[n * 2 + 1] -= (int)(((long)AlphaFix * (buffer[n * 2] + buffer[(n + 1) * 2]) + Half) >> FracBits);
+            buffer[(n * 2) + 1] -= (int)((((long)AlphaFix * (buffer[n * 2] + buffer[(n + 1) * 2])) + Half) >> FracBits);
         }
 
         {
-            int lastOdd = (oddCount - 1) * 2 + 1;
+            int lastOdd = ((oddCount - 1) * 2) + 1;
             int eNext = (oddCount < evenCount) ? buffer[oddCount * 2] : buffer[(oddCount - 1) * 2];
-            buffer[lastOdd] -= (int)(((long)AlphaFix * (buffer[(oddCount - 1) * 2] + eNext) + Half) >> FracBits);
+            buffer[lastOdd] -= (int)((((long)AlphaFix * (buffer[(oddCount - 1) * 2] + eNext)) + Half) >> FracBits);
         }
 
         // Scatter back to column
         for (int n = 0; n < height; n++)
         {
-            data[n * stride + x] = buffer[n];
+            data[(n * stride) + x] = buffer[n];
         }
     }
 
@@ -300,64 +300,64 @@ internal sealed class JpxInverseDwt97 : IJpxInverseDwt
         // Scale: even *= K, odd *= InvK (fixed-point multiply)
         for (int n = 0; n < evenCount; n++)
         {
-            data[offset + n * 2] = (int)(((long)data[offset + n * 2] * KFix + Half) >> FracBits);
+            data[offset + (n * 2)] = (int)((((long)data[offset + (n * 2)] * KFix) + Half) >> FracBits);
         }
 
         for (int n = 0; n < oddCount; n++)
         {
-            data[offset + n * 2 + 1] = (int)(((long)data[offset + n * 2 + 1] * InvKFix + Half) >> FracBits);
+            data[offset + (n * 2) + 1] = (int)((((long)data[offset + (n * 2) + 1] * InvKFix) + Half) >> FracBits);
         }
 
         // Undo update 2: boundary-peeled
-        data[offset] -= (int)(((long)DeltaFix * (data[offset + 1] + data[offset + 1]) + Half) >> FracBits);
+        data[offset] -= (int)((((long)DeltaFix * (data[offset + 1] + data[offset + 1])) + Half) >> FracBits);
         for (int n = 1; n < evenCount - 1; n++)
         {
-            data[offset + n * 2] -= (int)(((long)DeltaFix * (data[offset + n * 2 - 1] + data[offset + n * 2 + 1]) + Half) >> FracBits);
+            data[offset + (n * 2)] -= (int)((((long)DeltaFix * (data[offset + (n * 2) - 1] + data[offset + (n * 2) + 1])) + Half) >> FracBits);
         }
 
         if (evenCount > 1)
         {
-            int lastEvenIdx = offset + (evenCount - 1) * 2;
+            int lastEvenIdx = offset + ((evenCount - 1) * 2);
             int dCurr = (evenCount - 1 < oddCount) ? data[lastEvenIdx + 1] : data[offset + width - 2];
-            data[lastEvenIdx] -= (int)(((long)DeltaFix * (data[lastEvenIdx - 1] + dCurr) + Half) >> FracBits);
+            data[lastEvenIdx] -= (int)((((long)DeltaFix * (data[lastEvenIdx - 1] + dCurr)) + Half) >> FracBits);
         }
 
         // Undo predict 2
         for (int n = 0; n < oddCount - 1; n++)
         {
-            data[offset + n * 2 + 1] -= (int)(((long)GammaFix * (data[offset + n * 2] + data[offset + (n + 1) * 2]) + Half) >> FracBits);
+            data[offset + (n * 2) + 1] -= (int)((((long)GammaFix * (data[offset + (n * 2)] + data[offset + ((n + 1) * 2)])) + Half) >> FracBits);
         }
 
         {
-            int lastOddIdx = offset + (oddCount - 1) * 2 + 1;
-            int eNext = (oddCount < evenCount) ? data[offset + oddCount * 2] : data[offset + (oddCount - 1) * 2];
-            data[lastOddIdx] -= (int)(((long)GammaFix * (data[offset + (oddCount - 1) * 2] + eNext) + Half) >> FracBits);
+            int lastOddIdx = offset + ((oddCount - 1) * 2) + 1;
+            int eNext = (oddCount < evenCount) ? data[offset + (oddCount * 2)] : data[offset + ((oddCount - 1) * 2)];
+            data[lastOddIdx] -= (int)((((long)GammaFix * (data[offset + ((oddCount - 1) * 2)] + eNext)) + Half) >> FracBits);
         }
 
         // Undo update 1: boundary-peeled
-        data[offset] -= (int)(((long)BetaFix * (data[offset + 1] + data[offset + 1]) + Half) >> FracBits);
+        data[offset] -= (int)((((long)BetaFix * (data[offset + 1] + data[offset + 1])) + Half) >> FracBits);
         for (int n = 1; n < evenCount - 1; n++)
         {
-            data[offset + n * 2] -= (int)(((long)BetaFix * (data[offset + n * 2 - 1] + data[offset + n * 2 + 1]) + Half) >> FracBits);
+            data[offset + (n * 2)] -= (int)((((long)BetaFix * (data[offset + (n * 2) - 1] + data[offset + (n * 2) + 1])) + Half) >> FracBits);
         }
 
         if (evenCount > 1)
         {
-            int lastEvenIdx = offset + (evenCount - 1) * 2;
+            int lastEvenIdx = offset + ((evenCount - 1) * 2);
             int dCurr = (evenCount - 1 < oddCount) ? data[lastEvenIdx + 1] : data[offset + width - 2];
-            data[lastEvenIdx] -= (int)(((long)BetaFix * (data[lastEvenIdx - 1] + dCurr) + Half) >> FracBits);
+            data[lastEvenIdx] -= (int)((((long)BetaFix * (data[lastEvenIdx - 1] + dCurr)) + Half) >> FracBits);
         }
 
         // Undo predict 1
         for (int n = 0; n < oddCount - 1; n++)
         {
-            data[offset + n * 2 + 1] -= (int)(((long)AlphaFix * (data[offset + n * 2] + data[offset + (n + 1) * 2]) + Half) >> FracBits);
+            data[offset + (n * 2) + 1] -= (int)((((long)AlphaFix * (data[offset + (n * 2)] + data[offset + ((n + 1) * 2)])) + Half) >> FracBits);
         }
 
         {
-            int lastOddIdx = offset + (oddCount - 1) * 2 + 1;
-            int eNext = (oddCount < evenCount) ? data[offset + oddCount * 2] : data[offset + (oddCount - 1) * 2];
-            data[lastOddIdx] -= (int)(((long)AlphaFix * (data[offset + (oddCount - 1) * 2] + eNext) + Half) >> FracBits);
+            int lastOddIdx = offset + ((oddCount - 1) * 2) + 1;
+            int eNext = (oddCount < evenCount) ? data[offset + (oddCount * 2)] : data[offset + ((oddCount - 1) * 2)];
+            data[lastOddIdx] -= (int)((((long)AlphaFix * (data[offset + ((oddCount - 1) * 2)] + eNext)) + Half) >> FracBits);
         }
     }
 }

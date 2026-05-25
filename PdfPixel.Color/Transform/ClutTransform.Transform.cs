@@ -20,13 +20,13 @@ public sealed partial class ClutTransform
         Vector4 scaled = color * _scaleFactors;
         scaled = Vector4.Clamp(scaled, Vector4.Zero, _scaleFactors);
 
-        Vector4 floored = new Vector4((int)scaled.X, 0f, 0f, 0f);
+        Vector4 floored = new((int)scaled.X, 0f, 0f, 0f);
         Vector4 frac = scaled - floored;
 
-        int baseOffset = (int)ColorVectorUtilities.CustomDot(floored, _strideVector);
+        var baseOffset = (int)ColorVectorUtilities.CustomDot(floored, _strideVector);
 
         float a = frac.X;
-        int sa = floored.X == _scaleX ? 0 : _strides[0];
+        int sa = (floored.X == _scaleX) ? 0 : _strides[0];
 
         float w0 = 1f - a;
         float w1 = a;
@@ -36,8 +36,8 @@ public sealed partial class ClutTransform
 
         ref Vector4 clutRef = ref _clut[0];
         return
-            Unsafe.Add(ref clutRef, o0) * w0 +
-            Unsafe.Add(ref clutRef, o1) * w1;
+            (Unsafe.Add(ref clutRef, o0) * w0)
+                + (Unsafe.Add(ref clutRef, o1) * w1);
     }
 
     /// <summary>
@@ -51,15 +51,15 @@ public sealed partial class ClutTransform
         Vector4 scaled = color * _scaleFactors;
         scaled = Vector4.Clamp(scaled, Vector4.Zero, _scaleFactors);
 
-        Vector4 floored = new Vector4((int)scaled.X, (int)scaled.Y, 0f, 0f);
+        Vector4 floored = new((int)scaled.X, (int)scaled.Y, 0f, 0f);
         Vector4 frac = scaled - floored;
 
-        int baseOffset = (int)ColorVectorUtilities.CustomDot(floored, _strideVector);
+        var baseOffset = (int)ColorVectorUtilities.CustomDot(floored, _strideVector);
 
         float a = frac.X;
-        int sa = floored.X == _scaleX ? 0 : _strides[0];
+        int sa = (floored.X == _scaleX) ? 0 : _strides[0];
         float b = frac.Y;
-        int sb = floored.Y == _scaleY ? 0 : _strides[1];
+        int sb = (floored.Y == _scaleY) ? 0 : _strides[1];
 
         if (a < b)
         {
@@ -77,9 +77,9 @@ public sealed partial class ClutTransform
 
         ref Vector4 clutRef = ref _clut[0];
         return
-            Unsafe.Add(ref clutRef, o0) * w0 +
-            Unsafe.Add(ref clutRef, o1) * w1 +
-            Unsafe.Add(ref clutRef, o2) * w2;
+            (Unsafe.Add(ref clutRef, o0) * w0)
+                + (Unsafe.Add(ref clutRef, o1) * w1)
+                + (Unsafe.Add(ref clutRef, o2) * w2);
     }
 
     /// <summary>
@@ -93,25 +93,30 @@ public sealed partial class ClutTransform
         Vector4 scaled = color * _scaleFactors;
         scaled = Vector4.Clamp(scaled, Vector4.Zero, _scaleFactors);
 
-        Vector4 floored = new Vector4((int)scaled.X, (int)scaled.Y, (int)scaled.Z, 0f);
+        Vector4 floored = new((int)scaled.X, (int)scaled.Y, (int)scaled.Z, 0f);
         Vector4 frac = scaled - floored;
 
-        int baseOffset = (int)ColorVectorUtilities.CustomDot(floored, _strideVector);
+        var baseOffset = (int)ColorVectorUtilities.CustomDot(floored, _strideVector);
 
-        float a = frac.X; int sa = floored.X == _scaleX ? 0 : _strides[0];
-        float b = frac.Y; int sb = floored.Y == _scaleY ? 0 : _strides[1];
-        float c = frac.Z; int sc = floored.Z == _scaleZ ? 0 : _strides[2];
+        float a = frac.X;
+        int sa = (floored.X == _scaleX) ? 0 : _strides[0];
+        float b = frac.Y;
+        int sb = (floored.Y == _scaleY) ? 0 : _strides[1];
+        float c = frac.Z;
+        int sc = (floored.Z == _scaleZ) ? 0 : _strides[2];
 
         if (a < b)
         {
             (b, a) = (a, b);
             (sb, sa) = (sa, sb);
         }
+
         if (b < c)
         {
             (c, b) = (b, c);
             (sc, sb) = (sb, sc);
         }
+
         if (a < b)
         {
             (b, a) = (a, b);
@@ -130,10 +135,10 @@ public sealed partial class ClutTransform
 
         ref Vector4 clutRef = ref _clut[0];
         return
-            Unsafe.Add(ref clutRef, o0) * w0 +
-            Unsafe.Add(ref clutRef, o1) * w1 +
-            Unsafe.Add(ref clutRef, o2) * w2 +
-            Unsafe.Add(ref clutRef, o3) * w3;
+            (Unsafe.Add(ref clutRef, o0) * w0)
+                + (Unsafe.Add(ref clutRef, o1) * w1)
+                + (Unsafe.Add(ref clutRef, o2) * w2)
+                + (Unsafe.Add(ref clutRef, o3) * w3);
     }
 
     /// <summary>
@@ -147,36 +152,44 @@ public sealed partial class ClutTransform
         Vector4 scaled = color * _scaleFactors;
         scaled = Vector4.Clamp(scaled, Vector4.Zero, _scaleFactors);
 
-        Vector4 floored = new Vector4((int)scaled.X, (int)scaled.Y, (int)scaled.Z, (int)scaled.W);
+        Vector4 floored = new((int)scaled.X, (int)scaled.Y, (int)scaled.Z, (int)scaled.W);
         Vector4 frac = scaled - floored;
 
-        int baseOffset = (int)ColorVectorUtilities.CustomDot(floored, _strideVector);
+        var baseOffset = (int)ColorVectorUtilities.CustomDot(floored, _strideVector);
 
-        float a = frac.X; int sa = floored.X == _scaleX ? 0 : _strides[0];
-        float b = frac.Y; int sb = floored.Y == _scaleY ? 0 : _strides[1];
-        float c = frac.Z; int sc = floored.Z == _scaleZ ? 0 : _strides[2];
-        float d = frac.W; int sd = floored.W == _scaleW ? 0 : _strides[3];
+        float a = frac.X;
+        int sa = (floored.X == _scaleX) ? 0 : _strides[0];
+        float b = frac.Y;
+        int sb = (floored.Y == _scaleY) ? 0 : _strides[1];
+        float c = frac.Z;
+        int sc = (floored.Z == _scaleZ) ? 0 : _strides[2];
+        float d = frac.W;
+        int sd = (floored.W == _scaleW) ? 0 : _strides[3];
 
         if (a < b)
         {
             (b, a) = (a, b);
             (sb, sa) = (sa, sb);
         }
+
         if (c < d)
         {
             (d, c) = (c, d);
             (sd, sc) = (sc, sd);
         }
+
         if (a < c)
         {
             (c, a) = (a, c);
             (sc, sa) = (sa, sc);
         }
+
         if (b < d)
         {
             (d, b) = (b, d);
             (sd, sb) = (sb, sd);
         }
+
         if (b < c)
         {
             (c, b) = (b, c);
@@ -197,10 +210,10 @@ public sealed partial class ClutTransform
 
         ref Vector4 clutRef = ref _clut[0];
         return
-            Unsafe.Add(ref clutRef, o0) * w0 +
-            Unsafe.Add(ref clutRef, o1) * w1 +
-            Unsafe.Add(ref clutRef, o2) * w2 +
-            Unsafe.Add(ref clutRef, o3) * w3 +
-            Unsafe.Add(ref clutRef, o4) * w4;
+            (Unsafe.Add(ref clutRef, o0) * w0)
+                + (Unsafe.Add(ref clutRef, o1) * w1)
+                + (Unsafe.Add(ref clutRef, o2) * w2)
+                + (Unsafe.Add(ref clutRef, o3) * w3)
+                + (Unsafe.Add(ref clutRef, o4) * w4);
     }
 }

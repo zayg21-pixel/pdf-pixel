@@ -31,7 +31,7 @@ internal static class Jbig2HuffmanPlacementDecoder
         Jbig2HuffmanTable dtTable,
         Jbig2HuffmanTable fsTable,
         Jbig2HuffmanTable dsTable,
-        Jbig2TextRegionFlags flags,
+        in Jbig2TextRegionFlags flags,
         List<Jbig2Bitmap> symbols,
         int numberOfSymbolInstances,
         Jbig2TextRegionPlacements placements,
@@ -78,7 +78,7 @@ internal static class Jbig2HuffmanPlacementDecoder
                     currentT = huffDecoder.ReadBits(flags.LogStripSize);
                 }
 
-                int t = stripSize * stripT + currentT;
+                int t = (stripSize * stripT) + currentT;
 
                 // Decode symbol ID
                 int symbolId = huffDecoder.DecodeValue(symbolIdTable);
@@ -87,7 +87,7 @@ internal static class Jbig2HuffmanPlacementDecoder
                     break;
                 }
 
-                var symbolBitmap = symbols[symbolId];
+                Jbig2Bitmap symbolBitmap = symbols[symbolId];
                 int symbolWidth = symbolBitmap.Width;
                 int symbolHeight = symbolBitmap.Height;
 
@@ -103,7 +103,7 @@ internal static class Jbig2HuffmanPlacementDecoder
                                 "JBIG2 text region: refinement requested but no refinement tables provided.");
                         }
 
-                        var refTables = refinement.Value;
+                        Jbig2RefinementHuffmanTables refTables = refinement.Value;
 
                         // 6.4.11 (1-4) Decode refinement deltas from Huffman tables
                         int rdw = huffDecoder.DecodeValue(refTables.RdwTable);
@@ -124,13 +124,13 @@ internal static class Jbig2HuffmanPlacementDecoder
                             int startByte = huffDecoder.BitPosition / 8;
                             ReadOnlySpan<byte> refData = huffDecoder.GetDataSpan().Slice(startByte, bmSize);
 
-                            var refContext = new Jbig2ArithmeticContext(
+                            Jbig2ArithmeticContext refContext = new(
                                 0,
                                 refTables.Template,
                                 refTables.AtX,
                                 refTables.AtY);
 
-                            var refReader = new Jbig2ArithmeticReader(refData);
+                            Jbig2ArithmeticReader refReader = new(refData);
                             symbolBitmap = Jbig2RefinementRegionDecoder.DecodeInline(
                                 ref refReader,
                                 refContext,
@@ -145,7 +145,7 @@ internal static class Jbig2HuffmanPlacementDecoder
                         }
 
                         // 6.4.11 (7) Advance past the embedded bitmap data
-                        huffDecoder.SetBytePosition(huffDecoder.BitPosition / 8 + bmSize);
+                        huffDecoder.SetBytePosition((huffDecoder.BitPosition / 8) + bmSize);
                     }
                 }
 
@@ -171,8 +171,8 @@ internal static class Jbig2HuffmanPlacementDecoder
                     increment = symbolHeight - 1;
                 }
 
-                int offsetT = t - ((referenceCorner & 1) != 0 ? 0 : symbolHeight - 1);
-                int offsetS = currentS - ((referenceCorner & 2) != 0 ? symbolWidth - 1 : 0);
+                int offsetT = t - (((referenceCorner & 1) != 0) ? 0 : symbolHeight - 1);
+                int offsetS = currentS - (((referenceCorner & 2) != 0) ? symbolWidth - 1 : 0);
 
                 // Place symbol (region-local coordinates; SBCOMBOP applied later by the placements sink)
                 if (transposed)
@@ -221,10 +221,10 @@ internal static class Jbig2HuffmanPlacementDecoder
             runCodeLines[i] = new Jbig2HuffmanLine(i, 0, codeLength);
         }
 
-        var runCodesTable = Jbig2HuffmanTable.Build(runCodeLines);
+        Jbig2HuffmanTable runCodesTable = Jbig2HuffmanTable.Build(runCodeLines);
 
         // Decode symbol ID code lengths using RUNCODEs
-        var symbolLines = new List<Jbig2HuffmanLine>(symbolCount);
+        List<Jbig2HuffmanLine> symbolLines = new(symbolCount);
         int symbolIndex = 0;
 
         while (symbolIndex < symbolCount)
@@ -239,29 +239,37 @@ internal static class Jbig2HuffmanPlacementDecoder
                 switch (codeLength)
                 {
                     case 32:
-                        // Repeat previous length 3-6 times
-                        if (symbolIndex == 0)
                         {
+                            // Repeat previous length 3-6 times
+                            if (symbolIndex == 0)
+                            {
+                                break;
+                            }
+
+                            numberOfRepeats = reader.ReadBits(2) + 3;
+                            repeatedLength = symbolLines[symbolIndex - 1].PrefixLength;
                             break;
                         }
-
-                        numberOfRepeats = reader.ReadBits(2) + 3;
-                        repeatedLength = symbolLines[symbolIndex - 1].PrefixLength;
-                        break;
                     case 33:
-                        // Repeat zero 3-10 times
-                        numberOfRepeats = reader.ReadBits(3) + 3;
-                        repeatedLength = 0;
-                        break;
+                        {
+                            // Repeat zero 3-10 times
+                            numberOfRepeats = reader.ReadBits(3) + 3;
+                            repeatedLength = 0;
+                            break;
+                        }
                     case 34:
-                        // Repeat zero 11-138 times
-                        numberOfRepeats = reader.ReadBits(7) + 11;
-                        repeatedLength = 0;
-                        break;
+                        {
+                            // Repeat zero 11-138 times
+                            numberOfRepeats = reader.ReadBits(7) + 11;
+                            repeatedLength = 0;
+                            break;
+                        }
                     default:
-                        numberOfRepeats = 0;
-                        repeatedLength = 0;
-                        break;
+                        {
+                            numberOfRepeats = 0;
+                            repeatedLength = 0;
+                            break;
+                        }
                 }
 
                 for (int j = 0; j < numberOfRepeats && symbolIndex < symbolCount; j++)

@@ -26,11 +26,12 @@ public sealed class IccProfileTransform
     {
         _iccProfile = profile ?? throw new ArgumentNullException(nameof(profile));
 
-        var lut = GetA2BLutByIntent(profile);
+        IccLutPipeline? lut = GetA2BLutByIntent(profile);
 
         if (lut != null)
         {
             _hasLut = true;
+            _transform = new ChainedColorTransform();
         }
         else if (profile.GrayTrc != null)
         {
@@ -44,18 +45,22 @@ public sealed class IccProfileTransform
         }
         else if (profile.RedMatrix.HasValue && profile.GreenMatrix.HasValue && profile.BlueMatrix.HasValue)
         {
-            List<IColorTransform> matrixTransforms = new List<IColorTransform>();
+            List<IColorTransform> matrixTransforms = [];
 
             if (profile.RedTrc != null && profile.GreenTrc != null && profile.BlueTrc != null)
             {
-                var trcLuts = new PerChannelTrcTransform([profile.RedTrc, profile.GreenTrc, profile.BlueTrc]);
+                PerChannelTrcTransform trcLuts = new([profile.RedTrc, profile.GreenTrc, profile.BlueTrc]);
                 matrixTransforms.Add(trcLuts);
             }
 
-            var matrixTransform = new MatrixColorTransform([profile.RedMatrix.Value, profile.GreenMatrix.Value, profile.BlueMatrix.Value]);
+            MatrixColorTransform matrixTransform = new([profile.RedMatrix.Value, profile.GreenMatrix.Value, profile.BlueMatrix.Value]);
             matrixTransforms.Add(matrixTransform);
 
             _transform = new ChainedColorTransform(matrixTransforms.ToArray());
+        }
+        else
+        {
+            _transform = new ChainedColorTransform();
         }
 
         if (profile.Header.Pcs == IccColorSpace.Lab)
@@ -83,39 +88,36 @@ public sealed class IccProfileTransform
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public ChainedColorTransform GetIntentTransform(IccRenderingIntent? intent = default)
     {
+        IccLutPipeline? lutTransform = GetA2BLutByIntent(_iccProfile, intent);
+
         List<IColorTransform> transforms =
         [
-            _hasLut ? GetA2BLutByIntent(_iccProfile, intent).Transform : _transform,
-            _postTransform,
+            (_hasLut && lutTransform != null) ? lutTransform.Transform : _transform,
+            _postTransform
         ];
 
         return new ChainedColorTransform(transforms.ToArray());
     }
 
-    /// <summary>
-    /// Select appropriate parsed A2B LUT pipeline by explicit PDF rendering intent with ordered fallback.
-    /// Header rendering intent is advisory and ignored here.
-    /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static IccLutPipeline GetA2BLutByIntent(IccProfile profile, IccRenderingIntent? intentOverride = default)
+    private static IccLutPipeline? GetA2BLutByIntent(IccProfile profile, IccRenderingIntent? intentOverride = default)
     {
-        if (profile == null)
-        {
-            return null;
-        }
-
-        var intent = intentOverride ?? profile.Header.RenderingIntent;
+        IccRenderingIntent intent = intentOverride ?? profile.Header.RenderingIntent;
 
         switch (intent)
         {
             case IccRenderingIntent.Perceptual:
                 return profile.A2BLut0 ?? profile.A2BLut1 ?? profile.A2BLut2;
+
             case IccRenderingIntent.RelativeColorimetric:
                 return profile.A2BLut1 ?? profile.A2BLut0 ?? profile.A2BLut2;
+
             case IccRenderingIntent.Saturation:
                 return profile.A2BLut2 ?? profile.A2BLut0 ?? profile.A2BLut1;
+
             case IccRenderingIntent.AbsoluteColorimetric:
                 return profile.A2BLut1 ?? profile.A2BLut0 ?? profile.A2BLut2;
+
             default:
                 return profile.A2BLut0 ?? profile.A2BLut1 ?? profile.A2BLut2;
         }

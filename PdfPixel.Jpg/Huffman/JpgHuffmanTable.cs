@@ -9,6 +9,9 @@ namespace PdfPixel.Jpg.Huffman;
 /// </summary>
 public sealed class JpgHuffmanTable
 {
+    /// <summary>
+    /// Maximum JPEG Huffman code length in bits (per JPEG T.81 §C.1).
+    /// </summary>
     public const int MaxCodeLength = 16;
 
     /// <summary>
@@ -29,14 +32,14 @@ public sealed class JpgHuffmanTable
     /// <summary>
     /// Huffman values (symbols) in the canonical increasing code order.
     /// </summary>
-    public byte[] Values { get; set; }
+    public byte[] Values { get; set; } = [];
 
     /// <summary>
     /// Parse one or more Huffman tables from a DHT segment payload.
     /// </summary>
-    public static List<JpgHuffmanTable> ParseDhtPayload(ReadOnlySpan<byte> payload)
+    public static List<JpgHuffmanTable> ParseDhtPayload(in ReadOnlySpan<byte> payload)
     {
-        var list = new List<JpgHuffmanTable>();
+        List<JpgHuffmanTable> list = [];
         int offset = 0;
         while (offset < payload.Length)
         {
@@ -46,7 +49,7 @@ public sealed class JpgHuffmanTable
             }
 
             byte tcTh = payload[offset];
-            offset += 1;
+            offset++;
 
             int tableClass = tcTh >> 4 & 0x0F;
             int tableId = tcTh & 0x0F;
@@ -66,31 +69,19 @@ public sealed class JpgHuffmanTable
                 throw new ArgumentException("Invalid DHT segment: values truncated");
             }
 
-            var values = payload.Slice(offset, valueCount).ToArray();
+            byte[] values = payload.Slice(offset, valueCount).ToArray();
             offset += valueCount;
 
             list.Add(new JpgHuffmanTable
-            {
-                TableClass = tableClass,
-                TableId = tableId,
-                Values = values,
-                // copy counts into instance array
-            }.WithCounts(counts));
+                {
+                    TableClass = tableClass,
+                    TableId = tableId,
+                    Values = values
+                    // copy counts into instance array
+                }
+                .WithCounts(counts));
         }
 
         return list;
-    }
-}
-
-internal static class JpgHuffmanTableExtensions
-{
-    public static JpgHuffmanTable WithCounts(this JpgHuffmanTable table, byte[] counts)
-    {
-        for (int i = 0; i < JpgHuffmanTable.MaxCodeLength; i++)
-        {
-            table.CodeLengthCounts[i] = counts[i];
-        }
-
-        return table;
     }
 }

@@ -17,8 +17,8 @@ internal readonly struct Jbig2RefinementHuffmanTables
         Jbig2HuffmanTable rdyTable,
         Jbig2HuffmanTable sizeTable,
         int template,
-        sbyte[] atX,
-        sbyte[] atY)
+        sbyte[]? atX,
+        sbyte[]? atY)
     {
         RdwTable = rdwTable;
         RdhTable = rdhTable;
@@ -30,27 +30,43 @@ internal readonly struct Jbig2RefinementHuffmanTables
         AtY = atY;
     }
 
-    /// <summary>Table for refinement delta width (SBHUFFRDW).</summary>
+    /// <summary>
+    /// Table for refinement delta width (SBHUFFRDW).
+    /// </summary>
     public Jbig2HuffmanTable RdwTable { get; }
 
-    /// <summary>Table for refinement delta height (SBHUFFRDH).</summary>
+    /// <summary>
+    /// Table for refinement delta height (SBHUFFRDH).
+    /// </summary>
     public Jbig2HuffmanTable RdhTable { get; }
 
-    /// <summary>Table for refinement delta X (SBHUFFRDX).</summary>
+    /// <summary>
+    /// Table for refinement delta X (SBHUFFRDX).
+    /// </summary>
     public Jbig2HuffmanTable RdxTable { get; }
 
-    /// <summary>Table for refinement delta Y (SBHUFFRDY).</summary>
+    /// <summary>
+    /// Table for refinement delta Y (SBHUFFRDY).
+    /// </summary>
     public Jbig2HuffmanTable RdyTable { get; }
 
-    /// <summary>Table for refinement bitmap size (SBHUFFRSIZE).</summary>
+    /// <summary>
+    /// Table for refinement bitmap size (SBHUFFRSIZE).
+    /// </summary>
     public Jbig2HuffmanTable SizeTable { get; }
 
-    /// <summary>Refinement template index (0 or 1).</summary>
+    /// <summary>
+    /// Refinement template index (0 or 1).
+    /// </summary>
     public int Template { get; }
 
-    /// <summary>Refinement AT pixel X coordinates (template 0 only).</summary>
-    public sbyte[] AtX { get; }
+    /// <summary>
+    /// Refinement AT pixel X coordinates (template 0 only).
+    /// </summary>
+    public sbyte[]? AtX { get; }
 
-    /// <summary>Refinement AT pixel Y coordinates (template 0 only).</summary>
-    public sbyte[] AtY { get; }
+    /// <summary>
+    /// Refinement AT pixel Y coordinates (template 0 only).
+    /// </summary>
+    public sbyte[]? AtY { get; }
 }

@@ -27,14 +27,14 @@ public sealed class FastPowSeriesDegree3
 
         // Build Horner coefficients directly without intermediate Chebyshev coefficients
         float[] hornerCoeffs = FastPowSeries.BuildHornerCoeffsForMantissa(alpha, degree: 3);
-        
+
         _p0 = hornerCoeffs[0];
         _p1 = hornerCoeffs[1];
         _p2 = hornerCoeffs[2];
         _p3 = hornerCoeffs[3];
 
         // Determine if alpha is an odd integer
-        int intAlpha = (int)alpha;
+        var intAlpha = (int)alpha;
         _isOddIntegerAlpha = alpha == intAlpha && (intAlpha & 1) == 1;
     }
 
@@ -56,10 +56,10 @@ public sealed class FastPowSeriesDegree3
         int fracBits = absBits & 0x7FFFFF;    // 23-bit fraction
 
         // Map mantissa to m in [0.5,1]
-        float m = (1.0f + fracBits * (1.0f / (1 << 23))) * 0.5f;
+        float m = (1.0f + (fracBits * (1.0f / (1 << 23)))) * 0.5f;
 
         // Horner in m: p0 + m * (p1 + m * (p2 + m * p3))
-        float mant = _p0 + m * (_p1 + m * (_p2 + m * _p3));
+        float mant = _p0 + (m * (_p1 + (m * (_p2 + (m * _p3)))));
 
         float scale = _scaleLut[expBits];
 
@@ -70,6 +70,7 @@ public sealed class FastPowSeriesDegree3
         {
             return -result;
         }
+
         return result;
     }
 }

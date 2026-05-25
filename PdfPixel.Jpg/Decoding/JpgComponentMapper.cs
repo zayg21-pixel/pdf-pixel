@@ -1,4 +1,5 @@
 using PdfPixel.Jpg.Model;
+
 using System;
 
 namespace PdfPixel.Jpg.Decoding;
@@ -7,7 +8,7 @@ namespace PdfPixel.Jpg.Decoding;
 /// Maps scan component selectors to SOF component indices with strict validation.
 /// Throws exceptions for any unresolved component selector.
 /// </summary>
-internal sealed class JpgComponentMapper
+internal static class JpgComponentMapper
 {
     /// <summary>
     /// Map SOS scan component selectors to SOF component indices.
@@ -21,21 +22,24 @@ internal sealed class JpgComponentMapper
         {
             throw new ArgumentNullException(nameof(header));
         }
+
         if (scan == null)
         {
             throw new ArgumentNullException(nameof(scan));
         }
+
         if (header.Components == null || header.Components.Count == 0)
         {
             throw new InvalidOperationException("SOF contains no components to map.");
         }
+
         if (scan.Components == null || scan.Components.Count == 0)
         {
             throw new InvalidOperationException("SOS scan specifies no components.");
         }
 
         int scanCount = scan.Components.Count;
-        int[] mappingIndices = new int[scanCount];
+        var mappingIndices = new int[scanCount];
 
         for (int scanComponentIndex = 0; scanComponentIndex < scanCount; scanComponentIndex++)
         {
@@ -45,6 +49,7 @@ internal sealed class JpgComponentMapper
             {
                 throw new InvalidOperationException($"Unknown SOS component id {selectorId}.");
             }
+
             mappingIndices[scanComponentIndex] = sofIndex;
         }
 
@@ -60,6 +65,7 @@ internal sealed class JpgComponentMapper
                 return componentIndex;
             }
         }
+
         return -1;
     }
 }

@@ -14,7 +14,6 @@ public sealed class ChainedColorTransform : IColorTransform
 {
     private readonly IColorTransform[] _transforms;
     private readonly Func<Vector4, Vector4> _compiled;
-    private readonly bool _isIdentity;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="ChainedColorTransform"/> class with the specified transforms.
@@ -24,7 +23,8 @@ public sealed class ChainedColorTransform : IColorTransform
     public ChainedColorTransform(
         params IColorTransform[] transforms)
     {
-        var flattenedTransforms = new List<IColorTransform>();
+        transforms ??= Array.Empty<IColorTransform>();
+        List<IColorTransform> flattenedTransforms = [];
 
         foreach (IColorTransform transform in transforms)
         {
@@ -39,12 +39,13 @@ public sealed class ChainedColorTransform : IColorTransform
             }
         }
 
-        _transforms = flattenedTransforms.Where(x => x != null && !x.IsIdentity).ToArray();
-        _isIdentity = _transforms.Length == 0;
+        _transforms = flattenedTransforms.Where(x => x?.IsIdentity == false).ToArray();
+        IsIdentity = _transforms.Length == 0;
         _compiled = CompilePipeline(_transforms);
     }
 
-    public bool IsIdentity => _isIdentity;
+    /// <inheritdoc />
+    public bool IsIdentity { get; }
 
     /// <summary>
     /// Applies the chained color transforms to the specified color vector in sequence.
@@ -54,7 +55,7 @@ public sealed class ChainedColorTransform : IColorTransform
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public Vector4 Transform(Vector4 color)
     {
-        if (_isIdentity)
+        if (IsIdentity)
         {
             return color;
         }
@@ -66,9 +67,6 @@ public sealed class ChainedColorTransform : IColorTransform
     /// Builds a single compiled delegate that calls each concrete transform's
     /// <see cref="IColorTransform.Transform"/> method directly, eliminating per-pixel
     /// interface dispatch and loop overhead.
-    /// On JIT platforms the delegate is IL-compiled; on AOT the expression interpreter is used.
-    /// Uses <see cref="ResolveConcreteType"/> to avoid <c>GetType()</c> reflection,
-    /// making the pipeline fully trimmer-safe (no IL2075).
     /// </summary>
     private static Func<Vector4, Vector4> CompilePipeline(IColorTransform[] transforms)
     {
@@ -83,7 +81,7 @@ public sealed class ChainedColorTransform : IColorTransform
         for (int i = 0; i < transforms.Length; i++)
         {
             Type concreteType = transforms[i].GetType();
-            var transformMethod = concreteType.GetMethod(
+            System.Reflection.MethodInfo? transformMethod = concreteType.GetMethod(
                 nameof(IColorTransform.Transform),
                 new[] { typeof(Vector4) });
 

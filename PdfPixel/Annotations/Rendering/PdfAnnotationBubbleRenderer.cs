@@ -20,11 +20,13 @@ public static class PdfAnnotationBubbleRenderer
     /// <param name="annotation">The annotation to render a bubble for.</param>
     /// <param name="page">The PDF page containing the annotation.</param>
     /// <param name="visualStateKind">The visual state (Normal, Rollover, Down).</param>
+    /// <param name="renderingParameters">Rendering parameters.</param>
     public static void RenderBubble(
         IPdfCommandProcessor processor,
         PdfAnnotationBase annotation,
         PdfPage page,
-        PdfAnnotationVisualStateKind visualStateKind)
+        PdfAnnotationVisualStateKind visualStateKind,
+        PdfRenderingParameters renderingParameters)
     {
         var bubbleRect = annotation.GetHoverRectangle(page);
 
@@ -37,20 +39,21 @@ public static class PdfAnnotationBubbleRenderer
         var backgroundColor = annotation.ResolveInteriorColor(page, new SKColor(255, 255, 235));
         var borderColor = annotation.ResolveColor(page, new SKColor(180, 140, 60));
 
-        DrawSpeechBubble(processor, bubbleRect, backgroundColor, borderColor, currentBorderWidth, cornerRadius, isHovered);
+        DrawSpeechBubble(processor, bubbleRect, backgroundColor, borderColor, currentBorderWidth, cornerRadius, isHovered, renderingParameters);
     }
 
     /// <summary>
     /// Draws a standard speech bubble with a rounded rectangle and a bottom-center tail.
     /// </summary>
-    public static void DrawSpeechBubble(
+    private static void DrawSpeechBubble(
         IPdfCommandProcessor processor,
         SKRect bubbleRect,
         SKColor backgroundColor,
         SKColor borderColor,
         float borderWidth,
         float cornerRadius,
-        bool isHovered)
+        bool isHovered,
+        PdfRenderingParameters renderingParameters)
     {
         var tailHeight = bubbleRect.Height * 0.2f;
         if (tailHeight <= 0)
@@ -91,7 +94,7 @@ public static class PdfAnnotationBubbleRenderer
             {
                 Style = SKPaintStyle.Fill,
                 Color = borderColor.WithAlpha(40),
-                IsAntialias = true,
+                IsAntialias = renderingParameters.Antialias,
                 MaskFilter = SKMaskFilter.CreateBlur(SKBlurStyle.Normal, 1.5f)
             };
 
@@ -102,7 +105,7 @@ public static class PdfAnnotationBubbleRenderer
         {
             Style = SKPaintStyle.Fill,
             Color = backgroundColor,
-            IsAntialias = true
+            IsAntialias = renderingParameters.Antialias
         };
 
         processor.Process(new DrawPathCommand(path, fillPaint));
@@ -112,7 +115,7 @@ public static class PdfAnnotationBubbleRenderer
             Style = SKPaintStyle.Stroke,
             StrokeWidth = borderWidth,
             Color = borderColor,
-            IsAntialias = true
+            IsAntialias = renderingParameters.Antialias
         };
 
         processor.Process(new DrawPathCommand(path, strokePaint));
@@ -132,7 +135,7 @@ public static class PdfAnnotationBubbleRenderer
                 Style = SKPaintStyle.Stroke,
                 StrokeWidth = borderWidth * 0.7f,
                 Color = borderColor.WithAlpha(180),
-                IsAntialias = true,
+                IsAntialias = renderingParameters.Antialias,
                 StrokeCap = SKStrokeCap.Round
             };
 
@@ -146,7 +149,7 @@ public static class PdfAnnotationBubbleRenderer
                 Style = SKPaintStyle.Stroke,
                 StrokeWidth = borderWidth * 0.7f,
                 Color = borderColor.WithAlpha(180),
-                IsAntialias = true,
+                IsAntialias = renderingParameters.Antialias,
                 StrokeCap = SKStrokeCap.Round
             };
 

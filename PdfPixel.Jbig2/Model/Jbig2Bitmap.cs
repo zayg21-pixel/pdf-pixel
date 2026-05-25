@@ -14,7 +14,7 @@ public sealed class Jbig2Bitmap
     /// <summary>
     /// Shared 1×1 empty placeholder bitmap for invalid/missing symbols.
     /// </summary>
-    public static Jbig2Bitmap Empty { get; } = new Jbig2Bitmap(1, 1);
+    public static Jbig2Bitmap Empty { get; } = new(1, 1);
 
     /// <summary>
     /// Width of the bitmap in pixels.
@@ -97,7 +97,7 @@ public sealed class Jbig2Bitmap
             return 0;
         }
 
-        int byteIndex = y * Stride + (x >> 3);
+        int byteIndex = (y * Stride) + (x >> 3);
         int bitIndex = 7 - (x & 7);
         return (_data[byteIndex] >> bitIndex) & 1;
     }
@@ -115,7 +115,7 @@ public sealed class Jbig2Bitmap
             return;
         }
 
-        int byteIndex = y * Stride + (x >> 3);
+        int byteIndex = (y * Stride) + (x >> 3);
         int bitIndex = 7 - (x & 7);
 
         if (value != 0)
@@ -161,10 +161,10 @@ public sealed class Jbig2Bitmap
         }
 
         // Effective destination bounds = intersection of this bitmap's extent and the clip rect.
-        int dstLeft = clipX > 0 ? clipX : 0;
-        int dstTop = clipY > 0 ? clipY : 0;
-        int dstRight = clipX + clipWidth < Width ? clipX + clipWidth : Width;
-        int dstBottom = clipY + clipHeight < Height ? clipY + clipHeight : Height;
+        int dstLeft = (clipX > 0) ? clipX : 0;
+        int dstTop = (clipY > 0) ? clipY : 0;
+        int dstRight = (clipX + clipWidth < Width) ? clipX + clipWidth : Width;
+        int dstBottom = (clipY + clipHeight < Height) ? clipY + clipHeight : Height;
 
         // Clamp source range to the effective destination bounds.
         int srcYStart = 0;
@@ -200,13 +200,13 @@ public sealed class Jbig2Bitmap
 
         int dstXStart = x + srcXStart;
         int pixelCount = srcXEnd - srcXStart;
-        var operation = ApplyOperatorFunction(op);
+        Func<byte, byte, byte> operation = ApplyOperatorFunction(op);
 
         for (int srcY = srcYStart; srcY < srcYEnd; srcY++)
         {
             int dstY = y + srcY;
-            var srcRow = source.GetRowReadOnly(srcY);
-            var dstRow = GetRow(dstY);
+            ReadOnlySpan<byte> srcRow = source.GetRowReadOnly(srcY);
+            Span<byte> dstRow = GetRow(dstY);
             int srcByteIdx = srcXStart >> 3;
             int srcBitOffset = srcXStart & 7;
             int dstByteIdx = dstXStart >> 3;
@@ -245,7 +245,7 @@ public sealed class Jbig2Bitmap
                 int mask = ((1 << bitsThisByte) - 1) << (8 - dstBitOffset - bitsThisByte);
 
                 // Extract the top 8 bits of the window and shift them to align with dstBitOffset.
-                byte srcAligned = (byte)((window >> 24) >> dstBitOffset);
+                var srcAligned = (byte)(window >> 24 >> dstBitOffset);
 
                 byte dst = dstRow[dstByteIdx];
                 byte applied = operation(dst, srcAligned);

@@ -45,7 +45,9 @@ public class IccTrcParameters
     /// Creates a new instance with default values.
     /// </summary>
     public IccTrcParameters()
-        : this(1f, 1f, 0f, 0f, 0f, 0f, 0f) { }
+        : this(1f, 1f, 0f, 0f, 0f, 0f, 0f)
+    {
+    }
 
     /// <summary>
     /// Creates a new instance with all parameters specified.
@@ -73,7 +75,7 @@ public class IccTrcParameters
     /// </summary>
     /// <param name="parameters">Parameter array as defined by ICC spec for the parametric type.</param>
     /// <param name="type">ICC parametric curve type.</param>
-    public IccTrcParameters(float[] parameters, IccTrcParametricType type)
+    public IccTrcParameters(float[]? parameters, IccTrcParametricType type)
     {
         if (parameters == null || parameters.Length == 0)
         {
@@ -90,59 +92,71 @@ public class IccTrcParameters
         switch (type)
         {
             case IccTrcParametricType.Gamma:
-                Gamma = parameters.Length > 0 ? parameters[0] : 1f;
-                Scale = 0f;
-                Offset = 0f;
-                ConstantC = 0f;
-                Breakpoint = 0f;
-                PowerOffset = 0f;
-                LinearOffset = 0f;
-                break;
+                {
+                    Gamma = (parameters.Length > 0) ? parameters[0] : 1f;
+                    Scale = 0f;
+                    Offset = 0f;
+                    ConstantC = 0f;
+                    Breakpoint = 0f;
+                    PowerOffset = 0f;
+                    LinearOffset = 0f;
+                    break;
+                }
             case IccTrcParametricType.PowerWithOffset:
-                Gamma = parameters.Length > 0 ? parameters[0] : 1f;
-                Scale = parameters.Length > 1 ? parameters[1] : 0f;
-                Offset = parameters.Length > 2 ? parameters[2] : 0f;
-                ConstantC = 0f;
-                Breakpoint = (Scale != 0f) ? -Offset / Scale : 0f;
-                PowerOffset = 0f;
-                LinearOffset = 0f;
-                break;
+                {
+                    Gamma = (parameters.Length > 0) ? parameters[0] : 1f;
+                    Scale = (parameters.Length > 1) ? parameters[1] : 0f;
+                    Offset = (parameters.Length > 2) ? parameters[2] : 0f;
+                    ConstantC = 0f;
+                    Breakpoint = (Scale != 0f) ? -Offset / Scale : 0f;
+                    PowerOffset = 0f;
+                    LinearOffset = 0f;
+                    break;
+                }
             case IccTrcParametricType.PowerWithOffsetAndC:
-                Gamma = parameters.Length > 0 ? parameters[0] : 1f;
-                Scale = parameters.Length > 1 ? parameters[1] : 0f;
-                Offset = parameters.Length > 2 ? parameters[2] : 0f;
-                ConstantC = parameters.Length > 3 ? parameters[3] : 0f;
-                Breakpoint = (Scale != 0f) ? -Offset / Scale : 0f;
-                PowerOffset = 0f;
-                LinearOffset = 0f;
-                break;
+                {
+                    Gamma = (parameters.Length > 0) ? parameters[0] : 1f;
+                    Scale = (parameters.Length > 1) ? parameters[1] : 0f;
+                    Offset = (parameters.Length > 2) ? parameters[2] : 0f;
+                    ConstantC = (parameters.Length > 3) ? parameters[3] : 0f;
+                    Breakpoint = (Scale != 0f) ? -Offset / Scale : 0f;
+                    PowerOffset = 0f;
+                    LinearOffset = 0f;
+                    break;
+                }
             case IccTrcParametricType.PowerWithLinearSegment:
-                Gamma = parameters.Length > 0 ? parameters[0] : 1f;
-                Scale = parameters.Length > 1 ? parameters[1] : 0f;
-                Offset = parameters.Length > 2 ? parameters[2] : 0f;
-                ConstantC = parameters.Length > 3 ? parameters[3] : 0f;
-                Breakpoint = parameters.Length > 4 ? parameters[4] : 0f;
-                PowerOffset = 0f;
-                LinearOffset = 0f;
-                break;
+                {
+                    Gamma = (parameters.Length > 0) ? parameters[0] : 1f;
+                    Scale = (parameters.Length > 1) ? parameters[1] : 0f;
+                    Offset = (parameters.Length > 2) ? parameters[2] : 0f;
+                    ConstantC = (parameters.Length > 3) ? parameters[3] : 0f;
+                    Breakpoint = (parameters.Length > 4) ? parameters[4] : 0f;
+                    PowerOffset = 0f;
+                    LinearOffset = 0f;
+                    break;
+                }
             case IccTrcParametricType.PowerWithLinearSegmentAndOffset:
-                Gamma = parameters.Length > 0 ? parameters[0] : 1f;
-                Scale = parameters.Length > 1 ? parameters[1] : 0f;
-                Offset = parameters.Length > 2 ? parameters[2] : 0f;
-                ConstantC = parameters.Length > 3 ? parameters[3] : 0f;
-                Breakpoint = parameters.Length > 4 ? parameters[4] : 0f;
-                PowerOffset = parameters.Length > 5 ? parameters[5] : 0f;
-                LinearOffset = parameters.Length > 6 ? parameters[6] : 0f;
-                break;
+                {
+                    Gamma = (parameters.Length > 0) ? parameters[0] : 1f;
+                    Scale = (parameters.Length > 1) ? parameters[1] : 0f;
+                    Offset = (parameters.Length > 2) ? parameters[2] : 0f;
+                    ConstantC = (parameters.Length > 3) ? parameters[3] : 0f;
+                    Breakpoint = (parameters.Length > 4) ? parameters[4] : 0f;
+                    PowerOffset = (parameters.Length > 5) ? parameters[5] : 0f;
+                    LinearOffset = (parameters.Length > 6) ? parameters[6] : 0f;
+                    break;
+                }
             default:
-                Gamma = 1f;
-                Scale = 0f;
-                Offset = 0f;
-                ConstantC = 0f;
-                Breakpoint = 0f;
-                PowerOffset = 0f;
-                LinearOffset = 0f;
-                break;
+                {
+                    Gamma = 1f;
+                    Scale = 0f;
+                    Offset = 0f;
+                    ConstantC = 0f;
+                    Breakpoint = 0f;
+                    PowerOffset = 0f;
+                    LinearOffset = 0f;
+                    break;
+                }
         }
     }
 }

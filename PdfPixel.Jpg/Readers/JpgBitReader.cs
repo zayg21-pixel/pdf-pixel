@@ -19,7 +19,7 @@ internal ref struct JpgBitReader
     private const byte StuffingZero = 0x00;
     private const int MarkerSegmentLengthFieldSize = 2; // Length field includes its 2 bytes.
 
-    private ReadOnlySpan<byte> _data;
+    private readonly ReadOnlySpan<byte> _data;
     private int _pos;
     private int _remaining;
     private ulong _bitBuf;   // Left-aligned bit reservoir (high bits contain oldest bits). Up to 64 bits stored.
@@ -30,7 +30,7 @@ internal ref struct JpgBitReader
     /// Create a new bit reader over <paramref name="data"/> starting at position 0.
     /// </summary>
     /// <param name="data">Entropy-coded byte span (no ownership is taken).</param>
-    public JpgBitReader(ReadOnlySpan<byte> data)
+    public JpgBitReader(in ReadOnlySpan<byte> data)
     {
         _data = data;
         _remaining = data.Length;
@@ -43,7 +43,7 @@ internal ref struct JpgBitReader
     /// <summary>
     /// Create a bit reader over <paramref name="data"/> resuming from a previously captured <paramref name="state"/>.
     /// </summary>
-    public JpgBitReader(ReadOnlySpan<byte> data, JpgBitReaderState state)
+    public JpgBitReader(in ReadOnlySpan<byte> data, in JpgBitReaderState state)
     {
         _data = data;
         _remaining = data.Length - state.Pos;
@@ -76,9 +76,9 @@ internal ref struct JpgBitReader
                 if (bytesToRead >= 8)
                 {
                     ulong chunk = BinaryPrimitives.ReadUInt64BigEndian(_data.Slice(_pos, 8));
-                    const ulong HighBitMask = 0x8080808080808080UL;
-                    const ulong ByteMask = 0x0101010101010101UL;
-                    bool hasMarker = (chunk - ByteMask & ~chunk & HighBitMask) != 0;
+                    const ulong highBitMask = 0x8080808080808080UL;
+                    const ulong byteMask = 0x0101010101010101UL;
+                    bool hasMarker = (chunk - byteMask & ~chunk & highBitMask) != 0;
 
                     if (!hasMarker)
                     {
@@ -88,15 +88,17 @@ internal ref struct JpgBitReader
                         _remaining -= 8;
                         continue;
                     }
+
                     // Marker found, process bytes up to marker using the chunk
                     for (int chunkIndex = 0; chunkIndex < 8; chunkIndex++)
                     {
                         int shift = (7 - chunkIndex) * ByteBitCount;
-                        byte value = (byte)(chunk >> shift & 0xFF);
+                        var value = (byte)(chunk >> shift & 0xFF);
                         if (value == MarkerPrefix)
                         {
                             break;
                         }
+
                         bitBuffer = bitBuffer << ByteBitCount | value;
                         bufferedBits += ByteBitCount;
                         _pos++;
@@ -104,6 +106,7 @@ internal ref struct JpgBitReader
                     }
                     // Now process marker byte as usual below
                 }
+
                 // Byte-by-byte fallback (marker or not enough for chunk)
                 byte valueByte = _data[_pos];
                 if (valueByte != MarkerPrefix)
@@ -114,6 +117,7 @@ internal ref struct JpgBitReader
                     bufferedBits += ByteBitCount;
                     continue;
                 }
+
                 if (_remaining >= MarkerSegmentLengthFieldSize)
                 {
                     byte next = _data[_pos + 1];
@@ -125,6 +129,7 @@ internal ref struct JpgBitReader
                         bufferedBits += ByteBitCount;
                         continue;
                     }
+
                     _markerPending = true;
                     break;
                 }
@@ -148,6 +153,7 @@ internal ref struct JpgBitReader
             {
                 neededBits = availableBits;
             }
+
             int padBits = neededBits + (ByteBitCount - 1) & ~(ByteBitCount - 1);
             if (padBits > 0)
             {
@@ -175,10 +181,7 @@ internal ref struct JpgBitReader
     /// Drop (discard) <paramref name="bitCount"/> previously peeked bits.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public void DropBits(int bitCount)
-    {
-        _bits -= bitCount;
-    }
+    public void DropBits(int bitCount) => _bits -= bitCount;
 
     /// <summary>
     /// Read (and consume) up to 16 bits. Returns 0 if <paramref name="bitCount"/> is 0.
@@ -190,9 +193,10 @@ internal ref struct JpgBitReader
         {
             return 0u;
         }
+
         EnsureBits(bitCount);
         int newBits = _bits - bitCount;
-        uint value = (uint)(_bitBuf >> newBits & (1UL << bitCount) - 1UL);
+        var value = (uint)(_bitBuf >> newBits & (1UL << bitCount) - 1UL);
         _bits = newBits;
         return value;
     }
@@ -207,6 +211,7 @@ internal ref struct JpgBitReader
         {
             return 0;
         }
+
         EnsureBits(bitCount);
         int mask = (1 << bitCount) - 1;
         int newBits = _bits - bitCount;
@@ -235,6 +240,7 @@ internal ref struct JpgBitReader
             _pos -= unusedFullBytes;
             _remaining += unusedFullBytes;
         }
+
         _bitBuf = 0;
         _bits = 0;
     }
@@ -268,10 +274,12 @@ internal ref struct JpgBitReader
                 markerPos++;
                 markerRemaining--;
             }
+
             if (markerRemaining <= 0)
             {
                 return false;
             }
+
             markerPos++;      // consume the 0xFF
             markerRemaining--;
 
@@ -281,6 +289,7 @@ internal ref struct JpgBitReader
                 markerPos++;
                 markerRemaining--;
             }
+
             if (markerRemaining <= 0)
             {
                 return false;
@@ -327,6 +336,7 @@ internal ref struct JpgBitReader
         {
             throw new InvalidOperationException("Invalid marker segment length.");
         }
+
         if (_remaining < segmentLength)
         {
             throw new InvalidOperationException("Truncated marker segment payload.");
@@ -344,42 +354,5 @@ internal ref struct JpgBitReader
     /// <summary>
     /// Capture a snapshot of the current position and buffered bits for later resumption.
     /// </summary>
-    public JpgBitReaderState CaptureState()
-    {
-        return new JpgBitReaderState(_pos, _bitBuf, _bits, _markerPending);
-    }
-}
-
-/// <summary>
-/// Serializable snapshot of a <see cref="JpgBitReader"/> internal state.
-/// </summary>
-internal readonly struct JpgBitReaderState
-{
-    /// <summary>
-    /// Byte position (number of source bytes consumed).
-    /// </summary>
-    public readonly int Pos;
-    /// <summary>
-    /// Buffered bits reservoir.
-    /// </summary>
-    public readonly ulong BitBuf;
-    /// <summary>
-    /// Count of valid bits currently in <see cref="BitBuf"/>.
-    /// </summary>
-    public readonly int Bits;
-    /// <summary>
-    /// True if a marker prefix (0xFF) was encountered and pending marker consumption prevented further byte fetch.
-    /// </summary>
-    public readonly bool MarkerPending;
-
-    /// <summary>
-    /// Initialize a new snapshot instance.
-    /// </summary>
-    public JpgBitReaderState(int pos, ulong bitBuf, int bits, bool markerPending)
-    {
-        Pos = pos;
-        BitBuf = bitBuf;
-        Bits = bits;
-        MarkerPending = markerPending;
-    }
+    public JpgBitReaderState CaptureState() => new(_pos, _bitBuf, _bits, _markerPending);
 }

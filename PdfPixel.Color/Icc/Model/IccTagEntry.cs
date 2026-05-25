@@ -42,8 +42,6 @@ public sealed class IccTagEntry
     /// </summary>
     public string SignatureString => BigEndianReader.FourCCToString(Signature);
 
-    public override string ToString()
-    {
-        return SignatureString;
-    }
+    /// <inheritdoc />
+    public override string ToString() => SignatureString;
 }

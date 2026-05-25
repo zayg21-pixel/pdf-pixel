@@ -10,16 +10,24 @@ namespace PdfPixel.Jbig2.Model;
 [StructLayout(LayoutKind.Sequential)]
 internal readonly struct Jbig2RowGroupInfo
 {
-    /// <summary>Row offset relative to the current pixel row.</summary>
+    /// <summary>
+    /// Row offset relative to the current pixel row.
+    /// </summary>
     internal readonly sbyte Dy;
 
-    /// <summary>Minimum dx (leftmost pixel in this group).</summary>
+    /// <summary>
+    /// Minimum dx (leftmost pixel in this group).
+    /// </summary>
     internal readonly sbyte MinDx;
 
-    /// <summary>Maximum dx (rightmost pixel in this group).</summary>
+    /// <summary>
+    /// Maximum dx (rightmost pixel in this group).
+    /// </summary>
     internal readonly sbyte MaxDx;
 
-    /// <summary>Lowest context bit position for this group.</summary>
+    /// <summary>
+    /// Lowest context bit position for this group.
+    /// </summary>
     internal readonly byte ContextShift;
 
     /// <summary>

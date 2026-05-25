@@ -18,7 +18,7 @@ public sealed partial class ClutTransform
     {
         if (sampler == null)
         {
-            return null;
+            throw new ArgumentNullException(nameof(sampler));
         }
 
         if (gridPointsPerDimension == null || gridPointsPerDimension.Length == 0)
@@ -39,12 +39,13 @@ public sealed partial class ClutTransform
             {
                 throw new ArgumentException($"Grid points must be positive. Invalid value at dimension {i}: {gridPointsPerDimension[i]}", nameof(gridPointsPerDimension));
             }
+
             totalGridPoints *= gridPointsPerDimension[i];
         }
 
         // Build CLUT by sampling the converter function
-        float[] clut = new float[totalGridPoints * outChannels];
-        float[] input = new float[gridPointsPerDimension.Length];
+        var clut = new float[totalGridPoints * outChannels];
+        var input = new float[gridPointsPerDimension.Length];
 
         int writeIndex = 0;
         SampleGridRecursive(gridPointsPerDimension, input, 0, sampler, outChannels, clut, ref writeIndex);
@@ -65,7 +66,7 @@ public sealed partial class ClutTransform
     {
         if (sampler == null)
         {
-            return null;
+            throw new ArgumentNullException(nameof(sampler));
         }
 
         if (inputDimensions <= 0)
@@ -84,7 +85,7 @@ public sealed partial class ClutTransform
         }
 
         // Create uniform grid points array
-        int[] gridPointsPerDimension = new int[inputDimensions];
+        var gridPointsPerDimension = new int[inputDimensions];
         for (int i = 0; i < inputDimensions; i++)
         {
             gridPointsPerDimension[i] = gridSize;
@@ -96,36 +97,51 @@ public sealed partial class ClutTransform
     /// <summary>
     /// Recursively samples the grid points for CLUT construction.
     /// </summary>
-    private static void SampleGridRecursive(int[] gridPointsPerDimension, float[] input, int dimension, 
-        ColorTransformSampler sampler, int outChannels, float[] clut, ref int writeIndex)
+    private static void SampleGridRecursive(
+        int[] gridPointsPerDimension,
+        float[] input,
+        int dimension,
+        ColorTransformSampler sampler,
+        int outChannels,
+        float[] clut,
+        ref int writeIndex)
     {
         if (dimension >= gridPointsPerDimension.Length)
         {
             // Base case: convert the input and store the result
-            var color = Vector4.Clamp(sampler.Sample(input), Vector4.Zero, Vector4.One);
+            Vector4 color = Vector4.Clamp(sampler.Sample(input), Vector4.Zero, Vector4.One);
 
             // Store based on output channels
             switch (outChannels)
             {
                 case 1: // Grayscale
-                    clut[writeIndex++] = color.X; // Use red channel for gray
-                    break;
+                    {
+                        clut[writeIndex++] = color.X; // Use red channel for gray
+                        break;
+                    }
                 case 2: // Two-channel (e.g., grayscale + alpha)
-                    clut[writeIndex++] = color.X;
-                    clut[writeIndex++] = color.Y;
-                    break;
+                    {
+                        clut[writeIndex++] = color.X;
+                        clut[writeIndex++] = color.Y;
+                        break;
+                    }
                 case 3: // RGB
-                    clut[writeIndex++] = color.X;
-                    clut[writeIndex++] = color.Y;
-                    clut[writeIndex++] = color.Z;
-                    break;
+                    {
+                        clut[writeIndex++] = color.X;
+                        clut[writeIndex++] = color.Y;
+                        clut[writeIndex++] = color.Z;
+                        break;
+                    }
                 case 4: // RGBA or CMYK
-                    clut[writeIndex++] = color.X;
-                    clut[writeIndex++] = color.Y;
-                    clut[writeIndex++] = color.Z;
-                    clut[writeIndex++] = color.W;
-                    break;
+                    {
+                        clut[writeIndex++] = color.X;
+                        clut[writeIndex++] = color.Y;
+                        clut[writeIndex++] = color.Z;
+                        clut[writeIndex++] = color.W;
+                        break;
+                    }
             }
+
             return;
         }
 
@@ -134,8 +150,8 @@ public sealed partial class ClutTransform
         for (int i = 0; i < gridPoints; i++)
         {
             // Normalize grid position to [0, 1]
-            input[dimension] = gridPoints > 1 ? (float)i / (gridPoints - 1) : 0f;
-            
+            input[dimension] = (gridPoints > 1) ? (float)i / (gridPoints - 1) : 0f;
+
             // Recurse to the next dimension
             SampleGridRecursive(gridPointsPerDimension, input, dimension + 1, sampler, outChannels, clut, ref writeIndex);
         }

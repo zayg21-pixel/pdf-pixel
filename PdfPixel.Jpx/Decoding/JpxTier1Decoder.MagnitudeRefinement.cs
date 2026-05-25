@@ -2,7 +2,9 @@ using System.Runtime.CompilerServices;
 
 namespace PdfPixel.Jpx.Decoding;
 
+#pragma warning disable RCS1019 // Order modifiers
 internal ref partial struct JpxTier1Decoder
+#pragma warning restore RCS1019 // Order modifiers
 {
     /// <summary>
     /// Magnitude Refinement Pass (ITU-T T.800 D.3.2) for a single stripe.
@@ -42,7 +44,7 @@ internal ref partial struct JpxTier1Decoder
                     // Update coefficient: clear old 1/2 approx, set decoded bit + new 1/2 approx
                     int coeff = coeffPtr;
                     int signBit = coeff & unchecked((int)0x80000000);
-                    int magnitude = (coeff & 0x7FFFFFFF) & resetmask;
+                    int magnitude = coeff & 0x7FFFFFFF & resetmask;
                     magnitude |= (bit << bitPosition) | setmask;
                     coeffPtr = signBit | magnitude;
 

@@ -1,4 +1,5 @@
 using PdfPixel.Jpg.Huffman;
+
 using System.Collections.Generic;
 
 namespace PdfPixel.Jpg.Model;
@@ -43,7 +44,7 @@ public sealed class JpgHeader
     /// <summary>
     /// Gets the list of image components described by the SOF segment.
     /// </summary>
-    public List<JpgComponent> Components { get; } = new List<JpgComponent>();
+    public List<JpgComponent> Components { get; } = [];
 
     /// <summary>
     /// Gets or sets a value indicating whether Huffman tables are present (DHT segment).
@@ -58,12 +59,12 @@ public sealed class JpgHeader
     /// <summary>
     /// Gets the list of Huffman tables parsed from DHT segments.
     /// </summary>
-    public List<JpgHuffmanTable> HuffmanTables { get; } = new List<JpgHuffmanTable>();
+    public List<JpgHuffmanTable> HuffmanTables { get; } = [];
 
     /// <summary>
     /// Gets the list of quantization tables parsed from DQT segments.
     /// </summary>
-    public List<JpgQuantizationTable> QuantizationTables { get; } = new List<JpgQuantizationTable>();
+    public List<JpgQuantizationTable> QuantizationTables { get; } = [];
 
     /// <summary>
     /// Gets or sets the restart interval (from DRI segment); 0 means no restart markers.
@@ -73,7 +74,7 @@ public sealed class JpgHeader
     /// <summary>
     /// Gets the list of scan specifications parsed from SOS segments.
     /// </summary>
-    public List<JpgScanSpec> Scans { get; } = new List<JpgScanSpec>();
+    public List<JpgScanSpec> Scans { get; } = [];
 
     /// <summary>
     /// Gets or sets the offset of entropy-coded data following the first SOS header.
@@ -128,5 +129,5 @@ public sealed class JpgHeader
     /// <summary>
     /// Gets the list of ICC profile segments (APP2 ICC_PROFILE).
     /// </summary>
-    public List<IccSegmentInfo> IccProfileSegments { get; } = new List<IccSegmentInfo>();
+    public List<IccSegmentInfo> IccProfileSegments { get; } = [];
 }

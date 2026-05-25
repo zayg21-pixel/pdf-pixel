@@ -69,11 +69,11 @@ internal static class Jbig2ArithmeticDecoder
                     currentT = instanceT;
                 }
 
-                int t = context.PlacementFlags.StripSize * stripT + currentT;
+                int t = (context.PlacementFlags.StripSize * stripT) + currentT;
 
                 int symbolId = reader.DecodeIaid(context.IaId, context.SymbolCodeLength);
 
-                bool applyRefinement = false;
+                var applyRefinement = false;
                 if (context.PlacementFlags.UseRefinement)
                 {
                     reader.DecodeInteger(context.Iari, out int ri);
@@ -97,7 +97,7 @@ internal static class Jbig2ArithmeticDecoder
                     continue;
                 }
 
-                var symbolBitmap = symbols[symbolId];
+                Jbig2Bitmap symbolBitmap = symbols[symbolId];
                 int symbolWidth = symbolBitmap.Width;
                 int symbolHeight = symbolBitmap.Height;
 
@@ -154,13 +154,13 @@ internal static class Jbig2ArithmeticDecoder
                 int offsetS;
                 if (context.PlacementFlags.Transposed)
                 {
-                    offsetT = t - ((context.PlacementFlags.ReferenceCorner & 2) != 0 ? symbolWidth - 1 : 0);
-                    offsetS = currentS - ((context.PlacementFlags.ReferenceCorner & 1) != 0 ? 0 : symbolHeight - 1);
+                    offsetT = t - (((context.PlacementFlags.ReferenceCorner & 2) != 0) ? symbolWidth - 1 : 0);
+                    offsetS = currentS - (((context.PlacementFlags.ReferenceCorner & 1) != 0) ? 0 : symbolHeight - 1);
                 }
                 else
                 {
-                    offsetT = t - ((context.PlacementFlags.ReferenceCorner & 1) != 0 ? 0 : symbolHeight - 1);
-                    offsetS = currentS - ((context.PlacementFlags.ReferenceCorner & 2) != 0 ? symbolWidth - 1 : 0);
+                    offsetT = t - (((context.PlacementFlags.ReferenceCorner & 1) != 0) ? 0 : symbolHeight - 1);
+                    offsetS = currentS - (((context.PlacementFlags.ReferenceCorner & 2) != 0) ? symbolWidth - 1 : 0);
                 }
 
                 int placeX;

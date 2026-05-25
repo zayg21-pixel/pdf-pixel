@@ -5,10 +5,12 @@ using PdfPixel.Jbig2.Model;
 namespace PdfPixel.Jbig2.Decoding;
 
 /// <summary>
+/// <para>
 /// Captured symbol placements for a JBIG2 text region (ITU-T T.88 Section 6.4).
 /// Holds the region dimensions, default pixel, symbol-to-region combination operator (SBCOMBOP)
 /// and the ordered list of (symbol, x, y) placements emitted by the placement decoder.
-///
+/// </para>
+/// <para>
 /// <see cref="Compose"/> selects between three execution paths:
 ///   • Regime 1 — both stages collapse unconditionally (SBCOMBOP == externalOp, both associative
 ///     with DP as identity). Direct per-symbol composite, overlap-safe.
@@ -17,6 +19,7 @@ namespace PdfPixel.Jbig2.Decoding;
 ///     per-symbol composite gated on a bbox-overlap check.
 ///   • Fallback — materialise the region (DP fill + per-symbol SBCOMBOP), then composite onto
 ///     target with externalOp. Matches the spec's two-stage definition exactly.
+/// </para>
 /// </summary>
 internal sealed class Jbig2TextRegionPlacements
 {
@@ -24,7 +27,7 @@ internal sealed class Jbig2TextRegionPlacements
     private readonly int _height;
     private readonly byte _defaultPixel;
     private readonly Jbig2CombinationOperator _symbolCombinationOperator;
-    private readonly List<Placement> _placements = new();
+    private readonly List<Placement> _placements = [];
 
     public Jbig2TextRegionPlacements(
         int width,
@@ -38,11 +41,10 @@ internal sealed class Jbig2TextRegionPlacements
         _symbolCombinationOperator = symbolCombinationOperator;
     }
 
-    /// <summary>Records one symbol instance at the given region-local coordinates.</summary>
-    public void Add(Jbig2Bitmap symbol, int x, int y)
-    {
-        _placements.Add(new Placement(symbol, x, y));
-    }
+    /// <summary>
+    /// Records one symbol instance at the given region-local coordinates.
+    /// </summary>
+    public void Add(Jbig2Bitmap symbol, int x, int y) => _placements.Add(new Placement(symbol, x, y));
 
     /// <summary>
     /// Composites the placements onto <paramref name="target"/> at <paramref name="x"/>,<paramref name="y"/>
@@ -63,7 +65,7 @@ internal sealed class Jbig2TextRegionPlacements
 
     private void DirectCompose(Jbig2Bitmap target, int x, int y, Jbig2CombinationOperator op)
     {
-        foreach (var placement in _placements)
+        foreach (Placement placement in _placements)
         {
             target.Composite(
                 placement.Symbol,
@@ -79,9 +81,9 @@ internal sealed class Jbig2TextRegionPlacements
 
     private void MaterialiseAndCompose(Jbig2Bitmap target, int x, int y, Jbig2CombinationOperator op)
     {
-        var region = new Jbig2Bitmap(_width, _height, _defaultPixel);
+        Jbig2Bitmap region = new(_width, _height, _defaultPixel);
 
-        foreach (var placement in _placements)
+        foreach (Placement placement in _placements)
         {
             region.Composite(placement.Symbol, placement.X, placement.Y, _symbolCombinationOperator);
         }
@@ -123,28 +125,34 @@ internal sealed class Jbig2TextRegionPlacements
     /// True when <c>DP ⊙ s = s</c> for all s (the symbol stage acts as a passthrough of the
     /// symbol pixel). Holds for OR/XOR with DP=0, AND/XNOR with DP=1, and REPLACE for any DP.
     /// </summary>
-    private bool IsSymbolStagePassthrough() => _symbolCombinationOperator switch
+    private bool IsSymbolStagePassthrough()
     {
-        Jbig2CombinationOperator.Or => _defaultPixel == 0,
-        Jbig2CombinationOperator.Xor => _defaultPixel == 0,
-        Jbig2CombinationOperator.And => _defaultPixel == 1,
-        Jbig2CombinationOperator.Xnor => _defaultPixel == 1,
-        Jbig2CombinationOperator.Replace => true,
-        _ => false,
-    };
+        return _symbolCombinationOperator switch
+            {
+                Jbig2CombinationOperator.Or => _defaultPixel == 0,
+                Jbig2CombinationOperator.Xor => _defaultPixel == 0,
+                Jbig2CombinationOperator.And => _defaultPixel == 1,
+                Jbig2CombinationOperator.Xnor => _defaultPixel == 1,
+                Jbig2CombinationOperator.Replace => true,
+                _ => false
+            };
+    }
 
     /// <summary>
     /// True when <c>P ⊙ DP = P</c> for all P (DP is the identity element of the operator).
     /// Holds for OR/XOR with DP=0 and AND/XNOR with DP=1. REPLACE has no identity element.
     /// </summary>
-    private bool IsDefaultPixelIdentityFor(Jbig2CombinationOperator op) => op switch
+    private bool IsDefaultPixelIdentityFor(Jbig2CombinationOperator op)
     {
-        Jbig2CombinationOperator.Or => _defaultPixel == 0,
-        Jbig2CombinationOperator.Xor => _defaultPixel == 0,
-        Jbig2CombinationOperator.And => _defaultPixel == 1,
-        Jbig2CombinationOperator.Xnor => _defaultPixel == 1,
-        _ => false,
-    };
+        return op switch
+            {
+                Jbig2CombinationOperator.Or => _defaultPixel == 0,
+                Jbig2CombinationOperator.Xor => _defaultPixel == 0,
+                Jbig2CombinationOperator.And => _defaultPixel == 1,
+                Jbig2CombinationOperator.Xnor => _defaultPixel == 1,
+                _ => false
+            };
+    }
 
     /// <summary>
     /// Returns true if any two placements have overlapping bounding boxes. Conservative: bbox
@@ -160,18 +168,18 @@ internal sealed class Jbig2TextRegionPlacements
             return false;
         }
 
-        var sorted = _placements.ToArray();
+        Placement[] sorted = _placements.ToArray();
         Array.Sort(sorted, static (a, b) => a.Y.CompareTo(b.Y));
 
         for (int i = 0; i < count; i++)
         {
-            var pi = sorted[i];
+            Placement pi = sorted[i];
             int piBottom = pi.Y + pi.Symbol.Height;
             int piRight = pi.X + pi.Symbol.Width;
 
             for (int j = i + 1; j < count; j++)
             {
-                var pj = sorted[j];
+                Placement pj = sorted[j];
 
                 // Sorted by Y → once pj.Y >= piBottom, no later placement can overlap pi in Y either.
                 if (pj.Y >= piBottom)

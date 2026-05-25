@@ -23,10 +23,7 @@ internal sealed class JpxInverseDwt53 : IJpxInverseDwt
     /// Creates an inverse 5-3 DWT instance with quantization parameters for dequantization.
     /// </summary>
     /// <param name="quantization">Quantization parameters from QCD/QCC marker.</param>
-    public JpxInverseDwt53(JpxQuantization quantization)
-    {
-        _quantization = quantization ?? throw new ArgumentNullException(nameof(quantization));
-    }
+    public JpxInverseDwt53(JpxQuantization quantization) => _quantization = quantization ?? throw new ArgumentNullException(nameof(quantization));
 
     /// <inheritdoc/>
     public void Transform(JpxSubbandData subbands, int[] destination, int stopAtLevel = 0)
@@ -54,7 +51,7 @@ internal sealed class JpxInverseDwt53 : IJpxInverseDwt
         {
             for (int x = 0; x < currentWidth; x++)
             {
-                destination[y * outputWidth + x] = JpxDequantizer.DequantizeReversible(subbands.LL[y * subbands.LLWidth + x], llShift);
+                destination[(y * outputWidth) + x] = JpxDequantizer.DequantizeReversible(subbands.LL[(y * subbands.LLWidth) + x], llShift);
             }
         }
 
@@ -84,12 +81,12 @@ internal sealed class JpxInverseDwt53 : IJpxInverseDwt
             int hhWidth = subbands.GetWidth(level, JpxSubbandType.HH);
             int hhHeight = subbands.GetHeight(level, JpxSubbandType.HH);
 
-            var hl = subbands.GetSubband(level, JpxSubbandType.HL);
-            var lh = subbands.GetSubband(level, JpxSubbandType.LH);
-            var hh = subbands.GetSubband(level, JpxSubbandType.HH);
+            int[] hl = subbands.GetSubband(level, JpxSubbandType.HL);
+            int[] lh = subbands.GetSubband(level, JpxSubbandType.LH);
+            int[] hh = subbands.GetSubband(level, JpxSubbandType.HH);
 
             // QCD step size indices: LL=0, then per level (coarsest first) HL, LH, HH
-            int qcdBase = 1 + (subbands.Levels - 1 - level) * 3;
+            int qcdBase = 1 + ((subbands.Levels - 1 - level) * 3);
             int hlShift = JpxDequantizer.ComputeReversibleShift(_quantization, qcdBase + 0);
             int lhShift = JpxDequantizer.ComputeReversibleShift(_quantization, qcdBase + 1);
             int hhShift = JpxDequantizer.ComputeReversibleShift(_quantization, qcdBase + 2);
@@ -101,34 +98,34 @@ internal sealed class JpxInverseDwt53 : IJpxInverseDwt
             {
                 for (int x = 0; x < currentWidth && x * 2 < nextWidth; x++)
                 {
-                    interleaved[(y * 2) * nextWidth + (x * 2)] = destination[y * outputWidth + x];
+                    interleaved[(y * 2 * nextWidth) + (x * 2)] = destination[(y * outputWidth) + x];
                 }
             }
 
             // HL → even rows, odd columns (dequantize)
             for (int y = 0; y < hlHeight && y * 2 < nextHeight; y++)
             {
-                for (int x = 0; x < hlWidth && x * 2 + 1 < nextWidth; x++)
+                for (int x = 0; x < hlWidth && (x * 2) + 1 < nextWidth; x++)
                 {
-                    interleaved[(y * 2) * nextWidth + (x * 2 + 1)] = JpxDequantizer.DequantizeReversible(hl[y * hlWidth + x], hlShift);
+                    interleaved[(y * 2 * nextWidth) + ((x * 2) + 1)] = JpxDequantizer.DequantizeReversible(hl[(y * hlWidth) + x], hlShift);
                 }
             }
 
             // LH → odd rows, even columns (dequantize)
-            for (int y = 0; y < lhHeight && y * 2 + 1 < nextHeight; y++)
+            for (int y = 0; y < lhHeight && (y * 2) + 1 < nextHeight; y++)
             {
                 for (int x = 0; x < lhWidth && x * 2 < nextWidth; x++)
                 {
-                    interleaved[(y * 2 + 1) * nextWidth + (x * 2)] = JpxDequantizer.DequantizeReversible(lh[y * lhWidth + x], lhShift);
+                    interleaved[(((y * 2) + 1) * nextWidth) + (x * 2)] = JpxDequantizer.DequantizeReversible(lh[(y * lhWidth) + x], lhShift);
                 }
             }
 
             // HH → odd rows, odd columns (dequantize)
-            for (int y = 0; y < hhHeight && y * 2 + 1 < nextHeight; y++)
+            for (int y = 0; y < hhHeight && (y * 2) + 1 < nextHeight; y++)
             {
-                for (int x = 0; x < hhWidth && x * 2 + 1 < nextWidth; x++)
+                for (int x = 0; x < hhWidth && (x * 2) + 1 < nextWidth; x++)
                 {
-                    interleaved[(y * 2 + 1) * nextWidth + (x * 2 + 1)] = JpxDequantizer.DequantizeReversible(hh[y * hhWidth + x], hhShift);
+                    interleaved[(((y * 2) + 1) * nextWidth) + ((x * 2) + 1)] = JpxDequantizer.DequantizeReversible(hh[(y * hhWidth) + x], hhShift);
                 }
             }
 
@@ -148,7 +145,7 @@ internal sealed class JpxInverseDwt53 : IJpxInverseDwt
             {
                 for (int x = 0; x < nextWidth; x++)
                 {
-                    destination[y * outputWidth + x] = interleaved[y * nextWidth + x];
+                    destination[(y * outputWidth) + x] = interleaved[(y * nextWidth) + x];
                 }
             }
 
@@ -182,14 +179,14 @@ internal sealed class JpxInverseDwt53 : IJpxInverseDwt
         // Gather column into contiguous buffer
         for (int n = 0; n < height; n++)
         {
-            buffer[n] = data[n * stride + x];
+            buffer[n] = data[(n * stride) + x];
         }
 
         // Step 1: Undo update lifting on even samples (boundary-peeled)
         buffer[0] -= (buffer[1] + buffer[1] + 2) >> 2;
         for (int n = 1; n < evenCount - 1; n++)
         {
-            buffer[n * 2] -= (buffer[n * 2 - 1] + buffer[n * 2 + 1] + 2) >> 2;
+            buffer[n * 2] -= (buffer[(n * 2) - 1] + buffer[(n * 2) + 1] + 2) >> 2;
         }
 
         if (evenCount > 1)
@@ -202,11 +199,11 @@ internal sealed class JpxInverseDwt53 : IJpxInverseDwt
         // Step 2: Undo predict lifting on odd samples (boundary-peeled)
         for (int n = 0; n < oddCount - 1; n++)
         {
-            buffer[n * 2 + 1] += (buffer[n * 2] + buffer[(n + 1) * 2]) >> 1;
+            buffer[(n * 2) + 1] += (buffer[n * 2] + buffer[(n + 1) * 2]) >> 1;
         }
 
         {
-            int lastOdd = (oddCount - 1) * 2 + 1;
+            int lastOdd = ((oddCount - 1) * 2) + 1;
             int eNext = (oddCount < evenCount) ? buffer[oddCount * 2] : buffer[(oddCount - 1) * 2];
             buffer[lastOdd] += (buffer[(oddCount - 1) * 2] + eNext) >> 1;
         }
@@ -214,7 +211,7 @@ internal sealed class JpxInverseDwt53 : IJpxInverseDwt
         // Scatter back to column
         for (int n = 0; n < height; n++)
         {
-            data[n * stride + x] = buffer[n];
+            data[(n * stride) + x] = buffer[n];
         }
     }
 
@@ -243,12 +240,12 @@ internal sealed class JpxInverseDwt53 : IJpxInverseDwt
         data[offset] -= (data[offset + 1] + data[offset + 1] + 2) >> 2;
         for (int n = 1; n < evenCount - 1; n++)
         {
-            data[offset + n * 2] -= (data[offset + n * 2 - 1] + data[offset + n * 2 + 1] + 2) >> 2;
+            data[offset + (n * 2)] -= (data[offset + (n * 2) - 1] + data[offset + (n * 2) + 1] + 2) >> 2;
         }
 
         if (evenCount > 1)
         {
-            int lastEvenIdx = offset + (evenCount - 1) * 2;
+            int lastEvenIdx = offset + ((evenCount - 1) * 2);
             int dCurr = (evenCount - 1 < oddCount) ? data[lastEvenIdx + 1] : data[offset + width - 2];
             data[lastEvenIdx] -= (data[lastEvenIdx - 1] + dCurr + 2) >> 2;
         }
@@ -256,13 +253,13 @@ internal sealed class JpxInverseDwt53 : IJpxInverseDwt
         // Step 2: Undo predict lifting on odd samples (boundary-peeled)
         for (int n = 0; n < oddCount - 1; n++)
         {
-            data[offset + n * 2 + 1] += (data[offset + n * 2] + data[offset + (n + 1) * 2]) >> 1;
+            data[offset + (n * 2) + 1] += (data[offset + (n * 2)] + data[offset + ((n + 1) * 2)]) >> 1;
         }
 
         {
-            int lastOddIdx = offset + (oddCount - 1) * 2 + 1;
-            int eNext = (oddCount < evenCount) ? data[offset + oddCount * 2] : data[offset + (oddCount - 1) * 2];
-            data[lastOddIdx] += (data[offset + (oddCount - 1) * 2] + eNext) >> 1;
+            int lastOddIdx = offset + ((oddCount - 1) * 2) + 1;
+            int eNext = (oddCount < evenCount) ? data[offset + (oddCount * 2)] : data[offset + ((oddCount - 1) * 2)];
+            data[lastOddIdx] += (data[offset + ((oddCount - 1) * 2)] + eNext) >> 1;
         }
     }
 }

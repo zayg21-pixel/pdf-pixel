@@ -17,8 +17,14 @@ public static class ProfileRespources
     /// <returns></returns>
     public static IccProfile GetCmykProfile()
     {
-        using Stream stream = typeof(ProfileRespources).Assembly.GetManifestResourceStream($"{ResourcePrefix}{CompactCmyk}");
-        using MemoryStream memoryStream = new MemoryStream();
+        using Stream? stream = typeof(ProfileRespources).Assembly.GetManifestResourceStream($"{ResourcePrefix}{CompactCmyk}");
+
+        if (stream == null)
+        {
+            throw new InvalidDataException("CompactCmyk is not defined");
+        }
+
+        using MemoryStream memoryStream = new();
         stream.CopyTo(memoryStream);
 
         return IccProfile.Parse(memoryStream.ToArray());

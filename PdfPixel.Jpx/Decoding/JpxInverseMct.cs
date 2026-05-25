@@ -102,9 +102,9 @@ internal sealed class JpxInverseMct
             int y = comp0[i];
             int cb = comp1[i];
             int cr = comp2[i];
-            comp0[i] = y + ((Cr_R * cr + Half) >> FracBits);
-            comp1[i] = y + ((Cb_G * cb + Cr_G * cr + Half) >> FracBits);
-            comp2[i] = y + ((Cb_B * cb + Half) >> FracBits);
+            comp0[i] = y + (((Cr_R * cr) + Half) >> FracBits);
+            comp1[i] = y + (((Cb_G * cb) + (Cr_G * cr) + Half) >> FracBits);
+            comp2[i] = y + (((Cb_B * cb) + Half) >> FracBits);
         }
     }
 }

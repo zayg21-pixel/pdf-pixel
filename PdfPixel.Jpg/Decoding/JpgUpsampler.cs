@@ -1,6 +1,7 @@
 using System;
 using System.Numerics;
 using System.Runtime.CompilerServices;
+
 using PdfPixel.Jpg.Model;
 
 namespace PdfPixel.Jpg.Decoding;
@@ -41,6 +42,7 @@ internal sealed class JpgUpsampler
         {
             throw new ArgumentNullException(nameof(parameters));
         }
+
         if (header == null)
         {
             throw new ArgumentNullException(nameof(header));
@@ -61,6 +63,7 @@ internal sealed class JpgUpsampler
             {
                 throw new ArgumentException("Invalid sampling factors relative to max sampling factors.");
             }
+
             int horizontalScale = parameters.HMax / hFactor;
             int verticalScale = parameters.VMax / vFactor;
             _scalingInfos[componentIndex] = new ScalingInfo(hFactor, vFactor, horizontalScale, verticalScale);
@@ -78,10 +81,12 @@ internal sealed class JpgUpsampler
         {
             throw new ArgumentNullException(nameof(sourceBandBlocks));
         }
+
         if (destFullResBlocks == null)
         {
             throw new ArgumentNullException(nameof(destFullResBlocks));
         }
+
         if (sourceBandBlocks.Length != _header.ComponentCount || destFullResBlocks.Length != _header.ComponentCount)
         {
             throw new ArgumentException("Component array length mismatch with header component count.");
@@ -128,7 +133,7 @@ internal sealed class JpgUpsampler
             {
                 for (int fullBlockCol = 0; fullBlockCol < _parameters.HMax; fullBlockCol++)
                 {
-                    int destIndex = fullBase + fullBlockRow * _parameters.HMax + fullBlockCol;
+                    int destIndex = fullBase + (fullBlockRow * _parameters.HMax) + fullBlockCol;
                     UpsampleBlock(sourceBlocks, mcuColumnIndex, fullBlockRow, fullBlockCol, in info, ref destBlocks[destIndex]);
                 }
             }
@@ -147,8 +152,8 @@ internal sealed class JpgUpsampler
         int nativeBlocksPerMcu = info.BlocksPerMcu;
         int sourceBlockRow = fullBlockRow / info.VerticalScale;
         int sourceBlockCol = fullBlockCol / info.HorizontalScale;
-        int localSourceIndex = sourceBlockRow * info.HFactor + sourceBlockCol;
-        int globalSourceIndex = mcuColumnIndex * nativeBlocksPerMcu + localSourceIndex;
+        int localSourceIndex = (sourceBlockRow * info.HFactor) + sourceBlockCol;
+        int globalSourceIndex = (mcuColumnIndex * nativeBlocksPerMcu) + localSourceIndex;
         ref Block8x8F sourceBlock = ref sourceBlocks[globalSourceIndex];
 
         if (info.HorizontalScale == 1 && info.VerticalScale == 1)
@@ -171,16 +176,18 @@ internal sealed class JpgUpsampler
             {
                 int vecBaseSrc = rowIndex * 2;
                 // Select vector containing the 4 source samples for this dest block half.
-                Vector4 quarter = sourceBlock.GetVector(vecBaseSrc + (quarterColBase == 0 ? 0 : 1));
+                Vector4 quarter = sourceBlock.GetVector(vecBaseSrc + ((quarterColBase == 0) ? 0 : 1));
                 // Expand 4 samples (a b c d) -> 8 samples (a a b b c c d d).
-                Vector4 leftExpanded = new Vector4(quarter.X, quarter.X, quarter.Y, quarter.Y);
-                Vector4 rightExpanded = new Vector4(quarter.Z, quarter.Z, quarter.W, quarter.W);
+                Vector4 leftExpanded = new(quarter.X, quarter.X, quarter.Y, quarter.Y);
+                Vector4 rightExpanded = new(quarter.Z, quarter.Z, quarter.W, quarter.W);
                 int destVecBase = rowIndex * 2;
                 dest.SetVector(destVecBase + 0, leftExpanded);
                 dest.SetVector(destVecBase + 1, rightExpanded);
             }
+
             return;
         }
+
         if (hScale == 1 && vScale == 2)
         {
             // Vertical only upsample. Choose the top/bottom 4-row quarter then duplicate each row vertically.
@@ -195,8 +202,10 @@ internal sealed class JpgUpsampler
                 dest.SetVector(destVecBase + 0, left);
                 dest.SetVector(destVecBase + 1, right);
             }
+
             return;
         }
+
         if (hScale == 2 && vScale == 2)
         {
             // Both horizontal and vertical upsample. Select 4x4 quarter then expand each 4x4 sample into 8x8 via 2x2 replication.
@@ -208,26 +217,27 @@ internal sealed class JpgUpsampler
                 int srcRow = quarterRowBase + (destRow >> 1);
                 int srcVecBase = srcRow * 2;
                 Vector4 quarterVector = sourceBlock.GetVector(srcVecBase + (useLeft ? 0 : 1));
-                Vector4 leftExpanded = new Vector4(quarterVector.X, quarterVector.X, quarterVector.Y, quarterVector.Y);
-                Vector4 rightExpanded = new Vector4(quarterVector.Z, quarterVector.Z, quarterVector.W, quarterVector.W);
+                Vector4 leftExpanded = new(quarterVector.X, quarterVector.X, quarterVector.Y, quarterVector.Y);
+                Vector4 rightExpanded = new(quarterVector.Z, quarterVector.Z, quarterVector.W, quarterVector.W);
                 int destVecBase = destRow * 2;
                 dest.SetVector(destVecBase + 0, leftExpanded);
                 dest.SetVector(destVecBase + 1, rightExpanded);
             }
+
             return;
         }
 
         // Fallback generic path (scales other than 1 or 2). Per-pixel replication using scalar indices.
         for (int rowInDest = 0; rowInDest < 8; rowInDest++)
         {
-            int fullRow = fullBlockRow * 8 + rowInDest;
+            int fullRow = (fullBlockRow * 8) + rowInDest;
             int sourceRow = fullRow / vScale;
             for (int colInDest = 0; colInDest < 8; colInDest++)
             {
-                int fullCol = fullBlockCol * 8 + colInDest;
+                int fullCol = (fullBlockCol * 8) + colInDest;
                 int sourceCol = fullCol / hScale;
-                int sourceIndex = sourceRow * 8 + sourceCol;
-                int destIndex = rowInDest * 8 + colInDest;
+                int sourceIndex = (sourceRow * 8) + sourceCol;
+                int destIndex = (rowInDest * 8) + colInDest;
                 dest[destIndex] = sourceBlock[sourceIndex];
             }
         }

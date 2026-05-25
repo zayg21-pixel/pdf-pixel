@@ -8,11 +8,11 @@ namespace PdfPixel.Jpx;
 /// </summary>
 internal ref struct JpxBitWriter
 {
-    private Span<byte> _buffer;
+    private readonly Span<byte> _buffer;
     private int _byteIndex;
     private int _bitsAvailable;
 
-    public JpxBitWriter(Span<byte> buffer)
+    public JpxBitWriter(in Span<byte> buffer)
     {
         _buffer = buffer;
         _byteIndex = 0;

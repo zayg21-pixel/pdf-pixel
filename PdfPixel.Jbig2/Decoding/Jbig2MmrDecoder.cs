@@ -13,18 +13,6 @@ namespace PdfPixel.Jbig2.Decoding;
 internal static class Jbig2MmrDecoder
 {
     /// <summary>
-    /// Decodes an MMR-coded generic region bitmap.
-    /// </summary>
-    /// <param name="data">Encoded MMR data.</param>
-    /// <param name="width">Region width in pixels.</param>
-    /// <param name="height">Region height in pixels.</param>
-    /// <returns>Decoded bitmap.</returns>
-    internal static Jbig2Bitmap Decode(ReadOnlySpan<byte> data, int width, int height, IJBig2ExectionObserver observer = null)
-    {
-        return Decode(data, width, height, out _, observer);
-    }
-
-    /// <summary>
     /// Decodes an MMR-coded generic region bitmap and reports the number of bytes consumed.
     /// Use this overload when multiple bitmaps are encoded sequentially in a single stream
     /// (e.g. halftone bit planes separated by EOFB markers).
@@ -35,16 +23,16 @@ internal static class Jbig2MmrDecoder
     /// <param name="bytesConsumed">Number of bytes consumed from <paramref name="data"/>.</param>
     /// <param name="observer">Observer to notify on each decoded row.</param>
     /// <returns>Decoded bitmap.</returns>
-    internal static Jbig2Bitmap Decode(ReadOnlySpan<byte> data, int width, int height, out int bytesConsumed, IJBig2ExectionObserver observer = null)
+    internal static Jbig2Bitmap Decode(in ReadOnlySpan<byte> data, int width, int height, out int bytesConsumed, IJBig2ExectionObserver? observer = null)
     {
-        var bitmap = new Jbig2Bitmap(width, height);
-        var reader = new CcittBitReader(data, 0, 0, 0, msbFirst: true);
+        Jbig2Bitmap bitmap = new(width, height);
+        CcittBitReader reader = new(in data, 0, 0, 0, msbFirst: true);
 
         var referenceChanges = new int[width + 2];
         referenceChanges[0] = width;
         int changesCount = 1;
 
-        var runs = new List<int>(64);
+        List<int> runs = new(64);
 
         for (int y = 0; y < height; y++)
         {

@@ -31,22 +31,34 @@ internal readonly struct Jbig2SymbolDictionaryFlags
         RefinementTemplate = (flagsWord >> 12) & 0x01;
     }
 
-    /// <summary>Whether Huffman coding is used (false = arithmetic).</summary>
+    /// <summary>
+    /// Whether Huffman coding is used (false = arithmetic).
+    /// </summary>
     public bool UseHuffman { get; }
 
-    /// <summary>Whether refinement/aggregate coding is used.</summary>
+    /// <summary>
+    /// Whether refinement/aggregate coding is used.
+    /// </summary>
     public bool UseRefinementAggregation { get; }
 
-    /// <summary>Huffman DH table selection (bits 2–3).</summary>
+    /// <summary>
+    /// Huffman DH table selection (bits 2–3).
+    /// </summary>
     public int HuffDhSelection { get; }
 
-    /// <summary>Huffman DW table selection (bits 4–5).</summary>
+    /// <summary>
+    /// Huffman DW table selection (bits 4–5).
+    /// </summary>
     public int HuffDwSelection { get; }
 
-    /// <summary>Huffman bitmap size table selection (bit 6).</summary>
+    /// <summary>
+    /// Huffman bitmap size table selection (bit 6).
+    /// </summary>
     public int HuffBmSizeSelection { get; }
 
-    /// <summary>Huffman aggregate instances table selection (bit 7).</summary>
+    /// <summary>
+    /// Huffman aggregate instances table selection (bit 7).
+    /// </summary>
     public int HuffAggInstSelection { get; }
 
     /// <summary>
@@ -61,10 +73,14 @@ internal readonly struct Jbig2SymbolDictionaryFlags
     /// </summary>
     public bool ContextRetained { get; }
 
-    /// <summary>Template for direct-coded symbols (0–3).</summary>
+    /// <summary>
+    /// Template for direct-coded symbols (0–3).
+    /// </summary>
     public int Template { get; }
 
-    /// <summary>Refinement template (0–1).</summary>
+    /// <summary>
+    /// Refinement template (0–1).
+    /// </summary>
     public int RefinementTemplate { get; }
 
 }

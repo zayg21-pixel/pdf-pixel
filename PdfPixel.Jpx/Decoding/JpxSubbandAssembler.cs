@@ -45,7 +45,7 @@ internal sealed class JpxSubbandAssembler
             throw new ArgumentNullException(nameof(subbands));
         }
 
-        foreach (var packet in packets)
+        foreach (JpxPacket packet in packets)
         {
             if (packet.Component != componentIndex)
             {
@@ -57,7 +57,7 @@ internal sealed class JpxSubbandAssembler
                 continue;
             }
 
-            foreach (var codeBlock in packet.CodeBlocks)
+            foreach (JpxCodeBlock codeBlock in packet.CodeBlocks)
             {
                 if (codeBlock.DecodedCoefficients == null)
                 {
@@ -125,7 +125,7 @@ internal sealed class JpxSubbandAssembler
                     break;
                 }
 
-                subbandData[destY * subbandWidth + destX] = codeBlock.DecodedCoefficients[y * codeBlock.Width + x];
+                subbandData[(destY * subbandWidth) + destX] = codeBlock.DecodedCoefficients[(y * codeBlock.Width) + x];
             }
         }
     }

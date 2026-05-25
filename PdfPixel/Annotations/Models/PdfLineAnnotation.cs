@@ -94,14 +94,7 @@ public class PdfLineAnnotation : PdfAnnotationBase
     /// </summary>
     public float? LeaderLineOffset { get; }
 
-    /// <summary>
-    /// Renders the fallback content for line annotations when no appearance stream is available.
-    /// </summary>
-    /// <param name="processor">The command processor to emit commands to.</param>
-    /// <param name="page">The PDF page containing this annotation.</param>
-    /// <param name="visualStateKind">The visual state to render (Normal, Rollover, Down).</param>
-    /// <returns>True if fallback rendering was emitted.</returns>
-    public override bool RenderFallback(IPdfCommandProcessor processor, PdfPage page, PdfAnnotationVisualStateKind visualStateKind)
+    protected override bool RenderFallback(IPdfCommandProcessor processor, PdfPage page, PdfAnnotationVisualStateKind visualStateKind, PdfRenderingParameters renderingParameters)
     {
         var lineColor = ResolveColor(page, SKColors.Black);
         var lineWidth = BorderStyle?.Width ?? 1.0f;
@@ -111,7 +104,7 @@ public class PdfLineAnnotation : PdfAnnotationBase
             Style = SKPaintStyle.Stroke,
             StrokeWidth = lineWidth,
             StrokeCap = SKStrokeCap.Butt,
-            IsAntialias = true,
+            IsAntialias = renderingParameters.Antialias,
             Color = lineColor
         };
 
@@ -135,7 +128,8 @@ public class PdfLineAnnotation : PdfAnnotationBase
                 StartLineEnding,
                 lineWidth,
                 lineColor,
-                interiorSKColor);
+                interiorSKColor,
+                renderingParameters);
         }
 
         if (EndLineEnding != PdfLineEndingStyle.None)
@@ -149,7 +143,8 @@ public class PdfLineAnnotation : PdfAnnotationBase
                 EndLineEnding,
                 lineWidth,
                 lineColor,
-                interiorSKColor);
+                interiorSKColor,
+                renderingParameters);
         }
 
         return true;

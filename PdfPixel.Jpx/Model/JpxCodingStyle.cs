@@ -71,7 +71,7 @@ public sealed class JpxCodingStyle
     /// Actual size = 2^exponent. If null, default precinct sizes are used.
     /// Array length should be DecompositionLevels + 1.
     /// </summary>
-    public byte[] PrecinctSizeExponents { get; set; }
+    public byte[] PrecinctSizeExponents { get; set; } = [];
 
     /// <summary>
     /// Gets a value indicating whether the entropy coder uses partitions.
@@ -106,5 +106,5 @@ public sealed class JpxCodingStyle
     /// <summary>
     /// Gets a value indicating whether precinct sizes are explicitly specified.
     /// </summary>
-    public bool HasPrecinctSizes => PrecinctSizeExponents != null && PrecinctSizeExponents.Length > 0;
+    public bool HasPrecinctSizes => PrecinctSizeExponents?.Length > 0;
 }

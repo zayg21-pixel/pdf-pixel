@@ -23,9 +23,9 @@ internal static class Jbig2RefinementRegionDecoder
     /// <param name="referenceOffsetY">Y offset of reference bitmap relative to output.</param>
     /// <returns>Refined bitmap.</returns>
     internal static Jbig2Bitmap Decode(
-        ReadOnlySpan<byte> data,
+        in ReadOnlySpan<byte> data,
         Jbig2RegionHeader regionHeader,
-        Jbig2Bitmap reference,
+        Jbig2Bitmap? reference,
         int referenceOffsetX = 0,
         int referenceOffsetY = 0)
     {
@@ -34,20 +34,20 @@ internal static class Jbig2RefinementRegionDecoder
             throw new InvalidOperationException("JBIG2 refinement region data too short: missing flags byte.");
         }
 
-        var flags = new Jbig2RefinementRegionFlags(data[0]);
+        Jbig2RefinementRegionFlags flags = new(data[0]);
         int atCount = flags.AtPixelCount;
         Jbig2AtPixels atPixels = Jbig2Templates.ReadAtPixelPairs(data.Slice(1), atCount);
-        int offset = 1 + atCount * 2;
+        int offset = 1 + (atCount * 2);
 
         if (reference == null)
         {
             return new Jbig2Bitmap(regionHeader.Width, regionHeader.Height);
         }
 
-        var bitmap = new Jbig2Bitmap(regionHeader.Width, regionHeader.Height);
-        var decoder = new Jbig2ArithmeticReader(data.Slice(offset));
+        Jbig2Bitmap bitmap = new(regionHeader.Width, regionHeader.Height);
+        Jbig2ArithmeticReader decoder = new(data.Slice(offset));
 
-        int contextSize = flags.TemplateId == 0 ? 1 << 13 : 1 << 10;
+        int contextSize = (flags.TemplateId == 0) ? 1 << 13 : 1 << 10;
         Span<byte> contexts = new byte[contextSize];
 
         DecodeRegion(
@@ -87,7 +87,7 @@ internal static class Jbig2RefinementRegionDecoder
         int referenceOffsetX,
         int referenceOffsetY)
     {
-        var bitmap = new Jbig2Bitmap(width, height);
+        Jbig2Bitmap bitmap = new(width, height);
         Span<byte> contexts = context.Gr;
 
         DecodeRegion(
@@ -114,7 +114,7 @@ internal static class Jbig2RefinementRegionDecoder
     private static void DecodeRegion(
         ref Jbig2ArithmeticReader decoder,
         Jbig2Bitmap bitmap,
-        Span<byte> contexts,
+        in Span<byte> contexts,
         int width,
         int height,
         int templateId,
@@ -128,10 +128,10 @@ internal static class Jbig2RefinementRegionDecoder
         // TPGRON start context (ITU-T T.88 Table 13):
         // Context with only the reference center pixel (rx, ry) bit set:
         // template 0 → bit 8 = 0x0100, template 1 → bit 7 = 0x0080
-        int tpgronContext = templateId == 0 ? 0x0100 : 0x0080;
+        int tpgronContext = (templateId == 0) ? 0x0100 : 0x0080;
         int ltp = 0;
 
-        var fastTemplate = Jbig2Templates.BuildRefinementTemplate(templateId, atX, atY);
+        Jbig2RowTemplate fastTemplate = Jbig2Templates.BuildRefinementTemplate(templateId, atX, atY);
 
         for (int y = 0; y < height; y++)
         {
@@ -142,8 +142,16 @@ internal static class Jbig2RefinementRegionDecoder
             }
 
             Jbig2RowDecoder.DecodeRefinementRow(
-                ref decoder, bitmap, contexts, y, width, fastTemplate,
-                reference, refDx, refDy, usePrediction: ltp != 0);
+                ref decoder,
+                bitmap,
+                contexts,
+                y,
+                width,
+                fastTemplate,
+                reference,
+                refDx,
+                refDy,
+                usePrediction: ltp != 0);
         }
     }
 }

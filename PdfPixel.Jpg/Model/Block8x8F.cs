@@ -10,10 +10,10 @@ namespace PdfPixel.Jpg.Model;
 /// The explicit layout together with vector fields allows efficient SIMD operations across the block.
 /// </summary>
 [StructLayout(LayoutKind.Explicit)]
-public partial struct Block8x8F
+internal struct Block8x8F
 {
     private static readonly Vector4 Zero = Vector4.Zero;
-    private static readonly Vector4 MaxByte = new Vector4(255f);
+    private static readonly Vector4 MaxByte = new(255f);
 
     /// <summary>
     /// Total number of scalar (float) coefficients held by a block (8 * 8).
@@ -30,41 +30,49 @@ public partial struct Block8x8F
 
     [FieldOffset(0)]
     public Vector4 Row0Left;
+
     [FieldOffset(16)]
     public Vector4 Row0Right;
 
     [FieldOffset(32)]
     public Vector4 Row1Left;
+
     [FieldOffset(48)]
     public Vector4 Row1Right;
 
     [FieldOffset(64)]
     public Vector4 Row2Left;
+
     [FieldOffset(80)]
     public Vector4 Row2Right;
 
     [FieldOffset(96)]
     public Vector4 Row3Left;
+
     [FieldOffset(112)]
     public Vector4 Row3Right;
 
     [FieldOffset(128)]
     public Vector4 Row4Left;
+
     [FieldOffset(144)]
     public Vector4 Row4Right;
 
     [FieldOffset(160)]
     public Vector4 Row5Left;
+
     [FieldOffset(176)]
     public Vector4 Row5Right;
 
     [FieldOffset(192)]
     public Vector4 Row6Left;
+
     [FieldOffset(208)]
     public Vector4 Row6Right;
 
     [FieldOffset(224)]
     public Vector4 Row7Left;
+
     [FieldOffset(240)]
     public Vector4 Row7Right;
 
@@ -96,10 +104,7 @@ public partial struct Block8x8F
     /// <param name="vectorIndex">Index of the vector (0-based).</param>
     /// <returns>The vector value.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public Vector4 GetVector(int vectorIndex)
-    {
-        return Unsafe.Add(ref Unsafe.As<Block8x8F, Vector4>(ref this), vectorIndex);
-    }
+    public Vector4 GetVector(int vectorIndex) => Unsafe.Add(ref Unsafe.As<Block8x8F, Vector4>(ref this), vectorIndex);
 
     /// <summary>
     /// Sets the <see cref="Vector4"/> value at the specified vector index (0..15).
@@ -107,7 +112,7 @@ public partial struct Block8x8F
     /// <param name="vectorIndex">Index of the vector (0-based).</param>
     /// <param name="value">Value to write.</param>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public void SetVector(int vectorIndex, in Vector4 value)
+    public void SetVector(int vectorIndex, Vector4 value)
     {
         ref Vector4 vectorRef = ref Unsafe.Add(ref Unsafe.As<Block8x8F, Vector4>(ref this), vectorIndex);
         vectorRef = value;
@@ -228,7 +233,7 @@ public partial struct Block8x8F
     /// </summary>
     /// <param name="other">Block providing the per-lane multipliers.</param>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public void MultiplyBy(in Block8x8F other)
+    public void MultiplyBy(Block8x8F other)
     {
         Row0Left *= other.Row0Left;
         Row0Right *= other.Row0Right;
@@ -279,7 +284,7 @@ public partial struct Block8x8F
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void Clear(float value = 0)
     {
-        var vectorValue = new Vector4(value);
+        Vector4 vectorValue = new(value);
         Row0Left = vectorValue;
         Row0Right = vectorValue;
         Row1Left = vectorValue;

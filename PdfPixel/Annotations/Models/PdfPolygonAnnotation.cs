@@ -43,14 +43,7 @@ public class PdfPolygonAnnotation : PdfAnnotationBase
     /// </summary>
     public SKPoint[] Vertices { get; }
 
-    /// <summary>
-    /// Renders the fallback content for polygon annotations when no appearance stream is available.
-    /// </summary>
-    /// <param name="processor">The command processor to emit commands to.</param>
-    /// <param name="page">The PDF page containing this annotation.</param>
-    /// <param name="visualStateKind">The visual state to render (Normal, Rollover, Down).</param>
-    /// <returns>True if fallback rendering was emitted.</returns>
-    public override bool RenderFallback(IPdfCommandProcessor processor, PdfPage page, PdfAnnotationVisualStateKind visualStateKind)
+    protected override bool RenderFallback(IPdfCommandProcessor processor, PdfPage page, PdfAnnotationVisualStateKind visualStateKind, PdfRenderingParameters renderingParameters)
     {
         if (Vertices == null || Vertices.Length < 3)
         {
@@ -74,7 +67,7 @@ public class PdfPolygonAnnotation : PdfAnnotationBase
             var fillPaint = new SKPaint
             {
                 Style = SKPaintStyle.Fill,
-                IsAntialias = true,
+                IsAntialias = renderingParameters.Antialias,
                 Color = interiorSKColor
             };
 
@@ -90,7 +83,7 @@ public class PdfPolygonAnnotation : PdfAnnotationBase
                 Style = SKPaintStyle.Stroke,
                 StrokeWidth = BorderStyle.Width,
                 StrokeJoin = SKStrokeJoin.Miter,
-                IsAntialias = true,
+                IsAntialias = renderingParameters.Antialias,
                 Color = strokeColor
             };
 

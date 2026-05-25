@@ -9,15 +9,21 @@ namespace PdfPixel.Jbig2.Model;
 [StructLayout(LayoutKind.Explicit, Size = 32)]
 internal readonly struct Jbig2ContextPixel(sbyte dx, sbyte dy, byte shift)
 {
-    /// <summary>Horizontal offset from the current pixel.</summary>
+    /// <summary>
+    /// Horizontal offset from the current pixel.
+    /// </summary>
     [FieldOffset(0)]
     internal readonly sbyte Dx = dx;
 
-    /// <summary>Vertical offset from the current pixel.</summary>
+    /// <summary>
+    /// Vertical offset from the current pixel.
+    /// </summary>
     [FieldOffset(1)]
     internal readonly sbyte Dy = dy;
 
-    /// <summary>Bit position in the context label.</summary>
+    /// <summary>
+    /// Bit position in the context label.
+    /// </summary>
     [FieldOffset(2)]
     internal readonly byte Shift = shift;
 }

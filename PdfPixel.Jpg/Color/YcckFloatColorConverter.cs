@@ -1,6 +1,7 @@
 using System;
 using System.Numerics;
 using System.Runtime.CompilerServices;
+
 using PdfPixel.Jpg.Decoding;
 using PdfPixel.Jpg.Model;
 
@@ -14,14 +15,14 @@ namespace PdfPixel.Jpg.Color;
 internal sealed class YcckFloatColorConverter : IJpgColorConverter
 {
     private static readonly Vector4 VectorZero = Vector4.Zero;
-    private static readonly Vector4 Vector255 = new Vector4(255f);
-    private static readonly Vector4 OffsetR = new Vector4(434.456f);
-    private static readonly Vector4 OffsetG = new Vector4(119.541f);
-    private static readonly Vector4 OffsetB = new Vector4(481.816f);
-    private static readonly Vector4 CrToR = new Vector4(1.402f);
-    private static readonly Vector4 CbToG = new Vector4(0.344136f);
-    private static readonly Vector4 CrToG = new Vector4(0.714136f);
-    private static readonly Vector4 CbToB = new Vector4(1.772f);
+    private static readonly Vector4 Vector255 = new(255f);
+    private static readonly Vector4 OffsetR = new(434.456f);
+    private static readonly Vector4 OffsetG = new(119.541f);
+    private static readonly Vector4 OffsetB = new(481.816f);
+    private static readonly Vector4 CrToR = new(1.402f);
+    private static readonly Vector4 CbToG = new(0.344136f);
+    private static readonly Vector4 CrToG = new(0.714136f);
+    private static readonly Vector4 CbToB = new(1.772f);
 
     private readonly JpgDecodingParameters _parameters;
 
@@ -31,14 +32,17 @@ internal sealed class YcckFloatColorConverter : IJpgColorConverter
         {
             throw new ArgumentNullException(nameof(header));
         }
+
         if (parameters == null)
         {
             throw new ArgumentNullException(nameof(parameters));
         }
+
         if (header.ComponentCount != 4)
         {
             throw new ArgumentException("YCCK converter requires 4 components.", nameof(header));
         }
+
         _parameters = parameters;
     }
 
@@ -48,6 +52,7 @@ internal sealed class YcckFloatColorConverter : IJpgColorConverter
         {
             throw new ArgumentNullException(nameof(upsampledBandBlocks));
         }
+
         if (upsampledBandBlocks.Length < 4)
         {
             throw new ArgumentException("YCCK converter requires 4 component arrays.", nameof(upsampledBandBlocks));
@@ -79,9 +84,9 @@ internal sealed class YcckFloatColorConverter : IJpgColorConverter
                 Vector4 crVec = Unsafe.Add(ref crVecRef, vectorIndex);
                 Vector4 kVec = Unsafe.Add(ref kVecRef, vectorIndex);
 
-                var cRVec = OffsetR - yVec - CrToR * crVec;
-                var mRVec = OffsetG - yVec + CbToG * cbVec + CrToG * crVec;
-                var yRVec = OffsetB - yVec - CbToB * cbVec;
+                Vector4 cRVec = OffsetR - yVec - (CrToR * crVec);
+                Vector4 mRVec = OffsetG - yVec + (CbToG * cbVec) + (CrToG * crVec);
+                Vector4 yRVec = OffsetB - yVec - (CbToB * cbVec);
 
                 // Overwrite source component blocks with CMY derived from provisional RGB.
                 Unsafe.Add(ref yVecRef, vectorIndex) = Vector4.Clamp(cRVec, VectorZero, Vector255); // C

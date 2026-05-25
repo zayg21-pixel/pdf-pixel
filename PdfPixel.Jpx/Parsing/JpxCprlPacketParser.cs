@@ -11,10 +11,7 @@ internal sealed class JpxCprlPacketParser : IJpxPacketParser
 {
     private readonly JpxHeader _header;
 
-    public JpxCprlPacketParser(JpxHeader header)
-    {
-        _header = header ?? throw new ArgumentNullException(nameof(header));
-    }
+    public JpxCprlPacketParser(JpxHeader header) => _header = header ?? throw new ArgumentNullException(nameof(header));
 
     /// <inheritdoc />
     public JpxProgressionOrder ProgressionOrder => JpxProgressionOrder.CPRL;
@@ -22,6 +19,11 @@ internal sealed class JpxCprlPacketParser : IJpxPacketParser
     /// <inheritdoc />
     public JpxPacket[] ParsePackets(ReadOnlySpan<byte> packetData, JpxTileHeader tileHeader)
     {
+        if (_header.CodingStyle == null)
+        {
+            throw new InvalidOperationException("Coding style is not defined.");
+        }
+
         int layers = _header.CodingStyle.NumberOfLayers;
         int resolutions = _header.CodingStyle.DecompositionLevels;
         int components = _header.ComponentCount;
@@ -83,7 +85,7 @@ internal sealed class JpxCprlPacketParser : IJpxPacketParser
             }
         }
 
-        var codeBlockParser = new JpxPacketCodeBlockParser(_header, tileHeader);
+        JpxPacketCodeBlockParser codeBlockParser = new(_header, tileHeader);
         codeBlockParser.ParseCodeBlocks(packetData, packets);
 
         return packets;

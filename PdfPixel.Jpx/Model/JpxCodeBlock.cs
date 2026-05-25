@@ -79,7 +79,7 @@ internal sealed class JpxCodeBlock
     /// Decoded wavelet coefficients after Tier-1 decoding (row-major, height * width).
     /// Populated by <see cref="PdfPixel.Jpx.Decoding.JpxTier1Decoder"/>.
     /// </summary>
-    public int[] DecodedCoefficients { get; set; }
+    public int[] DecodedCoefficients { get; set; } = [];
 
     /// <summary>
     /// Appends a layer's contribution to this code-block.
@@ -87,7 +87,7 @@ internal sealed class JpxCodeBlock
     /// </summary>
     /// <param name="layerData">Entropy-coded data bytes from this layer.</param>
     /// <param name="layerPasses">Number of coding passes contributed by this layer.</param>
-    public void AppendLayer(ReadOnlySpan<byte> layerData, int layerPasses)
+    public void AppendLayer(in ReadOnlySpan<byte> layerData, int layerPasses)
     {
         if (layerData.Length == 0)
         {

@@ -7,14 +7,11 @@ namespace PdfPixel.Color.Icc.Utilities;
 /// Minimal big-endian reader for ICC parsing. ICC uses big-endian for multi-byte numbers.
 /// Compatible with .NET Standard 2.0 (no spans).
 /// </summary>
-public sealed class BigEndianReader
+internal sealed class BigEndianReader
 {
     private readonly byte[] _data;
 
-    public BigEndianReader(byte[] data)
-    {
-        _data = data ?? Array.Empty<byte>();
-    }
+    public BigEndianReader(byte[] data) => _data = data ?? Array.Empty<byte>();
 
     /// <summary>
     /// Returns true if the requested byte range is fully inside the underlying buffer.
@@ -25,10 +22,12 @@ public sealed class BigEndianReader
         {
             return false;
         }
+
         if (offset > _data.Length)
         {
             return false;
         }
+
         return offset + count <= _data.Length;
     }
 
@@ -76,8 +75,8 @@ public sealed class BigEndianReader
     public ulong ReadUInt64(int offset)
     {
         Ensure(offset, 8);
-        var hi = ReadUInt32(offset);
-        var lo = ReadUInt32(offset + 4);
+        uint hi = ReadUInt32(offset);
+        uint lo = ReadUInt32(offset + 4);
         return (ulong)hi << 32 | lo;
     }
 
@@ -85,7 +84,7 @@ public sealed class BigEndianReader
     {
         Ensure(offset, 8);
         long hi = ReadInt32(offset);
-        uint lo = (uint)ReadInt32(offset + 4);
+        var lo = (uint)ReadInt32(offset + 4);
         return hi << 32 | lo;
     }
 
@@ -104,20 +103,11 @@ public sealed class BigEndianReader
     }
 
     // ICC fixed-point helpers
-    public static float S15Fixed16ToSingle(int value)
-    {
-        return value / 65536f; // 1 << 16
-    }
+    public static float S15Fixed16ToSingle(int value) => value / 65536f; // 1 << 16
 
-    public static float U16Fixed16ToSingle(uint value)
-    {
-        return value / 65536f;
-    }
+    public static float U16Fixed16ToSingle(uint value) => value / 65536f;
 
-    public static float U8Fixed8ToSingle(ushort value)
-    {
-        return value / 256f; // 1 << 8
-    }
+    public static float U8Fixed8ToSingle(ushort value) => value / 256f; // 1 << 8
 
     public static uint FourCC(string fourCC)
     {
@@ -125,15 +115,16 @@ public sealed class BigEndianReader
         {
             throw new ArgumentException("FourCC must be exactly 4 characters.", nameof(fourCC));
         }
+
         return (uint)(fourCC[0] << 24 | fourCC[1] << 16 | fourCC[2] << 8 | fourCC[3]);
     }
 
     public static string FourCCToString(uint sig)
     {
-        char c0 = (char)(sig >> 24 & 0xFF);
-        char c1 = (char)(sig >> 16 & 0xFF);
-        char c2 = (char)(sig >> 8 & 0xFF);
-        char c3 = (char)(sig & 0xFF);
+        var c0 = (char)(sig >> 24 & 0xFF);
+        var c1 = (char)(sig >> 16 & 0xFF);
+        var c2 = (char)(sig >> 8 & 0xFF);
+        var c3 = (char)(sig & 0xFF);
         return new string(new[] { c0, c1, c2, c3 });
     }
 }

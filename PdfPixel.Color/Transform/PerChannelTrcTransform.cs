@@ -3,7 +3,9 @@ using PdfPixel.Color.Icc.Model;
 using System;
 using System.Numerics;
 using System.Runtime.CompilerServices;
+#if !NETSTANDARD2_0
 using System.Runtime.InteropServices;
+#endif
 
 namespace PdfPixel.Color.Transform;
 
@@ -15,8 +17,8 @@ namespace PdfPixel.Color.Transform;
 public sealed class PerChannelTrcTransform : IColorTransform
 {
     private const int MinSamplesCount = 512; // TODO: [LOW] move to parameters, use configuration for vector version (high quality), move to analyzers "pass through" path 
+
     private readonly int _channelCount;
-    private readonly bool _isPassthrough;
     private readonly float[] _samples0;
     private readonly float[] _samples1;
     private readonly float[] _samples2;
@@ -33,24 +35,30 @@ public sealed class PerChannelTrcTransform : IColorTransform
         if (trcs == null || trcs.Length == 0)
         {
             _channelCount = 0;
-            _isPassthrough = true;
-            _samples0 = _samples1 = _samples2 = _samples3 = null;
+            IsIdentity = true;
+            _samples0 = Array.Empty<float>();
+            _samples1 = Array.Empty<float>();
+            _samples2 = Array.Empty<float>();
+            _samples3 = Array.Empty<float>();
             _scale = Vector4.One;
             return;
         }
 
         _channelCount = Math.Min(trcs.Length, 4);
-        _isPassthrough = IsPassthroughTransform(trcs, _channelCount);
+        IsIdentity = IsPassthroughTransform(trcs, _channelCount);
 
-        if (_isPassthrough)
+        if (IsIdentity)
         {
-            _samples0 = _samples1 = _samples2 = _samples3 = null;
+            _samples0 = Array.Empty<float>();
+            _samples1 = Array.Empty<float>();
+            _samples2 = Array.Empty<float>();
+            _samples3 = Array.Empty<float>();
             _scale = Vector4.One;
             return;
         }
 
         // Always use sampled version of all curves
-        float[][] samples = new float[_channelCount][];
+        var samples = new float[_channelCount][];
         for (int i = 0; i < _channelCount; i++)
         {
             IccTrc trc = trcs[i];
@@ -69,23 +77,26 @@ public sealed class PerChannelTrcTransform : IColorTransform
                     channelSamples[j] = trc.Evaluator.Evaluate(t);
                 }
             }
+
             samples[i] = channelSamples;
         }
+
         _samples0 = samples[0];
-        _samples1 = _channelCount > 1 ? samples[1] : null;
-        _samples2 = _channelCount > 2 ? samples[2] : null;
-        _samples3 = _channelCount > 3 ? samples[3] : null;
+        _samples1 = (_channelCount > 1) ? samples[1] : [];
+        _samples2 = (_channelCount > 2) ? samples[2] : [];
+        _samples3 = (_channelCount > 3) ? samples[3] : [];
 
         _scale = _channelCount switch
         {
             1 => new Vector4(_samples0.Length - 1, 1f, 1f, 1f),
             2 => new Vector4(_samples0.Length - 1, _samples1.Length - 1, 1f, 1f),
             3 => new Vector4(_samples0.Length - 1, _samples1.Length - 1, _samples2.Length - 1, 1f),
-            _ => new Vector4(_samples0.Length - 1, _samples1.Length - 1, _samples2.Length - 1, _samples3.Length - 1),
+            _ => new Vector4(_samples0.Length - 1, _samples1.Length - 1, _samples2.Length - 1, _samples3.Length - 1)
         };
     }
 
-    public bool IsIdentity => _isPassthrough;
+    /// <inheritdoc/>
+    public bool IsIdentity { get; }
 
     /// <summary>
     /// Transforms the input color vector by evaluating each channel through its corresponding sampled TRC.
@@ -95,7 +106,7 @@ public sealed class PerChannelTrcTransform : IColorTransform
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public Vector4 Transform(Vector4 color)
     {
-        if (_isPassthrough)
+        if (IsIdentity)
         {
             return color;
         }
@@ -106,35 +117,34 @@ public sealed class PerChannelTrcTransform : IColorTransform
         {
             case 1:
             {
-                int idxX = (int)scaled.X;
+                var idxX = (int)scaled.X;
                 float r = LookupSample(_samples0, idxX);
                 return new Vector4(r, 1f, 1f, 1f);
             }
             case 2:
             {
-                int idxX = (int)scaled.X;
-                int idxY = (int)scaled.Y;
+                var idxX = (int)scaled.X;
+                var idxY = (int)scaled.Y;
                 float r = LookupSample(_samples0, idxX);
                 float g = LookupSample(_samples1, idxY);
                 return new Vector4(r, g, 1f, 1f);
             }
             case 3:
             {
-                int idxX = (int)scaled.X;
-                int idxY = (int)scaled.Y;
-                int idxZ = (int)scaled.Z;
+                var idxX = (int)scaled.X;
+                var idxY = (int)scaled.Y;
+                var idxZ = (int)scaled.Z;
                 float r = LookupSample(_samples0, idxX);
                 float g = LookupSample(_samples1, idxY);
                 float b = LookupSample(_samples2, idxZ);
                 return new Vector4(r, g, b, 1f);
             }
-            case 4:
             default:
             {
-                int idxX = (int)scaled.X;
-                int idxY = (int)scaled.Y;
-                int idxZ = (int)scaled.Z;
-                int idxW = (int)scaled.W;
+                var idxX = (int)scaled.X;
+                var idxY = (int)scaled.Y;
+                var idxZ = (int)scaled.Z;
+                var idxW = (int)scaled.W;
                 float r = LookupSample(_samples0, idxX);
                 float g = LookupSample(_samples1, idxY);
                 float b = LookupSample(_samples2, idxZ);
@@ -164,7 +174,7 @@ public sealed class PerChannelTrcTransform : IColorTransform
 #endif
         }
 
-        return index < 0 ? 0f : 1f;
+        return (index < 0) ? 0f : 1f;
     }
 
     /// <summary>
@@ -183,6 +193,7 @@ public sealed class PerChannelTrcTransform : IColorTransform
                 return false;
             }
         }
+
         return true;
     }
 
@@ -204,19 +215,19 @@ public sealed class PerChannelTrcTransform : IColorTransform
         {
             case IccTrcType.None:
                 return true;
-                
+
             case IccTrcType.Sampled:
                 // Check for linear [0,1] sampled curves - very common in ICC profiles
                 return IsLinearSampledCurve(trc.Samples);
-                
+
             case IccTrcType.Gamma:
                 // Identity if gamma is very close to 1.0 (rare but possible)
                 return Math.Abs(trc.Gamma - 1.0f) < 1e-6f;
-                
+
             case IccTrcType.Parametric:
                 // Check for parametric identity (rare)
                 return IsIdentityParametric(trc.ParametricType, trc.Parameters);
-                
+
             default:
                 return false;
         }
@@ -229,7 +240,7 @@ public sealed class PerChannelTrcTransform : IColorTransform
     /// <param name="samples">Sample array to check.</param>
     /// <returns>True if samples represent linear 0→1 mapping.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static bool IsLinearSampledCurve(float[] samples)
+    private static bool IsLinearSampledCurve(float[]? samples)
     {
         if (samples == null || samples.Length == 0)
         {
@@ -237,7 +248,7 @@ public sealed class PerChannelTrcTransform : IColorTransform
         }
 
         int length = samples.Length;
-        
+
         // Check first and last values for [0,1] range
         if (Math.Abs(samples[0]) > 1e-6f || Math.Abs(samples[length - 1] - 1.0f) > 1e-6f)
         {
@@ -265,7 +276,7 @@ public sealed class PerChannelTrcTransform : IColorTransform
     /// <param name="parameters">Curve parameters.</param>
     /// <returns>True if parameters represent identity.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static bool IsIdentityParametric(IccTrcParametricType type, float[] parameters)
+    private static bool IsIdentityParametric(IccTrcParametricType type, float[]? parameters)
     {
         if (parameters == null)
         {
@@ -274,12 +285,12 @@ public sealed class PerChannelTrcTransform : IColorTransform
 
         return type switch
         {
-            IccTrcParametricType.Gamma => 
+            IccTrcParametricType.Gamma =>
                 parameters.Length >= 1 && Math.Abs(parameters[0] - 1.0f) < 1e-6f,
-                
+
             // For other parametric types, we'd need to check specific parameter combinations
             // that result in identity transforms. For simplicity, assume non-identity.
-            _ => false,
+            _ => false
         };
     }
 }

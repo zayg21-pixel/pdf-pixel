@@ -18,7 +18,7 @@ internal static class Jbig2StandardHuffmanTables
         new Jbig2HuffmanLine(0, 4, 1),
         new Jbig2HuffmanLine(16, 8, 2),
         new Jbig2HuffmanLine(272, 16, 3),
-        new Jbig2HuffmanLine(65808, 32, 3),
+        new Jbig2HuffmanLine(65808, 32, 3)
     ]);
 
     /// <summary>
@@ -32,7 +32,7 @@ internal static class Jbig2StandardHuffmanTables
         new Jbig2HuffmanLine(3, 3, 4),
         new Jbig2HuffmanLine(11, 6, 5),
         new Jbig2HuffmanLine(75, 32, 6),
-        new Jbig2HuffmanLine(0, 0, 6, isOob: true),
+        new Jbig2HuffmanLine(0, 0, 6, isOob: true)
     ]);
 
     /// <summary>
@@ -48,7 +48,7 @@ internal static class Jbig2StandardHuffmanTables
         new Jbig2HuffmanLine(11, 6, 5),
         new Jbig2HuffmanLine(-257, 32, 8, isLowerRange: true),
         new Jbig2HuffmanLine(75, 32, 7),
-        new Jbig2HuffmanLine(0, 0, 6, isOob: true),
+        new Jbig2HuffmanLine(0, 0, 6, isOob: true)
     ]);
 
     /// <summary>
@@ -61,7 +61,7 @@ internal static class Jbig2StandardHuffmanTables
         new Jbig2HuffmanLine(3, 0, 3),
         new Jbig2HuffmanLine(4, 3, 4),
         new Jbig2HuffmanLine(12, 6, 5),
-        new Jbig2HuffmanLine(76, 32, 5),
+        new Jbig2HuffmanLine(76, 32, 5)
     ]);
 
     /// <summary>
@@ -76,7 +76,7 @@ internal static class Jbig2StandardHuffmanTables
         new Jbig2HuffmanLine(4, 3, 4),
         new Jbig2HuffmanLine(12, 6, 5),
         new Jbig2HuffmanLine(-256, 32, 7, isLowerRange: true),
-        new Jbig2HuffmanLine(76, 32, 6),
+        new Jbig2HuffmanLine(76, 32, 6)
     ]);
 
     /// <summary>
@@ -97,7 +97,7 @@ internal static class Jbig2StandardHuffmanTables
         new Jbig2HuffmanLine(512, 9, 4),
         new Jbig2HuffmanLine(1024, 10, 4),
         new Jbig2HuffmanLine(-2049, 32, 6, isLowerRange: true),
-        new Jbig2HuffmanLine(2048, 32, 6),
+        new Jbig2HuffmanLine(2048, 32, 6)
     ]);
 
     /// <summary>
@@ -119,7 +119,7 @@ internal static class Jbig2StandardHuffmanTables
         new Jbig2HuffmanLine(512, 9, 3),
         new Jbig2HuffmanLine(1024, 10, 3),
         new Jbig2HuffmanLine(-1025, 32, 5, isLowerRange: true),
-        new Jbig2HuffmanLine(2048, 32, 5),
+        new Jbig2HuffmanLine(2048, 32, 5)
     ]);
 
     /// <summary>
@@ -147,7 +147,7 @@ internal static class Jbig2StandardHuffmanTables
         new Jbig2HuffmanLine(-7, 1, 9),
         new Jbig2HuffmanLine(-3, 0, 9),
         new Jbig2HuffmanLine(-16, 32, 9, isLowerRange: true),
-        new Jbig2HuffmanLine(1670, 32, 9),
+        new Jbig2HuffmanLine(1670, 32, 9)
     ]);
 
     /// <summary>
@@ -176,7 +176,7 @@ internal static class Jbig2StandardHuffmanTables
         new Jbig2HuffmanLine(-15, 2, 9),
         new Jbig2HuffmanLine(-7, 1, 9),
         new Jbig2HuffmanLine(-32, 32, 9, isLowerRange: true),
-        new Jbig2HuffmanLine(3339, 32, 9),
+        new Jbig2HuffmanLine(3339, 32, 9)
     ]);
 
     /// <summary>
@@ -204,7 +204,7 @@ internal static class Jbig2StandardHuffmanTables
         new Jbig2HuffmanLine(-5, 0, 8),
         new Jbig2HuffmanLine(5, 0, 8),
         new Jbig2HuffmanLine(-22, 32, 8, isLowerRange: true),
-        new Jbig2HuffmanLine(4166, 32, 8),
+        new Jbig2HuffmanLine(4166, 32, 8)
     ]);
 
     /// <summary>
@@ -224,7 +224,7 @@ internal static class Jbig2StandardHuffmanTables
         new Jbig2HuffmanLine(29, 4, 7),
         new Jbig2HuffmanLine(45, 5, 7),
         new Jbig2HuffmanLine(77, 6, 7),
-        new Jbig2HuffmanLine(141, 32, 7),
+        new Jbig2HuffmanLine(141, 32, 7)
     ]);
 
     /// <summary>
@@ -244,7 +244,7 @@ internal static class Jbig2StandardHuffmanTables
         new Jbig2HuffmanLine(17, 3, 7),
         new Jbig2HuffmanLine(25, 4, 7),
         new Jbig2HuffmanLine(41, 5, 8),
-        new Jbig2HuffmanLine(73, 32, 8),
+        new Jbig2HuffmanLine(73, 32, 8)
     ]);
 
     /// <summary>
@@ -264,7 +264,7 @@ internal static class Jbig2StandardHuffmanTables
         new Jbig2HuffmanLine(29, 4, 6),
         new Jbig2HuffmanLine(45, 5, 6),
         new Jbig2HuffmanLine(77, 6, 7),
-        new Jbig2HuffmanLine(141, 32, 7),
+        new Jbig2HuffmanLine(141, 32, 7)
     ]);
 
     /// <summary>
@@ -276,7 +276,7 @@ internal static class Jbig2StandardHuffmanTables
         new Jbig2HuffmanLine(-2, 0, 3),
         new Jbig2HuffmanLine(-1, 0, 3),
         new Jbig2HuffmanLine(1, 0, 3),
-        new Jbig2HuffmanLine(2, 0, 3),
+        new Jbig2HuffmanLine(2, 0, 3)
     ]);
 
     /// <summary>
@@ -296,7 +296,7 @@ internal static class Jbig2StandardHuffmanTables
         new Jbig2HuffmanLine(-24, 4, 7),
         new Jbig2HuffmanLine(9, 4, 7),
         new Jbig2HuffmanLine(-25, 32, 7, isLowerRange: true),
-        new Jbig2HuffmanLine(25, 32, 7),
+        new Jbig2HuffmanLine(25, 32, 7)
     ]);
 
     /// <summary>
@@ -308,7 +308,7 @@ internal static class Jbig2StandardHuffmanTables
     /// <param name="fallback">Table to return when no custom table is available.</param>
     /// <returns>The next custom table, or the fallback.</returns>
     public static Jbig2HuffmanTable GetCustomTable(
-        List<Jbig2HuffmanTable> customTables,
+        List<Jbig2HuffmanTable>? customTables,
         ref int index,
         Jbig2HuffmanTable fallback)
     {
@@ -325,17 +325,20 @@ internal static class Jbig2StandardHuffmanTables
     /// </summary>
     public static Jbig2HuffmanTable SelectDeltaHeight(
         int selection,
-        List<Jbig2HuffmanTable> customTables,
+        List<Jbig2HuffmanTable>? customTables,
         ref int customIndex)
     {
         switch (selection)
         {
             case 0:
                 return TableB4;
+
             case 1:
                 return TableB5;
+
             case 3:
                 return GetCustomTable(customTables, ref customIndex, TableB4);
+
             default:
                 return TableB4;
         }
@@ -346,17 +349,20 @@ internal static class Jbig2StandardHuffmanTables
     /// </summary>
     public static Jbig2HuffmanTable SelectDeltaWidth(
         int selection,
-        List<Jbig2HuffmanTable> customTables,
+        List<Jbig2HuffmanTable>? customTables,
         ref int customIndex)
     {
         switch (selection)
         {
             case 0:
                 return TableB2;
+
             case 1:
                 return TableB3;
+
             case 3:
                 return GetCustomTable(customTables, ref customIndex, TableB2);
+
             default:
                 return TableB2;
         }
@@ -367,7 +373,7 @@ internal static class Jbig2StandardHuffmanTables
     /// </summary>
     public static Jbig2HuffmanTable SelectBitmapSize(
         int selection,
-        List<Jbig2HuffmanTable> customTables,
+        List<Jbig2HuffmanTable>? customTables,
         ref int customIndex)
     {
         if (selection == 0)
@@ -383,7 +389,7 @@ internal static class Jbig2StandardHuffmanTables
     /// </summary>
     public static Jbig2HuffmanTable SelectAggregateInstances(
         int selection,
-        List<Jbig2HuffmanTable> customTables,
+        List<Jbig2HuffmanTable>? customTables,
         ref int customIndex)
     {
         if (selection == 0)
@@ -399,17 +405,20 @@ internal static class Jbig2StandardHuffmanTables
     /// </summary>
     public static Jbig2HuffmanTable SelectFirstS(
         int selection,
-        List<Jbig2HuffmanTable> customTables,
+        List<Jbig2HuffmanTable>? customTables,
         ref int customIndex)
     {
         switch (selection)
         {
             case 0:
                 return TableB6;
+
             case 1:
                 return TableB7;
+
             case 3:
                 return GetCustomTable(customTables, ref customIndex, TableB6);
+
             default:
                 return TableB6;
         }
@@ -420,19 +429,23 @@ internal static class Jbig2StandardHuffmanTables
     /// </summary>
     public static Jbig2HuffmanTable SelectDeltaS(
         int selection,
-        List<Jbig2HuffmanTable> customTables,
+        List<Jbig2HuffmanTable>? customTables,
         ref int customIndex)
     {
         switch (selection)
         {
             case 0:
                 return TableB8;
+
             case 1:
                 return TableB9;
+
             case 2:
                 return TableB10;
+
             case 3:
                 return GetCustomTable(customTables, ref customIndex, TableB8);
+
             default:
                 return TableB8;
         }
@@ -443,19 +456,23 @@ internal static class Jbig2StandardHuffmanTables
     /// </summary>
     public static Jbig2HuffmanTable SelectDeltaT(
         int selection,
-        List<Jbig2HuffmanTable> customTables,
+        List<Jbig2HuffmanTable>? customTables,
         ref int customIndex)
     {
         switch (selection)
         {
             case 0:
                 return TableB11;
+
             case 1:
                 return TableB12;
+
             case 2:
                 return TableB13;
+
             case 3:
                 return GetCustomTable(customTables, ref customIndex, TableB11);
+
             default:
                 return TableB11;
         }
@@ -467,17 +484,20 @@ internal static class Jbig2StandardHuffmanTables
     /// </summary>
     public static Jbig2HuffmanTable SelectRefinementDimension(
         int selection,
-        List<Jbig2HuffmanTable> customTables,
+        List<Jbig2HuffmanTable>? customTables,
         ref int customIndex)
     {
         switch (selection)
         {
             case 0:
                 return TableB14;
+
             case 1:
                 return TableB15;
+
             case 3:
                 return GetCustomTable(customTables, ref customIndex, TableB14);
+
             default:
                 return TableB14;
         }
@@ -489,7 +509,7 @@ internal static class Jbig2StandardHuffmanTables
     /// </summary>
     public static Jbig2HuffmanTable SelectRefinementSize(
         int selection,
-        List<Jbig2HuffmanTable> customTables,
+        List<Jbig2HuffmanTable>? customTables,
         ref int customIndex)
     {
         if (selection == 0)

@@ -7,7 +7,7 @@ namespace PdfPixel.Ccitt;
 /// <summary>
 /// Utility methods for validating runs and writing CCITT decoded runs into a packed 1-bit buffer.
 /// Bit semantics: if BlackIs1 is true then bit 1 encodes black pixels (white = 0). Otherwise bit 0 encodes black (white = 1).
-/// The first run in <paramref name="runs"/> is white (may be zero length) per CCITT specification.
+/// The first run in runs is white (may be zero length) per CCITT specification.
 /// </summary>
 public static class CcittRaster
 {
@@ -21,12 +21,17 @@ public static class CcittRaster
     /// <param name="width">Row width in pixels.</param>
     /// <param name="blackIs1">Bit polarity (1=black when true).</param>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static void RasterizeRuns(Span<byte> buffer, List<int> runs, int rowIndex, int width, bool blackIs1)
+    public static void RasterizeRuns(in Span<byte> buffer, List<int> runs, int rowIndex, int width, bool blackIs1)
     {
+        if (runs == null)
+        {
+            throw new ArgumentNullException(nameof(runs));
+        }
+
         int rowBytes = (width + 7) / 8;
         int rowBase = rowIndex * rowBytes;
         int x = 0;
-        bool isBlack = false; // first run white
+        var isBlack = false; // first run white
         int blackBit = blackIs1 ? 1 : 0;
 
         for (int r = 0; r < runs.Count; r++)
@@ -36,6 +41,7 @@ public static class CcittRaster
             {
                 WriteBlackRun(buffer, rowBase, x, runLength, blackBit);
             }
+
             x += runLength;
             isBlack = !isBlack;
         }
@@ -47,6 +53,16 @@ public static class CcittRaster
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static int BuildReferenceChangeList(List<int> runs, int width, int[] buffer)
     {
+        if (runs == null)
+        {
+            throw new ArgumentNullException(nameof(runs));
+        }
+
+        if (buffer == null)
+        {
+            throw new ArgumentNullException(nameof(runs));
+        }
+
         int position = 0;
         if (runs.Count > 0 && runs[0] == 0)
         {
@@ -64,6 +80,7 @@ public static class CcittRaster
                 position++;
             }
         }
+
         if (position == 0 || buffer[position - 1] != width)
         {
             buffer[position] = width;
@@ -74,12 +91,13 @@ public static class CcittRaster
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static void WriteBlackRun(Span<byte> buffer, int rowBase, int startX, int length, int blackBit)
+    private static void WriteBlackRun(in Span<byte> buffer, int rowBase, int startX, int length, int blackBit)
     {
         if (length <= 0)
         {
             return;
         }
+
         int endX = startX + length;
         int startByte = startX >> 3;
         int endByte = endX - 1 >> 3;
@@ -100,6 +118,7 @@ public static class CcittRaster
             {
                 buffer[rowOffsetStart] &= (byte)~mask;
             }
+
             return;
         }
 
@@ -115,6 +134,7 @@ public static class CcittRaster
             {
                 buffer[rowOffsetStart] &= (byte)~firstMask;
             }
+
             startByte++;
             rowOffsetStart++;
         }
@@ -128,6 +148,7 @@ public static class CcittRaster
         // Last partial byte
         int lastMask = 0xFF << 7 - bitEnd;
         int lastIndex = rowBase + endByte;
+
         if (setBits)
         {
             buffer[lastIndex] |= (byte)lastMask;

@@ -10,7 +10,7 @@ namespace PdfPixel.Jpx.Parsing;
 /// </summary>
 internal ref struct JpxBitReader
 {
-    private ReadOnlySpan<byte> _data;
+    private readonly ReadOnlySpan<byte> _data;
     private int _pos;
     private int _remaining;
     private int _currentByte;  // Current byte buffer (-1 means empty)
@@ -21,7 +21,7 @@ internal ref struct JpxBitReader
     /// Creates a new bit reader over the specified data starting at position 0.
     /// </summary>
     /// <param name="data">Packet data span (no ownership is taken).</param>
-    public JpxBitReader(ReadOnlySpan<byte> data)
+    public JpxBitReader(in ReadOnlySpan<byte> data)
     {
         _data = data;
         _remaining = data.Length;
@@ -149,7 +149,7 @@ internal ref struct JpxBitReader
     public ReadOnlySpan<byte> ReadRawSpan(int count)
     {
         int available = Math.Min(count, _remaining);
-        var span = _data.Slice(_pos, available);
+        ReadOnlySpan<byte> span = _data.Slice(_pos, available);
         _pos += available;
         _remaining -= available;
 

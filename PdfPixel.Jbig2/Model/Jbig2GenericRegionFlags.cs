@@ -17,10 +17,7 @@ internal readonly struct Jbig2GenericRegionFlags
     /// Initialises the flags from the raw flags byte at offset 17 of the region data.
     /// </summary>
     /// <param name="flagsByte">Raw flags byte.</param>
-    public Jbig2GenericRegionFlags(byte flagsByte)
-    {
-        _flags = flagsByte;
-    }
+    public Jbig2GenericRegionFlags(byte flagsByte) => _flags = flagsByte;
 
     /// <summary>
     /// If <see langword="true"/>, the region is coded using MMR (Group 4);

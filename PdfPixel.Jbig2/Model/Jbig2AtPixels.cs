@@ -8,7 +8,9 @@ namespace PdfPixel.Jbig2.Model;
 /// </summary>
 internal readonly struct Jbig2AtPixels
 {
-    /// <summary>Initialises the pair with the supplied coordinate arrays.</summary>
+    /// <summary>
+    /// Initialises the pair with the supplied coordinate arrays.
+    /// </summary>
     /// <param name="atX">AT pixel X offsets (one entry per template pixel).</param>
     /// <param name="atY">AT pixel Y offsets (one entry per template pixel).</param>
     public Jbig2AtPixels(sbyte[] atX, sbyte[] atY)
@@ -17,10 +19,14 @@ internal readonly struct Jbig2AtPixels
         AtY = atY ?? Array.Empty<sbyte>();
     }
 
-    /// <summary>AT pixel X offsets.</summary>
+    /// <summary>
+    /// AT pixel X offsets.
+    /// </summary>
     public sbyte[] AtX { get; }
 
-    /// <summary>AT pixel Y offsets.</summary>
+    /// <summary>
+    /// AT pixel Y offsets.
+    /// </summary>
     public sbyte[] AtY { get; }
 
     /// <summary>

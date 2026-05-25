@@ -15,12 +15,12 @@ internal static class CcittRunDecoder
     /// </summary>
     public static RunDecodeResult DecodeRun(ref CcittBitReader reader, bool isBlack)
     {
-        var lookupTable = isBlack ? CcittCodeTables.BlackLookup : CcittCodeTables.WhiteLookup;
+        CcittFaxCode[] lookupTable = isBlack ? CcittCodeTables.BlackLookup : CcittCodeTables.WhiteLookup;
         int total = 0;
 
         while (true)
         {
-            var code = DecodeSingleCode(ref reader, lookupTable);
+            CcittFaxCode? code = DecodeSingleCode(ref reader, lookupTable);
             if (code == null)
             {
                 return new RunDecodeResult(-1, false, false);
@@ -32,6 +32,7 @@ internal static class CcittRunDecoder
                 {
                     return new RunDecodeResult(-1, false, false);
                 }
+
                 return new RunDecodeResult(0, false, true);
             }
 

@@ -11,10 +11,10 @@ internal ref struct JpxSpanReader
 {
     private const byte MarkerPrefix = 0xFF;
 
-    private ReadOnlySpan<byte> _span;
+    private readonly ReadOnlySpan<byte> _span;
     private int _index;
 
-    public JpxSpanReader(ReadOnlySpan<byte> span)
+    public JpxSpanReader(in ReadOnlySpan<byte> span)
     {
         _span = span;
         _index = 0;
@@ -41,7 +41,7 @@ internal ref struct JpxSpanReader
             throw new EndOfStreamException("End of span reached while reading UInt16.");
         }
 
-        ushort value = (ushort)(_span[_index] << 8 | _span[_index + 1]);
+        var value = (ushort)(_span[_index] << 8 | _span[_index + 1]);
         _index += 2;
         return value;
     }
@@ -53,7 +53,7 @@ internal ref struct JpxSpanReader
             throw new EndOfStreamException("End of span reached while reading UInt32.");
         }
 
-        uint value = (uint)(_span[_index] << 24 | _span[_index + 1] << 16 | _span[_index + 2] << 8 | _span[_index + 3]);
+        var value = (uint)(_span[_index] << 24 | _span[_index + 1] << 16 | _span[_index + 2] << 8 | _span[_index + 3]);
         _index += 4;
         return value;
     }
@@ -84,7 +84,7 @@ internal ref struct JpxSpanReader
     {
         if (count < 0 || _index + count > _span.Length)
         {
-            throw new EndOfStreamException($"Cannot skip {count} bytes, only {Remaining} remaining.");
+            throw new EndOfStreamException($"Cannot skip {count}  bytes, only  {Remaining} remaining.");
         }
 
         _index += count;

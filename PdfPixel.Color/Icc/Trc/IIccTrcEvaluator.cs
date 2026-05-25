@@ -1,4 +1,4 @@
-namespace PdfPixel.Color.Icc.Utilities;
+namespace PdfPixel.Color.Icc.Trc;
 
 /// <summary>
 /// Interface for evaluating ICC TRC (tone reproduction curve) values.

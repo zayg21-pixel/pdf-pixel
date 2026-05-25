@@ -60,14 +60,7 @@ public class PdfPolyLineAnnotation : PdfAnnotationBase
     /// </summary>
     public PdfLineEndingStyle EndLineEnding { get; }
 
-    /// <summary>
-    /// Renders the fallback content for polyline annotations when no appearance stream is available.
-    /// </summary>
-    /// <param name="processor">The command processor to emit commands to.</param>
-    /// <param name="page">The PDF page containing this annotation.</param>
-    /// <param name="visualStateKind">The visual state to render (Normal, Rollover, Down).</param>
-    /// <returns>True if fallback rendering was emitted.</returns>
-    public override bool RenderFallback(IPdfCommandProcessor processor, PdfPage page, PdfAnnotationVisualStateKind visualStateKind)
+    protected override bool RenderFallback(IPdfCommandProcessor processor, PdfPage page, PdfAnnotationVisualStateKind visualStateKind, PdfRenderingParameters renderingParameters)
     {
         if (Vertices == null || Vertices.Length < 2)
         {
@@ -92,7 +85,7 @@ public class PdfPolyLineAnnotation : PdfAnnotationBase
             StrokeWidth = lineWidth,
             StrokeJoin = SKStrokeJoin.Miter,
             StrokeCap = SKStrokeCap.Butt,
-            IsAntialias = true,
+            IsAntialias = renderingParameters.Antialias,
             Color = lineColor
         };
 
@@ -113,7 +106,8 @@ public class PdfPolyLineAnnotation : PdfAnnotationBase
                 StartLineEnding,
                 lineWidth,
                 lineColor,
-                interiorSKColor);
+                interiorSKColor,
+                renderingParameters);
         }
 
         if (EndLineEnding != PdfLineEndingStyle.None && Vertices.Length >= 4)
@@ -127,7 +121,8 @@ public class PdfPolyLineAnnotation : PdfAnnotationBase
                 EndLineEnding,
                 lineWidth,
                 lineColor,
-                interiorSKColor);
+                interiorSKColor,
+                renderingParameters);
         }
 
         return true;

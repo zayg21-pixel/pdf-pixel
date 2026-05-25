@@ -1,4 +1,5 @@
 using System;
+
 using PdfPixel.Jpg.Huffman;
 using PdfPixel.Jpg.Model;
 
@@ -37,19 +38,20 @@ internal sealed class JpgHuffmanDecoderManager
             throw new ArgumentNullException(nameof(header));
         }
 
-        var manager = new JpgHuffmanDecoderManager();
-        foreach (var huffmanTable in header.HuffmanTables)
+        JpgHuffmanDecoderManager manager = new();
+        foreach (JpgHuffmanTable huffmanTable in header.HuffmanTables)
         {
             if (huffmanTable == null)
             {
                 continue;
             }
+
             if (huffmanTable.TableId < 0 || huffmanTable.TableId >= MaxTableCount)
             {
                 continue; // Ignore out-of-range table IDs per permissive behavior
             }
 
-            var decoder = new JpgHuffmanDecoder(huffmanTable);
+            JpgHuffmanDecoder decoder = new(huffmanTable);
             if (huffmanTable.TableClass == 0)
             {
                 manager._dcDecoders[huffmanTable.TableId] = decoder;
@@ -59,6 +61,7 @@ internal sealed class JpgHuffmanDecoderManager
                 manager._acDecoders[huffmanTable.TableId] = decoder;
             }
         }
+
         return manager;
     }
 
@@ -69,8 +72,9 @@ internal sealed class JpgHuffmanDecoderManager
     {
         if (tableId < 0 || tableId >= MaxTableCount)
         {
-            return null;
+            throw new ArgumentOutOfRangeException($"DC decoder {tableId} is out of range of allowed 0-{MaxTableCount}.");
         }
+
         return _dcDecoders[tableId];
     }
 
@@ -81,8 +85,9 @@ internal sealed class JpgHuffmanDecoderManager
     {
         if (tableId < 0 || tableId >= MaxTableCount)
         {
-            return null;
+            throw new ArgumentOutOfRangeException($"AC decoder {tableId}  is out of range of allowed 0- {MaxTableCount}.");
         }
+
         return _acDecoders[tableId];
     }
 
@@ -100,7 +105,7 @@ internal sealed class JpgHuffmanDecoderManager
 
         for (int scanComponentIndex = 0; scanComponentIndex < scan.Components.Count; scanComponentIndex++)
         {
-            var scanComponent = scan.Components[scanComponentIndex];
+            JpgScanComponentSpec scanComponent = scan.Components[scanComponentIndex];
             int dcTableId = scanComponent.DcTableId;
             int acTableId = scanComponent.AcTableId;
 
@@ -124,12 +129,8 @@ internal sealed class JpgHuffmanDecoderManager
     /// </summary>
     public (JpgHuffmanDecoder dcDecoder, JpgHuffmanDecoder acDecoder) GetDecodersForScanComponent(JpgScanComponentSpec scanComponent)
     {
-        if (scanComponent == null)
-        {
-            return (null, null);
-        }
-        var dcDecoder = GetDcDecoder(scanComponent.DcTableId);
-        var acDecoder = GetAcDecoder(scanComponent.AcTableId);
+        JpgHuffmanDecoder dcDecoder = GetDcDecoder(scanComponent.DcTableId);
+        JpgHuffmanDecoder acDecoder = GetAcDecoder(scanComponent.AcTableId);
         return (dcDecoder, acDecoder);
     }
 }

@@ -30,7 +30,7 @@ public readonly struct JpxDecodingParameters
     /// <summary>
     /// Default parameters representing full-resolution decoding.
     /// </summary>
-    public static JpxDecodingParameters Default { get; } = new JpxDecodingParameters(1);
+    public static JpxDecodingParameters Default { get; } = new(1);
 
     /// <summary>
     /// Initializes decoding parameters with the given descale factor.

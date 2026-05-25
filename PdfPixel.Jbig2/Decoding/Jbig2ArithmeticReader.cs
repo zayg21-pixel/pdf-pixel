@@ -17,7 +17,7 @@ internal ref struct Jbig2ArithmeticReader
 #endif
     private readonly ReadOnlySpan<uint> _qeTablePacked; // Packed QE table for probability estimation (see BuildQeTablePacked)
     private int _bp;          // byte pointer (position of last consumed byte)
-    private int _dataEnd;
+    private readonly int _dataEnd;
     private uint _c;          // C register: high 16 bits = code value high, low 16 bits = code value low
     private uint _a;          // A register (interval)
     private int _ct;          // count of available bits
@@ -29,7 +29,7 @@ internal ref struct Jbig2ArithmeticReader
     /// Performs the INITDEC procedure per ITU-T T.88 E.3.5.
     /// </summary>
     /// <param name="data">Encoded arithmetic data.</param>
-    public Jbig2ArithmeticReader(ReadOnlySpan<byte> data)
+    public Jbig2ArithmeticReader(in ReadOnlySpan<byte> data)
     {
         _qeTablePacked = QeTablePacked.AsSpan();
 
@@ -42,7 +42,7 @@ internal ref struct Jbig2ArithmeticReader
         _dataEnd = data.Length;
 
         // INITDEC
-        _lastByte = data.Length > 0 ? data[0] : (byte)0;
+        _lastByte = (data.Length > 0) ? data[0] : (byte)0;
         _c = (uint)_lastByte << 16;
 
         ByteIn();
@@ -133,7 +133,8 @@ internal ref struct Jbig2ArithmeticReader
             a <<= 1;
             _c <<= 1;
             _ct--;
-        } while ((a & 0x8000) == 0);
+        }
+        while ((a & 0x8000) == 0);
 
         _a = a;
         context = (byte)newContext;
@@ -147,7 +148,7 @@ internal ref struct Jbig2ArithmeticReader
     /// <param name="codeLength">Number of bits in the symbol ID code.</param>
     /// <returns>Decoded integer value.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public int DecodeIaid(Span<byte> contexts, int codeLength)
+    public int DecodeIaid(in Span<byte> contexts, int codeLength)
     {
         int prev = 1;
         for (int i = 0; i < codeLength; i++)
@@ -167,7 +168,7 @@ internal ref struct Jbig2ArithmeticReader
     /// <param name="value">The decoded integer value.</param>
     /// <returns>True if a value was decoded, false if OOB.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public bool DecodeInteger(Span<byte> contexts, out int value)
+    public bool DecodeInteger(in Span<byte> contexts, out int value)
     {
         value = 0;
         int prev = 1;
@@ -238,13 +239,13 @@ internal ref struct Jbig2ArithmeticReader
     /// Reads N bits for integer decoding with context index clamping.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private int ReadIntBits(ref int prev, Span<byte> contexts, int count)
+    private int ReadIntBits(ref int prev, in Span<byte> contexts, int count)
     {
         int v = 0;
         for (int i = 0; i < count; i++)
         {
             int bit = DecodeBit(ref contexts[prev]);
-            prev = prev < 256 ? (prev << 1) | bit : (((prev << 1) | bit) & 511) | 256;
+            prev = (prev < 256) ? (prev << 1) | bit : (((prev << 1) | bit) & 511) | 256;
             v = (v << 1) | bit;
         }
 
@@ -299,8 +300,8 @@ internal ref struct Jbig2ArithmeticReader
     private void ByteInAfterFF()
     {
         int nextPos = _bp + 1;
-        if (nextPos < _dataEnd &&
-            Unsafe.Add(ref MemoryMarshal.GetReference(_data), nextPos) <= 0x8F)
+        if (nextPos < _dataEnd
+            && Unsafe.Add(ref MemoryMarshal.GetReference(_data), nextPos) <= 0x8F)
         {
             // Stuffed byte — consume it
             _bp = nextPos;
@@ -385,16 +386,16 @@ internal ref struct Jbig2ArithmeticReader
             (0x0009, 44, 41, false),
             (0x0005, 45, 42, false),
             (0x0001, 45, 43, false),
-            (0x5601, 46, 46, false),
+            (0x5601, 46, 46, false)
         ];
 
         var packed = new uint[entries.Length];
         for (int i = 0; i < entries.Length; i++)
         {
-            var (qe, nextMps, nextLps, sw) = entries[i];
+            (ushort qe, byte nextMps, byte nextLps, bool sw) = entries[i];
             packed[i] = ((uint)qe << 16)
-                      | ((uint)(nextMps << 1) << 8)
-                      | (uint)((nextLps << 1) | (sw ? 1 : 0));
+                | ((uint)(nextMps << 1) << 8)
+                | (uint)((nextLps << 1) | (sw ? 1 : 0));
         }
 
         return packed;

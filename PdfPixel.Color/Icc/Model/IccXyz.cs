@@ -22,23 +22,20 @@ public struct IccXyz
     /// <summary>
     /// X component.
     /// </summary>
-    public readonly float X;
+    public readonly float X { get; }
 
     /// <summary>
     /// Y component (luminance channel).
     /// </summary>
-    public readonly float Y;
+    public readonly float Y { get; }
 
     /// <summary>
     /// Z component.
     /// </summary>
-    public readonly float Z;
+    public readonly float Z { get; }
 
     /// <summary>
     /// String representation in (X, Y, Z) format.
     /// </summary>
-    public override string ToString()
-    {
-        return $"({X}, {Y}, {Z})";
-    }
+    public override string ToString() => $"({X}, {Y}, {Z})";
 }

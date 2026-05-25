@@ -35,11 +35,16 @@ internal sealed class JpxTileDecoder
         _inverseMct = new JpxInverseMct(_header.CodingStyle);
     }
 
-    public JpxTile DecodeTile(JpxTileHeader tileHeader, ReadOnlySpan<byte> tileData, JpxDecodingParameters decodingParameters)
+    public JpxTile DecodeTile(JpxTileHeader tileHeader, in ReadOnlySpan<byte> tileData, in JpxDecodingParameters decodingParameters)
     {
         if (tileHeader == null)
         {
             throw new ArgumentNullException(nameof(tileHeader));
+        }
+
+        if (_header.CodingStyle == null)
+        {
+            throw new InvalidOperationException("Coding style is not defined.");
         }
 
         int decompositionLevels = _header.CodingStyle.DecompositionLevels;
@@ -56,10 +61,10 @@ internal sealed class JpxTileDecoder
         int reducedHeight = decodingParameters.ReduceDimension(fullTileHeight);
 
         // Create the output tile with reduced dimensions
-        var tile = new JpxTile(_header, tileHeader, reducedWidth, reducedHeight);
+        JpxTile tile = new(_header, tileHeader, reducedWidth, reducedHeight);
 
         // Decode the tile through the JPEG2000 pipeline
-        var reader = new JpxSpanReader(tileData);
+        JpxSpanReader reader = new(tileData);
 
         // Skip all marker segments until SOD (Start of Data)
         while (!reader.EndOfSpan && reader.Remaining >= 2)
@@ -90,19 +95,19 @@ internal sealed class JpxTileDecoder
         }
 
         // Stage 1: Parse packets according to progression order
-        var packets = _packetParser.ParsePackets(reader.ReadBytes(reader.Remaining), tileHeader);
+        JpxPacket[] packets = _packetParser.ParsePackets(reader.ReadBytes(reader.Remaining), tileHeader);
 
         // Stage 2: Entropy decode code-blocks using MQ arithmetic decoder (Tier-1)
         // Code-blocks are persistent objects that already accumulated data across all layers
         // during packet parsing (via AppendLayer). Decode each unique block once.
-        foreach (var packet in packets)
+        foreach (JpxPacket packet in packets)
         {
             if (packet.CodeBlocks == null)
             {
                 continue;
             }
 
-            foreach (var codeBlock in packet.CodeBlocks)
+            foreach (JpxCodeBlock codeBlock in packet.CodeBlocks)
             {
                 if (codeBlock.Data.Length == 0)
                 {
@@ -111,7 +116,7 @@ internal sealed class JpxTileDecoder
 
                 if (codeBlock.DecodedCoefficients == null)
                 {
-                    var tier1Decoder = new JpxTier1Decoder(_header.CodingStyle, codeBlock);
+                    JpxTier1Decoder tier1Decoder = new(_header.CodingStyle, codeBlock);
                     codeBlock.DecodedCoefficients = tier1Decoder.Decode();
                 }
             }
@@ -123,7 +128,7 @@ internal sealed class JpxTileDecoder
         for (int component = 0; component < tile.ComponentCount; component++)
         {
             // Stage 3: Assemble code-block coefficients into subbands at full resolution
-            var subbands = new JpxSubbandData(fullTileWidth, fullTileHeight, decompositionLevelsForDwt);
+            JpxSubbandData subbands = new(fullTileWidth, fullTileHeight, decompositionLevelsForDwt);
             _assembler.Assemble(packets, component, subbands);
 
             // Stages 4-5: Inverse Quantization + Inverse DWT

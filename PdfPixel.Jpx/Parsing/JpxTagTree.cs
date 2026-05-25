@@ -43,13 +43,13 @@ internal sealed class JpxTagTree
         while (levelWidth > 0 && levelHeight > 0)
         {
             totalNodes += levelWidth * levelHeight;
-            
+
             // Stop when we reach root (1x1)
             if (levelWidth == 1 && levelHeight == 1)
             {
                 break;
             }
-            
+
             levelWidth = (levelWidth + 1) / 2;
             levelHeight = (levelHeight + 1) / 2;
         }
@@ -75,7 +75,7 @@ internal sealed class JpxTagTree
             {
                 for (int x = 0; x < levelWidth; x++)
                 {
-                    int currentNode = levelStart + y * levelWidth + x;
+                    int currentNode = levelStart + (y * levelWidth) + x;
                     _nodes[currentNode].Value = int.MaxValue;
                     _nodes[currentNode].LowerBound = 0;
                     _nodes[currentNode].Known = false;
@@ -85,11 +85,11 @@ internal sealed class JpxTagTree
                     {
                         int nextLevelWidth = (levelWidth + 1) / 2;
                         int nextLevelHeight = (levelHeight + 1) / 2;
-                        int nextLevelStart = levelStart + levelWidth * levelHeight;
-                        
+                        int nextLevelStart = levelStart + (levelWidth * levelHeight);
+
                         int parentX = x / 2;
                         int parentY = y / 2;
-                        _nodes[currentNode].Parent = nextLevelStart + parentY * nextLevelWidth + parentX;
+                        _nodes[currentNode].Parent = nextLevelStart + (parentY * nextLevelWidth) + parentX;
                     }
                     else
                     {
@@ -127,7 +127,7 @@ internal sealed class JpxTagTree
             return false;
         }
 
-        int leafIndex = leafY * _width + leafX;
+        int leafIndex = (leafY * _width) + leafX;
 
         // Build path from leaf to root
         Span<int> path = stackalloc int[32]; // Max tree depth
@@ -201,7 +201,7 @@ internal sealed class JpxTagTree
             return 0;
         }
 
-        int leafIndex = leafY * _width + leafX;
+        int leafIndex = (leafY * _width) + leafX;
         ref var leaf = ref _nodes[leafIndex];
 
         if (leaf.Known)

@@ -1,5 +1,6 @@
 using PdfPixel.Jpg.Huffman;
 using PdfPixel.Jpg.Model;
+
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -28,18 +29,35 @@ public static class JpgReader
     private const byte APP1 = 0xE1;
     private const byte APP2 = 0xE2;
     private const byte APP14 = 0xEE;
-    private static readonly HashSet<byte> SofMarkers = new HashSet<byte>
-    {
-        0xC0, 0xC1, 0xC2, 0xC3,
-        0xC5, 0xC6, 0xC7,
-        0xC9, 0xCA, 0xCB,
-        0xCD, 0xCE, 0xCF
-    };
 
-    public static JpgHeader ParseHeader(ReadOnlySpan<byte> bytes)
+    private static readonly HashSet<byte> SofMarkers = [
+        0xC0,
+        0xC1,
+        0xC2,
+        0xC3,
+        0xC5,
+        0xC6,
+        0xC7,
+        0xC9,
+        0xCA,
+        0xCB,
+        0xCD,
+        0xCE,
+        0xCF
+    ];
+
+    /// <summary>
+    /// Parses a JPEG header from <paramref name="bytes"/>, collecting frame, component, quantization,
+    /// Huffman, and APP metadata up to and including the first SOS marker.
+    /// </summary>
+    /// <param name="bytes">Complete JPEG byte span.</param>
+    /// <returns>
+    /// Populated <see cref="JpgHeader"/> with <see cref="JpgHeader.ContentOffset"/> pointing at the entropy-coded data.
+    /// </returns>
+    public static JpgHeader ParseHeader(in ReadOnlySpan<byte> bytes)
     {
-        var header = new JpgHeader();
-        var reader = new JpgSpanReader(bytes);
+        JpgHeader header = new();
+        JpgSpanReader reader = new(bytes);
 
         if (reader.ReadByte() != MarkerPrefix || reader.ReadByte() != SOI)
         {
@@ -69,7 +87,7 @@ public static class JpgReader
                     throw new InvalidDataException("Invalid SOS length");
                 }
 
-                var scan = ParseSos(reader.ReadBytes(sosPayload));
+                JpgScanSpec scan = ParseSos(reader.ReadBytes(sosPayload));
                 header.Scans.Add(scan);
 
                 header.ContentOffset = reader.Position;
@@ -96,13 +114,13 @@ public static class JpgReader
             if (marker == DQT)
             {
                 header.HasQuantizationTables = true;
-                var qTables = JpgQuantizationTable.ParseDqtPayload(payload);
+                List<JpgQuantizationTable> qTables = JpgQuantizationTable.ParseDqtPayload(payload);
                 header.QuantizationTables.AddRange(qTables);
             }
             else if (marker == DHT)
             {
                 header.HasHuffmanTables = true;
-                var hTables = JpgHuffmanTable.ParseDhtPayload(payload);
+                List<JpgHuffmanTable> hTables = JpgHuffmanTable.ParseDhtPayload(payload);
                 header.HuffmanTables.AddRange(hTables);
             }
             else if (marker == DRI)
@@ -137,7 +155,7 @@ public static class JpgReader
         return header;
     }
 
-    private static void CollectTablesAfterSos(ReadOnlySpan<byte> bytes, int start, JpgHeader header)
+    private static void CollectTablesAfterSos(in ReadOnlySpan<byte> bytes, int start, JpgHeader header)
     {
         int i = start;
         while (i + 1 < bytes.Length)
@@ -189,7 +207,7 @@ public static class JpgReader
                 break;
             }
 
-            ushort segLen = (ushort)(bytes[i] << 8 | bytes[i + 1]);
+            var segLen = (ushort)(bytes[i] << 8 | bytes[i + 1]);
             i += 2;
             int payloadLen = segLen - 2;
             if (payloadLen < 0 || i + payloadLen > bytes.Length)
@@ -202,38 +220,58 @@ public static class JpgReader
             switch (code)
             {
                 case DQT:
-                    header.HasQuantizationTables = true;
-                    header.QuantizationTables.AddRange(JpgQuantizationTable.ParseDqtPayload(payload));
-                    break;
-                case DHT:
-                    header.HasHuffmanTables = true;
-                    header.HuffmanTables.AddRange(JpgHuffmanTable.ParseDhtPayload(payload));
-                    break;
-                case DRI:
-                    if (payloadLen >= 2)
                     {
-                        header.RestartInterval = ReadUInt16BE(payload);
+                        header.HasQuantizationTables = true;
+                        header.QuantizationTables.AddRange(JpgQuantizationTable.ParseDqtPayload(payload));
+                        break;
                     }
-                    break;
+                case DHT:
+                    {
+                        header.HasHuffmanTables = true;
+                        header.HuffmanTables.AddRange(JpgHuffmanTable.ParseDhtPayload(payload));
+                        break;
+                    }
+                case DRI:
+                    {
+                        if (payloadLen >= 2)
+                        {
+                            header.RestartInterval = ReadUInt16BE(payload);
+                        }
+
+                        break;
+                    }
                 case APP14:
-                    ParseApp14Adobe(payload, header);
-                    break;
+                    {
+                        ParseApp14Adobe(payload, header);
+                        break;
+                    }
                 case APP0:
-                    ParseApp0(payload, header);
-                    break;
+                    {
+                        ParseApp0(payload, header);
+                        break;
+                    }
                 case APP1:
-                    ParseApp1(payload, header);
-                    break;
+                    {
+                        ParseApp1(payload, header);
+                        break;
+                    }
                 case APP2:
-                    ParseApp2Icc(payload, header);
-                    break;
+                    {
+                        ParseApp2Icc(payload, header);
+                        break;
+                    }
             }
 
             i += payloadLen;
         }
     }
 
-    public static JpgScanSpec ParseSos(ReadOnlySpan<byte> payload)
+    /// <summary>
+    /// Parses an SOS (Start of Scan) segment payload into a <see cref="JpgScanSpec"/>.
+    /// </summary>
+    /// <param name="payload">Segment payload bytes (excluding the 2-byte length field).</param>
+    /// <returns>Populated <see cref="JpgScanSpec"/> with component selectors and spectral/successive-approximation parameters.</returns>
+    public static JpgScanSpec ParseSos(in ReadOnlySpan<byte> payload)
     {
         if (payload.Length < 1)
         {
@@ -242,7 +280,7 @@ public static class JpgReader
 
         int ns = payload[0];
         int offset = 1;
-        var scan = new JpgScanSpec();
+        JpgScanSpec scan = new();
         for (int i = 0; i < ns; i++)
         {
             if (offset + 2 >= payload.Length)
@@ -276,7 +314,7 @@ public static class JpgReader
         return scan;
     }
 
-    private static void ParseSof(byte marker, ReadOnlySpan<byte> payload, JpgHeader header)
+    private static void ParseSof(byte marker, in ReadOnlySpan<byte> payload, JpgHeader header)
     {
         if (payload.Length < 6)
         {
@@ -300,7 +338,7 @@ public static class JpgReader
                 throw new InvalidDataException("Invalid SOF: component table truncated");
             }
 
-            var comp = new JpgComponent
+            JpgComponent comp = new()
             {
                 Id = payload[offset + 0],
                 HorizontalSamplingFactor = (byte)(payload[offset + 1] >> 4),
@@ -312,7 +350,7 @@ public static class JpgReader
         }
     }
 
-    private static void ParseApp0(ReadOnlySpan<byte> payload, JpgHeader header)
+    private static void ParseApp0(in ReadOnlySpan<byte> payload, JpgHeader header)
     {
         if (payload.Length >= 5 && payload[0] == (byte)'J' && payload[1] == (byte)'F' && payload[2] == (byte)'I' && payload[3] == (byte)'F' && payload[4] == 0)
         {
@@ -327,7 +365,7 @@ public static class JpgReader
         }
     }
 
-    private static void ParseApp1(ReadOnlySpan<byte> payload, JpgHeader header)
+    private static void ParseApp1(in ReadOnlySpan<byte> payload, JpgHeader header)
     {
         if (payload.Length >= 6 && payload[0] == (byte)'E' && payload[1] == (byte)'x' && payload[2] == (byte)'i' && payload[3] == (byte)'f' && payload[4] == 0 && payload[5] == 0)
         {
@@ -335,12 +373,12 @@ public static class JpgReader
         }
     }
 
-    private static void ParseApp2Icc(ReadOnlySpan<byte> payload, JpgHeader header)
+    private static void ParseApp2Icc(in ReadOnlySpan<byte> payload, JpgHeader header)
     {
         const string ICC = "ICC_PROFILE\0";
         if (payload.Length >= 14)
         {
-            bool match = true;
+            var match = true;
             for (int i = 0; i < ICC.Length; i++)
             {
                 if (payload[i] != (byte)ICC[i])
@@ -355,7 +393,7 @@ public static class JpgReader
                 header.HasIccProfile = true;
                 int seq = payload[12];
                 int total = payload[13];
-                var data = payload.Slice(14).ToArray();
+                byte[] data = payload.Slice(14).ToArray();
                 header.IccProfileSegments.Add(new IccSegmentInfo
                 {
                     SequenceNumber = seq,
@@ -366,18 +404,19 @@ public static class JpgReader
         }
     }
 
-    private static void ParseApp14Adobe(ReadOnlySpan<byte> payload, JpgHeader header)
+    private static void ParseApp14Adobe(in ReadOnlySpan<byte> payload, JpgHeader header)
     {
-        if (payload.Length >= 12 &&
-            payload[0] == (byte)'A' && payload[1] == (byte)'d' && payload[2] == (byte)'o' && payload[3] == (byte)'b' && payload[4] == (byte)'e')
+        if (payload.Length >= 12
+            && payload[0] == (byte)'A'
+            && payload[1] == (byte)'d'
+            && payload[2] == (byte)'o'
+            && payload[3] == (byte)'b'
+            && payload[4] == (byte)'e')
         {
             header.HasAdobeApp14 = true;
             header.AdobeColorTransform = payload[11];
         }
     }
 
-    private static ushort ReadUInt16BE(ReadOnlySpan<byte> span)
-    {
-        return (ushort)(span[0] << 8 | span[1]);
-    }
+    private static ushort ReadUInt16BE(in ReadOnlySpan<byte> span) => (ushort)(span[0] << 8 | span[1]);
 }

@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 
 namespace PdfPixel.Color.Icc.Model;
@@ -9,8 +10,13 @@ namespace PdfPixel.Color.Icc.Model;
 /// </summary>
 public sealed partial class IccProfile
 {
-    public IccProfile(byte[] bytes, IccProfileHeader header)
+    private IccProfile(byte[] bytes, IccProfileHeader header)
     {
+        if (bytes == null)
+        {
+            throw new ArgumentNullException(nameof(bytes));
+        }
+
         Bytes = bytes;
         Header = header;
     }
@@ -29,81 +35,81 @@ public sealed partial class IccProfile
     /// <summary>
     /// Number of channels in the profile's data color space.
     /// </summary>
-    public int ChannelsCount { get; set; }
+    public int ChannelsCount { get; private set; }
 
     /// <summary>
     /// Raw tag directory entries as parsed from the profile. Maintained mainly for diagnostics
     /// or future extension if additional tag types need to be interrogated.
     /// </summary>
-    public IReadOnlyList<IccTagEntry> Tags { get; set; }
+    public IReadOnlyList<IccTagEntry> Tags { get; private set; } = new List<IccTagEntry>();
 
     /// <summary>
     /// White point (wtpt tag) in PCS (typically D50) if present.
     /// </summary>
-    public IccXyz? WhitePoint { get; set; }
+    public IccXyz? WhitePoint { get; private set; }
 
     /// <summary>
     /// Black point (bkpt tag) if present (rare in many profiles).
     /// </summary>
-    public IccXyz? BlackPoint { get; set; }
+    public IccXyz? BlackPoint { get; private set; }
 
     /// <summary>
     /// Red channel XYZ value (rXYZ) for matrix/TRC RGB profiles.
     /// </summary>
-    public IccXyz? RedMatrix { get; set; }
+    public IccXyz? RedMatrix { get; private set; }
 
     /// <summary>
     /// Green channel XYZ value (gXYZ) for matrix/TRC RGB profiles.
     /// </summary>
-    public IccXyz? GreenMatrix { get; set; }
+    public IccXyz? GreenMatrix { get; private set; }
 
     /// <summary>
     /// Blue channel XYZ value (bXYZ) for matrix/TRC RGB profiles.
     /// </summary>
-    public IccXyz? BlueMatrix { get; set; }
+    public IccXyz? BlueMatrix { get; private set; }
 
     /// <summary>
     /// Red channel tone reproduction curve (rTRC) – may be gamma, sampled or parametric.
     /// </summary>
-    public IccTrc RedTrc { get; set; }
+    public IccTrc? RedTrc { get; private set; }
 
     /// <summary>
     /// Green channel tone reproduction curve (gTRC) – may be gamma, sampled or parametric.
     /// </summary>
-    public IccTrc GreenTrc { get; set; }
+    public IccTrc? GreenTrc { get; private set; }
 
     /// <summary>
     /// Blue channel tone reproduction curve (bTRC) – may be gamma, sampled or parametric.
     /// </summary>
-    public IccTrc BlueTrc { get; set; }
+    public IccTrc? BlueTrc { get; private set; }
 
     /// <summary>
     /// Gray tone reproduction curve (kTRC) for grayscale profiles.
     /// </summary>
-    public IccTrc GrayTrc { get; set; }
+    public IccTrc? GrayTrc { get; private set; }
 
     /// <summary>
     /// Chromatic adaptation (Bradford) matrix (chad tag) if supplied by the profile.
     /// </summary>
-    public float[,] ChromaticAdaptation { get; set; }
+    public float[,]? ChromaticAdaptation { get; private set; }
 
     /// <summary>
     /// Human-readable profile description (desc or first mluc record).
     /// </summary>
-    public string Description { get; set; }
+    public string? Description { get; private set; }
 
     /// <summary>
     /// Parsed A2B LUT pipeline (Perceptual intent) if available – contains raw tables and CLUT.
     /// </summary>
-    public IccLutPipeline A2BLut0 { get; set; }
+    public IccLutPipeline? A2BLut0 { get; set; }
 
     /// <summary>
     /// Parsed A2B LUT pipeline (Relative Colorimetric intent) if available.
     /// </summary>
-    public IccLutPipeline A2BLut1 { get; set; }
+    public IccLutPipeline? A2BLut1 { get; set; }
 
     /// <summary>
     /// Parsed A2B LUT pipeline (Saturation intent) if available.
     /// </summary>
-    public IccLutPipeline A2BLut2 { get; set; }
+    public IccLutPipeline? A2BLut2 { get; set; }
 }

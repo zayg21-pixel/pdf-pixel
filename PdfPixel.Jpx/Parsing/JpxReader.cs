@@ -18,14 +18,14 @@ public static class JpxReader
     /// Parses JPEG 2000 header from the provided data.
     /// Automatically detects JP2 wrapper vs raw codestream format.
     /// </summary>
-    public static JpxHeader ParseHeader(ReadOnlySpan<byte> data)
+    public static JpxHeader ParseHeader(in ReadOnlySpan<byte> data)
     {
         if (data.Length < 8)
         {
             throw new InvalidDataException("Insufficient data for JPEG 2000 header.");
         }
 
-        var header = new JpxHeader();
+        JpxHeader header = new();
 
         // Check if this is a JP2 file (with box structure) or raw codestream
         if (IsJp2Format(data))
@@ -44,7 +44,7 @@ public static class JpxReader
     /// <summary>
     /// Determines if the data represents JP2 format (with box structure).
     /// </summary>
-    private static bool IsJp2Format(ReadOnlySpan<byte> data)
+    private static bool IsJp2Format(in ReadOnlySpan<byte> data)
     {
         if (data.Length < 12)
         {
@@ -54,17 +54,17 @@ public static class JpxReader
         // Check for JP2 signature box: length=12, type="jP\0x20\0x20", data=0x0D0A870A
         uint boxLength = ReadUInt32BE(data);
         uint boxType = ReadUInt32BE(data.Slice(4));
-        
-        return boxLength == JP2_SIGNATURE_BOX_SIZE && 
-               boxType == JpxMarkers.JPEG2000_SIGNATURE;
+
+        return boxLength == JP2_SIGNATURE_BOX_SIZE
+            && boxType == JpxMarkers.JPEG2000_SIGNATURE;
     }
 
     /// <summary>
     /// Parses JP2 file format with box structure.
     /// </summary>
-    private static void ParseJp2Format(ReadOnlySpan<byte> data, JpxHeader header)
+    private static void ParseJp2Format(in ReadOnlySpan<byte> data, JpxHeader header)
     {
-        var reader = new JpxSpanReader(data);
+        JpxSpanReader reader = new(data);
 
         // Skip the signature box that was already validated in IsJp2Format
         reader.Skip(12); // JP2 signature box is always 12 bytes
@@ -111,30 +111,36 @@ public static class JpxReader
             switch (boxType)
             {
                 case JpxMarkers.FILETYPE_BOX:
-                    ParseFileTypeBox(reader.ReadBytes((int)contentLength), header);
-                    break;
-
+                    {
+                        ParseFileTypeBox(reader.ReadBytes((int)contentLength), header);
+                        break;
+                    }
                 case JpxMarkers.HEADER_BOX:
-                    // jp2h is a superbox; parse its child boxes (ihdr, colr, etc.)
-                    ParseJp2HeaderSuperBox(reader.ReadBytes((int)contentLength), header);
-                    break;
-
+                    {
+                        // jp2h is a superbox; parse its child boxes (ihdr, colr, etc.)
+                        ParseJp2HeaderSuperBox(reader.ReadBytes((int)contentLength), header);
+                        break;
+                    }
                 case JpxMarkers.CONTIGUOUS_CODESTREAM_BOX:
-                    int codePosition = reader.Position;
-                    header.CodestreamOffset = codePosition;
-                    // Found the codestream - parse its header
-                    ReadOnlySpan<byte> codestreamData = reader.ReadBytes((int)contentLength);
-                    ParseRawCodestream(codestreamData, codePosition, header);
-                    return; // We've found the codestream, we're done
-
+                    {
+                        int codePosition = reader.Position;
+                        header.CodestreamOffset = codePosition;
+                        // Found the codestream - parse its header
+                        ReadOnlySpan<byte> codestreamData = reader.ReadBytes((int)contentLength);
+                        ParseRawCodestream(codestreamData, codePosition, header);
+                        return; // We've found the codestream, we're done
+                    }
                 case JpxMarkers.COLOR_SPECIFICATION_BOX:
-                    ParseColorSpecificationBox(reader.ReadBytes((int)contentLength), header);
-                    break;
-
+                    {
+                        ParseColorSpecificationBox(reader.ReadBytes((int)contentLength), header);
+                        break;
+                    }
                 default:
-                    // Skip unknown boxes
-                    reader.Skip((int)contentLength);
-                    break;
+                    {
+                        // Skip unknown boxes
+                        reader.Skip((int)contentLength);
+                        break;
+                    }
             }
         }
     }
@@ -143,7 +149,7 @@ public static class JpxReader
     /// Parses the JP2 Header superbox (jp2h) and its child boxes.
     /// Handles at minimum the Image Header Box (ihdr) and Color Specification Box (colr).
     /// </summary>
-    private static void ParseJp2HeaderSuperBox(ReadOnlySpan<byte> data, JpxHeader header)
+    private static void ParseJp2HeaderSuperBox(in ReadOnlySpan<byte> data, JpxHeader header)
     {
         int offset = 0;
 
@@ -180,22 +186,25 @@ public static class JpxReader
             switch (subBoxType)
             {
                 case JpxMarkers.IMAGE_HEADER_BOX:
-                    ParseImageHeaderBox(subBoxContent, header);
-                    break;
-
+                    {
+                        ParseImageHeaderBox(subBoxContent, header);
+                        break;
+                    }
                 case JpxMarkers.COLOR_SPECIFICATION_BOX:
-                    ParseColorSpecificationBox(subBoxContent, header);
-                    break;
-
+                    {
+                        ParseColorSpecificationBox(subBoxContent, header);
+                        break;
+                    }
                 case JpxMarkers.CHANNEL_DEFINITION_BOX:
-                    ParseChannelDefinitionBox(subBoxContent, header);
-                    break;
-
+                    {
+                        ParseChannelDefinitionBox(subBoxContent, header);
+                        break;
+                    }
                 default:
                     break; // Skip unrecognised child boxes
             }
 
-            offset = subBoxLength == 0 ? data.Length : (int)(offset + subBoxLength);
+            offset = (subBoxLength == 0) ? data.Length : (int)(offset + subBoxLength);
         }
     }
 
@@ -203,7 +212,7 @@ public static class JpxReader
     /// Parses the Image Header Box (ihdr) to extract image dimensions and component count.
     /// These values serve as a reliable fallback when the SIZ marker is not yet parsed.
     /// </summary>
-    private static void ParseImageHeaderBox(ReadOnlySpan<byte> data, JpxHeader header)
+    private static void ParseImageHeaderBox(in ReadOnlySpan<byte> data, JpxHeader header)
     {
         // ihdr content: Height (4) + Width (4) + Components (2) + BPC (1) + Compression (1) + CSunk (1) + IPR (1) = 14 bytes
         if (data.Length < 14)
@@ -213,7 +222,7 @@ public static class JpxReader
 
         uint height = ReadUInt32BE(data);
         uint width = ReadUInt32BE(data.Slice(4));
-        ushort componentCount = (ushort)(data[8] << 8 | data[9]);
+        var componentCount = (ushort)(data[8] << 8 | data[9]);
 
         // Set dimensions from ihdr; the SIZ segment (if parsed) will overwrite these
         // with the reference-grid values, which are authoritative for decoding.
@@ -236,9 +245,9 @@ public static class JpxReader
     /// <summary>
     /// Parses raw JPEG 2000 codestream (without JP2 wrapper).
     /// </summary>
-    private static void ParseRawCodestream(ReadOnlySpan<byte> data, int initialOffset, JpxHeader header)
+    private static void ParseRawCodestream(in ReadOnlySpan<byte> data, int initialOffset, JpxHeader header)
     {
-        var reader = new JpxSpanReader(data);
+        JpxSpanReader reader = new(data);
 
         // Check for SOC marker
         ushort socMarker = reader.ReadUInt16BE();
@@ -285,38 +294,47 @@ public static class JpxReader
         switch (marker)
         {
             case JpxMarkers.SIZ:
-                ParseSizSegment(ref reader, header);
-                break;
-
-            case JpxMarkers.COD:
-                ParseCodSegment(ref reader, header);
-                break;
-
-            case JpxMarkers.QCD:
-                ParseQcdSegment(ref reader, header);
-                break;
-
-            case JpxMarkers.COC:
-                ParseCocSegment(ref reader, header);
-                break;
-
-            case JpxMarkers.QCC:
-                ParseQccSegment(ref reader, header);
-                break;
-
-            case JpxMarkers.COM:
-                ParseComSegment(ref reader, header);
-                break;
-
-            default:
-                // Skip unknown markers with length
-                if (JpxMarkers.IsFunctionalMarker(marker) || 
-                    JpxMarkers.IsInformationalMarker(marker) || 
-                    JpxMarkers.IsPointerMarker(marker))
                 {
-                    SkipSegmentWithLength(ref reader);
+                    ParseSizSegment(ref reader, header);
+                    break;
                 }
-                break;
+            case JpxMarkers.COD:
+                {
+                    ParseCodSegment(ref reader, header);
+                    break;
+                }
+            case JpxMarkers.QCD:
+                {
+                    ParseQcdSegment(ref reader, header);
+                    break;
+                }
+            case JpxMarkers.COC:
+                {
+                    ParseCocSegment(ref reader, header);
+                    break;
+                }
+            case JpxMarkers.QCC:
+                {
+                    ParseQccSegment(ref reader, header);
+                    break;
+                }
+            case JpxMarkers.COM:
+                {
+                    ParseComSegment(ref reader, header);
+                    break;
+                }
+            default:
+                {
+                    // Skip unknown markers with length
+                    if (JpxMarkers.IsFunctionalMarker(marker)
+                        || JpxMarkers.IsInformationalMarker(marker)
+                        || JpxMarkers.IsPointerMarker(marker))
+                    {
+                        SkipSegmentWithLength(ref reader);
+                    }
+
+                    break;
+                }
         }
     }
 
@@ -326,7 +344,7 @@ public static class JpxReader
     private static void ParseSizSegment(ref JpxSpanReader reader, JpxHeader header)
     {
         ushort segmentLength = reader.ReadUInt16BE();
-        
+
         header.Profile = reader.ReadUInt16BE();
         header.Width = reader.ReadUInt32BE();
         header.Height = reader.ReadUInt32BE();
@@ -341,7 +359,7 @@ public static class JpxReader
         // Parse component parameters
         for (int i = 0; i < header.ComponentCount; i++)
         {
-            var component = new JpxComponent
+            JpxComponent component = new()
             {
                 SamplePrecision = reader.ReadByte(),
                 HorizontalSeparation = reader.ReadByte(),
@@ -357,8 +375,8 @@ public static class JpxReader
     private static void ParseCodSegment(ref JpxSpanReader reader, JpxHeader header)
     {
         ushort segmentLength = reader.ReadUInt16BE();
-        
-        var codingStyle = new JpxCodingStyle
+
+        JpxCodingStyle codingStyle = new()
         {
             Style = reader.ReadByte(),
             ProgressionOrder = reader.ReadByte(),
@@ -374,22 +392,22 @@ public static class JpxReader
         // Parse precinct size parameters only if explicitly present (JPEG2000 spec: Scod bit 0)
         int remainingBytes = segmentLength - 2 - 12; // 2 for length, 12 for fixed parameters
         bool hasPrecinctSizes = (codingStyle.Style & 0x01) != 0; // Check bit 0 of Scod
-        
+
         if (hasPrecinctSizes && remainingBytes > 0)
         {
             // Each byte represents precinct sizes for one resolution level
             // Number of resolution levels = decomposition levels + 1
             int expectedPrecinctSizes = codingStyle.DecompositionLevels + 1;
             int precinctSizesToRead = Math.Min(remainingBytes, expectedPrecinctSizes);
-            
+
             var precinctSizeExponents = new byte[precinctSizesToRead];
             for (int i = 0; i < precinctSizesToRead; i++)
             {
                 precinctSizeExponents[i] = reader.ReadByte();
             }
-            
+
             codingStyle.PrecinctSizeExponents = precinctSizeExponents;
-            
+
             // Skip any additional bytes (shouldn't happen in well-formed streams)
             int extraBytes = remainingBytes - precinctSizesToRead;
             if (extraBytes > 0)
@@ -412,23 +430,21 @@ public static class JpxReader
     private static void ParseQcdSegment(ref JpxSpanReader reader, JpxHeader header)
     {
         ushort segmentLength = reader.ReadUInt16BE();
-        
-        var quantization = new JpxQuantization
-        {
-            Style = reader.ReadByte()
-        };
+
+        JpxQuantization quantization = new() { Style = reader.ReadByte() };
 
         int remainingBytes = segmentLength - 2 - 1; // 2 for length, 1 for style
-        
+
         // Parse step sizes based on quantization type
         if (quantization.QuantizationType == 0)
         {
             // No quantization - step sizes are 8-bit exponents
-            var stepSizes = new List<ushort>();
+            List<ushort> stepSizes = [];
             for (int i = 0; i < remainingBytes; i++)
             {
                 stepSizes.Add((ushort)(reader.ReadByte() << 8)); // Exponent in upper 8 bits
             }
+
             quantization.StepSizes = stepSizes.ToArray();
         }
         else
@@ -440,8 +456,9 @@ public static class JpxReader
             {
                 stepSizes[i] = reader.ReadUInt16BE();
             }
+
             quantization.StepSizes = stepSizes;
-            
+
             // Skip any odd remaining byte
             if (remainingBytes % 2 == 1)
             {
@@ -458,9 +475,9 @@ public static class JpxReader
     private static void ParseCocSegment(ref JpxSpanReader reader, JpxHeader header)
     {
         ushort segmentLength = reader.ReadUInt16BE();
-        
-        var componentCodingStyle = new JpxComponentCodingStyle();
-        
+
+        JpxComponentCodingStyle componentCodingStyle = new();
+
         if (header.ComponentCount < 257)
         {
             componentCodingStyle.ComponentIndex = reader.ReadByte();
@@ -470,7 +487,7 @@ public static class JpxReader
             componentCodingStyle.ComponentIndex = reader.ReadUInt16BE();
         }
 
-        var codingStyle = new JpxCodingStyle
+        JpxCodingStyle codingStyle = new()
         {
             Style = reader.ReadByte(),
             DecompositionLevels = reader.ReadByte(),
@@ -481,24 +498,24 @@ public static class JpxReader
         };
 
         // Parse precinct size parameters only if explicitly present (JPEG2000 spec: Scod bit 0)
-        int consumedBytes = header.ComponentCount < 257 ? 7 : 8; // 1 or 2 for component + 6 for coding style
+        int consumedBytes = (header.ComponentCount < 257) ? 7 : 8; // 1 or 2 for component + 6 for coding style
         int remainingBytes = segmentLength - 2 - consumedBytes;
         bool hasPrecinctSizes = (codingStyle.Style & 0x01) != 0; // Check bit 0 of Scod
-        
+
         if (hasPrecinctSizes && remainingBytes > 0)
         {
             // Each byte represents precinct sizes for one resolution level
             int expectedPrecinctSizes = codingStyle.DecompositionLevels + 1;
             int precinctSizesToRead = Math.Min(remainingBytes, expectedPrecinctSizes);
-            
+
             var precinctSizeExponents = new byte[precinctSizesToRead];
             for (int i = 0; i < precinctSizesToRead; i++)
             {
                 precinctSizeExponents[i] = reader.ReadByte();
             }
-            
+
             codingStyle.PrecinctSizeExponents = precinctSizeExponents;
-            
+
             // Skip any additional bytes
             int extraBytes = remainingBytes - precinctSizesToRead;
             if (extraBytes > 0)
@@ -522,34 +539,32 @@ public static class JpxReader
     private static void ParseQccSegment(ref JpxSpanReader reader, JpxHeader header)
     {
         ushort segmentLength = reader.ReadUInt16BE();
-        
-        var componentQuantization = new JpxComponentQuantization();
-        
+
+        ushort componentIndex;
+
         if (header.ComponentCount < 257)
         {
-            componentQuantization.ComponentIndex = reader.ReadByte();
+            componentIndex = reader.ReadByte();
         }
         else
         {
-            componentQuantization.ComponentIndex = reader.ReadUInt16BE();
+            componentIndex = reader.ReadUInt16BE();
         }
 
-        var quantization = new JpxQuantization
-        {
-            Style = reader.ReadByte()
-        };
+        JpxQuantization quantization = new() { Style = reader.ReadByte() };
 
-        int consumedBytes = (header.ComponentCount < 257 ? 1 : 2) + 1; // Component index + style
+        int consumedBytes = ((header.ComponentCount < 257) ? 1 : 2) + 1; // Component index + style
         int remainingBytes = segmentLength - 2 - consumedBytes;
-        
+
         // Parse step sizes (similar to QCD)
         if (quantization.QuantizationType == 0)
         {
-            var stepSizes = new List<ushort>();
+            List<ushort> stepSizes = [];
             for (int i = 0; i < remainingBytes; i++)
             {
                 stepSizes.Add((ushort)(reader.ReadByte() << 8));
             }
+
             quantization.StepSizes = stepSizes.ToArray();
         }
         else
@@ -560,16 +575,16 @@ public static class JpxReader
             {
                 stepSizes[i] = reader.ReadUInt16BE();
             }
+
             quantization.StepSizes = stepSizes;
-            
+
             if (remainingBytes % 2 == 1)
             {
                 reader.Skip(1);
             }
         }
 
-        componentQuantization.Quantization = quantization;
-        header.ComponentQuantizations.Add(componentQuantization);
+        header.ComponentQuantizations.Add(new JpxComponentQuantization(componentIndex, quantization));
     }
 
     /// <summary>
@@ -578,11 +593,8 @@ public static class JpxReader
     private static void ParseComSegment(ref JpxSpanReader reader, JpxHeader header)
     {
         ushort segmentLength = reader.ReadUInt16BE();
-        
-        var comment = new JpxComment
-        {
-            Registration = reader.ReadUInt16BE()
-        };
+
+        JpxComment comment = new() { Registration = reader.ReadUInt16BE() };
 
         int dataLength = segmentLength - 2 - 2; // Minus length field and registration field
         if (dataLength > 0)
@@ -591,7 +603,7 @@ public static class JpxReader
         }
         else
         {
-            comment.Data = [];
+            comment.Data = Array.Empty<byte>();
         }
 
         header.Comments.Add(comment);
@@ -602,7 +614,7 @@ public static class JpxReader
     /// Parses the Channel Definition box (cdef) to identify which components carry
     /// colour or alpha/opacity data (ISO/IEC 15444-1 Table I-11).
     /// </summary>
-    private static void ParseChannelDefinitionBox(ReadOnlySpan<byte> data, JpxHeader header)
+    private static void ParseChannelDefinitionBox(in ReadOnlySpan<byte> data, JpxHeader header)
     {
         // cdef content: N (2 bytes) followed by N × 3 × 2-byte entries (i, typ, asoc)
         if (data.Length < 2)
@@ -611,7 +623,7 @@ public static class JpxReader
         }
 
         int channelCount = (data[0] << 8) | data[1];
-        int requiredBytes = 2 + channelCount * 6;
+        int requiredBytes = 2 + (channelCount * 6);
 
         if (data.Length < requiredBytes)
         {
@@ -620,8 +632,8 @@ public static class JpxReader
 
         for (int i = 0; i < channelCount; i++)
         {
-            int offset = 2 + i * 6;
-            var definition = new JpxChannelDefinition
+            int offset = 2 + (i * 6);
+            JpxChannelDefinition definition = new()
             {
                 ComponentIndex = (ushort)((data[offset] << 8) | data[offset + 1]),
                 ChannelType    = (ushort)((data[offset + 2] << 8) | data[offset + 3]),
@@ -635,14 +647,14 @@ public static class JpxReader
     /// <summary>
     /// Parses color specification box from JP2 format.
     /// </summary>
-    private static void ParseColorSpecificationBox(ReadOnlySpan<byte> data, JpxHeader header)
+    private static void ParseColorSpecificationBox(in ReadOnlySpan<byte> data, JpxHeader header)
     {
         if (data.Length < 3)
         {
             return;
         }
 
-        var colorSpec = new JpxColorSpecification
+        JpxColorSpecification colorSpec = new()
         {
             Method = data[0],
             Precedence = data[1],
@@ -665,7 +677,7 @@ public static class JpxReader
     /// <summary>
     /// Parses file type box from JP2 format.
     /// </summary>
-    private static void ParseFileTypeBox(ReadOnlySpan<byte> data, JpxHeader header)
+    private static void ParseFileTypeBox(in ReadOnlySpan<byte> data, JpxHeader header)
     {
         if (data.Length < 8)
         {
@@ -674,10 +686,10 @@ public static class JpxReader
 
         // Extract brand (4 bytes)
         header.Brand = System.Text.Encoding.ASCII.GetString(data.Slice(0, 4).ToArray());
-        
+
         // Extract minor version (4 bytes, big-endian)
         header.MinorVersion = ReadUInt32BE(data.Slice(4));
-        
+
         // Extract compatible brands (remaining bytes in groups of 4)
         header.CompatibleBrands.Clear();
         for (int i = 8; i < data.Length; i += 4)
@@ -706,7 +718,7 @@ public static class JpxReader
 
         ushort segmentLength = reader.ReadUInt16BE();
         int skipBytes = segmentLength - 2; // Minus the length field itself
-        
+
         if (skipBytes > 0 && reader.Remaining >= skipBytes)
         {
             reader.Skip(skipBytes);
@@ -716,8 +728,5 @@ public static class JpxReader
     /// <summary>
     /// Reads a 32-bit big-endian unsigned integer from the span.
     /// </summary>
-    private static uint ReadUInt32BE(ReadOnlySpan<byte> span)
-    {
-        return (uint)(span[0] << 24 | span[1] << 16 | span[2] << 8 | span[3]);
-    }
+    private static uint ReadUInt32BE(in ReadOnlySpan<byte> span) => (uint)(span[0] << 24 | span[1] << 16 | span[2] << 8 | span[3]);
 }

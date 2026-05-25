@@ -1,6 +1,7 @@
 using System;
 using System.Numerics;
 using System.Runtime.CompilerServices;
+
 using PdfPixel.Jpg.Decoding;
 using PdfPixel.Jpg.Model;
 
@@ -8,17 +9,19 @@ namespace PdfPixel.Jpg.Color;
 
 internal static class JpgColorConverterFactory
 {
-    public static IJpgColorConverter Create(JpgHeader header, JpgDecodingParameters parameters, JpegColorConversionParameters conversionParams = null)
+    public static IJpgColorConverter Create(JpgHeader header, JpgDecodingParameters parameters, JpegColorConversionParameters? conversionParams = null)
     {
         if (header == null)
+        {
             throw new ArgumentNullException(nameof(header));
-        if (parameters == null)
-            throw new ArgumentNullException(nameof(parameters));
+        }
 
         conversionParams ??= JpegColorConversionParameters.Default;
 
         if (header.ComponentCount == 1)
+        {
             return new ColorClampConverter();
+        }
 
         if (header.ComponentCount == 3)
         {
@@ -26,7 +29,7 @@ internal static class JpgColorConverterFactory
             {
                 JpgYuvMode.NoYuv => false,
                 JpgYuvMode.ForceYuv => true,
-                _ => IsYuvNeeded(header),
+                _ => IsYuvNeeded(header)
             };
             return applyYuv ? new YcbCrFloatColorConverter(header, parameters) : new ColorClampConverter();
         }
@@ -37,14 +40,14 @@ internal static class JpgColorConverterFactory
             {
                 JpgYuvMode.NoYuv => false,
                 JpgYuvMode.ForceYuv => !header.HasAdobeApp14 || header.AdobeColorTransform != 0,
-                _ => header.HasAdobeApp14 && header.AdobeColorTransform == 2,
+                _ => header.HasAdobeApp14 && header.AdobeColorTransform == 2
             };
 
             IJpgColorConverter converter = applyYcck
                 ? new YcckFloatColorConverter(header, parameters)
                 : new ColorClampConverter();
 
-            return conversionParams.InvertCmykColors
+            return (conversionParams.InvertCmykColors)
                 ? new CmykInvertingConverter(converter)
                 : converter;
         }
@@ -59,14 +62,19 @@ internal static class JpgColorConverterFactory
     private static bool IsYuvNeeded(JpgHeader header)
     {
         if (header.HasAdobeApp14)
+        {
             return header.AdobeColorTransform != 0;
+        }
+
         return !LikelyRgb(header);
     }
 
     private static bool LikelyRgb(JpgHeader header)
     {
         if (header.Components == null || header.Components.Count != 3)
+        {
             return false;
+        }
 
         byte r = header.Components[0].Id;
         byte g = header.Components[1].Id;
@@ -81,15 +89,19 @@ internal static class JpgColorConverterFactory
     {
         public void ConvertInPlace(Block8x8F[][] upsampledBandBlocks)
         {
-            foreach (var band in upsampledBandBlocks)
+            foreach (Block8x8F[] band in upsampledBandBlocks)
+            {
                 foreach (ref Block8x8F block in band.AsSpan())
+                {
                     block.ClampToByte();
+                }
+            }
         }
     }
 
     private sealed class CmykInvertingConverter : IJpgColorConverter
     {
-        private static readonly Vector4 _v255 = new Vector4(255f);
+        private static readonly Vector4 _v255 = new(255f);
 
         private readonly IJpgColorConverter _inner;
 

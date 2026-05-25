@@ -16,6 +16,9 @@
     <Project Path="PdfPixel.PdfPanel.Wpf/PdfPixel.PdfPanel.Wpf.csproj" />
     <Project Path="PdfPixel.PdfPanel/PdfPixel.PdfPanel.csproj" />
   </Folder>
+  <Folder Name="/Solution Items/">
+    <File Path=".editorconfig" />
+  </Folder>
   <Project Path="PdfPixel.Benchmarks/PdfPixel.Benchmarks.csproj" />
   <Project Path="PdfPixel.Color/PdfPixel.Color.csproj" Id="41c01fd9-9377-4bd4-9b28-706f90a00866" />
   <Project Path="PdfPixel.Tests/PdfPixel.Tests.csproj" />

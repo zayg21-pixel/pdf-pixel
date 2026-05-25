@@ -5,77 +5,92 @@ using System.Runtime.CompilerServices;
 namespace PdfPixel.Jpx.Parsing;
 
 /// <summary>
-/// Pre-computed layout for one (resolution, subbandIndex) pair within the precinct state array.
-/// </summary>
-internal struct JpxSubbandLayout
-{
-    public int BaseOffset;
-    public int PrecinctsX;
-    public int PrecinctsY;
-    public int PrecinctStride; // = PrecinctsX * PrecinctsY
-}
-
-/// <summary>
 /// Per-precinct state that persists across quality layers during packet header parsing.
 /// Tracks code-block inclusion, zero bit-planes, and accumulated code-block data
 /// per ITU-T T.800 Annex B.
 /// </summary>
 internal sealed class JpxPrecinctState
 {
+    public JpxPrecinctState(
+        JpxTagTree inclusionTree,
+        JpxTagTree zeroBitPlaneTree,
+        JpxCodeBlock[] codeBlocks,
+        int codeBlocksX,
+        int codeBlocksY,
+        int codeBlockStartX,
+        int codeBlockStartY,
+        int subbandX0,
+        int subbandY0,
+        int subbandX1,
+        int subbandY1)
+    {
+        InclusionTree = inclusionTree;
+        ZeroBitPlaneTree = zeroBitPlaneTree;
+        CodeBlocks = codeBlocks;
+        CodeBlocksX = codeBlocksX;
+        CodeBlocksY = codeBlocksY;
+        CodeBlockStartX = codeBlockStartX;
+        CodeBlockStartY = codeBlockStartY;
+        SubbandX0 = subbandX0;
+        SubbandY0 = subbandY0;
+        SubbandX1 = subbandX1;
+        SubbandY1 = subbandY1;
+    }
+
     /// <summary>
     /// Tag tree for tracking first-inclusion layer of each code-block.
     /// </summary>
-    public JpxTagTree InclusionTree;
+    public JpxTagTree InclusionTree { get; }
 
     /// <summary>
     /// Tag tree for decoding zero bit-plane counts on first inclusion.
     /// </summary>
-    public JpxTagTree ZeroBitPlaneTree;
+    public JpxTagTree ZeroBitPlaneTree { get; }
 
     /// <summary>
     /// Persistent code-blocks that accumulate data across layers (flat array, indexed by cbx * CodeBlocksY + cby).
     /// </summary>
-    public JpxCodeBlock[] CodeBlocks;
+    public JpxCodeBlock[] CodeBlocks { get; }
 
     /// <summary>
     /// Number of code-blocks in the horizontal direction within this precinct.
     /// </summary>
-    public int CodeBlocksX;
+    public int CodeBlocksX { get; }
 
     /// <summary>
     /// Number of code-blocks in the vertical direction within this precinct.
     /// </summary>
-    public int CodeBlocksY;
+    public int CodeBlocksY { get; }
 
     /// <summary>
     /// Absolute code-block X index within the subband where this precinct starts.
     /// </summary>
-    public int CodeBlockStartX;
+    public int CodeBlockStartX { get; }
 
     /// <summary>
     /// Absolute code-block Y index within the subband where this precinct starts.
     /// </summary>
-    public int CodeBlockStartY;
+    public int CodeBlockStartY { get; }
 
     /// <summary>
     /// Start X coordinate of the precinct-subband intersection.
     /// </summary>
-    public int SubbandX0;
+    public int SubbandX0 { get; }
 
     /// <summary>
     /// Start Y coordinate of the precinct-subband intersection.
     /// </summary>
-    public int SubbandY0;
+    public int SubbandY0 { get; }
 
     /// <summary>
     /// End X coordinate of the precinct-subband intersection.
     /// </summary>
-    public int SubbandX1;
+    public int SubbandX1 { get; }
 
     /// <summary>
     /// End Y coordinate of the precinct-subband intersection.
     /// </summary>
-    public int SubbandY1;
+    public int SubbandY1 { get; }
 
     /// <summary>
     /// Creates a precinct state for the given resolution, subband, and precinct position.
@@ -125,7 +140,7 @@ internal sealed class JpxPrecinctState
         }
 
         // Get precinct size at this resolution level
-        var (precinctWidth, precinctHeight) = JpxPrecinctHelper.GetPrecinctSize(
+        (int precinctWidth, int precinctHeight) = JpxPrecinctHelper.GetPrecinctSize(
             resolution, codingStyle);
 
         // For resolution > 0, precinct size in subband coordinates is halved
@@ -174,28 +189,23 @@ internal sealed class JpxPrecinctState
             codeBlocksY = kend - kstart + 1;
         }
 
-        return new JpxPrecinctState
-        {
-            InclusionTree = new JpxTagTree(codeBlocksX, codeBlocksY),
-            ZeroBitPlaneTree = new JpxTagTree(codeBlocksX, codeBlocksY),
-            CodeBlocks = new JpxCodeBlock[codeBlocksX * codeBlocksY],
-            CodeBlocksX = codeBlocksX,
-            CodeBlocksY = codeBlocksY,
-            CodeBlockStartX = codeBlockStartX,
-            CodeBlockStartY = codeBlockStartY,
-            SubbandX0 = s0x,
-            SubbandY0 = s0y,
-            SubbandX1 = s1x,
-            SubbandY1 = s1y
-        };
+        return new JpxPrecinctState(
+            new JpxTagTree(codeBlocksX, codeBlocksY),
+            new JpxTagTree(codeBlocksX, codeBlocksY),
+            new JpxCodeBlock[codeBlocksX * codeBlocksY],
+            codeBlocksX,
+            codeBlocksY,
+            codeBlockStartX,
+            codeBlockStartY,
+            s0x,
+            s0y,
+            s1x,
+            s1y);
     }
 
     /// <summary>
     /// Integer ceiling division.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static int CeilDiv(int numerator, int denominator)
-    {
-        return (numerator + denominator - 1) / denominator;
-    }
+    private static int CeilDiv(int numerator, int denominator) => (numerator + denominator - 1) / denominator;
 }

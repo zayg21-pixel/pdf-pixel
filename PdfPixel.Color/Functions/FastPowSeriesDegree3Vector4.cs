@@ -79,16 +79,16 @@ internal sealed class FastPowSeriesDegree3Vector4
         int fractionBitsW = bitsW & 0x7FFFFF;
 
         // Vectorize mantissa mapping: m = (1 + frac * FractionScale) * 0.5
-        Vector4 fraction = new Vector4(fractionBitsX, fractionBitsY, fractionBitsZ, fractionBitsW);
-        Vector4 mantissa = (Vector4.One + fraction * FractionScale) * Half;
+        Vector4 fraction = new(fractionBitsX, fractionBitsY, fractionBitsZ, fractionBitsW);
+        Vector4 mantissa = (Vector4.One + (fraction * FractionScale)) * Half;
 
         // Vectorized Horner: p0 + m * (p1 + m * (p2 + m * p3))
-        Vector4 inner = _p2 + mantissa * _p3;
-        Vector4 mid = _p1 + mantissa * inner;
-        Vector4 mantissaPoly = _p0 + mantissa * mid;
+        Vector4 inner = _p2 + (mantissa * _p3);
+        Vector4 mid = _p1 + (mantissa * inner);
+        Vector4 mantissaPoly = _p0 + (mantissa * mid);
 
         // Per-lane scale via precomputed LUTs
-        Vector4 scale = new Vector4(
+        Vector4 scale = new(
             _scaleX[exponentBitsX],
             _scaleY[exponentBitsY],
             _scaleZ[exponentBitsZ],

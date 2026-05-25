@@ -4,26 +4,6 @@ using System;
 namespace PdfPixel.Color.Icc.Model;
 
 /// <summary>
-/// Known ICC color space signatures (4CC codes) for ColorSpaceName and PCS.
-/// </summary>
-public enum IccColorSpace
-{
-    Unknown,
-    Rgb,
-    Cmyk,
-    Gray,
-    Lab,
-    Xyz,
-    Luv,
-    Ycbcr,
-    Yxy,
-    Hsv,
-    Hls,
-    Cmy,
-    // Add more as needed
-}
-
-/// <summary>
 /// Represents the fixed 128-byte ICC profile header (only the subset of fields required by the PDF color workflows).
 /// See ICC specification (v4) for authoritative field definitions and layout.
 /// </summary>
@@ -37,7 +17,7 @@ public sealed class IccProfileHeader
     private const int OffsetColorSpace = 16;       // color space of data 4CC
     private const int OffsetPcs = 20;              // PCS 4CC
     private const int OffsetCreationDate = 24;     // dateTimeNumber (year..second) 6 * uInt16
-    private const int OffsetSignature = 36;        // profile file signature (expected 'acsp') – currently ignored
+        // profile file signature (expected 'acsp') – currently ignored
     private const int OffsetPlatform = 40;         // primary platform
     private const int OffsetFlags = 44;            // profile flags
     private const int OffsetDeviceManufacturer = 48; // manufacturer 4CC
@@ -50,82 +30,82 @@ public sealed class IccProfileHeader
     /// <summary>
     /// Total size of the ICC profile in bytes.
     /// </summary>
-    public uint Size { get; set; }
+    public uint Size { get; private set; }
 
     /// <summary>
     /// Preferred CMM type signature (4-character code).
     /// </summary>
-    public string CmmType { get; set; }
+    public string? CmmType { get; private set; }
 
     /// <summary>
     /// Parsed profile version (major.minor.bugfix per ICC packed encoding).
     /// </summary>
-    public Version Version { get; set; }
+    public Version? Version { get; private set; }
 
     /// <summary>
     /// Device / profile class signature (e.g. 'mntr', 'prtr', 'spac').
     /// </summary>
-    public string DeviceClass { get; set; }
+    public string? DeviceClass { get; private set; }
 
     /// <summary>
     /// Data color space signature (e.g. 'RGB ', 'CMYK', 'GRAY').
     /// </summary>
-    public string ColorSpaceName { get; set; }
+    public string? ColorSpaceName { get; private set; }
 
     /// <summary>
     /// Known color space as enum, or Unknown if not recognized.
     /// </summary>
-    public IccColorSpace ColorSpace { get; set; }
+    public IccColorSpace ColorSpace { get; private set; }
 
     /// <summary>
     /// Profile Connection Space (PCS) signature (e.g. 'XYZ ', 'Lab ').
     /// </summary>
-    public string PcsName { get; set; }
+    public string? PcsName { get; private set; }
 
     /// <summary>
     /// Known PCS as enum, or Unknown if not recognized.
     /// </summary>
-    public IccColorSpace Pcs { get; set; }
+    public IccColorSpace Pcs { get; private set; }
 
     /// <summary>
     /// Profile creation timestamp (UTC).
     /// </summary>
-    public DateTime CreationTime { get; set; }
+    public DateTime CreationTime { get; private set; }
 
     /// <summary>
     /// Primary platform signature (e.g. 'MSFT', 'APPL').
     /// </summary>
-    public string Platform { get; set; }
+    public string? Platform { get; private set; }
 
     /// <summary>
     /// Raw profile flags bitfield (implementation specific usage).
     /// </summary>
-    public uint FlagsRaw { get; set; }
+    public uint FlagsRaw { get; private set; }
 
     /// <summary>
     /// Device manufacturer signature (4-character code).
     /// </summary>
-    public string DeviceManufacturer { get; set; }
+    public string? DeviceManufacturer { get; private set; }
 
     /// <summary>
     /// Device model code (raw uInt32 as stored in header).
     /// </summary>
-    public uint DeviceModel { get; set; }
+    public uint DeviceModel { get; private set; }
 
     /// <summary>
     /// Rendering intent declared in the profile header (0..3 correspond to perceptual, relative colorimetric, saturation, absolute colorimetric).
     /// </summary>
-    public IccRenderingIntent RenderingIntent { get; set; }
+    public IccRenderingIntent RenderingIntent { get; private set; }
 
     /// <summary>
     /// Profile illuminant XYZ (typically D50)
     /// </summary>
-    public IccXyz Illuminant { get; set; }
+    public IccXyz Illuminant { get; private set; }
 
     /// <summary>
     /// Profile creator signature (4-character code identifying the creator application/tool).
     /// </summary>
-    public string Creator { get; set; }
+    public string? Creator { get; private set; }
 
     /// <summary>
     /// Read the ICC profile header fields from the provided big-endian reader.
@@ -133,7 +113,7 @@ public sealed class IccProfileHeader
     /// </summary>
     /// <param name="reader">Big endian reader positioned at the start of profile data.</param>
     /// <returns>A populated <see cref="IccProfileHeader"/> instance.</returns>
-    public static IccProfileHeader Read(BigEndianReader reader)
+    internal static IccProfileHeader Read(BigEndianReader reader)
     {
         if (reader == null)
         {
@@ -146,7 +126,7 @@ public sealed class IccProfileHeader
             throw new ArgumentException("ICC profile header truncated or missing.", nameof(reader));
         }
 
-        var header = new IccProfileHeader();
+        IccProfileHeader header = new();
 
         uint size = reader.ReadUInt32(OffsetSize);
         uint versionPacked = reader.ReadUInt32(OffsetVersion);
@@ -159,7 +139,7 @@ public sealed class IccProfileHeader
         int minute = reader.ReadUInt16(OffsetCreationDate + 8);
         int second = reader.ReadUInt16(OffsetCreationDate + 10);
 
-        DateTime created = new DateTime(
+        DateTime created = new(
             Math.Max(1, Math.Min(9999, year)),
             Math.Max(1, Math.Min(12, month)),
             Math.Max(1, Math.Min(31, day)),
@@ -172,7 +152,7 @@ public sealed class IccProfileHeader
         int ix = reader.ReadInt32(OffsetIlluminant + 0);
         int iy = reader.ReadInt32(OffsetIlluminant + 4);
         int iz = reader.ReadInt32(OffsetIlluminant + 8);
-        IccXyz illuminant = new IccXyz(
+        IccXyz illuminant = new(
             BigEndianReader.S15Fixed16ToSingle(ix),
             BigEndianReader.S15Fixed16ToSingle(iy),
             BigEndianReader.S15Fixed16ToSingle(iz));

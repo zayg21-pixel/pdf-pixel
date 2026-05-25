@@ -29,7 +29,7 @@ public sealed class JpxColorSpecification
     /// <summary>
     /// Gets or sets the ICC profile data (for methods 1 and 2).
     /// </summary>
-    public byte[] IccProfile { get; set; }
+    public byte[]? IccProfile { get; set; }
 
     /// <summary>
     /// Gets a value indicating whether this uses enumerated color space.

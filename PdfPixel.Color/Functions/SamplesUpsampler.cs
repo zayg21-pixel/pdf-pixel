@@ -13,30 +13,37 @@ internal static class SamplesUpsampler
     /// Resamples a 1D array of samples to the specified target length using Catmull-Rom bicubic interpolation.
     /// Input samples are assumed to be uniformly spaced over [0..1].
     /// </summary>
-    public static float[] ResampleCubic(float[] src, int targetLength)
+    public static float[] ResampleCubic(float[]? src, int targetLength)
     {
+        if (src == null)
+        {
+            throw new ArgumentNullException(nameof(src));
+        }
+
         int n = src.Length;
         if (n == 0 || targetLength <= 0)
         {
             return Array.Empty<float>();
         }
+
         if (n == 1)
         {
-            float[] single = new float[targetLength];
+            var single = new float[targetLength];
             for (int i = 0; i < targetLength; i++)
             {
                 single[i] = src[0];
             }
+
             return single;
         }
 
-        float[] dst = new float[targetLength];
+        var dst = new float[targetLength];
         float scale = (n - 1) / (float)(targetLength - 1);
 
         for (int i = 0; i < targetLength; i++)
         {
             float u = i * scale; // position in source index space
-            int i1 = (int)u; // base index
+            var i1 = (int)u; // base index
             float t = u - i1; // local fraction
 
             int i0 = i1 - 1;
@@ -57,6 +64,7 @@ internal static class SamplesUpsampler
             {
                 i0 = 0;
             }
+
             if (i3 >= n)
             {
                 i3 = n - 1;
@@ -81,11 +89,11 @@ internal static class SamplesUpsampler
         float t2 = t * t;
         float t3 = t2 * t;
         // Standard Catmull-Rom with tension = 0.5
-        float a0 = -0.5f * p0 + 1.5f * p1 - 1.5f * p2 + 0.5f * p3;
-        float a1 = p0 - 2.5f * p1 + 2f * p2 - 0.5f * p3;
-        float a2 = -0.5f * p0 + 0.5f * p2;
+        float a0 = (-0.5f * p0) + (1.5f * p1) - (1.5f * p2) + (0.5f * p3);
+        float a1 = p0 - (2.5f * p1) + (2f * p2) - (0.5f * p3);
+        float a2 = (-0.5f * p0) + (0.5f * p2);
         float a3 = p1;
-        float value = a0 * t3 + a1 * t2 + a2 * t + a3;
+        float value = (a0 * t3) + (a1 * t2) + (a2 * t) + a3;
         return value;
     }
 }

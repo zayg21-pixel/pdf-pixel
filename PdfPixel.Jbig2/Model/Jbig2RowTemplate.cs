@@ -8,13 +8,19 @@ namespace PdfPixel.Jbig2.Model;
 /// </summary>
 internal sealed class Jbig2RowTemplate
 {
-    /// <summary>Row groups sorted by dy ascending. Last entry is dy=0 (current row).</summary>
+    /// <summary>
+    /// Row groups sorted by dy ascending. Last entry is dy=0 (current row).
+    /// </summary>
     internal readonly Jbig2RowGroupInfo[] Groups;
 
-    /// <summary>Original template pixels used to build this template (for diagnostics).</summary>
+    /// <summary>
+    /// Original template pixels used to build this template (for diagnostics).
+    /// </summary>
     internal readonly Jbig2ContextPixel[] Originals;
 
-    /// <summary>Whether this template contains any reference bitmap groups.</summary>
+    /// <summary>
+    /// Whether this template contains any reference bitmap groups.
+    /// </summary>
     internal readonly bool HasReference;
 
     /// <summary>
@@ -49,6 +55,7 @@ internal sealed class Jbig2RowTemplate
             {
                 HasReference = true;
             }
+
             if (groups[i].Dy == 0 && -groups[i].MinDx > 32)
             {
                 RequiresSlowPath = true;

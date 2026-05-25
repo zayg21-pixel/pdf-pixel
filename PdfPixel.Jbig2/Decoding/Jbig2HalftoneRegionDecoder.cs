@@ -19,7 +19,7 @@ internal static class Jbig2HalftoneRegionDecoder
     /// <param name="patterns">Available pattern bitmaps from the referred pattern dictionary.</param>
     /// <returns>Decoded region bitmap.</returns>
     public static Jbig2Bitmap Decode(
-        ReadOnlySpan<byte> segmentData,
+        in ReadOnlySpan<byte> segmentData,
         Jbig2RegionHeader regionInfo,
         Jbig2Bitmap[] patterns)
     {
@@ -34,8 +34,8 @@ internal static class Jbig2HalftoneRegionDecoder
         int templateId = (flags >> 1) & 0x03;
         bool enableSkip = (flags & 0x08) != 0;
 
-        Jbig2CombinationOperator combinationOp = (Jbig2CombinationOperator)((flags >> 4) & 0x07);
-        byte defaultPixel = (byte)((flags >> 7) & 1);
+        var combinationOp = (Jbig2CombinationOperator)((flags >> 4) & 0x07);
+        var defaultPixel = (byte)((flags >> 7) & 1);
 
         // Grid dimensions
         int gridWidth = BinaryPrimitives.ReadInt32BigEndian(segmentData.Slice(1, 4));
@@ -49,7 +49,7 @@ internal static class Jbig2HalftoneRegionDecoder
         int gridVectorX = BinaryPrimitives.ReadUInt16BigEndian(segmentData.Slice(17, 2));
         int gridVectorY = BinaryPrimitives.ReadUInt16BigEndian(segmentData.Slice(19, 2));
 
-        int headerSize = 21;
+        const int headerSize = 21;
 
         if (gridWidth <= 0 || gridHeight <= 0)
         {
@@ -80,7 +80,7 @@ internal static class Jbig2HalftoneRegionDecoder
 
         // Compute HSKIP bitmap (ITU-T T.88 Section 6.6.5.1)
         // Marks grid cells whose pattern falls entirely outside the region.
-        Jbig2Bitmap skipBitmap = null;
+        Jbig2Bitmap? skipBitmap = null;
         if (enableSkip)
         {
             skipBitmap = new Jbig2Bitmap(gridWidth, gridHeight);
@@ -92,11 +92,13 @@ internal static class Jbig2HalftoneRegionDecoder
                 Span<byte> skipRow = skipBitmap.GetRow(mg);
                 for (int ng = 0; ng < gridWidth; ng++)
                 {
-                    long x = (gridOffsetX + (long)mg * gridVectorY + (long)ng * gridVectorX) >> 8;
-                    long y = (gridOffsetY + (long)mg * gridVectorX - (long)ng * gridVectorY) >> 8;
+                    long x = (gridOffsetX + ((long)mg * gridVectorY) + ((long)ng * gridVectorX)) >> 8;
+                    long y = (gridOffsetY + ((long)mg * gridVectorX) - ((long)ng * gridVectorY)) >> 8;
 
-                    if (x + hpw <= 0 || x >= regionInfo.Width ||
-                        y + hph <= 0 || y >= regionInfo.Height)
+                    if (x + hpw <= 0
+                        || x >= regionInfo.Width
+                        || y + hph <= 0
+                        || y >= regionInfo.Height)
                     {
                         skipRow[ng >> 3] |= (byte)(0x80 >> (ng & 7));
                     }
@@ -124,7 +126,7 @@ internal static class Jbig2HalftoneRegionDecoder
         int patternWidth = patterns[0].Width;
         int patternHeight = patterns[0].Height;
 
-        var regionBitmap = new Jbig2Bitmap(regionInfo.Width, regionInfo.Height, defaultPixel);
+        Jbig2Bitmap regionBitmap = new(regionInfo.Width, regionInfo.Height, defaultPixel);
 
         for (int mg = 0; mg < gridHeight; mg++)
         {
@@ -144,11 +146,11 @@ internal static class Jbig2HalftoneRegionDecoder
                     continue;
                 }
 
-                var pattern = patterns[patternIndex];
+                Jbig2Bitmap pattern = patterns[patternIndex];
 
                 // Compute pattern position using grid vectors (1/256 pixel units)
-                int x = (gridOffsetX + mg * gridVectorY + ng * gridVectorX) >> 8;
-                int y = (gridOffsetY + mg * gridVectorX - ng * gridVectorY) >> 8;
+                int x = (gridOffsetX + (mg * gridVectorY) + (ng * gridVectorX)) >> 8;
+                int y = (gridOffsetY + (mg * gridVectorX) - (ng * gridVectorY)) >> 8;
 
                 regionBitmap.Composite(pattern, x, y, combinationOp);
             }
@@ -161,7 +163,7 @@ internal static class Jbig2HalftoneRegionDecoder
     /// Decodes all bit planes using MMR coding from a single continuous stream.
     /// </summary>
     private static void DecodeMmrPlanes(
-        ReadOnlySpan<byte> data,
+        in ReadOnlySpan<byte> data,
         int gridWidth,
         int gridHeight,
         int bitsPerValue,
@@ -186,16 +188,16 @@ internal static class Jbig2HalftoneRegionDecoder
     /// Decodes all bit planes using arithmetic coding with a single sequential decoder.
     /// </summary>
     private static void DecodeArithmeticPlanes(
-        ReadOnlySpan<byte> data,
+        in ReadOnlySpan<byte> data,
         int gridWidth,
         int gridHeight,
         int bitsPerValue,
         int templateId,
-        Jbig2Bitmap skipBitmap,
+        Jbig2Bitmap? skipBitmap,
         Jbig2Bitmap[] planes)
     {
         Jbig2AtPixels atPixels = Jbig2Templates.GetDefaultAtPixels(templateId);
-        var decoder = new Jbig2ArithmeticReader(data);
+        Jbig2ArithmeticReader decoder = new(data);
         int contextSize = Jbig2Templates.GetContextSize(templateId);
         ReadOnlySpan<Jbig2ContextPixel> template = Jbig2Templates.ResolveTemplate(templateId, atPixels.AtX, atPixels.AtY);
 
@@ -205,7 +207,7 @@ internal static class Jbig2HalftoneRegionDecoder
 
         for (int plane = bitsPerValue - 1; plane >= 0; plane--)
         {
-            var bitmap = new Jbig2Bitmap(gridWidth, gridHeight);
+            Jbig2Bitmap bitmap = new(gridWidth, gridHeight);
 
             for (int y = 0; y < gridHeight; y++)
             {
@@ -230,10 +232,10 @@ internal static class Jbig2HalftoneRegionDecoder
     private static void DecodeRowWithSkip(
         ref Jbig2ArithmeticReader decoder,
         Jbig2Bitmap bitmap,
-        Span<byte> contexts,
+        in Span<byte> contexts,
         int y,
         int width,
-        ReadOnlySpan<Jbig2ContextPixel> templatePixels,
+        in ReadOnlySpan<Jbig2ContextPixel> templatePixels,
         Jbig2Bitmap skipBitmap)
     {
         ReadOnlySpan<byte> skipRow = skipBitmap.GetRowReadOnly(y);

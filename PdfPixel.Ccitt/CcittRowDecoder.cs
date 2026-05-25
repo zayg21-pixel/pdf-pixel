@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 
@@ -36,19 +36,32 @@ public sealed class CcittRowDecoder
     private bool _completed;
     private bool _rtcConsumed;
 
-    public CcittRowDecoder(ReadOnlyMemory<byte> encodedData,
-                           int width,
-                           int height,
-                           bool blackIs1,
-                           int k,
-                           bool endOfLine,
-                           bool byteAlign,
-                           bool endOfBlock)
+    /// <summary>
+    /// Initializes the decoder with image dimensions and all CCITT decode parameters.
+    /// </summary>
+    /// <param name="encodedData">The raw CCITT-encoded byte stream.</param>
+    /// <param name="width">Image width in pixels.</param>
+    /// <param name="height">Number of rows to decode.</param>
+    /// <param name="blackIs1">When true, bit value 1 represents black; otherwise 0 represents black.</param>
+    /// <param name="k">K parameter: 0 = G3 1-D only, negative = G4 2-D only, positive = mixed 1-D/2-D with K rows per sync.</param>
+    /// <param name="endOfLine">When true, each row is preceded by an EOL marker.</param>
+    /// <param name="byteAlign">When true, the stream is byte-aligned after each EOL marker.</param>
+    /// <param name="endOfBlock">When true, an RTC (six EOLs) is expected and consumed at the end of the image.</param>
+    public CcittRowDecoder(
+        in ReadOnlyMemory<byte> encodedData,
+        int width,
+        int height,
+        bool blackIs1,
+        int k,
+        bool endOfLine,
+        bool byteAlign,
+        bool endOfBlock)
     {
         if (width <= 0)
         {
             throw new ArgumentOutOfRangeException(nameof(width));
         }
+
         if (height <= 0)
         {
             throw new ArgumentOutOfRangeException(nameof(height));
@@ -76,21 +89,39 @@ public sealed class CcittRowDecoder
         _rtcConsumed = false;
     }
 
+    /// <summary>
+    /// Byte length of each output row: <c>(Width + 7) / 8</c>.
+    /// </summary>
     public int RowStride => (_width + 7) / 8;
+
+    /// <summary>
+    /// Number of rows successfully decoded so far.
+    /// </summary>
     public int RowsDecoded => _currentRowIndex;
+
+    /// <summary>
+    /// True once all rows have been decoded (or decoding has been aborted).
+    /// </summary>
     public bool IsCompleted => _completed;
 
+    /// <summary>
+    /// Decodes the next raster row into <paramref name="destinationRow"/>.
+    /// </summary>
+    /// <param name="destinationRow">Output buffer; must be at least <see cref="RowStride"/> bytes long.</param>
+    /// <returns>True if a row was decoded; false when all rows are exhausted.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public bool DecodeNextRow(Span<byte> destinationRow)
+    public bool DecodeNextRow(ref readonly Span<byte> destinationRow)
     {
         if (_completed)
         {
             return false;
         }
+
         if (destinationRow.Length < RowStride)
         {
             throw new ArgumentException("Destination span too small for row stride.", nameof(destinationRow));
         }
+
         if (_currentRowIndex >= _height)
         {
             _completed = true;
@@ -98,7 +129,8 @@ public sealed class CcittRowDecoder
         }
 
         // Reconstruct reader for current state
-        var reader = new CcittBitReader(_encoded.Span, _byteIndex, _bitsRemaining, _currentByte);
+        ReadOnlySpan<byte> encodedSpan = _encoded.Span;
+        CcittBitReader reader = new(ref encodedSpan, _byteIndex, _bitsRemaining, _currentByte);
 
         bool isOneDLine = DetermineLineKind(ref reader);
 
@@ -134,6 +166,7 @@ public sealed class CcittRowDecoder
                 reader.TryConsumeRtc();
                 _rtcConsumed = true;
             }
+
             _completed = true;
         }
 
@@ -141,7 +174,7 @@ public sealed class CcittRowDecoder
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private void CleanupBuffer(Span<byte> rowSpan)
+    private void CleanupBuffer(in Span<byte> rowSpan)
     {
         byte backgroundByte = _blackIs1 ? (byte)0x00 : (byte)0xFF;
 
@@ -160,29 +193,37 @@ public sealed class CcittRowDecoder
             {
                 ConsumeMandatoryEol(ref reader);
             }
+
             return true;
         }
+
         if (_kParameter < 0)
         {
             if (_endOfLine)
             {
                 ConsumeMandatoryEol(ref reader);
             }
+
             return false;
         }
+
         if (!ConsumeEolOptional(ref reader))
         {
             throw new InvalidOperationException("CCITT mixed mode decode error: missing EOL before tag bit at row " + _currentRowIndex + ".");
         }
+
         if (_byteAlign)
         {
             reader.AlignAfterEndOfLine(true);
         }
+
         int tagBit = reader.ReadBit();
+
         if (tagBit < 0)
         {
             throw new InvalidOperationException("CCITT mixed mode decode error: unexpected end of data reading tag bit at row " + _currentRowIndex + ".");
         }
+
         return tagBit == 1;
     }
 
@@ -193,6 +234,7 @@ public sealed class CcittRowDecoder
         {
             throw new InvalidOperationException("CCITT decode error: missing required EOL at row " + _currentRowIndex + ".");
         }
+
         if (_byteAlign)
         {
             reader.AlignAfterEndOfLine(true);
@@ -200,8 +242,5 @@ public sealed class CcittRowDecoder
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private bool ConsumeEolOptional(ref CcittBitReader reader)
-    {
-        return reader.TryConsumeEol();
-    }
+    private bool ConsumeEolOptional(ref CcittBitReader reader) => reader.TryConsumeEol();
 }

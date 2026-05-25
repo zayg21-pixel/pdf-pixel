@@ -5,12 +5,18 @@ namespace PdfPixel.Jpx.Model;
 /// </summary>
 internal enum JpxSubbandType
 {
-    /// <summary>Horizontal high-pass, vertical low-pass.</summary>
+    /// <summary>
+    /// Horizontal high-pass, vertical low-pass.
+    /// </summary>
     HL = 0,
 
-    /// <summary>Horizontal low-pass, vertical high-pass.</summary>
+    /// <summary>
+    /// Horizontal low-pass, vertical high-pass.
+    /// </summary>
     LH = 1,
 
-    /// <summary>Horizontal high-pass, vertical high-pass.</summary>
+    /// <summary>
+    /// Horizontal high-pass, vertical high-pass.
+    /// </summary>
     HH = 2
 }

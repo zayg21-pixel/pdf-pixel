@@ -25,17 +25,12 @@ public readonly struct JpxTileProvider
     /// <param name="decodingParameters">Parameters controlling decoding resolution.</param>
     public JpxTileProvider(
         JpxHeader header,
-        ReadOnlySpan<byte> codestream,
-        JpxDecodingParameters decodingParameters = default)
+        in ReadOnlySpan<byte> codestream,
+        in JpxDecodingParameters decodingParameters = default)
     {
         _header = header ?? throw new ArgumentNullException(nameof(header));
-        _decodingParameters = decodingParameters.DescaleFactor >= 1 ? decodingParameters : JpxDecodingParameters.Default;
-        var tileContentExtractor = new TileContentExtractor();
-
-        if (tileContentExtractor == null)
-        {
-            throw new ArgumentNullException(nameof(tileContentExtractor));
-        }
+        _decodingParameters = (decodingParameters.DescaleFactor >= 1) ? decodingParameters : JpxDecodingParameters.Default;
+        TileContentExtractor tileContentExtractor = new();
 
         if (header.CodingStyle == null)
         {
@@ -43,7 +38,7 @@ public readonly struct JpxTileProvider
         }
 
         var progressionOrder = (JpxProgressionOrder)header.CodingStyle.ProgressionOrder;
-        var packetParser = JpxPacketParserFactory.CreateParser(progressionOrder, header);
+        IJpxPacketParser packetParser = JpxPacketParserFactory.CreateParser(progressionOrder, header);
         _tileDecoder = new JpxTileDecoder(header, packetParser);
 
         TilesHorizontal = (int)Math.Ceiling((double)header.Width / header.TileWidth);
@@ -78,7 +73,7 @@ public readonly struct JpxTileProvider
     /// <exception cref="InvalidDataException">Thrown when tile decoding fails.</exception>
     public JpxTile DecodeTile(int tileIndex)
     {
-        var extracted = _extractedTiles[tileIndex];
+        ExtractedTileContent extracted = _extractedTiles[tileIndex];
 
         if (extracted.Data == null)
         {
@@ -90,7 +85,7 @@ public readonly struct JpxTileProvider
 
     private JpxTile CreateEmptyTile(int tileIndex)
     {
-        var tileHeader = new JpxTileHeader
+        JpxTileHeader tileHeader = new()
         {
             TileIndex = (ushort)tileIndex,
             TilePartLength = 0,

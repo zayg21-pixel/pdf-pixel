@@ -22,7 +22,7 @@ public sealed class JpgQuantizationTable
     /// <summary>
     /// Gets the quantization table entries (64 values, row-major order).
     /// </summary>
-    public ushort[] Entries { get; private set; } = new ushort[64];
+    public ushort[] Entries { get; } = new ushort[64];
 
     /// <summary>
     /// Parses one or more JPEG quantization tables from a DQT segment payload.
@@ -30,9 +30,9 @@ public sealed class JpgQuantizationTable
     /// <param name="payload">The raw DQT segment bytes.</param>
     /// <returns>A list of parsed <see cref="JpgQuantizationTable"/> instances.</returns>
     /// <exception cref="ArgumentException">Thrown if the payload is truncated or invalid.</exception>
-    public static List<JpgQuantizationTable> ParseDqtPayload(ReadOnlySpan<byte> payload)
+    public static List<JpgQuantizationTable> ParseDqtPayload(in ReadOnlySpan<byte> payload)
     {
-        var list = new List<JpgQuantizationTable>();
+        List<JpgQuantizationTable> list = [];
         int offset = 0;
         while (offset < payload.Length)
         {
@@ -46,7 +46,7 @@ public sealed class JpgQuantizationTable
             int tableId = pqTq & 0x0F; // 0..3
             bool is16 = precision != 0;
 
-            var table = new JpgQuantizationTable
+            JpgQuantizationTable table = new()
             {
                 TableId = tableId,
                 Is16Bit = is16
@@ -65,14 +65,16 @@ public sealed class JpgQuantizationTable
                 {
                     table.Entries[i] = payload[offset + i];
                 }
+
                 offset += 64;
             }
             else
             {
                 for (int i = 0; i < 64; i++)
                 {
-                    table.Entries[i] = (ushort)(payload[offset + 2 * i] << 8 | payload[offset + 2 * i + 1]);
+                    table.Entries[i] = (ushort)(payload[offset + (2 * i)] << 8 | payload[offset + (2 * i) + 1]);
                 }
+
                 offset += 128;
             }
 

@@ -13,7 +13,7 @@ internal static class JpxMarkers
 
     // Fixed information markers
     public const ushort SIZ = 0xFF51; // Image and tile size
-    
+
     // Functional markers
     public const ushort COD = 0xFF52; // Coding style default
     public const ushort COC = 0xFF53; // Coding style component
@@ -21,22 +21,22 @@ internal static class JpxMarkers
     public const ushort QCD = 0xFF5C; // Quantization default
     public const ushort QCC = 0xFF5D; // Quantization component
     public const ushort POC = 0xFF5F; // Progression order change
-    
+
     // Pointer markers
     public const ushort TLM = 0xFF55; // Tile-part lengths
     public const ushort PLM = 0xFF57; // Packet length, main header
     public const ushort PLT = 0xFF58; // Packet length, tile-part header
     public const ushort PPM = 0xFF60; // Packed packet headers, main header
     public const ushort PPT = 0xFF61; // Packed packet headers, tile-part header
-    
+
     // In bit stream markers
     public const ushort SOP = 0xFF91; // Start of packet
     public const ushort EPH = 0xFF92; // End of packet header
-    
+
     // Informational markers
     public const ushort CRG = 0xFF63; // Component registration
     public const ushort COM = 0xFF64; // Comment
-    
+
     // JP2 box type codes (used in JP2 file format wrapper)
     public const uint JPEG2000_SIGNATURE = 0x6A502020; // jP box signature ("jP  ")
     public const uint FILETYPE_BOX = 0x66747970; // ftyp
@@ -51,7 +51,7 @@ internal static class JpxMarkers
     public const uint CAPTURE_RESOLUTION_BOX = 0x72657363; // resc
     public const uint DEFAULT_DISPLAY_RESOLUTION_BOX = 0x72657364; // resd
     public const uint CONTIGUOUS_CODESTREAM_BOX = 0x6A703263; // jp2c
-    
+
     /// <summary>
     /// Checks if a marker is a delimiter marker.
     /// </summary>

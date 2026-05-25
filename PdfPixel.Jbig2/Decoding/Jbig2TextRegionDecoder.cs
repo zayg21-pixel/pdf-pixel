@@ -22,10 +22,10 @@ internal static class Jbig2TextRegionDecoder
     /// <param name="customTables">User-defined Huffman tables from referred Table segments.</param>
     /// <returns>Captured symbol placements for this text region.</returns>
     public static Jbig2TextRegionPlacements Decode(
-        ReadOnlySpan<byte> segmentData,
+        in ReadOnlySpan<byte> segmentData,
         Jbig2RegionHeader regionInfo,
         List<Jbig2Bitmap> symbols,
-        List<Jbig2HuffmanTable> customTables = null)
+        List<Jbig2HuffmanTable>? customTables = null)
     {
         if (segmentData.Length < 2)
         {
@@ -47,12 +47,12 @@ internal static class Jbig2TextRegionDecoder
     }
 
     private static Jbig2TextRegionPlacements DecodeArithmetic(
-        ReadOnlySpan<byte> segmentData,
+        in ReadOnlySpan<byte> segmentData,
         Jbig2RegionHeader regionInfo,
         List<Jbig2Bitmap> symbols,
-        Jbig2TextRegionSegmentInfo info)
+        in Jbig2TextRegionSegmentInfo info)
     {
-        var placements = new Jbig2TextRegionPlacements(
+        Jbig2TextRegionPlacements placements = new(
             regionInfo.Width,
             regionInfo.Height,
             info.Flags.DefaultPixel,
@@ -78,7 +78,7 @@ internal static class Jbig2TextRegionDecoder
             return placements;
         }
 
-        var context = new Jbig2ArithmeticContext(
+        Jbig2ArithmeticContext context = new(
             info.SymbolIdCodeLength,
             info.Flags.RefinementTemplate,
             info.RefinementAtPixels?.AtX,
@@ -86,20 +86,20 @@ internal static class Jbig2TextRegionDecoder
 
         context.PlacementFlags = info.Flags;
 
-        var reader = new Jbig2ArithmeticReader(segmentData.Slice(headerOffset));
+        Jbig2ArithmeticReader reader = new(segmentData.Slice(headerOffset));
         Jbig2ArithmeticDecoder.Decode(ref reader, context, placements, symbols, info.NumberOfSymbolInstances);
 
         return placements;
     }
 
     private static Jbig2TextRegionPlacements DecodeHuffman(
-        ReadOnlySpan<byte> segmentData,
+        in ReadOnlySpan<byte> segmentData,
         Jbig2RegionHeader regionInfo,
         List<Jbig2Bitmap> symbols,
-        Jbig2TextRegionSegmentInfo info,
-        List<Jbig2HuffmanTable> customTables)
+        in Jbig2TextRegionSegmentInfo info,
+        List<Jbig2HuffmanTable>? customTables)
     {
-        var placements = new Jbig2TextRegionPlacements(
+        Jbig2TextRegionPlacements placements = new(
             regionInfo.Width,
             regionInfo.Height,
             info.Flags.DefaultPixel,
@@ -115,10 +115,10 @@ internal static class Jbig2TextRegionDecoder
         int headerSize = 2; // main flags
 
         // Huffman flags (2 bytes)
-        var huffFlags = new Jbig2TextRegionHuffmanFlags(0);
+        Jbig2TextRegionHuffmanFlags huffFlags = new(0);
         if (headerSize + 1 < segmentData.Length)
         {
-            ushort huffFlagsWord = (ushort)((segmentData[headerSize] << 8) | segmentData[headerSize + 1]);
+            var huffFlagsWord = (ushort)((segmentData[headerSize] << 8) | segmentData[headerSize + 1]);
             huffFlags = new Jbig2TextRegionHuffmanFlags(huffFlagsWord);
             headerSize += 2;
         }
@@ -140,9 +140,9 @@ internal static class Jbig2TextRegionDecoder
         // 7.4.3.1.6 Text region segment Huffman table selection
         int customIndex = 0;
 
-        var fsTable = Jbig2StandardHuffmanTables.SelectFirstS(huffFlags.FsSelection, customTables, ref customIndex);
-        var dsTable = Jbig2StandardHuffmanTables.SelectDeltaS(huffFlags.DsSelection, customTables, ref customIndex);
-        var dtTable = Jbig2StandardHuffmanTables.SelectDeltaT(huffFlags.DtSelection, customTables, ref customIndex);
+        Jbig2HuffmanTable fsTable = Jbig2StandardHuffmanTables.SelectFirstS(huffFlags.FsSelection, customTables, ref customIndex);
+        Jbig2HuffmanTable dsTable = Jbig2StandardHuffmanTables.SelectDeltaS(huffFlags.DsSelection, customTables, ref customIndex);
+        Jbig2HuffmanTable dtTable = Jbig2StandardHuffmanTables.SelectDeltaT(huffFlags.DtSelection, customTables, ref customIndex);
 
         // Select refinement tables when refinement is enabled
         Jbig2RefinementHuffmanTables? refinement = null;
@@ -158,7 +158,7 @@ internal static class Jbig2TextRegionDecoder
                 rdyTable: Jbig2StandardHuffmanTables.SelectRefinementDimension(
                     huffFlags.RefinementDySelection, customTables, ref customIndex),
                 sizeTable: Jbig2StandardHuffmanTables.SelectRefinementSize(
-                    huffFlags.RefinementSizeSelector ? 1 : 0, customTables, ref customIndex),
+                    (huffFlags.RefinementSizeSelector) ? 1 : 0, customTables, ref customIndex),
                 template: info.Flags.RefinementTemplate,
                 atX: info.RefinementAtPixels?.AtX,
                 atY: info.RefinementAtPixels?.AtY);
@@ -166,10 +166,10 @@ internal static class Jbig2TextRegionDecoder
 
         // Create Huffman reader from coded data
         ReadOnlySpan<byte> codedData = segmentData.Slice(headerSize);
-        var huffDecoder = new Jbig2HuffmanDecoder(codedData);
+        Jbig2HuffmanDecoder huffDecoder = new(codedData);
 
         // 7.4.3.1.7 Symbol ID Huffman table decoding
-        var symbolIdTable = Jbig2HuffmanPlacementDecoder.DecodeSymbolIdTable(huffDecoder, symbols.Count);
+        Jbig2HuffmanTable symbolIdTable = Jbig2HuffmanPlacementDecoder.DecodeSymbolIdTable(huffDecoder, symbols.Count);
 
         // Decode text region placement (ITU-T T.88 Section 6.4)
         Jbig2HuffmanPlacementDecoder.Decode(
@@ -209,8 +209,8 @@ internal static class Jbig2TextRegionDecoder
         List<Jbig2Bitmap> symbols,
         Jbig2ArithmeticContext context)
     {
-        var inlineFlags = Jbig2TextRegionFlags.DefaultInlineFlags;
-        var placements = new Jbig2TextRegionPlacements(
+        Jbig2TextRegionFlags inlineFlags = Jbig2TextRegionFlags.DefaultInlineFlags;
+        Jbig2TextRegionPlacements placements = new(
             width,
             height,
             inlineFlags.DefaultPixel,

@@ -22,6 +22,16 @@ internal static class JpxInverseDwtFactory
             throw new ArgumentNullException(nameof(header));
         }
 
+        if (header.CodingStyle == null)
+        {
+            throw new InvalidOperationException("Coding style is not defined.");
+        }
+
+        if (header.Quantization == null)
+        {
+            throw new InvalidOperationException("Quantization is not defined.");
+        }
+
         if (header.CodingStyle.IsReversibleTransform)
         {
             return new JpxInverseDwt53(header.Quantization);

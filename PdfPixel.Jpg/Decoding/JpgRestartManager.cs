@@ -1,4 +1,5 @@
 using PdfPixel.Jpg.Readers;
+
 using System;
 
 namespace PdfPixel.Jpg.Decoding;
@@ -36,6 +37,7 @@ internal sealed class JpgRestartManager
         {
             return;
         }
+
         ProcessPendingRestart(ref bitReader, previousDcValues);
     }
 
@@ -65,16 +67,14 @@ internal sealed class JpgRestartManager
         {
             return;
         }
+
         for (int i = 0; i < previousDcValues.Length; i++)
         {
             previousDcValues[i] = 0;
         }
     }
 
-    private void AdvanceExpectedRestart()
-    {
-        _expectedRestart = (byte)(0xD0 + (_expectedRestart - 0xD0 + 1 & 7));
-    }
+    private void AdvanceExpectedRestart() => _expectedRestart = (byte)(0xD0 + (_expectedRestart - 0xD0 + 1 & 7));
 
     /// <summary>
     /// Strict processing for a mandatory restart boundary.
@@ -86,10 +86,12 @@ internal sealed class JpgRestartManager
         {
             throw new InvalidOperationException("Expected restart marker but none found.");
         }
+
         if (marker < 0xD0 || marker > 0xD7)
         {
             throw new InvalidOperationException($"Expected restart marker (RST0-RST7) but found 0x{marker:X2}.");
         }
+
         if (!_seenFirstRestart)
         {
             _expectedRestart = marker;
@@ -99,6 +101,7 @@ internal sealed class JpgRestartManager
         {
             throw new InvalidOperationException($"Restart marker sequence mismatch. Expected 0x{_expectedRestart:X2} got 0x{marker:X2}.");
         }
+
         AdvanceExpectedRestart();
         ResetPredictors(previousDcValues);
         _restartsToGo = _restartInterval;

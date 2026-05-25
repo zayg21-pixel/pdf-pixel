@@ -7,32 +7,6 @@ using System.IO;
 namespace PdfPixel.Jpx.Decoding;
 
 /// <summary>
-/// Represents a single tile's extracted content: its header and the concatenated
-/// byte data from all tile-parts, ready to be passed directly to <see cref="IJpxTileDecoder"/>.
-/// </summary>
-internal readonly struct ExtractedTileContent
-{
-    public ExtractedTileContent(JpxTileHeader tileHeader, byte[] data)
-    {
-        TileHeader = tileHeader ?? throw new ArgumentNullException(nameof(tileHeader));
-        Data = data ?? throw new ArgumentNullException(nameof(data));
-    }
-
-    /// <summary>
-    /// Gets the tile header parsed from the SOT marker segment.
-    /// </summary>
-    public JpxTileHeader TileHeader { get; }
-
-    /// <summary>
-    /// Gets the concatenated tile-part data for this tile.
-    /// The first tile-part's data is kept as-is (including SOD marker).
-    /// Subsequent tile-parts have their SOD markers stripped so the result
-    /// is a single contiguous packet data stream after the initial SOD.
-    /// </summary>
-    public byte[] Data { get; }
-}
-
-/// <summary>
 /// Extracts and concatenates tile-part data from a JPEG 2000 codestream.
 /// Scans SOT markers, collects all tile-part segments per tile, concatenates
 /// their data, and returns one <see cref="ExtractedTileContent"/> per tile found.
@@ -62,15 +36,15 @@ internal sealed class TileContentExtractor
     /// <param name="header">Parsed JPX header containing tile grid information.</param>
     /// <param name="codestream">Codestream data starting at the first SOT marker.</param>
     /// <returns>Array of extracted tile contents indexed by tile index.</returns>
-    public ExtractedTileContent[] ExtractTileContents(JpxHeader header, ReadOnlySpan<byte> codestream)
+    public ExtractedTileContent[] ExtractTileContents(JpxHeader header, in ReadOnlySpan<byte> codestream)
     {
         if (header == null)
         {
             throw new ArgumentNullException(nameof(header));
         }
 
-        int tilesHorizontal = (int)Math.Ceiling((double)header.Width / header.TileWidth);
-        int tilesVertical = (int)Math.Ceiling((double)header.Height / header.TileHeight);
+        var tilesHorizontal = (int)Math.Ceiling((double)header.Width / header.TileWidth);
+        var tilesVertical = (int)Math.Ceiling((double)header.Height / header.TileHeight);
         int totalTiles = tilesHorizontal * tilesVertical;
 
         // Store lightweight slice indices instead of copying byte arrays during scan.
@@ -79,7 +53,7 @@ internal sealed class TileContentExtractor
         var hasData = new bool[totalTiles];
         var additionalSlices = new List<TilePartSlice>[totalTiles];
         var tileHeaders = new JpxTileHeader[totalTiles];
-        var reader = new JpxSpanReader(codestream);
+        JpxSpanReader reader = new(codestream);
 
         while (!reader.EndOfSpan && reader.Remaining >= 2)
         {
@@ -97,7 +71,7 @@ internal sealed class TileContentExtractor
                 continue;
             }
 
-            var tileHeader = ParseTileHeader(ref reader, tilesHorizontal, tilesVertical);
+            JpxTileHeader tileHeader = ParseTileHeader(ref reader, tilesHorizontal, tilesVertical);
             int tileDataOffset = reader.Position;
             int tileDataLength = (int)tileHeader.TilePartLength - 12;
 
@@ -110,7 +84,7 @@ internal sealed class TileContentExtractor
             reader.Skip(tileDataLength);
 
             int tileIndex = tileHeader.TileIndex;
-            var slice = new TilePartSlice(tileDataOffset, tileDataLength);
+            TilePartSlice slice = new(tileDataOffset, tileDataLength);
 
             if (!hasData[tileIndex])
             {
@@ -120,12 +94,7 @@ internal sealed class TileContentExtractor
             }
             else
             {
-                if (additionalSlices[tileIndex] == null)
-                {
-                    additionalSlices[tileIndex] = new List<TilePartSlice>();
-                }
-
-                additionalSlices[tileIndex].Add(slice);
+                (additionalSlices[tileIndex] ??= new List<TilePartSlice>()).Add(slice);
             }
         }
 
@@ -166,8 +135,8 @@ internal sealed class TileContentExtractor
     /// expects a single contiguous packet data stream after the initial SOD.
     /// </summary>
     private static byte[] ConcatenateSlices(
-        ReadOnlySpan<byte> codestream,
-        TilePartSlice first,
+        in ReadOnlySpan<byte> codestream,
+        in TilePartSlice first,
         List<TilePartSlice> additionalParts)
     {
         int totalLength = first.Length;
@@ -178,9 +147,9 @@ internal sealed class TileContentExtractor
             int partLength = slice.Length;
 
             // Strip SOD marker (2 bytes) from subsequent parts if present
-            if (partLength >= 2 &&
-                codestream[slice.Offset] == 0xFF &&
-                codestream[slice.Offset + 1] == 0x93)
+            if (partLength >= 2
+                && codestream[slice.Offset] == 0xFF
+                && codestream[slice.Offset + 1] == 0x93)
             {
                 partLength -= 2;
             }
@@ -188,7 +157,7 @@ internal sealed class TileContentExtractor
             totalLength += partLength;
         }
 
-        byte[] result = new byte[totalLength];
+        var result = new byte[totalLength];
         int offset = 0;
 
         // Copy first part as-is (includes SOD)
@@ -202,9 +171,9 @@ internal sealed class TileContentExtractor
             int sourceOffset = slice.Offset;
             int copyLength = slice.Length;
 
-            if (copyLength >= 2 &&
-                codestream[sourceOffset] == 0xFF &&
-                codestream[sourceOffset + 1] == 0x93)
+            if (copyLength >= 2
+                && codestream[sourceOffset] == 0xFF
+                && codestream[sourceOffset + 1] == 0x93)
             {
                 sourceOffset += 2;
                 copyLength -= 2;
@@ -236,7 +205,7 @@ internal sealed class TileContentExtractor
             throw new InvalidDataException($"SOT segment must be 10 bytes, found {segmentLength}.");
         }
 
-        var tileHeader = new JpxTileHeader
+        JpxTileHeader tileHeader = new()
         {
             TileIndex = reader.ReadUInt16BE(),
             TilePartLength = reader.ReadUInt32BE(),

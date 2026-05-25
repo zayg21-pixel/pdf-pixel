@@ -15,7 +15,7 @@ internal static class Jbig2PatternDictionaryDecoder
     /// </summary>
     /// <param name="segmentData">Encoded pattern dictionary data.</param>
     /// <returns>Array of decoded pattern bitmaps, or empty array on failure.</returns>
-    public static Jbig2Bitmap[] Decode(ReadOnlySpan<byte> segmentData)
+    public static Jbig2Bitmap[] Decode(in ReadOnlySpan<byte> segmentData)
     {
         if (segmentData.Length < 7)
         {
@@ -23,7 +23,7 @@ internal static class Jbig2PatternDictionaryDecoder
         }
 
         // Pattern dictionary flags (1 byte)
-        var genericFlags = new Jbig2GenericRegionFlags(segmentData[0]);
+        Jbig2GenericRegionFlags genericFlags = new(segmentData[0]);
 
         // Pattern width and height (1 byte each)
         int patternWidth = segmentData[1];
@@ -31,7 +31,7 @@ internal static class Jbig2PatternDictionaryDecoder
 
         // Largest gray-scale value (4 bytes big-endian at offset 3)
         uint grayMax = BinaryPrimitives.ReadUInt32BigEndian(segmentData.Slice(3, 4));
-        int patternCount = (int)(grayMax + 1);
+        var patternCount = (int)(grayMax + 1);
 
         if (patternWidth <= 0 || patternHeight <= 0 || patternCount <= 0)
         {
@@ -53,13 +53,16 @@ internal static class Jbig2PatternDictionaryDecoder
 
         if (genericFlags.UseMmr)
         {
-            collectiveBitmap = Jbig2MmrDecoder.Decode(codedData, collectiveWidth, patternHeight);
+            collectiveBitmap = Jbig2MmrDecoder.Decode(codedData, collectiveWidth, patternHeight, out _);
         }
         else
         {
             int templateId = genericFlags.TemplateId;
             collectiveBitmap = Jbig2GenericRegionDecoder.DecodeWithAt(
-                genericFlags, codedData, collectiveWidth, patternHeight,
+                genericFlags,
+                codedData,
+                collectiveWidth,
+                patternHeight,
                 Jbig2Templates.GetPatternDictionaryAtPixels(templateId, patternWidth));
         }
 
@@ -67,7 +70,7 @@ internal static class Jbig2PatternDictionaryDecoder
         var patterns = new Jbig2Bitmap[patternCount];
         for (int i = 0; i < patternCount; i++)
         {
-            var pattern = new Jbig2Bitmap(patternWidth, patternHeight);
+            Jbig2Bitmap pattern = new(patternWidth, patternHeight);
             int offsetX = i * patternWidth;
 
             for (int y = 0; y < patternHeight; y++)

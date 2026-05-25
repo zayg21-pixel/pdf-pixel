@@ -26,7 +26,7 @@ public sealed class JpxHeader
     /// <summary>
     /// Gets the list of image components described in the SIZ segment.
     /// </summary>
-    public List<JpxComponent> Components { get; } = new List<JpxComponent>();
+    public List<JpxComponent> Components { get; } = [];
 
     /// <summary>
     /// Gets or sets the reference grid origin X offset (XOsiz from SIZ marker segment).
@@ -66,22 +66,22 @@ public sealed class JpxHeader
     /// <summary>
     /// Gets or sets the coding style parameters from the main header COD segment.
     /// </summary>
-    public JpxCodingStyle CodingStyle { get; set; }
+    public JpxCodingStyle? CodingStyle { get; set; }
 
     /// <summary>
     /// Gets or sets the quantization parameters from the main header QCD segment.
     /// </summary>
-    public JpxQuantization Quantization { get; set; }
+    public JpxQuantization? Quantization { get; set; }
 
     /// <summary>
     /// Gets the list of component coding style overrides (COC marker segments).
     /// </summary>
-    public List<JpxComponentCodingStyle> ComponentCodingStyles { get; } = new List<JpxComponentCodingStyle>();
+    public List<JpxComponentCodingStyle> ComponentCodingStyles { get; } = [];
 
     /// <summary>
     /// Gets the list of component quantization overrides (QCC marker segments).
     /// </summary>
-    public List<JpxComponentQuantization> ComponentQuantizations { get; } = new List<JpxComponentQuantization>();
+    public List<JpxComponentQuantization> ComponentQuantizations { get; } = [];
 
     /// <summary>
     /// Gets or sets a value indicating whether the main header contains comments (COM marker segments).
@@ -91,7 +91,7 @@ public sealed class JpxHeader
     /// <summary>
     /// Gets the list of comments from COM marker segments.
     /// </summary>
-    public List<JpxComment> Comments { get; } = new List<JpxComment>();
+    public List<JpxComment> Comments { get; } = [];
 
     /// <summary>
     /// Gets or sets a value indicating whether color specification boxes are present.
@@ -101,13 +101,13 @@ public sealed class JpxHeader
     /// <summary>
     /// Gets the list of color specifications from colr boxes.
     /// </summary>
-    public List<JpxColorSpecification> ColorSpecifications { get; } = new List<JpxColorSpecification>();
+    public List<JpxColorSpecification> ColorSpecifications { get; } = [];
 
     /// <summary>
     /// Gets the channel definitions declared in the cdef box, if present.
     /// Each entry describes the role (colour / alpha) of one component.
     /// </summary>
-    public List<JpxChannelDefinition> ChannelDefinitions { get; } = new List<JpxChannelDefinition>();
+    public List<JpxChannelDefinition> ChannelDefinitions { get; } = [];
 
     /// <summary>
     /// Gets the zero-based index of the first opacity component declared in the cdef box,
@@ -148,7 +148,7 @@ public sealed class JpxHeader
     /// <summary>
     /// Gets or sets the file type brand from the ftyp box (e.g., "jp2 ").
     /// </summary>
-    public string Brand { get; set; }
+    public string? Brand { get; set; }
 
     /// <summary>
     /// Gets or sets the minor version from the ftyp box.
@@ -158,5 +158,5 @@ public sealed class JpxHeader
     /// <summary>
     /// Gets the list of compatible brands from the ftyp box.
     /// </summary>
-    public List<string> CompatibleBrands { get; } = new List<string>();
+    public List<string> CompatibleBrands { get; } = [];
 }

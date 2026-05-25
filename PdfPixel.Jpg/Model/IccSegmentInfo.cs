@@ -18,5 +18,5 @@ public sealed class IccSegmentInfo
     /// <summary>
     /// Gets or sets the raw data bytes for this ICC profile segment.
     /// </summary>
-    public byte[] Data { get; set; }
+    public byte[] Data { get; set; } = [];
 }

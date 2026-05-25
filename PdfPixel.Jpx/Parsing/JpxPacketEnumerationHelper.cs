@@ -4,27 +4,6 @@ using System;
 namespace PdfPixel.Jpx.Parsing;
 
 /// <summary>
-/// Represents coordinates for a single packet in the progression order.
-/// </summary>
-internal readonly struct PacketCoordinate
-{
-    public readonly int Layer;
-    public readonly int Resolution;
-    public readonly int Component;
-    public readonly int PrecinctX;
-    public readonly int PrecinctY;
-
-    public PacketCoordinate(int layer, int resolution, int component, int precinctX, int precinctY)
-    {
-        Layer = layer;
-        Resolution = resolution;
-        Component = component;
-        PrecinctX = precinctX;
-        PrecinctY = precinctY;
-    }
-}
-
-/// <summary>
 /// Common utilities for packet enumeration across different progression orders.
 /// Provides tile dimension calculations shared by all progression order parsers.
 /// </summary>
@@ -47,7 +26,7 @@ internal static class JpxPacketEnumerationHelper
                 tilesX = 1;
             }
 
-            int tileX = (int)(tileIndex % tilesX);
+            var tileX = (int)(tileIndex % tilesX);
             uint tileStartX = header.TileOriginX + (uint)(tileX * header.TileWidth);
             uint tileEndX = Math.Min(tileStartX + header.TileWidth, header.Width);
 
@@ -81,7 +60,7 @@ internal static class JpxPacketEnumerationHelper
                 tilesY = 1;
             }
 
-            int tileY = (int)(tileIndex / tilesX);
+            var tileY = (int)(tileIndex / tilesX);
             uint tileStartY = header.TileOriginY + (uint)(tileY * header.TileHeight);
             uint tileEndY = Math.Min(tileStartY + header.TileHeight, header.Height);
 

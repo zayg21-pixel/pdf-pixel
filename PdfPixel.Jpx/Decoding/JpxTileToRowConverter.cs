@@ -9,13 +9,12 @@ namespace PdfPixel.Jpx.Decoding;
 /// Tiles are decoded lazily: a tile row is decoded only when the first image row
 /// belonging to that tile row is requested, and released when no longer needed.
 /// </summary>
-public sealed class JpxTileToRowConverter : IDisposable
+public sealed class JpxTileToRowConverter
 {
     private readonly JpxHeader _header;
     private readonly JpxTileProvider _tileProvider;
     private readonly JpxDecodingParameters _decodingParameters;
     private int _currentRow;
-    private bool _disposed;
 
     /// <summary>
     /// Reduced tile width used for row-to-tile mapping.
@@ -30,7 +29,7 @@ public sealed class JpxTileToRowConverter : IDisposable
     /// <summary>
     /// Cached decoded tiles for the current tile row. Indexed by tile column.
     /// </summary>
-    private JpxTile[] _currentTileRowTiles;
+    private JpxTile?[] _currentTileRowTiles;
 
     /// <summary>
     /// The tile row index that <see cref="_currentTileRowTiles"/> corresponds to, or -1 if none.
@@ -43,11 +42,11 @@ public sealed class JpxTileToRowConverter : IDisposable
     /// <param name="header">Parsed JPX header containing image metadata.</param>
     /// <param name="tileProvider">Provider that decodes tiles on demand.</param>
     /// <param name="decodingParameters">Parameters controlling decoding resolution.</param>
-    public JpxTileToRowConverter(JpxHeader header, JpxTileProvider tileProvider, JpxDecodingParameters decodingParameters = default)
+    public JpxTileToRowConverter(JpxHeader header, in JpxTileProvider tileProvider, in JpxDecodingParameters decodingParameters = default)
     {
         _header = header ?? throw new ArgumentNullException(nameof(header));
         _tileProvider = tileProvider;
-        _decodingParameters = decodingParameters.DescaleFactor >= 1 ? decodingParameters : JpxDecodingParameters.Default;
+        _decodingParameters = (decodingParameters.DescaleFactor >= 1) ? decodingParameters : JpxDecodingParameters.Default;
 
         Width = _decodingParameters.ReduceDimension((int)header.Width);
         Height = _decodingParameters.ReduceDimension((int)header.Height);
@@ -61,7 +60,7 @@ public sealed class JpxTileToRowConverter : IDisposable
 
         // Use the JPX header's precision (per spec, ignore PDF BitsPerComponent for JPX).
         // Cap at 16, the maximum supported by the row processor.
-        int headerBpc = header.Components.Count > 0 ? header.Components[0].PrecisionBits : 8;
+        int headerBpc = (header.Components.Count > 0) ? header.Components[0].PrecisionBits : 8;
         BitsPerComponent = Math.Min(16, Math.Max(1, headerBpc));
     }
 
@@ -97,14 +96,14 @@ public sealed class JpxTileToRowConverter : IDisposable
     /// <param name="rowBuffer">Buffer to receive the row data. Must be at least <c>(Width * ComponentCount * BitsPerComponent + 7) / 8</c> bytes.</param>
     /// <param name="observer">Observer to notify on long-running operation.</param>
     /// <returns>True if a row was successfully read, false if at end of image.</returns>
-    public bool TryGetNextRow(Span<byte> rowBuffer, IJpxExectionObserver observer = default)
+    public bool TryGetNextRow(in Span<byte> rowBuffer, IJpxExectionObserver? observer = default)
     {
-        if (_disposed || _currentRow >= Height)
+        if (_currentRow >= Height)
         {
             return false;
         }
 
-        int requiredBytes = (Width * ComponentCount * BitsPerComponent + 7) / 8;
+        int requiredBytes = ((Width * ComponentCount * BitsPerComponent) + 7) / 8;
         if (rowBuffer.Length < requiredBytes)
         {
             throw new ArgumentException($"Row buffer too small. Required: {requiredBytes}, provided: {rowBuffer.Length}");
@@ -117,28 +116,34 @@ public sealed class JpxTileToRowConverter : IDisposable
 
         EnsureTileRowLoaded(tileRow, observer);
 
-        var writer = new JpxBitWriter(rowBuffer);
+        JpxBitWriter writer = new(rowBuffer);
         int outputPixelIndex = 0;
 
         for (int tileCol = 0; tileCol < _tileProvider.TilesHorizontal; tileCol++)
         {
-            int tileIndex = tileRow * _tileProvider.TilesHorizontal + tileCol;
+            int tileIndex = (tileRow * _tileProvider.TilesHorizontal) + tileCol;
 
             if (tileIndex >= _tileProvider.TotalTiles)
             {
                 int remainingPixels = Width - outputPixelIndex;
                 for (int i = 0; i < remainingPixels * ComponentCount; i++)
+                {
                     writer.WriteBits(BitsPerComponent, 0);
+                }
+
                 break;
             }
 
-            var tile = _currentTileRowTiles[tileCol];
+            JpxTile? tile = _currentTileRowTiles[tileCol];
             if (tile == null || rowWithinTile >= tile.Height)
             {
                 int tileStartX = tileCol * _reducedTileWidth;
                 int missingPixels = Math.Min(_reducedTileWidth, Width - tileStartX);
                 for (int i = 0; i < missingPixels * ComponentCount; i++)
+                {
                     writer.WriteBits(BitsPerComponent, 0);
+                }
+
                 outputPixelIndex += missingPixels;
                 continue;
             }
@@ -149,7 +154,9 @@ public sealed class JpxTileToRowConverter : IDisposable
             for (int pixelInTile = 0; pixelInTile < pixelsFromTile; pixelInTile++)
             {
                 if (outputPixelIndex >= Width)
+                {
                     break;
+                }
 
                 for (int component = 0; component < ComponentCount; component++)
                 {
@@ -158,6 +165,7 @@ public sealed class JpxTileToRowConverter : IDisposable
                     {
                         uValue = tile.GetUnsignedComponentValue(component, pixelInTile, rowWithinTile, _header.Components[component], BitsPerComponent);
                     }
+
                     writer.WriteBits(BitsPerComponent, uValue);
                 }
 
@@ -169,20 +177,11 @@ public sealed class JpxTileToRowConverter : IDisposable
         return true;
     }
 
-    public void Dispose()
-    {
-        if (!_disposed)
-        {
-            _currentTileRowTiles = null;
-            _disposed = true;
-        }
-    }
-
     /// <summary>
     /// Ensures that the tiles for the given tile row are decoded and cached.
     /// Releases the previous tile row when advancing to a new one.
     /// </summary>
-    private void EnsureTileRowLoaded(int tileRow, IJpxExectionObserver observer)
+    private void EnsureTileRowLoaded(int tileRow, IJpxExectionObserver? observer)
     {
         if (_loadedTileRow == tileRow)
         {
@@ -194,7 +193,7 @@ public sealed class JpxTileToRowConverter : IDisposable
         {
             observer?.Notify();
 
-            int tileIndex = tileRow * _tileProvider.TilesHorizontal + tileCol;
+            int tileIndex = (tileRow * _tileProvider.TilesHorizontal) + tileCol;
 
             if (tileIndex < _tileProvider.TotalTiles)
             {

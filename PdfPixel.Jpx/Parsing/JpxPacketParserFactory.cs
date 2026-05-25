@@ -23,7 +23,7 @@ internal static class JpxPacketParserFactory
             JpxProgressionOrder.RPCL => new JpxRpclPacketParser(header),
             JpxProgressionOrder.PCRL => new JpxPcrlPacketParser(header),
             JpxProgressionOrder.CPRL => new JpxCprlPacketParser(header),
-            _ => throw new ArgumentException($"Unknown progression order: {progressionOrder}")
+            _ => throw new ArgumentException($"Unknown progression order: {progressionOrder.ToString()}")
         };
     }
 }

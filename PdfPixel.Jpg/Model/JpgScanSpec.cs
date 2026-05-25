@@ -10,7 +10,7 @@ public sealed class JpgScanSpec
     /// <summary>
     /// Gets the list of scan component specifications for this scan.
     /// </summary>
-    public List<JpgScanComponentSpec> Components { get; } = new List<JpgScanComponentSpec>();
+    public List<JpgScanComponentSpec> Components { get; } = [];
 
     /// <summary>
     /// Gets or sets the spectral selection start index (Ss) for progressive JPEG scans.

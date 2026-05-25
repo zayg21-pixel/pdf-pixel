@@ -18,10 +18,14 @@ internal static class JpxDequantizer
     /// </summary>
     internal readonly struct IrreversibleStepParams
     {
-        /// <summary>Right-shift applied to the magnitude before the mantissa multiply.</summary>
+        /// <summary>
+        /// Right-shift applied to the magnitude before the mantissa multiply.
+        /// </summary>
         public readonly int Shift;
 
-        /// <summary>Fixed-point mantissa factor: <c>2048 + m</c> where <c>m</c> is the 11-bit mantissa.</summary>
+        /// <summary>
+        /// Fixed-point mantissa factor: <c>2048 + m</c> where <c>m</c> is the 11-bit mantissa.
+        /// </summary>
         public readonly int MantissaFactor;
 
         public IrreversibleStepParams(int shift, int mantissaFactor)
@@ -57,10 +61,10 @@ internal static class JpxDequantizer
                 // Fallback: derive from LL exponent using correct level-based offset
                 // (same logic as scalar-derived: exponent decreases by 1 per resolution level,
                 // not by 1 per subband index)
-                int llExponent = (quantization.StepSizes != null && quantization.StepSizes.Length > 0)
+                int llExponent = (quantization.StepSizes?.Length > 0)
                     ? (quantization.StepSizes[0] >> 11) & 0x1F
                     : 8;
-                int levelOffset = (stepIndex == 0) ? 0 : ((stepIndex - 1) / 3 + 1);
+                int levelOffset = (stepIndex == 0) ? 0 : (((stepIndex - 1) / 3) + 1);
                 exponent = llExponent - levelOffset;
             }
         }
@@ -70,7 +74,7 @@ internal static class JpxDequantizer
             int baseExponent = (quantization.StepSizes[0] >> 11) & 0x1F;
             // Derived exponent decreases by 1 per resolution level
             // QCD index 0=LL, then groups of 3 per level
-            int levelOffset = (stepIndex == 0) ? 0 : ((stepIndex - 1) / 3 + 1);
+            int levelOffset = (stepIndex == 0) ? 0 : (((stepIndex - 1) / 3) + 1);
             exponent = baseExponent - levelOffset;
         }
         else
@@ -95,7 +99,7 @@ internal static class JpxDequantizer
     /// <summary>
     /// Computes the dequantization parameters for an irreversible (9-7) subband.
     /// The true reconstructed value per the reference implementation (CoreJ2K StdDequantizer) is:
-    /// <code>value = magnitude * (1 + m/2048) * 2^(rb + gain + guardBits - 32)</code>
+    /// <c>value = magnitude * (1 + m/2048) * 2^(rb + gain + guardBits - 32)</c>
     /// In <paramref name="fracBits"/> fixed-point the shift on magnitude is
     /// <c>32 - bitDepth - subbandGain - guardBits - fracBits</c>,
     /// followed by multiplication with <c>(2048 + mantissa)</c> and <c>&gt;&gt; 11</c>.
@@ -155,7 +159,7 @@ internal static class JpxDequantizer
     /// <param name="stepParams">Dequantization parameters from <see cref="ComputeIrreversibleParams"/>.</param>
     /// <returns>The dequantized value in fixed-point representation.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static int DequantizeIrreversible(int coefficient, IrreversibleStepParams stepParams)
+    public static int DequantizeIrreversible(int coefficient, in IrreversibleStepParams stepParams)
     {
         if (coefficient == 0)
         {
@@ -177,7 +181,7 @@ internal static class JpxDequantizer
         }
 
         // Right-shift to fixed-point precision, then apply mantissa factor
-        int result = (int)(((long)(magnitude >> stepParams.Shift) * stepParams.MantissaFactor) >> 11);
+        var result = (int)(((long)(magnitude >> stepParams.Shift) * stepParams.MantissaFactor) >> 11);
 
         return sign * result;
     }

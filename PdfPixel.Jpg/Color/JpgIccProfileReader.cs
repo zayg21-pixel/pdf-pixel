@@ -1,9 +1,13 @@
 ﻿using PdfPixel.Jpg.Model;
+
 using System;
 
 namespace PdfPixel.Jpg.Color;
 
-public class JpgIccProfileReader
+/// <summary>
+/// Utility for reassembling ICC profile data from multi-segment JPEG APP2 markers.
+/// </summary>
+public static class JpgIccProfileReader
 {
     /// <summary>
     /// Reassembles ICC profile bytes from APP2 ICC_PROFILE segments gathered in the <see cref="JpgHeader"/>.
@@ -12,7 +16,7 @@ public class JpgIccProfileReader
     /// </summary>
     /// <param name="header">Parsed JPEG header.</param>
     /// <param name="profileBytes">Complete ICC profile byte array or null on failure.</param>
-    public static bool TryAssembleIccProfile(JpgHeader header, out byte[] profileBytes)
+    public static bool TryAssembleIccProfile(JpgHeader header, out byte[]? profileBytes)
     {
         if (header == null)
         {

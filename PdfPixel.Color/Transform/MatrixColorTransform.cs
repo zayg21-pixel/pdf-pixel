@@ -16,7 +16,6 @@ public sealed class MatrixColorTransform : IColorTransform
     private readonly Vector4 _col2;
     private readonly Vector4 _col3;
     private readonly Vector4 _col4;
-    private readonly bool _isIdentity;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="MatrixColorTransform"/> class with a specified 4x4 matrix.
@@ -25,7 +24,7 @@ public sealed class MatrixColorTransform : IColorTransform
     public MatrixColorTransform(Matrix4x4 matrix)
     {
         _matrix = matrix;
-        _isIdentity = _matrix.IsIdentity;
+        IsIdentity = _matrix.IsIdentity;
         (_col1, _col2, _col3, _col4) = DecomposeColumns(_matrix);
     }
 
@@ -35,16 +34,16 @@ public sealed class MatrixColorTransform : IColorTransform
     /// <param name="matrix3x3">A 3x3 matrix as a two-dimensional float array.</param>
     /// <param name="offset">Optional offset vector (applied to translation components).</param>
     /// <param name="transpose">Whether to transpose the matrix (default: true).</param>
-    public MatrixColorTransform(float[,] matrix3x3, float[] offset = default, bool transpose = true)
+    public MatrixColorTransform(float[,] matrix3x3, float[]? offset = default, bool transpose = true)
     {
-        var matrix4X4 = ColorVectorUtilities.ToMatrix4x4(matrix3x3);
+        Matrix4x4 matrix4X4 = ColorVectorUtilities.ToMatrix4x4(matrix3x3);
 
         if (transpose)
         {
             matrix4X4 = Matrix4x4.Transpose(matrix4X4);
         }
 
-        if (offset != null && offset.Length >= 3)
+        if (offset?.Length >= 3)
         {
             matrix4X4.M41 = offset[0];
             matrix4X4.M42 = offset[1];
@@ -52,11 +51,12 @@ public sealed class MatrixColorTransform : IColorTransform
         }
 
         _matrix = matrix4X4;
-        _isIdentity = _matrix.IsIdentity;
+        IsIdentity = _matrix.IsIdentity;
         (_col1, _col2, _col3, _col4) = DecomposeColumns(_matrix);
     }
 
-    public bool IsIdentity => _isIdentity;
+    /// <inheritdoc/>
+    public bool IsIdentity { get; }
 
     /// <summary>
     /// Initializes a new instance of the <see cref="MatrixColorTransform"/> class from an array of ICC XYZ components.
@@ -65,12 +65,20 @@ public sealed class MatrixColorTransform : IColorTransform
     /// <exception cref="NotSupportedException">Thrown if more than 4 components are provided.</exception>
     public MatrixColorTransform(IccXyz[] components)
     {
+        if (components == null)
+        {
+            throw new ArgumentNullException(nameof(components));
+        }
+
         if (components.Length > 4)
         {
             throw new NotSupportedException($"Invalid number of components {components.Length} for matrix transform");
         }
 
-        float m11, m12, m13, m14;
+        float m11;
+        float m12;
+        float m13;
+        float m14;
 
         if (components.Length >= 1)
         {
@@ -87,7 +95,10 @@ public sealed class MatrixColorTransform : IColorTransform
             m14 = 1;
         }
 
-        float m21, m22, m23, m24;
+        float m21;
+        float m22;
+        float m23;
+        float m24;
 
         if (components.Length >= 2)
         {
@@ -104,7 +115,10 @@ public sealed class MatrixColorTransform : IColorTransform
             m24 = 1;
         }
 
-        float m31, m32, m33, m34;
+        float m31;
+        float m32;
+        float m33;
+        float m34;
 
         if (components.Length >= 3)
         {
@@ -121,7 +135,10 @@ public sealed class MatrixColorTransform : IColorTransform
             m34 = 1;
         }
 
-        float m41, m42, m43, m44;
+        float m41;
+        float m42;
+        float m43;
+        float m44;
 
         if (components.Length >= 4)
         {
@@ -139,7 +156,7 @@ public sealed class MatrixColorTransform : IColorTransform
         }
 
         _matrix = new Matrix4x4(m11, m12, m13, m14, m21, m22, m23, m24, m31, m32, m33, m34, m41, m42, m43, m44);
-        _isIdentity = _matrix.IsIdentity;
+        IsIdentity = _matrix.IsIdentity;
         (_col1, _col2, _col3, _col4) = DecomposeColumns(_matrix);
     }
 
@@ -151,20 +168,20 @@ public sealed class MatrixColorTransform : IColorTransform
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public Vector4 Transform(Vector4 color)
     {
-        if (_isIdentity)
+        if (IsIdentity)
         {
             return color;
         }
 
         // Using precomputed column vectors for efficient matrix-vector multiplication.
-        Vector4 vx = new Vector4(color.X);
-        Vector4 vy = new Vector4(color.Y);
-        Vector4 vz = new Vector4(color.Z);
-        Vector4 vw = new Vector4(color.W);
+        Vector4 vx = new(color.X);
+        Vector4 vy = new(color.Y);
+        Vector4 vz = new(color.Z);
+        Vector4 vw = new(color.W);
 
         Vector4 res = (vx * _col1) + (vy * _col2);
-        res = res + (vz * _col3);
-        res = res + (vw * _col4);
+        res += (vz * _col3);
+        res += (vw * _col4);
         return res;
     }
 
@@ -176,10 +193,10 @@ public sealed class MatrixColorTransform : IColorTransform
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static (Vector4 c1, Vector4 c2, Vector4 c3, Vector4 c4) DecomposeColumns(Matrix4x4 matrix)
     {
-        Vector4 c1 = new Vector4(matrix.M11, matrix.M12, matrix.M13, matrix.M14);
-        Vector4 c2 = new Vector4(matrix.M21, matrix.M22, matrix.M23, matrix.M24);
-        Vector4 c3 = new Vector4(matrix.M31, matrix.M32, matrix.M33, matrix.M34);
-        Vector4 c4 = new Vector4(matrix.M41, matrix.M42, matrix.M43, matrix.M44);
+        Vector4 c1 = new(matrix.M11, matrix.M12, matrix.M13, matrix.M14);
+        Vector4 c2 = new(matrix.M21, matrix.M22, matrix.M23, matrix.M24);
+        Vector4 c3 = new(matrix.M31, matrix.M32, matrix.M33, matrix.M34);
+        Vector4 c4 = new(matrix.M41, matrix.M42, matrix.M43, matrix.M44);
         return (c1, c2, c3, c4);
     }
 }

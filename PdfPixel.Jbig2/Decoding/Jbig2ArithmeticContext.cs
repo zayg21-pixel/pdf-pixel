@@ -10,33 +10,46 @@ namespace PdfPixel.Jbig2.Decoding;
 /// the probability model stays synchronized with the encoder.
 /// </summary>
 /// <remarks>
-/// Arrays whose size depends on decode parameters (<see cref="IaId"/>, <see cref="Gr"/>) are
-/// allocated from <paramref name="symbolCodeLength"/> and <paramref name="refinementTemplate"/>
-/// respectively. The <see cref="IaId"/>, <see cref="Iardx"/>, <see cref="Iardy"/>, and
+/// Arrays whose size depends on decode parameters (<see cref="IaId"/>, <see cref="Gr"/>).
+/// The <see cref="IaId"/>, <see cref="Iardx"/>, <see cref="Iardy"/>, and
 /// <see cref="Gr"/> arrays may be injected from an owning decoder (inline aggregate path,
 /// ITU-T T.88 Section 6.5.8.2) to keep the probability model continuous across symbol decodes.
 /// </remarks>
 internal sealed class Jbig2ArithmeticContext
 {
-    /// <summary>IADT – strip delta-T integer coder context (512 states).</summary>
+    /// <summary>
+    /// IADT – strip delta-T integer coder context (512 states).
+    /// </summary>
     internal readonly byte[] Iadt;
 
-    /// <summary>IAFS – first-S integer coder context (512 states).</summary>
+    /// <summary>
+    /// IAFS – first-S integer coder context (512 states).
+    /// </summary>
     internal readonly byte[] Iafs;
 
-    /// <summary>IADS – delta-S integer coder context (512 states).</summary>
+    /// <summary>
+    /// IADS – delta-S integer coder context (512 states).
+    /// </summary>
     internal readonly byte[] Iads;
 
-    /// <summary>IAIT – instance-T integer coder context (512 states).</summary>
+    /// <summary>
+    /// IAIT – instance-T integer coder context (512 states).
+    /// </summary>
     internal readonly byte[] Iait;
 
-    /// <summary>IARI – refinement indicator integer coder context (512 states).</summary>
+    /// <summary>
+    /// IARI – refinement indicator integer coder context (512 states).
+    /// </summary>
     internal readonly byte[] Iari;
 
-    /// <summary>IARDW – refinement delta-width integer coder context (512 states).</summary>
+    /// <summary>
+    /// IARDW – refinement delta-width integer coder context (512 states).
+    /// </summary>
     internal readonly byte[] Iardw;
 
-    /// <summary>IARDH – refinement delta-height integer coder context (512 states).</summary>
+    /// <summary>
+    /// IARDH – refinement delta-height integer coder context (512 states).
+    /// </summary>
     internal readonly byte[] Iardh;
 
     /// <summary>
@@ -125,11 +138,11 @@ internal sealed class Jbig2ArithmeticContext
     /// (ITU-T T.88 Section 7.4.2.2 step 3).
     /// </param>
     public Jbig2ArithmeticContext(
-        int symbolCodeLength,
-        int refinementTemplate,
-        sbyte[] refinementAtX = null,
-        sbyte[] refinementAtY = null,
-        byte[] existingGr = null)
+    int symbolCodeLength,
+    int refinementTemplate,
+    sbyte[]? refinementAtX = null,
+    sbyte[]? refinementAtY = null,
+    byte[]? existingGr = null)
     {
         Iadt = new byte[512];
         Iafs = new byte[512];
@@ -141,7 +154,7 @@ internal sealed class Jbig2ArithmeticContext
         IaId = new byte[1 << (symbolCodeLength + 1)];
         Iardx = new byte[512];
         Iardy = new byte[512];
-        Gr = existingGr ?? new byte[refinementTemplate == 0 ? 1 << 13 : 1 << 10];
+        Gr = existingGr ?? new byte[(refinementTemplate == 0) ? 1 << 13 : 1 << 10];
         RefinementTemplate = refinementTemplate;
         RefinementAtX = refinementAtX ?? new sbyte[2];
         RefinementAtY = refinementAtY ?? new sbyte[2];

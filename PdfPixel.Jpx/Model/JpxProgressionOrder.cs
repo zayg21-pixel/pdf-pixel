@@ -5,14 +5,28 @@ namespace PdfPixel.Jpx.Model;
 /// </summary>
 internal enum JpxProgressionOrder : byte
 {
-    /// <summary>Layer-Resolution-Component-Position</summary>
+    /// <summary>
+    /// Layer-Resolution-Component-Position
+    /// </summary>
     LRCP = 0,
-    /// <summary>Resolution-Layer-Component-Position</summary>
+
+    /// <summary>
+    /// Resolution-Layer-Component-Position
+    /// </summary>
     RLCP = 1,
-    /// <summary>Resolution-Position-Component-Layer</summary>
+
+    /// <summary>
+    /// Resolution-Position-Component-Layer
+    /// </summary>
     RPCL = 2,
-    /// <summary>Position-Component-Resolution-Layer</summary>
+
+    /// <summary>
+    /// Position-Component-Resolution-Layer
+    /// </summary>
     PCRL = 3,
-    /// <summary>Component-Position-Resolution-Layer</summary>
+
+    /// <summary>
+    /// Component-Position-Resolution-Layer
+    /// </summary>
     CPRL = 4
 }

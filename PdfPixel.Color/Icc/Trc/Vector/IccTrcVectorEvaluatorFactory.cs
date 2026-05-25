@@ -3,7 +3,7 @@ using System.Linq;
 using PdfPixel.Color.Functions;
 using PdfPixel.Color.Icc.Model;
 
-namespace PdfPixel.Color.Icc.Utilities;
+namespace PdfPixel.Color.Icc.Trc.Vector;
 
 /// <summary>
 /// Factory for creating IIccTrcVectorEvaluator instances for ICC TRC definitions (multi-channel).
@@ -23,48 +23,63 @@ internal static class IccTrcVectorEvaluatorFactory
             return new PerChannelTrcVectorEvaluator(trcs);
         }
 
-        var type = trcs[0].Type;
+        IccTrcType type = trcs[0].Type;
         switch (type)
         {
             case IccTrcType.Gamma:
             {
-                float[] gammas = new float[trcs.Length];
+                var gammas = new float[trcs.Length];
                 for (int i = 0; i < trcs.Length; i++)
                 {
                     gammas[i] = trcs[i].Gamma;
                 }
+
                 return new GammaTrcVectorEvaluator(gammas);
             }
             case IccTrcType.Sampled:
             {
-                float[][] samples = new float[trcs.Length][];
+                var samples = new float[trcs.Length][];
                 for (int i = 0; i < trcs.Length; i++)
                 {
                     samples[i] = SamplesUpsampler.ResampleCubic(trcs[i].Samples, minSampledSize);
                 }
+
                 return new SampledTrcVectorEvaluator(samples);
             }
             case IccTrcType.Parametric:
             {
-                var paramType = trcs[0].ParametricType;
-                IccTrcParameters[] parameters = new IccTrcParameters[trcs.Length];
+                IccTrcParametricType paramType = trcs[0].ParametricType;
+
+                var parameters = new IccTrcParameters[trcs.Length];
                 for (int i = 0; i < trcs.Length; i++)
                 {
-                    parameters[i] = trcs[i].TrcParameters;
+                    IccTrcParameters? trcParameters = trcs[i].TrcParameters;
+
+                    if (trcParameters == null)
+                    {
+                        throw new InvalidOperationException("TRC parameters for parametric curve are undefined.");
+                    }
+
+                    parameters[i] = trcParameters;
                 }
 
                 switch (paramType)
                 {
                     case IccTrcParametricType.Gamma:
                         return new GammaTrcVectorEvaluator(parameters.Select(x => x.Gamma).ToArray());
+
                     case IccTrcParametricType.PowerWithOffset:
                         return new PowerWithOffsetTrcVectorEvaluator(parameters);
+
                     case IccTrcParametricType.PowerWithOffsetAndC:
                         return new PowerWithOffsetAndCTrcVectorEvaluator(parameters);
+
                     case IccTrcParametricType.PowerWithLinearSegment:
                         return new PowerWithLinearSegmentTrcVectorEvaluator(parameters);
+
                     case IccTrcParametricType.PowerWithLinearSegmentAndOffset:
                         return new PowerWithLinearSegmentAndOffsetTrcVectorEvaluator(parameters);
+
                     default:
                         throw new NotSupportedException($"Parametric type {paramType} is not supported.");
                 }
@@ -86,7 +101,8 @@ internal static class IccTrcVectorEvaluatorFactory
         {
             return false;
         }
-        var type = trcs[0].Type;
+
+        IccTrcType type = trcs[0].Type;
         for (int i = 1; i < trcs.Length; i++)
         {
             if (trcs[i].Type != type)
@@ -94,9 +110,10 @@ internal static class IccTrcVectorEvaluatorFactory
                 return false;
             }
         }
+
         if (type == IccTrcType.Parametric)
         {
-            var paramType = trcs[0].ParametricType;
+            IccTrcParametricType paramType = trcs[0].ParametricType;
             for (int i = 1; i < trcs.Length; i++)
             {
                 if (trcs[i].ParametricType != paramType)
@@ -105,6 +122,7 @@ internal static class IccTrcVectorEvaluatorFactory
                 }
             }
         }
+
         return true;
     }
 }

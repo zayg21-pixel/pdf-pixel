@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 
 namespace PdfPixel.Ccitt;
 
@@ -9,10 +9,10 @@ namespace PdfPixel.Ccitt;
 /// </summary>
 public ref struct CcittBitReader
 {
-    private ReadOnlySpan<byte> _data;
+    private readonly ReadOnlySpan<byte> _data;
     private int _byteIndex;
-    private int _bitsRemaining; // number of bits remaining in _current
-    private byte _current;      // shifted working byte
+    private int _bitsRemaining;
+    private byte _current;
     private readonly bool _msbFirst;
 
     /// <summary>
@@ -23,7 +23,7 @@ public ref struct CcittBitReader
     /// <param name="bitsRemaining">Bits remaining in the current working byte.</param>
     /// <param name="current">Current working byte (already shifted appropriately).</param>
     /// <param name="msbFirst">Bit order flag.</param>
-    public CcittBitReader(ReadOnlySpan<byte> data, int byteIndex, int bitsRemaining, byte current, bool msbFirst = true)
+    public CcittBitReader(ref readonly ReadOnlySpan<byte> data, int byteIndex, int bitsRemaining, byte current, bool msbFirst = true)
     {
         _data = data;
         _byteIndex = byteIndex;
@@ -35,18 +35,21 @@ public ref struct CcittBitReader
     /// <summary>
     /// Current byte index within the underlying data span.
     /// </summary>
-    public int ByteIndex => _byteIndex;
+    public readonly int ByteIndex => _byteIndex;
 
     /// <summary>
     /// Remaining bit count in the working byte.
     /// </summary>
-    public int BitsRemaining => _bitsRemaining;
+    public readonly int BitsRemaining => _bitsRemaining;
 
     /// <summary>
     /// Current shifted working byte value.
     /// </summary>
-    public byte Current => _current;
+    public readonly byte Current => _current;
 
+    /// <summary>
+    /// Reads and consumes the next bit. Returns 0 or 1, or -1 at end of stream.
+    /// </summary>
     public int ReadBit()
     {
         if (_bitsRemaining == 0)
@@ -55,6 +58,7 @@ public ref struct CcittBitReader
             {
                 return -1;
             }
+
             _current = _data[_byteIndex++];
             _bitsRemaining = 8;
         }
@@ -70,10 +74,14 @@ public ref struct CcittBitReader
             bit = _current & 1;
             _current >>= 1;
         }
+
         _bitsRemaining--;
         return bit;
     }
 
+    /// <summary>
+    /// Discards remaining bits in the current byte when <paramref name="byteAlign"/> is true, aligning the stream to the next byte boundary.
+    /// </summary>
     public void AlignAfterEndOfLine(bool byteAlign)
     {
         if (byteAlign)
@@ -82,6 +90,9 @@ public ref struct CcittBitReader
         }
     }
 
+    /// <summary>
+    /// Attempts to consume a 12-bit EOL marker (0x001). Returns true and advances the stream if found.
+    /// </summary>
     public bool TryConsumeEol()
     {
         if (PeekBits(12) == 0x001)
@@ -89,17 +100,21 @@ public ref struct CcittBitReader
             AdvanceBits(12);
             return true;
         }
+
         return false;
     }
 
+    /// <summary>
+    /// Attempts to consume six consecutive EOL markers (Return-To-Control). Resets the stream position on failure.
+    /// </summary>
     public bool TryConsumeRtc()
     {
         // RTC = six consecutive EOLs (not frequently used in G4 but included for completeness)
         int saveByte = _byteIndex;
         int saveRemain = _bitsRemaining;
         byte saveCurrent = _current;
-        int eolCount = 0;
-        while (eolCount < 6)
+
+        for (int eolCount = 0; eolCount < 6; eolCount++)
         {
             if (!TryConsumeEol())
             {
@@ -108,21 +123,26 @@ public ref struct CcittBitReader
                 _current = saveCurrent;
                 return false;
             }
-            eolCount++;
         }
+
         return true;
     }
 
+    /// <summary>
+    /// Peeks up to <paramref name="count"/> bits (1–24) without advancing the stream. Pads with zeros at end of stream.
+    /// </summary>
     public int PeekBits(int count)
     {
         if (count <= 0 || count > 24)
         {
             return 0;
         }
+
         int saveByte = _byteIndex;
         int saveRemain = _bitsRemaining;
         byte saveCurrent = _current;
         int value = 0;
+
         for (int i = 0; i < count; i++)
         {
             int bit = ReadBit();
@@ -131,8 +151,10 @@ public ref struct CcittBitReader
                 value <<= count - i; // pad with zeros
                 break;
             }
+
             value = value << 1 | bit;
         }
+
         _byteIndex = saveByte;
         _bitsRemaining = saveRemain;
         _current = saveCurrent;

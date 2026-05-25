@@ -25,14 +25,7 @@ public class PdfGenericAnnotation : PdfAnnotationBase
     {
     }
 
-    /// <summary>
-    /// Renders the fallback content for generic annotations.
-    /// </summary>
-    /// <param name="processor">The command processor to emit commands to.</param>
-    /// <param name="page">The PDF page containing this annotation.</param>
-    /// <param name="visualStateKind">The visual state to render (Normal, Rollover, Down).</param>
-    /// <returns>False - generic annotations don't have specific fallback rendering.</returns>
-    public override bool RenderFallback(IPdfCommandProcessor processor, PdfPage page, PdfAnnotationVisualStateKind visualStateKind)
+    protected override bool RenderFallback(IPdfCommandProcessor processor, PdfPage page, PdfAnnotationVisualStateKind visualStateKind, PdfRenderingParameters renderingParameters)
     {
         // Generic annotations don't provide custom fallback rendering
         return false;

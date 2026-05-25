@@ -16,10 +16,7 @@ internal readonly struct Jbig2RefinementRegionFlags
     /// Initialises the flags from the raw flags byte at offset 17 of the refinement region data.
     /// </summary>
     /// <param name="flagsByte">Raw flags byte.</param>
-    public Jbig2RefinementRegionFlags(byte flagsByte)
-    {
-        _flags = flagsByte;
-    }
+    public Jbig2RefinementRegionFlags(byte flagsByte) => _flags = flagsByte;
 
     /// <summary>
     /// Refinement template identifier (GRTEMPLATE): 0 or 1.
@@ -35,5 +32,5 @@ internal readonly struct Jbig2RefinementRegionFlags
     /// <summary>
     /// Number of adaptive template pixel pairs: 2 for template 0, 0 for template 1.
     /// </summary>
-    public int AtPixelCount => TemplateId == 0 ? 2 : 0;
+    public int AtPixelCount => (TemplateId == 0) ? 2 : 0;
 }

@@ -1,25 +1,13 @@
 namespace PdfPixel.Jpg.Color;
 
-public enum JpgYuvMode
-{
-    /// <summary>
-    /// Use Adobe APP14 marker when present; otherwise apply RGB component ID heuristic.
-    /// </summary>
-    Default,
-
-    /// <summary>
-    /// Never apply YCbCr→RGB or YCCK→CMYK conversion.
-    /// </summary>
-    NoYuv,
-
-    /// <summary>
-    /// Always apply YCbCr→RGB (3-component) or YCCK→CMYK (4-component with Adobe marker).
-    /// </summary>
-    ForceYuv,
-}
-
+/// <summary>
+/// Parameters controlling JPEG color-space conversion during decoding.
+/// </summary>
 public sealed class JpegColorConversionParameters
 {
+    /// <summary>
+    /// Default instance with standard settings suitable for standalone JPEG files.
+    /// </summary>
     public static readonly JpegColorConversionParameters Default = new();
 
     /// <summary>

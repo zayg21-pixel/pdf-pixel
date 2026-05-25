@@ -6,18 +6,28 @@ namespace PdfPixel.Jbig2.Model;
 /// </summary>
 public enum Jbig2CombinationOperator
 {
-    /// <summary>OR: dst = dst | src.</summary>
+    /// <summary>
+    /// OR: dst = dst | src.
+    /// </summary>
     Or = 0,
 
-    /// <summary>AND: dst = dst &amp; src.</summary>
+    /// <summary>
+    /// AND: dst = dst &amp; src.
+    /// </summary>
     And = 1,
 
-    /// <summary>XOR: dst = dst ^ src.</summary>
+    /// <summary>
+    /// XOR: dst = dst ^ src.
+    /// </summary>
     Xor = 2,
 
-    /// <summary>XNOR: dst = ~(dst ^ src).</summary>
+    /// <summary>
+    /// XNOR: dst = ~(dst ^ src).
+    /// </summary>
     Xnor = 3,
 
-    /// <summary>REPLACE: dst = src.</summary>
+    /// <summary>
+    /// REPLACE: dst = src.
+    /// </summary>
     Replace = 4
 }

@@ -49,9 +49,10 @@ internal sealed class CcittImageDecoder : PdfImageDecoder
 
     public override PdfImageTile[] DecodeNextTiles(IPdfExecutionObserver observer)
     {
+        Span<byte> buffer = _fullWidthRowBuffer;
         while (_currentImageRow < _imageParameters.Height)
         {
-            if (!_rowDecoder.DecodeNextRow(_fullWidthRowBuffer))
+            if (!_rowDecoder.DecodeNextRow(ref buffer))
             {
                 Logger.LogWarning("CCITT row decoder ended early at image row {Row} (Name={Name}).", _currentImageRow, Image.Name);
                 return null;

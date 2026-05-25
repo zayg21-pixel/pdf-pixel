@@ -9,22 +9,34 @@ namespace PdfPixel.Jpx.Model;
 /// </summary>
 internal sealed class JpxSubbandData
 {
-    /// <summary>Full reconstructed width of the component.</summary>
+    /// <summary>
+    /// Full reconstructed width of the component.
+    /// </summary>
     public readonly int FullWidth;
 
-    /// <summary>Full reconstructed height of the component.</summary>
+    /// <summary>
+    /// Full reconstructed height of the component.
+    /// </summary>
     public readonly int FullHeight;
 
-    /// <summary>Number of DWT decomposition levels.</summary>
+    /// <summary>
+    /// Number of DWT decomposition levels.
+    /// </summary>
     public readonly int Levels;
 
-    /// <summary>LL subband (lowest resolution) coefficient array.</summary>
+    /// <summary>
+    /// LL subband (lowest resolution) coefficient array.
+    /// </summary>
     public readonly int[] LL;
 
-    /// <summary>Width of the LL subband.</summary>
+    /// <summary>
+    /// Width of the LL subband.
+    /// </summary>
     public readonly int LLWidth;
 
-    /// <summary>Height of the LL subband.</summary>
+    /// <summary>
+    /// Height of the LL subband.
+    /// </summary>
     public readonly int LLHeight;
 
     // Detail subbands indexed by [level * 3 + subbandType]
@@ -80,21 +92,21 @@ internal sealed class JpxSubbandData
     /// <summary>
     /// Gets the coefficient array for a detail subband at the specified level.
     /// </summary>
-    public int[] GetSubband(int level, JpxSubbandType type) => _subbands[level * 3 + (int)type];
+    public int[] GetSubband(int level, JpxSubbandType type) => _subbands[(level * 3) + (int)type];
 
     /// <summary>
     /// Gets the width of a detail subband at the specified level.
     /// </summary>
-    public int GetWidth(int level, JpxSubbandType type) => _widths[level * 3 + (int)type];
+    public int GetWidth(int level, JpxSubbandType type) => _widths[(level * 3) + (int)type];
 
     /// <summary>
     /// Gets the height of a detail subband at the specified level.
     /// </summary>
-    public int GetHeight(int level, JpxSubbandType type) => _heights[level * 3 + (int)type];
+    public int GetHeight(int level, JpxSubbandType type) => _heights[(level * 3) + (int)type];
 
     private void SetSubband(int level, JpxSubbandType type, int width, int height)
     {
-        int idx = level * 3 + (int)type;
+        int idx = (level * 3) + (int)type;
         _widths[idx] = width;
         _heights[idx] = height;
         _subbands[idx] = new int[width * height];

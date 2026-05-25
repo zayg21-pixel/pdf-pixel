@@ -14,16 +14,24 @@ namespace PdfPixel.Jbig2.Decoding;
 /// </remarks>
 internal sealed class Jbig2SymbolArithmeticContext
 {
-    /// <summary>IADH – height-class delta-height integer coder context (512 states).</summary>
+    /// <summary>
+    /// IADH – height-class delta-height integer coder context (512 states).
+    /// </summary>
     internal readonly byte[] HeightContexts;
 
-    /// <summary>IADW – symbol delta-width integer coder context (512 states).</summary>
+    /// <summary>
+    /// IADW – symbol delta-width integer coder context (512 states).
+    /// </summary>
     internal readonly byte[] WidthContexts;
 
-    /// <summary>IAEX – export-flag run-length integer coder context (512 states).</summary>
+    /// <summary>
+    /// IAEX – export-flag run-length integer coder context (512 states).
+    /// </summary>
     internal readonly byte[] ExportContexts;
 
-    /// <summary>IAAI – aggregate instance-count integer coder context (512 states).</summary>
+    /// <summary>
+    /// IAAI – aggregate instance-count integer coder context (512 states).
+    /// </summary>
     internal readonly byte[] IaaiContexts;
 
     /// <summary>
@@ -60,7 +68,7 @@ internal sealed class Jbig2SymbolArithmeticContext
     /// inside <see cref="AggregateContext"/>.
     /// </param>
     public Jbig2SymbolArithmeticContext(
-        Jbig2SymbolDictionarySegmentInfo segmentInfo,
+        in Jbig2SymbolDictionarySegmentInfo segmentInfo,
         int symbolCodeLength)
     {
         SegmentInfo = segmentInfo;

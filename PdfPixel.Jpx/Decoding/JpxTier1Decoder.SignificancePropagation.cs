@@ -2,7 +2,9 @@ using System.Runtime.CompilerServices;
 
 namespace PdfPixel.Jpx.Decoding;
 
+#pragma warning disable RCS1019 // Order modifiers
 internal ref partial struct JpxTier1Decoder
+#pragma warning restore RCS1019 // Order modifiers
 {
     /// <summary>
     /// Significance Propagation Pass (ITU-T T.800 D.3.1) for a single stripe.

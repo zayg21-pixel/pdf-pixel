@@ -13,7 +13,7 @@ public sealed partial class IccProfile
     /// </summary>
     /// <param name="reader">Big endian reader.</param>
     /// <param name="tag">Tag entry.</param>
-    internal static IccLutPipeline ParseA2BLut(BigEndianReader reader, IccTagEntry tag)
+    internal static IccLutPipeline? ParseA2BLut(BigEndianReader reader, IccTagEntry tag)
     {
         if (reader == null)
         {
@@ -55,31 +55,32 @@ public sealed partial class IccProfile
         int uniformGridPoints = reader.ReadByte(tagOffset + 10);
 
         // 3x3 matrix (s15Fixed16)
-        float[,] matrix = new float[3, 3];
+        var matrix = new float[3, 3];
         int matrixPos = tagOffset + 12;
         for (int rowIndex = 0; rowIndex < 3; rowIndex++)
         {
             for (int columnIndex = 0; columnIndex < 3; columnIndex++)
             {
-                int raw = reader.ReadInt32(matrixPos + (rowIndex * 3 + columnIndex) * 4);
+                int raw = reader.ReadInt32(matrixPos + (((rowIndex * 3) + columnIndex) * 4));
                 matrix[rowIndex, columnIndex] = BigEndianReader.S15Fixed16ToSingle(raw);
             }
         }
 
-        int cursor = matrixPos + 9 * 4;
+        int cursor = matrixPos + (9 * 4);
 
         // Input tables: inputChannels * 256 bytes each
-        IccTrc[] inputTables = new IccTrc[inputChannels];
+        var inputTables = new IccTrc[inputChannels];
         for (int channel = 0; channel < inputChannels; channel++)
         {
-            float[] table = new float[256];
+            var table = new float[256];
             for (int i = 0; i < 256; i++)
             {
-                table[i] = reader.ReadByte(cursor + channel * 256 + i) / 255f;
+                table[i] = reader.ReadByte(cursor + (channel * 256) + i) / 255f;
             }
 
             inputTables[channel] = IccTrc.FromSamples(table);
         }
+
         cursor += inputChannels * 256;
 
         // CLUT
@@ -90,21 +91,22 @@ public sealed partial class IccProfile
         }
 
         int clutSampleCount = gridTotal * outputChannels;
-        float[] clut = new float[clutSampleCount];
+        var clut = new float[clutSampleCount];
         for (int i = 0; i < clutSampleCount; i++)
         {
             clut[i] = reader.ReadByte(cursor + i) / 255f;
         }
+
         cursor += clutSampleCount;
 
         // Output tables
-        IccTrc[] outputTables = new IccTrc[outputChannels];
+        var outputTables = new IccTrc[outputChannels];
         for (int channel = 0; channel < outputChannels; channel++)
         {
-            float[] table = new float[256];
+            var table = new float[256];
             for (int i = 0; i < 256; i++)
             {
-                table[i] = reader.ReadByte(cursor + channel * 256 + i) / 255f;
+                table[i] = reader.ReadByte(cursor + (channel * 256) + i) / 255f;
             }
 
             outputTables[channel] = IccTrc.FromSamples(table);
@@ -128,32 +130,34 @@ public sealed partial class IccProfile
         int outputChannels = reader.ReadByte(tagOffset + 9);
         int uniformGridPoints = reader.ReadByte(tagOffset + 10);
 
-        float[,] matrix = new float[3, 3];
+        var matrix = new float[3, 3];
         int matrixPos = tagOffset + 12;
         for (int rowIndex = 0; rowIndex < 3; rowIndex++)
         {
             for (int columnIndex = 0; columnIndex < 3; columnIndex++)
             {
-                int raw = reader.ReadInt32(matrixPos + (rowIndex * 3 + columnIndex) * 4);
+                int raw = reader.ReadInt32(matrixPos + (((rowIndex * 3) + columnIndex) * 4));
                 matrix[rowIndex, columnIndex] = BigEndianReader.S15Fixed16ToSingle(raw);
             }
         }
 
-        int cursor = matrixPos + 9 * 4;
+        int cursor = matrixPos + (9 * 4);
         int inputTableEntries = reader.ReadUInt16(cursor);
         int outputTableEntries = reader.ReadUInt16(cursor + 2);
         cursor += 4;
 
-        IccTrc[] inputTables = new IccTrc[inputChannels];
+        var inputTables = new IccTrc[inputChannels];
         for (int channel = 0; channel < inputChannels; channel++)
         {
-            float[] table = new float[inputTableEntries];
+            var table = new float[inputTableEntries];
             for (int i = 0; i < inputTableEntries; i++)
             {
-                table[i] = reader.ReadUInt16(cursor + (channel * inputTableEntries + i) * 2) / 65535f;
+                table[i] = reader.ReadUInt16(cursor + (((channel * inputTableEntries) + i) * 2)) / 65535f;
             }
+
             inputTables[channel] = IccTrc.FromSamples(table);
         }
+
         cursor += inputChannels * inputTableEntries * 2;
 
         int gridTotal = 1;
@@ -161,22 +165,25 @@ public sealed partial class IccProfile
         {
             gridTotal *= uniformGridPoints;
         }
+
         int clutSampleCount = gridTotal * outputChannels;
-        float[] clut = new float[clutSampleCount];
+        var clut = new float[clutSampleCount];
         for (int i = 0; i < clutSampleCount; i++)
         {
-            clut[i] = reader.ReadUInt16(cursor + i * 2) / 65535f;
+            clut[i] = reader.ReadUInt16(cursor + (i * 2)) / 65535f;
         }
+
         cursor += clutSampleCount * 2;
 
-        IccTrc[] outputTables = new IccTrc[outputChannels];
+        var outputTables = new IccTrc[outputChannels];
         for (int channel = 0; channel < outputChannels; channel++)
         {
-            float[] table = new float[outputTableEntries];
+            var table = new float[outputTableEntries];
             for (int i = 0; i < outputTableEntries; i++)
             {
-                table[i] = reader.ReadUInt16(cursor + (channel * outputTableEntries + i) * 2) / 65535f;
+                table[i] = reader.ReadUInt16(cursor + (((channel * outputTableEntries) + i) * 2)) / 65535f;
             }
+
             outputTables[channel] = IccTrc.FromSamples(table);
         }
 
@@ -192,15 +199,15 @@ public sealed partial class IccProfile
     /// <summary>
     /// Parse mAB (multi-process elements) A2B structure.
     /// </summary>
-    private static IccLutPipeline ParseMab(BigEndianReader reader, int tagStart, int tagSize)
+    private static IccLutPipeline? ParseMab(BigEndianReader reader, int tagStart, int tagSize)
     {
         if (reader == null)
         {
             return null;
         }
 
-        const int HeaderSize = 32;
-        if (tagSize < HeaderSize)
+        const int headerSize = 32;
+        if (tagSize < headerSize)
         {
             return null;
         }
@@ -218,9 +225,9 @@ public sealed partial class IccProfile
         uint offsetClut = reader.ReadUInt32(tagStart + 24);
         uint offsetA = reader.ReadUInt32(tagStart + 28);
 
-        IccTrc[] curvesA = null;
-        IccTrc[] curvesB = null;
-        IccTrc[] curvesM = null;
+        IccTrc[]? curvesA = null;
+        IccTrc[]? curvesB = null;
+        IccTrc[]? curvesM = null;
 
         if (offsetA != 0)
         {
@@ -229,6 +236,7 @@ public sealed partial class IccProfile
             {
                 return null;
             }
+
             curvesA = ParseCurveSequence(reader, posA, inputChannels);
         }
 
@@ -239,6 +247,7 @@ public sealed partial class IccProfile
             {
                 return null;
             }
+
             curvesB = ParseCurveSequence(reader, posB, outputChannels);
         }
 
@@ -249,48 +258,50 @@ public sealed partial class IccProfile
             {
                 return null;
             }
+
             curvesM = ParseCurveSequence(reader, posM, outputChannels);
         }
 
-        float[,] matrix3x3 = null;
-        float[] matrixOffset = null;
+        float[,]? matrix3x3 = null;
+        float[]? matrixOffset = null;
         if (offsetMatrix != 0 && inputChannels == 3)
         {
             int posMatrix = tagStart + (int)offsetMatrix;
-            const int MatrixBlockSize = 48; // 9 + 3 s15Fixed16 values
-            if (!IsInsideTag(posMatrix, tagStart, tagSize) || !IsInsideTag(posMatrix + MatrixBlockSize - 1, tagStart, tagSize))
+            const int matrixBlockSize = 48; // 9 + 3 s15Fixed16 values
+            if (!IsInsideTag(posMatrix, tagStart, tagSize) || !IsInsideTag(posMatrix + matrixBlockSize - 1, tagStart, tagSize))
             {
                 return null;
             }
+
             matrix3x3 = new float[3, 3];
             for (int rowIndex = 0; rowIndex < 3; rowIndex++)
             {
                 for (int columnIndex = 0; columnIndex < 3; columnIndex++)
                 {
-                    int raw = reader.ReadInt32(posMatrix + (rowIndex * 3 + columnIndex) * 4);
+                    int raw = reader.ReadInt32(posMatrix + (((rowIndex * 3) + columnIndex) * 4));
                     matrix3x3[rowIndex, columnIndex] = BigEndianReader.S15Fixed16ToSingle(raw);
                 }
             }
+
             matrixOffset = new float[3];
             for (int i = 0; i < 3; i++)
             {
-                int raw = reader.ReadInt32(posMatrix + 9 * 4 + i * 4);
+                int raw = reader.ReadInt32(posMatrix + (9 * 4) + (i * 4));
                 matrixOffset[i] = BigEndianReader.S15Fixed16ToSingle(raw);
             }
         }
 
-        int[] gridPerDim = null;
-        float[] clut = null;
+        var gridPerDim = new int[inputChannels];
+        float[]? clut = null;
         byte precision = 0;
         if (offsetClut != 0)
         {
             int clutPos = tagStart + (int)offsetClut;
 
-            gridPerDim = new int[inputChannels];
             for (int i = 0; i < inputChannels; i++)
             {
                 int gp = reader.ReadByte(clutPos + i);
-                gridPerDim[i] = gp <= 0 ? 1 : gp;
+                gridPerDim[i] = (gp <= 0) ? 1 : gp;
             }
 
             // Precision is fixed at payload offset + 16 per ICC spec
@@ -323,7 +334,7 @@ public sealed partial class IccProfile
                 return null;
             }
 
-            long byteCount = precision == 1 ? sampleCount : sampleCount * 2;
+            long byteCount = (precision == 1) ? sampleCount : sampleCount * 2;
             int endPos = dataStart + (int)byteCount - 1;
             if (!IsInsideTag(endPos, tagStart, tagSize))
             {
@@ -342,7 +353,7 @@ public sealed partial class IccProfile
             {
                 for (int i = 0; i < sampleCount; i++)
                 {
-                    clut[i] = reader.ReadUInt16(dataStart + i * 2) / 65535f;
+                    clut[i] = reader.ReadUInt16(dataStart + (i * 2)) / 65535f;
                 }
             }
         }
@@ -351,14 +362,11 @@ public sealed partial class IccProfile
         return pipeline;
     }
 
-    private static bool IsInsideTag(int absoluteOffset, int tagStart, int tagSize)
-    {
-        return absoluteOffset >= tagStart && absoluteOffset < tagStart + tagSize;
-    }
+    private static bool IsInsideTag(int absoluteOffset, int tagStart, int tagSize) => absoluteOffset >= tagStart && absoluteOffset < tagStart + tagSize;
 
     private static IccTrc[] ParseCurveSequence(BigEndianReader reader, int sequenceStart, int count)
     {
-        IccTrc[] list = new IccTrc[count];
+        var list = new IccTrc[count];
         int cursor = sequenceStart;
         for (int i = 0; i < count; i++)
         {
@@ -367,6 +375,7 @@ public sealed partial class IccProfile
             int pad = (4 - (next & 3)) & 3;
             cursor = next + pad;
         }
+
         return list;
     }
 }

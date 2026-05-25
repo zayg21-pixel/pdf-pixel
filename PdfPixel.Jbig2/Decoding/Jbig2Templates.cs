@@ -40,10 +40,14 @@ internal static class Jbig2Templates
         new(-4, 0, 3), new(-3, 0, 2), new(-2, 0, 1), new(-1, 0, 0)
     ];
 
-    /// <summary>Start offset into <see cref="DefaultTemplatePixels"/> for each template.</summary>
+    /// <summary>
+    /// Start offset into <see cref="DefaultTemplatePixels"/> for each template.
+    /// </summary>
     private static readonly int[] DefaultTemplateOffsets = [0, 16, 29, 39];
 
-    /// <summary>Number of context pixels for each default template.</summary>
+    /// <summary>
+    /// Number of context pixels for each default template.
+    /// </summary>
     private static readonly int[] DefaultTemplateLengths = [16, 13, 10, 10];
 
     /// <summary>
@@ -122,13 +126,13 @@ internal static class Jbig2Templates
     /// Returns the number of adaptive template pixel pairs for a generic template.
     /// Template 0 uses 4 AT pixels; templates 1–3 use 1.
     /// </summary>
-    internal static int AtPixelCount(int templateId) => templateId == 0 ? 4 : 1;
+    internal static int AtPixelCount(int templateId) => (templateId == 0) ? 4 : 1;
 
     /// <summary>
     /// Reads <paramref name="count"/> (X, Y) adaptive template pixel pairs from the front of
     /// <paramref name="data"/>. Pairs that fall outside the available data are left as zero.
     /// </summary>
-    internal static Jbig2AtPixels ReadAtPixelPairs(ReadOnlySpan<byte> data, int count)
+    internal static Jbig2AtPixels ReadAtPixelPairs(in ReadOnlySpan<byte> data, int count)
     {
         var atX = new sbyte[count];
         var atY = new sbyte[count];
@@ -155,14 +159,18 @@ internal static class Jbig2Templates
         int atCount = AtPixelCount(templateId);
         var atX = new sbyte[atCount];
         var atY = new sbyte[atCount];
-        atX[0] = (sbyte)(templateId <= 1 ? 3 : 2);
+        atX[0] = (sbyte)((templateId <= 1) ? 3 : 2);
         atY[0] = -1;
         if (templateId == 0)
         {
-            atX[1] = -3; atY[1] = -1;
-            atX[2] = 2;  atY[2] = -2;
-            atX[3] = -2; atY[3] = -2;
+            atX[1] = -3;
+            atY[1] = -1;
+            atX[2] = 2;
+            atY[2] = -2;
+            atX[3] = -2;
+            atY[3] = -2;
         }
+
         return new Jbig2AtPixels(atX, atY);
     }
 
@@ -180,10 +188,14 @@ internal static class Jbig2Templates
         atY[0] = 0;
         if (templateId == 0)
         {
-            atX[1] = -3; atY[1] = -1;
-            atX[2] = 2;  atY[2] = -2;
-            atX[3] = -2; atY[3] = -2;
+            atX[1] = -3;
+            atY[1] = -1;
+            atX[2] = 2;
+            atY[2] = -2;
+            atX[3] = -2;
+            atY[3] = -2;
         }
+
         return new Jbig2AtPixels(atX, atY);
     }
 
@@ -194,10 +206,7 @@ internal static class Jbig2Templates
     /// <summary>
     /// Returns a <see cref="ReadOnlySpan{T}"/> of the full default-AT context pixels for a template.
     /// </summary>
-    private static ReadOnlySpan<Jbig2ContextPixel> GetDefaultTemplatePixels(int templateId)
-    {
-        return new ReadOnlySpan<Jbig2ContextPixel>(DefaultTemplatePixels, DefaultTemplateOffsets[templateId], DefaultTemplateLengths[templateId]);
-    }
+    private static ReadOnlySpan<Jbig2ContextPixel> GetDefaultTemplatePixels(int templateId) => new(DefaultTemplatePixels, DefaultTemplateOffsets[templateId], DefaultTemplateLengths[templateId]);
 
     /// <summary>
     /// Checks whether adaptive template pixels match the default positions.
@@ -206,10 +215,14 @@ internal static class Jbig2Templates
     {
         return templateId switch
         {
-            0 => atX[0] == 3 && atY[0] == -1 &&
-                 atX[1] == -3 && atY[1] == -1 &&
-                 atX[2] == 2 && atY[2] == -2 &&
-                 atX[3] == -2 && atY[3] == -2,
+            0 => atX[0] == 3
+                && atY[0] == -1
+                && atX[1] == -3
+                && atY[1] == -1
+                && atX[2] == 2
+                && atY[2] == -2
+                && atX[3] == -2
+                && atY[3] == -2,
             1 => atX[0] == 3 && atY[0] == -1,
             2 => atX[0] == 2 && atY[0] == -1,
             3 => atX[0] == 2 && atY[0] == -1,
@@ -228,7 +241,7 @@ internal static class Jbig2Templates
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     internal static ReadOnlySpan<Jbig2ContextPixel> ResolveTemplate(int templateId, sbyte[] atX, sbyte[] atY)
     {
-        return IsDefaultAt(templateId, atX, atY)
+        return (IsDefaultAt(templateId, atX, atY))
             ? GetDefaultTemplatePixels(templateId)
             : BuildCustomTemplate(templateId, atX, atY);
     }
@@ -290,7 +303,7 @@ internal static class Jbig2Templates
     /// Builds a <see cref="Jbig2RowTemplate"/> from the given generic template pixels by grouping
     /// them by dy and computing min/max dx and context shift for each group.
     /// </summary>
-    internal static Jbig2RowTemplate BuildFastTemplate(int templateId, Jbig2AtPixels atPixels)
+    internal static Jbig2RowTemplate BuildFastTemplate(int templateId, in Jbig2AtPixels atPixels)
     {
         ReadOnlySpan<Jbig2ContextPixel> pixels = ResolveTemplate(templateId, atPixels.AtX, atPixels.AtY);
         return BuildRowTemplateFromPixels(pixels);
@@ -302,26 +315,25 @@ internal static class Jbig2Templates
     /// are strictly consecutive (dx increases by 1, shift decreases by 1). This correctly
     /// handles non-consecutive custom AT positions such as (-1, 1, 17) within a single row.
     /// </summary>
-    internal static Jbig2RowTemplate BuildRowTemplateFromPixels(ReadOnlySpan<Jbig2ContextPixel> pixels)
+    internal static Jbig2RowTemplate BuildRowTemplateFromPixels(in ReadOnlySpan<Jbig2ContextPixel> pixels)
     {
         Jbig2ContextPixel[] sorted = pixels.ToArray();
 
         // Sort by (dy ascending, dx ascending) so runs are easy to detect.
-        Array.Sort(sorted, (a, b) => a.Dy != b.Dy ? a.Dy.CompareTo(b.Dy) : a.Dx.CompareTo(b.Dx));
+        Array.Sort(sorted, (a, b) => (a.Dy != b.Dy) ? a.Dy.CompareTo(b.Dy) : a.Dx.CompareTo(b.Dx));
 
-        var groups = new List<Jbig2RowGroupInfo>(sorted.Length);
+        List<Jbig2RowGroupInfo> groups = new(sorted.Length);
 
-        int i = 0;
-        while (i < sorted.Length)
+        for (int i = 0; i < sorted.Length; i++)
         {
             sbyte dy = sorted[i].Dy;
             int runStart = i;
 
             // Extend the run as long as dx and shift are both consecutive.
-            while (i + 1 < sorted.Length &&
-                   sorted[i + 1].Dy == dy &&
-                   sorted[i + 1].Dx == sorted[i].Dx + 1 &&
-                   sorted[i + 1].Shift == sorted[i].Shift - 1)
+            while (i + 1 < sorted.Length
+                && sorted[i + 1].Dy == dy
+                && sorted[i + 1].Dx == sorted[i].Dx + 1
+                && sorted[i + 1].Shift == sorted[i].Shift - 1)
             {
                 i++;
             }
@@ -333,8 +345,6 @@ internal static class Jbig2Templates
                 sorted[runStart].Dx,
                 sorted[i].Dx,
                 sorted[i].Shift));
-
-            i++;
         }
 
         return new Jbig2RowTemplate(groups.ToArray(), pixels.ToArray());
@@ -378,10 +388,10 @@ internal static class Jbig2Templates
     /// and reference (reference bitmap). Groups from each set are marked accordingly.
     /// </summary>
     private static Jbig2RowTemplate BuildRowTemplateFromDualPixels(
-        ReadOnlySpan<Jbig2ContextPixel> codingPixels,
-        ReadOnlySpan<Jbig2ContextPixel> referencePixels)
+        in ReadOnlySpan<Jbig2ContextPixel> codingPixels,
+        in ReadOnlySpan<Jbig2ContextPixel> referencePixels)
     {
-        var groups = new List<Jbig2RowGroupInfo>(codingPixels.Length + referencePixels.Length);
+        List<Jbig2RowGroupInfo> groups = new(codingPixels.Length + referencePixels.Length);
 
         BuildGroupsFromPixels(codingPixels, isReference: false, groups);
         BuildGroupsFromPixels(referencePixels, isReference: true, groups);
@@ -398,7 +408,7 @@ internal static class Jbig2Templates
     /// Groups a set of context pixels into consecutive runs and appends them to the list.
     /// </summary>
     private static void BuildGroupsFromPixels(
-        ReadOnlySpan<Jbig2ContextPixel> pixels,
+        in ReadOnlySpan<Jbig2ContextPixel> pixels,
         bool isReference,
         List<Jbig2RowGroupInfo> groups)
     {
@@ -408,18 +418,17 @@ internal static class Jbig2Templates
         }
 
         Jbig2ContextPixel[] sorted = pixels.ToArray();
-        Array.Sort(sorted, (a, b) => a.Dy != b.Dy ? a.Dy.CompareTo(b.Dy) : a.Dx.CompareTo(b.Dx));
+        Array.Sort(sorted, (a, b) => (a.Dy != b.Dy) ? a.Dy.CompareTo(b.Dy) : a.Dx.CompareTo(b.Dx));
 
-        int i = 0;
-        while (i < sorted.Length)
+        for (int i = 0; i < sorted.Length; i++)
         {
             sbyte dy = sorted[i].Dy;
             int runStart = i;
 
-            while (i + 1 < sorted.Length &&
-                   sorted[i + 1].Dy == dy &&
-                   sorted[i + 1].Dx == sorted[i].Dx + 1 &&
-                   sorted[i + 1].Shift == sorted[i].Shift - 1)
+            while (i + 1 < sorted.Length
+                && sorted[i + 1].Dy == dy
+                && sorted[i + 1].Dx == sorted[i].Dx + 1
+                && sorted[i + 1].Shift == sorted[i].Shift - 1)
             {
                 i++;
             }
@@ -430,8 +439,6 @@ internal static class Jbig2Templates
                 sorted[i].Dx,
                 sorted[i].Shift,
                 isReference));
-
-            i++;
         }
     }
 }

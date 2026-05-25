@@ -27,7 +27,7 @@ internal sealed class JpxPacketCodeBlockParser
     /// </summary>
     /// <param name="packetData">Raw packet data to parse.</param>
     /// <param name="packets">Pre-allocated packets with coordinates initialized.</param>
-    public void ParseCodeBlocks(ReadOnlySpan<byte> packetData, JpxPacket[] packets)
+    public void ParseCodeBlocks(in ReadOnlySpan<byte> packetData, JpxPacket[] packets)
     {
         if (packetData.Length == 0 || packets.Length == 0)
         {
@@ -36,7 +36,7 @@ internal sealed class JpxPacketCodeBlockParser
 
         ValidateHeader();
 
-        var bitReader = new JpxBitReader(packetData);
+        JpxBitReader bitReader = new(packetData);
 
         for (int index = 0; index < packets.Length; index++)
         {
@@ -50,7 +50,7 @@ internal sealed class JpxPacketCodeBlockParser
     private void ParseSinglePacket(ref JpxBitReader bitReader, ref JpxPacket packet)
     {
         // Parse packet header
-        var headerInfo = _headerParser.ParsePacketHeader(
+        JpxPacketHeaderParser.PacketHeaderInfo headerInfo = _headerParser.ParsePacketHeader(
             ref bitReader,
             packet.Layer,
             packet.Resolution,
@@ -61,9 +61,9 @@ internal sealed class JpxPacketCodeBlockParser
         if (!headerInfo.IsEmpty)
         {
             // Snapshot per-layer transient values before body parsing overwrites them in future layers
-            var layerBlocks = headerInfo.CodeBlocks;
-            int[] layerDataLengths = new int[layerBlocks.Length];
-            int[] layerPasses = new int[layerBlocks.Length];
+            JpxCodeBlock[] layerBlocks = headerInfo.CodeBlocks;
+            var layerDataLengths = new int[layerBlocks.Length];
+            var layerPasses = new int[layerBlocks.Length];
 
             for (int i = 0; i < layerBlocks.Length; i++)
             {
@@ -102,7 +102,7 @@ internal sealed class JpxPacketCodeBlockParser
 
         for (int i = 0; i < headerCodeBlocks.Length; i++)
         {
-            var block = headerCodeBlocks[i];
+            JpxCodeBlock block = headerCodeBlocks[i];
             int dataLength = block.DataLength;
 
             if (dataLength > 0 && bitReader.Remaining >= dataLength)

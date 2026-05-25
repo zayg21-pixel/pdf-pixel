@@ -16,12 +16,12 @@ namespace PdfPixel.Jbig2.Model;
 internal readonly struct Jbig2SymbolDictionarySegmentInfo
 {
     private Jbig2SymbolDictionarySegmentInfo(
-        Jbig2SymbolDictionaryFlags flags,
-        Jbig2AtPixels? atPixels,
-        Jbig2AtPixels? refinementAtPixels,
-        int exportedSymbolCount,
-        int newSymbolCount,
-        int dataOffset)
+    in Jbig2SymbolDictionaryFlags flags,
+    Jbig2AtPixels? atPixels,
+    Jbig2AtPixels? refinementAtPixels,
+    int exportedSymbolCount,
+    int newSymbolCount,
+    int dataOffset)
     {
         Flags = flags;
         AtPixels = atPixels;
@@ -31,7 +31,9 @@ internal readonly struct Jbig2SymbolDictionarySegmentInfo
         DataOffset = dataOffset;
     }
 
-    /// <summary>Parsed flag bits from the 2-byte segment flags word.</summary>
+    /// <summary>
+    /// Parsed flag bits from the 2-byte segment flags word.
+    /// </summary>
     public Jbig2SymbolDictionaryFlags Flags { get; }
 
     /// <summary>
@@ -46,10 +48,14 @@ internal readonly struct Jbig2SymbolDictionarySegmentInfo
     /// </summary>
     public Jbig2AtPixels? RefinementAtPixels { get; }
 
-    /// <summary>Number of symbols exported by this segment.</summary>
+    /// <summary>
+    /// Number of symbols exported by this segment.
+    /// </summary>
     public int ExportedSymbolCount { get; }
 
-    /// <summary>Number of new symbols defined by this segment.</summary>
+    /// <summary>
+    /// Number of new symbols defined by this segment.
+    /// </summary>
     public int NewSymbolCount { get; }
 
     /// <summary>
@@ -64,10 +70,10 @@ internal readonly struct Jbig2SymbolDictionarySegmentInfo
     /// </summary>
     /// <param name="data">Segment data beginning at the first byte of the 2-byte flags word.</param>
     /// <returns>Parsed segment info.</returns>
-    public static Jbig2SymbolDictionarySegmentInfo Parse(ReadOnlySpan<byte> data)
+    public static Jbig2SymbolDictionarySegmentInfo Parse(in ReadOnlySpan<byte> data)
     {
-        ushort flagsWord = (ushort)((data[0] << 8) | data[1]);
-        var flags = new Jbig2SymbolDictionaryFlags(flagsWord);
+        var flagsWord = (ushort)((data[0] << 8) | data[1]);
+        Jbig2SymbolDictionaryFlags flags = new(flagsWord);
 
         // Layout after the 2-byte flags word:
         //   [AT pixel pairs  (AtPixelCount(Template) * 2 bytes, only when !UseHuffman)]
@@ -75,8 +81,8 @@ internal readonly struct Jbig2SymbolDictionarySegmentInfo
         //   exported symbol count (4 bytes)
         //   new symbol count      (4 bytes)
         int offset = 2;
-        int atCount = flags.UseHuffman ? 0 : Jbig2Templates.AtPixelCount(flags.Template);
-        Jbig2AtPixels? atPixels = atCount > 0
+        int atCount = (flags.UseHuffman) ? 0 : Jbig2Templates.AtPixelCount(flags.Template);
+        Jbig2AtPixels? atPixels = (atCount > 0)
             ? Jbig2Templates.ReadAtPixelPairs(data.Slice(offset), atCount)
             : null;
         offset += atCount * 2;

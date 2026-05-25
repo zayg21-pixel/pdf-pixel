@@ -49,14 +49,7 @@ public class PdfHighlightAnnotation : PdfTextMarkupAnnotation
         return true;
     }
 
-    /// <summary>
-    /// Renders the fallback content for highlight annotations when no appearance stream is available.
-    /// </summary>
-    /// <param name="processor">The command processor to emit commands to.</param>
-    /// <param name="page">The PDF page containing this annotation.</param>
-    /// <param name="visualStateKind">The visual state to render (Normal, Rollover, Down).</param>
-    /// <returns>True if fallback rendering was emitted.</returns>
-    public override bool RenderFallback(IPdfCommandProcessor processor, PdfPage page, PdfAnnotationVisualStateKind visualStateKind)
+    protected override bool RenderFallback(IPdfCommandProcessor processor, PdfPage page, PdfAnnotationVisualStateKind visualStateKind, PdfRenderingParameters renderingParameters)
     {
         var quads = Quadrilaterals;
         if (quads.Length == 0)
@@ -79,7 +72,7 @@ public class PdfHighlightAnnotation : PdfTextMarkupAnnotation
             {
                 Style = SKPaintStyle.Fill,
                 Color = color,
-                IsAntialias = true,
+                IsAntialias = renderingParameters.Antialias,
                 BlendMode = SKBlendMode.Multiply
             };
 

@@ -23,10 +23,10 @@ internal static class Jbig2RowDecoder
     internal static void DecodeRow(
         ref Jbig2ArithmeticReader decoder,
         Jbig2Bitmap bitmap,
-        Span<byte> contexts,
+        in Span<byte> contexts,
         int y,
         int width,
-        ReadOnlySpan<Jbig2ContextPixel> templatePixels)
+        in ReadOnlySpan<Jbig2ContextPixel> templatePixels)
     {
         for (int x = 0; x < width; x++)
         {
@@ -41,10 +41,10 @@ internal static class Jbig2RowDecoder
     internal static void DecodeValue(
         ref Jbig2ArithmeticReader decoder,
         Jbig2Bitmap bitmap,
-        Span<byte> contexts,
+        in Span<byte> contexts,
         int x,
         int y,
-        ReadOnlySpan<Jbig2ContextPixel> templatePixels)
+        in ReadOnlySpan<Jbig2ContextPixel> templatePixels)
     {
         int context = 0;
         for (int k = 0; k < templatePixels.Length; k++)
@@ -66,7 +66,7 @@ internal static class Jbig2RowDecoder
     internal static void DecodeRowSlow(
         ref Jbig2ArithmeticReader decoder,
         Jbig2Bitmap bitmap,
-        Span<byte> contexts,
+        in Span<byte> contexts,
         int y,
         int width,
         Jbig2RowTemplate tmpl)
@@ -116,6 +116,7 @@ internal static class Jbig2RowDecoder
                 {
                     raw |= (uint)sourceByteRef << 8;
                 }
+
                 if (bytePos + 1 >= 0 && bytePos + 1 < dataLength)
                 {
                     raw |= Unsafe.Add(ref sourceByteRef, 1);
@@ -131,6 +132,7 @@ internal static class Jbig2RowDecoder
                     int oobRight = endX - width + 1;
                     bits &= ~((1u << oobRight) - 1);
                 }
+
                 if (startX < 0)
                 {
                     int validBits = bitCount + startX;
@@ -172,7 +174,7 @@ internal static class Jbig2RowDecoder
     internal static void DecodeRow(
         ref Jbig2ArithmeticReader decoder,
         Jbig2Bitmap bitmap,
-        Span<byte> contexts,
+        in Span<byte> contexts,
         int y,
         int width,
         Jbig2RowTemplate tmpl)
@@ -197,7 +199,7 @@ internal static class Jbig2RowDecoder
     private static void DecodeRowFast(
         ref Jbig2ArithmeticReader decoder,
         Jbig2Bitmap bitmap,
-        Span<byte> contexts,
+        in Span<byte> contexts,
         int y,
         int width,
         Jbig2RowTemplate tmpl)
@@ -229,6 +231,7 @@ internal static class Jbig2RowDecoder
                 {
                     firstRow0Idx = i;
                 }
+
                 continue;
             }
 
@@ -314,7 +317,7 @@ internal static class Jbig2RowDecoder
 
             for (int i = 0; i < fullBytes; i++)
             {
-                Unsafe.Add(ref dataRef, tailByteBase + i) = (byte)(row0Value >> (tail - 8 * i - 7));
+                Unsafe.Add(ref dataRef, tailByteBase + i) = (byte)(row0Value >> (tail - (8 * i) - 7));
             }
 
             if (tailRem > 0)
@@ -332,7 +335,7 @@ internal static class Jbig2RowDecoder
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static ulong LoadWindowAtColumn(
-        ReadOnlySpan<byte> data,
+        in ReadOnlySpan<byte> data,
         int rowByteBase,
         int dataLength,
         int column,
@@ -348,7 +351,7 @@ internal static class Jbig2RowDecoder
         if (column >= 0 && column + 64 <= rowWidth && firstByteIdx + 9 <= dataLength)
         {
             ulong main = BinaryPrimitives.ReadUInt64BigEndian(data.Slice(firstByteIdx));
-            return bitOffset == 0
+            return (bitOffset == 0)
                 ? main
                 : (main << bitOffset) | ((ulong)data[firstByteIdx + 8] >> (8 - bitOffset));
         }
@@ -373,7 +376,7 @@ internal static class Jbig2RowDecoder
         else
         {
             int b = firstByteIdx + 8;
-            ulong extra = (uint)b < (uint)dataLength ? data[b] : 0UL;
+            ulong extra = ((uint)b < (uint)dataLength) ? data[b] : 0UL;
             result = (buf << bitOffset) | (extra >> (8 - bitOffset));
         }
 
@@ -385,6 +388,7 @@ internal static class Jbig2RowDecoder
             {
                 return 0;
             }
+
             result &= (1UL << (64 - leadOob)) - 1;
         }
 
@@ -397,6 +401,7 @@ internal static class Jbig2RowDecoder
             {
                 return 0;
             }
+
             result &= ~((1UL << trailOob) - 1);
         }
 
@@ -414,28 +419,44 @@ internal static class Jbig2RowDecoder
     [StructLayout(LayoutKind.Sequential)]
     private struct RowValue
     {
-        /// <summary>64-bit window. Mutates per pixel.</summary>
+        /// <summary>
+        /// 64-bit window. Mutates per pixel.
+        /// </summary>
         public ulong Value;
 
-        /// <summary>Safe extracts left in the current window. Mutates per pixel; refill at 0.</summary>
+        /// <summary>
+        /// Safe extracts left in the current window. Mutates per pixel; refill at 0.
+        /// </summary>
         public int ExtractsRemaining;
 
-        /// <summary>Source column at bit 63 of <see cref="Value"/> (above rows). Mutates per pixel.</summary>
+        /// <summary>
+        /// Source column at bit 63 of <see cref="Value"/> (above rows). Mutates per pixel.
+        /// </summary>
         public int TopColumn;
 
-        /// <summary>Context-aligned mask: ((1u &lt;&lt; BC) - 1) &lt;&lt; ContextShift. Already in context bit-space.</summary>
+        /// <summary>
+        /// Context-aligned mask: ((1u &lt;&lt; BC) - 1) &lt;&lt; ContextShift. Already in context bit-space.
+        /// </summary>
         public readonly uint Mask;
 
-        /// <summary>Shift-right amount mapping Value-space → context-space (= ViewBottom - ContextShift).</summary>
+        /// <summary>
+        /// Shift-right amount mapping Value-space → context-space (= ViewBottom - ContextShift).
+        /// </summary>
         public readonly byte ExtractShift;
 
-        /// <summary>0 = OOB row (skip in hot loop), 1 = active.</summary>
+        /// <summary>
+        /// 0 = OOB row (skip in hot loop), 1 = active.
+        /// </summary>
         public readonly byte IsActive;
 
-        /// <summary>Constant per row: extracts per fully-loaded 64-bit window (= 65 - BC). Refill resets <see cref="ExtractsRemaining"/> to this.</summary>
+        /// <summary>
+        /// Constant per row: extracts per fully-loaded 64-bit window (= 65 - BC). Refill resets <see cref="ExtractsRemaining"/> to this.
+        /// </summary>
         public readonly int ExtractsPerWindow;
 
-        /// <summary>Byte offset where the row begins in bitmap.Data — refill source for above rows, write target for row 0.</summary>
+        /// <summary>
+        /// Byte offset where the row begins in bitmap.Data — refill source for above rows, write target for row 0.
+        /// </summary>
         public readonly int RowByteBase;
 
         /// <summary>
@@ -476,7 +497,7 @@ internal static class Jbig2RowDecoder
     internal static void DecodeRefinementRow(
         ref Jbig2ArithmeticReader decoder,
         Jbig2Bitmap bitmap,
-        Span<byte> contexts,
+        in Span<byte> contexts,
         int y,
         int width,
         Jbig2RowTemplate tmpl,
@@ -595,6 +616,7 @@ internal static class Jbig2RowDecoder
                 {
                     raw |= (uint)sourceByteRef << 8;
                 }
+
                 if (bytePos + 1 >= 0 && bytePos + 1 < effectiveDataLength)
                 {
                     raw |= Unsafe.Add(ref sourceByteRef, 1);
@@ -610,6 +632,7 @@ internal static class Jbig2RowDecoder
                     int oobRight = endX - effectiveWidth + 1;
                     bits &= ~((1u << oobRight) - 1);
                 }
+
                 if (startX < 0)
                 {
                     int validBits = bitCount + startX;

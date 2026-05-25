@@ -20,7 +20,7 @@ public sealed class IccLutPipeline
     /// Create a uniform-grid (lut8 / lut16) pipeline.
     /// Input and output tables are assumed to be already normalized (0..1).
     /// </summary>
-    public IccLutPipeline(int inCh, int outCh, int[] gridPointsPerDim, IccTrc[] inTables, float[] clut, IccTrc[] outTables, float[,] matrix3x3)
+    public IccLutPipeline(int inCh, int outCh, int[] gridPointsPerDim, IccTrc[]? inTables, float[]? clut, IccTrc[]? outTables, float[,]? matrix3x3)
     {
         InChannels = inCh;
         OutChannels = outCh;
@@ -52,18 +52,18 @@ public sealed class IccLutPipeline
     /// Input tables (lut8/lut16) holding channel-wise normalized samples.
     /// Null for mAB pipelines where A curves are stored separately.
     /// </summary>
-    public IccTrc[] InputTables { get; }
+    public IccTrc[]? InputTables { get; }
 
     /// <summary>
     /// Flattened CLUT sample data (interleaved output channels) or null when no CLUT stage is present.
     /// </summary>
-    public float[] Clut { get; }
+    public float[]? Clut { get; }
 
     /// <summary>
     /// Output tables (lut8/lut16) holding channel-wise normalized samples.
     /// Null for mAB pipelines where B curves are stored separately.
     /// </summary>
-    public IccTrc[] OutputTables { get; }
+    public IccTrc[]? OutputTables { get; }
 
     /// <summary>
     /// True when this pipeline represents a multi-process element (mAB) sequence.
@@ -73,27 +73,27 @@ public sealed class IccLutPipeline
     /// <summary>
     /// A curves (one per input channel) for mAB pipelines. Null for legacy pipelines.
     /// </summary>
-    public IccTrc[] CurvesA { get; private set; }
+    public IccTrc[]? CurvesA { get; private set; }
 
     /// <summary>
     /// M (middle) curves (one per intermediate/output channel) for mAB pipelines.
     /// </summary>
-    public IccTrc[] CurvesM { get; private set; }
+    public IccTrc[]? CurvesM { get; private set; }
 
     /// <summary>
     /// B (output) curves (one per output channel) for mAB pipelines.
     /// </summary>
-    public IccTrc[] CurvesB { get; private set; }
+    public IccTrc[]? CurvesB { get; private set; }
 
     /// <summary>
     /// Optional 3x3 matrix (s15Fixed16 expanded to float) used in lut8/lut16 and mAB pipelines when input channels == 3.
     /// </summary>
-    public float[,] Matrix3x3 { get; set; }
+    public float[,]? Matrix3x3 { get; set; }
 
     /// <summary>
     /// Optional matrix offset vector (length 3) used only in mAB pipelines when present in the tag.
     /// </summary>
-    public float[] MatrixOffset { get; private set; }
+    public float[]? MatrixOffset { get; private set; }
 
     /// <summary>
     /// ICC transform representing this pipeline (lazily created).
@@ -103,9 +103,9 @@ public sealed class IccLutPipeline
     /// <summary>
     /// Factory for a multi-process element (mAB) pipeline.
     /// </summary>
-    public static IccLutPipeline CreateMab(int inCh, int outCh, int[] gridPerDim, IccTrc[] a, IccTrc[] m, IccTrc[] b, float[] clut, float[,] matrix, float[] offset)
+    public static IccLutPipeline CreateMab(int inCh, int outCh, int[] gridPerDim, IccTrc[]? a, IccTrc[]? m, IccTrc[]? b, float[]? clut, float[,]? matrix, float[]? offset)
     {
-        var pipeline = new IccLutPipeline(inCh, outCh, gridPerDim, null, clut, null, matrix)
+        IccLutPipeline pipeline = new(inCh, outCh, gridPerDim, null, clut, null, matrix)
         {
             CurvesA = a,
             CurvesM = m,
@@ -117,9 +117,9 @@ public sealed class IccLutPipeline
         return pipeline;
     }
 
-    private IColorTransform CreateTransform()
+    private ChainedColorTransform CreateTransform()
     {
-        List<IColorTransform> transforms = new List<IColorTransform>();
+        List<IColorTransform> transforms = [];
 
         if (IsMab)
         {
@@ -157,7 +157,7 @@ public sealed class IccLutPipeline
 
             if (Matrix3x3 != null)
             {
-                var matrix = ColorVectorUtilities.ToMatrix4x4(Matrix3x3);
+                Matrix4x4 matrix = ColorVectorUtilities.ToMatrix4x4(Matrix3x3);
                 matrix = Matrix4x4.Transpose(matrix);
                 transforms.Add(new MatrixColorTransform(matrix));
             }

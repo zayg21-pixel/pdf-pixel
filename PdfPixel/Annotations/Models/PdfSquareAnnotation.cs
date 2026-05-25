@@ -23,14 +23,7 @@ public class PdfSquareAnnotation : PdfAnnotationBase
     {
     }
 
-    /// <summary>
-    /// Renders the fallback content for square annotations when no appearance stream is available.
-    /// </summary>
-    /// <param name="processor">The command processor to emit commands to.</param>
-    /// <param name="page">The PDF page containing this annotation.</param>
-    /// <param name="visualStateKind">The visual state to render (Normal, Rollover, Down).</param>
-    /// <returns>True if fallback rendering was emitted.</returns>
-    public override bool RenderFallback(IPdfCommandProcessor processor, PdfPage page, PdfAnnotationVisualStateKind visualStateKind)
+    protected override bool RenderFallback(IPdfCommandProcessor processor, PdfPage page, PdfAnnotationVisualStateKind visualStateKind, PdfRenderingParameters renderingParameters)
     {
         var width = Rectangle.Width;
         var height = Rectangle.Height;
@@ -41,7 +34,7 @@ public class PdfSquareAnnotation : PdfAnnotationBase
             var fillPaint = new SKPaint
             {
                 Style = SKPaintStyle.Fill,
-                IsAntialias = true,
+                IsAntialias = renderingParameters.Antialias,
                 Color = interiorSKColor
             };
 
@@ -58,7 +51,7 @@ public class PdfSquareAnnotation : PdfAnnotationBase
             {
                 Style = SKPaintStyle.Stroke,
                 StrokeWidth = BorderStyle.Width,
-                IsAntialias = true,
+                IsAntialias = renderingParameters.Antialias,
                 Color = strokeColor
             };
 

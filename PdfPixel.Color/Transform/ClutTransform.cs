@@ -44,6 +44,16 @@ public sealed partial class ClutTransform : IColorTransform
     /// <param name="gridPointsPerDimension">Number of grid points per dimension.</param>
     public ClutTransform(Vector4[] clut, int outChannels, int[] gridPointsPerDimension)
     {
+        if (clut == null)
+        {
+            throw new ArgumentNullException(nameof(clut));
+        }
+
+        if (gridPointsPerDimension == null)
+        {
+            throw new ArgumentNullException(nameof(gridPointsPerDimension));
+        }
+
         _outChannels = outChannels;
         _gridPointsPerDimension = gridPointsPerDimension;
         _dimensionCount = gridPointsPerDimension.Length;
@@ -61,10 +71,11 @@ public sealed partial class ClutTransform : IColorTransform
         Span<float> scaleValues = stackalloc float[4];
         for (int i = 0; i < 4; i++)
         {
-            scaleValues[i] = i < _dimensionCount && _gridPointsPerDimension[i] > 1 
-                ? _gridPointsPerDimension[i] - 1 
+            scaleValues[i] = (i < _dimensionCount && _gridPointsPerDimension[i] > 1)
+                ? _gridPointsPerDimension[i] - 1
                 : 0f;
         }
+
         _scaleFactors = ColorVectorUtilities.ToVector4WithZeroPadding(scaleValues);
         _scaleX = scaleValues[0];
         _scaleY = scaleValues[1];
@@ -73,7 +84,7 @@ public sealed partial class ClutTransform : IColorTransform
         _strideVector = ColorVectorUtilities.ToVector4WithZeroPadding(_strides.Select(x => (float)x).ToArray());
 
         _clut = clut ?? throw new ArgumentNullException(nameof(clut));
-        
+
         int expectedSize = cumulative;
         if (_clut.Length != expectedSize)
         {
@@ -81,6 +92,7 @@ public sealed partial class ClutTransform : IColorTransform
         }
     }
 
+    /// <inheritdoc/>
     public bool IsIdentity => false;
 
     /// <summary>
@@ -97,7 +109,7 @@ public sealed partial class ClutTransform : IColorTransform
         }
 
         int totalEntries = clut.Length / outChannels;
-        Vector4[] vector4Clut = new Vector4[totalEntries];
+        var vector4Clut = new Vector4[totalEntries];
 
         for (int i = 0; i < totalEntries; i++)
         {
@@ -123,7 +135,7 @@ public sealed partial class ClutTransform : IColorTransform
             2 => Transform2D(color),
             3 => Transform3D(color),
             4 => Transform4D(color),
-            _ => color,
+            _ => color
         };
     }
 }

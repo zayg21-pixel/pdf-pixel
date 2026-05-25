@@ -2,7 +2,9 @@ using System.Runtime.CompilerServices;
 
 namespace PdfPixel.Jpx.Decoding;
 
+#pragma warning disable RCS1019 // Order modifiers
 internal ref partial struct JpxTier1Decoder
+#pragma warning restore RCS1019 // Order modifiers
 {
     /// <summary>
     /// Decodes the sign of a newly significant sample per ITU-T T.800 Table D.3.
@@ -22,7 +24,7 @@ internal ref partial struct JpxTier1Decoder
         int horizontalContribution = ComputeContribution(leftState, rightState);
         int verticalContribution = ComputeContribution(topState, bottomState);
 
-        int combined = horizontalContribution * 3 + verticalContribution + 4;
+        int combined = (horizontalContribution * 3) + verticalContribution + 4;
 
         int contextIndex = ContextScOffset + _signContextLabel[combined];
         int xorBit = _signContextXorBit[combined];
@@ -40,14 +42,14 @@ internal ref partial struct JpxTier1Decoder
     private static int ComputeContribution(uint minusState, uint plusState)
     {
         // Extract significance (bit 0) and sign (bit 1) from each neighbor
-        int minusSig = (int)(minusState & FlagSignificant);
-        int minusSign = (int)((minusState & FlagSign) >> 1);
+        var minusSig = (int)(minusState & FlagSignificant);
+        var minusSign = (int)((minusState & FlagSign) >> 1);
         // contribution = sig * (1 - 2*sign) = sig - 2*sig*sign
-        int minusContrib = minusSig - 2 * (minusSig & minusSign);
+        int minusContrib = minusSig - (2 * (minusSig & minusSign));
 
-        int plusSig = (int)(plusState & FlagSignificant);
-        int plusSign = (int)((plusState & FlagSign) >> 1);
-        int plusContrib = plusSig - 2 * (plusSig & plusSign);
+        var plusSig = (int)(plusState & FlagSignificant);
+        var plusSign = (int)((plusState & FlagSign) >> 1);
+        int plusContrib = plusSig - (2 * (plusSig & plusSign));
 
         int total = minusContrib + plusContrib;
 

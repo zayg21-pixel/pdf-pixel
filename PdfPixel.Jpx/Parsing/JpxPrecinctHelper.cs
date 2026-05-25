@@ -17,9 +17,9 @@ internal static class JpxPrecinctHelper
     /// <param name="componentCodingStyle">Component-specific coding style overrides (optional).</param>
     /// <returns>Tuple containing precinct width and height in pixels.</returns>
     public static (int width, int height) GetPrecinctSize(
-        int resolutionLevel, 
+        int resolutionLevel,
         JpxCodingStyle codingStyle,
-        JpxComponentCodingStyle componentCodingStyle = null)
+        JpxComponentCodingStyle? componentCodingStyle = null)
     {
         if (codingStyle == null)
         {
@@ -27,23 +27,23 @@ internal static class JpxPrecinctHelper
         }
 
         // Use component-specific coding style if available
-        var effectiveCodingStyle = componentCodingStyle?.CodingStyle ?? codingStyle;
+        JpxCodingStyle effectiveCodingStyle = componentCodingStyle?.CodingStyle ?? codingStyle;
 
         // Check if precinct sizes are explicitly specified in the coding style
-        if (effectiveCodingStyle.HasPrecinctSizes && 
-            resolutionLevel < effectiveCodingStyle.PrecinctSizeExponents.Length)
+        if (effectiveCodingStyle.HasPrecinctSizes
+            && resolutionLevel < effectiveCodingStyle.PrecinctSizeExponents.Length)
         {
             byte sizeExponents = effectiveCodingStyle.PrecinctSizeExponents[resolutionLevel];
-            
+
             // Extract width and height exponents from the byte
             // ITU-T T.800 Table A.21: bits 0-3 = PPx (width), bits 4-7 = PPy (height)
             int widthExponent = sizeExponents & 0x0F;
             int heightExponent = (sizeExponents >> 4) & 0x0F;
-            
+
             // Calculate actual precinct dimensions: 2^exponent
             int width = 1 << widthExponent;
             int height = 1 << heightExponent;
-            
+
             return (width, height);
         }
 
@@ -66,14 +66,14 @@ internal static class JpxPrecinctHelper
         int tileHeight,
         int resolutionLevel,
         JpxCodingStyle codingStyle,
-        JpxComponentCodingStyle componentCodingStyle = null)
+        JpxComponentCodingStyle? componentCodingStyle = null)
     {
         if (tileWidth <= 0 || tileHeight <= 0)
         {
             return (0, 0);
         }
 
-        var (precinctWidth, precinctHeight) = GetPrecinctSize(resolutionLevel, codingStyle, componentCodingStyle);
+        (int precinctWidth, int precinctHeight) = GetPrecinctSize(resolutionLevel, codingStyle, componentCodingStyle);
 
         // Compute resolution-dependent tile dimensions using ITU-T T.800 formula:
         // trx1 - trx0 = ceil(tileWidth / 2^(NL - r)) for resolution r

@@ -31,34 +31,52 @@ internal readonly struct Jbig2TextRegionFlags
 
         // S offset: 5-bit signed value at bits 10–14; sign-extend from bit 4.
         int rawSOffset = (flagsWord >> 10) & 0x1F;
-        SOffset = rawSOffset >= 16 ? rawSOffset - 32 : rawSOffset;
+        SOffset = (rawSOffset >= 16) ? rawSOffset - 32 : rawSOffset;
     }
 
-    /// <summary>Whether Huffman coding is used for symbol placement (false = arithmetic).</summary>
+    /// <summary>
+    /// Whether Huffman coding is used for symbol placement (false = arithmetic).
+    /// </summary>
     public bool UseHuffman { get; }
 
-    /// <summary>Whether refinement coding is applied to placed symbols.</summary>
+    /// <summary>
+    /// Whether refinement coding is applied to placed symbols.
+    /// </summary>
     public bool UseRefinement { get; }
 
-    /// <summary>Strip size log2 value (LOGSBSTRIPS, bits 2–3).</summary>
+    /// <summary>
+    /// Strip size log2 value (LOGSBSTRIPS, bits 2–3).
+    /// </summary>
     public int LogStripSize { get; }
 
-    /// <summary>Reference corner for symbol placement (bits 4–5, 0–3).</summary>
+    /// <summary>
+    /// Reference corner for symbol placement (bits 4–5, 0–3).
+    /// </summary>
     public int ReferenceCorner { get; }
 
-    /// <summary>Whether symbols are placed transposed (bit 6).</summary>
+    /// <summary>
+    /// Whether symbols are placed transposed (bit 6).
+    /// </summary>
     public bool Transposed { get; }
 
-    /// <summary>Combination operator for compositing symbols onto the region (bits 7–8).</summary>
+    /// <summary>
+    /// Combination operator for compositing symbols onto the region (bits 7–8).
+    /// </summary>
     public Jbig2CombinationOperator CombinationOperator { get; }
 
-    /// <summary>Default pixel value for the region background (bit 9).</summary>
+    /// <summary>
+    /// Default pixel value for the region background (bit 9).
+    /// </summary>
     public byte DefaultPixel { get; }
 
-    /// <summary>Signed S offset value for strip positioning (bits 10–14, range –16..+15).</summary>
+    /// <summary>
+    /// Signed S offset value for strip positioning (bits 10–14, range –16..+15).
+    /// </summary>
     public int SOffset { get; }
 
-    /// <summary>Refinement template selector (bit 15, value 0 or 1).</summary>
+    /// <summary>
+    /// Refinement template selector (bit 15, value 0 or 1).
+    /// </summary>
     public int RefinementTemplate { get; }
 
     /// <summary>
@@ -72,6 +90,6 @@ internal readonly struct Jbig2TextRegionFlags
     /// <see cref="ReferenceCorner"/> = 1 (top-right), <see cref="Transposed"/> = <see langword="false"/>,
     /// <see cref="SOffset"/> = 0, <see cref="CombinationOperator"/> = <see cref="Jbig2CombinationOperator.Or"/>.
     /// </summary>
-    public static readonly Jbig2TextRegionFlags DefaultInlineFlags = new Jbig2TextRegionFlags(0x0012);
+    public static readonly Jbig2TextRegionFlags DefaultInlineFlags = new(0x0012);
 
 }

@@ -1,11 +1,10 @@
+using PdfPixel.Color.Icc;
 using PdfPixel.Color.Transform;
 using System;
 using System.Numerics;
 using System.Runtime.CompilerServices;
 
 namespace PdfPixel.Color.Sampling;
-
-public delegate ReadOnlySpan<float> SpanConverter(ReadOnlySpan<float> source);
 
 /// <summary>
 /// Samples a <see cref="ChainedColorTransform"/> into a <see cref="Vector4"/> color value.
@@ -14,25 +13,38 @@ public delegate ReadOnlySpan<float> SpanConverter(ReadOnlySpan<float> source);
 /// </summary>
 public sealed class ColorTransformSampler
 {
-    private readonly ChainedColorTransform _colorTransform;
-    private readonly SpanConverter _sourceOverride;
+    private readonly SpanConverter? _sourceOverride;
 
-    public ColorTransformSampler(ChainedColorTransform chainedTransform, SpanConverter sourceOverride = null)
+    /// <summary>
+    /// Initializes a new <see cref="ColorTransformSampler"/> with the given transform and an optional
+    /// span pre-processor. When <paramref name="sourceOverride"/> is provided it replaces the default
+    /// <see cref="ColorVectorUtilities.ToVector4WithOnePadding"/> conversion step.
+    /// </summary>
+    public ColorTransformSampler(ChainedColorTransform chainedTransform, SpanConverter? sourceOverride = null)
     {
-        _colorTransform = chainedTransform;
+        ColorTransform = chainedTransform;
         _sourceOverride = sourceOverride;
     }
 
-    public ChainedColorTransform ColorTransform => _colorTransform;
+    /// <summary>
+    /// The color transform pipeline applied during sampling.
+    /// </summary>
+    public ChainedColorTransform ColorTransform { get; }
 
+    /// <summary>
+    /// Converts <paramref name="source"/> color components to a <see cref="Vector4"/> by running
+    /// the optional pre-processor and then the full transform pipeline.
+    /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public Vector4 Sample(ReadOnlySpan<float> source)
+    public Vector4 Sample(in ReadOnlySpan<float> source)
     {
         if (_sourceOverride != null)
         {
-            source = _sourceOverride(source);
+            return ColorTransform.Transform(ColorVectorUtilities.ToVector4WithOnePadding(_sourceOverride(source)));
         }
-
-        return _colorTransform.Transform(ColorVectorUtilities.ToVector4WithOnePadding(source));
+        else
+        {
+            return ColorTransform.Transform(ColorVectorUtilities.ToVector4WithOnePadding(source));
+        }
     }
 }

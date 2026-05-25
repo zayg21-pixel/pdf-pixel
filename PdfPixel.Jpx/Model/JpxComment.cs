@@ -13,7 +13,7 @@ public sealed class JpxComment
     /// <summary>
     /// Gets or sets the comment data.
     /// </summary>
-    public byte[] Data { get; set; }
+    public byte[] Data { get; set; } = [];
 
     /// <summary>
     /// Gets a value indicating whether this comment is binary (registration = 0).

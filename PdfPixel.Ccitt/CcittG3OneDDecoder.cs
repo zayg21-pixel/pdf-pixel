@@ -10,6 +10,14 @@ namespace PdfPixel.Ccitt;
 /// </summary>
 public static class CcittG3OneDDecoder
 {
+    /// <summary>
+    /// Decodes one CCITT G3 1-D encoded line into a run-length list.
+    /// </summary>
+    /// <param name="reader">Bit reader positioned at the start of the line.</param>
+    /// <param name="width">Expected line width in pixels.</param>
+    /// <param name="requireLeadingEol">When true, a leading EOL marker must be present and is consumed first.</param>
+    /// <param name="byteAlign">When true, the reader is byte-aligned after consuming the leading EOL.</param>
+    /// <param name="runs">Output list; cleared then populated with alternating white/black run lengths (first run is white).</param>
     public static void DecodeOneDCollectRuns(
         ref CcittBitReader reader,
         int width,
@@ -30,6 +38,7 @@ public static class CcittG3OneDDecoder
             {
                 throw new InvalidOperationException("CCITT G3 1D decode error: missing required leading EOL.");
             }
+
             if (byteAlign)
             {
                 reader.AlignAfterEndOfLine(true);
@@ -37,11 +46,11 @@ public static class CcittG3OneDDecoder
         }
 
         int xPosition = 0;
-        bool currentIsBlack = false;
+        var currentIsBlack = false;
 
         while (xPosition < width)
         {
-            var result = CcittRunDecoder.DecodeRun(ref reader, currentIsBlack);
+            RunDecodeResult result = CcittRunDecoder.DecodeRun(ref reader, currentIsBlack);
             if (result.Length < 0)
             {
                 throw new InvalidOperationException("CCITT G3 1D decode error: invalid code at x=" + xPosition + ".");
@@ -53,6 +62,7 @@ public static class CcittG3OneDDecoder
                 {
                     throw new InvalidOperationException("CCITT G3 1D decode error: premature EOL at x=" + xPosition + ".");
                 }
+
                 break;
             }
 

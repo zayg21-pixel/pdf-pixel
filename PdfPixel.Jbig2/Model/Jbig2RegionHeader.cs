@@ -45,7 +45,7 @@ internal sealed class Jbig2RegionHeader
     /// <exception cref="InvalidOperationException">
     /// Thrown when <paramref name="data"/> is shorter than <see cref="Jbig2RegionHeaderLength"/> bytes.
     /// </exception>
-    public static Jbig2RegionHeader Parse(Jbig2SegmentHeader segment, ReadOnlySpan<byte> data)
+    public static Jbig2RegionHeader Parse(Jbig2SegmentHeader segment, in ReadOnlySpan<byte> data)
     {
         if (data.Length < Jbig2RegionHeaderLength)
         {
@@ -56,7 +56,7 @@ internal sealed class Jbig2RegionHeader
         return new Jbig2RegionHeader
         {
             Width = BinaryPrimitives.ReadInt32BigEndian(data.Slice(0, 4)),
-            Height = segment.ActualRowCount.HasValue
+            Height = (segment.ActualRowCount.HasValue)
                 ? (int)segment.ActualRowCount.Value
                 : BinaryPrimitives.ReadInt32BigEndian(data.Slice(4, 4)),
             X = BinaryPrimitives.ReadInt32BigEndian(data.Slice(8, 4)),

@@ -39,39 +39,69 @@ internal class CommandHelpers
         return canvas.TotalMatrix;
     }
 
-    public static bool GetPathIsAntialias(SKPath path, SKCanvas canvas, PdfCommandExecutionContext executionContext, SKPaint paint = null) // TODO: account for angled rects + lines
+    public static bool GetPathIsAntialias(SKPath path, SKCanvas canvas, PdfCommandExecutionContext executionContext, SKPaint paint = null)
     {
         var scaledMatrix = GetScaledMatrix(canvas, executionContext);
-        if ((path.IsRect || path.IsLine) && canvas.TotalMatrix.SkewX == 0 && canvas.TotalMatrix.SkewY == 0)
+
+        if (!PathIsAxisAligned(path, scaledMatrix))
+            return true;
+
+        // Stroke pass: thin strokes benefit from antialiasing
+        if (paint != null && (paint.Style == SKPaintStyle.Stroke || paint.Style == SKPaintStyle.StrokeAndFill))
+        {
+            var stroke = paint.StrokeWidth == 0 ? 1f : paint.StrokeWidth;
+            var scaledStroke = scaledMatrix.MapRect(new SKRect(0, 0, stroke, stroke));
+            if (scaledStroke.Width < 2 || scaledStroke.Height < 2)
+                return executionContext.RenderingParameters.Antialias;
+        }
+
+        // Fill pass: small fills benefit from antialiasing
+        if (paint == null || paint.Style == SKPaintStyle.Fill || paint.Style == SKPaintStyle.StrokeAndFill)
         {
             SKRect bounds;
-
-            if (paint == null)
+            if (paint != null)
             {
-                bounds = path.TightBounds;
+                using var fillPath = paint.GetFillPath(path);
+                bounds = fillPath?.Bounds ?? path.TightBounds;
             }
             else
             {
-                if (paint.Style == SKPaintStyle.Stroke)
-                {
-                    var stroke = paint.StrokeWidth == 0 ? 1 : paint.StrokeWidth;
-                    bounds = new SKRect(0, 0, stroke, stroke);
-                }
-                else
-                {
-                    var fillPath = paint.GetFillPath(path);
-                    bounds = fillPath.Bounds;
-                }
+                bounds = path.TightBounds;
             }
 
             var scaledRect = scaledMatrix.MapRect(bounds);
+            if (scaledRect.Width < 2 || scaledRect.Height < 2)
+                return executionContext.RenderingParameters.Antialias;
+        }
 
-            if (scaledRect.Width >= 2 && scaledRect.Height >= 2)
+        return false;
+    }
+
+    private const float AxisAlignEpsilon = 0.01f;
+
+    private static bool PathIsAxisAligned(SKPath path, SKMatrix matrix)
+    {
+        using var iterator = path.CreateIterator(true); // forceClose ensures implicit closing segments are checked
+        var points = new SKPoint[4];
+        SKPathVerb verb;
+
+        while ((verb = iterator.Next(points)) != SKPathVerb.Done)
+        {
+            switch (verb)
             {
-                return false;
+                case SKPathVerb.Line:
+                    var a = matrix.MapPoint(points[0]);
+                    var b = matrix.MapPoint(points[1]);
+                    if (MathF.Abs(b.X - a.X) > AxisAlignEpsilon && MathF.Abs(b.Y - a.Y) > AxisAlignEpsilon)
+                        return false;
+                    break;
+                case SKPathVerb.Quad:
+                case SKPathVerb.Conic:
+                case SKPathVerb.Cubic:
+                    return false;
             }
         }
 
-        return executionContext.RenderingParameters.Antialias;
+        return true;
     }
 }

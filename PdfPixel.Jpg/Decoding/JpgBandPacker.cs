@@ -1,5 +1,6 @@
 using System;
 using System.Runtime.CompilerServices;
+
 using PdfPixel.Jpg.Model;
 
 namespace PdfPixel.Jpg.Decoding;
@@ -15,10 +16,12 @@ internal sealed class JpgBandPacker
         {
             throw new ArgumentNullException(nameof(header));
         }
+
         if (parameters == null)
         {
             throw new ArgumentNullException(nameof(parameters));
         }
+
         _header = header;
         _parameters = parameters;
     }
@@ -29,10 +32,12 @@ internal sealed class JpgBandPacker
         {
             throw new ArgumentNullException(nameof(fullResBlocks));
         }
+
         if (destination == null)
         {
             throw new ArgumentNullException(nameof(destination));
         }
+
         if (bandRows <= 0)
         {
             return;
@@ -41,14 +46,20 @@ internal sealed class JpgBandPacker
         switch (_header.ComponentCount)
         {
             case 1:
-                PackGray(fullResBlocks, bandRows, destination);
-                break;
+                {
+                    PackGray(fullResBlocks, bandRows, destination);
+                    break;
+                }
             case 3:
-                PackRgb(fullResBlocks, bandRows, destination);
-                break;
+                {
+                    PackRgb(fullResBlocks, bandRows, destination);
+                    break;
+                }
             case 4:
-                PackCmyk(fullResBlocks, bandRows, destination);
-                break;
+                {
+                    PackCmyk(fullResBlocks, bandRows, destination);
+                    break;
+                }
             default:
                 throw new NotSupportedException("Unsupported component count: " + _header.ComponentCount);
         }
@@ -71,9 +82,9 @@ internal sealed class JpgBandPacker
         for (int blockLinearIndex = 0; blockLinearIndex < blocksPerBand; blockLinearIndex++)
         {
             int mcuColumnIndex = blockLinearIndex / fullBlocksPerMcu;
-            int blockInColumn = blockLinearIndex - mcuColumnIndex * fullBlocksPerMcu;
+            int blockInColumn = blockLinearIndex - (mcuColumnIndex * fullBlocksPerMcu);
             int blockRow = blockInColumn / hMax;
-            int blockCol = blockInColumn - blockRow * hMax;
+            int blockCol = blockInColumn - (blockRow * hMax);
 
             int xBase = mcuColumnIndex * mcuWidth;
             int blockXBase = blockCol * 8;
@@ -82,11 +93,13 @@ internal sealed class JpgBandPacker
             {
                 break;
             }
-            int effectiveColumnWidth = remainingColumnPixels < mcuWidth ? remainingColumnPixels : mcuWidth;
+
+            int effectiveColumnWidth = (remainingColumnPixels < mcuWidth) ? remainingColumnPixels : mcuWidth;
             if (blockXBase >= effectiveColumnWidth)
             {
                 continue;
             }
+
             int copyPixels = effectiveColumnWidth - blockXBase;
             if (copyPixels > 8)
             {
@@ -98,6 +111,7 @@ internal sealed class JpgBandPacker
             {
                 continue;
             }
+
             int maxRowsInBlock = bandRows - blockYBase;
             if (maxRowsInBlock > 8)
             {
@@ -114,7 +128,7 @@ internal sealed class JpgBandPacker
                 ref byte destRef = ref destination[destPixelOffset];
                 for (int px = 0; px < copyPixels; px++)
                 {
-                    byte y = (byte)Unsafe.Add(ref yRow, px);
+                    var y = (byte)Unsafe.Add(ref yRow, px);
                     destRef = y;
                     destRef = ref Unsafe.Add(ref destRef, 1);
                 }
@@ -143,9 +157,9 @@ internal sealed class JpgBandPacker
         for (int blockLinearIndex = 0; blockLinearIndex < blocksPerBand; blockLinearIndex++)
         {
             int mcuColumnIndex = blockLinearIndex / fullBlocksPerMcu;
-            int blockInColumn = blockLinearIndex - mcuColumnIndex * fullBlocksPerMcu;
+            int blockInColumn = blockLinearIndex - (mcuColumnIndex * fullBlocksPerMcu);
             int blockRow = blockInColumn / hMax;
-            int blockCol = blockInColumn - blockRow * hMax;
+            int blockCol = blockInColumn - (blockRow * hMax);
 
             int xBase = mcuColumnIndex * mcuWidth;
             int blockXBase = blockCol * 8;
@@ -154,11 +168,13 @@ internal sealed class JpgBandPacker
             {
                 break;
             }
-            int effectiveColumnWidth = remainingColumnPixels < mcuWidth ? remainingColumnPixels : mcuWidth;
+
+            int effectiveColumnWidth = (remainingColumnPixels < mcuWidth) ? remainingColumnPixels : mcuWidth;
             if (blockXBase >= effectiveColumnWidth)
             {
                 continue;
             }
+
             int copyPixels = effectiveColumnWidth - blockXBase;
             if (copyPixels > 8)
             {
@@ -170,6 +186,7 @@ internal sealed class JpgBandPacker
             {
                 continue;
             }
+
             int maxRowsInBlock = bandRows - blockYBase;
             if (maxRowsInBlock > 8)
             {
@@ -187,13 +204,13 @@ internal sealed class JpgBandPacker
                 ref float gRow = ref Unsafe.Add(ref gBlockBase, rowFloatOffset);
                 ref float bRow = ref Unsafe.Add(ref bBlockBase, rowFloatOffset);
                 int destRowOffset = (blockYBase + localRow) * outputStride;
-                int destPixelOffset = destRowOffset + (xBase + blockXBase) * 3;
+                int destPixelOffset = destRowOffset + ((xBase + blockXBase) * 3);
                 ref byte destRef = ref destination[destPixelOffset];
                 for (int px = 0; px < copyPixels; px++)
                 {
-                    byte r = (byte)Unsafe.Add(ref rRow, px);
-                    byte g = (byte)Unsafe.Add(ref gRow, px);
-                    byte b = (byte)Unsafe.Add(ref bRow, px);
+                    var r = (byte)Unsafe.Add(ref rRow, px);
+                    var g = (byte)Unsafe.Add(ref gRow, px);
+                    var b = (byte)Unsafe.Add(ref bRow, px);
                     destRef = r;
                     Unsafe.Add(ref destRef, 1) = g;
                     Unsafe.Add(ref destRef, 2) = b;
@@ -224,9 +241,9 @@ internal sealed class JpgBandPacker
         for (int blockLinearIndex = 0; blockLinearIndex < blocksPerBand; blockLinearIndex++)
         {
             int mcuColumnIndex = blockLinearIndex / fullBlocksPerMcu;
-            int blockInColumn = blockLinearIndex - mcuColumnIndex * fullBlocksPerMcu;
+            int blockInColumn = blockLinearIndex - (mcuColumnIndex * fullBlocksPerMcu);
             int blockRow = blockInColumn / hMax;
-            int blockCol = blockInColumn - blockRow * hMax;
+            int blockCol = blockInColumn - (blockRow * hMax);
 
             int xBase = mcuColumnIndex * mcuWidth;
             int blockXBase = blockCol * 8;
@@ -235,11 +252,13 @@ internal sealed class JpgBandPacker
             {
                 break;
             }
-            int effectiveColumnWidth = remainingColumnPixels < mcuWidth ? remainingColumnPixels : mcuWidth;
+
+            int effectiveColumnWidth = (remainingColumnPixels < mcuWidth) ? remainingColumnPixels : mcuWidth;
             if (blockXBase >= effectiveColumnWidth)
             {
                 continue;
             }
+
             int copyPixels = effectiveColumnWidth - blockXBase;
             if (copyPixels > 8)
             {
@@ -251,6 +270,7 @@ internal sealed class JpgBandPacker
             {
                 continue;
             }
+
             int maxRowsInBlock = bandRows - blockYBase;
             if (maxRowsInBlock > 8)
             {
@@ -270,7 +290,7 @@ internal sealed class JpgBandPacker
                 ref float yRow = ref Unsafe.Add(ref yBlockBase, rowFloatOffset);
                 ref float kRow = ref Unsafe.Add(ref kBlockBase, rowFloatOffset);
                 int destRowOffset = (blockYBase + localRow) * outputStride;
-                int destPixelOffset = destRowOffset + (xBase + blockXBase) * 4;
+                int destPixelOffset = destRowOffset + ((xBase + blockXBase) * 4);
                 ref byte destRef = ref destination[destPixelOffset];
                 for (int px = 0; px < copyPixels; px++)
                 {

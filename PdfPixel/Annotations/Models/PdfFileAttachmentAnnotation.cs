@@ -65,10 +65,7 @@ public class PdfFileAttachmentAnnotation : PdfAnnotationBase
     /// </summary>
     public PdfObject EmbeddedFileObject { get; }
 
-    /// <summary>
-    /// Renders the fallback content showing an icon and file name.
-    /// </summary>
-    public override bool RenderFallback(IPdfCommandProcessor processor, PdfPage page, PdfAnnotationVisualStateKind visualStateKind)
+    protected override bool RenderFallback(IPdfCommandProcessor processor, PdfPage page, PdfAnnotationVisualStateKind visualStateKind, PdfRenderingParameters renderingParameters)
     {
         var color = ResolveColor(page, SKColors.DarkSlateGray);
 
@@ -122,7 +119,7 @@ public class PdfFileAttachmentAnnotation : PdfAnnotationBase
                             Style = SKPaintStyle.Stroke,
                             StrokeWidth = strokeWidth,
                             Color = color,
-                            IsAntialias = true,
+                            IsAntialias = renderingParameters.Antialias,
                             StrokeCap = SKStrokeCap.Round,
                             StrokeJoin = SKStrokeJoin.Round
                         };
@@ -133,7 +130,7 @@ public class PdfFileAttachmentAnnotation : PdfAnnotationBase
                 case PdfFileAttachmentIcon.PushPin:
                     // Draw a simple pushpin: head + shaft
                     var headRect = new SKRect(r.Left, r.Top, r.Right, r.Top + r.Height * 0.45f);
-                    var fillPaint = new SKPaint { Style = SKPaintStyle.Fill, Color = color.WithAlpha(180), IsAntialias = true };
+                    var fillPaint = new SKPaint { Style = SKPaintStyle.Fill, Color = color.WithAlpha(180), IsAntialias = renderingParameters.Antialias };
                     using (var headPath = new SKPath())
                     {
                         headPath.AddRoundRect(headRect, 2, 2);
@@ -145,7 +142,7 @@ public class PdfFileAttachmentAnnotation : PdfAnnotationBase
                         Style = SKPaintStyle.Stroke,
                         StrokeWidth = strokeWidth,
                         Color = color,
-                        IsAntialias = true,
+                        IsAntialias = renderingParameters.Antialias,
                         StrokeCap = SKStrokeCap.Round,
                         StrokeJoin = SKStrokeJoin.Round
                     };
@@ -171,7 +168,7 @@ public class PdfFileAttachmentAnnotation : PdfAnnotationBase
                             Style = SKPaintStyle.Stroke,
                             StrokeWidth = strokeWidth,
                             Color = color,
-                            IsAntialias = true,
+                            IsAntialias = renderingParameters.Antialias,
                             StrokeCap = SKStrokeCap.Round,
                             StrokeJoin = SKStrokeJoin.Round
                         };
@@ -195,7 +192,7 @@ public class PdfFileAttachmentAnnotation : PdfAnnotationBase
                             Style = SKPaintStyle.Stroke,
                             StrokeWidth = strokeWidth,
                             Color = color,
-                            IsAntialias = true,
+                            IsAntialias = renderingParameters.Antialias,
                             StrokeCap = SKStrokeCap.Round,
                             StrokeJoin = SKStrokeJoin.Round
                         };
@@ -208,7 +205,7 @@ public class PdfFileAttachmentAnnotation : PdfAnnotationBase
             if (!FileName.IsEmpty)
             {
                 using var font = new SKFont(SKTypeface.Default, Math.Max(8, r.Height * 0.18f));
-                var textPaint = new SKPaint { Color = color, IsAntialias = true };
+                var textPaint = new SKPaint { Color = color, IsAntialias = renderingParameters.Antialias };
                 var text = FileName.ToString();
                 var x = r.Left + 2;
                 var y = r.Bottom - 2;

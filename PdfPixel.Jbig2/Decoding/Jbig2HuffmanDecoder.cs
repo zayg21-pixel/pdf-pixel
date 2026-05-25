@@ -16,7 +16,7 @@ internal sealed class Jbig2HuffmanDecoder
     /// Initializes the Huffman decoder from the encoded data.
     /// </summary>
     /// <param name="data">Huffman-coded data.</param>
-    public Jbig2HuffmanDecoder(ReadOnlyMemory<byte> data)
+    public Jbig2HuffmanDecoder(in ReadOnlyMemory<byte> data)
     {
         _data = data;
         _byteOffset = 0;
@@ -27,7 +27,7 @@ internal sealed class Jbig2HuffmanDecoder
     /// Initializes the Huffman decoder from a span, copying to internal memory.
     /// </summary>
     /// <param name="data">Huffman-coded data span.</param>
-    public Jbig2HuffmanDecoder(ReadOnlySpan<byte> data)
+    public Jbig2HuffmanDecoder(in ReadOnlySpan<byte> data)
     {
         _data = data.ToArray();
         _byteOffset = 0;
@@ -40,7 +40,7 @@ internal sealed class Jbig2HuffmanDecoder
     /// <returns>0 or 1.</returns>
     public int ReadBit()
     {
-        var span = _data.Span;
+        ReadOnlySpan<byte> span = _data.Span;
         if (_byteOffset >= span.Length)
         {
             throw new InvalidOperationException(
@@ -86,7 +86,7 @@ internal sealed class Jbig2HuffmanDecoder
 
         for (int i = 0; i < table.Entries.Count; i++)
         {
-            var entry = table.Entries[i];
+            Jbig2HuffmanEntry entry = table.Entries[i];
 
             while (codeLength < entry.PrefixLength)
             {
@@ -137,7 +137,7 @@ internal sealed class Jbig2HuffmanDecoder
     /// <summary>
     /// Gets the current bit position in the stream.
     /// </summary>
-    public int BitPosition => _byteOffset * 8 + _bitOffset;
+    public int BitPosition => (_byteOffset * 8) + _bitOffset;
 
     /// <summary>
     /// Whether the decoder has consumed all available data.
@@ -147,7 +147,7 @@ internal sealed class Jbig2HuffmanDecoder
     /// <summary>
     /// Gets the current byte position in the stream (byte-aligned).
     /// </summary>
-    public int BytePosition => _byteOffset + (_bitOffset > 0 ? 1 : 0);
+    public int BytePosition => _byteOffset + ((_bitOffset > 0) ? 1 : 0);
 
     /// <summary>
     /// Sets the byte position directly (also resets the bit offset).

@@ -1,4 +1,5 @@
 using System;
+
 using PdfPixel.Jpg.Model;
 
 namespace PdfPixel.Jpg.Decoding;
@@ -16,10 +17,7 @@ internal sealed class JpgQuantizationManager
 
     public const int MaxTableCount = 4;
 
-    private JpgQuantizationManager()
-    {
-        _tables = new JpgQuantizationTable[MaxTableCount];
-    }
+    private JpgQuantizationManager() => _tables = new JpgQuantizationTable[MaxTableCount];
 
     /// <summary>
     /// Create a quantization manager from the header. Throws if header is null.
@@ -31,7 +29,7 @@ internal sealed class JpgQuantizationManager
             throw new ArgumentNullException(nameof(header));
         }
 
-        JpgQuantizationManager manager = new JpgQuantizationManager();
+        JpgQuantizationManager manager = new();
         if (header.QuantizationTables == null)
         {
             return manager; // No tables provided (legal for scans referencing none yet)
@@ -51,19 +49,21 @@ internal sealed class JpgQuantizationManager
 
             manager._tables[quantTable.TableId] = quantTable;
 
-            int[] zigZagEntries = new int[64];
+            var zigZagEntries = new int[64];
             for (int coefficientIndex = 0; coefficientIndex < 64; coefficientIndex++)
             {
                 zigZagEntries[coefficientIndex] = quantTable.Entries[coefficientIndex];
             }
+
             manager._entriesInt[quantTable.TableId] = zigZagEntries;
 
-            int[] naturalEntries = new int[64];
+            var naturalEntries = new int[64];
             for (int zigIndex = 0; zigIndex < 64; zigIndex++)
             {
                 int naturalIndex = JpgZigZag.Table[zigIndex];
                 naturalEntries[naturalIndex] = zigZagEntries[zigIndex];
             }
+
             manager._entriesNaturalInt[quantTable.TableId] = naturalEntries;
         }
 
@@ -74,7 +74,7 @@ internal sealed class JpgQuantizationManager
     {
         if (tableId < 0 || tableId >= MaxTableCount)
         {
-            return null;
+            throw new ArgumentOutOfRangeException($"Quantization table {tableId} is out of range of allowed 0-{MaxTableCount}.");
         }
 
         return _tables[tableId];
@@ -95,7 +95,7 @@ internal sealed class JpgQuantizationManager
     /// <summary>
     /// Create a new <see cref="Block8x8F"/> whose 64 scalar elements are populated with the natural-order
     /// quantization table entries for the given <paramref name="tableId"/>. This mirrors the internal
-    /// representation used by <see cref="Idct.ScaledIdctPlan.DequantNaturalBlock"/>.
+    /// representation used by natural block.
     /// </summary>
     /// <param name="tableId">Quantization table identifier (0..3).</param>
     /// <returns>Block with natural-order table values converted to float.</returns>

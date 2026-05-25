@@ -19,9 +19,9 @@ internal static class Jbig2SymbolDictionaryDecoder
     /// <param name="customTables">User-defined Huffman tables from referred Table segments.</param>
     /// <returns>Array of decoded symbol bitmaps.</returns>
     public static Jbig2Bitmap[] Decode(
-        ReadOnlySpan<byte> segmentData,
+        in ReadOnlySpan<byte> segmentData,
         List<Jbig2Bitmap> referredSymbols,
-        List<Jbig2HuffmanTable> customTables = null)
+        List<Jbig2HuffmanTable>? customTables = null)
     {
         if (segmentData.Length < 10)
         {
@@ -46,8 +46,8 @@ internal static class Jbig2SymbolDictionaryDecoder
     }
 
     private static Jbig2Bitmap[] DecodeArithmeticSymbols(
-        ReadOnlySpan<byte> segmentData,
-        Jbig2SymbolDictionarySegmentInfo info,
+        in ReadOnlySpan<byte> segmentData,
+        in Jbig2SymbolDictionarySegmentInfo info,
         List<Jbig2Bitmap> referredSymbols)
     {
         int newSymbolCount = info.NewSymbolCount;
@@ -59,7 +59,7 @@ internal static class Jbig2SymbolDictionaryDecoder
         }
 
         int symbolCodeLength = Jbig2SymbolCodeLength.Compute(referredSymbols.Count + newSymbolCount);
-        var context = new Jbig2SymbolArithmeticContext(info, symbolCodeLength);
+        Jbig2SymbolArithmeticContext context = new(info, symbolCodeLength);
 
         return Jbig2SymbolDictionaryArithmeticDecoder.Decode(
             segmentData.Slice(info.DataOffset),
@@ -68,23 +68,23 @@ internal static class Jbig2SymbolDictionaryDecoder
     }
 
     private static Jbig2Bitmap[] DecodeHuffmanSymbols(
-        ReadOnlySpan<byte> segmentData,
-        Jbig2SymbolDictionarySegmentInfo info,
+        in ReadOnlySpan<byte> segmentData,
+        in Jbig2SymbolDictionarySegmentInfo info,
         List<Jbig2Bitmap> referredSymbols,
-        List<Jbig2HuffmanTable> customTables)
+        List<Jbig2HuffmanTable>? customTables)
     {
         int newSymbolCount = info.NewSymbolCount;
 
         // 7.4.2.1.6 Symbol dictionary segment Huffman table selection
         int customIndex = 0;
 
-        var heightTable = Jbig2StandardHuffmanTables.SelectDeltaHeight(
+        Jbig2HuffmanTable heightTable = Jbig2StandardHuffmanTables.SelectDeltaHeight(
             info.Flags.HuffDhSelection, customTables, ref customIndex);
-        var widthTable = Jbig2StandardHuffmanTables.SelectDeltaWidth(
+        Jbig2HuffmanTable widthTable = Jbig2StandardHuffmanTables.SelectDeltaWidth(
             info.Flags.HuffDwSelection, customTables, ref customIndex);
-        var bmSizeTable = Jbig2StandardHuffmanTables.SelectBitmapSize(
+        Jbig2HuffmanTable bmSizeTable = Jbig2StandardHuffmanTables.SelectBitmapSize(
             info.Flags.HuffBmSizeSelection, customTables, ref customIndex);
-        var aggInstTable = Jbig2StandardHuffmanTables.SelectAggregateInstances(
+        Jbig2HuffmanTable aggInstTable = Jbig2StandardHuffmanTables.SelectAggregateInstances(
             info.Flags.HuffAggInstSelection, customTables, ref customIndex);
 
         if (info.DataOffset >= segmentData.Length)
@@ -94,11 +94,11 @@ internal static class Jbig2SymbolDictionaryDecoder
         }
 
         ReadOnlySpan<byte> codedData = segmentData.Slice(info.DataOffset);
-        var huffDecoder = new Jbig2HuffmanDecoder(codedData);
+        Jbig2HuffmanDecoder huffDecoder = new(codedData);
 
-        var newSymbols = new List<Jbig2Bitmap>(newSymbolCount);
+        List<Jbig2Bitmap> newSymbols = new(newSymbolCount);
         int currentHeight = 0;
-        var symbolWidths = new List<int>();
+        List<int> symbolWidths = [];
 
         // SDREFAGG: per-symbol refinement coding (ITU-T T.88 Section 6.5.8.2)
         bool useRefAgg = info.Flags.UseRefinementAggregation;
@@ -137,7 +137,7 @@ internal static class Jbig2SymbolDictionaryDecoder
                 if (useRefAgg)
                 {
                     // 6.5.8.2 Each symbol decoded individually via refinement aggregation
-                    var symbolBitmap = DecodeRefinementAggregate(
+                    Jbig2Bitmap symbolBitmap = DecodeRefinementAggregate(
                         huffDecoder,
                         aggInstTable,
                         symbolCodeLength,
@@ -185,7 +185,8 @@ internal static class Jbig2SymbolDictionaryDecoder
                 collectiveBitmap = Jbig2MmrDecoder.Decode(
                     codedData.Slice(startBytePos, bitmapSize),
                     totalWidth,
-                    currentHeight);
+                    currentHeight,
+                    out _);
 
                 huffDecoder.SetBytePosition(bitmapEnd);
             }
@@ -207,7 +208,7 @@ internal static class Jbig2SymbolDictionaryDecoder
                         continue;
                     }
 
-                    var symbol = new Jbig2Bitmap(w, currentHeight);
+                    Jbig2Bitmap symbol = new(w, currentHeight);
                     for (int y = 0; y < currentHeight; y++)
                     {
                         for (int x = 0; x < w && (xOffset + x) < collectiveBitmap.Width; x++)
@@ -237,7 +238,7 @@ internal static class Jbig2SymbolDictionaryDecoder
     /// </summary>
     private static Jbig2Bitmap ReadUncompressedBitmap(Jbig2HuffmanDecoder reader, int width, int height)
     {
-        var bitmap = new Jbig2Bitmap(width, height);
+        Jbig2Bitmap bitmap = new(width, height);
         for (int y = 0; y < height; y++)
         {
             for (int x = 0; x < width; x++)
@@ -263,7 +264,7 @@ internal static class Jbig2SymbolDictionaryDecoder
     {
         int totalSymbols = referredSymbols.Count + newSymbols.Count;
         var exportFlags = new bool[totalSymbols];
-        bool currentFlag = false;
+        var currentFlag = false;
         int flagIndex = 0;
 
         while (flagIndex < totalSymbols)
@@ -283,7 +284,7 @@ internal static class Jbig2SymbolDictionaryDecoder
             currentFlag = !currentFlag;
         }
 
-        var exported = new List<Jbig2Bitmap>();
+        List<Jbig2Bitmap> exported = [];
         for (int i = 0; i < referredSymbols.Count; i++)
         {
             if (i < exportFlags.Length && exportFlags[i])
@@ -324,7 +325,7 @@ internal static class Jbig2SymbolDictionaryDecoder
         int symbolHeight,
         List<Jbig2Bitmap> referredSymbols,
         List<Jbig2Bitmap> newSymbols,
-        Jbig2SymbolDictionarySegmentInfo info)
+        in Jbig2SymbolDictionarySegmentInfo info)
     {
         int refAggNinst = huffDecoder.DecodeValue(aggInstTable);
 
@@ -384,21 +385,21 @@ internal static class Jbig2SymbolDictionaryDecoder
 
         ReadOnlySpan<byte> refData = huffDecoder.GetDataSpan().Slice(startByteSingle, actualBmSize);
 
-        var refContext = new Jbig2ArithmeticContext(
+        Jbig2ArithmeticContext refContext = new(
             0,
             info.Flags.RefinementTemplate,
             info.RefinementAtPixels?.AtX,
             info.RefinementAtPixels?.AtY);
 
-        var refReader = new Jbig2ArithmeticReader(refData);
-        var refinedBitmap = Jbig2RefinementRegionDecoder.DecodeInline(
+        Jbig2ArithmeticReader refReader = new(refData);
+        Jbig2Bitmap refinedBitmap = Jbig2RefinementRegionDecoder.DecodeInline(
             ref refReader,
             refContext,
             symbolWidth,
             symbolHeight,
             referenceBitmap,
-            (symbolWidth - referenceBitmap.Width) / 2 + rdx,
-            (symbolHeight - referenceBitmap.Height) / 2 + rdy);
+            ((symbolWidth - referenceBitmap.Width) / 2) + rdx,
+            ((symbolHeight - referenceBitmap.Height) / 2) + rdy);
 
         // (7) Advance past embedded bitmap data
         huffDecoder.SetBytePosition(startByteSingle + actualBmSize);

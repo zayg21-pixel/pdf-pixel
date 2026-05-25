@@ -47,19 +47,7 @@ public class PdfPopupAnnotation : PdfAnnotationBase
     /// </summary>
     public bool IsOpen { get; }
 
-    /// <summary>
-    /// Renders the fallback content for popup annotations.
-    /// </summary>
-    /// <param name="processor">The command processor to emit commands to.</param>
-    /// <param name="page">The PDF page containing this annotation.</param>
-    /// <param name="visualStateKind">The visual state to render (Normal, Rollover, Down).</param>
-    /// <returns>False - popup annotations are invisible and don't render visual content.</returns>
-    /// <remarks>
-    /// Popup annotations are metadata that define where a popup window would appear.
-    /// They don't have a visual representation themselves. Most PDF viewers either ignore
-    /// them entirely or implement their own popup UI style.
-    /// </remarks>
-    public override bool RenderFallback(IPdfCommandProcessor processor, PdfPage page, PdfAnnotationVisualStateKind visualStateKind)
+    protected override bool RenderFallback(IPdfCommandProcessor processor, PdfPage page, PdfAnnotationVisualStateKind visualStateKind, PdfRenderingParameters renderingParameters)
     {
         return false;
     }

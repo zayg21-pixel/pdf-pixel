@@ -1,4 +1,5 @@
 using System;
+
 using PdfPixel.Jpg.Huffman;
 using PdfPixel.Jpg.Readers;
 
@@ -9,7 +10,7 @@ namespace PdfPixel.Jpg.Decoding;
 /// Coefficients are stored in natural (row-major) order. Spectral indices (zig-zag order) are remapped
 /// to natural indices during decode to avoid later de-zig-zag passes.
 /// </summary>
-internal sealed class JpgProgressiveBlockDecoder
+internal static class JpgProgressiveBlockDecoder
 {
     /// <summary>
     /// Decode DC coefficient (first pass or refinement) for a progressive JPEG block.
@@ -28,10 +29,12 @@ internal sealed class JpgProgressiveBlockDecoder
         {
             throw new ArgumentNullException(nameof(dcDecoder));
         }
+
         if (coefficients == null)
         {
             throw new ArgumentNullException(nameof(coefficients));
         }
+
         if (coefficientBase < 0 || coefficientBase + 63 >= coefficients.Length)
         {
             throw new ArgumentOutOfRangeException(nameof(coefficientBase), "Coefficient base outside buffer range.");
@@ -57,10 +60,10 @@ internal sealed class JpgProgressiveBlockDecoder
         }
         else
         {
-            int bit = (int)bitReader.ReadBits(1);
+            var bit = (int)bitReader.ReadBits(1);
             if (bit != 0)
             {
-                int sign = coefficients[coefficientBase + 0] >= 0 ? 1 : -1;
+                int sign = (coefficients[coefficientBase + 0] >= 0) ? 1 : -1;
                 coefficients[coefficientBase + 0] += sign * (1 << successiveApproxLow);
             }
         }
@@ -84,14 +87,17 @@ internal sealed class JpgProgressiveBlockDecoder
         {
             throw new ArgumentNullException(nameof(acDecoder));
         }
+
         if (coefficients == null)
         {
             throw new ArgumentNullException(nameof(coefficients));
         }
+
         if (coefficientBase < 0 || coefficientBase + 63 >= coefficients.Length)
         {
             throw new ArgumentOutOfRangeException(nameof(coefficientBase), "Coefficient base outside buffer range.");
         }
+
         if (spectralStart < 1 || spectralStart > 63 || spectralEnd < spectralStart || spectralEnd > 63)
         {
             throw new ArgumentOutOfRangeException(nameof(spectralStart), "Invalid spectral band range.");
@@ -122,9 +128,10 @@ internal sealed class JpgProgressiveBlockDecoder
                     int eobCount = 1;
                     if (run > 0)
                     {
-                        int additionalBits = (int)bitReader.ReadBits(run);
+                        var additionalBits = (int)bitReader.ReadBits(run);
                         eobCount = (1 << run) + additionalBits;
                     }
+
                     eobRun = eobCount - 1;
                     break;
                 }
@@ -169,14 +176,17 @@ internal sealed class JpgProgressiveBlockDecoder
         {
             throw new ArgumentNullException(nameof(acDecoder));
         }
+
         if (coefficients == null)
         {
             throw new ArgumentNullException(nameof(coefficients));
         }
+
         if (coefficientBase < 0 || coefficientBase + 63 >= coefficients.Length)
         {
             throw new ArgumentOutOfRangeException(nameof(coefficientBase), "Coefficient base outside buffer range.");
         }
+
         if (spectralStart < 1 || spectralStart > 63 || spectralEnd < spectralStart || spectralEnd > 63)
         {
             throw new ArgumentOutOfRangeException(nameof(spectralStart), "Invalid spectral band range.");
@@ -191,14 +201,15 @@ internal sealed class JpgProgressiveBlockDecoder
                 int existing = coefficients[idx];
                 if (existing != 0)
                 {
-                    int bit = (int)bitReader.ReadBits(1);
+                    var bit = (int)bitReader.ReadBits(1);
                     if (bit != 0)
                     {
-                        int sign = existing >= 0 ? 1 : -1;
-                        coefficients[idx] = existing + sign * (1 << successiveApproxLow);
+                        int sign = (existing >= 0) ? 1 : -1;
+                        coefficients[idx] = existing + (sign * (1 << successiveApproxLow));
                     }
                 }
             }
+
             eobRun--;
             return;
         }
@@ -222,7 +233,7 @@ internal sealed class JpgProgressiveBlockDecoder
                     int eobCount = 1;
                     if (run > 0)
                     {
-                        int additionalBits = (int)bitReader.ReadBits(run);
+                        var additionalBits = (int)bitReader.ReadBits(run);
                         eobCount = (1 << run) + additionalBits;
                     }
 
@@ -233,14 +244,15 @@ internal sealed class JpgProgressiveBlockDecoder
                         int existing = coefficients[idx];
                         if (existing != 0)
                         {
-                            int bit = (int)bitReader.ReadBits(1);
+                            var bit = (int)bitReader.ReadBits(1);
                             if (bit != 0)
                             {
-                                int sign = existing >= 0 ? 1 : -1;
-                                coefficients[idx] = existing + sign * (1 << successiveApproxLow);
+                                int sign = (existing >= 0) ? 1 : -1;
+                                coefficients[idx] = existing + (sign * (1 << successiveApproxLow));
                             }
                         }
                     }
+
                     eobRun = eobCount - 1;
                     return;
                 }
@@ -254,26 +266,28 @@ internal sealed class JpgProgressiveBlockDecoder
                         int existing = coefficients[idx];
                         if (existing != 0)
                         {
-                            int bit = (int)bitReader.ReadBits(1);
+                            var bit = (int)bitReader.ReadBits(1);
                             if (bit != 0)
                             {
-                                int sign = existing >= 0 ? 1 : -1;
-                                coefficients[idx] = existing + sign * (1 << successiveApproxLow);
+                                int sign = (existing >= 0) ? 1 : -1;
+                                coefficients[idx] = existing + (sign * (1 << successiveApproxLow));
                             }
                         }
                         else
                         {
                             zerosRemaining--;
                         }
+
                         k++;
                     }
+
                     continue;
                 }
             }
             else if (size == 1)
             {
-                int signBit = (int)bitReader.ReadBits(1);
-                int newCoefficient = (signBit != 0 ? 1 : -1) * (1 << successiveApproxLow);
+                var signBit = (int)bitReader.ReadBits(1);
+                int newCoefficient = ((signBit != 0) ? 1 : -1) * (1 << successiveApproxLow);
 
                 while (k <= spectralEnd)
                 {
@@ -281,12 +295,13 @@ internal sealed class JpgProgressiveBlockDecoder
                     int idx = coefficientBase + naturalIndex;
                     if (coefficients[idx] != 0)
                     {
-                        int bit = (int)bitReader.ReadBits(1);
+                        var bit = (int)bitReader.ReadBits(1);
                         if (bit != 0)
                         {
-                            int sign = coefficients[idx] >= 0 ? 1 : -1;
+                            int sign = (coefficients[idx] >= 0) ? 1 : -1;
                             coefficients[idx] += sign * (1 << successiveApproxLow);
                         }
+
                         k++;
                     }
                     else

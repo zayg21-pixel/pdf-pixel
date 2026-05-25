@@ -18,7 +18,7 @@ internal sealed class Jbig2TableParser
     /// </summary>
     /// <param name="segmentData">The raw segment data.</param>
     /// <returns>Parsed Huffman table, or null on failure.</returns>
-    public Jbig2HuffmanTable Parse(ReadOnlySpan<byte> segmentData)
+    public Jbig2HuffmanTable? Parse(in ReadOnlySpan<byte> segmentData)
     {
         if (segmentData.Length < 8)
         {
@@ -38,7 +38,7 @@ internal sealed class Jbig2TableParser
         int highValue = ReadInt32BigEndian(segmentData, 5);
 
         int offset = 9 * 8; // bit offset (header is 9 bytes)
-        var lines = new List<Jbig2HuffmanLine>();
+        List<Jbig2HuffmanLine> lines = [];
 
         // Parse table lines
         int bitLength = segmentData.Length * 8;
@@ -78,7 +78,7 @@ internal sealed class Jbig2TableParser
         return Jbig2HuffmanTable.Build(lineArray);
     }
 
-    private static int ReadNBits(ReadOnlySpan<byte> data, ref int bitOffset, int count)
+    private static int ReadNBits(in ReadOnlySpan<byte> data, ref int bitOffset, int count)
     {
         int result = 0;
         for (int i = 0; i < count; i++)
@@ -97,8 +97,5 @@ internal sealed class Jbig2TableParser
         return result;
     }
 
-    private static int ReadInt32BigEndian(ReadOnlySpan<byte> data, int offset)
-    {
-        return (int)((data[offset] << 24) | (data[offset + 1] << 16) | (data[offset + 2] << 8) | data[offset + 3]);
-    }
+    private static int ReadInt32BigEndian(in ReadOnlySpan<byte> data, int offset) => (int)((data[offset] << 24) | (data[offset + 1] << 16) | (data[offset + 2] << 8) | data[offset + 3]);
 }

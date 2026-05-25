@@ -1,5 +1,6 @@
 using System;
 using System.Runtime.CompilerServices;
+
 using PdfPixel.Jpg.Readers;
 
 namespace PdfPixel.Jpg.Huffman;
@@ -62,7 +63,7 @@ internal sealed class JpgHuffmanDecoder
                     {
                         int replicateCount = 1 << LookaheadBits - codeLength;
                         int baseIndex = code << LookaheadBits - codeLength;
-                        short entry = (short)(codeLength << 8 | table.Values[huffValueIndex + valueIndex]);
+                        var entry = (short)(codeLength << 8 | table.Values[huffValueIndex + valueIndex]);
                         for (int replicateIndex = 0; replicateIndex < replicateCount; replicateIndex++)
                         {
                             _lookahead[baseIndex + replicateIndex] = entry;
@@ -89,8 +90,8 @@ internal sealed class JpgHuffmanDecoder
     public int Decode(ref JpgBitReader br)
     {
         uint peek16 = br.PeekBits16();
-        int lookaheadShift = MaxCodeBits - LookaheadBits;
-        int lookaheadIndex = (int)(peek16 >> lookaheadShift);
+        const int lookaheadShift = MaxCodeBits - LookaheadBits;
+        var lookaheadIndex = (int)(peek16 >> lookaheadShift);
 
         short lookaheadEntry = _lookahead[lookaheadIndex];
         if (lookaheadEntry != -1)

@@ -10,13 +10,19 @@ namespace PdfPixel.Jbig2.Model;
 /// </summary>
 internal ref struct Jbig2SlidingWindowContext
 {
-    /// <summary>Per-group window registers. Index matches <see cref="Jbig2RowTemplate.SlidingGroups"/>.</summary>
+    /// <summary>
+    /// Per-group window registers. Index matches <see cref="Jbig2RowTemplate.SlidingGroups"/>.
+    /// </summary>
     internal readonly Span<uint> Windows;
 
-    /// <summary>Per-group row base offsets (byte offset into bitmap data for the source row).</summary>
+    /// <summary>
+    /// Per-group row base offsets (byte offset into bitmap data for the source row).
+    /// </summary>
     internal readonly Span<int> RowBases;
 
-    /// <summary>Sliding group descriptors from the template.</summary>
+    /// <summary>
+    /// Sliding group descriptors from the template.
+    /// </summary>
     internal readonly Jbig2SlidingWindowGroup[] SlidingGroups;
 
     /// <summary>
@@ -30,8 +36,8 @@ internal ref struct Jbig2SlidingWindowContext
     /// <param name="stride">Bitmap stride in bytes.</param>
     internal Jbig2SlidingWindowContext(
         Jbig2SlidingWindowGroup[] slidingGroups,
-        Span<uint> windows,
-        Span<int> rowBases,
+        in Span<uint> windows,
+        in Span<int> rowBases,
         int width,
         int height,
         int stride)

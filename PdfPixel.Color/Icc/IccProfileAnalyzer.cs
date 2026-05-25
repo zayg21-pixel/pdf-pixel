@@ -10,9 +10,9 @@ namespace PdfPixel.Color.Icc;
 public static class IccProfileAnalyzer
 {
     // Standard sRGB primaries in XYZ (D50 adapted)
-    private static readonly IccXyz StandardSrgbRedPrimary = new IccXyz(0.4361f, 0.2225f, 0.0139f);
-    private static readonly IccXyz StandardSrgbGreenPrimary = new IccXyz(0.3851f, 0.7169f, 0.0971f);
-    private static readonly IccXyz StandardSrgbBluePrimary = new IccXyz(0.1431f, 0.0606f, 0.7141f);
+    private static readonly IccXyz StandardSrgbRedPrimary = new(0.4361f, 0.2225f, 0.0139f);
+    private static readonly IccXyz StandardSrgbGreenPrimary = new(0.3851f, 0.7169f, 0.0971f);
+    private static readonly IccXyz StandardSrgbBluePrimary = new(0.1431f, 0.0606f, 0.7141f);
 
     // Standard sRGB gamma approximation (2.2 is close enough for detection)
     private const float StandardSrgbGamma = 2.2f;
@@ -77,12 +77,12 @@ public static class IccProfileAnalyzer
         }
 
         // Create reference sRGB gamma curve for comparison
-        var referenceTrc = IccTrc.FromGamma(StandardSrgbGamma);
+        IccTrc referenceTrc = IccTrc.FromGamma(StandardSrgbGamma);
 
         // Check TRC curves are standard sRGB-like using 32-point analysis
-        return IsTrcSimilar(profile.RedTrc, referenceTrc, TrcComparisonPoints, TrcTolerance) &&
-               IsTrcSimilar(profile.GreenTrc, referenceTrc, TrcComparisonPoints, TrcTolerance) &&
-               IsTrcSimilar(profile.BlueTrc, referenceTrc, TrcComparisonPoints, TrcTolerance);
+        return IsTrcSimilar(profile.RedTrc, referenceTrc, TrcComparisonPoints, TrcTolerance)
+            && IsTrcSimilar(profile.GreenTrc, referenceTrc, TrcComparisonPoints, TrcTolerance)
+            && IsTrcSimilar(profile.BlueTrc, referenceTrc, TrcComparisonPoints, TrcTolerance);
     }
 
     /// <summary>
@@ -117,7 +117,7 @@ public static class IccProfileAnalyzer
         }
 
         // Create reference gamma curve for comparison
-        var referenceTrc = IccTrc.FromGamma(StandardSrgbGamma);
+        IccTrc referenceTrc = IccTrc.FromGamma(StandardSrgbGamma);
 
         // Check if gray TRC is similar to standard gamma using 32-point analysis
         return IsTrcSimilar(profile.GrayTrc, referenceTrc, TrcComparisonPoints, TrcTolerance);
@@ -160,10 +160,7 @@ public static class IccProfileAnalyzer
     /// </summary>
     /// <param name="profile">The ICC profile to check.</param>
     /// <returns>true if the profile has A2B LUTs; otherwise, false.</returns>
-    private static bool HasA2BLuts(IccProfile profile)
-    {
-        return profile.A2BLut0 != null || profile.A2BLut1 != null || profile.A2BLut2 != null;
-    }
+    private static bool HasA2BLuts(IccProfile profile) => profile.A2BLut0 != null || profile.A2BLut1 != null || profile.A2BLut2 != null;
 
     /// <summary>
     /// Checks if two XYZ values are close within the specified tolerance.
@@ -174,8 +171,8 @@ public static class IccProfileAnalyzer
     /// <returns>true if the values are within tolerance; otherwise, false.</returns>
     private static bool IsXyzClose(IccXyz a, IccXyz b, float tolerance)
     {
-        return Math.Abs(a.X - b.X) <= tolerance &&
-               Math.Abs(a.Y - b.Y) <= tolerance &&
-               Math.Abs(a.Z - b.Z) <= tolerance;
+        return Math.Abs(a.X - b.X) <= tolerance
+            && Math.Abs(a.Y - b.Y) <= tolerance
+            && Math.Abs(a.Z - b.Z) <= tolerance;
     }
 }

@@ -83,7 +83,6 @@ public class JpxImageDecoder : PdfImageDecoder
 
     public override void Cleanup()
     {
-        _rowConverter?.Dispose();
         _rowConverter = null;
         _tileProvider = default;
         _resolvedConverter = null;

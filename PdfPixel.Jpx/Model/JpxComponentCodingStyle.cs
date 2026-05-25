@@ -13,5 +13,5 @@ public sealed class JpxComponentCodingStyle
     /// <summary>
     /// Gets or sets the coding style parameters for this component.
     /// </summary>
-    public JpxCodingStyle CodingStyle { get; set; }
+    public JpxCodingStyle? CodingStyle { get; set; }
 }

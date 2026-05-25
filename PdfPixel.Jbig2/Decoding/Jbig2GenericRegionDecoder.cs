@@ -16,15 +16,16 @@ internal static class Jbig2GenericRegionDecoder
     /// </summary>
     /// <param name="data">Flags byte followed by encoded data.</param>
     /// <param name="regionHeader">Region header carrying dimensions and placement metadata.</param>
+    /// <param name="observer">Execution observer for long-running operations.</param>
     /// <returns>Decoded bitmap.</returns>
-    internal static Jbig2Bitmap Decode(ReadOnlySpan<byte> data, Jbig2RegionHeader regionHeader, IJBig2ExectionObserver observer = null)
+    internal static Jbig2Bitmap Decode(in ReadOnlySpan<byte> data, Jbig2RegionHeader regionHeader, IJBig2ExectionObserver? observer = null)
     {
         if (data.IsEmpty)
         {
             throw new InvalidOperationException("JBIG2 generic region data too short: missing flags byte.");
         }
 
-        var flags = new Jbig2GenericRegionFlags(data[0]);
+        Jbig2GenericRegionFlags flags = new(data[0]);
         return Decode(flags, data.Slice(1), regionHeader.Width, regionHeader.Height, observer);
     }
 
@@ -37,12 +38,13 @@ internal static class Jbig2GenericRegionDecoder
     /// <param name="codedData">Encoded data (AT bytes + bitstream for arithmetic; raw bitstream for MMR).</param>
     /// <param name="width">Region width in pixels.</param>
     /// <param name="height">Region height in pixels.</param>
+    /// <param name="observer">Execution observer for long-running operations.</param>
     /// <returns>Decoded bitmap.</returns>
-    internal static Jbig2Bitmap Decode(Jbig2GenericRegionFlags flags, ReadOnlySpan<byte> codedData, int width, int height, IJBig2ExectionObserver observer = null)
+    internal static Jbig2Bitmap Decode(in Jbig2GenericRegionFlags flags, in ReadOnlySpan<byte> codedData, int width, int height, IJBig2ExectionObserver? observer = null)
     {
         if (flags.UseMmr)
         {
-            return Jbig2MmrDecoder.Decode(codedData, width, height, observer);
+            return Jbig2MmrDecoder.Decode(codedData, width, height, out _, observer);
         }
 
         int atCount = Jbig2Templates.AtPixelCount(flags.TemplateId);
@@ -65,15 +67,15 @@ internal static class Jbig2GenericRegionDecoder
     /// <param name="atPixels">Adaptive template pixel offsets.</param>
     /// <returns>Decoded bitmap.</returns>
     internal static Jbig2Bitmap DecodeWithAt(
-        Jbig2GenericRegionFlags flags,
-        ReadOnlySpan<byte> codedData,
+        in Jbig2GenericRegionFlags flags,
+        in ReadOnlySpan<byte> codedData,
         int width,
         int height,
-        Jbig2AtPixels atPixels)
+        in Jbig2AtPixels atPixels)
     {
         if (flags.UseMmr)
         {
-            return Jbig2MmrDecoder.Decode(codedData, width, height);
+            return Jbig2MmrDecoder.Decode(codedData, width, height, out _);
         }
 
         return DecodeArithmeticWithAt(flags.TemplateId, flags.TypicalPrediction, codedData, width, height, atPixels);
@@ -85,20 +87,20 @@ internal static class Jbig2GenericRegionDecoder
     private static Jbig2Bitmap DecodeArithmeticWithAt(
         int templateId,
         bool typicalPrediction,
-        ReadOnlySpan<byte> codedData,
+        in ReadOnlySpan<byte> codedData,
         int width,
         int height,
-        Jbig2AtPixels atPixels,
-        IJBig2ExectionObserver observer = null)
+        in Jbig2AtPixels atPixels,
+        IJBig2ExectionObserver? observer = null)
     {
-        var bitmap = new Jbig2Bitmap(width, height);
+        Jbig2Bitmap bitmap = new(width, height);
         scoped var decoder = new Jbig2ArithmeticReader(codedData);
 
         int contextSize = Jbig2Templates.GetContextSize(templateId);
         scoped Span<byte> contexts = stackalloc byte[contextSize];
-        bool ltp = false;
+        var ltp = false;
 
-        var fastTemplate = Jbig2Templates.BuildFastTemplate(templateId, atPixels);
+        Jbig2RowTemplate fastTemplate = Jbig2Templates.BuildFastTemplate(templateId, atPixels);
 
         // Pseudo-pixel context for TPGDON (ITU-T T.88 Table 6)
         int pseudoPixelContext = templateId switch

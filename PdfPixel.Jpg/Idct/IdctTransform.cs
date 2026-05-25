@@ -1,4 +1,5 @@
 ﻿using PdfPixel.Jpg.Model;
+
 using System;
 using System.Numerics;
 using System.Runtime.CompilerServices;
@@ -9,7 +10,7 @@ namespace PdfPixel.Jpg.Idct;
 /// Performs inverse discrete cosine transform (IDCT) operations over 8x8 image blocks using an AAN scaled algorithm.
 /// The implementation works on a packed <see cref="Block8x8F"/> where each logical row is split into two <see cref="Vector4"/> halves.
 /// </summary>
-internal static partial class IdctTransform
+internal static class IdctTransform
 {
     private const int DctSize = 8;
     private const int CenterSample = 128;
@@ -20,13 +21,8 @@ internal static partial class IdctTransform
     private static readonly Vector4 C_N1_082392200 = new(-1.082392200f); // -sqrt(2) * cos(3pi/8)
     private static readonly Vector4 C_N2_613125930 = new(-2.613125930f); // -sqrt(2) * (cos(pi/8) + cos(3pi/8))
 
-    // Unused in the current variant but retained (with clarification) in case other partials / future optimizations rely on them:
-    private static readonly Vector4 C_0_707106781 = new(0.707106781f); // 1 / sqrt(2)
-    private static readonly Vector4 C_0_382683433 = new(0.382683433f); // sin(pi/8)
-    private static readonly Vector4 C_0_541196100 = new(0.541196100f); // sqrt(2) * cos(3pi/8)
-    private static readonly Vector4 C_1_306562965 = new(1.306562965f); // cos(pi/16) + cos(3pi/16)
-
     private const float LevelShift = 128f;
+
     private static readonly Vector4 LevelShiftVector = new(LevelShift);
 
     private static readonly Block8x8F AanInputScaleBlock = BuildAanInputScaleBlock();
@@ -60,7 +56,7 @@ internal static partial class IdctTransform
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static void FillBlockFromDc(ref Block8x8F inputNatural, float dcDequant)
     {
-        float pixel = dcDequant / DctSize + CenterSample;
+        float pixel = (dcDequant / DctSize) + CenterSample;
         inputNatural.Clear(pixel);
     }
 
@@ -108,7 +104,7 @@ internal static partial class IdctTransform
         Vector4 evenSum02 = even0 + even2;
         Vector4 evenDiff02 = even0 - even2;
         Vector4 evenSum13 = even1 + even3;
-        Vector4 evenTmp12 = (even1 - even3) * C_1_414213562 - evenSum13;
+        Vector4 evenTmp12 = ((even1 - even3) * C_1_414213562) - evenSum13;
 
         Vector4 out0Even = evenSum02 + evenSum13;
         Vector4 out3Even = evenSum02 - evenSum13;
@@ -129,8 +125,8 @@ internal static partial class IdctTransform
         Vector4 out7OddBase = sumOdd0Odd3 + sumOdd2Odd1;
         Vector4 oddTmp11 = (sumOdd0Odd3 - sumOdd2Odd1) * C_1_414213562;
         Vector4 oddIntermediate = (diffOdd2Odd1 + diffOdd0Odd3) * C_1_847759065;
-        Vector4 oddTmp10 = diffOdd0Odd3 * C_N1_082392200 + oddIntermediate;
-        Vector4 oddTmp12 = diffOdd2Odd1 * C_N2_613125930 + oddIntermediate;
+        Vector4 oddTmp10 = (diffOdd0Odd3 * C_N1_082392200) + oddIntermediate;
+        Vector4 oddTmp12 = (diffOdd2Odd1 * C_N2_613125930) + oddIntermediate;
         Vector4 out6Odd = oddTmp12 - out7OddBase;
         Vector4 out5Odd = oddTmp11 - out6Odd;
         Vector4 out4Odd = oddTmp10 - out5Odd;

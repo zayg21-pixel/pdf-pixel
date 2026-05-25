@@ -90,7 +90,7 @@ public sealed class JpxTile
             return 0;
         }
 
-        return ComponentData[component][y * Width + x];
+        return ComponentData[component][(y * Width) + x];
     }
 
     /// <summary>
@@ -106,23 +106,32 @@ public sealed class JpxTile
             return 0;
         }
 
+        if (componentInfo == null)
+        {
+            return 0;
+        }
+
         if (x < 0 || x >= Width || y < 0 || y >= Height)
         {
             return 0;
         }
 
-        int rawValue = ComponentData[component][y * Width + x];
+        int rawValue = ComponentData[component][(y * Width) + x];
         int actualBits = componentInfo.PrecisionBits;
 
-        uint uValue = componentInfo.IsSigned
+        uint uValue = (componentInfo.IsSigned)
             ? (uint)(rawValue + (1 << (actualBits - 1)))
             : (uint)rawValue;
 
         int shift = actualBits - normalizedBitsPerComponent;
         if (shift > 0)
+        {
             uValue >>= shift;
+        }
         else if (shift < 0)
+        {
             uValue <<= -shift;
+        }
 
         return uValue;
     }
@@ -146,6 +155,6 @@ public sealed class JpxTile
             return;
         }
 
-        ComponentData[component][y * Width + x] = value;
+        ComponentData[component][(y * Width) + x] = value;
     }
 }
