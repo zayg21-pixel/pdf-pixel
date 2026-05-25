@@ -12,7 +12,7 @@ internal sealed class CidRangeComparer : IComparer<CidRangeMap>
     /// <summary>
     /// Singleton instance to avoid allocations.
     /// </summary>
-    public static readonly CidRangeComparer Instance = new CidRangeComparer();
+    public static readonly CidRangeComparer Instance = new();
 
     private CidRangeComparer()
     {

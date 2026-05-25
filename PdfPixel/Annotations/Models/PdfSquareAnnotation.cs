@@ -25,29 +25,29 @@ public class PdfSquareAnnotation : PdfAnnotationBase
 
     internal override bool RenderFallback(IPdfCommandProcessor processor, IPdfPageInternal page, PdfAnnotationVisualStateKind visualStateKind, PdfRenderingParameters renderingParameters)
     {
-        var width = Rectangle.Width;
-        var height = Rectangle.Height;
-        var interiorSKColor = ResolveInteriorColor(page);
+        float width = Rectangle.Width;
+        float height = Rectangle.Height;
+        SKColor interiorSKColor = ResolveInteriorColor(page);
 
         if (interiorSKColor != SKColors.Transparent)
         {
-            var fillPaint = new SKPaint
+            SKPaint fillPaint = new()
             {
                 Style = SKPaintStyle.Fill,
                 IsAntialias = renderingParameters.Antialias,
                 Color = interiorSKColor
             };
 
-            using var fillPath = new SKPath();
+            using SKPath fillPath = new();
             fillPath.AddRect(new SKRect(Rectangle.Left, Rectangle.Top, Rectangle.Left + width, Rectangle.Top + height));
             processor.Process(new DrawPathCommand(fillPath, fillPaint));
         }
 
-        if (BorderStyle != null && BorderStyle.Width > 0 && Color != null && Color.Length > 0)
+        if (BorderStyle?.Width > 0 && Color?.Length > 0)
         {
-            var strokeColor = ResolveColor(page, SKColors.Black);
+            SKColor strokeColor = ResolveColor(page, SKColors.Black);
 
-            var strokePaint = new SKPaint
+            SKPaint strokePaint = new()
             {
                 Style = SKPaintStyle.Stroke,
                 StrokeWidth = BorderStyle.Width,
@@ -57,14 +57,14 @@ public class PdfSquareAnnotation : PdfAnnotationBase
 
             BorderStyle.TryApplyEffect(strokePaint, strokeColor);
 
-            var halfBorder = BorderStyle.Width / 2;
-            var adjustedRect = new SKRect(
+            float halfBorder = BorderStyle.Width / 2;
+            SKRect adjustedRect = new(
                 Rectangle.Left + halfBorder,
                 Rectangle.Top + halfBorder,
                 Rectangle.Right - halfBorder,
                 Rectangle.Bottom - halfBorder);
 
-            using var strokePath = new SKPath();
+            using SKPath strokePath = new();
             strokePath.AddRect(adjustedRect);
             processor.Process(new DrawPathCommand(strokePath, strokePaint));
         }
@@ -78,7 +78,7 @@ public class PdfSquareAnnotation : PdfAnnotationBase
     /// <returns>A string containing the annotation type.</returns>
     public override string ToString()
     {
-        var contentsText = Contents.ToString();
+        string contentsText = Contents.ToString();
 
         if (!string.IsNullOrEmpty(contentsText))
         {

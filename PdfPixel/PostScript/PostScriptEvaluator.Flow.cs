@@ -82,6 +82,7 @@ namespace PdfPixel.PostScript
             {
                 throw new System.InvalidOperationException("exit: no active loop to exit");
             }
+
             _exitRequested = true;
         }
 
@@ -100,7 +101,7 @@ namespace PdfPixel.PostScript
         {
             // stopped expects: <proc> stopped ; executes proc and pushes true if a stop occurred, else false.
             Ensure(stack,1);
-            var procedure = PopOfType<PostScriptProcedure>(stack);
+            PostScriptProcedure procedure = PopOfType<PostScriptProcedure>(stack);
             procedure.EnsureAccess(PostScriptAccessOperation.Execute);
             int previousStoppedDepth = _stoppedDepth;
             bool previousStopFlag = _stopRequested;
@@ -118,17 +119,15 @@ namespace PdfPixel.PostScript
         {
             // loop expects a single procedure operand: proc loop
             Ensure(stack,1);
-            var procedure = PopOfType<PostScriptProcedure>(stack);
+            PostScriptProcedure procedure = PopOfType<PostScriptProcedure>(stack);
             procedure.EnsureAccess(PostScriptAccessOperation.Execute);
             _loopDepth++;
-            while (true)
+            while (!_exitRequested && !_stopRequested)
             {
-                if (_exitRequested || _stopRequested)
-                {
-                    break;
-                }
+
                 EvaluateTokens(procedure.Tokens, stack);
             }
+
             _loopDepth--;
             if (_loopDepth ==0 && _exitRequested)
             {
@@ -138,9 +137,9 @@ namespace PdfPixel.PostScript
 
         private void ExecProc(Stack<PostScriptToken> stack)
         {
-            var procedure = PopOfType<PostScriptProcedure>(stack);
+            PostScriptProcedure procedure = PopOfType<PostScriptProcedure>(stack);
             procedure.EnsureAccess(PostScriptAccessOperation.Execute);
-            foreach (var inner in procedure.Tokens)
+            foreach (PostScriptToken inner in procedure.Tokens)
             {
                 if (inner is PostScriptExecutableName exec)
                 {
@@ -150,10 +149,12 @@ namespace PdfPixel.PostScript
                 {
                     stack.Push(inner);
                 }
+
                 if (_exitRequested && _loopDepth <=0)
                 {
                     _exitRequested = false;
                 }
+
                 if (_stopRequested && _stoppedDepth <=0)
                 {
                     // Hard stop outside handler: cease early.
@@ -164,7 +165,7 @@ namespace PdfPixel.PostScript
 
         private bool PopCondition(Stack<PostScriptToken> stack)
         {
-            var token = stack.Pop();
+            PostScriptToken token = stack.Pop();
             return token switch
             {
                 PostScriptBoolean b => b.Value,
@@ -176,14 +177,15 @@ namespace PdfPixel.PostScript
         private void IfOp(Stack<PostScriptToken> stack)
         {
             Ensure(stack,2);
-            var procedure = PopOfType<PostScriptProcedure>(stack);
+            PostScriptProcedure procedure = PopOfType<PostScriptProcedure>(stack);
             bool condition = PopCondition(stack);
             if (!condition)
             {
                 return;
             }
+
             procedure.EnsureAccess(PostScriptAccessOperation.Execute);
-            foreach (var inner in procedure.Tokens)
+            foreach (PostScriptToken inner in procedure.Tokens)
             {
                 if (inner is PostScriptExecutableName exec)
                 {
@@ -193,10 +195,12 @@ namespace PdfPixel.PostScript
                 {
                     stack.Push(inner);
                 }
+
                 if (_exitRequested && _loopDepth <=0)
                 {
                     _exitRequested = false;
                 }
+
                 if (_stopRequested && _stoppedDepth <=0)
                 {
                     break;
@@ -207,12 +211,12 @@ namespace PdfPixel.PostScript
         private void IfElseOp(Stack<PostScriptToken> stack)
         {
             Ensure(stack,3);
-            var falseProcedure = PopOfType<PostScriptProcedure>(stack);
-            var trueProcedure = PopOfType<PostScriptProcedure>(stack);
+            PostScriptProcedure falseProcedure = PopOfType<PostScriptProcedure>(stack);
+            PostScriptProcedure trueProcedure = PopOfType<PostScriptProcedure>(stack);
             bool condition = PopCondition(stack);
-            var chosen = condition ? trueProcedure : falseProcedure;
+            PostScriptProcedure chosen = condition ? trueProcedure : falseProcedure;
             chosen.EnsureAccess(PostScriptAccessOperation.Execute);
-            foreach (var inner in chosen.Tokens)
+            foreach (PostScriptToken inner in chosen.Tokens)
             {
                 if (inner is PostScriptExecutableName exec)
                 {
@@ -222,10 +226,12 @@ namespace PdfPixel.PostScript
                 {
                     stack.Push(inner);
                 }
+
                 if (_exitRequested && _loopDepth <=0)
                 {
                     _exitRequested = false;
                 }
+
                 if (_stopRequested && _stoppedDepth <=0)
                 {
                     break;
@@ -236,10 +242,10 @@ namespace PdfPixel.PostScript
         private void ForLoopOperator(Stack<PostScriptToken> stack)
         {
             Ensure(stack,4);
-            var procedure = PopOfType<PostScriptProcedure>(stack);
-            var limit = PopOfType<PostScriptNumber>(stack);
-            var increment = PopOfType<PostScriptNumber>(stack);
-            var initial = PopOfType<PostScriptNumber>(stack);
+            PostScriptProcedure procedure = PopOfType<PostScriptProcedure>(stack);
+            PostScriptNumber limit = PopOfType<PostScriptNumber>(stack);
+            PostScriptNumber increment = PopOfType<PostScriptNumber>(stack);
+            PostScriptNumber initial = PopOfType<PostScriptNumber>(stack);
             procedure.EnsureAccess(PostScriptAccessOperation.Execute);
             float startValue = initial.Value;
             float stepValue = increment.Value;
@@ -248,6 +254,7 @@ namespace PdfPixel.PostScript
             {
                 return;
             }
+
             _loopDepth++;
             if (stepValue >0f)
             {
@@ -257,6 +264,7 @@ namespace PdfPixel.PostScript
                     {
                         break;
                     }
+
                     stack.Push(new PostScriptNumber(current));
                     EvaluateTokens(procedure.Tokens, stack);
                 }
@@ -269,10 +277,12 @@ namespace PdfPixel.PostScript
                     {
                         break;
                     }
+
                     stack.Push(new PostScriptNumber(current));
                     EvaluateTokens(procedure.Tokens, stack);
                 }
             }
+
             _loopDepth--;
             if (_loopDepth ==0 && _exitRequested)
             {
@@ -283,37 +293,41 @@ namespace PdfPixel.PostScript
         private void ForAllOperator(Stack<PostScriptToken> stack)
         {
             Ensure(stack,2);
-            var procedure = PopOfType<PostScriptProcedure>(stack);
-            var composite = stack.Pop();
+            PostScriptProcedure procedure = PopOfType<PostScriptProcedure>(stack);
+            PostScriptToken composite = stack.Pop();
             procedure.EnsureAccess(PostScriptAccessOperation.Execute);
             _loopDepth++;
             switch (composite)
             {
                 case PostScriptArray array:
                 {
-                    foreach (var element in array.Elements)
+                    foreach (PostScriptToken element in array.Elements)
                     {
                         if (_exitRequested || _stopRequested)
                         {
                             break;
                         }
+
                         stack.Push(element);
                         EvaluateTokens(procedure.Tokens, stack);
                     }
+
                     break;
                 }
                 case PostScriptDictionary dict:
                 {
-                    foreach (var kvp in dict.Entries)
+                    foreach (KeyValuePair<string, PostScriptToken> kvp in dict.Entries)
                     {
                         if (_exitRequested || _stopRequested)
                         {
                             break;
                         }
+
                         stack.Push(new PostScriptLiteralName(kvp.Key));
                         stack.Push(kvp.Value);
                         EvaluateTokens(procedure.Tokens, stack);
                     }
+
                     break;
                 }
                 case PostScriptString str:
@@ -324,24 +338,28 @@ namespace PdfPixel.PostScript
                         {
                             break;
                         }
+
                         int code = str.Value[i];
                         stack.Push(new PostScriptNumber(code));
                         EvaluateTokens(procedure.Tokens, stack);
                     }
+
                     break;
                 }
                 case PostScriptBinaryString bin:
                 {
-                    var data = bin.Data;
+                    byte[] data = bin.Data;
                     for (int i =0; i < data.Length; i++)
                     {
                         if (_exitRequested || _stopRequested)
                         {
                             break;
                         }
+
                         stack.Push(new PostScriptNumber(data[i]));
                         EvaluateTokens(procedure.Tokens, stack);
                     }
+
                     break;
                 }
                 default:
@@ -350,6 +368,7 @@ namespace PdfPixel.PostScript
                     throw new System.InvalidOperationException("typecheck: forall operand not iterable");
                 }
             }
+
             _loopDepth--;
             if (_loopDepth ==0 && _exitRequested)
             {
@@ -360,13 +379,14 @@ namespace PdfPixel.PostScript
         private void RepeatOperator(Stack<PostScriptToken> stack)
         {
             Ensure(stack,2);
-            var procedure = PopOfType<PostScriptProcedure>(stack);
-            var countToken = PopOfType<PostScriptNumber>(stack);
-            int count = (int)countToken.Value;
+            PostScriptProcedure procedure = PopOfType<PostScriptProcedure>(stack);
+            PostScriptNumber countToken = PopOfType<PostScriptNumber>(stack);
+            var count = (int)countToken.Value;
             if (count <0)
             {
                 throw new System.InvalidOperationException("rangecheck: repeat count negative");
             }
+
             procedure.EnsureAccess(PostScriptAccessOperation.Execute);
             _loopDepth++;
             for (int i =0; i < count; i++)
@@ -375,8 +395,10 @@ namespace PdfPixel.PostScript
                 {
                     break;
                 }
+
                 EvaluateTokens(procedure.Tokens, stack);
             }
+
             _loopDepth--;
             if (_loopDepth ==0 && _exitRequested)
             {

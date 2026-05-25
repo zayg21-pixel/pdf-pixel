@@ -8,16 +8,16 @@ internal static class CffData
 {
     static CffData()
     {
-        var standardStringsData = PdfResourceLoader.GetResource("StandardStrings.bin");
+        byte[] standardStringsData = PdfResourceLoader.GetResource("StandardStrings.bin");
         StandardStrings = PdfTextResourceConverter.FromPdfStringBlob(standardStringsData);
 
-        var isoAdobeStringsData = PdfResourceLoader.GetResource("IsoAdobeStrings.bin");
+        byte[] isoAdobeStringsData = PdfResourceLoader.GetResource("IsoAdobeStrings.bin");
         IsoAdobeStrings = PdfTextResourceConverter.FromPdfStringBlob(isoAdobeStringsData);
 
-        var expertStringsData = PdfResourceLoader.GetResource("ExpertStrings.bin");
+        byte[] expertStringsData = PdfResourceLoader.GetResource("ExpertStrings.bin");
         ExpertStrings = PdfTextResourceConverter.FromPdfStringBlob(expertStringsData);
 
-        var expertSubsetStringsData = PdfResourceLoader.GetResource("ExpertSubsetStrings.bin");
+        byte[] expertSubsetStringsData = PdfResourceLoader.GetResource("ExpertSubsetStrings.bin");
         ExpertSubsetStrings = PdfTextResourceConverter.FromPdfStringBlob(expertSubsetStringsData);
     }
 

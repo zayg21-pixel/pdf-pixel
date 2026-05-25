@@ -4,7 +4,7 @@ using System.Runtime.CompilerServices;
 
 namespace PdfPixel.Parsing;
 
-partial struct PdfParser
+internal partial struct PdfParser
 {
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private IPdfValue ReadNumber()
@@ -12,7 +12,7 @@ partial struct PdfParser
         // Single-pass number parsing.
         // Accumulates all digits (integer and fractional) into one combined value.
         // Fractional digit count determines scaling using precomputed inverse powers of10.
-        bool isNegative = false;
+        var isNegative = false;
         byte first = PeekByte();
         if (first == Minus)
         {
@@ -26,8 +26,8 @@ partial struct PdfParser
 
         double combined = 0d;
         int fractionalDigits = 0;
-        bool afterDot = false;
-        bool sawDigit = false;
+        var afterDot = false;
+        var sawDigit = false;
 
         while (!IsAtEnd)
         {
@@ -42,7 +42,7 @@ partial struct PdfParser
 
             if (current >= Zero && current <= Nine)
             {
-                combined = combined * 10d + (current - Zero);
+                combined = (combined * 10d) + (current - Zero);
 
                 if (afterDot)
                 {
@@ -65,11 +65,12 @@ partial struct PdfParser
 
         if (fractionalDigits == 0)
         {
-            int intValue = (int)combined;
+            var intValue = (int)combined;
             if (isNegative)
             {
                 intValue = -intValue;
             }
+
             return PdfValueFactory.Integer(intValue);
         }
 

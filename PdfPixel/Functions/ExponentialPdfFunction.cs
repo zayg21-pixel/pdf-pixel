@@ -44,7 +44,7 @@ public sealed class ExponentialPdfFunction : PdfFunction
 
         for (int componentIndex = 0; componentIndex < _componentCount; componentIndex++)
         {
-            _buffer[componentIndex] = _c0[componentIndex] + xExp * _cDifference[componentIndex];
+            _buffer[componentIndex] = _c0[componentIndex] + (xExp * _cDifference[componentIndex]);
         }
 
         Clamp(_buffer, Range);
@@ -55,7 +55,7 @@ public sealed class ExponentialPdfFunction : PdfFunction
     /// <inheritdoc />
     public override ReadOnlySpan<float> Evaluate(ReadOnlySpan<float> values)
     {
-        float x = values.Length > 0 ? values[0] : 0f;
+        float x = (values.Length > 0) ? values[0] : 0f;
         return Evaluate(x);
     }
 
@@ -79,15 +79,17 @@ public sealed class ExponentialPdfFunction : PdfFunction
 
         if (c0 == null || c0.Length == 0)
         {
-            c0 = [0f];
+            c0 = new float[] { 0f };
         }
+
         if (c1 == null || c1.Length == 0)
         {
-            c1 = [1f];
+            c1 = new float[] { 1f };
         }
+
         if (domain == null || domain.Length < 2)
         {
-            domain = [0f, 1f];
+            domain = new float[] { 0f, 1f };
         }
 
         int componentCount = Math.Min(c0.Length, c1.Length);

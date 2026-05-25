@@ -21,13 +21,14 @@ namespace PdfPixel.Fonts.Model;
 /// </summary>
 public class PdfType3Font : PdfSingleByteFont
 {
-    private readonly Dictionary<PdfCharacterCode, PdfType3CharacterInfo> type3Cache = new Dictionary<PdfCharacterCode, PdfType3CharacterInfo>();
+    private readonly Dictionary<PdfCharacterCode, PdfType3CharacterInfo> type3Cache = [];
 
     /// <summary>
     /// Constructor for Type3 fonts - lightweight operations only
     /// </summary>
     /// <param name="fontObject">PDF object containing the font definition</param>
-    public PdfType3Font(PdfObject fontObject) : base(fontObject)
+    public PdfType3Font(PdfObject fontObject)
+        : base(fontObject)
     {
         if (Type != PdfFontSubType.Type3)
         {
@@ -54,8 +55,8 @@ public class PdfType3Font : PdfSingleByteFont
         }
     }
 
-    internal protected override SKTypeface Typeface => null;
-    
+    protected internal override SKTypeface Typeface => null;
+
     /// <summary>
     /// Character procedures dictionary containing glyph definitions
     /// Each entry maps a character name to a content stream that draws the glyph
@@ -86,25 +87,25 @@ public class PdfType3Font : PdfSingleByteFont
             return PdfType3CharacterInfo.Undefined;
         }
 
-        if (type3Cache.TryGetValue(charCode, out var cached))
+        if (type3Cache.TryGetValue(charCode, out PdfType3CharacterInfo cached))
         {
             return cached;
         }
 
         // Convert character code to character name
-        var charName = GetCharacterName(charCode);
+        PdfString charName = GetCharacterName(charCode);
         if (charName.IsEmpty)
         {
             return PdfType3CharacterInfo.Undefined;
         }
 
-        var charObject = CharProcs.GetObject(charName);
+        PdfObject charObject = CharProcs.GetObject(charName);
         if (charObject == null)
         {
             return PdfType3CharacterInfo.Undefined;
         }
 
-        var streamData = charObject.DecodeAsMemory();
+        ReadOnlyMemory<byte> streamData = charObject.DecodeAsMemory();
 
         if (streamData.IsEmpty)
         {
@@ -118,25 +119,22 @@ public class PdfType3Font : PdfSingleByteFont
 
         sourceState.RecursionGuard.Add(charObject.Reference.ObjectNumber);
 
-        var recorder = new PdfCommandRecorder();
+        PdfCommandRecorder recorder = new();
 
         // Render glyph content stream without recursion (independent from page rendering)
-        var glyphPage = new FormXObjectPageWrapper(sourceState.Page, FontObject);
-        var contentRenderer = new PdfContentStreamRenderer(renderer, glyphPage);
-        var parseContext = new PdfParseContext(streamData);
+        FormXObjectPageWrapper glyphPage = new(sourceState.Page, FontObject);
+        PdfContentStreamRenderer contentRenderer = new(renderer, glyphPage);
+        PdfParseContext parseContext = new(streamData);
 
-        var (advancement, boundingBox) = ParseMetrics(parseContext);
+        (SKSize advancement, SKRect? boundingBox) = ParseMetrics(parseContext);
 
-        var charState = new PdfGraphicsState(glyphPage, sourceState.RecursionGuard, default, default)
-        {
-            IsType3Rendering = true
-        };
+        PdfGraphicsState charState = new(glyphPage, sourceState.RecursionGuard, default, default) { IsType3Rendering = true };
 
         recorder.Process(new SaveStateCommand());
         contentRenderer.RenderContext(recorder, ref parseContext, charState);
         recorder.Process(new RestoreStateCommand());
 
-        var info = new PdfType3CharacterInfo(recorder, boundingBox, advancement);
+        PdfType3CharacterInfo info = new(recorder, boundingBox, advancement);
         type3Cache[charCode] = info;
 
         sourceState.RecursionGuard.Remove(charObject.Reference.ObjectNumber);
@@ -146,49 +144,49 @@ public class PdfType3Font : PdfSingleByteFont
 
     private (SKSize advancement, SKRect? boundingBox) ParseMetrics(PdfParseContext parseContext)
     {
-        var parser = new PdfParser(parseContext, Document, allowReferences: false, decrypt: false);
+        PdfParser parser = new(parseContext, Document, allowReferences: false, decrypt: false);
         IPdfValue value;
-        var operandStack = new Stack<IPdfValue>();
+        Stack<IPdfValue> operandStack = [];
 
-        SKSize type3Advancement = new SKSize(0, 0);
+        SKSize type3Advancement = new(0, 0);
         SKRect? type3BoundingBox = null;
         while ((value = parser.ReadNextValue()) != null)
         {
             if (value.Type == PdfValueType.Operator)
             {
-                var op = value.AsString().ToString();
+                string op = value.AsString().ToString();
 
                 switch (op)
                 {
                     case "d0":
                     {
-                        var operands = PdfOperatorProcessor.GetOperands(6, operandStack);
+                            List<IPdfValue> operands = PdfOperatorProcessor.GetOperands(6, operandStack);
 
                         if (operands.Count < 2)
                         {
                             break;
                         }
 
-                        var wx = operands[0].AsFloat();
-                        var wy = operands[1].AsFloat();
+                        float wx = operands[0].AsFloat();
+                        float wy = operands[1].AsFloat();
                         type3Advancement = new SKSize(wx, wy);
                         return (type3Advancement, type3BoundingBox);
                     }
                     case "d1":
                     {
-                        var operands = PdfOperatorProcessor.GetOperands(6, operandStack);
+                            List<IPdfValue> operands = PdfOperatorProcessor.GetOperands(6, operandStack);
 
                         if (operands.Count < 6)
                         {
                             break;
                         }
 
-                        var wx = operands[0].AsFloat();
-                        var wy = operands[1].AsFloat();
-                        var llx = operands[2].AsFloat();
-                        var lly = operands[3].AsFloat();
-                        var urx = operands[4].AsFloat();
-                        var ury = operands[5].AsFloat();
+                        float wx = operands[0].AsFloat();
+                        float wy = operands[1].AsFloat();
+                        float llx = operands[2].AsFloat();
+                        float lly = operands[3].AsFloat();
+                        float urx = operands[4].AsFloat();
+                        float ury = operands[5].AsFloat();
 
                         type3Advancement = new SKSize(wx, wy);
                         type3BoundingBox = new SKRect(llx, lly, urx, ury).Standardized;
@@ -209,10 +207,7 @@ public class PdfType3Font : PdfSingleByteFont
     /// <summary>
     /// Convert character code to character name based on encoding
     /// </summary>
-    private PdfString GetCharacterName(PdfCharacterCode charCode)
-    {
-        return SingleByteEncodings.GetNameByCode((byte)charCode, Encoding.BaseEncoding, Encoding.Differences);
-    }
+    private PdfString GetCharacterName(PdfCharacterCode charCode) => SingleByteEncodings.GetNameByCode((byte)charCode, Encoding.BaseEncoding, Encoding.Differences);
 
     /// <summary>
     /// Gets the glyph ID (GID) for the specified character code in a Type3 font.
@@ -220,10 +215,7 @@ public class PdfType3Font : PdfSingleByteFont
     /// </summary>
     /// <param name="code">The character code to map to a glyph ID.</param>
     /// <returns>Always 1 for Type3 fonts.</returns>
-    public override ushort GetGid(PdfCharacterCode code)
-    {
-        return 1;
-    }
+    public override ushort GetGid(PdfCharacterCode code) => 1;
 
     protected override void Dispose(bool disposing)
     {
@@ -231,7 +223,7 @@ public class PdfType3Font : PdfSingleByteFont
 
         if (disposing)
         {
-            foreach (var info in type3Cache.Values)
+            foreach (PdfType3CharacterInfo info in type3Cache.Values)
             {
                 info.Recording?.Dispose();
             }

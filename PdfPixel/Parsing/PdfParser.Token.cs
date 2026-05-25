@@ -2,7 +2,7 @@
 
 namespace PdfPixel.Parsing;
 
-partial struct PdfParser
+internal partial struct PdfParser
 {
     private const byte ForwardSlash = (byte)'/';
     private const byte LeftParen = (byte)'(';
@@ -77,6 +77,7 @@ partial struct PdfParser
                     Advance(2);
                     return PdfTokenType.DictionaryStart;
                 }
+
                 Advance(1);
                 return PdfTokenType.HexString;
             }
@@ -87,6 +88,7 @@ partial struct PdfParser
                     Advance(2);
                     return PdfTokenType.DictionaryEnd;
                 }
+
                 Advance(1);
                 return PdfTokenType.HexStringEnd;
             }

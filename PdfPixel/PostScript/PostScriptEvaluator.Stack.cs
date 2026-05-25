@@ -28,8 +28,8 @@ namespace PdfPixel.PostScript
                 case "exch":
                 {
                     Ensure(stack, 2);
-                    var first = stack.Pop();
-                    var second = stack.Pop();
+                        PostScriptToken first = stack.Pop();
+                        PostScriptToken second = stack.Pop();
                     stack.Push(first);
                     stack.Push(second);
                     return true;
@@ -93,6 +93,7 @@ namespace PdfPixel.PostScript
                     return true;
                 }
             }
+
             return false;
         }
 
@@ -100,10 +101,10 @@ namespace PdfPixel.PostScript
         {
             // roll <n> <j> (PostScript order: segmentCount then rollCount) but implementation previously popped rollCount first.
             Ensure(stack, 2);
-            var rollCountToken = PopOfType<PostScriptNumber>(stack);
-            var segmentCountToken = PopOfType<PostScriptNumber>(stack);
-            int rollCount = (int)rollCountToken.Value;
-            int segmentCount = (int)segmentCountToken.Value;
+            PostScriptNumber rollCountToken = PopOfType<PostScriptNumber>(stack);
+            PostScriptNumber segmentCountToken = PopOfType<PostScriptNumber>(stack);
+            var rollCount = (int)rollCountToken.Value;
+            var segmentCount = (int)segmentCountToken.Value;
             if (segmentCount <= 0 || segmentCount > stack.Count)
             {
                 throw new InvalidOperationException("rangecheck: roll segment count out of range");
@@ -125,26 +126,28 @@ namespace PdfPixel.PostScript
         private void IndexOp(Stack<PostScriptToken> stack)
         {
             Ensure(stack, 1);
-            var indexToken = PopOfType<PostScriptNumber>(stack);
-            int index = (int)indexToken.Value;
+            PostScriptNumber indexToken = PopOfType<PostScriptNumber>(stack);
+            var index = (int)indexToken.Value;
             if (index < 0 || index >= stack.Count)
             {
                 throw new InvalidOperationException("rangecheck: index operand out of range");
             }
-            var snapshot = stack.ToArray(); // Top of stack at snapshot[0]
+
+            PostScriptToken[] snapshot = stack.ToArray(); // Top of stack at snapshot[0]
             stack.Push(snapshot[index]); // Shallow reference duplication.
         }
 
         private void CopyOp(Stack<PostScriptToken> stack)
         {
             Ensure(stack, 1);
-            var countToken = PopOfType<PostScriptNumber>(stack);
-            int count = (int)countToken.Value;
+            PostScriptNumber countToken = PopOfType<PostScriptNumber>(stack);
+            var count = (int)countToken.Value;
             if (count < 0 || count > stack.Count)
             {
                 throw new InvalidOperationException("rangecheck: copy count out of range");
             }
-            var snapshot = stack.ToArray(); // Top at index0
+
+            PostScriptToken[] snapshot = stack.ToArray(); // Top at index0
             for (int i = count - 1; i >= 0; i--)
             {
                 stack.Push(snapshot[i]);
@@ -154,15 +157,17 @@ namespace PdfPixel.PostScript
         private void CountToMarkOp(Stack<PostScriptToken> stack)
         {
             int depthAboveMark = 0;
-            foreach (var token in stack)
+            foreach (PostScriptToken token in stack)
             {
                 if (token is PostScriptMark)
                 {
                     stack.Push(new PostScriptNumber(depthAboveMark));
                     return;
                 }
+
                 depthAboveMark++;
             }
+
             // No mark found; PostScript spec: unmatchedmark error.
             throw new InvalidOperationException("unmatchedmark: counttomark with no mark on stack");
         }
@@ -170,10 +175,10 @@ namespace PdfPixel.PostScript
         private void ClearToMarkOp(Stack<PostScriptToken> stack)
         {
             // Pop until mark encountered, then pop mark. If no mark -> raise unmatchedmark error.
-            bool found = false;
+            var found = false;
             while (stack.Count > 0)
             {
-                var top = stack.Pop();
+                PostScriptToken top = stack.Pop();
                 if (top is PostScriptMark)
                 {
                     found = true;
@@ -181,6 +186,7 @@ namespace PdfPixel.PostScript
                 }
                 // discard regular tokens
             }
+
             if (!found)
             {
                 throw new InvalidOperationException("unmatchedmark: cleartomark with no mark on stack");

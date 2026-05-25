@@ -52,7 +52,8 @@ internal sealed class PdfXrefLoader
             _logger.LogWarning("Parsed startxref offset {Offset} is invalid (file length {Length}).", xrefOffset, _document.Stream.Length);
             return;
         }
-        var parser = new PdfParser(_document.Stream, _document, allowReferences: true, decrypt: false);
+
+        PdfParser parser = new(_document.Stream, _document, allowReferences: true, decrypt: false);
 
         // Classic table path.
         if (MatchSequenceAt(xrefOffset, PdfTokens.Xref))
@@ -75,7 +76,7 @@ internal sealed class PdfXrefLoader
                     }
                     else
                     {
-                        var streamParser = new PdfParser(_document.Stream, _document, allowReferences: true, decrypt: false);
+                        PdfParser streamParser = new(_document.Stream, _document, allowReferences: true, decrypt: false);
                         streamParser.Position = offsetValue;
                         trailer = ParseXrefStream(ref streamParser);
                     }
@@ -85,6 +86,7 @@ internal sealed class PdfXrefLoader
             {
                 _logger.LogWarning(ex, "Exception while parsing classic xref – continuing without index.");
             }
+
             return;
         }
 
@@ -118,6 +120,7 @@ internal sealed class PdfXrefLoader
     }
 
     #region Classic XRef
+
     /// <summary>
     /// Parse classic xref subsections using PdfParser only. Format: (firstObject entryCount) lines followed by entries, ending with trailer operator.
     /// </summary>
@@ -146,6 +149,7 @@ internal sealed class PdfXrefLoader
                     {
                         TryApplyTrailer(trailerDict);
                     }
+
                     _logger.LogTrace("Encountered 'trailer' after subsection {Index}. Ending xref parse.", subsectionIndex);
                     return trailerDict;
                 }
@@ -175,12 +179,13 @@ internal sealed class PdfXrefLoader
 
             for (int localIndex = 0; localIndex < entryCount; localIndex++)
             {
-                uint entryObjectNumber = (uint)(firstObject + localIndex);
+                var entryObjectNumber = (uint)(firstObject + localIndex);
                 if (!ParseSingleEntry(ref parser, entryObjectNumber))
                 {
                     _logger.LogWarning("Failed xref entry index {LocalIndex} (object {ObjectNumber}) at position {Position}.", localIndex, entryObjectNumber, parser.Position);
                     break;
                 }
+
                 parsedCount++;
             }
 
@@ -204,7 +209,7 @@ internal sealed class PdfXrefLoader
     {
         int entryStart = parser.Position;
 
-        uint offsetValue = (uint)parser.ReadNextValue().AsInteger();
+        var offsetValue = (uint)parser.ReadNextValue().AsInteger();
         int generation = parser.ReadNextValue().AsInteger();
         PdfString statusString = parser.ReadNextValue().AsString();
 
@@ -216,7 +221,7 @@ internal sealed class PdfXrefLoader
 
         byte statusByte = statusString.Value.Span[0];
 
-        var reference = new PdfReference(objectNumber, generation);
+        PdfReference reference = new(objectNumber, generation);
         PdfObjectInfo info;
         if (statusByte == (byte)'n')
         {
@@ -235,9 +240,11 @@ internal sealed class PdfXrefLoader
         TryAddObjectIndexEntry(reference, info);
         return true;
     }
+
     #endregion
 
     #region XRef Stream (PDF 1.5+)
+
     private PdfDictionary ParseXrefStream(ref PdfParser parser)
     {
         PdfObject xrefObject = parser.ReadObject();
@@ -247,7 +254,7 @@ internal sealed class PdfXrefLoader
             return null;
         }
 
-        var decoded = xrefObject.DecodeAsMemory();
+        ReadOnlyMemory<byte> decoded = xrefObject.DecodeAsMemory();
         if (decoded.IsEmpty)
         {
             _logger.LogWarning("Decoded xref stream empty.");
@@ -259,14 +266,15 @@ internal sealed class PdfXrefLoader
         return xrefObject.Dictionary;
     }
 
-    private void ParseXrefStreamEntries(PdfDictionary dict, ReadOnlyMemory<byte> decoded)
+    private void ParseXrefStreamEntries(PdfDictionary dict, in ReadOnlyMemory<byte> decoded)
     {
-        var wArray = dict.GetArray(PdfTokens.WKey);
+        PdfArray wArray = dict.GetArray(PdfTokens.WKey);
         if (wArray == null || wArray.Count < 3)
         {
             _logger.LogWarning("XRef stream missing /W array.");
             return;
         }
+
         int w0 = wArray.GetIntegerOrDefault(0);
         int w1 = wArray.GetIntegerOrDefault(1);
         int w2 = wArray.GetIntegerOrDefault(2);
@@ -275,15 +283,17 @@ internal sealed class PdfXrefLoader
             _logger.LogWarning("Invalid negative /W widths.");
             return;
         }
+
         int entrySize = w0 + w1 + w2;
         if (entrySize <= 0)
         {
             _logger.LogWarning("Computed xref stream entry size is zero.");
             return;
         }
-        var indexArray = dict.GetArray(PdfTokens.IndexKey);
-        var ranges = new List<(int start, int count)>();
-        if (indexArray != null && indexArray.Count >= 2 && indexArray.Count % 2 == 0)
+
+        PdfArray indexArray = dict.GetArray(PdfTokens.IndexKey);
+        List<(int start, int count)> ranges = [];
+        if (indexArray?.Count >= 2 && indexArray.Count % 2 == 0)
         {
             for (int rangeIndex = 0; rangeIndex < indexArray.Count; rangeIndex += 2)
             {
@@ -303,14 +313,16 @@ internal sealed class PdfXrefLoader
                 ranges.Add((0, size));
             }
         }
+
         if (ranges.Count == 0)
         {
             _logger.LogWarning("No ranges to iterate in xref stream.");
             return;
         }
-        var span = decoded.Span;
+
+        ReadOnlySpan<byte> span = decoded.Span;
         int position = 0;
-        foreach (var (start, count) in ranges)
+        foreach ((int start, int count) in ranges)
         {
             for (int localIndex = 0; localIndex < count; localIndex++)
             {
@@ -319,14 +331,15 @@ internal sealed class PdfXrefLoader
                     _logger.LogWarning("Truncated xref stream (needed {Need} got {Rem}).", entrySize, span.Length - position);
                     return;
                 }
-                long type = w0 == 0 ? 1 : ReadBigEndian(span.Slice(position, w0));
+
+                long type = (w0 == 0) ? 1 : ReadBigEndian(span.Slice(position, w0));
                 position += w0;
-                long field2 = w1 == 0 ? 0 : ReadBigEndian(span.Slice(position, w1));
+                long field2 = (w1 == 0) ? 0 : ReadBigEndian(span.Slice(position, w1));
                 position += w1;
-                long field3 = w2 == 0 ? 0 : ReadBigEndian(span.Slice(position, w2));
+                long field3 = (w2 == 0) ? 0 : ReadBigEndian(span.Slice(position, w2));
                 position += w2;
-                uint objNumber = (uint)(start + localIndex);
-                var reference = new PdfReference(objNumber, type == 1 ? (int)field3 : (type == 0 ? (int)field3 : 0));
+                var objNumber = (uint)(start + localIndex);
+                PdfReference reference = new(objNumber, (type == 1) ? (int)field3 : ((type == 0) ? (int)field3 : 0));
                 PdfObjectInfo info;
                 switch (type)
                 {
@@ -346,6 +359,7 @@ internal sealed class PdfXrefLoader
                         {
                             continue;
                         }
+
                         info = PdfObjectInfo.ForCompressed(reference, (uint)field2, (int)field3, true);
                         break;
                     }
@@ -367,7 +381,7 @@ internal sealed class PdfXrefLoader
     /// </summary>
     /// <param name="reference">Object reference (number + generation).</param>
     /// <param name="info">Parsed xref information describing the object.</param>
-    private void TryAddObjectIndexEntry(PdfReference reference, PdfObjectInfo info)
+    private void TryAddObjectIndexEntry(in PdfReference reference, PdfObjectInfo info)
     {
         if (!_document.ObjectCache.ObjectIndex.ContainsKey(reference))
         {
@@ -379,13 +393,14 @@ internal sealed class PdfXrefLoader
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static long ReadBigEndian(ReadOnlySpan<byte> slice)
+    private static long ReadBigEndian(in ReadOnlySpan<byte> slice)
     {
         long value = 0;
         for (int index = 0; index < slice.Length; index++)
         {
             value = (value << 8) | slice[index];
         }
+
         return value;
     }
 
@@ -403,9 +418,11 @@ internal sealed class PdfXrefLoader
 
         _trailerParser.TrySetDecryptor(dict);
     }
+
     #endregion
 
     #region Shared Helpers
+
     private long LocateLastStartXref()
     {
         ReadOnlySpan<byte> token = PdfTokens.Startxref;
@@ -416,14 +433,15 @@ internal sealed class PdfXrefLoader
                 return scanIndex;
             }
         }
+
         return -1;
     }
 
     private int ParseStartXrefOffset(long startxrefPos)
     {
-        PdfParser parser = new PdfParser(_document.Stream, _document, allowReferences: false, decrypt: false);
+        PdfParser parser = new(_document.Stream, _document, allowReferences: false, decrypt: false);
         parser.Position = (int)startxrefPos + PdfTokens.Startxref.Length;
-        var value = parser.ReadNextValue();
+        IPdfValue value = parser.ReadNextValue();
 
         if (value.Type != PdfValueType.Integer)
         {
@@ -440,7 +458,7 @@ internal sealed class PdfXrefLoader
     /// <param name="position">Absolute byte offset in the PDF file.</param>
     /// <param name="sequence">Sequence to compare.</param>
     /// <returns>True when the bytes at the specified position equal the sequence.</returns>
-    private bool MatchSequenceAt(long position, ReadOnlySpan<byte> sequence)
+    private bool MatchSequenceAt(long position, in ReadOnlySpan<byte> sequence)
     {
         if (sequence.Length == 0)
         {
@@ -452,6 +470,7 @@ internal sealed class PdfXrefLoader
         {
             return false;
         }
+
         if (position + sequence.Length > stream.Length)
         {
             return false;
@@ -459,7 +478,7 @@ internal sealed class PdfXrefLoader
 
         stream.Position = position;
 
-        byte[] buffer = new byte[sequence.Length];
+        var buffer = new byte[sequence.Length];
         int bytesRead = _reader.Read(buffer, 0, buffer.Length);
         if (bytesRead != buffer.Length)
         {
@@ -468,5 +487,6 @@ internal sealed class PdfXrefLoader
 
         return new ReadOnlySpan<byte>(buffer).SequenceEqual(sequence);
     }
+
     #endregion
 }

@@ -7,27 +7,15 @@ namespace PdfPixel.PostScript.Tokens
     /// </summary>
     public sealed class PostScriptLiteralName : PostScriptToken
     {
-        public PostScriptLiteralName(string name)
-        {
-            Name = name;
-        }
+        public PostScriptLiteralName(string name) => Name = name;
 
         public string Name { get; }
 
-        public override string ToString()
-        {
-            return "LiteralName: {\"" + Name + "\"}";
-        }
+        public override string ToString() => "LiteralName: {\"" + Name + "\"}";
 
-        public override bool EqualsToken(PostScriptToken other)
-        {
-            return other is PostScriptLiteralName n && string.Equals(Name, n.Name, StringComparison.Ordinal);
-        }
+        public override bool EqualsToken(PostScriptToken other) => other is PostScriptLiteralName n && string.Equals(Name, n.Name, StringComparison.Ordinal);
 
-        public override int GetHashCode()
-        {
-            return Name == null ?0 : StringComparer.Ordinal.GetHashCode(Name);
-        }
+        public override int GetHashCode() => (Name == null) ? 0 : StringComparer.Ordinal.GetHashCode(Name);
 
         public override int CompareToToken(PostScriptToken other)
         {
@@ -35,7 +23,8 @@ namespace PdfPixel.PostScript.Tokens
             {
                 throw new InvalidOperationException("Literal name comparison requires name operand.");
             }
-            return string.Compare(Name, n.Name, StringComparison.Ordinal);
+
+            return string.CompareOrdinal(Name, n.Name);
         }
     }
 }

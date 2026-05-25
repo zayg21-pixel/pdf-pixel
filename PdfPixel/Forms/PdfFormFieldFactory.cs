@@ -20,7 +20,7 @@ public static class PdfFormFieldFactory
             return null;
         }
 
-        var fieldType = fieldObject.Dictionary.GetName(PdfTokens.FieldTypeKey).AsEnum<PdfFormFieldType>();
+        PdfFormFieldType fieldType = fieldObject.Dictionary.GetName(PdfTokens.FieldTypeKey).AsEnum<PdfFormFieldType>();
         if (fieldType == PdfFormFieldType.Unknown)
         {
             return null;

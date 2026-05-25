@@ -47,17 +47,18 @@ internal class PdfOperatorProcessor
 
     internal static List<IPdfValue> GetOperands(int count, Stack<IPdfValue> operandStack)
     {
-        var operands = new List<IPdfValue>(count);
+        List<IPdfValue> operands = new(count);
         for (int index = 0; index < count && operandStack.Count > 0; index++)
         {
             operands.Insert(0, operandStack.Pop());
         }
+
         return operands;
     }
 
     public void ProcessOperator(string op, ref PdfGraphicsState graphicsState)
     {
-        bool handled = false;
+        var handled = false;
 
         if (!handled && _graphicsStateOperators.CanProcess(op))
         {
@@ -101,8 +102,5 @@ internal class PdfOperatorProcessor
         }
     }
 
-    private void ProcessUnknownOperator(string op)
-    {
-        _logger.LogWarning($"Unknown PDF operator '{op}' with {_operandStack.Count} operands on stack");
-    }
+    private void ProcessUnknownOperator(string op) => _logger.LogWarning($"Unknown PDF operator '{op}' with {_operandStack.Count} operands on stack");
 }

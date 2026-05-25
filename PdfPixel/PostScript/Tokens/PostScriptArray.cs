@@ -9,14 +9,8 @@ namespace PdfPixel.PostScript.Tokens
     /// </summary>
     public sealed class PostScriptArray : PostScriptToken, IPostScriptCollection
     {
-        public PostScriptArray(int capacity)
-        {
-            Elements = new PostScriptToken[capacity];
-        }
-        public PostScriptArray(PostScriptToken[] elements)
-        {
-            Elements = elements;
-        }
+        public PostScriptArray(int capacity) => Elements = new PostScriptToken[capacity];
+        public PostScriptArray(PostScriptToken[] elements) => Elements = elements;
 
         public PostScriptToken[] Elements { get; }
 
@@ -24,17 +18,12 @@ namespace PdfPixel.PostScript.Tokens
 
         public override string ToString()
         {
-            int count = Elements == null ? 0 : Elements.Length;
+            int count = (Elements?.Length) ?? 0;
             return "Array(count=" + count + ")";
         }
-        public override bool EqualsToken(PostScriptToken other)
-        {
-            return ReferenceEquals(this, other);
-        }
-        public override int GetHashCode()
-        {
-            return RuntimeHelpers.GetHashCode(this);
-        }
+
+        public override bool EqualsToken(PostScriptToken other) => ReferenceEquals(this, other);
+        public override int GetHashCode() => RuntimeHelpers.GetHashCode(this);
 
         /// <summary>
         /// Retrieve element at numeric index.
@@ -46,11 +35,13 @@ namespace PdfPixel.PostScript.Tokens
             {
                 throw new InvalidOperationException("typecheck: array index must be number");
             }
-            int index = (int)number.Value;
+
+            var index = (int)number.Value;
             if (index < 0 || index >= Elements.Length)
             {
                 throw new InvalidOperationException("rangecheck: array index out of range");
             }
+
             return Elements[index];
         }
 
@@ -64,11 +55,13 @@ namespace PdfPixel.PostScript.Tokens
             {
                 throw new InvalidOperationException("typecheck: array index must be number");
             }
-            int index = (int)number.Value;
+
+            var index = (int)number.Value;
             if (index < 0 || index >= Elements.Length)
             {
                 throw new InvalidOperationException("rangecheck: array index out of range");
             }
+
             Elements[index] = value;
         }
     }

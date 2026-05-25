@@ -37,7 +37,7 @@ public class CidFontVerticalMetrics
     /// </summary>
     public VerticalMetric GetMetrics(uint cid)
     {
-        if (CidVerticalMetrics != null && CidVerticalMetrics.TryGetValue(cid, out var m))
+        if (CidVerticalMetrics != null && CidVerticalMetrics.TryGetValue(cid, out VerticalMetric m))
         {
             return m;
         }
@@ -52,13 +52,13 @@ public class CidFontVerticalMetrics
     /// </summary>
     public static CidFontVerticalMetrics Parse(PdfDictionary fontDictionary)
     {
-        var metrics = new Dictionary<uint, VerticalMetric>();
+        Dictionary<uint, VerticalMetric> metrics = [];
 
         // DW2 defaults
-        var dw2Array = fontDictionary.GetArray(PdfTokens.DW2Key);
+        PdfArray dw2Array = fontDictionary.GetArray(PdfTokens.DW2Key);
         float defaultW1;
         float defaultV1;
-        if (dw2Array != null && dw2Array.Count >= 2)
+        if (dw2Array?.Count >= 2)
         {
             defaultV1 = dw2Array.GetFloatOrDefault(0) * VerticalToUserSpaceCoeff; // V1y
             defaultW1 = dw2Array.GetFloatOrDefault(1) * VerticalToUserSpaceCoeff; // W1y
@@ -70,20 +70,20 @@ public class CidFontVerticalMetrics
         }
 
         // W2 overrides
-        var w2Array = fontDictionary.GetArray(PdfTokens.W2Key);
+        PdfArray w2Array = fontDictionary.GetArray(PdfTokens.W2Key);
         if (w2Array != null)
         {
             int i = 0;
             while (i < w2Array.Count)
             {
-                var first = w2Array.GetValue(i++);
+                IPdfValue first = w2Array.GetValue(i++);
                 if (first == null)
                 {
                     break;
                 }
 
-                uint firstCid = (uint)first.AsInteger();
-                var second = w2Array.GetValue(i++);
+                var firstCid = (uint)first.AsInteger();
+                IPdfValue second = w2Array.GetValue(i++);
                 if (second == null)
                 {
                     break;
@@ -92,7 +92,7 @@ public class CidFontVerticalMetrics
                 if (second.Type == PdfValueType.Array)
                 {
                     // Individual successive CIDs starting at firstCid
-                    var arr = second.AsArray();
+                    PdfArray arr = second.AsArray();
                     int j = 0;
                     uint currentCid = firstCid;
                     while (j + 2 < arr.Count)
@@ -106,7 +106,7 @@ public class CidFontVerticalMetrics
                 else
                 {
                     // Range: firstCid..lastCid
-                    uint lastCid = (uint)second.AsInteger();
+                    var lastCid = (uint)second.AsInteger();
                     if (i + 2 >= w2Array.Count)
                     {
                         break;

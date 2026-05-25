@@ -15,26 +15,42 @@ internal sealed class UncoloredPaintModifier : IPdfCommandModifier
     /// Creates a modifier that tints all paint with the specified color using SrcIn blending.
     /// </summary>
     /// <param name="color">The tint color to apply.</param>
-    public UncoloredPaintModifier(SKColor color)
+    public UncoloredPaintModifier(in SKColor color)
     {
         // PDF uncolored semantics (concise):
         // final RGB = paint.rgb * paint.alpha * srcA
         // final A   = paint.alpha * srcA
-        var pr = color.Red / 255f;
-        var pg = color.Green / 255f;
-        var pb = color.Blue / 255f;
-        var pa = color.Alpha / 255f;
+        float pr = color.Red / 255f;
+        float pg = color.Green / 255f;
+        float pb = color.Blue / 255f;
+        float pa = color.Alpha / 255f;
 
-        var rMul = pr * pa;
-        var gMul = pg * pa;
-        var bMul = pb * pa;
+        float rMul = pr * pa;
+        float gMul = pg * pa;
+        float bMul = pb * pa;
 
         var matrix = new float[]
         {
-            0f, 0f, 0f, rMul, 0f,
-            0f, 0f, 0f, gMul, 0f,
-            0f, 0f, 0f, bMul, 0f,
-            0f, 0f, 0f, pa,   0f
+            0f,
+            0f,
+            0f,
+            rMul,
+            0f,
+            0f,
+            0f,
+            0f,
+            gMul,
+            0f,
+            0f,
+            0f,
+            0f,
+            bMul,
+            0f,
+            0f,
+            0f,
+            0f,
+            pa,
+            0f
         };
 
         _colorFilter = SKColorFilter.CreateColorMatrix(matrix);
@@ -46,13 +62,10 @@ internal sealed class UncoloredPaintModifier : IPdfCommandModifier
     /// </summary>
     public void ModifyPaint(SKPaint paint)
     {
-        paint.ColorFilter = paint.ColorFilter != null
+        paint.ColorFilter = (paint.ColorFilter != null)
             ? SKColorFilter.CreateCompose(_colorFilter, paint.ColorFilter)
             : _colorFilter;
     }
 
-    public void Dispose()
-    {
-        _colorFilter?.Dispose();
-    }
+    public void Dispose() => _colorFilter?.Dispose();
 }

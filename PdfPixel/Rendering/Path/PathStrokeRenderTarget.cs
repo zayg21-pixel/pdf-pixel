@@ -41,10 +41,7 @@ internal class PathStrokeRenderTarget : IRenderTarget
         processor.Process(new ClipPathCommand(_clipPath, SKClipOperation.Intersect));
     }
 
-    public void AfterPatternRender(IPdfCommandProcessor processor)
-    {
-        processor.Process(new RestoreStateCommand());
-    }
+    public void AfterPatternRender(IPdfCommandProcessor processor) => processor.Process(new RestoreStateCommand());
 
     public void Render(IPdfCommandProcessor processor)
     {

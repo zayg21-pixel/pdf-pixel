@@ -37,10 +37,10 @@ internal class ImageFillRenderTarget : IRenderTarget
 
     public void BeforePatternRender(IPdfCommandProcessor processor)
     {
-        var layerPaint = new SKPaint
+        SKPaint layerPaint = new()
         {
             BlendMode = _context.BlendMode,
-            Color = PdfPaintFactory.ApplyAlpha(SKColors.White, _context.FillAlpha),
+            Color = PdfPaintFactory.ApplyAlpha(SKColors.White, _context.FillAlpha)
         };
         processor.Process(new SaveLayerCommand(new SKRect(0, 0, 1, 1), layerPaint));
         processor.Process(new ClipPathCommand(new SKRect(0, 0, 1, 1), SKClipOperation.Intersect));
@@ -50,7 +50,7 @@ internal class ImageFillRenderTarget : IRenderTarget
     {
         if (_image.AlphaMode == PdfImageAlphaMode.StencilMask)
         {
-            var maskContext = new ImageDecodingContext(_context, SKColors.White, 1f, SKBlendMode.DstIn);
+            ImageDecodingContext maskContext = new(_context, SKColors.White, 1f, SKBlendMode.DstIn);
             processor.Process(new SaveStateCommand());
             processor.Process(new ConcatMatrixCommand(PdfImageCommandUtilities.GetImageMatrix()));
             ProcessTileCommands(processor, _image, maskContext);
@@ -83,36 +83,48 @@ internal class ImageFillRenderTarget : IRenderTarget
         {
             case PdfImageAlphaMode.StencilMask:
             {
-                var ctx = StencilMaskImageExecutionContext.Create(image, context, _loggerFactory);
-                processor.Process(new InitializeTileCacheCommand(ctx.TileCache, ctx.ImageSize, ctx));
+                StencilMaskImageExecutionContext ctx = StencilMaskImageExecutionContext.Create(image, context, _loggerFactory);
+                processor.Process(new InitializeTileCacheCommand(ctx.TileCache, ctx.ImageSize));
                 for (int i = 0; i < ctx.TileInfo.TotalTiles; i++)
+                {
                     processor.Process(new DrawStencilMaskImageTileCommand(ctx));
+                }
+
                 break;
             }
             case PdfImageAlphaMode.ImageWithSoftAlphaMask:
             {
-                var ctx = SoftMaskImageExecutionContext.Create(image, context, _loggerFactory);
-                processor.Process(new InitializeTileCacheCommand(ctx.ImageCache, ctx.ImageSize, ctx));
+                SoftMaskImageExecutionContext ctx = SoftMaskImageExecutionContext.Create(image, context, _loggerFactory);
+                processor.Process(new InitializeTileCacheCommand(ctx.ImageCache, ctx.ImageSize));
                 processor.Process(new InitializeTileCacheCommand(ctx.MaskCache, ctx.MaskSize));
                 for (int i = 0; i < ctx.TileInfo.TotalTiles; i++)
+                {
                     processor.Process(new DrawSoftMaskImageTileCommand(ctx));
+                }
+
                 break;
             }
             case PdfImageAlphaMode.ImageWithStencilMask:
             {
-                var ctx = StencilMaskedImageExecutionContext.Create(image, context, _loggerFactory);
-                processor.Process(new InitializeTileCacheCommand(ctx.ImageCache, ctx.ImageSize, ctx));
+                StencilMaskedImageExecutionContext ctx = StencilMaskedImageExecutionContext.Create(image, context, _loggerFactory);
+                processor.Process(new InitializeTileCacheCommand(ctx.ImageCache, ctx.ImageSize));
                 processor.Process(new InitializeTileCacheCommand(ctx.MaskCache, ctx.MaskSize));
                 for (int i = 0; i < ctx.TileInfo.TotalTiles; i++)
+                {
                     processor.Process(new DrawStencilMaskedImageTileCommand(ctx));
+                }
+
                 break;
             }
             default:
             {
-                var ctx = NormalImageExecutionContext.Create(image, context, _loggerFactory);
-                processor.Process(new InitializeTileCacheCommand(ctx.TileCache, ctx.ImageSize, ctx));
+                NormalImageExecutionContext ctx = NormalImageExecutionContext.Create(image, context, _loggerFactory);
+                processor.Process(new InitializeTileCacheCommand(ctx.TileCache, ctx.ImageSize));
                 for (int i = 0; i < ctx.TileInfo.TotalTiles; i++)
+                {
                     processor.Process(new DrawNormalImageTileCommand(ctx));
+                }
+
                 break;
             }
         }

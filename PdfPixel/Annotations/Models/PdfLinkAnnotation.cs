@@ -21,10 +21,10 @@ public class PdfLinkAnnotation : PdfTextMarkupAnnotation
     public PdfLinkAnnotation(PdfObject annotationObject)
         : base(annotationObject, PdfAnnotationSubType.Link)
     {
-        var destValue = annotationObject.Dictionary.GetValue(PdfTokens.DestKey);
+        IPdfValue destValue = annotationObject.Dictionary.GetValue(PdfTokens.DestKey);
         Destination = PdfDestination.Parse(destValue, annotationObject.Dictionary.Document);
 
-        var actionDict = annotationObject.Dictionary.GetDictionary(PdfTokens.AKey);
+        PdfDictionary actionDict = annotationObject.Dictionary.GetDictionary(PdfTokens.AKey);
         Action = PdfAction.FromDictionary(actionDict);
 
         HighlightMode = annotationObject.Dictionary.GetName(PdfTokens.HighlightModeKey).AsEnum<PdfLinkHighlightMode>();
@@ -69,10 +69,10 @@ public class PdfLinkAnnotation : PdfTextMarkupAnnotation
             return false;
         }
 
-        var color = ResolveColor(page, SKColors.Black);
-        var borderWidth = BorderStyle.Width;
+        SKColor color = ResolveColor(page, SKColors.Black);
+        float borderWidth = BorderStyle.Width;
 
-        var paint = new SKPaint
+        SKPaint paint = new()
         {
             Style = SKPaintStyle.Stroke,
             StrokeWidth = borderWidth,
@@ -80,25 +80,25 @@ public class PdfLinkAnnotation : PdfTextMarkupAnnotation
             IsAntialias = renderingParameters.Antialias
         };
 
-        var needsNormalDraw = BorderStyle.TryApplyEffect(paint, color);
+        bool needsNormalDraw = BorderStyle.TryApplyEffect(paint, color);
 
         if (!needsNormalDraw && BorderStyle.Style == PdfBorderStyleType.Underline)
         {
-            var y = Rectangle.Top - borderWidth / 2;
-            using var linePath = new SKPath();
+            float y = Rectangle.Top - (borderWidth / 2);
+            using SKPath linePath = new();
             linePath.MoveTo(Rectangle.Left, y);
             linePath.LineTo(Rectangle.Right, y);
             processor.Process(new DrawPathCommand(linePath, paint));
         }
         else
         {
-            var rect = new SKRect(
-                Rectangle.Left + borderWidth / 2,
-                Rectangle.Top + borderWidth / 2,
-                Rectangle.Right - borderWidth / 2,
-                Rectangle.Bottom - borderWidth / 2);
+            SKRect rect = new(
+                Rectangle.Left + (borderWidth / 2),
+                Rectangle.Top + (borderWidth / 2),
+                Rectangle.Right - (borderWidth / 2),
+                Rectangle.Bottom - (borderWidth / 2));
 
-            using var rectPath = new SKPath();
+            using SKPath rectPath = new();
             rectPath.AddRect(rect);
             processor.Process(new DrawPathCommand(rectPath, paint));
         }

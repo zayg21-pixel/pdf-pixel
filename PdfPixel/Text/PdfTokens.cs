@@ -13,13 +13,13 @@ public static class PdfTokens
     public static ReadOnlySpan<byte> Xref => "xref"u8;
     public static ReadOnlySpan<byte> Startxref => "startxref"u8;
 
-    public static PdfString Stream = (PdfString)"stream"u8;
-    public static PdfString EndStream = (PdfString)"endstream"u8;
+    public static readonly PdfString Stream = (PdfString)"stream"u8;
+    public static readonly PdfString EndStream = (PdfString)"endstream"u8;
 
-    public static PdfString Obj = (PdfString)"obj"u8;
-    public static PdfString EndObj = (PdfString)"endobj"u8;
+    public static readonly PdfString Obj = (PdfString)"obj"u8;
+    public static readonly PdfString EndObj = (PdfString)"endobj"u8;
 
-    public static PdfString Trailer = (PdfString)"trailer"u8;
+    public static readonly PdfString Trailer = (PdfString)"trailer"u8;
 
     // Dictionary Key Constants (as PdfString for dictionary lookups)
     public static readonly PdfString RootKey = (PdfString)"Root"u8;
@@ -137,7 +137,7 @@ public static class PdfTokens
     public static readonly PdfString CidFontType0Key = (PdfString)"CIDFontType0"u8;
     public static readonly PdfString CidFontType2Key = (PdfString)"CIDFontType2"u8;
     public static readonly PdfString MMType1FontKey = (PdfString)"MMType1"u8;
-    
+
     // Font descriptor type
     public static readonly PdfString FontDescriptorTypeKey = (PdfString)"FontDescriptor"u8;
 
@@ -146,14 +146,15 @@ public static class PdfTokens
     public static readonly PdfString MacRomanEncodingKey = (PdfString)"MacRomanEncoding"u8;
     public static readonly PdfString WinAnsiEncodingKey = (PdfString)"WinAnsiEncoding"u8;
     public static readonly PdfString MacExpertEncodingKey = (PdfString)"MacExpertEncoding"u8;
-    
+
     // CID Font Encodings (CMaps)
     public static readonly PdfString IdentityKey = (PdfString)"Identity";      // Identity CMap for CID fonts
+
     /// <summary>
     /// Key for the NewWindow flag in GoToRemote actions.
     /// </summary>
     public static readonly PdfString NewWindowKey = (PdfString)"NewWindow"u8;
-    
+
     // Graphics State Dictionary Keys
     public static readonly PdfString LineWidthKey = (PdfString)"LW"u8;
     public static readonly PdfString LineCapKey = (PdfString)"LC"u8;
@@ -166,14 +167,14 @@ public static class PdfTokens
     public static readonly PdfString MatrixKey = (PdfString)"Matrix"u8;
     public static readonly PdfString CTMKey = (PdfString)"CTM"u8;
     public static readonly PdfString AlphaIsShapeKey = (PdfString)"AIS"u8;
-    
+
     // Resource Dictionary Keys
     public static readonly PdfString ColorSpaceKey = (PdfString)"ColorSpace"u8;
     public static readonly PdfString ExtGStateKey = (PdfString)"ExtGState"u8;
     public static readonly PdfString XObjectKey = (PdfString)"XObject"u8;
     public static readonly PdfString ProcSetKey = (PdfString)"ProcSet"u8;
     public static readonly PdfString ShadingKey = (PdfString)"Shading"u8;
-    
+
     // XObject Dictionary Keys
     public static readonly PdfString WidthKey = (PdfString)"Width"u8;
     public static readonly PdfString HeightKey = (PdfString)"Height"u8;
@@ -200,7 +201,7 @@ public static class PdfTokens
     public static readonly PdfString ExtendKey = (PdfString)"Extend"u8;           // extend flags for shadings
     public static readonly PdfString BitsPerCoordinateKey = (PdfString)"BitsPerCoordinate"u8; // Dictionary key for bits per coordinate in mesh shading
     public static readonly PdfString BitsPerFlagKey = (PdfString)"BitsPerFlag"u8;           // Dictionary key for bits per flag in mesh shading
-    public static readonly PdfString VerticesPerRowKey = (PdfString)"VerticesPerRow"u8; 
+    public static readonly PdfString VerticesPerRowKey = (PdfString)"VerticesPerRow"u8;
     public static readonly PdfString AntiAliasKey = (PdfString)"AntiAlias"u8;                     // Boolean key for mesh shading anti-aliasing
     public static readonly PdfString BackgroundKey = (PdfString)"Background"u8;                       // Array key for mesh shading background color
 
@@ -208,7 +209,7 @@ public static class PdfTokens
     public static readonly PdfString ImageSubtype = (PdfString)"Image"u8;
     public static readonly PdfString FormSubtype = (PdfString)"Form"u8;
     public static readonly PdfString PSSubtype = (PdfString)"PS"u8;
-    
+
     // Extended Graphics State Dictionary Keys (transparency)
     public static readonly PdfString SoftMaskKey = (PdfString)"SMask"u8;
     public static readonly PdfString GroupKey = (PdfString)"Group"u8;
@@ -222,16 +223,16 @@ public static class PdfTokens
     public static readonly PdfString GroupColorSpaceKey = (PdfString)"CS"u8;
     public static readonly PdfString GroupIsolatedKey = (PdfString)"I"u8;
     public static readonly PdfString GroupKnockoutKey = (PdfString)"K"u8;
-    
+
     // Soft Mask Dictionary Keys
     public static readonly PdfString SoftMaskSubtypeKey = (PdfString)"S"u8;
     public static readonly PdfString SoftMaskGroupKey = (PdfString)"G"u8;
     public static readonly PdfString SoftMaskBCKey = (PdfString)"BC"u8;
     public static readonly PdfString TransferFunctionKey = (PdfString)"TR"u8;
-    
+
     // Transparency Group Subtypes
     public static readonly PdfString TransparencyGroupValue = (PdfString)"Transparency"u8;
-    
+
     // Soft Mask Subtypes
     public static readonly PdfString AlphaSoftMask = (PdfString)"Alpha"u8;
     public static readonly PdfString LuminositySoftMask = (PdfString)"Luminosity"u8;
@@ -240,7 +241,7 @@ public static class PdfTokens
     public static readonly PdfString ObjStmKey = (PdfString)"ObjStm"u8;
     public static readonly PdfString NKey = (PdfString)"N"u8; // object stream key; do not use for functions
     public static readonly PdfString FirstKey = (PdfString)"First"u8;
-    
+
     // Cross-Reference Stream Dictionary Keys (PDF 1.5+)
     public static readonly PdfString XRefKey = (PdfString)"XRef"u8;
     public static readonly PdfString IndexKey = (PdfString)"Index"u8;
@@ -253,7 +254,7 @@ public static class PdfTokens
     // Named Destinations
     public static readonly PdfString DestsKey = (PdfString)"Dests"u8;     // Catalog named destinations dictionary
     public static readonly PdfString NamesKey = (PdfString)"Names"u8;     // Catalog name dictionary
-    
+
     // PDF Special Values
     public static readonly PdfString NoneValue = (PdfString)"None"u8;
 
@@ -303,7 +304,7 @@ public static class PdfTokens
     public static readonly PdfString OpenKey = (PdfString)"Open"u8;                   // Text annotation open state
     public static readonly PdfString StateModelKey = (PdfString)"StateModel"u8;       // Annotation state model
     public static readonly PdfString StateKey = (PdfString)"State"u8;                 // Annotation state
-    
+
     // Ink Annotation specific keys
     public static readonly PdfString InkListKey = (PdfString)"InkList"u8;             // Ink annotation path list
     public static readonly PdfString BorderKey = (PdfString)"Border"u8;               // Annotation border style

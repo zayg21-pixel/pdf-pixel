@@ -18,10 +18,7 @@ namespace PdfPixel.Streams
     {
         private readonly ILogger<PdfStreamDecoder> _logger;
 
-        public PdfStreamDecoder(ILoggerFactory loggerFactory)
-        {
-            _logger = loggerFactory.CreateLogger<PdfStreamDecoder>();
-        }
+        public PdfStreamDecoder(ILoggerFactory loggerFactory) => _logger = loggerFactory.CreateLogger<PdfStreamDecoder>();
 
         private const int DecodeChunkSize = 2048;
 
@@ -30,12 +27,12 @@ namespace PdfPixel.Streams
         /// </summary>
         public ReadOnlyMemory<byte> DecodeContentStream(PdfObject obj, IPdfExecutionObserver observer)
         {
-            var filters = GetFilters(obj);
-            var rawStream = obj.GetRawStream();
-            var decodeParameters = GetDecodeParms(obj);
+            List<PdfFilterType> filters = GetFilters(obj);
+            Stream rawStream = obj.GetRawStream();
+            List<PdfDictionary> decodeParameters = GetDecodeParms(obj);
             using Stream final = DecodeAsStream(rawStream, filters, decodeParameters);
 
-            using var memoryStream = new MemoryStream();
+            using MemoryStream memoryStream = new();
             var buffer = new byte[DecodeChunkSize];
             int read;
             while ((read = final.Read(buffer, 0, buffer.Length)) > 0)
@@ -52,8 +49,8 @@ namespace PdfPixel.Streams
         /// </summary>
         public Stream DecodeContentAsStream(PdfObject obj)
         {
-            var filters = GetFilters(obj);
-            var decodeParameters = GetDecodeParms(obj);
+            List<PdfFilterType> filters = GetFilters(obj);
+            List<PdfDictionary> decodeParameters = GetDecodeParms(obj);
             return DecodeAsStream(obj.GetRawStream(), filters, decodeParameters);
         }
 
@@ -94,7 +91,7 @@ namespace PdfPixel.Streams
                     }
                     case PdfFilterType.LZWDecode:
                     {
-                        var parameters = GetDecodeParmsForIndex(filterIndex, decodeParameters);
+                            PdfDecodeParameters parameters = GetDecodeParmsForIndex(filterIndex, decodeParameters);
                         bool earlyChange = parameters?.EarlyChange != 0;
                         current = new LzwDecodeStream(current, leaveOpen: false, earlyChange: earlyChange);
                         break;
@@ -116,7 +113,7 @@ namespace PdfPixel.Streams
                     }
                 }
 
-                var parametersForFilter = GetDecodeParmsForIndex(filterIndex, decodeParameters);
+                PdfDecodeParameters parametersForFilter = GetDecodeParmsForIndex(filterIndex, decodeParameters);
                 if (parametersForFilter != null && (filter == PdfFilterType.FlateDecode || filter == PdfFilterType.LZWDecode))
                 {
                     current = ApplyPredictorIfNeeded(current, parametersForFilter);
@@ -133,24 +130,24 @@ namespace PdfPixel.Streams
         /// <returns>Collection of filters.</returns>
         public static List<PdfFilterType> GetFilters(PdfObject obj)
         {
-            var filters = new List<PdfFilterType>();
+            List<PdfFilterType> filters = [];
             if (obj == null)
             {
                 return filters;
             }
 
-            var filterArray = obj.Dictionary.GetArray(PdfTokens.FilterKey);
+            PdfArray filterArray = obj.Dictionary.GetArray(PdfTokens.FilterKey);
             if (filterArray != null)
             {
                 for (int index = 0; index < filterArray.Count; index++)
                 {
-                    var filterType = filterArray.GetName(index).AsEnum<PdfFilterType>();
+                    PdfFilterType filterType = filterArray.GetName(index).AsEnum<PdfFilterType>();
                     filters.Add(filterType);
                 }
             }
             else
             {
-                var filterType = obj.Dictionary.GetName(PdfTokens.FilterKey).AsEnum<PdfFilterType>();
+                PdfFilterType filterType = obj.Dictionary.GetName(PdfTokens.FilterKey).AsEnum<PdfFilterType>();
                 filters.Add(filterType);
             }
 
@@ -159,28 +156,30 @@ namespace PdfPixel.Streams
 
         private List<PdfDictionary> GetDecodeParms(PdfObject obj)
         {
-            var list = new List<PdfDictionary>();
+            List<PdfDictionary> list = [];
             if (obj == null || obj.Dictionary == null)
             {
                 return list;
             }
-            var parmsArray = obj.Dictionary.GetArray(PdfTokens.DecodeParmsKey);
+
+            PdfArray parmsArray = obj.Dictionary.GetArray(PdfTokens.DecodeParmsKey);
             if (parmsArray != null)
             {
                 for (int index = 0; index < parmsArray.Count; index++)
                 {
-                    var dict = parmsArray.GetDictionary(index);
+                    PdfDictionary dict = parmsArray.GetDictionary(index);
                     list.Add(dict);
                 }
             }
             else
             {
-                var single = obj.Dictionary.GetDictionary(PdfTokens.DecodeParmsKey);
+                PdfDictionary single = obj.Dictionary.GetDictionary(PdfTokens.DecodeParmsKey);
                 if (single != null)
                 {
                     list.Add(single);
                 }
             }
+
             return list;
         }
 
@@ -190,14 +189,17 @@ namespace PdfPixel.Streams
             {
                 return null;
             }
+
             if (decodeParameters.Count == 1)
             {
                 return PdfDecodeParameters.FromDictionary(decodeParameters[0]);
             }
+
             if (filterIndex >= 0 && filterIndex < decodeParameters.Count)
             {
                 return PdfDecodeParameters.FromDictionary(decodeParameters[filterIndex]);
             }
+
             return null;
         }
 
@@ -213,6 +215,7 @@ namespace PdfPixel.Streams
             {
                 return decoded;
             }
+
             if (predictor != 2 && (predictor < 10 || predictor > 15))
             {
                 _logger.LogWarning("Unsupported predictor {Predictor}; skipping predictor stage.", predictor);
@@ -238,6 +241,7 @@ namespace PdfPixel.Streams
             {
                 return Stream.Null;
             }
+
             try
             {
                 if (compressed.CanSeek)
@@ -247,12 +251,13 @@ namespace PdfPixel.Streams
                         _logger.LogWarning("FlateDecode: insufficient data for zlib header; returning original stream.");
                         return compressed;
                     }
+
                     compressed.ReadByte();
                     compressed.ReadByte();
                 }
                 else
                 {
-                    byte[] headerBytes = new byte[2];
+                    var headerBytes = new byte[2];
                     int readCount = compressed.Read(headerBytes, 0, 2);
                     if (readCount < 2)
                     {
@@ -260,6 +265,7 @@ namespace PdfPixel.Streams
                         return compressed;
                     }
                 }
+
                 return new DeflateStream(compressed, CompressionMode.Decompress, leaveOpen: false);
             }
             catch (Exception ex)

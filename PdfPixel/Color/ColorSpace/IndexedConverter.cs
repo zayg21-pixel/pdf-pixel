@@ -17,7 +17,7 @@ internal sealed partial class IndexedConverter : PdfColorSpaceConverter
     private readonly int _hiVal;
     private readonly byte[] _lookup; // packed by base components (sequential entries)
 
-    private readonly Dictionary<PaletteCacheKey, Vector4[]> _paletteCache = new();
+    private readonly Dictionary<PaletteCacheKey, Vector4[]> _paletteCache = [];
 
     public IndexedConverter(PdfColorSpaceConverter baseConv, int hiVal, byte[] lookup)
     {
@@ -35,13 +35,13 @@ internal sealed partial class IndexedConverter : PdfColorSpaceConverter
     /// </summary>
     public Vector4[] BuildPalette(PdfRenderingIntent renderingIntent, IColorTransform postTransform)
     {
-        var key = new PaletteCacheKey(renderingIntent, postTransform);
-        if (_paletteCache.TryGetValue(key, out var existing))
+        PaletteCacheKey key = new(renderingIntent, postTransform);
+        if (_paletteCache.TryGetValue(key, out Vector4[] existing))
         {
             return existing;
         }
 
-        var sampler = _baseConv.GetRgbaSampler(renderingIntent, postTransform);
+        ColorTransformSampler sampler = _baseConv.GetRgbaSampler(renderingIntent, postTransform);
 
         int baseComps = _baseConv.Components;
         int paletteSize = _hiVal + 1;
@@ -55,7 +55,7 @@ internal sealed partial class IndexedConverter : PdfColorSpaceConverter
             for (int c = 0; c < baseComps; c++)
             {
                 int p = offset + c;
-                byte b = p >= 0 && p < _lookup.Length ? _lookup[p] : (byte)0;
+                byte b = (p >= 0 && p < _lookup.Length) ? _lookup[p] : (byte)0;
                 comps[c] = b / 255f;
             }
 
@@ -68,21 +68,20 @@ internal sealed partial class IndexedConverter : PdfColorSpaceConverter
 
     public RgbaPacked[] BuildPackedPalette(PdfRenderingIntent renderingIntent, IColorTransform postTransform)
     {
-        var palette = BuildPalette(renderingIntent, postTransform);
+        Vector4[] palette = BuildPalette(renderingIntent, postTransform);
         int paletteSize = palette.Length;
         var packedPalette = new RgbaPacked[paletteSize];
         for (int i = 0; i < paletteSize; i++)
         {
 
-            packedPalette[i] = ColorVectorUtilities.From01ToRgba(palette[i]);
+            packedPalette[i] = palette[i].From01ToRgba();
         }
+
         return packedPalette;
     }
 
     protected override ColorTransformSampler GetRgbaSamplerCore(PdfRenderingIntent intent, IColorTransform postTransform)
-    {
-        return new ColorTransformSampler(new ChainedColorTransform(new IndexedColorTransform(BuildPalette(intent, postTransform), _hiVal)));
-    }
+        => new(new ChainedColorTransform(new IndexedColorTransform(BuildPalette(intent, postTransform), _hiVal)));
 
     private readonly struct PaletteCacheKey : IEquatable<PaletteCacheKey>
     {
@@ -95,8 +94,8 @@ internal sealed partial class IndexedConverter : PdfColorSpaceConverter
             _postTransform = postTransform;
         }
 
-        public bool Equals(PaletteCacheKey other) =>
-            _intent == other._intent && ReferenceEquals(_postTransform, other._postTransform);
+        public bool Equals(PaletteCacheKey other)
+            => _intent == other._intent && ReferenceEquals(_postTransform, other._postTransform);
 
         public override bool Equals(object obj) => obj is PaletteCacheKey k && Equals(k);
 

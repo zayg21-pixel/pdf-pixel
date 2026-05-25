@@ -24,7 +24,7 @@ internal sealed class TilingPatternShaderBuilder
     /// <returns>A <see cref="PdfCommandRecorder"/> containing the recorded pattern cell, or null if the cell is empty.</returns>
     public static PdfCommandRecorder RenderTilingCell(IPdfRenderer renderer, PdfTilingPattern pattern, PdfGraphicsState sourceState)
     {
-        var streamData = pattern.SourceObject.DecodeAsMemory();
+        System.ReadOnlyMemory<byte> streamData = pattern.SourceObject.DecodeAsMemory();
 
         if (streamData.IsEmpty)
         {
@@ -39,16 +39,16 @@ internal sealed class TilingPatternShaderBuilder
 
         sourceState.RecursionGuard.Add(pattern.SourceObject.Reference.ObjectNumber);
 
-        var recorder = new PdfCommandRecorder();
+        PdfCommandRecorder recorder = new();
 
         // Clip to pattern cell bounds
         recorder.Process(new ClipPathCommand(pattern.BBox, SKClipOperation.Intersect));
 
         // Render pattern cell without tint or color filter
-        var patternPage = new FormXObjectPageWrapper(pattern.SourceObject);
-        var cellState = new PdfGraphicsState(patternPage, sourceState);
-        var contentRenderer = new PdfContentStreamRenderer(renderer, patternPage);
-        var parseContext = new PdfParseContext(streamData);
+        FormXObjectPageWrapper patternPage = new(pattern.SourceObject);
+        PdfGraphicsState cellState = new(patternPage, sourceState);
+        PdfContentStreamRenderer contentRenderer = new(renderer, patternPage);
+        PdfParseContext parseContext = new(streamData);
         contentRenderer.RenderContext(recorder, ref parseContext, cellState);
 
         sourceState.RecursionGuard.Remove(pattern.SourceObject.Reference.ObjectNumber);

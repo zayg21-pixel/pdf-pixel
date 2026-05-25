@@ -18,10 +18,9 @@ namespace PdfPixel.Rendering.Operators;
 /// </summary>
 internal class InlineImageOperators : IOperatorProcessor
 {
-    private static readonly HashSet<string> SupportedOperators = new HashSet<string>
-    {
+    private static readonly HashSet<string> SupportedOperators = [
         "BI", "ID", "EI"
-    };
+    ];
 
     private readonly IPdfRenderer _renderer;
     private readonly Stack<IPdfValue> _operandStack;
@@ -38,10 +37,7 @@ internal class InlineImageOperators : IOperatorProcessor
         _logger = page.Document.LoggerFactory.CreateLogger<InlineImageOperators>();
     }
 
-    public bool CanProcess(string op)
-    {
-        return SupportedOperators.Contains(op);
-    }
+    public bool CanProcess(string op) => SupportedOperators.Contains(op);
 
     public void ProcessOperator(string op, ref PdfGraphicsState graphicsState)
     {
@@ -69,23 +65,20 @@ internal class InlineImageOperators : IOperatorProcessor
     {
         try
         {
-            var image = _operandStack.Pop();
-            var parameterValues = new List<IPdfValue>(_operandStack);
+            IPdfValue image = _operandStack.Pop();
+            List<IPdfValue> parameterValues = new(_operandStack);
             parameterValues.Reverse();
             _operandStack.Clear();
 
-            var imageDictionary = BuildImageDictionary(parameterValues);
+            PdfDictionary imageDictionary = BuildImageDictionary(parameterValues);
             if (imageDictionary == null)
             {
                 return;
             }
 
-            var inlineObject = new PdfObject(default, _page.Document, PdfValueFactory.Dictionary(imageDictionary))
-            {
-                EmbaddedStream = image.AsString().Value
-            };
+            PdfObject inlineObject = new(default, _page.Document, PdfValueFactory.Dictionary(imageDictionary)) { EmbaddedStream = image.AsString().Value };
 
-            var pdfImage = PdfImage.FromXObject(inlineObject, _page, name: PdfString.Empty, isSoftMask: false);
+            PdfImage pdfImage = PdfImage.FromXObject(inlineObject, _page, name: PdfString.Empty, isSoftMask: false);
             _renderer.DrawImage(_processor, pdfImage, graphicsState);
         }
         catch (Exception ex)
@@ -96,26 +89,26 @@ internal class InlineImageOperators : IOperatorProcessor
 
     private PdfDictionary BuildImageDictionary(List<IPdfValue> parameters)
     {
-        var imageDictionary = new PdfDictionary(_page.Document);
+        PdfDictionary imageDictionary = new(_page.Document);
         imageDictionary.Set(PdfTokens.SubtypeKey, PdfValueFactory.Name(PdfTokens.ImageSubtype));
 
         for (int parameterIndex = 0; parameterIndex + 1 < parameters.Count; parameterIndex += 2)
         {
-            var keyValue = parameters[parameterIndex];
-            var valueValue = parameters[parameterIndex + 1];
+            IPdfValue keyValue = parameters[parameterIndex];
+            IPdfValue valueValue = parameters[parameterIndex + 1];
             if (keyValue.Type != PdfValueType.Name)
             {
                 break;
             }
 
-            var rawKey = keyValue.AsName();
+            PdfString rawKey = keyValue.AsName();
             if (rawKey.IsEmpty)
             {
                 continue;
             }
 
-            var expandedKey = ExpandInlineImageKey(rawKey);
-            var normalizedValue = NormalizeInlineImageValue(expandedKey, valueValue);
+            PdfString expandedKey = ExpandInlineImageKey(rawKey);
+            IPdfValue normalizedValue = NormalizeInlineImageValue(expandedKey, valueValue);
 
             if (!imageDictionary.HasKey(expandedKey))
             {
@@ -127,20 +120,24 @@ internal class InlineImageOperators : IOperatorProcessor
         {
             imageDictionary.Set(PdfTokens.BitsPerComponentKey, PdfValueFactory.Integer(8));
         }
+
         if (!imageDictionary.HasKey(PdfTokens.WidthKey))
         {
             _logger.LogWarning("Inline image missing /Width – skipping");
             return null;
         }
+
         if (!imageDictionary.HasKey(PdfTokens.HeightKey))
         {
             _logger.LogWarning("Inline image missing /Height – skipping");
             return null;
         }
+
         if (!imageDictionary.HasKey(PdfTokens.ColorSpaceKey) && !imageDictionary.GetBooleanOrDefault(PdfTokens.ImageMaskKey))
         {
             imageDictionary.Set(PdfTokens.ColorSpaceKey, PdfValueFactory.Name(PdfColorSpaceType.DeviceGray.AsPdfString()));
         }
+
         if (imageDictionary.GetBooleanOrDefault(PdfTokens.ImageMaskKey) && !imageDictionary.HasKey(PdfTokens.BitsPerComponentKey))
         {
             imageDictionary.Set(PdfTokens.BitsPerComponentKey, PdfValueFactory.Integer(1));
@@ -149,19 +146,26 @@ internal class InlineImageOperators : IOperatorProcessor
         return imageDictionary;
     }
 
-    private IPdfValue NormalizeInlineImageValue(PdfString expandedKey, IPdfValue value)
+    private IPdfValue NormalizeInlineImageValue(in PdfString expandedKey, IPdfValue value)
     {
         if (expandedKey == PdfTokens.ColorSpaceKey && value.Type == PdfValueType.Name)
         {
-            var colorSpace = value.AsName().AsEnum<PdfInlineImageColorSpace>();
+            PdfInlineImageColorSpace colorSpace = value.AsName().AsEnum<PdfInlineImageColorSpace>();
             if (colorSpace != PdfInlineImageColorSpace.Unknown)
             {
                 switch (colorSpace)
                 {
-                    case PdfInlineImageColorSpace.DeviceGray: return PdfValueFactory.Name(PdfColorSpaceType.DeviceGray.AsPdfString());
-                    case PdfInlineImageColorSpace.DeviceRGB: return PdfValueFactory.Name(PdfColorSpaceType.DeviceRGB.AsPdfString());
-                    case PdfInlineImageColorSpace.DeviceCMYK: return PdfValueFactory.Name(PdfColorSpaceType.DeviceCMYK.AsPdfString());
-                    case PdfInlineImageColorSpace.Indexed: return PdfValueFactory.Name(PdfColorSpaceType.Indexed.AsPdfString());
+                    case PdfInlineImageColorSpace.DeviceGray:
+                        return PdfValueFactory.Name(PdfColorSpaceType.DeviceGray.AsPdfString());
+
+                    case PdfInlineImageColorSpace.DeviceRGB:
+                        return PdfValueFactory.Name(PdfColorSpaceType.DeviceRGB.AsPdfString());
+
+                    case PdfInlineImageColorSpace.DeviceCMYK:
+                        return PdfValueFactory.Name(PdfColorSpaceType.DeviceCMYK.AsPdfString());
+
+                    case PdfInlineImageColorSpace.Indexed:
+                        return PdfValueFactory.Name(PdfColorSpaceType.Indexed.AsPdfString());
                 }
             }
         }
@@ -169,10 +173,10 @@ internal class InlineImageOperators : IOperatorProcessor
         {
             if (value.Type == PdfValueType.Name)
             {
-                var filterName = value.AsName();
+                PdfString filterName = value.AsName();
                 if (!filterName.IsEmpty)
                 {
-                    var filter = ExpandFilterName(filterName);
+                    PdfFilterType filter = ExpandFilterName(filterName);
 
                     if (filter != PdfFilterType.Unknown)
                     {
@@ -186,17 +190,17 @@ internal class InlineImageOperators : IOperatorProcessor
             }
             else if (value.Type == PdfValueType.Array)
             {
-                var array = value.AsArray();
-                if (array != null && array.Count > 0)
+                PdfArray array = value.AsArray();
+                if (array?.Count > 0)
                 {
-                    var newValues = new List<IPdfValue>(array.Count);
+                    List<IPdfValue> newValues = new(array.Count);
                     for (int elementIndex = 0; elementIndex < array.Count; elementIndex++)
                     {
-                        var item = array.GetValue(elementIndex);
+                        IPdfValue item = array.GetValue(elementIndex);
                         if (item != null && item.Type == PdfValueType.Name)
                         {
-                            var itemName = item.AsName();
-                            var filterName = ExpandFilterName(itemName);
+                            PdfString itemName = item.AsName();
+                            PdfFilterType filterName = ExpandFilterName(itemName);
 
                             if (filterName != PdfFilterType.Unknown)
                             {
@@ -208,12 +212,15 @@ internal class InlineImageOperators : IOperatorProcessor
                             }
 
                         }
+
                         newValues.Add(item);
                     }
+
                     return PdfValueFactory.Array(new PdfArray(array.Document, newValues));
                 }
             }
         }
+
         return value;
     }
 
@@ -222,27 +229,35 @@ internal class InlineImageOperators : IOperatorProcessor
     /// </summary>
     /// <param name="key">The raw property key (e.g., /W, /H, /BPC).</param>
     /// <returns>The expanded PDF dictionary key, or the original key if not recognized.</returns>
-    private PdfString ExpandInlineImageKey(PdfString key)
+    private PdfString ExpandInlineImageKey(in PdfString key)
     {
-        var property = key.AsEnum<PdfInlineImageProperty>();
+        PdfInlineImageProperty property = key.AsEnum<PdfInlineImageProperty>();
         switch (property)
         {
             case PdfInlineImageProperty.Width:
                 return PdfTokens.WidthKey;
+
             case PdfInlineImageProperty.Height:
                 return PdfTokens.HeightKey;
+
             case PdfInlineImageProperty.BitsPerComponent:
                 return PdfTokens.BitsPerComponentKey;
+
             case PdfInlineImageProperty.ColorSpace:
                 return PdfTokens.ColorSpaceKey;
+
             case PdfInlineImageProperty.Decode:
                 return PdfTokens.DecodeKey;
+
             case PdfInlineImageProperty.DecodeParms:
                 return PdfTokens.DecodeParmsKey;
+
             case PdfInlineImageProperty.Filter:
                 return PdfTokens.FilterKey;
+
             case PdfInlineImageProperty.ImageMask:
                 return PdfTokens.ImageMaskKey;
+
             default:
                 return key;
         }
@@ -253,29 +268,38 @@ internal class InlineImageOperators : IOperatorProcessor
     /// </summary>
     /// <param name="raw">The raw filter abbreviation (e.g., Fl, LZW, AHx).</param>
     /// <returns>The full filter name as defined in PdfTokens, or the original value if not recognized.</returns>
-    private PdfFilterType ExpandFilterName(PdfString raw)
+    private PdfFilterType ExpandFilterName(in PdfString raw)
     {
-        var filter = raw.AsEnum<PdfInlineImageFilter>();
+        PdfInlineImageFilter filter = raw.AsEnum<PdfInlineImageFilter>();
         switch (filter)
         {
             case PdfInlineImageFilter.Flate:
                 return PdfFilterType.FlateDecode;
+
             case PdfInlineImageFilter.LZW:
                 return PdfFilterType.LZWDecode;
+
             case PdfInlineImageFilter.ASCIIHex:
                 return PdfFilterType.ASCIIHexDecode;
+
             case PdfInlineImageFilter.ASCII85:
                 return PdfFilterType.ASCII85Decode;
+
             case PdfInlineImageFilter.RunLength:
                 return PdfFilterType.RunLengthDecode;
+
             case PdfInlineImageFilter.CCITTFax:
                 return PdfFilterType.CCITTFaxDecode;
+
             case PdfInlineImageFilter.DCT:
                 return PdfFilterType.DCTDecode;
+
             case PdfInlineImageFilter.JPX:
                 return PdfFilterType.JPXDecode;
+
             case PdfInlineImageFilter.JBIG2:
                 return PdfFilterType.JBIG2Decode;
+
             default:
                 return PdfFilterType.Unknown;
         }

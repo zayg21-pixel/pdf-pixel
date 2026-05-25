@@ -42,10 +42,7 @@ internal class TextFillRenderTarget : IRenderTarget
         processor.Process(new ClipPathCommand(_clipPath, SKClipOperation.Intersect));
     }
 
-    public void AfterPatternRender(IPdfCommandProcessor processor)
-    {
-        processor.Process(new RestoreStateCommand());
-    }
+    public void AfterPatternRender(IPdfCommandProcessor processor) => processor.Process(new RestoreStateCommand());
 
     public void Render(IPdfCommandProcessor processor)
     {
@@ -59,18 +56,18 @@ internal class TextFillRenderTarget : IRenderTarget
             //using var path = TextRenderUtilities.GetTextPath(_shapingResult, _font, _state);
             //canvas.DrawPath(path, paint);
 
-            var textMatrix = TextRenderUtilities.GetFullTextMatrix(_state);
+            SKMatrix textMatrix = TextRenderUtilities.GetFullTextMatrix(_state);
 
             processor.Process(new SaveStateCommand());
 
             // Apply text matrix transformation
             processor.Process(new ConcatMatrixCommand(textMatrix));
 
-            var blob = TextRenderUtilities.BuildTextBlob(_shapingResult, _font);
+            SKTextBlob blob = TextRenderUtilities.BuildTextBlob(_shapingResult, _font);
 
             if (blob != null)
             {
-                var paint = PdfPaintFactory.CreateFillPaint(_state);
+                SKPaint paint = PdfPaintFactory.CreateFillPaint(_state);
                 processor.Process(new DrawTextBlobCommand(blob, paint));
             }
 
@@ -78,8 +75,5 @@ internal class TextFillRenderTarget : IRenderTarget
         }
     }
 
-    public void Dispose()
-    {
-        _clipPath?.Dispose();
-    }
+    public void Dispose() => _clipPath?.Dispose();
 }

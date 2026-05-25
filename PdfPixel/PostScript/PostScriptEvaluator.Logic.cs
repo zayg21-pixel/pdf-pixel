@@ -86,7 +86,7 @@ namespace PdfPixel.PostScript
             Ensure(stack, 2);
             PostScriptToken right = stack.Pop();
             PostScriptToken left = stack.Pop();
-            var result = predicate(left, right);
+            bool result = predicate(left, right);
             stack.Push(new PostScriptBoolean(result));
         }
     }

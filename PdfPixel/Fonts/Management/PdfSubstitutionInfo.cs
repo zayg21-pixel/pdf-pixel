@@ -24,7 +24,7 @@ public readonly struct PdfSubstitutionInfo
         { "Light", SKFontStyleWeight.Light },
         { "ExtraLight", SKFontStyleWeight.ExtraLight },
         { "UltraLight", SKFontStyleWeight.ExtraLight },
-        { "Thin", SKFontStyleWeight.Thin },
+        { "Thin", SKFontStyleWeight.Thin }
     };
 
     private static readonly Dictionary<string, SKFontStyleSlant> SlantHints = new(StringComparer.OrdinalIgnoreCase)
@@ -35,14 +35,14 @@ public readonly struct PdfSubstitutionInfo
         { "Slanted", SKFontStyleSlant.Oblique },
         { "Inclined", SKFontStyleSlant.Oblique },
         { "Skewed", SKFontStyleSlant.Oblique },
-        { "Cursive", SKFontStyleSlant.Italic },
+        { "Cursive", SKFontStyleSlant.Italic }
     };
 
     private static readonly List<string> StyleHintKeys = CreateStyleHintKeys();
 
     private static List<string> CreateStyleHintKeys()
     {
-        var keys = new List<string>(WeightHints.Count + SlantHints.Count);
+        List<string> keys = new(WeightHints.Count + SlantHints.Count);
         keys.AddRange(WeightHints.Keys);
         keys.AddRange(SlantHints.Keys);
         return keys;
@@ -65,7 +65,7 @@ public readonly struct PdfSubstitutionInfo
         FontStyle = SKFontStyle.Normal;
     }
 
-    public static PdfSubstitutionInfo Detault { get; } = new PdfSubstitutionInfo();
+    public static PdfSubstitutionInfo Detault { get; } = new();
 
     private PdfSubstitutionInfo(
         string normalizedStem,
@@ -75,7 +75,7 @@ public readonly struct PdfSubstitutionInfo
         FontStyle = style;
     }
 
-    public static PdfSubstitutionInfo Parse(PdfString rawName, PdfFontDescriptor descriptor)
+    public static PdfSubstitutionInfo Parse(in PdfString rawName, PdfFontDescriptor descriptor)
     {
         if (rawName.IsEmpty)
         {
@@ -95,9 +95,9 @@ public readonly struct PdfSubstitutionInfo
             name = name.Substring(0, name.Length - 2);
         }
 
-        SKFontStyleWeight weight = SKFontStyleWeight.Normal;
-        SKFontStyleSlant slant = SKFontStyleSlant.Upright;
-        SKFontStyleWidth width = SKFontStyleWidth.Normal;
+        var weight = SKFontStyleWeight.Normal;
+        var slant = SKFontStyleSlant.Upright;
+        var width = SKFontStyleWidth.Normal;
 
         // Single pass over pre-generated keys
         foreach (string key in StyleHintKeys)
@@ -105,12 +105,12 @@ public readonly struct PdfSubstitutionInfo
             int idx = name.IndexOf(key, StringComparison.OrdinalIgnoreCase);
             if (idx >= 0)
             {
-                if (weight == SKFontStyleWeight.Normal && WeightHints.TryGetValue(key, out var w))
+                if (weight == SKFontStyleWeight.Normal && WeightHints.TryGetValue(key, out SKFontStyleWeight w))
                 {
                     weight = w;
                 }
 
-                if (slant == SKFontStyleSlant.Upright && SlantHints.TryGetValue(key, out var s))
+                if (slant == SKFontStyleSlant.Upright && SlantHints.TryGetValue(key, out SKFontStyleSlant s))
                 {
                     slant = s;
                 }
@@ -130,7 +130,7 @@ public readonly struct PdfSubstitutionInfo
         // Descriptor overrides
         if (descriptor != null)
         {
-            if (descriptor.Flags.HasFlag(PdfFontFlags.ForceBold))
+            if ((descriptor.Flags & PdfFontFlags.ForceBold) != 0)
             {
                 weight = SKFontStyleWeight.Bold;
             }
@@ -140,7 +140,7 @@ public readonly struct PdfSubstitutionInfo
                 weight = (SKFontStyleWeight)descriptor.FontWeight;
             }
 
-            if (descriptor.Flags.HasFlag(PdfFontFlags.Italic))
+            if ((descriptor.Flags & PdfFontFlags.Italic) != 0)
             {
                 slant = SKFontStyleSlant.Italic;
             }
@@ -154,7 +154,7 @@ public readonly struct PdfSubstitutionInfo
             width = MapWidth(descriptor.FontStretch);
         }
 
-        SKFontStyle style = new SKFontStyle(weight, width, slant);
+        SKFontStyle style = new(weight, width, slant);
         return new PdfSubstitutionInfo(basePart, style);
     }
 
@@ -175,7 +175,7 @@ public readonly struct PdfSubstitutionInfo
         return SKFontStyleSlant.Upright;
     }
 
-    private static SKFontStyleWidth MapWidth(PdfString stretch)
+    private static SKFontStyleWidth MapWidth(in PdfString stretch)
     {
         if (stretch.IsEmpty)
         {
@@ -188,7 +188,7 @@ public readonly struct PdfSubstitutionInfo
             return SKFontStyleWidth.Normal;
         }
 
-        if (Enum.TryParse<SKFontStyleWidth>(value, ignoreCase: true, out var parsedWidth))
+        if (Enum.TryParse<SKFontStyleWidth>(value, ignoreCase: true, out SKFontStyleWidth parsedWidth))
         {
             return parsedWidth;
         }

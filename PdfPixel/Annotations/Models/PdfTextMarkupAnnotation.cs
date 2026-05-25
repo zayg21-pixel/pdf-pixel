@@ -22,11 +22,11 @@ public abstract class PdfTextMarkupAnnotation : PdfAnnotationBase
     protected PdfTextMarkupAnnotation(PdfObject annotationObject, PdfAnnotationSubType subtype)
         : base(annotationObject, subtype)
     {
-        var quadPoints = annotationObject.Dictionary.GetArray(PdfTokens.QuadPointsKey)?.GetFloatArray();
+        float[]? quadPoints = annotationObject.Dictionary.GetArray(PdfTokens.QuadPointsKey)?.GetFloatArray();
         Quadrilaterals = GetQuadrilaterals(quadPoints);
     }
 
-    protected override SKPoint ContentStart => Quadrilaterals.Length > 0 && Quadrilaterals[0].Length == 4 ? Quadrilaterals[0][2] : base.ContentStart;
+    protected override SKPoint ContentStart => (Quadrilaterals.Length > 0 && Quadrilaterals[0].Length == 4) ? Quadrilaterals[0][2] : base.ContentStart;
 
     /// <summary>
     /// Gets the collection of quadrilaterals, each represented as an array of four points in two-dimensional space.
@@ -41,21 +41,21 @@ public abstract class PdfTextMarkupAnnotation : PdfAnnotationBase
     {
         if (quadPoints == null || quadPoints.Length < 8 || quadPoints.Length % 8 != 0)
         {
-            return [];
+            return System.Array.Empty<global::SkiaSharp.SKPoint[]>();
         }
 
-        var quadCount = quadPoints.Length / 8;
+        int quadCount = quadPoints.Length / 8;
         var quads = new SKPoint[quadCount][];
 
         for (int i = 0; i < quadCount; i++)
         {
-            var offset = i * 8;
+            int offset = i * 8;
             quads[i] =
             [
                 new SKPoint(quadPoints[offset + 6], quadPoints[offset + 7]),
                 new SKPoint(quadPoints[offset + 4], quadPoints[offset + 5]),
                 new SKPoint(quadPoints[offset + 0], quadPoints[offset + 1]),
-                new SKPoint(quadPoints[offset + 2], quadPoints[offset + 3]),
+                new SKPoint(quadPoints[offset + 2], quadPoints[offset + 3])
             ];
         }
 

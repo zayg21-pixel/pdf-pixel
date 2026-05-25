@@ -43,7 +43,7 @@ public class PdfRenderingParameters : IEquatable<PdfRenderingParameters>, IClone
     /// <inheritdoc />
     public bool Equals(PdfRenderingParameters other)
     {
-        if (other is null)
+        if (other == null)
         {
             return false;
         }
@@ -53,18 +53,15 @@ public class PdfRenderingParameters : IEquatable<PdfRenderingParameters>, IClone
             return true;
         }
 
-        return PrintMode == other.PrintMode &&
-            Antialias == other.Antialias &&
-            ScaleFactor == other.ScaleFactor &&
-            DefaultFunctionSamples == other.DefaultFunctionSamples &&
-            MaxTessellationVertices == other.MaxTessellationVertices;
+        return PrintMode == other.PrintMode
+            && Antialias == other.Antialias
+            && ScaleFactor == other.ScaleFactor
+            && DefaultFunctionSamples == other.DefaultFunctionSamples
+            && MaxTessellationVertices == other.MaxTessellationVertices;
     }
 
     /// <inheritdoc />
-    public override bool Equals(object obj)
-    {
-        return Equals(obj as PdfRenderingParameters);
-    }
+    public override bool Equals(object obj) => Equals(obj as PdfRenderingParameters);
 
     /// <inheritdoc />
     public override int GetHashCode()
@@ -83,25 +80,22 @@ public class PdfRenderingParameters : IEquatable<PdfRenderingParameters>, IClone
     /// </summary>
     public static bool operator ==(PdfRenderingParameters left, PdfRenderingParameters right)
     {
-        if (left is null)
+        if (ReferenceEquals(left, right))
         {
-            return right is null;
+            return true;
         }
 
-        return left.Equals(right);
+        return left?.Equals(right) ?? false;
     }
 
     /// <summary>
     /// Determines whether two <see cref="PdfRenderingParameters"/> instances are not equal.
     /// </summary>
-    public static bool operator !=(PdfRenderingParameters left, PdfRenderingParameters right)
-    {
-        return !(left == right);
-    }
+    public static bool operator !=(PdfRenderingParameters left, PdfRenderingParameters right) => !(left == right);
 
     public PdfRenderingParameters Clone()
     {
-        return new PdfRenderingParameters
+        return new()
         {
             PrintMode = PrintMode,
             Antialias = Antialias,
@@ -112,8 +106,5 @@ public class PdfRenderingParameters : IEquatable<PdfRenderingParameters>, IClone
         };
     }
 
-    object ICloneable.Clone()
-    {
-        return Clone();
-    }
+    object ICloneable.Clone() => Clone();
 }

@@ -7,27 +7,15 @@ namespace PdfPixel.PostScript.Tokens
     /// </summary>
     public sealed class PostScriptExecutableName : PostScriptToken
     {
-        public PostScriptExecutableName(string name)
-        {
-            Name = name;
-        }
+        public PostScriptExecutableName(string name) => Name = name;
 
         public string Name { get; }
 
-        public override string ToString()
-        {
-            return "ExecutableName: {" + Name + "}";
-        }
+        public override string ToString() => "ExecutableName: {" + Name + "}";
 
-        public override bool EqualsToken(PostScriptToken other)
-        {
-            return other is PostScriptExecutableName n && string.Equals(Name, n.Name, StringComparison.Ordinal);
-        }
+        public override bool EqualsToken(PostScriptToken other) => other is PostScriptExecutableName n && string.Equals(Name, n.Name, StringComparison.Ordinal);
 
-        public override int GetHashCode()
-        {
-            return Name == null ?0 : StringComparer.Ordinal.GetHashCode(Name);
-        }
+        public override int GetHashCode() => (Name == null) ? 0 : StringComparer.Ordinal.GetHashCode(Name);
 
         public override int CompareToToken(PostScriptToken other)
         {
@@ -35,7 +23,8 @@ namespace PdfPixel.PostScript.Tokens
             {
                 throw new InvalidOperationException("Name comparison requires name operand.");
             }
-            return string.Compare(Name, n.Name, StringComparison.Ordinal);
+
+            return string.CompareOrdinal(Name, n.Name);
         }
     }
 }

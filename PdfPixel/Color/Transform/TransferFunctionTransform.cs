@@ -41,11 +41,11 @@ namespace PdfPixel.Color.Transform
                 return null;
             }
 
-            var value = functionObject.Value;
+            IPdfValue value = functionObject.Value;
 
             if (value.Type == PdfValueType.Array)
             {
-                var arr = value.AsArray();
+                PdfArray arr = value.AsArray();
                 if (arr == null)
                 {
                     return null;
@@ -71,11 +71,12 @@ namespace PdfPixel.Color.Transform
             else
             {
                 // Non-spec compliant rule: single function applied to all components.
-                var fn = PdfFunctions.GetFunction(functionObject);
+                PdfFunction fn = PdfFunctions.GetFunction(functionObject);
                 if (fn == null)
                 {
                     return null;
                 }
+
                 return new TransferFunctionTransform(fn, fn, fn);
             }
         }
@@ -92,19 +93,19 @@ namespace PdfPixel.Color.Transform
             float y = color.Y;
             float z = color.Z;
 
-            var rx = _fx.Evaluate(x);
+            System.ReadOnlySpan<float> rx = _fx.Evaluate(x);
             if (!rx.IsEmpty)
             {
                 x = rx[0];
             }
 
-            var ry = _fy.Evaluate(y);
+            System.ReadOnlySpan<float> ry = _fy.Evaluate(y);
             if (!ry.IsEmpty)
             {
                 y = ry[0];
             }
 
-            var rz = _fz.Evaluate(z);
+            System.ReadOnlySpan<float> rz = _fz.Evaluate(z);
             if (!rz.IsEmpty)
             {
                 z = rz[0];

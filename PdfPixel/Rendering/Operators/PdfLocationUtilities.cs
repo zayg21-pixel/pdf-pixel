@@ -40,17 +40,23 @@ public static class PdfLocationUtilities
             return SKMatrix.Identity;
         }
 
-        var a = operands[0].AsFloat();
-        var b = operands[1].AsFloat();
-        var c = operands[2].AsFloat();
-        var d = operands[3].AsFloat();
-        var e = operands[4].AsFloat();
-        var f = operands[5].AsFloat();
+        float a = operands[0].AsFloat();
+        float b = operands[1].AsFloat();
+        float c = operands[2].AsFloat();
+        float d = operands[3].AsFloat();
+        float e = operands[4].AsFloat();
+        float f = operands[5].AsFloat();
 
-        var result = new SKMatrix(
-            a, c, e,
-            b, d, f,
-            0, 0, 1);
+        SKMatrix result = new(
+            a,
+            c,
+            e,
+            b,
+            d,
+            f,
+            0,
+            0,
+            1);
 
         return result;
     }
@@ -73,10 +79,16 @@ public static class PdfLocationUtilities
         float e = operands.GetFloatOrDefault(4);
         float f = operands.GetFloatOrDefault(5);
 
-        var result = new SKMatrix(
-            a, c, e,
-            b, d, f,
-            0, 0, 1);
+        SKMatrix result = new(
+            a,
+            c,
+            e,
+            b,
+            d,
+            f,
+            0,
+            0,
+            1);
 
         return result;
     }

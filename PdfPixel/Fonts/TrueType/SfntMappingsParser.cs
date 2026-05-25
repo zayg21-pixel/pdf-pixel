@@ -35,7 +35,7 @@ public class SfntFontTables
 /// <summary>
 /// Provides methods for extracting font table mappings from a TrueType font using SkiaSharp.
 /// </summary>
-internal class SfntFontTableParser
+internal static class SfntFontTableParser
 {
     /// <summary>
     /// Extracts all relevant font table mappings from the specified <see cref="SKTypeface"/>.
@@ -44,7 +44,7 @@ internal class SfntFontTableParser
     /// <returns>A <see cref="SfntFontTables"/> instance containing all extracted mappings and table info.</returns>
     public static SfntFontTables GetSfntFontTables(SKTypeface typeface)
     {
-        var tableInfo = SfntFontTableInfoParser.GetFontTableInfo(typeface);
+        FontTableInfo tableInfo = SfntFontTableInfoParser.GetFontTableInfo(typeface);
 
         return new SfntFontTables
         {
@@ -96,7 +96,7 @@ internal class SfntFontTableParser
 
     private static void ApplyEncodings(ref ushort[] result, FontTableInfo info, IEnumerable<CMapEntry> entries)
     {
-        foreach (var entry in entries)
+        foreach (CMapEntry entry in entries)
         {
             if (entry.Format == 0)
             {
@@ -105,14 +105,14 @@ internal class SfntFontTableParser
             }
             else if (entry.Format == 4)
             {
-                var format4Map = SnftCMapParser.ParseFormat4(info.CmapData, entry.Offset);
+                Dictionary<int, ushort> format4Map = SnftCMapParser.ParseFormat4(info.CmapData, entry.Offset);
                 result ??= new ushort[256];
                 ApplyDictionaryToByteArray(format4Map, result);
                 return;
             }
             else if (entry.Format == 6)
             {
-                var format6Map = SnftCMapParser.ParseFormat6(info.CmapData, entry.Offset);
+                Dictionary<int, ushort> format6Map = SnftCMapParser.ParseFormat6(info.CmapData, entry.Offset);
                 result ??= new ushort[256];
                 ApplyDictionaryToByteArray(format6Map, result);
                 return;
@@ -131,7 +131,7 @@ internal class SfntFontTableParser
             return;
         }
 
-        foreach (var kvp in map)
+        foreach (KeyValuePair<int, ushort> kvp in map)
         {
             int key = kvp.Key;
             ushort value = kvp.Value;
@@ -147,18 +147,18 @@ internal class SfntFontTableParser
     /// <returns>Dictionary mapping glyph names to GIDs.</returns>
     private static Dictionary<PdfString, ushort> ExtractNameToGid(FontTableInfo info)
     {
-        var nameToGid = new Dictionary<PdfString, ushort>();
+        Dictionary<PdfString, ushort> nameToGid = [];
 
         // Merge post table (format 1.0 or 2.0)
         if (info.PostData != null)
         {
             if (info.PostDataFormat == 1.0f)
             {
-                var postMap = SfntPostTableParser.GetNameToGidFormat1(info.PostData);
-                foreach (var kvp in postMap)
+                Dictionary<PdfString, ushort> postMap = SfntPostTableParser.GetNameToGidFormat1(info.PostData);
+                foreach (KeyValuePair<PdfString, ushort> kvp in postMap)
                 {
-                    var key = kvp.Key;
-                    var value = kvp.Value;
+                    PdfString key = kvp.Key;
+                    ushort value = kvp.Value;
                     if (value != 0 && !nameToGid.ContainsKey(key))
                     {
                         nameToGid[key] = value;
@@ -167,12 +167,12 @@ internal class SfntFontTableParser
             }
             else if (info.PostDataFormat == 2.0f)
             {
-                var postMap = SfntPostTableParser.GetNameToGidFormat2(info.PostData);
+                Dictionary<PdfString, ushort> postMap = SfntPostTableParser.GetNameToGidFormat2(info.PostData);
 
-                foreach (var kvp in postMap)
+                foreach (KeyValuePair<PdfString, ushort> kvp in postMap)
                 {
-                    var key = kvp.Key;
-                    var value = kvp.Value;
+                    PdfString key = kvp.Key;
+                    ushort value = kvp.Value;
 
                     if (value != 0 && !nameToGid.ContainsKey(key))
                     {
@@ -192,17 +192,17 @@ internal class SfntFontTableParser
     /// <returns>Dictionary mapping Unicode codepoints to GIDs.</returns>
     private static Dictionary<string, ushort> ExtractUnicodeToGid(FontTableInfo info)
     {
-        var unicodeToGid = new Dictionary<string, ushort>();
+        Dictionary<string, ushort> unicodeToGid = [];
 
         // TODO: [HIGH] according to PDF spec, we should use both font encoding and UnicodeToGid encoding to map char, this is incorrect
 
-        foreach (var cmap in info.CMapEntries)
+        foreach (CMapEntry cmap in info.CMapEntries)
         {
             if (cmap.Format == 4)
             {
-                var format4Map = SnftCMapParser.ParseFormat4(info.CmapData, cmap.Offset);
+                Dictionary<int, ushort> format4Map = SnftCMapParser.ParseFormat4(info.CmapData, cmap.Offset);
 
-                foreach (var kvp in format4Map)
+                foreach (KeyValuePair<int, ushort> kvp in format4Map)
                 {
                     if (!IsValidUnicodeCodepoint(kvp.Key))
                     {
@@ -219,9 +219,9 @@ internal class SfntFontTableParser
             }
             else if (cmap.Format == 6)
             {
-                var format6Map = SnftCMapParser.ParseFormat6(info.CmapData, cmap.Offset);
+                Dictionary<int, ushort> format6Map = SnftCMapParser.ParseFormat6(info.CmapData, cmap.Offset);
 
-                foreach (var kvp in format6Map)
+                foreach (KeyValuePair<int, ushort> kvp in format6Map)
                 {
                     if (!IsValidUnicodeCodepoint(kvp.Key))
                     {
@@ -242,8 +242,5 @@ internal class SfntFontTableParser
         return unicodeToGid;
     }
 
-    private static bool IsValidUnicodeCodepoint(int codepoint)
-    {
-        return codepoint >= 0 && codepoint <= 0x10FFFF && (codepoint < 0xD800 || codepoint > 0xDFFF);
-    }
+    private static bool IsValidUnicodeCodepoint(int codepoint) => codepoint >= 0 && codepoint <= 0x10FFFF && (codepoint < 0xD800 || codepoint > 0xDFFF);
 }

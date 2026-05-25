@@ -14,7 +14,7 @@ namespace PdfPixel.Annotations.Models;
 /// Base class for all PDF annotations containing common fields and properties.
 /// </summary>
 /// <remarks>
-/// This class provides the foundation for all PDF annotation types as defined in 
+/// This class provides the foundation for all PDF annotation types as defined in
 /// the PDF specification. All annotations share a common set of properties including
 /// position, appearance, and metadata.
 /// </remarks>
@@ -29,29 +29,29 @@ public abstract class PdfAnnotationBase
     protected PdfAnnotationBase(PdfObject annotationObject, PdfAnnotationSubType subtype)
     {
         AnnotationObject = annotationObject ?? throw new ArgumentNullException(nameof(annotationObject));
-        Subtype = subtype == PdfAnnotationSubType.Unknown ? throw new ArgumentException("Subtype cannot be Unknown", nameof(subtype)) : subtype;
-        
+        Subtype = (subtype == PdfAnnotationSubType.Unknown) ? throw new ArgumentException("Subtype cannot be Unknown", nameof(subtype)) : subtype;
+
         // Initialize all properties in constructor to avoid re-parsing
         Rectangle = PdfLocationUtilities.CreateBBox(annotationObject.Dictionary.GetArray(PdfTokens.RectKey)) ?? SKRect.Empty;
         Contents = annotationObject.Dictionary.GetString(PdfTokens.ContentsKey);
         Name = annotationObject.Dictionary.GetString(PdfTokens.NameKey);
-        
-        var modDateString = annotationObject.Dictionary.GetString(PdfTokens.ModificationDateKey);
+
+        PdfString modDateString = annotationObject.Dictionary.GetString(PdfTokens.ModificationDateKey);
         ModificationDate = PdfDateParser.ParsePdfDate(modDateString);
-        
+
         // Parse additional annotation metadata
         Title = annotationObject.Dictionary.GetString(PdfTokens.TitleKey);
         Subject = annotationObject.Dictionary.GetString(PdfTokens.SubjectKey);
-        
-        var creationDateString = annotationObject.Dictionary.GetString(PdfTokens.CreationDateKey);
+
+        PdfString creationDateString = annotationObject.Dictionary.GetString(PdfTokens.CreationDateKey);
         CreationDate = PdfDateParser.ParsePdfDate(creationDateString);
-        
+
         Flags = (PdfAnnotationFlags)annotationObject.Dictionary.GetIntegerOrDefault(PdfTokens.FlagsKey);
         AppearanceDictionary = annotationObject.Dictionary.GetDictionary(PdfTokens.AppearanceKey);
         AppearanceState = annotationObject.Dictionary.GetString(PdfTokens.AppearanceStateKey);
 
-        var borderStyleDict = annotationObject.Dictionary.GetDictionary(PdfTokens.BorderStyleKey);
-        var borderArray = annotationObject.Dictionary.GetArray(PdfTokens.BorderKey);
+        PdfDictionary borderStyleDict = annotationObject.Dictionary.GetDictionary(PdfTokens.BorderStyleKey);
+        PdfArray borderArray = annotationObject.Dictionary.GetArray(PdfTokens.BorderKey);
         BorderStyle = PdfBorderStyle.FromDictionary(borderStyleDict, borderArray);
 
         Color = annotationObject.Dictionary.GetArray(PdfTokens.ColorKey)?.GetFloatArray();
@@ -78,7 +78,7 @@ public abstract class PdfAnnotationBase
     /// Gets the rectangle defining the annotation's location on the page.
     /// </summary>
     /// <remarks>
-    /// The rectangle is specified in default user space coordinates and 
+    /// The rectangle is specified in default user space coordinates and
     /// represents the annotation's bounding box.
     /// </remarks>
     public SKRect Rectangle { get; }
@@ -86,7 +86,7 @@ public abstract class PdfAnnotationBase
     /// <summary>
     /// Starting point of actual content.
     /// </summary>
-    protected virtual SKPoint ContentStart => new SKPoint(Rectangle.Left, Rectangle.Bottom);
+    protected virtual SKPoint ContentStart => new(Rectangle.Left, Rectangle.Bottom);
 
     /// <summary>
     /// Gets whether this annotation should display a content bubble indicator.
@@ -98,13 +98,13 @@ public abstract class PdfAnnotationBase
     public virtual bool ShouldDisplayBubble => !Contents.Value.IsEmpty;
 
     /// <summary>
-    /// Gets the annotation's contents, which is typically the text displayed 
+    /// Gets the annotation's contents, which is typically the text displayed
     /// for the annotation or associated with it.
     /// </summary>
     public PdfString Contents { get; }
 
     /// <summary>
-    /// Gets the annotation's name, a text string uniquely identifying it among 
+    /// Gets the annotation's name, a text string uniquely identifying it among
     /// all the annotations on its page.
     /// </summary>
     public PdfString Name { get; }
@@ -157,7 +157,7 @@ public abstract class PdfAnnotationBase
     public PdfDictionary AppearanceDictionary { get; }
 
     /// <summary>
-    /// Gets the appearance state that, along with the appearance dictionary, controls 
+    /// Gets the appearance state that, along with the appearance dictionary, controls
     /// the annotation's appearance.
     /// </summary>
     public PdfString AppearanceState { get; }
@@ -196,7 +196,7 @@ public abstract class PdfAnnotationBase
     public PdfReference? PageReference { get; }
 
     /// <summary>
-    /// Gets the structural parent key that indicates this annotation's structural parent 
+    /// Gets the structural parent key that indicates this annotation's structural parent
     /// in the document's structure tree.
     /// </summary>
     public int? StructuralParent { get; }
@@ -252,7 +252,7 @@ public abstract class PdfAnnotationBase
             throw new ArgumentNullException(nameof(page));
         }
 
-        var hoverRect = ShouldDisplayBubble
+        SKRect hoverRect = ShouldDisplayBubble
             ? SKRect.Create(ContentStart.X - defaultBubbleSize, ContentStart.Y, defaultBubbleSize, defaultBubbleSize)
             : Rectangle;
 
@@ -261,9 +261,9 @@ public abstract class PdfAnnotationBase
             return SKRect.Empty;
         }
 
-        var crop = page.CropBox;
+        SKRect crop = page.CropBox;
 
-        var dx = 0f;
+        float dx = 0f;
         if (hoverRect.Left < crop.Left)
         {
             dx = crop.Left - hoverRect.Left;
@@ -273,7 +273,7 @@ public abstract class PdfAnnotationBase
             dx = crop.Right - hoverRect.Right;
         }
 
-        var dy = 0f;
+        float dy = 0f;
         if (hoverRect.Top < crop.Top)
         {
             dy = crop.Top - hoverRect.Top;
@@ -406,10 +406,7 @@ public abstract class PdfAnnotationBase
     /// <param name="page">The PDF page for color space resolution.</param>
     /// <param name="defaultColor">Default color to use if annotation has no color specified. If null, returns transparent.</param>
     /// <returns>The resolved SKColor for rendering.</returns>
-    internal SKColor ResolveColor(IPdfPageInternal page, SKColor? defaultColor = null)
-    {
-        return PdfAnnotationColorResolver.ResolveColor(Color, page, defaultColor);
-    }
+    internal SKColor ResolveColor(IPdfPageInternal page, SKColor? defaultColor = null) => PdfAnnotationColorResolver.ResolveColor(Color, page, defaultColor);
 
     /// <summary>
     /// Resolves the annotation interior color using proper color space conversion.
@@ -417,10 +414,7 @@ public abstract class PdfAnnotationBase
     /// <param name="page">The PDF page for color space resolution.</param>
     /// <param name="defaultColor">Default color to use if annotation has no interior color specified. If null, returns transparent.</param>
     /// <returns>The resolved SKColor for rendering.</returns>
-    internal SKColor ResolveInteriorColor(IPdfPageInternal page, SKColor? defaultColor = null)
-    {
-        return PdfAnnotationColorResolver.ResolveColor(InteriorColor, page, defaultColor);
-    }
+    internal SKColor ResolveInteriorColor(IPdfPageInternal page, SKColor? defaultColor = null) => PdfAnnotationColorResolver.ResolveColor(InteriorColor, page, defaultColor);
 
     /// <summary>
     /// Returns a string representation of this annotation.
@@ -428,19 +422,19 @@ public abstract class PdfAnnotationBase
     /// <returns>A string containing the annotation subtype and basic information.</returns>
     public override string ToString()
     {
-        var contentsText = Contents.ToString();
-        var nameText = Name.ToString();
-        
+        string contentsText = Contents.ToString();
+        string nameText = Name.ToString();
+
         if (!string.IsNullOrEmpty(contentsText))
         {
             return $"{Subtype} Annotation: {contentsText}";
         }
-        
+
         if (!string.IsNullOrEmpty(nameText))
         {
             return $"{Subtype} Annotation: {nameText}";
         }
-        
+
         return $"{Subtype} Annotation";
     }
 }

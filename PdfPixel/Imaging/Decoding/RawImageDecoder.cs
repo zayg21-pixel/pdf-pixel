@@ -19,22 +19,29 @@ public class RawImageDecoder : PdfImageDecoder
     private PdfImageRowDecodingParameters _imageParameters;
     private int _currentImageRow;
 
-    public RawImageDecoder(PdfImage image, ILoggerFactory loggerFactory) : base(image, loggerFactory) { }
+    public RawImageDecoder(PdfImage image, ILoggerFactory loggerFactory)
+        : base(image, loggerFactory)
+    {
+    }
 
     public override void Initialize(PdfTileInfo tileInfo, ImageDecodingContext context, object contentLocker, SKMatrix ctm, SKRectI regionOfInterest, IPdfExecutionObserver observer)
     {
         if (!ValidateImageParameters())
+        {
             throw new InvalidOperationException($"Raw image parameters are invalid (Name={Image.Name}).");
+        }
 
         _contentLocker = contentLocker;
         _imageParameters = PdfImageRowDecodingParameters.FromImage(Image, context, ctm);
 
-        int rowBytes = checked((Image.Width * Image.ColorSpaceConverter.Components * Image.BitsPerComponent + 7) / 8);
+        int rowBytes = checked(((Image.Width * Image.ColorSpaceConverter.Components * Image.BitsPerComponent) + 7) / 8);
         _fullWidthRowBuffer = new byte[rowBytes];
         _tilingContext = new PdfImageTilingContext(new SKSizeI(tileInfo.TileWidth, tileInfo.TileHeight), _imageParameters, ctm, regionOfInterest, LoggerFactory);
 
         lock (contentLocker)
+        {
             _dataStream = Image.GetImageDataStream();
+        }
 
         _currentImageRow = 0;
     }
@@ -48,7 +55,7 @@ public class RawImageDecoder : PdfImageDecoder
                 ReadFull(_dataStream, _fullWidthRowBuffer);
             }
 
-            var tiles = _tilingContext.WriteRowAndTryGetTiles(_currentImageRow, _fullWidthRowBuffer, observer);
+            PdfImageTile[] tiles = _tilingContext.WriteRowAndTryGetTiles(_currentImageRow, _fullWidthRowBuffer, observer);
             _currentImageRow++;
             observer?.Notify();
 
@@ -57,6 +64,7 @@ public class RawImageDecoder : PdfImageDecoder
                 return tiles;
             }
         }
+
         return null;
     }
 
@@ -81,8 +89,9 @@ public class RawImageDecoder : PdfImageDecoder
             int read = stream.Read(buffer, bytesRead, buffer.Length - bytesRead);
             if (read == 0)
             {
-                throw new Exception("Premature end of raw stream at image row");
+                throw new("Premature end of raw stream at image row");
             }
+
             bytesRead += read;
         }
     }

@@ -14,12 +14,12 @@ namespace PdfPixel.Color.ColorSpace;
 /// to handle the Device CMYK color space, which is commonly used in printing.</remarks>
 internal sealed class DeviceCmykConverter : PdfColorSpaceConverter
 {
-    public static readonly DeviceCmykConverter Instance = new DeviceCmykConverter();
+    public static readonly DeviceCmykConverter Instance = new();
     private static readonly IccProfileTransform _iccTransform;
 
     static DeviceCmykConverter()
     {
-        var cmykProfile = ProfileRespources.GetCmykProfile();
+        Icc.Model.IccProfile cmykProfile = ProfileRespources.GetCmykProfile();
         _iccTransform = new IccProfileTransform(cmykProfile);
     }
 
@@ -28,7 +28,5 @@ internal sealed class DeviceCmykConverter : PdfColorSpaceConverter
     public override bool IsDevice => true;
 
     protected override ColorTransformSampler GetRgbaSamplerCore(PdfRenderingIntent intent, IColorTransform postTransform)
-    {
-        return new ColorTransformSampler(new ChainedColorTransform(_iccTransform.GetIntentTransform(intent.ToIccRenderingIntent()), postTransform));
-    }
+        => new(new ChainedColorTransform(_iccTransform.GetIntentTransform(intent.ToIccRenderingIntent()), postTransform));
 }

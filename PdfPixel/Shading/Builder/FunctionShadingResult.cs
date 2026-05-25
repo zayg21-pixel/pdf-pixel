@@ -31,8 +31,5 @@ public sealed class FunctionShadingResult : IDisposable
     public SKMatrix Matrix { get; }
 
     /// <inheritdoc />
-    public void Dispose()
-    {
-        Bitmap?.Dispose();
-    }
+    public void Dispose() => Bitmap?.Dispose();
 }

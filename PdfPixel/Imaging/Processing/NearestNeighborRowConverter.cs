@@ -6,7 +6,6 @@ namespace PdfPixel.Imaging.Processing;
 internal sealed class NearestNeighborRowConverter : IRowConverter
 {
     private readonly int _components;
-    private readonly int _bitsPerComponent;
     private readonly int _srcWidth;
     private readonly int _dstWidth;
     private readonly int _srcHeight;
@@ -19,7 +18,7 @@ internal sealed class NearestNeighborRowConverter : IRowConverter
     public NearestNeighborRowConverter(int components, int bitsPerComponent, int srcWidth, int dstWidth, int srcHeight, int dstHeight)
     {
         _components = components;
-        _bitsPerComponent = bitsPerComponent;
+        BitsPerComponent = bitsPerComponent;
         _srcWidth = srcWidth;
         _dstWidth = dstWidth;
         _srcHeight = srcHeight;
@@ -30,7 +29,7 @@ internal sealed class NearestNeighborRowConverter : IRowConverter
         _nextDestRowToWrite = 0;
     }
 
-    public int BitsPerComponent => _bitsPerComponent;
+    public int BitsPerComponent { get; }
 
     public bool TryConvertRow(int rowIndex, ReadOnlySpan<byte> sourceRow, Span<byte> destRow)
     {
@@ -47,18 +46,19 @@ internal sealed class NearestNeighborRowConverter : IRowConverter
 
         destRow.Clear();
 
-        var reader = new UintBitReaderFixedLength(sourceRow, _bitsPerComponent);
-        var writer = new UintBitWriter(destRow);
+        UintBitReaderFixedLength reader = new(sourceRow, BitsPerComponent);
+        UintBitWriter writer = new(destRow);
 
         Span<uint> sourceSamples = stackalloc uint[_components];
 
-        int currentSourceX = _srcXForDest.Length > 0 ? _srcXForDest[0] : -1;
+        int currentSourceX = (_srcXForDest.Length > 0) ? _srcXForDest[0] : -1;
         if (currentSourceX >= 0)
         {
             if (currentSourceX > 0)
             {
                 reader.Advance(currentSourceX * _components);
             }
+
             for (int c = 0; c < _components; c++)
             {
                 sourceSamples[c] = reader.Read();
@@ -76,16 +76,18 @@ internal sealed class NearestNeighborRowConverter : IRowConverter
                 {
                     reader.Advance(advance * _components);
                 }
+
                 for (int c = 0; c < _components; c++)
                 {
                     sourceSamples[c] = reader.Read();
                 }
+
                 currentSourceX = sx;
             }
 
             for (int c = 0; c < _components; c++)
             {
-                writer.WriteBits(_bitsPerComponent, sourceSamples[c]);
+                writer.WriteBits(BitsPerComponent, sourceSamples[c]);
             }
         }
 
@@ -101,17 +103,20 @@ internal sealed class NearestNeighborRowConverter : IRowConverter
         for (int d = 0; d < dstLength; d++)
         {
             float srcPos = ((d + 0.5f) / scale) - 0.5f;
-            int s = (int)Math.Round(srcPos);
+            var s = (int)Math.Round(srcPos);
             if (s < 0)
             {
                 s = 0;
             }
+
             if (s >= srcLength)
             {
                 s = srcLength - 1;
             }
+
             map[d] = s;
         }
+
         for (int d = 1; d < dstLength; d++)
         {
             if (map[d] < map[d - 1])
@@ -119,10 +124,12 @@ internal sealed class NearestNeighborRowConverter : IRowConverter
                 map[d] = map[d - 1];
             }
         }
+
         if (dstLength > 0)
         {
             map[dstLength - 1] = Math.Max(map[dstLength - 1], srcLength - 1);
         }
+
         return map;
     }
 }

@@ -9,20 +9,20 @@ internal sealed class DrawNormalImageTileCommand : PdfCommand
 {
     private readonly NormalImageExecutionContext _context;
 
-    public DrawNormalImageTileCommand(NormalImageExecutionContext context)
-    {
-        _context = context;
-    }
+    public DrawNormalImageTileCommand(NormalImageExecutionContext context) => _context = context;
 
     public override bool IsScaleDependent => true;
 
     public override void Execute(SKCanvas canvas, IEnumerable<IPdfCommandModifier> modifiers, PdfCommandExecutionContext executionContext)
     {
         PdfImageTile tile = _context.TileCache.GetNextTile(executionContext.ExecutionObserver);
-        if (tile.IsSkipped) return;
+        if (tile.IsSkipped)
+        {
+            return;
+        }
 
-        var ctm = CommandHelpers.GetScaledMatrix(canvas, executionContext);
-        var sampling = PdfImageCommandUtilities.GetSamplingOptions(ctm, _context.DecodingContext, _context.ImageSize, _context.Interpolate);
+        SKMatrix ctm = CommandHelpers.GetScaledMatrix(canvas, executionContext);
+        SKSamplingOptions sampling = PdfImageCommandUtilities.GetSamplingOptions(ctm, _context.DecodingContext, _context.ImageSize, _context.Interpolate);
 
         canvas.Save();
         canvas.Scale(1f / _context.ImageSize.Width, 1f / _context.ImageSize.Height);
@@ -36,4 +36,6 @@ internal sealed class DrawNormalImageTileCommand : PdfCommand
 
         canvas.Restore();
     }
+
+    protected override void Dispose(bool disposing) => _context.Dispose();
 }

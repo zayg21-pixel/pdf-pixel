@@ -16,7 +16,7 @@ public class PdfObject
     /// <param name="reference">The PDF reference for this object.</param>
     /// <param name="document">The owning PDF document.</param>
     /// <param name="value">The value of the PDF object.</param>
-    internal PdfObject(PdfReference reference, IPdfDocumentInternal document, IPdfValue value)
+    internal PdfObject(in PdfReference reference, IPdfDocumentInternal document, IPdfValue value)
     {
         Reference = reference;
         Document = document;
@@ -75,7 +75,7 @@ public class PdfObject
             return Stream.Null;
         }
 
-        var subrange = new SubrangeReadOnlyStream(Document.Stream, StreamInfo.Value.Offset, StreamInfo.Value.Length, leaveOpen: true);
+        SubrangeReadOnlyStream subrange = new(Document.Stream, StreamInfo.Value.Offset, StreamInfo.Value.Length, leaveOpen: true);
 
         if (StreamInfo.Value.IsEncrypted && Document.Decryptor != null && Reference.IsValid)
         {
@@ -91,17 +91,11 @@ public class PdfObject
     /// Decodes the object's stream using the document's stream decoder and returns a readable <see cref="Stream"/>.
     /// </summary>
     /// <returns>A <see cref="Stream"/> containing the decoded stream data.</returns>
-    public Stream DecodeAsStream()
-    {
-        return Document.StreamDecoder.DecodeContentAsStream(this);
-    }
+    public Stream DecodeAsStream() => Document.StreamDecoder.DecodeContentAsStream(this);
 
     /// <summary>
     /// Decodes the object's stream using the document's stream decoder and returns the decoded bytes as memory.
     /// </summary>
     /// <returns>A <see cref="ReadOnlyMemory{byte}"/> containing the decoded stream data.</returns>
-    public ReadOnlyMemory<byte> DecodeAsMemory(IPdfExecutionObserver observer = default)
-    {
-        return Document.StreamDecoder.DecodeContentStream(this, observer);
-    }
+    public ReadOnlyMemory<byte> DecodeAsMemory(IPdfExecutionObserver observer = default) => Document.StreamDecoder.DecodeContentStream(this, observer);
 }

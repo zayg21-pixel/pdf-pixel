@@ -52,7 +52,7 @@ internal sealed class AveragingDownsampleRowConverter : IRowConverter
         _destinationHeight = destinationHeight;
 
         _sourceMaximumValue = (1u << sourceBitsPerComponent) - 1u;
-        _sourceToDestinationScale = _sourceMaximumValue == 0 ? 0f : 255f / _sourceMaximumValue;
+        _sourceToDestinationScale = (_sourceMaximumValue == 0) ? 0f : 255f / _sourceMaximumValue;
 
         int totalDestinationSamples = _destinationWidth * components;
         _destinationRowAccumulators = new Accumulator[totalDestinationSamples];
@@ -86,11 +86,12 @@ internal sealed class AveragingDownsampleRowConverter : IRowConverter
             {
                 for (int component = 0; component < components; component++)
                 {
-                    int destinationIndex = currentDestinationColumn * components + component;
-                    int flatStart = sourceColumnRangeStart * components + component;
-                    int flatEnd = sourceColumn * components + component;
+                    int destinationIndex = (currentDestinationColumn * components) + component;
+                    int flatStart = (sourceColumnRangeStart * components) + component;
+                    int flatEnd = (sourceColumn * components) + component;
                     _sourceSampleRangeForDestinationSample[destinationIndex] = new Range(flatStart, flatEnd);
                 }
+
                 sourceColumnRangeStart = sourceColumn;
                 currentDestinationColumn = destinationColumn;
             }
@@ -104,11 +105,12 @@ internal sealed class AveragingDownsampleRowConverter : IRowConverter
         int previousDestinationRow = -1;
         for (int sourceRow = sourceHeight - 1; sourceRow >= 0; sourceRow--)
         {
-            int destinationRow = (int)((sourceRow + 0.5f) * inverseVerticalScale);
+            var destinationRow = (int)((sourceRow + 0.5f) * inverseVerticalScale);
             if (destinationRow >= destinationHeight)
             {
                 destinationRow = destinationHeight - 1;
             }
+
             if (destinationRow != previousDestinationRow)
             {
                 _flushAfterSourceRow.Add(sourceRow);
@@ -143,10 +145,10 @@ internal sealed class AveragingDownsampleRowConverter : IRowConverter
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private void ReadSourceRowSamples(ReadOnlySpan<byte> sourceRow)
+    private void ReadSourceRowSamples(in ReadOnlySpan<byte> sourceRow)
     {
         int totalSourceSamples = _sourceWidth * _components;
-        var reader = new UintBitReaderFixedLength(sourceRow, _sourceBitsPerComponent);
+        UintBitReaderFixedLength reader = new(sourceRow, _sourceBitsPerComponent);
         for (int sampleIndex = 0; sampleIndex < totalSourceSamples; sampleIndex++)
         {
             _sourceSamples[sampleIndex] = reader.Read();
@@ -180,10 +182,10 @@ internal sealed class AveragingDownsampleRowConverter : IRowConverter
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private void WriteAveragedRow(Span<byte> destRow)
+    private void WriteAveragedRow(in Span<byte> destRow)
     {
         int totalSamples = _destinationWidth * _components;
-        var writer = new UintBitWriter(destRow);
+        UintBitWriter writer = new(destRow);
         for (int sampleIndex = 0; sampleIndex < totalSamples; sampleIndex++)
         {
             byte value = _destinationRowAccumulators[sampleIndex].GetAverage(_sourceToDestinationScale);
@@ -192,10 +194,7 @@ internal sealed class AveragingDownsampleRowConverter : IRowConverter
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private void ResetAccumulators()
-    {
-        Array.Clear(_destinationRowAccumulators, 0, _destinationRowAccumulators.Length);
-    }
+    private void ResetAccumulators() => Array.Clear(_destinationRowAccumulators, 0, _destinationRowAccumulators.Length);
 
     private struct Accumulator
     {
@@ -216,9 +215,18 @@ internal sealed class AveragingDownsampleRowConverter : IRowConverter
             {
                 return 0;
             }
+
             float average = (Sum / (float)Count) * scale;
-            if (average < 0) return 0;
-            if (average > 255) return 255;
+            if (average < 0)
+            {
+                return 0;
+            }
+
+            if (average > 255)
+            {
+                return 255;
+            }
+
             return (byte)average;
         }
     }

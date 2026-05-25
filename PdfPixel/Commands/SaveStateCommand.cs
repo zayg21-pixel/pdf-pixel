@@ -9,8 +9,9 @@ namespace PdfPixel.Commands;
 public sealed class SaveStateCommand : PdfCommand
 {
     /// <inheritdoc />
-    public override void Execute(SKCanvas canvas, IEnumerable<IPdfCommandModifier> modifiers, PdfCommandExecutionContext executionContext)
+    public override void Execute(SKCanvas canvas, IEnumerable<IPdfCommandModifier> modifiers, PdfCommandExecutionContext executionContext) => canvas.Save();
+
+    protected override void Dispose(bool disposing)
     {
-        canvas.Save();
     }
 }

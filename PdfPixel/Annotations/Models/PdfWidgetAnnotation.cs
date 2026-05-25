@@ -1,10 +1,8 @@
-using PdfPixel.Annotations.Models;
 using PdfPixel.Commands;
 using PdfPixel.Forms;
 using PdfPixel.Models;
 using PdfPixel.Text;
 using SkiaSharp;
-using System;
 
 namespace PdfPixel.Annotations.Models;
 
@@ -45,7 +43,7 @@ public class PdfWidgetAnnotation : PdfAnnotationBase
     public PdfWidgetAnnotation(PdfObject annotationObject)
         : base(annotationObject, PdfAnnotationSubType.Widget)
     {
-        var dictionary = annotationObject.Dictionary;
+        PdfDictionary dictionary = annotationObject.Dictionary;
 
         HighlightMode = dictionary.GetName(PdfTokens.HighlightModeKey);
         AppearanceCharacteristics = dictionary.GetDictionary(PdfTokens.AppearanceCharacteristicsKey);
@@ -94,10 +92,7 @@ public class PdfWidgetAnnotation : PdfAnnotationBase
     /// </remarks>
     public override bool ShouldDisplayBubble => false;
 
-    internal override bool RenderFallback(IPdfCommandProcessor processor, IPdfPageInternal page, PdfAnnotationVisualStateKind visualStateKind, PdfRenderingParameters renderingParameters)
-    {
-        return false;
-    }
+    internal override bool RenderFallback(IPdfCommandProcessor processor, IPdfPageInternal page, PdfAnnotationVisualStateKind visualStateKind, PdfRenderingParameters renderingParameters) => false;
 
     /// <summary>
     /// Gets the text value for text field widgets.
@@ -135,7 +130,7 @@ public class PdfWidgetAnnotation : PdfAnnotationBase
     {
         if (Field != null)
         {
-            var fieldName = Field.PartialName.ToString();
+            string fieldName = Field.PartialName.ToString();
             if (!string.IsNullOrEmpty(fieldName))
             {
                 return $"Widget Annotation: {fieldName} ({Field.FieldType})";
@@ -201,18 +196,12 @@ public class PdfWidgetAnnotation : PdfAnnotationBase
     /// <summary>
     /// Propagates mouse enter event to the associated form field.
     /// </summary>
-    public void HandleMouseEnter()
-    {
-        Field?.OnMouseEnter();
-    }
+    public void HandleMouseEnter() => Field?.OnMouseEnter();
 
     /// <summary>
     /// Propagates mouse leave event to the associated form field.
     /// </summary>
-    public void HandleMouseLeave()
-    {
-        Field?.OnMouseLeave();
-    }
+    public void HandleMouseLeave() => Field?.OnMouseLeave();
 
     /// <summary>
     /// Propagates key down event to the associated form field.
@@ -258,18 +247,12 @@ public class PdfWidgetAnnotation : PdfAnnotationBase
     /// <summary>
     /// Sets focus to the widget's field.
     /// </summary>
-    public void Focus()
-    {
-        Field?.Focus();
-    }
+    public void Focus() => Field?.Focus();
 
     /// <summary>
     /// Removes focus from the widget's field.
     /// </summary>
-    public void Blur()
-    {
-        Field?.Blur();
-    }
+    public void Blur() => Field?.Blur();
 
     /// <summary>
     /// Gets the cursor type that should be displayed when hovering over this widget.
@@ -277,7 +260,7 @@ public class PdfWidgetAnnotation : PdfAnnotationBase
     /// <returns>The appropriate cursor type for this widget.</returns>
     public WidgetCursorType GetCursorType()
     {
-        if (Field == null || Field.IsReadOnly)
+        if (Field?.IsReadOnly != false)
         {
             return WidgetCursorType.Arrow;
         }
@@ -303,7 +286,7 @@ public class PdfWidgetAnnotation : PdfAnnotationBase
     /// </remarks>
     private SKPoint GetRelativePosition(SKPoint pagePosition)
     {
-        return new SKPoint(
+        return new(
             pagePosition.X - Rectangle.Left,
             Rectangle.Top - pagePosition.Y);
     }
@@ -314,15 +297,15 @@ public class PdfWidgetAnnotation : PdfAnnotationBase
     /// <returns>The form field, or null if no field could be resolved.</returns>
     private PdfFormField ResolveField()
     {
-        var dictionary = AnnotationObject.Dictionary;
-        var fieldType = dictionary.GetName(PdfTokens.FieldTypeKey);
+        PdfDictionary dictionary = AnnotationObject.Dictionary;
+        PdfString fieldType = dictionary.GetName(PdfTokens.FieldTypeKey);
 
         if (!fieldType.IsEmpty)
         {
             return PdfFormFieldFactory.CreateField(AnnotationObject);
         }
 
-        var parentObject = dictionary.GetObject(PdfTokens.ParentKey);
+        PdfObject parentObject = dictionary.GetObject(PdfTokens.ParentKey);
         if (parentObject != null)
         {
             return PdfFormFieldFactory.CreateField(parentObject);

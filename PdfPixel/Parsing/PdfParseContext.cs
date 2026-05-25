@@ -18,10 +18,7 @@ public ref struct PdfParseContext
     /// Construct context from a single memory block (wrapped as one chunk).
     /// </summary>
     /// <param name="memory">The memory block to parse.</param>
-    public PdfParseContext(ReadOnlyMemory<byte> memory)
-    {
-        _data = memory.Span;
-    }
+    public PdfParseContext(in ReadOnlyMemory<byte> memory) => _data = memory.Span;
 
     /// <summary>
     /// Construct context from a list of memory chunks.
@@ -38,7 +35,7 @@ public ref struct PdfParseContext
         int start = 0;
         for (int i = 0; i < chunks.Count; i++)
         {
-            var chunk = chunks[i];
+            ReadOnlyMemory<byte> chunk = chunks[i];
             chunk.CopyTo(total.Slice(start, chunk.Length));
             start += chunk.Length + 1; // add 1 padding byte between chunks to set correct /0 separator between chunks
         }
@@ -53,6 +50,7 @@ public ref struct PdfParseContext
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get { return _position; }
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         set
         {
@@ -60,10 +58,12 @@ public ref struct PdfParseContext
             {
                 value = 0;
             }
+
             if (value > _data.Length)
             {
                 value = _data.Length;
             }
+
             _position = value;
         }
     }
@@ -96,7 +96,7 @@ public ref struct PdfParseContext
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public byte PeekByte(int offset = 0)
     {
-        var target = _position + offset;
+        int target = _position + offset;
         if (target < 0 || target >= _data.Length)
         {
             return 0;
@@ -112,7 +112,7 @@ public ref struct PdfParseContext
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public byte ReadByte()
     {
-        var value = PeekByte();
+        byte value = PeekByte();
         Advance(1);
         return value;
     }
@@ -124,20 +124,19 @@ public ref struct PdfParseContext
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void Advance(int count)
     {
-        var newPosition = _position + count;
+        int newPosition = _position + count;
         if (newPosition < 0)
         {
             newPosition = 0;
         }
+
         if (newPosition > _data.Length)
         {
             newPosition = _data.Length;
         }
+
         _position = newPosition;
     }
 
-    public override string ToString()
-    {
-        return Text.EncodingExtensions.PdfDefault.GetString(_data);
-    }
+    public override string ToString() => Text.EncodingExtensions.PdfDefault.GetString(_data);
 }

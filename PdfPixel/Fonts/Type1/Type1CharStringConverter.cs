@@ -43,14 +43,15 @@ internal static class Type1CharStringConverter
     /// </summary>
     public static Dictionary<PdfString, byte[]> ConvertAllCharStringsToType2Flatten(Type1ConverterContext context)
     {
-        var result = new Dictionary<PdfString, byte[]>(context.Source.Count);
-        foreach (var kv in context.Source)
+        Dictionary<PdfString, byte[]> result = new(context.Source.Count);
+        foreach (KeyValuePair<PdfString, byte[]> kv in context.Source)
         {
-            var oldValue = kv.Value;
-            var newValue = FlattenCharString(oldValue, context);
+            byte[] oldValue = kv.Value;
+            byte[] newValue = FlattenCharString(oldValue, context);
             result[kv.Key] = newValue;
 
         }
+
         return result;
     }
 
@@ -60,8 +61,9 @@ internal static class Type1CharStringConverter
         {
             return Array.Empty<byte>();
         }
-        var output = new MemoryStream(root.Length + 32);
-        var operandStack = new List<Type1CharStringNumber>(32);
+
+        MemoryStream output = new(root.Length + 32);
+        List<Type1CharStringNumber> operandStack = new(32);
         ProcessCharString(root, ref context, output, operandStack);
 
         return output.ToArray();
@@ -82,32 +84,38 @@ internal static class Type1CharStringConverter
                 operandStack.Add(new Type1CharStringNumber(b - 139));
                 continue;
             }
+
             if (b >= 247 && b <= 250)
             {
                 if (i + 1 >= data.Length)
                 {
                     break;
                 }
+
                 int b1 = data[++i];
-                operandStack.Add(new Type1CharStringNumber((b - 247) * 256 + b1 + 108));
+                operandStack.Add(new Type1CharStringNumber(((b - 247) * 256) + b1 + 108));
                 continue;
             }
+
             if (b >= 251 && b <= 254)
             {
                 if (i + 1 >= data.Length)
                 {
                     break;
                 }
+
                 int b1 = data[++i];
-                operandStack.Add(new Type1CharStringNumber(-(b - 251) * 256 - b1 - 108));
+                operandStack.Add(new Type1CharStringNumber((-(b - 251) * 256) - b1 - 108));
                 continue;
             }
+
             if (b == 255)
             {
                 if (i + 4 >= data.Length)
                 {
                     break;
                 }
+
                 int value = (data[i + 1] << 24) | (data[i + 2] << 16) | (data[i + 3] << 8) | data[i + 4];
                 i += 4;
                 operandStack.Add(new Type1CharStringNumber(value));
@@ -121,6 +129,7 @@ internal static class Type1CharStringConverter
                 {
                     break;
                 }
+
                 byte esc = data[++i];
                 HandleEscapeSequence(ref context, output, operandStack, esc);
                 continue;
@@ -136,8 +145,8 @@ internal static class Type1CharStringConverter
             // hsbw: first operator; sets sidebearing and width (sbx, wx). Convert to width + hmoveto sequence.
             if (b == OpHsbw)
             {
-                var sbx = operandStack[operandStack.Count - 2];
-                var wx = operandStack[operandStack.Count - 1];
+                Type1CharStringNumber sbx = operandStack[operandStack.Count - 2];
+                Type1CharStringNumber wx = operandStack[operandStack.Count - 1];
                 WriteNumber(output, sbx);
                 UpdateCoordinates(ref context, OpHMoveTo, new List<Type1CharStringNumber> { sbx });
                 output.WriteByte(OpHMoveTo);
@@ -152,15 +161,17 @@ internal static class Type1CharStringConverter
             // Subroutine handling
             if (b == OpCallSubr)
             {
-                int subrIndex = operandStack.Count > 0 ? operandStack[operandStack.Count - 1].Value1 : -1;
+                int subrIndex = (operandStack.Count > 0) ? operandStack[operandStack.Count - 1].Value1 : -1;
                 if (operandStack.Count > 0)
                 {
                     operandStack.RemoveAt(operandStack.Count - 1);
                 }
+
                 if (subrIndex >= 0 && context.LocalSubrs != null && context.LocalSubrs.TryGetValue(subrIndex, out byte[] subrBytes))
                 {
                     ProcessCharString(subrBytes, ref context, output, operandStack);
                 }
+
                 continue;
             }
 
@@ -169,6 +180,7 @@ internal static class Type1CharStringConverter
                 // End current subroutine – leave remaining operands for caller
                 return;
             }
+
             if (b == OpEndChar)
             {
                 if (context.SkipEndChar)
@@ -194,7 +206,7 @@ internal static class Type1CharStringConverter
                     {
                         UpdateCoordinates(ref context, b, operandStack);
 
-                        foreach (var v in operandStack)
+                        foreach (Type1CharStringNumber v in operandStack)
                         {
                             WriteNumber(output, v);
                         }
@@ -219,7 +231,7 @@ internal static class Type1CharStringConverter
 
                     UpdateCoordinates(ref context, b, operandStack);
 
-                    foreach (var v in operandStack)
+                    foreach (Type1CharStringNumber v in operandStack)
                     {
                         WriteNumber(output, v);
                     }
@@ -244,12 +256,12 @@ internal static class Type1CharStringConverter
         {
             case EscDiv:
             {
-                var v1 = operandStack[operandStack.Count - 2];
-                var v2 = operandStack[operandStack.Count - 1];
+                    Type1CharStringNumber v1 = operandStack[operandStack.Count - 2];
+                    Type1CharStringNumber v2 = operandStack[operandStack.Count - 1];
 
                 operandStack.RemoveAt(operandStack.Count - 1);
                 operandStack.RemoveAt(operandStack.Count - 1);
-                
+
                 v1.SetSecondValue(v2.Value1, ValueOperation.Div);
                 operandStack.Add(v1);
 
@@ -257,10 +269,10 @@ internal static class Type1CharStringConverter
             }
             case EscSbw:
             {
-                var sbx = operandStack[operandStack.Count - 4];
-                var sby = operandStack[operandStack.Count - 3];
-                var swx = operandStack[operandStack.Count - 2];
-                var swy = operandStack[operandStack.Count - 1];
+                    Type1CharStringNumber sbx = operandStack[operandStack.Count - 4];
+                    Type1CharStringNumber sby = operandStack[operandStack.Count - 3];
+                    Type1CharStringNumber swx = operandStack[operandStack.Count - 2];
+                    Type1CharStringNumber swy = operandStack[operandStack.Count - 1];
 
                 context.SideBearingX = sbx.GetAsDouble();
                 context.SideBearingY = sby.GetAsDouble();
@@ -278,21 +290,21 @@ internal static class Type1CharStringConverter
             }
             case EscSeac:
             {
-                // asb adx ady bchar achar seac
-                // a - accent, b - base character
-                var asb = operandStack[operandStack.Count - 5];
-                var adx = operandStack[operandStack.Count - 4];
-                var ady = operandStack[operandStack.Count - 3];
-                var bchar = operandStack[operandStack.Count - 2];
-                var achar = operandStack[operandStack.Count - 1];
+                    // asb adx ady bchar achar seac
+                    // a - accent, b - base character
+                    Type1CharStringNumber asb = operandStack[operandStack.Count - 5];
+                    Type1CharStringNumber adx = operandStack[operandStack.Count - 4];
+                    Type1CharStringNumber ady = operandStack[operandStack.Count - 3];
+                    Type1CharStringNumber bchar = operandStack[operandStack.Count - 2];
+                    Type1CharStringNumber achar = operandStack[operandStack.Count - 1];
                 operandStack.Clear();
 
-                var standardEncoding = SingleByteEncodings.GetEncodingSet(Model.PdfFontEncoding.StandardEncoding);
+                    PdfString[] standardEncoding = SingleByteEncodings.GetEncodingSet(Model.PdfFontEncoding.StandardEncoding);
 
-                var nameA = standardEncoding[achar.Value1];
-                var nameB = standardEncoding[bchar.Value1];
-                var aBytes = context.Source[nameA];
-                var bBytes = context.Source[nameB];
+                    PdfString nameA = standardEncoding[achar.Value1];
+                    PdfString nameB = standardEncoding[bchar.Value1];
+                byte[] aBytes = context.Source[nameA];
+                byte[] bBytes = context.Source[nameB];
 
                 // Base character first
                 context.SkipEndChar = true;
@@ -302,8 +314,8 @@ internal static class Type1CharStringConverter
                 // Move to default position for accent
                 double x = -context.X + context.SideBearingX + adx.GetAsDouble() - asb.GetAsDouble();
                 double y = -context.Y + context.SideBearingY + ady.GetAsDouble();
-                var type1X = Type1CharStringNumber.FromDouble(x);
-                var type1Y = Type1CharStringNumber.FromDouble(y);
+                    Type1CharStringNumber type1X = Type1CharStringNumber.FromDouble(x);
+                    Type1CharStringNumber type1Y = Type1CharStringNumber.FromDouble(y);
                 WriteNumber(output, type1X);
                 WriteNumber(output, type1Y);
                 UpdateCoordinates(ref context, OpRMoveTo, new List<Type1CharStringNumber> { type1X, type1Y });
@@ -319,25 +331,23 @@ internal static class Type1CharStringConverter
                 {
                     break;
                 }
-                var index = operandStack[operandStack.Count - 1].Value1;
+
+                int index = operandStack[operandStack.Count - 1].Value1;
 
                 switch (index)
                 {
-                    case 1:
-                        context.InFlexSequence = true;
-                        operandStack.Clear();
-                        break;
-                    case 2:
+                        case 1:
+                            {
+                                context.InFlexSequence = true;
+                                operandStack.Clear();
+                                break;
+                            }
+                        case 2:
                     {
                         // accumulate flex deltas from rmoveto operands
                         for (int d = 0; d < operandStack.Count - 2; d++)
                         {
-                            if (context.FlexDeltas == null)
-                            {
-                                context.FlexDeltas = new List<Type1CharStringNumber>();
-                            }
-
-                            context.FlexDeltas.Add(operandStack[d]);
+                                    (context.FlexDeltas ??= new List<Type1CharStringNumber>()).Add(operandStack[d]);
                         }
 
                         operandStack.Clear();
@@ -347,28 +357,32 @@ internal static class Type1CharStringConverter
                     {
                         if (context.FlexDeltas != null)
                         {
-                            var emitDeltas = MergeFlexReferencePoint(context.FlexDeltas);
+                                    List<Type1CharStringNumber> emitDeltas = MergeFlexReferencePoint(context.FlexDeltas);
 
                             UpdateCoordinates(ref context, OpRRCurveTo, emitDeltas);
 
-                            foreach (var item in emitDeltas)
+                            foreach (Type1CharStringNumber item in emitDeltas)
                             {
                                 WriteNumber(output, item);
                             }
 
                             output.WriteByte(OpRRCurveTo);
                         }
+
                         context.FlexDeltas = null;
 
                         context.InFlexSequence = false;
                         operandStack.Clear();
                         break;
                     }
-                    default:
-                        // unknown other subr – skip
-                        operandStack.Clear();
-                        break;
-                }
+                        default:
+                            {
+                                // unknown other subr – skip
+                                operandStack.Clear();
+                                break;
+                            }
+                    }
+
                 break;
             }
             case 1 or 2:
@@ -397,59 +411,74 @@ internal static class Type1CharStringConverter
         {
             case OpHMoveTo:
             case OpHLineTo:
-                foreach (Type1CharStringNumber value in operandStack)
                 {
-                    context.X += value.GetAsDouble();
+                    foreach (Type1CharStringNumber value in operandStack)
+                    {
+                        context.X += value.GetAsDouble();
+                    }
+
+                    break;
                 }
-                break;
             case OpVMoveTo:
             case OpVLineTo:
-                foreach (Type1CharStringNumber value in operandStack)
                 {
-                    context.Y += value.GetAsDouble();
+                    foreach (Type1CharStringNumber value in operandStack)
+                    {
+                        context.Y += value.GetAsDouble();
+                    }
+
+                    break;
                 }
-                break;
             case OpRMoveTo:
             case OpRLineTo:
             case OpRRCurveTo:
-                for (int i = 0; i < operandStack.Count; i++)
                 {
-                    if (i % 2 == 0)
+                    for (int i = 0; i < operandStack.Count; i++)
                     {
-                        context.X += operandStack[i].GetAsDouble();
+                        if (i % 2 == 0)
+                        {
+                            context.X += operandStack[i].GetAsDouble();
+                        }
+                        else
+                        {
+                            context.Y += operandStack[i].GetAsDouble();
+                        }
                     }
-                    else
-                    {
-                        context.Y += operandStack[i].GetAsDouble();
-                    }
+
+                    break;
                 }
-                break;
             case OpVHCurveTo:
-                for (int i = 0; i < operandStack.Count; i++)
                 {
-                    if (i % 2 == 0)
+                    for (int i = 0; i < operandStack.Count; i++)
                     {
-                        context.Y += operandStack[i].GetAsDouble();
+                        if (i % 2 == 0)
+                        {
+                            context.Y += operandStack[i].GetAsDouble();
+                        }
+                        else
+                        {
+                            context.X += operandStack[i].GetAsDouble();
+                        }
                     }
-                    else
-                    {
-                        context.X += operandStack[i].GetAsDouble();
-                    }
+
+                    break;
                 }
-                break;
             case OpHVCurveTo:
-                for (int i = 0; i < operandStack.Count; i++)
                 {
-                    if ((i / 2) % 2 == 0)
+                    for (int i = 0; i < operandStack.Count; i++)
                     {
-                        context.X += operandStack[i].GetAsDouble();
+                        if ((i / 2) % 2 == 0)
+                        {
+                            context.X += operandStack[i].GetAsDouble();
+                        }
+                        else
+                        {
+                            context.Y += operandStack[i].GetAsDouble();
+                        }
                     }
-                    else
-                    {
-                        context.Y += operandStack[i].GetAsDouble();
-                    }
+
+                    break;
                 }
-                break;
         }
     }
 
@@ -468,11 +497,11 @@ internal static class Type1CharStringConverter
             return flexDeltas;
         }
 
-        var merged = new List<Type1CharStringNumber>(flexDeltas.Count - 2);
+        List<Type1CharStringNumber> merged = new(flexDeltas.Count - 2);
 
-        var mergedDx = Type1CharStringNumber.FromDouble(
+        Type1CharStringNumber mergedDx = Type1CharStringNumber.FromDouble(
             flexDeltas[0].GetAsDouble() + flexDeltas[2].GetAsDouble());
-        var mergedDy = Type1CharStringNumber.FromDouble(
+        Type1CharStringNumber mergedDy = Type1CharStringNumber.FromDouble(
             flexDeltas[1].GetAsDouble() + flexDeltas[3].GetAsDouble());
 
         merged.Add(mergedDx);

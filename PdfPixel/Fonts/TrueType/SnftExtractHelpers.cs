@@ -3,7 +3,7 @@ using System.Runtime.CompilerServices;
 
 namespace PdfPixel.Fonts.TrueType
 {
-    internal class SnftExtractHelpers
+    internal static class SnftExtractHelpers
     {
         /// <summary>
         /// Converts a 4-character tag to UInt32 as used in font tables.
@@ -15,6 +15,7 @@ namespace PdfPixel.Fonts.TrueType
             {
                 throw new ArgumentException("Tag must be exactly 4 characters.", nameof(tag));
             }
+
             return (uint)tag[0] << 24 | (uint)tag[1] << 16 | (uint)tag[2] << 8 | tag[3];
         }
 
@@ -22,10 +23,7 @@ namespace PdfPixel.Fonts.TrueType
         /// Reads a UInt16 from a byte array at the specified offset (big-endian).
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static ushort ReadUInt16(byte[] data, int offset)
-        {
-            return (ushort)(data[offset] << 8 | data[offset + 1]);
-        }
+        public static ushort ReadUInt16(byte[] data, int offset) => (ushort)(data[offset] << 8 | data[offset + 1]);
 
         /// <summary>
         /// Reads a UInt32 from a byte array at the specified offset (big-endian).
@@ -33,10 +31,10 @@ namespace PdfPixel.Fonts.TrueType
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static uint ReadUInt32(byte[] data, int offset)
         {
-            return (uint)data[offset] << 24 |
-                   (uint)data[offset + 1] << 16 |
-                   (uint)data[offset + 2] << 8 |
-                   data[offset + 3];
+            return (uint)data[offset] << 24
+                | (uint)data[offset + 1] << 16
+                | (uint)data[offset + 2] << 8
+                | data[offset + 3];
         }
     }
 }

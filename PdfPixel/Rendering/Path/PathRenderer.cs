@@ -39,7 +39,7 @@ public class PathRenderer : IPathRenderer
             return;
         }
 
-        if (path == null || path.IsEmpty)
+        if (path?.IsEmpty != false)
         {
             return;
         }
@@ -47,7 +47,7 @@ public class PathRenderer : IPathRenderer
         // FlatnessTolerance is ignored in SkiaSharp rendering.
         // See PDF spec 8.4.5: Most modern renderers ignore or clamp this value for performance.
 
-        using var softMaskScope = new SoftMaskDrawingScope(_renderer, processor, state);
+        using SoftMaskDrawingScope softMaskScope = new(_renderer, processor, state);
         softMaskScope.BeginDrawContent();
         DrawPathCore(processor, path, state, operation);
         softMaskScope.EndDrawContent();
@@ -64,20 +64,20 @@ public class PathRenderer : IPathRenderer
         {
             case PaintOperation.Stroke:
             {
-                using var target = new PathStrokeRenderTarget(path, state);
+                using PathStrokeRenderTarget target = new(path, state);
                 target.Render(processor);
                 break;
             }
             case PaintOperation.Fill:
             {
-                using var target = new PathFillRenderTarget(path, state);
+                using PathFillRenderTarget target = new(path, state);
                 target.Render(processor);
                 break;
             }
             case PaintOperation.FillAndStroke:
             {
-                // Fill phase.
-                var strokeOutline = PdfPaintFactory.CreateStrokePaint(state).GetFillPath(path);
+                    // Fill phase.
+                    SKPath strokeOutline = PdfPaintFactory.CreateStrokePaint(state).GetFillPath(path);
                 SKPath fillOutline;
 
                 if (strokeOutline != null)
@@ -89,11 +89,11 @@ public class PathRenderer : IPathRenderer
                     fillOutline = path;
                 }
 
-                using var fillTarget = new PathFillRenderTarget(fillOutline, state);
+                using PathFillRenderTarget fillTarget = new(fillOutline, state);
                 fillTarget.Render(processor);
 
                 // Stroke phase.
-                using var strokeTarget = new PathStrokeRenderTarget(path, state);
+                using PathStrokeRenderTarget strokeTarget = new(path, state);
                 strokeTarget.Render(processor);
 
                 break;

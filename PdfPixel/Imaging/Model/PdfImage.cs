@@ -142,7 +142,7 @@ public class PdfImage
     /// <summary>
     /// Create a PdfImage from XObject data.
     /// </summary>
-    internal static PdfImage FromXObject(PdfObject imageXObject, IPdfPageInternal page, PdfString name, bool isSoftMask)
+    internal static PdfImage FromXObject(PdfObject imageXObject, IPdfPageInternal page, in PdfString name, bool isSoftMask)
     {
         int bitsPerComponent = imageXObject.Dictionary.GetIntegerOrDefault(PdfTokens.BitsPerComponentKey);
 
@@ -154,7 +154,7 @@ public class PdfImage
 
         int defaultComponents = GetDefaultComponents(bitsPerComponent);
 
-        var image = new PdfImage
+        PdfImage image = new()
         {
             SourceObject = imageXObject,
             Width = imageXObject.Dictionary.GetIntegerOrDefault(PdfTokens.WidthKey),
@@ -175,15 +175,15 @@ public class PdfImage
             image.DecodeArray = decodeArray;
         }
 
-        var maskArray = imageXObject.Dictionary.GetArray(PdfTokens.MaskKey);
+        PdfArray maskArray = imageXObject.Dictionary.GetArray(PdfTokens.MaskKey);
         if (maskArray != null)
         {
             image.MaskArray = maskArray.GetIntegerArray();
         }
         else
         {
-            var maskObject = imageXObject.Dictionary.GetObject(PdfTokens.MaskKey);
-            if (maskObject != null && maskObject.HasStream)
+            PdfObject maskObject = imageXObject.Dictionary.GetObject(PdfTokens.MaskKey);
+            if (maskObject?.HasStream == true)
             {
                 image.StencilMask = FromXObject(maskObject, page, name, isSoftMask: true);
             }
@@ -203,18 +203,18 @@ public class PdfImage
             image.Type = MapImageType(filters[filters.Count - 1]);
         }
 
-        var decodeParmsDict = imageXObject.Dictionary.GetDictionary(PdfTokens.DecodeParmsKey);
+        PdfDictionary decodeParmsDict = imageXObject.Dictionary.GetDictionary(PdfTokens.DecodeParmsKey);
         if (decodeParmsDict != null)
         {
             image.DecodeParms = PdfDecodeParameters.FromDictionary(decodeParmsDict);
         }
         else
         {
-            var decodeParmsArray = imageXObject.Dictionary.GetArray(PdfTokens.DecodeParmsKey);
+            PdfArray decodeParmsArray = imageXObject.Dictionary.GetArray(PdfTokens.DecodeParmsKey);
             if (decodeParmsArray != null)
             {
                 // image DecodeParms corresponds to the last entry in the array
-                var imageDecodeParamsDictionary = decodeParmsArray.GetDictionary(decodeParmsArray.Count - 1);
+                PdfDictionary imageDecodeParamsDictionary = decodeParmsArray.GetDictionary(decodeParmsArray.Count - 1);
 
                 if (imageDecodeParamsDictionary != null)
                 {
@@ -224,7 +224,7 @@ public class PdfImage
         }
 
         // Parse /SMask as a soft mask image if present
-        var softMaskObject = imageXObject.Dictionary.GetObject(PdfTokens.SoftMaskKey);
+        PdfObject softMaskObject = imageXObject.Dictionary.GetObject(PdfTokens.SoftMaskKey);
         if (softMaskObject != null)
         {
             image.SoftMask = FromXObject(softMaskObject, page, name, isSoftMask: true);
@@ -257,7 +257,7 @@ public class PdfImage
         for (int i = 0; i < channelCount; i++)
         {
             float min = decode[i * 2];
-            float max = decode[i * 2 + 1];
+            float max = decode[(i * 2) + 1];
             if (Math.Abs(min - 0f) > Epsilon || Math.Abs(max - 1f) > Epsilon)
             {
                 return true;
@@ -273,7 +273,7 @@ public class PdfImage
         {
             0 => 1,
             1 => 1,
-            _ => 3,
+            _ => 3
         };
     }
 
@@ -285,7 +285,7 @@ public class PdfImage
             PdfFilterType.JPXDecode => PdfImageType.JPEG2000,
             PdfFilterType.CCITTFaxDecode => PdfImageType.CCITT,
             PdfFilterType.JBIG2Decode => PdfImageType.JBIG2,
-            _ => PdfImageType.Raw,
+            _ => PdfImageType.Raw
         };
     }
 }

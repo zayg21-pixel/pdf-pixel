@@ -44,10 +44,10 @@ public class ImageRenderer : IImageRenderer
             return;
         }
 
-        using var softMaskScope = new SoftMaskDrawingScope(_renderer, processor, state);
+        using SoftMaskDrawingScope softMaskScope = new(_renderer, processor, state);
         softMaskScope.BeginDrawContent();
 
-        var target = new ImageFillRenderTarget(pdfImage, state, _factory);
+        ImageFillRenderTarget target = new(pdfImage, state, _factory);
         target.Render(processor);
     }
 }

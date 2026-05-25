@@ -8,10 +8,7 @@ namespace PdfPixel.PostScript.Tokens
     {
         private readonly Dictionary<string, TValue> _dictionary;
 
-        public CaseInsensitiveGetterDictionary()
-        {
-            _dictionary = new Dictionary<string, TValue>();
-        }
+        public CaseInsensitiveGetterDictionary() => _dictionary = new Dictionary<string, TValue>();
 
         /// <summary>
         /// Gets or sets the value associated with the specified key. Retrieval prioritizes case-sensitive match, then falls back to case-insensitive scan.
@@ -24,19 +21,19 @@ namespace PdfPixel.PostScript.Tokens
                 {
                     return value;
                 }
-                foreach (var pair in _dictionary)
+
+                foreach (KeyValuePair<string, TValue> pair in _dictionary)
                 {
                     if (string.Equals(pair.Key, key, StringComparison.OrdinalIgnoreCase))
                     {
                         return pair.Value;
                     }
                 }
+
                 throw new KeyNotFoundException();
             }
-            set
-            {
-                _dictionary[key] = value;
-            }
+
+            set => _dictionary[key] = value;
         }
 
         public ICollection<string> Keys => _dictionary.Keys;
@@ -47,25 +44,13 @@ namespace PdfPixel.PostScript.Tokens
 
         public bool IsReadOnly => false;
 
-        public void Add(string key, TValue value)
-        {
-            _dictionary.Add(key, value);
-        }
+        public void Add(string key, TValue value) => _dictionary.Add(key, value);
 
-        public void Add(KeyValuePair<string, TValue> item)
-        {
-            _dictionary.Add(item.Key, item.Value);
-        }
+        public void Add(KeyValuePair<string, TValue> item) => _dictionary.Add(item.Key, item.Value);
 
-        public void Clear()
-        {
-            _dictionary.Clear();
-        }
+        public void Clear() => _dictionary.Clear();
 
-        public bool Contains(KeyValuePair<string, TValue> item)
-        {
-            return ((IDictionary<string, TValue>)_dictionary).Contains(item);
-        }
+        public bool Contains(KeyValuePair<string, TValue> item) => ((IDictionary<string, TValue>)_dictionary).Contains(item);
 
         /// <summary>
         /// Determines whether the dictionary contains the specified key. Prioritizes case-sensitive match, then falls back to case-insensitive scan.
@@ -76,35 +61,25 @@ namespace PdfPixel.PostScript.Tokens
             {
                 return true;
             }
-            foreach (var dictKey in _dictionary.Keys)
+
+            foreach (string dictKey in _dictionary.Keys)
             {
                 if (string.Equals(dictKey, key, StringComparison.OrdinalIgnoreCase))
                 {
                     return true;
                 }
             }
+
             return false;
         }
 
-        public void CopyTo(KeyValuePair<string, TValue>[] array, int arrayIndex)
-        {
-            ((IDictionary<string, TValue>)_dictionary).CopyTo(array, arrayIndex);
-        }
+        public void CopyTo(KeyValuePair<string, TValue>[] array, int arrayIndex) => ((IDictionary<string, TValue>)_dictionary).CopyTo(array, arrayIndex);
 
-        public IEnumerator<KeyValuePair<string, TValue>> GetEnumerator()
-        {
-            return _dictionary.GetEnumerator();
-        }
+        public IEnumerator<KeyValuePair<string, TValue>> GetEnumerator() => _dictionary.GetEnumerator();
 
-        public bool Remove(string key)
-        {
-            return _dictionary.Remove(key);
-        }
+        public bool Remove(string key) => _dictionary.Remove(key);
 
-        public bool Remove(KeyValuePair<string, TValue> item)
-        {
-            return ((IDictionary<string, TValue>)_dictionary).Remove(item);
-        }
+        public bool Remove(KeyValuePair<string, TValue> item) => ((IDictionary<string, TValue>)_dictionary).Remove(item);
 
         /// <summary>
         /// Gets the value associated with the specified key. Retrieval prioritizes case-sensitive match, then falls back to case-insensitive scan.
@@ -115,7 +90,8 @@ namespace PdfPixel.PostScript.Tokens
             {
                 return true;
             }
-            foreach (var pair in _dictionary)
+
+            foreach (KeyValuePair<string, TValue> pair in _dictionary)
             {
                 if (string.Equals(pair.Key, key, StringComparison.OrdinalIgnoreCase))
                 {
@@ -123,13 +99,11 @@ namespace PdfPixel.PostScript.Tokens
                     return true;
                 }
             }
+
             value = default;
             return false;
         }
 
-        IEnumerator IEnumerable.GetEnumerator()
-        {
-            return GetEnumerator();
-        }
+        IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
     }
 }

@@ -59,17 +59,19 @@ public class PdfCidSystemInfo
             return null;
         }
 
-        var info = new PdfCidSystemInfo();
+        PdfCidSystemInfo info = new();
 
-        if (dictionary.Entries.TryGetValue(PdfTokens.RegistryKey.ToString(), out var registryValue) && registryValue is PostScriptString registryString)
+        if (dictionary.Entries.TryGetValue(PdfTokens.RegistryKey.ToString(), out PostScriptToken registryValue) && registryValue is PostScriptString registryString)
         {
             info.Registry = new PdfString(registryString.Value);
         }
-        if (dictionary.Entries.TryGetValue(PdfTokens.OrderingKey.ToString(), out var orderingValue) && orderingValue is PostScriptString orderingString)
+
+        if (dictionary.Entries.TryGetValue(PdfTokens.OrderingKey.ToString(), out PostScriptToken orderingValue) && orderingValue is PostScriptString orderingString)
         {
             info.Ordering = new PdfString(orderingString.Value);
         }
-        if (dictionary.Entries.TryGetValue(PdfTokens.SupplementKey.ToString(), out var supplementValue) && supplementValue is PostScriptNumber supplementInteger)
+
+        if (dictionary.Entries.TryGetValue(PdfTokens.SupplementKey.ToString(), out PostScriptToken supplementValue) && supplementValue is PostScriptNumber supplementInteger)
         {
             info.Supplement = (int)supplementInteger.Value;
         }

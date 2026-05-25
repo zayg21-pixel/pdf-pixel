@@ -18,7 +18,7 @@ public static class PdfFontEncodingParser
     /// <returns>Parsed encoding info.</returns>
     public static PdfFontEncodingInfo ParseSingleByteEncoding(PdfDictionary dict)
     {
-        var encodingValue = dict.GetValue(PdfTokens.EncodingKey);
+        IPdfValue encodingValue = dict.GetValue(PdfTokens.EncodingKey);
         if (encodingValue == null)
         {
             // No /Encoding specified, assume standard
@@ -26,31 +26,31 @@ public static class PdfFontEncodingParser
         }
 
         // Name case: /Encoding /WinAnsiEncoding, /UniJIS-UTF16-H, etc.
-        var name = encodingValue.AsName();
+        PdfString name = encodingValue.AsName();
 
         if (!name.IsEmpty)
         {
-            var encoding = name.AsEnum<PdfFontEncoding>();
+            PdfFontEncoding encoding = name.AsEnum<PdfFontEncoding>();
             return new PdfFontEncodingInfo(encoding, name, null);
         }
 
         // Dictionary case: may include /BaseEncoding and /Differences
-        var encodingDictionary = encodingValue.AsDictionary();
+        PdfDictionary encodingDictionary = encodingValue.AsDictionary();
         if (encodingDictionary != null)
         {
             // Base encoding name (optional); default per spec is StandardEncoding for Type1/Type3, WinAnsi for TrueType
             name = encodingDictionary.GetName(PdfTokens.BaseEncodingKey);
-            var baseEncoding = name.AsEnum<PdfFontEncoding>();
+            PdfFontEncoding baseEncoding = name.AsEnum<PdfFontEncoding>();
 
-            var differences = new Dictionary<int, PdfString>();
-            var diffs = encodingDictionary.GetArray(PdfTokens.DifferencesKey);
+            Dictionary<int, PdfString> differences = [];
+            PdfArray diffs = encodingDictionary.GetArray(PdfTokens.DifferencesKey);
 
             if (diffs != null)
             {
                 int currentCode = -1;
                 for (int i = 0; i < diffs.Count; i++)
                 {
-                    var item = diffs.GetValue(i);
+                    IPdfValue item = diffs.GetValue(i);
 
                     if (item == null)
                     {

@@ -9,10 +9,7 @@ internal sealed class DrawSoftMaskImageTileCommand : PdfCommand
 {
     private readonly SoftMaskImageExecutionContext _context;
 
-    public DrawSoftMaskImageTileCommand(SoftMaskImageExecutionContext context)
-    {
-        _context = context;
-    }
+    public DrawSoftMaskImageTileCommand(SoftMaskImageExecutionContext context) => _context = context;
 
     public override bool IsScaleDependent => true;
 
@@ -20,10 +17,13 @@ internal sealed class DrawSoftMaskImageTileCommand : PdfCommand
     {
         PdfImageTile imageTile = _context.ImageCache.GetNextTile(executionContext.ExecutionObserver);
         PdfImageTile maskTile = _context.MaskCache.GetNextTile(executionContext.ExecutionObserver);
-        if (imageTile.IsSkipped || maskTile.IsSkipped) return;
+        if (imageTile.IsSkipped || maskTile.IsSkipped)
+        {
+            return;
+        }
 
-        var ctm = CommandHelpers.GetScaledMatrix(canvas, executionContext);
-        var sampling = PdfImageCommandUtilities.GetSamplingOptions(ctm, _context.DecodingContext, _context.ImageSize, _context.Interpolate);
+        SKMatrix ctm = CommandHelpers.GetScaledMatrix(canvas, executionContext);
+        SKSamplingOptions sampling = PdfImageCommandUtilities.GetSamplingOptions(ctm, _context.DecodingContext, _context.ImageSize, _context.Interpolate);
 
         canvas.Save();
         canvas.Scale(1f / _context.ImageSize.Width, 1f / _context.ImageSize.Height);
@@ -39,4 +39,6 @@ internal sealed class DrawSoftMaskImageTileCommand : PdfCommand
 
         canvas.Restore();
     }
+
+    protected override void Dispose(bool disposing) => _context.Dispose();
 }

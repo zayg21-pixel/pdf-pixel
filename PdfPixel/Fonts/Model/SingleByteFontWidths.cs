@@ -36,7 +36,7 @@ public class SingleByteFontWidths //TODO: [HIGH] need pre-defined for standard f
     /// </summary>
     public float? GetWidth(PdfCharacterCode code)
     {
-        uint cid = (uint)code;
+        var cid = (uint)code;
         if (Widths != null && FirstChar.HasValue && LastChar.HasValue && cid >= FirstChar.Value && cid <= LastChar.Value)
         {
             uint index = cid - FirstChar.Value;
@@ -45,6 +45,7 @@ public class SingleByteFontWidths //TODO: [HIGH] need pre-defined for standard f
                 return Widths[index];
             }
         }
+
         return null;
     }
 
@@ -73,7 +74,7 @@ public class SingleByteFontWidths //TODO: [HIGH] need pre-defined for standard f
     {
         var firstChar = (uint?)fontDictionary.GetInteger(PdfTokens.FirstCharKey);
         var lastChar = (uint?)fontDictionary.GetInteger(PdfTokens.LastCharKey);
-        var widthsArray = fontDictionary.GetArray(PdfTokens.WidthsKey)?.GetFloatArray();
+        float[]? widthsArray = fontDictionary.GetArray(PdfTokens.WidthsKey)?.GetFloatArray();
 
         if (widthsArray != null)
         {

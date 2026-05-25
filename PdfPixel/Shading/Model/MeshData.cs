@@ -24,7 +24,7 @@ namespace PdfPixel.Shading.Model;
 /// For Coons and Tensor-Product meshes, this may be unused.
 /// </para>
 /// </remarks>
-class MeshData
+internal class MeshData
 {
     /// <summary>
     /// Initializes a new instance of the <see cref="MeshData"/> class.

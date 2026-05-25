@@ -41,17 +41,19 @@ internal static class Type1FontDictionaryUtilities
         {
             return 4; // Default
         }
+
         if (fontDict.Entries.TryGetValue(PrivateKey, out PostScriptToken privateToken) && privateToken is PostScriptDictionary privateDict)
         {
             if (privateDict.Entries.TryGetValue(LenIVKey, out PostScriptToken lenIvToken) && lenIvToken is PostScriptNumber num)
             {
-                int candidate = (int)num.Value;
+                var candidate = (int)num.Value;
                 if (candidate >= -1 && candidate <= 32)
                 {
                     return candidate;
                 }
             }
         }
+
         return 4;
     }
 
@@ -74,6 +76,7 @@ internal static class Type1FontDictionaryUtilities
                 return ln.Name;
             }
         }
+
         return null;
     }
 
@@ -85,25 +88,28 @@ internal static class Type1FontDictionaryUtilities
     /// <returns>Dictionary of glyph name to decrypted charstring bytes (LenIV prefix removed when applicable).</returns>
     public static Dictionary<PdfString, byte[]> GetCharStrings(PostScriptDictionary fontDict)
     {
-        var results = new Dictionary<PdfString, byte[]>();
+        Dictionary<PdfString, byte[]> results = [];
         if (fontDict == null)
         {
             return results;
         }
+
         if (!fontDict.Entries.TryGetValue(CharStringsKey, out PostScriptToken csToken) || csToken is not PostScriptDictionary csDict)
         {
             return results;
         }
+
         int lenIV = GetLenIV(fontDict);
         foreach (KeyValuePair<string, PostScriptToken> entry in csDict.Entries)
         {
             if (entry.Value is PostScriptBinaryString bin)
             {
                 byte[] data = bin.Data ?? Array.Empty<byte>();
-                byte[] decrypted = lenIV < 0 ? data : Type1Decryptor.DecryptCharString(data, lenIV);
+                byte[] decrypted = (lenIV < 0) ? data : Type1Decryptor.DecryptCharString(data, lenIV);
                 results[(PdfString)entry.Key] = decrypted;
             }
         }
+
         return results;
     }
 
@@ -116,15 +122,17 @@ internal static class Type1FontDictionaryUtilities
     /// <returns>Dictionary mapping subroutine index to decrypted byte array.</returns>
     public static Dictionary<int, byte[]> GetSubroutines(PostScriptDictionary fontDict)
     {
-        var subrs = new Dictionary<int, byte[]>(capacity: 32);
+        Dictionary<int, byte[]> subrs = new(capacity: 32);
         if (fontDict == null)
         {
             return subrs;
         }
+
         if (!fontDict.Entries.TryGetValue(PrivateKey, out PostScriptToken privateToken) || privateToken is not PostScriptDictionary privateDict)
         {
             return subrs;
         }
+
         if (!privateDict.Entries.TryGetValue(SubrsKey, out PostScriptToken subrsToken) || subrsToken is not IPostScriptCollection subrsArray)
         {
             return subrs;
@@ -137,10 +145,11 @@ internal static class Type1FontDictionaryUtilities
             if (element is PostScriptBinaryString bin)
             {
                 byte[] data = bin.Data ?? Array.Empty<byte>();
-                var decrypted = lenIV < 0 ? data : Type1Decryptor.DecryptCharString(data, lenIV);
+                byte[] decrypted = (lenIV < 0) ? data : Type1Decryptor.DecryptCharString(data, lenIV);
                 subrs[i] = decrypted;
             }
         }
+
         return subrs;
     }
 
@@ -157,7 +166,7 @@ internal static class Type1FontDictionaryUtilities
             return null;
         }
 
-        if (dict.Entries.TryGetValue(FontBboxKey, out PostScriptToken token) && token is IPostScriptCollection arr && arr.Items != null && arr.Items.Count >= 4)
+        if (dict.Entries.TryGetValue(FontBboxKey, out PostScriptToken token) && token is IPostScriptCollection arr && arr.Items?.Count >= 4)
         {
             var result = new float[4];
             for (int i = 0; i < 4; i++)
@@ -171,8 +180,10 @@ internal static class Type1FontDictionaryUtilities
                     result[i] = 0f;
                 }
             }
+
             return result;
         }
+
         return null;
     }
 
@@ -187,15 +198,18 @@ internal static class Type1FontDictionaryUtilities
         {
             return null;
         }
+
         if (!fontDict.Entries.TryGetValue(FontMatrixKey, out PostScriptToken fmToken) || fmToken is not PostScriptArray array)
         {
             return null;
         }
+
         if (array.Elements == null || array.Elements.Length < 6)
         {
             return null;
         }
-        float[] values = new float[6];
+
+        var values = new float[6];
         int count = 0;
         foreach (PostScriptToken element in array.Elements)
         {
@@ -222,10 +236,12 @@ internal static class Type1FontDictionaryUtilities
         {
             return null;
         }
+
         if (!fontDict.Entries.TryGetValue(EncodingKey, out PostScriptToken encToken))
         {
             return null;
         }
+
         if (encToken is PostScriptLiteralName litName)
         {
             // Map predefined encoding name to enum then to shared vector.
@@ -233,6 +249,7 @@ internal static class Type1FontDictionaryUtilities
             PdfString[] predefined = SingleByteEncodings.GetEncodingSet(encodingEnum);
             return predefined; // May be null if unknown (caller handles null).
         }
+
         if (encToken is PostScriptArray arr && arr.Elements != null)
         {
             var vector = new PdfString[256];
@@ -242,15 +259,17 @@ internal static class Type1FontDictionaryUtilities
                 PostScriptToken element = arr.Elements[i];
                 if (element is PostScriptLiteralName glyphName)
                 {
-                    vector[i] = glyphName.Name == NotdefName ? PdfString.Empty : (PdfString)glyphName.Name;
+                    vector[i] = (glyphName.Name == NotdefName) ? PdfString.Empty : (PdfString)glyphName.Name;
                 }
                 else
                 {
                     vector[i] = PdfString.Empty;
                 }
             }
+
             return vector;
         }
+
         return null;
     }
 
@@ -260,22 +279,28 @@ internal static class Type1FontDictionaryUtilities
         {
             return PdfFontEncoding.Unknown;
         }
+
         // Try direct enum parse first (names match enum identifiers for known encodings).
         if (Enum.TryParse(name, ignoreCase: false, out PdfFontEncoding parsed))
         {
             return parsed;
         }
+
         // Common PostScript variants that may differ (add mappings as needed).
         switch (name)
         {
             case StandardEncodingName:
                 return PdfFontEncoding.StandardEncoding;
+
             case MacRomanEncodingName:
                 return PdfFontEncoding.MacRomanEncoding;
+
             case WinAnsiEncodingName:
                 return PdfFontEncoding.WinAnsiEncoding;
+
             case MacExpertEncodingName:
                 return PdfFontEncoding.MacExpertEncoding;
+
             default:
                 return PdfFontEncoding.Unknown;
         }
@@ -283,18 +308,18 @@ internal static class Type1FontDictionaryUtilities
 
     public static PostScriptArray GetEncodingArray(PdfFontEncoding pdfEncoding)
     {
-        var encodingSet = SingleByteEncodings.GetEncodingSet(pdfEncoding);
+        PdfString[] encodingSet = SingleByteEncodings.GetEncodingSet(pdfEncoding);
 
         if (encodingSet == null)
         {
             return null;
         }
 
-        var encodingArray = new PostScriptArray(encodingSet.Length);
+        PostScriptArray encodingArray = new(encodingSet.Length);
 
         for (int i = 0; i < encodingSet.Length; i++)
         {
-            var glyphName = encodingSet[i];
+            PdfString glyphName = encodingSet[i];
             if (glyphName == PdfString.Empty)
             {
                 encodingArray.Elements[i] = new PostScriptLiteralName(NotdefName);

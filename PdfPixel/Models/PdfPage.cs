@@ -15,7 +15,7 @@ namespace PdfPixel.Models;
 /// </summary>
 internal class PdfPage : IPdfPageInternal
 {
-    private static readonly SKRect DefaultMediaBox = new SKRect(0, 0, 612, 792);
+    private static readonly SKRect DefaultMediaBox = new(0, 0, 612, 792);
 
     private readonly Lazy<PdfPageCache> _lazyPageCache;
     private readonly IPdfDocumentInternal _document;
@@ -31,11 +31,12 @@ internal class PdfPage : IPdfPageInternal
     /// <param name="document">Owning document.</param>
     /// <param name="pageObject">Underlying /Page object.</param>
     /// <param name="pageResources">Resolved inheritable page resources snapshot.</param>
-    internal PdfPage(int pageNumber,
-                   PdfString pageLabel,
-                   IPdfDocumentInternal document,
-                   PdfObject pageObject,
-                   PdfPageResources pageResources)
+    internal PdfPage(
+        int pageNumber,
+        in PdfString pageLabel,
+        IPdfDocumentInternal document,
+        PdfObject pageObject,
+        PdfPageResources pageResources)
     {
         _document = document ?? throw new ArgumentNullException(nameof(document));
         _pageObject = pageObject ?? throw new ArgumentNullException(nameof(pageObject));
@@ -43,13 +44,13 @@ internal class PdfPage : IPdfPageInternal
         _lazyPageCache = new Lazy<PdfPageCache>(() => new PdfPageCache(this));
 
         PageNumber = pageNumber;
-        var media = pageResources.MediaBoxRect ?? DefaultMediaBox;
-        var crop = pageResources.CropBoxRect ?? media;
+        SKRect media = pageResources.MediaBoxRect ?? DefaultMediaBox;
+        SKRect crop = pageResources.CropBoxRect ?? media;
         MediaBox = media;
         CropBox = crop;
         Rotation = pageResources.Rotate ?? 0;
         _resourceDictionary = pageResources.Resources ?? new PdfDictionary(document);
-        Annotations = pageResources.Annotations ?? [];
+        Annotations = pageResources.Annotations ?? new List<PdfAnnotationBase>();
         PageLabel = pageLabel;
     }
 
@@ -88,13 +89,14 @@ internal class PdfPage : IPdfPageInternal
         {
             throw new ArgumentNullException(nameof(processor));
         }
+
         if (_document == null)
         {
             throw new InvalidOperationException("Document reference not set. This page was not properly loaded from a document.");
         }
 
-        var renderer = new PdfRenderer(_document.LoggerFactory);
-        var contentRenderer = new PdfContentStreamRenderer(renderer, this);
+        PdfRenderer renderer = new(_document.LoggerFactory);
+        PdfContentStreamRenderer contentRenderer = new(renderer, this);
 
         contentRenderer.RenderContent(processor, observer);
     }
@@ -117,8 +119,8 @@ internal class PdfPage : IPdfPageInternal
             throw new InvalidOperationException("Document reference not set. This page was not properly loaded from a document.");
         }
 
-        var renderer = new PdfRenderer(_document.LoggerFactory);
-        var annotationRenderer = new PdfAnnotationRenderer(renderer, this);
+        PdfRenderer renderer = new(_document.LoggerFactory);
+        PdfAnnotationRenderer annotationRenderer = new(renderer, this);
         annotationRenderer.RenderAnnotations(processor, renderingParameters, activeAnnotation, visualStateKind, observer);
     }
 
@@ -126,6 +128,6 @@ internal class PdfPage : IPdfPageInternal
     public List<PdfCharacter> ExtractText()
     {
         // TODO: text extraction should be done from commands
-        return new List<PdfCharacter>();
+        return [];
     }
 }

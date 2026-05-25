@@ -10,10 +10,7 @@ namespace PdfPixel.Text
     /// </summary>
     public readonly struct PdfText
     {
-        public PdfText(ReadOnlyMemory<byte> rawBytes)
-        {
-            RawBytes = rawBytes;
-        }
+        public PdfText(in ReadOnlyMemory<byte> rawBytes) => RawBytes = rawBytes;
 
         /// <summary>
         /// Raw character codes/codepoints from the PDF (for HarfBuzz shaping of CID fonts)
@@ -30,7 +27,7 @@ namespace PdfPixel.Text
         /// </summary>
         public static PdfText FromOperand(IPdfValue operand)
         {
-            var bytes = operand.AsStringBytes();
+            ReadOnlyMemory<byte> bytes = operand.AsStringBytes();
 
             if (bytes.IsEmpty)
             {
@@ -40,9 +37,6 @@ namespace PdfPixel.Text
             return new PdfText(bytes);
         }
 
-        public override string ToString()
-        {
-            return EncodingExtensions.PdfDefault.GetString(RawBytes);
-        }
+        public override string ToString() => EncodingExtensions.PdfDefault.GetString(RawBytes);
     }
 }

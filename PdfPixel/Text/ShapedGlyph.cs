@@ -64,8 +64,5 @@ public readonly struct ShapedGlyph
     /// <summary>
     /// Returns a string representation of the shaped glyph, including GlyphId, Unicode, and coordinates.
     /// </summary>
-    public override string ToString()
-    {
-        return $"GlyphId={GlyphId}, Unicode='{CharacterInfo.Unicode}', X={X}, Y={Y}";
-    }
+    public override string ToString() => $"GlyphId={GlyphId}, Unicode='{CharacterInfo.Unicode}', X={X}, Y={Y}";
 }

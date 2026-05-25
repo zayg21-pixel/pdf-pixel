@@ -27,12 +27,12 @@ public class PdfButtonFormField : PdfFormField
     /// <summary>
     /// Gets a value indicating whether this is a push button.
     /// </summary>
-    public bool IsPushButton => Flags.HasFlag(PdfFormFieldFlags.PushButton);
+    public bool IsPushButton => (Flags & PdfFormFieldFlags.PushButton) != 0;
 
     /// <summary>
     /// Gets a value indicating whether this is a radio button.
     /// </summary>
-    public bool IsRadio => Flags.HasFlag(PdfFormFieldFlags.Radio);
+    public bool IsRadio => (Flags & PdfFormFieldFlags.Radio) != 0;
 
     /// <summary>
     /// Gets a value indicating whether this is a checkbox.
@@ -53,7 +53,7 @@ public class PdfButtonFormField : PdfFormField
             return false;
         }
 
-        var valueName = Value.AsName();
+        PdfString valueName = Value.AsName();
         return !valueName.IsEmpty && valueName != (PdfString)"Off"u8;
     }
 
@@ -103,10 +103,7 @@ public class PdfButtonFormField : PdfFormField
     /// <summary>
     /// Handles mouse leave event.
     /// </summary>
-    public override void OnMouseLeave()
-    {
-        _isPressed = false;
-    }
+    public override void OnMouseLeave() => _isPressed = false;
 
     /// <summary>
     /// Gets a value indicating whether this field can receive keyboard focus.

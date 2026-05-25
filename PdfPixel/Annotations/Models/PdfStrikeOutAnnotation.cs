@@ -24,22 +24,22 @@ public class PdfStrikeOutAnnotation : PdfTextMarkupAnnotation
 
     internal override bool RenderFallback(IPdfCommandProcessor processor, IPdfPageInternal page, PdfAnnotationVisualStateKind visualStateKind, PdfRenderingParameters renderingParameters)
     {
-        var quads = Quadrilaterals;
+        SKPoint[][] quads = Quadrilaterals;
         if (quads.Length == 0)
         {
             return false;
         }
 
-        var color = ResolveColor(page, SKColors.Red);
+        SKColor color = ResolveColor(page, SKColors.Red);
 
-        foreach (var quad in quads)
+        foreach (SKPoint[] quad in quads)
         {
-            var startX = (quad[0].X + quad[3].X) / 2;
-            var startY = (quad[0].Y + quad[3].Y) / 2;
-            var endX = (quad[1].X + quad[2].X) / 2;
-            var endY = (quad[1].Y + quad[2].Y) / 2;
+            float startX = (quad[0].X + quad[3].X) / 2;
+            float startY = (quad[0].Y + quad[3].Y) / 2;
+            float endX = (quad[1].X + quad[2].X) / 2;
+            float endY = (quad[1].Y + quad[2].Y) / 2;
 
-            var paint = new SKPaint
+            SKPaint paint = new()
             {
                 Style = SKPaintStyle.Stroke,
                 StrokeWidth = 1.0f,
@@ -47,7 +47,7 @@ public class PdfStrikeOutAnnotation : PdfTextMarkupAnnotation
                 IsAntialias = renderingParameters.Antialias
             };
 
-            using var linePath = new SKPath();
+            using SKPath linePath = new();
             linePath.MoveTo(startX, startY);
             linePath.LineTo(endX, endY);
             processor.Process(new DrawPathCommand(linePath, paint));
@@ -62,7 +62,7 @@ public class PdfStrikeOutAnnotation : PdfTextMarkupAnnotation
     /// <returns>A string containing the annotation type.</returns>
     public override string ToString()
     {
-        var contentsText = Contents.ToString();
+        string contentsText = Contents.ToString();
 
         if (!string.IsNullOrEmpty(contentsText))
         {

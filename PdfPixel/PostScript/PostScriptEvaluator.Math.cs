@@ -37,7 +37,7 @@ namespace PdfPixel.PostScript
                 }
                 case "bitshift":
                 {
-                    BinaryNumeric(stack, (a, b) => b < 0 ? ((int)a >> (int)b) : ((int)a << (int)b));
+                    BinaryNumeric(stack, (a, b) => (b < 0) ? ((int)a >> (int)b) : ((int)a << (int)b));
                     return true;
                 }
                 case "cvi":
@@ -52,13 +52,13 @@ namespace PdfPixel.PostScript
                 }
                 case "srand":
                 {
-                    var seed = PopOfType<PostScriptNumber>(stack).Value;
+                    float seed = PopOfType<PostScriptNumber>(stack).Value;
                     _random = new Random((int)seed);
                     return true;
                 }
                 case "rand":
                 {
-                    float value = (float)_random.NextDouble();
+                    var value = (float)_random.NextDouble();
                     stack.Push(new PostScriptNumber(value));
                     return true;
                 }
@@ -150,7 +150,7 @@ namespace PdfPixel.PostScript
         private void BinaryNumeric(Stack<PostScriptToken> stack, Func<float, float, float> operation)
         {
             Ensure(stack, 2);
-            
+
             float right = PopOfType<PostScriptNumber>(stack).Value;
             float left = PopOfType<PostScriptNumber>(stack).Value;
             stack.Push(new PostScriptNumber(operation(left, right)));

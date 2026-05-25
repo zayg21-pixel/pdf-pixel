@@ -22,8 +22,8 @@ public class PdfLineAnnotation : PdfAnnotationBase
     public PdfLineAnnotation(PdfObject annotationObject)
         : base(annotationObject, PdfAnnotationSubType.Line)
     {
-        var lineArray = annotationObject.Dictionary.GetArray(PdfTokens.LKey);
-        if (lineArray != null && lineArray.Count >= 4)
+        PdfArray lineArray = annotationObject.Dictionary.GetArray(PdfTokens.LKey);
+        if (lineArray?.Count >= 4)
         {
             StartX = lineArray.GetFloatOrDefault(0);
             StartY = lineArray.GetFloatOrDefault(1);
@@ -31,8 +31,8 @@ public class PdfLineAnnotation : PdfAnnotationBase
             EndY = lineArray.GetFloatOrDefault(3);
         }
 
-        var lineEndingArray = annotationObject.Dictionary.GetArray(PdfTokens.LineEndingKey);
-        if (lineEndingArray != null && lineEndingArray.Count >= 2)
+        PdfArray lineEndingArray = annotationObject.Dictionary.GetArray(PdfTokens.LineEndingKey);
+        if (lineEndingArray?.Count >= 2)
         {
             StartLineEnding = lineEndingArray.GetName(0).AsEnum<PdfLineEndingStyle>();
             EndLineEnding = lineEndingArray.GetName(1).AsEnum<PdfLineEndingStyle>();
@@ -43,7 +43,7 @@ public class PdfLineAnnotation : PdfAnnotationBase
         LeaderLineOffset = annotationObject.Dictionary.GetFloat(PdfTokens.LeaderLineOffsetKey);
     }
 
-    protected override SKPoint ContentStart => new SKPoint(StartX, StartY);
+    protected override SKPoint ContentStart => new(StartX, StartY);
 
     /// <summary>
     /// Gets the X coordinate of the line's start point.
@@ -96,10 +96,10 @@ public class PdfLineAnnotation : PdfAnnotationBase
 
     internal override bool RenderFallback(IPdfCommandProcessor processor, IPdfPageInternal page, PdfAnnotationVisualStateKind visualStateKind, PdfRenderingParameters renderingParameters)
     {
-        var lineColor = ResolveColor(page, SKColors.Black);
-        var lineWidth = BorderStyle?.Width ?? 1.0f;
+        SKColor lineColor = ResolveColor(page, SKColors.Black);
+        float lineWidth = BorderStyle?.Width ?? 1.0f;
 
-        var linePaint = new SKPaint
+        SKPaint linePaint = new()
         {
             Style = SKPaintStyle.Stroke,
             StrokeWidth = lineWidth,
@@ -110,12 +110,12 @@ public class PdfLineAnnotation : PdfAnnotationBase
 
         BorderStyle?.TryApplyEffect(linePaint, lineColor);
 
-        using var linePath = new SKPath();
+        using SKPath linePath = new();
         linePath.MoveTo(StartX, StartY);
         linePath.LineTo(EndX, EndY);
         processor.Process(new DrawPathCommand(linePath, linePaint));
 
-        var interiorSKColor = ResolveInteriorColor(page);
+        SKColor interiorSKColor = ResolveInteriorColor(page);
 
         if (StartLineEnding != PdfLineEndingStyle.None)
         {
@@ -156,7 +156,7 @@ public class PdfLineAnnotation : PdfAnnotationBase
     /// <returns>A string containing the annotation type.</returns>
     public override string ToString()
     {
-        var contentsText = Contents.ToString();
+        string contentsText = Contents.ToString();
 
         if (!string.IsNullOrEmpty(contentsText))
         {

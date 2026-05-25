@@ -7,27 +7,15 @@ namespace PdfPixel.PostScript.Tokens
     /// </summary>
     public sealed class PostScriptBoolean : PostScriptToken
     {
-        public PostScriptBoolean(bool value)
-        {
-            Value = value;
-        }
+        public PostScriptBoolean(bool value) => Value = value;
 
         public bool Value { get; }
 
-        public override string ToString()
-        {
-            return "Boolean: " + (Value ? "true" : "false");
-        }
+        public override string ToString() => "Boolean: " + (Value ? "true" : "false");
 
-        public override bool EqualsToken(PostScriptToken other)
-        {
-            return other is PostScriptBoolean b && Value == b.Value;
-        }
+        public override bool EqualsToken(PostScriptToken other) => other is PostScriptBoolean b && Value == b.Value;
 
-        public override int GetHashCode()
-        {
-            return Value.GetHashCode();
-        }
+        public override int GetHashCode() => Value.GetHashCode();
 
         // Booleans are not comparable with ordering operators in PostScript; keep defaults (false).
 
@@ -37,15 +25,18 @@ namespace PdfPixel.PostScript.Tokens
             {
                 throw new InvalidOperationException("Logical AND requires boolean right operand.");
             }
-            return new PostScriptBoolean(Value & right.Value);
+
+            return new PostScriptBoolean(Value && right.Value);
         }
+
         public override PostScriptToken LogicalOr(PostScriptToken other)
         {
             if (other is not PostScriptBoolean right)
             {
                 throw new InvalidOperationException("Logical OR requires boolean right operand.");
             }
-            return new PostScriptBoolean(Value | right.Value);
+
+            return new PostScriptBoolean(Value || right.Value);
         }
 
         public override PostScriptToken LogicalXor(PostScriptToken other)
@@ -54,12 +45,10 @@ namespace PdfPixel.PostScript.Tokens
             {
                 throw new InvalidOperationException("Logical XOR requires boolean right operand.");
             }
+
             return new PostScriptBoolean(Value ^ right.Value);
         }
 
-        public override PostScriptToken LogicalNot()
-        {
-            return new PostScriptBoolean(!Value);
-        }
+        public override PostScriptToken LogicalNot() => new PostScriptBoolean(!Value);
     }
 }

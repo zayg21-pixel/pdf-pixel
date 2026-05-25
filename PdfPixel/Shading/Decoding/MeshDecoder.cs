@@ -15,7 +15,7 @@ namespace PdfPixel.Shading.Decoding;
 /// Provides decoding of PDF mesh shading patches, extracting normalized control points and corner colors.
 /// Supports both Coons patch mesh (Type 6) and Tensor-product patch mesh (Type 7).
 /// </summary>
-class MeshDecoder
+internal class MeshDecoder
 {
     private readonly PdfShading _shading;
     private readonly ColorTransformSampler _sampler;
@@ -26,7 +26,8 @@ class MeshDecoder
     private readonly int _controlPointCount;
     private readonly float _componentDenominator;
     private readonly float _coordinateDenominator;
-    private readonly float _xmin, _ymin;
+    private readonly float _xmin;
+    private readonly float _ymin;
     private readonly float _xScale;
     private readonly float _yScale;
     private readonly ColorMinAndScale[] _colorComponentMinAndScale;
@@ -50,6 +51,7 @@ class MeshDecoder
         {
             throw new ArgumentException("Decode array must contain at least xmin,xmax,ymin,ymax and pairs of min/max for each color component");
         }
+
         _numColorComponents = (decodeArray.Length - 4) / 2;
         _xmin = decodeArray[0];
         float xmax = decodeArray[1];
@@ -57,7 +59,7 @@ class MeshDecoder
         float ymax = decodeArray[3];
         float xRange = xmax - _xmin;
         float yRange = ymax - _ymin;
-        _controlPointCount = shading.ShadingType == PdfShadingType.TensorProductPatchMesh ? 16 : 12;
+        _controlPointCount = (shading.ShadingType == PdfShadingType.TensorProductPatchMesh) ? 16 : 12;
         _componentDenominator = 1f / ((1UL << _bitsPerComponent) - 1);
         _coordinateDenominator = 1f / ((1UL << _bitsPerCoordinate) - 1);
         _xScale = _coordinateDenominator * xRange;
@@ -67,8 +69,8 @@ class MeshDecoder
         _colorComponentMinAndScale = new ColorMinAndScale[_numColorComponents];
         for (int componentIndex = 0; componentIndex < _numColorComponents; componentIndex++)
         {
-            float minValue = decodeArray[4 + componentIndex * 2];
-            float maxValue = decodeArray[4 + componentIndex * 2 + 1];
+            float minValue = decodeArray[4 + (componentIndex * 2)];
+            float maxValue = decodeArray[4 + (componentIndex * 2) + 1];
             float scalePremultiplied = _componentDenominator * (maxValue - minValue);
             _colorComponentMinAndScale[componentIndex] = new ColorMinAndScale(minValue, scalePremultiplied);
         }
@@ -80,15 +82,15 @@ class MeshDecoder
     /// <returns>List of decoded <see cref="MeshData"/> instances.</returns>
     public List<MeshData> Decode()
     {
-        var memory = _shading.SourceObject.DecodeAsMemory();
-        var bitReader = new UintBitReader(memory.Span);
-        var patches = new List<MeshData>();
+        ReadOnlyMemory<byte> memory = _shading.SourceObject.DecodeAsMemory();
+        UintBitReader bitReader = new(memory.Span);
+        List<MeshData> patches = [];
         MeshData previousPatch = null;
 
         while (!bitReader.EndOfData)
         {
-            int rawFlag = (int)bitReader.ReadBits(_bitsPerFlag);
-            byte flag = (byte)(rawFlag & 0x3);
+            var rawFlag = (int)bitReader.ReadBits(_bitsPerFlag);
+            var flag = (byte)(rawFlag & 0x3);
 
             if (rawFlag != flag)
             {
@@ -106,8 +108,8 @@ class MeshDecoder
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private MeshData DecodeMesh(ref UintBitReader bitReader, byte flag, MeshData previousPatch)
     {
-        SKPoint[] controlPoints = new SKPoint[_controlPointCount];
-        SKColor[] cornerColors = new SKColor[4];
+        var controlPoints = new SKPoint[_controlPointCount];
+        var cornerColors = new SKColor[4];
 
         if (flag == 0)
         {
@@ -115,6 +117,7 @@ class MeshDecoder
             {
                 controlPoints[i] = MeshReader.ReadPoint(ref bitReader, _bitsPerCoordinate, _xmin, _ymin, _xScale, _yScale);
             }
+
             for (int c = 0; c < 4; c++)
             {
                 cornerColors[c] = MeshReader.ReadColorComponents(ref bitReader, _bitsPerComponent, _colorComponentMinAndScale, _numColorComponents, _shading.Functions, _sampler);
@@ -126,38 +129,46 @@ class MeshDecoder
             {
                 throw new InvalidDataException("Nonzero flag with no previous patch.");
             }
+
             for (int i = 4; i < _controlPointCount; i++)
             {
                 controlPoints[i] = MeshReader.ReadPoint(ref bitReader, _bitsPerCoordinate, _xmin, _ymin, _xScale, _yScale);
             }
+
             cornerColors[2] = MeshReader.ReadColorComponents(ref bitReader, _bitsPerComponent, _colorComponentMinAndScale, _numColorComponents, _shading.Functions, _sampler);
             cornerColors[3] = MeshReader.ReadColorComponents(ref bitReader, _bitsPerComponent, _colorComponentMinAndScale, _numColorComponents, _shading.Functions, _sampler);
             switch (flag)
             {
                 case 1:
-                    controlPoints[0] = previousPatch.Points[3];
-                    controlPoints[1] = previousPatch.Points[4];
-                    controlPoints[2] = previousPatch.Points[5];
-                    controlPoints[3] = previousPatch.Points[6];
-                    cornerColors[0] = previousPatch.CornerColors[1];
-                    cornerColors[1] = previousPatch.CornerColors[2];
-                    break;
+                    {
+                        controlPoints[0] = previousPatch.Points[3];
+                        controlPoints[1] = previousPatch.Points[4];
+                        controlPoints[2] = previousPatch.Points[5];
+                        controlPoints[3] = previousPatch.Points[6];
+                        cornerColors[0] = previousPatch.CornerColors[1];
+                        cornerColors[1] = previousPatch.CornerColors[2];
+                        break;
+                    }
                 case 2:
-                    controlPoints[0] = previousPatch.Points[6];
-                    controlPoints[1] = previousPatch.Points[7];
-                    controlPoints[2] = previousPatch.Points[8];
-                    controlPoints[3] = previousPatch.Points[9];
-                    cornerColors[0] = previousPatch.CornerColors[2];
-                    cornerColors[1] = previousPatch.CornerColors[3];
-                    break;
+                    {
+                        controlPoints[0] = previousPatch.Points[6];
+                        controlPoints[1] = previousPatch.Points[7];
+                        controlPoints[2] = previousPatch.Points[8];
+                        controlPoints[3] = previousPatch.Points[9];
+                        cornerColors[0] = previousPatch.CornerColors[2];
+                        cornerColors[1] = previousPatch.CornerColors[3];
+                        break;
+                    }
                 case 3:
-                    controlPoints[0] = previousPatch.Points[9];
-                    controlPoints[1] = previousPatch.Points[10];
-                    controlPoints[2] = previousPatch.Points[11];
-                    controlPoints[3] = previousPatch.Points[0];
-                    cornerColors[0] = previousPatch.CornerColors[3];
-                    cornerColors[1] = previousPatch.CornerColors[0];
-                    break;
+                    {
+                        controlPoints[0] = previousPatch.Points[9];
+                        controlPoints[1] = previousPatch.Points[10];
+                        controlPoints[2] = previousPatch.Points[11];
+                        controlPoints[3] = previousPatch.Points[0];
+                        cornerColors[0] = previousPatch.CornerColors[3];
+                        cornerColors[1] = previousPatch.CornerColors[0];
+                        break;
+                    }
             }
         }
 

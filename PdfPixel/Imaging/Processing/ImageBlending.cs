@@ -13,7 +13,7 @@ namespace PdfPixel.Imaging.Processing
 
         static ImageBlending()
         {
-            var softMaskSksl = @"
+            const string softMaskSksl = @"
                 uniform shader image;
                 uniform shader mask;
                 uniform half3 matte;
@@ -35,7 +35,7 @@ namespace PdfPixel.Imaging.Processing
                 }
             ";
 
-            var imageMaskSksl = @"
+            const string imageMaskSksl = @"
                 uniform shader mask;
                 uniform half3 fillColor;
                 uniform half useInverse;
@@ -49,7 +49,7 @@ namespace PdfPixel.Imaging.Processing
             _softMaskEffect = SKRuntimeEffect.CreateShader(softMaskSksl, out _);
             _imageMaskEffect = SKRuntimeEffect.CreateShader(imageMaskSksl, out _);
 
-            var stencilMaskSksl = @"
+            const string stencilMaskSksl = @"
                 uniform shader image;
                 uniform shader mask;
 
@@ -65,21 +65,24 @@ namespace PdfPixel.Imaging.Processing
 
         public static SKShader BuildImageShader(
             SKImage source,
-            SKSamplingOptions sampling)
+            in SKSamplingOptions sampling)
         {
             return source.ToShader(
                 SKShaderTileMode.Clamp,
-                SKShaderTileMode.Clamp, sampling);
+                SKShaderTileMode.Clamp,
+                sampling);
         }
 
         public static SKShader BuildImageShader(
             SKImage source,
             SKSizeI targetSize,
-            SKSamplingOptions sampling)
+            in SKSamplingOptions sampling)
         {
             return source.ToShader(
                 SKShaderTileMode.Clamp,
-                SKShaderTileMode.Clamp, sampling, SKMatrix.CreateScale((float)targetSize.Width / source.Width, (float)targetSize.Height / source.Height));
+                SKShaderTileMode.Clamp,
+                sampling,
+                SKMatrix.CreateScale((float)targetSize.Width / source.Width, (float)targetSize.Height / source.Height));
         }
 
         /// <summary>
@@ -92,13 +95,13 @@ namespace PdfPixel.Imaging.Processing
             SKShader maskChild,
             SKColor? matte)
         {
-            var uniforms = new SKRuntimeEffectUniforms(_softMaskEffect)
+            SKRuntimeEffectUniforms uniforms = new(_softMaskEffect)
             {
-                ["hasMatte"] = matte.HasValue ? 1.0f : 0.0f,
-                ["matte"] = matte ?? default,
+                ["hasMatte"] = (matte.HasValue) ? 1.0f : 0.0f,
+                ["matte"] = matte ?? default
             };
 
-            var children = new SKRuntimeEffectChildren(_softMaskEffect)
+            SKRuntimeEffectChildren children = new(_softMaskEffect)
             {
                 { "image", imageChild },
                 { "mask", maskChild }
@@ -113,19 +116,16 @@ namespace PdfPixel.Imaging.Processing
         /// </summary>
         public static SKShader CreateImageMaskBlendingShader(
             SKShader maskChild,
-            SKColor fillColor,
+            in SKColor fillColor,
             bool inverse)
         {
-            var uniforms = new SKRuntimeEffectUniforms(_imageMaskEffect)
+            SKRuntimeEffectUniforms uniforms = new(_imageMaskEffect)
             {
                 ["fillColor"] = fillColor,
-                ["useInverse"] = inverse ? 1.0f : 0.0f,
+                ["useInverse"] = inverse ? 1.0f : 0.0f
             };
 
-            var children = new SKRuntimeEffectChildren(_imageMaskEffect)
-            {
-                { "mask", maskChild }
-            };
+            SKRuntimeEffectChildren children = new(_imageMaskEffect) { { "mask", maskChild } };
 
             return _imageMaskEffect.ToShader(uniforms, children);
         }
@@ -137,9 +137,9 @@ namespace PdfPixel.Imaging.Processing
             SKShader imageChild,
             SKShader maskChild)
         {
-            var uniforms = new SKRuntimeEffectUniforms(_stencilMaskEffect);
+            SKRuntimeEffectUniforms uniforms = new(_stencilMaskEffect);
 
-            var children = new SKRuntimeEffectChildren(_stencilMaskEffect)
+            SKRuntimeEffectChildren children = new(_stencilMaskEffect)
             {
                 { "image", imageChild },
                 { "mask", maskChild }

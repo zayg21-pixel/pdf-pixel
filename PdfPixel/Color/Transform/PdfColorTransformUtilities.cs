@@ -9,8 +9,8 @@ namespace PdfPixel.Color.Transform;
 /// </summary>
 internal static class PdfColorTransformUtilities
 {
-    private static readonly Vector4 MaxByte = new Vector4(255f);
-    private static readonly Vector4 ByteOffset = new Vector4(0.5f);
+    private static readonly Vector4 MaxByte = new(255f);
+    private static readonly Vector4 ByteOffset = new(0.5f);
 
     /// <summary>
     /// Converts a Vector4 with color channel values in the range [0, 1] to an SKColor with 8-bit per channel RGB
@@ -22,7 +22,7 @@ internal static class PdfColorTransformUtilities
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static SKColor From01ToSkiaColor(this Vector4 source)
     {
-        var scaled = Vector4.Clamp(source * 255f, Vector4.Zero, MaxByte) + ByteOffset;
+        Vector4 scaled = Vector4.Clamp(source * 255f, Vector4.Zero, MaxByte) + ByteOffset;
         return new SKColor(
             (byte)scaled.X,
             (byte)scaled.Y,

@@ -6,23 +6,14 @@ namespace PdfPixel.PostScript.Tokens
     /// </summary>
     public sealed class PostScriptMark : PostScriptToken
     {
-        public static readonly PostScriptMark Instance = new PostScriptMark();
+        public static readonly PostScriptMark Instance = new();
 
         private PostScriptMark()
         {
         }
 
-        public override bool EqualsToken(PostScriptToken other)
-        {
-            return ReferenceEquals(this, other);
-        }
-        public override int GetHashCode()
-        {
-            return System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(this);
-        }
-        public override string ToString()
-        {
-            return "Mark";
-        }
+        public override bool EqualsToken(PostScriptToken other) => ReferenceEquals(this, other);
+        public override int GetHashCode() => System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(this);
+        public override string ToString() => "Mark";
     }
 }

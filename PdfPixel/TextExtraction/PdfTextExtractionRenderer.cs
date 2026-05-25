@@ -16,7 +16,7 @@ namespace PdfPixel.TextExtraction;
 
 internal class PdfTextExtractionRenderer : IPdfRenderer
 {
-    public List<PdfCharacter> PageCharacters { get; } = new List<PdfCharacter>();
+    public List<PdfCharacter> PageCharacters { get; } = [];
 
     public void DrawForm(IPdfCommandProcessor processor, PdfForm formXObject, PdfGraphicsState graphicsState)
     {
@@ -28,15 +28,15 @@ internal class PdfTextExtractionRenderer : IPdfRenderer
         processor.Process(new ClipPathCommand(formXObject.BBox, SKClipOperation.Intersect));
 
         // Decode and render content with a cloned state
-        var content = formXObject.GetFormData();
+        System.ReadOnlyMemory<byte> content = formXObject.GetFormData();
         if (!content.IsEmpty)
         {
-            var parseContext = new PdfParseContext(content);
-            var formPage = formXObject.GetFormPage();
-            var localGs = new PdfGraphicsState(formPage, graphicsState);
+            PdfParseContext parseContext = new(content);
+            FormXObjectPageWrapper formPage = formXObject.GetFormPage();
+            PdfGraphicsState localGs = new(formPage, graphicsState);
             localGs.CTM = formXObject.Matrix;
 
-            var renderer = new PdfContentStreamRenderer(this, formPage);
+            PdfContentStreamRenderer renderer = new(this, formPage);
             renderer.RenderContext(processor, ref parseContext, localGs);
         }
 
@@ -60,13 +60,13 @@ internal class PdfTextExtractionRenderer : IPdfRenderer
 
     public SKSize DrawTextSequence(IPdfCommandProcessor processor, List<ShapedGlyph> glyphs, PdfGraphicsState state, PdfFontBase font)
     {
-        var currentMatrix = SKMatrix.Concat(processor.TotalMatrix, TextRenderUtilities.GetFullTextMatrix(state));
+        SKMatrix currentMatrix = SKMatrix.Concat(processor.TotalMatrix, TextRenderUtilities.GetFullTextMatrix(state));
         float advance = 0;
         int i = 0;
         while (i < glyphs.Count)
         {
-            var groupTypeface = glyphs[i].CharacterInfo.Typeface;
-            var groupScale = glyphs[i].Scale;
+            SKTypeface groupTypeface = glyphs[i].CharacterInfo.Typeface;
+            float groupScale = glyphs[i].Scale;
             int j = i;
             // Find run of glyphs with same typeface and scale
             while (j < glyphs.Count && glyphs[j].CharacterInfo.Typeface == groupTypeface && glyphs[j].Scale == groupScale)
@@ -74,29 +74,31 @@ internal class PdfTextExtractionRenderer : IPdfRenderer
                 j++;
             }
 
-            using (var skFont = PdfPaintFactory.CreateTextFont(groupTypeface))
+            using (SKFont skFont = PdfPaintFactory.CreateTextFont(groupTypeface))
             {
                 skFont.ScaleX = groupScale;
-                var metrics = skFont.Metrics;
+                SKFontMetrics metrics = skFont.Metrics;
                 float top = metrics.Ascent;
                 float bottom = metrics.Descent;
 
                 for (int k = i; k < j; k++)
                 {
-                    var glyph = glyphs[k];
-                    var rect = new SKRect(advance, top, advance + glyph.CharacterInfo.Advancement, bottom);
+                    ShapedGlyph glyph = glyphs[k];
+                    SKRect rect = new(advance, top, advance + glyph.CharacterInfo.Advancement, bottom);
                     rect = currentMatrix.MapRect(rect).Standardized;
                     if (rect.Width != 0)
                     {
                         PageCharacters.Add(new PdfCharacter(glyph.CharacterInfo.Unicode, rect));
                     }
+
                     advance += glyph.Advance;
                 }
             }
+
             i = j;
         }
 
-        var fullHorizontalScale = state.FontSize * state.HorizontalScaling / 100f;
+        float fullHorizontalScale = state.FontSize * state.HorizontalScaling / 100f;
         return new SKSize(TextRenderUtilities.GetTextWidth(glyphs) * fullHorizontalScale, 0);
     }
 }

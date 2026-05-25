@@ -50,11 +50,13 @@ namespace PdfPixel.PostScript
             {
                 lookupName = execName.Name;
             }
+
             if (lookupName == null)
             {
                 stack.Push(nameToken);
                 return;
             }
+
             if (TryLookupDict(lookupName, out PostScriptToken valueToken))
             {
                 if (valueToken is PostScriptDictionary d && d.AccessLevel == PostScriptAccess.NoAccess)
@@ -63,6 +65,7 @@ namespace PdfPixel.PostScript
                     stack.Push(nameToken);
                     return;
                 }
+
                 stack.Push(valueToken);
             }
             else

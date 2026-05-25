@@ -12,7 +12,7 @@ internal sealed class UnicodeRangeComparer : IComparer<UnicodeRangeMap>
     /// <summary>
     /// Singleton instance to avoid allocations.
     /// </summary>
-    public static readonly UnicodeRangeComparer Instance = new UnicodeRangeComparer();
+    public static readonly UnicodeRangeComparer Instance = new();
 
     private UnicodeRangeComparer()
     {

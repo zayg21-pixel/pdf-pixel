@@ -32,15 +32,17 @@ internal class PdfContentStreamRenderer
     /// </summary>
     public void RenderContent(IPdfCommandProcessor processor, IPdfExecutionObserver observer)
     {
-        var contentStreams = GetPageContentStreams();
+        List<ReadOnlyMemory<byte>> contentStreams = GetPageContentStreams();
 
         if (contentStreams.Count == 0)
+        {
             return;
+        }
 
         // Create unified context that treats all streams as one continuous stream
-        var parseContext = new PdfParseContext(contentStreams);
+        PdfParseContext parseContext = new(contentStreams);
 
-        var state = new PdfGraphicsState(_page, new HashSet<uint>(), externalTransform: null, observer);
+        PdfGraphicsState state = new(_page, new HashSet<uint>(), externalTransform: null, observer);
         state.DeviceMatrix = processor.TotalMatrix;
 
         RenderContext(processor, ref parseContext, state);
@@ -48,18 +50,18 @@ internal class PdfContentStreamRenderer
 
     private List<ReadOnlyMemory<byte>> GetPageContentStreams()
     {
-        var contentStreams = new List<ReadOnlyMemory<byte>>();
+        List<ReadOnlyMemory<byte>> contentStreams = [];
 
-        var contents = _page.PageObject.Dictionary.GetObjects(PdfTokens.ContentsKey);
+        List<PdfObject> contents = _page.PageObject.Dictionary.GetObjects(PdfTokens.ContentsKey);
 
         if (contents == null)
         {
             return contentStreams;
         }
 
-        foreach (var contentObject in contents)
+        foreach (PdfObject contentObject in contents)
         {
-            var contentData = contentObject.DecodeAsMemory();
+            ReadOnlyMemory<byte> contentData = contentObject.DecodeAsMemory();
 
             if (!contentData.IsEmpty)
             {
@@ -76,11 +78,11 @@ internal class PdfContentStreamRenderer
     /// </summary>
     public void RenderContext(IPdfCommandProcessor processor, ref PdfParseContext parseContext, PdfGraphicsState graphicsState)
     {
-        var graphicsStack = new Stack<PdfGraphicsState>();
-        var operandStack = new Stack<IPdfValue>();
-        using var currentPath = new SKPath();
-        var operatorProcessor = new PdfOperatorProcessor(_renderer, _page, processor, operandStack, graphicsStack, currentPath);
-        var parser = new PdfParser(parseContext, _page.Document, allowReferences: false, decrypt: false);
+        Stack<PdfGraphicsState> graphicsStack = [];
+        Stack<IPdfValue> operandStack = [];
+        using SKPath currentPath = new();
+        PdfOperatorProcessor operatorProcessor = new(_renderer, _page, processor, operandStack, graphicsStack, currentPath);
+        PdfParser parser = new(parseContext, _page.Document, allowReferences: false, decrypt: false);
         IPdfValue value;
 
         while ((value = parser.ReadNextValue()) != null)

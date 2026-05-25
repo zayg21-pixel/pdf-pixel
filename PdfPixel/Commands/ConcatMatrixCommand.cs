@@ -8,21 +8,18 @@ namespace PdfPixel.Commands;
 /// </summary>
 public sealed class ConcatMatrixCommand : PdfCommand
 {
-    private readonly SKMatrix _matrix;
 
-    public ConcatMatrixCommand(SKMatrix matrix)
-    {
-        _matrix = matrix;
-    }
+    public ConcatMatrixCommand(SKMatrix matrix) => Matrix = matrix;
 
     /// <summary>
     /// Gets the matrix that this command concatenates onto the canvas.
     /// </summary>
-    public SKMatrix Matrix => _matrix;
+    public SKMatrix Matrix { get; }
 
     /// <inheritdoc />
-    public override void Execute(SKCanvas canvas, IEnumerable<IPdfCommandModifier> modifiers, PdfCommandExecutionContext executionContext)
+    public override void Execute(SKCanvas canvas, IEnumerable<IPdfCommandModifier> modifiers, PdfCommandExecutionContext executionContext) => canvas.Concat(Matrix);
+
+    protected override void Dispose(bool disposing)
     {
-        canvas.Concat(_matrix);
     }
 }

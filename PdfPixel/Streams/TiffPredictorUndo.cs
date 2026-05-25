@@ -27,14 +27,17 @@ namespace PdfPixel.Streams
             {
                 throw new ArgumentNullException(nameof(row));
             }
+
             if (columns <= 0)
             {
                 throw new ArgumentOutOfRangeException(nameof(columns));
             }
+
             if (colors <= 0)
             {
                 throw new ArgumentOutOfRangeException(nameof(colors));
             }
+
             if (bitsPerComponent != 1 && bitsPerComponent != 2 && bitsPerComponent != 4 && bitsPerComponent != 8 && bitsPerComponent != 16)
             {
                 throw new NotSupportedException("Unsupported bitsPerComponent for TIFF predictor undo.");
@@ -51,7 +54,7 @@ namespace PdfPixel.Streams
                     for (int sampleIndex = 0; sampleIndex < samplesPerRow; sampleIndex++)
                     {
                         int leftIndex = sampleIndex - colors;
-                        int left = leftIndex >= 0 ? row[leftIndex] : 0;
+                        int left = (leftIndex >= 0) ? row[leftIndex] : 0;
                         int current = row[sampleIndex];
                         row[sampleIndex] = (byte)((current + left) & 0xFF);
                     }
@@ -69,18 +72,20 @@ namespace PdfPixel.Streams
                             int leftByteIndex = (sampleIndex - colors) * 2;
                             left = (row[leftByteIndex] << 8) | row[leftByteIndex + 1];
                         }
+
                         int decoded = (current + left) & 0xFFFF;
                         row[byteIndex] = (byte)(decoded >> 8);
                         row[byteIndex + 1] = (byte)(decoded & 0xFF);
                     }
                 }
+
                 return;
             }
 
             // Packed (sub-byte) path: unpack -> apply predictor -> repack.
             int bits = bitsPerComponent;
             int sampleMask = (1 << bits) - 1;
-            int[] samples = new int[samplesPerRow];
+            var samples = new int[samplesPerRow];
             int bitPos = 0;
 
             // Unpack samples from bit stream into integer array preserving order.
@@ -102,8 +107,9 @@ namespace PdfPixel.Streams
                     int secondPart = row[byteIndex + 1] >> (8 - (bits - remainingBits));
                     value = ((firstPart << (bits - remainingBits)) | secondPart) & sampleMask;
                 }
+
                 int leftSampleIndex = sampleIndex - colors;
-                int left = leftSampleIndex >= 0 ? samples[leftSampleIndex] : 0;
+                int left = (leftSampleIndex >= 0) ? samples[leftSampleIndex] : 0;
                 samples[sampleIndex] = (value + left) & sampleMask;
                 bitPos += bits;
             }
@@ -136,6 +142,7 @@ namespace PdfPixel.Streams
                     int secondMask = ((1 << secondBits) - 1) << secondShift;
                     row[outByteIndex + 1] = (byte)((row[outByteIndex + 1] & ~secondMask) | (secondValue << secondShift));
                 }
+
                 outBitPos += bits;
             }
         }

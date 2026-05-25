@@ -19,6 +19,7 @@ public enum PdfRenderingIntent
     [PdfEnumDefaultValue]
     [PdfEnumValue("RelativeColorimetric")]
     RelativeColorimetric,
+
     /// <summary>
     /// AbsoluteColorimetric intent - preserves exact color values.
     /// Maintains absolute color accuracy without white point adaptation.
@@ -26,6 +27,7 @@ public enum PdfRenderingIntent
     /// </summary>
     [PdfEnumValue("AbsoluteColorimetric")]
     AbsoluteColorimetric,
+
     /// <summary>
     /// Perceptual intent - optimizes for overall image appearance.
     /// Compresses the entire source gamut to fit the destination gamut.
@@ -33,6 +35,7 @@ public enum PdfRenderingIntent
     /// </summary>
     [PdfEnumValue("Perceptual")]
     Perceptual,
+
     /// <summary>
     /// Saturation intent - optimizes for vivid colors.
     /// Preserves color saturation at the expense of color accuracy.

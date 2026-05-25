@@ -7,27 +7,15 @@ namespace PdfPixel.PostScript.Tokens
     /// </summary>
     public sealed class PostScriptNumber : PostScriptToken
     {
-        public PostScriptNumber(float value)
-        {
-            Value = value;
-        }
+        public PostScriptNumber(float value) => Value = value;
 
         public float Value { get; }
 
-        public override string ToString()
-        {
-            return "Number: " + Value.ToString(System.Globalization.CultureInfo.InvariantCulture);
-        }
+        public override string ToString() => "Number: " + Value.ToString(System.Globalization.CultureInfo.InvariantCulture);
 
-        public override bool EqualsToken(PostScriptToken other)
-        {
-            return other is PostScriptNumber n && Value.Equals(n.Value);
-        }
+        public override bool EqualsToken(PostScriptToken other) => other is PostScriptNumber n && Value.Equals(n.Value);
 
-        public override int GetHashCode()
-        {
-            return Value.GetHashCode();
-        }
+        public override int GetHashCode() => Value.GetHashCode();
 
         public override int CompareToToken(PostScriptToken other)
         {
@@ -40,6 +28,7 @@ namespace PdfPixel.PostScript.Tokens
             {
                 throw new InvalidOperationException("Numeric comparison requires numeric right operand.");
             }
+
             return Value.CompareTo(n.Value);
         }
 
@@ -49,10 +38,12 @@ namespace PdfPixel.PostScript.Tokens
             {
                 throw new InvalidOperationException("Bitwise AND requires numeric right operand.");
             }
+
             if (Value != (int)Value || right.Value != (int)right.Value)
             {
                 throw new InvalidOperationException("Bitwise AND requires integral operands.");
             }
+
             int result = (int)Value & (int)right.Value;
             return new PostScriptNumber(result);
         }
@@ -63,10 +54,12 @@ namespace PdfPixel.PostScript.Tokens
             {
                 throw new InvalidOperationException("Bitwise OR requires numeric right operand.");
             }
+
             if (Value != (int)Value || right.Value != (int)right.Value)
             {
                 throw new InvalidOperationException("Bitwise OR requires integral operands.");
             }
+
             int result = (int)Value | (int)right.Value;
             return new PostScriptNumber(result);
         }
@@ -77,10 +70,12 @@ namespace PdfPixel.PostScript.Tokens
             {
                 throw new InvalidOperationException("Bitwise XOR requires numeric right operand.");
             }
+
             if (Value != (int)Value || right.Value != (int)right.Value)
             {
                 throw new InvalidOperationException("Bitwise XOR requires integral operands.");
             }
+
             int result = (int)Value ^ (int)right.Value;
             return new PostScriptNumber(result);
         }
@@ -91,6 +86,7 @@ namespace PdfPixel.PostScript.Tokens
             {
                 throw new InvalidOperationException("Bitwise NOT requires integral operand.");
             }
+
             int result = ~(int)Value;
             return new PostScriptNumber(result);
         }

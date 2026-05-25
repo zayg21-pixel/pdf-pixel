@@ -24,33 +24,33 @@ public class PdfCircleAnnotation : PdfAnnotationBase
 
     internal override bool RenderFallback(IPdfCommandProcessor processor, IPdfPageInternal page, PdfAnnotationVisualStateKind visualStateKind, PdfRenderingParameters renderingParameters)
     {
-        var width = Rectangle.Width;
-        var height = Rectangle.Height;
-        var interiorSKColor = ResolveInteriorColor(page);
+        float width = Rectangle.Width;
+        float height = Rectangle.Height;
+        SKColor interiorSKColor = ResolveInteriorColor(page);
 
-        var centerX = Rectangle.Left + width / 2;
-        var centerY = Rectangle.Top + height / 2;
+        float centerX = Rectangle.Left + (width / 2);
+        float centerY = Rectangle.Top + (height / 2);
 
         if (interiorSKColor != SKColors.Transparent)
         {
-            var fillPaint = new SKPaint
+            SKPaint fillPaint = new()
             {
                 Style = SKPaintStyle.Fill,
                 IsAntialias = renderingParameters.Antialias,
                 Color = interiorSKColor
             };
 
-            using var fillPath = new SKPath();
-            fillPath.AddOval(new SKRect(centerX - width / 2, centerY - height / 2, centerX + width / 2, centerY + height / 2));
+            using SKPath fillPath = new();
+            fillPath.AddOval(new SKRect(centerX - (width / 2), centerY - (height / 2), centerX + (width / 2), centerY + (height / 2)));
             processor.Process(new DrawPathCommand(fillPath, fillPaint));
         }
 
-        if (BorderStyle != null && BorderStyle.Width > 0 && Color != null && Color.Length > 0)
+        if (BorderStyle?.Width > 0 && Color?.Length > 0)
         {
-            var borderWidth = BorderStyle.Width;
-            var strokeColor = ResolveColor(page, SKColors.Black);
+            float borderWidth = BorderStyle.Width;
+            SKColor strokeColor = ResolveColor(page, SKColors.Black);
 
-            var strokePaint = new SKPaint
+            SKPaint strokePaint = new()
             {
                 Style = SKPaintStyle.Stroke,
                 StrokeWidth = borderWidth,
@@ -60,15 +60,15 @@ public class PdfCircleAnnotation : PdfAnnotationBase
 
             BorderStyle.TryApplyEffect(strokePaint, strokeColor);
 
-            var adjustedWidth = width - BorderStyle.Width;
-            var adjustedHeight = height - BorderStyle.Width;
+            float adjustedWidth = width - BorderStyle.Width;
+            float adjustedHeight = height - BorderStyle.Width;
 
-            using var strokePath = new SKPath();
+            using SKPath strokePath = new();
             strokePath.AddOval(new SKRect(
-                centerX - adjustedWidth / 2,
-                centerY - adjustedHeight / 2,
-                centerX + adjustedWidth / 2,
-                centerY + adjustedHeight / 2));
+                centerX - (adjustedWidth / 2),
+                centerY - (adjustedHeight / 2),
+                centerX + (adjustedWidth / 2),
+                centerY + (adjustedHeight / 2)));
             processor.Process(new DrawPathCommand(strokePath, strokePaint));
         }
 
@@ -81,7 +81,7 @@ public class PdfCircleAnnotation : PdfAnnotationBase
     /// <returns>A string containing the annotation type.</returns>
     public override string ToString()
     {
-        var contentsText = Contents.ToString();
+        string contentsText = Contents.ToString();
 
         if (!string.IsNullOrEmpty(contentsText))
         {

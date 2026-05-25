@@ -27,23 +27,23 @@ internal static class PdfPatternParser
         {
             1 => ParseTilingPattern(renderer, patternObject),
             2 => ParseShadingPattern(patternObject),
-            _ => null,// Unsupported pattern type
+            _ => null// Unsupported pattern type
         };
     }
 
     private static PdfTilingPattern ParseTilingPattern(IPdfRenderer renderer, PdfObject patternObject)
     {
-        var dictionary = patternObject.Dictionary;
+        PdfDictionary dictionary = patternObject.Dictionary;
 
-        var bboxArray = dictionary.GetArray(PdfTokens.BBoxKey);
-        var bbox = PdfLocationUtilities.CreateBBox(bboxArray) ?? SKRect.Empty;
+        PdfArray bboxArray = dictionary.GetArray(PdfTokens.BBoxKey);
+        SKRect bbox = PdfLocationUtilities.CreateBBox(bboxArray) ?? SKRect.Empty;
 
         float xStep = dictionary.GetFloatOrDefault(PdfTokens.XStepKey);
         float yStep = dictionary.GetFloatOrDefault(PdfTokens.YStepKey);
         int rawPaintType = dictionary.GetIntegerOrDefault(PdfTokens.PaintTypeKey);
         int rawTilingType = dictionary.GetIntegerOrDefault(PdfTokens.TilingTypeKey);
 
-        PdfTilingPaintType paintTypeKind = rawPaintType == 2 ? PdfTilingPaintType.Uncolored : PdfTilingPaintType.Colored;
+        PdfTilingPaintType paintTypeKind = (rawPaintType == 2) ? PdfTilingPaintType.Uncolored : PdfTilingPaintType.Colored;
         PdfTilingSpacingType tilingTypeKind = rawTilingType switch
         {
             2 => PdfTilingSpacingType.NoDistortion,
@@ -51,7 +51,7 @@ internal static class PdfPatternParser
             _ => PdfTilingSpacingType.ConstantSpacing
         };
 
-        var matrixArray = dictionary.GetArray(PdfTokens.MatrixKey);
+        PdfArray matrixArray = dictionary.GetArray(PdfTokens.MatrixKey);
         SKMatrix matrix = PdfLocationUtilities.CreateMatrix(matrixArray) ?? SKMatrix.Identity;
 
         return new PdfTilingPattern(
@@ -67,12 +67,12 @@ internal static class PdfPatternParser
 
     private static PdfShadingPattern ParseShadingPattern(PdfObject patternObject)
     {
-        var dictionary = patternObject.Dictionary;
+        PdfDictionary dictionary = patternObject.Dictionary;
 
-        var matrixArray = dictionary.GetArray(PdfTokens.MatrixKey);
-        var matrix = PdfLocationUtilities.CreateMatrix(matrixArray) ?? SKMatrix.Identity;
+        PdfArray matrixArray = dictionary.GetArray(PdfTokens.MatrixKey);
+        SKMatrix matrix = PdfLocationUtilities.CreateMatrix(matrixArray) ?? SKMatrix.Identity;
 
-        var shadingObject = dictionary.GetObject(PdfTokens.ShadingKey);
+        PdfObject shadingObject = dictionary.GetObject(PdfTokens.ShadingKey);
 
         if (shadingObject == null)
         {
@@ -80,7 +80,7 @@ internal static class PdfPatternParser
         }
 
         PdfDictionary extGState = dictionary.GetDictionary(PdfTokens.ExtGStateKey);
-        var shading = new PdfShading(shadingObject);
+        PdfShading shading = new(shadingObject);
 
         return new PdfShadingPattern(patternObject, shading, matrix, extGState);
     }

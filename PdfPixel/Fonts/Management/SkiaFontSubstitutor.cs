@@ -14,17 +14,14 @@ namespace PdfPixel.Fonts.Management;
 /// </remarks>
 internal sealed class SkiaFontSubstitutor
 {
-    private ISkiaFontProvider _skiaFontProvider;
+    private readonly ISkiaFontProvider _skiaFontProvider;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="SkiaFontSubstitutor"/> class.
     /// </summary>
     /// <param name="skiaFontProvider">The font provider used for font resolution.</param>
     /// <exception cref="ArgumentNullException">Thrown if <paramref name="skiaFontProvider"/> is null.</exception>
-    public SkiaFontSubstitutor(ISkiaFontProvider skiaFontProvider)
-    {
-        _skiaFontProvider = skiaFontProvider ?? throw new ArgumentNullException(nameof(skiaFontProvider));
-    }
+    public SkiaFontSubstitutor(ISkiaFontProvider skiaFontProvider) => _skiaFontProvider = skiaFontProvider ?? throw new ArgumentNullException(nameof(skiaFontProvider));
 
     /// <summary>
     /// Resolves a substitute <see cref="SKTypeface"/> for a non-embedded PDF font.
@@ -35,13 +32,13 @@ internal sealed class SkiaFontSubstitutor
     /// <returns>
     /// A matching <see cref="SKTypeface"/> if found; otherwise, <see cref="SKTypeface.Default"/>.
     /// </returns>
-    public SKTypeface SubstituteTypeface(PdfSubstitutionInfo substitutionInfo, string unicode)
+    public SKTypeface SubstituteTypeface(in PdfSubstitutionInfo substitutionInfo, string unicode)
     {
         SKFontStyle style = substitutionInfo.FontStyle;
 
-        if (Enum.TryParse<PdfStandardFontName>(substitutionInfo.NormalizedStem, out var standardFont))
+        if (Enum.TryParse<PdfStandardFontName>(substitutionInfo.NormalizedStem, out PdfStandardFontName standardFont))
         {
-            var standardTypeface = _skiaFontProvider.GetStandardFont(standardFont, substitutionInfo.FontStyle, unicode);
+            SKTypeface standardTypeface = _skiaFontProvider.GetStandardFont(standardFont, substitutionInfo.FontStyle, unicode);
 
             if (standardTypeface != null)
             {

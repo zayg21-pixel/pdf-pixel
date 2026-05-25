@@ -24,6 +24,6 @@ public interface ISkiaFontProvider : System.IDisposable
     /// <param name="name">Font family name to resolve.</param>
     /// <param name="style">Requested font style.</param>
     /// <param name="unicode">Optional unicode text to validate glyph availability.</param>
-    /// <returns>An <see cref="SKTypeface"/> that matches the requested font; or or <c>null</c> if not found.</returns>
+    /// <returns>An <see cref="SKTypeface"/> that matches the requested font; or <c>null</c> if not found.</returns>
     SKTypeface GetFont(string name, SKFontStyle style, string unicode);
 }

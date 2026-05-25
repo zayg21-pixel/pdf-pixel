@@ -44,7 +44,7 @@ internal partial class PdfShadingBuilder
         float domainX1 = 1f;
         float domainY0 = 0f;
         float domainY1 = 1f;
-        if (shading.Domain != null && shading.Domain.Length >= 4)
+        if (shading.Domain?.Length >= 4)
         {
             domainX0 = shading.Domain[0];
             domainX1 = shading.Domain[1];
@@ -66,17 +66,17 @@ internal partial class PdfShadingBuilder
         int bitmapWidth = Math.Max(1, xSamples.Length);
         int bitmapHeight = Math.Max(1, ySamples.Length);
 
-        var bitmap = new SKBitmap(bitmapWidth, bitmapHeight);
-        SKColor[] pixelColors = new SKColor[bitmapWidth * bitmapHeight];
+        SKBitmap bitmap = new(bitmapWidth, bitmapHeight);
+        var pixelColors = new SKColor[bitmapWidth * bitmapHeight];
         for (int yIndex = 0; yIndex < bitmapHeight; yIndex++)
         {
             float domainY = ySamples[yIndex];
             for (int xIndex = 0; xIndex < bitmapWidth; xIndex++)
             {
                 float domainX = xSamples[xIndex];
-                var comps = function.Evaluate([domainX, domainY]);
+                ReadOnlySpan<float> comps = function.Evaluate([domainX, domainY]);
                 SKColor color = converter.ToSrgb(comps, renderingIntent, fullTransferFunction);
-                pixelColors[yIndex * bitmapWidth + xIndex] = color;
+                pixelColors[(yIndex * bitmapWidth) + xIndex] = color;
             }
 
             observer?.Notify();
@@ -92,11 +92,11 @@ internal partial class PdfShadingBuilder
         SKMatrix pixelToDomain = SKMatrix.CreateScale(scaleX, scaleY);
         pixelToDomain = SKMatrix.Concat(SKMatrix.CreateTranslation(translateX, translateY), pixelToDomain);
 
-        var matrixArray = shading.SourceObject.Dictionary.GetArray(PdfTokens.MatrixKey);
-        var shadingMatrix = PdfLocationUtilities.CreateMatrix(matrixArray);
+        Models.PdfArray matrixArray = shading.SourceObject.Dictionary.GetArray(PdfTokens.MatrixKey);
+        SKMatrix? shadingMatrix = PdfLocationUtilities.CreateMatrix(matrixArray);
 
         // Concatenate with shading.Matrix if present
-        SKMatrix finalMatrix = shadingMatrix.HasValue
+        SKMatrix finalMatrix = (shadingMatrix.HasValue)
             ? SKMatrix.Concat(shadingMatrix.Value, pixelToDomain)
             : pixelToDomain;
 

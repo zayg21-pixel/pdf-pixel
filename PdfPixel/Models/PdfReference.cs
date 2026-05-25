@@ -30,13 +30,7 @@ public readonly struct PdfReference : IEquatable<PdfReference>
 
     public override string ToString() => $"{ObjectNumber} {Generation} R";
 
-    public override int GetHashCode()
-    {
-        return HashCode.Combine(ObjectNumber, Generation);
-    }
+    public override int GetHashCode() => HashCode.Combine(ObjectNumber, Generation);
 
-    public bool Equals(PdfReference other)
-    {
-        return other.ObjectNumber == ObjectNumber && other.Generation == Generation;
-    }
+    public bool Equals(PdfReference other) => other.ObjectNumber == ObjectNumber && other.Generation == Generation;
 }

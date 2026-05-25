@@ -7,19 +7,10 @@ namespace PdfPixel.PostScript.Tokens
     /// </summary>
     public sealed class PostScriptSave : PostScriptToken
     {
-        public override string ToString()
-        {
-            return "Save";
-        }
+        public override string ToString() => "Save";
 
-        public override bool EqualsToken(PostScriptToken other)
-        {
-            return ReferenceEquals(this, other);
-        }
+        public override bool EqualsToken(PostScriptToken other) => ReferenceEquals(this, other);
 
-        public override int GetHashCode()
-        {
-            return RuntimeHelpers.GetHashCode(this);
-        }
+        public override int GetHashCode() => RuntimeHelpers.GetHashCode(this);
     }
 }

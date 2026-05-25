@@ -18,7 +18,8 @@ public class PdfCompositeFont : PdfFontBase
     private readonly CMapWMode _writingMode;
     private readonly Dictionary<uint, string> _toUnicode;
 
-    public PdfCompositeFont(PdfObject fontObject) : base(fontObject)
+    public PdfCompositeFont(PdfObject fontObject)
+        : base(fontObject)
     {
         DescendantFonts = LoadDescendantFonts();
         (CodeToCidCMap, CMapName) = LoadCodeToCidCMap();
@@ -28,22 +29,22 @@ public class PdfCompositeFont : PdfFontBase
 
     public override PdfFontDescriptor FontDescriptor => PrimaryDescendant?.FontDescriptor;
 
-    internal protected override SKTypeface Typeface => PrimaryDescendant?.Typeface;
+    protected internal override SKTypeface Typeface => PrimaryDescendant?.Typeface;
 
     protected internal override CMapWMode WritingMode => _writingMode;
 
     protected internal override PdfSubstitutionInfo SubstitutionInfo => PrimaryDescendant?.SubstitutionInfo ?? PdfSubstitutionInfo.Detault;
-    
+
     /// <summary>
     /// Descendant CID fonts that contain the actual font data.
     /// </summary>
     public List<PdfCidFont> DescendantFonts { get; }
-    
+
     /// <summary>
     /// Primary descendant font (first in array, handles most characters)
     /// This is where most properties are inherited from
     /// </summary>
-    public PdfCidFont PrimaryDescendant => DescendantFonts?.Count > 0 ? DescendantFonts[0] : null;
+    public PdfCidFont PrimaryDescendant => (DescendantFonts?.Count > 0) ? DescendantFonts[0] : null;
 
     /// <summary>
     /// Optional code->CID CMap derived from the parent /Encoding entry when it is a CMap stream.
@@ -61,7 +62,7 @@ public class PdfCompositeFont : PdfFontBase
     /// </summary>
     public override float GetWidth(PdfCharacterCode code)
     {
-        var descendant = PrimaryDescendant;
+        PdfCidFont descendant = PrimaryDescendant;
         if (descendant == null)
         {
             return 0f;
@@ -84,7 +85,7 @@ public class PdfCompositeFont : PdfFontBase
             return default;
         }
 
-        var descendant = PrimaryDescendant;
+        PdfCidFont descendant = PrimaryDescendant;
         if (descendant == null)
         {
             return default;
@@ -105,7 +106,7 @@ public class PdfCompositeFont : PdfFontBase
     /// </summary>
     public bool TryMapCodeToCid(PdfCharacterCode code, out uint cid)
     {
-        var map = CodeToCidCMap;
+        PdfCMap map = CodeToCidCMap;
         if (map != null && map.TryGetCid(code, out int mapped))
         {
             cid = (uint)mapped;
@@ -121,18 +122,18 @@ public class PdfCompositeFont : PdfFontBase
     /// </summary>
     private List<PdfCidFont> LoadDescendantFonts()
     {
-        var descendants = new List<PdfCidFont>();
+        List<PdfCidFont> descendants = [];
 
         // Use GetPageObjects to get all descendant font objects
-        var descendantObjects = Dictionary.GetObjects(PdfTokens.DescendantFontsKey);
+        List<PdfObject> descendantObjects = Dictionary.GetObjects(PdfTokens.DescendantFontsKey);
         if (descendantObjects == null || descendantObjects.Count == 0)
         {
             return descendants;
         }
 
-        foreach (var descendantObj in descendantObjects)
+        foreach (PdfObject descendantObj in descendantObjects)
         {
-            var descendant = PdfFontFactory.CreateFont(descendantObj);
+            PdfFontBase descendant = PdfFontFactory.CreateFont(descendantObj);
 
             if (descendant is PdfCidFont cidFont)
             {
@@ -150,40 +151,42 @@ public class PdfCompositeFont : PdfFontBase
     /// </summary>
     private (PdfCMap CMap, PdfString CMapName) LoadCodeToCidCMap()
     {
-        var predefinedName = Dictionary.GetName(PdfTokens.EncodingKey);
+        PdfString predefinedName = Dictionary.GetName(PdfTokens.EncodingKey);
 
         if (!predefinedName.IsEmpty)
         {
             return (Document.CMapCache.GetCmap(predefinedName), predefinedName);
         }
 
-        var encodingObj = Dictionary.GetObject(PdfTokens.EncodingKey);
+        PdfObject encodingObj = Dictionary.GetObject(PdfTokens.EncodingKey);
         if (encodingObj == null)
         {
             return default;
         }
 
-        if (encodingObj.Reference.IsValid && Document.CMapCache.CMapStreams.TryGetValue(encodingObj.Reference, out var cachedCMap))
+        if (encodingObj.Reference.IsValid && Document.CMapCache.CMapStreams.TryGetValue(encodingObj.Reference, out PdfCMap cachedCMap))
         {
             return (cachedCMap, cachedCMap.Name);
         }
 
-        var data = encodingObj.DecodeAsMemory();
+        ReadOnlyMemory<byte> data = encodingObj.DecodeAsMemory();
         if (data.IsEmpty || data.Length == 0)
         {
             return default;
         }
 
-        var result = PdfCMapParser.ParseCMap(data, Document);
+        PdfCMap result = PdfCMapParser.ParseCMap(data, Document);
         // PdfTokens.CMapNameKey
-        
-        var cmapNameToken = PdfString.FromString("CMapName"); // TODO: [HIGH] we need to cleanup the rest here, some other properties are coming from CMap
-        var cmapName = encodingObj.Dictionary.GetName(cmapNameToken);
+
+        PdfString cmapNameToken = PdfString.FromString("CMapName"); // TODO: [HIGH] we need to cleanup the rest here, some other properties are coming from CMap
+        PdfString cmapName = encodingObj.Dictionary.GetName(cmapNameToken);
 
         if (!cmapName.IsEmpty)
         {
             result.Name = cmapName;
-        };
+        }
+
+
 
         if (encodingObj.Reference.IsValid)
         {
@@ -206,10 +209,10 @@ public class PdfCompositeFont : PdfFontBase
             return Array.Empty<PdfCharacterCode>();
         }
 
-        if (CodeToCidCMap != null && CodeToCidCMap.HasCodeSpaceRanges)
+        if (CodeToCidCMap?.HasCodeSpaceRanges == true)
         {
-            var cmap = CodeToCidCMap;
-            var characterCodes = new List<PdfCharacterCode>();
+            PdfCMap cmap = CodeToCidCMap;
+            List<PdfCharacterCode> characterCodes = [];
             int offset = 0;
             while (offset < bytes.Length)
             {
@@ -218,9 +221,11 @@ public class PdfCompositeFont : PdfFontBase
                 {
                     length = 1;
                 }
+
                 characterCodes.Add(new PdfCharacterCode(bytes.Slice(offset, length)));
                 offset += length;
             }
+
             return characterCodes.ToArray();
         }
 
@@ -233,6 +238,7 @@ public class PdfCompositeFont : PdfFontBase
             int offset = index * codeLength;
             result[index] = new PdfCharacterCode(bytes.Slice(offset, codeLength));
         }
+
         return result;
     }
 
@@ -250,7 +256,7 @@ public class PdfCompositeFont : PdfFontBase
             return 0;
         }
 
-        var descendant = PrimaryDescendant;
+        PdfCidFont descendant = PrimaryDescendant;
         if (descendant == null)
         {
             return 0;
@@ -268,7 +274,7 @@ public class PdfCompositeFont : PdfFontBase
 
     public override string GetUnicodeString(PdfCharacterCode code)
     {
-        var baseCode = base.GetUnicodeString(code);
+        string baseCode = base.GetUnicodeString(code);
 
         if (baseCode != null)
         {
@@ -282,7 +288,7 @@ public class PdfCompositeFont : PdfFontBase
             return null;
         }
 
-        if (_toUnicode != null && _toUnicode.TryGetValue(cid, out var resultString))
+        if (_toUnicode != null && _toUnicode.TryGetValue(cid, out string resultString))
         {
             return resultString;
         }

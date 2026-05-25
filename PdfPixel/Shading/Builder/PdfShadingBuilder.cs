@@ -17,8 +17,5 @@ internal partial class PdfShadingBuilder
     /// Initializes a new instance of the <see cref="PdfShadingBuilder"/> class.
     /// </summary>
     /// <param name="loggerFactory">Logger factory for diagnostic output.</param>
-    public PdfShadingBuilder(ILoggerFactory loggerFactory)
-    {
-        _logger = loggerFactory.CreateLogger<PdfShadingBuilder>();
-    }
+    public PdfShadingBuilder(ILoggerFactory loggerFactory) => _logger = loggerFactory.CreateLogger<PdfShadingBuilder>();
 }

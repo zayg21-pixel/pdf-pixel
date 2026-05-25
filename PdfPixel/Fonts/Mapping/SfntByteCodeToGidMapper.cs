@@ -54,7 +54,7 @@ internal class SfntByteCodeToGidMapper : IByteCodeToGidMapper
     /// <returns>The glyph ID (GID) for the character code, or 0 if not found.</returns>
     public ushort GetGid(byte code)
     {
-        if (!_isSubstituted && _flags.HasFlag(PdfFontFlags.Symbolic) && _sfntTables.SingleByteCodeToGid != null)
+        if (!_isSubstituted && (_flags & PdfFontFlags.Symbolic) != 0 && _sfntTables.SingleByteCodeToGid != null)
         {
             return _sfntTables.SingleByteCodeToGid[code];
         }
@@ -66,7 +66,7 @@ internal class SfntByteCodeToGidMapper : IByteCodeToGidMapper
             return 0;
         }
 
-        if (_sfntTables.NameToGid.TryGetValue(name, out var gidByName))
+        if (_sfntTables.NameToGid.TryGetValue(name, out ushort gidByName))
         {
             return gidByName;
         }
@@ -78,7 +78,7 @@ internal class SfntByteCodeToGidMapper : IByteCodeToGidMapper
             AdobeGlyphList.CharacterMap.TryGetValue(name, out unicode);
         }
 
-        if (unicode != null && _sfntTables.UnicodeToGid.TryGetValue(unicode, out var gidByUnicode))
+        if (unicode != null && _sfntTables.UnicodeToGid.TryGetValue(unicode, out ushort gidByUnicode))
         {
             return gidByUnicode;
         }
@@ -92,8 +92,5 @@ internal class SfntByteCodeToGidMapper : IByteCodeToGidMapper
     /// </summary>
     /// <param name="code">The PDF character code.</param>
     /// <returns>The glyph width for the character code, or 0.</returns>
-    public float GetWidth(byte code)
-    {
-        return 0;
-    }
+    public float GetWidth(byte code) => 0;
 }

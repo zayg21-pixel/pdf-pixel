@@ -23,11 +23,11 @@ public class PdfInkAnnotation : PdfAnnotationBase
     public PdfInkAnnotation(PdfObject annotationObject)
         : base(annotationObject, PdfAnnotationSubType.Ink)
     {
-        var inkList = annotationObject.Dictionary.GetArray(PdfTokens.InkListKey);
+        PdfArray inkList = annotationObject.Dictionary.GetArray(PdfTokens.InkListKey);
         InkList = ParseInkList(inkList);
     }
 
-    protected override SKPoint ContentStart => InkList != null && InkList.Length > 0 && InkList[0].Length > 0 ? InkList[0][0] : base.ContentStart;
+    protected override SKPoint ContentStart => (InkList?.Length > 0 && InkList[0].Length > 0) ? InkList[0][0] : base.ContentStart;
 
     /// <summary>
     /// Gets the parsed ink list as an array of arrays of SKPoint.
@@ -45,14 +45,14 @@ public class PdfInkAnnotation : PdfAnnotationBase
         var result = new SKPoint[inkList.Count][];
         for (int i = 0; i < inkList.Count; i++)
         {
-            var pathArray = inkList.GetArray(i);
+            PdfArray pathArray = inkList.GetArray(i);
             if (pathArray == null || pathArray.Count < 4)
             {
                 result[i] = Array.Empty<SKPoint>();
                 continue;
             }
 
-            var coords = pathArray.GetFloatArray();
+            float[] coords = pathArray.GetFloatArray();
             if (coords == null || coords.Length < 4)
             {
                 result[i] = Array.Empty<SKPoint>();
@@ -65,8 +65,10 @@ public class PdfInkAnnotation : PdfAnnotationBase
             {
                 points[p++] = new SKPoint(coords[j], coords[j + 1]);
             }
+
             result[i] = points;
         }
+
         return result;
     }
 
@@ -77,25 +79,25 @@ public class PdfInkAnnotation : PdfAnnotationBase
             return false;
         }
 
-        var lineWidth = BorderStyle?.Width ?? 1.0f;
-        var inkColor = ResolveColor(page, SKColors.Black);
+        float lineWidth = BorderStyle?.Width ?? 1.0f;
+        SKColor inkColor = ResolveColor(page, SKColors.Black);
 
         // Render each path in the parsed ink list
-        foreach (var points in InkList)
+        foreach (SKPoint[] points in InkList)
         {
             if (points == null || points.Length < 2)
             {
                 continue;
             }
 
-            using var path = new SKPath();
+            using SKPath path = new();
             path.MoveTo(points[0]);
             for (int j = 1; j < points.Length; j++)
             {
                 path.LineTo(points[j]);
             }
 
-            var paint = new SKPaint
+            SKPaint paint = new()
             {
                 Style = SKPaintStyle.Stroke,
                 StrokeWidth = lineWidth,
@@ -119,8 +121,8 @@ public class PdfInkAnnotation : PdfAnnotationBase
     /// <returns>A string containing the annotation type and path count.</returns>
     public override string ToString()
     {
-        var contentsText = Contents.ToString();
-        var pathCount = InkList?.Length ?? 0;
+        string contentsText = Contents.ToString();
+        int pathCount = InkList?.Length ?? 0;
 
         if (!string.IsNullOrEmpty(contentsText))
         {

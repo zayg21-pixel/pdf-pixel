@@ -16,9 +16,9 @@ internal sealed class StencilMaskImageExecutionContext : IDisposable
 
     public static StencilMaskImageExecutionContext Create(PdfImage pdfImage, ImageDecodingContext context, ILoggerFactory loggerFactory)
     {
-        var imageSize = new SKSizeI(pdfImage.Width, pdfImage.Height);
-        var decoder = PdfImageDecoder.GetDecoder(pdfImage, loggerFactory);
-        var tileInfo = new PdfTileInfo(imageSize, new SKSizeI(context.DefaultTileSize, context.DefaultTileSize));
+        SKSizeI imageSize = new(pdfImage.Width, pdfImage.Height);
+        PdfImageDecoder decoder = PdfImageDecoder.GetDecoder(pdfImage, loggerFactory);
+        PdfTileInfo tileInfo = new(imageSize, new SKSizeI(context.DefaultTileSize, context.DefaultTileSize));
         return new StencilMaskImageExecutionContext
         {
             ImageSize = imageSize,

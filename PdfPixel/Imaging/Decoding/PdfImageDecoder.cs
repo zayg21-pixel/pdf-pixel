@@ -13,7 +13,7 @@ namespace PdfPixel.Imaging.Decoding;
 /// </summary>
 public abstract class PdfImageDecoder
 {
-    public PdfImageDecoder(PdfImage image, ILoggerFactory loggerFactory)
+    protected PdfImageDecoder(PdfImage image, ILoggerFactory loggerFactory)
     {
         Image = image ?? throw new ArgumentNullException(nameof(image));
         LoggerFactory = loggerFactory ?? throw new ArgumentNullException(nameof(loggerFactory));
@@ -71,11 +71,15 @@ public abstract class PdfImageDecoder
         }
     }
 
-    public virtual void Initialize(PdfTileInfo tileInfo, ImageDecodingContext context, object contentLocker, SKMatrix ctm, SKRectI regionOfInterest, IPdfExecutionObserver observer) { }
+    public virtual void Initialize(PdfTileInfo tileInfo, ImageDecodingContext context, object contentLocker, SKMatrix ctm, SKRectI regionOfInterest, IPdfExecutionObserver observer)
+    {
+    }
 
     public virtual PdfImageTile[] DecodeNextTiles(IPdfExecutionObserver observer) => null;
 
-    public virtual void Cleanup() { }
+    public virtual void Cleanup()
+    {
+    }
 
     /// <summary>
     /// Validate image parameters and return key values needed for processing.
@@ -86,7 +90,7 @@ public abstract class PdfImageDecoder
         int width = Image.Width;
         int height = Image.Height;
         int bitsPerComponent = Image.BitsPerComponent;
-        var converter = Image.ColorSpaceConverter;
+        PdfColorSpaceConverter converter = Image.ColorSpaceConverter;
 
         if (width <= 0 || height <= 0 || bitsPerComponent <= 0)
         {

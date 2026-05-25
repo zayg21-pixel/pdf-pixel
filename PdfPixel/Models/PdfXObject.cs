@@ -71,7 +71,7 @@ public class PdfXObject
 
     public static PdfXObject FromObject(PdfObject sourceObject)
     {
-        var subtype = sourceObject.Dictionary.GetName(PdfTokens.SubtypeKey).AsEnum<PdfXObjectSubtype>();
+        PdfXObjectSubtype subtype = sourceObject.Dictionary.GetName(PdfTokens.SubtypeKey).AsEnum<PdfXObjectSubtype>();
         return new PdfXObject(sourceObject, subtype);
     }
 }

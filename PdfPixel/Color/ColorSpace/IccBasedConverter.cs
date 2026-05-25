@@ -27,20 +27,14 @@ internal sealed class IccBasedConverter : PdfColorSpaceConverter
             _iccTransform = new IccProfileTransform(profile);
         }
 
-        if (alternate == null)
-        {
-            _default = n switch
-            {
-                1 => DeviceGrayConverter.Instance,
-                3 => DeviceRgbConverter.Instance,
-                4 => DeviceCmykConverter.Instance,
-                _ => DeviceRgbConverter.Instance,
-            };
-        }
-        else
-        {
-            _default = alternate;
-        }
+        _default = alternate
+            ?? n switch
+                {
+                    1 => DeviceGrayConverter.Instance,
+                    3 => DeviceRgbConverter.Instance,
+                    4 => DeviceCmykConverter.Instance,
+                    _ => DeviceRgbConverter.Instance
+                };
     }
 
     public IccBasedConverter(int n, PdfColorSpaceConverter alternate, byte[] iccProfileBytes)

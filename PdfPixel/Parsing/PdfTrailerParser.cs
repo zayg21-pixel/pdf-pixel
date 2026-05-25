@@ -30,7 +30,7 @@ internal sealed class PdfTrailerParser
             return null;
         }
 
-        var prev = trailer.GetInteger(PdfTokens.PrevKey);
+        int? prev = trailer.GetInteger(PdfTokens.PrevKey);
         if (!prev.HasValue || prev.Value < 0)
         {
             return null;
@@ -51,20 +51,20 @@ internal sealed class PdfTrailerParser
             return; // Already set (e.g., from /Encrypt in an object stream)
         }
 
-        var encryptDict = trailer.GetDictionary(PdfTokens.EncryptKey);
+        PdfDictionary encryptDict = trailer.GetDictionary(PdfTokens.EncryptKey);
         if (encryptDict == null)
         {
             return; // Not encrypted
         }
 
-        var parameters = new PdfDecryptorParameters();
+        PdfDecryptorParameters parameters = new();
         parameters.SourceDictionary = encryptDict;
         parameters.V = encryptDict.GetIntegerOrDefault(PdfTokens.VKey);
         parameters.R = encryptDict.GetIntegerOrDefault(PdfTokens.RKey);
         parameters.LengthBits = encryptDict.GetIntegerOrDefault(PdfTokens.LengthKey);
         parameters.Permissions = encryptDict.GetIntegerOrDefault(PdfTokens.PKey);
 
-        var encryptMetadata = encryptDict.GetBoolean(PdfTokens.EncryptMetadataKey);
+        bool? encryptMetadata = encryptDict.GetBoolean(PdfTokens.EncryptMetadataKey);
         if (encryptMetadata.HasValue)
         {
             parameters.EncryptMetadata = encryptMetadata.Value;
@@ -89,14 +89,14 @@ internal sealed class PdfTrailerParser
 
             if (parameters.CryptFilterDictionary != null)
             {
-                var streamCfEntry = parameters.CryptFilterDictionary.GetDictionary(parameters.StreamCryptFilterName);
+                PdfDictionary streamCfEntry = parameters.CryptFilterDictionary.GetDictionary(parameters.StreamCryptFilterName);
                 if (streamCfEntry != null)
                 {
                     parameters.StreamCryptFilterMethod = streamCfEntry.GetName(PdfTokens.CfmKey);
                     parameters.StreamCryptFilterLength = streamCfEntry.GetInteger(PdfTokens.LengthKey);
                 }
 
-                var stringCfEntry = parameters.CryptFilterDictionary.GetDictionary(parameters.StringCryptFilterName);
+                PdfDictionary stringCfEntry = parameters.CryptFilterDictionary.GetDictionary(parameters.StringCryptFilterName);
                 if (stringCfEntry != null)
                 {
                     parameters.StringCryptFilterMethod = stringCfEntry.GetName(PdfTokens.CfmKey);
@@ -105,8 +105,8 @@ internal sealed class PdfTrailerParser
             }
         }
 
-        var idArray = trailer.GetArray(PdfTokens.IdKey);
-        if (idArray != null && idArray.Count >= 2)
+        PdfArray idArray = trailer.GetArray(PdfTokens.IdKey);
+        if (idArray?.Count >= 2)
         {
             parameters.FileIdFirst = idArray.GetValue(0).AsStringBytes().ToArray();
             parameters.FileIdSecond = idArray.GetValue(1).AsStringBytes().ToArray();

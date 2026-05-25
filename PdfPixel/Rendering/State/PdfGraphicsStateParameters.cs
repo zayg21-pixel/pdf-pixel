@@ -127,76 +127,94 @@ namespace PdfPixel.Rendering.State
             {
                 graphicsState.LineWidth = LineWidth.Value;
             }
+
             if (LineCap.HasValue)
             {
                 graphicsState.LineCap = LineCap.Value;
             }
+
             if (LineJoin.HasValue)
             {
                 graphicsState.LineJoin = LineJoin.Value;
             }
+
             if (MiterLimit.HasValue)
             {
                 graphicsState.MiterLimit = MiterLimit.Value;
             }
+
             if (DashPattern != null)
             {
                 graphicsState.DashPattern = DashPattern;
                 graphicsState.DashPhase = DashPhase.GetValueOrDefault();
             }
+
             if (StrokeAlpha.HasValue)
             {
                 graphicsState.StrokeAlpha = StrokeAlpha.Value;
             }
+
             if (FillAlpha.HasValue)
             {
                 graphicsState.FillAlpha = FillAlpha.Value;
             }
+
             if (BlendMode.HasValue)
             {
                 graphicsState.BlendMode = BlendMode.Value;
             }
+
             if (SoftMask != null || (SoftMask == null && graphicsState.SoftMask != null))
             {
                 graphicsState.SoftMask = SoftMask;
             }
+
             if (TransferFunction != null || (TransferFunction == null && graphicsState.TransferFunction != null))
             {
                 graphicsState.TransferFunction = TransferFunction;
             }
+
             if (Knockout.HasValue)
             {
                 graphicsState.Knockout = Knockout.Value;
             }
+
             if (OverprintMode.HasValue)
             {
                 graphicsState.OverprintMode = OverprintMode.Value;
             }
+
             if (OverprintStroke.HasValue)
             {
                 graphicsState.OverprintStroke = OverprintStroke.Value;
             }
+
             if (OverprintFill.HasValue)
             {
                 graphicsState.OverprintFill = OverprintFill.Value;
             }
+
             if (TransformMatrix.HasValue)
             {
-                var matrix = TransformMatrix.Value;
+                SKMatrix matrix = TransformMatrix.Value;
                 graphicsState.CTM = matrix.PostConcat(graphicsState.CTM);
             }
+
             if (Font != null)
             {
                 graphicsState.CurrentFont = Font;
             }
+
             if (FontSize.HasValue)
             {
                 graphicsState.FontSize = FontSize.Value;
             }
+
             if (PdfRenderingIntent.HasValue)
             {
                 graphicsState.RenderingIntent = PdfRenderingIntent.Value;
             }
+
             if (AlphaIsShape.HasValue)
             {
                 graphicsState.AlphaIsShape = AlphaIsShape.Value;

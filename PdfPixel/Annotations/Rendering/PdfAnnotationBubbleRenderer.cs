@@ -28,16 +28,16 @@ internal static class PdfAnnotationBubbleRenderer
         PdfAnnotationVisualStateKind visualStateKind,
         PdfRenderingParameters renderingParameters)
     {
-        var bubbleRect = annotation.GetHoverRectangle(page);
+        SKRect bubbleRect = annotation.GetHoverRectangle(page);
 
-        var isHovered = visualStateKind.HasFlag(PdfAnnotationVisualStateKind.Rollover) ||
-                        visualStateKind.HasFlag(PdfAnnotationVisualStateKind.Down);
+        bool isHovered = (visualStateKind & PdfAnnotationVisualStateKind.Rollover) != 0
+            || (visualStateKind & PdfAnnotationVisualStateKind.Down) != 0;
 
-        var currentBorderWidth = isHovered ? HoverBorderWidth : NormalBorderWidth;
-        var cornerRadius = bubbleRect.Width * 0.25f;
+        float currentBorderWidth = isHovered ? HoverBorderWidth : NormalBorderWidth;
+        float cornerRadius = bubbleRect.Width * 0.25f;
 
-        var backgroundColor = annotation.ResolveInteriorColor(page, new SKColor(255, 255, 235));
-        var borderColor = annotation.ResolveColor(page, new SKColor(180, 140, 60));
+        SKColor backgroundColor = annotation.ResolveInteriorColor(page, new SKColor(255, 255, 235));
+        SKColor borderColor = annotation.ResolveColor(page, new SKColor(180, 140, 60));
 
         DrawSpeechBubble(processor, bubbleRect, backgroundColor, borderColor, currentBorderWidth, cornerRadius, isHovered, renderingParameters);
     }
@@ -48,40 +48,40 @@ internal static class PdfAnnotationBubbleRenderer
     private static void DrawSpeechBubble(
         IPdfCommandProcessor processor,
         SKRect bubbleRect,
-        SKColor backgroundColor,
-        SKColor borderColor,
+        in SKColor backgroundColor,
+        in SKColor borderColor,
         float borderWidth,
         float cornerRadius,
         bool isHovered,
         PdfRenderingParameters renderingParameters)
     {
-        var tailHeight = bubbleRect.Height * 0.2f;
+        float tailHeight = bubbleRect.Height * 0.2f;
         if (tailHeight <= 0)
         {
             return;
         }
 
-        var rectTop = bubbleRect.Top + tailHeight;
-        var rectBottom = bubbleRect.Bottom;
+        float rectTop = bubbleRect.Top + tailHeight;
+        float rectBottom = bubbleRect.Bottom;
 
-        var rect = new SKRect(
+        SKRect rect = new(
             bubbleRect.Left,
             rectTop,
             bubbleRect.Right,
             rectBottom);
 
-        using var path = new SKPath();
+        using SKPath path = new();
 
         path.AddRoundRect(rect, cornerRadius, cornerRadius);
 
-        var tailWidth = bubbleRect.Width * 0.4f;
-        var tailBaseY = bubbleRect.Top + tailHeight;
-        var tailTipY = bubbleRect.Top;
+        float tailWidth = bubbleRect.Width * 0.4f;
+        float tailBaseY = bubbleRect.Top + tailHeight;
+        float tailTipY = bubbleRect.Top;
 
         // Make tail visually angled to the right: tip shifted right, left base wider.
-        var tailTipX = bubbleRect.MidX + bubbleRect.Width * 0.3f;
-        var tailRightX = tailTipX + tailWidth * 0.1f;
-        var tailLeftX = tailTipX - tailWidth * 0.9f;
+        float tailTipX = bubbleRect.MidX + (bubbleRect.Width * 0.3f);
+        float tailRightX = tailTipX + (tailWidth * 0.1f);
+        float tailLeftX = tailTipX - (tailWidth * 0.9f);
 
         path.MoveTo(tailTipX, tailTipY);
         path.LineTo(tailRightX, tailBaseY);
@@ -90,7 +90,7 @@ internal static class PdfAnnotationBubbleRenderer
 
         if (isHovered)
         {
-            var shadowPaint = new SKPaint
+            SKPaint shadowPaint = new()
             {
                 Style = SKPaintStyle.Fill,
                 Color = borderColor.WithAlpha(40),
@@ -101,7 +101,7 @@ internal static class PdfAnnotationBubbleRenderer
             processor.Process(new DrawPathCommand(path, shadowPaint));
         }
 
-        var fillPaint = new SKPaint
+        SKPaint fillPaint = new()
         {
             Style = SKPaintStyle.Fill,
             Color = backgroundColor,
@@ -110,7 +110,7 @@ internal static class PdfAnnotationBubbleRenderer
 
         processor.Process(new DrawPathCommand(path, fillPaint));
 
-        var strokePaint = new SKPaint
+        SKPaint strokePaint = new()
         {
             Style = SKPaintStyle.Stroke,
             StrokeWidth = borderWidth,
@@ -120,17 +120,17 @@ internal static class PdfAnnotationBubbleRenderer
 
         processor.Process(new DrawPathCommand(path, strokePaint));
 
-        var contentMargin = bubbleRect.Width * 0.15f;
-        var lineStartX = rect.Left + contentMargin;
-        var lineEndX = rect.Right - contentMargin;
+        float contentMargin = bubbleRect.Width * 0.15f;
+        float lineStartX = rect.Left + contentMargin;
+        float lineEndX = rect.Right - contentMargin;
 
-        var availableHeight = rectBottom - rectTop;
+        float availableHeight = rectBottom - rectTop;
         if (availableHeight > 0)
         {
-            var firstLineY = rectTop + availableHeight * 0.33f;
-            var secondLineY = rectTop + availableHeight * 0.66f;
+            float firstLineY = rectTop + (availableHeight * 0.33f);
+            float secondLineY = rectTop + (availableHeight * 0.66f);
 
-            var contentPaint1 = new SKPaint
+            SKPaint contentPaint1 = new()
             {
                 Style = SKPaintStyle.Stroke,
                 StrokeWidth = borderWidth * 0.7f,
@@ -139,12 +139,12 @@ internal static class PdfAnnotationBubbleRenderer
                 StrokeCap = SKStrokeCap.Round
             };
 
-            using var linePath1 = new SKPath();
+            using SKPath linePath1 = new();
             linePath1.MoveTo(lineStartX, firstLineY);
             linePath1.LineTo(lineEndX, firstLineY);
             processor.Process(new DrawPathCommand(linePath1, contentPaint1));
 
-            var contentPaint2 = new SKPaint
+            SKPaint contentPaint2 = new()
             {
                 Style = SKPaintStyle.Stroke,
                 StrokeWidth = borderWidth * 0.7f,
@@ -153,7 +153,7 @@ internal static class PdfAnnotationBubbleRenderer
                 StrokeCap = SKStrokeCap.Round
             };
 
-            using var linePath2 = new SKPath();
+            using SKPath linePath2 = new();
             linePath2.MoveTo(lineStartX, secondLineY);
             linePath2.LineTo(lineEndX, secondLineY);
             processor.Process(new DrawPathCommand(linePath2, contentPaint2));

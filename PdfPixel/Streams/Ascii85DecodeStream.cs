@@ -36,6 +36,7 @@ namespace PdfPixel.Streams
             {
                 throw new ArgumentException("Inner stream must be readable", nameof(inner));
             }
+
             _leaveOpen = leaveOpen;
         }
 
@@ -43,6 +44,7 @@ namespace PdfPixel.Streams
         public override bool CanSeek => false;
         public override bool CanWrite => false;
         public override long Length => throw new NotSupportedException();
+
         public override long Position
         {
             get => throw new NotSupportedException();
@@ -60,10 +62,12 @@ namespace PdfPixel.Streams
             {
                 throw new ArgumentNullException(nameof(buffer));
             }
+
             if (offset < 0 || count < 0 || offset + count > buffer.Length)
             {
                 throw new ArgumentOutOfRangeException();
             }
+
             if (count == 0)
             {
                 return 0;
@@ -86,6 +90,7 @@ namespace PdfPixel.Streams
                 _bufferCount -= toCopy;
                 written += toCopy;
             }
+
             return written;
         }
 
@@ -142,6 +147,7 @@ namespace PdfPixel.Streams
                     {
                         // Robustness: if '>' missing, treat '~' as end anyway.
                     }
+
                     _endReached = true;
                     EmitFinalPartialGroupIfNeeded();
                     return _bufferCount > 0;
@@ -162,8 +168,9 @@ namespace PdfPixel.Streams
                     uint value = 0;
                     for (int i = 0; i < 5; i++)
                     {
-                        value = value * 85 + (uint)_groupDigits[i];
+                        value = (value * 85) + (uint)_groupDigits[i];
                     }
+
                     _buffer[0] = (byte)(value >> 24);
                     _buffer[1] = (byte)(value >> 16);
                     _buffer[2] = (byte)(value >> 8);
@@ -193,7 +200,7 @@ namespace PdfPixel.Streams
             uint value = 0;
             for (int i = 0; i < 5; i++)
             {
-                value = value * 85 + (uint)_groupDigits[i];
+                value = (value * 85) + (uint)_groupDigits[i];
             }
 
             // Emit only (groupLength -1) bytes.
@@ -213,20 +220,11 @@ namespace PdfPixel.Streams
             return b == 0 || b == 9 || b == 10 || b == 12 || b == 13 || b == 32;
         }
 
-        public override long Seek(long offset, SeekOrigin origin)
-        {
-            throw new NotSupportedException();
-        }
+        public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
 
-        public override void SetLength(long value)
-        {
-            throw new NotSupportedException();
-        }
+        public override void SetLength(long value) => throw new NotSupportedException();
 
-        public override void Write(byte[] buffer, int offset, int count)
-        {
-            throw new NotSupportedException();
-        }
+        public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
 
         protected override void Dispose(bool disposing)
         {
@@ -234,6 +232,7 @@ namespace PdfPixel.Streams
             {
                 _inner.Dispose();
             }
+
             base.Dispose(disposing);
         }
     }

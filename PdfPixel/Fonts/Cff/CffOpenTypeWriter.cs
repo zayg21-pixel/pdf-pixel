@@ -18,10 +18,7 @@ internal static class CffOpenTypeWriter
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static void WriteInt16BE(BinaryWriter writer, short value)
-    {
-        WriteUInt16BE(writer, (ushort)value);
-    }
+    public static void WriteInt16BE(BinaryWriter writer, short value) => WriteUInt16BE(writer, (ushort)value);
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static void WriteUInt32BE(BinaryWriter writer, uint value)
@@ -49,10 +46,7 @@ internal static class CffOpenTypeWriter
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static int Align4(int value)
-    {
-        return (value + 3) & ~3;
-    }
+    public static int Align4(int value) => (value + 3) & ~3;
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static uint CalcTableChecksum(byte[] data)
@@ -66,20 +60,25 @@ internal static class CffOpenTypeWriter
             {
                 word |= (uint)data[index] << 24;
             }
+
             if (index + 1 < data.Length)
             {
                 word |= (uint)data[index + 1] << 16;
             }
+
             if (index + 2 < data.Length)
             {
                 word |= (uint)data[index + 2] << 8;
             }
+
             if (index + 3 < data.Length)
             {
                 word |= data[index + 3];
             }
+
             sum += word;
         }
+
         return sum;
     }
 
@@ -93,8 +92,9 @@ internal static class CffOpenTypeWriter
             maxPowerOfTwo <<= 1;
             entrySelector++;
         }
+
         searchRange = (ushort)(maxPowerOfTwo * 16);
-        rangeShift = (ushort)(numTables * 16 - searchRange);
+        rangeShift = (ushort)((numTables * 16) - searchRange);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -104,15 +104,18 @@ internal static class CffOpenTypeWriter
         {
             return fallback;
         }
-        int intValue = (int)Math.Round(value);
+
+        var intValue = (int)Math.Round(value);
         if (intValue > short.MaxValue)
         {
             return short.MaxValue;
         }
+
         if (intValue < short.MinValue)
         {
             return short.MinValue;
         }
+
         return (short)intValue;
     }
 }

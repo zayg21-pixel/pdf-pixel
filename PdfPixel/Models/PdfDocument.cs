@@ -15,7 +15,7 @@ namespace PdfPixel.Models;
 internal class PdfDocument : IPdfDocumentInternal
 {
     private readonly ILogger<PdfDocument> _logger;
-    private readonly List<IPdfPageInternal> _pages = new();
+    private readonly List<IPdfPageInternal> _pages = [];
     private readonly SkiaFontSubstitutor _fontSubstitutor;
     private readonly PdfDocumentObjectCache _objectCache;
     private readonly CMapCache _cMapCache;
@@ -63,8 +63,5 @@ internal class PdfDocument : IPdfDocumentInternal
     BufferedStream IPdfDocumentInternal.Stream => _stream;
 
     /// <inheritdoc/>
-    public void Dispose()
-    {
-        _stream.Dispose();
-    }
+    public void Dispose() => _stream.Dispose();
 }

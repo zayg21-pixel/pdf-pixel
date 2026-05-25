@@ -22,10 +22,10 @@ internal sealed class CffCharsetParser
 
     private static Dictionary<PdfString, ushort> BuildStandardNameToSid()
     {
-        var standardNameToSidMap = new Dictionary<PdfString, ushort>(CffData.StandardStrings.Length);
+        Dictionary<PdfString, ushort> standardNameToSidMap = new(CffData.StandardStrings.Length);
         for (ushort sid = 0; sid < CffData.StandardStrings.Length; sid++)
         {
-            var standardName = CffData.StandardStrings[sid];
+            PdfString standardName = CffData.StandardStrings[sid];
             if (!standardName.IsEmpty && !standardNameToSidMap.ContainsKey(standardName))
             {
                 standardNameToSidMap[standardName] = sid;
@@ -43,7 +43,7 @@ internal sealed class CffCharsetParser
     /// <param name="glyphCount">Number of glyphs in the font.</param>
     /// <param name="sidByGlyph">Array of SIDs indexed by GID.</param>
     /// <returns>True if parsing succeeded, false otherwise.</returns>
-    public bool TryParseCharset(ReadOnlySpan<byte> cffData, int charsetOffset, int glyphCount, out ushort[] sidByGlyph)
+    public bool TryParseCharset(in ReadOnlySpan<byte> cffData, int charsetOffset, int glyphCount, out ushort[] sidByGlyph)
     {
         sidByGlyph = Array.Empty<ushort>();
 
@@ -60,16 +60,13 @@ internal sealed class CffCharsetParser
         return TryReadExplicitCharsetSids(cffData, charsetOffset, glyphCount, out sidByGlyph);
     }
 
-    private static bool TryReadExplicitCharsetSids(ReadOnlySpan<byte> cffData, int charsetOffset, int glyphCount, out ushort[] sidByGlyph)
+    private static bool TryReadExplicitCharsetSids(in ReadOnlySpan<byte> cffData, int charsetOffset, int glyphCount, out ushort[] sidByGlyph)
     {
         sidByGlyph = new ushort[glyphCount];
         sidByGlyph[0] = NotDefSid;
 
         int nextGlyphId = FirstRealGlyphGid;
-        var charsetReader = new CffDataReader(cffData)
-        {
-            Position = charsetOffset
-        };
+        CffDataReader charsetReader = new(cffData) { Position = charsetOffset };
 
         if (!charsetReader.TryReadByte(out byte format))
         {
@@ -80,10 +77,13 @@ internal sealed class CffCharsetParser
         {
             case 0:
                 return TryReadFormat0(ref charsetReader, sidByGlyph, glyphCount, ref nextGlyphId);
+
             case 1:
                 return TryReadFormat1(ref charsetReader, sidByGlyph, glyphCount, ref nextGlyphId);
+
             case 2:
                 return TryReadFormat2(ref charsetReader, sidByGlyph, glyphCount, ref nextGlyphId);
+
             default:
                 return false;
         }
@@ -161,12 +161,12 @@ internal sealed class CffCharsetParser
             return false;
         }
 
-        var seenNames = new HashSet<PdfString>();
+        HashSet<PdfString> seenNames = [];
 
         int glyphId = FirstRealGlyphGid;
         for (int i = 0; i < charsetGlyphNames.Length && glyphId < glyphCount; i++)
         {
-            var glyphName = charsetGlyphNames[i];
+            PdfString glyphName = charsetGlyphNames[i];
             if (glyphName.IsEmpty || glyphName == NotDefGlyphName)
             {
                 continue;
@@ -191,21 +191,29 @@ internal sealed class CffCharsetParser
         switch (charsetId)
         {
             case PredefinedCharsetIsoAdobe:
-                charsetNames = CffData.IsoAdobeStrings;
-                return true;
+                {
+                    charsetNames = CffData.IsoAdobeStrings;
+                    return true;
+                }
             case PredefinedCharsetExpert:
-                charsetNames = CffData.ExpertStrings;
-                return true;
+                {
+                    charsetNames = CffData.ExpertStrings;
+                    return true;
+                }
             case PredefinedCharsetExpertSubset:
-                charsetNames = CffData.ExpertSubsetStrings;
-                return true;
+                {
+                    charsetNames = CffData.ExpertSubsetStrings;
+                    return true;
+                }
             default:
-                charsetNames = Array.Empty<PdfString>();
-                return false;
+                {
+                    charsetNames = Array.Empty<PdfString>();
+                    return false;
+                }
         }
     }
 
-    private static bool TryGetStandardSid(PdfString name, out ushort sid)
+    private static bool TryGetStandardSid(in PdfString name, out ushort sid)
     {
         if (StandardNameToSid != null && StandardNameToSid.TryGetValue(name, out sid))
         {

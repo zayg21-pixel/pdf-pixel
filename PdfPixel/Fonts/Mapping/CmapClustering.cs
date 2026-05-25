@@ -14,22 +14,22 @@ internal static class CmapClustering
             throw new ArgumentNullException(nameof(cmaps));
         }
 
-        var signatures = new Dictionary<string, Dictionary<byte, Dictionary<uint, int>>>();
-        foreach (var cmap in cmaps)
+        Dictionary<string, Dictionary<byte, Dictionary<uint, int>>> signatures = [];
+        foreach (PdfCMap cmap in cmaps)
         {
-            var codeToCid = cmap.GetCodeToCid();
+            System.Collections.ObjectModel.ReadOnlyDictionary<PdfCharacterCode, int> codeToCid = cmap.GetCodeToCid();
             if (codeToCid.Count == 0)
             {
                 continue;
             }
 
-            var signature = new Dictionary<byte, Dictionary<uint, int>>();
+            Dictionary<byte, Dictionary<uint, int>> signature = [];
             foreach (var entry in codeToCid
                 .Select(kvp => new { Code = kvp.Key, Cid = kvp.Value, CodeValue = PdfCharacterCode.UnpackBigEndianToUInt(kvp.Key.Bytes.Span) })
                 .Where(entry => entry.Code.Length > 0))
             {
-                byte codeLength = (byte)entry.Code.Length;
-                if (!signature.TryGetValue(codeLength, out var columns))
+                var codeLength = (byte)entry.Code.Length;
+                if (!signature.TryGetValue(codeLength, out Dictionary<uint, int> columns))
                 {
                     columns = new Dictionary<uint, int>();
                     signature[codeLength] = columns;
@@ -51,16 +51,16 @@ internal static class CmapClustering
             throw new ArgumentNullException(nameof(signatures));
         }
 
-        var unassigned = new HashSet<string>(signatures.Keys);
-        var clusters = new List<List<string>>();
+        HashSet<string> unassigned = new(signatures.Keys);
+        List<List<string>> clusters = [];
 
         while (unassigned.Count > 0)
         {
             string seed = unassigned.First();
             unassigned.Remove(seed);
-            var cluster = new List<string> { seed };
+            List<string> cluster = [seed];
 
-            var remaining = unassigned.ToList();
+            List<string> remaining = unassigned.ToList();
             foreach (string name in remaining)
             {
                 double similarity = ComputeSimilarity(signatures[seed], signatures[name]);
@@ -80,7 +80,7 @@ internal static class CmapClustering
     public static void WriteClustersReport(List<List<string>> clusters, string outputPath)
     {
         Directory.CreateDirectory(Path.GetDirectoryName(outputPath) ?? ".");
-        using var writer = new StreamWriter(outputPath);
+        using StreamWriter writer = new(outputPath);
         writer.WriteLine("CMap clusters by column agreement:");
         for (int i = 0; i < clusters.Count; i++)
         {
@@ -94,29 +94,29 @@ internal static class CmapClustering
 
     public static Dictionary<int, Dictionary<byte, Dictionary<uint, int>>> BuildClusterBases(List<List<string>> clusters, Dictionary<string, Dictionary<byte, Dictionary<uint, int>>> signatures)
     {
-        var bases = new Dictionary<int, Dictionary<byte, Dictionary<uint, int>>>();
+        Dictionary<int, Dictionary<byte, Dictionary<uint, int>>> bases = [];
         for (int i = 0; i < clusters.Count; i++)
         {
-            var votesByLength = new Dictionary<byte, Dictionary<uint, Dictionary<int, int>>>();
+            Dictionary<byte, Dictionary<uint, Dictionary<int, int>>> votesByLength = [];
             foreach (string name in clusters[i])
             {
-                if (!signatures.TryGetValue(name, out var signature))
+                if (!signatures.TryGetValue(name, out Dictionary<byte, Dictionary<uint, int>> signature))
                 {
                     continue;
                 }
 
-                foreach (var lengthEntry in signature)
+                foreach (KeyValuePair<byte, Dictionary<uint, int>> lengthEntry in signature)
                 {
                     byte codeLength = lengthEntry.Key;
-                    if (!votesByLength.TryGetValue(codeLength, out var votesByCode))
+                    if (!votesByLength.TryGetValue(codeLength, out Dictionary<uint, Dictionary<int, int>> votesByCode))
                     {
                         votesByCode = new Dictionary<uint, Dictionary<int, int>>();
                         votesByLength[codeLength] = votesByCode;
                     }
 
-                    foreach (var columnEntry in lengthEntry.Value)
+                    foreach (KeyValuePair<uint, int> columnEntry in lengthEntry.Value)
                     {
-                        if (!votesByCode.TryGetValue(columnEntry.Key, out var votes))
+                        if (!votesByCode.TryGetValue(columnEntry.Key, out Dictionary<int, int> votes))
                         {
                             votes = new Dictionary<int, int>();
                             votesByCode[columnEntry.Key] = votes;
@@ -128,13 +128,13 @@ internal static class CmapClustering
                 }
             }
 
-            var baseMap = new Dictionary<byte, Dictionary<uint, int>>();
-            foreach (var lengthEntry in votesByLength)
+            Dictionary<byte, Dictionary<uint, int>> baseMap = [];
+            foreach (KeyValuePair<byte, Dictionary<uint, Dictionary<int, int>>> lengthEntry in votesByLength)
             {
-                var baseColumns = new Dictionary<uint, int>();
-                foreach (var columnEntry in lengthEntry.Value)
+                Dictionary<uint, int> baseColumns = [];
+                foreach (KeyValuePair<uint, Dictionary<int, int>> columnEntry in lengthEntry.Value)
                 {
-                    var top = columnEntry.Value.OrderByDescending(v => v.Value).First();
+                    KeyValuePair<int, int> top = columnEntry.Value.OrderByDescending(v => v.Value).First();
                     baseColumns[columnEntry.Key] = top.Key;
                 }
 
@@ -156,6 +156,7 @@ internal static class CmapClustering
                 return i;
             }
         }
+
         return -1;
     }
 
@@ -164,15 +165,15 @@ internal static class CmapClustering
         long intersection = 0;
         long union = 0;
 
-        var codeLengths = new HashSet<byte>(a.Keys.Concat(b.Keys));
+        HashSet<byte> codeLengths = new(a.Keys.Concat(b.Keys));
         foreach (byte cl in codeLengths)
         {
-            a.TryGetValue(cl, out var columnsA);
-            b.TryGetValue(cl, out var columnsB);
+            a.TryGetValue(cl, out Dictionary<uint, int> columnsA);
+            b.TryGetValue(cl, out Dictionary<uint, int> columnsB);
             columnsA ??= new Dictionary<uint, int>();
             columnsB ??= new Dictionary<uint, int>();
 
-            var keys = new HashSet<uint>(columnsA.Keys.Concat(columnsB.Keys));
+            HashSet<uint> keys = new(columnsA.Keys.Concat(columnsB.Keys));
             foreach (uint key in keys)
             {
                 bool hasA = columnsA.TryGetValue(key, out int cidA);

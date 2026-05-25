@@ -36,27 +36,27 @@ internal static class SingleByteEncodings
         (PdfStandardFontName.CourierNew, PdfFontEncoding.StandardEncoding),
         (PdfStandardFontName.CourierNewPS, PdfFontEncoding.StandardEncoding),
         (PdfStandardFontName.Symbol, PdfFontEncoding.SymbolEncoding),
-        (PdfStandardFontName.ZapfDingbats, PdfFontEncoding.ZapfDingbatsEncoding),
+        (PdfStandardFontName.ZapfDingbats, PdfFontEncoding.ZapfDingbatsEncoding)
     ];
 
     static SingleByteEncodings()
     {
-        var standardData = PdfResourceLoader.GetResource("StandardEncodings.bin");
+        byte[] standardData = PdfResourceLoader.GetResource("StandardEncodings.bin");
         standard = PdfTextResourceConverter.FromPdfStringBlob(standardData);
 
-        var ansiData = PdfResourceLoader.GetResource("AnsiEncodings.bin");
+        byte[] ansiData = PdfResourceLoader.GetResource("AnsiEncodings.bin");
         ansi = PdfTextResourceConverter.FromPdfStringBlob(ansiData);
 
-        var macRomanData = PdfResourceLoader.GetResource("MacRomanEncodings.bin");
+        byte[] macRomanData = PdfResourceLoader.GetResource("MacRomanEncodings.bin");
         macRoman = PdfTextResourceConverter.FromPdfStringBlob(macRomanData);
 
-        var macExpertData = PdfResourceLoader.GetResource("MacExpertEncodings.bin");
+        byte[] macExpertData = PdfResourceLoader.GetResource("MacExpertEncodings.bin");
         macExpert = PdfTextResourceConverter.FromPdfStringBlob(macExpertData);
 
-        var symbolData = PdfResourceLoader.GetResource("SymbolEncodings.bin");
+        byte[] symbolData = PdfResourceLoader.GetResource("SymbolEncodings.bin");
         symbol = PdfTextResourceConverter.FromPdfStringBlob(symbolData);
 
-        var zapfDingbatsData = PdfResourceLoader.GetResource("ZapfDingbatsEncodings.bin");
+        byte[] zapfDingbatsData = PdfResourceLoader.GetResource("ZapfDingbatsEncodings.bin");
         zapfDingbats = PdfTextResourceConverter.FromPdfStringBlob(zapfDingbatsData);
     }
 
@@ -75,7 +75,7 @@ internal static class SingleByteEncodings
             PdfFontEncoding.MacRomanEncoding => macRoman,
             PdfFontEncoding.SymbolEncoding => symbol,
             PdfFontEncoding.ZapfDingbatsEncoding => zapfDingbats,
-            _ => default,
+            _ => default
         };
     }
 
@@ -101,7 +101,7 @@ internal static class SingleByteEncodings
             PdfFontEncoding.MacExpertEncoding => macExpert[code],
             PdfFontEncoding.SymbolEncoding => symbol[code],
             PdfFontEncoding.ZapfDingbatsEncoding => zapfDingbats[code],
-            _ => default,
+            _ => default
         };
     }
 
@@ -114,7 +114,7 @@ internal static class SingleByteEncodings
     /// <returns>The <see cref="PdfString"/> glyph name for the code, or <see cref="UndefinedCharacter"/> if not found or empty.</returns>
     public static PdfString GetNameByCodeOrUndefined(byte code, PdfFontEncoding encoding, Dictionary<int, PdfString> differences = default)
     {
-        var result = GetNameByCode(code, encoding, differences);
+        PdfString result = GetNameByCode(code, encoding, differences);
 
         if (result.IsEmpty)
         {
@@ -132,14 +132,14 @@ internal static class SingleByteEncodings
     /// </summary>
     /// <param name="fontName">The PDF font name (e.g., BaseFont or FontName).</param>
     /// <returns>The corresponding <see cref="PdfFontEncoding"/>, or null if no Standard 14 match is found.</returns>
-    public static PdfFontEncoding? GetEncodingByName(PdfString fontName)
+    public static PdfFontEncoding? GetEncodingByName(in PdfString fontName)
     {
         if (fontName.IsEmpty)
         {
             return default;
         }
 
-        var name = fontName.ToString();
+        string name = fontName.ToString();
         if (string.IsNullOrEmpty(name))
         {
             return default;
@@ -147,7 +147,7 @@ internal static class SingleByteEncodings
 
         for (int i = 0; i < Standard14NameEncodings.Length; i++)
         {
-            var pair = Standard14NameEncodings[i];
+            (PdfStandardFontName Name, PdfFontEncoding Encoding) pair = Standard14NameEncodings[i];
             if (name.IndexOf(pair.Name.ToString(), System.StringComparison.OrdinalIgnoreCase) >= 0)
             {
                 return pair.Encoding;

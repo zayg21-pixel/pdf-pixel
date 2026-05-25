@@ -17,12 +17,12 @@ internal class CMapCache
     /// <summary>
     /// Global cache for parsed CMaps by name.
     /// </summary>
-    private static readonly Dictionary<PdfString, PdfCMap> GlobalCMaps = new Dictionary<PdfString, PdfCMap>();
+    private static readonly Dictionary<PdfString, PdfCMap> GlobalCMaps = [];
 
     /// <summary>
     /// Per-document cache for CMaps loaded from streams.
     /// </summary>
-    internal Dictionary<PdfReference, PdfCMap> CMapStreams { get; } = new Dictionary<PdfReference, PdfCMap>();
+    internal Dictionary<PdfReference, PdfCMap> CMapStreams { get; } = [];
 
     public CMapCache(PdfDocument document, ILogger logger)
     {
@@ -37,15 +37,15 @@ internal class CMapCache
     /// <returns>The loaded <see cref="PdfCMap"/> or null if not found.</returns>
     public PdfCMap GetCmap(PdfString name)
     {
-        if (GlobalCMaps.TryGetValue(name, out var existing))
+        if (GlobalCMaps.TryGetValue(name, out PdfCMap existing))
         {
             return existing;
         }
 
         try
         {
-            var cmapBytes = PdfResourceLoader.GetResource($"External.CMaps.{name}.bin");
-            var cmap = PdfCmapBinary.ParseCMapBinary(cmapBytes, GetCmap);
+            byte[] cmapBytes = PdfResourceLoader.GetResource($"External.CMaps.{name}.bin");
+            PdfCMap cmap = PdfCmapBinary.ParseCMapBinary(cmapBytes, GetCmap);
 
             if (cmap != null)
             {

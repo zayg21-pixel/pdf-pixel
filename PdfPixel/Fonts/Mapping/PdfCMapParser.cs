@@ -15,30 +15,28 @@ namespace PdfPixel.Fonts.Mapping;
 /// </summary>
 internal static class PdfCMapParser
 {
-    public static PdfCMap ParseCMap(ReadOnlyMemory<byte> cmapBytes, ILoggerFactory loggerFactory, Func<PdfString, PdfCMap> cmapProvider)
+    public static PdfCMap ParseCMap(in ReadOnlyMemory<byte> cmapBytes, ILoggerFactory loggerFactory, Func<PdfString, PdfCMap> cmapProvider)
     {
-        var cmap = new PdfCMap();
-        var evaluator = new PostScriptEvaluator(cmapBytes.Span, false, loggerFactory.CreateLogger<PostScriptEvaluator>());
+        PdfCMap cmap = new();
+        PostScriptEvaluator evaluator = new(cmapBytes.Span, false, loggerFactory.CreateLogger<PostScriptEvaluator>());
 
         evaluator.SetResourceValue("ProcSet", "CIDInit", new PostScriptDictionary());
-        var stack = new System.Collections.Generic.Stack<PostScriptToken>();
+        System.Collections.Generic.Stack<PostScriptToken> stack = [];
         evaluator.EvaluateTokens(stack);
 
-        var cmaps = evaluator.GetResourceCategory(PdfTokens.CMapKey.ToString());
-        var cmapDictionary = cmaps?.Entries.FirstOrDefault().Value as PostScriptDictionary;
-
-        if (cmapDictionary == null)
+        PostScriptDictionary cmaps = evaluator.GetResourceCategory(PdfTokens.CMapKey.ToString());
+        if (!(cmaps?.Entries.FirstOrDefault().Value is PostScriptDictionary cmapDictionary))
         {
             return cmap;
         }
 
         cmap.CidSystemInfo = GetInfo(cmapDictionary);
 
-        if (cmapDictionary.Entries.TryGetValue("codespacerange", out var codespaceRange) && codespaceRange is PostScriptArray codespaceRangeArray)
+        if (cmapDictionary.Entries.TryGetValue("codespacerange", out PostScriptToken codespaceRange) && codespaceRange is PostScriptArray codespaceRangeArray)
         {
-            var arrayItems = codespaceRangeArray.Elements;
+            PostScriptToken[] arrayItems = codespaceRangeArray.Elements;
 
-            foreach (var item in arrayItems)
+            foreach (PostScriptToken item in arrayItems)
             {
                 if (item is PostScriptArray innerArray)
                 {
@@ -47,11 +45,11 @@ internal static class PdfCMapParser
             }
         }
 
-        if (cmapDictionary.Entries.TryGetValue("bfchar", out var bfChar) && bfChar is PostScriptArray bfCharArray)
+        if (cmapDictionary.Entries.TryGetValue("bfchar", out PostScriptToken bfChar) && bfChar is PostScriptArray bfCharArray)
         {
-            var arrayItems = bfCharArray.Elements;
+            PostScriptToken[] arrayItems = bfCharArray.Elements;
 
-            foreach (var item in arrayItems)
+            foreach (PostScriptToken item in arrayItems)
             {
                 if (item is PostScriptArray innerArray)
                 {
@@ -60,11 +58,11 @@ internal static class PdfCMapParser
             }
         }
 
-        if (cmapDictionary.Entries.TryGetValue("bfrange", out var bfRange) && bfRange is PostScriptArray bfRangeArray)
+        if (cmapDictionary.Entries.TryGetValue("bfrange", out PostScriptToken bfRange) && bfRange is PostScriptArray bfRangeArray)
         {
-            var arrayItems = bfRangeArray.Elements;
+            PostScriptToken[] arrayItems = bfRangeArray.Elements;
 
-            foreach (var item in arrayItems)
+            foreach (PostScriptToken item in arrayItems)
             {
                 if (item is PostScriptArray innerArray)
                 {
@@ -74,11 +72,11 @@ internal static class PdfCMapParser
 
         }
 
-        if (cmapDictionary.Entries.TryGetValue("cidchar", out var cidChar) && cidChar is PostScriptArray cidCharArray)
+        if (cmapDictionary.Entries.TryGetValue("cidchar", out PostScriptToken cidChar) && cidChar is PostScriptArray cidCharArray)
         {
-            var arrayItems = cidCharArray.Elements;
+            PostScriptToken[] arrayItems = cidCharArray.Elements;
 
-            foreach (var item in arrayItems)
+            foreach (PostScriptToken item in arrayItems)
             {
                 if (item is PostScriptArray innerArray)
                 {
@@ -87,11 +85,11 @@ internal static class PdfCMapParser
             }
         }
 
-        if (cmapDictionary.Entries.TryGetValue("cidrange", out var cidRange) && cidRange is PostScriptArray cidRangeArray)
+        if (cmapDictionary.Entries.TryGetValue("cidrange", out PostScriptToken cidRange) && cidRange is PostScriptArray cidRangeArray)
         {
-            var arrayItems = cidRangeArray.Elements;
+            PostScriptToken[] arrayItems = cidRangeArray.Elements;
 
-            foreach (var item in arrayItems)
+            foreach (PostScriptToken item in arrayItems)
             {
                 if (item is PostScriptArray innerArray)
                 {
@@ -100,13 +98,13 @@ internal static class PdfCMapParser
             }
         }
 
-        if (cmapDictionary.Entries.TryGetValue("usecmap", out var useCMapToken) && useCMapToken is PostScriptArray useCMapArray)
+        if (cmapDictionary.Entries.TryGetValue("usecmap", out PostScriptToken useCMapToken) && useCMapToken is PostScriptArray useCMapArray)
         {
-            foreach (var element in useCMapArray.Elements)
+            foreach (PostScriptToken element in useCMapArray.Elements)
             {
                 if (element is PostScriptLiteralName useCMapName)
                 {
-                    var baseCMap = cmapProvider?.Invoke(PdfString.FromString(useCMapName.Name));
+                    PdfCMap? baseCMap = cmapProvider?.Invoke(PdfString.FromString(useCMapName.Name));
                     if (baseCMap != null)
                     {
                         cmap.MergeFrom(baseCMap);
@@ -115,12 +113,12 @@ internal static class PdfCMapParser
             }
         }
 
-        if (cmapDictionary.Entries.TryGetValue("WMode", out var wmodeToken) && wmodeToken is PostScriptNumber wmodeNumber)
+        if (cmapDictionary.Entries.TryGetValue("WMode", out PostScriptToken wmodeToken) && wmodeToken is PostScriptNumber wmodeNumber)
         {
             cmap.WMode = (CMapWMode)(int)wmodeNumber.Value;
         }
 
-        if (cmapDictionary.Entries.TryGetValue("CMapName", out var name) && name is PostScriptLiteralName nameLiteral)
+        if (cmapDictionary.Entries.TryGetValue("CMapName", out PostScriptToken name) && name is PostScriptLiteralName nameLiteral)
         {
             cmap.Name = PdfString.FromString(nameLiteral.Name);
         }
@@ -128,7 +126,7 @@ internal static class PdfCMapParser
         return cmap;
     }
 
-    public static PdfCMap ParseCMap(ReadOnlyMemory<byte> cmapBytes, IPdfDocumentInternal document)
+    public static PdfCMap ParseCMap(in ReadOnlyMemory<byte> cmapBytes, IPdfDocumentInternal document)
     {
         return ParseCMap(
             cmapBytes,
@@ -144,7 +142,7 @@ internal static class PdfCMapParser
             return null;
         }
 
-        if (dictionary.Entries.TryGetValue(PdfTokens.CidSystemInfoKey.ToString(), out var infoValue) && infoValue is PostScriptDictionary infoDictionary)
+        if (dictionary.Entries.TryGetValue(PdfTokens.CidSystemInfoKey.ToString(), out PostScriptToken infoValue) && infoValue is PostScriptDictionary infoDictionary)
         {
             return PdfCidSystemInfo.FromPostscriptDictionary(infoDictionary);
         }
@@ -162,6 +160,7 @@ internal static class PdfCMapParser
             {
                 continue;
             }
+
             cmap.AddCodespaceRange(startToken.Value.AsSpan(), endToken.Value.AsSpan());
         }
     }
@@ -178,9 +177,9 @@ internal static class PdfCMapParser
                 continue;
             }
 
-            var code = new PdfCharacterCode(codeString.Value);
+            PdfCharacterCode code = new(codeString.Value);
 
-            var unicodeBytes = unicodeString.Value.AsSpan();
+            Span<byte> unicodeBytes = unicodeString.Value.AsSpan();
 
             if (!IsSentinelFFFF(unicodeBytes))
             {
@@ -196,15 +195,15 @@ internal static class PdfCMapParser
             // Expect: codeStart, codeEnd, unicodeOrArray
             var startToken = tokens[i++] as PostScriptString;
             var endToken = tokens[i++] as PostScriptString;
-            var thirdToken = tokens[i++];
+            PostScriptToken thirdToken = tokens[i++];
 
             if (startToken == null || endToken == null || thirdToken == null)
             {
                 continue;
             }
 
-            var startBytes = startToken.Value.AsSpan();
-            var endBytes = endToken.Value.AsSpan();
+            Span<byte> startBytes = startToken.Value.AsSpan();
+            Span<byte> endBytes = endToken.Value.AsSpan();
 
             if (thirdToken is PostScriptString unicodeString)
             {
@@ -213,6 +212,7 @@ internal static class PdfCMapParser
                 {
                     continue;
                 }
+
                 SliceBom(ref unicodeBytes);
 
                 string startUnicodeFull = Encoding.BigEndianUnicode.GetString(unicodeBytes);
@@ -247,7 +247,7 @@ internal static class PdfCMapParser
                     if (PdfCMap.IsValidCodePoint(scalar))
                     {
                         string unicode = char.ConvertFromUtf32(scalar);
-                        var packed = PdfCharacterCode.PackUIntToBigEndian(current, codeLength);
+                        ReadOnlyMemory<byte> packed = PdfCharacterCode.PackUIntToBigEndian(current, codeLength);
                         cmap.AddMapping(new PdfCharacterCode(packed), unicode);
                     }
                 }
@@ -261,18 +261,19 @@ internal static class PdfCMapParser
 
                 for (int arrayIndex = 0; arrayIndex < array.Elements.Length && codeCurrent <= codeEnd; arrayIndex++, codeCurrent++)
                 {
-                    var arrayItem = array.Elements[arrayIndex] as PostScriptString;
-                    if (arrayItem == null)
+                    if (!(array.Elements[arrayIndex] is PostScriptString arrayItem))
                     {
                         continue;
                     }
+
                     ReadOnlySpan<byte> hex = arrayItem.Value.AsSpan();
                     if (IsSentinelFFFF(hex))
                     {
                         continue;
                     }
+
                     string unicode = ParseBytesToUnicode(hex);
-                    var codeBytes = PdfCharacterCode.PackUIntToBigEndian(codeCurrent, codeLength);
+                    ReadOnlyMemory<byte> codeBytes = PdfCharacterCode.PackUIntToBigEndian(codeCurrent, codeLength);
                     cmap.AddMapping(new PdfCharacterCode(codeBytes), unicode);
                 }
             }
@@ -289,6 +290,7 @@ internal static class PdfCMapParser
             {
                 continue;
             }
+
             cmap.AddCidMapping(new PdfCharacterCode(codeToken.Value), (int)cidToken.Value);
         }
     }
@@ -304,6 +306,7 @@ internal static class PdfCMapParser
             {
                 continue;
             }
+
             cmap.AddCidRangeMapping(startToken.Value.AsSpan(), endToken.Value.AsSpan(), (int)firstCidToken.Value);
         }
     }
@@ -319,14 +322,12 @@ internal static class PdfCMapParser
 
     // Per ISO 32000-1:2008 Section 9.10.3, Unicode values in ToUnicode CMaps
     // are encoded as UTF-16BE (big-endian UTF-16) without BOM.
-    private static string ParseBytesToUnicode(ReadOnlySpan<byte> hex)
+    private static string ParseBytesToUnicode(in ReadOnlySpan<byte> hex)
     {
-        SliceBom(ref hex);
-        return Encoding.BigEndianUnicode.GetString(hex);
+        ReadOnlySpan<byte> localHex = hex;
+        SliceBom(ref localHex);
+        return Encoding.BigEndianUnicode.GetString(localHex);
     }
 
-    private static bool IsSentinelFFFF(ReadOnlySpan<byte> bytes)
-    {
-        return bytes.Length == 2 && bytes[0] == 0xFF && bytes[1] == 0xFF;
-    }
+    private static bool IsSentinelFFFF(in ReadOnlySpan<byte> bytes) => bytes.Length == 2 && bytes[0] == 0xFF && bytes[1] == 0xFF;
 }

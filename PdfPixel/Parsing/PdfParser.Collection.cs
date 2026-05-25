@@ -4,7 +4,7 @@ using System.Runtime.CompilerServices;
 
 namespace PdfPixel.Parsing;
 
-partial struct PdfParser
+internal partial struct PdfParser
 {
     /// <summary>
     /// Handle closing of an array. Validates matching frame and materializes PdfArray.
@@ -21,7 +21,7 @@ partial struct PdfParser
 
         CollectionFrame frame = frames.Pop();
         int itemCount = values.Count - frame.StartIndex;
-        IPdfValue[] items = new IPdfValue[itemCount];
+        var items = new IPdfValue[itemCount];
 
         for (int itemIndex = 0; itemIndex < itemCount; itemIndex++)
         {
@@ -29,7 +29,7 @@ partial struct PdfParser
         }
 
         values.RemoveRange(frame.StartIndex, itemCount);
-        var array = new PdfArray(_document, items);
+        PdfArray array = new(_document, items);
         values.Add(PdfValueFactory.Array(array));
     }
 
@@ -49,7 +49,7 @@ partial struct PdfParser
 
         CollectionFrame frame = frames.Pop();
         int rawCount = values.Count - frame.StartIndex;
-        var rawMap = new Dictionary<PdfString, IPdfValue>();
+        Dictionary<PdfString, IPdfValue> rawMap = [];
 
         int scanIndex = frame.StartIndex;
         while (scanIndex < values.Count)
@@ -74,7 +74,7 @@ partial struct PdfParser
         }
 
         values.RemoveRange(frame.StartIndex, rawCount);
-        var dictionary = new PdfDictionary(_document, rawMap);
+        PdfDictionary dictionary = new(_document, rawMap);
         values.Add(PdfValueFactory.Dictionary(dictionary));
     }
 }

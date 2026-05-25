@@ -16,7 +16,7 @@ internal class CalRgbConverter : PdfColorSpaceConverter
         // TODO: [LOW] Handle blackPoint if needed, it's unused currently and seems to be ignored by all major PDF viewers.
         Vector4 whitePointVector;
 
-        if (whitePoint != null && whitePoint.Length >= 3)
+        if (whitePoint?.Length >= 3)
         {
             whitePointVector = ColorVectorUtilities.ToVector4WithOnePadding(whitePoint);
         }
@@ -27,7 +27,7 @@ internal class CalRgbConverter : PdfColorSpaceConverter
 
         if (gamma == null || gamma.Length < 3)
         {
-            gamma = [1.0f, 1.0f, 1.0f];
+            gamma = new float[] { 1.0f, 1.0f, 1.0f };
         }
 
         matrix3x3 ??= new float[3, 3]
@@ -37,16 +37,16 @@ internal class CalRgbConverter : PdfColorSpaceConverter
             { 1, 0, 0 }
         };
 
-        var trcTransform = new PerChannelTrcTransform([IccTrc.FromGamma(gamma[0]), IccTrc.FromGamma(gamma[1]), IccTrc.FromGamma(gamma[2])]);
+        PerChannelTrcTransform trcTransform = new([IccTrc.FromGamma(gamma[0]), IccTrc.FromGamma(gamma[1]), IccTrc.FromGamma(gamma[2])]);
 
-        var chadMatrix = IccTransforms.BuildBradfordAdaptMatrix(whitePointVector, IccTransforms.D50WhitePoint);
-        var primariesMatrix = ColorVectorUtilities.ToMatrix4x4(matrix3x3);
+        Matrix4x4 chadMatrix = IccTransforms.BuildBradfordAdaptMatrix(whitePointVector, IccTransforms.D50WhitePoint);
+        Matrix4x4 primariesMatrix = ColorVectorUtilities.ToMatrix4x4(matrix3x3);
         primariesMatrix = Matrix4x4.Transpose(primariesMatrix); // this matches how PDF specifies the matrix
 
-        var adaptedMatrix = Matrix4x4.Multiply(chadMatrix, primariesMatrix);
+        Matrix4x4 adaptedMatrix = Matrix4x4.Multiply(chadMatrix, primariesMatrix);
         adaptedMatrix = Matrix4x4.Transpose(adaptedMatrix);
 
-        var matrixTransform = new MatrixColorTransform(adaptedMatrix);
+        MatrixColorTransform matrixTransform = new(adaptedMatrix);
 
         ToSrgbTransform = new ChainedColorTransform(trcTransform, matrixTransform, IccTransforms.XyzD50ToSrgbTransform);
     }
@@ -57,8 +57,5 @@ internal class CalRgbConverter : PdfColorSpaceConverter
 
     protected ChainedColorTransform ToSrgbTransform { get; }
 
-    protected override ColorTransformSampler GetRgbaSamplerCore(PdfRenderingIntent intent, IColorTransform postTransform)
-    {
-        return new ColorTransformSampler(new ChainedColorTransform(ToSrgbTransform, postTransform));
-    }
+    protected override ColorTransformSampler GetRgbaSamplerCore(PdfRenderingIntent intent, IColorTransform postTransform) => new(new ChainedColorTransform(ToSrgbTransform, postTransform));
 }

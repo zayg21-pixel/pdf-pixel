@@ -25,7 +25,7 @@ internal ref struct UintBitReaderFixedLength
     /// <param name="data">The data to read from.</param>
     /// <param name="bitCount">The bit width of each value (must be a power of 2, 1-32).</param>
     /// <exception cref="ArgumentOutOfRangeException">Thrown if bitCount is not a power of 2 between 1 and 32.</exception>
-    public UintBitReaderFixedLength(ReadOnlySpan<byte> data, int bitCount)
+    public UintBitReaderFixedLength(in ReadOnlySpan<byte> data, int bitCount)
     {
         _data = data;
         _bitCount = bitCount;
@@ -61,7 +61,6 @@ internal ref struct UintBitReaderFixedLength
                 _bitPosition += _bitCount;
                 return eightBitValue;
             }
-
             case 16:
             {
                 uint sixteenBitValue = BinaryPrimitives.ReadUInt16BigEndian(_data.Slice(_bufferedByteIndex, 2));
@@ -69,13 +68,14 @@ internal ref struct UintBitReaderFixedLength
                 _bitPosition += _bitCount;
                 return sixteenBitValue;
             }
-
             default:
             {
                 if (_bufferedBits < _bitCount)
-                    FillBuffer();
+                    {
+                        FillBuffer();
+                    }
 
-                uint value = (uint)(_buffer >> _inverseBitCount);
+                    var value = (uint)(_buffer >> _inverseBitCount);
                 _buffer <<= _bitCount;
                 _bufferedBits -= _bitCount;
                 _bitPosition += _bitCount;
@@ -110,6 +110,7 @@ internal ref struct UintBitReaderFixedLength
                 _buffer |= (ulong)_data[i] << (56 - _bufferedBits);
                 _bufferedBits += 8;
             }
+
             _bufferedByteIndex = endIndex;
         }
     }

@@ -25,7 +25,7 @@ public class PdfTextFormField : PdfFormField
     public PdfTextFormField(PdfObject fieldObject)
         : base(fieldObject, PdfFormFieldType.Text)
     {
-        var dictionary = fieldObject.Dictionary;
+        PdfDictionary dictionary = fieldObject.Dictionary;
         MaxLength = dictionary.GetInteger(PdfTokens.MaxLenKey);
     }
 
@@ -40,17 +40,17 @@ public class PdfTextFormField : PdfFormField
     /// <summary>
     /// Gets a value indicating whether this is a multiline text field.
     /// </summary>
-    public bool IsMultiline => Flags.HasFlag(PdfFormFieldFlags.Multiline);
+    public bool IsMultiline => (Flags & PdfFormFieldFlags.Multiline) != 0;
 
     /// <summary>
     /// Gets a value indicating whether this is a password field.
     /// </summary>
-    public bool IsPassword => Flags.HasFlag(PdfFormFieldFlags.Password);
+    public bool IsPassword => (Flags & PdfFormFieldFlags.Password) != 0;
 
     /// <summary>
     /// Gets a value indicating whether this is a file select field.
     /// </summary>
-    public bool IsFileSelect => Flags.HasFlag(PdfFormFieldFlags.FileSelect);
+    public bool IsFileSelect => (Flags & PdfFormFieldFlags.FileSelect) != 0;
 
     /// <summary>
     /// Gets a value indicating whether this field uses comb formatting.
@@ -59,7 +59,7 @@ public class PdfTextFormField : PdfFormField
     /// Comb formatting divides the field into as many positions as MaxLength,
     /// with one character per position.
     /// </remarks>
-    public bool IsComb => Flags.HasFlag(PdfFormFieldFlags.Comb);
+    public bool IsComb => (Flags & PdfFormFieldFlags.Comb) != 0;
 
     /// <summary>
     /// Gets the current caret position in the text.
@@ -152,29 +152,35 @@ public class PdfTextFormField : PdfFormField
         switch (key)
         {
             case FormFieldKey.Left:
-                MoveCaret(-1, modifiers.HasFlag(FormFieldKeyModifiers.Shift));
-                return true;
-
+                {
+                    MoveCaret(-1, (modifiers & FormFieldKeyModifiers.Shift) != 0);
+                    return true;
+                }
             case FormFieldKey.Right:
-                MoveCaret(1, modifiers.HasFlag(FormFieldKeyModifiers.Shift));
-                return true;
-
+                {
+                    MoveCaret(1, (modifiers & FormFieldKeyModifiers.Shift) != 0);
+                    return true;
+                }
             case FormFieldKey.Home:
-                MoveCaretToStart(modifiers.HasFlag(FormFieldKeyModifiers.Shift));
-                return true;
-
+                {
+                    MoveCaretToStart((modifiers & FormFieldKeyModifiers.Shift) != 0);
+                    return true;
+                }
             case FormFieldKey.End:
-                MoveCaretToEnd(modifiers.HasFlag(FormFieldKeyModifiers.Shift));
-                return true;
-
+                {
+                    MoveCaretToEnd((modifiers & FormFieldKeyModifiers.Shift) != 0);
+                    return true;
+                }
             case FormFieldKey.Backspace:
-                DeleteCharacter(false);
-                return true;
-
+                {
+                    DeleteCharacter(false);
+                    return true;
+                }
             case FormFieldKey.Delete:
-                DeleteCharacter(true);
-                return true;
-
+                {
+                    DeleteCharacter(true);
+                    return true;
+                }
             default:
                 return false;
         }
@@ -222,7 +228,7 @@ public class PdfTextFormField : PdfFormField
     private int GetCharacterIndexAtPosition(SKPoint position)
     {
         string text = GetTextValue();
-        int estimatedIndex = (int)(position.X / 10);
+        var estimatedIndex = (int)(position.X / 10);
         return Math.Max(0, Math.Min(estimatedIndex, text.Length));
     }
 

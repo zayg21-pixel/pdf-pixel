@@ -3,6 +3,9 @@
   <PropertyGroup>
     <TargetFrameworks>netstandard2.0;net8.0;net9.0;net10.0</TargetFrameworks>
     <LangVersion>13</LangVersion>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    <AnalysisMode>All</AnalysisMode>
+    <!--    <Nullable>enable</Nullable>-->
   </PropertyGroup>
 
   <ItemGroup>
@@ -33,6 +36,17 @@
     <ProjectReference Include="..\PdfPixel.Jpx\PdfPixel.Jpx.csproj" />
     <ProjectReference Include="..\PdfPixel.Ccitt\PdfPixel.Ccitt.csproj" />
     <ProjectReference Include="..\PdfPixel.Jbig2\PdfPixel.Jbig2.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Roslynator.Analyzers" Version="4.15.0">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="Roslynator.Formatting.Analyzers" Version="4.15.0">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
   </ItemGroup>
 
   </Project>

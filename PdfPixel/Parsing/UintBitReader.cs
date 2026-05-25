@@ -12,13 +12,13 @@ internal ref struct UintBitReader
 {
     private readonly ReadOnlySpan<byte> _data;
     private int _bitPosition;
-    private int _bitLength;
+    private readonly int _bitLength;
 
     private ulong _buffer;
     private int _bufferedBits;
     private int _bufferedByteIndex;
 
-    public UintBitReader(ReadOnlySpan<byte> data)
+    public UintBitReader(in ReadOnlySpan<byte> data)
     {
         _data = data;
         _bitLength = data.Length * 8;
@@ -53,7 +53,7 @@ internal ref struct UintBitReader
         }
 
         // MSB-aligned: top `count` bits hold the next value; constant right-shift, no mask needed for <=32 bits.
-        uint value = (uint)(_buffer >> (64 - count));
+        var value = (uint)(_buffer >> (64 - count));
         _buffer <<= count;
         _bufferedBits -= count;
         _bitPosition += count;
@@ -124,6 +124,7 @@ internal ref struct UintBitReader
                 _buffer |= (ulong)_data[i] << (56 - _bufferedBits);
                 _bufferedBits += 8;
             }
+
             _bufferedByteIndex = endIndex;
         }
     }

@@ -39,8 +39,5 @@ public class PdfGoToRemoteAction : PdfAction
     /// Returns a string representation of this GoToRemote action.
     /// </summary>
     /// <returns>A string describing the action.</returns>
-    public override string ToString()
-    {
-        return "GoToRemote Action";
-    }
+    public override string ToString() => "GoToRemote Action";
 }

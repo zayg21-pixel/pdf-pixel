@@ -13,15 +13,30 @@ namespace PdfPixel.Rendering.Operators;
 /// </summary>
 internal class PathOperators : IOperatorProcessor
 {
-    private static readonly HashSet<string> SupportedOperators = new HashSet<string>
-    {
+    private static readonly HashSet<string> SupportedOperators = [
         // Path construction
-        "m","l","c","v","y","h","re",
+        "m",
+        "l",
+        "c",
+        "v",
+        "y",
+        "h",
+        "re",
         // Clipping
-        "W","W*",
+        "W",
+        "W*",
         // Painting
-        "S","s","f","F","f*","B","B*","b","b*","n"
-    };
+        "S",
+        "s",
+        "f",
+        "F",
+        "f*",
+        "B",
+        "B*",
+        "b",
+        "b*",
+        "n"
+    ];
 
     private readonly IPdfRenderer _renderer;
     private readonly Stack<IPdfValue> _operandStack;
@@ -38,10 +53,7 @@ internal class PathOperators : IOperatorProcessor
         _page = page;
     }
 
-    public bool CanProcess(string op)
-    {
-        return SupportedOperators.Contains(op);
-    }
+    public bool CanProcess(string op) => SupportedOperators.Contains(op);
 
     public void ProcessOperator(string op, ref PdfGraphicsState graphicsState)
     {
@@ -85,7 +97,6 @@ internal class PathOperators : IOperatorProcessor
                 ProcessRectangle();
                 break;
             }
-
             // -----------------------------------------------------------------
             // Clipping path operators (establish clipping path from current path)
             // -----------------------------------------------------------------
@@ -99,7 +110,6 @@ internal class PathOperators : IOperatorProcessor
                 ProcessSetClippingPath(SKPathFillType.EvenOdd, graphicsState);
                 break;
             }
-
             // -----------------------------------------------------------------
             // Path painting operators
             // -----------------------------------------------------------------
@@ -155,89 +165,92 @@ internal class PathOperators : IOperatorProcessor
     // ---------------------- Helper Implementations --------------------------
     private void ProcessMoveTo()
     {
-        var operands = PdfOperatorProcessor.GetOperands(2, _operandStack);
+        List<IPdfValue> operands = PdfOperatorProcessor.GetOperands(2, _operandStack);
         if (operands.Count < 2)
         {
             return;
         }
-        var x = operands[0].AsFloat();
-        var y = operands[1].AsFloat();
+
+        float x = operands[0].AsFloat();
+        float y = operands[1].AsFloat();
         _currentPath.MoveTo(x, y);
     }
 
     private void ProcessLineTo()
     {
-        var operands = PdfOperatorProcessor.GetOperands(2, _operandStack);
+        List<IPdfValue> operands = PdfOperatorProcessor.GetOperands(2, _operandStack);
         if (operands.Count < 2)
         {
             return;
         }
-        var x = operands[0].AsFloat();
-        var y = operands[1].AsFloat();
+
+        float x = operands[0].AsFloat();
+        float y = operands[1].AsFloat();
         _currentPath.LineTo(x, y);
     }
 
     private void ProcessCurveTo()
     {
-        var operands = PdfOperatorProcessor.GetOperands(6, _operandStack);
+        List<IPdfValue> operands = PdfOperatorProcessor.GetOperands(6, _operandStack);
         if (operands.Count < 6)
         {
             return;
         }
-        var x1 = operands[0].AsFloat();
-        var y1 = operands[1].AsFloat();
-        var x2 = operands[2].AsFloat();
-        var y2 = operands[3].AsFloat();
-        var x3 = operands[4].AsFloat();
-        var y3 = operands[5].AsFloat();
+
+        float x1 = operands[0].AsFloat();
+        float y1 = operands[1].AsFloat();
+        float x2 = operands[2].AsFloat();
+        float y2 = operands[3].AsFloat();
+        float x3 = operands[4].AsFloat();
+        float y3 = operands[5].AsFloat();
         _currentPath.CubicTo(x1, y1, x2, y2, x3, y3);
     }
 
     private void ProcessCurveToV()
     {
-        var operands = PdfOperatorProcessor.GetOperands(4, _operandStack);
+        List<IPdfValue> operands = PdfOperatorProcessor.GetOperands(4, _operandStack);
         if (operands.Count < 4)
         {
             return;
         }
-        var lastPoint = _currentPath.LastPoint;
-        var x2 = operands[0].AsFloat();
-        var y2 = operands[1].AsFloat();
-        var x3 = operands[2].AsFloat();
-        var y3 = operands[3].AsFloat();
+
+        SKPoint lastPoint = _currentPath.LastPoint;
+        float x2 = operands[0].AsFloat();
+        float y2 = operands[1].AsFloat();
+        float x3 = operands[2].AsFloat();
+        float y3 = operands[3].AsFloat();
         _currentPath.CubicTo(lastPoint.X, lastPoint.Y, x2, y2, x3, y3);
     }
 
     private void ProcessCurveToY()
     {
-        var operands = PdfOperatorProcessor.GetOperands(4, _operandStack);
+        List<IPdfValue> operands = PdfOperatorProcessor.GetOperands(4, _operandStack);
         if (operands.Count < 4)
         {
             return;
         }
-        var x1 = operands[0].AsFloat();
-        var y1 = operands[1].AsFloat();
-        var x3 = operands[2].AsFloat();
-        var y3 = operands[3].AsFloat();
+
+        float x1 = operands[0].AsFloat();
+        float y1 = operands[1].AsFloat();
+        float x3 = operands[2].AsFloat();
+        float y3 = operands[3].AsFloat();
         _currentPath.CubicTo(x1, y1, x3, y3, x3, y3);
     }
 
-    private void ProcessClosePath()
-    {
-        _currentPath.Close();
-    }
+    private void ProcessClosePath() => _currentPath.Close();
 
     private void ProcessRectangle()
     {
-        var operands = PdfOperatorProcessor.GetOperands(4, _operandStack);
+        List<IPdfValue> operands = PdfOperatorProcessor.GetOperands(4, _operandStack);
         if (operands.Count < 4)
         {
             return;
         }
-        var x = operands[0].AsFloat();
-        var y = operands[1].AsFloat();
-        var width = operands[2].AsFloat();
-        var height = operands[3].AsFloat();
+
+        float x = operands[0].AsFloat();
+        float y = operands[1].AsFloat();
+        float width = operands[2].AsFloat();
+        float height = operands[3].AsFloat();
         _currentPath.AddRect(new SKRect(x, y, x + width, y + height));
     }
 
@@ -247,6 +260,7 @@ internal class PathOperators : IOperatorProcessor
         {
             return;
         }
+
         _currentPath.FillType = fillType;
         _processor.Process(new ClipPathCommand(_currentPath, SKClipOperation.Intersect));
         _currentPath.Reset();
@@ -289,8 +303,5 @@ internal class PathOperators : IOperatorProcessor
         _currentPath.Reset();
     }
 
-    private void ProcessEndPath()
-    {
-        _currentPath.Reset();
-    }
+    private void ProcessEndPath() => _currentPath.Reset();
 }

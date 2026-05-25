@@ -15,7 +15,7 @@ public class PdfGoToAction : PdfAction
     public PdfGoToAction(PdfDictionary actionDictionary)
         : base(actionDictionary, PdfActionType.GoTo)
     {
-        var destValue = actionDictionary.GetValue(PdfTokens.DKey);
+        IPdfValue destValue = actionDictionary.GetValue(PdfTokens.DKey);
         Destination = PdfDestination.Parse(destValue, actionDictionary.Document);
     }
 
@@ -28,8 +28,5 @@ public class PdfGoToAction : PdfAction
     /// Returns a string representation of this GoTo action.
     /// </summary>
     /// <returns>A string describing the action.</returns>
-    public override string ToString()
-    {
-        return "GoTo Action";
-    }
+    public override string ToString() => "GoTo Action";
 }

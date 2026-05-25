@@ -10,12 +10,16 @@ internal static class PdfRenderingIntentConverter
         {
             case PdfRenderingIntent.RelativeColorimetric:
                 return IccRenderingIntent.RelativeColorimetric;
+
             case PdfRenderingIntent.AbsoluteColorimetric:
                 return IccRenderingIntent.AbsoluteColorimetric;
+
             case PdfRenderingIntent.Perceptual:
                 return IccRenderingIntent.Perceptual;
+
             case PdfRenderingIntent.Saturation:
                 return IccRenderingIntent.Saturation;
+
             default:
                 return IccRenderingIntent.RelativeColorimetric;
         }

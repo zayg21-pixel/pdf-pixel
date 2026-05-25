@@ -16,7 +16,7 @@ internal static class SnftCMapParser
     /// <returns>Array of glyph IDs indexed by character code.</returns>
     public static ushort[] ParseFormat0(byte[] data, int offset)
     {
-        ushort[] codeToGid = new ushort[256];
+        var codeToGid = new ushort[256];
         int glyphArrayOffset = offset + 6;
         for (int codepoint = 0; codepoint < 256; codepoint++)
         {
@@ -25,8 +25,10 @@ internal static class SnftCMapParser
             {
                 break;
             }
+
             codeToGid[codepoint] = data[glyphOffset];
         }
+
         return codeToGid;
     }
 
@@ -40,19 +42,19 @@ internal static class SnftCMapParser
     {
         int segCount = SnftExtractHelpers.ReadUInt16(data, offset + 6) / 2;
         int endCodeOffset = offset + 14;
-        int startCodeOffset = endCodeOffset + 2 + segCount * 2;
-        int idDeltaOffset = startCodeOffset + segCount * 2;
-        int idRangeOffsetOffset = idDeltaOffset + segCount * 2;
-        int glyphIdArrayOffset = idRangeOffsetOffset + segCount * 2;
+        int startCodeOffset = endCodeOffset + 2 + (segCount * 2);
+        int idDeltaOffset = startCodeOffset + (segCount * 2);
+        int idRangeOffsetOffset = idDeltaOffset + (segCount * 2);
+        int glyphIdArrayOffset = idRangeOffsetOffset + (segCount * 2);
 
-        var unicodeToGid = new Dictionary<int, ushort>();
+        Dictionary<int, ushort> unicodeToGid = [];
 
         for (int segIndex = 0; segIndex < segCount; segIndex++)
         {
-            int endCode = SnftExtractHelpers.ReadUInt16(data, endCodeOffset + segIndex * 2);
-            int startCode = SnftExtractHelpers.ReadUInt16(data, startCodeOffset + segIndex * 2);
-            short idDelta = (short)SnftExtractHelpers.ReadUInt16(data, idDeltaOffset + segIndex * 2);
-            int idRangeOffset = SnftExtractHelpers.ReadUInt16(data, idRangeOffsetOffset + segIndex * 2);
+            int endCode = SnftExtractHelpers.ReadUInt16(data, endCodeOffset + (segIndex * 2));
+            int startCode = SnftExtractHelpers.ReadUInt16(data, startCodeOffset + (segIndex * 2));
+            var idDelta = (short)SnftExtractHelpers.ReadUInt16(data, idDeltaOffset + (segIndex * 2));
+            int idRangeOffset = SnftExtractHelpers.ReadUInt16(data, idRangeOffsetOffset + (segIndex * 2));
 
             if (endCode == 0xFFFF)
             {
@@ -70,7 +72,7 @@ internal static class SnftCMapParser
                 {
                     int rangeOffset = idRangeOffset / 2;
                     int glyphIndex = code - startCode + rangeOffset + (segIndex - segCount);
-                    int glyphArrayIndex = glyphIdArrayOffset + glyphIndex * 2;
+                    int glyphArrayIndex = glyphIdArrayOffset + (glyphIndex * 2);
                     if (glyphArrayIndex + 1 < data.Length)
                     {
                         ushort glyphIdFromArray = SnftExtractHelpers.ReadUInt16(data, glyphArrayIndex);
@@ -80,12 +82,14 @@ internal static class SnftCMapParser
                         }
                     }
                 }
+
                 if (glyphId != 0)
                 {
                     unicodeToGid[code] = glyphId;
                 }
             }
         }
+
         return unicodeToGid;
     }
 
@@ -113,17 +117,19 @@ internal static class SnftCMapParser
         ushort entryCount = SnftExtractHelpers.ReadUInt16(data, offset + 8);
         int glyphIdArrayOffset = offset + 10;
 
-        var codeToGid = new Dictionary<int, ushort>();
+        Dictionary<int, ushort> codeToGid = [];
         for (int i = 0; i < entryCount; i++)
         {
-            int glyphOffset = glyphIdArrayOffset + i * 2;
+            int glyphOffset = glyphIdArrayOffset + (i * 2);
             if (glyphOffset + 1 >= data.Length)
             {
                 break;
             }
+
             ushort glyphId = SnftExtractHelpers.ReadUInt16(data, glyphOffset);
             codeToGid[firstCode + i] = glyphId;
         }
+
         return codeToGid;
     }
 
@@ -162,11 +168,13 @@ internal static class SnftCMapParser
         {
             return PdfFontEncoding.WinAnsiEncoding;
         }
+
         // MacExpert: platform 1, encoding 2
         if (platformId == 1 && encodingId == 2)
         {
             return PdfFontEncoding.MacExpertEncoding;
         }
+
         // StandardEncoding: platform 1, encoding 1 (rare)
         if (platformId == 1 && encodingId == 1)
         {

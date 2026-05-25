@@ -21,54 +21,66 @@ internal sealed class CffTopDictReader
     /// </summary>
     /// <param name="topDictBytes">The Top DICT data bytes.</param>
     /// <returns>Parsed Top DICT data (never null).</returns>
-    public CffTopDictData ParseTopDict(ReadOnlySpan<byte> topDictBytes)
+    public CffTopDictData ParseTopDict(in ReadOnlySpan<byte> topDictBytes)
     {
-        var result = new CffTopDictData();
-        var dictReader = new CffDictionaryReader(topDictBytes);
+        CffTopDictData result = new();
+        CffDictionaryReader dictReader = new(topDictBytes);
 
         while (dictReader.TryReadNextOperator(out byte @operator, out decimal[] operands))
         {
             switch (@operator)
             {
                 case OperatorCharset:
-                    if (operands.Length > 0)
                     {
-                        result.CharsetOffset = (int)operands[operands.Length - 1];
-                    }
-                    break;
+                        if (operands.Length > 0)
+                        {
+                            result.CharsetOffset = (int)operands[operands.Length - 1];
+                        }
 
+                        break;
+                    }
                 case OperatorEncoding:
-                    if (operands.Length > 0)
                     {
-                        result.EncodingOffset = (int)operands[operands.Length - 1];
-                    }
-                    break;
+                        if (operands.Length > 0)
+                        {
+                            result.EncodingOffset = (int)operands[operands.Length - 1];
+                        }
 
+                        break;
+                    }
                 case OperatorCharStrings:
-                    if (operands.Length > 0)
                     {
-                        result.CharStringsOffset = (int)operands[operands.Length - 1];
-                    }
-                    break;
+                        if (operands.Length > 0)
+                        {
+                            result.CharStringsOffset = (int)operands[operands.Length - 1];
+                        }
 
+                        break;
+                    }
                 case OperatorPrivate:
-                    if (operands.Length >= 2)
                     {
-                        result.PrivateDictSize = (int)operands[0];
-                        result.PrivateDictOffset = (int)operands[1];
-                    }
-                    break;
+                        if (operands.Length >= 2)
+                        {
+                            result.PrivateDictSize = (int)operands[0];
+                            result.PrivateDictOffset = (int)operands[1];
+                        }
 
+                        break;
+                    }
                 case OperatorEscapedRos:
-                    result.IsCidKeyed = true;
-                    break;
-
-                case OperatorEscapedFontMatrix:
-                    if (operands.Length >= 6)
                     {
-                        result.FontMatrix = operands;
+                        result.IsCidKeyed = true;
+                        break;
                     }
-                    break;
+                case OperatorEscapedFontMatrix:
+                    {
+                        if (operands.Length >= 6)
+                        {
+                            result.FontMatrix = operands;
+                        }
+
+                        break;
+                    }
             }
         }
 

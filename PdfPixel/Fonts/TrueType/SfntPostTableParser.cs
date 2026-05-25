@@ -32,12 +32,13 @@ internal static class SfntPostTableParser
         }
 
         PdfString[] macGlyphNames = SingleByteEncodings.GetEncodingSet(PdfFontEncoding.MacRomanEncoding);
-        var nameToGid = new Dictionary<PdfString, ushort>(macGlyphNames.Length);
+        Dictionary<PdfString, ushort> nameToGid = new(macGlyphNames.Length);
         for (int glyphIndex = 0; glyphIndex < macGlyphNames.Length; glyphIndex++)
         {
             PdfString glyphName = macGlyphNames[glyphIndex];
             nameToGid[glyphName] = (ushort)glyphIndex;
         }
+
         return nameToGid;
     }
 
@@ -61,18 +62,18 @@ internal static class SfntPostTableParser
         }
 
         int numGlyphs = SnftExtractHelpers.ReadUInt16(postData, 32);
-        int glyphNameIndexOffset = 34;
-        Dictionary<PdfString, ushort> nameToGid = new Dictionary<PdfString, ushort>(numGlyphs);
-        List<int> nameIndices = new List<int>(numGlyphs);
+        const int glyphNameIndexOffset = 34;
+        Dictionary<PdfString, ushort> nameToGid = new(numGlyphs);
+        List<int> nameIndices = new(numGlyphs);
         for (int glyphIndex = 0; glyphIndex < numGlyphs; glyphIndex++)
         {
-            int nameIndex = SnftExtractHelpers.ReadUInt16(postData, glyphNameIndexOffset + glyphIndex * 2);
+            int nameIndex = SnftExtractHelpers.ReadUInt16(postData, glyphNameIndexOffset + (glyphIndex * 2));
             nameIndices.Add(nameIndex);
         }
 
         PdfString[] macGlyphNames = SingleByteEncodings.GetEncodingSet(PdfFontEncoding.MacRomanEncoding);
 
-        int customNameOffset = glyphNameIndexOffset + numGlyphs * 2;
+        int customNameOffset = glyphNameIndexOffset + (numGlyphs * 2);
         int customNamePtr = customNameOffset;
         for (int glyphIndex = 0; glyphIndex < numGlyphs; glyphIndex++)
         {
@@ -104,8 +105,10 @@ internal static class SfntPostTableParser
                     }
                 }
             }
+
             nameToGid[glyphName] = (ushort)glyphIndex;
         }
+
         return nameToGid;
     }
 }

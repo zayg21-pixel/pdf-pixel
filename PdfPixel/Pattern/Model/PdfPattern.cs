@@ -3,15 +3,8 @@ using PdfPixel.Models;
 using PdfPixel.Rendering;
 using PdfPixel.Rendering.State;
 using SkiaSharp;
-using System;
 
 namespace PdfPixel.Pattern.Model;
-
-public enum PdfPatternType
-{
-    Tiling = 1,
-    Shading = 2
-}
 
 /// <summary>
 /// Base class for all PDF pattern types (/Pattern). Provides common metadata shared by
@@ -26,13 +19,19 @@ public abstract class PdfPattern
         PatternType = patternType;
     }
 
-    /// <summary>Original source PDF object for the pattern.</summary>
+    /// <summary>
+    /// Original source PDF object for the pattern.
+    /// </summary>
     public PdfObject SourceObject { get; }
 
-    /// <summary>Pattern transformation matrix (identity if /Matrix absent).</summary>
+    /// <summary>
+    /// Pattern transformation matrix (identity if /Matrix absent).
+    /// </summary>
     public SKMatrix PatternMatrix { get; }
 
-    /// <summary>Underlying pattern type enum.</summary>
+    /// <summary>
+    /// Underlying pattern type enum.
+    /// </summary>
     public PdfPatternType PatternType { get; }
 
     /// <summary>

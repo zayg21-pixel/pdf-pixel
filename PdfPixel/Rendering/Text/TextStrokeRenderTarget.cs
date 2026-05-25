@@ -30,8 +30,8 @@ internal class TextStrokeRenderTarget : IRenderTarget
         if (state.StrokePaint.IsPattern)
         {
             _pattern = state.StrokePaint.Pattern;
-            var sourcePath = TextRenderUtilities.GetTextPath(shapingResult, font, state);
-            var fillPath = _strokePaint.GetFillPath(sourcePath);
+            SKPath sourcePath = TextRenderUtilities.GetTextPath(shapingResult, font, state);
+            SKPath fillPath = _strokePaint.GetFillPath(sourcePath);
             if (fillPath != null)
             {
                 sourcePath.Dispose();
@@ -54,10 +54,7 @@ internal class TextStrokeRenderTarget : IRenderTarget
         processor.Process(new ClipPathCommand(_clipPath, SKClipOperation.Intersect));
     }
 
-    public void AfterPatternRender(IPdfCommandProcessor processor)
-    {
-        processor.Process(new RestoreStateCommand());
-    }
+    public void AfterPatternRender(IPdfCommandProcessor processor) => processor.Process(new RestoreStateCommand());
 
     public void Render(IPdfCommandProcessor processor)
     {
@@ -67,7 +64,7 @@ internal class TextStrokeRenderTarget : IRenderTarget
         }
         else
         {
-            using var path = TextRenderUtilities.GetTextPath(_shapingResult, _font, _state);
+            using SKPath path = TextRenderUtilities.GetTextPath(_shapingResult, _font, _state);
             processor.Process(new DrawPathCommand(path, _strokePaint.Clone()));
         }
     }

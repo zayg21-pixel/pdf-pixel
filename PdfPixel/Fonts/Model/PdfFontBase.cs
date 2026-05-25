@@ -9,12 +9,13 @@ using System.Collections.Concurrent;
 using System.Linq;
 
 namespace PdfPixel.Fonts.Model;
+
 /// <summary>
 /// Base class for all PDF font types with common properties and interface.
 /// </summary>
 public abstract class PdfFontBase : IDisposable
 {
-    private readonly ConcurrentDictionary<PdfCharacterCode, PdfCharacterInfo> _characterInfoCache = new ConcurrentDictionary<PdfCharacterCode, PdfCharacterInfo>();
+    private readonly ConcurrentDictionary<PdfCharacterCode, PdfCharacterInfo> _characterInfoCache = [];
 
     /// <summary>
     /// Constructor for all PDF fonts with essential immutable properties
@@ -36,19 +37,19 @@ public abstract class PdfFontBase : IDisposable
     /// <summary>
     /// Returns the SkiaSharp SKTypeface instance for this PDF font.
     /// </summary>
-    internal protected abstract SKTypeface Typeface { get; }
+    protected internal abstract SKTypeface Typeface { get; }
 
     /// <summary>
     /// Writing mode for this font's CMap (horizontal/vertical).
     /// </summary>
-    internal protected virtual CMapWMode WritingMode { get; } = CMapWMode.Horizontal;
+    protected internal virtual CMapWMode WritingMode { get; } = CMapWMode.Horizontal;
 
     /// <summary>
     /// Information required for font substitution.
     /// </summary>
-    internal protected virtual PdfSubstitutionInfo SubstitutionInfo { get; }
+    protected internal virtual PdfSubstitutionInfo SubstitutionInfo { get; }
 
-    internal protected bool SubstituteFont => Typeface == null;
+    protected internal bool SubstituteFont => Typeface == null;
 
     /// <summary>
     /// Original PDF font object.
@@ -69,12 +70,12 @@ public abstract class PdfFontBase : IDisposable
     /// Base font name (PostScript name)
     /// </summary>
     public PdfString BaseFont { get; }
-    
+
     /// <summary>
     /// PDF document containing this font (convenience property)
     /// </summary>
     internal IPdfDocumentInternal Document => Dictionary.Document;
-    
+
     /// <summary>
     /// Loaded ToUnicode CMap for character-to-Unicode mapping.
     /// </summary>
@@ -86,7 +87,7 @@ public abstract class PdfFontBase : IDisposable
     /// Implementation may use lazy loading
     /// </summary>
     public virtual PdfFontDescriptor FontDescriptor { get; }
-    
+
     /// <summary>
     /// Get the width of a character/glyph
     /// Implementation varies by font type
@@ -104,17 +105,7 @@ public abstract class PdfFontBase : IDisposable
     /// </summary>
     /// <param name="unicode">Hint for font substitution.</param>
     /// <returns>SKTypeface instance, should not be disposed.</returns>
-    internal SKTypeface GetTypeface(string unicode)
-    {
-        if (Typeface != null)
-        {
-            return Typeface;
-        }
-        else
-        {
-            return Document.FontSubstitutor.SubstituteTypeface(SubstitutionInfo, unicode);
-        }
-    }
+    internal SKTypeface GetTypeface(string unicode) => Typeface ?? Document.FontSubstitutor.SubstituteTypeface(SubstitutionInfo, unicode);
 
     /// <summary>
     /// Converts a <see cref="PdfCharacterCode"/> to its corresponding Unicode string representation.
@@ -126,7 +117,7 @@ public abstract class PdfFontBase : IDisposable
     {
         if (ToUnicodeCMap != null)
         {
-            var unicode = ToUnicodeCMap.GetUnicode(code);
+            string unicode = ToUnicodeCMap.GetUnicode(code);
             if (unicode != null)
             {
                 return unicode;
@@ -178,8 +169,8 @@ public abstract class PdfFontBase : IDisposable
         ushort gid = GetGid(characterCode);
         float width = GetWidth(characterCode);
         string unicode = GetUnicodeString(characterCode);
-        var displacement = GetVerticalDisplacement(characterCode);
-        var typeface = GetTypeface(unicode);
+        VerticalMetric displacement = GetVerticalDisplacement(characterCode);
+        SKTypeface typeface = GetTypeface(unicode);
 
         if (gid != 0 && width != 0)
         {
@@ -219,7 +210,7 @@ public abstract class PdfFontBase : IDisposable
         return new PdfCharacterInfo(characterCode, typeface, string.Empty, [0], 0, [0], 1, SKPoint.Empty, default);
     }
 
-    private (float xScale, SKPoint Origin, float Advancement) GetScalingAndOrigin(string unicode, SKFont font, VerticalMetric verticalMetric, float originalWidth, float[] widths)
+    private (float xScale, SKPoint Origin, float Advancement) GetScalingAndOrigin(string unicode, SKFont font, in VerticalMetric verticalMetric, float originalWidth, float[] widths)
     {
         float totalWidth = widths.Sum();
         float xScale;
@@ -253,7 +244,7 @@ public abstract class PdfFontBase : IDisposable
 
         if (FontDescriptor != null && font != null)
         {
-            offsetY += FontDescriptor.Descent / 1000f + font.Metrics.Descent;
+            offsetY += (FontDescriptor.Descent / 1000f) + font.Metrics.Descent;
         }
 
         return (xScale, new SKPoint(offsetX, offsetY), advancement);
@@ -265,21 +256,21 @@ public abstract class PdfFontBase : IDisposable
     private PdfCMap LoadToUnicodeCMap()
     {
         // Use GetPageObject instead of storing reference
-        var toUnicodeObj = Dictionary.GetObject(PdfTokens.ToUnicodeKey);
+        PdfObject toUnicodeObj = Dictionary.GetObject(PdfTokens.ToUnicodeKey);
 
         if (toUnicodeObj == null)
         {
             return null;
         }
 
-        if (toUnicodeObj.Reference.IsValid && Document.CMapCache.CMapStreams.TryGetValue(toUnicodeObj.Reference, out var cachedCMap))
+        if (toUnicodeObj.Reference.IsValid && Document.CMapCache.CMapStreams.TryGetValue(toUnicodeObj.Reference, out PdfCMap cachedCMap))
         {
             return cachedCMap;
         }
 
-        var cmapData = toUnicodeObj.DecodeAsMemory();
+        ReadOnlyMemory<byte> cmapData = toUnicodeObj.DecodeAsMemory();
 
-        var parsedCMap = PdfCMapParser.ParseCMap(cmapData, Document);
+        PdfCMap parsedCMap = PdfCMapParser.ParseCMap(cmapData, Document);
 
         if (toUnicodeObj.Reference.IsValid)
         {
@@ -293,10 +284,7 @@ public abstract class PdfFontBase : IDisposable
     {
     }
 
-    ~PdfFontBase()
-    {
-        Dispose(disposing: false);
-    }
+    ~PdfFontBase() => Dispose(disposing: false);
 
     public void Dispose()
     {

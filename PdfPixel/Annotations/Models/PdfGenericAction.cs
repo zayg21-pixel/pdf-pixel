@@ -21,8 +21,5 @@ public class PdfGenericAction : PdfAction
     /// Returns a string representation of this generic action.
     /// </summary>
     /// <returns>A string containing the action type.</returns>
-    public override string ToString()
-    {
-        return $"Action: {ActionType}";
-    }
+    public override string ToString() => $"Action: {ActionType}";
 }

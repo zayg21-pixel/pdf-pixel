@@ -38,11 +38,11 @@ public class PdfAnnotationRenderer
             return;
         }
 
-        foreach (var annotation in _page.Annotations)
+        foreach (PdfAnnotationBase annotation in _page.Annotations)
         {
             try
             {
-                var effectiveState = annotation == activeAnnotation
+                PdfAnnotationVisualStateKind effectiveState = (annotation == activeAnnotation)
                     ? visualStateKind
                     : PdfAnnotationVisualStateKind.Normal;
 
@@ -75,18 +75,18 @@ public class PdfAnnotationRenderer
         PdfAnnotationVisualStateKind visualStateKind,
         IPdfExecutionObserver observer)
     {
-        if (annotation.Flags.HasFlag(PdfAnnotationFlags.Invisible) || 
-            annotation.Flags.HasFlag(PdfAnnotationFlags.Hidden))
+        if ((annotation.Flags & PdfAnnotationFlags.Invisible) != 0
+            || (annotation.Flags & PdfAnnotationFlags.Hidden) != 0)
         {
             return;
         }
 
-        if (annotation.Flags.HasFlag(PdfAnnotationFlags.NoView) && !renderingParameters.PrintMode)
+        if ((annotation.Flags & PdfAnnotationFlags.NoView) != 0 && !renderingParameters.PrintMode)
         {
             return;
         }
 
-        if (!annotation.Flags.HasFlag(PdfAnnotationFlags.Print) && renderingParameters.PrintMode)
+        if ((annotation.Flags & PdfAnnotationFlags.Print) == 0 && renderingParameters.PrintMode)
         {
             return;
         }

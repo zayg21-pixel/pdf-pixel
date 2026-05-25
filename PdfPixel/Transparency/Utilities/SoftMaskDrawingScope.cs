@@ -67,7 +67,7 @@ public sealed class SoftMaskDrawingScope : IDisposable
             return;
         }
 
-        _shouldApplyMask = _softMask != null && _softMask.MaskForm != null;
+        _shouldApplyMask = _softMask?.MaskForm != null;
 
         if (!_shouldApplyMask)
         {
@@ -77,7 +77,7 @@ public sealed class SoftMaskDrawingScope : IDisposable
         _maskMatrix = SKMatrix.Concat(_graphicsState.CTM.Invert(), _softMask.MaskForm.Matrix);
         _maskBounds = _maskMatrix.MapRect(_softMask.MaskForm.BBox);
 
-        var layerPaint = PdfPaintFactory.CreateMaskLayerPaint();
+        SKPaint layerPaint = PdfPaintFactory.CreateMaskLayerPaint();
 
         _processor.Process(new SaveLayerCommand(_maskBounds, layerPaint));
     }
@@ -99,35 +99,35 @@ public sealed class SoftMaskDrawingScope : IDisposable
             return;
         }
 
-        var recorder = new PdfCommandRecorder();
+        PdfCommandRecorder recorder = new();
         recorder.Process(new SaveStateCommand());
         recorder.Process(new ConcatMatrixCommand(_maskMatrix));
         recorder.Process(new ClipPathCommand(_softMask.MaskForm.BBox, SKClipOperation.Intersect));
 
         if (_softMask.Subtype == PdfSoftMaskSubtype.Luminosity)
         {
-            var backgroundColor = _softMask.GetBackgroundColor(_graphicsState.RenderingIntent, _graphicsState.FullTransferFunction);
-            var backgroundPaint = PdfPaintFactory.CreateBackgroundPaint(backgroundColor);
+            SKColor backgroundColor = _softMask.GetBackgroundColor(_graphicsState.RenderingIntent, _graphicsState.FullTransferFunction);
+            SKPaint backgroundPaint = PdfPaintFactory.CreateBackgroundPaint(backgroundColor);
 
-            using var rectPath = new SKPath();
+            using SKPath rectPath = new();
             rectPath.AddRect(_softMask.MaskForm.BBox);
 
             recorder.Process(new DrawPathCommand(rectPath, backgroundPaint));
         }
 
         // Render mask content stream into the recorder (isolated from canvas transforms).
-        var contentData = _softMask.MaskForm.GetFormData();
+        ReadOnlyMemory<byte> contentData = _softMask.MaskForm.GetFormData();
         if (!contentData.IsEmpty)
         {
-            var softMaskObjectNumber = _softMask.MaskForm.XObject.Reference.ObjectNumber;
+            uint softMaskObjectNumber = _softMask.MaskForm.XObject.Reference.ObjectNumber;
             if (!_graphicsState.RecursionGuard.Contains(softMaskObjectNumber))
             {
                 _graphicsState.RecursionGuard.Add(softMaskObjectNumber);
 
-                var page = _softMask.MaskForm.GetFormPage();
+                Forms.FormXObjectPageWrapper page = _softMask.MaskForm.GetFormPage();
 
-                var parseContext = new PdfParseContext(contentData);
-                var maskGs = _softMask.Subtype == PdfSoftMaskSubtype.Luminosity
+                PdfParseContext parseContext = new(contentData);
+                PdfGraphicsState maskGs = (_softMask.Subtype == PdfSoftMaskSubtype.Luminosity)
                     ? SoftMaskUtilities.CreateLuminosityMaskGraphicsState(page, _graphicsState)
                     : SoftMaskUtilities.CreateAlphaMaskGraphicsState(page, _graphicsState);
 
@@ -143,7 +143,7 @@ public sealed class SoftMaskDrawingScope : IDisposable
 
                 maskGs.CTM = _softMask.MaskForm.Matrix;
 
-                var contentRenderer = new PdfContentStreamRenderer(_renderer, page);
+                PdfContentStreamRenderer contentRenderer = new(_renderer, page);
                 contentRenderer.RenderContext(recorder, ref parseContext, maskGs);
 
                 _graphicsState.RecursionGuard.Remove(softMaskObjectNumber);
@@ -152,7 +152,7 @@ public sealed class SoftMaskDrawingScope : IDisposable
 
         recorder.Process(new RestoreStateCommand());
 
-        var maskPaint = PdfPaintFactory.CreateMaskPaint();
+        SKPaint maskPaint = PdfPaintFactory.CreateMaskPaint();
 
         if (_softMask.Subtype == PdfSoftMaskSubtype.Luminosity)
         {

@@ -7,12 +7,12 @@ public enum PdfFontFlags
 {
     None = 0,
     FixedPitch = 1,
-    Serif = 2,
-    Symbolic = 4,
-    Script = 8,
-    Nonsymbolic = 32,
-    Italic = 64,
-    AllCap = 65536,
-    SmallCap = 131072,
-    ForceBold = 262144
+    Serif = 1 << 1,
+    Symbolic = 1 << 2,
+    Script = 1 << 3,
+    Nonsymbolic = 1 << 5,
+    Italic = 1 << 6,
+    AllCap = 1 << 16,
+    SmallCap = 1 << 17,
+    ForceBold = 1 << 18
 }

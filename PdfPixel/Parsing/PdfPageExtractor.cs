@@ -38,14 +38,15 @@ internal class PdfPageExtractor
             // Try to resolve page labels from the catalog
             labelResolver = new PdfPageLabelResolver(_document.RootObject.Dictionary);
 
-            var rootPagesObject = _document.RootObject.Dictionary.GetObject(PdfTokens.PagesKey);
+            PdfObject rootPagesObject = _document.RootObject.Dictionary.GetObject(PdfTokens.PagesKey);
             if (rootPagesObject != null)
             {
-                var initialResources = new PdfPageResources();
+                PdfPageResources initialResources = new();
                 initialResources.UpdateFrom(rootPagesObject); // seed from root /Pages
                 ExtractPagesFromPagesObject(rootPagesObject, 1, initialResources, labelResolver);
                 return;
             }
+
             _logger.LogWarning("Root object (ref {RootRef}) present but /Pages tree not found.", _document.RootObject);
         }
         else
@@ -65,10 +66,10 @@ internal class PdfPageExtractor
         }
 
         // Clone and update for this level so siblings are isolated.
-        var levelResources = inherited.Clone();
+        PdfPageResources levelResources = inherited.Clone();
         levelResources.UpdateFrom(pagesObj);
 
-        var kidsArray = pagesObj.Dictionary.GetValue(PdfTokens.KidsKey).AsArray();
+        PdfArray kidsArray = pagesObj.Dictionary.GetValue(PdfTokens.KidsKey).AsArray();
         if (kidsArray == null)
         {
             _logger.LogWarning("/Pages node (ref {Ref}) missing /Kids array.", pagesObj.Reference.ObjectNumber);
@@ -77,21 +78,21 @@ internal class PdfPageExtractor
 
         for (int i = 0; i < kidsArray.Count; i++)
         {
-            var kidObject = kidsArray.GetObject(i);
+            PdfObject kidObject = kidsArray.GetObject(i);
             if (kidObject == null)
             {
                 _logger.LogWarning("Null kid reference at index {Index} in /Kids array of /Pages ref {Ref}.", i, pagesObj.Reference.ObjectNumber);
                 continue;
             }
 
-            var typeName = kidObject.Dictionary.GetName(PdfTokens.TypeKey);
+            PdfString typeName = kidObject.Dictionary.GetName(PdfTokens.TypeKey);
             if (typeName == PdfTokens.PageKey)
             {
                 // Page-level overrides
-                var pageResources = levelResources.Clone();
+                PdfPageResources pageResources = levelResources.Clone();
                 pageResources.UpdateFrom(kidObject);
-                var pageLabel = labelResolver.GetLabel(currentPageNum - 1);
-                var page = new PdfPage(currentPageNum, pageLabel, _document, kidObject, pageResources);
+                PdfString pageLabel = labelResolver.GetLabel(currentPageNum - 1);
+                PdfPage page = new(currentPageNum, pageLabel, _document, kidObject, pageResources);
                 _document.Pages.Add(page);
                 currentPageNum++;
             }

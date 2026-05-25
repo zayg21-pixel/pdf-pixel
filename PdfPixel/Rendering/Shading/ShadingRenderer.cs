@@ -35,12 +35,13 @@ public class ShadingRenderer : IShadingRenderer
         {
             return;
         }
+
         if (shading == null)
         {
             return;
         }
 
-        using var softMaskScope = new SoftMaskDrawingScope(_renderer, processor, state);
+        using SoftMaskDrawingScope softMaskScope = new(_renderer, processor, state);
         softMaskScope.BeginDrawContent();
 
         DrawShadingCore(processor, shading, state);
@@ -59,18 +60,18 @@ public class ShadingRenderer : IShadingRenderer
 
         if (shading.Background != null && shading.BBox.HasValue)
         {
-            var colorSpace = state.Page.Cache.ColorSpace.ResolveByObject(shading.ColorSpaceConverter);
-            var backgroundColor = colorSpace.ToSrgb(shading.Background, state.RenderingIntent, state.FullTransferFunction);
+            Color.ColorSpace.PdfColorSpaceConverter colorSpace = state.Page.Cache.ColorSpace.ResolveByObject(shading.ColorSpaceConverter);
+            SKColor backgroundColor = colorSpace.ToSrgb(shading.Background, state.RenderingIntent, state.FullTransferFunction);
 
-            var backgroundPaint = PdfPaintFactory.CreateBackgroundPaint(backgroundColor);
+            SKPaint backgroundPaint = PdfPaintFactory.CreateBackgroundPaint(backgroundColor);
 
-            using var rectPath = new SKPath();
+            using SKPath rectPath = new();
             rectPath.AddRect(shading.BBox.Value);
 
             processor.Process(new DrawPathCommand(rectPath, backgroundPaint));
         }
 
-        var context = new ShadingDecodingContext(state, shading);
+        ShadingDecodingContext context = new(state, shading);
         processor.Process(new PdfDrawShadingCommand(shading, context, _loggerFactory));
     }
 }

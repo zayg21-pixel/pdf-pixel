@@ -16,12 +16,12 @@ internal sealed class PdfOutputIntentParser
 {
     private static readonly PdfString[] PreferredIntentOrder =
     {
-         (PdfString)"GTS_PDFX"u8, // PDF/X family
-         (PdfString)"GTS_PDFA1"u8, // PDF/A-1
-         (PdfString)"GTS_PDFA2"u8, // PDF/A-2
-         (PdfString)"GTS_PDFA3"u8, // PDF/A-3
-         (PdfString)"GTS_PDFE"u8, // Engineering (rare)
-         (PdfString)"ISO_PDF"u8 // Generic ISO intent (fallback)
+        (PdfString)"GTS_PDFX"u8, // PDF/X family
+        (PdfString)"GTS_PDFA1"u8, // PDF/A-1
+        (PdfString)"GTS_PDFA2"u8, // PDF/A-2
+        (PdfString)"GTS_PDFA3"u8, // PDF/A-3
+        (PdfString)"GTS_PDFE"u8, // Engineering (rare)
+        (PdfString)"ISO_PDF"u8 // Generic ISO intent (fallback)
     };
 
     private readonly IPdfDocumentInternal _document;
@@ -29,10 +29,7 @@ internal sealed class PdfOutputIntentParser
     /// <summary>
     /// Construct parser and populate document.OutputIntentProfile.
     /// </summary>
-    public PdfOutputIntentParser(IPdfDocumentInternal document)
-    {
-        _document = document ?? throw new ArgumentNullException(nameof(document));
-    }
+    public PdfOutputIntentParser(IPdfDocumentInternal document) => _document = document ?? throw new ArgumentNullException(nameof(document));
 
     /// <summary>
     /// Parses the first valid output intent profile from the PDF document's catalog and assigns it to the
@@ -40,13 +37,13 @@ internal sealed class PdfOutputIntentParser
     /// </summary>
     public void ParseFirstOutputIntentProfile()
     {
-        var rootObject = _document.RootObject;
+        PdfObject rootObject = _document.RootObject;
         if (rootObject == null)
         {
             return;
         }
 
-        var catalogDict = rootObject.Dictionary;
+        PdfDictionary catalogDict = rootObject.Dictionary;
         if (catalogDict == null)
         {
             return;
@@ -60,7 +57,7 @@ internal sealed class PdfOutputIntentParser
         }
 
         // Quick map of preferred order for O(1) rank lookup.
-        var preferredRank = new Dictionary<PdfString, int>(PreferredIntentOrder.Length);
+        Dictionary<PdfString, int> preferredRank = new(PreferredIntentOrder.Length);
         for (int index = 0; index < PreferredIntentOrder.Length; index++)
         {
             preferredRank[PreferredIntentOrder[index]] = index;
@@ -70,22 +67,22 @@ internal sealed class PdfOutputIntentParser
         int bestRank = int.MaxValue;
         IccProfile bestProfile = null;
 
-        foreach (var intentObj in intents)
+        foreach (PdfObject intentObj in intents)
         {
-            var dict = intentObj?.Dictionary;
+            PdfDictionary? dict = intentObj?.Dictionary;
             if (dict == null)
             {
                 continue;
             }
 
             // /DestOutputProfile may be indirect or direct stream.
-            var profileObj = dict.GetObject(PdfTokens.DestOutputProfileKey);
-            if (profileObj == null || !profileObj.HasStream)
+            PdfObject profileObj = dict.GetObject(PdfTokens.DestOutputProfileKey);
+            if (profileObj?.HasStream != true)
             {
                 continue; // No stream to parse.
             }
 
-            var decoded = profileObj.DecodeAsMemory();
+            ReadOnlyMemory<byte> decoded = profileObj.DecodeAsMemory();
             if (decoded.IsEmpty)
             {
                 continue; // Too small to be a valid ICC profile (header alone is128 bytes).
@@ -108,10 +105,10 @@ internal sealed class PdfOutputIntentParser
             }
 
             // Determine ranking based on /S (intent subtype) if present.
-            var intentName = dict.GetName(PdfTokens.SoftMaskSubtypeKey); // /S lookup (generic key constant).
+            PdfString intentName = dict.GetName(PdfTokens.SoftMaskSubtypeKey); // /S lookup (generic key constant).
                                                                          // NOTE: PdfTokens does not currently expose a dedicated OutputIntent /S key; /S is generic. This is intentional.
             int rank = int.MaxValue;
-            if (!intentName.IsEmpty && preferredRank.TryGetValue(intentName, out var r))
+            if (!intentName.IsEmpty && preferredRank.TryGetValue(intentName, out int r))
             {
                 rank = r;
             }

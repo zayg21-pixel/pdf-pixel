@@ -8,25 +8,21 @@ namespace PdfPixel.Fonts.Mapping;
 /// Represents a CID-to-GID mapping for CID fonts
 /// Maps Character IDs (CIDs) to Glyph IDs (GIDs) in the embedded font
 /// </summary>
-public class PdfCidToGidMap
+public sealed class PdfCidToGidMap
 {
-    private readonly Dictionary<uint, ushort> _cidToGidMap = new Dictionary<uint, ushort>();
-    private readonly bool _isIdentityMapping;
+    private readonly Dictionary<uint, ushort> _cidToGidMap = [];
 
     /// <summary>
     /// Create an identity mapping (CID == GID)
     /// </summary>
-    public static PdfCidToGidMap CreateIdentityMapping()
-    {
-        return new PdfCidToGidMap(true);
-    }
+    public static PdfCidToGidMap CreateIdentityMapping() => new(true);
 
     /// <summary>
     /// Create a mapping from stream data
     /// </summary>
-    public static PdfCidToGidMap FromStreamData(ReadOnlyMemory<byte> streamData)
+    public static PdfCidToGidMap FromStreamData(in ReadOnlyMemory<byte> streamData)
     {
-        var map = new PdfCidToGidMap(false);
+        PdfCidToGidMap map = new(false);
         map.ParseStreamData(streamData);
         return map;
     }
@@ -45,41 +41,42 @@ public class PdfCidToGidMap
             return new PdfCidToGidMap(true);
         }
 
-        var map = new PdfCidToGidMap(false);
+        PdfCidToGidMap map = new(false);
 
         for (uint gid = 0; gid < keyedInfo.GidToSid.Length; gid++)
         {
-            var sid = keyedInfo.GidToSid[gid];
+            ushort sid = keyedInfo.GidToSid[gid];
             map._cidToGidMap[sid] = (ushort)gid;
         }
+
         return map;
     }
 
-    private PdfCidToGidMap(bool isIdentity)
-    {
-        _isIdentityMapping = isIdentity;
-    }
+    private PdfCidToGidMap(bool isIdentity) => IsIdentityMapping = isIdentity;
 
     /// <summary>
     /// Parse CIDToGIDMap stream data
     /// The stream contains a sequence of 2-byte glyph indices, where the CID is the index position
     /// </summary>
-    private void ParseStreamData(ReadOnlyMemory<byte> data)
+    private void ParseStreamData(in ReadOnlyMemory<byte> data)
     {
-        if (data.Length < 2) return;
+        if (data.Length < 2)
+        {
+            return;
+        }
 
-        var bytes = data.Span;
-        
+        ReadOnlySpan<byte> bytes = data.Span;
+
         // Each pair of bytes represents a GID for the corresponding CID
         for (uint cid = 0; cid < bytes.Length / 2; cid++)
         {
             int byteIndex = (int)cid * 2;
-            
+
             if (byteIndex + 1 < bytes.Length)
             {
                 // Read 2-byte big-endian GID
-                ushort gid = (ushort)(bytes[byteIndex] << 8 | bytes[byteIndex + 1]);
-                
+                var gid = (ushort)(bytes[byteIndex] << 8 | bytes[byteIndex + 1]);
+
                 // Store all mappings, including GID 0 (.notdef is still valid)
                 _cidToGidMap[cid] = gid;
             }
@@ -91,7 +88,7 @@ public class PdfCidToGidMap
     /// </summary>
     public ushort GetGID(uint cid)
     {
-        if (_isIdentityMapping)
+        if (IsIdentityMapping)
         {
             return (ushort)cid; // Identity mapping: GID = CID
         }
@@ -112,8 +109,10 @@ public class PdfCidToGidMap
     /// </summary>
     public bool HasMapping(uint cid)
     {
-        if (_isIdentityMapping)
+        if (IsIdentityMapping)
+        {
             return true; // Identity mapping covers all CIDs
+        }
 
         return _cidToGidMap.ContainsKey(cid);
     }
@@ -121,10 +120,10 @@ public class PdfCidToGidMap
     /// <summary>
     /// Get the number of explicit mappings
     /// </summary>
-    public int MappingCount => _isIdentityMapping ? -1 : _cidToGidMap.Count; // -1 indicates identity mapping
+    public int MappingCount => IsIdentityMapping ? -1 : _cidToGidMap.Count; // -1 indicates identity mapping
 
     /// <summary>
     /// Check if this is an identity mapping
     /// </summary>
-    public bool IsIdentityMapping => _isIdentityMapping;
+    public bool IsIdentityMapping { get; }
 }

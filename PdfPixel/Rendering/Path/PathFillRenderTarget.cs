@@ -36,10 +36,7 @@ internal class PathFillRenderTarget : IRenderTarget
         processor.Process(new ClipPathCommand(_path, SKClipOperation.Intersect));
     }
 
-    public void AfterPatternRender(IPdfCommandProcessor processor)
-    {
-        processor.Process(new RestoreStateCommand());
-    }
+    public void AfterPatternRender(IPdfCommandProcessor processor) => processor.Process(new RestoreStateCommand());
 
     public void Render(IPdfCommandProcessor processor)
     {
@@ -49,7 +46,7 @@ internal class PathFillRenderTarget : IRenderTarget
         }
         else
         {
-            var paint = PdfPaintFactory.CreateFillPaint(_state);
+            SKPaint paint = PdfPaintFactory.CreateFillPaint(_state);
             processor.Process(new DrawPathCommand(_path, paint));
         }
     }

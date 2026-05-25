@@ -15,7 +15,8 @@ public abstract class PdfSingleByteFont : PdfFontBase
     /// Constructor for single-byte fonts - handles common initialization
     /// </summary>
     /// <param name="fontObject">PDF dictionary containing the font definition</param>
-    public PdfSingleByteFont(PdfObject fontObject) : base(fontObject)
+    protected PdfSingleByteFont(PdfObject fontObject)
+        : base(fontObject)
     {
         Widths = SingleByteFontWidths.Parse(fontObject.Dictionary);
         Encoding = PdfFontEncodingParser.ParseSingleByteEncoding(fontObject.Dictionary);
@@ -37,23 +38,21 @@ public abstract class PdfSingleByteFont : PdfFontBase
     /// </summary>
     public override float GetWidth(PdfCharacterCode code)
     {
-        var width = Widths.GetWidth(code);
+        float? width = Widths.GetWidth(code);
         if (width.HasValue)
         {
             return width.Value;
         }
+
         // Fallback: PDF spec recommends 0 if not defined for single-byte fonts
         return 0f;
     }
 
-    public override VerticalMetric GetVerticalDisplacement(PdfCharacterCode code)
-    {
-        return default;
-    }
+    public override VerticalMetric GetVerticalDisplacement(PdfCharacterCode code) => default;
 
     public override string GetUnicodeString(PdfCharacterCode code)
     {
-        var baseResult = base.GetUnicodeString(code);
+        string baseResult = base.GetUnicodeString(code);
 
         if (baseResult != null)
         {
@@ -63,7 +62,7 @@ public abstract class PdfSingleByteFont : PdfFontBase
         // Fallback to Adobe Glyph List mapping.
         PdfString name = SingleByteEncodings.GetNameByCodeOrUndefined((byte)(uint)code, Encoding.BaseEncoding, Encoding.Differences);
 
-        if (AdobeGlyphList.CharacterMap.TryGetValue(name, out var aglUnicode))
+        if (AdobeGlyphList.CharacterMap.TryGetValue(name, out string aglUnicode))
         {
             return aglUnicode;
         }
@@ -90,6 +89,7 @@ public abstract class PdfSingleByteFont : PdfFontBase
         {
             result[index] = new PdfCharacterCode(bytes.Slice(index, 1));
         }
+
         return result;
     }
 }

@@ -89,7 +89,7 @@ public class PdfDecodeParameters
     /// </summary>
     public static PdfDecodeParameters FromDictionary(PdfDictionary dictionary)
     {
-        var parameters = new PdfDecodeParameters();
+        PdfDecodeParameters parameters = new();
         if (dictionary == null)
         {
             return parameters;

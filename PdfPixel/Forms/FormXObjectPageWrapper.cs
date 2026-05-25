@@ -22,7 +22,7 @@ internal class FormXObjectPageWrapper : PdfPage, IPdfPageInternal
         _originalPage = originalPage;
 
         // Inline former CreateResourcePageObject logic.
-        var formResources = formXObject.Dictionary.GetDictionary(PdfTokens.ResourcesKey);
+        PdfDictionary formResources = formXObject.Dictionary.GetDictionary(PdfTokens.ResourcesKey);
         if (formResources == null)
         {
             _resourcePageObject = originalPage.PageObject;
@@ -40,7 +40,7 @@ internal class FormXObjectPageWrapper : PdfPage, IPdfPageInternal
     public FormXObjectPageWrapper(PdfObject formXObject)
         : base(0, default, formXObject.Document, formXObject, new PdfPageResources())
     {
-        var formResources = formXObject.Dictionary.GetDictionary(PdfTokens.ResourcesKey);
+        PdfDictionary formResources = formXObject.Dictionary.GetDictionary(PdfTokens.ResourcesKey);
         _resourcePageObject = formXObject;
         _resourceDictionary = formResources;
         _pageCache = new PdfPageCache(this);

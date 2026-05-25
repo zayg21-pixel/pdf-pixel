@@ -2,7 +2,7 @@
 
 namespace PdfPixel.Parsing;
 
-partial struct PdfParser
+internal partial struct PdfParser
 {
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -52,7 +52,7 @@ partial struct PdfParser
         if (_streamMode)
         {
             RestorePosition(offset: offset);
-            var value = _stream.ReadByte();
+            int value = _stream.ReadByte();
 
             if (value == -1)
             {

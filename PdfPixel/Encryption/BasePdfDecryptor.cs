@@ -11,10 +11,7 @@ namespace PdfPixel.Encryption;
 /// </summary>
 public abstract class BasePdfDecryptor
 {
-    protected BasePdfDecryptor(PdfDecryptorParameters parameters)
-    {
-        Parameters = parameters ?? throw new ArgumentNullException(nameof(parameters));
-    }
+    protected BasePdfDecryptor(PdfDecryptorParameters parameters) => Parameters = parameters ?? throw new ArgumentNullException(nameof(parameters));
 
     public PdfDecryptorParameters Parameters { get; }
 
@@ -36,19 +33,16 @@ public abstract class BasePdfDecryptor
     /// <param name="stream">The input stream containing the encrypted data. The stream must be readable.</param>
     /// <param name="reference">The PDF reference used to determine the decryption parameters.</param>
     /// <returns>A stream containing the decrypted data. The caller is responsible for disposing of the returned stream.</returns>
-    public virtual Stream DecryptStream(Stream stream, PdfReference reference)
+    public virtual Stream DecryptStream(Stream stream, in PdfReference reference)
     {
-        using var memoryStream = new MemoryStream();
+        using MemoryStream memoryStream = new();
         stream.CopyTo(memoryStream);
-        var decryptedBytes = DecryptString(memoryStream.ToArray(), reference);
+        ReadOnlyMemory<byte> decryptedBytes = DecryptString(memoryStream.ToArray(), reference);
         return new MemoryStream(decryptedBytes.ToArray());
     } // TODO: [MEDIUM] need to optimize to avoid double memory copy
 
     protected string Password { get; private set; }
 
-    public virtual void UpdatePassword(string password)
-    {
-        Password = password ?? string.Empty;
-        // Derived classes may recompute file key when password changes.
-    }
+    public virtual void UpdatePassword(string password) => Password = password ?? string.Empty;
+    // Derived classes may recompute file key when password changes.
 }

@@ -29,7 +29,6 @@ internal class PdfObjectParser
     /// <summary>
     /// Lazily parse a single indexed indirect object using only information from the provided PdfObjectInfo.
     /// </summary>
-    /// <param name="document">Owning document.</param>
     /// <param name="info">Indexed object metadata.</param>
     /// <returns>Parsed PdfObject or null on failure / unsupported cases.</returns>
     public PdfObject ParseSingleIndexedObject(PdfObjectInfo info)
@@ -38,14 +37,17 @@ internal class PdfObjectParser
         {
             return null;
         }
+
         if (info.IsFree)
         {
             return null;
         }
+
         if (info.IsCompressed)
         {
             return _objectStreamParser.ParseSingleCompressed(info);
         }
+
         if (info.Offset == null)
         {
             return null;
@@ -57,18 +59,18 @@ internal class PdfObjectParser
         }
 
         // Use unified PdfParser.ReadObject for indirect object parsing (handles header + value + optional stream).
-        var parser = new PdfParser(_document.Stream, _document, allowReferences: true, decrypt: true);
+        PdfParser parser = new(_document.Stream, _document, allowReferences: true, decrypt: true);
         parser.Position = (int)info.Offset.Value;
 
-        var parsedObject = parser.ReadObject();
+        PdfObject parsedObject = parser.ReadObject();
         if (parsedObject == null)
         {
             return null;
         }
 
         // Validate reference matches index metadata to guard against malformed offsets.
-        if (parsedObject.Reference.ObjectNumber != info.Reference.ObjectNumber ||
-            parsedObject.Reference.Generation != info.Reference.Generation)
+        if (parsedObject.Reference.ObjectNumber != info.Reference.ObjectNumber
+            || parsedObject.Reference.Generation != info.Reference.Generation)
         {
             return null;
         }

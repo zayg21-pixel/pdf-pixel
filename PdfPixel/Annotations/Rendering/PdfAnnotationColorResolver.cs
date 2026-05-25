@@ -24,11 +24,11 @@ internal static class PdfAnnotationColorResolver
             return defaultColor ?? SKColors.Transparent;
         }
 
-        var converter = page.Cache.ColorSpace.ResolveDeviceConverter(colorComponents.Length);
+        PdfColorSpaceConverter converter = page.Cache.ColorSpace.ResolveDeviceConverter(colorComponents.Length);
         if (converter == null)
         {
             converter = page.Cache.ColorSpace.ResolveDeviceConverter(3);
-            var paddedColor = colorComponents;
+            float[] paddedColor = colorComponents;
             Array.Resize(ref paddedColor, 3);
             return converter.ToSrgb(paddedColor, PdfRenderingIntent.RelativeColorimetric, null);
         }

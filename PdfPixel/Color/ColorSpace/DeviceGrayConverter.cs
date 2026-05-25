@@ -9,7 +9,7 @@ namespace PdfPixel.Color.ColorSpace;
 /// </summary>
 internal sealed class DeviceGrayConverter : PdfColorSpaceConverter
 {
-    public static readonly DeviceGrayConverter Instance = new DeviceGrayConverter();
+    public static readonly DeviceGrayConverter Instance = new();
 
     public override int Components => 1;
 
@@ -17,7 +17,7 @@ internal sealed class DeviceGrayConverter : PdfColorSpaceConverter
 
     protected override ColorTransformSampler GetRgbaSamplerCore(PdfRenderingIntent intent, IColorTransform postTransform)
     {
-        var chained = new ChainedColorTransform(new FunctionColorTransform(x => new Vector4(x.X, x.X, x.X, 1f)), postTransform);
+        ChainedColorTransform chained = new(new FunctionColorTransform(x => new Vector4(x.X, x.X, x.X, 1f)), postTransform);
         return new ColorTransformSampler(chained);
     }
 }

@@ -2,7 +2,7 @@
 
 namespace PdfPixel.Parsing;
 
-partial struct PdfParser
+internal partial struct PdfParser
 {
     /// <summary>
     /// Checks if the specified byte is a PDF whitespace character.
@@ -13,12 +13,14 @@ partial struct PdfParser
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static bool IsWhitespace(byte b)
     {
-        return b == Separator ||    // space
-               b == Tab ||          // tab
-               b == CarriageReturn ||
-               b == LineFeed ||
-               b == FormFeed ||
-               b == NullChar;       // null padding
+        return b == Separator
+            ||    // space
+               b == Tab
+            ||          // tab
+               b == CarriageReturn
+            || b == LineFeed
+            || b == FormFeed
+            || b == NullChar;       // null padding
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -50,8 +52,10 @@ partial struct PdfParser
                             Advance(1); // consume EOL terminator
                             break;
                         }
+
                         Advance(1); // advance through comment content
                     }
+
                     continue; // resume outer loop
                 }
                 default:
@@ -75,6 +79,7 @@ partial struct PdfParser
         {
             return;
         }
+
         byte b = PeekByte();
         if (b == (byte)'\r')
         {
@@ -119,6 +124,7 @@ partial struct PdfParser
             case RightSquare:    // ] (array end)
             case CommentStart:   // % (comment start)
                 return true;
+
             default:
                 return false;
         }

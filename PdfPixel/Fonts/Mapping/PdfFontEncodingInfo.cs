@@ -10,7 +10,7 @@ namespace PdfPixel.Fonts.Mapping;
 /// </summary>
 public class PdfFontEncodingInfo
 {
-    public PdfFontEncodingInfo(PdfFontEncoding encoding, PdfString customEncoding, Dictionary<int, PdfString> differences)
+    public PdfFontEncodingInfo(PdfFontEncoding encoding, in PdfString customEncoding, Dictionary<int, PdfString> differences)
     {
         BaseEncoding = encoding;
         CustomEncoding = customEncoding;

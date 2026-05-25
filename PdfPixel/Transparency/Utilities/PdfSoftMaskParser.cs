@@ -6,7 +6,7 @@ using PdfPixel.Transparency.Model;
 
 namespace PdfPixel.Transparency.Utilities;
 
-internal class PdfSoftMaskParser
+internal static class PdfSoftMaskParser
 {
     public static PdfSoftMask ParseSoftMaskDictionary(PdfDictionary softMaskDict, IPdfPageInternal page)
     {
@@ -15,26 +15,26 @@ internal class PdfSoftMaskParser
             return null;
         }
 
-        var softMask = new PdfSoftMask();
+        PdfSoftMask softMask = new();
         softMask.Subtype = softMaskDict.GetName(PdfTokens.SoftMaskSubtypeKey).AsEnum<PdfSoftMaskSubtype>();
 
-        var groupObject = softMaskDict.GetObject(PdfTokens.SoftMaskGroupKey);
+        PdfObject groupObject = softMaskDict.GetObject(PdfTokens.SoftMaskGroupKey);
         if (groupObject == null)
         {
             return null;
         }
 
-        var formObject = PdfForm.FromXObject(groupObject, page);
+        PdfForm formObject = PdfForm.FromXObject(groupObject, page);
         softMask.MaskForm = formObject;
 
-        var bcArray = softMaskDict.GetArray(PdfTokens.SoftMaskBCKey);
-        if (bcArray != null && bcArray.Count > 0)
+        PdfArray bcArray = softMaskDict.GetArray(PdfTokens.SoftMaskBCKey);
+        if (bcArray?.Count > 0)
         {
             softMask.BackgroundColor = bcArray.GetFloatArray();
         }
 
         // Parse optional TR transfer function
-        var trObject = softMaskDict.GetObject(PdfTokens.TransferFunctionKey);
+        PdfObject trObject = softMaskDict.GetObject(PdfTokens.TransferFunctionKey);
         if (trObject != null)
         {
             softMask.TransferFunction = TransferFunctionTransform.FromPdfObject(trObject);
@@ -50,14 +50,14 @@ internal class PdfSoftMaskParser
             return null;
         }
 
-        var group = new PdfTransparencyGroup();
-        var subtype = groupDict.GetName(PdfTokens.GroupSubtypeKey);
+        PdfTransparencyGroup group = new();
+        PdfString subtype = groupDict.GetName(PdfTokens.GroupSubtypeKey);
         if (subtype != PdfTokens.TransparencyGroupValue)
         {
             return null;
         }
 
-        var csValue = groupDict.GetObject(PdfTokens.GroupColorSpaceKey);
+        PdfObject csValue = groupDict.GetObject(PdfTokens.GroupColorSpaceKey);
         group.ColorSpaceConverter = page.Cache.ColorSpace.ResolveByObject(csValue);
         group.Isolated = groupDict.GetBooleanOrDefault(PdfTokens.GroupIsolatedKey);
         group.Knockout = groupDict.GetBooleanOrDefault(PdfTokens.GroupKnockoutKey);

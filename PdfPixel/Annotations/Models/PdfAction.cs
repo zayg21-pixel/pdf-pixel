@@ -20,7 +20,7 @@ public abstract class PdfAction
     {
         ActionDictionary = actionDictionary;
         ActionType = actionType;
-        
+
         Next = actionDictionary?.GetValue(PdfTokens.NextKey);
     }
 
@@ -54,7 +54,7 @@ public abstract class PdfAction
             return null;
         }
 
-        var actionType = actionDictionary.GetName(PdfTokens.SKey).AsEnum<PdfActionType>();
+        PdfActionType actionType = actionDictionary.GetName(PdfTokens.SKey).AsEnum<PdfActionType>();
 
         return actionType switch
         {

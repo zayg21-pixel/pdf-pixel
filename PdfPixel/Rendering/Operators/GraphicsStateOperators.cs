@@ -12,10 +12,9 @@ namespace PdfPixel.Rendering.Operators;
 
 internal class GraphicsStateOperators : IOperatorProcessor
 {
-    private static readonly HashSet<string> SupportedOperators = new HashSet<string>
-    {
+    private static readonly HashSet<string> SupportedOperators = [
         "q","Q","cm","w","J","j","M","d","gs","ri","i"
-    };
+    ];
 
     private readonly IPdfPageInternal _page;
     private readonly IPdfCommandProcessor _processor;
@@ -32,10 +31,7 @@ internal class GraphicsStateOperators : IOperatorProcessor
         _logger = page.Document.LoggerFactory.CreateLogger<GraphicsStateOperators>();
     }
 
-    public bool CanProcess(string op)
-    {
-        return SupportedOperators.Contains(op);
-    }
+    public bool CanProcess(string op) => SupportedOperators.Contains(op);
 
     public void ProcessOperator(string op, ref PdfGraphicsState graphicsState)
     {
@@ -112,7 +108,7 @@ internal class GraphicsStateOperators : IOperatorProcessor
 
     private void ProcessSetRenderingIntent(PdfGraphicsState graphicsState)
     {
-        var operands = PdfOperatorProcessor.GetOperands(1, _operandStack);
+        List<IPdfValue> operands = PdfOperatorProcessor.GetOperands(1, _operandStack);
         if (operands.Count == 0)
         {
             return;
@@ -140,13 +136,13 @@ internal class GraphicsStateOperators : IOperatorProcessor
 
     private void ProcessConcatenateMatrix(PdfGraphicsState graphicsState)
     {
-        var operands = PdfOperatorProcessor.GetOperands(6, _operandStack);
+        List<IPdfValue> operands = PdfOperatorProcessor.GetOperands(6, _operandStack);
         if (operands.Count < 6)
         {
             return;
         }
 
-        var matrix = PdfLocationUtilities.CreateMatrix(operands);
+        SKMatrix matrix = PdfLocationUtilities.CreateMatrix(operands);
         _processor.Process(new ConcatMatrixCommand(matrix));
 
         // Update CTM in graphics state - concatenate with existing CTM
@@ -155,7 +151,7 @@ internal class GraphicsStateOperators : IOperatorProcessor
 
     private void ProcessSetLineWidth(PdfGraphicsState graphicsState)
     {
-        var operands = PdfOperatorProcessor.GetOperands(1, _operandStack);
+        List<IPdfValue> operands = PdfOperatorProcessor.GetOperands(1, _operandStack);
         if (operands.Count == 0)
         {
             return;
@@ -166,13 +162,13 @@ internal class GraphicsStateOperators : IOperatorProcessor
 
     private void ProcessSetLineCap(PdfGraphicsState graphicsState)
     {
-        var operands = PdfOperatorProcessor.GetOperands(1, _operandStack);
+        List<IPdfValue> operands = PdfOperatorProcessor.GetOperands(1, _operandStack);
         if (operands.Count == 0)
         {
             return;
         }
 
-        var capStyle = operands[0].AsFloat();
+        float capStyle = operands[0].AsFloat();
         graphicsState.LineCap = capStyle switch
         {
             0 => SKStrokeCap.Butt,
@@ -184,13 +180,13 @@ internal class GraphicsStateOperators : IOperatorProcessor
 
     private void ProcessSetLineJoin(PdfGraphicsState graphicsState)
     {
-        var operands = PdfOperatorProcessor.GetOperands(1, _operandStack);
+        List<IPdfValue> operands = PdfOperatorProcessor.GetOperands(1, _operandStack);
         if (operands.Count == 0)
         {
             return;
         }
 
-        var joinStyle = operands[0].AsFloat();
+        float joinStyle = operands[0].AsFloat();
         graphicsState.LineJoin = joinStyle switch
         {
             0 => SKStrokeJoin.Miter,
@@ -202,7 +198,7 @@ internal class GraphicsStateOperators : IOperatorProcessor
 
     private void ProcessSetMiterLimit(PdfGraphicsState graphicsState)
     {
-        var operands = PdfOperatorProcessor.GetOperands(1, _operandStack);
+        List<IPdfValue> operands = PdfOperatorProcessor.GetOperands(1, _operandStack);
         if (operands.Count == 0)
         {
             return;
@@ -213,16 +209,16 @@ internal class GraphicsStateOperators : IOperatorProcessor
 
     private void ProcessSetDashPattern(PdfGraphicsState graphicsState)
     {
-        var operands = PdfOperatorProcessor.GetOperands(2, _operandStack);
+        List<IPdfValue> operands = PdfOperatorProcessor.GetOperands(2, _operandStack);
         if (operands.Count < 2)
         {
             return;
         }
 
-        var dashArray = operands[0].AsArray().GetFloatArray();
-        var dashPhase = operands[1].AsFloat();
+        float[] dashArray = operands[0].AsArray().GetFloatArray();
+        float dashPhase = operands[1].AsFloat();
 
-        if (dashArray != null && dashArray.Length > 0)
+        if (dashArray?.Length > 0)
         {
             graphicsState.DashPattern = GetDashPattern(dashArray);
             graphicsState.DashPhase = dashPhase;
@@ -237,25 +233,25 @@ internal class GraphicsStateOperators : IOperatorProcessor
 
     private void ProcessSetGraphicsStateParameters(PdfGraphicsState graphicsState)
     {
-        var operands = PdfOperatorProcessor.GetOperands(1, _operandStack);
+        List<IPdfValue> operands = PdfOperatorProcessor.GetOperands(1, _operandStack);
         if (operands.Count == 0)
         {
             return;
         }
 
-        var gsName = operands[0].AsName();
+        PdfString gsName = operands[0].AsName();
         _page.Cache.ApplyGraphicsStateParameters(gsName, _processor, graphicsState);
     }
 
     private void ProcessSetFlatnessTolerance(PdfGraphicsState graphicsState)
     {
-        var operands = PdfOperatorProcessor.GetOperands(1, _operandStack);
+        List<IPdfValue> operands = PdfOperatorProcessor.GetOperands(1, _operandStack);
         if (operands.Count == 0)
         {
             return;
         }
 
-        var flatness = operands[0].AsFloat();
+        float flatness = operands[0].AsFloat();
         graphicsState.FlatnessTolerance = flatness;
     }
 
@@ -276,10 +272,10 @@ internal class GraphicsStateOperators : IOperatorProcessor
         }
 
         const float Epsilon = 0.001f;
-        var sum = 0f;
+        float sum = 0f;
         for (int i = 0; i < pattern.Length; i++)
         {
-            var dash = pattern[i];
+            float dash = pattern[i];
 
             if (dash > 0)
             {

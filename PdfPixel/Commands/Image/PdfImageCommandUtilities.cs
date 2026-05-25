@@ -24,11 +24,11 @@ internal static class PdfImageCommandUtilities
     /// </summary>
     public static SKPaint GetBaseImagePaint(SKShader shader, ImageDecodingContext context)
     {
-        return new SKPaint
+        return new()
         {
             Shader = shader,
             BlendMode = context.BlendMode,
-            Color = PdfPaintFactory.ApplyAlpha(SKColors.White, context.FillAlpha),
+            Color = PdfPaintFactory.ApplyAlpha(SKColors.White, context.FillAlpha)
         };
     }
 
@@ -45,7 +45,9 @@ internal static class PdfImageCommandUtilities
         bool isDownscaled = GetScaledSize(ctm, imageSize).HasValue;
 
         if (isDownscaled || context.IsType3Rendering || interpolate)
+        {
             return new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.Linear);
+        }
 
         return new SKSamplingOptions(SKFilterMode.Nearest, SKMipmapMode.None);
     }
@@ -55,7 +57,7 @@ internal static class PdfImageCommandUtilities
     /// </summary>
     public static SKSizeI? GetScaledSize(SKMatrix ctm, SKSizeI size)
     {
-        var unitMapped = ctm.MapPoint(new SKPoint(1, 1)) - ctm.MapPoint(new SKPoint(0, 0));
+        SKPoint unitMapped = ctm.MapPoint(new SKPoint(1, 1)) - ctm.MapPoint(new SKPoint(0, 0));
 
         float unitPixelsX = Math.Abs(unitMapped.X);
         float unitPixelsY = Math.Abs(unitMapped.Y);
@@ -67,8 +69,8 @@ internal static class PdfImageCommandUtilities
 
         if (maxScale < 1f)
         {
-            var newWidth = Math.Max(1, (int)Math.Floor(size.Width * maxScale));
-            var newHeight = Math.Max(1, (int)Math.Floor(size.Height * maxScale));
+            int newWidth = Math.Max(1, (int)Math.Floor(size.Width * maxScale));
+            int newHeight = Math.Max(1, (int)Math.Floor(size.Height * maxScale));
             return new SKSizeI(newWidth, newHeight);
         }
 
@@ -102,8 +104,8 @@ internal static class PdfImageCommandUtilities
         float scaleX = (float)maskSize.Width / imageSize.Width;
         float scaleY = (float)maskSize.Height / imageSize.Height;
 
-        int left = (int)Math.Floor(imageTile.Left * scaleX);
-        int top = (int)Math.Floor(imageTile.Top * scaleY);
+        var left = (int)Math.Floor(imageTile.Left * scaleX);
+        var top = (int)Math.Floor(imageTile.Top * scaleY);
         int right = Math.Min(maskSize.Width, (int)Math.Ceiling(imageTile.Right * scaleX));
         int bottom = Math.Min(maskSize.Height, (int)Math.Ceiling(imageTile.Bottom * scaleY));
 
@@ -121,7 +123,7 @@ internal static class PdfImageCommandUtilities
     {
         float scaleX = (float)maskImage.Width / pdfImage.Width;
         float scaleY = (float)maskImage.Height / pdfImage.Height;
-        SKSizeI maskTileSize = new SKSizeI(
+        SKSizeI maskTileSize = new(
             Math.Max(1, (int)Math.Round(defaultTileSize * scaleX)),
             Math.Max(1, (int)Math.Round(defaultTileSize * scaleY)));
         return (
@@ -139,14 +141,16 @@ internal static class PdfImageCommandUtilities
 
     public static SKRectI ComputeImageRegionOfInterest(SKSizeI imageSize, SKMatrix ctm, PdfCommandExecutionContext executionContext)
     {
-        var fullImageBounds = SKRectI.Create(0, 0, imageSize.Width, imageSize.Height);
+        SKRectI fullImageBounds = SKRectI.Create(0, 0, imageSize.Width, imageSize.Height);
 
         if (!executionContext.PageRegionOfInterest.HasValue)
+        {
             return fullImageBounds;
+        }
 
         SKRect mapped = ctm.Invert().MapRect(executionContext.PageRegionOfInterest.Value);
         SKRectI imageRoi = SKRectI.Round(mapped);
         imageRoi.Intersect(fullImageBounds);
-        return imageRoi.IsEmpty ? fullImageBounds : imageRoi;
+        return (imageRoi.IsEmpty) ? fullImageBounds : imageRoi;
     }
 }

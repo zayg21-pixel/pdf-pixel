@@ -4,7 +4,7 @@ using System.Collections.Generic;
 
 namespace PdfPixel.PostScript
 {
-    partial class PostScriptEvaluator
+    public partial class PostScriptEvaluator
     {
         private bool TryProcessCMapOperator(string name, Stack<PostScriptToken> stack)
         {
@@ -106,7 +106,7 @@ namespace PdfPixel.PostScript
 
         private void PushCMapTokensToDictionary(Stack<PostScriptToken> stack, string expectedName, string key)
         {
-            List<PostScriptToken> tokens = new List<PostScriptToken>();
+            List<PostScriptToken> tokens = [];
             while (stack.Count > 0)
             {
                 PostScriptToken token = stack.Pop();
@@ -114,20 +114,21 @@ namespace PdfPixel.PostScript
                 {
                     break;
                 }
+
                 tokens.Add(token);
             }
 
             PostScriptDictionary topDict = _dictStack.Peek();
             topDict.EnsureAccess(PostScriptAccessOperation.Modify);
 
-            var tokenArray = tokens.ToArray();
+            PostScriptToken[] tokenArray = tokens.ToArray();
             Array.Reverse(tokenArray);
-            var groupArray = new PostScriptArray(tokenArray);
+            PostScriptArray groupArray = new(tokenArray);
 
             if (topDict.Entries.TryGetValue(key, out PostScriptToken existingToken) && existingToken is PostScriptArray existingArray)
             {
                 // Merge with existing array of arrays
-                var merged = new List<PostScriptToken>(existingArray.Elements.Length + 1);
+                List<PostScriptToken> merged = new(existingArray.Elements.Length + 1);
                 merged.AddRange(existingArray.Elements);
                 merged.Add(groupArray);
                 topDict.Entries[key] = new PostScriptArray(merged.ToArray());
@@ -144,7 +145,7 @@ namespace PdfPixel.PostScript
         {
             if (dict.Entries.TryGetValue("usecmap", out PostScriptToken existingToken) && existingToken is PostScriptArray existingArray)
             {
-                var merged = new List<PostScriptToken>(existingArray.Elements.Length + 1);
+                List<PostScriptToken> merged = new(existingArray.Elements.Length + 1);
                 merged.AddRange(existingArray.Elements);
                 merged.Add(cmapToken);
                 dict.Entries["usecmap"] = new PostScriptArray(merged.ToArray());

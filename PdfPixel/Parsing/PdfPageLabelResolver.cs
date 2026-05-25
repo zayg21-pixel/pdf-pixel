@@ -1,7 +1,6 @@
 using PdfPixel.Models;
 using PdfPixel.Text;
 using System.Collections.Generic;
-using System.Buffers;
 using System;
 
 namespace PdfPixel.Parsing;
@@ -11,30 +10,33 @@ namespace PdfPixel.Parsing;
 /// </summary>
 public class PdfPageLabelResolver
 {
-    private readonly List<PageLabelEntry> _entries = new();
+    private readonly List<PageLabelEntry> _entries = [];
 
     public PdfPageLabelResolver(PdfDictionary catalog)
     {
-        var pageLabelsObj = catalog.GetObject(PdfTokens.PageLabelsKey);
+        PdfObject pageLabelsObj = catalog.GetObject(PdfTokens.PageLabelsKey);
         if (pageLabelsObj == null)
         {
             return;
         }
-        var numberTree = pageLabelsObj.Dictionary;
-        var nums = numberTree.GetValue(PdfTokens.NumsKey)?.AsArray();
+
+        PdfDictionary numberTree = pageLabelsObj.Dictionary;
+        PdfArray? nums = numberTree.GetValue(PdfTokens.NumsKey)?.AsArray();
         if (nums == null)
         {
             return;
         }
+
         for (int i = 0; i + 1 < nums.Count; i += 2)
         {
             int pageIndex = nums.GetIntegerOrDefault(i);
-            var labelDict = nums.GetObject(i + 1)?.Dictionary;
+            PdfDictionary? labelDict = nums.GetObject(i + 1)?.Dictionary;
             if (labelDict != null)
             {
                 _entries.Add(new PageLabelEntry(pageIndex, labelDict));
             }
         }
+
         _entries.Sort((a, b) => a.PageIndex.CompareTo(b.PageIndex));
     }
 
@@ -47,19 +49,23 @@ public class PdfPageLabelResolver
         {
             return PdfString.FromString((pageIndex + 1).ToString());
         }
+
         PageLabelEntry current = null;
-        foreach (var entry in _entries)
+        foreach (PageLabelEntry entry in _entries)
         {
             if (entry.PageIndex > pageIndex)
             {
                 break;
             }
+
             current = entry;
         }
+
         if (current == null)
         {
             return PdfString.FromString((pageIndex + 1).ToString());
         }
+
         return FormatLabel(current.LabelDict, pageIndex - current.PageIndex);
     }
 
@@ -67,7 +73,7 @@ public class PdfPageLabelResolver
     {
         PdfString prefix = labelDict.GetString(PdfTokens.PrefixKey);
         PdfString styleString = labelDict.GetName(PdfTokens.StyleKey);
-        var style = styleString.AsEnum<PageLabelStyle>();
+        PageLabelStyle style = styleString.AsEnum<PageLabelStyle>();
         int start = labelDict.GetInteger(PdfTokens.StartKey) ?? 1;
         int number = start + index;
         PdfString numStr = style switch
@@ -77,7 +83,7 @@ public class PdfPageLabelResolver
             PageLabelStyle.UpperRoman => PdfString.FromString(ToRoman(number, true)),
             PageLabelStyle.LowerAlpha => PdfString.FromString(ToAlpha(number, false)),
             PageLabelStyle.UpperAlpha => PdfString.FromString(ToAlpha(number, true)),
-            _ => PdfString.FromString(number.ToString()),
+            _ => PdfString.FromString(number.ToString())
         };
         // Concatenate prefix and numStr at the byte level
         if (prefix.IsEmpty)
@@ -90,9 +96,9 @@ public class PdfPageLabelResolver
             return prefix;
         }
 
-        var prefixBytes = prefix.Value.Span;
-        var numBytes = numStr.Value.Span;
-        byte[] result = new byte[prefixBytes.Length + numBytes.Length];
+        ReadOnlySpan<byte> prefixBytes = prefix.Value.Span;
+        ReadOnlySpan<byte> numBytes = numStr.Value.Span;
+        var result = new byte[prefixBytes.Length + numBytes.Length];
         prefixBytes.CopyTo(result);
         numBytes.CopyTo(result.AsSpan().Slice(prefixBytes.Length));
         return new PdfString(result);
@@ -100,7 +106,11 @@ public class PdfPageLabelResolver
 
     private static string ToRoman(int number, bool upper)
     {
-        if (number <= 0) return number.ToString();
+        if (number <= 0)
+        {
+            return number.ToString();
+        }
+
         var numerals = new[]
         {
             new { Value = 1000, Numeral = "M" },
@@ -115,9 +125,9 @@ public class PdfPageLabelResolver
             new { Value = 9, Numeral = "IX" },
             new { Value = 5, Numeral = "V" },
             new { Value = 4, Numeral = "IV" },
-            new { Value = 1, Numeral = "I" },
+            new { Value = 1, Numeral = "I" }
         };
-        var result = string.Empty;
+        string result = string.Empty;
         foreach (var item in numerals)
         {
             while (number >= item.Value)
@@ -126,12 +136,17 @@ public class PdfPageLabelResolver
                 number -= item.Value;
             }
         }
+
         return upper ? result : result.ToLowerInvariant();
     }
 
     private static string ToAlpha(int number, bool upper)
     {
-        if (number <= 0) return number.ToString();
+        if (number <= 0)
+        {
+            return number.ToString();
+        }
+
         string result = string.Empty;
         int n = number;
         while (n > 0)
@@ -140,6 +155,7 @@ public class PdfPageLabelResolver
             result = (char)((upper ? 'A' : 'a') + (n % 26)) + result;
             n /= 26;
         }
+
         return result;
     }
 
@@ -147,6 +163,7 @@ public class PdfPageLabelResolver
     {
         public int PageIndex { get; }
         public PdfDictionary LabelDict { get; }
+
         public PageLabelEntry(int pageIndex, PdfDictionary labelDict)
         {
             PageIndex = pageIndex;

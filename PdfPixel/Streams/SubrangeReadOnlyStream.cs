@@ -12,7 +12,6 @@ namespace PdfPixel.Streams
     {
         private readonly Stream _innerStream;
         private readonly long _subrangeOffset;
-        private readonly long _subrangeLength;
         private readonly bool _leaveOpen;
         private long _position; // Position relative to the subrange start.
         private bool _disposed;
@@ -30,18 +29,22 @@ namespace PdfPixel.Streams
             {
                 throw new ArgumentNullException(nameof(innerStream));
             }
+
             if (!innerStream.CanSeek)
             {
                 throw new ArgumentException("Inner stream must be seekable.", nameof(innerStream));
             }
+
             if (offset < 0)
             {
                 throw new ArgumentOutOfRangeException(nameof(offset));
             }
+
             if (length < 0)
             {
                 throw new ArgumentOutOfRangeException(nameof(length));
             }
+
             if (innerStream.Length - offset < length)
             {
                 throw new ArgumentException("Specified offset and length exceed inner stream bounds.");
@@ -49,7 +52,7 @@ namespace PdfPixel.Streams
 
             _innerStream = innerStream;
             _subrangeOffset = offset;
-            _subrangeLength = length;
+            Length = length;
             _leaveOpen = leaveOpen;
             _position = 0;
         }
@@ -57,18 +60,15 @@ namespace PdfPixel.Streams
         /// <summary>
         /// Gets the total length of the subrange window.
         /// </summary>
-        public override long Length
-        {
-            get { return _subrangeLength; }
-        }
+        public override long Length { get; }
 
         /// <summary>
         /// Gets or sets the current position within the subrange (0..Length).
         /// </summary>
         public override long Position
         {
-            get { return _position; }
-            set { Seek(value, SeekOrigin.Begin); }
+            get => _position;
+            set => Seek(value, SeekOrigin.Begin);
         }
 
         /// <summary>
@@ -76,7 +76,10 @@ namespace PdfPixel.Streams
         /// </summary>
         public override bool CanRead
         {
-            get { return !_disposed && _innerStream.CanRead; }
+            get
+            {
+                return !_disposed && _innerStream.CanRead;
+            }
         }
 
         /// <summary>
@@ -84,7 +87,10 @@ namespace PdfPixel.Streams
         /// </summary>
         public override bool CanSeek
         {
-            get { return !_disposed && _innerStream.CanSeek; }
+            get
+            {
+                return !_disposed && _innerStream.CanSeek;
+            }
         }
 
         /// <summary>
@@ -92,7 +98,10 @@ namespace PdfPixel.Streams
         /// </summary>
         public override bool CanWrite
         {
-            get { return false; }
+            get
+            {
+                return false;
+            }
         }
 
         /// <summary>
@@ -116,24 +125,28 @@ namespace PdfPixel.Streams
             {
                 throw new ObjectDisposedException(nameof(SubrangeReadOnlyStream));
             }
+
             if (buffer == null)
             {
                 throw new ArgumentNullException(nameof(buffer));
             }
+
             if (offset < 0 || count < 0 || offset + count > buffer.Length)
             {
                 throw new ArgumentOutOfRangeException("Invalid buffer offset/count.");
             }
+
             if (count == 0)
             {
                 return 0;
             }
-            if (_position >= _subrangeLength)
+
+            if (_position >= Length)
             {
                 return 0; // EOF of subrange.
             }
 
-            long remaining = _subrangeLength - _position;
+            long remaining = Length - _position;
             if (count > remaining)
             {
                 count = (int)remaining;
@@ -179,7 +192,7 @@ namespace PdfPixel.Streams
                 }
                 case SeekOrigin.End:
                 {
-                    newPos = _subrangeLength + offset;
+                    newPos = Length + offset;
                     break;
                 }
                 default:
@@ -192,7 +205,8 @@ namespace PdfPixel.Streams
             {
                 throw new IOException("Cannot seek before subrange start.");
             }
-            if (newPos > _subrangeLength)
+
+            if (newPos > Length)
             {
                 throw new IOException("Cannot seek beyond subrange end.");
             }
@@ -204,18 +218,12 @@ namespace PdfPixel.Streams
         /// <summary>
         /// Setting length is not supported for a fixed read-only subrange.
         /// </summary>
-        public override void SetLength(long value)
-        {
-            throw new NotSupportedException("SubrangeReadOnlyStream is fixed-length and read-only.");
-        }
+        public override void SetLength(long value) => throw new NotSupportedException("SubrangeReadOnlyStream is fixed-length and read-only.");
 
         /// <summary>
         /// Writing is not supported.
         /// </summary>
-        public override void Write(byte[] buffer, int offset, int count)
-        {
-            throw new NotSupportedException("SubrangeReadOnlyStream is read-only.");
-        }
+        public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException("SubrangeReadOnlyStream is read-only.");
 
         protected override void Dispose(bool disposing)
         {
@@ -225,8 +233,10 @@ namespace PdfPixel.Streams
                 {
                     _innerStream.Dispose();
                 }
+
                 _disposed = true;
             }
+
             base.Dispose(disposing);
         }
     }

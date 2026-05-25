@@ -55,8 +55,8 @@ internal sealed class PdfImageRowProcessor : IDisposable
         _parameters = parameters ?? throw new ArgumentNullException(nameof(parameters));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
-        var sourceWidth = parameters.Width;
-        var sourceHeight = parameters.Height;
+        int sourceWidth = parameters.Width;
+        int sourceHeight = parameters.Height;
         _bitsPerComponent = parameters.BitsPerComponent;
         _converter = parameters.ColorSpaceConverter ?? throw new InvalidOperationException("Color space converter must not be null for row processing.");
 
@@ -64,6 +64,7 @@ internal sealed class PdfImageRowProcessor : IDisposable
         {
             throw new ArgumentException("Image dimensions must be positive.");
         }
+
         if (_bitsPerComponent > 16)
         {
             throw new NotSupportedException($"Row processor supports up to 16 bits per component (got {_bitsPerComponent}).");
@@ -113,7 +114,7 @@ internal sealed class PdfImageRowProcessor : IDisposable
         }
 
         _maxCode = (1 << _bitsPerComponent) - 1;
-        _scale = _converter is IndexedConverter ? 1f : 1f / _maxCode;
+        _scale = (_converter is IndexedConverter) ? 1f : 1f / _maxCode;
         _applyDecode = _parameters.DecodeArray != null && _parameters.DecodeArray.Length == _components * 2;
         _decodeArray = _parameters.DecodeArray;
         _applyMask = _parameters.MaskArray != null && _parameters.MaskArray.Length == _components * 2;
@@ -127,7 +128,7 @@ internal sealed class PdfImageRowProcessor : IDisposable
             return null;
         }
 
-        var sampler = parameters.ColorSpaceConverter.GetRgbaSampler(parameters.RenderingIntent, parameters.Context.FullTransferFunction);
+        ColorTransformSampler sampler = parameters.ColorSpaceConverter.GetRgbaSampler(parameters.RenderingIntent, parameters.Context.FullTransferFunction);
         int maxCode = (1 << outputBitsPerComponent) - 1;
         int paletteSize = maxCode + 1;
         var palette = new RgbaPacked[paletteSize];
@@ -135,9 +136,9 @@ internal sealed class PdfImageRowProcessor : IDisposable
 
         for (int code = 0; code < paletteSize; code++)
         {
-            float value01 = maxCode == 0 ? 0f : (float)code / maxCode;
+            float value01 = (maxCode == 0) ? 0f : (float)code / maxCode;
             comps[0] = value01;
-            palette[code] = ColorVectorUtilities.From01ToRgba(sampler.Sample(comps));
+            palette[code] = sampler.Sample(comps).From01ToRgba();
         }
 
         return palette;
@@ -145,7 +146,7 @@ internal sealed class PdfImageRowProcessor : IDisposable
 
     public static bool ShouldConvertColor(PdfImageRowDecodingParameters parameters)
     {
-        var converter = parameters.ColorSpaceConverter;
+        PdfColorSpaceConverter converter = parameters.ColorSpaceConverter;
 
         if (converter == null)
         {
@@ -212,8 +213,10 @@ internal sealed class PdfImageRowProcessor : IDisposable
         switch (_outputMode)
         {
             case OutputMode.RgbaColorApplied:
-                _rgbaBuffer = new byte[_width * 4];
-                break;
+                {
+                    _rgbaBuffer = new byte[_width * 4];
+                    break;
+                }
             case OutputMode.Default:
                 break;
         }
@@ -221,7 +224,7 @@ internal sealed class PdfImageRowProcessor : IDisposable
         if (_rowConverter != null)
         {
             int outputBitsPerComponent = _rowConverter.BitsPerComponent;
-            int outLen = (_width * _components * outputBitsPerComponent + 7) / 8;
+            int outLen = ((_width * _components * outputBitsPerComponent) + 7) / 8;
             _convertedRowBuffer = new byte[outLen];
         }
 
@@ -229,37 +232,40 @@ internal sealed class PdfImageRowProcessor : IDisposable
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public void WriteRow(int rowIndex, Span<byte> decodedRow)
+    public void WriteRow(int rowIndex, in Span<byte> decodedRow)
     {
         if (!_initialized)
         {
             throw new InvalidOperationException("InitializeBuffer must be called before WriteRow.");
         }
 
+        Span<byte> decodedRowLocal = decodedRow;
+
         if (_rowConverter != null)
         {
-            if (!_rowConverter.TryConvertRow(rowIndex, decodedRow, _convertedRowBuffer))
+            if (!_rowConverter.TryConvertRow(rowIndex, decodedRowLocal, _convertedRowBuffer))
             {
                 return;
             }
-            decodedRow = _convertedRowBuffer;
+
+            decodedRowLocal = _convertedRowBuffer;
         }
 
         if (_outputMode == OutputMode.RgbaColorApplied)
         {
-            WriteWithFullColor(rowIndex, decodedRow);
+            WriteWithFullColor(rowIndex, decodedRowLocal);
             return;
         }
 
-        _pngBuilder.WritePngImageRow(decodedRow);
+        _pngBuilder.WritePngImageRow(decodedRowLocal);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private void WriteWithFullColor(int rowIndex, Span<byte> decodedRow)
+    private void WriteWithFullColor(int rowIndex, in Span<byte> decodedRow)
     {
         ref byte destRowByte = ref _rgbaBuffer[0];
         ref RgbaPacked destRowColor = ref Unsafe.As<byte, RgbaPacked>(ref destRowByte);
-        var bitReader = new UintBitReaderFixedLength(decodedRow, _bitsPerComponent);
+        UintBitReaderFixedLength bitReader = new(decodedRow, _bitsPerComponent);
 
         Span<float> componentValues = stackalloc float[_components];
 
@@ -274,7 +280,7 @@ internal sealed class PdfImageRowProcessor : IDisposable
                 if (_applyMask && maskMatch)
                 {
                     int minCode = _maskArray[c * 2];
-                    int maxCodeRange = _maskArray[c * 2 + 1];
+                    int maxCodeRange = _maskArray[(c * 2) + 1];
 
                     if (sample < minCode || sample > maxCodeRange)
                     {
@@ -289,13 +295,14 @@ internal sealed class PdfImageRowProcessor : IDisposable
                     int di = c * 2;
                     float dMin = _decodeArray[di];
                     float dMax = _decodeArray[di + 1];
-                    value01 = dMin + value01 * (dMax - dMin);
+                    value01 = dMin + (value01 * (dMax - dMin));
                 }
 
                 componentValues[c] = value01;
             }
+
             ref RgbaPacked destinationPixel = ref Unsafe.Add(ref destRowColor, x);
-            var colorVector = _sampler.Sample(componentValues);
+            System.Numerics.Vector4 colorVector = _sampler.Sample(componentValues);
             ColorVectorUtilities.Load01ToRgba(colorVector, ref destinationPixel);
 
             if (_applyMask && maskMatch)
@@ -316,6 +323,7 @@ internal sealed class PdfImageRowProcessor : IDisposable
         {
             throw new InvalidOperationException("InitializeBuffer must be called before GetSkImage.");
         }
+
         if (_completed)
         {
             throw new InvalidOperationException("GetSkImage already called.");
@@ -326,8 +334,5 @@ internal sealed class PdfImageRowProcessor : IDisposable
         return _pngBuilder.Build();
     }
 
-    public void Dispose()
-    {
-        _pngBuilder.Dispose();
-    }
+    public void Dispose() => _pngBuilder.Dispose();
 }

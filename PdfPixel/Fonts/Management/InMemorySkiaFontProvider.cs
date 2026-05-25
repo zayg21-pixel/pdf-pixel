@@ -12,9 +12,9 @@ namespace PdfPixel.Fonts.Management;
 /// </summary>
 public sealed class InMemorySkiaFontProvider : ISkiaFontProvider
 {
-    private readonly Dictionary<PdfStandardFontName, SKTypeface> _standardFonts = new();
+    private readonly Dictionary<PdfStandardFontName, SKTypeface> _standardFonts = [];
     private readonly Dictionary<string, SKTypeface> _namedFonts = new(StringComparer.OrdinalIgnoreCase);
-    private readonly HashSet<SKTypeface> _ownedTypefaces = new();
+    private readonly HashSet<SKTypeface> _ownedTypefaces = [];
     private SKTypeface _fallback;
 
     /// <summary>
@@ -32,7 +32,7 @@ public sealed class InMemorySkiaFontProvider : ISkiaFontProvider
         { PdfStandardFontName.CourierNew, ["Courier New"] },
         { PdfStandardFontName.CourierNewPS, ["CourierNewPS", "CourierNewPSMT"] },
         { PdfStandardFontName.Symbol, ["Symbol"] },
-        { PdfStandardFontName.ZapfDingbats, ["ZapfDingbats"] },
+        { PdfStandardFontName.ZapfDingbats, ["ZapfDingbats"] }
     };
 
     /// <summary>
@@ -44,7 +44,7 @@ public sealed class InMemorySkiaFontProvider : ISkiaFontProvider
     /// <param name="fontData">Raw font file bytes (TTF, OTF, etc.).</param>
     public void RegisterStandardFont(PdfStandardFontName standardFont, byte[] fontData)
     {
-        var typeface = SKTypeface.FromStream(new MemoryStream(fontData));
+        SKTypeface typeface = SKTypeface.FromStream(new MemoryStream(fontData));
         if (typeface == null)
         {
             return;
@@ -60,7 +60,7 @@ public sealed class InMemorySkiaFontProvider : ISkiaFontProvider
         }
 
         // Register by well-known display names that PDFs commonly reference
-        if (StandardFontDisplayNames.TryGetValue(standardFont, out var displayNames))
+        if (StandardFontDisplayNames.TryGetValue(standardFont, out string[] displayNames))
         {
             for (int i = 0; i < displayNames.Length; i++)
             {
@@ -75,7 +75,7 @@ public sealed class InMemorySkiaFontProvider : ISkiaFontProvider
     /// <inheritdoc/>
     public SKTypeface GetStandardFont(PdfStandardFontName standardFont, SKFontStyle style, string unicode)
     {
-        if (_standardFonts.TryGetValue(standardFont, out var typeface))
+        if (_standardFonts.TryGetValue(standardFont, out SKTypeface typeface))
         {
             if (unicode == null || typeface.ContainsGlyphs(unicode))
             {
@@ -89,7 +89,7 @@ public sealed class InMemorySkiaFontProvider : ISkiaFontProvider
     /// <inheritdoc/>
     public SKTypeface GetFont(string name, SKFontStyle style, string unicode)
     {
-        if (!string.IsNullOrEmpty(name) && _namedFonts.TryGetValue(name, out var typeface))
+        if (!string.IsNullOrEmpty(name) && _namedFonts.TryGetValue(name, out SKTypeface typeface))
         {
             if (unicode == null || typeface.ContainsGlyphs(unicode))
             {
@@ -105,7 +105,7 @@ public sealed class InMemorySkiaFontProvider : ISkiaFontProvider
     /// </summary>
     public void Dispose()
     {
-        foreach (var typeface in _ownedTypefaces)
+        foreach (SKTypeface typeface in _ownedTypefaces)
         {
             typeface.Dispose();
         }

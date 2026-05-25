@@ -11,50 +11,50 @@ namespace PdfPixel.Fonts.Mapping;
 /// </summary>
 public static class PdfToUnicodeMapProvider
 {
-    private static readonly Lazy<Dictionary<uint, string>> _japanToUnicode = new Lazy<Dictionary<uint, string>>(() =>
+    private static readonly Lazy<Dictionary<uint, string>> _japanToUnicode = new(() =>
     {
-        var resource = PdfResourceLoader.GetResource("External.AdobeJapanEncodings.bin");
-        var dict = new Dictionary<uint, string>();
+        byte[] resource = PdfResourceLoader.GetResource("External.AdobeJapanEncodings.bin");
+        Dictionary<uint, string> dict = [];
         PdfTextResourceConverter.ReadFromCidToUnicodeMapBlob(resource, dict);
         return dict;
     });
 
-    private static readonly Lazy<Dictionary<uint, string>> _cnsToUnicode = new Lazy<Dictionary<uint, string>>(() =>
+    private static readonly Lazy<Dictionary<uint, string>> _cnsToUnicode = new(() =>
     {
-        var resource = PdfResourceLoader.GetResource("External.AdobeCnsEncodings.bin");
-        var dict = new Dictionary<uint, string>();
+        byte[] resource = PdfResourceLoader.GetResource("External.AdobeCnsEncodings.bin");
+        Dictionary<uint, string> dict = [];
         PdfTextResourceConverter.ReadFromCidToUnicodeMapBlob(resource, dict);
         return dict;
     });
 
-    private static readonly Lazy<Dictionary<uint, string>> _gbToUnicode = new Lazy<Dictionary<uint, string>>(() =>
+    private static readonly Lazy<Dictionary<uint, string>> _gbToUnicode = new(() =>
     {
-        var resource = PdfResourceLoader.GetResource("External.AdobeGbEncodings.bin");
-        var dict = new Dictionary<uint, string>();
+        byte[] resource = PdfResourceLoader.GetResource("External.AdobeGbEncodings.bin");
+        Dictionary<uint, string> dict = [];
         PdfTextResourceConverter.ReadFromCidToUnicodeMapBlob(resource, dict);
         return dict;
     });
 
-    private static readonly Lazy<Dictionary<uint, string>> _koreaToUnicode = new Lazy<Dictionary<uint, string>>(() =>
+    private static readonly Lazy<Dictionary<uint, string>> _koreaToUnicode = new(() =>
     {
-        var resource = PdfResourceLoader.GetResource("External.AdobeKoreaEncodings.bin");
-        var dict = new Dictionary<uint, string>();
+        byte[] resource = PdfResourceLoader.GetResource("External.AdobeKoreaEncodings.bin");
+        Dictionary<uint, string> dict = [];
         PdfTextResourceConverter.ReadFromCidToUnicodeMapBlob(resource, dict);
         return dict;
     });
 
-    private static readonly Lazy<Dictionary<uint, string>> _krToUnicode = new Lazy<Dictionary<uint, string>>(() =>
+    private static readonly Lazy<Dictionary<uint, string>> _krToUnicode = new(() =>
     {
-        var resource = PdfResourceLoader.GetResource("External.AdobeKrEncodings.bin");
-        var dict = new Dictionary<uint, string>();
+        byte[] resource = PdfResourceLoader.GetResource("External.AdobeKrEncodings.bin");
+        Dictionary<uint, string> dict = [];
         PdfTextResourceConverter.ReadFromCidToUnicodeMapBlob(resource, dict);
         return dict;
     });
 
-    private static readonly Lazy<Dictionary<uint, string>> _mangaToUnicode = new Lazy<Dictionary<uint, string>>(() =>
+    private static readonly Lazy<Dictionary<uint, string>> _mangaToUnicode = new(() =>
     {
-        var resource = PdfResourceLoader.GetResource("External.AdobeMangaEncodings.bin");
-        var dict = new Dictionary<uint, string>();
+        byte[] resource = PdfResourceLoader.GetResource("External.AdobeMangaEncodings.bin");
+        Dictionary<uint, string> dict = [];
         PdfTextResourceConverter.ReadFromCidToUnicodeMapBlob(resource, dict);
         return dict;
     });
@@ -71,44 +71,44 @@ public static class PdfToUnicodeMapProvider
             return null;
         }
 
-        var ordering = cidSystemInfo.Ordering.Value.Span;
+        ReadOnlySpan<byte> ordering = cidSystemInfo.Ordering.Value.Span;
 
-        var japanPrefix = "Japan"u8;
+        ReadOnlySpan<byte> japanPrefix = "Japan"u8;
 
         if (ordering.Length >= japanPrefix.Length && ordering.Slice(0, japanPrefix.Length).SequenceEqual(japanPrefix))
         {
             return _japanToUnicode.Value;
         }
 
-        var cnsPrefix = "CNS"u8;
+        ReadOnlySpan<byte> cnsPrefix = "CNS"u8;
 
         if (ordering.Length >= cnsPrefix.Length && ordering.Slice(0, cnsPrefix.Length).SequenceEqual(cnsPrefix))
         {
             return _cnsToUnicode.Value;
         }
 
-        var gbPrefix = "GB"u8;
+        ReadOnlySpan<byte> gbPrefix = "GB"u8;
 
         if (ordering.Length >= gbPrefix.Length && ordering.Slice(0, gbPrefix.Length).SequenceEqual(gbPrefix))
         {
             return _gbToUnicode.Value;
         }
 
-        var koreaPrefix = "Korea"u8;
+        ReadOnlySpan<byte> koreaPrefix = "Korea"u8;
 
         if (ordering.Length >= koreaPrefix.Length && ordering.Slice(0, koreaPrefix.Length).SequenceEqual(koreaPrefix))
         {
             return _koreaToUnicode.Value;
         }
 
-        var krPrefix = "KR"u8;
+        ReadOnlySpan<byte> krPrefix = "KR"u8;
 
         if (ordering.Length >= krPrefix.Length && ordering.Slice(0, krPrefix.Length).SequenceEqual(krPrefix))
         {
             return _krToUnicode.Value;
         }
 
-        var mangaPrevix = "Manga"u8;
+        ReadOnlySpan<byte> mangaPrevix = "Manga"u8;
 
         if (ordering.Length >= mangaPrevix.Length && ordering.Slice(0, mangaPrevix.Length).SequenceEqual(mangaPrevix))
         {

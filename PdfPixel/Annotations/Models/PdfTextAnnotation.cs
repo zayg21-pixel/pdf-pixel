@@ -12,7 +12,7 @@ namespace PdfPixel.Annotations.Models;
 /// </summary>
 /// <remarks>
 /// Text annotations represent "sticky notes" attached to a point in the PDF document.
-/// When closed, they appear as an icon; when open, they display a pop-up window 
+/// When closed, they appear as an icon; when open, they display a pop-up window
 /// containing the text of the note in a font and size chosen by the conforming reader.
 /// </remarks>
 public class PdfTextAnnotation : PdfAnnotationBase
@@ -21,7 +21,7 @@ public class PdfTextAnnotation : PdfAnnotationBase
     /// Initializes a new instance of the <see cref="PdfTextAnnotation"/> class.
     /// </summary>
     /// <param name="annotationObject">The PDF object representing this text annotation.</param>
-    public PdfTextAnnotation(PdfObject annotationObject) 
+    public PdfTextAnnotation(PdfObject annotationObject)
         : base(annotationObject, PdfAnnotationSubType.Text)
     {
         // Initialize all text annotation specific properties
@@ -46,10 +46,7 @@ public class PdfTextAnnotation : PdfAnnotationBase
 
     public override bool ShouldDisplayBubble => false;
 
-    public override SKRect GetHoverRectangle(IPdfPage page, float defaultBubbleSize = 16)
-    {
-        return Rectangle;
-    }
+    public override SKRect GetHoverRectangle(IPdfPage page, float defaultBubbleSize = 16) => Rectangle;
 
     /// <summary>
     /// Gets the state model corresponding to a change in the annotation's state.
@@ -80,13 +77,13 @@ public class PdfTextAnnotation : PdfAnnotationBase
     /// <returns>A string containing the annotation type and contents.</returns>
     public override string ToString()
     {
-        var contentsText = Contents.ToString();
-        
+        string contentsText = Contents.ToString();
+
         if (!string.IsNullOrEmpty(contentsText))
         {
             return $"Text Annotation ({Icon}): {contentsText}";
         }
-        
+
         return $"Text Annotation ({Icon})";
     }
 }

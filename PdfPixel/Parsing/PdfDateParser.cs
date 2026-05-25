@@ -15,6 +15,7 @@ internal static class PdfDateParser
     /// <param name="pdfString">The PDF string containing the date.</param>
     /// <returns>The parsed DateTime, or null if parsing fails or the string is empty.</returns>
     /// <remarks>
+    /// <para>
     /// PDF dates follow the format: D:YYYYMMDDHHmmSSOHH'mm
     /// Where:
     /// - YYYY is the year
@@ -25,17 +26,17 @@ internal static class PdfDateParser
     /// - SS is the second (00-59)
     /// - O is '+', '-', or 'Z' for timezone offset
     /// - HH'mm is the timezone offset hours and minutes
-    /// 
-    /// Trailing components may be omitted, e.g., D:2023 or D:20231225
+    /// </para>
+    /// <para>Trailing components may be omitted, e.g., D:2023 or D:20231225</para>
     /// </remarks>
-    public static DateTime? ParsePdfDate(PdfString pdfString)
+    public static DateTime? ParsePdfDate(in PdfString pdfString)
     {
         if (pdfString.IsEmpty)
         {
             return null;
         }
 
-        var dateString = pdfString.ToString();
+        string dateString = pdfString.ToString();
 
         // Must start with "D:"
         if (!dateString.StartsWith("D:"))
@@ -43,13 +44,13 @@ internal static class PdfDateParser
             return null;
         }
 
-        var dateContent = dateString.Substring(2); // Remove "D:" prefix
+        string dateContent = dateString.Substring(2); // Remove "D:" prefix
 
         // Pad with defaults for missing components: D:YYYY -> D:YYYY0101000000
-        var paddedDate = dateContent.PadRight(14, '0');
-        
+        string paddedDate = dateContent.PadRight(14, '0');
+
         // If we have timezone info, preserve it
-        string timezonePart = "";
+        string timezonePart = string.Empty;
         if (dateContent.Length > 14)
         {
             timezonePart = dateContent.Substring(14);
@@ -58,15 +59,15 @@ internal static class PdfDateParser
         // Convert PDF timezone format +05'30 to standard +0530
         if (timezonePart.Length >= 6 && timezonePart.Contains("'"))
         {
-            timezonePart = timezonePart.Replace("'", "");
+            timezonePart = timezonePart.Replace("'", string.Empty);
         }
 
-        var fullDateString = paddedDate + timezonePart;
+        string fullDateString = paddedDate + timezonePart;
 
         // Try to parse with timezone first
         if (timezonePart.Length > 0)
         {
-            string format = timezonePart == "Z" ? "yyyyMMddHHmmss'Z'" : "yyyyMMddHHmmsszzz";
+            string format = (timezonePart == "Z") ? "yyyyMMddHHmmss'Z'" : "yyyyMMddHHmmsszzz";
             if (DateTime.TryParseExact(fullDateString, format, CultureInfo.InvariantCulture, DateTimeStyles.None, out DateTime resultWithTz))
             {
                 return resultWithTz.ToUniversalTime();

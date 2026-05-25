@@ -29,17 +29,17 @@ internal partial class PdfShadingBuilder
             return null;
         }
 
-        SKPoint start = new SKPoint(shading.Coords[0], shading.Coords[1]);
-        SKPoint end = new SKPoint(shading.Coords[2], shading.Coords[3]);
+        SKPoint start = new(shading.Coords[0], shading.Coords[1]);
+        SKPoint end = new(shading.Coords[2], shading.Coords[3]);
 
-        using var shader = SKShader.CreateLinearGradient(
+        using SKShader shader = SKShader.CreateLinearGradient(
             start,
             end,
             colors,
             positions,
             SKShaderTileMode.Clamp);
 
-        var paint = PdfPaintFactory.CreateShaderPaint();
+        SKPaint paint = PdfPaintFactory.CreateShaderPaint();
         paint.Shader = shader;
 
         return paint;
@@ -61,8 +61,8 @@ internal partial class PdfShadingBuilder
             return null;
         }
 
-        SKPoint center0 = new SKPoint(shading.Coords[0], shading.Coords[1]);
-        SKPoint center1 = new SKPoint(shading.Coords[3], shading.Coords[4]);
+        SKPoint center0 = new(shading.Coords[0], shading.Coords[1]);
+        SKPoint center1 = new(shading.Coords[3], shading.Coords[4]);
         float r0 = shading.Coords[2];
         float r1 = shading.Coords[5];
 
@@ -72,33 +72,37 @@ internal partial class PdfShadingBuilder
         float reversedR0 = r1;
         float reversedR1 = r0;
 
-        var reversedColors = colors.AsEnumerable().Reverse().ToArray();
-        var reversedPositions = positions.AsEnumerable().Reverse().ToArray();
+        SKColor[] reversedColors = colors.AsEnumerable().Reverse().ToArray();
+        float[] reversedPositions = positions.AsEnumerable().Reverse().ToArray();
 
         for (int i = 0; i < reversedPositions.Length; i++)
         {
             reversedPositions[i] = 1 - reversedPositions[i];
         }
 
-        using var reversedShader = SKShader.CreateTwoPointConicalGradient(
-            reversedCenter0, reversedR0,
-            reversedCenter1, reversedR1,
+        using SKShader reversedShader = SKShader.CreateTwoPointConicalGradient(
+            reversedCenter0,
+            reversedR0,
+            reversedCenter1,
+            reversedR1,
             reversedColors,
             reversedPositions,
             SKShaderTileMode.Clamp);
 
-        var innerPaint = PdfPaintFactory.CreateShaderPaint();
+        SKPaint innerPaint = PdfPaintFactory.CreateShaderPaint();
         innerPaint.Shader = reversedShader;
 
         // Outer surface
-        using var shader = SKShader.CreateTwoPointConicalGradient(
-            center0, r0,
-            center1, r1,
+        using SKShader shader = SKShader.CreateTwoPointConicalGradient(
+            center0,
+            r0,
+            center1,
+            r1,
             colors,
             positions,
             SKShaderTileMode.Clamp);
 
-        var outerPaint = PdfPaintFactory.CreateShaderPaint();
+        SKPaint outerPaint = PdfPaintFactory.CreateShaderPaint();
         outerPaint.Shader = shader;
 
         return new RadialShadingPaints(innerPaint, outerPaint);
@@ -126,7 +130,7 @@ internal partial class PdfShadingBuilder
     {
         float domainStart = 0f;
         float domainEnd = 1f;
-        if (shading.Domain != null && shading.Domain.Length >= 2)
+        if (shading.Domain?.Length >= 2)
         {
             domainStart = shading.Domain[0];
             domainEnd = shading.Domain[1];
@@ -151,21 +155,21 @@ internal partial class PdfShadingBuilder
             {
                 float x = sampleXs[i];
                 float t = (x - domainStart) / domainLength;
-                var comps = PdfFunctions.EvaluateColorFunctions(shading.Functions, x);
+                ReadOnlySpan<float> comps = PdfFunctions.EvaluateColorFunctions(shading.Functions, x);
                 colors[i] = converter.ToSrgb(comps, renderingIntent, fullTransferFunction);
                 positions[i] = t;
             }
         }
         else
         {
-            colors = [SKColors.Black, SKColors.White];
-            positions = [0f, 1f];
+            colors = new SKColor[] { SKColors.Black, SKColors.White };
+            positions = new float[] { 0f, 1f };
         }
 
         if (!shading.ExtendEnd || !shading.ExtendStart)
         {
-            var listPositions = new List<float>(positions);
-            var listColors = new List<SKColor>(colors);
+            List<float> listPositions = new(positions);
+            List<SKColor> listColors = new(colors);
 
             if (!shading.ExtendStart)
             {

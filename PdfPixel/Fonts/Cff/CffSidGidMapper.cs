@@ -19,10 +19,7 @@ internal class CffSidGidMapper
 
     private readonly ILogger<CffSidGidMapper> _logger;
 
-    public CffSidGidMapper(ILoggerFactory loggerFactory)
-    {
-        _logger = loggerFactory.CreateLogger<CffSidGidMapper>();
-    }
+    public CffSidGidMapper(ILoggerFactory loggerFactory) => _logger = loggerFactory.CreateLogger<CffSidGidMapper>();
 
     /// <summary>
     /// Attempt to parse a name-keyed (non-CID) CFF font and produce glyph mapping metadata.
@@ -31,14 +28,14 @@ internal class CffSidGidMapper
     /// <param name="cffDataMemory">Raw CFF table bytes.</param>
     /// <param name="info">Resulting mapping information.</param>
     /// <returns>True if parsing succeeded, false otherwise.</returns>
-    public bool TryParseNameKeyed(ReadOnlyMemory<byte> cffDataMemory, out CffInfo info)
+    public bool TryParseNameKeyed(in ReadOnlyMemory<byte> cffDataMemory, out CffInfo info)
     {
-        var cffBytes = cffDataMemory;
+        ReadOnlyMemory<byte> cffBytes = cffDataMemory;
         info = null;
 
         try
         {
-            var reader = new CffDataReader(cffBytes.Span);
+            CffDataReader reader = new(cffBytes.Span);
 
             // Header
             if (!reader.TryReadByte(out _))
@@ -46,16 +43,19 @@ internal class CffSidGidMapper
                 _logger.LogWarning("Failed to read CFF header: missing major version byte.");
                 return false; // major
             }
+
             if (!reader.TryReadByte(out _))
             {
                 _logger.LogWarning("Failed to read CFF header: missing minor version byte.");
                 return false; // minor
             }
+
             if (!reader.TryReadByte(out byte headerSize))
             {
                 _logger.LogWarning("Failed to read CFF header: missing header size byte.");
                 return false;
             }
+
             if (!reader.TryReadByte(out _))
             {
                 _logger.LogWarning("Failed to read CFF header: missing offSize byte.");
@@ -77,6 +77,7 @@ internal class CffSidGidMapper
                 _logger.LogWarning("Failed to read CFF Top DICT INDEX.");
                 return false;
             }
+
             if (topDictCount < 1)
             {
                 _logger.LogWarning("CFF Top DICT INDEX contains no dictionaries.");
@@ -89,16 +90,17 @@ internal class CffSidGidMapper
             }
 
             // Use first Top DICT
-            var topDictStart = topDictDataStart + (topDictOffsets[0] - 1);
-            var topDictEnd = topDictDataStart + (topDictOffsets[1] - 1);
+            int topDictStart = topDictDataStart + (topDictOffsets[0] - 1);
+            int topDictEnd = topDictDataStart + (topDictOffsets[1] - 1);
             if (topDictStart < 0 || topDictEnd > cffBytes.Length || topDictEnd <= topDictStart)
             {
                 _logger.LogWarning("Invalid Top DICT range: start={TopDictStart}, end={TopDictEnd}, length={CffLength}.", topDictStart, topDictEnd, cffBytes.Length);
                 return false;
             }
-            var topDictBytes = cffBytes.Slice(topDictStart, topDictEnd - topDictStart);
 
-            var topDictReader = new CffTopDictReader();
+            ReadOnlyMemory<byte> topDictBytes = cffBytes.Slice(topDictStart, topDictEnd - topDictStart);
+
+            CffTopDictReader topDictReader = new();
             CffTopDictData topDictData = topDictReader.ParseTopDict(topDictBytes.Span);
 
             if (!topDictData.CharStringsOffset.HasValue || topDictData.CharStringsOffset.Value >= cffBytes.Length)
@@ -108,15 +110,13 @@ internal class CffSidGidMapper
             }
 
             // CharStrings INDEX (determine glyph count)
-            var charStringsReader = new CffDataReader(cffBytes.Span)
-            {
-                Position = topDictData.CharStringsOffset.Value
-            };
+            CffDataReader charStringsReader = new(cffBytes.Span) { Position = topDictData.CharStringsOffset.Value };
             if (!CffIndexReader.TryReadIndex(ref charStringsReader, out int glyphCount, out _, out int[] _, out _))
             {
                 _logger.LogWarning("Failed to read CharStrings INDEX.");
                 return false;
             }
+
             if (glyphCount <= 0)
             {
                 _logger.LogWarning("CharStrings INDEX contains no glyphs.");
@@ -132,8 +132,8 @@ internal class CffSidGidMapper
                 int privateDictSize = topDictData.PrivateDictSize.Value;
                 if (privateDictStart >= 0 && privateDictStart + privateDictSize <= cffBytes.Length)
                 {
-                    var privateDictBytes = cffBytes.Slice(privateDictStart, privateDictSize);
-                    var privateDictParser = new CffPrivateDictParser();
+                    ReadOnlyMemory<byte> privateDictBytes = cffBytes.Slice(privateDictStart, privateDictSize);
+                    CffPrivateDictParser privateDictParser = new();
                     CffPrivateDictData privateDictData = privateDictParser.ParsePrivateDict(privateDictBytes.Span);
 
                     defaultWidthX = privateDictData.DefaultWidthX ?? 0;
@@ -142,7 +142,7 @@ internal class CffSidGidMapper
             }
 
             // Parse charstring metrics
-            var metricsParser = new CffCharStringMetricsParser();
+            CffCharStringMetricsParser metricsParser = new();
             if (!metricsParser.TryParseCharStringMetrics(cffBytes.Span, topDictData.CharStringsOffset.Value, glyphCount, out CffCharacterMetrics[] charMetrics))
             {
                 _logger.LogWarning("Failed to parse charstring metrics.");
@@ -151,7 +151,7 @@ internal class CffSidGidMapper
 
             // Get font matrix for width transformation
             double fontMatrixScaleX = 0.001;
-            if (topDictData.FontMatrix != null && topDictData.FontMatrix.Length >= 1)
+            if (topDictData.FontMatrix?.Length >= 1)
             {
                 fontMatrixScaleX = (double)topDictData.FontMatrix[0];
             }
@@ -176,7 +176,7 @@ internal class CffSidGidMapper
             // Charset -> SID list
             // Per CFF spec, default charset offset is 0 (ISOAdobe) when not explicitly specified.
             int charsetOffset = topDictData.CharsetOffset ?? 0;
-            var charsetParser = new CffCharsetParser();
+            CffCharsetParser charsetParser = new();
             if (!charsetParser.TryParseCharset(cffBytes.Span, charsetOffset, glyphCount, out ushort[] sidByGlyph))
             {
                 _logger.LogWarning("Failed to parse CFF charset at offset {CharsetOffset}.", charsetOffset);
@@ -184,15 +184,13 @@ internal class CffSidGidMapper
             }
 
             // String INDEX (custom strings after StandardStrings)
-            var stringIndexReader = new CffDataReader(cffBytes.Span)
-            {
-                Position = stringIndexStart
-            };
+            CffDataReader stringIndexReader = new(cffBytes.Span) { Position = stringIndexStart };
             if (!CffIndexReader.TryReadIndex(ref stringIndexReader, out int stringIndexCount, out int stringIndexDataStart, out int[] stringIndexOffsets, out _))
             {
                 _logger.LogWarning("Failed to read CFF String INDEX.");
                 return false;
             }
+
             var customStrings = new PdfString[stringIndexCount];
             for (int stringIndex = 0; stringIndex < stringIndexCount; stringIndex++)
             {
@@ -203,12 +201,13 @@ internal class CffSidGidMapper
                     customStrings[stringIndex] = default;
                     continue;
                 }
-                var slice = cffBytes.Slice(start, end - start);
+
+                ReadOnlyMemory<byte> slice = cffBytes.Slice(start, end - start);
                 customStrings[stringIndex] = slice;
             }
 
             // Build name->GID & SID->GID maps
-            var glyphNameToGid = new Dictionary<PdfString, ushort>(glyphCount);
+            Dictionary<PdfString, ushort> glyphNameToGid = new(glyphCount);
             for (ushort glyphId = 0; glyphId < sidByGlyph.Length; glyphId++)
             {
                 ushort sid = sidByGlyph[glyphId];
@@ -250,18 +249,18 @@ internal class CffSidGidMapper
         }
     }
 
-    private void LogMultipleTopDicts(int nameIndexCount, int nameIndexDataStart, int[] nameIndexOffsets, ReadOnlySpan<byte> cffBytes, int topDictCount)
+    private void LogMultipleTopDicts(int nameIndexCount, int nameIndexDataStart, int[] nameIndexOffsets, in ReadOnlySpan<byte> cffBytes, int topDictCount)
     {
         try
         {
-            var topNames = new List<string>(nameIndexCount);
+            List<string> topNames = new(nameIndexCount);
             for (int nameIndex = 0; nameIndex < nameIndexCount; nameIndex++)
             {
                 int start = nameIndexDataStart + (nameIndexOffsets[nameIndex] - 1);
                 int end = nameIndexDataStart + (nameIndexOffsets[nameIndex + 1] - 1);
                 if (start >= 0 && end >= start && end <= cffBytes.Length)
                 {
-                    var slice = cffBytes.Slice(start, end - start);
+                    ReadOnlySpan<byte> slice = cffBytes.Slice(start, end - start);
                     topNames.Add(Encoding.ASCII.GetString(slice));
                 }
             }

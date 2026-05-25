@@ -178,6 +178,9 @@ dotnet_diagnostic.CA1814.severity = none   # Prefer jagged arrays over multidime
 dotnet_diagnostic.CA1815.severity = none   # Override equals and operator== on value types
 dotnet_diagnostic.CA1819.severity = none   # Properties should not return arrays
 dotnet_diagnostic.CA1822.severity = none   # Mark members as static
+dotnet_diagnostic.CA1848.severity = none   # Use the LoggerMessage delegates
+dotnet_diagnostic.CA1873.severity = none   # Avoid potentially expensive logging
+dotnet_diagnostic.CA2000.severity = none   # Dispose objects before losing scope // TODO: we might want to improve this instead of suppress, commands can do "clone"
 
 
 # Analyzers

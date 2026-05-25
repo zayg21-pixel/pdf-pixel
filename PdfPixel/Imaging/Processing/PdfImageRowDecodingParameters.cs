@@ -70,11 +70,19 @@ public sealed class PdfImageRowDecodingParameters
 
     public static PdfImageRowDecodingParameters FromImage(PdfImage image, ImageDecodingContext context, SKMatrix ctm)
     {
-        var downscaledSize = ComputeDownscaledSize(image.Width, image.Height, image.ColorSpaceConverter, context, ctm);
+        SKSizeI? downscaledSize = ComputeDownscaledSize(image.Width, image.Height, image.ColorSpaceConverter, context, ctm);
 
-        return new(context, image.Width, image.Height, image.BitsPerComponent,
-            image.RenderingIntent, image.ColorSpaceConverter,
-            image.HasImageMask, image.MaskArray, image.DecodeArray,
-            downscaledSize, descaleFactor: 1);
+        return new PdfImageRowDecodingParameters(
+            context,
+            image.Width,
+            image.Height,
+            image.BitsPerComponent,
+            image.RenderingIntent,
+            image.ColorSpaceConverter,
+            image.HasImageMask,
+            image.MaskArray,
+            image.DecodeArray,
+            downscaledSize,
+            descaleFactor: 1);
     }
 }

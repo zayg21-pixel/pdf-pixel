@@ -9,25 +9,14 @@ namespace PdfPixel.PostScript.Tokens
     /// </summary>
     public sealed class PostScriptBinaryString : PostScriptToken
     {
-        public PostScriptBinaryString(byte[] data)
-        {
-            Data = data ?? Array.Empty<byte>();
-        }
+        public PostScriptBinaryString(byte[] data) => Data = data ?? Array.Empty<byte>();
+
         public byte[] Data { get; }
 
-        public override bool EqualsToken(PostScriptToken other)
-        {
-            return other is PostScriptBinaryString bin && ReferenceEquals(Data, bin.Data);
-        }
+        public override bool EqualsToken(PostScriptToken other) => other is PostScriptBinaryString bin && ReferenceEquals(Data, bin.Data);
 
-        public override int GetHashCode()
-        {
-            return RuntimeHelpers.GetHashCode(Data);
-        }
+        public override int GetHashCode() => RuntimeHelpers.GetHashCode(Data);
 
-        public override string ToString()
-        {
-            return "BinaryString(length=" + Data.Length + ", access=" + AccessLevel + ")";
-        }
+        public override string ToString() => "BinaryString(length=" + Data.Length + ", access=" + AccessLevel + ")";
     }
 }

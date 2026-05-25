@@ -38,6 +38,7 @@ public class CidFontWidths
         {
             return width;
         }
+
         return null;
     }
 
@@ -50,22 +51,30 @@ public class CidFontWidths
     /// <returns>Parsed CidFontWidths instance.</returns>
     public static CidFontWidths Parse(PdfDictionary fontDictionary)
     {
-        var cidWidths = new Dictionary<uint, float>();
-        var wArray = fontDictionary.GetArray(PdfTokens.WKey);
+        Dictionary<uint, float> cidWidths = [];
+        PdfArray wArray = fontDictionary.GetArray(PdfTokens.WKey);
         if (wArray != null)
         {
             int i = 0;
             while (i < wArray.Count)
             {
-                var first = wArray.GetValue(i++);
-                if (first == null) { break; }
-                uint firstCid = (uint)first.AsInteger();
-                var second = wArray.GetValue(i++);
-                if (second == null) { break; }
+                IPdfValue first = wArray.GetValue(i++);
+                if (first == null)
+                {
+                    break;
+                }
+
+                var firstCid = (uint)first.AsInteger();
+                IPdfValue second = wArray.GetValue(i++);
+                if (second == null)
+                {
+                    break;
+                }
+
                 if (second.Type == PdfValueType.Array)
                 {
                     // Individual widths for a range
-                    var widthsArr = second.AsArray();
+                    PdfArray widthsArr = second.AsArray();
                     for (int j = 0; j < widthsArr.Count; j++)
                     {
                         cidWidths[firstCid + (uint)j] = widthsArr.GetFloatOrDefault(j) * WidthToUserSpaceCoeff;
@@ -74,7 +83,7 @@ public class CidFontWidths
                 else
                 {
                     // Range: firstCid to secondCid, all have the same width
-                    uint lastCid = (uint)second.AsInteger();
+                    var lastCid = (uint)second.AsInteger();
                     float width = wArray.GetFloatOrDefault(i++) * WidthToUserSpaceCoeff;
                     for (uint cid = firstCid; cid <= lastCid; cid++)
                     {
@@ -83,11 +92,13 @@ public class CidFontWidths
                 }
             }
         }
+
         float? defaultWidth = fontDictionary.GetFloat(PdfTokens.DWKey);
         if (defaultWidth.HasValue)
         {
             defaultWidth *= WidthToUserSpaceCoeff;
         }
+
         return new CidFontWidths
         {
             CidWidths = cidWidths,

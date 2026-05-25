@@ -12,7 +12,6 @@ namespace PdfPixel.Functions;
 public sealed class SampledPdfFunction : PdfFunction
 {
     private readonly int[] _sizes;
-    private readonly int _dimensions;
     private readonly int _componentCount;
     private readonly int[] _strides;
     private readonly float[] _table;
@@ -28,10 +27,11 @@ public sealed class SampledPdfFunction : PdfFunction
         float[] range,
         float[] decode,
         float[] encode,
-        float[] domain) : base(domain, range)
+        float[] domain)
+        : base(domain, range)
     {
         _sizes = sizes;
-        _dimensions = dimensions;
+        Dimensions = dimensions;
         _componentCount = componentCount;
         _strides = strides;
         _table = table;
@@ -51,12 +51,13 @@ public sealed class SampledPdfFunction : PdfFunction
             return null;
         }
 
-        var dictionary = functionObject.Dictionary;
+        PdfDictionary dictionary = functionObject.Dictionary;
         int[] sizeSource = dictionary.GetArray(PdfTokens.SizeKey)?.GetIntegerArray();
         if (sizeSource == null || sizeSource.Length == 0)
         {
             return null;
         }
+
         int dimensions = sizeSource.Length;
 
         float[] domain = dictionary.GetArray(PdfTokens.DomainKey)?.GetFloatArray();
@@ -65,7 +66,7 @@ public sealed class SampledPdfFunction : PdfFunction
             return null;
         }
 
-        int[] sizes = new int[dimensions];
+        var sizes = new int[dimensions];
         for (int dimensionIndex = 0; dimensionIndex < dimensions; dimensionIndex++)
         {
             sizes[dimensionIndex] = Math.Max(1, sizeSource[dimensionIndex]);
@@ -82,13 +83,14 @@ public sealed class SampledPdfFunction : PdfFunction
         {
             return null;
         }
+
         int componentCount = range.Length / 2;
 
         float[] encode = dictionary.GetArray(PdfTokens.EncodeKey)?.GetFloatArray();
         float[] decode = dictionary.GetArray(PdfTokens.DecodeKey)?.GetFloatArray();
 
         // Compute strides dimension 0 fastest
-        int[] strides = new int[dimensions];
+        var strides = new int[dimensions];
         int totalSamples = 1;
         for (int dimensionIndex = 0; dimensionIndex < dimensions; dimensionIndex++)
         {
@@ -98,17 +100,18 @@ public sealed class SampledPdfFunction : PdfFunction
             {
                 return null;
             }
+
             totalSamples = (int)nextTotal;
         }
 
-        var raw = functionObject.DecodeAsMemory();
+        ReadOnlyMemory<byte> raw = functionObject.DecodeAsMemory();
         if (raw.Length == 0)
         {
             return null;
         }
 
-        var bitReader = new UintBitReaderFixedLength(raw.Span, bitsPerSample);
-        float[] table = new float[totalSamples * componentCount];
+        UintBitReaderFixedLength bitReader = new(raw.Span, bitsPerSample);
+        var table = new float[totalSamples * componentCount];
         float factor = 1f / ((1UL << bitsPerSample) - 1);
 
         for (int linearIndex = 0; linearIndex < totalSamples; linearIndex++)
@@ -123,15 +126,15 @@ public sealed class SampledPdfFunction : PdfFunction
                 if (decode != null && decode.Length >= 2 * componentCount)
                 {
                     outMin = decode[2 * componentIndex];
-                    outMax = decode[2 * componentIndex + 1];
+                    outMax = decode[(2 * componentIndex) + 1];
                 }
                 else
                 {
                     outMin = range[2 * componentIndex];
-                    outMax = range[2 * componentIndex + 1];
+                    outMax = range[(2 * componentIndex) + 1];
                 }
 
-                table[linearIndex * componentCount + componentIndex] = outMin + normalized * (outMax - outMin);
+                table[(linearIndex * componentCount) + componentIndex] = outMin + (normalized * (outMax - outMin));
             }
         }
 
@@ -155,12 +158,12 @@ public sealed class SampledPdfFunction : PdfFunction
     /// <summary>
     /// Gets the number of input dimensions for this sampled function.
     /// </summary>
-    public int Dimensions => _dimensions;
+    public int Dimensions { get; }
 
     /// <inheritdoc />
     public override ReadOnlySpan<float> Evaluate(float value)
     {
-        float[] input = new float[_dimensions];
+        var input = new float[Dimensions];
         input[0] = value;
         return Evaluate(input);
     }
@@ -173,45 +176,46 @@ public sealed class SampledPdfFunction : PdfFunction
             return Array.Empty<float>();
         }
 
-        int[] i0 = new int[_dimensions];
-        int[] i1 = new int[_dimensions];
-        float[] fractions = new float[_dimensions];
+        var i0 = new int[Dimensions];
+        var i1 = new int[Dimensions];
+        var fractions = new float[Dimensions];
 
-        for (int dimensionIndex = 0; dimensionIndex < _dimensions; dimensionIndex++)
+        for (int dimensionIndex = 0; dimensionIndex < Dimensions; dimensionIndex++)
         {
             float domainMin = Domain[2 * dimensionIndex];
-            float domainMax = Domain[2 * dimensionIndex + 1];
-            float inputValue = dimensionIndex < inputs.Length ? inputs[dimensionIndex] : 0f;
+            float domainMax = Domain[(2 * dimensionIndex) + 1];
+            float inputValue = (dimensionIndex < inputs.Length) ? inputs[dimensionIndex] : 0f;
             // Clamp input to domain
             inputValue = Clamp(inputValue, Domain, dimensionIndex);
 
-            float decodeMin = _decode != null && _decode.Length >= 2 * _dimensions
+            float decodeMin = (_decode != null && _decode.Length >= 2 * Dimensions)
                 ? _decode[2 * dimensionIndex]
                 : domainMin;
-            float decodeMax = _decode != null && _decode.Length >= 2 * _dimensions
-                ? _decode[2 * dimensionIndex + 1]
+            float decodeMax = (_decode != null && _decode.Length >= 2 * Dimensions)
+                ? _decode[(2 * dimensionIndex) + 1]
                 : domainMax;
 
             float domainT = (inputValue - domainMin) / (domainMax - domainMin);
-            float mappedInput = decodeMin + domainT * (decodeMax - decodeMin);
+            float mappedInput = decodeMin + (domainT * (decodeMax - decodeMin));
 
             float encodeMin = 0f;
             float encodeMax = _sizes[dimensionIndex] - 1;
-            if (_encode != null && _encode.Length >= 2 * _dimensions)
+            if (_encode != null && _encode.Length >= 2 * Dimensions)
             {
                 encodeMin = _encode[2 * dimensionIndex];
-                encodeMax = _encode[2 * dimensionIndex + 1];
+                encodeMax = _encode[(2 * dimensionIndex) + 1];
                 if (Math.Abs(encodeMax - encodeMin) < 1e-12f)
                 {
                     encodeMax = encodeMin + 1f;
                 }
             }
 
-            float u = encodeMin + (mappedInput - decodeMin) / (decodeMax - decodeMin) * (encodeMax - encodeMin);
+            float u = encodeMin + ((mappedInput - decodeMin) / (decodeMax - decodeMin) * (encodeMax - encodeMin));
             if (_sizes[dimensionIndex] == 1)
             {
                 u = 0f;
             }
+
             if (u < 0f)
             {
                 u = 0f;
@@ -221,7 +225,7 @@ public sealed class SampledPdfFunction : PdfFunction
                 u = _sizes[dimensionIndex] - 1;
             }
 
-            int floorIndex = (int)Math.Floor(u);
+            var floorIndex = (int)Math.Floor(u);
             int upperIndex = floorIndex + 1;
             if (upperIndex >= _sizes[dimensionIndex])
             {
@@ -233,13 +237,13 @@ public sealed class SampledPdfFunction : PdfFunction
             fractions[dimensionIndex] = u - floorIndex;
         }
 
-        float[] output = new float[_componentCount];
-        int cornerCount = 1 << _dimensions;
+        var output = new float[_componentCount];
+        int cornerCount = 1 << Dimensions;
         for (int corner = 0; corner < cornerCount; corner++)
         {
             float weight = 1f;
             int linearIndex = 0;
-            for (int dimensionIndex = 0; dimensionIndex < _dimensions; dimensionIndex++)
+            for (int dimensionIndex = 0; dimensionIndex < Dimensions; dimensionIndex++)
             {
                 bool useUpper = (corner & 1 << dimensionIndex) != 0;
                 int sampleIndex = useUpper ? i1[dimensionIndex] : i0[dimensionIndex];
@@ -251,6 +255,7 @@ public sealed class SampledPdfFunction : PdfFunction
                     break;
                 }
             }
+
             if (weight == 0f)
             {
                 continue;
@@ -274,29 +279,29 @@ public sealed class SampledPdfFunction : PdfFunction
     /// </summary>
     public override float[] GetSamplingPoints(int dimension, float domainStart, float domainEnd, int fallbackSamplesCount)
     {
-        if (dimension < 0 || dimension >= _dimensions)
+        if (dimension < 0 || dimension >= Dimensions)
         {
             return base.GetSamplingPoints(dimension, domainStart, domainEnd, fallbackSamplesCount);
         }
 
         int size = _sizes[dimension];
         float start = Domain[2 * dimension];
-        float end = Domain[2 * dimension + 1];
+        float end = Domain[(2 * dimension) + 1];
 
         // If encode specifies a custom range, respect it when mapping sample indices to domain
         float encodeMin = 0f;
         float encodeMax = size - 1;
-        if (_encode != null && _encode.Length >= 2 * _dimensions)
+        if (_encode != null && _encode.Length >= 2 * Dimensions)
         {
             encodeMin = _encode[2 * dimension];
-            encodeMax = _encode[2 * dimension + 1];
+            encodeMax = _encode[(2 * dimension) + 1];
             if (Math.Abs(encodeMax - encodeMin) < 1e-12f)
             {
                 encodeMax = encodeMin + 1f;
             }
         }
 
-        float[] points = new float[size];
+        var points = new float[size];
         if (size == 1)
         {
             points[0] = start;
@@ -307,7 +312,7 @@ public sealed class SampledPdfFunction : PdfFunction
         {
             float u = i;
             float t = (u - encodeMin) / (encodeMax - encodeMin);
-            points[i] = start + t * (end - start);
+            points[i] = start + (t * (end - start));
         }
 
         return points;

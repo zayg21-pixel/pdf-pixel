@@ -43,6 +43,7 @@ internal sealed class LengthBuckets<T>
             {
                 return null;
             }
+
             return buckets[length];
         }
     }

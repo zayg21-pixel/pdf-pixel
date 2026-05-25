@@ -41,15 +41,15 @@ internal static class PdfAnnotationAppearanceRenderer
             return false;
         }
 
-        var effectiveState = ResolveVisualState(annotation, visualStateKind);
-        var appearanceObject = GetAppearanceObjectForState(annotation.AppearanceDictionary, effectiveState);
+        PdfAnnotationVisualStateKind effectiveState = ResolveVisualState(annotation, visualStateKind);
+        PdfObject appearanceObject = GetAppearanceObjectForState(annotation.AppearanceDictionary, effectiveState);
 
         if (appearanceObject == null)
         {
             return false;
         }
 
-        var xObject = PdfXObject.FromObject(appearanceObject);
+        PdfXObject xObject = PdfXObject.FromObject(appearanceObject);
 
         processor.Process(new SaveStateCommand());
 
@@ -58,12 +58,15 @@ internal static class PdfAnnotationAppearanceRenderer
         switch (xObject.Subtype)
         {
             case PdfXObjectSubtype.Form:
-                success = RenderFormAppearance(processor, appearanceObject, annotation.Rectangle, page, renderer, renderingParameters, observer);
-                break;
-
+                {
+                    success = RenderFormAppearance(processor, appearanceObject, annotation.Rectangle, page, renderer, renderingParameters, observer);
+                    break;
+                }
             case PdfXObjectSubtype.Image:
-                success = RenderImageAppearance(processor, appearanceObject, annotation.Rectangle, page, renderer, renderingParameters, observer);
-                break;
+                {
+                    success = RenderImageAppearance(processor, appearanceObject, annotation.Rectangle, page, renderer, renderingParameters, observer);
+                    break;
+                }
         }
 
         processor.Process(new RestoreStateCommand());
@@ -82,8 +85,8 @@ internal static class PdfAnnotationAppearanceRenderer
             return requestedState;
         }
 
-        if ((annotation.SupportedVisualStates & PdfAnnotationVisualStateKind.Rollover) != 0 && 
-            requestedState == PdfAnnotationVisualStateKind.Down)
+        if ((annotation.SupportedVisualStates & PdfAnnotationVisualStateKind.Rollover) != 0
+            && requestedState == PdfAnnotationVisualStateKind.Down)
         {
             return PdfAnnotationVisualStateKind.Rollover;
         }
@@ -124,21 +127,21 @@ internal static class PdfAnnotationAppearanceRenderer
         PdfRenderingParameters renderingParameters, // TODO: [HIGH] add separate parsing parameters alongside with exec
         IPdfExecutionObserver observer)
     {
-        var formXObject = PdfForm.FromXObject(formObject, page);
+        PdfForm formXObject = PdfForm.FromXObject(formObject, page);
         if (formXObject == null)
         {
             return false;
         }
 
-        var appearanceBBox = formXObject.BBox;
-        var matrix = formXObject.Matrix;
+        SKRect appearanceBBox = formXObject.BBox;
+        SKMatrix matrix = formXObject.Matrix;
 
-        var transformedBBox = matrix.MapRect(appearanceBBox);
-        var alignmentMatrix = ComputeAlignmentMatrix(transformedBBox, annotationRect);
+        SKRect transformedBBox = matrix.MapRect(appearanceBBox);
+        SKMatrix alignmentMatrix = ComputeAlignmentMatrix(transformedBBox, annotationRect);
 
         processor.Process(new ConcatMatrixCommand(alignmentMatrix));
 
-        var state = new PdfGraphicsState(page, new HashSet<uint>(), externalTransform: null, observer);
+        PdfGraphicsState state = new(page, new HashSet<uint>(), externalTransform: null, observer);
         renderer.DrawForm(processor, formXObject, state);
 
         return true;
@@ -153,8 +156,8 @@ internal static class PdfAnnotationAppearanceRenderer
         float scaleX = annotationRect.Width / transformedBBox.Width;
         float scaleY = annotationRect.Height / transformedBBox.Height;
 
-        float translateX = annotationRect.Left - transformedBBox.Left * scaleX;
-        float translateY = annotationRect.Top - transformedBBox.Top * scaleY;
+        float translateX = annotationRect.Left - (transformedBBox.Left * scaleX);
+        float translateY = annotationRect.Top - (transformedBBox.Top * scaleY);
 
         return SKMatrix.CreateScaleTranslation(scaleX, scaleY, translateX, translateY);
     }
@@ -171,7 +174,7 @@ internal static class PdfAnnotationAppearanceRenderer
         PdfRenderingParameters renderingParameters,
         IPdfExecutionObserver observer)
     {
-        var pdfImage = PdfImage.FromXObject(imageObject, page, PdfString.Empty, isSoftMask: false);
+        PdfImage pdfImage = PdfImage.FromXObject(imageObject, page, PdfString.Empty, isSoftMask: false);
         if (pdfImage == null)
         {
             return false;
@@ -183,7 +186,7 @@ internal static class PdfAnnotationAppearanceRenderer
             processor.Process(new ConcatMatrixCommand(SKMatrix.CreateScale(annotationRect.Width, annotationRect.Height)));
         }
 
-        var state = new PdfGraphicsState(page, new HashSet<uint>(), externalTransform: null, observer);
+        PdfGraphicsState state = new(page, new HashSet<uint>(), externalTransform: null, observer);
         renderer.DrawImage(processor, pdfImage, state);
 
         return true;

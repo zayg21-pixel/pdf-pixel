@@ -20,8 +20,8 @@ namespace PdfPixel.Models;
 internal sealed class PdfPageCache
 {
     private readonly IPdfPageInternal _page;
-    private readonly Dictionary<PdfString, PdfPattern> _patternsByName = new Dictionary<PdfString, PdfPattern>();
-    private readonly Dictionary<PdfString, PdfGraphicsStateParameters> _graphicsStateParametersByName = new Dictionary<PdfString, PdfGraphicsStateParameters>();
+    private readonly Dictionary<PdfString, PdfPattern> _patternsByName = [];
+    private readonly Dictionary<PdfString, PdfGraphicsStateParameters> _graphicsStateParametersByName = [];
     private readonly PdfDictionary _fontDictionary; // captured once
     private readonly PdfDictionary _patternDictionary; // captured once
     private readonly PdfDictionary _extGStateDictionary; // captured once
@@ -45,9 +45,9 @@ internal sealed class PdfPageCache
     /// <summary>
     /// Retrieve an XObject by resource name from /XObject dictionary. Returns null if not found.
     /// </summary>
-    public PdfXObject GetXObject(PdfString xObjectName)
+    public PdfXObject GetXObject(in PdfString xObjectName)
     {
-        var pageObject = _xObjectDictionary.GetObject(xObjectName);
+        PdfObject pageObject = _xObjectDictionary.GetObject(xObjectName);
 
         if (pageObject == null)
         {
@@ -60,7 +60,7 @@ internal sealed class PdfPageCache
     /// <summary>
     /// Get (and cache) a font by resource name. Returns null if not found or cannot be created.
     /// </summary>
-    public PdfFontBase GetFont(PdfString fontName)
+    public PdfFontBase GetFont(in PdfString fontName)
     {
         if (fontName.IsEmpty)
         {
@@ -72,7 +72,7 @@ internal sealed class PdfPageCache
             return null;
         }
 
-        var fontObject = _fontDictionary.GetObject(fontName);
+        PdfObject fontObject = _fontDictionary.GetObject(fontName);
         return GetFont(fontObject);
     }
 
@@ -88,13 +88,14 @@ internal sealed class PdfPageCache
             return null;
         }
 
-        if (fontObject.Reference.IsValid && _page.Document.ObjectCache.Fonts.TryGetValue(fontObject.Reference, out var documentCachedFont))
+        if (fontObject.Reference.IsValid && _page.Document.ObjectCache.Fonts.TryGetValue(fontObject.Reference, out PdfFontBase documentCachedFont))
         {
             return documentCachedFont;
         }
-        var fontObjectDictionary = fontObject;
 
-        var newFont = PdfFontFactory.CreateFont(fontObject);
+        PdfObject fontObjectDictionary = fontObject;
+
+        PdfFontBase newFont = PdfFontFactory.CreateFont(fontObject);
         if (newFont != null)
         {
             if (fontObject.Reference.IsValid)
@@ -110,20 +111,23 @@ internal sealed class PdfPageCache
     /// Get (and cache) a pattern by resource name from /Pattern dictionary. Returns null if not found or unsupported.
     /// Checks document-level pattern cache first when indirect reference is present.
     /// </summary>
-    public PdfPattern GetPattern(IPdfRenderer renderer, PdfString patternName)
+    public PdfPattern GetPattern(IPdfRenderer renderer, in PdfString patternName)
     {
         if (patternName.IsEmpty)
         {
             return null;
         }
-        if (_patternsByName.TryGetValue(patternName, out var cachedPattern))
+
+        if (_patternsByName.TryGetValue(patternName, out PdfPattern cachedPattern))
         {
             return cachedPattern;
         }
+
         if (_patternDictionary == null)
         {
             return null;
         }
+
         PdfObject patternObject = _patternDictionary.GetObject(patternName);
 
         if (patternObject == null)
@@ -131,7 +135,7 @@ internal sealed class PdfPageCache
             return null;
         }
 
-        var parsedPattern = PdfPatternParser.ParsePattern(renderer, patternObject);
+        PdfPattern parsedPattern = PdfPatternParser.ParsePattern(renderer, patternObject);
 
         if (parsedPattern != null)
         {
@@ -148,30 +152,35 @@ internal sealed class PdfPageCache
     /// <param name="graphicsStateName">Name of the ExtGState resource (/GS)</param>
     /// <param name="processor">Command processor for matrix concatenation</param>
     /// <param name="graphicsState">Graphics state to update</param>
-    internal void ApplyGraphicsStateParameters(PdfString graphicsStateName, IPdfCommandProcessor processor, PdfGraphicsState graphicsState)
+    internal void ApplyGraphicsStateParameters(in PdfString graphicsStateName, IPdfCommandProcessor processor, PdfGraphicsState graphicsState)
     {
         if (graphicsStateName.IsEmpty)
         {
             return;
         }
+
         if (processor == null || graphicsState == null)
         {
             return;
         }
+
         if (_extGStateDictionary == null)
         {
             return;
         }
-        if (!_graphicsStateParametersByName.TryGetValue(graphicsStateName, out var parameters))
+
+        if (!_graphicsStateParametersByName.TryGetValue(graphicsStateName, out PdfGraphicsStateParameters parameters))
         {
-            var gsDict = _extGStateDictionary.GetDictionary(graphicsStateName);
+            PdfDictionary gsDict = _extGStateDictionary.GetDictionary(graphicsStateName);
             if (gsDict == null)
             {
                 return;
             }
+
             parameters = PdfGraphicsStateParser.ParseGraphicsStateParametersFromDictionary(gsDict, _page);
             _graphicsStateParametersByName[graphicsStateName] = parameters;
         }
+
         parameters.ApplyToGraphicsState(graphicsState);
         if (parameters.TransformMatrix.HasValue)
         {

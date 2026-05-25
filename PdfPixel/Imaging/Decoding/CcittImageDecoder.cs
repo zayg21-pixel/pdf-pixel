@@ -16,21 +16,30 @@ internal sealed class CcittImageDecoder : PdfImageDecoder
     private PdfImageRowDecodingParameters _imageParameters;
     private int _currentImageRow;
 
-    public CcittImageDecoder(PdfImage image, ILoggerFactory loggerFactory) : base(image, loggerFactory) { }
+    public CcittImageDecoder(PdfImage image, ILoggerFactory loggerFactory)
+        : base(image, loggerFactory)
+    {
+    }
 
     public override void Initialize(PdfTileInfo tileInfo, ImageDecodingContext context, object contentLocker, SKMatrix ctm, SKRectI regionOfInterest, IPdfExecutionObserver observer)
     {
         if (!ValidateImageParameters())
+        {
             throw new InvalidOperationException($"CCITT image parameters are invalid (Name={Image.Name}).");
+        }
 
         ReadOnlyMemory<byte> encodedData;
         lock (contentLocker)
+        {
             encodedData = Image.GetImageData(observer);
+        }
 
         if (encodedData.IsEmpty)
+        {
             throw new InvalidOperationException($"CCITT image data is empty (Name={Image.Name}).");
+        }
 
-        var parameters = Image.DecodeParms;
+        PdfDecodeParameters parameters = Image.DecodeParms;
         int columns = parameters?.Columns ?? Image.Width;
         int rows = parameters?.Rows ?? Image.Height;
         int k = parameters?.K ?? 0;
@@ -57,11 +66,16 @@ internal sealed class CcittImageDecoder : PdfImageDecoder
                 Logger.LogWarning("CCITT row decoder ended early at image row {Row} (Name={Name}).", _currentImageRow, Image.Name);
                 return null;
             }
-            var tiles = _tilingContext.WriteRowAndTryGetTiles(_currentImageRow, _fullWidthRowBuffer, observer);
+
+            PdfImageTile[] tiles = _tilingContext.WriteRowAndTryGetTiles(_currentImageRow, _fullWidthRowBuffer, observer);
             _currentImageRow++;
             observer?.Notify();
-            if (tiles != null) return tiles;
+            if (tiles != null)
+            {
+                return tiles;
+            }
         }
+
         return null;
     }
 

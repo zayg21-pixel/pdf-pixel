@@ -8,16 +8,16 @@ namespace PdfPixel.Commands;
 /// <summary>
 /// Helper methods for commands, e.g. for applying modifiers to paints or paths.
 /// </summary>
-internal class CommandHelpers
+internal static class CommandHelpers
 {
     /// <summary>
     /// Applies the modifiers to the given paint, returning a new paint with the modifiers applied.
     /// </summary>
     public static SKPaint ApplyModifiers(SKPaint paint, IEnumerable<IPdfCommandModifier> modifiers)
     {
-        var result = paint.Clone();
+        SKPaint result = paint.Clone();
 
-        foreach (var modifier in modifiers)
+        foreach (IPdfCommandModifier modifier in modifiers)
         {
             modifier.ModifyPaint(result);
         }
@@ -32,7 +32,7 @@ internal class CommandHelpers
     {
         if (executionContext.RenderingParameters.ScaleFactor.HasValue)
         {
-            var scaleValue = executionContext.RenderingParameters.ScaleFactor.Value;
+            float scaleValue = executionContext.RenderingParameters.ScaleFactor.Value;
             return canvas.TotalMatrix.PostConcat(SKMatrix.CreateScale(scaleValue, scaleValue));
         }
 
@@ -41,18 +41,27 @@ internal class CommandHelpers
 
     public static bool GetPathIsAntialias(SKPath path, SKCanvas canvas, PdfCommandExecutionContext executionContext, SKPaint paint = null)
     {
-        var scaledMatrix = GetScaledMatrix(canvas, executionContext);
+        if (!executionContext.RenderingParameters.Antialias)
+        {
+            return false;
+        }
+
+        SKMatrix scaledMatrix = GetScaledMatrix(canvas, executionContext);
 
         if (!PathIsAxisAligned(path, scaledMatrix))
+        {
             return true;
+        }
 
         // Stroke pass: thin strokes benefit from antialiasing
         if (paint != null && (paint.Style == SKPaintStyle.Stroke || paint.Style == SKPaintStyle.StrokeAndFill))
         {
-            var stroke = paint.StrokeWidth == 0 ? 1f : paint.StrokeWidth;
-            var scaledStroke = scaledMatrix.MapRect(new SKRect(0, 0, stroke, stroke));
+            float stroke = (paint.StrokeWidth == 0) ? 1f : paint.StrokeWidth;
+            SKRect scaledStroke = scaledMatrix.MapRect(new SKRect(0, 0, stroke, stroke));
             if (scaledStroke.Width < 2 || scaledStroke.Height < 2)
+            {
                 return executionContext.RenderingParameters.Antialias;
+            }
         }
 
         // Fill pass: small fills benefit from antialiasing
@@ -61,7 +70,7 @@ internal class CommandHelpers
             SKRect bounds;
             if (paint != null)
             {
-                using var fillPath = paint.GetFillPath(path);
+                using SKPath fillPath = paint.GetFillPath(path);
                 bounds = fillPath?.Bounds ?? path.TightBounds;
             }
             else
@@ -69,9 +78,11 @@ internal class CommandHelpers
                 bounds = path.TightBounds;
             }
 
-            var scaledRect = scaledMatrix.MapRect(bounds);
+            SKRect scaledRect = scaledMatrix.MapRect(bounds);
             if (scaledRect.Width < 2 || scaledRect.Height < 2)
+            {
                 return executionContext.RenderingParameters.Antialias;
+            }
         }
 
         return false;
@@ -81,7 +92,7 @@ internal class CommandHelpers
 
     private static bool PathIsAxisAligned(SKPath path, SKMatrix matrix)
     {
-        using var iterator = path.CreateIterator(true); // forceClose ensures implicit closing segments are checked
+        using SKPath.Iterator iterator = path.CreateIterator(true); // forceClose ensures implicit closing segments are checked
         var points = new SKPoint[4];
         SKPathVerb verb;
 
@@ -90,11 +101,16 @@ internal class CommandHelpers
             switch (verb)
             {
                 case SKPathVerb.Line:
-                    var a = matrix.MapPoint(points[0]);
-                    var b = matrix.MapPoint(points[1]);
-                    if (MathF.Abs(b.X - a.X) > AxisAlignEpsilon && MathF.Abs(b.Y - a.Y) > AxisAlignEpsilon)
-                        return false;
-                    break;
+                    {
+                        SKPoint a = matrix.MapPoint(points[0]);
+                        SKPoint b = matrix.MapPoint(points[1]);
+                        if (MathF.Abs(b.X - a.X) > AxisAlignEpsilon && MathF.Abs(b.Y - a.Y) > AxisAlignEpsilon)
+                        {
+                            return false;
+                        }
+
+                        break;
+                    }
                 case SKPathVerb.Quad:
                 case SKPathVerb.Conic:
                 case SKPathVerb.Cubic:

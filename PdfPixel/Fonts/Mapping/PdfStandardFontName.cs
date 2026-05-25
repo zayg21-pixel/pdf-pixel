@@ -56,5 +56,5 @@ public enum PdfStandardFontName
     /// <summary>
     /// Zapf Dingbats family.
     /// </summary>
-    ZapfDingbats,
+    ZapfDingbats
 }

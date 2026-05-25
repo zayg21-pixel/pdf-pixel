@@ -30,7 +30,7 @@ internal class PdfNamedDestinationParser
             return;
         }
 
-        var catalogDict = _document.RootObject.Dictionary;
+        PdfDictionary catalogDict = _document.RootObject.Dictionary;
 
         ParseDestsDictionary(catalogDict);
         ParseNamesTree(catalogDict);
@@ -38,7 +38,7 @@ internal class PdfNamedDestinationParser
 
     private void ParseDestsDictionary(PdfDictionary catalogDict)
     {
-        var destsDict = catalogDict.GetDictionary(PdfTokens.DestsKey);
+        PdfDictionary destsDict = catalogDict.GetDictionary(PdfTokens.DestsKey);
         if (destsDict != null)
         {
             _document.NamedDestinations = destsDict;
@@ -48,19 +48,19 @@ internal class PdfNamedDestinationParser
 
     private void ParseNamesTree(PdfDictionary catalogDict)
     {
-        var namesDict = catalogDict.GetDictionary(PdfTokens.NamesKey);
+        PdfDictionary namesDict = catalogDict.GetDictionary(PdfTokens.NamesKey);
         if (namesDict == null)
         {
             return;
         }
 
-        var destsTreeRoot = namesDict.GetDictionary(PdfTokens.DestsKey);
+        PdfDictionary destsTreeRoot = namesDict.GetDictionary(PdfTokens.DestsKey);
         if (destsTreeRoot == null)
         {
             return;
         }
 
-        var flattenedDict = new PdfDictionary(_document);
+        PdfDictionary flattenedDict = new(_document);
         FlattenNameTree(destsTreeRoot, flattenedDict);
 
         if (flattenedDict.Count > 0)
@@ -72,13 +72,13 @@ internal class PdfNamedDestinationParser
 
     private static void FlattenNameTree(PdfDictionary node, PdfDictionary target)
     {
-        var namesArray = node.GetArray(PdfTokens.NamesKey);
+        PdfArray namesArray = node.GetArray(PdfTokens.NamesKey);
         if (namesArray != null)
         {
             for (int i = 0; i < namesArray.Count - 1; i += 2)
             {
-                var name = namesArray.GetString(i);
-                var value = namesArray.GetValue(i + 1);
+                PdfString name = namesArray.GetString(i);
+                IPdfValue value = namesArray.GetValue(i + 1);
                 if (!name.IsEmpty && value != null)
                 {
                     target.Set(name, value);
@@ -86,12 +86,12 @@ internal class PdfNamedDestinationParser
             }
         }
 
-        var kidsArray = node.GetArray(PdfTokens.KidsKey);
+        PdfArray kidsArray = node.GetArray(PdfTokens.KidsKey);
         if (kidsArray != null)
         {
             for (int i = 0; i < kidsArray.Count; i++)
             {
-                var kidDict = kidsArray.GetDictionary(i);
+                PdfDictionary kidDict = kidsArray.GetDictionary(i);
                 if (kidDict != null)
                 {
                     FlattenNameTree(kidDict, target);

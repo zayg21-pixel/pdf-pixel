@@ -19,7 +19,7 @@ internal static class Type1Decryptor
     /// </summary>
     /// <param name="encryptedData">Encrypted eexec data.</param>
     /// <returns>Decrypted cleartext span skipping the4-byte seed; may be empty.</returns>
-    public static ReadOnlySpan<byte> DecryptEexecBinary(ReadOnlySpan<byte> encryptedData)
+    public static ReadOnlySpan<byte> DecryptEexecBinary(in ReadOnlySpan<byte> encryptedData)
     {
         int r = EexecSeed;
         if (encryptedData.Length == 0)
@@ -27,13 +27,13 @@ internal static class Type1Decryptor
             return ReadOnlySpan<byte>.Empty;
         }
 
-        byte[] plain = new byte[encryptedData.Length];
+        var plain = new byte[encryptedData.Length];
         for (int index = 0; index < encryptedData.Length; index++)
         {
             int cipherByte = encryptedData[index];
             int plainByte = cipherByte ^ r >> 8;
             plain[index] = (byte)plainByte;
-            r = (cipherByte + r) * C1 + C2 & 0xFFFF;
+            r = ((cipherByte + r) * C1) + C2 & 0xFFFF;
         }
 
         if (plain.Length <= 4)
@@ -51,7 +51,7 @@ internal static class Type1Decryptor
     /// <param name="encryptedData">Encrypted CharString data.</param>
     /// <param name="lenIV">Random prefix length (LenIV). Values &lt;=0 result in no trimming.</param>
     /// <returns>Decrypted CharString byte array (never null).</returns>
-    public static byte[] DecryptCharString(ReadOnlySpan<byte> encryptedData, int lenIV)
+    public static byte[] DecryptCharString(in ReadOnlySpan<byte> encryptedData, int lenIV)
     {
         if (encryptedData.IsEmpty)
         {
@@ -59,19 +59,19 @@ internal static class Type1Decryptor
         }
 
         int r = CharStringSeed;
-        byte[] output = new byte[encryptedData.Length];
+        var output = new byte[encryptedData.Length];
         for (int index = 0; index < encryptedData.Length; index++)
         {
             int cipherByte = encryptedData[index];
             int plainByte = cipherByte ^ r >> 8;
             output[index] = (byte)plainByte;
-            r = (cipherByte + r) * C1 + C2 & 0xFFFF;
+            r = ((cipherByte + r) * C1) + C2 & 0xFFFF;
         }
 
         if (lenIV > 0 && output.Length > lenIV)
         {
             int trimmedLength = output.Length - lenIV;
-            byte[] trimmed = new byte[trimmedLength];
+            var trimmed = new byte[trimmedLength];
             Buffer.BlockCopy(output, lenIV, trimmed, 0, trimmedLength);
             return trimmed;
         }

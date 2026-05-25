@@ -13,21 +13,50 @@ namespace PdfPixel.Encryption
     internal sealed class R3R4Decryptor : BasePdfDecryptor
     {
         private const int PasswordPadLength = 32;
-        private static readonly byte[] PasswordPadding = new byte[]
-        {
-            0x28, 0xBF, 0x4E, 0x5E, 0x4E, 0x75, 0x8A, 0x41,
-            0x64, 0x00, 0x4E, 0x56, 0xFF, 0xFA, 0x01, 0x08,
-            0x2E, 0x2E, 0x00, 0xB6, 0xD0, 0x68, 0x3E, 0x80,
-            0x2F, 0x0C, 0xA9, 0xFE, 0x64, 0x53, 0x69, 0x7A
-        };
+
+        private static readonly byte[] PasswordPadding = [
+            0x28,
+            0xBF,
+            0x4E,
+            0x5E,
+            0x4E,
+            0x75,
+            0x8A,
+            0x41,
+            0x64,
+            0x00,
+            0x4E,
+            0x56,
+            0xFF,
+            0xFA,
+            0x01,
+            0x08,
+            0x2E,
+            0x2E,
+            0x00,
+            0xB6,
+            0xD0,
+            0x68,
+            0x3E,
+            0x80,
+            0x2F,
+            0x0C,
+            0xA9,
+            0xFE,
+            0x64,
+            0x53,
+            0x69,
+            0x7A
+        ];
 
         private byte[] _fileKey;
         private int _fileKeyLengthBytes;
         private string _lastPassword = string.Empty;
         private bool _userValidated;
-        private readonly ManagedAes128Cbc _aes = new ManagedAes128Cbc();
+        private readonly ManagedAes128Cbc _aes = new();
 
-        public R3R4Decryptor(PdfDecryptorParameters parameters) : base(parameters)
+        public R3R4Decryptor(PdfDecryptorParameters parameters)
+            : base(parameters)
         {
         }
 
@@ -37,15 +66,15 @@ namespace PdfPixel.Encryption
             return DecryptInternal(data, reference, useStreamPath: false);
         }
 
-        public override Stream DecryptStream(Stream stream, PdfReference reference)
+        public override Stream DecryptStream(Stream stream, in PdfReference reference)
         {
-            using var memoryStream = new MemoryStream();
+            using MemoryStream memoryStream = new();
             stream.CopyTo(memoryStream);
-            var decryptedBytes = DecryptInternal(memoryStream.ToArray(), reference, useStreamPath: true);
+            ReadOnlyMemory<byte> decryptedBytes = DecryptInternal(memoryStream.ToArray(), reference, useStreamPath: true);
             return new MemoryStream(decryptedBytes.ToArray());
         }
 
-        private ReadOnlyMemory<byte> DecryptInternal(ReadOnlyMemory<byte> data, PdfReference reference, bool useStreamPath)
+        private ReadOnlyMemory<byte> DecryptInternal(in ReadOnlyMemory<byte> data, in PdfReference reference, bool useStreamPath)
         {
             if (data.IsEmpty)
             {
@@ -63,7 +92,7 @@ namespace PdfPixel.Encryption
             int? overrideLenBytes = useStreamPath ? Parameters.StreamCryptFilterLength : Parameters.StringCryptFilterLength;
             bool useAes = method == PdfTokens.AESV2;
 
-            var objectKey = DeriveObjectKey(reference, useAes, overrideLenBytes);
+            byte[] objectKey = DeriveObjectKey(reference, useAes, overrideLenBytes);
 
             if (useAes)
             {
@@ -91,19 +120,22 @@ namespace PdfPixel.Encryption
             {
                 bits = 40;
             }
+
             if (bits > 128)
             {
                 bits = 128;
             }
+
             if (bits == 0)
             {
                 bits = 128;
             }
+
             _fileKeyLengthBytes = bits / 8;
 
-            using (var md5 = ManagedMd5.Create())
+            using (ManagedMd5 md5 = ManagedMd5.Create())
             {
-                var pwdBytes = GetPasswordBytes();
+                byte[] pwdBytes = GetPasswordBytes();
                 md5.TransformBlock(pwdBytes, 0, pwdBytes.Length, null, 0);
 
                 if (Parameters.OwnerEntry != null)
@@ -111,7 +143,7 @@ namespace PdfPixel.Encryption
                     md5.TransformBlock(Parameters.OwnerEntry, 0, Parameters.OwnerEntry.Length, null, 0);
                 }
 
-                var p = BitConverter.GetBytes(Parameters.Permissions);
+                byte[] p = BitConverter.GetBytes(Parameters.Permissions);
                 md5.TransformBlock(p, 0, 4, null, 0);
 
                 md5.TransformBlock(Parameters.FileIdFirst, 0, Parameters.FileIdFirst.Length, null, 0);
@@ -143,6 +175,7 @@ namespace PdfPixel.Encryption
             {
                 return;
             }
+
             if (_fileKey == null || Parameters.UserEntry == null || Parameters.UserEntry.Length < 16)
             {
                 return;
@@ -151,7 +184,7 @@ namespace PdfPixel.Encryption
             try
             {
                 byte[] expectedFirst16 = ComputeUserEntryR3R4();
-                bool match = true;
+                var match = true;
                 for (int i = 0; i < 16; i++)
                 {
                     if (expectedFirst16[i] != Parameters.UserEntry[i])
@@ -160,6 +193,7 @@ namespace PdfPixel.Encryption
                         break;
                     }
                 }
+
                 _userValidated = match;
             }
             catch
@@ -171,7 +205,7 @@ namespace PdfPixel.Encryption
         private byte[] ComputeUserEntryR3R4()
         {
             byte[] digest;
-            using (var md5 = ManagedMd5.Create())
+            using (ManagedMd5 md5 = ManagedMd5.Create())
             {
                 md5.TransformBlock(PasswordPadding, 0, PasswordPadding.Length, null, 0);
                 md5.TransformBlock(Parameters.FileIdFirst, 0, Parameters.FileIdFirst.Length, null, 0);
@@ -179,23 +213,24 @@ namespace PdfPixel.Encryption
                 digest = md5.Hash;
             }
 
-            byte[] block = new byte[16];
+            var block = new byte[16];
             Buffer.BlockCopy(digest, 0, block, 0, 16);
 
-            byte[] tempKey = new byte[_fileKey.Length];
+            var tempKey = new byte[_fileKey.Length];
             for (int i = 0; i < 20; i++)
             {
                 for (int k = 0; k < _fileKey.Length; k++)
                 {
                     tempKey[k] = (byte)(_fileKey[k] ^ i);
                 }
+
                 block = Rc4Raw(tempKey, block);
             }
 
             return block;
         }
 
-        private byte[] DeriveObjectKey(PdfReference reference, bool useAes, int? cryptFilterKeyLengthBytesOverride = null)
+        private byte[] DeriveObjectKey(in PdfReference reference, bool useAes, int? cryptFilterKeyLengthBytesOverride = null)
         {
             Span<byte> buffer = stackalloc byte[_fileKeyLengthBytes + 5 + (useAes ? 4 : 0)];
             _fileKey.AsSpan(0, _fileKeyLengthBytes).CopyTo(buffer);
@@ -215,21 +250,22 @@ namespace PdfPixel.Encryption
                 buffer[_fileKeyLengthBytes + 8] = (byte)'T';
             }
 
-            using var md5 = ManagedMd5.Create();
+            using ManagedMd5 md5 = ManagedMd5.Create();
 
-            var digest = md5.ComputeHash(buffer.ToArray());
+            byte[] digest = md5.ComputeHash(buffer.ToArray());
             int baseLen = cryptFilterKeyLengthBytesOverride ?? _fileKeyLengthBytes;
             int keyLen = baseLen + 5;
             if (keyLen > 16)
             {
                 keyLen = 16;
             }
+
             var objectKey = new byte[keyLen];
             Buffer.BlockCopy(digest, 0, objectKey, 0, keyLen);
             return objectKey;
         }
 
-        private static ReadOnlyMemory<byte> Rc4(byte[] key, ReadOnlySpan<byte> data)
+        private static ReadOnlyMemory<byte> Rc4(byte[] key, in ReadOnlySpan<byte> data)
         {
             byte[] output = data.ToArray();
             Rc4InPlace(key, output);
@@ -238,7 +274,7 @@ namespace PdfPixel.Encryption
 
         private static byte[] Rc4Raw(byte[] key, byte[] block)
         {
-            byte[] copy = new byte[block.Length];
+            var copy = new byte[block.Length];
             Buffer.BlockCopy(block, 0, copy, 0, block.Length);
             Rc4InPlace(key, copy);
             return copy;
@@ -251,12 +287,14 @@ namespace PdfPixel.Encryption
             {
                 s[i] = (byte)i;
             }
+
             int j = 0;
             for (int i = 0; i < 256; i++)
             {
                 j = (j + s[i] + key[i % key.Length]) & 0xFF;
                 (s[i], s[j]) = (s[j], s[i]);
             }
+
             int iIndex = 0;
             j = 0;
             for (int k = 0; k < buffer.Length; k++)
@@ -269,7 +307,7 @@ namespace PdfPixel.Encryption
             }
         }
 
-        private ReadOnlyMemory<byte> AesV2(byte[] objectKey, ReadOnlySpan<byte> data)
+        private ReadOnlyMemory<byte> AesV2(byte[] objectKey, in ReadOnlySpan<byte> data)
         {
             if (data.Length < 16)
             {
@@ -279,13 +317,13 @@ namespace PdfPixel.Encryption
             byte[] iv = data.Slice(0, 16).ToArray();
             byte[] ciphertext = data.Slice(16).ToArray();
 
-            byte[] key = objectKey.Length >= 16 ? objectKey.AsSpan(0, 16).ToArray() : PadKeyTo16(objectKey);
+            byte[] key = (objectKey.Length >= 16) ? objectKey.AsSpan(0, 16).ToArray() : PadKeyTo16(objectKey);
             return _aes.Decrypt(key, iv, ciphertext);
         }
 
         private static byte[] PadKeyTo16(byte[] key)
         {
-            byte[] padded = new byte[16];
+            var padded = new byte[16];
             int copy = Math.Min(16, key.Length);
             Buffer.BlockCopy(key, 0, padded, 0, copy);
             return padded;
@@ -294,14 +332,15 @@ namespace PdfPixel.Encryption
         private byte[] GetPasswordBytes()
         {
             string pwd = Password ?? string.Empty;
-            var bytes = System.Text.Encoding.ASCII.GetBytes(pwd);
+            byte[] bytes = System.Text.Encoding.ASCII.GetBytes(pwd);
             if (bytes.Length > PasswordPadLength)
             {
-                byte[] trimmed = new byte[PasswordPadLength];
+                var trimmed = new byte[PasswordPadLength];
                 Buffer.BlockCopy(bytes, 0, trimmed, 0, PasswordPadLength);
                 return trimmed;
             }
-            byte[] padded = new byte[PasswordPadLength];
+
+            var padded = new byte[PasswordPadLength];
             Buffer.BlockCopy(bytes, 0, padded, 0, bytes.Length);
             Buffer.BlockCopy(PasswordPadding, 0, padded, bytes.Length, PasswordPadLength - bytes.Length);
             return padded;

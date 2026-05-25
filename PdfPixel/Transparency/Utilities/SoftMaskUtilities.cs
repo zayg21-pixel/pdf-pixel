@@ -22,7 +22,7 @@ internal static class SoftMaskUtilities
     /// </summary>
     public static PdfGraphicsState CreateAlphaMaskGraphicsState(PdfPage page, PdfGraphicsState sourceState)
     {
-        return new PdfGraphicsState(page, sourceState)
+        return new(page, sourceState)
         {
             // White stroke/fill -> maximum channel; alpha modulation derives from transparency settings.
             StrokePaint = PdfPaint.Solid(SKColors.White),
@@ -44,7 +44,7 @@ internal static class SoftMaskUtilities
     /// </summary>
     public static PdfGraphicsState CreateLuminosityMaskGraphicsState(PdfPage page, PdfGraphicsState sourceState)
     {
-        return new PdfGraphicsState(page, sourceState)
+        return new(page, sourceState)
         {
             // Black stroke/fill -> preserves true luminance contribution of painted colors.
             StrokePaint = PdfPaint.Solid(SKColors.Black),

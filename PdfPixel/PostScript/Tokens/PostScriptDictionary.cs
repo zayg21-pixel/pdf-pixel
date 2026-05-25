@@ -10,17 +10,15 @@ namespace PdfPixel.PostScript.Tokens
     /// </summary>
     public sealed class PostScriptDictionary : PostScriptToken
     {
-        public PostScriptDictionary()
-        {
-            Entries = new CaseInsensitiveGetterDictionary<PostScriptToken>();
-        }
+        public PostScriptDictionary() => Entries = new CaseInsensitiveGetterDictionary<PostScriptToken>();
+
         public PostScriptDictionary(IDictionary<string, PostScriptToken> entries)
         {
-            var caseInsensitiveEntries = new CaseInsensitiveGetterDictionary<PostScriptToken>();
+            CaseInsensitiveGetterDictionary<PostScriptToken> caseInsensitiveEntries = [];
 
             if (entries != null)
             {
-                foreach (var entry in entries)
+                foreach (KeyValuePair<string, PostScriptToken> entry in entries)
                 {
                     caseInsensitiveEntries[entry.Key] = entry.Value;
                 }
@@ -34,19 +32,13 @@ namespace PdfPixel.PostScript.Tokens
 
         public override string ToString()
         {
-            int count = Entries == null ? 0 : Entries.Count;
+            int count = (Entries?.Count) ?? 0;
             return "Dictionary(count=" + count + ", access=" + AccessLevel + ")";
         }
 
-        public override bool EqualsToken(PostScriptToken other)
-        {
-            return ReferenceEquals(this, other);
-        }
+        public override bool EqualsToken(PostScriptToken other) => ReferenceEquals(this, other);
 
-        public override int GetHashCode()
-        {
-            return RuntimeHelpers.GetHashCode(this);
-        }
+        public override int GetHashCode() => RuntimeHelpers.GetHashCode(this);
 
         public override PostScriptToken GetValue(PostScriptToken keyOrIndex)
         {
@@ -55,10 +47,12 @@ namespace PdfPixel.PostScript.Tokens
             {
                 throw new InvalidOperationException("typecheck: dictionary key must be literal name");
             }
+
             if (!Entries.TryGetValue(literalName.Name, out PostScriptToken value))
             {
                 throw new InvalidOperationException("undefined: key not found in dictionary");
             }
+
             return value;
         }
 
@@ -69,6 +63,7 @@ namespace PdfPixel.PostScript.Tokens
             {
                 throw new InvalidOperationException("typecheck: dictionary key must be literal name");
             }
+
             Entries[literalName.Name] = value;
         }
     }

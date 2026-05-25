@@ -9,7 +9,7 @@ public static class EncodingExtensions
 {
     public static Encoding PdfDefault = Encoding.GetEncoding("ISO-8859-1");
 
-    public static string GetString(this Encoding encoding, ReadOnlySpan<byte> value)
+    public static string GetString(this Encoding encoding, in ReadOnlySpan<byte> value)
     {
         if (encoding == null)
         {
@@ -36,7 +36,7 @@ public static class EncodingExtensions
     /// <param name="value">The PDF string to decode.</param>
     /// <param name="keepEscapeSequence">If true, do not remove 0x1B escape sequences.</param>
     /// <returns>Decoded string.</returns>
-    public static string DecodePdfString(this PdfString value, bool keepEscapeSequence = false)
+    public static string DecodePdfString(this in PdfString value, bool keepEscapeSequence = false)
     {
         if (value.IsEmpty)
         {
@@ -101,10 +101,11 @@ public static class EncodingExtensions
         {
             return result;
         }
+
         return Regex.Replace(result, @"\x1b[^\x1b]*(?:\x1b|$)", string.Empty);
     }
 
-    public static string GetString(this Encoding encoding, ReadOnlyMemory<byte> value)
+    public static string GetString(this Encoding encoding, in ReadOnlyMemory<byte> value)
     {
         if (encoding == null)
         {

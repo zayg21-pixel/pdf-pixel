@@ -25,7 +25,7 @@ internal partial class PdfShadingBuilder
     /// <returns>Batched triangle vertices, or null on failure.</returns>
     public SKVertices BuildGouraudVertices(PdfShading shading, ColorTransformSampler sampler)
     {
-        var decoder = new GouraudMeshDecoder(shading, sampler);
+        GouraudMeshDecoder decoder = new(shading, sampler);
         List<MeshData> triangles = decoder.Decode();
         if (triangles.Count == 0)
         {
@@ -36,8 +36,8 @@ internal partial class PdfShadingBuilder
         // Aggregate all triangle points and colors into single arrays for batch drawing
         int triangleCount = triangles.Count;
         int vertexCount = triangleCount * 3;
-        SKPoint[] allPoints = new SKPoint[vertexCount];
-        SKColor[] allColors = new SKColor[vertexCount];
+        var allPoints = new SKPoint[vertexCount];
+        var allColors = new SKColor[vertexCount];
 
         for (int triangleIndex = 0; triangleIndex < triangleCount; triangleIndex++)
         {
@@ -60,7 +60,7 @@ internal partial class PdfShadingBuilder
     /// <returns>Tessellated patch vertices, or null on failure.</returns>
     public SKVertices BuildPatchMeshVertices(PdfShading shading, ColorTransformSampler sampler, int maxTessellationVertices, IPdfExecutionObserver observer)
     {
-        var decoder = new MeshDecoder(shading, sampler);
+        MeshDecoder decoder = new(shading, sampler);
         List<MeshData> patches = decoder.Decode();
         if (patches.Count == 0)
         {

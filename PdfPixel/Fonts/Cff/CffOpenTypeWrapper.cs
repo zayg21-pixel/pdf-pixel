@@ -68,28 +68,28 @@ internal static class CffOpenTypeWrapper
         {
             return null;
         }
+
         if (descriptor == null)
         {
             return null;
         }
 
-        var cffData = cffInfo.CffData;
+        ReadOnlyMemory<byte> cffData = cffInfo.CffData;
         if (cffData.IsEmpty)
         {
             return null;
         }
 
-        ushort numGlyphs = (ushort)Math.Max(1, Math.Min(ushort.MaxValue, cffInfo.GlyphCount));
+        var numGlyphs = (ushort)Math.Max(1, Math.Min(ushort.MaxValue, cffInfo.GlyphCount));
 
-        var tables = new List<Table>
-        {
+        List<Table> tables = [
             MakeTable(TagCff, cffData.ToArray()),
             MakeTable(TagMaxp, BuildMaxp(numGlyphs)),
             MakeTable(TagOS2, BuildOS2(numGlyphs, descriptor)),
             MakeTable(TagHhea, BuildHhea(numberOfHMetrics: 1, descriptor)),
             MakeTable(TagHmtx, BuildHmtx(numGlyphs, numberOfHMetrics: 1)),
             MakeTable(TagPost, BuildPost())
-        };
+        ];
 
         tables.Add(MakeTable(TagName, BuildName(descriptor)));
         tables.Add(MakeTable(TagCmap, BuildCmapEmpty()));
@@ -97,13 +97,13 @@ internal static class CffOpenTypeWrapper
 
         tables.Sort((left, right) => left.Tag.CompareTo(right.Tag));
 
-        ushort tableCount = (ushort)tables.Count;
+        var tableCount = (ushort)tables.Count;
         CffOpenTypeWriter.ComputeDirParams(tableCount, out ushort searchRange, out ushort entrySelector, out ushort rangeShift);
 
-        int offset = 12 + tableCount * 16; // header + directory entries
+        int offset = 12 + (tableCount * 16); // header + directory entries
         for (int tableIndex = 0; tableIndex < tables.Count; tableIndex++)
         {
-            var table = tables[tableIndex];
+            Table table = tables[tableIndex];
             offset = CffOpenTypeWriter.Align4(offset);
             table.Offset = offset;
             table.Checksum = CffOpenTypeWriter.CalcTableChecksum(table.Data);
@@ -112,7 +112,7 @@ internal static class CffOpenTypeWrapper
         }
 
         // First pass build with checksumAdjustment = 0 to compute whole font checksum.
-        var firstPassFont = BuildFontBytes(tables, tableCount, searchRange, entrySelector, rangeShift);
+        byte[] firstPassFont = BuildFontBytes(tables, tableCount, searchRange, entrySelector, rangeShift);
         uint totalChecksum = CffOpenTypeWriter.CalcTableChecksum(firstPassFont);
         uint checksumAdjustment = unchecked(ChecksumMagic - totalChecksum);
 
@@ -121,7 +121,7 @@ internal static class CffOpenTypeWrapper
         {
             if (tables[i].Tag == TagHead)
             {
-                var headTable = tables[i];
+                Table headTable = tables[i];
                 CffOpenTypeWriter.WriteUInt32BE(headTable.Data, 8, checksumAdjustment); // checksumAdjustment field offset.
                 headTable.Checksum = CffOpenTypeWriter.CalcTableChecksum(headTable.Data);
                 tables[i] = headTable;
@@ -134,7 +134,7 @@ internal static class CffOpenTypeWrapper
 
     private static Table MakeTable(uint tag, byte[] data)
     {
-        return new Table
+        return new()
         {
             Tag = tag,
             Data = data,
@@ -145,8 +145,8 @@ internal static class CffOpenTypeWrapper
 
     private static byte[] BuildHead(uint checksumAdjustment)
     {
-        using (var stream = new MemoryStream(54))
-        using (var writer = new BinaryWriter(stream))
+        using (MemoryStream stream = new(54))
+        using (BinaryWriter writer = new(stream))
         {
             CffOpenTypeWriter.WriteUInt32BE(writer, 0x00010000);        // version 1.0
             CffOpenTypeWriter.WriteUInt32BE(writer, 0x00010000);        // fontRevision 1.0
@@ -171,8 +171,8 @@ internal static class CffOpenTypeWrapper
 
     private static byte[] BuildMaxp(ushort numGlyphs)
     {
-        using (var stream = new MemoryStream(6))
-        using (var writer = new BinaryWriter(stream))
+        using (MemoryStream stream = new(6))
+        using (BinaryWriter writer = new(stream))
         {
             CffOpenTypeWriter.WriteUInt32BE(writer, 0x00005000); // version 0.5 for CFF
             CffOpenTypeWriter.WriteUInt16BE(writer, numGlyphs);
@@ -182,14 +182,14 @@ internal static class CffOpenTypeWrapper
 
     private static byte[] BuildHhea(ushort numberOfHMetrics, PdfFontDescriptor fontDescriptor)
     {
-        using (var stream = new MemoryStream(36))
-        using (var writer = new BinaryWriter(stream))
+        using (MemoryStream stream = new(36))
+        using (BinaryWriter writer = new(stream))
         {
             CffOpenTypeWriter.WriteUInt32BE(writer, 0x00010000); // version 1.0
             CffOpenTypeWriter.WriteInt16BE(writer, CffOpenTypeWriter.ClampToShort(fontDescriptor.Ascent, DefaultAscent));
             CffOpenTypeWriter.WriteInt16BE(writer, CffOpenTypeWriter.ClampToShort(fontDescriptor.Descent, DefaultDescent));
             CffOpenTypeWriter.WriteInt16BE(writer, DefaultLineGap); // line gap
-            CffOpenTypeWriter.WriteUInt16BE(writer, (ushort)Math.Max(1, (int)Math.Round(fontDescriptor.MaxWidth != 0 ? fontDescriptor.MaxWidth : DefaultAdvanceWidth))); // advanceWidthMax
+            CffOpenTypeWriter.WriteUInt16BE(writer, (ushort)Math.Max(1, (int)Math.Round((fontDescriptor.MaxWidth != 0) ? fontDescriptor.MaxWidth : DefaultAdvanceWidth))); // advanceWidthMax
             CffOpenTypeWriter.WriteInt16BE(writer, 0); // minLeftSideBearing
             CffOpenTypeWriter.WriteInt16BE(writer, 0); // minRightSideBearing
             CffOpenTypeWriter.WriteInt16BE(writer, (short)Math.Max(0, (int)Math.Round(fontDescriptor.FontBBox.Right - fontDescriptor.FontBBox.Left))); // xMaxExtent
@@ -199,6 +199,7 @@ internal static class CffOpenTypeWrapper
             {
                 CffOpenTypeWriter.WriteInt16BE(writer, 0);
             }
+
             CffOpenTypeWriter.WriteInt16BE(writer, 0); // metricDataFormat
             CffOpenTypeWriter.WriteUInt16BE(writer, numberOfHMetrics);
             return stream.ToArray();
@@ -207,9 +208,9 @@ internal static class CffOpenTypeWrapper
 
     private static byte[] BuildHmtx(ushort numGlyphs, ushort numberOfHMetrics)
     {
-        int length = numberOfHMetrics * 4 + Math.Max(0, numGlyphs - numberOfHMetrics) * 2;
-        using (var stream = new MemoryStream(length))
-        using (var writer = new BinaryWriter(stream))
+        int length = (numberOfHMetrics * 4) + (Math.Max(0, numGlyphs - numberOfHMetrics) * 2);
+        using (MemoryStream stream = new(length))
+        using (BinaryWriter writer = new(stream))
         {
             CffOpenTypeWriter.WriteUInt16BE(writer, DefaultAdvanceWidth); // single metric: advance
             CffOpenTypeWriter.WriteInt16BE(writer, 0);                    // lsb
@@ -217,14 +218,15 @@ internal static class CffOpenTypeWrapper
             {
                 CffOpenTypeWriter.WriteInt16BE(writer, 0);
             }
+
             return stream.ToArray();
         }
     }
 
     private static byte[] BuildPost()
     {
-        using (var stream = new MemoryStream(32))
-        using (var writer = new BinaryWriter(stream))
+        using (MemoryStream stream = new(32))
+        using (BinaryWriter writer = new(stream))
         {
             CffOpenTypeWriter.WriteUInt32BE(writer, 0x00030000); // version 3.0 (no glyph names)
             CffOpenTypeWriter.WriteUInt32BE(writer, 0);          // italicAngle
@@ -241,17 +243,19 @@ internal static class CffOpenTypeWrapper
 
     private static byte[] BuildOS2(ushort numGlyphs, PdfFontDescriptor fontDescriptor)
     {
-        using (var stream = new MemoryStream(78))
-        using (var writer = new BinaryWriter(stream))
+        using (MemoryStream stream = new(78))
+        using (BinaryWriter writer = new(stream))
         {
-            short xAvgCharWidth = CffOpenTypeWriter.ClampToShort(fontDescriptor.AvgWidth != 0 ? fontDescriptor.AvgWidth : DefaultAvgWidth, DefaultAvgWidth);
-            ushort usWeightClass = (ushort)(fontDescriptor.FontWeight >= 100 && fontDescriptor.FontWeight <= 900 ? fontDescriptor.FontWeight : (fontDescriptor.Flags & PdfFontFlags.ForceBold) == PdfFontFlags.ForceBold ? DefaultBoldWeight : DefaultWeightIfUnknown);
-            ushort usWidthClass = 5; // Medium width
-            short sTypoAscender = CffOpenTypeWriter.ClampToShort(fontDescriptor.Ascent != 0 ? fontDescriptor.Ascent : DefaultAscent, DefaultAscent);
-            short sTypoDescender = CffOpenTypeWriter.ClampToShort(fontDescriptor.Descent != 0 ? fontDescriptor.Descent : DefaultDescent, DefaultDescent);
-            short sTypoLineGap = DefaultLineGap;
-            ushort usWinAscent = (ushort)Math.Max(0, (int)Math.Round(fontDescriptor.FontBBox.Top != 0 ? fontDescriptor.FontBBox.Top : DefaultAscent));
-            ushort usWinDescent = (ushort)Math.Max(0, -(int)Math.Round(fontDescriptor.FontBBox.Bottom != 0 ? fontDescriptor.FontBBox.Bottom : DefaultDescent));
+            short xAvgCharWidth = CffOpenTypeWriter.ClampToShort((fontDescriptor.AvgWidth != 0) ? fontDescriptor.AvgWidth : DefaultAvgWidth, DefaultAvgWidth);
+            var usWeightClass = (ushort)((fontDescriptor.FontWeight >= 100 && fontDescriptor.FontWeight <= 900)
+                ? fontDescriptor.FontWeight
+                : ((fontDescriptor.Flags & PdfFontFlags.ForceBold) == PdfFontFlags.ForceBold) ? DefaultBoldWeight : DefaultWeightIfUnknown);
+            const ushort usWidthClass = 5; // Medium width
+            short sTypoAscender = CffOpenTypeWriter.ClampToShort((fontDescriptor.Ascent != 0) ? fontDescriptor.Ascent : DefaultAscent, DefaultAscent);
+            short sTypoDescender = CffOpenTypeWriter.ClampToShort((fontDescriptor.Descent != 0) ? fontDescriptor.Descent : DefaultDescent, DefaultDescent);
+            const short sTypoLineGap = DefaultLineGap;
+            var usWinAscent = (ushort)Math.Max(0, (int)Math.Round((fontDescriptor.FontBBox.Top != 0) ? fontDescriptor.FontBBox.Top : DefaultAscent));
+            var usWinDescent = (ushort)Math.Max(0, -(int)Math.Round((fontDescriptor.FontBBox.Bottom != 0) ? fontDescriptor.FontBBox.Bottom : DefaultDescent));
 
             ushort fsSelection = 0;
             bool italic = (fontDescriptor.Flags & PdfFontFlags.Italic) == PdfFontFlags.Italic || Math.Abs(fontDescriptor.ItalicAngle) > 0.1f;
@@ -260,10 +264,12 @@ internal static class CffOpenTypeWrapper
             {
                 fsSelection |= 0x0001;
             }
+
             if (bold)
             {
                 fsSelection |= 0x0020;
             }
+
             if (!italic && !bold)
             {
                 fsSelection |= 0x0002; // REGULAR
@@ -274,22 +280,28 @@ internal static class CffOpenTypeWrapper
             CffOpenTypeWriter.WriteUInt16BE(writer, usWeightClass);  // usWeightClass
             CffOpenTypeWriter.WriteUInt16BE(writer, usWidthClass);   // usWidthClass
             CffOpenTypeWriter.WriteInt16BE(writer, 0);               // fsType
-            CffOpenTypeWriter.WriteInt16BE(writer, 2); CffOpenTypeWriter.WriteInt16BE(writer, -1); // ySubscript
-            CffOpenTypeWriter.WriteInt16BE(writer, 0); CffOpenTypeWriter.WriteInt16BE(writer, 0);
-            CffOpenTypeWriter.WriteInt16BE(writer, 2); CffOpenTypeWriter.WriteInt16BE(writer, 1);  // ySuperscript
-            CffOpenTypeWriter.WriteInt16BE(writer, 0); CffOpenTypeWriter.WriteInt16BE(writer, 0);
+            CffOpenTypeWriter.WriteInt16BE(writer, 2);
+            CffOpenTypeWriter.WriteInt16BE(writer, -1); // ySubscript
+            CffOpenTypeWriter.WriteInt16BE(writer, 0);
+            CffOpenTypeWriter.WriteInt16BE(writer, 0);
+            CffOpenTypeWriter.WriteInt16BE(writer, 2);
+            CffOpenTypeWriter.WriteInt16BE(writer, 1);  // ySuperscript
+            CffOpenTypeWriter.WriteInt16BE(writer, 0);
+            CffOpenTypeWriter.WriteInt16BE(writer, 0);
             CffOpenTypeWriter.WriteInt16BE(writer, DefaultStrikeoutSize);
             CffOpenTypeWriter.WriteInt16BE(writer, DefaultStrikeoutPosition);
             CffOpenTypeWriter.WriteInt16BE(writer, 0); // sFamilyClass
-            var panose = fontDescriptor.Panose;
+            byte[] panose = fontDescriptor.Panose;
             for (int i = 0; i < 10; i++)
             {
-                writer.Write((byte)(panose != null && i < panose.Length ? panose[i] : 0));
+                writer.Write((byte)((panose != null && i < panose.Length) ? panose[i] : 0));
             }
+
             for (int rangeIndex = 0; rangeIndex < 4; rangeIndex++)
             {
                 CffOpenTypeWriter.WriteUInt32BE(writer, 0); // Unicode ranges
             }
+
             CffOpenTypeWriter.WriteUInt32BE(writer, 0);      // achVendID
             CffOpenTypeWriter.WriteUInt16BE(writer, fsSelection);
             CffOpenTypeWriter.WriteUInt16BE(writer, 0);      // usFirstCharIndex
@@ -337,30 +349,29 @@ internal static class CffOpenTypeWrapper
         string baseName = parsed.NormalizedStem;
         string postScriptName = baseName.Replace(' ', '-');
 
-        var records = new List<(ushort NameId, string Value)>
-        {
+        List<(ushort NameId, string Value)> records = [
             (NameIdFontFamily, family),
             (NameIdFontSubfamily, subfamily),
-            (NameIdFullFontName, string.Concat(family, " ", subfamily)),
+            (NameIdFullFontName, $"{family} {subfamily}"),
             (NameIdPostScriptName, postScriptName),
             (NameIdVersionString, DefaultVersionString)
-        };
+        ];
 
         const ushort PlatformWindows = 3;
         const ushort EncodingUnicodeBmp = 1;
         const ushort LanguageEnUs = 0x0409;
 
-        var stringData = new List<byte[]>();
+        List<byte[]> stringData = [];
         for (int recordIndex = 0; recordIndex < records.Count; recordIndex++)
         {
             stringData.Add(Encoding.BigEndianUnicode.GetBytes(records[recordIndex].Value));
         }
 
-        ushort recordCount = (ushort)records.Count;
-        int storageOffset = 6 + recordCount * 12;
+        var recordCount = (ushort)records.Count;
+        int storageOffset = 6 + (recordCount * 12);
 
-        using (var stream = new MemoryStream())
-        using (var writer = new BinaryWriter(stream))
+        using (MemoryStream stream = new())
+        using (BinaryWriter writer = new(stream))
         {
             CffOpenTypeWriter.WriteUInt16BE(writer, 0);
             CffOpenTypeWriter.WriteUInt16BE(writer, recordCount);
@@ -380,7 +391,7 @@ internal static class CffOpenTypeWrapper
 
             for (int i = 0; i < stringData.Count; i++)
             {
-                var bytes = stringData[i];
+                byte[] bytes = stringData[i];
                 writer.Write(bytes, 0, bytes.Length);
             }
 
@@ -390,8 +401,8 @@ internal static class CffOpenTypeWrapper
 
     private static byte[] BuildCmapEmpty()
     {
-        using (var stream = new MemoryStream())
-        using (var writer = new BinaryWriter(stream))
+        using (MemoryStream stream = new())
+        using (BinaryWriter writer = new(stream))
         {
             CffOpenTypeWriter.WriteUInt16BE(writer, 0); // version
             CffOpenTypeWriter.WriteUInt16BE(writer, 1); // numTables
@@ -418,8 +429,8 @@ internal static class CffOpenTypeWrapper
 
     private static byte[] BuildFontBytes(List<Table> tables, ushort numTables, ushort searchRange, ushort entrySelector, ushort rangeShift)
     {
-        using (var stream = new MemoryStream())
-        using (var writer = new BinaryWriter(stream))
+        using (MemoryStream stream = new())
+        using (BinaryWriter writer = new(stream))
         {
             CffOpenTypeWriter.WriteUInt32BE(writer, SfntVersion);
             CffOpenTypeWriter.WriteUInt16BE(writer, numTables);
@@ -429,7 +440,7 @@ internal static class CffOpenTypeWrapper
 
             for (int i = 0; i < tables.Count; i++)
             {
-                var table = tables[i];
+                Table table = tables[i];
                 CffOpenTypeWriter.WriteUInt32BE(writer, table.Tag);
                 CffOpenTypeWriter.WriteUInt32BE(writer, table.Checksum);
                 CffOpenTypeWriter.WriteUInt32BE(writer, (uint)table.Offset);
@@ -438,11 +449,12 @@ internal static class CffOpenTypeWrapper
 
             for (int i = 0; i < tables.Count; i++)
             {
-                var table = tables[i];
+                Table table = tables[i];
                 while (stream.Position < table.Offset)
                 {
                     writer.Write((byte)0);
                 }
+
                 writer.Write(table.Data, 0, table.Data.Length);
                 int paddedLength = CffOpenTypeWriter.Align4(table.Data.Length);
                 for (int pad = table.Data.Length; pad < paddedLength; pad++)

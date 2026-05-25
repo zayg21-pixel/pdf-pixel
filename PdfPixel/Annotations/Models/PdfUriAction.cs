@@ -41,8 +41,5 @@ public class PdfUriAction : PdfAction
     /// Returns a string representation of this URI action.
     /// </summary>
     /// <returns>A string containing the URI.</returns>
-    public override string ToString()
-    {
-        return $"URI Action: {Uri}";
-    }
+    public override string ToString() => $"URI Action: {Uri}";
 }

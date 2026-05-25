@@ -31,7 +31,9 @@ internal sealed class PdfImageTileCacheEntry : IDisposable
     public void Initialize(SKMatrix ctm, SKRectI imageRegion, object contentLocker, IPdfExecutionObserver observer)
     {
         if (ctm.ScaleX != _cachedScaleX || ctm.ScaleY != _cachedScaleY)
+        {
             InvalidateCache();
+        }
 
         _cachedScaleX = ctm.ScaleX;
         _cachedScaleY = ctm.ScaleY;
@@ -47,10 +49,14 @@ internal sealed class PdfImageTileCacheEntry : IDisposable
     public PdfImageTile GetNextTile(IPdfExecutionObserver observer)
     {
         if (_currentTileIndex >= TileInfo.TotalTiles)
+        {
             throw new InvalidOperationException($"Tile index {_currentTileIndex} is out of range (TotalTiles={TileInfo.TotalTiles}).");
+        }
 
         if (_tiles[_currentTileIndex] != null)
+        {
             return _tiles[_currentTileIndex++];
+        }
 
         while (_decoding)
         {
@@ -60,21 +66,28 @@ internal sealed class PdfImageTileCacheEntry : IDisposable
             if (batch == null)
             {
                 _decoding = false;
-                _decodedRegion = _decodedRegion.HasValue
+                _decodedRegion = (_decodedRegion.HasValue)
                     ? SKRectI.Union(_decodedRegion.Value, _pendingDecodeRegion)
                     : _pendingDecodeRegion;
                 break;
             }
+
             foreach (PdfImageTile tile in batch)
             {
                 if (_tiles[tile.TileIndex] == null)
+                {
                     _tiles[tile.TileIndex] = tile;
+                }
                 else
+                {
                     tile.Dispose();
+                }
             }
 
             if (_tiles[_currentTileIndex] != null)
+            {
                 return _tiles[_currentTileIndex++];
+            }
         }
 
         throw new InvalidOperationException($"Tile {_currentTileIndex} was not produced by the decoder.");
@@ -82,16 +95,29 @@ internal sealed class PdfImageTileCacheEntry : IDisposable
 
     private SKRectI ComputeRegionToDecode(SKRectI imageRegion)
     {
-        if (!_decodedRegion.HasValue) return imageRegion;
+        if (!_decodedRegion.HasValue)
+        {
+            return imageRegion;
+        }
 
         SKRectI prev = _decodedRegion.Value;
-        if (prev.Contains(imageRegion)) return SKRectI.Empty;
+        if (prev.Contains(imageRegion))
+        {
+            return SKRectI.Empty;
+        }
 
         bool grewRight = imageRegion.Right > prev.Right;
         bool grewDown = imageRegion.Bottom > prev.Bottom;
 
-        if (grewRight && !grewDown) return new SKRectI(prev.Right, 0, imageRegion.Right, imageRegion.Bottom);
-        if (grewDown && !grewRight) return new SKRectI(0, prev.Bottom, imageRegion.Right, imageRegion.Bottom);
+        if (grewRight && !grewDown)
+        {
+            return new SKRectI(prev.Right, 0, imageRegion.Right, imageRegion.Bottom);
+        }
+
+        if (grewDown && !grewRight)
+        {
+            return new SKRectI(0, prev.Bottom, imageRegion.Right, imageRegion.Bottom);
+        }
 
         return imageRegion;
     }
@@ -103,11 +129,13 @@ internal sealed class PdfImageTileCacheEntry : IDisposable
             _decoder.Cleanup();
             _decoding = false;
         }
+
         for (int i = 0; i < _tiles.Length; i++)
         {
             _tiles[i]?.Dispose();
             _tiles[i] = null;
         }
+
         _decodedRegion = null;
     }
 

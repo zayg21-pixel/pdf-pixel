@@ -26,9 +26,10 @@ public static class ShapedGlyphBuilder
         {
             return;
         }
+
         buffer.Clear();
 
-        var font = state?.CurrentFont;
+        PdfFontBase? font = state?.CurrentFont;
         if (font == null)
         {
             return;
@@ -36,7 +37,7 @@ public static class ShapedGlyphBuilder
 
         bool isVertical = font.WritingMode == Fonts.Mapping.CMapWMode.Vertical;
 
-        var array = arrayOperand.AsArray();
+        PdfArray array = arrayOperand.AsArray();
         float x = 0f;
         float y = 0f;
 
@@ -44,17 +45,17 @@ public static class ShapedGlyphBuilder
         {
             for (int i = 0; i < array.Count; i++)
             {
-                var item = array.GetValue(i);
+                IPdfValue item = array.GetValue(i);
                 if (item.Type == PdfValueType.String)
                 {
-                    var pdfText = PdfText.FromOperand(item);
+                    PdfText pdfText = PdfText.FromOperand(item);
                     AddShapedGlyphsForText(pdfText, font, state, buffer, ref x, ref y);
                 }
                 else
                 {
                     // Positioning adjustment (negative = move left, positive = move right)
-                    var adjustment = item.AsFloat();
-                    var adjustmentInUserSpace = -adjustment / 1000f;
+                    float adjustment = item.AsFloat();
+                    float adjustmentInUserSpace = -adjustment / 1000f;
 
                     if (isVertical)
                     {
@@ -87,13 +88,13 @@ public static class ShapedGlyphBuilder
 
         buffer.Clear();
 
-        var font = state?.CurrentFont;
+        PdfFontBase? font = state?.CurrentFont;
         if (font == null)
         {
             return;
         }
 
-        var pdfText = PdfText.FromOperand(stringOperand);
+        PdfText pdfText = PdfText.FromOperand(stringOperand);
         float x = 0f;
         float y = 0f;
 
@@ -103,14 +104,14 @@ public static class ShapedGlyphBuilder
     /// <summary>
     /// Shapes a PdfText and appends the resulting glyphs to the output list.
     /// </summary>
-    private static void AddShapedGlyphsForText(PdfText pdfText, PdfFontBase font, PdfGraphicsState state, List<ShapedGlyph> output, ref float x, ref float y)
+    private static void AddShapedGlyphsForText(in PdfText pdfText, PdfFontBase font, PdfGraphicsState state, List<ShapedGlyph> output, ref float x, ref float y)
     {
-        var codes = font.ExtractCharacterCodes(pdfText.RawBytes);
+        Fonts.Mapping.PdfCharacterCode[] codes = font.ExtractCharacterCodes(pdfText.RawBytes);
         bool isVertical = font.WritingMode == Fonts.Mapping.CMapWMode.Vertical;
 
         for (int codeIndex = 0; codeIndex < codes.Length; codeIndex++)
         {
-            var info = font.ExtractCharacterInfo(codes[codeIndex]);
+            PdfCharacterInfo info = font.ExtractCharacterInfo(codes[codeIndex]);
             string unicode = info.Unicode;
             bool isSpace = unicode == " ";
             float spacing = state.CharacterSpacing + (isSpace ? state.WordSpacing : 0f);
@@ -121,7 +122,7 @@ public static class ShapedGlyphBuilder
 
             for (int i = 0; i < info.Gid.Length; i++)
             {
-                int? id = info.Gid.Length > 1 ? i : null;
+                int? id = (info.Gid.Length > 1) ? i : null;
                 uint gid = info.Gid[i];
                 float width = info.Width[i];
                 float glyphRightAdvance = rightEdge - xCursor;

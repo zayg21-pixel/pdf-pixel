@@ -23,8 +23,8 @@ public class PdfPolygonAnnotation : PdfAnnotationBase
     public PdfPolygonAnnotation(PdfObject annotationObject)
         : base(annotationObject, PdfAnnotationSubType.Polygon)
     {
-        var vertices = annotationObject.Dictionary.GetArray(PdfTokens.VerticesKey)?.GetFloatArray();
-        
+        float[]? vertices = annotationObject.Dictionary.GetArray(PdfTokens.VerticesKey)?.GetFloatArray();
+
         if (vertices != null)
         {
             Vertices = new SKPoint[vertices.Length / 2];
@@ -36,7 +36,7 @@ public class PdfPolygonAnnotation : PdfAnnotationBase
         }
     }
 
-    protected override SKPoint ContentStart => Vertices?.Length > 0 ? Vertices[0] : base.ContentStart;
+    protected override SKPoint ContentStart => (Vertices?.Length > 0) ? Vertices[0] : base.ContentStart;
 
     /// <summary>
     /// Gets the vertices array containing coordinates of the polygon vertices.
@@ -50,7 +50,7 @@ public class PdfPolygonAnnotation : PdfAnnotationBase
             return false;
         }
 
-        using var path = new SKPath();
+        using SKPath path = new();
 
         path.MoveTo(Vertices[0]);
 
@@ -61,10 +61,10 @@ public class PdfPolygonAnnotation : PdfAnnotationBase
 
         path.Close();
 
-        var interiorSKColor = ResolveInteriorColor(page);
+        SKColor interiorSKColor = ResolveInteriorColor(page);
         if (interiorSKColor != SKColors.Transparent)
         {
-            var fillPaint = new SKPaint
+            SKPaint fillPaint = new()
             {
                 Style = SKPaintStyle.Fill,
                 IsAntialias = renderingParameters.Antialias,
@@ -74,11 +74,11 @@ public class PdfPolygonAnnotation : PdfAnnotationBase
             processor.Process(new DrawPathCommand(path, fillPaint));
         }
 
-        if (BorderStyle != null && BorderStyle.Width > 0 && Color != null && Color.Length > 0)
+        if (BorderStyle?.Width > 0 && Color?.Length > 0)
         {
-            var strokeColor = ResolveColor(page, SKColors.Black);
+            SKColor strokeColor = ResolveColor(page, SKColors.Black);
 
-            var strokePaint = new SKPaint
+            SKPaint strokePaint = new()
             {
                 Style = SKPaintStyle.Stroke,
                 StrokeWidth = BorderStyle.Width,
@@ -101,7 +101,7 @@ public class PdfPolygonAnnotation : PdfAnnotationBase
     /// <returns>A string containing the annotation type.</returns>
     public override string ToString()
     {
-        var contentsText = Contents.ToString();
+        string contentsText = Contents.ToString();
 
         if (!string.IsNullOrEmpty(contentsText))
         {

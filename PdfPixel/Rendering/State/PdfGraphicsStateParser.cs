@@ -25,7 +25,7 @@ namespace PdfPixel.Rendering.State
         /// <returns>Populated parameters container.</returns>
         internal static PdfGraphicsStateParameters ParseGraphicsStateParametersFromDictionary(PdfDictionary gsDict, IPdfPageInternal page)
         {
-            var parameters = new PdfGraphicsStateParameters();
+            PdfGraphicsStateParameters parameters = new();
             if (gsDict == null)
             {
                 return parameters;
@@ -40,9 +40,10 @@ namespace PdfPixel.Rendering.State
             {
                 parameters.LineWidth = gsDict.GetFloatOrDefault(PdfTokens.LineWidthKey);
             }
+
             if (gsDict.HasKey(PdfTokens.LineCapKey))
             {
-                var capStyle = gsDict.GetFloatOrDefault(PdfTokens.LineCapKey);
+                float capStyle = gsDict.GetFloatOrDefault(PdfTokens.LineCapKey);
                 parameters.LineCap = capStyle switch
                 {
                     0 => SKStrokeCap.Butt,
@@ -51,9 +52,10 @@ namespace PdfPixel.Rendering.State
                     _ => SKStrokeCap.Butt
                 };
             }
+
             if (gsDict.HasKey(PdfTokens.LineJoinKey))
             {
-                var joinStyle = gsDict.GetFloatOrDefault(PdfTokens.LineJoinKey);
+                float joinStyle = gsDict.GetFloatOrDefault(PdfTokens.LineJoinKey);
                 parameters.LineJoin = joinStyle switch
                 {
                     0 => SKStrokeJoin.Miter,
@@ -62,19 +64,21 @@ namespace PdfPixel.Rendering.State
                     _ => SKStrokeJoin.Miter
                 };
             }
+
             if (gsDict.HasKey(PdfTokens.MiterLimitKey))
             {
                 parameters.MiterLimit = gsDict.GetFloatOrDefault(PdfTokens.MiterLimitKey);
             }
+
             if (gsDict.HasKey(PdfTokens.DashPatternKey))
             {
-                var dashArray = gsDict.GetArray(PdfTokens.DashPatternKey);
-                if (dashArray != null && dashArray.Count >= 2)
+                PdfArray dashArray = gsDict.GetArray(PdfTokens.DashPatternKey);
+                if (dashArray?.Count >= 2)
                 {
-                    var patternArray = dashArray.GetArray(0)?.GetFloatArray();
-                    var phase = dashArray.GetFloatOrDefault(1);
+                    float[]? patternArray = dashArray.GetArray(0)?.GetFloatArray();
+                    float phase = dashArray.GetFloatOrDefault(1);
 
-                    if (patternArray != null && patternArray.Length > 0)
+                    if (patternArray?.Length > 0)
                     {
                         parameters.DashPattern = patternArray;
                         parameters.DashPhase = phase;
@@ -87,25 +91,28 @@ namespace PdfPixel.Rendering.State
                     }
                 }
             }
+
             if (gsDict.HasKey(PdfTokens.StrokeAlphaKey)) // Stroke alpha (/CA)
             {
-                var alpha = gsDict.GetFloatOrDefault(PdfTokens.StrokeAlphaKey);
+                float alpha = gsDict.GetFloatOrDefault(PdfTokens.StrokeAlphaKey);
                 // Clamp alpha to valid range [0.0, 1.0] as per PDF specification
                 parameters.StrokeAlpha = Math.Max(0f, Math.Min(1f, alpha));
             }
+
             if (gsDict.HasKey(PdfTokens.FillAlphaKey))   // Fill alpha (/ca)
             {
-                var alpha = gsDict.GetFloatOrDefault(PdfTokens.FillAlphaKey);
+                float alpha = gsDict.GetFloatOrDefault(PdfTokens.FillAlphaKey);
                 // Clamp alpha to valid range [0.0, 1.0] as per PDF specification
                 parameters.FillAlpha = Math.Max(0f, Math.Min(1f, alpha));
             }
+
             if (gsDict.HasKey(PdfTokens.BlendModeKey))
             {
                 // First try to get as name
-                var blendModeName = gsDict.GetName(PdfTokens.BlendModeKey);
+                PdfString blendModeName = gsDict.GetName(PdfTokens.BlendModeKey);
                 if (!blendModeName.IsEmpty)
                 {
-                    var mode = blendModeName.AsEnum<PdfBlendMode>();
+                    PdfBlendMode mode = blendModeName.AsEnum<PdfBlendMode>();
                     if (mode != PdfBlendMode.Unknown)
                     {
                         parameters.BlendMode = mode;
@@ -114,13 +121,13 @@ namespace PdfPixel.Rendering.State
                 else
                 {
                     // Handle blend mode arrays - PDF viewers should use the first supported blend mode
-                    var blendModeArray = gsDict.GetArray(PdfTokens.BlendModeKey);
-                    if (blendModeArray != null && blendModeArray.Count > 0)
+                    PdfArray blendModeArray = gsDict.GetArray(PdfTokens.BlendModeKey);
+                    if (blendModeArray?.Count > 0)
                     {
                         // Try each blend mode in the array until we find a supported one
                         for (int index = 0; index < blendModeArray.Count; index++)
                         {
-                            var mode = blendModeArray.GetName(index).AsEnum<PdfBlendMode>();
+                            PdfBlendMode mode = blendModeArray.GetName(index).AsEnum<PdfBlendMode>();
 
                             if (mode != PdfBlendMode.Unknown)
                             {
@@ -131,6 +138,7 @@ namespace PdfPixel.Rendering.State
                     }
                 }
             }
+
             PdfArray matrixArray = null;
             if (gsDict.HasKey(PdfTokens.MatrixKey)) // Custom transformation matrix
             {
@@ -140,19 +148,20 @@ namespace PdfPixel.Rendering.State
             {
                 matrixArray = gsDict.GetArray(PdfTokens.CTMKey);
             }
+
             parameters.TransformMatrix = PdfLocationUtilities.CreateMatrix(matrixArray);
 
             // Soft Mask (/SMask)
             if (gsDict.HasKey(PdfTokens.SoftMaskKey))
             {
-                var maskName = gsDict.GetName(PdfTokens.SoftMaskKey);
+                PdfString maskName = gsDict.GetName(PdfTokens.SoftMaskKey);
                 if (maskName == PdfTokens.NoneValue)
                 {
                     parameters.SoftMask = null; // explicit removal
                 }
                 else
                 {
-                    var softMaskDict = gsDict.GetDictionary(PdfTokens.SoftMaskKey);
+                    PdfDictionary softMaskDict = gsDict.GetDictionary(PdfTokens.SoftMaskKey);
                     parameters.SoftMask = PdfSoftMaskParser.ParseSoftMaskDictionary(softMaskDict, page);
                 }
             }
@@ -160,7 +169,7 @@ namespace PdfPixel.Rendering.State
             // Transfer Function (/TR)
             if (gsDict.HasKey(PdfTokens.TransferFunctionKey))
             {
-                var trObject = gsDict.GetObject(PdfTokens.TransferFunctionKey);
+                PdfObject trObject = gsDict.GetObject(PdfTokens.TransferFunctionKey);
                 parameters.TransferFunction = TransferFunctionTransform.FromPdfObject(trObject);
             }
 
@@ -191,11 +200,11 @@ namespace PdfPixel.Rendering.State
             // Font (/Font)
             if (gsDict.HasKey(PdfTokens.FontKey))
             {
-                var fontArray = gsDict.GetArray(PdfTokens.FontKey);
-                if (fontArray != null && fontArray.Count == 2)
+                PdfArray fontArray = gsDict.GetArray(PdfTokens.FontKey);
+                if (fontArray?.Count == 2)
                 {
-                    var fontObject = fontArray.GetObject(0);
-                    var fontSize = fontArray.GetFloatOrDefault(1);
+                    PdfObject fontObject = fontArray.GetObject(0);
+                    float fontSize = fontArray.GetFloatOrDefault(1);
 
                     parameters.Font = page.Cache.GetFont(fontObject);
                     parameters.FontSize = fontSize;
@@ -205,7 +214,7 @@ namespace PdfPixel.Rendering.State
             // Rendering intent (/RI)
             if (gsDict.HasKey(PdfTokens.StateIntentKey))
             {
-                var intentName = gsDict.GetName(PdfTokens.StateIntentKey);
+                PdfString intentName = gsDict.GetName(PdfTokens.StateIntentKey);
                 parameters.PdfRenderingIntent = intentName.AsEnum<PdfRenderingIntent>();
             }
 

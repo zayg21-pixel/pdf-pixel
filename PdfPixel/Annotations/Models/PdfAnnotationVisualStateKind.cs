@@ -21,10 +21,10 @@ public enum PdfAnnotationVisualStateKind
     /// <summary>
     /// Pointer is over the annotation (rollover).
     /// </summary>
-    Rollover = 2,
+    Rollover = 1 << 1,
 
     /// <summary>
     /// Pointer button is pressed on the annotation (down).
     /// </summary>
-    Down = 4
+    Down = 1 << 2
 }

@@ -18,12 +18,13 @@ public sealed class PdfObjectInfo
     /// <param name="fileOffset">Absolute byte offset in the original PDF file where the object header begins.</param>
     /// <param name="fromXrefStream">True if sourced from a cross-reference stream entry; false if from classic xref table.</param>
     /// <returns>Configured <see cref="PdfObjectInfo"/> instance.</returns>
-    public static PdfObjectInfo ForUncompressed(PdfReference reference, long fileOffset, bool fromXrefStream)
+    public static PdfObjectInfo ForUncompressed(in PdfReference reference, long fileOffset, bool fromXrefStream)
     {
         if (!reference.IsValid)
         {
             throw new ArgumentException("Reference must be valid.", nameof(reference));
         }
+
         if (fileOffset < 0)
         {
             throw new ArgumentOutOfRangeException(nameof(fileOffset));
@@ -48,12 +49,13 @@ public sealed class PdfObjectInfo
     /// <param name="indexInObjectStream">Zero-based index within the object stream.</param>
     /// <param name="fromXrefStream">True if sourced from a cross-reference stream.</param>
     /// <returns>Configured <see cref="PdfObjectInfo"/> instance.</returns>
-    public static PdfObjectInfo ForCompressed(PdfReference reference, uint objectStreamNumber, int indexInObjectStream, bool fromXrefStream)
+    public static PdfObjectInfo ForCompressed(in PdfReference reference, uint objectStreamNumber, int indexInObjectStream, bool fromXrefStream)
     {
         if (objectStreamNumber <= 0)
         {
             throw new ArgumentOutOfRangeException(nameof(objectStreamNumber));
         }
+
         if (indexInObjectStream < 0)
         {
             throw new ArgumentOutOfRangeException(nameof(indexInObjectStream));
@@ -79,12 +81,13 @@ public sealed class PdfObjectInfo
     /// <param name="nextFreeGeneration">The generation number of the next free object (usually incremented).</param>
     /// <param name="fromXrefStream">True if sourced from a cross-reference stream.</param>
     /// <returns>Configured <see cref="PdfObjectInfo"/> instance.</returns>
-    public static PdfObjectInfo ForFree(PdfReference reference, int nextFreeObjectNumber, int nextFreeGeneration, bool fromXrefStream)
+    public static PdfObjectInfo ForFree(in PdfReference reference, int nextFreeObjectNumber, int nextFreeGeneration, bool fromXrefStream)
     {
         if (nextFreeObjectNumber < 0)
         {
             throw new ArgumentOutOfRangeException(nameof(nextFreeObjectNumber));
         }
+
         if (nextFreeGeneration < 0)
         {
             throw new ArgumentOutOfRangeException(nameof(nextFreeGeneration));
@@ -99,10 +102,7 @@ public sealed class PdfObjectInfo
         };
     }
 
-    private PdfObjectInfo(PdfReference reference)
-    {
-        Reference = reference;
-    }
+    private PdfObjectInfo(in PdfReference reference) => Reference = reference;
 
     /// <summary>
     /// Indirect object reference (object number and generation) uniquely identifying this entry.
@@ -172,10 +172,12 @@ public sealed class PdfObjectInfo
         {
             return $"{Reference} free -> next {NextFreeObjectNumber} {NextFreeGeneration}";
         }
+
         if (IsCompressed)
         {
             return $"{Reference} compressed in {ObjectStreamNumber} index {ObjectStreamIndex}";
         }
+
         return $"{Reference} offset {Offset}";
     }
 }

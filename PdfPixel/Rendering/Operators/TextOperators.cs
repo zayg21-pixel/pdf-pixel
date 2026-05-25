@@ -13,19 +13,31 @@ namespace PdfPixel.Rendering.Operators;
 /// </summary>
 internal class TextOperators : IOperatorProcessor
 {
-    private readonly List<ShapedGlyph> buffer = new List<ShapedGlyph>();
+    private readonly List<ShapedGlyph> buffer = [];
 
-    private static readonly HashSet<string> SupportedOperators = new HashSet<string>
-    {
+    private static readonly HashSet<string> SupportedOperators = [
         // Text object operators
-        "BT","ET",
+        "BT",
+        "ET",
         // Text state operators
-        "Tf","Tc","Tw","Tz","TL","Ts","Tr",
+        "Tf",
+        "Tc",
+        "Tw",
+        "Tz",
+        "TL",
+        "Ts",
+        "Tr",
         // Text positioning operators
-        "Td","TD","T*","Tm",
+        "Td",
+        "TD",
+        "T*",
+        "Tm",
         // Text showing operators
-        "Tj","TJ","'","\""
-    };
+        "Tj",
+        "TJ",
+        "'",
+        "\""
+    ];
 
     private readonly IPdfRenderer _renderer;
     private readonly IPdfPageInternal _page;
@@ -40,10 +52,7 @@ internal class TextOperators : IOperatorProcessor
         _operandStack = operandStack;
     }
 
-    public bool CanProcess(string op)
-    {
-        return SupportedOperators.Contains(op);
-    }
+    public bool CanProcess(string op) => SupportedOperators.Contains(op);
 
     public void ProcessOperator(string op, ref PdfGraphicsState graphicsState)
     {
@@ -166,14 +175,14 @@ internal class TextOperators : IOperatorProcessor
 
     private void ProcessSetFont(PdfGraphicsState graphicsState)
     {
-        var operands = PdfOperatorProcessor.GetOperands(2, _operandStack);
+        List<IPdfValue> operands = PdfOperatorProcessor.GetOperands(2, _operandStack);
         if (operands.Count < 2)
         {
             return;
         }
 
-        var fontName = operands[0].AsName();
-        var fontSize = operands[1].AsFloat();
+        PdfString fontName = operands[0].AsName();
+        float fontSize = operands[1].AsFloat();
         if (fontName.IsEmpty)
         {
             return;
@@ -185,7 +194,7 @@ internal class TextOperators : IOperatorProcessor
 
     private void ProcessSetCharacterSpacing(PdfGraphicsState graphicsState)
     {
-        var operands = PdfOperatorProcessor.GetOperands(1, _operandStack);
+        List<IPdfValue> operands = PdfOperatorProcessor.GetOperands(1, _operandStack);
         if (operands.Count == 0)
         {
             return;
@@ -196,7 +205,7 @@ internal class TextOperators : IOperatorProcessor
 
     private void ProcessSetWordSpacing(PdfGraphicsState graphicsState)
     {
-        var operands = PdfOperatorProcessor.GetOperands(1, _operandStack);
+        List<IPdfValue> operands = PdfOperatorProcessor.GetOperands(1, _operandStack);
         if (operands.Count == 0)
         {
             return;
@@ -207,7 +216,7 @@ internal class TextOperators : IOperatorProcessor
 
     private void ProcessSetHorizontalScaling(PdfGraphicsState graphicsState)
     {
-        var operands = PdfOperatorProcessor.GetOperands(1, _operandStack);
+        List<IPdfValue> operands = PdfOperatorProcessor.GetOperands(1, _operandStack);
         if (operands.Count == 0)
         {
             return;
@@ -218,7 +227,7 @@ internal class TextOperators : IOperatorProcessor
 
     private void ProcessSetTextLeading(PdfGraphicsState graphicsState)
     {
-        var operands = PdfOperatorProcessor.GetOperands(1, _operandStack);
+        List<IPdfValue> operands = PdfOperatorProcessor.GetOperands(1, _operandStack);
         if (operands.Count == 0)
         {
             return;
@@ -229,7 +238,7 @@ internal class TextOperators : IOperatorProcessor
 
     private void ProcessSetTextRise(PdfGraphicsState graphicsState)
     {
-        var operands = PdfOperatorProcessor.GetOperands(1, _operandStack);
+        List<IPdfValue> operands = PdfOperatorProcessor.GetOperands(1, _operandStack);
         if (operands.Count == 0)
         {
             return;
@@ -240,7 +249,7 @@ internal class TextOperators : IOperatorProcessor
 
     private void ProcessSetTextRenderingMode(PdfGraphicsState graphicsState)
     {
-        var operands = PdfOperatorProcessor.GetOperands(1, _operandStack);
+        List<IPdfValue> operands = PdfOperatorProcessor.GetOperands(1, _operandStack);
         if (operands.Count == 0)
         {
             return;
@@ -259,38 +268,38 @@ internal class TextOperators : IOperatorProcessor
 
     private void ProcessMoveTextPosition(PdfGraphicsState graphicsState)
     {
-        var operands = PdfOperatorProcessor.GetOperands(2, _operandStack);
+        List<IPdfValue> operands = PdfOperatorProcessor.GetOperands(2, _operandStack);
         if (operands.Count < 2 || !graphicsState.InTextObject)
         {
             return;
         }
 
-        var tx = operands[0].AsFloat();
-        var ty = operands[1].AsFloat();
-        var translation = SKMatrix.CreateTranslation(tx, ty);
+        float tx = operands[0].AsFloat();
+        float ty = operands[1].AsFloat();
+        SKMatrix translation = SKMatrix.CreateTranslation(tx, ty);
         graphicsState.TextLineMatrix = translation.PostConcat(graphicsState.TextLineMatrix);
         graphicsState.TextMatrix = graphicsState.TextLineMatrix;
     }
 
     private void ProcessMoveTextPositionAndSetLeading(PdfGraphicsState graphicsState)
     {
-        var operands = PdfOperatorProcessor.GetOperands(2, _operandStack);
+        List<IPdfValue> operands = PdfOperatorProcessor.GetOperands(2, _operandStack);
         if (operands.Count < 2 || !graphicsState.InTextObject)
         {
             return;
         }
 
-        var tx = operands[0].AsFloat();
-        var ty = operands[1].AsFloat();
+        float tx = operands[0].AsFloat();
+        float ty = operands[1].AsFloat();
         graphicsState.Leading = ty;
-        var translation = SKMatrix.CreateTranslation(tx, ty);
+        SKMatrix translation = SKMatrix.CreateTranslation(tx, ty);
         graphicsState.TextLineMatrix = translation.PostConcat(graphicsState.TextLineMatrix);
         graphicsState.TextMatrix = graphicsState.TextLineMatrix;
     }
 
     private void ProcessShowText(PdfGraphicsState graphicsState)
     {
-        var operands = PdfOperatorProcessor.GetOperands(1, _operandStack);
+        List<IPdfValue> operands = PdfOperatorProcessor.GetOperands(1, _operandStack);
         if (operands.Count == 0 || !graphicsState.InTextObject)
         {
             return;
@@ -313,7 +322,7 @@ internal class TextOperators : IOperatorProcessor
 
     private void ProcessShowTextWithPositioning(PdfGraphicsState graphicsState)
     {
-        var operands = PdfOperatorProcessor.GetOperands(1, _operandStack);
+        List<IPdfValue> operands = PdfOperatorProcessor.GetOperands(1, _operandStack);
         if (operands.Count == 0 || !graphicsState.InTextObject)
         {
             return;
@@ -330,20 +339,20 @@ internal class TextOperators : IOperatorProcessor
             return;
         }
 
-        var translation = SKMatrix.CreateTranslation(0, graphicsState.Leading);
+        SKMatrix translation = SKMatrix.CreateTranslation(0, graphicsState.Leading);
         graphicsState.TextLineMatrix = translation.PostConcat(graphicsState.TextLineMatrix);
         graphicsState.TextMatrix = graphicsState.TextLineMatrix;
     }
 
     private void ProcessSetTextMatrix(PdfGraphicsState graphicsState)
     {
-        var operands = PdfOperatorProcessor.GetOperands(6, _operandStack);
+        List<IPdfValue> operands = PdfOperatorProcessor.GetOperands(6, _operandStack);
         if (operands.Count < 6 || !graphicsState.InTextObject)
         {
             return;
         }
 
-        var matrix = PdfLocationUtilities.CreateMatrix(operands);
+        SKMatrix matrix = PdfLocationUtilities.CreateMatrix(operands);
         graphicsState.TextMatrix = matrix;
         graphicsState.TextLineMatrix = matrix;
     }
@@ -357,7 +366,7 @@ internal class TextOperators : IOperatorProcessor
 
         ProcessNextLine(graphicsState);
 
-        var operands = PdfOperatorProcessor.GetOperands(3, _operandStack);
+        List<IPdfValue> operands = PdfOperatorProcessor.GetOperands(3, _operandStack);
         if (operands.Count < 3 || !graphicsState.InTextObject)
         {
             return;
@@ -371,8 +380,8 @@ internal class TextOperators : IOperatorProcessor
 
     private void ProcessSequence(PdfGraphicsState graphicsState, List<ShapedGlyph> glyphs)
     {
-        var advancement = _renderer.DrawTextSequence(_processor, glyphs, graphicsState, graphicsState.CurrentFont);
-        var advanceMatrix = SKMatrix.CreateTranslation(advancement.Width, advancement.Height);
+        SKSize advancement = _renderer.DrawTextSequence(_processor, glyphs, graphicsState, graphicsState.CurrentFont);
+        SKMatrix advanceMatrix = SKMatrix.CreateTranslation(advancement.Width, advancement.Height);
         graphicsState.TextMatrix = SKMatrix.Concat(graphicsState.TextMatrix, advanceMatrix);
     }
 }

@@ -16,19 +16,24 @@ namespace PdfPixel.Rendering.Operators;
 /// </summary>
 internal class MiscellaneousOperators : IOperatorProcessor
 {
-    private static readonly HashSet<string> SupportedOperators = new HashSet<string>
-    {
+    private static readonly HashSet<string> SupportedOperators = [
         // XObject invocation
         "Do",
         // Marked content
-        "MP","DP","BMC","BDC","EMC",
+        "MP",
+        "DP",
+        "BMC",
+        "BDC",
+        "EMC",
         // Compatibility
-        "BX","EX",
+        "BX",
+        "EX",
         // Type 3 font metrics
-        "d0","d1",
+        "d0",
+        "d1",
         // Shading
         "sh"
-    };
+    ];
 
     private readonly IPdfRenderer _renderer;
     private readonly Stack<IPdfValue> _operandStack;
@@ -45,10 +50,7 @@ internal class MiscellaneousOperators : IOperatorProcessor
         _logger = page.Document.LoggerFactory.CreateLogger<MiscellaneousOperators>();
     }
 
-    public bool CanProcess(string op)
-    {
-        return SupportedOperators.Contains(op);
-    }
+    public bool CanProcess(string op) => SupportedOperators.Contains(op);
 
     public void ProcessOperator(string op, ref PdfGraphicsState graphicsState)
     {
@@ -114,19 +116,19 @@ internal class MiscellaneousOperators : IOperatorProcessor
 
     private void ProcessInvokeXObject(PdfGraphicsState graphicsState)
     {
-        var operands = PdfOperatorProcessor.GetOperands(1, _operandStack);
+        List<IPdfValue> operands = PdfOperatorProcessor.GetOperands(1, _operandStack);
         if (operands.Count == 0)
         {
             return;
         }
 
-        var xObjectName = operands[0].AsName();
+        PdfString xObjectName = operands[0].AsName();
         if (xObjectName.IsEmpty)
         {
             return;
         }
 
-        var pageObject = _page.Cache.GetXObject(xObjectName);
+        PdfXObject pageObject = _page.Cache.GetXObject(xObjectName);
 
         if (pageObject == null)
         {
@@ -138,17 +140,21 @@ internal class MiscellaneousOperators : IOperatorProcessor
         {
             case PdfXObjectSubtype.Image:
             {
-                var pdfImage = PdfImage.FromXObject(pageObject.XObject, _page, xObjectName, isSoftMask: false);
+                    PdfImage pdfImage = PdfImage.FromXObject(pageObject.XObject, _page, xObjectName, isSoftMask: false);
                 _renderer.DrawImage(_processor, pdfImage, graphicsState);
                 break;
             }
             case PdfXObjectSubtype.Form:
-                var formXObject = PdfForm.FromXObject(pageObject.XObject, _page);
-                _renderer.DrawForm(_processor, formXObject, graphicsState);
-                break;
+                {
+                    PdfForm formXObject = PdfForm.FromXObject(pageObject.XObject, _page);
+                    _renderer.DrawForm(_processor, formXObject, graphicsState);
+                    break;
+                }
             default:
-                _logger.LogWarning("Unsupported XObject subtype '{XObjectSubtype}' for XObject '{XObjectName}'", pageObject.Subtype, xObjectName);
-                return;
+                {
+                    _logger.LogWarning("Unsupported XObject subtype '{XObjectSubtype}' for XObject '{XObjectName}'", pageObject.Subtype, xObjectName);
+                    return;
+                }
         }
     }
 
@@ -203,20 +209,20 @@ internal class MiscellaneousOperators : IOperatorProcessor
 
     private void ProcessShading(PdfGraphicsState graphicsState)
     {
-        var operands = PdfOperatorProcessor.GetOperands(1, _operandStack);
+        List<IPdfValue> operands = PdfOperatorProcessor.GetOperands(1, _operandStack);
         if (operands.Count == 0)
         {
             return;
         }
 
-        var shadingName = operands[0].AsName();
+        PdfString shadingName = operands[0].AsName();
         if (shadingName.IsEmpty)
         {
             return;
         }
 
-        var shadings = _page.ResourceDictionary.GetDictionary(PdfTokens.ShadingKey);
-        var shadingObject = shadings?.GetObject(shadingName);
+        PdfDictionary shadings = _page.ResourceDictionary.GetDictionary(PdfTokens.ShadingKey);
+        PdfObject? shadingObject = shadings?.GetObject(shadingName);
 
         if (shadingObject == null)
         {
@@ -224,7 +230,7 @@ internal class MiscellaneousOperators : IOperatorProcessor
             return;
         }
 
-        var shading = new PdfShading(shadingObject);
+        PdfShading shading = new(shadingObject);
 
         _renderer.DrawShading(_processor, shading, graphicsState);
     }

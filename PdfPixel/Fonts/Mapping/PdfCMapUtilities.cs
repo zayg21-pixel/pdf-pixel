@@ -16,7 +16,7 @@ namespace PdfPixel.Fonts.Mapping
         /// <param name="list">Target list for ranges of a specific code length.</param>
         /// <param name="range">Range to insert.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static void InsertUnicodeRangeSorted(List<UnicodeRangeMap> list, UnicodeRangeMap range)
+        public static void InsertUnicodeRangeSorted(List<UnicodeRangeMap> list, in UnicodeRangeMap range)
         {
             if (list == null)
             {
@@ -28,6 +28,7 @@ namespace PdfPixel.Fonts.Mapping
             {
                 index = ~index;
             }
+
             list.Insert(index, range);
         }
 
@@ -37,7 +38,7 @@ namespace PdfPixel.Fonts.Mapping
         /// <param name="list">Target list for ranges of a specific code length.</param>
         /// <param name="range">Range to insert.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static void InsertCidRangeSorted(List<CidRangeMap> list, CidRangeMap range)
+        public static void InsertCidRangeSorted(List<CidRangeMap> list, in CidRangeMap range)
         {
             if (list == null)
             {
@@ -49,6 +50,7 @@ namespace PdfPixel.Fonts.Mapping
             {
                 index = ~index;
             }
+
             list.Insert(index, range);
         }
 
@@ -66,7 +68,7 @@ namespace PdfPixel.Fonts.Mapping
             while (low <= high)
             {
                 int mid = low + ((high - low) / 2);
-                var r = ranges[mid];
+                UnicodeRangeMap r = ranges[mid];
                 if (value < r.Start)
                 {
                     high = mid - 1;
@@ -80,6 +82,7 @@ namespace PdfPixel.Fonts.Mapping
                     return mid;
                 }
             }
+
             return -1;
         }
 
@@ -97,7 +100,7 @@ namespace PdfPixel.Fonts.Mapping
             while (low <= high)
             {
                 int mid = low + ((high - low) / 2);
-                var r = ranges[mid];
+                CidRangeMap r = ranges[mid];
                 if (value < r.Start)
                 {
                     high = mid - 1;
@@ -111,6 +114,7 @@ namespace PdfPixel.Fonts.Mapping
                     return mid;
                 }
             }
+
             return -1;
         }
     }

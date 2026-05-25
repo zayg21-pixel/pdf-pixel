@@ -44,10 +44,12 @@ namespace PdfPixel
             {
                 throw new ArgumentNullException(nameof(stream));
             }
+
             if (!stream.CanRead)
             {
                 throw new InvalidOperationException("Stream must be readable.");
             }
+
             if (!stream.CanSeek)
             {
                 throw new InvalidOperationException("Stream must support seeking (required for parsing).");
@@ -61,10 +63,10 @@ namespace PdfPixel
             }
 
             IPdfDocumentInternal document = new PdfDocument(_loggerFactory, _skiaFontProvider, stream);
-            var xrefLoader = new PdfXrefLoader(document);
-            var pageExtractor = new PdfPageExtractor(document);
-            var namedDestinationParser = new PdfNamedDestinationParser(document);
-            var outputIntentParser = new PdfOutputIntentParser(document);
+            PdfXrefLoader xrefLoader = new(document);
+            PdfPageExtractor pageExtractor = new(document);
+            PdfNamedDestinationParser namedDestinationParser = new(document);
+            PdfOutputIntentParser outputIntentParser = new(document);
 
             try
             {

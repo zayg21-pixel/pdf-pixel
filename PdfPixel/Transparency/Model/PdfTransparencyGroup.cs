@@ -13,12 +13,12 @@ public class PdfTransparencyGroup
     /// Falls back to DeviceRGB when unspecified or unsupported.
     /// </summary>
     public PdfColorSpaceConverter ColorSpaceConverter { get; set; }
-    
+
     /// <summary>
     /// Isolated flag (I) - if true, objects in group don't interact with backdrop
     /// </summary>
     public bool Isolated { get; set; } = false;
-    
+
     /// <summary>
     /// Knockout flag (K) - if true, objects in group knock out each other (not fully implemented yet)
     /// </summary>

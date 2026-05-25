@@ -64,26 +64,32 @@ public sealed class PdfDrawShadingCommand : PdfCommand
             switch (_shading.ShadingType)
             {
                 case PdfShadingType.FunctionBased:
-                    ExecuteFunctionBased(canvas, defaultFunctionSamples, executionContext.ExecutionObserver);
-                    break;
-
+                    {
+                        ExecuteFunctionBased(canvas, defaultFunctionSamples, executionContext.ExecutionObserver);
+                        break;
+                    }
                 case PdfShadingType.Axial:
-                    ExecuteAxial(canvas, modifiers, antialias, defaultFunctionSamples);
-                    break;
-
+                    {
+                        ExecuteAxial(canvas, modifiers, antialias, defaultFunctionSamples);
+                        break;
+                    }
                 case PdfShadingType.Radial:
-                    ExecuteRadial(canvas, modifiers, antialias, defaultFunctionSamples);
-                    break;
-
+                    {
+                        ExecuteRadial(canvas, modifiers, antialias, defaultFunctionSamples);
+                        break;
+                    }
                 case PdfShadingType.FreeFormGouraud:
                 case PdfShadingType.LatticeFormGouraud:
-                    ExecuteGouraud(canvas, modifiers, antialias);
-                    break;
-
+                    {
+                        ExecuteGouraud(canvas, modifiers, antialias);
+                        break;
+                    }
                 case PdfShadingType.CoonsPatchMesh:
                 case PdfShadingType.TensorProductPatchMesh:
-                    ExecutePatchMesh(canvas, modifiers, antialias, maxTessellationVertices, executionContext.ExecutionObserver);
-                    break;
+                    {
+                        ExecutePatchMesh(canvas, modifiers, antialias, maxTessellationVertices, executionContext.ExecutionObserver);
+                        break;
+                    }
             }
         }
     }
@@ -169,7 +175,7 @@ public sealed class PdfDrawShadingCommand : PdfCommand
     {
         if (!_gouraudCacheBuilt)
         {
-            var sampler = _context.Converter.GetRgbaSampler(_context.RenderingIntent, _context.FullTransferFunction);
+            Color.Sampling.ColorTransformSampler sampler = _context.Converter.GetRgbaSampler(_context.RenderingIntent, _context.FullTransferFunction);
             _gouraudCache = _builder.BuildGouraudVertices(_shading, sampler);
             _gouraudCacheBuilt = true;
         }
@@ -191,7 +197,7 @@ public sealed class PdfDrawShadingCommand : PdfCommand
         if (_patchMeshCacheMaxVertices != maxTessellationVertices)
         {
             _patchMeshCache?.Dispose();
-            var sampler = _context.Converter.GetRgbaSampler(_context.RenderingIntent, _context.FullTransferFunction);
+            Color.Sampling.ColorTransformSampler sampler = _context.Converter.GetRgbaSampler(_context.RenderingIntent, _context.FullTransferFunction);
             _patchMeshCache = _builder.BuildPatchMeshVertices(_shading, sampler, maxTessellationVertices, observer);
             _patchMeshCacheMaxVertices = maxTessellationVertices;
         }
@@ -216,8 +222,8 @@ public sealed class PdfDrawShadingCommand : PdfCommand
             _context.RenderingIntent,
             _context.FullTransferFunction,
             defaultFunctionSamples,
-            out var colors,
-            out var positions);
+            out SKColor[] colors,
+            out float[] positions);
 
         if (colors == null || colors.Length == 0)
         {
@@ -239,8 +245,8 @@ public sealed class PdfDrawShadingCommand : PdfCommand
             _context.RenderingIntent,
             _context.FullTransferFunction,
             defaultFunctionSamples,
-            out var colors,
-            out var positions);
+            out SKColor[] colors,
+            out float[] positions);
 
         if (colors == null || colors.Length == 0)
         {
@@ -255,7 +261,7 @@ public sealed class PdfDrawShadingCommand : PdfCommand
     /// </summary>
     private void DrawPaintToCanvas(SKCanvas canvas, SKPaint basePaint, IEnumerable<IPdfCommandModifier> modifiers, bool antialias)
     {
-        using var paint = basePaint.Clone();
+        using SKPaint paint = basePaint.Clone();
         paint.Color = PdfPaintFactory.ApplyAlpha(paint.Color, _context.FillAlpha);
         paint.IsAntialias = antialias;
 
@@ -269,7 +275,7 @@ public sealed class PdfDrawShadingCommand : PdfCommand
     /// </summary>
     private void DrawVerticesToCanvas(SKCanvas canvas, SKVertices vertices, IEnumerable<IPdfCommandModifier> modifiers, bool antialias)
     {
-        using var paint = PdfPaintFactory.CreateShaderPaint();
+        using SKPaint paint = PdfPaintFactory.CreateShaderPaint();
         paint.Color = PdfPaintFactory.ApplyAlpha(paint.Color, _context.FillAlpha);
         paint.IsAntialias = antialias;
 
@@ -295,7 +301,5 @@ public sealed class PdfDrawShadingCommand : PdfCommand
 
         _patchMeshCache?.Dispose();
         _patchMeshCache = null;
-
-        base.Dispose(disposing);
     }
 }

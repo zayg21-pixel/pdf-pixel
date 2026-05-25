@@ -61,7 +61,7 @@ internal sealed class PdfPageResources
     /// <returns>New <see cref="PdfPageResources"/> instance with copied values.</returns>
     public PdfPageResources Clone()
     {
-        var copy = new PdfPageResources();
+        PdfPageResources copy = new();
         copy.Resources = Resources;
         copy.MediaBoxRect = MediaBoxRect;
         copy.CropBoxRect = CropBoxRect;
@@ -84,7 +84,8 @@ internal sealed class PdfPageResources
         {
             return;
         }
-        var dict = pdfObject.Dictionary;
+
+        PdfDictionary dict = pdfObject.Dictionary;
         if (dict == null)
         {
             return;
@@ -94,50 +95,54 @@ internal sealed class PdfPageResources
         {
             Resources = dict.GetDictionary(PdfTokens.ResourcesKey);
         }
+
         if (dict.HasKey(PdfTokens.MediaBoxKey))
         {
             MediaBoxRect = PdfLocationUtilities.CreateBBox(dict.GetArray(PdfTokens.MediaBoxKey));
         }
+
         if (dict.HasKey(PdfTokens.CropBoxKey))
         {
             CropBoxRect = PdfLocationUtilities.CreateBBox(dict.GetArray(PdfTokens.CropBoxKey));
         }
+
         if (dict.HasKey(PdfTokens.RotateKey))
         {
             Rotate = NormalizeRotation(dict.GetIntegerOrDefault(PdfTokens.RotateKey));
         }
+
         if (dict.HasKey(PdfTokens.BleedBoxKey))
         {
             BleedBoxRect = PdfLocationUtilities.CreateBBox(dict.GetArray(PdfTokens.BleedBoxKey));
         }
+
         if (dict.HasKey(PdfTokens.TrimBoxKey))
         {
             TrimBoxRect = PdfLocationUtilities.CreateBBox(dict.GetArray(PdfTokens.TrimBoxKey));
         }
+
         if (dict.HasKey(PdfTokens.ArtBoxKey))
         {
             ArtBoxRect = PdfLocationUtilities.CreateBBox(dict.GetArray(PdfTokens.ArtBoxKey));
         }
+
         if (dict.HasKey(PdfTokens.AnnotsKey))
         {
             Annotations = ParseAnnotations(dict.GetObjects(PdfTokens.AnnotsKey));
         }
     }
 
-    private static int NormalizeRotation(int rotation)
-    {
-        return (rotation % 360 + 360) % 360;
-    }
+    private static int NormalizeRotation(int rotation) => ((rotation % 360) + 360) % 360;
 
     private static List<PdfAnnotationBase> ParseAnnotations(List<PdfObject> annotationObjects)
     {
-        var annotations = new List<PdfAnnotationBase>();
-        
+        List<PdfAnnotationBase> annotations = [];
+
         if (annotationObjects != null)
         {
-            foreach (var annotationObject in annotationObjects)
+            foreach (PdfObject annotationObject in annotationObjects)
             {
-                var annotation = PdfAnnotationFactory.CreateAnnotation(annotationObject);
+                PdfAnnotationBase annotation = PdfAnnotationFactory.CreateAnnotation(annotationObject);
                 if (annotation != null)
                 {
                     annotations.Add(annotation);

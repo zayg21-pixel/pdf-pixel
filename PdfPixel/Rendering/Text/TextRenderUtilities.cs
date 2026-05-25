@@ -9,19 +9,19 @@ namespace PdfPixel.Rendering.Text;
 /// <summary>
 /// Utilities for text rendering operations.
 /// </summary>
-public class TextRenderUtilities
+public static class TextRenderUtilities
 {
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static SKPath GetTextPath(IList<ShapedGlyph> shapingResult, SKFont font, PdfGraphicsState state)
     {
-        var textPath = new SKPath();
+        SKPath textPath = new();
 
         for (int i = 0; i < shapingResult.Count; i++)
         {
-            var glyphId = shapingResult[i].GlyphId;
+            uint glyphId = shapingResult[i].GlyphId;
             if (glyphId != 0)
             {
-                using var glyphPath = font.GetGlyphPath((ushort)glyphId);
+                using SKPath glyphPath = font.GetGlyphPath((ushort)glyphId);
                 if (glyphPath != null)
                 {
                     // Translate glyph outline by current advance
@@ -30,7 +30,7 @@ public class TextRenderUtilities
             }
         }
 
-        var matrix = GetFullTextMatrix(state);
+        SKMatrix matrix = GetFullTextMatrix(state);
         textPath.Transform(matrix);
 
         return textPath;
@@ -61,7 +61,7 @@ public class TextRenderUtilities
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static SKMatrix GetFullTextMatrix(PdfGraphicsState state, bool inverse = true)
     {
-        var textMatrix = state.TextMatrix;
+        SKMatrix textMatrix = state.TextMatrix;
 
         if (state.Rise != 0)
         {
@@ -69,12 +69,10 @@ public class TextRenderUtilities
         }
 
         // Apply font size, horizontal scaling, and vertical flip
-        var fullHorizontalScale = state.FontSize * state.HorizontalScaling / 100f;
+        float fullHorizontalScale = state.FontSize * state.HorizontalScaling / 100f;
         int verticalFlip = inverse ? -1 : 1;
-        var fontScalingMatrix = SKMatrix.CreateScale(fullHorizontalScale, state.FontSize * verticalFlip);
-        textMatrix = SKMatrix.Concat(textMatrix, fontScalingMatrix);
-
-        return textMatrix;
+        SKMatrix fontScalingMatrix = SKMatrix.CreateScale(fullHorizontalScale, state.FontSize * verticalFlip);
+        return SKMatrix.Concat(textMatrix, fontScalingMatrix);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -90,15 +88,15 @@ public class TextRenderUtilities
             }
         }
 
-        using var builder = new SKTextBlobBuilder();
-        var run = builder.AllocatePositionedRun(font, drawableCount);
-        var glyphSpan = run.Glyphs;
-        var positionSpan = run.Positions;
+        using SKTextBlobBuilder builder = new();
+        SKPositionedRunBuffer run = builder.AllocatePositionedRun(font, drawableCount);
+        System.Span<ushort> glyphSpan = run.Glyphs;
+        System.Span<SKPoint> positionSpan = run.Positions;
 
         int drawIndex = 0;
         for (int index = 0; index < shapingResult.Count; index++)
         {
-            var shapedGlyph = shapingResult[index];
+            ShapedGlyph shapedGlyph = shapingResult[index];
             // Record position regardless to advance subsequent glyphs.
             if (shapedGlyph.GlyphId != 0)
             {

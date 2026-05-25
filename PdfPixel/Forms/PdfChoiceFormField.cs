@@ -26,7 +26,7 @@ public class PdfChoiceFormField : PdfFormField
     public PdfChoiceFormField(PdfObject fieldObject)
         : base(fieldObject, PdfFormFieldType.Choice)
     {
-        var dictionary = fieldObject.Dictionary;
+        PdfDictionary dictionary = fieldObject.Dictionary;
         Options = dictionary.GetArray(PdfTokens.OptKey);
         TopIndex = dictionary.GetIntegerOrDefault(PdfTokens.TopIndexKey);
         SelectedIndices = dictionary.GetArray(PdfTokens.IndicesKey);
@@ -54,22 +54,22 @@ public class PdfChoiceFormField : PdfFormField
     /// <summary>
     /// Gets a value indicating whether this is a combo box.
     /// </summary>
-    public bool IsCombo => Flags.HasFlag(PdfFormFieldFlags.Combo);
+    public bool IsCombo => (Flags & PdfFormFieldFlags.Combo) != 0;
 
     /// <summary>
     /// Gets a value indicating whether this combo box is editable.
     /// </summary>
-    public bool IsEditable => Flags.HasFlag(PdfFormFieldFlags.Edit);
+    public bool IsEditable => (Flags & PdfFormFieldFlags.Edit) != 0;
 
     /// <summary>
     /// Gets a value indicating whether options are sorted.
     /// </summary>
-    public bool IsSorted => Flags.HasFlag(PdfFormFieldFlags.Sort);
+    public bool IsSorted => (Flags & PdfFormFieldFlags.Sort) != 0;
 
     /// <summary>
     /// Gets a value indicating whether multiple selection is allowed.
     /// </summary>
-    public bool IsMultiSelect => Flags.HasFlag(PdfFormFieldFlags.MultiSelect);
+    public bool IsMultiSelect => (Flags & PdfFormFieldFlags.MultiSelect) != 0;
 
     /// <summary>
     /// Gets the display texts for all options.
@@ -84,17 +84,17 @@ public class PdfChoiceFormField : PdfFormField
 
         for (int i = 0; i < Options.Count; i++)
         {
-            var option = Options.GetValue(i);
+            IPdfValue option = Options.GetValue(i);
             if (option != null && option.Type == PdfValueType.String)
             {
                 yield return option.AsString().ToString();
             }
             else if (option != null && option.Type == PdfValueType.Array)
             {
-                var optionArray = option.AsArray();
-                if (optionArray != null && optionArray.Count >= 2)
+                PdfArray optionArray = option.AsArray();
+                if (optionArray?.Count >= 2)
                 {
-                    var displayText = optionArray.GetString(1);
+                    PdfString displayText = optionArray.GetString(1);
                     if (!displayText.IsEmpty)
                     {
                         yield return displayText.ToString();
@@ -121,12 +121,12 @@ public class PdfChoiceFormField : PdfFormField
         }
         else if (Value.Type == PdfValueType.Array)
         {
-            var valueArray = Value.AsArray();
+            PdfArray valueArray = Value.AsArray();
             if (valueArray != null)
             {
                 for (int i = 0; i < valueArray.Count; i++)
                 {
-                    var item = valueArray.GetValue(i);
+                    IPdfValue item = valueArray.GetValue(i);
                     if (item != null && item.Type == PdfValueType.String)
                     {
                         yield return item.AsString().ToString();
@@ -239,10 +239,7 @@ public class PdfChoiceFormField : PdfFormField
     /// <summary>
     /// Handles mouse leave event.
     /// </summary>
-    public override void OnMouseLeave()
-    {
-        _highlightedIndex = -1;
-    }
+    public override void OnMouseLeave() => _highlightedIndex = -1;
 
     /// <summary>
     /// Handles key down event for option navigation and selection.
@@ -257,55 +254,67 @@ public class PdfChoiceFormField : PdfFormField
         switch (key)
         {
             case FormFieldKey.Up:
-                NavigateOptions(-1);
-                return true;
-
+                {
+                    NavigateOptions(-1);
+                    return true;
+                }
             case FormFieldKey.Down:
-                if (IsCombo && !_isDropdownOpen)
                 {
-                    _isDropdownOpen = true;
-                }
-                else
-                {
-                    NavigateOptions(1);
-                }
-                return true;
+                    if (IsCombo && !_isDropdownOpen)
+                    {
+                        _isDropdownOpen = true;
+                    }
+                    else
+                    {
+                        NavigateOptions(1);
+                    }
 
+                    return true;
+                }
             case FormFieldKey.Home:
-                _highlightedIndex = 0;
-                return true;
-
+                {
+                    _highlightedIndex = 0;
+                    return true;
+                }
             case FormFieldKey.End:
-                _highlightedIndex = OptionCount - 1;
-                return true;
-
+                {
+                    _highlightedIndex = OptionCount - 1;
+                    return true;
+                }
             case FormFieldKey.Enter:
             case FormFieldKey.Space:
-                if (_highlightedIndex >= 0 && _highlightedIndex < OptionCount)
                 {
-                    SelectOption(_highlightedIndex, modifiers.HasFlag(FormFieldKeyModifiers.Control));
+                    if (_highlightedIndex >= 0 && _highlightedIndex < OptionCount)
+                    {
+                        SelectOption(_highlightedIndex, (modifiers & FormFieldKeyModifiers.Control) != 0);
 
-                    if (IsCombo)
+                        if (IsCombo)
+                        {
+                            _isDropdownOpen = false;
+                        }
+                    }
+
+                    return true;
+                }
+            case FormFieldKey.Escape:
+                {
+                    if (IsCombo && _isDropdownOpen)
+                    {
+                        _isDropdownOpen = false;
+                        return true;
+                    }
+
+                    break;
+                }
+            case FormFieldKey.Tab:
+                {
+                    if (IsCombo && _isDropdownOpen)
                     {
                         _isDropdownOpen = false;
                     }
-                }
-                return true;
 
-            case FormFieldKey.Escape:
-                if (IsCombo && _isDropdownOpen)
-                {
-                    _isDropdownOpen = false;
-                    return true;
+                    return false;
                 }
-                break;
-
-            case FormFieldKey.Tab:
-                if (IsCombo && _isDropdownOpen)
-                {
-                    _isDropdownOpen = false;
-                }
-                return false;
         }
 
         return false;
@@ -368,10 +377,10 @@ public class PdfChoiceFormField : PdfFormField
             return -1;
         }
 
-        float itemHeight = 20.0f;
-        int index = (int)(position.Y / itemHeight);
+        const float itemHeight = 20.0f;
+        var index = (int)(position.Y / itemHeight);
 
-        return index >= 0 && index < Options.Count ? index : -1;
+        return (index >= 0 && index < Options.Count) ? index : -1;
     }
 
     /// <summary>
@@ -387,7 +396,7 @@ public class PdfChoiceFormField : PdfFormField
 
         if (_highlightedIndex < 0)
         {
-            _highlightedIndex = offset > 0 ? 0 : OptionCount - 1;
+            _highlightedIndex = (offset > 0) ? 0 : OptionCount - 1;
         }
         else
         {
@@ -401,9 +410,9 @@ public class PdfChoiceFormField : PdfFormField
     /// <returns>Index of the first selected option, or -1 if none selected.</returns>
     private int GetFirstSelectedIndex()
     {
-        if (SelectedIndices != null && SelectedIndices.Count > 0)
+        if (SelectedIndices?.Count > 0)
         {
-            var firstIndex = SelectedIndices.GetInteger(0);
+            int? firstIndex = SelectedIndices.GetInteger(0);
             return firstIndex ?? -1;
         }
 

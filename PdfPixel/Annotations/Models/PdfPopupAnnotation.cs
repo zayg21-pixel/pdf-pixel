@@ -47,10 +47,7 @@ public class PdfPopupAnnotation : PdfAnnotationBase
     /// </summary>
     public bool IsOpen { get; }
 
-    internal override bool RenderFallback(IPdfCommandProcessor processor, IPdfPageInternal page, PdfAnnotationVisualStateKind visualStateKind, PdfRenderingParameters renderingParameters)
-    {
-        return false;
-    }
+    internal override bool RenderFallback(IPdfCommandProcessor processor, IPdfPageInternal page, PdfAnnotationVisualStateKind visualStateKind, PdfRenderingParameters renderingParameters) => false;
 
     /// <summary>
     /// Returns a string representation of this popup annotation.
@@ -58,8 +55,8 @@ public class PdfPopupAnnotation : PdfAnnotationBase
     /// <returns>A string containing the annotation type and open state.</returns>
     public override string ToString()
     {
-        var state = IsOpen ? "Open" : "Closed";
-        var contentsText = Contents.ToString();
+        string state = IsOpen ? "Open" : "Closed";
+        string contentsText = Contents.ToString();
 
         if (!string.IsNullOrEmpty(contentsText))
         {

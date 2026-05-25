@@ -47,7 +47,7 @@ public static class PdfTextResourceConverter
             totalLength += 1 + keySpan.Length + 1 + valueBytes.Length;
         }
 
-        byte[] blob = new byte[totalLength];
+        var blob = new byte[totalLength];
         int offset = 0;
 
         foreach (KeyValuePair<PdfString, string> entry in characterMap)
@@ -57,7 +57,7 @@ public static class PdfTextResourceConverter
 
             // Key length
             blob[offset] = (byte)keySpan.Length;
-            offset += 1;
+            offset++;
 
             // Key bytes
             keySpan.CopyTo(blob.AsSpan(offset, keySpan.Length));
@@ -65,7 +65,7 @@ public static class PdfTextResourceConverter
 
             // Value length
             blob[offset] = (byte)valueBytes.Length;
-            offset += 1;
+            offset++;
 
             // Value bytes
             valueBytes.AsSpan().CopyTo(blob.AsSpan(offset, valueBytes.Length));
@@ -102,14 +102,14 @@ public static class PdfTextResourceConverter
             }
 
             int keyLength = blob[index];
-            index += 1;
+            index++;
 
             if (index + keyLength > blob.Length)
             {
                 throw new FormatException("Unexpected end of blob while reading key bytes.");
             }
 
-            var pdfString = new PdfString(blobMemory.Slice(index, keyLength));
+            PdfString pdfString = new(blobMemory.Slice(index, keyLength));
             index += keyLength;
 
             if (index + 1 > blob.Length)
@@ -118,7 +118,7 @@ public static class PdfTextResourceConverter
             }
 
             int valueLength = blob[index];
-            index += 1;
+            index++;
 
             if (index + valueLength > blob.Length)
             {
@@ -162,10 +162,11 @@ public static class PdfTextResourceConverter
             {
                 throw new InvalidOperationException("Value length exceeds single-byte limit (255). CID: " + entry.Key);
             }
+
             totalLength += 4 + 1 + valueBytes.Length;
         }
 
-        byte[] blob = new byte[totalLength];
+        var blob = new byte[totalLength];
         int offset = 0;
         foreach (KeyValuePair<uint, string> entry in cidToUnicodeMap)
         {
@@ -176,10 +177,11 @@ public static class PdfTextResourceConverter
             // Write value length and value bytes
             byte[] valueBytes = Encoding.UTF8.GetBytes(entry.Value);
             blob[offset] = (byte)valueBytes.Length;
-            offset += 1;
+            offset++;
             valueBytes.CopyTo(blob, offset);
             offset += valueBytes.Length;
         }
+
         return blob;
     }
 
@@ -196,10 +198,12 @@ public static class PdfTextResourceConverter
         {
             throw new ArgumentNullException(nameof(blob));
         }
+
         if (target == null)
         {
             throw new ArgumentNullException(nameof(target));
         }
+
         int index = 0;
         while (index < blob.Length)
         {
@@ -207,6 +211,7 @@ public static class PdfTextResourceConverter
             {
                 throw new FormatException("Unexpected end of blob while reading CID.");
             }
+
             uint cid = BinaryPrimitives.ReadUInt32LittleEndian(blob.AsSpan(index, 4));
             index += 4;
 
@@ -214,18 +219,21 @@ public static class PdfTextResourceConverter
             {
                 throw new FormatException("Unexpected end of blob while reading value length.");
             }
+
             int valueLength = blob[index];
-            index += 1;
+            index++;
 
             if (index + valueLength > blob.Length)
             {
                 throw new FormatException("Unexpected end of blob while reading value bytes.");
             }
+
             string value = Encoding.UTF8.GetString(blob, index, valueLength);
             index += valueLength;
 
             target[cid] = value;
         }
+
         if (index != blob.Length)
         {
             throw new FormatException("Blob parsing ended at unexpected position.");
@@ -249,7 +257,7 @@ public static class PdfTextResourceConverter
         if (strings == null || strings.Length == 0)
         {
             // Represent empty set:4 bytes count =0.
-            byte[] emptyBlob = new byte[4];
+            var emptyBlob = new byte[4];
             BinaryPrimitives.WriteUInt32LittleEndian(emptyBlob.AsSpan(0, 4), 0u);
             return emptyBlob;
         }
@@ -265,10 +273,11 @@ public static class PdfTextResourceConverter
             {
                 throw new InvalidOperationException("PdfString length exceeds255 bytes and cannot be encoded in single-byte length field.");
             }
+
             totalSize += 1 + length;
         }
 
-        byte[] blob = new byte[totalSize];
+        var blob = new byte[totalSize];
         // Write count (uint32 little-endian) directly.
         BinaryPrimitives.WriteUInt32LittleEndian(blob.AsSpan(0, 4), (uint)count);
 
@@ -278,7 +287,7 @@ public static class PdfTextResourceConverter
             ReadOnlyMemory<byte> value = strings[index].Value;
             int length = value.Length;
             blob[offset] = (byte)length;
-            offset += 1;
+            offset++;
             if (length > 0)
             {
                 value.Span.CopyTo(blob.AsSpan(offset, length));
@@ -314,7 +323,7 @@ public static class PdfTextResourceConverter
             return Array.Empty<PdfString>();
         }
 
-        PdfString[] result = new PdfString[count];
+        var result = new PdfString[count];
         int offset = 4;
         ReadOnlyMemory<byte> blobMemory = blob.AsMemory();
 
@@ -324,8 +333,9 @@ public static class PdfTextResourceConverter
             {
                 throw new FormatException("Unexpected end of blob while reading string length.");
             }
+
             int length = blob[offset];
-            offset += 1;
+            offset++;
 
             if (offset + length > blob.Length)
             {

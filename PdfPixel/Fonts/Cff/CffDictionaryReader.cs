@@ -27,7 +27,7 @@ internal ref struct CffDictionaryReader
     private int _position;
     private readonly List<decimal> _operandStack;
 
-    public CffDictionaryReader(ReadOnlySpan<byte> dictBytes)
+    public CffDictionaryReader(in ReadOnlySpan<byte> dictBytes)
     {
         _dictBytes = dictBytes;
         _position = 0;
@@ -82,10 +82,7 @@ internal ref struct CffDictionaryReader
         return false;
     }
 
-    private static bool IsOperator(byte b)
-    {
-        return b <= 21 || b == OperatorEscape;
-    }
+    private static bool IsOperator(byte b) => b <= 21 || b == OperatorEscape;
 
     private bool TryReadOperand(byte firstByte, out decimal value)
     {
@@ -105,7 +102,7 @@ internal ref struct CffDictionaryReader
             }
 
             byte nextByte = _dictBytes[_position++];
-            int intValue = (firstByte - 247) * 256 + nextByte + 108;
+            int intValue = ((firstByte - 247) * 256) + nextByte + 108;
             value = intValue;
             return true;
         }
@@ -118,7 +115,7 @@ internal ref struct CffDictionaryReader
             }
 
             byte nextByte = _dictBytes[_position++];
-            int intValue = -(firstByte - 251) * 256 - nextByte - 108;
+            int intValue = (-(firstByte - 251) * 256) - nextByte - 108;
             value = intValue;
             return true;
         }
@@ -130,7 +127,7 @@ internal ref struct CffDictionaryReader
                 return false;
             }
 
-            short shortValue = (short)(_dictBytes[_position] << 8 | _dictBytes[_position + 1]);
+            var shortValue = (short)(_dictBytes[_position] << 8 | _dictBytes[_position + 1]);
             _position += 2;
             value = shortValue;
             return true;
@@ -143,10 +140,10 @@ internal ref struct CffDictionaryReader
                 return false;
             }
 
-            int intValue = _dictBytes[_position] << 24 |
-                          _dictBytes[_position + 1] << 16 |
-                          _dictBytes[_position + 2] << 8 |
-                          _dictBytes[_position + 3];
+            int intValue = _dictBytes[_position] << 24
+                | _dictBytes[_position + 1] << 16
+                | _dictBytes[_position + 2] << 8
+                | _dictBytes[_position + 3];
             _position += 4;
             value = intValue;
             return true;
@@ -164,17 +161,17 @@ internal ref struct CffDictionaryReader
     {
         value = 0;
 
-        var numberChars = ArrayPool<char>.Shared.Rent(64);
+        char[] numberChars = ArrayPool<char>.Shared.Rent(64);
         int charCount = 0;
 
         try
         {
-            bool finished = false;
+            var finished = false;
             while (!finished && _position < _dictBytes.Length)
             {
                 byte nibblePair = _dictBytes[_position++];
-                byte highNibble = (byte)((nibblePair >> 4) & 0xF);
-                byte lowNibble = (byte)(nibblePair & 0xF);
+                var highNibble = (byte)((nibblePair >> 4) & 0xF);
+                var lowNibble = (byte)(nibblePair & 0xF);
 
                 if (!TryProcessNibble(highNibble, numberChars, ref charCount, out finished))
                 {
@@ -194,7 +191,7 @@ internal ref struct CffDictionaryReader
 
             if (charCount > 0)
             {
-                string numberString = new string(numberChars, 0, charCount);
+                string numberString = new(numberChars, 0, charCount);
                 if (decimal.TryParse(numberString, NumberStyles.Float, CultureInfo.InvariantCulture, out value))
                 {
                     return true;
@@ -225,59 +222,65 @@ internal ref struct CffDictionaryReader
             case 0x7:
             case 0x8:
             case 0x9:
-                if (charCount >= buffer.Length)
                 {
-                    return false;
+                    if (charCount >= buffer.Length)
+                    {
+                        return false;
+                    }
+
+                    buffer[charCount++] = (char)('0' + nibble);
+                    return true;
                 }
-
-                buffer[charCount++] = (char)('0' + nibble);
-                return true;
-
             case 0xA:
-                if (charCount >= buffer.Length)
                 {
-                    return false;
+                    if (charCount >= buffer.Length)
+                    {
+                        return false;
+                    }
+
+                    buffer[charCount++] = '.';
+                    return true;
                 }
-
-                buffer[charCount++] = '.';
-                return true;
-
             case 0xB:
-                if (charCount + 1 >= buffer.Length)
                 {
-                    return false;
+                    if (charCount + 1 >= buffer.Length)
+                    {
+                        return false;
+                    }
+
+                    buffer[charCount++] = 'E';
+                    buffer[charCount++] = '+';
+                    return true;
                 }
-
-                buffer[charCount++] = 'E';
-                buffer[charCount++] = '+';
-                return true;
-
             case 0xC:
-                if (charCount + 1 >= buffer.Length)
                 {
-                    return false;
+                    if (charCount + 1 >= buffer.Length)
+                    {
+                        return false;
+                    }
+
+                    buffer[charCount++] = 'E';
+                    buffer[charCount++] = '-';
+                    return true;
                 }
-
-                buffer[charCount++] = 'E';
-                buffer[charCount++] = '-';
-                return true;
-
             case 0xD:
                 return false;
 
             case 0xE:
-                if (charCount >= buffer.Length)
                 {
-                    return false;
+                    if (charCount >= buffer.Length)
+                    {
+                        return false;
+                    }
+
+                    buffer[charCount++] = '-';
+                    return true;
                 }
-
-                buffer[charCount++] = '-';
-                return true;
-
             case 0xF:
-                finished = true;
-                return true;
-
+                {
+                    finished = true;
+                    return true;
+                }
             default:
                 return false;
         }

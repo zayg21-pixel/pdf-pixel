@@ -6,7 +6,7 @@ namespace PdfPixel.Fonts.Cff;
 /// <summary>
 /// Provides methods for encoding numbers in CFF/Type1 font dictionaries and charstrings.
 /// </summary>
-internal class CffNumberConverter
+internal static class CffNumberConverter
 {
     /// <summary>
     /// Encodes a floating-point value using CFF DICT float encoding and writes it to the stream.
@@ -19,7 +19,7 @@ internal class CffNumberConverter
         stream.WriteByte(30);
 
         string floatString = value.ToString("G", System.Globalization.CultureInfo.InvariantCulture);
-        List<byte> nibbles = new List<byte>();
+        List<byte> nibbles = [];
         int index = 0;
 
         while (index < floatString.Length)
@@ -104,6 +104,7 @@ internal class CffNumberConverter
             stream.WriteByte((byte)(value + 139));
             return;
         }
+
         if (value >= 108 && value <= 1131)
         {
             int adjustedValue = value - 108;
@@ -113,6 +114,7 @@ internal class CffNumberConverter
             stream.WriteByte((byte)lowByte);
             return;
         }
+
         if (value >= -1131 && value <= -108)
         {
             int adjustedValue = -value - 108;
@@ -122,6 +124,7 @@ internal class CffNumberConverter
             stream.WriteByte((byte)lowByte);
             return;
         }
+
         if (value >= -32768 && value <= 32767)
         {
             //16-bit integer encoding:28 + big-endian int16
@@ -131,8 +134,10 @@ internal class CffNumberConverter
                 stream.WriteByte((byte)(value >> 8 & 0xFF));
                 stream.WriteByte((byte)(value & 0xFF));
             }
+
             return;
         }
+
         //32-bit integer encoding:29 + big-endian int32
         stream.WriteByte(29);
         unchecked
@@ -162,8 +167,8 @@ internal class CffNumberConverter
         if (value >= 108 && value <= 1131)
         {
             int adjustedValue = value - 108;
-            byte highByte = (byte)(adjustedValue / 256);
-            byte lowByte = (byte)(adjustedValue % 256);
+            var highByte = (byte)(adjustedValue / 256);
+            var lowByte = (byte)(adjustedValue % 256);
             stream.WriteByte((byte)(247 + highByte));
             stream.WriteByte(lowByte);
             return;
@@ -173,8 +178,8 @@ internal class CffNumberConverter
         if (value >= -1131 && value <= -108)
         {
             int adjustedValue = -value - 108;
-            byte highByte = (byte)(adjustedValue / 256);
-            byte lowByte = (byte)(adjustedValue % 256);
+            var highByte = (byte)(adjustedValue / 256);
+            var lowByte = (byte)(adjustedValue % 256);
             stream.WriteByte((byte)(251 + highByte));
             stream.WriteByte(lowByte);
             return;
@@ -201,7 +206,7 @@ internal class CffNumberConverter
         stream.WriteByte(255);
         unchecked
         {
-            int fixedPointValue = (int)(value * 65536.0f);
+            var fixedPointValue = (int)(value * 65536.0f);
             stream.WriteByte((byte)(fixedPointValue >> 24 & 0xFF));
             stream.WriteByte((byte)(fixedPointValue >> 16 & 0xFF));
             stream.WriteByte((byte)(fixedPointValue >> 8 & 0xFF));

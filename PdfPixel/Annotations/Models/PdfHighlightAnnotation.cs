@@ -35,8 +35,8 @@ public class PdfHighlightAnnotation : PdfTextMarkupAnnotation
         PdfRenderingParameters renderingParameters,
         IPdfExecutionObserver observer)
     {
-        var recorder = new PdfCommandRecorder();
-        var recorded = base.RenderAppearanceStream(recorder, page, visualStateKind, renderer, renderingParameters, observer);
+        PdfCommandRecorder recorder = new();
+        bool recorded = base.RenderAppearanceStream(recorder, page, visualStateKind, renderer, renderingParameters, observer);
 
         if (!recorded)
         {
@@ -44,31 +44,31 @@ public class PdfHighlightAnnotation : PdfTextMarkupAnnotation
             return false;
         }
 
-        var modifier = new BlendModePaintModifier(SKBlendMode.Multiply);
+        BlendModePaintModifier modifier = new(SKBlendMode.Multiply);
         processor.Process(new DrawRecordingCommand(recorder, modifier));
         return true;
     }
 
     internal override bool RenderFallback(IPdfCommandProcessor processor, IPdfPageInternal page, PdfAnnotationVisualStateKind visualStateKind, PdfRenderingParameters renderingParameters)
     {
-        var quads = Quadrilaterals;
+        SKPoint[][] quads = Quadrilaterals;
         if (quads.Length == 0)
         {
             return false;
         }
 
-        var color = ResolveColor(page, new SKColor(255, 255, 0));
+        SKColor color = ResolveColor(page, new SKColor(255, 255, 0));
 
-        foreach (var quad in quads)
+        foreach (SKPoint[] quad in quads)
         {
-            using var path = new SKPath();
+            using SKPath path = new();
             path.MoveTo(quad[0]);
             path.LineTo(quad[1]);
             path.LineTo(quad[2]);
             path.LineTo(quad[3]);
             path.Close();
 
-            var paint = new SKPaint
+            SKPaint paint = new()
             {
                 Style = SKPaintStyle.Fill,
                 Color = color,
@@ -88,7 +88,7 @@ public class PdfHighlightAnnotation : PdfTextMarkupAnnotation
     /// <returns>A string containing the annotation type.</returns>
     public override string ToString()
     {
-        var contentsText = Contents.ToString();
+        string contentsText = Contents.ToString();
 
         if (!string.IsNullOrEmpty(contentsText))
         {

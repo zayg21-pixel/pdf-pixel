@@ -5,12 +5,12 @@ using SkiaSharp;
 namespace PdfPixel.Annotations.Models;
 
 /// <summary>
-/// Represents a generic PDF annotation for annotation types that don't have 
+/// Represents a generic PDF annotation for annotation types that don't have
 /// a specific implementation yet.
 /// </summary>
 /// <remarks>
-/// This class provides access to the common annotation properties defined in 
-/// <see cref="PdfAnnotationBase"/> for annotation subtypes that are not yet 
+/// This class provides access to the common annotation properties defined in
+/// <see cref="PdfAnnotationBase"/> for annotation subtypes that are not yet
 /// specifically implemented in the library.
 /// </remarks>
 public class PdfGenericAnnotation : PdfAnnotationBase
@@ -20,7 +20,7 @@ public class PdfGenericAnnotation : PdfAnnotationBase
     /// </summary>
     /// <param name="annotationObject">The PDF object representing this annotation.</param>
     /// <param name="subtype">The annotation subtype.</param>
-    public PdfGenericAnnotation(PdfObject annotationObject, PdfAnnotationSubType subtype) 
+    public PdfGenericAnnotation(PdfObject annotationObject, PdfAnnotationSubType subtype)
         : base(annotationObject, subtype)
     {
     }
@@ -37,20 +37,20 @@ public class PdfGenericAnnotation : PdfAnnotationBase
     /// <returns>A string containing the annotation subtype and basic information.</returns>
     public override string ToString()
     {
-        var contentsText = Contents.ToString();
-        
+        string contentsText = Contents.ToString();
+
         if (!string.IsNullOrEmpty(contentsText))
         {
             return $"{Subtype} Annotation: {contentsText}";
         }
-        
-        var nameText = Name.ToString();
-        
+
+        string nameText = Name.ToString();
+
         if (!string.IsNullOrEmpty(nameText))
         {
             return $"{Subtype} Annotation: {nameText}";
         }
-        
+
         return $"{Subtype} Annotation";
     }
 }

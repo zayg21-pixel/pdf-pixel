@@ -24,6 +24,7 @@ namespace PdfPixel.PostScript
         {
             public FrameKind Kind;
             public int StartIndex;
+
             public Frame(FrameKind kind, int startIndex)
             {
                 Kind = kind;
@@ -31,10 +32,10 @@ namespace PdfPixel.PostScript
             }
         }
 
-        private List<PostScriptToken> Tokenize(ReadOnlySpan<byte> data)
+        private List<PostScriptToken> Tokenize(in ReadOnlySpan<byte> data)
         {
-            var result = new List<PostScriptToken>();
-            var frames = new Stack<Frame>();
+            List<PostScriptToken> result = [];
+            Stack<Frame> frames = [];
             int position = 0;
             int length = data.Length;
 
@@ -47,7 +48,7 @@ namespace PdfPixel.PostScript
                 }
 
                 byte b = data[position];
-                char c = (char)b; // Structural ASCII only.
+                var c = (char)b; // Structural ASCII only.
 
                 switch (c)
                 {
@@ -64,17 +65,20 @@ namespace PdfPixel.PostScript
                         {
                             throw new InvalidOperationException("Unexpected closing brace '}' with no matching '{'.");
                         }
+
                         Frame frame = frames.Pop();
                         int count = result.Count - frame.StartIndex;
                         if (count < 0)
                         {
                             throw new InvalidOperationException("Internal tokenizer frame error for procedure.");
                         }
-                        var innerTokens = new List<PostScriptToken>(count);
+
+                        List<PostScriptToken> innerTokens = new(count);
                         for (int i = frame.StartIndex; i < result.Count; i++)
                         {
                             innerTokens.Add(result[i]);
                         }
+
                         result.RemoveRange(frame.StartIndex, count);
                         result.Add(new PostScriptProcedure(innerTokens));
                         continue;
@@ -92,17 +96,20 @@ namespace PdfPixel.PostScript
                         {
                             throw new InvalidOperationException("Unexpected closing bracket ']' with no matching '['.");
                         }
+
                         Frame frame = frames.Pop();
                         int count = result.Count - frame.StartIndex;
                         if (count < 0)
                         {
                             throw new InvalidOperationException("Internal tokenizer frame error for array.");
                         }
+
                         var inner = new PostScriptToken[count];
                         for (int i = 0; i < count; i++)
                         {
                             inner[i] = result[frame.StartIndex + i];
                         }
+
                         result.RemoveRange(frame.StartIndex, count);
                         result.Add(new PostScriptArray(inner));
                         continue;
@@ -118,13 +125,15 @@ namespace PdfPixel.PostScript
                             {
                                 throw new InvalidOperationException("Unexpected closing dictionary '>>' with no matching '<<'.");
                             }
+
                             Frame frame = frames.Pop();
                             int count = result.Count - frame.StartIndex;
                             if (count < 0)
                             {
                                 throw new InvalidOperationException("Internal tokenizer frame error for dictionary.");
                             }
-                            var dict = new Dictionary<string, PostScriptToken>();
+
+                            Dictionary<string, PostScriptToken> dict = [];
                             for (int i = frame.StartIndex; i < result.Count; i += 2)
                             {
                                 if (i + 1 >= result.Count)
@@ -132,7 +141,7 @@ namespace PdfPixel.PostScript
                                     throw new InvalidOperationException("Odd number of elements in PostScript dictionary.");
                                 }
 
-                                var key = result[i];
+                                    PostScriptToken key = result[i];
 
                                 if (key is not PostScriptLiteralName keyName)
                                 {
@@ -141,6 +150,7 @@ namespace PdfPixel.PostScript
 
                                 dict[keyName.Name] = result[i + 1];
                             }
+
                             result.RemoveRange(frame.StartIndex, count);
                             result.Add(new PostScriptDictionary(dict));
                             continue;
@@ -180,6 +190,7 @@ namespace PdfPixel.PostScript
                         {
                             position++;
                         }
+
                         string name = Encoding.ASCII.GetString(data.Slice(startName, position - startName));
                         result.Add(new PostScriptLiteralName(name));
                         continue;
@@ -191,12 +202,14 @@ namespace PdfPixel.PostScript
                         {
                             position++;
                         }
+
                         int tokenLength = position - tokenStart;
                         if (tokenLength <= 0)
                         {
                             position++;
                             continue;
                         }
+
                         string raw = Encoding.ASCII.GetString(data.Slice(tokenStart, tokenLength));
                         // Binary block gate detection (RD / -|).
                         if (raw == "RD" || raw == "-|")
@@ -206,7 +219,8 @@ namespace PdfPixel.PostScript
                             {
                                 throw new InvalidOperationException("Binary block operator '" + raw + "' encountered without preceding length number.");
                             }
-                            int byteCount = (int)lenToken.Value;
+
+                            var byteCount = (int)lenToken.Value;
                             if (byteCount < 0 || position + byteCount > length)
                             {
                                 throw new InvalidOperationException("Binary block length out of range: " + byteCount);
@@ -222,12 +236,14 @@ namespace PdfPixel.PostScript
                             {
                                 throw new InvalidOperationException("Insufficient data for binary block length " + byteCount);
                             }
-                            byte[] block = new byte[byteCount];
+
+                            var block = new byte[byteCount];
                             data.Slice(position, byteCount).CopyTo(block);
                             position += byteCount;
                             result[result.Count - 1] = new PostScriptBinaryString(block); // Replace length with binary data.
                             continue;
                         }
+
                         char firstChar = raw[0];
                         bool numericStart = firstChar == '+' || firstChar == '-' || firstChar == '.' || (firstChar >= '0' && firstChar <= '9');
 
@@ -247,6 +263,7 @@ namespace PdfPixel.PostScript
                         {
                             result.Add(new PostScriptExecutableName(raw));
                         }
+
                         continue;
                     }
                 }
@@ -255,17 +272,14 @@ namespace PdfPixel.PostScript
             if (frames.Count > 0)
             {
                 Frame open = frames.Peek();
-                string kind = open.Kind == FrameKind.Procedure ? "{" : "[";
+                string kind = (open.Kind == FrameKind.Procedure) ? "{" : "[";
                 throw new InvalidOperationException($"Unclosed PostScript {open.Kind} starting with '{kind}' at token index {open.StartIndex}.");
             }
 
             return result;
         }
 
-        private static bool IsPsWhitespace(byte b)
-        {
-            return b == 0x20 || b == 0x09 || b == 0x0D || b == 0x0A || b == 0x0C;
-        }
+        private static bool IsPsWhitespace(byte b) => b == 0x20 || b == 0x09 || b == 0x0D || b == 0x0A || b == 0x0C;
 
         private static bool IsTokenTerminator(byte b)
         {
@@ -273,6 +287,7 @@ namespace PdfPixel.PostScript
             {
                 return true;
             }
+
             switch (b)
             {
                 case (byte)'%':
@@ -286,12 +301,13 @@ namespace PdfPixel.PostScript
                 case (byte)'<':
                 case (byte)'>':
                     return true;
+
                 default:
                     return false;
             }
         }
 
-        private static void SkipWhitespace(ReadOnlySpan<byte> data, ref int position)
+        private static void SkipWhitespace(in ReadOnlySpan<byte> data, ref int position)
         {
             int length = data.Length;
             while (position < length)
@@ -302,6 +318,7 @@ namespace PdfPixel.PostScript
                     position++;
                     continue;
                 }
+
                 if (b == (byte)'%')
                 {
                     position++;
@@ -312,22 +329,26 @@ namespace PdfPixel.PostScript
                         {
                             break;
                         }
+
                         position++;
                     }
+
                     continue;
                 }
+
                 break;
             }
         }
 
-        private static byte[] ReadLiteralString(ReadOnlySpan<byte> data, ref int position)
+        private static byte[] ReadLiteralString(in ReadOnlySpan<byte> data, ref int position)
         {
             if (position >= data.Length || data[position] != (byte)'(')
             {
                 return Array.Empty<byte>();
             }
+
             position++; // consume '('
-            var builder = new List<byte>();
+            List<byte> builder = [];
             int depth = 1;
             int length = data.Length;
             while (position < length && depth > 0)
@@ -348,7 +369,7 @@ namespace PdfPixel.PostScript
                 }
                 else if (b == '\\' && position < length)
                 {
-                    var escaped = data[position++];
+                    byte escaped = data[position++];
                     builder.Add(escaped);
                 }
                 else
@@ -356,17 +377,19 @@ namespace PdfPixel.PostScript
                     builder.Add(b);
                 }
             }
+
             return builder.ToArray();
         }
 
-        private static byte[] ReadHexString(ReadOnlySpan<byte> data, ref int position)
+        private static byte[] ReadHexString(in ReadOnlySpan<byte> data, ref int position)
         {
             if (position >= data.Length || data[position] != (byte)'<')
             {
                 return Array.Empty<byte>();
             }
+
             position++; // consume '<'
-            var bytes = new List<byte>();
+            List<byte> bytes = [];
             int firstNibble = -1;
             int length = data.Length;
             while (position < length)
@@ -377,16 +400,19 @@ namespace PdfPixel.PostScript
                     position++; // consume '>'
                     break;
                 }
+
                 if (IsPsWhitespace(b))
                 {
                     position++;
                     continue;
                 }
+
                 int value = HexCharToInt((char)b);
                 if (value == -1)
                 {
                     throw new InvalidOperationException($"Invalid hex character '{(char)b}' in PostScript hex string.");
                 }
+
                 if (firstNibble == -1)
                 {
                     firstNibble = value;
@@ -396,13 +422,16 @@ namespace PdfPixel.PostScript
                     bytes.Add((byte)((firstNibble << 4) | value));
                     firstNibble = -1;
                 }
+
                 position++;
             }
+
             if (firstNibble != -1)
             {
                 // Odd number of digits: pad with 0
                 bytes.Add((byte)(firstNibble << 4));
             }
+
             return bytes.ToArray();
         }
 
@@ -415,14 +444,17 @@ namespace PdfPixel.PostScript
             {
                 return c - '0';
             }
+
             if (c >= 'A' && c <= 'F')
             {
                 return c - 'A' + 10;
             }
+
             if (c >= 'a' && c <= 'f')
             {
                 return c - 'a' + 10;
             }
+
             return -1;
         }
     }

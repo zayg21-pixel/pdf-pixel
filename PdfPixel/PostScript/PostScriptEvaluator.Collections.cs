@@ -33,8 +33,8 @@ namespace PdfPixel.PostScript
                 // Dictionary operators
                 case "begin":
                 {
-                    // PostScript: <dict> begin
-                    var dictToken = PopOfType<PostScriptDictionary>(stack);
+                        // PostScript: <dict> begin
+                        PostScriptDictionary dictToken = PopOfType<PostScriptDictionary>(stack);
                     dictToken.EnsureAccess(PostScriptAccessOperation.Read); // Require readable dictionary (we don't mutate here).
                     _dictStack.Push(dictToken);
                     return true;
@@ -68,18 +68,20 @@ namespace PdfPixel.PostScript
                     return true;
                 }
             }
+
             return false;
         }
 
         private void CreateArray(Stack<PostScriptToken> stack)
         {
             // PostScript: <n> array creates array with length n (filled with default null tokens conceptually).
-            var capacityNumber = PopOfType<PostScriptNumber>(stack);
-            int capacity = (int)capacityNumber.Value;
+            PostScriptNumber capacityNumber = PopOfType<PostScriptNumber>(stack);
+            var capacity = (int)capacityNumber.Value;
             if (capacity < 0)
             {
                 capacity = 0;
             }
+
             stack.Push(new PostScriptArray(capacity));
         }
 
@@ -127,7 +129,7 @@ namespace PdfPixel.PostScript
         private void WhereOperator(Stack<PostScriptToken> stack)
         {
             // PostScript: <name> where -> <dict> true | false
-            var nameToken = PopOfType<PostScriptLiteralName>(stack); // Spec-compliant: only literal names.
+            PostScriptLiteralName nameToken = PopOfType<PostScriptLiteralName>(stack); // Spec-compliant: only literal names.
             string lookup = nameToken.Name;
             foreach (PostScriptDictionary dict in _dictStack)
             {
@@ -139,6 +141,7 @@ namespace PdfPixel.PostScript
                     return;
                 }
             }
+
             stack.Push(new PostScriptBoolean(false));
         }
 
@@ -146,8 +149,8 @@ namespace PdfPixel.PostScript
         {
             // PostScript: <dict> <name> known -> bool (popping reversed order)
             Ensure(stack, 2);
-            var nameToken = PopOfType<PostScriptLiteralName>(stack);
-            var dict = PopOfType<PostScriptDictionary>(stack);
+            PostScriptLiteralName nameToken = PopOfType<PostScriptLiteralName>(stack);
+            PostScriptDictionary dict = PopOfType<PostScriptDictionary>(stack);
             dict.EnsureAccess(PostScriptAccessOperation.Read);
             bool exists = dict.Entries.ContainsKey(nameToken.Name);
             stack.Push(new PostScriptBoolean(exists));

@@ -50,33 +50,22 @@ public class PdfRenderer : IPdfRenderer
     /// Draw text with positioning adjustments (if any) and return total advancement.
     /// </summary>
     public SKSize DrawTextSequence(IPdfCommandProcessor processor, List<ShapedGlyph> glyphs, PdfGraphicsState state, PdfFontBase font)
-    {
-        return _textRenderer.DrawTextSequence(processor, glyphs, state, font);
-    }
+        => _textRenderer.DrawTextSequence(processor, glyphs, state, font);
 
     /// <summary>
     /// Draw a path with the specified operation and fill type.
     /// </summary>
-    public void DrawPath(IPdfCommandProcessor processor, SKPath path, PdfGraphicsState state, PaintOperation operation)
-    {
-        _pathRenderer.DrawPath(processor, path, state, operation);
-    }
+    public void DrawPath(IPdfCommandProcessor processor, SKPath path, PdfGraphicsState state, PaintOperation operation) => _pathRenderer.DrawPath(processor, path, state, operation);
 
     /// <summary>
     /// Draw an image in PDF unit coordinate space.
     /// </summary>
-    public void DrawImage(IPdfCommandProcessor processor, PdfImage pdfImage, PdfGraphicsState state)
-    {
-        _imageRenderer.DrawImage(processor, pdfImage, state);
-    }
+    public void DrawImage(IPdfCommandProcessor processor, PdfImage pdfImage, PdfGraphicsState state) => _imageRenderer.DrawImage(processor, pdfImage, state);
 
     /// <summary>
     /// Render a form XObject with proper handling of transparency and soft masks.
     /// </summary>
-    public void DrawForm(IPdfCommandProcessor processor, PdfForm formXObject, PdfGraphicsState graphicsState)
-    {
-        _formRenderer.DrawForm(processor, formXObject, graphicsState);
-    }
+    public void DrawForm(IPdfCommandProcessor processor, PdfForm formXObject, PdfGraphicsState graphicsState) => _formRenderer.DrawForm(processor, formXObject, graphicsState);
 
     /// <summary>
     /// Draw a shading fill described by the shading dictionary (operator 'sh').
@@ -86,8 +75,5 @@ public class PdfRenderer : IPdfRenderer
     /// <param name="processor">Command processor to draw through.</param>
     /// <param name="shading">Shading object defining the gradient/pattern.</param>
     /// <param name="state">Current graphics state providing CTM and soft mask.</param>
-    public void DrawShading(IPdfCommandProcessor processor, PdfShading shading, PdfGraphicsState state)
-    {
-        _shadingRenderer.DrawShading(processor, shading, state);
-    }
+    public void DrawShading(IPdfCommandProcessor processor, PdfShading shading, PdfGraphicsState state) => _shadingRenderer.DrawShading(processor, shading, state);
 }

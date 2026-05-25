@@ -24,11 +24,12 @@ public static class PdfArrayExtensions
         }
 
         int count = array.Count;
-        float[] result = new float[count];
+        var result = new float[count];
         for (int index = 0; index < count; index++)
         {
             result[index] = array.GetFloatOrDefault(index);
         }
+
         return result;
     }
 
@@ -49,11 +50,12 @@ public static class PdfArrayExtensions
         }
 
         int count = array.Count;
-        int[] result = new int[count];
+        var result = new int[count];
         for (int index = 0; index < count; index++)
         {
             result[index] = array.GetIntegerOrDefault(index);
         }
+
         return result;
     }
 }

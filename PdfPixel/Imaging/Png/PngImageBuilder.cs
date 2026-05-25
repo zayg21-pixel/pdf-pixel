@@ -29,7 +29,7 @@ namespace PdfPixel.Imaging.Png
         private readonly int _totalUncompressed;
         private readonly int _totalData;
 
-        private readonly SKDynamicMemoryWStream _pngStream = new SKDynamicMemoryWStream();
+        private readonly SKDynamicMemoryWStream _pngStream = new();
         private PngImageBuilderState _state = PngImageBuilderState.Init;
 
 
@@ -38,7 +38,9 @@ namespace PdfPixel.Imaging.Png
         private int _rowStreamingRowsWritten;
         private System.IO.Hashing.Crc32 _rowStreamingCrc32;
         private byte[] _rowStreamingBlockHeader;
+
         private const int MaxDeflateBlockSize = 65535;
+
         private int _rowStreamingBlockBytesRemaining;
         private int _rowStreamingUncompressedBytesLeft; // Track uncompressed bytes left
         private byte[] _rowBuffer;
@@ -50,8 +52,11 @@ namespace PdfPixel.Imaging.Png
                 throw new ArgumentOutOfRangeException(nameof(channels), "Channels must be between 1 and 4.");
             }
 
-            if (bitsPerComponent != 1 && bitsPerComponent != 2 && bitsPerComponent != 4 &&
-                bitsPerComponent != 8 && bitsPerComponent != 16)
+            if (bitsPerComponent != 1
+                && bitsPerComponent != 2
+                && bitsPerComponent != 4
+                && bitsPerComponent != 8
+                && bitsPerComponent != 16)
             {
                 throw new ArgumentOutOfRangeException(nameof(bitsPerComponent), "Bits per component must be 1, 2, 4, 8, or 16.");
             }
@@ -70,12 +75,12 @@ namespace PdfPixel.Imaging.Png
             _bitsPerComponent = bitsPerComponent;
             _width = width;
             _height = height;
-            _encodedRowLength = (width * channels * bitsPerComponent + 7) / 8;
+            _encodedRowLength = ((width * channels * bitsPerComponent) + 7) / 8;
 
             _rowWithFilter = 1 + _encodedRowLength;
             _totalUncompressed = _height * _rowWithFilter;
             _numBlocks = (_totalUncompressed + MaxDeflateBlockSize - 1) / MaxDeflateBlockSize;
-            _totalData = 2 + _totalUncompressed + _numBlocks * 5;
+            _totalData = 2 + _totalUncompressed + (_numBlocks * 5);
         }
 
         /// <summary>
@@ -83,7 +88,7 @@ namespace PdfPixel.Imaging.Png
         /// </summary>
         /// <param name="palette">The color palette to use (can be null).</param>
         /// <param name="iccProfile">The ICC profile to use (can be empty).</param>
-        public void Init(RgbaPacked[] palette, ReadOnlyMemory<byte> iccProfile)
+        public void Init(RgbaPacked[] palette, in ReadOnlyMemory<byte> iccProfile)
         {
             EnsureState(PngImageBuilderState.Init);
             PngHelpers.WritePngSignature(_pngStream);
@@ -91,7 +96,7 @@ namespace PdfPixel.Imaging.Png
             byte colorType;
             if (_channels == 1)
             {
-                if (palette != null && palette.Length > 0)
+                if (palette?.Length > 0)
                 {
                     colorType = 3; // Indexed-color
                 }
@@ -115,7 +120,7 @@ namespace PdfPixel.Imaging.Png
 
             PngHelpers.WriteIhdrChunk(_pngStream, _width, _height, (byte)_bitsPerComponent, colorType);
 
-            if (_channels == 1 && palette != null && palette.Length > 0)
+            if (_channels == 1 && palette?.Length > 0)
             {
                 PngHelpers.WritePlteChunk(_pngStream, palette);
             }
@@ -136,6 +141,7 @@ namespace PdfPixel.Imaging.Png
             {
                 throw new ArgumentNullException(nameof(data));
             }
+
             PngHelpers.WriteChunk(_pngStream, "IDAT", data, data.Length);
             _state = PngImageBuilderState.ImageDataWritten;
         }
@@ -147,7 +153,8 @@ namespace PdfPixel.Imaging.Png
             {
                 throw new ArgumentNullException(nameof(dataStream));
             }
-            using var ms = new MemoryStream();
+
+            using MemoryStream ms = new();
             dataStream.CopyTo(ms);
             PngHelpers.WriteChunk(_pngStream, "IDAT", ms.ToArray(), (int)ms.Length);
             _state = PngImageBuilderState.ImageDataWritten;
@@ -158,12 +165,13 @@ namespace PdfPixel.Imaging.Png
         /// </summary>
         /// <param name="row">The row data (without filter byte).</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void WritePngImageRow(ReadOnlySpan<byte> row)
+        public void WritePngImageRow(in ReadOnlySpan<byte> row)
         {
             if (row.IsEmpty)
             {
                 throw new ArgumentNullException(nameof(row));
             }
+
             if (_state != PngImageBuilderState.BuildImage)
             {
                 throw new InvalidOperationException("WritePngImageRow can only be called after Init and before Build.");
@@ -183,7 +191,7 @@ namespace PdfPixel.Imaging.Png
 
             int rowDataOffset = 0;
             int rowDataRemaining = row.Length;
-            bool filterByteWritten = false;
+            var filterByteWritten = false;
 
             while (rowDataRemaining > 0 || !filterByteWritten)
             {
@@ -193,6 +201,7 @@ namespace PdfPixel.Imaging.Png
                     {
                         throw new InvalidOperationException("No uncompressed bytes left to write, but more data was provided.");
                     }
+
                     int blockSize = Math.Min(MaxDeflateBlockSize, _rowStreamingUncompressedBytesLeft);
                     bool isFinalBlock = (blockSize == _rowStreamingUncompressedBytesLeft);
                     PngHelpers.UpdateDeflateBlockHeader(_rowStreamingBlockHeader, blockSize, isFinalBlock);
@@ -243,11 +252,12 @@ namespace PdfPixel.Imaging.Png
             {
                 EnsureState(PngImageBuilderState.ImageDataWritten);
             }
+
             PngHelpers.WriteChunk(_pngStream, "IEND", Array.Empty<byte>(), 0);
             _pngStream.Flush();
             _state = PngImageBuilderState.Completed;
-            using var data = _pngStream.DetachAsData();
-            var result = SKImage.FromEncodedData(data);
+            using SKData data = _pngStream.DetachAsData();
+            SKImage result = SKImage.FromEncodedData(data);
             return result;
         }
 
@@ -259,9 +269,6 @@ namespace PdfPixel.Imaging.Png
             }
         }
 
-        public void Dispose()
-        {
-            _pngStream.Dispose();
-        }
+        public void Dispose() => _pngStream.Dispose();
     }
 }

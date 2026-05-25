@@ -14,12 +14,9 @@ namespace PdfPixel.Models;
 internal class PdfDocumentObjectCache
 {
     private readonly PdfObjectParser _pdfObjectParser;
-    private readonly Dictionary<PdfReference, PdfObject> _objects = new Dictionary<PdfReference, PdfObject>();
+    private readonly Dictionary<PdfReference, PdfObject> _objects = [];
 
-    public PdfDocumentObjectCache(PdfObjectParser parser)
-    {
-        _pdfObjectParser = parser;
-    }
+    public PdfDocumentObjectCache(PdfObjectParser parser) => _pdfObjectParser = parser;
 
     /// <summary>
     /// Parsed catalog output intent ICC profile (first preferred or first valid). Null when none present or invalid.
@@ -40,56 +37,57 @@ internal class PdfDocumentObjectCache
     /// <summary>
     /// Document font cache.
     /// </summary>
-    internal Dictionary<PdfReference, PdfFontBase> Fonts { get; } = new Dictionary<PdfReference, PdfFontBase>();
+    internal Dictionary<PdfReference, PdfFontBase> Fonts { get; } = [];
 
     /// <summary>
     /// Document color space converter cache.
     /// </summary>
-    internal Dictionary<PdfReference, PdfColorSpaceConverter> ColorSpaceConverters { get; } = new Dictionary<PdfReference, PdfColorSpaceConverter>();
+    internal Dictionary<PdfReference, PdfColorSpaceConverter> ColorSpaceConverters { get; } = [];
 
     /// <summary>
     /// High-level cache for parsed PDF functions, keyed by reference.
     /// </summary>
-    internal Dictionary<PdfReference, PdfFunction> Functions { get; } = new Dictionary<PdfReference, PdfFunction>();
+    internal Dictionary<PdfReference, PdfFunction> Functions { get; } = [];
 
     /// <summary>
     /// JBIG2 globals caches, keyed by the PDF reference of the /JBIG2Globals stream object.
     /// Populated on first use so each globals stream is decoded only once per document.
     /// </summary>
-    internal Dictionary<PdfReference, Jbig2SegmentCache> Jbig2GlobalCaches { get; } = new Dictionary<PdfReference, Jbig2SegmentCache>();
+    internal Dictionary<PdfReference, Jbig2SegmentCache> Jbig2GlobalCaches { get; } = [];
 
     /// <summary>
     /// Document object index collection.
     /// </summary>
-    public Dictionary<PdfReference, PdfObjectInfo> ObjectIndex { get; } = new Dictionary<PdfReference, PdfObjectInfo>();
+    public Dictionary<PdfReference, PdfObjectInfo> ObjectIndex { get; } = [];
 
     /// <summary>
     /// Retrieves an object by reference, parsing it lazily if present in the index but not yet materialized.
     /// </summary>
     /// <param name="reference">Target object reference.</param>
     /// <returns>Materialized <see cref="PdfObject"/> or null if unavailable.</returns>
-    public PdfObject GetObject(PdfReference reference)
+    public PdfObject GetObject(in PdfReference reference)
     {
         if (!reference.IsValid)
         {
             return null;
         }
 
-        if (_objects.TryGetValue(reference, out var existing))
+        if (_objects.TryGetValue(reference, out PdfObject existing))
         {
             return existing;
         }
 
-        if (!ObjectIndex.TryGetValue(reference, out var info))
+        if (!ObjectIndex.TryGetValue(reference, out PdfObjectInfo info))
         {
             return null;
         }
 
-        var parsed = _pdfObjectParser.ParseSingleIndexedObject(info);
+        PdfObject parsed = _pdfObjectParser.ParseSingleIndexedObject(info);
         if (parsed != null)
         {
             _objects[parsed.Reference] = parsed;
         }
+
         return parsed;
     }
 }

@@ -35,7 +35,7 @@ public class FormRenderer : IFormRenderer
 
         graphicsState.RecursionGuard.Add(objectNumber);
 
-        using var softMaskScope = new SoftMaskDrawingScope(_renderer, processor, graphicsState);
+        using SoftMaskDrawingScope softMaskScope = new(_renderer, processor, graphicsState);
         softMaskScope.BeginDrawContent();
 
         processor.Process(new SaveStateCommand());
@@ -48,28 +48,28 @@ public class FormRenderer : IFormRenderer
 
         if (formXObject.TransparencyGroup != null)
         {
-            var formPaint = PdfPaintFactory.CreateCompositionLayerPaint(graphicsState);
+            SKPaint formPaint = PdfPaintFactory.CreateCompositionLayerPaint(graphicsState);
             processor.Process(new SaveLayerCommand(formXObject.BBox, formPaint));
         }
 
         // Decode and render content with a cloned state that clears parent soft mask
-        var recorder = new PdfCommandRecorder();
+        PdfCommandRecorder recorder = new();
 
-        var content = formXObject.GetFormData();
+        System.ReadOnlyMemory<byte> content = formXObject.GetFormData();
         if (!content.IsEmpty)
         {
-            var formPage = formXObject.GetFormPage();
+            FormXObjectPageWrapper formPage = formXObject.GetFormPage();
 
-            var localGs = new PdfGraphicsState(formPage, graphicsState);
+            PdfGraphicsState localGs = new(formPage, graphicsState);
             localGs.CTM = formXObject.Matrix;
 
-            var renderer = new PdfContentStreamRenderer(_renderer, formPage);
-            var parseContext = new PdfParseContext(content);
+            PdfContentStreamRenderer renderer = new(_renderer, formPage);
+            PdfParseContext parseContext = new(content);
 
             renderer.RenderContext(recorder, ref parseContext, localGs);
         }
 
-        var recording = new DrawRecordingCommand(recorder);
+        DrawRecordingCommand recording = new(recorder);
         processor.Process(recording);
 
         if (formXObject.TransparencyGroup != null)

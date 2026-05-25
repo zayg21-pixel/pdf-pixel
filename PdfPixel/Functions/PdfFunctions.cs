@@ -27,7 +27,7 @@ internal static class PdfFunctions
     {
         if (functions == null || functions.Count == 0)
         {
-            return [];
+            return new ReadOnlySpan<float>();
         }
 
         if (functions.Count == 1)
@@ -35,7 +35,7 @@ internal static class PdfFunctions
             return functions[0].Evaluate(input);
         }
 
-        var aggregate = new List<float>(functions.Count);
+        List<float> aggregate = new(functions.Count);
 
         foreach (PdfFunction function in functions)
         {
@@ -63,11 +63,11 @@ internal static class PdfFunctions
     /// name="functions"/> with the specified <paramref name="input"/>. Returns an empty span if <paramref
     /// name="functions"/> is null.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static ReadOnlySpan<float> EvaluateColorFunctions(List<PdfFunction> functions, ReadOnlySpan<float> input)
+    public static ReadOnlySpan<float> EvaluateColorFunctions(List<PdfFunction> functions, in ReadOnlySpan<float> input)
     {
         if (functions == null || functions.Count == 0)
         {
-            return [];
+            return new ReadOnlySpan<float>();
         }
 
         if (functions.Count == 1)
@@ -75,7 +75,7 @@ internal static class PdfFunctions
             return functions[0].Evaluate(input);
         }
 
-        var aggregate = new List<float>(functions.Count);
+        List<float> aggregate = new(functions.Count);
         foreach (PdfFunction function in functions)
         {
             ReadOnlySpan<float> part = function.Evaluate(input);
@@ -87,6 +87,7 @@ internal static class PdfFunctions
                 }
             }
         }
+
         return aggregate.ToArray();
     }
 
@@ -104,7 +105,7 @@ internal static class PdfFunctions
 
         if (functionObject.Reference.IsValid && functionObject.Document != null)
         {
-            var cache = functionObject.Document.ObjectCache.Functions;
+            Dictionary<PdfReference, PdfFunction> cache = functionObject.Document.ObjectCache.Functions;
             if (cache.TryGetValue(functionObject.Reference, out PdfFunction cachedFunction))
             {
                 return cachedFunction;
@@ -117,24 +118,32 @@ internal static class PdfFunctions
         switch (functionType)
         {
             case PdfFunctionType.Sampled:
-                function = SampledPdfFunction.FromObject(functionObject);
-                break;
+                {
+                    function = SampledPdfFunction.FromObject(functionObject);
+                    break;
+                }
             case PdfFunctionType.Exponential:
-                function = ExponentialPdfFunction.FromObject(functionObject);
-                break;
+                {
+                    function = ExponentialPdfFunction.FromObject(functionObject);
+                    break;
+                }
             case PdfFunctionType.Stitching:
-                function = StitchingPdfFunction.FromObject(functionObject);
-                break;
+                {
+                    function = StitchingPdfFunction.FromObject(functionObject);
+                    break;
+                }
             case PdfFunctionType.PostScript:
-                function = PostScriptPdfFunction.FromObject(functionObject);
-                break;
+                {
+                    function = PostScriptPdfFunction.FromObject(functionObject);
+                    break;
+                }
             default:
                 return null;
         }
 
         if (function != null && functionObject.Reference.IsValid && functionObject.Document != null)
         {
-            var cache = functionObject.Document.ObjectCache.Functions;
+            Dictionary<PdfReference, PdfFunction> cache = functionObject.Document.ObjectCache.Functions;
             cache[functionObject.Reference] = function;
         }
 

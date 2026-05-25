@@ -62,6 +62,7 @@ internal static class MeshEvaluator
         {
             throw new ArgumentException("patches must not be null or empty.");
         }
+
         if (tessellation < 1)
         {
             throw new ArgumentOutOfRangeException(nameof(tessellation), "Tessellation must be >= 1.");
@@ -69,8 +70,8 @@ internal static class MeshEvaluator
 
         // Adjust tessellation to avoid 16-bit index overflow in SKVertices.
         // totalVertices = patches.Count * (tessellation + 1)^2 must be <= 65535.
-        int maxVertices = ushort.MaxValue;
-        int safeVertexCountPerPatch = (int)MathF.Floor(MathF.Sqrt(maxVertices / (float)patches.Count));
+        const int maxVertices = ushort.MaxValue;
+        var safeVertexCountPerPatch = (int)MathF.Floor(MathF.Sqrt(maxVertices / (float)patches.Count));
         tessellation = Math.Max(1, Math.Min(tessellation, safeVertexCountPerPatch - 1));
 
         int vertexCountPerAxis = tessellation + 1;
@@ -81,9 +82,9 @@ internal static class MeshEvaluator
         int totalVertices = verticesPerPatch * patches.Count;
         int totalIndices = indicesPerPatch * patches.Count;
 
-        SKPoint[] allVertices = new SKPoint[totalVertices];
-        SKColor[] allColors = new SKColor[totalVertices];
-        ushort[] allIndices = new ushort[totalIndices];
+        var allVertices = new SKPoint[totalVertices];
+        var allColors = new SKColor[totalVertices];
+        var allIndices = new ushort[totalIndices];
 
         int vertexOffset = 0;
         int indexOffset = 0;
@@ -119,12 +120,13 @@ internal static class MeshEvaluator
 
                 observer?.Notify();
             }
+
             int index = 0;
             for (int rowIndex = 0; rowIndex < tessellation; rowIndex++)
             {
                 for (int columnIndex = 0; columnIndex < tessellation; columnIndex++)
                 {
-                    int idx0 = vertexOffset + rowIndex * vertexCountPerAxis + columnIndex;
+                    int idx0 = vertexOffset + (rowIndex * vertexCountPerAxis) + columnIndex;
                     int idx1 = idx0 + 1;
                     int idx2 = idx0 + vertexCountPerAxis;
                     int idx3 = idx2 + 1;
@@ -137,6 +139,7 @@ internal static class MeshEvaluator
                     allIndices[indexOffset + index++] = (ushort)idx2;
                 }
             }
+
             vertexOffset += verticesPerPatch;
             indexOffset += indicesPerPatch;
         }
@@ -176,14 +179,14 @@ internal static class MeshEvaluator
             Unsafe.Add(ref myRef, matrixIndex) = p.Y;
         }
 
-        Vector4 vx = new Vector4(bu.X);
-        Vector4 vy = new Vector4(bu.Y);
-        Vector4 vz = new Vector4(bu.Z);
-        Vector4 vw = new Vector4(bu.W);
+        Vector4 vx = new(bu.X);
+        Vector4 vy = new(bu.Y);
+        Vector4 vz = new(bu.Z);
+        Vector4 vw = new(bu.W);
 
         // Evaluate bu^T * M * bv using vectorized transform
-        Vector4 dx = mx.Row0 * vx + mx.Row1 * vy + mx.Row2 * vz + mx.Row3 * vw;
-        Vector4 dy = my.Row0 * vx + my.Row1 * vy + my.Row2 * vz + my.Row3 * vw;
+        Vector4 dx = (mx.Row0 * vx) + (mx.Row1 * vy) + (mx.Row2 * vz) + (mx.Row3 * vw);
+        Vector4 dy = (my.Row0 * vx) + (my.Row1 * vy) + (my.Row2 * vz) + (my.Row3 * vw);
 
         float x = ColorVectorUtilities.CustomDot(dx, bv);
         float y = ColorVectorUtilities.CustomDot(dy, bv);
@@ -226,22 +229,22 @@ internal static class MeshEvaluator
         }
 
         // Evaluate u-parametric edges (bottom/top) and v-parametric edges (left/right) via column-wise accumulations
-        Vector4 buX = new Vector4(bu.X);
-        Vector4 buY = new Vector4(bu.Y);
-        Vector4 buZ = new Vector4(bu.Z);
-        Vector4 buW = new Vector4(bu.W);
+        Vector4 buX = new(bu.X);
+        Vector4 buY = new(bu.Y);
+        Vector4 buZ = new(bu.Z);
+        Vector4 buW = new(bu.W);
 
-        Vector4 bvX = new Vector4(bv.X);
-        Vector4 bvY = new Vector4(bv.Y);
-        Vector4 bvZ = new Vector4(bv.Z);
-        Vector4 bvW = new Vector4(bv.W);
+        Vector4 bvX = new(bv.X);
+        Vector4 bvY = new(bv.Y);
+        Vector4 bvZ = new(bv.Z);
+        Vector4 bvW = new(bv.W);
 
         // Rows: Row0=Bottom(u), Row1=Top(u), Row2=Left(v), Row3=Right(v)
-        Vector4 uX = boundaryX.Row0 * buX + boundaryX.Row1 * buY + boundaryX.Row2 * buZ + boundaryX.Row3 * buW;
-        Vector4 uY = boundaryY.Row0 * buX + boundaryY.Row1 * buY + boundaryY.Row2 * buZ + boundaryY.Row3 * buW;
+        Vector4 uX = (boundaryX.Row0 * buX) + (boundaryX.Row1 * buY) + (boundaryX.Row2 * buZ) + (boundaryX.Row3 * buW);
+        Vector4 uY = (boundaryY.Row0 * buX) + (boundaryY.Row1 * buY) + (boundaryY.Row2 * buZ) + (boundaryY.Row3 * buW);
 
-        Vector4 vX = boundaryX.Row0 * bvX + boundaryX.Row1 * bvY + boundaryX.Row2 * bvZ + boundaryX.Row3 * bvW;
-        Vector4 vY = boundaryY.Row0 * bvX + boundaryY.Row1 * bvY + boundaryY.Row2 * bvZ + boundaryY.Row3 * bvW;
+        Vector4 vX = (boundaryX.Row0 * bvX) + (boundaryX.Row1 * bvY) + (boundaryX.Row2 * bvZ) + (boundaryX.Row3 * bvW);
+        Vector4 vY = (boundaryY.Row0 * bvX) + (boundaryY.Row1 * bvY) + (boundaryY.Row2 * bvZ) + (boundaryY.Row3 * bvW);
 
         float b0X = uX.X;
         float b1X = uX.Y;
@@ -256,25 +259,29 @@ internal static class MeshEvaluator
         // Vectorized corner bilinear interpolation: 2 dot products
         float oneMinusU = 1.0f - u;
         float oneMinusV = 1.0f - v;
-        Vector4 bilinearWeights = new Vector4(
+        Vector4 bilinearWeights = new(
             oneMinusU * oneMinusV,
             u * oneMinusV,
             oneMinusU * v,
             u * v);
 
-        Vector4 cornerX = new Vector4(
-            controlPoints[P00].X, controlPoints[P30].X,
-            controlPoints[P03].X, controlPoints[P33].X);
-        Vector4 cornerY = new Vector4(
-            controlPoints[P00].Y, controlPoints[P30].Y,
-            controlPoints[P03].Y, controlPoints[P33].Y);
+        Vector4 cornerX = new(
+            controlPoints[P00].X,
+            controlPoints[P30].X,
+            controlPoints[P03].X,
+            controlPoints[P33].X);
+        Vector4 cornerY = new(
+            controlPoints[P00].Y,
+            controlPoints[P30].Y,
+            controlPoints[P03].Y,
+            controlPoints[P33].Y);
 
         float bilinearX = ColorVectorUtilities.CustomDot(cornerX, bilinearWeights);
         float bilinearY = ColorVectorUtilities.CustomDot(cornerY, bilinearWeights);
 
         // Final Coons blending: (1-v)*b0 + v*b1 + (1-u)*l0 + u*l1 - bilinear
-        float finalX = (oneMinusV * b0X + v * b1X) + (oneMinusU * l0X + u * l1X) - bilinearX;
-        float finalY = (oneMinusV * b0Y + v * b1Y) + (oneMinusU * l0Y + u * l1Y) - bilinearY;
+        float finalX = (oneMinusV * b0X) + (v * b1X) + ((oneMinusU * l0X) + (u * l1X)) - bilinearX;
+        float finalY = (oneMinusV * b0Y) + (v * b1Y) + ((oneMinusU * l0Y) + (u * l1Y)) - bilinearY;
 
         return new SKPoint(finalX, finalY);
     }
@@ -290,32 +297,32 @@ internal static class MeshEvaluator
     private static SKColor InterpolateCornerColors(float u, float v, SKColor[] cornerColors)
     {
         // Compute bilinear weights for each corner
-        var oneMinusU = 1.0f - u;
-        var oneMinusV = 1.0f - v;
+        float oneMinusU = 1.0f - u;
+        float oneMinusV = 1.0f - v;
         float bottomLeftWeight = oneMinusU * oneMinusV;
         float topLeftWeight = oneMinusU * v;
         float topRightWeight = u * v;
         float bottomRightWeight = u * oneMinusV;
 
-        var weights = new Vector4(bottomLeftWeight, topLeftWeight, topRightWeight, bottomRightWeight);
+        Vector4 weights = new(bottomLeftWeight, topLeftWeight, topRightWeight, bottomRightWeight);
 
         // Vectorize RGBA channels for the four corners
-        var redChannel = new Vector4(
+        Vector4 redChannel = new(
             cornerColors[0].Red,
             cornerColors[1].Red,
             cornerColors[2].Red,
             cornerColors[3].Red);
-        var greenChannel = new Vector4(
+        Vector4 greenChannel = new(
             cornerColors[0].Green,
             cornerColors[1].Green,
             cornerColors[2].Green,
             cornerColors[3].Green);
-        var blueChannel = new Vector4(
+        Vector4 blueChannel = new(
             cornerColors[0].Blue,
             cornerColors[1].Blue,
             cornerColors[2].Blue,
             cornerColors[3].Blue);
-        var alphaChannel = new Vector4(
+        Vector4 alphaChannel = new(
             cornerColors[0].Alpha,
             cornerColors[1].Alpha,
             cornerColors[2].Alpha,
@@ -340,10 +347,12 @@ internal static class MeshEvaluator
         {
             return 0;
         }
+
         if (value > 255f)
         {
             return 255;
         }
+
         return (byte)value;
     }
 

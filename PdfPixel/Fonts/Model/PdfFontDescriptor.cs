@@ -187,7 +187,7 @@ public class PdfFontDescriptor
             return null;
         }
 
-        var descriptor = new PdfFontDescriptor
+        PdfFontDescriptor descriptor = new()
         {
             Dictionary = dict, // Store reference to the dictionary
             FontName = dict.GetString(PdfTokens.FontNameKey),
@@ -214,22 +214,22 @@ public class PdfFontDescriptor
         descriptor.StemSnapV = dict.GetArray(PdfTokens.StemSnapVKey).GetFloatArray();
 
         // PANOSE (string or hex string)
-        var panoseVal = dict.GetValue(PdfTokens.PanoseKey);
+        IPdfValue panoseVal = dict.GetValue(PdfTokens.PanoseKey);
         if (panoseVal != null)
         {
-            var hexBytes = panoseVal.AsStringBytes();
+            System.ReadOnlyMemory<byte> hexBytes = panoseVal.AsStringBytes();
             if (!hexBytes.IsEmpty)
             {
                 descriptor.Panose = hexBytes.ToArray();
             }
         }
 
-        var objectAndFormat = GetFileObjectAndFormat(dict);
+        (PdfObject Object, PdfFontFileFormat Format) objectAndFormat = GetFileObjectAndFormat(dict);
         descriptor.FontFileObject = objectAndFormat.Object;
         descriptor.FontFileFormat = objectAndFormat.Format;
 
         // Parse FontBBox array
-        var fontBBoxArray = dict.GetArray(PdfTokens.FontBBoxKey).GetFloatArray();
+        float[] fontBBoxArray = dict.GetArray(PdfTokens.FontBBoxKey).GetFloatArray();
         descriptor.FontBBox = PdfLocationUtilities.CreateBBox(dict.GetArray(PdfTokens.FontBBoxKey)) ?? SKRect.Empty;
 
         return descriptor;
@@ -244,21 +244,21 @@ public class PdfFontDescriptor
     {
         // Get font file object and determine format (only one exists at a time)
         // Priority order: FontFile2 (TrueType), FontFile3 (check /Subtype), FontFile (Type1)
-        var fontFile2Obj = dict.GetObject(PdfTokens.FontFile2Key);
+        PdfObject fontFile2Obj = dict.GetObject(PdfTokens.FontFile2Key);
         if (fontFile2Obj != null)
         {
             return (fontFile2Obj, PdfFontFileFormat.TrueType);
         }
 
-        var fontFile3Obj = dict.GetObject(PdfTokens.FontFile3Key);
+        PdfObject fontFile3Obj = dict.GetObject(PdfTokens.FontFile3Key);
         if (fontFile3Obj != null)
         {
             // For FontFile3 the actual program type is specified by the stream dictionary /Subtype
-            var subType = fontFile3Obj.Dictionary.GetName(PdfTokens.SubtypeKey).AsEnum<PdfFontFileFormat>();
+            PdfFontFileFormat subType = fontFile3Obj.Dictionary.GetName(PdfTokens.SubtypeKey).AsEnum<PdfFontFileFormat>();
             return (fontFile3Obj, subType);
         }
 
-        var fontFileObj = dict.GetObject(PdfTokens.FontFileKey);
+        PdfObject fontFileObj = dict.GetObject(PdfTokens.FontFileKey);
         if (fontFileObj != null)
         {
             return (fontFileObj, PdfFontFileFormat.Type1);

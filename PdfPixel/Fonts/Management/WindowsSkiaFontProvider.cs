@@ -13,7 +13,7 @@ public sealed class WindowsSkiaFontProvider : ISkiaFontProvider, IDisposable
     private readonly SKFontManager _fontManager;
     private readonly string _fallbackFontName;
 
-    private static readonly Dictionary<PdfStandardFontName, string[]> CandidatesMap = new Dictionary<PdfStandardFontName, string[]>
+    private static readonly Dictionary<PdfStandardFontName, string[]> CandidatesMap = new()
     {
         { PdfStandardFontName.Times, new[] { "Times New Roman" } },
         { PdfStandardFontName.TimesNewRoman, new[] { "Times New Roman" } },
@@ -24,7 +24,7 @@ public sealed class WindowsSkiaFontProvider : ISkiaFontProvider, IDisposable
         { PdfStandardFontName.CourierNew, new[] { "Courier New" } },
         { PdfStandardFontName.CourierNewPS, new[] { "Courier New" } },
         { PdfStandardFontName.Symbol, new[] { "Segoe UI Symbol", "Times New Roman" } },
-        { PdfStandardFontName.ZapfDingbats, new[] { "Segoe UI Symbol" } },
+        { PdfStandardFontName.ZapfDingbats, new[] { "Segoe UI Symbol" } }
     };
 
     public WindowsSkiaFontProvider(string fallbackFontName = null)
@@ -37,14 +37,14 @@ public sealed class WindowsSkiaFontProvider : ISkiaFontProvider, IDisposable
     /// <inheritdoc/>
     public SKTypeface GetStandardFont(PdfStandardFontName standardFont, SKFontStyle style, string unicode)
     {
-        if (!CandidatesMap.TryGetValue(standardFont, out var candidates))
+        if (!CandidatesMap.TryGetValue(standardFont, out string[] candidates))
         {
             return null;
         }
 
         for (int i = 0; i < candidates.Length; i++)
         {
-            var matchedTypeface = _fontManager.MatchFamily(candidates[i], style);
+            SKTypeface matchedTypeface = _fontManager.MatchFamily(candidates[i], style);
             if (matchedTypeface != null && (unicode == null || matchedTypeface.ContainsGlyphs(unicode)))
             {
                 return matchedTypeface;
@@ -62,7 +62,7 @@ public sealed class WindowsSkiaFontProvider : ISkiaFontProvider, IDisposable
             name = _fallbackFontName;
         }
 
-        var matchedTypeface = _fontManager.MatchFamily(name, style);
+        SKTypeface matchedTypeface = _fontManager.MatchFamily(name, style);
         if (matchedTypeface != null && (unicode == null || matchedTypeface.ContainsGlyphs(unicode)))
         {
             return matchedTypeface;
@@ -76,8 +76,5 @@ public sealed class WindowsSkiaFontProvider : ISkiaFontProvider, IDisposable
         return _fontManager.MatchCharacter(_fallbackFontName, style, default, unicode[0]);
     }
 
-    public void Dispose()
-    {
-        _fontManager?.Dispose();
-    }
+    public void Dispose() => _fontManager?.Dispose();
 }

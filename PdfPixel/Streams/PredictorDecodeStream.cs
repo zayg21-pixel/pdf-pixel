@@ -52,7 +52,12 @@ namespace PdfPixel.Streams
         public override bool CanSeek => false;
         public override bool CanWrite => false;
         public override long Length => throw new NotSupportedException();
-        public override long Position { get { throw new NotSupportedException(); } set { throw new NotSupportedException(); } }
+
+        public override long Position
+        {
+            get => throw new NotSupportedException();
+            set => throw new NotSupportedException();
+        }
 
         /// <summary>
         /// Initializes a predictor decode stream that performs TIFF (2) or PNG (10..15) predictor undo on demand.
@@ -63,14 +68,17 @@ namespace PdfPixel.Streams
             {
                 throw new ArgumentNullException(nameof(decoded));
             }
+
             if (colors <= 0)
             {
                 throw new ArgumentOutOfRangeException(nameof(colors));
             }
+
             if (bitsPerComponent != 1 && bitsPerComponent != 2 && bitsPerComponent != 4 && bitsPerComponent != 8 && bitsPerComponent != 16)
             {
                 throw new NotSupportedException("Only 1,2,4,8 or 16 bits per component predictors are supported.");
             }
+
             if (columns <= 0)
             {
                 throw new ArgumentOutOfRangeException(nameof(columns));
@@ -86,8 +94,8 @@ namespace PdfPixel.Streams
                 _colors = colors;
                 _bitsPerComponent = bitsPerComponent;
                 _columns = columns;
-                _bytesPerSample = bitsPerComponent >= 8 ? (bitsPerComponent + 7) / 8 : 1;
-                _decodedRowBytes = bitsPerComponent >= 8 ? columns * colors * _bytesPerSample : (columns * colors * bitsPerComponent + 7) / 8;
+                _bytesPerSample = (bitsPerComponent >= 8) ? (bitsPerComponent + 7) / 8 : 1;
+                _decodedRowBytes = (bitsPerComponent >= 8) ? columns * colors * _bytesPerSample : ((columns * colors * bitsPerComponent) + 7) / 8;
                 _encodedRowBytes = _decodedRowBytes;
                 _rowMarginBytes = 0;
                 _rowDataOffset = 0;
@@ -104,14 +112,14 @@ namespace PdfPixel.Streams
             _colors = colors;
             _bitsPerComponent = bitsPerComponent;
             _columns = columns;
-            _bytesPerSample = bitsPerComponent >= 8 ? (bitsPerComponent + 7) / 8 : 1;
-            _decodedRowBytes = bitsPerComponent >= 8 ? columns * colors * _bytesPerSample : (columns * colors * bitsPerComponent + 7) / 8;
-            _encodedRowBytes = predictor >= 10 ? _decodedRowBytes + 1 : _decodedRowBytes;
+            _bytesPerSample = (bitsPerComponent >= 8) ? (bitsPerComponent + 7) / 8 : 1;
+            _decodedRowBytes = (bitsPerComponent >= 8) ? columns * colors * _bytesPerSample : ((columns * colors * bitsPerComponent) + 7) / 8;
+            _encodedRowBytes = (predictor >= 10) ? _decodedRowBytes + 1 : _decodedRowBytes;
 
             if (predictor >= 10)
             {
                 // PNG: buffer layout [margin][filter][data]. Margin length = bytesPerPixel.
-                int bytesPerPixel = (_colors * _bitsPerComponent + 7) / 8;
+                int bytesPerPixel = ((_colors * _bitsPerComponent) + 7) / 8;
                 _rowMarginBytes = bytesPerPixel;
                 _rowDataOffset = _rowMarginBytes + 1; // skip margin and filter byte
                 int total = _rowMarginBytes + 1 + _decodedRowBytes;
@@ -133,7 +141,9 @@ namespace PdfPixel.Streams
             _currentRowValid = false;
         }
 
-        public override void Flush() { }
+        public override void Flush()
+        {
+        }
 
         /// <summary>
         /// Reads decoded predictor-undo row bytes into caller buffer.
@@ -144,10 +154,12 @@ namespace PdfPixel.Streams
             {
                 throw new ArgumentNullException(nameof(buffer));
             }
+
             if (offset < 0 || count < 0 || offset + count > buffer.Length)
             {
                 throw new ArgumentOutOfRangeException(nameof(offset));
             }
+
             if (count == 0)
             {
                 return 0;
@@ -162,6 +174,7 @@ namespace PdfPixel.Streams
                     {
                         break;
                     }
+
                     if (!DecodeNextRow())
                     {
                         break;
@@ -169,13 +182,14 @@ namespace PdfPixel.Streams
                 }
 
                 int remainingInRow = _decodedRowBytes - _rowOffset;
-                int toCopy = remainingInRow < count ? remainingInRow : count;
+                int toCopy = (remainingInRow < count) ? remainingInRow : count;
                 Array.Copy(_currentRow, _rowDataOffset + _rowOffset, buffer, offset, toCopy);
                 _rowOffset += toCopy;
                 offset += toCopy;
                 count -= toCopy;
                 totalCopied += toCopy;
             }
+
             return totalCopied;
         }
 
@@ -205,11 +219,14 @@ namespace PdfPixel.Streams
                             _currentRowValid = false;
                             return false;
                         }
+
                         _currentRowValid = true; // partial
                         return true;
                     }
+
                     readOffset += read;
                 }
+
                 filterByte = _currentRow[start];
             }
             else
@@ -228,9 +245,11 @@ namespace PdfPixel.Streams
                             _currentRowValid = false;
                             return false;
                         }
+
                         _currentRowValid = true; // partial
                         return true;
                     }
+
                     readOffset += read;
                 }
             }
@@ -260,6 +279,7 @@ namespace PdfPixel.Streams
             {
                 _source.Dispose();
             }
+
             base.Dispose(disposing);
         }
     }

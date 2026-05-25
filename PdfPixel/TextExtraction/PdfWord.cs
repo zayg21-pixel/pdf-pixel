@@ -2,12 +2,6 @@
 
 namespace PdfPixel.TextExtraction
 {
-    public enum PdfWordType
-    {
-        Normal,
-        Punctuation
-    }
-
     public class PdfWord
     {
         public PdfWord(SKRect boundingBox, PdfWordType type, int lineIndex, PdfCharacter[] characters)

@@ -13,13 +13,6 @@ using System.Collections.Generic;
 
 namespace PdfPixel.Rendering.State;
 
-public enum PdfMaskRenderMode
-{
-    None,
-    Alpha,
-    Luminosity
-}
-
 /// <summary>
 /// Graphics state for PDF rendering - corresponds to the PDF graphics state stack (q/Q operators).
 /// NOTE: Keep property comments in sync with PDF spec sections for easier maintenance.
@@ -113,6 +106,7 @@ public class PdfGraphicsState
     public PdfRenderingIntent RenderingIntent
     {
         get => _renderingIntent;
+
         set
         {
             if (_renderingIntent != value)
@@ -129,6 +123,7 @@ public class PdfGraphicsState
     public PdfColorSpaceConverter StrokeColorConverter
     {
         get => _strokeColorConverter;
+
         set
         {
             if (_strokeColorConverter != value)
@@ -144,7 +139,8 @@ public class PdfGraphicsState
     /// </summary>
     public PdfColorSpaceConverter FillColorConverter
     {
-        get { return _fillColorConverter; }
+        get => _fillColorConverter;
+
         set
         {
             if (_fillColorConverter != value)
@@ -160,7 +156,8 @@ public class PdfGraphicsState
     /// </summary>
     public TransferFunctionTransform TransferFunction
     {
-        get { return _transferFunction; }
+        get => _transferFunction;
+
         set
         {
             if (_transferFunction != value)
@@ -177,7 +174,8 @@ public class PdfGraphicsState
     /// </summary>
     public IColorTransform ExternalTransferFunction
     {
-        get { return _externalTransferFunction; }
+        get => _externalTransferFunction;
+
         set
         {
             if (_externalTransferFunction != value)
@@ -394,7 +392,7 @@ public class PdfGraphicsState
     /// </summary>
     public PdfGraphicsState Clone()
     {
-        return new PdfGraphicsState(Page, this)
+        return new(Page, this)
         {
             StrokePaint = StrokePaint,
             FillPaint = FillPaint,
@@ -406,7 +404,7 @@ public class PdfGraphicsState
             LineCap = LineCap,
             LineJoin = LineJoin,
             MiterLimit = MiterLimit,
-            DashPattern = DashPattern != null ? (float[])DashPattern.Clone() : null,
+            DashPattern = (DashPattern != null) ? (float[])DashPattern.Clone() : null,
             DashPhase = DashPhase,
             StrokeColorConverter = StrokeColorConverter,
             FillColorConverter = FillColorConverter,
@@ -431,7 +429,7 @@ public class PdfGraphicsState
             CTM = CTM,
             DeviceMatrix = DeviceMatrix,
             TextClipPath = TextClipPath,
-            IsType3Rendering = IsType3Rendering,
+            IsType3Rendering = IsType3Rendering
         };
     }
 

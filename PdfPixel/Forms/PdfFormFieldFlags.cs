@@ -39,9 +39,44 @@ public enum PdfFormFieldFlags
     Password = 1 << 13,
 
     /// <summary>
+    /// Button field - no toggle to off.
+    /// </summary>
+    NoToggleToOff = 1 << 14,
+
+    /// <summary>
+    /// Button field - radio buttons in group are mutually exclusive.
+    /// </summary>
+    Radio = 1 << 15,
+
+    /// <summary>
+    /// Button field - push button.
+    /// </summary>
+    PushButton = 1 << 16,
+
+    /// <summary>
+    /// Choice field - combo box.
+    /// </summary>
+    Combo = 1 << 17,
+
+    /// <summary>
+    /// Choice field - editable combo box.
+    /// </summary>
+    Edit = 1 << 18,
+
+    /// <summary>
+    /// Choice field - sorted options.
+    /// </summary>
+    Sort = 1 << 19,
+
+    /// <summary>
     /// Text field - file select.
     /// </summary>
     FileSelect = 1 << 20,
+
+    /// <summary>
+    /// Choice field - allow multiple selection.
+    /// </summary>
+    MultiSelect = 1 << 21,
 
     /// <summary>
     /// Text field - do not spell check.
@@ -64,44 +99,9 @@ public enum PdfFormFieldFlags
     RichText = 1 << 25,
 
     /// <summary>
-    /// Button field - no toggle to off.
-    /// </summary>
-    NoToggleToOff = 1 << 14,
-
-    /// <summary>
-    /// Button field - radio buttons in group are mutually exclusive.
-    /// </summary>
-    Radio = 1 << 15,
-
-    /// <summary>
-    /// Button field - push button.
-    /// </summary>
-    PushButton = 1 << 16,
-
-    /// <summary>
     /// Button field - radios same value export same value.
     /// </summary>
     RadiosInUnison = 1 << 25,
-
-    /// <summary>
-    /// Choice field - combo box.
-    /// </summary>
-    Combo = 1 << 17,
-
-    /// <summary>
-    /// Choice field - editable combo box.
-    /// </summary>
-    Edit = 1 << 18,
-
-    /// <summary>
-    /// Choice field - sorted options.
-    /// </summary>
-    Sort = 1 << 19,
-
-    /// <summary>
-    /// Choice field - allow multiple selection.
-    /// </summary>
-    MultiSelect = 1 << 21,
 
     /// <summary>
     /// Choice field - commit on selection change.

@@ -16,7 +16,8 @@ public class PdfSimpleFont : PdfSingleByteFont
     private readonly SKTypeface _typeface;
     private readonly IByteCodeToGidMapper _mapper;
 
-    public PdfSimpleFont(PdfObject fontObject) : base(fontObject)
+    public PdfSimpleFont(PdfObject fontObject)
+        : base(fontObject)
     {
         _logger = fontObject.Document.LoggerFactory.CreateLogger<PdfSimpleFont>();
         (_typeface, _mapper) = GetTypefaceAndMapper();
@@ -35,7 +36,7 @@ public class PdfSimpleFont : PdfSingleByteFont
         return width;
     }
 
-    internal protected override SKTypeface Typeface => _typeface;
+    protected internal override SKTypeface Typeface => _typeface;
 
     private (SKTypeface, IByteCodeToGidMapper) GetTypefaceAndMapper()
     {
@@ -45,9 +46,9 @@ public class PdfSimpleFont : PdfSingleByteFont
             {
                 case PdfFontFileFormat.Type1:
                 {
-                    var cffInfo = Type1ToCffConverter.GetCffFont(FontDescriptor);
-                    var typefaceData = CffOpenTypeWrapper.Wrap(FontDescriptor, cffInfo);
-                    var typeface = SKTypeface.FromData(SKData.CreateCopy(typefaceData));
+                        CffInfo cffInfo = Type1ToCffConverter.GetCffFont(FontDescriptor);
+                    byte[] typefaceData = CffOpenTypeWrapper.Wrap(FontDescriptor, cffInfo);
+                        SKTypeface typeface = SKTypeface.FromData(SKData.CreateCopy(typefaceData));
 
                     if (typeface == null)
                     {
@@ -62,20 +63,20 @@ public class PdfSimpleFont : PdfSingleByteFont
 
                     if (Encoding.BaseEncoding == PdfFontEncoding.Unknown)
                     {
-                        var encoding = SingleByteEncodings.GetEncodingByName(BaseFont) ?? PdfFontEncoding.StandardEncoding;
+                            PdfFontEncoding encoding = SingleByteEncodings.GetEncodingByName(BaseFont) ?? PdfFontEncoding.StandardEncoding;
                         Encoding.Update(encoding, default);
                     }
 
-                    var mapper = new CffByteCodeToGidMapper(cffInfo, FontDescriptor.Flags, Encoding);
+                    CffByteCodeToGidMapper mapper = new(cffInfo, FontDescriptor.Flags, Encoding);
 
                     return (typeface, mapper);
                 }
                 case PdfFontFileFormat.Type1C:
                 {
-                    var cffSidMapper = new CffSidGidMapper(Document.LoggerFactory);
-                    var cffBytes = FontDescriptor.FontFileObject.DecodeAsMemory();
+                    CffSidGidMapper cffSidMapper = new(Document.LoggerFactory);
+                        ReadOnlyMemory<byte> cffBytes = FontDescriptor.FontFileObject.DecodeAsMemory();
 
-                    if (!cffSidMapper.TryParseNameKeyed(cffBytes, out var cffInfo))
+                    if (!cffSidMapper.TryParseNameKeyed(cffBytes, out CffInfo cffInfo))
                     {
                         _logger.LogWarning("Failed to parse embedded Type1C font data for font '{FontName}'", BaseFont);
                         throw new InvalidOperationException("Failed to parse embedded Type1C font data.");
@@ -91,25 +92,24 @@ public class PdfSimpleFont : PdfSingleByteFont
                         Encoding.Update(PdfFontEncoding.StandardEncoding, default);
                     }
 
-                    var typefaceData = CffOpenTypeWrapper.Wrap(FontDescriptor, cffInfo);
-                    var typeface = SKTypeface.FromData(SKData.CreateCopy(typefaceData));
+                    byte[] typefaceData = CffOpenTypeWrapper.Wrap(FontDescriptor, cffInfo);
+                        SKTypeface typeface = SKTypeface.FromData(SKData.CreateCopy(typefaceData));
 
-                    var mapper = new CffByteCodeToGidMapper(cffInfo, FontDescriptor.Flags, Encoding);
+                    CffByteCodeToGidMapper mapper = new(cffInfo, FontDescriptor.Flags, Encoding);
 
                     return (typeface, mapper);
                 }
-
                 case PdfFontFileFormat.TrueType:
                 {
-                    var typeface = SKTypeface.FromStream(FontDescriptor.FontFileObject.DecodeAsStream());
-                    var sfntTables = SfntFontTableParser.GetSfntFontTables(typeface);
+                        SKTypeface typeface = SKTypeface.FromStream(FontDescriptor.FontFileObject.DecodeAsStream());
+                        SfntFontTables sfntTables = SfntFontTableParser.GetSfntFontTables(typeface);
 
                     if (Encoding.BaseEncoding == PdfFontEncoding.Unknown)
                     {
                         Encoding.Update(PdfFontEncoding.WinAnsiEncoding, default);
                     }
 
-                    var mapper = new SfntByteCodeToGidMapper(sfntTables, FontDescriptor.Flags, substituted: false, Encoding, ToUnicodeCMap);
+                    SfntByteCodeToGidMapper mapper = new(sfntTables, FontDescriptor.Flags, substituted: false, Encoding, ToUnicodeCMap);
 
                     return (typeface, mapper);
                 }
@@ -122,7 +122,7 @@ public class PdfSimpleFont : PdfSingleByteFont
 
         if (Encoding.BaseEncoding == PdfFontEncoding.Unknown)
         {
-            var encoding = SingleByteEncodings.GetEncodingByName(BaseFont) ?? PdfFontEncoding.StandardEncoding;
+            PdfFontEncoding encoding = SingleByteEncodings.GetEncodingByName(BaseFont) ?? PdfFontEncoding.StandardEncoding;
             Encoding.Update(encoding, default);
         }
 

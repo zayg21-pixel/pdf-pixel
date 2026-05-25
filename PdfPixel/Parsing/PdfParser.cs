@@ -6,7 +6,9 @@ using System.Runtime.CompilerServices;
 
 namespace PdfPixel.Parsing;
 
+#pragma warning disable RCS1019 // Order modifiers
 internal ref partial struct PdfParser
+#pragma warning restore RCS1019 // Order modifiers
 {
     // Boolean literal constants
     private readonly ReadOnlySpan<byte> TrueValue = "true"u8;
@@ -27,14 +29,15 @@ internal ref partial struct PdfParser
         0.000000001
     ];
 
-    private int _lastSetPostion = 0;
-    private readonly List<byte> _localBuffer = new List<byte>();
+    private readonly List<byte> _localBuffer = [];
     private readonly BufferedStream _stream;
     private readonly bool _streamMode;
     private readonly IPdfDocumentInternal _document;
     private readonly int _length;
     private readonly bool _allowReferences;
     private readonly bool _decrypt;
+
+    private int _lastSetPostion = 0;
     private PdfParseContext _parseContext;
     private PdfReference _currentReference;
 
@@ -65,6 +68,7 @@ internal ref partial struct PdfParser
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => GetPosition();
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         set => SetPosition(value);
     }
@@ -86,8 +90,8 @@ internal ref partial struct PdfParser
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public IPdfValue ReadNextValue()
     {
-        List<IPdfValue> values = new List<IPdfValue>();
-        Stack<CollectionFrame> frames = new Stack<CollectionFrame>();
+        List<IPdfValue> values = [];
+        Stack<CollectionFrame> frames = [];
 
         while (!IsAtEnd)
         {
@@ -152,10 +156,11 @@ internal ref partial struct PdfParser
                     if (values.Count >= 2)
                     {
                         int generation = values[values.Count - 1].AsInteger();
-                        uint objectNumber = (uint)values[values.Count - 2].AsInteger();
+                        var objectNumber = (uint)values[values.Count - 2].AsInteger();
                         values.RemoveRange(values.Count - 2, 2);
                         values.Add(PdfValueFactory.Reference(new PdfReference(objectNumber, generation)));
                     }
+
                     break;
                 }
                 case PdfTokenType.InlineStreamStart:

@@ -50,7 +50,7 @@ public class PdfArray
             return null;
         }
 
-        var storedValue = _items[index];
+        IPdfValue storedValue = _items[index];
         return storedValue.ResolveToNonReference(Document);
     }
 
@@ -61,7 +61,7 @@ public class PdfArray
     /// <returns>The <see cref="PdfString"/> if the value is a name; otherwise, <c>null</c>.</returns>
     public PdfString GetName(int index)
     {
-        var value = GetValue(index);
+        IPdfValue value = GetValue(index);
         if (value == null)
         {
             return default;
@@ -77,12 +77,13 @@ public class PdfArray
     /// <returns>The <see cref="PdfString"/> if the value is string-like; otherwise, <c>null</c>.</returns>
     public PdfString GetString(int index)
     {
-        var value = GetValue(index);
+        IPdfValue value = GetValue(index);
 
         if (value == null)
         {
             return default;
         }
+
         return value.AsString();
     }
 
@@ -93,7 +94,7 @@ public class PdfArray
     /// <returns>The integer value if present; otherwise, <c>null</c>.</returns>
     public int? GetInteger(int index)
     {
-        var value = GetValue(index);
+        IPdfValue value = GetValue(index);
 
         if (value == null)
         {
@@ -115,11 +116,12 @@ public class PdfArray
     /// <returns>The integer value if present; otherwise, 0.</returns>
     public int GetIntegerOrDefault(int index)
     {
-        var value = GetValue(index);
+        IPdfValue value = GetValue(index);
         if (value == null)
         {
             return 0;
         }
+
         return value.AsInteger();
     }
 
@@ -130,7 +132,7 @@ public class PdfArray
     /// <returns>The float value if present; otherwise, <c>null</c>.</returns>
     public float? GetFloat(int index)
     {
-        var value = GetValue(index);
+        IPdfValue value = GetValue(index);
 
         if (value == null)
         {
@@ -152,11 +154,12 @@ public class PdfArray
     /// <returns>The float value if present; otherwise, 0.</returns>
     public float GetFloatOrDefault(int index)
     {
-        var value = GetValue(index);
+        IPdfValue value = GetValue(index);
         if (value == null)
         {
             return 0f;
         }
+
         return value.AsFloat();
     }
 
@@ -167,7 +170,7 @@ public class PdfArray
     /// <returns>The boolean value if present; otherwise, <c>null</c>.</returns>
     public bool? GetBoolean(int index)
     {
-        var value = GetValue(index);
+        IPdfValue value = GetValue(index);
         if (value == null)
         {
             return default;
@@ -189,11 +192,12 @@ public class PdfArray
     /// <returns>The boolean value if present; otherwise, <c>false</c>.</returns>
     public bool GetBooleanOrDefault(int index)
     {
-        var value = GetValue(index);
+        IPdfValue value = GetValue(index);
         if (value == null)
         {
             return false;
         }
+
         return value.AsBoolean();
     }
 
@@ -204,7 +208,7 @@ public class PdfArray
     /// <returns>The <see cref="PdfArray"/> if the value is an array; otherwise, <c>null</c>.</returns>
     public PdfArray GetArray(int index)
     {
-        var value = GetValue(index);
+        IPdfValue value = GetValue(index);
 
         if (value == null)
         {
@@ -221,7 +225,7 @@ public class PdfArray
     /// <returns>The <see cref="PdfDictionary"/> if the value is a dictionary; otherwise, <c>null</c>.</returns>
     public PdfDictionary GetDictionary(int index)
     {
-        var value = GetValue(index);
+        IPdfValue value = GetValue(index);
 
         if (value == null)
         {
@@ -243,10 +247,10 @@ public class PdfArray
             return null;
         }
 
-        var storedValue = _items[index];
+        IPdfValue storedValue = _items[index];
 
         // Array of references case
-        var referenceArray = storedValue.AsArray();
+        PdfArray referenceArray = storedValue.AsArray();
         if (referenceArray != null)
         {
             return referenceArray.GetObject(0);
@@ -255,7 +259,7 @@ public class PdfArray
         // Single reference case
         if (storedValue is IPdfValue<PdfReference> referenceValue)
         {
-            var reference = referenceValue.Value;
+            PdfReference reference = referenceValue.Value;
             return Document.ObjectCache.GetObject(reference);
         }
 
@@ -264,8 +268,5 @@ public class PdfArray
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private bool IsValidIndex(int index)
-    {
-        return index >= 0 && index < _items.Length;
-    }
+    private bool IsValidIndex(int index) => index >= 0 && index < _items.Length;
 }

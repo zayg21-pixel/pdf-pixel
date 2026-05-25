@@ -33,13 +33,17 @@ namespace PdfPixel.Streams
         public override bool CanSeek => false;
         public override bool CanWrite => false;
         public override long Length => throw new NotSupportedException();
+
         public override long Position
         {
             get => throw new NotSupportedException();
             set => throw new NotSupportedException();
         }
 
-        public override void Flush() { }
+        public override void Flush()
+        {
+        }
+
         public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
         public override void SetLength(long value) => throw new NotSupportedException();
         public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
@@ -50,6 +54,7 @@ namespace PdfPixel.Streams
             {
                 return 0;
             }
+
             int bytesRead = 0;
             while (bytesRead < count)
             {
@@ -60,23 +65,27 @@ namespace PdfPixel.Streams
                     bytesRead++;
                     continue;
                 }
+
                 if (_bufferIndex < _buffer.Length)
                 {
                     buffer[offset + bytesRead] = _buffer[_bufferIndex++];
                     bytesRead++;
                     continue;
                 }
+
                 int lengthByte = _baseStream.ReadByte();
                 if (lengthByte == -1)
                 {
                     _endOfStream = true;
                     break;
                 }
+
                 if (lengthByte == 128)
                 {
                     _endOfStream = true;
                     break;
                 }
+
                 if (lengthByte < 128)
                 {
                     int dataLen = lengthByte + 1;
@@ -90,8 +99,10 @@ namespace PdfPixel.Streams
                             _endOfStream = true;
                             break;
                         }
+
                         _buffer[read++] = (byte)b;
                     }
+
                     _bufferIndex = 0;
                     continue;
                 }
@@ -104,10 +115,12 @@ namespace PdfPixel.Streams
                         _endOfStream = true;
                         break;
                     }
+
                     _repeatByte = b;
                     continue;
                 }
             }
+
             return bytesRead;
         }
 
@@ -117,6 +130,7 @@ namespace PdfPixel.Streams
             {
                 _baseStream.Dispose();
             }
+
             base.Dispose(disposing);
         }
     }

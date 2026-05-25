@@ -8,11 +8,11 @@ namespace PdfPixel.Parsing;
 /// </summary>
 internal ref struct UintBitWriter
 {
-    private Span<byte> _buffer;
+    private readonly Span<byte> _buffer;
     private int _byteIndex;
     private int _bitsAvailable;
 
-    public UintBitWriter(Span<byte> buffer)
+    public UintBitWriter(in Span<byte> buffer)
     {
         _buffer = buffer;
         _byteIndex = 0;

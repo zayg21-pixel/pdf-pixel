@@ -12,7 +12,7 @@ namespace PdfPixel.Annotations.Models;
 /// The border style dictionary (BS) describes the characteristics of the annotation's border.
 /// This is more flexible than the older Border array entry.
 /// </remarks>
-public class PdfBorderStyle
+public sealed class PdfBorderStyle
 {
     /// <summary>
     /// Initializes a new instance of the <see cref="PdfBorderStyle"/> class.
@@ -62,32 +62,32 @@ public class PdfBorderStyle
     {
         if (borderStyleDictionary != null)
         {
-            var width = borderStyleDictionary.GetFloat(PdfTokens.WKey) ?? 1.0f;
-            var style = borderStyleDictionary.GetName(PdfTokens.SKey).AsEnum<PdfBorderStyleType>();
+            float width = borderStyleDictionary.GetFloat(PdfTokens.WKey) ?? 1.0f;
+            PdfBorderStyleType style = borderStyleDictionary.GetName(PdfTokens.SKey).AsEnum<PdfBorderStyleType>();
 
             float[] dashPattern = null;
-            var dashArray = borderStyleDictionary.GetArray(PdfTokens.DashArrayKey);
-            if (dashArray != null && dashArray.Count > 0)
+            PdfArray dashArray = borderStyleDictionary.GetArray(PdfTokens.DashArrayKey);
+            if (dashArray?.Count > 0)
             {
-                var rawPattern = dashArray.GetFloatArray();
+                float[] rawPattern = dashArray.GetFloatArray();
                 dashPattern = GraphicsStateOperators.GetDashPattern(rawPattern);
             }
 
             return new PdfBorderStyle(width, style, dashPattern);
         }
 
-        if (borderArray != null && borderArray.Count >= 3)
+        if (borderArray?.Count >= 3)
         {
-            var width = borderArray.GetFloatOrDefault(2);
+            float width = borderArray.GetFloatOrDefault(2);
             var style = PdfBorderStyleType.Solid;
 
             float[] dashPattern = null;
             if (borderArray.Count >= 4)
             {
-                var dashArrayEntry = borderArray.GetArray(3);
-                if (dashArrayEntry != null && dashArrayEntry.Count > 0)
+                PdfArray dashArrayEntry = borderArray.GetArray(3);
+                if (dashArrayEntry?.Count > 0)
                 {
-                    var rawPattern = dashArrayEntry.GetFloatArray();
+                    float[] rawPattern = dashArrayEntry.GetFloatArray();
                     dashPattern = GraphicsStateOperators.GetDashPattern(rawPattern);
                     style = PdfBorderStyleType.Dashed;
                 }
@@ -105,7 +105,7 @@ public class PdfBorderStyle
     /// <param name="paint">The SKPaint to apply the effect to.</param>
     /// <param name="borderColor">The base border color for calculating shadow colors.</param>
     /// <returns>True if an effect was applied and normal drawing should proceed, false if special geometry handling is needed (Underline).</returns>
-    public bool TryApplyEffect(SKPaint paint, SKColor borderColor)
+    public bool TryApplyEffect(SKPaint paint, in SKColor borderColor)
     {
         if (paint == null)
         {
@@ -115,32 +115,36 @@ public class PdfBorderStyle
         switch (Style)
         {
             case PdfBorderStyleType.Dashed:
-                if (DashPattern != null && DashPattern.Length > 0)
                 {
-                    paint.PathEffect = SKPathEffect.CreateDash(DashPattern, 0);
+                    if (DashPattern?.Length > 0)
+                    {
+                        paint.PathEffect = SKPathEffect.CreateDash(DashPattern, 0);
+                    }
+
+                    return true;
                 }
-                return true;
-
             case PdfBorderStyleType.Beveled:
-                var bevelShadowOffset = Width * 0.5f;
-                paint.ImageFilter = SKImageFilter.CreateDropShadow(
-                    dx: bevelShadowOffset,
-                    dy: bevelShadowOffset,
-                    sigmaX: Width * 0.3f,
-                    sigmaY: Width * 0.3f,
-                    color: SKColors.Black.WithAlpha(80));
-                return true;
-
+                {
+                    float bevelShadowOffset = Width * 0.5f;
+                    paint.ImageFilter = SKImageFilter.CreateDropShadow(
+                        dx: bevelShadowOffset,
+                        dy: bevelShadowOffset,
+                        sigmaX: Width * 0.3f,
+                        sigmaY: Width * 0.3f,
+                        color: SKColors.Black.WithAlpha(80));
+                    return true;
+                }
             case PdfBorderStyleType.Inset:
-                var insetShadowOffset = Width * 0.5f;
-                paint.ImageFilter = SKImageFilter.CreateDropShadow(
-                    dx: -insetShadowOffset,
-                    dy: -insetShadowOffset,
-                    sigmaX: Width * 0.3f,
-                    sigmaY: Width * 0.3f,
-                    color: SKColors.Black.WithAlpha(80));
-                return true;
-
+                {
+                    float insetShadowOffset = Width * 0.5f;
+                    paint.ImageFilter = SKImageFilter.CreateDropShadow(
+                        dx: -insetShadowOffset,
+                        dy: -insetShadowOffset,
+                        sigmaX: Width * 0.3f,
+                        sigmaY: Width * 0.3f,
+                        color: SKColors.Black.WithAlpha(80));
+                    return true;
+                }
             case PdfBorderStyleType.Underline:
                 return false;
 

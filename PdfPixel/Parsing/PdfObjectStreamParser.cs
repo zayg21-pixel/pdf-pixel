@@ -19,13 +19,13 @@ internal class PdfObjectStreamParser
     /// <summary>
     /// Cache of container object number -> decoded bytes so that repeated lazy loads do not re-decode filters.
     /// </summary>
-    private readonly Dictionary<uint, ReadOnlyMemory<byte>> _decodedStreamCache = new Dictionary<uint, ReadOnlyMemory<byte>>();
+    private readonly Dictionary<uint, ReadOnlyMemory<byte>> _decodedStreamCache = [];
 
     /// <summary>
     /// Cache of container object number -> mapping of object stream index to relative offset.
     /// Populated when header offsets are first indexed to avoid repeated scans.
     /// </summary>
-    private readonly Dictionary<uint, Dictionary<int, int>> _indexToOffsetCache = new Dictionary<uint, Dictionary<int, int>>();
+    private readonly Dictionary<uint, Dictionary<int, int>> _indexToOffsetCache = [];
 
     /// <summary>
     /// Create a new object stream parser bound to a PDF document.
@@ -41,30 +41,30 @@ internal class PdfObjectStreamParser
     /// Lazily parse a single compressed indirect object using its <see cref="PdfObjectInfo"/> metadata.
     /// Populates relative offsets for all objects in the containing object stream on first access.
     /// </summary>
-    /// <param name="document">Owning document.</param>
     /// <param name="info">Compressed object index info.</param>
     /// <returns>Materialized <see cref="PdfObject"/> or null if unavailable.</returns>
     public PdfObject ParseSingleCompressed(PdfObjectInfo info)
     {
-        var containerReference = new PdfReference(info.ObjectStreamNumber.Value, 0);
-        var containerObject = _pdfDocument.ObjectCache.GetObject(containerReference);
+        PdfReference containerReference = new(info.ObjectStreamNumber.Value, 0);
+        PdfObject containerObject = _pdfDocument.ObjectCache.GetObject(containerReference);
         if (containerObject == null || containerObject.Dictionary == null)
         {
             return null;
         }
 
-        if (!_decodedStreamCache.TryGetValue(containerReference.ObjectNumber, out var decoded))
+        if (!_decodedStreamCache.TryGetValue(containerReference.ObjectNumber, out ReadOnlyMemory<byte> decoded))
         {
             decoded = containerObject.DecodeAsMemory();
             if (decoded.IsEmpty)
             {
                 return null;
             }
+
             _decodedStreamCache[containerReference.ObjectNumber] = decoded;
         }
 
-        var objectCount = containerObject.Dictionary.GetIntegerOrDefault(PdfTokens.NKey);
-        var firstOffset = containerObject.Dictionary.GetIntegerOrDefault(PdfTokens.FirstKey);
+        int objectCount = containerObject.Dictionary.GetIntegerOrDefault(PdfTokens.NKey);
+        int firstOffset = containerObject.Dictionary.GetIntegerOrDefault(PdfTokens.FirstKey);
         if (objectCount <= 0 || firstOffset < 0)
         {
             return null;
@@ -76,7 +76,7 @@ internal class PdfObjectStreamParser
             return null;
         }
 
-        var span = decoded.Span;
+        ReadOnlySpan<byte> span = decoded.Span;
         int objectStart = firstOffset + info.ObjectStreamRelativeOffset.Value;
         if (objectStart < 0 || objectStart >= span.Length)
         {
@@ -89,9 +89,9 @@ internal class PdfObjectStreamParser
         int? nextRelative = null;
 
         // Prefer cached lookup to avoid scanning the entire object index.
-        if (_indexToOffsetCache.TryGetValue(containerReference.ObjectNumber, out var indexMap))
+        if (_indexToOffsetCache.TryGetValue(containerReference.ObjectNumber, out Dictionary<int, int> indexMap))
         {
-            if (indexMap.TryGetValue(targetNextIndex, out var offset))
+            if (indexMap.TryGetValue(targetNextIndex, out int offset))
             {
                 nextRelative = offset;
             }
@@ -114,19 +114,20 @@ internal class PdfObjectStreamParser
 
         // Slice directly without copying the entire decoded buffer.
         ReadOnlyMemory<byte> slice = decoded.Slice(objectStart, length);
-        var context = new PdfParseContext(slice);
+        PdfParseContext context = new(slice);
         // Use new PdfParser struct for value parsing (handles whitespace/comments internally).
-        var parser = new PdfParser(context, _pdfDocument, allowReferences: true, decrypt: true);
-        var value = parser.ReadNextValue();
+        PdfParser parser = new(context, _pdfDocument, allowReferences: true, decrypt: true);
+        IPdfValue value = parser.ReadNextValue();
         if (value == null)
         {
             return null;
         }
-        var pdfObject = new PdfObject(info.Reference, _pdfDocument, value);
+
+        PdfObject pdfObject = new(info.Reference, _pdfDocument, value);
         return pdfObject;
     }
 
-    private void EnsureOffsetsIndexed(uint containerObjectNumber, ReadOnlyMemory<byte> decoded, int objectCount, int firstOffset)
+    private void EnsureOffsetsIndexed(uint containerObjectNumber, in ReadOnlyMemory<byte> decoded, int objectCount, int firstOffset)
     {
         // If this container is already cached, no work needed.
         if (_indexToOffsetCache.ContainsKey(containerObjectNumber))
@@ -141,28 +142,29 @@ internal class PdfObjectStreamParser
 
         // Header slice without copying.
         ReadOnlyMemory<byte> headerMemory = decoded.Slice(0, firstOffset);
-        var headerContext = new PdfParseContext(headerMemory);
+        PdfParseContext headerContext = new(headerMemory);
         // Unified parsing via PdfParser for header: sequence of objectNumber relativeOffset pairs.
-        var headerParser = new PdfParser(headerContext, _pdfDocument, allowReferences: false, decrypt: false);
+        PdfParser headerParser = new(headerContext, _pdfDocument, allowReferences: false, decrypt: false);
 
         // Prepare cache for this container.
-        var indexMap = new Dictionary<int, int>(capacity: objectCount);
+        Dictionary<int, int> indexMap = new(capacity: objectCount);
         _indexToOffsetCache[containerObjectNumber] = indexMap;
 
         for (int index = 0; index < objectCount; index++)
         {
-            var objectNumberValue = headerParser.ReadNextValue();
+            IPdfValue objectNumberValue = headerParser.ReadNextValue();
             if (objectNumberValue == null || objectNumberValue.Type != PdfValueType.Integer)
             {
                 break;
             }
-            var offsetValue = headerParser.ReadNextValue();
+
+            IPdfValue offsetValue = headerParser.ReadNextValue();
             if (offsetValue == null || offsetValue.Type != PdfValueType.Integer)
             {
                 break;
             }
 
-            uint objectNumber = (uint)objectNumberValue.AsInteger();
+            var objectNumber = (uint)objectNumberValue.AsInteger();
             int relativeOffset = offsetValue.AsInteger();
 
             // Cache the index -> offset mapping for fast lookup.
@@ -171,8 +173,8 @@ internal class PdfObjectStreamParser
                 indexMap[index] = relativeOffset;
             }
 
-            var reference = new PdfReference(objectNumber, 0);
-            if (_pdfDocument.ObjectCache.ObjectIndex.TryGetValue(reference, out var info))
+            PdfReference reference = new(objectNumber, 0);
+            if (_pdfDocument.ObjectCache.ObjectIndex.TryGetValue(reference, out PdfObjectInfo info))
             {
                 if (info.IsCompressed && info.ObjectStreamNumber == containerObjectNumber)
                 {

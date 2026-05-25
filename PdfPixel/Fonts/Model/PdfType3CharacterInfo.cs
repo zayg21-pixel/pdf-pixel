@@ -12,7 +12,7 @@ namespace PdfPixel.Fonts.Model
         /// <summary>
         /// Gets a singleton instance representing an undefined character (no recording/metrics available).
         /// </summary>
-        public static PdfType3CharacterInfo Undefined { get; } = new PdfType3CharacterInfo(null, null, SKSize.Empty);
+        public static PdfType3CharacterInfo Undefined { get; } = new(null, null, SKSize.Empty);
 
         /// <summary>
         /// Initializes a new instance of the <see cref="PdfType3CharacterInfo"/> class.

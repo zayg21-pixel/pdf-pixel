@@ -46,7 +46,7 @@ public class FontTableInfo
     /// <summary>
     /// List of all cmap subtable entries found in the font.
     /// </summary>
-    public List<CMapEntry> CMapEntries { get; } = new List<CMapEntry>();
+    public List<CMapEntry> CMapEntries { get; } = [];
 
     /// <summary>
     /// Raw bytes of the 'post' table, if present.
@@ -67,7 +67,7 @@ public class FontTableInfo
 /// <summary>
 /// Extracts font table information from a SKTypeface for SNFT fonts.
 /// </summary>
-internal class SfntFontTableInfoParser
+internal static class SfntFontTableInfoParser
 {
     /// <summary>
     /// Extracts font table data and offsets needed for mapping.
@@ -76,10 +76,10 @@ internal class SfntFontTableInfoParser
     /// <returns>FontTableInfo struct with table data and offsets.</returns>
     public static FontTableInfo GetFontTableInfo(SKTypeface typeface)
     {
-        FontTableInfo info = new FontTableInfo();
+        FontTableInfo info = new();
 
         uint postTag = SnftExtractHelpers.ConvertTagToUInt32("post");
-        if (typeface.TryGetTableData(postTag, out byte[] postData) && postData != null && postData.Length >= 32)
+        if (typeface.TryGetTableData(postTag, out byte[] postData) && postData?.Length >= 32)
         {
             info.PostData = postData;
             uint formatFixed = SnftExtractHelpers.ReadUInt32(postData, 0);
@@ -87,18 +87,19 @@ internal class SfntFontTableInfoParser
         }
 
         uint cmapTag = SnftExtractHelpers.ConvertTagToUInt32("cmap");
-        if (typeface.TryGetTableData(cmapTag, out byte[] cmapData) && cmapData != null && cmapData.Length >= 4)
+        if (typeface.TryGetTableData(cmapTag, out byte[] cmapData) && cmapData?.Length >= 4)
         {
             info.CmapData = cmapData;
             ushort numTables = SnftExtractHelpers.ReadUInt16(cmapData, 2);
 
             for (int tableIndex = 0; tableIndex < numTables; tableIndex++)
             {
-                int recordOffset = 4 + tableIndex * 8;
+                int recordOffset = 4 + (tableIndex * 8);
                 if (recordOffset + 8 > cmapData.Length)
                 {
                     continue;
                 }
+
                 uint subtableOffset = SnftExtractHelpers.ReadUInt32(cmapData, recordOffset + 4);
                 if (subtableOffset + 2 > cmapData.Length)
                 {

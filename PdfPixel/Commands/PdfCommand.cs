@@ -9,10 +9,7 @@ namespace PdfPixel.Commands;
 /// </summary>
 public abstract class PdfCommand : IPdfCommand
 {
-    ~PdfCommand()
-    {
-        Dispose(disposing: false);
-    }
+    ~PdfCommand() => Dispose(disposing: false);
 
     /// <inheritdoc />
     public abstract void Execute(SKCanvas canvas, IEnumerable<IPdfCommandModifier> modifiers, PdfCommandExecutionContext executionContext);
@@ -24,9 +21,7 @@ public abstract class PdfCommand : IPdfCommand
     /// Releases resources owned by this command.
     /// </summary>
     /// <param name="disposing">True when called from <see cref="Dispose()"/>; false from the finalizer.</param>
-    protected virtual void Dispose(bool disposing)
-    {
-    }
+    protected abstract void Dispose(bool disposing);
 
     /// <inheritdoc />
     public void Dispose()

@@ -23,22 +23,22 @@ public class PdfUnderlineAnnotation : PdfTextMarkupAnnotation
 
     internal override bool RenderFallback(IPdfCommandProcessor processor, IPdfPageInternal page, PdfAnnotationVisualStateKind visualStateKind, PdfRenderingParameters renderingParameters)
     {
-        var quads = Quadrilaterals;
+        SKPoint[][] quads = Quadrilaterals;
         if (quads.Length == 0)
         {
             return false;
         }
 
-        var color = ResolveColor(page, SKColors.Black);
+        SKColor color = ResolveColor(page, SKColors.Black);
 
-        foreach (var quad in quads)
+        foreach (SKPoint[] quad in quads)
         {
-            var startX = quad[0].X;
-            var startY = quad[0].Y;
-            var endX = quad[1].X;
-            var endY = quad[1].Y;
+            float startX = quad[0].X;
+            float startY = quad[0].Y;
+            float endX = quad[1].X;
+            float endY = quad[1].Y;
 
-            var paint = new SKPaint
+            SKPaint paint = new()
             {
                 Style = SKPaintStyle.Stroke,
                 StrokeWidth = 1.0f,
@@ -46,7 +46,7 @@ public class PdfUnderlineAnnotation : PdfTextMarkupAnnotation
                 IsAntialias = renderingParameters.Antialias
             };
 
-            using var linePath = new SKPath();
+            using SKPath linePath = new();
             linePath.MoveTo(startX, startY);
             linePath.LineTo(endX, endY);
             processor.Process(new DrawPathCommand(linePath, paint));
@@ -61,7 +61,7 @@ public class PdfUnderlineAnnotation : PdfTextMarkupAnnotation
     /// <returns>A string containing the annotation type.</returns>
     public override string ToString()
     {
-        var contentsText = Contents.ToString();
+        string contentsText = Contents.ToString();
 
         if (!string.IsNullOrEmpty(contentsText))
         {

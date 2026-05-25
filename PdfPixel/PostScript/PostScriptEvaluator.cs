@@ -18,18 +18,18 @@ namespace PdfPixel.PostScript
         private readonly ILogger<PostScriptEvaluator> _logger;
 
         // Dictionary stack (system then user); executable names are resolved through this before builtins.
-        private readonly Stack<PostScriptDictionary> _dictStack = new Stack<PostScriptDictionary>();
-        private readonly PostScriptDictionary _systemDict = new PostScriptDictionary();
-        private readonly PostScriptDictionary _resources = new PostScriptDictionary();
-        private readonly PostScriptDictionary _userDict = new PostScriptDictionary();
+        private readonly Stack<PostScriptDictionary> _dictStack = [];
+        private readonly PostScriptDictionary _systemDict = new();
+        private readonly PostScriptDictionary _resources = new();
+        private readonly PostScriptDictionary _userDict = new();
 
-        private Random _random = new Random();
+        private Random _random = new();
         private int _loopDepth;
         private bool _exitRequested;
         private bool _stopRequested;
         private int _stoppedDepth;
 
-        public PostScriptEvaluator(ReadOnlySpan<byte> code, bool appendExec, ILogger<PostScriptEvaluator> logger)
+        public PostScriptEvaluator(in ReadOnlySpan<byte> code, bool appendExec, ILogger<PostScriptEvaluator> logger)
         {
             _logger = logger;
             _tokens = Tokenize(code);
@@ -80,8 +80,8 @@ namespace PdfPixel.PostScript
                 rootProc = new PostScriptProcedure(_tokens.ToList());
             }
 
-            var compiler = new PostScriptExpressionCompiler();
-            bool ok = compiler.TryCompileMath(rootProc, parameterNames, out var compiled);
+            PostScriptExpressionCompiler compiler = new();
+            bool ok = compiler.TryCompileMath(rootProc, parameterNames, out Action<float[], float[]> compiled);
             if (!ok || compiled == null)
             {
                 return false;
@@ -100,6 +100,7 @@ namespace PdfPixel.PostScript
             {
                 return;
             }
+
             _systemDict.Entries[name] = value;
         }
 
@@ -133,6 +134,7 @@ namespace PdfPixel.PostScript
                     // Hard stop outside any stopped handler: terminate evaluation early.
                     break;
                 }
+
                 PostScriptToken token = tokens[i];
                 switch (token)
                 {
@@ -182,11 +184,13 @@ namespace PdfPixel.PostScript
                         break;
                     }
                 }
+
                 // Early exit propagation: if exit requested outside any loop just clear flag (defensive).
                 if (_exitRequested && _loopDepth <= 0)
                 {
                     _exitRequested = false;
                 }
+
                 // Clear stray stop if no handler active (left set for outer abort semantics).
                 if (_stopRequested && _stoppedDepth == 0)
                 {
@@ -204,6 +208,7 @@ namespace PdfPixel.PostScript
                     return true;
                 }
             }
+
             value = null;
             return false;
         }
@@ -218,6 +223,7 @@ namespace PdfPixel.PostScript
                 // Hard stop: ignore further operators.
                 return;
             }
+
             // Dictionary stack lookup (system/user and any begin-added dictionaries)
             if (TryLookupDict(name, out PostScriptToken dictValue))
             {
@@ -229,6 +235,7 @@ namespace PdfPixel.PostScript
                 {
                     stack.Push(dictValue);
                 }
+
                 return;
             }
 
@@ -318,10 +325,10 @@ namespace PdfPixel.PostScript
                 case "restore":
                 {
                     PostScriptSave foundMarker = null;
-                    var temp = new Stack<PostScriptToken>();
+                    Stack<PostScriptToken> temp = [];
                     while (stack.Count > 0)
                     {
-                        var top = stack.Pop();
+                            PostScriptToken top = stack.Pop();
                         if (top is PostScriptSave saveMarker)
                         {
                             foundMarker = saveMarker;
@@ -329,6 +336,7 @@ namespace PdfPixel.PostScript
                         }
                         // Discard non-marker tokens above save.
                     }
+
                     // If no marker found, nothing else to do.
                     break;
                 }

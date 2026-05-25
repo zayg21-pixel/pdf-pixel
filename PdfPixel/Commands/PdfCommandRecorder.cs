@@ -10,13 +10,10 @@ namespace PdfPixel.Commands;
 /// </summary>
 public sealed class PdfCommandRecorder : IPdfCommandProcessor
 {
-    private readonly List<IPdfCommand> _commands = new();
+    private readonly List<IPdfCommand> _commands = [];
     private SKMatrix _totalMatrix = SKMatrix.Identity;
 
-    ~PdfCommandRecorder()
-    {
-        Dispose(disposing: false);
-    }
+    ~PdfCommandRecorder() => Dispose(disposing: false);
 
     /// <inheritdoc />
     public void Process(IPdfCommand command)
@@ -48,7 +45,7 @@ public sealed class PdfCommandRecorder : IPdfCommandProcessor
     /// <param name="executionContext">Execution-time context containing rendering parameters and cancellation.</param>
     public void Replay(SKCanvas canvas, IEnumerable<IPdfCommandModifier> modifiers, PdfCommandExecutionContext executionContext)
     {
-        foreach (var command in _commands)
+        foreach (IPdfCommand command in _commands)
         {
             command.Execute(canvas, modifiers, executionContext);
             executionContext.ExecutionObserver?.Notify();
@@ -57,7 +54,7 @@ public sealed class PdfCommandRecorder : IPdfCommandProcessor
 
     private void Dispose(bool disposing)
     {
-        foreach (var command in _commands)
+        foreach (IPdfCommand command in _commands)
         {
             command.Dispose();
         }

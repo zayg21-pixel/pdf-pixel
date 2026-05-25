@@ -4,7 +4,7 @@ using System.Runtime.CompilerServices;
 
 namespace PdfPixel.Parsing;
 
-partial struct PdfParser
+internal partial struct PdfParser
 {
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private IPdfValue ReadHexString()
@@ -42,6 +42,7 @@ partial struct PdfParser
                 highNibble = null;
             }
         }
+
         if (highNibble != null)
         {
             // Odd number of hex digits: pad low nibble with0.
@@ -71,19 +72,25 @@ partial struct PdfParser
             switch (readByte)
             {
                 case LeftParen:
-                    parenCount++;
-                    if (parenCount > 1)
                     {
-                        _localBuffer.Add(readByte);
+                        parenCount++;
+                        if (parenCount > 1)
+                        {
+                            _localBuffer.Add(readByte);
+                        }
+
+                        break;
                     }
-                    break;
                 case RightParen:
-                    parenCount--;
-                    if (parenCount > 0)
                     {
-                        _localBuffer.Add(readByte);
+                        parenCount--;
+                        if (parenCount > 0)
+                        {
+                            _localBuffer.Add(readByte);
+                        }
+
+                        break;
                     }
-                    break;
                 case Backslash:
                 {
                     if (!IsAtEnd)
@@ -93,13 +100,17 @@ partial struct PdfParser
                         {
                             case LineFeed:
                                 continue; // Skip LF
-                            case CarriageReturn:
-                                if (!IsAtEnd && PeekByte() == LineFeed)
-                                {
-                                    Advance(1); // Skip optional LF in CRLF
-                                }
-                                continue; // Skip CR
-                            case >= (byte)'0' and <= (byte)'7':
+
+                                case CarriageReturn:
+                                    {
+                                        if (!IsAtEnd && PeekByte() == LineFeed)
+                                        {
+                                            Advance(1); // Skip optional LF in CRLF
+                                        }
+
+                                        continue; // Skip CR
+                                    }
+                                case >= (byte)'0' and <= (byte)'7':
                             {
                                 int octalValue = nextByte - (byte)'0';
                                 for (int i = 0; i < 2 && !IsAtEnd; i++)
@@ -115,6 +126,7 @@ partial struct PdfParser
                                         break;
                                     }
                                 }
+
                                 _localBuffer.Add((byte)(octalValue & 0xFF));
                                 break;
                             }
@@ -137,11 +149,14 @@ partial struct PdfParser
                             }
                         }
                     }
+
                     break;
                 }
                 default:
-                    _localBuffer.Add(readByte);
-                    break;
+                    {
+                        _localBuffer.Add(readByte);
+                        break;
+                    }
             }
         }
 
@@ -168,6 +183,7 @@ partial struct PdfParser
             {
                 break;
             }
+
             Advance(1);
             if (currentByte == (byte)'#')
             {
@@ -182,6 +198,7 @@ partial struct PdfParser
                 _localBuffer.Add(currentByte);
             }
         }
+
         return PdfValueFactory.Name(new PdfString([.. _localBuffer]));
     }
 
@@ -197,6 +214,7 @@ partial struct PdfParser
             {
                 break;
             }
+
             _localBuffer.Add(ReadByte());
         }
 
@@ -223,9 +241,9 @@ partial struct PdfParser
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static bool IsHexDigit(byte b)
     {
-        return (b >= (byte)'0' && b <= (byte)'9') ||
-               (b >= (byte)'A' && b <= (byte)'F') ||
-               (b >= (byte)'a' && b <= (byte)'f');
+        return (b >= (byte)'0' && b <= (byte)'9')
+            || (b >= (byte)'A' && b <= (byte)'F')
+            || (b >= (byte)'a' && b <= (byte)'f');
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]

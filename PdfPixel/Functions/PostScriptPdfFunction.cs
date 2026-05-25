@@ -31,14 +31,14 @@ public sealed class PostScriptPdfFunction : PdfFunction
         _evaluator = evaluator ?? throw new ArgumentNullException(nameof(evaluator));
 
         // Attempt to compile a fast path producing all outputs.
-        var parameterNames = new List<string>(capacity: Domain.Length / 2);
+        List<string> parameterNames = new(capacity: Domain.Length / 2);
         int paramCount = Domain.Length / 2;
         for (int i = 0; i < paramCount; i++)
         {
-            parameterNames.Add(i == 0 ? "x" : "x" + i);
+            parameterNames.Add((i == 0) ? "x" : "x" + i);
         }
 
-        if (_evaluator.TryCompile(parameterNames, out var fn))
+        if (_evaluator.TryCompile(parameterNames, out Action<float[], float[]> fn))
         {
             _compiled = fn;
             _argBuffer = new float[paramCount];
@@ -76,7 +76,7 @@ public sealed class PostScriptPdfFunction : PdfFunction
             return _resultBuffer.AsSpan(0, outputCount);
         }
 
-        var stack = new Stack<PostScriptToken>();
+        Stack<PostScriptToken> stack = [];
 
         // Clamp and push input parameters to domain
         for (int inputIndex = 0; inputIndex < values.Length; inputIndex++)
@@ -88,12 +88,12 @@ public sealed class PostScriptPdfFunction : PdfFunction
 
         _evaluator.EvaluateTokens(stack);
 
-        float[] resultInterp = new float[outputCount];
+        var resultInterp = new float[outputCount];
         for (int outputIndex = outputCount - 1; outputIndex >= 0; outputIndex--)
         {
             while (stack.Count > 0)
             {
-                var value = stack.Pop();
+                PostScriptToken value = stack.Pop();
 
                 if (value is PostScriptNumber number)
                 {
@@ -118,7 +118,7 @@ public sealed class PostScriptPdfFunction : PdfFunction
             return null;
         }
 
-        var dictionary = functionObject.Dictionary;
+        PdfDictionary dictionary = functionObject.Dictionary;
 
         // Extract domain and range arrays
         float[] domain = dictionary.GetArray(PdfTokens.DomainKey)?.GetFloatArray();
@@ -134,13 +134,13 @@ public sealed class PostScriptPdfFunction : PdfFunction
             return null;
         }
 
-        var streamData = functionObject.DecodeAsMemory();
+        ReadOnlyMemory<byte> streamData = functionObject.DecodeAsMemory();
         if (streamData.Length == 0)
         {
             return null;
         }
 
-        var evaulator = new PostScriptEvaluator(streamData.Span, appendExec: true, functionObject.Document.LoggerFactory.CreateLogger<PostScriptEvaluator>());
+        PostScriptEvaluator evaulator = new(streamData.Span, appendExec: true, functionObject.Document.LoggerFactory.CreateLogger<PostScriptEvaluator>());
         return new PostScriptPdfFunction(evaulator, domain, range);
     }
 }

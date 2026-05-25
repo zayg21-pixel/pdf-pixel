@@ -3,7 +3,7 @@ using System.Runtime.CompilerServices;
 
 namespace PdfPixel.Parsing;
 
-partial struct PdfParser
+internal partial struct PdfParser
 {
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private IPdfValue ReadInlineStream()

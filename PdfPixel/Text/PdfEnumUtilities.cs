@@ -2,7 +2,6 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Linq;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 #if !NETSTANDARD2_0
@@ -12,40 +11,6 @@ using System.Diagnostics.CodeAnalysis;
 namespace PdfPixel.Text
 {
     /// <summary>
-    /// Marks an enum type as a PDF enum for use with PdfEnumUtilities.
-    /// </summary>
-    internal class PdfEnumAttribute : Attribute
-    {
-    }
-
-    /// <summary>
-    /// Specifies the PDF string value for an enum field.
-    /// </summary>
-    internal class PdfEnumValueAttribute : Attribute
-    {
-        /// <summary>
-        /// Initializes a new instance of the <see cref="PdfEnumValueAttribute"/> class with the specified PDF name.
-        /// </summary>
-        /// <param name="name">The PDF string name for the enum value.</param>
-        public PdfEnumValueAttribute(string name)
-        {
-            Name = name;
-        }
-
-        /// <summary>
-        /// Gets the PDF string name associated with the enum value.
-        /// </summary>
-        public string Name { get; }
-    }
-
-    /// <summary>
-    /// Marks the default value for a PDF enum type. The field marked with this attribute must be equal to default(T).
-    /// </summary>
-    internal class PdfEnumDefaultValueAttribute : Attribute
-    {
-    }
-
-    /// <summary>
     /// Provides utilities for mapping between PDF string values and enum values decorated with <see cref="PdfEnumAttribute"/>.
     /// </summary>
     internal static class PdfEnumUtilities
@@ -54,13 +19,13 @@ namespace PdfPixel.Text
         /// Caches enum type to mapping of <see cref="PdfString"/> to enum value.
         /// </summary>
         private static readonly ConcurrentDictionary<Type, Dictionary<PdfString, Enum>> EnumValueCache =
-            new ConcurrentDictionary<Type, Dictionary<PdfString, Enum>>();
+[];
 
         /// <summary>
         /// Caches enum type to mapping of enum value to <see cref="PdfString"/>.
         /// </summary>
         private static readonly ConcurrentDictionary<Type, Dictionary<Enum, PdfString>> EnumInverseValueCache =
-            new ConcurrentDictionary<Type, Dictionary<Enum, PdfString>>();
+[];
 
         /// <summary>
         /// Converts a <see cref="PdfString"/> to its corresponding enum value of type <typeparamref name="T"/>.
@@ -77,17 +42,17 @@ namespace PdfPixel.Text
             [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicFields)]
 #endif
         T
-            >(this PdfString value) where T : Enum
+            >(this in PdfString value) where T : Enum
         {
-            var enumType = typeof(T);
-            var map = EnumValueCache.GetOrAdd(enumType, _ => BuildEnumValueMap<T>());
+            Type enumType = typeof(T);
+            Dictionary<PdfString, Enum> map = EnumValueCache.GetOrAdd(enumType, _ => BuildEnumValueMap<T>());
 
             if (value.IsEmpty)
             {
                 return default;
             }
 
-            if (map.TryGetValue(value, out var enumValue))
+            if (map.TryGetValue(value, out Enum enumValue))
             {
                 return (T)enumValue;
             }
@@ -111,10 +76,10 @@ namespace PdfPixel.Text
             T
             >(this T enumValue) where T : Enum
         {
-            var enumType = typeof(T);
-            var inverseMap = EnumInverseValueCache.GetOrAdd(enumType, _ => BuildEnumInverseValueMap<T>());
+            Type enumType = typeof(T);
+            Dictionary<Enum, PdfString> inverseMap = EnumInverseValueCache.GetOrAdd(enumType, _ => BuildEnumInverseValueMap<T>());
 
-            if (inverseMap.TryGetValue(enumValue, out var pdfString))
+            if (inverseMap.TryGetValue(enumValue, out PdfString pdfString))
             {
                 return pdfString;
             }
@@ -136,22 +101,23 @@ namespace PdfPixel.Text
 #endif
         T>() where T : Enum
         {
-            var enumType = typeof(T);
-            if (!enumType.GetCustomAttributes(typeof(PdfEnumAttribute), inherit: false).Any())
+            Type enumType = typeof(T);
+            if (enumType.GetCustomAttributes(typeof(PdfEnumAttribute), inherit: false).Length == 0)
             {
                 throw new ArgumentException($"Enum type '{enumType.FullName}' must be decorated with [PdfEnum] attribute.", nameof(T));
             }
 
-            var map = new Dictionary<PdfString, Enum>();
+            Dictionary<PdfString, Enum> map = [];
             FieldInfo defaultField = null;
-            foreach (var field in enumType.GetFields(BindingFlags.Public | BindingFlags.Static))
+            foreach (FieldInfo field in enumType.GetFields(BindingFlags.Public | BindingFlags.Static))
             {
-                var valueAttr = field.GetCustomAttribute<PdfEnumValueAttribute>();
-                var defaultAttr = field.GetCustomAttribute<PdfEnumDefaultValueAttribute>();
+                PdfEnumValueAttribute valueAttr = field.GetCustomAttribute<PdfEnumValueAttribute>();
+                PdfEnumDefaultValueAttribute defaultAttr = field.GetCustomAttribute<PdfEnumDefaultValueAttribute>();
                 if (valueAttr == null && defaultAttr == null)
                 {
                     throw new ArgumentException($"Enum field '{field.Name}' in '{enumType.FullName}' must be decorated with either [PdfEnumValue] or [PdfEnumDefaultValue] attribute.", nameof(T));
                 }
+
                 if (defaultAttr != null)
                 {
                     defaultField = field;
@@ -162,7 +128,8 @@ namespace PdfPixel.Text
                 {
                     name = valueAttr?.Name ?? string.Empty;
                 }
-                var pdfString = new PdfString(EncodingExtensions.PdfDefault.GetBytes(name));
+
+                PdfString pdfString = new(EncodingExtensions.PdfDefault.GetBytes(name));
                 var enumValue = (Enum)field.GetValue(null);
                 map[pdfString] = enumValue;
             }
@@ -193,13 +160,14 @@ namespace PdfPixel.Text
         T
             >() where T : Enum
         {
-            var enumType = typeof(T);
-            var forwardMap = EnumValueCache.GetOrAdd(enumType, _ => BuildEnumValueMap<T>());
-            var inverseMap = new Dictionary<Enum, PdfString>();
-            foreach (var kvp in forwardMap)
+            Type enumType = typeof(T);
+            Dictionary<PdfString, Enum> forwardMap = EnumValueCache.GetOrAdd(enumType, _ => BuildEnumValueMap<T>());
+            Dictionary<Enum, PdfString> inverseMap = [];
+            foreach (KeyValuePair<PdfString, Enum> kvp in forwardMap)
             {
                 inverseMap[kvp.Value] = kvp.Key;
             }
+
             return inverseMap;
         }
     }

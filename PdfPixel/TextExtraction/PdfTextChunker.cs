@@ -27,8 +27,8 @@ public class PdfTextChunker
             yield break;
         }
 
-        List<PdfCharacter> currentWord = new List<PdfCharacter>();
-        PdfWordType currentType = PdfWordType.Normal;
+        List<PdfCharacter> currentWord = [];
+        var currentType = PdfWordType.Normal;
         int lineIndex = 0;
         float? lastY = null;
         float? prevCharRight = null;
@@ -46,9 +46,9 @@ public class PdfTextChunker
             UnicodeCategory category = char.GetUnicodeCategory(c);
             bool isWhiteSpace = char.IsWhiteSpace(c);
             bool isWordBreakingPunctuation =
-                category == UnicodeCategory.InitialQuotePunctuation ||
-                category == UnicodeCategory.FinalQuotePunctuation ||
-                category == UnicodeCategory.OtherPunctuation;
+                category == UnicodeCategory.InitialQuotePunctuation
+                    || category == UnicodeCategory.FinalQuotePunctuation
+                    || category == UnicodeCategory.OtherPunctuation;
             // DashPunctuation and ConnectorPunctuation are allowed within words
             float y = ch.BoundingBox.Top;
             float xMin = ch.BoundingBox.Left;
@@ -62,6 +62,7 @@ public class PdfTextChunker
                     yield return CreateWord(currentWord, currentType, lineIndex);
                     currentWord.Clear();
                 }
+
                 lineIndex++;
                 prevCharRight = null;
                 prevCharWidth = null;
@@ -77,6 +78,7 @@ public class PdfTextChunker
                         yield return CreateWord(currentWord, currentType, lineIndex);
                         currentWord.Clear();
                     }
+
                     currentType = PdfWordType.Normal;
                 }
             }
@@ -93,6 +95,7 @@ public class PdfTextChunker
                     yield return CreateWord(currentWord, currentType, lineIndex);
                     currentWord.Clear();
                 }
+
                 currentType = PdfWordType.Normal;
                 continue;
             }
@@ -105,6 +108,7 @@ public class PdfTextChunker
                     yield return CreateWord(currentWord, currentType, lineIndex);
                     currentWord.Clear();
                 }
+
                 // Emit punctuation as its own word
                 yield return new PdfWord(ch.BoundingBox, PdfWordType.Punctuation, lineIndex, new[] { ch });
                 currentType = PdfWordType.Normal;
@@ -116,6 +120,7 @@ public class PdfTextChunker
                     yield return CreateWord(currentWord, currentType, lineIndex);
                     currentWord.Clear();
                 }
+
                 currentWord.Add(ch);
                 currentType = PdfWordType.Normal;
             }
@@ -137,11 +142,13 @@ public class PdfTextChunker
         {
             throw new ArgumentException("No characters to create word.", nameof(chars));
         }
+
         SKRect bbox = chars[0].BoundingBox;
         for (int i = 1; i < chars.Count; i++)
         {
             bbox = SKRect.Union(bbox, chars[i].BoundingBox);
         }
+
         return new PdfWord(bbox, type, lineIndex, chars.ToArray());
     }
 }

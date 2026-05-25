@@ -26,18 +26,22 @@ namespace PdfPixel.Streams
             {
                 throw new ArgumentNullException(nameof(currentRow));
             }
+
             if (previousRow == null)
             {
                 throw new ArgumentNullException(nameof(previousRow));
             }
+
             if (bytesPerPixel <= 0)
             {
                 throw new ArgumentOutOfRangeException(nameof(bytesPerPixel));
             }
+
             if (rowDataOffset < 0 || rowDataOffset > currentRow.Length)
             {
                 throw new ArgumentOutOfRangeException(nameof(rowDataOffset));
             }
+
             if (rowDataLength < 0 || rowDataOffset + rowDataLength > currentRow.Length)
             {
                 throw new ArgumentOutOfRangeException(nameof(rowDataLength));
@@ -58,6 +62,7 @@ namespace PdfPixel.Streams
                         int idx = rowDataOffset + i;
                         currentRow[idx] = (byte)(currentRow[idx] + currentRow[idx - bytesPerPixel]);
                     }
+
                     return;
                 }
                 case 2:
@@ -68,6 +73,7 @@ namespace PdfPixel.Streams
                         int idx = rowDataOffset + i;
                         currentRow[idx] = (byte)(currentRow[idx] + previousRow[idx]);
                     }
+
                     return;
                 }
                 case 3:
@@ -76,10 +82,11 @@ namespace PdfPixel.Streams
                     for (int i = 0; i < rowDataLength; i++)
                     {
                         int idx = rowDataOffset + i;
-                        int left = i >= bytesPerPixel ? currentRow[idx - bytesPerPixel] : 0;
+                        int left = (i >= bytesPerPixel) ? currentRow[idx - bytesPerPixel] : 0;
                         int up = previousRow[idx];
                         currentRow[idx] = (byte)(currentRow[idx] + ((left + up) >> 1));
                     }
+
                     return;
                 }
                 case 4:
@@ -88,11 +95,12 @@ namespace PdfPixel.Streams
                     for (int i = 0; i < rowDataLength; i++)
                     {
                         int idx = rowDataOffset + i;
-                        int left = i >= bytesPerPixel ? currentRow[idx - bytesPerPixel] : 0;
+                        int left = (i >= bytesPerPixel) ? currentRow[idx - bytesPerPixel] : 0;
                         int up = previousRow[idx];
-                        int upLeft = i >= bytesPerPixel ? previousRow[idx - bytesPerPixel] : 0;
+                        int upLeft = (i >= bytesPerPixel) ? previousRow[idx - bytesPerPixel] : 0;
                         currentRow[idx] = (byte)(currentRow[idx] + Paeth(left, up, upLeft));
                     }
+
                     return;
                 }
                 default:
@@ -110,17 +118,34 @@ namespace PdfPixel.Streams
         private static int Paeth(int a, int b, int c)
         {
             int p = a + b - c;
-            int pa = p - a; if (pa < 0) { pa = -pa; }
-            int pb = p - b; if (pb < 0) { pb = -pb; }
-            int pc = p - c; if (pc < 0) { pc = -pc; }
+            int pa = p - a;
+            if (pa < 0)
+            {
+                pa = -pa;
+            }
+
+            int pb = p - b;
+            if (pb < 0)
+            {
+                pb = -pb;
+            }
+
+            int pc = p - c;
+            if (pc < 0)
+            {
+                pc = -pc;
+            }
+
             if (pa <= pb && pa <= pc)
             {
                 return a;
             }
+
             if (pb <= pc)
             {
                 return b;
             }
+
             return c;
         }
     }

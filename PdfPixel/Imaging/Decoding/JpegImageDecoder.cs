@@ -20,27 +20,33 @@ public sealed class JpegImageDecoder : PdfImageDecoder
     private PdfImageRowDecodingParameters _imageParameters;
     private int _currentImageRow;
 
-    public JpegImageDecoder(PdfImage image, ILoggerFactory loggerFactory) : base(image, loggerFactory)
+    public JpegImageDecoder(PdfImage image, ILoggerFactory loggerFactory)
+        : base(image, loggerFactory)
     {
     }
 
     public override void Initialize(PdfTileInfo tileInfo, ImageDecodingContext context, object contentLocker, SKMatrix ctm, SKRectI regionOfInterest, IPdfExecutionObserver observer)
     {
         if (!ValidateImageParameters())
+        {
             throw new InvalidOperationException($"JPEG image parameters are invalid (Name={Image.Name}).");
-
+        }
 
         ReadOnlyMemory<byte> encodedData;
         lock (contentLocker)
+        {
             encodedData = Image.GetImageData(observer);
+        }
 
-        var header = JpgReader.ParseHeader(encodedData.Span);
+        JpgHeader header = JpgReader.ParseHeader(encodedData.Span);
 
         if (header == null || header.ContentOffset < 0)
+        {
             throw new InvalidOperationException($"JPEG header is invalid (Name={Image.Name}).");
+        }
 
-        var resolvedConverter = Image.ColorSpaceConverter;
-        if (resolvedConverter.IsDevice && JpgIccProfileReader.TryAssembleIccProfile(header, out var profileBytes))
+        PdfColorSpaceConverter resolvedConverter = Image.ColorSpaceConverter;
+        if (resolvedConverter.IsDevice && JpgIccProfileReader.TryAssembleIccProfile(header, out byte[]? profileBytes))
         {
             resolvedConverter = new IccBasedConverter(header.ComponentCount, resolvedConverter, profileBytes);
         }
@@ -48,7 +54,9 @@ public sealed class JpegImageDecoder : PdfImageDecoder
         int imageWidth = header.Width;
         int imageHeight = header.Height;
         if (imageWidth <= 0 || imageHeight <= 0)
+        {
             throw new InvalidOperationException($"Invalid JPEG dimensions (Image={Image.Name}).");
+        }
 
         _imageParameters = PdfImageRowDecodingParameters.FromImage(Image, context, ctm);
 
@@ -63,12 +71,19 @@ public sealed class JpegImageDecoder : PdfImageDecoder
         while (_currentImageRow < _imageParameters.Height)
         {
             if (!_jpgRowDecoder.TryReadRow(_fullWidthRowBuffer))
+            {
                 throw new InvalidOperationException($"JPEG decode failed at image row {_currentImageRow} (Image={Image.Name}).");
-            var tiles = _tilingContext.WriteRowAndTryGetTiles(_currentImageRow, _fullWidthRowBuffer, observer);
+            }
+
+            PdfImageTile[] tiles = _tilingContext.WriteRowAndTryGetTiles(_currentImageRow, _fullWidthRowBuffer, observer);
             _currentImageRow++;
             observer?.Notify();
-            if (tiles != null) return tiles;
+            if (tiles != null)
+            {
+                return tiles;
+            }
         }
+
         return null;
     }
 
@@ -82,19 +97,19 @@ public sealed class JpegImageDecoder : PdfImageDecoder
         _currentImageRow = 0;
     }
 
-    private IJpgDecoder CreateJpgDecoder(ReadOnlyMemory<byte> encodedData, JpgHeader header)
+    private IJpgDecoder CreateJpgDecoder(in ReadOnlyMemory<byte> encodedData, JpgHeader header)
     {
         ReadOnlyMemory<byte> compressed = encodedData.Slice(header.ContentOffset);
-        var colorTransform = Image.DecodeParms?.ColorTransform;
+        int? colorTransform = Image.DecodeParms?.ColorTransform;
 
-        var yuvMode = colorTransform switch
+        JpgYuvMode yuvMode = colorTransform switch
         {
             0 => JpgYuvMode.NoYuv,
             1 => JpgYuvMode.ForceYuv,
             _ => JpgYuvMode.Default
         };
 
-        var colorParameters = new JpegColorConversionParameters
+        JpegColorConversionParameters colorParameters = new()
         {
             YuvMode = yuvMode,
             InvertCmykColors = false

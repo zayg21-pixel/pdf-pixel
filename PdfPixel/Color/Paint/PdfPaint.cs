@@ -27,7 +27,7 @@ public sealed class PdfPaint
     /// </summary>
     public bool IsPattern => Pattern != null;
 
-    private PdfPaint(SKColor color, PdfPattern pattern)
+    private PdfPaint(in SKColor color, PdfPattern pattern)
     {
         Color = color;
         Pattern = pattern;
@@ -36,20 +36,18 @@ public sealed class PdfPaint
     /// <summary>
     /// Create a solid color paint.
     /// </summary>
-    public static PdfPaint Solid(SKColor color)
-    {
-        return new PdfPaint(color, null);
-    }
+    public static PdfPaint Solid(in SKColor color) => new(color, null);
 
     /// <summary>
     /// Create a pattern paint (colored or uncolored). For uncolored patterns provide tint components.
     /// </summary>
-    public static PdfPaint PatternFill(PdfPattern pattern, SKColor resolvedTintColor)
+    public static PdfPaint PatternFill(PdfPattern pattern, in SKColor resolvedTintColor)
     {
         if (pattern == null)
         {
             throw new ArgumentNullException(nameof(pattern));
         }
+
         return new PdfPaint(resolvedTintColor, pattern);
     }
 }

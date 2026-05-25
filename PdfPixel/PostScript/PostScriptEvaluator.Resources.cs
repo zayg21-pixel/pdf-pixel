@@ -4,7 +4,7 @@ using System.Collections.Generic;
 
 namespace PdfPixel.PostScript
 {
-    partial class PostScriptEvaluator
+    public partial class PostScriptEvaluator
     {
         public const string FontResourceCategory = "Font";
 
@@ -14,13 +14,13 @@ namespace PdfPixel.PostScript
             {
                 case "findresource":
                 {
-                    var category = stack.Pop();
-                    var resourceName = stack.Pop();
-                    var categoryResource = _resources.GetValue(category);
+                        PostScriptToken category = stack.Pop();
+                        PostScriptToken resourceName = stack.Pop();
+                        PostScriptToken categoryResource = _resources.GetValue(category);
 
                     if (categoryResource is PostScriptDictionary dict)
                     {
-                        var resource = dict.GetValue(resourceName);
+                            PostScriptToken resource = dict.GetValue(resourceName);
                         stack.Push(resource);
                     }
                     else
@@ -32,8 +32,8 @@ namespace PdfPixel.PostScript
                 }
                 case "definefont":
                 {
-                    var value = stack.Pop();
-                    var resourceName = PopOfType<PostScriptLiteralName>(stack);
+                        PostScriptToken value = stack.Pop();
+                        PostScriptLiteralName resourceName = PopOfType<PostScriptLiteralName>(stack);
 
                     SetResourceValue(FontResourceCategory, resourceName.Name, value);
 
@@ -45,9 +45,9 @@ namespace PdfPixel.PostScript
                 }
                 case "defineresource":
                 {
-                    var category = PopOfType<PostScriptLiteralName>(stack);
-                    var value = stack.Pop();
-                    var resourceName = PopOfType<PostScriptLiteralName>(stack);
+                        PostScriptLiteralName category = PopOfType<PostScriptLiteralName>(stack);
+                        PostScriptToken value = stack.Pop();
+                        PostScriptLiteralName resourceName = PopOfType<PostScriptLiteralName>(stack);
 
                     SetResourceValue(category.Name, resourceName.Name, value);
 
@@ -59,8 +59,8 @@ namespace PdfPixel.PostScript
                 }
                 case "undefineresource":
                 {
-                    var category = PopOfType<PostScriptLiteralName>(stack);
-                    var resourceName = PopOfType<PostScriptLiteralName>(stack);
+                        PostScriptLiteralName category = PopOfType<PostScriptLiteralName>(stack);
+                        PostScriptLiteralName resourceName = PopOfType<PostScriptLiteralName>(stack);
 
                     if (_resources.Entries.TryGetValue(category.Name, out PostScriptToken categoryToken) && categoryToken is PostScriptDictionary categoryDict)
                     {
@@ -77,6 +77,7 @@ namespace PdfPixel.PostScript
                     {
                         _logger?.LogWarning("Resource category not found: {Category} for undefineresource.", category.Name);
                     }
+
                     return true;
                 }
                 case "resourcestatus":
@@ -123,7 +124,8 @@ namespace PdfPixel.PostScript
                 return null;
             }
 
-            if (_resources.Entries.TryGetValue(category, out PostScriptToken categoryToken) && categoryToken is PostScriptDictionary categoryDict
+            if (_resources.Entries.TryGetValue(category, out PostScriptToken categoryToken)
+                && categoryToken is PostScriptDictionary categoryDict
                 && categoryDict.Entries.TryGetValue(name, out PostScriptToken resourceValue))
             {
                 return resourceValue;
@@ -141,6 +143,7 @@ namespace PdfPixel.PostScript
             {
                 return null;
             }
+
             if (_resources.Entries.TryGetValue(category, out PostScriptToken categoryToken) && categoryToken is PostScriptDictionary categoryDict)
             {
                 return categoryDict;

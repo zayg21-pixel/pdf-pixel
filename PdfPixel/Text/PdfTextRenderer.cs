@@ -28,7 +28,7 @@ public class PdfTextRenderer : IPdfTextRenderer
         {
             throw new ArgumentNullException(nameof(loggerFactory));
         }
-        
+
         _logger = loggerFactory.CreateLogger<PdfTextRenderer>();
     }
 
@@ -40,7 +40,7 @@ public class PdfTextRenderer : IPdfTextRenderer
             return SKSize.Empty;
         }
 
-        using var softMaskScope = new SoftMaskDrawingScope(_renderer, processor, state);
+        using SoftMaskDrawingScope softMaskScope = new(_renderer, processor, state);
         softMaskScope.BeginDrawContent();
 
         if (font is PdfType3Font type3Font)
@@ -50,14 +50,14 @@ public class PdfTextRenderer : IPdfTextRenderer
         else if (font.SubstituteFont)
         {
             const float ScaleTolerancePercent = 0.01f; // 1%
-            var glyphBuffer = new List<ShapedGlyph>();
+            List<ShapedGlyph> glyphBuffer = [];
             SKFont skFont = null;
 
             for (int i = 0; i < glyphs.Count; i++)
             {
-                var glyph = glyphs[i];
-                var typeface = glyph.CharacterInfo.Typeface;
-                var scale = glyph.Scale;
+                ShapedGlyph glyph = glyphs[i];
+                SKTypeface typeface = glyph.CharacterInfo.Typeface;
+                float scale = glyph.Scale;
 
                 if (skFont?.Typeface != typeface || Math.Abs(scale - skFont.ScaleX) / skFont.ScaleX >= ScaleTolerancePercent)
                 {
@@ -85,8 +85,8 @@ public class PdfTextRenderer : IPdfTextRenderer
         }
         else if (glyphs.Count > 0)
         {
-            var baseTypeface = glyphs[0].CharacterInfo.Typeface;
-            using var skFont = PdfPaintFactory.CreateTextFont(baseTypeface);
+            SKTypeface baseTypeface = glyphs[0].CharacterInfo.Typeface;
+            using SKFont skFont = PdfPaintFactory.CreateTextFont(baseTypeface);
             DrawShapedText(processor, skFont, glyphs, state);
         }
 
@@ -99,7 +99,7 @@ public class PdfTextRenderer : IPdfTextRenderer
         else
         {
             // Apply font size, horizontal scaling, and vertical flip
-            var fullHorizontalScale = state.FontSize * state.HorizontalScaling / 100f;
+            float fullHorizontalScale = state.FontSize * state.HorizontalScaling / 100f;
 
             return new SKSize(TextRenderUtilities.GetTextWidth(glyphs) * fullHorizontalScale, 0);
         }
@@ -116,16 +116,16 @@ public class PdfTextRenderer : IPdfTextRenderer
 
         // Type3 glyphs are recorded commands in glyph space (after FontMatrix). Apply text matrix and per-glyph offsets.
         processor.Process(new SaveStateCommand());
-        var fullTextMatrix = TextRenderUtilities.GetFullTextMatrix(state, inverse: false);
+        SKMatrix fullTextMatrix = TextRenderUtilities.GetFullTextMatrix(state, inverse: false);
         processor.Process(new ConcatMatrixCommand(fullTextMatrix));
 
         for (int i = 0; i < glyphs.Count; i++)
         {
-            var glyph = glyphs[i];
-            var charInfo = type3Font.GetCharacterInfo(glyph.CharacterInfo.CharacterCode, _renderer, state);
+            ShapedGlyph glyph = glyphs[i];
+            PdfType3CharacterInfo charInfo = type3Font.GetCharacterInfo(glyph.CharacterInfo.CharacterCode, _renderer, state);
             if (charInfo.IsDefined)
             {
-                IPdfCommandModifier modifier = charInfo.IsColored
+                IPdfCommandModifier modifier = (charInfo.IsColored)
                     ? default
                     : new UncoloredPaintModifier(state.FillPaint.Color);
 
@@ -146,20 +146,20 @@ public class PdfTextRenderer : IPdfTextRenderer
     {
         if (ShouldFill(state.TextRenderingMode))
         {
-            using var textFillTarget = new TextFillRenderTarget(font, shapingResult, state);
+            using TextFillRenderTarget textFillTarget = new(font, shapingResult, state);
             textFillTarget.Render(processor);
         }
 
         if (ShouldStroke(state.TextRenderingMode))
         {
-            using var textStrokeTarget = new TextStrokeRenderTarget(font, shapingResult, state);
+            using TextStrokeRenderTarget textStrokeTarget = new(font, shapingResult, state);
             textStrokeTarget.Render(processor);
         }
 
         // Apply clipping if requested (modes with Clip). Pure clip mode skips drawing above.
         if (ShouldClip(state.TextRenderingMode))
         {
-            using var textPath = TextRenderUtilities.GetTextPath(shapingResult, font, state);
+            using SKPath textPath = TextRenderUtilities.GetTextPath(shapingResult, font, state);
             if (!textPath.IsEmpty)
             {
                 state.TextClipPath ??= new SKPath();
@@ -178,6 +178,7 @@ public class PdfTextRenderer : IPdfTextRenderer
             case PdfTextRenderingMode.FillAndClip:
             case PdfTextRenderingMode.FillAndStrokeAndClip:
                 return true;
+
             default:
                 return false;
         }
@@ -193,6 +194,7 @@ public class PdfTextRenderer : IPdfTextRenderer
             case PdfTextRenderingMode.StrokeAndClip:
             case PdfTextRenderingMode.FillAndStrokeAndClip:
                 return true;
+
             default:
                 return false;
         }
@@ -208,6 +210,7 @@ public class PdfTextRenderer : IPdfTextRenderer
             case PdfTextRenderingMode.StrokeAndClip:
             case PdfTextRenderingMode.FillAndStrokeAndClip:
                 return true;
+
             default:
                 return false;
         }

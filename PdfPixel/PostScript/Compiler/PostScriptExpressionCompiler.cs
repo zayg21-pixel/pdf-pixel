@@ -31,10 +31,10 @@ namespace PdfPixel.PostScript.Compiler
                 return false;
             }
 
-            var argsParam = Expression.Parameter(typeof(float[]), "args");
-            var bufferParam = Expression.Parameter(typeof(float[]), "buffer");
+            ParameterExpression argsParam = Expression.Parameter(typeof(float[]), "args");
+            ParameterExpression bufferParam = Expression.Parameter(typeof(float[]), "buffer");
 
-            if (!TryCompileBlockStack(procedure, argsParam, parameterNames, out var stack))
+            if (!TryCompileBlockStack(procedure, argsParam, parameterNames, out Stack<Expression> stack))
             {
                 return false;
             }
@@ -45,9 +45,9 @@ namespace PdfPixel.PostScript.Compiler
             }
 
             int outputCount = stack.Count;
-            var bodyExpressions = new List<Expression>();
+            List<Expression> bodyExpressions = [];
 
-            var temp = new List<Expression>(outputCount);
+            List<Expression> temp = new(outputCount);
             while (stack.Count > 0)
             {
                 temp.Add(EnsureFloat(stack.Pop()));
@@ -56,15 +56,15 @@ namespace PdfPixel.PostScript.Compiler
             for (int i = 0; i < temp.Count; i++)
             {
                 int targetIndex = temp.Count - 1 - i;
-                var assign = Expression.Assign(
+                BinaryExpression assign = Expression.Assign(
                     Expression.ArrayAccess(bufferParam, Expression.Constant(targetIndex)),
                     temp[i]
                 );
                 bodyExpressions.Add(assign);
             }
 
-            var block = Expression.Block(bodyExpressions);
-            var lambda = Expression.Lambda<Action<float[], float[]>>(block, argsParam, bufferParam);
+            BlockExpression block = Expression.Block(bodyExpressions);
+            Expression<Action<float[], float[]>> lambda = Expression.Lambda<Action<float[], float[]>>(block, argsParam, bufferParam);
             try
             {
                 fn = lambda.Compile();

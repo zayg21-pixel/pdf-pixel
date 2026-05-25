@@ -29,11 +29,11 @@ internal static class Type1ToCffConverter
             throw new InvalidDataException("Missing font file for Type1 font.");
         }
 
-        var file = descriptor.FontFileObject;
-        var length1 = file.Dictionary.GetIntegerOrDefault(PdfTokens.Length1);
-        var length2 = file.Dictionary.GetIntegerOrDefault(PdfTokens.Length2);
-        var length3 = file.Dictionary.GetIntegerOrDefault(PdfTokens.Length3);
-        var rawData = file.DecodeAsMemory();
+        Models.PdfObject file = descriptor.FontFileObject;
+        int length1 = file.Dictionary.GetIntegerOrDefault(PdfTokens.Length1);
+        int length2 = file.Dictionary.GetIntegerOrDefault(PdfTokens.Length2);
+        int length3 = file.Dictionary.GetIntegerOrDefault(PdfTokens.Length3);
+        ReadOnlyMemory<byte> rawData = file.DecodeAsMemory();
 
         if (rawData.IsEmpty)
         {
@@ -51,23 +51,24 @@ internal static class Type1ToCffConverter
         {
             throw new InvalidDataException("Invalid Length1 for Type1 font stream (spec compliance required).");
         }
+
         if (length2 <= 0 || length1 + length2 > rawData.Length)
         {
             throw new InvalidDataException("Invalid Length2 for Type1 font stream (spec compliance required).");
         }
 
-        var parsedDictionary = ParseFontProgram(descriptor, rawData, length1, length2, file.Document.LoggerFactory);
+        PostScriptDictionary parsedDictionary = ParseFontProgram(descriptor, rawData, length1, length2, file.Document.LoggerFactory);
 
         return Type1DictionaryToCffConverter.GenerateCffFontDataFromDictionary(parsedDictionary, descriptor);
     }
 
-    private static PostScriptDictionary ParseFontProgram(PdfFontDescriptor descriptor, ReadOnlyMemory<byte> rawData, int length1, int length2, ILoggerFactory loggerFactory)
+    private static PostScriptDictionary ParseFontProgram(PdfFontDescriptor descriptor, in ReadOnlyMemory<byte> rawData, int length1, int length2, ILoggerFactory loggerFactory)
     {
-        var operandStack = new Stack<PostScriptToken>();
-        var headerSpan = rawData.Span.Slice(0, length1);
+        Stack<PostScriptToken> operandStack = [];
+        ReadOnlySpan<byte> headerSpan = rawData.Span.Slice(0, length1);
 
-        var headerEvaluator = new PostScriptEvaluator(headerSpan, appendExec: false, loggerFactory.CreateLogger<PostScriptEvaluator>());
-        var fontDirectory = new PostScriptDictionary();
+        PostScriptEvaluator headerEvaluator = new(headerSpan, appendExec: false, loggerFactory.CreateLogger<PostScriptEvaluator>());
+        PostScriptDictionary fontDirectory = new();
 
         headerEvaluator.SetSystemValue(Type1FontDictionaryUtilities.FontDirectoryKey, fontDirectory);
         headerEvaluator.SetSystemValue(Type1FontDictionaryUtilities.StandardEncodingName, Type1FontDictionaryUtilities.GetEncodingArray(PdfFontEncoding.StandardEncoding));
@@ -77,21 +78,20 @@ internal static class Type1ToCffConverter
 
         headerEvaluator.EvaluateTokens(operandStack);
 
-        var encryptedSpan = rawData.Span.Slice(length1, length2);
-        var decryptedSpan = Type1Decryptor.DecryptEexecBinary(encryptedSpan);
+        ReadOnlySpan<byte> encryptedSpan = rawData.Span.Slice(length1, length2);
+        ReadOnlySpan<byte> decryptedSpan = Type1Decryptor.DecryptEexecBinary(encryptedSpan);
 
-        var eexecEvaluator = new PostScriptEvaluator(decryptedSpan, appendExec: false, loggerFactory.CreateLogger<PostScriptEvaluator>());
+        PostScriptEvaluator eexecEvaluator = new(decryptedSpan, appendExec: false, loggerFactory.CreateLogger<PostScriptEvaluator>());
         eexecEvaluator.SetSystemValue(Type1FontDictionaryUtilities.FontDirectoryKey, fontDirectory);
         eexecEvaluator.EvaluateTokens(operandStack);
 
         PostScriptDictionary fontResources = eexecEvaluator.GetResourceCategory(PostScriptEvaluator.FontResourceCategory);
-        var fontDictionary = fontResources?.Entries.FirstOrDefault().Value as PostScriptDictionary;
+        PostScriptDictionary fontDictionary = fontResources?.Entries.FirstOrDefault().Value as PostScriptDictionary ?? fontDirectory.Entries.Values.OfType<PostScriptDictionary>().LastOrDefault();
 
-        if (fontDictionary == null)
-        {
+
             // fallback: take the last defined font dictionary in FontDirectory
-            fontDictionary = fontDirectory.Entries.Values.OfType<PostScriptDictionary>().LastOrDefault();
-        }
+
+
 
         if (fontDictionary == null)
         {

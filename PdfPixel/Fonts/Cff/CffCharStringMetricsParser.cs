@@ -35,14 +35,11 @@ internal sealed class CffCharStringMetricsParser
     /// <param name="glyphCount">Number of glyphs.</param>
     /// <param name="metrics">Array of character metrics indexed by GID.</param>
     /// <returns>True if parsing succeeded, false otherwise.</returns>
-    public bool TryParseCharStringMetrics(ReadOnlySpan<byte> cffData, int charStringsOffset, int glyphCount, out CffCharacterMetrics[] metrics)
+    public bool TryParseCharStringMetrics(in ReadOnlySpan<byte> cffData, int charStringsOffset, int glyphCount, out CffCharacterMetrics[] metrics)
     {
         metrics = new CffCharacterMetrics[glyphCount];
 
-        var reader = new CffDataReader(cffData)
-        {
-            Position = charStringsOffset
-        };
+        CffDataReader reader = new(cffData) { Position = charStringsOffset };
 
         if (!CffIndexReader.TryReadIndex(ref reader, out int count, out int dataStart, out int[] offsets, out _))
         {
@@ -65,16 +62,16 @@ internal sealed class CffCharStringMetricsParser
                 continue;
             }
 
-            var charStringData = cffData.Slice(charStringStart, charStringEnd - charStringStart);
+            ReadOnlySpan<byte> charStringData = cffData.Slice(charStringStart, charStringEnd - charStringStart);
             metrics[gid] = ExtractMetrics(charStringData);
         }
 
         return true;
     }
 
-    private static CffCharacterMetrics ExtractMetrics(ReadOnlySpan<byte> charStringData)
+    private static CffCharacterMetrics ExtractMetrics(in ReadOnlySpan<byte> charStringData)
     {
-        var operands = new Stack<decimal>();
+        Stack<decimal> operands = [];
         int position = 0;
 
         while (position < charStringData.Length)
@@ -186,7 +183,7 @@ internal sealed class CffCharStringMetricsParser
 
     private static CffCharacterMetrics ExtractMetricsFromOperator(byte op, Stack<decimal> operands)
     {
-        var metrics = new CffCharacterMetrics();
+        CffCharacterMetrics metrics = new();
         decimal[] operandArray = operands.ToArray();
         Array.Reverse(operandArray);
         int widthOffset = 0;
@@ -197,69 +194,81 @@ internal sealed class CffCharStringMetricsParser
             case OpVstem:
             case OpHstemhm:
             case OpVstemhm:
-                if (operandArray.Length % 2 == 1)
                 {
-                    metrics.Width = (double)operandArray[0];
-                }
-                break;
+                    if (operandArray.Length % 2 == 1)
+                    {
+                        metrics.Width = (double)operandArray[0];
+                    }
 
+                    break;
+                }
             case OpHintmask:
             case OpCntrmask:
-                if (operandArray.Length > 0)
                 {
-                    metrics.Width = (double)operandArray[0];
-                }
-                break;
+                    if (operandArray.Length > 0)
+                    {
+                        metrics.Width = (double)operandArray[0];
+                    }
 
+                    break;
+                }
             case OpHmoveto:
-                if (operandArray.Length == 2)
                 {
-                    metrics.Width = (double)operandArray[0];
-                    widthOffset = 1;
-                }
-                if (operandArray.Length > widthOffset)
-                {
-                    metrics.LeftSideBearing = (double)operandArray[widthOffset];
-                }
-                break;
+                    if (operandArray.Length == 2)
+                    {
+                        metrics.Width = (double)operandArray[0];
+                        widthOffset = 1;
+                    }
 
+                    if (operandArray.Length > widthOffset)
+                    {
+                        metrics.LeftSideBearing = (double)operandArray[widthOffset];
+                    }
+
+                    break;
+                }
             case OpVmoveto:
-                if (operandArray.Length == 2)
                 {
-                    metrics.Width = (double)operandArray[0];
-                }
-                metrics.LeftSideBearing = 0;
-                break;
+                    if (operandArray.Length == 2)
+                    {
+                        metrics.Width = (double)operandArray[0];
+                    }
 
+                    metrics.LeftSideBearing = 0;
+                    break;
+                }
             case OpRmoveto:
-                if (operandArray.Length == 3)
                 {
-                    metrics.Width = (double)operandArray[0];
-                    widthOffset = 1;
-                }
-                if (operandArray.Length > widthOffset)
-                {
-                    metrics.LeftSideBearing = (double)operandArray[widthOffset];
-                }
-                break;
+                    if (operandArray.Length == 3)
+                    {
+                        metrics.Width = (double)operandArray[0];
+                        widthOffset = 1;
+                    }
 
-            case OpEndchar:
-                if (operandArray.Length > 0)
-                {
-                    metrics.Width = (double)operandArray[0];
+                    if (operandArray.Length > widthOffset)
+                    {
+                        metrics.LeftSideBearing = (double)operandArray[widthOffset];
+                    }
+
+                    break;
                 }
-                break;
+            case OpEndchar:
+                {
+                    if (operandArray.Length > 0)
+                    {
+                        metrics.Width = (double)operandArray[0];
+                    }
+
+                    break;
+                }
         }
 
         return metrics;
     }
 
-    private static bool IsOperator(byte b)
-    {
-        return b < 32;
-    }
+    private static bool IsOperator(byte b) => b < 32;
 
-    private static bool TryReadNumber(ReadOnlySpan<byte> data, ref int position, out decimal number)
+    private static bool TryReadNumber(in ReadOnlySpan<byte> data, ref int position, out decimal number)
     {
         number = 0;
 
@@ -285,7 +294,7 @@ internal sealed class CffCharStringMetricsParser
             }
 
             byte b1 = data[position + 1];
-            number = (b - 247) * 256 + b1 + 108;
+            number = ((b - 247) * 256) + b1 + 108;
             position += 2;
             return true;
         }
@@ -298,7 +307,7 @@ internal sealed class CffCharStringMetricsParser
             }
 
             byte b1 = data[position + 1];
-            number = -(b - 251) * 256 - b1 - 108;
+            number = (-(b - 251) * 256) - b1 - 108;
             position += 2;
             return true;
         }
@@ -310,7 +319,7 @@ internal sealed class CffCharStringMetricsParser
                 return false;
             }
 
-            short shortVal = (short)((data[position + 1] << 8) | data[position + 2]);
+            var shortVal = (short)((data[position + 1] << 8) | data[position + 2]);
             number = shortVal;
             position += 3;
             return true;

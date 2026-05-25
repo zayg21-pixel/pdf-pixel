@@ -23,9 +23,9 @@ public abstract class PdfFormField : IFormFieldMouseInteraction, IFormFieldKeybo
     protected PdfFormField(PdfObject fieldObject, PdfFormFieldType fieldType)
     {
         FieldObject = fieldObject ?? throw new ArgumentNullException(nameof(fieldObject));
-        FieldType = fieldType == PdfFormFieldType.Unknown ? throw new ArgumentException("FieldType cannot be Unknown", nameof(fieldType)) : fieldType;
+        FieldType = (fieldType == PdfFormFieldType.Unknown) ? throw new ArgumentException("FieldType cannot be Unknown", nameof(fieldType)) : fieldType;
 
-        var dictionary = fieldObject.Dictionary;
+        PdfDictionary dictionary = fieldObject.Dictionary;
 
         PartialName = dictionary.GetString(PdfTokens.TitleKey);
         AlternateName = dictionary.GetString(PdfTokens.NameKey);
@@ -121,21 +121,18 @@ public abstract class PdfFormField : IFormFieldMouseInteraction, IFormFieldKeybo
     /// <summary>
     /// Gets a value indicating whether this field is read-only.
     /// </summary>
-    public bool IsReadOnly => Flags.HasFlag(PdfFormFieldFlags.ReadOnly);
+    public bool IsReadOnly => (Flags & PdfFormFieldFlags.ReadOnly) != 0;
 
     /// <summary>
     /// Gets a value indicating whether this field is required.
     /// </summary>
-    public bool IsRequired => Flags.HasFlag(PdfFormFieldFlags.Required);
+    public bool IsRequired => (Flags & PdfFormFieldFlags.Required) != 0;
 
     /// <summary>
     /// Gets the fully qualified field name.
     /// </summary>
     /// <returns>The fully qualified field name.</returns>
-    public virtual string GetFullyQualifiedName()
-    {
-        return PartialName.ToString();
-    }
+    public virtual string GetFullyQualifiedName() => PartialName.ToString();
 
     /// <summary>
     /// Handles mouse down event on the form field.
@@ -143,10 +140,7 @@ public abstract class PdfFormField : IFormFieldMouseInteraction, IFormFieldKeybo
     /// <param name="position">Mouse position in PDF coordinates relative to the field's rectangle.</param>
     /// <param name="state">Current pointer state.</param>
     /// <returns>True if the event was handled.</returns>
-    public virtual bool OnMouseDown(SKPoint position, FormFieldPointerState state)
-    {
-        return false;
-    }
+    public virtual bool OnMouseDown(SKPoint position, FormFieldPointerState state) => false;
 
     /// <summary>
     /// Handles mouse up event on the form field.
@@ -154,10 +148,7 @@ public abstract class PdfFormField : IFormFieldMouseInteraction, IFormFieldKeybo
     /// <param name="position">Mouse position in PDF coordinates relative to the field's rectangle.</param>
     /// <param name="state">Current pointer state.</param>
     /// <returns>True if the event was handled.</returns>
-    public virtual bool OnMouseUp(SKPoint position, FormFieldPointerState state)
-    {
-        return false;
-    }
+    public virtual bool OnMouseUp(SKPoint position, FormFieldPointerState state) => false;
 
     /// <summary>
     /// Handles mouse move event on the form field.
@@ -165,10 +156,7 @@ public abstract class PdfFormField : IFormFieldMouseInteraction, IFormFieldKeybo
     /// <param name="position">Mouse position in PDF coordinates relative to the field's rectangle.</param>
     /// <param name="state">Current pointer state.</param>
     /// <returns>True if the event was handled.</returns>
-    public virtual bool OnMouseMove(SKPoint position, FormFieldPointerState state)
-    {
-        return false;
-    }
+    public virtual bool OnMouseMove(SKPoint position, FormFieldPointerState state) => false;
 
     /// <summary>
     /// Handles mouse enter event when the pointer enters the field's bounds.
@@ -190,20 +178,14 @@ public abstract class PdfFormField : IFormFieldMouseInteraction, IFormFieldKeybo
     /// <param name="key">The key that was pressed.</param>
     /// <param name="modifiers">Keyboard modifiers.</param>
     /// <returns>True if the event was handled.</returns>
-    public virtual bool OnKeyDown(FormFieldKey key, FormFieldKeyModifiers modifiers)
-    {
-        return false;
-    }
+    public virtual bool OnKeyDown(FormFieldKey key, FormFieldKeyModifiers modifiers) => false;
 
     /// <summary>
     /// Handles text input event on the form field.
     /// </summary>
     /// <param name="text">The text that was input.</param>
     /// <returns>True if the event was handled.</returns>
-    public virtual bool OnTextInput(string text)
-    {
-        return false;
-    }
+    public virtual bool OnTextInput(string text) => false;
 
     /// <summary>
     /// Gets a value indicating whether this field can receive keyboard focus.
@@ -229,8 +211,5 @@ public abstract class PdfFormField : IFormFieldMouseInteraction, IFormFieldKeybo
     /// <summary>
     /// Removes focus from this field.
     /// </summary>
-    public virtual void Blur()
-    {
-        HasFocus = false;
-    }
+    public virtual void Blur() => HasFocus = false;
 }

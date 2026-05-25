@@ -14,7 +14,7 @@ namespace PdfPixel.Shading.Decoding;
 /// Provides decoding of PDF Gouraud-shaded triangle meshes (Type 4 and Type 5).
 /// Extracts triangle vertices and their associated colors from the shading stream.
 /// </summary>
-class GouraudMeshDecoder
+internal class GouraudMeshDecoder
 {
     private readonly PdfShading _shading;
     private readonly ColorTransformSampler _sampler;
@@ -23,7 +23,8 @@ class GouraudMeshDecoder
     private readonly int _bitsPerComponent;
     private readonly int _numColorComponents;
     private readonly bool _readFlag;
-    private readonly float _xmin, _ymin;
+    private readonly float _xmin;
+    private readonly float _ymin;
     private readonly float _xScale;
     private readonly float _yScale;
     private readonly ColorMinAndScale[] _colorComponentMinAndScale;
@@ -48,6 +49,7 @@ class GouraudMeshDecoder
         {
             throw new ArgumentException("Decode array must contain at least xmin,xmax,ymin,ymax and pairs of min/max for each color component");
         }
+
         _numColorComponents = (decodeArray.Length - 4) / 2;
         _xmin = decodeArray[0];
         float xmax = decodeArray[1];
@@ -75,8 +77,8 @@ class GouraudMeshDecoder
         _colorComponentMinAndScale = new ColorMinAndScale[_numColorComponents];
         for (int componentIndex = 0; componentIndex < _numColorComponents; componentIndex++)
         {
-            float minValue = decodeArray[4 + componentIndex * 2];
-            float maxValue = decodeArray[4 + componentIndex * 2 + 1];
+            float minValue = decodeArray[4 + (componentIndex * 2)];
+            float maxValue = decodeArray[4 + (componentIndex * 2) + 1];
             float scalePremultiplied = componentDenominator * (maxValue - minValue);
             _colorComponentMinAndScale[componentIndex] = new ColorMinAndScale(minValue, scalePremultiplied);
         }
@@ -88,8 +90,8 @@ class GouraudMeshDecoder
     /// <returns>List of decoded MeshData instances.</returns>
     public List<MeshData> Decode()
     {
-        var memory = _shading.SourceObject.DecodeAsMemory();
-        var bitReader = new UintBitReader(memory.Span);
+        ReadOnlyMemory<byte> memory = _shading.SourceObject.DecodeAsMemory();
+        UintBitReader bitReader = new(memory.Span);
 
         if (_readFlag)
         {
@@ -105,16 +107,16 @@ class GouraudMeshDecoder
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private List<MeshData> ReadType4(ref UintBitReader bitReader)
     {
-        var patches = new List<MeshData>();
+        List<MeshData> patches = [];
         MeshData previous = null;
 
         while (!bitReader.EndOfData)
         {
-            var previousVertices = previous?.Points;
-            var previousColors = previous?.CornerColors;
+            SKPoint[]? previousVertices = previous?.Points;
+            SKColor[]? previousColors = previous?.CornerColors;
 
-            SKPoint[] vertices = new SKPoint[3];
-            SKColor[] colors = new SKColor[3];
+            var vertices = new SKPoint[3];
+            var colors = new SKColor[3];
             uint flag = bitReader.ReadBits(_bitsPerFlag);
 
             if (flag == 0 || previousVertices == null)
@@ -126,6 +128,7 @@ class GouraudMeshDecoder
                     {
                         bitReader.ReadBits(_bitsPerFlag); // Ignore edge flag for vb and vc
                     }
+
                     vertices[i] = MeshReader.ReadPoint(ref bitReader, _bitsPerCoordinate, _xmin, _ymin, _xScale, _yScale);
                     colors[i] = MeshReader.ReadColorComponents(ref bitReader, _bitsPerComponent, _colorComponentMinAndScale, _numColorComponents, _shading.Functions, _sampler);
                     // Skip padding bits for each vertex
@@ -162,7 +165,7 @@ class GouraudMeshDecoder
                 throw new InvalidOperationException($"Invalid Gouraud mesh triangle flag: {flag}");
             }
 
-            var meshData = new MeshData(vertices, colors, flag);
+            MeshData meshData = new(vertices, colors, flag);
             patches.Add(meshData);
             previous = meshData;
         }
@@ -173,7 +176,7 @@ class GouraudMeshDecoder
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private List<MeshData> ReadType5(ref UintBitReader bitReader)
     {
-        var vertexList = new List<(SKPoint point, SKColor color)>();
+        List<(SKPoint point, SKColor color)> vertexList = [];
         while (!bitReader.EndOfData)
         {
             SKPoint point = MeshReader.ReadPoint(ref bitReader, _bitsPerCoordinate, _xmin, _ymin, _xScale, _yScale);
@@ -184,26 +187,26 @@ class GouraudMeshDecoder
             vertexList.Add((point, color));
         }
 
-        var patches = new List<MeshData>();
+        List<MeshData> patches = [];
         int rowCount = vertexList.Count / _verticesPerRow;
         for (int rowIndex = 0; rowIndex < rowCount - 1; rowIndex++)
         {
             for (int columnIndex = 0; columnIndex < _verticesPerRow - 1; columnIndex++)
             {
-                int idx0 = rowIndex * _verticesPerRow + columnIndex;
+                int idx0 = (rowIndex * _verticesPerRow) + columnIndex;
                 int idx1 = idx0 + 1;
                 int idx2 = idx0 + _verticesPerRow;
                 int idx3 = idx2 + 1;
 
                 // Triangle 1
-                var triangle1 = new MeshData(
+                MeshData triangle1 = new(
                     [vertexList[idx0].point, vertexList[idx1].point, vertexList[idx2].point],
                     [vertexList[idx0].color, vertexList[idx1].color, vertexList[idx2].color],
                     0);
                 patches.Add(triangle1);
 
                 // Triangle 2
-                var triangle2 = new MeshData(
+                MeshData triangle2 = new(
                     [vertexList[idx1].point, vertexList[idx3].point, vertexList[idx2].point],
                     [vertexList[idx1].color, vertexList[idx3].color, vertexList[idx2].color],
                     0);

@@ -18,7 +18,7 @@ public static class PdfResourceLoader
     /// <exception cref="FileNotFoundException"></exception>
     public static byte[] GetResource(string resourceName)
     {
-        var assembly = typeof(PdfResourceLoader).Assembly;
+        System.Reflection.Assembly assembly = typeof(PdfResourceLoader).Assembly;
         // Open the resource stream
         using Stream stream = assembly.GetManifestResourceStream($"PdfPixel.Resources.{resourceName}");
 
@@ -27,7 +27,7 @@ public static class PdfResourceLoader
             throw new FileNotFoundException($"Resource '{resourceName}' not found.");
         }
 
-        using MemoryStream memoryStream = new MemoryStream();
+        using MemoryStream memoryStream = new();
         stream.CopyTo(memoryStream);
         return memoryStream.ToArray();
     }
@@ -41,7 +41,7 @@ public static class PdfResourceLoader
     /// <exception cref="FileNotFoundException"></exception>
     public static byte[] GetZipCompressedResource(string resourceName, string catalogPath)
     {
-        var assembly = typeof(PdfTextResourceConverter).Assembly;
+        System.Reflection.Assembly assembly = typeof(PdfTextResourceConverter).Assembly;
         using Stream compressedStream = assembly.GetManifestResourceStream($"PdfPixel.Resources.{resourceName}");
 
         if (compressedStream == null)
@@ -49,11 +49,11 @@ public static class PdfResourceLoader
             throw new FileNotFoundException($"Resource '{resourceName}' not found.");
         }
 
-        using var zipArchive = new ZipArchive(compressedStream);
-        var entry = zipArchive.Entries.FirstOrDefault(e => string.Equals(e.FullName, catalogPath, System.StringComparison.OrdinalIgnoreCase));
-        
-        using var entryStream = entry.Open();
-        using var decompressedStream = new MemoryStream();
+        using ZipArchive zipArchive = new(compressedStream);
+        ZipArchiveEntry entry = zipArchive.Entries.FirstOrDefault(e => string.Equals(e.FullName, catalogPath, System.StringComparison.OrdinalIgnoreCase));
+
+        using Stream entryStream = entry.Open();
+        using MemoryStream decompressedStream = new();
         entryStream.CopyTo(decompressedStream);
         return decompressedStream.ToArray();
     }

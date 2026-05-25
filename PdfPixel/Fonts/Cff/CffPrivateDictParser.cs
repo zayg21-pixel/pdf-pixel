@@ -18,35 +18,42 @@ internal sealed class CffPrivateDictParser
     /// </summary>
     /// <param name="privateDictBytes">The Private DICT data bytes.</param>
     /// <returns>Parsed Private DICT data (never null).</returns>
-    public CffPrivateDictData ParsePrivateDict(ReadOnlySpan<byte> privateDictBytes)
+    public CffPrivateDictData ParsePrivateDict(in ReadOnlySpan<byte> privateDictBytes)
     {
-        var data = new CffPrivateDictData();
-        var dictReader = new CffDictionaryReader(privateDictBytes);
+        CffPrivateDictData data = new();
+        CffDictionaryReader dictReader = new(privateDictBytes);
 
         while (dictReader.TryReadNextOperator(out byte @operator, out decimal[] operands))
         {
             switch (@operator)
             {
                 case OperatorSubrs:
-                    if (operands.Length > 0)
                     {
-                        data.SubrsOffset = (int)operands[operands.Length - 1];
-                    }
-                    break;
+                        if (operands.Length > 0)
+                        {
+                            data.SubrsOffset = (int)operands[operands.Length - 1];
+                        }
 
+                        break;
+                    }
                 case OperatorDefaultWidthX:
-                    if (operands.Length > 0)
                     {
-                        data.DefaultWidthX = (double)operands[operands.Length - 1];
-                    }
-                    break;
+                        if (operands.Length > 0)
+                        {
+                            data.DefaultWidthX = (double)operands[operands.Length - 1];
+                        }
 
-                case OperatorNominalWidthX:
-                    if (operands.Length > 0)
-                    {
-                        data.NominalWidthX = (double)operands[operands.Length - 1];
+                        break;
                     }
-                    break;
+                case OperatorNominalWidthX:
+                    {
+                        if (operands.Length > 0)
+                        {
+                            data.NominalWidthX = (double)operands[operands.Length - 1];
+                        }
+
+                        break;
+                    }
             }
         }
 

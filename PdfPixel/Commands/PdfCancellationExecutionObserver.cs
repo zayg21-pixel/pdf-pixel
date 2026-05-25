@@ -9,13 +9,7 @@ public sealed class PdfCancellationExecutionObserver : IPdfExecutionObserver
 {
     private readonly CancellationToken _token;
 
-    public PdfCancellationExecutionObserver(CancellationToken token)
-    {
-        _token = token;
-    }
+    public PdfCancellationExecutionObserver(in CancellationToken token) => _token = token;
 
-    public void Notify()
-    {
-        _token.ThrowIfCancellationRequested();
-    }
+    public void Notify() => _token.ThrowIfCancellationRequested();
 }

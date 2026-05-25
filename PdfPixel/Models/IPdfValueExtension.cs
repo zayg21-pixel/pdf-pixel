@@ -46,7 +46,7 @@ internal static class IPdfValueExtension
     /// <returns>The raw byte content of the string, or <c>null</c> if not a string or empty.</returns>
     public static ReadOnlyMemory<byte> AsStringBytes(this IPdfValue value)
     {
-        var stringValue = AsString(value);
+        PdfString stringValue = AsString(value);
 
         if (stringValue.IsEmpty)
         {
@@ -86,6 +86,7 @@ internal static class IPdfValueExtension
         {
             return realValue.Value;
         }
+
         return 0f;
     }
 
@@ -100,7 +101,7 @@ internal static class IPdfValueExtension
         {
             PdfValueType.Integer => value.AsInteger(),
             PdfValueType.Real => value.AsReal(),
-            _ => 0f,
+            _ => 0f
         };
     }
 
@@ -130,6 +131,7 @@ internal static class IPdfValueExtension
         {
             return arrayValue.Value;
         }
+
         return null;
     }
 
@@ -144,6 +146,7 @@ internal static class IPdfValueExtension
         {
             return dictionaryValue.Value;
         }
+
         return null;
     }
 
@@ -169,7 +172,7 @@ internal static class IPdfValueExtension
 
         var reference = (IPdfValue<PdfReference>)value;
 
-        var referencedObject = document.ObjectCache.GetObject(reference.Value);
+        PdfObject referencedObject = document.ObjectCache.GetObject(reference.Value);
 
         if (referencedObject == null)
         {

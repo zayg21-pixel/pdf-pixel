@@ -21,55 +21,112 @@ namespace PdfPixel.PostScript.Compiler
                 }
                 case "dup":
                 {
-                    if (!TryPopUnary(stack, out var x)) { return false; }
-                    stack.Push(x);
+                    if (!TryPopUnary(stack, out Expression x))
+                        {
+                            return false;
+                        }
+
+                        stack.Push(x);
                     stack.Push(x);
                     return true;
                 }
                 case "exch":
                 {
-                    if (!TryPopBinary(stack, out var a, out var b)) { return false; }
-                    stack.Push(b);
+                    if (!TryPopBinary(stack, out Expression a, out Expression b))
+                        {
+                            return false;
+                        }
+
+                        stack.Push(b);
                     stack.Push(a);
                     return true;
                 }
                 case "pop":
                 {
-                    if (stack.Count < 1) { return false; }
-                    stack.Pop();
+                    if (stack.Count < 1)
+                        {
+                            return false;
+                        }
+
+                        stack.Pop();
                     return true;
                 }
                 case "copy":
                 {
-                    if (!TryPopConstInt(stack, out int n)) { return false; }
-                    if (n < 0 || stack.Count < n) { return false; }
-                    var buffer = new List<Expression>(n);
-                    for (int i = 0; i < n; i++) { buffer.Add(stack.Pop()); }
-                    buffer.Reverse();
-                    for (int i = 0; i < buffer.Count; i++) { stack.Push(buffer[i]); }
-                    for (int i = 0; i < buffer.Count; i++) { stack.Push(buffer[i]); }
-                    return true;
+                    if (!TryPopConstInt(stack, out int n))
+                        {
+                            return false;
+                        }
+
+                        if (n < 0 || stack.Count < n)
+                        {
+                            return false;
+                        }
+
+                        List<Expression> buffer = new(n);
+                    for (int i = 0; i < n; i++)
+                        {
+                            buffer.Add(stack.Pop());
+                        }
+
+                        buffer.Reverse();
+                    for (int i = 0; i < buffer.Count; i++)
+                        {
+                            stack.Push(buffer[i]);
+                        }
+
+                        for (int i = 0; i < buffer.Count; i++)
+                        {
+                            stack.Push(buffer[i]);
+                        }
+
+                        return true;
                 }
                 case "roll":
                 {
-                    if (!TryPopConstInt(stack, out int j)) { return false; }
-                    if (!TryPopConstInt(stack, out int n)) { return false; }
-                    if (n <= 0 || stack.Count < n) { return false; }
-                    int normalized = ((j % n) + n) % n;
+                    if (!TryPopConstInt(stack, out int j))
+                        {
+                            return false;
+                        }
+
+                        if (!TryPopConstInt(stack, out int n))
+                        {
+                            return false;
+                        }
+
+                        if (n <= 0 || stack.Count < n)
+                        {
+                            return false;
+                        }
+
+                        int normalized = ((j % n) + n) % n;
                     var buffer = new Expression[n];
-                    for (int i = n - 1; i >= 0; i--) { buffer[i] = stack.Pop(); }
-                    for (int i = 0; i < n; i++)
+                    for (int i = n - 1; i >= 0; i--)
+                        {
+                            buffer[i] = stack.Pop();
+                        }
+
+                        for (int i = 0; i < n; i++)
                     {
                         int sourceIndex = (i + n - normalized) % n;
                         stack.Push(buffer[sourceIndex]);
                     }
+
                     return true;
                 }
                 case "index":
                 {
-                    if (!TryPopConstInt(stack, out int n)) { return false; }
-                    if (n < 0 || stack.Count <= n) { return false; }
-                    Expression[] arr = stack.ToArray();
+                    if (!TryPopConstInt(stack, out int n))
+                        {
+                            return false;
+                        }
+
+                        if (n < 0 || stack.Count <= n)
+                        {
+                            return false;
+                        }
+
+                        Expression[] arr = stack.ToArray();
                     Expression target = arr[n];
                     stack.Push(target);
                     return true;
@@ -82,15 +139,24 @@ namespace PdfPixel.PostScript.Compiler
         private static bool TryPopUnary(Stack<Expression> stack, out Expression x)
         {
             x = null;
-            if (stack.Count < 1) { return false; }
+            if (stack.Count < 1)
+            {
+                return false;
+            }
+
             x = stack.Pop();
             return true;
         }
 
         private static bool TryPopBinary(Stack<Expression> stack, out Expression a, out Expression b)
         {
-            a = null; b = null;
-            if (stack.Count < 2) { return false; }
+            a = null;
+            b = null;
+            if (stack.Count < 2)
+            {
+                return false;
+            }
+
             b = stack.Pop();
             a = stack.Pop();
             return true;
@@ -99,13 +165,18 @@ namespace PdfPixel.PostScript.Compiler
         private static bool TryPopConstInt(Stack<Expression> stack, out int value)
         {
             value = 0;
-            if (stack.Count < 1) { return false; }
-            var expr = stack.Pop();
+            if (stack.Count < 1)
+            {
+                return false;
+            }
+
+            Expression expr = stack.Pop();
             if (expr is ConstantExpression c && c.Type == typeof(float))
             {
                 value = (int)(float)c.Value;
                 return true;
             }
+
             return false;
         }
     }

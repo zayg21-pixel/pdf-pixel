@@ -10,7 +10,7 @@ namespace PdfPixel.Color.ColorSpace;
 internal sealed class CalGrayConverter : CalRgbConverter
 {
     public CalGrayConverter(float[] whitePoint, float[] blackPoint, float? gamma)
-        : base(whitePoint, blackPoint, gamma.HasValue ? [gamma.Value, gamma.Value, gamma.Value] : null, null)
+        : base(whitePoint, blackPoint, (gamma.HasValue) ? [gamma.Value, gamma.Value, gamma.Value] : null, null)
     {
     }
 
@@ -20,7 +20,11 @@ internal sealed class CalGrayConverter : CalRgbConverter
 
     protected override ColorTransformSampler GetRgbaSamplerCore(PdfRenderingIntent intent, IColorTransform postTransform)
     {
-        var toGrayChain = new ChainedColorTransform(new FunctionColorTransform(x => new Vector4(x.X, x.X, x.X, 1f)), ToSrgbTransform, postTransform, new FunctionColorTransform(x => new Vector4(x.X, x.X, x.X, 1f)));
+        ChainedColorTransform toGrayChain = new(
+            new FunctionColorTransform(x => new Vector4(x.X, x.X, x.X, 1f)),
+            ToSrgbTransform,
+            postTransform,
+            new FunctionColorTransform(x => new Vector4(x.X, x.X, x.X, 1f)));
         return new ColorTransformSampler(toGrayChain);
     }
 }

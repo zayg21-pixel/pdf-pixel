@@ -11,7 +11,7 @@ namespace PdfPixel.Forms;
 /// <summary>
 /// Represents a parsed PDF Form XObject with geometry, resources, transparency group, parent page, and original object.
 /// </summary>
-public class PdfForm
+public sealed class PdfForm
 {
     private PdfForm(
         SKMatrix matrix,
@@ -74,11 +74,11 @@ public class PdfForm
     /// <returns>A parsed <see cref="PdfForm"/> instance.</returns>
     internal static PdfForm FromXObject(PdfObject xObject, IPdfPageInternal page)
     {
-        var dict = xObject.Dictionary;
-        var matrixArray = dict.GetArray(PdfTokens.MatrixKey);
-        var bboxArray = dict.GetArray(PdfTokens.BBoxKey);
-        var groupDict = dict.GetDictionary(PdfTokens.GroupKey);
-        var resourcesDict = dict.GetDictionary(PdfTokens.ResourcesKey);
+        PdfDictionary dict = xObject.Dictionary;
+        PdfArray matrixArray = dict.GetArray(PdfTokens.MatrixKey);
+        PdfArray bboxArray = dict.GetArray(PdfTokens.BBoxKey);
+        PdfDictionary groupDict = dict.GetDictionary(PdfTokens.GroupKey);
+        PdfDictionary resourcesDict = dict.GetDictionary(PdfTokens.ResourcesKey);
 
         SKMatrix matrix = PdfLocationUtilities.CreateMatrix(matrixArray) ?? SKMatrix.Identity;
         SKRect bbox = PdfLocationUtilities.CreateBBox(bboxArray) ?? SKRect.Empty;
@@ -96,27 +96,18 @@ public class PdfForm
     /// Creates a <see cref="FormXObjectPageWrapper"/> for this form using the stored page and resources.
     /// </summary>
     /// <returns>A <see cref="FormXObjectPageWrapper"/> instance.</returns>
-    internal FormXObjectPageWrapper GetFormPage()
-    {
-        return new FormXObjectPageWrapper(Page, XObject);
-    }
+    internal FormXObjectPageWrapper GetFormPage() => new(Page, XObject);
 
     /// <summary>
     /// Returns the decoded form stream data as <see cref="ReadOnlyMemory{byte}"/>.
     /// </summary>
     /// <returns>The decoded form stream data.</returns>
-    public ReadOnlyMemory<byte> GetFormData()
-    {
-        return XObject.DecodeAsMemory();
-    }
+    public ReadOnlyMemory<byte> GetFormData() => XObject.DecodeAsMemory();
 
 
     /// <summary>
     /// Gets the bounding rectangle of the object after applying the current transformation matrix.
     /// </summary>
     /// <returns>A <see cref="SKRect"/> representing the transformed bounding rectangle.</returns>
-    public SKRect GetTransformedBounds()
-    {
-        return Matrix.MapRect(BBox);
-    }
+    public SKRect GetTransformedBounds() => Matrix.MapRect(BBox);
 }

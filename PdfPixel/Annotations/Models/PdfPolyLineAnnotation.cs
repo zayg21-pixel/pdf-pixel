@@ -23,7 +23,7 @@ public class PdfPolyLineAnnotation : PdfAnnotationBase
     public PdfPolyLineAnnotation(PdfObject annotationObject)
         : base(annotationObject, PdfAnnotationSubType.PolyLine)
     {
-        var vertices = annotationObject.Dictionary.GetArray(PdfTokens.VerticesKey)?.GetFloatArray();
+        float[]? vertices = annotationObject.Dictionary.GetArray(PdfTokens.VerticesKey)?.GetFloatArray();
 
         if (vertices != null)
         {
@@ -35,15 +35,15 @@ public class PdfPolyLineAnnotation : PdfAnnotationBase
             }
         }
 
-        var lineEndingArray = annotationObject.Dictionary.GetArray(PdfTokens.LineEndingKey);
-        if (lineEndingArray != null && lineEndingArray.Count >= 2)
+        PdfArray lineEndingArray = annotationObject.Dictionary.GetArray(PdfTokens.LineEndingKey);
+        if (lineEndingArray?.Count >= 2)
         {
             StartLineEnding = lineEndingArray.GetName(0).AsEnum<PdfLineEndingStyle>();
             EndLineEnding = lineEndingArray.GetName(1).AsEnum<PdfLineEndingStyle>();
         }
     }
 
-    protected override SKPoint ContentStart => Vertices != null && Vertices.Length > 0 ? Vertices[0] : base.ContentStart;
+    protected override SKPoint ContentStart => (Vertices?.Length > 0) ? Vertices[0] : base.ContentStart;
 
     /// <summary>
     /// Gets the vertices array containing coordinates of the polyline vertices.
@@ -67,10 +67,10 @@ public class PdfPolyLineAnnotation : PdfAnnotationBase
             return false;
         }
 
-        var lineColor = ResolveColor(page, SKColors.Black);
-        var lineWidth = BorderStyle?.Width ?? 1.0f;
+        SKColor lineColor = ResolveColor(page, SKColors.Black);
+        float lineWidth = BorderStyle?.Width ?? 1.0f;
 
-        using var path = new SKPath();
+        using SKPath path = new();
 
         path.MoveTo(Vertices[0]);
 
@@ -79,7 +79,7 @@ public class PdfPolyLineAnnotation : PdfAnnotationBase
             path.LineTo(Vertices[i]);
         }
 
-        var linePaint = new SKPaint
+        SKPaint linePaint = new()
         {
             Style = SKPaintStyle.Stroke,
             StrokeWidth = lineWidth,
@@ -93,7 +93,7 @@ public class PdfPolyLineAnnotation : PdfAnnotationBase
 
         processor.Process(new DrawPathCommand(path, linePaint));
 
-        var interiorSKColor = ResolveInteriorColor(page);
+        SKColor interiorSKColor = ResolveInteriorColor(page);
 
         if (StartLineEnding != PdfLineEndingStyle.None && Vertices.Length >= 4)
         {
@@ -134,7 +134,7 @@ public class PdfPolyLineAnnotation : PdfAnnotationBase
     /// <returns>A string containing the annotation type.</returns>
     public override string ToString()
     {
-        var contentsText = Contents.ToString();
+        string contentsText = Contents.ToString();
 
         if (!string.IsNullOrEmpty(contentsText))
         {

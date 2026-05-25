@@ -32,7 +32,7 @@ public sealed class ImageDecodingContext
     /// Used for cases such as pattern-layer masking, where the desired blend mode and fill colour
     /// differ from the original graphics state.
     /// </summary>
-    public ImageDecodingContext(ImageDecodingContext source, SKColor fillColor, float fillAlpha, SKBlendMode blendMode)
+    public ImageDecodingContext(ImageDecodingContext source, in SKColor fillColor, float fillAlpha, SKBlendMode blendMode)
     {
         FullTransferFunction = source.FullTransferFunction;
         DefaultTileSize = source.DefaultTileSize;

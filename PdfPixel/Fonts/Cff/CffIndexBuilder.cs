@@ -26,10 +26,7 @@ internal static class CffIndexBuilder
     /// Builds an empty CFF index.
     /// </summary>
     /// <returns>The byte array representing an empty CFF index.</returns>
-    public static byte[] BuildEmptyIndex()
-    {
-        return [0, 0];
-    }
+    public static byte[] BuildEmptyIndex() => [0, 0];
 
     /// <summary>
     /// Builds a CFF index for a single object.
@@ -39,9 +36,9 @@ internal static class CffIndexBuilder
     public static byte[] BuildSingleObjectIndex(byte[] data)
     {
         int endOffset = data.Length + 1; // First offset is always1.
-        byte offSize = endOffset <= 0xFF ? (byte)1 : endOffset <= 0xFFFF ? (byte)2 : endOffset <= 0xFFFFFF ? (byte)3 : (byte)4;
+        byte offSize = (endOffset <= 0xFF) ? (byte)1 : (endOffset <= 0xFFFF) ? (byte)2 : (endOffset <= 0xFFFFFF) ? (byte)3 : (byte)4;
 
-        using var ms = new MemoryStream();
+        using MemoryStream ms = new();
         ms.WriteByte(0); // count high byte (0 for1 object).
         ms.WriteByte(1); // count low byte.
         ms.WriteByte(offSize);
@@ -62,7 +59,7 @@ internal static class CffIndexBuilder
         for (int i = size - 1; i >= 0; i--)
         {
             int shift = i * 8;
-            byte b = (byte)((value >> shift) & 0xFF);
+            var b = (byte)((value >> shift) & 0xFF);
             s.WriteByte(b);
         }
     }
@@ -81,16 +78,17 @@ internal static class CffIndexBuilder
 
         int count = objects.Count;
         int currentOffset = 1; // First object offset is1 per CFF spec.
-        List<int> offsets = new List<int>(count + 1) { 1 };
+        List<int> offsets = new(count + 1) { 1 };
         foreach (byte[] obj in objects)
         {
             currentOffset += obj.Length;
             offsets.Add(currentOffset);
         }
-        int maxOffset = offsets[offsets.Count - 1];
-        byte offSize = maxOffset <= 0xFF ? (byte)1 : maxOffset <= 0xFFFF ? (byte)2 : maxOffset <= 0xFFFFFF ? (byte)3 : (byte)4;
 
-        using var ms = new MemoryStream();
+        int maxOffset = offsets[offsets.Count - 1];
+        byte offSize = (maxOffset <= 0xFF) ? (byte)1 : (maxOffset <= 0xFFFF) ? (byte)2 : (maxOffset <= 0xFFFFFF) ? (byte)3 : (byte)4;
+
+        using MemoryStream ms = new();
         ms.WriteByte((byte)(count >> 8));
         ms.WriteByte((byte)(count & 0xFF));
         ms.WriteByte(offSize);
@@ -98,10 +96,12 @@ internal static class CffIndexBuilder
         {
             WriteOffset(ms, offset, offSize);
         }
+
         foreach (byte[] obj in objects)
         {
             ms.Write(obj, 0, obj.Length);
         }
+
         return ms.ToArray();
     }
 }

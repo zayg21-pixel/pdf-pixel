@@ -18,7 +18,6 @@ public sealed class PdfShadingPattern : PdfPattern
     /// <summary>
     /// Initializes a new instance of the <see cref="PdfShadingPattern"/> class with the specified parameters.
     /// </summary>
-    /// <param name="page">The owning PDF page context.</param>
     /// <param name="sourceObject">The original source PDF object for the pattern.</param>
     /// <param name="shading">The shading object referenced by the pattern's /Shading entry.</param>
     /// <param name="matrix">The pattern transformation matrix.</param>
@@ -46,9 +45,9 @@ public sealed class PdfShadingPattern : PdfPattern
 
     internal override void RenderPattern(IPdfCommandProcessor processor, PdfGraphicsState state, IRenderTarget renderTarget)
     {
-        var matrix = SKMatrix.Concat(state.CTM.Invert(), PatternMatrix);
+        SKMatrix matrix = SKMatrix.Concat(state.CTM.Invert(), PatternMatrix);
 
-        var recorder = new PdfCommandRecorder();
+        PdfCommandRecorder recorder = new();
 
         recorder.Process(new SaveStateCommand());
         recorder.Process(new ConcatMatrixCommand(matrix));
@@ -60,17 +59,17 @@ public sealed class PdfShadingPattern : PdfPattern
 
         if (Shading.Background != null && Shading.BBox.HasValue)
         {
-            var colorSpace = state.Page.Cache.ColorSpace.ResolveByObject(Shading.ColorSpaceConverter);
-            var backgroundColor = colorSpace.ToSrgb(Shading.Background, state.RenderingIntent, state.FullTransferFunction);
-            var backgroundPaint = PdfPaintFactory.CreateBackgroundPaint(backgroundColor);
+            Color.ColorSpace.PdfColorSpaceConverter colorSpace = state.Page.Cache.ColorSpace.ResolveByObject(Shading.ColorSpaceConverter);
+            SKColor backgroundColor = colorSpace.ToSrgb(Shading.Background, state.RenderingIntent, state.FullTransferFunction);
+            SKPaint backgroundPaint = PdfPaintFactory.CreateBackgroundPaint(backgroundColor);
 
-            using var rectPath = new SKPath();
+            using SKPath rectPath = new();
             rectPath.AddRect(Shading.BBox.Value);
 
             recorder.Process(new DrawPathCommand(rectPath, backgroundPaint));
         }
 
-        var context = new ShadingDecodingContext(state, Shading);
+        ShadingDecodingContext context = new(state, Shading);
         recorder.Process(new PdfDrawShadingCommand(Shading, context, state.Page.Document.LoggerFactory));
 
         recorder.Process(new RestoreStateCommand());

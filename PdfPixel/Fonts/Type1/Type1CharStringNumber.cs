@@ -11,6 +11,7 @@ internal enum ValueOperation
     /// No operation defined.
     /// </summary>
     Undefined,
+
     /// <summary>
     /// Division operation.
     /// </summary>
@@ -77,16 +78,16 @@ internal struct Type1CharStringNumber
     /// <returns>A <see cref="Type1CharStringNumber"/> representing the value.</returns>
     public static Type1CharStringNumber FromDouble(double value)
     {
-        int roundedInteger = (int)Math.Round(value);
+        var roundedInteger = (int)Math.Round(value);
 
         if (Math.Abs(roundedInteger - value) < 1d / DecimalPrecisionFactor)
         {
             return new Type1CharStringNumber(roundedInteger);
         }
 
-        int scaledNumerator = (int)Math.Round(value * DecimalPrecisionFactor);
+        var scaledNumerator = (int)Math.Round(value * DecimalPrecisionFactor);
 
-        var result = new Type1CharStringNumber(scaledNumerator);
+        Type1CharStringNumber result = new(scaledNumerator);
         result.SetSecondValue(DecimalPrecisionFactor, ValueOperation.Div);
 
         return result;

@@ -17,10 +17,7 @@ internal sealed class IndexedColorTransform : IColorTransform
     public bool IsIdentity => false;
 
     // Receives Vector4 from ToVector4WithOnePadding; the index is in X.
-    public Vector4 Transform(Vector4 color)
-    {
-        return _palette[ClampIndex(color.X)];
-    }
+    public Vector4 Transform(Vector4 color) => _palette[ClampIndex(color.X)];
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private int ClampIndex(float rawIndex)
@@ -30,7 +27,7 @@ internal sealed class IndexedColorTransform : IColorTransform
             return 0;
         }
 
-        int idx = (int)rawIndex;
+        var idx = (int)rawIndex;
 
         if (idx < 0)
         {

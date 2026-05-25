@@ -5,23 +5,11 @@ using PdfPixel.Text;
 namespace PdfPixel.Functions;
 
 /// <summary>
-/// Enumerates supported PDF function types.
-/// </summary>
-public enum PdfFunctionType
-{
-    Unknown = -1,
-    Sampled = 0,
-    Exponential = 2,
-    Stitching = 3,
-    PostScript = 4
-}
-
-/// <summary>
 /// Abstract base class for all PDF function types. Provides evaluation interface and helpers.
 /// </summary>
 public abstract class PdfFunction
 {
-    public PdfFunction(float[] domain, float[] range)
+    protected PdfFunction(float[] domain, float[] range)
     {
         Domain = domain;
         Range = range;
@@ -63,12 +51,16 @@ public abstract class PdfFunction
         {
             case 0:
                 return PdfFunctionType.Sampled;
+
             case 2:
                 return PdfFunctionType.Exponential;
+
             case 3:
                 return PdfFunctionType.Stitching;
+
             case 4:
                 return PdfFunctionType.PostScript;
+
             default:
                 return PdfFunctionType.Unknown;
         }
@@ -79,7 +71,7 @@ public abstract class PdfFunction
     /// </summary>
     /// <param name="values">Input values to clamp.</param>
     /// <param name="range">Range span, as [min0, max0, min1, max1, ...].</param>
-    protected static void Clamp(Span<float> values, ReadOnlySpan<float> range)
+    protected static void Clamp(in Span<float> values, in ReadOnlySpan<float> range)
     {
         if (range.IsEmpty)
         {
@@ -90,7 +82,7 @@ public abstract class PdfFunction
         for (int i = 0; i < count; i++)
         {
             float min = range[i * 2];
-            float max = range[i * 2 + 1];
+            float max = range[(i * 2) + 1];
             values[i] = Math.Max(min, Math.Min(max, values[i]));
         }
     }
@@ -102,7 +94,7 @@ public abstract class PdfFunction
     /// <param name="range">Range span, as [min0, max0, min1, max1, ...].</param>
     /// <param name="index">Index of the min/max pair to use.</param>
     /// <returns>Clamped value.</returns>
-    protected static float Clamp(float value, ReadOnlySpan<float> range, int index)
+    protected static float Clamp(float value, in ReadOnlySpan<float> range, int index)
     {
         if (range.Length < (index + 1) * 2)
         {
@@ -110,7 +102,7 @@ public abstract class PdfFunction
         }
 
         float min = range[index * 2];
-        float max = range[index * 2 + 1];
+        float max = range[(index * 2) + 1];
         return Math.Max(min, Math.Min(max, value));
     }
 
@@ -133,13 +125,14 @@ public abstract class PdfFunction
 
         float start = domainStart;
         float end = domainEnd;
-        float[] points = new float[fallbackSamplesCount];
+        var points = new float[fallbackSamplesCount];
         float countMinusOne = fallbackSamplesCount - 1;
         for (int i = 0; i < fallbackSamplesCount; i++)
         {
             float t = i / countMinusOne;
-            points[i] = start + t * (end - start);
+            points[i] = start + (t * (end - start));
         }
+
         return points;
     }
 }

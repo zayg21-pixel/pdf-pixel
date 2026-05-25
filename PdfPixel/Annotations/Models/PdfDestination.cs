@@ -14,7 +14,7 @@ namespace PdfPixel.Annotations.Models;
 /// - A fit type (how to display the page)
 /// - Optional parameters for the fit type
 /// </remarks>
-public class PdfDestination
+public sealed class PdfDestination
 {
     private readonly IPdfDocumentInternal _document;
     private readonly PdfReference _pageReference;
@@ -27,8 +27,8 @@ public class PdfDestination
 
     private PdfDestination(
         IPdfDocumentInternal document,
-        PdfReference pageReference, 
-        int pageIndex, 
+        in PdfReference pageReference,
+        int pageIndex,
         PdfDestinationFitType fitType,
         float? left,
         float? bottom,
@@ -81,17 +81,12 @@ public class PdfDestination
 
         for (int pageIndex = 0; pageIndex < _document.Pages.Count; pageIndex++)
         {
-            var page = _document.Pages[pageIndex];
+            IPdfPageInternal page = _document.Pages[pageIndex];
             if (page.PageObject.Reference.Equals(_pageReference))
             {
                 _cachedPage = page;
                 break;
             }
-        }
-
-        if (_cachedPage == null)
-        {
-            return null;
         }
 
         return _cachedPage;
@@ -127,37 +122,45 @@ public class PdfDestination
         switch (FitType)
         {
             case PdfDestinationFitType.XYZ:
-                if (_left.HasValue || _top.HasValue)
                 {
-                    float left = _left ?? 0f;
-                    float top = _top ?? page.CropBox.Height;
-                    return SKRect.Create(left, top, 0, 0);
-                }
-                return null;
+                    if (_left.HasValue || _top.HasValue)
+                    {
+                        float left = _left ?? 0f;
+                        float top = _top ?? page.CropBox.Height;
+                        return SKRect.Create(left, top, 0, 0);
+                    }
 
+                    return null;
+                }
             case PdfDestinationFitType.FitH:
             case PdfDestinationFitType.FitBH:
-                if (_top.HasValue)
                 {
-                    return SKRect.Create(0, _top.Value, 0, 0);
-                }
-                return null;
+                    if (_top.HasValue)
+                    {
+                        return SKRect.Create(0, _top.Value, 0, 0);
+                    }
 
+                    return null;
+                }
             case PdfDestinationFitType.FitV:
             case PdfDestinationFitType.FitBV:
-                if (_left.HasValue)
                 {
-                    return SKRect.Create(_left.Value, 0, 0, 0);
-                }
-                return null;
+                    if (_left.HasValue)
+                    {
+                        return SKRect.Create(_left.Value, 0, 0, 0);
+                    }
 
+                    return null;
+                }
             case PdfDestinationFitType.FitR:
-                if (_left.HasValue && _bottom.HasValue && _right.HasValue && _top.HasValue)
                 {
-                    return new SKRect(_left.Value, _bottom.Value, _right.Value, _top.Value).Standardized;
-                }
-                return null;
+                    if (_left.HasValue && _bottom.HasValue && _right.HasValue && _top.HasValue)
+                    {
+                        return new SKRect(_left.Value, _bottom.Value, _right.Value, _top.Value).Standardized;
+                    }
 
+                    return null;
+                }
             case PdfDestinationFitType.Fit:
             case PdfDestinationFitType.FitB:
             default:
@@ -178,7 +181,7 @@ public class PdfDestination
             return null;
         }
 
-        var destinationArray = destination.AsArray();
+        PdfArray destinationArray = destination.AsArray();
 
         if (destinationArray != null)
         {
@@ -187,22 +190,22 @@ public class PdfDestination
 
         if (document != null && destination.Type == PdfValueType.String)
         {
-            var destName = destination.AsString();
+            PdfString destName = destination.AsString();
             if (document.NamedDestinations != null)
             {
-                var resolvedDest = document.NamedDestinations.GetValue(destName);
+                IPdfValue resolvedDest = document.NamedDestinations.GetValue(destName);
 
-                var resolvedDestArray = resolvedDest?.AsArray();
+                PdfArray? resolvedDestArray = resolvedDest?.AsArray();
                 if (resolvedDestArray != null)
                 {
                     return ParseExplicitDestination(resolvedDestArray, document);
                 }
 
-                var resolvedDestDictionary = resolvedDest?.AsDictionary();
+                PdfDictionary? resolvedDestDictionary = resolvedDest?.AsDictionary();
 
                 if (resolvedDestDictionary != null)
                 {
-                    var destArray = resolvedDestDictionary.GetArray(PdfTokens.DKey);
+                    PdfArray destArray = resolvedDestDictionary.GetArray(PdfTokens.DKey);
 
                     if (destArray != null)
                     {
@@ -222,11 +225,11 @@ public class PdfDestination
             return null;
         }
 
-        var pageValue = destArray.GetObject(0);
+        PdfObject pageValue = destArray.GetObject(0);
         PdfReference pageReference;
         int pageIndex = -1;
 
-        if (pageValue != null && pageValue.Reference.IsValid)
+        if (pageValue?.Reference.IsValid == true)
         {
             pageReference = pageValue.Reference;
         }
@@ -236,10 +239,10 @@ public class PdfDestination
             pageReference = default;
         }
 
-        PdfDestinationFitType fitType = PdfDestinationFitType.Unknown;
+        var fitType = PdfDestinationFitType.Unknown;
         if (destArray.Count > 1)
         {
-            var fitName = destArray.GetName(1);
+            PdfString fitName = destArray.GetName(1);
             fitType = fitName.AsEnum<PdfDestinationFitType>();
         }
 
@@ -252,43 +255,52 @@ public class PdfDestination
         switch (fitType)
         {
             case PdfDestinationFitType.XYZ:
-                if (destArray.Count >= 5)
                 {
-                    left = destArray.GetFloat(2);
-                    top = destArray.GetFloat(3);
-                    zoom = destArray.GetFloat(4);
-                    if (zoom.HasValue && zoom.Value == 0)
+                    if (destArray.Count >= 5)
                     {
-                        zoom = null;
+                        left = destArray.GetFloat(2);
+                        top = destArray.GetFloat(3);
+                        zoom = destArray.GetFloat(4);
+                        if (zoom == 0)
+                        {
+                            zoom = null;
+                        }
                     }
-                }
-                break;
 
+                    break;
+                }
             case PdfDestinationFitType.FitH:
             case PdfDestinationFitType.FitBH:
-                if (destArray.Count >= 3)
                 {
-                    top = destArray.GetFloat(2);
-                }
-                break;
+                    if (destArray.Count >= 3)
+                    {
+                        top = destArray.GetFloat(2);
+                    }
 
+                    break;
+                }
             case PdfDestinationFitType.FitV:
             case PdfDestinationFitType.FitBV:
-                if (destArray.Count >= 3)
                 {
-                    left = destArray.GetFloat(2);
-                }
-                break;
+                    if (destArray.Count >= 3)
+                    {
+                        left = destArray.GetFloat(2);
+                    }
 
-            case PdfDestinationFitType.FitR:
-                if (destArray.Count >= 6)
-                {
-                    left = destArray.GetFloat(2);
-                    bottom = destArray.GetFloat(3);
-                    right = destArray.GetFloat(4);
-                    top = destArray.GetFloat(5);
+                    break;
                 }
-                break;
+            case PdfDestinationFitType.FitR:
+                {
+                    if (destArray.Count >= 6)
+                    {
+                        left = destArray.GetFloat(2);
+                        bottom = destArray.GetFloat(3);
+                        right = destArray.GetFloat(4);
+                        top = destArray.GetFloat(5);
+                    }
+
+                    break;
+                }
         }
 
         return new PdfDestination(document, pageReference, pageIndex, fitType, left, bottom, right, top, zoom);

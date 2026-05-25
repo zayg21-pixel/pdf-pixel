@@ -39,14 +39,15 @@ namespace PdfPixel.Streams
         private int _bitCount;
 
         // Dictionary entries (index => byte sequence)
-        private readonly List<byte[]> _dictionary = new List<byte[]>(MaxDictionarySize);
+        private readonly List<byte[]> _dictionary = new(MaxDictionarySize);
         private byte[] _previousDecoded; // Last decoded sequence (for building new entries)
 
         // Output staging of current decoded sequence to satisfy caller Read requests.
-        private readonly List<byte> _outputBytes = new List<byte>();
+        private readonly List<byte> _outputBytes = [];
         private int _outputIndex;
 
         #region Stream overrides
+
         public override bool CanRead => true;
         public override bool CanSeek => false;
         public override bool CanWrite => false;
@@ -56,6 +57,7 @@ namespace PdfPixel.Streams
             get => throw new NotSupportedException();
             set => throw new NotSupportedException();
         }
+
         #endregion
 
         /// <summary>
@@ -70,6 +72,7 @@ namespace PdfPixel.Streams
             {
                 throw new ArgumentNullException(nameof(inner));
             }
+
             if (!inner.CanRead)
             {
                 throw new ArgumentException("Inner stream must be readable", nameof(inner));
@@ -108,6 +111,7 @@ namespace PdfPixel.Streams
             {
                 _dictionary.Add(new byte[] { (byte)i });
             }
+
             // Placeholders for control codes (never output directly)
             _dictionary.Add(Array.Empty<byte>()); //256 Clear
             _dictionary.Add(Array.Empty<byte>()); //257 EndOfData
@@ -124,10 +128,12 @@ namespace PdfPixel.Streams
             {
                 throw new ArgumentNullException(nameof(buffer));
             }
+
             if (offset < 0 || count < 0 || offset + count > buffer.Length)
             {
                 throw new ArgumentOutOfRangeException(nameof(offset));
             }
+
             if (count == 0)
             {
                 return 0;
@@ -157,9 +163,11 @@ namespace PdfPixel.Streams
                 {
                     buffer[offset + written + i] = _outputBytes[_outputIndex + i];
                 }
+
                 _outputIndex += toCopy;
                 written += toCopy;
             }
+
             return written;
         }
 
@@ -179,12 +187,14 @@ namespace PdfPixel.Streams
                     _endReached = true;
                     return false;
                 }
+
                 if (code == ClearCode)
                 {
                     // Reset dictionary without discarding any buffered bits
                     ResetDictionaryOnly();
                     continue; // Need next code after clear
                 }
+
                 if (code == EndOfDataCode)
                 {
                     _endReached = true;
@@ -192,7 +202,7 @@ namespace PdfPixel.Streams
                 }
 
                 byte[] decoded;
-                if (code < _dictionary.Count && _dictionary[code] != null && _dictionary[code].Length > 0)
+                if (code < _dictionary.Count && _dictionary[code]?.Length > 0)
                 {
                     decoded = _dictionary[code];
                 }
@@ -248,6 +258,7 @@ namespace PdfPixel.Streams
                 {
                     _outputBytes.Add(decoded[i]);
                 }
+
                 return _outputBytes.Count > 0;
             }
         }
@@ -255,7 +266,7 @@ namespace PdfPixel.Streams
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static byte[] ConcatPrevPlusByte(byte[] previous, byte next)
         {
-            byte[] combined = new byte[previous.Length + 1];
+            var combined = new byte[previous.Length + 1];
             Buffer.BlockCopy(previous, 0, combined, 0, previous.Length);
             combined[previous.Length] = next;
             return combined;
@@ -276,6 +287,7 @@ namespace PdfPixel.Streams
                 {
                     return -1;
                 }
+
                 _bitBuffer = (_bitBuffer << 8) | b;
                 _bitCount += 8;
             }
@@ -294,6 +306,7 @@ namespace PdfPixel.Streams
                 int remainingMask = (1 << _bitCount) - 1;
                 _bitBuffer &= remainingMask;
             }
+
             return code;
         }
 
@@ -301,20 +314,11 @@ namespace PdfPixel.Streams
         {
         }
 
-        public override long Seek(long offset, SeekOrigin origin)
-        {
-            throw new NotSupportedException();
-        }
+        public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
 
-        public override void SetLength(long value)
-        {
-            throw new NotSupportedException();
-        }
+        public override void SetLength(long value) => throw new NotSupportedException();
 
-        public override void Write(byte[] buffer, int offset, int count)
-        {
-            throw new NotSupportedException();
-        }
+        public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
 
         protected override void Dispose(bool disposing)
         {
@@ -322,6 +326,7 @@ namespace PdfPixel.Streams
             {
                 _inner.Dispose();
             }
+
             base.Dispose(disposing);
         }
     }

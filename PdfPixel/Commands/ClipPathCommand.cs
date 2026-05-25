@@ -33,8 +33,5 @@ public sealed class ClipPathCommand : PdfCommand
     }
 
     /// <inheritdoc />
-    protected override void Dispose(bool disposing)
-    {
-        _path.Dispose();
-    }
+    protected override void Dispose(bool disposing) => _path.Dispose();
 }

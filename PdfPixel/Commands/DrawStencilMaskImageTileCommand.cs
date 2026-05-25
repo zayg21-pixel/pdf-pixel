@@ -9,17 +9,17 @@ internal sealed class DrawStencilMaskImageTileCommand : PdfCommand
 {
     private readonly StencilMaskImageExecutionContext _context;
 
-    public DrawStencilMaskImageTileCommand(StencilMaskImageExecutionContext context)
-    {
-        _context = context;
-    }
+    public DrawStencilMaskImageTileCommand(StencilMaskImageExecutionContext context) => _context = context;
 
     public override bool IsScaleDependent => true;
 
     public override void Execute(SKCanvas canvas, IEnumerable<IPdfCommandModifier> modifiers, PdfCommandExecutionContext executionContext)
     {
         PdfImageTile tile = _context.TileCache.GetNextTile(executionContext.ExecutionObserver);
-        if (tile.IsSkipped) return;
+        if (tile.IsSkipped)
+        {
+            return;
+        }
 
         canvas.Save();
         canvas.Scale(1f / _context.ImageSize.Width, 1f / _context.ImageSize.Height);
@@ -34,4 +34,6 @@ internal sealed class DrawStencilMaskImageTileCommand : PdfCommand
 
         canvas.Restore();
     }
+
+    protected override void Dispose(bool disposing) => _context.Dispose();
 }

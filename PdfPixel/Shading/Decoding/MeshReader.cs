@@ -26,8 +26,8 @@ internal static class MeshReader
     {
         uint rawX = bitReader.ReadBits(bitsPerCoordinate);
         uint rawY = bitReader.ReadBits(bitsPerCoordinate);
-        float decodedX = xmin + rawX * xScale;
-        float decodedY = ymin + rawY * yScale;
+        float decodedX = xmin + (rawX * xScale);
+        float decodedY = ymin + (rawY * yScale);
         return new SKPoint(decodedX, decodedY);
     }
 
@@ -45,26 +45,27 @@ internal static class MeshReader
         {
             uint rawValue = bitReader.ReadBits(bitsPerComponent);
             ColorMinAndScale minAndScale = colorComponentMinAndScale[componentIndex];
-            float decoded = minAndScale.Min + rawValue * minAndScale.Scale;
+            float decoded = minAndScale.Min + (rawValue * minAndScale.Scale);
             components[componentIndex] = decoded;
         }
+
         return EvaluatePatchColor(components, functions, colorSampler);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static SKColor EvaluatePatchColor(
-        ReadOnlySpan<float> input,
+        in ReadOnlySpan<float> input,
         List<PdfFunction> functions,
         ColorTransformSampler colorSampler)
     {
-        if (functions != null && functions.Count > 0)
+        if (functions?.Count > 0)
         {
-            var evaluated = PdfFunctions.EvaluateColorFunctions(functions, input);
-            return PdfColorTransformUtilities.From01ToSkiaColor(colorSampler.Sample(evaluated));
+            ReadOnlySpan<float> evaluated = PdfFunctions.EvaluateColorFunctions(functions, input);
+            return colorSampler.Sample(evaluated).From01ToSkiaColor();
         }
         else
         {
-            return PdfColorTransformUtilities.From01ToSkiaColor(colorSampler.Sample(input));
+            return colorSampler.Sample(input).From01ToSkiaColor();
         }
     }
 }

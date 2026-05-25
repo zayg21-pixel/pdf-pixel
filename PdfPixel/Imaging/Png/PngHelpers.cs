@@ -40,11 +40,11 @@ namespace PdfPixel.Imaging.Png
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static void WriteIccpChunk(SKDynamicMemoryWStream stream, ReadOnlyMemory<byte> iccProfile)
+        public static void WriteIccpChunk(SKDynamicMemoryWStream stream, in ReadOnlyMemory<byte> iccProfile)
         {
             const string ProfileName = "ICC profile";
             byte[] nameBytes = Encoding.ASCII.GetBytes(ProfileName);
-            using var chunkData = new MemoryStream();
+            using MemoryStream chunkData = new();
             chunkData.Write(nameBytes, 0, nameBytes.Length);
             chunkData.WriteByte(0); // Null terminator
             chunkData.WriteByte(0); // Compression method: 0 = deflate
@@ -54,7 +54,7 @@ namespace PdfPixel.Imaging.Png
             chunkData.WriteByte(0x9C);
 
             // Compress the ICC profile using DeflateStream (raw DEFLATE, no zlib header)
-            using (var deflate = new DeflateStream(chunkData, CompressionLevel.Optimal, true))
+            using (DeflateStream deflate = new(chunkData, CompressionLevel.Optimal, true))
             {
 #if NET8_0_OR_GREATER || NETSTANDARD2_1_OR_GREATER
                 deflate.Write(iccProfile.Span);
@@ -71,20 +71,21 @@ namespace PdfPixel.Imaging.Png
         public static void WritePlteChunk(SKDynamicMemoryWStream stream, RgbaPacked[] palette)
         {
             int count = palette.Length;
-            byte[] plte = new byte[count * 3];
+            var plte = new byte[count * 3];
             for (int i = 0; i < count; i++)
             {
-                plte[i * 3 + 0] = palette[i].R;
-                plte[i * 3 + 1] = palette[i].G;
-                plte[i * 3 + 2] = palette[i].B;
+                plte[(i * 3) + 0] = palette[i].R;
+                plte[(i * 3) + 1] = palette[i].G;
+                plte[(i * 3) + 2] = palette[i].B;
             }
+
             WriteChunk(stream, "PLTE", plte, plte.Length);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void WriteIhdrChunk(SKDynamicMemoryWStream stream, int width, int height, byte bitDepth, byte colorType)
         {
-            byte[] ihdr = new byte[13];
+            var ihdr = new byte[13];
             WriteInt32BigEndian(ihdr, 0, width);
             WriteInt32BigEndian(ihdr, 4, height);
             ihdr[8] = bitDepth;
@@ -102,6 +103,7 @@ namespace PdfPixel.Imaging.Png
             {
                 throw new ArgumentException("PNG chunk type must be 4 characters.", nameof(type));
             }
+
             WriteInt32BigEndian(stream, dataLength);
             byte[] typeBytes =
             [
@@ -127,14 +129,14 @@ namespace PdfPixel.Imaging.Png
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void CompleteChunk(SKDynamicMemoryWStream stream, Crc32 crc32)
         {
-            var uint32Hash = crc32.GetCurrentHashAsUInt32();
+            uint uint32Hash = crc32.GetCurrentHashAsUInt32();
             WriteUInt32BigEndian(stream, uint32Hash);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void WriteChunk(SKDynamicMemoryWStream stream, string type, byte[] data, int length)
         {
-            Crc32 crc32 = new Crc32();
+            Crc32 crc32 = new();
             WriteChunkHeader(stream, type, length, crc32);
             WriteChunkData(stream, data, length, crc32);
             CompleteChunk(stream, crc32);
@@ -180,10 +182,11 @@ namespace PdfPixel.Imaging.Png
             {
                 throw new ArgumentException("Block header must be a 5-byte array.", nameof(block));
             }
+
             block[0] = isFinal ? (byte)1 : (byte)0;
             block[1] = (byte)(blockSize & 0xFF);
             block[2] = (byte)((blockSize >> 8) & 0xFF);
-            ushort nlen = (ushort)~blockSize;
+            var nlen = (ushort)~blockSize;
             block[3] = (byte)(nlen & 0xFF);
             block[4] = (byte)((nlen >> 8) & 0xFF);
         }

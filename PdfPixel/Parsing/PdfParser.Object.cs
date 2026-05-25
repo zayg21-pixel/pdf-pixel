@@ -4,7 +4,7 @@ using PdfPixel.Text;
 
 namespace PdfPixel.Parsing;
 
-partial struct PdfParser
+internal partial struct PdfParser
 {
     /// <summary>
     /// Reads and parses the next object from the PDF content stream.
@@ -25,9 +25,9 @@ partial struct PdfParser
             return null;
         }
 
-        uint objectNumber = (uint)first.AsInteger();
+        var objectNumber = (uint)first.AsInteger();
         int generation = second.AsInteger();
-        var reference = new PdfReference(objectNumber, generation);
+        PdfReference reference = new(objectNumber, generation);
         _currentReference = reference;
 
         IPdfValue value = ReadNextValue();
@@ -39,14 +39,14 @@ partial struct PdfParser
             return null;
         }
 
-        var pdfObject = new PdfObject(reference, _document, value);
+        PdfObject pdfObject = new(reference, _document, value);
 
         int preStreamPos = Position;
         IPdfValue possibleStreamOp = ReadNextValue();
 
         if (possibleStreamOp.AsString() == PdfTokens.Stream)
         {
-            var dict = value.AsDictionary();
+            PdfDictionary dict = value.AsDictionary();
             if (dict == null)
             {
                 Position = preStreamPos;
@@ -65,7 +65,7 @@ partial struct PdfParser
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private PdfObjectStreamReference? ReadRawStreamReference(PdfDictionary dict, PdfReference reference)
+    private PdfObjectStreamReference? ReadRawStreamReference(PdfDictionary dict, in PdfReference reference)
     {
         if (dict == null)
         {

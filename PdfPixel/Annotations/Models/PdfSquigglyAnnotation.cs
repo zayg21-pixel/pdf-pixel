@@ -25,25 +25,25 @@ public class PdfSquigglyAnnotation : PdfTextMarkupAnnotation
 
     internal override bool RenderFallback(IPdfCommandProcessor processor, IPdfPageInternal page, PdfAnnotationVisualStateKind visualStateKind, PdfRenderingParameters renderingParameters)
     {
-        var quads = Quadrilaterals;
+        SKPoint[][] quads = Quadrilaterals;
         if (quads.Length == 0)
         {
             return false;
         }
 
-        var color = ResolveColor(page, SKColors.Red);
+        SKColor color = ResolveColor(page, SKColors.Red);
 
-        foreach (var quad in quads)
+        foreach (SKPoint[] quad in quads)
         {
-            var startX = quad[0].X;
-            var startY = quad[0].Y;
-            var endX = quad[1].X;
-            var endY = quad[1].Y;
+            float startX = quad[0].X;
+            float startY = quad[0].Y;
+            float endX = quad[1].X;
+            float endY = quad[1].Y;
 
-            using var path = new SKPath();
+            using SKPath path = new();
             DrawSquigglyLine(path, startX, startY, endX, endY);
 
-            var paint = new SKPaint
+            SKPaint paint = new()
             {
                 Style = SKPaintStyle.Stroke,
                 StrokeWidth = 1.0f,
@@ -60,8 +60,8 @@ public class PdfSquigglyAnnotation : PdfTextMarkupAnnotation
     private static void DrawSquigglyLine(SKPath path, float startX, float startY, float endX, float endY)
     {
         var length = (float)Math.Sqrt(Math.Pow(endX - startX, 2) + Math.Pow(endY - startY, 2));
-        var waveHeight = 2.0f;
-        var waveLength = 4.0f;
+        const float waveHeight = 2.0f;
+        const float waveLength = 4.0f;
         var waveCount = (int)(length / waveLength);
 
         if (waveCount < 1)
@@ -71,25 +71,25 @@ public class PdfSquigglyAnnotation : PdfTextMarkupAnnotation
             return;
         }
 
-        var dx = (endX - startX) / length;
-        var dy = (endY - startY) / length;
+        float dx = (endX - startX) / length;
+        float dy = (endY - startY) / length;
 
-        var perpDx = -dy;
-        var perpDy = dx;
+        float perpDx = -dy;
+        float perpDy = dx;
 
         path.MoveTo(startX, startY);
 
         for (int i = 0; i < waveCount; i++)
         {
-            var t1 = (i + 0.5f) * waveLength;
-            var t2 = (i + 1.0f) * waveLength;
+            float t1 = (i + 0.5f) * waveLength;
+            float t2 = (i + 1.0f) * waveLength;
 
-            var x1 = startX + dx * t1;
-            var y1 = startY + dy * t1;
-            var x2 = startX + dx * t2;
-            var y2 = startY + dy * t2;
+            float x1 = startX + (dx * t1);
+            float y1 = startY + (dy * t1);
+            float x2 = startX + (dx * t2);
+            float y2 = startY + (dy * t2);
 
-            var offsetSign = (i % 2 == 0) ? 1 : -1;
+            int offsetSign = (i % 2 == 0) ? 1 : -1;
             x1 += perpDx * waveHeight * offsetSign;
             y1 += perpDy * waveHeight * offsetSign;
 
@@ -109,7 +109,7 @@ public class PdfSquigglyAnnotation : PdfTextMarkupAnnotation
     /// <returns>A string containing the annotation type.</returns>
     public override string ToString()
     {
-        var contentsText = Contents.ToString();
+        string contentsText = Contents.ToString();
 
         if (!string.IsNullOrEmpty(contentsText))
         {

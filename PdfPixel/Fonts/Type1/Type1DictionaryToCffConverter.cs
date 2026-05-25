@@ -22,6 +22,7 @@ internal static class Type1DictionaryToCffConverter
         {
             return null;
         }
+
         if (descriptor == null)
         {
             return null;
@@ -37,12 +38,13 @@ internal static class Type1DictionaryToCffConverter
         {
             fontName = descriptor.FontName.ToString();
         }
+
         if (string.IsNullOrEmpty(fontName))
         {
             fontName = "UnnamedFont";
         }
 
-        var parameters = new Type1ConverterContext
+        Type1ConverterContext parameters = new()
         {
             Source = type1CharStrings,
             LocalSubrs = type1Subrs
@@ -52,7 +54,7 @@ internal static class Type1DictionaryToCffConverter
 
         PdfString[] encodingVector = Type1FontDictionaryUtilities.GetEncodingVector(fontDictionary) ?? Array.Empty<PdfString>();
 
-        var glyphCollections = BuildGlyphCollections(type2CharStrings);
+        GlyphCollections glyphCollections = BuildGlyphCollections(type2CharStrings);
         List<byte[]> orderedCharStrings = glyphCollections.OrderedCharStrings;
         ushort[] sids = glyphCollections.Sids;
         List<byte[]> customStrings = glyphCollections.CustomStrings;
@@ -97,10 +99,11 @@ internal static class Type1DictionaryToCffConverter
                 topDictIndexSize = newSize;
                 break;
             }
+
             topDictIndexSize = newSize;
         }
 
-        using var ms = new MemoryStream();
+        using MemoryStream ms = new();
         ms.Write(header, 0, header.Length);
         ms.Write(nameIndex, 0, nameIndex.Length);
         ms.Write(topDictIndex, 0, topDictIndex.Length);
@@ -110,7 +113,7 @@ internal static class Type1DictionaryToCffConverter
         ms.Write(charsetData, 0, charsetData.Length);
         ms.Write(charStringsIndex, 0, charStringsIndex.Length);
 
-        var cffInfo = new CffInfo
+        CffInfo cffInfo = new()
         {
             NameToGid = nameToGid,
             GidToSid = sids,
@@ -126,13 +129,13 @@ internal static class Type1DictionaryToCffConverter
 
     private static GlyphCollections BuildGlyphCollections(Dictionary<PdfString, byte[]> convertedType2CharStrings)
     {
-        var orderedCharStrings = new List<byte[]>(convertedType2CharStrings.Count);
+        List<byte[]> orderedCharStrings = new(convertedType2CharStrings.Count);
         var sids = new ushort[convertedType2CharStrings.Count];
-        var customStrings = new List<byte[]>(convertedType2CharStrings.Count);
-        var nameToGid = new Dictionary<PdfString, ushort>(convertedType2CharStrings.Count);
+        List<byte[]> customStrings = new(convertedType2CharStrings.Count);
+        Dictionary<PdfString, ushort> nameToGid = new(convertedType2CharStrings.Count);
         ushort nextSid = FirstCustomSid;
         int gid = 0;
-        foreach (var kvp in convertedType2CharStrings)
+        foreach (KeyValuePair<PdfString, byte[]> kvp in convertedType2CharStrings)
         {
             PdfString name = kvp.Key;
             byte[] program = kvp.Value;
@@ -147,9 +150,11 @@ internal static class Type1DictionaryToCffConverter
                 customStrings.Add(name.Value.ToArray());
                 nextSid++;
             }
+
             nameToGid[name] = (ushort)gid;
             gid++;
         }
+
         return new GlyphCollections
         {
             OrderedCharStrings = orderedCharStrings,
@@ -163,16 +168,18 @@ internal static class Type1DictionaryToCffConverter
     {
         if (glyphCount <= 1)
         {
-            return [0, 0]; // Format0, nCodes =0.
+            return new byte[] { 0, 0 }; // Format0, nCodes =0.
         }
+
         int codeCount = glyphCount - 1; // Number of codes actually stored (exclude code0).
-        using var ms = new MemoryStream();
+        using MemoryStream ms = new();
         ms.WriteByte(0); // format0.
         ms.WriteByte((byte)codeCount);
         for (int code = 1; code < glyphCount; code++)
         {
             ms.WriteByte((byte)code);
         }
+
         return ms.ToArray();
     }
 
@@ -180,9 +187,10 @@ internal static class Type1DictionaryToCffConverter
     {
         if (sids == null || sids.Length <= 1)
         {
-            return [0];
+            return new byte[] { 0 };
         }
-        using var ms = new MemoryStream();
+
+        using MemoryStream ms = new();
         ms.WriteByte(0); // format0.
         for (int gid = 1; gid < sids.Length; gid++)
         {
@@ -190,6 +198,7 @@ internal static class Type1DictionaryToCffConverter
             ms.WriteByte((byte)(sid >> 8));
             ms.WriteByte((byte)(sid & 0xFF));
         }
+
         return ms.ToArray();
     }
 
@@ -202,13 +211,14 @@ internal static class Type1DictionaryToCffConverter
         int privateSize,
         int privateOffset)
     {
-        using var ms = new MemoryStream();
+        using MemoryStream ms = new();
 
         // FontBBox
         for (int i = 0; i < 4; i++)
         {
             CffNumberConverter.EncodeDictFloat(ms, fontBBox[i]);
         }
+
         ms.WriteByte(5);
 
         // FontMatrix
@@ -216,6 +226,7 @@ internal static class Type1DictionaryToCffConverter
         {
             CffNumberConverter.EncodeDictFloat(ms, fontMatrix[i]);
         }
+
         ms.WriteByte(12);
         ms.WriteByte(7);
 

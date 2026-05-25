@@ -9,26 +9,19 @@ namespace PdfPixel.PostScript.Tokens
     /// </summary>
     public sealed class PostScriptProcedure : PostScriptToken, IPostScriptCollection
     {
-        public PostScriptProcedure(List<PostScriptToken> tokens)
-        {
-            Tokens = tokens;
-        }
+        public PostScriptProcedure(List<PostScriptToken> tokens) => Tokens = tokens;
+
         public List<PostScriptToken> Tokens { get; }
 
         public IReadOnlyList<PostScriptToken> Items => Tokens;
 
         public override string ToString()
         {
-            int count = Tokens == null ?0 : Tokens.Count;
+            int count = (Tokens?.Count) ?? 0;
             return "Procedure(count=" + count + ", access=" + AccessLevel + ")";
         }
-        public override bool EqualsToken(PostScriptToken other)
-        {
-            return ReferenceEquals(this, other);
-        }
-        public override int GetHashCode()
-        {
-            return RuntimeHelpers.GetHashCode(this);
-        }
+
+        public override bool EqualsToken(PostScriptToken other) => ReferenceEquals(this, other);
+        public override int GetHashCode() => RuntimeHelpers.GetHashCode(this);
     }
 }
