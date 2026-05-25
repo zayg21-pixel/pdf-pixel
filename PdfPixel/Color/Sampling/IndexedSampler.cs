@@ -1,29 +1,25 @@
-using System;
 using System.Numerics;
 using System.Runtime.CompilerServices;
 
-namespace PdfPixel.Color.Sampling;
+namespace PdfPixel.Color.Transform;
 
-internal sealed class IndexedSampler : IRgbaSampler
+internal sealed class IndexedColorTransform : IColorTransform
 {
     private readonly Vector4[] _palette;
     private readonly int _highValue;
 
-    public IndexedSampler(Vector4[] palette, int highValue)
+    public IndexedColorTransform(Vector4[] palette, int highValue)
     {
         _palette = palette;
         _highValue = highValue;
     }
 
-    public Vector4 Sample(ReadOnlySpan<float> source)
-    {
-        int idx = 0;
-        if (source.Length > 0)
-        {
-            idx = ClampIndex(source[0]);
-        }
+    public bool IsIdentity => false;
 
-        return _palette[idx];
+    // Receives Vector4 from ToVector4WithOnePadding; the index is in X.
+    public Vector4 Transform(Vector4 color)
+    {
+        return _palette[ClampIndex(color.X)];
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -48,5 +44,4 @@ internal sealed class IndexedSampler : IRgbaSampler
 
         return idx;
     }
-
 }

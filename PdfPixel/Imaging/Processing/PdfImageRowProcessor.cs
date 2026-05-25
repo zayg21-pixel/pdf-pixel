@@ -32,7 +32,7 @@ internal sealed class PdfImageRowProcessor : IDisposable
     private readonly OutputMode _outputMode;
     private readonly PngImageBuilder _pngBuilder;
 
-    private readonly IRgbaSampler _sampler;
+    private readonly ColorTransformSampler _sampler;
     private byte[] _rgbaBuffer;
     private bool _initialized;
     private bool _completed;

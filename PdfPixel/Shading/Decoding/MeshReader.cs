@@ -38,7 +38,7 @@ internal static class MeshReader
         ColorMinAndScale[] colorComponentMinAndScale,
         int numColorComponents,
         List<PdfFunction> functions,
-        IRgbaSampler colorSampler)
+        ColorTransformSampler colorSampler)
     {
         var components = new float[numColorComponents];
         for (int componentIndex = 0; componentIndex < numColorComponents; componentIndex++)
@@ -55,7 +55,7 @@ internal static class MeshReader
     public static SKColor EvaluatePatchColor(
         ReadOnlySpan<float> input,
         List<PdfFunction> functions,
-        IRgbaSampler colorSampler)
+        ColorTransformSampler colorSampler)
     {
         if (functions != null && functions.Count > 0)
         {

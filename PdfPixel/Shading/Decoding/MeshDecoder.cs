@@ -18,7 +18,7 @@ namespace PdfPixel.Shading.Decoding;
 class MeshDecoder
 {
     private readonly PdfShading _shading;
-    private readonly IRgbaSampler _sampler;
+    private readonly ColorTransformSampler _sampler;
     private readonly int _bitsPerFlag;
     private readonly int _bitsPerCoordinate;
     private readonly int _bitsPerComponent;
@@ -31,7 +31,7 @@ class MeshDecoder
     private readonly float _yScale;
     private readonly ColorMinAndScale[] _colorComponentMinAndScale;
 
-    public MeshDecoder(PdfShading shading, IRgbaSampler sampler)
+    public MeshDecoder(PdfShading shading, ColorTransformSampler sampler)
     {
         if (shading.ShadingType != PdfShadingType.CoonsPatchMesh &&  shading.ShadingType != PdfShadingType.TensorProductPatchMesh)
         {

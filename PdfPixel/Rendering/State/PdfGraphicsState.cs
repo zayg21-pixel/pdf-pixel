@@ -26,8 +26,8 @@ namespace PdfPixel.Rendering.State
     /// </summary>
     public class PdfGraphicsState
     {
-        private IRgbaSampler _fillRgbaSampler;
-        private IRgbaSampler _strokeRgbaSampler;
+        private ColorTransformSampler _fillRgbaSampler;
+        private ColorTransformSampler _strokeRgbaSampler;
         private IColorTransform _fullTransferFunction;
 
         private PdfRenderingIntent _renderingIntent = PdfRenderingIntent.RelativeColorimetric;
@@ -83,9 +83,9 @@ namespace PdfPixel.Rendering.State
         public PdfPaint FillPaint { get; set; } = PdfPaint.Solid(SKColors.Black);
 
         /// <summary>
-        /// Gets the IRgbaSampler for fill operations, cached and invalidated as needed.
+        /// Gets the ColorTransformSampler for fill operations, cached and invalidated as needed.
         /// </summary>
-        public IRgbaSampler FillRgbaSampler
+        public ColorTransformSampler FillRgbaSampler
         {
             get
             {
@@ -96,9 +96,9 @@ namespace PdfPixel.Rendering.State
         }
 
         /// <summary>
-        /// Gets the IRgbaSampler for stroke operations, cached and invalidated as needed.
+        /// Gets the ColorTransformSampler for stroke operations, cached and invalidated as needed.
         /// </summary>
-        public IRgbaSampler StrokeRgbaSampler
+        public ColorTransformSampler StrokeRgbaSampler
         {
             get
             {

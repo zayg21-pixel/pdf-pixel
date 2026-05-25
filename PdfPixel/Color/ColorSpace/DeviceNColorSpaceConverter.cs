@@ -29,13 +29,15 @@ internal sealed class DeviceNColorSpaceConverter : PdfColorSpaceConverter
 
     public override bool IsDevice => false;
 
-    protected override IRgbaSampler GetRgbaSamplerCore(PdfRenderingIntent intent, IColorTransform postTransform)
+    protected override ColorTransformSampler GetRgbaSamplerCore(PdfRenderingIntent intent, IColorTransform postTransform)
     {
+        var alternateSampler = _alternate.GetRgbaSampler(intent, postTransform);
+
         if (_tintFunction == null)
         {
-            return _alternate.GetRgbaSampler(intent, postTransform);
+            return alternateSampler;
         }
 
-        return new FunctionSampler(_tintFunction, _alternate.GetRgbaSampler(intent, postTransform));
+        return new ColorTransformSampler(alternateSampler.ColorTransform, _tintFunction.Evaluate);
     }
 }

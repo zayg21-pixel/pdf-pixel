@@ -27,7 +27,7 @@ internal sealed class SeparationColorSpaceConverter : PdfColorSpaceConverter
 
     public override bool IsDevice => false;
 
-    protected override IRgbaSampler GetRgbaSamplerCore(PdfRenderingIntent intent, IColorTransform postTransform)
+    protected override ColorTransformSampler GetRgbaSamplerCore(PdfRenderingIntent intent, IColorTransform postTransform)
     {
         var alternateSampler = _alternate.GetRgbaSampler(intent, postTransform);
 
@@ -36,6 +36,6 @@ internal sealed class SeparationColorSpaceConverter : PdfColorSpaceConverter
             return alternateSampler;
         }
 
-        return new FunctionSampler(_tintFunction, _alternate.GetRgbaSampler(intent, postTransform));
+        return new ColorTransformSampler(alternateSampler.ColorTransform, _tintFunction.Evaluate);
     }
 }

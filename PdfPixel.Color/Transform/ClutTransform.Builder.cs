@@ -14,7 +14,7 @@ public sealed partial class ClutTransform
     /// <param name="outChannels">Number of output channels (1-4 supported, typically 3 for RGB or 4 for CMYK).</param>
     /// <param name="gridPointsPerDimension">Array specifying grid points per input dimension.</param>
     /// <returns>A new <see cref="ClutTransform"/> instance containing the sampled CLUT, or null if sampler is null.</returns>
-    public static ClutTransform Build(IRgbaSampler sampler, int outChannels, int[] gridPointsPerDimension)
+    public static ClutTransform Build(ColorTransformSampler sampler, int outChannels, int[] gridPointsPerDimension)
     {
         if (sampler == null)
         {
@@ -61,7 +61,7 @@ public sealed partial class ClutTransform
     /// <param name="inputDimensions">Number of input dimensions (e.g., 3 for RGB, 4 for CMYK).</param>
     /// <param name="gridSize">Number of grid points per dimension (e.g., 16 for a 16x16x16 LUT).</param>
     /// <returns>A new <see cref="ClutTransform"/> instance containing the sampled CLUT, or null if sampler is null.</returns>
-    public static ClutTransform Build(IRgbaSampler sampler, int outChannels, int inputDimensions, int gridSize = 16)
+    public static ClutTransform Build(ColorTransformSampler sampler, int outChannels, int inputDimensions, int gridSize = 16)
     {
         if (sampler == null)
         {
@@ -97,7 +97,7 @@ public sealed partial class ClutTransform
     /// Recursively samples the grid points for CLUT construction.
     /// </summary>
     private static void SampleGridRecursive(int[] gridPointsPerDimension, float[] input, int dimension, 
-        IRgbaSampler sampler, int outChannels, float[] clut, ref int writeIndex)
+        ColorTransformSampler sampler, int outChannels, float[] clut, ref int writeIndex)
     {
         if (dimension >= gridPointsPerDimension.Length)
         {

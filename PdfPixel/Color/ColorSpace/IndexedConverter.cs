@@ -71,14 +71,14 @@ internal sealed partial class IndexedConverter : PdfColorSpaceConverter
         var packedPalette = new RgbaPacked[paletteSize];
         for (int i = 0; i < paletteSize; i++)
         {
-            
+
             packedPalette[i] = ColorVectorUtilities.From01ToRgba(palette[i]);
         }
         return packedPalette;
     }
 
-    protected override IRgbaSampler GetRgbaSamplerCore(PdfRenderingIntent intent, IColorTransform postTransform)
+    protected override ColorTransformSampler GetRgbaSamplerCore(PdfRenderingIntent intent, IColorTransform postTransform)
     {
-        return new IndexedSampler(BuildPalette(intent, postTransform), _hiVal);
+        return new ColorTransformSampler(new ChainedColorTransform(new IndexedColorTransform(BuildPalette(intent, postTransform), _hiVal)));
     }
 }

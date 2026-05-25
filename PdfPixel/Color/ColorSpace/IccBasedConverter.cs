@@ -56,7 +56,7 @@ internal sealed class IccBasedConverter : PdfColorSpaceConverter
 
     public int N { get; }
 
-    protected override IRgbaSampler GetRgbaSamplerCore(PdfRenderingIntent intent, IColorTransform postTransform)
+    protected override ColorTransformSampler GetRgbaSamplerCore(PdfRenderingIntent intent, IColorTransform postTransform)
     {
         if (_useDefault)
         {

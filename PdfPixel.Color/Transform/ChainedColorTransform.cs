@@ -54,6 +54,11 @@ public sealed class ChainedColorTransform : IColorTransform
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public Vector4 Transform(Vector4 color)
     {
+        if (_isIdentity)
+        {
+            return color;
+        }
+
         return _compiled(color);
     }
 

@@ -17,7 +17,7 @@ namespace PdfPixel.Shading.Decoding;
 class GouraudMeshDecoder
 {
     private readonly PdfShading _shading;
-    private readonly IRgbaSampler _sampler;
+    private readonly ColorTransformSampler _sampler;
     private readonly int _bitsPerFlag;
     private readonly int _bitsPerCoordinate;
     private readonly int _bitsPerComponent;
@@ -29,7 +29,7 @@ class GouraudMeshDecoder
     private readonly ColorMinAndScale[] _colorComponentMinAndScale;
     private readonly int _verticesPerRow;
 
-    public GouraudMeshDecoder(PdfShading shading, IRgbaSampler sampler)
+    public GouraudMeshDecoder(PdfShading shading, ColorTransformSampler sampler)
     {
         if (shading.ShadingType != PdfShadingType.FreeFormGouraud && shading.ShadingType != PdfShadingType.LatticeFormGouraud)
         {

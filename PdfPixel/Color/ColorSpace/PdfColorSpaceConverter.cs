@@ -12,9 +12,9 @@ namespace PdfPixel.Color.ColorSpace;
 public abstract class PdfColorSpaceConverter
 {
 #if !NETSTANDARD2_0
-    private readonly IRgbaSampler[] _colorSamplers = new IRgbaSampler[Enum.GetValues<PdfRenderingIntent>().Length];
+    private readonly ColorTransformSampler[] _colorSamplers = new ColorTransformSampler[Enum.GetValues<PdfRenderingIntent>().Length];
 #else
-    private readonly IRgbaSampler[] _colorSamplers = new IRgbaSampler[Enum.GetValues(typeof(PdfRenderingIntent)).Length];
+    private readonly ColorTransformSampler[] _colorSamplers = new ColorTransformSampler[Enum.GetValues(typeof(PdfRenderingIntent)).Length];
 #endif
 
     /// <summary>
@@ -46,9 +46,9 @@ public abstract class PdfColorSpaceConverter
     /// <param name="intent">Rendering intent.</param>
     /// <param name="postTransform">Post color transform (if defined).</param>
     /// <returns>Sampler value.</returns>
-    public IRgbaSampler GetRgbaSampler(PdfRenderingIntent intent, IColorTransform postTransform)
+    public ColorTransformSampler GetRgbaSampler(PdfRenderingIntent intent, IColorTransform postTransform)
     {
-        if (postTransform == null && _colorSamplers[(int)intent] is IRgbaSampler sampler)
+        if (postTransform == null && _colorSamplers[(int)intent] is ColorTransformSampler sampler)
         {
             return sampler;
         }
@@ -71,5 +71,5 @@ public abstract class PdfColorSpaceConverter
     /// <param name="intent">Rendering intent.</param>
     /// <param name="postTransform">Post color transform (if defined).</param>
     /// <returns>RGBA sampler.</returns>
-    protected abstract IRgbaSampler GetRgbaSamplerCore(PdfRenderingIntent intent, IColorTransform postTransform);
+    protected abstract ColorTransformSampler GetRgbaSamplerCore(PdfRenderingIntent intent, IColorTransform postTransform);
 }

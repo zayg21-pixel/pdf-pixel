@@ -1,5 +1,4 @@
-﻿using PdfPixel.Color.Sampling;
-using PdfPixel.Color.Transform;
+﻿using PdfPixel.Color.Transform;
 using System;
 using System.Linq;
 using System.Numerics;
@@ -11,7 +10,7 @@ namespace PdfPixel.Color.Icc.Transform;
 /// Performs color look-up table (CLUT) transformations with efficient multi-dimensional interpolation for ICC color profiles.
 /// Supports 1D to 4D CLUTs and vectorized operations for high-performance color space conversion.
 /// </summary>
-public sealed partial class ClutTransform : IColorTransform, IRgbaSampler
+public sealed partial class ClutTransform : IColorTransform
 {
     private readonly Vector4[] _clut;
     private readonly int _outChannels;
@@ -108,18 +107,6 @@ public sealed partial class ClutTransform : IColorTransform, IRgbaSampler
         }
 
         return vector4Clut;
-    }
-
-    /// <summary>
-    /// Samples the CLUT using the provided source color and writes the result to the destination.
-    /// </summary>
-    /// <param name="source">Source color as a span of floats.</param>
-    /// <param name="destination">Destination packed RGBA value (by reference).</param>
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public Vector4 Sample(ReadOnlySpan<float> source)
-    {
-        Vector4 vector = ColorVectorUtilities.ToVector4WithOnePadding(source);
-        return Transform(vector);
     }
 
     /// <summary>
