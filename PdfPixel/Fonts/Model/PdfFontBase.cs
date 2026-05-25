@@ -73,7 +73,7 @@ public abstract class PdfFontBase : IDisposable
     /// <summary>
     /// PDF document containing this font (convenience property)
     /// </summary>
-    public PdfDocument Document => Dictionary.Document;
+    internal IPdfDocumentInternal Document => Dictionary.Document;
     
     /// <summary>
     /// Loaded ToUnicode CMap for character-to-Unicode mapping.

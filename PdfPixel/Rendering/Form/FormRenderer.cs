@@ -33,8 +33,6 @@ public class FormRenderer : IFormRenderer
             return;
         }
 
-        // TODO: [HIGH] Introduce form recording cache in PDF Document
-
         graphicsState.RecursionGuard.Add(objectNumber);
 
         using var softMaskScope = new SoftMaskDrawingScope(_renderer, processor, graphicsState);

@@ -30,7 +30,7 @@ internal static class PdfAnnotationAppearanceRenderer
     public static bool RenderAppearanceStream(
         IPdfCommandProcessor processor,
         PdfAnnotationBase annotation,
-        PdfPage page,
+        IPdfPageInternal page,
         PdfAnnotationVisualStateKind visualStateKind,
         IPdfRenderer renderer,
         PdfRenderingParameters renderingParameters,
@@ -119,7 +119,7 @@ internal static class PdfAnnotationAppearanceRenderer
         IPdfCommandProcessor processor,
         PdfObject formObject,
         SKRect annotationRect,
-        PdfPage page,
+        IPdfPageInternal page,
         IPdfRenderer renderer,
         PdfRenderingParameters renderingParameters, // TODO: [HIGH] add separate parsing parameters alongside with exec
         IPdfExecutionObserver observer)
@@ -166,7 +166,7 @@ internal static class PdfAnnotationAppearanceRenderer
         IPdfCommandProcessor processor,
         PdfObject imageObject,
         SKRect annotationRect,
-        PdfPage page,
+        IPdfPageInternal page,
         IPdfRenderer renderer,
         PdfRenderingParameters renderingParameters,
         IPdfExecutionObserver observer)

@@ -6,7 +6,6 @@ using PdfPixel.Models;
 using PdfPixel.Rendering.State;
 using PdfPixel.Shading.Model;
 using PdfPixel.Text;
-using SkiaSharp;
 using System.Collections.Generic;
 
 namespace PdfPixel.Rendering.Operators;
@@ -15,7 +14,7 @@ namespace PdfPixel.Rendering.Operators;
 /// Handles miscellaneous PDF operators that don't fit into other specialized categories.
 /// Includes XObject invocation, marked content, compatibility, Type 3 font metrics, and shading.
 /// </summary>
-public class MiscellaneousOperators : IOperatorProcessor
+internal class MiscellaneousOperators : IOperatorProcessor
 {
     private static readonly HashSet<string> SupportedOperators = new HashSet<string>
     {
@@ -33,11 +32,11 @@ public class MiscellaneousOperators : IOperatorProcessor
 
     private readonly IPdfRenderer _renderer;
     private readonly Stack<IPdfValue> _operandStack;
-    private readonly PdfPage _page;
+    private readonly IPdfPageInternal _page;
     private readonly IPdfCommandProcessor _processor;
     private readonly ILogger<MiscellaneousOperators> _logger;
 
-    public MiscellaneousOperators(IPdfRenderer renderer, Stack<IPdfValue> operandStack, PdfPage page, IPdfCommandProcessor processor)
+    public MiscellaneousOperators(IPdfRenderer renderer, Stack<IPdfValue> operandStack, IPdfPageInternal page, IPdfCommandProcessor processor)
     {
         _renderer = renderer;
         _operandStack = operandStack;

@@ -27,9 +27,9 @@ public class PdfHighlightAnnotation : PdfTextMarkupAnnotation
     /// Renders the appearance stream for this highlight annotation with multiply blend mode
     /// by recording commands and replaying them through a <see cref="BlendModePaintModifier"/>.
     /// </summary>
-    protected override bool RenderAppearanceStream(
+    internal override bool RenderAppearanceStream(
         IPdfCommandProcessor processor,
-        PdfPage page,
+        IPdfPageInternal page,
         PdfAnnotationVisualStateKind visualStateKind,
         IPdfRenderer renderer,
         PdfRenderingParameters renderingParameters,
@@ -49,7 +49,7 @@ public class PdfHighlightAnnotation : PdfTextMarkupAnnotation
         return true;
     }
 
-    protected override bool RenderFallback(IPdfCommandProcessor processor, PdfPage page, PdfAnnotationVisualStateKind visualStateKind, PdfRenderingParameters renderingParameters)
+    internal override bool RenderFallback(IPdfCommandProcessor processor, IPdfPageInternal page, PdfAnnotationVisualStateKind visualStateKind, PdfRenderingParameters renderingParameters)
     {
         var quads = Quadrilaterals;
         if (quads.Length == 0)

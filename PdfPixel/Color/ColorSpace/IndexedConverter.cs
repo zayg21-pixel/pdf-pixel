@@ -4,6 +4,7 @@ using PdfPixel.Color.Transform;
 using System;
 using System.Collections.Generic;
 using System.Numerics;
+using System.Runtime.CompilerServices;
 
 namespace PdfPixel.Color.ColorSpace;
 
@@ -16,8 +17,7 @@ internal sealed partial class IndexedConverter : PdfColorSpaceConverter
     private readonly int _hiVal;
     private readonly byte[] _lookup; // packed by base components (sequential entries)
 
-    // Cache of palettes per rendering intent
-    private readonly Dictionary<PdfRenderingIntent, Vector4[]> _paletteCache = new Dictionary<PdfRenderingIntent, Vector4[]>(4); // TODO: improve caching strategy!
+    private readonly Dictionary<PaletteCacheKey, Vector4[]> _paletteCache = new();
 
     public IndexedConverter(PdfColorSpaceConverter baseConv, int hiVal, byte[] lookup)
     {
@@ -35,11 +35,13 @@ internal sealed partial class IndexedConverter : PdfColorSpaceConverter
     /// </summary>
     public Vector4[] BuildPalette(PdfRenderingIntent renderingIntent, IColorTransform postTransform)
     {
-        var sampler = _baseConv.GetRgbaSampler(renderingIntent, postTransform);
-        if (_paletteCache.TryGetValue(renderingIntent, out var existing))
+        var key = new PaletteCacheKey(renderingIntent, postTransform);
+        if (_paletteCache.TryGetValue(key, out var existing))
         {
             return existing;
         }
+
+        var sampler = _baseConv.GetRgbaSampler(renderingIntent, postTransform);
 
         int baseComps = _baseConv.Components;
         int paletteSize = _hiVal + 1;
@@ -60,7 +62,7 @@ internal sealed partial class IndexedConverter : PdfColorSpaceConverter
             palette[index] = sampler.Sample(comps);
         }
 
-        _paletteCache[renderingIntent] = palette;
+        _paletteCache[key] = palette;
         return palette;
     }
 
@@ -80,5 +82,24 @@ internal sealed partial class IndexedConverter : PdfColorSpaceConverter
     protected override ColorTransformSampler GetRgbaSamplerCore(PdfRenderingIntent intent, IColorTransform postTransform)
     {
         return new ColorTransformSampler(new ChainedColorTransform(new IndexedColorTransform(BuildPalette(intent, postTransform), _hiVal)));
+    }
+
+    private readonly struct PaletteCacheKey : IEquatable<PaletteCacheKey>
+    {
+        private readonly PdfRenderingIntent _intent;
+        private readonly IColorTransform _postTransform;
+
+        public PaletteCacheKey(PdfRenderingIntent intent, IColorTransform postTransform)
+        {
+            _intent = intent;
+            _postTransform = postTransform;
+        }
+
+        public bool Equals(PaletteCacheKey other) =>
+            _intent == other._intent && ReferenceEquals(_postTransform, other._postTransform);
+
+        public override bool Equals(object obj) => obj is PaletteCacheKey k && Equals(k);
+
+        public override int GetHashCode() => HashCode.Combine(_intent, RuntimeHelpers.GetHashCode(_postTransform));
     }
 }

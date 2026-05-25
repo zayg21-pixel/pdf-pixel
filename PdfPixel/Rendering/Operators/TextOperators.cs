@@ -11,7 +11,7 @@ namespace PdfPixel.Rendering.Operators;
 /// Handles text-related PDF operators.
 /// Converted to instance implementation for consistency with other operator processors.
 /// </summary>
-public class TextOperators : IOperatorProcessor
+internal class TextOperators : IOperatorProcessor
 {
     private readonly List<ShapedGlyph> buffer = new List<ShapedGlyph>();
 
@@ -28,11 +28,11 @@ public class TextOperators : IOperatorProcessor
     };
 
     private readonly IPdfRenderer _renderer;
-    private readonly PdfPage _page;
+    private readonly IPdfPageInternal _page;
     private readonly IPdfCommandProcessor _processor;
     private readonly Stack<IPdfValue> _operandStack;
 
-    public TextOperators(IPdfRenderer renderer, PdfPage page, IPdfCommandProcessor processor, Stack<IPdfValue> operandStack)
+    public TextOperators(IPdfRenderer renderer, IPdfPageInternal page, IPdfCommandProcessor processor, Stack<IPdfValue> operandStack)
     {
         _renderer = renderer;
         _page = page;

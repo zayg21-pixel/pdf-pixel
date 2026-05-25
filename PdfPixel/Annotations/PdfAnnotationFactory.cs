@@ -53,8 +53,6 @@ public static class PdfAnnotationFactory
             PdfAnnotationSubType.Popup => new PdfPopupAnnotation(annotationObject),
             PdfAnnotationSubType.FileAttachment => new PdfFileAttachmentAnnotation(annotationObject),
             PdfAnnotationSubType.Widget => new PdfWidgetAnnotation(annotationObject), // Widget is not fully implemented yet
-            // TODO: Add more annotation types as they are implemented
-            // etc.
             _ => new PdfGenericAnnotation(annotationObject, subtype)
         };
     }

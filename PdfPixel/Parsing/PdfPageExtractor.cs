@@ -10,16 +10,16 @@ namespace PdfPixel.Parsing;
 /// (Resources, MediaBox, CropBox, Rotate) prior to constructing <see cref="PdfPage"/> instances.
 /// Instance based to enable structured logging.
 /// </summary>
-public class PdfPageExtractor
+internal class PdfPageExtractor
 {
-    private readonly PdfDocument _document;
+    private readonly IPdfDocumentInternal _document;
     private readonly ILogger<PdfPageExtractor> _logger;
 
     /// <summary>
     /// Create a new page extractor bound to a document.
     /// </summary>
     /// <param name="document">Target PDF document.</param>
-    public PdfPageExtractor(PdfDocument document)
+    public PdfPageExtractor(IPdfDocumentInternal document)
     {
         _document = document ?? throw new ArgumentNullException(nameof(document));
         _logger = document.LoggerFactory.CreateLogger<PdfPageExtractor>();

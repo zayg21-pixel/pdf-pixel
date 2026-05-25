@@ -13,13 +13,13 @@ namespace PdfPixel.Rendering;
 /// <summary>
 /// Handles PDF content stream parsing and rendering coordination
 /// </summary>
-public class PdfContentStreamRenderer
+internal class PdfContentStreamRenderer
 {
-    private readonly PdfPage _page;
+    private readonly IPdfPageInternal _page;
     private readonly ILogger<PdfContentStreamRenderer> _logger;
     private readonly IPdfRenderer _renderer;
 
-    public PdfContentStreamRenderer(IPdfRenderer renderer, PdfPage page)
+    public PdfContentStreamRenderer(IPdfRenderer renderer, IPdfPageInternal page)
     {
         _renderer = renderer ?? throw new ArgumentNullException(nameof(renderer));
         _page = page ?? throw new ArgumentNullException(nameof(page));

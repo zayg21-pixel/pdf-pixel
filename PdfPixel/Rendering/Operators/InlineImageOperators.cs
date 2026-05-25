@@ -25,11 +25,11 @@ internal class InlineImageOperators : IOperatorProcessor
 
     private readonly IPdfRenderer _renderer;
     private readonly Stack<IPdfValue> _operandStack;
-    private readonly PdfPage _page;
+    private readonly IPdfPageInternal _page;
     private readonly IPdfCommandProcessor _processor;
     private readonly ILogger<InlineImageOperators> _logger;
 
-    public InlineImageOperators(IPdfRenderer renderer, Stack<IPdfValue> operandStack, PdfPage page, IPdfCommandProcessor processor)
+    public InlineImageOperators(IPdfRenderer renderer, Stack<IPdfValue> operandStack, IPdfPageInternal page, IPdfCommandProcessor processor)
     {
         _renderer = renderer;
         _operandStack = operandStack;

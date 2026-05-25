@@ -40,7 +40,7 @@ public class PdfFileAttachmentAnnotation : PdfAnnotationBase
         var nameValue = annotationObject.Dictionary.GetName(PdfTokens.NameKey);
         Icon = nameValue.AsEnum<PdfFileAttachmentIcon>();
 
-        // TODO: complete FileSpec object parsing
+        // TODO: [LOW] complete FileSpec object parsing
     }
 
     public override bool ShouldDisplayBubble => false;
@@ -65,7 +65,7 @@ public class PdfFileAttachmentAnnotation : PdfAnnotationBase
     /// </summary>
     public PdfObject EmbeddedFileObject { get; }
 
-    protected override bool RenderFallback(IPdfCommandProcessor processor, PdfPage page, PdfAnnotationVisualStateKind visualStateKind, PdfRenderingParameters renderingParameters)
+    internal override bool RenderFallback(IPdfCommandProcessor processor, IPdfPageInternal page, PdfAnnotationVisualStateKind visualStateKind, PdfRenderingParameters renderingParameters)
     {
         var color = ResolveColor(page, SKColors.DarkSlateGray);
 

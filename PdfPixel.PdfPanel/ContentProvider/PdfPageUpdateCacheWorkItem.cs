@@ -9,12 +9,12 @@ namespace PdfPixel.PdfPanel.ContentProvider;
 public class PdfPageUpdateCacheWorkItem : IWorkItem
 {
     private readonly object _documentLocker = new object();
-    private readonly PdfDocument _document;
+    private readonly IPdfDocument _document;
     private readonly UpdateContentRequest _request;
     private readonly Action<PageUpdatedArgs> _onPageUpdated;
     private readonly TokenSnapshot _tokenSnapshot;
 
-    public PdfPageUpdateCacheWorkItem(PdfPageCacheEntry cacheEntry, PdfDocument document, object documentLocker, UpdateContentRequest request, Action<PageUpdatedArgs> onPageUpdated)
+    public PdfPageUpdateCacheWorkItem(PdfPageCacheEntry cacheEntry, IPdfDocument document, object documentLocker, UpdateContentRequest request, Action<PageUpdatedArgs> onPageUpdated)
     {
         CacheEntry = cacheEntry;
         _documentLocker = documentLocker;

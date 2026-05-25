@@ -6,7 +6,7 @@ namespace PdfPixel.Rendering.Operators;
 /// Defines the contract for PDF operator processor components.
 /// Implementations encapsulate logic for a specific subset of PDF content stream operators.
 /// </summary>
-public interface IOperatorProcessor
+internal interface IOperatorProcessor
 {
     /// <summary>
     /// Determines whether this processor can handle the specified operator token.

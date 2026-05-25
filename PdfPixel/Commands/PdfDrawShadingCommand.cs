@@ -258,10 +258,8 @@ public sealed class PdfDrawShadingCommand : PdfCommand
         using var paint = basePaint.Clone();
         paint.Color = PdfPaintFactory.ApplyAlpha(paint.Color, _context.FillAlpha);
         paint.IsAntialias = antialias;
-        foreach (var modifier in modifiers)
-        {
-            modifier.ModifyPaint(paint);
-        }
+
+        CommandHelpers.ApplyModifiers(paint, modifiers);
 
         canvas.DrawPaint(paint);
     }
@@ -274,10 +272,8 @@ public sealed class PdfDrawShadingCommand : PdfCommand
         using var paint = PdfPaintFactory.CreateShaderPaint();
         paint.Color = PdfPaintFactory.ApplyAlpha(paint.Color, _context.FillAlpha);
         paint.IsAntialias = antialias;
-        foreach (var modifier in modifiers)
-        {
-            modifier.ModifyPaint(paint);
-        }
+
+        CommandHelpers.ApplyModifiers(paint, modifiers);
 
         canvas.DrawVertices(vertices, SKBlendMode.DstIn, paint);
     }

@@ -8,9 +8,9 @@ namespace PdfPixel.Parsing;
 /// Handles parsing of PDF objects and object streams.
 /// Performs a single forward scan that can also detect trailer dictionaries to set the document RootRef when present.
 /// </summary>
-public class PdfObjectParser
+internal class PdfObjectParser
 {
-    private readonly PdfDocument _document;
+    private readonly IPdfDocumentInternal _document;
     private readonly PdfObjectStreamParser _objectStreamParser;
     private readonly ILogger<PdfObjectParser> _logger;
 

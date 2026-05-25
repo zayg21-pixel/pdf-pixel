@@ -23,10 +23,7 @@ public sealed class DrawTextBlobCommand : PdfCommand
     {
         using var paint = _basePaint.Clone();
         paint.IsAntialias = executionContext.RenderingParameters.Antialias;
-        foreach (var modifier in modifiers)
-        {
-            modifier.ModifyPaint(paint);
-        }
+        CommandHelpers.ApplyModifiers(paint, modifiers);
 
         canvas.DrawText(_blob, 0f, 0f, paint);
     }

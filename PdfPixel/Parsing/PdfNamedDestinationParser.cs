@@ -9,19 +9,19 @@ namespace PdfPixel.Parsing;
 /// Parses named destinations from the PDF document catalog.
 /// Handles both the older /Dests dictionary and the newer /Names/Dests name tree.
 /// </summary>
-public class PdfNamedDestinationParser
+internal class PdfNamedDestinationParser
 {
-    private readonly PdfDocument _document;
+    private readonly IPdfDocumentInternal _document;
     private readonly ILogger<PdfNamedDestinationParser> _logger;
 
-    public PdfNamedDestinationParser(PdfDocument document)
+    public PdfNamedDestinationParser(IPdfDocumentInternal document)
     {
         _document = document ?? throw new ArgumentNullException(nameof(document));
         _logger = document.LoggerFactory.CreateLogger<PdfNamedDestinationParser>();
     }
 
     /// <summary>
-    /// Parses named destinations from the document catalog and populates <see cref="PdfDocument.NamedDestinations"/>.
+    /// Parses named destinations from the document catalog and populates <see cref="IPdfDocumentInternal.NamedDestinations"/>.
     /// </summary>
     public void ParseNamedDestinations()
     {

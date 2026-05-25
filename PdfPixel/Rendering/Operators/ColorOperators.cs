@@ -14,7 +14,7 @@ namespace PdfPixel.Rendering.Operators;
 /// Handles color space and color setting operators (stroking and non-stroking).
 /// Converted to instance implementation conforming to <see cref="IOperatorProcessor"/>.
 /// </summary>
-public class ColorOperators : IOperatorProcessor
+internal class ColorOperators : IOperatorProcessor
 {
     private static readonly HashSet<string> SupportedOperators = new HashSet<string>
     {
@@ -32,9 +32,9 @@ public class ColorOperators : IOperatorProcessor
 
     private readonly IPdfRenderer _renderer;
     private readonly Stack<IPdfValue> _operandStack;
-    private readonly PdfPage _page;
+    private readonly IPdfPageInternal _page;
 
-    public ColorOperators(IPdfRenderer renderer, Stack<IPdfValue> operandStack, PdfPage page)
+    public ColorOperators(IPdfRenderer renderer, Stack<IPdfValue> operandStack, IPdfPageInternal page)
     {
         _renderer = renderer;
         _operandStack = operandStack;

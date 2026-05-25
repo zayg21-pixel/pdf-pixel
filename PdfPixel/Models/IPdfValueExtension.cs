@@ -6,7 +6,7 @@ namespace PdfPixel.Models;
 /// Extension methods for extracting strongly-typed values from <see cref="IPdfValue"/> instances.
 /// Provides conversion and type-checking helpers for PDF value types.
 /// </summary>
-public static class IPdfValueExtension
+internal static class IPdfValueExtension
 {
     /// <summary>
     /// Returns the value as a PDF name if the type is <see cref="PdfValueType.Name"/>; otherwise returns <c>default</c>.
@@ -155,7 +155,7 @@ public static class IPdfValueExtension
     /// <param name="document">The PDF document used for object resolution.</param>
     /// <param name="maxDepth">Maximum recursion depth for reference resolution.</param>
     /// <returns>The resolved non-reference <see cref="IPdfValue"/>, or <c>null</c> if resolution fails.</returns>
-    public static IPdfValue ResolveToNonReference(this IPdfValue value, PdfDocument document, int maxDepth = 10)
+    public static IPdfValue ResolveToNonReference(this IPdfValue value, IPdfDocumentInternal document, int maxDepth = 10)
     {
         if (value == null || document == null || maxDepth <= 0)
         {

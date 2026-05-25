@@ -245,7 +245,7 @@ public abstract class PdfAnnotationBase
     /// </remarks>
     /// <param name="page">Owning PDF page to crop margins to.</param>
     /// <param name="defaultBubbleSize">Bubble size used when <see cref="ShouldDisplayBubble"/> is true.</param>
-    public virtual SKRect GetHoverRectangle(PdfPage page, float defaultBubbleSize = 16)
+    public virtual SKRect GetHoverRectangle(IPdfPage page, float defaultBubbleSize = 16)
     {
         if (page == null)
         {
@@ -327,9 +327,9 @@ public abstract class PdfAnnotationBase
     /// <param name="renderingParameters">Rendering parameters instance.</param>
     /// <param name="observer">Observer for long-running operations.</param>
     /// <returns>True if the annotation was rendered, false otherwise.</returns>
-    public virtual bool Render(
+    internal virtual bool Render(
         IPdfCommandProcessor processor,
-        PdfPage page,
+        IPdfPageInternal page,
         PdfAnnotationVisualStateKind visualStateKind,
         IPdfRenderer renderer,
         PdfRenderingParameters renderingParameters,
@@ -370,7 +370,7 @@ public abstract class PdfAnnotationBase
     /// when the annotation doesn't have an appearance stream.
     /// The visual state allows annotations to change their appearance based on user interaction.
     /// </remarks>
-    protected abstract bool RenderFallback(IPdfCommandProcessor processor, PdfPage page, PdfAnnotationVisualStateKind visualStateKind, PdfRenderingParameters renderingParameters);
+    internal abstract bool RenderFallback(IPdfCommandProcessor processor, IPdfPageInternal page, PdfAnnotationVisualStateKind visualStateKind, PdfRenderingParameters renderingParameters);
 
     /// <summary>
     /// Renders the appearance stream for this annotation.
@@ -382,9 +382,9 @@ public abstract class PdfAnnotationBase
     /// <param name="renderingParameters">Rendering parameters.</param>
     /// <param name="observer">Observer for long-running operations.</param>
     /// <returns>True if the appearance stream was rendered successfully.</returns>
-    protected virtual bool RenderAppearanceStream(
+    internal virtual bool RenderAppearanceStream(
         IPdfCommandProcessor processor,
-        PdfPage page,
+        IPdfPageInternal page,
         PdfAnnotationVisualStateKind visualStateKind,
         IPdfRenderer renderer,
         PdfRenderingParameters renderingParameters,
@@ -406,7 +406,7 @@ public abstract class PdfAnnotationBase
     /// <param name="page">The PDF page for color space resolution.</param>
     /// <param name="defaultColor">Default color to use if annotation has no color specified. If null, returns transparent.</param>
     /// <returns>The resolved SKColor for rendering.</returns>
-    internal SKColor ResolveColor(PdfPage page, SKColor? defaultColor = null)
+    internal SKColor ResolveColor(IPdfPageInternal page, SKColor? defaultColor = null)
     {
         return PdfAnnotationColorResolver.ResolveColor(Color, page, defaultColor);
     }
@@ -417,7 +417,7 @@ public abstract class PdfAnnotationBase
     /// <param name="page">The PDF page for color space resolution.</param>
     /// <param name="defaultColor">Default color to use if annotation has no interior color specified. If null, returns transparent.</param>
     /// <returns>The resolved SKColor for rendering.</returns>
-    internal SKColor ResolveInteriorColor(PdfPage page, SKColor? defaultColor = null)
+    internal SKColor ResolveInteriorColor(IPdfPageInternal page, SKColor? defaultColor = null)
     {
         return PdfAnnotationColorResolver.ResolveColor(InteriorColor, page, defaultColor);
     }

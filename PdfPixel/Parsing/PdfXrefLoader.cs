@@ -16,12 +16,12 @@ namespace PdfPixel.Parsing;
 /// </summary>
 internal sealed class PdfXrefLoader
 {
-    private readonly PdfDocument _document;
+    private readonly IPdfDocumentInternal _document;
     private readonly ILogger<PdfXrefLoader> _logger;
     private readonly PdfTrailerParser _trailerParser;
     private readonly BinaryReader _reader; // Reusable reader for frequent byte access.
 
-    public PdfXrefLoader(PdfDocument document)
+    public PdfXrefLoader(IPdfDocumentInternal document)
     {
         if (document == null)
         {

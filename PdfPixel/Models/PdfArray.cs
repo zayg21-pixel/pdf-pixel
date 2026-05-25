@@ -15,13 +15,13 @@ public class PdfArray
 {
     private readonly IPdfValue[] _items;
 
-    public PdfArray(PdfDocument document, IPdfValue[] items)
+    internal PdfArray(IPdfDocumentInternal document, IPdfValue[] items)
     {
         Document = document;
         _items = items ?? Array.Empty<IPdfValue>();
     }
 
-    public PdfArray(PdfDocument document, IList<IPdfValue> items)
+    internal PdfArray(IPdfDocumentInternal document, IList<IPdfValue> items)
     {
         Document = document;
         _items = items?.ToArray() ?? Array.Empty<IPdfValue>();
@@ -30,7 +30,7 @@ public class PdfArray
     /// <summary>
     /// Gets the owning <see cref="PdfDocument"/> used for reference resolution.
     /// </summary>
-    public PdfDocument Document { get; }
+    internal IPdfDocumentInternal Document { get; }
 
     /// <summary>
     /// Gets the number of items in the array.

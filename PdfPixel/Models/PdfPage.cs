@@ -13,12 +13,15 @@ namespace PdfPixel.Models;
 /// All geometry (MediaBox, CropBox, Rotation) and the resource dictionary are resolved beforehand
 /// by <see cref="Parsing.PdfPageExtractor"/>. This class is a pure data model with minimal logic.
 /// </summary>
-public class PdfPage
+internal class PdfPage : IPdfPageInternal
 {
     private static readonly SKRect DefaultMediaBox = new SKRect(0, 0, 612, 792);
 
-    // Lazy per-page cache (thread-safe). Allocated only on first access.
     private readonly Lazy<PdfPageCache> _lazyPageCache;
+    private readonly IPdfDocumentInternal _document;
+    private readonly PdfObject _pageObject;
+    private readonly PdfPageResources _pageResources;
+    private readonly PdfDictionary _resourceDictionary;
 
     /// <summary>
     /// Initializes a new instance using <see cref="PdfPageResources"/> snapshot (rotation already normalized there).
@@ -28,15 +31,15 @@ public class PdfPage
     /// <param name="document">Owning document.</param>
     /// <param name="pageObject">Underlying /Page object.</param>
     /// <param name="pageResources">Resolved inheritable page resources snapshot.</param>
-    public PdfPage(int pageNumber,
+    internal PdfPage(int pageNumber,
                    PdfString pageLabel,
-                   PdfDocument document,
+                   IPdfDocumentInternal document,
                    PdfObject pageObject,
                    PdfPageResources pageResources)
     {
-        Document = document ?? throw new ArgumentNullException(nameof(document));
-        PageObject = pageObject ?? throw new ArgumentNullException(nameof(pageObject));
-        PageResources = pageResources ?? throw new ArgumentNullException(nameof(pageResources));
+        _document = document ?? throw new ArgumentNullException(nameof(document));
+        _pageObject = pageObject ?? throw new ArgumentNullException(nameof(pageObject));
+        _pageResources = pageResources ?? throw new ArgumentNullException(nameof(pageResources));
         _lazyPageCache = new Lazy<PdfPageCache>(() => new PdfPageCache(this));
 
         PageNumber = pageNumber;
@@ -45,98 +48,58 @@ public class PdfPage
         MediaBox = media;
         CropBox = crop;
         Rotation = pageResources.Rotate ?? 0;
-        ResourceDictionary = pageResources.Resources ?? new PdfDictionary(document);
+        _resourceDictionary = pageResources.Resources ?? new PdfDictionary(document);
         Annotations = pageResources.Annotations ?? [];
         PageLabel = pageLabel;
     }
 
-    /// <summary>
-    /// Lazy per-page resource cache providing name-based lookups. Internal access only.
-    /// Created on first access to avoid unnecessary allocations for pages that do not need caching.
-    /// </summary>
-    internal virtual PdfPageCache Cache => _lazyPageCache.Value;
-
-    /// <summary>
-    /// Page resources snapshot used to resolve inheritable attributes.
-    /// </summary>
-    internal PdfPageResources PageResources { get; }
-
-    /// <summary>
-    /// 1-based index of this page within the document.
-    /// </summary>
+    /// <inheritdoc/>
     public int PageNumber { get; }
 
-    /// <summary>
-    /// Underlying /Page object supplying dictionary entries and content references.
-    /// </summary>
-    public virtual PdfObject PageObject { get; }
-
-    /// <summary>
-    /// Resolved resource dictionary for this page (never null).
-    /// </summary>
-    public virtual PdfDictionary ResourceDictionary { get; }
-
-    /// <summary>
-    /// Resolved MediaBox rectangle.
-    /// </summary>
+    /// <inheritdoc/>
     public SKRect MediaBox { get; }
 
-    /// <summary>
-    /// Resolved CropBox rectangle.
-    /// </summary>
+    /// <inheritdoc/>
     public SKRect CropBox { get; }
 
-    /// <summary>
-    /// Normalized page rotation in degrees (0, 90, 180, 270).
-    /// </summary>
+    /// <inheritdoc/>
     public int Rotation { get; }
 
-    /// <summary>
-    /// Owning document instance.
-    /// </summary>
-    public PdfDocument Document { get; }
-
-    /// <summary>
-    /// Gets the annotations for this page.
-    /// Resolved during page construction from the /Annots array and inheritable annotations.
-    /// </summary>
+    /// <inheritdoc/>
     public IReadOnlyList<PdfAnnotationBase> Annotations { get; }
 
-    /// <summary>
-    /// Gets the resolved page label for this page (may be null if not present in the document).
-    /// </summary>
+    /// <inheritdoc/>
     public PdfString PageLabel { get; }
 
-    /// <summary>
-    /// Render the page content via the command processor.
-    /// </summary>
-    /// <param name="processor">The command processor to emit drawing commands to.</param>
-    /// <param name="observer">Execution observer to notify on long-running operations.</param>
+    PdfPageCache IPdfPageInternal.Cache => _lazyPageCache.Value;
+
+    PdfPageResources IPdfPageInternal.PageResources => _pageResources;
+
+    PdfObject IPdfPageInternal.PageObject => _pageObject;
+
+    PdfDictionary IPdfPageInternal.ResourceDictionary => _resourceDictionary;
+
+    IPdfDocumentInternal IPdfPageInternal.Document => _document;
+
+    /// <inheritdoc/>
     public void Draw(IPdfCommandProcessor processor, IPdfExecutionObserver observer)
     {
         if (processor == null)
         {
             throw new ArgumentNullException(nameof(processor));
         }
-        if (Document == null)
+        if (_document == null)
         {
             throw new InvalidOperationException("Document reference not set. This page was not properly loaded from a document.");
         }
 
-        var renderer = new PdfRenderer(Document.LoggerFactory);
+        var renderer = new PdfRenderer(_document.LoggerFactory);
         var contentRenderer = new PdfContentStreamRenderer(renderer, this);
 
         contentRenderer.RenderContent(processor, observer);
     }
 
-    /// <summary>
-    /// Render annotations for this page via the command processor with an optional active annotation and visual state.
-    /// </summary>
-    /// <param name="processor">The command processor to emit annotation commands to.</param>
-    /// <param name="renderingParameters">Rendering parameters for rendering in defined canvas.</param>
-    /// <param name="activeAnnotation">Annotation that should be rendered in a non-normal visual state, or null.</param>
-    /// <param name="visualStateKind">Visual state to apply to the active annotation.</param>
-    /// <param name="observer">Execution observer to notify on long-running operations.</param>
+    /// <inheritdoc/>
     public void RenderAnnotations(
         IPdfCommandProcessor processor,
         PdfRenderingParameters renderingParameters,
@@ -149,34 +112,20 @@ public class PdfPage
             throw new ArgumentNullException(nameof(processor));
         }
 
-        if (Document == null)
+        if (_document == null)
         {
             throw new InvalidOperationException("Document reference not set. This page was not properly loaded from a document.");
         }
 
-        var renderer = new PdfRenderer(Document.LoggerFactory);
+        var renderer = new PdfRenderer(_document.LoggerFactory);
         var annotationRenderer = new PdfAnnotationRenderer(renderer, this);
         annotationRenderer.RenderAnnotations(processor, renderingParameters, activeAnnotation, visualStateKind, observer);
     }
 
-    /// <summary>
-    /// Extract text content from the page.
-    /// </summary>
-    /// <returns></returns>
+    /// <inheritdoc/>
     public List<PdfCharacter> ExtractText()
     {
         // TODO: text extraction should be done from commands
         return new List<PdfCharacter>();
-        //using var recorder = new SKPictureRecorder();
-        //using var canvas = recorder.BeginRecording(new SKRect(0, 0, 1, 1));
-
-        //var textExtractor = new PdfTextExtractionRenderer();
-
-        //var contentRenderer = new PdfContentStreamRenderer(textExtractor, this);
-        //var executionContext = new PdfCommandExecutionContext(new PdfRenderingParameters(), CancellationToken.None);
-        //using var processor = new SkCanvasCommandProcessor(canvas, executionContext);
-        //contentRenderer.RenderContent(processor, CancellationToken.None);
-
-        //return textExtractor.PageCharacters;
     }
 }

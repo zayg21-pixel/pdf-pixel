@@ -149,6 +149,4 @@ internal static class PdfImageCommandUtilities
         imageRoi.Intersect(fullImageBounds);
         return imageRoi.IsEmpty ? fullImageBounds : imageRoi;
     }
-
-    // TODO: add method similar to SKPath drawing to check if AA is allowed
 }

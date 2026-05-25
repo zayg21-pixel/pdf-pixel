@@ -12,10 +12,10 @@ namespace PdfPixel.Rendering;
 public class PdfAnnotationRenderer
 {
     private readonly IPdfRenderer _renderer;
-    private readonly PdfPage _page;
+    private readonly IPdfPageInternal _page;
     private readonly ILogger<PdfAnnotationRenderer> _logger;
 
-    public PdfAnnotationRenderer(IPdfRenderer renderer, PdfPage page)
+    internal PdfAnnotationRenderer(IPdfRenderer renderer, IPdfPageInternal page)
     {
         _renderer = renderer ?? throw new ArgumentNullException(nameof(renderer));
         _page = page ?? throw new ArgumentNullException(nameof(page));

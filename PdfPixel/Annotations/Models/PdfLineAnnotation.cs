@@ -94,7 +94,7 @@ public class PdfLineAnnotation : PdfAnnotationBase
     /// </summary>
     public float? LeaderLineOffset { get; }
 
-    protected override bool RenderFallback(IPdfCommandProcessor processor, PdfPage page, PdfAnnotationVisualStateKind visualStateKind, PdfRenderingParameters renderingParameters)
+    internal override bool RenderFallback(IPdfCommandProcessor processor, IPdfPageInternal page, PdfAnnotationVisualStateKind visualStateKind, PdfRenderingParameters renderingParameters)
     {
         var lineColor = ResolveColor(page, SKColors.Black);
         var lineWidth = BorderStyle?.Width ?? 1.0f;

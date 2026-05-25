@@ -24,12 +24,12 @@ internal sealed class PdfOutputIntentParser
          (PdfString)"ISO_PDF"u8 // Generic ISO intent (fallback)
     };
 
-    private readonly PdfDocument _document;
+    private readonly IPdfDocumentInternal _document;
 
     /// <summary>
     /// Construct parser and populate document.OutputIntentProfile.
     /// </summary>
-    internal PdfOutputIntentParser(PdfDocument document)
+    public PdfOutputIntentParser(IPdfDocumentInternal document)
     {
         _document = document ?? throw new ArgumentNullException(nameof(document));
     }

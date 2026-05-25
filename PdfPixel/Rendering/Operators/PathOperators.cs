@@ -11,7 +11,7 @@ namespace PdfPixel.Rendering.Operators;
 /// Handles path construction, clipping, and painting operators.
 /// Converted to an instance implementation that conforms to <see cref="IOperatorProcessor"/>.
 /// </summary>
-public class PathOperators : IOperatorProcessor
+internal class PathOperators : IOperatorProcessor
 {
     private static readonly HashSet<string> SupportedOperators = new HashSet<string>
     {
@@ -27,9 +27,9 @@ public class PathOperators : IOperatorProcessor
     private readonly Stack<IPdfValue> _operandStack;
     private readonly IPdfCommandProcessor _processor;
     private readonly SKPath _currentPath;
-    private readonly PdfPage _page;
+    private readonly IPdfPageInternal _page;
 
-    public PathOperators(IPdfRenderer renderer, Stack<IPdfValue> operandStack, IPdfCommandProcessor processor, SKPath currentPath, PdfPage page)
+    public PathOperators(IPdfRenderer renderer, Stack<IPdfValue> operandStack, IPdfCommandProcessor processor, SKPath currentPath, IPdfPageInternal page)
     {
         _renderer = renderer;
         _operandStack = operandStack;

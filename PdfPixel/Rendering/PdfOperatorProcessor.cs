@@ -12,10 +12,10 @@ namespace PdfPixel.Rendering;
 /// Handles PDF operator processing and execution for content streams
 /// Delegates to specialized operator classes for better organization
 /// </summary>
-public class PdfOperatorProcessor
+internal class PdfOperatorProcessor
 {
     private readonly IPdfRenderer _renderer;
-    private readonly PdfPage _page;
+    private readonly IPdfPageInternal _page;
     private readonly IPdfCommandProcessor _processor;
     private readonly Stack<IPdfValue> _operandStack;
     private readonly Stack<PdfGraphicsState> _graphicsStack;
@@ -28,7 +28,7 @@ public class PdfOperatorProcessor
     private readonly MiscellaneousOperators _miscOperators;
     private readonly ILogger<PdfOperatorProcessor> _logger;
 
-    public PdfOperatorProcessor(IPdfRenderer renderer, PdfPage page, IPdfCommandProcessor processor, Stack<IPdfValue> operandStack, Stack<PdfGraphicsState> graphicsStack, SKPath currentPath)
+    public PdfOperatorProcessor(IPdfRenderer renderer, IPdfPageInternal page, IPdfCommandProcessor processor, Stack<IPdfValue> operandStack, Stack<PdfGraphicsState> graphicsStack, SKPath currentPath)
     {
         _renderer = renderer;
         _page = page;

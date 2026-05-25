@@ -44,7 +44,7 @@ public static class PdfPaintFactory
             Subpixel = true,
             LinearMetrics = true,
             Hinting = SKFontHinting.Normal,
-            Edging = SKFontEdging.SubpixelAntialias // TODO: make edging configurable based on rendering parameters (e.g. disable in preview mode)
+            Edging = SKFontEdging.SubpixelAntialias
         };
 
         // Skew/rotation are already represented in the text matrix applied at draw time.

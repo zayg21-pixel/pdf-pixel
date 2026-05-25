@@ -42,7 +42,7 @@ public class MainWindowsViewModel : ObservableObject
     private int _pageNumber;
     private PdfPanelAutoScaleMode _autoScaleMode;
     private PdfPanelPageCollection _pages;
-    private PdfDocument _document;
+    private IPdfDocument _document;
     private PdfFileLocation _selectedPdfFile;
     private bool _hasFiles;
 
@@ -319,7 +319,7 @@ public class MainWindowsViewModel : ObservableObject
             _document = _reader.Read(fileStream);
         }
 
-        Pages = PdfPanelPageCollection.FromDocument(_document);
+        Pages = PdfPanelPageCollection.FromDocument(_document, _loggerFactory);
         AutoScaleMode = PdfPanelAutoScaleMode.ScaleToWidth;
     }
 }

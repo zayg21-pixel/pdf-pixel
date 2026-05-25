@@ -9,14 +9,14 @@ namespace PdfPixel.Forms;
 /// either supplies its complete resource dictionary or inherits the current one; no merging.
 /// Geometry (MediaBox, CropBox, Rotation) is inherited unchanged from the original page.
 /// </summary>
-internal class FormXObjectPageWrapper : PdfPage
+internal class FormXObjectPageWrapper : PdfPage, IPdfPageInternal
 {
     private readonly PdfObject _resourcePageObject;
     private readonly PdfDictionary _resourceDictionary;
-    private readonly PdfPage _originalPage;
+    private readonly IPdfPageInternal _originalPage;
     private readonly PdfPageCache _pageCache;
 
-    public FormXObjectPageWrapper(PdfPage originalPage, PdfObject formXObject)
+    public FormXObjectPageWrapper(IPdfPageInternal originalPage, PdfObject formXObject)
         : base(originalPage.PageNumber, originalPage.PageLabel, originalPage.Document, originalPage.PageObject, originalPage.PageResources)
     {
         _originalPage = originalPage;
@@ -46,9 +46,9 @@ internal class FormXObjectPageWrapper : PdfPage
         _pageCache = new PdfPageCache(this);
     }
 
-    public override PdfObject PageObject => _resourcePageObject;
+    PdfObject IPdfPageInternal.PageObject => _resourcePageObject;
 
-    public override PdfDictionary ResourceDictionary => _resourceDictionary;
+    PdfDictionary IPdfPageInternal.ResourceDictionary => _resourceDictionary;
 
-    internal override PdfPageCache Cache => _pageCache;
+    PdfPageCache IPdfPageInternal.Cache => _pageCache;
 }

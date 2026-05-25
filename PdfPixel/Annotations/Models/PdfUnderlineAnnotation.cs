@@ -21,7 +21,7 @@ public class PdfUnderlineAnnotation : PdfTextMarkupAnnotation
     {
     }
 
-    protected override bool RenderFallback(IPdfCommandProcessor processor, PdfPage page, PdfAnnotationVisualStateKind visualStateKind, PdfRenderingParameters renderingParameters)
+    internal override bool RenderFallback(IPdfCommandProcessor processor, IPdfPageInternal page, PdfAnnotationVisualStateKind visualStateKind, PdfRenderingParameters renderingParameters)
     {
         var quads = Quadrilaterals;
         if (quads.Length == 0)

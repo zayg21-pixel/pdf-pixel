@@ -8,7 +8,7 @@ namespace PdfPixel.Annotations.Rendering;
 /// <summary>
 /// Handles rendering of bubble indicators for annotations with content.
 /// </summary>
-public static class PdfAnnotationBubbleRenderer
+internal static class PdfAnnotationBubbleRenderer
 {
     private const float NormalBorderWidth = 1.0f;
     private const float HoverBorderWidth = 1.5f;
@@ -24,7 +24,7 @@ public static class PdfAnnotationBubbleRenderer
     public static void RenderBubble(
         IPdfCommandProcessor processor,
         PdfAnnotationBase annotation,
-        PdfPage page,
+        IPdfPageInternal page,
         PdfAnnotationVisualStateKind visualStateKind,
         PdfRenderingParameters renderingParameters)
     {

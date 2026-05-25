@@ -4,15 +4,13 @@ using PdfPixel.Models;
 using PdfPixel.Text;
 using SkiaSharp;
 using System;
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace PdfPixel.PdfPanel.ContentProvider;
 
 public static class PdfDocumentContentExtensions
 {
     public static PdfCommandRecorder GetAnnotationRecording(
-        this PdfDocument document,
+        this IPdfDocument document,
         int pageNumber,
         double scale,
         PdfAnnotationBase activeAnnotation,
@@ -48,7 +46,7 @@ public static class PdfDocumentContentExtensions
         };
     }
 
-    public static PdfCommandRecorder GeneratePageCommandRecording(this PdfDocument document, int pageNumber, IPdfExecutionObserver observer)
+    public static PdfCommandRecorder GeneratePageCommandRecording(this IPdfDocument document, int pageNumber, IPdfExecutionObserver observer)
     {
         var pdfPage = document.Pages[pageNumber - 1];
 
@@ -78,7 +76,7 @@ public static class PdfDocumentContentExtensions
         return recorder.EndRecording();
     }
 
-    private static void ApplyPageTransformations(PdfPage pdfPage, IPdfCommandProcessor commandRecording)
+    private static void ApplyPageTransformations(IPdfPage pdfPage, IPdfCommandProcessor commandRecording)
     {
         commandRecording.Process(new ClipPathCommand(
             new SKRect(0, 0, pdfPage.CropBox.Width, pdfPage.CropBox.Height),
@@ -89,7 +87,7 @@ public static class PdfDocumentContentExtensions
         commandRecording.Process(new ConcatMatrixCommand(SKMatrix.CreateScale(1, -1)));
     }
 
-    public static PdfPanelPageInfo GetPageInfo(PdfDocument document, int pageNumber)
+    public static PdfPanelPageInfo GetPageInfo(IPdfDocument document, int pageNumber)
     {
         var pdfPage = document.Pages[pageNumber - 1];
         string label = document.Pages[pageNumber - 1].PageLabel.DecodePdfString();

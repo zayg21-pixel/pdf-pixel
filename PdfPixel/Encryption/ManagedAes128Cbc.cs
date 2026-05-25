@@ -3,7 +3,6 @@ using System.Runtime.CompilerServices;
 
 namespace PdfPixel.Encryption;
 
-// TODO: improve performance here and in MD5.
 /// <summary>
 /// Pure managed AES-128-CBC decryption with PKCS#7 unpadding.
 /// Used in place of <see cref="System.Security.Cryptography.Aes"/> to support

@@ -1,8 +1,6 @@
-﻿using PdfPixel.Color.ColorSpace;
-using PdfPixel.Color.Transform;
+﻿using PdfPixel.Color.Transform;
 using PdfPixel.Forms;
 using PdfPixel.Models;
-using PdfPixel.Rendering.Operators;
 using PdfPixel.Text;
 using PdfPixel.Transparency.Model;
 
@@ -10,7 +8,7 @@ namespace PdfPixel.Transparency.Utilities;
 
 internal class PdfSoftMaskParser
 {
-    public static PdfSoftMask ParseSoftMaskDictionary(PdfDictionary softMaskDict, PdfPage page)
+    public static PdfSoftMask ParseSoftMaskDictionary(PdfDictionary softMaskDict, IPdfPageInternal page)
     {
         if (softMaskDict == null)
         {
@@ -45,7 +43,7 @@ internal class PdfSoftMaskParser
         return softMask;
     }
 
-    public static PdfTransparencyGroup ParseTransparencyGroup(PdfDictionary groupDict, PdfPage page)
+    public static PdfTransparencyGroup ParseTransparencyGroup(PdfDictionary groupDict, IPdfPageInternal page)
     {
         if (groupDict == null)
         {

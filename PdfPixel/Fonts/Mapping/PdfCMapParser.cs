@@ -13,7 +13,7 @@ namespace PdfPixel.Fonts.Mapping;
 /// <summary>
 /// Parser for PDF CMaps used in CID fonts.
 /// </summary>
-public static class PdfCMapParser
+internal static class PdfCMapParser
 {
     public static PdfCMap ParseCMap(ReadOnlyMemory<byte> cmapBytes, ILoggerFactory loggerFactory, Func<PdfString, PdfCMap> cmapProvider)
     {
@@ -128,7 +128,7 @@ public static class PdfCMapParser
         return cmap;
     }
 
-    public static PdfCMap ParseCMap(ReadOnlyMemory<byte> cmapBytes, PdfDocument document)
+    public static PdfCMap ParseCMap(ReadOnlyMemory<byte> cmapBytes, IPdfDocumentInternal document)
     {
         return ParseCMap(
             cmapBytes,

@@ -13,7 +13,7 @@ namespace PdfPixel.Models;
 /// Only stores parsed <see cref="SKRect"/> values for box arrays (no raw PdfArray retention).
 /// Rotation value is normalized here (0,90,180,270) when encountered.
 /// </summary>
-public sealed class PdfPageResources
+internal sealed class PdfPageResources
 {
     /// <summary>
     /// Current effective resource dictionary (/Resources).

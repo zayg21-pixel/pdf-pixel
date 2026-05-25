@@ -17,7 +17,7 @@ internal static class PdfAnnotationColorResolver
     /// <param name="page">The PDF page for color space resolution.</param>
     /// <param name="defaultColor">Default color to use if annotation has no color specified. If null, returns transparent.</param>
     /// <returns>The resolved SKColor for rendering.</returns>
-    public static SKColor ResolveColor(float[] colorComponents, PdfPage page, SKColor? defaultColor = null)
+    public static SKColor ResolveColor(float[] colorComponents, IPdfPageInternal page, SKColor? defaultColor = null)
     {
         if (colorComponents == null || colorComponents.Length == 0)
         {

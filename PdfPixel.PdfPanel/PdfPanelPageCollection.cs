@@ -68,10 +68,11 @@ public sealed class PdfPanelPageCollection : ReadOnlyCollection<PdfPanelPage>, I
     /// Generates <see cref="PdfPanelPageCollection"/> from PDF document.
     /// </summary>
     /// <param name="document">PDF document.</param>
+    /// <param name="loggerFactory">Logger factory instance.</param>
     /// <returns><see cref="PdfPanelPageCollection"/>.</returns>
-    public static PdfPanelPageCollection FromDocument(PdfDocument document)
+    public static PdfPanelPageCollection FromDocument(IPdfDocument document, ILoggerFactory loggerFactory)
     {
-        var contentProvider = new PdfPageContentProvider(document, new AsyncWorkQueue(document.LoggerFactory.CreateLogger<AsyncWorkQueue>()));
+        var contentProvider = new PdfPageContentProvider(document, new AsyncWorkQueue(loggerFactory.CreateLogger<AsyncWorkQueue>()));
         return FromContentProvider(contentProvider);
     }
 

@@ -13,7 +13,7 @@ internal class CommandHelpers
     /// <summary>
     /// Applies the modifiers to the given paint, returning a new paint with the modifiers applied.
     /// </summary>
-    public static SKPaint ApplyModifiers(SKPaint paint, IEnumerable<IPdfCommandModifier> modifiers) // TODO: use more
+    public static SKPaint ApplyModifiers(SKPaint paint, IEnumerable<IPdfCommandModifier> modifiers)
     {
         var result = paint.Clone();
 

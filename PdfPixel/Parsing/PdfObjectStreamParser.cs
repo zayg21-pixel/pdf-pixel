@@ -11,10 +11,10 @@ namespace PdfPixel.Parsing;
 /// Responsible for enumerating object streams and materializing the contained indirect objects.
 /// Also provides lazy single-object extraction support used by the general object parser.
 /// </summary>
-public class PdfObjectStreamParser
+internal class PdfObjectStreamParser
 {
     private readonly ILogger<PdfObjectStreamParser> _logger;
-    private readonly PdfDocument _pdfDocument;
+    private readonly IPdfDocumentInternal _pdfDocument;
 
     /// <summary>
     /// Cache of container object number -> decoded bytes so that repeated lazy loads do not re-decode filters.
@@ -31,7 +31,7 @@ public class PdfObjectStreamParser
     /// Create a new object stream parser bound to a PDF document.
     /// </summary>
     /// <param name="document">Owning <see cref="PdfDocument"/> that provides access to objects and logging.</param>
-    public PdfObjectStreamParser(PdfDocument document)
+    public PdfObjectStreamParser(IPdfDocumentInternal document)
     {
         _pdfDocument = document ?? throw new ArgumentNullException(nameof(document));
         _logger = document.LoggerFactory.CreateLogger<PdfObjectStreamParser>();

@@ -38,7 +38,7 @@ namespace PdfPixel
         /// cref="PdfDocument"/> is returned.</returns>
         /// <exception cref="ArgumentNullException">Thrown if <paramref name="stream"/> is <see langword="null"/>.</exception>
         /// <exception cref="InvalidOperationException">Thrown if <paramref name="stream"/> is not readable or does not support seeking.</exception>
-        public PdfDocument Read(Stream stream, string password = null)
+        public IPdfDocument Read(Stream stream, string password = null)
         {
             if (stream == null)
             {
@@ -60,7 +60,7 @@ namespace PdfPixel
                 return new PdfDocument(_loggerFactory, _skiaFontProvider, stream);
             }
 
-            var document = new PdfDocument(_loggerFactory, _skiaFontProvider, stream);
+            IPdfDocumentInternal document = new PdfDocument(_loggerFactory, _skiaFontProvider, stream);
             var xrefLoader = new PdfXrefLoader(document);
             var pageExtractor = new PdfPageExtractor(document);
             var namedDestinationParser = new PdfNamedDestinationParser(document);

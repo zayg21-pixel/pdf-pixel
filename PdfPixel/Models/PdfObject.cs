@@ -16,7 +16,7 @@ public class PdfObject
     /// <param name="reference">The PDF reference for this object.</param>
     /// <param name="document">The owning PDF document.</param>
     /// <param name="value">The value of the PDF object.</param>
-    public PdfObject(PdfReference reference, PdfDocument document, IPdfValue value)
+    internal PdfObject(PdfReference reference, IPdfDocumentInternal document, IPdfValue value)
     {
         Reference = reference;
         Document = document;
@@ -32,7 +32,7 @@ public class PdfObject
     /// <summary>
     /// Gets the owning PDF document.
     /// </summary>
-    public PdfDocument Document { get; }
+    internal IPdfDocumentInternal Document { get; }
 
     /// <summary>
     /// Gets the value of the PDF object.

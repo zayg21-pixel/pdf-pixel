@@ -142,7 +142,7 @@ public class PdfImage
     /// <summary>
     /// Create a PdfImage from XObject data.
     /// </summary>
-    public static PdfImage FromXObject(PdfObject imageXObject, PdfPage page, PdfString name, bool isSoftMask)
+    internal static PdfImage FromXObject(PdfObject imageXObject, IPdfPageInternal page, PdfString name, bool isSoftMask)
     {
         int bitsPerComponent = imageXObject.Dictionary.GetIntegerOrDefault(PdfTokens.BitsPerComponentKey);
 

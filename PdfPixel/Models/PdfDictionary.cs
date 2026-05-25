@@ -13,7 +13,7 @@ public class PdfDictionary
     /// Initializes a new instance of the <see cref="PdfDictionary"/> class with the specified document and optional values.
     /// </summary>
     /// <param name="document">The owning PDF document.</param>
-    public PdfDictionary(PdfDocument document) : this(document, null)
+    internal PdfDictionary(IPdfDocumentInternal document) : this(document, null)
     {
         Document = document;
     }
@@ -23,7 +23,7 @@ public class PdfDictionary
     /// </summary>
     /// <param name="document">The owning PDF document.</param>
     /// <param name="values">The initial dictionary values.</param>
-    public PdfDictionary(PdfDocument document, Dictionary<PdfString, IPdfValue> values)
+    internal PdfDictionary(IPdfDocumentInternal document, Dictionary<PdfString, IPdfValue> values)
     {
         Document = document;
         _values = values ?? new Dictionary<PdfString, IPdfValue>();
@@ -37,7 +37,7 @@ public class PdfDictionary
     /// <summary>
     /// Gets the owning PDF document.
     /// </summary>
-    public PdfDocument Document { get; }
+    internal IPdfDocumentInternal Document { get; }
 
     /// <summary>
     /// Gets the raw dictionary values. Internal use only.

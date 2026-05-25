@@ -16,17 +16,17 @@ namespace PdfPixel.Annotations.Models;
 /// </remarks>
 public class PdfDestination
 {
-    private readonly PdfDocument _document;
+    private readonly IPdfDocumentInternal _document;
     private readonly PdfReference _pageReference;
     private readonly int _pageIndex;
     private readonly float? _left;
     private readonly float? _bottom;
     private readonly float? _right;
     private readonly float? _top;
-    private PdfPage _cachedPage;
+    private IPdfPageInternal _cachedPage;
 
     private PdfDestination(
-        PdfDocument document,
+        IPdfDocumentInternal document,
         PdfReference pageReference, 
         int pageIndex, 
         PdfDestinationFitType fitType,
@@ -56,7 +56,7 @@ public class PdfDestination
     /// </remarks>
     /// <returns>The resolved <see cref="PdfPage"/>, or null if it cannot be resolved.</returns>
     /// <returns>The resolved <see cref="PdfPage"/>, or null if it cannot be resolved when the page is not found.</returns>
-    public PdfPage GetPdfPage()
+    public IPdfPage GetPdfPage()
     {
         if (_cachedPage != null)
         {
@@ -118,7 +118,7 @@ public class PdfDestination
     /// <returns>A rectangle in PDF coordinates, or null if no location is specified.</returns>
     public SKRect? GetTargetLocation()
     {
-        PdfPage page = GetPdfPage();
+        IPdfPage page = GetPdfPage();
         if (page == null)
         {
             return null;
@@ -171,7 +171,7 @@ public class PdfDestination
     /// <param name="destination">The destination value (can be name, string, or array).</param>
     /// <param name="document">The PDF document for resolving named destinations.</param>
     /// <returns>A parsed destination, or null if the destination is invalid.</returns>
-    public static PdfDestination Parse(IPdfValue destination, PdfDocument document)
+    internal static PdfDestination Parse(IPdfValue destination, IPdfDocumentInternal document)
     {
         if (destination == null)
         {
@@ -215,7 +215,7 @@ public class PdfDestination
         return null;
     }
 
-    private static PdfDestination ParseExplicitDestination(PdfArray destArray, PdfDocument document)
+    private static PdfDestination ParseExplicitDestination(PdfArray destArray, IPdfDocumentInternal document)
     {
         if (destArray == null || destArray.Count == 0)
         {

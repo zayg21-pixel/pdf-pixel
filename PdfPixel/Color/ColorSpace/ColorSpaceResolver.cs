@@ -12,10 +12,10 @@ namespace PdfPixel.Color.ColorSpace;
 /// </summary>
 internal sealed partial class ColorSpaceResolver
 {
-    private readonly PdfPage _page;
+    private readonly IPdfPageInternal _page;
     private readonly PdfDictionary _colorSpaceDictionary; // Cached once per page.
 
-    public ColorSpaceResolver(PdfPage page)
+    public ColorSpaceResolver(IPdfPageInternal page)
     {
         _page = page ?? throw new ArgumentNullException(nameof(page));
         _colorSpaceDictionary = _page.ResourceDictionary.GetDictionary(PdfTokens.ColorSpaceKey);

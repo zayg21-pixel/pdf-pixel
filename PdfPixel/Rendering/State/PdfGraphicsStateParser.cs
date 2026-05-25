@@ -23,7 +23,7 @@ namespace PdfPixel.Rendering.State
         /// <param name="gsDict">Graphics state dictionary.</param>
         /// <param name="page">Owning page (used for soft mask parsing).</param>
         /// <returns>Populated parameters container.</returns>
-        internal static PdfGraphicsStateParameters ParseGraphicsStateParametersFromDictionary(PdfDictionary gsDict, PdfPage page)
+        internal static PdfGraphicsStateParameters ParseGraphicsStateParametersFromDictionary(PdfDictionary gsDict, IPdfPageInternal page)
         {
             var parameters = new PdfGraphicsStateParameters();
             if (gsDict == null)

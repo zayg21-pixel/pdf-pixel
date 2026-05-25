@@ -46,7 +46,7 @@ public class PdfTextAnnotation : PdfAnnotationBase
 
     public override bool ShouldDisplayBubble => false;
 
-    public override SKRect GetHoverRectangle(PdfPage page, float defaultBubbleSize = 16)
+    public override SKRect GetHoverRectangle(IPdfPage page, float defaultBubbleSize = 16)
     {
         return Rectangle;
     }
@@ -68,7 +68,7 @@ public class PdfTextAnnotation : PdfAnnotationBase
     /// </remarks>
     public PdfString State { get; }
 
-    protected override bool RenderFallback(IPdfCommandProcessor processor, PdfPage page, PdfAnnotationVisualStateKind visualStateKind, PdfRenderingParameters renderingParameters)
+    internal override bool RenderFallback(IPdfCommandProcessor processor, IPdfPageInternal page, PdfAnnotationVisualStateKind visualStateKind, PdfRenderingParameters renderingParameters)
     {
         PdfAnnotationBubbleRenderer.RenderBubble(processor, this, page, visualStateKind, renderingParameters);
         return true;

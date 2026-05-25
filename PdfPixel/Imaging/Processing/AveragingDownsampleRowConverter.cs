@@ -10,7 +10,7 @@ namespace PdfPixel.Imaging.Processing;
 /// Accumulates source pixel values in integer buckets and averages them for each destination pixel.
 /// Always outputs 8-bit samples. Optimized for performance with minimal allocations.
 /// </summary>
-internal sealed class AveragingDownsampleRowConverter : IRowConverter // TODO: high, still way to many operations, need correct ranges built to accommodate pixel spans.
+internal sealed class AveragingDownsampleRowConverter : IRowConverter
 {
     private readonly int _components;
     private readonly int _sourceBitsPerComponent;

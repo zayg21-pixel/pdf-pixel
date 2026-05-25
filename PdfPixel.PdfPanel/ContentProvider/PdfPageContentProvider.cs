@@ -2,17 +2,16 @@ using PdfPixel.Models;
 using PdfPixel.PdfPanel.WorkQueue;
 using System;
 using System.Collections.Generic;
-using System.Linq;
 
 namespace PdfPixel.PdfPanel.ContentProvider;
 
 public sealed class PdfPageContentProvider : IPdfPageContentProvider
 {
-    private readonly PdfDocument _document;
+    private readonly IPdfDocument _document;
     private readonly IWorkQueue _processingQueue;
     private readonly PdfPageCacheEntry[] _cache;
 
-    public PdfPageContentProvider(PdfDocument document, IWorkQueue processingQueue)
+    public PdfPageContentProvider(IPdfDocument document, IWorkQueue processingQueue)
     {
         _document = document;
         _cache = new PdfPageCacheEntry[document.Pages.Count];

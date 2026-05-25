@@ -20,7 +20,7 @@ internal static class PdfDocumentAnnotationExtractor
         return popups.FirstOrDefault(x => x.IsInteractive && x.Rect.Contains(pagePosition));
     }
 
-    public static PdfAnnotationPopup[] CreateAnnotationPopups(this PdfDocument document, int pageNumber)
+    public static PdfAnnotationPopup[] CreateAnnotationPopups(this IPdfDocument document, int pageNumber)
     {
         if (pageNumber < 1 || pageNumber > document.Pages.Count)
         {
@@ -109,7 +109,7 @@ internal static class PdfDocumentAnnotationExtractor
         return messages.ToArray();
     }
 
-    private static Dictionary<PdfReference, PdfAnnotationBase> BuildAnnotationMap(PdfPage pdfPage)
+    private static Dictionary<PdfReference, PdfAnnotationBase> BuildAnnotationMap(IPdfPage pdfPage)
     {
         var map = new Dictionary<PdfReference, PdfAnnotationBase>();
 
@@ -131,7 +131,7 @@ internal static class PdfDocumentAnnotationExtractor
     /// <param name="pdfPage">The PDF page for coordinate system reference.</param>
     /// <param name="pdfRect">Rectangle in PDF coordinates.</param>
     /// <returns>Rectangle in WPF coordinates.</returns>
-    private static SKRect FromPdfRect(PdfPage pdfPage, SKRect pdfRect)
+    private static SKRect FromPdfRect(IPdfPage pdfPage, SKRect pdfRect)
     {
         // PDF coordinate system: origin at bottom-left, Y increases upward
         // General coordinate system: origin at top-left, Y increases downward

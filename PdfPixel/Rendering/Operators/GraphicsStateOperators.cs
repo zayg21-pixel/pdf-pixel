@@ -10,20 +10,20 @@ using System.Collections.Generic;
 
 namespace PdfPixel.Rendering.Operators;
 
-public class GraphicsStateOperators : IOperatorProcessor
+internal class GraphicsStateOperators : IOperatorProcessor
 {
     private static readonly HashSet<string> SupportedOperators = new HashSet<string>
     {
         "q","Q","cm","w","J","j","M","d","gs","ri","i"
     };
 
-    private readonly PdfPage _page;
+    private readonly IPdfPageInternal _page;
     private readonly IPdfCommandProcessor _processor;
     private readonly Stack<IPdfValue> _operandStack;
     private readonly Stack<PdfGraphicsState> _graphicsStack;
     private readonly ILogger<GraphicsStateOperators> _logger;
 
-    public GraphicsStateOperators(PdfPage page, IPdfCommandProcessor processor, Stack<IPdfValue> operandStack, Stack<PdfGraphicsState> graphicsStack)
+    public GraphicsStateOperators(IPdfPageInternal page, IPdfCommandProcessor processor, Stack<IPdfValue> operandStack, Stack<PdfGraphicsState> graphicsStack)
     {
         _page = page;
         _processor = processor;

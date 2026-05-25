@@ -19,7 +19,7 @@ namespace PdfPixel.Models;
 /// </summary>
 internal sealed class PdfPageCache
 {
-    private readonly PdfPage _page;
+    private readonly IPdfPageInternal _page;
     private readonly Dictionary<PdfString, PdfPattern> _patternsByName = new Dictionary<PdfString, PdfPattern>();
     private readonly Dictionary<PdfString, PdfGraphicsStateParameters> _graphicsStateParametersByName = new Dictionary<PdfString, PdfGraphicsStateParameters>();
     private readonly PdfDictionary _fontDictionary; // captured once
@@ -27,7 +27,7 @@ internal sealed class PdfPageCache
     private readonly PdfDictionary _extGStateDictionary; // captured once
     private readonly PdfDictionary _xObjectDictionary;
 
-    public PdfPageCache(PdfPage page)
+    public PdfPageCache(IPdfPageInternal page)
     {
         ColorSpace = new ColorSpaceResolver(page);
         _page = page ?? throw new ArgumentNullException(nameof(page));

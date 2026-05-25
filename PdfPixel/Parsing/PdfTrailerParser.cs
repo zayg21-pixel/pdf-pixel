@@ -11,10 +11,10 @@ namespace PdfPixel.Parsing;
 /// </summary>
 internal sealed class PdfTrailerParser
 {
-    private readonly PdfDocument _document;
+    private readonly IPdfDocumentInternal _document;
     private readonly ILogger<PdfTrailerParser> _logger;
 
-    public PdfTrailerParser(PdfDocument document)
+    public PdfTrailerParser(IPdfDocumentInternal document)
     {
         _document = document ?? throw new ArgumentNullException(nameof(document));
         _logger = document.LoggerFactory.CreateLogger<PdfTrailerParser>();

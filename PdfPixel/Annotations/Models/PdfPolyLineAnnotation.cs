@@ -60,7 +60,7 @@ public class PdfPolyLineAnnotation : PdfAnnotationBase
     /// </summary>
     public PdfLineEndingStyle EndLineEnding { get; }
 
-    protected override bool RenderFallback(IPdfCommandProcessor processor, PdfPage page, PdfAnnotationVisualStateKind visualStateKind, PdfRenderingParameters renderingParameters)
+    internal override bool RenderFallback(IPdfCommandProcessor processor, IPdfPageInternal page, PdfAnnotationVisualStateKind visualStateKind, PdfRenderingParameters renderingParameters)
     {
         if (Vertices == null || Vertices.Length < 2)
         {

@@ -31,14 +31,14 @@ internal ref partial struct PdfParser
     private readonly List<byte> _localBuffer = new List<byte>();
     private readonly BufferedStream _stream;
     private readonly bool _streamMode;
-    private readonly PdfDocument _document;
+    private readonly IPdfDocumentInternal _document;
     private readonly int _length;
     private readonly bool _allowReferences;
     private readonly bool _decrypt;
     private PdfParseContext _parseContext;
     private PdfReference _currentReference;
 
-    public PdfParser(PdfParseContext parseContext, PdfDocument document, bool allowReferences, bool decrypt)
+    public PdfParser(PdfParseContext parseContext, IPdfDocumentInternal document, bool allowReferences, bool decrypt)
     {
         _parseContext = parseContext;
         _document = document;
@@ -47,7 +47,7 @@ internal ref partial struct PdfParser
         _length = parseContext.Length;
     }
 
-    public PdfParser(BufferedStream bufferedStream, PdfDocument document, bool allowReferences, bool decrypt)
+    public PdfParser(BufferedStream bufferedStream, IPdfDocumentInternal document, bool allowReferences, bool decrypt)
     {
         _stream = bufferedStream;
         _length = (int)bufferedStream.Length;
