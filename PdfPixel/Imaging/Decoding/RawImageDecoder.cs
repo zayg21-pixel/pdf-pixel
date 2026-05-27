@@ -68,18 +68,6 @@ public class RawImageDecoder : PdfImageDecoder
         return null;
     }
 
-    public override void Cleanup()
-    {
-        _dataStream?.Dispose();
-        _dataStream = null;
-        _tilingContext?.Dispose();
-        _tilingContext = null;
-        _imageParameters = null;
-        _fullWidthRowBuffer = null;
-        _contentLocker = null;
-        _currentImageRow = 0;
-    }
-
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static void ReadFull(Stream stream, byte[] buffer)
     {
@@ -93,6 +81,26 @@ public class RawImageDecoder : PdfImageDecoder
             }
 
             bytesRead += read;
+        }
+    }
+
+    public override void Cleanup()
+    {
+        _dataStream?.Dispose();
+        _dataStream = null;
+        _tilingContext?.Dispose();
+        _tilingContext = null;
+        _imageParameters = null;
+        _fullWidthRowBuffer = null;
+        _contentLocker = null;
+        _currentImageRow = 0;
+    }
+
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing)
+        {
+            Cleanup();
         }
     }
 }

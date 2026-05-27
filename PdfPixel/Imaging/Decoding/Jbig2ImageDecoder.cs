@@ -62,15 +62,6 @@ internal sealed class Jbig2ImageDecoder : PdfImageDecoder
         return null;
     }
 
-    public override void Cleanup()
-    {
-        _fullWidthRowBuffer = null;
-        _tilingContext?.Dispose();
-        _tilingContext = null;
-        _imageParameters = null;
-        _currentImageRow = 0;
-    }
-
     private void EnsureBitmapDecoded(object contentLocker, IPdfExecutionObserver observer)
     {
         if (_cachedBitmap != null)
@@ -156,5 +147,23 @@ internal sealed class Jbig2ImageDecoder : PdfImageDecoder
         public Jbig2Observer(IPdfExecutionObserver pdfObserver) => _pdfObserver = pdfObserver;
 
         public void Notify() => _pdfObserver?.Notify();
+    }
+
+    public override void Cleanup()
+    {
+        _fullWidthRowBuffer = null;
+        _tilingContext?.Dispose();
+        _tilingContext = null;
+        _imageParameters = null;
+        _currentImageRow = 0;
+    }
+
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing)
+        {
+            Cleanup();
+            _cachedBitmap = null;
+        }
     }
 }

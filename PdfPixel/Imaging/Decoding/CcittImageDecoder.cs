@@ -88,4 +88,12 @@ internal sealed class CcittImageDecoder : PdfImageDecoder
         _imageParameters = null;
         _currentImageRow = 0;
     }
+
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing)
+        {
+            Cleanup();
+        }
+    }
 }

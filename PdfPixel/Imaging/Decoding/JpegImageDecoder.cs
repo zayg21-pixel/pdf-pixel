@@ -87,16 +87,6 @@ public sealed class JpegImageDecoder : PdfImageDecoder
         return null;
     }
 
-    public override void Cleanup()
-    {
-        _jpgRowDecoder = null;
-        _fullWidthRowBuffer = null;
-        _tilingContext?.Dispose();
-        _tilingContext = null;
-        _imageParameters = null;
-        _currentImageRow = 0;
-    }
-
     private IJpgDecoder CreateJpgDecoder(in ReadOnlyMemory<byte> encodedData, JpgHeader header)
     {
         ReadOnlyMemory<byte> compressed = encodedData.Slice(header.ContentOffset);
@@ -121,5 +111,23 @@ public sealed class JpegImageDecoder : PdfImageDecoder
             JpgFrameType.BaselineDct or JpgFrameType.ExtendedSequentialDct => new JpgBaselineDecoder(header, compressed, colorParameters),
             _ => throw new NotSupportedException($"JPEG frame type {header.FrameType} is not supported (Image={Image.Name}).")
         };
+    }
+
+    public override void Cleanup()
+    {
+        _jpgRowDecoder = null;
+        _fullWidthRowBuffer = null;
+        _tilingContext?.Dispose();
+        _tilingContext = null;
+        _imageParameters = null;
+        _currentImageRow = 0;
+    }
+
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing)
+        {
+            Cleanup();
+        }
     }
 }

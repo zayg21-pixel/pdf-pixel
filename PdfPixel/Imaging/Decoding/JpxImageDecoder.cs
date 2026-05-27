@@ -101,18 +101,6 @@ public class JpxImageDecoder : PdfImageDecoder
         return null;
     }
 
-    public override void Cleanup()
-    {
-        _rowConverter = null;
-        _tileProvider = default;
-        _resolvedConverter = null;
-        _tilingContext?.Dispose();
-        _tilingContext = null;
-        _imageParameters = null;
-        _fullWidthRowBuffer = null;
-        _currentImageRow = 0;
-    }
-
     private PdfColorSpaceConverter ResolveConverter(JpxHeader header)
     {
         PdfColorSpaceConverter converter = Image.ColorSpaceConverter;
@@ -168,5 +156,25 @@ public class JpxImageDecoder : PdfImageDecoder
         public JpxObserver(IPdfExecutionObserver pdfObserver) => _pdfObserver = pdfObserver;
 
         public void Notify() => _pdfObserver?.Notify();
+    }
+
+    public override void Cleanup()
+    {
+        _rowConverter = null;
+        _tileProvider = default;
+        _resolvedConverter = null;
+        _tilingContext?.Dispose();
+        _tilingContext = null;
+        _imageParameters = null;
+        _fullWidthRowBuffer = null;
+        _currentImageRow = 0;
+    }
+
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing)
+        {
+            Cleanup();
+        }
     }
 }

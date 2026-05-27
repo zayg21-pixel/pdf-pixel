@@ -34,6 +34,11 @@ internal sealed class PdfImageTileCacheEntry : IDisposable
         {
             InvalidateCache();
         }
+        else if (_decoding)
+        {
+            _decoder.Cleanup();
+            _decoding = false;
+        }
 
         _cachedScaleX = ctm.ScaleX;
         _cachedScaleY = ctm.ScaleY;
@@ -141,7 +146,7 @@ internal sealed class PdfImageTileCacheEntry : IDisposable
 
     public void Dispose()
     {
-        _decoder.Cleanup();
+        _decoder.Dispose();
         for (int i = 0; i < _tiles.Length; i++)
         {
             _tiles[i]?.Dispose();

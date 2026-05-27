@@ -1,4 +1,4 @@
-﻿using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging;
 using PdfPixel.Color.ColorSpace;
 using PdfPixel.Commands;
 using PdfPixel.Imaging.Model;
@@ -11,7 +11,7 @@ namespace PdfPixel.Imaging.Decoding;
 /// <summary>
 /// Base class for PDF image decoders.
 /// </summary>
-public abstract class PdfImageDecoder
+public abstract class PdfImageDecoder : IDisposable
 {
     protected PdfImageDecoder(PdfImage image, ILoggerFactory loggerFactory)
     {
@@ -77,10 +77,6 @@ public abstract class PdfImageDecoder
 
     public virtual PdfImageTile[] DecodeNextTiles(IPdfExecutionObserver observer) => null;
 
-    public virtual void Cleanup()
-    {
-    }
-
     /// <summary>
     /// Validate image parameters and return key values needed for processing.
     /// Logs detailed errors and returns false when validation fails.
@@ -124,5 +120,17 @@ public abstract class PdfImageDecoder
         }
 
         return true;
+    }
+
+    public virtual void Cleanup()
+    {
+    }
+
+    protected abstract void Dispose(bool disposing);
+
+    public void Dispose()
+    {
+        Dispose(true);
+        GC.SuppressFinalize(this);
     }
 }
