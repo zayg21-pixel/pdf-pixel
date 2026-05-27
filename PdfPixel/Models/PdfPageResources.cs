@@ -18,7 +18,7 @@ internal sealed class PdfPageResources
     /// <summary>
     /// Current effective resource dictionary (/Resources).
     /// </summary>
-    public PdfDictionary Resources { get; private set; }
+    public PdfDictionary? Resources { get; private set; }
 
     /// <summary>
     /// Current effective /MediaBox rectangle (may be null if not yet defined or malformed array shorter than4 entries).
@@ -53,7 +53,7 @@ internal sealed class PdfPageResources
     /// <summary>
     /// Current effective /Annots array - parsed annotation objects.
     /// </summary>
-    public List<PdfAnnotationBase> Annotations { get; private set; }
+    public List<PdfAnnotationBase>? Annotations { get; private set; }
 
     /// <summary>
     /// Create a shallow clone of the current effective values. Resource dictionary reference is reused.
@@ -134,20 +134,27 @@ internal sealed class PdfPageResources
 
     private static int NormalizeRotation(int rotation) => ((rotation % 360) + 360) % 360;
 
-    private static List<PdfAnnotationBase> ParseAnnotations(List<PdfObject> annotationObjects)
+    private static List<PdfAnnotationBase>? ParseAnnotations(List<PdfObject>? annotationObjects)
     {
         List<PdfAnnotationBase> annotations = [];
 
-        if (annotationObjects != null)
+        if (annotationObjects == null)
         {
-            foreach (PdfObject annotationObject in annotationObjects)
+            return null;
+        }
+
+        foreach (PdfObject annotationObject in annotationObjects)
+        {
+            PdfAnnotationBase? annotation = PdfAnnotationFactory.CreateAnnotation(annotationObject);
+            if (annotation != null)
             {
-                PdfAnnotationBase annotation = PdfAnnotationFactory.CreateAnnotation(annotationObject);
-                if (annotation != null)
-                {
-                    annotations.Add(annotation);
-                }
+                annotations.Add(annotation);
             }
+        }
+
+        if (annotations.Count == 0)
+        {
+            return null;
         }
 
         return annotations;

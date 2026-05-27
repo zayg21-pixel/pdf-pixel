@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging;
+using PdfPixel.Color.ColorSpace;
 using PdfPixel.Commands;
 using PdfPixel.Imaging.Model;
 using PdfPixel.Imaging.Processing;
@@ -6,17 +7,16 @@ using SkiaSharp;
 using System;
 using System.IO;
 using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
 
 namespace PdfPixel.Imaging.Decoding;
 
-public class RawImageDecoder : PdfImageDecoder
+internal class RawImageDecoder : PdfImageDecoder
 {
-    private object _contentLocker;
-    private Stream _dataStream;
-    private byte[] _fullWidthRowBuffer;
-    private PdfImageTilingContext _tilingContext;
-    private PdfImageRowDecodingParameters _imageParameters;
+    private object? _contentLocker;
+    private Stream? _dataStream;
+    private byte[]? _fullWidthRowBuffer;
+    private PdfImageTilingContext? _tilingContext;
+    private PdfImageRowDecodingParameters? _imageParameters;
     private int _currentImageRow;
 
     public RawImageDecoder(PdfImage image, ILoggerFactory loggerFactory)
@@ -24,7 +24,7 @@ public class RawImageDecoder : PdfImageDecoder
     {
     }
 
-    public override void Initialize(PdfTileInfo tileInfo, ImageDecodingContext context, object contentLocker, SKMatrix ctm, SKRectI regionOfInterest, IPdfExecutionObserver observer)
+    public override void Initialize(PdfTileInfo tileInfo, ImageDecodingContext context, object contentLocker, SKMatrix ctm, SKRectI regionOfInterest, IPdfExecutionObserver? observer)
     {
         if (!ValidateImageParameters())
         {
@@ -32,11 +32,26 @@ public class RawImageDecoder : PdfImageDecoder
         }
 
         _contentLocker = contentLocker;
-        _imageParameters = PdfImageRowDecodingParameters.FromImage(Image, context, ctm);
+        int defaultComponents = (Image.BitsPerComponent == 1) ? 1 : 3;
+        PdfColorSpaceConverter converter = Image.ColorSpaceConverter ?? Image.Page.Cache.ColorSpace.ResolveDeviceConverter(defaultComponents) ?? DeviceRgbConverter.Instance;
+        SKSizeI? downscaledSize = PdfImageRowDecodingParameters.ComputeDownscaledSize(Image.Width, Image.Height, converter, context, ctm);
 
-        int rowBytes = checked(((Image.Width * Image.ColorSpaceConverter.Components * Image.BitsPerComponent) + 7) / 8);
+        _imageParameters = new PdfImageRowDecodingParameters(
+            context,
+            Image.Width,
+            Image.Height,
+            Image.BitsPerComponent,
+            Image.RenderingIntent,
+            converter,
+            Image.HasImageMask,
+            Image.MaskArray,
+            Image.DecodeArray,
+            downscaledSize,
+            1);
+
+        int rowBytes = checked(((Image.Width * converter.Components * Image.BitsPerComponent) + 7) / 8);
         _fullWidthRowBuffer = new byte[rowBytes];
-        _tilingContext = new PdfImageTilingContext(new SKSizeI(tileInfo.TileWidth, tileInfo.TileHeight), _imageParameters, ctm, regionOfInterest, LoggerFactory);
+        _tilingContext = new PdfImageTilingContext(new SKSizeI(tileInfo.TileWidth, tileInfo.TileHeight), tileInfo, _imageParameters, ctm, regionOfInterest, LoggerFactory);
 
         lock (contentLocker)
         {
@@ -46,8 +61,13 @@ public class RawImageDecoder : PdfImageDecoder
         _currentImageRow = 0;
     }
 
-    public override PdfImageTile[] DecodeNextTiles(IPdfExecutionObserver observer)
+    public override PdfImageTile[]? DecodeNextTiles(IPdfExecutionObserver? observer)
     {
+        if (_imageParameters == null || _contentLocker == null || _dataStream == null || _fullWidthRowBuffer == null || _tilingContext == null)
+        {
+            return null;
+        }
+
         while (_currentImageRow < _imageParameters.Height)
         {
             lock (_contentLocker)
@@ -55,7 +75,7 @@ public class RawImageDecoder : PdfImageDecoder
                 ReadFull(_dataStream, _fullWidthRowBuffer);
             }
 
-            PdfImageTile[] tiles = _tilingContext.WriteRowAndTryGetTiles(_currentImageRow, _fullWidthRowBuffer, observer);
+            PdfImageTile[]? tiles = _tilingContext.WriteRowAndTryGetTiles(_currentImageRow, _fullWidthRowBuffer, observer);
             _currentImageRow++;
             observer?.Notify();
 
@@ -77,7 +97,7 @@ public class RawImageDecoder : PdfImageDecoder
             int read = stream.Read(buffer, bytesRead, buffer.Length - bytesRead);
             if (read == 0)
             {
-                throw new("Premature end of raw stream at image row");
+                throw new EndOfStreamException("Premature end of raw stream at image row");
             }
 
             bytesRead += read;
@@ -100,7 +120,8 @@ public class RawImageDecoder : PdfImageDecoder
     {
         if (disposing)
         {
-            Cleanup();
+            _dataStream?.Dispose();
+            _tilingContext?.Dispose();
         }
     }
 }

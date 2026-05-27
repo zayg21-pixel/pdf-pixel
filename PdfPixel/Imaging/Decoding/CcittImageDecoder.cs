@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging;
 using PdfPixel.Ccitt;
+using PdfPixel.Color.ColorSpace;
 using PdfPixel.Commands;
 using PdfPixel.Imaging.Model;
 using PdfPixel.Imaging.Processing;
@@ -10,10 +11,10 @@ namespace PdfPixel.Imaging.Decoding;
 
 internal sealed class CcittImageDecoder : PdfImageDecoder
 {
-    private CcittRowDecoder _rowDecoder;
-    private byte[] _fullWidthRowBuffer;
-    private PdfImageTilingContext _tilingContext;
-    private PdfImageRowDecodingParameters _imageParameters;
+    private CcittRowDecoder? _rowDecoder;
+    private byte[]? _fullWidthRowBuffer;
+    private PdfImageTilingContext? _tilingContext;
+    private PdfImageRowDecodingParameters? _imageParameters;
     private int _currentImageRow;
 
     public CcittImageDecoder(PdfImage image, ILoggerFactory loggerFactory)
@@ -21,7 +22,7 @@ internal sealed class CcittImageDecoder : PdfImageDecoder
     {
     }
 
-    public override void Initialize(PdfTileInfo tileInfo, ImageDecodingContext context, object contentLocker, SKMatrix ctm, SKRectI regionOfInterest, IPdfExecutionObserver observer)
+    public override void Initialize(PdfTileInfo tileInfo, ImageDecodingContext context, object contentLocker, SKMatrix ctm, SKRectI regionOfInterest, IPdfExecutionObserver? observer)
     {
         if (!ValidateImageParameters())
         {
@@ -39,7 +40,7 @@ internal sealed class CcittImageDecoder : PdfImageDecoder
             throw new InvalidOperationException($"CCITT image data is empty (Name={Image.Name}).");
         }
 
-        PdfDecodeParameters parameters = Image.DecodeParms;
+        PdfDecodeParameters? parameters = Image.DecodeParms;
         int columns = parameters?.Columns ?? Image.Width;
         int rows = parameters?.Rows ?? Image.Height;
         int k = parameters?.K ?? 0;
@@ -48,16 +49,35 @@ internal sealed class CcittImageDecoder : PdfImageDecoder
         bool blackIs1 = parameters?.BlackIs1 ?? false;
         bool endOfBlock = parameters?.EndOfBlock ?? false;
 
-        _imageParameters = PdfImageRowDecodingParameters.FromImage(Image, context, ctm);
+        PdfColorSpaceConverter converter = Image.ColorSpaceConverter ?? Image.Page.Cache.ColorSpace.ResolveDeviceConverter(1) ?? DeviceGrayConverter.Instance;
+        SKSizeI? downscaledSize = PdfImageRowDecodingParameters.ComputeDownscaledSize(columns, rows, converter, context, ctm);
+
+        _imageParameters = new PdfImageRowDecodingParameters(
+            context,
+            Image.Width,
+            Image.Height,
+            Image.BitsPerComponent,
+            Image.RenderingIntent,
+            converter,
+            Image.HasImageMask,
+            Image.MaskArray,
+            Image.DecodeArray,
+            downscaledSize,
+            1);
 
         _rowDecoder = new CcittRowDecoder(encodedData, columns, rows, blackIs1, k, endOfLine, byteAlign, endOfBlock);
         _fullWidthRowBuffer = new byte[_rowDecoder.RowStride];
-        _tilingContext = new PdfImageTilingContext(new SKSizeI(tileInfo.TileWidth, tileInfo.TileHeight), _imageParameters, ctm, regionOfInterest, LoggerFactory);
+        _tilingContext = new PdfImageTilingContext(new SKSizeI(tileInfo.TileWidth, tileInfo.TileHeight), tileInfo, _imageParameters, ctm, regionOfInterest, LoggerFactory);
         _currentImageRow = 0;
     }
 
-    public override PdfImageTile[] DecodeNextTiles(IPdfExecutionObserver observer)
+    public override PdfImageTile[]? DecodeNextTiles(IPdfExecutionObserver? observer)
     {
+        if (_rowDecoder == null || _imageParameters == null || _fullWidthRowBuffer == null || _tilingContext == null)
+        {
+            return null;
+        }
+
         Span<byte> buffer = _fullWidthRowBuffer;
         while (_currentImageRow < _imageParameters.Height)
         {
@@ -67,7 +87,7 @@ internal sealed class CcittImageDecoder : PdfImageDecoder
                 return null;
             }
 
-            PdfImageTile[] tiles = _tilingContext.WriteRowAndTryGetTiles(_currentImageRow, _fullWidthRowBuffer, observer);
+            PdfImageTile[]? tiles = _tilingContext.WriteRowAndTryGetTiles(_currentImageRow, _fullWidthRowBuffer, observer);
             _currentImageRow++;
             observer?.Notify();
             if (tiles != null)
@@ -93,7 +113,7 @@ internal sealed class CcittImageDecoder : PdfImageDecoder
     {
         if (disposing)
         {
-            Cleanup();
+            _tilingContext?.Dispose();
         }
     }
 }

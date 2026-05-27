@@ -114,20 +114,35 @@ internal static class IccTrcEvaluatorFactory
                 return x;
             }
 
-            float scaled = x * _scale;
-            var index = (int)scaled;
+            float u = x * _scale;
+            var i1 = (int)u;
 
-            if (index < 0)
+            if (i1 < 0)
             {
-                return 0;
+                return 0f;
             }
 
-            if (index >= _samples.Length)
+            if (i1 >= _samples.Length - 1)
             {
-                return 1;
+                return (i1 >= _samples.Length) ? 1f : _samples[i1];
             }
 
-            return _samples[index];
+            float t = u - i1;
+            int i0 = (i1 > 0) ? i1 - 1 : 0;
+            int i2 = i1 + 1;
+            int i3 = (i2 < _samples.Length - 1) ? i2 + 1 : _samples.Length - 1;
+
+            float p0 = _samples[i0];
+            float p1 = _samples[i1];
+            float p2 = _samples[i2];
+            float p3 = _samples[i3];
+
+            float t2 = t * t;
+            float t3 = t2 * t;
+            float a0 = (-0.5f * p0) + (1.5f * p1) - (1.5f * p2) + (0.5f * p3);
+            float a1 = p0 - (2.5f * p1) + (2f * p2) - (0.5f * p3);
+            float a2 = (-0.5f * p0) + (0.5f * p2);
+            return (a0 * t3) + (a1 * t2) + (a2 * t) + p1;
         }
     }
 

@@ -62,7 +62,7 @@ namespace PdfPixel.PostScript
                         PostScriptLiteralName category = PopOfType<PostScriptLiteralName>(stack);
                         PostScriptLiteralName resourceName = PopOfType<PostScriptLiteralName>(stack);
 
-                    if (_resources.Entries.TryGetValue(category.Name, out PostScriptToken categoryToken) && categoryToken is PostScriptDictionary categoryDict)
+                    if (_resources.Entries.TryGetValue(category.Name, out PostScriptToken? categoryToken) && categoryToken is PostScriptDictionary categoryDict)
                     {
                         if (categoryDict.Entries.Remove(resourceName.Name))
                         {
@@ -105,7 +105,7 @@ namespace PdfPixel.PostScript
                 return;
             }
 
-            if (!_resources.Entries.TryGetValue(category, out PostScriptToken categoryToken) || categoryToken is not PostScriptDictionary categoryDict)
+            if (!_resources.Entries.TryGetValue(category, out PostScriptToken? categoryToken) || categoryToken is not PostScriptDictionary categoryDict)
             {
                 categoryDict = new PostScriptDictionary();
                 _resources.Entries[category] = categoryDict;
@@ -117,16 +117,16 @@ namespace PdfPixel.PostScript
         /// <summary>
         /// Retrieves a resource value from the Resources dictionary or null if not found.
         /// </summary>
-        public PostScriptToken GetResourceValue(string category, string name)
+        public PostScriptToken? GetResourceValue(string category, string name)
         {
             if (string.IsNullOrWhiteSpace(category) || string.IsNullOrWhiteSpace(name))
             {
                 return null;
             }
 
-            if (_resources.Entries.TryGetValue(category, out PostScriptToken categoryToken)
+            if (_resources.Entries.TryGetValue(category, out PostScriptToken? categoryToken)
                 && categoryToken is PostScriptDictionary categoryDict
-                && categoryDict.Entries.TryGetValue(name, out PostScriptToken resourceValue))
+                && categoryDict.Entries.TryGetValue(name, out PostScriptToken? resourceValue))
             {
                 return resourceValue;
             }
@@ -137,14 +137,14 @@ namespace PdfPixel.PostScript
         /// <summary>
         /// Returns the entire resource category dictionary or null if not found.
         /// </summary>
-        public PostScriptDictionary GetResourceCategory(string category)
+        public PostScriptDictionary? GetResourceCategory(string category)
         {
             if (string.IsNullOrWhiteSpace(category))
             {
                 return null;
             }
 
-            if (_resources.Entries.TryGetValue(category, out PostScriptToken categoryToken) && categoryToken is PostScriptDictionary categoryDict)
+            if (_resources.Entries.TryGetValue(category, out PostScriptToken? categoryToken) && categoryToken is PostScriptDictionary categoryDict)
             {
                 return categoryDict;
             }

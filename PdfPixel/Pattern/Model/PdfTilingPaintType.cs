@@ -5,6 +5,7 @@ namespace PdfPixel.Pattern.Model;
 /// </summary>
 public enum PdfTilingPaintType
 {
+    None = 0,
     Colored = 1,
     Uncolored = 2
 }

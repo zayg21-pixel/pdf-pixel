@@ -11,7 +11,7 @@ namespace PdfPixel.Fonts.Management;
 public sealed class WindowsSkiaFontProvider : ISkiaFontProvider, IDisposable
 {
     private readonly SKFontManager _fontManager;
-    private readonly string _fallbackFontName;
+    private readonly string? _fallbackFontName;
 
     private static readonly Dictionary<PdfStandardFontName, string[]> CandidatesMap = new()
     {
@@ -27,7 +27,7 @@ public sealed class WindowsSkiaFontProvider : ISkiaFontProvider, IDisposable
         { PdfStandardFontName.ZapfDingbats, new[] { "Segoe UI Symbol" } }
     };
 
-    public WindowsSkiaFontProvider(string fallbackFontName = null)
+    public WindowsSkiaFontProvider(string? fallbackFontName = null)
     {
         _fallbackFontName = fallbackFontName;
         _fontManager = SKFontManager.CreateDefault();
@@ -35,9 +35,9 @@ public sealed class WindowsSkiaFontProvider : ISkiaFontProvider, IDisposable
     }
 
     /// <inheritdoc/>
-    public SKTypeface GetStandardFont(PdfStandardFontName standardFont, SKFontStyle style, string unicode)
+    public SKTypeface? GetStandardFont(PdfStandardFontName standardFont, SKFontStyle style, string? unicode)
     {
-        if (!CandidatesMap.TryGetValue(standardFont, out string[] candidates))
+        if (!CandidatesMap.TryGetValue(standardFont, out string[]? candidates))
         {
             return null;
         }
@@ -55,7 +55,7 @@ public sealed class WindowsSkiaFontProvider : ISkiaFontProvider, IDisposable
     }
 
     /// <inheritdoc/>
-    public SKTypeface GetFont(string name, SKFontStyle style, string unicode)
+    public SKTypeface GetFont(string? name, SKFontStyle style, string? unicode)
     {
         if (string.IsNullOrEmpty(name))
         {
@@ -73,7 +73,12 @@ public sealed class WindowsSkiaFontProvider : ISkiaFontProvider, IDisposable
             return _fontManager.MatchFamily(_fallbackFontName, style);
         }
 
-        return _fontManager.MatchCharacter(_fallbackFontName, style, default, unicode[0]);
+        if (unicode != null && unicode.Length > 0)
+        {
+            return _fontManager.MatchCharacter(_fallbackFontName, style, default, unicode[0]);
+        }
+
+        return _fontManager.MatchFamily(_fallbackFontName);
     }
 
     public void Dispose() => _fontManager?.Dispose();

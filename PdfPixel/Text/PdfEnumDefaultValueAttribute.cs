@@ -1,7 +1,4 @@
 ﻿using System;
-#if !NETSTANDARD2_0
-using System.Diagnostics.CodeAnalysis;
-#endif
 
 namespace PdfPixel.Text
 {
@@ -9,5 +6,5 @@ namespace PdfPixel.Text
     /// Marks the default value for a PDF enum type. The field marked with this attribute must be equal to default(T).
     /// </summary>
     [AttributeUsage(AttributeTargets.All, AllowMultiple = false)]
-    internal class PdfEnumDefaultValueAttribute : Attribute;
+    internal sealed class PdfEnumDefaultValueAttribute : Attribute;
 }

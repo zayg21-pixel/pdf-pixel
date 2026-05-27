@@ -1,5 +1,4 @@
 using System;
-using PdfPixel.Color.Paint;
 using PdfPixel.Commands;
 using PdfPixel.Models;
 using PdfPixel.Pattern.Utilities;
@@ -62,7 +61,7 @@ public sealed class PdfTilingPattern : PdfPattern
 
     internal override void RenderPattern(IPdfCommandProcessor processor, PdfGraphicsState state, IRenderTarget renderTarget)
     {
-        PdfCommandRecorder tileRecorder = TilingPatternShaderBuilder.RenderTilingCell(_renderer, this, state);
+        PdfCommandRecorder? tileRecorder = TilingPatternShaderBuilder.RenderTilingCell(_renderer, this, state);
 
         if (tileRecorder == null)
         {
@@ -76,7 +75,7 @@ public sealed class PdfTilingPattern : PdfPattern
         processor.Process(new SaveStateCommand());
         processor.Process(new ConcatMatrixCommand(matrix));
 
-        IPdfCommandModifier modifier = (PaintTypeKind == PdfTilingPaintType.Uncolored)
+        IPdfCommandModifier? modifier = (PaintTypeKind == PdfTilingPaintType.Uncolored)
             ? new UncoloredPaintModifier(renderTarget.Color)
             : default;
 

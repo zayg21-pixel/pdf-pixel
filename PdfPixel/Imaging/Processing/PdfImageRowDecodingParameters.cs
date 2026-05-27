@@ -22,8 +22,8 @@ public sealed class PdfImageRowDecodingParameters
         PdfRenderingIntent renderingIntent,
         PdfColorSpaceConverter colorSpaceConverter,
         bool hasImageMask,
-        int[] maskArray,
-        float[] decodeArray,
+        int[]? maskArray,
+        float[]? decodeArray,
         SKSizeI? downscaledSize,
         int descaleFactor)
     {
@@ -41,16 +41,25 @@ public sealed class PdfImageRowDecodingParameters
     }
 
     public int Width { get; }
+
     public int Height { get; }
+
     public int BitsPerComponent { get; }
+
     public PdfRenderingIntent RenderingIntent { get; }
+
     public PdfColorSpaceConverter ColorSpaceConverter { get; }
+
     public bool HasImageMask { get; }
-    public int[] MaskArray { get; }
-    public float[] DecodeArray { get; }
+
+    public int[]? MaskArray { get; }
+
+    public float[]? DecodeArray { get; }
+
     public SKSizeI? DownscaledSize { get; }
 
     public int DescaleFactor { get; }
+
     public ImageDecodingContext Context { get; }
 
     /// <summary>
@@ -58,7 +67,7 @@ public sealed class PdfImageRowDecodingParameters
     /// or null when downscaling is not applicable (indexed color space, Type 3 rendering, or
     /// the context reports no size reduction).
     /// </summary>
-    public static SKSizeI? ComputeDownscaledSize(int width, int height, PdfColorSpaceConverter colorSpaceConverter, ImageDecodingContext context, SKMatrix ctm)
+    internal static SKSizeI? ComputeDownscaledSize(int width, int height, PdfColorSpaceConverter? colorSpaceConverter, ImageDecodingContext context, SKMatrix ctm)
     {
         if (colorSpaceConverter is IndexedConverter || context.IsType3Rendering)
         {
@@ -68,7 +77,7 @@ public sealed class PdfImageRowDecodingParameters
         return PdfImageCommandUtilities.GetScaledSize(ctm, new SKSizeI(width, height));
     }
 
-    public static PdfImageRowDecodingParameters FromImage(PdfImage image, ImageDecodingContext context, SKMatrix ctm)
+    internal static PdfImageRowDecodingParameters FromImage(PdfImage image, ImageDecodingContext context, SKMatrix ctm)
     {
         SKSizeI? downscaledSize = ComputeDownscaledSize(image.Width, image.Height, image.ColorSpaceConverter, context, ctm);
 
@@ -78,7 +87,7 @@ public sealed class PdfImageRowDecodingParameters
             image.Height,
             image.BitsPerComponent,
             image.RenderingIntent,
-            image.ColorSpaceConverter,
+            image.ColorSpaceConverter ?? DeviceRgbConverter.Instance,
             image.HasImageMask,
             image.MaskArray,
             image.DecodeArray,

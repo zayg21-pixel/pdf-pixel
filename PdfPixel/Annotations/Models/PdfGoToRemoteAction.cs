@@ -28,7 +28,7 @@ public class PdfGoToRemoteAction : PdfAction
     /// <summary>
     /// Gets the parsed destination in the remote document.
     /// </summary>
-    public PdfDestination Destination { get; }
+    public PdfDestination? Destination { get; }
 
     /// <summary>
     /// Gets a value indicating whether to open the destination in a new window.

@@ -9,12 +9,6 @@ namespace PdfPixel.Models;
 public class PdfRenderingParameters : IEquatable<PdfRenderingParameters>, ICloneable
 {
     /// <summary>
-    /// Indicates whether the rendering is intended for printing.
-    /// When true, affects annotation visibility (only annotations with Print flag are rendered).
-    /// </summary>
-    public bool PrintMode { get; set; }
-
-    /// <summary>
     /// If true - antialiazing will be enabled for rendering useful for CPU rendering to avoid jagged edges.
     /// </summary>
     public bool Antialias { get; set; } = true;
@@ -41,9 +35,9 @@ public class PdfRenderingParameters : IEquatable<PdfRenderingParameters>, IClone
     public int ImageTileSize { get; set; } = 1024;
 
     /// <inheritdoc />
-    public bool Equals(PdfRenderingParameters other)
+    public bool Equals(PdfRenderingParameters? other)
     {
-        if (other == null)
+        if (ReferenceEquals(null, other))
         {
             return false;
         }
@@ -53,21 +47,19 @@ public class PdfRenderingParameters : IEquatable<PdfRenderingParameters>, IClone
             return true;
         }
 
-        return PrintMode == other.PrintMode
-            && Antialias == other.Antialias
+        return Antialias == other.Antialias
             && ScaleFactor == other.ScaleFactor
             && DefaultFunctionSamples == other.DefaultFunctionSamples
             && MaxTessellationVertices == other.MaxTessellationVertices;
     }
 
     /// <inheritdoc />
-    public override bool Equals(object obj) => Equals(obj as PdfRenderingParameters);
+    public override bool Equals(object? obj) => Equals(obj as PdfRenderingParameters);
 
     /// <inheritdoc />
     public override int GetHashCode()
     {
         return HashCode.Combine(
-            PrintMode,
             Antialias,
             ScaleFactor,
             DefaultFunctionSamples,
@@ -78,7 +70,7 @@ public class PdfRenderingParameters : IEquatable<PdfRenderingParameters>, IClone
     /// <summary>
     /// Determines whether two <see cref="PdfRenderingParameters"/> instances are equal.
     /// </summary>
-    public static bool operator ==(PdfRenderingParameters left, PdfRenderingParameters right)
+    public static bool operator ==(PdfRenderingParameters? left, PdfRenderingParameters? right)
     {
         if (ReferenceEquals(left, right))
         {
@@ -97,7 +89,6 @@ public class PdfRenderingParameters : IEquatable<PdfRenderingParameters>, IClone
     {
         return new()
         {
-            PrintMode = PrintMode,
             Antialias = Antialias,
             ScaleFactor = ScaleFactor,
             DefaultFunctionSamples = DefaultFunctionSamples,

@@ -16,20 +16,25 @@ namespace PdfPixel.Streams
     /// </summary>
     public sealed class PdfStreamDecoder
     {
+        private const int DecodeChunkSize = 2048;
+
         private readonly ILogger<PdfStreamDecoder> _logger;
 
         public PdfStreamDecoder(ILoggerFactory loggerFactory) => _logger = loggerFactory.CreateLogger<PdfStreamDecoder>();
 
-        private const int DecodeChunkSize = 2048;
-
         /// <summary>
         /// Decode the full stream into memory (filters + predictor) and return the resulting bytes.
         /// </summary>
-        public ReadOnlyMemory<byte> DecodeContentStream(PdfObject obj, IPdfExecutionObserver observer)
+        public ReadOnlyMemory<byte> DecodeContentStream(PdfObject obj, IPdfExecutionObserver? observer)
         {
+            if (obj == null)
+            {
+                throw new ArgumentNullException(nameof(obj));
+            }
+
             List<PdfFilterType> filters = GetFilters(obj);
             Stream rawStream = obj.GetRawStream();
-            List<PdfDictionary> decodeParameters = GetDecodeParms(obj);
+            List<PdfDictionary?> decodeParameters = GetDecodeParms(obj);
             using Stream final = DecodeAsStream(rawStream, filters, decodeParameters);
 
             using MemoryStream memoryStream = new();
@@ -49,12 +54,17 @@ namespace PdfPixel.Streams
         /// </summary>
         public Stream DecodeContentAsStream(PdfObject obj)
         {
+            if (obj == null)
+            {
+                throw new ArgumentNullException(nameof(obj));
+            }
+
             List<PdfFilterType> filters = GetFilters(obj);
-            List<PdfDictionary> decodeParameters = GetDecodeParms(obj);
+            List<PdfDictionary?> decodeParameters = GetDecodeParms(obj);
             return DecodeAsStream(obj.GetRawStream(), filters, decodeParameters);
         }
 
-        private Stream DecodeAsStream(Stream current, List<PdfFilterType> filters, List<PdfDictionary> decodeParameters)
+        private Stream DecodeAsStream(Stream current, List<PdfFilterType> filters, List<PdfDictionary?> decodeParameters)
         {
             for (int filterIndex = 0; filterIndex < filters.Count; filterIndex++)
             {
@@ -91,7 +101,7 @@ namespace PdfPixel.Streams
                     }
                     case PdfFilterType.LZWDecode:
                     {
-                            PdfDecodeParameters parameters = GetDecodeParmsForIndex(filterIndex, decodeParameters);
+                        PdfDecodeParameters? parameters = GetDecodeParmsForIndex(filterIndex, decodeParameters);
                         bool earlyChange = parameters?.EarlyChange != 0;
                         current = new LzwDecodeStream(current, leaveOpen: false, earlyChange: earlyChange);
                         break;
@@ -113,7 +123,7 @@ namespace PdfPixel.Streams
                     }
                 }
 
-                PdfDecodeParameters parametersForFilter = GetDecodeParmsForIndex(filterIndex, decodeParameters);
+                PdfDecodeParameters? parametersForFilter = GetDecodeParmsForIndex(filterIndex, decodeParameters);
                 if (parametersForFilter != null && (filter == PdfFilterType.FlateDecode || filter == PdfFilterType.LZWDecode))
                 {
                     current = ApplyPredictorIfNeeded(current, parametersForFilter);
@@ -136,7 +146,7 @@ namespace PdfPixel.Streams
                 return filters;
             }
 
-            PdfArray filterArray = obj.Dictionary.GetArray(PdfTokens.FilterKey);
+            PdfArray? filterArray = obj.Dictionary.GetArray(PdfTokens.FilterKey);
             if (filterArray != null)
             {
                 for (int index = 0; index < filterArray.Count; index++)
@@ -154,36 +164,33 @@ namespace PdfPixel.Streams
             return filters;
         }
 
-        private List<PdfDictionary> GetDecodeParms(PdfObject obj)
+        private List<PdfDictionary?> GetDecodeParms(PdfObject obj)
         {
-            List<PdfDictionary> list = [];
+            List<PdfDictionary?> list = [];
             if (obj == null || obj.Dictionary == null)
             {
                 return list;
             }
 
-            PdfArray parmsArray = obj.Dictionary.GetArray(PdfTokens.DecodeParmsKey);
+            PdfArray? parmsArray = obj.Dictionary.GetArray(PdfTokens.DecodeParmsKey);
             if (parmsArray != null)
             {
                 for (int index = 0; index < parmsArray.Count; index++)
                 {
-                    PdfDictionary dict = parmsArray.GetDictionary(index);
+                    PdfDictionary? dict = parmsArray.GetDictionary(index);
                     list.Add(dict);
                 }
             }
             else
             {
-                PdfDictionary single = obj.Dictionary.GetDictionary(PdfTokens.DecodeParmsKey);
-                if (single != null)
-                {
-                    list.Add(single);
-                }
+                PdfDictionary? single = obj.Dictionary.GetDictionary(PdfTokens.DecodeParmsKey);
+                list.Add(single);
             }
 
             return list;
         }
 
-        private PdfDecodeParameters GetDecodeParmsForIndex(int filterIndex, List<PdfDictionary> decodeParameters)
+        private PdfDecodeParameters? GetDecodeParmsForIndex(int filterIndex, List<PdfDictionary?> decodeParameters)
         {
             if (decodeParameters == null || decodeParameters.Count == 0)
             {
@@ -235,44 +242,34 @@ namespace PdfPixel.Streams
             return new PredictorDecodeStream(decoded, predictor, colors, bitsPerComponent, columns, leaveOpen: false);
         }
 
-        private Stream DecompressFlateData(Stream compressed)
+        private static Stream DecompressFlateData(Stream compressed)
         {
             if (compressed == null)
             {
                 return Stream.Null;
             }
 
-            try
+            if (compressed.CanSeek)
             {
-                if (compressed.CanSeek)
+                if (compressed.Length - compressed.Position < 2)
                 {
-                    if (compressed.Length - compressed.Position < 2)
-                    {
-                        _logger.LogWarning("FlateDecode: insufficient data for zlib header; returning original stream.");
-                        return compressed;
-                    }
-
-                    compressed.ReadByte();
-                    compressed.ReadByte();
-                }
-                else
-                {
-                    var headerBytes = new byte[2];
-                    int readCount = compressed.Read(headerBytes, 0, 2);
-                    if (readCount < 2)
-                    {
-                        _logger.LogWarning("Insufficient data for zlib header (non-seekable); returning original stream.");
-                        return compressed;
-                    }
+                    throw new InvalidDataException("FlateDecode: insufficient data for zlib header.");
                 }
 
-                return new DeflateStream(compressed, CompressionMode.Decompress, leaveOpen: false);
+                compressed.ReadByte();
+                compressed.ReadByte();
             }
-            catch (Exception ex)
+            else
             {
-                _logger.LogWarning(ex, "Exception during decompression; returning original stream.");
-                return compressed;
+                var headerBytes = new byte[2];
+                int readCount = compressed.Read(headerBytes, 0, 2);
+                if (readCount < 2)
+                {
+                    throw new InvalidDataException("FlateDecode: insufficient data for zlib header (non-seekable).");
+                }
             }
+
+            return new DeflateStream(compressed, CompressionMode.Decompress, leaveOpen: false);
         }
     }
 }

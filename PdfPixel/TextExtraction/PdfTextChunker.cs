@@ -37,7 +37,7 @@ public class PdfTextChunker
         for (int i = 0; i < characters.Count; i++)
         {
             PdfCharacter ch = characters[i];
-            if (string.IsNullOrEmpty(ch.Text))
+            if (ch.Text == null || string.IsNullOrEmpty(ch.Text))
             {
                 continue;
             }
@@ -64,8 +64,6 @@ public class PdfTextChunker
                 }
 
                 lineIndex++;
-                prevCharRight = null;
-                prevCharWidth = null;
             }
             else if (prevCharRight.HasValue && prevCharWidth.HasValue)
             {
@@ -128,10 +126,6 @@ public class PdfTextChunker
 
         if (currentWord.Count > 0)
         {
-            lastY = null;
-            prevCharRight = null;
-            prevCharWidth = null;
-
             yield return CreateWord(currentWord, currentType, lineIndex);
         }
     }

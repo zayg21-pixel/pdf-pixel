@@ -7,22 +7,15 @@ namespace PdfPixel.Color.Icc;
 /// Provides analysis capabilities for ICC profiles to detect standard color spaces
 /// like sRGB and grayscale profiles based on their TRC curves and color matrices.
 /// </summary>
-public static class IccProfileAnalyzer
+public static partial class IccProfileAnalyzer
 {
     // Standard sRGB primaries in XYZ (D50 adapted)
     private static readonly IccXyz StandardSrgbRedPrimary = new(0.4361f, 0.2225f, 0.0139f);
     private static readonly IccXyz StandardSrgbGreenPrimary = new(0.3851f, 0.7169f, 0.0971f);
     private static readonly IccXyz StandardSrgbBluePrimary = new(0.1431f, 0.0606f, 0.7141f);
 
-    // Standard sRGB gamma approximation (2.2 is close enough for detection)
-    private const float StandardSrgbGamma = 2.2f;
-
     // XYZ component tolerance for matrix comparison
     private const float XyzTolerance = 0.01f;
-
-    // TRC comparison parameters
-    private const int TrcComparisonPoints = 32;
-    private const float TrcTolerance = 0.02f; // 2% tolerance for TRC comparison
 
     /// <summary>
     /// Determines whether the specified ICC profile represents a standard sRGB color space.
@@ -121,38 +114,6 @@ public static class IccProfileAnalyzer
 
         // Check if gray TRC is similar to standard gamma using 32-point analysis
         return IsTrcSimilar(profile.GrayTrc, referenceTrc, TrcComparisonPoints, TrcTolerance);
-    }
-
-    /// <summary>
-    /// Compares two TRC curves by evaluating them at multiple points and checking if they are similar within tolerance.
-    /// This approach works for all TRC types: gamma, sampled, and parametric curves.
-    /// </summary>
-    /// <param name="trc1">The first TRC to compare.</param>
-    /// <param name="trc2">The second TRC to compare.</param>
-    /// <param name="points">Number of points to evaluate for comparison.</param>
-    /// <param name="tolerance">Maximum difference allowed at each point.</param>
-    /// <returns>true if the TRCs are similar within tolerance; otherwise, false.</returns>
-    private static bool IsTrcSimilar(IccTrc trc1, IccTrc trc2, int points, float tolerance)
-    {
-        if (trc1 == null || trc2 == null)
-        {
-            return trc1 == trc2; // Both null is considered equal
-        }
-
-        // Compare TRCs by evaluating at evenly spaced points
-        for (int i = 0; i < points; i++)
-        {
-            float x = i / (float)(points - 1);
-            float value1 = trc1.Evaluator.Evaluate(x);
-            float value2 = trc2.Evaluator.Evaluate(x);
-
-            if (Math.Abs(value1 - value2) > tolerance)
-            {
-                return false;
-            }
-        }
-
-        return true;
     }
 
     /// <summary>

@@ -17,8 +17,8 @@ internal class TextStrokeRenderTarget : IRenderTarget
     private readonly IList<ShapedGlyph> _shapingResult;
     private readonly PdfGraphicsState _state;
     private readonly SKPaint _strokePaint;
-    private readonly PdfPattern _pattern;
-    private readonly SKPath _clipPath;
+    private readonly PdfPattern? _pattern;
+    private readonly SKPath? _clipPath;
 
     public TextStrokeRenderTarget(SKFont font, IList<ShapedGlyph> shapingResult, PdfGraphicsState state)
     {
@@ -44,14 +44,18 @@ internal class TextStrokeRenderTarget : IRenderTarget
         }
     }
 
-    public SKRect Bounds => _clipPath.Bounds;
+    public SKRect Bounds => _clipPath?.Bounds ?? SKRect.Empty;
 
     public SKColor Color => _state.StrokePaint.Color;
 
     public void BeforePatternRender(IPdfCommandProcessor processor)
     {
         processor.Process(new SaveStateCommand());
-        processor.Process(new ClipPathCommand(_clipPath, SKClipOperation.Intersect));
+
+        if (_clipPath != null)
+        {
+            processor.Process(new ClipPathCommand(_clipPath, SKClipOperation.Intersect));
+        }
     }
 
     public void AfterPatternRender(IPdfCommandProcessor processor) => processor.Process(new RestoreStateCommand());

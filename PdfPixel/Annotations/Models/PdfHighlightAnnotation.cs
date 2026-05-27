@@ -24,19 +24,18 @@ public class PdfHighlightAnnotation : PdfTextMarkupAnnotation
     }
 
     /// <summary>
-    /// Renders the appearance stream for this highlight annotation with multiply blend mode
-    /// by recording commands and replaying them through a <see cref="BlendModePaintModifier"/>.
+    /// Renders the appearance stream for this highlight annotation with multiply blend mode.
     /// </summary>
     internal override bool RenderAppearanceStream(
         IPdfCommandProcessor processor,
         IPdfPageInternal page,
         PdfAnnotationVisualStateKind visualStateKind,
         IPdfRenderer renderer,
-        PdfRenderingParameters renderingParameters,
         IPdfExecutionObserver observer)
     {
         PdfCommandRecorder recorder = new();
-        bool recorded = base.RenderAppearanceStream(recorder, page, visualStateKind, renderer, renderingParameters, observer);
+        recorder.Process(new SaveLayerCommand(Rectangle, new SKPaint { BlendMode = SKBlendMode.Multiply }));
+        bool recorded = base.RenderAppearanceStream(recorder, page, visualStateKind, renderer, observer);
 
         if (!recorded)
         {
@@ -44,12 +43,12 @@ public class PdfHighlightAnnotation : PdfTextMarkupAnnotation
             return false;
         }
 
-        BlendModePaintModifier modifier = new(SKBlendMode.Multiply);
-        processor.Process(new DrawRecordingCommand(recorder, modifier));
+        recorder.Process(new RestoreStateCommand());
+        processor.Process(new DrawRecordingCommand(recorder));
         return true;
     }
 
-    internal override bool RenderFallback(IPdfCommandProcessor processor, IPdfPageInternal page, PdfAnnotationVisualStateKind visualStateKind, PdfRenderingParameters renderingParameters)
+    internal override bool RenderFallback(IPdfCommandProcessor processor, IPdfPageInternal page, PdfAnnotationVisualStateKind visualStateKind)
     {
         SKPoint[][] quads = Quadrilaterals;
         if (quads.Length == 0)
@@ -72,7 +71,6 @@ public class PdfHighlightAnnotation : PdfTextMarkupAnnotation
             {
                 Style = SKPaintStyle.Fill,
                 Color = color,
-                IsAntialias = renderingParameters.Antialias,
                 BlendMode = SKBlendMode.Multiply
             };
 

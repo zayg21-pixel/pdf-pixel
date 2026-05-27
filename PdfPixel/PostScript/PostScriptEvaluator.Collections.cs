@@ -76,7 +76,7 @@ namespace PdfPixel.PostScript
         {
             // PostScript: <n> array creates array with length n (filled with default null tokens conceptually).
             PostScriptNumber capacityNumber = PopOfType<PostScriptNumber>(stack);
-            var capacity = (int)capacityNumber.Value;
+            var capacity = (int)capacityNumber.Number;
             if (capacity < 0)
             {
                 capacity = 0;

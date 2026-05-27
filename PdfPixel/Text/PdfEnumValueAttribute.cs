@@ -7,7 +7,7 @@ namespace PdfPixel.Text
     /// Specifies the PDF string value for an enum field.
     /// </summary>
     [AttributeUsage(AttributeTargets.All, AllowMultiple = false)]
-    internal class PdfEnumValueAttribute : Attribute
+    internal sealed class PdfEnumValueAttribute : Attribute
     {
         /// <summary>
         /// Initializes a new instance of the <see cref="PdfEnumValueAttribute"/> class with the specified PDF name.

@@ -8,7 +8,7 @@ namespace PdfPixel.Fonts.Mapping;
 /// <summary>
 /// Static helper for parsing font encoding information from a PDF dictionary.
 /// </summary>
-public static class PdfFontEncodingParser
+internal static class PdfFontEncodingParser
 {
     /// <summary>
     /// Parses /Encoding entry supporting both name and dictionary cases, including /Differences.
@@ -18,7 +18,7 @@ public static class PdfFontEncodingParser
     /// <returns>Parsed encoding info.</returns>
     public static PdfFontEncodingInfo ParseSingleByteEncoding(PdfDictionary dict)
     {
-        IPdfValue encodingValue = dict.GetValue(PdfTokens.EncodingKey);
+        IPdfValue? encodingValue = dict.GetValue(PdfTokens.EncodingKey);
         if (encodingValue == null)
         {
             // No /Encoding specified, assume standard
@@ -35,7 +35,7 @@ public static class PdfFontEncodingParser
         }
 
         // Dictionary case: may include /BaseEncoding and /Differences
-        PdfDictionary encodingDictionary = encodingValue.AsDictionary();
+        PdfDictionary? encodingDictionary = encodingValue.AsDictionary();
         if (encodingDictionary != null)
         {
             // Base encoding name (optional); default per spec is StandardEncoding for Type1/Type3, WinAnsi for TrueType
@@ -43,14 +43,14 @@ public static class PdfFontEncodingParser
             PdfFontEncoding baseEncoding = name.AsEnum<PdfFontEncoding>();
 
             Dictionary<int, PdfString> differences = [];
-            PdfArray diffs = encodingDictionary.GetArray(PdfTokens.DifferencesKey);
+            PdfArray? diffs = encodingDictionary.GetArray(PdfTokens.DifferencesKey);
 
             if (diffs != null)
             {
                 int currentCode = -1;
                 for (int i = 0; i < diffs.Count; i++)
                 {
-                    IPdfValue item = diffs.GetValue(i);
+                    IPdfValue? item = diffs.GetValue(i);
 
                     if (item == null)
                     {

@@ -9,7 +9,7 @@ namespace PdfPixel.Rendering.Text;
 /// <summary>
 /// Utilities for text rendering operations.
 /// </summary>
-public static class TextRenderUtilities
+internal static class TextRenderUtilities
 {
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static SKPath GetTextPath(IList<ShapedGlyph> shapingResult, SKFont font, PdfGraphicsState state)
@@ -76,7 +76,7 @@ public static class TextRenderUtilities
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static SKTextBlob BuildTextBlob(IList<ShapedGlyph> shapingResult, SKFont font)
+    public static SKTextBlob? BuildTextBlob(IList<ShapedGlyph> shapingResult, SKFont font)
     {
         // Pre-count drawable glyphs (gid != 0) while computing positions using full advance including skipped glyphs.
         int drawableCount = 0;

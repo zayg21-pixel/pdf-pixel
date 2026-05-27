@@ -39,7 +39,7 @@ public class PdfChoiceFormField : PdfFormField
     /// Each element can be either a text string or a two-element array containing
     /// the export value and display text.
     /// </remarks>
-    public PdfArray Options { get; }
+    public PdfArray? Options { get; }
 
     /// <summary>
     /// Gets the index of the first visible option in a scrollable list box.
@@ -49,7 +49,7 @@ public class PdfChoiceFormField : PdfFormField
     /// <summary>
     /// Gets the array of selected option indices for multiselect list boxes.
     /// </summary>
-    public PdfArray SelectedIndices { get; }
+    public PdfArray? SelectedIndices { get; }
 
     /// <summary>
     /// Gets a value indicating whether this is a combo box.
@@ -84,14 +84,14 @@ public class PdfChoiceFormField : PdfFormField
 
         for (int i = 0; i < Options.Count; i++)
         {
-            IPdfValue option = Options.GetValue(i);
+            IPdfValue? option = Options.GetValue(i);
             if (option != null && option.Type == PdfValueType.String)
             {
                 yield return option.AsString().ToString();
             }
             else if (option != null && option.Type == PdfValueType.Array)
             {
-                PdfArray optionArray = option.AsArray();
+                PdfArray? optionArray = option.AsArray();
                 if (optionArray?.Count >= 2)
                 {
                     PdfString displayText = optionArray.GetString(1);
@@ -121,12 +121,12 @@ public class PdfChoiceFormField : PdfFormField
         }
         else if (Value.Type == PdfValueType.Array)
         {
-            PdfArray valueArray = Value.AsArray();
+            PdfArray? valueArray = Value.AsArray();
             if (valueArray != null)
             {
                 for (int i = 0; i < valueArray.Count; i++)
                 {
-                    IPdfValue item = valueArray.GetValue(i);
+                    IPdfValue? item = valueArray.GetValue(i);
                     if (item != null && item.Type == PdfValueType.String)
                     {
                         yield return item.AsString().ToString();

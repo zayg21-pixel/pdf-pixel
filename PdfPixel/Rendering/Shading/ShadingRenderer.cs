@@ -6,6 +6,7 @@ using PdfPixel.Shading.Model;
 using PdfPixel.Color.Paint;
 using PdfPixel.Rendering.State;
 using PdfPixel.Transparency.Utilities;
+using PdfPixel.Color.ColorSpace;
 
 namespace PdfPixel.Rendering.Shading;
 
@@ -33,12 +34,17 @@ public class ShadingRenderer : IShadingRenderer
     {
         if (processor == null)
         {
-            return;
+            throw new ArgumentNullException(nameof(processor));
         }
 
         if (shading == null)
         {
-            return;
+            throw new ArgumentNullException(nameof(processor));
+        }
+
+        if (state == null)
+        {
+            throw new ArgumentNullException(nameof(state));
         }
 
         using SoftMaskDrawingScope softMaskScope = new(_renderer, processor, state);
@@ -60,7 +66,7 @@ public class ShadingRenderer : IShadingRenderer
 
         if (shading.Background != null && shading.BBox.HasValue)
         {
-            Color.ColorSpace.PdfColorSpaceConverter colorSpace = state.Page.Cache.ColorSpace.ResolveByObject(shading.ColorSpaceConverter);
+            PdfColorSpaceConverter colorSpace = state.Page.Cache.ColorSpace.ResolveByObject(shading.ColorSpaceConverter) ?? DeviceRgbConverter.Instance;
             SKColor backgroundColor = colorSpace.ToSrgb(shading.Background, state.RenderingIntent, state.FullTransferFunction);
 
             SKPaint backgroundPaint = PdfPaintFactory.CreateBackgroundPaint(backgroundColor);

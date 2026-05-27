@@ -81,13 +81,13 @@ public class PdfDecodeParameters
     /// JBIG2 globals stream object (JBIG2Decode). References shared symbol dictionaries defined
     /// outside the page stream. Should be decoded once and cached at the document level.
     /// </summary>
-    public PdfObject Jbig2Globals { get; private set; }
+    public PdfObject? Jbig2Globals { get; private set; }
 
     /// <summary>
     /// Parse a /DecodeParms dictionary to a strongly-typed <see cref="PdfDecodeParameters"/> instance.
     /// Unrecognized keys are ignored.
     /// </summary>
-    public static PdfDecodeParameters FromDictionary(PdfDictionary dictionary)
+    public static PdfDecodeParameters FromDictionary(PdfDictionary? dictionary)
     {
         PdfDecodeParameters parameters = new();
         if (dictionary == null)

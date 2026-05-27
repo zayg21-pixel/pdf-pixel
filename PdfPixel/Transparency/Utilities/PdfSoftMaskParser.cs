@@ -8,7 +8,7 @@ namespace PdfPixel.Transparency.Utilities;
 
 internal static class PdfSoftMaskParser
 {
-    public static PdfSoftMask ParseSoftMaskDictionary(PdfDictionary softMaskDict, IPdfPageInternal page)
+    public static PdfSoftMask? ParseSoftMaskDictionary(PdfDictionary? softMaskDict, IPdfPageInternal page)
     {
         if (softMaskDict == null)
         {
@@ -18,7 +18,7 @@ internal static class PdfSoftMaskParser
         PdfSoftMask softMask = new();
         softMask.Subtype = softMaskDict.GetName(PdfTokens.SoftMaskSubtypeKey).AsEnum<PdfSoftMaskSubtype>();
 
-        PdfObject groupObject = softMaskDict.GetObject(PdfTokens.SoftMaskGroupKey);
+        PdfObject? groupObject = softMaskDict.GetObject(PdfTokens.SoftMaskGroupKey);
         if (groupObject == null)
         {
             return null;
@@ -27,14 +27,14 @@ internal static class PdfSoftMaskParser
         PdfForm formObject = PdfForm.FromXObject(groupObject, page);
         softMask.MaskForm = formObject;
 
-        PdfArray bcArray = softMaskDict.GetArray(PdfTokens.SoftMaskBCKey);
+        PdfArray? bcArray = softMaskDict.GetArray(PdfTokens.SoftMaskBCKey);
         if (bcArray?.Count > 0)
         {
-            softMask.BackgroundColor = bcArray.GetFloatArray();
+            softMask.BackgroundColorComponents = bcArray.GetFloatArray();
         }
 
         // Parse optional TR transfer function
-        PdfObject trObject = softMaskDict.GetObject(PdfTokens.TransferFunctionKey);
+        PdfObject? trObject = softMaskDict.GetObject(PdfTokens.TransferFunctionKey);
         if (trObject != null)
         {
             softMask.TransferFunction = TransferFunctionTransform.FromPdfObject(trObject);
@@ -43,7 +43,7 @@ internal static class PdfSoftMaskParser
         return softMask;
     }
 
-    public static PdfTransparencyGroup ParseTransparencyGroup(PdfDictionary groupDict, IPdfPageInternal page)
+    public static PdfTransparencyGroup? ParseTransparencyGroup(PdfDictionary? groupDict, IPdfPageInternal page)
     {
         if (groupDict == null)
         {
@@ -57,7 +57,7 @@ internal static class PdfSoftMaskParser
             return null;
         }
 
-        PdfObject csValue = groupDict.GetObject(PdfTokens.GroupColorSpaceKey);
+        PdfObject? csValue = groupDict.GetObject(PdfTokens.GroupColorSpaceKey);
         group.ColorSpaceConverter = page.Cache.ColorSpace.ResolveByObject(csValue);
         group.Isolated = groupDict.GetBooleanOrDefault(PdfTokens.GroupIsolatedKey);
         group.Knockout = groupDict.GetBooleanOrDefault(PdfTokens.GroupKnockoutKey);

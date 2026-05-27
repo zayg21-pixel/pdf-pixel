@@ -14,10 +14,10 @@ namespace PdfPixel.Imaging.Decoding;
 
 public sealed class JpegImageDecoder : PdfImageDecoder
 {
-    private IJpgDecoder _jpgRowDecoder;
-    private byte[] _fullWidthRowBuffer;
-    private PdfImageTilingContext _tilingContext;
-    private PdfImageRowDecodingParameters _imageParameters;
+    private IJpgDecoder? _jpgRowDecoder;
+    private byte[]? _fullWidthRowBuffer;
+    private PdfImageTilingContext? _tilingContext;
+    private PdfImageRowDecodingParameters? _imageParameters;
     private int _currentImageRow;
 
     public JpegImageDecoder(PdfImage image, ILoggerFactory loggerFactory)
@@ -45,29 +45,43 @@ public sealed class JpegImageDecoder : PdfImageDecoder
             throw new InvalidOperationException($"JPEG header is invalid (Name={Image.Name}).");
         }
 
-        PdfColorSpaceConverter resolvedConverter = Image.ColorSpaceConverter;
-        if (resolvedConverter.IsDevice && JpgIccProfileReader.TryAssembleIccProfile(header, out byte[]? profileBytes))
+        PdfColorSpaceConverter? resolvedConverter = Image.ColorSpaceConverter;
+        if ((resolvedConverter == null || resolvedConverter.IsDevice) && JpgIccProfileReader.TryAssembleIccProfile(header, out byte[]? profileBytes))
         {
             resolvedConverter = new IccBasedConverter(header.ComponentCount, resolvedConverter, profileBytes);
         }
 
-        int imageWidth = header.Width;
-        int imageHeight = header.Height;
-        if (imageWidth <= 0 || imageHeight <= 0)
-        {
-            throw new InvalidOperationException($"Invalid JPEG dimensions (Image={Image.Name}).");
-        }
+        int defaultComponents = (Image.BitsPerComponent == 1) ? 1 : 3;
+        resolvedConverter ??= Image.Page.Cache.ColorSpace.ResolveDeviceConverter(defaultComponents) ?? DeviceRgbConverter.Instance;
 
-        _imageParameters = PdfImageRowDecodingParameters.FromImage(Image, context, ctm);
+        SKSizeI? downscaledSize = PdfImageRowDecodingParameters.ComputeDownscaledSize(Image.Width, Image.Height, resolvedConverter, context, ctm);
+
+        _imageParameters = new PdfImageRowDecodingParameters(
+            context,
+            Image.Width,
+            Image.Height,
+            Image.BitsPerComponent,
+            Image.RenderingIntent,
+            resolvedConverter,
+            Image.HasImageMask,
+            Image.MaskArray,
+            Image.DecodeArray,
+            downscaledSize,
+            1);
 
         _jpgRowDecoder = CreateJpgDecoder(encodedData, header);
-        _fullWidthRowBuffer = new byte[checked(header.ComponentCount * imageWidth)];
-        _tilingContext = new PdfImageTilingContext(new SKSizeI(tileInfo.TileWidth, tileInfo.TileHeight), _imageParameters, ctm, regionOfInterest, LoggerFactory);
+        _fullWidthRowBuffer = new byte[checked(header.ComponentCount * Image.Width)];
+        _tilingContext = new PdfImageTilingContext(new SKSizeI(tileInfo.TileWidth, tileInfo.TileHeight), tileInfo, _imageParameters, ctm, regionOfInterest, LoggerFactory);
         _currentImageRow = 0;
     }
 
-    public override PdfImageTile[] DecodeNextTiles(IPdfExecutionObserver observer)
+    public override PdfImageTile[]? DecodeNextTiles(IPdfExecutionObserver? observer)
     {
+        if (_imageParameters == null || _jpgRowDecoder == null || _fullWidthRowBuffer == null || _tilingContext == null)
+        {
+            return null;
+        }
+
         while (_currentImageRow < _imageParameters.Height)
         {
             if (!_jpgRowDecoder.TryReadRow(_fullWidthRowBuffer))
@@ -75,7 +89,7 @@ public sealed class JpegImageDecoder : PdfImageDecoder
                 throw new InvalidOperationException($"JPEG decode failed at image row {_currentImageRow} (Image={Image.Name}).");
             }
 
-            PdfImageTile[] tiles = _tilingContext.WriteRowAndTryGetTiles(_currentImageRow, _fullWidthRowBuffer, observer);
+            PdfImageTile[]? tiles = _tilingContext.WriteRowAndTryGetTiles(_currentImageRow, _fullWidthRowBuffer, observer);
             _currentImageRow++;
             observer?.Notify();
             if (tiles != null)
@@ -127,7 +141,7 @@ public sealed class JpegImageDecoder : PdfImageDecoder
     {
         if (disposing)
         {
-            Cleanup();
+            _tilingContext?.Dispose();
         }
     }
 }

@@ -75,7 +75,7 @@ public readonly struct PdfSubstitutionInfo
         FontStyle = style;
     }
 
-    public static PdfSubstitutionInfo Parse(in PdfString rawName, PdfFontDescriptor descriptor)
+    public static PdfSubstitutionInfo Parse(in PdfString rawName, PdfFontDescriptor? descriptor)
     {
         if (rawName.IsEmpty)
         {

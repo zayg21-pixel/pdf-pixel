@@ -14,7 +14,7 @@ namespace PdfPixel.Parsing;
 /// Handles incremental updates by following the /Prev chain from the latest trailer backwards.
 /// Newest xref section is parsed first; older revisions never overwrite existing entries.
 /// </summary>
-internal sealed class PdfXrefLoader
+internal sealed class PdfXrefLoader : IDisposable
 {
     private readonly IPdfDocumentInternal _document;
     private readonly ILogger<PdfXrefLoader> _logger;
@@ -61,7 +61,7 @@ internal sealed class PdfXrefLoader
             try
             {
                 parser.Position = xrefOffset + PdfTokens.Xref.Length;
-                PdfDictionary trailer = ParseClassicXref(ref parser);
+                PdfDictionary? trailer = ParseClassicXref(ref parser);
 
                 // Walk /Prev chain backwards.
                 int? prevOffset;
@@ -84,7 +84,8 @@ internal sealed class PdfXrefLoader
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "Exception while parsing classic xref – continuing without index.");
+                _logger.LogWarning(ex, "Exception while parsing classic xref.");
+                throw new PdfInvalidDocumentException("Failed to parse classic xref.", ex);
             }
 
             return;
@@ -94,7 +95,7 @@ internal sealed class PdfXrefLoader
         try
         {
             parser.Position = xrefOffset;
-            PdfDictionary streamTrailer = ParseXrefStream(ref parser);
+            PdfDictionary? streamTrailer = ParseXrefStream(ref parser);
 
             int? prevOffset;
             while ((prevOffset = _trailerParser.GetPrevOffset(streamTrailer)).HasValue)
@@ -115,7 +116,8 @@ internal sealed class PdfXrefLoader
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Exception while parsing xref stream – continuing without index.");
+            _logger.LogWarning(ex, "Exception while parsing xref stream.");
+            throw new PdfInvalidDocumentException("Failed to parse xref stream.", ex);
         }
     }
 
@@ -124,13 +126,12 @@ internal sealed class PdfXrefLoader
     /// <summary>
     /// Parse classic xref subsections using PdfParser only. Format: (firstObject entryCount) lines followed by entries, ending with trailer operator.
     /// </summary>
-    private PdfDictionary ParseClassicXref(ref PdfParser parser)
+    private PdfDictionary? ParseClassicXref(ref PdfParser parser)
     {
         int subsectionIndex = 0;
         while (true)
         {
-            int subsectionStart = parser.Position;
-            IPdfValue firstValue = parser.ReadNextValue();
+            IPdfValue? firstValue = parser.ReadNextValue();
             if (firstValue == null)
             {
                 _logger.LogDebug("Finished parsing classic xref (EOF).");
@@ -143,8 +144,8 @@ internal sealed class PdfXrefLoader
                 PdfString op = firstValue.AsString();
                 if (!op.IsEmpty && op == PdfTokens.Trailer)
                 {
-                    IPdfValue dictValue = parser.ReadNextValue();
-                    PdfDictionary trailerDict = dictValue?.AsDictionary();
+                    IPdfValue? dictValue = parser.ReadNextValue();
+                    PdfDictionary? trailerDict = dictValue?.AsDictionary();
                     if (trailerDict != null)
                     {
                         TryApplyTrailer(trailerDict);
@@ -166,7 +167,7 @@ internal sealed class PdfXrefLoader
                 break;
             }
 
-            IPdfValue countValue = parser.ReadNextValue();
+            IPdfValue? countValue = parser.ReadNextValue();
             if (countValue == null || countValue.Type != PdfValueType.Integer)
             {
                 _logger.LogWarning("Failed to read entry count for subsection {Index} (start {First}) at position {Pos}.", subsectionIndex, firstValue.AsInteger(), parser.Position);
@@ -245,9 +246,9 @@ internal sealed class PdfXrefLoader
 
     #region XRef Stream (PDF 1.5+)
 
-    private PdfDictionary ParseXrefStream(ref PdfParser parser)
+    private PdfDictionary? ParseXrefStream(ref PdfParser parser)
     {
-        PdfObject xrefObject = parser.ReadObject();
+        PdfObject? xrefObject = parser.ReadObject();
         if (xrefObject == null || xrefObject.Dictionary == null)
         {
             _logger.LogDebug("startxref offset {Offset} did not yield a dictionary stream object.", parser.Position);
@@ -268,7 +269,7 @@ internal sealed class PdfXrefLoader
 
     private void ParseXrefStreamEntries(PdfDictionary dict, in ReadOnlyMemory<byte> decoded)
     {
-        PdfArray wArray = dict.GetArray(PdfTokens.WKey);
+        PdfArray? wArray = dict.GetArray(PdfTokens.WKey);
         if (wArray == null || wArray.Count < 3)
         {
             _logger.LogWarning("XRef stream missing /W array.");
@@ -291,7 +292,7 @@ internal sealed class PdfXrefLoader
             return;
         }
 
-        PdfArray indexArray = dict.GetArray(PdfTokens.IndexKey);
+        PdfArray? indexArray = dict.GetArray(PdfTokens.IndexKey);
         List<(int start, int count)> ranges = [];
         if (indexArray?.Count >= 2 && indexArray.Count % 2 == 0)
         {
@@ -441,9 +442,9 @@ internal sealed class PdfXrefLoader
     {
         PdfParser parser = new(_document.Stream, _document, allowReferences: false, decrypt: false);
         parser.Position = (int)startxrefPos + PdfTokens.Startxref.Length;
-        IPdfValue value = parser.ReadNextValue();
+        IPdfValue? value = parser.ReadNextValue();
 
-        if (value.Type != PdfValueType.Integer)
+        if (value == null || value.Type != PdfValueType.Integer)
         {
             return -1;
         }
@@ -489,4 +490,6 @@ internal sealed class PdfXrefLoader
     }
 
     #endregion
+
+    public void Dispose() => _reader.Dispose();
 }

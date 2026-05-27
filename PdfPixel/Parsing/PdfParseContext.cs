@@ -49,7 +49,10 @@ public ref struct PdfParseContext
     public int Position
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get { return _position; }
+        get
+        {
+            return _position;
+        }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         set
@@ -74,7 +77,10 @@ public ref struct PdfParseContext
     public int Length
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get { return _data.Length; }
+        get
+        {
+            return _data.Length;
+        }
     }
 
     /// <summary>
@@ -83,7 +89,10 @@ public ref struct PdfParseContext
     public bool IsAtEnd
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get { return _position >= _data.Length; }
+        get
+        {
+            return _position >= _data.Length;
+        }
     }
 
     /// <summary>

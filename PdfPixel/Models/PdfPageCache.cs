@@ -22,10 +22,10 @@ internal sealed class PdfPageCache
     private readonly IPdfPageInternal _page;
     private readonly Dictionary<PdfString, PdfPattern> _patternsByName = [];
     private readonly Dictionary<PdfString, PdfGraphicsStateParameters> _graphicsStateParametersByName = [];
-    private readonly PdfDictionary _fontDictionary; // captured once
-    private readonly PdfDictionary _patternDictionary; // captured once
-    private readonly PdfDictionary _extGStateDictionary; // captured once
-    private readonly PdfDictionary _xObjectDictionary;
+    private readonly PdfDictionary? _fontDictionary; // captured once
+    private readonly PdfDictionary? _patternDictionary; // captured once
+    private readonly PdfDictionary? _extGStateDictionary; // captured once
+    private readonly PdfDictionary? _xObjectDictionary;
 
     public PdfPageCache(IPdfPageInternal page)
     {
@@ -45,9 +45,9 @@ internal sealed class PdfPageCache
     /// <summary>
     /// Retrieve an XObject by resource name from /XObject dictionary. Returns null if not found.
     /// </summary>
-    public PdfXObject GetXObject(in PdfString xObjectName)
+    public PdfXObject? GetXObject(in PdfString xObjectName)
     {
-        PdfObject pageObject = _xObjectDictionary.GetObject(xObjectName);
+        PdfObject? pageObject = _xObjectDictionary?.GetObject(xObjectName);
 
         if (pageObject == null)
         {
@@ -60,7 +60,7 @@ internal sealed class PdfPageCache
     /// <summary>
     /// Get (and cache) a font by resource name. Returns null if not found or cannot be created.
     /// </summary>
-    public PdfFontBase GetFont(in PdfString fontName)
+    public PdfFontBase? GetFont(in PdfString fontName)
     {
         if (fontName.IsEmpty)
         {
@@ -72,7 +72,7 @@ internal sealed class PdfPageCache
             return null;
         }
 
-        PdfObject fontObject = _fontDictionary.GetObject(fontName);
+        PdfObject? fontObject = _fontDictionary.GetObject(fontName);
         return GetFont(fontObject);
     }
 
@@ -81,21 +81,19 @@ internal sealed class PdfPageCache
     /// </summary>
     /// <param name="fontObject">Font object.</param>
     /// <returns></returns>
-    public PdfFontBase GetFont(PdfObject fontObject)
+    public PdfFontBase? GetFont(PdfObject? fontObject)
     {
         if (fontObject == null)
         {
             return null;
         }
 
-        if (fontObject.Reference.IsValid && _page.Document.ObjectCache.Fonts.TryGetValue(fontObject.Reference, out PdfFontBase documentCachedFont))
+        if (fontObject.Reference.IsValid && _page.Document.ObjectCache.Fonts.TryGetValue(fontObject.Reference, out PdfFontBase? documentCachedFont))
         {
             return documentCachedFont;
         }
 
-        PdfObject fontObjectDictionary = fontObject;
-
-        PdfFontBase newFont = PdfFontFactory.CreateFont(fontObject);
+        PdfFontBase? newFont = PdfFontFactory.CreateFont(fontObject);
         if (newFont != null)
         {
             if (fontObject.Reference.IsValid)
@@ -111,14 +109,14 @@ internal sealed class PdfPageCache
     /// Get (and cache) a pattern by resource name from /Pattern dictionary. Returns null if not found or unsupported.
     /// Checks document-level pattern cache first when indirect reference is present.
     /// </summary>
-    public PdfPattern GetPattern(IPdfRenderer renderer, in PdfString patternName)
+    public PdfPattern? GetPattern(IPdfRenderer renderer, in PdfString patternName)
     {
         if (patternName.IsEmpty)
         {
             return null;
         }
 
-        if (_patternsByName.TryGetValue(patternName, out PdfPattern cachedPattern))
+        if (_patternsByName.TryGetValue(patternName, out PdfPattern? cachedPattern))
         {
             return cachedPattern;
         }
@@ -128,14 +126,14 @@ internal sealed class PdfPageCache
             return null;
         }
 
-        PdfObject patternObject = _patternDictionary.GetObject(patternName);
+        PdfObject? patternObject = _patternDictionary.GetObject(patternName);
 
         if (patternObject == null)
         {
             return null;
         }
 
-        PdfPattern parsedPattern = PdfPatternParser.ParsePattern(renderer, patternObject);
+        PdfPattern? parsedPattern = PdfPatternParser.ParsePattern(renderer, patternObject);
 
         if (parsedPattern != null)
         {
@@ -169,9 +167,9 @@ internal sealed class PdfPageCache
             return;
         }
 
-        if (!_graphicsStateParametersByName.TryGetValue(graphicsStateName, out PdfGraphicsStateParameters parameters))
+        if (!_graphicsStateParametersByName.TryGetValue(graphicsStateName, out PdfGraphicsStateParameters? parameters))
         {
-            PdfDictionary gsDict = _extGStateDictionary.GetDictionary(graphicsStateName);
+            PdfDictionary? gsDict = _extGStateDictionary.GetDictionary(graphicsStateName);
             if (gsDict == null)
             {
                 return;

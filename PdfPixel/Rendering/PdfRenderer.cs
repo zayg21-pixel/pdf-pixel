@@ -25,19 +25,20 @@ namespace PdfPixel.Rendering;
 /// </summary>
 public class PdfRenderer : IPdfRenderer
 {
-    private readonly IPdfTextRenderer _textRenderer;
     private readonly ILoggerFactory _loggerFactory;
     private readonly ILogger _logger;
 
-    private readonly IPathRenderer _pathRenderer;
-    private readonly IImageRenderer _imageRenderer;
-    private readonly IFormRenderer _formRenderer;
-    private readonly IShadingRenderer _shadingRenderer;
+    private readonly PdfTextRenderer _textRenderer;
+    private readonly PathRenderer _pathRenderer;
+    private readonly ImageRenderer _imageRenderer;
+    private readonly FormRenderer _formRenderer;
+    private readonly ShadingRenderer _shadingRenderer;
 
     internal PdfRenderer(ILoggerFactory loggerFactory)
     {
         _loggerFactory = loggerFactory ?? throw new System.ArgumentNullException(nameof(loggerFactory));
         _logger = _loggerFactory.CreateLogger<PdfRenderer>();
+
         _textRenderer = new PdfTextRenderer(this, _loggerFactory);
         _pathRenderer = new PathRenderer(this, _loggerFactory);
         _imageRenderer = new ImageRenderer(this, _loggerFactory);
@@ -49,7 +50,7 @@ public class PdfRenderer : IPdfRenderer
     /// <summary>
     /// Draw text with positioning adjustments (if any) and return total advancement.
     /// </summary>
-    public SKSize DrawTextSequence(IPdfCommandProcessor processor, List<ShapedGlyph> glyphs, PdfGraphicsState state, PdfFontBase font)
+    public SKSize DrawTextSequence(IPdfCommandProcessor processor, List<ShapedGlyph> glyphs, PdfGraphicsState state, PdfFontBase? font)
         => _textRenderer.DrawTextSequence(processor, glyphs, state, font);
 
     /// <summary>

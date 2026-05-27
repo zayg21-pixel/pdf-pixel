@@ -9,25 +9,37 @@ namespace PdfPixel.Commands.Image;
 
 internal sealed class NormalImageExecutionContext : IDisposable
 {
-    public SKSizeI ImageSize { get; private set; }
-    public ImageDecodingContext DecodingContext { get; private set; }
-    public PdfImageTileCacheEntry TileCache { get; private set; }
-    public bool Interpolate { get; private set; }
-    public PdfTileInfo TileInfo => TileCache.TileInfo;
+    private NormalImageExecutionContext(SKSizeI imageSize, ImageDecodingContext decodingContext, PdfImageTileCacheEntry tileCache, bool interpolate)
+    {
+        ImageSize = imageSize;
+        DecodingContext = decodingContext;
+        TileCache = tileCache;
+        Interpolate = interpolate;
+    }
 
     public static NormalImageExecutionContext Create(PdfImage pdfImage, ImageDecodingContext context, ILoggerFactory loggerFactory)
     {
         SKSizeI imageSize = new(pdfImage.Width, pdfImage.Height);
-        PdfImageDecoder decoder = PdfImageDecoder.GetDecoder(pdfImage, loggerFactory);
-        PdfTileInfo tileInfo = new(imageSize, new SKSizeI(context.DefaultTileSize, context.DefaultTileSize));
-        return new NormalImageExecutionContext
+        PdfImageDecoder? decoder = PdfImageDecoder.GetDecoder(pdfImage, loggerFactory);
+
+        if (decoder == null)
         {
-            ImageSize = imageSize,
-            DecodingContext = context,
-            TileCache = new PdfImageTileCacheEntry(decoder, context, tileInfo),
-            Interpolate = pdfImage.Interpolate
-        };
+            throw new ArgumentException($"Decoder for image {pdfImage.Type} is not defined.");
+        }
+
+        PdfTileInfo tileInfo = new(imageSize, new SKSizeI(context.DefaultTileSize, context.DefaultTileSize));
+        return new NormalImageExecutionContext(imageSize, context, new PdfImageTileCacheEntry(decoder, context, tileInfo), pdfImage.Interpolate);
     }
+
+    public SKSizeI ImageSize { get; }
+
+    public ImageDecodingContext DecodingContext { get; }
+
+    public PdfImageTileCacheEntry TileCache { get; }
+
+    public bool Interpolate { get; }
+
+    public PdfTileInfo TileInfo => TileCache.TileInfo;
 
     public void Dispose() => TileCache.Dispose();
 }

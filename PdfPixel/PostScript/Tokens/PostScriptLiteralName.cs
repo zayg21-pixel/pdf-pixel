@@ -17,7 +17,7 @@ namespace PdfPixel.PostScript.Tokens
 
         public override int GetHashCode() => (Name == null) ? 0 : StringComparer.Ordinal.GetHashCode(Name);
 
-        public override int CompareToToken(PostScriptToken other)
+        public override int CompareToToken(PostScriptToken? other)
         {
             if (other is not PostScriptLiteralName n)
             {

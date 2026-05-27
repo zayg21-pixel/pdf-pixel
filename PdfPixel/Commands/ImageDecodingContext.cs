@@ -20,6 +20,11 @@ public sealed class ImageDecodingContext
     /// </summary>
     public ImageDecodingContext(PdfGraphicsState state)
     {
+        if (state == null)
+        {
+            throw new ArgumentNullException(nameof(state));
+        }
+
         FullTransferFunction = state.FullTransferFunction;
         IsType3Rendering = state.IsType3Rendering;
         FillColor = state.FillPaint.Color;
@@ -34,6 +39,11 @@ public sealed class ImageDecodingContext
     /// </summary>
     public ImageDecodingContext(ImageDecodingContext source, in SKColor fillColor, float fillAlpha, SKBlendMode blendMode)
     {
+        if (source == null)
+        {
+            throw new ArgumentNullException(nameof(source));
+        }
+
         FullTransferFunction = source.FullTransferFunction;
         DefaultTileSize = source.DefaultTileSize;
         IsType3Rendering = source.IsType3Rendering;
@@ -50,7 +60,7 @@ public sealed class ImageDecodingContext
     /// <summary>
     /// Combined transfer function (internal + external) for color conversion.
     /// </summary>
-    public IColorTransform FullTransferFunction { get; }
+    public IColorTransform? FullTransferFunction { get; }
 
     /// <summary>
     /// Whether the rendering is in Type 3 glyph mode (affects downscale decisions).

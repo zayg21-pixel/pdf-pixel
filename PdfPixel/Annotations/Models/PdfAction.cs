@@ -40,14 +40,14 @@ public abstract class PdfAction
     /// <remarks>
     /// Can be a single action dictionary, an array of action dictionaries, or null.
     /// </remarks>
-    public IPdfValue Next { get; }
+    public IPdfValue? Next { get; }
 
     /// <summary>
     /// Creates an action instance from a PDF dictionary.
     /// </summary>
     /// <param name="actionDictionary">The PDF dictionary representing an action.</param>
     /// <returns>A concrete action instance, or null if the dictionary is null or invalid.</returns>
-    public static PdfAction FromDictionary(PdfDictionary actionDictionary)
+    public static PdfAction? FromDictionary(PdfDictionary? actionDictionary)
     {
         if (actionDictionary == null)
         {

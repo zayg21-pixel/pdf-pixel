@@ -8,32 +8,32 @@ namespace PdfPixel.PostScript.Tokens
     /// </summary>
     public sealed class PostScriptString : PostScriptToken
     {
-        public PostScriptString(byte[] value) => Value = value;
+        public PostScriptString(byte[] value) => Data = value;
 
-        public byte[] Value { get; }
+        public byte[] Data { get; }
 
         public override string ToString()
         {
-            if (Value == null)
+            if (Data == null)
             {
                 return "String: (null)";
             }
 
-            return "String: \"" + Encoding.UTF8.GetString(Value) + "\"";
+            return "String: \"" + Encoding.UTF8.GetString(Data) + "\"";
         }
 
         public override bool EqualsToken(PostScriptToken other) => CompareToToken(other) == 0;
 
         public override int GetHashCode()
         {
-            if (Value == null)
+            if (Data == null)
             {
                 return 0;
             }
 
             HashCode hash = new();
 
-            foreach (byte b in Value)
+            foreach (byte b in Data)
             {
                 hash.Add(b);
             }
@@ -41,7 +41,7 @@ namespace PdfPixel.PostScript.Tokens
             return hash.ToHashCode();
         }
 
-        public override int CompareToToken(PostScriptToken other)
+        public override int CompareToToken(PostScriptToken? other)
         {
             if (other == null)
             {
@@ -53,8 +53,8 @@ namespace PdfPixel.PostScript.Tokens
                 throw new InvalidOperationException("String comparison requires string operand.");
             }
 
-            byte[] a = Value;
-            byte[] b = otherString.Value;
+            byte[] a = Data;
+            byte[] b = otherString.Data;
 
             if (ReferenceEquals(a, b))
             {
@@ -94,18 +94,18 @@ namespace PdfPixel.PostScript.Tokens
                 throw new InvalidOperationException("typecheck: string index must be number");
             }
 
-            if (Value == null)
+            if (Data == null)
             {
                 throw new InvalidOperationException("rangecheck: string is null");
             }
 
-            var index = (int)number.Value;
-            if (index < 0 || index >= Value.Length)
+            var index = (int)number.Number;
+            if (index < 0 || index >= Data.Length)
             {
                 throw new InvalidOperationException("rangecheck: string index out of range");
             }
 
-            int code = Value[index];
+            int code = Data[index];
             return new PostScriptNumber(code);
         }
 
@@ -117,24 +117,24 @@ namespace PdfPixel.PostScript.Tokens
                 throw new InvalidOperationException("typecheck: string set expects numeric index and numeric value");
             }
 
-            if (Value == null)
+            if (Data == null)
             {
                 throw new InvalidOperationException("rangecheck: string is null");
             }
 
-            var index = (int)number.Value;
-            if (index < 0 || index >= Value.Length)
+            var index = (int)number.Number;
+            if (index < 0 || index >= Data.Length)
             {
                 throw new InvalidOperationException("rangecheck: string index out of range");
             }
 
-            float item = repl.Value;
+            float item = repl.Number;
             if (item < 0 || item > 255)
             {
                 throw new InvalidOperationException("rangecheck: replacement code outside 0-255");
             }
 
-            Value[index] = (byte)item;
+            Data[index] = (byte)item;
         }
     }
 }

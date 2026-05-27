@@ -20,7 +20,7 @@ public static class PdfResourceLoader
     {
         System.Reflection.Assembly assembly = typeof(PdfResourceLoader).Assembly;
         // Open the resource stream
-        using Stream stream = assembly.GetManifestResourceStream($"PdfPixel.Resources.{resourceName}");
+        using Stream? stream = assembly.GetManifestResourceStream($"{nameof(PdfPixel)}.{nameof(Resources)}.{resourceName}");
 
         if (stream == null)
         {
@@ -42,7 +42,7 @@ public static class PdfResourceLoader
     public static byte[] GetZipCompressedResource(string resourceName, string catalogPath)
     {
         System.Reflection.Assembly assembly = typeof(PdfTextResourceConverter).Assembly;
-        using Stream compressedStream = assembly.GetManifestResourceStream($"PdfPixel.Resources.{resourceName}");
+        using Stream? compressedStream = assembly.GetManifestResourceStream($"{nameof(PdfPixel)}.{nameof(Resources)}.{resourceName}");
 
         if (compressedStream == null)
         {
@@ -50,7 +50,12 @@ public static class PdfResourceLoader
         }
 
         using ZipArchive zipArchive = new(compressedStream);
-        ZipArchiveEntry entry = zipArchive.Entries.FirstOrDefault(e => string.Equals(e.FullName, catalogPath, System.StringComparison.OrdinalIgnoreCase));
+        ZipArchiveEntry? entry = zipArchive.Entries.FirstOrDefault(e => string.Equals(e.FullName, catalogPath, System.StringComparison.OrdinalIgnoreCase));
+
+        if (entry == null)
+        {
+            throw new InvalidDataException($"Entry with name {catalogPath} is not found in archive.");
+        }
 
         using Stream entryStream = entry.Open();
         using MemoryStream decompressedStream = new();

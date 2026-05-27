@@ -20,7 +20,7 @@ internal static class PdfPatternParser
     /// <param name="patternObject">The PDF object representing the pattern. Must contain a valid dictionary with a <c>PatternType</c> key.</param>
     /// <returns>A <see cref="PdfPattern"/> instance representing the parsed pattern, or <see langword="null"/> if the
     /// pattern type is unsupported.</returns>
-    public static PdfPattern ParsePattern(IPdfRenderer renderer, PdfObject patternObject)
+    public static PdfPattern? ParsePattern(IPdfRenderer renderer, PdfObject patternObject)
     {
         int patternType = patternObject.Dictionary.GetIntegerOrDefault(PdfTokens.PatternTypeKey);
         return patternType switch
@@ -35,7 +35,7 @@ internal static class PdfPatternParser
     {
         PdfDictionary dictionary = patternObject.Dictionary;
 
-        PdfArray bboxArray = dictionary.GetArray(PdfTokens.BBoxKey);
+        PdfArray? bboxArray = dictionary.GetArray(PdfTokens.BBoxKey);
         SKRect bbox = PdfLocationUtilities.CreateBBox(bboxArray) ?? SKRect.Empty;
 
         float xStep = dictionary.GetFloatOrDefault(PdfTokens.XStepKey);
@@ -51,7 +51,7 @@ internal static class PdfPatternParser
             _ => PdfTilingSpacingType.ConstantSpacing
         };
 
-        PdfArray matrixArray = dictionary.GetArray(PdfTokens.MatrixKey);
+        PdfArray? matrixArray = dictionary.GetArray(PdfTokens.MatrixKey);
         SKMatrix matrix = PdfLocationUtilities.CreateMatrix(matrixArray) ?? SKMatrix.Identity;
 
         return new PdfTilingPattern(
@@ -65,21 +65,21 @@ internal static class PdfPatternParser
             matrix);
     }
 
-    private static PdfShadingPattern ParseShadingPattern(PdfObject patternObject)
+    private static PdfShadingPattern? ParseShadingPattern(PdfObject patternObject)
     {
         PdfDictionary dictionary = patternObject.Dictionary;
 
-        PdfArray matrixArray = dictionary.GetArray(PdfTokens.MatrixKey);
+        PdfArray? matrixArray = dictionary.GetArray(PdfTokens.MatrixKey);
         SKMatrix matrix = PdfLocationUtilities.CreateMatrix(matrixArray) ?? SKMatrix.Identity;
 
-        PdfObject shadingObject = dictionary.GetObject(PdfTokens.ShadingKey);
+        PdfObject? shadingObject = dictionary.GetObject(PdfTokens.ShadingKey);
 
         if (shadingObject == null)
         {
             return null; // Invalid shading pattern without /Shading
         }
 
-        PdfDictionary extGState = dictionary.GetDictionary(PdfTokens.ExtGStateKey);
+        PdfDictionary? extGState = dictionary.GetDictionary(PdfTokens.ExtGStateKey);
         PdfShading shading = new(shadingObject);
 
         return new PdfShadingPattern(patternObject, shading, matrix, extGState);

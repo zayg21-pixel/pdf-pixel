@@ -7,7 +7,7 @@ namespace PdfPixel.Text;
 
 public static class EncodingExtensions
 {
-    public static Encoding PdfDefault = Encoding.GetEncoding("ISO-8859-1");
+    public static readonly Encoding PdfDefault = Encoding.GetEncoding("ISO-8859-1");
 
     public static string GetString(this Encoding encoding, in ReadOnlySpan<byte> value)
     {
@@ -53,7 +53,7 @@ public static class EncodingExtensions
         // If first byte suggests a BOM/UTF indicator, try BOM-based decoding first
         if (span[0] >= 0xEF)
         {
-            Encoding encoding = null;
+            Encoding? encoding = null;
 
             if (span.Length >= 2 && span[0] == 0xFE && span[1] == 0xFF)
             {
@@ -83,9 +83,9 @@ public static class EncodingExtensions
                     string decoded = encoding.GetString(span);
                     return CleanupEscapeSequence(decoded, keepEscapeSequence);
                 }
-                catch
+                catch (DecoderFallbackException)
                 {
-                    // Fall back to ISO-8859-1 below on any decoding error
+                    // Fall back to ISO-8859-1 below
                 }
             }
         }

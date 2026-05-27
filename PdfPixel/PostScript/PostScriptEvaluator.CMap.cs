@@ -125,7 +125,7 @@ namespace PdfPixel.PostScript
             Array.Reverse(tokenArray);
             PostScriptArray groupArray = new(tokenArray);
 
-            if (topDict.Entries.TryGetValue(key, out PostScriptToken existingToken) && existingToken is PostScriptArray existingArray)
+            if (topDict.Entries.TryGetValue(key, out PostScriptToken? existingToken) && existingToken is PostScriptArray existingArray)
             {
                 // Merge with existing array of arrays
                 List<PostScriptToken> merged = new(existingArray.Elements.Length + 1);
@@ -143,7 +143,7 @@ namespace PdfPixel.PostScript
 
         private static void AddCMapToUseCMapArray(PostScriptDictionary dict, PostScriptToken cmapToken)
         {
-            if (dict.Entries.TryGetValue("usecmap", out PostScriptToken existingToken) && existingToken is PostScriptArray existingArray)
+            if (dict.Entries.TryGetValue("usecmap", out PostScriptToken? existingToken) && existingToken is PostScriptArray existingArray)
             {
                 List<PostScriptToken> merged = new(existingArray.Elements.Length + 1);
                 merged.AddRange(existingArray.Elements);

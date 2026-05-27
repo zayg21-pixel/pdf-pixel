@@ -63,9 +63,19 @@ namespace PdfPixel.Streams
                 throw new ArgumentNullException(nameof(buffer));
             }
 
-            if (offset < 0 || count < 0 || offset + count > buffer.Length)
+            if (offset < 0)
             {
-                throw new ArgumentOutOfRangeException();
+                throw new ArgumentOutOfRangeException(nameof(offset));
+            }
+
+            if (count < 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(count));
+            }
+
+            if (offset + count > buffer.Length)
+            {
+                throw new ArgumentException("offset and count exceed buffer length.", nameof(count));
             }
 
             if (count == 0)

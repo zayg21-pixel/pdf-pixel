@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.IO;
 using PdfPixel.Models;
+using System.Globalization;
 
 namespace PdfPixel.Fonts.Mapping;
 
@@ -62,13 +63,13 @@ public static class PdfCmapBinary
     /// Parse a CMap from the custom binary format written by this class.
     /// If an OverridesHeader block is present, the provided baseResolver will be used to merge the cluster base.
     /// </summary>
-    public static PdfCMap ParseCMapBinary(in ReadOnlyMemory<byte> data, Func<PdfString, PdfCMap> baseResolver)
+    public static PdfCMap ParseCMapBinary(in ReadOnlyMemory<byte> data, Func<PdfString, PdfCMap?> baseResolver)
     {
         PdfCMap cmap = new();
         int offset = 0;
-        byte codeLengthContext = 0;
-        uint prevCode = 0;
-        uint prevCid = 0;
+        byte codeLengthContext;
+        uint prevCode;
+        uint prevCid;
 
         ReadOnlySpan<byte> span = data.Span;
 
@@ -79,20 +80,18 @@ public static class PdfCmapBinary
             {
                 case CMapBinaryBlockId.OverridesHeader:
                 {
-                    uint count = ReadVarUInt(span, ref offset);
-                    byte reserved = span[offset++];
+                    _ = ReadVarUInt(span, ref offset); // count, unused
+                    offset++; // reserved, unused
                     uint clusterIndex = ReadVarUInt(span, ref offset);
                     if (baseResolver != null)
                     {
-                            PdfCMap baseCmap = baseResolver(PdfString.FromString(clusterIndex.ToString()));
+                        PdfCMap? baseCmap = baseResolver(PdfString.FromString(clusterIndex.ToString(CultureInfo.InvariantCulture)));
                         if (baseCmap != null)
                         {
                             cmap.MergeFrom(baseCmap);
                         }
                     }
 
-                    prevCode = 0;
-                    prevCid = 0;
                     break;
                 }
                 case CMapBinaryBlockId.Name:
@@ -263,7 +262,7 @@ public static class PdfCmapBinary
         using FileStream stream = File.Create(outputPath);
 
         stream.WriteByte((byte)CMapBinaryBlockId.OverridesHeader);
-        WriteVarUInt(stream, 1);
+        WriteVarUInt(stream, 1); // TODO: [MEDIUM] we're wasting memory here, count parameter is unused, 0 is also unused, that causes CMapCache to skip unused entries
         stream.WriteByte(0);
         WriteVarUInt(stream, (uint)clusterIndex);
 
@@ -284,7 +283,7 @@ public static class PdfCmapBinary
         stream.WriteByte((byte)CMapBinaryBlockId.WMode);
         WriteVarUInt(stream, (uint)cmap.WMode);
 
-        var entriesByLength = cmap.GetCodeToCid()
+        var entriesByLength = cmap.CodeToCid
             .Select(kvp => new { Code = kvp.Key, Cid = (uint)kvp.Value, CodeValue = PdfCharacterCode.UnpackBigEndianToUInt(kvp.Key.Bytes.Span) })
             .Where(entry => entry.Code.Length > 0)
             .GroupBy(entry => entry.Code.Length)
@@ -293,7 +292,7 @@ public static class PdfCmapBinary
         foreach (var group in entriesByLength)
         {
             var codeLength = (byte)group.Key;
-            clusterBase.TryGetValue(codeLength, out Dictionary<uint, int> baseColumnsSigned);
+            clusterBase.TryGetValue(codeLength, out Dictionary<uint, int>? baseColumnsSigned);
             baseColumnsSigned ??= new Dictionary<uint, int>();
 
             List<(uint CodeValue, uint Cid)> diffs = [];
@@ -318,7 +317,7 @@ public static class PdfCmapBinary
         }
     }
 
-    private static void WriteRangeBlocks(Stream stream, byte codeLength, List<Entry> entries)
+    private static void WriteRangeBlocks(FileStream stream, byte codeLength, List<Entry> entries)
     {
         List<(uint CodeStartValue, uint CidStart, uint Length)> ranges = [];
         List<(uint CodeValue, uint Cid)> singles = [];
@@ -413,7 +412,7 @@ public static class PdfCmapBinary
         }
     }
 
-    private static void WriteVarUInt(Stream stream, uint value)
+    private static void WriteVarUInt(FileStream stream, uint value)
     {
         while (value >= 0x80)
         {
@@ -424,13 +423,13 @@ public static class PdfCmapBinary
         stream.WriteByte((byte)value);
     }
 
-    private static void WriteVarInt(Stream stream, int value)
+    private static void WriteVarInt(FileStream stream, int value)
     {
         var zigzag = (uint)((value << 1) ^ (value >> 31));
         WriteVarUInt(stream, zigzag);
     }
 
-    private static void WriteString(Stream stream, in PdfString value)
+    private static void WriteString(FileStream stream, in PdfString value)
     {
         ReadOnlyMemory<byte> bytes = value.Value;
         WriteVarUInt(stream, (uint)bytes.Length);

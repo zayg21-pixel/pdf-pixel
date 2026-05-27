@@ -45,6 +45,16 @@ public sealed class PdfCommandRecorder : IPdfCommandProcessor
     /// <param name="executionContext">Execution-time context containing rendering parameters and cancellation.</param>
     public void Replay(SKCanvas canvas, IEnumerable<IPdfCommandModifier> modifiers, PdfCommandExecutionContext executionContext)
     {
+        if (canvas == null)
+        {
+            throw new ArgumentNullException(nameof(canvas));
+        }
+
+        if (executionContext == null)
+        {
+            throw new ArgumentNullException(nameof(executionContext));
+        }
+
         foreach (IPdfCommand command in _commands)
         {
             command.Execute(canvas, modifiers, executionContext);

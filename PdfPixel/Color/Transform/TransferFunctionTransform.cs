@@ -34,7 +34,7 @@ namespace PdfPixel.Color.Transform
         /// </summary>
         /// <param name="functionObject">The PDF object representing TR function(s).</param>
         /// <returns>A <see cref="TransferFunctionTransform"/> instance, or null for non-compliant input.</returns>
-        public static TransferFunctionTransform FromPdfObject(PdfObject functionObject)
+        public static TransferFunctionTransform? FromPdfObject(PdfObject? functionObject)
         {
             if (functionObject == null || functionObject.Value == null)
             {
@@ -45,7 +45,7 @@ namespace PdfPixel.Color.Transform
 
             if (value.Type == PdfValueType.Array)
             {
-                PdfArray arr = value.AsArray();
+                PdfArray? arr = value.AsArray();
                 if (arr == null)
                 {
                     return null;
@@ -57,9 +57,9 @@ namespace PdfPixel.Color.Transform
                     return null;
                 }
 
-                PdfFunction fx = PdfFunctions.GetFunction(arr.GetObject(0));
-                PdfFunction fy = PdfFunctions.GetFunction(arr.GetObject(1));
-                PdfFunction fz = PdfFunctions.GetFunction(arr.GetObject(2));
+                PdfFunction? fx = PdfFunctions.GetFunction(arr.GetObject(0));
+                PdfFunction? fy = PdfFunctions.GetFunction(arr.GetObject(1));
+                PdfFunction? fz = PdfFunctions.GetFunction(arr.GetObject(2));
 
                 if (fx == null || fy == null || fz == null)
                 {
@@ -71,7 +71,7 @@ namespace PdfPixel.Color.Transform
             else
             {
                 // Non-spec compliant rule: single function applied to all components.
-                PdfFunction fn = PdfFunctions.GetFunction(functionObject);
+                PdfFunction? fn = PdfFunctions.GetFunction(functionObject);
                 if (fn == null)
                 {
                     return null;

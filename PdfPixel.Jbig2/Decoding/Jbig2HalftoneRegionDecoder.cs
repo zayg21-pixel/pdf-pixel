@@ -123,8 +123,6 @@ internal static class Jbig2HalftoneRegionDecoder
         }
 
         // Build pattern indices using Gray-code decoding (ITU-T T.88 Section 6.6.5.2)
-        int patternWidth = patterns[0].Width;
-        int patternHeight = patterns[0].Height;
 
         Jbig2Bitmap regionBitmap = new(regionInfo.Width, regionInfo.Height, defaultPixel);
 
@@ -239,7 +237,6 @@ internal static class Jbig2HalftoneRegionDecoder
         Jbig2Bitmap skipBitmap)
     {
         ReadOnlySpan<byte> skipRow = skipBitmap.GetRowReadOnly(y);
-        int pixelCount = templatePixels.Length;
 
         for (int x = 0; x < width; x++)
         {

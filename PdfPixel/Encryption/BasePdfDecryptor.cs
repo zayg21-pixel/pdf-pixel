@@ -35,13 +35,18 @@ public abstract class BasePdfDecryptor
     /// <returns>A stream containing the decrypted data. The caller is responsible for disposing of the returned stream.</returns>
     public virtual Stream DecryptStream(Stream stream, in PdfReference reference)
     {
+        if (stream == null)
+        {
+            throw new ArgumentNullException(nameof(stream));
+        }
+
         using MemoryStream memoryStream = new();
         stream.CopyTo(memoryStream);
         ReadOnlyMemory<byte> decryptedBytes = DecryptString(memoryStream.ToArray(), reference);
         return new MemoryStream(decryptedBytes.ToArray());
     } // TODO: [MEDIUM] need to optimize to avoid double memory copy
 
-    protected string Password { get; private set; }
+    protected string? Password { get; private set; }
 
     public virtual void UpdatePassword(string password) => Password = password ?? string.Empty;
     // Derived classes may recompute file key when password changes.

@@ -62,7 +62,7 @@ public readonly struct PdfString : IEquatable<PdfString>
     /// </summary>
     /// <param name="obj">The object to compare.</param>
     /// <returns>true if the object is a <see cref="PdfString"/> and the values are equal; otherwise, false.</returns>
-    public override bool Equals(object obj)
+    public override bool Equals(object? obj)
     {
         if (obj is PdfString other)
         {

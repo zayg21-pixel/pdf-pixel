@@ -10,12 +10,12 @@ namespace PdfPixel.Functions;
 /// </summary>
 public sealed class StitchingPdfFunction : PdfFunction
 {
-    private readonly List<PdfFunction> _subFunctions;
-    private readonly float[] _bounds;
-    private readonly float[] _encode;
-    private readonly float[] _buffer;
+    private readonly List<PdfFunction?> _subFunctions;
+    private readonly float[]? _bounds;
+    private readonly float[]? _encode;
+    private readonly float[]? _buffer;
 
-    private StitchingPdfFunction(List<PdfFunction> subFunctions, float[] bounds, float[] encode, float[] domain, float[] range)
+    private StitchingPdfFunction(List<PdfFunction?> subFunctions, float[]? bounds, float[]? encode, float[] domain, float[]? range)
         : base(domain, range)
     {
         _subFunctions = subFunctions;
@@ -34,24 +34,24 @@ public sealed class StitchingPdfFunction : PdfFunction
     /// </summary>
     /// <param name="functionObject">PDF function object.</param>
     /// <returns>StitchingPdfFunction instance, or null if invalid.</returns>
-    public static StitchingPdfFunction FromObject(PdfObject functionObject)
+    public static StitchingPdfFunction? FromObject(PdfObject functionObject)
     {
-        if (functionObject == null || functionObject.Dictionary == null)
+        if (functionObject == null)
         {
             return null;
         }
 
         PdfDictionary dictionary = functionObject.Dictionary;
-        List<PdfObject> subFunctionObjects = dictionary.GetObjects(PdfTokens.FunctionsKey);
+        List<PdfObject>? subFunctionObjects = dictionary.GetObjects(PdfTokens.FunctionsKey);
         if (subFunctionObjects == null || subFunctionObjects.Count == 0)
         {
             return null;
         }
 
-        List<PdfFunction> subFunctions = new(subFunctionObjects.Count);
+        List<PdfFunction?> subFunctions = new(subFunctionObjects.Count);
         foreach (PdfObject subFunctionObject in subFunctionObjects)
         {
-            PdfFunction subFunction = PdfFunctions.GetFunction(subFunctionObject);
+            PdfFunction? subFunction = PdfFunctions.GetFunction(subFunctionObject);
             if (subFunction != null)
             {
                 subFunctions.Add(subFunction);
@@ -63,10 +63,15 @@ public sealed class StitchingPdfFunction : PdfFunction
             }
         }
 
-        float[] bounds = dictionary.GetArray(PdfTokens.BoundsKey)?.GetFloatArray();
-        float[] encode = dictionary.GetArray(PdfTokens.EncodeKey)?.GetFloatArray();
-        float[] domain = dictionary.GetArray(PdfTokens.DomainKey)?.GetFloatArray();
-        float[] range = dictionary.GetArray(PdfTokens.RangeKey)?.GetFloatArray();
+        float[]? bounds = dictionary.GetArray(PdfTokens.BoundsKey)?.GetFloatArray();
+        float[]? encode = dictionary.GetArray(PdfTokens.EncodeKey)?.GetFloatArray();
+        float[]? domain = dictionary.GetArray(PdfTokens.DomainKey)?.GetFloatArray();
+        float[]? range = dictionary.GetArray(PdfTokens.RangeKey)?.GetFloatArray();
+
+        if (domain == null || domain.Length < 2)
+        {
+            domain = new float[] { 0f, 1f };
+        }
 
         return new StitchingPdfFunction(subFunctions, bounds, encode, domain, range);
     }
@@ -76,13 +81,8 @@ public sealed class StitchingPdfFunction : PdfFunction
     {
         float x = Clamp(value, Domain, 0);
 
-        float domainStart = 0f;
-        float domainEnd = 1f;
-        if (Domain?.Length >= 2)
-        {
-            domainStart = Domain[0];
-            domainEnd = Domain[1];
-        }
+        float domainStart = Domain[0];
+        float domainEnd = Domain[1];
 
         int segmentIndex = 0;
         if (_bounds?.Length > 0)
@@ -110,7 +110,7 @@ public sealed class StitchingPdfFunction : PdfFunction
             mappedInput = e0 + (localT * (e1 - e0));
         }
 
-        PdfFunction childFunction = (segmentIndex < _subFunctions.Count) ? _subFunctions[segmentIndex] : null;
+        PdfFunction? childFunction = (segmentIndex < _subFunctions.Count) ? _subFunctions[segmentIndex] : null;
         if (childFunction != null)
         {
             ReadOnlySpan<float> childResult = childFunction.Evaluate(mappedInput);
@@ -158,7 +158,7 @@ public sealed class StitchingPdfFunction : PdfFunction
             float a = (seg == 0) ? start : (_bounds != null && _bounds.Length >= seg) ? _bounds[seg - 1] : start;
             float b = (_bounds != null && _bounds.Length > seg) ? _bounds[seg] : end;
 
-            PdfFunction child = _subFunctions[seg];
+            PdfFunction? child = _subFunctions?[seg];
             if (child == null)
             {
                 continue;

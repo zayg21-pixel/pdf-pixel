@@ -36,7 +36,7 @@ namespace PdfPixel.PostScript.Tokens
                 throw new InvalidOperationException("typecheck: array index must be number");
             }
 
-            var index = (int)number.Value;
+            var index = (int)number.Number;
             if (index < 0 || index >= Elements.Length)
             {
                 throw new InvalidOperationException("rangecheck: array index out of range");
@@ -56,7 +56,7 @@ namespace PdfPixel.PostScript.Tokens
                 throw new InvalidOperationException("typecheck: array index must be number");
             }
 
-            var index = (int)number.Value;
+            var index = (int)number.Number;
             if (index < 0 || index >= Elements.Length)
             {
                 throw new InvalidOperationException("rangecheck: array index out of range");

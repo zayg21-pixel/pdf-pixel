@@ -17,7 +17,7 @@ internal static class CmapClustering
         Dictionary<string, Dictionary<byte, Dictionary<uint, int>>> signatures = [];
         foreach (PdfCMap cmap in cmaps)
         {
-            System.Collections.ObjectModel.ReadOnlyDictionary<PdfCharacterCode, int> codeToCid = cmap.GetCodeToCid();
+            System.Collections.ObjectModel.ReadOnlyDictionary<PdfCharacterCode, int> codeToCid = cmap.CodeToCid;
             if (codeToCid.Count == 0)
             {
                 continue;
@@ -29,7 +29,7 @@ internal static class CmapClustering
                 .Where(entry => entry.Code.Length > 0))
             {
                 var codeLength = (byte)entry.Code.Length;
-                if (!signature.TryGetValue(codeLength, out Dictionary<uint, int> columns))
+                if (!signature.TryGetValue(codeLength, out Dictionary<uint, int>? columns))
                 {
                     columns = new Dictionary<uint, int>();
                     signature[codeLength] = columns;
@@ -100,7 +100,7 @@ internal static class CmapClustering
             Dictionary<byte, Dictionary<uint, Dictionary<int, int>>> votesByLength = [];
             foreach (string name in clusters[i])
             {
-                if (!signatures.TryGetValue(name, out Dictionary<byte, Dictionary<uint, int>> signature))
+                if (!signatures.TryGetValue(name, out Dictionary<byte, Dictionary<uint, int>>? signature))
                 {
                     continue;
                 }
@@ -108,7 +108,7 @@ internal static class CmapClustering
                 foreach (KeyValuePair<byte, Dictionary<uint, int>> lengthEntry in signature)
                 {
                     byte codeLength = lengthEntry.Key;
-                    if (!votesByLength.TryGetValue(codeLength, out Dictionary<uint, Dictionary<int, int>> votesByCode))
+                    if (!votesByLength.TryGetValue(codeLength, out Dictionary<uint, Dictionary<int, int>>? votesByCode))
                     {
                         votesByCode = new Dictionary<uint, Dictionary<int, int>>();
                         votesByLength[codeLength] = votesByCode;
@@ -116,7 +116,7 @@ internal static class CmapClustering
 
                     foreach (KeyValuePair<uint, int> columnEntry in lengthEntry.Value)
                     {
-                        if (!votesByCode.TryGetValue(columnEntry.Key, out Dictionary<int, int> votes))
+                        if (!votesByCode.TryGetValue(columnEntry.Key, out Dictionary<int, int>? votes))
                         {
                             votes = new Dictionary<int, int>();
                             votesByCode[columnEntry.Key] = votes;
@@ -168,8 +168,8 @@ internal static class CmapClustering
         HashSet<byte> codeLengths = new(a.Keys.Concat(b.Keys));
         foreach (byte cl in codeLengths)
         {
-            a.TryGetValue(cl, out Dictionary<uint, int> columnsA);
-            b.TryGetValue(cl, out Dictionary<uint, int> columnsB);
+            a.TryGetValue(cl, out Dictionary<uint, int>? columnsA);
+            b.TryGetValue(cl, out Dictionary<uint, int>? columnsB);
             columnsA ??= new Dictionary<uint, int>();
             columnsB ??= new Dictionary<uint, int>();
 

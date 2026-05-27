@@ -9,10 +9,10 @@ namespace PdfPixel.Commands;
 /// </summary>
 public sealed class DrawTextBlobCommand : PdfCommand
 {
-    private readonly SKTextBlob _blob;
+    private readonly SKTextBlob? _blob;
     private readonly SKPaint _basePaint;
 
-    public DrawTextBlobCommand(SKTextBlob blob, SKPaint basePaint)
+    public DrawTextBlobCommand(SKTextBlob? blob, SKPaint basePaint)
     {
         _blob = blob;
         _basePaint = basePaint;
@@ -21,6 +21,11 @@ public sealed class DrawTextBlobCommand : PdfCommand
     /// <inheritdoc />
     public override void Execute(SKCanvas canvas, IEnumerable<IPdfCommandModifier> modifiers, PdfCommandExecutionContext executionContext)
     {
+        if (_blob == null)
+        {
+            return;
+        }
+
         using SKPaint paint = _basePaint.Clone();
         paint.IsAntialias = executionContext.RenderingParameters.Antialias;
         CommandHelpers.ApplyModifiers(paint, modifiers);
@@ -31,7 +36,7 @@ public sealed class DrawTextBlobCommand : PdfCommand
     /// <inheritdoc />
     protected override void Dispose(bool disposing)
     {
-        _blob.Dispose();
+        _blob?.Dispose();
         _basePaint.Dispose();
     }
 }

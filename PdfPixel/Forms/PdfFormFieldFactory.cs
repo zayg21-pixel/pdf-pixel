@@ -13,14 +13,14 @@ public static class PdfFormFieldFactory
     /// </summary>
     /// <param name="fieldObject">The PDF object representing a form field.</param>
     /// <returns>A concrete form field instance, or null if the object is not a valid field.</returns>
-    public static PdfFormField CreateField(PdfObject fieldObject)
+    public static PdfFormField? CreateField(PdfObject fieldObject)
     {
         if (fieldObject == null)
         {
             return null;
         }
 
-        PdfFormFieldType fieldType = fieldObject.Dictionary.GetName(PdfTokens.FieldTypeKey).AsEnum<PdfFormFieldType>();
+        PdfFormFieldType? fieldType = fieldObject.Dictionary.GetName(PdfTokens.FieldTypeKey).AsEnum<PdfFormFieldType>();
         if (fieldType == PdfFormFieldType.Unknown)
         {
             return null;

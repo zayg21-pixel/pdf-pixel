@@ -23,7 +23,7 @@ public class PdfSquareAnnotation : PdfAnnotationBase
     {
     }
 
-    internal override bool RenderFallback(IPdfCommandProcessor processor, IPdfPageInternal page, PdfAnnotationVisualStateKind visualStateKind, PdfRenderingParameters renderingParameters)
+    internal override bool RenderFallback(IPdfCommandProcessor processor, IPdfPageInternal page, PdfAnnotationVisualStateKind visualStateKind)
     {
         float width = Rectangle.Width;
         float height = Rectangle.Height;
@@ -34,7 +34,6 @@ public class PdfSquareAnnotation : PdfAnnotationBase
             SKPaint fillPaint = new()
             {
                 Style = SKPaintStyle.Fill,
-                IsAntialias = renderingParameters.Antialias,
                 Color = interiorSKColor
             };
 
@@ -51,7 +50,6 @@ public class PdfSquareAnnotation : PdfAnnotationBase
             {
                 Style = SKPaintStyle.Stroke,
                 StrokeWidth = BorderStyle.Width,
-                IsAntialias = renderingParameters.Antialias,
                 Color = strokeColor
             };
 

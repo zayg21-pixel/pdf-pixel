@@ -32,7 +32,7 @@ public class PdfCidSystemInfo
     /// </summary>
     /// <param name="dictionary">The PDF dictionary containing CIDSystemInfo keys.</param>
     /// <returns>A populated <see cref="PdfCidSystemInfo"/> or null if the dictionary is null.</returns>
-    public static PdfCidSystemInfo FromDictionary(PdfDictionary dictionary)
+    public static PdfCidSystemInfo? FromDictionary(PdfDictionary? dictionary)
     {
         if (dictionary == null)
         {
@@ -52,7 +52,7 @@ public class PdfCidSystemInfo
     /// </summary>
     /// <param name="dictionary">Dictionary containing CID system information.</param>
     /// <returns>A populated <see cref="PdfCidSystemInfo"/> or null if the dictionary is null.</returns>
-    public static PdfCidSystemInfo FromPostscriptDictionary(PostScriptDictionary dictionary)
+    public static PdfCidSystemInfo? FromPostscriptDictionary(PostScriptDictionary? dictionary)
     {
         if (dictionary == null)
         {
@@ -61,19 +61,19 @@ public class PdfCidSystemInfo
 
         PdfCidSystemInfo info = new();
 
-        if (dictionary.Entries.TryGetValue(PdfTokens.RegistryKey.ToString(), out PostScriptToken registryValue) && registryValue is PostScriptString registryString)
+        if (dictionary.Entries.TryGetValue(PdfTokens.RegistryKey.ToString(), out PostScriptToken? registryValue) && registryValue is PostScriptString registryString)
         {
-            info.Registry = new PdfString(registryString.Value);
+            info.Registry = new PdfString(registryString.Data);
         }
 
-        if (dictionary.Entries.TryGetValue(PdfTokens.OrderingKey.ToString(), out PostScriptToken orderingValue) && orderingValue is PostScriptString orderingString)
+        if (dictionary.Entries.TryGetValue(PdfTokens.OrderingKey.ToString(), out PostScriptToken? orderingValue) && orderingValue is PostScriptString orderingString)
         {
-            info.Ordering = new PdfString(orderingString.Value);
+            info.Ordering = new PdfString(orderingString.Data);
         }
 
-        if (dictionary.Entries.TryGetValue(PdfTokens.SupplementKey.ToString(), out PostScriptToken supplementValue) && supplementValue is PostScriptNumber supplementInteger)
+        if (dictionary.Entries.TryGetValue(PdfTokens.SupplementKey.ToString(), out PostScriptToken? supplementValue) && supplementValue is PostScriptNumber supplementInteger)
         {
-            info.Supplement = (int)supplementInteger.Value;
+            info.Supplement = (int)supplementInteger.Number;
         }
 
         return info;

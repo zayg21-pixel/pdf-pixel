@@ -198,8 +198,6 @@ internal static class FastPowSeries
         // Use recurrence: T_{k+1}(x) = 2*x*T_k(x) - T_{k-1}(x)
         // For T_k(ax + b), we substitute x -> ax + b and expand
 
-        var result = new float[k + 1];
-
         // Start with T_0 and T_1 coefficients for (ax + b)
         float[] t0 = { 1.0f }; // T_0 = 1
         float[] t1 = { b, a };  // T_1 = ax + b

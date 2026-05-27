@@ -16,7 +16,7 @@ internal static class Type1DictionaryToCffConverter
 {
     private const int FirstCustomSid = 391; // CFF spec: custom strings start at SID391.
 
-    public static CffInfo GenerateCffFontDataFromDictionary(PostScriptDictionary fontDictionary, PdfFontDescriptor descriptor)
+    public static CffInfo? GenerateCffFontDataFromDictionary(PostScriptDictionary fontDictionary, PdfFontDescriptor descriptor)
     {
         if (fontDictionary == null)
         {
@@ -33,7 +33,7 @@ internal static class Type1DictionaryToCffConverter
         float[] fontMatrix = Type1FontDictionaryUtilities.GetFontMatrix(fontDictionary) ?? [0.001f, 0f, 0f, 0.001f, 0f, 0f];
         float[] effectiveFontBBox = Type1FontDictionaryUtilities.GetFontBBox(fontDictionary) ?? [0f, 0f, 0f, 0f];
 
-        string fontName = Type1FontDictionaryUtilities.GetFontName(fontDictionary);
+        string? fontName = Type1FontDictionaryUtilities.GetFontName(fontDictionary);
         if (string.IsNullOrEmpty(fontName) && descriptor.FontName.ToString() != null)
         {
             fontName = descriptor.FontName.ToString();
@@ -69,14 +69,12 @@ internal static class Type1DictionaryToCffConverter
         byte[] globalSubrsIndex = CffIndexBuilder.BuildEmptyIndex();
         byte[] encodingData = BuildCustomEncoding(encodingVector.Length);
 
-        byte[] topDictIndex = Array.Empty<byte>();
         int topDictIndexSize = 0;
         int iterationCount = 0;
-        const int MaxIterations = 5;
-        int encodingOffset = 0;
-        int charsetOffset = 0;
-        int charStringsOffset = 0;
-        int privateDictOffset = 0;
+        const int maxIterations = 5;
+        byte[] topDictIndex;
+        int encodingOffset;
+        int charsetOffset;
 
         while (true)
         {
@@ -89,14 +87,13 @@ internal static class Type1DictionaryToCffConverter
             int globalSubrsOffset = stringIndexOffset + stringIndex.Length;
             encodingOffset = globalSubrsOffset + globalSubrsIndex.Length;
             charsetOffset = encodingOffset + encodingData.Length;
-            charStringsOffset = charsetOffset + charsetData.Length;
-            privateDictOffset = charStringsOffset + charStringsIndex.Length;
+            int charStringsOffset = charsetOffset + charsetData.Length;
+            int privateDictOffset = charStringsOffset + charStringsIndex.Length;
             byte[] topDictData = BuildTopDict(effectiveFontBBox, fontMatrix, encodingOffset, charsetOffset, charStringsOffset, privateSize: 0, privateDictOffset);
             topDictIndex = CffIndexBuilder.BuildSingleObjectIndex(topDictData);
             int newSize = topDictIndex.Length;
-            if (newSize == topDictIndexSize || iterationCount >= MaxIterations)
+            if (newSize == topDictIndexSize || iterationCount >= maxIterations)
             {
-                topDictIndexSize = newSize;
                 break;
             }
 

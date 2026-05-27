@@ -21,25 +21,25 @@ public sealed class ChainedColorTransform : IColorTransform
     /// </summary>
     /// <param name="transforms">The color transforms to chain together.</param>
     public ChainedColorTransform(
-        params IColorTransform[] transforms)
+        params IColorTransform?[] transforms)
     {
         transforms ??= Array.Empty<IColorTransform>();
         List<IColorTransform> flattenedTransforms = [];
 
-        foreach (IColorTransform transform in transforms)
+        foreach (IColorTransform? transform in transforms)
         {
             // Flatten nested chains to avoid unnecessary nesting and improve performance.
             if (transform is ChainedColorTransform chainedTransform)
             {
                 flattenedTransforms.AddRange(chainedTransform._transforms);
             }
-            else
+            else if (transform != null)
             {
                 flattenedTransforms.Add(transform);
             }
         }
 
-        _transforms = flattenedTransforms.Where(x => x?.IsIdentity == false).ToArray();
+        _transforms = flattenedTransforms.Where(x => !x.IsIdentity).ToArray();
         IsIdentity = _transforms.Length == 0;
         _compiled = CompilePipeline(_transforms);
     }

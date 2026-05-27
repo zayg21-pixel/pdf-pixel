@@ -41,7 +41,7 @@ namespace PdfPixel.PostScript
         {
             Ensure(stack, 1);
             PostScriptToken nameToken = stack.Pop();
-            string lookupName = null;
+            string? lookupName = null;
             if (nameToken is PostScriptLiteralName litName)
             {
                 lookupName = litName.Name;
@@ -57,7 +57,7 @@ namespace PdfPixel.PostScript
                 return;
             }
 
-            if (TryLookupDict(lookupName, out PostScriptToken valueToken))
+            if (TryLookupDict(lookupName, out PostScriptToken? valueToken) && valueToken != null)
             {
                 if (valueToken is PostScriptDictionary d && d.AccessLevel == PostScriptAccess.NoAccess)
                 {

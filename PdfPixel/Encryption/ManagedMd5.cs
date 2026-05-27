@@ -175,8 +175,9 @@ internal sealed class ManagedMd5 : IDisposable
 
     /// <summary>
     /// Gets the computed hash after <see cref="TransformFinalBlock"/> is called.
+    /// Empty array before finalization.
     /// </summary>
-    public byte[] Hash { get; private set; }
+    public byte[] Hash { get; private set; } = Array.Empty<byte>();
 
     /// <summary>
     /// Creates a new <see cref="ManagedMd5"/> instance.
@@ -192,7 +193,7 @@ internal sealed class ManagedMd5 : IDisposable
     /// Feeds a block of input data into the hash computation.
     /// Mirrors the API of <see cref="System.Security.Cryptography.HashAlgorithm.TransformBlock"/>.
     /// </summary>
-    public int TransformBlock(byte[] inputBuffer, int inputOffset, int inputCount, byte[] outputBuffer, int outputOffset)
+    public int TransformBlock(byte[] inputBuffer, int inputOffset, int inputCount, byte[]? outputBuffer, int outputOffset)
     {
         for (int i = 0; i < inputCount; i++)
         {
@@ -281,7 +282,7 @@ internal sealed class ManagedMd5 : IDisposable
         _d = InitD;
         _blockOffset = 0;
         _messageLength = 0;
-        Hash = null;
+        Hash = Array.Empty<byte>();
     }
 
     private void ProcessBlock()

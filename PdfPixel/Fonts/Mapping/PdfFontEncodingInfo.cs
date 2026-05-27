@@ -10,7 +10,7 @@ namespace PdfPixel.Fonts.Mapping;
 /// </summary>
 public class PdfFontEncodingInfo
 {
-    public PdfFontEncodingInfo(PdfFontEncoding encoding, in PdfString customEncoding, Dictionary<int, PdfString> differences)
+    public PdfFontEncodingInfo(PdfFontEncoding encoding, in PdfString customEncoding, Dictionary<int, PdfString>? differences)
     {
         BaseEncoding = encoding;
         CustomEncoding = customEncoding;
@@ -37,7 +37,7 @@ public class PdfFontEncodingInfo
     /// Updates the differences map from the given encoding vector.
     /// </summary>
     /// <param name="encodingVector">Encoding vector.</param>
-    public void Update(PdfFontEncoding baseEncoding, PdfString[] encodingVector)
+    public void Update(PdfFontEncoding baseEncoding, PdfString[]? encodingVector)
     {
         if (baseEncoding != PdfFontEncoding.Unknown)
         {

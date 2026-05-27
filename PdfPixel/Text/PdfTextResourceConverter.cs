@@ -9,7 +9,7 @@ namespace PdfPixel.Text;
 /// <summary>
 /// Provides helpers to serialize and deserialize arrays of <see cref="PdfString"/> to a compact binary blob.
 /// </summary>
-public static class PdfTextResourceConverter
+internal static class PdfTextResourceConverter
 {
     /// <summary>
     /// Generates a binary blob representing the <see cref="CharacterMap"/> contents.

@@ -1,36 +1,9 @@
 ﻿using PdfPixel.Models;
-using PdfPixel.Text;
 using SkiaSharp;
 using System.Collections.Generic;
 using System.Linq;
 
 namespace PdfPixel.Fonts.TrueType;
-
-/// <summary>
-/// Holds extracted font table mappings and related information for a TrueType font.
-/// </summary>
-public class SfntFontTables
-{
-    /// <summary>
-    /// Information about the font's tables and offsets.
-    /// </summary>
-    public FontTableInfo FontTableInfo { get; set; }
-
-    /// <summary>
-    /// Maps single-byte codes (0-255) to glyph ID (GIDs).
-    /// </summary>
-    public ushort[] SingleByteCodeToGid { get; set; }
-
-    /// <summary>
-    /// Maps glyph names (<see cref="PdfString"/>) to glyph ID (GIDs).
-    /// </summary>
-    public Dictionary<PdfString, ushort> NameToGid { get; set; }
-
-    /// <summary>
-    /// Maps Unicode codepoints (as strings) to glyph IDs (GIDs).
-    /// </summary>
-    public Dictionary<string, ushort> UnicodeToGid { get; set; }
-}
 
 /// <summary>
 /// Provides methods for extracting font table mappings from a TrueType font using SkiaSharp.
@@ -44,14 +17,14 @@ internal static class SfntFontTableParser
     /// <returns>A <see cref="SfntFontTables"/> instance containing all extracted mappings and table info.</returns>
     public static SfntFontTables GetSfntFontTables(SKTypeface typeface)
     {
-        FontTableInfo tableInfo = SfntFontTableInfoParser.GetFontTableInfo(typeface);
+        SfntFontTableInfo tableInfo = SfntFontTableInfoParser.GetFontTableInfo(typeface);
 
         return new SfntFontTables
         {
             FontTableInfo = tableInfo,
             SingleByteCodeToGid = ExtractSingleByteCodeToGid(tableInfo),
-            NameToGid = ExtractNameToGid(tableInfo),
-            UnicodeToGid = ExtractUnicodeToGid(tableInfo)
+            NameToGid = new System.Collections.ObjectModel.ReadOnlyDictionary<PdfString, ushort>(ExtractNameToGid(tableInfo)),
+            UnicodeToGid = new System.Collections.ObjectModel.ReadOnlyDictionary<string, ushort>(ExtractUnicodeToGid(tableInfo))
         };
     }
 
@@ -59,7 +32,7 @@ internal static class SfntFontTableParser
     /// Builds a single-byte code to GID mapping by combining multiple CMap formats.
     /// Uses format 0 (byte-to-gid array) as the base and merges fallback mappings from formats 4 and 6.
     /// </summary>
-    private static ushort[] ExtractSingleByteCodeToGid(FontTableInfo info)
+    private static ushort[]? ExtractSingleByteCodeToGid(SfntFontTableInfo info)
     {
         if (info == null)
         {
@@ -71,7 +44,7 @@ internal static class SfntFontTableParser
             return null;
         }
 
-        ushort[] result = null;
+        ushort[]? result = null;
 
         // as per PDF spec, symbol encoding should be preferred for single-byte fonts, followed by mac roman, then any other encoding as fallback
         ApplyEncodings(ref result, info, info.CMapEntries.Where(x => x.Encoding == Model.PdfFontEncoding.SymbolEncoding));
@@ -94,9 +67,14 @@ internal static class SfntFontTableParser
         return result;
     }
 
-    private static void ApplyEncodings(ref ushort[] result, FontTableInfo info, IEnumerable<CMapEntry> entries)
+    private static void ApplyEncodings(ref ushort[]? result, SfntFontTableInfo info, IEnumerable<SfntCMapEntry> entries)
     {
-        foreach (CMapEntry entry in entries)
+        if (info.CmapData == null)
+        {
+            return;
+        }
+
+        foreach (SfntCMapEntry entry in entries)
         {
             if (entry.Format == 0)
             {
@@ -145,7 +123,7 @@ internal static class SfntFontTableParser
     /// </summary>
     /// <param name="info">FontTableInfo struct with table data and offsets.</param>
     /// <returns>Dictionary mapping glyph names to GIDs.</returns>
-    private static Dictionary<PdfString, ushort> ExtractNameToGid(FontTableInfo info)
+    private static Dictionary<PdfString, ushort> ExtractNameToGid(SfntFontTableInfo info)
     {
         Dictionary<PdfString, ushort> nameToGid = [];
 
@@ -190,13 +168,18 @@ internal static class SfntFontTableParser
     /// </summary>
     /// <param name="info">FontTableInfo struct with table data and offsets.</param>
     /// <returns>Dictionary mapping Unicode codepoints to GIDs.</returns>
-    private static Dictionary<string, ushort> ExtractUnicodeToGid(FontTableInfo info)
+    private static Dictionary<string, ushort> ExtractUnicodeToGid(SfntFontTableInfo info)
     {
         Dictionary<string, ushort> unicodeToGid = [];
 
+        if (info.CmapData == null)
+        {
+            return unicodeToGid;
+        }
+
         // TODO: [HIGH] according to PDF spec, we should use both font encoding and UnicodeToGid encoding to map char, this is incorrect
 
-        foreach (CMapEntry cmap in info.CMapEntries)
+        foreach (SfntCMapEntry cmap in info.CMapEntries)
         {
             if (cmap.Format == 4)
             {

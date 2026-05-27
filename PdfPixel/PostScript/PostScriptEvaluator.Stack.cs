@@ -103,8 +103,8 @@ namespace PdfPixel.PostScript
             Ensure(stack, 2);
             PostScriptNumber rollCountToken = PopOfType<PostScriptNumber>(stack);
             PostScriptNumber segmentCountToken = PopOfType<PostScriptNumber>(stack);
-            var rollCount = (int)rollCountToken.Value;
-            var segmentCount = (int)segmentCountToken.Value;
+            var rollCount = (int)rollCountToken.Number;
+            var segmentCount = (int)segmentCountToken.Number;
             if (segmentCount <= 0 || segmentCount > stack.Count)
             {
                 throw new InvalidOperationException("rangecheck: roll segment count out of range");
@@ -127,7 +127,7 @@ namespace PdfPixel.PostScript
         {
             Ensure(stack, 1);
             PostScriptNumber indexToken = PopOfType<PostScriptNumber>(stack);
-            var index = (int)indexToken.Value;
+            var index = (int)indexToken.Number;
             if (index < 0 || index >= stack.Count)
             {
                 throw new InvalidOperationException("rangecheck: index operand out of range");
@@ -141,7 +141,7 @@ namespace PdfPixel.PostScript
         {
             Ensure(stack, 1);
             PostScriptNumber countToken = PopOfType<PostScriptNumber>(stack);
-            var count = (int)countToken.Value;
+            var count = (int)countToken.Number;
             if (count < 0 || count > stack.Count)
             {
                 throw new InvalidOperationException("rangecheck: copy count out of range");

@@ -13,33 +13,33 @@ namespace PdfPixel.PostScript.Compiler
                 case "if":
                 {
                     if (stack.Count < 2)
+                    {
+                        return false;
+                    }
+
+                    Expression procExpr = stack.Pop();
+                    Expression condExpr = stack.Pop();
+                    if (procExpr is ConstantExpression ce && ce.Value is PostScriptProcedure proc)
+                    {
+                        if (stack.Count < 1)
                         {
                             return false;
                         }
 
-                        Expression procExpr = stack.Pop();
-                        Expression condExpr = stack.Pop();
-                    if (procExpr is ConstantExpression ce && ce.Value is PostScriptProcedure proc)
-                    {
-                        if (stack.Count < 1)
-                            {
-                                return false;
-                            }
-
-                            Expression oldTop = stack.Pop();
+                        Expression oldTop = stack.Pop();
                         if (!TryCompileBlockStack(proc, argsParam, parameterNames, out Stack<Expression> blockStack))
                         {
                             return false;
                         }
 
                         if (blockStack.Count < 1)
-                            {
-                                return false;
-                            }
+                        {
+                            return false;
+                        }
 
-                            Expression blockResultTop = EnsureFloat(blockStack.Pop());
+                        Expression blockResultTop = EnsureFloat(blockStack.Pop());
                         Expression conditionBool = (condExpr.Type == typeof(bool)) ? condExpr : Expression.NotEqual(EnsureFloat(condExpr), Expression.Constant(0f));
-                            ConditionalExpression conditionalTop = Expression.Condition(conditionBool, EnsureFloat(blockResultTop), EnsureFloat(oldTop));
+                        ConditionalExpression conditionalTop = Expression.Condition(conditionBool, EnsureFloat(blockResultTop), EnsureFloat(oldTop));
                         stack.Push(conditionalTop);
                         return true;
                     }
@@ -49,13 +49,13 @@ namespace PdfPixel.PostScript.Compiler
                 case "ifelse":
                 {
                     if (stack.Count < 3)
-                        {
-                            return false;
-                        }
+                    {
+                        return false;
+                    }
 
-                        Expression falseProcExpr = stack.Pop();
-                        Expression trueProcExpr = stack.Pop();
-                        Expression condExpr = stack.Pop();
+                    Expression falseProcExpr = stack.Pop();
+                    Expression trueProcExpr = stack.Pop();
+                    Expression condExpr = stack.Pop();
                     if (falseProcExpr is ConstantExpression cf
                         && cf.Value is PostScriptProcedure falseProc
                         && trueProcExpr is ConstantExpression ct
@@ -72,14 +72,14 @@ namespace PdfPixel.PostScript.Compiler
                         }
 
                         if (trueStack.Count < 1 || falseStack.Count < 1)
-                            {
-                                return false;
-                            }
+                        {
+                            return false;
+                        }
 
-                            Expression trueTop = EnsureFloat(trueStack.Pop());
-                            Expression falseTop = EnsureFloat(falseStack.Pop());
+                        Expression trueTop = EnsureFloat(trueStack.Pop());
+                        Expression falseTop = EnsureFloat(falseStack.Pop());
                         Expression conditionBool = (condExpr.Type == typeof(bool)) ? condExpr : Expression.NotEqual(EnsureFloat(condExpr), Expression.Constant(0f));
-                            ConditionalExpression ifElse = Expression.Condition(conditionBool, EnsureFloat(trueTop), EnsureFloat(falseTop));
+                        ConditionalExpression ifElse = Expression.Condition(conditionBool, EnsureFloat(trueTop), EnsureFloat(falseTop));
                         stack.Push(ifElse);
                         return true;
                     }
@@ -105,7 +105,7 @@ namespace PdfPixel.PostScript.Compiler
             {
                 if (token is PostScriptNumber n)
                 {
-                    resultStack.Push(Expression.Constant(n.Value, typeof(float)));
+                    resultStack.Push(Expression.Constant(n.Number, typeof(float)));
                     continue;
                 }
 
@@ -146,3 +146,4 @@ namespace PdfPixel.PostScript.Compiler
         }
     }
 }
+

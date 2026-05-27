@@ -50,19 +50,18 @@ public interface IPdfPage
     void Draw(IPdfCommandProcessor processor, IPdfExecutionObserver observer);
 
     /// <summary>
-    /// Render annotations for this page via the command processor with an optional active annotation and visual state.
+    /// Render a single annotation via the command processor.
+    /// The annotation must belong to this page's <see cref="Annotations"/> collection.
     /// </summary>
     /// <param name="processor">The command processor to emit annotation commands to.</param>
-    /// <param name="renderingParameters">Rendering parameters for rendering in defined canvas.</param>
-    /// <param name="activeAnnotation">Annotation that should be rendered in a non-normal visual state, or null.</param>
-    /// <param name="visualStateKind">Visual state to apply to the active annotation.</param>
+    /// <param name="annotation">The annotation to render; must belong to this page.</param>
+    /// <param name="visualStateKind">Visual state to apply to the annotation.</param>
     /// <param name="observer">Execution observer to notify on long-running operations.</param>
-    void RenderAnnotations(
+    void RenderAnnotation(
         IPdfCommandProcessor processor,
-        PdfRenderingParameters renderingParameters,
-        PdfAnnotationBase activeAnnotation,
+        PdfAnnotationBase annotation,
         PdfAnnotationVisualStateKind visualStateKind,
-        IPdfExecutionObserver observer);
+        IPdfExecutionObserver observer); // TODO: [HIGHT] method call, naming inconsistency!
 
     /// <summary>
     /// Extract text content from the page.

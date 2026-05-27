@@ -32,6 +32,11 @@ public sealed class SkCanvasCommandProcessor : IPdfCommandProcessor
     /// <inheritdoc />
     public void Process(IPdfCommand command)
     {
+        if (command == null)
+        {
+            throw new ArgumentNullException(nameof(command));
+        }
+
         command.Execute(Canvas, Array.Empty<IPdfCommandModifier>(), _executionContext);
         command.Dispose();
     }

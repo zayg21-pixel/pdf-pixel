@@ -47,7 +47,7 @@ public class PdfPopupAnnotation : PdfAnnotationBase
     /// </summary>
     public bool IsOpen { get; }
 
-    internal override bool RenderFallback(IPdfCommandProcessor processor, IPdfPageInternal page, PdfAnnotationVisualStateKind visualStateKind, PdfRenderingParameters renderingParameters) => false;
+    internal override bool RenderFallback(IPdfCommandProcessor processor, IPdfPageInternal page, PdfAnnotationVisualStateKind visualStateKind) => false;
 
     /// <summary>
     /// Returns a string representation of this popup annotation.

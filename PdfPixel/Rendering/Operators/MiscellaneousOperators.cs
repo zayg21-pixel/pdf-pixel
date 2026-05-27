@@ -128,7 +128,7 @@ internal class MiscellaneousOperators : IOperatorProcessor
             return;
         }
 
-        PdfXObject pageObject = _page.Cache.GetXObject(xObjectName);
+        PdfXObject? pageObject = _page.Cache.GetXObject(xObjectName);
 
         if (pageObject == null)
         {
@@ -221,7 +221,7 @@ internal class MiscellaneousOperators : IOperatorProcessor
             return;
         }
 
-        PdfDictionary shadings = _page.ResourceDictionary.GetDictionary(PdfTokens.ShadingKey);
+        PdfDictionary? shadings = _page.ResourceDictionary.GetDictionary(PdfTokens.ShadingKey);
         PdfObject? shadingObject = shadings?.GetObject(shadingName);
 
         if (shadingObject == null)

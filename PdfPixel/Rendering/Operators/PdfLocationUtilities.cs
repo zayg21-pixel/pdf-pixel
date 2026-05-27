@@ -15,7 +15,7 @@ public static class PdfLocationUtilities
     /// </summary>
     /// <param name="bboxArray">Bounding box.</param>
     /// <returns></returns>
-    public static SKRect? CreateBBox(PdfArray bboxArray)
+    public static SKRect? CreateBBox(PdfArray? bboxArray)
     {
         if (bboxArray == null || bboxArray.Count < 4)
         {
@@ -65,7 +65,7 @@ public static class PdfLocationUtilities
     /// Create an SKMatrix from a strongly-typed PdfArray of operands.
     /// Returns null if the array is or not defined.
     /// </summary>
-    public static SKMatrix? CreateMatrix(PdfArray operands)
+    public static SKMatrix? CreateMatrix(PdfArray? operands)
     {
         if (operands == null || operands.Count < 6)
         {

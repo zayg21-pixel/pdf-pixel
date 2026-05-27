@@ -12,7 +12,6 @@ public static class PdfDocumentContentExtensions
     public static PdfCommandRecorder GetAnnotationRecording(
         this IPdfDocument document,
         int pageNumber,
-        double scale,
         PdfAnnotationBase activeAnnotation,
         PdfPanelPointerState pointerState,
         IPdfExecutionObserver observer)
@@ -24,14 +23,25 @@ public static class PdfDocumentContentExtensions
             return null;
         }
 
-        var visualStateKind = ConvertToVisualStateKind(pointerState);
-
         var recorder = new PdfCommandRecorder();
 
         ApplyPageTransformations(pdfPage, recorder);
 
-        var parameters = new PdfRenderingParameters { ScaleFactor = (float)scale };
-        pdfPage.RenderAnnotations(recorder, parameters, activeAnnotation, visualStateKind, observer);
+        foreach (var annotation in pdfPage.Annotations)
+        {
+            if ((annotation.Flags & PdfAnnotationFlags.Invisible) != 0
+                || (annotation.Flags & PdfAnnotationFlags.Hidden) != 0
+                || (annotation.Flags & PdfAnnotationFlags.NoView) != 0)
+            {
+                continue;
+            }
+
+            var visualStateKind = annotation == activeAnnotation
+                ? ConvertToVisualStateKind(pointerState)
+                : PdfAnnotationVisualStateKind.Normal;
+
+            pdfPage.RenderAnnotation(recorder, annotation, visualStateKind, observer);
+        }
 
         return recorder;
     }

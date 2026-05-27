@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging;
+using PdfPixel.Color.ColorSpace;
 using PdfPixel.Commands;
 using PdfPixel.Imaging.Model;
 using PdfPixel.Imaging.Processing;
@@ -12,11 +13,11 @@ namespace PdfPixel.Imaging.Decoding;
 
 internal sealed class Jbig2ImageDecoder : PdfImageDecoder
 {
-    private Jbig2Bitmap _cachedBitmap;
+    private Jbig2Bitmap? _cachedBitmap;
 
-    private byte[] _fullWidthRowBuffer;
-    private PdfImageTilingContext _tilingContext;
-    private PdfImageRowDecodingParameters _imageParameters;
+    private byte[]? _fullWidthRowBuffer;
+    private PdfImageTilingContext? _tilingContext;
+    private PdfImageRowDecodingParameters? _imageParameters;
     private int _currentImageRow;
 
     public Jbig2ImageDecoder(PdfImage image, ILoggerFactory loggerFactory)
@@ -24,7 +25,7 @@ internal sealed class Jbig2ImageDecoder : PdfImageDecoder
     {
     }
 
-    public override void Initialize(PdfTileInfo tileInfo, ImageDecodingContext context, object contentLocker, SKMatrix ctm, SKRectI regionOfInterest, IPdfExecutionObserver observer)
+    public override void Initialize(PdfTileInfo tileInfo, ImageDecodingContext context, object contentLocker, SKMatrix ctm, SKRectI regionOfInterest, IPdfExecutionObserver? observer)
     {
         if (!ValidateImageParameters())
         {
@@ -37,20 +38,40 @@ internal sealed class Jbig2ImageDecoder : PdfImageDecoder
             throw new InvalidOperationException($"JBIG2 page decoding failed (Name={Image.Name}).");
         }
 
-        _imageParameters = PdfImageRowDecodingParameters.FromImage(Image, context, ctm);
+
+        PdfColorSpaceConverter converter = Image.ColorSpaceConverter ?? Image.Page.Cache.ColorSpace.ResolveDeviceConverter(1) ?? DeviceGrayConverter.Instance;
+        SKSizeI? downscaledSize = PdfImageRowDecodingParameters.ComputeDownscaledSize(Image.Width, Image.Height, converter, context, ctm);
+
+        _imageParameters = new PdfImageRowDecodingParameters(
+            context,
+            Image.Width,
+            Image.Height,
+            Image.BitsPerComponent,
+            Image.RenderingIntent,
+            converter,
+            Image.HasImageMask,
+            Image.MaskArray,
+            Image.DecodeArray,
+            downscaledSize,
+            1);
 
         _fullWidthRowBuffer = new byte[_cachedBitmap.Stride];
-        _tilingContext = new PdfImageTilingContext(new SKSizeI(tileInfo.TileWidth, tileInfo.TileHeight), _imageParameters, ctm, regionOfInterest, LoggerFactory);
+        _tilingContext = new PdfImageTilingContext(new SKSizeI(tileInfo.TileWidth, tileInfo.TileHeight), tileInfo, _imageParameters, ctm, regionOfInterest, LoggerFactory);
         _currentImageRow = 0;
     }
 
-    public override PdfImageTile[] DecodeNextTiles(IPdfExecutionObserver observer)
+    public override PdfImageTile[]? DecodeNextTiles(IPdfExecutionObserver? observer)
     {
+        if (_imageParameters == null || _cachedBitmap == null || _fullWidthRowBuffer == null || _tilingContext == null)
+        {
+            return null;
+        }
+
         while (_currentImageRow < _imageParameters.Height)
         {
             _cachedBitmap.GetRowReadOnly(_currentImageRow).CopyTo(_fullWidthRowBuffer);
             InvertRow(_fullWidthRowBuffer);
-            PdfImageTile[] tiles = _tilingContext.WriteRowAndTryGetTiles(_currentImageRow, _fullWidthRowBuffer, observer);
+            PdfImageTile[]? tiles = _tilingContext.WriteRowAndTryGetTiles(_currentImageRow, _fullWidthRowBuffer, observer);
             _currentImageRow++;
             observer?.Notify();
             if (tiles != null)
@@ -62,7 +83,7 @@ internal sealed class Jbig2ImageDecoder : PdfImageDecoder
         return null;
     }
 
-    private void EnsureBitmapDecoded(object contentLocker, IPdfExecutionObserver observer)
+    private void EnsureBitmapDecoded(object contentLocker, IPdfExecutionObserver? observer)
     {
         if (_cachedBitmap != null)
         {
@@ -81,7 +102,7 @@ internal sealed class Jbig2ImageDecoder : PdfImageDecoder
             throw new InvalidOperationException($"JBIG2 image data is empty (Name={Image.Name}).");
         }
 
-        Jbig2SegmentCache globalCache = ResolveGlobalsCache(contentLocker);
+        Jbig2SegmentCache? globalCache = ResolveGlobalsCache(contentLocker);
         Jbig2PageDecoder pageDecoder = new();
         Jbig2Observer jbig2Observer = new(observer);
         _cachedBitmap = pageDecoder.Decode(imageData.Span, Image.Width, Image.Height, globalCache, jbig2Observer);
@@ -96,7 +117,7 @@ internal sealed class Jbig2ImageDecoder : PdfImageDecoder
         }
     }
 
-    private Jbig2SegmentCache ResolveGlobalsCache(object contentLocker)
+    private Jbig2SegmentCache? ResolveGlobalsCache(object contentLocker)
     {
         Models.PdfObject? globalsObject = Image.DecodeParms?.Jbig2Globals;
         if (globalsObject == null)
@@ -105,23 +126,15 @@ internal sealed class Jbig2ImageDecoder : PdfImageDecoder
         }
 
         Models.PdfDocumentObjectCache? objectCache = Image.SourceObject?.Document?.ObjectCache;
-        if (objectCache != null && objectCache.Jbig2GlobalCaches.TryGetValue(globalsObject.Reference, out Jbig2SegmentCache existing))
+        if (objectCache != null && objectCache.Jbig2GlobalCaches.TryGetValue(globalsObject.Reference, out Jbig2SegmentCache? existing))
         {
             return existing;
         }
 
         ReadOnlyMemory<byte> globalsData;
-        try
+        lock (contentLocker)
         {
-            lock (contentLocker)
-            {
-                globalsData = globalsObject.DecodeAsMemory();
-            }
-        }
-        catch (Exception ex)
-        {
-            Logger.LogWarning(ex, "Failed to decode JBIG2Globals stream.");
-            return null;
+            globalsData = globalsObject.DecodeAsMemory();
         }
 
         if (globalsData.IsEmpty)
@@ -142,9 +155,9 @@ internal sealed class Jbig2ImageDecoder : PdfImageDecoder
 
     private sealed class Jbig2Observer : IJBig2ExectionObserver
     {
-        private readonly IPdfExecutionObserver _pdfObserver;
+        private readonly IPdfExecutionObserver? _pdfObserver;
 
-        public Jbig2Observer(IPdfExecutionObserver pdfObserver) => _pdfObserver = pdfObserver;
+        public Jbig2Observer(IPdfExecutionObserver? pdfObserver) => _pdfObserver = pdfObserver;
 
         public void Notify() => _pdfObserver?.Notify();
     }
@@ -162,8 +175,7 @@ internal sealed class Jbig2ImageDecoder : PdfImageDecoder
     {
         if (disposing)
         {
-            Cleanup();
-            _cachedBitmap = null;
+            _tilingContext?.Dispose();
         }
     }
 }

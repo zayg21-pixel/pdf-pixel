@@ -19,12 +19,12 @@ internal sealed class CffInfo
     /// <summary>
     /// Gets or sets the mapping from glyph names to glyph IDs (GIDs).
     /// </summary>
-    public Dictionary<PdfString, ushort> NameToGid { get; set; }
+    public Dictionary<PdfString, ushort>? NameToGid { get; set; }
 
     /// <summary>
     /// Code to name encoding vector.
     /// </summary>
-    public PdfString[] CodeToName { get; set; }
+    public PdfString[]? CodeToName { get; set; }
 
     /// <summary>
     /// Gets or sets a value indicating whether the font is a CID font.
@@ -39,12 +39,12 @@ internal sealed class CffInfo
     /// <summary>
     /// Gets or sets the mapping of Glyph IDs (GIDs) to CharSet IDs (SIDs).
     /// </summary>
-    public ushort[] GidToSid { get; set; }
+    public ushort[]? GidToSid { get; set; }
 
     /// <summary>
     /// Gets or sets the glyph widths indexed by GID.
     /// </summary>
-    public float[] GidWidths { get; set; }
+    public float[]? GidWidths { get; set; }
 
     /// <summary>
     /// Gets or sets the raw CFF font data.

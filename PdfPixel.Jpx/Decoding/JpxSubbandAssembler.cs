@@ -99,6 +99,11 @@ internal sealed class JpxSubbandAssembler
         int subbandHeight,
         JpxCodeBlock codeBlock)
     {
+        if (codeBlock.DecodedCoefficients == null)
+        {
+            return;
+        }
+
         int cbStartX = codeBlock.X * _codeBlockWidth;
         int cbStartY = codeBlock.Y * _codeBlockHeight;
         int coeffWidth = Math.Min(codeBlock.Width, subbandWidth - cbStartX);

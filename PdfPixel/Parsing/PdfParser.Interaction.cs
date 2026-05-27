@@ -35,7 +35,7 @@ internal partial struct PdfParser
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private void SetPosition(int position)
     {
-        if (_streamMode)
+        if (_streamMode && _stream != null)
         {
             _stream.Position = position;
             _lastSetPostion = position;
@@ -49,7 +49,7 @@ internal partial struct PdfParser
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private byte PeekByte(int offset = 0)
     {
-        if (_streamMode)
+        if (_streamMode && _stream != null)
         {
             RestorePosition(offset: offset);
             int value = _stream.ReadByte();
@@ -70,7 +70,7 @@ internal partial struct PdfParser
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private byte ReadByte()
     {
-        if (_streamMode)
+        if (_streamMode && _stream != null)
         {
             RestorePosition();
             int value = _stream.ReadByte();
@@ -92,7 +92,7 @@ internal partial struct PdfParser
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private void Advance(int offset)
     {
-        if (_streamMode)
+        if (_streamMode && _stream != null)
         {
             _lastSetPostion += offset;
         }
@@ -105,7 +105,7 @@ internal partial struct PdfParser
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private void RestorePosition(int offset = 0)
     {
-        if (_streamMode)
+        if (_streamMode && _stream != null)
         {
             if (_stream.Position != _lastSetPostion + offset)
             {

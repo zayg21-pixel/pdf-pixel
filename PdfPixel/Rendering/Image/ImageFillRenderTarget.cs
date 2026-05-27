@@ -14,7 +14,7 @@ internal class ImageFillRenderTarget : IRenderTarget
     private readonly PdfImage _image;
     private readonly PdfGraphicsState _state;
     private readonly ImageDecodingContext _context;
-    private readonly PdfPattern _pattern;
+    private readonly PdfPattern? _pattern;
     private readonly ILoggerFactory _loggerFactory;
 
     public ImageFillRenderTarget(PdfImage image, PdfGraphicsState state, ILoggerFactory loggerFactory)

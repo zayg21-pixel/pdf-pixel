@@ -27,7 +27,7 @@ public class PdfType3Font : PdfSingleByteFont
     /// Constructor for Type3 fonts - lightweight operations only
     /// </summary>
     /// <param name="fontObject">PDF object containing the font definition</param>
-    public PdfType3Font(PdfObject fontObject)
+    internal PdfType3Font(PdfObject fontObject)
         : base(fontObject)
     {
         if (Type != PdfFontSubType.Type3)
@@ -55,14 +55,14 @@ public class PdfType3Font : PdfSingleByteFont
         }
     }
 
-    protected internal override SKTypeface Typeface => null;
+    protected internal override SKTypeface? Typeface => null;
 
     /// <summary>
     /// Character procedures dictionary containing glyph definitions
     /// Each entry maps a character name to a content stream that draws the glyph
     /// Set during construction - lightweight operation
     /// </summary>
-    public PdfDictionary CharProcs { get; }
+    public PdfDictionary? CharProcs { get; }
 
     /// <summary>
     /// Font transformation matrix (required for Type3 fonts)
@@ -82,12 +82,27 @@ public class PdfType3Font : PdfSingleByteFont
     /// </summary>
     public PdfType3CharacterInfo GetCharacterInfo(PdfCharacterCode charCode, IPdfRenderer renderer, PdfGraphicsState sourceState)
     {
+        if (charCode == null)
+        {
+            throw new ArgumentNullException(nameof(charCode));
+        }
+
+        if (renderer == null)
+        {
+            throw new ArgumentNullException(nameof(renderer));
+        }
+
+        if (sourceState == null)
+        {
+            throw new ArgumentNullException(nameof(sourceState));
+        }
+
         if (CharProcs == null)
         {
             return PdfType3CharacterInfo.Undefined;
         }
 
-        if (type3Cache.TryGetValue(charCode, out PdfType3CharacterInfo cached))
+        if (type3Cache.TryGetValue(charCode, out PdfType3CharacterInfo? cached))
         {
             return cached;
         }
@@ -99,7 +114,7 @@ public class PdfType3Font : PdfSingleByteFont
             return PdfType3CharacterInfo.Undefined;
         }
 
-        PdfObject charObject = CharProcs.GetObject(charName);
+        PdfObject? charObject = CharProcs.GetObject(charName);
         if (charObject == null)
         {
             return PdfType3CharacterInfo.Undefined;
@@ -145,7 +160,7 @@ public class PdfType3Font : PdfSingleByteFont
     private (SKSize advancement, SKRect? boundingBox) ParseMetrics(PdfParseContext parseContext)
     {
         PdfParser parser = new(parseContext, Document, allowReferences: false, decrypt: false);
-        IPdfValue value;
+        IPdfValue? value;
         Stack<IPdfValue> operandStack = [];
 
         SKSize type3Advancement = new(0, 0);

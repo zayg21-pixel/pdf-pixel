@@ -9,42 +9,67 @@ namespace PdfPixel.Commands.Image;
 
 internal sealed class SoftMaskImageExecutionContext : IDisposable
 {
-    public SKSizeI ImageSize { get; private set; }
-    public SKSizeI MaskSize { get; private set; }
-    public ImageDecodingContext DecodingContext { get; private set; }
-    public PdfImageTileCacheEntry ImageCache { get; private set; }
-    public PdfImageTileCacheEntry MaskCache { get; private set; }
-    public SKColor? Matte { get; private set; }
-    public bool Interpolate { get; private set; }
+    public SoftMaskImageExecutionContext(
+        SKSizeI imageSize,
+        SKSizeI maskSize,
+        ImageDecodingContext decodingContext,
+        PdfImageTileCacheEntry imageCache,
+        PdfImageTileCacheEntry maskCache,
+        float[]? matteArray,
+        bool interpolate)
+    {
+        ImageSize = imageSize;
+        MaskSize = maskSize;
+        DecodingContext = decodingContext;
+        ImageCache = imageCache;
+        MaskCache = maskCache;
+        MatteArray = matteArray;
+        Interpolate = interpolate;
+    }
+
+    public SKSizeI ImageSize { get; }
+    public SKSizeI MaskSize { get; }
+    public ImageDecodingContext DecodingContext { get; }
+    public PdfImageTileCacheEntry ImageCache { get; }
+    public PdfImageTileCacheEntry MaskCache { get; }
+    public float[]? MatteArray { get; }
+    public bool Interpolate { get; }
     public PdfTileInfo TileInfo => ImageCache.TileInfo;
 
     public static SoftMaskImageExecutionContext Create(PdfImage pdfImage, ImageDecodingContext context, ILoggerFactory loggerFactory)
     {
+        if (pdfImage.SoftMask == null)
+        {
+            throw new ArgumentException($"Not defined soft mask for image {pdfImage.Name}.");
+        }
+
         PdfImage maskImage = pdfImage.SoftMask;
         SKSizeI imageSize = new(pdfImage.Width, pdfImage.Height);
         SKSizeI maskSize = new(maskImage.Width, maskImage.Height);
 
-        PdfImageDecoder imageDecoder = PdfImageDecoder.GetDecoder(pdfImage, loggerFactory);
-        PdfImageDecoder maskDecoder = PdfImageDecoder.GetDecoder(maskImage, loggerFactory);
+        PdfImageDecoder? imageDecoder = PdfImageDecoder.GetDecoder(pdfImage, loggerFactory);
+        PdfImageDecoder? maskDecoder = PdfImageDecoder.GetDecoder(maskImage, loggerFactory);
+
+        if (imageDecoder == null)
+        {
+            throw new ArgumentException($"Decoder for image {pdfImage.Type} is not defined.");
+        }
+
+        if (maskDecoder == null)
+        {
+            throw new ArgumentException($"Mask decoder for image {maskImage.Type} is not defined.");
+        }
 
         (PdfTileInfo imageTileInfo, PdfTileInfo maskTileInfo) = PdfImageCommandUtilities.ComputePairedTileSizes(pdfImage, maskImage, context.DefaultTileSize);
 
-        SKColor? matte = null;
-        if (maskImage.MatteArray != null)
-        {
-            matte = maskImage.ColorSpaceConverter.ToSrgb(maskImage.MatteArray, maskImage.RenderingIntent, default);
-        }
-
-        return new SoftMaskImageExecutionContext
-        {
-            ImageSize = imageSize,
-            MaskSize = maskSize,
-            DecodingContext = context,
-            ImageCache = new PdfImageTileCacheEntry(imageDecoder, context, imageTileInfo),
-            MaskCache = new PdfImageTileCacheEntry(maskDecoder, context, maskTileInfo),
-            Matte = matte,
-            Interpolate = pdfImage.Interpolate
-        };
+        return new SoftMaskImageExecutionContext(
+            imageSize,
+            maskSize,
+            context,
+            new PdfImageTileCacheEntry(imageDecoder, context, imageTileInfo),
+            new PdfImageTileCacheEntry(maskDecoder, context, maskTileInfo),
+            maskImage.MatteArray,
+            pdfImage.Interpolate);
     }
 
     public void Dispose()
@@ -53,3 +78,4 @@ internal sealed class SoftMaskImageExecutionContext : IDisposable
         MaskCache.Dispose();
     }
 }
+

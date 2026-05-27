@@ -25,7 +25,7 @@ public class PdfGenericAnnotation : PdfAnnotationBase
     {
     }
 
-    internal override bool RenderFallback(IPdfCommandProcessor processor, IPdfPageInternal page, PdfAnnotationVisualStateKind visualStateKind, PdfRenderingParameters renderingParameters)
+    internal override bool RenderFallback(IPdfCommandProcessor processor, IPdfPageInternal page, PdfAnnotationVisualStateKind visualStateKind)
     {
         // Generic annotations don't provide custom fallback rendering
         return false;

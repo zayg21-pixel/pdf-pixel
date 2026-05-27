@@ -11,13 +11,13 @@ internal partial struct PdfParser
     /// </summary>
     /// <returns>A <see cref="PdfObject"/> representing the parsed PDF object, or <see langword="null"/> if the object could
     /// not be read or is invalid.</returns>
-    public PdfObject ReadObject()
+    public PdfObject? ReadObject()
     {
         int startPos = Position;
 
-        IPdfValue first = ReadNextValue();
-        IPdfValue second = ReadNextValue();
-        IPdfValue third = ReadNextValue();
+        IPdfValue? first = ReadNextValue();
+        IPdfValue? second = ReadNextValue();
+        IPdfValue? third = ReadNextValue();
 
         if (third.AsString() != PdfTokens.Obj)
         {
@@ -30,7 +30,7 @@ internal partial struct PdfParser
         PdfReference reference = new(objectNumber, generation);
         _currentReference = reference;
 
-        IPdfValue value = ReadNextValue();
+        IPdfValue? value = ReadNextValue();
         _currentReference = default;
 
         if (value == null)
@@ -42,11 +42,11 @@ internal partial struct PdfParser
         PdfObject pdfObject = new(reference, _document, value);
 
         int preStreamPos = Position;
-        IPdfValue possibleStreamOp = ReadNextValue();
+        IPdfValue? possibleStreamOp = ReadNextValue();
 
         if (possibleStreamOp.AsString() == PdfTokens.Stream)
         {
-            PdfDictionary dict = value.AsDictionary();
+            PdfDictionary? dict = value.AsDictionary();
             if (dict == null)
             {
                 Position = preStreamPos;

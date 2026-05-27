@@ -50,9 +50,9 @@ public abstract class PdfSingleByteFont : PdfFontBase
 
     public override VerticalMetric GetVerticalDisplacement(PdfCharacterCode code) => default;
 
-    public override string GetUnicodeString(PdfCharacterCode code)
+    public override string? GetUnicodeString(PdfCharacterCode code)
     {
-        string baseResult = base.GetUnicodeString(code);
+        string? baseResult = base.GetUnicodeString(code);
 
         if (baseResult != null)
         {
@@ -62,7 +62,7 @@ public abstract class PdfSingleByteFont : PdfFontBase
         // Fallback to Adobe Glyph List mapping.
         PdfString name = SingleByteEncodings.GetNameByCodeOrUndefined((byte)(uint)code, Encoding.BaseEncoding, Encoding.Differences);
 
-        if (AdobeGlyphList.CharacterMap.TryGetValue(name, out string aglUnicode))
+        if (AdobeGlyphList.CharacterMap.TryGetValue(name, out string? aglUnicode))
         {
             return aglUnicode;
         }

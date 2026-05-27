@@ -11,7 +11,7 @@ namespace PdfPixel.Color.ColorSpace;
 /// </summary>
 internal class CalRgbConverter : PdfColorSpaceConverter
 {
-    public CalRgbConverter(float[] whitePoint, float[] blackPoint, float[] gamma, float[,] matrix3x3)
+    public CalRgbConverter(float[]? whitePoint, float[]? blackPoint, float[]? gamma, float[,]? matrix3x3)
     {
         // TODO: [LOW] Handle blackPoint if needed, it's unused currently and seems to be ignored by all major PDF viewers.
         Vector4 whitePointVector;
@@ -57,5 +57,5 @@ internal class CalRgbConverter : PdfColorSpaceConverter
 
     protected ChainedColorTransform ToSrgbTransform { get; }
 
-    protected override ColorTransformSampler GetRgbaSamplerCore(PdfRenderingIntent intent, IColorTransform postTransform) => new(new ChainedColorTransform(ToSrgbTransform, postTransform));
+    protected override ColorTransformSampler GetRgbaSamplerCore(PdfRenderingIntent intent, IColorTransform? postTransform) => new(new ChainedColorTransform(ToSrgbTransform, postTransform));
 }

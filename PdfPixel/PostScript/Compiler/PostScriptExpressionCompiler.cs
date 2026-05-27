@@ -18,7 +18,7 @@ namespace PdfPixel.PostScript.Compiler
         /// Attempts to compile a math-only PostScript procedure into a reusable vector delegate.
         /// Treats the input parameters as already pushed on the operand stack before executing tokens.
         /// </summary>
-        public bool TryCompileMath(PostScriptProcedure procedure, IReadOnlyList<string> parameterNames, out Action<float[], float[]> fn)
+        public bool TryCompileMath(PostScriptProcedure procedure, IReadOnlyList<string> parameterNames, out Action<float[], float[]>? fn)
         {
             fn = null;
             if (procedure == null)
@@ -65,16 +65,8 @@ namespace PdfPixel.PostScript.Compiler
 
             BlockExpression block = Expression.Block(bodyExpressions);
             Expression<Action<float[], float[]>> lambda = Expression.Lambda<Action<float[], float[]>>(block, argsParam, bufferParam);
-            try
-            {
-                fn = lambda.Compile();
-                return true;
-            }
-            catch
-            {
-                fn = null;
-                return false;
-            }
+            fn = lambda.Compile();
+            return true;
         }
 
         private static bool TryBuildOperator(string name, Stack<Expression> stack, ParameterExpression argsParam, IReadOnlyList<string> parameterNames)

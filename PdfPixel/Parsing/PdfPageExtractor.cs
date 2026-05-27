@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using Microsoft.Extensions.Logging;
 using PdfPixel.Models;
 using PdfPixel.Text;
@@ -32,18 +33,18 @@ internal class PdfPageExtractor
     /// </summary>
     public void ExtractPages()
     {
-        PdfPageLabelResolver labelResolver = null;
         if (_document.RootObject != null)
         {
             // Try to resolve page labels from the catalog
-            labelResolver = new PdfPageLabelResolver(_document.RootObject.Dictionary);
+            PdfPageLabelResolver labelResolver = new(_document.RootObject.Dictionary);
 
-            PdfObject rootPagesObject = _document.RootObject.Dictionary.GetObject(PdfTokens.PagesKey);
+            PdfObject? rootPagesObject = _document.RootObject.Dictionary.GetObject(PdfTokens.PagesKey);
             if (rootPagesObject != null)
             {
                 PdfPageResources initialResources = new();
                 initialResources.UpdateFrom(rootPagesObject); // seed from root /Pages
-                ExtractPagesFromPagesObject(rootPagesObject, 1, initialResources, labelResolver);
+                HashSet<uint> visited = [];
+                ExtractPagesFromPagesObject(rootPagesObject, 1, initialResources, labelResolver, visited);
                 return;
             }
 
@@ -58,10 +59,16 @@ internal class PdfPageExtractor
     /// <summary>
     /// Recursively extract pages from a /Pages node, handling nested page trees with inherited attributes.
     /// </summary>
-    private int ExtractPagesFromPagesObject(PdfObject pagesObj, int currentPageNum, PdfPageResources inherited, PdfPageLabelResolver labelResolver)
+    private int ExtractPagesFromPagesObject(PdfObject pagesObj, int currentPageNum, PdfPageResources inherited, PdfPageLabelResolver labelResolver, HashSet<uint> visited)
     {
         if (pagesObj == null)
         {
+            return currentPageNum;
+        }
+
+        if (!visited.Add(pagesObj.Reference.ObjectNumber))
+        {
+            _logger.LogWarning("Cycle detected in page tree at /Pages ref {Ref}; skipping.", pagesObj.Reference.ObjectNumber);
             return currentPageNum;
         }
 
@@ -69,7 +76,7 @@ internal class PdfPageExtractor
         PdfPageResources levelResources = inherited.Clone();
         levelResources.UpdateFrom(pagesObj);
 
-        PdfArray kidsArray = pagesObj.Dictionary.GetValue(PdfTokens.KidsKey).AsArray();
+        PdfArray? kidsArray = pagesObj.Dictionary.GetValue(PdfTokens.KidsKey).AsArray();
         if (kidsArray == null)
         {
             _logger.LogWarning("/Pages node (ref {Ref}) missing /Kids array.", pagesObj.Reference.ObjectNumber);
@@ -78,7 +85,7 @@ internal class PdfPageExtractor
 
         for (int i = 0; i < kidsArray.Count; i++)
         {
-            PdfObject kidObject = kidsArray.GetObject(i);
+            PdfObject? kidObject = kidsArray.GetObject(i);
             if (kidObject == null)
             {
                 _logger.LogWarning("Null kid reference at index {Index} in /Kids array of /Pages ref {Ref}.", i, pagesObj.Reference.ObjectNumber);
@@ -98,7 +105,7 @@ internal class PdfPageExtractor
             }
             else if (typeName == PdfTokens.PagesKey)
             {
-                currentPageNum = ExtractPagesFromPagesObject(kidObject, currentPageNum, levelResources, labelResolver);
+                currentPageNum = ExtractPagesFromPagesObject(kidObject, currentPageNum, levelResources, labelResolver, visited);
             }
             else
             {

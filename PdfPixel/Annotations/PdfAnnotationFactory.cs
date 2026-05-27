@@ -19,7 +19,7 @@ public static class PdfAnnotationFactory
     /// </summary>
     /// <param name="annotationObject">The PDF object representing an annotation.</param>
     /// <returns>A concrete annotation instance, or null if the object is not a valid annotation.</returns>
-    public static PdfAnnotationBase CreateAnnotation(PdfObject annotationObject)
+    public static PdfAnnotationBase? CreateAnnotation(PdfObject annotationObject)
     {
         if (annotationObject == null)
         {

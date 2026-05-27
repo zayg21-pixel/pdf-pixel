@@ -16,7 +16,7 @@ internal sealed class DrawNormalImageTileCommand : PdfCommand
     public override void Execute(SKCanvas canvas, IEnumerable<IPdfCommandModifier> modifiers, PdfCommandExecutionContext executionContext)
     {
         PdfImageTile tile = _context.TileCache.GetNextTile(executionContext.ExecutionObserver);
-        if (tile.IsSkipped)
+        if (tile.IsSkipped || tile.Image == null)
         {
             return;
         }

@@ -8,11 +8,12 @@ namespace PdfPixel.Imaging.Processing;
 /// </summary>
 public sealed class PdfImageTile : IDisposable
 {
-    public PdfImageTile(int tileIndex, SKRectI tilePosition, SKImage image, bool isSkipped)
+    public PdfImageTile(int tileIndex, SKRectI tilePosition, SKImage? image, PdfImageRowDecodingParameters? parameters, bool isSkipped)
     {
         TileIndex = tileIndex;
         TilePosition = tilePosition;
         Image = image;
+        Parameters = parameters;
         IsSkipped = isSkipped;
     }
 
@@ -29,7 +30,12 @@ public sealed class PdfImageTile : IDisposable
     /// <summary>
     /// Decoded image for this tile, or null when <see cref="IsSkipped"/> is true.
     /// </summary>
-    public SKImage Image { get; }
+    public SKImage? Image { get; }
+
+    /// <summary>
+    /// Decoding parameters used to produce this tile, in the tile's own coordinate space.
+    /// </summary>
+    public PdfImageRowDecodingParameters? Parameters { get; }
 
     /// <summary>
     /// True when this tile was outside the requested region of interest and was not decoded.

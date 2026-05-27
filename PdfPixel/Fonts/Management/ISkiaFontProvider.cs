@@ -16,14 +16,15 @@ public interface ISkiaFontProvider : System.IDisposable
     /// <param name="style">Requested font style.</param>
     /// <param name="unicode">Optional unicode text to validate glyph availability.</param>
     /// <returns>An <see cref="SKTypeface"/> that matches the requested standard font and style; or <c>null</c> if not found.</returns>
-    SKTypeface GetStandardFont(PdfStandardFontName standardFont, SKFontStyle style, string unicode);
+    SKTypeface? GetStandardFont(PdfStandardFontName standardFont, SKFontStyle style, string? unicode);
 
     /// <summary>
     /// Gets a font typeface for a given family name and style, optionally ensuring it contains the specified unicode text.
+    /// Returns fallback if no suitable typeface found.
     /// </summary>
     /// <param name="name">Font family name to resolve.</param>
     /// <param name="style">Requested font style.</param>
     /// <param name="unicode">Optional unicode text to validate glyph availability.</param>
     /// <returns>An <see cref="SKTypeface"/> that matches the requested font; or <c>null</c> if not found.</returns>
-    SKTypeface GetFont(string name, SKFontStyle style, string unicode);
+    SKTypeface GetFont(string? name, SKFontStyle style, string? unicode);
 }

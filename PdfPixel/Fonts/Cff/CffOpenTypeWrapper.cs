@@ -62,7 +62,7 @@ internal static class CffOpenTypeWrapper
     /// Produce a minimal OpenType font byte array containing the supplied CFF data and synthetic tables.
     /// Returns null if input is invalid or empty.
     /// </summary>
-    public static byte[] Wrap(PdfFontDescriptor descriptor, CffInfo cffInfo)
+    public static byte[]? Wrap(PdfFontDescriptor? descriptor, CffInfo? cffInfo)
     {
         if (cffInfo == null)
         {
@@ -291,7 +291,7 @@ internal static class CffOpenTypeWrapper
             CffOpenTypeWriter.WriteInt16BE(writer, DefaultStrikeoutSize);
             CffOpenTypeWriter.WriteInt16BE(writer, DefaultStrikeoutPosition);
             CffOpenTypeWriter.WriteInt16BE(writer, 0); // sFamilyClass
-            byte[] panose = fontDescriptor.Panose;
+            byte[]? panose = fontDescriptor.Panose;
             for (int i = 0; i < 10; i++)
             {
                 writer.Write((byte)((panose != null && i < panose.Length) ? panose[i] : 0));
@@ -357,9 +357,9 @@ internal static class CffOpenTypeWrapper
             (NameIdVersionString, DefaultVersionString)
         ];
 
-        const ushort PlatformWindows = 3;
-        const ushort EncodingUnicodeBmp = 1;
-        const ushort LanguageEnUs = 0x0409;
+        const ushort platformWindows = 3;
+        const ushort encodingUnicodeBmp = 1;
+        const ushort languageEnUs = 0x0409;
 
         List<byte[]> stringData = [];
         for (int recordIndex = 0; recordIndex < records.Count; recordIndex++)
@@ -380,9 +380,9 @@ internal static class CffOpenTypeWrapper
             int currentOffset = 0;
             for (int i = 0; i < recordCount; i++)
             {
-                CffOpenTypeWriter.WriteUInt16BE(writer, PlatformWindows);
-                CffOpenTypeWriter.WriteUInt16BE(writer, EncodingUnicodeBmp);
-                CffOpenTypeWriter.WriteUInt16BE(writer, LanguageEnUs);
+                CffOpenTypeWriter.WriteUInt16BE(writer, platformWindows);
+                CffOpenTypeWriter.WriteUInt16BE(writer, encodingUnicodeBmp);
+                CffOpenTypeWriter.WriteUInt16BE(writer, languageEnUs);
                 CffOpenTypeWriter.WriteUInt16BE(writer, records[i].NameId);
                 CffOpenTypeWriter.WriteUInt16BE(writer, (ushort)stringData[i].Length);
                 CffOpenTypeWriter.WriteUInt16BE(writer, (ushort)currentOffset);

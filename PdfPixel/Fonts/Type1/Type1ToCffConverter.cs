@@ -22,7 +22,7 @@ internal static class Type1ToCffConverter
     /// <param name="descriptor">Font instance.</param>
     /// <returns>CFF font bytes.</returns>
     /// <exception cref="InvalidDataException">Invalid font data.</exception>
-    public static CffInfo GetCffFont(PdfFontDescriptor descriptor)
+    public static CffInfo? GetCffFont(PdfFontDescriptor descriptor)
     {
         if (descriptor?.FontFileObject == null)
         {
@@ -32,7 +32,6 @@ internal static class Type1ToCffConverter
         Models.PdfObject file = descriptor.FontFileObject;
         int length1 = file.Dictionary.GetIntegerOrDefault(PdfTokens.Length1);
         int length2 = file.Dictionary.GetIntegerOrDefault(PdfTokens.Length2);
-        int length3 = file.Dictionary.GetIntegerOrDefault(PdfTokens.Length3);
         ReadOnlyMemory<byte> rawData = file.DecodeAsMemory();
 
         if (rawData.IsEmpty)
@@ -85,13 +84,8 @@ internal static class Type1ToCffConverter
         eexecEvaluator.SetSystemValue(Type1FontDictionaryUtilities.FontDirectoryKey, fontDirectory);
         eexecEvaluator.EvaluateTokens(operandStack);
 
-        PostScriptDictionary fontResources = eexecEvaluator.GetResourceCategory(PostScriptEvaluator.FontResourceCategory);
-        PostScriptDictionary fontDictionary = fontResources?.Entries.FirstOrDefault().Value as PostScriptDictionary ?? fontDirectory.Entries.Values.OfType<PostScriptDictionary>().LastOrDefault();
-
-
-            // fallback: take the last defined font dictionary in FontDirectory
-
-
+        PostScriptDictionary? fontResources = eexecEvaluator.GetResourceCategory(PostScriptEvaluator.FontResourceCategory);
+        PostScriptDictionary? fontDictionary = fontResources?.Entries.FirstOrDefault().Value as PostScriptDictionary ?? fontDirectory.Entries.Values.OfType<PostScriptDictionary>().LastOrDefault();
 
         if (fontDictionary == null)
         {

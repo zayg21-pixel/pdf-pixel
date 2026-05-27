@@ -20,23 +20,23 @@ public sealed class PdfDrawShadingCommand : PdfCommand
     private readonly PdfShadingBuilder _builder;
 
     // Function-based (Type 1) cache
-    private FunctionShadingResult _functionCache;
+    private FunctionShadingResult? _functionCache;
     private int _functionCacheSamples = -1;
 
     // Axial (Type 2) cache
-    private SKPaint _axialCache;
+    private SKPaint? _axialCache;
     private int _axialCacheSamples = -1;
 
     // Radial (Type 3) cache
-    private RadialShadingPaints _radialCache;
+    private RadialShadingPaints? _radialCache;
     private int _radialCacheSamples = -1;
 
     // Gouraud (Type 4/5) cache
-    private SKVertices _gouraudCache;
+    private SKVertices? _gouraudCache;
     private bool _gouraudCacheBuilt;
 
     // Patch mesh (Type 6/7) cache
-    private SKVertices _patchMeshCache;
+    private SKVertices? _patchMeshCache;
     private int _patchMeshCacheMaxVertices = -1;
 
     /// <summary>
@@ -214,7 +214,7 @@ public sealed class PdfDrawShadingCommand : PdfCommand
     /// Builds the axial gradient paint for the given number of function samples.
     /// Returns <see langword="null"/> when the shading data is invalid.
     /// </summary>
-    private SKPaint CreateAxialPaint(int defaultFunctionSamples)
+    private SKPaint? CreateAxialPaint(int defaultFunctionSamples)
     {
         _builder.BuildShadingColorsAndStops(
             _shading,
@@ -237,7 +237,7 @@ public sealed class PdfDrawShadingCommand : PdfCommand
     /// Builds the radial gradient paints for the given number of function samples.
     /// Returns <see langword="null"/> when the shading data is invalid.
     /// </summary>
-    private RadialShadingPaints CreateRadialPaints(int defaultFunctionSamples)
+    private RadialShadingPaints? CreateRadialPaints(int defaultFunctionSamples)
     {
         _builder.BuildShadingColorsAndStops(
             _shading,

@@ -22,7 +22,7 @@ public class PdfCircleAnnotation : PdfAnnotationBase
     {
     }
 
-    internal override bool RenderFallback(IPdfCommandProcessor processor, IPdfPageInternal page, PdfAnnotationVisualStateKind visualStateKind, PdfRenderingParameters renderingParameters)
+    internal override bool RenderFallback(IPdfCommandProcessor processor, IPdfPageInternal page, PdfAnnotationVisualStateKind visualStateKind)
     {
         float width = Rectangle.Width;
         float height = Rectangle.Height;
@@ -36,7 +36,6 @@ public class PdfCircleAnnotation : PdfAnnotationBase
             SKPaint fillPaint = new()
             {
                 Style = SKPaintStyle.Fill,
-                IsAntialias = renderingParameters.Antialias,
                 Color = interiorSKColor
             };
 
@@ -54,7 +53,6 @@ public class PdfCircleAnnotation : PdfAnnotationBase
             {
                 Style = SKPaintStyle.Stroke,
                 StrokeWidth = borderWidth,
-                IsAntialias = renderingParameters.Antialias,
                 Color = strokeColor
             };
 

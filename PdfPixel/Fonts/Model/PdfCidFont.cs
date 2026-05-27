@@ -22,7 +22,7 @@ public class PdfCidFont : PdfFontBase
     /// Constructor for CID fonts - lightweight operations only
     /// </summary>
     /// <param name="fontObject">PDF object containing the font definition</param>
-    public PdfCidFont(PdfObject fontObject)
+    internal PdfCidFont(PdfObject fontObject)
         : base(fontObject)
     {
         _logger = fontObject.Document.LoggerFactory.CreateLogger<PdfCidFont>();
@@ -30,7 +30,7 @@ public class PdfCidFont : PdfFontBase
         VerticalMetrics = CidFontVerticalMetrics.Parse(Dictionary);
         CidSystemInfo = LoadCidSystemInfo();
         CidToGidMap = LoadCidToGidMap();
-        (SKTypeface Typeface, CffInfo CffInfo) typefaceInfo = GetTypeface();
+        (SKTypeface Typeface, CffInfo? CffInfo) typefaceInfo = GetTypeface();
         _typeface = typefaceInfo.Typeface;
 
         if (typefaceInfo.CffInfo != null && CidToGidMap == null)
@@ -44,7 +44,7 @@ public class PdfCidFont : PdfFontBase
     /// <summary>
     /// CID system information (Registry, Ordering, Supplement)
     /// </summary>
-    public PdfCidSystemInfo CidSystemInfo { get; }
+    public PdfCidSystemInfo? CidSystemInfo { get; }
 
     /// <summary>
     /// Character width information for CID-based characters
@@ -60,7 +60,7 @@ public class PdfCidFont : PdfFontBase
     /// <summary>
     /// Loaded CID-to-GID mapping.
     /// </summary>
-    public PdfCidToGidMap CidToGidMap { get; }
+    public PdfCidToGidMap? CidToGidMap { get; }
 
     /// <summary>
     /// Gets the width for a given CID in this CID font.
@@ -108,7 +108,7 @@ public class PdfCidFont : PdfFontBase
         return 0;
     }
 
-    private (SKTypeface Typeface, CffInfo CffInfo) GetTypeface()
+    private (SKTypeface Typeface, CffInfo? CffInfo) GetTypeface()
     {
         try
         {
@@ -117,41 +117,43 @@ public class PdfCidFont : PdfFontBase
                 case PdfFontFileFormat.CIDFontType0C:
                 {
                     CffSidGidMapper cffSidMapper = new(Document.LoggerFactory);
-                        ReadOnlyMemory<byte> cffBytes = FontDescriptor.FontFileObject.DecodeAsMemory();
+                    ReadOnlyMemory<byte> cffBytes = FontDescriptor.FontFileObject?.DecodeAsMemory() ?? ReadOnlyMemory<byte>.Empty;
 
-                    if (!cffSidMapper.TryParseNameKeyed(cffBytes, out CffInfo cffInfo))
+                    if (!cffSidMapper.TryParseNameKeyed(cffBytes, out CffInfo? cffInfo))
                     {
                         _logger.LogWarning("Failed to parse embedded Type1C font data for font '{FontName}'", BaseFont);
                         throw new InvalidOperationException("Failed to parse embedded Type1C font data.");
                     }
 
-                    byte[] typefaceData = CffOpenTypeWrapper.Wrap(FontDescriptor, cffInfo);
-                        SKTypeface typeface = SKTypeface.FromData(SKData.CreateCopy(typefaceData));
+                    byte[]? typefaceData = CffOpenTypeWrapper.Wrap(FontDescriptor, cffInfo);
+                    SKTypeface typeface = SKTypeface.FromData(SKData.CreateCopy(typefaceData));
 
                     return (typeface, cffInfo);
                 }
                 case PdfFontFileFormat.TrueType:
                 {
-                        SKTypeface typeface = SKTypeface.FromStream(FontDescriptor.FontFileObject.DecodeAsStream());
+                    SKTypeface typeface = SKTypeface.FromStream(FontDescriptor.FontFileObject?.DecodeAsStream());
                     return (typeface, null);
                 }
             }
         }
+#pragma warning disable CA1031
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "Error loading embedded font for font '{FontName}', will attempt substitution", BaseFont);
         }
+#pragma warning restore CA1031
 
         return default;
     }
 
-    private PdfCidSystemInfo LoadCidSystemInfo()
+    private PdfCidSystemInfo? LoadCidSystemInfo()
     {
-        PdfDictionary cidSystemInfoDict = Dictionary.GetDictionary(PdfTokens.CidSystemInfoKey);
+        PdfDictionary? cidSystemInfoDict = Dictionary.GetDictionary(PdfTokens.CidSystemInfoKey);
         return PdfCidSystemInfo.FromDictionary(cidSystemInfoDict);
     }
 
-    private PdfCidToGidMap LoadCidToGidMap()
+    private PdfCidToGidMap? LoadCidToGidMap()
     {
         // Check if CIDToGIDMap is specified as "Identity" in the font dictionary
         PdfString cidToGidName = Dictionary.GetName(PdfTokens.CidToGidMapKey);
@@ -161,7 +163,7 @@ public class PdfCidFont : PdfFontBase
         }
 
         // Use GetPageObject instead of stored reference
-        PdfObject cidToGidObj = Dictionary.GetObject(PdfTokens.CidToGidMapKey);
+        PdfObject? cidToGidObj = Dictionary.GetObject(PdfTokens.CidToGidMapKey);
         if (cidToGidObj != null)
         {
             // Load as stream data
@@ -186,13 +188,13 @@ public class PdfCidFont : PdfFontBase
             return Array.Empty<PdfCharacterCode>();
         }
 
-        const int CodeLength = 2;
-        int count = bytes.Length / CodeLength;
+        const int codeLength = 2;
+        int count = bytes.Length / codeLength;
         var result = new PdfCharacterCode[count];
         for (int index = 0; index < count; index++)
         {
-            int offset = index * CodeLength;
-            result[index] = new PdfCharacterCode(bytes.Slice(offset, CodeLength));
+            int offset = index * codeLength;
+            result[index] = new PdfCharacterCode(bytes.Slice(offset, codeLength));
         }
 
         return result;

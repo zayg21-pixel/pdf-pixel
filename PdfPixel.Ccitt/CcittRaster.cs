@@ -136,7 +136,6 @@ public static class CcittRaster
             }
 
             startByte++;
-            rowOffsetStart++;
         }
 
         // Full bytes

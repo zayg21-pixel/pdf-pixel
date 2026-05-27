@@ -13,7 +13,7 @@ internal static class IPdfValueExtension
     /// </summary>
     /// <param name="value">The PDF value to convert.</param>
     /// <returns>The <see cref="PdfString"/> representing the name, or <c>default</c> if not a name.</returns>
-    public static PdfString AsName(this IPdfValue value)
+    public static PdfString AsName(this IPdfValue? value)
     {
         if (value is IPdfValue<PdfString> nameValue && nameValue.Type == PdfValueType.Name)
         {
@@ -28,7 +28,7 @@ internal static class IPdfValueExtension
     /// </summary>
     /// <param name="value">The PDF value to convert.</param>
     /// <returns>The <see cref="PdfString"/> value, or <c>default</c> if not a string type.</returns>
-    public static PdfString AsString(this IPdfValue value)
+    public static PdfString AsString(this IPdfValue? value)
     {
         if (value is IPdfValue<PdfString> stringValue)
         {
@@ -44,7 +44,7 @@ internal static class IPdfValueExtension
     /// </summary>
     /// <param name="value">The PDF value to convert.</param>
     /// <returns>The raw byte content of the string, or <c>null</c> if not a string or empty.</returns>
-    public static ReadOnlyMemory<byte> AsStringBytes(this IPdfValue value)
+    public static ReadOnlyMemory<byte> AsStringBytes(this IPdfValue? value)
     {
         PdfString stringValue = AsString(value);
 
@@ -61,7 +61,7 @@ internal static class IPdfValueExtension
     /// </summary>
     /// <param name="value">The PDF value to convert.</param>
     /// <returns>The integer value, or 0 if not numeric.</returns>
-    public static int AsInteger(this IPdfValue value)
+    public static int AsInteger(this IPdfValue? value)
     {
         if (value is IPdfValue<int> intValue && intValue.Type == PdfValueType.Integer)
         {
@@ -80,7 +80,7 @@ internal static class IPdfValueExtension
     /// </summary>
     /// <param name="value">The PDF value to convert.</param>
     /// <returns>The float value, or 0 if not a real number.</returns>
-    private static float AsReal(this IPdfValue value)
+    private static float AsReal(this IPdfValue? value)
     {
         if (value is IPdfValue<float> realValue)
         {
@@ -95,9 +95,9 @@ internal static class IPdfValueExtension
     /// </summary>
     /// <param name="value">The PDF value to convert.</param>
     /// <returns>The float value, or 0 if not numeric.</returns>
-    public static float AsFloat(this IPdfValue value)
+    public static float AsFloat(this IPdfValue? value)
     {
-        return value.Type switch
+        return value?.Type switch
         {
             PdfValueType.Integer => value.AsInteger(),
             PdfValueType.Real => value.AsReal(),
@@ -110,7 +110,7 @@ internal static class IPdfValueExtension
     /// </summary>
     /// <param name="value">The PDF value to convert.</param>
     /// <returns>The boolean value, or <c>false</c> if not a boolean.</returns>
-    public static bool AsBoolean(this IPdfValue value)
+    public static bool AsBoolean(this IPdfValue? value)
     {
         if (value is PdfValue<bool> booleanValue)
         {
@@ -125,7 +125,7 @@ internal static class IPdfValueExtension
     /// </summary>
     /// <param name="value">The PDF value to convert.</param>
     /// <returns>The <see cref="PdfArray"/> value, or <c>null</c> if not an array.</returns>
-    public static PdfArray AsArray(this IPdfValue value)
+    public static PdfArray? AsArray(this IPdfValue? value)
     {
         if (value is PdfValue<PdfArray> arrayValue && arrayValue.Type == PdfValueType.Array)
         {
@@ -140,7 +140,7 @@ internal static class IPdfValueExtension
     /// </summary>
     /// <param name="value">The PDF value to convert.</param>
     /// <returns>The <see cref="PdfDictionary"/> value, or <c>null</c> if not a dictionary.</returns>
-    public static PdfDictionary AsDictionary(this IPdfValue value)
+    public static PdfDictionary? AsDictionary(this IPdfValue? value)
     {
         if (value is PdfValue<PdfDictionary> dictionaryValue && dictionaryValue.Type == PdfValueType.Dictionary)
         {
@@ -158,7 +158,7 @@ internal static class IPdfValueExtension
     /// <param name="document">The PDF document used for object resolution.</param>
     /// <param name="maxDepth">Maximum recursion depth for reference resolution.</param>
     /// <returns>The resolved non-reference <see cref="IPdfValue"/>, or <c>null</c> if resolution fails.</returns>
-    public static IPdfValue ResolveToNonReference(this IPdfValue value, IPdfDocumentInternal document, int maxDepth = 10)
+    public static IPdfValue? ResolveToNonReference(this IPdfValue? value, IPdfDocumentInternal document, int maxDepth = 10)
     {
         if (value == null || document == null || maxDepth <= 0)
         {
@@ -172,7 +172,7 @@ internal static class IPdfValueExtension
 
         var reference = (IPdfValue<PdfReference>)value;
 
-        PdfObject referencedObject = document.ObjectCache.GetObject(reference.Value);
+        PdfObject? referencedObject = document.ObjectCache.GetObject(reference.Value);
 
         if (referencedObject == null)
         {

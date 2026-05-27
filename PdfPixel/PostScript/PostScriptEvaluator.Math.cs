@@ -52,7 +52,7 @@ namespace PdfPixel.PostScript
                 }
                 case "srand":
                 {
-                    float seed = PopOfType<PostScriptNumber>(stack).Value;
+                    float seed = PopOfType<PostScriptNumber>(stack).Number;
                     _random = new Random((int)seed);
                     return true;
                 }
@@ -151,15 +151,15 @@ namespace PdfPixel.PostScript
         {
             Ensure(stack, 2);
 
-            float right = PopOfType<PostScriptNumber>(stack).Value;
-            float left = PopOfType<PostScriptNumber>(stack).Value;
+            float right = PopOfType<PostScriptNumber>(stack).Number;
+            float left = PopOfType<PostScriptNumber>(stack).Number;
             stack.Push(new PostScriptNumber(operation(left, right)));
         }
 
         private void UnaryNumeric(Stack<PostScriptToken> stack, Func<float, float> operation)
         {
             Ensure(stack, 1);
-            float value = PopOfType<PostScriptNumber>(stack).Value;
+            float value = PopOfType<PostScriptNumber>(stack).Number;
             float result = operation(value);
             stack.Push(new PostScriptNumber(result));
         }

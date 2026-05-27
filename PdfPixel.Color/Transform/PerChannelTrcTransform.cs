@@ -1,4 +1,4 @@
-﻿using PdfPixel.Color.Functions;
+﻿using PdfPixel.Color.Icc;
 using PdfPixel.Color.Icc.Model;
 using System;
 using System.Numerics;
@@ -16,7 +16,7 @@ namespace PdfPixel.Color.Transform;
 /// </summary>
 public sealed class PerChannelTrcTransform : IColorTransform
 {
-    private const int MinSamplesCount = 512; // TODO: [LOW] move to parameters, use configuration for vector version (high quality), move to analyzers "pass through" path 
+    private const int MinSamplesCount = 1024; // Optimal value for 8-bit transform pipeline to eliminate rounding errors.
 
     private readonly int _channelCount;
     private readonly float[] _samples0;
@@ -24,7 +24,6 @@ public sealed class PerChannelTrcTransform : IColorTransform
     private readonly float[] _samples2;
     private readonly float[] _samples3;
     private readonly Vector4 _scale;
-
 
     /// <summary>
     /// Initializes a new instance of the <see cref="PerChannelTrcTransform"/> class from ICC transfer curves.
@@ -45,7 +44,7 @@ public sealed class PerChannelTrcTransform : IColorTransform
         }
 
         _channelCount = Math.Min(trcs.Length, 4);
-        IsIdentity = IsPassthroughTransform(trcs, _channelCount);
+        IsIdentity = IccProfileAnalyzer.IsPassthroughTrc(trcs, _channelCount);
 
         if (IsIdentity)
         {
@@ -62,20 +61,12 @@ public sealed class PerChannelTrcTransform : IColorTransform
         for (int i = 0; i < _channelCount; i++)
         {
             IccTrc trc = trcs[i];
-            float[] channelSamples;
+            var channelSamples = new float[MinSamplesCount];
 
-            if (trc.Type == IccTrcType.Sampled)
+            for (int j = 0; j < channelSamples.Length; j++)
             {
-                channelSamples = SamplesUpsampler.ResampleCubic(trc.Samples, MinSamplesCount);
-            }
-            else
-            {
-                channelSamples = new float[MinSamplesCount];
-                for (int j = 0; j < channelSamples.Length; j++)
-                {
-                    float t = j / (float)(channelSamples.Length - 1);
-                    channelSamples[j] = trc.Evaluator.Evaluate(t);
-                }
+                float t = j / (float)(channelSamples.Length - 1);
+                channelSamples[j] = trc.Evaluator.Evaluate(t);
             }
 
             samples[i] = channelSamples;
@@ -177,120 +168,4 @@ public sealed class PerChannelTrcTransform : IColorTransform
         return (index < 0) ? 0f : 1f;
     }
 
-    /// <summary>
-    /// Determines if the transform is effectively a passthrough (all TRCs are identity or null).
-    /// </summary>
-    /// <param name="trcs">Array of TRCs to check.</param>
-    /// <param name="channelCount">Number of channels to check.</param>
-    /// <returns>True if all TRCs represent identity transforms.</returns>
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static bool IsPassthroughTransform(IccTrc[] trcs, int channelCount)
-    {
-        for (int i = 0; i < channelCount; i++)
-        {
-            if (!IsIdentityTrc(trcs[i]))
-            {
-                return false;
-            }
-        }
-
-        return true;
-    }
-
-    /// <summary>
-    /// Checks if a TRC represents an identity transform.
-    /// Focus on practical cases: null TRCs and linear [0,1] sampled curves.
-    /// </summary>
-    /// <param name="trc">TRC to check.</param>
-    /// <returns>True if the TRC is null, represents no transform, or is a linear [0,1] mapping.</returns>
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static bool IsIdentityTrc(IccTrc trc)
-    {
-        if (trc == null)
-        {
-            return true;
-        }
-
-        switch (trc.Type)
-        {
-            case IccTrcType.None:
-                return true;
-
-            case IccTrcType.Sampled:
-                // Check for linear [0,1] sampled curves - very common in ICC profiles
-                return IsLinearSampledCurve(trc.Samples);
-
-            case IccTrcType.Gamma:
-                // Identity if gamma is very close to 1.0 (rare but possible)
-                return Math.Abs(trc.Gamma - 1.0f) < 1e-6f;
-
-            case IccTrcType.Parametric:
-                // Check for parametric identity (rare)
-                return IsIdentityParametric(trc.ParametricType, trc.Parameters);
-
-            default:
-                return false;
-        }
-    }
-
-    /// <summary>
-    /// Checks if a sampled curve represents a linear [0,1] mapping.
-    /// This is very common in ICC profiles for identity transformations.
-    /// </summary>
-    /// <param name="samples">Sample array to check.</param>
-    /// <returns>True if samples represent linear 0→1 mapping.</returns>
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static bool IsLinearSampledCurve(float[]? samples)
-    {
-        if (samples == null || samples.Length == 0)
-        {
-            return true; // Treat empty/null as identity
-        }
-
-        int length = samples.Length;
-
-        // Check first and last values for [0,1] range
-        if (Math.Abs(samples[0]) > 1e-6f || Math.Abs(samples[length - 1] - 1.0f) > 1e-6f)
-        {
-            return false;
-        }
-
-        // Check linearity: sample[i] should equal i/(length-1)
-        float lastIndex = length - 1;
-        for (int i = 1; i < length - 1; i++) // Skip first/last already checked
-        {
-            float expected = i / lastIndex;
-            if (Math.Abs(samples[i] - expected) > 1e-5f) // Slightly looser tolerance for accumulated error
-            {
-                return false;
-            }
-        }
-
-        return true;
-    }
-
-    /// <summary>
-    /// Checks if parametric curve parameters represent an identity transform.
-    /// </summary>
-    /// <param name="type">Parametric curve type.</param>
-    /// <param name="parameters">Curve parameters.</param>
-    /// <returns>True if parameters represent identity.</returns>
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static bool IsIdentityParametric(IccTrcParametricType type, float[]? parameters)
-    {
-        if (parameters == null)
-        {
-            return true;
-        }
-
-        return type switch
-        {
-            IccTrcParametricType.Gamma =>
-                parameters.Length >= 1 && Math.Abs(parameters[0] - 1.0f) < 1e-6f,
-
-            // For other parametric types, we'd need to check specific parameter combinations
-            // that result in identity transforms. For simplicity, assume non-identity.
-            _ => false
-        };
-    }
 }

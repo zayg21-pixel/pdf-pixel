@@ -20,14 +20,14 @@ public sealed class PdfPaint
     /// <summary>
     /// Gets the pattern definition when the paint represents a pattern; null for solid color paints.
     /// </summary>
-    public PdfPattern Pattern { get; }
+    public PdfPattern? Pattern { get; }
 
     /// <summary>
     /// True if this paint represents a pattern (colored or uncolored), otherwise false for solid colors.
     /// </summary>
     public bool IsPattern => Pattern != null;
 
-    private PdfPaint(in SKColor color, PdfPattern pattern)
+    private PdfPaint(in SKColor color, PdfPattern? pattern)
     {
         Color = color;
         Pattern = pattern;

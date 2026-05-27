@@ -33,8 +33,23 @@ public class PdfTextRenderer : IPdfTextRenderer
     }
 
     /// <inheritdoc/>
-    public SKSize DrawTextSequence(IPdfCommandProcessor processor, List<ShapedGlyph> glyphs, PdfGraphicsState state, PdfFontBase font)
+    public SKSize DrawTextSequence(IPdfCommandProcessor processor, List<ShapedGlyph> glyphs, PdfGraphicsState state, PdfFontBase? font)
     {
+        if (processor == null)
+        {
+            throw new ArgumentNullException(nameof(processor));
+        }
+
+        if (glyphs == null)
+        {
+            throw new ArgumentNullException(nameof(glyphs));
+        }
+
+        if (state == null)
+        {
+            throw new ArgumentNullException(nameof(state));
+        }
+
         if (font == null || glyphs.Count == 0)
         {
             return SKSize.Empty;
@@ -49,9 +64,9 @@ public class PdfTextRenderer : IPdfTextRenderer
         }
         else if (font.SubstituteFont)
         {
-            const float ScaleTolerancePercent = 0.01f; // 1%
+            const float scaleTolerancePercent = 0.01f; // 1%
             List<ShapedGlyph> glyphBuffer = [];
-            SKFont skFont = null;
+            SKFont? skFont = null;
 
             for (int i = 0; i < glyphs.Count; i++)
             {
@@ -59,7 +74,7 @@ public class PdfTextRenderer : IPdfTextRenderer
                 SKTypeface typeface = glyph.CharacterInfo.Typeface;
                 float scale = glyph.Scale;
 
-                if (skFont?.Typeface != typeface || Math.Abs(scale - skFont.ScaleX) / skFont.ScaleX >= ScaleTolerancePercent)
+                if (skFont?.Typeface != typeface || Math.Abs(scale - skFont.ScaleX) / skFont.ScaleX >= scaleTolerancePercent)
                 {
                     if (glyphBuffer.Count > 0 && skFont != null)
                     {
@@ -92,7 +107,7 @@ public class PdfTextRenderer : IPdfTextRenderer
 
         softMaskScope.EndDrawContent();
 
-        if (state.CurrentFont.WritingMode == Fonts.Mapping.CMapWMode.Vertical)
+        if (state.CurrentFont != null && state.CurrentFont.WritingMode == Fonts.Mapping.CMapWMode.Vertical)
         {
             return new SKSize(0, TextRenderUtilities.GetTextHeight(glyphs) * state.FontSize);
         }
@@ -123,9 +138,9 @@ public class PdfTextRenderer : IPdfTextRenderer
         {
             ShapedGlyph glyph = glyphs[i];
             PdfType3CharacterInfo charInfo = type3Font.GetCharacterInfo(glyph.CharacterInfo.CharacterCode, _renderer, state);
-            if (charInfo.IsDefined)
+            if (charInfo.IsDefined && charInfo.Recording != null)
             {
-                IPdfCommandModifier modifier = (charInfo.IsColored)
+                IPdfCommandModifier? modifier = (charInfo.IsColored)
                     ? default
                     : new UncoloredPaintModifier(state.FillPaint.Color);
 

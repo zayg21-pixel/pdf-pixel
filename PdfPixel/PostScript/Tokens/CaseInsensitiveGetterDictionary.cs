@@ -17,7 +17,7 @@ namespace PdfPixel.PostScript.Tokens
         {
             get
             {
-                if (_dictionary.TryGetValue(key, out TValue value))
+                if (_dictionary.TryGetValue(key, out TValue? value))
                 {
                     return value;
                 }
@@ -84,10 +84,13 @@ namespace PdfPixel.PostScript.Tokens
         /// <summary>
         /// Gets the value associated with the specified key. Retrieval prioritizes case-sensitive match, then falls back to case-insensitive scan.
         /// </summary>
-        public bool TryGetValue(string key, out TValue value)
+#pragma warning disable CS8767
+        public bool TryGetValue(string key, out TValue? value)
+#pragma warning restore CS8767
         {
-            if (_dictionary.TryGetValue(key, out value))
+            if (_dictionary.TryGetValue(key, out TValue? dictionaryValue))
             {
+                value = dictionaryValue;
                 return true;
             }
 

@@ -43,10 +43,15 @@ internal class PdfObjectStreamParser
     /// </summary>
     /// <param name="info">Compressed object index info.</param>
     /// <returns>Materialized <see cref="PdfObject"/> or null if unavailable.</returns>
-    public PdfObject ParseSingleCompressed(PdfObjectInfo info)
+    public PdfObject? ParseSingleCompressed(PdfObjectInfo info)
     {
+        if (info.ObjectStreamNumber == null || info.ObjectStreamIndex == null)
+        {
+            return null;
+        }
+
         PdfReference containerReference = new(info.ObjectStreamNumber.Value, 0);
-        PdfObject containerObject = _pdfDocument.ObjectCache.GetObject(containerReference);
+        PdfObject? containerObject = _pdfDocument.ObjectCache.GetObject(containerReference);
         if (containerObject == null || containerObject.Dictionary == null)
         {
             return null;
@@ -89,7 +94,7 @@ internal class PdfObjectStreamParser
         int? nextRelative = null;
 
         // Prefer cached lookup to avoid scanning the entire object index.
-        if (_indexToOffsetCache.TryGetValue(containerReference.ObjectNumber, out Dictionary<int, int> indexMap))
+        if (_indexToOffsetCache.TryGetValue(containerReference.ObjectNumber, out Dictionary<int, int>? indexMap))
         {
             if (indexMap.TryGetValue(targetNextIndex, out int offset))
             {
@@ -117,7 +122,7 @@ internal class PdfObjectStreamParser
         PdfParseContext context = new(slice);
         // Use new PdfParser struct for value parsing (handles whitespace/comments internally).
         PdfParser parser = new(context, _pdfDocument, allowReferences: true, decrypt: true);
-        IPdfValue value = parser.ReadNextValue();
+        IPdfValue? value = parser.ReadNextValue();
         if (value == null)
         {
             return null;
@@ -152,13 +157,13 @@ internal class PdfObjectStreamParser
 
         for (int index = 0; index < objectCount; index++)
         {
-            IPdfValue objectNumberValue = headerParser.ReadNextValue();
+            IPdfValue? objectNumberValue = headerParser.ReadNextValue();
             if (objectNumberValue == null || objectNumberValue.Type != PdfValueType.Integer)
             {
                 break;
             }
 
-            IPdfValue offsetValue = headerParser.ReadNextValue();
+            IPdfValue? offsetValue = headerParser.ReadNextValue();
             if (offsetValue == null || offsetValue.Type != PdfValueType.Integer)
             {
                 break;
@@ -174,7 +179,7 @@ internal class PdfObjectStreamParser
             }
 
             PdfReference reference = new(objectNumber, 0);
-            if (_pdfDocument.ObjectCache.ObjectIndex.TryGetValue(reference, out PdfObjectInfo info))
+            if (_pdfDocument.ObjectCache.ObjectIndex.TryGetValue(reference, out PdfObjectInfo? info))
             {
                 if (info.IsCompressed && info.ObjectStreamNumber == containerObjectNumber)
                 {

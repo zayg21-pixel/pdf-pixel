@@ -2,6 +2,7 @@ using PdfPixel.Color.Icc;
 using PdfPixel.Color.Icc.Model;
 using PdfPixel.Color.Sampling;
 using PdfPixel.Color.Transform;
+using System;
 
 namespace PdfPixel.Color.ColorSpace;
 
@@ -9,9 +10,9 @@ internal sealed class IccBasedConverter : PdfColorSpaceConverter
 {
     private readonly bool _useDefault;
     private readonly PdfColorSpaceConverter _default;
-    private readonly IccProfileTransform _iccTransform;
+    private readonly IccProfileTransform? _iccTransform;
 
-    public IccBasedConverter(int n, PdfColorSpaceConverter alternate, IccProfile profile)
+    public IccBasedConverter(int n, PdfColorSpaceConverter? alternate, IccProfile? profile)
     {
         Profile = profile;
         N = n;
@@ -37,12 +38,12 @@ internal sealed class IccBasedConverter : PdfColorSpaceConverter
                 };
     }
 
-    public IccBasedConverter(int n, PdfColorSpaceConverter alternate, byte[] iccProfileBytes)
-        : this(n, alternate, IccProfile.Parse(iccProfileBytes))
+    public IccBasedConverter(int n, PdfColorSpaceConverter? alternate, byte[]? iccProfileBytes)
+        : this(n, alternate, GetProfile(iccProfileBytes))
     {
     }
 
-    public IccProfile Profile { get; }
+    public IccProfile? Profile { get; }
 
     public override int Components => _default.Components;
 
@@ -50,9 +51,32 @@ internal sealed class IccBasedConverter : PdfColorSpaceConverter
 
     public int N { get; }
 
-    protected override ColorTransformSampler GetRgbaSamplerCore(PdfRenderingIntent intent, IColorTransform postTransform)
+    private static IccProfile? GetProfile(byte[]? bytes)
     {
-        if (_useDefault)
+        if (bytes == null)
+        {
+            return null;
+        }
+
+#pragma warning disable CA1031
+        try
+        {
+            return IccProfile.Parse(bytes);
+        }
+        catch (Exception)
+        {
+#if DEBUG
+            throw;
+#else
+            return null;
+#endif
+        }
+#pragma warning restore RCS1075
+    }
+
+    protected override ColorTransformSampler GetRgbaSamplerCore(PdfRenderingIntent intent, IColorTransform? postTransform)
+    {
+        if (_useDefault || _iccTransform == null)
         {
             return _default.GetRgbaSampler(intent, postTransform);
         }

@@ -43,7 +43,7 @@ public class PdfArray
     /// </summary>
     /// <param name="index">The zero-based index of the value to retrieve.</param>
     /// <returns>The resolved <see cref="IPdfValue"/> at the specified index, or <c>null</c> if out of range.</returns>
-    public IPdfValue GetValue(int index)
+    public IPdfValue? GetValue(int index)
     {
         if (!IsValidIndex(index))
         {
@@ -61,7 +61,7 @@ public class PdfArray
     /// <returns>The <see cref="PdfString"/> if the value is a name; otherwise, <c>null</c>.</returns>
     public PdfString GetName(int index)
     {
-        IPdfValue value = GetValue(index);
+        IPdfValue? value = GetValue(index);
         if (value == null)
         {
             return default;
@@ -77,7 +77,7 @@ public class PdfArray
     /// <returns>The <see cref="PdfString"/> if the value is string-like; otherwise, <c>null</c>.</returns>
     public PdfString GetString(int index)
     {
-        IPdfValue value = GetValue(index);
+        IPdfValue? value = GetValue(index);
 
         if (value == null)
         {
@@ -94,7 +94,7 @@ public class PdfArray
     /// <returns>The integer value if present; otherwise, <c>null</c>.</returns>
     public int? GetInteger(int index)
     {
-        IPdfValue value = GetValue(index);
+        IPdfValue? value = GetValue(index);
 
         if (value == null)
         {
@@ -116,7 +116,7 @@ public class PdfArray
     /// <returns>The integer value if present; otherwise, 0.</returns>
     public int GetIntegerOrDefault(int index)
     {
-        IPdfValue value = GetValue(index);
+        IPdfValue? value = GetValue(index);
         if (value == null)
         {
             return 0;
@@ -132,7 +132,7 @@ public class PdfArray
     /// <returns>The float value if present; otherwise, <c>null</c>.</returns>
     public float? GetFloat(int index)
     {
-        IPdfValue value = GetValue(index);
+        IPdfValue? value = GetValue(index);
 
         if (value == null)
         {
@@ -154,7 +154,7 @@ public class PdfArray
     /// <returns>The float value if present; otherwise, 0.</returns>
     public float GetFloatOrDefault(int index)
     {
-        IPdfValue value = GetValue(index);
+        IPdfValue? value = GetValue(index);
         if (value == null)
         {
             return 0f;
@@ -170,7 +170,7 @@ public class PdfArray
     /// <returns>The boolean value if present; otherwise, <c>null</c>.</returns>
     public bool? GetBoolean(int index)
     {
-        IPdfValue value = GetValue(index);
+        IPdfValue? value = GetValue(index);
         if (value == null)
         {
             return default;
@@ -192,7 +192,7 @@ public class PdfArray
     /// <returns>The boolean value if present; otherwise, <c>false</c>.</returns>
     public bool GetBooleanOrDefault(int index)
     {
-        IPdfValue value = GetValue(index);
+        IPdfValue? value = GetValue(index);
         if (value == null)
         {
             return false;
@@ -206,9 +206,9 @@ public class PdfArray
     /// </summary>
     /// <param name="index">The zero-based index of the value to retrieve.</param>
     /// <returns>The <see cref="PdfArray"/> if the value is an array; otherwise, <c>null</c>.</returns>
-    public PdfArray GetArray(int index)
+    public PdfArray? GetArray(int index)
     {
-        IPdfValue value = GetValue(index);
+        IPdfValue? value = GetValue(index);
 
         if (value == null)
         {
@@ -223,9 +223,9 @@ public class PdfArray
     /// </summary>
     /// <param name="index">The zero-based index of the value to retrieve.</param>
     /// <returns>The <see cref="PdfDictionary"/> if the value is a dictionary; otherwise, <c>null</c>.</returns>
-    public PdfDictionary GetDictionary(int index)
+    public PdfDictionary? GetDictionary(int index)
     {
-        IPdfValue value = GetValue(index);
+        IPdfValue? value = GetValue(index);
 
         if (value == null)
         {
@@ -240,7 +240,7 @@ public class PdfArray
     /// </summary>
     /// <param name="index">The zero-based index of the value to retrieve.</param>
     /// <returns>The <see cref="PdfObject"/> at the specified index, or <c>null</c> if the index is invalid.</returns>
-    public PdfObject GetObject(int index)
+    public PdfObject? GetObject(int index)
     {
         if (!IsValidIndex(index))
         {
@@ -250,7 +250,7 @@ public class PdfArray
         IPdfValue storedValue = _items[index];
 
         // Array of references case
-        PdfArray referenceArray = storedValue.AsArray();
+        PdfArray? referenceArray = storedValue.AsArray();
         if (referenceArray != null)
         {
             return referenceArray.GetObject(0);

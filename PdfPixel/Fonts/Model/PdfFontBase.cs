@@ -37,7 +37,7 @@ public abstract class PdfFontBase : IDisposable
     /// <summary>
     /// Returns the SkiaSharp SKTypeface instance for this PDF font.
     /// </summary>
-    protected internal abstract SKTypeface Typeface { get; }
+    protected internal abstract SKTypeface? Typeface { get; }
 
     /// <summary>
     /// Writing mode for this font's CMap (horizontal/vertical).
@@ -79,14 +79,14 @@ public abstract class PdfFontBase : IDisposable
     /// <summary>
     /// Loaded ToUnicode CMap for character-to-Unicode mapping.
     /// </summary>
-    public PdfCMap ToUnicodeCMap { get; }
+    public PdfCMap? ToUnicodeCMap { get; }
 
     /// <summary>
     /// Get the font descriptor (contains metrics and embedding info)
     /// May be direct or inherited from descendant fonts
     /// Implementation may use lazy loading
     /// </summary>
-    public virtual PdfFontDescriptor FontDescriptor { get; }
+    public virtual PdfFontDescriptor? FontDescriptor { get; }
 
     /// <summary>
     /// Get the width of a character/glyph
@@ -105,7 +105,7 @@ public abstract class PdfFontBase : IDisposable
     /// </summary>
     /// <param name="unicode">Hint for font substitution.</param>
     /// <returns>SKTypeface instance, should not be disposed.</returns>
-    internal SKTypeface GetTypeface(string unicode) => Typeface ?? Document.FontSubstitutor.SubstituteTypeface(SubstitutionInfo, unicode);
+    internal SKTypeface GetTypeface(string? unicode) => Typeface ?? Document.FontSubstitutor.SubstituteTypeface(SubstitutionInfo, unicode);
 
     /// <summary>
     /// Converts a <see cref="PdfCharacterCode"/> to its corresponding Unicode string representation.
@@ -113,15 +113,11 @@ public abstract class PdfFontBase : IDisposable
     /// <param name="code">The <see cref="PdfCharacterCode"/> to be converted. Cannot be <see langword="null"/>.</param>
     /// <returns>The Unicode string representation of the specified <see cref="PdfCharacterCode"/>.</returns>
     /// <exception cref="ArgumentNullException">Thrown if <paramref name="code"/> is <see langword="null"/>.</exception>
-    public virtual string GetUnicodeString(PdfCharacterCode code)
+    public virtual string? GetUnicodeString(PdfCharacterCode code)
     {
         if (ToUnicodeCMap != null)
         {
-            string unicode = ToUnicodeCMap.GetUnicode(code);
-            if (unicode != null)
-            {
-                return unicode;
-            }
+            return ToUnicodeCMap?.GetUnicode(code);
         }
 
         return null;
@@ -168,7 +164,7 @@ public abstract class PdfFontBase : IDisposable
     {
         ushort gid = GetGid(characterCode);
         float width = GetWidth(characterCode);
-        string unicode = GetUnicodeString(characterCode);
+        string? unicode = GetUnicodeString(characterCode);
         VerticalMetric displacement = GetVerticalDisplacement(characterCode);
         SKTypeface typeface = GetTypeface(unicode);
 
@@ -210,7 +206,7 @@ public abstract class PdfFontBase : IDisposable
         return new PdfCharacterInfo(characterCode, typeface, string.Empty, [0], 0, [0], 1, SKPoint.Empty, default);
     }
 
-    private (float xScale, SKPoint Origin, float Advancement) GetScalingAndOrigin(string unicode, SKFont font, in VerticalMetric verticalMetric, float originalWidth, float[] widths)
+    private (float xScale, SKPoint Origin, float Advancement) GetScalingAndOrigin(string? unicode, SKFont? font, in VerticalMetric verticalMetric, float originalWidth, float[] widths)
     {
         float totalWidth = widths.Sum();
         float xScale;
@@ -253,26 +249,26 @@ public abstract class PdfFontBase : IDisposable
     /// <summary>
     /// Load ToUnicode CMap (heavy operation - lazy loaded using GetPageObject)
     /// </summary>
-    private PdfCMap LoadToUnicodeCMap()
+    private PdfCMap? LoadToUnicodeCMap()
     {
         // Use GetPageObject instead of storing reference
-        PdfObject toUnicodeObj = Dictionary.GetObject(PdfTokens.ToUnicodeKey);
+        PdfObject? toUnicodeObj = Dictionary.GetObject(PdfTokens.ToUnicodeKey);
 
         if (toUnicodeObj == null)
         {
             return null;
         }
 
-        if (toUnicodeObj.Reference.IsValid && Document.CMapCache.CMapStreams.TryGetValue(toUnicodeObj.Reference, out PdfCMap cachedCMap))
+        if (toUnicodeObj.Reference.IsValid && Document.CMapCache.CMapStreams.TryGetValue(toUnicodeObj.Reference, out PdfCMap? cachedCMap))
         {
             return cachedCMap;
         }
 
         ReadOnlyMemory<byte> cmapData = toUnicodeObj.DecodeAsMemory();
 
-        PdfCMap parsedCMap = PdfCMapParser.ParseCMap(cmapData, Document);
+        PdfCMap? parsedCMap = PdfCMapParser.ParseCMap(cmapData, Document);
 
-        if (toUnicodeObj.Reference.IsValid)
+        if (parsedCMap != null && toUnicodeObj.Reference.IsValid)
         {
             Document.CMapCache.CMapStreams[toUnicodeObj.Reference] = parsedCMap;
         }

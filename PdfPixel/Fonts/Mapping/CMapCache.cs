@@ -35,9 +35,9 @@ internal class CMapCache
     /// </summary>
     /// <param name="name">The CMap name.</param>
     /// <returns>The loaded <see cref="PdfCMap"/> or null if not found.</returns>
-    public PdfCMap GetCmap(PdfString name)
+    public PdfCMap? GetCmap(PdfString name)
     {
-        if (GlobalCMaps.TryGetValue(name, out PdfCMap existing))
+        if (GlobalCMaps.TryGetValue(name, out PdfCMap? existing))
         {
             return existing;
         }
@@ -54,10 +54,12 @@ internal class CMapCache
 
             return cmap;
         }
+#pragma warning disable CA1031
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "Failed to load CMap '{CMapName}'", name.ToString());
             return null;
         }
+#pragma warning restore CA1031
     }
 }

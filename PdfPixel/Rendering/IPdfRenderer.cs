@@ -59,6 +59,6 @@ namespace PdfPixel.Rendering
         /// <param name="state">The current graphics state for rendering.</param>
         /// <param name="font">The font to use for rendering the text.</param>
         /// <returns>The total advancement of the text sequence.</returns>
-        SKSize DrawTextSequence(IPdfCommandProcessor processor, List<ShapedGlyph> glyphs, PdfGraphicsState state, PdfFontBase font);
+        SKSize DrawTextSequence(IPdfCommandProcessor processor, List<ShapedGlyph> glyphs, PdfGraphicsState state, PdfFontBase? font);
     }
 }

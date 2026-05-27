@@ -22,7 +22,7 @@ public class PdfStrikeOutAnnotation : PdfTextMarkupAnnotation
     {
     }
 
-    internal override bool RenderFallback(IPdfCommandProcessor processor, IPdfPageInternal page, PdfAnnotationVisualStateKind visualStateKind, PdfRenderingParameters renderingParameters)
+    internal override bool RenderFallback(IPdfCommandProcessor processor, IPdfPageInternal page, PdfAnnotationVisualStateKind visualStateKind)
     {
         SKPoint[][] quads = Quadrilaterals;
         if (quads.Length == 0)
@@ -43,8 +43,7 @@ public class PdfStrikeOutAnnotation : PdfTextMarkupAnnotation
             {
                 Style = SKPaintStyle.Stroke,
                 StrokeWidth = 1.0f,
-                Color = color,
-                IsAntialias = renderingParameters.Antialias
+                Color = color
             };
 
             using SKPath linePath = new();

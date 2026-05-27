@@ -37,11 +37,11 @@ public abstract class PdfTextMarkupAnnotation : PdfAnnotationBase
     /// quadrilateral.</remarks>
     public SKPoint[][] Quadrilaterals { get; }
 
-    private static SKPoint[][] GetQuadrilaterals(float[] quadPoints)
+    private static SKPoint[][] GetQuadrilaterals(float[]? quadPoints)
     {
         if (quadPoints == null || quadPoints.Length < 8 || quadPoints.Length % 8 != 0)
         {
-            return System.Array.Empty<global::SkiaSharp.SKPoint[]>();
+            return System.Array.Empty<SKPoint[]>();
         }
 
         int quadCount = quadPoints.Length / 8;

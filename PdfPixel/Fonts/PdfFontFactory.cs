@@ -36,12 +36,16 @@ public static class PdfFontFactory
     /// </summary>
     /// <remarks>The method determines the font subtype from the dictionary and returns an appropriate
     /// font object instance. Supported font subtypes include Type0, CIDFontType0, CIDFontType2,  Type1, TrueType,
-    /// Type3, and MMType1. If the subtype is unrecognized, a simple font object  is returned as a
-    /// fallback.</remarks>
+    /// Type3, and MMType1.</remarks>
     /// <param name="fontObject">The PDF object containing font metadata and properties. Must represent a valid font
     /// object.</param>
-    public static PdfFontBase CreateFont(PdfObject fontObject)
+    internal static PdfFontBase? CreateFont(PdfObject? fontObject)
     {
+        if (fontObject == null)
+        {
+            return null;
+        }
+
         if (!IsFont(fontObject.Dictionary))
         {
             return null;
@@ -58,7 +62,7 @@ public static class PdfFontFactory
             PdfFontSubType.TrueType => new PdfSimpleFont(fontObject),
             PdfFontSubType.Type3 => new PdfType3Font(fontObject),
             PdfFontSubType.MMType1 => new PdfSimpleFont(fontObject),
-            _ => new PdfSimpleFont(fontObject) // Fallback for unknown subtypes under /Font
+            _ => null
         };
     }
 }

@@ -36,14 +36,14 @@ namespace PdfPixel.Imaging.Png
         // Streaming PNG row writing state
         private bool _rowStreamingActive;
         private int _rowStreamingRowsWritten;
-        private System.IO.Hashing.Crc32 _rowStreamingCrc32;
-        private byte[] _rowStreamingBlockHeader;
+        private System.IO.Hashing.Crc32? _rowStreamingCrc32;
+        private byte[]? _rowStreamingBlockHeader;
 
         private const int MaxDeflateBlockSize = 65535;
 
         private int _rowStreamingBlockBytesRemaining;
         private int _rowStreamingUncompressedBytesLeft; // Track uncompressed bytes left
-        private byte[] _rowBuffer;
+        private byte[]? _rowBuffer;
 
         public PngImageBuilder(int channels, int bitsPerComponent, int width, int height)
         {
@@ -88,7 +88,7 @@ namespace PdfPixel.Imaging.Png
         /// </summary>
         /// <param name="palette">The color palette to use (can be null).</param>
         /// <param name="iccProfile">The ICC profile to use (can be empty).</param>
-        public void Init(RgbaPacked[] palette, in ReadOnlyMemory<byte> iccProfile)
+        public void Init(RgbaPacked[]? palette, in ReadOnlyMemory<byte> iccProfile)
         {
             EnsureState(PngImageBuilderState.Init);
             PngHelpers.WritePngSignature(_pngStream);
@@ -192,6 +192,11 @@ namespace PdfPixel.Imaging.Png
             int rowDataOffset = 0;
             int rowDataRemaining = row.Length;
             var filterByteWritten = false;
+
+            if (_rowStreamingBlockHeader == null || _rowStreamingCrc32 == null || _rowBuffer == null)
+            {
+                throw new InvalidOperationException("PNG Image Builder is not initialized.");
+            }
 
             while (rowDataRemaining > 0 || !filterByteWritten)
             {

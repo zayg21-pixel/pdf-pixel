@@ -48,7 +48,7 @@ namespace PdfPixel.PostScript.Tokens
                 throw new InvalidOperationException("typecheck: dictionary key must be literal name");
             }
 
-            if (!Entries.TryGetValue(literalName.Name, out PostScriptToken value))
+            if (!Entries.TryGetValue(literalName.Name, out PostScriptToken? value))
             {
                 throw new InvalidOperationException("undefined: key not found in dictionary");
             }

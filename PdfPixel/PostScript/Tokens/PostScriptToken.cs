@@ -19,19 +19,19 @@ public abstract class PostScriptToken : IEquatable<PostScriptToken>
     /// </summary>
     /// <param name="other">Other token.</param>
     /// <returns>Comparison result.</returns>
-    public virtual int CompareToToken(PostScriptToken other) => throw new InvalidOperationException("Relational comparison not supported for these token types.");
+    public virtual int CompareToToken(PostScriptToken? other) => throw new InvalidOperationException("Relational comparison not supported for these token types.");
 
     /// <summary>
     /// Logical AND (boolean) or bitwise AND (integral numeric). Override in supported types.
     /// </summary>
-    public virtual PostScriptToken LogicalAnd(PostScriptToken other) => throw new InvalidOperationException("AND not supported for these token types.");
+    public virtual PostScriptToken? LogicalAnd(PostScriptToken? other) => throw new InvalidOperationException("AND not supported for these token types.");
 
     /// <summary>
     /// Logical OR (boolean) or bitwise OR (integral numeric). Override in supported types.
     /// </summary>
-    public virtual PostScriptToken LogicalOr(PostScriptToken other) => throw new InvalidOperationException("OR not supported for these token types.");
+    public virtual PostScriptToken? LogicalOr(PostScriptToken? other) => throw new InvalidOperationException("OR not supported for these token types.");
 
-    public virtual PostScriptToken LogicalXor(PostScriptToken other) => throw new InvalidOperationException("XOR not supported for these token types.");
+    public virtual PostScriptToken? LogicalXor(PostScriptToken? other) => throw new InvalidOperationException("XOR not supported for these token types.");
 
     /// <summary>
     /// Logical NOT (boolean) or bitwise complement (integral numeric). Override in supported types.
@@ -110,24 +110,24 @@ public abstract class PostScriptToken : IEquatable<PostScriptToken>
 
     public abstract bool EqualsToken(PostScriptToken other);
 
-    public bool Equals(PostScriptToken other)
+    public bool Equals(PostScriptToken? other)
     {
+        if (ReferenceEquals(null, other))
+        {
+            return false;
+        }
+
         if (ReferenceEquals(this, other))
         {
             return true;
         }
 
-        if (other == null)
-        {
-            return false;
-        }
-
         return EqualsToken(other);
     }
 
-    public override bool Equals(object obj) => Equals(obj as PostScriptToken);
+    public override bool Equals(object? obj) => Equals(obj as PostScriptToken);
 
-    public static bool operator ==(PostScriptToken left, PostScriptToken right)
+    public static bool operator ==(PostScriptToken? left, PostScriptToken? right)
     {
         if (ReferenceEquals(left, right))
         {
@@ -137,19 +137,19 @@ public abstract class PostScriptToken : IEquatable<PostScriptToken>
         return left?.Equals(right) ?? false;
     }
 
-    public static bool operator !=(PostScriptToken left, PostScriptToken right) => !(left == right);
+    public static bool operator !=(PostScriptToken? left, PostScriptToken? right) => !(left == right);
 
-    public static bool operator >(PostScriptToken left, PostScriptToken right) => left?.CompareToToken(right) > 0;
-    public static bool operator <(PostScriptToken left, PostScriptToken right) => left?.CompareToToken(right) < 0;
-    public static bool operator >=(PostScriptToken left, PostScriptToken right) => left?.CompareToToken(right) >= 0;
-    public static bool operator <=(PostScriptToken left, PostScriptToken right) => left?.CompareToToken(right) <= 0;
+    public static bool operator >(PostScriptToken? left, PostScriptToken? right) => left?.CompareToToken(right) > 0;
+    public static bool operator <(PostScriptToken? left, PostScriptToken? right) => left?.CompareToToken(right) < 0;
+    public static bool operator >=(PostScriptToken? left, PostScriptToken? right) => left?.CompareToToken(right) >= 0;
+    public static bool operator <=(PostScriptToken? left, PostScriptToken? right) => left?.CompareToToken(right) <= 0;
 
-    public static PostScriptToken operator &(PostScriptToken left, PostScriptToken right) => left?.LogicalAnd(right);
-    public static PostScriptToken operator |(PostScriptToken left, PostScriptToken right) => left?.LogicalOr(right);
+    public static PostScriptToken operator &(PostScriptToken left, PostScriptToken right) => left?.LogicalAnd(right) ?? throw new ArgumentNullException(nameof(left));
+    public static PostScriptToken operator |(PostScriptToken left, PostScriptToken right) => left?.LogicalOr(right) ?? throw new ArgumentNullException(nameof(left));
 
-    public static PostScriptToken operator ^(PostScriptToken left, PostScriptToken right) => left?.LogicalXor(right);
+    public static PostScriptToken operator ^(PostScriptToken left, PostScriptToken? right) => left?.LogicalXor(right) ?? throw new ArgumentNullException(nameof(left));
 
-    public static PostScriptToken operator !(PostScriptToken operand) => operand?.LogicalNot();
+    public static PostScriptToken operator !(PostScriptToken operand) => operand?.LogicalNot() ?? throw new ArgumentNullException(nameof(operand));
 
     public override abstract int GetHashCode();
 

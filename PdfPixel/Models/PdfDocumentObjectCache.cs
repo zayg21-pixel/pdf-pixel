@@ -22,17 +22,17 @@ internal class PdfDocumentObjectCache
     /// Parsed catalog output intent ICC profile (first preferred or first valid). Null when none present or invalid.
     /// Populated by <see cref="Parsing.PdfOutputIntentParser"/> post xref/catalog load.
     /// </summary>
-    internal IccProfile OutputIntentProfile { get; set; }
+    internal IccProfile? OutputIntentProfile { get; set; }
 
     /// <summary>
     /// Parsed catalog output intent profile converter. Null when none present or invalid.
     /// </summary>
-    internal IccBasedConverter OutputIntentProfileConverter { get; set; }
+    internal IccBasedConverter? OutputIntentProfileConverter { get; set; }
 
     /// <summary>
     /// Catalog output intent converter parsed from <see cref="IccProfile"/>. Null when none present or invalid.
     /// </summary>
-    internal IccBasedConverter OutputIntentConverter { get; set; }
+    internal IccBasedConverter? OutputIntentConverter { get; set; }
 
     /// <summary>
     /// Document font cache.
@@ -42,7 +42,7 @@ internal class PdfDocumentObjectCache
     /// <summary>
     /// Document color space converter cache.
     /// </summary>
-    internal Dictionary<PdfReference, PdfColorSpaceConverter> ColorSpaceConverters { get; } = [];
+    internal Dictionary<PdfReference, PdfColorSpaceConverter?> ColorSpaceConverters { get; } = [];
 
     /// <summary>
     /// High-level cache for parsed PDF functions, keyed by reference.
@@ -65,24 +65,24 @@ internal class PdfDocumentObjectCache
     /// </summary>
     /// <param name="reference">Target object reference.</param>
     /// <returns>Materialized <see cref="PdfObject"/> or null if unavailable.</returns>
-    public PdfObject GetObject(in PdfReference reference)
+    public PdfObject? GetObject(in PdfReference reference)
     {
         if (!reference.IsValid)
         {
             return null;
         }
 
-        if (_objects.TryGetValue(reference, out PdfObject existing))
+        if (_objects.TryGetValue(reference, out PdfObject? existing))
         {
             return existing;
         }
 
-        if (!ObjectIndex.TryGetValue(reference, out PdfObjectInfo info))
+        if (!ObjectIndex.TryGetValue(reference, out PdfObjectInfo? info))
         {
             return null;
         }
 
-        PdfObject parsed = _pdfObjectParser.ParseSingleIndexedObject(info);
+        PdfObject? parsed = _pdfObjectParser.ParseSingleIndexedObject(info);
         if (parsed != null)
         {
             _objects[parsed.Reference] = parsed;

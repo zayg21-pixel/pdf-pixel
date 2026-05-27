@@ -36,7 +36,17 @@ public class ImageRenderer : IImageRenderer
     {
         if (processor == null)
         {
-            return;
+            throw new ArgumentNullException(nameof(processor));
+        }
+
+        if (pdfImage == null)
+        {
+            throw new ArgumentNullException(nameof(pdfImage));
+        }
+
+        if (state == null)
+        {
+            throw new ArgumentNullException(nameof(state));
         }
 
         if (pdfImage == null || pdfImage.Width <= 0 || pdfImage.Height <= 0)

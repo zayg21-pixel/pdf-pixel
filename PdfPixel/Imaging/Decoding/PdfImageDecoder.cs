@@ -42,7 +42,7 @@ public abstract class PdfImageDecoder : IDisposable
     /// <param name="pdfImage">The image descriptor to decode.</param>
     /// <param name="loggerFactory">Logger factory instance.</param>
     /// <returns>A concrete <see cref="PdfImageDecoder"/> instance, or null if unsupported.</returns>
-    public static PdfImageDecoder GetDecoder(PdfImage pdfImage, ILoggerFactory loggerFactory)
+    public static PdfImageDecoder? GetDecoder(PdfImage pdfImage, ILoggerFactory loggerFactory)
     {
         if (pdfImage == null)
         {
@@ -75,7 +75,7 @@ public abstract class PdfImageDecoder : IDisposable
     {
     }
 
-    public virtual PdfImageTile[] DecodeNextTiles(IPdfExecutionObserver observer) => null;
+    public virtual PdfImageTile[]? DecodeNextTiles(IPdfExecutionObserver? observer) => null;
 
     /// <summary>
     /// Validate image parameters and return key values needed for processing.
@@ -86,17 +86,11 @@ public abstract class PdfImageDecoder : IDisposable
         int width = Image.Width;
         int height = Image.Height;
         int bitsPerComponent = Image.BitsPerComponent;
-        PdfColorSpaceConverter converter = Image.ColorSpaceConverter;
+        PdfColorSpaceConverter? converter = Image.ColorSpaceConverter;
 
         if (width <= 0 || height <= 0 || bitsPerComponent <= 0)
         {
             Logger.LogError("Invalid image state: Width={Width}, Height={Height}, BitsPerComponent={BitsPerComponent}.", width, height, bitsPerComponent);
-            return false;
-        }
-
-        if (converter == null)
-        {
-            Logger.LogError("Missing color space converter for image (Name={Name}).", Image.Name);
             return false;
         }
 
@@ -112,8 +106,7 @@ public abstract class PdfImageDecoder : IDisposable
             return false;
         }
 
-        bool supportedDepth = bitsPerComponent == 1 || bitsPerComponent == 2 || bitsPerComponent == 4 || bitsPerComponent == 8 || bitsPerComponent == 16;
-        if (!supportedDepth)
+        if (bitsPerComponent < 1 || bitsPerComponent > 16)
         {
             Logger.LogError("Unsupported BitsPerComponent value {BitsPerComponent}.", bitsPerComponent);
             return false;

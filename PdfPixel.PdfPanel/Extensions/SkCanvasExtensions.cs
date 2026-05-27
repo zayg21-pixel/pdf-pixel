@@ -57,19 +57,8 @@ internal static class SkCanvasExtensions
                 canvas.ClipPath(clipPath, SKClipOperation.Intersect, antialias: request.RenderingParameters.Antialias);
             }
 
-            // TODO: [HIGH] this consume extra resources and so far commented out. Need to find a way to render on top of white background without SaveLayer.
-            //canvas.SaveLayer(pageRectangle, default);
-            //canvas.Clear();
-
-            //if (!request.Pages.TryGetPictureFromCache(page.PageNumber, out var picture))
-            //{
-            //    return;
-            //}
-
-            //if (drawFlags.HasFlag(PageDrawFlags.Thumbnail))
-            //{
-            //    DrawCachedThumbnail(canvas, picture, page);
-            //}
+            canvas.SaveLayer(pageRectangle, default);
+            canvas.Clear();
 
             if (drawFlags.HasFlag(PageDrawFlags.Content))
             {
@@ -112,25 +101,6 @@ internal static class SkCanvasExtensions
         {
             canvas.RestoreToCount(saveCount);
         }
-    }
-
-    private static void DrawCachedThumbnail(SKCanvas canvas, SKImage thumbnail, VisiblePageInfo page)
-    {
-        // TODO: remove if not needed
-        if (thumbnail == null)
-        {
-            return;
-        }
-
-        int saveCount = canvas.Save();
-        var thumbnailRect = SKRect.Create(0, 0, thumbnail.Width, thumbnail.Height);
-        var destRect = SKRect.Create(0, 0, page.Info.Width, page.Info.Height);
-        var transformMatrix = GetRotationTranslationMatrix(page.Info, page.UserRotation);
-        canvas.Concat(in transformMatrix);
-
-        var samplingOption = new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.None);
-        canvas.DrawImage(thumbnail, thumbnailRect, destRect, samplingOption);
-        canvas.RestoreToCount(saveCount);
     }
 
     private static SKMatrix GetRotationTranslationMatrix(PdfPanelPageInfo pageInfo, int userRotation)
@@ -177,15 +147,15 @@ internal static class SkCanvasExtensions
 
         if (!pageRectangle.Contains(canvas.LocalClipBounds))
         {
-            const float ShadowSigma = 3f;
-            const byte ShadowAlpha = 160;
+            const float shadowSigma = 3f;
+            const byte shadowAlpha = 160;
 
             using var shadowPaint = new SKPaint
             {
                 Style = SKPaintStyle.Fill,
                 IsAntialias = antialias,
-                Color = SKColors.Gray.WithAlpha(ShadowAlpha),
-                MaskFilter = SKMaskFilter.CreateBlur(SKBlurStyle.Normal, ShadowSigma)
+                Color = SKColors.Gray.WithAlpha(shadowAlpha),
+                MaskFilter = SKMaskFilter.CreateBlur(SKBlurStyle.Normal, shadowSigma)
             };
 
             int saveCount = canvas.Save();

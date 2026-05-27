@@ -50,8 +50,8 @@ public abstract class PdfAnnotationBase
         AppearanceDictionary = annotationObject.Dictionary.GetDictionary(PdfTokens.AppearanceKey);
         AppearanceState = annotationObject.Dictionary.GetString(PdfTokens.AppearanceStateKey);
 
-        PdfDictionary borderStyleDict = annotationObject.Dictionary.GetDictionary(PdfTokens.BorderStyleKey);
-        PdfArray borderArray = annotationObject.Dictionary.GetArray(PdfTokens.BorderKey);
+        PdfDictionary? borderStyleDict = annotationObject.Dictionary.GetDictionary(PdfTokens.BorderStyleKey);
+        PdfArray? borderArray = annotationObject.Dictionary.GetArray(PdfTokens.BorderKey);
         BorderStyle = PdfBorderStyle.FromDictionary(borderStyleDict, borderArray);
 
         Color = annotationObject.Dictionary.GetArray(PdfTokens.ColorKey)?.GetFloatArray();
@@ -154,7 +154,7 @@ public abstract class PdfAnnotationBase
     /// <summary>
     /// Gets the appearance dictionary that specifies how the annotation is presented visually on the page.
     /// </summary>
-    public PdfDictionary AppearanceDictionary { get; }
+    public PdfDictionary? AppearanceDictionary { get; }
 
     /// <summary>
     /// Gets the appearance state that, along with the appearance dictionary, controls
@@ -170,12 +170,12 @@ public abstract class PdfAnnotationBase
     /// and dash pattern for dashed borders. This is parsed from the BS (Border Style) dictionary
     /// or the older Border array entry. Returns null if no border information is present.
     /// </remarks>
-    public PdfBorderStyle BorderStyle { get; }
+    public PdfBorderStyle? BorderStyle { get; }
 
     /// <summary>
     /// Gets the color array that specifies the annotation's color.
     /// </summary>
-    public float[] Color { get; }
+    public float[]? Color { get; }
 
     /// <summary>
     /// Gets the interior color array that specifies the annotation's fill color.
@@ -184,7 +184,7 @@ public abstract class PdfAnnotationBase
     /// Used by annotations that support filled shapes (Circle, Square, Line, Polygon, etc.).
     /// The array format depends on the color space (grayscale, RGB, or CMYK).
     /// </remarks>
-    public float[] InteriorColor { get; }
+    public float[]? InteriorColor { get; }
 
     /// <summary>
     /// Gets the page reference that specifies which page this annotation appears on.
@@ -204,7 +204,7 @@ public abstract class PdfAnnotationBase
     /// <summary>
     /// Gets the optional content configuration dictionary that determines when this annotation is visible.
     /// </summary>
-    public PdfDictionary OptionalContent { get; }
+    public PdfDictionary? OptionalContent { get; }
 
     /// <summary>
     /// Gets the reference to the annotation that this annotation is in reply to.
@@ -324,7 +324,6 @@ public abstract class PdfAnnotationBase
     /// <param name="page">The PDF page containing this annotation.</param>
     /// <param name="visualStateKind">The visual state to render (Normal, Rollover, Down).</param>
     /// <param name="renderer">The renderer context for rendering appearance streams.</param>
-    /// <param name="renderingParameters">Rendering parameters instance.</param>
     /// <param name="observer">Observer for long-running operations.</param>
     /// <returns>True if the annotation was rendered, false otherwise.</returns>
     internal virtual bool Render(
@@ -332,7 +331,6 @@ public abstract class PdfAnnotationBase
         IPdfPageInternal page,
         PdfAnnotationVisualStateKind visualStateKind,
         IPdfRenderer renderer,
-        PdfRenderingParameters renderingParameters,
         IPdfExecutionObserver observer)
     {
         processor.Process(new SaveStateCommand());
@@ -341,15 +339,15 @@ public abstract class PdfAnnotationBase
         {
             if (ShouldDisplayBubble)
             {
-                PdfAnnotationBubbleRenderer.RenderBubble(processor, this, page, visualStateKind, renderingParameters);
+                PdfAnnotationBubbleRenderer.RenderBubble(processor, this, page, visualStateKind);
             }
 
-            if (AppearanceDictionary != null && RenderAppearanceStream(processor, page, visualStateKind, renderer, renderingParameters, observer))
+            if (AppearanceDictionary != null && RenderAppearanceStream(processor, page, visualStateKind, renderer, observer))
             {
                 return true;
             }
 
-            return RenderFallback(processor, page, visualStateKind, renderingParameters);
+            return RenderFallback(processor, page, visualStateKind);
         }
         finally
         {
@@ -363,14 +361,13 @@ public abstract class PdfAnnotationBase
     /// <param name="processor">The command processor to emit commands to.</param>
     /// <param name="page">The PDF page containing this annotation.</param>
     /// <param name="visualStateKind">The visual state to render (Normal, Rollover, Down).</param>
-    /// <param name="renderingParameters">Rendering parameters instance.</param>
     /// <returns>True if fallback rendering was emitted, false if no fallback is available.</returns>
     /// <remarks>
     /// This method allows each annotation type to provide its own custom rendering logic
     /// when the annotation doesn't have an appearance stream.
     /// The visual state allows annotations to change their appearance based on user interaction.
     /// </remarks>
-    internal abstract bool RenderFallback(IPdfCommandProcessor processor, IPdfPageInternal page, PdfAnnotationVisualStateKind visualStateKind, PdfRenderingParameters renderingParameters);
+    internal abstract bool RenderFallback(IPdfCommandProcessor processor, IPdfPageInternal page, PdfAnnotationVisualStateKind visualStateKind);
 
     /// <summary>
     /// Renders the appearance stream for this annotation.
@@ -379,7 +376,6 @@ public abstract class PdfAnnotationBase
     /// <param name="page">The PDF page containing this annotation.</param>
     /// <param name="visualStateKind">The visual state to render.</param>
     /// <param name="renderer">The renderer context.</param>
-    /// <param name="renderingParameters">Rendering parameters.</param>
     /// <param name="observer">Observer for long-running operations.</param>
     /// <returns>True if the appearance stream was rendered successfully.</returns>
     internal virtual bool RenderAppearanceStream(
@@ -387,7 +383,6 @@ public abstract class PdfAnnotationBase
         IPdfPageInternal page,
         PdfAnnotationVisualStateKind visualStateKind,
         IPdfRenderer renderer,
-        PdfRenderingParameters renderingParameters,
         IPdfExecutionObserver observer)
     {
         return PdfAnnotationAppearanceRenderer.RenderAppearanceStream(
@@ -396,7 +391,6 @@ public abstract class PdfAnnotationBase
             page,
             visualStateKind,
             renderer,
-            renderingParameters,
             observer);
     }
 

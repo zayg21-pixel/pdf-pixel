@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Microsoft.Extensions.Logging;
 using PdfPixel.Color.ColorSpace;
 using PdfPixel.Color.Icc.Model;
 using PdfPixel.Models;
@@ -25,11 +26,16 @@ internal sealed class PdfOutputIntentParser
     };
 
     private readonly IPdfDocumentInternal _document;
+    private readonly ILogger<PdfOutputIntentParser> _logger;
 
     /// <summary>
     /// Construct parser and populate document.OutputIntentProfile.
     /// </summary>
-    public PdfOutputIntentParser(IPdfDocumentInternal document) => _document = document ?? throw new ArgumentNullException(nameof(document));
+    public PdfOutputIntentParser(IPdfDocumentInternal document)
+    {
+        _document = document ?? throw new ArgumentNullException(nameof(document));
+        _logger = document.LoggerFactory.CreateLogger<PdfOutputIntentParser>();
+    }
 
     /// <summary>
     /// Parses the first valid output intent profile from the PDF document's catalog and assigns it to the
@@ -37,7 +43,7 @@ internal sealed class PdfOutputIntentParser
     /// </summary>
     public void ParseFirstOutputIntentProfile()
     {
-        PdfObject rootObject = _document.RootObject;
+        PdfObject? rootObject = _document.RootObject;
         if (rootObject == null)
         {
             return;
@@ -50,7 +56,7 @@ internal sealed class PdfOutputIntentParser
         }
 
         // Collect all intents.
-        List<PdfObject> intents = catalogDict.GetObjects(PdfTokens.OutputIntentsKey);
+        List<PdfObject>? intents = catalogDict.GetObjects(PdfTokens.OutputIntentsKey);
         if (intents == null || intents.Count == 0)
         {
             return;
@@ -63,20 +69,16 @@ internal sealed class PdfOutputIntentParser
             preferredRank[PreferredIntentOrder[index]] = index;
         }
 
-        IccProfile firstFallback = null;
+        IccProfile? firstFallback = null;
         int bestRank = int.MaxValue;
-        IccProfile bestProfile = null;
+        IccProfile? bestProfile = null;
 
         foreach (PdfObject intentObj in intents)
         {
-            PdfDictionary? dict = intentObj?.Dictionary;
-            if (dict == null)
-            {
-                continue;
-            }
+            PdfDictionary dict = intentObj.Dictionary;
 
             // /DestOutputProfile may be indirect or direct stream.
-            PdfObject profileObj = dict.GetObject(PdfTokens.DestOutputProfileKey);
+            PdfObject? profileObj = dict.GetObject(PdfTokens.DestOutputProfileKey);
             if (profileObj?.HasStream != true)
             {
                 continue; // No stream to parse.
@@ -94,10 +96,13 @@ internal sealed class PdfOutputIntentParser
             {
                 parsed = IccProfile.Parse(profileBytes);
             }
-            catch
+#pragma warning disable CA1031
+            catch (Exception ex)
             {
-                continue; // Invalid ICC profile – ignore entry.
+                _logger.LogWarning(ex, "Failed to parse ICC profile in OutputIntent; skipping entry.");
+                continue;
             }
+#pragma warning restore CA1031
 
             if (parsed == null)
             {
@@ -119,7 +124,7 @@ internal sealed class PdfOutputIntentParser
                 bestProfile = parsed;
                 if (bestRank == 0)
                 {
-                    break; // Highest priority reached (PDF/X) – stop early.
+                    break; // Highest priority reached (PDF/X) ï¿½ stop early.
                 }
             }
 

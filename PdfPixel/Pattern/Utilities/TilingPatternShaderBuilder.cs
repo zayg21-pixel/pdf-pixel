@@ -22,7 +22,7 @@ internal sealed class TilingPatternShaderBuilder
     /// <param name="pattern">Tiling pattern definition.</param>
     /// <param name="sourceState">Source state for rendering.</param>
     /// <returns>A <see cref="PdfCommandRecorder"/> containing the recorded pattern cell, or null if the cell is empty.</returns>
-    public static PdfCommandRecorder RenderTilingCell(IPdfRenderer renderer, PdfTilingPattern pattern, PdfGraphicsState sourceState)
+    public static PdfCommandRecorder? RenderTilingCell(IPdfRenderer renderer, PdfTilingPattern pattern, PdfGraphicsState sourceState)
     {
         System.ReadOnlyMemory<byte> streamData = pattern.SourceObject.DecodeAsMemory();
 

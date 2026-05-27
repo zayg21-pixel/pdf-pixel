@@ -12,10 +12,10 @@ namespace PdfPixel.Commands;
 public sealed class DrawRecordingCommand : PdfCommand
 {
     private readonly PdfCommandRecorder _recorder;
-    private readonly IPdfCommandModifier _modifier;
+    private readonly IPdfCommandModifier? _modifier;
     private readonly bool _disposeRecording;
 
-    public DrawRecordingCommand(PdfCommandRecorder recorder, IPdfCommandModifier modifier, bool disposeRecording = true)
+    public DrawRecordingCommand(PdfCommandRecorder recorder, IPdfCommandModifier? modifier, bool disposeRecording = true)
     {
         _recorder = recorder;
         _modifier = modifier;

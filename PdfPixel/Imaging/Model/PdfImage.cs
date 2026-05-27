@@ -9,46 +9,32 @@ using System.IO;
 
 namespace PdfPixel.Imaging.Model;
 
-public enum PdfImageAlphaMode
-{
-    /// <summary>
-    /// No alpha.
-    /// </summary>
-    Normal,
-
-    /// <summary>
-    /// <see cref="PdfImage.HasImageMask"/> is true, background is defined by background color or pattern,
-    /// Image contents sets alpha transparency. <see cref="MaskArray"/> can contain properties to invert mask.
-    /// </summary>
-    StencilMask,
-
-    /// <summary>
-    /// Image transparency is defined by <see cref="PdfImage.SoftMask"/>.
-    /// </summary>
-    ImageWithSoftAlphaMask,
-
-    /// <summary>
-    /// Image transparency is defined by <see cref="PdfImage.StencilMask"/>.
-    /// </summary>
-    ImageWithStencilMask
-}
-
 /// <summary>
 /// Represents a PDF Image XObject with all its properties and data.
 /// Parsed values are populated in FromXObject to keep this data object immutable from outside.
 /// </summary>
 public class PdfImage
 {
+    private PdfImage(IPdfPageInternal page, PdfObject sourceObject, int width, int height)
+    {
+        Page = page;
+        SourceObject = sourceObject;
+        Width = width;
+        Height = height;
+    }
+
+    internal IPdfPageInternal Page { get; }
+
     /// <summary>
     /// Gets the underlying <see cref="PdfObject"/> that serves as the source for this instance.
     /// </summary>
-    public PdfObject SourceObject { get; internal set; }
+    public PdfObject SourceObject { get; }
 
     /// <summary>
     /// Returns the raw image data decoded from the PDF stream after reversing the /Filter chain.
     /// </summary>
     /// <returns></returns>
-    public ReadOnlyMemory<byte> GetImageData(IPdfExecutionObserver observer) => SourceObject.DecodeAsMemory(observer);
+    public ReadOnlyMemory<byte> GetImageData(IPdfExecutionObserver? observer) => SourceObject.DecodeAsMemory(observer);
 
     /// <summary>
     /// Retrieves the image data as a stream (for large images).
@@ -58,12 +44,12 @@ public class PdfImage
     /// <summary>
     /// Image width in pixels (/Width).
     /// </summary>
-    public int Width { get; internal set; }
+    public int Width { get; }
 
     /// <summary>
     /// Image height in pixels (/Height).
     /// </summary>
-    public int Height { get; internal set; }
+    public int Height { get; }
 
     /// <summary>
     /// Number of bits per color component (/BitsPerComponent).
@@ -74,7 +60,7 @@ public class PdfImage
     /// <summary>
     /// Color space (/ColorSpace). Resolved to a strongly-typed converter for sample interpretation.
     /// </summary>
-    public PdfColorSpaceConverter ColorSpaceConverter { get; internal set; }
+    public PdfColorSpaceConverter? ColorSpaceConverter { get; internal set; }
 
     /// <summary>
     /// Debug-friendly name for this image (resource name in /XObject dictionary when available).
@@ -94,7 +80,7 @@ public class PdfImage
     /// <summary>
     /// Parsed /DecodeParms entries (single dictionary or first image-related entry when array) used by certain filters and predictors.
     /// </summary>
-    public PdfDecodeParameters DecodeParms { get; internal set; }
+    public PdfDecodeParameters? DecodeParms { get; internal set; }
 
     /// <summary>
     /// True when explicit image masking is enabled (/ImageMask true).
@@ -105,12 +91,12 @@ public class PdfImage
     /// Color key mask array (/Mask array) flattened to integer sample codes. Null when /Mask is not an array.
     /// Values are in the raw sample value domain for each component prior to any /Decode mapping.
     /// </summary>
-    public int[] MaskArray { get; internal set; }
+    public int[]? MaskArray { get; internal set; }
 
     /// <summary>
     /// Per-component decode mapping array (/Decode) as floats: [d0, d1] per component.
     /// </summary>
-    public float[] DecodeArray { get; internal set; }
+    public float[]? DecodeArray { get; internal set; }
 
     /// <summary>
     /// Indicates whether interpolation should be applied when scaling the image (/Interpolate).
@@ -125,19 +111,19 @@ public class PdfImage
     /// <summary>
     /// Raw /Matte array from the image dictionary, if present.
     /// </summary>
-    public float[] MatteArray { get; internal set; }
+    public float[]? MatteArray { get; internal set; }
 
     /// <summary>
     /// The soft mask image associated with this image, if any.
     /// </summary>
-    public PdfImage SoftMask { get; internal set; }
+    public PdfImage? SoftMask { get; internal set; }
 
     /// <summary>
     /// External stencil mask image (/Mask referencing an image XObject).
     /// Where the mask sample is 1 the corresponding image sample is painted; where 0 it is masked out.
     /// Null when /Mask is not an image XObject reference.
     /// </summary>
-    public PdfImage StencilMask { get; internal set; }
+    public PdfImage? StencilMask { get; internal set; }
 
     /// <summary>
     /// Create a PdfImage from XObject data.
@@ -152,37 +138,32 @@ public class PdfImage
             bitsPerComponent = 1;
         }
 
-        int defaultComponents = GetDefaultComponents(bitsPerComponent);
-
-        PdfImage image = new()
+        PdfImage image = new(page, imageXObject, imageXObject.Dictionary.GetIntegerOrDefault(PdfTokens.WidthKey), imageXObject.Dictionary.GetIntegerOrDefault(PdfTokens.HeightKey))
         {
-            SourceObject = imageXObject,
-            Width = imageXObject.Dictionary.GetIntegerOrDefault(PdfTokens.WidthKey),
-            Height = imageXObject.Dictionary.GetIntegerOrDefault(PdfTokens.HeightKey),
             BitsPerComponent = bitsPerComponent,
-            ColorSpaceConverter = page.Cache.ColorSpace.ResolveByObject(imageXObject.Dictionary.GetObject(PdfTokens.ColorSpaceKey), defaultComponents),
+            ColorSpaceConverter = page.Cache.ColorSpace.ResolveByObject(imageXObject.Dictionary.GetObject(PdfTokens.ColorSpaceKey), defaultComponents: -1),
             Name = name
         };
 
         image.HasImageMask = imageXObject.Dictionary.GetBooleanOrDefault(PdfTokens.ImageMaskKey);
         image.Interpolate = imageXObject.Dictionary.GetBooleanOrDefault(PdfTokens.InterpolateKey);
 
-        float[] decodeArray = imageXObject.Dictionary.GetArray(PdfTokens.DecodeKey)?.GetFloatArray();
+        float[]? decodeArray = imageXObject.Dictionary.GetArray(PdfTokens.DecodeKey)?.GetFloatArray();
 
         // don't set near-identical decode or decode for indexed as in indexed it's just a clamp-hint
-        if (!(image.ColorSpaceConverter is IndexedConverter || !ShouldApplyDecode(decodeArray, image.ColorSpaceConverter.Components)))
+        if (!(image.ColorSpaceConverter is IndexedConverter || !ShouldApplyDecode(decodeArray, image.ColorSpaceConverter)))
         {
             image.DecodeArray = decodeArray;
         }
 
-        PdfArray maskArray = imageXObject.Dictionary.GetArray(PdfTokens.MaskKey);
+        PdfArray? maskArray = imageXObject.Dictionary.GetArray(PdfTokens.MaskKey);
         if (maskArray != null)
         {
             image.MaskArray = maskArray.GetIntegerArray();
         }
         else
         {
-            PdfObject maskObject = imageXObject.Dictionary.GetObject(PdfTokens.MaskKey);
+            PdfObject? maskObject = imageXObject.Dictionary.GetObject(PdfTokens.MaskKey);
             if (maskObject?.HasStream == true)
             {
                 image.StencilMask = FromXObject(maskObject, page, name, isSoftMask: true);
@@ -203,18 +184,18 @@ public class PdfImage
             image.Type = MapImageType(filters[filters.Count - 1]);
         }
 
-        PdfDictionary decodeParmsDict = imageXObject.Dictionary.GetDictionary(PdfTokens.DecodeParmsKey);
+        PdfDictionary? decodeParmsDict = imageXObject.Dictionary.GetDictionary(PdfTokens.DecodeParmsKey);
         if (decodeParmsDict != null)
         {
             image.DecodeParms = PdfDecodeParameters.FromDictionary(decodeParmsDict);
         }
         else
         {
-            PdfArray decodeParmsArray = imageXObject.Dictionary.GetArray(PdfTokens.DecodeParmsKey);
+            PdfArray? decodeParmsArray = imageXObject.Dictionary.GetArray(PdfTokens.DecodeParmsKey);
             if (decodeParmsArray != null)
             {
                 // image DecodeParms corresponds to the last entry in the array
-                PdfDictionary imageDecodeParamsDictionary = decodeParmsArray.GetDictionary(decodeParmsArray.Count - 1);
+                PdfDictionary? imageDecodeParamsDictionary = decodeParmsArray.GetDictionary(decodeParmsArray.Count - 1);
 
                 if (imageDecodeParamsDictionary != null)
                 {
@@ -224,7 +205,7 @@ public class PdfImage
         }
 
         // Parse /SMask as a soft mask image if present
-        PdfObject softMaskObject = imageXObject.Dictionary.GetObject(PdfTokens.SoftMaskKey);
+        PdfObject? softMaskObject = imageXObject.Dictionary.GetObject(PdfTokens.SoftMaskKey);
         if (softMaskObject != null)
         {
             image.SoftMask = FromXObject(softMaskObject, page, name, isSoftMask: true);
@@ -246,35 +227,30 @@ public class PdfImage
         return image;
     }
 
-    private static bool ShouldApplyDecode(float[] decode, int channelCount)
+    private static bool ShouldApplyDecode(float[]? decode, PdfColorSpaceConverter? colorSpaceConverter)
     {
-        if (decode == null || decode.Length != channelCount * 2)
+        if (colorSpaceConverter == null)
         {
             return false;
         }
 
-        const float Epsilon = 1e-5f;
-        for (int i = 0; i < channelCount; i++)
+        if (decode == null || decode.Length != colorSpaceConverter.Components * 2)
+        {
+            return false;
+        }
+
+        const float epsilon = 1e-5f;
+        for (int i = 0; i < colorSpaceConverter.Components; i++)
         {
             float min = decode[i * 2];
             float max = decode[(i * 2) + 1];
-            if (Math.Abs(min - 0f) > Epsilon || Math.Abs(max - 1f) > Epsilon)
+            if (Math.Abs(min - 0f) > epsilon || Math.Abs(max - 1f) > epsilon)
             {
                 return true;
             }
         }
 
         return false;
-    }
-
-    private static int GetDefaultComponents(int bitsPerComponent)
-    {
-        return bitsPerComponent switch
-        {
-            0 => 1,
-            1 => 1,
-            _ => 3
-        };
     }
 
     private static PdfImageType MapImageType(PdfFilterType filterType)

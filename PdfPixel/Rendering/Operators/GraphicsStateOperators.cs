@@ -215,7 +215,7 @@ internal class GraphicsStateOperators : IOperatorProcessor
             return;
         }
 
-        float[] dashArray = operands[0].AsArray().GetFloatArray();
+        float[]? dashArray = operands[0].AsArray()?.GetFloatArray();
         float dashPhase = operands[1].AsFloat();
 
         if (dashArray?.Length > 0)
@@ -255,7 +255,7 @@ internal class GraphicsStateOperators : IOperatorProcessor
         graphicsState.FlatnessTolerance = flatness;
     }
 
-    public static float[] GetDashPattern(float[] pattern)
+    public static float[]? GetDashPattern(float[] pattern)
     {
         if (pattern == null || pattern.Length == 0)
         {
@@ -271,7 +271,7 @@ internal class GraphicsStateOperators : IOperatorProcessor
             pattern = extended;
         }
 
-        const float Epsilon = 0.001f;
+        const float epsilon = 0.001f;
         float sum = 0f;
         for (int i = 0; i < pattern.Length; i++)
         {
@@ -284,7 +284,7 @@ internal class GraphicsStateOperators : IOperatorProcessor
             else if (dash <= 0)
             {
                 // Replace non-positive dashes with a small epsilon
-                pattern[i] = Epsilon;
+                pattern[i] = epsilon;
             }
         }
 

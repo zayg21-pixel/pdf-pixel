@@ -34,7 +34,7 @@ namespace PdfPixel.Streams
         // Row buffer. TIFF layout: [row data]; PNG layout: [margin bytes][filter byte][row data].
         private readonly byte[] _currentRow;
         // Previous row buffer for PNG predictors (same layout as _currentRow). Null for TIFF / identity.
-        private readonly byte[] _previousRow;
+        private readonly byte[]? _previousRow;
 
         // Left margin size (bytesPerPixel) used only for PNG to eliminate left boundary checks; 0 otherwise.
         private readonly int _rowMarginBytes;
@@ -260,6 +260,11 @@ namespace PdfPixel.Streams
             }
             else if (_predictor >= 10 && _predictor <= 15)
             {
+                if (_previousRow == null)
+                {
+                    throw new ArgumentNullException(nameof(_previousRow));
+                }
+
                 PngFilterUndo.UndoPngFilter(filterByte, _currentRow, _previousRow, _rowMarginBytes, _rowDataOffset, _decodedRowBytes);
                 // Copy decoded pixel data (exclude margin + filter byte) for next row reference.
                 Buffer.BlockCopy(_currentRow, _rowDataOffset, _previousRow, _rowDataOffset, _decodedRowBytes);

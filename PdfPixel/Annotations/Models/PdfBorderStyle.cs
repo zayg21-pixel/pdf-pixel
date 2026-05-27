@@ -20,7 +20,7 @@ public sealed class PdfBorderStyle
     /// <param name="width">The border width.</param>
     /// <param name="style">The border style type.</param>
     /// <param name="dashPattern">The dash pattern array for dashed borders.</param>
-    private PdfBorderStyle(float width, PdfBorderStyleType style, float[] dashPattern)
+    private PdfBorderStyle(float width, PdfBorderStyleType style, float[]? dashPattern)
     {
         Width = width;
         Style = style;
@@ -50,7 +50,7 @@ public sealed class PdfBorderStyle
     /// The dash pattern is an array of numbers that specify the lengths of alternating dashes and gaps.
     /// This is only applicable when Style is Dashed. Returns null if not specified or not a dashed border.
     /// </remarks>
-    public float[] DashPattern { get; }
+    public float[]? DashPattern { get; }
 
     /// <summary>
     /// Creates a PdfBorderStyle instance from a border style dictionary and/or legacy border array.
@@ -58,15 +58,15 @@ public sealed class PdfBorderStyle
     /// <param name="borderStyleDictionary">The border style dictionary (BS entry), or null.</param>
     /// <param name="borderArray">The legacy border array (Border entry), or null.</param>
     /// <returns>A PdfBorderStyle instance, or null if no border information is present.</returns>
-    public static PdfBorderStyle FromDictionary(PdfDictionary borderStyleDictionary, PdfArray borderArray)
+    public static PdfBorderStyle? FromDictionary(PdfDictionary? borderStyleDictionary, PdfArray? borderArray)
     {
         if (borderStyleDictionary != null)
         {
             float width = borderStyleDictionary.GetFloat(PdfTokens.WKey) ?? 1.0f;
             PdfBorderStyleType style = borderStyleDictionary.GetName(PdfTokens.SKey).AsEnum<PdfBorderStyleType>();
 
-            float[] dashPattern = null;
-            PdfArray dashArray = borderStyleDictionary.GetArray(PdfTokens.DashArrayKey);
+            float[]? dashPattern = null;
+            PdfArray? dashArray = borderStyleDictionary.GetArray(PdfTokens.DashArrayKey);
             if (dashArray?.Count > 0)
             {
                 float[] rawPattern = dashArray.GetFloatArray();
@@ -81,10 +81,10 @@ public sealed class PdfBorderStyle
             float width = borderArray.GetFloatOrDefault(2);
             var style = PdfBorderStyleType.Solid;
 
-            float[] dashPattern = null;
+            float[]? dashPattern = null;
             if (borderArray.Count >= 4)
             {
-                PdfArray dashArrayEntry = borderArray.GetArray(3);
+                PdfArray? dashArrayEntry = borderArray.GetArray(3);
                 if (dashArrayEntry?.Count > 0)
                 {
                     float[] rawPattern = dashArrayEntry.GetFloatArray();

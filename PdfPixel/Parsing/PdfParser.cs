@@ -30,7 +30,7 @@ internal ref partial struct PdfParser
     ];
 
     private readonly List<byte> _localBuffer = [];
-    private readonly BufferedStream _stream;
+    private readonly BufferedStream? _stream;
     private readonly bool _streamMode;
     private readonly IPdfDocumentInternal _document;
     private readonly int _length;
@@ -88,7 +88,7 @@ internal ref partial struct PdfParser
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public IPdfValue ReadNextValue()
+    public IPdfValue? ReadNextValue()
     {
         List<IPdfValue> values = [];
         Stack<CollectionFrame> frames = [];

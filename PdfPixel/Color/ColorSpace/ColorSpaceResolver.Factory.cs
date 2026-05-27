@@ -10,21 +10,21 @@ namespace PdfPixel.Color.ColorSpace
     /// </summary>
     internal partial class ColorSpaceResolver
     {
-        private PdfColorSpaceConverter CreateIndexedColorSpace(IPdfValue colorSpaceValue)
+        private IndexedConverter? CreateIndexedColorSpace(IPdfValue colorSpaceValue)
         {
             if (colorSpaceValue == null)
             {
                 return null;
             }
 
-            PdfArray colorSpaceArray = colorSpaceValue.AsArray();
+            PdfArray? colorSpaceArray = colorSpaceValue.AsArray();
             if (colorSpaceArray == null || colorSpaceArray.Count < 4)
             {
                 return null;
             }
 
-            PdfObject baseColorSpaceValue = colorSpaceArray.GetObject(1);
-            PdfColorSpaceConverter baseConverter = ResolveByObject(baseColorSpaceValue);
+            PdfObject? baseColorSpaceValue = colorSpaceArray.GetObject(1);
+            PdfColorSpaceConverter? baseConverter = ResolveByObject(baseColorSpaceValue);
             if (baseConverter == null)
             {
                 return null;
@@ -38,7 +38,7 @@ namespace PdfPixel.Color.ColorSpace
 
             byte[] lookupTableBytes = Array.Empty<byte>();
 
-            PdfObject lookupObject = colorSpaceArray.GetObject(3);
+            PdfObject? lookupObject = colorSpaceArray.GetObject(3);
             if (lookupObject != null)
             {
                 ReadOnlyMemory<byte> lookupData = lookupObject.DecodeAsMemory();
@@ -56,39 +56,39 @@ namespace PdfPixel.Color.ColorSpace
             return new IndexedConverter(baseConverter, highestIndex, lookupTableBytes);
         }
 
-        private PdfColorSpaceConverter CreateSeparationColorSpace(IPdfValue colorSpaceValue)
+        private SeparationColorSpaceConverter? CreateSeparationColorSpace(IPdfValue colorSpaceValue)
         {
             if (colorSpaceValue == null)
             {
                 return null;
             }
 
-            PdfArray colorSpaceArray = colorSpaceValue.AsArray();
+            PdfArray? colorSpaceArray = colorSpaceValue.AsArray();
             if (colorSpaceArray == null || colorSpaceArray.Count < 4)
             {
                 return null;
             }
 
             PdfString colorantName = colorSpaceArray.GetName(1);
-            PdfColorSpaceConverter alternateConverter = ResolveByObject(colorSpaceArray.GetObject(2));
-            PdfFunction tintFunction = ResolveTintFunction(colorSpaceArray, 3);
+            PdfColorSpaceConverter? alternateConverter = ResolveByObject(colorSpaceArray.GetObject(2));
+            PdfFunction? tintFunction = ResolveTintFunction(colorSpaceArray, 3);
             return new SeparationColorSpaceConverter(colorantName, alternateConverter, tintFunction);
         }
 
-        private PdfColorSpaceConverter CreateDeviceNColorSpace(IPdfValue colorSpaceValue)
+        private DeviceNColorSpaceConverter? CreateDeviceNColorSpace(IPdfValue colorSpaceValue)
         {
             if (colorSpaceValue == null)
             {
                 return null;
             }
 
-            PdfArray colorSpaceArray = colorSpaceValue.AsArray();
+            PdfArray? colorSpaceArray = colorSpaceValue.AsArray();
             if (colorSpaceArray == null || colorSpaceArray.Count < 4)
             {
                 return null;
             }
 
-            PdfArray namesArray = colorSpaceArray.GetArray(1);
+            PdfArray? namesArray = colorSpaceArray.GetArray(1);
             if (namesArray == null || namesArray.Count == 0)
             {
                 return null;
@@ -100,14 +100,14 @@ namespace PdfPixel.Color.ColorSpace
                 colorantNames[i] = namesArray.GetString(i);
             }
 
-            PdfColorSpaceConverter alternateConverter = ResolveByObject(colorSpaceArray.GetObject(2));
-            PdfFunction tintFunction = ResolveTintFunction(colorSpaceArray, 3);
+            PdfColorSpaceConverter? alternateConverter = ResolveByObject(colorSpaceArray.GetObject(2));
+            PdfFunction? tintFunction = ResolveTintFunction(colorSpaceArray, 3);
             return new DeviceNColorSpaceConverter(colorantNames, alternateConverter, tintFunction);
         }
 
-        private PdfColorSpaceConverter CreateCalGrayColorSpace(IPdfValue colorSpaceValue)
+        private CalGrayConverter? CreateCalGrayColorSpace(IPdfValue colorSpaceValue)
         {
-            PdfDictionary dictionary = GetDictionaryValue(colorSpaceValue);
+            PdfDictionary? dictionary = GetDictionaryValue(colorSpaceValue);
             if (dictionary == null)
             {
                 return null;
@@ -121,9 +121,9 @@ namespace PdfPixel.Color.ColorSpace
             return new CalGrayConverter(whitePoint, blackPoint, gamma);
         }
 
-        private PdfColorSpaceConverter CreateCalRrgbColorSpace(IPdfValue colorSpaceValue)
+        private CalRgbConverter? CreateCalRrgbColorSpace(IPdfValue colorSpaceValue)
         {
-            PdfDictionary dictionary = GetDictionaryValue(colorSpaceValue);
+            PdfDictionary? dictionary = GetDictionaryValue(colorSpaceValue);
             if (dictionary == null)
             {
                 return null;
@@ -131,7 +131,7 @@ namespace PdfPixel.Color.ColorSpace
 
             float[]? whitePoint = dictionary.GetArray(PdfTokens.WhitePointKey)?.GetFloatArray();
 
-            float[] gamma = null;
+            float[]? gamma;
             float? gammaSingle = dictionary.GetFloat(PdfTokens.GammaKey);
 
             if (gammaSingle.HasValue)
@@ -170,9 +170,10 @@ namespace PdfPixel.Color.ColorSpace
             return new CalRgbConverter(whitePoint, blackPoint, gamma, matrix);
         }
 
-        private PdfColorSpaceConverter CreateIccColorSpace(IPdfValue colorSpaceValue)
+        private IccBasedConverter? CreateIccColorSpace(IPdfValue colorSpaceValue)
         {
-            PdfObject pdfObject = GetObjectValue(colorSpaceValue);
+            PdfObject? pdfObject = GetObjectValue(colorSpaceValue);
+
             if (pdfObject == null)
             {
                 return null;
@@ -180,9 +181,9 @@ namespace PdfPixel.Color.ColorSpace
 
             PdfDictionary dictionary = pdfObject.Dictionary;
             int componentCount = dictionary.GetIntegerOrDefault(PdfTokens.NKey);
-            PdfColorSpaceConverter alternateConverter = ResolveByObject(dictionary.GetObject(PdfTokens.AlternateKey), componentCount);
+            PdfColorSpaceConverter? alternateConverter = ResolveByObject(dictionary.GetObject(PdfTokens.AlternateKey), componentCount);
 
-            byte[] iccProfileBytes = null;
+            byte[]? iccProfileBytes = null;
             if (pdfObject.HasStream)
             {
                 ReadOnlyMemory<byte> iccData = pdfObject.DecodeAsMemory();
@@ -192,15 +193,15 @@ namespace PdfPixel.Color.ColorSpace
             return new IccBasedConverter(componentCount, alternateConverter, iccProfileBytes);
         }
 
-        private PdfColorSpaceConverter CreatePatternColorSpace(IPdfValue colorSpaceValue)
+        private PatternColorSpaceConverter CreatePatternColorSpace(IPdfValue colorSpaceValue)
         {
             if (colorSpaceValue != null && colorSpaceValue.Type == PdfValueType.Array)
             {
-                PdfArray colorSpaceArray = colorSpaceValue.AsArray();
+                PdfArray? colorSpaceArray = colorSpaceValue.AsArray();
                 if (colorSpaceArray?.Count >= 2)
                 {
-                    PdfObject baseColorSpaceValue = colorSpaceArray.GetObject(1);
-                    PdfColorSpaceConverter baseConverter = ResolveByObject(baseColorSpaceValue);
+                    PdfObject? baseColorSpaceValue = colorSpaceArray.GetObject(1);
+                    PdfColorSpaceConverter? baseConverter = ResolveByObject(baseColorSpaceValue);
                     return new PatternColorSpaceConverter(baseConverter);
                 }
             }
@@ -208,9 +209,9 @@ namespace PdfPixel.Color.ColorSpace
             return new PatternColorSpaceConverter(null);
         }
 
-        private static PdfColorSpaceConverter CreateLabColorSpace(IPdfValue colorSpaceValue)
+        private static LabColorSpaceConverter? CreateLabColorSpace(IPdfValue colorSpaceValue)
         {
-            PdfDictionary dictionary = GetDictionaryValue(colorSpaceValue);
+            PdfDictionary? dictionary = GetDictionaryValue(colorSpaceValue);
             if (dictionary == null)
             {
                 return null;
@@ -223,14 +224,14 @@ namespace PdfPixel.Color.ColorSpace
             return new LabColorSpaceConverter(whitePoint, blackPoint, range);
         }
 
-        private PdfFunction ResolveTintFunction(PdfArray colorSpaceArray, int tintFunctionIndex)
+        private PdfFunction? ResolveTintFunction(PdfArray colorSpaceArray, int tintFunctionIndex)
         {
             if (colorSpaceArray == null)
             {
                 return null;
             }
 
-            PdfObject tintFunctionObject = colorSpaceArray.GetObject(tintFunctionIndex);
+            PdfObject? tintFunctionObject = colorSpaceArray.GetObject(tintFunctionIndex);
             if (tintFunctionObject != null)
             {
                 return PdfFunctions.GetFunction(tintFunctionObject);
@@ -239,14 +240,14 @@ namespace PdfPixel.Color.ColorSpace
             return null;
         }
 
-        private static PdfDictionary GetDictionaryValue(IPdfValue value)
+        private static PdfDictionary? GetDictionaryValue(IPdfValue value)
         {
             if (value == null)
             {
                 return null;
             }
 
-            PdfArray parametersArray = value.AsArray();
+            PdfArray? parametersArray = value.AsArray();
             if (parametersArray == null || parametersArray.Count < 2)
             {
                 return null;
@@ -255,14 +256,14 @@ namespace PdfPixel.Color.ColorSpace
             return parametersArray.GetDictionary(1);
         }
 
-        private static PdfObject GetObjectValue(IPdfValue value)
+        private static PdfObject? GetObjectValue(IPdfValue? value)
         {
             if (value == null)
             {
                 return null;
             }
 
-            PdfArray parametersArray = value.AsArray();
+            PdfArray? parametersArray = value.AsArray();
             if (parametersArray == null || parametersArray.Count < 2)
             {
                 return null;

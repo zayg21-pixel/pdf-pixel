@@ -17,7 +17,7 @@ internal sealed class DrawStencilMaskedImageTileCommand : PdfCommand
     {
         PdfImageTile imageTile = _context.ImageCache.GetNextTile(executionContext.ExecutionObserver);
         PdfImageTile maskTile = _context.MaskCache.GetNextTile(executionContext.ExecutionObserver);
-        if (imageTile.IsSkipped || maskTile.IsSkipped)
+        if (imageTile.IsSkipped || maskTile.IsSkipped || imageTile.Image == null || maskTile.Image == null)
         {
             return;
         }

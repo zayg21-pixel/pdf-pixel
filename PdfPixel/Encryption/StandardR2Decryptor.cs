@@ -1,4 +1,5 @@
 using System;
+using PdfPixel;
 using PdfPixel.Models;
 
 namespace PdfPixel.Encryption
@@ -48,7 +49,7 @@ namespace PdfPixel.Encryption
             0x7A
         ];
 
-        private byte[] _fileKey;
+        private byte[]? _fileKey;
         private int _fileKeyLengthBytes;
         private string _lastPassword = string.Empty;
         private bool _userValidated;
@@ -66,11 +67,6 @@ namespace PdfPixel.Encryption
             }
 
             EnsureFileKey();
-            if (_fileKey == null)
-            {
-                return data;
-            }
-
             byte[] objectKey = DeriveObjectKey(reference);
             return Rc4(objectKey, data.Span);
         }
@@ -95,8 +91,12 @@ namespace PdfPixel.Encryption
 
             if (Parameters.FileIdFirst == null)
             {
-                // Cannot derive key reliably without file ID – abort silently (consumer will treat as unencrypted fallback).
-                return;
+                throw new PdfInvalidDocumentException("Encrypted document is missing the required /ID first entry.");
+            }
+
+            if (Parameters.OwnerEntry == null)
+            {
+                throw new PdfInvalidDocumentException("Encrypted document is missing the required /O (owner entry).");
             }
 
             int bits = (Parameters.LengthBits > 0) ? Parameters.LengthBits : DefaultKeyBits;
@@ -118,10 +118,7 @@ namespace PdfPixel.Encryption
                 byte[] pwdBytes = GetPasswordBytes();
                 md5.TransformBlock(pwdBytes, 0, pwdBytes.Length, null, 0);
 
-                if (Parameters.OwnerEntry != null)
-                {
-                    md5.TransformBlock(Parameters.OwnerEntry, 0, Parameters.OwnerEntry.Length, null, 0);
-                }
+                md5.TransformBlock(Parameters.OwnerEntry, 0, Parameters.OwnerEntry.Length, null, 0);
 
                 byte[] p = BitConverter.GetBytes(Parameters.Permissions);
                 md5.TransformBlock(p, 0, 4, null, 0);
@@ -143,47 +140,50 @@ namespace PdfPixel.Encryption
                 return;
             }
 
-            if (Parameters.UserEntry == null || _fileKey == null)
+            if (_fileKey == null)
             {
-                return;
+                throw new InvalidOperationException("File key must be computed before validating the password.");
             }
 
-            try
+            if (Parameters.UserEntry == null)
             {
-                byte[] expectedU = ComputeUserEntryR2();
-                // Stored U is 32 bytes: first 16 from RC4 result, remaining padding
-                // Compare full length if available, else compare first 16 bytes.
-                if (Parameters.UserEntry.Length >= 16)
-                {
-                    int compareLength = Math.Min(expectedU.Length, Parameters.UserEntry.Length);
-                    var match = true;
-                    for (int i = 0; i < compareLength; i++)
-                    {
-                        if (expectedU[i] != Parameters.UserEntry[i])
-                        {
-                            match = false;
-                            break;
-                        }
-                    }
+                throw new PdfInvalidDocumentException("Encrypted document is missing the required /U (user entry).");
+            }
 
-                    _userValidated = match;
+            if (Parameters.UserEntry.Length < 16)
+            {
+                throw new PdfInvalidDocumentException("Encrypted document /U entry is too short to validate.");
+            }
+
+            byte[] expectedU = ComputeUserEntryR2();
+            int compareLength = Math.Min(expectedU.Length, Parameters.UserEntry.Length);
+            for (int i = 0; i < compareLength; i++)
+            {
+                if (expectedU[i] != Parameters.UserEntry[i])
+                {
+                    throw new PdfIncorrectPasswordException();
                 }
             }
-            catch
-            {
-                // Ignore validation failures silently – decryption may still proceed for lenient scenarios.
-            }
+
+            _userValidated = true;
         }
 
         private byte[] ComputeUserEntryR2()
         {
+            if (_fileKey == null)
+            {
+                throw new InvalidOperationException("File key must be computed before computing the user entry.");
+            }
+
+            if (Parameters.FileIdFirst == null)
+            {
+                throw new PdfInvalidDocumentException("Encrypted document is missing the required /ID first entry.");
+            }
+
             using (ManagedMd5 md5 = ManagedMd5.Create())
             {
                 md5.TransformBlock(PasswordPadding, 0, PasswordPadding.Length, null, 0);
-                if (Parameters.FileIdFirst != null)
-                {
-                    md5.TransformBlock(Parameters.FileIdFirst, 0, Parameters.FileIdFirst.Length, null, 0);
-                }
+                md5.TransformBlock(Parameters.FileIdFirst, 0, Parameters.FileIdFirst.Length, null, 0);
 
                 md5.TransformFinalBlock(Array.Empty<byte>(), 0, 0);
                 byte[] digest = md5.Hash; // 16 bytes
@@ -200,6 +200,11 @@ namespace PdfPixel.Encryption
 
         private byte[] DeriveObjectKey(in PdfReference reference)
         {
+            if (_fileKey == null)
+            {
+                throw new InvalidOperationException("File key must be computed before deriving the object key.");
+            }
+
             Span<byte> buffer = stackalloc byte[_fileKeyLengthBytes + 5];
             _fileKey.AsSpan(0, _fileKeyLengthBytes).CopyTo(buffer);
             uint obj = reference.ObjectNumber;

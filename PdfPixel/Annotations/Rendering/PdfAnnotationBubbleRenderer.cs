@@ -25,8 +25,7 @@ internal static class PdfAnnotationBubbleRenderer
         IPdfCommandProcessor processor,
         PdfAnnotationBase annotation,
         IPdfPageInternal page,
-        PdfAnnotationVisualStateKind visualStateKind,
-        PdfRenderingParameters renderingParameters)
+        PdfAnnotationVisualStateKind visualStateKind)
     {
         SKRect bubbleRect = annotation.GetHoverRectangle(page);
 
@@ -39,7 +38,7 @@ internal static class PdfAnnotationBubbleRenderer
         SKColor backgroundColor = annotation.ResolveInteriorColor(page, new SKColor(255, 255, 235));
         SKColor borderColor = annotation.ResolveColor(page, new SKColor(180, 140, 60));
 
-        DrawSpeechBubble(processor, bubbleRect, backgroundColor, borderColor, currentBorderWidth, cornerRadius, isHovered, renderingParameters);
+        DrawSpeechBubble(processor, bubbleRect, backgroundColor, borderColor, currentBorderWidth, cornerRadius, isHovered);
     }
 
     /// <summary>
@@ -52,8 +51,7 @@ internal static class PdfAnnotationBubbleRenderer
         in SKColor borderColor,
         float borderWidth,
         float cornerRadius,
-        bool isHovered,
-        PdfRenderingParameters renderingParameters)
+        bool isHovered)
     {
         float tailHeight = bubbleRect.Height * 0.2f;
         if (tailHeight <= 0)
@@ -94,7 +92,6 @@ internal static class PdfAnnotationBubbleRenderer
             {
                 Style = SKPaintStyle.Fill,
                 Color = borderColor.WithAlpha(40),
-                IsAntialias = renderingParameters.Antialias,
                 MaskFilter = SKMaskFilter.CreateBlur(SKBlurStyle.Normal, 1.5f)
             };
 
@@ -104,8 +101,7 @@ internal static class PdfAnnotationBubbleRenderer
         SKPaint fillPaint = new()
         {
             Style = SKPaintStyle.Fill,
-            Color = backgroundColor,
-            IsAntialias = renderingParameters.Antialias
+            Color = backgroundColor
         };
 
         processor.Process(new DrawPathCommand(path, fillPaint));
@@ -114,8 +110,7 @@ internal static class PdfAnnotationBubbleRenderer
         {
             Style = SKPaintStyle.Stroke,
             StrokeWidth = borderWidth,
-            Color = borderColor,
-            IsAntialias = renderingParameters.Antialias
+            Color = borderColor
         };
 
         processor.Process(new DrawPathCommand(path, strokePaint));
@@ -135,7 +130,6 @@ internal static class PdfAnnotationBubbleRenderer
                 Style = SKPaintStyle.Stroke,
                 StrokeWidth = borderWidth * 0.7f,
                 Color = borderColor.WithAlpha(180),
-                IsAntialias = renderingParameters.Antialias,
                 StrokeCap = SKStrokeCap.Round
             };
 
@@ -149,7 +143,6 @@ internal static class PdfAnnotationBubbleRenderer
                 Style = SKPaintStyle.Stroke,
                 StrokeWidth = borderWidth * 0.7f,
                 Color = borderColor.WithAlpha(180),
-                IsAntialias = renderingParameters.Antialias,
                 StrokeCap = SKStrokeCap.Round
             };
 

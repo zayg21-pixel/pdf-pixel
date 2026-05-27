@@ -24,11 +24,11 @@ internal partial class PdfShadingBuilder
     /// <param name="fullTransferFunction">Transfer function for color conversion.</param>
     /// <param name="defaultFunctionSamples">Number of function samples to use.</param>
     /// <returns>A <see cref="FunctionShadingResult"/> containing the bitmap and matrix, or <see langword="null"/> on failure.</returns>
-    public FunctionShadingResult BuildFunctionBasedBitmap(
+    public FunctionShadingResult? BuildFunctionBasedBitmap(
         PdfShading shading,
         PdfColorSpaceConverter converter,
         PdfRenderingIntent renderingIntent,
-        IColorTransform fullTransferFunction,
+        IColorTransform? fullTransferFunction,
         int defaultFunctionSamples,
         IPdfExecutionObserver observer)
     {
@@ -92,7 +92,7 @@ internal partial class PdfShadingBuilder
         SKMatrix pixelToDomain = SKMatrix.CreateScale(scaleX, scaleY);
         pixelToDomain = SKMatrix.Concat(SKMatrix.CreateTranslation(translateX, translateY), pixelToDomain);
 
-        Models.PdfArray matrixArray = shading.SourceObject.Dictionary.GetArray(PdfTokens.MatrixKey);
+        Models.PdfArray? matrixArray = shading.SourceObject.Dictionary.GetArray(PdfTokens.MatrixKey);
         SKMatrix? shadingMatrix = PdfLocationUtilities.CreateMatrix(matrixArray);
 
         // Concatenate with shading.Matrix if present

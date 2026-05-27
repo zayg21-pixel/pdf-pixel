@@ -13,7 +13,7 @@ internal class PathFillRenderTarget : IRenderTarget
 {
     private readonly SKPath _path;
     private readonly PdfGraphicsState _state;
-    private readonly PdfPattern _pattern;
+    private readonly PdfPattern? _pattern;
 
     public PathFillRenderTarget(SKPath path, PdfGraphicsState state)
     {

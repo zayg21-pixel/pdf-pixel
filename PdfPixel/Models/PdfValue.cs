@@ -29,18 +29,18 @@ public class PdfValue<T> : IPdfValue, IPdfValue<T>
     /// <summary>
     /// Returns a string representation of the PDF value, formatted according to its type.
     /// </summary>
-    public override string ToString()
+    public override string? ToString()
     {
         return Type switch
         {
             PdfValueType.Null => "null",
             PdfValueType.Name => $"/{Value}",
-            PdfValueType.Boolean => Value.ToString(),
+            PdfValueType.Boolean => Value?.ToString(),
             PdfValueType.String => $"({Value})",
-            PdfValueType.Operator => Value.ToString(),
-            PdfValueType.Integer => Value.ToString(),
-            PdfValueType.Real => Value.ToString(),
-            PdfValueType.Reference => Value.ToString(),
+            PdfValueType.Operator => Value?.ToString(),
+            PdfValueType.Integer => Value?.ToString(),
+            PdfValueType.Real => Value?.ToString(),
+            PdfValueType.Reference => Value?.ToString(),
             PdfValueType.Array => (Value is List<IPdfValue> list) ? $"[{list.Count} items]" : "[array]",
             PdfValueType.Dictionary => (Value is PdfDictionary dict) ? $"<< {dict.Count} entries >>" : "<<dictionary>>",
             PdfValueType.InlineStream => "[inline stream]",

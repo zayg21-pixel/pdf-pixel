@@ -212,6 +212,7 @@ public partial class PdfContentWorkerInterop
 
     private static void SetFont(string name, byte[] fontData)
     {
+        // TODO: register fallback font separatly!
         if (!_isInitialized)
         {
             return;

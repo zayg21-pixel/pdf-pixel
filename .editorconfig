@@ -2,7 +2,34 @@
 
 [*.cs]
 
-# ─── Options ──────────────────────────────────────────────────────────────────
+# CA IDE warnings
+dotnet_diagnostic.ide0059.severity = warning
+
+# CA suppressions
+
+dotnet_diagnostic.CA1002.severity = none   # Do not expose generic lists
+dotnet_diagnostic.CA1307.severity = none   # Specify StringComparison for clarity [not in .NET Standard]
+dotnet_diagnostic.CA1310.severity = none   # Specify StringComparison for correctness [not in .NET Standard]
+dotnet_diagnostic.CA1508.severity = none   # Avoid dead conditional code [good but buggy]
+dotnet_diagnostic.CA1510.severity = none   # Use ArgumentNullException throw helper [not in .NET Standard]
+dotnet_diagnostic.CA1512.severity = none   # Use ArgumentOutOfRangeException throw helper [not in .NET Standard]
+dotnet_diagnostic.CA1513.severity = none   # Use ObjectDisposedException throw helper [not in .NET Standard]
+dotnet_diagnostic.CA1711.severity = none   # Identifiers should not have incorrect suffix (we still want to use Flags in names)
+dotnet_diagnostic.CA1720.severity = none   # Identifiers should not contain type names
+dotnet_diagnostic.CA1810.severity = none   # Initialize reference type static fields inline
+dotnet_diagnostic.CA1814.severity = none   # Prefer jagged arrays over multidimensional
+dotnet_diagnostic.CA1815.severity = none   # Override equals and operator== on value types
+dotnet_diagnostic.CA1819.severity = none   # Properties should not return arrays
+dotnet_diagnostic.CA1822.severity = none   # Mark members as static
+dotnet_diagnostic.CA1847.severity = none   # Use String.Contains(char) instead of String.Contains(string) with single characters [not in .NET Standard]
+dotnet_diagnostic.CA1848.severity = none   # Use the LoggerMessage delegates
+dotnet_diagnostic.CA1873.severity = none   # Avoid potentially expensive logging
+dotnet_diagnostic.CA2000.severity = none   # Dispose objects before losing scope // TODO: we might want to improve this instead of suppress, commands can do "clone"
+dotnet_diagnostic.CA2225.severity = none   # Operator overloads have named alternates
+dotnet_diagnostic.CA2249.severity = none   # Consider using String.Contains instead of String.IndexOf
+dotnet_diagnostic.CA5394.severity = none   # Do not use insecure randomness
+
+# Options
 
 roslynator_accessibility_modifiers = explicit
 # Applicable to: rcs1018, options: explicit|implicit
@@ -119,7 +146,7 @@ roslynator_use_var_instead_of_implicit_object_creation = false
 # Applicable to: rcs1250, options: true|false
 
 
-# ─── Naming conventions ───────────────────────────────────────────────────────
+# Naming conventions
 # Standard .NET IDE naming rules. Private fields skipped — underscore prefix
 # is already enforced by roslynator_prefix_field_identifier_with_underscore.
 
@@ -166,22 +193,6 @@ dotnet_naming_rule.locals_and_params.style = camel_case_style
 dotnet_naming_rule.locals_and_params.severity = warning
 dotnet_naming_symbols.local_and_param_symbols.applicable_kinds = parameter,local
 dotnet_naming_style.camel_case_style.capitalization = camel_case
-
-
-# ─── CA suppressions ─────────────────────────────────────────────────────────
-
-dotnet_diagnostic.CA1002.severity = none   # Do not expose generic lists
-dotnet_diagnostic.CA1510.severity = none   # Use ArgumentNullException throw helper
-dotnet_diagnostic.CA1512.severity = none   # Use ArgumentOutOfRangeException throw helper
-dotnet_diagnostic.CA1810.severity = none   # Initialize reference type static fields inline
-dotnet_diagnostic.CA1814.severity = none   # Prefer jagged arrays over multidimensional
-dotnet_diagnostic.CA1815.severity = none   # Override equals and operator== on value types
-dotnet_diagnostic.CA1819.severity = none   # Properties should not return arrays
-dotnet_diagnostic.CA1822.severity = none   # Mark members as static
-dotnet_diagnostic.CA1848.severity = none   # Use the LoggerMessage delegates
-dotnet_diagnostic.CA1873.severity = none   # Avoid potentially expensive logging
-dotnet_diagnostic.CA2000.severity = none   # Dispose objects before losing scope // TODO: we might want to improve this instead of suppress, commands can do "clone"
-
 
 # Analyzers
 

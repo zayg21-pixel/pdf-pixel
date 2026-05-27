@@ -12,11 +12,13 @@ internal sealed class PdfImageTilingContext : IDisposable
     private readonly ILoggerFactory _loggerFactory;
 
     private readonly SKRectI[] _tilePositions;
-    private PdfImageRowProcessor[] _tileRowProcessors;
+    private PdfImageRowProcessor?[]? _tileRowProcessors;
+    private PdfImageRowDecodingParameters[]? _tileRowParams;
     private readonly SKMatrix _ctm;
 
     public PdfImageTilingContext(
         SKSizeI tileSize,
+        PdfTileInfo tileInfo,
         PdfImageRowDecodingParameters imageParameters,
         SKMatrix ctm,
         SKRectI regionOfInterest,
@@ -27,13 +29,12 @@ internal sealed class PdfImageTilingContext : IDisposable
         RegionOfInterest = regionOfInterest;
         _ctm = ctm;
 
-        int descale = imageParameters.DescaleFactor;
-        TileWidth = Math.Min(tileSize.Width / descale, imageParameters.Width);
-        TileHeight = Math.Min(tileSize.Height / descale, imageParameters.Height);
+        TileWidth = Math.Min(tileSize.Width, imageParameters.Width);
+        TileHeight = Math.Min(tileSize.Height, imageParameters.Height);
 
-        TilesHorizontal = (imageParameters.Width + TileWidth - 1) / TileWidth;
-        TilesVertical = (imageParameters.Height + TileHeight - 1) / TileHeight;
-        TotalTiles = TilesHorizontal * TilesVertical;
+        TilesHorizontal = tileInfo.TilesHorizontal;
+        TilesVertical = tileInfo.TilesVertical;
+        TotalTiles = tileInfo.TotalTiles;
 
         _tilePositions = BuildTilePositions();
     }
@@ -45,7 +46,7 @@ internal sealed class PdfImageTilingContext : IDisposable
     public int TotalTiles { get; }
     public SKRectI RegionOfInterest { get; }
 
-    public PdfImageTile[] WriteRowAndTryGetTiles(int imageRowIndex, in ReadOnlySpan<byte> fullWidthRow, IPdfExecutionObserver observer)
+    public PdfImageTile[]? WriteRowAndTryGetTiles(int imageRowIndex, in ReadOnlySpan<byte> fullWidthRow, IPdfExecutionObserver? observer)
     {
         int rowWithinTile = imageRowIndex % TileHeight;
         int tileRow = imageRowIndex / TileHeight;
@@ -54,6 +55,7 @@ internal sealed class PdfImageTilingContext : IDisposable
         {
             DisposeTileRowProcessors();
             _tileRowProcessors = new PdfImageRowProcessor[TilesHorizontal];
+            _tileRowParams = new PdfImageRowDecodingParameters[TilesHorizontal];
 
             for (int col = 0; col < TilesHorizontal; col++)
             {
@@ -64,12 +66,7 @@ internal sealed class PdfImageTilingContext : IDisposable
                 }
 
                 SKRectI pos = _tilePositions[tileIndex];
-                if (!pos.IntersectsWith(RegionOfInterest))
-                {
-                    continue;
-                }
-
-                SKSizeI? downscaledSize = PdfImageRowDecodingParameters.ComputeDownscaledSize( pos.Width, pos.Height, _imageParameters.ColorSpaceConverter, _imageParameters.Context, _ctm);
+                SKSizeI? downscaledSize = PdfImageRowDecodingParameters.ComputeDownscaledSize(pos.Width, pos.Height, _imageParameters.ColorSpaceConverter, _imageParameters.Context, _ctm);
 
                 PdfImageRowDecodingParameters tileParams = new(
                     _imageParameters.Context,
@@ -82,7 +79,14 @@ internal sealed class PdfImageTilingContext : IDisposable
                     _imageParameters.MaskArray,
                     _imageParameters.DecodeArray,
                     downscaledSize: downscaledSize,
-                    descaleFactor: 1);
+                    descaleFactor: _imageParameters.DescaleFactor);
+
+                _tileRowParams[col] = tileParams;
+
+                if (!pos.IntersectsWith(RegionOfInterest))
+                {
+                    continue;
+                }
 
                 PdfImageRowProcessor processor = new(tileParams, _loggerFactory.CreateLogger<PdfImageRowProcessor>());
                 processor.InitializeBuffer();
@@ -95,6 +99,11 @@ internal sealed class PdfImageTilingContext : IDisposable
         int componentCount = _imageParameters.ColorSpaceConverter.Components;
         int bpc = _imageParameters.BitsPerComponent;
 
+        if (_tileRowProcessors == null || _tileRowParams == null)
+        {
+            return null;
+        }
+
         for (int col = 0; col < TilesHorizontal; col++)
         {
             if (_tileRowProcessors[col] == null)
@@ -105,7 +114,7 @@ internal sealed class PdfImageTilingContext : IDisposable
             int tileStartPixel = col * TileWidth;
             int tileActualWidth = _tilePositions[(tileRow * TilesHorizontal) + col].Width;
             byte[] slice = ExtractTileRowSlice(fullWidthRow, tileStartPixel, tileActualWidth, bpc, componentCount);
-            _tileRowProcessors[col].WriteRow(rowWithinTile, slice);
+            _tileRowProcessors[col]?.WriteRow(rowWithinTile, slice);
             observer?.Notify();
         }
 
@@ -121,16 +130,18 @@ internal sealed class PdfImageTilingContext : IDisposable
         for (int col = 0; col < tilesInRow; col++)
         {
             int tileIndex = (tileRow * TilesHorizontal) + col;
+            PdfImageRowDecodingParameters tileParams = _tileRowParams[col];
+
             if (_tileRowProcessors[col] == null)
             {
-                tiles[col] = new PdfImageTile(tileIndex, ScaleTilePosition(_tilePositions[tileIndex]), null, isSkipped: true);
+                tiles[col] = new PdfImageTile(tileIndex, ScaleTilePosition(_tilePositions[tileIndex]), null, null, isSkipped: true);
                 continue;
             }
 
-            SKImage image = _tileRowProcessors[col].GetDecoded();
-            _tileRowProcessors[col].Dispose();
+            SKImage? image = _tileRowProcessors[col]?.GetDecoded();
+            _tileRowProcessors[col]?.Dispose();
             _tileRowProcessors[col] = null;
-            tiles[col] = new PdfImageTile(tileIndex, ScaleTilePosition(_tilePositions[tileIndex]), image, isSkipped: false);
+            tiles[col] = new PdfImageTile(tileIndex, ScaleTilePosition(_tilePositions[tileIndex]), image, tileParams, isSkipped: false);
 
             observer?.Notify();
         }
@@ -228,7 +239,7 @@ internal sealed class PdfImageTilingContext : IDisposable
             return;
         }
 
-        foreach (PdfImageRowProcessor p in _tileRowProcessors)
+        foreach (PdfImageRowProcessor? p in _tileRowProcessors)
         {
             p?.Dispose();
         }

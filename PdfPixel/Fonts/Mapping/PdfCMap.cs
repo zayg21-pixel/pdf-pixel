@@ -6,12 +6,6 @@ using System.Collections.ObjectModel;
 
 namespace PdfPixel.Fonts.Mapping;
 
-public enum CMapWMode
-{
-    Horizontal = 0,
-    Vertical = 1
-}
-
 /// <summary>
 /// General CMap for character mapping (length-aware, character code-based).
 /// Stores both code-to-CID and code-to-Unicode mappings for full CMap support.
@@ -39,7 +33,7 @@ public class PdfCMap
     /// <summary>
     /// System info for CID mappings, if applicable.
     /// </summary>
-    public PdfCidSystemInfo CidSystemInfo { get; internal set; }
+    public PdfCidSystemInfo? CidSystemInfo { get; internal set; }
 
     /// <summary>
     /// WMode for this CMap (horizontal/vertical).
@@ -151,7 +145,7 @@ public class PdfCMap
             vEnd = temp;
         }
 
-        List<UnicodeRangeMap> list = _unicodeRangesByLength[len];
+        List<UnicodeRangeMap>? list = _unicodeRangesByLength[len];
         PdfCMapUtilities.InsertUnicodeRangeSorted(list, new UnicodeRangeMap(len, vStart, vEnd, startUnicode));
     }
 
@@ -177,21 +171,21 @@ public class PdfCMap
             vEnd = temp;
         }
 
-        List<CidRangeMap> list = _cidRangesByLength[len];
+        List<CidRangeMap>? list = _cidRangesByLength[len];
         PdfCMapUtilities.InsertCidRangeSorted(list, new CidRangeMap(len, vStart, vEnd, startCid));
     }
 
     /// <summary>
     /// Lookup by length-aware code for Unicode mapping.
     /// </summary>
-    public string GetUnicode(PdfCharacterCode code)
+    public string? GetUnicode(PdfCharacterCode code)
     {
         if (code == null)
         {
             return null;
         }
 
-        if (_characterCodeToUnicode.TryGetValue(code, out string unicode))
+        if (_characterCodeToUnicode.TryGetValue(code, out string? unicode))
         {
             return unicode;
         }
@@ -204,7 +198,7 @@ public class PdfCMap
         }
 
         uint value = PdfCharacterCode.UnpackBigEndianToUInt(bytes);
-        List<UnicodeRangeMap> ranges = _unicodeRangesByLength[len];
+        List<UnicodeRangeMap>? ranges = _unicodeRangesByLength[len];
         if (ranges == null || ranges.Count == 0)
         {
             return null;
@@ -250,7 +244,7 @@ public class PdfCMap
         }
 
         uint value = PdfCharacterCode.UnpackBigEndianToUInt(bytes);
-        List<CidRangeMap> ranges = _cidRangesByLength[len];
+        List<CidRangeMap>? ranges = _cidRangesByLength[len];
         if (ranges == null || ranges.Count == 0)
         {
             cid = 0;
@@ -302,7 +296,7 @@ public class PdfCMap
 
         for (int len = LengthBuckets<object>.MinLength; len <= LengthBuckets<object>.MaxLength; len++)
         {
-            List<UnicodeRangeMap> otherUnicodeRanges = other._unicodeRangesByLength[len];
+            List<UnicodeRangeMap>? otherUnicodeRanges = other._unicodeRangesByLength[len];
             if (otherUnicodeRanges != null)
             {
                 for (int i = 0; i < otherUnicodeRanges.Count; i++)
@@ -311,7 +305,7 @@ public class PdfCMap
                 }
             }
 
-            List<CidRangeMap> otherCidRanges = other._cidRangesByLength[len];
+            List<CidRangeMap>? otherCidRanges = other._cidRangesByLength[len];
             if (otherCidRanges != null)
             {
                 for (int i = 0; i < otherCidRanges.Count; i++)
@@ -322,7 +316,7 @@ public class PdfCMap
         }
     }
 
-    public ReadOnlyDictionary<PdfCharacterCode, int> GetCodeToCid() => new(_codeToCid);
+    public ReadOnlyDictionary<PdfCharacterCode, int> CodeToCid => new (_codeToCid);
 
     public IReadOnlyList<CodeSpaceRange> GetCodeSpaceRanges() => _codeSpaceRanges.ToArray();
 

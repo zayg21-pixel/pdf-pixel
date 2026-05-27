@@ -14,7 +14,7 @@ internal class PathStrokeRenderTarget : IRenderTarget
     private readonly SKPath _path;
     private readonly SKPath _clipPath;
     private readonly PdfGraphicsState _state;
-    private readonly PdfPattern _pattern;
+    private readonly PdfPattern? _pattern;
     private readonly SKPaint _basePaint;
 
     public PathStrokeRenderTarget(SKPath path, PdfGraphicsState state)

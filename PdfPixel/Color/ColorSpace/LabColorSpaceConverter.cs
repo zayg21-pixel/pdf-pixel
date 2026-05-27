@@ -18,7 +18,7 @@ internal sealed class LabColorSpaceConverter : PdfColorSpaceConverter
     private readonly FunctionColorTransform _normalizeTransform;
     private readonly ChainedColorTransform _labTransform;
 
-    public LabColorSpaceConverter(float[] whitePoint, float[] blackPoint, float[] rangeArray)
+    public LabColorSpaceConverter(float[]? whitePoint, float[]? blackPoint, float[]? rangeArray)
     {
         Vector4 whitePointVector;
         if (whitePoint?.Length >= 3)
@@ -56,7 +56,7 @@ internal sealed class LabColorSpaceConverter : PdfColorSpaceConverter
 
     public override bool IsDevice => false;
 
-    protected override ColorTransformSampler GetRgbaSamplerCore(PdfRenderingIntent intent, IColorTransform postTransform)
+    protected override ColorTransformSampler GetRgbaSamplerCore(PdfRenderingIntent intent, IColorTransform? postTransform)
     {
         ChainedColorTransform chained = new(_normalizeTransform, _labTransform, postTransform);
         return new ColorTransformSampler(chained);

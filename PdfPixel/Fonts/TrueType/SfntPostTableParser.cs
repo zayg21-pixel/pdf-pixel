@@ -31,7 +31,7 @@ internal static class SfntPostTableParser
             throw new ArgumentException("Only post table format 1.0 is supported.", nameof(postData));
         }
 
-        PdfString[] macGlyphNames = SingleByteEncodings.GetEncodingSet(PdfFontEncoding.MacRomanEncoding);
+        PdfString[] macGlyphNames = SingleByteEncodings.GetEncodingSet(PdfFontEncoding.MacRomanEncoding) ?? Array.Empty<PdfString>();
         Dictionary<PdfString, ushort> nameToGid = new(macGlyphNames.Length);
         for (int glyphIndex = 0; glyphIndex < macGlyphNames.Length; glyphIndex++)
         {
@@ -71,7 +71,7 @@ internal static class SfntPostTableParser
             nameIndices.Add(nameIndex);
         }
 
-        PdfString[] macGlyphNames = SingleByteEncodings.GetEncodingSet(PdfFontEncoding.MacRomanEncoding);
+        PdfString[] macGlyphNames = SingleByteEncodings.GetEncodingSet(PdfFontEncoding.MacRomanEncoding) ?? Array.Empty<PdfString>();
 
         int customNameOffset = glyphNameIndexOffset + (numGlyphs * 2);
         int customNamePtr = customNameOffset;
@@ -85,7 +85,6 @@ internal static class SfntPostTableParser
             }
             else
             {
-                int customIndex = nameIndex - macGlyphNames.Length;
                 if (customNamePtr >= postData.Length)
                 {
                     glyphName = SingleByteEncodings.UndefinedCharacter;

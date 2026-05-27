@@ -9,7 +9,7 @@ namespace PdfPixel.Text;
 /// Utility to convert PDF text operands (string or TJ array) directly into a list of shaped glyphs.
 /// Bypasses PdfTextSequence for direct rendering.
 /// </summary>
-public static class ShapedGlyphBuilder
+internal static class ShapedGlyphBuilder
 {
     /// <summary>
     /// Converts a PDF TJ array operand into a list of shaped glyphs for rendering.
@@ -29,7 +29,7 @@ public static class ShapedGlyphBuilder
 
         buffer.Clear();
 
-        PdfFontBase? font = state?.CurrentFont;
+        PdfFontBase? font = state.CurrentFont;
         if (font == null)
         {
             return;
@@ -37,7 +37,7 @@ public static class ShapedGlyphBuilder
 
         bool isVertical = font.WritingMode == Fonts.Mapping.CMapWMode.Vertical;
 
-        PdfArray array = arrayOperand.AsArray();
+        PdfArray? array = arrayOperand.AsArray();
         float x = 0f;
         float y = 0f;
 
@@ -45,7 +45,13 @@ public static class ShapedGlyphBuilder
         {
             for (int i = 0; i < array.Count; i++)
             {
-                IPdfValue item = array.GetValue(i);
+                IPdfValue? item = array.GetValue(i);
+
+                if (item == null)
+                {
+                    continue;
+                }
+
                 if (item.Type == PdfValueType.String)
                 {
                     PdfText pdfText = PdfText.FromOperand(item);
@@ -88,7 +94,7 @@ public static class ShapedGlyphBuilder
 
         buffer.Clear();
 
-        PdfFontBase? font = state?.CurrentFont;
+        PdfFontBase? font = state.CurrentFont;
         if (font == null)
         {
             return;
@@ -112,7 +118,7 @@ public static class ShapedGlyphBuilder
         for (int codeIndex = 0; codeIndex < codes.Length; codeIndex++)
         {
             PdfCharacterInfo info = font.ExtractCharacterInfo(codes[codeIndex]);
-            string unicode = info.Unicode;
+            string? unicode = info.Unicode;
             bool isSpace = unicode == " ";
             float spacing = state.CharacterSpacing + (isSpace ? state.WordSpacing : 0f);
             float advance = spacing / state.FontSize;

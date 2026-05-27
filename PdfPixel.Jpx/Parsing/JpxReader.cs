@@ -343,8 +343,8 @@ public static class JpxReader
     /// </summary>
     private static void ParseSizSegment(ref JpxSpanReader reader, JpxHeader header)
     {
-        ushort segmentLength = reader.ReadUInt16BE();
-
+        // consume Segment length
+        reader.ReadUInt16BE();
         header.Profile = reader.ReadUInt16BE();
         header.Width = reader.ReadUInt32BE();
         header.Height = reader.ReadUInt32BE();

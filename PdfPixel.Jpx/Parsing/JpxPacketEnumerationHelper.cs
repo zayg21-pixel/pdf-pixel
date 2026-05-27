@@ -48,16 +48,10 @@ internal static class JpxPacketEnumerationHelper
             // Calculate actual tile height considering tile boundaries
             uint tileIndex = tileHeader.TileIndex;
             int tilesX = tileHeader.TilesHorizontal;
-            int tilesY = tileHeader.TilesVertical;
 
             if (tilesX <= 0)
             {
                 tilesX = 1;
-            }
-
-            if (tilesY <= 0)
-            {
-                tilesY = 1;
             }
 
             var tileY = (int)(tileIndex / tilesX);

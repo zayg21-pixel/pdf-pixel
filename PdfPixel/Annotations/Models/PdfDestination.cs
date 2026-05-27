@@ -23,7 +23,7 @@ public sealed class PdfDestination
     private readonly float? _bottom;
     private readonly float? _right;
     private readonly float? _top;
-    private IPdfPageInternal _cachedPage;
+    private IPdfPageInternal? _cachedPage;
 
     private PdfDestination(
         IPdfDocumentInternal document,
@@ -56,7 +56,7 @@ public sealed class PdfDestination
     /// </remarks>
     /// <returns>The resolved <see cref="PdfPage"/>, or null if it cannot be resolved.</returns>
     /// <returns>The resolved <see cref="PdfPage"/>, or null if it cannot be resolved when the page is not found.</returns>
-    public IPdfPage GetPdfPage()
+    public IPdfPage? GetPdfPage()
     {
         if (_cachedPage != null)
         {
@@ -113,7 +113,7 @@ public sealed class PdfDestination
     /// <returns>A rectangle in PDF coordinates, or null if no location is specified.</returns>
     public SKRect? GetTargetLocation()
     {
-        IPdfPage page = GetPdfPage();
+        IPdfPage? page = GetPdfPage();
         if (page == null)
         {
             return null;
@@ -174,14 +174,14 @@ public sealed class PdfDestination
     /// <param name="destination">The destination value (can be name, string, or array).</param>
     /// <param name="document">The PDF document for resolving named destinations.</param>
     /// <returns>A parsed destination, or null if the destination is invalid.</returns>
-    internal static PdfDestination Parse(IPdfValue destination, IPdfDocumentInternal document)
+    internal static PdfDestination? Parse(IPdfValue? destination, IPdfDocumentInternal document)
     {
         if (destination == null)
         {
             return null;
         }
 
-        PdfArray destinationArray = destination.AsArray();
+        PdfArray? destinationArray = destination.AsArray();
 
         if (destinationArray != null)
         {
@@ -193,7 +193,7 @@ public sealed class PdfDestination
             PdfString destName = destination.AsString();
             if (document.NamedDestinations != null)
             {
-                IPdfValue resolvedDest = document.NamedDestinations.GetValue(destName);
+                IPdfValue? resolvedDest = document.NamedDestinations.GetValue(destName);
 
                 PdfArray? resolvedDestArray = resolvedDest?.AsArray();
                 if (resolvedDestArray != null)
@@ -205,7 +205,7 @@ public sealed class PdfDestination
 
                 if (resolvedDestDictionary != null)
                 {
-                    PdfArray destArray = resolvedDestDictionary.GetArray(PdfTokens.DKey);
+                    PdfArray? destArray = resolvedDestDictionary.GetArray(PdfTokens.DKey);
 
                     if (destArray != null)
                     {
@@ -218,14 +218,14 @@ public sealed class PdfDestination
         return null;
     }
 
-    private static PdfDestination ParseExplicitDestination(PdfArray destArray, IPdfDocumentInternal document)
+    private static PdfDestination? ParseExplicitDestination(PdfArray destArray, IPdfDocumentInternal document)
     {
         if (destArray == null || destArray.Count == 0)
         {
             return null;
         }
 
-        PdfObject pageValue = destArray.GetObject(0);
+        PdfObject? pageValue = destArray.GetObject(0);
         PdfReference pageReference;
         int pageIndex = -1;
 
@@ -318,65 +318,4 @@ public sealed class PdfDestination
 
         return $"Destination: Page Reference, {FitType}";
     }
-}
-
-/// <summary>
-/// Defines how a destination page should be displayed.
-/// </summary>
-[PdfEnum]
-public enum PdfDestinationFitType
-{
-    /// <summary>
-    /// Unknown or unsupported fit type.
-    /// </summary>
-    [PdfEnumDefaultValue]
-    Unknown = 0,
-
-    /// <summary>
-    /// Display the page with explicit coordinates and zoom.
-    /// </summary>
-    [PdfEnumValue("XYZ")]
-    XYZ,
-
-    /// <summary>
-    /// Fit the page in the window.
-    /// </summary>
-    [PdfEnumValue("Fit")]
-    Fit,
-
-    /// <summary>
-    /// Fit the page width in the window.
-    /// </summary>
-    [PdfEnumValue("FitH")]
-    FitH,
-
-    /// <summary>
-    /// Fit the page height in the window.
-    /// </summary>
-    [PdfEnumValue("FitV")]
-    FitV,
-
-    /// <summary>
-    /// Fit a rectangle in the window.
-    /// </summary>
-    [PdfEnumValue("FitR")]
-    FitR,
-
-    /// <summary>
-    /// Fit the page's bounding box in the window.
-    /// </summary>
-    [PdfEnumValue("FitB")]
-    FitB,
-
-    /// <summary>
-    /// Fit the page's bounding box width in the window.
-    /// </summary>
-    [PdfEnumValue("FitBH")]
-    FitBH,
-
-    /// <summary>
-    /// Fit the page's bounding box height in the window.
-    /// </summary>
-    [PdfEnumValue("FitBV")]
-    FitBV
 }

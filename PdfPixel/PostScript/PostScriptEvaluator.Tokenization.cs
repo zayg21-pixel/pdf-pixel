@@ -220,7 +220,7 @@ namespace PdfPixel.PostScript
                                 throw new InvalidOperationException("Binary block operator '" + raw + "' encountered without preceding length number.");
                             }
 
-                            var byteCount = (int)lenToken.Value;
+                            var byteCount = (int)lenToken.Number;
                             if (byteCount < 0 || position + byteCount > length)
                             {
                                 throw new InvalidOperationException("Binary block length out of range: " + byteCount);

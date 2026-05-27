@@ -20,7 +20,7 @@ namespace PdfPixel.Fonts.Model
         /// <param name="recording">Recorded drawing commands for the glyph; null when not defined.</param>
         /// <param name="bbox">Bounding box parsed by d1 (llx, lly, urx, ury). Null when not provided.</param>
         /// <param name="advancement">Glyph advancement vector parsed by d0/d1 (wx, wy). If not provided, use <see cref="SKSize.Empty"/>.</param>
-        public PdfType3CharacterInfo(PdfCommandRecorder recording, SKRect? bbox, SKSize advancement)
+        public PdfType3CharacterInfo(PdfCommandRecorder? recording, SKRect? bbox, SKSize advancement)
         {
             Recording = recording;
             BBox = bbox;
@@ -35,7 +35,7 @@ namespace PdfPixel.Fonts.Model
         /// <summary>
         /// Gets the recorded commands that draw the glyph in glyph space.
         /// </summary>
-        public PdfCommandRecorder Recording { get; }
+        public PdfCommandRecorder? Recording { get; }
 
         /// <summary>
         /// Gets the character bounding box from d1 if provided; otherwise null.

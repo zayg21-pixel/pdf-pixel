@@ -19,7 +19,7 @@ public class PdfFreeTextAnnotation : PdfAnnotationBase
 
     public override bool ShouldDisplayBubble => false;
 
-    internal override bool RenderFallback(IPdfCommandProcessor processor, IPdfPageInternal page, PdfAnnotationVisualStateKind visualStateKind, PdfRenderingParameters renderingParameters)
+    internal override bool RenderFallback(IPdfCommandProcessor processor, IPdfPageInternal page, PdfAnnotationVisualStateKind visualStateKind)
     {
         // FreeText annotations should always have an appearance stream, so fallback rendering is not implemented.
         return false;

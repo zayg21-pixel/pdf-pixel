@@ -10,7 +10,7 @@ namespace PdfPixel.Color.Paint;
 /// Factory for creating SkiaSharp paint objects and typefaces for PDF rendering
 /// Enhanced with transparency and blend mode support
 /// </summary>
-public static class PdfPaintFactory
+internal static class PdfPaintFactory
 {
     /// <summary>
     /// Common initialization shared by all paints.
@@ -104,7 +104,6 @@ public static class PdfPaintFactory
     /// Antialiasing is deferred to command Execute time via <see cref="PdfCommandExecutionContext"/>.
     /// </summary>
     /// <param name="background">Background color.</param>
-    /// <returns></returns>
     public static SKPaint CreateBackgroundPaint(in SKColor background)
     {
         return new()

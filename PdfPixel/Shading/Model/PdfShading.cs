@@ -15,7 +15,7 @@ namespace PdfPixel.Shading.Model;
 /// </summary>
 public sealed class PdfShading
 {
-    public PdfShading(PdfObject pdfObject)
+    internal PdfShading(PdfObject pdfObject)
     {
         PdfDictionary rawDictionary = pdfObject.Dictionary;
         SourceObject = pdfObject;
@@ -28,11 +28,10 @@ public sealed class PdfShading
         }
 
         ShadingType = (PdfShadingType)rawDictionary.GetIntegerOrDefault(PdfTokens.ShadingTypeKey);
-        float[]? coordsArr = rawDictionary.GetArray(PdfTokens.CoordsKey)?.GetFloatArray();
-        Coords = coordsArr;
-        float[]? domainArr = rawDictionary.GetArray(PdfTokens.DomainKey)?.GetFloatArray();
-        Domain = domainArr;
-        PdfArray extendArr = rawDictionary.GetArray(PdfTokens.ExtendKey);
+        Coords = rawDictionary.GetArray(PdfTokens.CoordsKey)?.GetFloatArray();
+        Domain = rawDictionary.GetArray(PdfTokens.DomainKey)?.GetFloatArray();
+
+        PdfArray? extendArr = rawDictionary.GetArray(PdfTokens.ExtendKey);
         if (extendArr?.Count >= 2)
         {
             ExtendStart = extendArr.GetBooleanOrDefault(0);
@@ -42,12 +41,12 @@ public sealed class PdfShading
         ColorSpaceConverter = rawDictionary.GetObject(PdfTokens.ColorSpaceKey);
         Functions = new List<PdfFunction>();
 
-        List<PdfObject> functionObjects = rawDictionary.GetObjects(PdfTokens.FunctionKey);
+        List<PdfObject>? functionObjects = rawDictionary.GetObjects(PdfTokens.FunctionKey);
         if (functionObjects != null)
         {
             foreach (PdfObject functionObject in functionObjects)
             {
-                PdfFunction function = PdfFunctions.GetFunction(functionObject);
+                PdfFunction? function = PdfFunctions.GetFunction(functionObject);
                 if (function != null)
                 {
                     Functions.Add(function);
@@ -55,8 +54,7 @@ public sealed class PdfShading
             }
         }
 
-        PdfArray bboxArray = rawDictionary.GetArray(PdfTokens.BBoxKey);
-        BBox = PdfLocationUtilities.CreateBBox(bboxArray);
+        BBox = PdfLocationUtilities.CreateBBox(rawDictionary.GetArray(PdfTokens.BBoxKey));
         Background = rawDictionary.GetArray(PdfTokens.BackgroundKey)?.GetFloatArray();
         AntiAlias = rawDictionary.GetBooleanOrDefault(PdfTokens.AntiAliasKey);
     }
@@ -74,12 +72,12 @@ public sealed class PdfShading
     /// <summary>
     /// Coordinates array (/Coords). Axial: [x0 y0 x1 y1]. Radial: [x0 y0 r0 x1 y1 r1], type 2, 3 specific.
     /// </summary>
-    public float[] Coords { get; }
+    public float[]? Coords { get; }
 
     /// <summary>
     /// Domain array (/Domain) defining parameter range for function evaluation (Type 1 - 3 specific).
     /// </summary>
-    public float[] Domain { get; }
+    public float[]? Domain { get; }
 
     /// <summary>
     /// Start extension flag (/Extend[0]), type 2, 3 specific.
@@ -94,7 +92,7 @@ public sealed class PdfShading
     /// <summary>
     /// Color space value (/ColorSpace) object.
     /// </summary>
-    public PdfObject ColorSpaceConverter { get; }
+    public PdfObject? ColorSpaceConverter { get; }
 
     /// <summary>
     /// List of resolved PdfFunction(s) for function-based color evaluation.
@@ -104,7 +102,7 @@ public sealed class PdfShading
     /// <summary>
     /// Shading background color (/Background), if defined.
     /// </summary>
-    public float[] Background { get; }
+    public float[]? Background { get; }
 
     /// <summary>
     /// Gets the optional bbox (/BBox) for this shading, if defined.

@@ -17,17 +17,17 @@ internal static class PdfAnnotationColorResolver
     /// <param name="page">The PDF page for color space resolution.</param>
     /// <param name="defaultColor">Default color to use if annotation has no color specified. If null, returns transparent.</param>
     /// <returns>The resolved SKColor for rendering.</returns>
-    public static SKColor ResolveColor(float[] colorComponents, IPdfPageInternal page, SKColor? defaultColor = null)
+    public static SKColor ResolveColor(float[]? colorComponents, IPdfPageInternal page, SKColor? defaultColor = null)
     {
         if (colorComponents == null || colorComponents.Length == 0)
         {
             return defaultColor ?? SKColors.Transparent;
         }
 
-        PdfColorSpaceConverter converter = page.Cache.ColorSpace.ResolveDeviceConverter(colorComponents.Length);
+        PdfColorSpaceConverter? converter = page.Cache.ColorSpace.ResolveDeviceConverter(colorComponents.Length);
         if (converter == null)
         {
-            converter = page.Cache.ColorSpace.ResolveDeviceConverter(3);
+            converter = page.Cache.ColorSpace.ResolveDeviceConverter(3) ?? DeviceRgbConverter.Instance;
             float[] paddedColor = colorComponents;
             Array.Resize(ref paddedColor, 3);
             return converter.ToSrgb(paddedColor, PdfRenderingIntent.RelativeColorimetric, null);

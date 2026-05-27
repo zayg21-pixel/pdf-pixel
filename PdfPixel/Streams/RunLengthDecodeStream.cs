@@ -1,3 +1,4 @@
+using SkiaSharp;
 using System;
 using System.IO;
 
@@ -50,6 +51,11 @@ namespace PdfPixel.Streams
 
         public override int Read(byte[] buffer, int offset, int count)
         {
+            if (buffer == null)
+            {
+                throw new ArgumentNullException(nameof(buffer));
+            }
+
             if (_endOfStream)
             {
                 return 0;

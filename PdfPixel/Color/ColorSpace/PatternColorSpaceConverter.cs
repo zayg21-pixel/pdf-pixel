@@ -11,14 +11,14 @@ namespace PdfPixel.Color.ColorSpace;
 /// </summary>
 internal sealed class PatternColorSpaceConverter : PdfColorSpaceConverter
 {
-    private readonly PdfColorSpaceConverter _baseColorSpace;
+    private readonly PdfColorSpaceConverter? _baseColorSpace;
 
-    public PatternColorSpaceConverter(PdfColorSpaceConverter baseColorSpace) => _baseColorSpace = baseColorSpace; // may be null for colored patterns
+    public PatternColorSpaceConverter(PdfColorSpaceConverter? baseColorSpace) => _baseColorSpace = baseColorSpace; // may be null for colored patterns
 
     public override bool IsDevice => false;
 
-    public override int Components => _baseColorSpace.Components;
+    public override int Components => _baseColorSpace?.Components ?? 0;
 
-    protected override ColorTransformSampler GetRgbaSamplerCore(PdfRenderingIntent intent, IColorTransform postTransform)
+    protected override ColorTransformSampler GetRgbaSamplerCore(PdfRenderingIntent intent, IColorTransform? postTransform)
         => _baseColorSpace?.GetRgbaSampler(intent, postTransform) ?? new ColorTransformSampler(new ChainedColorTransform(postTransform));
 }

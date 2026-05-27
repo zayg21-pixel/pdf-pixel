@@ -12,7 +12,7 @@ namespace PdfPixel.Encryption
         /// <summary>
         /// Original /Encrypt dictionary for advanced lookups (e.g. /CF, /O, /U, /UE, /OE, /Perms).
         /// </summary>
-        public PdfDictionary SourceDictionary { get; set; }
+        public PdfDictionary? SourceDictionary { get; set; }
 
         /// <summary>
         /// Encryption algorithm version (/V).
@@ -42,37 +42,37 @@ namespace PdfPixel.Encryption
         /// <summary>
         /// First file identifier (/ID[0]).
         /// </summary>
-        public byte[] FileIdFirst { get; set; }
+        public byte[]? FileIdFirst { get; set; }
 
         /// <summary>
         /// Second file identifier (/ID[1]).
         /// </summary>
-        public byte[] FileIdSecond { get; set; }
+        public byte[]? FileIdSecond { get; set; }
 
         /// <summary>
         /// Owner password entry (/O) raw bytes (32 for R<=4, 48 for R>=5).
         /// </summary>
-        public byte[] OwnerEntry { get; set; }
+        public byte[]? OwnerEntry { get; set; }
 
         /// <summary>
         /// User password entry (/U) raw bytes (32 for R<=4, 48 for R>=5).
         /// </summary>
-        public byte[] UserEntry { get; set; }
+        public byte[]? UserEntry { get; set; }
 
         /// <summary>
         /// Encrypted file key using owner password (/OE) - R>=5.
         /// </summary>
-        public byte[] OwnerEncryptedKey { get; set; }
+        public byte[]? OwnerEncryptedKey { get; set; }
 
         /// <summary>
         /// Encrypted file key using user password (/UE) - R>=5.
         /// </summary>
-        public byte[] UserEncryptedKey { get; set; }
+        public byte[]? UserEncryptedKey { get; set; }
 
         /// <summary>
         /// Permissions block (/Perms) - R>=5.
         /// </summary>
-        public byte[] Perms { get; set; }
+        public byte[]? Perms { get; set; }
 
         /// <summary>
         /// Stream crypt filter name (/StmF) when V=4 or 5.
@@ -92,7 +92,7 @@ namespace PdfPixel.Encryption
         /// <summary>
         /// Crypt filter dictionary (/CF) parsed lazily by decryptor. Raw map retained from SourceDictionary when needed.
         /// </summary>
-        public PdfDictionary CryptFilterDictionary { get; set; }
+        public PdfDictionary? CryptFilterDictionary { get; set; }
 
         /// <summary>
         /// Selected stream crypt filter method (CF entry's /CFM name, e.g., AESV2, None).

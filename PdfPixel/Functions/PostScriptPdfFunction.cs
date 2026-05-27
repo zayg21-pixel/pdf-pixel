@@ -15,9 +15,9 @@ namespace PdfPixel.Functions;
 public sealed class PostScriptPdfFunction : PdfFunction
 {
     private readonly PostScriptEvaluator _evaluator;
-    private readonly Action<float[], float[]> _compiled;
-    private readonly float[] _argBuffer;
-    private readonly float[] _resultBuffer;
+    private readonly Action<float[], float[]>? _compiled;
+    private readonly float[]? _argBuffer;
+    private readonly float[]? _resultBuffer;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="PostScriptPdfFunction"/> class.
@@ -28,6 +28,11 @@ public sealed class PostScriptPdfFunction : PdfFunction
     private PostScriptPdfFunction(PostScriptEvaluator evaluator, float[] domain, float[] range)
         : base(domain, range)
     {
+        if (Range == null)
+        {
+            throw new ArgumentNullException(nameof(range));
+        }
+
         _evaluator = evaluator ?? throw new ArgumentNullException(nameof(evaluator));
 
         // Attempt to compile a fast path producing all outputs.
@@ -38,7 +43,7 @@ public sealed class PostScriptPdfFunction : PdfFunction
             parameterNames.Add((i == 0) ? "x" : "x" + i);
         }
 
-        if (_evaluator.TryCompile(parameterNames, out Action<float[], float[]> fn))
+        if (_evaluator.TryCompile(parameterNames, out Action<float[], float[]>? fn))
         {
             _compiled = fn;
             _argBuffer = new float[paramCount];
@@ -61,10 +66,16 @@ public sealed class PostScriptPdfFunction : PdfFunction
             return Array.Empty<float>();
         }
 
+        // should never happen
+        if (Range == null)
+        {
+            return Array.Empty<float>();
+        }
+
         int outputCount = Range.Length / 2;
 
         // Fast path: compiled vector function if available.
-        if (_compiled != null)
+        if (_compiled != null && _argBuffer != null && _resultBuffer != null)
         {
             values.CopyTo(_argBuffer);
             Clamp(_argBuffer, Domain);
@@ -97,7 +108,7 @@ public sealed class PostScriptPdfFunction : PdfFunction
 
                 if (value is PostScriptNumber number)
                 {
-                    resultInterp[outputIndex] = Clamp(number.Value, Range, outputIndex);
+                    resultInterp[outputIndex] = Clamp(number.Number, Range, outputIndex);
                     break;
                 }
             }
@@ -111,9 +122,9 @@ public sealed class PostScriptPdfFunction : PdfFunction
     /// </summary>
     /// <param name="functionObject">PDF function object.</param>
     /// <returns>PostScriptPdfFunction instance, or null if invalid.</returns>
-    public static PostScriptPdfFunction FromObject(PdfObject functionObject)
+    public static PostScriptPdfFunction? FromObject(PdfObject functionObject)
     {
-        if (functionObject == null || functionObject.Dictionary == null)
+        if (functionObject == null)
         {
             return null;
         }
@@ -121,8 +132,8 @@ public sealed class PostScriptPdfFunction : PdfFunction
         PdfDictionary dictionary = functionObject.Dictionary;
 
         // Extract domain and range arrays
-        float[] domain = dictionary.GetArray(PdfTokens.DomainKey)?.GetFloatArray();
-        float[] range = dictionary.GetArray(PdfTokens.RangeKey)?.GetFloatArray();
+        float[]? domain = dictionary.GetArray(PdfTokens.DomainKey)?.GetFloatArray();
+        float[]? range = dictionary.GetArray(PdfTokens.RangeKey)?.GetFloatArray();
 
         if (domain == null || domain.Length == 0)
         {

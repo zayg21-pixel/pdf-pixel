@@ -21,7 +21,7 @@ internal partial class PdfShadingBuilder
     /// <param name="colors">Pre-computed color stops.</param>
     /// <param name="positions">Pre-computed gradient positions.</param>
     /// <returns>Paint with gradient shader, or null on failure.</returns>
-    public SKPaint BuildAxialPaint(PdfShading shading, SKColor[] colors, float[] positions)
+    public SKPaint? BuildAxialPaint(PdfShading shading, SKColor[] colors, float[] positions)
     {
         if (shading.Coords?.Length != 4)
         {
@@ -53,7 +53,7 @@ internal partial class PdfShadingBuilder
     /// <param name="colors">Pre-computed color stops.</param>
     /// <param name="positions">Pre-computed gradient positions.</param>
     /// <returns>A <see cref="RadialShadingPaints"/> with inner and outer paints, or <see langword="null"/> if coordinates are invalid.</returns>
-    public RadialShadingPaints BuildRadialPaints(PdfShading shading, SKColor[] colors, float[] positions)
+    public RadialShadingPaints? BuildRadialPaints(PdfShading shading, SKColor[] colors, float[] positions)
     {
         if (shading.Coords?.Length != 6)
         {
@@ -123,7 +123,7 @@ internal partial class PdfShadingBuilder
         PdfShading shading,
         PdfColorSpaceConverter converter,
         PdfRenderingIntent renderingIntent,
-        IColorTransform fullTransferFunction,
+        IColorTransform? fullTransferFunction,
         int defaultFunctionSamples,
         out SKColor[] colors,
         out float[] positions)

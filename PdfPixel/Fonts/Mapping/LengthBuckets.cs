@@ -35,7 +35,7 @@ internal sealed class LengthBuckets<T>
     /// <summary>
     /// Gets the list for the specified length or null if out of range.
     /// </summary>
-    public List<T> this[int length]
+    public List<T>? this[int length]
     {
         get
         {

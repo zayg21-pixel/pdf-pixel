@@ -16,8 +16,8 @@ internal class TextFillRenderTarget : IRenderTarget
     private readonly SKFont _font;
     private readonly IList<ShapedGlyph> _shapingResult;
     private readonly PdfGraphicsState _state;
-    private readonly PdfPattern _pattern;
-    private readonly SKPath _clipPath;
+    private readonly PdfPattern? _pattern;
+    private readonly SKPath? _clipPath;
 
     public TextFillRenderTarget(SKFont font, IList<ShapedGlyph> shapingResult, PdfGraphicsState state)
     {
@@ -32,14 +32,17 @@ internal class TextFillRenderTarget : IRenderTarget
         }
     }
 
-    public SKRect Bounds => _clipPath.Bounds;
+    public SKRect Bounds => _clipPath?.Bounds ?? SKRect.Empty;
 
     public SKColor Color => _state.FillPaint.Color;
 
     public void BeforePatternRender(IPdfCommandProcessor processor)
     {
         processor.Process(new SaveStateCommand());
-        processor.Process(new ClipPathCommand(_clipPath, SKClipOperation.Intersect));
+        if (_clipPath != null)
+        {
+            processor.Process(new ClipPathCommand(_clipPath, SKClipOperation.Intersect));
+        }
     }
 
     public void AfterPatternRender(IPdfCommandProcessor processor) => processor.Process(new RestoreStateCommand());
@@ -52,9 +55,9 @@ internal class TextFillRenderTarget : IRenderTarget
         }
         else
         {
-            //using var paint = PdfPaintFactory.CreateFillPaint(_state);
-            //using var path = TextRenderUtilities.GetTextPath(_shapingResult, _font, _state);
-            //canvas.DrawPath(path, paint);
+            //SKPaint paint = PdfPaintFactory.CreateFillPaint(_state);
+            //SKPath path = TextRenderUtilities.GetTextPath(_shapingResult, _font, _state);
+            //processor.Process(new DrawPathCommand(path, paint));
 
             SKMatrix textMatrix = TextRenderUtilities.GetFullTextMatrix(_state);
 
@@ -63,7 +66,7 @@ internal class TextFillRenderTarget : IRenderTarget
             // Apply text matrix transformation
             processor.Process(new ConcatMatrixCommand(textMatrix));
 
-            SKTextBlob blob = TextRenderUtilities.BuildTextBlob(_shapingResult, _font);
+            SKTextBlob? blob = TextRenderUtilities.BuildTextBlob(_shapingResult, _font);
 
             if (blob != null)
             {

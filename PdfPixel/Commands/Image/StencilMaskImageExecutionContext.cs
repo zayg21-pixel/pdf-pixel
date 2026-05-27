@@ -9,22 +9,33 @@ namespace PdfPixel.Commands.Image;
 
 internal sealed class StencilMaskImageExecutionContext : IDisposable
 {
-    public SKSizeI ImageSize { get; private set; }
-    public ImageDecodingContext DecodingContext { get; private set; }
-    public PdfImageTileCacheEntry TileCache { get; private set; }
+    public StencilMaskImageExecutionContext(SKSizeI imageSize, ImageDecodingContext decodingContext, PdfImageTileCacheEntry tileCache)
+    {
+        ImageSize = imageSize;
+        DecodingContext = decodingContext;
+        TileCache = tileCache;
+    }
+
+    public SKSizeI ImageSize { get;}
+
+    public ImageDecodingContext DecodingContext { get;}
+
+    public PdfImageTileCacheEntry TileCache { get; }
+
     public PdfTileInfo TileInfo => TileCache.TileInfo;
 
     public static StencilMaskImageExecutionContext Create(PdfImage pdfImage, ImageDecodingContext context, ILoggerFactory loggerFactory)
     {
         SKSizeI imageSize = new(pdfImage.Width, pdfImage.Height);
-        PdfImageDecoder decoder = PdfImageDecoder.GetDecoder(pdfImage, loggerFactory);
-        PdfTileInfo tileInfo = new(imageSize, new SKSizeI(context.DefaultTileSize, context.DefaultTileSize));
-        return new StencilMaskImageExecutionContext
+        PdfImageDecoder? decoder = PdfImageDecoder.GetDecoder(pdfImage, loggerFactory);
+
+        if (decoder == null)
         {
-            ImageSize = imageSize,
-            DecodingContext = context,
-            TileCache = new PdfImageTileCacheEntry(decoder, context, tileInfo)
-        };
+            throw new ArgumentException($"Decoder for image {pdfImage.Type} is not defined.");
+        }
+
+        PdfTileInfo tileInfo = new(imageSize, new SKSizeI(context.DefaultTileSize, context.DefaultTileSize));
+        return new StencilMaskImageExecutionContext(imageSize, context, new PdfImageTileCacheEntry(decoder, context, tileInfo));
     }
 
     public void Dispose() => TileCache.Dispose();

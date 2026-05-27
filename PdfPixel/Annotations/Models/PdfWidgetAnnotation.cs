@@ -7,27 +7,6 @@ using SkiaSharp;
 namespace PdfPixel.Annotations.Models;
 
 /// <summary>
-/// Cursor types for widget annotations.
-/// </summary>
-public enum WidgetCursorType
-{
-    /// <summary>
-    /// Default arrow cursor.
-    /// </summary>
-    Arrow,
-
-    /// <summary>
-    /// Hand cursor for clickable widgets.
-    /// </summary>
-    Hand,
-
-    /// <summary>
-    /// Text input cursor (I-beam) for text fields.
-    /// </summary>
-    IBeam
-}
-
-/// <summary>
 /// Represents a PDF widget annotation (form field visual representation).
 /// </summary>
 /// <remarks>
@@ -68,12 +47,12 @@ public class PdfWidgetAnnotation : PdfAnnotationBase
     /// Contains information for constructing the widget's appearance, such as
     /// background color, border color, caption text, and icon fit.
     /// </remarks>
-    public PdfDictionary AppearanceCharacteristics { get; }
+    public PdfDictionary? AppearanceCharacteristics { get; }
 
     /// <summary>
     /// Gets the action to be performed when the widget is activated.
     /// </summary>
-    public PdfAction Action { get; }
+    public PdfAction? Action { get; }
 
     /// <summary>
     /// Gets the associated form field.
@@ -82,7 +61,7 @@ public class PdfWidgetAnnotation : PdfAnnotationBase
     /// Widget annotations are linked to form fields. This property resolves the field
     /// by checking if the widget object itself is a field or if it has a parent field.
     /// </remarks>
-    public PdfFormField Field { get; }
+    public PdfFormField? Field { get; }
 
     /// <summary>
     /// Gets a value indicating whether this widget should not display a content bubble.
@@ -92,7 +71,7 @@ public class PdfWidgetAnnotation : PdfAnnotationBase
     /// </remarks>
     public override bool ShouldDisplayBubble => false;
 
-    internal override bool RenderFallback(IPdfCommandProcessor processor, IPdfPageInternal page, PdfAnnotationVisualStateKind visualStateKind, PdfRenderingParameters renderingParameters) => false;
+    internal override bool RenderFallback(IPdfCommandProcessor processor, IPdfPageInternal page, PdfAnnotationVisualStateKind visualStateKind) => false;
 
     /// <summary>
     /// Gets the text value for text field widgets.
@@ -258,20 +237,23 @@ public class PdfWidgetAnnotation : PdfAnnotationBase
     /// Gets the cursor type that should be displayed when hovering over this widget.
     /// </summary>
     /// <returns>The appropriate cursor type for this widget.</returns>
-    public WidgetCursorType GetCursorType()
+    public WidgetCursorType GetCursorType
     {
-        if (Field?.IsReadOnly != false)
+        get
         {
-            return WidgetCursorType.Arrow;
-        }
+            if (Field?.IsReadOnly != false)
+            {
+                return WidgetCursorType.Arrow;
+            }
 
-        return Field.FieldType switch
-        {
-            PdfFormFieldType.Text => WidgetCursorType.IBeam,
-            PdfFormFieldType.Button => WidgetCursorType.Hand,
-            PdfFormFieldType.Choice => WidgetCursorType.Hand,
-            _ => WidgetCursorType.Arrow
-        };
+            return Field.FieldType switch
+            {
+                PdfFormFieldType.Text => WidgetCursorType.IBeam,
+                PdfFormFieldType.Button => WidgetCursorType.Hand,
+                PdfFormFieldType.Choice => WidgetCursorType.Hand,
+                _ => WidgetCursorType.Arrow
+            };
+        }
     }
 
     /// <summary>
@@ -295,7 +277,7 @@ public class PdfWidgetAnnotation : PdfAnnotationBase
     /// Resolves the form field associated with this widget annotation.
     /// </summary>
     /// <returns>The form field, or null if no field could be resolved.</returns>
-    private PdfFormField ResolveField()
+    private PdfFormField? ResolveField()
     {
         PdfDictionary dictionary = AnnotationObject.Dictionary;
         PdfString fieldType = dictionary.GetName(PdfTokens.FieldTypeKey);
@@ -305,7 +287,7 @@ public class PdfWidgetAnnotation : PdfAnnotationBase
             return PdfFormFieldFactory.CreateField(AnnotationObject);
         }
 
-        PdfObject parentObject = dictionary.GetObject(PdfTokens.ParentKey);
+        PdfObject? parentObject = dictionary.GetObject(PdfTokens.ParentKey);
         if (parentObject != null)
         {
             return PdfFormFieldFactory.CreateField(parentObject);

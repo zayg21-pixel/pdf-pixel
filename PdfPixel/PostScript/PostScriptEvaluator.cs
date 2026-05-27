@@ -54,7 +54,7 @@ namespace PdfPixel.PostScript
         /// <param name="parameterNames">Input parameter names in order.</param>
         /// <param name="fn">Compiled delegate if successful; otherwise null.</param>
         /// <returns>True if compilation succeeded; otherwise false.</returns>
-        public bool TryCompile(IReadOnlyList<string> parameterNames, out Action<float[], float[]> fn)
+        public bool TryCompile(IReadOnlyList<string> parameterNames, out Action<float[], float[]>? fn)
         {
             fn = null;
             if (parameterNames == null || parameterNames.Count == 0)
@@ -64,7 +64,7 @@ namespace PdfPixel.PostScript
 
             // The root program should have a single procedure to execute (due to appended exec).
             // Extract the first procedure or build a synthetic one from tokens.
-            PostScriptProcedure rootProc = null;
+            PostScriptProcedure? rootProc = null;
             foreach (PostScriptToken token in _tokens)
             {
                 if (token is PostScriptProcedure proc)
@@ -81,7 +81,7 @@ namespace PdfPixel.PostScript
             }
 
             PostScriptExpressionCompiler compiler = new();
-            bool ok = compiler.TryCompileMath(rootProc, parameterNames, out Action<float[], float[]> compiled);
+            bool ok = compiler.TryCompileMath(rootProc, parameterNames, out Action<float[], float[]>? compiled);
             if (!ok || compiled == null)
             {
                 return false;
@@ -94,7 +94,7 @@ namespace PdfPixel.PostScript
         /// <summary>
         /// Inject or override a value in the system dictionary (e.g., FontDirectory).
         /// </summary>
-        public void SetSystemValue(string name, PostScriptToken value)
+        public void SetSystemValue(string name, PostScriptToken? value)
         {
             if (string.IsNullOrWhiteSpace(name) || value == null)
             {
@@ -199,7 +199,7 @@ namespace PdfPixel.PostScript
             }
         }
 
-        private bool TryLookupDict(string name, out PostScriptToken value)
+        private bool TryLookupDict(string name, out PostScriptToken? value)
         {
             foreach (PostScriptDictionary dict in _dictStack)
             {
@@ -225,7 +225,7 @@ namespace PdfPixel.PostScript
             }
 
             // Dictionary stack lookup (system/user and any begin-added dictionaries)
-            if (TryLookupDict(name, out PostScriptToken dictValue))
+            if (TryLookupDict(name, out PostScriptToken? dictValue) && dictValue != null)
             {
                 if (dictValue is PostScriptProcedure dictProc)
                 {
@@ -324,14 +324,11 @@ namespace PdfPixel.PostScript
                 }
                 case "restore":
                 {
-                    PostScriptSave foundMarker = null;
-                    Stack<PostScriptToken> temp = [];
                     while (stack.Count > 0)
                     {
-                            PostScriptToken top = stack.Pop();
-                        if (top is PostScriptSave saveMarker)
+                        PostScriptToken top = stack.Pop();
+                        if (top is PostScriptSave)
                         {
-                            foundMarker = saveMarker;
                             break;
                         }
                         // Discard non-marker tokens above save.

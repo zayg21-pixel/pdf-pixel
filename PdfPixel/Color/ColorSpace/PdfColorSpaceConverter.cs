@@ -35,7 +35,7 @@ public abstract class PdfColorSpaceConverter
     /// <param name="intent">Rendering intent.</param>
     /// <param name="postTransform">Post color transform (if defined).</param>
     /// <returns>sRGB color.</returns>
-    public virtual SKColor ToSrgb(in ReadOnlySpan<float> comps01, PdfRenderingIntent intent, IColorTransform postTransform)
+    public virtual SKColor ToSrgb(in ReadOnlySpan<float> comps01, PdfRenderingIntent intent, IColorTransform? postTransform)
         => GetRgbaSampler(intent, postTransform).Sample(comps01).From01ToSkiaColor();
 
     /// <summary>
@@ -44,7 +44,7 @@ public abstract class PdfColorSpaceConverter
     /// <param name="intent">Rendering intent.</param>
     /// <param name="postTransform">Post color transform (if defined).</param>
     /// <returns>Sampler value.</returns>
-    public ColorTransformSampler GetRgbaSampler(PdfRenderingIntent intent, IColorTransform postTransform)
+    public ColorTransformSampler GetRgbaSampler(PdfRenderingIntent intent, IColorTransform? postTransform)
     {
         if (postTransform == null && _colorSamplers[(int)intent] is ColorTransformSampler sampler)
         {
@@ -70,5 +70,5 @@ public abstract class PdfColorSpaceConverter
     /// <param name="intent">Rendering intent.</param>
     /// <param name="postTransform">Post color transform (if defined).</param>
     /// <returns>RGBA sampler.</returns>
-    protected abstract ColorTransformSampler GetRgbaSamplerCore(PdfRenderingIntent intent, IColorTransform postTransform);
+    protected abstract ColorTransformSampler GetRgbaSamplerCore(PdfRenderingIntent intent, IColorTransform? postTransform);
 }

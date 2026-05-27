@@ -16,9 +16,9 @@ namespace PdfPixel.Fonts.Model;
 public class PdfCompositeFont : PdfFontBase
 {
     private readonly CMapWMode _writingMode;
-    private readonly Dictionary<uint, string> _toUnicode;
+    private readonly Dictionary<uint, string>? _toUnicode;
 
-    public PdfCompositeFont(PdfObject fontObject)
+    internal PdfCompositeFont(PdfObject fontObject)
         : base(fontObject)
     {
         DescendantFonts = LoadDescendantFonts();
@@ -27,9 +27,9 @@ public class PdfCompositeFont : PdfFontBase
         _toUnicode = PdfToUnicodeMapProvider.GetToUnicodeMap(PrimaryDescendant?.CidSystemInfo);
     }
 
-    public override PdfFontDescriptor FontDescriptor => PrimaryDescendant?.FontDescriptor;
+    public override PdfFontDescriptor? FontDescriptor => PrimaryDescendant?.FontDescriptor;
 
-    protected internal override SKTypeface Typeface => PrimaryDescendant?.Typeface;
+    protected internal override SKTypeface? Typeface => PrimaryDescendant?.Typeface;
 
     protected internal override CMapWMode WritingMode => _writingMode;
 
@@ -44,13 +44,13 @@ public class PdfCompositeFont : PdfFontBase
     /// Primary descendant font (first in array, handles most characters)
     /// This is where most properties are inherited from
     /// </summary>
-    public PdfCidFont PrimaryDescendant => (DescendantFonts?.Count > 0) ? DescendantFonts[0] : null;
+    public PdfCidFont? PrimaryDescendant => (DescendantFonts?.Count > 0) ? DescendantFonts[0] : null;
 
     /// <summary>
     /// Optional code->CID CMap derived from the parent /Encoding entry when it is a CMap stream.
     /// May be null if /Encoding is a predefined name without an embedded stream (e.g., Identity-H).
     /// </summary>
-    public PdfCMap CodeToCidCMap { get; }
+    public PdfCMap? CodeToCidCMap { get; }
 
     /// <summary>
     /// CMap name from /Encoding entry (either predefined name or name from embedded CMap).
@@ -62,7 +62,7 @@ public class PdfCompositeFont : PdfFontBase
     /// </summary>
     public override float GetWidth(PdfCharacterCode code)
     {
-        PdfCidFont descendant = PrimaryDescendant;
+        PdfCidFont? descendant = PrimaryDescendant;
         if (descendant == null)
         {
             return 0f;
@@ -85,7 +85,7 @@ public class PdfCompositeFont : PdfFontBase
             return default;
         }
 
-        PdfCidFont descendant = PrimaryDescendant;
+        PdfCidFont? descendant = PrimaryDescendant;
         if (descendant == null)
         {
             return default;
@@ -106,7 +106,7 @@ public class PdfCompositeFont : PdfFontBase
     /// </summary>
     public bool TryMapCodeToCid(PdfCharacterCode code, out uint cid)
     {
-        PdfCMap map = CodeToCidCMap;
+        PdfCMap? map = CodeToCidCMap;
         if (map != null && map.TryGetCid(code, out int mapped))
         {
             cid = (uint)mapped;
@@ -125,7 +125,7 @@ public class PdfCompositeFont : PdfFontBase
         List<PdfCidFont> descendants = [];
 
         // Use GetPageObjects to get all descendant font objects
-        List<PdfObject> descendantObjects = Dictionary.GetObjects(PdfTokens.DescendantFontsKey);
+        List<PdfObject>? descendantObjects = Dictionary.GetObjects(PdfTokens.DescendantFontsKey);
         if (descendantObjects == null || descendantObjects.Count == 0)
         {
             return descendants;
@@ -133,7 +133,7 @@ public class PdfCompositeFont : PdfFontBase
 
         foreach (PdfObject descendantObj in descendantObjects)
         {
-            PdfFontBase descendant = PdfFontFactory.CreateFont(descendantObj);
+            PdfFontBase? descendant = PdfFontFactory.CreateFont(descendantObj);
 
             if (descendant is PdfCidFont cidFont)
             {
@@ -149,7 +149,7 @@ public class PdfCompositeFont : PdfFontBase
     /// Load an embedded /Encoding CMap stream (if present) into a code->CID map.
     /// Returns null if /Encoding is a name or if parsing fails.
     /// </summary>
-    private (PdfCMap CMap, PdfString CMapName) LoadCodeToCidCMap()
+    private (PdfCMap? CMap, PdfString CMapName) LoadCodeToCidCMap()
     {
         PdfString predefinedName = Dictionary.GetName(PdfTokens.EncodingKey);
 
@@ -158,13 +158,13 @@ public class PdfCompositeFont : PdfFontBase
             return (Document.CMapCache.GetCmap(predefinedName), predefinedName);
         }
 
-        PdfObject encodingObj = Dictionary.GetObject(PdfTokens.EncodingKey);
+        PdfObject? encodingObj = Dictionary.GetObject(PdfTokens.EncodingKey);
         if (encodingObj == null)
         {
             return default;
         }
 
-        if (encodingObj.Reference.IsValid && Document.CMapCache.CMapStreams.TryGetValue(encodingObj.Reference, out PdfCMap cachedCMap))
+        if (encodingObj.Reference.IsValid && Document.CMapCache.CMapStreams.TryGetValue(encodingObj.Reference, out PdfCMap? cachedCMap))
         {
             return (cachedCMap, cachedCMap.Name);
         }
@@ -175,7 +175,13 @@ public class PdfCompositeFont : PdfFontBase
             return default;
         }
 
-        PdfCMap result = PdfCMapParser.ParseCMap(data, Document);
+        PdfCMap? result = PdfCMapParser.ParseCMap(data, Document);
+
+        if (result == null)
+        {
+            return default;
+        }
+
         // PdfTokens.CMapNameKey
 
         PdfString cmapNameToken = PdfString.FromString("CMapName"); // TODO: [HIGH] we need to cleanup the rest here, some other properties are coming from CMap
@@ -256,7 +262,7 @@ public class PdfCompositeFont : PdfFontBase
             return 0;
         }
 
-        PdfCidFont descendant = PrimaryDescendant;
+        PdfCidFont? descendant = PrimaryDescendant;
         if (descendant == null)
         {
             return 0;
@@ -272,9 +278,9 @@ public class PdfCompositeFont : PdfFontBase
         return descendant.GetGidByCid(cid);
     }
 
-    public override string GetUnicodeString(PdfCharacterCode code)
+    public override string? GetUnicodeString(PdfCharacterCode code)
     {
-        string baseCode = base.GetUnicodeString(code);
+        string? baseCode = base.GetUnicodeString(code);
 
         if (baseCode != null)
         {
@@ -288,7 +294,7 @@ public class PdfCompositeFont : PdfFontBase
             return null;
         }
 
-        if (_toUnicode != null && _toUnicode.TryGetValue(cid, out string resultString))
+        if (_toUnicode != null && _toUnicode.TryGetValue(cid, out string? resultString))
         {
             return resultString;
         }

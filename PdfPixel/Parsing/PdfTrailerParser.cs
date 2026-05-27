@@ -23,7 +23,7 @@ internal sealed class PdfTrailerParser
     /// <summary>
     /// Return the /Prev offset from the current trailer dictionary.
     /// </summary>
-    public int? GetPrevOffset(PdfDictionary trailer)
+    public int? GetPrevOffset(PdfDictionary? trailer)
     {
         if (trailer == null)
         {
@@ -51,7 +51,7 @@ internal sealed class PdfTrailerParser
             return; // Already set (e.g., from /Encrypt in an object stream)
         }
 
-        PdfDictionary encryptDict = trailer.GetDictionary(PdfTokens.EncryptKey);
+        PdfDictionary? encryptDict = trailer.GetDictionary(PdfTokens.EncryptKey);
         if (encryptDict == null)
         {
             return; // Not encrypted
@@ -89,14 +89,14 @@ internal sealed class PdfTrailerParser
 
             if (parameters.CryptFilterDictionary != null)
             {
-                PdfDictionary streamCfEntry = parameters.CryptFilterDictionary.GetDictionary(parameters.StreamCryptFilterName);
+                PdfDictionary? streamCfEntry = parameters.CryptFilterDictionary.GetDictionary(parameters.StreamCryptFilterName);
                 if (streamCfEntry != null)
                 {
                     parameters.StreamCryptFilterMethod = streamCfEntry.GetName(PdfTokens.CfmKey);
                     parameters.StreamCryptFilterLength = streamCfEntry.GetInteger(PdfTokens.LengthKey);
                 }
 
-                PdfDictionary stringCfEntry = parameters.CryptFilterDictionary.GetDictionary(parameters.StringCryptFilterName);
+                PdfDictionary? stringCfEntry = parameters.CryptFilterDictionary.GetDictionary(parameters.StringCryptFilterName);
                 if (stringCfEntry != null)
                 {
                     parameters.StringCryptFilterMethod = stringCfEntry.GetName(PdfTokens.CfmKey);
@@ -105,7 +105,7 @@ internal sealed class PdfTrailerParser
             }
         }
 
-        PdfArray idArray = trailer.GetArray(PdfTokens.IdKey);
+        PdfArray? idArray = trailer.GetArray(PdfTokens.IdKey);
         if (idArray?.Count >= 2)
         {
             parameters.FileIdFirst = idArray.GetValue(0).AsStringBytes().ToArray();

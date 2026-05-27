@@ -96,7 +96,7 @@ internal static class PdfFunctions
     /// </summary>
     /// <param name="functionObject">PDF function object.</param>
     /// <returns>PdfFunction instance, or null if type is unsupported or invalid.</returns>
-    public static PdfFunction GetFunction(PdfObject functionObject)
+    public static PdfFunction? GetFunction(PdfObject? functionObject)
     {
         if (functionObject == null || functionObject.Dictionary == null)
         {
@@ -106,14 +106,14 @@ internal static class PdfFunctions
         if (functionObject.Reference.IsValid && functionObject.Document != null)
         {
             Dictionary<PdfReference, PdfFunction> cache = functionObject.Document.ObjectCache.Functions;
-            if (cache.TryGetValue(functionObject.Reference, out PdfFunction cachedFunction))
+            if (cache.TryGetValue(functionObject.Reference, out PdfFunction? cachedFunction))
             {
                 return cachedFunction;
             }
         }
 
         PdfFunctionType functionType = PdfFunction.GetFunctionType(functionObject);
-        PdfFunction function;
+        PdfFunction? function;
 
         switch (functionType)
         {

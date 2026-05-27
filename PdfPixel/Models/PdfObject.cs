@@ -75,6 +75,11 @@ public class PdfObject
             return Stream.Null;
         }
 
+        if (!StreamInfo.HasValue)
+        {
+            return Stream.Null;
+        }
+
         SubrangeReadOnlyStream subrange = new(Document.Stream, StreamInfo.Value.Offset, StreamInfo.Value.Length, leaveOpen: true);
 
         if (StreamInfo.Value.IsEncrypted && Document.Decryptor != null && Reference.IsValid)
@@ -97,5 +102,5 @@ public class PdfObject
     /// Decodes the object's stream using the document's stream decoder and returns the decoded bytes as memory.
     /// </summary>
     /// <returns>A <see cref="ReadOnlyMemory{byte}"/> containing the decoded stream data.</returns>
-    public ReadOnlyMemory<byte> DecodeAsMemory(IPdfExecutionObserver observer = default) => Document.StreamDecoder.DecodeContentStream(this, observer);
+    public ReadOnlyMemory<byte> DecodeAsMemory(IPdfExecutionObserver? observer = default) => Document.StreamDecoder.DecodeContentStream(this, observer);
 }

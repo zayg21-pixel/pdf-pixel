@@ -14,7 +14,7 @@ internal struct Type1ConverterContext
 
     public bool InFlexSequence { get; set; }
 
-    public List<Type1CharStringNumber> FlexDeltas { get; set; }
+    public List<Type1CharStringNumber>? FlexDeltas { get; set; }
 
     public bool SkipEndChar { get; set; }
 

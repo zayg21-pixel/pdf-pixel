@@ -14,9 +14,9 @@ internal sealed class SeparationColorSpaceConverter : PdfColorSpaceConverter
 {
     private readonly PdfString _name;
     private readonly PdfColorSpaceConverter _alternate;
-    private readonly PdfFunction _tintFunction;
+    private readonly PdfFunction? _tintFunction;
 
-    public SeparationColorSpaceConverter(in PdfString name, PdfColorSpaceConverter alternate, PdfFunction tintFunction)
+    public SeparationColorSpaceConverter(in PdfString name, PdfColorSpaceConverter? alternate, PdfFunction? tintFunction)
     {
         _name = name;
         _alternate = alternate ?? DeviceGrayConverter.Instance;
@@ -27,7 +27,7 @@ internal sealed class SeparationColorSpaceConverter : PdfColorSpaceConverter
 
     public override bool IsDevice => false;
 
-    protected override ColorTransformSampler GetRgbaSamplerCore(PdfRenderingIntent intent, IColorTransform postTransform)
+    protected override ColorTransformSampler GetRgbaSamplerCore(PdfRenderingIntent intent, IColorTransform? postTransform)
     {
         ColorTransformSampler alternateSampler = _alternate.GetRgbaSampler(intent, postTransform);
 

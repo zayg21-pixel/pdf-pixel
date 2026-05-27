@@ -9,7 +9,7 @@ namespace PdfPixel.Functions;
 /// </summary>
 public abstract class PdfFunction
 {
-    protected PdfFunction(float[] domain, float[] range)
+    protected PdfFunction(float[] domain, float[]? range)
     {
         Domain = domain;
         Range = range;
@@ -17,7 +17,7 @@ public abstract class PdfFunction
 
     public float[] Domain { get; }
 
-    public float[] Range { get; }
+    public float[]? Range { get; }
 
     /// <summary>
     /// Evaluate the function for a single input value.

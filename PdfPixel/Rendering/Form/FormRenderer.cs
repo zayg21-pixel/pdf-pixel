@@ -6,6 +6,8 @@ using PdfPixel.Parsing;
 using PdfPixel.Rendering.State;
 using PdfPixel.Transparency.Utilities;
 using SkiaSharp;
+using System;
+using System.Collections;
 using System.Collections.Generic;
 
 namespace PdfPixel.Rendering.Form;
@@ -26,6 +28,21 @@ public class FormRenderer : IFormRenderer
 
     public void DrawForm(IPdfCommandProcessor processor, PdfForm formXObject, PdfGraphicsState graphicsState)
     {
+        if (processor == null)
+        {
+            throw new ArgumentNullException(nameof(processor));
+        }
+
+        if (formXObject == null)
+        {
+            throw new ArgumentNullException(nameof(formXObject));
+        }
+
+        if (graphicsState == null)
+        {
+            throw new ArgumentNullException(nameof(graphicsState));
+        }
+
         uint objectNumber = formXObject.XObject.Reference.ObjectNumber;
 
         if (graphicsState.RecursionGuard.Contains(objectNumber))

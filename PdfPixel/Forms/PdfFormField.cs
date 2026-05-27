@@ -82,12 +82,12 @@ public abstract class PdfFormField : IFormFieldMouseInteraction, IFormFieldKeybo
     /// <remarks>
     /// The type and format depend on the field type.
     /// </remarks>
-    public IPdfValue Value { get; }
+    public IPdfValue? Value { get; }
 
     /// <summary>
     /// Gets the default field value.
     /// </summary>
-    public IPdfValue DefaultValue { get; }
+    public IPdfValue? DefaultValue { get; }
 
     /// <summary>
     /// Gets the reference to the parent field.
@@ -100,7 +100,7 @@ public abstract class PdfFormField : IFormFieldMouseInteraction, IFormFieldKeybo
     /// <summary>
     /// Gets the array of child fields or widget annotations.
     /// </summary>
-    public PdfArray Kids { get; }
+    public PdfArray? Kids { get; }
 
     /// <summary>
     /// Gets the default appearance string.

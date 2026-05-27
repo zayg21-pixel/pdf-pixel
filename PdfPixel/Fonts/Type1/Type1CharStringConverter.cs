@@ -167,7 +167,7 @@ internal static class Type1CharStringConverter
                     operandStack.RemoveAt(operandStack.Count - 1);
                 }
 
-                if (subrIndex >= 0 && context.LocalSubrs != null && context.LocalSubrs.TryGetValue(subrIndex, out byte[] subrBytes))
+                if (subrIndex >= 0 && context.LocalSubrs != null && context.LocalSubrs.TryGetValue(subrIndex, out byte[]? subrBytes))
                 {
                     ProcessCharString(subrBytes, ref context, output, operandStack);
                 }
@@ -256,23 +256,23 @@ internal static class Type1CharStringConverter
         {
             case EscDiv:
             {
-                    Type1CharStringNumber v1 = operandStack[operandStack.Count - 2];
-                    Type1CharStringNumber v2 = operandStack[operandStack.Count - 1];
+                Type1CharStringNumber v1 = operandStack[operandStack.Count - 2];
+                Type1CharStringNumber v2 = operandStack[operandStack.Count - 1];
 
                 operandStack.RemoveAt(operandStack.Count - 1);
                 operandStack.RemoveAt(operandStack.Count - 1);
 
-                v1.SetSecondValue(v2.Value1, ValueOperation.Div);
+                v1.SetSecondValue(v2.Value1, Type1ValueOperation.Div);
                 operandStack.Add(v1);
 
                 break;
             }
             case EscSbw:
             {
-                    Type1CharStringNumber sbx = operandStack[operandStack.Count - 4];
-                    Type1CharStringNumber sby = operandStack[operandStack.Count - 3];
-                    Type1CharStringNumber swx = operandStack[operandStack.Count - 2];
-                    Type1CharStringNumber swy = operandStack[operandStack.Count - 1];
+                Type1CharStringNumber sbx = operandStack[operandStack.Count - 4];
+                Type1CharStringNumber sby = operandStack[operandStack.Count - 3];
+                Type1CharStringNumber swx = operandStack[operandStack.Count - 2];
+                Type1CharStringNumber swy = operandStack[operandStack.Count - 1];
 
                 context.SideBearingX = sbx.GetAsDouble();
                 context.SideBearingY = sby.GetAsDouble();
@@ -290,19 +290,19 @@ internal static class Type1CharStringConverter
             }
             case EscSeac:
             {
-                    // asb adx ady bchar achar seac
-                    // a - accent, b - base character
-                    Type1CharStringNumber asb = operandStack[operandStack.Count - 5];
-                    Type1CharStringNumber adx = operandStack[operandStack.Count - 4];
-                    Type1CharStringNumber ady = operandStack[operandStack.Count - 3];
-                    Type1CharStringNumber bchar = operandStack[operandStack.Count - 2];
-                    Type1CharStringNumber achar = operandStack[operandStack.Count - 1];
+                // asb adx ady bchar achar seac
+                // a - accent, b - base character
+                Type1CharStringNumber asb = operandStack[operandStack.Count - 5];
+                Type1CharStringNumber adx = operandStack[operandStack.Count - 4];
+                Type1CharStringNumber ady = operandStack[operandStack.Count - 3];
+                Type1CharStringNumber bchar = operandStack[operandStack.Count - 2];
+                Type1CharStringNumber achar = operandStack[operandStack.Count - 1];
                 operandStack.Clear();
 
-                    PdfString[] standardEncoding = SingleByteEncodings.GetEncodingSet(Model.PdfFontEncoding.StandardEncoding);
+                PdfString[] standardEncoding = SingleByteEncodings.GetEncodingSet(Model.PdfFontEncoding.StandardEncoding) ?? Array.Empty<PdfString>();
 
-                    PdfString nameA = standardEncoding[achar.Value1];
-                    PdfString nameB = standardEncoding[bchar.Value1];
+                PdfString nameA = standardEncoding[achar.Value1];
+                PdfString nameB = standardEncoding[bchar.Value1];
                 byte[] aBytes = context.Source[nameA];
                 byte[] bBytes = context.Source[nameB];
 
@@ -314,8 +314,8 @@ internal static class Type1CharStringConverter
                 // Move to default position for accent
                 double x = -context.X + context.SideBearingX + adx.GetAsDouble() - asb.GetAsDouble();
                 double y = -context.Y + context.SideBearingY + ady.GetAsDouble();
-                    Type1CharStringNumber type1X = Type1CharStringNumber.FromDouble(x);
-                    Type1CharStringNumber type1Y = Type1CharStringNumber.FromDouble(y);
+                Type1CharStringNumber type1X = Type1CharStringNumber.FromDouble(x);
+                Type1CharStringNumber type1Y = Type1CharStringNumber.FromDouble(y);
                 WriteNumber(output, type1X);
                 WriteNumber(output, type1Y);
                 UpdateCoordinates(ref context, OpRMoveTo, new List<Type1CharStringNumber> { type1X, type1Y });
@@ -336,18 +336,18 @@ internal static class Type1CharStringConverter
 
                 switch (index)
                 {
-                        case 1:
-                            {
-                                context.InFlexSequence = true;
-                                operandStack.Clear();
-                                break;
-                            }
-                        case 2:
+                    case 1:
+                    {
+                        context.InFlexSequence = true;
+                        operandStack.Clear();
+                        break;
+                    }
+                    case 2:
                     {
                         // accumulate flex deltas from rmoveto operands
                         for (int d = 0; d < operandStack.Count - 2; d++)
                         {
-                                    (context.FlexDeltas ??= new List<Type1CharStringNumber>()).Add(operandStack[d]);
+                            (context.FlexDeltas ??= new List<Type1CharStringNumber>()).Add(operandStack[d]);
                         }
 
                         operandStack.Clear();
@@ -357,7 +357,7 @@ internal static class Type1CharStringConverter
                     {
                         if (context.FlexDeltas != null)
                         {
-                                    List<Type1CharStringNumber> emitDeltas = MergeFlexReferencePoint(context.FlexDeltas);
+                            List<Type1CharStringNumber> emitDeltas = MergeFlexReferencePoint(context.FlexDeltas);
 
                             UpdateCoordinates(ref context, OpRRCurveTo, emitDeltas);
 
@@ -375,13 +375,13 @@ internal static class Type1CharStringConverter
                         operandStack.Clear();
                         break;
                     }
-                        default:
-                            {
-                                // unknown other subr – skip
-                                operandStack.Clear();
-                                break;
-                            }
+                    default:
+                    {
+                        // unknown other subr – skip
+                        operandStack.Clear();
+                        break;
                     }
+                }
 
                 break;
             }
@@ -519,7 +519,7 @@ internal static class Type1CharStringConverter
     {
         if (value.HasSecondValue)
         {
-            if (value.Operation == ValueOperation.Div)
+            if (value.Operation == Type1ValueOperation.Div)
             {
                 CffNumberConverter.EncodeCharStringNumber(stream, (float)value.Value1 / value.Value2);
             }

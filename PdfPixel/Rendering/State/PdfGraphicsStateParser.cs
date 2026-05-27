@@ -72,7 +72,7 @@ namespace PdfPixel.Rendering.State
 
             if (gsDict.HasKey(PdfTokens.DashPatternKey))
             {
-                PdfArray dashArray = gsDict.GetArray(PdfTokens.DashPatternKey);
+                PdfArray? dashArray = gsDict.GetArray(PdfTokens.DashPatternKey);
                 if (dashArray?.Count >= 2)
                 {
                     float[]? patternArray = dashArray.GetArray(0)?.GetFloatArray();
@@ -121,7 +121,7 @@ namespace PdfPixel.Rendering.State
                 else
                 {
                     // Handle blend mode arrays - PDF viewers should use the first supported blend mode
-                    PdfArray blendModeArray = gsDict.GetArray(PdfTokens.BlendModeKey);
+                    PdfArray? blendModeArray = gsDict.GetArray(PdfTokens.BlendModeKey);
                     if (blendModeArray?.Count > 0)
                     {
                         // Try each blend mode in the array until we find a supported one
@@ -139,7 +139,7 @@ namespace PdfPixel.Rendering.State
                 }
             }
 
-            PdfArray matrixArray = null;
+            PdfArray? matrixArray = null;
             if (gsDict.HasKey(PdfTokens.MatrixKey)) // Custom transformation matrix
             {
                 matrixArray = gsDict.GetArray(PdfTokens.MatrixKey);
@@ -161,7 +161,7 @@ namespace PdfPixel.Rendering.State
                 }
                 else
                 {
-                    PdfDictionary softMaskDict = gsDict.GetDictionary(PdfTokens.SoftMaskKey);
+                    PdfDictionary? softMaskDict = gsDict.GetDictionary(PdfTokens.SoftMaskKey);
                     parameters.SoftMask = PdfSoftMaskParser.ParseSoftMaskDictionary(softMaskDict, page);
                 }
             }
@@ -169,7 +169,7 @@ namespace PdfPixel.Rendering.State
             // Transfer Function (/TR)
             if (gsDict.HasKey(PdfTokens.TransferFunctionKey))
             {
-                PdfObject trObject = gsDict.GetObject(PdfTokens.TransferFunctionKey);
+                PdfObject? trObject = gsDict.GetObject(PdfTokens.TransferFunctionKey);
                 parameters.TransferFunction = TransferFunctionTransform.FromPdfObject(trObject);
             }
 
@@ -200,10 +200,10 @@ namespace PdfPixel.Rendering.State
             // Font (/Font)
             if (gsDict.HasKey(PdfTokens.FontKey))
             {
-                PdfArray fontArray = gsDict.GetArray(PdfTokens.FontKey);
+                PdfArray? fontArray = gsDict.GetArray(PdfTokens.FontKey);
                 if (fontArray?.Count == 2)
                 {
-                    PdfObject fontObject = fontArray.GetObject(0);
+                    PdfObject? fontObject = fontArray.GetObject(0);
                     float fontSize = fontArray.GetFloatOrDefault(1);
 
                     parameters.Font = page.Cache.GetFont(fontObject);

@@ -33,10 +33,10 @@ internal sealed partial class IndexedConverter : PdfColorSpaceConverter
     /// <summary>
     /// Build (or retrieve cached) palette for this Indexed color space under the specified rendering intent.
     /// </summary>
-    public Vector4[] BuildPalette(PdfRenderingIntent renderingIntent, IColorTransform postTransform)
+    public Vector4[] BuildPalette(PdfRenderingIntent renderingIntent, IColorTransform? postTransform)
     {
         PaletteCacheKey key = new(renderingIntent, postTransform);
-        if (_paletteCache.TryGetValue(key, out Vector4[] existing))
+        if (_paletteCache.TryGetValue(key, out Vector4[]? existing))
         {
             return existing;
         }
@@ -66,7 +66,7 @@ internal sealed partial class IndexedConverter : PdfColorSpaceConverter
         return palette;
     }
 
-    public RgbaPacked[] BuildPackedPalette(PdfRenderingIntent renderingIntent, IColorTransform postTransform)
+    public RgbaPacked[] BuildPackedPalette(PdfRenderingIntent renderingIntent, IColorTransform? postTransform)
     {
         Vector4[] palette = BuildPalette(renderingIntent, postTransform);
         int paletteSize = palette.Length;
@@ -80,15 +80,15 @@ internal sealed partial class IndexedConverter : PdfColorSpaceConverter
         return packedPalette;
     }
 
-    protected override ColorTransformSampler GetRgbaSamplerCore(PdfRenderingIntent intent, IColorTransform postTransform)
+    protected override ColorTransformSampler GetRgbaSamplerCore(PdfRenderingIntent intent, IColorTransform? postTransform)
         => new(new ChainedColorTransform(new IndexedColorTransform(BuildPalette(intent, postTransform), _hiVal)));
 
     private readonly struct PaletteCacheKey : IEquatable<PaletteCacheKey>
     {
         private readonly PdfRenderingIntent _intent;
-        private readonly IColorTransform _postTransform;
+        private readonly IColorTransform? _postTransform;
 
-        public PaletteCacheKey(PdfRenderingIntent intent, IColorTransform postTransform)
+        public PaletteCacheKey(PdfRenderingIntent intent, IColorTransform? postTransform)
         {
             _intent = intent;
             _postTransform = postTransform;
@@ -97,7 +97,7 @@ internal sealed partial class IndexedConverter : PdfColorSpaceConverter
         public bool Equals(PaletteCacheKey other)
             => _intent == other._intent && ReferenceEquals(_postTransform, other._postTransform);
 
-        public override bool Equals(object obj) => obj is PaletteCacheKey k && Equals(k);
+        public override bool Equals(object? obj) => obj is PaletteCacheKey k && Equals(k);
 
         public override int GetHashCode() => HashCode.Combine(_intent, RuntimeHelpers.GetHashCode(_postTransform));
     }

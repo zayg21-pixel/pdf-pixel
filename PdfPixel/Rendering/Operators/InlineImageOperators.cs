@@ -1,5 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using Microsoft.Extensions.Logging;
 using PdfPixel.Color.ColorSpace;
 using PdfPixel.Commands;
@@ -8,7 +7,6 @@ using PdfPixel.Models;
 using PdfPixel.Rendering.State;
 using PdfPixel.Streams;
 using PdfPixel.Text;
-using SkiaSharp;
 
 namespace PdfPixel.Rendering.Operators;
 
@@ -63,31 +61,24 @@ internal class InlineImageOperators : IOperatorProcessor
 
     private void ProcessEndInlineImage(ref PdfGraphicsState graphicsState)
     {
-        try
+        IPdfValue image = _operandStack.Pop();
+        List<IPdfValue> parameterValues = new(_operandStack);
+        parameterValues.Reverse();
+        _operandStack.Clear();
+
+        PdfDictionary? imageDictionary = BuildImageDictionary(parameterValues);
+        if (imageDictionary == null)
         {
-            IPdfValue image = _operandStack.Pop();
-            List<IPdfValue> parameterValues = new(_operandStack);
-            parameterValues.Reverse();
-            _operandStack.Clear();
-
-            PdfDictionary imageDictionary = BuildImageDictionary(parameterValues);
-            if (imageDictionary == null)
-            {
-                return;
-            }
-
-            PdfObject inlineObject = new(default, _page.Document, PdfValueFactory.Dictionary(imageDictionary)) { EmbaddedStream = image.AsString().Value };
-
-            PdfImage pdfImage = PdfImage.FromXObject(inlineObject, _page, name: PdfString.Empty, isSoftMask: false);
-            _renderer.DrawImage(_processor, pdfImage, graphicsState);
+            return;
         }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error processing inline image");
-        }
+
+        PdfObject inlineObject = new(default, _page.Document, PdfValueFactory.Dictionary(imageDictionary)) { EmbaddedStream = image.AsString().Value };
+
+        PdfImage pdfImage = PdfImage.FromXObject(inlineObject, _page, name: PdfString.Empty, isSoftMask: false);
+        _renderer.DrawImage(_processor, pdfImage, graphicsState);
     }
 
-    private PdfDictionary BuildImageDictionary(List<IPdfValue> parameters)
+    private PdfDictionary? BuildImageDictionary(List<IPdfValue> parameters)
     {
         PdfDictionary imageDictionary = new(_page.Document);
         imageDictionary.Set(PdfTokens.SubtypeKey, PdfValueFactory.Name(PdfTokens.ImageSubtype));
@@ -190,13 +181,13 @@ internal class InlineImageOperators : IOperatorProcessor
             }
             else if (value.Type == PdfValueType.Array)
             {
-                PdfArray array = value.AsArray();
+                PdfArray? array = value.AsArray();
                 if (array?.Count > 0)
                 {
                     List<IPdfValue> newValues = new(array.Count);
                     for (int elementIndex = 0; elementIndex < array.Count; elementIndex++)
                     {
-                        IPdfValue item = array.GetValue(elementIndex);
+                        IPdfValue? item = array.GetValue(elementIndex);
                         if (item != null && item.Type == PdfValueType.Name)
                         {
                             PdfString itemName = item.AsName();
@@ -213,7 +204,10 @@ internal class InlineImageOperators : IOperatorProcessor
 
                         }
 
-                        newValues.Add(item);
+                        if (item != null)
+                        {
+                            newValues.Add(item);
+                        }
                     }
 
                     return PdfValueFactory.Array(new PdfArray(array.Document, newValues));

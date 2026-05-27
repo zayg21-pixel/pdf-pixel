@@ -46,7 +46,7 @@ internal class MeshDecoder
         _bitsPerCoordinate = shadingDictionary.GetIntegerOrDefault(PdfTokens.BitsPerCoordinateKey);
         _bitsPerComponent = shadingDictionary.GetIntegerOrDefault(PdfTokens.BitsPerComponentKey);
         _bitsPerFlag = shadingDictionary.GetIntegerOrDefault(PdfTokens.BitsPerFlagKey);
-        float[] decodeArray = shadingDictionary.GetArray(PdfTokens.DecodeKey).GetFloatArray();
+        float[]? decodeArray = shadingDictionary.GetArray(PdfTokens.DecodeKey)?.GetFloatArray();
         if (decodeArray == null || decodeArray.Length < 6 || (decodeArray.Length - 4) % 2 != 0)
         {
             throw new ArgumentException("Decode array must contain at least xmin,xmax,ymin,ymax and pairs of min/max for each color component");
@@ -85,7 +85,7 @@ internal class MeshDecoder
         ReadOnlyMemory<byte> memory = _shading.SourceObject.DecodeAsMemory();
         UintBitReader bitReader = new(memory.Span);
         List<MeshData> patches = [];
-        MeshData previousPatch = null;
+        MeshData? previousPatch = null;
 
         while (!bitReader.EndOfData)
         {
@@ -106,7 +106,7 @@ internal class MeshDecoder
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private MeshData DecodeMesh(ref UintBitReader bitReader, byte flag, MeshData previousPatch)
+    private MeshData DecodeMesh(ref UintBitReader bitReader, byte flag, MeshData? previousPatch)
     {
         var controlPoints = new SKPoint[_controlPointCount];
         var cornerColors = new SKColor[4];

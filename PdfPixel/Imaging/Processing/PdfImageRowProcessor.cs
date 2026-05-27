@@ -32,21 +32,21 @@ internal sealed class PdfImageRowProcessor : IDisposable
     private readonly OutputMode _outputMode;
     private readonly PngImageBuilder _pngBuilder;
 
-    private readonly ColorTransformSampler _sampler;
-    private byte[] _rgbaBuffer;
+    private readonly ColorTransformSampler? _sampler;
+    private byte[]? _rgbaBuffer;
     private bool _initialized;
     private bool _completed;
 
     private readonly int _width;
     private readonly int _height;
 
-    private readonly IRowConverter _rowConverter;
-    private byte[] _convertedRowBuffer;
+    private readonly AveragingDownsampleRowConverter? _rowConverter;
+    private byte[]? _convertedRowBuffer;
 
     private readonly bool _applyDecode;
-    private readonly float[] _decodeArray;
+    private readonly float[]? _decodeArray;
     private readonly bool _applyMask;
-    private readonly int[] _maskArray;
+    private readonly int[]? _maskArray;
     private readonly int _maxCode;
     private readonly float _scale;
 
@@ -99,7 +99,7 @@ internal sealed class PdfImageRowProcessor : IDisposable
 
             _pngBuilder = new PngImageBuilder(_components, _bitsPerComponent, _width, _height);
 
-            RgbaPacked[] palette = null;
+            RgbaPacked[]? palette = null;
 
             if (_parameters.ColorSpaceConverter is IndexedConverter indexed)
             {
@@ -121,7 +121,7 @@ internal sealed class PdfImageRowProcessor : IDisposable
         _maskArray = _parameters.MaskArray;
     }
 
-    public static RgbaPacked[] BuildSingleChannelPalette(PdfImageRowDecodingParameters parameters, int outputBitsPerComponent)
+    public static RgbaPacked[]? BuildSingleChannelPalette(PdfImageRowDecodingParameters parameters, int outputBitsPerComponent)
     {
         if (parameters.ColorSpaceConverter is DeviceGrayConverter)
         {
@@ -263,6 +263,11 @@ internal sealed class PdfImageRowProcessor : IDisposable
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private void WriteWithFullColor(int rowIndex, in Span<byte> decodedRow)
     {
+        if (_rgbaBuffer == null || _sampler == null)
+        {
+            throw new InvalidOperationException("Not initialized.");
+        }
+
         ref byte destRowByte = ref _rgbaBuffer[0];
         ref RgbaPacked destRowColor = ref Unsafe.As<byte, RgbaPacked>(ref destRowByte);
         UintBitReaderFixedLength bitReader = new(decodedRow, _bitsPerComponent);
@@ -277,7 +282,7 @@ internal sealed class PdfImageRowProcessor : IDisposable
             {
                 uint sample = bitReader.Read();
 
-                if (_applyMask && maskMatch)
+                if (_applyMask && maskMatch && _maskArray != null)
                 {
                     int minCode = _maskArray[c * 2];
                     int maxCodeRange = _maskArray[(c * 2) + 1];
@@ -290,7 +295,7 @@ internal sealed class PdfImageRowProcessor : IDisposable
 
                 float value01 = sample * _scale;
 
-                if (_applyDecode)
+                if (_applyDecode && _decodeArray != null)
                 {
                     int di = c * 2;
                     float dMin = _decodeArray[di];

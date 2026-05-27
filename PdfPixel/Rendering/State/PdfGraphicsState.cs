@@ -19,24 +19,27 @@ namespace PdfPixel.Rendering.State;
 /// </summary>
 public class PdfGraphicsState
 {
-    private ColorTransformSampler _fillRgbaSampler;
-    private ColorTransformSampler _strokeRgbaSampler;
-    private IColorTransform _fullTransferFunction;
+    private IColorTransform? _fullTransferFunction;
 
     private PdfRenderingIntent _renderingIntent = PdfRenderingIntent.RelativeColorimetric;
-    private PdfColorSpaceConverter _strokeColorConverter;
-    private PdfColorSpaceConverter _fillColorConverter;
-    private TransferFunctionTransform _transferFunction;
-    private IColorTransform _externalTransferFunction;
 
-    internal PdfGraphicsState(IPdfPageInternal statePage, HashSet<uint> recursionGuard, IColorTransform externalTransform, IPdfExecutionObserver observer)
+    private PdfColorSpaceConverter _strokeColorConverter;
+    private ColorTransformSampler? _strokeRgbaSampler;
+
+    private PdfColorSpaceConverter _fillColorConverter;
+    private ColorTransformSampler? _fillRgbaSampler;
+
+    private TransferFunctionTransform? _transferFunction;
+    private IColorTransform? _externalTransferFunction;
+
+    internal PdfGraphicsState(IPdfPageInternal statePage, HashSet<uint> recursionGuard, IColorTransform? externalTransform, IPdfExecutionObserver? observer)
     {
         Page = statePage ?? throw new ArgumentNullException(nameof(statePage));
         ExternalTransferFunction = externalTransform;
         RecursionGuard = recursionGuard ?? throw new ArgumentNullException(nameof(recursionGuard));
         ExecutionObserver = observer;
-        FillColorConverter = statePage.Cache.ColorSpace.ResolveDeviceConverter(PdfColorSpaceType.DeviceGray);
-        StrokeColorConverter = statePage.Cache.ColorSpace.ResolveDeviceConverter(PdfColorSpaceType.DeviceGray);
+        _fillColorConverter = statePage.Cache.ColorSpace.ResolveDeviceConverter(PdfColorSpaceType.DeviceGray);
+        _strokeColorConverter = statePage.Cache.ColorSpace.ResolveDeviceConverter(PdfColorSpaceType.DeviceGray);
     }
 
     internal PdfGraphicsState(IPdfPageInternal statePage, PdfGraphicsState sourceState)
@@ -57,7 +60,7 @@ public class PdfGraphicsState
     /// <summary>
     /// Observer to notify on PDF processing that some work has been done.
     /// </summary>
-    public IPdfExecutionObserver ExecutionObserver { get; }
+    public IPdfExecutionObserver? ExecutionObserver { get; }
 
     /// <summary>
     /// Indicates whether this graphics state is being used for Type 3 glyph rendering.
@@ -154,7 +157,7 @@ public class PdfGraphicsState
     /// <summary>
     /// Optional transfer function (TR) applied to device output prior to soft mask input or blending.
     /// </summary>
-    public TransferFunctionTransform TransferFunction
+    public TransferFunctionTransform? TransferFunction
     {
         get => _transferFunction;
 
@@ -172,7 +175,7 @@ public class PdfGraphicsState
     /// <summary>
     /// Optional external transfer function (TR) provided from caller.
     /// </summary>
-    public IColorTransform ExternalTransferFunction
+    public IColorTransform? ExternalTransferFunction
     {
         get => _externalTransferFunction;
 
@@ -191,7 +194,7 @@ public class PdfGraphicsState
     /// Gets the complete color transfer function by combining the internal and external transfer functions, if both
     /// are available.
     /// </summary>
-    public IColorTransform FullTransferFunction
+    public IColorTransform? FullTransferFunction
     {
         get
         {
@@ -243,12 +246,12 @@ public class PdfGraphicsState
     /// <summary>
     /// Dash pattern array (d operator). Null means solid line.
     /// </summary>
-    public float[] DashPattern { get; set; }
+    public float[]? DashPattern { get; set; }
 
     /// <summary>
     /// Dash phase (d operator). Default 0.
     /// </summary>
-    public float DashPhase { get; set; } = 0.0f;
+    public float DashPhase { get; set; }
 
     // --------------------------------------------------------------------------------------
     // Path rendering state (see PDF 2.0 spec 8.4 Graphics State)
@@ -280,13 +283,13 @@ public class PdfGraphicsState
     /// <summary>
     /// Active soft mask (SMask entry in ExtGState) or null when none.
     /// </summary>
-    public PdfSoftMask SoftMask { get; set; }
+    public PdfSoftMask? SoftMask { get; set; }
 
     /// <summary>
     /// Alpha-is-shape flag (AIS entry in ExtGState). When true, alpha is treated as shape, not opacity.
     /// Default false.
     /// </summary>
-    public bool AlphaIsShape { get; set; } = false;
+    public bool AlphaIsShape { get; set; }
 
     /// <summary>
     /// Gets or sets the transformation matrix applied to the device.
@@ -301,22 +304,22 @@ public class PdfGraphicsState
     /// <summary>
     /// Knockout flag (TK). Default false.
     /// </summary>
-    public bool Knockout { get; set; } = false;
+    public bool Knockout { get; set; }
 
     /// <summary>
     /// Overprint mode (OPM). Default 0.
     /// </summary>
-    public int OverprintMode { get; set; } = 0;
+    public int OverprintMode { get; set; }
 
     /// <summary>
     /// Overprint flag for stroke operations (OP). Default false.
     /// </summary>
-    public bool OverprintStroke { get; set; } = false;
+    public bool OverprintStroke { get; set; }
 
     /// <summary>
     /// Overprint flag for fill operations (op). Default false.
     /// </summary>
-    public bool OverprintFill { get; set; } = false;
+    public bool OverprintFill { get; set; }
 
     // --------------------------------------------------------------------------------------
     // Text state (see PDF 2.0 spec 9 Text) - tracked between BT/ET
@@ -324,7 +327,7 @@ public class PdfGraphicsState
     /// <summary>
     /// Current font resource name from Tf operator or external graphics state.
     /// </summary>
-    public PdfFontBase CurrentFont { get; set; }
+    public PdfFontBase? CurrentFont { get; set; }
 
     /// <summary>
     /// Font size (Tf operator). Default 1.
@@ -334,12 +337,12 @@ public class PdfGraphicsState
     /// <summary>
     /// Character spacing (Tc). Default 0.
     /// </summary>
-    public float CharacterSpacing { get; set; } = 0f;
+    public float CharacterSpacing { get; set; }
 
     /// <summary>
     /// Word spacing (Tw). Default 0.
     /// </summary>
-    public float WordSpacing { get; set; } = 0f;
+    public float WordSpacing { get; set; }
 
     /// <summary>
     /// Horizontal scaling (Tz). Stored as percentage (100 = 100%). Default 100.
@@ -349,12 +352,12 @@ public class PdfGraphicsState
     /// <summary>
     /// Text leading (TL). Default 0.
     /// </summary>
-    public float Leading { get; set; } = 0f;
+    public float Leading { get; set; }
 
     /// <summary>
     /// Text rise (Ts). Default 0.
     /// </summary>
-    public float Rise { get; set; } = 0f;
+    public float Rise { get; set; }
 
     /// <summary>
     /// Text rendering mode (Tr). Default Fill.
@@ -380,12 +383,12 @@ public class PdfGraphicsState
     /// <summary>
     /// True while inside a text object (between BT and ET).
     /// </summary>
-    public bool InTextObject { get; set; } = false;
+    public bool InTextObject { get; set; }
 
     /// <summary>
     /// Gets or sets the clipping path used to define the area where text can be rendered.
     /// </summary>
-    public SKPath TextClipPath { get; set; }
+    public SKPath? TextClipPath { get; set; }
 
     /// <summary>
     /// Create a deep copy for stack push (q operator). Paint objects are reference-copied (immutable usage expected).

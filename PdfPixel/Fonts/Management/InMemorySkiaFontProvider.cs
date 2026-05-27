@@ -15,6 +15,7 @@ public sealed class InMemorySkiaFontProvider : ISkiaFontProvider
     private readonly Dictionary<PdfStandardFontName, SKTypeface> _standardFonts = [];
     private readonly Dictionary<string, SKTypeface> _namedFonts = new(StringComparer.OrdinalIgnoreCase);
     private readonly HashSet<SKTypeface> _ownedTypefaces = [];
+    private bool _ownsFallback;
     private SKTypeface _fallback;
 
     /// <summary>
@@ -35,6 +36,21 @@ public sealed class InMemorySkiaFontProvider : ISkiaFontProvider
         { PdfStandardFontName.ZapfDingbats, ["ZapfDingbats"] }
     };
 
+    public InMemorySkiaFontProvider() => _fallback = SKTypeface.Default;
+
+    public void RegisterFallback(byte[] fontData)
+    {
+        SKTypeface typeface = SKTypeface.FromStream(new MemoryStream(fontData));
+
+        if (typeface == null)
+        {
+            throw new InvalidOperationException($"Invalid font data for fallback font.");
+        }
+
+        _fallback = typeface;
+        _ownsFallback = true;
+    }
+
     /// <summary>
     /// Registers font data for a standard PDF font name.
     /// The typeface is also registered under its own family name and the standard display names
@@ -45,9 +61,10 @@ public sealed class InMemorySkiaFontProvider : ISkiaFontProvider
     public void RegisterStandardFont(PdfStandardFontName standardFont, byte[] fontData)
     {
         SKTypeface typeface = SKTypeface.FromStream(new MemoryStream(fontData));
+
         if (typeface == null)
         {
-            return;
+            throw new InvalidOperationException($"Invalid font data for {standardFont}.");
         }
 
         _ownedTypefaces.Add(typeface);
@@ -60,22 +77,19 @@ public sealed class InMemorySkiaFontProvider : ISkiaFontProvider
         }
 
         // Register by well-known display names that PDFs commonly reference
-        if (StandardFontDisplayNames.TryGetValue(standardFont, out string[] displayNames))
+        if (StandardFontDisplayNames.TryGetValue(standardFont, out string[]? displayNames))
         {
             for (int i = 0; i < displayNames.Length; i++)
             {
                 _namedFonts[displayNames[i]] = typeface;
             }
         }
-
-        // Use the first registered font as the fallback
-        _fallback ??= typeface;
     }
 
     /// <inheritdoc/>
-    public SKTypeface GetStandardFont(PdfStandardFontName standardFont, SKFontStyle style, string unicode)
+    public SKTypeface? GetStandardFont(PdfStandardFontName standardFont, SKFontStyle style, string? unicode)
     {
-        if (_standardFonts.TryGetValue(standardFont, out SKTypeface typeface))
+        if (_standardFonts.TryGetValue(standardFont, out SKTypeface? typeface))
         {
             if (unicode == null || typeface.ContainsGlyphs(unicode))
             {
@@ -83,13 +97,13 @@ public sealed class InMemorySkiaFontProvider : ISkiaFontProvider
             }
         }
 
-        return _fallback;
+        return null;
     }
 
     /// <inheritdoc/>
-    public SKTypeface GetFont(string name, SKFontStyle style, string unicode)
+    public SKTypeface GetFont(string? name, SKFontStyle style, string? unicode)
     {
-        if (!string.IsNullOrEmpty(name) && _namedFonts.TryGetValue(name, out SKTypeface typeface))
+        if (name != null && _namedFonts.TryGetValue(name, out SKTypeface? typeface))
         {
             if (unicode == null || typeface.ContainsGlyphs(unicode))
             {
@@ -113,6 +127,10 @@ public sealed class InMemorySkiaFontProvider : ISkiaFontProvider
         _standardFonts.Clear();
         _namedFonts.Clear();
         _ownedTypefaces.Clear();
-        _fallback = null;
+
+        if (_ownsFallback)
+        {
+            _fallback.Dispose();
+        }
     }
 }

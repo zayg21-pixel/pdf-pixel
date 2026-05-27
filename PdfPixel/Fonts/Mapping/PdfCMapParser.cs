@@ -15,7 +15,7 @@ namespace PdfPixel.Fonts.Mapping;
 /// </summary>
 internal static class PdfCMapParser
 {
-    public static PdfCMap ParseCMap(in ReadOnlyMemory<byte> cmapBytes, ILoggerFactory loggerFactory, Func<PdfString, PdfCMap> cmapProvider)
+    public static PdfCMap? ParseCMap(in ReadOnlyMemory<byte> cmapBytes, ILoggerFactory loggerFactory, Func<PdfString, PdfCMap?> cmapProvider)
     {
         PdfCMap cmap = new();
         PostScriptEvaluator evaluator = new(cmapBytes.Span, false, loggerFactory.CreateLogger<PostScriptEvaluator>());
@@ -24,7 +24,7 @@ internal static class PdfCMapParser
         System.Collections.Generic.Stack<PostScriptToken> stack = [];
         evaluator.EvaluateTokens(stack);
 
-        PostScriptDictionary cmaps = evaluator.GetResourceCategory(PdfTokens.CMapKey.ToString());
+        PostScriptDictionary? cmaps = evaluator.GetResourceCategory(PdfTokens.CMapKey.ToString());
         if (!(cmaps?.Entries.FirstOrDefault().Value is PostScriptDictionary cmapDictionary))
         {
             return cmap;
@@ -32,7 +32,7 @@ internal static class PdfCMapParser
 
         cmap.CidSystemInfo = GetInfo(cmapDictionary);
 
-        if (cmapDictionary.Entries.TryGetValue("codespacerange", out PostScriptToken codespaceRange) && codespaceRange is PostScriptArray codespaceRangeArray)
+        if (cmapDictionary.Entries.TryGetValue("codespacerange", out PostScriptToken? codespaceRange) && codespaceRange is PostScriptArray codespaceRangeArray)
         {
             PostScriptToken[] arrayItems = codespaceRangeArray.Elements;
 
@@ -45,7 +45,7 @@ internal static class PdfCMapParser
             }
         }
 
-        if (cmapDictionary.Entries.TryGetValue("bfchar", out PostScriptToken bfChar) && bfChar is PostScriptArray bfCharArray)
+        if (cmapDictionary.Entries.TryGetValue("bfchar", out PostScriptToken? bfChar) && bfChar is PostScriptArray bfCharArray)
         {
             PostScriptToken[] arrayItems = bfCharArray.Elements;
 
@@ -58,7 +58,7 @@ internal static class PdfCMapParser
             }
         }
 
-        if (cmapDictionary.Entries.TryGetValue("bfrange", out PostScriptToken bfRange) && bfRange is PostScriptArray bfRangeArray)
+        if (cmapDictionary.Entries.TryGetValue("bfrange", out PostScriptToken? bfRange) && bfRange is PostScriptArray bfRangeArray)
         {
             PostScriptToken[] arrayItems = bfRangeArray.Elements;
 
@@ -72,7 +72,7 @@ internal static class PdfCMapParser
 
         }
 
-        if (cmapDictionary.Entries.TryGetValue("cidchar", out PostScriptToken cidChar) && cidChar is PostScriptArray cidCharArray)
+        if (cmapDictionary.Entries.TryGetValue("cidchar", out PostScriptToken? cidChar) && cidChar is PostScriptArray cidCharArray)
         {
             PostScriptToken[] arrayItems = cidCharArray.Elements;
 
@@ -85,7 +85,7 @@ internal static class PdfCMapParser
             }
         }
 
-        if (cmapDictionary.Entries.TryGetValue("cidrange", out PostScriptToken cidRange) && cidRange is PostScriptArray cidRangeArray)
+        if (cmapDictionary.Entries.TryGetValue("cidrange", out PostScriptToken? cidRange) && cidRange is PostScriptArray cidRangeArray)
         {
             PostScriptToken[] arrayItems = cidRangeArray.Elements;
 
@@ -98,7 +98,7 @@ internal static class PdfCMapParser
             }
         }
 
-        if (cmapDictionary.Entries.TryGetValue("usecmap", out PostScriptToken useCMapToken) && useCMapToken is PostScriptArray useCMapArray)
+        if (cmapDictionary.Entries.TryGetValue("usecmap", out PostScriptToken? useCMapToken) && useCMapToken is PostScriptArray useCMapArray)
         {
             foreach (PostScriptToken element in useCMapArray.Elements)
             {
@@ -113,12 +113,12 @@ internal static class PdfCMapParser
             }
         }
 
-        if (cmapDictionary.Entries.TryGetValue("WMode", out PostScriptToken wmodeToken) && wmodeToken is PostScriptNumber wmodeNumber)
+        if (cmapDictionary.Entries.TryGetValue("WMode", out PostScriptToken? wmodeToken) && wmodeToken is PostScriptNumber wmodeNumber)
         {
-            cmap.WMode = (CMapWMode)(int)wmodeNumber.Value;
+            cmap.WMode = (CMapWMode)(int)wmodeNumber.Number;
         }
 
-        if (cmapDictionary.Entries.TryGetValue("CMapName", out PostScriptToken name) && name is PostScriptLiteralName nameLiteral)
+        if (cmapDictionary.Entries.TryGetValue("CMapName", out PostScriptToken? name) && name is PostScriptLiteralName nameLiteral)
         {
             cmap.Name = PdfString.FromString(nameLiteral.Name);
         }
@@ -126,7 +126,7 @@ internal static class PdfCMapParser
         return cmap;
     }
 
-    public static PdfCMap ParseCMap(in ReadOnlyMemory<byte> cmapBytes, IPdfDocumentInternal document)
+    public static PdfCMap? ParseCMap(in ReadOnlyMemory<byte> cmapBytes, IPdfDocumentInternal document)
     {
         return ParseCMap(
             cmapBytes,
@@ -135,14 +135,14 @@ internal static class PdfCMapParser
         );
     }
 
-    private static PdfCidSystemInfo GetInfo(PostScriptDictionary dictionary)
+    private static PdfCidSystemInfo? GetInfo(PostScriptDictionary dictionary)
     {
         if (dictionary == null)
         {
             return null;
         }
 
-        if (dictionary.Entries.TryGetValue(PdfTokens.CidSystemInfoKey.ToString(), out PostScriptToken infoValue) && infoValue is PostScriptDictionary infoDictionary)
+        if (dictionary.Entries.TryGetValue(PdfTokens.CidSystemInfoKey.ToString(), out PostScriptToken? infoValue) && infoValue is PostScriptDictionary infoDictionary)
         {
             return PdfCidSystemInfo.FromPostscriptDictionary(infoDictionary);
         }
@@ -161,7 +161,7 @@ internal static class PdfCMapParser
                 continue;
             }
 
-            cmap.AddCodespaceRange(startToken.Value.AsSpan(), endToken.Value.AsSpan());
+            cmap.AddCodespaceRange(startToken.Data.AsSpan(), endToken.Data.AsSpan());
         }
     }
 
@@ -177,9 +177,9 @@ internal static class PdfCMapParser
                 continue;
             }
 
-            PdfCharacterCode code = new(codeString.Value);
+            PdfCharacterCode code = new(codeString.Data);
 
-            Span<byte> unicodeBytes = unicodeString.Value.AsSpan();
+            Span<byte> unicodeBytes = unicodeString.Data.AsSpan();
 
             if (!IsSentinelFFFF(unicodeBytes))
             {
@@ -202,12 +202,12 @@ internal static class PdfCMapParser
                 continue;
             }
 
-            Span<byte> startBytes = startToken.Value.AsSpan();
-            Span<byte> endBytes = endToken.Value.AsSpan();
+            Span<byte> startBytes = startToken.Data.AsSpan();
+            Span<byte> endBytes = endToken.Data.AsSpan();
 
             if (thirdToken is PostScriptString unicodeString)
             {
-                ReadOnlySpan<byte> unicodeBytes = unicodeString.Value.AsSpan();
+                ReadOnlySpan<byte> unicodeBytes = unicodeString.Data.AsSpan();
                 if (IsSentinelFFFF(unicodeBytes))
                 {
                     continue;
@@ -228,7 +228,7 @@ internal static class PdfCMapParser
                 else
                 {
                     // Multi-codepoint sequence: map only first code to full string per spec semantics.
-                    cmap.AddMapping(new PdfCharacterCode(startToken.Value), startUnicodeFull);
+                    cmap.AddMapping(new PdfCharacterCode(startToken.Data), startUnicodeFull);
                     continue;
                 }
 
@@ -266,7 +266,7 @@ internal static class PdfCMapParser
                         continue;
                     }
 
-                    ReadOnlySpan<byte> hex = arrayItem.Value.AsSpan();
+                    ReadOnlySpan<byte> hex = arrayItem.Data.AsSpan();
                     if (IsSentinelFFFF(hex))
                     {
                         continue;
@@ -291,7 +291,7 @@ internal static class PdfCMapParser
                 continue;
             }
 
-            cmap.AddCidMapping(new PdfCharacterCode(codeToken.Value), (int)cidToken.Value);
+            cmap.AddCidMapping(new PdfCharacterCode(codeToken.Data), (int)cidToken.Number);
         }
     }
 
@@ -307,7 +307,7 @@ internal static class PdfCMapParser
                 continue;
             }
 
-            cmap.AddCidRangeMapping(startToken.Value.AsSpan(), endToken.Value.AsSpan(), (int)firstCidToken.Value);
+            cmap.AddCidRangeMapping(startToken.Data.AsSpan(), endToken.Data.AsSpan(), (int)firstCidToken.Number);
         }
     }
 

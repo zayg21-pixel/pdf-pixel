@@ -9,7 +9,7 @@ internal sealed class PdfImageTileCacheEntry : IDisposable
 {
     private readonly PdfImageDecoder _decoder;
     private readonly ImageDecodingContext _context;
-    private readonly PdfImageTile[] _tiles;
+    private readonly PdfImageTile?[] _tiles;
 
     private int _currentTileIndex;
     private SKRectI? _decodedRegion;
@@ -58,16 +58,18 @@ internal sealed class PdfImageTileCacheEntry : IDisposable
             throw new InvalidOperationException($"Tile index {_currentTileIndex} is out of range (TotalTiles={TileInfo.TotalTiles}).");
         }
 
-        if (_tiles[_currentTileIndex] != null)
+        PdfImageTile? currentTile = _tiles[_currentTileIndex];
+        if (currentTile != null)
         {
-            return _tiles[_currentTileIndex++];
+            _currentTileIndex++;
+            return currentTile;
         }
 
         while (_decoding)
         {
             observer?.Notify();
 
-            PdfImageTile[] batch = _decoder.DecodeNextTiles(observer);
+            PdfImageTile[]? batch = _decoder.DecodeNextTiles(observer);
             if (batch == null)
             {
                 _decoding = false;
@@ -89,9 +91,11 @@ internal sealed class PdfImageTileCacheEntry : IDisposable
                 }
             }
 
-            if (_tiles[_currentTileIndex] != null)
+            PdfImageTile? newCurrentTile = _tiles[_currentTileIndex];
+            if (newCurrentTile != null)
             {
-                return _tiles[_currentTileIndex++];
+                _currentTileIndex++;
+                return newCurrentTile;
             }
         }
 

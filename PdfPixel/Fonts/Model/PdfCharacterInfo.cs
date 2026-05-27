@@ -14,7 +14,7 @@ public struct PdfCharacterInfo
     public PdfCharacterInfo(
         PdfCharacterCode characterCode,
         SKTypeface typeface,
-        string unicode,
+        string? unicode,
         ushort[] gid,
         float originalWidth,
         float[] width,
@@ -46,7 +46,7 @@ public struct PdfCharacterInfo
     /// <summary>
     /// The Unicode string for this character code.
     /// </summary>
-    public string Unicode { get; }
+    public string? Unicode { get; }
 
     /// <summary>
     /// The glyph ID collection for this character code.

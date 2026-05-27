@@ -27,12 +27,12 @@ internal interface IPdfDocumentInternal : IPdfDocument
     /// Gets or sets the named destinations dictionary from the PDF document catalog.
     /// Can originate from a <c>/Dests</c> entry (older format) or a <c>/Names/Dests</c> entry (newer format).
     /// </summary>
-    PdfDictionary NamedDestinations { get; set; }
+    PdfDictionary? NamedDestinations { get; set; }
 
     /// <summary>
     /// Gets or sets the root object of the PDF document.
     /// </summary>
-    PdfObject RootObject { get; set; }
+    PdfObject? RootObject { get; set; }
 
     /// <summary>
     /// Gets the document-level font substitution engine.
@@ -57,7 +57,7 @@ internal interface IPdfDocumentInternal : IPdfDocument
     /// <summary>
     /// Gets or sets the decryptor for encrypted PDF content.
     /// </summary>
-    BasePdfDecryptor Decryptor { get; set; }
+    BasePdfDecryptor? Decryptor { get; set; }
 
     /// <summary>
     /// Gets the original PDF file stream for internal parser use (lazy object loading).

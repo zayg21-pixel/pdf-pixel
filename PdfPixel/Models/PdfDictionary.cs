@@ -23,7 +23,7 @@ public class PdfDictionary
     /// </summary>
     /// <param name="document">The owning PDF document.</param>
     /// <param name="values">The initial dictionary values.</param>
-    internal PdfDictionary(IPdfDocumentInternal document, Dictionary<PdfString, IPdfValue> values)
+    internal PdfDictionary(IPdfDocumentInternal document, Dictionary<PdfString, IPdfValue>? values)
     {
         Document = document;
         RawValues = values ?? new Dictionary<PdfString, IPdfValue>();
@@ -57,9 +57,9 @@ public class PdfDictionary
     /// </summary>
     /// <param name="key">The key to retrieve.</param>
     /// <returns>The resolved <see cref="IPdfValue"/> or <c>null</c>.</returns>
-    public IPdfValue GetValue(in PdfString key)
+    public IPdfValue? GetValue(in PdfString key)
     {
-        if (RawValues.TryGetValue(key, out IPdfValue storedValue))
+        if (RawValues.TryGetValue(key, out IPdfValue? storedValue))
         {
             return storedValue.ResolveToNonReference(Document);
         }
@@ -74,7 +74,7 @@ public class PdfDictionary
     /// <param name="key">The key to retrieve.</param>
     /// <returns>The <see cref="PdfString"/> name value, or <c>default</c>.</returns>
     public PdfString GetName(in PdfString key)
-        => (RawValues.TryGetValue(key, out IPdfValue storedValue)) ? storedValue.ResolveToNonReference(Document)?.AsName() ?? default : default;
+        => (RawValues.TryGetValue(key, out IPdfValue? storedValue)) ? storedValue.ResolveToNonReference(Document)?.AsName() ?? default : default;
 
     /// <summary>
     /// Gets the value as a PDF string for the specified key, following references.
@@ -83,7 +83,7 @@ public class PdfDictionary
     /// <param name="key">The key to retrieve.</param>
     /// <returns>The <see cref="PdfString"/> value, or <c>default</c>.</returns>
     public PdfString GetString(in PdfString key)
-        => (RawValues.TryGetValue(key, out IPdfValue storedValue)) ? storedValue.ResolveToNonReference(Document)?.AsString() ?? default : default;
+        => (RawValues.TryGetValue(key, out IPdfValue? storedValue)) ? storedValue.ResolveToNonReference(Document)?.AsString() ?? default : default;
 
     /// <summary>
     /// Gets the value as an integer for the specified key, following references.
@@ -93,9 +93,9 @@ public class PdfDictionary
     /// <returns>The integer value, or <c>null</c>.</returns>
     public int? GetInteger(in PdfString key)
     {
-        if (RawValues.TryGetValue(key, out IPdfValue storedValue))
+        if (RawValues.TryGetValue(key, out IPdfValue? storedValue))
         {
-            IPdfValue resolvedValue = storedValue.ResolveToNonReference(Document);
+            IPdfValue? resolvedValue = storedValue.ResolveToNonReference(Document);
 
             if (resolvedValue != null && (resolvedValue.Type == PdfValueType.Integer || resolvedValue.Type == PdfValueType.Real))
             {
@@ -113,7 +113,7 @@ public class PdfDictionary
     /// <param name="key">The key to retrieve.</param>
     /// <returns>The integer value, or 0.</returns>
     public int GetIntegerOrDefault(in PdfString key)
-        => (RawValues.TryGetValue(key, out IPdfValue storedValue)) ? storedValue.ResolveToNonReference(Document)?.AsInteger() ?? 0 : 0;
+        => (RawValues.TryGetValue(key, out IPdfValue? storedValue)) ? storedValue.ResolveToNonReference(Document)?.AsInteger() ?? 0 : 0;
 
     /// <summary>
     /// Gets the value as a float for the specified key, following references.
@@ -123,9 +123,9 @@ public class PdfDictionary
     /// <returns>The float value, or <c>null</c>.</returns>
     public float? GetFloat(in PdfString key)
     {
-        if (RawValues.TryGetValue(key, out IPdfValue storedValue))
+        if (RawValues.TryGetValue(key, out IPdfValue? storedValue))
         {
-            IPdfValue resolvedValue = storedValue.ResolveToNonReference(Document);
+            IPdfValue? resolvedValue = storedValue.ResolveToNonReference(Document);
             if (resolvedValue != null && (resolvedValue.Type == PdfValueType.Integer || resolvedValue.Type == PdfValueType.Real))
             {
                 return resolvedValue.AsFloat();
@@ -142,7 +142,7 @@ public class PdfDictionary
     /// <param name="key">The key to retrieve.</param>
     /// <returns>The float value, or 0.</returns>
     public float GetFloatOrDefault(in PdfString key)
-        => (RawValues.TryGetValue(key, out IPdfValue storedValue)) ? storedValue.ResolveToNonReference(Document)?.AsFloat() ?? 0 : 0;
+        => (RawValues.TryGetValue(key, out IPdfValue? storedValue)) ? storedValue.ResolveToNonReference(Document)?.AsFloat() ?? 0 : 0;
 
     /// <summary>
     /// Gets the value as a boolean for the specified key, following references.
@@ -152,9 +152,9 @@ public class PdfDictionary
     /// <returns>The boolean value, or <c>null</c>.</returns>
     public bool? GetBoolean(in PdfString key)
     {
-        if (RawValues.TryGetValue(key, out IPdfValue storedValue))
+        if (RawValues.TryGetValue(key, out IPdfValue? storedValue))
         {
-            IPdfValue resolvedValue = storedValue.ResolveToNonReference(Document);
+            IPdfValue? resolvedValue = storedValue.ResolveToNonReference(Document);
             if (resolvedValue != null && resolvedValue.Type == PdfValueType.Boolean)
             {
                 return resolvedValue.AsBoolean();
@@ -172,9 +172,9 @@ public class PdfDictionary
     /// <returns>The boolean value, or <c>false</c>.</returns>
     public bool GetBooleanOrDefault(in PdfString key)
     {
-        if (RawValues.TryGetValue(key, out IPdfValue storedValue))
+        if (RawValues.TryGetValue(key, out IPdfValue? storedValue))
         {
-            IPdfValue resolvedValue = storedValue.ResolveToNonReference(Document);
+            IPdfValue? resolvedValue = storedValue.ResolveToNonReference(Document);
             return resolvedValue?.AsBoolean() == true;
         }
 
@@ -187,11 +187,11 @@ public class PdfDictionary
     /// </summary>
     /// <param name="key">The key to retrieve.</param>
     /// <returns>The <see cref="PdfArray"/> value, or <c>null</c>.</returns>
-    public PdfArray GetArray(in PdfString key)
+    public PdfArray? GetArray(in PdfString key)
     {
-        if (RawValues.TryGetValue(key, out IPdfValue storedValue))
+        if (RawValues.TryGetValue(key, out IPdfValue? storedValue))
         {
-            return storedValue.ResolveToNonReference(Document).AsArray();
+            return storedValue.ResolveToNonReference(Document)?.AsArray();
         }
 
         return null;
@@ -203,8 +203,8 @@ public class PdfDictionary
     /// </summary>
     /// <param name="key">The key to retrieve.</param>
     /// <returns>The <see cref="PdfDictionary"/> value, or <c>null</c>.</returns>
-    public PdfDictionary GetDictionary(in PdfString key)
-        => (RawValues.TryGetValue(key, out IPdfValue storedValue)) ? storedValue.ResolveToNonReference(Document)?.AsDictionary() : null;
+    public PdfDictionary? GetDictionary(in PdfString key)
+        => (RawValues.TryGetValue(key, out IPdfValue? storedValue)) ? storedValue.ResolveToNonReference(Document)?.AsDictionary() : null;
 
     /// <summary>
     /// Gets the value as a PDF object for the specified key, following references.
@@ -213,15 +213,15 @@ public class PdfDictionary
     /// </summary>
     /// <param name="key">The key to retrieve.</param>
     /// <returns>The <see cref="PdfObject"/> value, or <c>null</c>.</returns>
-    public PdfObject GetObject(in PdfString key)
+    public PdfObject? GetObject(in PdfString key)
     {
-        if (!RawValues.TryGetValue(key, out IPdfValue storedValue))
+        if (!RawValues.TryGetValue(key, out IPdfValue? storedValue))
         {
             return null;
         }
 
         // Array of references case
-        PdfArray referenceArray = storedValue.AsArray();
+        PdfArray? referenceArray = storedValue.AsArray();
         if (referenceArray != null)
         {
             return referenceArray.GetObject(0);
@@ -244,9 +244,9 @@ public class PdfDictionary
     /// </summary>
     /// <param name="key">The key to retrieve.</param>
     /// <returns>A list of <see cref="PdfObject"/> values, or <c>null</c>.</returns>
-    public List<PdfObject> GetObjects(in PdfString key)
+    public List<PdfObject>? GetObjects(in PdfString key)
     {
-        if (!RawValues.TryGetValue(key, out IPdfValue storedValue))
+        if (!RawValues.TryGetValue(key, out IPdfValue? storedValue))
         {
             return null;
         }
@@ -258,7 +258,7 @@ public class PdfDictionary
         {
             for (int i = 0; i < referenceArray.Count; i++)
             {
-                PdfObject item = referenceArray.GetObject(i);
+                PdfObject? item = referenceArray.GetObject(i);
 
                 if (item != null)
                 {
@@ -270,7 +270,7 @@ public class PdfDictionary
         }
 
         // Single item fallback
-        PdfObject single = GetObject(key);
+        PdfObject? single = GetObject(key);
         if (single != null)
         {
             results.Add(single);

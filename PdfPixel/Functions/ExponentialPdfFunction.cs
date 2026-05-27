@@ -17,7 +17,7 @@ public sealed class ExponentialPdfFunction : PdfFunction
     private readonly int _componentCount;
     private readonly float[] _buffer;
 
-    private ExponentialPdfFunction(float[] c0, float[] c1, float exponent, float[] domain, float[] range)
+    private ExponentialPdfFunction(float[] c0, float[] c1, float exponent, float[] domain, float[]? range)
         : base(domain, range)
     {
         _c0 = c0;
@@ -64,18 +64,18 @@ public sealed class ExponentialPdfFunction : PdfFunction
     /// </summary>
     /// <param name="functionObject">PDF function object.</param>
     /// <returns>ExponentialPdfFunction instance, or null if invalid.</returns>
-    public static ExponentialPdfFunction FromObject(PdfObject functionObject)
+    public static ExponentialPdfFunction? FromObject(PdfObject functionObject)
     {
-        if (functionObject == null || functionObject.Dictionary == null)
+        if (functionObject == null)
         {
             return null;
         }
 
-        float[] c0 = functionObject.Dictionary.GetArray(PdfTokens.C0Key)?.GetFloatArray();
-        float[] c1 = functionObject.Dictionary.GetArray(PdfTokens.C1Key)?.GetFloatArray();
+        float[]? c0 = functionObject.Dictionary.GetArray(PdfTokens.C0Key)?.GetFloatArray();
+        float[]? c1 = functionObject.Dictionary.GetArray(PdfTokens.C1Key)?.GetFloatArray();
         float exponent = functionObject.Dictionary.GetFloatOrDefault(PdfTokens.FnNKey);
-        float[] domain = functionObject.Dictionary.GetArray(PdfTokens.DomainKey)?.GetFloatArray();
-        float[] range = functionObject.Dictionary.GetArray(PdfTokens.RangeKey)?.GetFloatArray();
+        float[]? domain = functionObject.Dictionary.GetArray(PdfTokens.DomainKey)?.GetFloatArray();
+        float[]? range = functionObject.Dictionary.GetArray(PdfTokens.RangeKey)?.GetFloatArray();
 
         if (c0 == null || c0.Length == 0)
         {

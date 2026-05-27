@@ -2,6 +2,7 @@ using PdfPixel.Models;
 using PdfPixel.Text;
 using System.Collections.Generic;
 using System;
+using System.Globalization;
 
 namespace PdfPixel.Parsing;
 
@@ -12,9 +13,9 @@ public class PdfPageLabelResolver
 {
     private readonly List<PageLabelEntry> _entries = [];
 
-    public PdfPageLabelResolver(PdfDictionary catalog)
+    internal PdfPageLabelResolver(PdfDictionary catalog)
     {
-        PdfObject pageLabelsObj = catalog.GetObject(PdfTokens.PageLabelsKey);
+        PdfObject? pageLabelsObj = catalog.GetObject(PdfTokens.PageLabelsKey);
         if (pageLabelsObj == null)
         {
             return;
@@ -47,10 +48,10 @@ public class PdfPageLabelResolver
     {
         if (_entries.Count == 0)
         {
-            return PdfString.FromString((pageIndex + 1).ToString());
+            return PdfString.FromString((pageIndex + 1).ToString(CultureInfo.CurrentCulture));
         }
 
-        PageLabelEntry current = null;
+        PageLabelEntry? current = null;
         foreach (PageLabelEntry entry in _entries)
         {
             if (entry.PageIndex > pageIndex)
@@ -63,7 +64,7 @@ public class PdfPageLabelResolver
 
         if (current == null)
         {
-            return PdfString.FromString((pageIndex + 1).ToString());
+            return PdfString.FromString((pageIndex + 1).ToString(CultureInfo.CurrentCulture));
         }
 
         return FormatLabel(current.LabelDict, pageIndex - current.PageIndex);
@@ -78,12 +79,12 @@ public class PdfPageLabelResolver
         int number = start + index;
         PdfString numStr = style switch
         {
-            PageLabelStyle.Decimal => PdfString.FromString(number.ToString()),
+            PageLabelStyle.Decimal => PdfString.FromString(number.ToString(CultureInfo.CurrentCulture)),
             PageLabelStyle.LowerRoman => PdfString.FromString(ToRoman(number, false)),
             PageLabelStyle.UpperRoman => PdfString.FromString(ToRoman(number, true)),
             PageLabelStyle.LowerAlpha => PdfString.FromString(ToAlpha(number, false)),
             PageLabelStyle.UpperAlpha => PdfString.FromString(ToAlpha(number, true)),
-            _ => PdfString.FromString(number.ToString())
+            _ => PdfString.FromString(number.ToString(CultureInfo.CurrentCulture))
         };
         // Concatenate prefix and numStr at the byte level
         if (prefix.IsEmpty)
@@ -108,7 +109,7 @@ public class PdfPageLabelResolver
     {
         if (number <= 0)
         {
-            return number.ToString();
+            return number.ToString(CultureInfo.CurrentCulture);
         }
 
         var numerals = new[]
@@ -137,14 +138,14 @@ public class PdfPageLabelResolver
             }
         }
 
-        return upper ? result : result.ToLowerInvariant();
+        return upper ? result : result.ToLower(CultureInfo.CurrentCulture);
     }
 
     private static string ToAlpha(int number, bool upper)
     {
         if (number <= 0)
         {
-            return number.ToString();
+            return number.ToString(CultureInfo.CurrentCulture);
         }
 
         string result = string.Empty;

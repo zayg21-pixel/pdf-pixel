@@ -15,8 +15,8 @@ public sealed class SampledPdfFunction : PdfFunction
     private readonly int _componentCount;
     private readonly int[] _strides;
     private readonly float[] _table;
-    private readonly float[] _decode;
-    private readonly float[] _encode;
+    private readonly float[]? _decode;
+    private readonly float[]? _encode;
 
     private SampledPdfFunction(
         int[] sizes,
@@ -25,8 +25,8 @@ public sealed class SampledPdfFunction : PdfFunction
         int[] strides,
         float[] table,
         float[] range,
-        float[] decode,
-        float[] encode,
+        float[]? decode,
+        float[]? encode,
         float[] domain)
         : base(domain, range)
     {
@@ -44,15 +44,15 @@ public sealed class SampledPdfFunction : PdfFunction
     /// </summary>
     /// <param name="functionObject">PDF function object.</param>
     /// <returns>SampledPdfFunction instance, or null if invalid.</returns>
-    public static SampledPdfFunction FromObject(PdfObject functionObject)
+    public static SampledPdfFunction? FromObject(PdfObject functionObject)
     {
-        if (functionObject == null || functionObject.Dictionary == null)
+        if (functionObject == null)
         {
             return null;
         }
 
         PdfDictionary dictionary = functionObject.Dictionary;
-        int[] sizeSource = dictionary.GetArray(PdfTokens.SizeKey)?.GetIntegerArray();
+        int[]? sizeSource = dictionary.GetArray(PdfTokens.SizeKey)?.GetIntegerArray();
         if (sizeSource == null || sizeSource.Length == 0)
         {
             return null;
@@ -60,7 +60,7 @@ public sealed class SampledPdfFunction : PdfFunction
 
         int dimensions = sizeSource.Length;
 
-        float[] domain = dictionary.GetArray(PdfTokens.DomainKey)?.GetFloatArray();
+        float[]? domain = dictionary.GetArray(PdfTokens.DomainKey)?.GetFloatArray();
         if (domain == null || domain.Length < 2 * dimensions)
         {
             return null;
@@ -78,7 +78,7 @@ public sealed class SampledPdfFunction : PdfFunction
             return null;
         }
 
-        float[] range = dictionary.GetArray(PdfTokens.RangeKey)?.GetFloatArray();
+        float[]? range = dictionary.GetArray(PdfTokens.RangeKey)?.GetFloatArray();
         if (range == null || range.Length < 2)
         {
             return null;
@@ -86,8 +86,8 @@ public sealed class SampledPdfFunction : PdfFunction
 
         int componentCount = range.Length / 2;
 
-        float[] encode = dictionary.GetArray(PdfTokens.EncodeKey)?.GetFloatArray();
-        float[] decode = dictionary.GetArray(PdfTokens.DecodeKey)?.GetFloatArray();
+        float[]? encode = dictionary.GetArray(PdfTokens.EncodeKey)?.GetFloatArray();
+        float[]? decode = dictionary.GetArray(PdfTokens.DecodeKey)?.GetFloatArray();
 
         // Compute strides dimension 0 fastest
         var strides = new int[dimensions];
@@ -169,9 +169,9 @@ public sealed class SampledPdfFunction : PdfFunction
     }
 
     /// <inheritdoc />
-    public override ReadOnlySpan<float> Evaluate(ReadOnlySpan<float> inputs)
+    public override ReadOnlySpan<float> Evaluate(ReadOnlySpan<float> values)
     {
-        if (inputs.Length == 0)
+        if (values.Length == 0)
         {
             return Array.Empty<float>();
         }
@@ -184,7 +184,7 @@ public sealed class SampledPdfFunction : PdfFunction
         {
             float domainMin = Domain[2 * dimensionIndex];
             float domainMax = Domain[(2 * dimensionIndex) + 1];
-            float inputValue = (dimensionIndex < inputs.Length) ? inputs[dimensionIndex] : 0f;
+            float inputValue = (dimensionIndex < values.Length) ? values[dimensionIndex] : 0f;
             // Clamp input to domain
             inputValue = Clamp(inputValue, Domain, dimensionIndex);
 

@@ -65,9 +65,9 @@ public class PdfTextAnnotation : PdfAnnotationBase
     /// </remarks>
     public PdfString State { get; }
 
-    internal override bool RenderFallback(IPdfCommandProcessor processor, IPdfPageInternal page, PdfAnnotationVisualStateKind visualStateKind, PdfRenderingParameters renderingParameters)
+    internal override bool RenderFallback(IPdfCommandProcessor processor, IPdfPageInternal page, PdfAnnotationVisualStateKind visualStateKind)
     {
-        PdfAnnotationBubbleRenderer.RenderBubble(processor, this, page, visualStateKind, renderingParameters);
+        PdfAnnotationBubbleRenderer.RenderBubble(processor, this, page, visualStateKind);
         return true;
     }
 

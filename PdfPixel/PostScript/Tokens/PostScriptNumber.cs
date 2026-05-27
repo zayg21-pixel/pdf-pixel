@@ -7,17 +7,17 @@ namespace PdfPixel.PostScript.Tokens
     /// </summary>
     public sealed class PostScriptNumber : PostScriptToken
     {
-        public PostScriptNumber(float value) => Value = value;
+        public PostScriptNumber(float value) => Number = value;
 
-        public float Value { get; }
+        public float Number { get; }
 
-        public override string ToString() => "Number: " + Value.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        public override string ToString() => "Number: " + Number.ToString(System.Globalization.CultureInfo.InvariantCulture);
 
-        public override bool EqualsToken(PostScriptToken other) => other is PostScriptNumber n && Value.Equals(n.Value);
+        public override bool EqualsToken(PostScriptToken other) => other is PostScriptNumber n && Number.Equals(n.Number);
 
-        public override int GetHashCode() => Value.GetHashCode();
+        public override int GetHashCode() => Number.GetHashCode();
 
-        public override int CompareToToken(PostScriptToken other)
+        public override int CompareToToken(PostScriptToken? other)
         {
             if (other == null)
             {
@@ -29,65 +29,65 @@ namespace PdfPixel.PostScript.Tokens
                 throw new InvalidOperationException("Numeric comparison requires numeric right operand.");
             }
 
-            return Value.CompareTo(n.Value);
+            return Number.CompareTo(n.Number);
         }
 
-        public override PostScriptToken LogicalAnd(PostScriptToken other)
+        public override PostScriptToken? LogicalAnd(PostScriptToken? other)
         {
             if (other is not PostScriptNumber right)
             {
                 throw new InvalidOperationException("Bitwise AND requires numeric right operand.");
             }
 
-            if (Value != (int)Value || right.Value != (int)right.Value)
+            if (Number != (int)Number || right.Number != (int)right.Number)
             {
                 throw new InvalidOperationException("Bitwise AND requires integral operands.");
             }
 
-            int result = (int)Value & (int)right.Value;
+            int result = (int)Number & (int)right.Number;
             return new PostScriptNumber(result);
         }
 
-        public override PostScriptToken LogicalOr(PostScriptToken other)
+        public override PostScriptToken? LogicalOr(PostScriptToken? other)
         {
             if (other is not PostScriptNumber right)
             {
                 throw new InvalidOperationException("Bitwise OR requires numeric right operand.");
             }
 
-            if (Value != (int)Value || right.Value != (int)right.Value)
+            if (Number != (int)Number || right.Number != (int)right.Number)
             {
                 throw new InvalidOperationException("Bitwise OR requires integral operands.");
             }
 
-            int result = (int)Value | (int)right.Value;
+            int result = (int)Number | (int)right.Number;
             return new PostScriptNumber(result);
         }
 
-        public override PostScriptToken LogicalXor(PostScriptToken other)
+        public override PostScriptToken? LogicalXor(PostScriptToken? other)
         {
             if (other is not PostScriptNumber right)
             {
                 throw new InvalidOperationException("Bitwise XOR requires numeric right operand.");
             }
 
-            if (Value != (int)Value || right.Value != (int)right.Value)
+            if (Number != (int)Number || right.Number != (int)right.Number)
             {
                 throw new InvalidOperationException("Bitwise XOR requires integral operands.");
             }
 
-            int result = (int)Value ^ (int)right.Value;
+            int result = (int)Number ^ (int)right.Number;
             return new PostScriptNumber(result);
         }
 
         public override PostScriptToken LogicalNot()
         {
-            if (Value != (int)Value)
+            if (Number != (int)Number)
             {
                 throw new InvalidOperationException("Bitwise NOT requires integral operand.");
             }
 
-            int result = ~(int)Value;
+            int result = ~(int)Number;
             return new PostScriptNumber(result);
         }
     }

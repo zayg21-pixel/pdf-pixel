@@ -17,27 +17,34 @@ public class CidFontVerticalMetrics
     /// </summary>
     public const float VerticalToUserSpaceCoeff = 0.001f;
 
+    public CidFontVerticalMetrics(float defaultW1, float defaultV1, Dictionary<uint, VerticalMetric> cidVerticalMetrics)
+    {
+        DefaultW1 = defaultW1;
+        DefaultV1 = defaultV1;
+        CidVerticalMetrics = cidVerticalMetrics;
+    }
+
     /// <summary>
     /// Default vertical advance (W1y). Set from DW2 or falls back to -1000 * 0.001.
     /// </summary>
-    public float DefaultW1 { get; set; }
+    public float DefaultW1 { get; }
 
     /// <summary>
     /// Default vertical origin Y displacement (V1y). Set from DW2 or falls back to 880 * 0.001.
     /// </summary>
-    public float DefaultV1 { get; set; }
+    public float DefaultV1 { get; }
 
     /// <summary>
     /// Per-CID vertical metrics map. Stores W1y, V1y and optional V1x when provided by W2.
     /// </summary>
-    public Dictionary<uint, VerticalMetric> CidVerticalMetrics { get; set; }
+    public Dictionary<uint, VerticalMetric> CidVerticalMetrics { get; }
 
     /// <summary>
     /// Returns vertical metrics for the specified CID. Falls back to defaults when no per-CID entry exists.
     /// </summary>
     public VerticalMetric GetMetrics(uint cid)
     {
-        if (CidVerticalMetrics != null && CidVerticalMetrics.TryGetValue(cid, out VerticalMetric m))
+        if (CidVerticalMetrics.TryGetValue(cid, out VerticalMetric m))
         {
             return m;
         }
@@ -50,12 +57,12 @@ public class CidFontVerticalMetrics
     /// DW2: [V1y, W1y]
     /// W2: c [W1y V1x V1y] ... or cFirst cLast W1y V1x V1y
     /// </summary>
-    public static CidFontVerticalMetrics Parse(PdfDictionary fontDictionary)
+    internal static CidFontVerticalMetrics Parse(PdfDictionary fontDictionary)
     {
         Dictionary<uint, VerticalMetric> metrics = [];
 
         // DW2 defaults
-        PdfArray dw2Array = fontDictionary.GetArray(PdfTokens.DW2Key);
+        PdfArray? dw2Array = fontDictionary.GetArray(PdfTokens.DW2Key);
         float defaultW1;
         float defaultV1;
         if (dw2Array?.Count >= 2)
@@ -70,29 +77,35 @@ public class CidFontVerticalMetrics
         }
 
         // W2 overrides
-        PdfArray w2Array = fontDictionary.GetArray(PdfTokens.W2Key);
+        PdfArray? w2Array = fontDictionary.GetArray(PdfTokens.W2Key);
         if (w2Array != null)
         {
             int i = 0;
             while (i < w2Array.Count)
             {
-                IPdfValue first = w2Array.GetValue(i++);
+                IPdfValue? first = w2Array.GetValue(i++);
                 if (first == null)
                 {
-                    break;
+                    continue;
                 }
 
                 var firstCid = (uint)first.AsInteger();
-                IPdfValue second = w2Array.GetValue(i++);
+                IPdfValue? second = w2Array.GetValue(i++);
                 if (second == null)
                 {
-                    break;
+                    continue;
                 }
 
                 if (second.Type == PdfValueType.Array)
                 {
                     // Individual successive CIDs starting at firstCid
-                    PdfArray arr = second.AsArray();
+                    PdfArray? arr = second.AsArray();
+
+                    if (arr == null)
+                    {
+                        continue;
+                    }
+
                     int j = 0;
                     uint currentCid = firstCid;
                     while (j + 2 < arr.Count)
@@ -109,7 +122,7 @@ public class CidFontVerticalMetrics
                     var lastCid = (uint)second.AsInteger();
                     if (i + 2 >= w2Array.Count)
                     {
-                        break;
+                        continue;
                     }
 
                     float w1y = w2Array.GetFloatOrDefault(i++) * VerticalToUserSpaceCoeff; // W1y
@@ -124,11 +137,6 @@ public class CidFontVerticalMetrics
             }
         }
 
-        return new CidFontVerticalMetrics
-        {
-            DefaultW1 = defaultW1,
-            DefaultV1 = defaultV1,
-            CidVerticalMetrics = metrics
-        };
+        return new CidFontVerticalMetrics(defaultW1, defaultV1, metrics);
     }
 }

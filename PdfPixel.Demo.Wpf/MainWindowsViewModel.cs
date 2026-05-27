@@ -156,45 +156,45 @@ public class MainWindowsViewModel : ObservableObject
         //    canvas.Restore();
         //}
 
-        SKColor defaultColor = SKColor.Parse("#21232B");
-        SKColor accentColor = SKColor.Parse("#4695EB");
+        //SKColor defaultColor = SKColor.Parse("#21232B");
+        //SKColor accentColor = SKColor.Parse("#4695EB");
 
-        using var defaultPaint = new SKPaint { Color = defaultColor, Style = SKPaintStyle.Fill };
-        using var accentPaint = new SKPaint { Color = accentColor, Style = SKPaintStyle.Fill };
+        //using var defaultPaint = new SKPaint { Color = defaultColor, Style = SKPaintStyle.Fill };
+        //using var accentPaint = new SKPaint { Color = accentColor, Style = SKPaintStyle.Fill };
 
-        var layerPaint = new SKPaint
-        {
-            Color = SKColors.White.WithAlpha(128),
-            Style = SKPaintStyle.Fill,
-        };
+        //var layerPaint = new SKPaint
+        //{
+        //    Color = SKColors.White.WithAlpha(128),
+        //    Style = SKPaintStyle.Fill,
+        //};
 
-        canvas.SaveLayer(layerPaint);
+        //canvas.SaveLayer(layerPaint);
 
-        canvas.Translate(request.CanvasSize.Width - 58, request.CanvasSize.Height - 48);
-        canvas.Scale(0.5f, 0.5f);
+        //canvas.Translate(request.CanvasSize.Width - 58, request.CanvasSize.Height - 48);
+        //canvas.Scale(0.5f, 0.5f);
         
-        const float cellSize = 18;
-        const float padding = 4;
+        //const float cellSize = 18;
+        //const float padding = 4;
 
-        for (int i = 0; i < 3; i++)
-        {
-            for (int j = 0; j < 3; j++)
-            {
-                float x = i * (cellSize + padding);
-                float y = j * (cellSize + padding);
+        //for (int i = 0; i < 3; i++)
+        //{
+        //    for (int j = 0; j < 3; j++)
+        //    {
+        //        float x = i * (cellSize + padding);
+        //        float y = j * (cellSize + padding);
 
-                if (i == 1 && j == 1)
-                {
-                    canvas.DrawRect(x, y, cellSize, cellSize, accentPaint);
-                }
-                else
-                {
-                    canvas.DrawRect(x, y, cellSize, cellSize, defaultPaint);
-                }
-            }
-        }
+        //        if (i == 1 && j == 1)
+        //        {
+        //            canvas.DrawRect(x, y, cellSize, cellSize, accentPaint);
+        //        }
+        //        else
+        //        {
+        //            canvas.DrawRect(x, y, cellSize, cellSize, defaultPaint);
+        //        }
+        //    }
+        //}
 
-        canvas.Restore();
+        //canvas.Restore();
     }
 
     private void RotatePage()

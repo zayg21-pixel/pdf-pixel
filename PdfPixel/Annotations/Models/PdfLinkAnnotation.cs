@@ -18,13 +18,13 @@ public class PdfLinkAnnotation : PdfTextMarkupAnnotation
     /// Initializes a new instance of the <see cref="PdfLinkAnnotation"/> class.
     /// </summary>
     /// <param name="annotationObject">The PDF object representing this link annotation.</param>
-    public PdfLinkAnnotation(PdfObject annotationObject)
+    internal PdfLinkAnnotation(PdfObject annotationObject)
         : base(annotationObject, PdfAnnotationSubType.Link)
     {
-        IPdfValue destValue = annotationObject.Dictionary.GetValue(PdfTokens.DestKey);
+        IPdfValue? destValue = annotationObject.Dictionary.GetValue(PdfTokens.DestKey);
         Destination = PdfDestination.Parse(destValue, annotationObject.Dictionary.Document);
 
-        PdfDictionary actionDict = annotationObject.Dictionary.GetDictionary(PdfTokens.AKey);
+        PdfDictionary? actionDict = annotationObject.Dictionary.GetDictionary(PdfTokens.AKey);
         Action = PdfAction.FromDictionary(actionDict);
 
         HighlightMode = annotationObject.Dictionary.GetName(PdfTokens.HighlightModeKey).AsEnum<PdfLinkHighlightMode>();
@@ -39,7 +39,7 @@ public class PdfLinkAnnotation : PdfTextMarkupAnnotation
     /// This property is null if the link uses an Action instead.
     /// Per PDF spec, a link annotation can have either a Dest entry or an A (action) entry, but not both.
     /// </remarks>
-    public PdfDestination Destination { get; }
+    public PdfDestination? Destination { get; }
 
     /// <summary>
     /// Gets the action dictionary that defines the action to be performed when the annotation is activated.
@@ -48,7 +48,7 @@ public class PdfLinkAnnotation : PdfTextMarkupAnnotation
     /// This property is null if the link uses a Destination instead.
     /// Common action types include GoTo, GoToR, URI, Launch, etc.
     /// </remarks>
-    public PdfAction Action { get; }
+    public PdfAction? Action { get; }
 
     /// <summary>
     /// Gets the highlight mode that specifies the visual effect to use when the link is activated.
@@ -62,7 +62,7 @@ public class PdfLinkAnnotation : PdfTextMarkupAnnotation
     /// </remarks>
     public PdfLinkHighlightMode HighlightMode { get; }
 
-    internal override bool RenderFallback(IPdfCommandProcessor processor, IPdfPageInternal page, PdfAnnotationVisualStateKind visualStateKind, PdfRenderingParameters renderingParameters)
+    internal override bool RenderFallback(IPdfCommandProcessor processor, IPdfPageInternal page, PdfAnnotationVisualStateKind visualStateKind)
     {
         if (BorderStyle == null || BorderStyle.Width <= 0)
         {
@@ -76,8 +76,7 @@ public class PdfLinkAnnotation : PdfTextMarkupAnnotation
         {
             Style = SKPaintStyle.Stroke,
             StrokeWidth = borderWidth,
-            Color = color,
-            IsAntialias = renderingParameters.Antialias
+            Color = color
         };
 
         bool needsNormalDraw = BorderStyle.TryApplyEffect(paint, color);

@@ -3,23 +3,6 @@ using System;
 namespace PdfPixel.Fonts.Type1;
 
 /// <summary>
-/// Specifies the operation applied between values in <see cref="Type1CharStringNumber"/>.
-/// </summary>
-internal enum ValueOperation
-{
-    /// <summary>
-    /// No operation defined.
-    /// </summary>
-    Undefined,
-
-    /// <summary>
-    /// Division operation.
-    /// </summary>
-    Div
-}
-
-
-/// <summary>
 /// Represents a number used in Type1 charstrings, supporting integer and fractional values via division operation.
 /// </summary>
 internal struct Type1CharStringNumber
@@ -44,7 +27,7 @@ internal struct Type1CharStringNumber
     public int Value1 { get; }
 
     /// <summary>
-    /// Gets the secondary value, used for division if <see cref="Operation"/> is <see cref="ValueOperation.Div"/>.
+    /// Gets the secondary value, used for division if <see cref="Operation"/> is <see cref="Type1ValueOperation.Div"/>.
     /// </summary>
     public int Value2 { get; private set; }
 
@@ -56,14 +39,14 @@ internal struct Type1CharStringNumber
     /// <summary>
     /// Gets the operation applied between <see cref="Value1"/> and <see cref="Value2"/>.
     /// </summary>
-    public ValueOperation Operation { get; private set; }
+    public Type1ValueOperation Operation { get; private set; }
 
     /// <summary>
     /// Returns the value as a <see cref="double"/>. If division is specified, returns the result of <c>Value1 / Value2</c>.
     /// </summary>
     public double GetAsDouble()
     {
-        if (Operation == ValueOperation.Div && HasSecondValue && Value2 != 0)
+        if (Operation == Type1ValueOperation.Div && HasSecondValue && Value2 != 0)
         {
             return (double)Value1 / Value2;
         }
@@ -88,7 +71,7 @@ internal struct Type1CharStringNumber
         var scaledNumerator = (int)Math.Round(value * DecimalPrecisionFactor);
 
         Type1CharStringNumber result = new(scaledNumerator);
-        result.SetSecondValue(DecimalPrecisionFactor, ValueOperation.Div);
+        result.SetSecondValue(DecimalPrecisionFactor, Type1ValueOperation.Div);
 
         return result;
     }
@@ -98,7 +81,7 @@ internal struct Type1CharStringNumber
     /// </summary>
     /// <param name="value2">The secondary value.</param>
     /// <param name="operation">The operation to apply.</param>
-    public void SetSecondValue(int value2, ValueOperation operation)
+    public void SetSecondValue(int value2, Type1ValueOperation operation)
     {
         Value2 = value2;
         HasSecondValue = true;

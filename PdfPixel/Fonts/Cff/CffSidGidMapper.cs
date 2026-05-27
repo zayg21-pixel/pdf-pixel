@@ -28,12 +28,11 @@ internal class CffSidGidMapper
     /// <param name="cffDataMemory">Raw CFF table bytes.</param>
     /// <param name="info">Resulting mapping information.</param>
     /// <returns>True if parsing succeeded, false otherwise.</returns>
-    public bool TryParseNameKeyed(in ReadOnlyMemory<byte> cffDataMemory, out CffInfo info)
+    public bool TryParseNameKeyed(in ReadOnlyMemory<byte> cffDataMemory, out CffInfo? info)
     {
         ReadOnlyMemory<byte> cffBytes = cffDataMemory;
         info = null;
 
-        try
         {
             CffDataReader reader = new(cffBytes.Span);
 
@@ -161,9 +160,10 @@ internal class CffSidGidMapper
             for (int gid = 0; gid < glyphCount; gid++)
             {
                 double glyphSpaceWidth;
-                if (charMetrics[gid].Width.HasValue)
+                double? width = charMetrics[gid].Width;
+                if (width.HasValue)
                 {
-                    glyphSpaceWidth = nominalWidthX + charMetrics[gid].Width.Value;
+                    glyphSpaceWidth = nominalWidthX + width.Value;
                 }
                 else
                 {
@@ -241,42 +241,28 @@ internal class CffSidGidMapper
 
             return true;
         }
-        catch (Exception ex)
-        {
-            _logger.LogDebug(ex, "Failed to parse CFF name-keyed data.");
-            info = null;
-            return false;
-        }
     }
 
     private void LogMultipleTopDicts(int nameIndexCount, int nameIndexDataStart, int[] nameIndexOffsets, in ReadOnlySpan<byte> cffBytes, int topDictCount)
     {
-        try
+        List<string> topNames = new(nameIndexCount);
+        for (int nameIndex = 0; nameIndex < nameIndexCount; nameIndex++)
         {
-            List<string> topNames = new(nameIndexCount);
-            for (int nameIndex = 0; nameIndex < nameIndexCount; nameIndex++)
+            int start = nameIndexDataStart + (nameIndexOffsets[nameIndex] - 1);
+            int end = nameIndexDataStart + (nameIndexOffsets[nameIndex + 1] - 1);
+            if (start >= 0 && end >= start && end <= cffBytes.Length)
             {
-                int start = nameIndexDataStart + (nameIndexOffsets[nameIndex] - 1);
-                int end = nameIndexDataStart + (nameIndexOffsets[nameIndex + 1] - 1);
-                if (start >= 0 && end >= start && end <= cffBytes.Length)
-                {
-                    ReadOnlySpan<byte> slice = cffBytes.Slice(start, end - start);
-                    topNames.Add(Encoding.ASCII.GetString(slice));
-                }
-            }
-
-            if (topNames.Count > 0)
-            {
-                _logger.LogInformation("CFF contains {TopDictCount} Top DICTs (fonts): {FontNames}. Using the first one.", topDictCount, string.Join(", ", topNames));
-            }
-            else
-            {
-                _logger.LogInformation("CFF contains {TopDictCount} Top DICTs (fonts). Using the first one.", topDictCount);
+                ReadOnlySpan<byte> slice = cffBytes.Slice(start, end - start);
+                topNames.Add(Encoding.ASCII.GetString(slice));
             }
         }
-        catch
+
+        if (topNames.Count > 0)
         {
-            // Safe to ignore logging errors here.
+            _logger.LogInformation("CFF contains {TopDictCount} Top DICTs (fonts): {FontNames}. Using the first one.", topDictCount, string.Join(", ", topNames));
+        }
+        else
+        {
             _logger.LogInformation("CFF contains {TopDictCount} Top DICTs (fonts). Using the first one.", topDictCount);
         }
     }

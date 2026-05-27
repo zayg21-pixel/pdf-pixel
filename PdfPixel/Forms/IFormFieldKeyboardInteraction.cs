@@ -40,37 +40,3 @@ public interface IFormFieldKeyboardInteraction
     /// </summary>
     void Blur();
 }
-
-/// <summary>
-/// Represents keyboard keys for form field interactions.
-/// </summary>
-public enum FormFieldKey
-{
-    Unknown,
-    Enter,
-    Tab,
-    Escape,
-    Backspace,
-    Delete,
-    Left,
-    Right,
-    Up,
-    Down,
-    Home,
-    End,
-    PageUp,
-    PageDown,
-    Space
-}
-
-/// <summary>
-/// Keyboard modifier flags for form field interactions.
-/// </summary>
-[System.Flags]
-public enum FormFieldKeyModifiers
-{
-    None = 0,
-    Shift = 1 << 0,
-    Control = 1 << 1,
-    Alt = 1 << 2
-}

@@ -35,7 +35,7 @@ namespace PdfPixel.Rendering.State
         /// <summary>
         /// Parsed dash pattern array (from DashPattern key / D operator). Null or empty indicates solid line.
         /// </summary>
-        public float[] DashPattern { get; set; }
+        public float[]? DashPattern { get; set; }
 
         /// <summary>
         /// Parsed dash phase (second element of D operator array). Null when absent.
@@ -65,7 +65,7 @@ namespace PdfPixel.Rendering.State
         /// <summary>
         /// Parsed soft mask (/SMask). Null when absent or /None.
         /// </summary>
-        public PdfSoftMask SoftMask { get; set; }
+        public PdfSoftMask? SoftMask { get; set; }
 
         /// <summary>
         /// Parsed knockout flag (/TK). Null when absent.
@@ -90,7 +90,7 @@ namespace PdfPixel.Rendering.State
         /// <summary>
         /// Parsed font (/Font). Null when absent.
         /// </summary>
-        public PdfFontBase Font { get; set; }
+        public PdfFontBase? Font { get; set; }
 
         /// <summary>
         /// Parsed font size from (/Font). Null when absent.
@@ -110,7 +110,7 @@ namespace PdfPixel.Rendering.State
         /// <summary>
         /// Optional transfer function (TR) parsed from ExtGState.
         /// </summary>
-        public TransferFunctionTransform TransferFunction { get; set; }
+        public TransferFunctionTransform? TransferFunction { get; set; }
 
         /// <summary>
         /// Apply parsed parameter values to a target graphics state instance. Only non-null entries are applied.

@@ -17,5 +17,5 @@ internal sealed class CffTopDictData
 
     public bool IsCidKeyed { get; set; }
 
-    public decimal[] FontMatrix { get; set; }
+    public decimal[]? FontMatrix { get; set; }
 }

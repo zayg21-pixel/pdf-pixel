@@ -22,7 +22,7 @@ public class PdfLineAnnotation : PdfAnnotationBase
     public PdfLineAnnotation(PdfObject annotationObject)
         : base(annotationObject, PdfAnnotationSubType.Line)
     {
-        PdfArray lineArray = annotationObject.Dictionary.GetArray(PdfTokens.LKey);
+        PdfArray? lineArray = annotationObject.Dictionary.GetArray(PdfTokens.LKey);
         if (lineArray?.Count >= 4)
         {
             StartX = lineArray.GetFloatOrDefault(0);
@@ -31,7 +31,7 @@ public class PdfLineAnnotation : PdfAnnotationBase
             EndY = lineArray.GetFloatOrDefault(3);
         }
 
-        PdfArray lineEndingArray = annotationObject.Dictionary.GetArray(PdfTokens.LineEndingKey);
+        PdfArray? lineEndingArray = annotationObject.Dictionary.GetArray(PdfTokens.LineEndingKey);
         if (lineEndingArray?.Count >= 2)
         {
             StartLineEnding = lineEndingArray.GetName(0).AsEnum<PdfLineEndingStyle>();
@@ -94,7 +94,7 @@ public class PdfLineAnnotation : PdfAnnotationBase
     /// </summary>
     public float? LeaderLineOffset { get; }
 
-    internal override bool RenderFallback(IPdfCommandProcessor processor, IPdfPageInternal page, PdfAnnotationVisualStateKind visualStateKind, PdfRenderingParameters renderingParameters)
+    internal override bool RenderFallback(IPdfCommandProcessor processor, IPdfPageInternal page, PdfAnnotationVisualStateKind visualStateKind)
     {
         SKColor lineColor = ResolveColor(page, SKColors.Black);
         float lineWidth = BorderStyle?.Width ?? 1.0f;
@@ -104,7 +104,6 @@ public class PdfLineAnnotation : PdfAnnotationBase
             Style = SKPaintStyle.Stroke,
             StrokeWidth = lineWidth,
             StrokeCap = SKStrokeCap.Butt,
-            IsAntialias = renderingParameters.Antialias,
             Color = lineColor
         };
 
@@ -128,8 +127,7 @@ public class PdfLineAnnotation : PdfAnnotationBase
                 StartLineEnding,
                 lineWidth,
                 lineColor,
-                interiorSKColor,
-                renderingParameters);
+                interiorSKColor);
         }
 
         if (EndLineEnding != PdfLineEndingStyle.None)
@@ -143,8 +141,7 @@ public class PdfLineAnnotation : PdfAnnotationBase
                 EndLineEnding,
                 lineWidth,
                 lineColor,
-                interiorSKColor,
-                renderingParameters);
+                interiorSKColor);
         }
 
         return true;

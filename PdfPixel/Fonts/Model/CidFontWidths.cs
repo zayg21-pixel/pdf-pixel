@@ -16,15 +16,21 @@ public class CidFontWidths
     /// </summary>
     public const float WidthToUserSpaceCoeff = 0.001f;
 
+    public CidFontWidths(float? defaultWidth, Dictionary<uint, float> cidWidths)
+    {
+        DefaultWidth = defaultWidth;
+        CidWidths = cidWidths;
+    }
+
     /// <summary>
     /// Default width for CID fonts. Null if not defined.
     /// </summary>
-    public float? DefaultWidth { get; set; }
+    public float? DefaultWidth { get; }
 
     /// <summary>
     /// Explicit CID widths for CID fonts. Null if not defined.
     /// </summary>
-    public Dictionary<uint, float> CidWidths { get; set; }
+    public Dictionary<uint, float> CidWidths { get; }
 
     /// <summary>
     /// Gets the width for the given CID. Returns explicit width if defined, otherwise null.
@@ -49,32 +55,38 @@ public class CidFontWidths
     /// </summary>
     /// <param name="fontDictionary">PDF dictionary containing the font definition.</param>
     /// <returns>Parsed CidFontWidths instance.</returns>
-    public static CidFontWidths Parse(PdfDictionary fontDictionary)
+    internal static CidFontWidths Parse(PdfDictionary fontDictionary)
     {
         Dictionary<uint, float> cidWidths = [];
-        PdfArray wArray = fontDictionary.GetArray(PdfTokens.WKey);
+        PdfArray? wArray = fontDictionary.GetArray(PdfTokens.WKey);
         if (wArray != null)
         {
             int i = 0;
             while (i < wArray.Count)
             {
-                IPdfValue first = wArray.GetValue(i++);
+                IPdfValue? first = wArray.GetValue(i++);
                 if (first == null)
                 {
-                    break;
+                    continue;
                 }
 
                 var firstCid = (uint)first.AsInteger();
-                IPdfValue second = wArray.GetValue(i++);
+                IPdfValue? second = wArray.GetValue(i++);
                 if (second == null)
                 {
-                    break;
+                    continue;
                 }
 
                 if (second.Type == PdfValueType.Array)
                 {
                     // Individual widths for a range
-                    PdfArray widthsArr = second.AsArray();
+                    PdfArray? widthsArr = second.AsArray();
+
+                    if (widthsArr == null)
+                    {
+                        continue;
+                    }
+
                     for (int j = 0; j < widthsArr.Count; j++)
                     {
                         cidWidths[firstCid + (uint)j] = widthsArr.GetFloatOrDefault(j) * WidthToUserSpaceCoeff;
@@ -99,10 +111,6 @@ public class CidFontWidths
             defaultWidth *= WidthToUserSpaceCoeff;
         }
 
-        return new CidFontWidths
-        {
-            CidWidths = cidWidths,
-            DefaultWidth = defaultWidth
-        };
+        return new CidFontWidths(defaultWidth, cidWidths);
     }
 }

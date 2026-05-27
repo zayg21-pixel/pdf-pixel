@@ -18,6 +18,9 @@
   </Folder>
   <Folder Name="/Solution Items/">
     <File Path=".editorconfig" />
+    <File Path="LICENSE" />
+    <File Path="NOTICE" />
+    <File Path="README.md" />
   </Folder>
   <Project Path="PdfPixel.Benchmarks/PdfPixel.Benchmarks.csproj" />
   <Project Path="PdfPixel.Color/PdfPixel.Color.csproj" Id="41c01fd9-9377-4bd4-9b28-706f90a00866" />

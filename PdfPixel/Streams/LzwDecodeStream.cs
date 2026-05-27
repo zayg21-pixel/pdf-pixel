@@ -40,7 +40,7 @@ namespace PdfPixel.Streams
 
         // Dictionary entries (index => byte sequence)
         private readonly List<byte[]> _dictionary = new(MaxDictionarySize);
-        private byte[] _previousDecoded; // Last decoded sequence (for building new entries)
+        private byte[]? _previousDecoded; // Last decoded sequence (for building new entries)
 
         // Output staging of current decoded sequence to satisfy caller Read requests.
         private readonly List<byte> _outputBytes = [];

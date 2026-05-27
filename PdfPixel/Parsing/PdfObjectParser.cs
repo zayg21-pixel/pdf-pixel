@@ -14,7 +14,7 @@ internal class PdfObjectParser
     private readonly PdfObjectStreamParser _objectStreamParser;
     private readonly ILogger<PdfObjectParser> _logger;
 
-    public PdfObjectParser(PdfDocument document)
+    public PdfObjectParser(IPdfDocumentInternal document)
     {
         if (document == null)
         {
@@ -31,7 +31,7 @@ internal class PdfObjectParser
     /// </summary>
     /// <param name="info">Indexed object metadata.</param>
     /// <returns>Parsed PdfObject or null on failure / unsupported cases.</returns>
-    public PdfObject ParseSingleIndexedObject(PdfObjectInfo info)
+    public PdfObject? ParseSingleIndexedObject(PdfObjectInfo info)
     {
         if (info == null)
         {
@@ -62,7 +62,7 @@ internal class PdfObjectParser
         PdfParser parser = new(_document.Stream, _document, allowReferences: true, decrypt: true);
         parser.Position = (int)info.Offset.Value;
 
-        PdfObject parsedObject = parser.ReadObject();
+        PdfObject? parsedObject = parser.ReadObject();
         if (parsedObject == null)
         {
             return null;

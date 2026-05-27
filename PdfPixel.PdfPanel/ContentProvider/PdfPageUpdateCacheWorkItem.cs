@@ -70,7 +70,7 @@ public class PdfPageUpdateCacheWorkItem : IWorkItem
             if (CacheEntry.Annotations?.Length > 0 && (!CacheEntry.AnnotationContent.ContentCommandRecording.HasContent || CacheEntry.ActiveAnnotation != _request.ActiveAnnotation || CacheEntry.CurrentPointerState != _request.PointerState))
             {
                 var observer = new PdfCancellationExecutionObserver(_tokenSnapshot.ContentToken);
-                var annotationRecording = PdfDocumentContentExtensions.GetAnnotationRecording(_document, CacheEntry.PageNumber, scaleFactor, _request.ActiveAnnotation?.Annotation, _request.PointerState, observer);
+                var annotationRecording = PdfDocumentContentExtensions.GetAnnotationRecording(_document, CacheEntry.PageNumber, _request.ActiveAnnotation?.Annotation, _request.PointerState, observer);
                 CacheEntry.AnnotationContent.UpdateContentCommandRecording(annotationRecording);
                 CacheEntry.UpdateActiveAnnotationState(_request.ActiveAnnotation, _request.PointerState);
                 annotationRecordingUpdated = true;

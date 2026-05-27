@@ -39,7 +39,7 @@ internal static class CommandHelpers
         return canvas.TotalMatrix;
     }
 
-    public static bool GetPathIsAntialias(SKPath path, SKCanvas canvas, PdfCommandExecutionContext executionContext, SKPaint paint = null)
+    public static bool GetPathIsAntialias(SKPath path, SKCanvas canvas, PdfCommandExecutionContext executionContext, SKPaint? paint = null)
     {
         if (!executionContext.RenderingParameters.Antialias)
         {

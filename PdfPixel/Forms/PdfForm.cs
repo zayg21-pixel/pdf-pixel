@@ -16,9 +16,9 @@ public sealed class PdfForm
     private PdfForm(
         SKMatrix matrix,
         SKRect bbox,
-        PdfTransparencyGroup transparencyGroup,
+        PdfTransparencyGroup? transparencyGroup,
         PdfDictionary dictionary,
-        PdfDictionary resources,
+        PdfDictionary? resources,
         IPdfPageInternal page,
         PdfObject xObject)
     {
@@ -44,7 +44,7 @@ public sealed class PdfForm
     /// <summary>
     /// The transparency group (/Group) for the form, if present.
     /// </summary>
-    public PdfTransparencyGroup TransparencyGroup { get; }
+    public PdfTransparencyGroup? TransparencyGroup { get; }
 
     /// <summary>
     /// The underlying XObject dictionary.
@@ -54,7 +54,7 @@ public sealed class PdfForm
     /// <summary>
     /// The resources dictionary (/Resources) for the form, if present.
     /// </summary>
-    public PdfDictionary Resources { get; }
+    public PdfDictionary? Resources { get; }
 
     /// <summary>
     /// The parent page for this form.
@@ -75,19 +75,15 @@ public sealed class PdfForm
     internal static PdfForm FromXObject(PdfObject xObject, IPdfPageInternal page)
     {
         PdfDictionary dict = xObject.Dictionary;
-        PdfArray matrixArray = dict.GetArray(PdfTokens.MatrixKey);
-        PdfArray bboxArray = dict.GetArray(PdfTokens.BBoxKey);
-        PdfDictionary groupDict = dict.GetDictionary(PdfTokens.GroupKey);
-        PdfDictionary resourcesDict = dict.GetDictionary(PdfTokens.ResourcesKey);
+        PdfArray? matrixArray = dict.GetArray(PdfTokens.MatrixKey);
+        PdfArray? bboxArray = dict.GetArray(PdfTokens.BBoxKey);
+        PdfDictionary? groupDict = dict.GetDictionary(PdfTokens.GroupKey);
+        PdfDictionary? resourcesDict = dict.GetDictionary(PdfTokens.ResourcesKey);
 
         SKMatrix matrix = PdfLocationUtilities.CreateMatrix(matrixArray) ?? SKMatrix.Identity;
         SKRect bbox = PdfLocationUtilities.CreateBBox(bboxArray) ?? SKRect.Empty;
 
-        PdfTransparencyGroup transparencyGroup = null;
-        if (groupDict != null)
-        {
-            transparencyGroup = PdfSoftMaskParser.ParseTransparencyGroup(groupDict, page);
-        }
+        PdfTransparencyGroup? transparencyGroup = PdfSoftMaskParser.ParseTransparencyGroup(groupDict, page);
 
         return new PdfForm(matrix, bbox, transparencyGroup, dict, resourcesDict, page, xObject);
     }

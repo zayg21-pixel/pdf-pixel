@@ -242,10 +242,11 @@ internal class ColorOperators : IOperatorProcessor
         }
 
         PdfColorSpaceConverter converter = state.FillColorConverter;
-        if (converter is PatternColorSpaceConverter patternConverter)
+        if (converter is PatternColorSpaceConverter)
         {
             PdfString patternName = operands[operands.Length - 1].AsName();
-            PdfPattern resolvedPattern = _page.Cache.GetPattern(_renderer, patternName);
+            PdfPattern? resolvedPattern = _page.Cache.GetPattern(_renderer, patternName);
+
             if (resolvedPattern is PdfTilingPattern tilingPattern)
             {
                 SKColor tintColor = SKColors.Black;
@@ -259,8 +260,7 @@ internal class ColorOperators : IOperatorProcessor
                 state.FillPaint = PdfPaint.PatternFill(tilingPattern, tintColor);
                 return;
             }
-
-            if (resolvedPattern is PdfShadingPattern shadingPattern)
+            else if (resolvedPattern is PdfShadingPattern shadingPattern)
             {
                 state.FillPaint = PdfPaint.PatternFill(shadingPattern, SKColors.Black);
                 return;
@@ -288,10 +288,10 @@ internal class ColorOperators : IOperatorProcessor
         }
 
         PdfColorSpaceConverter converter = state.StrokeColorConverter;
-        if (converter is PatternColorSpaceConverter patternConverter)
+        if (converter is PatternColorSpaceConverter)
         {
             PdfString patternName = operands[operands.Length - 1].AsName();
-            PdfPattern resolvedPattern = _page.Cache.GetPattern(_renderer, patternName);
+            PdfPattern? resolvedPattern = _page.Cache.GetPattern(_renderer, patternName);
             if (resolvedPattern is PdfTilingPattern tilingPattern)
             {
                 SKColor tintColor = SKColors.Black;
@@ -305,8 +305,7 @@ internal class ColorOperators : IOperatorProcessor
                 state.StrokePaint = PdfPaint.PatternFill(tilingPattern, tintColor);
                 return;
             }
-
-            if (resolvedPattern is PdfShadingPattern shadingPattern)
+            else if (resolvedPattern is PdfShadingPattern shadingPattern)
             {
                 state.StrokePaint = PdfPaint.PatternFill(shadingPattern, SKColors.Black);
                 return;
@@ -334,7 +333,7 @@ internal class ColorOperators : IOperatorProcessor
         }
 
         IPdfValue raw = operands[0];
-        state.FillColorConverter = _page.Cache.ColorSpace.ResolveByValue(raw);
+        state.FillColorConverter = _page.Cache.ColorSpace.ResolveByValue(raw) ?? DeviceRgbConverter.Instance;
         state.FillPaint = PdfPaint.Solid(SKColors.Black);
     }
 
@@ -347,7 +346,7 @@ internal class ColorOperators : IOperatorProcessor
         }
 
         IPdfValue raw = operands[0];
-        state.StrokeColorConverter = _page.Cache.ColorSpace.ResolveByValue(raw);
+        state.StrokeColorConverter = _page.Cache.ColorSpace.ResolveByValue(raw) ?? DeviceRgbConverter.Instance;
         state.StrokePaint = PdfPaint.Solid(SKColors.Black);
     }
 

@@ -65,7 +65,7 @@ internal static class SingleByteEncodings
     /// </summary>
     /// <param name="encoding">The PDF font encoding to retrieve.</param>
     /// <returns>An array of <see cref="PdfString"/> representing the glyph names for the encoding, or null if unknown.</returns>
-    public static PdfString[] GetEncodingSet(PdfFontEncoding encoding)
+    public static PdfString[]? GetEncodingSet(PdfFontEncoding encoding)
     {
         return encoding switch
         {
@@ -86,7 +86,7 @@ internal static class SingleByteEncodings
     /// <param name="encoding">The PDF font encoding to use.</param>
     /// <param name="differences">Optional dictionary of code-to-name overrides (PDF Differences array).</param>
     /// <returns>The <see cref="PdfString"/> glyph name for the code, or <see cref="PdfString.Empty"/> if not found.</returns>
-    public static PdfString GetNameByCode(byte code, PdfFontEncoding encoding, Dictionary<int, PdfString> differences = default)
+    public static PdfString GetNameByCode(byte code, PdfFontEncoding encoding, Dictionary<int, PdfString>? differences = default)
     {
         if (differences != null && differences.TryGetValue(code, out PdfString name) && !name.IsEmpty)
         {
@@ -112,7 +112,7 @@ internal static class SingleByteEncodings
     /// <param name="encoding">The PDF font encoding to use.</param>
     /// <param name="differences">Optional dictionary of code-to-name overrides (PDF Differences array).</param>
     /// <returns>The <see cref="PdfString"/> glyph name for the code, or <see cref="UndefinedCharacter"/> if not found or empty.</returns>
-    public static PdfString GetNameByCodeOrUndefined(byte code, PdfFontEncoding encoding, Dictionary<int, PdfString> differences = default)
+    public static PdfString GetNameByCodeOrUndefined(byte code, PdfFontEncoding encoding, Dictionary<int, PdfString>? differences = default)
     {
         PdfString result = GetNameByCode(code, encoding, differences);
 

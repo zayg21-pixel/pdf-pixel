@@ -28,7 +28,7 @@ public class SingleByteFontWidths //TODO: [HIGH] need pre-defined for standard f
     /// <summary>
     /// Widths array for single-byte fonts. Null if not defined.
     /// </summary>
-    public float[] Widths { get; set; }
+    public float[]? Widths { get; set; }
 
     /// <summary>
     /// Gets the width for the given character code. Returns explicit width if defined, otherwise null.
@@ -70,7 +70,7 @@ public class SingleByteFontWidths //TODO: [HIGH] need pre-defined for standard f
     /// </summary>
     /// <param name="fontDictionary">PDF dictionary containing the font definition.</param>
     /// <returns>Parsed SingleByteFontWidths instance.</returns>
-    public static SingleByteFontWidths Parse(PdfDictionary fontDictionary)
+    internal static SingleByteFontWidths Parse(PdfDictionary fontDictionary)
     {
         var firstChar = (uint?)fontDictionary.GetInteger(PdfTokens.FirstCharKey);
         var lastChar = (uint?)fontDictionary.GetInteger(PdfTokens.LastCharKey);

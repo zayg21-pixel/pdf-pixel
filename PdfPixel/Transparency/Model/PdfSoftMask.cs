@@ -1,7 +1,6 @@
 using PdfPixel.Color.ColorSpace;
 using PdfPixel.Color.Transform;
 using PdfPixel.Forms;
-using PdfPixel.Text;
 using SkiaSharp;
 
 namespace PdfPixel.Transparency.Model;
@@ -20,18 +19,18 @@ public class PdfSoftMask
     /// <summary>
     /// Reference to the Form XObject that defines the mask (/G entry).
     /// </summary>
-    public PdfForm MaskForm { get; set; }
+    public PdfForm? MaskForm { get; set; }
 
     /// <summary>
     /// Background color (BC) components.
     /// </summary>
-    public float[] BackgroundColor { get; set; }
+    public float[]? BackgroundColorComponents { get; set; }
 
     /// <summary>
     /// Optional transfer function transform (TR) applied to device output before using as soft mask input.
     /// Internal to avoid exposing internal transform type on a public API.
     /// </summary>
-    public TransferFunctionTransform TransferFunction { get; set; }
+    public TransferFunctionTransform? TransferFunction { get; set; }
 
     /// <summary>
     /// Retrieves the background color as an SKColor, converting it to sRGB if necessary.
@@ -39,12 +38,16 @@ public class PdfSoftMask
     /// <param name="intent">Current intent.</param>
     /// <param name="postTransform"></param>Post color transform (if defined).</param>
     /// <returns>SKColor instance.</returns>
-    public SKColor GetBackgroundColor(PdfRenderingIntent intent, IColorTransform postTransform)
+    public SKColor GetBackgroundColor(PdfRenderingIntent intent, IColorTransform? postTransform)
     {
-
-        if (BackgroundColor != null)
+        if (MaskForm == null)
         {
-            return MaskForm.TransparencyGroup?.ColorSpaceConverter?.ToSrgb(BackgroundColor, intent, postTransform) ?? SKColors.Black;
+            return SKColors.Black;
+        }
+
+        if (BackgroundColorComponents != null)
+        {
+            return MaskForm.TransparencyGroup?.ColorSpaceConverter?.ToSrgb(BackgroundColorComponents, intent, postTransform) ?? SKColors.Black;
         }
         else
         {

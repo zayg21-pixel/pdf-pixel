@@ -46,11 +46,11 @@ internal class PdfDocument : IPdfDocumentInternal
 
     List<IPdfPageInternal> IPdfDocumentInternal.Pages => _pages;
 
-    PdfDictionary IPdfDocumentInternal.NamedDestinations { get; set; }
+    PdfDictionary? IPdfDocumentInternal.NamedDestinations { get; set; }
 
-    PdfObject IPdfDocumentInternal.RootObject { get; set; }
+    PdfObject? IPdfDocumentInternal.RootObject { get; set; }
 
-    BasePdfDecryptor IPdfDocumentInternal.Decryptor { get; set; }
+    BasePdfDecryptor? IPdfDocumentInternal.Decryptor { get; set; }
 
     SkiaFontSubstitutor IPdfDocumentInternal.FontSubstitutor => _fontSubstitutor;
 

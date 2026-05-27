@@ -293,7 +293,6 @@ public sealed partial class IccProfile
 
         var gridPerDim = new int[inputChannels];
         float[]? clut = null;
-        byte precision = 0;
         if (offsetClut != 0)
         {
             int clutPos = tagStart + (int)offsetClut;
@@ -305,7 +304,7 @@ public sealed partial class IccProfile
             }
 
             // Precision is fixed at payload offset + 16 per ICC spec
-            precision = reader.ReadByte(clutPos + 16);
+            byte precision = reader.ReadByte(clutPos + 16);
             if (precision != 1 && precision != 2)
             {
                 return null;

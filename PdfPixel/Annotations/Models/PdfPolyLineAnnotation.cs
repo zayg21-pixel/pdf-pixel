@@ -3,6 +3,7 @@ using PdfPixel.Commands;
 using PdfPixel.Models;
 using PdfPixel.Text;
 using SkiaSharp;
+using System;
 
 namespace PdfPixel.Annotations.Models;
 
@@ -34,8 +35,12 @@ public class PdfPolyLineAnnotation : PdfAnnotationBase
                 Vertices[i / 2] = new SKPoint(vertices[i], vertices[i + 1]);
             }
         }
+        else
+        {
+            Vertices = Array.Empty<SKPoint>();
+        }
 
-        PdfArray lineEndingArray = annotationObject.Dictionary.GetArray(PdfTokens.LineEndingKey);
+        PdfArray? lineEndingArray = annotationObject.Dictionary.GetArray(PdfTokens.LineEndingKey);
         if (lineEndingArray?.Count >= 2)
         {
             StartLineEnding = lineEndingArray.GetName(0).AsEnum<PdfLineEndingStyle>();
@@ -60,9 +65,9 @@ public class PdfPolyLineAnnotation : PdfAnnotationBase
     /// </summary>
     public PdfLineEndingStyle EndLineEnding { get; }
 
-    internal override bool RenderFallback(IPdfCommandProcessor processor, IPdfPageInternal page, PdfAnnotationVisualStateKind visualStateKind, PdfRenderingParameters renderingParameters)
+    internal override bool RenderFallback(IPdfCommandProcessor processor, IPdfPageInternal page, PdfAnnotationVisualStateKind visualStateKind)
     {
-        if (Vertices == null || Vertices.Length < 2)
+        if (Vertices.Length < 2)
         {
             return false;
         }
@@ -85,7 +90,6 @@ public class PdfPolyLineAnnotation : PdfAnnotationBase
             StrokeWidth = lineWidth,
             StrokeJoin = SKStrokeJoin.Miter,
             StrokeCap = SKStrokeCap.Butt,
-            IsAntialias = renderingParameters.Antialias,
             Color = lineColor
         };
 
@@ -106,8 +110,7 @@ public class PdfPolyLineAnnotation : PdfAnnotationBase
                 StartLineEnding,
                 lineWidth,
                 lineColor,
-                interiorSKColor,
-                renderingParameters);
+                interiorSKColor);
         }
 
         if (EndLineEnding != PdfLineEndingStyle.None && Vertices.Length >= 4)
@@ -121,8 +124,7 @@ public class PdfPolyLineAnnotation : PdfAnnotationBase
                 EndLineEnding,
                 lineWidth,
                 lineColor,
-                interiorSKColor,
-                renderingParameters);
+                interiorSKColor);
         }
 
         return true;

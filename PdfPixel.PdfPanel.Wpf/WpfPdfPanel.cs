@@ -411,15 +411,19 @@ namespace PdfPixel.PdfPanel.Wpf
                     });
                 }));
             }
+#if DEBUG
             catch (Exception ex)
             {
-#if DEBUG
                 Dispatcher.BeginInvoke(new Action(() =>
                 {
                     MessageBox.Show($"Failed to open URI: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
                 }));
-#endif
             }
+#else
+            catch (Exception)
+            {
+            }
+#endif
         }
     }
 }

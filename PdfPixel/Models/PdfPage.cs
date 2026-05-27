@@ -22,6 +22,7 @@ internal class PdfPage : IPdfPageInternal
     private readonly PdfObject _pageObject;
     private readonly PdfPageResources _pageResources;
     private readonly PdfDictionary _resourceDictionary;
+    private readonly List<PdfAnnotationBase> _annotations;
 
     /// <summary>
     /// Initializes a new instance using <see cref="PdfPageResources"/> snapshot (rotation already normalized there).
@@ -50,7 +51,8 @@ internal class PdfPage : IPdfPageInternal
         CropBox = crop;
         Rotation = pageResources.Rotate ?? 0;
         _resourceDictionary = pageResources.Resources ?? new PdfDictionary(document);
-        Annotations = pageResources.Annotations ?? new List<PdfAnnotationBase>();
+        _annotations = pageResources.Annotations ?? new List<PdfAnnotationBase>();
+        Annotations = _annotations;
         PageLabel = pageLabel;
     }
 
@@ -102,10 +104,9 @@ internal class PdfPage : IPdfPageInternal
     }
 
     /// <inheritdoc/>
-    public void RenderAnnotations(
+    public void RenderAnnotation(
         IPdfCommandProcessor processor,
-        PdfRenderingParameters renderingParameters,
-        PdfAnnotationBase activeAnnotation,
+        PdfAnnotationBase annotation,
         PdfAnnotationVisualStateKind visualStateKind,
         IPdfExecutionObserver observer)
     {
@@ -114,14 +115,18 @@ internal class PdfPage : IPdfPageInternal
             throw new ArgumentNullException(nameof(processor));
         }
 
-        if (_document == null)
+        if (annotation == null)
         {
-            throw new InvalidOperationException("Document reference not set. This page was not properly loaded from a document.");
+            throw new ArgumentNullException(nameof(annotation));
+        }
+
+        if (!_annotations.Contains(annotation))
+        {
+            throw new ArgumentException("Annotation does not belong to this page.", nameof(annotation));
         }
 
         PdfRenderer renderer = new(_document.LoggerFactory);
-        PdfAnnotationRenderer annotationRenderer = new(renderer, this);
-        annotationRenderer.RenderAnnotations(processor, renderingParameters, activeAnnotation, visualStateKind, observer);
+        annotation.Render(processor, this, visualStateKind, renderer, observer);
     }
 
     /// <inheritdoc/>

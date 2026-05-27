@@ -23,7 +23,7 @@ public class PdfInkAnnotation : PdfAnnotationBase
     public PdfInkAnnotation(PdfObject annotationObject)
         : base(annotationObject, PdfAnnotationSubType.Ink)
     {
-        PdfArray inkList = annotationObject.Dictionary.GetArray(PdfTokens.InkListKey);
+        PdfArray? inkList = annotationObject.Dictionary.GetArray(PdfTokens.InkListKey);
         InkList = ParseInkList(inkList);
     }
 
@@ -35,7 +35,7 @@ public class PdfInkAnnotation : PdfAnnotationBase
     /// </summary>
     public SKPoint[][] InkList { get; }
 
-    private static SKPoint[][] ParseInkList(PdfArray inkList)
+    private static SKPoint[][] ParseInkList(PdfArray? inkList)
     {
         if (inkList == null || inkList.Count == 0)
         {
@@ -45,7 +45,7 @@ public class PdfInkAnnotation : PdfAnnotationBase
         var result = new SKPoint[inkList.Count][];
         for (int i = 0; i < inkList.Count; i++)
         {
-            PdfArray pathArray = inkList.GetArray(i);
+            PdfArray? pathArray = inkList.GetArray(i);
             if (pathArray == null || pathArray.Count < 4)
             {
                 result[i] = Array.Empty<SKPoint>();
@@ -72,7 +72,7 @@ public class PdfInkAnnotation : PdfAnnotationBase
         return result;
     }
 
-    internal override bool RenderFallback(IPdfCommandProcessor processor, IPdfPageInternal page, PdfAnnotationVisualStateKind visualStateKind, PdfRenderingParameters renderingParameters)
+    internal override bool RenderFallback(IPdfCommandProcessor processor, IPdfPageInternal page, PdfAnnotationVisualStateKind visualStateKind)
     {
         if (InkList == null || InkList.Length == 0)
         {
@@ -103,7 +103,6 @@ public class PdfInkAnnotation : PdfAnnotationBase
                 StrokeWidth = lineWidth,
                 StrokeCap = SKStrokeCap.Round,
                 StrokeJoin = SKStrokeJoin.Round,
-                IsAntialias = renderingParameters.Antialias,
                 Color = inkColor
             };
 

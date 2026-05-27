@@ -44,7 +44,7 @@ internal class GouraudMeshDecoder
         _bitsPerFlag = shadingDictionary.GetIntegerOrDefault(PdfTokens.BitsPerFlagKey);
         _bitsPerCoordinate = shadingDictionary.GetIntegerOrDefault(PdfTokens.BitsPerCoordinateKey);
         _bitsPerComponent = shadingDictionary.GetIntegerOrDefault(PdfTokens.BitsPerComponentKey);
-        float[] decodeArray = shadingDictionary.GetArray(PdfTokens.DecodeKey).GetFloatArray();
+        float[]? decodeArray = shadingDictionary.GetArray(PdfTokens.DecodeKey)?.GetFloatArray();
         if (decodeArray == null || decodeArray.Length < 6 || (decodeArray.Length - 4) % 2 != 0)
         {
             throw new ArgumentException("Decode array must contain at least xmin,xmax,ymin,ymax and pairs of min/max for each color component");
@@ -108,7 +108,7 @@ internal class GouraudMeshDecoder
     private List<MeshData> ReadType4(ref UintBitReader bitReader)
     {
         List<MeshData> patches = [];
-        MeshData previous = null;
+        MeshData? previous = null;
 
         while (!bitReader.EndOfData)
         {
@@ -135,7 +135,7 @@ internal class GouraudMeshDecoder
                     bitReader.AlignToNextByte();
                 }
             }
-            else if (flag == 1)
+            else if (flag == 1 && previousColors != null)
             {
                 // Flag 1: copy last two vertices/colors from previous triangle, read one new
                 vertices[0] = previousVertices[1];
@@ -147,7 +147,7 @@ internal class GouraudMeshDecoder
                 // Skip padding bits for the new vertex
                 bitReader.AlignToNextByte();
             }
-            else if (flag == 2)
+            else if (flag == 2 && previousColors != null)
             {
                 // Flag 2: copy first and last vertices/colors from previous triangle, read one new
                 vertices[0] = previousVertices[0];

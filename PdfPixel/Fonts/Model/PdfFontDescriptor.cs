@@ -5,44 +5,6 @@ using SkiaSharp;
 
 namespace PdfPixel.Fonts.Model;
 
-/// <summary>
-/// Font file format enumeration
-/// Determined by embedded font stream and its dictionary (/FontFile, /FontFile2, /FontFile3 + /Subtype)
-/// </summary>
-[PdfEnum]
-public enum PdfFontFileFormat
-{
-    /// <summary>
-    /// Unknown or unspecified font file format.
-    /// </summary>
-    [PdfEnumDefaultValue]
-    Unknown,
-
-    /// <summary>
-    /// Type 1 font program (PFA/PFB) (/Type1).
-    /// </summary>
-    [PdfEnumValue("Type1")]
-    Type1,
-
-    /// <summary>
-    /// TrueType font program (/TrueType).
-    /// </summary>
-    [PdfEnumValue("TrueType")]
-    TrueType,
-
-    /// <summary>
-    /// Compact Font Format (CFF) Type 1 font program (/Type1C).
-    /// </summary>
-    [PdfEnumValue("Type1C")]
-    Type1C,
-
-    /// <summary>
-    /// CFF for CIDFonts (/CIDFontType0C).
-    /// </summary>
-    [PdfEnumValue("CIDFontType0C")]
-    CIDFontType0C
-}
-
 // Font descriptor information
 /// <summary>
 /// Represents a PDF font descriptor, containing font metrics, style, and embedded font file information.
@@ -143,22 +105,22 @@ public class PdfFontDescriptor
     /// <summary>
     /// Array of horizontal stem thicknesses (PDF 1.5+, /StemSnapH).
     /// </summary>
-    public float[] StemSnapH { get; set; }
+    public float[]? StemSnapH { get; set; }
 
     /// <summary>
     /// Array of vertical stem thicknesses (PDF 1.5+, /StemSnapV).
     /// </summary>
-    public float[] StemSnapV { get; set; }
+    public float[]? StemSnapV { get; set; }
 
     /// <summary>
     /// PANOSE classification bytes (PDF 1.5+, /Panose).
     /// </summary>
-    public byte[] Panose { get; set; }
+    public byte[]? Panose { get; set; }
 
     /// <summary>
     /// The embedded font file object (only one exists at a time).
     /// </summary>
-    public PdfObject FontFileObject { get; set; }
+    public PdfObject? FontFileObject { get; set; }
 
     /// <summary>
     /// Format of the embedded font file.
@@ -168,7 +130,7 @@ public class PdfFontDescriptor
     /// <summary>
     /// Reference to the original dictionary this descriptor was created from.
     /// </summary>
-    public PdfDictionary Dictionary { get; private set; }
+    public PdfDictionary? Dictionary { get; private set; }
 
     /// <summary>
     /// Gets a value indicating whether this font descriptor has any embedded font stream.
@@ -180,7 +142,7 @@ public class PdfFontDescriptor
     /// </summary>
     /// <param name="dict">The PDF dictionary containing font descriptor properties.</param>
     /// <returns>A populated <see cref="PdfFontDescriptor"/> instance, or null if <paramref name="dict"/> is null.</returns>
-    public static PdfFontDescriptor FromDictionary(PdfDictionary dict)
+    public static PdfFontDescriptor? FromDictionary(PdfDictionary? dict)
     {
         if (dict == null)
         {
@@ -210,11 +172,11 @@ public class PdfFontDescriptor
         };
 
         // Optional arrays
-        descriptor.StemSnapH = dict.GetArray(PdfTokens.StemSnapHKey).GetFloatArray();
-        descriptor.StemSnapV = dict.GetArray(PdfTokens.StemSnapVKey).GetFloatArray();
+        descriptor.StemSnapH = dict.GetArray(PdfTokens.StemSnapHKey)?.GetFloatArray();
+        descriptor.StemSnapV = dict.GetArray(PdfTokens.StemSnapVKey)?.GetFloatArray();
 
         // PANOSE (string or hex string)
-        IPdfValue panoseVal = dict.GetValue(PdfTokens.PanoseKey);
+        IPdfValue? panoseVal = dict.GetValue(PdfTokens.PanoseKey);
         if (panoseVal != null)
         {
             System.ReadOnlyMemory<byte> hexBytes = panoseVal.AsStringBytes();
@@ -229,7 +191,6 @@ public class PdfFontDescriptor
         descriptor.FontFileFormat = objectAndFormat.Format;
 
         // Parse FontBBox array
-        float[] fontBBoxArray = dict.GetArray(PdfTokens.FontBBoxKey).GetFloatArray();
         descriptor.FontBBox = PdfLocationUtilities.CreateBBox(dict.GetArray(PdfTokens.FontBBoxKey)) ?? SKRect.Empty;
 
         return descriptor;
@@ -244,13 +205,13 @@ public class PdfFontDescriptor
     {
         // Get font file object and determine format (only one exists at a time)
         // Priority order: FontFile2 (TrueType), FontFile3 (check /Subtype), FontFile (Type1)
-        PdfObject fontFile2Obj = dict.GetObject(PdfTokens.FontFile2Key);
+        PdfObject? fontFile2Obj = dict.GetObject(PdfTokens.FontFile2Key);
         if (fontFile2Obj != null)
         {
             return (fontFile2Obj, PdfFontFileFormat.TrueType);
         }
 
-        PdfObject fontFile3Obj = dict.GetObject(PdfTokens.FontFile3Key);
+        PdfObject? fontFile3Obj = dict.GetObject(PdfTokens.FontFile3Key);
         if (fontFile3Obj != null)
         {
             // For FontFile3 the actual program type is specified by the stream dictionary /Subtype
@@ -258,7 +219,7 @@ public class PdfFontDescriptor
             return (fontFile3Obj, subType);
         }
 
-        PdfObject fontFileObj = dict.GetObject(PdfTokens.FontFileKey);
+        PdfObject? fontFileObj = dict.GetObject(PdfTokens.FontFileKey);
         if (fontFileObj != null)
         {
             return (fontFileObj, PdfFontFileFormat.Type1);

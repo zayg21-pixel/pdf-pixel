@@ -58,7 +58,7 @@ internal class PdfTextExtractionRenderer : IPdfRenderer
         // no op
     }
 
-    public SKSize DrawTextSequence(IPdfCommandProcessor processor, List<ShapedGlyph> glyphs, PdfGraphicsState state, PdfFontBase font)
+    public SKSize DrawTextSequence(IPdfCommandProcessor processor, List<ShapedGlyph> glyphs, PdfGraphicsState state, PdfFontBase? font)
     {
         SKMatrix currentMatrix = SKMatrix.Concat(processor.TotalMatrix, TextRenderUtilities.GetFullTextMatrix(state));
         float advance = 0;

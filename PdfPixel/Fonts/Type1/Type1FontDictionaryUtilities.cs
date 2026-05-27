@@ -42,11 +42,11 @@ internal static class Type1FontDictionaryUtilities
             return 4; // Default
         }
 
-        if (fontDict.Entries.TryGetValue(PrivateKey, out PostScriptToken privateToken) && privateToken is PostScriptDictionary privateDict)
+        if (fontDict.Entries.TryGetValue(PrivateKey, out PostScriptToken? privateToken) && privateToken is PostScriptDictionary privateDict)
         {
-            if (privateDict.Entries.TryGetValue(LenIVKey, out PostScriptToken lenIvToken) && lenIvToken is PostScriptNumber num)
+            if (privateDict.Entries.TryGetValue(LenIVKey, out PostScriptToken? lenIvToken) && lenIvToken is PostScriptNumber num)
             {
-                var candidate = (int)num.Value;
+                var candidate = (int)num.Number;
                 if (candidate >= -1 && candidate <= 32)
                 {
                     return candidate;
@@ -62,14 +62,9 @@ internal static class Type1FontDictionaryUtilities
     /// </summary>
     /// <param name="fontDict">The PostScript dictionary from which to extract the font name. Cannot be null.</param>
     /// <returns>The font name as a string if found; otherwise, <see langword="null"/>.</returns>
-    public static string GetFontName(PostScriptDictionary fontDict)
+    public static string? GetFontName(PostScriptDictionary fontDict)
     {
-        if (fontDict == null)
-        {
-            return null;
-        }
-
-        if (fontDict.Entries.TryGetValue(FontNameKey, out PostScriptToken token))
+        if (fontDict.Entries.TryGetValue(FontNameKey, out PostScriptToken? token))
         {
             if (token is PostScriptLiteralName ln)
             {
@@ -94,7 +89,7 @@ internal static class Type1FontDictionaryUtilities
             return results;
         }
 
-        if (!fontDict.Entries.TryGetValue(CharStringsKey, out PostScriptToken csToken) || csToken is not PostScriptDictionary csDict)
+        if (!fontDict.Entries.TryGetValue(CharStringsKey, out PostScriptToken? csToken) || csToken is not PostScriptDictionary csDict)
         {
             return results;
         }
@@ -128,12 +123,12 @@ internal static class Type1FontDictionaryUtilities
             return subrs;
         }
 
-        if (!fontDict.Entries.TryGetValue(PrivateKey, out PostScriptToken privateToken) || privateToken is not PostScriptDictionary privateDict)
+        if (!fontDict.Entries.TryGetValue(PrivateKey, out PostScriptToken? privateToken) || privateToken is not PostScriptDictionary privateDict)
         {
             return subrs;
         }
 
-        if (!privateDict.Entries.TryGetValue(SubrsKey, out PostScriptToken subrsToken) || subrsToken is not IPostScriptCollection subrsArray)
+        if (!privateDict.Entries.TryGetValue(SubrsKey, out PostScriptToken? subrsToken) || subrsToken is not IPostScriptCollection subrsArray)
         {
             return subrs;
         }
@@ -159,21 +154,21 @@ internal static class Type1FontDictionaryUtilities
     /// <param name="dict">The PostScript dictionary containing font information. Must not be <see langword="null"/>.</param>
     /// <returns>An array of four <see cref="float"/> values representing the font's bounding box, or <see langword="null"/> if
     /// the dictionary is <see langword="null"/> or does not contain valid bounding box data.</returns>
-    public static float[] GetFontBBox(PostScriptDictionary dict)
+    public static float[]? GetFontBBox(PostScriptDictionary dict)
     {
         if (dict == null)
         {
             return null;
         }
 
-        if (dict.Entries.TryGetValue(FontBboxKey, out PostScriptToken token) && token is IPostScriptCollection arr && arr.Items?.Count >= 4)
+        if (dict.Entries.TryGetValue(FontBboxKey, out PostScriptToken? token) && token is IPostScriptCollection arr && arr.Items?.Count >= 4)
         {
             var result = new float[4];
             for (int i = 0; i < 4; i++)
             {
                 if (arr.Items[i] is PostScriptNumber num)
                 {
-                    result[i] = num.Value;
+                    result[i] = num.Number;
                 }
                 else
                 {
@@ -192,14 +187,14 @@ internal static class Type1FontDictionaryUtilities
     /// </summary>
     /// <param name="fontDict">Top-level font dictionary.</param>
     /// <returns>SKMatrix representing the font's transformation matrix.</returns>
-    public static float[] GetFontMatrix(PostScriptDictionary fontDict)
+    public static float[]? GetFontMatrix(PostScriptDictionary fontDict)
     {
         if (fontDict == null)
         {
             return null;
         }
 
-        if (!fontDict.Entries.TryGetValue(FontMatrixKey, out PostScriptToken fmToken) || fmToken is not PostScriptArray array)
+        if (!fontDict.Entries.TryGetValue(FontMatrixKey, out PostScriptToken? fmToken) || fmToken is not PostScriptArray array)
         {
             return null;
         }
@@ -215,7 +210,7 @@ internal static class Type1FontDictionaryUtilities
         {
             if (element is PostScriptNumber num && count < 6)
             {
-                values[count++] = num.Value;
+                values[count++] = num.Number;
             }
         }
 
@@ -230,14 +225,14 @@ internal static class Type1FontDictionaryUtilities
     /// </summary>
     /// <param name="fontDict">Top-level font dictionary.</param>
     /// <returns>PdfString[256] encoding vector or null if not present.</returns>
-    public static PdfString[] GetEncodingVector(PostScriptDictionary fontDict)
+    public static PdfString[]? GetEncodingVector(PostScriptDictionary fontDict)
     {
         if (fontDict == null)
         {
             return null;
         }
 
-        if (!fontDict.Entries.TryGetValue(EncodingKey, out PostScriptToken encToken))
+        if (!fontDict.Entries.TryGetValue(EncodingKey, out PostScriptToken? encToken))
         {
             return null;
         }
@@ -246,7 +241,7 @@ internal static class Type1FontDictionaryUtilities
         {
             // Map predefined encoding name to enum then to shared vector.
             PdfFontEncoding encodingEnum = MapEncodingName(litName.Name);
-            PdfString[] predefined = SingleByteEncodings.GetEncodingSet(encodingEnum);
+            PdfString[]? predefined = SingleByteEncodings.GetEncodingSet(encodingEnum);
             return predefined; // May be null if unknown (caller handles null).
         }
 
@@ -306,9 +301,9 @@ internal static class Type1FontDictionaryUtilities
         }
     }
 
-    public static PostScriptArray GetEncodingArray(PdfFontEncoding pdfEncoding)
+    public static PostScriptArray? GetEncodingArray(PdfFontEncoding pdfEncoding)
     {
-        PdfString[] encodingSet = SingleByteEncodings.GetEncodingSet(pdfEncoding);
+        PdfString[]? encodingSet = SingleByteEncodings.GetEncodingSet(pdfEncoding);
 
         if (encodingSet == null)
         {

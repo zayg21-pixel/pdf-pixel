@@ -24,7 +24,7 @@ public sealed class SoftMaskDrawingScope : IDisposable
 {
     private readonly IPdfRenderer _renderer;
     private readonly IPdfCommandProcessor _processor;
-    private readonly PdfSoftMask _softMask;
+    private readonly PdfSoftMask? _softMask;
     private readonly PdfGraphicsState _graphicsState;
 
     private SKRect _maskBounds;
@@ -44,6 +44,11 @@ public sealed class SoftMaskDrawingScope : IDisposable
         IPdfCommandProcessor processor,
         PdfGraphicsState graphicsState)
     {
+        if (graphicsState == null)
+        {
+            throw new ArgumentNullException(nameof(graphicsState));
+        }
+
         _renderer = renderer;
         _processor = processor;
         _softMask = graphicsState.SoftMask;
@@ -69,8 +74,9 @@ public sealed class SoftMaskDrawingScope : IDisposable
 
         _shouldApplyMask = _softMask?.MaskForm != null;
 
-        if (!_shouldApplyMask)
+        if (_softMask == null || _softMask.MaskForm == null)
         {
+            _shouldApplyMask = false;
             return;
         }
 
@@ -94,7 +100,7 @@ public sealed class SoftMaskDrawingScope : IDisposable
             return;
         }
 
-        if (!_shouldApplyMask)
+        if (!_shouldApplyMask || _softMask?.MaskForm == null)
         {
             return;
         }
@@ -120,34 +126,37 @@ public sealed class SoftMaskDrawingScope : IDisposable
         if (!contentData.IsEmpty)
         {
             uint softMaskObjectNumber = _softMask.MaskForm.XObject.Reference.ObjectNumber;
-            if (!_graphicsState.RecursionGuard.Contains(softMaskObjectNumber))
+
+            if (_graphicsState.RecursionGuard.Contains(softMaskObjectNumber))
             {
-                _graphicsState.RecursionGuard.Add(softMaskObjectNumber);
-
-                Forms.FormXObjectPageWrapper page = _softMask.MaskForm.GetFormPage();
-
-                PdfParseContext parseContext = new(contentData);
-                PdfGraphicsState maskGs = (_softMask.Subtype == PdfSoftMaskSubtype.Luminosity)
-                    ? SoftMaskUtilities.CreateLuminosityMaskGraphicsState(page, _graphicsState)
-                    : SoftMaskUtilities.CreateAlphaMaskGraphicsState(page, _graphicsState);
-
-                // Use TR from soft mask definition as external transfer function for local GS
-                if (maskGs.ExternalTransferFunction == null)
-                {
-                    maskGs.ExternalTransferFunction = _softMask.TransferFunction;
-                }
-                else
-                {
-                    maskGs.ExternalTransferFunction = new ChainedColorTransform(maskGs.ExternalTransferFunction, _softMask.TransferFunction);
-                }
-
-                maskGs.CTM = _softMask.MaskForm.Matrix;
-
-                PdfContentStreamRenderer contentRenderer = new(_renderer, page);
-                contentRenderer.RenderContext(recorder, ref parseContext, maskGs);
-
-                _graphicsState.RecursionGuard.Remove(softMaskObjectNumber);
+                return;
             }
+
+            _graphicsState.RecursionGuard.Add(softMaskObjectNumber);
+
+            Forms.FormXObjectPageWrapper page = _softMask.MaskForm.GetFormPage();
+
+            PdfParseContext parseContext = new(contentData);
+            PdfGraphicsState maskGs = (_softMask.Subtype == PdfSoftMaskSubtype.Luminosity)
+                ? SoftMaskUtilities.CreateLuminosityMaskGraphicsState(page, _graphicsState)
+                : SoftMaskUtilities.CreateAlphaMaskGraphicsState(page, _graphicsState);
+
+            // Use TR from soft mask definition as external transfer function for local GS
+            if (maskGs.ExternalTransferFunction == null)
+            {
+                maskGs.ExternalTransferFunction = _softMask.TransferFunction;
+            }
+            else
+            {
+                maskGs.ExternalTransferFunction = new ChainedColorTransform(maskGs.ExternalTransferFunction, _softMask.TransferFunction);
+            }
+
+            maskGs.CTM = _softMask.MaskForm.Matrix;
+
+            PdfContentStreamRenderer contentRenderer = new(_renderer, page);
+            contentRenderer.RenderContext(recorder, ref parseContext, maskGs);
+
+            _graphicsState.RecursionGuard.Remove(softMaskObjectNumber);
         }
 
         recorder.Process(new RestoreStateCommand());

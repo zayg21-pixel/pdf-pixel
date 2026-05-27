@@ -18,7 +18,7 @@ internal class SfntByteCodeToGidMapper : IByteCodeToGidMapper
     private readonly PdfFontFlags _flags;
     private readonly PdfFontEncoding _encoding;
     private readonly Dictionary<int, PdfString> _differences;
-    private readonly PdfCMap _toUnicodeCMap;
+    private readonly PdfCMap? _toUnicodeCMap;
     private readonly bool _isSubstituted;
 
     /// <summary>
@@ -34,7 +34,7 @@ internal class SfntByteCodeToGidMapper : IByteCodeToGidMapper
         PdfFontFlags flags,
         bool substituted,
         PdfFontEncodingInfo encodingInfo,
-        PdfCMap toUnicodeCMap)
+        PdfCMap? toUnicodeCMap)
     {
         _sfntTables = fontTables ?? throw new ArgumentNullException(nameof(fontTables));
 
@@ -66,19 +66,19 @@ internal class SfntByteCodeToGidMapper : IByteCodeToGidMapper
             return 0;
         }
 
-        if (_sfntTables.NameToGid.TryGetValue(name, out ushort gidByName))
+        if (_sfntTables.NameToGid?.TryGetValue(name, out ushort gidByName) == true)
         {
             return gidByName;
         }
 
-        string unicode = _toUnicodeCMap?.GetUnicode(code);
+        string? unicode = _toUnicodeCMap?.GetUnicode(code);
 
         if (unicode == null)
         {
             AdobeGlyphList.CharacterMap.TryGetValue(name, out unicode);
         }
 
-        if (unicode != null && _sfntTables.UnicodeToGid.TryGetValue(unicode, out ushort gidByUnicode))
+        if (unicode != null && _sfntTables.UnicodeToGid?.TryGetValue(unicode, out ushort gidByUnicode) == true)
         {
             return gidByUnicode;
         }

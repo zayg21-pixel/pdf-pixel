@@ -5,7 +5,7 @@
     /// </summary>
     public static class PdfDecryptorFactory
     {
-        public static BasePdfDecryptor Create(PdfDecryptorParameters parameters)
+        public static BasePdfDecryptor? Create(PdfDecryptorParameters parameters)
         {
             if (parameters == null)
             {

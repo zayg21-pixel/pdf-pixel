@@ -84,7 +84,6 @@ internal sealed class JpxTagTree
                     if (levelWidth > 1 || levelHeight > 1)
                     {
                         int nextLevelWidth = (levelWidth + 1) / 2;
-                        int nextLevelHeight = (levelHeight + 1) / 2;
                         int nextLevelStart = levelStart + (levelWidth * levelHeight);
 
                         int parentX = x / 2;

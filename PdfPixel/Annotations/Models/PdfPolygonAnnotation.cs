@@ -34,6 +34,10 @@ public class PdfPolygonAnnotation : PdfAnnotationBase
                 Vertices[i / 2] = new SKPoint(vertices[i], vertices[i + 1]);
             }
         }
+        else
+        {
+            Vertices = System.Array.Empty<SKPoint>();
+        }
     }
 
     protected override SKPoint ContentStart => (Vertices?.Length > 0) ? Vertices[0] : base.ContentStart;
@@ -43,9 +47,9 @@ public class PdfPolygonAnnotation : PdfAnnotationBase
     /// </summary>
     public SKPoint[] Vertices { get; }
 
-    internal override bool RenderFallback(IPdfCommandProcessor processor, IPdfPageInternal page, PdfAnnotationVisualStateKind visualStateKind, PdfRenderingParameters renderingParameters)
+    internal override bool RenderFallback(IPdfCommandProcessor processor, IPdfPageInternal page, PdfAnnotationVisualStateKind visualStateKind)
     {
-        if (Vertices == null || Vertices.Length < 3)
+        if (Vertices.Length < 3)
         {
             return false;
         }
@@ -67,7 +71,6 @@ public class PdfPolygonAnnotation : PdfAnnotationBase
             SKPaint fillPaint = new()
             {
                 Style = SKPaintStyle.Fill,
-                IsAntialias = renderingParameters.Antialias,
                 Color = interiorSKColor
             };
 
@@ -83,7 +86,6 @@ public class PdfPolygonAnnotation : PdfAnnotationBase
                 Style = SKPaintStyle.Stroke,
                 StrokeWidth = BorderStyle.Width,
                 StrokeJoin = SKStrokeJoin.Miter,
-                IsAntialias = renderingParameters.Antialias,
                 Color = strokeColor
             };
 

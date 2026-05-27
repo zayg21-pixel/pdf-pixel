@@ -1,3 +1,4 @@
+using PdfPixel.Color.ColorSpace;
 using PdfPixel.Color.Paint;
 using PdfPixel.Commands;
 using PdfPixel.Models;
@@ -26,7 +27,7 @@ public sealed class PdfShadingPattern : PdfPattern
         PdfObject sourceObject,
         PdfShading shading,
         SKMatrix matrix,
-        PdfDictionary extGState)
+        PdfDictionary? extGState)
         : base(sourceObject, matrix, PdfPatternType.Shading)
     {
         Shading = shading;
@@ -41,7 +42,7 @@ public sealed class PdfShadingPattern : PdfPattern
     /// <summary>
     /// Gets the optional extended graphics state dictionary (may be null).
     /// </summary>
-    public PdfDictionary ExtGState { get; } // TODO: [LOW] implement support for ExtGState as per specification. Though, I could never find PDF with ExtGState in shading
+    public PdfDictionary? ExtGState { get; } // TODO: [LOW] implement support for ExtGState as per specification. Though, I could never find PDF with ExtGState in shading
 
     internal override void RenderPattern(IPdfCommandProcessor processor, PdfGraphicsState state, IRenderTarget renderTarget)
     {
@@ -59,7 +60,7 @@ public sealed class PdfShadingPattern : PdfPattern
 
         if (Shading.Background != null && Shading.BBox.HasValue)
         {
-            Color.ColorSpace.PdfColorSpaceConverter colorSpace = state.Page.Cache.ColorSpace.ResolveByObject(Shading.ColorSpaceConverter);
+            PdfColorSpaceConverter? colorSpace = state.Page.Cache.ColorSpace.ResolveByObject(Shading.ColorSpaceConverter) ?? DeviceRgbConverter.Instance;
             SKColor backgroundColor = colorSpace.ToSrgb(Shading.Background, state.RenderingIntent, state.FullTransferFunction);
             SKPaint backgroundPaint = PdfPaintFactory.CreateBackgroundPaint(backgroundColor);
 

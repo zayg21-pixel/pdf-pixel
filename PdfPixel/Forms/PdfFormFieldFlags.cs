@@ -94,14 +94,9 @@ public enum PdfFormFieldFlags
     Comb = 1 << 24,
 
     /// <summary>
-    /// Text field - rich text.
+    /// Text field - rich text or Button field - radios same value export same value.
     /// </summary>
-    RichText = 1 << 25,
-
-    /// <summary>
-    /// Button field - radios same value export same value.
-    /// </summary>
-    RadiosInUnison = 1 << 25,
+    RichTextOrRadiosInUnison = 1 << 25,
 
     /// <summary>
     /// Choice field - commit on selection change.

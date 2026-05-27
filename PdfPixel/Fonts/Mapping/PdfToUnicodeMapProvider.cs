@@ -64,7 +64,7 @@ public static class PdfToUnicodeMapProvider
     /// </summary>
     /// <param name="cidSystemInfo">CID system info (must not be null).</param>
     /// <returns>ToUnicode dictionary, or null if not available.</returns>
-    public static Dictionary<uint, string> GetToUnicodeMap(PdfCidSystemInfo cidSystemInfo)
+    public static Dictionary<uint, string>? GetToUnicodeMap(PdfCidSystemInfo? cidSystemInfo)
     {
         if (cidSystemInfo == null)
         {

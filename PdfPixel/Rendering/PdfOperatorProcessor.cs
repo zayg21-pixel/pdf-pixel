@@ -102,5 +102,5 @@ internal class PdfOperatorProcessor
         }
     }
 
-    private void ProcessUnknownOperator(string op) => _logger.LogWarning($"Unknown PDF operator '{op}' with {_operandStack.Count} operands on stack");
+    private void ProcessUnknownOperator(string op) => _logger.LogWarning("Unknown PDF operator {Op}' with {Count} operands on stack", op, _operandStack.Count);
 }

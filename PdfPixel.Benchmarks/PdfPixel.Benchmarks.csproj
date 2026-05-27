@@ -13,24 +13,6 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\PdfPixel\PdfPixel.csproj" />
-  </ItemGroup>
-  <ItemGroup>
-    <None Update="Im10.dat">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-    <None Update="TestJpeg.jpg">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-    <Content Include="..\PdfPixel.Tests\Imaging\Jpx\Images\*.jpx" Link="Images\%(Filename)%(Extension)">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-  </ItemGroup>
-  <ItemGroup>
-    <None Remove="bitmap-symbol-context-reuse.jb2" />
-  </ItemGroup>
-  <ItemGroup>
-    <Content Include="bitmap-symbol-context-reuse.jb2">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
+    <ProjectReference Include="..\PdfPixel.Color\PdfPixel.Color.csproj" />
   </ItemGroup>
 </Project>

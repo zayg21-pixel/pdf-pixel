@@ -24,7 +24,6 @@ internal static class PdfAnnotationAppearanceRenderer
     /// <param name="page">The PDF page containing the annotation.</param>
     /// <param name="visualStateKind">The visual state to render.</param>
     /// <param name="renderer">The renderer context.</param>
-    /// <param name="renderingParameters">Rendering parameters.</param>
     /// <param name="observer">Observer for long-running operations.</param>
     /// <returns>True if the appearance stream was rendered successfully.</returns>
     public static bool RenderAppearanceStream(
@@ -33,7 +32,6 @@ internal static class PdfAnnotationAppearanceRenderer
         IPdfPageInternal page,
         PdfAnnotationVisualStateKind visualStateKind,
         IPdfRenderer renderer,
-        PdfRenderingParameters renderingParameters,
         IPdfExecutionObserver observer)
     {
         if (annotation.AppearanceDictionary == null)
@@ -42,7 +40,7 @@ internal static class PdfAnnotationAppearanceRenderer
         }
 
         PdfAnnotationVisualStateKind effectiveState = ResolveVisualState(annotation, visualStateKind);
-        PdfObject appearanceObject = GetAppearanceObjectForState(annotation.AppearanceDictionary, effectiveState);
+        PdfObject? appearanceObject = GetAppearanceObjectForState(annotation.AppearanceDictionary, effectiveState);
 
         if (appearanceObject == null)
         {
@@ -59,12 +57,12 @@ internal static class PdfAnnotationAppearanceRenderer
         {
             case PdfXObjectSubtype.Form:
                 {
-                    success = RenderFormAppearance(processor, appearanceObject, annotation.Rectangle, page, renderer, renderingParameters, observer);
+                    success = RenderFormAppearance(processor, appearanceObject, annotation.Rectangle, page, renderer, observer);
                     break;
                 }
             case PdfXObjectSubtype.Image:
                 {
-                    success = RenderImageAppearance(processor, appearanceObject, annotation.Rectangle, page, renderer, renderingParameters, observer);
+                    success = RenderImageAppearance(processor, appearanceObject, annotation.Rectangle, page, renderer, observer);
                     break;
                 }
         }
@@ -102,7 +100,7 @@ internal static class PdfAnnotationAppearanceRenderer
     /// <summary>
     /// Gets the appearance object for the specified visual state.
     /// </summary>
-    private static PdfObject GetAppearanceObjectForState(
+    private static PdfObject? GetAppearanceObjectForState(
         PdfDictionary appearanceDictionary,
         PdfAnnotationVisualStateKind state)
     {
@@ -124,7 +122,6 @@ internal static class PdfAnnotationAppearanceRenderer
         SKRect annotationRect,
         IPdfPageInternal page,
         IPdfRenderer renderer,
-        PdfRenderingParameters renderingParameters, // TODO: [HIGH] add separate parsing parameters alongside with exec
         IPdfExecutionObserver observer)
     {
         PdfForm formXObject = PdfForm.FromXObject(formObject, page);
@@ -171,7 +168,6 @@ internal static class PdfAnnotationAppearanceRenderer
         SKRect annotationRect,
         IPdfPageInternal page,
         IPdfRenderer renderer,
-        PdfRenderingParameters renderingParameters,
         IPdfExecutionObserver observer)
     {
         PdfImage pdfImage = PdfImage.FromXObject(imageObject, page, PdfString.Empty, isSoftMask: false);

@@ -52,7 +52,7 @@ internal class PdfContentStreamRenderer
     {
         List<ReadOnlyMemory<byte>> contentStreams = [];
 
-        List<PdfObject> contents = _page.PageObject.Dictionary.GetObjects(PdfTokens.ContentsKey);
+        List<PdfObject>? contents = _page.PageObject.Dictionary.GetObjects(PdfTokens.ContentsKey);
 
         if (contents == null)
         {
@@ -83,7 +83,7 @@ internal class PdfContentStreamRenderer
         using SKPath currentPath = new();
         PdfOperatorProcessor operatorProcessor = new(_renderer, _page, processor, operandStack, graphicsStack, currentPath);
         PdfParser parser = new(parseContext, _page.Document, allowReferences: false, decrypt: false);
-        IPdfValue value;
+        IPdfValue? value;
 
         while ((value = parser.ReadNextValue()) != null)
         {
@@ -100,10 +100,12 @@ internal class PdfContentStreamRenderer
                     throw;
                 }
 #if !DEBUG
+#pragma warning disable CA1031
                 catch (Exception ex)
                 {
                     _logger.LogError(ex, "Error \"{Message}\" processing PDF content stream operator {Operator}. Continuing to next.", ex.Message, op);
                 }
+#pragma warning restore CA1031
 #endif
 
                 operandStack.Clear();

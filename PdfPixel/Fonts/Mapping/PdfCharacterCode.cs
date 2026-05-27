@@ -24,7 +24,7 @@ public sealed class PdfCharacterCode : IEquatable<PdfCharacterCode>
     /// </summary>
     public int Length => Bytes.Length;
 
-    public bool Equals(PdfCharacterCode other)
+    public bool Equals(PdfCharacterCode? other)
     {
         if (ReferenceEquals(null, other))
         {
@@ -39,7 +39,7 @@ public sealed class PdfCharacterCode : IEquatable<PdfCharacterCode>
         return Bytes.Span.SequenceEqual(other.Bytes.Span);
     }
 
-    public override bool Equals(object obj) => obj is PdfCharacterCode other && Equals(other);
+    public override bool Equals(object? obj) => obj is PdfCharacterCode other && Equals(other);
 
     public override int GetHashCode()
     {
@@ -61,7 +61,7 @@ public sealed class PdfCharacterCode : IEquatable<PdfCharacterCode>
         }
     }
 
-    public static bool operator ==(PdfCharacterCode left, PdfCharacterCode right)
+    public static bool operator ==(PdfCharacterCode? left, PdfCharacterCode? right)
     {
         if (ReferenceEquals(left, right))
         {
@@ -71,7 +71,7 @@ public sealed class PdfCharacterCode : IEquatable<PdfCharacterCode>
         return left?.Equals(right) ?? false;
     }
 
-    public static bool operator !=(PdfCharacterCode left, PdfCharacterCode right) => !(left == right);
+    public static bool operator !=(PdfCharacterCode? left, PdfCharacterCode? right) => !(left == right);
 
     /// <summary>
     /// For diagnostics: returns a hex string like "41" or "00-41".

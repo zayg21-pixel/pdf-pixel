@@ -17,9 +17,9 @@ public sealed class ShadingDecodingContext
     /// </summary>
     /// <param name="state">Current graphics state to capture values from.</param>
     /// <param name="shading">Shading model whose color space will be resolved.</param>
-    public ShadingDecodingContext(PdfGraphicsState state, PdfShading shading)
+    internal ShadingDecodingContext(PdfGraphicsState state, PdfShading shading)
     {
-        Converter = state.Page.Cache.ColorSpace.ResolveByObject(shading.ColorSpaceConverter);
+        Converter = state.Page.Cache.ColorSpace.ResolveByObject(shading.ColorSpaceConverter) ?? DeviceRgbConverter.Instance;
         FillAlpha = state.FillAlpha;
         RenderingIntent = state.RenderingIntent;
         FullTransferFunction = state.FullTransferFunction;
@@ -43,5 +43,5 @@ public sealed class ShadingDecodingContext
     /// <summary>
     /// Combined transfer function captured from the graphics state.
     /// </summary>
-    public IColorTransform FullTransferFunction { get; }
+    public IColorTransform? FullTransferFunction { get; }
 }
