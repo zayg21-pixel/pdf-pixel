@@ -56,7 +56,7 @@ internal sealed class Jbig2ImageDecoder : PdfImageDecoder
             1);
 
         _fullWidthRowBuffer = new byte[_cachedBitmap.Stride];
-        _tilingContext = new PdfImageTilingContext(new SKSizeI(tileInfo.TileWidth, tileInfo.TileHeight), tileInfo, _imageParameters, ctm, regionOfInterest, LoggerFactory);
+        _tilingContext = new PdfImageTilingContext(new SKSizeI(tileInfo.TileWidth, tileInfo.TileHeight), tileInfo, _imageParameters, regionOfInterest, LoggerFactory);
         _currentImageRow = 0;
     }
 

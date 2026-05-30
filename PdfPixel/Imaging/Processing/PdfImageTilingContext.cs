@@ -14,20 +14,27 @@ internal sealed class PdfImageTilingContext : IDisposable
     private readonly SKRectI[] _tilePositions;
     private PdfImageRowProcessor?[]? _tileRowProcessors;
     private PdfImageRowDecodingParameters[]? _tileRowParams;
-    private readonly SKMatrix _ctm;
+    private readonly bool _isDownscaled;
+    private readonly float _scaleX;
+    private readonly float _scaleY;
 
     public PdfImageTilingContext(
         SKSizeI tileSize,
         PdfTileInfo tileInfo,
         PdfImageRowDecodingParameters imageParameters,
-        SKMatrix ctm,
         SKRectI regionOfInterest,
         ILoggerFactory loggerFactory)
     {
         _imageParameters = imageParameters ?? throw new ArgumentNullException(nameof(imageParameters));
         _loggerFactory = loggerFactory ?? throw new ArgumentNullException(nameof(loggerFactory));
         RegionOfInterest = regionOfInterest;
-        _ctm = ctm;
+
+        if (imageParameters.DownscaledSize.HasValue)
+        {
+            _isDownscaled = true;
+            _scaleX = (float)imageParameters.DownscaledSize.Value.Width  / imageParameters.Width;
+            _scaleY = (float)imageParameters.DownscaledSize.Value.Height / imageParameters.Height;
+        }
 
         TileWidth = Math.Min(tileSize.Width, imageParameters.Width);
         TileHeight = Math.Min(tileSize.Height, imageParameters.Height);
@@ -66,7 +73,9 @@ internal sealed class PdfImageTilingContext : IDisposable
                 }
 
                 SKRectI pos = _tilePositions[tileIndex];
-                SKSizeI? downscaledSize = PdfImageRowDecodingParameters.ComputeDownscaledSize(pos.Width, pos.Height, _imageParameters.ColorSpaceConverter, _imageParameters.Context, _ctm);
+                SKSizeI? downscaledSize = _isDownscaled
+                    ? new SKSizeI(Math.Max(1, (int)Math.Floor(pos.Width * _scaleX)), Math.Max(1, (int)Math.Floor(pos.Height * _scaleY)))
+                    : null;
 
                 PdfImageRowDecodingParameters tileParams = new(
                     _imageParameters.Context,

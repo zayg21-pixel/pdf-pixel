@@ -51,7 +51,7 @@ internal class RawImageDecoder : PdfImageDecoder
 
         int rowBytes = checked(((Image.Width * converter.Components * Image.BitsPerComponent) + 7) / 8);
         _fullWidthRowBuffer = new byte[rowBytes];
-        _tilingContext = new PdfImageTilingContext(new SKSizeI(tileInfo.TileWidth, tileInfo.TileHeight), tileInfo, _imageParameters, ctm, regionOfInterest, LoggerFactory);
+        _tilingContext = new PdfImageTilingContext(new SKSizeI(tileInfo.TileWidth, tileInfo.TileHeight), tileInfo, _imageParameters, regionOfInterest, LoggerFactory);
 
         lock (contentLocker)
         {

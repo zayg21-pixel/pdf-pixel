@@ -76,7 +76,7 @@ internal class JpxImageDecoder : PdfImageDecoder
         SKSizeI descaledTileSize = new(
             jpxDecodingParameters.ReduceDimension(tileInfo.TileWidth),
             jpxDecodingParameters.ReduceDimension(tileInfo.TileHeight));
-        _tilingContext = new PdfImageTilingContext(descaledTileSize, tileInfo, _imageParameters, ctm, scaledRegionOfInterest, LoggerFactory);
+        _tilingContext = new PdfImageTilingContext(descaledTileSize, tileInfo, _imageParameters, scaledRegionOfInterest, LoggerFactory);
         _currentImageRow = 0;
     }
 

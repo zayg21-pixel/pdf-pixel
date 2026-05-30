@@ -123,22 +123,4 @@ public sealed class PdfImageRowDecodingParameters
 
         return PdfImageCommandUtilities.GetScaledSize(ctm, new SKSizeI(width, height));
     }
-
-    internal static PdfImageRowDecodingParameters FromImage(PdfImage image, ImageDecodingContext context, SKMatrix ctm)
-    {
-        SKSizeI? downscaledSize = ComputeDownscaledSize(image.Width, image.Height, image.ColorSpaceConverter, context, ctm);
-
-        return new PdfImageRowDecodingParameters(
-            context,
-            image.Width,
-            image.Height,
-            image.BitsPerComponent,
-            image.RenderingIntent,
-            image.ColorSpaceConverter ?? DeviceRgbConverter.Instance,
-            image.HasImageMask,
-            image.MaskArray,
-            image.DecodeArray,
-            downscaledSize,
-            descaleFactor: 1);
-    }
 }

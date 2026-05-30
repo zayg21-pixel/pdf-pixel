@@ -90,7 +90,7 @@ public sealed class JpegImageDecoder : PdfImageDecoder
 
         _jpgRowDecoder = CreateJpgDecoder(encodedData, header);
         _fullWidthRowBuffer = new byte[checked(header.ComponentCount * Image.Width)];
-        _tilingContext = new PdfImageTilingContext(new SKSizeI(tileInfo.TileWidth, tileInfo.TileHeight), tileInfo, _imageParameters, ctm, regionOfInterest, LoggerFactory);
+        _tilingContext = new PdfImageTilingContext(new SKSizeI(tileInfo.TileWidth, tileInfo.TileHeight), tileInfo, _imageParameters, regionOfInterest, LoggerFactory);
         _currentImageRow = 0;
     }
 
