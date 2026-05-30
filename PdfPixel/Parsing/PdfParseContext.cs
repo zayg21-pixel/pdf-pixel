@@ -147,5 +147,6 @@ public ref struct PdfParseContext
         _position = newPosition;
     }
 
+    /// <inheritdoc/>
     public override string ToString() => Text.EncodingExtensions.PdfDefault.GetString(_data);
 }

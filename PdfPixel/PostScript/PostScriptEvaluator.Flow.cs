@@ -12,6 +12,15 @@ namespace PdfPixel.PostScript;
 /// </summary>
 public partial class PostScriptEvaluator
 {
+    /// <summary>
+    /// Attempts to handle a flow-control operator by name. Covers conditional execution (if, ifelse),
+    /// loop constructs (for, repeat, loop, forall), interpreter control transfers (exec, exit, stop,
+    /// stopped), and the bind optimization stub. Returns true if the operator was recognised and handled;
+    /// false if it is not a flow-control operator.
+    /// </summary>
+    /// <param name="name">Name of the PostScript operator to dispatch.</param>
+    /// <param name="stack">The operand stack used by the current evaluation context.</param>
+    /// <returns>True if <paramref name="name"/> is a flow-control operator; otherwise false.</returns>
     public bool TryExecuteFlowControlOperator(string name, Stack<PostScriptToken> stack)
     {
         if (stack == null)

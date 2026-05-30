@@ -48,6 +48,9 @@ public class PdfPolyLineAnnotation : PdfAnnotationBase
         }
     }
 
+    /// <summary>
+    /// Gets the starting point for bubble placement, using the first vertex of the polyline.
+    /// </summary>
     protected override SKPoint ContentStart => (Vertices?.Length > 0) ? Vertices[0] : base.ContentStart;
 
     /// <summary>

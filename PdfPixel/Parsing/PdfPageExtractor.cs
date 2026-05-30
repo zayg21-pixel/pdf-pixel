@@ -27,7 +27,7 @@ internal class PdfPageExtractor
     }
 
     /// <summary>
-    /// Extract all pages in the document populating <see cref="PdfDocument.Pages"/>
+    /// Extract all pages in the document populating <see cref="IPdfDocument.Pages"/>.
     /// RootRef is expected to be established earlier (xref parsing). This method will only set RootRef
     /// if it is currently unset (0) and a /Catalog is discovered during fallback scan.
     /// </summary>

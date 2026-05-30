@@ -12,6 +12,9 @@ namespace PdfPixel.Pattern.Model;
 /// </summary>
 public abstract class PdfPattern
 {
+    /// <summary>
+    /// Initializes the pattern with its source object, transformation matrix, and pattern type.
+    /// </summary>
     protected PdfPattern(PdfObject sourceObject, SKMatrix matrix, PdfPatternType patternType)
     {
         SourceObject = sourceObject;

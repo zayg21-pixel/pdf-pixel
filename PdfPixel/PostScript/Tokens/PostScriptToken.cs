@@ -31,6 +31,9 @@ public abstract class PostScriptToken : IEquatable<PostScriptToken>
     /// </summary>
     public virtual PostScriptToken? LogicalOr(PostScriptToken? other) => throw new InvalidOperationException("OR not supported for these token types.");
 
+    /// <summary>
+    /// Logical XOR (boolean) or bitwise XOR (integral numeric). Override in supported types.
+    /// </summary>
     public virtual PostScriptToken? LogicalXor(PostScriptToken? other) => throw new InvalidOperationException("XOR not supported for these token types.");
 
     /// <summary>
@@ -108,8 +111,20 @@ public abstract class PostScriptToken : IEquatable<PostScriptToken>
     /// <exception cref="InvalidOperationException">Always thrown in base class.</exception>
     public virtual void SetValue(PostScriptToken keyOrIndex, PostScriptToken value) => throw new InvalidOperationException("setvalue: operation not supported on this token type");
 
+    /// <summary>
+    /// Determines whether this token is equal to another token of the same concrete type.
+    /// Each derived type defines the equality semantics appropriate for its PostScript type.
+    /// </summary>
+    /// <param name="other">The token to compare against.</param>
+    /// <returns>True if the tokens are considered equal; otherwise false.</returns>
     public abstract bool EqualsToken(PostScriptToken other);
 
+    /// <summary>
+    /// Determines whether this token is equal to <paramref name="other"/> by delegating to <see cref="EqualsToken"/>.
+    /// Returns false when <paramref name="other"/> is null.
+    /// </summary>
+    /// <param name="other">The token to compare against.</param>
+    /// <returns>True if the tokens are considered equal; otherwise false.</returns>
     public bool Equals(PostScriptToken? other)
     {
         if (ReferenceEquals(null, other))
@@ -125,8 +140,16 @@ public abstract class PostScriptToken : IEquatable<PostScriptToken>
         return EqualsToken(other);
     }
 
+    /// <summary>
+    /// Determines whether this token is equal to <paramref name="obj"/> by casting to <see cref="PostScriptToken"/> and delegating to <see cref="Equals(PostScriptToken?)"/>.
+    /// </summary>
+    /// <param name="obj">The object to compare against.</param>
+    /// <returns>True if <paramref name="obj"/> is an equal <see cref="PostScriptToken"/>; otherwise false.</returns>
     public override bool Equals(object? obj) => Equals(obj as PostScriptToken);
 
+    /// <summary>
+    /// Returns true when <paramref name="left"/> and <paramref name="right"/> are equal according to their token equality semantics.
+    /// </summary>
     public static bool operator ==(PostScriptToken? left, PostScriptToken? right)
     {
         if (ReferenceEquals(left, right))
@@ -137,20 +160,54 @@ public abstract class PostScriptToken : IEquatable<PostScriptToken>
         return left?.Equals(right) ?? false;
     }
 
+    /// <summary>
+    /// Returns true when <paramref name="left"/> and <paramref name="right"/> are not equal.
+    /// </summary>
     public static bool operator !=(PostScriptToken? left, PostScriptToken? right) => !(left == right);
 
+    /// <summary>
+    /// Returns true when <paramref name="left"/> is greater than <paramref name="right"/> according to <see cref="CompareToToken"/>.
+    /// </summary>
     public static bool operator >(PostScriptToken? left, PostScriptToken? right) => left?.CompareToToken(right) > 0;
+
+    /// <summary>
+    /// Returns true when <paramref name="left"/> is less than <paramref name="right"/> according to <see cref="CompareToToken"/>.
+    /// </summary>
     public static bool operator <(PostScriptToken? left, PostScriptToken? right) => left?.CompareToToken(right) < 0;
+
+    /// <summary>
+    /// Returns true when <paramref name="left"/> is greater than or equal to <paramref name="right"/> according to <see cref="CompareToToken"/>.
+    /// </summary>
     public static bool operator >=(PostScriptToken? left, PostScriptToken? right) => left?.CompareToToken(right) >= 0;
+
+    /// <summary>
+    /// Returns true when <paramref name="left"/> is less than or equal to <paramref name="right"/> according to <see cref="CompareToToken"/>.
+    /// </summary>
     public static bool operator <=(PostScriptToken? left, PostScriptToken? right) => left?.CompareToToken(right) <= 0;
 
+    /// <summary>
+    /// Applies the PostScript 'and' operator by calling <see cref="LogicalAnd"/> on <paramref name="left"/>.
+    /// </summary>
     public static PostScriptToken operator &(PostScriptToken left, PostScriptToken right) => left?.LogicalAnd(right) ?? throw new ArgumentNullException(nameof(left));
+
+    /// <summary>
+    /// Applies the PostScript 'or' operator by calling <see cref="LogicalOr"/> on <paramref name="left"/>.
+    /// </summary>
     public static PostScriptToken operator |(PostScriptToken left, PostScriptToken right) => left?.LogicalOr(right) ?? throw new ArgumentNullException(nameof(left));
 
+    /// <summary>
+    /// Applies the PostScript 'xor' operator by calling <see cref="LogicalXor"/> on <paramref name="left"/>.
+    /// </summary>
     public static PostScriptToken operator ^(PostScriptToken left, PostScriptToken? right) => left?.LogicalXor(right) ?? throw new ArgumentNullException(nameof(left));
 
+    /// <summary>
+    /// Applies the PostScript 'not' operator by calling <see cref="LogicalNot"/> on <paramref name="operand"/>.
+    /// </summary>
     public static PostScriptToken operator !(PostScriptToken operand) => operand?.LogicalNot() ?? throw new ArgumentNullException(nameof(operand));
 
+    /// <summary>
+    /// Returns a hash code for this token. Derived types must provide an implementation consistent with their <see cref="EqualsToken"/> semantics.
+    /// </summary>
     public override abstract int GetHashCode();
 
     /// <summary>

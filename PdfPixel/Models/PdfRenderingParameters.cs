@@ -85,6 +85,7 @@ public class PdfRenderingParameters : IEquatable<PdfRenderingParameters>, IClone
     /// </summary>
     public static bool operator !=(PdfRenderingParameters left, PdfRenderingParameters right) => !(left == right);
 
+    /// <inheritdoc/>
     public PdfRenderingParameters Clone()
     {
         return new()

@@ -20,7 +20,7 @@ namespace PdfPixel.Rendering
         /// <summary>
         /// Bounding rectangle of this render target in current CTM space.
         /// Used by pattern tiling to determine which tiles are needed.
-        /// For path/text targets this equals <see cref="ClipPath"/>.Bounds;
+        /// For path/text targets this is derived from the clip path bounds;
         /// for image targets it is the unit square [0,0,1,1].
         /// </summary>
         SKRect Bounds { get; }
@@ -32,7 +32,7 @@ namespace PdfPixel.Rendering
 
         /// <summary>
         /// Called by pattern implementations before they emit their tile/shading commands.
-        /// Path/text targets clip to <see cref="ClipPath"/>; image targets open a new layer.
+        /// Path/text targets apply their clip path; image targets open a new layer.
         /// </summary>
         void BeforePatternRender(IPdfCommandProcessor processor);
 

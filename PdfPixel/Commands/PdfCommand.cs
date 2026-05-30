@@ -9,6 +9,7 @@ namespace PdfPixel.Commands;
 /// </summary>
 public abstract class PdfCommand : IPdfCommand
 {
+    /// <inheritdoc/>
     ~PdfCommand() => Dispose(disposing: false);
 
     /// <inheritdoc />

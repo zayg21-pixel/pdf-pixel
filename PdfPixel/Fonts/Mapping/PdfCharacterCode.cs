@@ -4,7 +4,7 @@ namespace PdfPixel.Fonts.Mapping;
 
 /// <summary>
 /// Immutable representation of a PDF character code bytes.
-/// Holds the original byte slice as ReadOnlyMemory<byte> and compares by byte sequence.
+/// Holds the original byte slice as <c>ReadOnlyMemory&lt;byte&gt;</c> and compares by byte sequence.
 /// This is length-aware by design (e.g., 0x41 != 0x00 0x41).
 /// </summary>
 public sealed class PdfCharacterCode : IEquatable<PdfCharacterCode>
@@ -24,6 +24,7 @@ public sealed class PdfCharacterCode : IEquatable<PdfCharacterCode>
     /// </summary>
     public int Length => Bytes.Length;
 
+    /// <inheritdoc/>
     public bool Equals(PdfCharacterCode? other)
     {
         if (ReferenceEquals(null, other))
@@ -39,8 +40,10 @@ public sealed class PdfCharacterCode : IEquatable<PdfCharacterCode>
         return Bytes.Span.SequenceEqual(other.Bytes.Span);
     }
 
+    /// <inheritdoc/>
     public override bool Equals(object? obj) => obj is PdfCharacterCode other && Equals(other);
 
+    /// <inheritdoc/>
     public override int GetHashCode()
     {
         // FNV-1a over bytes plus length to reduce collisions for mixed-length codes
@@ -61,6 +64,7 @@ public sealed class PdfCharacterCode : IEquatable<PdfCharacterCode>
         }
     }
 
+    /// <inheritdoc/>
     public static bool operator ==(PdfCharacterCode? left, PdfCharacterCode? right)
     {
         if (ReferenceEquals(left, right))
@@ -71,6 +75,7 @@ public sealed class PdfCharacterCode : IEquatable<PdfCharacterCode>
         return left?.Equals(right) ?? false;
     }
 
+    /// <inheritdoc/>
     public static bool operator !=(PdfCharacterCode? left, PdfCharacterCode? right) => !(left == right);
 
     /// <summary>

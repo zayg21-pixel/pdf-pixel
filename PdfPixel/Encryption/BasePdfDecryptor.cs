@@ -11,8 +11,14 @@ namespace PdfPixel.Encryption;
 /// </summary>
 public abstract class BasePdfDecryptor
 {
+    /// <summary>
+    /// Initializes the decryptor with the encryption parameters parsed from the PDF /Encrypt dictionary.
+    /// </summary>
     protected BasePdfDecryptor(PdfDecryptorParameters parameters) => Parameters = parameters ?? throw new ArgumentNullException(nameof(parameters));
 
+    /// <summary>
+    /// Encryption parameters parsed from the document's /Encrypt dictionary.
+    /// </summary>
     public PdfDecryptorParameters Parameters { get; }
 
     /// <summary>
@@ -46,8 +52,13 @@ public abstract class BasePdfDecryptor
         return new MemoryStream(decryptedBytes.ToArray());
     } // TODO: [MEDIUM] need to optimize to avoid double memory copy
 
+    /// <summary>
+    /// The current password supplied by the caller; <see langword="null"/> until <see cref="UpdatePassword"/> is called.
+    /// </summary>
     protected string? Password { get; private set; }
 
+    /// <summary>
+    /// Sets the decryption password. Derived classes override to invalidate any cached file key.
+    /// </summary>
     public virtual void UpdatePassword(string password) => Password = password ?? string.Empty;
-    // Derived classes may recompute file key when password changes.
 }

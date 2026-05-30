@@ -44,8 +44,10 @@ public class PdfTextAnnotation : PdfAnnotationBase
     /// </summary>
     public PdfTextAnnotationIcon Icon { get; }
 
+    /// <inheritdoc/>
     public override bool ShouldDisplayBubble => false;
 
+    /// <inheritdoc/>
     public override SKRect GetHoverRectangle(IPdfPage page, float defaultBubbleSize = 16) => Rectangle;
 
     /// <summary>

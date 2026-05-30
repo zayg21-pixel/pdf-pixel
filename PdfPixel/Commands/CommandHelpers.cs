@@ -26,7 +26,7 @@ internal static class CommandHelpers
     }
 
     /// <summary>
-    /// Returns SKCanvas's matrix scaled to <see cref="PdfRenderingParameters.ScaleFactor"/>.
+    /// Returns SKCanvas's matrix scaled to <see cref="PdfPixel.Models.PdfRenderingParameters.ScaleFactor"/>.
     /// </summary>
     public static SKMatrix GetScaledMatrix(SKCanvas canvas, PdfCommandExecutionContext executionContext)
     {

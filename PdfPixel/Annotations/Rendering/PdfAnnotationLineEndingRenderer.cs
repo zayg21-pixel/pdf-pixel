@@ -27,7 +27,6 @@ internal static class PdfAnnotationLineEndingRenderer
     /// <param name="lineWidth">The line width for rendering.</param>
     /// <param name="lineColor">The line color.</param>
     /// <param name="interiorColor">The interior fill color for closed shapes.</param>
-    /// <param name="renderingParameters">Rendering parameters.</param>
     public static void DrawLineEnding(
         IPdfCommandProcessor processor,
         float x,

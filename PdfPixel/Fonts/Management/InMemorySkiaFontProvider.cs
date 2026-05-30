@@ -36,8 +36,15 @@ public sealed class InMemorySkiaFontProvider : ISkiaFontProvider
         { PdfStandardFontName.ZapfDingbats, ["ZapfDingbats"] }
     };
 
+    /// <summary>
+    /// Initializes a new instance of <see cref="InMemorySkiaFontProvider"/> with the Skia default typeface as fallback.
+    /// </summary>
     public InMemorySkiaFontProvider() => _fallback = SKTypeface.Default;
 
+    /// <summary>
+    /// Registers font data to use as the fallback typeface when no registered font matches a requested name or glyph.
+    /// </summary>
+    /// <param name="fontData">Raw font file bytes (TTF, OTF, etc.).</param>
     public void RegisterFallback(byte[] fontData)
     {
         SKTypeface typeface = SKTypeface.FromStream(new MemoryStream(fontData));

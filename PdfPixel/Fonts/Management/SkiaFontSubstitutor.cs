@@ -10,7 +10,7 @@ namespace PdfPixel.Fonts.Management;
 /// <remarks>
 /// This class attempts to resolve non-embedded PDF fonts to available system fonts via an <see cref="ISkiaFontProvider"/>.
 /// It matches fonts by normalized stem and style, falling back to known family substitutions if necessary.
-/// Resolved typefaces are cached by <see cref="PdfFontName"/>.
+/// Resolved typefaces are cached by <see cref="PdfSubstitutionInfo"/>.
 /// </remarks>
 internal sealed class SkiaFontSubstitutor
 {

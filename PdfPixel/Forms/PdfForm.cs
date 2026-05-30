@@ -95,7 +95,7 @@ public sealed class PdfForm
     internal FormXObjectPageWrapper GetFormPage() => new(Page, XObject);
 
     /// <summary>
-    /// Returns the decoded form stream data as <see cref="ReadOnlyMemory{byte}"/>.
+    /// Returns the decoded form stream data as <c>ReadOnlyMemory&lt;byte&gt;</c>.
     /// </summary>
     /// <returns>The decoded form stream data.</returns>
     public ReadOnlyMemory<byte> GetFormData() => XObject.DecodeAsMemory();

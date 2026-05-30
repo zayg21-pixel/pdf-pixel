@@ -12,6 +12,9 @@ public sealed class DrawTextBlobCommand : PdfCommand
     private readonly SKTextBlob? _blob;
     private readonly SKPaint _basePaint;
 
+    /// <summary>
+    /// Initializes the command taking ownership of both the text blob and the paint.
+    /// </summary>
     public DrawTextBlobCommand(SKTextBlob? blob, SKPaint basePaint)
     {
         _blob = blob;

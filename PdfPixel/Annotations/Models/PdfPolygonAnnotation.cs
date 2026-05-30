@@ -40,6 +40,9 @@ public class PdfPolygonAnnotation : PdfAnnotationBase
         }
     }
 
+    /// <summary>
+    /// Gets the starting point for bubble placement, using the first vertex of the polygon.
+    /// </summary>
     protected override SKPoint ContentStart => (Vertices?.Length > 0) ? Vertices[0] : base.ContentStart;
 
     /// <summary>

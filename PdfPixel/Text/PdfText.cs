@@ -6,10 +6,13 @@ namespace PdfPixel.Text
     /// <summary>
     /// Represents text extracted from PDF with proper handling of CID fonts vs Unicode fonts
     /// Refactored to use PdfFontBase hierarchy with enhanced font type support.
-    /// Preserves raw bytes as ReadOnlyMemory<byte> to avoid extra allocations.
+    /// Preserves raw bytes as <c>ReadOnlyMemory&lt;byte&gt;</c> to avoid extra allocations.
     /// </summary>
     public readonly struct PdfText
     {
+        /// <summary>
+        /// Initializes a new <see cref="PdfText"/> with the raw PDF character code bytes.
+        /// </summary>
         public PdfText(in ReadOnlyMemory<byte> rawBytes) => RawBytes = rawBytes;
 
         /// <summary>
@@ -37,6 +40,7 @@ namespace PdfPixel.Text
             return new PdfText(bytes);
         }
 
+        /// <inheritdoc/>
         public override string ToString() => EncodingExtensions.PdfDefault.GetString(RawBytes);
     }
 }

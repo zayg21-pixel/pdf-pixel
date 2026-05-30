@@ -27,12 +27,24 @@ public class PdfCompositeFont : PdfFontBase
         _toUnicode = PdfToUnicodeMapProvider.GetToUnicodeMap(PrimaryDescendant?.CidSystemInfo);
     }
 
+    /// <summary>
+    /// The font descriptor inherited from the primary descendant CID font.
+    /// </summary>
     public override PdfFontDescriptor? FontDescriptor => PrimaryDescendant?.FontDescriptor;
 
+    /// <summary>
+    /// The typeface provided by the primary descendant CID font, or <see langword="null"/> when unavailable.
+    /// </summary>
     protected internal override SKTypeface? Typeface => PrimaryDescendant?.Typeface;
 
+    /// <summary>
+    /// The writing mode (horizontal or vertical) determined from the CMap's WMode entry.
+    /// </summary>
     protected internal override CMapWMode WritingMode => _writingMode;
 
+    /// <summary>
+    /// The substitution info inherited from the primary descendant CID font, or the default value when no descendant is present.
+    /// </summary>
     protected internal override PdfSubstitutionInfo SubstitutionInfo => PrimaryDescendant?.SubstitutionInfo ?? PdfSubstitutionInfo.Detault;
 
     /// <summary>
@@ -78,6 +90,12 @@ public class PdfCompositeFont : PdfFontBase
         return descendant.GetWidthByCid(cid);
     }
 
+    /// <summary>
+    /// Returns the vertical displacement for the specified character code when the font is in vertical writing mode.
+    /// Returns the default metric when horizontal writing mode is active or no descendant font is present.
+    /// </summary>
+    /// <param name="code">The character code to retrieve vertical metrics for.</param>
+    /// <returns>The <see cref="VerticalMetric"/> for the character code.</returns>
     public override VerticalMetric GetVerticalDisplacement(PdfCharacterCode code)
     {
         if (_writingMode == CMapWMode.Horizontal)
@@ -278,6 +296,13 @@ public class PdfCompositeFont : PdfFontBase
         return descendant.GetGidByCid(cid);
     }
 
+    /// <summary>
+    /// Converts a character code to its Unicode string representation.
+    /// First consults the ToUnicode CMap from the base class; if that yields no result, maps the code to a CID and
+    /// looks it up in the built-in CID-to-Unicode table for the font's CIDSystemInfo.
+    /// </summary>
+    /// <param name="code">The character code to convert.</param>
+    /// <returns>The Unicode string for the character code, or <see langword="null"/> if no mapping is found.</returns>
     public override string? GetUnicodeString(PdfCharacterCode code)
     {
         string? baseCode = base.GetUnicodeString(code);

@@ -24,7 +24,7 @@ internal static class IPdfValueExtension
     }
 
     /// <summary>
-    /// Returns the value as a PDF string if the type is <see cref="PdfValueType.String"/> or <see cref="PdfValueType.HexString"/>; otherwise returns <c>default</c>.
+    /// Returns the value as a PDF string if the type is <see cref="PdfValueType.String"/>; otherwise returns <c>default</c>.
     /// </summary>
     /// <param name="value">The PDF value to convert.</param>
     /// <returns>The <see cref="PdfString"/> value, or <c>default</c> if not a string type.</returns>

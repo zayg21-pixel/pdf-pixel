@@ -20,12 +20,16 @@ public class FormRenderer : IFormRenderer
     private readonly IPdfRenderer _renderer;
     private readonly ILoggerFactory _loggerFactory;
 
+    /// <summary>
+    /// Initializes the renderer with the PDF renderer pipeline and logger factory.
+    /// </summary>
     public FormRenderer(IPdfRenderer renderer, ILoggerFactory loggerFactory)
     {
         _renderer = renderer;
         _loggerFactory = loggerFactory;
     }
 
+    /// <inheritdoc/>
     public void DrawForm(IPdfCommandProcessor processor, PdfForm formXObject, PdfGraphicsState graphicsState)
     {
         if (processor == null)

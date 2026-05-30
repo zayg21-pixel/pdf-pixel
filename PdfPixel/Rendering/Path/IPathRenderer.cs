@@ -17,5 +17,5 @@ public interface IPathRenderer
     /// <param name="path">Path to draw.</param>
     /// <param name="state">Graphics state containing style information.</param>
     /// <param name="operation">Paint operation (stroke, fill, or both).</param>
-    void DrawPath(IPdfCommandProcessor processor, SKPath path, PdfGraphicsState state, PaintOperation operation);
+    void DrawPath(IPdfCommandProcessor processor, SKPath path, PdfGraphicsState state, PdfPaintOperation operation);
 }

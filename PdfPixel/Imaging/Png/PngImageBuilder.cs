@@ -9,7 +9,7 @@ namespace PdfPixel.Imaging.Png
     /// <summary>
     /// State machine for building PNG images.
     /// </summary>
-    public sealed class PngImageBuilder : IDisposable
+    internal sealed class PngImageBuilder : IDisposable
     {
         private enum PngImageBuilderState
         {
@@ -246,8 +246,6 @@ namespace PdfPixel.Imaging.Png
         }
 
         /// <summary>
-        /// Builds the PNG image. Can only be called once per instance.
-        /// /// <summary>
         /// Builds the PNG image. Can only be called once per instance.
         /// </summary>
         /// <returns>The built SKImage.</returns>

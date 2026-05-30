@@ -12,7 +12,7 @@ namespace PdfPixel.Text;
 internal static class PdfTextResourceConverter
 {
     /// <summary>
-    /// Generates a binary blob representing the <see cref="CharacterMap"/> contents.
+    /// Generates a binary blob representing the <paramref name="characterMap"/> contents.
     /// </summary>
     /// <remarks>
     /// Format per entry (sequentially appended):
@@ -143,7 +143,7 @@ internal static class PdfTextResourceConverter
     /// <remarks>
     /// Format per entry (sequentially appended):
     /// [4 bytes CID (uint32, little-endian)][1 byte valueLength][valueLength bytes UTF-8 value]
-    /// Length fields must be <=255. Throws <see cref="InvalidOperationException"/> if exceeded.
+    /// Length fields must be &lt;=255. Throws <see cref="InvalidOperationException"/> if exceeded.
     /// </remarks>
     /// <param name="cidToUnicodeMap">The CID-to-Unicode mapping dictionary.</param>
     /// <returns>Binary blob of the CID-to-Unicode map.</returns>

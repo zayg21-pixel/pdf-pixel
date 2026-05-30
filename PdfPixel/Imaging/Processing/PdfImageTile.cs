@@ -8,6 +8,14 @@ namespace PdfPixel.Imaging.Processing;
 /// </summary>
 public sealed class PdfImageTile : IDisposable
 {
+    /// <summary>
+    /// Creates a tile descriptor with all decoded results.
+    /// </summary>
+    /// <param name="tileIndex">Zero-based index of this tile in row-major order.</param>
+    /// <param name="tilePosition">Position and size of this tile in original image coordinates.</param>
+    /// <param name="image">Decoded image for this tile, or null when <paramref name="isSkipped"/> is true.</param>
+    /// <param name="parameters">Decoding parameters used to produce this tile, or null when skipped.</param>
+    /// <param name="isSkipped">True when this tile was outside the region of interest and was not decoded.</param>
     public PdfImageTile(int tileIndex, SKRectI tilePosition, SKImage? image, PdfImageRowDecodingParameters? parameters, bool isSkipped)
     {
         TileIndex = tileIndex;
@@ -42,5 +50,6 @@ public sealed class PdfImageTile : IDisposable
     /// </summary>
     public bool IsSkipped { get; }
 
+    /// <inheritdoc/>
     public void Dispose() => Image?.Dispose();
 }

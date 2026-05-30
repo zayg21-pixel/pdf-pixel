@@ -16,6 +16,13 @@ public class CidFontWidths
     /// </summary>
     public const float WidthToUserSpaceCoeff = 0.001f;
 
+    /// <summary>
+    /// Initializes a new <see cref="CidFontWidths"/> instance with the given default width and per-CID width overrides.
+    /// </summary>
+    /// <param name="defaultWidth">
+    /// The default advance width in user space units applied to CIDs without an explicit entry, or <see langword="null"/> when the DW entry is absent.
+    /// </param>
+    /// <param name="cidWidths">Dictionary mapping CID values to their explicit advance widths in user space units.</param>
     public CidFontWidths(float? defaultWidth, Dictionary<uint, float> cidWidths)
     {
         DefaultWidth = defaultWidth;

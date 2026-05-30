@@ -48,8 +48,19 @@ public abstract class PdfSingleByteFont : PdfFontBase
         return 0f;
     }
 
+    /// <summary>
+    /// Single-byte fonts do not support vertical writing; always returns the default (zero) metric.
+    /// </summary>
+    /// <param name="code">The character code (unused).</param>
+    /// <returns>The default <see cref="VerticalMetric"/>.</returns>
     public override VerticalMetric GetVerticalDisplacement(PdfCharacterCode code) => default;
 
+    /// <summary>
+    /// Converts a character code to its Unicode string representation.
+    /// First consults the ToUnicode CMap; if no mapping is found, falls back to the Adobe Glyph List via the font's encoding.
+    /// </summary>
+    /// <param name="code">The character code to convert.</param>
+    /// <returns>The Unicode string for the character code, or <see langword="null"/> if no mapping is found.</returns>
     public override string? GetUnicodeString(PdfCharacterCode code)
     {
         string? baseResult = base.GetUnicodeString(code);

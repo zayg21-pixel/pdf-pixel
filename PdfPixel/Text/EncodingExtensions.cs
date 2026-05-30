@@ -5,10 +5,20 @@ using PdfPixel.Models;
 
 namespace PdfPixel.Text;
 
+/// <summary>
+/// Extension and helper methods for text encoding used in PDF processing.
+/// </summary>
 public static class EncodingExtensions
 {
+    /// <summary>
+    /// The PDF default encoding (ISO-8859-1 / Latin-1), used as a fallback when no BOM is present.
+    /// </summary>
     public static readonly Encoding PdfDefault = Encoding.GetEncoding("ISO-8859-1");
 
+    /// <summary>
+    /// Decodes a span of bytes to a string using the specified encoding.
+    /// Provides a netstandard2.0-compatible overload that avoids allocating an intermediate array on newer runtimes.
+    /// </summary>
     public static string GetString(this Encoding encoding, in ReadOnlySpan<byte> value)
     {
         if (encoding == null)
@@ -105,6 +115,9 @@ public static class EncodingExtensions
         return Regex.Replace(result, @"\x1b[^\x1b]*(?:\x1b|$)", string.Empty);
     }
 
+    /// <summary>
+    /// Decodes a <c>ReadOnlyMemory&lt;byte&gt;</c> to a string using the specified encoding.
+    /// </summary>
     public static string GetString(this Encoding encoding, in ReadOnlyMemory<byte> value)
     {
         if (encoding == null)

@@ -8,6 +8,9 @@ namespace PdfPixel.Models;
 /// </summary>
 public class PdfXObject
 {
+    /// <summary>
+    /// Initializes a new <see cref="PdfXObject"/> wrapping the given source object and resolved subtype.
+    /// </summary>
     public PdfXObject(PdfObject xObject, PdfXObjectSubtype subtype)
     {
         XObject = xObject;
@@ -24,6 +27,9 @@ public class PdfXObject
     /// </summary>
     public PdfXObjectSubtype Subtype { get; }
 
+    /// <summary>
+    /// Creates a <see cref="PdfXObject"/> from a PDF object by reading its /Subtype entry.
+    /// </summary>
     public static PdfXObject FromObject(PdfObject sourceObject)
     {
         if (sourceObject == null)

@@ -96,8 +96,7 @@ internal static class PdfImageCommandUtilities
     /// <summary>
     /// Returns the mask pixel rect that covers the image tile's proportional region.
     /// Uses floor for the start and ceil for the end so the subset includes every mask pixel
-    /// touched by the tile. The fractional remainder is handled by the shader local matrix
-    /// in <see cref="ImageBlending.BuildMaskTileShader"/>.
+    /// touched by the tile. The fractional remainder within the pixel boundary is handled by the caller.
     /// </summary>
     public static SKRectI GetMaskTileRect(SKRectI imageTile, SKSizeI imageSize, SKSizeI maskSize)
     {

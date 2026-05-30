@@ -20,6 +20,9 @@ public class PathRenderer : IPathRenderer
     private readonly ILoggerFactory _factory;
     private readonly ILogger<PathRenderer> _logger;
 
+    /// <summary>
+    /// Initializes the renderer with the PDF renderer pipeline and logger factory.
+    /// </summary>
     public PathRenderer(IPdfRenderer renderer, ILoggerFactory loggerFactory)
     {
         _renderer = renderer ?? throw new ArgumentNullException(nameof(renderer));
@@ -32,7 +35,7 @@ public class PathRenderer : IPathRenderer
     /// Handles pattern paints, soft masks, and combined fill+stroke layering.
     /// Note: FlatnessTolerance from graphics state is ignored, as SkiaSharp does not support curve flattening control.
     /// </summary>
-    public void DrawPath(IPdfCommandProcessor processor, SKPath path, PdfGraphicsState state, PaintOperation operation)
+    public void DrawPath(IPdfCommandProcessor processor, SKPath path, PdfGraphicsState state, PdfPaintOperation operation)
     {
         if (processor == null)
         {
@@ -58,23 +61,23 @@ public class PathRenderer : IPathRenderer
     /// SaveLayer for FillAndStroke now uses the current clip region (no explicit bounds) simplifying logic.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private void DrawPathCore(IPdfCommandProcessor processor, SKPath path, PdfGraphicsState state, PaintOperation operation)
+    private void DrawPathCore(IPdfCommandProcessor processor, SKPath path, PdfGraphicsState state, PdfPaintOperation operation)
     {
         switch (operation)
         {
-            case PaintOperation.Stroke:
+            case PdfPaintOperation.Stroke:
             {
                 using PathStrokeRenderTarget target = new(path, state);
                 target.Render(processor);
                 break;
             }
-            case PaintOperation.Fill:
+            case PdfPaintOperation.Fill:
             {
                 using PathFillRenderTarget target = new(path, state);
                 target.Render(processor);
                 break;
             }
-            case PaintOperation.FillAndStroke:
+            case PdfPaintOperation.FillAndStroke:
             {
                     // Fill phase.
                     SKPath strokeOutline = PdfPaintFactory.CreateStrokePaint(state).GetFillPath(path);

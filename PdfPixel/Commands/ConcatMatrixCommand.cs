@@ -9,6 +9,9 @@ namespace PdfPixel.Commands;
 public sealed class ConcatMatrixCommand : PdfCommand
 {
 
+    /// <summary>
+    /// Initializes the command with the matrix to concatenate.
+    /// </summary>
     public ConcatMatrixCommand(SKMatrix matrix) => Matrix = matrix;
 
     /// <summary>
@@ -19,6 +22,7 @@ public sealed class ConcatMatrixCommand : PdfCommand
     /// <inheritdoc />
     public override void Execute(SKCanvas canvas, IEnumerable<IPdfCommandModifier> modifiers, PdfCommandExecutionContext executionContext) => canvas.Concat(Matrix);
 
+    /// <inheritdoc/>
     protected override void Dispose(bool disposing)
     {
     }

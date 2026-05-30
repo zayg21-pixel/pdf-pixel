@@ -43,6 +43,9 @@ public class PdfLineAnnotation : PdfAnnotationBase
         LeaderLineOffset = annotationObject.Dictionary.GetFloat(PdfTokens.LeaderLineOffsetKey);
     }
 
+    /// <summary>
+    /// Gets the starting point for bubble placement, using the line's start coordinates.
+    /// </summary>
     protected override SKPoint ContentStart => new(StartX, StartY);
 
     /// <summary>

@@ -316,10 +316,20 @@ public class PdfCMap
         }
     }
 
+    /// <summary>
+    /// A read-only view of the explicit character-code-to-CID mapping entries stored in this CMap.
+    /// </summary>
     public ReadOnlyDictionary<PdfCharacterCode, int> CodeToCid => new (_codeToCid);
 
+    /// <summary>
+    /// Returns all declared codespace ranges for this CMap.
+    /// Each range describes a contiguous block of valid character codes of a given byte length.
+    /// </summary>
     public IReadOnlyList<CodeSpaceRange> GetCodeSpaceRanges() => _codeSpaceRanges.ToArray();
 
-
+    /// <summary>
+    /// Returns <see langword="true"/> when <paramref name="codePoint"/> is a valid Unicode scalar value:
+    /// in the range [0, 0x10FFFF] and not in the surrogate range [0xD800, 0xDFFF].
+    /// </summary>
     public static bool IsValidCodePoint(int codePoint) => codePoint >= 0 && codePoint <= 0x10FFFF && (codePoint < 0xD800 || codePoint > 0xDFFF);
 }

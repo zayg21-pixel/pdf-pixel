@@ -11,6 +11,7 @@ public sealed class RestoreStateCommand : PdfCommand
     /// <inheritdoc />
     public override void Execute(SKCanvas canvas, IEnumerable<IPdfCommandModifier> modifiers, PdfCommandExecutionContext executionContext) => canvas.Restore();
 
+    /// <inheritdoc/>
     protected override void Dispose(bool disposing)
     {
     }

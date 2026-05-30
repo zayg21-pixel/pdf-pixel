@@ -9,7 +9,7 @@ using PdfPixel.Text;
 namespace PdfPixel.Parsing;
 
 /// <summary>
-/// Parses the document catalog /OutputIntents and assigns the first usable ICC profile to <see cref="PdfDocument.OutputIntentProfile"/>.
+/// Parses the document catalog /OutputIntents and assigns the first usable ICC profile to <see cref="PdfPixel.Models.PdfDocumentObjectCache.OutputIntentProfile"/>.
 /// Selection logic prefers well-known /S intent names (e.g. GTS_PDFX, GTS_PDFA1) when multiple are present and
 /// falls back to the first valid profile when no preferred intents are found.
 /// </summary>

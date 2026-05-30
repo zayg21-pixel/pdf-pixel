@@ -12,11 +12,16 @@ namespace PdfPixel.Annotations.Models;
 /// correct display.</remarks>
 public class PdfFreeTextAnnotation : PdfAnnotationBase
 {
+    /// <summary>
+    /// Initializes a new instance of the <see cref="PdfFreeTextAnnotation"/> class.
+    /// </summary>
+    /// <param name="annotationObject">The PDF object representing this free text annotation.</param>
     public PdfFreeTextAnnotation(PdfObject annotationObject)
         : base(annotationObject, PdfAnnotationSubType.FreeText)
     {
     }
 
+    /// <inheritdoc/>
     public override bool ShouldDisplayBubble => false;
 
     internal override bool RenderFallback(IPdfCommandProcessor processor, IPdfPageInternal page, PdfAnnotationVisualStateKind visualStateKind)

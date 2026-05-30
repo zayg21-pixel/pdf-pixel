@@ -27,6 +27,9 @@ public class PdfInkAnnotation : PdfAnnotationBase
         InkList = ParseInkList(inkList);
     }
 
+    /// <summary>
+    /// Gets the starting point for bubble placement, using the first point of the first ink path.
+    /// </summary>
     protected override SKPoint ContentStart => (InkList?.Length > 0 && InkList[0].Length > 0) ? InkList[0][0] : base.ContentStart;
 
     /// <summary>

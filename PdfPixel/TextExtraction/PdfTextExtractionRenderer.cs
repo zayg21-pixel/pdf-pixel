@@ -48,7 +48,7 @@ internal class PdfTextExtractionRenderer : IPdfRenderer
         // no op
     }
 
-    public void DrawPath(IPdfCommandProcessor processor, SKPath path, PdfGraphicsState state, PaintOperation operation)
+    public void DrawPath(IPdfCommandProcessor processor, SKPath path, PdfGraphicsState state, PdfPaintOperation operation)
     {
         // no op
     }

@@ -6,7 +6,7 @@ namespace PdfPixel.Text;
 /// <summary>
 /// Common PDF dictionary key constants for shading and mesh decoding.
 /// </summary>
-public static class PdfTokens
+internal static class PdfTokens
 {
     // PDF Keywords
 

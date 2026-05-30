@@ -12,12 +12,18 @@ public sealed class ClipPathCommand : PdfCommand
     private readonly SKPath _path;
     private readonly SKClipOperation _operation;
 
+    /// <summary>
+    /// Initializes the command with a cloned copy of the given path and clip operation.
+    /// </summary>
     public ClipPathCommand(SKPath path, SKClipOperation operation)
     {
         _path = new SKPath(path);
         _operation = operation;
     }
 
+    /// <summary>
+    /// Initializes the command with a rectangular clip path and the given clip operation.
+    /// </summary>
     public ClipPathCommand(SKRect rect, SKClipOperation operation)
     {
         _path = new SKPath();

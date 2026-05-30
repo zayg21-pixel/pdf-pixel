@@ -6,6 +6,10 @@ namespace PdfPixel.PostScript
 {
     public partial class PostScriptEvaluator
     {
+        /// <summary>
+        /// The PostScript resource category name used when registering and looking up font resources
+        /// via the definefont and findresource operators.
+        /// </summary>
         public const string FontResourceCategory = "Font";
 
         private bool TryProcessResourceOperator(string name, Stack<PostScriptToken> stack)

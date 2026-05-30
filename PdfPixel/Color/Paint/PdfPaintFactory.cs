@@ -101,7 +101,7 @@ internal static class PdfPaintFactory
 
     /// <summary>
     /// Creates default background paint.
-    /// Antialiasing is deferred to command Execute time via <see cref="PdfCommandExecutionContext"/>.
+    /// Antialiasing is deferred to command Execute time via <see cref="PdfPixel.Commands.PdfCommandExecutionContext"/>.
     /// </summary>
     /// <param name="background">Background color.</param>
     public static SKPaint CreateBackgroundPaint(in SKColor background)
@@ -115,14 +115,14 @@ internal static class PdfPaintFactory
 
     /// <summary>
     /// Create paint for mask application (DstIn blend mode).
-    /// Antialiasing is deferred to command Execute time via <see cref="PdfCommandExecutionContext"/>.
+    /// Antialiasing is deferred to command Execute time via <see cref="PdfPixel.Commands.PdfCommandExecutionContext"/>.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static SKPaint CreateMaskPaint() => new() { BlendMode = SKBlendMode.DstIn };
 
     /// <summary>
     /// Creates a basic shader paint with fill style.
-    /// Antialiasing is deferred to command Execute time via <see cref="PdfCommandExecutionContext"/>.
+    /// Antialiasing is deferred to command Execute time via <see cref="PdfPixel.Commands.PdfCommandExecutionContext"/>.
     /// </summary>
     public static SKPaint CreateShaderPaint() => new() { Style = SKPaintStyle.Fill };
 

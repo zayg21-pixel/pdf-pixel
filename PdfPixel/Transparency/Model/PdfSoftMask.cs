@@ -36,7 +36,7 @@ public class PdfSoftMask
     /// Retrieves the background color as an SKColor, converting it to sRGB if necessary.
     /// </summary>
     /// <param name="intent">Current intent.</param>
-    /// <param name="postTransform"></param>Post color transform (if defined).</param>
+    /// <param name="postTransform">Post color transform (if defined).</param>
     /// <returns>SKColor instance.</returns>
     public SKColor GetBackgroundColor(PdfRenderingIntent intent, IColorTransform? postTransform)
     {

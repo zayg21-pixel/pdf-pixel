@@ -5,6 +5,9 @@
     /// </summary>
     public static class PdfDecryptorFactory
     {
+        /// <summary>
+        /// Creates a decryptor for the given parameters based on the /R revision, or <see langword="null"/> for unsupported revisions.
+        /// </summary>
         public static BasePdfDecryptor? Create(PdfDecryptorParameters parameters)
         {
             if (parameters == null)

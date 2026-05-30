@@ -9,14 +9,23 @@ namespace PdfPixel.Functions;
 /// </summary>
 public abstract class PdfFunction
 {
+    /// <summary>
+    /// Initializes the function with its input domain and optional output range.
+    /// </summary>
     protected PdfFunction(float[] domain, float[]? range)
     {
         Domain = domain;
         Range = range;
     }
 
+    /// <summary>
+    /// Input domain as interleaved [min, max] pairs, one pair per input dimension.
+    /// </summary>
     public float[] Domain { get; }
 
+    /// <summary>
+    /// Optional output range as interleaved [min, max] pairs; <see langword="null"/> means unbounded.
+    /// </summary>
     public float[]? Range { get; }
 
     /// <summary>

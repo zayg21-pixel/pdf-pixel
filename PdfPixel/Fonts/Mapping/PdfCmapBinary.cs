@@ -7,6 +7,10 @@ using System.Globalization;
 
 namespace PdfPixel.Fonts.Mapping;
 
+/// <summary>
+/// Utility class for serialising and deserialising CMap data in a compact custom binary format.
+/// The format uses variable-length integers, delta coding, and run-length range blocks to minimise file size.
+/// </summary>
 public static class PdfCmapBinary
 {
     private enum CMapBinaryBlockId : byte
@@ -19,6 +23,14 @@ public static class PdfCmapBinary
         WMode = 7
     }
 
+    /// <summary>
+    /// Clusters the supplied CMaps by column agreement and writes each cluster base and per-CMap override
+    /// binary file into <paramref name="outputDirectory"/>.
+    /// Each CMap is serialised as a compact binary file containing only the entries that differ from its cluster base,
+    /// together with a header that identifies the cluster index so the base can be merged at load time.
+    /// </summary>
+    /// <param name="cmaps">The collection of <see cref="PdfCMap"/> instances to compress.</param>
+    /// <param name="outputDirectory">The directory in which to write the output binary files.</param>
     public static void CompressCmaps(IEnumerable<PdfCMap> cmaps, string outputDirectory)
     {
         if (cmaps == null)

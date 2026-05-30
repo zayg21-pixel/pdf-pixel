@@ -9,6 +9,9 @@ namespace PdfPixel.Color.ColorSpace;
 [PdfEnum]
 public enum PdfColorSpaceType
 {
+    /// <summary>
+    /// Unrecognized or absent color space name.
+    /// </summary>
     [PdfEnumDefaultValue]
     Unknown,
 

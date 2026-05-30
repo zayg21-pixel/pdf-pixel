@@ -10,6 +10,14 @@ namespace PdfPixel.Fonts.Mapping;
 /// </summary>
 public class PdfFontEncodingInfo
 {
+    /// <summary>
+    /// Initializes a new <see cref="PdfFontEncodingInfo"/> instance with the specified base encoding, optional custom encoding name, and optional differences.
+    /// </summary>
+    /// <param name="encoding">The resolved base encoding, or <see cref="PdfFontEncoding.Unknown"/> when not present in the font dictionary.</param>
+    /// <param name="customEncoding">The raw encoding name for custom or unrecognised encodings; empty when a standard encoding is used.</param>
+    /// <param name="differences">
+    /// A map from character code to glyph name representing the /Differences array; may be <see langword="null"/>, in which case an empty dictionary is used.
+    /// </param>
     public PdfFontEncodingInfo(PdfFontEncoding encoding, in PdfString customEncoding, Dictionary<int, PdfString>? differences)
     {
         BaseEncoding = encoding;
@@ -36,6 +44,7 @@ public class PdfFontEncodingInfo
     /// <summary>
     /// Updates the differences map from the given encoding vector.
     /// </summary>
+    /// <param name="baseEncoding">Base encoding to apply when not <see cref="PdfFontEncoding.Unknown"/>.</param>
     /// <param name="encodingVector">Encoding vector.</param>
     public void Update(PdfFontEncoding baseEncoding, PdfString[]? encodingVector)
     {

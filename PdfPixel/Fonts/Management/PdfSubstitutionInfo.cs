@@ -6,6 +6,10 @@ using System.Collections.Generic;
 
 namespace PdfPixel.Fonts.Management;
 
+/// <summary>
+/// Holds normalized font substitution hints derived from a PDF font's name and font descriptor.
+/// Used by the font substitutor to select a matching system typeface when the embedded font is unavailable.
+/// </summary>
 public readonly struct PdfSubstitutionInfo
 {
     private static readonly Dictionary<string, SKFontStyleWeight> WeightHints = new(StringComparer.OrdinalIgnoreCase)
@@ -51,20 +55,38 @@ public readonly struct PdfSubstitutionInfo
     private const float ItalicAngleObliqueMin = 2.0f;
     private const float ItalicAngleItalicMin = 10.0f;
 
+    /// <summary>
+    /// The font family name after stripping style suffixes, subset prefixes (e.g., "ABCDEF+"), and the trailing "MT" suffix.
+    /// </summary>
     public string NormalizedStem { get; }
 
+    /// <summary>
+    /// The resolved Skia font style (weight, width, slant) inferred from the font name and font descriptor.
+    /// </summary>
     public SKFontStyle FontStyle { get; }
 
+    /// <summary>
+    /// <see langword="true"/> when <see cref="FontStyle"/> indicates a weight heavier than normal.
+    /// </summary>
     public bool IsBold => FontStyle.Weight != 0;
 
+    /// <summary>
+    /// <see langword="true"/> when <see cref="FontStyle"/> specifies an italic or oblique slant.
+    /// </summary>
     public bool IsItalic => FontStyle.Slant != SKFontStyleSlant.Upright;
 
+    /// <summary>
+    /// Initializes a new <see cref="PdfSubstitutionInfo"/> with an empty stem and normal style.
+    /// </summary>
     public PdfSubstitutionInfo()
     {
         NormalizedStem = string.Empty;
         FontStyle = SKFontStyle.Normal;
     }
 
+    /// <summary>
+    /// Returns a default <see cref="PdfSubstitutionInfo"/> with an empty stem and normal style.
+    /// </summary>
     public static PdfSubstitutionInfo Detault { get; } = new();
 
     private PdfSubstitutionInfo(
@@ -75,6 +97,13 @@ public readonly struct PdfSubstitutionInfo
         FontStyle = style;
     }
 
+    /// <summary>
+    /// Parses a <see cref="PdfSubstitutionInfo"/> from a raw PDF font name string and an optional font descriptor.
+    /// Strips subset prefixes and style tokens from the name, then applies descriptor overrides for weight, slant, and width.
+    /// </summary>
+    /// <param name="rawName">The raw font name string from the PDF font dictionary (e.g., the /BaseFont value).</param>
+    /// <param name="descriptor">Optional font descriptor that may override weight, slant, and width derived from the name.</param>
+    /// <returns>A <see cref="PdfSubstitutionInfo"/> containing the normalized stem and resolved font style.</returns>
     public static PdfSubstitutionInfo Parse(in PdfString rawName, PdfFontDescriptor? descriptor)
     {
         if (rawName.IsEmpty)

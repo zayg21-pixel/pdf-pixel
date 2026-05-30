@@ -39,6 +39,10 @@ public class PdfCidFont : PdfFontBase
         }
     }
 
+    /// <summary>
+    /// The embedded or substituted SkiaSharp typeface for this CID font.
+    /// May be <see langword="null"/> when no embedded font data is present and no substitution has been applied.
+    /// </summary>
     protected internal override SKTypeface Typeface => _typeface;
 
     /// <summary>
@@ -74,6 +78,11 @@ public class PdfCidFont : PdfFontBase
         return width ?? (float)(Widths.DefaultWidth ?? (float)0f);
     }
 
+    /// <summary>
+    /// Returns the vertical displacement metrics for the specified CID, falling back to the font defaults when no per-CID entry is present.
+    /// </summary>
+    /// <param name="cid">The CID for which to retrieve vertical metrics.</param>
+    /// <returns>The <see cref="VerticalMetric"/> for the given CID.</returns>
     public VerticalMetric GetVerticalDisplacementByCid(uint cid) => VerticalMetrics.GetMetrics(cid);
 
     /// <summary>
@@ -81,6 +90,11 @@ public class PdfCidFont : PdfFontBase
     /// </summary>
     public override float GetWidth(PdfCharacterCode code) => GetWidthByCid((uint)code);
 
+    /// <summary>
+    /// Returns the vertical displacement metrics for the given character code, mapping it to a CID and delegating to <see cref="GetVerticalDisplacementByCid"/>.
+    /// </summary>
+    /// <param name="code">The character code to retrieve vertical metrics for.</param>
+    /// <returns>The <see cref="VerticalMetric"/> for the character code.</returns>
     public override VerticalMetric GetVerticalDisplacement(PdfCharacterCode code) => VerticalMetrics.GetMetrics((uint)code);
 
     /// <summary>
@@ -218,6 +232,7 @@ public class PdfCidFont : PdfFontBase
     }
 
 
+    /// <inheritdoc/>
     protected override void Dispose(bool disposing)
     {
         _typeface?.Dispose();

@@ -20,7 +20,6 @@ internal static class PdfAnnotationBubbleRenderer
     /// <param name="annotation">The annotation to render a bubble for.</param>
     /// <param name="page">The PDF page containing the annotation.</param>
     /// <param name="visualStateKind">The visual state (Normal, Rollover, Down).</param>
-    /// <param name="renderingParameters">Rendering parameters.</param>
     public static void RenderBubble(
         IPdfCommandProcessor processor,
         PdfAnnotationBase annotation,

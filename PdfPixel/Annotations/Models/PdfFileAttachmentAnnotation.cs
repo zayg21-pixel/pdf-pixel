@@ -16,6 +16,10 @@ namespace PdfPixel.Annotations.Models;
 /// </remarks>
 public class PdfFileAttachmentAnnotation : PdfAnnotationBase
 {
+    /// <summary>
+    /// Initializes a new instance of the <see cref="PdfFileAttachmentAnnotation"/> class.
+    /// </summary>
+    /// <param name="annotationObject">The PDF object representing this file attachment annotation.</param>
     public PdfFileAttachmentAnnotation(PdfObject annotationObject)
         : base(annotationObject, PdfAnnotationSubType.FileAttachment)
     {
@@ -43,6 +47,7 @@ public class PdfFileAttachmentAnnotation : PdfAnnotationBase
         // TODO: [LOW] complete FileSpec object parsing
     }
 
+    /// <inheritdoc/>
     public override bool ShouldDisplayBubble => false;
 
     /// <summary>
@@ -229,6 +234,7 @@ public class PdfFileAttachmentAnnotation : PdfAnnotationBase
         return true;
     }
 
+    /// <inheritdoc/>
     public override string ToString()
     {
         if (!FileName.IsEmpty)

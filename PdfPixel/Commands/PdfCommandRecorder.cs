@@ -13,6 +13,7 @@ public sealed class PdfCommandRecorder : IPdfCommandProcessor
     private readonly List<IPdfCommand> _commands = [];
     private SKMatrix _totalMatrix = SKMatrix.Identity;
 
+    /// <inheritdoc/>
     ~PdfCommandRecorder() => Dispose(disposing: false);
 
     /// <inheritdoc />

@@ -49,6 +49,9 @@ public abstract class PdfFontBase : IDisposable
     /// </summary>
     protected internal virtual PdfSubstitutionInfo SubstitutionInfo { get; }
 
+    /// <summary>
+    /// <see langword="true"/> when no embedded typeface is available and rendering must rely on font substitution.
+    /// </summary>
     protected internal bool SubstituteFont => Typeface == null;
 
     /// <summary>
@@ -276,12 +279,15 @@ public abstract class PdfFontBase : IDisposable
         return parsedCMap;
     }
 
+    /// <inheritdoc/>
     protected virtual void Dispose(bool disposing)
     {
     }
 
+    /// <inheritdoc/>
     ~PdfFontBase() => Dispose(disposing: false);
 
+    /// <inheritdoc/>
     public void Dispose()
     {
         Dispose(disposing: true);

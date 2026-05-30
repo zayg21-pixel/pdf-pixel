@@ -1,41 +1,76 @@
-﻿using PdfPixel.Text;
+using PdfPixel.Text;
 
-namespace PdfPixel.Streams
+namespace PdfPixel.Streams;
+
+/// <summary>
+/// Identifies the stream filter applied to a PDF stream object.
+/// </summary>
+[PdfEnum]
+public enum PdfFilterType
 {
-    [PdfEnum]
-    public enum PdfFilterType
-    {
-        [PdfEnumDefaultValue]
-        Unknown,
+    /// <summary>
+    /// Unrecognized or absent filter name.
+    /// </summary>
+    [PdfEnumDefaultValue]
+    Unknown,
 
-        [PdfEnumValue("FlateDecode")]
-        FlateDecode,
+    /// <summary>
+    /// Flate (zlib/deflate) compression.
+    /// </summary>
+    [PdfEnumValue("FlateDecode")]
+    FlateDecode,
 
-        [PdfEnumValue("LZWDecode")]
-        LZWDecode,
+    /// <summary>
+    /// LZW compression.
+    /// </summary>
+    [PdfEnumValue("LZWDecode")]
+    LZWDecode,
 
-        [PdfEnumValue("DCTDecode")]
-        DCTDecode,
+    /// <summary>
+    /// DCT (JPEG) lossy compression.
+    /// </summary>
+    [PdfEnumValue("DCTDecode")]
+    DCTDecode,
 
-        [PdfEnumValue("ASCIIHexDecode")]
-        ASCIIHexDecode,
+    /// <summary>
+    /// ASCII hexadecimal encoding.
+    /// </summary>
+    [PdfEnumValue("ASCIIHexDecode")]
+    ASCIIHexDecode,
 
-        [PdfEnumValue("ASCII85Decode")]
-        ASCII85Decode,
+    /// <summary>
+    /// ASCII base-85 encoding.
+    /// </summary>
+    [PdfEnumValue("ASCII85Decode")]
+    ASCII85Decode,
 
-        [PdfEnumValue("JPXDecode")]
-        JPXDecode,
+    /// <summary>
+    /// JPEG 2000 compression.
+    /// </summary>
+    [PdfEnumValue("JPXDecode")]
+    JPXDecode,
 
-        [PdfEnumValue("JBIG2Decode")]
-        JBIG2Decode,
+    /// <summary>
+    /// JBIG2 bi-level image compression.
+    /// </summary>
+    [PdfEnumValue("JBIG2Decode")]
+    JBIG2Decode,
 
-        [PdfEnumValue("CCITTFaxDecode")]
-        CCITTFaxDecode,
+    /// <summary>
+    /// CCITT facsimile (Group 3/4) compression.
+    /// </summary>
+    [PdfEnumValue("CCITTFaxDecode")]
+    CCITTFaxDecode,
 
-        [PdfEnumValue("RunLengthDecode")]
-        RunLengthDecode,
+    /// <summary>
+    /// Run-length encoding.
+    /// </summary>
+    [PdfEnumValue("RunLengthDecode")]
+    RunLengthDecode,
 
-        [PdfEnumValue("Crypt")]
-        Crypt
-    }
+    /// <summary>
+    /// Crypt filter; delegates decryption to the document's security handler.
+    /// </summary>
+    [PdfEnumValue("Crypt")]
+    Crypt
 }

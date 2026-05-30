@@ -7,8 +7,8 @@ namespace PdfPixel.PostScript.Compiler
 {
     /// <summary>
     /// Compiles a math-only subset of PostScript procedures into expression tree delegates for PDF Functions.
-    /// Produces a vector delegate Action<float[], float[]> where inputs come from the first array in the order
-    /// defined by <paramref name="parameterNames"/> and outputs are written to the second array (buffer).
+    /// Produces a vector delegate Action&lt;float[], float[]&gt; where inputs come from the first array in the order
+    /// defined by <c>parameterNames</c> and outputs are written to the second array (buffer).
     /// Unsupported tokens/operators cause compilation to fail and the caller should fall back to the interpreter.
     /// NOTE: Only operators commonly used in PDF Type 4 PostScript functions are implemented.
     /// </summary>

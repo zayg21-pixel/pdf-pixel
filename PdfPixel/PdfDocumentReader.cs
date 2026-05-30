@@ -16,6 +16,9 @@ public class PdfDocumentReader
     private readonly ISkiaFontProvider _skiaFontProvider;
     private readonly ILogger _logger;
 
+    /// <summary>
+    /// Initializes the reader with a logger factory and font provider for non-embedded font substitution.
+    /// </summary>
     public PdfDocumentReader(ILoggerFactory loggerFactory, ISkiaFontProvider fontProvider)
     {
         _loggerFactory = loggerFactory ?? throw new ArgumentNullException(nameof(loggerFactory));

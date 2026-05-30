@@ -20,6 +20,9 @@ public class ShadingRenderer : IShadingRenderer
     private readonly ILoggerFactory _loggerFactory;
     private readonly ILogger<ShadingRenderer> _logger;
 
+    /// <summary>
+    /// Initializes the renderer with the PDF renderer pipeline and logger factory.
+    /// </summary>
     public ShadingRenderer(IPdfRenderer renderer, ILoggerFactory loggerFactory)
     {
         _renderer = renderer ?? throw new ArgumentNullException(nameof(renderer));

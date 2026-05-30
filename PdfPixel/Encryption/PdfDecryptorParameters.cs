@@ -50,12 +50,12 @@ namespace PdfPixel.Encryption
         public byte[]? FileIdSecond { get; set; }
 
         /// <summary>
-        /// Owner password entry (/O) raw bytes (32 for R<=4, 48 for R>=5).
+        /// Owner password entry (/O) raw bytes (32 for R&lt;=4, 48 for R&gt;=5).
         /// </summary>
         public byte[]? OwnerEntry { get; set; }
 
         /// <summary>
-        /// User password entry (/U) raw bytes (32 for R<=4, 48 for R>=5).
+        /// User password entry (/U) raw bytes (32 for R&lt;=4, 48 for R&gt;=5).
         /// </summary>
         public byte[]? UserEntry { get; set; }
 

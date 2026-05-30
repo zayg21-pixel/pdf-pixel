@@ -26,6 +26,9 @@ public abstract class PdfTextMarkupAnnotation : PdfAnnotationBase
         Quadrilaterals = GetQuadrilaterals(quadPoints);
     }
 
+    /// <summary>
+    /// Gets the starting point for bubble placement, using the third point of the first highlight quadrilateral.
+    /// </summary>
     protected override SKPoint ContentStart => (Quadrilaterals.Length > 0 && Quadrilaterals[0].Length == 4) ? Quadrilaterals[0][2] : base.ContentStart;
 
     /// <summary>

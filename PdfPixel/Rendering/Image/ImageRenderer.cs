@@ -9,14 +9,16 @@ namespace PdfPixel.Rendering.Image;
 
 /// <summary>
 /// Standard PDF image renderer supporting normal images, image masks, and soft masks.
-/// Emits a single <see cref="DrawImageCommand"/> that handles decoding, shader creation,
-/// and caching at execution time.
+/// Delegates rendering to <see cref="ImageFillRenderTarget"/> which handles decoding, shader creation, and blending.
 /// </summary>
 public class ImageRenderer : IImageRenderer
 {
     private readonly IPdfRenderer _renderer;
     private readonly ILoggerFactory _factory;
 
+    /// <summary>
+    /// Initializes the renderer with the PDF renderer pipeline and logger factory.
+    /// </summary>
     public ImageRenderer(IPdfRenderer renderer, ILoggerFactory loggerFactory)
     {
         _renderer = renderer ?? throw new ArgumentNullException(nameof(renderer));
@@ -25,8 +27,7 @@ public class ImageRenderer : IImageRenderer
 
     /// <summary>
     /// Renders a PDF image using the provided command processor and graphics state.
-    /// Wraps the image in a soft-mask scope when required and emits a single
-    /// <see cref="DrawImageCommand"/> that defers all heavy work until replay.
+    /// Wraps the image in a soft-mask scope when required and delegates to <see cref="ImageFillRenderTarget"/>.
     /// </summary>
     /// <param name="processor">The command processor to draw through.</param>
     /// <param name="pdfImage">The <see cref="PdfImage"/> to be rendered. Must not be <see langword="null"/> and must have positive

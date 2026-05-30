@@ -20,6 +20,9 @@ public sealed class SkCanvasCommandProcessor : IPdfCommandProcessor
     /// </summary>
     public SKCanvas Canvas { get; }
 
+    /// <summary>
+    /// Initializes the processor wrapping the given canvas and execution context.
+    /// </summary>
     public SkCanvasCommandProcessor(SKCanvas canvas, PdfCommandExecutionContext executionContext)
     {
         Canvas = canvas ?? throw new ArgumentNullException(nameof(canvas));
@@ -41,6 +44,7 @@ public sealed class SkCanvasCommandProcessor : IPdfCommandProcessor
         command.Dispose();
     }
 
+    /// <inheritdoc/>
     public void Dispose()
     {
         // Does not own the canvas; caller manages its lifetime.

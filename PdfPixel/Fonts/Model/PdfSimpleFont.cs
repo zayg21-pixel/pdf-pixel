@@ -10,6 +10,10 @@ using System;
 
 namespace PdfPixel.Fonts.Model;
 
+/// <summary>
+/// Handles simple (single-byte) fonts including Type 1, Type 1C, and TrueType variants.
+/// Loads the embedded font data, builds the appropriate glyph-ID mapper, and resolves encoding.
+/// </summary>
 public class PdfSimpleFont : PdfSingleByteFont
 {
     private readonly ILogger<PdfSimpleFont> _logger;
@@ -23,6 +27,12 @@ public class PdfSimpleFont : PdfSingleByteFont
         (_typeface, _mapper) = GetTypefaceAndMapper();
     }
 
+    /// <summary>
+    /// Returns the advance width for the specified character code.
+    /// Uses the font metrics table first, and falls back to the glyph-ID mapper when the metrics entry is zero.
+    /// </summary>
+    /// <param name="code">The character code to retrieve the width for.</param>
+    /// <returns>The advance width in user space units.</returns>
     public override float GetWidth(PdfCharacterCode code)
     {
         float width = base.GetWidth(code);
@@ -36,6 +46,9 @@ public class PdfSimpleFont : PdfSingleByteFont
         return width;
     }
 
+    /// <summary>
+    /// The embedded or substituted SkiaSharp typeface for this simple font.
+    /// </summary>
     protected internal override SKTypeface Typeface => _typeface;
 
     private (SKTypeface, IByteCodeToGidMapper) GetTypefaceAndMapper()
@@ -137,6 +150,12 @@ public class PdfSimpleFont : PdfSingleByteFont
         return default;
     }
 
+    /// <summary>
+    /// Returns the glyph ID (GID) for the specified character code by consulting the byte-code-to-GID mapper.
+    /// Returns 0 when no mapper is available or the code is <see langword="null"/>.
+    /// </summary>
+    /// <param name="code">The character code to map to a glyph ID.</param>
+    /// <returns>The glyph ID, or 0 if not found.</returns>
     public override ushort GetGid(PdfCharacterCode code)
     {
         if (code == null)
@@ -152,6 +171,7 @@ public class PdfSimpleFont : PdfSingleByteFont
         return _mapper.GetGid((byte)code);
     }
 
+    /// <inheritdoc/>
     protected override void Dispose(bool disposing)
     {
         _typeface?.Dispose();

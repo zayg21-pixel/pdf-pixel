@@ -269,7 +269,7 @@ internal class PathOperators : IOperatorProcessor
     private void ProcessStrokePath(PdfGraphicsState graphicsState)
     {
         _currentPath.FillType = SKPathFillType.Winding;
-        _renderer.DrawPath(_processor, _currentPath, graphicsState, PaintOperation.Stroke);
+        _renderer.DrawPath(_processor, _currentPath, graphicsState, PdfPaintOperation.Stroke);
         _currentPath.Reset();
     }
 
@@ -277,21 +277,21 @@ internal class PathOperators : IOperatorProcessor
     {
         _currentPath.Close();
         _currentPath.FillType = SKPathFillType.Winding;
-        _renderer.DrawPath(_processor, _currentPath, graphicsState, PaintOperation.Stroke);
+        _renderer.DrawPath(_processor, _currentPath, graphicsState, PdfPaintOperation.Stroke);
         _currentPath.Reset();
     }
 
     private void ProcessFillPath(PdfGraphicsState graphicsState, SKPathFillType fillType)
     {
         _currentPath.FillType = fillType;
-        _renderer.DrawPath(_processor, _currentPath, graphicsState, PaintOperation.Fill);
+        _renderer.DrawPath(_processor, _currentPath, graphicsState, PdfPaintOperation.Fill);
         _currentPath.Reset();
     }
 
     private void ProcessFillAndStrokePath(PdfGraphicsState graphicsState, SKPathFillType fillType)
     {
         _currentPath.FillType = fillType;
-        _renderer.DrawPath(_processor, _currentPath, graphicsState, PaintOperation.FillAndStroke);
+        _renderer.DrawPath(_processor, _currentPath, graphicsState, PdfPaintOperation.FillAndStroke);
         _currentPath.Reset();
     }
 
@@ -299,7 +299,7 @@ internal class PathOperators : IOperatorProcessor
     {
         _currentPath.Close();
         _currentPath.FillType = fillType;
-        _renderer.DrawPath(_processor, _currentPath, graphicsState, PaintOperation.FillAndStroke);
+        _renderer.DrawPath(_processor, _currentPath, graphicsState, PdfPaintOperation.FillAndStroke);
         _currentPath.Reset();
     }
 

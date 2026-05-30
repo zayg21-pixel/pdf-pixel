@@ -29,6 +29,14 @@ namespace PdfPixel.PostScript
         private bool _stopRequested;
         private int _stoppedDepth;
 
+        /// <summary>
+        /// Initializes the evaluator by tokenizing the supplied PostScript byte sequence and setting up the
+        /// dictionary stack. When <paramref name="appendExec"/> is true an 'exec' operator is appended so
+        /// that a top-level procedure literal is automatically executed.
+        /// </summary>
+        /// <param name="code">Raw PostScript source bytes to tokenize.</param>
+        /// <param name="appendExec">When true, appends an 'exec' operator to execute a top-level procedure.</param>
+        /// <param name="logger">Logger for diagnostic and warning output during evaluation.</param>
         public PostScriptEvaluator(in ReadOnlySpan<byte> code, bool appendExec, ILogger<PostScriptEvaluator> logger)
         {
             _logger = logger;

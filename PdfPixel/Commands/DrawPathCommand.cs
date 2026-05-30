@@ -12,6 +12,9 @@ public sealed class DrawPathCommand : PdfCommand
     private readonly SKPath _path;
     private readonly SKPaint _basePaint;
 
+    /// <summary>
+    /// Initializes the command with a cloned copy of the path and takes ownership of the paint.
+    /// </summary>
     public DrawPathCommand(SKPath path, SKPaint basePaint)
     {
         _path = new SKPath(path);

@@ -35,7 +35,7 @@ internal partial struct PdfParser
 
     /// <summary>
     /// Handle closing of a dictionary. Validates matching frame and materializes PdfDictionary.
-    /// Builds raw key/value map first, then uses PdfDictionary(PdfDocument, Dictionary<PdfString, IPdfValue>) overload.
+    /// Builds raw key/value map first, then uses PdfDictionary(PdfDocument, Dictionary&lt;PdfString, IPdfValue&gt;) overload.
     /// </summary>
     /// <param name="values">Accumulated values list.</param>
     /// <param name="frames">Open collection frames stack.</param>

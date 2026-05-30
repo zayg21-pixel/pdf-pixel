@@ -1,5 +1,8 @@
 namespace PdfPixel.Imaging.Model;
 
+/// <summary>
+/// Describes how alpha transparency is applied to a PDF image during rendering.
+/// </summary>
 public enum PdfImageAlphaMode
 {
     /// <summary>
@@ -9,7 +12,7 @@ public enum PdfImageAlphaMode
 
     /// <summary>
     /// <see cref="PdfImage.HasImageMask"/> is true, background is defined by background color or pattern,
-    /// Image contents sets alpha transparency. <see cref="MaskArray"/> can contain properties to invert mask.
+    /// image contents set alpha transparency. <see cref="PdfImage.DecodeArray"/> controls mask inversion.
     /// </summary>
     StencilMask,
 

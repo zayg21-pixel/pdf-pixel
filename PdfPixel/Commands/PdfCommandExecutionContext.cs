@@ -12,6 +12,9 @@ namespace PdfPixel.Commands;
 /// </summary>
 public sealed class PdfCommandExecutionContext
 {
+    /// <summary>
+    /// Initializes a new execution context with rendering parameters, a content locker, and an observer.
+    /// </summary>
     public PdfCommandExecutionContext(PdfRenderingParameters renderingParameters, object contentLocker, IPdfExecutionObserver executionObserver, SKRect? pageRegionOfInterest = null)
     {
         RenderingParameters = renderingParameters ?? throw new ArgumentNullException(nameof(renderingParameters));

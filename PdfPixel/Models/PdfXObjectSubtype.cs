@@ -8,6 +8,9 @@ namespace PdfPixel.Models;
 [PdfEnum]
 public enum PdfXObjectSubtype
 {
+    /// <summary>
+    /// Unrecognized or absent XObject subtype.
+    /// </summary>
     [PdfEnumDefaultValue]
     Unknown,
 

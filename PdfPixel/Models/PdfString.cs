@@ -115,5 +115,6 @@ public readonly struct PdfString : IEquatable<PdfString>
     /// <param name="value">String to convert.</param>
     public static explicit operator PdfString(string value) => FromString(value);
 
+    /// <inheritdoc/>
     public override string ToString() => EncodingExtensions.PdfDefault.GetString(Value.Span);
 }

@@ -15,6 +15,9 @@ public sealed class DrawRecordingCommand : PdfCommand
     private readonly IPdfCommandModifier? _modifier;
     private readonly bool _disposeRecording;
 
+    /// <summary>
+    /// Initializes the command with a recorder, an optional paint modifier, and ownership flag.
+    /// </summary>
     public DrawRecordingCommand(PdfCommandRecorder recorder, IPdfCommandModifier? modifier, bool disposeRecording = true)
     {
         _recorder = recorder;
@@ -22,6 +25,9 @@ public sealed class DrawRecordingCommand : PdfCommand
         _disposeRecording = disposeRecording;
     }
 
+    /// <summary>
+    /// Initializes the command with a recorder and ownership flag; no paint modifier applied.
+    /// </summary>
     public DrawRecordingCommand(PdfCommandRecorder recorder, bool disposeRecording = true)
     {
         _recorder = recorder;

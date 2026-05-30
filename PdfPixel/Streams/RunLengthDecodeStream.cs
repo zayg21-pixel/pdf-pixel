@@ -1,120 +1,121 @@
-using SkiaSharp;
 using System;
 using System.IO;
 
-namespace PdfPixel.Streams
+namespace PdfPixel.Streams;
+
+/// <summary>
+/// Stream for decoding PDF RunLengthDecode filter.
+/// Implements the PDF spec: each data block ends with128 (0x80),
+/// followed by a single byte (0x80) to mark EOD.
+/// </summary>
+public sealed class RunLengthDecodeStream : Stream
 {
+    private readonly Stream _baseStream;
+    private readonly bool _leaveOpen;
+    private bool _endOfStream;
+    private int _repeatCount;
+    private int _repeatByte;
+    private int _bufferIndex;
+    private byte[] _buffer;
+
     /// <summary>
-    /// Stream for decoding PDF RunLengthDecode filter.
-    /// Implements the PDF spec: each data block ends with128 (0x80),
-    /// followed by a single byte (0x80) to mark EOD.
+    /// Initializes the decoder wrapping the given run-length encoded stream.
     /// </summary>
-    public sealed class RunLengthDecodeStream : Stream
+    public RunLengthDecodeStream(Stream baseStream, bool leaveOpen)
     {
-        private readonly Stream _baseStream;
-        private readonly bool _leaveOpen;
-        private bool _endOfStream;
-        private int _repeatCount;
-        private int _repeatByte;
-        private int _bufferIndex;
-        private byte[] _buffer;
+        _baseStream = baseStream ?? throw new ArgumentNullException(nameof(baseStream));
+        _leaveOpen = leaveOpen;
+        _endOfStream = false;
+        _repeatCount = 0;
+        _repeatByte = -1;
+        _bufferIndex = 0;
+        _buffer = Array.Empty<byte>();
+    }
 
-        public RunLengthDecodeStream(Stream baseStream, bool leaveOpen)
+    /// <inheritdoc/>
+    public override bool CanRead => true;
+
+    /// <inheritdoc/>
+    public override bool CanSeek => false;
+
+    /// <inheritdoc/>
+    public override bool CanWrite => false;
+
+    /// <inheritdoc/>
+    public override long Length => throw new NotSupportedException();
+
+    /// <inheritdoc/>
+    public override long Position
+    {
+        get => throw new NotSupportedException();
+        set => throw new NotSupportedException();
+    }
+
+    /// <inheritdoc/>
+    public override void Flush()
+    {
+    }
+
+    /// <inheritdoc/>
+    public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+
+    /// <inheritdoc/>
+    public override void SetLength(long value) => throw new NotSupportedException();
+
+    /// <inheritdoc/>
+    public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+
+    /// <inheritdoc/>
+    public override int Read(byte[] buffer, int offset, int count)
+    {
+        if (buffer == null)
         {
-            _baseStream = baseStream ?? throw new ArgumentNullException(nameof(baseStream));
-            _leaveOpen = leaveOpen;
-            _endOfStream = false;
-            _repeatCount = 0;
-            _repeatByte = -1;
-            _bufferIndex = 0;
-            _buffer = Array.Empty<byte>();
+            throw new ArgumentNullException(nameof(buffer));
         }
 
-        public override bool CanRead => true;
-        public override bool CanSeek => false;
-        public override bool CanWrite => false;
-        public override long Length => throw new NotSupportedException();
-
-        public override long Position
+        if (_endOfStream)
         {
-            get => throw new NotSupportedException();
-            set => throw new NotSupportedException();
+            return 0;
         }
 
-        public override void Flush()
+        int bytesRead = 0;
+        while (bytesRead < count)
         {
-        }
-
-        public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
-        public override void SetLength(long value) => throw new NotSupportedException();
-        public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
-
-        public override int Read(byte[] buffer, int offset, int count)
-        {
-            if (buffer == null)
+            if (_repeatCount > 0)
             {
-                throw new ArgumentNullException(nameof(buffer));
+                buffer[offset + bytesRead] = (byte)_repeatByte;
+                _repeatCount--;
+                bytesRead++;
+                continue;
             }
 
-            if (_endOfStream)
+            if (_bufferIndex < _buffer.Length)
             {
-                return 0;
+                buffer[offset + bytesRead] = _buffer[_bufferIndex++];
+                bytesRead++;
+                continue;
             }
 
-            int bytesRead = 0;
-            while (bytesRead < count)
+            int lengthByte = _baseStream.ReadByte();
+            if (lengthByte == -1)
             {
-                if (_repeatCount > 0)
-                {
-                    buffer[offset + bytesRead] = (byte)_repeatByte;
-                    _repeatCount--;
-                    bytesRead++;
-                    continue;
-                }
+                _endOfStream = true;
+                break;
+            }
 
-                if (_bufferIndex < _buffer.Length)
-                {
-                    buffer[offset + bytesRead] = _buffer[_bufferIndex++];
-                    bytesRead++;
-                    continue;
-                }
+            if (lengthByte == 128)
+            {
+                _endOfStream = true;
+                break;
+            }
 
-                int lengthByte = _baseStream.ReadByte();
-                if (lengthByte == -1)
+            if (lengthByte < 128)
+            {
+                int dataLen = lengthByte + 1;
+                _buffer = new byte[dataLen];
+                int read = 0;
+                while (read < dataLen)
                 {
-                    _endOfStream = true;
-                    break;
-                }
-
-                if (lengthByte == 128)
-                {
-                    _endOfStream = true;
-                    break;
-                }
-
-                if (lengthByte < 128)
-                {
-                    int dataLen = lengthByte + 1;
-                    _buffer = new byte[dataLen];
-                    int read = 0;
-                    while (read < dataLen)
-                    {
-                        int b = _baseStream.ReadByte();
-                        if (b == -1)
-                        {
-                            _endOfStream = true;
-                            break;
-                        }
-
-                        _buffer[read++] = (byte)b;
-                    }
-
-                    _bufferIndex = 0;
-                    continue;
-                }
-                else if (lengthByte > 128)
-                {
-                    _repeatCount = 257 - lengthByte;
                     int b = _baseStream.ReadByte();
                     if (b == -1)
                     {
@@ -122,22 +123,38 @@ namespace PdfPixel.Streams
                         break;
                     }
 
-                    _repeatByte = b;
-                    continue;
+                    _buffer[read++] = (byte)b;
                 }
+
+                _bufferIndex = 0;
+                continue;
             }
-
-            return bytesRead;
-        }
-
-        protected override void Dispose(bool disposing)
-        {
-            if (disposing && !_leaveOpen)
+            else if (lengthByte > 128)
             {
-                _baseStream.Dispose();
-            }
+                _repeatCount = 257 - lengthByte;
+                int b = _baseStream.ReadByte();
+                if (b == -1)
+                {
+                    _endOfStream = true;
+                    break;
+                }
 
-            base.Dispose(disposing);
+                _repeatByte = b;
+                continue;
+            }
         }
+
+        return bytesRead;
+    }
+
+    /// <inheritdoc/>
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing && !_leaveOpen)
+        {
+            _baseStream.Dispose();
+        }
+
+        base.Dispose(disposing);
     }
 }

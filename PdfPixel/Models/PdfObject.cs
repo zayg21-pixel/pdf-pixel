@@ -101,6 +101,6 @@ public class PdfObject
     /// <summary>
     /// Decodes the object's stream using the document's stream decoder and returns the decoded bytes as memory.
     /// </summary>
-    /// <returns>A <see cref="ReadOnlyMemory{byte}"/> containing the decoded stream data.</returns>
+    /// <returns>A <c>ReadOnlyMemory&lt;byte&gt;</c> containing the decoded stream data.</returns>
     public ReadOnlyMemory<byte> DecodeAsMemory(IPdfExecutionObserver? observer = default) => Document.StreamDecoder.DecodeContentStream(this, observer);
 }

@@ -12,6 +12,10 @@ using System;
 
 namespace PdfPixel.Imaging.Decoding;
 
+/// <summary>
+/// Decodes JPEG-compressed PDF images row by row, resolving color space and producing
+/// tiled <see cref="PdfImageTile"/> results ready for rendering.
+/// </summary>
 public sealed class JpegImageDecoder : PdfImageDecoder
 {
     private IJpgDecoder? _jpgRowDecoder;
@@ -20,11 +24,26 @@ public sealed class JpegImageDecoder : PdfImageDecoder
     private PdfImageRowDecodingParameters? _imageParameters;
     private int _currentImageRow;
 
+    /// <summary>
+    /// Initializes a new <see cref="JpegImageDecoder"/> for the given PDF image.
+    /// </summary>
+    /// <param name="image">The source PDF image descriptor.</param>
+    /// <param name="loggerFactory">Logger factory used to create per-decoder loggers.</param>
     public JpegImageDecoder(PdfImage image, ILoggerFactory loggerFactory)
         : base(image, loggerFactory)
     {
     }
 
+    /// <summary>
+    /// Parses the JPEG stream header, resolves the color space converter (including embedded ICC
+    /// profiles), computes the downscaled output size, and prepares the row decoder and tiling context.
+    /// </summary>
+    /// <param name="tileInfo">Tile grid dimensions for this decode pass.</param>
+    /// <param name="context">Rendering context carrying target surface and quality settings.</param>
+    /// <param name="contentLocker">Lock object used to serialize access to the compressed image data.</param>
+    /// <param name="ctm">Current transformation matrix, used to compute the scaled output size.</param>
+    /// <param name="regionOfInterest">Rectangle in image coordinates limiting which tiles must be decoded.</param>
+    /// <param name="observer">Observer notified on each decoded row.</param>
     public override void Initialize(PdfTileInfo tileInfo, ImageDecodingContext context, object contentLocker, SKMatrix ctm, SKRectI regionOfInterest, IPdfExecutionObserver observer)
     {
         if (!ValidateImageParameters())
@@ -75,6 +94,12 @@ public sealed class JpegImageDecoder : PdfImageDecoder
         _currentImageRow = 0;
     }
 
+    /// <summary>
+    /// Reads successive JPEG rows and returns completed tiles as each tile boundary is crossed.
+    /// Returns null once all image rows have been consumed.
+    /// </summary>
+    /// <param name="observer">Observer notified after each decoded row; may be null.</param>
+    /// <returns>One or more completed <see cref="PdfImageTile"/> instances, or null when decoding is finished.</returns>
     public override PdfImageTile[]? DecodeNextTiles(IPdfExecutionObserver? observer)
     {
         if (_imageParameters == null || _jpgRowDecoder == null || _fullWidthRowBuffer == null || _tilingContext == null)
@@ -127,6 +152,10 @@ public sealed class JpegImageDecoder : PdfImageDecoder
         };
     }
 
+    /// <summary>
+    /// Releases all transient decode state (row decoder, buffers, tiling context) accumulated
+    /// during a single <see cref="Initialize"/> / <see cref="DecodeNextTiles"/> pass.
+    /// </summary>
     public override void Cleanup()
     {
         _jpgRowDecoder = null;
@@ -137,6 +166,7 @@ public sealed class JpegImageDecoder : PdfImageDecoder
         _currentImageRow = 0;
     }
 
+    /// <inheritdoc/>
     protected override void Dispose(bool disposing)
     {
         if (disposing)

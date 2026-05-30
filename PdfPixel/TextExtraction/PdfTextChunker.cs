@@ -5,8 +5,14 @@ using SkiaSharp;
 
 namespace PdfPixel.TextExtraction;
 
+/// <summary>
+/// Groups a sequence of <see cref="PdfCharacter"/> instances into <see cref="PdfWord"/> tokens.
+/// </summary>
 public class PdfTextChunker
 {
+    /// <summary>
+    /// Initializes a new <see cref="PdfTextChunker"/>.
+    /// </summary>
     public PdfTextChunker()
     {
     }

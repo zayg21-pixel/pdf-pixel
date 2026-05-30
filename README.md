@@ -70,6 +70,7 @@ PDF Pixel is a native C# PDF rendering library for .NET, built around SkiaSharp 
 - ❌ Stamp, Caret, Redact
 
 ### Interactive & Scripting
+- ❌ Text Selection *(planned)*
 - ❌ JavaScript *(not planned)*
 - ❌ XFA *(not planned)*
 
@@ -78,7 +79,6 @@ PDF Pixel is a native C# PDF rendering library for .NET, built around SkiaSharp 
 ## Release Plan
 
 ### Stage 1
-- Finalize PdfPixel with documentation
 - Bug fixes, complete TODOs
 - Add Examples project
 - Release NuGet packages:
@@ -94,6 +94,7 @@ PDF Pixel is a native C# PDF rendering library for .NET, built around SkiaSharp 
 - Start working on unit tests
 - Stage 2 bug fixes
 - Migrate to SkiaSharp 4
+- Implement text extraction and text selection
 - Implement `PdfPixel.Tiff`
 - Release NuGet packages:
   - `PdfPixel.PdfPanel`

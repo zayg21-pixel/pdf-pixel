@@ -30,6 +30,7 @@ public class PdfLinkAnnotation : PdfTextMarkupAnnotation
         HighlightMode = annotationObject.Dictionary.GetName(PdfTokens.HighlightModeKey).AsEnum<PdfLinkHighlightMode>();
     }
 
+    /// <inheritdoc/>
     public override bool ShouldDisplayBubble => false;
 
     /// <summary>

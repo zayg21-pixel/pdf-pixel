@@ -23,6 +23,7 @@ internal partial class PdfShadingBuilder
     /// <param name="renderingIntent">Rendering intent for color conversion.</param>
     /// <param name="fullTransferFunction">Transfer function for color conversion.</param>
     /// <param name="defaultFunctionSamples">Number of function samples to use.</param>
+    /// <param name="observer">Execution observer for progress and cancellation.</param>
     /// <returns>A <see cref="FunctionShadingResult"/> containing the bitmap and matrix, or <see langword="null"/> on failure.</returns>
     public FunctionShadingResult? BuildFunctionBasedBitmap(
         PdfShading shading,

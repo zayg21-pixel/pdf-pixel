@@ -27,6 +27,13 @@ public sealed class WindowsSkiaFontProvider : ISkiaFontProvider, IDisposable
         { PdfStandardFontName.ZapfDingbats, new[] { "Segoe UI Symbol" } }
     };
 
+    /// <summary>
+    /// Initializes a new instance of <see cref="WindowsSkiaFontProvider"/> using the default system font manager.
+    /// </summary>
+    /// <param name="fallbackFontName">
+    /// Optional family name of the typeface to use when no match is found for a requested font name or glyph.
+    /// When <see langword="null"/>, Skia's default typeface selection is used.
+    /// </param>
     public WindowsSkiaFontProvider(string? fallbackFontName = null)
     {
         _fallbackFontName = fallbackFontName;
@@ -81,5 +88,6 @@ public sealed class WindowsSkiaFontProvider : ISkiaFontProvider, IDisposable
         return _fontManager.MatchFamily(_fallbackFontName);
     }
 
+    /// <inheritdoc/>
     public void Dispose() => _fontManager?.Dispose();
 }

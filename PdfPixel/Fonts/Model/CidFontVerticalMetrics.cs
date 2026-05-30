@@ -17,6 +17,12 @@ public class CidFontVerticalMetrics
     /// </summary>
     public const float VerticalToUserSpaceCoeff = 0.001f;
 
+    /// <summary>
+    /// Initializes a new <see cref="CidFontVerticalMetrics"/> instance with the given default metrics and per-CID overrides.
+    /// </summary>
+    /// <param name="defaultW1">Default vertical advance (W1y) applied to CIDs without an explicit W2 entry.</param>
+    /// <param name="defaultV1">Default vertical origin Y displacement (V1y) applied to CIDs without an explicit W2 entry.</param>
+    /// <param name="cidVerticalMetrics">Dictionary mapping CID values to their specific vertical metrics.</param>
     public CidFontVerticalMetrics(float defaultW1, float defaultV1, Dictionary<uint, VerticalMetric> cidVerticalMetrics)
     {
         DefaultW1 = defaultW1;

@@ -23,6 +23,9 @@ namespace PdfPixel.Color.Transform
             _fz = fz;
         }
 
+        /// <summary>
+        /// Always <see langword="false"/>; a transfer function is never an identity transform.
+        /// </summary>
         public bool IsIdentity => false;
 
         /// <summary>

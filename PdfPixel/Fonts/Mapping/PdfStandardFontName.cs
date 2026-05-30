@@ -1,7 +1,7 @@
 namespace PdfPixel.Fonts.Mapping;
 
 /// <summary>
-/// Represents the set of standard PDF font families, including a fallback <see cref="Default"/> value.
+/// Represents the set of standard PDF font families.
 /// </summary>
 /// <remarks>
 /// The values correspond to common Standard 14 font family names used in PDF documents.

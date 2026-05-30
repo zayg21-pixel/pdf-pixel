@@ -56,7 +56,7 @@ public class PdfRenderer : IPdfRenderer
     /// <summary>
     /// Draw a path with the specified operation and fill type.
     /// </summary>
-    public void DrawPath(IPdfCommandProcessor processor, SKPath path, PdfGraphicsState state, PaintOperation operation) => _pathRenderer.DrawPath(processor, path, state, operation);
+    public void DrawPath(IPdfCommandProcessor processor, SKPath path, PdfGraphicsState state, PdfPaintOperation operation) => _pathRenderer.DrawPath(processor, path, state, operation);
 
     /// <summary>
     /// Draw an image in PDF unit coordinate space.

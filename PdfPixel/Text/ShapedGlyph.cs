@@ -7,6 +7,9 @@ namespace PdfPixel.Text;
 /// </summary>
 public readonly struct ShapedGlyph
 {
+    /// <summary>
+    /// Initializes a new <see cref="ShapedGlyph"/> with its character info, glyph identifier, and layout metrics.
+    /// </summary>
     public ShapedGlyph(
         PdfCharacterInfo pdfCharacterInfo,
         int? groupId,

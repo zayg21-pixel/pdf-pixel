@@ -8,8 +8,19 @@ namespace PdfPixel.PostScript.Tokens
     /// </summary>
     public enum PostScriptAccessOperation
     {
+        /// <summary>
+        /// Inspect or retrieve the contents of an object, such as get or enumeration.
+        /// </summary>
         Read,
+
+        /// <summary>
+        /// Mutate the contents of an object, such as put or def.
+        /// </summary>
         Modify,
+
+        /// <summary>
+        /// Execute a procedure body (token sequence evaluation).
+        /// </summary>
         Execute
     }
 }
