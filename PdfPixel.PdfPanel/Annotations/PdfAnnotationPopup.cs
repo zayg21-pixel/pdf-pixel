@@ -2,14 +2,17 @@
 using SkiaSharp;
 using System;
 
-namespace PdfPixel.PdfPanel;
+namespace PdfPixel.PdfPanel.Annotations;
 
 /// <summary>
 /// Contains information about an annotation popup and it's location.
 /// </summary>
 public class PdfAnnotationPopup
 {
-    public PdfAnnotationPopup(PdfPanelAnnotationAction action, PdfAnnotationMessage[] messages, SKRect rect, bool isInteractive)
+    /// <summary>
+    /// Initializes a popup with the given action, messages, bounding rect, and interactivity flag.
+    /// </summary>
+    public PdfAnnotationPopup(PdfPanelAnnotationAction? action, PdfAnnotationMessage[] messages, SKRect rect, bool isInteractive)
     {
         Action = action;
         Messages = messages ?? throw new ArgumentNullException(nameof(messages));
@@ -20,12 +23,12 @@ public class PdfAnnotationPopup
     /// <summary>
     /// Attached base annotation.
     /// </summary>
-    public PdfAnnotationBase Annotation { get; set; }
+    internal PdfAnnotationBase? Annotation { get; set; }
 
     /// <summary>
     /// Resolved, document-independent action for this annotation, or null if the annotation has no action.
     /// </summary>
-    public PdfPanelAnnotationAction Action { get; }
+    public PdfPanelAnnotationAction? Action { get; }
 
     /// <summary>
     /// Thread of annotation messages (from oldest to newest).
@@ -44,15 +47,15 @@ public class PdfAnnotationPopup
     /// <returns>True if the annotation is interactive; otherwise, false.</returns>
     public bool IsInteractive { get; }
 
-    public override int GetHashCode()
-    {
-        return Rect.GetHashCode();
-    }
+    /// <inheritdoc />
+    public override int GetHashCode() => Rect.GetHashCode();
 
-    public override bool Equals(object obj)
+    /// <inheritdoc />
+    public override bool Equals(object? obj)
     {
-        return obj is PdfAnnotationPopup other && 
-               Equals(Messages, other.Messages) && 
-               Rect.Equals(other.Rect);
+        return obj is PdfAnnotationPopup other
+            &&  Equals(Messages, other.Messages)
+            &&  Rect.Equals(other.Rect);
     }
 }
+

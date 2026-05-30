@@ -14,10 +14,10 @@ public static class PdfPanelPageExtensions
     /// <param name="pageInfo">The page information.</param>
     /// <param name="userRotation">User-applied rotation in degrees.</param>
     /// <returns>Total rotation normalized to 0-359 degrees.</returns>
-    public static int GetTotalRotation(this PdfPanelPageInfo pageInfo, int userRotation)
+    public static int GetTotalRotation(this in PdfPanelPageInfo pageInfo, int userRotation)
     {
         int totalRotation = pageInfo.Rotation + userRotation;
-        totalRotation = totalRotation % 360;
+        totalRotation %= 360;
 
         if (totalRotation < 0)
         {
@@ -33,7 +33,7 @@ public static class PdfPanelPageExtensions
     /// <param name="pageInfo">The page information.</param>
     /// <param name="userRotation">User-applied rotation in degrees.</param>
     /// <returns>The rotated page size with width and height swapped if rotated 90 or 270 degrees.</returns>
-    public static SKSize GetRotatedSize(this PdfPanelPageInfo pageInfo, int userRotation)
+    public static SKSize GetRotatedSize(this in PdfPanelPageInfo pageInfo, int userRotation)
     {
         int totalRotation = pageInfo.GetTotalRotation(userRotation);
 
@@ -50,20 +50,14 @@ public static class PdfPanelPageExtensions
     /// </summary>
     /// <param name="page">The page.</param>
     /// <returns>Total rotation normalized to 0-359 degrees.</returns>
-    public static int GetTotalRotation(this PdfPanelPage page)
-    {
-        return page.Info.GetTotalRotation(page.UserRotation);
-    }
+    public static int GetTotalRotation(this PdfPanelPage page) => page?.Info.GetTotalRotation(page.UserRotation) ?? throw new ArgumentNullException(nameof(page));
 
     /// <summary>
     /// Gets the size of the page after applying rotation.
     /// </summary>
     /// <param name="page">The page.</param>
     /// <returns>The rotated page size.</returns>
-    public static SKSize GetRotatedSize(this PdfPanelPage page)
-    {
-        return page.Info.GetRotatedSize(page.UserRotation);
-    }
+    public static SKSize GetRotatedSize(this PdfPanelPage page) => page?.Info.GetRotatedSize(page.UserRotation) ?? throw new ArgumentNullException(nameof(page));
 
     /// <summary>
     /// Gets the size of the page after applying rotation and scale.
@@ -148,8 +142,10 @@ public static class PdfPanelPageExtensions
             throw new System.ArgumentNullException(nameof(page));
         }
 
-        return pagePoint.X >= 0 && pagePoint.X <= page.Info.Width &&
-               pagePoint.Y >= 0 && pagePoint.Y <= page.Info.Height;
+        return pagePoint.X >= 0
+            && pagePoint.X <= page.Info.Width
+            && pagePoint.Y >= 0
+            && pagePoint.Y <= page.Info.Height;
     }
 
     /// <summary>
@@ -185,7 +181,7 @@ public static class PdfPanelPageExtensions
             throw new System.ArgumentNullException(nameof(page));
         }
 
-        var matrix = SKMatrix.Identity;
+        SKMatrix matrix = SKMatrix.Identity;
 
         // Step 1: Add scroll offset to reverse viewport translation
         matrix = matrix.PostConcat(SKMatrix.CreateTranslation(horizontalOffset, verticalOffset));
@@ -200,7 +196,7 @@ public static class PdfPanelPageExtensions
         int totalRotation = page.GetTotalRotation();
         if (totalRotation != 0)
         {
-            SKSize unrotatedSize = new SKSize(page.Info.Width, page.Info.Height);
+            SKSize unrotatedSize = new(page.Info.Width, page.Info.Height);
             matrix = matrix.PostConcat(GetInverseRotationMatrix(unrotatedSize.Width, unrotatedSize.Height, totalRotation));
         }
 
@@ -218,28 +214,31 @@ public static class PdfPanelPageExtensions
     /// <returns>An SKMatrix representing the inverse rotation transformation for the specified area and angle.</returns>
     public static SKMatrix GetInverseRotationMatrix(float width, float height, int rotationDegrees)
     {
-        rotationDegrees = rotationDegrees % 360;
+        rotationDegrees %= 360;
         if (rotationDegrees < 0)
         {
             rotationDegrees += 360;
         }
 
-        var matrix = SKMatrix.Identity;
+        SKMatrix matrix = SKMatrix.Identity;
 
         switch (rotationDegrees)
         {
             case 90:
-                matrix = matrix.PostConcat(SKMatrix.CreateTranslation(-height, 0));
-                matrix = matrix.PostConcat(SKMatrix.CreateRotationDegrees(-90));
-                break;
+                {
+                    matrix = matrix.PostConcat(SKMatrix.CreateTranslation(-height, 0));
+                    return matrix.PostConcat(SKMatrix.CreateRotationDegrees(-90));
+                }
             case 180:
-                matrix = matrix.PostConcat(SKMatrix.CreateTranslation(-width, -height));
-                matrix = matrix.PostConcat(SKMatrix.CreateRotationDegrees(-180));
-                break;
+                {
+                    matrix = matrix.PostConcat(SKMatrix.CreateTranslation(-width, -height));
+                    return matrix.PostConcat(SKMatrix.CreateRotationDegrees(-180));
+                }
             case 270:
-                matrix = matrix.PostConcat(SKMatrix.CreateTranslation(0, -width));
-                matrix = matrix.PostConcat(SKMatrix.CreateRotationDegrees(-270));
-                break;
+                {
+                    matrix = matrix.PostConcat(SKMatrix.CreateTranslation(0, -width));
+                    return matrix.PostConcat(SKMatrix.CreateRotationDegrees(-270));
+                }
         }
 
         return matrix;

@@ -3,23 +3,31 @@ using System.Threading;
 
 namespace PdfPixel.PdfPanel.ContentProvider;
 
+/// <summary>
+/// Holds a read-locked reference to content protected by a <see cref="ReaderWriterLockSlim"/>.
+/// Dispose to release the read lock.
+/// </summary>
 public sealed class LockedContent<T> : IDisposable
 {
     private readonly ReaderWriterLockSlim _locker;
 
-    public LockedContent(T content, ReaderWriterLockSlim locker)
+    /// <summary>
+    /// Acquires a read lock on <paramref name="locker"/> and stores <paramref name="content"/>.
+    /// </summary>
+    public LockedContent(T? content, ReaderWriterLockSlim locker)
     {
         _locker = locker ?? throw new ArgumentNullException(nameof(locker));
         _locker.EnterReadLock();
         Content = content;
     }
 
-    public T Content { get; }
+    /// <summary>
+    /// The locked content value.
+    /// </summary>
+    public T? Content { get; }
 
-    public bool HasContent => Content != null;
-
-    public void Dispose()
-    {
-        _locker.ExitReadLock();
-    }
+    /// <summary>
+    /// Releases the read lock.
+    /// </summary>
+    public void Dispose() => _locker.ExitReadLock();
 }

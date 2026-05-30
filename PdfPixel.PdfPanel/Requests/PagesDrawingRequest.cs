@@ -1,41 +1,58 @@
-﻿using PdfPixel.Models;
+using PdfPixel.Models;
 using SkiaSharp;
+using System;
 
 namespace PdfPixel.PdfPanel.Requests;
 
 /// <summary>
-/// Request to draw pages on rendering panel.
+/// Rendering request that includes page layout and visual parameters.
 /// </summary>
 public class PagesDrawingRequest : DrawingRequest
 {
+    /// <summary>
+    /// Color drawn behind all pages.
+    /// </summary>
     public SKColor BackgroundColor { get; set; }
 
-    public int MaxThumbnailSize { get; set; }
-
+    /// <summary>
+    /// Corner radius applied to page rectangles in unscaled page space. Zero for sharp corners.
+    /// </summary>
     public float PageCornerRadius { get; set; }
 
-    public PdfRenderingParameters RenderingParameters { get; set; }
+    /// <summary>
+    /// PDF rendering parameters such as scale factor and quality settings.
+    /// </summary>
+    public PdfRenderingParameters RenderingParameters { get; set; } = new();
 
-    public override bool IsSkippable => true;
-
-    public override bool Equals(object obj)
+    /// <inheritdoc />
+    public override bool Equals(object? obj)
     {
-        if (obj is PagesDrawingRequest parameters)
+        if (obj is PagesDrawingRequest other)
         {
-            return base.Equals(obj) &&
-                BackgroundColor == parameters.BackgroundColor &&
-                MaxThumbnailSize == parameters.MaxThumbnailSize &&
-                PageCornerRadius == parameters.PageCornerRadius &&
-                RenderingParameters == parameters.RenderingParameters;
+            return base.Equals(obj)
+                && BackgroundColor == other.BackgroundColor
+                && PageCornerRadius == other.PageCornerRadius
+                && RenderingParameters == other.RenderingParameters;
         }
-        else
-        {
-            return false;
-        }
+
+        return false;
     }
 
+    /// <inheritdoc />
     public override int GetHashCode()
     {
-        return base.GetHashCode();
+        HashCode hash = new();
+
+        hash.Add(base.GetHashCode());
+        hash.Add(Scale);
+        hash.Add(Offset);
+        hash.Add(CanvasSize);
+        hash.Add(RenderTarget);
+        hash.Add(ActiveAnnotation);
+        hash.Add(ActiveAnnotationState);
+        hash.Add(BackgroundColor);
+        hash.Add(PageCornerRadius);
+        hash.Add(RenderingParameters);
+        return hash.ToHashCode();
     }
 }

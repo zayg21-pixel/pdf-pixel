@@ -1,7 +1,7 @@
 ﻿using PdfPixel.Annotations.Models;
+using PdfPixel.PdfPanel.Annotations;
 using SkiaSharp;
 using System;
-using System.Collections.Generic;
 using System.Linq;
 
 namespace PdfPixel.PdfPanel.Extensions;
@@ -25,9 +25,10 @@ public static class PdfPanelContextExtensions
         {
             throw new ArgumentNullException(nameof(context));
         }
+
         int pageCount = context.Pages.Count;
-        float viewportCenterX = context.HorizontalOffset + context.ViewportWidth / 2f;
-        float viewportCenterY = context.VerticalOffset + context.ViewportHeight / 2f;
+        float viewportCenterX = context.HorizontalOffset + (context.ViewportWidth / 2f);
+        float viewportCenterY = context.VerticalOffset + (context.ViewportHeight / 2f);
         int closestPageNumber = 1;
         float closestDistance = float.MaxValue;
 
@@ -36,12 +37,12 @@ public static class PdfPanelContextExtensions
             PdfPanelPage page = context.Pages[i];
             SKSize rotatedScaledSize = page.GetRotatedScaledSize(context.Scale);
 
-            float pageCenterX = page.Offset.X + rotatedScaledSize.Width / 2f;
-            float pageCenterY = page.Offset.Y + rotatedScaledSize.Height / 2f;
+            float pageCenterX = page.Offset.X + (rotatedScaledSize.Width / 2f);
+            float pageCenterY = page.Offset.Y + (rotatedScaledSize.Height / 2f);
 
             float deltaX = pageCenterX - viewportCenterX;
             float deltaY = pageCenterY - viewportCenterY;
-            float distanceSquared = deltaX * deltaX + deltaY * deltaY;
+            float distanceSquared = (deltaX * deltaX) + (deltaY * deltaY);
 
             if (distanceSquared < closestDistance)
             {
@@ -49,6 +50,7 @@ public static class PdfPanelContextExtensions
                 closestPageNumber = page.PageNumber;
             }
         }
+
         return closestPageNumber;
     }
 
@@ -64,11 +66,12 @@ public static class PdfPanelContextExtensions
         {
             throw new ArgumentNullException(nameof(context));
         }
-        var page = context.Pages.FirstOrDefault(p => p.PageNumber == pageNumber);
+
+        PdfPanelPage? page = context.Pages.FirstOrDefault(p => p.PageNumber == pageNumber);
         if (page != null)
         {
-            context.VerticalOffset = page.Offset.Y - context.MinimumPageGap * context.Scale;
-            context.HorizontalOffset = page.Offset.X - context.MinimumPageGap * context.Scale;
+            context.VerticalOffset = page.Offset.Y - (context.MinimumPageGap * context.Scale);
+            context.HorizontalOffset = page.Offset.X - (context.MinimumPageGap * context.Scale);
         }
     }
 
@@ -86,8 +89,9 @@ public static class PdfPanelContextExtensions
         {
             throw new ArgumentNullException(nameof(context));
         }
-        var scale = context.Scale;
-        UpdateScalePreserveOffset(context, scale + scale * factor, centerX, centerY);
+
+        float scale = context.Scale;
+        UpdateScalePreserveOffset(context, scale + (scale * factor), centerX, centerY);
     }
 
     /// <summary>
@@ -104,8 +108,9 @@ public static class PdfPanelContextExtensions
         {
             throw new ArgumentNullException(nameof(context));
         }
-        var scale = context.Scale;
-        UpdateScalePreserveOffset(context, scale - scale * factor, centerX, centerY);
+
+        float scale = context.Scale;
+        UpdateScalePreserveOffset(context, scale - (scale * factor), centerX, centerY);
 
     }
 
@@ -124,13 +129,14 @@ public static class PdfPanelContextExtensions
         {
             throw new ArgumentNullException(nameof(context));
         }
-        var oldScale = context.Scale;
+
+        float oldScale = context.Scale;
 
         context.VerticalOffset =
-            (context.VerticalOffset + centerY) * (newScale / oldScale) - centerY;
+            ((context.VerticalOffset + centerY) * (newScale / oldScale)) - centerY;
 
         context.HorizontalOffset =
-            (context.HorizontalOffset + centerX) * (newScale / oldScale) - centerX;
+            ((context.HorizontalOffset + centerX) * (newScale / oldScale)) - centerX;
 
         context.Scale = newScale;
     }
@@ -147,6 +153,7 @@ public static class PdfPanelContextExtensions
         {
             throw new ArgumentNullException(nameof(context));
         }
+
         switch (mode)
         {
             case PdfPanelAutoScaleMode.NoAutoScale:
@@ -178,24 +185,15 @@ public static class PdfPanelContextExtensions
             return;
         }
 
-        float minLeft = float.MaxValue;
-        float minTop = float.MaxValue;
-        float maxRight = float.MinValue;
-        float maxBottom = float.MinValue;
+        float maxPageWidth = 0;
 
-        foreach (var page in pages)
+        foreach (PdfPanelPage page in pages)
         {
-            var rect = page.GetScaledPageBounds(context.Scale);
-            minLeft = Math.Min(minLeft, rect.Left);
-            minTop = Math.Min(minTop, rect.Top);
-            maxRight = Math.Max(maxRight, rect.Right);
-            maxBottom = Math.Max(maxBottom, rect.Bottom);
+            maxPageWidth = Math.Max(maxPageWidth, page.GetRotatedSize().Width);
         }
 
-        float contentWidth = Math.Max(0, maxRight - minLeft);
         float padding = context.PagesPadding.Left + context.PagesPadding.Right;
-        var targetWidth = contentWidth + padding + 1;
-        var scale = context.ViewportWidth * context.Scale / targetWidth;
+        float scale = MathF.Max(context.MinScale, MathF.Min(context.MaxScale, (context.ViewportWidth - padding) / maxPageWidth));
 
         if (Math.Abs(scale - context.Scale) / context.Scale <= ScaleTolerance)
         {
@@ -217,17 +215,15 @@ public static class PdfPanelContextExtensions
             return;
         }
 
-        float contentHeight = 0;
+        float maxPageHeight = 0;
 
-        foreach (var page in pages)
+        foreach (PdfPanelPage page in pages)
         {
-            var rect = page.GetScaledPageBounds(context.Scale);
-            contentHeight = Math.Max(contentHeight, rect.Height);
+            maxPageHeight = Math.Max(maxPageHeight, page.GetRotatedSize().Height);
         }
 
-        float padding = context.MinimumPageGap * context.Scale;
-        var targetHeight = contentHeight + padding + 1;
-        var scale = context.ViewportHeight * context.Scale / targetHeight;
+        float padding = context.MinimumPageGap;
+        float scale = MathF.Max(context.MinScale, MathF.Min(context.MaxScale, (context.ViewportHeight - padding) / maxPageHeight));
 
         if (Math.Abs(scale - context.Scale) / context.Scale <= ScaleTolerance)
         {
@@ -245,7 +241,7 @@ public static class PdfPanelContextExtensions
     /// <param name="viewportPoint">Point in viewport coordinate space.</param>
     /// <returns>The page at the specified point, or <see langword="null"/> if no page is found.</returns>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="context"/> is <see langword="null"/>.</exception>
-    public static PdfPanelPage GetPageAtViewportPoint(this PdfPanelContext context, SKPoint viewportPoint)
+    public static PdfPanelPage? GetPageAtViewportPoint(this PdfPanelContext context, SKPoint viewportPoint)
     {
         if (context == null)
         {
@@ -279,9 +275,8 @@ public static class PdfPanelContextExtensions
     /// <summary>
     /// Scrolls to the specified PDF destination.
     /// </summary>
-    /// <param name="context">The panel context.</param>
-    /// <param name="destination">The destination to navigate to.</param>
-    /// <exception cref="ArgumentNullException">Thrown when <paramref name="context"/> is <see langword="null"/>.</exception>
+    /// <param name="context">The panel context to scroll.</param>
+    /// <param name="action">The annotation action containing the destination page and optional rect and zoom.</param>
     public static void ScrollToAction(this PdfPanelContext context, PdfPanelAnnotationAction action)
     {
         if (context == null)
@@ -294,12 +289,12 @@ public static class PdfPanelContextExtensions
             return;
         }
 
-        if (!context.Pages.TryGetPage(action.PageNumber.Value, out var targetPage))
+        if (!context.Pages.TryGetPage(action.PageNumber.Value, out PdfPanelPage? targetPage) || targetPage == null)
         {
             return;
         }
 
-        if (action.Zoom.HasValue && action.Zoom.Value > 0)
+        if (action.Zoom > 0)
         {
             context.Scale = action.Zoom.Value;
         }
@@ -307,7 +302,7 @@ public static class PdfPanelContextExtensions
         if (action.TargetRect.HasValue)
         {
             SKRect pdfRect = action.TargetRect.Value;
-            SKPoint pdfLocation = new SKPoint(pdfRect.Left, pdfRect.Top);
+            SKPoint pdfLocation = new(pdfRect.Left, pdfRect.Top);
             SKPoint pageLocation = targetPage.FromPdfPoint(pdfLocation);
 
             SKMatrix pageToCanvas = targetPage.ViewportToPageMatrix(context.Scale, 0, 0).Invert();
@@ -322,6 +317,11 @@ public static class PdfPanelContextExtensions
         }
     }
 
+    /// <summary>
+    /// Scrolls the viewport to the specified PDF destination, optionally updating the zoom level.
+    /// </summary>
+    /// <param name="context">The panel context to scroll.</param>
+    /// <param name="destination">The PDF destination to navigate to.</param>
     public static void ScrollToDestination(this PdfPanelContext context, PdfDestination destination)
     {
         if (context == null)
@@ -334,18 +334,18 @@ public static class PdfPanelContextExtensions
             return;
         }
 
-        var destinationPage = destination.GetPdfPage();
+        Models.IPdfPage? destinationPage = destination.GetPdfPage();
         if (destinationPage == null)
         {
             return;
         }
 
-        if (!context.Pages.TryGetPage(destinationPage.PageNumber, out var targetPage))
+        if (!context.Pages.TryGetPage(destinationPage.PageNumber, out PdfPanelPage? targetPage) || targetPage == null)
         {
             return;
         }
 
-        if (destination.Zoom.HasValue && destination.Zoom.Value > 0)
+        if (destination.Zoom > 0)
         {
             context.Scale = destination.Zoom.Value;
         }
@@ -354,7 +354,7 @@ public static class PdfPanelContextExtensions
         if (targetLocation.HasValue)
         {
             SKRect pdfRect = targetLocation.Value;
-            SKPoint pdfLocation = new SKPoint(pdfRect.Left, pdfRect.Top);
+            SKPoint pdfLocation = new(pdfRect.Left, pdfRect.Top);
             SKPoint pageLocation = targetPage.FromPdfPoint(pdfLocation);
 
             SKMatrix pageToCanvas = targetPage.ViewportToPageMatrix(context.Scale, 0, 0).Invert();

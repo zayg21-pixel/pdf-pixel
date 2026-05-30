@@ -1,4 +1,5 @@
-﻿using SkiaSharp;
+﻿using PdfPixel.PdfPanel.Annotations;
+using SkiaSharp;
 using System;
 
 namespace PdfPixel.PdfPanel;
@@ -8,7 +9,7 @@ namespace PdfPixel.PdfPanel;
 /// </summary>
 public class PdfPanelPage
 {
-    internal PdfPanelPage(PdfPanelPageInfo info, int pageNumber, PdfAnnotationPopup[] popups)
+    internal PdfPanelPage(in PdfPanelPageInfo info, int pageNumber, PdfAnnotationPopup[]? popups)
     {
         Info = info;
         PageNumber = pageNumber;

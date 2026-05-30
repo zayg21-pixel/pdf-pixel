@@ -1,8 +1,8 @@
-﻿using PdfPixel.PdfPanel.Requests;
+﻿using PdfPixel.PdfPanel.Rendering;
+using PdfPixel.PdfPanel.Requests;
 using PdfPixel.PdfPanel.Wpf.Drawing;
 using SkiaSharp;
 using System;
-using System.Threading;
 using System.Windows;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
@@ -30,7 +30,7 @@ partial class WpfPdfPanelRenderTarget : IPdfPanelRenderTarget
 
     public SKPoint CanvasOffset { get; }
 
-    public void Render(SKSurface surface, DrawingRequest request, CancellationToken token)
+    public void Render(SKSurface surface, DrawingRequest request)
     {
         DrawOnWritableBitmap(surface, request);
     }

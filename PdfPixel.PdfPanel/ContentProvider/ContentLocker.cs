@@ -10,8 +10,8 @@ namespace PdfPixel.PdfPanel.ContentProvider;
 /// <typeparam name="T">Content type.</typeparam>
 public sealed class ContentLocker<T> : IDisposable
 {
-    private readonly ReaderWriterLockSlim _lock = new ReaderWriterLockSlim();
-    private T _content;
+    private readonly ReaderWriterLockSlim _lock = new();
+    private T? _content;
     private bool _disposed;
 
     /// <summary>
@@ -24,7 +24,7 @@ public sealed class ContentLocker<T> : IDisposable
     /// Must not be called while the content is locked for reading, as it will acquire a write lock internally.
     /// </summary>
     /// <param name="content">The new content to set.</param>
-    public void SetContent(T content)
+    public void SetContent(T? content)
     {
         _lock.EnterWriteLock();
         try
@@ -70,6 +70,7 @@ public sealed class ContentLocker<T> : IDisposable
         {
             disposable.Dispose();
         }
+
         _disposed = true;
 
         _lock.Dispose();

@@ -1,4 +1,4 @@
-﻿namespace PdfPixel.PdfPanel;
+﻿namespace PdfPixel.PdfPanel.Rendering;
 
 /// <summary>
 /// Defines a factory for creating <see cref="IPdfPanelRenderTarget"/> instances for PDF panel rendering.
@@ -12,3 +12,4 @@ public interface IPdfPanelRenderTargetFactory
     /// <returns>A new <see cref="IPdfPanelRenderTarget"/> instance.</returns>
     IPdfPanelRenderTarget GetRenderTarget(PdfPanelContext context);
 }
+

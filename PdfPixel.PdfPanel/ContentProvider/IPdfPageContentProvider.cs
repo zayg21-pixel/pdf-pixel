@@ -1,50 +1,49 @@
+using PdfPixel.PdfPanel.Annotations;
 using SkiaSharp;
 using System;
 
 namespace PdfPixel.PdfPanel.ContentProvider;
 
-public enum UpdatedContentType
-{
-    Content,
-    Annotations
-}
-
-public class PdfContentPictures
-{
-    public ContentLocker<SKPicture> Content { get; set; }
-
-    public ContentLocker<SKPicture> Annotations { get; set; }
-}
-
-public class PageUpdatedArgs
-{
-    public PageUpdatedArgs(int pageNumber, PdfContentPictures contentPictures, UpdatedContentType updatedContentType)
-    {
-        PageNumber = pageNumber;
-        ContentPictures = contentPictures;
-        UpdatedContentType = updatedContentType;
-    }
-
-    public int PageNumber { get; }
-
-    public PdfContentPictures ContentPictures { get; }
-
-    public UpdatedContentType UpdatedContentType { get; }
-}
-
+/// <summary>
+/// Provides decoded page content and annotation pictures for rendering.
+/// Implementations run decoding on a background thread and notify via <see cref="OnPageUpdated"/>.
+/// </summary>
 public interface IPdfPageContentProvider : IDisposable
 {
+    /// <summary>
+    /// Synchronisation object used to serialise access to the underlying PDF document.
+    /// </summary>
     object DocumentLocker { get; }
 
-    Action<PageUpdatedArgs> OnPageUpdated { get; set; }
+    /// <summary>
+    /// Called on the UI thread whenever a page's content or annotations have been decoded and are ready to render.
+    /// </summary>
+    Action<PageUpdatedArgs>? OnPageUpdated { get; set; }
 
-    PdfAnnotationPopup[] GetAnnotationPopups(int pageNumber);
+    /// <summary>
+    /// Returns the annotation popups for the specified 1-based page number.
+    /// </summary>
+    PdfAnnotationPopup[]? GetAnnotationPopups(int pageNumber);
 
+    /// <summary>
+    /// Returns the total number of pages in the document.
+    /// </summary>
     int GetPagesCount();
 
+    /// <summary>
+    /// Returns the currently cached <see cref="PdfContentPictures"/> for the specified 1-based page number.
+    /// Returns empty pictures if the page has not been decoded yet.
+    /// </summary>
     PdfContentPictures GetExistingContentPictures(int pageNumber);
 
+    /// <summary>
+    /// Starts or updates background decoding for the pages described by <paramref name="request"/>.
+    /// Pages no longer visible are cancelled and their cache cleared.
+    /// </summary>
     void UpdateContent(UpdateContentRequest request);
 
+    /// <summary>
+    /// Returns the <see cref="PdfPanelPageInfo"/> for the specified 1-based page number.
+    /// </summary>
     PdfPanelPageInfo GetPageInfo(int pageNumber);
 }

@@ -5,6 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:PdfPixel.Demo.Wpf"
         xmlns:pdfPanel="clr-namespace:PdfPixel.PdfPanel;assembly=PdfPixel.PdfPanel"
+        xmlns:pdfPanelAnnotations="clr-namespace:PdfPixel.PdfPanel.Annotations;assembly=PdfPixel.PdfPanel"
         xmlns:wpfPdfPanel="clr-namespace:PdfPixel.PdfPanel.Wpf;assembly=PdfPixel.PdfPanel.Wpf"
         mc:Ignorable="d"
         Icon="logo.ico"
@@ -149,7 +150,7 @@
                 <wpfPdfPanel:WpfPdfPanel.AnnotationToolTip>
                     <ToolTip>
                         <ToolTip.ContentTemplate>
-                            <DataTemplate DataType="{x:Type pdfPanel:PdfAnnotationPopup}">
+                            <DataTemplate DataType="{x:Type pdfPanelAnnotations:PdfAnnotationPopup}">
                                 <ItemsControl ItemsSource="{Binding Messages}">
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate>

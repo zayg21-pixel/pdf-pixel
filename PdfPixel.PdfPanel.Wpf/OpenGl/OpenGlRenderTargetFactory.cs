@@ -1,8 +1,8 @@
+using PdfPixel.PdfPanel.Rendering;
 using PdfPixel.PdfPanel.Requests;
 using PdfPixel.PdfPanel.Wpf.Drawing;
 using SkiaSharp;
 using System;
-using System.Threading;
 using System.Windows;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
@@ -37,11 +37,6 @@ public sealed class OpenGlRenderTargetFactory : IPdfPanelRenderTargetFactory, IP
     private SKSurface _currentSurface;
     private int _currentWidth;
     private int _currentHeight;
-
-    // Thumbnail surface state
-    private SKSurface _currentThumbnailSurface;
-    private int _currentThumbnailWidth;
-    private int _currentThumbnailHeight;
 
     // Presentation state (created/updated on UI thread via GetRenderTarget)
     private WriteableBitmap _writeableBitmap;
@@ -98,12 +93,7 @@ public sealed class OpenGlRenderTargetFactory : IPdfPanelRenderTargetFactory, IP
     }
 
     /// <inheritdoc />
-    /// <remarks>
-    /// Returns a GPU-backed <see cref="SKSurface"/> for the given dimensions.
-    /// A new surface is created only when the dimensions change. Previous content
-    /// is preserved by drawing the old surface onto the new one.
-    /// </remarks>
-    public SKSurface GetDrawingSurface(int width, int height, CancellationToken token)
+    public SKSurface GetDrawingSurface(int width, int height)
     {
         _glContext.MakeCurrent();
 
@@ -139,34 +129,6 @@ public sealed class OpenGlRenderTargetFactory : IPdfPanelRenderTargetFactory, IP
 
     /// <inheritdoc />
     /// <remarks>
-    /// Returns a GPU-backed offscreen surface for thumbnail rendering.
-    /// Uses the same <see cref="GRContext"/> as the main drawing surface.
-    /// </remarks>
-    public SKSurface GetThumbnailSurface(int width, int height, CancellationToken token)
-    {
-        _glContext.MakeCurrent();
-
-        if (_currentThumbnailSurface != null && _currentThumbnailWidth == width && _currentThumbnailHeight == height)
-        {
-            return _currentThumbnailSurface;
-        }
-
-        var info = new SKImageInfo(width, height, SKColorType.Bgra8888, SKAlphaType.Premul);
-        var newSurface = SKSurface.Create(_grContext, budgeted: true, info, sampleCount: 1);
-        newSurface.Canvas.ClipRect(new SKRect(0, 0, width, height));
-
-        var oldSurface = _currentThumbnailSurface;
-        _currentThumbnailSurface = newSurface;
-        _currentThumbnailWidth = width;
-        _currentThumbnailHeight = height;
-
-        oldSurface?.Dispose();
-
-        return newSurface;
-    }
-
-    /// <inheritdoc />
-    /// <remarks>
     /// Called from the UI thread. Creates or reuses a <see cref="WriteableBitmap"/> that
     /// matches the current canvas dimensions.
     /// </remarks>
@@ -198,12 +160,7 @@ public sealed class OpenGlRenderTargetFactory : IPdfPanelRenderTargetFactory, IP
     }
 
     /// <inheritdoc />
-    /// <remarks>
-    /// Reads pixels from the GPU surface on the render thread into a CPU buffer,
-    /// then dispatches to the UI thread to copy into the <see cref="WriteableBitmap"/>
-    /// and present via <see cref="DrawingVisual"/>.
-    /// </remarks>
-    public void Render(SKSurface surface, DrawingRequest request, CancellationToken token)
+    public void Render(SKSurface surface, DrawingRequest request)
     {
         var imageInfo = new SKImageInfo(_currentWidth, _currentHeight, SKColorType.Bgra8888, SKAlphaType.Premul);
 
@@ -254,9 +211,6 @@ public sealed class OpenGlRenderTargetFactory : IPdfPanelRenderTargetFactory, IP
     {
         _currentSurface?.Dispose();
         _currentSurface = null;
-
-        _currentThumbnailSurface?.Dispose();
-        _currentThumbnailSurface = null;
 
         _grContext?.Dispose();
         _grContext = null;

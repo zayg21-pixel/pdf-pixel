@@ -1,100 +1,76 @@
-﻿using PdfPixel.Commands;
-using PdfPixel.Models;
+using PdfPixel.PdfPanel.Animation;
 using PdfPixel.PdfPanel.ContentProvider;
 using PdfPixel.PdfPanel.Requests;
 using SkiaSharp;
 using System;
-using System.Linq;
-using System.Threading;
 
 namespace PdfPixel.PdfPanel.Extensions;
 
-[Flags]
-internal enum PageDrawFlags
-{
-    Content = 1,
-    Shadow = 2,
-    Background = 4,
-    Thumbnail = 8
-}
-
-/// <summary>
-/// Extensions for drawing PDF data on <see cref="SKCanvas"/>.
-/// </summary>
 internal static class SkCanvasExtensions
 {
-    public static void DrawPageFromRequest(this SKCanvas canvas, int pageNumber, PagesDrawingRequest request, PdfPanelRenderCommand command, PageDrawFlags drawFlags, CancellationToken cancellationToken)
+    public static void DrawPage(this SKCanvas canvas, in VisiblePageInfo page, PagesDrawingRequest request, PdfContentPictures pictures, PageDrawFlags flags, in AnimationState animation)
     {
-        if (!request.VisiblePages.Any(x => x.PageNumber == pageNumber))
-        {
-            return;
-        }
-
-        var page = request.VisiblePages.First(x => x.PageNumber == pageNumber);
-
-        int savedPageCount = canvas.Save();
+        int savedCount = canvas.Save();
         try
         {
-            canvas.Scale((float)request.Scale, (float)request.Scale);
-            canvas.Translate((float)page.Offset.X, (float)page.Offset.Y);
+            canvas.Scale(request.Scale, request.Scale);
+            canvas.Translate(page.Offset.X, page.Offset.Y);
 
-            if (drawFlags.HasFlag(PageDrawFlags.Shadow))
+            if ((flags & PageDrawFlags.Shadow) != 0)
             {
                 DrawPageShadow(canvas, page, request.RenderingParameters.Antialias, request.PageCornerRadius);
             }
 
-            if (drawFlags.HasFlag(PageDrawFlags.Background))
+            if ((flags & PageDrawFlags.Background) != 0)
             {
                 DrawPageBackground(canvas, page, request.RenderingParameters.Antialias, request.PageCornerRadius);
             }
 
-            var pageRectangle = new SKRect(0, 0, page.RotatedSize.Width, page.RotatedSize.Height);
-
-            if (request.PageCornerRadius > 0)
+            if ((flags & PageDrawFlags.Content) != 0)
             {
-                using var clipPath = new SKPath();
-                clipPath.AddRoundRect(pageRectangle, request.PageCornerRadius, request.PageCornerRadius);
-                canvas.ClipPath(clipPath, SKClipOperation.Intersect, antialias: request.RenderingParameters.Antialias);
-            }
+                SKRect pageRect = new(0, 0, page.RotatedSize.Width, page.RotatedSize.Height);
 
-            canvas.SaveLayer(pageRectangle, default);
-            canvas.Clear();
-
-            if (drawFlags.HasFlag(PageDrawFlags.Content))
-            {
-                if (command.ContentPictures != null)
+                if (request.PageCornerRadius > 0)
                 {
-                    DrawPagePicture(canvas, command.ContentPictures.Content, page, cancellationToken);
-                    DrawPagePicture(canvas, command.ContentPictures.Annotations, page, cancellationToken);
+                    using SKPath clipPath = new();
+                    clipPath.AddRoundRect(pageRect, request.PageCornerRadius, request.PageCornerRadius);
+                    canvas.ClipPath(clipPath, SKClipOperation.Intersect, antialias: request.RenderingParameters.Antialias);
+                }
+
+                canvas.SaveLayer(pageRect, default);
+                canvas.Clear();
+
+                if (pictures?.Content?.HasContent == true)
+                {
+                    DrawPagePicture(canvas, pictures.Content, page);
+                    DrawPagePicture(canvas, pictures.Annotations, page);
+                }
+                else if ((flags & PageDrawFlags.Placeholder) != 0)
+                {
+                    DrawPlaceholder(canvas, page, animation);
                 }
             }
         }
         finally
         {
-            canvas.RestoreToCount(savedPageCount);
+            canvas.RestoreToCount(savedCount);
         }
     }
 
-    private static void DrawPagePicture(SKCanvas canvas, ContentLocker<SKPicture> content, VisiblePageInfo page, CancellationToken cancellationToken)
+    private static void DrawPagePicture(SKCanvas canvas, ContentLocker<SKPicture>? content, in VisiblePageInfo page)
     {
-        if (content == null)
+        if (content?.HasContent != true)
         {
             return;
         }
 
-        if (!content.HasContent)
-        {
-            return;
-        }
+        using LockedContent<SKPicture> contentPicture = content.GetContent();
 
-        using var contentPicture = content.GetContent();
-
-        // Recordings are at scale 1 (page coordinate space).
-        var transformMatrix = GetPictureTransformMatrix(page.Info.Width, page.Info.Height, page.Info, page.UserRotation);
+        SKMatrix transform = page.ContentTransform;
         int saveCount = canvas.Save();
         try
         {
-            canvas.Concat(in transformMatrix);
+            canvas.Concat(in transform);
             canvas.DrawPicture(contentPicture.Content);
         }
         finally
@@ -103,95 +79,78 @@ internal static class SkCanvasExtensions
         }
     }
 
-    private static SKMatrix GetRotationTranslationMatrix(PdfPanelPageInfo pageInfo, int userRotation)
+    private static void DrawPlaceholder(SKCanvas canvas, in VisiblePageInfo page, in AnimationState animation)
     {
-        var rotation = pageInfo.GetTotalRotation(userRotation);
-        var infoWidth = pageInfo.Width;
-        var infoHeight = pageInfo.Height;
+        float minDimension = Math.Min(page.RotatedSize.Width, page.RotatedSize.Height);
+        float radius = minDimension * 0.05f;
+        float strokeWidth = radius * 0.15f;
+        float cx = page.RotatedSize.Width / 2f;
+        float cy = page.RotatedSize.Height / 2f;
 
-        var matrixRotation = SKMatrix.CreateRotationDegrees(rotation);
+        SKRect arcRect = new(cx - radius, cy - radius, cx + radius, cy + radius);
+        float startAngle = (animation.Tick % animation.Fps) / (float)animation.Fps * 360f;
 
-        var translateX = rotation switch
+        using SKPaint paint = new()
         {
-            180 => -infoWidth,
-            270 => -infoWidth,
-            _ => 0
-        };
-        var translateY = rotation switch
-        {
-            90 => -infoHeight,
-            180 => -infoHeight,
-            _ => 0
+            Style = SKPaintStyle.Stroke,
+            StrokeWidth = strokeWidth,
+            Color = new SKColor(0, 0, 0, 80),
+            IsAntialias = true,
+            StrokeCap = SKStrokeCap.Round
         };
 
-        var matrixTranslation = SKMatrix.CreateTranslation((float)translateX, (float)translateY);
-
-        return SKMatrix.Concat(matrixRotation, matrixTranslation);
+        canvas.DrawArc(arcRect, startAngle, 270f, false, paint);
     }
 
-    public static SKMatrix GetPictureTransformMatrix(float pictureWidth, float pictureHeight, PdfPanelPageInfo pageInfo, int userRotation)
+    private static void DrawPageShadow(SKCanvas canvas, in VisiblePageInfo page, bool antialias, float cornerRadius)
     {
-        var infoWidth = pageInfo.Width;
-        var infoHeight = pageInfo.Height;
+        SKRect pageRect = new(0, 0, page.RotatedSize.Width, page.RotatedSize.Height);
 
-        var matrixScale = SKMatrix.CreateScale((float)(infoWidth / pictureWidth), (float)(infoHeight / pictureHeight));
-        var matrixRotationTranslation = GetRotationTranslationMatrix(pageInfo, userRotation);
-
-        return SKMatrix.Concat(matrixRotationTranslation, matrixScale);
-    }
-
-    private static void DrawPageShadow(SKCanvas canvas, VisiblePageInfo page, bool antialias, float cornerRadius)
-    {
-        var rotatedSize = page.RotatedSize;
-        var pageRectangle = new SKRect(0, 0, rotatedSize.Width, rotatedSize.Height);
-
-        if (!pageRectangle.Contains(canvas.LocalClipBounds))
+        if (pageRect.Contains(canvas.LocalClipBounds))
         {
-            const float shadowSigma = 3f;
-            const byte shadowAlpha = 160;
-
-            using var shadowPaint = new SKPaint
-            {
-                Style = SKPaintStyle.Fill,
-                IsAntialias = antialias,
-                Color = SKColors.Gray.WithAlpha(shadowAlpha),
-                MaskFilter = SKMaskFilter.CreateBlur(SKBlurStyle.Normal, shadowSigma)
-            };
-
-            int saveCount = canvas.Save();
-
-            if (cornerRadius > 0)
-            {
-                canvas.DrawRoundRect(pageRectangle, cornerRadius, cornerRadius, shadowPaint);
-            }
-            else
-            {
-                canvas.DrawRect(pageRectangle, shadowPaint);
-            }
-
-            canvas.RestoreToCount(saveCount);
+            return;
         }
+
+        using SKPaint shadowPaint = new()
+        {
+            Style = SKPaintStyle.Fill,
+            IsAntialias = antialias,
+            Color = SKColors.Gray.WithAlpha(160),
+            MaskFilter = SKMaskFilter.CreateBlur(SKBlurStyle.Normal, 3f)
+        };
+
+        int saveCount = canvas.Save();
+
+        if (cornerRadius > 0)
+        {
+            canvas.DrawRoundRect(pageRect, cornerRadius, cornerRadius, shadowPaint);
+        }
+        else
+        {
+            canvas.DrawRect(pageRect, shadowPaint);
+        }
+
+        canvas.RestoreToCount(saveCount);
     }
 
-    private static void DrawPageBackground(SKCanvas canvas, VisiblePageInfo page, bool antialias, float cornerRadius)
+    private static void DrawPageBackground(SKCanvas canvas, in VisiblePageInfo page, bool antialias, float cornerRadius)
     {
-        var rotatedSize = page.RotatedSize;
-        var pageRectangle = new SKRect(0, 0, rotatedSize.Width, rotatedSize.Height);
+        SKRect pageRect = new(0, 0, page.RotatedSize.Width, page.RotatedSize.Height);
 
-        using var backgroundFill = new SKPaint
+        using SKPaint paint = new()
         {
             Style = SKPaintStyle.Fill,
             Color = SKColors.White,
-            IsAntialias = antialias,
+            IsAntialias = antialias
         };
 
         if (cornerRadius > 0)
         {
-            canvas.DrawRoundRect(pageRectangle, cornerRadius, cornerRadius, backgroundFill);
+            canvas.DrawRoundRect(pageRect, cornerRadius, cornerRadius, paint);
         }
         else
         {
-            canvas.DrawRect(pageRectangle, backgroundFill);
+            canvas.DrawRect(pageRect, paint);
         }
     }
 }

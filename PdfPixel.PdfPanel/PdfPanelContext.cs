@@ -1,4 +1,4 @@
-﻿using PdfPixel.Annotations.Models;
+using PdfPixel.Annotations.Models;
 using PdfPixel.PdfPanel.Extensions;
 using PdfPixel.PdfPanel.Requests;
 using PdfPixel.PdfPanel.Layout;
@@ -7,6 +7,8 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using PdfPixel.Models;
+using PdfPixel.PdfPanel.Rendering;
+using PdfPixel.PdfPanel.Annotations;
 
 namespace PdfPixel.PdfPanel;
 
@@ -15,14 +17,17 @@ namespace PdfPixel.PdfPanel;
 /// </summary>
 public class PdfPanelContext
 {
-    private readonly PdfRenderingQueue _pdfRenderingQueue;
+    private readonly PdfPanelRenderer _renderer;
     private readonly IPdfPanelRenderTargetFactory _renderTargetFactory;
     private readonly IPdfPanelLayout _layout;
 
-    public PdfPanelContext(PdfPanelPageCollection pages, PdfRenderingQueue renderingQueue, IPdfPanelRenderTargetFactory renderTargetFactory, IPdfPanelLayout layout)
+    /// <summary>
+    /// Initializes the context with the given page collection, renderer, render target factory, and layout.
+    /// </summary>
+    public PdfPanelContext(PdfPanelPageCollection pages, PdfPanelRenderer renderer, IPdfPanelRenderTargetFactory renderTargetFactory, IPdfPanelLayout layout)
     {
         Pages = pages ?? throw new ArgumentNullException(nameof(pages));
-        _pdfRenderingQueue = renderingQueue ?? throw new ArgumentNullException(nameof(renderingQueue));
+        _renderer = renderer ?? throw new ArgumentNullException(nameof(renderer));
         _renderTargetFactory = renderTargetFactory ?? throw new ArgumentNullException(nameof(renderTargetFactory));
         _layout = layout ?? throw new ArgumentNullException(nameof(layout));
     }
@@ -33,15 +38,15 @@ public class PdfPanelContext
     public float ViewportWidth { get; set; }
 
     /// <summary>
-    /// Rendering parameters used for PDF rendering.
-    /// These parameters are passed to the rendering queue and can be used to customize rendering behavior, such as enabling debug overlays or adjusting rendering quality.
-    /// </summary>
-    public PdfRenderingParameters PdfRenderingParameters { get; } = new PdfRenderingParameters();
-
-    /// <summary>
     /// Height of the viewing area in device pixels (unscaled canvas space).
     /// </summary>
     public float ViewportHeight { get; set; }
+
+    /// <summary>
+    /// Rendering parameters used for PDF rendering.
+    /// These parameters are passed to the rendering queue and can be used to customize rendering behavior, such as enabling debug overlays or adjusting rendering quality.
+    /// </summary>
+    public PdfRenderingParameters PdfRenderingParameters { get; } = new();
 
     /// <summary>
     /// Total width of all pages including padding, in device pixels after applying <see cref="Scale"/>.
@@ -97,17 +102,12 @@ public class PdfPanelContext
     /// Corner radius for page rendering in unscaled page space.
     /// A value of 0 renders pages with sharp corners. The effective on-screen radius is affected by <see cref="Scale"/>.
     /// </summary>
-    public float PageCornerRadius { get; set; } = 0;
+    public float PageCornerRadius { get; set; }
 
     /// <summary>
     /// Background color drawn behind the pages.
     /// </summary>
     public SKColor BackgroundColor { get; set; } = SKColors.LightGray;
-
-    /// <summary>
-    /// Maximum size in pixels for thumbnail generation.
-    /// </summary>
-    public int MaxThumbnailSize { get; set; } = 400;
 
     /// <summary>
     /// Current pointer position in viewport coordinates, or null if pointer is not over the panel.
@@ -122,7 +122,7 @@ public class PdfPanelContext
     /// <summary>
     /// The currently active annotation under the pointer, or null if no annotation is active.
     /// </summary>
-    public PdfAnnotationPopup ActiveAnnotation { get; private set; }
+    public PdfAnnotationPopup? ActiveAnnotation { get; private set; }
 
     /// <summary>
     /// The interaction state of the active annotation.
@@ -148,29 +148,16 @@ public class PdfPanelContext
         Scale = Clamp(Scale, MinScale, MaxScale);
 
         SKSize extentSize = _layout.CalculateDimensions(
-            Pages,
-            Scale,
-            PagesPadding,
-            MinimumPageGap,
-            ViewportWidth,
-            ViewportHeight);
+            Pages, Scale, PagesPadding, MinimumPageGap, ViewportWidth, ViewportHeight);
 
         ExtentWidth = extentSize.Width;
         ExtentHeight = extentSize.Height;
 
         _layout.CalculatePageOffsets(
-            Pages,
-            Scale,
-            PagesPadding,
-            MinimumPageGap,
-            ExtentWidth,
-            ExtentHeight);
+            Pages, Scale, PagesPadding, MinimumPageGap, ExtentWidth, ExtentHeight);
 
-        float scrollHeight = Math.Max(0, ExtentHeight - ViewportHeight);
-        VerticalOffset = Clamp(VerticalOffset, 0, scrollHeight);
-
-        float scrollWidth = Math.Max(0, ExtentWidth - ViewportWidth);
-        HorizontalOffset = Clamp(HorizontalOffset, 0, scrollWidth);
+        VerticalOffset = Clamp(VerticalOffset, 0, Math.Max(0, ExtentHeight - ViewportHeight));
+        HorizontalOffset = Clamp(HorizontalOffset, 0, Math.Max(0, ExtentWidth - ViewportWidth));
 
         UpdateActiveAnnotation();
     }
@@ -180,26 +167,46 @@ public class PdfPanelContext
     /// </summary>
     public void Render()
     {
-        var request = GetPagesDrawingRequest();
-        _pdfRenderingQueue.EnqueueDrawingRequest(request);
+        PagesDrawingRequest? request = BuildRequest();
+        if (request != null)
+        {
+            _renderer.Submit(request);
+        }
     }
 
     /// <summary>
-    /// Requests rendering without redrawing surface content to trigger <see cref="IPdfPanelRenderTarget.RenderAsync(SKSurface, DrawingRequest)"/>. 
+    /// Requests rendering without redrawing surface content to trigger <see cref="IPdfPanelRenderTarget.Render"/>.
     /// </summary>
-    public void Refresh()
-    {
-        var request = GetBaseDrawingRequest<RefreshGraphicsDrawingRequest>();
-        _pdfRenderingQueue.EnqueueDrawingRequest(request);
-    }
+    public void Refresh() => _renderer.Refresh();
 
     /// <summary>
     /// Resets visual state, cleans up rendering surface.
     /// </summary>
-    public void Reset()
+    public void Reset() => _renderer.Reset();
+
+    private PagesDrawingRequest? BuildRequest()
     {
-        var request = GetBaseDrawingRequest<ResetDrawingRequest>();
-        _pdfRenderingQueue.EnqueueDrawingRequest(request);
+        if (Pages == null)
+        {
+            return null;
+        }
+
+        PdfRenderingParameters parameters = PdfRenderingParameters.Clone();
+        parameters.ScaleFactor = Scale;
+
+        return new PagesDrawingRequest
+        {
+            Scale = Scale,
+            ActiveAnnotation = ActiveAnnotation,
+            ActiveAnnotationState = ActiveAnnotationState,
+            Offset = new SKPoint(HorizontalOffset, VerticalOffset),
+            CanvasSize = new SKSize(ViewportWidth, ViewportHeight),
+            RenderTarget = _renderTargetFactory.GetRenderTarget(this),
+            VisiblePages = GetVisiblePages().ToArray(),
+            BackgroundColor = BackgroundColor,
+            PageCornerRadius = PageCornerRadius,
+            RenderingParameters = parameters
+        };
     }
 
     private IEnumerable<VisiblePageInfo> GetVisiblePages()
@@ -212,55 +219,18 @@ public class PdfPanelContext
             {
                 float offsetX = (page.Offset.X - HorizontalOffset) / Scale;
                 float offsetY = (page.Offset.Y - VerticalOffset) / Scale;
-                SKPoint offset = new SKPoint(offsetX, offsetY);
-                yield return new VisiblePageInfo(i + 1, offset, page.Info, page.UserRotation);
+                yield return new VisiblePageInfo(i + 1, new SKPoint(offsetX, offsetY), page.Info, page.UserRotation);
             }
         }
     }
 
-    private PagesDrawingRequest GetPagesDrawingRequest()
-    {
-        if (Pages == null)
-        {
-            return null;
-        }
-
-        var localParameters = PdfRenderingParameters.Clone();
-
-        localParameters.ScaleFactor = Scale;
-
-        var drawingRequest = GetBaseDrawingRequest<PagesDrawingRequest>();
-        drawingRequest.BackgroundColor = BackgroundColor;
-        drawingRequest.MaxThumbnailSize = MaxThumbnailSize;
-        drawingRequest.PageCornerRadius = PageCornerRadius;
-        drawingRequest.RenderingParameters = localParameters;
-
-        return drawingRequest;
-    }
-
-    private T GetBaseDrawingRequest<T>() where T : DrawingRequest, new()
-    {
-        return new T
-        {
-            Scale = Scale,
-            ActiveAnnotation = ActiveAnnotation,
-            VisiblePages = GetVisiblePages().ToArray(),
-            ActiveAnnotationState = ActiveAnnotationState,
-            Offset = new SKPoint(HorizontalOffset, VerticalOffset),
-            CanvasSize = new SKSize(ViewportWidth, ViewportHeight),
-            RenderTarget = _renderTargetFactory.GetRenderTarget(this),
-        };
-    }
-
     private static float Clamp(float value, float min, float max)
-    {
-        return Math.Max(min, Math.Min(max, value));
-    }
+        => Math.Max(min, Math.Min(max, value));
 
     private void UpdateActiveAnnotation()
     {
-        PdfAnnotationPopup newActiveAnnotation = null;
-        PdfPanelPointerState newState = PdfPanelPointerState.None;
+        PdfAnnotationPopup? newActiveAnnotation = null;
+        var newState = PdfPanelPointerState.None;
 
         if (PointerPosition.HasValue && Pages != null)
         {
@@ -268,23 +238,27 @@ public class PdfPanelContext
             {
                 PdfPanelPage page = Pages[i];
 
-                if (page.IsPageVisible(ViewportRectangle, Scale))
+                if (!page.IsPageVisible(ViewportRectangle, Scale))
                 {
-                    SKMatrix matrix = page.ViewportToPageMatrix(Scale, HorizontalOffset, VerticalOffset);
-                    SKPoint pagePoint = matrix.MapPoint(PointerPosition.Value);
+                    continue;
+                }
 
-                    if (page.IsPointInPageBounds(pagePoint))
-                    {
-                        newActiveAnnotation = Pages.GetAnnotationPopupAt(i + 1, pagePoint);
+                SKMatrix matrix = page.ViewportToPageMatrix(Scale, HorizontalOffset, VerticalOffset);
+                SKPoint pagePoint = matrix.MapPoint(PointerPosition.Value);
 
-                        if (newActiveAnnotation != null)
-                        {
-                            newState = PointerState == PdfPanelButtonState.Pressed
-                                ? PdfPanelPointerState.Pressed
-                                : PdfPanelPointerState.Hovered;
-                            break;
-                        }
-                    }
+                if (!page.IsPointInPageBounds(pagePoint))
+                {
+                    continue;
+                }
+
+                newActiveAnnotation = Pages.GetAnnotationPopupAt(i + 1, pagePoint);
+
+                if (newActiveAnnotation != null)
+                {
+                    newState = (PointerState == PdfPanelButtonState.Pressed)
+                        ? PdfPanelPointerState.Pressed
+                        : PdfPanelPointerState.Hovered;
+                    break;
                 }
             }
         }

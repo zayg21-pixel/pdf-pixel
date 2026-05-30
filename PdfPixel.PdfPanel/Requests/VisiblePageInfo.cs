@@ -1,18 +1,23 @@
 ﻿using PdfPixel.PdfPanel.Extensions;
 using SkiaSharp;
-using System;
 
 namespace PdfPixel.PdfPanel;
 
+/// <summary>
+/// Immutable snapshot of a page's rendering parameters captured at the start of each render pass.
+/// </summary>
 public readonly struct VisiblePageInfo
 {
-    public VisiblePageInfo(int pageNumber, SKPoint offset, PdfPanelPageInfo pageInfo, int userRotation)
+    /// <summary>
+    /// Initialises a new snapshot for a visible page.
+    /// </summary>
+    public VisiblePageInfo(int pageNumber, SKPoint offset, in PdfPanelPageInfo pageInfo, int userRotation)
     {
         PageNumber = pageNumber;
         Offset = offset;
         Info = pageInfo;
 
-        var normalizedUserRotation = userRotation % 360;
+        int normalizedUserRotation = userRotation % 360;
 
         if (normalizedUserRotation < 0)
         {
@@ -25,7 +30,7 @@ public readonly struct VisiblePageInfo
     /// <summary>
     /// Gets the page number.
     /// </summary>
-    public int PageNumber { get; } // TODO: remove afterwards
+    public int PageNumber { get; }
 
     /// <summary>
     /// Gets the offset of the page.
@@ -49,6 +54,30 @@ public readonly struct VisiblePageInfo
     public SKSize RotatedSize => Info.GetRotatedSize(UserRotation);
 
     /// <summary>
+    /// Rotation matrix that maps unrotated page content coordinates to the rotated drawing space.
+    /// Used when drawing SKPictures onto the canvas after Scale and Translate have been applied.
+    /// Returns identity when the page has no rotation.
+    /// </summary>
+    public SKMatrix ContentTransform
+    {
+        get
+        {
+            int rotation = Info.GetTotalRotation(UserRotation);
+            if (rotation == 0)
+            {
+                return SKMatrix.Identity;
+            }
+
+            float tx = rotation switch { 180 or 270 => -Info.Width, _ => 0f };
+            float ty = rotation switch { 90 or 180 => -Info.Height, _ => 0f };
+
+            return SKMatrix.Concat(
+                SKMatrix.CreateRotationDegrees(rotation),
+                SKMatrix.CreateTranslation(tx, ty));
+        }
+    }
+
+    /// <summary>
     /// Gets the scaled bounds of the page.
     /// </summary>
     /// <param name="scale">Scale factor.</param>
@@ -62,7 +91,7 @@ public readonly struct VisiblePageInfo
     /// <returns>Matrix that transforms viewport coordinates to page coordinates.</returns>
     public SKMatrix GetToPageMatrix(double scale)
     {
-        var matrix = SKMatrix.Identity;
+        SKMatrix matrix = SKMatrix.Identity;
 
         // Apply rotation (about page origin)
         int totalRotation = Info.GetTotalRotation(UserRotation);
@@ -84,7 +113,6 @@ public readonly struct VisiblePageInfo
     /// <summary>
     /// Converts a rectangle from PDF coordinates (bottom-left origin, Y-up) to page coordinates (top-left origin, Y-down).
     /// </summary>
-    /// <param name="page">The page.</param>
     /// <param name="pdfRect">Rectangle in PDF coordinates.</param>
     /// <returns>Rectangle in page coordinates.</returns>
     public SKRect FromPdfRect(SKRect pdfRect)

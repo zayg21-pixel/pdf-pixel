@@ -5,6 +5,9 @@
 /// </summary>
 public readonly struct PdfPanelPageInfo
 {
+    /// <summary>
+    /// Initializes page info with the given label, dimensions, and PDF rotation.
+    /// </summary>
     public PdfPanelPageInfo(string label, float width, float height, int rotation)
     {
         Label = label;
@@ -13,6 +16,9 @@ public readonly struct PdfPanelPageInfo
         Rotation = rotation;
     }
 
+    /// <summary>
+    /// Human-readable page label (e.g. "iv", "1", "A-1") as defined in the PDF.
+    /// </summary>
     public string Label { get; }
 
     /// <summary>

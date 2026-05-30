@@ -7,27 +7,27 @@ using System;
 
 namespace PdfPixel.PdfPanel.ContentProvider;
 
-public static class PdfDocumentContentExtensions
+internal static class PdfDocumentContentExtensions
 {
-    public static PdfCommandRecorder GetAnnotationRecording(
+    public static PdfCommandRecorder? GetAnnotationRecording(
         this IPdfDocument document,
         int pageNumber,
-        PdfAnnotationBase activeAnnotation,
+        PdfAnnotationBase? activeAnnotation,
         PdfPanelPointerState pointerState,
         IPdfExecutionObserver observer)
     {
-        var pdfPage = document.Pages[pageNumber - 1];
+        IPdfPage pdfPage = document.Pages[pageNumber - 1];
 
         if (pdfPage.Annotations.Count == 0)
         {
             return null;
         }
 
-        var recorder = new PdfCommandRecorder();
+        PdfCommandRecorder recorder = new();
 
         ApplyPageTransformations(pdfPage, recorder);
 
-        foreach (var annotation in pdfPage.Annotations)
+        foreach (PdfAnnotationBase annotation in pdfPage.Annotations)
         {
             if ((annotation.Flags & PdfAnnotationFlags.Invisible) != 0
                 || (annotation.Flags & PdfAnnotationFlags.Hidden) != 0
@@ -36,7 +36,7 @@ public static class PdfDocumentContentExtensions
                 continue;
             }
 
-            var visualStateKind = annotation == activeAnnotation
+            PdfAnnotationVisualStateKind visualStateKind = (annotation == activeAnnotation)
                 ? ConvertToVisualStateKind(pointerState)
                 : PdfAnnotationVisualStateKind.Normal;
 
@@ -58,9 +58,9 @@ public static class PdfDocumentContentExtensions
 
     public static PdfCommandRecorder GeneratePageCommandRecording(this IPdfDocument document, int pageNumber, IPdfExecutionObserver observer)
     {
-        var pdfPage = document.Pages[pageNumber - 1];
+        IPdfPage pdfPage = document.Pages[pageNumber - 1];
 
-        var commandRecording = new PdfCommandRecorder();
+        PdfCommandRecorder commandRecording = new();
 
         ApplyPageTransformations(pdfPage, commandRecording);
 
@@ -69,15 +69,15 @@ public static class PdfDocumentContentExtensions
         return commandRecording;
     }
 
-    public static SKPicture RecordingToSkPicture(PdfPanelPageInfo pageInfo, PdfCommandRecorder commandRecording, PdfCommandExecutionContext executionContext)
+    public static SKPicture? RecordingToSkPicture(in PdfPanelPageInfo pageInfo, PdfCommandRecorder? commandRecording, PdfCommandExecutionContext executionContext)
     {
         if (commandRecording == null)
         {
             return null;
         }
 
-        using var recorder = new SKPictureRecorder();
-        using var canvas = recorder.BeginRecording(SKRect.Create(pageInfo.Width, pageInfo.Height));
+        using SKPictureRecorder recorder = new();
+        using SKCanvas canvas = recorder.BeginRecording(SKRect.Create(pageInfo.Width, pageInfo.Height));
 
         commandRecording.Replay(canvas, Array.Empty<IPdfCommandModifier>(), executionContext);
 
@@ -86,7 +86,7 @@ public static class PdfDocumentContentExtensions
         return recorder.EndRecording();
     }
 
-    private static void ApplyPageTransformations(IPdfPage pdfPage, IPdfCommandProcessor commandRecording)
+    private static void ApplyPageTransformations(IPdfPage pdfPage, PdfCommandRecorder commandRecording)
     {
         commandRecording.Process(new ClipPathCommand(
             new SKRect(0, 0, pdfPage.CropBox.Width, pdfPage.CropBox.Height),
@@ -99,7 +99,7 @@ public static class PdfDocumentContentExtensions
 
     public static PdfPanelPageInfo GetPageInfo(IPdfDocument document, int pageNumber)
     {
-        var pdfPage = document.Pages[pageNumber - 1];
+        IPdfPage pdfPage = document.Pages[pageNumber - 1];
         string label = document.Pages[pageNumber - 1].PageLabel.DecodePdfString();
         return new PdfPanelPageInfo(label, pdfPage.CropBox.Width, pdfPage.CropBox.Height, pdfPage.Rotation);
     }

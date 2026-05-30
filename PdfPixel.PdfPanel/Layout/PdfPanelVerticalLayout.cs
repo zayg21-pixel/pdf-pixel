@@ -4,8 +4,12 @@ using System;
 
 namespace PdfPixel.PdfPanel.Layout;
 
+/// <summary>
+/// Arranges pages in a single vertical column, centred horizontally within the viewport.
+/// </summary>
 public class PdfPanelVerticalLayout : IPdfPanelLayout
 {
+    /// <inheritdoc />
     public SKSize CalculateDimensions(
         PdfPanelPageCollection pages,
         float scale,
@@ -14,6 +18,11 @@ public class PdfPanelVerticalLayout : IPdfPanelLayout
         float viewportWidth,
         float viewportHeight)
     {
+        if (pages == null)
+        {
+            throw new ArgumentNullException(nameof(pages));
+        }
+
         int pageCount = pages.Count;
 
         float paddingLeft = pagesPadding.Left;
@@ -46,6 +55,7 @@ public class PdfPanelVerticalLayout : IPdfPanelLayout
         return new SKSize(extentWidth, extentHeight);
     }
 
+    /// <inheritdoc />
     public void CalculatePageOffsets(
         PdfPanelPageCollection pages,
         float scale,
@@ -54,6 +64,11 @@ public class PdfPanelVerticalLayout : IPdfPanelLayout
         float extentWidth,
         float extentHeight)
     {
+        if (pages == null)
+        {
+            throw new ArgumentNullException(nameof(pages));
+        }
+
         int pageCount = pages.Count;
         float paddingTop = pagesPadding.Top;
         float scaledPageGap = pageGap * scale;

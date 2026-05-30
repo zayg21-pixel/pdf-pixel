@@ -1,7 +1,7 @@
-using PdfPixel.Annotations.Models;
+﻿using PdfPixel.Annotations.Models;
 using SkiaSharp;
 
-namespace PdfPixel.PdfPanel;
+namespace PdfPixel.PdfPanel.Annotations;
 
 /// <summary>
 /// Document-independent representation of a resolved annotation action.
@@ -9,31 +9,46 @@ namespace PdfPixel.PdfPanel;
 /// </summary>
 public class PdfPanelAnnotationAction
 {
+    /// <summary>
+    /// The type of action to perform when the annotation is activated.
+    /// </summary>
     public PdfActionType ActionType { get; set; }
 
-    /// <summary>Target name string for actions.</summary>
-    public string TargetName { get; set; }
+    /// <summary>
+    /// Target name string for actions.
+    /// </summary>
+    public string? TargetName { get; set; }
 
-    /// <summary>1-based destination page number for <see cref="PdfActionType.GoTo"/> actions.</summary>
+    /// <summary>
+    /// 1-based destination page number for <see cref="PdfActionType.GoTo"/> actions.
+    /// </summary>
     public int? PageNumber { get; set; }
 
-    /// <summary>Destination rectangle in PDF coordinates for <see cref="PdfActionType.GoTo"/> actions.</summary>
+    /// <summary>
+    /// Destination rectangle in PDF coordinates for <see cref="PdfActionType.GoTo"/> actions.
+    /// </summary>
     public SKRect? TargetRect { get; set; }
 
-    /// <summary>Destination zoom level for <see cref="PdfActionType.GoTo"/> actions.</summary>
+    /// <summary>
+    /// Destination zoom level for <see cref="PdfActionType.GoTo"/> actions.
+    /// </summary>
     public float? Zoom { get; set; }
 
 
-    public static PdfPanelAnnotationAction FromLinkAnnotation(PdfLinkAnnotation link)
+    /// <summary>
+    /// Resolves a <see cref="PdfLinkAnnotation"/> into a <see cref="PdfPanelAnnotationAction"/>,
+    /// or returns <see langword="null"/> if the annotation has no supported action.
+    /// </summary>
+    public static PdfPanelAnnotationAction? FromLinkAnnotation(PdfLinkAnnotation link)
     {
         if (link == null)
         {
             return null;
         }
-        
+
         if (link.Action is PdfUriAction uriAction && !uriAction.Uri.IsEmpty)
         {
-            var uri = uriAction.Uri.ToString();
+            string uri = uriAction.Uri.ToString();
             return new PdfPanelAnnotationAction
             {
                 ActionType = PdfActionType.Uri,
@@ -64,7 +79,7 @@ public class PdfPanelAnnotationAction
 
     private static PdfPanelAnnotationAction ResolveGoToDestination(PdfDestination destination)
     {
-        var page = destination.GetPdfPage();
+        Models.IPdfPage? page = destination.GetPdfPage();
 
         return new PdfPanelAnnotationAction
         {
@@ -75,3 +90,4 @@ public class PdfPanelAnnotationAction
         };
     }
 }
+

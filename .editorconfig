@@ -73,7 +73,7 @@ roslynator_conditional_operator_condition_parentheses_style = omit_when_conditio
 roslynator_conditional_operator_new_line = before
 # Applicable to: rcs0028, options: after|before
 
-roslynator_configure_await = false
+roslynator_configure_await = true
 # Applicable to: rcs1090, options: true|false
 
 roslynator_doc_comment_summary_style = multi_line

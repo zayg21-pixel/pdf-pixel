@@ -1,5 +1,6 @@
 ﻿using PdfPixel.Annotations.Models;
 using PdfPixel.Models;
+using PdfPixel.PdfPanel.Annotations;
 using PdfPixel.Text;
 using SkiaSharp;
 using System;
@@ -10,7 +11,7 @@ namespace PdfPixel.PdfPanel.ContentProvider;
 
 internal static class PdfDocumentAnnotationExtractor
 {
-    public static PdfAnnotationPopup GetActiveAnnotation(PdfAnnotationPopup[] popups, SKPoint pagePosition)
+    public static PdfAnnotationPopup? GetActiveAnnotation(PdfAnnotationPopup[] popups, SKPoint pagePosition)
     {
         if (popups == null)
         {
@@ -27,17 +28,17 @@ internal static class PdfDocumentAnnotationExtractor
             return Array.Empty<PdfAnnotationPopup>();
         }
 
-        var pdfPage = document.Pages[pageNumber - 1];
+        IPdfPage pdfPage = document.Pages[pageNumber - 1];
         if (pdfPage.Annotations.Count == 0)
         {
             return Array.Empty<PdfAnnotationPopup>();
         }
 
-        var annotationMap = BuildAnnotationMap(pdfPage);
-        var popups = new List<PdfAnnotationPopup>();
-        var processedAnnotations = new HashSet<PdfAnnotationBase>();
+        Dictionary<PdfReference, PdfAnnotationBase> annotationMap = BuildAnnotationMap(pdfPage);
+        List<PdfAnnotationPopup> popups = [];
+        HashSet<PdfAnnotationBase> processedAnnotations = [];
 
-        foreach (var annotation in pdfPage.Annotations)
+        foreach (PdfAnnotationBase annotation in pdfPage.Annotations)
         {
             if (processedAnnotations.Contains(annotation))
             {
@@ -49,14 +50,11 @@ internal static class PdfDocumentAnnotationExtractor
                 continue;
             }
 
-            var thread = BuildAnnotationThread(annotation, annotationMap, processedAnnotations);
-            var rect = FromPdfRect(pdfPage, annotation.GetHoverRectangle(pdfPage));
-            var action = ResolveAction(annotation);
+            PdfAnnotationMessage[] thread = BuildAnnotationThread(annotation, annotationMap, processedAnnotations);
+            SKRect rect = FromPdfRect(pdfPage, annotation.GetHoverRectangle(pdfPage));
+            PdfPanelAnnotationAction? action = ResolveAction(annotation);
             bool isInteractive = IsInteractive(annotation);
-            popups.Add(new PdfAnnotationPopup(action, thread, rect, isInteractive)
-            {
-                Annotation = annotation,
-            });
+            popups.Add(new PdfAnnotationPopup(action, thread, rect, isInteractive) { Annotation = annotation });
         }
 
         return popups.ToArray();
@@ -73,11 +71,13 @@ internal static class PdfDocumentAnnotationExtractor
         {
             return true;
         }
-        if (annotation.SupportedVisualStates != PdfAnnotationVisualStateKind.Normal &&
-            annotation.SupportedVisualStates != PdfAnnotationVisualStateKind.None)
+
+        if (annotation.SupportedVisualStates != PdfAnnotationVisualStateKind.Normal
+            && annotation.SupportedVisualStates != PdfAnnotationVisualStateKind.None)
         {
             return true;
         }
+
         return false;
     }
 
@@ -86,20 +86,21 @@ internal static class PdfDocumentAnnotationExtractor
         Dictionary<PdfReference, PdfAnnotationBase> annotationMap,
         HashSet<PdfAnnotationBase> processedAnnotations)
     {
-        var messages = new List<PdfAnnotationMessage>();
+        List<PdfAnnotationMessage> messages = [];
 
-        var rootMessage = CreateAnnotationMessage(rootAnnotation);
+        PdfAnnotationMessage? rootMessage = CreateAnnotationMessage(rootAnnotation);
         if (rootMessage.HasValue)
         {
             messages.Add(rootMessage.Value);
         }
+
         processedAnnotations.Add(rootAnnotation);
 
-        var replies = FindAllReplies(rootAnnotation, annotationMap, processedAnnotations);
+        List<PdfAnnotationBase> replies = FindAllReplies(rootAnnotation, annotationMap, processedAnnotations);
 
-        foreach (var reply in replies)
+        foreach (PdfAnnotationBase reply in replies)
         {
-            var replyMessage = CreateAnnotationMessage(reply);
+            PdfAnnotationMessage? replyMessage = CreateAnnotationMessage(reply);
             if (replyMessage.HasValue)
             {
                 messages.Add(replyMessage.Value);
@@ -111,11 +112,11 @@ internal static class PdfDocumentAnnotationExtractor
 
     private static Dictionary<PdfReference, PdfAnnotationBase> BuildAnnotationMap(IPdfPage pdfPage)
     {
-        var map = new Dictionary<PdfReference, PdfAnnotationBase>();
+        Dictionary<PdfReference, PdfAnnotationBase> map = [];
 
-        foreach (var annotation in pdfPage.Annotations)
+        foreach (PdfAnnotationBase annotation in pdfPage.Annotations)
         {
-            var reference = annotation.AnnotationObject.Reference;
+            PdfReference reference = annotation.AnnotationObject.Reference;
             if (reference.IsValid)
             {
                 map[reference] = annotation;
@@ -148,16 +149,16 @@ internal static class PdfDocumentAnnotationExtractor
     /// </summary>
     private static PdfAnnotationMessage? CreateAnnotationMessage(PdfAnnotationBase annotation)
     {
-        var title = annotation.Title.DecodePdfString();
-        var contents = annotation.Contents.DecodePdfString();
+        string title = annotation.Title.DecodePdfString();
+        string contents = annotation.Contents.DecodePdfString();
 
         if (string.IsNullOrEmpty(contents))
         {
             return null;
         }
 
-        var messageTitle = !string.IsNullOrEmpty(title) ? title : null;
-        var messageDate = annotation.CreationDate.HasValue ? new DateTimeOffset(annotation.CreationDate.Value) : (DateTimeOffset?)null;
+        string? messageTitle = (!string.IsNullOrEmpty(title)) ? title : null;
+        DateTimeOffset? messageDate = (annotation.CreationDate.HasValue) ? new DateTimeOffset(annotation.CreationDate.Value) : (DateTimeOffset?)null;
 
         return new PdfAnnotationMessage(messageDate, messageTitle, contents);
     }
@@ -167,23 +168,23 @@ internal static class PdfDocumentAnnotationExtractor
         Dictionary<PdfReference, PdfAnnotationBase> annotationMap,
         HashSet<PdfAnnotationBase> processedAnnotations)
     {
-        var replies = new List<PdfAnnotationBase>();
-        var annotationRef = annotation.AnnotationObject.Reference;
+        List<PdfAnnotationBase> replies = [];
+        PdfReference annotationRef = annotation.AnnotationObject.Reference;
 
         if (!annotationRef.IsValid)
         {
             return replies;
         }
 
-        var directReplies = FindDirectReplies(annotationRef, annotationMap, processedAnnotations);
+        List<PdfAnnotationBase> directReplies = FindDirectReplies(annotationRef, annotationMap, processedAnnotations);
 
-        foreach (var reply in directReplies)
+        foreach (PdfAnnotationBase reply in directReplies)
         {
             replies.Add(reply);
 
             if (reply.ReplyType == PdfAnnotationReplyType.Reply)
             {
-                var nestedReplies = FindAllReplies(reply, annotationMap, processedAnnotations);
+                List<PdfAnnotationBase> nestedReplies = FindAllReplies(reply, annotationMap, processedAnnotations);
                 replies.AddRange(nestedReplies);
             }
         }
@@ -191,7 +192,7 @@ internal static class PdfDocumentAnnotationExtractor
         return replies;
     }
 
-    private static PdfPanelAnnotationAction ResolveAction(PdfAnnotationBase annotation)
+    private static PdfPanelAnnotationAction? ResolveAction(PdfAnnotationBase annotation)
     {
         if (annotation is not PdfLinkAnnotation link)
         {
@@ -202,13 +203,13 @@ internal static class PdfDocumentAnnotationExtractor
     }
 
     private static List<PdfAnnotationBase> FindDirectReplies(
-        PdfReference parentRef,
+        in PdfReference parentRef,
         Dictionary<PdfReference, PdfAnnotationBase> annotationMap,
         HashSet<PdfAnnotationBase> processedAnnotations)
     {
-        var replies = new List<PdfAnnotationBase>();
+        List<PdfAnnotationBase> replies = [];
 
-        foreach (var candidate in annotationMap.Values)
+        foreach (PdfAnnotationBase candidate in annotationMap.Values)
         {
             if (processedAnnotations.Contains(candidate))
             {
