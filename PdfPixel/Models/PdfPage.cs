@@ -85,7 +85,7 @@ internal class PdfPage : IPdfPageInternal
     IPdfDocumentInternal IPdfPageInternal.Document => _document;
 
     /// <inheritdoc/>
-    public void Draw(IPdfCommandProcessor processor, IPdfExecutionObserver observer)
+    public void RenderContent(IPdfCommandProcessor processor, IPdfExecutionObserver observer)
     {
         if (processor == null)
         {

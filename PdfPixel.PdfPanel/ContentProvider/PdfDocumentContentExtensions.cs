@@ -64,7 +64,7 @@ internal static class PdfDocumentContentExtensions
 
         ApplyPageTransformations(pdfPage, commandRecording);
 
-        pdfPage.Draw(commandRecording, observer);
+        pdfPage.RenderContent(commandRecording, observer);
 
         return commandRecording;
     }

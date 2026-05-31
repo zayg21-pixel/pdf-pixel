@@ -117,7 +117,7 @@ public sealed class PdfStreamDecoder
                 case PdfFilterType.Crypt:
                 {
                     _logger.LogWarning("TODO implement Crypt filter integration; returning partially decoded stream.");
-                    return current; // TODO: [MEDIUM] implement Crypt filter integration; returning partially decoded stream.
+                    return current; // TODO: [LOW] implement Crypt filter integration; returning partially decoded stream.
                 }
                 default:
                 {

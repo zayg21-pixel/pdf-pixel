@@ -47,7 +47,7 @@ public interface IPdfPage
     /// </summary>
     /// <param name="processor">The command processor to emit drawing commands to.</param>
     /// <param name="observer">Execution observer to notify on long-running operations.</param>
-    void Draw(IPdfCommandProcessor processor, IPdfExecutionObserver observer);
+    void RenderContent(IPdfCommandProcessor processor, IPdfExecutionObserver observer);
 
     /// <summary>
     /// Render a single annotation via the command processor.
@@ -61,7 +61,7 @@ public interface IPdfPage
         IPdfCommandProcessor processor,
         PdfAnnotationBase annotation,
         PdfAnnotationVisualStateKind visualStateKind,
-        IPdfExecutionObserver observer); // TODO: [HIGHT] method call, naming inconsistency!
+        IPdfExecutionObserver observer);
 
     /// <summary>
     /// Extract text content from the page.

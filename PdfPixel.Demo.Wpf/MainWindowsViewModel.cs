@@ -62,7 +62,7 @@ public class MainWindowsViewModel : ObservableObject
 
         LoadPdfFiles();
         ToggleAutoScaleCommand = new RelayCommand(ToggleAutoScale);
-        AutoScaleMode = PdfPanelAutoScaleMode.ScaleToWidth;
+        AutoScaleMode = PdfPanelAutoScaleMode.ScaleToHeight;
 
         OpenFileCommand = new RelayCommand(OpenFile);
     }
@@ -314,6 +314,6 @@ public class MainWindowsViewModel : ObservableObject
         }
 
         Pages = PdfPanelPageCollection.FromDocument(_document, _loggerFactory);
-        AutoScaleMode = PdfPanelAutoScaleMode.ScaleToWidth;
+        AutoScaleMode = PdfPanelAutoScaleMode.ScaleToHeight;
     }
 }
