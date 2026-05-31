@@ -1,34 +1,26 @@
-﻿using PdfPixel.Annotations.Models;
-using SkiaSharp;
+using PdfPixel.Annotations.Models;
 using System;
 
 namespace PdfPixel.PdfPanel.Annotations;
 
 /// <summary>
-/// Contains information about an annotation popup and it's location.
+/// Contains information about an annotation popup.
 /// </summary>
 public class PdfAnnotationPopup
 {
     /// <summary>
-    /// Initializes a popup with the given action, messages, bounding rect, and interactivity flag.
+    /// Initializes a popup with the given page annotation and messages.
     /// </summary>
-    public PdfAnnotationPopup(PdfPanelAnnotationAction? action, PdfAnnotationMessage[] messages, SKRect rect, bool isInteractive)
+    public PdfAnnotationPopup(PdfPageAnnotation pageAnnotation, PdfAnnotationMessage[] messages)
     {
-        Action = action;
+        PageAnnotation = pageAnnotation ?? throw new ArgumentNullException(nameof(pageAnnotation));
         Messages = messages ?? throw new ArgumentNullException(nameof(messages));
-        Rect = rect;
-        IsInteractive = isInteractive;
     }
 
     /// <summary>
-    /// Attached base annotation.
+    /// The page-bound annotation this popup represents.
     /// </summary>
-    internal PdfAnnotationBase? Annotation { get; set; }
-
-    /// <summary>
-    /// Resolved, document-independent action for this annotation, or null if the annotation has no action.
-    /// </summary>
-    public PdfPanelAnnotationAction? Action { get; }
+    public PdfPageAnnotation PageAnnotation { get; }
 
     /// <summary>
     /// Thread of annotation messages (from oldest to newest).
@@ -36,26 +28,14 @@ public class PdfAnnotationPopup
     /// </summary>
     public PdfAnnotationMessage[] Messages { get; }
 
-    /// <summary>
-    /// Position of the popup rectangle in PDF coordinates.
-    /// </summary>
-    public SKRect Rect { get; }
-
-    /// <summary>
-    /// Determines if this annotation popup is interactive (e.g., link, bubble, or has special visual states).
-    /// </summary>
-    /// <returns>True if the annotation is interactive; otherwise, false.</returns>
-    public bool IsInteractive { get; }
-
     /// <inheritdoc />
-    public override int GetHashCode() => Rect.GetHashCode();
+    public override int GetHashCode() => PageAnnotation.GetHashCode();
 
     /// <inheritdoc />
     public override bool Equals(object? obj)
     {
         return obj is PdfAnnotationPopup other
-            &&  Equals(Messages, other.Messages)
-            &&  Rect.Equals(other.Rect);
+            && ReferenceEquals(PageAnnotation, other.PageAnnotation)
+            && Equals(Messages, other.Messages);
     }
 }
-

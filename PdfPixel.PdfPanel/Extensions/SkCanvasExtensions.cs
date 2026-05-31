@@ -16,9 +16,23 @@ internal static class SkCanvasExtensions
             canvas.Scale(request.Scale, request.Scale);
             canvas.Translate(page.Offset.X, page.Offset.Y);
 
+            SKRect pageRect = new(0, 0, page.RotatedSize.Width, page.RotatedSize.Height);
+
+
             if ((flags & PageDrawFlags.Shadow) != 0)
             {
                 DrawPageShadow(canvas, page, request.RenderingParameters.Antialias, request.PageCornerRadius);
+            }
+
+            if (request.PageCornerRadius > 0)
+            {
+                using SKPath clipPath = new();
+                clipPath.AddRoundRect(pageRect, request.PageCornerRadius, request.PageCornerRadius);
+                canvas.ClipPath(clipPath, SKClipOperation.Intersect, antialias: request.RenderingParameters.Antialias);
+            }
+            else
+            {
+                canvas.ClipRect(pageRect);
             }
 
             if ((flags & PageDrawFlags.Background) != 0)
@@ -28,21 +42,10 @@ internal static class SkCanvasExtensions
 
             if ((flags & PageDrawFlags.Content) != 0)
             {
-                SKRect pageRect = new(0, 0, page.RotatedSize.Width, page.RotatedSize.Height);
-
-                if (request.PageCornerRadius > 0)
-                {
-                    using SKPath clipPath = new();
-                    clipPath.AddRoundRect(pageRect, request.PageCornerRadius, request.PageCornerRadius);
-                    canvas.ClipPath(clipPath, SKClipOperation.Intersect, antialias: request.RenderingParameters.Antialias);
-                }
-
-                canvas.SaveLayer(pageRect, default);
-                canvas.Clear();
-
                 if (pictures?.Content?.HasContent == true)
                 {
-                    DrawPagePicture(canvas, pictures.Content, page);
+                    using SKPaint contentPaint = new() { BlendMode = SKBlendMode.SrcATop };
+                    DrawPagePicture(canvas, pictures.Content, page, contentPaint);
                     DrawPagePicture(canvas, pictures.Annotations, page);
                 }
                 else if ((flags & PageDrawFlags.Placeholder) != 0)
@@ -57,7 +60,7 @@ internal static class SkCanvasExtensions
         }
     }
 
-    private static void DrawPagePicture(SKCanvas canvas, ContentLocker<SKPicture>? content, in VisiblePageInfo page)
+    private static void DrawPagePicture(SKCanvas canvas, ContentLocker<SKPicture>? content, in VisiblePageInfo page, SKPaint? paint = null)
     {
         if (content?.HasContent != true)
         {
@@ -71,7 +74,7 @@ internal static class SkCanvasExtensions
         try
         {
             canvas.Concat(in transform);
-            canvas.DrawPicture(contentPicture.Content);
+            canvas.DrawPicture(contentPicture.Content, paint);
         }
         finally
         {

@@ -1,5 +1,7 @@
 using PdfPixel.Commands;
 using PdfPixel.Models;
+using PdfPixel.Rendering.Operators;
+using PdfPixel.Text;
 using SkiaSharp;
 
 namespace PdfPixel.Annotations.Models;
@@ -20,16 +22,34 @@ public class PdfCircleAnnotation : PdfAnnotationBase
     public PdfCircleAnnotation(PdfObject annotationObject)
         : base(annotationObject, PdfAnnotationSubType.Circle)
     {
+        RectDifferences = PdfLocationUtilities.CreateBBox(annotationObject.Dictionary.GetArray(PdfTokens.RectDifferencesKey));
+        ContentRectangle = ApplyRectDifferences(Rectangle, RectDifferences);
+        BorderEffect = PdfBorderEffect.FromDictionary(annotationObject.Dictionary.GetDictionary(PdfTokens.BorderEffectKey));
     }
+
+    /// <summary>
+    /// Gets the rectangle differences that inset the drawn ellipse from the annotation rectangle.
+    /// </summary>
+    public SKRect? RectDifferences { get; }
+
+    /// <summary>
+    /// Gets the effective drawing rectangle after applying <see cref="RectDifferences"/>.
+    /// </summary>
+    public SKRect ContentRectangle { get; }
+
+    /// <summary>
+    /// Gets the border effect applied to this annotation's border, or null for no effect.
+    /// </summary>
+    public PdfBorderEffect? BorderEffect { get; }
 
     internal override bool RenderFallback(IPdfCommandProcessor processor, IPdfPageInternal page, PdfAnnotationVisualStateKind visualStateKind)
     {
-        float width = Rectangle.Width;
-        float height = Rectangle.Height;
+        float width = ContentRectangle.Width;
+        float height = ContentRectangle.Height;
         SKColor interiorSKColor = ResolveInteriorColor(page);
 
-        float centerX = Rectangle.Left + (width / 2);
-        float centerY = Rectangle.Top + (height / 2);
+        float centerX = ContentRectangle.Left + (width / 2);
+        float centerY = ContentRectangle.Top + (height / 2);
 
         if (interiorSKColor != SKColors.Transparent)
         {
@@ -57,6 +77,7 @@ public class PdfCircleAnnotation : PdfAnnotationBase
             };
 
             BorderStyle.TryApplyEffect(strokePaint, strokeColor);
+            BorderEffect?.TryApplyEffect(strokePaint, borderWidth);
 
             float adjustedWidth = width - BorderStyle.Width;
             float adjustedHeight = height - BorderStyle.Width;

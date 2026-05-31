@@ -12,7 +12,7 @@ internal static class PdfDocumentContentExtensions
     public static PdfCommandRecorder? GetAnnotationRecording(
         this IPdfDocument document,
         int pageNumber,
-        PdfAnnotationBase? activeAnnotation,
+        PdfPageAnnotation? activeAnnotation,
         PdfPanelPointerState pointerState,
         IPdfExecutionObserver observer)
     {
@@ -27,20 +27,20 @@ internal static class PdfDocumentContentExtensions
 
         ApplyPageTransformations(pdfPage, recorder);
 
-        foreach (PdfAnnotationBase annotation in pdfPage.Annotations)
+        foreach (PdfPageAnnotation pageAnnotation in pdfPage.Annotations)
         {
-            if ((annotation.Flags & PdfAnnotationFlags.Invisible) != 0
-                || (annotation.Flags & PdfAnnotationFlags.Hidden) != 0
-                || (annotation.Flags & PdfAnnotationFlags.NoView) != 0)
+            if ((pageAnnotation.Content.Flags & PdfAnnotationFlags.Invisible) != 0
+                || (pageAnnotation.Content.Flags & PdfAnnotationFlags.Hidden) != 0
+                || (pageAnnotation.Content.Flags & PdfAnnotationFlags.NoView) != 0)
             {
                 continue;
             }
 
-            PdfAnnotationVisualStateKind visualStateKind = (annotation == activeAnnotation)
+            PdfAnnotationVisualStateKind visualStateKind = (pageAnnotation == activeAnnotation)
                 ? ConvertToVisualStateKind(pointerState)
                 : PdfAnnotationVisualStateKind.Normal;
 
-            pdfPage.RenderAnnotation(recorder, annotation, visualStateKind, observer);
+            pageAnnotation.Render(recorder, visualStateKind, observer);
         }
 
         return recorder;

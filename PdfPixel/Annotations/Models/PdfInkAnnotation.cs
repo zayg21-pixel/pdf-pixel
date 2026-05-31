@@ -94,11 +94,7 @@ public class PdfInkAnnotation : PdfAnnotationBase
             }
 
             using SKPath path = new();
-            path.MoveTo(points[0]);
-            for (int j = 1; j < points.Length; j++)
-            {
-                path.LineTo(points[j]);
-            }
+            BuildSmoothPath(path, points);
 
             SKPaint paint = new()
             {
@@ -115,6 +111,34 @@ public class PdfInkAnnotation : PdfAnnotationBase
         }
 
         return true;
+    }
+
+    private static void BuildSmoothPath(SKPath path, SKPoint[] points)
+    {
+        path.MoveTo(points[0]);
+
+        if (points.Length == 2)
+        {
+            path.LineTo(points[1]);
+            return;
+        }
+
+        for (int i = 0; i < points.Length - 1; i++)
+        {
+            SKPoint prevPoint = i > 0 ? points[i - 1] : points[0];
+            SKPoint currentPoint = points[i];
+            SKPoint nextPoint = points[i + 1];
+            SKPoint farPoint = i < points.Length - 2 ? points[i + 2] : points[points.Length - 1];
+
+            SKPoint control1 = new(
+                currentPoint.X + (nextPoint.X - prevPoint.X) / 6f,
+                currentPoint.Y + (nextPoint.Y - prevPoint.Y) / 6f);
+            SKPoint control2 = new(
+                nextPoint.X - (farPoint.X - currentPoint.X) / 6f,
+                nextPoint.Y - (farPoint.Y - currentPoint.Y) / 6f);
+
+            path.CubicTo(control1, control2, nextPoint);
+        }
     }
 
     /// <summary>

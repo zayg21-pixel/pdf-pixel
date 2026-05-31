@@ -273,51 +273,6 @@ public static class PdfPanelContextExtensions
     }
 
     /// <summary>
-    /// Scrolls to the specified PDF destination.
-    /// </summary>
-    /// <param name="context">The panel context to scroll.</param>
-    /// <param name="action">The annotation action containing the destination page and optional rect and zoom.</param>
-    public static void ScrollToAction(this PdfPanelContext context, PdfPanelAnnotationAction action)
-    {
-        if (context == null)
-        {
-            throw new ArgumentNullException(nameof(context));
-        }
-
-        if (action?.PageNumber == null)
-        {
-            return;
-        }
-
-        if (!context.Pages.TryGetPage(action.PageNumber.Value, out PdfPanelPage? targetPage) || targetPage == null)
-        {
-            return;
-        }
-
-        if (action.Zoom > 0)
-        {
-            context.Scale = action.Zoom.Value;
-        }
-
-        if (action.TargetRect.HasValue)
-        {
-            SKRect pdfRect = action.TargetRect.Value;
-            SKPoint pdfLocation = new(pdfRect.Left, pdfRect.Top);
-            SKPoint pageLocation = targetPage.FromPdfPoint(pdfLocation);
-
-            SKMatrix pageToCanvas = targetPage.ViewportToPageMatrix(context.Scale, 0, 0).Invert();
-            SKPoint canvasLocation = pageToCanvas.MapPoint(pageLocation);
-
-            context.HorizontalOffset = canvasLocation.X;
-            context.VerticalOffset = canvasLocation.Y;
-        }
-        else
-        {
-            context.ScrollToPage(action.PageNumber.Value);
-        }
-    }
-
-    /// <summary>
     /// Scrolls the viewport to the specified PDF destination, optionally updating the zoom level.
     /// </summary>
     /// <param name="context">The panel context to scroll.</param>

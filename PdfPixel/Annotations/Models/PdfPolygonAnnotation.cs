@@ -38,6 +38,9 @@ public class PdfPolygonAnnotation : PdfAnnotationBase
         {
             Vertices = System.Array.Empty<SKPoint>();
         }
+
+        BorderEffect = PdfBorderEffect.FromDictionary(annotationObject.Dictionary.GetDictionary(PdfTokens.BorderEffectKey));
+        // TODO: [MEDIUM] IT (Intent: PolygonCloud, PolygonDimension), Measure
     }
 
     /// <summary>
@@ -49,6 +52,11 @@ public class PdfPolygonAnnotation : PdfAnnotationBase
     /// Gets the vertices array containing coordinates of the polygon vertices.
     /// </summary>
     public SKPoint[] Vertices { get; }
+
+    /// <summary>
+    /// Gets the border effect applied to this annotation's border, or null for no effect.
+    /// </summary>
+    public PdfBorderEffect? BorderEffect { get; }
 
     internal override bool RenderFallback(IPdfCommandProcessor processor, IPdfPageInternal page, PdfAnnotationVisualStateKind visualStateKind)
     {
@@ -93,6 +101,7 @@ public class PdfPolygonAnnotation : PdfAnnotationBase
             };
 
             BorderStyle.TryApplyEffect(strokePaint, strokeColor);
+            BorderEffect?.TryApplyEffect(strokePaint, BorderStyle.Width);
 
             processor.Process(new DrawPathCommand(path, strokePaint));
         }

@@ -1,9 +1,9 @@
 namespace PdfPixel.Annotations.Models;
 
 /// <summary>
-/// Cursor types for widget annotations.
+/// Cursor types for annotations.
 /// </summary>
-public enum WidgetCursorType
+public enum PdfAnnotationCursorType
 {
     /// <summary>
     /// Default arrow cursor.
@@ -11,7 +11,7 @@ public enum WidgetCursorType
     Arrow,
 
     /// <summary>
-    /// Hand cursor for clickable widgets.
+    /// Hand cursor for clickable widgets/annotations.
     /// </summary>
     Hand,
 

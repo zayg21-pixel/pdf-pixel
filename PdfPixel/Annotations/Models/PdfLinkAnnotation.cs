@@ -33,6 +33,9 @@ public class PdfLinkAnnotation : PdfTextMarkupAnnotation
     /// <inheritdoc/>
     public override bool ShouldDisplayBubble => false;
 
+    /// <inheritdoc/>
+    public override bool IsInteractive => true;
+
     /// <summary>
     /// Gets the parsed destination that should be displayed when the annotation is activated.
     /// </summary>

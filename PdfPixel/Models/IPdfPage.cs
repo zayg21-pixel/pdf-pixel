@@ -32,10 +32,10 @@ public interface IPdfPage
     int Rotation { get; }
 
     /// <summary>
-    /// Gets the annotations for this page.
+    /// Gets the annotations for this page, each bound to their containing page.
     /// Resolved during page construction from the /Annots array and inheritable annotations.
     /// </summary>
-    IReadOnlyList<PdfAnnotationBase> Annotations { get; }
+    IReadOnlyList<PdfPageAnnotation> Annotations { get; }
 
     /// <summary>
     /// Gets the resolved page label for this page (may be null if not present in the document).
@@ -48,20 +48,6 @@ public interface IPdfPage
     /// <param name="processor">The command processor to emit drawing commands to.</param>
     /// <param name="observer">Execution observer to notify on long-running operations.</param>
     void RenderContent(IPdfCommandProcessor processor, IPdfExecutionObserver observer);
-
-    /// <summary>
-    /// Render a single annotation via the command processor.
-    /// The annotation must belong to this page's <see cref="Annotations"/> collection.
-    /// </summary>
-    /// <param name="processor">The command processor to emit annotation commands to.</param>
-    /// <param name="annotation">The annotation to render; must belong to this page.</param>
-    /// <param name="visualStateKind">Visual state to apply to the annotation.</param>
-    /// <param name="observer">Execution observer to notify on long-running operations.</param>
-    void RenderAnnotation(
-        IPdfCommandProcessor processor,
-        PdfAnnotationBase annotation,
-        PdfAnnotationVisualStateKind visualStateKind,
-        IPdfExecutionObserver observer);
 
     /// <summary>
     /// Extract text content from the page.

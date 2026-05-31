@@ -59,6 +59,24 @@ if (x == null) // ✓
 if (x is null) // ✗
 ```
 
+### Null-forgiving operator
+Never use `!` (null-forgiving). Handle nullability explicitly with null checks, conditional access, or code restructuring.
+
+### Nullable types — no fake fallbacks
+When a value may be absent, use the nullable type (`SKRect?`, `int?`, etc.). Never substitute a sentinel value (`SKRect.Empty`, `0`, `string.Empty`) to represent "not present" — that destroys the distinction between absent and explicitly set to empty/zero.
+
+### C# naming
+Never use short or abbreviated variable names (`el`, `d`, `p`, `s`). Names must be descriptive.
+
+### Wrapping existing APIs
+Never wrap an existing framework method in a helper that only adds noise. Use the framework API directly.
+
+### No task-tracking comments in code
+Never add comments that reference the current task, what was changed, or instructions like "already updated, do not modify", "added for X", "do not touch". These belong in commit messages, not in code.
+
+### Object initializers in arguments
+Never inline object initializers (e.g. `new SKPaint { ... }`) directly inside method call arguments. Always assign to a named variable first — types like `SKPaint` have no constructor arguments so inlining makes the code unreadable.
+
 ### String empty
 ```csharp
 string.Empty // ✓

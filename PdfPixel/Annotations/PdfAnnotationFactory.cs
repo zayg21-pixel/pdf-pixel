@@ -48,11 +48,12 @@ public static class PdfAnnotationFactory
             PdfAnnotationSubType.Underline => new PdfUnderlineAnnotation(annotationObject),
             PdfAnnotationSubType.Squiggly => new PdfSquigglyAnnotation(annotationObject),
             PdfAnnotationSubType.StrikeOut => new PdfStrikeOutAnnotation(annotationObject),
-            // Caret, Stamp
+            PdfAnnotationSubType.Stamp => new PdfStampAnnotation(annotationObject),
+            PdfAnnotationSubType.Caret => new PdfCaretAnnotation(annotationObject),
             PdfAnnotationSubType.Ink => new PdfInkAnnotation(annotationObject),
             PdfAnnotationSubType.Popup => new PdfPopupAnnotation(annotationObject),
             PdfAnnotationSubType.FileAttachment => new PdfFileAttachmentAnnotation(annotationObject),
-            PdfAnnotationSubType.Widget => new PdfWidgetAnnotation(annotationObject), // Widget is not fully implemented yet
+            PdfAnnotationSubType.Widget => new PdfWidgetAnnotation(annotationObject), // TODO: [LOW] Widget is not fully implemented yet
             _ => new PdfGenericAnnotation(annotationObject, subtype)
         };
     }

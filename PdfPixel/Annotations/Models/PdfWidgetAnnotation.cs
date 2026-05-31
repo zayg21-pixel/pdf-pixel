@@ -233,25 +233,22 @@ public class PdfWidgetAnnotation : PdfAnnotationBase
     /// </summary>
     public void Blur() => Field?.Blur();
 
-    /// <summary>
-    /// Gets the cursor type that should be displayed when hovering over this widget.
-    /// </summary>
-    /// <returns>The appropriate cursor type for this widget.</returns>
-    public WidgetCursorType GetCursorType
+    /// <inheritdoc/>
+    public override PdfAnnotationCursorType CursorType
     {
         get
         {
             if (Field?.IsReadOnly != false)
             {
-                return WidgetCursorType.Arrow;
+                return PdfAnnotationCursorType.Arrow;
             }
 
             return Field.FieldType switch
             {
-                PdfFormFieldType.Text => WidgetCursorType.IBeam,
-                PdfFormFieldType.Button => WidgetCursorType.Hand,
-                PdfFormFieldType.Choice => WidgetCursorType.Hand,
-                _ => WidgetCursorType.Arrow
+                PdfFormFieldType.Text => PdfAnnotationCursorType.IBeam,
+                PdfFormFieldType.Button => PdfAnnotationCursorType.Hand,
+                PdfFormFieldType.Choice => PdfAnnotationCursorType.Hand,
+                _ => PdfAnnotationCursorType.Arrow
             };
         }
     }

@@ -19,6 +19,7 @@ public class PdfFreeTextAnnotation : PdfAnnotationBase
     public PdfFreeTextAnnotation(PdfObject annotationObject)
         : base(annotationObject, PdfAnnotationSubType.FreeText)
     {
+        // TODO: [MEDIUM] DA (default appearance), Q (justification), IT (intent), CL (callout line), RD (rect inset), DS, BE
     }
 
     /// <inheritdoc/>

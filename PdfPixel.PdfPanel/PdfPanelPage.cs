@@ -1,4 +1,5 @@
-﻿using PdfPixel.PdfPanel.Annotations;
+﻿using PdfPixel.Models;
+using PdfPixel.PdfPanel.Annotations;
 using SkiaSharp;
 using System;
 

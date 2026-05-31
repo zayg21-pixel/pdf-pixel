@@ -300,10 +300,18 @@ internal static class PdfTokens
     public static readonly PdfString SKey = (PdfString)"S"u8;                         // Style (also used for action subtype)
     public static readonly PdfString DashArrayKey = (PdfString)"D"u8;                 // Dash array (reuses "D")
 
+    // Border effect dictionary keys
+    public static readonly PdfString BorderEffectKey = (PdfString)"BE"u8;             // Border effect dictionary
+    public static readonly PdfString IntensityKey = (PdfString)"I"u8;                 // Border effect intensity (0–2)
+
     // Text Annotation specific keys
     public static readonly PdfString OpenKey = (PdfString)"Open"u8;                   // Text annotation open state
     public static readonly PdfString StateModelKey = (PdfString)"StateModel"u8;       // Annotation state model
     public static readonly PdfString StateKey = (PdfString)"State"u8;                 // Annotation state
+
+    // Caret Annotation specific keys
+    public static readonly PdfString SymbolKey = (PdfString)"Sy"u8;                   // Caret symbol type (P = paragraph, None = plain)
+    public static readonly PdfString RectDifferencesKey = (PdfString)"RD"u8;          // Rectangle differences [left top right bottom] inset from /Rect
 
     // Ink Annotation specific keys
     public static readonly PdfString InkListKey = (PdfString)"InkList"u8;             // Ink annotation path list

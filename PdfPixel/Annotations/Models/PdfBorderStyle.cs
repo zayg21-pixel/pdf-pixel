@@ -118,7 +118,10 @@ public sealed class PdfBorderStyle
                 {
                     if (DashPattern?.Length > 0)
                     {
-                        paint.PathEffect = SKPathEffect.CreateDash(DashPattern, 0);
+                        SKPathEffect dash = SKPathEffect.CreateDash(DashPattern, 0);
+                        paint.PathEffect = (paint.PathEffect != null)
+                            ? SKPathEffect.CreateCompose(dash, paint.PathEffect)
+                            : dash;
                     }
 
                     return true;
@@ -126,23 +129,25 @@ public sealed class PdfBorderStyle
             case PdfBorderStyleType.Beveled:
                 {
                     float bevelShadowOffset = Width * 0.5f;
-                    paint.ImageFilter = SKImageFilter.CreateDropShadow(
+                    SKImageFilter shadow = SKImageFilter.CreateDropShadow(
                         dx: bevelShadowOffset,
-                        dy: bevelShadowOffset,
+                        dy: -bevelShadowOffset,
                         sigmaX: Width * 0.3f,
                         sigmaY: Width * 0.3f,
                         color: SKColors.Black.WithAlpha(80));
+                    paint.ImageFilter = ComposeFilter(shadow, paint.ImageFilter);
                     return true;
                 }
             case PdfBorderStyleType.Inset:
                 {
                     float insetShadowOffset = Width * 0.5f;
-                    paint.ImageFilter = SKImageFilter.CreateDropShadow(
+                    SKImageFilter shadow = SKImageFilter.CreateDropShadow(
                         dx: -insetShadowOffset,
-                        dy: -insetShadowOffset,
+                        dy: insetShadowOffset,
                         sigmaX: Width * 0.3f,
                         sigmaY: Width * 0.3f,
                         color: SKColors.Black.WithAlpha(80));
+                    paint.ImageFilter = ComposeFilter(shadow, paint.ImageFilter);
                     return true;
                 }
             case PdfBorderStyleType.Underline:
@@ -153,4 +158,7 @@ public sealed class PdfBorderStyle
                 return true;
         }
     }
+
+    private static SKImageFilter ComposeFilter(SKImageFilter outer, SKImageFilter? existing)
+        => (existing != null) ? SKImageFilter.CreateCompose(outer, existing) : outer;
 }

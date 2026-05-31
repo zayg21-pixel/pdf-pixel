@@ -22,7 +22,6 @@ internal class PdfPage : IPdfPageInternal
     private readonly PdfObject _pageObject;
     private readonly PdfPageResources _pageResources;
     private readonly PdfDictionary _resourceDictionary;
-    private readonly List<PdfAnnotationBase> _annotations;
 
     /// <summary>
     /// Initializes a new instance using <see cref="PdfPageResources"/> snapshot (rotation already normalized there).
@@ -51,9 +50,17 @@ internal class PdfPage : IPdfPageInternal
         CropBox = crop;
         Rotation = pageResources.Rotate ?? 0;
         _resourceDictionary = pageResources.Resources ?? new PdfDictionary(document);
-        _annotations = pageResources.Annotations ?? new List<PdfAnnotationBase>();
-        Annotations = _annotations;
         PageLabel = pageLabel;
+
+        List<PdfAnnotationBase> rawAnnotations = pageResources.Annotations ?? new List<PdfAnnotationBase>();
+        List<PdfPageAnnotation> annotations = new(rawAnnotations.Count);
+
+        foreach (PdfAnnotationBase annotation in rawAnnotations)
+        {
+            annotations.Add(new PdfPageAnnotation(this, annotation));
+        }
+
+        Annotations = annotations;
     }
 
     /// <inheritdoc/>
@@ -69,7 +76,7 @@ internal class PdfPage : IPdfPageInternal
     public int Rotation { get; }
 
     /// <inheritdoc/>
-    public IReadOnlyList<PdfAnnotationBase> Annotations { get; }
+    public IReadOnlyList<PdfPageAnnotation> Annotations { get; }
 
     /// <inheritdoc/>
     public PdfString PageLabel { get; }
@@ -101,32 +108,6 @@ internal class PdfPage : IPdfPageInternal
         PdfContentStreamRenderer contentRenderer = new(renderer, this);
 
         contentRenderer.RenderContent(processor, observer);
-    }
-
-    /// <inheritdoc/>
-    public void RenderAnnotation(
-        IPdfCommandProcessor processor,
-        PdfAnnotationBase annotation,
-        PdfAnnotationVisualStateKind visualStateKind,
-        IPdfExecutionObserver observer)
-    {
-        if (processor == null)
-        {
-            throw new ArgumentNullException(nameof(processor));
-        }
-
-        if (annotation == null)
-        {
-            throw new ArgumentNullException(nameof(annotation));
-        }
-
-        if (!_annotations.Contains(annotation))
-        {
-            throw new ArgumentException("Annotation does not belong to this page.", nameof(annotation));
-        }
-
-        PdfRenderer renderer = new(_document.LoggerFactory);
-        annotation.Render(processor, this, visualStateKind, renderer, observer);
     }
 
     /// <inheritdoc/>

@@ -60,7 +60,7 @@ public sealed class PdfPanelPageCollection : ReadOnlyCollection<PdfPanelPage>, I
             return null;
         }
 
-        return PdfDocumentAnnotationExtractor.GetActiveAnnotation(page.Popups, pagePosition);
+        return PdfDocumentAnnotationExtractor.GetActiveAnnotation(page, pagePosition);
     }
 
     /// <summary>

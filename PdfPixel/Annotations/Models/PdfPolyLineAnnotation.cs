@@ -46,6 +46,9 @@ public class PdfPolyLineAnnotation : PdfAnnotationBase
             StartLineEnding = lineEndingArray.GetName(0).AsEnum<PdfLineEndingStyle>();
             EndLineEnding = lineEndingArray.GetName(1).AsEnum<PdfLineEndingStyle>();
         }
+
+        BorderEffect = PdfBorderEffect.FromDictionary(annotationObject.Dictionary.GetDictionary(PdfTokens.BorderEffectKey));
+        // TODO: [MEDIUM] IT (Intent: PolyLineDimension), Measure
     }
 
     /// <summary>
@@ -67,6 +70,11 @@ public class PdfPolyLineAnnotation : PdfAnnotationBase
     /// Gets the line ending style at the end point.
     /// </summary>
     public PdfLineEndingStyle EndLineEnding { get; }
+
+    /// <summary>
+    /// Gets the border effect applied to this annotation's border, or null for no effect.
+    /// </summary>
+    public PdfBorderEffect? BorderEffect { get; }
 
     internal override bool RenderFallback(IPdfCommandProcessor processor, IPdfPageInternal page, PdfAnnotationVisualStateKind visualStateKind)
     {
@@ -97,12 +105,13 @@ public class PdfPolyLineAnnotation : PdfAnnotationBase
         };
 
         BorderStyle?.TryApplyEffect(linePaint, lineColor);
+        BorderEffect?.TryApplyEffect(linePaint, lineWidth);
 
         processor.Process(new DrawPathCommand(path, linePaint));
 
         SKColor interiorSKColor = ResolveInteriorColor(page);
 
-        if (StartLineEnding != PdfLineEndingStyle.None && Vertices.Length >= 4)
+        if (StartLineEnding != PdfLineEndingStyle.None && Vertices.Length >= 2)
         {
             PdfAnnotationLineEndingRenderer.DrawLineEnding(
                 processor,
@@ -116,7 +125,7 @@ public class PdfPolyLineAnnotation : PdfAnnotationBase
                 interiorSKColor);
         }
 
-        if (EndLineEnding != PdfLineEndingStyle.None && Vertices.Length >= 4)
+        if (EndLineEnding != PdfLineEndingStyle.None && Vertices.Length >= 2)
         {
             PdfAnnotationLineEndingRenderer.DrawLineEnding(
                 processor,

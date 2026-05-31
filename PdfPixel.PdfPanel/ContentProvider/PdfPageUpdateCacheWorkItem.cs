@@ -90,7 +90,7 @@ public class PdfPageUpdateCacheWorkItem : IWorkItem
                     || CacheEntry.CurrentPointerState != _request.PointerState))
             {
                 PdfCancellationExecutionObserver observer = new(_tokenSnapshot.ContentToken);
-                PdfCommandRecorder? annotationRecording = _document.GetAnnotationRecording(CacheEntry.PageNumber, _request.ActiveAnnotation?.Annotation, _request.PointerState, observer);
+                PdfCommandRecorder? annotationRecording = _document.GetAnnotationRecording(CacheEntry.PageNumber, _request.ActiveAnnotation?.PageAnnotation, _request.PointerState, observer);
                 CacheEntry.AnnotationContent.UpdateContentCommandRecording(annotationRecording);
                 CacheEntry.UpdateActiveAnnotationState(_request.ActiveAnnotation, _request.PointerState);
                 annotationRecordingUpdated = true;

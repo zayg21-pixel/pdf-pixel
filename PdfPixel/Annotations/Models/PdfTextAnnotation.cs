@@ -3,7 +3,6 @@ using PdfPixel.Commands;
 using PdfPixel.Models;
 using PdfPixel.Text;
 using SkiaSharp;
-using System;
 
 namespace PdfPixel.Annotations.Models;
 
@@ -48,7 +47,10 @@ public class PdfTextAnnotation : PdfAnnotationBase
     public override bool ShouldDisplayBubble => false;
 
     /// <inheritdoc/>
-    public override SKRect GetHoverRectangle(IPdfPage page, float defaultBubbleSize = 16) => Rectangle;
+    public override bool IsInteractive => true;
+
+    /// <inheritdoc/>
+    public override SKRect GetHoverRectangle(IPdfPage page) => Rectangle;
 
     /// <summary>
     /// Gets the state model corresponding to a change in the annotation's state.
@@ -69,7 +71,18 @@ public class PdfTextAnnotation : PdfAnnotationBase
 
     internal override bool RenderFallback(IPdfCommandProcessor processor, IPdfPageInternal page, PdfAnnotationVisualStateKind visualStateKind)
     {
-        PdfAnnotationBubbleRenderer.RenderBubble(processor, this, page, visualStateKind);
+        PdfAnnotationIconDefinition? iconDefinition =
+            PdfAnnotationGraphics.GetAnnotationIcon(Icon.ToString(), visualStateKind)
+                ?? PdfAnnotationGraphics.GetAnnotationBubbleIcon(visualStateKind);
+
+        if (iconDefinition == null)
+        {
+            return false;
+        }
+
+        SKColor borderColor = ResolveColor(page, PdfAnnotationGraphics.DefaultBubbleBorderColor);
+        SKColor backgroundColor = ResolveInteriorColor(page, PdfAnnotationGraphics.DefaultBubbleBackgroundColor);
+        PdfAnnotationGraphics.RenderIcon(processor, iconDefinition, GetHoverRectangle(page), borderColor, backgroundColor);
         return true;
     }
 

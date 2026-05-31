@@ -1,6 +1,4 @@
-using PdfPixel.Annotations.Models;
 using PdfPixel.Commands;
-using PdfPixel.Models;
 using SkiaSharp;
 using System;
 

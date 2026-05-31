@@ -56,9 +56,11 @@ public abstract class PdfAnnotationBase
 
         Color = annotationObject.Dictionary.GetArray(PdfTokens.ColorKey)?.GetFloatArray();
         InteriorColor = annotationObject.Dictionary.GetArray(PdfTokens.InteriorColorKey)?.GetFloatArray();
+        Opacity = annotationObject.Dictionary.GetFloat(PdfTokens.StrokeAlphaKey) ?? 1.0f;
         PageReference = annotationObject.Dictionary.GetObject(PdfTokens.PageKey)?.Reference;
         StructuralParent = annotationObject.Dictionary.GetInteger(PdfTokens.StructParentKey);
         OptionalContent = annotationObject.Dictionary.GetDictionary(PdfTokens.OptionalContentKey);
+        Popup = annotationObject.Dictionary.GetObject(PdfTokens.PopupKey)?.Reference;
         InReplyTo = annotationObject.Dictionary.GetObject(PdfTokens.InReplyToKey)?.Reference;
         ReplyType = annotationObject.Dictionary.GetName(PdfTokens.ReplyTypeKey).AsEnum<PdfAnnotationReplyType>();
         SupportedVisualStates = DetectSupportedVisualStates();
@@ -96,6 +98,28 @@ public abstract class PdfAnnotationBase
     /// be accessible through a bubble indicator. The HoverRectangle will be the bubble area only.
     /// </remarks>
     public virtual bool ShouldDisplayBubble => !Contents.Value.IsEmpty;
+
+    /// <summary>
+    /// Gets the pointer cursor to display when hovering over this annotation.
+    /// </summary>
+    public virtual PdfAnnotationCursorType CursorType => IsInteractive ? PdfAnnotationCursorType.Hand : PdfAnnotationCursorType.Arrow;
+
+    /// <summary>
+    /// Gets whether this annotation responds to pointer interaction with a visual state change.
+    /// </summary>
+    /// <remarks>
+    /// True when the appearance stream defines rollover or down states, or when the annotation
+    /// displays a bubble (which has its own hover rendering). Subclasses with fallback interactive
+    /// rendering should override this to return true unconditionally.
+    /// </remarks>
+    public virtual bool IsInteractive
+    {
+        get
+        {
+            return (SupportedVisualStates & (PdfAnnotationVisualStateKind.Rollover | PdfAnnotationVisualStateKind.Down)) != 0
+                || ShouldDisplayBubble;
+        }
+    }
 
     /// <summary>
     /// Gets the annotation's contents, which is typically the text displayed
@@ -187,6 +211,17 @@ public abstract class PdfAnnotationBase
     public float[]? InteriorColor { get; }
 
     /// <summary>
+    /// Gets the constant opacity value for the annotation (CA entry). Applied to all fallback-rendered
+    /// content. Default is 1.0 (fully opaque).
+    /// </summary>
+    public float Opacity { get; }
+
+    /// <summary>
+    /// Gets the reference to the popup annotation associated with this markup annotation, if any.
+    /// </summary>
+    public PdfReference? Popup { get; }
+
+    /// <summary>
     /// Gets the page reference that specifies which page this annotation appears on.
     /// </summary>
     /// <remarks>
@@ -244,8 +279,7 @@ public abstract class PdfAnnotationBase
     /// is at the bottom-left of the page.
     /// </remarks>
     /// <param name="page">Owning PDF page to crop margins to.</param>
-    /// <param name="defaultBubbleSize">Bubble size used when <see cref="ShouldDisplayBubble"/> is true.</param>
-    public virtual SKRect GetHoverRectangle(IPdfPage page, float defaultBubbleSize = 16)
+    public virtual SKRect GetHoverRectangle(IPdfPage page)
     {
         if (page == null)
         {
@@ -253,7 +287,7 @@ public abstract class PdfAnnotationBase
         }
 
         SKRect hoverRect = ShouldDisplayBubble
-            ? SKRect.Create(ContentStart.X - defaultBubbleSize, ContentStart.Y, defaultBubbleSize, defaultBubbleSize)
+            ? SKRect.Create(ContentStart.X - PdfAnnotationGraphics.DefaultBubbleSize, ContentStart.Y, PdfAnnotationGraphics.DefaultBubbleSize, PdfAnnotationGraphics.DefaultBubbleSize)
             : Rectangle;
 
         if (hoverRect.Width <= 0 || hoverRect.Height <= 0)
@@ -339,7 +373,14 @@ public abstract class PdfAnnotationBase
         {
             if (ShouldDisplayBubble)
             {
-                PdfAnnotationBubbleRenderer.RenderBubble(processor, this, page, visualStateKind);
+                PdfAnnotationIconDefinition? bubbleIcon = PdfAnnotationGraphics.GetAnnotationBubbleIcon(visualStateKind);
+
+                if (bubbleIcon != null)
+                {
+                    SKColor borderColor = ResolveColor(page, PdfAnnotationGraphics.DefaultBubbleBorderColor);
+                    SKColor backgroundColor = ResolveInteriorColor(page, PdfAnnotationGraphics.DefaultBubbleBackgroundColor);
+                    PdfAnnotationGraphics.RenderIcon(processor, bubbleIcon, GetHoverRectangle(page), borderColor, backgroundColor);
+                }
             }
 
             if (AppearanceDictionary != null && RenderAppearanceStream(processor, page, visualStateKind, renderer, observer))
@@ -347,7 +388,20 @@ public abstract class PdfAnnotationBase
                 return true;
             }
 
-            return RenderFallback(processor, page, visualStateKind);
+            bool useOpacityLayer = Opacity < 1.0f;
+            if (useOpacityLayer)
+            {
+                processor.Process(new SaveLayerCommand(Rectangle, new SKPaint { Color = SKColors.White.WithAlpha((byte)(Opacity * 255)) }));
+            }
+
+            bool rendered = RenderFallback(processor, page, visualStateKind);
+
+            if (useOpacityLayer)
+            {
+                processor.Process(new RestoreStateCommand());
+            }
+
+            return rendered;
         }
         finally
         {
@@ -392,6 +446,24 @@ public abstract class PdfAnnotationBase
             visualStateKind,
             renderer,
             observer);
+    }
+
+    /// <summary>
+    /// Returns the annotation rectangle after applying RD (RectDifferences) insets, or the original
+    /// rectangle unchanged when <paramref name="differences"/> is null.
+    /// </summary>
+    protected static SKRect ApplyRectDifferences(SKRect rect, SKRect? differences)
+    {
+        if (differences == null)
+        {
+            return rect;
+        }
+
+        return SKRect.Create(
+            rect.Left + differences.Value.Left,
+            rect.Top + differences.Value.Top,
+            rect.Width - differences.Value.Left - differences.Value.Right,
+            rect.Height - differences.Value.Top - differences.Value.Bottom);
     }
 
     /// <summary>

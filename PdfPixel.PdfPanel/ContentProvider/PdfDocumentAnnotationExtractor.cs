@@ -1,6 +1,7 @@
 ﻿using PdfPixel.Annotations.Models;
 using PdfPixel.Models;
 using PdfPixel.PdfPanel.Annotations;
+using PdfPixel.PdfPanel.Extensions;
 using PdfPixel.Text;
 using SkiaSharp;
 using System;
@@ -11,14 +12,16 @@ namespace PdfPixel.PdfPanel.ContentProvider;
 
 internal static class PdfDocumentAnnotationExtractor
 {
-    public static PdfAnnotationPopup? GetActiveAnnotation(PdfAnnotationPopup[] popups, SKPoint pagePosition)
+    public static PdfAnnotationPopup? GetActiveAnnotation(PdfPanelPage page, SKPoint pagePosition)
     {
-        if (popups == null)
+        if (page == null)
         {
             return null;
         }
 
-        return popups.FirstOrDefault(x => x.IsInteractive && x.Rect.Contains(pagePosition));
+        return page.Popups.FirstOrDefault(x =>
+            x.PageAnnotation.Content.IsInteractive
+                && page.FromPdfRect(x.PageAnnotation.GetHoverRectangle()).Contains(pagePosition));
     }
 
     public static PdfAnnotationPopup[] CreateAnnotationPopups(this IPdfDocument document, int pageNumber)
@@ -38,8 +41,10 @@ internal static class PdfDocumentAnnotationExtractor
         List<PdfAnnotationPopup> popups = [];
         HashSet<PdfAnnotationBase> processedAnnotations = [];
 
-        foreach (PdfAnnotationBase annotation in pdfPage.Annotations)
+        foreach (PdfPageAnnotation pageAnnotation in pdfPage.Annotations)
         {
+            PdfAnnotationBase annotation = pageAnnotation.Content;
+
             if (processedAnnotations.Contains(annotation))
             {
                 continue;
@@ -51,34 +56,10 @@ internal static class PdfDocumentAnnotationExtractor
             }
 
             PdfAnnotationMessage[] thread = BuildAnnotationThread(annotation, annotationMap, processedAnnotations);
-            SKRect rect = FromPdfRect(pdfPage, annotation.GetHoverRectangle(pdfPage));
-            PdfPanelAnnotationAction? action = ResolveAction(annotation);
-            bool isInteractive = IsInteractive(annotation);
-            popups.Add(new PdfAnnotationPopup(action, thread, rect, isInteractive) { Annotation = annotation });
+            popups.Add(new PdfAnnotationPopup(pageAnnotation, thread));
         }
 
         return popups.ToArray();
-    }
-
-    private static bool IsInteractive(PdfAnnotationBase annotation)
-    {
-        if (annotation is PdfLinkAnnotation || annotation is PdfFileAttachmentAnnotation)
-        {
-            return true;
-        }
-
-        if (annotation.ShouldDisplayBubble)
-        {
-            return true;
-        }
-
-        if (annotation.SupportedVisualStates != PdfAnnotationVisualStateKind.Normal
-            && annotation.SupportedVisualStates != PdfAnnotationVisualStateKind.None)
-        {
-            return true;
-        }
-
-        return false;
     }
 
     private static PdfAnnotationMessage[] BuildAnnotationThread(
@@ -114,34 +95,16 @@ internal static class PdfDocumentAnnotationExtractor
     {
         Dictionary<PdfReference, PdfAnnotationBase> map = [];
 
-        foreach (PdfAnnotationBase annotation in pdfPage.Annotations)
+        foreach (PdfPageAnnotation pageAnnotation in pdfPage.Annotations)
         {
-            PdfReference reference = annotation.AnnotationObject.Reference;
+            PdfReference reference = pageAnnotation.Content.AnnotationObject.Reference;
             if (reference.IsValid)
             {
-                map[reference] = annotation;
+                map[reference] = pageAnnotation.Content;
             }
         }
 
         return map;
-    }
-
-    /// <summary>
-    /// Converts PDF rectangle coordinates to WPF coordinates.
-    /// </summary>
-    /// <param name="pdfPage">The PDF page for coordinate system reference.</param>
-    /// <param name="pdfRect">Rectangle in PDF coordinates.</param>
-    /// <returns>Rectangle in WPF coordinates.</returns>
-    private static SKRect FromPdfRect(IPdfPage pdfPage, SKRect pdfRect)
-    {
-        // PDF coordinate system: origin at bottom-left, Y increases upward
-        // General coordinate system: origin at top-left, Y increases downward
-        // Convert from PDF coordinates to general coordinates with proper Y-axis flip
-        return SKRect.Create(
-            pdfRect.Left - pdfPage.CropBox.Left,
-            pdfPage.CropBox.Height + pdfPage.CropBox.Top - pdfRect.Bottom,
-            pdfRect.Width,
-            pdfRect.Height);
     }
 
     /// <summary>
@@ -190,16 +153,6 @@ internal static class PdfDocumentAnnotationExtractor
         }
 
         return replies;
-    }
-
-    private static PdfPanelAnnotationAction? ResolveAction(PdfAnnotationBase annotation)
-    {
-        if (annotation is not PdfLinkAnnotation link)
-        {
-            return null;
-        }
-
-        return PdfPanelAnnotationAction.FromLinkAnnotation(link);
     }
 
     private static List<PdfAnnotationBase> FindDirectReplies(

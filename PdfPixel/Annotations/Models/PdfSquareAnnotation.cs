@@ -1,5 +1,6 @@
 using PdfPixel.Commands;
 using PdfPixel.Models;
+using PdfPixel.Rendering.Operators;
 using PdfPixel.Text;
 using SkiaSharp;
 
@@ -21,12 +22,28 @@ public class PdfSquareAnnotation : PdfAnnotationBase
     public PdfSquareAnnotation(PdfObject annotationObject)
         : base(annotationObject, PdfAnnotationSubType.Square)
     {
+        RectDifferences = PdfLocationUtilities.CreateBBox(annotationObject.Dictionary.GetArray(PdfTokens.RectDifferencesKey));
+        ContentRectangle = ApplyRectDifferences(Rectangle, RectDifferences);
+        BorderEffect = PdfBorderEffect.FromDictionary(annotationObject.Dictionary.GetDictionary(PdfTokens.BorderEffectKey));
     }
+
+    /// <summary>
+    /// Gets the rectangle differences that inset the drawn shape from the annotation rectangle.
+    /// </summary>
+    public SKRect? RectDifferences { get; }
+
+    /// <summary>
+    /// Gets the effective drawing rectangle after applying <see cref="RectDifferences"/>.
+    /// </summary>
+    public SKRect ContentRectangle { get; }
+
+    /// <summary>
+    /// Gets the border effect applied to this annotation's border, or null for no effect.
+    /// </summary>
+    public PdfBorderEffect? BorderEffect { get; }
 
     internal override bool RenderFallback(IPdfCommandProcessor processor, IPdfPageInternal page, PdfAnnotationVisualStateKind visualStateKind)
     {
-        float width = Rectangle.Width;
-        float height = Rectangle.Height;
         SKColor interiorSKColor = ResolveInteriorColor(page);
 
         if (interiorSKColor != SKColors.Transparent)
@@ -38,7 +55,7 @@ public class PdfSquareAnnotation : PdfAnnotationBase
             };
 
             using SKPath fillPath = new();
-            fillPath.AddRect(new SKRect(Rectangle.Left, Rectangle.Top, Rectangle.Left + width, Rectangle.Top + height));
+            fillPath.AddRect(ContentRectangle);
             processor.Process(new DrawPathCommand(fillPath, fillPaint));
         }
 
@@ -54,13 +71,14 @@ public class PdfSquareAnnotation : PdfAnnotationBase
             };
 
             BorderStyle.TryApplyEffect(strokePaint, strokeColor);
+            BorderEffect?.TryApplyEffect(strokePaint, BorderStyle.Width);
 
-            float halfBorder = BorderStyle.Width / 2;
+            float halfBorder = BorderStyle.Width / 2f;
             SKRect adjustedRect = new(
-                Rectangle.Left + halfBorder,
-                Rectangle.Top + halfBorder,
-                Rectangle.Right - halfBorder,
-                Rectangle.Bottom - halfBorder);
+                ContentRectangle.Left + halfBorder,
+                ContentRectangle.Top + halfBorder,
+                ContentRectangle.Right - halfBorder,
+                ContentRectangle.Bottom - halfBorder);
 
             using SKPath strokePath = new();
             strokePath.AddRect(adjustedRect);

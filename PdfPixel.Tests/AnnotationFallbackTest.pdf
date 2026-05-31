@@ -1,0 +1,537 @@
+%PDF-1.7
+
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+
+2 0 obj
+<< /Type /Pages /Kids [3 0 R] /Count 1 >>
+endobj
+
+3 0 obj
+<< /Type /Page
+   /MediaBox [0 0 1000 1000]
+   /Parent 2 0 R
+   /Annots [4 0 R 5 0 R 6 0 R 7 0 R 8 0 R 9 0 R 10 0 R
+            11 0 R 12 0 R 13 0 R 14 0 R
+            15 0 R 16 0 R 17 0 R 18 0 R 19 0 R 20 0 R 21 0 R 22 0 R 23 0 R 24 0 R
+            25 0 R 26 0 R 27 0 R 28 0 R 29 0 R
+            30 0 R 31 0 R 32 0 R 33 0 R 34 0 R
+            35 0 R 36 0 R 37 0 R 38 0 R 39 0 R
+            40 0 R 41 0 R 42 0 R
+            43 0 R
+            44 0 R 45 0 R 46 0 R 47 0 R
+            48 0 R 49 0 R 50 0 R 51 0 R 52 0 R
+            53 0 R 54 0 R 55 0 R 56 0 R 57 0 R
+            58 0 R 59 0 R 60 0 R
+            61 0 R 62 0 R 63 0 R]
+>>
+endobj
+
+% ============================================================
+% Row A: Text Annotation Icons  y=955-985
+% 7 icons: Note, Comment, Key, Help, NewParagraph, Paragraph, Insert
+% 30x30 blocks, 36pt spacing
+% ============================================================
+
+4 0 obj
+<< /Type /Annot /Subtype /Text /Rect [20 955 50 985]
+   /Name /Note /C [0.4 0 0.6] /T (Text - Note) >>
+endobj
+
+5 0 obj
+<< /Type /Annot /Subtype /Text /Rect [56 955 86 985]
+   /Name /Comment /C [0.4 0 0.6] /T (Text - Comment) >>
+endobj
+
+6 0 obj
+<< /Type /Annot /Subtype /Text /Rect [92 955 122 985]
+   /Name /Key /C [0.4 0 0.6] /T (Text - Key) >>
+endobj
+
+7 0 obj
+<< /Type /Annot /Subtype /Text /Rect [128 955 158 985]
+   /Name /Help /C [0.4 0 0.6] /T (Text - Help) >>
+endobj
+
+8 0 obj
+<< /Type /Annot /Subtype /Text /Rect [164 955 194 985]
+   /Name /NewParagraph /C [0.4 0 0.6] /T (Text - NewParagraph) >>
+endobj
+
+9 0 obj
+<< /Type /Annot /Subtype /Text /Rect [200 955 230 985]
+   /Name /Paragraph /C [0.4 0 0.6] /T (Text - Paragraph) >>
+endobj
+
+10 0 obj
+<< /Type /Annot /Subtype /Text /Rect [236 955 266 985]
+   /Name /Insert /C [0.4 0 0.6] /T (Text - Insert) >>
+endobj
+
+% ============================================================
+% Row B: FileAttachment Annotation Icons  y=905-935
+% 4 icons: Graph, PushPin, Paperclip, Tag
+% ============================================================
+
+11 0 obj
+<< /Type /Annot /Subtype /FileAttachment /Rect [20 905 50 935]
+   /Name /Graph /C [0 0 0.7] /T (FileAttachment - Graph) >>
+endobj
+
+12 0 obj
+<< /Type /Annot /Subtype /FileAttachment /Rect [56 905 86 935]
+   /Name /PushPin /C [0 0 0.7] /T (FileAttachment - PushPin) >>
+endobj
+
+13 0 obj
+<< /Type /Annot /Subtype /FileAttachment /Rect [92 905 122 935]
+   /Name /Paperclip /C [0 0 0.7] /T (FileAttachment - Paperclip) >>
+endobj
+
+14 0 obj
+<< /Type /Annot /Subtype /FileAttachment /Rect [128 905 158 935]
+   /Name /Tag /C [0 0 0.7] /T (FileAttachment - Tag) >>
+endobj
+
+% ============================================================
+% Row C: Line Annotations - all 10 line ending styles  y=835-875
+% Each line: horizontal at y=855, 60pt long, 90pt slot width
+% Slots start at x=20, 110, 200, 290, 380, 470, 560, 650, 740, 830
+% ============================================================
+
+15 0 obj
+<< /Type /Annot /Subtype /Line
+   /Rect [20 835 100 875] /L [30 855 90 855]
+   /LE [/None /None] /C [0.7 0 0] /BS << /W 2 >>
+   /T (Line - None/None) >>
+endobj
+
+16 0 obj
+<< /Type /Annot /Subtype /Line
+   /Rect [110 835 190 875] /L [120 855 180 855]
+   /LE [/Square /Square] /C [0.7 0 0] /IC [1 0.8 0.8] /BS << /W 2 >>
+   /T (Line - Square/Square) >>
+endobj
+
+17 0 obj
+<< /Type /Annot /Subtype /Line
+   /Rect [200 835 280 875] /L [210 855 270 855]
+   /LE [/Circle /Circle] /C [0.7 0 0] /IC [1 0.8 0.8] /BS << /W 2 >>
+   /T (Line - Circle/Circle) >>
+endobj
+
+18 0 obj
+<< /Type /Annot /Subtype /Line
+   /Rect [290 835 370 875] /L [300 855 360 855]
+   /LE [/Diamond /Diamond] /C [0.7 0 0] /IC [1 0.8 0.8] /BS << /W 2 >>
+   /T (Line - Diamond/Diamond) >>
+endobj
+
+19 0 obj
+<< /Type /Annot /Subtype /Line
+   /Rect [380 835 460 875] /L [390 855 450 855]
+   /LE [/OpenArrow /OpenArrow] /C [0.7 0 0] /BS << /W 2 >>
+   /T (Line - OpenArrow/OpenArrow) >>
+endobj
+
+20 0 obj
+<< /Type /Annot /Subtype /Line
+   /Rect [470 835 550 875] /L [480 855 540 855]
+   /LE [/ClosedArrow /ClosedArrow] /C [0.7 0 0] /IC [1 0.8 0.8] /BS << /W 2 >>
+   /T (Line - ClosedArrow/ClosedArrow) >>
+endobj
+
+21 0 obj
+<< /Type /Annot /Subtype /Line
+   /Rect [560 835 640 875] /L [570 855 630 855]
+   /LE [/Butt /Butt] /C [0.7 0 0] /BS << /W 2 >>
+   /T (Line - Butt/Butt) >>
+endobj
+
+22 0 obj
+<< /Type /Annot /Subtype /Line
+   /Rect [650 835 730 875] /L [660 855 720 855]
+   /LE [/ROpenArrow /ROpenArrow] /C [0.7 0 0] /BS << /W 2 >>
+   /T (Line - ROpenArrow/ROpenArrow) >>
+endobj
+
+23 0 obj
+<< /Type /Annot /Subtype /Line
+   /Rect [740 835 820 875] /L [750 855 810 855]
+   /LE [/RClosedArrow /RClosedArrow] /C [0.7 0 0] /IC [1 0.8 0.8] /BS << /W 2 >>
+   /T (Line - RClosedArrow/RClosedArrow) >>
+endobj
+
+24 0 obj
+<< /Type /Annot /Subtype /Line
+   /Rect [830 835 910 875] /L [840 855 900 855]
+   /LE [/Slash /Slash] /C [0.7 0 0] /BS << /W 2 >>
+   /T (Line - Slash/Slash) >>
+endobj
+
+% ============================================================
+% Row D: PolyLine - 5 combos of mixed line endings  y=755-805
+% Each is a 3-vertex zigzag, 190pt slot width
+% ============================================================
+
+25 0 obj
+<< /Type /Annot /Subtype /PolyLine
+   /Rect [10 755 170 805]
+   /Vertices [20 780 80 760 160 780]
+   /LE [/OpenArrow /ClosedArrow] /C [0.5 0 0.5] /IC [0.9 0.8 1] /BS << /W 2 >>
+   /T (PolyLine - OpenArrow/ClosedArrow) >>
+endobj
+
+26 0 obj
+<< /Type /Annot /Subtype /PolyLine
+   /Rect [200 755 360 805]
+   /Vertices [210 780 270 760 350 780]
+   /LE [/None /Diamond] /C [0.5 0 0.5] /IC [0.9 0.8 1] /BS << /W 2 >>
+   /T (PolyLine - None/Diamond) >>
+endobj
+
+27 0 obj
+<< /Type /Annot /Subtype /PolyLine
+   /Rect [390 755 550 805]
+   /Vertices [400 780 460 760 540 780]
+   /LE [/Square /Circle] /C [0.5 0 0.5] /IC [0.9 0.8 1] /BS << /W 2 >>
+   /T (PolyLine - Square/Circle) >>
+endobj
+
+28 0 obj
+<< /Type /Annot /Subtype /PolyLine
+   /Rect [580 755 740 805]
+   /Vertices [590 780 650 760 730 780]
+   /LE [/Butt /Slash] /C [0.5 0 0.5] /BS << /W 2 >>
+   /T (PolyLine - Butt/Slash) >>
+endobj
+
+29 0 obj
+<< /Type /Annot /Subtype /PolyLine
+   /Rect [770 755 930 805]
+   /Vertices [780 780 840 760 920 780]
+   /LE [/ROpenArrow /RClosedArrow] /C [0.5 0 0.5] /IC [0.9 0.8 1] /BS << /W 2 >>
+   /T (PolyLine - ROpenArrow/RClosedArrow) >>
+endobj
+
+% ============================================================
+% Row E: Square - all 5 border styles  y=660-740
+% 70x80 each, 90pt slot width
+% Styles: Solid, Dashed, Beveled, Inset, Underline
+% ============================================================
+
+30 0 obj
+<< /Type /Annot /Subtype /Square
+   /Rect [20 660 90 740]
+   /C [0.8 0.4 0] /IC [1 0.9 0.6]
+   /BS << /S /S /W 3 >>
+   /T (Square - Solid) >>
+endobj
+
+31 0 obj
+<< /Type /Annot /Subtype /Square
+   /Rect [110 660 180 740]
+   /C [0.8 0.4 0] /IC [1 0.9 0.6]
+   /BS << /S /D /W 3 /D [10 5] >>
+   /T (Square - Dashed) >>
+endobj
+
+32 0 obj
+<< /Type /Annot /Subtype /Square
+   /Rect [200 660 270 740]
+   /C [0.8 0.4 0] /IC [1 0.9 0.6]
+   /BS << /S /B /W 3 >>
+   /T (Square - Beveled) >>
+endobj
+
+33 0 obj
+<< /Type /Annot /Subtype /Square
+   /Rect [290 660 360 740]
+   /C [0.8 0.4 0] /IC [1 0.9 0.6]
+   /BS << /S /I /W 3 >>
+   /T (Square - Inset) >>
+endobj
+
+34 0 obj
+<< /Type /Annot /Subtype /Square
+   /Rect [380 660 450 740]
+   /C [0.8 0.4 0] /IC [1 0.9 0.6]
+   /BS << /S /U /W 3 >>
+   /T (Square - Underline) >>
+endobj
+
+% ============================================================
+% Row F: Circle - all 5 border styles  y=560-640
+% ============================================================
+
+35 0 obj
+<< /Type /Annot /Subtype /Circle
+   /Rect [20 560 90 640]
+   /C [0 0.5 0.8] /IC [0.8 0.95 1]
+   /BS << /S /S /W 3 >>
+   /T (Circle - Solid) >>
+endobj
+
+36 0 obj
+<< /Type /Annot /Subtype /Circle
+   /Rect [110 560 180 640]
+   /C [0 0.5 0.8] /IC [0.8 0.95 1]
+   /BS << /S /D /W 3 /D [10 5] >>
+   /T (Circle - Dashed) >>
+endobj
+
+37 0 obj
+<< /Type /Annot /Subtype /Circle
+   /Rect [200 560 270 640]
+   /C [0 0.5 0.8] /IC [0.8 0.95 1]
+   /BS << /S /B /W 3 >>
+   /T (Circle - Beveled) >>
+endobj
+
+38 0 obj
+<< /Type /Annot /Subtype /Circle
+   /Rect [290 560 360 640]
+   /C [0 0.5 0.8] /IC [0.8 0.95 1]
+   /BS << /S /I /W 3 >>
+   /T (Circle - Inset) >>
+endobj
+
+39 0 obj
+<< /Type /Annot /Subtype /Circle
+   /Rect [380 560 450 640]
+   /C [0 0.5 0.8] /IC [0.8 0.95 1]
+   /BS << /S /U /W 3 >>
+   /T (Circle - Underline) >>
+endobj
+
+% ============================================================
+% Row G: Polygon - 3 shapes  y=480-560
+% Triangle, Quadrilateral, Pentagon (dashed border)
+% ============================================================
+
+40 0 obj
+<< /Type /Annot /Subtype /Polygon
+   /Rect [20 480 180 560]
+   /Vertices [100 555 175 482 25 482]
+   /C [0 0.6 0.3] /IC [0.8 1 0.9]
+   /BS << /S /S /W 2 >>
+   /T (Polygon - Triangle) >>
+endobj
+
+41 0 obj
+<< /Type /Annot /Subtype /Polygon
+   /Rect [200 480 360 560]
+   /Vertices [210 490 350 490 350 550 210 550]
+   /C [0 0.6 0.3] /IC [0.8 1 0.9]
+   /BS << /S /S /W 2 >>
+   /T (Polygon - Quadrilateral) >>
+endobj
+
+42 0 obj
+<< /Type /Annot /Subtype /Polygon
+   /Rect [380 480 560 560]
+   /Vertices [470 555 545 510 515 482 425 482 395 510]
+   /C [0 0.6 0.3] /IC [0.8 1 0.9]
+   /BS << /S /D /W 2 /D [8 4] >>
+   /T (Polygon - Pentagon Dashed) >>
+endobj
+
+% ============================================================
+% Row H: Ink annotation  y=400-460
+% Three separate ink paths (scribble patterns)
+% ============================================================
+
+43 0 obj
+<< /Type /Annot /Subtype /Ink
+   /Rect [20 400 500 460]
+   /InkList [[30 410 100 450 170 410 240 450 310 410]
+             [350 450 420 410 490 450]]
+   /C [0.2 0.2 0.8]
+   /BS << /W 2 >>
+   /T (Ink) >>
+endobj
+
+% ============================================================
+% Row I: Text Markup annotations  y=340-375
+% Highlight, Underline, Squiggly, StrikeOut  200pt wide each
+% ============================================================
+
+44 0 obj
+<< /Type /Annot /Subtype /Highlight
+   /Rect [20 340 220 375]
+   /QuadPoints [220 340 20 340 220 375 20 375]
+   /C [1 1 0]
+   /T (Highlight) >>
+endobj
+
+45 0 obj
+<< /Type /Annot /Subtype /Underline
+   /Rect [240 340 440 375]
+   /QuadPoints [440 340 240 340 440 375 240 375]
+   /C [0 0 1]
+   /T (Underline) >>
+endobj
+
+46 0 obj
+<< /Type /Annot /Subtype /Squiggly
+   /Rect [460 340 660 375]
+   /QuadPoints [660 340 460 340 660 375 460 375]
+   /C [1 0 0]
+   /T (Squiggly) >>
+endobj
+
+47 0 obj
+<< /Type /Annot /Subtype /StrikeOut
+   /Rect [680 340 880 375]
+   /QuadPoints [880 340 680 340 880 375 680 375]
+   /C [0 0 0]
+   /T (StrikeOut) >>
+endobj
+
+% ============================================================
+% Row J: Link, FreeText, Stamp, Caret, Popup  y=255-310
+% 80x55 each, 110pt slot width
+% ============================================================
+
+48 0 obj
+<< /Type /Annot /Subtype /Link
+   /Rect [20 255 100 310]
+   /C [0 0.5 0]
+   /BS << /S /S /W 1 >>
+   /T (Link) >>
+endobj
+
+49 0 obj
+<< /Type /Annot /Subtype /FreeText
+   /Rect [130 255 210 310]
+   /C [0.9 0.9 0]
+   /BS << /S /S /W 1 >>
+   /DA (/Helvetica 12 Tf 0 0 0 rg)
+   /T (FreeText) >>
+endobj
+
+50 0 obj
+<< /Type /Annot /Subtype /Stamp
+   /Rect [240 255 320 310]
+   /Name /Draft
+   /C [0.8 0 0]
+   /T (Stamp - Draft) >>
+endobj
+
+51 0 obj
+<< /Type /Annot /Subtype /Caret
+   /Rect [350 255 430 310]
+   /C [0 0 0.8]
+   /T (Caret) >>
+endobj
+
+52 0 obj
+<< /Type /Annot /Subtype /Popup
+   /Rect [460 255 540 310]
+   /Open false
+   /T (Popup) >>
+endobj
+
+% ============================================================
+% Row K: Sound, Movie, Screen, PrinterMark, TrapNet  y=175-230
+% ============================================================
+
+53 0 obj
+<< /Type /Annot /Subtype /Sound
+   /Rect [20 175 100 230]
+   /C [0.3 0.3 0.3]
+   /T (Sound) >>
+endobj
+
+54 0 obj
+<< /Type /Annot /Subtype /Movie
+   /Rect [120 175 200 230]
+   /C [0.3 0.3 0.3]
+   /T (Movie) >>
+endobj
+
+55 0 obj
+<< /Type /Annot /Subtype /Screen
+   /Rect [220 175 300 230]
+   /C [0.3 0.3 0.3]
+   /T (Screen) >>
+endobj
+
+56 0 obj
+<< /Type /Annot /Subtype /PrinterMark
+   /Rect [320 175 400 230]
+   /C [0.3 0.3 0.3]
+   /T (PrinterMark) >>
+endobj
+
+57 0 obj
+<< /Type /Annot /Subtype /TrapNet
+   /Rect [420 175 500 230]
+   /C [0.3 0.3 0.3]
+   /T (TrapNet) >>
+endobj
+
+% ============================================================
+% Row L: Watermark, 3D, Redact  y=95-150
+% Note: Unknown subtype -> PdfAnnotationFactory returns null, not renderable
+% Note: FreeText has no RenderFallback (returns false), needs appearance stream
+% ============================================================
+
+58 0 obj
+<< /Type /Annot /Subtype /Watermark
+   /Rect [20 95 100 150]
+   /C [0.5 0.5 0.8]
+   /T (Watermark) >>
+endobj
+
+59 0 obj
+<< /Type /Annot /Subtype /3D
+   /Rect [120 95 200 150]
+   /C [0.5 0.5 0.5]
+   /T (3D) >>
+endobj
+
+60 0 obj
+<< /Type /Annot /Subtype /Redact
+   /Rect [220 95 300 150]
+   /C [0 0 0] /IC [0 0 0]
+   /T (Redact) >>
+endobj
+
+% ============================================================
+% Row M: CA (opacity) and BE (border effect) examples  y=15-70
+% ============================================================
+
+61 0 obj
+<< /Type /Annot /Subtype /Square
+   /Rect [20 15 180 70]
+   /C [0.7 0 0]
+   /IC [1 0.6 0.6]
+   /BS << /W 3 /S /S >>
+   /CA 0.4
+   /T (Square CA=0.4) >>
+endobj
+
+62 0 obj
+<< /Type /Annot /Subtype /Circle
+   /Rect [200 15 360 70]
+   /C [0 0 0.7]
+   /IC [0.6 0.6 1]
+   /BS << /W 3 /S /S >>
+   /BE << /S /C /I 1 >>
+   /T (Circle BE=Cloudy) >>
+endobj
+
+63 0 obj
+<< /Type /Annot /Subtype /Square
+   /Rect [380 15 540 70]
+   /C [0 0.5 0]
+   /IC [0.6 1 0.6]
+   /BS << /W 3 /S /S >>
+   /BE << /S /C /I 2 >>
+   /CA 0.6
+   /T (Square CA=0.6 + BE=Cloudy I=2) >>
+endobj
+
+%%EOF

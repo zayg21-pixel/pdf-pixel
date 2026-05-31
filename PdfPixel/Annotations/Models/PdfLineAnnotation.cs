@@ -41,6 +41,7 @@ public class PdfLineAnnotation : PdfAnnotationBase
         LeaderLineLength = annotationObject.Dictionary.GetFloat(PdfTokens.LeaderLineKey);
         LeaderLineExtension = annotationObject.Dictionary.GetFloat(PdfTokens.LeaderLineExtensionKey);
         LeaderLineOffset = annotationObject.Dictionary.GetFloat(PdfTokens.LeaderLineOffsetKey);
+        // TODO: [MEDIUM] Cap (caption flag), CP (caption position: Inline/Top), CO (caption offset), Measure (dimension dict)
     }
 
     /// <summary>
