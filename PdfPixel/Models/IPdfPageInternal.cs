@@ -1,3 +1,5 @@
+using PdfPixel.Transparency.Model;
+
 namespace PdfPixel.Models;
 
 /// <summary>
@@ -30,4 +32,9 @@ internal interface IPdfPageInternal : IPdfPage
     /// Owning document instance.
     /// </summary>
     IPdfDocumentInternal Document { get; }
+
+    /// <summary>
+    /// Page-level transparency group (/Group entry in the page dict), or null when absent.
+    /// </summary>
+    PdfTransparencyGroup? TransparencyGroup { get; }
 }

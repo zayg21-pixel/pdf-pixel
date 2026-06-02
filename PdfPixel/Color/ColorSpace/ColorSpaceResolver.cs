@@ -1,5 +1,3 @@
-using System;
-using System.Collections.Generic;
 using PdfPixel.Models;
 using PdfPixel.Text;
 
@@ -12,13 +10,15 @@ namespace PdfPixel.Color.ColorSpace;
 /// </summary>
 internal sealed partial class ColorSpaceResolver
 {
-    private readonly IPdfPageInternal _page;
+    private readonly IPdfDocumentInternal _document;
+    private readonly PdfDictionary _resources;
     private readonly PdfDictionary? _colorSpaceDictionary; // Cached once per page.
 
-    public ColorSpaceResolver(IPdfPageInternal page)
+    public ColorSpaceResolver(IPdfDocumentInternal document, PdfDictionary resources)
     {
-        _page = page ?? throw new ArgumentNullException(nameof(page));
-        _colorSpaceDictionary = _page.ResourceDictionary.GetDictionary(PdfTokens.ColorSpaceKey);
+        _document = document;
+        _resources = resources;
+        _colorSpaceDictionary = resources.GetDictionary(PdfTokens.ColorSpaceKey);
     }
 
     /// <summary>
@@ -123,7 +123,7 @@ internal sealed partial class ColorSpaceResolver
 
     private PdfColorSpaceConverter? ResolveDefaultDeviceSpace(in PdfString defaultKey, int n)
     {
-        IPdfValue? defaultVal = _page.ResourceDictionary.GetValue(defaultKey);
+        IPdfValue? defaultVal = _resources.GetValue(defaultKey);
         if (defaultVal != null)
         {
             PdfColorSpaceConverter? conv = ResolveByValue(defaultVal, -1); // Recursive parse; do not override components.
@@ -138,9 +138,9 @@ internal sealed partial class ColorSpaceResolver
             }
         }
 
-        if (_page.Document.ObjectCache.OutputIntentProfileConverter != null && _page.Document.ObjectCache.OutputIntentProfileConverter.N == n)
+        if (_document.ObjectCache.OutputIntentProfileConverter != null && _document.ObjectCache.OutputIntentProfileConverter.N == n)
         {
-            return _page.Document.ObjectCache.OutputIntentProfileConverter;
+            return _document.ObjectCache.OutputIntentProfileConverter;
         }
 
         return null;
@@ -267,7 +267,7 @@ internal sealed partial class ColorSpaceResolver
             return false;
         }
 
-        if (pdfObject.Reference.IsValid && _page.Document.ObjectCache.ColorSpaceConverters.TryGetValue(pdfObject.Reference, out PdfColorSpaceConverter? existing))
+        if (pdfObject.Reference.IsValid && _document.ObjectCache.ColorSpaceConverters.TryGetValue(pdfObject.Reference, out PdfColorSpaceConverter? existing))
         {
             converter = existing;
             return true;
@@ -286,7 +286,7 @@ internal sealed partial class ColorSpaceResolver
 
         if (pdfObject.Reference.IsValid)
         {
-            _page.Document.ObjectCache.ColorSpaceConverters[pdfObject.Reference] = converter;
+            _document.ObjectCache.ColorSpaceConverters[pdfObject.Reference] = converter;
             return true;
         }
 

@@ -2,6 +2,9 @@ using PdfPixel.Rendering;
 using PdfPixel.TextExtraction;
 using PdfPixel.Annotations.Models;
 using PdfPixel.Commands;
+using PdfPixel.Text;
+using PdfPixel.Transparency.Model;
+using PdfPixel.Transparency.Utilities;
 using SkiaSharp;
 using System;
 using System.Collections.Generic;
@@ -17,11 +20,48 @@ internal class PdfPage : IPdfPageInternal
 {
     private static readonly SKRect DefaultMediaBox = new(0, 0, 612, 792);
 
-    private readonly Lazy<PdfPageCache> _lazyPageCache;
+    private readonly PdfPageCache _pageCache;
     private readonly IPdfDocumentInternal _document;
     private readonly PdfObject _pageObject;
     private readonly PdfPageResources _pageResources;
     private readonly PdfDictionary _resourceDictionary;
+    private readonly PdfTransparencyGroup? _transparencyGroup;
+
+    protected internal PdfPage(
+        int pageNumber,
+        in PdfString pageLabel,
+        IPdfDocumentInternal document,
+        PdfObject pageObject,
+        PdfPageResources pageResources,
+        PdfDictionary resourceDictionary)
+    {
+        _document = document ?? throw new ArgumentNullException(nameof(document));
+        _pageObject = pageObject ?? throw new ArgumentNullException(nameof(pageObject));
+        _pageResources = pageResources ?? throw new ArgumentNullException(nameof(pageResources));
+
+        PageNumber = pageNumber;
+        SKRect media = pageResources.MediaBoxRect ?? DefaultMediaBox;
+        SKRect crop = pageResources.CropBoxRect ?? media;
+        MediaBox = media;
+        CropBox = crop;
+        Rotation = pageResources.Rotate ?? 0;
+        _resourceDictionary = resourceDictionary;
+        PageLabel = pageLabel;
+        _pageCache = new PdfPageCache(this, document, resourceDictionary);
+
+        List<PdfAnnotationBase> rawAnnotations = pageResources.Annotations ?? new List<PdfAnnotationBase>();
+        List<PdfPageAnnotation> annotations = new(rawAnnotations.Count);
+
+        foreach (PdfAnnotationBase annotation in rawAnnotations)
+        {
+            annotations.Add(new PdfPageAnnotation(this, annotation));
+        }
+
+        Annotations = annotations;
+
+        PdfDictionary? groupDict = _pageObject.Dictionary.GetDictionary(PdfTokens.GroupKey);
+        _transparencyGroup = PdfSoftMaskParser.ParseTransparencyGroup(groupDict, this);
+    }
 
     /// <summary>
     /// Initializes a new instance using <see cref="PdfPageResources"/> snapshot (rotation already normalized there).
@@ -37,30 +77,8 @@ internal class PdfPage : IPdfPageInternal
         IPdfDocumentInternal document,
         PdfObject pageObject,
         PdfPageResources pageResources)
+        : this(pageNumber, pageLabel, document, pageObject, pageResources, pageResources.Resources ?? new PdfDictionary(document))
     {
-        _document = document ?? throw new ArgumentNullException(nameof(document));
-        _pageObject = pageObject ?? throw new ArgumentNullException(nameof(pageObject));
-        _pageResources = pageResources ?? throw new ArgumentNullException(nameof(pageResources));
-        _lazyPageCache = new Lazy<PdfPageCache>(() => new PdfPageCache(this));
-
-        PageNumber = pageNumber;
-        SKRect media = pageResources.MediaBoxRect ?? DefaultMediaBox;
-        SKRect crop = pageResources.CropBoxRect ?? media;
-        MediaBox = media;
-        CropBox = crop;
-        Rotation = pageResources.Rotate ?? 0;
-        _resourceDictionary = pageResources.Resources ?? new PdfDictionary(document);
-        PageLabel = pageLabel;
-
-        List<PdfAnnotationBase> rawAnnotations = pageResources.Annotations ?? new List<PdfAnnotationBase>();
-        List<PdfPageAnnotation> annotations = new(rawAnnotations.Count);
-
-        foreach (PdfAnnotationBase annotation in rawAnnotations)
-        {
-            annotations.Add(new PdfPageAnnotation(this, annotation));
-        }
-
-        Annotations = annotations;
     }
 
     /// <inheritdoc/>
@@ -81,7 +99,7 @@ internal class PdfPage : IPdfPageInternal
     /// <inheritdoc/>
     public PdfString PageLabel { get; }
 
-    PdfPageCache IPdfPageInternal.Cache => _lazyPageCache.Value;
+    PdfPageCache IPdfPageInternal.Cache => _pageCache;
 
     PdfPageResources IPdfPageInternal.PageResources => _pageResources;
 
@@ -90,6 +108,8 @@ internal class PdfPage : IPdfPageInternal
     PdfDictionary IPdfPageInternal.ResourceDictionary => _resourceDictionary;
 
     IPdfDocumentInternal IPdfPageInternal.Document => _document;
+
+    PdfTransparencyGroup? IPdfPageInternal.TransparencyGroup => _transparencyGroup;
 
     /// <inheritdoc/>
     public void RenderContent(IPdfCommandProcessor processor, IPdfExecutionObserver observer)
@@ -107,7 +127,17 @@ internal class PdfPage : IPdfPageInternal
         PdfRenderer renderer = new(_document.LoggerFactory);
         PdfContentStreamRenderer contentRenderer = new(renderer, this);
 
+        if (_transparencyGroup != null)
+        {
+            processor.Process(new SaveLayerCommand(CropBox, paint: null));
+        }
+
         contentRenderer.RenderContent(processor, observer);
+
+        if (_transparencyGroup != null)
+        {
+            processor.Process(new RestoreStateCommand());
+        }
     }
 
     /// <inheritdoc/>

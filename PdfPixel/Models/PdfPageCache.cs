@@ -20,6 +20,7 @@ namespace PdfPixel.Models;
 internal sealed class PdfPageCache
 {
     private readonly IPdfPageInternal _page;
+    private readonly IPdfDocumentInternal _document;
     private readonly Dictionary<PdfString, PdfPattern> _patternsByName = [];
     private readonly Dictionary<PdfString, PdfGraphicsStateParameters> _graphicsStateParametersByName = [];
     private readonly PdfDictionary? _fontDictionary; // captured once
@@ -27,14 +28,15 @@ internal sealed class PdfPageCache
     private readonly PdfDictionary? _extGStateDictionary; // captured once
     private readonly PdfDictionary? _xObjectDictionary;
 
-    public PdfPageCache(IPdfPageInternal page)
+    public PdfPageCache(IPdfPageInternal page, IPdfDocumentInternal document, PdfDictionary resources)
     {
-        ColorSpace = new ColorSpaceResolver(page);
-        _page = page ?? throw new ArgumentNullException(nameof(page));
-        _fontDictionary = _page.ResourceDictionary.GetDictionary(PdfTokens.FontKey);
-        _patternDictionary = _page.ResourceDictionary.GetDictionary(PdfTokens.PatternKey);
-        _extGStateDictionary = _page.ResourceDictionary.GetDictionary(PdfTokens.ExtGStateKey);
-        _xObjectDictionary = _page.ResourceDictionary.GetDictionary(PdfTokens.XObjectKey);
+        _page = page;
+        _document = document;
+        ColorSpace = new ColorSpaceResolver(document, resources);
+        _fontDictionary = resources.GetDictionary(PdfTokens.FontKey);
+        _patternDictionary = resources.GetDictionary(PdfTokens.PatternKey);
+        _extGStateDictionary = resources.GetDictionary(PdfTokens.ExtGStateKey);
+        _xObjectDictionary = resources.GetDictionary(PdfTokens.XObjectKey);
     }
 
     /// <summary>
@@ -88,7 +90,7 @@ internal sealed class PdfPageCache
             return null;
         }
 
-        if (fontObject.Reference.IsValid && _page.Document.ObjectCache.Fonts.TryGetValue(fontObject.Reference, out PdfFontBase? documentCachedFont))
+        if (fontObject.Reference.IsValid && _document.ObjectCache.Fonts.TryGetValue(fontObject.Reference, out PdfFontBase? documentCachedFont))
         {
             return documentCachedFont;
         }
@@ -98,7 +100,7 @@ internal sealed class PdfPageCache
         {
             if (fontObject.Reference.IsValid)
             {
-                _page.Document.ObjectCache.Fonts[fontObject.Reference] = newFont;
+                _document.ObjectCache.Fonts[fontObject.Reference] = newFont;
             }
         }
 

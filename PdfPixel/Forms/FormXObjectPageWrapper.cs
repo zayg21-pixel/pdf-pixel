@@ -9,43 +9,43 @@ namespace PdfPixel.Forms;
 /// either supplies its complete resource dictionary or inherits the current one; no merging.
 /// Geometry (MediaBox, CropBox, Rotation) is inherited unchanged from the original page.
 /// </summary>
-internal class FormXObjectPageWrapper : PdfPage, IPdfPageInternal
+internal class FormXObjectPageWrapper : PdfPage
 {
-    private readonly PdfObject _resourcePageObject;
-    private readonly PdfDictionary _resourceDictionary;
-    private readonly PdfPageCache _pageCache;
-
     public FormXObjectPageWrapper(IPdfPageInternal originalPage, PdfObject formXObject)
-        : base(originalPage.PageNumber, originalPage.PageLabel, originalPage.Document, originalPage.PageObject, originalPage.PageResources)
+        : base(
+            originalPage.PageNumber,
+            originalPage.PageLabel,
+            originalPage.Document,
+            ResolvePageObject(originalPage, formXObject),
+            originalPage.PageResources,
+            ResolveResourceDictionary(originalPage, formXObject))
     {
-        // Inline former CreateResourcePageObject logic.
-        PdfDictionary? formResources = formXObject.Dictionary.GetDictionary(PdfTokens.ResourcesKey);
-        if (formResources == null)
-        {
-            _resourcePageObject = originalPage.PageObject;
-            _resourceDictionary = originalPage.ResourceDictionary;
-            _pageCache = originalPage.Cache;
-        }
-        else
-        {
-            _resourcePageObject = formXObject;
-            _resourceDictionary = formResources;
-            _pageCache = new PdfPageCache(this);
-        }
     }
 
     public FormXObjectPageWrapper(PdfObject formXObject)
-        : base(0, default, formXObject.Document, formXObject, new PdfPageResources())
+        : base(
+            0,
+            default,
+            formXObject.Document,
+            formXObject,
+            new PdfPageResources(),
+            formXObject.Dictionary.GetDictionary(PdfTokens.ResourcesKey) ?? new PdfDictionary(formXObject.Document))
     {
-        PdfDictionary? formResources = formXObject.Dictionary.GetDictionary(PdfTokens.ResourcesKey);
-        _resourcePageObject = formXObject;
-        _resourceDictionary = formResources ?? new PdfDictionary(formXObject.Document);
-        _pageCache = new PdfPageCache(this);
     }
 
-    PdfObject IPdfPageInternal.PageObject => _resourcePageObject;
+    private static PdfObject ResolvePageObject(IPdfPageInternal originalPage, PdfObject formXObject)
+    {
+        if (formXObject.Dictionary.HasKey(PdfTokens.ResourcesKey))
+        {
+            return formXObject;
+        }
 
-    PdfDictionary IPdfPageInternal.ResourceDictionary => _resourceDictionary;
+        return originalPage.PageObject;
+    }
 
-    PdfPageCache IPdfPageInternal.Cache => _pageCache;
+    private static PdfDictionary ResolveResourceDictionary(IPdfPageInternal originalPage, PdfObject formXObject)
+    {
+        PdfDictionary? formResources = formXObject.Dictionary.GetDictionary(PdfTokens.ResourcesKey);
+        return formResources ?? originalPage.ResourceDictionary;
+    }
 }

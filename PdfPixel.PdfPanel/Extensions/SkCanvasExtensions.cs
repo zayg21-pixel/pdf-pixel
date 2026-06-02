@@ -44,8 +44,7 @@ internal static class SkCanvasExtensions
             {
                 if (pictures?.Content?.HasContent == true)
                 {
-                    using SKPaint contentPaint = new() { BlendMode = SKBlendMode.SrcATop };
-                    DrawPagePicture(canvas, pictures.Content, page, contentPaint);
+                    DrawPagePicture(canvas, pictures.Content, page);
                     DrawPagePicture(canvas, pictures.Annotations, page);
                 }
                 else if ((flags & PageDrawFlags.Placeholder) != 0)
@@ -60,7 +59,7 @@ internal static class SkCanvasExtensions
         }
     }
 
-    private static void DrawPagePicture(SKCanvas canvas, ContentLocker<SKPicture>? content, in VisiblePageInfo page, SKPaint? paint = null)
+    private static void DrawPagePicture(SKCanvas canvas, ContentLocker<SKPicture>? content, in VisiblePageInfo page)
     {
         if (content?.HasContent != true)
         {
@@ -74,7 +73,7 @@ internal static class SkCanvasExtensions
         try
         {
             canvas.Concat(in transform);
-            canvas.DrawPicture(contentPicture.Content, paint);
+            canvas.DrawPicture(contentPicture.Content);
         }
         finally
         {

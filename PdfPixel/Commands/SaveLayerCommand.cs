@@ -11,12 +11,12 @@ namespace PdfPixel.Commands;
 public sealed class SaveLayerCommand : PdfCommand
 {
     private readonly SKRect _bounds;
-    private readonly SKPaint _paint;
+    private readonly SKPaint? _paint;
 
     /// <summary>
     /// Initializes the command with the layer bounds and takes ownership of the paint.
     /// </summary>
-    public SaveLayerCommand(SKRect bounds, SKPaint paint)
+    public SaveLayerCommand(SKRect bounds, SKPaint? paint)
     {
         _bounds = bounds;
         _paint = paint;
