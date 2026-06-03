@@ -221,5 +221,5 @@ internal static class PdfAnnotationGraphics
     }
 
     private static SKColor ApplyOpacity(in SKColor color, float opacity)
-        => opacity >= 1f ? color : color.WithAlpha((byte)(color.Alpha * opacity));
+        => (opacity >= 1f) ? color : color.WithAlpha((byte)(color.Alpha * opacity));
 }

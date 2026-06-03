@@ -27,6 +27,7 @@
   </Folder>
   <Project Path="PdfPixel.Benchmarks/PdfPixel.Benchmarks.csproj" />
   <Project Path="PdfPixel.Color/PdfPixel.Color.csproj" Id="41c01fd9-9377-4bd4-9b28-706f90a00866" />
+  <Project Path="PdfPixel.PostScript/PdfPixel.PostScript.csproj" Id="5444fd7c-9556-46f9-9896-83201be4be39" />
   <Project Path="PdfPixel.Tests/PdfPixel.Tests.csproj" />
   <Project Path="PdfPixel/PdfPixel.csproj" />
 </Solution>

@@ -125,10 +125,10 @@ public class PdfInkAnnotation : PdfAnnotationBase
 
         for (int i = 0; i < points.Length - 1; i++)
         {
-            SKPoint prevPoint = i > 0 ? points[i - 1] : points[0];
+            SKPoint prevPoint = (i > 0) ? points[i - 1] : points[0];
             SKPoint currentPoint = points[i];
             SKPoint nextPoint = points[i + 1];
-            SKPoint farPoint = i < points.Length - 2 ? points[i + 2] : points[points.Length - 1];
+            SKPoint farPoint = (i < points.Length - 2) ? points[i + 2] : points[points.Length - 1];
 
             SKPoint control1 = new(
                 currentPoint.X + (nextPoint.X - prevPoint.X) / 6f,

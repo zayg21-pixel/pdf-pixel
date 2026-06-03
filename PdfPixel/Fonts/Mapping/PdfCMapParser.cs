@@ -13,14 +13,27 @@ namespace PdfPixel.Fonts.Mapping;
 /// <summary>
 /// Parser for PDF CMaps used in CID fonts.
 /// </summary>
-// TODO: move PostScript to a separate project and make this class public
-internal static class PdfCMapParser
+public static class PdfCMapParser
 {
+    /// <summary>
+    /// Parses a PDF CMap stream into a <see cref="PdfCMap"/> containing all code-to-Unicode
+    /// and code-to-CID mappings declared in the stream, including those inherited via
+    /// <c>usecmap</c>.
+    /// </summary>
+    /// <param name="cmapBytes">Raw bytes of the CMap stream.</param>
+    /// <param name="loggerFactory">Logger factory passed to the PostScript evaluator.</param>
+    /// <param name="cmapProvider">
+    /// Callback that resolves a named CMap referenced by a <c>usecmap</c> entry;
+    /// may return <see langword="null"/> if the named CMap is unavailable.
+    /// </param>
+    /// <returns>
+    /// The populated <see cref="PdfCMap"/>, or an empty instance when the stream
+    /// does not produce a recognisable CMap dictionary.
+    /// </returns>
     public static PdfCMap? ParseCMap(in ReadOnlyMemory<byte> cmapBytes, ILoggerFactory loggerFactory, Func<PdfString, PdfCMap?> cmapProvider)
     {
         PdfCMap cmap = new();
         PostScriptEvaluator evaluator = new(cmapBytes.Span, false, loggerFactory.CreateLogger<PostScriptEvaluator>());
-        //var cmapString = PdfPixel.Text.EncodingExtensions.PdfDefault.GetString(cmapBytes);
 
         evaluator.SetResourceValue("ProcSet", "CIDInit", new PostScriptDictionary());
         System.Collections.Generic.Stack<PostScriptToken> stack = [];
@@ -128,7 +141,7 @@ internal static class PdfCMapParser
         return cmap;
     }
 
-    public static PdfCMap? ParseCMap(in ReadOnlyMemory<byte> cmapBytes, IPdfDocumentInternal document)
+    internal static PdfCMap? ParseCMap(in ReadOnlyMemory<byte> cmapBytes, IPdfDocumentInternal document)
     {
         return ParseCMap(
             cmapBytes,
