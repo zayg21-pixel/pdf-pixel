@@ -9,7 +9,7 @@ namespace PdfPixel.Fonts.Mapping;
 /// For a given input code value V where Start &lt;= V &lt;= End, the mapped CID
 /// is computed as StartCid + (V - Start).
 /// </summary>
-internal readonly struct CidRangeMap
+public readonly struct CidRangeMap
 {
     /// <summary>
     /// Initializes a new instance of the <see cref="CidRangeMap"/> struct.

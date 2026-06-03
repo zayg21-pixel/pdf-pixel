@@ -1,14 +1,12 @@
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.IO;
-using PdfPixel.Models;
 using System.Globalization;
+using PdfPixel.Fonts.Model;
+using PdfPixel.Models;
 
 namespace PdfPixel.Fonts.Mapping;
 
 /// <summary>
-/// Utility class for serialising and deserialising CMap data in a compact custom binary format.
+/// Deserialises CMap data from the compact custom binary format produced by the ResourceGenerator tool.
 /// The format uses variable-length integers, delta coding, and run-length range blocks to minimise file size.
 /// </summary>
 public static class PdfCmapBinary
@@ -21,54 +19,6 @@ public static class PdfCmapBinary
         Name = 5,
         CidSystemInfo = 6,
         WMode = 7
-    }
-
-    /// <summary>
-    /// Clusters the supplied CMaps by column agreement and writes each cluster base and per-CMap override
-    /// binary file into <paramref name="outputDirectory"/>.
-    /// Each CMap is serialised as a compact binary file containing only the entries that differ from its cluster base,
-    /// together with a header that identifies the cluster index so the base can be merged at load time.
-    /// </summary>
-    /// <param name="cmaps">The collection of <see cref="PdfCMap"/> instances to compress.</param>
-    /// <param name="outputDirectory">The directory in which to write the output binary files.</param>
-    public static void CompressCmaps(IEnumerable<PdfCMap> cmaps, string outputDirectory)
-    {
-        if (cmaps == null)
-        {
-            throw new ArgumentNullException(nameof(cmaps));
-        }
-
-        if (string.IsNullOrWhiteSpace(outputDirectory))
-        {
-            throw new ArgumentException("Output directory must be provided.", nameof(outputDirectory));
-        }
-
-        Directory.CreateDirectory(outputDirectory);
-
-        Dictionary<string, Dictionary<byte, Dictionary<uint, int>>> signatures = CmapClustering.BuildCMapColumnSignatures(cmaps);
-        List<List<string>> clusters = CmapClustering.ClusterByColumnAgreement(signatures, 0.8);
-        Dictionary<int, Dictionary<byte, Dictionary<uint, int>>> bases = CmapClustering.BuildClusterBases(clusters, signatures);
-
-        CmapClustering.WriteClustersReport(clusters, Path.Combine(outputDirectory, "clusters.txt"));
-
-        foreach (KeyValuePair<int, Dictionary<byte, Dictionary<uint, int>>> baseEntry in bases)
-        {
-            string basePath = Path.Combine(outputDirectory, $"{baseEntry.Key}.bin");
-            WriteClusterBaseBinary(baseEntry.Value, basePath);
-        }
-
-        foreach (PdfCMap cmap in cmaps)
-        {
-            int clusterIndex = CmapClustering.FindClusterIndex(clusters, cmap.Name.ToString());
-            if (clusterIndex < 0)
-            {
-                continue;
-            }
-
-            Dictionary<byte, Dictionary<uint, int>> clusterBase = bases[clusterIndex];
-            string overridesPath = Path.Combine(outputDirectory, $"{cmap.Name.ToString()}.bin");
-            WriteCMapOverridesBinary(cmap, clusterBase, clusterIndex, overridesPath);
-        }
     }
 
     /// <summary>
@@ -92,8 +42,6 @@ public static class PdfCmapBinary
             {
                 case CMapBinaryBlockId.OverridesHeader:
                 {
-                    _ = ReadVarUInt(span, ref offset); // count, unused
-                    offset++; // reserved, unused
                     uint clusterIndex = ReadVarUInt(span, ref offset);
                     if (baseResolver != null)
                     {
@@ -115,7 +63,7 @@ public static class PdfCmapBinary
                 }
                 case CMapBinaryBlockId.CidSystemInfo:
                 {
-                    Fonts.Model.PdfCidSystemInfo info = new();
+                    PdfCidSystemInfo info = new();
                     uint regLen = ReadVarUInt(span, ref offset);
                     info.Registry = data.Slice(offset, (int)regLen);
                     offset += (int)regLen;
@@ -237,215 +185,5 @@ public static class PdfCmapBinary
         uint zigzag = ReadVarUInt(data, ref offset);
         var value = (int)((zigzag >> 1) ^ (uint)-(int)(zigzag & 1));
         return value;
-    }
-
-    private struct Entry
-    {
-        public uint CodeValue { get; set; }
-        public uint Cid { get; set; }
-    }
-
-    private static void WriteClusterBaseBinary(Dictionary<byte, Dictionary<uint, int>> baseMap, string outputPath)
-    {
-        Directory.CreateDirectory(Path.GetDirectoryName(outputPath) ?? ".");
-        using FileStream stream = File.Create(outputPath);
-
-        foreach (KeyValuePair<byte, Dictionary<uint, int>> lengthEntry in baseMap.OrderBy(k => k.Key))
-        {
-            byte codeLength = lengthEntry.Key;
-            List<KeyValuePair<uint, int>> sortedColumns = lengthEntry.Value.OrderBy(c => c.Key).ToList();
-            if (sortedColumns.Count == 0)
-            {
-                continue;
-            }
-
-            List<Entry> entries = sortedColumns
-                .Select(c => new Entry { CodeValue = c.Key, Cid = (uint)c.Value })
-                .OrderBy(e => e.CodeValue)
-                .ToList();
-
-            WriteRangeBlocks(stream, codeLength, entries);
-        }
-    }
-
-    private static void WriteCMapOverridesBinary(PdfCMap cmap, Dictionary<byte, Dictionary<uint, int>> clusterBase, int clusterIndex, string outputPath)
-    {
-        Directory.CreateDirectory(Path.GetDirectoryName(outputPath) ?? ".");
-        using FileStream stream = File.Create(outputPath);
-
-        stream.WriteByte((byte)CMapBinaryBlockId.OverridesHeader);
-        WriteVarUInt(stream, 1); // TODO: [MEDIUM] we're wasting memory here, count parameter is unused, 0 is also unused, that causes CMapCache to skip unused entries
-        stream.WriteByte(0);
-        WriteVarUInt(stream, (uint)clusterIndex);
-
-        if (!cmap.Name.IsEmpty)
-        {
-            stream.WriteByte((byte)CMapBinaryBlockId.Name);
-            WriteString(stream, cmap.Name);
-        }
-
-        if (cmap.CidSystemInfo != null)
-        {
-            stream.WriteByte((byte)CMapBinaryBlockId.CidSystemInfo);
-            WriteString(stream, cmap.CidSystemInfo.Registry);
-            WriteString(stream, cmap.CidSystemInfo.Ordering);
-            WriteVarUInt(stream, (uint)cmap.CidSystemInfo.Supplement);
-        }
-
-        stream.WriteByte((byte)CMapBinaryBlockId.WMode);
-        WriteVarUInt(stream, (uint)cmap.WMode);
-
-        var entriesByLength = cmap.CodeToCid
-            .Select(kvp => new { Code = kvp.Key, Cid = (uint)kvp.Value, CodeValue = PdfCharacterCode.UnpackBigEndianToUInt(kvp.Key.Bytes.Span) })
-            .Where(entry => entry.Code.Length > 0)
-            .GroupBy(entry => entry.Code.Length)
-            .ToList();
-
-        foreach (var group in entriesByLength)
-        {
-            var codeLength = (byte)group.Key;
-            clusterBase.TryGetValue(codeLength, out Dictionary<uint, int>? baseColumnsSigned);
-            baseColumnsSigned ??= new Dictionary<uint, int>();
-
-            List<(uint CodeValue, uint Cid)> diffs = [];
-            foreach (var entry in group)
-            {
-                baseColumnsSigned.TryGetValue(entry.CodeValue, out int baseCidSigned);
-                var baseCid = (uint)baseCidSigned;
-                if (baseCid != entry.Cid)
-                {
-                    diffs.Add((entry.CodeValue, entry.Cid));
-                }
-            }
-
-            if (diffs.Count == 0)
-            {
-                continue;
-            }
-
-            diffs.Sort((a, b) => a.CodeValue.CompareTo(b.CodeValue));
-
-            WriteRangeBlocks(stream, codeLength, diffs.ConvertAll(d => new Entry { CodeValue = d.CodeValue, Cid = d.Cid }));
-        }
-    }
-
-    private static void WriteRangeBlocks(FileStream stream, byte codeLength, List<Entry> entries)
-    {
-        List<(uint CodeStartValue, uint CidStart, uint Length)> ranges = [];
-        List<(uint CodeValue, uint Cid)> singles = [];
-
-        for (int i = 0; i < entries.Count; i++)
-        {
-            Entry current = entries[i];
-            Entry start = current;
-            Entry end = current;
-
-            while (i + 1 < entries.Count)
-            {
-                Entry next = entries[i + 1];
-                if (next.CodeValue == current.CodeValue + 1 && next.Cid == current.Cid + 1)
-                {
-                    end = next;
-                    current = next;
-                    i++;
-                }
-                else
-                {
-                    break;
-                }
-            }
-
-            uint length = end.CodeValue - start.CodeValue + 1;
-            if (length > 1)
-            {
-                ranges.Add((start.CodeValue, start.Cid, length));
-            }
-            else
-            {
-                singles.Add((start.CodeValue, start.Cid));
-            }
-        }
-
-        if (ranges.Count > 0)
-        {
-            stream.WriteByte((byte)CMapBinaryBlockId.Ranges);
-            WriteVarUInt(stream, (uint)ranges.Count);
-            stream.WriteByte(codeLength);
-
-            uint prevCode = 0;
-            uint prevCid = 0;
-            for (int i = 0; i < ranges.Count; i++)
-            {
-                (uint CodeStartValue, uint CidStart, uint Length) range = ranges[i];
-                if (i == 0)
-                {
-                    WriteVarUInt(stream, range.CodeStartValue);
-                    WriteVarUInt(stream, range.CidStart);
-                }
-                else
-                {
-                    WriteVarUInt(stream, range.CodeStartValue - prevCode);
-                    int cidDelta = unchecked((int)(range.CidStart - prevCid));
-                    WriteVarInt(stream, cidDelta);
-                }
-
-                WriteVarUInt(stream, range.Length);
-                prevCode = range.CodeStartValue;
-                prevCid = range.CidStart;
-            }
-        }
-
-        if (singles.Count > 0)
-        {
-            stream.WriteByte((byte)CMapBinaryBlockId.Singles);
-            WriteVarUInt(stream, (uint)singles.Count);
-            stream.WriteByte(codeLength);
-
-            uint prevCode = 0;
-            uint prevCid = 0;
-            for (int i = 0; i < singles.Count; i++)
-            {
-                (uint CodeValue, uint Cid) single = singles[i];
-                if (i == 0)
-                {
-                    WriteVarUInt(stream, single.CodeValue);
-                    WriteVarUInt(stream, single.Cid);
-                }
-                else
-                {
-                    WriteVarUInt(stream, single.CodeValue - prevCode);
-                    int cidDelta = unchecked((int)(single.Cid - prevCid));
-                    WriteVarInt(stream, cidDelta);
-                }
-
-                prevCode = single.CodeValue;
-                prevCid = single.Cid;
-            }
-        }
-    }
-
-    private static void WriteVarUInt(FileStream stream, uint value)
-    {
-        while (value >= 0x80)
-        {
-            stream.WriteByte((byte)(value | 0x80));
-            value >>= 7;
-        }
-
-        stream.WriteByte((byte)value);
-    }
-
-    private static void WriteVarInt(FileStream stream, int value)
-    {
-        var zigzag = (uint)((value << 1) ^ (value >> 31));
-        WriteVarUInt(stream, zigzag);
-    }
-
-    private static void WriteString(FileStream stream, in PdfString value)
-    {
-        ReadOnlyMemory<byte> bytes = value.Value;
-        WriteVarUInt(stream, (uint)bytes.Length);
-        byte[] arr = bytes.ToArray();
-        stream.Write(arr, 0, arr.Length);
     }
 }

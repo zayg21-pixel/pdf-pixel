@@ -22,6 +22,9 @@
     <File Path="NOTICE" />
     <File Path="README.md" />
   </Folder>
+  <Folder Name="/Tools/">
+    <Project Path="PdfPixel.ResourceGenerator/PdfPixel.ResourceGenerator.csproj" />
+  </Folder>
   <Project Path="PdfPixel.Benchmarks/PdfPixel.Benchmarks.csproj" />
   <Project Path="PdfPixel.Color/PdfPixel.Color.csproj" Id="41c01fd9-9377-4bd4-9b28-706f90a00866" />
   <Project Path="PdfPixel.Tests/PdfPixel.Tests.csproj" />

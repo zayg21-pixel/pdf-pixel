@@ -2,8 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using PdfPixel.Fonts.Mapping;
 
-namespace PdfPixel.Fonts.Mapping;
+namespace PdfPixel.ResourceGenerator.Cmaps;
 
 internal static class CmapClustering
 {
@@ -17,31 +18,68 @@ internal static class CmapClustering
         Dictionary<string, Dictionary<byte, Dictionary<uint, int>>> signatures = [];
         foreach (PdfCMap cmap in cmaps)
         {
-            System.Collections.ObjectModel.ReadOnlyDictionary<PdfCharacterCode, int> codeToCid = cmap.CodeToCid;
-            if (codeToCid.Count == 0)
+            Dictionary<byte, Dictionary<uint, int>> signature = BuildCMapSignature(cmap);
+            if (signature.Count == 0)
             {
                 continue;
-            }
-
-            Dictionary<byte, Dictionary<uint, int>> signature = [];
-            foreach (var entry in codeToCid
-                .Select(kvp => new { Code = kvp.Key, Cid = kvp.Value, CodeValue = PdfCharacterCode.UnpackBigEndianToUInt(kvp.Key.Bytes.Span) })
-                .Where(entry => entry.Code.Length > 0))
-            {
-                var codeLength = (byte)entry.Code.Length;
-                if (!signature.TryGetValue(codeLength, out Dictionary<uint, int>? columns))
-                {
-                    columns = new Dictionary<uint, int>();
-                    signature[codeLength] = columns;
-                }
-
-                columns[entry.CodeValue] = entry.Cid;
             }
 
             signatures[cmap.Name.ToString()] = signature;
         }
 
         return signatures;
+    }
+
+    /// <summary>
+    /// Builds a flat <c>codeLength → (codeValue → cid)</c> map from both range and explicit entries.
+    /// Explicit single-entry mappings take priority over overlapping range entries.
+    /// </summary>
+    public static Dictionary<byte, Dictionary<uint, int>> BuildCMapSignature(PdfCMap cmap)
+    {
+        Dictionary<byte, Dictionary<uint, int>> signature = [];
+
+        for (int len = 1; len <= 4; len++)
+        {
+            List<CidRangeMap>? ranges = cmap.GetCidRanges(len);
+            if (ranges == null)
+            {
+                continue;
+            }
+
+            var codeLength = (byte)len;
+            if (!signature.TryGetValue(codeLength, out Dictionary<uint, int>? columns))
+            {
+                columns = new Dictionary<uint, int>();
+                signature[codeLength] = columns;
+            }
+
+            foreach (CidRangeMap range in ranges)
+            {
+                for (uint code = range.Start; code <= range.End; code++)
+                {
+                    columns[code] = range.StartCid + (int)(code - range.Start);
+                }
+            }
+        }
+
+        foreach (System.Collections.Generic.KeyValuePair<PdfCharacterCode, int> kvp in cmap.CodeToCid)
+        {
+            if (kvp.Key.Length == 0)
+            {
+                continue;
+            }
+
+            var codeLength = (byte)kvp.Key.Length;
+            if (!signature.TryGetValue(codeLength, out Dictionary<uint, int>? columns))
+            {
+                columns = new Dictionary<uint, int>();
+                signature[codeLength] = columns;
+            }
+
+            columns[PdfCharacterCode.UnpackBigEndianToUInt(kvp.Key.Bytes.Span)] = kvp.Value;
+        }
+
+        return signature;
     }
 
     public static List<List<string>> ClusterByColumnAgreement(Dictionary<string, Dictionary<byte, Dictionary<uint, int>>> signatures, double similarityThreshold)

@@ -13,12 +13,14 @@ namespace PdfPixel.Fonts.Mapping;
 /// <summary>
 /// Parser for PDF CMaps used in CID fonts.
 /// </summary>
+// TODO: move PostScript to a separate project and make this class public
 internal static class PdfCMapParser
 {
     public static PdfCMap? ParseCMap(in ReadOnlyMemory<byte> cmapBytes, ILoggerFactory loggerFactory, Func<PdfString, PdfCMap?> cmapProvider)
     {
         PdfCMap cmap = new();
         PostScriptEvaluator evaluator = new(cmapBytes.Span, false, loggerFactory.CreateLogger<PostScriptEvaluator>());
+        //var cmapString = PdfPixel.Text.EncodingExtensions.PdfDefault.GetString(cmapBytes);
 
         evaluator.SetResourceValue("ProcSet", "CIDInit", new PostScriptDictionary());
         System.Collections.Generic.Stack<PostScriptToken> stack = [];

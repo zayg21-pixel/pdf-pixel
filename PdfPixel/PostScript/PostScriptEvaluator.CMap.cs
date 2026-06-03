@@ -81,6 +81,11 @@ namespace PdfPixel.PostScript
                     PushCMapTokensToDictionary(stack, "beginnotdefrange", "notdefrange");
                     return true;
                 }
+                case "CIDSystemInfo":
+                {
+                    stack.Push(new PostScriptLiteralName("CIDSystemInfo"));
+                    return true;
+                }
                 case "usecmap":
                 {
                     Ensure(stack, 1);

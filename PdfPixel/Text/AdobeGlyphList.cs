@@ -11,7 +11,7 @@ namespace PdfPixel.Text
     {
         static AdobeGlyphList()
         {
-            byte[] aglData = PdfResourceLoader.GetResource("External.Agl.bin");
+            byte[] aglData = PdfResourceLoader.GetResource("External.glyphlist.bin");
             CharacterMap = new Dictionary<PdfString, string>();
             PdfTextResourceConverter.ReadFromCharacterMapBlob(aglData, CharacterMap);
 
@@ -20,7 +20,7 @@ namespace PdfPixel.Text
             PdfTextResourceConverter.ReadFromCharacterMapBlob(aglOverridesData, CharacterMap);
 
             //AGL Zapf Dingbats Unicode symbols
-            byte[] aglZapfDingbatsData = PdfResourceLoader.GetResource("External.AglZapfDingbats.bin");
+            byte[] aglZapfDingbatsData = PdfResourceLoader.GetResource("External.zapfdingbats.bin");
             PdfTextResourceConverter.ReadFromCharacterMapBlob(aglZapfDingbatsData, CharacterMap);
         }
 

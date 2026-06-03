@@ -102,6 +102,9 @@ bool result = a
     && c;
 ```
 
+### TODO comments
+Never remove a `// TODO` comment when moving, copying, or editing code. TODOs are tracked future work — treat them as load-bearing. The only time a TODO may be removed is when the described work has actually been completed.
+
 ### Documentation comments
 Multi-line summary style. Use `/// <inheritdoc />` for interface/override implementations — don't repeat the contract.
 

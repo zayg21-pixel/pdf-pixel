@@ -41,6 +41,16 @@ public class PdfCMap
     public CMapWMode WMode { get; internal set; }
 
     /// <summary>
+    /// A read-only view of the explicit character-code-to-CID mapping entries stored in this CMap.
+    /// </summary>
+    public ReadOnlyDictionary<PdfCharacterCode, int> CodeToCid => new(_codeToCid);
+
+    /// <summary>
+    /// A read-only view of the explicit character-code-to-Unicode mapping entries stored in this CMap.
+    /// </summary>
+    public ReadOnlyDictionary<PdfCharacterCode, string> CodeToUnicode => new(_characterCodeToUnicode);
+
+    /// <summary>
     /// Add a codespace range pair. Start and end must have the same length (1..4 bytes).
     /// Values are interpreted as big-endian.
     /// </summary>
@@ -317,15 +327,14 @@ public class PdfCMap
     }
 
     /// <summary>
-    /// A read-only view of the explicit character-code-to-CID mapping entries stored in this CMap.
+    /// Returns the CID range mappings stored for the given code byte length (1..4), or <see langword="null"/> if none.
     /// </summary>
-    public ReadOnlyDictionary<PdfCharacterCode, int> CodeToCid => new (_codeToCid);
+    public List<CidRangeMap>? GetCidRanges(int codeLength) => _cidRangesByLength[codeLength];
 
     /// <summary>
-    /// Returns all declared codespace ranges for this CMap.
-    /// Each range describes a contiguous block of valid character codes of a given byte length.
+    /// Returns the Unicode range mappings stored for the given code byte length (1..4), or <see langword="null"/> if none.
     /// </summary>
-    public IReadOnlyList<CodeSpaceRange> GetCodeSpaceRanges() => _codeSpaceRanges.ToArray();
+    public List<UnicodeRangeMap>? GetUnicodeRanges(int codeLength) => _unicodeRangesByLength[codeLength];
 
     /// <summary>
     /// Returns <see langword="true"/> when <paramref name="codePoint"/> is a valid Unicode scalar value:

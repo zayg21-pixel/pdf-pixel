@@ -9,7 +9,7 @@ namespace PdfPixel.Fonts.Mapping;
 /// For a given input code value V where Start &lt;= V &lt;= End, the mapped Unicode
 /// scalar value is computed as StartUnicode + (V - Start).
 /// </summary>
-internal readonly struct UnicodeRangeMap
+public readonly struct UnicodeRangeMap
 {
     /// <summary>
     /// Initializes a new instance of the <see cref="UnicodeRangeMap"/> struct.
