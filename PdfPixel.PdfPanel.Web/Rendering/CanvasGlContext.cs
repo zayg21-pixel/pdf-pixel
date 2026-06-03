@@ -13,9 +13,6 @@ public sealed class CanvasGlContext : IDisposable
     private SKSurface _presentSurface;
     private int _surfaceWidth;
     private int _surfaceHeight;
-    private SKSurface _thumbnailSurface;
-    private int _thumbnailWidth;
-    private int _thumbnailHeight;
 
     internal CanvasGlContext(
     string canvasSelector,
@@ -41,13 +38,6 @@ public sealed class CanvasGlContext : IDisposable
     /// Also manages a companion FBO 0 present surface for display via <see cref="Present"/>.
     /// Must be called on the dedicated render thread that owns the OffscreenCanvas.
     /// </summary>
-    /// <param name="width">The surface width in pixels.</param>
-    /// <param name="height">The surface height in pixels.</param>
-    /// <param name="preserveContent">
-    /// If <see langword="true"/> and a previous surface exists, its content is copied
-    /// to the new surface via a GPU-to-GPU <c>DrawSurface</c> call.
-    /// </param>
-    /// <returns>The current offscreen <see cref="SKSurface"/> instance.</returns>
     public SKSurface CreateSurface(int width, int height, bool preserveContent)
     {
         if (_presentSurface != null && _surfaceWidth == width && _surfaceHeight == height)
@@ -57,8 +47,8 @@ public sealed class CanvasGlContext : IDisposable
 
         EmscriptenInterop.WebGlMakeContextCurrent(WebGlContext);
 
-        var info = new SKImageInfo(width, height, SKColorType.Rgba8888, SKAlphaType.Premul);
-        var newSurface = SKSurface.Create(GrContext, budgeted: true, info, sampleCount: 1, GRSurfaceOrigin.BottomLeft);
+        SKImageInfo info = new(width, height, SKColorType.Rgba8888, SKAlphaType.Premul);
+        SKSurface newSurface = SKSurface.Create(GrContext, budgeted: true, info, sampleCount: 1, GRSurfaceOrigin.BottomLeft);
 
         if (newSurface == null)
         {
@@ -84,42 +74,6 @@ public sealed class CanvasGlContext : IDisposable
     }
 
     /// <summary>
-    /// Returns an offscreen GPU texture-backed <see cref="SKSurface"/> for thumbnail rendering.
-    /// Unlike <see cref="CreateSurface"/>, this does not create a companion FBO 0 present surface
-    /// because thumbnails are only snapshotted, never displayed on a canvas.
-    /// The surface shares the same <see cref="GRContext"/> as the main drawing surface, so
-    /// <see cref="SKSurface.Snapshot"/> returns a GPU image that can be drawn directly on
-    /// the main canvas without a slow <c>ToRasterImage</c> / <c>glReadPixels</c> round-trip.
-    /// </summary>
-    /// <param name="width">The surface width in pixels.</param>
-    /// <param name="height">The surface height in pixels.</param>
-    /// <returns>The current thumbnail <see cref="SKSurface"/> instance.</returns>
-    public SKSurface CreateThumbnailSurface(int width, int height)
-    {
-        if (_thumbnailSurface != null && _thumbnailWidth == width && _thumbnailHeight == height)
-        {
-            return _thumbnailSurface;
-        }
-
-        EmscriptenInterop.WebGlMakeContextCurrent(WebGlContext);
-
-        var info = new SKImageInfo(width, height, SKColorType.Rgba8888, SKAlphaType.Premul);
-        var newSurface = SKSurface.Create(GrContext, budgeted: true, info, 1, GRSurfaceOrigin.BottomLeft);
-
-        if (newSurface == null)
-        {
-            throw new InvalidOperationException("Failed to create offscreen thumbnail surface for WebGL context.");
-        }
-
-        _thumbnailSurface?.Dispose();
-        _thumbnailSurface = newSurface;
-        _thumbnailWidth = width;
-        _thumbnailHeight = height;
-
-        return _thumbnailSurface;
-    }
-
-    /// <summary>
     /// Blits the offscreen surface to FBO 0 for display.
     /// Must be called on the dedicated render thread that owns the OffscreenCanvas.
     /// </summary>
@@ -134,22 +88,31 @@ public sealed class CanvasGlContext : IDisposable
         _presentSurface.Flush();
     }
 
-    /// <summary>
-    /// Recreates the FBO 0 present surface and resizes the underlying canvas.
-    /// </summary>
-    /// <param name="width">Surface width in pixels.</param>
-    /// <param name="height">Surface height in pixels.</param>
+    /// <inheritdoc />
+    public void Dispose()
+    {
+        if (_disposed)
+        {
+            return;
+        }
+
+        _disposed = true;
+        _presentSurface?.Dispose();
+        GrContext.Dispose();
+        // TODO: destroy WebGlContext!!!
+    }
+
     private void RecreatePresentSurface(int width, int height)
     {
         _presentSurface?.Dispose();
 
         EmscriptenInterop.SetCanvasSize(CanvasSelector, width, height);
 
-        var glInfo = new GRGlFramebufferInfo(
+        GRGlFramebufferInfo glInfo = new(
             fboId: 0,
             format: 0x8058); // GL_RGBA8
 
-        var renderTarget = new GRBackendRenderTarget(
+        GRBackendRenderTarget renderTarget = new(
             width,
             height,
             sampleCount: 0,
@@ -168,25 +131,5 @@ public sealed class CanvasGlContext : IDisposable
         }
 
         _presentSurface.Canvas.ClipRect(new SKRect(0, 0, width, height));
-    }
-
-    /// <inheritdoc />
-    /// <remarks>
-    /// Disposes the offscreen and present surfaces, then the Skia GPU context.
-    /// Should be called from the render thread so that <see cref="GRContext"/> can
-    /// flush and release GPU resources while the context is current.
-    /// </remarks>
-    public void Dispose()
-    {
-        if (_disposed)
-        {
-            return;
-        }
-
-        _disposed = true;
-        _thumbnailSurface?.Dispose();
-        _presentSurface?.Dispose();
-        GrContext.Dispose();
-        // TODO: destroy WebGlContext!!!
     }
 }

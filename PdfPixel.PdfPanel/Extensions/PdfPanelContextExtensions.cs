@@ -273,11 +273,11 @@ public static class PdfPanelContextExtensions
     }
 
     /// <summary>
-    /// Scrolls the viewport to the specified PDF destination, optionally updating the zoom level.
+    /// Scrolls the viewport to the specified annotation destination, optionally updating the zoom level.
     /// </summary>
     /// <param name="context">The panel context to scroll.</param>
-    /// <param name="destination">The PDF destination to navigate to.</param>
-    public static void ScrollToDestination(this PdfPanelContext context, PdfDestination destination)
+    /// <param name="destination">The annotation destination to navigate to.</param>
+    public static void ScrollToDestination(this PdfPanelContext context, PdfAnnotationDestination destination)
     {
         if (context == null)
         {
@@ -289,26 +289,25 @@ public static class PdfPanelContextExtensions
             return;
         }
 
-        Models.IPdfPage? destinationPage = destination.GetPdfPage();
-        if (destinationPage == null)
+        if (!context.Pages.TryGetPage(destination.PageNumber, out PdfPanelPage? targetPage) || targetPage == null)
         {
             return;
         }
 
-        if (!context.Pages.TryGetPage(destinationPage.PageNumber, out PdfPanelPage? targetPage) || targetPage == null)
-        {
-            return;
-        }
+        float? fitZoom = ComputeFitZoom(targetPage, destination, context.ViewportWidth, context.ViewportHeight);
 
-        if (destination.Zoom > 0)
+        if (fitZoom > 0)
+        {
+            context.Scale = fitZoom.Value;
+        }
+        else if (destination.Zoom > 0)
         {
             context.Scale = destination.Zoom.Value;
         }
 
-        SKRect? targetLocation = destination.GetTargetLocation();
-        if (targetLocation.HasValue)
+        if (destination.TargetLocation.HasValue)
         {
-            SKRect pdfRect = targetLocation.Value;
+            SKRect pdfRect = destination.TargetLocation.Value;
             SKPoint pdfLocation = new(pdfRect.Left, pdfRect.Top);
             SKPoint pageLocation = targetPage.FromPdfPoint(pdfLocation);
 
@@ -322,5 +321,23 @@ public static class PdfPanelContextExtensions
         {
             context.ScrollToPage(targetPage.PageNumber);
         }
+    }
+
+    private static float? ComputeFitZoom(PdfPanelPage page, PdfAnnotationDestination destination, float viewportWidth, float viewportHeight)
+    {
+        SKSize pageSize = page.GetRotatedSize();
+
+        return destination.FitType switch
+        {
+            PdfDestinationFitType.Fit or PdfDestinationFitType.FitB =>
+                Math.Min(viewportWidth / pageSize.Width, viewportHeight / pageSize.Height),
+            PdfDestinationFitType.FitH or PdfDestinationFitType.FitBH =>
+                viewportWidth / pageSize.Width,
+            PdfDestinationFitType.FitV or PdfDestinationFitType.FitBV =>
+                viewportHeight / pageSize.Height,
+            PdfDestinationFitType.FitR when destination.TargetLocation is { Width: > 0, Height: > 0 } rect =>
+                Math.Min(viewportWidth / rect.Width, viewportHeight / rect.Height),
+            _ => null
+        };
     }
 }

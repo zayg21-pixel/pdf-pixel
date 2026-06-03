@@ -2,7 +2,7 @@
 
 namespace PdfPixel.PdfPanel.Web.WorkerInterface;
 
-public class RefreshCacheRequest : ContentRequest
+public class RefreshCacheRequest
 {
     public List<int> PagesToStore { get; set; }
 }

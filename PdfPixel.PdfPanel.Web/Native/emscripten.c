@@ -193,17 +193,39 @@ void dotnet_pause_main_loop(void) {
 	emscripten_pause_main_loop();
 }
 
-// Reads byte 0 of an externally-managed SharedArrayBuffer-backed Uint8Array
-// stashed on the worker global as self.testSharedView. Used by the SAB design
-// test to let C# observe writes from another thread without pthread / shared
-// .NET heap — Atomics.load is a pure JS API, the SAB is allocated and shared
-// via JS only, and the worker's WASM module remains non-threaded.
-EM_JS(int, dotnet_test_read_shared_byte, (void), {
-	if (!self.testSharedView) return 0;
-	return Atomics.load(self.testSharedView, 0);
-});
-
 // Resumes a paused render loop.
 void dotnet_resume_main_loop(void) {
 	emscripten_resume_main_loop();
 }
+
+// Allocates a 2-byte SharedArrayBuffer for the given request and stores it at
+// globalThis.mainRequestSabMap[containerId][requestId].
+// Must be called on the main thread before the UpdateContent message is sent to the worker.
+// TODO: [LOW] these SABs are never freed — known memory leak until cleanup is implemented.
+EM_JS(void, dotnet_alloc_request_sab, (const char* containerIdPtr, const char* requestIdPtr), {
+	if (!globalThis.mainRequestSabMap) globalThis.mainRequestSabMap = {};
+	const containerId = UTF8ToString(containerIdPtr);
+	const requestId = UTF8ToString(requestIdPtr);
+	if (!globalThis.mainRequestSabMap[containerId]) globalThis.mainRequestSabMap[containerId] = {};
+	globalThis.mainRequestSabMap[containerId][requestId] = new SharedArrayBuffer(2);
+});
+
+// Atomics.store on the main-thread SAB for the given request.
+EM_JS(void, dotnet_set_main_request_flag, (const char* containerIdPtr, const char* requestIdPtr, int flagType, int value), {
+	const sab = globalThis.mainRequestSabMap?.[UTF8ToString(containerIdPtr)]?.[UTF8ToString(requestIdPtr)];
+	if (sab) Atomics.store(new Int8Array(sab), flagType, value);
+});
+
+// Atomics.load on the worker-thread SAB for the given request.
+// Returns 0 if no SAB is registered for the requestId.
+EM_JS(int, dotnet_worker_read_request_flag, (const char* requestIdPtr, int flagType), {
+	const arr = globalThis.workerRequestSabMap?.[UTF8ToString(requestIdPtr)];
+	if (!arr) return 0;
+	return Atomics.load(arr, flagType);
+});
+
+// Atomics.store on the worker-thread SAB for the given request.
+EM_JS(void, dotnet_worker_set_request_flag, (const char* requestIdPtr, int flagType, int value), {
+	const arr = globalThis.workerRequestSabMap?.[UTF8ToString(requestIdPtr)];
+	if (arr) Atomics.store(arr, flagType, value);
+});

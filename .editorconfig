@@ -8,6 +8,7 @@ dotnet_diagnostic.ide0059.severity = warning
 # CA suppressions
 
 dotnet_diagnostic.CA1002.severity = none   # Do not expose generic lists
+dotnet_diagnostic.CA1056.severity = none   # URI properties should not be strings
 dotnet_diagnostic.CA1307.severity = none   # Specify StringComparison for clarity [not in .NET Standard]
 dotnet_diagnostic.CA1310.severity = none   # Specify StringComparison for correctness [not in .NET Standard]
 dotnet_diagnostic.CA1508.severity = none   # Avoid dead conditional code [good but buggy]

@@ -1,9 +1,11 @@
 ﻿using Microsoft.Extensions.Logging;
-using PdfPixel.Annotations.Models;
 using PdfPixel.Fonts.Management;
 using PdfPixel.Fonts.Mapping;
+using PdfPixel.PdfPanel.Animation;
+using PdfPixel.PdfPanel.Annotations;
 using PdfPixel.PdfPanel.Extensions;
 using PdfPixel.PdfPanel.Layout;
+using PdfPixel.PdfPanel.Rendering;
 using PdfPixel.PdfPanel.Web.Emscripten;
 using PdfPixel.PdfPanel.Web.Rendering;
 using PdfPixel.PdfPanel.Web.WorkerCommands;
@@ -15,12 +17,15 @@ using System.Data;
 using System.Runtime.InteropServices.JavaScript;
 using System.Runtime.Versioning;
 using System.Text.Json;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace PdfPixel.PdfPanel.Web;
 
 public class EventData
 {
+    public string ContainerId { get; set; }
+
     public Guid Id { get; set; }
 
     public WorkerCommandType CommandType { get; set; }
@@ -48,7 +53,7 @@ public partial class PdfPanelInterop
     public static ILogger Logger { get; private set; }
 
     [JSExport]
-    public static void ReceivedFromWorker(string id, string commandType, string header, byte[] data)
+    public static void ReceivedFromWorker(string containerId, string id, string commandType, string header, byte[] data)
     {
         if (_pendingRequests.TryGetValue(id, out var taskCompletionSource))
         {
@@ -56,17 +61,17 @@ public partial class PdfPanelInterop
             _pendingRequests.Remove(id);
         }
 
-        OnDataReceived?.Invoke(new EventData { Id = Guid.Parse(id), CommandType = Enum.Parse<WorkerCommandType>(commandType), Header = header, Data = data });
+        OnDataReceived?.Invoke(new EventData { ContainerId = containerId, Id = Guid.Parse(id), CommandType = Enum.Parse<WorkerCommandType>(commandType), Header = header, Data = data });
     }
 
     [JSImport("sendToWorker", "canvasInterop.js")]
-    public static partial void SendToWorker(string id, string commandType, string header, byte[] data);
+    public static partial void SendToWorker(string containerId, string id, string commandType, string header, byte[] data);
 
-    public static Task<byte[]> SendToWorkerAsync(Guid id, WorkerCommandType commandType, string header, byte[] data)
+    public static Task<byte[]> SendToWorkerAsync(string containerId, Guid id, WorkerCommandType commandType, string header, byte[] data)
     {
         var tcs = new TaskCompletionSource<byte[]>();
         _pendingRequests[id.ToString()] = tcs;
-        SendToWorker(id.ToString(), commandType.ToString(), header, data);
+        SendToWorker(containerId, id.ToString(), commandType.ToString(), header, data);
         return tcs.Task;
     }
 
@@ -97,7 +102,7 @@ public partial class PdfPanelInterop
             return;
         }
         var request = JsonSerializer.Serialize(new SetFontRequest { Name = name }, InterfaceJsonContext.Default.SetFontRequest);
-        await SendToWorkerAsync(Guid.NewGuid(), WorkerCommandType.SetFont, request, fontData);
+        await SendToWorkerAsync(string.Empty, Guid.NewGuid(), WorkerCommandType.SetFont, request, fontData);
     }
 
     [JSExport]
@@ -144,7 +149,6 @@ public partial class PdfPanelInterop
             {
                 MinZoom = (float)(double)configuration.GetPropertyAsDouble("minZoom"),
                 MaxZoom = (float)(double)configuration.GetPropertyAsDouble("maxZoom"),
-                MaxThumbnailSize = configuration.GetPropertyAsInt32("maxThumbnailSize"),
                 MinimumPageGap = (float)(double)configuration.GetPropertyAsDouble("minimumPageGap"),
                 PagesPadding = SKRect.Create(
                     (float)(double)configuration.GetPropertyAsJSObject("pagesPadding")?.GetPropertyAsDouble("left"),
@@ -170,9 +174,8 @@ public partial class PdfPanelInterop
 
             resources.ContentProvider = contentProvider;
 
-            var runner = new SingleThreadedRenderLoopRunner(contentProvider);
-            var renderingQueue = new PdfRenderingQueue(LoggerFactory, resources.SkSurfaceFactory, runner);
-            resources.RenderingQueue = renderingQueue;
+            resources.AnimationClock = new PdfAnimationClock();
+            resources.Renderer = new PdfPanelRenderer(resources.SkSurfaceFactory, contentProvider, resources.AnimationClock, SynchronizationContext.Current);
             ResourcesMap[containerId] = resources;
         }
         catch (Exception ex)
@@ -191,7 +194,11 @@ public partial class PdfPanelInterop
 
         if (ResourcesMap.TryGetValue(containerId, out var resources))
         {
-            resources.RenderingQueue.Dispose();
+            resources.AnimationClock.Dispose();
+            resources.Renderer.Dispose();
+            resources.ContentProvider.Dispose();
+            resources.SkSurfaceFactory.Dispose();
+
             ResourcesMap.Remove(containerId);
         }
     }
@@ -210,24 +217,17 @@ public partial class PdfPanelInterop
             return;
         }
 
-        var request = new SetDocumentRequest
-        {
-            ContainerId = containerId
-        };
-
-        var requestJson = JsonSerializer.Serialize(request, InterfaceJsonContext.Default.SetDocumentRequest);
-        var responseJson = await SendToWorkerAsync(Guid.NewGuid(), WorkerCommandType.SetDocument, requestJson, document);
+        var responseJson = await SendToWorkerAsync(containerId, Guid.NewGuid(), WorkerCommandType.SetDocument, null, document);
 
         var documentData = JsonSerializer.Deserialize(responseJson, InterfaceJsonContext.Default.WebDocumentData);
 
         resources.ContentProvider.UpdateDocument(documentData);
 
         var pages = PdfPanelPageCollection.FromContentProvider(resources.ContentProvider);
-        resources.Context = new PdfPanelContext(pages, resources.RenderingQueue, resources.RenderTargetFactory, new PdfPanelVerticalLayout());
+        resources.Context = new PdfPanelContext(pages, resources.Renderer, resources.RenderTargetFactory, new PdfPanelVerticalLayout());
 
         var panelConfiguration = resources.Configuration;
         resources.Context.BackgroundColor = panelConfiguration.BackgroundColor;
-        resources.Context.MaxThumbnailSize = panelConfiguration.MaxThumbnailSize;
         resources.Context.MinimumPageGap = panelConfiguration.MinimumPageGap;
         resources.Context.PagesPadding = panelConfiguration.PagesPadding;
     }
@@ -258,8 +258,7 @@ public partial class PdfPanelInterop
             var panelConfiguration = resources.Configuration;
 
             resources.Context.BackgroundColor = panelConfiguration.BackgroundColor;
-            resources.Context.MaxThumbnailSize = panelConfiguration.MaxThumbnailSize;
-            resources.Context.MinimumPageGap = panelConfiguration.MinimumPageGap;
+                resources.Context.MinimumPageGap = panelConfiguration.MinimumPageGap;
             resources.Context.PagesPadding = panelConfiguration.PagesPadding;
 
             resources.Context.VerticalOffset = verticalOffset;
@@ -363,20 +362,20 @@ public partial class PdfPanelInterop
     {
         openUri = string.Empty;
 
-        if (popup.Action == null)
+        if (popup.Navigation == null)
         {
             return;
         }
 
-        switch (popup.Action.ActionType)
+        switch (popup.Navigation.NavigationType)
         {
-            case PdfActionType.Uri:
-                openUri = popup.Action.TargetName ?? string.Empty;
+            case PdfAnnotationNavigationType.Uri:
+                openUri = popup.Navigation.Uri ?? string.Empty;
                 break;
-            case PdfActionType.GoTo:
-                resources.Context?.ScrollToAction(popup.Action);
+            case PdfAnnotationNavigationType.GoToDestination:
+                resources.Context?.ScrollToDestination(popup.Navigation.Destination);
                 break;
-            case PdfActionType.GoToRemote:
+            case PdfAnnotationNavigationType.GoToRemote:
                 // TODO: handle remote file loading
                 break;
         }

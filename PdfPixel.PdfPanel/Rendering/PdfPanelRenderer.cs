@@ -129,7 +129,16 @@ public sealed class PdfPanelRenderer : IDisposable
     }
 
     private void OnAnimationTick(object? sender, AnimationTickEventArgs args)
-        => _syncContext?.Post(_ => OnAnimationTick(args.Tick), null);
+    {
+        if (_syncContext != null)
+        {
+            _syncContext.Post(_ => OnAnimationTick(args.Tick), null);
+        }
+        else
+        {
+            OnAnimationTick(args.Tick);
+        }
+    }
 
     private void OnAnimationTick(long tick)
     {
@@ -142,7 +151,7 @@ public sealed class PdfPanelRenderer : IDisposable
         SKSurface surface = GetSurface(_lastRequest);
         var anyRedrawn = false;
 
-        AnimationState? animation = _clock != null ? new AnimationState(tick, _clock.Fps) : null;
+        AnimationState? animation = (_clock != null) ? new AnimationState(tick, _clock.Fps) : null;
 
         foreach (VisiblePageInfo page in _lastRequest.VisiblePages)
         {
@@ -190,7 +199,16 @@ public sealed class PdfPanelRenderer : IDisposable
     }
 
     private void OnPageUpdated(PageUpdatedArgs args)
-        => _syncContext?.Post(_ => OnPageUpdatedSync(args), null);
+    {
+        if (_syncContext != null)
+        {
+            _syncContext.Post(_ => OnPageUpdatedSync(args), null);
+        }
+        else
+        {
+            OnPageUpdatedSync(args);
+        }
+    }
 
     private void OnPageUpdatedSync(PageUpdatedArgs args)
     {

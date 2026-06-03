@@ -2,7 +2,6 @@ using PdfPixel.Commands;
 using PdfPixel.Models;
 using PdfPixel.PdfPanel.WorkQueue;
 using System;
-using System.Threading;
 
 namespace PdfPixel.PdfPanel.ContentProvider;
 
@@ -16,10 +15,14 @@ public class PdfPageUpdateCacheWorkItem : IWorkItem
     private readonly IPdfDocument _document;
     private readonly UpdateContentRequest _request;
     private readonly Action<PageUpdatedArgs>? _onPageUpdated;
-    private readonly TokenSnapshot _tokenSnapshot;
+    private readonly IPdfCancellableExecutionObserver? _parseObserver;
+    private readonly IPdfCancellableExecutionObserver? _contentObserver;
 
     /// <summary>
     /// Initializes the work item for the given cache entry and rendering request.
+    /// Snapshots the current observers from the cache entry so replacements made by
+    /// subsequent <see cref="PdfPageCacheEntry.InitializeForRendering"/> calls on the
+    /// UI thread cannot affect this already-enqueued item.
     /// </summary>
     public PdfPageUpdateCacheWorkItem(PdfPageCacheEntry cacheEntry, IPdfDocument document, object documentLocker, UpdateContentRequest request, Action<PageUpdatedArgs>? onPageUpdated)
     {
@@ -33,12 +36,8 @@ public class PdfPageUpdateCacheWorkItem : IWorkItem
         _document = document;
         _request = request;
         _onPageUpdated = onPageUpdated;
-
-        _tokenSnapshot = new TokenSnapshot
-        {
-            ParseToken = cacheEntry.ParseCancellationTokenSource?.Token ?? CancellationToken.None,
-            ContentToken = cacheEntry.ContentCancellationTokenSource?.Token ?? CancellationToken.None
-        };
+        _parseObserver = cacheEntry.ParseObserver;
+        _contentObserver = cacheEntry.ContentObserver;
     }
 
     /// <inheritdoc />
@@ -52,7 +51,12 @@ public class PdfPageUpdateCacheWorkItem : IWorkItem
     /// <inheritdoc />
     public void Process()
     {
-        var updated = false;
+        if (_parseObserver == null ||  _contentObserver == null)
+        {
+            return;
+        }
+
+        bool contentUpdated = false;
 
         float scaleFactor = _request.RenderingParameters.ScaleFactor ?? 1;
 
@@ -60,8 +64,7 @@ public class PdfPageUpdateCacheWorkItem : IWorkItem
         {
             if (!CacheEntry.Content.ContentCommandRecording.HasContent)
             {
-                PdfCancellationExecutionObserver observer = new(_tokenSnapshot.ParseToken);
-                PdfCommandRecorder recording = _document.GeneratePageCommandRecording(CacheEntry.PageNumber, observer);
+                PdfCommandRecorder recording = _document.GeneratePageCommandRecording(CacheEntry.PageNumber, _parseObserver);
                 CacheEntry.Content.UpdateContentCommandRecording(recording);
             }
         }
@@ -72,12 +75,16 @@ public class PdfPageUpdateCacheWorkItem : IWorkItem
 
             if (contentRecording.Content != null)
             {
-                PdfCancellationExecutionObserver observer = new(_tokenSnapshot.ContentToken);
-                PdfCommandExecutionContext executionContext = new(_request.RenderingParameters, _documentLocker, observer);
+                PdfCommandExecutionContext executionContext = new(_request.RenderingParameters, _documentLocker, _contentObserver);
                 SkiaSharp.SKPicture? contentPicture = PdfDocumentContentExtensions.RecordingToSkPicture(CacheEntry.PageInfo, contentRecording.Content, executionContext);
                 CacheEntry.Content.UpdateContentPicture(contentPicture, scaleFactor);
-                updated = true;
+                contentUpdated = true;
             }
+        }
+
+        if (contentUpdated)
+        {
+            _onPageUpdated?.Invoke(new PageUpdatedArgs(CacheEntry.PageNumber, CacheEntry.GetContentPictures(), UpdatedContentType.Content));
         }
 
         var annotationRecordingUpdated = false;
@@ -89,8 +96,7 @@ public class PdfPageUpdateCacheWorkItem : IWorkItem
                     || CacheEntry.ActiveAnnotation != _request.ActiveAnnotation
                     || CacheEntry.CurrentPointerState != _request.PointerState))
             {
-                PdfCancellationExecutionObserver observer = new(_tokenSnapshot.ContentToken);
-                PdfCommandRecorder? annotationRecording = _document.GetAnnotationRecording(CacheEntry.PageNumber, _request.ActiveAnnotation?.PageAnnotation, _request.PointerState, observer);
+                PdfCommandRecorder? annotationRecording = _document.GetAnnotationRecording(CacheEntry.PageNumber, _request.ActiveAnnotation?.PageAnnotation, _request.PointerState, _contentObserver);
                 CacheEntry.AnnotationContent.UpdateContentCommandRecording(annotationRecording);
                 CacheEntry.UpdateActiveAnnotationState(_request.ActiveAnnotation, _request.PointerState);
                 annotationRecordingUpdated = true;
@@ -104,23 +110,11 @@ public class PdfPageUpdateCacheWorkItem : IWorkItem
         {
             using LockedContent<PdfCommandRecorder> contentRecording = CacheEntry.AnnotationContent.ContentCommandRecording.GetContent();
 
-            PdfCancellationExecutionObserver observer = new(_tokenSnapshot.ContentToken);
-            PdfCommandExecutionContext executionContext = new(_request.RenderingParameters, _documentLocker, observer);
+            PdfCommandExecutionContext executionContext = new(_request.RenderingParameters, _documentLocker, _contentObserver);
             SkiaSharp.SKPicture? contentPicture = PdfDocumentContentExtensions.RecordingToSkPicture(CacheEntry.PageInfo, contentRecording.Content, executionContext);
             CacheEntry.AnnotationContent.UpdateContentPicture(contentPicture, scaleFactor);
 
-            updated = true;
-        }
-
-        if (updated)
-        {
             _onPageUpdated?.Invoke(new PageUpdatedArgs(CacheEntry.PageNumber, CacheEntry.GetContentPictures(), UpdatedContentType.Annotations));
         }
-    }
-
-    private struct TokenSnapshot
-    {
-        public CancellationToken ParseToken;
-        public CancellationToken ContentToken;
     }
 }

@@ -2,7 +2,7 @@ using PdfPixel.PdfPanel.ContentProvider;
 
 namespace PdfPixel.PdfPanel.Web.WorkerInterface;
 
-public class UpdateContentResponseHeader : RequestResponseHeader
+public class UpdateContentResponseHeader
 {
     public int PageNumber { get; set; }
 

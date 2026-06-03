@@ -1,4 +1,8 @@
-﻿namespace PdfPixel.PdfPanel.Web;
+﻿using PdfPixel.PdfPanel.Animation;
+using PdfPixel.PdfPanel.Annotations;
+using PdfPixel.PdfPanel.Rendering;
+
+namespace PdfPixel.PdfPanel.Web;
 
 /// <summary>
 /// Encapsulates all resources associated with a single PDF panel instance.
@@ -11,9 +15,14 @@ internal class PdfPanelResources
     public IPdfPanelRenderTargetFactory RenderTargetFactory { get; set; }
 
     /// <summary>
-    /// Gets or sets the rendering queue for the panel.
+    /// Gets or sets the animation clock for the panel.
     /// </summary>
-    public PdfRenderingQueue RenderingQueue { get; set; }
+    public PdfAnimationClock AnimationClock { get; set; }
+
+    /// <summary>
+    /// Gets or sets the renderer for the panel.
+    /// </summary>
+    public PdfPanelRenderer Renderer { get; set; }
 
     /// <summary>
     /// Gets or sets the Skia surface factory for the panel.

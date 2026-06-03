@@ -104,13 +104,12 @@ public sealed class PdfDestination
 
     /// <summary>
     /// Gets the target location rectangle in PDF coordinates for this destination.
-    /// Returns null if the destination does not specify a location (e.g., Fit, FitB types) or if the page cannot be resolved.
     /// The rectangle dimensions depend on the fit type:
-    /// - XYZ, FitH, FitV, FitBH, FitBV: returns a rectangle with specified coordinates and zero size
+    /// - XYZ, FitH, FitV, FitBH, FitBV: returns a point rectangle (zero size) at the scroll target
     /// - FitR: returns the actual rectangle to fit
-    /// - Fit, FitB: returns null
+    /// - Fit, FitB: returns null (scroll to page)
     /// </summary>
-    /// <returns>A rectangle in PDF coordinates, or null if no location is specified.</returns>
+    /// <returns>A rectangle in PDF coordinates, or null when no specific location is needed (Fit/FitB) or the page cannot be resolved.</returns>
     public SKRect? GetTargetLocation()
     {
         IPdfPage? page = GetPdfPage();
@@ -123,34 +122,21 @@ public sealed class PdfDestination
         {
             case PdfDestinationFitType.XYZ:
                 {
-                    if (_left.HasValue || _top.HasValue)
-                    {
-                        float left = _left ?? 0f;
-                        float top = _top ?? page.CropBox.Height;
-                        return SKRect.Create(left, top, 0, 0);
-                    }
-
-                    return null;
+                    float left = _left ?? 0f;
+                    float top = _top ?? page.CropBox.Height;
+                    return SKRect.Create(left, top, 0, 0);
                 }
             case PdfDestinationFitType.FitH:
             case PdfDestinationFitType.FitBH:
                 {
-                    if (_top.HasValue)
-                    {
-                        return SKRect.Create(0, _top.Value, 0, 0);
-                    }
-
-                    return null;
+                    float top = _top ?? page.CropBox.Height;
+                    return SKRect.Create(0, top, 0, 0);
                 }
             case PdfDestinationFitType.FitV:
             case PdfDestinationFitType.FitBV:
                 {
-                    if (_left.HasValue)
-                    {
-                        return SKRect.Create(_left.Value, 0, 0, 0);
-                    }
-
-                    return null;
+                    float left = _left ?? 0f;
+                    return SKRect.Create(left, 0, 0, 0);
                 }
             case PdfDestinationFitType.FitR:
                 {

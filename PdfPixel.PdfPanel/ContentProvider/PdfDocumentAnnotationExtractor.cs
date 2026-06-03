@@ -20,8 +20,8 @@ internal static class PdfDocumentAnnotationExtractor
         }
 
         return page.Popups.FirstOrDefault(x =>
-            x.PageAnnotation.Content.IsInteractive
-                && page.FromPdfRect(x.PageAnnotation.GetHoverRectangle()).Contains(pagePosition));
+            x.IsInteractive
+                && page.FromPdfRect(x.HoverRectangle).Contains(pagePosition));
     }
 
     public static PdfAnnotationPopup[] CreateAnnotationPopups(this IPdfDocument document, int pageNumber)
@@ -56,7 +56,8 @@ internal static class PdfDocumentAnnotationExtractor
             }
 
             PdfAnnotationMessage[] thread = BuildAnnotationThread(annotation, annotationMap, processedAnnotations);
-            popups.Add(new PdfAnnotationPopup(pageAnnotation, thread));
+            PdfAnnotationNavigation? navigation = BuildAnnotationNavigation(annotation);
+            popups.Add(new PdfAnnotationPopup(pageAnnotation, navigation, thread));
         }
 
         return popups.ToArray();
@@ -153,6 +154,82 @@ internal static class PdfDocumentAnnotationExtractor
         }
 
         return replies;
+    }
+
+    private static PdfAnnotationNavigation BuildAnnotationNavigation(PdfAnnotationBase annotation)
+    {
+        if (annotation is not PdfLinkAnnotation link)
+        {
+            return new PdfAnnotationNavigation
+            {
+                NavigationType = PdfAnnotationNavigationType.None,
+                CursorType = annotation.CursorType
+            };
+        }
+
+        if (link.Action is PdfUriAction uriAction && !uriAction.Uri.IsEmpty)
+        {
+            return new PdfAnnotationNavigation
+            {
+                NavigationType = PdfAnnotationNavigationType.Uri,
+                CursorType = link.CursorType,
+                Uri = uriAction.Uri.ToString()
+            };
+        }
+
+        if (link.Action is PdfGoToAction goToAction && goToAction.Destination != null)
+        {
+            return new PdfAnnotationNavigation
+            {
+                NavigationType = PdfAnnotationNavigationType.GoToDestination,
+                CursorType = link.CursorType,
+                Destination = BuildAnnotationDestination(goToAction.Destination)
+            };
+        }
+
+        if (link.Action is PdfGoToRemoteAction)
+        {
+            // TODO: handle remote file loading
+            return new PdfAnnotationNavigation
+            {
+                NavigationType = PdfAnnotationNavigationType.GoToRemote,
+                CursorType = link.CursorType
+            };
+        }
+
+        if (link.Destination != null)
+        {
+            return new PdfAnnotationNavigation
+            {
+                NavigationType = PdfAnnotationNavigationType.GoToDestination,
+                CursorType = link.CursorType,
+                Destination = BuildAnnotationDestination(link.Destination)
+            };
+        }
+
+        return new PdfAnnotationNavigation
+        {
+            NavigationType = PdfAnnotationNavigationType.None,
+            CursorType = link.CursorType
+        };
+    }
+
+    private static PdfAnnotationDestination? BuildAnnotationDestination(PdfDestination pdfDestination)
+    {
+        IPdfPage? page = pdfDestination.GetPdfPage();
+
+        if (page == null)
+        {
+            return null;
+        }
+
+        return new PdfAnnotationDestination
+        {
+            PageNumber = page.PageNumber,
+            FitType = pdfDestination.FitType,
+            TargetLocation = pdfDestination.GetTargetLocation(),
+            Zoom = pdfDestination.Zoom
+        };
     }
 
     private static List<PdfAnnotationBase> FindDirectReplies(

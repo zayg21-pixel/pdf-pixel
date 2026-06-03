@@ -20,7 +20,6 @@ class PdfPanelView {
             minZoom: 0.1,
             maxZoom: 5.0,
             backgroundColor: '#D3D3D3',
-            maxThumbnailSize: 400,
             pagesPadding: { left: 10, top: 10, right: 10, bottom: 10 },
             minimumPageGap: 10,
             scrollStep: 20,
@@ -387,13 +386,13 @@ export async function initialize(setModuleImports, getAssemblyExports, wasmModul
 
     const handshakePromise = new Promise((resolve, reject) => {
         function onHandshake(e) {
-            if (Array.isArray(e.data) && e.data[1] === 'Initialize') {
+            if (Array.isArray(e.data) && e.data[2] === 'Initialize') {
                 contentWorker.removeEventListener('message', onHandshake);
                 resolve();
             }
         }
         contentWorker.addEventListener('message', onHandshake);
-        sendToWorker(null, 'Initialize', null, null);
+        sendToWorker(null, null, 'Initialize', null, null);
         setTimeout(() => {
             contentWorker.removeEventListener('message', onHandshake);
             reject(new Error('Worker handshake timeout'));
@@ -403,40 +402,10 @@ export async function initialize(setModuleImports, getAssemblyExports, wasmModul
     await handshakePromise;
 
     contentWorker.onmessage = (e) => {
-        panelInterop.ReceivedFromWorker(e.data[0], e.data[1], e.data[2], e.data[3]);
+        panelInterop.ReceivedFromWorker(e.data[0], e.data[1], e.data[2], e.data[3], e.data[4]);
     };
 
     console.log('Content worker initialized');
-
-    runSharedArrayBufferTest();
-}
-
-/**
- * Design test for shared WebAssembly.Memory ⇄ C# Span<byte> aliasing.
- * Allocates a shared WebAssembly.Memory on the main thread (its .buffer is a
- * SharedArrayBuffer), hands a Uint8Array view to the worker — which spins inside
- * C# TestSharedArrayBuffer until byte[0] == 1 — then 10s later writes 1 to
- * byte[0] from the main thread. If the C# Span<byte> aliases the shared memory,
- * the worker should print "Worker is done, value changed to 1!" right after.
- */
-function runSharedArrayBufferTest() {
-    if (typeof SharedArrayBuffer === 'undefined' || self.crossOriginIsolated === false) {
-        console.warn('SharedArrayBuffer test skipped: cross-origin isolation is not enabled (need COOP/COEP headers).');
-        return;
-    }
-
-    // 1 page = 64 KiB; we only need 1 int32 slot but page is the minimum granularity.
-    const sharedMemory = new WebAssembly.Memory({ initial: 1, maximum: 1, shared: true });
-    const sharedView = new Int32Array(sharedMemory.buffer);
-    Atomics.store(sharedView, 0, 0);
-
-    console.log('SharedMemory test: posting SAB-backed Int32Array to worker, will flip view[0] to 1 in 10s');
-    sendToWorker(null, 'TestSharedArrayBuffer', null, sharedView);
-
-    setTimeout(() => {
-        console.log('SharedMemory test: Atomics.store(view, 0, 1) from main thread');
-        Atomics.store(sharedView, 0, 1);
-    }, 10000);
 }
 
 /**
@@ -628,6 +597,11 @@ export function clearAnnotationPopupState(state) {
     state.annotationPopup = null;
 }
 
-export function sendToWorker(id, message, parameters, data) {
-    contentWorker.postMessage([id, message, parameters, data]);
+export function sendToWorker(containerId, id, message, parameters, data) {
+    if (message === 'UpdateContent' && containerId && id) {
+        const sab = globalThis.mainRequestSabMap?.[containerId]?.[id] ?? null;
+        contentWorker.postMessage([containerId, id, message, parameters, data, sab]);
+    } else {
+        contentWorker.postMessage([containerId, id, message, parameters, data]);
+    }
 }

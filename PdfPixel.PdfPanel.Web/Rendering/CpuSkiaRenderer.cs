@@ -1,10 +1,10 @@
 using Microsoft.Extensions.Logging;
+using PdfPixel.PdfPanel.Rendering;
 using PdfPixel.PdfPanel.Requests;
 using PdfPixel.PdfPanel.Web.Emscripten;
 using SkiaSharp;
 using System;
 using System.Runtime.Versioning;
-using System.Threading;
 
 namespace PdfPixel.PdfPanel.Web.Rendering;
 
@@ -14,59 +14,60 @@ namespace PdfPixel.PdfPanel.Web.Rendering;
 /// Implements <see cref="IPdfPanelRenderTargetFactory"/> and <see cref="IPdfPanelRenderTarget"/>.
 /// </summary>
 [SupportedOSPlatform("browser")]
-internal sealed class CpuSkiaRenderer : CpuSkSurfaceFactory, IPdfPanelRenderTargetFactory, IPdfPanelRenderTarget
+internal sealed class CpuSkiaRenderer : ISkSurfaceFactory, IPdfPanelRenderTargetFactory, IPdfPanelRenderTarget
 {
     private readonly string _canvasSelector;
     private readonly ILogger _logger;
+    private readonly CpuSkSurfaceFactory _surfaceFactory;
 
     public CpuSkiaRenderer(ILogger logger, string canvasSelector)
-        : base(SKColorType.Rgba8888, SKAlphaType.Unpremul)
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _canvasSelector = canvasSelector ?? throw new ArgumentNullException(nameof(canvasSelector));
+        _surfaceFactory = new CpuSkSurfaceFactory(SKColorType.Rgba8888, SKAlphaType.Unpremul);
     }
 
     /// <inheritdoc />
-    public IPdfPanelRenderTarget GetRenderTarget(PdfPanelContext context)
-    {
-        return this;
-    }
+    public void Initialize() => _surfaceFactory.Initialize();
 
-    public override SKSurface GetDrawingSurface(int width, int height, CancellationToken token)
+    /// <inheritdoc />
+    public SKSurface GetDrawingSurface(int width, int height)
     {
         // TODO: [HIGH] copy content from existing surface, add protected properties for surfaces
-        var surface = base.GetDrawingSurface(width, height, token);
+        SKSurface surface = _surfaceFactory.GetDrawingSurface(width, height);
         EmscriptenInterop.SetCanvasSize(_canvasSelector, width, height);
-
         return surface;
     }
 
     /// <inheritdoc />
-    public void Render(SKSurface surface, DrawingRequest request, CancellationToken token)
+    public IPdfPanelRenderTarget GetRenderTarget(PdfPanelContext context) => this;
+
+    /// <inheritdoc />
+    public void Render(SKSurface surface, DrawingRequest request)
     {
         if (surface == null)
         {
             return;
         }
 
-        // Ensure any pending drawing operations are flushed to the pixel buffer.
         surface.Canvas.Flush();
 
-        using var pixmap = surface.PeekPixels();
+        using SKPixmap pixmap = surface.PeekPixels();
 
         if (pixmap == null)
         {
             return;
         }
 
-        var width = pixmap.Width;
-        var height = pixmap.Height;
+        int width = pixmap.Width;
+        int height = pixmap.Height;
+
         if (width <= 0 || height <= 0)
         {
             return;
         }
 
-        var src = pixmap.GetPixels();
+        nint src = pixmap.GetPixels();
 
         try
         {
@@ -79,8 +80,5 @@ internal sealed class CpuSkiaRenderer : CpuSkSurfaceFactory, IPdfPanelRenderTarg
     }
 
     /// <inheritdoc />
-    public new void Dispose()
-    {
-        base.Dispose();
-    }
+    public void Dispose() => _surfaceFactory.Dispose();
 }

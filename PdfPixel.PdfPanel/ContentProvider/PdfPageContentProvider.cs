@@ -14,14 +14,17 @@ public sealed class PdfPageContentProvider : IPdfPageContentProvider
 {
     private readonly IPdfDocument _document;
     private readonly IWorkQueue _processingQueue;
+    private readonly IPdfExecutionObserverFactory _observerFactory;
     private readonly PdfPageCacheEntry[] _cache;
 
     /// <summary>
-    /// Initializes the provider for <paramref name="document"/>, using <paramref name="processingQueue"/> for background work.
+    /// Initializes the provider for <paramref name="document"/>, using <paramref name="processingQueue"/> for background work
+    /// and <paramref name="observerFactory"/> to create per-page cancellation observers.
     /// </summary>
-    public PdfPageContentProvider(IPdfDocument document, IWorkQueue processingQueue)
+    public PdfPageContentProvider(IPdfDocument document, IWorkQueue processingQueue, IPdfExecutionObserverFactory? observerFactory = null)
     {
         _document = document ?? throw new ArgumentNullException(nameof(document));
+        _observerFactory = observerFactory ?? new PdfCancellationSourceObserverFactory();
         _cache = new PdfPageCacheEntry[document.Pages.Count];
 
         for (int i = 0; i < document.Pages.Count; i++)
@@ -77,7 +80,9 @@ public sealed class PdfPageContentProvider : IPdfPageContentProvider
                 continue;
             }
 
-            cacheEntry.InitializeForRendering(request);
+            IPdfCancellableExecutionObserver parseObserver = _observerFactory.CreateParseObserver(cacheEntry.PageNumber);
+            IPdfCancellableExecutionObserver contentObserver = _observerFactory.CreateContentObserver(cacheEntry.PageNumber);
+            cacheEntry.InitializeForRendering(request, parseObserver, contentObserver);
             _processingQueue.Enqueue(new PdfPageUpdateCacheWorkItem(cacheEntry, _document, DocumentLocker, request, OnPageUpdated));
         }
     }

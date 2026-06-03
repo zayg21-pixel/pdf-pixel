@@ -14,22 +14,20 @@ using System.Linq;
 using System.Runtime.InteropServices.JavaScript;
 using System.Runtime.Versioning;
 using System.Text.Json;
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace PdfPixel.PdfPanel.Web;
 
 public sealed class WorkerDocumentData
 {
-    public string Id { get; set; }
-
     public byte[] Data { get; set; }
 
-    public PdfDocument Document { get; set; }
+    public IPdfDocument Document { get; set; }
 
     public PdfPanelPageCollection Pages { get; set; }
 
-    public ImmidiateWorkQueue<PdfPageUpdateCacheWorkItem> WorkQueue { get; set; }
+    public ImmidiateWorkQueue WorkQueue { get; set; }
+
+    public SharedArrayBufferObserverFactory ObserverFactory { get; set; }
 
     public void Dispose()
     {
@@ -44,7 +42,6 @@ public partial class PdfContentWorkerInterop
     private static readonly InMemorySkiaFontProvider FontProvider = new();
     private static bool _isInitialized = false;
     private static readonly Dictionary<string, WorkerDocumentData> _documents = new();
-    private static readonly Dictionary<string, (CancellationTokenSource Token, Guid Id)> _cancellationTokens = new();
 
     /// <summary>Gets the application-wide logger factory, available after <see cref="Initialize"/> has been called.</summary>
     public static ILoggerFactory LoggerFactory { get; private set; }
@@ -53,34 +50,7 @@ public partial class PdfContentWorkerInterop
     public static ILogger Logger { get; private set; }
 
     [JSImport("onDataReady", "pdfContentWorker.js")]
-    public static partial void OnDataReady(string id, string commandType, string header, byte[] response);
-
-    // Reads the shared SAB stashed on the worker as self.testSharedView via an
-    // EM_JS Atomics.load. Bypasses JSExport marshaling entirely — the .NET runtime
-    // memory stays non-shared, and the SAB lives only on the JS side.
-    [JSExport]
-    public static void TestSharedArrayBuffer()
-    {
-        Console.WriteLine("Test command received (EM_JS + Atomics.load path)");
-        DateTime startTime = DateTime.Now;
-        while (true)
-        {
-            if (EmscriptenInterop.TestReadSharedByte() == 1)
-            {
-                break;
-            }
-
-            Thread.Yield();
-
-            if ((DateTime.Now - startTime).TotalSeconds > 20)
-            {
-                Console.WriteLine("Timeout waiting for value to change to 1.");
-                return;
-            }
-        }
-
-        Console.WriteLine("Worker is done, value changed to 1! Time elapsed: {0} ms", (DateTime.Now - startTime).TotalMilliseconds);
-    }
+    public static partial void OnDataReady(string containerId, string id, string commandType, string header, byte[] response);
 
     [JSExport]
     internal static void Initialize()
@@ -98,7 +68,7 @@ public partial class PdfContentWorkerInterop
     }
 
     [JSExport]
-    internal static async void ProcessMessage(string id, string commandType, string header, byte[] data)
+    internal static void ProcessMessage(string containerId, string id, string commandType, string header, byte[] data)
     {
         var commandTypeEnum = Enum.Parse<WorkerCommandType>(commandType);
 
@@ -109,20 +79,20 @@ public partial class PdfContentWorkerInterop
                 var request = JsonSerializer.Deserialize(header, InterfaceJsonContext.Default.SetFontRequest);
 
                 SetFont(request.Name, data);
-                OnDataReady(id, commandType, header, default);
+                OnDataReady(containerId, id, commandType, header, default);
                 break;
             }
             case WorkerCommandType.UpdateContent:
             {
                 var request = JsonSerializer.Deserialize(header, InterfaceJsonContext.Default.UpdateContentRequest);
 
-                if (!_documents.TryGetValue(request.ContainerId, out var document))
+                if (!_documents.TryGetValue(containerId, out var document))
                 {
-                    Logger.LogWarning("No document found for container '{ContainerId}' when trying to update content", request.ContainerId);
+                    Logger.LogWarning("No document found for container '{ContainerId}' when trying to update content", containerId);
                     break;
                 }
 
-                CancellationTokenSource cancellationTokenSource = await GetCancellationTokenSource(request);
+                document.ObserverFactory.SetCurrentRequestId(id);
 
                 byte[] contentData = null;
 
@@ -146,13 +116,12 @@ public partial class PdfContentWorkerInterop
 
                     var headerData = JsonSerializer.Serialize(new UpdateContentResponseHeader
                     {
-                        ContainerId = request.ContainerId,
                         PageNumber = args.PageNumber,
                         Scale = request.Scale,
                         ContentType = args.UpdatedContentType
                     }, InterfaceJsonContext.Default.UpdateContentResponseHeader);
 
-                    OnDataReady(id, WorkerCommandType.PageContentReady.ToString(), headerData, contentData);
+                    OnDataReady(containerId, id, WorkerCommandType.PageContentReady.ToString(), headerData, contentData);
                 };
 
                 document.Pages.ContentProvider.UpdateContent(updatePagesRequest);
@@ -161,53 +130,11 @@ public partial class PdfContentWorkerInterop
             }
             case WorkerCommandType.SetDocument:
             {
-                var parameters = JsonSerializer.Deserialize(header, InterfaceJsonContext.Default.SetDocumentRequest);
-                var documentInfo = SetDocument(parameters.ContainerId, data);
-                OnDataReady(id, commandType, header, documentInfo);
+                var documentInfo = SetDocument(containerId, data);
+                OnDataReady(containerId, id, commandType, null, documentInfo);
                 break;
             }
         }
-    }
-
-    private static async Task<CancellationTokenSource> GetCancellationTokenSource(ContentRequest request)
-    {
-        CancellationTokenSource cancellationTokenSource;
-
-        if (_cancellationTokens.TryGetValue(request.ContainerId, out var existingToken))
-        {
-            if (existingToken.Id == request.CancellationId)
-            {
-                cancellationTokenSource = existingToken.Token;
-            }
-            else
-            {
-                try
-                {
-                    existingToken.Token.Cancel();
-                }
-                catch (ObjectDisposedException)
-                {
-                }
-
-                existingToken.Token.Dispose();
-                cancellationTokenSource = new CancellationTokenSource();
-                _cancellationTokens[request.ContainerId] = (cancellationTokenSource, request.CancellationId);
-            }
-        }
-        else
-        {
-            cancellationTokenSource = new CancellationTokenSource();
-            _cancellationTokens[request.ContainerId] = (cancellationTokenSource, request.CancellationId);
-        }
-
-        await Task.Yield();
-
-        return cancellationTokenSource;
-    }
-
-    private static void SetResponse(JSObject state, byte[] data)
-    {
-        state.SetProperty("response", data);
     }
 
     private static void SetFont(string name, byte[] fontData)
@@ -239,8 +166,9 @@ public partial class PdfContentWorkerInterop
             Logger.LogInformation("Reading PDF document, size={Size} bytes", documentData.Length);
             var document = reader.Read(new MemoryStream(documentData), string.Empty);
             Logger.LogInformation("PDF document parsed, pages={PageCount}", document.Pages.Count);
-            var workQueue = new ImmidiateWorkQueue<PdfPageUpdateCacheWorkItem>();
-            var contentProvider = new PdfPageContentProvider(document, workQueue);
+            var workQueue = new ImmidiateWorkQueue();
+            var observerFactory = new SharedArrayBufferObserverFactory();
+            var contentProvider = new PdfPageContentProvider(document, workQueue, observerFactory);
             var pages = PdfPanelPageCollection.FromContentProvider(contentProvider);
 
             WorkerDocumentData workerDocumentData = new WorkerDocumentData
@@ -248,16 +176,21 @@ public partial class PdfContentWorkerInterop
                 Data = documentData,
                 Pages = pages,
                 Document = document,
-                WorkQueue = workQueue
+                WorkQueue = workQueue,
+                ObserverFactory = observerFactory
             };
 
             var pageInfos = pages.Select(x => x.Info).ToList();
 
+            var annotations = pages
+                .SelectMany(page => page.Popups.Select(popup => WebAnnotationPopupData.FromPdfAnnotationPopup(popup, page.PageNumber)))
+                .ToList();
+
             var parsedData = new WebDocumentData
             {
-                ContainerId = containerId,
                 PageInfo = pageInfos.Select(WebDocumentPageInfo.FromPdfPanelPageInfo).ToList(),
-                PagesCount = pageInfos.Count
+                PagesCount = pageInfos.Count,
+                Annotations = annotations
             };
 
             if (_documents.TryGetValue(containerId, out WorkerDocumentData value))

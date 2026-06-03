@@ -1,7 +1,6 @@
 using PdfPixel.Models;
 using PdfPixel.PdfPanel.Annotations;
 using System;
-using System.Threading;
 
 namespace PdfPixel.PdfPanel.ContentProvider;
 
@@ -35,7 +34,7 @@ public sealed class PdfPageCacheEntry : IDisposable
     /// <summary>
     /// General information about the page.
     /// </summary>
-    public PdfPanelPageInfo PageInfo { get;}
+    public PdfPanelPageInfo PageInfo { get; }
 
     /// <summary>
     /// Main page content.
@@ -63,19 +62,19 @@ public sealed class PdfPageCacheEntry : IDisposable
     public PdfPanelPointerState CurrentPointerState { get; private set; }
 
     /// <summary>
-    /// True if this is pending for update or content is updated.
+    /// True if this entry has a pending or completed decode request.
     /// </summary>
     public bool PendingRequest { get; private set; }
 
     /// <summary>
-    /// Request processing cancellation token source.
+    /// Observer used during page command recording. Held here so the provider can cancel it.
     /// </summary>
-    public CancellationTokenSource? ParseCancellationTokenSource { get; private set; }
+    public IPdfCancellableExecutionObserver? ParseObserver { get; private set; }
 
     /// <summary>
-    /// Request processing cancellation token source.
+    /// Observer used during content picture rendering. Held here so the provider can cancel it.
     /// </summary>
-    public CancellationTokenSource? ContentCancellationTokenSource { get; private set; }
+    public IPdfCancellableExecutionObserver? ContentObserver { get; private set; }
 
     /// <summary>
     /// Rendering parameters used to generate the cached content.
@@ -102,9 +101,10 @@ public sealed class PdfPageCacheEntry : IDisposable
     }
 
     /// <summary>
-    /// Prepares the entry for a new decode pass, cancelling any in-progress content work and storing the request parameters.
+    /// Prepares the entry for a new decode pass.
+    /// Cancels and replaces the content observer; keeps or sets the parse observer.
     /// </summary>
-    public void InitializeForRendering(UpdateContentRequest request)
+    public void InitializeForRendering(UpdateContentRequest request, IPdfCancellableExecutionObserver parseObserver, IPdfCancellableExecutionObserver contentObserver)
     {
         if (request == null)
         {
@@ -113,27 +113,32 @@ public sealed class PdfPageCacheEntry : IDisposable
 
         ThrowIfDisposed();
 
-        ParseCancellationTokenSource ??= new CancellationTokenSource();
+        ParseObserver?.Cancel();
+        ParseObserver?.Dispose();
+        ParseObserver = parseObserver;
 
-        CancelPendingRequest(ContentCancellationTokenSource);
-        ContentCancellationTokenSource = new CancellationTokenSource();
+        ContentObserver?.Cancel();
+        ContentObserver?.Dispose();
+        ContentObserver = contentObserver;
 
         RenderingParameters = request.RenderingParameters.Clone();
         PendingRequest = true;
     }
 
     /// <summary>
-    /// Cancels any in-progress work tokens. Safe to call from any thread.
+    /// Cancels any in-progress work and clears the observers. Safe to call from any thread.
     /// </summary>
     public void Cancel()
     {
         ThrowIfDisposed();
 
-        CancelPendingRequest(ParseCancellationTokenSource);
-        CancelPendingRequest(ContentCancellationTokenSource);
+        ParseObserver?.Cancel();
+        ParseObserver?.Dispose();
+        ParseObserver = null;
 
-        ParseCancellationTokenSource = null;
-        ContentCancellationTokenSource = null;
+        ContentObserver?.Cancel();
+        ContentObserver?.Dispose();
+        ContentObserver = null;
 
         PendingRequest = false;
     }
@@ -151,9 +156,7 @@ public sealed class PdfPageCacheEntry : IDisposable
 
     /// <summary>
     /// Returns collection of content pictures for main content and annotations.
-    /// May be used for direct rendering without command recording playback.
     /// </summary>
-    /// <returns></returns>
     public PdfContentPictures GetContentPictures()
     {
         ThrowIfDisposed();
@@ -168,29 +171,11 @@ public sealed class PdfPageCacheEntry : IDisposable
     /// <summary>
     /// Updates annotation and pointer state for annotations.
     /// </summary>
-    /// <param name="activeAnnotation">Active annotation for the page.</param>
-    /// <param name="pointerState">Pointer state for the page.</param>
     public void UpdateActiveAnnotationState(PdfAnnotationPopup? activeAnnotation, PdfPanelPointerState pointerState)
     {
         ThrowIfDisposed();
         ActiveAnnotation = activeAnnotation;
         CurrentPointerState = pointerState;
-    }
-
-    private void CancelPendingRequest(CancellationTokenSource? cancellationTokenSource)
-    {
-        try
-        {
-            if (cancellationTokenSource?.IsCancellationRequested == false)
-            {
-                cancellationTokenSource.Cancel();
-            }
-        }
-        catch (ObjectDisposedException)
-        {
-        }
-
-        cancellationTokenSource?.Dispose();
     }
 
     private void ThrowIfDisposed()

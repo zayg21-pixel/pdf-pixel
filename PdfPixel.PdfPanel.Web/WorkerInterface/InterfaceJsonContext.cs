@@ -1,4 +1,4 @@
-﻿using PdfPixel.PdfPanel.Web.WorkerCommands;
+using PdfPixel.PdfPanel.Web.WorkerCommands;
 using System.Text.Json.Serialization;
 
 namespace PdfPixel.PdfPanel.Web.WorkerInterface;
@@ -9,12 +9,14 @@ namespace PdfPixel.PdfPanel.Web.WorkerInterface;
 [JsonSourceGenerationOptions(WriteIndented = false)]
 [JsonSerializable(typeof(WebDocumentData))]
 [JsonSerializable(typeof(SetFontRequest))]
-[JsonSerializable(typeof(RequestResponseHeader))]
 [JsonSerializable(typeof(UpdateContentRequest))]
-[JsonSerializable(typeof(SetDocumentRequest))]
 [JsonSerializable(typeof(WebDocumentPageInfo))]
 [JsonSerializable(typeof(RefreshCacheRequest))]
 [JsonSerializable(typeof(UpdateContentResponseHeader))]
+[JsonSerializable(typeof(WebAnnotationPopupData))]
+[JsonSerializable(typeof(WebAnnotationNavigationData))]
+[JsonSerializable(typeof(WebAnnotationDestinationData))]
+[JsonSerializable(typeof(WebAnnotationMessageData))]
 internal partial class InterfaceJsonContext : JsonSerializerContext
 {
 }

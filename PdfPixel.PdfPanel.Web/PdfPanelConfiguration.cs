@@ -13,8 +13,6 @@ internal struct PdfPanelConfiguration
 
     public SKColor BackgroundColor { get; set; }
 
-    public int MaxThumbnailSize { get; set; }
-
     public float MinimumPageGap { get; set; }
 
     public SKRect PagesPadding { get; set; }

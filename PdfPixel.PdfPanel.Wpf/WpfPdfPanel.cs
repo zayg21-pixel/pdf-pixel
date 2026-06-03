@@ -327,7 +327,7 @@ public partial class WpfPdfPanel : FrameworkElement
             return;
         }
 
-        Cursor = popup.PageAnnotation.Content.CursorType switch
+        Cursor = popup.Navigation?.CursorType switch
         {
             PdfAnnotationCursorType.Hand => Cursors.Hand,
             PdfAnnotationCursorType.IBeam => Cursors.IBeam,
@@ -337,28 +337,23 @@ public partial class WpfPdfPanel : FrameworkElement
 
     private void HandleAnnotationClick(PdfAnnotationPopup popup)
     {
-        if (popup.PageAnnotation.Content is not PdfLinkAnnotation link)
+        if (popup.Navigation == null)
         {
             return;
         }
 
-        if (link.Action is PdfUriAction uriAction && !uriAction.Uri.IsEmpty)
+        switch (popup.Navigation.NavigationType)
         {
-            HandleUriAction(uriAction.Uri.ToString());
-        }
-        else if (link.Action is PdfGoToAction goToAction && goToAction.Destination != null)
-        {
-            _context?.ScrollToDestination(goToAction.Destination);
-            InvalidateVisual();
-        }
-        else if (link.Action is PdfGoToRemoteAction)
-        {
-            // TODO: handle remote file loading
-        }
-        else if (link.Destination != null)
-        {
-            _context?.ScrollToDestination(link.Destination);
-            InvalidateVisual();
+            case PdfAnnotationNavigationType.Uri:
+                HandleUriAction(popup.Navigation.Uri);
+                break;
+            case PdfAnnotationNavigationType.GoToDestination:
+                _context?.ScrollToDestination(popup.Navigation.Destination);
+                InvalidateVisual();
+                break;
+            case PdfAnnotationNavigationType.GoToRemote:
+                // TODO: handle remote file loading
+                break;
         }
     }
 

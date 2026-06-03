@@ -52,10 +52,24 @@ internal static class EmscriptenInterop
     [DefaultDllImportSearchPaths(DllImportSearchPath.SafeDirectories)]
     internal static extern void ResumeMainLoop();
 
-    // Returns Atomics.load(self.testSharedView, 0). Used by the SAB design test;
-    // self.testSharedView is set on the worker by pdfContentWorker.js before
-    // calling the spinning JSExport.
-    [DllImport("emscripten", EntryPoint = "dotnet_test_read_shared_byte")]
+    // Allocates a 2-byte SharedArrayBuffer for the given request on the main thread.
+    // Must be called before the UpdateContent message is sent to the worker.
+    [DllImport("emscripten", EntryPoint = "dotnet_alloc_request_sab")]
     [DefaultDllImportSearchPaths(DllImportSearchPath.SafeDirectories)]
-    internal static extern int TestReadSharedByte();
+    internal static extern void AllocRequestSab(string containerId, string requestId);
+
+    // Atomics.store on the main-thread SAB for the given request.
+    [DllImport("emscripten", EntryPoint = "dotnet_set_main_request_flag")]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.SafeDirectories)]
+    internal static extern void SetMainRequestFlag(string containerId, string requestId, int flagType, int value);
+
+    // Atomics.load on the worker-thread SAB for the given request.
+    [DllImport("emscripten", EntryPoint = "dotnet_worker_read_request_flag")]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.SafeDirectories)]
+    internal static extern int WorkerReadRequestFlag(string requestId, int flagType);
+
+    // Atomics.store on the worker-thread SAB for the given request.
+    [DllImport("emscripten", EntryPoint = "dotnet_worker_set_request_flag")]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.SafeDirectories)]
+    internal static extern void WorkerSetRequestFlag(string requestId, int flagType, int value);
 }
