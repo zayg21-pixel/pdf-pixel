@@ -8,7 +8,7 @@ namespace PdfPixel.PdfPanel.Extensions;
 
 internal static class SkCanvasExtensions
 {
-    public static void DrawPage(this SKCanvas canvas, in VisiblePageInfo page, PagesDrawingRequest request, PdfContentPictures pictures, PageDrawFlags flags, in AnimationState animation)
+    public static void DrawPage(this SKCanvas canvas, in VisiblePageInfo page, PagesDrawingRequest request, PdfContentPictures pictures, PageDrawFlags flags, AnimationState? animation)
     {
         int savedCount = canvas.Save();
         try
@@ -47,9 +47,9 @@ internal static class SkCanvasExtensions
                     DrawPagePicture(canvas, pictures.Content, page);
                     DrawPagePicture(canvas, pictures.Annotations, page);
                 }
-                else if ((flags & PageDrawFlags.Placeholder) != 0)
+                else if ((flags & PageDrawFlags.Placeholder) != 0 && animation != null)
                 {
-                    DrawPlaceholder(canvas, page, animation);
+                    DrawPlaceholder(canvas, page, animation.Value);
                 }
             }
         }

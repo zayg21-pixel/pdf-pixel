@@ -180,7 +180,7 @@ public partial class WpfPdfPanel : FrameworkElement
         // TODO: [HIGH] there's no need to dispose it every time
         _renderer?.Dispose();
         _surfaceFactory?.Dispose();
-        _animationClock ??= new PdfAnimationClock(SynchronizationContext.Current);
+        _animationClock?.Dispose();
 
         if (RenderMode == WpfRenderMode.OpenGl)
         {
@@ -194,7 +194,8 @@ public partial class WpfPdfPanel : FrameworkElement
             _renderTargetFactory = new WpfPdfPanelRenderTargetFactory(this);
         }
 
-        _renderer = new PdfPanelRenderer(_surfaceFactory, Pages.ContentProvider, _animationClock);
+        _animationClock = new PdfAnimationClock();
+        _renderer = new PdfPanelRenderer(_surfaceFactory, Pages.ContentProvider, _animationClock, SynchronizationContext.Current);
         _context = new PdfPanelContext(Pages, _renderer, _renderTargetFactory, new PdfPanelVerticalLayout());
     }
 

@@ -6,28 +6,18 @@ namespace PdfPixel.PdfPanel.Animation;
 
 /// <summary>
 /// Global animation timer. Runs indefinitely on a background thread and fires <see cref="Tick"/>
-/// on the UI thread at the requested frame rate. Zero UI-thread pressure when no subscribers are attached.
+/// from the background thread at the requested frame rate. Zero UI-thread pressure when no subscribers are attached.
 /// </summary>
 public sealed class PdfAnimationClock : IDisposable
 {
-    private readonly SynchronizationContext _uiContext;
     private readonly CancellationTokenSource _cts = new();
-    private long _tick;
-
-    /// <summary>
-    /// The current tick count, safe to read from any thread.
-    /// </summary>
-    public long CurrentTick => Interlocked.Read(ref _tick);
 
     /// <summary>
     /// Initializes the clock and starts the background loop.
-    /// Must be constructed on the UI thread.
     /// </summary>
-    /// <param name="uiContext">UI synchronization context to marshal tick events onto.</param>
     /// <param name="fps">Target frames per second. Default is 60.</param>
-    public PdfAnimationClock(SynchronizationContext uiContext, int fps = 60)
+    public PdfAnimationClock(int fps = 60)
     {
-        _uiContext = uiContext ?? throw new ArgumentNullException(nameof(uiContext));
         Fps = (fps > 0) ? fps : throw new ArgumentOutOfRangeException(nameof(fps));
         _ = RunAsync(_cts.Token);
     }
@@ -39,8 +29,9 @@ public sealed class PdfAnimationClock : IDisposable
     public int Fps { get; }
 
     /// <summary>
-    /// Fires on the UI thread on every tick.
+    /// Fires from the background thread on every tick.
     /// Use <see cref="AnimationTickEventArgs.Tick"/> with <see cref="Fps"/> to derive any animation value.
+    /// Subscribers are responsible for marshaling to the UI thread if needed.
     /// Subscribe only while animation is needed; unsubscribe when idle.
     /// </summary>
     public event EventHandler<AnimationTickEventArgs>? Tick;
@@ -48,6 +39,7 @@ public sealed class PdfAnimationClock : IDisposable
     private async Task RunAsync(CancellationToken token)
     {
         int delayMs = 1000 / Fps;
+        long tick = 0;
 
         while (!token.IsCancellationRequested)
         {
@@ -60,12 +52,8 @@ public sealed class PdfAnimationClock : IDisposable
                 break;
             }
 
-            long tick = Interlocked.Increment(ref _tick);
-
-            if (Tick != null)
-            {
-                _uiContext.Post(_ => Tick?.Invoke(this, new AnimationTickEventArgs(tick)), null);
-            }
+            tick++;
+            Tick?.Invoke(this, new AnimationTickEventArgs(tick));
         }
     }
 

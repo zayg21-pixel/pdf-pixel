@@ -66,6 +66,8 @@ internal class JpxImageDecoder : PdfImageDecoder
 
         _fullWidthRowBuffer = new byte[((_rowConverter.Width * _rowConverter.ComponentCount * _rowConverter.BitsPerComponent) + 7) / 8];
 
+        // TODO: [HIGH] support transparency
+
         int descale = jpxDecodingParameters.DescaleFactor;
         SKRectI scaledRegionOfInterest = SKRectI.Create(
             regionOfInterest.Left / descale,
@@ -154,7 +156,7 @@ internal class JpxImageDecoder : PdfImageDecoder
         return new JpxDecodingParameters(descaleFactor);
     }
 
-    private sealed class JpxObserver : IJpxExectionObserver
+    private sealed class JpxObserver : IJpxExectionObserver // TODO: [HIGH] add default implementations of ExectionObserver to JBIG2 and JPX
     {
         private readonly IPdfExecutionObserver? _pdfObserver;
 

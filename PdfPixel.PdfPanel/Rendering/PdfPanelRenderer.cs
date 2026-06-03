@@ -20,20 +20,21 @@ public sealed class PdfPanelRenderer : IDisposable
 {
     private readonly ISkSurfaceFactory _surfaceFactory;
     private readonly IPdfPageContentProvider _contentProvider;
-    private readonly PdfAnimationClock _clock;
+    private readonly PdfAnimationClock? _clock;
     private readonly SynchronizationContext? _syncContext;
     private PagesDrawingRequest? _lastRequest;
+    private long _lastTick;
     private bool _disposed;
 
     /// <summary>
     /// Initializes the renderer, registers the page-updated callback, and calls <see cref="ISkSurfaceFactory.Initialize"/>.
     /// </summary>
-    public PdfPanelRenderer(ISkSurfaceFactory surfaceFactory, IPdfPageContentProvider contentProvider, PdfAnimationClock clock)
+    public PdfPanelRenderer(ISkSurfaceFactory surfaceFactory, IPdfPageContentProvider contentProvider, PdfAnimationClock? clock, SynchronizationContext? syncContext)
     {
         _surfaceFactory = surfaceFactory ?? throw new ArgumentNullException(nameof(surfaceFactory));
         _contentProvider = contentProvider ?? throw new ArgumentNullException(nameof(contentProvider));
-        _clock = clock ?? throw new ArgumentNullException(nameof(clock));
-        _syncContext = SynchronizationContext.Current;
+        _clock = clock;
+        _syncContext = syncContext;
         _contentProvider.OnPageUpdated = OnPageUpdated;
         _surfaceFactory.Initialize();
     }
@@ -95,7 +96,10 @@ public sealed class PdfPanelRenderer : IDisposable
             return;
         }
 
-        _clock.Tick -= OnAnimationTick;
+        if (_clock != null)
+        {
+            _clock.Tick -= OnAnimationTick;
+        }
 
         SKSurface surface = GetSurface(_lastRequest);
         surface.Canvas.Clear(SKColors.Transparent);
@@ -113,21 +117,23 @@ public sealed class PdfPanelRenderer : IDisposable
         SKSurface surface = GetSurface(request);
         surface.Canvas.Clear(request.BackgroundColor);
 
-        AnimationState animation = new(_clock.CurrentTick, _clock.Fps);
+        AnimationState? animation = (_clock != null) ? new AnimationState(_lastTick, _clock.Fps) : null;
 
         foreach (VisiblePageInfo page in request.VisiblePages)
         {
             PdfContentPictures pictures = _contentProvider.GetExistingContentPictures(page.PageNumber);
-            surface.Canvas.DrawPage(page, request, pictures, PageDrawFlags.All, in animation);
+            surface.Canvas.DrawPage(page, request, pictures, PageDrawFlags.All, animation);
         }
 
         request.RenderTarget.Render(surface, request);
     }
 
-    private void OnAnimationTick(object? sender, AnimationTickEventArgs e) => OnAnimationTick(e.Tick);
+    private void OnAnimationTick(object? sender, AnimationTickEventArgs args)
+        => _syncContext?.Post(_ => OnAnimationTick(args.Tick), null);
 
     private void OnAnimationTick(long tick)
     {
+        _lastTick = tick;
         if (_disposed || _lastRequest == null || _lastRequest.RenderTarget == null)
         {
             return;
@@ -136,7 +142,7 @@ public sealed class PdfPanelRenderer : IDisposable
         SKSurface surface = GetSurface(_lastRequest);
         var anyRedrawn = false;
 
-        AnimationState animation = new(tick, _clock.Fps);
+        AnimationState? animation = _clock != null ? new AnimationState(tick, _clock.Fps) : null;
 
         foreach (VisiblePageInfo page in _lastRequest.VisiblePages)
         {
@@ -147,7 +153,7 @@ public sealed class PdfPanelRenderer : IDisposable
                 continue;
             }
 
-            surface.Canvas.DrawPage(page, _lastRequest, pictures, PageDrawFlags.Background | PageDrawFlags.Content | PageDrawFlags.Placeholder, in animation);
+            surface.Canvas.DrawPage(page, _lastRequest, pictures, PageDrawFlags.Background | PageDrawFlags.Content | PageDrawFlags.Placeholder, animation);
             anyRedrawn = true;
         }
 
@@ -155,7 +161,7 @@ public sealed class PdfPanelRenderer : IDisposable
         {
             _lastRequest.RenderTarget.Render(surface, _lastRequest);
         }
-        else
+        else if (_clock != null)
         {
             _clock.Tick -= OnAnimationTick;
         }
@@ -163,6 +169,11 @@ public sealed class PdfPanelRenderer : IDisposable
 
     private void UpdateClockSubscription()
     {
+        if (_clock == null)
+        {
+            return;
+        }
+
         bool anyLoading = _lastRequest != null
             && _lastRequest.VisiblePages.Any(
                 p => _contentProvider.GetExistingContentPictures(p.PageNumber).Content?.HasContent != true);
@@ -179,16 +190,7 @@ public sealed class PdfPanelRenderer : IDisposable
     }
 
     private void OnPageUpdated(PageUpdatedArgs args)
-    {
-        if (_syncContext != null)
-        {
-            _syncContext.Post(_ => OnPageUpdatedSync(args), null);
-        }
-        else
-        {
-            OnPageUpdatedSync(args);
-        }
-    }
+        => _syncContext?.Post(_ => OnPageUpdatedSync(args), null);
 
     private void OnPageUpdatedSync(PageUpdatedArgs args)
     {
@@ -204,8 +206,7 @@ public sealed class PdfPanelRenderer : IDisposable
 
         VisiblePageInfo page = _lastRequest.VisiblePages.First(p => p.PageNumber == args.PageNumber);
         SKSurface surface = GetSurface(_lastRequest);
-        AnimationState animation = default;
-        surface.Canvas.DrawPage(page, _lastRequest, args.ContentPictures, PageDrawFlags.Background | PageDrawFlags.Content, in animation);
+        surface.Canvas.DrawPage(page, _lastRequest, args.ContentPictures, PageDrawFlags.Background | PageDrawFlags.Content, null);
         _lastRequest.RenderTarget.Render(surface, _lastRequest);
     }
 
@@ -248,7 +249,10 @@ public sealed class PdfPanelRenderer : IDisposable
         }
 
         _disposed = true;
-        _clock.Tick -= OnAnimationTick;
+        if (_clock != null)
+        {
+            _clock.Tick -= OnAnimationTick;
+        }
         _contentProvider.OnPageUpdated = null;
     }
 }
