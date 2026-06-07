@@ -20,9 +20,9 @@ public sealed class ConcatMatrixCommand : PdfCommand
     public SKMatrix Matrix { get; }
 
     /// <inheritdoc />
-    public override void Execute(SKCanvas canvas, IEnumerable<IPdfCommandModifier> modifiers, PdfCommandExecutionContext executionContext)
+    public override void Execute(IEnumerable<IPdfCommandModifier> modifiers, PdfCommandExecutionContext executionContext)
     {
-        canvas.Concat(Matrix);
+        executionContext.Canvas.Concat(Matrix);
         executionContext.Frames.OnConcatMatrix(Matrix);
     }
 

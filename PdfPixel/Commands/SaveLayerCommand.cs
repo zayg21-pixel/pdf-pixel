@@ -23,17 +23,17 @@ public sealed class SaveLayerCommand : PdfCommand
     }
 
     /// <inheritdoc />
-    public override void Execute(SKCanvas canvas, IEnumerable<IPdfCommandModifier> modifiers, PdfCommandExecutionContext executionContext)
+    public override void Execute(IEnumerable<IPdfCommandModifier> modifiers, PdfCommandExecutionContext executionContext)
     {
         if (_paint != null)
         {
             using SKPaint paint = _paint.Clone();
             paint.IsAntialias = executionContext.RenderingParameters.Antialias;
-            canvas.SaveLayer(_bounds, paint);
+            executionContext.Canvas.SaveLayer(_bounds, paint);
         }
         else
         {
-            canvas.SaveLayer(_bounds, null);
+            executionContext.Canvas.SaveLayer(_bounds, null);
         }
 
         executionContext.Frames.OnSaveLayer();

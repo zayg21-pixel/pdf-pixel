@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 
 namespace PdfPixel.Jpx.Model;
 
@@ -28,16 +29,24 @@ public readonly struct JpxDecodingParameters
     public int LevelsToSkip { get; }
 
     /// <summary>
-    /// Default parameters representing full-resolution decoding.
+    /// Regions, in full-resolution (not descaled) image coordinates, that must be decoded.
+    /// Tiles outside every region are skipped and left as placeholder (zeroed) data.
+    /// Null means every tile must be decoded.
+    /// </summary>
+    public IReadOnlyList<JpxRegion>? RegionsOfInterest { get; }
+
+    /// <summary>
+    /// Default parameters representing full-resolution decoding of the entire image.
     /// </summary>
     public static JpxDecodingParameters Default { get; } = new(1);
 
     /// <summary>
-    /// Initializes decoding parameters with the given descale factor.
+    /// Initializes decoding parameters with the given descale factor and regions of interest.
     /// </summary>
     /// <param name="descaleFactor">Power-of-2 reduction factor. Must be &gt;= 1.</param>
+    /// <param name="regionsOfInterest">Regions, in full-resolution image coordinates, that must be decoded. Null means every tile must be decoded.</param>
     /// <exception cref="ArgumentOutOfRangeException">Thrown when <paramref name="descaleFactor"/> is less than 1 or not a power of 2.</exception>
-    public JpxDecodingParameters(int descaleFactor)
+    public JpxDecodingParameters(int descaleFactor, IReadOnlyList<JpxRegion>? regionsOfInterest = null)
     {
         if (descaleFactor < 1)
         {
@@ -51,6 +60,7 @@ public readonly struct JpxDecodingParameters
 
         DescaleFactor = descaleFactor;
         LevelsToSkip = Log2(descaleFactor);
+        RegionsOfInterest = regionsOfInterest;
     }
 
     /// <summary>

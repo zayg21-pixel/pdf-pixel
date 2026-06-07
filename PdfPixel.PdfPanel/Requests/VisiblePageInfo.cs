@@ -78,6 +78,21 @@ public readonly struct VisiblePageInfo
     }
 
     /// <summary>
+    /// Matrix that maps this page's content coordinates (top-left origin, Y-down, unrotated,
+    /// matching <see cref="Info"/> dimensions — the space recorded pictures and command
+    /// replay operate in) directly to canvas pixels. Combines <see cref="ContentTransform"/>
+    /// with the same scroll-offset translation and render scale applied to the canvas before
+    /// content is drawn. Invert it to map canvas pixels back to content coordinates, e.g. to
+    /// derive a region of interest from the visible canvas area.
+    /// </summary>
+    public SKMatrix GetContentToCanvasMatrix(float scale)
+    {
+        return ContentTransform
+            .PostConcat(SKMatrix.CreateTranslation(Offset.X, Offset.Y))
+            .PostConcat(SKMatrix.CreateScale(scale, scale));
+    }
+
+    /// <summary>
     /// Converts a rectangle from PDF coordinates (bottom-left origin, Y-up) to page coordinates (top-left origin, Y-down).
     /// </summary>
     /// <param name="pdfRect">Rectangle in PDF coordinates.</param>

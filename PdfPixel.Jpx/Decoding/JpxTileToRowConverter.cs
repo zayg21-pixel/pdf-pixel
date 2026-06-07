@@ -1,5 +1,6 @@
 using PdfPixel.Jpx.Model;
 using System;
+using System.Collections.Generic;
 
 namespace PdfPixel.Jpx.Decoding;
 
@@ -195,7 +196,7 @@ public sealed class JpxTileToRowConverter
 
             int tileIndex = (tileRow * _tileProvider.TilesHorizontal) + tileCol;
 
-            if (tileIndex < _tileProvider.TotalTiles)
+            if (tileIndex < _tileProvider.TotalTiles && ShouldDecodeTile(tileIndex))
             {
                 _currentTileRowTiles[tileCol] = _tileProvider.DecodeTile(tileIndex);
             }
@@ -206,5 +207,38 @@ public sealed class JpxTileToRowConverter
         }
 
         _loadedTileRow = tileRow;
+    }
+
+    /// <summary>
+    /// Determines whether the tile at <paramref name="tileIndex"/> overlaps any of the
+    /// <see cref="JpxDecodingParameters.RegionsOfInterest"/>. Tiles outside every region
+    /// are left undecoded — <see cref="TryGetNextRow"/> already produces zeroed placeholder
+    /// samples for rows whose tile is null.
+    /// </summary>
+    private bool ShouldDecodeTile(int tileIndex)
+    {
+        IReadOnlyList<JpxRegion>? regionsOfInterest = _decodingParameters.RegionsOfInterest;
+        if (regionsOfInterest == null)
+        {
+            return true;
+        }
+
+        int tileColumn = tileIndex % _tileProvider.TilesHorizontal;
+        int tileRow = tileIndex / _tileProvider.TilesHorizontal;
+        int tileStartX = tileColumn * (int)_header.TileWidth;
+        int tileStartY = tileRow * (int)_header.TileHeight;
+        int tileWidth = Math.Min((int)_header.TileWidth, (int)_header.Width - tileStartX);
+        int tileHeight = Math.Min((int)_header.TileHeight, (int)_header.Height - tileStartY);
+        JpxRegion tileBounds = new(tileStartX, tileStartY, tileWidth, tileHeight);
+
+        for (int i = 0; i < regionsOfInterest.Count; i++)
+        {
+            if (tileBounds.IntersectsWith(regionsOfInterest[i]))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

@@ -1,4 +1,3 @@
-using SkiaSharp;
 using System.Collections.Generic;
 
 namespace PdfPixel.Commands;
@@ -9,9 +8,9 @@ namespace PdfPixel.Commands;
 public sealed class RestoreStateCommand : PdfCommand
 {
     /// <inheritdoc />
-    public override void Execute(SKCanvas canvas, IEnumerable<IPdfCommandModifier> modifiers, PdfCommandExecutionContext executionContext)
+    public override void Execute(IEnumerable<IPdfCommandModifier> modifiers, PdfCommandExecutionContext executionContext)
     {
-        canvas.Restore();
+        executionContext.Canvas.Restore();
         executionContext.Frames.OnRestoreState();
     }
 

@@ -6,6 +6,7 @@ using PdfPixel.Imaging.Model;
 using PdfPixel.Imaging.Processing;
 using SkiaSharp;
 using System;
+using System.Collections.Generic;
 
 namespace PdfPixel.Imaging.Decoding;
 
@@ -22,7 +23,7 @@ internal sealed class CcittImageDecoder : PdfImageDecoder
     {
     }
 
-    public override void Initialize(PdfTileInfo tileInfo, ImageDecodingContext context, object contentLocker, SKMatrix ctm, SKRectI regionOfInterest, IPdfExecutionObserver? observer)
+    public override void Initialize(PdfTileInfo tileInfo, ImageDecodingContext context, object contentLocker, SKMatrix ctm, HashSet<int>? tileIndexesToDecode, IPdfExecutionObserver? observer)
     {
         if (!ValidateImageParameters())
         {
@@ -62,12 +63,11 @@ internal sealed class CcittImageDecoder : PdfImageDecoder
             Image.HasImageMask,
             Image.MaskArray,
             Image.DecodeArray,
-            downscaledSize,
-            1);
+            downscaledSize);
 
         _rowDecoder = new CcittRowDecoder(encodedData, columns, rows, blackIs1, k, endOfLine, byteAlign, endOfBlock);
         _fullWidthRowBuffer = new byte[_rowDecoder.RowStride];
-        _tilingContext = new PdfImageTilingContext(new SKSizeI(tileInfo.TileWidth, tileInfo.TileHeight), tileInfo, _imageParameters, regionOfInterest, LoggerFactory);
+        _tilingContext = new PdfImageTilingContext(tileInfo, _imageParameters, tileIndexesToDecode, LoggerFactory);
         _currentImageRow = 0;
     }
 

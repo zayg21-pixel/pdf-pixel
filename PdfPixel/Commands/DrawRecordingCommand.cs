@@ -1,4 +1,3 @@
-using SkiaSharp;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -11,8 +10,6 @@ namespace PdfPixel.Commands;
 /// </summary>
 public sealed class DrawRecordingCommand : PdfCommand
 {
-    private readonly PdfCommandRecorder _recorder;
-    private readonly IPdfCommandModifier? _modifier;
     private readonly bool _disposeRecording;
 
     /// <summary>
@@ -20,8 +17,8 @@ public sealed class DrawRecordingCommand : PdfCommand
     /// </summary>
     public DrawRecordingCommand(PdfCommandRecorder recorder, IPdfCommandModifier? modifier, bool disposeRecording = true)
     {
-        _recorder = recorder;
-        _modifier = modifier;
+        Recorder = recorder;
+        Modifier = modifier;
         _disposeRecording = disposeRecording;
     }
 
@@ -30,24 +27,34 @@ public sealed class DrawRecordingCommand : PdfCommand
     /// </summary>
     public DrawRecordingCommand(PdfCommandRecorder recorder, bool disposeRecording = true)
     {
-        _recorder = recorder;
+        Recorder = recorder;
         _disposeRecording = disposeRecording;
     }
 
-    /// <inheritdoc />
-    public override bool IsScaleDependent => _recorder.Commands.Any(x => x.IsScaleDependent);
+    /// <summary>
+    /// Recorder used to draw command batch.
+    /// </summary>
+    public PdfCommandRecorder Recorder { get; }
+
+    /// <summary>
+    /// Modifier of a current command batch.
+    /// </summary>
+    public IPdfCommandModifier? Modifier { get; }
 
     /// <inheritdoc />
-    public override void Execute(SKCanvas canvas, IEnumerable<IPdfCommandModifier> modifiers, PdfCommandExecutionContext executionContext)
+    public override bool IsScaleDependent => Recorder.Commands.Any(x => x.IsScaleDependent);
+
+    /// <inheritdoc />
+    public override void Execute(IEnumerable<IPdfCommandModifier> modifiers, PdfCommandExecutionContext executionContext)
     {
         // Append the recording-specific modifier so it composes on top of any outer modifiers.
-        if (_modifier != null)
+        if (Modifier != null)
         {
-            _recorder.Replay(canvas, modifiers.Append(_modifier), executionContext);
+            Recorder.Replay(modifiers.Append(Modifier), executionContext);
         }
         else
         {
-            _recorder.Replay(canvas, modifiers, executionContext);
+            Recorder.Replay(modifiers, executionContext);
         }
     }
 
@@ -56,9 +63,9 @@ public sealed class DrawRecordingCommand : PdfCommand
     {
         if (_disposeRecording)
         {
-            _recorder.Dispose();
+            Recorder.Dispose();
         }
 
-        _modifier?.Dispose();
+        Modifier?.Dispose();
     }
 }

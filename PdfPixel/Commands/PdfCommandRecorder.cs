@@ -1,4 +1,3 @@
-using SkiaSharp;
 using System;
 using System.Collections.Generic;
 
@@ -23,18 +22,12 @@ public sealed class PdfCommandRecorder : IPdfCommandProcessor
     public IReadOnlyList<IPdfCommand> Commands => _commands;
 
     /// <summary>
-    /// Replays all recorded commands against the specified canvas, modifiers, and execution context.
+    /// Replays all recorded commands using the canvas and rendering parameters from <paramref name="executionContext"/>.
     /// </summary>
-    /// <param name="canvas">The canvas to replay commands onto.</param>
     /// <param name="modifiers">The modifiers to apply during replay, applied in order.</param>
-    /// <param name="executionContext">Execution-time context containing rendering parameters and cancellation.</param>
-    public void Replay(SKCanvas canvas, IEnumerable<IPdfCommandModifier> modifiers, PdfCommandExecutionContext executionContext)
+    /// <param name="executionContext">Execution-time context containing the canvas, rendering parameters, and cancellation.</param>
+    public void Replay(IEnumerable<IPdfCommandModifier> modifiers, PdfCommandExecutionContext executionContext)
     {
-        if (canvas == null)
-        {
-            throw new ArgumentNullException(nameof(canvas));
-        }
-
         if (executionContext == null)
         {
             throw new ArgumentNullException(nameof(executionContext));
@@ -42,7 +35,8 @@ public sealed class PdfCommandRecorder : IPdfCommandProcessor
 
         foreach (IPdfCommand command in _commands)
         {
-            command.Execute(canvas, modifiers, executionContext);
+            command.Execute(modifiers, executionContext);
+            executionContext.CurrentCommand = command;
             executionContext.ExecutionObserver?.Notify();
         }
     }

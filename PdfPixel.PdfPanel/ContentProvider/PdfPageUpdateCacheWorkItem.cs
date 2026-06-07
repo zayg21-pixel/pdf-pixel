@@ -2,7 +2,12 @@ using PdfPixel.Commands;
 using PdfPixel.Models;
 using PdfPixel.PdfPanel.Requests;
 using PdfPixel.PdfPanel.WorkQueue;
+using SkiaSharp;
 using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading;
 
 namespace PdfPixel.PdfPanel.ContentProvider;
 
@@ -58,6 +63,7 @@ public class PdfPageUpdateCacheWorkItem : IWorkItem
         }
 
         var contentUpdated = false;
+        SKRect regionOfInterest = ComputeRegionOfInterest();
 
         lock (_documentLocker)
         {
@@ -74,9 +80,8 @@ public class PdfPageUpdateCacheWorkItem : IWorkItem
 
             if (contentRecording.Content != null)
             {
-                using PdfCommandExecutionContext executionContext = new(_request.RenderingParameters, _documentLocker, _contentObserver);
-                SkiaSharp.SKPicture? contentPicture = PdfDocumentContentExtensions.RecordingToSkPicture(CacheEntry.PageInfo, contentRecording.Content, executionContext);
-                CacheEntry.Content.UpdateContentPicture(contentPicture, _request);
+                SKPicture? contentPicture = ReplayContentWithPartialFlush(contentRecording.Content, regionOfInterest, out bool isPartialContent);
+                CacheEntry.Content.UpdateContentPicture(contentPicture, _request, isPartialContent);
                 contentUpdated = true;
             }
         }
@@ -111,11 +116,67 @@ public class PdfPageUpdateCacheWorkItem : IWorkItem
         {
             using LockedContent<PdfCommandRecorder> contentRecording = CacheEntry.AnnotationContent.ContentCommandRecording.GetContent();
 
-            using PdfCommandExecutionContext executionContext = new(_request.RenderingParameters, _documentLocker, _contentObserver);
-            SkiaSharp.SKPicture? contentPicture = PdfDocumentContentExtensions.RecordingToSkPicture(CacheEntry.PageInfo, contentRecording.Content, executionContext);
-            CacheEntry.AnnotationContent.UpdateContentPicture(contentPicture, _request);
+            SkiaSharp.SKPicture? contentPicture = PdfDocumentContentExtensions.RecordingToSkPicture(
+                CacheEntry.PageInfo,
+                contentRecording.Content,
+                _request.RenderingParameters,
+                _documentLocker,
+                _contentObserver,
+                out bool isPartialContent,
+                regionOfInterest);
+            CacheEntry.AnnotationContent.UpdateContentPicture(contentPicture, _request, isPartialContent);
 
             _onPageUpdated?.Invoke(new PageUpdatedArgs(CacheEntry.PageNumber, CacheEntry.GetContentPictures(), UpdatedContentType.Annotations));
         }
+    }
+
+    /// <summary>
+    /// Replays <paramref name="commandRecording"/> onto a fresh <see cref="SKPictureRecorder"/>,
+    /// periodically flushing partial pictures to <see cref="CacheEntry"/> and firing
+    /// <see cref="_onPageUpdated"/> whenever 200 ms elapse between commands at layer depth 0,
+    /// so the UI can show progressive content while decoding continues.
+    /// </summary>
+    private SKPicture? ReplayContentWithPartialFlush(PdfCommandRecorder commandRecording, SKRect regionOfInterest, out bool isPartialContent)
+    {
+        // TODO: [HIGH] cleanup and test the prototype
+        Action? notifyPartialContent = (_onPageUpdated != null)
+            ? () => _onPageUpdated(new PageUpdatedArgs(CacheEntry.PageNumber, CacheEntry.GetContentPictures(), UpdatedContentType.Content))
+            : null;
+
+        using PartialFlushObserver flushObserver = new(
+            _contentObserver,
+            CacheEntry.Content,
+            _request,
+            notifyPartialContent,
+            SKRect.Create(CacheEntry.PageInfo.Width, CacheEntry.PageInfo.Height));
+
+        SKCanvas canvas = flushObserver.BeginRecording();
+        using PdfCommandExecutionContext executionContext = new(_request.RenderingParameters, _documentLocker, flushObserver, canvas, regionOfInterest);
+        flushObserver.Initialize(executionContext);
+
+        commandRecording.Replay(Array.Empty<IPdfCommandModifier>(), executionContext);
+
+        SKPicture? finalPicture = flushObserver.EndRecording();
+        isPartialContent = executionContext.IsPartialContent;
+        return finalPicture;
+    }
+
+    /// <summary>
+    /// Maps the visible canvas area back into this page's content coordinates (the space
+    /// command replay and recorded pictures operate in) and intersects it with the page
+    /// bounds, giving the visible portion of the page content in its own coordinate system.
+    /// </summary>
+    private SKRect ComputeRegionOfInterest()
+    {
+        VisiblePageInfo visiblePageInfo = _request.VisiblePages.First(page => page.PageNumber == CacheEntry.PageNumber);
+
+        SKMatrix contentToCanvas = visiblePageInfo.GetContentToCanvasMatrix(_request.Scale);
+        SKRect canvasRect = SKRect.Create(0, 0, _request.CanvasSize.Width, _request.CanvasSize.Height);
+        SKRect regionOfInterest = contentToCanvas.Invert().MapRect(canvasRect);
+
+        SKRect pageBounds = SKRect.Create(0, 0, visiblePageInfo.Info.Width, visiblePageInfo.Info.Height);
+        regionOfInterest.Intersect(pageBounds);
+
+        return regionOfInterest;
     }
 }

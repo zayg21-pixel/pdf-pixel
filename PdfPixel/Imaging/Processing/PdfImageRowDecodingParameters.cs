@@ -27,7 +27,6 @@ public sealed class PdfImageRowDecodingParameters
     /// <param name="maskArray">Color-key masking range pairs from the PDF /Mask entry, or null.</param>
     /// <param name="decodeArray">Sample remapping table from the PDF /Decode entry, or null for the default.</param>
     /// <param name="downscaledSize">Target output size after downscaling, or null when no downscaling is applied.</param>
-    /// <param name="descaleFactor">Integer downscale factor applied to the source rows before color conversion.</param>
     public PdfImageRowDecodingParameters(
         ImageDecodingContext context,
         int width,
@@ -38,8 +37,7 @@ public sealed class PdfImageRowDecodingParameters
         bool hasImageMask,
         int[]? maskArray,
         float[]? decodeArray,
-        SKSizeI? downscaledSize,
-        int descaleFactor)
+        SKSizeI? downscaledSize)
     {
         Width = width;
         Height = height;
@@ -51,7 +49,6 @@ public sealed class PdfImageRowDecodingParameters
         MaskArray = maskArray;
         DecodeArray = decodeArray;
         DownscaledSize = downscaledSize;
-        DescaleFactor = descaleFactor;
     }
 
     /// <summary>
@@ -98,11 +95,6 @@ public sealed class PdfImageRowDecodingParameters
     /// Target output size after downscaling, or null when no downscaling is applied.
     /// </summary>
     public SKSizeI? DownscaledSize { get; }
-
-    /// <summary>
-    /// Integer downscale factor applied to the source rows before color conversion.
-    /// </summary>
-    public int DescaleFactor { get; }
 
     /// <summary>
     /// Rendering context for the current decode pass.

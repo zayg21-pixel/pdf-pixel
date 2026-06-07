@@ -13,7 +13,7 @@ internal sealed class DrawSoftMaskImageTileCommand : PdfCommand
 
     public override bool IsScaleDependent => true;
 
-    public override void Execute(SKCanvas canvas, IEnumerable<IPdfCommandModifier> modifiers, PdfCommandExecutionContext executionContext)
+    public override void Execute(IEnumerable<IPdfCommandModifier> modifiers, PdfCommandExecutionContext executionContext)
     {
         PdfImageTile imageTile = _context.ImageCache.GetNextTile(executionContext.ExecutionObserver);
         PdfImageTile maskTile = _context.MaskCache.GetNextTile(executionContext.ExecutionObserver);
@@ -36,19 +36,18 @@ internal sealed class DrawSoftMaskImageTileCommand : PdfCommand
             matte = maskTile.Parameters.ColorSpaceConverter.ToSrgb(_context.MatteArray, maskTile.Parameters.RenderingIntent, default);
         }
 
-        canvas.Save();
-        canvas.Scale(1f / _context.ImageSize.Width, 1f / _context.ImageSize.Height);
-        canvas.ClipRect(imageTile.TilePosition);
-        canvas.Translate(imageTile.TilePosition.Left, imageTile.TilePosition.Top);
-
         using SKShader imageShader = ImageBlending.BuildImageShader(imageTile.Image, new SKSizeI(imageTile.TilePosition.Width, imageTile.TilePosition.Height), sampling);
         using SKShader maskShader = ImageBlending.BuildImageShader(maskTile.Image, new SKSizeI(imageTile.TilePosition.Width, imageTile.TilePosition.Height), sampling);
         using SKShader blendingShader = ImageBlending.CreateSoftMaskBlendingShader(imageShader, maskShader, matte);
         using SKPaint paint = PdfImageCommandUtilities.GetBaseImagePaint(blendingShader, _context.DecodingContext);
         CommandHelpers.ApplyModifiers(paint, modifiers);
-        canvas.DrawPaint(paint);
 
-        canvas.Restore();
+        executionContext.Canvas.Save();
+        executionContext.Canvas.Scale(1f / _context.ImageSize.Width, 1f / _context.ImageSize.Height);
+        executionContext.Canvas.ClipRect(imageTile.TilePosition);
+        executionContext.Canvas.Translate(imageTile.TilePosition.Left, imageTile.TilePosition.Top);
+        executionContext.Canvas.DrawPaint(paint);
+        executionContext.Canvas.Restore();
     }
 
     protected override void Dispose(bool disposing) => _context.Dispose();

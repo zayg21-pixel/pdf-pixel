@@ -69,19 +69,30 @@ internal static class PdfDocumentContentExtensions
         return commandRecording;
     }
 
-    public static SKPicture? RecordingToSkPicture(in PdfPanelPageInfo pageInfo, PdfCommandRecorder? commandRecording, PdfCommandExecutionContext executionContext)
+    public static SKPicture? RecordingToSkPicture(
+        in PdfPanelPageInfo pageInfo,
+        PdfCommandRecorder? commandRecording,
+        PdfRenderingParameters renderingParameters,
+        object contentLocker,
+        IPdfExecutionObserver executionObserver,
+        out bool isPartialContent,
+        SKRect? regionOfInterest = null)
     {
+        isPartialContent = false;
+
         if (commandRecording == null)
         {
             return null;
         }
 
         using SKPictureRecorder recorder = new();
-        using SKCanvas canvas = recorder.BeginRecording(SKRect.Create(pageInfo.Width, pageInfo.Height));
+        SKCanvas canvas = recorder.BeginRecording(SKRect.Create(pageInfo.Width, pageInfo.Height));
+        using PdfCommandExecutionContext executionContext = new(renderingParameters, contentLocker, executionObserver, canvas, regionOfInterest);
 
-        commandRecording.Replay(canvas, Array.Empty<IPdfCommandModifier>(), executionContext);
+        commandRecording.Replay(Array.Empty<IPdfCommandModifier>(), executionContext);
 
-        canvas.Flush();
+        executionContext.Canvas.Flush();
+        isPartialContent = executionContext.IsPartialContent;
 
         return recorder.EndRecording();
     }

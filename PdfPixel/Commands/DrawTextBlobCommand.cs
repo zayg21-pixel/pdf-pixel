@@ -22,7 +22,7 @@ public sealed class DrawTextBlobCommand : PdfCommand
     }
 
     /// <inheritdoc />
-    public override void Execute(SKCanvas canvas, IEnumerable<IPdfCommandModifier> modifiers, PdfCommandExecutionContext executionContext)
+    public override void Execute(IEnumerable<IPdfCommandModifier> modifiers, PdfCommandExecutionContext executionContext)
     {
         if (_blob == null)
         {
@@ -33,7 +33,7 @@ public sealed class DrawTextBlobCommand : PdfCommand
         paint.IsAntialias = executionContext.RenderingParameters.Antialias;
         CommandHelpers.ApplyModifiers(paint, modifiers);
 
-        canvas.DrawText(_blob, 0f, 0f, paint);
+        executionContext.Canvas.DrawText(_blob, 0f, 0f, paint);
     }
 
     /// <inheritdoc />

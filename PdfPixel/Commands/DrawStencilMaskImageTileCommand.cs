@@ -13,7 +13,7 @@ internal sealed class DrawStencilMaskImageTileCommand : PdfCommand
 
     public override bool IsScaleDependent => true;
 
-    public override void Execute(SKCanvas canvas, IEnumerable<IPdfCommandModifier> modifiers, PdfCommandExecutionContext executionContext)
+    public override void Execute(IEnumerable<IPdfCommandModifier> modifiers, PdfCommandExecutionContext executionContext)
     {
         PdfImageTile tile = _context.TileCache.GetNextTile(executionContext.ExecutionObserver);
         if (tile.IsSkipped || tile.Image == null)
@@ -21,18 +21,17 @@ internal sealed class DrawStencilMaskImageTileCommand : PdfCommand
             return;
         }
 
-        canvas.Save();
-        canvas.Scale(1f / _context.ImageSize.Width, 1f / _context.ImageSize.Height);
-        canvas.ClipRect(tile.TilePosition);
-        canvas.Translate(tile.TilePosition.Left, tile.TilePosition.Top);
-
         using SKShader stencilShader = ImageBlending.BuildImageShader(tile.Image, new SKSizeI(tile.TilePosition.Width, tile.TilePosition.Height), new SKSamplingOptions(SKFilterMode.Nearest));
         using SKShader blendingShader = ImageBlending.CreateImageMaskBlendingShader(stencilShader, _context.DecodingContext.FillColor, inverse: true);
         using SKPaint paint = PdfImageCommandUtilities.GetBaseImagePaint(blendingShader, _context.DecodingContext);
         CommandHelpers.ApplyModifiers(paint, modifiers);
-        canvas.DrawPaint(paint);
 
-        canvas.Restore();
+        executionContext.Canvas.Save();
+        executionContext.Canvas.Scale(1f / _context.ImageSize.Width, 1f / _context.ImageSize.Height);
+        executionContext.Canvas.ClipRect(tile.TilePosition);
+        executionContext.Canvas.Translate(tile.TilePosition.Left, tile.TilePosition.Top);
+        executionContext.Canvas.DrawPaint(paint);
+        executionContext.Canvas.Restore();
     }
 
     protected override void Dispose(bool disposing) => _context.Dispose();

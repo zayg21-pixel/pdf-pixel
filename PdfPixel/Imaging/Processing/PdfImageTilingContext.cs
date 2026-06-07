@@ -2,186 +2,224 @@ using Microsoft.Extensions.Logging;
 using PdfPixel.Commands;
 using SkiaSharp;
 using System;
-using System.Runtime.CompilerServices;
+using System.Collections.Generic;
 
 namespace PdfPixel.Imaging.Processing;
 
 internal sealed class PdfImageTilingContext : IDisposable
 {
+    private readonly PdfTileInfo _tileInfo;
     private readonly PdfImageRowDecodingParameters _imageParameters;
     private readonly ILoggerFactory _loggerFactory;
 
-    private readonly SKRectI[] _tilePositions;
-    private PdfImageRowProcessor?[]? _tileRowProcessors;
-    private PdfImageRowDecodingParameters[]? _tileRowParams;
+    private readonly IndexRange[] _columnSampleRanges;
+    private readonly IndexRange[] _rowSampleRanges;
+    private readonly HashSet<int>? _tileIndexesToDecode;
+
+    private readonly List<OpenTileRow> _openTileRows = [];
     private readonly bool _isDownscaled;
-    private readonly float _scaleX;
-    private readonly float _scaleY;
+    private readonly float _outputScaleX;
+    private readonly float _outputScaleY;
+
+    private int _nextTileRowToOpen;
 
     public PdfImageTilingContext(
-        SKSizeI tileSize,
         PdfTileInfo tileInfo,
         PdfImageRowDecodingParameters imageParameters,
-        SKRectI regionOfInterest,
+        HashSet<int>? tileIndexesToDecode,
         ILoggerFactory loggerFactory)
     {
+        _tileInfo = tileInfo ?? throw new ArgumentNullException(nameof(tileInfo));
         _imageParameters = imageParameters ?? throw new ArgumentNullException(nameof(imageParameters));
         _loggerFactory = loggerFactory ?? throw new ArgumentNullException(nameof(loggerFactory));
-        RegionOfInterest = regionOfInterest;
+        _tileIndexesToDecode = tileIndexesToDecode;
 
         if (imageParameters.DownscaledSize.HasValue)
         {
             _isDownscaled = true;
-            _scaleX = (float)imageParameters.DownscaledSize.Value.Width  / imageParameters.Width;
-            _scaleY = (float)imageParameters.DownscaledSize.Value.Height / imageParameters.Height;
+            _outputScaleX = (float)imageParameters.DownscaledSize.Value.Width / imageParameters.Width;
+            _outputScaleY = (float)imageParameters.DownscaledSize.Value.Height / imageParameters.Height;
         }
 
-        TileWidth = Math.Min(tileSize.Width, imageParameters.Width);
-        TileHeight = Math.Min(tileSize.Height, imageParameters.Height);
-
-        TilesHorizontal = tileInfo.TilesHorizontal;
-        TilesVertical = tileInfo.TilesVertical;
-        TotalTiles = tileInfo.TotalTiles;
-
-        _tilePositions = BuildTilePositions();
+        _columnSampleRanges = ComputeSampleRanges(tileInfo.TilesHorizontal, tileInfo.TileWidth, tileInfo.ImageSize.Width, imageParameters.Width);
+        _rowSampleRanges = ComputeSampleRanges(tileInfo.TilesVertical, tileInfo.TileHeight, tileInfo.ImageSize.Height, imageParameters.Height);
     }
 
-    public int TileWidth { get; }
-    public int TileHeight { get; }
-    public int TilesHorizontal { get; }
-    public int TilesVertical { get; }
-    public int TotalTiles { get; }
-    public SKRectI RegionOfInterest { get; }
-
+    /// <summary>
+    /// Writes one fully-decoded image row, advancing every tile row whose sampled range
+    /// includes <paramref name="imageRowIndex"/>, and returns the tiles of any tile rows
+    /// that complete as a result (or null if none completed yet).
+    /// </summary>
     public PdfImageTile[]? WriteRowAndTryGetTiles(int imageRowIndex, in ReadOnlySpan<byte> fullWidthRow, IPdfExecutionObserver? observer)
     {
-        int rowWithinTile = imageRowIndex % TileHeight;
-        int tileRow = imageRowIndex / TileHeight;
+        OpenNewTileRows(imageRowIndex, observer);
+        WriteRowToOpenTileRows(imageRowIndex, fullWidthRow, observer);
+        return CloseFinishedTileRows(imageRowIndex, observer);
+    }
 
-        if (rowWithinTile == 0)
+    /// <summary>
+    /// Opens every tile row whose sampled range starts at <paramref name="imageRowIndex"/>.
+    /// Several tile rows can legitimately start on the same image row when the decoded
+    /// resolution is lower than the tile grid — they then sample (and share) that single row.
+    /// </summary>
+    private void OpenNewTileRows(int imageRowIndex, IPdfExecutionObserver? observer)
+    {
+        while (_nextTileRowToOpen < _tileInfo.TilesVertical && _rowSampleRanges[_nextTileRowToOpen].Start == imageRowIndex)
         {
-            DisposeTileRowProcessors();
-            _tileRowProcessors = new PdfImageRowProcessor[TilesHorizontal];
-            _tileRowParams = new PdfImageRowDecodingParameters[TilesHorizontal];
+            int tileRow = _nextTileRowToOpen;
+            var processors = new PdfImageRowProcessor?[_tileInfo.TilesHorizontal];
+            var tileParameters = new PdfImageRowDecodingParameters[_tileInfo.TilesHorizontal];
+            IndexRange rowRange = _rowSampleRanges[tileRow];
 
-            for (int col = 0; col < TilesHorizontal; col++)
+            for (int column = 0; column < _tileInfo.TilesHorizontal; column++)
             {
-                int tileIndex = (tileRow * TilesHorizontal) + col;
-                if (tileIndex >= TotalTiles)
-                {
-                    break;
-                }
+                int tileIndex = (tileRow * _tileInfo.TilesHorizontal) + column;
+                bool mustDecode = _tileIndexesToDecode == null || _tileIndexesToDecode.Contains(tileIndex);
+                IndexRange columnRange = _columnSampleRanges[column];
+                int decodedWidth = columnRange.End - columnRange.Start;
+                int decodedHeight = rowRange.End - rowRange.Start;
 
-                SKRectI pos = _tilePositions[tileIndex];
                 SKSizeI? downscaledSize = _isDownscaled
-                    ? new SKSizeI(Math.Max(1, (int)Math.Floor(pos.Width * _scaleX)), Math.Max(1, (int)Math.Floor(pos.Height * _scaleY)))
+                    ? new SKSizeI(Math.Max(1, (int)Math.Floor(decodedWidth * _outputScaleX)), Math.Max(1, (int)Math.Floor(decodedHeight * _outputScaleY)))
                     : null;
 
-                PdfImageRowDecodingParameters tileParams = new(
+                PdfImageRowDecodingParameters parameters = new(
                     _imageParameters.Context,
-                    pos.Width,
-                    pos.Height,
+                    decodedWidth,
+                    decodedHeight,
                     _imageParameters.BitsPerComponent,
                     _imageParameters.RenderingIntent,
                     _imageParameters.ColorSpaceConverter,
                     _imageParameters.HasImageMask,
                     _imageParameters.MaskArray,
                     _imageParameters.DecodeArray,
-                    downscaledSize: downscaledSize,
-                    descaleFactor: _imageParameters.DescaleFactor);
+                    downscaledSize: downscaledSize);
 
-                _tileRowParams[col] = tileParams;
+                tileParameters[column] = parameters;
 
-                if (!pos.IntersectsWith(RegionOfInterest))
+                if (!mustDecode)
                 {
                     continue;
                 }
 
-                PdfImageRowProcessor processor = new(tileParams, _loggerFactory.CreateLogger<PdfImageRowProcessor>());
+                PdfImageRowProcessor processor = new(parameters, _loggerFactory.CreateLogger<PdfImageRowProcessor>());
                 processor.InitializeBuffer();
-                _tileRowProcessors[col] = processor;
+                processors[column] = processor;
 
                 observer?.Notify();
             }
-        }
 
+            _openTileRows.Add(new OpenTileRow(tileRow, processors, tileParameters));
+            _nextTileRowToOpen++;
+        }
+    }
+
+    private void WriteRowToOpenTileRows(int imageRowIndex, in ReadOnlySpan<byte> fullWidthRow, IPdfExecutionObserver? observer)
+    {
         int componentCount = _imageParameters.ColorSpaceConverter.Components;
-        int bpc = _imageParameters.BitsPerComponent;
+        int bitsPerComponent = _imageParameters.BitsPerComponent;
 
-        if (_tileRowProcessors == null || _tileRowParams == null)
+        foreach (OpenTileRow openTileRow in _openTileRows)
         {
-            return null;
-        }
+            int rowWithinTile = imageRowIndex - _rowSampleRanges[openTileRow.TileRow].Start;
 
-        for (int col = 0; col < TilesHorizontal; col++)
-        {
-            if (_tileRowProcessors[col] == null)
+            for (int column = 0; column < _tileInfo.TilesHorizontal; column++)
             {
+                if (openTileRow.Processors[column] == null)
+                {
+                    continue;
+                }
+
+                IndexRange columnRange = _columnSampleRanges[column];
+                byte[] slice = ExtractTileRowSlice(fullWidthRow, columnRange.Start, columnRange.End - columnRange.Start, bitsPerComponent, componentCount);
+                openTileRow.Processors[column]?.WriteRow(rowWithinTile, slice);
+                observer?.Notify();
+            }
+        }
+    }
+
+    private PdfImageTile[]? CloseFinishedTileRows(int imageRowIndex, IPdfExecutionObserver? observer)
+    {
+        List<PdfImageTile>? closedTiles = null;
+
+        int writeIndex = 0;
+        for (int readIndex = 0; readIndex < _openTileRows.Count; readIndex++)
+        {
+            OpenTileRow openTileRow = _openTileRows[readIndex];
+
+            if (imageRowIndex != _rowSampleRanges[openTileRow.TileRow].End - 1)
+            {
+                _openTileRows[writeIndex++] = openTileRow;
                 continue;
             }
 
-            int tileStartPixel = col * TileWidth;
-            int tileActualWidth = _tilePositions[(tileRow * TilesHorizontal) + col].Width;
-            byte[] slice = ExtractTileRowSlice(fullWidthRow, tileStartPixel, tileActualWidth, bpc, componentCount);
-            _tileRowProcessors[col]?.WriteRow(rowWithinTile, slice);
+            closedTiles ??= new List<PdfImageTile>();
+            EmitTiles(openTileRow, closedTiles);
             observer?.Notify();
         }
 
-        bool isLastRowOfTile = rowWithinTile == TileHeight - 1 || imageRowIndex == _imageParameters.Height - 1;
-        if (!isLastRowOfTile)
+        _openTileRows.RemoveRange(writeIndex, _openTileRows.Count - writeIndex);
+        return closedTiles?.ToArray();
+    }
+
+    private void EmitTiles(OpenTileRow openTileRow, List<PdfImageTile> destination)
+    {
+        for (int column = 0; column < _tileInfo.TilesHorizontal; column++)
         {
-            return null;
-        }
+            int tileIndex = (openTileRow.TileRow * _tileInfo.TilesHorizontal) + column;
+            SKRectI tilePosition = _tileInfo.GetTilePosition(tileIndex);
 
-        int tilesInRow = Math.Min(TilesHorizontal, TotalTiles - (tileRow * TilesHorizontal));
-        var tiles = new PdfImageTile[tilesInRow];
-
-        for (int col = 0; col < tilesInRow; col++)
-        {
-            int tileIndex = (tileRow * TilesHorizontal) + col;
-            PdfImageRowDecodingParameters tileParams = _tileRowParams[col];
-
-            if (_tileRowProcessors[col] == null)
+            if (openTileRow.Processors[column] == null)
             {
-                tiles[col] = new PdfImageTile(tileIndex, ScaleTilePosition(_tilePositions[tileIndex]), null, null, isSkipped: true);
+                destination.Add(new PdfImageTile(tileIndex, tilePosition, null, null, isSkipped: true));
                 continue;
             }
 
-            SKImage? image = _tileRowProcessors[col]?.GetDecoded();
-            _tileRowProcessors[col]?.Dispose();
-            _tileRowProcessors[col] = null;
-            tiles[col] = new PdfImageTile(tileIndex, ScaleTilePosition(_tilePositions[tileIndex]), image, tileParams, isSkipped: false);
-
-            observer?.Notify();
+            SKImage? image = openTileRow.Processors[column]?.GetDecoded();
+            openTileRow.Processors[column]?.Dispose();
+            openTileRow.Processors[column] = null;
+            destination.Add(new PdfImageTile(tileIndex, tilePosition, image, openTileRow.Parameters[column], isSkipped: false));
         }
-
-        return tiles;
     }
 
-    private SKRectI[] BuildTilePositions()
+    /// <summary>
+    /// Maps a fixed <paramref name="tileCount"/>-cell nominal grid — defined over
+    /// <paramref name="nominalImageDimension"/> samples in steps of <paramref name="nominalTileSize"/> —
+    /// onto sampled ranges within <paramref name="decodedImageDimension"/> decoded samples.
+    /// Every cell receives a non-empty range that lies within the decoded extent: when the
+    /// decoded resolution is lower than the cell count, several adjacent cells legitimately
+    /// resolve to (and share) the same single decoded sample — there genuinely is no more
+    /// detail available to tell them apart, the same situation <see cref="NearestNeighborRowConverter"/>
+    /// resolves when mapping more destination samples than there are source samples.
+    /// </summary>
+    private static IndexRange[] ComputeSampleRanges(int tileCount, int nominalTileSize, int nominalImageDimension, int decodedImageDimension)
     {
-        var positions = new SKRectI[TotalTiles];
-        for (int i = 0; i < TotalTiles; i++)
+        float scale = (float)decodedImageDimension / nominalImageDimension;
+        var ranges = new IndexRange[tileCount];
+        int previousBoundary = 0;
+
+        for (int i = 0; i < tileCount; i++)
         {
-            int col = i % TilesHorizontal;
-            int row = i / TilesHorizontal;
-            int x = col * TileWidth;
-            int y = row * TileHeight;
-            positions[i] = SKRectI.Create(
-                x,
-                y,
-                Math.Min(TileWidth, _imageParameters.Width - x),
-                Math.Min(TileHeight, _imageParameters.Height - y));
+            int nextBoundary;
+
+            if (i + 1 < tileCount)
+            {
+                int nominalBoundary = Math.Min((i + 1) * nominalTileSize, nominalImageDimension);
+                var scaledBoundary = (int)Math.Round(nominalBoundary * scale);
+                nextBoundary = Math.Max(previousBoundary, Math.Min(scaledBoundary, decodedImageDimension));
+            }
+            else
+            {
+                nextBoundary = decodedImageDimension;
+            }
+
+            int start = Math.Min(previousBoundary, decodedImageDimension - 1);
+            int end = Math.Max(start + 1, Math.Min(nextBoundary, decodedImageDimension));
+            ranges[i] = new IndexRange(start, end);
+            previousBoundary = nextBoundary;
         }
 
-        return positions;
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private SKRectI ScaleTilePosition(SKRectI pos)
-    {
-        int f = _imageParameters.DescaleFactor;
-        return SKRectI.Create(pos.Left * f, pos.Top * f, pos.Width * f, pos.Height * f);
+        return ranges;
     }
 
     private static byte[] ExtractTileRowSlice(
@@ -241,20 +279,47 @@ internal sealed class PdfImageTilingContext : IDisposable
         return tileSlice;
     }
 
-    private void DisposeTileRowProcessors()
+    private void DisposeOpenTileRows()
     {
-        if (_tileRowProcessors == null)
+        foreach (OpenTileRow openTileRow in _openTileRows)
         {
-            return;
+            foreach (PdfImageRowProcessor? processor in openTileRow.Processors)
+            {
+                processor?.Dispose();
+            }
         }
 
-        foreach (PdfImageRowProcessor? p in _tileRowProcessors)
-        {
-            p?.Dispose();
-        }
-
-        _tileRowProcessors = null;
+        _openTileRows.Clear();
     }
 
-    public void Dispose() => DisposeTileRowProcessors();
+    public void Dispose() => DisposeOpenTileRows();
+
+    private readonly struct IndexRange
+    {
+        public IndexRange(int start, int end)
+        {
+            Start = start;
+            End = end;
+        }
+
+        public int Start { get; }
+
+        public int End { get; }
+    }
+
+    private sealed class OpenTileRow
+    {
+        public OpenTileRow(int tileRow, PdfImageRowProcessor?[] processors, PdfImageRowDecodingParameters[] parameters)
+        {
+            TileRow = tileRow;
+            Processors = processors;
+            Parameters = parameters;
+        }
+
+        public int TileRow { get; }
+
+        public PdfImageRowProcessor?[] Processors { get; }
+
+        public PdfImageRowDecodingParameters[] Parameters { get; }
+    }
 }

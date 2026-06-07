@@ -13,7 +13,7 @@ internal sealed class DrawNormalImageTileCommand : PdfCommand
 
     public override bool IsScaleDependent => true;
 
-    public override void Execute(SKCanvas canvas, IEnumerable<IPdfCommandModifier> modifiers, PdfCommandExecutionContext executionContext)
+    public override void Execute(IEnumerable<IPdfCommandModifier> modifiers, PdfCommandExecutionContext executionContext)
     {
         PdfImageTile tile = _context.TileCache.GetNextTile(executionContext.ExecutionObserver);
         if (tile.IsSkipped || tile.Image == null)
@@ -24,17 +24,16 @@ internal sealed class DrawNormalImageTileCommand : PdfCommand
         SKMatrix ctm = CommandHelpers.GetScaledMatrix(executionContext);
         SKSamplingOptions sampling = PdfImageCommandUtilities.GetSamplingOptions(ctm, _context.DecodingContext, _context.ImageSize, _context.Interpolate);
 
-        canvas.Save();
-        canvas.Scale(1f / _context.ImageSize.Width, 1f / _context.ImageSize.Height);
-        canvas.ClipRect(tile.TilePosition);
-        canvas.Translate(tile.TilePosition.Left, tile.TilePosition.Top);
-
         using SKShader shader = ImageBlending.BuildImageShader(tile.Image, new SKSizeI(tile.TilePosition.Width, tile.TilePosition.Height), sampling);
         using SKPaint paint = PdfImageCommandUtilities.GetBaseImagePaint(shader, _context.DecodingContext);
         CommandHelpers.ApplyModifiers(paint, modifiers);
-        canvas.DrawPaint(paint);
 
-        canvas.Restore();
+        executionContext.Canvas.Save();
+        executionContext.Canvas.Scale(1f / _context.ImageSize.Width, 1f / _context.ImageSize.Height);
+        executionContext.Canvas.ClipRect(tile.TilePosition);
+        executionContext.Canvas.Translate(tile.TilePosition.Left, tile.TilePosition.Top);
+        executionContext.Canvas.DrawPaint(paint);
+        executionContext.Canvas.Restore();
     }
 
     protected override void Dispose(bool disposing) => _context.Dispose();

@@ -9,6 +9,7 @@ using PdfPixel.Jpg.Model;
 using PdfPixel.Jpg.Readers;
 using SkiaSharp;
 using System;
+using System.Collections.Generic;
 
 namespace PdfPixel.Imaging.Decoding;
 
@@ -42,9 +43,9 @@ public sealed class JpegImageDecoder : PdfImageDecoder
     /// <param name="context">Rendering context carrying target surface and quality settings.</param>
     /// <param name="contentLocker">Lock object used to serialize access to the compressed image data.</param>
     /// <param name="ctm">Current transformation matrix, used to compute the scaled output size.</param>
-    /// <param name="regionOfInterest">Rectangle in image coordinates limiting which tiles must be decoded.</param>
+    /// <param name="tileIndexesToDecode">Indexes of tiles that must be decoded; every other tile is produced as a skipped placeholder. Null means every tile must be decoded.</param>
     /// <param name="observer">Observer notified on each decoded row.</param>
-    public override void Initialize(PdfTileInfo tileInfo, ImageDecodingContext context, object contentLocker, SKMatrix ctm, SKRectI regionOfInterest, IPdfExecutionObserver observer)
+    public override void Initialize(PdfTileInfo tileInfo, ImageDecodingContext context, object contentLocker, SKMatrix ctm, HashSet<int>? tileIndexesToDecode, IPdfExecutionObserver observer)
     {
         if (!ValidateImageParameters())
         {
@@ -85,12 +86,11 @@ public sealed class JpegImageDecoder : PdfImageDecoder
             Image.HasImageMask,
             Image.MaskArray,
             Image.DecodeArray,
-            downscaledSize,
-            1);
+            downscaledSize);
 
         _jpgRowDecoder = CreateJpgDecoder(encodedData, header);
         _fullWidthRowBuffer = new byte[checked(header.ComponentCount * Image.Width)];
-        _tilingContext = new PdfImageTilingContext(new SKSizeI(tileInfo.TileWidth, tileInfo.TileHeight), tileInfo, _imageParameters, regionOfInterest, LoggerFactory);
+        _tilingContext = new PdfImageTilingContext(tileInfo, _imageParameters, tileIndexesToDecode, LoggerFactory);
         _currentImageRow = 0;
     }
 

@@ -16,10 +16,16 @@ internal sealed class InitializeTileCacheCommand : PdfCommand
 
     public override bool IsScaleDependent => true;
 
-    public override void Execute(SKCanvas canvas, IEnumerable<IPdfCommandModifier> modifiers, PdfCommandExecutionContext executionContext)
+    public override void Execute(IEnumerable<IPdfCommandModifier> modifiers, PdfCommandExecutionContext executionContext)
     {
         SKMatrix ctm = CommandHelpers.GetScaledMatrix(executionContext);
         SKRectI imageRegion = PdfImageCommandUtilities.ComputeImageRegionOfInterest(_imageSize, executionContext.Frames.TotalMatrix, executionContext);
+
+        if (imageRegion.Width != _imageSize.Width || imageRegion.Height != _imageSize.Height)
+        {
+            executionContext.SetPartialContent();
+        }
+
         _tileCache.Initialize(ctm, imageRegion, executionContext.ContentLocker, executionContext.ExecutionObserver);
     }
 

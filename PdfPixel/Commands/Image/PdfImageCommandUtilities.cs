@@ -98,7 +98,8 @@ internal static class PdfImageCommandUtilities
             return fullImageBounds;
         }
 
-        SKRect mapped = ctm.Invert().MapRect(executionContext.PageRegionOfInterest.Value);
+        SKMatrix contentToImagePixels = ctm.Invert().PostConcat(SKMatrix.CreateScale(imageSize.Width, imageSize.Height));
+        SKRect mapped = contentToImagePixels.MapRect(executionContext.PageRegionOfInterest.Value);
         SKRectI imageRoi = SKRectI.Round(mapped);
         imageRoi.Intersect(fullImageBounds);
         return (imageRoi.IsEmpty) ? fullImageBounds : imageRoi;

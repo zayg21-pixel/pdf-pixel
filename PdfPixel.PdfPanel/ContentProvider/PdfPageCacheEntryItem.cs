@@ -12,6 +12,7 @@ namespace PdfPixel.PdfPanel.ContentProvider;
 public sealed class PdfPageCacheEntryItem : IDisposable
 {
     private bool _disposed;
+    private bool _wasPartialContent;
 
     /// <summary>
     /// Represents page content as set of commands.
@@ -55,7 +56,7 @@ public sealed class PdfPageCacheEntryItem : IDisposable
     /// <summary>
     /// Replace the content picture and remember the request that produced it. Disposes the previous picture if present.
     /// </summary>
-    public void UpdateContentPicture(SKPicture? picture, PagesDrawingRequest request)
+    public void UpdateContentPicture(SKPicture? picture, PagesDrawingRequest request, bool isPartialContent)
     {
         if (request == null)
         {
@@ -65,6 +66,7 @@ public sealed class PdfPageCacheEntryItem : IDisposable
         ThrowIfDisposed();
         ContentPicture.SetContent(picture);
         LastRequest = request;
+        _wasPartialContent = isPartialContent;
     }
 
     /// <summary>
@@ -80,6 +82,7 @@ public sealed class PdfPageCacheEntryItem : IDisposable
 
         return !ContentPicture.HasContent
             || LastRequest == null
+            || _wasPartialContent
             || (IsScaleDependant && LastRequest.RenderingParameters.ScaleFactor != request.RenderingParameters.ScaleFactor);
     }
 
@@ -93,6 +96,7 @@ public sealed class PdfPageCacheEntryItem : IDisposable
         ContentCommandRecording.SetContent(default);
         ContentPicture.SetContent(default);
         LastRequest = null;
+        _wasPartialContent = false;
     }
 
     private void ThrowIfDisposed()

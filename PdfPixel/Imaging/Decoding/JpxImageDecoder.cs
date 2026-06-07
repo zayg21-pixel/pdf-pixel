@@ -9,6 +9,7 @@ using PdfPixel.Jpx.Model;
 using PdfPixel.Jpx.Parsing;
 using SkiaSharp;
 using System;
+using System.Collections.Generic;
 
 namespace PdfPixel.Imaging.Decoding;
 
@@ -26,7 +27,7 @@ internal class JpxImageDecoder : PdfImageDecoder
     {
     }
 
-    public override void Initialize(PdfTileInfo tileInfo, ImageDecodingContext context, object contentLocker, SKMatrix ctm, SKRectI regionOfInterest, IPdfExecutionObserver? observer)
+    public override void Initialize(PdfTileInfo tileInfo, ImageDecodingContext context, object contentLocker, SKMatrix ctm, HashSet<int>? tileIndexesToDecode, IPdfExecutionObserver? observer)
     {
         ReadOnlyMemory<byte> encodedData;
         lock (contentLocker)
@@ -42,7 +43,7 @@ internal class JpxImageDecoder : PdfImageDecoder
             throw new InvalidOperationException($"Cannot determine color space for JPX image with {jpxHeader.ComponentCount} components (Name={Image.Name}).");
         }
 
-        JpxDecodingParameters jpxDecodingParameters = ComputeDecodingParameters(jpxHeader, ctm);
+        JpxDecodingParameters jpxDecodingParameters = ComputeDecodingParameters(jpxHeader, ctm, tileInfo, tileIndexesToDecode);
         JpxTileProvider tileProvider = new(
             jpxHeader,
             encodedData.Span.Slice(jpxHeader.CodestreamOffset),
@@ -61,24 +62,13 @@ internal class JpxImageDecoder : PdfImageDecoder
             Image.HasImageMask,
             Image.MaskArray,
             Image.DecodeArray,
-            downscaledSize: downscaledSize,
-            descaleFactor: jpxDecodingParameters.DescaleFactor);
+            downscaledSize: downscaledSize);
 
         _fullWidthRowBuffer = new byte[((_rowConverter.Width * _rowConverter.ComponentCount * _rowConverter.BitsPerComponent) + 7) / 8];
 
         // TODO: [HIGH] support transparency
 
-        int descale = jpxDecodingParameters.DescaleFactor;
-        SKRectI scaledRegionOfInterest = SKRectI.Create(
-            regionOfInterest.Left / descale,
-            regionOfInterest.Top / descale,
-            jpxDecodingParameters.ReduceDimension(regionOfInterest.Width),
-            jpxDecodingParameters.ReduceDimension(regionOfInterest.Height));
-
-        SKSizeI descaledTileSize = new(
-            jpxDecodingParameters.ReduceDimension(tileInfo.TileWidth),
-            jpxDecodingParameters.ReduceDimension(tileInfo.TileHeight));
-        _tilingContext = new PdfImageTilingContext(descaledTileSize, tileInfo, _imageParameters, scaledRegionOfInterest, LoggerFactory);
+        _tilingContext = new PdfImageTilingContext(tileInfo, _imageParameters, tileIndexesToDecode, LoggerFactory);
         _currentImageRow = 0;
     }
 
@@ -125,14 +115,16 @@ internal class JpxImageDecoder : PdfImageDecoder
         return Image.Page.Cache.ColorSpace.ResolveDeviceConverter(header.ComponentCount);
     }
 
-    private static JpxDecodingParameters ComputeDecodingParameters(JpxHeader header, SKMatrix ctm)
+    private static JpxDecodingParameters ComputeDecodingParameters(JpxHeader header, SKMatrix ctm, PdfTileInfo tileInfo, HashSet<int>? tileIndexesToDecode)
     {
+        IReadOnlyList<JpxRegion>? regionsOfInterest = ComputeRegionsOfInterest(tileInfo, tileIndexesToDecode);
+
         SKSizeI sourceSize = new((int)header.Width, (int)header.Height);
         SKSizeI? targetSize = PdfImageCommandUtilities.GetScaledSize(ctm, sourceSize);
 
         if (!targetSize.HasValue || header.CodingStyle == null)
         {
-            return JpxDecodingParameters.Default;
+            return new JpxDecodingParameters(1, regionsOfInterest);
         }
 
         int maxLevels = header.CodingStyle.DecompositionLevels;
@@ -153,7 +145,24 @@ internal class JpxImageDecoder : PdfImageDecoder
             }
         }
 
-        return new JpxDecodingParameters(descaleFactor);
+        return new JpxDecodingParameters(descaleFactor, regionsOfInterest);
+    }
+
+    private static List<JpxRegion>? ComputeRegionsOfInterest(PdfTileInfo tileInfo, HashSet<int>? tileIndexesToDecode)
+    {
+        if (tileIndexesToDecode == null)
+        {
+            return null;
+        }
+
+        List<JpxRegion> regionsOfInterest = new(tileIndexesToDecode.Count);
+        foreach (int tileIndex in tileIndexesToDecode)
+        {
+            SKRectI tilePosition = tileInfo.GetTilePosition(tileIndex);
+            regionsOfInterest.Add(new JpxRegion(tilePosition.Left, tilePosition.Top, tilePosition.Width, tilePosition.Height));
+        }
+
+        return regionsOfInterest;
     }
 
     private sealed class JpxObserver : IJpxExectionObserver // TODO: [HIGH] add default implementations of ExectionObserver to JBIG2 and JPX

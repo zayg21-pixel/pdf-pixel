@@ -5,6 +5,7 @@ using PdfPixel.Imaging.Model;
 using PdfPixel.Imaging.Processing;
 using SkiaSharp;
 using System;
+using System.Collections.Generic;
 
 namespace PdfPixel.Imaging.Decoding;
 
@@ -84,9 +85,9 @@ public abstract class PdfImageDecoder : IDisposable
     /// <param name="context">Rendering context carrying target surface and quality settings.</param>
     /// <param name="contentLocker">Lock object used to serialize access to the compressed image data.</param>
     /// <param name="ctm">Current transformation matrix, used to compute the scaled output size.</param>
-    /// <param name="regionOfInterest">Rectangle in image coordinates limiting which tiles must be decoded.</param>
+    /// <param name="tileIndexesToDecode">Indexes of tiles that must be decoded; every other tile is produced as a skipped placeholder. Null means every tile must be decoded.</param>
     /// <param name="observer">Observer notified during initialization steps.</param>
-    public virtual void Initialize(PdfTileInfo tileInfo, ImageDecodingContext context, object contentLocker, SKMatrix ctm, SKRectI regionOfInterest, IPdfExecutionObserver observer)
+    public virtual void Initialize(PdfTileInfo tileInfo, ImageDecodingContext context, object contentLocker, SKMatrix ctm, HashSet<int>? tileIndexesToDecode, IPdfExecutionObserver observer)
     {
     }
 
