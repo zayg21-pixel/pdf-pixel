@@ -26,27 +26,29 @@ internal static class CommandHelpers
     }
 
     /// <summary>
-    /// Returns SKCanvas's matrix scaled to <see cref="PdfPixel.Models.PdfRenderingParameters.ScaleFactor"/>.
+    /// Returns the command-derived total matrix scaled to <see cref="PdfPixel.Models.PdfRenderingParameters.ScaleFactor"/>.
     /// </summary>
-    public static SKMatrix GetScaledMatrix(SKCanvas canvas, PdfCommandExecutionContext executionContext)
+    public static SKMatrix GetScaledMatrix(PdfCommandExecutionContext executionContext)
     {
+        SKMatrix totalMatrix = executionContext.Frames.TotalMatrix;
+
         if (executionContext.RenderingParameters.ScaleFactor.HasValue)
         {
             float scaleValue = executionContext.RenderingParameters.ScaleFactor.Value;
-            return canvas.TotalMatrix.PostConcat(SKMatrix.CreateScale(scaleValue, scaleValue));
+            return totalMatrix.PostConcat(SKMatrix.CreateScale(scaleValue, scaleValue));
         }
 
-        return canvas.TotalMatrix;
+        return totalMatrix;
     }
 
-    public static bool GetPathIsAntialias(SKPath path, SKCanvas canvas, PdfCommandExecutionContext executionContext, SKPaint? paint = null)
+    public static bool GetPathIsAntialias(SKPath path, PdfCommandExecutionContext executionContext, SKPaint? paint = null)
     {
         if (!executionContext.RenderingParameters.Antialias)
         {
             return false;
         }
 
-        SKMatrix scaledMatrix = GetScaledMatrix(canvas, executionContext);
+        SKMatrix scaledMatrix = GetScaledMatrix(executionContext);
 
         if (!PathIsAxisAligned(path, scaledMatrix))
         {

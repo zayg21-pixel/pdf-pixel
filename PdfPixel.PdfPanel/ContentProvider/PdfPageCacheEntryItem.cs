@@ -1,4 +1,5 @@
 using PdfPixel.Commands;
+using PdfPixel.PdfPanel.Requests;
 using SkiaSharp;
 using System;
 using System.Linq;
@@ -28,9 +29,9 @@ public sealed class PdfPageCacheEntryItem : IDisposable
     public bool IsScaleDependant { get; private set; }
 
     /// <summary>
-    /// Scale used to generate the cached content.
+    /// Drawing request that produced the currently cached content picture.
     /// </summary>
-    public float Scale { get; private set; } = 1;
+    public PagesDrawingRequest? LastRequest { get; private set; }
 
     /// <summary>
     /// Replace page content with a new command recording. Disposes the previous recording if present.
@@ -52,13 +53,34 @@ public sealed class PdfPageCacheEntryItem : IDisposable
     }
 
     /// <summary>
-    /// Replace the content picture. Disposes the previous picture if present.
+    /// Replace the content picture and remember the request that produced it. Disposes the previous picture if present.
     /// </summary>
-    public void UpdateContentPicture(SKPicture? picture, float scale)
+    public void UpdateContentPicture(SKPicture? picture, PagesDrawingRequest request)
     {
+        if (request == null)
+        {
+            throw new ArgumentNullException(nameof(request));
+        }
+
         ThrowIfDisposed();
         ContentPicture.SetContent(picture);
-        Scale = scale;
+        LastRequest = request;
+    }
+
+    /// <summary>
+    /// Returns <see langword="true"/> when the cached picture must be regenerated for <paramref name="request"/>:
+    /// no picture is cached yet, no request was recorded, or the content is scale-dependant and the scale changed.
+    /// </summary>
+    public bool NeedsUpdate(PagesDrawingRequest request)
+    {
+        if (request == null)
+        {
+            throw new ArgumentNullException(nameof(request));
+        }
+
+        return !ContentPicture.HasContent
+            || LastRequest == null
+            || (IsScaleDependant && LastRequest.RenderingParameters.ScaleFactor != request.RenderingParameters.ScaleFactor);
     }
 
     /// <summary>
@@ -70,6 +92,7 @@ public sealed class PdfPageCacheEntryItem : IDisposable
 
         ContentCommandRecording.SetContent(default);
         ContentPicture.SetContent(default);
+        LastRequest = null;
     }
 
     private void ThrowIfDisposed()

@@ -1,5 +1,4 @@
-﻿using SkiaSharp;
-using System;
+﻿using System;
 
 namespace PdfPixel.Commands;
 
@@ -13,10 +12,4 @@ public interface IPdfCommandProcessor : IDisposable
     /// </summary>
     /// <param name="command">The command to process.</param>
     void Process(IPdfCommand command);
-
-    /// <summary>
-    /// Gets the current total transformation matrix of the underlying target.
-    /// Used by callers that need coordinate information during command processing.
-    /// </summary>
-    SKMatrix TotalMatrix { get; }
 }

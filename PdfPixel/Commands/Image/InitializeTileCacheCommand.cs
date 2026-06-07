@@ -18,8 +18,8 @@ internal sealed class InitializeTileCacheCommand : PdfCommand
 
     public override void Execute(SKCanvas canvas, IEnumerable<IPdfCommandModifier> modifiers, PdfCommandExecutionContext executionContext)
     {
-        SKMatrix ctm = CommandHelpers.GetScaledMatrix(canvas, executionContext);
-        SKRectI imageRegion = PdfImageCommandUtilities.ComputeImageRegionOfInterest(_imageSize, ctm, executionContext);
+        SKMatrix ctm = CommandHelpers.GetScaledMatrix(executionContext);
+        SKRectI imageRegion = PdfImageCommandUtilities.ComputeImageRegionOfInterest(_imageSize, executionContext.Frames.TotalMatrix, executionContext);
         _tileCache.Initialize(ctm, imageRegion, executionContext.ContentLocker, executionContext.ExecutionObserver);
     }
 

@@ -20,7 +20,11 @@ public sealed class ConcatMatrixCommand : PdfCommand
     public SKMatrix Matrix { get; }
 
     /// <inheritdoc />
-    public override void Execute(SKCanvas canvas, IEnumerable<IPdfCommandModifier> modifiers, PdfCommandExecutionContext executionContext) => canvas.Concat(Matrix);
+    public override void Execute(SKCanvas canvas, IEnumerable<IPdfCommandModifier> modifiers, PdfCommandExecutionContext executionContext)
+    {
+        canvas.Concat(Matrix);
+        executionContext.Frames.OnConcatMatrix(Matrix);
+    }
 
     /// <inheritdoc/>
     protected override void Dispose(bool disposing)

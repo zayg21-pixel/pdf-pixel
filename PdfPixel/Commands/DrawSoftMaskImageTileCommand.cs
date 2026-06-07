@@ -27,7 +27,7 @@ internal sealed class DrawSoftMaskImageTileCommand : PdfCommand
             return;
         }
 
-        SKMatrix ctm = CommandHelpers.GetScaledMatrix(canvas, executionContext);
+        SKMatrix ctm = CommandHelpers.GetScaledMatrix(executionContext);
         SKSamplingOptions sampling = PdfImageCommandUtilities.GetSamplingOptions(ctm, _context.DecodingContext, _context.ImageSize, _context.Interpolate);
 
         SKColor? matte = null;

@@ -43,7 +43,6 @@ internal class PdfContentStreamRenderer
         PdfParseContext parseContext = new(contentStreams);
 
         PdfGraphicsState state = new(_page, new HashSet<uint>(), externalTransform: null, observer);
-        state.DeviceMatrix = processor.TotalMatrix;
 
         RenderContext(processor, ref parseContext, state);
     }

@@ -35,6 +35,8 @@ public sealed class SaveLayerCommand : PdfCommand
         {
             canvas.SaveLayer(_bounds, null);
         }
+
+        executionContext.Frames.OnSaveLayer();
     }
 
     /// <inheritdoc />

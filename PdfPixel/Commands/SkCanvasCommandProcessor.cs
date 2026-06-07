@@ -30,9 +30,6 @@ public sealed class SkCanvasCommandProcessor : IPdfCommandProcessor
     }
 
     /// <inheritdoc />
-    public SKMatrix TotalMatrix => Canvas.TotalMatrix;
-
-    /// <inheritdoc />
     public void Process(IPdfCommand command)
     {
         if (command == null)

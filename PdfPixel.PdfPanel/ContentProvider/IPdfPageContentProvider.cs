@@ -1,4 +1,5 @@
 using PdfPixel.PdfPanel.Annotations;
+using PdfPixel.PdfPanel.Requests;
 using SkiaSharp;
 using System;
 
@@ -40,7 +41,7 @@ public interface IPdfPageContentProvider : IDisposable
     /// Starts or updates background decoding for the pages described by <paramref name="request"/>.
     /// Pages no longer visible are cancelled and their cache cleared.
     /// </summary>
-    void UpdateContent(UpdateContentRequest request);
+    void UpdateContent(PagesDrawingRequest request);
 
     /// <summary>
     /// Returns the <see cref="PdfPanelPageInfo"/> for the specified 1-based page number.

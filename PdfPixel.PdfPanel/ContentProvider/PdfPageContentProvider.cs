@@ -1,8 +1,10 @@
 using PdfPixel.Models;
 using PdfPixel.PdfPanel.Annotations;
+using PdfPixel.PdfPanel.Requests;
 using PdfPixel.PdfPanel.WorkQueue;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace PdfPixel.PdfPanel.ContentProvider;
 
@@ -57,14 +59,14 @@ public sealed class PdfPageContentProvider : IPdfPageContentProvider
     }
 
     /// <inheritdoc />
-    public void UpdateContent(UpdateContentRequest request)
+    public void UpdateContent(PagesDrawingRequest request)
     {
         if (request == null)
         {
             throw new ArgumentNullException(nameof(request));
         }
 
-        HashSet<int> visiblePageNumbers = new(request.VisiblePages ?? Array.Empty<int>());
+        HashSet<int> visiblePageNumbers = new(request.VisiblePages.Select(x => x.PageNumber));
 
         foreach (PdfPageCacheEntry cacheEntry in _cache)
         {
@@ -75,14 +77,7 @@ public sealed class PdfPageContentProvider : IPdfPageContentProvider
                 continue;
             }
 
-            if (!cacheEntry.NeedsUpdate(request))
-            {
-                continue;
-            }
-
-            IPdfCancellableExecutionObserver parseObserver = _observerFactory.CreateParseObserver(cacheEntry.PageNumber);
-            IPdfCancellableExecutionObserver contentObserver = _observerFactory.CreateContentObserver(cacheEntry.PageNumber);
-            cacheEntry.InitializeForRendering(request, parseObserver, contentObserver);
+            cacheEntry.InitializeForRendering(_observerFactory);
             _processingQueue.Enqueue(new PdfPageUpdateCacheWorkItem(cacheEntry, _document, DocumentLocker, request, OnPageUpdated));
         }
     }

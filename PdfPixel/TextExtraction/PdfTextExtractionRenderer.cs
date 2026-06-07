@@ -10,12 +10,17 @@ using PdfPixel.Rendering.Text;
 using PdfPixel.Shading.Model;
 using PdfPixel.Text;
 using SkiaSharp;
+using System;
 using System.Collections.Generic;
 
 namespace PdfPixel.TextExtraction;
 
 internal class PdfTextExtractionRenderer : IPdfRenderer
 {
+    private readonly PdfCommandExecutionContext _executionContext;
+
+    public PdfTextExtractionRenderer(PdfCommandExecutionContext executionContext) => _executionContext = executionContext ?? throw new ArgumentNullException(nameof(executionContext));
+
     public List<PdfCharacter> PageCharacters { get; } = [];
 
     public void DrawForm(IPdfCommandProcessor processor, PdfForm formXObject, PdfGraphicsState graphicsState)
@@ -60,7 +65,7 @@ internal class PdfTextExtractionRenderer : IPdfRenderer
 
     public SKSize DrawTextSequence(IPdfCommandProcessor processor, List<ShapedGlyph> glyphs, PdfGraphicsState state, PdfFontBase? font)
     {
-        SKMatrix currentMatrix = SKMatrix.Concat(processor.TotalMatrix, TextRenderUtilities.GetFullTextMatrix(state));
+        SKMatrix currentMatrix = SKMatrix.Concat(_executionContext.Frames.TotalMatrix, TextRenderUtilities.GetFullTextMatrix(state));
         float advance = 0;
         int i = 0;
         while (i < glyphs.Count)

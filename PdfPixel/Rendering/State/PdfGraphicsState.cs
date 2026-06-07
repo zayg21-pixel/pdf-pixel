@@ -292,11 +292,6 @@ public class PdfGraphicsState
     public bool AlphaIsShape { get; set; }
 
     /// <summary>
-    /// Gets or sets the transformation matrix applied to the device.
-    /// </summary>
-    public SKMatrix DeviceMatrix { get; set; } = SKMatrix.Identity;
-
-    /// <summary>
     /// Mask rendering mode used internally while rendering soft mask content streams.
     /// </summary>
     public PdfMaskRenderMode MaskRenderMode { get; set; } = PdfMaskRenderMode.None;
@@ -430,7 +425,6 @@ public class PdfGraphicsState
             TextLineMatrix = TextLineMatrix,
             InTextObject = InTextObject,
             CTM = CTM,
-            DeviceMatrix = DeviceMatrix,
             TextClipPath = TextClipPath,
             IsType3Rendering = IsType3Rendering
         };

@@ -1,4 +1,3 @@
-using PdfPixel.Models;
 using PdfPixel.PdfPanel.Annotations;
 using System;
 
@@ -52,16 +51,6 @@ public sealed class PdfPageCacheEntry : IDisposable
     public PdfAnnotationPopup[]? Annotations { get; }
 
     /// <summary>
-    /// Current active annotation for the page.
-    /// </summary>
-    public PdfAnnotationPopup? ActiveAnnotation { get; private set; }
-
-    /// <summary>
-    /// Pointer state for page.
-    /// </summary>
-    public PdfPanelPointerState CurrentPointerState { get; private set; }
-
-    /// <summary>
     /// True if this entry has a pending or completed decode request.
     /// </summary>
     public bool PendingRequest { get; private set; }
@@ -77,51 +66,28 @@ public sealed class PdfPageCacheEntry : IDisposable
     public IPdfCancellableExecutionObserver? ContentObserver { get; private set; }
 
     /// <summary>
-    /// Rendering parameters used to generate the cached content.
-    /// </summary>
-    public PdfRenderingParameters? RenderingParameters { get; private set; }
-
-    /// <summary>
-    /// Returns <see langword="true"/> when the entry needs to be re-decoded for the given request.
-    /// </summary>
-    public bool NeedsUpdate(UpdateContentRequest request)
-    {
-        if (request == null)
-        {
-            throw new ArgumentNullException(nameof(request));
-        }
-
-        bool neverDecoded = !PendingRequest;
-        bool parametersChanged = !request.RenderingParameters.Equals(RenderingParameters);
-        bool annotationStateChanged = Annotations?.Length > 0
-            && (ActiveAnnotation != request.ActiveAnnotation
-                || CurrentPointerState != request.PointerState);
-
-        return neverDecoded || parametersChanged || annotationStateChanged;
-    }
-
-    /// <summary>
     /// Prepares the entry for a new decode pass.
-    /// Cancels and replaces the content observer; keeps or sets the parse observer.
+    /// Keeps the parse observer if one already exists, creating it only when missing;
+    /// always cancels and replaces the content observer.
     /// </summary>
-    public void InitializeForRendering(UpdateContentRequest request, IPdfCancellableExecutionObserver parseObserver, IPdfCancellableExecutionObserver contentObserver)
+    public void InitializeForRendering(IPdfExecutionObserverFactory observerFactory)
     {
-        if (request == null)
+        if (observerFactory == null)
         {
-            throw new ArgumentNullException(nameof(request));
+            throw new ArgumentNullException(nameof(observerFactory));
         }
 
         ThrowIfDisposed();
 
-        ParseObserver?.Cancel();
-        ParseObserver?.Dispose();
-        ParseObserver = parseObserver;
+        if (ParseObserver == null)
+        {
+            ParseObserver = observerFactory.CreateParseObserver(PageNumber);
+        }
 
         ContentObserver?.Cancel();
         ContentObserver?.Dispose();
-        ContentObserver = contentObserver;
+        ContentObserver = observerFactory.CreateContentObserver(PageNumber);
 
-        RenderingParameters = request.RenderingParameters.Clone();
         PendingRequest = true;
     }
 
@@ -166,16 +132,6 @@ public sealed class PdfPageCacheEntry : IDisposable
             Content = Content.ContentPicture,
             Annotations = AnnotationContent.ContentPicture
         };
-    }
-
-    /// <summary>
-    /// Updates annotation and pointer state for annotations.
-    /// </summary>
-    public void UpdateActiveAnnotationState(PdfAnnotationPopup? activeAnnotation, PdfPanelPointerState pointerState)
-    {
-        ThrowIfDisposed();
-        ActiveAnnotation = activeAnnotation;
-        CurrentPointerState = pointerState;
     }
 
     private void ThrowIfDisposed()

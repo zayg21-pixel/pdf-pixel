@@ -10,7 +10,7 @@ namespace PdfPixel.Commands;
 /// so the <see cref="IPdfCommand.Execute"/> signature stays stable as
 /// new per-replay concerns are added.
 /// </summary>
-public sealed class PdfCommandExecutionContext
+public sealed class PdfCommandExecutionContext : IDisposable
 {
     /// <summary>
     /// Initializes a new execution context with rendering parameters, a content locker, and an observer.
@@ -43,4 +43,13 @@ public sealed class PdfCommandExecutionContext
     /// Used to skip decoding of image tiles outside the visible area.
     /// </summary>
     public SKRect? PageRegionOfInterest { get; }
+
+    /// <summary>
+    /// Tracks the total transformation matrix and clip path derived purely from processed commands,
+    /// mirroring the canvas save/restore stack without depending on the canvas itself.
+    /// </summary>
+    public PdfCommandExecutionFrames Frames { get; } = new();
+
+    /// <inheritdoc />
+    public void Dispose() => Frames.Dispose();
 }

@@ -22,7 +22,7 @@ internal sealed class DrawStencilMaskedImageTileCommand : PdfCommand
             return;
         }
 
-        SKMatrix ctm = CommandHelpers.GetScaledMatrix(canvas, executionContext);
+        SKMatrix ctm = CommandHelpers.GetScaledMatrix(executionContext);
         SKSamplingOptions sampling = PdfImageCommandUtilities.GetSamplingOptions(ctm, _context.DecodingContext, _context.ImageSize, interpolate: false);
 
         canvas.Save();

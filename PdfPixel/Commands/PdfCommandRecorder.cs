@@ -6,37 +6,21 @@ namespace PdfPixel.Commands;
 
 /// <summary>
 /// Records commands for later replay instead of executing them immediately.
-/// Tracks the current transformation matrix as <see cref="ConcatMatrixCommand"/> instances are recorded.
 /// </summary>
 public sealed class PdfCommandRecorder : IPdfCommandProcessor
 {
     private readonly List<IPdfCommand> _commands = [];
-    private SKMatrix _totalMatrix = SKMatrix.Identity;
 
     /// <inheritdoc/>
     ~PdfCommandRecorder() => Dispose(disposing: false);
 
     /// <inheritdoc />
-    public void Process(IPdfCommand command)
-    {
-        if (command is ConcatMatrixCommand concatCommand)
-        {
-            _totalMatrix = _totalMatrix.PostConcat(concatCommand.Matrix);
-        }
-
-        _commands.Add(command);
-    }
+    public void Process(IPdfCommand command) => _commands.Add(command);
 
     /// <summary>
     /// Gets the list of recorded commands.
     /// </summary>
     public IReadOnlyList<IPdfCommand> Commands => _commands;
-
-    /// <summary>
-    /// Gets the current total transformation matrix accumulated from recorded
-    /// <see cref="ConcatMatrixCommand"/> instances.
-    /// </summary>
-    public SKMatrix TotalMatrix => _totalMatrix;
 
     /// <summary>
     /// Replays all recorded commands against the specified canvas, modifiers, and execution context.

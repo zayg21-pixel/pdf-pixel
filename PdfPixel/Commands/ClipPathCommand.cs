@@ -34,8 +34,9 @@ public sealed class ClipPathCommand : PdfCommand
     /// <inheritdoc />
     public override void Execute(SKCanvas canvas, IEnumerable<IPdfCommandModifier> modifiers, PdfCommandExecutionContext executionContext)
     {
-        bool antialias = CommandHelpers.GetPathIsAntialias(_path, canvas, executionContext);
+        bool antialias = CommandHelpers.GetPathIsAntialias(_path, executionContext);
         canvas.ClipPath(_path, _operation, antialias);
+        executionContext.Frames.OnClipPath(_path, _operation);
     }
 
     /// <inheritdoc />

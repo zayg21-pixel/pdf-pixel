@@ -62,13 +62,7 @@ public sealed class PdfPanelRenderer : IDisposable
         _lastRequest = request;
         RenderAll(request);
 
-        _contentProvider.UpdateContent(new UpdateContentRequest
-        {
-            VisiblePages = ExpandVisiblePages(request.VisiblePages, _contentProvider.GetPagesCount()),
-            RenderingParameters = request.RenderingParameters,
-            ActiveAnnotation = request.ActiveAnnotation,
-            PointerState = request.ActiveAnnotationState
-        });
+        _contentProvider.UpdateContent(request);
 
         UpdateClockSubscription();
     }
@@ -231,31 +225,6 @@ public sealed class PdfPanelRenderer : IDisposable
     private SKSurface GetSurface(PagesDrawingRequest request)
         => _surfaceFactory.GetDrawingSurface((int)request.CanvasSize.Width, (int)request.CanvasSize.Height);
 
-    private static int[] ExpandVisiblePages(VisiblePageInfo[] visiblePages, int totalPages)
-    {
-        if (visiblePages == null || visiblePages.Length == 0)
-        {
-            return Array.Empty<int>();
-        }
-
-        int first = visiblePages.Min(p => p.PageNumber);
-        int last = visiblePages.Max(p => p.PageNumber);
-
-        List<int> expanded = new(visiblePages.Select(p => p.PageNumber));
-
-        if (first > 1)
-        {
-            expanded.Add(first - 1);
-        }
-
-        if (last < totalPages)
-        {
-            expanded.Add(last + 1);
-        }
-
-        return [.. expanded];
-    }
-
     /// <summary>
     /// Unregisters the page-updated callback and marks the renderer as disposed.
     /// </summary>
@@ -271,6 +240,7 @@ public sealed class PdfPanelRenderer : IDisposable
         {
             _clock.Tick -= OnAnimationTick;
         }
+
         _contentProvider.OnPageUpdated = null;
     }
 }

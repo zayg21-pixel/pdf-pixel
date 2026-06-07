@@ -78,39 +78,6 @@ public readonly struct VisiblePageInfo
     }
 
     /// <summary>
-    /// Gets the scaled bounds of the page.
-    /// </summary>
-    /// <param name="scale">Scale factor.</param>
-    /// <returns>Bounds scaled to factor.</returns>
-    public SKRect GetScaledBounds(float scale) => SKRect.Create(Offset.X * scale, Offset.Y * scale, RotatedSize.Width * scale, RotatedSize.Height * scale);
-
-    /// <summary>
-    /// Gets the transformation matrix from viewport coordinates to page coordinates for this visible page.
-    /// </summary>
-    /// <param name="scale">Scale factor.</param>
-    /// <returns>Matrix that transforms viewport coordinates to page coordinates.</returns>
-    public SKMatrix GetToPageMatrix(double scale)
-    {
-        SKMatrix matrix = SKMatrix.Identity;
-
-        // Apply rotation (about page origin)
-        int totalRotation = Info.GetTotalRotation(UserRotation);
-        if (totalRotation != 0)
-        {
-            matrix = matrix.PostConcat(PdfPanelPageExtensions.GetInverseRotationMatrix(RotatedSize.Width, RotatedSize.Height, -totalRotation));
-        }
-
-        // Apply translation by unscaled offset
-        matrix = matrix.PostConcat(SKMatrix.CreateTranslation(Offset.X, Offset.Y));
-
-
-        // Apply scale
-        matrix = matrix.PostConcat(SKMatrix.CreateScale((float)scale, (float)scale));
-
-        return matrix;
-    }
-
-    /// <summary>
     /// Converts a rectangle from PDF coordinates (bottom-left origin, Y-up) to page coordinates (top-left origin, Y-down).
     /// </summary>
     /// <param name="pdfRect">Rectangle in PDF coordinates.</param>
