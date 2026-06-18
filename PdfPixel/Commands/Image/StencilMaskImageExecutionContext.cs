@@ -9,11 +9,12 @@ namespace PdfPixel.Commands.Image;
 
 internal sealed class StencilMaskImageExecutionContext : IDisposable
 {
-    public StencilMaskImageExecutionContext(SKSizeI imageSize, ImageDecodingContext decodingContext, PdfImageTileCacheEntry tileCache)
+    public StencilMaskImageExecutionContext(SKSizeI imageSize, ImageDecodingContext decodingContext, PdfImageTileCacheEntry tileCache, bool invertMask)
     {
         ImageSize = imageSize;
         DecodingContext = decodingContext;
         TileCache = tileCache;
+        InvertMask = invertMask;
     }
 
     public SKSizeI ImageSize { get;}
@@ -23,6 +24,12 @@ internal sealed class StencilMaskImageExecutionContext : IDisposable
     public PdfImageTileCacheEntry TileCache { get; }
 
     public PdfTileInfo TileInfo => TileCache.TileInfo;
+
+    /// <summary>
+    /// Whether the stencil mask should be inverted when compositing.
+    /// False when the image Decode array is [1 0], true otherwise (default [0 1] behavior).
+    /// </summary>
+    public bool InvertMask { get; }
 
     public static StencilMaskImageExecutionContext Create(PdfImage pdfImage, ImageDecodingContext context, ILoggerFactory loggerFactory)
     {
@@ -34,8 +41,11 @@ internal sealed class StencilMaskImageExecutionContext : IDisposable
             throw new ArgumentException($"Decoder for image {pdfImage.Type} is not defined.");
         }
 
+        float[]? decode = pdfImage.DecodeArray;
+        bool invertMask = decode == null || decode.Length < 2 || decode[0] < decode[1];
+
         PdfTileInfo tileInfo = new(imageSize, new SKSizeI(context.DefaultTileSize, context.DefaultTileSize));
-        return new StencilMaskImageExecutionContext(imageSize, context, new PdfImageTileCacheEntry(decoder, context, tileInfo));
+        return new StencilMaskImageExecutionContext(imageSize, context, new PdfImageTileCacheEntry(decoder, context, tileInfo), invertMask);
     }
 
     public void Dispose() => TileCache.Dispose();

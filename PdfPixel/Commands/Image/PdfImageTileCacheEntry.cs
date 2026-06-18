@@ -8,11 +8,6 @@ namespace PdfPixel.Commands.Image;
 
 internal sealed class PdfImageTileCacheEntry : IDisposable
 {
-    /// <summary>
-    /// Upper bound on the combined estimated byte size of cached decoded tiles. Each tile is
-    /// estimated as <c>Width * Height * 4</c> (RGBA8888) regardless of its actual color type.
-    /// </summary>
-    private const long MaxTileCacheSizeBytes = 10 * 1024 * 1024;
 
     private readonly PdfImageDecoder _decoder;
     private readonly ImageDecodingContext _context;
@@ -221,7 +216,7 @@ internal sealed class PdfImageTileCacheEntry : IDisposable
     /// <summary>
     /// Drops cached tiles that lie outside <paramref name="regionTileIndexes"/> — i.e. outside the
     /// current viewport — but only while the estimated combined cache size exceeds
-    /// <see cref="MaxTileCacheSizeBytes"/>. Tiles inside the region are always kept, whether or not
+    /// <see cref="ImageDecodingContext.MaxTileCacheSizeBytes"/>. Tiles inside the region are always kept, whether or not
     /// they are still valid for <see cref="_currentCtm"/>, since <see cref="ComputeTileIndexesToDecode"/>
     /// already arranges for stale ones to be replaced by the upcoming decode pass.
     /// </summary>
@@ -229,7 +224,7 @@ internal sealed class PdfImageTileCacheEntry : IDisposable
     {
         long cacheSizeBytes = ComputeCacheSizeBytes();
 
-        for (int tileIndex = 0; tileIndex < _tiles.Length && cacheSizeBytes > MaxTileCacheSizeBytes; tileIndex++)
+        for (int tileIndex = 0; tileIndex < _tiles.Length && cacheSizeBytes > _context.MaxTileCacheSizeBytes; tileIndex++)
         {
             if (regionTileIndexes.Contains(tileIndex))
             {
@@ -278,7 +273,11 @@ internal sealed class PdfImageTileCacheEntry : IDisposable
         private PdfImageTile? _tile;
         private SKMatrix _decodedCtm;
 
-        public CachedTile(int index) => Index = index;
+        public CachedTile(int index)
+        {
+            Index = index;
+            IsPendingUpdate = true;
+        }
 
         public PdfImageTile? Tile => _tile;
 

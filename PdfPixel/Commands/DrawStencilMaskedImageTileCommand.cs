@@ -30,7 +30,7 @@ internal sealed class DrawStencilMaskedImageTileCommand : PdfCommand
             maskTile.Image,
             new SKSizeI(imageTile.TilePosition.Width, imageTile.TilePosition.Height),
             new SKSamplingOptions(SKFilterMode.Linear));
-        using SKShader blendingShader = ImageBlending.CreateStencilMaskShader(imageShader, maskShader);
+        using SKShader blendingShader = ImageBlending.CreateStencilMaskShader(imageShader, maskShader, inverse: _context.InvertMask);
         using SKPaint paint = PdfImageCommandUtilities.GetBaseImagePaint(blendingShader, _context.DecodingContext);
         CommandHelpers.ApplyModifiers(paint, modifiers);
 

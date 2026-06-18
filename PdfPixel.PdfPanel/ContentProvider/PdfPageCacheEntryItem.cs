@@ -83,7 +83,7 @@ public sealed class PdfPageCacheEntryItem : IDisposable
         return !ContentPicture.HasContent
             || LastRequest == null
             || _wasPartialContent
-            || (IsScaleDependant && LastRequest.RenderingParameters.ScaleFactor != request.RenderingParameters.ScaleFactor);
+            || (IsScaleDependant && LastRequest.CommandExecutionParameters.ScaleFactor != request.CommandExecutionParameters.ScaleFactor);
     }
 
     /// <summary>

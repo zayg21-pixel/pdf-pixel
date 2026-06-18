@@ -30,7 +30,10 @@ internal class PdfContentStreamRenderer
     /// Render multiple content streams sequentially as one continuous stream without memory allocation.
     /// This treats all content streams as logically one stream while preserving graphics state continuity.
     /// </summary>
-    public void RenderContent(IPdfCommandProcessor processor, IPdfExecutionObserver observer)
+    /// <param name="processor">The command processor to emit drawing commands to.</param>
+    /// <param name="renderingParameters">Parameters for PDF page rendering.</param>
+    /// <param name="observer">Execution observer to notify on long-running operations.</param>
+    public void RenderContent(IPdfCommandProcessor processor, PdfRenderingParameters renderingParameters, IPdfExecutionObserver observer)
     {
         List<ReadOnlyMemory<byte>> contentStreams = GetPageContentStreams();
 
@@ -42,7 +45,7 @@ internal class PdfContentStreamRenderer
         // Create unified context that treats all streams as one continuous stream
         PdfParseContext parseContext = new(contentStreams);
 
-        PdfGraphicsState state = new(_page, new HashSet<uint>(), externalTransform: null, observer);
+        PdfGraphicsState state = new(_page, new HashSet<uint>(), externalTransform: null, observer, renderingParameters);
 
         RenderContext(processor, ref parseContext, state);
     }

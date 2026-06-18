@@ -147,7 +147,7 @@ public class PdfType3Font : PdfSingleByteFont
 
         (SKSize advancement, SKRect? boundingBox) = ParseMetrics(parseContext);
 
-        PdfGraphicsState charState = new(glyphPage, sourceState.RecursionGuard, default, default) { IsType3Rendering = true };
+        PdfGraphicsState charState = new(glyphPage, sourceState.RecursionGuard, default, default, sourceState.RenderingParameters) { IsType3Rendering = true };
 
         recorder.Process(new SaveStateCommand());
         contentRenderer.RenderContext(recorder, ref parseContext, charState);

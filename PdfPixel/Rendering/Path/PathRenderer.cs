@@ -39,10 +39,20 @@ public class PathRenderer : IPathRenderer
     {
         if (processor == null)
         {
-            return;
+            throw new ArgumentNullException(nameof(processor));
+        }
+
+        if (state == null)
+        {
+            throw new ArgumentNullException(nameof(state));
         }
 
         if (path?.IsEmpty != false)
+        {
+            return;
+        }
+
+        if (!state.RenderingParameters.RenderPaths)
         {
             return;
         }

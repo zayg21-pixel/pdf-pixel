@@ -32,18 +32,27 @@ public class PdfGraphicsState
     private TransferFunctionTransform? _transferFunction;
     private IColorTransform? _externalTransferFunction;
 
-    internal PdfGraphicsState(IPdfPageInternal statePage, HashSet<uint> recursionGuard, IColorTransform? externalTransform, IPdfExecutionObserver? observer)
+    /// <summary>
+    /// Initializes a new graphics state for the given page.
+    /// </summary>
+    /// <param name="statePage">The page this graphics state is associated with.</param>
+    /// <param name="recursionGuard">Guard set used to detect and break XObject recursion cycles.</param>
+    /// <param name="externalTransform">Optional external transfer function applied on top of the page-level transfer function.</param>
+    /// <param name="observer">Execution observer to notify on long-running operations.</param>
+    /// <param name="renderingParameters">Parameters for PDF page rendering.</param>
+    internal PdfGraphicsState(IPdfPageInternal statePage, HashSet<uint> recursionGuard, IColorTransform? externalTransform, IPdfExecutionObserver? observer, PdfRenderingParameters renderingParameters)
     {
         Page = statePage ?? throw new ArgumentNullException(nameof(statePage));
         ExternalTransferFunction = externalTransform;
         RecursionGuard = recursionGuard ?? throw new ArgumentNullException(nameof(recursionGuard));
         ExecutionObserver = observer;
+        RenderingParameters = renderingParameters ?? throw new ArgumentNullException(nameof(renderingParameters));
         _fillColorConverter = statePage.Cache.ColorSpace.ResolveDeviceConverter(PdfColorSpaceType.DeviceGray);
         _strokeColorConverter = statePage.Cache.ColorSpace.ResolveDeviceConverter(PdfColorSpaceType.DeviceGray);
     }
 
     internal PdfGraphicsState(IPdfPageInternal statePage, PdfGraphicsState sourceState)
-        : this(statePage, sourceState.RecursionGuard, sourceState.ExternalTransferFunction, sourceState.ExecutionObserver)
+        : this(statePage, sourceState.RecursionGuard, sourceState.ExternalTransferFunction, sourceState.ExecutionObserver, sourceState.RenderingParameters)
     {
     }
 
@@ -61,6 +70,11 @@ public class PdfGraphicsState
     /// Observer to notify on PDF processing that some work has been done.
     /// </summary>
     public IPdfExecutionObserver? ExecutionObserver { get; }
+
+    /// <summary>
+    /// Parameters for PDF page rendering.
+    /// </summary>
+    public PdfRenderingParameters RenderingParameters { get; }
 
     /// <summary>
     /// Indicates whether this graphics state is being used for Type 3 glyph rendering.

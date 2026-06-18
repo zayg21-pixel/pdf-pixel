@@ -69,7 +69,7 @@ public class PdfPageUpdateCacheWorkItem : IWorkItem
         {
             if (!CacheEntry.Content.ContentCommandRecording.HasContent)
             {
-                PdfCommandRecorder recording = _document.GeneratePageCommandRecording(CacheEntry.PageNumber, _parseObserver);
+                PdfCommandRecorder recording = _document.GeneratePageCommandRecording(CacheEntry.PageNumber, _request.RenderingParameters, _parseObserver);
                 CacheEntry.Content.UpdateContentCommandRecording(recording);
             }
         }
@@ -105,6 +105,7 @@ public class PdfPageUpdateCacheWorkItem : IWorkItem
                     CacheEntry.PageNumber,
                     _request.ActiveAnnotation?.PageAnnotation,
                     _request.ActiveAnnotationState,
+                    _request.RenderingParameters,
                     _contentObserver);
                 CacheEntry.AnnotationContent.UpdateContentCommandRecording(annotationRecording);
                 annotationRecordingUpdated = true;
@@ -119,7 +120,7 @@ public class PdfPageUpdateCacheWorkItem : IWorkItem
             SkiaSharp.SKPicture? contentPicture = PdfDocumentContentExtensions.RecordingToSkPicture(
                 CacheEntry.PageInfo,
                 contentRecording.Content,
-                _request.RenderingParameters,
+                _request.CommandExecutionParameters,
                 _documentLocker,
                 _contentObserver,
                 out bool isPartialContent,
@@ -151,7 +152,7 @@ public class PdfPageUpdateCacheWorkItem : IWorkItem
             SKRect.Create(CacheEntry.PageInfo.Width, CacheEntry.PageInfo.Height));
 
         SKCanvas canvas = flushObserver.BeginRecording();
-        using PdfCommandExecutionContext executionContext = new(_request.RenderingParameters, _documentLocker, flushObserver, canvas, regionOfInterest);
+        using PdfCommandExecutionContext executionContext = new(_request.CommandExecutionParameters, _documentLocker, flushObserver, canvas, regionOfInterest);
         flushObserver.Initialize(executionContext);
 
         commandRecording.Replay(Array.Empty<IPdfCommandModifier>(), executionContext);

@@ -112,11 +112,16 @@ internal class PdfPage : IPdfPageInternal
     PdfTransparencyGroup? IPdfPageInternal.TransparencyGroup => _transparencyGroup;
 
     /// <inheritdoc/>
-    public void RenderContent(IPdfCommandProcessor processor, IPdfExecutionObserver observer)
+    public void Render(IPdfCommandProcessor processor, PdfRenderingParameters renderingParameters, IPdfExecutionObserver observer)
     {
         if (processor == null)
         {
             throw new ArgumentNullException(nameof(processor));
+        }
+
+        if (renderingParameters == null)
+        {
+            throw new ArgumentNullException(nameof(renderingParameters));
         }
 
         if (_document == null)
@@ -132,7 +137,7 @@ internal class PdfPage : IPdfPageInternal
             processor.Process(new SaveLayerCommand(CropBox, paint: null));
         }
 
-        contentRenderer.RenderContent(processor, observer);
+        contentRenderer.RenderContent(processor, renderingParameters, observer);
 
         if (_transparencyGroup != null)
         {
@@ -140,10 +145,4 @@ internal class PdfPage : IPdfPageInternal
         }
     }
 
-    /// <inheritdoc/>
-    public List<PdfCharacter> ExtractText()
-    {
-        // TODO: text extraction should be done from commands
-        return [];
-    }
 }

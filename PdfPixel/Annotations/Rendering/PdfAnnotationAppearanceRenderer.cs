@@ -24,6 +24,7 @@ internal static class PdfAnnotationAppearanceRenderer
     /// <param name="page">The PDF page containing the annotation.</param>
     /// <param name="visualStateKind">The visual state to render.</param>
     /// <param name="renderer">The renderer context.</param>
+    /// <param name="renderingParameters">Parameters for PDF page rendering.</param>
     /// <param name="observer">Observer for long-running operations.</param>
     /// <returns>True if the appearance stream was rendered successfully.</returns>
     public static bool RenderAppearanceStream(
@@ -32,6 +33,7 @@ internal static class PdfAnnotationAppearanceRenderer
         IPdfPageInternal page,
         PdfAnnotationVisualStateKind visualStateKind,
         IPdfRenderer renderer,
+        PdfRenderingParameters renderingParameters,
         IPdfExecutionObserver observer)
     {
         if (annotation.AppearanceDictionary == null)
@@ -57,12 +59,12 @@ internal static class PdfAnnotationAppearanceRenderer
         {
             case PdfXObjectSubtype.Form:
                 {
-                    success = RenderFormAppearance(processor, appearanceObject, annotation.Rectangle, page, renderer, observer);
+                    success = RenderFormAppearance(processor, appearanceObject, annotation.Rectangle, page, renderer, renderingParameters, observer);
                     break;
                 }
             case PdfXObjectSubtype.Image:
                 {
-                    success = RenderImageAppearance(processor, appearanceObject, annotation.Rectangle, page, renderer, observer);
+                    success = RenderImageAppearance(processor, appearanceObject, annotation.Rectangle, page, renderer, renderingParameters, observer);
                     break;
                 }
         }
@@ -122,6 +124,7 @@ internal static class PdfAnnotationAppearanceRenderer
         SKRect annotationRect,
         IPdfPageInternal page,
         IPdfRenderer renderer,
+        PdfRenderingParameters renderingParameters,
         IPdfExecutionObserver observer)
     {
         PdfForm formXObject = PdfForm.FromXObject(formObject, page);
@@ -138,7 +141,7 @@ internal static class PdfAnnotationAppearanceRenderer
 
         processor.Process(new ConcatMatrixCommand(alignmentMatrix));
 
-        PdfGraphicsState state = new(page, new HashSet<uint>(), externalTransform: null, observer);
+        PdfGraphicsState state = new(page, new HashSet<uint>(), externalTransform: null, observer, renderingParameters);
         renderer.DrawForm(processor, formXObject, state);
 
         return true;
@@ -168,6 +171,7 @@ internal static class PdfAnnotationAppearanceRenderer
         SKRect annotationRect,
         IPdfPageInternal page,
         IPdfRenderer renderer,
+        PdfRenderingParameters renderingParameters,
         IPdfExecutionObserver observer)
     {
         PdfImage pdfImage = PdfImage.FromXObject(imageObject, page, PdfString.Empty, isSoftMask: false);
@@ -182,7 +186,7 @@ internal static class PdfAnnotationAppearanceRenderer
             processor.Process(new ConcatMatrixCommand(SKMatrix.CreateScale(annotationRect.Width, annotationRect.Height)));
         }
 
-        PdfGraphicsState state = new(page, new HashSet<uint>(), externalTransform: null, observer);
+        PdfGraphicsState state = new(page, new HashSet<uint>(), externalTransform: null, observer, renderingParameters);
         renderer.DrawImage(processor, pdfImage, state);
 
         return true;

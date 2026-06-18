@@ -16,7 +16,7 @@ public sealed class PdfCommandExecutionFrames : IDisposable
 {
     private readonly Stack<Frame> _frames = [];
     private readonly List<CanvasStateOp> _stateOps = [];
-    private readonly Stack<int> _savePoints = new();
+    private readonly Stack<int> _savePoints = [];
     private SKMatrix _totalMatrix = SKMatrix.Identity;
     private SKPath? _clipPath;
     private int _layerDepth;
@@ -165,7 +165,12 @@ public sealed class PdfCommandExecutionFrames : IDisposable
 
         foreach (Frame frame in _frames)
         {
-            frame.ClipPath?.Dispose();
+            frame.Dispose();
+        }
+
+        foreach (CanvasStateOp state in _stateOps)
+        {
+            state.Dispose();
         }
 
         _frames.Clear();
@@ -182,13 +187,19 @@ public sealed class PdfCommandExecutionFrames : IDisposable
         }
     }
 
-    private void Push(bool isLayer) => _frames.Push(new Frame(_totalMatrix, (_clipPath == null) ? null : new SKPath(_clipPath), isLayer));
+    private void Push(bool isLayer)
+    {
+        SKPath? clipPathSnapshot = (_clipPath == null) ? null : new SKPath(_clipPath);
+        _frames.Push(new Frame(_totalMatrix, clipPathSnapshot, isLayer));
+    }
 
-    private abstract class CanvasStateOp
+    private abstract class CanvasStateOp : IDisposable
     {
         public abstract void Apply(SKCanvas canvas);
 
-        public virtual void Dispose() { }
+        public virtual void Dispose()
+        {
+        }
     }
 
     private sealed class SaveCanvasOp : CanvasStateOp
@@ -220,10 +231,14 @@ public sealed class PdfCommandExecutionFrames : IDisposable
 
         public override void Apply(SKCanvas canvas) => canvas.ClipPath(_path, _operation, _antialias);
 
-        public override void Dispose() => _path.Dispose();
+        public override void Dispose()
+        {
+            base.Dispose();
+            _path.Dispose();
+        }
     }
 
-    private readonly struct Frame
+    private readonly struct Frame : IDisposable
     {
         public Frame(SKMatrix matrix, SKPath? clipPath, bool isLayer)
         {
@@ -237,5 +252,7 @@ public sealed class PdfCommandExecutionFrames : IDisposable
         public SKPath? ClipPath { get; }
 
         public bool IsLayer { get; }
+
+        public void Dispose() => ClipPath?.Dispose();
     }
 }

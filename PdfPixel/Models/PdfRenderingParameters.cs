@@ -1,102 +1,45 @@
-﻿using SkiaSharp;
-using System;
-
 namespace PdfPixel.Models;
 
 /// <summary>
-/// Rendering parameters for <see cref="PdfPage"/>.
+/// Parameters for PDF page rendering, passed to <see cref="IPdfPage.Render"/> and propagated through
+/// <see cref="PdfPixel.Rendering.State.PdfGraphicsState"/> for the lifetime of a single page parse.
 /// </summary>
-public class PdfRenderingParameters : IEquatable<PdfRenderingParameters>, ICloneable
+public class PdfRenderingParameters
 {
     /// <summary>
-    /// If true - antialiazing will be enabled for rendering useful for CPU rendering to avoid jagged edges.
-    /// </summary>
-    public bool Antialias { get; set; } = true;
-
-    /// <summary>
-    /// Actual device scale factor, if defined, all images will be downscaled
-    /// to fit exact device scale, otherwise decoded in full size.
-    /// </summary>
-    public float? ScaleFactor { get; set; }
-
-    /// <summary>
-    /// Default number of samples for Postscript and Exponential functions when the point count is unknown.
-    /// </summary>
-    public int DefaultFunctionSamples { get; set; } = 64;
-
-    /// <summary>
-    /// Maximum number of tessellation vertices for mesh-based shadings.
-    /// </summary>
-    public int MaxTessellationVertices { get; set; } = 32;
-
-    /// <summary>
-    /// Standard image tile size.
+    /// Tile size used when splitting large images into tiles during command recording.
     /// </summary>
     public int ImageTileSize { get; set; } = 1024;
 
-    /// <inheritdoc />
-    public bool Equals(PdfRenderingParameters? other)
-    {
-        if (ReferenceEquals(null, other))
-        {
-            return false;
-        }
-
-        if (ReferenceEquals(this, other))
-        {
-            return true;
-        }
-
-        return Antialias == other.Antialias
-            && ScaleFactor == other.ScaleFactor
-            && DefaultFunctionSamples == other.DefaultFunctionSamples
-            && MaxTessellationVertices == other.MaxTessellationVertices;
-    }
-
-    /// <inheritdoc />
-    public override bool Equals(object? obj) => Equals(obj as PdfRenderingParameters);
-
-    /// <inheritdoc />
-    public override int GetHashCode()
-    {
-        return HashCode.Combine(
-            Antialias,
-            ScaleFactor,
-            DefaultFunctionSamples,
-            MaxTessellationVertices,
-            ImageTileSize);
-    }
+    /// <summary>
+    /// Upper bound on the combined estimated byte size of cached decoded tiles.
+    /// Each tile is estimated as Width * Height * 4 (RGBA8888).
+    /// </summary>
+    public long MaxTileCacheSizeBytes { get; set; } = 10 * 1024 * 1024;
 
     /// <summary>
-    /// Determines whether two <see cref="PdfRenderingParameters"/> instances are equal.
+    /// When false, path drawing commands are suppressed.
     /// </summary>
-    public static bool operator ==(PdfRenderingParameters? left, PdfRenderingParameters? right)
-    {
-        if (ReferenceEquals(left, right))
-        {
-            return true;
-        }
-
-        return left?.Equals(right) ?? false;
-    }
+    public bool RenderPaths { get; set; } = true;
 
     /// <summary>
-    /// Determines whether two <see cref="PdfRenderingParameters"/> instances are not equal.
+    /// When false, image drawing commands are suppressed.
     /// </summary>
-    public static bool operator !=(PdfRenderingParameters left, PdfRenderingParameters right) => !(left == right);
+    public bool RenderImages { get; set; } = true;
 
-    /// <inheritdoc/>
-    public PdfRenderingParameters Clone()
-    {
-        return new()
-        {
-            Antialias = Antialias,
-            ScaleFactor = ScaleFactor,
-            DefaultFunctionSamples = DefaultFunctionSamples,
-            MaxTessellationVertices = MaxTessellationVertices,
-            ImageTileSize = ImageTileSize
-        };
-    }
+    /// <summary>
+    /// When false, shading drawing commands are suppressed.
+    /// </summary>
+    public bool RenderShadings { get; set; } = true;
 
-    object ICloneable.Clone() => Clone();
+    /// <summary>
+    /// When false, text drawing commands are suppressed.
+    /// </summary>
+    public bool RenderText { get; set; } = true;
+
+    /// <summary>
+    /// When true, text character data is extracted and accumulated in
+    /// <see cref="Commands.PdfCommandExecutionContext.Characters"/> during command execution.
+    /// </summary>
+    public bool ExtractText { get; set; } = true;
 }

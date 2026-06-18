@@ -96,7 +96,7 @@ public sealed class PdfDrawShadingCommand : PdfCommand
     /// </summary>
     private void ExecuteFunctionBased(PdfCommandExecutionContext executionContext)
     {
-        int defaultFunctionSamples = executionContext.RenderingParameters.DefaultFunctionSamples;
+        int defaultFunctionSamples = executionContext.Parameters.DefaultFunctionSamples;
 
         if (_functionCacheSamples != defaultFunctionSamples)
         {
@@ -128,7 +128,7 @@ public sealed class PdfDrawShadingCommand : PdfCommand
     /// </summary>
     private void ExecuteAxial(PdfCommandExecutionContext executionContext, IEnumerable<IPdfCommandModifier> modifiers)
     {
-        int defaultFunctionSamples = executionContext.RenderingParameters.DefaultFunctionSamples;
+        int defaultFunctionSamples = executionContext.Parameters.DefaultFunctionSamples;
 
         if (_axialCacheSamples != defaultFunctionSamples)
         {
@@ -151,7 +151,7 @@ public sealed class PdfDrawShadingCommand : PdfCommand
     /// </summary>
     private void ExecuteRadial(PdfCommandExecutionContext executionContext, IEnumerable<IPdfCommandModifier> modifiers)
     {
-        int defaultFunctionSamples = executionContext.RenderingParameters.DefaultFunctionSamples;
+        int defaultFunctionSamples = executionContext.Parameters.DefaultFunctionSamples;
 
         if (_radialCacheSamples != defaultFunctionSamples)
         {
@@ -196,7 +196,7 @@ public sealed class PdfDrawShadingCommand : PdfCommand
     /// </summary>
     private void ExecutePatchMesh(PdfCommandExecutionContext executionContext, IEnumerable<IPdfCommandModifier> modifiers)
     {
-        int maxTessellationVertices = executionContext.RenderingParameters.MaxTessellationVertices;
+        int maxTessellationVertices = executionContext.Parameters.MaxTessellationVertices;
 
         if (_patchMeshCacheMaxVertices != maxTessellationVertices)
         {
@@ -267,7 +267,7 @@ public sealed class PdfDrawShadingCommand : PdfCommand
     {
         using SKPaint paint = basePaint.Clone();
         paint.Color = PdfPaintFactory.ApplyAlpha(paint.Color, _context.FillAlpha);
-        paint.IsAntialias = executionContext.RenderingParameters.Antialias;
+        paint.IsAntialias = executionContext.Parameters.Antialias;
 
         CommandHelpers.ApplyModifiers(paint, modifiers);
 
@@ -281,7 +281,7 @@ public sealed class PdfDrawShadingCommand : PdfCommand
     {
         using SKPaint paint = PdfPaintFactory.CreateShaderPaint();
         paint.Color = PdfPaintFactory.ApplyAlpha(paint.Color, _context.FillAlpha);
-        paint.IsAntialias = executionContext.RenderingParameters.Antialias;
+        paint.IsAntialias = executionContext.Parameters.Antialias;
 
         CommandHelpers.ApplyModifiers(paint, modifiers);
 

@@ -46,11 +46,8 @@ public interface IPdfPage
     /// Render the page content via the command processor.
     /// </summary>
     /// <param name="processor">The command processor to emit drawing commands to.</param>
+    /// <param name="renderingParameters">Parameters for PDF page rendering.</param>
     /// <param name="observer">Execution observer to notify on long-running operations.</param>
-    void RenderContent(IPdfCommandProcessor processor, IPdfExecutionObserver observer);
+    void Render(IPdfCommandProcessor processor, PdfRenderingParameters renderingParameters, IPdfExecutionObserver observer);
 
-    /// <summary>
-    /// Extract text content from the page.
-    /// </summary>
-    List<PdfCharacter> ExtractText();
 }

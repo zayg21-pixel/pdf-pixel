@@ -9,13 +9,13 @@ namespace PdfPixel.Commands;
 /// </summary>
 public sealed class DrawTextBlobCommand : PdfCommand
 {
-    private readonly SKTextBlob? _blob;
+    private readonly SKTextBlob _blob;
     private readonly SKPaint _basePaint;
 
     /// <summary>
     /// Initializes the command taking ownership of both the text blob and the paint.
     /// </summary>
-    public DrawTextBlobCommand(SKTextBlob? blob, SKPaint basePaint)
+    public DrawTextBlobCommand(SKTextBlob blob, SKPaint basePaint)
     {
         _blob = blob;
         _basePaint = basePaint;
@@ -24,13 +24,8 @@ public sealed class DrawTextBlobCommand : PdfCommand
     /// <inheritdoc />
     public override void Execute(IEnumerable<IPdfCommandModifier> modifiers, PdfCommandExecutionContext executionContext)
     {
-        if (_blob == null)
-        {
-            return;
-        }
-
         using SKPaint paint = _basePaint.Clone();
-        paint.IsAntialias = executionContext.RenderingParameters.Antialias;
+        paint.IsAntialias = executionContext.Parameters.Antialias;
         CommandHelpers.ApplyModifiers(paint, modifiers);
 
         executionContext.Canvas.DrawText(_blob, 0f, 0f, paint);

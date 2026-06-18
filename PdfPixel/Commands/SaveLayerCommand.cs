@@ -28,7 +28,7 @@ public sealed class SaveLayerCommand : PdfCommand
         if (_paint != null)
         {
             using SKPaint paint = _paint.Clone();
-            paint.IsAntialias = executionContext.RenderingParameters.Antialias;
+            paint.IsAntialias = executionContext.Parameters.Antialias;
             executionContext.Canvas.SaveLayer(_bounds, paint);
         }
         else

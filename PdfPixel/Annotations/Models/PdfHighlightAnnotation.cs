@@ -23,19 +23,18 @@ public class PdfHighlightAnnotation : PdfTextMarkupAnnotation
     {
     }
 
-    /// <summary>
-    /// Renders the appearance stream for this highlight annotation with multiply blend mode.
-    /// </summary>
+    /// <inheritdoc />
     internal override bool RenderAppearanceStream(
         IPdfCommandProcessor processor,
         IPdfPageInternal page,
         PdfAnnotationVisualStateKind visualStateKind,
         IPdfRenderer renderer,
+        PdfRenderingParameters renderingParameters,
         IPdfExecutionObserver observer)
     {
         PdfCommandRecorder recorder = new();
         recorder.Process(new SaveLayerCommand(Rectangle, new SKPaint { BlendMode = SKBlendMode.Multiply }));
-        bool recorded = base.RenderAppearanceStream(recorder, page, visualStateKind, renderer, observer);
+        bool recorded = base.RenderAppearanceStream(recorder, page, visualStateKind, renderer, renderingParameters, observer);
 
         if (!recorded)
         {

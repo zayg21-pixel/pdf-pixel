@@ -1,6 +1,8 @@
 using PdfPixel.Models;
+using PdfPixel.TextExtraction;
 using SkiaSharp;
 using System;
+using System.Collections.Generic;
 
 namespace PdfPixel.Commands;
 
@@ -13,11 +15,11 @@ namespace PdfPixel.Commands;
 public sealed class PdfCommandExecutionContext : IDisposable
 {
     /// <summary>
-    /// Initializes a new execution context with rendering parameters, a content locker, an observer, and the canvas to draw on.
+    /// Initializes a new execution context with execution parameters, a content locker, an observer, and the canvas to draw on.
     /// </summary>
-    public PdfCommandExecutionContext(PdfRenderingParameters renderingParameters, object contentLocker, IPdfExecutionObserver executionObserver, SKCanvas canvas, SKRect? pageRegionOfInterest = null)
+    public PdfCommandExecutionContext(PdfCommandExecutionParameters parameters, object contentLocker, IPdfExecutionObserver executionObserver, SKCanvas canvas, SKRect? pageRegionOfInterest = null)
     {
-        RenderingParameters = renderingParameters ?? throw new ArgumentNullException(nameof(renderingParameters));
+        Parameters = parameters ?? throw new ArgumentNullException(nameof(parameters));
         ContentLocker = contentLocker ?? throw new ArgumentNullException(nameof(contentLocker));
         ExecutionObserver = executionObserver;
         Canvas = canvas ?? throw new ArgumentNullException(nameof(canvas));
@@ -25,9 +27,9 @@ public sealed class PdfCommandExecutionContext : IDisposable
     }
 
     /// <summary>
-    /// Rendering parameters that may vary between replays (e.g. scale factor, antialias).
+    /// Execution parameters that may vary between replays (e.g. scale factor, antialias).
     /// </summary>
-    public PdfRenderingParameters RenderingParameters { get; }
+    public PdfCommandExecutionParameters Parameters { get; }
 
     /// <summary>
     /// Locker to prevent multi-threaded access to PDF content stream and lazy-initialized data.
@@ -76,6 +78,12 @@ public sealed class PdfCommandExecutionContext : IDisposable
     /// mirroring the canvas save/restore stack without depending on the canvas itself.
     /// </summary>
     public PdfCommandExecutionFrames Frames { get; } = new();
+
+    /// <summary>
+    /// Accumulates extracted text characters during command execution.
+    /// Populated only when <see cref="PdfRenderingParameters.ExtractText"/> was true at recording time.
+    /// </summary>
+    public List<PdfCharacter> Characters { get; } = [];
 
     /// <summary>
     /// Disposes the current canvas, replaces it with <paramref name="canvas"/>, and replays the

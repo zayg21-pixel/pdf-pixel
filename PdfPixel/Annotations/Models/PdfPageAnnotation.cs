@@ -41,15 +41,17 @@ public sealed class PdfPageAnnotation
     /// <param name="visualStateKind">
     /// Visual state to apply to the annotation.
     /// </param>
+    /// <param name="renderingParameters">Parameters for PDF page rendering.</param>
     /// <param name="observer">
     /// Execution observer to notify on long-running operations.
     /// </param>
     public void Render(
         IPdfCommandProcessor processor,
         PdfAnnotationVisualStateKind visualStateKind,
+        PdfRenderingParameters renderingParameters,
         IPdfExecutionObserver observer)
     {
         PdfRenderer renderer = new(_page.Document.LoggerFactory);
-        Content.Render(processor, _page, visualStateKind, renderer, observer);
+        Content.Render(processor, _page, visualStateKind, renderer, renderingParameters, observer);
     }
 }

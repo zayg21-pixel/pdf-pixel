@@ -43,10 +43,14 @@ public class PdfPanelContext
     public float ViewportHeight { get; set; }
 
     /// <summary>
-    /// Rendering parameters used for PDF rendering.
-    /// These parameters are passed to the rendering queue and can be used to customize rendering behavior, such as enabling debug overlays or adjusting rendering quality.
+    /// Parameters for PDF page rendering.
     /// </summary>
-    public PdfRenderingParameters PdfRenderingParameters { get; } = new();
+    public PdfRenderingParameters RenderingParameters { get; } = new();
+
+    /// <summary>
+    /// Parameters used for PDF command execution.
+    /// </summary>
+    public PdfCommandExecutionParameters CommandExecutionParameters { get; } = new();
 
     /// <summary>
     /// Total width of all pages including padding, in device pixels after applying <see cref="Scale"/>.
@@ -191,7 +195,7 @@ public class PdfPanelContext
             return null;
         }
 
-        PdfRenderingParameters parameters = PdfRenderingParameters.Clone();
+        PdfCommandExecutionParameters parameters = CommandExecutionParameters.Clone();
         parameters.ScaleFactor = Scale;
 
         return new PagesDrawingRequest
@@ -205,7 +209,8 @@ public class PdfPanelContext
             VisiblePages = GetVisiblePages().ToArray(),
             BackgroundColor = BackgroundColor,
             PageCornerRadius = PageCornerRadius,
-            RenderingParameters = parameters
+            CommandExecutionParameters = parameters,
+            RenderingParameters = RenderingParameters
         };
     }
 

@@ -5,6 +5,7 @@ using PdfPixel.Fonts.Model;
 using PdfPixel.Rendering;
 using PdfPixel.Rendering.State;
 using PdfPixel.Rendering.Text;
+using PdfPixel.TextExtraction;
 using PdfPixel.Transparency.Utilities;
 using SkiaSharp;
 using System;
@@ -55,12 +56,40 @@ public class PdfTextRenderer : IPdfTextRenderer
             return SKSize.Empty;
         }
 
-        using SoftMaskDrawingScope softMaskScope = new(_renderer, processor, state);
-        softMaskScope.BeginDrawContent();
+        if (!state.RenderingParameters.RenderText && !state.RenderingParameters.ExtractText)
+        {
+            return SKSize.Empty;
+        }
 
+        if (state.RenderingParameters.RenderText)
+        {
+            using SoftMaskDrawingScope softMaskScope = new(_renderer, processor, state);
+            softMaskScope.BeginDrawContent();
+            ProcessGlyphs(processor, glyphs, state, font);
+            softMaskScope.EndDrawContent();
+        }
+        else
+        {
+            ProcessGlyphs(processor, glyphs, state, font);
+        }
+
+        if (state.CurrentFont != null && state.CurrentFont.WritingMode == Fonts.Mapping.CMapWMode.Vertical)
+        {
+            return new SKSize(0, TextRenderUtilities.GetTextHeight(glyphs) * state.FontSize);
+        }
+        else
+        {
+            float fullHorizontalScale = state.FontSize * state.HorizontalScaling / 100f;
+            return new SKSize(TextRenderUtilities.GetTextWidth(glyphs) * fullHorizontalScale, 0);
+        }
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private void ProcessGlyphs(IPdfCommandProcessor processor, List<ShapedGlyph> glyphs, PdfGraphicsState state, PdfFontBase font)
+    {
         if (font is PdfType3Font type3Font)
         {
-            RenderType3(processor, glyphs, state, type3Font);
+            ProcessType3(processor, glyphs, state, type3Font);
         }
         else if (font.SubstituteFont)
         {
@@ -104,82 +133,121 @@ public class PdfTextRenderer : IPdfTextRenderer
             using SKFont skFont = PdfPaintFactory.CreateTextFont(baseTypeface);
             DrawShapedText(processor, skFont, glyphs, state);
         }
+    }
 
-        softMaskScope.EndDrawContent();
-
-        if (state.CurrentFont != null && state.CurrentFont.WritingMode == Fonts.Mapping.CMapWMode.Vertical)
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private void ProcessType3(IPdfCommandProcessor processor, List<ShapedGlyph> glyphs, PdfGraphicsState state, PdfType3Font type3Font)
+    {
+        if (state.RenderingParameters.RenderText
+            && state.TextRenderingMode != PdfTextRenderingMode.Invisible
+            && state.TextRenderingMode != PdfTextRenderingMode.Clip)
         {
-            return new SKSize(0, TextRenderUtilities.GetTextHeight(glyphs) * state.FontSize);
+            // Type3 glyphs are recorded commands in glyph space (after FontMatrix). Apply text matrix and per-glyph offsets.
+            processor.Process(new SaveStateCommand());
+            SKMatrix fullTextMatrix = TextRenderUtilities.GetFullTextMatrix(state, inverse: false);
+            processor.Process(new ConcatMatrixCommand(fullTextMatrix));
+
+            for (int i = 0; i < glyphs.Count; i++)
+            {
+                ShapedGlyph glyph = glyphs[i];
+                PdfType3CharacterInfo charInfo = type3Font.GetCharacterInfo(glyph.CharacterInfo.CharacterCode, _renderer, state);
+                if (charInfo.IsDefined && charInfo.Recording != null)
+                {
+                    IPdfCommandModifier? modifier = (charInfo.IsColored)
+                        ? default
+                        : new UncoloredPaintModifier(state.FillPaint.Color);
+
+                    processor.Process(new SaveStateCommand());
+                    // Translate by glyph X/Y (already in text space units after fullTextMatrix).
+                    processor.Process(new ConcatMatrixCommand(SKMatrix.CreateTranslation(glyph.X, glyph.Y)));
+                    processor.Process(new ConcatMatrixCommand(type3Font.FontMatrix));
+                    processor.Process(new DrawRecordingCommand(charInfo.Recording, modifier, disposeRecording: false));
+                    processor.Process(new RestoreStateCommand());
+                }
+            }
+
+            processor.Process(new RestoreStateCommand());
         }
-        else
-        {
-            // Apply font size, horizontal scaling, and vertical flip
-            float fullHorizontalScale = state.FontSize * state.HorizontalScaling / 100f;
 
-            return new SKSize(TextRenderUtilities.GetTextWidth(glyphs) * fullHorizontalScale, 0);
+        if (state.RenderingParameters.ExtractText)
+        {
+            var characters = new PdfCharacter[glyphs.Count];
+
+            for (int i = 0; i < glyphs.Count; i++)
+            {
+                ShapedGlyph glyph = glyphs[i];
+                PdfType3CharacterInfo charInfo = type3Font.GetCharacterInfo(glyph.CharacterInfo.CharacterCode, _renderer, state);
+                SKRect? glyphBBox = charInfo.BBox ?? type3Font.FontBBox;
+                SKRect bounds;
+
+                if (glyphBBox.HasValue)
+                {
+                    SKRect mapped = type3Font.FontMatrix.MapRect(glyphBBox.Value);
+                    bounds = new SKRect(glyph.X + mapped.Left, glyph.Y + mapped.Top, glyph.X + mapped.Right, glyph.Y + mapped.Bottom);
+                }
+                else
+                {
+                    bounds = new SKRect(glyph.X, glyph.Y, glyph.X + glyph.Advance, glyph.Y);
+                }
+
+                characters[i] = new PdfCharacter(glyph.CharacterInfo.Unicode, bounds);
+            }
+
+            SKMatrix extractMatrix = TextRenderUtilities.GetFullTextMatrix(state, inverse: false);
+            processor.Process(new SaveStateCommand());
+            processor.Process(new ConcatMatrixCommand(extractMatrix));
+            processor.Process(new TextCharactersCommand(characters));
+            processor.Process(new RestoreStateCommand());
         }
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private void RenderType3(IPdfCommandProcessor processor, List<ShapedGlyph> glyphs, PdfGraphicsState state, PdfType3Font type3Font)
+    private void DrawShapedText(IPdfCommandProcessor processor, SKFont font, List<ShapedGlyph> shapingResult, PdfGraphicsState state)
     {
-        // Skip rendering for Invisible or Clip modes as per PDF spec.
-        if (state.TextRenderingMode == PdfTextRenderingMode.Invisible || state.TextRenderingMode == PdfTextRenderingMode.Clip)
+        if (state.RenderingParameters.RenderText)
         {
-            return;
-        }
-
-        // Type3 glyphs are recorded commands in glyph space (after FontMatrix). Apply text matrix and per-glyph offsets.
-        processor.Process(new SaveStateCommand());
-        SKMatrix fullTextMatrix = TextRenderUtilities.GetFullTextMatrix(state, inverse: false);
-        processor.Process(new ConcatMatrixCommand(fullTextMatrix));
-
-        for (int i = 0; i < glyphs.Count; i++)
-        {
-            ShapedGlyph glyph = glyphs[i];
-            PdfType3CharacterInfo charInfo = type3Font.GetCharacterInfo(glyph.CharacterInfo.CharacterCode, _renderer, state);
-            if (charInfo.IsDefined && charInfo.Recording != null)
+            if (ShouldFill(state.TextRenderingMode))
             {
-                IPdfCommandModifier? modifier = (charInfo.IsColored)
-                    ? default
-                    : new UncoloredPaintModifier(state.FillPaint.Color);
+                using TextFillRenderTarget textFillTarget = new(font, shapingResult, state);
+                textFillTarget.Render(processor);
+            }
 
-                processor.Process(new SaveStateCommand());
-                // Translate by glyph X/Y (already in text space units after fullTextMatrix).
-                processor.Process(new ConcatMatrixCommand(SKMatrix.CreateTranslation(glyph.X, glyph.Y)));
-                processor.Process(new ConcatMatrixCommand(type3Font.FontMatrix));
-                processor.Process(new DrawRecordingCommand(charInfo.Recording, modifier, disposeRecording: false));
-                processor.Process(new RestoreStateCommand());
+            if (ShouldStroke(state.TextRenderingMode))
+            {
+                using TextStrokeRenderTarget textStrokeTarget = new(font, shapingResult, state);
+                textStrokeTarget.Render(processor);
+            }
+
+            // Apply clipping if requested (modes with Clip). Pure clip mode skips drawing above.
+            if (ShouldClip(state.TextRenderingMode))
+            {
+                using SKPath textPath = TextRenderUtilities.GetTextPath(shapingResult, font, state);
+                if (!textPath.IsEmpty)
+                {
+                    state.TextClipPath ??= new SKPath();
+                    state.TextClipPath.AddPath(textPath);
+                }
             }
         }
 
-        processor.Process(new RestoreStateCommand());
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private void DrawShapedText(IPdfCommandProcessor processor, SKFont font, IList<ShapedGlyph> shapingResult, PdfGraphicsState state)
-    {
-        if (ShouldFill(state.TextRenderingMode))
+        if (state.RenderingParameters.ExtractText)
         {
-            using TextFillRenderTarget textFillTarget = new(font, shapingResult, state);
-            textFillTarget.Render(processor);
-        }
+            SKFontMetrics metrics = font.Metrics;
+            var characters = new PdfCharacter[shapingResult.Count];
 
-        if (ShouldStroke(state.TextRenderingMode))
-        {
-            using TextStrokeRenderTarget textStrokeTarget = new(font, shapingResult, state);
-            textStrokeTarget.Render(processor);
-        }
-
-        // Apply clipping if requested (modes with Clip). Pure clip mode skips drawing above.
-        if (ShouldClip(state.TextRenderingMode))
-        {
-            using SKPath textPath = TextRenderUtilities.GetTextPath(shapingResult, font, state);
-            if (!textPath.IsEmpty)
+            for (int i = 0; i < shapingResult.Count; i++)
             {
-                state.TextClipPath ??= new SKPath();
-                state.TextClipPath.AddPath(textPath);
+                ShapedGlyph glyph = shapingResult[i];
+                characters[i] = new PdfCharacter(
+                    glyph.CharacterInfo.Unicode,
+                    new SKRect(glyph.X, glyph.Y + metrics.Ascent, glyph.X + glyph.CharacterInfo.OriginalWidth, glyph.Y + metrics.Descent));
             }
+
+            SKMatrix textMatrix = TextRenderUtilities.GetFullTextMatrix(state);
+            processor.Process(new SaveStateCommand());
+            processor.Process(new ConcatMatrixCommand(textMatrix));
+            processor.Process(new TextCharactersCommand(characters));
+            processor.Process(new RestoreStateCommand());
         }
     }
 

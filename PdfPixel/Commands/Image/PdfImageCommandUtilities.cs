@@ -4,8 +4,6 @@ using PdfPixel.Imaging.Model;
 using PdfPixel.Imaging.Processing;
 using SkiaSharp;
 using System;
-using System.Collections.Generic;
-
 namespace PdfPixel.Commands.Image;
 
 internal static class PdfImageCommandUtilities
@@ -37,6 +35,16 @@ internal static class PdfImageCommandUtilities
         bool isDownscaled = GetScaledSize(ctm, imageSize).HasValue;
 
         if (isDownscaled || context.IsType3Rendering || interpolate)
+        {
+            return new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.Linear);
+        }
+
+        return new SKSamplingOptions(SKFilterMode.Nearest, SKMipmapMode.None);
+    }
+
+    public static SKSamplingOptions GetStencilSamplingOptions(ImageDecodingContext context)
+    {
+        if (context.IsType3Rendering)
         {
             return new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.Linear);
         }

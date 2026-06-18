@@ -150,8 +150,14 @@ public class PdfImage
 
         float[]? decodeArray = imageXObject.Dictionary.GetArray(PdfTokens.DecodeKey)?.GetFloatArray();
 
-        // don't set near-identical decode or decode for indexed as in indexed it's just a clamp-hint
-        if (!(image.ColorSpaceConverter is IndexedConverter || !ShouldApplyDecode(decodeArray, image.ColorSpaceConverter)))
+        if (image.HasImageMask)
+        {
+            if (ShouldApplyDecode(decodeArray, 1))
+            {
+                image.DecodeArray = decodeArray;
+            }
+        }
+        else if (!(image.ColorSpaceConverter is IndexedConverter || !ShouldApplyDecode(decodeArray, image.ColorSpaceConverter)))
         {
             image.DecodeArray = decodeArray;
         }
@@ -234,13 +240,18 @@ public class PdfImage
             return false;
         }
 
-        if (decode == null || decode.Length != colorSpaceConverter.Components * 2)
+        return ShouldApplyDecode(decode, colorSpaceConverter.Components);
+    }
+
+    private static bool ShouldApplyDecode(float[]? decode, int componentCount)
+    {
+        if (decode == null || decode.Length != componentCount * 2)
         {
             return false;
         }
 
         const float epsilon = 1e-5f;
-        for (int i = 0; i < colorSpaceConverter.Components; i++)
+        for (int i = 0; i < componentCount; i++)
         {
             float min = decode[i * 2];
             float max = decode[(i * 2) + 1];

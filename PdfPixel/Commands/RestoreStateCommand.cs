@@ -2,6 +2,7 @@ using System.Collections.Generic;
 
 namespace PdfPixel.Commands;
 
+// TODO: [HIGH] I want separate "RestoreLayerCommand" here
 /// <summary>
 /// Restores the most recently saved canvas state from the state stack.
 /// </summary>

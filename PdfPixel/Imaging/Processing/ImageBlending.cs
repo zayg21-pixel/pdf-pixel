@@ -52,10 +52,12 @@ namespace PdfPixel.Imaging.Processing
             const string stencilMaskSksl = @"
                 uniform shader image;
                 uniform shader mask;
+                uniform half useInverse;
 
                 half4 main(float2 coord) {
                     half4 color = image.eval(coord);
-                    half maskAlpha = 1 - mask.eval(coord).r;
+                    half gray = mask.eval(coord).r;
+                    half maskAlpha = mix(gray, 1.0 - gray, useInverse);
                     return color * maskAlpha;
                 }
             ";
@@ -135,9 +137,10 @@ namespace PdfPixel.Imaging.Processing
         /// </summary>
         public static SKShader CreateStencilMaskShader(
             SKShader imageChild,
-            SKShader maskChild)
+            SKShader maskChild,
+            bool inverse)
         {
-            SKRuntimeEffectUniforms uniforms = new(_stencilMaskEffect);
+            SKRuntimeEffectUniforms uniforms = new(_stencilMaskEffect) { ["useInverse"] = inverse ? 1.0f : 0.0f };
 
             SKRuntimeEffectChildren children = new(_stencilMaskEffect)
             {

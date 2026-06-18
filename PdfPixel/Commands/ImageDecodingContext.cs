@@ -11,7 +11,7 @@ namespace PdfPixel.Commands;
 /// <summary>
 /// Immutable snapshot of the graphics state values needed for image decoding.
 /// Captured at command creation time so the command can later re-decode with
-/// an updated <see cref="PdfRenderingParameters"/> at execution time.
+/// an updated <see cref="PdfCommandExecutionParameters"/> at execution time.
 /// </summary>
 public sealed class ImageDecodingContext
 {
@@ -25,6 +25,8 @@ public sealed class ImageDecodingContext
             throw new ArgumentNullException(nameof(state));
         }
 
+        DefaultTileSize = state.RenderingParameters.ImageTileSize;
+        MaxTileCacheSizeBytes = state.RenderingParameters.MaxTileCacheSizeBytes;
         FullTransferFunction = state.FullTransferFunction;
         IsType3Rendering = state.IsType3Rendering;
         FillColor = state.FillPaint.Color;
@@ -44,8 +46,9 @@ public sealed class ImageDecodingContext
             throw new ArgumentNullException(nameof(source));
         }
 
-        FullTransferFunction = source.FullTransferFunction;
         DefaultTileSize = source.DefaultTileSize;
+        MaxTileCacheSizeBytes = source.MaxTileCacheSizeBytes;
+        FullTransferFunction = source.FullTransferFunction;
         IsType3Rendering = source.IsType3Rendering;
         FillColor = fillColor;
         FillAlpha = fillAlpha;
@@ -55,7 +58,12 @@ public sealed class ImageDecodingContext
     /// <summary>
     /// Default tile size.
     /// </summary>
-    public int DefaultTileSize { get; set; } = 1024;
+    public int DefaultTileSize { get; }
+
+    /// <summary>
+    /// Upper bound on the combined estimated byte size of cached decoded tiles.
+    /// </summary>
+    public long MaxTileCacheSizeBytes { get; }
 
     /// <summary>
     /// Combined transfer function (internal + external) for color conversion.

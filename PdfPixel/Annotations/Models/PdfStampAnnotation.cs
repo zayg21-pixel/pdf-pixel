@@ -123,10 +123,15 @@ public class PdfStampAnnotation : PdfAnnotationBase
             ImageFilter = SKImageFilter.CreateDropShadow(shadowOffset, shadowOffset, shadowSigma, shadowSigma, SKColors.Black.WithAlpha(ShadowAlpha))
         };
 
-        processor.Process(new SaveStateCommand());
-        processor.Process(new ConcatMatrixCommand(textMatrix));
-        processor.Process(new DrawTextBlobCommand(SKTextBlob.Create(labelText, font), textPaint));
-        processor.Process(new RestoreStateCommand());
+        SKTextBlob? blob = SKTextBlob.Create(labelText, font);
+
+        if (blob != null)
+        {
+            processor.Process(new SaveStateCommand());
+            processor.Process(new ConcatMatrixCommand(textMatrix));
+            processor.Process(new DrawTextBlobCommand(blob, textPaint));
+            processor.Process(new RestoreStateCommand());
+        }
     }
 
     private static string GetLabelText(PdfStampName stampName, in PdfString rawName)

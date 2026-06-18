@@ -358,6 +358,7 @@ public abstract class PdfAnnotationBase
     /// <param name="page">The PDF page containing this annotation.</param>
     /// <param name="visualStateKind">The visual state to render (Normal, Rollover, Down).</param>
     /// <param name="renderer">The renderer context for rendering appearance streams.</param>
+    /// <param name="renderingParameters">Parameters for PDF page rendering.</param>
     /// <param name="observer">Observer for long-running operations.</param>
     /// <returns>True if the annotation was rendered, false otherwise.</returns>
     internal virtual bool Render(
@@ -365,6 +366,7 @@ public abstract class PdfAnnotationBase
         IPdfPageInternal page,
         PdfAnnotationVisualStateKind visualStateKind,
         IPdfRenderer renderer,
+        PdfRenderingParameters renderingParameters,
         IPdfExecutionObserver observer)
     {
         processor.Process(new SaveStateCommand());
@@ -383,7 +385,7 @@ public abstract class PdfAnnotationBase
                 }
             }
 
-            if (AppearanceDictionary != null && RenderAppearanceStream(processor, page, visualStateKind, renderer, observer))
+            if (AppearanceDictionary != null && RenderAppearanceStream(processor, page, visualStateKind, renderer, renderingParameters, observer))
             {
                 return true;
             }
@@ -430,6 +432,7 @@ public abstract class PdfAnnotationBase
     /// <param name="page">The PDF page containing this annotation.</param>
     /// <param name="visualStateKind">The visual state to render.</param>
     /// <param name="renderer">The renderer context.</param>
+    /// <param name="renderingParameters">Parameters for PDF page rendering.</param>
     /// <param name="observer">Observer for long-running operations.</param>
     /// <returns>True if the appearance stream was rendered successfully.</returns>
     internal virtual bool RenderAppearanceStream(
@@ -437,6 +440,7 @@ public abstract class PdfAnnotationBase
         IPdfPageInternal page,
         PdfAnnotationVisualStateKind visualStateKind,
         IPdfRenderer renderer,
+        PdfRenderingParameters renderingParameters,
         IPdfExecutionObserver observer)
     {
         return PdfAnnotationAppearanceRenderer.RenderAppearanceStream(
@@ -445,6 +449,7 @@ public abstract class PdfAnnotationBase
             page,
             visualStateKind,
             renderer,
+            renderingParameters,
             observer);
     }
 

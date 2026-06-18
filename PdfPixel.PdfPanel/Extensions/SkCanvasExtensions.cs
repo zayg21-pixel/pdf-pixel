@@ -21,14 +21,14 @@ internal static class SkCanvasExtensions
 
             if ((flags & PageDrawFlags.Shadow) != 0)
             {
-                DrawPageShadow(canvas, page, request.RenderingParameters.Antialias, request.PageCornerRadius);
+                DrawPageShadow(canvas, page, request.CommandExecutionParameters.Antialias, request.PageCornerRadius);
             }
 
             if (request.PageCornerRadius > 0)
             {
                 using SKPath clipPath = new();
                 clipPath.AddRoundRect(pageRect, request.PageCornerRadius, request.PageCornerRadius);
-                canvas.ClipPath(clipPath, SKClipOperation.Intersect, antialias: request.RenderingParameters.Antialias);
+                canvas.ClipPath(clipPath, SKClipOperation.Intersect, antialias: request.CommandExecutionParameters.Antialias);
             }
             else
             {
@@ -37,7 +37,7 @@ internal static class SkCanvasExtensions
 
             if ((flags & PageDrawFlags.Background) != 0)
             {
-                DrawPageBackground(canvas, page, request.RenderingParameters.Antialias, request.PageCornerRadius);
+                DrawPageBackground(canvas, page, request.CommandExecutionParameters.Antialias, request.PageCornerRadius);
             }
 
             if ((flags & PageDrawFlags.Content) != 0)

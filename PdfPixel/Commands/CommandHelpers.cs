@@ -26,15 +26,15 @@ internal static class CommandHelpers
     }
 
     /// <summary>
-    /// Returns the command-derived total matrix scaled to <see cref="PdfPixel.Models.PdfRenderingParameters.ScaleFactor"/>.
+    /// Returns the command-derived total matrix scaled to <see cref="PdfPixel.Models.PdfCommandExecutionParameters.ScaleFactor"/>.
     /// </summary>
     public static SKMatrix GetScaledMatrix(PdfCommandExecutionContext executionContext)
     {
         SKMatrix totalMatrix = executionContext.Frames.TotalMatrix;
 
-        if (executionContext.RenderingParameters.ScaleFactor.HasValue)
+        if (executionContext.Parameters.ScaleFactor.HasValue)
         {
-            float scaleValue = executionContext.RenderingParameters.ScaleFactor.Value;
+            float scaleValue = executionContext.Parameters.ScaleFactor.Value;
             return totalMatrix.PostConcat(SKMatrix.CreateScale(scaleValue, scaleValue));
         }
 
@@ -43,7 +43,7 @@ internal static class CommandHelpers
 
     public static bool GetPathIsAntialias(SKPath path, PdfCommandExecutionContext executionContext, SKPaint? paint = null)
     {
-        if (!executionContext.RenderingParameters.Antialias)
+        if (!executionContext.Parameters.Antialias)
         {
             return false;
         }
@@ -62,7 +62,7 @@ internal static class CommandHelpers
             SKRect scaledStroke = scaledMatrix.MapRect(new SKRect(0, 0, stroke, stroke));
             if (scaledStroke.Width < 2 || scaledStroke.Height < 2)
             {
-                return executionContext.RenderingParameters.Antialias;
+                return executionContext.Parameters.Antialias;
             }
         }
 
@@ -83,7 +83,7 @@ internal static class CommandHelpers
             SKRect scaledRect = scaledMatrix.MapRect(bounds);
             if (scaledRect.Width < 2 || scaledRect.Height < 2)
             {
-                return executionContext.RenderingParameters.Antialias;
+                return executionContext.Parameters.Antialias;
             }
         }
 

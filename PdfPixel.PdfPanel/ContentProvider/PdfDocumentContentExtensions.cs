@@ -14,6 +14,7 @@ internal static class PdfDocumentContentExtensions
         int pageNumber,
         PdfPageAnnotation? activeAnnotation,
         PdfPanelPointerState pointerState,
+        PdfRenderingParameters renderingParameters,
         IPdfExecutionObserver observer)
     {
         IPdfPage pdfPage = document.Pages[pageNumber - 1];
@@ -40,7 +41,7 @@ internal static class PdfDocumentContentExtensions
                 ? ConvertToVisualStateKind(pointerState)
                 : PdfAnnotationVisualStateKind.Normal;
 
-            pageAnnotation.Render(recorder, visualStateKind, observer);
+            pageAnnotation.Render(recorder, visualStateKind, renderingParameters, observer);
         }
 
         return recorder;
@@ -56,7 +57,14 @@ internal static class PdfDocumentContentExtensions
         };
     }
 
-    public static PdfCommandRecorder GeneratePageCommandRecording(this IPdfDocument document, int pageNumber, IPdfExecutionObserver observer)
+    /// <summary>
+    /// Generates a command recording for the specified page.
+    /// </summary>
+    /// <param name="document">The document to read from.</param>
+    /// <param name="pageNumber">1-based page number.</param>
+    /// <param name="renderingParameters">Parameters for PDF page rendering.</param>
+    /// <param name="observer">Execution observer to notify on long-running operations.</param>
+    public static PdfCommandRecorder GeneratePageCommandRecording(this IPdfDocument document, int pageNumber, PdfRenderingParameters renderingParameters, IPdfExecutionObserver observer)
     {
         IPdfPage pdfPage = document.Pages[pageNumber - 1];
 
@@ -64,7 +72,7 @@ internal static class PdfDocumentContentExtensions
 
         ApplyPageTransformations(pdfPage, commandRecording);
 
-        pdfPage.RenderContent(commandRecording, observer);
+        pdfPage.Render(commandRecording, renderingParameters, observer);
 
         return commandRecording;
     }
@@ -72,7 +80,7 @@ internal static class PdfDocumentContentExtensions
     public static SKPicture? RecordingToSkPicture(
         in PdfPanelPageInfo pageInfo,
         PdfCommandRecorder? commandRecording,
-        PdfRenderingParameters renderingParameters,
+        PdfCommandExecutionParameters executionParameters,
         object contentLocker,
         IPdfExecutionObserver executionObserver,
         out bool isPartialContent,
@@ -87,7 +95,7 @@ internal static class PdfDocumentContentExtensions
 
         using SKPictureRecorder recorder = new();
         SKCanvas canvas = recorder.BeginRecording(SKRect.Create(pageInfo.Width, pageInfo.Height));
-        using PdfCommandExecutionContext executionContext = new(renderingParameters, contentLocker, executionObserver, canvas, regionOfInterest);
+        using PdfCommandExecutionContext executionContext = new(executionParameters, contentLocker, executionObserver, canvas, regionOfInterest);
 
         commandRecording.Replay(Array.Empty<IPdfCommandModifier>(), executionContext);
 

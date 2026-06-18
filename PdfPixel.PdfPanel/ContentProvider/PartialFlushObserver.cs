@@ -15,7 +15,7 @@ namespace PdfPixel.PdfPanel.ContentProvider;
 /// </summary>
 internal sealed class PartialFlushObserver : IPdfCancellableExecutionObserver
 {
-    private static readonly TimeSpan FlushThreshold = TimeSpan.FromMilliseconds(200);
+    private static readonly TimeSpan FlushThreshold = TimeSpan.FromMilliseconds(500);
 
     private readonly IPdfCancellableExecutionObserver? _inner;
     private readonly PdfPageCacheEntryItem _cacheContent;

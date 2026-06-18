@@ -99,7 +99,7 @@ public partial class PdfContentWorkerInterop
                 var updatePagesRequest = new ContentProvider.UpdateContentRequest
                 {
                     VisiblePages = request.VisiblePages.ToArray(),
-                    RenderingParameters = new PdfRenderingParameters
+                    RenderingParameters = new PdfCommandExecutionParameters
                     {
                         ScaleFactor = request.Scale
                     }

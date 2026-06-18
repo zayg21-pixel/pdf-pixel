@@ -50,6 +50,11 @@ public class ShadingRenderer : IShadingRenderer
             throw new ArgumentNullException(nameof(state));
         }
 
+        if (!state.RenderingParameters.RenderShadings)
+        {
+            return;
+        }
+
         using SoftMaskDrawingScope softMaskScope = new(_renderer, processor, state);
         softMaskScope.BeginDrawContent();
 

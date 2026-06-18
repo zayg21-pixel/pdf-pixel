@@ -55,6 +55,11 @@ public class ImageRenderer : IImageRenderer
             return;
         }
 
+        if (!state.RenderingParameters.RenderImages)
+        {
+            return;
+        }
+
         using SoftMaskDrawingScope softMaskScope = new(_renderer, processor, state);
         softMaskScope.BeginDrawContent();
 

@@ -20,7 +20,12 @@ public class PagesDrawingRequest : DrawingRequest
     public float PageCornerRadius { get; set; }
 
     /// <summary>
-    /// PDF rendering parameters such as scale factor and quality settings.
+    /// PDF command execution parameters such as scale factor and quality settings.
+    /// </summary>
+    public PdfCommandExecutionParameters CommandExecutionParameters { get; set; } = new();
+
+    /// <summary>
+    /// Parameters for PDF page rendering.
     /// </summary>
     public PdfRenderingParameters RenderingParameters { get; set; } = new();
 
@@ -32,7 +37,7 @@ public class PagesDrawingRequest : DrawingRequest
             return base.Equals(obj)
                 && BackgroundColor == other.BackgroundColor
                 && PageCornerRadius == other.PageCornerRadius
-                && RenderingParameters == other.RenderingParameters;
+                && CommandExecutionParameters == other.CommandExecutionParameters;
         }
 
         return false;
@@ -52,7 +57,7 @@ public class PagesDrawingRequest : DrawingRequest
         hash.Add(ActiveAnnotationState);
         hash.Add(BackgroundColor);
         hash.Add(PageCornerRadius);
-        hash.Add(RenderingParameters);
+        hash.Add(CommandExecutionParameters);
         return hash.ToHashCode();
     }
 }

@@ -9,13 +9,14 @@ namespace PdfPixel.Commands.Image;
 
 internal sealed class StencilMaskedImageExecutionContext : IDisposable
 {
-    public StencilMaskedImageExecutionContext(SKSizeI imageSize, SKSizeI maskSize, ImageDecodingContext decodingContext, PdfImageTileCacheEntry imageCache, PdfImageTileCacheEntry maskCache)
+    public StencilMaskedImageExecutionContext(SKSizeI imageSize, SKSizeI maskSize, ImageDecodingContext decodingContext, PdfImageTileCacheEntry imageCache, PdfImageTileCacheEntry maskCache, bool invertMask)
     {
         ImageSize = imageSize;
         MaskSize = maskSize;
         DecodingContext = decodingContext;
         ImageCache = imageCache;
         MaskCache = maskCache;
+        InvertMask = invertMask;
     }
 
     public SKSizeI ImageSize { get; }
@@ -29,6 +30,12 @@ internal sealed class StencilMaskedImageExecutionContext : IDisposable
     public PdfImageTileCacheEntry MaskCache { get; }
 
     public PdfTileInfo TileInfo => ImageCache.TileInfo;
+
+    /// <summary>
+    /// Whether the stencil mask should be inverted when compositing.
+    /// False when the mask Decode array is [1 0], true otherwise (default [0 1] behavior).
+    /// </summary>
+    public bool InvertMask { get; }
 
     public static StencilMaskedImageExecutionContext Create(PdfImage pdfImage, ImageDecodingContext context, ILoggerFactory loggerFactory)
     {
@@ -58,12 +65,16 @@ internal sealed class StencilMaskedImageExecutionContext : IDisposable
 
         (PdfTileInfo imageTileInfo, PdfTileInfo maskTileInfo) = PdfImageCommandUtilities.ComputePairedTileSizes(pdfImage, maskImage, context.DefaultTileSize);
 
+        float[]? maskDecode = maskImage.DecodeArray;
+        bool invertMask = maskDecode == null || maskDecode.Length < 2 || maskDecode[0] < maskDecode[1];
+
         return new StencilMaskedImageExecutionContext(
             imageSize,
             maskSize,
             context,
             new PdfImageTileCacheEntry(imageDecoder, context, imageTileInfo),
-            new PdfImageTileCacheEntry(maskDecoder, context, maskTileInfo));
+            new PdfImageTileCacheEntry(maskDecoder, context, maskTileInfo),
+            invertMask);
     }
 
     public void Dispose()
