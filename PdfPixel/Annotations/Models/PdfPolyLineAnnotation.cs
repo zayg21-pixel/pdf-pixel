@@ -86,7 +86,7 @@ public class PdfPolyLineAnnotation : PdfAnnotationBase
         SKColor lineColor = ResolveColor(page, SKColors.Black);
         float lineWidth = BorderStyle?.Width ?? 1.0f;
 
-        using SKPath path = new();
+        SKPath path = new();
 
         path.MoveTo(Vertices[0]);
 

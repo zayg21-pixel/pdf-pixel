@@ -51,7 +51,8 @@ internal class JpxImageDecoder : PdfImageDecoder
 
         _rowConverter = new JpxTileToRowConverter(jpxHeader, tileProvider, jpxDecodingParameters);
 
-        SKSizeI? downscaledSize = PdfImageRowDecodingParameters.ComputeDownscaledSize(_rowConverter.Width, _rowConverter.Height, _resolvedConverter, context, ctm);
+        SKSizeI? downscaledSize = PdfImageCommandUtilities.GetScaledSize(ctm, new SKSizeI(_rowConverter.Width, _rowConverter.Height));
+
         _imageParameters = new PdfImageRowDecodingParameters(
             context,
             _rowConverter.Width,

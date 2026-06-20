@@ -81,14 +81,14 @@ public sealed class PdfTilingPattern : PdfPattern
 
         SKRect bounds = matrix.Invert().MapRect(renderTarget.Bounds);
 
-        float startX = bounds.Left - (bounds.Left % XStep);
-        float startY = bounds.Top - (bounds.Top % YStep);
-        float endX = bounds.Right + (bounds.Right % XStep);
-        float endY = bounds.Bottom + (bounds.Bottom % YStep);
+        var startX = (float)(Math.Floor(bounds.Left / XStep) * XStep);
+        var startY = (float)(Math.Floor(bounds.Top / YStep) * YStep);
+        var endX = (float)(Math.Ceiling(bounds.Right / XStep) * XStep);
+        var endY = (float)(Math.Ceiling(bounds.Bottom / YStep) * YStep);
 
         var xCount = (int)Math.Ceiling((endX - startX) / XStep);
         var yCount = (int)Math.Ceiling((endY - startY) / YStep);
-        DrawRecordingCommand recordingCommand = new(tileRecorder, modifier);
+        DrawRecordingCommand recordingCommand = new (tileRecorder, modifier);
 
         for (int i = 0; i <= xCount; i++)
         {

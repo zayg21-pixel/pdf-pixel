@@ -100,19 +100,4 @@ public sealed class PdfImageRowDecodingParameters
     /// Rendering context for the current decode pass.
     /// </summary>
     public ImageDecodingContext Context { get; }
-
-    /// <summary>
-    /// Returns the downscaled output size for the given source dimensions and decoding context,
-    /// or null when downscaling is not applicable (indexed color space, Type 3 rendering, or
-    /// the context reports no size reduction).
-    /// </summary>
-    internal static SKSizeI? ComputeDownscaledSize(int width, int height, PdfColorSpaceConverter? colorSpaceConverter, ImageDecodingContext context, SKMatrix ctm)
-    {
-        if (colorSpaceConverter is IndexedConverter || context.IsType3Rendering)
-        {
-            return null;
-        }
-
-        return PdfImageCommandUtilities.GetScaledSize(ctm, new SKSizeI(width, height));
-    }
 }

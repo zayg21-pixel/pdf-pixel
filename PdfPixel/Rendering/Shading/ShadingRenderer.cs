@@ -79,7 +79,7 @@ public class ShadingRenderer : IShadingRenderer
 
             SKPaint backgroundPaint = PdfPaintFactory.CreateBackgroundPaint(backgroundColor);
 
-            using SKPath rectPath = new();
+            SKPath rectPath = new();
             rectPath.AddRect(shading.BBox.Value);
 
             processor.Process(new DrawPathCommand(rectPath, backgroundPaint));

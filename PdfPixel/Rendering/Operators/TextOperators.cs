@@ -168,7 +168,6 @@ internal class TextOperators : IOperatorProcessor
         if (graphicsState.TextClipPath != null)
         {
             _processor.Process(new ClipPathCommand(graphicsState.TextClipPath, SKClipOperation.Intersect));
-            graphicsState.TextClipPath.Dispose();
             graphicsState.TextClipPath = null;
         }
     }

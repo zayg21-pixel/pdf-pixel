@@ -40,7 +40,7 @@ public class PdfSquigglyAnnotation : PdfTextMarkupAnnotation
             float endX = quad[1].X;
             float endY = quad[1].Y;
 
-            using SKPath path = new();
+            SKPath path = new();
             DrawSquigglyLine(path, startX, startY, endX, endY);
 
             SKPaint paint = new()

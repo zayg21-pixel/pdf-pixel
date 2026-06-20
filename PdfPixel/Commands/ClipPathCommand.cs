@@ -5,7 +5,6 @@ namespace PdfPixel.Commands;
 
 /// <summary>
 /// Applies a clipping path to the canvas.
-/// Clones the path on construction to ensure immutability.
 /// </summary>
 public sealed class ClipPathCommand : PdfCommand
 {
@@ -13,11 +12,12 @@ public sealed class ClipPathCommand : PdfCommand
     private readonly SKClipOperation _operation;
 
     /// <summary>
-    /// Initializes the command with a cloned copy of the given path and clip operation.
+    /// Initializes the command with the given path and clip operation.
+    /// The command takes ownership of the path.
     /// </summary>
     public ClipPathCommand(SKPath path, SKClipOperation operation)
     {
-        _path = new SKPath(path);
+        _path = path;
         _operation = operation;
     }
 

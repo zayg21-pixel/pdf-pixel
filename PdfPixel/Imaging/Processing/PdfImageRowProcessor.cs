@@ -3,10 +3,11 @@ using PdfPixel.Color.ColorSpace;
 using PdfPixel.Color.Sampling;
 using PdfPixel.Color.Structures;
 using PdfPixel.Color.Transform;
-using PdfPixel.Imaging.Png;
 using PdfPixel.Parsing;
 using SkiaSharp;
 using System;
+using System.Buffers;
+using System.Numerics;
 using System.Runtime.CompilerServices;
 
 namespace PdfPixel.Imaging.Processing;
@@ -14,12 +15,25 @@ namespace PdfPixel.Imaging.Processing;
 /// <summary>
 /// Row-oriented image post processor that converts already decoded sample rows into final output buffers.
 /// </summary>
-internal sealed class PdfImageRowProcessor : IDisposable
+internal sealed partial class PdfImageRowProcessor : IDisposable
 {
+    private const int NormalizedBitsPerComponent = 8;
+
+    [Flags]
+    private enum ProcessingStages
+    {
+        None = 0,
+        Decode = 1 << 0,
+        Mask = 1 << 1,
+        SampleColor = 1 << 2
+    }
+
     private enum OutputMode
     {
-        Default,
-        RgbaColorApplied
+        Gray,
+        Rgba,
+        RgbaColorConverted,
+        IndexedRgbaColorConverted
     }
 
     private readonly PdfImageRowDecodingParameters _parameters;
@@ -30,23 +44,25 @@ internal sealed class PdfImageRowProcessor : IDisposable
     private readonly int _components;
 
     private readonly OutputMode _outputMode;
-    private readonly PngImageBuilder _pngBuilder;
+    private readonly SKImageInfo _imageInfo;
 
     private readonly ColorTransformSampler? _sampler;
+    private readonly RgbaPacked[]? _indexedPalette;
     private byte[]? _rgbaBuffer;
+    private byte[]? _pixelBuffer;
+    private int _pixelBufferOffset;
     private bool _initialized;
     private bool _completed;
 
     private readonly int _width;
     private readonly int _height;
 
-    private readonly AveragingDownsampleRowConverter? _rowConverter;
+    private readonly IRowConverter _rowConverter; // TODO: [HIGH] cleanup code in general, use resample converter for RGBa.
     private byte[]? _convertedRowBuffer;
 
-    private readonly bool _applyDecode;
-    private readonly float[]? _decodeArray;
-    private readonly bool _applyMask;
-    private readonly int[]? _maskArray;
+    private readonly ProcessingStages _stages;
+    private readonly float[] _decodeArray;
+    private readonly int[] _maskArray;
     private readonly int _maxCode;
     private readonly float _scale;
 
@@ -71,132 +87,67 @@ internal sealed class PdfImageRowProcessor : IDisposable
         }
 
         _components = _converter.Components;
+        _decodeArray = parameters.DecodeArray ?? Array.Empty<float>();
+        _maskArray = parameters.MaskArray ?? Array.Empty<int>();
+        _stages = GetProcessingStages(parameters);
+
+        if (_stages != ProcessingStages.None)
+        {
+            if (parameters.ColorSpaceConverter is IndexedConverter indexedConverter)
+            {
+                _outputMode = OutputMode.IndexedRgbaColorConverted;
+                _indexedPalette = indexedConverter.BuildPackedPalette(_parameters.RenderingIntent, _parameters.Context.FullTransferFunction);
+            }
+            else if (_components == 1 && _bitsPerComponent <= 8)
+            {
+                _outputMode = OutputMode.IndexedRgbaColorConverted;
+                _indexedPalette = BuildPackedPalette(_parameters, _bitsPerComponent);
+            }
+            else
+            {
+                _outputMode = OutputMode.RgbaColorConverted;
+                _sampler = _parameters.ColorSpaceConverter.GetRgbaSampler(_parameters.RenderingIntent, _parameters.Context.FullTransferFunction);
+            }
+        }
+        else
+        {
+            _outputMode = (_components == 1) ? OutputMode.Gray : OutputMode.Rgba;
+        }
 
         if (parameters.DownscaledSize.HasValue)
         {
             _width = parameters.DownscaledSize.Value.Width;
             _height = parameters.DownscaledSize.Value.Height;
 
-            _rowConverter = new AveragingDownsampleRowConverter(_components, _bitsPerComponent, sourceWidth, _width, sourceHeight, _height);
-            _bitsPerComponent = _rowConverter.BitsPerComponent;
+            if (_outputMode == OutputMode.IndexedRgbaColorConverted)
+            {
+                _rowConverter = new AveragingDownsampleRowConverter(4, 8, sourceWidth, _width, sourceHeight, _height);
+            }
+            else
+            {
+                _rowConverter = new AveragingDownsampleRowConverter(_components, _bitsPerComponent, sourceWidth, _width, sourceHeight, _height);
+                _bitsPerComponent = NormalizedBitsPerComponent;
+            }
         }
         else
         {
             _width = sourceWidth;
             _height = sourceHeight;
+            _rowConverter = new SampleNormalizingRowConverter(_components, _bitsPerComponent, _width);
+            _bitsPerComponent = NormalizedBitsPerComponent;
         }
 
-        if (ShouldConvertColor(_parameters))
+        if (_outputMode == OutputMode.Gray)
         {
-            _sampler = _parameters.ColorSpaceConverter.GetRgbaSampler(_parameters.RenderingIntent, _parameters.Context.FullTransferFunction);
-            _outputMode = OutputMode.RgbaColorApplied;
-            _pngBuilder = new PngImageBuilder(4, 8, _width, _height);
-            _pngBuilder.Init(null, null);
+            _imageInfo = new SKImageInfo(_width, _height, SKColorType.Gray8, SKAlphaType.Opaque);
         }
         else
         {
-            _outputMode = OutputMode.Default;
-
-            _pngBuilder = new PngImageBuilder(_components, _bitsPerComponent, _width, _height);
-
-            RgbaPacked[]? palette = null;
-
-            if (_parameters.ColorSpaceConverter is IndexedConverter indexed)
-            {
-                palette = indexed.BuildPackedPalette(_parameters.RenderingIntent, _parameters.Context.FullTransferFunction);
-            }
-            else if (_components == 1 && _bitsPerComponent <= 8)
-            {
-                palette = BuildSingleChannelPalette(_parameters, _bitsPerComponent);
-            }
-
-            _pngBuilder.Init(palette, default);
+            _imageInfo = new SKImageInfo(_width, _height, SKColorType.Rgba8888, SKAlphaType.Unpremul);
         }
 
         _maxCode = (1 << _bitsPerComponent) - 1;
-        _scale = (_converter is IndexedConverter) ? 1f : 1f / _maxCode;
-        _applyDecode = _parameters.DecodeArray != null && _parameters.DecodeArray.Length == _components * 2;
-        _decodeArray = _parameters.DecodeArray;
-        _applyMask = _parameters.MaskArray != null && _parameters.MaskArray.Length == _components * 2;
-        _maskArray = _parameters.MaskArray;
-    }
-
-    public static RgbaPacked[]? BuildSingleChannelPalette(PdfImageRowDecodingParameters parameters, int outputBitsPerComponent)
-    {
-        if (parameters.ColorSpaceConverter is DeviceGrayConverter)
-        {
-            return null;
-        }
-
-        ColorTransformSampler sampler = parameters.ColorSpaceConverter.GetRgbaSampler(parameters.RenderingIntent, parameters.Context.FullTransferFunction);
-        int maxCode = (1 << outputBitsPerComponent) - 1;
-        int paletteSize = maxCode + 1;
-        var palette = new RgbaPacked[paletteSize];
-        Span<float> comps = stackalloc float[1];
-
-        for (int code = 0; code < paletteSize; code++)
-        {
-            float value01 = (maxCode == 0) ? 0f : (float)code / maxCode;
-            comps[0] = value01;
-            palette[code] = sampler.Sample(comps).From01ToRgba();
-        }
-
-        return palette;
-    }
-
-    public static bool ShouldConvertColor(PdfImageRowDecodingParameters parameters)
-    {
-        PdfColorSpaceConverter converter = parameters.ColorSpaceConverter;
-
-        if (converter == null)
-        {
-            return false;
-        }
-
-        // stencil mask, never convert color, they should have no color info
-        if (parameters.HasImageMask)
-        {
-            return false;
-        }
-
-        // If decode is present, we should convert color after decode, so we need full color conversion
-        if (parameters.DecodeArray != null)
-        {
-            return true;
-        }
-
-        // If mask is present, we should convert color after mask application, so we need full color conversion
-        if (parameters.MaskArray != null)
-        {
-            return true;
-        }
-
-        // Indexed can be represented directly
-        if (converter is IndexedConverter)
-        {
-            return false;
-        }
-
-        // ICC-based can be represented directly only when profile is valid
-        if (converter is IccBasedConverter)
-        {
-            return true;
-        }
-
-        // Device RGB and Device Gray can be represented directly
-        if (converter is DeviceRgbConverter || converter is DeviceGrayConverter)
-        {
-            return false;
-        }
-
-        // Special-case: single-component color spaces without decode/mask and <=8 bpc
-        if (converter.Components == 1 && parameters.BitsPerComponent <= 8)
-        {
-            return false;
-        }
-
-        // All other color spaces require conversion (CMYK, Lab, DeviceN with >1 component, Separation with alternate not single channel, etc.)
-        return true;
+        _scale = (_outputMode == OutputMode.IndexedRgbaColorConverted) ? 1f : 1f / _maxCode;
     }
 
     /// <summary>
@@ -210,22 +161,33 @@ internal sealed class PdfImageRowProcessor : IDisposable
             return;
         }
 
+        _pixelBuffer = ArrayPool<byte>.Shared.Rent(_imageInfo.RowBytes * _height);
+
         switch (_outputMode)
         {
-            case OutputMode.RgbaColorApplied:
+            case OutputMode.IndexedRgbaColorConverted:
+                {
+                    int rgbaWidth = _parameters.Width;
+                    _rgbaBuffer = new byte[rgbaWidth * 4];
+                    break;
+                }
+            case OutputMode.RgbaColorConverted:
                 {
                     _rgbaBuffer = new byte[_width * 4];
                     break;
                 }
-            case OutputMode.Default:
+            case OutputMode.Gray:
+            case OutputMode.Rgba:
                 break;
         }
 
-        if (_rowConverter != null)
+        if (_outputMode == OutputMode.IndexedRgbaColorConverted)
         {
-            int outputBitsPerComponent = _rowConverter.BitsPerComponent;
-            int outLen = ((_width * _components * outputBitsPerComponent) + 7) / 8;
-            _convertedRowBuffer = new byte[outLen];
+            _convertedRowBuffer = new byte[_width * 4];
+        }
+        else
+        {
+            _convertedRowBuffer = new byte[_width * _components];
         }
 
         _initialized = true;
@@ -239,50 +201,201 @@ internal sealed class PdfImageRowProcessor : IDisposable
             throw new InvalidOperationException("InitializeBuffer must be called before WriteRow.");
         }
 
-        Span<byte> decodedRowLocal = decodedRow;
-
-        if (_rowConverter != null)
+        switch (_outputMode)
         {
-            if (!_rowConverter.TryConvertRow(rowIndex, decodedRowLocal, _convertedRowBuffer))
+            case OutputMode.IndexedRgbaColorConverted:
             {
-                return;
+                if (_stages == ProcessingStages.SampleColor)
+                {
+                    WriteIndexedRowSampleOnly(decodedRow);
+                }
+                else
+                {
+                    WriteIndexedRow(decodedRow);
+                }
+
+                if (!_rowConverter.TryConvertRow(rowIndex, _rgbaBuffer, _convertedRowBuffer))
+                {
+                    return;
+                }
+
+                CopyRowToPixelBuffer(_convertedRowBuffer);
+
+                break;
             }
+            case OutputMode.RgbaColorConverted:
+            {
+                if (!_rowConverter.TryConvertRow(rowIndex, decodedRow, _convertedRowBuffer))
+                {
+                    return;
+                }
 
-            decodedRowLocal = _convertedRowBuffer;
+                if (_stages == ProcessingStages.SampleColor)
+                {
+                    WriteWithFullColorSampleOnly(_convertedRowBuffer);
+                }
+                else
+                {
+                    WriteWithFullColor(_convertedRowBuffer);
+                }
+
+                CopyRowToPixelBuffer(_rgbaBuffer);
+                break;
+            }
+            case OutputMode.Gray:
+            {
+                if (!_rowConverter.TryConvertRow(rowIndex, decodedRow, _convertedRowBuffer))
+                {
+                    return;
+                }
+
+                CopyRowToPixelBuffer(_convertedRowBuffer);
+                break;
+            }
+            case OutputMode.Rgba:
+            {
+                if (!_rowConverter.TryConvertRow(rowIndex, decodedRow, _convertedRowBuffer))
+                {
+                    return;
+                }
+
+                WriteRgba8Row(_convertedRowBuffer);
+                break;
+            }
         }
-
-        if (_outputMode == OutputMode.RgbaColorApplied)
-        {
-            WriteWithFullColor(rowIndex, decodedRowLocal);
-            return;
-        }
-
-        _pngBuilder.WritePngImageRow(decodedRowLocal);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private void WriteWithFullColor(int rowIndex, in Span<byte> decodedRow)
+    private void WriteIndexedRowSampleOnly(in Span<byte> decodedRow)
+    {
+        if (_rgbaBuffer == null || _indexedPalette == null)
+        {
+            throw new InvalidOperationException("Not initialized.");
+        }
+
+        RgbaPacked[] palette = _indexedPalette;
+        int paletteSize = palette.Length;
+        int pixelCount = _rgbaBuffer.Length / 4;
+        ref RgbaPacked destPixel = ref Unsafe.As<byte, RgbaPacked>(ref _rgbaBuffer[0]);
+        UintBitReaderFixedLength bitReader = new(decodedRow, _bitsPerComponent);
+
+        for (int x = 0; x < pixelCount; x++)
+        {
+            uint sample = bitReader.Read();
+
+            if (sample >= (uint)paletteSize)
+            {
+                sample = (uint)(paletteSize - 1);
+            }
+
+            destPixel = palette[sample];
+            destPixel = ref Unsafe.Add(ref destPixel, 1);
+        }
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private void WriteIndexedRow(in Span<byte> decodedRow)
+    {
+        if (_rgbaBuffer == null || _indexedPalette == null)
+        {
+            throw new InvalidOperationException("Not initialized.");
+        }
+
+        RgbaPacked[] palette = _indexedPalette;
+        int paletteSize = palette.Length;
+        int pixelCount = _rgbaBuffer.Length / 4;
+        ref RgbaPacked destPixel = ref Unsafe.As<byte, RgbaPacked>(ref _rgbaBuffer[0]);
+        UintBitReaderFixedLength bitReader = new(decodedRow, _bitsPerComponent);
+
+        bool applyDecode = (_stages & ProcessingStages.Decode) != 0;
+        bool applyMask = (_stages & ProcessingStages.Mask) != 0;
+
+        for (int x = 0; x < pixelCount; x++)
+        {
+            uint sample = bitReader.Read();
+
+            if (applyDecode)
+            {
+                float dMin = _decodeArray[0];
+                float dMax = _decodeArray[1];
+                sample = (uint)Math.Max(0, dMin + (sample * (dMax - dMin) / _maxCode));
+            }
+
+            if (sample >= (uint)paletteSize)
+            {
+                sample = (uint)(paletteSize - 1);
+            }
+
+            destPixel = palette[sample];
+
+            if (applyMask)
+            {
+                int minCode = _maskArray[0];
+                int maxCodeRange = _maskArray[1];
+
+                if (sample >= (uint)minCode && sample <= (uint)maxCodeRange)
+                {
+                    destPixel.A = 0;
+                }
+            }
+
+            destPixel = ref Unsafe.Add(ref destPixel, 1);
+        }
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private void WriteWithFullColorSampleOnly(in Span<byte> decodedRow)
     {
         if (_rgbaBuffer == null || _sampler == null)
         {
             throw new InvalidOperationException("Not initialized.");
         }
 
-        ref byte destRowByte = ref _rgbaBuffer[0];
-        ref RgbaPacked destRowColor = ref Unsafe.As<byte, RgbaPacked>(ref destRowByte);
+        int pixelCount = _rgbaBuffer.Length / 4;
+        ref RgbaPacked destPixel = ref Unsafe.As<byte, RgbaPacked>(ref _rgbaBuffer[0]);
         UintBitReaderFixedLength bitReader = new(decodedRow, _bitsPerComponent);
 
         Span<float> componentValues = stackalloc float[_components];
 
-        for (int x = 0; x < _width; x++)
+        for (int x = 0; x < pixelCount; x++)
         {
-            bool maskMatch = _applyMask;
+            for (int c = 0; c < _components; c++)
+            {
+                componentValues[c] = bitReader.Read() * _scale;
+            }
+
+            ColorVectorUtilities.Load01ToRgba(_sampler.Sample(componentValues), ref destPixel);
+            destPixel = ref Unsafe.Add(ref destPixel, 1);
+        }
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private void WriteWithFullColor(in Span<byte> decodedRow)
+    {
+        if (_rgbaBuffer == null || _sampler == null)
+        {
+            throw new InvalidOperationException("Not initialized.");
+        }
+
+        int pixelCount = _rgbaBuffer.Length / 4;
+        ref byte destRowByte = ref _rgbaBuffer[0];
+        ref RgbaPacked destPixel = ref Unsafe.As<byte, RgbaPacked>(ref destRowByte);
+        UintBitReaderFixedLength bitReader = new(decodedRow, _bitsPerComponent);
+
+        Span<float> componentValues = stackalloc float[_components];
+
+        bool applyDecode = (_stages & ProcessingStages.Decode) != 0;
+        bool applyMask = (_stages & ProcessingStages.Mask) != 0;
+
+        for (int x = 0; x < pixelCount; x++)
+        {
+            bool maskMatch = applyMask;
 
             for (int c = 0; c < _components; c++)
             {
                 uint sample = bitReader.Read();
 
-                if (_applyMask && maskMatch && _maskArray != null)
+                if (applyMask && maskMatch)
                 {
                     int minCode = _maskArray[c * 2];
                     int maxCodeRange = _maskArray[(c * 2) + 1];
@@ -295,7 +408,7 @@ internal sealed class PdfImageRowProcessor : IDisposable
 
                 float value01 = sample * _scale;
 
-                if (_applyDecode && _decodeArray != null)
+                if (applyDecode)
                 {
                     int di = c * 2;
                     float dMin = _decodeArray[di];
@@ -306,21 +419,48 @@ internal sealed class PdfImageRowProcessor : IDisposable
                 componentValues[c] = value01;
             }
 
-            ref RgbaPacked destinationPixel = ref Unsafe.Add(ref destRowColor, x);
-            System.Numerics.Vector4 colorVector = _sampler.Sample(componentValues);
-            ColorVectorUtilities.Load01ToRgba(colorVector, ref destinationPixel);
+            Vector4 colorVector = _sampler.Sample(componentValues);
+            ColorVectorUtilities.Load01ToRgba(colorVector, ref destPixel);
 
-            if (_applyMask && maskMatch)
+            if (applyMask && maskMatch)
             {
-                destinationPixel.A = 0;
+                destPixel.A = 0;
             }
+
+            destPixel = ref Unsafe.Add(ref destPixel, 1);
+        }
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private void CopyRowToPixelBuffer(in ReadOnlySpan<byte> source)
+    {
+        int rowBytes = _imageInfo.RowBytes;
+        source.Slice(0, rowBytes).CopyTo(_pixelBuffer.AsSpan(_pixelBufferOffset, rowBytes));
+        _pixelBufferOffset += rowBytes;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private void WriteRgba8Row(in ReadOnlySpan<byte> normalizedRow)
+    {
+        if (_pixelBuffer == null)
+        {
+            throw new InvalidOperationException("Not initialized.");
         }
 
-        _pngBuilder.WritePngImageRow(_rgbaBuffer);
+        ref byte source = ref Unsafe.AsRef(in normalizedRow[0]);
+        ref uint destPixel = ref Unsafe.As<byte, uint>(ref _pixelBuffer[_pixelBufferOffset]);
+
+        for (int x = 0; x < _width; x++)
+        {
+            uint rgb = Unsafe.As<byte, uint>(ref Unsafe.Add(ref source, x * 3));
+            Unsafe.Add(ref destPixel, x) = rgb | 0xFF000000;
+        }
+
+        _pixelBufferOffset += _imageInfo.RowBytes;
     }
 
     /// <summary>
-    /// Returns an SKImage wrapping the unmanaged buffer. Ownership of buffer transfers to Skia.
+    /// Returns an SKImage built from the pixel buffer.
     /// </summary>
     public SKImage GetDecoded()
     {
@@ -336,8 +476,16 @@ internal sealed class PdfImageRowProcessor : IDisposable
 
         _completed = true;
 
-        return _pngBuilder.Build();
+        int totalBytes = _imageInfo.RowBytes * _height;
+        return SKImage.FromPixelCopy(_imageInfo, _pixelBuffer.AsSpan(0, totalBytes));
     }
 
-    public void Dispose() => _pngBuilder.Dispose();
+    public void Dispose()
+    {
+        if (_pixelBuffer != null)
+        {
+            ArrayPool<byte>.Shared.Return(_pixelBuffer);
+            _pixelBuffer = null;
+        }
+    }
 }

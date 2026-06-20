@@ -39,11 +39,9 @@ internal static class PdfPaintFactory
         {
             Typeface = typeface,
             Size = 1,
-            // Improve visual quality and keep metrics stable across hinting variations
             Subpixel = true,
             LinearMetrics = true,
-            Hinting = SKFontHinting.Normal,
-            Edging = SKFontEdging.SubpixelAntialias
+            Hinting = SKFontHinting.Normal
         };
 
         // Skew/rotation are already represented in the text matrix applied at draw time.
@@ -142,6 +140,35 @@ internal static class PdfPaintFactory
         {
             paint.PathEffect = SKPathEffect.CreateDash(state.DashPattern, state.DashPhase);
         }
+    }
+
+    /// <summary>
+    /// Sets font edging based on the antialias flag.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static void ApplyAntialias(SKFont font, bool antialias) => font.Edging = antialias ? SKFontEdging.SubpixelAntialias : SKFontEdging.Alias;
+
+    /// <summary>
+    /// Creates a deep copy of the given font, preserving all properties.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static SKFont CloneFont(SKFont font)
+    {
+        return new()
+        {
+            Typeface = font.Typeface,
+            BaselineSnap = font.BaselineSnap,
+            Edging = font.Edging,
+            EmbeddedBitmaps = font.EmbeddedBitmaps,
+            Embolden = font.Embolden,
+            ForceAutoHinting = font.ForceAutoHinting,
+            Hinting = font.Hinting,
+            LinearMetrics = font.LinearMetrics,
+            ScaleX = font.ScaleX,
+            Size = font.Size,
+            Subpixel = font.Subpixel,
+            SkewX = font.SkewX
+        };
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]

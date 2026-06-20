@@ -113,7 +113,7 @@ public class PdfLineAnnotation : PdfAnnotationBase
 
         BorderStyle?.TryApplyEffect(linePaint, lineColor);
 
-        using SKPath linePath = new();
+        SKPath linePath = new();
         linePath.MoveTo(StartX, StartY);
         linePath.LineTo(EndX, EndY);
         processor.Process(new DrawPathCommand(linePath, linePaint));

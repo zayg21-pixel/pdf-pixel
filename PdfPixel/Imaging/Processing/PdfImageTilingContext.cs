@@ -188,9 +188,7 @@ internal sealed class PdfImageTilingContext : IDisposable
     /// onto sampled ranges within <paramref name="decodedImageDimension"/> decoded samples.
     /// Every cell receives a non-empty range that lies within the decoded extent: when the
     /// decoded resolution is lower than the cell count, several adjacent cells legitimately
-    /// resolve to (and share) the same single decoded sample — there genuinely is no more
-    /// detail available to tell them apart, the same situation <see cref="NearestNeighborRowConverter"/>
-    /// resolves when mapping more destination samples than there are source samples.
+    /// resolve to (and share) the same single decoded sample.
     /// </summary>
     private static IndexRange[] ComputeSampleRanges(int tileCount, int nominalTileSize, int nominalImageDimension, int decodedImageDimension)
     {

@@ -14,13 +14,13 @@ namespace PdfPixel.Rendering.Text;
 internal class TextStrokeRenderTarget : IRenderTarget
 {
     private readonly SKFont _font;
-    private readonly IList<ShapedGlyph> _shapingResult;
+    private readonly List<ShapedGlyph> _shapingResult;
     private readonly PdfGraphicsState _state;
     private readonly SKPaint _strokePaint;
     private readonly PdfPattern? _pattern;
     private readonly SKPath? _clipPath;
 
-    public TextStrokeRenderTarget(SKFont font, IList<ShapedGlyph> shapingResult, PdfGraphicsState state)
+    public TextStrokeRenderTarget(SKFont font, List<ShapedGlyph> shapingResult, PdfGraphicsState state)
     {
         _font = font;
         _shapingResult = shapingResult;
@@ -54,7 +54,7 @@ internal class TextStrokeRenderTarget : IRenderTarget
 
         if (_clipPath != null)
         {
-            processor.Process(new ClipPathCommand(_clipPath, SKClipOperation.Intersect));
+            processor.Process(new ClipPathCommand(new SKPath(_clipPath), SKClipOperation.Intersect));
         }
     }
 
@@ -68,7 +68,7 @@ internal class TextStrokeRenderTarget : IRenderTarget
         }
         else
         {
-            using SKPath path = TextRenderUtilities.GetTextPath(_shapingResult, _font, _state);
+            SKPath path = TextRenderUtilities.GetTextPath(_shapingResult, _font, _state);
             processor.Process(new DrawPathCommand(path, _strokePaint.Clone()));
         }
     }

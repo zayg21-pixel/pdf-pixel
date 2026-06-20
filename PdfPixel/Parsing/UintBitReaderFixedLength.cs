@@ -52,37 +52,17 @@ internal ref struct UintBitReaderFixedLength
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public uint Read()
     {
-        switch (_bitCount)
+        if (_bufferedBits < _bitCount)
         {
-            case 8:
-            {
-                uint eightBitValue = _data[_bufferedByteIndex];
-                _bufferedByteIndex++;
-                _bitPosition += _bitCount;
-                return eightBitValue;
-            }
-            case 16:
-            {
-                uint sixteenBitValue = BinaryPrimitives.ReadUInt16BigEndian(_data.Slice(_bufferedByteIndex, 2));
-                _bufferedByteIndex += 2;
-                _bitPosition += _bitCount;
-                return sixteenBitValue;
-            }
-            default:
-            {
-                if (_bufferedBits < _bitCount)
-                    {
-                        FillBuffer();
-                    }
-
-                    var value = (uint)(_buffer >> _inverseBitCount);
-                _buffer <<= _bitCount;
-                _bufferedBits -= _bitCount;
-                _bitPosition += _bitCount;
-
-                return value;
-            }
+            FillBuffer();
         }
+
+        var value = (uint)(_buffer >> _inverseBitCount);
+        _buffer <<= _bitCount;
+        _bufferedBits -= _bitCount;
+        _bitPosition += _bitCount;
+
+        return value;
     }
 
     /// <summary>

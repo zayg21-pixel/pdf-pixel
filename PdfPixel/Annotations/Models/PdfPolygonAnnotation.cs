@@ -65,7 +65,7 @@ public class PdfPolygonAnnotation : PdfAnnotationBase
             return false;
         }
 
-        using SKPath path = new();
+        SKPath path = new();
 
         path.MoveTo(Vertices[0]);
 
@@ -77,6 +77,8 @@ public class PdfPolygonAnnotation : PdfAnnotationBase
         path.Close();
 
         SKColor interiorSKColor = ResolveInteriorColor(page);
+        bool hasStroke = BorderStyle?.Width > 0 && Color?.Length > 0;
+
         if (interiorSKColor != SKColors.Transparent)
         {
             SKPaint fillPaint = new()
@@ -85,10 +87,10 @@ public class PdfPolygonAnnotation : PdfAnnotationBase
                 Color = interiorSKColor
             };
 
-            processor.Process(new DrawPathCommand(path, fillPaint));
+            processor.Process(new DrawPathCommand(hasStroke ? new SKPath(path) : path, fillPaint));
         }
 
-        if (BorderStyle?.Width > 0 && Color?.Length > 0)
+        if (BorderStyle != null && hasStroke)
         {
             SKColor strokeColor = ResolveColor(page, SKColors.Black);
 

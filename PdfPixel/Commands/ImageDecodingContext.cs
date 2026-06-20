@@ -28,7 +28,6 @@ public sealed class ImageDecodingContext
         DefaultTileSize = state.RenderingParameters.ImageTileSize;
         MaxTileCacheSizeBytes = state.RenderingParameters.MaxTileCacheSizeBytes;
         FullTransferFunction = state.FullTransferFunction;
-        IsType3Rendering = state.IsType3Rendering;
         FillColor = state.FillPaint.Color;
         FillAlpha = state.FillAlpha;
         BlendMode = PdfBlendModeNames.ToSkiaBlendMode(state.BlendMode);
@@ -49,7 +48,6 @@ public sealed class ImageDecodingContext
         DefaultTileSize = source.DefaultTileSize;
         MaxTileCacheSizeBytes = source.MaxTileCacheSizeBytes;
         FullTransferFunction = source.FullTransferFunction;
-        IsType3Rendering = source.IsType3Rendering;
         FillColor = fillColor;
         FillAlpha = fillAlpha;
         BlendMode = blendMode;
@@ -69,11 +67,6 @@ public sealed class ImageDecodingContext
     /// Combined transfer function (internal + external) for color conversion.
     /// </summary>
     public IColorTransform? FullTransferFunction { get; }
-
-    /// <summary>
-    /// Whether the rendering is in Type 3 glyph mode (affects downscale decisions).
-    /// </summary>
-    public bool IsType3Rendering { get; }
 
     /// <summary>
     /// Fill color from the graphics state, used for stencil mask rendering.

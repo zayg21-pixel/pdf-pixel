@@ -22,7 +22,7 @@ internal sealed class DrawNormalImageTileCommand : PdfCommand
         }
 
         SKMatrix ctm = CommandHelpers.GetScaledMatrix(executionContext);
-        SKSamplingOptions sampling = PdfImageCommandUtilities.GetSamplingOptions(ctm, _context.DecodingContext, _context.ImageSize, _context.Interpolate);
+        SKSamplingOptions sampling = PdfImageCommandUtilities.GetSamplingOptions(ctm, _context.ImageSize, _context.Interpolate);
 
         using SKShader shader = ImageBlending.BuildImageShader(tile.Image, new SKSizeI(tile.TilePosition.Width, tile.TilePosition.Height), sampling);
         using SKPaint paint = PdfImageCommandUtilities.GetBaseImagePaint(shader, _context.DecodingContext);

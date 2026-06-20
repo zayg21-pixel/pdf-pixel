@@ -59,7 +59,7 @@ public class PdfHighlightAnnotation : PdfTextMarkupAnnotation
 
         foreach (SKPoint[] quad in quads)
         {
-            using SKPath path = new();
+            SKPath path = new();
             path.MoveTo(quad[0]);
             path.LineTo(quad[1]);
             path.LineTo(quad[2]);

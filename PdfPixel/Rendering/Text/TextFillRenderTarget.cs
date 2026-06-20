@@ -14,12 +14,12 @@ namespace PdfPixel.Rendering.Text;
 internal class TextFillRenderTarget : IRenderTarget
 {
     private readonly SKFont _font;
-    private readonly IList<ShapedGlyph> _shapingResult;
+    private readonly List<ShapedGlyph> _shapingResult;
     private readonly PdfGraphicsState _state;
     private readonly PdfPattern? _pattern;
     private readonly SKPath? _clipPath;
 
-    public TextFillRenderTarget(SKFont font, IList<ShapedGlyph> shapingResult, PdfGraphicsState state)
+    public TextFillRenderTarget(SKFont font, List<ShapedGlyph> shapingResult, PdfGraphicsState state)
     {
         _font = font;
         _shapingResult = shapingResult;
@@ -41,7 +41,7 @@ internal class TextFillRenderTarget : IRenderTarget
         processor.Process(new SaveStateCommand());
         if (_clipPath != null)
         {
-            processor.Process(new ClipPathCommand(_clipPath, SKClipOperation.Intersect));
+            processor.Process(new ClipPathCommand(new SKPath(_clipPath), SKClipOperation.Intersect));
         }
     }
 
@@ -66,13 +66,8 @@ internal class TextFillRenderTarget : IRenderTarget
             // Apply text matrix transformation
             processor.Process(new ConcatMatrixCommand(textMatrix));
 
-            SKTextBlob? blob = TextRenderUtilities.BuildTextBlob(_shapingResult, _font);
-
-            if (blob != null)
-            {
-                SKPaint paint = PdfPaintFactory.CreateFillPaint(_state);
-                processor.Process(new DrawTextBlobCommand(blob, paint));
-            }
+            SKPaint paint = PdfPaintFactory.CreateFillPaint(_state);
+            processor.Process(new DrawShapedTextCommand(_shapingResult.ToArray(), PdfPaintFactory.CloneFont(_font), paint));
 
             processor.Process(new RestoreStateCommand());
         }

@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Logging;
 using PdfPixel.Color.ColorSpace;
 using PdfPixel.Commands;
+using PdfPixel.Commands.Image;
 using PdfPixel.Imaging.Model;
 using PdfPixel.Imaging.Processing;
 using PdfPixel.Jbig2.Decoding;
@@ -41,7 +42,7 @@ internal sealed class Jbig2ImageDecoder : PdfImageDecoder
 
 
         PdfColorSpaceConverter converter = Image.ColorSpaceConverter ?? Image.Page.Cache.ColorSpace.ResolveDeviceConverter(1) ?? DeviceGrayConverter.Instance;
-        SKSizeI? downscaledSize = PdfImageRowDecodingParameters.ComputeDownscaledSize(Image.Width, Image.Height, converter, context, ctm);
+        SKSizeI? downscaledSize = PdfImageCommandUtilities.GetScaledSize(ctm, new SKSizeI(Image.Width, Image.Height));
 
         _imageParameters = new PdfImageRowDecodingParameters(
             context,

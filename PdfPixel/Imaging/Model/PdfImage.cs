@@ -148,19 +148,7 @@ public class PdfImage
         image.HasImageMask = imageXObject.Dictionary.GetBooleanOrDefault(PdfTokens.ImageMaskKey);
         image.Interpolate = imageXObject.Dictionary.GetBooleanOrDefault(PdfTokens.InterpolateKey);
 
-        float[]? decodeArray = imageXObject.Dictionary.GetArray(PdfTokens.DecodeKey)?.GetFloatArray();
-
-        if (image.HasImageMask)
-        {
-            if (ShouldApplyDecode(decodeArray, 1))
-            {
-                image.DecodeArray = decodeArray;
-            }
-        }
-        else if (!(image.ColorSpaceConverter is IndexedConverter || !ShouldApplyDecode(decodeArray, image.ColorSpaceConverter)))
-        {
-            image.DecodeArray = decodeArray;
-        }
+        image.DecodeArray = imageXObject.Dictionary.GetArray(PdfTokens.DecodeKey)?.GetFloatArray();
 
         PdfArray? maskArray = imageXObject.Dictionary.GetArray(PdfTokens.MaskKey);
         if (maskArray != null)
@@ -233,36 +221,6 @@ public class PdfImage
         return image;
     }
 
-    private static bool ShouldApplyDecode(float[]? decode, PdfColorSpaceConverter? colorSpaceConverter)
-    {
-        if (colorSpaceConverter == null)
-        {
-            return false;
-        }
-
-        return ShouldApplyDecode(decode, colorSpaceConverter.Components);
-    }
-
-    private static bool ShouldApplyDecode(float[]? decode, int componentCount)
-    {
-        if (decode == null || decode.Length != componentCount * 2)
-        {
-            return false;
-        }
-
-        const float epsilon = 1e-5f;
-        for (int i = 0; i < componentCount; i++)
-        {
-            float min = decode[i * 2];
-            float max = decode[(i * 2) + 1];
-            if (Math.Abs(min - 0f) > epsilon || Math.Abs(max - 1f) > epsilon)
-            {
-                return true;
-            }
-        }
-
-        return false;
-    }
 
     private static PdfImageType MapImageType(PdfFilterType filterType)
     {

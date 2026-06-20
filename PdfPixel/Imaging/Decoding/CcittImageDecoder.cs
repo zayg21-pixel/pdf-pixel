@@ -2,6 +2,7 @@ using Microsoft.Extensions.Logging;
 using PdfPixel.Ccitt;
 using PdfPixel.Color.ColorSpace;
 using PdfPixel.Commands;
+using PdfPixel.Commands.Image;
 using PdfPixel.Imaging.Model;
 using PdfPixel.Imaging.Processing;
 using SkiaSharp;
@@ -51,7 +52,7 @@ internal sealed class CcittImageDecoder : PdfImageDecoder
         bool endOfBlock = parameters?.EndOfBlock ?? false;
 
         PdfColorSpaceConverter converter = Image.ColorSpaceConverter ?? Image.Page.Cache.ColorSpace.ResolveDeviceConverter(1) ?? DeviceGrayConverter.Instance;
-        SKSizeI? downscaledSize = PdfImageRowDecodingParameters.ComputeDownscaledSize(columns, rows, converter, context, ctm);
+        SKSizeI? downscaledSize = PdfImageCommandUtilities.GetScaledSize(ctm, new SKSizeI(columns, rows));
 
         _imageParameters = new PdfImageRowDecodingParameters(
             context,

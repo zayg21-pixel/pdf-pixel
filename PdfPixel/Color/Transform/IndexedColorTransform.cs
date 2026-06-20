@@ -1,5 +1,8 @@
 using System.Numerics;
 using System.Runtime.CompilerServices;
+#if !NETSTANDARD2_0
+using System.Runtime.InteropServices;
+#endif
 
 namespace PdfPixel.Color.Transform;
 
@@ -16,29 +19,25 @@ internal sealed class IndexedColorTransform : IColorTransform
 
     public bool IsIdentity => false;
 
-    // Receives Vector4 from ToVector4WithOnePadding; the index is in X.
-    public Vector4 Transform(Vector4 color) => _palette[ClampIndex(color.X)];
+    public Vector4 Transform(Vector4 color) => LookupSample(_palette, (int)color.X, _highValue);
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private int ClampIndex(float rawIndex)
+    private static Vector4 LookupSample(Vector4[] samples, int index, int highValue)
     {
-        if (float.IsNaN(rawIndex))
+        if (index < 0)
         {
-            return 0;
+            index = 0;
         }
 
-        var idx = (int)rawIndex;
-
-        if (idx < 0)
+        if (index > highValue)
         {
-            return 0;
+            index = highValue;
         }
 
-        if (idx > _highValue)
-        {
-            return _highValue;
-        }
-
-        return idx;
+#if NETSTANDARD2_0
+        return Unsafe.Add(ref samples[0], index);
+#else
+        return Unsafe.Add(ref MemoryMarshal.GetArrayDataReference(samples), index);
+#endif
     }
 }

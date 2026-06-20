@@ -1,79 +1,85 @@
 using System;
+using System.Buffers.Binary;
 using System.Runtime.CompilerServices;
 
 namespace PdfPixel.Parsing;
 
 /// <summary>
 /// Bit writer for packing unsigned sample values into a destination span (MSB-first within byte).
+/// Buffers up to 64 bits internally and flushes 8 bytes at a time. Caller must call
+/// <see cref="Flush"/> after the last write.
 /// </summary>
 internal ref struct UintBitWriter
 {
-    private readonly Span<byte> _buffer;
+    private readonly Span<byte> _destination;
+    private ulong _buffer;
+    private int _bufferedBits;
     private int _byteIndex;
-    private int _bitsAvailable;
 
-    public UintBitWriter(in Span<byte> buffer)
-    {
-        _buffer = buffer;
-        _byteIndex = 0;
-        _bitsAvailable = 8;
-    }
+    public UintBitWriter(in Span<byte> destination) => _destination = destination;
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void WriteBits(int count, uint value)
     {
-        // One bounds check here; subsequent accesses via Unsafe.Add are unchecked.
-        ref byte cur = ref _buffer[_byteIndex];
-        int shift = _bitsAvailable - count;
-        if (shift >= 0)
+        _buffer |= (ulong)value << (64 - _bufferedBits - count);
+        _bufferedBits += count;
+        if (_bufferedBits == 64)
         {
-            cur |= (byte)(value << shift);
-            _bitsAvailable = shift;
-            if (shift == 0)
-            {
-                _byteIndex++;
-                _bitsAvailable = 8;
-            }
-        }
-        else
-        {
-            // Value spans two bytes. Cast to byte naturally truncates upper bits for the lower portion.
-            int lowerBits = -shift;
-            cur |= (byte)(value >> lowerBits);
-            _byteIndex++;
-            Unsafe.Add(ref cur, 1) = (byte)(value << (8 - lowerBits));
-            _bitsAvailable = 8 - lowerBits;
-            if (_bitsAvailable == 0)
-            {
-                _byteIndex++;
-                _bitsAvailable = 8;
-            }
+            WriteBuffer();
         }
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void Write8Bits(byte value)
     {
-        if (_bitsAvailable != 8)
+        _buffer |= (ulong)value << (56 - _bufferedBits);
+        _bufferedBits += 8;
+        if (_bufferedBits == 64)
         {
-            throw new InvalidOperationException("Writer is not byte-aligned.");
+            WriteBuffer();
         }
-
-        _buffer[_byteIndex] = value;
-        _byteIndex++;
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void Write16Bits(ushort value)
     {
-        if (_bitsAvailable != 8)
+        _buffer |= (ulong)value << (48 - _bufferedBits);
+        _bufferedBits += 16;
+        if (_bufferedBits == 64)
         {
-            throw new InvalidOperationException("Writer is not byte-aligned.");
+            WriteBuffer();
+        }
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private void WriteBuffer()
+    {
+        BinaryPrimitives.WriteUInt64BigEndian(_destination.Slice(_byteIndex, 8), _buffer);
+        _byteIndex += 8;
+        _bufferedBits = 0;
+        _buffer = 0;
+    }
+
+    /// <summary>
+    /// Flushes any remaining buffered bits to the destination. Safe to call multiple times.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public void Flush()
+    {
+        if (_bufferedBits == 0)
+        {
+            return;
         }
 
-        ref byte cur = ref _buffer[_byteIndex];
-        cur = (byte)(value >> 8);
-        Unsafe.Add(ref cur, 1) = (byte)value;
-        _byteIndex += 2;
+        int bytesToWrite = (_bufferedBits + 7) >> 3;
+        for (int i = 0; i < bytesToWrite; i++)
+        {
+            _destination[_byteIndex + i] = (byte)(_buffer >> 56);
+            _buffer <<= 8;
+        }
+
+        _byteIndex += bytesToWrite;
+        _bufferedBits = 0;
+        _buffer = 0;
     }
 }

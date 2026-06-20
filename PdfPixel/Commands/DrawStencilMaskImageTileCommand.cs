@@ -21,7 +21,8 @@ internal sealed class DrawStencilMaskImageTileCommand : PdfCommand
             return;
         }
 
-        SKSamplingOptions sampling = PdfImageCommandUtilities.GetStencilSamplingOptions(_context.DecodingContext);
+        SKMatrix ctm = CommandHelpers.GetScaledMatrix(executionContext);
+        SKSamplingOptions sampling = PdfImageCommandUtilities.GetSamplingOptions(ctm, _context.ImageSize, false); // TODO: wire "interpolate"
         using SKShader stencilShader = ImageBlending.BuildImageShader(tile.Image, new SKSizeI(tile.TilePosition.Width, tile.TilePosition.Height), sampling);
         using SKShader blendingShader = ImageBlending.CreateImageMaskBlendingShader(stencilShader, _context.DecodingContext.FillColor, inverse: _context.InvertMask);
         using SKPaint paint = PdfImageCommandUtilities.GetBaseImagePaint(blendingShader, _context.DecodingContext);

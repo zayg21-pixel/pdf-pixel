@@ -93,7 +93,7 @@ public class PdfInkAnnotation : PdfAnnotationBase
                 continue;
             }
 
-            using SKPath path = new();
+            SKPath path = new();
             BuildSmoothPath(path, points);
 
             SKPaint paint = new()

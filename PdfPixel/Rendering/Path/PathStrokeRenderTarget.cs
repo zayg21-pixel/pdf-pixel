@@ -11,6 +11,7 @@ namespace PdfPixel.Rendering.Path;
 /// </summary>
 internal class PathStrokeRenderTarget : IRenderTarget
 {
+    private readonly SKPath _sourcePath;
     private readonly SKPath _path;
     private readonly SKPath _clipPath;
     private readonly PdfGraphicsState _state;
@@ -19,15 +20,17 @@ internal class PathStrokeRenderTarget : IRenderTarget
 
     public PathStrokeRenderTarget(SKPath path, PdfGraphicsState state)
     {
-        _path = path;
+        _sourcePath = path;
         _state = state;
         _basePaint = PdfPaintFactory.CreateStrokePaint(state);
-        _clipPath = _basePaint.GetFillPath(path) ?? path;
+
+        SKPath? fillPath = _basePaint.GetFillPath(path);
+        _clipPath = fillPath ?? path;
+        _path = (state.StrokePaint.IsPattern) ? _clipPath : path;
 
         if (state.StrokePaint.IsPattern)
         {
             _pattern = state.StrokePaint.Pattern;
-            _path = _clipPath;
         }
     }
 
@@ -38,7 +41,7 @@ internal class PathStrokeRenderTarget : IRenderTarget
     public void BeforePatternRender(IPdfCommandProcessor processor)
     {
         processor.Process(new SaveStateCommand());
-        processor.Process(new ClipPathCommand(_clipPath, SKClipOperation.Intersect));
+        processor.Process(new ClipPathCommand(new SKPath(_clipPath), SKClipOperation.Intersect));
     }
 
     public void AfterPatternRender(IPdfCommandProcessor processor) => processor.Process(new RestoreStateCommand());
@@ -51,19 +54,14 @@ internal class PathStrokeRenderTarget : IRenderTarget
         }
         else
         {
-            processor.Process(new DrawPathCommand(_path, _basePaint.Clone()));
+            processor.Process(new DrawPathCommand(new SKPath(_path), _basePaint.Clone()));
         }
     }
 
     public void Dispose()
     {
-        if (_pattern != null)
-        {
-            // dispose local generated path.
-            _path.Dispose();
-        }
-
+        _sourcePath.Dispose();
+        _clipPath.Dispose();
         _basePaint.Dispose();
-
     }
 }

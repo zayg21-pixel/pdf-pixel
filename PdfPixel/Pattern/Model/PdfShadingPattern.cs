@@ -64,7 +64,7 @@ public sealed class PdfShadingPattern : PdfPattern
             SKColor backgroundColor = colorSpace.ToSrgb(Shading.Background, state.RenderingIntent, state.FullTransferFunction);
             SKPaint backgroundPaint = PdfPaintFactory.CreateBackgroundPaint(backgroundColor);
 
-            using SKPath rectPath = new();
+            SKPath rectPath = new();
             rectPath.AddRect(Shading.BBox.Value);
 
             recorder.Process(new DrawPathCommand(rectPath, backgroundPaint));

@@ -77,20 +77,19 @@ public class PathRenderer : IPathRenderer
         {
             case PdfPaintOperation.Stroke:
             {
-                using PathStrokeRenderTarget target = new(path, state);
+                using PathStrokeRenderTarget target = new(new SKPath(path), state);
                 target.Render(processor);
                 break;
             }
             case PdfPaintOperation.Fill:
             {
-                using PathFillRenderTarget target = new(path, state);
+                using PathFillRenderTarget target = new(new SKPath(path), state);
                 target.Render(processor);
                 break;
             }
             case PdfPaintOperation.FillAndStroke:
             {
-                    // Fill phase.
-                    SKPath strokeOutline = PdfPaintFactory.CreateStrokePaint(state).GetFillPath(path);
+                SKPath strokeOutline = PdfPaintFactory.CreateStrokePaint(state).GetFillPath(path);
                 SKPath fillOutline;
 
                 if (strokeOutline != null)
@@ -99,14 +98,13 @@ public class PathRenderer : IPathRenderer
                 }
                 else
                 {
-                    fillOutline = path;
+                    fillOutline = new SKPath(path);
                 }
 
                 using PathFillRenderTarget fillTarget = new(fillOutline, state);
                 fillTarget.Render(processor);
 
-                // Stroke phase.
-                using PathStrokeRenderTarget strokeTarget = new(path, state);
+                using PathStrokeRenderTarget strokeTarget = new(new SKPath(path), state);
                 strokeTarget.Render(processor);
 
                 break;

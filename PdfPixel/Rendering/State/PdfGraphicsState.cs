@@ -77,12 +77,6 @@ public class PdfGraphicsState
     public PdfRenderingParameters RenderingParameters { get; }
 
     /// <summary>
-    /// Indicates whether this graphics state is being used for Type 3 glyph rendering.
-    /// When true, image downscaling is suppressed and linear filtering is forced.
-    /// </summary>
-    internal bool IsType3Rendering { get; set; }
-
-    /// <summary>
     /// Current stroking paint (solid color or pattern).
     /// </summary>
     public PdfPaint StrokePaint { get; set; } = PdfPaint.Solid(SKColors.Black);
@@ -439,8 +433,7 @@ public class PdfGraphicsState
             TextLineMatrix = TextLineMatrix,
             InTextObject = InTextObject,
             CTM = CTM,
-            TextClipPath = TextClipPath,
-            IsType3Rendering = IsType3Rendering
+            TextClipPath = TextClipPath
         };
     }
 

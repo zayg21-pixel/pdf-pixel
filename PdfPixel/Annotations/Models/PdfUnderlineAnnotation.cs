@@ -45,7 +45,7 @@ public class PdfUnderlineAnnotation : PdfTextMarkupAnnotation
                 Color = color
             };
 
-            using SKPath linePath = new();
+            SKPath linePath = new();
             linePath.MoveTo(startX, startY);
             linePath.LineTo(endX, endY);
             processor.Process(new DrawPathCommand(linePath, paint));

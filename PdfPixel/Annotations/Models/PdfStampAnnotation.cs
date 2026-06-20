@@ -75,7 +75,7 @@ public class PdfStampAnnotation : PdfAnnotationBase
             ImageFilter = SKImageFilter.CreateDropShadow(shadowOffset, -shadowOffset, shadowSigma, shadowSigma, SKColors.Black.WithAlpha(ShadowAlpha))
         };
 
-        using SKPath borderPath = new();
+        SKPath borderPath = new();
         borderPath.AddRoundRect(borderRect, cornerRadius, cornerRadius);
         processor.Process(new DrawPathCommand(borderPath, borderPaint));
     }
@@ -88,7 +88,7 @@ public class PdfStampAnnotation : PdfAnnotationBase
         float availableWidth = Rectangle.Width * (1f - 2f * MarginFraction);
         float availableHeight = Rectangle.Height * (1f - 2f * MarginFraction);
 
-        using SKFont font = new(typeface, availableHeight);
+        SKFont font = new(typeface, availableHeight);
         font.GetFontMetrics(out SKFontMetrics metrics);
 
         float glyphHeight = metrics.Descent - metrics.Ascent;
@@ -123,15 +123,10 @@ public class PdfStampAnnotation : PdfAnnotationBase
             ImageFilter = SKImageFilter.CreateDropShadow(shadowOffset, shadowOffset, shadowSigma, shadowSigma, SKColors.Black.WithAlpha(ShadowAlpha))
         };
 
-        SKTextBlob? blob = SKTextBlob.Create(labelText, font);
-
-        if (blob != null)
-        {
-            processor.Process(new SaveStateCommand());
-            processor.Process(new ConcatMatrixCommand(textMatrix));
-            processor.Process(new DrawTextBlobCommand(blob, textPaint));
-            processor.Process(new RestoreStateCommand());
-        }
+        processor.Process(new SaveStateCommand());
+        processor.Process(new ConcatMatrixCommand(textMatrix));
+        processor.Process(new DrawTextCommand(labelText, font, textPaint));
+        processor.Process(new RestoreStateCommand());
     }
 
     private static string GetLabelText(PdfStampName stampName, in PdfString rawName)

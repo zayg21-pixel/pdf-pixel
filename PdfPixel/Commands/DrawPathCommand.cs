@@ -5,7 +5,6 @@ namespace PdfPixel.Commands;
 
 /// <summary>
 /// Draws a path using a paint, applying the command modifier to the paint before drawing.
-/// Clones the path (mutable) and takes ownership of the paint. Both are disposed with the command.
 /// </summary>
 public sealed class DrawPathCommand : PdfCommand
 {
@@ -13,11 +12,11 @@ public sealed class DrawPathCommand : PdfCommand
     private readonly SKPaint _basePaint;
 
     /// <summary>
-    /// Initializes the command with a cloned copy of the path and takes ownership of the paint.
+    /// Initializes the command with the given path and paint.
     /// </summary>
     public DrawPathCommand(SKPath path, SKPaint basePaint)
     {
-        _path = new SKPath(path);
+        _path = path;
         _basePaint = basePaint;
     }
 

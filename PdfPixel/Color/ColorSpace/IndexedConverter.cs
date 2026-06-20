@@ -11,7 +11,7 @@ namespace PdfPixel.Color.ColorSpace;
 /// <summary>
 /// Indexed color space converter.
 /// </summary>
-internal sealed partial class IndexedConverter : PdfColorSpaceConverter
+internal sealed class IndexedConverter : PdfColorSpaceConverter
 {
     private readonly PdfColorSpaceConverter _baseConv;
     private readonly int _hiVal;

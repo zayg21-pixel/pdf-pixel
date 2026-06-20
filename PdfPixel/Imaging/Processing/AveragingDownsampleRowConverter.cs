@@ -121,8 +121,6 @@ internal sealed class AveragingDownsampleRowConverter : IRowConverter
         _nextDestinationRowToWrite = 0;
     }
 
-    public int BitsPerComponent => 8;
-
     public bool TryConvertRow(int rowIndex, ReadOnlySpan<byte> sourceRow, Span<byte> destRow)
     {
         if (_nextDestinationRowToWrite >= _destinationHeight)
@@ -191,6 +189,8 @@ internal sealed class AveragingDownsampleRowConverter : IRowConverter
             byte value = _destinationRowAccumulators[sampleIndex].GetAverage(_sourceToDestinationScale);
             writer.Write8Bits(value);
         }
+
+        writer.Flush();
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]

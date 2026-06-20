@@ -1,9 +1,9 @@
 using PdfPixel.Color.Paint;
-using PdfPixel.Imaging.Decoding;
 using PdfPixel.Imaging.Model;
 using PdfPixel.Imaging.Processing;
 using SkiaSharp;
 using System;
+
 namespace PdfPixel.Commands.Image;
 
 internal static class PdfImageCommandUtilities
@@ -30,21 +30,11 @@ internal static class PdfImageCommandUtilities
         };
     }
 
-    public static SKSamplingOptions GetSamplingOptions(SKMatrix ctm, ImageDecodingContext context, SKSizeI imageSize, bool interpolate)
+    public static SKSamplingOptions GetSamplingOptions(SKMatrix ctm, SKSizeI imageSize, bool interpolate)
     {
         bool isDownscaled = GetScaledSize(ctm, imageSize).HasValue;
 
-        if (isDownscaled || context.IsType3Rendering || interpolate)
-        {
-            return new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.Linear);
-        }
-
-        return new SKSamplingOptions(SKFilterMode.Nearest, SKMipmapMode.None);
-    }
-
-    public static SKSamplingOptions GetStencilSamplingOptions(ImageDecodingContext context)
-    {
-        if (context.IsType3Rendering)
+        if (isDownscaled || interpolate)
         {
             return new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.Linear);
         }

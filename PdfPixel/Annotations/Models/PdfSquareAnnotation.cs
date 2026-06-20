@@ -54,7 +54,7 @@ public class PdfSquareAnnotation : PdfAnnotationBase
                 Color = interiorSKColor
             };
 
-            using SKPath fillPath = new();
+            SKPath fillPath = new();
             fillPath.AddRect(ContentRectangle);
             processor.Process(new DrawPathCommand(fillPath, fillPaint));
         }
@@ -80,7 +80,7 @@ public class PdfSquareAnnotation : PdfAnnotationBase
                 ContentRectangle.Right - halfBorder,
                 ContentRectangle.Bottom - halfBorder);
 
-            using SKPath strokePath = new();
+            SKPath strokePath = new();
             strokePath.AddRect(adjustedRect);
             processor.Process(new DrawPathCommand(strokePath, strokePaint));
         }

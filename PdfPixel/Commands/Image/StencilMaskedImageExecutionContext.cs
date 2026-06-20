@@ -9,7 +9,13 @@ namespace PdfPixel.Commands.Image;
 
 internal sealed class StencilMaskedImageExecutionContext : IDisposable
 {
-    public StencilMaskedImageExecutionContext(SKSizeI imageSize, SKSizeI maskSize, ImageDecodingContext decodingContext, PdfImageTileCacheEntry imageCache, PdfImageTileCacheEntry maskCache, bool invertMask)
+    public StencilMaskedImageExecutionContext(
+        SKSizeI imageSize,
+        SKSizeI maskSize,
+        ImageDecodingContext decodingContext,
+        PdfImageTileCacheEntry imageCache,
+        PdfImageTileCacheEntry maskCache,
+        bool invertMask)
     {
         ImageSize = imageSize;
         MaskSize = maskSize;

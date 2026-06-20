@@ -59,7 +59,7 @@ public class PdfCircleAnnotation : PdfAnnotationBase
                 Color = interiorSKColor
             };
 
-            using SKPath fillPath = new();
+            SKPath fillPath = new();
             fillPath.AddOval(new SKRect(centerX - (width / 2), centerY - (height / 2), centerX + (width / 2), centerY + (height / 2)));
             processor.Process(new DrawPathCommand(fillPath, fillPaint));
         }
@@ -82,7 +82,7 @@ public class PdfCircleAnnotation : PdfAnnotationBase
             float adjustedWidth = width - BorderStyle.Width;
             float adjustedHeight = height - BorderStyle.Width;
 
-            using SKPath strokePath = new();
+            SKPath strokePath = new();
             strokePath.AddOval(new SKRect(
                 centerX - (adjustedWidth / 2),
                 centerY - (adjustedHeight / 2),

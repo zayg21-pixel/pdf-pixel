@@ -12,7 +12,7 @@ namespace PdfPixel.Rendering.Text;
 internal static class TextRenderUtilities
 {
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static SKPath GetTextPath(IList<ShapedGlyph> shapingResult, SKFont font, PdfGraphicsState state)
+    public static SKPath GetTextPath(List<ShapedGlyph> shapingResult, SKFont font, PdfGraphicsState state)
     {
         SKPath textPath = new();
 
@@ -37,7 +37,7 @@ internal static class TextRenderUtilities
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static float GetTextWidth(IList<ShapedGlyph> shapingResult)
+    public static float GetTextWidth(List<ShapedGlyph> shapingResult)
     {
         if (shapingResult.Count == 0)
         {
@@ -48,7 +48,7 @@ internal static class TextRenderUtilities
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static float GetTextHeight(IList<ShapedGlyph> shapingResult)
+    public static float GetTextHeight(List<ShapedGlyph> shapingResult)
     {
         if (shapingResult.Count == 0)
         {
@@ -76,11 +76,11 @@ internal static class TextRenderUtilities
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static SKTextBlob? BuildTextBlob(IList<ShapedGlyph> shapingResult, SKFont font)
+    public static SKTextBlob? BuildTextBlob(ShapedGlyph[] shapingResult, SKFont font)
     {
         // Pre-count drawable glyphs (gid != 0) while computing positions using full advance including skipped glyphs.
         int drawableCount = 0;
-        for (int i = 0; i < shapingResult.Count; i++)
+        for (int i = 0; i < shapingResult.Length; i++)
         {
             if (shapingResult[i].GlyphId != 0)
             {
@@ -94,7 +94,7 @@ internal static class TextRenderUtilities
         System.Span<SKPoint> positionSpan = run.Positions;
 
         int drawIndex = 0;
-        for (int index = 0; index < shapingResult.Count; index++)
+        for (int index = 0; index < shapingResult.Length; index++)
         {
             ShapedGlyph shapedGlyph = shapingResult[index];
             // Record position regardless to advance subsequent glyphs.

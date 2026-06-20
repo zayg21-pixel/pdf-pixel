@@ -23,7 +23,7 @@ internal sealed class DrawStencilMaskedImageTileCommand : PdfCommand
         }
 
         SKMatrix ctm = CommandHelpers.GetScaledMatrix(executionContext);
-        SKSamplingOptions sampling = PdfImageCommandUtilities.GetSamplingOptions(ctm, _context.DecodingContext, _context.ImageSize, interpolate: false);
+        SKSamplingOptions sampling = PdfImageCommandUtilities.GetSamplingOptions(ctm, _context.ImageSize, interpolate: false); // TODO: [HIGH] wire interpolate
 
         using SKShader imageShader = ImageBlending.BuildImageShader(imageTile.Image, new SKSizeI(imageTile.TilePosition.Width, imageTile.TilePosition.Height), sampling);
         using SKShader maskShader = ImageBlending.BuildImageShader(

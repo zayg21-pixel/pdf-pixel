@@ -191,7 +191,7 @@ internal static class PdfAnnotationGraphics
                     Color = ApplyOpacity(fillColor.Value, iconPath.FillOpacity)
                 };
 
-                processor.Process(new DrawPathCommand(iconPath.Path, fillPaint));
+                processor.Process(new DrawPathCommand(new SKPath(iconPath.Path), fillPaint));
             }
         }
 
@@ -215,7 +215,7 @@ internal static class PdfAnnotationGraphics
                     Color = ApplyOpacity(strokeColor.Value, iconPath.StrokeOpacity)
                 };
 
-                processor.Process(new DrawPathCommand(iconPath.Path, strokePaint));
+                processor.Process(new DrawPathCommand(new SKPath(iconPath.Path), strokePaint));
             }
         }
     }

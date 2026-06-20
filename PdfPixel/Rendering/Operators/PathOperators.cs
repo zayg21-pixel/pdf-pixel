@@ -262,7 +262,7 @@ internal class PathOperators : IOperatorProcessor
         }
 
         _currentPath.FillType = fillType;
-        _processor.Process(new ClipPathCommand(_currentPath, SKClipOperation.Intersect));
+        _processor.Process(new ClipPathCommand(new SKPath(_currentPath), SKClipOperation.Intersect));
         _currentPath.Reset();
     }
 
