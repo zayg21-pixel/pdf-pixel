@@ -80,6 +80,8 @@ namespace PdfPixel.Encryption
                 _userValidated = false;
                 _lastPassword = password;
             }
+
+            EnsureFileKey();
         }
 
         private void EnsureFileKey()
@@ -126,11 +128,20 @@ namespace PdfPixel.Encryption
                 md5.TransformBlock(Parameters.FileIdFirst, 0, Parameters.FileIdFirst.Length, null, 0);
                 md5.TransformFinalBlock(Array.Empty<byte>(), 0, 0);
                 byte[] digest = md5.Hash;
-                _fileKey = new byte[_fileKeyLengthBytes];
-                Buffer.BlockCopy(digest, 0, _fileKey, 0, _fileKeyLengthBytes);
+                var candidateKey = new byte[_fileKeyLengthBytes];
+                Buffer.BlockCopy(digest, 0, candidateKey, 0, _fileKeyLengthBytes);
+                _fileKey = candidateKey;
             }
 
-            ValidateUserPassword();
+            try
+            {
+                ValidateUserPassword();
+            }
+            catch
+            {
+                _fileKey = null;
+                throw;
+            }
         }
 
         private void ValidateUserPassword()
@@ -175,27 +186,7 @@ namespace PdfPixel.Encryption
                 throw new InvalidOperationException("File key must be computed before computing the user entry.");
             }
 
-            if (Parameters.FileIdFirst == null)
-            {
-                throw new PdfInvalidDocumentException("Encrypted document is missing the required /ID first entry.");
-            }
-
-            using (ManagedMd5 md5 = ManagedMd5.Create())
-            {
-                md5.TransformBlock(PasswordPadding, 0, PasswordPadding.Length, null, 0);
-                md5.TransformBlock(Parameters.FileIdFirst, 0, Parameters.FileIdFirst.Length, null, 0);
-
-                md5.TransformFinalBlock(Array.Empty<byte>(), 0, 0);
-                byte[] digest = md5.Hash; // 16 bytes
-
-                // Encrypt digest with RC4 using file key
-                ReadOnlyMemory<byte> rc4Out = Rc4(_fileKey, digest); // 16 bytes
-                // Append padding to form 32 bytes (spec stores 32, but comparison can be first 16)
-                var full = new byte[32];
-                Buffer.BlockCopy(rc4Out.ToArray(), 0, full, 0, rc4Out.Length);
-                Buffer.BlockCopy(PasswordPadding, 0, full, rc4Out.Length, 32 - rc4Out.Length);
-                return full;
-            }
+            return Rc4(_fileKey, PasswordPadding).ToArray();
         }
 
         private byte[] DeriveObjectKey(in PdfReference reference)

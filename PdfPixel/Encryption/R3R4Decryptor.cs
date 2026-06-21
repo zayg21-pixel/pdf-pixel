@@ -147,7 +147,7 @@ namespace PdfPixel.Encryption
 
                 md5.TransformBlock(Parameters.FileIdFirst, 0, Parameters.FileIdFirst.Length, null, 0);
 
-                if (!Parameters.EncryptMetadata)
+                if (Parameters.R >= 4 && !Parameters.EncryptMetadata)
                 {
                     byte[] meta = { 0xFF, 0xFF, 0xFF, 0xFF };
                     md5.TransformBlock(meta, 0, 4, null, 0);
@@ -161,11 +161,20 @@ namespace PdfPixel.Encryption
                     digest = md5.ComputeHash(digest.AsSpan(0, _fileKeyLengthBytes).ToArray());
                 }
 
-                _fileKey = new byte[_fileKeyLengthBytes];
-                Buffer.BlockCopy(digest, 0, _fileKey, 0, _fileKeyLengthBytes);
+                var candidateKey = new byte[_fileKeyLengthBytes];
+                Buffer.BlockCopy(digest, 0, candidateKey, 0, _fileKeyLengthBytes);
+                _fileKey = candidateKey;
             }
 
-            ValidateUserPassword();
+            try
+            {
+                ValidateUserPassword();
+            }
+            catch
+            {
+                _fileKey = null;
+                throw;
+            }
         }
 
         private void ValidateUserPassword()
@@ -370,6 +379,8 @@ namespace PdfPixel.Encryption
                 _userValidated = false;
                 _lastPassword = password;
             }
+
+            EnsureFileKey();
         }
     }
 }
