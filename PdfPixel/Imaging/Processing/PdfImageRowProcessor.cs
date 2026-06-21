@@ -57,7 +57,7 @@ internal sealed partial class PdfImageRowProcessor : IDisposable
     private readonly int _width;
     private readonly int _height;
 
-    private readonly IRowConverter _rowConverter; // TODO: [HIGH] cleanup code in general, use resample converter for RGBa.
+    private readonly IRowConverter _rowConverter;
     private byte[]? _convertedRowBuffer;
 
     private readonly ProcessingStages _stages;

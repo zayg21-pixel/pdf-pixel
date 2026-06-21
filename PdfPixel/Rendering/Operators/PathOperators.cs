@@ -43,6 +43,7 @@ internal class PathOperators : IOperatorProcessor
     private readonly IPdfCommandProcessor _processor;
     private readonly SKPath _currentPath;
     private readonly IPdfPageInternal _page;
+    private SKPathFillType? _pendingClipFillType;
 
     public PathOperators(IPdfRenderer renderer, Stack<IPdfValue> operandStack, IPdfCommandProcessor processor, SKPath currentPath, IPdfPageInternal page)
     {
@@ -102,12 +103,12 @@ internal class PathOperators : IOperatorProcessor
             // -----------------------------------------------------------------
             case "W":
             {
-                ProcessSetClippingPath(SKPathFillType.Winding, graphicsState);
+                ProcessSetClippingPath(SKPathFillType.Winding);
                 break;
             }
             case "W*":
             {
-                ProcessSetClippingPath(SKPathFillType.EvenOdd, graphicsState);
+                ProcessSetClippingPath(SKPathFillType.EvenOdd);
                 break;
             }
             // -----------------------------------------------------------------
@@ -254,21 +255,28 @@ internal class PathOperators : IOperatorProcessor
         _currentPath.AddRect(new SKRect(x, y, x + width, y + height));
     }
 
-    private void ProcessSetClippingPath(SKPathFillType fillType, PdfGraphicsState graphicsState)
+    private void ProcessSetClippingPath(SKPathFillType fillType) => _pendingClipFillType = fillType;
+
+    private void ApplyPendingClip()
     {
-        if (_currentPath.IsEmpty)
+        if (_pendingClipFillType == null)
         {
             return;
         }
 
-        _currentPath.FillType = fillType;
-        _processor.Process(new ClipPathCommand(new SKPath(_currentPath), SKClipOperation.Intersect));
-        _currentPath.Reset();
+        if (!_currentPath.IsEmpty)
+        {
+            _currentPath.FillType = _pendingClipFillType.Value;
+            _processor.Process(new ClipPathCommand(new SKPath(_currentPath), SKClipOperation.Intersect));
+        }
+
+        _pendingClipFillType = null;
     }
 
     private void ProcessStrokePath(PdfGraphicsState graphicsState)
     {
         _currentPath.FillType = SKPathFillType.Winding;
+        ApplyPendingClip();
         _renderer.DrawPath(_processor, _currentPath, graphicsState, PdfPaintOperation.Stroke);
         _currentPath.Reset();
     }
@@ -277,6 +285,7 @@ internal class PathOperators : IOperatorProcessor
     {
         _currentPath.Close();
         _currentPath.FillType = SKPathFillType.Winding;
+        ApplyPendingClip();
         _renderer.DrawPath(_processor, _currentPath, graphicsState, PdfPaintOperation.Stroke);
         _currentPath.Reset();
     }
@@ -284,6 +293,7 @@ internal class PathOperators : IOperatorProcessor
     private void ProcessFillPath(PdfGraphicsState graphicsState, SKPathFillType fillType)
     {
         _currentPath.FillType = fillType;
+        ApplyPendingClip();
         _renderer.DrawPath(_processor, _currentPath, graphicsState, PdfPaintOperation.Fill);
         _currentPath.Reset();
     }
@@ -291,6 +301,7 @@ internal class PathOperators : IOperatorProcessor
     private void ProcessFillAndStrokePath(PdfGraphicsState graphicsState, SKPathFillType fillType)
     {
         _currentPath.FillType = fillType;
+        ApplyPendingClip();
         _renderer.DrawPath(_processor, _currentPath, graphicsState, PdfPaintOperation.FillAndStroke);
         _currentPath.Reset();
     }
@@ -299,9 +310,14 @@ internal class PathOperators : IOperatorProcessor
     {
         _currentPath.Close();
         _currentPath.FillType = fillType;
+        ApplyPendingClip();
         _renderer.DrawPath(_processor, _currentPath, graphicsState, PdfPaintOperation.FillAndStroke);
         _currentPath.Reset();
     }
 
-    private void ProcessEndPath() => _currentPath.Reset();
+    private void ProcessEndPath()
+    {
+        ApplyPendingClip();
+        _currentPath.Reset();
+    }
 }
