@@ -23,30 +23,6 @@ public class PdfHighlightAnnotation : PdfTextMarkupAnnotation
     {
     }
 
-    /// <inheritdoc />
-    internal override bool RenderAppearanceStream(
-        IPdfCommandProcessor processor,
-        IPdfPageInternal page,
-        PdfAnnotationVisualStateKind visualStateKind,
-        IPdfRenderer renderer,
-        PdfRenderingParameters renderingParameters,
-        IPdfExecutionObserver observer)
-    {
-        PdfCommandRecorder recorder = new();
-        recorder.Process(new SaveLayerCommand(Rectangle, new SKPaint { BlendMode = SKBlendMode.Multiply }));
-        bool recorded = base.RenderAppearanceStream(recorder, page, visualStateKind, renderer, renderingParameters, observer);
-
-        if (!recorded)
-        {
-            recorder.Dispose();
-            return false;
-        }
-
-        recorder.Process(new RestoreStateCommand());
-        processor.Process(new DrawRecordingCommand(recorder));
-        return true;
-    }
-
     internal override bool RenderFallback(IPdfCommandProcessor processor, IPdfPageInternal page, PdfAnnotationVisualStateKind visualStateKind)
     {
         SKPoint[][] quads = Quadrilaterals;

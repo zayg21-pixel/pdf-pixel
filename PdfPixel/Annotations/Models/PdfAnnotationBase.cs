@@ -369,46 +369,43 @@ public abstract class PdfAnnotationBase
         PdfRenderingParameters renderingParameters,
         IPdfExecutionObserver observer)
     {
-        processor.Process(new SaveStateCommand());
-
-        try
+        if (ShouldDisplayBubble)
         {
-            if (ShouldDisplayBubble)
+            PdfAnnotationIconDefinition? bubbleIcon = PdfAnnotationGraphics.GetAnnotationBubbleIcon(visualStateKind);
+
+            if (bubbleIcon != null)
             {
-                PdfAnnotationIconDefinition? bubbleIcon = PdfAnnotationGraphics.GetAnnotationBubbleIcon(visualStateKind);
-
-                if (bubbleIcon != null)
-                {
-                    SKColor borderColor = ResolveColor(page, PdfAnnotationGraphics.DefaultBubbleBorderColor);
-                    SKColor backgroundColor = ResolveInteriorColor(page, PdfAnnotationGraphics.DefaultBubbleBackgroundColor);
-                    PdfAnnotationGraphics.RenderIcon(processor, bubbleIcon, GetHoverRectangle(page), borderColor, backgroundColor);
-                }
+                SKColor borderColor = ResolveColor(page, PdfAnnotationGraphics.DefaultBubbleBorderColor);
+                SKColor backgroundColor = ResolveInteriorColor(page, PdfAnnotationGraphics.DefaultBubbleBackgroundColor);
+                PdfAnnotationGraphics.RenderIcon(processor, bubbleIcon, GetHoverRectangle(page), borderColor, backgroundColor);
             }
-
-            if (AppearanceDictionary != null && RenderAppearanceStream(processor, page, visualStateKind, renderer, renderingParameters, observer))
-            {
-                return true;
-            }
-
-            bool useOpacityLayer = Opacity < 1.0f;
-            if (useOpacityLayer)
-            {
-                processor.Process(new SaveLayerCommand(Rectangle, new SKPaint { Color = SKColors.White.WithAlpha((byte)(Opacity * 255)) }));
-            }
-
-            bool rendered = RenderFallback(processor, page, visualStateKind);
-
-            if (useOpacityLayer)
-            {
-                processor.Process(new RestoreStateCommand());
-            }
-
-            return rendered;
         }
-        finally
+
+        processor.Process(new SaveStateCommand());
+        processor.Process(new ClipPathCommand(Rectangle, SKClipOperation.Intersect));
+
+        if (AppearanceDictionary != null && RenderAppearanceStream(processor, page, visualStateKind, renderer, renderingParameters, observer))
+        {
+            processor.Process(new RestoreStateCommand());
+            return true;
+        }
+
+        bool useOpacityLayer = Opacity < 1.0f;
+        if (useOpacityLayer)
+        {
+            processor.Process(new SaveLayerCommand(Rectangle, new SKPaint { Color = SKColors.White.WithAlpha((byte)(Opacity * 255)) }));
+        }
+
+        bool rendered = RenderFallback(processor, page, visualStateKind);
+
+        if (useOpacityLayer)
         {
             processor.Process(new RestoreStateCommand());
         }
+
+        processor.Process(new RestoreStateCommand());
+
+        return rendered;
     }
 
     /// <summary>
