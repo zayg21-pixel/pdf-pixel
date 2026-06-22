@@ -1,4 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
+using PdfPixel.Color.ColorSpace;
+using PdfPixel.Color.Icc.Model;
 using PdfPixel.Fonts.Management;
 using PdfPixel.Models;
 using PdfPixel.Parsing;
@@ -69,7 +71,6 @@ public class PdfDocumentReader
         using PdfXrefLoader xrefLoader = new(document);
         PdfPageExtractor pageExtractor = new(document);
         PdfNamedDestinationParser namedDestinationParser = new(document);
-        PdfOutputIntentParser outputIntentParser = new(document);
 
         try
         {
@@ -96,9 +97,17 @@ public class PdfDocumentReader
         {
             document.Decryptor?.UpdatePassword(password ?? string.Empty);
 
-            namedDestinationParser.ParseNamedDestinations();
+            document.NamedDestinations = namedDestinationParser.ParseNamedDestinations();
             pageExtractor.ExtractPages();
-            outputIntentParser.ParseFirstOutputIntentProfile();
+
+            PdfOutputIntentParser outputIntentParser = new(document.RootObject, _loggerFactory.CreateLogger<PdfOutputIntentParser>());
+            IccProfile? outputIntentProfile = outputIntentParser.ParseFirstOutputIntentProfile();
+            document.ObjectCache.OutputIntentProfile = outputIntentProfile;
+
+            if (outputIntentProfile != null && outputIntentProfile.ChannelsCount != 0)
+            {
+                document.ObjectCache.OutputIntentConverter = new IccBasedConverter(outputIntentProfile.ChannelsCount, default, outputIntentProfile);
+            }
 
             _logger.LogInformation("Parsed PDF with {PageCount} page(s).", document.Pages.Count);
         }

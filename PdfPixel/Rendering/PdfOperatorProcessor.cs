@@ -25,6 +25,7 @@ internal class PdfOperatorProcessor
     private readonly PathOperators _pathOperators;
     private readonly ColorOperators _colorOperators;
     private readonly InlineImageOperators _inlineImageOperators;
+    private readonly MarkedContentOperators _markedContentOperators;
     private readonly MiscellaneousOperators _miscOperators;
     private readonly ILogger<PdfOperatorProcessor> _logger;
 
@@ -41,6 +42,7 @@ internal class PdfOperatorProcessor
         _pathOperators = new PathOperators(renderer, operandStack, processor, currentPath, page);
         _colorOperators = new ColorOperators(renderer, operandStack, page);
         _inlineImageOperators = new InlineImageOperators(renderer, operandStack, page, processor);
+        _markedContentOperators = new MarkedContentOperators(operandStack, page, processor);
         _miscOperators = new MiscellaneousOperators(renderer, operandStack, page, processor);
         _logger = page.Document.LoggerFactory.CreateLogger<PdfOperatorProcessor>();
     }
@@ -87,6 +89,12 @@ internal class PdfOperatorProcessor
         if (!handled && _inlineImageOperators.CanProcess(op))
         {
             _inlineImageOperators.ProcessOperator(op, ref graphicsState);
+            handled = true;
+        }
+
+        if (!handled && _markedContentOperators.CanProcess(op))
+        {
+            _markedContentOperators.ProcessOperator(op, ref graphicsState);
             handled = true;
         }
 

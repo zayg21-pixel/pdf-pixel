@@ -1,4 +1,3 @@
-using Microsoft.Extensions.Logging;
 using PdfPixel.Models;
 using PdfPixel.Text;
 using System;
@@ -12,52 +11,47 @@ namespace PdfPixel.Parsing;
 internal class PdfNamedDestinationParser
 {
     private readonly IPdfDocumentInternal _document;
-    private readonly ILogger<PdfNamedDestinationParser> _logger;
 
     public PdfNamedDestinationParser(IPdfDocumentInternal document)
-    {
-        _document = document ?? throw new ArgumentNullException(nameof(document));
-        _logger = document.LoggerFactory.CreateLogger<PdfNamedDestinationParser>();
-    }
+        => _document = document ?? throw new ArgumentNullException(nameof(document));
 
     /// <summary>
-    /// Parses named destinations from the document catalog and populates <see cref="IPdfDocumentInternal.NamedDestinations"/>.
+    /// Parses named destinations from the document catalog.
+    /// Returns the resolved destinations dictionary, or <c>null</c> if none found.
     /// </summary>
-    public void ParseNamedDestinations()
+    public PdfDictionary? ParseNamedDestinations()
     {
-        if (_document.RootObject == null)
+        PdfObject? rootObject = _document.RootObject;
+        if (rootObject == null)
         {
-            return;
+            return null;
         }
 
-        PdfDictionary catalogDict = _document.RootObject.Dictionary;
+        PdfDictionary catalogDict = rootObject.Dictionary;
 
-        ParseDestsDictionary(catalogDict);
-        ParseNamesTree(catalogDict);
-    }
-
-    private void ParseDestsDictionary(PdfDictionary catalogDict)
-    {
+        // Try older /Dests dictionary first.
         PdfDictionary? destsDict = catalogDict.GetDictionary(PdfTokens.DestsKey);
         if (destsDict != null)
         {
-            _document.NamedDestinations = destsDict;
-            _logger.LogDebug("Found /Dests dictionary with {Count} entries.", destsDict.Count);
+            return destsDict;
         }
+
+        // Fall back to newer /Names/Dests name tree.
+        return ParseNamesTree(catalogDict);
     }
 
-    private void ParseNamesTree(PdfDictionary catalogDict)
+    private PdfDictionary? ParseNamesTree(PdfDictionary catalogDict)
     {
         PdfDictionary? namesDict = catalogDict.GetDictionary(PdfTokens.NamesKey);
         if (namesDict == null)
         {
-            return;
+            return null;
         }
 
         PdfDictionary? destsTreeRoot = namesDict.GetDictionary(PdfTokens.DestsKey);
         if (destsTreeRoot == null)
         {
-            return;
+            return null;
         }
 
         PdfDictionary flattenedDict = new(_document);
@@ -65,9 +59,10 @@ internal class PdfNamedDestinationParser
 
         if (flattenedDict.Count > 0)
         {
-            _document.NamedDestinations = flattenedDict;
-            _logger.LogDebug("Flattened /Names/Dests tree into {Count} entries.", flattenedDict.Count);
+            return flattenedDict;
         }
+
+        return null;
     }
 
     private static void FlattenNameTree(PdfDictionary node, PdfDictionary target)

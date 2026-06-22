@@ -41,5 +41,5 @@ public class PdfRenderingParameters
     /// When true, text character data is extracted and accumulated in
     /// <see cref="Commands.PdfCommandExecutionContext.Characters"/> during command execution.
     /// </summary>
-    public bool ExtractText { get; set; } = true;
+    public bool ExtractText { get; set; }
 }

@@ -295,6 +295,9 @@ internal static class PdfTokens
     public static readonly PdfString ColorKey = (PdfString)"C"u8;                     // Color array
     public static readonly PdfString StructParentKey = (PdfString)"StructParent"u8;   // Structural parent
     public static readonly PdfString OptionalContentKey = (PdfString)"OC"u8;          // Optional content
+    public static readonly PdfString OptionalContentGroupsKey = (PdfString)"OCGs"u8;  // Optional content groups
+    public static readonly PdfString VisibilityPolicyKey = (PdfString)"P"u8;           // Visibility policy
+    public static readonly PdfString PropertiesKey = (PdfString)"Properties"u8;        // Properties subdictionary
 
     // Border style dictionary keys
     public static readonly PdfString SKey = (PdfString)"S"u8;                         // Style (also used for action subtype)

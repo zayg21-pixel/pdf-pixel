@@ -12,19 +12,13 @@ namespace PdfPixel.Rendering.Operators;
 
 /// <summary>
 /// Handles miscellaneous PDF operators that don't fit into other specialized categories.
-/// Includes XObject invocation, marked content, compatibility, Type 3 font metrics, and shading.
+/// Includes XObject invocation, compatibility, Type 3 font metrics, and shading.
 /// </summary>
 internal class MiscellaneousOperators : IOperatorProcessor
 {
     private static readonly HashSet<string> SupportedOperators = [
         // XObject invocation
         "Do",
-        // Marked content
-        "MP",
-        "DP",
-        "BMC",
-        "BDC",
-        "EMC",
         // Compatibility
         "BX",
         "EX",
@@ -59,31 +53,6 @@ internal class MiscellaneousOperators : IOperatorProcessor
             case "Do":
             {
                 ProcessInvokeXObject(graphicsState);
-                break;
-            }
-            case "MP":
-            {
-                ProcessMarkContentPoint();
-                break;
-            }
-            case "DP":
-            {
-                ProcessMarkContentPointWithProperties();
-                break;
-            }
-            case "BMC":
-            {
-                ProcessBeginMarkedContent();
-                break;
-            }
-            case "BDC":
-            {
-                ProcessBeginMarkedContentWithProperties();
-                break;
-            }
-            case "EMC":
-            {
-                ProcessEndMarkedContent();
                 break;
             }
             case "BX":
@@ -136,65 +105,38 @@ internal class MiscellaneousOperators : IOperatorProcessor
             return;
         }
 
+        PdfOptionalContentMembership? optionalContent = pageObject.OptionalContent;
+        if (optionalContent != null)
+        {
+            PdfMarkedContent markedContent = new(PdfMarkedContentType.OptionalContent) { OptionalContent = optionalContent };
+            _processor.Process(new BeginMarkedContentCommand(markedContent));
+        }
+
         switch (pageObject.Subtype)
         {
             case PdfXObjectSubtype.Image:
             {
-                    PdfImage pdfImage = PdfImage.FromXObject(pageObject.XObject, _page, xObjectName, isSoftMask: false);
+                PdfImage pdfImage = PdfImage.FromXObject(pageObject.XObject, _page, xObjectName, isSoftMask: false);
                 _renderer.DrawImage(_processor, pdfImage, graphicsState);
                 break;
             }
             case PdfXObjectSubtype.Form:
-                {
-                    PdfForm formXObject = PdfForm.FromXObject(pageObject.XObject, _page);
-                    _renderer.DrawForm(_processor, formXObject, graphicsState);
-                    break;
-                }
+            {
+                PdfForm formXObject = PdfForm.FromXObject(pageObject.XObject, _page);
+                _renderer.DrawForm(_processor, formXObject, graphicsState);
+                break;
+            }
             default:
-                {
-                    _logger.LogWarning("Unsupported XObject subtype '{XObjectSubtype}' for XObject '{XObjectName}'", pageObject.Subtype, xObjectName);
-                    return;
-                }
+            {
+                _logger.LogWarning("Unsupported XObject subtype '{XObjectSubtype}' for XObject '{XObjectName}'", pageObject.Subtype, xObjectName);
+                break;
+            }
         }
-    }
 
-    // Handles MP (Marked Content Point): expects 1 operand (tag name)
-    private void ProcessMarkContentPoint()
-    {
-        // PDF spec: MP operator takes a single tag name operand.
-        // Operand is ignored for rendering, but must be popped to maintain stack integrity.
-        PdfOperatorProcessor.GetOperands(1, _operandStack); // Intentionally ignored.
-    }
-
-    // Handles DP (Marked Content Point with Properties): expects 2 operands (tag name, property dictionary)
-    private void ProcessMarkContentPointWithProperties()
-    {
-        // PDF spec: DP operator takes a tag name and a property dictionary.
-        // Operands are ignored for rendering, but must be popped to maintain stack integrity.
-        PdfOperatorProcessor.GetOperands(2, _operandStack); // Intentionally ignored.
-    }
-
-    // Handles BMC (Begin Marked Content): expects 1 operand (tag name)
-    private void ProcessBeginMarkedContent()
-    {
-        // PDF spec: BMC operator takes a single tag name operand.
-        // Operand is ignored for rendering, but must be popped to maintain stack integrity.
-        PdfOperatorProcessor.GetOperands(1, _operandStack); // Intentionally ignored.
-    }
-
-    // Handles BDC (Begin Marked Content with Properties): expects 2 operands (tag name, property dictionary)
-    private void ProcessBeginMarkedContentWithProperties()
-    {
-        // PDF spec: BDC operator takes a tag name and a property dictionary.
-        // Operands are ignored for rendering, but must be popped to maintain stack integrity.
-        PdfOperatorProcessor.GetOperands(2, _operandStack); // Intentionally ignored.
-    }
-
-    // Handles EMC (End Marked Content): no operands
-    private void ProcessEndMarkedContent()
-    {
-        // PDF spec: EMC operator takes no operands.
-        // No state to manage presently.
+        if (optionalContent != null)
+        {
+            _processor.Process(new EndMarkedContentCommand());
+        }
     }
 
     private void ProcessBeginCompatibility()

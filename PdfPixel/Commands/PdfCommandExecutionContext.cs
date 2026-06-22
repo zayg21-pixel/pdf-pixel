@@ -86,6 +86,13 @@ public sealed class PdfCommandExecutionContext : IDisposable
     public List<PdfCharacter> Characters { get; } = [];
 
     /// <summary>
+    /// Stack of active marked content scopes. Pushed by <see cref="BeginMarkedContentCommand"/>,
+    /// popped by <see cref="EndMarkedContentCommand"/>. Commands can inspect this to determine
+    /// the current marked content state (e.g. optional content visibility).
+    /// </summary>
+    public Stack<PdfMarkedContent> MarkedContentStack { get; } = [];
+
+    /// <summary>
     /// Disposes the current canvas, replaces it with <paramref name="canvas"/>, and replays the
     /// accumulated frame state onto the new canvas so it is in the same transformation and clip state.
     /// </summary>

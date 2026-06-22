@@ -1,4 +1,4 @@
-﻿using PdfPixel.Text;
+using PdfPixel.Text;
 using System;
 
 namespace PdfPixel.Models;
@@ -11,10 +11,11 @@ public class PdfXObject
     /// <summary>
     /// Initializes a new <see cref="PdfXObject"/> wrapping the given source object and resolved subtype.
     /// </summary>
-    public PdfXObject(PdfObject xObject, PdfXObjectSubtype subtype)
+    public PdfXObject(PdfObject xObject, PdfXObjectSubtype subtype, PdfOptionalContentMembership? optionalContent)
     {
         XObject = xObject;
         Subtype = subtype;
+        OptionalContent = optionalContent;
     }
 
     /// <summary>
@@ -28,6 +29,11 @@ public class PdfXObject
     public PdfXObjectSubtype Subtype { get; }
 
     /// <summary>
+    /// Optional content membership controlling visibility of this XObject.
+    /// </summary>
+    public PdfOptionalContentMembership? OptionalContent { get; }
+
+    /// <summary>
     /// Creates a <see cref="PdfXObject"/> from a PDF object by reading its /Subtype entry.
     /// </summary>
     public static PdfXObject FromObject(PdfObject sourceObject)
@@ -38,6 +44,8 @@ public class PdfXObject
         }
 
         PdfXObjectSubtype subtype = sourceObject.Dictionary.GetName(PdfTokens.SubtypeKey).AsEnum<PdfXObjectSubtype>();
-        return new PdfXObject(sourceObject, subtype);
+        PdfOptionalContentMembership? optionalContent = PdfOptionalContentMembership.FromDictionary(sourceObject.Dictionary);
+
+        return new PdfXObject(sourceObject, subtype, optionalContent);
     }
 }

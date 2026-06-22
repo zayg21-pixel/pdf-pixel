@@ -51,6 +51,13 @@ internal static class PdfAnnotationAppearanceRenderer
 
         PdfXObject xObject = PdfXObject.FromObject(appearanceObject);
 
+        PdfOptionalContentMembership? optionalContent = xObject.OptionalContent;
+        if (optionalContent != null)
+        {
+            PdfMarkedContent markedContent = new(PdfMarkedContentType.OptionalContent) { OptionalContent = optionalContent };
+            processor.Process(new BeginMarkedContentCommand(markedContent));
+        }
+
         processor.Process(new SaveStateCommand());
 
         var success = false;
@@ -58,18 +65,24 @@ internal static class PdfAnnotationAppearanceRenderer
         switch (xObject.Subtype)
         {
             case PdfXObjectSubtype.Form:
-                {
-                    success = RenderFormAppearance(processor, appearanceObject, annotation.Rectangle, page, renderer, renderingParameters, observer);
-                    break;
-                }
+            {
+                success = RenderFormAppearance(processor, appearanceObject, annotation.Rectangle, page, renderer, renderingParameters, observer);
+                break;
+            }
             case PdfXObjectSubtype.Image:
-                {
-                    success = RenderImageAppearance(processor, appearanceObject, annotation.Rectangle, page, renderer, renderingParameters, observer);
-                    break;
-                }
+            {
+                success = RenderImageAppearance(processor, appearanceObject, annotation.Rectangle, page, renderer, renderingParameters, observer);
+                break;
+            }
         }
 
         processor.Process(new RestoreStateCommand());
+
+        if (optionalContent != null)
+        {
+            processor.Process(new EndMarkedContentCommand());
+        }
+
         return success;
     }
 
