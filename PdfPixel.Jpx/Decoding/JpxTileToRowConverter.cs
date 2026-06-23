@@ -38,6 +38,16 @@ public sealed class JpxTileToRowConverter
     private int _loadedTileRow = -1;
 
     /// <summary>
+    /// Indices of color (non-alpha) components in output order.
+    /// </summary>
+    private readonly int[] _colorComponentIndices;
+
+    /// <summary>
+    /// Index of the alpha component in the tile's ComponentData, or -1 when no alpha is present.
+    /// </summary>
+    private readonly int _alphaComponentIndex;
+
+    /// <summary>
     /// Initializes a new <see cref="JpxTileToRowConverter"/> with a tile provider for lazy decoding.
     /// </summary>
     /// <param name="header">Parsed JPX header containing image metadata.</param>
@@ -51,6 +61,34 @@ public sealed class JpxTileToRowConverter
 
         Width = _decodingParameters.ReduceDimension((int)header.Width);
         Height = _decodingParameters.ReduceDimension((int)header.Height);
+
+        _alphaComponentIndex = header.OpacityComponentIndex;
+
+        if (_alphaComponentIndex >= 0)
+        {
+            _colorComponentIndices = new int[header.ComponentCount - 1];
+            int colorIndex = 0;
+            for (int i = 0; i < header.ComponentCount; i++)
+            {
+                if (i != _alphaComponentIndex)
+                {
+                    _colorComponentIndices[colorIndex++] = i;
+                }
+            }
+
+            ColorComponentCount = _colorComponentIndices.Length;
+        }
+        else
+        {
+            _colorComponentIndices = new int[header.ComponentCount];
+            for (int i = 0; i < header.ComponentCount; i++)
+            {
+                _colorComponentIndices[i] = i;
+            }
+
+            ColorComponentCount = header.ComponentCount;
+        }
+
         ComponentCount = header.ComponentCount;
 
         _reducedTileWidth = _decodingParameters.ReduceDimension((int)header.TileWidth);
@@ -76,9 +114,20 @@ public sealed class JpxTileToRowConverter
     public int Height { get; }
 
     /// <summary>
-    /// Gets the number of components per pixel.
+    /// Gets the total number of components per pixel (including alpha when present).
     /// </summary>
     public int ComponentCount { get; }
+
+    /// <summary>
+    /// Gets the number of color (non-alpha) components per pixel.
+    /// </summary>
+    public int ColorComponentCount { get; }
+
+    /// <summary>
+    /// Gets a value indicating whether the output rows contain an alpha channel
+    /// as the last component.
+    /// </summary>
+    public bool HasAlphaChannel => _alphaComponentIndex >= 0;
 
     /// <summary>
     /// Gets the bit depth per component as declared in the JPX header (capped at 16).
@@ -159,8 +208,9 @@ public sealed class JpxTileToRowConverter
                     break;
                 }
 
-                for (int component = 0; component < ComponentCount; component++)
+                for (int i = 0; i < _colorComponentIndices.Length; i++)
                 {
+                    int component = _colorComponentIndices[i];
                     uint uValue = 0;
                     if (component < tile.ComponentCount && tile.ComponentData[component] != null)
                     {
@@ -168,6 +218,17 @@ public sealed class JpxTileToRowConverter
                     }
 
                     writer.WriteBits(BitsPerComponent, uValue);
+                }
+
+                if (_alphaComponentIndex >= 0)
+                {
+                    uint alphaValue = 0;
+                    if (_alphaComponentIndex < tile.ComponentCount && tile.ComponentData[_alphaComponentIndex] != null)
+                    {
+                        alphaValue = tile.GetUnsignedComponentValue(_alphaComponentIndex, pixelInTile, rowWithinTile, _header.Components[_alphaComponentIndex], BitsPerComponent);
+                    }
+
+                    writer.WriteBits(BitsPerComponent, alphaValue);
                 }
 
                 outputPixelIndex++;

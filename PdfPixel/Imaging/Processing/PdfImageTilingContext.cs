@@ -93,7 +93,8 @@ internal sealed class PdfImageTilingContext : IDisposable
                     _imageParameters.HasImageMask,
                     _imageParameters.MaskArray,
                     _imageParameters.DecodeArray,
-                    downscaledSize: downscaledSize);
+                    downscaledSize: downscaledSize,
+                    hasAlphaChannel: _imageParameters.HasAlphaChannel);
 
                 tileParameters[column] = parameters;
 
@@ -116,7 +117,8 @@ internal sealed class PdfImageTilingContext : IDisposable
 
     private void WriteRowToOpenTileRows(int imageRowIndex, in ReadOnlySpan<byte> fullWidthRow, IPdfExecutionObserver? observer)
     {
-        int componentCount = _imageParameters.ColorSpaceConverter.Components;
+        int componentCount = _imageParameters.ColorSpaceConverter.Components
+            + ((_imageParameters.HasAlphaChannel) ? 1 : 0);
         int bitsPerComponent = _imageParameters.BitsPerComponent;
 
         foreach (OpenTileRow openTileRow in _openTileRows)

@@ -63,11 +63,10 @@ internal class JpxImageDecoder : PdfImageDecoder
             Image.HasImageMask,
             Image.MaskArray,
             Image.DecodeArray,
-            downscaledSize: downscaledSize);
+            downscaledSize: downscaledSize,
+            hasAlphaChannel: _rowConverter.HasAlphaChannel);
 
         _fullWidthRowBuffer = new byte[((_rowConverter.Width * _rowConverter.ComponentCount * _rowConverter.BitsPerComponent) + 7) / 8];
-
-        // TODO: [HIGH] support transparency
 
         _tilingContext = new PdfImageTilingContext(tileInfo, _imageParameters, tileIndexesToDecode, LoggerFactory);
         _currentImageRow = 0;
@@ -100,10 +99,22 @@ internal class JpxImageDecoder : PdfImageDecoder
         return null;
     }
 
+    private static int GetColorComponentCount(JpxHeader header)
+    {
+        if (header.OpacityComponentIndex >= 0)
+        {
+            return header.ComponentCount - 1;
+        }
+
+        return header.ComponentCount;
+    }
+
     private PdfColorSpaceConverter? ResolveConverter(JpxHeader header)
     {
+        int colorComponents = GetColorComponentCount(header);
+
         PdfColorSpaceConverter? converter = Image.ColorSpaceConverter;
-        if (converter != null && (converter is IndexedConverter || converter.Components == header.ComponentCount))
+        if (converter != null && (converter is IndexedConverter || converter.Components == colorComponents))
         {
             return converter;
         }
@@ -113,7 +124,7 @@ internal class JpxImageDecoder : PdfImageDecoder
             return converter;
         }
 
-        return Image.Page.Cache.ColorSpace.ResolveDeviceConverter(header.ComponentCount);
+        return Image.Page.Cache.ColorSpace.ResolveDeviceConverter(colorComponents);
     }
 
     private static JpxDecodingParameters ComputeDecodingParameters(JpxHeader header, SKMatrix ctm, PdfTileInfo tileInfo, HashSet<int>? tileIndexesToDecode)

@@ -27,6 +27,10 @@ public sealed class PdfImageRowDecodingParameters
     /// <param name="maskArray">Color-key masking range pairs from the PDF /Mask entry, or null.</param>
     /// <param name="decodeArray">Sample remapping table from the PDF /Decode entry, or null for the default.</param>
     /// <param name="downscaledSize">Target output size after downscaling, or null when no downscaling is applied.</param>
+    /// <param name="hasAlphaChannel">
+    /// True when the interleaved row samples contain an alpha component as
+    /// the last component (by contract from the JPX row converter).
+    /// </param>
     public PdfImageRowDecodingParameters(
         ImageDecodingContext context,
         int width,
@@ -37,7 +41,8 @@ public sealed class PdfImageRowDecodingParameters
         bool hasImageMask,
         int[]? maskArray,
         float[]? decodeArray,
-        SKSizeI? downscaledSize)
+        SKSizeI? downscaledSize,
+        bool hasAlphaChannel = false)
     {
         Width = width;
         Height = height;
@@ -49,6 +54,7 @@ public sealed class PdfImageRowDecodingParameters
         MaskArray = maskArray;
         DecodeArray = decodeArray;
         DownscaledSize = downscaledSize;
+        HasAlphaChannel = hasAlphaChannel;
     }
 
     /// <summary>
@@ -95,6 +101,12 @@ public sealed class PdfImageRowDecodingParameters
     /// Target output size after downscaling, or null when no downscaling is applied.
     /// </summary>
     public SKSizeI? DownscaledSize { get; }
+
+    /// <summary>
+    /// True when the interleaved row samples contain an alpha component as
+    /// the last component.
+    /// </summary>
+    public bool HasAlphaChannel { get; }
 
     /// <summary>
     /// Rendering context for the current decode pass.
