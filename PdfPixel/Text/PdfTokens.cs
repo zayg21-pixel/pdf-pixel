@@ -298,6 +298,14 @@ internal static class PdfTokens
     public static readonly PdfString OptionalContentGroupsKey = (PdfString)"OCGs"u8;  // Optional content groups
     public static readonly PdfString VisibilityPolicyKey = (PdfString)"P"u8;           // Visibility policy
     public static readonly PdfString PropertiesKey = (PdfString)"Properties"u8;        // Properties subdictionary
+    public static readonly PdfString OCPropertiesKey = (PdfString)"OCProperties"u8;    // Catalog optional content properties
+    public static readonly PdfString OnKey = (PdfString)"ON"u8;                        // Default-on OCG array
+    public static readonly PdfString OffKey = (PdfString)"OFF"u8;                      // Default-off OCG array
+    public static readonly PdfString OrderKey = (PdfString)"Order"u8;                  // OCG presentation order array
+    public static readonly PdfString DefaultConfigKey = (PdfString)"D"u8;              // Default OC configuration dictionary
+    public static readonly PdfString ActualTextKey = (PdfString)"ActualText"u8;        // Replacement text for marked content
+    public static readonly PdfString LangKey = (PdfString)"Lang"u8;                    // Language tag for marked content
+    public static readonly PdfString MCIDKey = (PdfString)"MCID"u8;                    // Marked content identifier
 
     // Border style dictionary keys
     public static readonly PdfString SKey = (PdfString)"S"u8;                         // Style (also used for action subtype)

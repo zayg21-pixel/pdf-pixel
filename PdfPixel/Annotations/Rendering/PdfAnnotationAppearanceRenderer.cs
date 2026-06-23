@@ -54,7 +54,7 @@ internal static class PdfAnnotationAppearanceRenderer
         PdfOptionalContentMembership? optionalContent = xObject.OptionalContent;
         if (optionalContent != null)
         {
-            PdfMarkedContent markedContent = new(PdfMarkedContentType.OptionalContent) { OptionalContent = optionalContent };
+            PdfMarkedContent markedContent = new(PdfTokens.OptionalContentKey) { OptionalContent = optionalContent };
             processor.Process(new BeginMarkedContentCommand(markedContent));
         }
 

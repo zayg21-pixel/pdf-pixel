@@ -20,7 +20,7 @@ public sealed class BeginMarkedContentCommand : PdfCommand
 
     /// <inheritdoc />
     public override void Execute(IEnumerable<IPdfCommandModifier> modifiers, PdfCommandExecutionContext executionContext)
-        => executionContext.MarkedContentStack.Push(MarkedContent);
+        => executionContext.MarkedContent.Push(MarkedContent);
 
     /// <inheritdoc />
     protected override void Dispose(bool disposing)

@@ -26,6 +26,12 @@ public sealed class SkCanvasCommandProcessor : IPdfCommandProcessor
             throw new ArgumentNullException(nameof(command));
         }
 
+        if (!_executionContext.MarkedContent.ShouldExecute(command))
+        {
+            command.Dispose();
+            return;
+        }
+
         command.Execute(Array.Empty<IPdfCommandModifier>(), _executionContext);
         _executionContext.CurrentCommand = command;
         command.Dispose();

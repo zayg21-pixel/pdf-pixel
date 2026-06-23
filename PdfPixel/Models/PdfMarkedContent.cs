@@ -1,23 +1,31 @@
+using PdfPixel.TextExtraction;
+
 namespace PdfPixel.Models;
 
 /// <summary>
-/// Represents a marked content scope with its tag type and type-specific properties.
+/// Represents a marked content scope with its tag and type-specific properties.
 /// </summary>
 public class PdfMarkedContent
 {
     /// <summary>
-    /// Initializes a new <see cref="PdfMarkedContent"/> with the specified type.
+    /// Initializes a new <see cref="PdfMarkedContent"/> with the specified tag name.
     /// </summary>
-    public PdfMarkedContent(PdfMarkedContentType type) => Type = type;
+    public PdfMarkedContent(in PdfString tag) => Tag = tag;
 
     /// <summary>
-    /// Type of the marked content tag.
+    /// Raw tag name from the content stream (e.g. "OC", "Span", "Artifact").
     /// </summary>
-    public PdfMarkedContentType Type { get; }
+    public PdfString Tag { get; }
 
     /// <summary>
-    /// Optional content membership controlling visibility. Set only when <see cref="Type"/>
-    /// is <see cref="PdfMarkedContentType.OptionalContent"/>.
+    /// Optional content membership controlling visibility.
+    /// Set only when <see cref="Tag"/> is "OC".
     /// </summary>
     public PdfOptionalContentMembership? OptionalContent { get; set; }
+
+    /// <summary>
+    /// Text-related markup properties extracted from the marked content scope.
+    /// Null for optional content (/OC) scopes.
+    /// </summary>
+    public PdfTextMarkup? TextMarkup { get; set; }
 }

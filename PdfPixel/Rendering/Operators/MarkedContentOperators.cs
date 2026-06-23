@@ -1,8 +1,8 @@
-using Microsoft.Extensions.Logging;
 using PdfPixel.Commands;
 using PdfPixel.Models;
 using PdfPixel.Rendering.State;
 using PdfPixel.Text;
+using PdfPixel.TextExtraction;
 using System.Collections.Generic;
 
 namespace PdfPixel.Rendering.Operators;
@@ -40,13 +40,13 @@ internal class MarkedContentOperators : IOperatorProcessor
             case "MP":
             {
                 // Marked content point
-                ProcessMarkedContentPoint();
+                ProcessMarkedContentPoint(graphicsState);
                 break;
             }
             case "DP":
             {
                 // Marked content point with properties
-                ProcessMarkedContentPointWithProperties();
+                ProcessMarkedContentPointWithProperties(graphicsState);
                 break;
             }
             case "BMC":
@@ -70,19 +70,29 @@ internal class MarkedContentOperators : IOperatorProcessor
         }
     }
 
-    private void ProcessMarkedContentPoint()
+    private void ProcessMarkedContentPoint(PdfGraphicsState graphicsState)
     {
-        // TODO: MP takes 1 operand (tag name). Used for structure elements (/Span, /P, /Artifact, etc.)
-        // in tagged PDF. Should record the tag for accessibility/content extraction when implemented.
-        PdfOperatorProcessor.GetOperands(1, _operandStack);
+        List<IPdfValue> operands = PdfOperatorProcessor.GetOperands(1, _operandStack);
+        if (operands.Count == 0)
+        {
+            return;
+        }
+
+        PdfString tagName = operands[0].AsName();
+        graphicsState.PendingTextMarkup = TryParseTextMarkup(tagName, propertiesDictionary: null);
     }
 
-    private void ProcessMarkedContentPointWithProperties()
+    private void ProcessMarkedContentPointWithProperties(PdfGraphicsState graphicsState)
     {
-        // TODO: DP takes 2 operands (tag name, properties dictionary or resource name).
-        // Properties may contain /MCID (marked content identifier) for structure tree mapping,
-        // /ActualText for Unicode text replacement, or /Lang for language tagging.
-        PdfOperatorProcessor.GetOperands(2, _operandStack);
+        List<IPdfValue> operands = PdfOperatorProcessor.GetOperands(2, _operandStack);
+        if (operands.Count < 2)
+        {
+            return;
+        }
+
+        PdfString tagName = operands[0].AsName();
+        PdfDictionary? propertiesDictionary = ResolvePropertiesDictionary(operands[1]);
+        graphicsState.PendingTextMarkup = TryParseTextMarkup(tagName, propertiesDictionary);
     }
 
     private void ProcessBeginMarkedContent()
@@ -93,17 +103,16 @@ internal class MarkedContentOperators : IOperatorProcessor
             return;
         }
 
-        PdfMarkedContentType type = operands[0].AsName().AsEnum<PdfMarkedContentType>();
-        _processor.Process(new BeginMarkedContentCommand(new PdfMarkedContent(type)));
+        PdfString tagName = operands[0].AsName();
+        PdfMarkedContent markedContent = new(tagName) { TextMarkup = TryParseTextMarkup(tagName, propertiesDictionary: null) };
+
+        _processor.Process(new BeginMarkedContentCommand(markedContent));
     }
 
     private void ProcessEndMarkedContent() => _processor.Process(new EndMarkedContentCommand());
 
     private void ProcessBeginMarkedContentWithProperties()
     {
-        // TODO: BDC currently only populates properties for /OC (optional content) tag.
-        // Other tags like /Span, /P, /Artifact carry properties such as /MCID, /ActualText,
-        // /Lang, /Alt that should be populated on PdfMarkedContent when implemented.
         List<IPdfValue> operands = PdfOperatorProcessor.GetOperands(2, _operandStack);
         if (operands.Count < 2)
         {
@@ -111,19 +120,62 @@ internal class MarkedContentOperators : IOperatorProcessor
         }
 
         PdfString tagName = operands[0].AsName();
-        PdfMarkedContentType type = tagName.AsEnum<PdfMarkedContentType>();
-        PdfMarkedContent markedContent = new(type);
+        PdfMarkedContent markedContent = new(tagName);
 
-        if (type == PdfMarkedContentType.OptionalContent)
+        if (tagName == PdfTokens.OptionalContentKey)
+        {
+            PdfObject? propertiesObject = ResolvePropertiesObject(operands[1]);
+            if (propertiesObject != null)
+            {
+                markedContent.OptionalContent = PdfOptionalContentMembership.FromOptionalContentObject(propertiesObject);
+            }
+        }
+        else
         {
             PdfDictionary? propertiesDictionary = ResolvePropertiesDictionary(operands[1]);
-            if (propertiesDictionary != null)
-            {
-                markedContent.OptionalContent = PdfOptionalContentMembership.FromOptionalContentDictionary(propertiesDictionary);
-            }
+            markedContent.TextMarkup = TryParseTextMarkup(tagName, propertiesDictionary);
         }
 
         _processor.Process(new BeginMarkedContentCommand(markedContent));
+    }
+
+    private static PdfTextMarkup? TryParseTextMarkup(in PdfString tagName, PdfDictionary? propertiesDictionary)
+    {
+        PdfTextTag tag = tagName.AsEnum<PdfTextTag>();
+
+        var hasProperties = false;
+        PdfString actualText = default;
+        PdfString lang = default;
+        int? mcid = null;
+
+        if (propertiesDictionary != null)
+        {
+            actualText = propertiesDictionary.GetString(PdfTokens.ActualTextKey);
+            lang = propertiesDictionary.GetString(PdfTokens.LangKey);
+            mcid = propertiesDictionary.GetInteger(PdfTokens.MCIDKey);
+            hasProperties = !actualText.IsEmpty || !lang.IsEmpty || mcid != null;
+        }
+
+        if (tag == PdfTextTag.Custom && !hasProperties)
+        {
+            return null;
+        }
+
+        PdfTextMarkup markup = new(tag);
+
+        if (tag == PdfTextTag.Custom)
+        {
+            markup.CustomTag = tagName;
+        }
+
+        if (hasProperties)
+        {
+            markup.ActualText = actualText;
+            markup.Lang = lang;
+            markup.Mcid = mcid;
+        }
+
+        return markup;
     }
 
     private PdfDictionary? ResolvePropertiesDictionary(IPdfValue propertiesOperand)
@@ -142,5 +194,25 @@ internal class MarkedContentOperators : IOperatorProcessor
 
         PdfDictionary? properties = _page.ResourceDictionary.GetDictionary(PdfTokens.PropertiesKey);
         return properties?.GetDictionary(propertiesName);
+    }
+
+    private PdfObject? ResolvePropertiesObject(IPdfValue propertiesOperand)
+    {
+        // Inline dictionary — wrap in a synthetic PdfObject.
+        PdfDictionary? inlineDictionary = propertiesOperand.AsDictionary();
+        if (inlineDictionary != null)
+        {
+            return new PdfObject(default, _page.Document, propertiesOperand);
+        }
+
+        // Resource name — look up in /Properties subdictionary.
+        PdfString propertiesName = propertiesOperand.AsName();
+        if (propertiesName.IsEmpty)
+        {
+            return null;
+        }
+
+        PdfDictionary? properties = _page.ResourceDictionary.GetDictionary(PdfTokens.PropertiesKey);
+        return properties?.GetObject(propertiesName);
     }
 }

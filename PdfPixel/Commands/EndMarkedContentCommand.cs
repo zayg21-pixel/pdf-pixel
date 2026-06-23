@@ -9,12 +9,7 @@ public sealed class EndMarkedContentCommand : PdfCommand
 {
     /// <inheritdoc />
     public override void Execute(IEnumerable<IPdfCommandModifier> modifiers, PdfCommandExecutionContext executionContext)
-    {
-        if (executionContext.MarkedContentStack.Count > 0)
-        {
-            executionContext.MarkedContentStack.Pop();
-        }
-    }
+        => executionContext.MarkedContent.Pop();
 
     /// <inheritdoc />
     protected override void Dispose(bool disposing)

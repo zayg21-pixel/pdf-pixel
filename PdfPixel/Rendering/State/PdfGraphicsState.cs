@@ -6,6 +6,7 @@ using PdfPixel.Commands;
 using PdfPixel.Fonts.Model;
 using PdfPixel.Models;
 using PdfPixel.Text;
+using PdfPixel.TextExtraction;
 using PdfPixel.Transparency.Model;
 using SkiaSharp;
 using System;
@@ -392,6 +393,12 @@ public class PdfGraphicsState
     /// Gets or sets the clipping path used to define the area where text can be rendered.
     /// </summary>
     public SKPath? TextClipPath { get; set; }
+
+    /// <summary>
+    /// Text markup set by a DP (marked content point with properties) operator.
+    /// Consumed and cleared by the next text drawing operation.
+    /// </summary>
+    public PdfTextMarkup? PendingTextMarkup { get; set; }
 
     /// <summary>
     /// Create a deep copy for stack push (q operator). Paint objects are reference-copied (immutable usage expected).

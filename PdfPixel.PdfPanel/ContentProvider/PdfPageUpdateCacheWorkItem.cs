@@ -122,6 +122,7 @@ public class PdfPageUpdateCacheWorkItem : IWorkItem
                 contentRecording.Content,
                 _request.CommandExecutionParameters,
                 _documentLocker,
+                _document.OptionalContentGroups,
                 _contentObserver,
                 out bool isPartialContent,
                 regionOfInterest);
@@ -152,7 +153,7 @@ public class PdfPageUpdateCacheWorkItem : IWorkItem
             SKRect.Create(CacheEntry.PageInfo.Width, CacheEntry.PageInfo.Height));
 
         SKCanvas canvas = flushObserver.BeginRecording();
-        using PdfCommandExecutionContext executionContext = new(_request.CommandExecutionParameters, _documentLocker, flushObserver, canvas, regionOfInterest);
+        using PdfCommandExecutionContext executionContext = new(_request.CommandExecutionParameters, _documentLocker, _document.OptionalContentGroups, flushObserver, canvas, regionOfInterest);
         flushObserver.Initialize(executionContext);
 
         commandRecording.Replay(Array.Empty<IPdfCommandModifier>(), executionContext);

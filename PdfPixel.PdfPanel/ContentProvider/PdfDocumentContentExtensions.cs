@@ -4,6 +4,7 @@ using PdfPixel.Models;
 using PdfPixel.Text;
 using SkiaSharp;
 using System;
+using System.Collections.Generic;
 
 namespace PdfPixel.PdfPanel.ContentProvider;
 
@@ -82,6 +83,7 @@ internal static class PdfDocumentContentExtensions
         PdfCommandRecorder? commandRecording,
         PdfCommandExecutionParameters executionParameters,
         object contentLocker,
+        IReadOnlyDictionary<PdfReference, PdfOptionalContentGroup> optionalContentGroups,
         IPdfExecutionObserver executionObserver,
         out bool isPartialContent,
         SKRect? regionOfInterest = null)
@@ -95,7 +97,7 @@ internal static class PdfDocumentContentExtensions
 
         using SKPictureRecorder recorder = new();
         SKCanvas canvas = recorder.BeginRecording(SKRect.Create(pageInfo.Width, pageInfo.Height));
-        using PdfCommandExecutionContext executionContext = new(executionParameters, contentLocker, executionObserver, canvas, regionOfInterest);
+        using PdfCommandExecutionContext executionContext = new(executionParameters, contentLocker, optionalContentGroups, executionObserver, canvas, regionOfInterest);
 
         commandRecording.Replay(Array.Empty<IPdfCommandModifier>(), executionContext);
 

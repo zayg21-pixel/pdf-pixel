@@ -17,10 +17,17 @@ public sealed class PdfCommandExecutionContext : IDisposable
     /// <summary>
     /// Initializes a new execution context with execution parameters, a content locker, an observer, and the canvas to draw on.
     /// </summary>
-    public PdfCommandExecutionContext(PdfCommandExecutionParameters parameters, object contentLocker, IPdfExecutionObserver executionObserver, SKCanvas canvas, SKRect? pageRegionOfInterest = null)
+    public PdfCommandExecutionContext(
+        PdfCommandExecutionParameters parameters,
+        object contentLocker,
+        IReadOnlyDictionary<PdfReference, PdfOptionalContentGroup> optionalContentGroups,
+        IPdfExecutionObserver executionObserver,
+        SKCanvas canvas,
+        SKRect? pageRegionOfInterest = null)
     {
         Parameters = parameters ?? throw new ArgumentNullException(nameof(parameters));
         ContentLocker = contentLocker ?? throw new ArgumentNullException(nameof(contentLocker));
+        MarkedContent = new PdfMarkedContentState(optionalContentGroups ?? throw new ArgumentNullException(nameof(optionalContentGroups)));
         ExecutionObserver = executionObserver;
         Canvas = canvas ?? throw new ArgumentNullException(nameof(canvas));
         PageRegionOfInterest = pageRegionOfInterest;
@@ -80,17 +87,15 @@ public sealed class PdfCommandExecutionContext : IDisposable
     public PdfCommandExecutionFrames Frames { get; } = new();
 
     /// <summary>
-    /// Accumulates extracted text characters during command execution.
-    /// Populated only when <see cref="PdfRenderingParameters.ExtractText"/> was true at recording time.
+    /// Tracks active marked content scopes and evaluates optional content visibility.
     /// </summary>
-    public List<PdfCharacter> Characters { get; } = [];
+    public PdfMarkedContentState MarkedContent { get; }
 
     /// <summary>
-    /// Stack of active marked content scopes. Pushed by <see cref="BeginMarkedContentCommand"/>,
-    /// popped by <see cref="EndMarkedContentCommand"/>. Commands can inspect this to determine
-    /// the current marked content state (e.g. optional content visibility).
+    /// Root of the text block tree built during command execution.
+    /// Characters are grouped into blocks corresponding to marked content scopes.
     /// </summary>
-    public Stack<PdfMarkedContent> MarkedContentStack { get; } = [];
+    public PdfTextBlock RootTextBlock => MarkedContent.RootTextBlock;
 
     /// <summary>
     /// Disposes the current canvas, replaces it with <paramref name="canvas"/>, and replays the

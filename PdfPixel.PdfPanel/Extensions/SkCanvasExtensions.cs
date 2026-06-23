@@ -44,8 +44,12 @@ internal static class SkCanvasExtensions
             {
                 if (pictures?.Content?.HasContent == true)
                 {
+                    // Isolate content compositing so blend modes resolve against page content,
+                    // not the white background painted by DrawPageBackground.
+                    int layerCount = canvas.SaveLayer();
                     DrawPagePicture(canvas, pictures.Content, page);
                     DrawPagePicture(canvas, pictures.Annotations, page);
+                    canvas.RestoreToCount(layerCount);
                 }
                 else if ((flags & PageDrawFlags.Placeholder) != 0 && animation != null)
                 {

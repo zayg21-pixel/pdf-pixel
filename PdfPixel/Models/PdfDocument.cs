@@ -44,6 +44,9 @@ internal class PdfDocument : IPdfDocumentInternal
 
     IReadOnlyList<IPdfPage> IPdfDocument.Pages => _pages;
 
+    /// <inheritdoc />
+    public IReadOnlyDictionary<PdfReference, PdfOptionalContentGroup> OptionalContentGroups { get; internal set; } = new Dictionary<PdfReference, PdfOptionalContentGroup>();
+
     List<IPdfPageInternal> IPdfDocumentInternal.Pages => _pages;
 
     PdfDictionary? IPdfDocumentInternal.NamedDestinations { get; set; }

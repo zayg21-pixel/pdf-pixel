@@ -7,7 +7,8 @@ namespace PdfPixel.Commands;
 /// <summary>
 /// Carries extracted text characters in pre-CTM space. During execution, each character's
 /// bounding box is mapped through <see cref="PdfCommandExecutionFrames.TotalMatrix"/> to
-/// produce page-space coordinates, then appended to <see cref="PdfCommandExecutionContext.Characters"/>.
+/// produce page-space coordinates, then appended to the current text block
+/// in <see cref="PdfCommandExecutionContext.MarkedContent"/>.
 /// </summary>
 public sealed class TextCharactersCommand : PdfCommand
 {
@@ -23,15 +24,20 @@ public sealed class TextCharactersCommand : PdfCommand
     {
         SKMatrix matrix = executionContext.Frames.TotalMatrix;
 
+        List<PdfCharacter> mapped = new(_characters.Length);
+
         for (int i = 0; i < _characters.Length; i++)
         {
-            //executionContext.Canvas.DrawRect(_characters[i].BoundingBox, new SKPaint { Style = SKPaintStyle.Stroke, Color = SKColors.Red });
-
             SKRect pageRect = matrix.MapRect(_characters[i].BoundingBox).Standardized;
             if (pageRect.Width != 0)
             {
-                executionContext.Characters.Add(new PdfCharacter(_characters[i].Text, pageRect));
+                mapped.Add(new PdfCharacter(_characters[i].Text, pageRect));
             }
+        }
+
+        if (mapped.Count > 0)
+        {
+            executionContext.MarkedContent.AppendCharacters(mapped);
         }
     }
 

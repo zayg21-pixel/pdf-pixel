@@ -13,4 +13,9 @@ public interface IPdfDocument : IDisposable
     /// </summary>
     IReadOnlyList<IPdfPage> Pages { get; }
 
+    /// <summary>
+    /// Gets the optional content groups (layers) defined in the document,
+    /// keyed by their indirect object reference. Empty if the document has no optional content.
+    /// </summary>
+    IReadOnlyDictionary<PdfReference, PdfOptionalContentGroup> OptionalContentGroups { get; }
 }

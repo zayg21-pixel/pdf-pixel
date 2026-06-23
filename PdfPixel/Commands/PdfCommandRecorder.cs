@@ -35,6 +35,11 @@ public sealed class PdfCommandRecorder : IPdfCommandProcessor
 
         foreach (IPdfCommand command in _commands)
         {
+            if (!executionContext.MarkedContent.ShouldExecute(command))
+            {
+                continue;
+            }
+
             command.Execute(modifiers, executionContext);
             executionContext.CurrentCommand = command;
             executionContext.ExecutionObserver?.Notify();

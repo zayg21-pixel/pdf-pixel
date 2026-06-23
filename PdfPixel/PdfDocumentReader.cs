@@ -69,8 +69,6 @@ public class PdfDocumentReader
 
         IPdfDocumentInternal document = new PdfDocument(_loggerFactory, _skiaFontProvider, stream);
         using PdfXrefLoader xrefLoader = new(document);
-        PdfPageExtractor pageExtractor = new(document);
-        PdfNamedDestinationParser namedDestinationParser = new(document);
 
         try
         {
@@ -93,6 +91,10 @@ public class PdfDocumentReader
             throw new PdfInvalidDocumentException("Failed to parse PDF document: catalog root not found.");
         }
 
+        PdfPageExtractor pageExtractor = new(document);
+        PdfNamedDestinationParser namedDestinationParser = new(document);
+        PdfOutputIntentParser outputIntentParser = new(document.RootObject, _loggerFactory.CreateLogger<PdfOutputIntentParser>());
+
         try
         {
             document.Decryptor?.UpdatePassword(password ?? string.Empty);
@@ -100,7 +102,9 @@ public class PdfDocumentReader
             document.NamedDestinations = namedDestinationParser.ParseNamedDestinations();
             pageExtractor.ExtractPages();
 
-            PdfOutputIntentParser outputIntentParser = new(document.RootObject, _loggerFactory.CreateLogger<PdfOutputIntentParser>());
+            PdfOptionalContentGroupParser ocgParser = new(document.RootObject, _loggerFactory.CreateLogger<PdfOptionalContentGroupParser>());
+            ((PdfDocument)document).OptionalContentGroups = ocgParser.Parse();
+
             IccProfile? outputIntentProfile = outputIntentParser.ParseFirstOutputIntentProfile();
             document.ObjectCache.OutputIntentProfile = outputIntentProfile;
 

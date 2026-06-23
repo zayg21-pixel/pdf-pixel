@@ -2,6 +2,7 @@ using Microsoft.Extensions.Logging;
 using PdfPixel.Color.Paint;
 using PdfPixel.Commands;
 using PdfPixel.Fonts.Model;
+using PdfPixel.Models;
 using PdfPixel.Rendering;
 using PdfPixel.Rendering.State;
 using PdfPixel.Rendering.Text;
@@ -194,10 +195,7 @@ public class PdfTextRenderer : IPdfTextRenderer
             }
 
             SKMatrix extractMatrix = TextRenderUtilities.GetFullTextMatrix(state, inverse: false);
-            processor.Process(new SaveStateCommand());
-            processor.Process(new ConcatMatrixCommand(extractMatrix));
-            processor.Process(new TextCharactersCommand(characters));
-            processor.Process(new RestoreStateCommand());
+            EmitTextCharacters(processor, state, extractMatrix, characters);
         }
     }
 
@@ -244,10 +242,29 @@ public class PdfTextRenderer : IPdfTextRenderer
             }
 
             SKMatrix textMatrix = TextRenderUtilities.GetFullTextMatrix(state);
-            processor.Process(new SaveStateCommand());
-            processor.Process(new ConcatMatrixCommand(textMatrix));
-            processor.Process(new TextCharactersCommand(characters));
-            processor.Process(new RestoreStateCommand());
+            EmitTextCharacters(processor, state, textMatrix, characters);
+        }
+    }
+
+    [MethodImpl(methodImplOptions: MethodImplOptions.AggressiveInlining)]
+    private static void EmitTextCharacters(IPdfCommandProcessor processor, PdfGraphicsState state, SKMatrix matrix, PdfCharacter[] characters)
+    {
+        PdfTextMarkup? pendingMarkup = state.PendingTextMarkup;
+        if (pendingMarkup != null)
+        {
+            PdfMarkedContent markedContent = new(PdfString.Empty) { TextMarkup = pendingMarkup };
+            processor.Process(new BeginMarkedContentCommand(markedContent));
+            state.PendingTextMarkup = null;
+        }
+
+        processor.Process(new SaveStateCommand());
+        processor.Process(new ConcatMatrixCommand(matrix));
+        processor.Process(new TextCharactersCommand(characters));
+        processor.Process(new RestoreStateCommand());
+
+        if (pendingMarkup != null)
+        {
+            processor.Process(new EndMarkedContentCommand());
         }
     }
 

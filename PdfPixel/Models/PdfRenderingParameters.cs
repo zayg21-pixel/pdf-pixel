@@ -38,8 +38,8 @@ public class PdfRenderingParameters
     public bool RenderText { get; set; } = true;
 
     /// <summary>
-    /// When true, text character data is extracted and accumulated in
-    /// <see cref="Commands.PdfCommandExecutionContext.Characters"/> during command execution.
+    /// When true, text character data is extracted and accumulated in the text block tree
+    /// accessible via <see cref="Commands.PdfCommandExecutionContext.RootTextBlock"/> during command execution.
     /// </summary>
     public bool ExtractText { get; set; }
 }

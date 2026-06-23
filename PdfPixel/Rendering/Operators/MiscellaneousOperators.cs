@@ -108,7 +108,7 @@ internal class MiscellaneousOperators : IOperatorProcessor
         PdfOptionalContentMembership? optionalContent = pageObject.OptionalContent;
         if (optionalContent != null)
         {
-            PdfMarkedContent markedContent = new(PdfMarkedContentType.OptionalContent) { OptionalContent = optionalContent };
+            PdfMarkedContent markedContent = new(PdfTokens.OptionalContentKey) { OptionalContent = optionalContent };
             _processor.Process(new BeginMarkedContentCommand(markedContent));
         }
 
