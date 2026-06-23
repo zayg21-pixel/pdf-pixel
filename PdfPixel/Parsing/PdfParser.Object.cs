@@ -76,24 +76,49 @@ internal partial struct PdfParser
 
         int declaredLength = dict.GetValue(PdfTokens.LengthKey).AsInteger();
 
+        int streamStart = Position;
+
         if (declaredLength <= 0)
         {
-            return default;
-        }
+            int distanceToEndStream = ScanForToken(PdfTokens.EndStream);
+            if (distanceToEndStream <= 0)
+            {
+                return default;
+            }
 
-        int remaining = Length - Position;
-        int streamStart = Position;
-        if (declaredLength > remaining)
+            declaredLength = distanceToEndStream;
+            if (declaredLength > 0 && PeekByte(distanceToEndStream - 1) == LineFeed)
+            {
+                declaredLength--;
+                if (declaredLength > 0 && PeekByte(declaredLength - 1) == CarriageReturn)
+                {
+                    declaredLength--;
+                }
+            }
+            else if (declaredLength > 0 && PeekByte(distanceToEndStream - 1) == CarriageReturn)
+            {
+                declaredLength--;
+            }
+
+            Position = streamStart + distanceToEndStream;
+            Advance(PdfTokens.EndStream.Value.Length);
+        }
+        else
         {
-            declaredLength = remaining;
+            int remaining = Length - Position;
+            if (declaredLength > remaining)
+            {
+                declaredLength = remaining;
+            }
+
+            Advance(declaredLength);
+
+            SkipSingleEndOfLine();
+
+            Advance(PdfTokens.EndStream.Value.Length);
         }
-
-        Advance(declaredLength);
-
-        SkipSingleEndOfLine();
-
-        Advance(PdfTokens.EndStream.Value.Length);
 
         return new PdfObjectStreamReference(streamStart, declaredLength, _decrypt);
     }
+
 }
