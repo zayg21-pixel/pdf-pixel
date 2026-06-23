@@ -42,6 +42,7 @@ internal class PdfPage : IPdfPageInternal
         PageNumber = pageNumber;
         SKRect media = pageResources.MediaBoxRect ?? DefaultMediaBox;
         SKRect crop = pageResources.CropBoxRect ?? media;
+        crop = SKRect.Intersect(crop, media);
         MediaBox = media;
         CropBox = crop;
         Rotation = pageResources.Rotate ?? 0;
