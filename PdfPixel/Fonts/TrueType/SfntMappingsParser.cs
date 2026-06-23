@@ -1,4 +1,6 @@
-﻿using PdfPixel.Models;
+﻿using PdfPixel.Fonts.Model;
+using PdfPixel.Models;
+using PdfPixel.Text;
 using SkiaSharp;
 using System.Collections.Generic;
 using System.Linq;
@@ -177,52 +179,75 @@ internal static class SfntFontTableParser
             return unicodeToGid;
         }
 
-        // TODO: [HIGH] according to PDF spec, we should use both font encoding and UnicodeToGid encoding to map char, this is incorrect
-
         foreach (SfntCMapEntry cmap in info.CMapEntries)
         {
+            Dictionary<int, ushort>? codeToGid = null;
+
             if (cmap.Format == 4)
             {
-                Dictionary<int, ushort> format4Map = SnftCMapParser.ParseFormat4(info.CmapData, cmap.Offset);
-
-                foreach (KeyValuePair<int, ushort> kvp in format4Map)
-                {
-                    if (!IsValidUnicodeCodepoint(kvp.Key))
-                    {
-                        continue;
-                    }
-
-                    string unicodeString = char.ConvertFromUtf32(kvp.Key);
-
-                    if (!unicodeToGid.ContainsKey(unicodeString))
-                    {
-                        unicodeToGid[unicodeString] = kvp.Value;
-                    }
-                }
+                codeToGid = SnftCMapParser.ParseFormat4(info.CmapData, cmap.Offset);
             }
             else if (cmap.Format == 6)
             {
-                Dictionary<int, ushort> format6Map = SnftCMapParser.ParseFormat6(info.CmapData, cmap.Offset);
+                codeToGid = SnftCMapParser.ParseFormat6(info.CmapData, cmap.Offset);
+            }
 
-                foreach (KeyValuePair<int, ushort> kvp in format6Map)
+            if (codeToGid == null)
+            {
+                continue;
+            }
+
+            foreach (KeyValuePair<int, ushort> kvp in codeToGid)
+            {
+                int unicodeCodepoint = ConvertToUnicode(kvp.Key, cmap.Encoding);
+
+                if (!IsValidUnicodeCodepoint(unicodeCodepoint))
                 {
-                    if (!IsValidUnicodeCodepoint(kvp.Key))
-                    {
-                        continue;
-                    }
+                    continue;
+                }
 
-                    string unicodeString = char.ConvertFromUtf32(kvp.Key);
+                string unicodeString = char.ConvertFromUtf32(unicodeCodepoint);
 
-                    if (!unicodeToGid.ContainsKey(unicodeString))
-                    {
-                        unicodeToGid[unicodeString] = kvp.Value;
-                    }
+                if (!unicodeToGid.ContainsKey(unicodeString))
+                {
+                    unicodeToGid[unicodeString] = kvp.Value;
                 }
             }
         }
 
         // TODO: [HIGH] Add support for format 10/12
         return unicodeToGid;
+    }
+
+    private static int ConvertToUnicode(int code, PdfFontEncoding? encoding)
+    {
+        if (encoding == null
+            || encoding == PdfFontEncoding.WinAnsiEncoding
+            || encoding == PdfFontEncoding.Unknown)
+        {
+            return code;
+        }
+
+        if (code < 0 || code > 255)
+        {
+            return code;
+        }
+
+        PdfString glyphName = SingleByteEncodings.GetNameByCode((byte)code, encoding.Value);
+
+        if (glyphName.IsEmpty)
+        {
+            return code;
+        }
+
+        if (AdobeGlyphList.CharacterMap.TryGetValue(glyphName, out string? unicode)
+            && unicode != null
+            && unicode.Length > 0)
+        {
+            return char.ConvertToUtf32(unicode, 0);
+        }
+
+        return code;
     }
 
     private static bool IsValidUnicodeCodepoint(int codepoint) => codepoint >= 0 && codepoint <= 0x10FFFF && (codepoint < 0xD800 || codepoint > 0xDFFF);
