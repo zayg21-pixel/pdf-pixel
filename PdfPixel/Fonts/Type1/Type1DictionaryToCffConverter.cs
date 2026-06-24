@@ -73,7 +73,7 @@ internal static class Type1DictionaryToCffConverter
 
         int topDictIndexSize = 0;
         int iterationCount = 0;
-        const int maxIterations = 5;
+        const int maxIterations = 10;
         byte[] topDictIndex;
         int encodingOffset;
         int charsetOffset;

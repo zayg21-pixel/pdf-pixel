@@ -83,7 +83,7 @@ public class PdfSimpleFont : PdfSingleByteFont
                     if (Encoding.BaseEncoding == PdfFontEncoding.Unknown)
                     {
                         PdfFontEncoding encoding = SingleByteEncodings.GetEncodingByName(BaseFont) ?? PdfFontEncoding.StandardEncoding;
-                        Encoding.Update(encoding, default);
+                        Encoding.Update(encoding, cffInfo.CodeToName);
                     }
 
                     CffByteCodeToGidMapper mapper = new(cffInfo, FontDescriptor.Flags, Encoding);
@@ -108,7 +108,7 @@ public class PdfSimpleFont : PdfSingleByteFont
 
                     if (Encoding.BaseEncoding == PdfFontEncoding.Unknown)
                     {
-                        Encoding.Update(PdfFontEncoding.StandardEncoding, default);
+                        Encoding.Update(PdfFontEncoding.StandardEncoding, cffInfo.CodeToName);
                     }
 
                     byte[]? typefaceData = CffOpenTypeWrapper.Wrap(FontDescriptor, cffInfo);
