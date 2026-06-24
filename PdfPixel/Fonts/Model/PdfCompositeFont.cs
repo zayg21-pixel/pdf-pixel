@@ -5,6 +5,7 @@ using PdfPixel.Text;
 using SkiaSharp;
 using System;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 
 namespace PdfPixel.Fonts.Model;
 
@@ -80,9 +81,7 @@ public class PdfCompositeFont : PdfFontBase
             return 0f;
         }
 
-        uint cid;
-
-        if (!TryMapCodeToCid(code, out cid))
+        if (!TryMapCodeToCid(code, out uint cid))
         {
             return 0f;
         }
@@ -122,6 +121,7 @@ public class PdfCompositeFont : PdfFontBase
     /// For Identity-H/V, the mapping is an identity of the big-endian integer value.
     /// For embedded CMap streams, uses the parsed CodeToCidCMap.
     /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool TryMapCodeToCid(PdfCharacterCode code, out uint cid)
     {
         PdfCMap? map = CodeToCidCMap;
@@ -312,9 +312,7 @@ public class PdfCompositeFont : PdfFontBase
             return baseCode;
         }
 
-        uint cid;
-
-        if (!TryMapCodeToCid(code, out cid))
+        if (!TryMapCodeToCid(code, out uint cid))
         {
             return null;
         }

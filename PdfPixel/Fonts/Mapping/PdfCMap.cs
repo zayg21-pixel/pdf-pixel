@@ -255,23 +255,57 @@ public class PdfCMap
 
         uint value = PdfCharacterCode.UnpackBigEndianToUInt(bytes);
         List<CidRangeMap>? ranges = _cidRangesByLength[len];
-        if (ranges == null || ranges.Count == 0)
+        if (ranges != null && ranges.Count > 0)
         {
-            cid = 0;
-            return false;
+            int index = PdfCMapUtilities.BinarySearchCid(ranges, value);
+            if (index >= 0)
+            {
+                CidRangeMap r = ranges[index];
+                var delta = (int)(value - r.Start);
+                cid = r.StartCid + delta;
+                return true;
+            }
         }
 
-        int index = PdfCMapUtilities.BinarySearchCid(ranges, value);
-        if (index >= 0)
+        if (TryConvertUnicodeToCid(code, out cid))
         {
-            CidRangeMap r = ranges[index];
-            var delta = (int)(value - r.Start);
-            cid = r.StartCid + delta;
             return true;
         }
 
         cid = 0;
         return false;
+    }
+
+    /// <summary>
+    /// Converts a unicode string entry from bfchar/bfrange to an integer CID.
+    /// Some encoding CMaps store CID values as byte strings in bfchar/bfrange sections
+    /// instead of cidchar/cidrange. The bytes are interpreted as a big-endian integer.
+    /// </summary>
+    private bool TryConvertUnicodeToCid(PdfCharacterCode code, out int cid)
+    {
+        if (_characterCodeToUnicode.TryGetValue(code, out string? unicode) && unicode != null)
+        {
+            cid = ConvertCidString(unicode);
+            return cid >= 0;
+        }
+
+        cid = 0;
+        return false;
+    }
+
+    private static int ConvertCidString(string cidString)
+    {
+        switch (cidString.Length)
+        {
+            case 1:
+                return cidString[0];
+
+            case 2:
+                return (cidString[0] << 8) | cidString[1];
+
+            default:
+                return -1;
+        }
     }
 
     /// <summary>
