@@ -78,45 +78,29 @@ internal partial struct PdfParser
 
         int streamStart = Position;
 
-        if (declaredLength <= 0)
+        if (declaredLength > 0 && declaredLength <= Length - Position)
         {
-            int distanceToEndStream = ScanForToken(PdfTokens.EndStream);
-            if (distanceToEndStream <= 0)
-            {
-                return default;
-            }
-
-            declaredLength = distanceToEndStream;
-            if (declaredLength > 0 && PeekByte(distanceToEndStream - 1) == LineFeed)
-            {
-                declaredLength--;
-                if (declaredLength > 0 && PeekByte(declaredLength - 1) == CarriageReturn)
-                {
-                    declaredLength--;
-                }
-            }
-            else if (declaredLength > 0 && PeekByte(distanceToEndStream - 1) == CarriageReturn)
-            {
-                declaredLength--;
-            }
-
-            Position = streamStart + distanceToEndStream;
-            Advance(PdfTokens.EndStream.Value.Length);
-        }
-        else
-        {
-            int remaining = Length - Position;
-            if (declaredLength > remaining)
-            {
-                declaredLength = remaining;
-            }
-
             Advance(declaredLength);
-
             SkipSingleEndOfLine();
 
-            Advance(PdfTokens.EndStream.Value.Length);
+            if (TryConsumeToken(PdfTokens.EndStream))
+            {
+                return new PdfObjectStreamReference(streamStart, declaredLength, _decrypt);
+            }
+
+            Position = streamStart;
         }
+
+        int distanceToEndStream = ScanForToken(PdfTokens.EndStream);
+        if (distanceToEndStream <= 0)
+        {
+            return default;
+        }
+
+        declaredLength = distanceToEndStream - RewindSingleEndOfLine(distanceToEndStream);
+
+        Position = streamStart + distanceToEndStream;
+        Advance(PdfTokens.EndStream.Value.Length);
 
         return new PdfObjectStreamReference(streamStart, declaredLength, _decrypt);
     }

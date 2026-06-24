@@ -81,18 +81,49 @@ internal partial struct PdfParser
         }
 
         byte b = PeekByte();
-        if (b == (byte)'\r')
+        if (b == CarriageReturn)
         {
             Advance(1);
-            if (!IsAtEnd && PeekByte() == (byte)'\n')
+            if (!IsAtEnd && PeekByte() == LineFeed)
             {
                 Advance(1);
             }
         }
-        else if (b == (byte)'\n')
+        else if (b == LineFeed)
         {
             Advance(1);
         }
+    }
+
+    /// <summary>
+    /// Rewinds the position past a single trailing end-of-line sequence, if present.
+    /// Handles LF, CR, or CR+LF preceding the current position.
+    /// </summary>
+    /// <returns>The number of bytes rewound.</returns>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private int RewindSingleEndOfLine(int offset)
+    {
+        if (offset <= 0)
+        {
+            return 0;
+        }
+
+        if (PeekByte(offset - 1) == LineFeed)
+        {
+            if (offset >= 2 && PeekByte(offset - 2) == CarriageReturn)
+            {
+                return 2;
+            }
+
+            return 1;
+        }
+
+        if (PeekByte(offset - 1) == CarriageReturn)
+        {
+            return 1;
+        }
+
+        return 0;
     }
 
     /// <summary>

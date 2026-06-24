@@ -10,6 +10,39 @@ internal partial struct PdfParser
     /// Returns the byte distance from the current position to the start of the token, or -1 if not found.
     /// The parser position is not modified.
     /// </summary>
+    /// <summary>
+    /// Attempts to consume the specified token at the current position.
+    /// If the token matches, advances past it and returns true.
+    /// Otherwise, leaves the position unchanged and returns false.
+    /// </summary>
+    [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
+    private bool TryConsumeToken(in PdfString token)
+    {
+        ReadOnlySpan<byte> tokenBytes = token.Value.Span;
+        int tokenLength = tokenBytes.Length;
+
+        if (tokenLength > Length - Position)
+        {
+            return false;
+        }
+
+        for (int i = 0; i < tokenLength; i++)
+        {
+            if (PeekByte(i) != tokenBytes[i])
+            {
+                return false;
+            }
+        }
+
+        Advance(tokenLength);
+        return true;
+    }
+
+    /// <summary>
+    /// Scans forward from the current position to find the first occurrence of the specified token.
+    /// Returns the byte distance from the current position to the start of the token, or -1 if not found.
+    /// The parser position is not modified.
+    /// </summary>
     private int ScanForToken(in PdfString token)
     {
         ReadOnlySpan<byte> tokenBytes = token.Value.Span;
