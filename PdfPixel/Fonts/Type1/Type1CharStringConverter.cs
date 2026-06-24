@@ -1,9 +1,11 @@
-using System;
-using System.Collections.Generic;
-using System.IO;
 using PdfPixel.Fonts.Cff;
 using PdfPixel.Models;
 using PdfPixel.Text;
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Text;
 
 namespace PdfPixel.Fonts.Type1;
 
@@ -46,9 +48,7 @@ internal static class Type1CharStringConverter
         Dictionary<PdfString, byte[]> result = new(context.Source.Count);
         foreach (KeyValuePair<PdfString, byte[]> kv in context.Source)
         {
-            byte[] oldValue = kv.Value;
-            byte[] newValue = FlattenCharString(oldValue, context);
-            result[kv.Key] = newValue;
+            result[kv.Key] = FlattenCharString(kv.Value, context);
 
         }
 
@@ -135,14 +135,13 @@ internal static class Type1CharStringConverter
                 continue;
             }
 
-            // ClosePath (Type1 only) – ignore
+            // ClosePath (Type1 only) - ignore
             if (b == OpClosePath)
             {
                 operandStack.Clear();
                 continue;
             }
 
-            // hsbw: first operator; sets sidebearing and width (sbx, wx). Convert to width + hmoveto sequence.
             if (b == OpHsbw)
             {
                 Type1CharStringNumber sbx = operandStack[operandStack.Count - 2];
@@ -177,7 +176,7 @@ internal static class Type1CharStringConverter
 
             if (b == OpReturn)
             {
-                // End current subroutine – leave remaining operands for caller
+                // End current subroutine - leave remaining operands for caller
                 return;
             }
 
@@ -196,31 +195,41 @@ internal static class Type1CharStringConverter
             {
                 case OpRMoveTo:
                 {
-                    // rmoveto operator inside flex sequence is skipped
                     if (context.InFlexSequence)
                     {
-                        // we're collecting points in escape sequence
                         continue;
                     }
-                    else
+
+                    EmitOperator(ref context, output, operandStack, b);
+                    break;
+                }
+                case OpHMoveTo:
+                {
+                    if (context.InFlexSequence)
                     {
-                        UpdateCoordinates(ref context, b, operandStack);
-
-                        foreach (Type1CharStringNumber v in operandStack)
-                        {
-                            WriteNumber(output, v);
-                        }
-
-                        operandStack.Clear();
-                        output.WriteByte((byte)b);
+                        operandStack.Add(new Type1CharStringNumber(0));
+                        continue;
                     }
 
+                    EmitOperator(ref context, output, operandStack, b);
+                    break;
+                }
+                case OpVMoveTo:
+                {
+                    if (context.InFlexSequence)
+                    {
+                        Type1CharStringNumber dy = operandStack[operandStack.Count - 1];
+                        operandStack.RemoveAt(operandStack.Count - 1);
+                        operandStack.Add(new Type1CharStringNumber(0));
+                        operandStack.Add(dy);
+                        continue;
+                    }
+
+                    EmitOperator(ref context, output, operandStack, b);
                     break;
                 }
                 case OpHStem:
                 case OpVStem:
-                case OpHMoveTo:
-                case OpVMoveTo:
                 case OpRLineTo:
                 case OpHLineTo:
                 case OpVLineTo:
@@ -228,26 +237,30 @@ internal static class Type1CharStringConverter
                 case OpVHCurveTo:
                 case OpHVCurveTo:
                 {
-
-                    UpdateCoordinates(ref context, b, operandStack);
-
-                    foreach (Type1CharStringNumber v in operandStack)
-                    {
-                        WriteNumber(output, v);
-                    }
-
-                    operandStack.Clear();
-                    output.WriteByte((byte)b);
+                    EmitOperator(ref context, output, operandStack, b);
                     break;
                 }
                 default:
                 {
-                    // Unknown operator – discard accumulated operands to avoid leakage.
+                    // Unknown operator - discard accumulated operands to avoid leakage.
                     operandStack.Clear();
                     break;
                 }
             }
         }
+    }
+
+    private static void EmitOperator(ref Type1ConverterContext context, MemoryStream output, List<Type1CharStringNumber> operandStack, int operatorCode)
+    {
+        UpdateCoordinates(ref context, operatorCode, operandStack);
+
+        foreach (Type1CharStringNumber value in operandStack)
+        {
+            WriteNumber(output, value);
+        }
+
+        operandStack.Clear();
+        output.WriteByte((byte)operatorCode);
     }
 
     private static void HandleEscapeSequence(ref Type1ConverterContext context, MemoryStream output, List<Type1CharStringNumber> operandStack, byte esc)
@@ -377,7 +390,7 @@ internal static class Type1CharStringConverter
                     }
                     default:
                     {
-                        // unknown other subr – skip
+                        // unknown other subr ï¿½ skip
                         operandStack.Clear();
                         break;
                     }
@@ -489,7 +502,7 @@ internal static class Type1CharStringConverter
     /// </summary>
     private static List<Type1CharStringNumber> MergeFlexReferencePoint(List<Type1CharStringNumber> flexDeltas)
     {
-        // Standard flex: 7 points × 2 coords = 14 values.
+        // Standard flex: 7 points ï¿½ 2 coords = 14 values.
         // Points: ref(0,1)  p1(2,3)  p2(4,5)  p3(6,7)  p4(8,9)  p5(10,11)  p6(12,13)
         // Merge ref into p1 so rrcurveto sees 12 args: (ref+p1), p2, p3 | p4, p5, p6.
         if (flexDeltas.Count < 14)

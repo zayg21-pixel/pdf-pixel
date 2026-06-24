@@ -2,6 +2,7 @@ using PdfPixel.Fonts.Cff;
 using PdfPixel.Fonts.Model;
 using PdfPixel.Models;
 using PdfPixel.PostScript.Tokens;
+using PdfPixel.Text;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -15,6 +16,7 @@ namespace PdfPixel.Fonts.Type1;
 internal static class Type1DictionaryToCffConverter
 {
     private const int FirstCustomSid = 391; // CFF spec: custom strings start at SID391.
+    private const byte OpEndChar = 14;
 
     public static CffInfo? GenerateCffFontDataFromDictionary(PostScriptDictionary fontDictionary, PdfFontDescriptor descriptor)
     {
@@ -126,17 +128,44 @@ internal static class Type1DictionaryToCffConverter
 
     private static GlyphCollections BuildGlyphCollections(Dictionary<PdfString, byte[]> convertedType2CharStrings)
     {
-        List<byte[]> orderedCharStrings = new(convertedType2CharStrings.Count);
-        var sids = new ushort[convertedType2CharStrings.Count];
-        List<byte[]> customStrings = new(convertedType2CharStrings.Count);
-        Dictionary<PdfString, ushort> nameToGid = new(convertedType2CharStrings.Count);
+        PdfString notdefName = SingleByteEncodings.UndefinedCharacter;
+        int totalCount = convertedType2CharStrings.Count;
+        bool hasNotdef = convertedType2CharStrings.ContainsKey(notdefName);
+        if (!hasNotdef)
+        {
+            totalCount++;
+        }
+
+        List<byte[]> orderedCharStrings = new(totalCount);
+        var sids = new ushort[totalCount];
+        List<byte[]> customStrings = new(totalCount);
+        Dictionary<PdfString, ushort> nameToGid = new(totalCount);
         ushort nextSid = FirstCustomSid;
-        int gid = 0;
+
+        if (hasNotdef)
+        {
+            orderedCharStrings.Add(convertedType2CharStrings[notdefName]);
+        }
+        else
+        {
+            orderedCharStrings.Add([OpEndChar]);
+        }
+
+        sids[0] = 0;
+        nameToGid[notdefName] = 0;
+
+        int gid = 1;
         foreach (KeyValuePair<PdfString, byte[]> kvp in convertedType2CharStrings)
         {
             PdfString name = kvp.Key;
+            if (name == notdefName)
+            {
+                continue;
+            }
+
             byte[] program = kvp.Value;
             orderedCharStrings.Add(program);
+
             if (name.IsEmpty)
             {
                 sids[gid] = 0;
