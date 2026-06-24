@@ -128,7 +128,7 @@ public class PdfSimpleFont : PdfSingleByteFont
                         Encoding.Update(PdfFontEncoding.WinAnsiEncoding, default);
                     }
 
-                    SfntByteCodeToGidMapper mapper = new(sfntTables, FontDescriptor.Flags, substituted: false, Encoding, ToUnicodeCMap);
+                    SfntByteCodeToGidMapper mapper = new(sfntTables, FontDescriptor.Flags, substituted: false, Encoding);
 
                     return (typeface, mapper);
                 }

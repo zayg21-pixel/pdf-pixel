@@ -18,7 +18,6 @@ internal class SfntByteCodeToGidMapper : IByteCodeToGidMapper
     private readonly PdfFontFlags _flags;
     private readonly PdfFontEncoding _encoding;
     private readonly Dictionary<int, PdfString> _differences;
-    private readonly PdfCMap? _toUnicodeCMap;
     private readonly bool _isSubstituted;
 
     /// <summary>
@@ -28,13 +27,11 @@ internal class SfntByteCodeToGidMapper : IByteCodeToGidMapper
     /// <param name="flags">Flags defined in PDF font.</param>
     /// <param name="substituted">Indicates if the font is substituted.</param>
     /// <param name="encodingInfo">The PDF font encoding.</param>
-    /// <param name="toUnicodeCMap">ToUnicode CMap for character mapping.</param>
     public SfntByteCodeToGidMapper(
         SfntFontTables fontTables,
         PdfFontFlags flags,
         bool substituted,
-        PdfFontEncodingInfo encodingInfo,
-        PdfCMap? toUnicodeCMap)
+        PdfFontEncodingInfo encodingInfo)
     {
         _sfntTables = fontTables ?? throw new ArgumentNullException(nameof(fontTables));
 
@@ -42,7 +39,6 @@ internal class SfntByteCodeToGidMapper : IByteCodeToGidMapper
         _isSubstituted = substituted;
         _encoding = encodingInfo.BaseEncoding;
         _differences = encodingInfo.Differences;
-        _toUnicodeCMap = toUnicodeCMap;
     }
 
     /// <summary>
@@ -71,14 +67,8 @@ internal class SfntByteCodeToGidMapper : IByteCodeToGidMapper
             return gidByName;
         }
 
-        string? unicode = _toUnicodeCMap?.GetUnicode(code);
-
-        if (unicode == null)
-        {
-            AdobeGlyphList.CharacterMap.TryGetValue(name, out unicode);
-        }
-
-        if (unicode != null && _sfntTables.UnicodeToGid?.TryGetValue(unicode, out ushort gidByUnicode) == true)
+        if (AdobeGlyphList.CharacterMap.TryGetValue(name, out string? unicode)
+            && _sfntTables.UnicodeToGid?.TryGetValue(unicode, out ushort gidByUnicode) == true)
         {
             return gidByUnicode;
         }
