@@ -123,18 +123,20 @@ namespace PdfPixel.Text
                     defaultField = field;
                 }
 
-                string name = valueAttr?.Name ?? string.Empty;
-                if (defaultAttr != null)
+                var enumValue = (Enum?)field.GetValue(null);
+                if (enumValue == null)
                 {
-                    name = valueAttr?.Name ?? string.Empty;
+                    continue;
                 }
 
+                string name = valueAttr?.Name ?? string.Empty;
                 PdfString pdfString = new(EncodingExtensions.PdfDefault.GetBytes(name));
-                var enumValue = (Enum?)field.GetValue(null);
+                map[pdfString] = enumValue;
 
-                if (enumValue != null)
+                foreach (PdfEnumAliasAttribute alias in field.GetCustomAttributes<PdfEnumAliasAttribute>())
                 {
-                    map[pdfString] = enumValue;
+                    PdfString aliasPdfString = new(EncodingExtensions.PdfDefault.GetBytes(alias.Name));
+                    map[aliasPdfString] = enumValue;
                 }
             }
 
@@ -166,11 +168,21 @@ namespace PdfPixel.Text
             >() where T : Enum
         {
             Type enumType = typeof(T);
-            Dictionary<PdfString, Enum> forwardMap = EnumValueCache.GetOrAdd(enumType, _ => BuildEnumValueMap<T>());
             Dictionary<Enum, PdfString> inverseMap = [];
-            foreach (KeyValuePair<PdfString, Enum> kvp in forwardMap)
+
+            foreach (FieldInfo field in enumType.GetFields(BindingFlags.Public | BindingFlags.Static))
             {
-                inverseMap[kvp.Value] = kvp.Key;
+                PdfEnumValueAttribute? valueAttr = field.GetCustomAttribute<PdfEnumValueAttribute>();
+                if (valueAttr == null)
+                {
+                    continue;
+                }
+
+                var enumValue = (Enum?)field.GetValue(null);
+                if (enumValue != null)
+                {
+                    inverseMap[enumValue] = new PdfString(EncodingExtensions.PdfDefault.GetBytes(valueAttr.Name));
+                }
             }
 
             return inverseMap;

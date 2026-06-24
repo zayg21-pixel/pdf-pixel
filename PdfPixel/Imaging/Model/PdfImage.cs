@@ -138,10 +138,12 @@ public class PdfImage
             bitsPerComponent = 1;
         }
 
+        PdfObject? colorSpaceObject = imageXObject.Dictionary.GetObject(PdfTokens.ColorSpaceKey);
+
         PdfImage image = new(page, imageXObject, imageXObject.Dictionary.GetIntegerOrDefault(PdfTokens.WidthKey), imageXObject.Dictionary.GetIntegerOrDefault(PdfTokens.HeightKey))
         {
             BitsPerComponent = bitsPerComponent,
-            ColorSpaceConverter = page.Cache.ColorSpace.ResolveByObject(imageXObject.Dictionary.GetObject(PdfTokens.ColorSpaceKey), defaultComponents: -1),
+            ColorSpaceConverter = page.Cache.ColorSpace.ResolveByObject(colorSpaceObject, defaultComponents: -1),
             Name = name
         };
 

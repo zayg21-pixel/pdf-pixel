@@ -5,7 +5,6 @@ using PdfPixel.Commands;
 using PdfPixel.Imaging.Model;
 using PdfPixel.Models;
 using PdfPixel.Rendering.State;
-using PdfPixel.Streams;
 using PdfPixel.Text;
 
 namespace PdfPixel.Rendering.Operators;
@@ -99,11 +98,10 @@ internal class InlineImageOperators : IOperatorProcessor
             }
 
             PdfString expandedKey = ExpandInlineImageKey(rawKey);
-            IPdfValue normalizedValue = NormalizeInlineImageValue(expandedKey, valueValue);
 
             if (!imageDictionary.HasKey(expandedKey))
             {
-                imageDictionary.Set(expandedKey, normalizedValue ?? valueValue);
+                imageDictionary.Set(expandedKey, valueValue);
             }
         }
 
@@ -135,87 +133,6 @@ internal class InlineImageOperators : IOperatorProcessor
         }
 
         return imageDictionary;
-    }
-
-    private IPdfValue NormalizeInlineImageValue(in PdfString expandedKey, IPdfValue value)
-    {
-        if (expandedKey == PdfTokens.ColorSpaceKey && value.Type == PdfValueType.Name)
-        {
-            PdfInlineImageColorSpace colorSpace = value.AsName().AsEnum<PdfInlineImageColorSpace>();
-            if (colorSpace != PdfInlineImageColorSpace.Unknown)
-            {
-                switch (colorSpace)
-                {
-                    case PdfInlineImageColorSpace.DeviceGray:
-                        return PdfValueFactory.Name(PdfColorSpaceType.DeviceGray.AsPdfString());
-
-                    case PdfInlineImageColorSpace.DeviceRGB:
-                        return PdfValueFactory.Name(PdfColorSpaceType.DeviceRGB.AsPdfString());
-
-                    case PdfInlineImageColorSpace.DeviceCMYK:
-                        return PdfValueFactory.Name(PdfColorSpaceType.DeviceCMYK.AsPdfString());
-
-                    case PdfInlineImageColorSpace.Indexed:
-                        return PdfValueFactory.Name(PdfColorSpaceType.Indexed.AsPdfString());
-                }
-            }
-        }
-        else if (expandedKey == PdfTokens.FilterKey)
-        {
-            if (value.Type == PdfValueType.Name)
-            {
-                PdfString filterName = value.AsName();
-                if (!filterName.IsEmpty)
-                {
-                    PdfFilterType filter = ExpandFilterName(filterName);
-
-                    if (filter != PdfFilterType.Unknown)
-                    {
-                        return PdfValueFactory.Name(filter.AsPdfString());
-                    }
-                    else
-                    {
-                        return PdfValueFactory.Name(filterName);
-                    }
-                }
-            }
-            else if (value.Type == PdfValueType.Array)
-            {
-                PdfArray? array = value.AsArray();
-                if (array?.Count > 0)
-                {
-                    List<IPdfValue> newValues = new(array.Count);
-                    for (int elementIndex = 0; elementIndex < array.Count; elementIndex++)
-                    {
-                        IPdfValue? item = array.GetValue(elementIndex);
-                        if (item != null && item.Type == PdfValueType.Name)
-                        {
-                            PdfString itemName = item.AsName();
-                            PdfFilterType filterName = ExpandFilterName(itemName);
-
-                            if (filterName != PdfFilterType.Unknown)
-                            {
-                                newValues.Add(PdfValueFactory.Name(filterName.AsPdfString()));
-                            }
-                            else
-                            {
-                                newValues.Add(PdfValueFactory.Name(itemName));
-                            }
-
-                        }
-
-                        if (item != null)
-                        {
-                            newValues.Add(item);
-                        }
-                    }
-
-                    return PdfValueFactory.Array(new PdfArray(array.Document, newValues));
-                }
-            }
-        }
-
-        return value;
     }
 
     /// <summary>
@@ -257,45 +174,4 @@ internal class InlineImageOperators : IOperatorProcessor
         }
     }
 
-    /// <summary>
-    /// Expands abbreviated inline image filter names to their full PDF filter names using PdfInlineImageFilter enum.
-    /// </summary>
-    /// <param name="raw">The raw filter abbreviation (e.g., Fl, LZW, AHx).</param>
-    /// <returns>The full filter name as defined in PdfTokens, or the original value if not recognized.</returns>
-    private PdfFilterType ExpandFilterName(in PdfString raw)
-    {
-        PdfInlineImageFilter filter = raw.AsEnum<PdfInlineImageFilter>();
-        switch (filter)
-        {
-            case PdfInlineImageFilter.Flate:
-                return PdfFilterType.FlateDecode;
-
-            case PdfInlineImageFilter.LZW:
-                return PdfFilterType.LZWDecode;
-
-            case PdfInlineImageFilter.ASCIIHex:
-                return PdfFilterType.ASCIIHexDecode;
-
-            case PdfInlineImageFilter.ASCII85:
-                return PdfFilterType.ASCII85Decode;
-
-            case PdfInlineImageFilter.RunLength:
-                return PdfFilterType.RunLengthDecode;
-
-            case PdfInlineImageFilter.CCITTFax:
-                return PdfFilterType.CCITTFaxDecode;
-
-            case PdfInlineImageFilter.DCT:
-                return PdfFilterType.DCTDecode;
-
-            case PdfInlineImageFilter.JPX:
-                return PdfFilterType.JPXDecode;
-
-            case PdfInlineImageFilter.JBIG2:
-                return PdfFilterType.JBIG2Decode;
-
-            default:
-                return PdfFilterType.Unknown;
-        }
-    }
 }

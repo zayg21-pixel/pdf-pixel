@@ -208,7 +208,7 @@ public class PdfDictionary
 
     /// <summary>
     /// Gets the value as a PDF object for the specified key, following references.
-    /// Handles arrays of references, single references, and inline values.
+    /// Handles single references, and inline values.
     /// Returns <c>null</c> if not present.
     /// </summary>
     /// <param name="key">The key to retrieve.</param>
@@ -218,13 +218,6 @@ public class PdfDictionary
         if (!RawValues.TryGetValue(key, out IPdfValue? storedValue))
         {
             return null;
-        }
-
-        // Array of references case
-        PdfArray? referenceArray = storedValue.AsArray();
-        if (referenceArray != null)
-        {
-            return referenceArray.GetObject(0);
         }
 
         // Single reference case: return the existing object from the document to keep stream data

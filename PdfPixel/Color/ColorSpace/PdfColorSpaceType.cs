@@ -19,18 +19,21 @@ public enum PdfColorSpaceType
     /// Device-dependent gray color space - single component (0=black, 1=white)
     /// </summary>
     [PdfEnumValue("DeviceGray")]
+    [PdfEnumAlias("G")]
     DeviceGray,
 
     /// <summary>
     /// Device-dependent RGB color space - three components (red, green, blue)
     /// </summary>
     [PdfEnumValue("DeviceRGB")]
+    [PdfEnumAlias("RGB")]
     DeviceRGB,
 
     /// <summary>
     /// Device-dependent CMYK color space - four components (cyan, magenta, yellow, black)
     /// </summary>
     [PdfEnumValue("DeviceCMYK")]
+    [PdfEnumAlias("CMYK")]
     DeviceCMYK,
 
     /// <summary>
@@ -43,6 +46,7 @@ public enum PdfColorSpaceType
     /// Indexed color space - uses a color table to map indices to colors
     /// </summary>
     [PdfEnumValue("Indexed")]
+    [PdfEnumAlias("I")]
     Indexed,
 
     /// <summary>
