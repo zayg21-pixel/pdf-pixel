@@ -52,7 +52,7 @@ public class PdfType3Font : PdfSingleByteFont
         if (Encoding.BaseEncoding == PdfFontEncoding.Unknown)
         {
             // Default to StandardEncoding for Type3 fonts if no encoding specified
-            Encoding.Update(PdfFontEncoding.StandardEncoding, default);
+            Encoding.UpdateEncoding(PdfFontEncoding.StandardEncoding);
         }
     }
 

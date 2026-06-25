@@ -42,17 +42,17 @@ public class PdfFontEncodingInfo
     public Dictionary<int, PdfString> Differences { get; }
 
     /// <summary>
-    /// Updates the differences map from the given encoding vector.
+    /// Updates the base encoding without modifying differences.
     /// </summary>
-    /// <param name="baseEncoding">Base encoding to apply when not <see cref="PdfFontEncoding.Unknown"/>.</param>
-    /// <param name="encodingVector">Encoding vector.</param>
-    public void Update(PdfFontEncoding baseEncoding, PdfString[]? encodingVector)
-    {
-        if (baseEncoding != PdfFontEncoding.Unknown)
-        {
-            BaseEncoding = baseEncoding;
-        }
+    /// <param name="baseEncoding">Base encoding to apply.</param>
+    public void UpdateEncoding(PdfFontEncoding baseEncoding) => BaseEncoding = baseEncoding;
 
+    /// <summary>
+    /// Merges glyph names from the encoding vector into differences, without overwriting existing entries.
+    /// </summary>
+    /// <param name="encodingVector">Encoding vector to merge.</param>
+    public void MergeCodeToName(PdfString[]? encodingVector)
+    {
         if (encodingVector == null || encodingVector.Length == 0)
         {
             return;
@@ -60,8 +60,12 @@ public class PdfFontEncodingInfo
 
         for (int code = 0; code < encodingVector.Length; code++)
         {
-            PdfString glyphName = encodingVector[code];
+            if (Differences.ContainsKey(code))
+            {
+                continue;
+            }
 
+            PdfString glyphName = encodingVector[code];
             if (!glyphName.IsEmpty && glyphName != SingleByteEncodings.UndefinedCharacter)
             {
                 Differences[code] = glyphName;

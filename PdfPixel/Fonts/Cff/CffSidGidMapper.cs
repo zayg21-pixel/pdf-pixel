@@ -219,14 +219,23 @@ internal class CffSidGidMapper
                 }
             }
 
-            // TODO: [MEDIUM] we could also parse the Encoding table here for code->GID mapping.
-
-            PdfFontEncoding encoding = topDictData.EncodingOffset.GetValueOrDefault() switch
+            int encodingOffsetValue = topDictData.EncodingOffset.GetValueOrDefault();
+            PdfFontEncoding encoding = encodingOffsetValue switch
             {
                 PredefinedEncodingStandard => PdfFontEncoding.StandardEncoding,
                 PredefinedEncodingExpert => PdfFontEncoding.MacExpertEncoding,
                 _ => PdfFontEncoding.Unknown
             };
+
+            PdfString[]? codeToName = SingleByteEncodings.GetEncodingSet(encoding);
+            if (codeToName == null && encodingOffsetValue > 1)
+            {
+                CffEncodingParser encodingParser = new();
+                if (encodingParser.TryParseEncoding(cffBytes.Span, encodingOffsetValue, sidByGlyph, customStrings, out PdfString[] parsedCodeToName))
+                {
+                    codeToName = parsedCodeToName;
+                }
+            }
 
             info = new CffInfo
             {
@@ -236,6 +245,7 @@ internal class CffSidGidMapper
                 GidToSid = sidByGlyph,
                 GidWidths = gidWidths,
                 Encoding = encoding,
+                CodeToName = codeToName,
                 CffData = cffDataMemory
             };
 

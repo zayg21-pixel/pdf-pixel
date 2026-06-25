@@ -66,7 +66,6 @@ internal sealed partial class PdfImageRowProcessor : IDisposable
     private readonly float[] _decodeArray;
     private readonly int[] _maskArray;
     private readonly int _indexedBitsPerComponent;
-    private readonly int _maxCode;
     private readonly float _scale;
 
     public PdfImageRowProcessor(PdfImageRowDecodingParameters parameters, ILogger logger)
@@ -107,6 +106,12 @@ internal sealed partial class PdfImageRowProcessor : IDisposable
             {
                 _outputMode = OutputMode.IndexedRgbaColorConverted;
                 _indexedPalette = BuildPackedPalette(_parameters, _bitsPerComponent);
+
+                if ((_stages & ProcessingStages.Decode) != 0)
+                {
+                    int maxCode = (1 << _bitsPerComponent) - 1;
+                    _decodeArray = new float[] { _decodeArray[0] * maxCode, _decodeArray[1] * maxCode };
+                }
             }
             else
             {
@@ -151,13 +156,11 @@ internal sealed partial class PdfImageRowProcessor : IDisposable
 
         if (_outputMode == OutputMode.IndexedRgbaColorConverted)
         {
-            _maxCode = (1 << _indexedBitsPerComponent) - 1;
-            _scale = 1f;
+            _scale = 1f / ((1 << _indexedBitsPerComponent) - 1);
         }
         else
         {
-            _maxCode = (1 << _bitsPerComponent) - 1;
-            _scale = 1f / _maxCode;
+            _scale = 1f / ((1 << _bitsPerComponent) - 1);
         }
     }
 
@@ -337,7 +340,7 @@ internal sealed partial class PdfImageRowProcessor : IDisposable
             {
                 float dMin = _decodeArray[0];
                 float dMax = _decodeArray[1];
-                sample = (uint)Math.Max(0, dMin + (sample * (dMax - dMin) / _maxCode));
+                sample = (uint)Math.Max(0, dMin + (sample * (dMax - dMin) * _scale));
             }
 
             if (sample >= (uint)paletteSize)
