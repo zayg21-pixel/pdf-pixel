@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 
@@ -9,6 +10,12 @@ namespace PdfPixel.Commands;
 public sealed class PdfCommandRecorder : IPdfCommandProcessor
 {
     private readonly List<IPdfCommand> _commands = [];
+    private readonly ILogger<PdfCommandRecorder> _logger;
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="PdfCommandRecorder"/> class with the specified logger.
+    /// </summary>
+    public PdfCommandRecorder(ILogger<PdfCommandRecorder> logger) => _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
     /// <inheritdoc/>
     ~PdfCommandRecorder() => Dispose(disposing: false);
@@ -40,7 +47,22 @@ public sealed class PdfCommandRecorder : IPdfCommandProcessor
                 continue;
             }
 
-            command.Execute(modifiers, executionContext);
+            try
+            {
+                command.Execute(modifiers, executionContext);
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+#pragma warning disable CA1031 // Do not catch general exception types
+            catch (Exception exception)
+#pragma warning restore CA1031 // Do not catch general exception types
+            {
+                _logger.LogWarning(exception, "Command {CommandType} failed during replay.", command.GetType().Name);
+                continue;
+            }
+
             executionContext.CurrentCommand = command;
             executionContext.ExecutionObserver?.Notify();
         }

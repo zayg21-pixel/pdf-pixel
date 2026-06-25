@@ -1,4 +1,5 @@
-﻿using PdfPixel.Annotations.Models;
+﻿using Microsoft.Extensions.Logging;
+using PdfPixel.Annotations.Models;
 using PdfPixel.Commands;
 using PdfPixel.Models;
 using PdfPixel.Text;
@@ -25,7 +26,7 @@ internal static class PdfDocumentContentExtensions
             return null;
         }
 
-        PdfCommandRecorder recorder = new();
+        PdfCommandRecorder recorder = new(document.LoggerFactory.CreateLogger<PdfCommandRecorder>());
 
         ApplyPageTransformations(pdfPage, recorder);
 
@@ -69,7 +70,7 @@ internal static class PdfDocumentContentExtensions
     {
         IPdfPage pdfPage = document.Pages[pageNumber - 1];
 
-        PdfCommandRecorder commandRecording = new();
+        PdfCommandRecorder commandRecording = new(document.LoggerFactory.CreateLogger<PdfCommandRecorder>());
 
         ApplyPageTransformations(pdfPage, commandRecording);
 

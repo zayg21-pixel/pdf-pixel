@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging;
 using System;
 using PdfPixel.Color.Paint;
 using PdfPixel.Color.Transform;
@@ -105,7 +106,7 @@ public sealed class SoftMaskDrawingScope : IDisposable
             return;
         }
 
-        PdfCommandRecorder recorder = new();
+        PdfCommandRecorder recorder = new(_graphicsState.Page.Document.LoggerFactory.CreateLogger<PdfCommandRecorder>());
         recorder.Process(new SaveStateCommand());
         recorder.Process(new ConcatMatrixCommand(_maskMatrix));
         recorder.Process(new ClipPathCommand(_softMask.MaskForm.BBox, SKClipOperation.Intersect));

@@ -74,7 +74,7 @@ public class FormRenderer : IFormRenderer
         }
 
         // Decode and render content with a cloned state that clears parent soft mask
-        PdfCommandRecorder recorder = new();
+        PdfCommandRecorder recorder = new(_loggerFactory.CreateLogger<PdfCommandRecorder>());
 
         ReadOnlyMemory<byte> content = formXObject.GetFormData();
         if (!content.IsEmpty)

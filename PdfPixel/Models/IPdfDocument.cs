@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 
@@ -8,6 +9,11 @@ namespace PdfPixel.Models;
 /// </summary>
 public interface IPdfDocument : IDisposable
 {
+    /// <summary>
+    /// Gets the logger factory used for creating loggers.
+    /// </summary>
+    ILoggerFactory LoggerFactory { get; }
+
     /// <summary>
     /// Gets the list of pages in the PDF document.
     /// </summary>

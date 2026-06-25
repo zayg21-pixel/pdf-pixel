@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging;
 using PdfPixel.Color.ColorSpace;
 using PdfPixel.Color.Paint;
 using PdfPixel.Commands;
@@ -48,7 +49,7 @@ public sealed class PdfShadingPattern : PdfPattern
     {
         SKMatrix matrix = SKMatrix.Concat(state.CTM.Invert(), PatternMatrix);
 
-        PdfCommandRecorder recorder = new();
+        PdfCommandRecorder recorder = new(state.Page.Document.LoggerFactory.CreateLogger<PdfCommandRecorder>());
 
         recorder.Process(new SaveStateCommand());
         recorder.Process(new ConcatMatrixCommand(matrix));

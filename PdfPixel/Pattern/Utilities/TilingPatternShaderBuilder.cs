@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging;
 using SkiaSharp;
 using PdfPixel.Commands;
 using PdfPixel.Parsing;
@@ -39,7 +40,7 @@ internal sealed class TilingPatternShaderBuilder
 
         sourceState.RecursionGuard.Add(pattern.SourceObject.Reference.ObjectNumber);
 
-        PdfCommandRecorder recorder = new();
+        PdfCommandRecorder recorder = new(sourceState.Page.Document.LoggerFactory.CreateLogger<PdfCommandRecorder>());
 
         // Clip to pattern cell bounds
         recorder.Process(new ClipPathCommand(pattern.BBox, SKClipOperation.Intersect));

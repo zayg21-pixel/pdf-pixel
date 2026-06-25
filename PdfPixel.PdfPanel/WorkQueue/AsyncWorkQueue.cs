@@ -75,7 +75,7 @@ public sealed class AsyncWorkQueue : IWorkQueue
 #pragma warning disable CA1031
             catch (Exception ex)
             {
-                _logger.LogError(ex, "An error occurred while processing a work item {Ex}.", ex);
+                _logger.LogError(ex, "An error occurred while processing a work item.");
             }
 #pragma warning restore CA1031
         }

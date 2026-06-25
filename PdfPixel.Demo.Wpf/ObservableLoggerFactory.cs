@@ -90,12 +90,19 @@ namespace PdfPixel.Demo.Wpf
                     throw new ArgumentNullException(nameof(formatter));
                 }
 
+                string message = formatter(state, exception);
+
+                if (exception != null)
+                {
+                    message = message + Environment.NewLine + exception;
+                }
+
                 var logMessage = new LogMessage
                 {
                     DateTime = System.DateTime.Now,
                     LogLevel = logLevel,
                     CategoryName = _categoryName,
-                    FormattedMessage = formatter(state, exception)
+                    FormattedMessage = message
                 };
 
                 lock (_logMessagesLock)

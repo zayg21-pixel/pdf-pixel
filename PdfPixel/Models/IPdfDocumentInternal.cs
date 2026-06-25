@@ -1,4 +1,3 @@
-using Microsoft.Extensions.Logging;
 using PdfPixel.Encryption;
 using PdfPixel.Fonts.Management;
 using PdfPixel.Fonts.Mapping;
@@ -13,11 +12,6 @@ namespace PdfPixel.Models;
 /// </summary>
 internal interface IPdfDocumentInternal : IPdfDocument
 {
-    /// <summary>
-    /// Gets the logger factory used for creating loggers.
-    /// </summary>
-    ILoggerFactory LoggerFactory { get; }
-
     /// <summary>
     /// Gets the mutable list of pages in the PDF document.
     /// </summary>

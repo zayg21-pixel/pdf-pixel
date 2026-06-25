@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging;
 using PdfPixel.Commands;
 using PdfPixel.Fonts.Mapping;
 using PdfPixel.Forms;
@@ -138,7 +139,7 @@ public class PdfType3Font : PdfSingleByteFont
 
         sourceState.RecursionGuard.Add(charObject.Reference.ObjectNumber);
 
-        PdfCommandRecorder recorder = new();
+        PdfCommandRecorder recorder = new(sourceState.Page.Document.LoggerFactory.CreateLogger<PdfCommandRecorder>());
 
         // Render glyph content stream without recursion (independent from page rendering)
         FormXObjectPageWrapper glyphPage = new(sourceState.Page, FontObject);
