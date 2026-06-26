@@ -82,7 +82,7 @@ internal class PdfContentStreamRenderer
     {
         Stack<PdfGraphicsState> graphicsStack = [];
         Stack<IPdfValue> operandStack = [];
-        using SKPath currentPath = new();
+        using SKPathBuilder currentPath = new();
         PdfOperatorProcessor operatorProcessor = new(_renderer, _page, processor, operandStack, graphicsStack, currentPath);
         PdfParser parser = new(parseContext, _page.Document, allowReferences: false, decrypt: false);
         IPdfValue? value;

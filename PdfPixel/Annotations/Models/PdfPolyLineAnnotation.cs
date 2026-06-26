@@ -86,13 +86,13 @@ public class PdfPolyLineAnnotation : PdfAnnotationBase
         SKColor lineColor = ResolveColor(page, SKColors.Black);
         float lineWidth = BorderStyle?.Width ?? 1.0f;
 
-        SKPath path = new();
+        using SKPathBuilder pathBuilder = new();
 
-        path.MoveTo(Vertices[0]);
+        pathBuilder.MoveTo(Vertices[0]);
 
         for (int i = 1; i < Vertices.Length; i++)
         {
-            path.LineTo(Vertices[i]);
+            pathBuilder.LineTo(Vertices[i]);
         }
 
         SKPaint linePaint = new()
@@ -107,7 +107,7 @@ public class PdfPolyLineAnnotation : PdfAnnotationBase
         BorderStyle?.TryApplyEffect(linePaint, lineColor);
         BorderEffect?.TryApplyEffect(linePaint, lineWidth);
 
-        processor.Process(new DrawPathCommand(path, linePaint));
+        processor.Process(new DrawPathCommand(pathBuilder.Detach(), linePaint));
 
         SKColor interiorSKColor = ResolveInteriorColor(page);
 

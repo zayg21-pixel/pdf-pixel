@@ -222,7 +222,6 @@ public partial class WpfPdfPanel
     private static void ScaleProperty_Changed(DependencyObject d, DependencyPropertyChangedEventArgs e)
     {
         var source = (WpfPdfPanel)d;
-        var oldValue = (e.OldValue as double?) ?? 1;
 
         if (source.Scale < source.MinScale)
         {

@@ -63,6 +63,7 @@ public class PdfPageUpdateCacheWorkItem : IWorkItem
         }
 
         var contentUpdated = false;
+        var contentIsPartial = false;
         SKRect regionOfInterest = ComputeRegionOfInterest();
 
         lock (_documentLocker)
@@ -83,12 +84,13 @@ public class PdfPageUpdateCacheWorkItem : IWorkItem
                 SKPicture? contentPicture = ReplayContentWithPartialFlush(contentRecording.Content, regionOfInterest, out bool isPartialContent);
                 CacheEntry.Content.UpdateContentPicture(contentPicture, _request, isPartialContent);
                 contentUpdated = true;
+                contentIsPartial = isPartialContent;
             }
         }
 
         if (contentUpdated)
         {
-            _onPageUpdated?.Invoke(new PageUpdatedArgs(CacheEntry.PageNumber, CacheEntry.GetContentPictures(), UpdatedContentType.Content));
+            _onPageUpdated?.Invoke(new PageUpdatedArgs(CacheEntry.PageNumber, CacheEntry.GetContentPictures(), UpdatedContentType.Content, contentIsPartial));
         }
 
         var annotationRecordingUpdated = false;
@@ -128,7 +130,7 @@ public class PdfPageUpdateCacheWorkItem : IWorkItem
                 regionOfInterest);
             CacheEntry.AnnotationContent.UpdateContentPicture(contentPicture, _request, isPartialContent);
 
-            _onPageUpdated?.Invoke(new PageUpdatedArgs(CacheEntry.PageNumber, CacheEntry.GetContentPictures(), UpdatedContentType.Annotations));
+            _onPageUpdated?.Invoke(new PageUpdatedArgs(CacheEntry.PageNumber, CacheEntry.GetContentPictures(), UpdatedContentType.Annotations, isPartialContent));
         }
     }
 
@@ -142,7 +144,7 @@ public class PdfPageUpdateCacheWorkItem : IWorkItem
     {
         // TODO: [HIGH] cleanup and test the prototype
         Action? notifyPartialContent = (_onPageUpdated != null)
-            ? () => _onPageUpdated(new PageUpdatedArgs(CacheEntry.PageNumber, CacheEntry.GetContentPictures(), UpdatedContentType.Content))
+            ? () => _onPageUpdated(new PageUpdatedArgs(CacheEntry.PageNumber, CacheEntry.GetContentPictures(), UpdatedContentType.Content, isPartialContent: true))
             : null;
 
         using PartialFlushObserver flushObserver = new(

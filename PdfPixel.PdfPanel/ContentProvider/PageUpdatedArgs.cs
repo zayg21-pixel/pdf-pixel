@@ -6,13 +6,14 @@ namespace PdfPixel.PdfPanel.ContentProvider;
 public class PageUpdatedArgs
 {
     /// <summary>
-    /// Initialises a new instance with the updated page number, pictures, and content type.
+    /// Initialises a new instance with the updated page number, pictures, content type, and partial flag.
     /// </summary>
-    public PageUpdatedArgs(int pageNumber, PdfContentPictures contentPictures, UpdatedContentType updatedContentType)
+    public PageUpdatedArgs(int pageNumber, PdfContentPictures contentPictures, UpdatedContentType updatedContentType, bool isPartialContent)
     {
         PageNumber = pageNumber;
         ContentPictures = contentPictures;
         UpdatedContentType = updatedContentType;
+        IsPartialContent = isPartialContent;
     }
 
     /// <summary>
@@ -29,4 +30,9 @@ public class PageUpdatedArgs
     /// Indicates whether the main content or only the annotation layer was updated.
     /// </summary>
     public UpdatedContentType UpdatedContentType { get; }
+
+    /// <summary>
+    /// True when the content is a partial flush and further updates for this page are expected.
+    /// </summary>
+    public bool IsPartialContent { get; }
 }

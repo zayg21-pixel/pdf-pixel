@@ -1,9 +1,14 @@
 using System;
 using System.Collections.Generic;
+#if !NETSTANDARD2_0
+using System.Diagnostics.CodeAnalysis;
+#endif
 using System.Linq;
 using System.Linq.Expressions;
 using System.Numerics;
+using System.Reflection;
 using System.Runtime.CompilerServices;
+using PdfPixel.Color.Icc.Transform;
 
 namespace PdfPixel.Color.Transform;
 
@@ -12,8 +17,19 @@ namespace PdfPixel.Color.Transform;
 /// </summary>
 public sealed class ChainedColorTransform : IColorTransform
 {
+    private static readonly MethodInfo TransformMethod =
+        typeof(IColorTransform).GetMethod(nameof(IColorTransform.Transform))!;
+
     private readonly IColorTransform[] _transforms;
     private readonly Func<Vector4, Vector4> _compiled;
+
+    /// <summary>
+    /// Optional hook for external <see cref="IColorTransform"/> implementations.
+    /// Returns the concrete <see cref="Type"/> for the given transform so the compiled
+    /// pipeline can call it directly without dynamic reflection. Return <c>null</c> to
+    /// fall back to interface dispatch.
+    /// </summary>
+    public static ResolveTransformTypeDelegate? ResolveTransformType { get; set; }
 
     /// <summary>
     /// Initializes a new instance of the <see cref="ChainedColorTransform"/> class with the specified transforms.
@@ -64,6 +80,41 @@ public sealed class ChainedColorTransform : IColorTransform
     }
 
     /// <summary>
+    /// Returns the concrete type for built-in transforms. For external implementations,
+    /// delegates to <see cref="ResolveTransformType"/>. Returns <c>null</c> if the type
+    /// cannot be resolved statically — the pipeline will use interface dispatch in that case.
+    /// </summary>
+#if !NETSTANDARD2_0
+    [return: DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicMethods)]
+#endif
+    private static Type? GetConcreteType(IColorTransform transform)
+    {
+        switch (transform)
+        {
+            case PerChannelTrcTransform:
+                return typeof(PerChannelTrcTransform);
+
+            case ClutTransform:
+                return typeof(ClutTransform);
+
+            case MatrixColorTransform:
+                return typeof(MatrixColorTransform);
+
+            case FunctionColorTransform:
+                return typeof(FunctionColorTransform);
+
+            case CmykColorTransform:
+                return typeof(CmykColorTransform);
+
+            case ChainedColorTransform:
+                return typeof(ChainedColorTransform);
+
+            default:
+                return ResolveTransformType?.Invoke(transform);
+        }
+    }
+
+    /// <summary>
     /// Builds a single compiled delegate that calls each concrete transform's
     /// <see cref="IColorTransform.Transform"/> method directly, eliminating per-pixel
     /// interface dispatch and loop overhead.
@@ -80,20 +131,27 @@ public sealed class ChainedColorTransform : IColorTransform
 
         for (int i = 0; i < transforms.Length; i++)
         {
-            Type concreteType = transforms[i].GetType();
-            System.Reflection.MethodInfo? transformMethod = concreteType.GetMethod(
-                nameof(IColorTransform.Transform),
-                new[] { typeof(Vector4) });
+            Type? concreteType = GetConcreteType(transforms[i]);
 
-            if (transformMethod == null)
+            if (concreteType != null)
             {
-                throw new NotSupportedException(
-                    $"Color transform type '{concreteType.Name}' does not expose a public Transform(Vector4) method.");
+                MethodInfo? transformMethod = concreteType.GetMethod(
+                    nameof(IColorTransform.Transform),
+                    new[] { typeof(Vector4) });
+
+                if (transformMethod != null)
+                {
+                    body = Expression.Call(
+                        Expression.Constant(transforms[i], concreteType),
+                        transformMethod,
+                        body);
+                    continue;
+                }
             }
 
             body = Expression.Call(
-                Expression.Constant(transforms[i], concreteType),
-                transformMethod,
+                Expression.Constant(transforms[i], typeof(IColorTransform)),
+                TransformMethod,
                 body);
         }
 

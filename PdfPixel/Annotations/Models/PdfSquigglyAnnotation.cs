@@ -40,8 +40,8 @@ public class PdfSquigglyAnnotation : PdfTextMarkupAnnotation
             float endX = quad[1].X;
             float endY = quad[1].Y;
 
-            SKPath path = new();
-            DrawSquigglyLine(path, startX, startY, endX, endY);
+            using SKPathBuilder pathBuilder = new();
+            DrawSquigglyLine(pathBuilder, startX, startY, endX, endY);
 
             SKPaint paint = new()
             {
@@ -50,13 +50,13 @@ public class PdfSquigglyAnnotation : PdfTextMarkupAnnotation
                 Color = color
             };
 
-            processor.Process(new DrawPathCommand(path, paint));
+            processor.Process(new DrawPathCommand(pathBuilder.Detach(), paint));
         }
 
         return true;
     }
 
-    private static void DrawSquigglyLine(SKPath path, float startX, float startY, float endX, float endY)
+    private static void DrawSquigglyLine(SKPathBuilder path, float startX, float startY, float endX, float endY)
     {
         var length = (float)Math.Sqrt(Math.Pow(endX - startX, 2) + Math.Pow(endY - startY, 2));
         const float waveHeight = 2.0f;

@@ -18,7 +18,7 @@ public class WebAnnotationPopupData
 
     public float HoverBottom { get; set; }
 
-    public WebAnnotationNavigationData? Navigation { get; set; }
+    public WebAnnotationNavigationData Navigation { get; set; }
 
     public List<WebAnnotationMessageData> Messages { get; set; }
 
@@ -48,7 +48,7 @@ public class WebAnnotationPopupData
     {
         var hover = new SkiaSharp.SKRect(HoverLeft, HoverTop, HoverRight, HoverBottom);
 
-        PdfAnnotationNavigation? navigation = Navigation?.ToPdfAnnotationNavigation();
+        PdfAnnotationNavigation navigation = Navigation?.ToPdfAnnotationNavigation();
 
         PdfAnnotationMessage[] messages = Messages == null
             ? System.Array.Empty<PdfAnnotationMessage>()

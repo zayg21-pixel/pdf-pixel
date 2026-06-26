@@ -41,11 +41,13 @@ internal class PathOperators : IOperatorProcessor
     private readonly IPdfRenderer _renderer;
     private readonly Stack<IPdfValue> _operandStack;
     private readonly IPdfCommandProcessor _processor;
-    private readonly SKPath _currentPath;
+    private readonly SKPathBuilder _currentPath;
     private readonly IPdfPageInternal _page;
     private SKPathFillType? _pendingClipFillType;
+    private SKPoint _lastPoint;
+    private SKPoint _subPathStart;
 
-    public PathOperators(IPdfRenderer renderer, Stack<IPdfValue> operandStack, IPdfCommandProcessor processor, SKPath currentPath, IPdfPageInternal page)
+    public PathOperators(IPdfRenderer renderer, Stack<IPdfValue> operandStack, IPdfCommandProcessor processor, SKPathBuilder currentPath, IPdfPageInternal page)
     {
         _renderer = renderer;
         _operandStack = operandStack;
@@ -175,6 +177,8 @@ internal class PathOperators : IOperatorProcessor
         float x = operands[0].AsFloat();
         float y = operands[1].AsFloat();
         _currentPath.MoveTo(x, y);
+        _lastPoint = new SKPoint(x, y);
+        _subPathStart = _lastPoint;
     }
 
     private void ProcessLineTo()
@@ -188,6 +192,7 @@ internal class PathOperators : IOperatorProcessor
         float x = operands[0].AsFloat();
         float y = operands[1].AsFloat();
         _currentPath.LineTo(x, y);
+        _lastPoint = new SKPoint(x, y);
     }
 
     private void ProcessCurveTo()
@@ -205,6 +210,7 @@ internal class PathOperators : IOperatorProcessor
         float x3 = operands[4].AsFloat();
         float y3 = operands[5].AsFloat();
         _currentPath.CubicTo(x1, y1, x2, y2, x3, y3);
+        _lastPoint = new SKPoint(x3, y3);
     }
 
     private void ProcessCurveToV()
@@ -215,12 +221,12 @@ internal class PathOperators : IOperatorProcessor
             return;
         }
 
-        SKPoint lastPoint = _currentPath.LastPoint;
         float x2 = operands[0].AsFloat();
         float y2 = operands[1].AsFloat();
         float x3 = operands[2].AsFloat();
         float y3 = operands[3].AsFloat();
-        _currentPath.CubicTo(lastPoint.X, lastPoint.Y, x2, y2, x3, y3);
+        _currentPath.CubicTo(_lastPoint.X, _lastPoint.Y, x2, y2, x3, y3);
+        _lastPoint = new SKPoint(x3, y3);
     }
 
     private void ProcessCurveToY()
@@ -236,9 +242,14 @@ internal class PathOperators : IOperatorProcessor
         float x3 = operands[2].AsFloat();
         float y3 = operands[3].AsFloat();
         _currentPath.CubicTo(x1, y1, x3, y3, x3, y3);
+        _lastPoint = new SKPoint(x3, y3);
     }
 
-    private void ProcessClosePath() => _currentPath.Close();
+    private void ProcessClosePath()
+    {
+        _currentPath.Close();
+        _lastPoint = _subPathStart;
+    }
 
     private void ProcessRectangle()
     {
@@ -253,6 +264,8 @@ internal class PathOperators : IOperatorProcessor
         float width = operands[2].AsFloat();
         float height = operands[3].AsFloat();
         _currentPath.AddRect(new SKRect(x, y, x + width, y + height));
+        _lastPoint = new SKPoint(x, y);
+        _subPathStart = _lastPoint;
     }
 
     private void ProcessSetClippingPath(SKPathFillType fillType) => _pendingClipFillType = fillType;
@@ -264,11 +277,8 @@ internal class PathOperators : IOperatorProcessor
             return;
         }
 
-        if (!_currentPath.IsEmpty)
-        {
-            _currentPath.FillType = _pendingClipFillType.Value;
-            _processor.Process(new ClipPathCommand(new SKPath(_currentPath), SKClipOperation.Intersect));
-        }
+        _currentPath.FillType = _pendingClipFillType.Value;
+        _processor.Process(new ClipPathCommand(_currentPath.Detach(), SKClipOperation.Intersect));
 
         _pendingClipFillType = null;
     }
@@ -277,8 +287,7 @@ internal class PathOperators : IOperatorProcessor
     {
         _currentPath.FillType = SKPathFillType.Winding;
         ApplyPendingClip();
-        _renderer.DrawPath(_processor, _currentPath, graphicsState, PdfPaintOperation.Stroke);
-        _currentPath.Reset();
+        _renderer.DrawPath(_processor, _currentPath.Detach(), graphicsState, PdfPaintOperation.Stroke);
     }
 
     private void ProcessCloseAndStrokePath(PdfGraphicsState graphicsState)
@@ -286,24 +295,21 @@ internal class PathOperators : IOperatorProcessor
         _currentPath.Close();
         _currentPath.FillType = SKPathFillType.Winding;
         ApplyPendingClip();
-        _renderer.DrawPath(_processor, _currentPath, graphicsState, PdfPaintOperation.Stroke);
-        _currentPath.Reset();
+        _renderer.DrawPath(_processor, _currentPath.Detach(), graphicsState, PdfPaintOperation.Stroke);
     }
 
     private void ProcessFillPath(PdfGraphicsState graphicsState, SKPathFillType fillType)
     {
         _currentPath.FillType = fillType;
         ApplyPendingClip();
-        _renderer.DrawPath(_processor, _currentPath, graphicsState, PdfPaintOperation.Fill);
-        _currentPath.Reset();
+        _renderer.DrawPath(_processor, _currentPath.Detach(), graphicsState, PdfPaintOperation.Fill);
     }
 
     private void ProcessFillAndStrokePath(PdfGraphicsState graphicsState, SKPathFillType fillType)
     {
         _currentPath.FillType = fillType;
         ApplyPendingClip();
-        _renderer.DrawPath(_processor, _currentPath, graphicsState, PdfPaintOperation.FillAndStroke);
-        _currentPath.Reset();
+        _renderer.DrawPath(_processor, _currentPath.Detach(), graphicsState, PdfPaintOperation.FillAndStroke);
     }
 
     private void ProcessCloseFillAndStrokePath(PdfGraphicsState graphicsState, SKPathFillType fillType)
@@ -311,8 +317,7 @@ internal class PathOperators : IOperatorProcessor
         _currentPath.Close();
         _currentPath.FillType = fillType;
         ApplyPendingClip();
-        _renderer.DrawPath(_processor, _currentPath, graphicsState, PdfPaintOperation.FillAndStroke);
-        _currentPath.Reset();
+        _renderer.DrawPath(_processor, _currentPath.Detach(), graphicsState, PdfPaintOperation.FillAndStroke);
     }
 
     private void ProcessEndPath()

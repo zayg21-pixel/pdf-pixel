@@ -32,7 +32,7 @@ public sealed class DrawTextCommand : PdfCommand
         PdfPaintFactory.ApplyAntialias(_baseFont, antialias);
         CommandHelpers.ApplyModifiers(paint, modifiers);
 
-        executionContext.Canvas.DrawText(_text, 0f, 0f, _baseFont, paint);
+        executionContext.Canvas.DrawText(_text, 0f, 0f, SKTextAlign.Left, _baseFont, paint);
     }
 
     /// <inheritdoc />

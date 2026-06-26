@@ -26,8 +26,9 @@ public sealed class ClipPathCommand : PdfCommand
     /// </summary>
     public ClipPathCommand(SKRect rect, SKClipOperation operation)
     {
-        _path = new SKPath();
-        _path.AddRect(rect);
+        using SKPathBuilder builder = new();
+        builder.AddRect(rect);
+        _path = builder.Detach();
         _operation = operation;
     }
 

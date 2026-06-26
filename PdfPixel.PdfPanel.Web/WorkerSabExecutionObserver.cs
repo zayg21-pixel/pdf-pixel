@@ -6,18 +6,16 @@ using System.Runtime.Versioning;
 namespace PdfPixel.PdfPanel.Web;
 
 /// <summary>
-/// <see cref="IPdfCancellableExecutionObserver"/> backed by a per-request SharedArrayBuffer.
-/// Created on the worker thread, reads/writes via the worker-side SAB map keyed by request ID.
-/// The main thread holds the same underlying SAB in its own map and can cancel the request
-/// from the other side by setting the flag atomically.
+/// Worker-side <see cref="IPdfCancellableExecutionObserver"/> backed by a per-request SharedArrayBuffer.
+/// Reads flags atomically to detect cancellation signalled by the main thread.
 /// </summary>
 [SupportedOSPlatform("browser")]
-internal sealed class SharedArrayBufferExecutionObserver : IPdfCancellableExecutionObserver
+internal sealed class WorkerSabExecutionObserver : IPdfCancellableExecutionObserver
 {
     private readonly string _requestId;
     private readonly int _flagType;
 
-    internal SharedArrayBufferExecutionObserver(string requestId, CancelFlagType flagType)
+    internal WorkerSabExecutionObserver(string requestId, CancelFlagType flagType)
     {
         _requestId = requestId;
         _flagType = (int)flagType;

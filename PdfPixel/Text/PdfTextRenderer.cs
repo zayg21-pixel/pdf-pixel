@@ -222,7 +222,7 @@ public class PdfTextRenderer : IPdfTextRenderer
                 using SKPath textPath = TextRenderUtilities.GetTextPath(shapingResult, font, state);
                 if (!textPath.IsEmpty)
                 {
-                    state.TextClipPath ??= new SKPath();
+                    state.TextClipPath ??= new SKPathBuilder();
                     state.TextClipPath.AddPath(textPath);
                 }
             }

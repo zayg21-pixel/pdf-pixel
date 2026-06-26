@@ -9,9 +9,9 @@ public class WebAnnotationNavigationData
 
     public int CursorType { get; set; }
 
-    public string? Uri { get; set; }
+    public string Uri { get; set; }
 
-    public WebAnnotationDestinationData? Destination { get; set; }
+    public WebAnnotationDestinationData Destination { get; set; }
 
     internal static WebAnnotationNavigationData FromPdfAnnotationNavigation(PdfAnnotationNavigation navigation)
     {

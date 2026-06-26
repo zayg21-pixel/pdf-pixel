@@ -1,7 +1,7 @@
 using Microsoft.Extensions.Logging;
 using PdfPixel.PdfPanel.Annotations;
 using PdfPixel.PdfPanel.ContentProvider;
-using PdfPixel.PdfPanel.Web.Emscripten;
+using PdfPixel.PdfPanel.Requests;
 using PdfPixel.PdfPanel.Web.WorkerInterface;
 using SkiaSharp;
 using System;
@@ -17,6 +17,7 @@ public class WebDocumentContentProvider : IPdfPageContentProvider
 {
     private readonly string _containerId;
     private readonly ILogger<WebDocumentContentProvider> _logger;
+    private readonly MainThreadSabObserverFactory _observerFactory;
     private WebDocumentData _documentData;
     private PdfPageCacheEntry[] _cache;
     private PdfAnnotationPopup[][] _annotations;
@@ -24,17 +25,18 @@ public class WebDocumentContentProvider : IPdfPageContentProvider
     public WebDocumentContentProvider(string containerId)
     {
         _containerId = containerId;
+        _observerFactory = new MainThreadSabObserverFactory(containerId);
         PdfPanelInterop.OnDataReceived += PdfPanelInterop_RequestCompleted;
         _logger = PdfPanelInterop.LoggerFactory.CreateLogger<WebDocumentContentProvider>();
     }
 
     public object DocumentLocker { get; } = new();
 
-    public Action<PageUpdatedArgs>? OnPageUpdated { get; set; }
+    public Action<PageUpdatedArgs> OnPageUpdated { get; set; }
 
     private void PdfPanelInterop_RequestCompleted(EventData eventData)
     {
-        if (eventData.CommandType != WorkerCommandType.PageContentReady || eventData.Data == null)
+        if (eventData.CommandType != WorkerCommandType.PageContentReady)
         {
             return;
         }
@@ -45,19 +47,33 @@ public class WebDocumentContentProvider : IPdfPageContentProvider
         }
 
         UpdateContentResponseHeader response = JsonSerializer.Deserialize(eventData.Header, InterfaceJsonContext.Default.UpdateContentResponseHeader);
+
+        if (response.IsComplete)
+        {
+            _observerFactory.FreeRequest(eventData.Id.ToString());
+            return;
+        }
+
+        if (eventData.Data == null)
+        {
+            return;
+        }
+
         SKPicture picture = SKPicture.Deserialize(eventData.Data);
         int pageIndex = response.PageNumber - 1;
 
+        PagesDrawingRequest drawingRequest = response.DrawingRequest.ToPagesDrawingRequest();
+
         if (response.ContentType == UpdatedContentType.Content)
         {
-            _cache[pageIndex].Content.UpdateContentPicture(picture, response.Scale);
+            _cache[pageIndex].Content.UpdateContentPicture(picture, drawingRequest, response.IsPartialContent);
         }
         else if (response.ContentType == UpdatedContentType.Annotations)
         {
-            _cache[pageIndex].AnnotationContent.UpdateContentPicture(picture, response.Scale);
+            _cache[pageIndex].AnnotationContent.UpdateContentPicture(picture, drawingRequest, response.IsPartialContent);
         }
 
-        OnPageUpdated?.Invoke(new PageUpdatedArgs(response.PageNumber, GetExistingContentPictures(response.PageNumber), response.ContentType));
+        OnPageUpdated?.Invoke(new PageUpdatedArgs(response.PageNumber, GetExistingContentPictures(response.PageNumber), response.ContentType, response.IsPartialContent));
     }
 
     public void UpdateDocument(WebDocumentData documentData)
@@ -101,7 +117,7 @@ public class WebDocumentContentProvider : IPdfPageContentProvider
         }
     }
 
-    public PdfAnnotationPopup[]? GetAnnotationPopups(int pageNumber)
+    public PdfAnnotationPopup[] GetAnnotationPopups(int pageNumber)
     {
         if (_annotations == null)
         {
@@ -132,7 +148,7 @@ public class WebDocumentContentProvider : IPdfPageContentProvider
         };
     }
 
-    public void UpdateContent(ContentProvider.UpdateContentRequest request)
+    public void UpdateContent(PagesDrawingRequest request)
     {
         if (_cache == null)
         {
@@ -140,7 +156,9 @@ public class WebDocumentContentProvider : IPdfPageContentProvider
             return;
         }
 
-        HashSet<int> pageSet = new(request.VisiblePages);
+        string requestId = _observerFactory.AllocateRequest();
+
+        HashSet<int> pageSet = new(request.VisiblePages.Select(page => page.PageNumber));
 
         foreach (PdfPageCacheEntry cachedPage in _cache)
         {
@@ -149,16 +167,16 @@ public class WebDocumentContentProvider : IPdfPageContentProvider
                 cachedPage.Cancel();
                 cachedPage.Clear();
             }
+            else
+            {
+                cachedPage.InitializeForRendering(_observerFactory);
+            }
         }
 
         WorkerInterface.UpdateContentRequest workerRequest = new()
         {
-            VisiblePages = request.VisiblePages.ToList(),
-            Scale = request.RenderingParameters.ScaleFactor ?? 1
+            DrawingRequest = WebDrawingRequest.FromPagesDrawingRequest(request)
         };
-
-        string requestId = Guid.NewGuid().ToString();
-        EmscriptenInterop.AllocRequestSab(_containerId, requestId);
 
         string requestJson = JsonSerializer.Serialize(workerRequest, InterfaceJsonContext.Default.UpdateContentRequest);
         PdfPanelInterop.SendToWorker(_containerId, requestId, WorkerCommandType.UpdateContent.ToString(), requestJson, null);

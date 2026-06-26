@@ -72,4 +72,14 @@ internal static class EmscriptenInterop
     [DllImport("emscripten", EntryPoint = "dotnet_worker_set_request_flag")]
     [DefaultDllImportSearchPaths(DllImportSearchPath.SafeDirectories)]
     internal static extern void WorkerSetRequestFlag(string requestId, int flagType, int value);
+
+    // Removes the main-thread SAB entry for the given request.
+    [DllImport("emscripten", EntryPoint = "dotnet_free_main_request_sab")]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.SafeDirectories)]
+    internal static extern void FreeMainRequestSab(string containerId, string requestId);
+
+    // Removes the worker-thread SAB entry for the given request.
+    [DllImport("emscripten", EntryPoint = "dotnet_free_worker_request_sab")]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.SafeDirectories)]
+    internal static extern void FreeWorkerRequestSab(string requestId);
 }

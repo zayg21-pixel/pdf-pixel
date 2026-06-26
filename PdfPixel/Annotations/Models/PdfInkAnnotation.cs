@@ -93,8 +93,8 @@ public class PdfInkAnnotation : PdfAnnotationBase
                 continue;
             }
 
-            SKPath path = new();
-            BuildSmoothPath(path, points);
+            using SKPathBuilder pathBuilder = new();
+            BuildSmoothPath(pathBuilder, points);
 
             SKPaint paint = new()
             {
@@ -107,13 +107,13 @@ public class PdfInkAnnotation : PdfAnnotationBase
 
             BorderStyle?.TryApplyEffect(paint, inkColor);
 
-            processor.Process(new DrawPathCommand(path, paint));
+            processor.Process(new DrawPathCommand(pathBuilder.Detach(), paint));
         }
 
         return true;
     }
 
-    private static void BuildSmoothPath(SKPath path, SKPoint[] points)
+    private static void BuildSmoothPath(SKPathBuilder path, SKPoint[] points)
     {
         path.MoveTo(points[0]);
 

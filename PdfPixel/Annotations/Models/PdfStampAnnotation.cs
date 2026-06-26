@@ -75,9 +75,9 @@ public class PdfStampAnnotation : PdfAnnotationBase
             ImageFilter = SKImageFilter.CreateDropShadow(shadowOffset, -shadowOffset, shadowSigma, shadowSigma, SKColors.Black.WithAlpha(ShadowAlpha))
         };
 
-        SKPath borderPath = new();
-        borderPath.AddRoundRect(borderRect, cornerRadius, cornerRadius);
-        processor.Process(new DrawPathCommand(borderPath, borderPaint));
+        using SKPathBuilder borderPathBuilder = new();
+        borderPathBuilder.AddRoundRect(borderRect, cornerRadius, cornerRadius);
+        processor.Process(new DrawPathCommand(borderPathBuilder.Detach(), borderPaint));
     }
 
     private void DrawLabel(IPdfCommandProcessor processor, IPdfPageInternal page, string labelText, in SKColor color)

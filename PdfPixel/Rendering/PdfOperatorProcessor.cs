@@ -19,7 +19,7 @@ internal class PdfOperatorProcessor
     private readonly IPdfCommandProcessor _processor;
     private readonly Stack<IPdfValue> _operandStack;
     private readonly Stack<PdfGraphicsState> _graphicsStack;
-    private readonly SKPath _currentPath;
+    private readonly SKPathBuilder _currentPath;
     private readonly GraphicsStateOperators _graphicsStateOperators;
     private readonly TextOperators _textOperators;
     private readonly PathOperators _pathOperators;
@@ -29,7 +29,13 @@ internal class PdfOperatorProcessor
     private readonly MiscellaneousOperators _miscOperators;
     private readonly ILogger<PdfOperatorProcessor> _logger;
 
-    public PdfOperatorProcessor(IPdfRenderer renderer, IPdfPageInternal page, IPdfCommandProcessor processor, Stack<IPdfValue> operandStack, Stack<PdfGraphicsState> graphicsStack, SKPath currentPath)
+    public PdfOperatorProcessor(
+        IPdfRenderer renderer,
+        IPdfPageInternal page,
+        IPdfCommandProcessor processor,
+        Stack<IPdfValue> operandStack,
+        Stack<PdfGraphicsState> graphicsStack,
+        SKPathBuilder currentPath)
     {
         _renderer = renderer;
         _page = page;

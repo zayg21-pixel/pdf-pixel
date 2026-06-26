@@ -113,10 +113,10 @@ public class PdfLineAnnotation : PdfAnnotationBase
 
         BorderStyle?.TryApplyEffect(linePaint, lineColor);
 
-        SKPath linePath = new();
-        linePath.MoveTo(StartX, StartY);
-        linePath.LineTo(EndX, EndY);
-        processor.Process(new DrawPathCommand(linePath, linePaint));
+        using SKPathBuilder linePathBuilder = new();
+        linePathBuilder.MoveTo(StartX, StartY);
+        linePathBuilder.LineTo(EndX, EndY);
+        processor.Process(new DrawPathCommand(linePathBuilder.Detach(), linePaint));
 
         SKColor interiorSKColor = ResolveInteriorColor(page);
 

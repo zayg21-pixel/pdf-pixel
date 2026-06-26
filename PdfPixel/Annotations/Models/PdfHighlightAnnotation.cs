@@ -35,12 +35,12 @@ public class PdfHighlightAnnotation : PdfTextMarkupAnnotation
 
         foreach (SKPoint[] quad in quads)
         {
-            SKPath path = new();
-            path.MoveTo(quad[0]);
-            path.LineTo(quad[1]);
-            path.LineTo(quad[2]);
-            path.LineTo(quad[3]);
-            path.Close();
+            using SKPathBuilder pathBuilder = new();
+            pathBuilder.MoveTo(quad[0]);
+            pathBuilder.LineTo(quad[1]);
+            pathBuilder.LineTo(quad[2]);
+            pathBuilder.LineTo(quad[3]);
+            pathBuilder.Close();
 
             SKPaint paint = new()
             {
@@ -49,7 +49,7 @@ public class PdfHighlightAnnotation : PdfTextMarkupAnnotation
                 BlendMode = SKBlendMode.Multiply
             };
 
-            processor.Process(new DrawPathCommand(path, paint));
+            processor.Process(new DrawPathCommand(pathBuilder.Detach(), paint));
         }
 
         return true;

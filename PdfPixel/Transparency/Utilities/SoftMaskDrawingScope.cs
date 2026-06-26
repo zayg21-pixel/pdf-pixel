@@ -116,10 +116,10 @@ public sealed class SoftMaskDrawingScope : IDisposable
             SKColor backgroundColor = _softMask.GetBackgroundColor(_graphicsState.RenderingIntent, _graphicsState.FullTransferFunction);
             SKPaint backgroundPaint = PdfPaintFactory.CreateBackgroundPaint(backgroundColor);
 
-            SKPath rectPath = new();
-            rectPath.AddRect(_softMask.MaskForm.BBox);
+            using SKPathBuilder rectPathBuilder = new();
+            rectPathBuilder.AddRect(_softMask.MaskForm.BBox);
 
-            recorder.Process(new DrawPathCommand(rectPath, backgroundPaint));
+            recorder.Process(new DrawPathCommand(rectPathBuilder.Detach(), backgroundPaint));
         }
 
         // Render mask content stream into the recorder (isolated from canvas transforms).

@@ -14,7 +14,7 @@ internal static class TextRenderUtilities
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static SKPath GetTextPath(List<ShapedGlyph> shapingResult, SKFont font, PdfGraphicsState state)
     {
-        SKPath textPath = new();
+        using SKPathBuilder textPathBuilder = new();
 
         for (int i = 0; i < shapingResult.Count; i++)
         {
@@ -24,11 +24,12 @@ internal static class TextRenderUtilities
                 using SKPath glyphPath = font.GetGlyphPath((ushort)glyphId);
                 if (glyphPath != null)
                 {
-                    // Translate glyph outline by current advance
-                    textPath.AddPath(glyphPath, SKMatrix.CreateTranslation(shapingResult[i].X, shapingResult[i].Y));
+                    textPathBuilder.AddPath(glyphPath, SKMatrix.CreateTranslation(shapingResult[i].X, shapingResult[i].Y));
                 }
             }
         }
+
+        SKPath textPath = textPathBuilder.Detach();
 
         SKMatrix matrix = GetFullTextMatrix(state);
         textPath.Transform(matrix);

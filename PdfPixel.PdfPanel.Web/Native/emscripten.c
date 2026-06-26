@@ -201,7 +201,7 @@ void dotnet_resume_main_loop(void) {
 // Allocates a 2-byte SharedArrayBuffer for the given request and stores it at
 // globalThis.mainRequestSabMap[containerId][requestId].
 // Must be called on the main thread before the UpdateContent message is sent to the worker.
-// TODO: [LOW] these SABs are never freed — known memory leak until cleanup is implemented.
+// TODO: [HIGH] these SABs are never freed — known memory leak until cleanup is implemented.
 EM_JS(void, dotnet_alloc_request_sab, (const char* containerIdPtr, const char* requestIdPtr), {
 	if (!globalThis.mainRequestSabMap) globalThis.mainRequestSabMap = {};
 	const containerId = UTF8ToString(containerIdPtr);
@@ -228,4 +228,21 @@ EM_JS(int, dotnet_worker_read_request_flag, (const char* requestIdPtr, int flagT
 EM_JS(void, dotnet_worker_set_request_flag, (const char* requestIdPtr, int flagType, int value), {
 	const arr = globalThis.workerRequestSabMap?.[UTF8ToString(requestIdPtr)];
 	if (arr) Atomics.store(arr, flagType, value);
+});
+
+// Removes the main-thread SAB entry for the given request.
+EM_JS(void, dotnet_free_main_request_sab, (const char* containerIdPtr, const char* requestIdPtr), {
+	const containerId = UTF8ToString(containerIdPtr);
+	const requestId = UTF8ToString(requestIdPtr);
+	if (globalThis.mainRequestSabMap?.[containerId]) {
+		delete globalThis.mainRequestSabMap[containerId][requestId];
+	}
+});
+
+// Removes the worker-thread SAB entry for the given request.
+EM_JS(void, dotnet_free_worker_request_sab, (const char* requestIdPtr), {
+	const requestId = UTF8ToString(requestIdPtr);
+	if (globalThis.workerRequestSabMap) {
+		delete globalThis.workerRequestSabMap[requestId];
+	}
 });

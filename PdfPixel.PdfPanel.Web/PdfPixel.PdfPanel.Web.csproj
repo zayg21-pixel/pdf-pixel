@@ -10,8 +10,6 @@
     <!-- <RunAOTCompilationAfterBuild>true</RunAOTCompilationAfterBuild> -->
     <InvariantGlobalization>true</InvariantGlobalization>
     <EnableDefaultContentItems>false</EnableDefaultContentItems>
-    <WasmNativeDebugSymbols>true</WasmNativeDebugSymbols>
-    <WasmEmitSymbolMap>true</WasmEmitSymbolMap>
   </PropertyGroup>
 
   <ItemGroup>
@@ -25,7 +23,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="SkiaSharp.NativeAssets.WebAssembly" Version="3.119.2" />
+    <PackageReference Include="SkiaSharp.NativeAssets.WebAssembly" Version="4.148.0" />
     <PackageReference Include="Microsoft.Extensions.Logging" Version="9.0.10" />
     <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="9.0.10" />
 

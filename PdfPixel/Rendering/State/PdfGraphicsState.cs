@@ -392,7 +392,7 @@ public class PdfGraphicsState
     /// <summary>
     /// Gets or sets the clipping path used to define the area where text can be rendered.
     /// </summary>
-    public SKPath? TextClipPath { get; set; }
+    public SKPathBuilder? TextClipPath { get; set; }
 
     /// <summary>
     /// Text markup set by a DP (marked content point with properties) operator.

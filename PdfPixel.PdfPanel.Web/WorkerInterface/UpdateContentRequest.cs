@@ -1,10 +1,9 @@
-using System.Collections.Generic;
-
 namespace PdfPixel.PdfPanel.Web.WorkerInterface;
 
+/// <summary>
+/// Worker request to update visible page content.
+/// </summary>
 public class UpdateContentRequest
 {
-    public List<int> VisiblePages { get; set; }
-
-    public float Scale { get; set; }
+    public WebDrawingRequest DrawingRequest { get; set; }
 }

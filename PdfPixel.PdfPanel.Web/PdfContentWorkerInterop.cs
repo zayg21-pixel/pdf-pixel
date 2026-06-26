@@ -3,6 +3,7 @@ using PdfPixel.Fonts.Management;
 using PdfPixel.Fonts.Mapping;
 using PdfPixel.Models;
 using PdfPixel.PdfPanel.ContentProvider;
+using PdfPixel.PdfPanel.Requests;
 using PdfPixel.PdfPanel.Web.Emscripten;
 using PdfPixel.PdfPanel.Web.WorkerInterface;
 using PdfPixel.PdfPanel.WorkQueue;
@@ -27,7 +28,7 @@ public sealed class WorkerDocumentData
 
     public ImmidiateWorkQueue WorkQueue { get; set; }
 
-    public SharedArrayBufferObserverFactory ObserverFactory { get; set; }
+    public WorkerSabObserverFactory ObserverFactory { get; set; }
 
     public void Dispose()
     {
@@ -96,14 +97,7 @@ public partial class PdfContentWorkerInterop
 
                 byte[] contentData = null;
 
-                var updatePagesRequest = new ContentProvider.UpdateContentRequest
-                {
-                    VisiblePages = request.VisiblePages.ToArray(),
-                    RenderingParameters = new PdfCommandExecutionParameters
-                    {
-                        ScaleFactor = request.Scale
-                    }
-                };
+                PagesDrawingRequest updatePagesRequest = request.DrawingRequest.ToPagesDrawingRequest();
 
                 document.Pages.ContentProvider.OnPageUpdated = (args) =>
                 {
@@ -117,14 +111,25 @@ public partial class PdfContentWorkerInterop
                     var headerData = JsonSerializer.Serialize(new UpdateContentResponseHeader
                     {
                         PageNumber = args.PageNumber,
-                        Scale = request.Scale,
-                        ContentType = args.UpdatedContentType
+                        ContentType = args.UpdatedContentType,
+                        IsPartialContent = args.IsPartialContent,
+                        DrawingRequest = request.DrawingRequest
                     }, InterfaceJsonContext.Default.UpdateContentResponseHeader);
 
                     OnDataReady(containerId, id, WorkerCommandType.PageContentReady.ToString(), headerData, contentData);
                 };
 
                 document.Pages.ContentProvider.UpdateContent(updatePagesRequest);
+
+                document.ObserverFactory.FreeRequest(id);
+
+                var finalHeader = JsonSerializer.Serialize(new UpdateContentResponseHeader
+                {
+                    IsComplete = true,
+                    DrawingRequest = request.DrawingRequest
+                }, InterfaceJsonContext.Default.UpdateContentResponseHeader);
+
+                OnDataReady(containerId, id, WorkerCommandType.PageContentReady.ToString(), finalHeader, null);
 
                 break;
             }
@@ -167,7 +172,7 @@ public partial class PdfContentWorkerInterop
             var document = reader.Read(new MemoryStream(documentData), string.Empty);
             Logger.LogInformation("PDF document parsed, pages={PageCount}", document.Pages.Count);
             var workQueue = new ImmidiateWorkQueue();
-            var observerFactory = new SharedArrayBufferObserverFactory();
+            var observerFactory = new WorkerSabObserverFactory();
             var contentProvider = new PdfPageContentProvider(document, workQueue, observerFactory);
             var pages = PdfPanelPageCollection.FromContentProvider(contentProvider);
 

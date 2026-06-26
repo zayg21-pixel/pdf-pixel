@@ -10,6 +10,8 @@ namespace PdfPixel.PdfPanel.Web.WorkerInterface;
 [JsonSerializable(typeof(WebDocumentData))]
 [JsonSerializable(typeof(SetFontRequest))]
 [JsonSerializable(typeof(UpdateContentRequest))]
+[JsonSerializable(typeof(WebDrawingRequest))]
+[JsonSerializable(typeof(WebVisiblePageInfo))]
 [JsonSerializable(typeof(WebDocumentPageInfo))]
 [JsonSerializable(typeof(RefreshCacheRequest))]
 [JsonSerializable(typeof(UpdateContentResponseHeader))]

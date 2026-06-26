@@ -54,9 +54,9 @@ public class PdfSquareAnnotation : PdfAnnotationBase
                 Color = interiorSKColor
             };
 
-            SKPath fillPath = new();
-            fillPath.AddRect(ContentRectangle);
-            processor.Process(new DrawPathCommand(fillPath, fillPaint));
+            using SKPathBuilder fillPathBuilder = new();
+            fillPathBuilder.AddRect(ContentRectangle);
+            processor.Process(new DrawPathCommand(fillPathBuilder.Detach(), fillPaint));
         }
 
         if (BorderStyle?.Width > 0 && Color?.Length > 0)
@@ -80,9 +80,9 @@ public class PdfSquareAnnotation : PdfAnnotationBase
                 ContentRectangle.Right - halfBorder,
                 ContentRectangle.Bottom - halfBorder);
 
-            SKPath strokePath = new();
-            strokePath.AddRect(adjustedRect);
-            processor.Process(new DrawPathCommand(strokePath, strokePaint));
+            using SKPathBuilder strokePathBuilder = new();
+            strokePathBuilder.AddRect(adjustedRect);
+            processor.Process(new DrawPathCommand(strokePathBuilder.Detach(), strokePaint));
         }
 
         return true;

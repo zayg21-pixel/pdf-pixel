@@ -88,10 +88,10 @@ public class PdfLinkAnnotation : PdfTextMarkupAnnotation
         if (!needsNormalDraw && BorderStyle.Style == PdfBorderStyleType.Underline)
         {
             float y = Rectangle.Top - (borderWidth / 2);
-            SKPath linePath = new();
-            linePath.MoveTo(Rectangle.Left, y);
-            linePath.LineTo(Rectangle.Right, y);
-            processor.Process(new DrawPathCommand(linePath, paint));
+            using SKPathBuilder linePathBuilder = new();
+            linePathBuilder.MoveTo(Rectangle.Left, y);
+            linePathBuilder.LineTo(Rectangle.Right, y);
+            processor.Process(new DrawPathCommand(linePathBuilder.Detach(), paint));
         }
         else
         {
@@ -101,9 +101,9 @@ public class PdfLinkAnnotation : PdfTextMarkupAnnotation
                 Rectangle.Right - (borderWidth / 2),
                 Rectangle.Bottom - (borderWidth / 2));
 
-            SKPath rectPath = new();
-            rectPath.AddRect(rect);
-            processor.Process(new DrawPathCommand(rectPath, paint));
+            using SKPathBuilder rectPathBuilder = new();
+            rectPathBuilder.AddRect(rect);
+            processor.Process(new DrawPathCommand(rectPathBuilder.Detach(), paint));
         }
 
         return true;

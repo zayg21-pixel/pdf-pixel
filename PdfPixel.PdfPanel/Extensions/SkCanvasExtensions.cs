@@ -26,8 +26,9 @@ internal static class SkCanvasExtensions
 
             if (request.PageCornerRadius > 0)
             {
-                using SKPath clipPath = new();
-                clipPath.AddRoundRect(pageRect, request.PageCornerRadius, request.PageCornerRadius);
+                using SKPathBuilder builder = new();
+                builder.AddRoundRect(pageRect, request.PageCornerRadius, request.PageCornerRadius);
+                using SKPath clipPath = builder.Detach();
                 canvas.ClipPath(clipPath, SKClipOperation.Intersect, antialias: request.CommandExecutionParameters.Antialias);
             }
             else
