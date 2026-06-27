@@ -13,6 +13,7 @@ internal sealed class SkiaFontVariation : IDisposable
     private const uint WidthAxisTag = 0x77647468; // 'wdth'
     private const float WidthScaleToPercent = 100f;
 
+    private readonly ConcurrentDictionary<nint, bool> _widthAxisSupportCache = [];
     private readonly ConcurrentDictionary<(nint TypefaceHandle, float Width), SKTypeface> _variationCache = [];
 
     /// <summary>
@@ -40,23 +41,51 @@ internal sealed class SkiaFontVariation : IDisposable
     }
 
     /// <summary>
-    /// Returns a width-variation-adjusted typeface when <paramref name="width"/> is provided
-    /// and the typeface supports the <c>wdth</c> axis. Otherwise returns the original typeface.
-    /// Variation clones are cached by typeface handle and width value.
+    /// Returns a width-variation-adjusted typeface when <paramref name="width"/> and <paramref name="unicode"/> are provided.
+    /// Measures the base typeface glyph width, computes the target ratio, and clones with the <c>wdth</c> axis value.
+    /// Variation clones are cached by typeface handle and target width.
     /// </summary>
-    public SKTypeface ApplyWidthVariation(SKTypeface typeface, float? width)
+    public SKTypeface ApplyWidthVariation(SKTypeface typeface, string? unicode, float? width)
     {
-        if (width == null)
+        if (width == null || unicode == null || unicode.Length == 0)
         {
             return typeface;
         }
 
-        return _variationCache.GetOrAdd((typeface.Handle, width.Value), key => CloneWithWidth(typeface, key.Width));
+        if (!_widthAxisSupportCache.GetOrAdd(typeface.Handle, _ => HasWidthAxis(typeface)))
+        {
+            return typeface;
+        }
+
+        using SKFont skFont = PdfPaintFactory.CreateTextFont(typeface);
+        float measuredWidth = skFont.MeasureText(unicode);
+        if (measuredWidth <= 0)
+        {
+            return typeface;
+        }
+
+        float widthPercent = (width.Value / measuredWidth) * WidthScaleToPercent;
+        return _variationCache.GetOrAdd((typeface.Handle, widthPercent), key => CloneWithWidth(typeface, key.Width));
     }
 
-    private static SKTypeface CloneWithWidth(SKTypeface typeface, float width)
+    private static bool HasWidthAxis(SKTypeface typeface)
     {
-        SKFontVariationPositionCoordinate[] coordinates = [new() { Axis = WidthAxisTag, Value = width * WidthScaleToPercent }];
+        SKFontVariationAxis[] axes = typeface.VariationDesignParameters;
+
+        for (int i = 0; i < axes.Length; i++)
+        {
+            if (axes[i].Tag == WidthAxisTag)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static SKTypeface CloneWithWidth(SKTypeface typeface, float widthPercent)
+    {
+        SKFontVariationPositionCoordinate[] coordinates = [new() { Axis = WidthAxisTag, Value = widthPercent }];
         SKTypeface cloned = typeface.Clone(coordinates);
         return cloned ?? typeface;
     }

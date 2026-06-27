@@ -56,7 +56,7 @@ public sealed class WindowsSkiaFontProvider : ISkiaFontProvider, IDisposable
             SKTypeface matchedTypeface = _fontManager.MatchFamily(candidates[i], style);
             if (matchedTypeface != null && SkiaFontVariation.ContainsGlyphs(matchedTypeface, unicode))
             {
-                return _variation.ApplyWidthVariation(matchedTypeface, width);
+                return _variation.ApplyWidthVariation(matchedTypeface, unicode, width);
             }
         }
 
@@ -74,20 +74,20 @@ public sealed class WindowsSkiaFontProvider : ISkiaFontProvider, IDisposable
         SKTypeface matchedTypeface = _fontManager.MatchFamily(name, style);
         if (matchedTypeface != null && SkiaFontVariation.ContainsGlyphs(matchedTypeface, unicode))
         {
-            return _variation.ApplyWidthVariation(matchedTypeface, width);
+            return _variation.ApplyWidthVariation(matchedTypeface, unicode, width);
         }
 
         if (string.IsNullOrEmpty(unicode))
         {
-            return _variation.ApplyWidthVariation(_fontManager.MatchFamily(_fallbackFontName, style), width);
+            return _variation.ApplyWidthVariation(_fontManager.MatchFamily(_fallbackFontName, style), unicode, width);
         }
 
         if (unicode != null && unicode.Length > 0)
         {
-            return _variation.ApplyWidthVariation(_fontManager.MatchCharacter(_fallbackFontName, style, default, unicode[0]), width);
+            return _variation.ApplyWidthVariation(_fontManager.MatchCharacter(_fallbackFontName, style, default, unicode[0]), unicode, width);
         }
 
-        return _variation.ApplyWidthVariation(_fontManager.MatchFamily(_fallbackFontName), width);
+        return _variation.ApplyWidthVariation(_fontManager.MatchFamily(_fallbackFontName), unicode, width);
     }
 
     /// <inheritdoc/>

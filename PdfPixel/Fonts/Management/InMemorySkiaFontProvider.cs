@@ -103,7 +103,7 @@ public sealed class InMemorySkiaFontProvider : ISkiaFontProvider
         {
             if (SkiaFontVariation.ContainsGlyphs(typeface, unicode))
             {
-                return _variation.ApplyWidthVariation(typeface, width);
+                return _variation.ApplyWidthVariation(typeface, unicode, width);
             }
         }
 
@@ -117,11 +117,11 @@ public sealed class InMemorySkiaFontProvider : ISkiaFontProvider
         {
             if (SkiaFontVariation.ContainsGlyphs(typeface, unicode))
             {
-                return _variation.ApplyWidthVariation(typeface, width);
+                return _variation.ApplyWidthVariation(typeface, unicode, width);
             }
         }
 
-        return _variation.ApplyWidthVariation(_fallback, width);
+        return _variation.ApplyWidthVariation(_fallback, unicode, width);
     }
 
     /// <summary>
