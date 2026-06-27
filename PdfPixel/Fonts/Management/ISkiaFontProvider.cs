@@ -10,21 +10,27 @@ public interface ISkiaFontProvider : System.IDisposable
 {
     /// <summary>
     /// Gets a standard PDF font typeface by name and style, optionally ensuring it contains the specified unicode text.
+    /// When <paramref name="width"/> is provided and the resolved typeface supports the <c>wdth</c> variation axis,
+    /// the provider returns a variation-adjusted typeface clamped to the axis range.
     /// Returns null if no suitable typeface is found.
     /// </summary>
     /// <param name="standardFont">The standard PDF font family name.</param>
     /// <param name="style">Requested font style.</param>
     /// <param name="unicode">Optional unicode text to validate glyph availability.</param>
+    /// <param name="width">Optional horizontal scale hint (1.0 = normal). Mapped to the <c>wdth</c> axis when available.</param>
     /// <returns>An <see cref="SKTypeface"/> that matches the requested standard font and style; or <c>null</c> if not found.</returns>
-    SKTypeface? GetStandardFont(PdfStandardFontName standardFont, SKFontStyle style, string? unicode);
+    SKTypeface? GetStandardFont(PdfStandardFontName standardFont, SKFontStyle style, string? unicode, float? width);
 
     /// <summary>
     /// Gets a font typeface for a given family name and style, optionally ensuring it contains the specified unicode text.
+    /// When <paramref name="width"/> is provided and the resolved typeface supports the <c>wdth</c> variation axis,
+    /// the provider returns a variation-adjusted typeface clamped to the axis range.
     /// Returns fallback if no suitable typeface found.
     /// </summary>
     /// <param name="name">Font family name to resolve.</param>
     /// <param name="style">Requested font style.</param>
     /// <param name="unicode">Optional unicode text to validate glyph availability.</param>
+    /// <param name="width">Optional horizontal scale hint (1.0 = normal). Mapped to the <c>wdth</c> axis when available.</param>
     /// <returns>An <see cref="SKTypeface"/> that matches the requested font; or <c>null</c> if not found.</returns>
-    SKTypeface GetFont(string? name, SKFontStyle style, string? unicode);
+    SKTypeface GetFont(string? name, SKFontStyle style, string? unicode, float? width);
 }

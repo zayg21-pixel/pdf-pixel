@@ -105,6 +105,21 @@ public partial class PdfPanelInterop
         await SendToWorkerAsync(string.Empty, Guid.NewGuid(), WorkerCommandType.SetFont, request, fontData);
     }
 
+    /// <summary>
+    /// Registers font data to use as the fallback typeface when no registered font matches a requested name or glyph.
+    /// Must be called before loading any PDF documents.
+    /// </summary>
+    [JSExport]
+    public static async Task SetFallbackFont(byte[] fontData)
+    {
+        if (!_isInitialized)
+        {
+            return;
+        }
+
+        await SendToWorkerAsync(string.Empty, Guid.NewGuid(), WorkerCommandType.SetFallbackFont, string.Empty, fontData);
+    }
+
     [JSExport]
     public static void RegisterCanvas(string containerId, JSObject configuration)
     {

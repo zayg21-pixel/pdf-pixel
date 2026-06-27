@@ -26,17 +26,19 @@ internal sealed class SkiaFontSubstitutor
     /// <summary>
     /// Resolves a substitute <see cref="SKTypeface"/> for a non-embedded PDF font.
     /// Attempts to match by normalized stem and style, then falls back to known family substitutions.
+    /// When <paramref name="width"/> is provided, the provider may return a variation-adjusted typeface.
     /// </summary>
     /// <param name="substitutionInfo">Font substitution information, including normalized stem and style.</param>
     /// <param name="unicode">Optional unicode text to validate glyph availability.</param>
+    /// <param name="width">Optional horizontal scale hint (1.0 = normal). Mapped to the <c>wdth</c> axis when available.</param>
     /// <returns>
     /// A matching <see cref="SKTypeface"/> if found; otherwise, <see cref="SKTypeface.Default"/>.
     /// </returns>
-    public SKTypeface SubstituteTypeface(in PdfSubstitutionInfo substitutionInfo, string? unicode)
+    public SKTypeface SubstituteTypeface(in PdfSubstitutionInfo substitutionInfo, string? unicode, float? width)
     {
         if (Enum.TryParse(substitutionInfo.NormalizedStem, out PdfStandardFontName standardFont))
         {
-            SKTypeface? standardTypeface = _skiaFontProvider.GetStandardFont(standardFont, substitutionInfo.FontStyle, unicode);
+            SKTypeface? standardTypeface = _skiaFontProvider.GetStandardFont(standardFont, substitutionInfo.FontStyle, unicode, width);
 
             if (standardTypeface != null)
             {
@@ -44,6 +46,6 @@ internal sealed class SkiaFontSubstitutor
             }
         }
 
-        return _skiaFontProvider.GetFont(substitutionInfo.NormalizedStem, substitutionInfo.FontStyle, unicode) ?? SKTypeface.Default;
+        return _skiaFontProvider.GetFont(substitutionInfo.NormalizedStem, substitutionInfo.FontStyle, unicode, width) ?? SKTypeface.Default;
     }
 }

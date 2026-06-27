@@ -149,11 +149,17 @@ public readonly struct PdfSubstitutionInfo
         }
 
         // Split once after removing hints to compute normalized stem
-        string basePart = name;
-        int hyphenIndex = name.IndexOf('-');
+        int endIndex = name.Length;
+        while (endIndex > 0 && char.IsPunctuation(name[endIndex - 1]))
+        {
+            endIndex--;
+        }
+
+        string basePart = name.Substring(0, endIndex);
+        int hyphenIndex = basePart.IndexOf('-');
         if (hyphenIndex > 0)
         {
-            basePart = name.Substring(0, hyphenIndex);
+            basePart = basePart.Substring(0, hyphenIndex);
         }
 
         // Descriptor overrides

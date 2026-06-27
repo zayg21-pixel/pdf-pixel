@@ -83,6 +83,12 @@ public partial class PdfContentWorkerInterop
                 OnDataReady(containerId, id, commandType, header, default);
                 break;
             }
+            case WorkerCommandType.SetFallbackFont:
+            {
+                SetFallbackFont(data);
+                OnDataReady(containerId, id, commandType, header, default);
+                break;
+            }
             case WorkerCommandType.UpdateContent:
             {
                 var request = JsonSerializer.Deserialize(header, InterfaceJsonContext.Default.UpdateContentRequest);
@@ -144,7 +150,6 @@ public partial class PdfContentWorkerInterop
 
     private static void SetFont(string name, byte[] fontData)
     {
-        // TODO: register fallback font separatly!
         if (!_isInitialized)
         {
             return;
@@ -159,6 +164,17 @@ public partial class PdfContentWorkerInterop
         {
             Logger.LogWarning("Unknown standard font name '{Name}'. Expected one of: {Names}", name, string.Join(", ", Enum.GetNames<PdfStandardFontName>()));
         }
+    }
+
+    private static void SetFallbackFont(byte[] fontData)
+    {
+        if (!_isInitialized)
+        {
+            return;
+        }
+
+        FontProvider.RegisterFallback(fontData);
+        Logger.LogInformation("Registered fallback font");
     }
 
     private static byte[] SetDocument(string containerId, byte[] documentData)

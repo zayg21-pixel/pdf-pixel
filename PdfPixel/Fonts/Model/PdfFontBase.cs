@@ -107,8 +107,9 @@ public abstract class PdfFontBase : IDisposable
     /// Returns the SkiaSharp SKTypeface instance for this PDF font.
     /// </summary>
     /// <param name="unicode">Hint for font substitution.</param>
+    /// <param name="width">Optional horizontal scale hint (1.0 = normal). Mapped to the <c>wdth</c> axis when available.</param>
     /// <returns>SKTypeface instance, should not be disposed.</returns>
-    internal SKTypeface GetTypeface(string? unicode) => Typeface ?? Document.FontSubstitutor.SubstituteTypeface(SubstitutionInfo, unicode);
+    internal SKTypeface GetTypeface(string? unicode, float? width) => Typeface ?? Document.FontSubstitutor.SubstituteTypeface(SubstitutionInfo, unicode, width);
 
     /// <summary>
     /// Converts a <see cref="PdfCharacterCode"/> to its corresponding Unicode string representation.
@@ -169,16 +170,17 @@ public abstract class PdfFontBase : IDisposable
         float width = GetWidth(characterCode);
         string? unicode = GetUnicodeString(characterCode);
         VerticalMetric displacement = GetVerticalDisplacement(characterCode);
-        SKTypeface typeface = GetTypeface(unicode);
 
         if (gid != 0 && width != 0)
         {
+            SKTypeface typeface = GetTypeface(unicode, width);
             float[] widths = [width];
             (float xScale, SKPoint origin, float advancement) = GetScalingAndOrigin(unicode, default, displacement, width, widths);
             return new PdfCharacterInfo(characterCode, typeface, unicode, [gid], width, widths, xScale, origin, advancement);
         }
         else if (gid != 0 && unicode?.Length > 0)
         {
+            SKTypeface typeface = GetTypeface(unicode, width);
             using SKFont skFont = PdfPaintFactory.CreateTextFont(typeface);
             width = skFont.GetGlyphWidths(unicode).Sum();
             float[] widths = [width];
@@ -188,6 +190,7 @@ public abstract class PdfFontBase : IDisposable
         }
         else if (gid == 0 && width != 0 && unicode?.Length > 0)
         {
+            SKTypeface typeface = GetTypeface(unicode, width);
             using SKFont skFont = PdfPaintFactory.CreateTextFont(typeface);
             ushort[] gids = skFont.GetGlyphs(unicode);
             float[] widths = skFont.GetGlyphWidths(unicode);
@@ -195,8 +198,9 @@ public abstract class PdfFontBase : IDisposable
 
             return new PdfCharacterInfo(characterCode, typeface, unicode, gids, width, widths, xScale, origin, advacement);
         }
-        else if (unicode?.Length > 0) // last resort: try to get both GID and width from Skia
+        else if (unicode?.Length > 0)
         {
+            SKTypeface typeface = GetTypeface(unicode, width);
             using SKFont skFont = PdfPaintFactory.CreateTextFont(typeface);
             ushort[] gids = skFont.GetGlyphs(unicode);
             float[] widths = skFont.GetGlyphWidths(unicode);
@@ -206,7 +210,8 @@ public abstract class PdfFontBase : IDisposable
             return new PdfCharacterInfo(characterCode, typeface, unicode, gids, width, widths, xScale, origin, advacement);
         }
 
-        return new PdfCharacterInfo(characterCode, typeface, string.Empty, [0], 0, [0], 1, SKPoint.Empty, default);
+        SKTypeface fallbackTypeface = GetTypeface(null, null);
+        return new PdfCharacterInfo(characterCode, fallbackTypeface, string.Empty, [0], 0, [0], 1, SKPoint.Empty, default);
     }
 
     private (float xScale, SKPoint Origin, float Advancement) GetScalingAndOrigin(string? unicode, SKFont? font, in VerticalMetric verticalMetric, float originalWidth, float[] widths)

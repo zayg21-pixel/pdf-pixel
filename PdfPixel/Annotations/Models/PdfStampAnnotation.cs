@@ -83,7 +83,7 @@ public class PdfStampAnnotation : PdfAnnotationBase
     private void DrawLabel(IPdfCommandProcessor processor, IPdfPageInternal page, string labelText, in SKColor color)
     {
         var substitutionInfo = PdfSubstitutionInfo.Parse(PdfString.FromString("Courier-Bold"), null);
-        SKTypeface typeface = page.Document.FontSubstitutor.SubstituteTypeface(substitutionInfo, labelText);
+        SKTypeface typeface = page.Document.FontSubstitutor.SubstituteTypeface(substitutionInfo, labelText, null);
 
         float availableWidth = Rectangle.Width * (1f - 2f * MarginFraction);
         float availableHeight = Rectangle.Height * (1f - 2f * MarginFraction);

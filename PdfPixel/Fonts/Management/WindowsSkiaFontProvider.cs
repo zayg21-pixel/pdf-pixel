@@ -7,24 +7,27 @@ namespace PdfPixel.Fonts.Management;
 
 /// <summary>
 /// Windows-specific Skia font provider that resolves standard PDF fonts and named fonts using system-installed families.
+/// When a width hint is provided and the resolved typeface supports the <c>wdth</c> variation axis,
+/// a variation-adjusted clone is returned and cached.
 /// </summary>
 public sealed class WindowsSkiaFontProvider : ISkiaFontProvider, IDisposable
 {
     private readonly SKFontManager _fontManager;
     private readonly string? _fallbackFontName;
+    private readonly SkiaFontVariation _variation = new();
 
     private static readonly Dictionary<PdfStandardFontName, string[]> CandidatesMap = new()
     {
-        { PdfStandardFontName.Times, new[] { "Times New Roman" } },
-        { PdfStandardFontName.TimesNewRoman, new[] { "Times New Roman" } },
-        { PdfStandardFontName.TimesNewRomanPS, new[] { "Times New Roman" } },
-        { PdfStandardFontName.Helvetica, new[] { "Arial" } },
-        { PdfStandardFontName.Arial, new[] { "Arial" } },
-        { PdfStandardFontName.Courier, new[] { "Courier New" } },
-        { PdfStandardFontName.CourierNew, new[] { "Courier New" } },
-        { PdfStandardFontName.CourierNewPS, new[] { "Courier New" } },
-        { PdfStandardFontName.Symbol, new[] { "Segoe UI Symbol", "Times New Roman" } },
-        { PdfStandardFontName.ZapfDingbats, new[] { "Segoe UI Symbol" } }
+        { PdfStandardFontName.Times, ["Times New Roman"] },
+        { PdfStandardFontName.TimesNewRoman, ["Times New Roman"] },
+        { PdfStandardFontName.TimesNewRomanPS, ["Times New Roman"] },
+        { PdfStandardFontName.Helvetica, ["Arial"] },
+        { PdfStandardFontName.Arial, ["Arial"] },
+        { PdfStandardFontName.Courier, ["Courier New"] },
+        { PdfStandardFontName.CourierNew, ["Courier New"] },
+        { PdfStandardFontName.CourierNewPS, ["Courier New"] },
+        { PdfStandardFontName.Symbol, ["Segoe UI Symbol", "Times New Roman"] },
+        { PdfStandardFontName.ZapfDingbats, ["Segoe UI Symbol"] }
     };
 
     /// <summary>
@@ -38,11 +41,10 @@ public sealed class WindowsSkiaFontProvider : ISkiaFontProvider, IDisposable
     {
         _fallbackFontName = fallbackFontName;
         _fontManager = SKFontManager.CreateDefault();
-
     }
 
     /// <inheritdoc/>
-    public SKTypeface? GetStandardFont(PdfStandardFontName standardFont, SKFontStyle style, string? unicode)
+    public SKTypeface? GetStandardFont(PdfStandardFontName standardFont, SKFontStyle style, string? unicode, float? width)
     {
         if (!CandidatesMap.TryGetValue(standardFont, out string[]? candidates))
         {
@@ -52,9 +54,9 @@ public sealed class WindowsSkiaFontProvider : ISkiaFontProvider, IDisposable
         for (int i = 0; i < candidates.Length; i++)
         {
             SKTypeface matchedTypeface = _fontManager.MatchFamily(candidates[i], style);
-            if (matchedTypeface != null && (unicode == null || matchedTypeface.ContainsGlyphs(unicode)))
+            if (matchedTypeface != null && SkiaFontVariation.ContainsGlyphs(matchedTypeface, unicode))
             {
-                return matchedTypeface;
+                return _variation.ApplyWidthVariation(matchedTypeface, width);
             }
         }
 
@@ -62,7 +64,7 @@ public sealed class WindowsSkiaFontProvider : ISkiaFontProvider, IDisposable
     }
 
     /// <inheritdoc/>
-    public SKTypeface GetFont(string? name, SKFontStyle style, string? unicode)
+    public SKTypeface GetFont(string? name, SKFontStyle style, string? unicode, float? width)
     {
         if (string.IsNullOrEmpty(name))
         {
@@ -70,24 +72,28 @@ public sealed class WindowsSkiaFontProvider : ISkiaFontProvider, IDisposable
         }
 
         SKTypeface matchedTypeface = _fontManager.MatchFamily(name, style);
-        if (matchedTypeface != null && (unicode == null || matchedTypeface.ContainsGlyphs(unicode)))
+        if (matchedTypeface != null && SkiaFontVariation.ContainsGlyphs(matchedTypeface, unicode))
         {
-            return matchedTypeface;
+            return _variation.ApplyWidthVariation(matchedTypeface, width);
         }
 
         if (string.IsNullOrEmpty(unicode))
         {
-            return _fontManager.MatchFamily(_fallbackFontName, style);
+            return _variation.ApplyWidthVariation(_fontManager.MatchFamily(_fallbackFontName, style), width);
         }
 
         if (unicode != null && unicode.Length > 0)
         {
-            return _fontManager.MatchCharacter(_fallbackFontName, style, default, unicode[0]);
+            return _variation.ApplyWidthVariation(_fontManager.MatchCharacter(_fallbackFontName, style, default, unicode[0]), width);
         }
 
-        return _fontManager.MatchFamily(_fallbackFontName);
+        return _variation.ApplyWidthVariation(_fontManager.MatchFamily(_fallbackFontName), width);
     }
 
     /// <inheritdoc/>
-    public void Dispose() => _fontManager?.Dispose();
+    public void Dispose()
+    {
+        _variation.Dispose();
+        _fontManager?.Dispose();
+    }
 }

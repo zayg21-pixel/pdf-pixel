@@ -7,6 +7,7 @@ public enum WorkerCommandType
 {
     Initialize,
     SetFont,
+    SetFallbackFont,
     SetDocument,
     UpdateContent,
     PageContentReady

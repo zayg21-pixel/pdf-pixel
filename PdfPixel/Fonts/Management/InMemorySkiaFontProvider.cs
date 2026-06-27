@@ -9,12 +9,15 @@ namespace PdfPixel.Fonts.Management;
 /// <summary>
 /// Font provider that resolves standard PDF fonts and named fonts from explicitly registered in-memory font data.
 /// Suitable for environments where system fonts are unavailable, such as browser/WASM.
+/// When a width hint is provided and the resolved typeface supports the <c>wdth</c> variation axis,
+/// a variation-adjusted clone is returned and cached.
 /// </summary>
 public sealed class InMemorySkiaFontProvider : ISkiaFontProvider
 {
     private readonly Dictionary<PdfStandardFontName, SKTypeface> _standardFonts = [];
     private readonly Dictionary<string, SKTypeface> _namedFonts = new(StringComparer.OrdinalIgnoreCase);
     private readonly HashSet<SKTypeface> _ownedTypefaces = [];
+    private readonly SkiaFontVariation _variation = new();
     private bool _ownsFallback;
     private SKTypeface _fallback;
 
@@ -94,13 +97,13 @@ public sealed class InMemorySkiaFontProvider : ISkiaFontProvider
     }
 
     /// <inheritdoc/>
-    public SKTypeface? GetStandardFont(PdfStandardFontName standardFont, SKFontStyle style, string? unicode)
+    public SKTypeface? GetStandardFont(PdfStandardFontName standardFont, SKFontStyle style, string? unicode, float? width)
     {
         if (_standardFonts.TryGetValue(standardFont, out SKTypeface? typeface))
         {
-            if (unicode == null || typeface.ContainsGlyphs(unicode))
+            if (SkiaFontVariation.ContainsGlyphs(typeface, unicode))
             {
-                return typeface;
+                return _variation.ApplyWidthVariation(typeface, width);
             }
         }
 
@@ -108,24 +111,26 @@ public sealed class InMemorySkiaFontProvider : ISkiaFontProvider
     }
 
     /// <inheritdoc/>
-    public SKTypeface GetFont(string? name, SKFontStyle style, string? unicode)
+    public SKTypeface GetFont(string? name, SKFontStyle style, string? unicode, float? width)
     {
         if (name != null && _namedFonts.TryGetValue(name, out SKTypeface? typeface))
         {
-            if (unicode == null || typeface.ContainsGlyphs(unicode))
+            if (SkiaFontVariation.ContainsGlyphs(typeface, unicode))
             {
-                return typeface;
+                return _variation.ApplyWidthVariation(typeface, width);
             }
         }
 
-        return _fallback;
+        return _variation.ApplyWidthVariation(_fallback, width);
     }
 
     /// <summary>
-    /// Disposes all owned typeface instances and clears internal registrations.
+    /// Disposes all owned typeface instances, variation clones, and clears internal registrations.
     /// </summary>
     public void Dispose()
     {
+        _variation.Dispose();
+
         foreach (SKTypeface typeface in _ownedTypefaces)
         {
             typeface.Dispose();

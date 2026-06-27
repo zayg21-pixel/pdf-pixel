@@ -470,6 +470,16 @@ export async function setFont(name, fontData) {
 }
 
 /**
+ * Register font data to use as the fallback typeface when no registered font matches a requested name or glyph.
+ * Must be called before loading documents.
+ * @param {Uint8Array} fontData Raw font file bytes (TTF, OTF, WOFF2, etc.).
+ * @returns {Promise<void>} Resolves when the fallback font is registered.
+ */
+export async function setFallbackFont(fontData) {
+    await interop.SetFallbackFont(fontData);
+}
+
+/**
  * Set the PDF document for the specified view.
  * @param {string} id View id.
  * @param {Uint8Array} documentData PDF file bytes.
