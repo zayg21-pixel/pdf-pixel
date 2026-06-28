@@ -13,9 +13,12 @@ internal sealed class DrawStencilMaskImageTileCommand : PdfCommand
 
     public override bool IsScaleDependent => true;
 
+    public override void Initialize(IEnumerable<IPdfCommandModifier> modifiers, PdfCommandExecutionContext executionContext)
+        => _context.TileCache.InitializeNextTile(executionContext.ExecutionObserver);
+
     public override void Execute(IEnumerable<IPdfCommandModifier> modifiers, PdfCommandExecutionContext executionContext)
     {
-        PdfImageTile tile = _context.TileCache.GetNextTile(executionContext.ExecutionObserver);
+        PdfImageTile tile = _context.TileCache.GetNextTile();
         if (tile.IsSkipped || tile.Image == null)
         {
             return;
@@ -23,7 +26,7 @@ internal sealed class DrawStencilMaskImageTileCommand : PdfCommand
 
         SKMatrix ctm = CommandHelpers.GetScaledMatrix(executionContext);
         SKSamplingOptions sampling = PdfImageCommandUtilities.GetSamplingOptions(ctm, _context.ImageSize, false); // TODO: wire "interpolate"
-        using SKShader stencilShader = ImageBlending.BuildImageShader(tile.Image, new SKSizeI(tile.TilePosition.Width, tile.TilePosition.Height), sampling);
+        using SKShader stencilShader = ImageBlending.BuildImageShader(tile.Image, tile.SourceRegion, new SKSizeI(tile.TilePosition.Width, tile.TilePosition.Height), sampling);
         using SKShader blendingShader = ImageBlending.CreateImageMaskBlendingShader(stencilShader, _context.DecodingContext.FillColor, inverse: _context.InvertMask);
         using SKPaint paint = PdfImageCommandUtilities.GetBaseImagePaint(blendingShader, _context.DecodingContext);
         CommandHelpers.ApplyModifiers(paint, modifiers);

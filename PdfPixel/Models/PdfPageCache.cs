@@ -45,6 +45,16 @@ internal sealed class PdfPageCache
     public ColorSpaceResolver ColorSpace { get; }
 
     /// <summary>
+    /// Releases name-based lookup caches (patterns, graphics state parameters) that are only
+    /// needed during content stream recording. ColorSpace resolver is retained for image decoders.
+    /// </summary>
+    public void ClearAfterRender()
+    {
+        _patternsByName.Clear();
+        _graphicsStateParametersByName.Clear();
+    }
+
+    /// <summary>
     /// Retrieve an XObject by resource name from /XObject dictionary. Returns null if not found.
     /// </summary>
     public PdfXObject? GetXObject(in PdfString xObjectName)

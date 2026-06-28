@@ -8,9 +8,8 @@ using System.Collections.Generic;
 namespace PdfPixel.Commands;
 
 /// <summary>
-/// Draws PDF shading lazily at Execute time.
-/// Stores the shading model and a <see cref="ShadingDecodingContext"/> snapshot so all heavy
-/// work (function sampling, mesh decoding, gradient construction) is deferred until replay.
+/// Draws PDF shading. Initialize prepares expensive data (function sampling, mesh decoding,
+/// gradient construction). Execute draws the prepared results to the canvas.
 /// Caches expensive results and only rebuilds when the relevant rendering parameter changes.
 /// </summary>
 public sealed class PdfDrawShadingCommand : PdfCommand
@@ -53,48 +52,79 @@ public sealed class PdfDrawShadingCommand : PdfCommand
     }
 
     /// <inheritdoc />
-    public override void Execute(IEnumerable<IPdfCommandModifier> modifiers, PdfCommandExecutionContext executionContext)
+    public override void Initialize(IEnumerable<IPdfCommandModifier> modifiers, PdfCommandExecutionContext executionContext)
     {
         lock (executionContext.ContentLocker)
         {
             switch (_shading.ShadingType)
             {
                 case PdfShadingType.FunctionBased:
-                    {
-                        ExecuteFunctionBased(executionContext);
-                        break;
-                    }
+                {
+                    InitializeFunctionBased(executionContext);
+                    break;
+                }
                 case PdfShadingType.Axial:
-                    {
-                        ExecuteAxial(executionContext, modifiers);
-                        break;
-                    }
+                {
+                    InitializeAxial(executionContext);
+                    break;
+                }
                 case PdfShadingType.Radial:
-                    {
-                        ExecuteRadial(executionContext, modifiers);
-                        break;
-                    }
+                {
+                    InitializeRadial(executionContext);
+                    break;
+                }
                 case PdfShadingType.FreeFormGouraud:
                 case PdfShadingType.LatticeFormGouraud:
-                    {
-                        ExecuteGouraud(executionContext, modifiers);
-                        break;
-                    }
+                {
+                    InitializeGouraud();
+                    break;
+                }
                 case PdfShadingType.CoonsPatchMesh:
                 case PdfShadingType.TensorProductPatchMesh:
-                    {
-                        ExecutePatchMesh(executionContext, modifiers);
-                        break;
-                    }
+                {
+                    InitializePatchMesh(executionContext);
+                    break;
+                }
             }
         }
     }
 
-    /// <summary>
-    /// Executes function-based (Type 1) shading by rendering a cached sampled bitmap.
-    /// Rebuilds the bitmap when the default function samples rendering parameter changes.
-    /// </summary>
-    private void ExecuteFunctionBased(PdfCommandExecutionContext executionContext)
+    /// <inheritdoc />
+    public override void Execute(IEnumerable<IPdfCommandModifier> modifiers, PdfCommandExecutionContext executionContext)
+    {
+        switch (_shading.ShadingType)
+        {
+            case PdfShadingType.FunctionBased:
+            {
+                ExecuteFunctionBased(executionContext);
+                break;
+            }
+            case PdfShadingType.Axial:
+            {
+                ExecuteAxial(executionContext, modifiers);
+                break;
+            }
+            case PdfShadingType.Radial:
+            {
+                ExecuteRadial(executionContext, modifiers);
+                break;
+            }
+            case PdfShadingType.FreeFormGouraud:
+            case PdfShadingType.LatticeFormGouraud:
+            {
+                ExecuteGouraud(executionContext, modifiers);
+                break;
+            }
+            case PdfShadingType.CoonsPatchMesh:
+            case PdfShadingType.TensorProductPatchMesh:
+            {
+                ExecutePatchMesh(executionContext, modifiers);
+                break;
+            }
+        }
+    }
+
+    private void InitializeFunctionBased(PdfCommandExecutionContext executionContext)
     {
         int defaultFunctionSamples = executionContext.Parameters.DefaultFunctionSamples;
 
@@ -110,7 +140,57 @@ public sealed class PdfDrawShadingCommand : PdfCommand
                 executionContext.ExecutionObserver);
             _functionCacheSamples = defaultFunctionSamples;
         }
+    }
 
+    private void InitializeAxial(PdfCommandExecutionContext executionContext)
+    {
+        int defaultFunctionSamples = executionContext.Parameters.DefaultFunctionSamples;
+
+        if (_axialCacheSamples != defaultFunctionSamples)
+        {
+            _axialCache?.Dispose();
+            _axialCache = CreateAxialPaint(defaultFunctionSamples);
+            _axialCacheSamples = defaultFunctionSamples;
+        }
+    }
+
+    private void InitializeRadial(PdfCommandExecutionContext executionContext)
+    {
+        int defaultFunctionSamples = executionContext.Parameters.DefaultFunctionSamples;
+
+        if (_radialCacheSamples != defaultFunctionSamples)
+        {
+            _radialCache?.Dispose();
+            _radialCache = CreateRadialPaints(defaultFunctionSamples);
+            _radialCacheSamples = defaultFunctionSamples;
+        }
+    }
+
+    private void InitializeGouraud()
+    {
+        if (!_gouraudCacheBuilt)
+        {
+            Color.Sampling.ColorTransformSampler sampler = _context.Converter.GetRgbaSampler(_context.RenderingIntent, _context.FullTransferFunction);
+            _gouraudCache = _builder.BuildGouraudVertices(_shading, sampler);
+            _gouraudCacheBuilt = true;
+        }
+    }
+
+    private void InitializePatchMesh(PdfCommandExecutionContext executionContext)
+    {
+        int maxTessellationVertices = executionContext.Parameters.MaxTessellationVertices;
+
+        if (_patchMeshCacheMaxVertices != maxTessellationVertices)
+        {
+            _patchMeshCache?.Dispose();
+            Color.Sampling.ColorTransformSampler sampler = _context.Converter.GetRgbaSampler(_context.RenderingIntent, _context.FullTransferFunction);
+            _patchMeshCache = _builder.BuildPatchMeshVertices(_shading, sampler, maxTessellationVertices, executionContext.ExecutionObserver);
+            _patchMeshCacheMaxVertices = maxTessellationVertices;
+        }
+    }
+
+    private void ExecuteFunctionBased(PdfCommandExecutionContext executionContext)
+    {
         if (_functionCache == null)
         {
             return;
@@ -122,21 +202,8 @@ public sealed class PdfDrawShadingCommand : PdfCommand
         executionContext.Canvas.Restore();
     }
 
-    /// <summary>
-    /// Executes axial (Type 2) shading by drawing a cached linear gradient paint.
-    /// Rebuilds the paint when the default function samples rendering parameter changes.
-    /// </summary>
     private void ExecuteAxial(PdfCommandExecutionContext executionContext, IEnumerable<IPdfCommandModifier> modifiers)
     {
-        int defaultFunctionSamples = executionContext.Parameters.DefaultFunctionSamples;
-
-        if (_axialCacheSamples != defaultFunctionSamples)
-        {
-            _axialCache?.Dispose();
-            _axialCache = CreateAxialPaint(defaultFunctionSamples);
-            _axialCacheSamples = defaultFunctionSamples;
-        }
-
         if (_axialCache == null)
         {
             return;
@@ -145,21 +212,8 @@ public sealed class PdfDrawShadingCommand : PdfCommand
         DrawPaintToCanvas(executionContext, _axialCache, modifiers);
     }
 
-    /// <summary>
-    /// Executes radial (Type 3) shading by drawing cached inner and outer conical gradient paints.
-    /// Rebuilds the paints when the default function samples rendering parameter changes.
-    /// </summary>
     private void ExecuteRadial(PdfCommandExecutionContext executionContext, IEnumerable<IPdfCommandModifier> modifiers)
     {
-        int defaultFunctionSamples = executionContext.Parameters.DefaultFunctionSamples;
-
-        if (_radialCacheSamples != defaultFunctionSamples)
-        {
-            _radialCache?.Dispose();
-            _radialCache = CreateRadialPaints(defaultFunctionSamples);
-            _radialCacheSamples = defaultFunctionSamples;
-        }
-
         if (_radialCache == null)
         {
             return;
@@ -169,19 +223,8 @@ public sealed class PdfDrawShadingCommand : PdfCommand
         DrawPaintToCanvas(executionContext, _radialCache.OuterPaint, modifiers);
     }
 
-    /// <summary>
-    /// Executes Gouraud-shaded triangle mesh (Type 4/5) shading.
-    /// The mesh has no parameter dependency and is built once.
-    /// </summary>
     private void ExecuteGouraud(PdfCommandExecutionContext executionContext, IEnumerable<IPdfCommandModifier> modifiers)
     {
-        if (!_gouraudCacheBuilt)
-        {
-            Color.Sampling.ColorTransformSampler sampler = _context.Converter.GetRgbaSampler(_context.RenderingIntent, _context.FullTransferFunction);
-            _gouraudCache = _builder.BuildGouraudVertices(_shading, sampler);
-            _gouraudCacheBuilt = true;
-        }
-
         if (_gouraudCache == null)
         {
             return;
@@ -190,22 +233,8 @@ public sealed class PdfDrawShadingCommand : PdfCommand
         DrawVerticesToCanvas(executionContext, _gouraudCache, modifiers);
     }
 
-    /// <summary>
-    /// Executes Coons (Type 6) or Tensor-product (Type 7) patch mesh shading.
-    /// Rebuilds the mesh when the max tessellation vertices rendering parameter changes.
-    /// </summary>
     private void ExecutePatchMesh(PdfCommandExecutionContext executionContext, IEnumerable<IPdfCommandModifier> modifiers)
     {
-        int maxTessellationVertices = executionContext.Parameters.MaxTessellationVertices;
-
-        if (_patchMeshCacheMaxVertices != maxTessellationVertices)
-        {
-            _patchMeshCache?.Dispose();
-            Color.Sampling.ColorTransformSampler sampler = _context.Converter.GetRgbaSampler(_context.RenderingIntent, _context.FullTransferFunction);
-            _patchMeshCache = _builder.BuildPatchMeshVertices(_shading, sampler, maxTessellationVertices, executionContext.ExecutionObserver);
-            _patchMeshCacheMaxVertices = maxTessellationVertices;
-        }
-
         if (_patchMeshCache == null)
         {
             return;
@@ -214,10 +243,6 @@ public sealed class PdfDrawShadingCommand : PdfCommand
         DrawVerticesToCanvas(executionContext, _patchMeshCache, modifiers);
     }
 
-    /// <summary>
-    /// Builds the axial gradient paint for the given number of function samples.
-    /// Returns <see langword="null"/> when the shading data is invalid.
-    /// </summary>
     private SKPaint? CreateAxialPaint(int defaultFunctionSamples)
     {
         _builder.BuildShadingColorsAndStops(
@@ -237,10 +262,6 @@ public sealed class PdfDrawShadingCommand : PdfCommand
         return _builder.BuildAxialPaint(_shading, colors, positions);
     }
 
-    /// <summary>
-    /// Builds the radial gradient paints for the given number of function samples.
-    /// Returns <see langword="null"/> when the shading data is invalid.
-    /// </summary>
     private RadialShadingPaints? CreateRadialPaints(int defaultFunctionSamples)
     {
         _builder.BuildShadingColorsAndStops(
@@ -260,9 +281,6 @@ public sealed class PdfDrawShadingCommand : PdfCommand
         return _builder.BuildRadialPaints(_shading, colors, positions);
     }
 
-    /// <summary>
-    /// Clones the given base paint, applies antialias and modifiers, then draws it onto the canvas.
-    /// </summary>
     private void DrawPaintToCanvas(PdfCommandExecutionContext executionContext, SKPaint basePaint, IEnumerable<IPdfCommandModifier> modifiers)
     {
         using SKPaint paint = basePaint.Clone();
@@ -274,9 +292,6 @@ public sealed class PdfDrawShadingCommand : PdfCommand
         executionContext.Canvas.DrawPaint(paint);
     }
 
-    /// <summary>
-    /// Creates a shader paint, applies antialias and modifiers, then draws the vertices onto the canvas.
-    /// </summary>
     private void DrawVerticesToCanvas(PdfCommandExecutionContext executionContext, SKVertices vertices, IEnumerable<IPdfCommandModifier> modifiers)
     {
         using SKPaint paint = PdfPaintFactory.CreateShaderPaint();

@@ -55,14 +55,12 @@ internal static class CcittRunDecoder
         int bits = reader.PeekBits(MaxCodeBits);
         CcittFaxCode code = lookupTable[bits];
 
-        for (int i = 0; i < code.BitLength; i++)
+        if (code.BitLength == 0)
         {
-            if (reader.ReadBit() < 0)
-            {
-                return null;
-            }
+            return null;
         }
 
+        reader.DropBits(code.BitLength);
         return code;
     }
 }

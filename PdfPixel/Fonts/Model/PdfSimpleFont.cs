@@ -60,7 +60,7 @@ public class PdfSimpleFont : PdfSingleByteFont
             {
                 case PdfFontFileFormat.Type1:
                 {
-                    CffInfo? cffInfo = Type1ToCffConverter.GetCffFont(FontDescriptor);
+                    CffInfo? cffInfo = Type1ToCffConverter.GetCffFont(FontDescriptor, Document.LoggerFactory);
                     byte[]? typefaceData = CffOpenTypeWrapper.Wrap(FontDescriptor, cffInfo);
                     SKTypeface typeface = SKTypeface.FromData(SKData.CreateCopy(typefaceData));
 
@@ -96,7 +96,7 @@ public class PdfSimpleFont : PdfSingleByteFont
                 case PdfFontFileFormat.Type1C:
                 {
                     CffSidGidMapper cffSidMapper = new(Document.LoggerFactory);
-                    ReadOnlyMemory<byte> cffBytes = FontDescriptor.FontFileObject?.DecodeAsMemory() ?? ReadOnlyMemory<byte>.Empty;
+                    ReadOnlyMemory<byte> cffBytes = FontDescriptor.FontFileStream?.DecodeAsMemory() ?? ReadOnlyMemory<byte>.Empty;
 
                     if (!cffSidMapper.TryParseNameKeyed(cffBytes, out CffInfo? cffInfo) || cffInfo == null)
                     {
@@ -120,7 +120,7 @@ public class PdfSimpleFont : PdfSingleByteFont
                 }
                 case PdfFontFileFormat.TrueType:
                 {
-                    SKTypeface typeface = SKTypeface.FromStream(FontDescriptor.FontFileObject?.DecodeAsStream());
+                    SKTypeface typeface = SKTypeface.FromStream(FontDescriptor.FontFileStream?.DecodeAsStream());
                     SfntFontTables sfntTables = SfntFontTableParser.GetSfntFontTables(typeface);
 
                     if (Encoding.BaseEncoding == PdfFontEncoding.Unknown)

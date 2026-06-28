@@ -16,4 +16,10 @@ public class PdfContentPictures
     /// Locked reference to the annotation layer picture, or <see langword="null"/> if not yet decoded.
     /// </summary>
     public ContentLocker<SKPicture>? Annotations { get; set; }
+
+    /// <summary>
+    /// True when the content picture produces different output at different scales.
+    /// When false, the same picture can be re-tiled at any scale without re-decoding.
+    /// </summary>
+    public bool IsContentScaleDependant { get; set; }
 }

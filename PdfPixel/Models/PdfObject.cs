@@ -10,6 +10,8 @@ namespace PdfPixel.Models;
 /// </summary>
 public class PdfObject
 {
+    private PdfObjectStream? _stream;
+
     /// <summary>
     /// Initializes a new instance of the <see cref="PdfObject"/> class.
     /// </summary>
@@ -52,7 +54,7 @@ public class PdfObject
     /// <summary>
     /// Gets a value indicating whether this object has an associated stream.
     /// </summary>
-    public bool HasStream => StreamInfo.HasValue;
+    public bool HasStream => StreamInfo.HasValue || !EmbaddedStream.IsEmpty;
 
     /// <summary>
     /// Embedded stream data, if available.
@@ -60,47 +62,17 @@ public class PdfObject
     internal ReadOnlyMemory<byte> EmbaddedStream { get; set; }
 
     /// <summary>
-    /// Gets the raw stream for this object, handling embedded data, encryption, and subrange extraction.
+    /// Gets the self-contained stream source for this object, created lazily on first access.
     /// </summary>
-    /// <returns>A <see cref="Stream"/> containing the raw stream data, or <see cref="Stream.Null"/> if not available.</returns>
-    public Stream GetRawStream()
-    {
-        if (!EmbaddedStream.IsEmpty)
-        {
-            return new MemoryStream(EmbaddedStream.ToArray());
-        }
-
-        if (!HasStream)
-        {
-            return Stream.Null;
-        }
-
-        if (!StreamInfo.HasValue)
-        {
-            return Stream.Null;
-        }
-
-        SubrangeReadOnlyStream subrange = new(Document.Stream, StreamInfo.Value.Offset, StreamInfo.Value.Length, leaveOpen: true);
-
-        if (StreamInfo.Value.IsEncrypted && Document.Decryptor != null && Reference.IsValid)
-        {
-            return Document.Decryptor.DecryptStream(subrange, Reference);
-        }
-        else
-        {
-            return subrange;
-        }
-    }
+    public PdfObjectStream Stream => _stream ??= PdfObjectStream.FromPdfObject(this);
 
     /// <summary>
-    /// Decodes the object's stream using the document's stream decoder and returns a readable <see cref="Stream"/>.
+    /// Decodes the object's stream using the document's stream decoder and returns a readable <see cref="System.IO.Stream"/>.
     /// </summary>
-    /// <returns>A <see cref="Stream"/> containing the decoded stream data.</returns>
-    public Stream DecodeAsStream() => Document.StreamDecoder.DecodeContentAsStream(this);
+    public System.IO.Stream DecodeAsStream() => Stream.DecodeAsStream();
 
     /// <summary>
     /// Decodes the object's stream using the document's stream decoder and returns the decoded bytes as memory.
     /// </summary>
-    /// <returns>A <c>ReadOnlyMemory&lt;byte&gt;</c> containing the decoded stream data.</returns>
-    public ReadOnlyMemory<byte> DecodeAsMemory(IPdfExecutionObserver? observer = default) => Document.StreamDecoder.DecodeContentStream(this, observer);
+    public ReadOnlyMemory<byte> DecodeAsMemory(IPdfExecutionObserver? observer = default) => Stream.DecodeAsMemory(observer);
 }

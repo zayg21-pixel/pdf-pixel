@@ -1,5 +1,6 @@
 using PdfPixel.PdfPanel.Animation;
 using PdfPixel.PdfPanel.ContentProvider;
+using PdfPixel.PdfPanel.Rendering;
 using PdfPixel.PdfPanel.Requests;
 using SkiaSharp;
 using System;
@@ -8,7 +9,14 @@ namespace PdfPixel.PdfPanel.Extensions;
 
 internal static class SkCanvasExtensions
 {
-    public static void DrawPage(this SKCanvas canvas, in VisiblePageInfo page, PagesDrawingRequest request, PdfContentPictures pictures, PageDrawFlags flags, AnimationState? animation)
+    public static void DrawPage(
+        this SKCanvas canvas,
+        in VisiblePageInfo page,
+        PagesDrawingRequest request,
+        PdfContentPictures pictures,
+        PdfPageContentTiler tiler,
+        PageDrawFlags flags,
+        AnimationState? animation)
     {
         int savedCount = canvas.Save();
         try
@@ -43,16 +51,12 @@ internal static class SkCanvasExtensions
 
             if ((flags & PageDrawFlags.Content) != 0)
             {
-                if (pictures?.Content?.HasContent == true)
-                {
-                    // Isolate content compositing so blend modes resolve against page content,
-                    // not the white background painted by DrawPageBackground.
-                    int layerCount = canvas.SaveLayer();
-                    DrawPagePicture(canvas, pictures.Content, page);
-                    DrawPagePicture(canvas, pictures.Annotations, page);
-                    canvas.RestoreToCount(layerCount);
-                }
-                else if ((flags & PageDrawFlags.Placeholder) != 0 && animation != null)
+                int layerCount = canvas.SaveLayer();
+                tiler.DrawTiles(canvas, page.PageNumber, request.Scale);
+                DrawPagePicture(canvas, pictures?.Annotations, page);
+                canvas.RestoreToCount(layerCount);
+
+                if (!tiler.HasTiles(page.PageNumber) && (flags & PageDrawFlags.Placeholder) != 0 && animation != null)
                 {
                     DrawPlaceholder(canvas, page, animation.Value);
                 }

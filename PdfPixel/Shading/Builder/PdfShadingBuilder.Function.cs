@@ -93,8 +93,7 @@ internal partial class PdfShadingBuilder
         SKMatrix pixelToDomain = SKMatrix.CreateScale(scaleX, scaleY);
         pixelToDomain = SKMatrix.Concat(SKMatrix.CreateTranslation(translateX, translateY), pixelToDomain);
 
-        Models.PdfArray? matrixArray = shading.SourceObject.Dictionary.GetArray(PdfTokens.MatrixKey);
-        SKMatrix? shadingMatrix = PdfLocationUtilities.CreateMatrix(matrixArray);
+        SKMatrix? shadingMatrix = shading.Matrix;
 
         // Concatenate with shading.Matrix if present
         SKMatrix finalMatrix = (shadingMatrix.HasValue)

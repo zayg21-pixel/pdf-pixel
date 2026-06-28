@@ -25,8 +25,8 @@ public sealed class CcittRowDecoder
 
     // Bit reader state persisted between rows
     private int _byteIndex;
-    private int _bitsRemaining;
-    private byte _currentByte;
+    private int _bufferedBits;
+    private ulong _buffer;
 
     private readonly int[] _referenceChanges;
     private int _changesCount;
@@ -77,8 +77,8 @@ public sealed class CcittRowDecoder
         _endOfBlock = endOfBlock;
 
         _byteIndex = 0;
-        _bitsRemaining = 0;
-        _currentByte = 0;
+        _bufferedBits = 0;
+        _buffer = 0;
 
         _runs = new List<int>(256);
         _referenceChanges = new int[_width + 1];
@@ -130,7 +130,7 @@ public sealed class CcittRowDecoder
 
         // Reconstruct reader for current state
         ReadOnlySpan<byte> encodedSpan = _encoded.Span;
-        CcittBitReader reader = new(ref encodedSpan, _byteIndex, _bitsRemaining, _currentByte);
+        CcittBitReader reader = new(ref encodedSpan, _byteIndex, _bufferedBits, _buffer);
 
         bool isOneDLine = DetermineLineKind(ref reader);
 
@@ -155,8 +155,8 @@ public sealed class CcittRowDecoder
 
         // Snapshot updated reader state
         _byteIndex = reader.ByteIndex;
-        _bitsRemaining = reader.BitsRemaining;
-        _currentByte = reader.Current;
+        _bufferedBits = reader.BufferedBits;
+        _buffer = reader.Buffer;
 
         _currentRowIndex++;
         if (_currentRowIndex >= _height)

@@ -81,7 +81,15 @@ public class PdfPageUpdateCacheWorkItem : IWorkItem
 
             if (contentRecording.Content != null)
             {
-                SKPicture? contentPicture = ReplayContentWithPartialFlush(contentRecording.Content, regionOfInterest, out bool isPartialContent);
+                SKPicture? contentPicture = PdfDocumentContentExtensions.RecordingToSkPicture(
+                    CacheEntry.PageInfo,
+                    contentRecording.Content,
+                    _request.CommandExecutionParameters,
+                    _documentLocker,
+                    _document.OptionalContentGroups,
+                    _contentObserver,
+                    out bool isPartialContent,
+                    regionOfInterest);
                 CacheEntry.Content.UpdateContentPicture(contentPicture, _request, isPartialContent);
                 contentUpdated = true;
                 contentIsPartial = isPartialContent;

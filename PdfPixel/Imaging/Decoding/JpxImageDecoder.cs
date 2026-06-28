@@ -22,9 +22,17 @@ internal class JpxImageDecoder : PdfImageDecoder
     private byte[]? _fullWidthRowBuffer;
     private int _currentImageRow;
 
+    private readonly PdfColorSpaceConverter? _deviceGray;
+    private readonly PdfColorSpaceConverter? _deviceRgb;
+    private readonly PdfColorSpaceConverter? _deviceCmyk;
+
     public JpxImageDecoder(PdfImage image, ILoggerFactory loggerFactory)
         : base(image, loggerFactory)
     {
+        ColorSpaceResolver colorSpace = image.Page.Cache.ColorSpace;
+        _deviceGray = colorSpace.ResolveDeviceConverter(1);
+        _deviceRgb = colorSpace.ResolveDeviceConverter(3);
+        _deviceCmyk = colorSpace.ResolveDeviceConverter(4);
     }
 
     public override void Initialize(PdfTileInfo tileInfo, ImageDecodingContext context, object contentLocker, SKMatrix ctm, HashSet<int>? tileIndexesToDecode, IPdfExecutionObserver? observer)
@@ -124,7 +132,13 @@ internal class JpxImageDecoder : PdfImageDecoder
             return converter;
         }
 
-        return Image.Page.Cache.ColorSpace.ResolveDeviceConverter(colorComponents);
+        return colorComponents switch
+        {
+            1 => _deviceGray,
+            3 => _deviceRgb,
+            4 => _deviceCmyk,
+            _ => null
+        };
     }
 
     private static JpxDecodingParameters ComputeDecodingParameters(JpxHeader header, SKMatrix ctm, PdfTileInfo tileInfo, HashSet<int>? tileIndexesToDecode)

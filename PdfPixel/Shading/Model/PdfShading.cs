@@ -2,6 +2,7 @@ using PdfPixel.Color.ColorSpace;
 using PdfPixel.Functions;
 using PdfPixel.Models;
 using PdfPixel.Rendering.Operators;
+using PdfPixel.Streams;
 using PdfPixel.Text;
 using SkiaSharp;
 using System.Collections.Generic;
@@ -18,7 +19,6 @@ public sealed class PdfShading
     internal PdfShading(PdfObject pdfObject)
     {
         PdfDictionary rawDictionary = pdfObject.Dictionary;
-        SourceObject = pdfObject;
 
         if (rawDictionary == null)
         {
@@ -57,12 +57,34 @@ public sealed class PdfShading
         BBox = PdfLocationUtilities.CreateBBox(rawDictionary.GetArray(PdfTokens.BBoxKey));
         Background = rawDictionary.GetArray(PdfTokens.BackgroundKey)?.GetFloatArray();
         AntiAlias = rawDictionary.GetBooleanOrDefault(PdfTokens.AntiAliasKey);
+
+        switch (ShadingType)
+        {
+            case PdfShadingType.FunctionBased:
+            {
+                Matrix = PdfLocationUtilities.CreateMatrix(rawDictionary.GetArray(PdfTokens.MatrixKey));
+                break;
+            }
+            case PdfShadingType.FreeFormGouraud:
+            case PdfShadingType.LatticeFormGouraud:
+            case PdfShadingType.CoonsPatchMesh:
+            case PdfShadingType.TensorProductPatchMesh:
+            {
+                Stream = pdfObject.Stream;
+                BitsPerCoordinate = rawDictionary.GetInteger(PdfTokens.BitsPerCoordinateKey);
+                BitsPerComponent = rawDictionary.GetInteger(PdfTokens.BitsPerComponentKey);
+                BitsPerFlag = rawDictionary.GetInteger(PdfTokens.BitsPerFlagKey);
+                DecodeArray = rawDictionary.GetArray(PdfTokens.DecodeKey)?.GetFloatArray();
+                VerticesPerRow = rawDictionary.GetInteger(PdfTokens.VerticesPerRowKey);
+                break;
+            }
+        }
     }
 
     /// <summary>
-    /// Gets the underlying <see cref="PdfObject"/> that serves as the source for this instance.
+    /// Gets the self-contained stream source for mesh shading types (4-7). Null for non-mesh shadings.
     /// </summary>
-    public PdfObject SourceObject { get; }
+    public PdfObjectStream? Stream { get; }
 
     /// <summary>
     /// Shading type (1 - 7 types).
@@ -113,4 +135,34 @@ public sealed class PdfShading
     /// Gets the option to enable anti-aliasing (/AntiAlias) when rendering the shading.
     /// </summary>
     public bool AntiAlias { get; }
+
+    /// <summary>
+    /// Bits per coordinate value (/BitsPerCoordinate), mesh shading types 4-7.
+    /// </summary>
+    public int? BitsPerCoordinate { get; }
+
+    /// <summary>
+    /// Bits per color component (/BitsPerComponent), mesh shading types 4-7.
+    /// </summary>
+    public int? BitsPerComponent { get; }
+
+    /// <summary>
+    /// Bits per flag (/BitsPerFlag), mesh shading types 4-7.
+    /// </summary>
+    public int? BitsPerFlag { get; }
+
+    /// <summary>
+    /// Decode array (/Decode), mesh shading types 4-7.
+    /// </summary>
+    public float[]? DecodeArray { get; }
+
+    /// <summary>
+    /// Vertices per row (/VerticesPerRow), lattice-form Gouraud type 5 only.
+    /// </summary>
+    public int? VerticesPerRow { get; }
+
+    /// <summary>
+    /// Shading matrix (/Matrix), function-based shading type 1.
+    /// </summary>
+    public SKMatrix? Matrix { get; }
 }

@@ -20,6 +20,7 @@ public sealed class PdfPanelRenderer : IDisposable
 {
     private readonly ISkSurfaceFactory _surfaceFactory;
     private readonly IPdfPageContentProvider _contentProvider;
+    private readonly PdfPageContentTiler _tiler;
     private readonly PdfAnimationClock? _clock;
     private readonly SynchronizationContext? _syncContext;
     private PagesDrawingRequest? _lastRequest;
@@ -33,6 +34,7 @@ public sealed class PdfPanelRenderer : IDisposable
     {
         _surfaceFactory = surfaceFactory ?? throw new ArgumentNullException(nameof(surfaceFactory));
         _contentProvider = contentProvider ?? throw new ArgumentNullException(nameof(contentProvider));
+        _tiler = new PdfPageContentTiler(surfaceFactory);
         _clock = clock;
         _syncContext = syncContext;
         _contentProvider.OnPageUpdated = OnPageUpdated;
@@ -111,12 +113,21 @@ public sealed class PdfPanelRenderer : IDisposable
         SKSurface surface = GetSurface(request);
         surface.Canvas.Clear(request.BackgroundColor);
 
+        _tiler.EvictExcept(request.VisiblePages);
+
         AnimationState? animation = (_clock != null) ? new AnimationState(_lastTick, _clock.Fps) : null;
 
         foreach (VisiblePageInfo page in request.VisiblePages)
         {
             PdfContentPictures pictures = _contentProvider.GetExistingContentPictures(page.PageNumber);
-            surface.Canvas.DrawPage(page, request, pictures, PageDrawFlags.All, animation);
+
+            if (pictures.Content?.HasContent == true)
+            {
+                TileClearMode clearMode = (pictures.IsContentScaleDependant) ? TileClearMode.None : TileClearMode.ClearOnScaleChange;
+                _tiler.UpdateTiles(page.PageNumber, pictures.Content, in page, in request, clearMode);
+            }
+
+            surface.Canvas.DrawPage(page, request, pictures, _tiler, PageDrawFlags.All, animation);
         }
 
         request.RenderTarget.Render(surface, request);
@@ -156,7 +167,7 @@ public sealed class PdfPanelRenderer : IDisposable
                 continue;
             }
 
-            surface.Canvas.DrawPage(page, _lastRequest, pictures, PageDrawFlags.Background | PageDrawFlags.Content | PageDrawFlags.Placeholder, animation);
+            surface.Canvas.DrawPage(page, _lastRequest, pictures, _tiler, PageDrawFlags.Background | PageDrawFlags.Content | PageDrawFlags.Placeholder, animation);
             anyRedrawn = true;
         }
 
@@ -217,8 +228,14 @@ public sealed class PdfPanelRenderer : IDisposable
         }
 
         VisiblePageInfo page = _lastRequest.VisiblePages.First(p => p.PageNumber == args.PageNumber);
+
+        if (args.ContentPictures.Content?.HasContent == true)
+        {
+            _tiler.UpdateTiles(page.PageNumber, args.ContentPictures.Content, in page, in _lastRequest, TileClearMode.ForceClear);
+        }
+
         SKSurface surface = GetSurface(_lastRequest);
-        surface.Canvas.DrawPage(page, _lastRequest, args.ContentPictures, PageDrawFlags.Background | PageDrawFlags.Content, null);
+        surface.Canvas.DrawPage(page, _lastRequest, args.ContentPictures, _tiler, PageDrawFlags.Background | PageDrawFlags.Content, null);
         _lastRequest.RenderTarget.Render(surface, _lastRequest);
     }
 
@@ -241,6 +258,7 @@ public sealed class PdfPanelRenderer : IDisposable
             _clock.Tick -= OnAnimationTick;
         }
 
+        _tiler.Dispose();
         _contentProvider.OnPageUpdated = null;
     }
 }

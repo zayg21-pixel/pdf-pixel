@@ -1,5 +1,6 @@
 using PdfPixel.Models;
 using PdfPixel.Rendering.Operators;
+using PdfPixel.Streams;
 using PdfPixel.Text;
 using SkiaSharp;
 
@@ -118,14 +119,24 @@ public class PdfFontDescriptor
     public byte[]? Panose { get; set; }
 
     /// <summary>
-    /// The embedded font file object (only one exists at a time).
+    /// The embedded font file stream (only one exists at a time).
     /// </summary>
-    public PdfObject? FontFileObject { get; set; }
+    public PdfObjectStream? FontFileStream { get; set; }
 
     /// <summary>
     /// Format of the embedded font file.
     /// </summary>
     public PdfFontFileFormat FontFileFormat { get; set; }
+
+    /// <summary>
+    /// Type1 font stream segment length for the clear-text portion (/Length1).
+    /// </summary>
+    public int FontFileLength1 { get; set; }
+
+    /// <summary>
+    /// Type1 font stream segment length for the binary portion (/Length2).
+    /// </summary>
+    public int FontFileLength2 { get; set; }
 
     /// <summary>
     /// Reference to the original dictionary this descriptor was created from.
@@ -135,7 +146,7 @@ public class PdfFontDescriptor
     /// <summary>
     /// Gets a value indicating whether this font descriptor has any embedded font stream.
     /// </summary>
-    public bool HasEmbeddedFont => FontFileObject != null;
+    public bool HasEmbeddedFont => FontFileStream != null;
 
     /// <summary>
     /// Creates a <see cref="PdfFontDescriptor"/> from a PDF font descriptor dictionary.
@@ -186,9 +197,14 @@ public class PdfFontDescriptor
             }
         }
 
-        (PdfObject Object, PdfFontFileFormat Format) objectAndFormat = GetFileObjectAndFormat(dict);
-        descriptor.FontFileObject = objectAndFormat.Object;
-        descriptor.FontFileFormat = objectAndFormat.Format;
+        (PdfObject? fontFileObject, PdfFontFileFormat format) = GetFileObjectAndFormat(dict);
+        descriptor.FontFileFormat = format;
+        if (fontFileObject != null)
+        {
+            descriptor.FontFileStream = fontFileObject.Stream;
+            descriptor.FontFileLength1 = fontFileObject.Dictionary.GetIntegerOrDefault(PdfTokens.Length1);
+            descriptor.FontFileLength2 = fontFileObject.Dictionary.GetIntegerOrDefault(PdfTokens.Length2);
+        }
 
         // Parse FontBBox array
         descriptor.FontBBox = PdfLocationUtilities.CreateBBox(dict.GetArray(PdfTokens.FontBBoxKey)) ?? SKRect.Empty;

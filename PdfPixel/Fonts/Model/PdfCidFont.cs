@@ -131,7 +131,7 @@ public class PdfCidFont : PdfFontBase
                 case PdfFontFileFormat.CIDFontType0C:
                 {
                     CffSidGidMapper cffSidMapper = new(Document.LoggerFactory);
-                    ReadOnlyMemory<byte> cffBytes = FontDescriptor.FontFileObject?.DecodeAsMemory() ?? ReadOnlyMemory<byte>.Empty;
+                    ReadOnlyMemory<byte> cffBytes = FontDescriptor.FontFileStream?.DecodeAsMemory() ?? ReadOnlyMemory<byte>.Empty;
 
                     if (!cffSidMapper.TryParseNameKeyed(cffBytes, out CffInfo? cffInfo))
                     {
@@ -146,7 +146,7 @@ public class PdfCidFont : PdfFontBase
                 }
                 case PdfFontFileFormat.TrueType:
                 {
-                    SKTypeface typeface = SKTypeface.FromStream(FontDescriptor.FontFileObject?.DecodeAsStream());
+                    SKTypeface typeface = SKTypeface.FromStream(FontDescriptor.FontFileStream?.DecodeAsStream());
                     return (typeface, null);
                 }
             }

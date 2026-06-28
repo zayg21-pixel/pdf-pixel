@@ -34,8 +34,6 @@ internal class RawImageDecoder : PdfImageDecoder
         }
 
         _contentLocker = contentLocker;
-        int defaultComponents = (Image.BitsPerComponent == 1) ? 1 : 3;
-        PdfColorSpaceConverter converter = Image.ColorSpaceConverter ?? Image.Page.Cache.ColorSpace.ResolveDeviceConverter(defaultComponents) ?? DeviceRgbConverter.Instance;
         SKSizeI? downscaledSize = PdfImageCommandUtilities.GetScaledSize(ctm, new SKSizeI(Image.Width, Image.Height));
 
         _imageParameters = new PdfImageRowDecodingParameters(
@@ -44,13 +42,13 @@ internal class RawImageDecoder : PdfImageDecoder
             Image.Height,
             Image.BitsPerComponent,
             Image.RenderingIntent,
-            converter,
+            ResolvedColorSpaceConverter,
             Image.HasImageMask,
             Image.MaskArray,
             Image.DecodeArray,
             downscaledSize);
 
-        int rowBytes = checked(((Image.Width * converter.Components * Image.BitsPerComponent) + 7) / 8);
+        int rowBytes = checked(((Image.Width * ResolvedColorSpaceConverter.Components * Image.BitsPerComponent) + 7) / 8);
         _fullWidthRowBuffer = new byte[rowBytes];
         _tilingContext = new PdfImageTilingContext(tileInfo, _imageParameters, tileIndexesToDecode, LoggerFactory);
 

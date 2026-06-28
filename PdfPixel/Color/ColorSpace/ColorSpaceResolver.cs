@@ -12,13 +12,21 @@ internal sealed partial class ColorSpaceResolver
 {
     private readonly IPdfDocumentInternal _document;
     private readonly PdfDictionary _resources;
-    private readonly PdfDictionary? _colorSpaceDictionary; // Cached once per page.
+    private readonly PdfDictionary? _colorSpaceDictionary;
+
+    private readonly PdfColorSpaceConverter _defaultGray;
+    private readonly PdfColorSpaceConverter _defaultRgb;
+    private readonly PdfColorSpaceConverter _defaultCmyk;
 
     public ColorSpaceResolver(IPdfDocumentInternal document, PdfDictionary resources)
     {
         _document = document;
         _resources = resources;
         _colorSpaceDictionary = resources.GetDictionary(PdfTokens.ColorSpaceKey);
+
+        _defaultGray = ResolveDefaultDeviceSpace(PdfTokens.DefaultGrayKey, 1) ?? DeviceGrayConverter.Instance;
+        _defaultRgb = ResolveDefaultDeviceSpace(PdfTokens.DefaultRGBKey, 3) ?? DeviceRgbConverter.Instance;
+        _defaultCmyk = ResolveDefaultDeviceSpace(PdfTokens.DefaultCMYKKey, 4) ?? DeviceCmykConverter.Instance;
     }
 
     /// <summary>
@@ -104,19 +112,19 @@ internal sealed partial class ColorSpaceResolver
         {
             case PdfColorSpaceType.DeviceGray:
             {
-                return ResolveDefaultDeviceSpace(PdfTokens.DefaultGrayKey, 1) ?? DeviceGrayConverter.Instance;
+                return _defaultGray;
             }
             case PdfColorSpaceType.DeviceRGB:
             {
-                return ResolveDefaultDeviceSpace(PdfTokens.DefaultRGBKey, 3) ?? DeviceRgbConverter.Instance;
+                return _defaultRgb;
             }
             case PdfColorSpaceType.DeviceCMYK:
             {
-                return ResolveDefaultDeviceSpace(PdfTokens.DefaultCMYKKey, 4) ?? DeviceCmykConverter.Instance;
+                return _defaultCmyk;
             }
         }
 
-        return ResolveDeviceConverter(PdfColorSpaceType.DeviceRGB);
+        return _defaultRgb;
     }
 
     #region Internal Helpers

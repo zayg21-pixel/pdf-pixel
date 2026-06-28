@@ -18,18 +18,12 @@ public sealed class PdfCommandExecutionFrames : IDisposable
     private readonly List<CanvasStateOp> _stateOps = [];
     private readonly Stack<int> _savePoints = [];
     private SKMatrix _totalMatrix = SKMatrix.Identity;
-    private SKPath? _clipPath;
     private int _layerDepth;
 
     /// <summary>
     /// Current total transformation matrix, accumulated from <see cref="OnConcatMatrix"/> notifications.
     /// </summary>
     public SKMatrix TotalMatrix => _totalMatrix;
-
-    /// <summary>
-    /// Current clip path in device space, or <see langword="null"/> when nothing has been clipped yet.
-    /// </summary>
-    public SKPath? ClipPath => _clipPath;
 
     /// <summary>
     /// Number of currently active saved states, mirroring the depth of the canvas save stack.
@@ -81,9 +75,6 @@ public sealed class PdfCommandExecutionFrames : IDisposable
 
         _totalMatrix = frame.Matrix;
 
-        _clipPath?.Dispose();
-        _clipPath = frame.ClipPath;
-
         if (frame.IsLayer)
         {
             _layerDepth--;
@@ -108,8 +99,7 @@ public sealed class PdfCommandExecutionFrames : IDisposable
     }
 
     /// <summary>
-    /// Combines <paramref name="path"/>, transformed by the current total matrix, into the current clip path
-    /// using <paramref name="operation"/>. Called when a clip-path command is processed.
+    /// Records a clip-path operation for replay via <see cref="ApplyStateTo"/>.
     /// </summary>
     public void OnClipPath(SKPath path, SKClipOperation operation, bool antialias)
     {
@@ -119,24 +109,6 @@ public sealed class PdfCommandExecutionFrames : IDisposable
         }
 
         _stateOps.Add(new ClipPathCanvasOp(path, operation, antialias));
-
-        using SKPath devicePath = new(path);
-        devicePath.Transform(_totalMatrix);
-
-        if (_clipPath == null)
-        {
-            _clipPath = new SKPath(devicePath);
-            return;
-        }
-
-        SKPathOp pathOp = (operation == SKClipOperation.Difference) ? SKPathOp.Difference : SKPathOp.Intersect;
-        SKPath? combinedPath = _clipPath.Op(devicePath, pathOp);
-
-        if (combinedPath != null)
-        {
-            _clipPath.Dispose();
-            _clipPath = combinedPath;
-        }
     }
 
     /// <summary>
@@ -157,17 +129,25 @@ public sealed class PdfCommandExecutionFrames : IDisposable
         }
     }
 
+    /// <summary>
+    /// Resets all tracked state back to initial values so the frames can be reused
+    /// for a second pass over the same command sequence.
+    /// </summary>
+    public void Reset()
+    {
+        _frames.Clear();
+
+        DisposeStateOpsFrom(0);
+        _stateOps.Clear();
+        _savePoints.Clear();
+
+        _totalMatrix = SKMatrix.Identity;
+        _layerDepth = 0;
+    }
+
     /// <inheritdoc />
     public void Dispose()
     {
-        _clipPath?.Dispose();
-        _clipPath = null;
-
-        foreach (Frame frame in _frames)
-        {
-            frame.Dispose();
-        }
-
         foreach (CanvasStateOp state in _stateOps)
         {
             state.Dispose();
@@ -187,11 +167,7 @@ public sealed class PdfCommandExecutionFrames : IDisposable
         }
     }
 
-    private void Push(bool isLayer)
-    {
-        SKPath? clipPathSnapshot = (_clipPath == null) ? null : new SKPath(_clipPath);
-        _frames.Push(new Frame(_totalMatrix, clipPathSnapshot, isLayer));
-    }
+    private void Push(bool isLayer) => _frames.Push(new Frame(_totalMatrix, isLayer));
 
     private abstract class CanvasStateOp : IDisposable
     {
@@ -238,21 +214,16 @@ public sealed class PdfCommandExecutionFrames : IDisposable
         }
     }
 
-    private readonly struct Frame : IDisposable
+    private readonly struct Frame
     {
-        public Frame(SKMatrix matrix, SKPath? clipPath, bool isLayer)
+        public Frame(SKMatrix matrix, bool isLayer)
         {
             Matrix = matrix;
-            ClipPath = clipPath;
             IsLayer = isLayer;
         }
 
         public SKMatrix Matrix { get; }
 
-        public SKPath? ClipPath { get; }
-
         public bool IsLayer { get; }
-
-        public void Dispose() => ClipPath?.Dispose();
     }
 }

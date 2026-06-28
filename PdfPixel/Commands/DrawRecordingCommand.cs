@@ -45,6 +45,19 @@ public sealed class DrawRecordingCommand : PdfCommand
     public override bool IsScaleDependent => Recorder.Commands.Any(x => x.IsScaleDependent);
 
     /// <inheritdoc />
+    public override void Initialize(IEnumerable<IPdfCommandModifier> modifiers, PdfCommandExecutionContext executionContext)
+    {
+        if (Modifier != null)
+        {
+            Recorder.Initialize(modifiers.Append(Modifier), executionContext);
+        }
+        else
+        {
+            Recorder.Initialize(modifiers, executionContext);
+        }
+    }
+
+    /// <inheritdoc />
     public override void Execute(IEnumerable<IPdfCommandModifier> modifiers, PdfCommandExecutionContext executionContext)
     {
         // Append the recording-specific modifier so it composes on top of any outer modifiers.

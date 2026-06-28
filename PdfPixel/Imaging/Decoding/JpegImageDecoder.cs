@@ -66,14 +66,11 @@ public sealed class JpegImageDecoder : PdfImageDecoder
             throw new InvalidOperationException($"JPEG header is invalid (Name={Image.Name}).");
         }
 
-        PdfColorSpaceConverter? resolvedConverter = Image.ColorSpaceConverter;
-        if ((resolvedConverter == null || resolvedConverter.IsDevice) && JpgIccProfileReader.TryAssembleIccProfile(header, out byte[]? profileBytes))
+        PdfColorSpaceConverter resolvedConverter = ResolvedColorSpaceConverter;
+        if ((Image.ColorSpaceConverter == null || resolvedConverter.IsDevice) && JpgIccProfileReader.TryAssembleIccProfile(header, out byte[]? profileBytes))
         {
             resolvedConverter = new IccBasedConverter(header.ComponentCount, resolvedConverter, profileBytes);
         }
-
-        int defaultComponents = (Image.BitsPerComponent == 1) ? 1 : 3;
-        resolvedConverter ??= Image.Page.Cache.ColorSpace.ResolveDeviceConverter(defaultComponents) ?? DeviceRgbConverter.Instance;
 
         SKSizeI? downscaledSize = PdfImageCommandUtilities.GetScaledSize(ctm, new SKSizeI(Image.Width, Image.Height));
 

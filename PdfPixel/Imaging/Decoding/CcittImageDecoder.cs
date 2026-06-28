@@ -19,10 +19,17 @@ internal sealed class CcittImageDecoder : PdfImageDecoder
     private PdfImageRowDecodingParameters? _imageParameters;
     private int _currentImageRow;
 
+    private readonly PdfColorSpaceConverter _colorSpaceConverter;
+
     public CcittImageDecoder(PdfImage image, ILoggerFactory loggerFactory)
         : base(image, loggerFactory)
     {
+        _colorSpaceConverter = image.ColorSpaceConverter
+            ?? image.Page.Cache.ColorSpace.ResolveDeviceConverter(1)
+            ?? DeviceGrayConverter.Instance;
     }
+
+    protected override PdfColorSpaceConverter ResolvedColorSpaceConverter => _colorSpaceConverter;
 
     public override void Initialize(PdfTileInfo tileInfo, ImageDecodingContext context, object contentLocker, SKMatrix ctm, HashSet<int>? tileIndexesToDecode, IPdfExecutionObserver? observer)
     {
@@ -51,7 +58,7 @@ internal sealed class CcittImageDecoder : PdfImageDecoder
         bool blackIs1 = parameters?.BlackIs1 ?? false;
         bool endOfBlock = parameters?.EndOfBlock ?? false;
 
-        PdfColorSpaceConverter converter = Image.ColorSpaceConverter ?? Image.Page.Cache.ColorSpace.ResolveDeviceConverter(1) ?? DeviceGrayConverter.Instance;
+        PdfColorSpaceConverter converter = _colorSpaceConverter;
         SKSizeI? downscaledSize = PdfImageCommandUtilities.GetScaledSize(ctm, new SKSizeI(columns, rows));
 
         _imageParameters = new PdfImageRowDecodingParameters(

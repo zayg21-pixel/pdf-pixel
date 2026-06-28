@@ -26,7 +26,7 @@ internal static class Jbig2MmrDecoder
     internal static Jbig2Bitmap Decode(in ReadOnlySpan<byte> data, int width, int height, out int bytesConsumed, IJBig2ExectionObserver? observer = null)
     {
         Jbig2Bitmap bitmap = new(width, height);
-        CcittBitReader reader = new(in data, 0, 0, 0, msbFirst: true);
+        CcittBitReader reader = new(in data, 0, 0, 0);
 
         var referenceChanges = new int[width + 2];
         referenceChanges[0] = width;

@@ -12,6 +12,11 @@ public abstract class PdfCommand : IPdfCommand
     ~PdfCommand() => Dispose(disposing: false);
 
     /// <inheritdoc />
+    public virtual void Initialize(IEnumerable<IPdfCommandModifier> modifiers, PdfCommandExecutionContext executionContext)
+    {
+    }
+
+    /// <inheritdoc />
     public abstract void Execute(IEnumerable<IPdfCommandModifier> modifiers, PdfCommandExecutionContext executionContext);
 
     /// <inheritdoc />

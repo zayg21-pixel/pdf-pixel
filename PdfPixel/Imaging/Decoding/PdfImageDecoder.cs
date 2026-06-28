@@ -19,17 +19,34 @@ public abstract class PdfImageDecoder : IDisposable
     /// </summary>
     /// <param name="image">The PDF image descriptor to decode.</param>
     /// <param name="loggerFactory">Logger factory used to create per-decoder loggers.</param>
+    private readonly PdfColorSpaceConverter _resolvedColorSpaceConverter;
+
     protected PdfImageDecoder(PdfImage image, ILoggerFactory loggerFactory)
     {
         Image = image ?? throw new ArgumentNullException(nameof(image));
         LoggerFactory = loggerFactory ?? throw new ArgumentNullException(nameof(loggerFactory));
         Logger = loggerFactory.CreateLogger(GetType());
+
+        PdfColorSpaceConverter? converter = image.ColorSpaceConverter;
+        if (converter == null)
+        {
+            int defaultComponents = (image.BitsPerComponent == 1) ? 1 : 3;
+            converter = image.Page.Cache.ColorSpace.ResolveDeviceConverter(defaultComponents);
+        }
+
+        _resolvedColorSpaceConverter = converter ?? DeviceRgbConverter.Instance;
     }
 
     /// <summary>
     /// Source PDF image to decode.
     /// </summary>
     public PdfImage Image { get; }
+
+    /// <summary>
+    /// Resolved color space converter for this image, eagerly computed during construction.
+    /// Subclasses override to provide type-appropriate defaults (e.g. DeviceGray for 1-bit formats).
+    /// </summary>
+    protected virtual PdfColorSpaceConverter ResolvedColorSpaceConverter => _resolvedColorSpaceConverter;
 
     /// <summary>
     /// Logger instance for this decoder.

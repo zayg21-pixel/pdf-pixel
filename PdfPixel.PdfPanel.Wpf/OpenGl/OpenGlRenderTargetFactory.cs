@@ -38,6 +38,11 @@ public sealed class OpenGlRenderTargetFactory : IPdfPanelRenderTargetFactory, IP
     private int _currentWidth;
     private int _currentHeight;
 
+    // Tiling surface state
+    private SKSurface _tilingSurface;
+    private int _tilingWidth;
+    private int _tilingHeight;
+
     // Presentation state (created/updated on UI thread via GetRenderTarget)
     private WriteableBitmap _writeableBitmap;
     private SKSize _lastCanvasSize;
@@ -74,7 +79,8 @@ public sealed class OpenGlRenderTargetFactory : IPdfPanelRenderTargetFactory, IP
 
         var contextOptions = new GRContextOptions
         {
-            RuntimeProgramCacheSize = 128
+            RuntimeProgramCacheSize = 128,
+            DoManualMipmapping = true
         };
 
         _grContext = GRContext.CreateGl(glInterface, contextOptions);
@@ -205,10 +211,32 @@ public sealed class OpenGlRenderTargetFactory : IPdfPanelRenderTargetFactory, IP
     }
 
     /// <inheritdoc />
+    public SKSurface GetTilingSurface(int width, int height)
+    {
+        _glContext.MakeCurrent();
+
+        if (_tilingSurface != null && _tilingWidth == width && _tilingHeight == height)
+        {
+            return _tilingSurface;
+        }
+
+        _tilingSurface?.Dispose();
+        var info = new SKImageInfo(width, height, SKColorType.Bgra8888, SKAlphaType.Premul);
+        _tilingSurface = SKSurface.Create(_grContext, budgeted: true, info);
+        _tilingWidth = width;
+        _tilingHeight = height;
+
+        return _tilingSurface;
+    }
+
+    /// <inheritdoc />
     public void Dispose()
     {
         _currentSurface?.Dispose();
         _currentSurface = null;
+
+        _tilingSurface?.Dispose();
+        _tilingSurface = null;
 
         _grContext?.Dispose();
         _grContext = null;

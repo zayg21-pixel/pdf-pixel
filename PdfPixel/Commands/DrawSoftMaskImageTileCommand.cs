@@ -13,10 +13,16 @@ internal sealed class DrawSoftMaskImageTileCommand : PdfCommand
 
     public override bool IsScaleDependent => true;
 
+    public override void Initialize(IEnumerable<IPdfCommandModifier> modifiers, PdfCommandExecutionContext executionContext)
+    {
+        _context.ImageCache.InitializeNextTile(executionContext.ExecutionObserver);
+        _context.MaskCache.InitializeNextTile(executionContext.ExecutionObserver);
+    }
+
     public override void Execute(IEnumerable<IPdfCommandModifier> modifiers, PdfCommandExecutionContext executionContext)
     {
-        PdfImageTile imageTile = _context.ImageCache.GetNextTile(executionContext.ExecutionObserver);
-        PdfImageTile maskTile = _context.MaskCache.GetNextTile(executionContext.ExecutionObserver);
+        PdfImageTile imageTile = _context.ImageCache.GetNextTile();
+        PdfImageTile maskTile = _context.MaskCache.GetNextTile();
         if (imageTile.IsSkipped || maskTile.IsSkipped)
         {
             return;
@@ -36,8 +42,8 @@ internal sealed class DrawSoftMaskImageTileCommand : PdfCommand
             matte = maskTile.Parameters.ColorSpaceConverter.ToSrgb(_context.MatteArray, maskTile.Parameters.RenderingIntent, default);
         }
 
-        using SKShader imageShader = ImageBlending.BuildImageShader(imageTile.Image, new SKSizeI(imageTile.TilePosition.Width, imageTile.TilePosition.Height), sampling);
-        using SKShader maskShader = ImageBlending.BuildImageShader(maskTile.Image, new SKSizeI(imageTile.TilePosition.Width, imageTile.TilePosition.Height), sampling);
+        using SKShader imageShader = ImageBlending.BuildImageShader(imageTile.Image, imageTile.SourceRegion, new SKSizeI(imageTile.TilePosition.Width, imageTile.TilePosition.Height), sampling);
+        using SKShader maskShader = ImageBlending.BuildImageShader(maskTile.Image, maskTile.SourceRegion, new SKSizeI(imageTile.TilePosition.Width, imageTile.TilePosition.Height), sampling);
         using SKShader blendingShader = ImageBlending.CreateSoftMaskBlendingShader(imageShader, maskShader, matte);
         using SKPaint paint = PdfImageCommandUtilities.GetBaseImagePaint(blendingShader, _context.DecodingContext);
         CommandHelpers.ApplyModifiers(paint, modifiers);

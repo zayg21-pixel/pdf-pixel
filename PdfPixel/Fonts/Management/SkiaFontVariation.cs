@@ -5,6 +5,7 @@ using SkiaSharp;
 
 namespace PdfPixel.Fonts.Management;
 
+// TODO: [HIGH] implementation is incomplete, inefficient and creates "chicken and egg" problem. Also, it's per "unicode" char, and that's incorrect.
 /// <summary>
 /// Shared utilities for font variation axis support and glyph validation via <see cref="SKFont"/>.
 /// </summary>

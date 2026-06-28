@@ -23,6 +23,10 @@ public sealed class SaveLayerCommand : PdfCommand
     }
 
     /// <inheritdoc />
+    public override void Initialize(IEnumerable<IPdfCommandModifier> modifiers, PdfCommandExecutionContext executionContext)
+        => executionContext.Frames.OnSaveLayer();
+
+    /// <inheritdoc />
     public override void Execute(IEnumerable<IPdfCommandModifier> modifiers, PdfCommandExecutionContext executionContext)
     {
         if (_paint != null)

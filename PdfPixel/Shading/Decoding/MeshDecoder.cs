@@ -41,12 +41,11 @@ internal class MeshDecoder
 
         _shading = shading;
         _sampler = sampler;
-        PdfDictionary shadingDictionary = shading.SourceObject.Dictionary;
 
-        _bitsPerCoordinate = shadingDictionary.GetIntegerOrDefault(PdfTokens.BitsPerCoordinateKey);
-        _bitsPerComponent = shadingDictionary.GetIntegerOrDefault(PdfTokens.BitsPerComponentKey);
-        _bitsPerFlag = shadingDictionary.GetIntegerOrDefault(PdfTokens.BitsPerFlagKey);
-        float[]? decodeArray = shadingDictionary.GetArray(PdfTokens.DecodeKey)?.GetFloatArray();
+        _bitsPerCoordinate = shading.BitsPerCoordinate ?? 0;
+        _bitsPerComponent = shading.BitsPerComponent ?? 0;
+        _bitsPerFlag = shading.BitsPerFlag ?? 0;
+        float[]? decodeArray = shading.DecodeArray;
         if (decodeArray == null || decodeArray.Length < 6 || (decodeArray.Length - 4) % 2 != 0)
         {
             throw new ArgumentException("Decode array must contain at least xmin,xmax,ymin,ymax and pairs of min/max for each color component");
@@ -82,7 +81,7 @@ internal class MeshDecoder
     /// <returns>List of decoded <see cref="MeshData"/> instances.</returns>
     public List<MeshData> Decode()
     {
-        ReadOnlyMemory<byte> memory = _shading.SourceObject.DecodeAsMemory();
+        ReadOnlyMemory<byte> memory = _shading.Stream.DecodeAsMemory();
         UintBitReader bitReader = new(memory.Span);
         List<MeshData> patches = [];
         MeshData? previousPatch = null;

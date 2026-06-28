@@ -100,6 +100,8 @@ internal static class PdfDocumentContentExtensions
         SKCanvas canvas = recorder.BeginRecording(SKRect.Create(pageInfo.Width, pageInfo.Height));
         using PdfCommandExecutionContext executionContext = new(executionParameters, contentLocker, optionalContentGroups, executionObserver, canvas, regionOfInterest);
 
+        commandRecording.Initialize(Array.Empty<IPdfCommandModifier>(), executionContext);
+        executionContext.Frames.Reset();
         commandRecording.Replay(Array.Empty<IPdfCommandModifier>(), executionContext);
 
         executionContext.Canvas.Flush();

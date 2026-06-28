@@ -9,6 +9,10 @@ namespace PdfPixel.Commands;
 public sealed class RestoreStateCommand : PdfCommand
 {
     /// <inheritdoc />
+    public override void Initialize(IEnumerable<IPdfCommandModifier> modifiers, PdfCommandExecutionContext executionContext)
+        => executionContext.Frames.OnRestoreState();
+
+    /// <inheritdoc />
     public override void Execute(IEnumerable<IPdfCommandModifier> modifiers, PdfCommandExecutionContext executionContext)
     {
         executionContext.Canvas.Restore();

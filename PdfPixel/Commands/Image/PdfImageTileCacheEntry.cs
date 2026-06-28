@@ -13,8 +13,10 @@ internal sealed class PdfImageTileCacheEntry : IDisposable
     private readonly ImageDecodingContext _context;
     private readonly CachedTile[] _tiles;
 
+    private PdfCommandImageCache? _imageCache;
     private SKMatrix _currentCtm;
-    private int _currentTileIndex;
+    private int _initializeTileIndex;
+    private int _getTileIndex;
     private bool _decoding;
 
     public PdfImageTileCacheEntry(PdfImageDecoder decoder, ImageDecodingContext context, PdfTileInfo tileInfo)
@@ -32,7 +34,17 @@ internal sealed class PdfImageTileCacheEntry : IDisposable
 
     public PdfTileInfo TileInfo { get; }
 
-    public void Initialize(SKMatrix ctm, SKRectI imageRegion, object contentLocker, IPdfExecutionObserver observer)
+    /// <summary>
+    /// Resets tile iteration indices to the beginning without re-running decode logic.
+    /// Used when the same recording is replayed multiple times (e.g. Type3 font glyphs).
+    /// </summary>
+    public void ResetTileIndexes()
+    {
+        _initializeTileIndex = 0;
+        _getTileIndex = 0;
+    }
+
+    public void Initialize(SKMatrix ctm, SKRectI imageRegion, object contentLocker, IPdfExecutionObserver observer, PdfCommandImageCache? imageCache)
     {
         if (_decoding)
         {
@@ -40,13 +52,27 @@ internal sealed class PdfImageTileCacheEntry : IDisposable
             _decoding = false;
         }
 
+        bool imageCacheChanged = !ReferenceEquals(_imageCache, imageCache);
+        _imageCache = imageCache;
         _currentCtm = ctm;
-        _currentTileIndex = 0;
+        _initializeTileIndex = 0;
+        _getTileIndex = 0;
+
+        // TODO: [MEDIUM] Type3 fonts share recordings across pages, each with its own image cache.
+        // Switching cache forces re-decode, losing previously cached tiles. A global/local cache
+        // split would let shared recordings keep their images across pages.
+        if (imageCacheChanged)
+        {
+            foreach (CachedTile tile in _tiles)
+            {
+                tile.Clear();
+            }
+        }
 
         HashSet<int> regionTileIndexes = ComputeRegionTileIndexes(imageRegion);
         EvictTilesOutsideRegion(regionTileIndexes);
 
-        HashSet<int>? tileIndexesToDecode = ComputeTileIndexesToDecode(ctm, regionTileIndexes);
+        HashSet<int>? tileIndexesToDecode = ComputeTileIndexesToDecode(ctm, regionTileIndexes, imageCache);
 
         if (tileIndexesToDecode == null || tileIndexesToDecode.Count > 0)
         {
@@ -55,26 +81,22 @@ internal sealed class PdfImageTileCacheEntry : IDisposable
         }
     }
 
-    public PdfImageTile GetNextTile(IPdfExecutionObserver observer)
+    /// <summary>
+    /// Decodes the next tile and stores it in the cache. Called during the Initialize pass.
+    /// </summary>
+    public void InitializeNextTile(IPdfExecutionObserver observer)
     {
-        if (_currentTileIndex >= TileInfo.TotalTiles)
+        if (_initializeTileIndex >= TileInfo.TotalTiles)
         {
-            throw new InvalidOperationException($"Tile index {_currentTileIndex} is out of range (TotalTiles={TileInfo.TotalTiles}).");
+            throw new InvalidOperationException($"Tile index {_initializeTileIndex} is out of range (TotalTiles={TileInfo.TotalTiles}).");
         }
 
-        CachedTile cachedTile = _tiles[_currentTileIndex];
+        CachedTile cachedTile = _tiles[_initializeTileIndex];
 
         if (!cachedTile.IsPendingUpdate)
         {
-            PdfImageTile? tile = cachedTile.Tile;
-
-            if (tile == null)
-            {
-                throw new InvalidOperationException($"Current tile at index {_currentTileIndex} is not defined.");
-            }
-
-            _currentTileIndex++;
-            return tile;
+            _initializeTileIndex++;
+            return;
         }
 
         while (_decoding)
@@ -84,25 +106,25 @@ internal sealed class PdfImageTileCacheEntry : IDisposable
             PdfImageTile[]? batch = _decoder.DecodeNextTiles(observer);
             if (batch == null)
             {
-                throw new InvalidOperationException($"Decoder returned null before producing tile {_currentTileIndex}.");
+                throw new InvalidOperationException($"Decoder returned null before producing tile {_initializeTileIndex}.");
             }
 
-            PdfImageTile? producedCurrentTile = null;
+            var producedCurrentTile = false;
 
             foreach (PdfImageTile tile in batch)
             {
                 if (_tiles[tile.TileIndex].IsPendingUpdate)
                 {
-                    _tiles[tile.TileIndex].UpdateTile(tile, _currentCtm);
+                    _tiles[tile.TileIndex].UpdateTile(tile, _currentCtm, _imageCache);
                 }
                 else
                 {
                     tile.Dispose();
                 }
 
-                if (tile.TileIndex == _currentTileIndex)
+                if (tile.TileIndex == _initializeTileIndex)
                 {
-                    producedCurrentTile = tile;
+                    producedCurrentTile = true;
                 }
 
                 if (tile.TileIndex == TileInfo.TotalTiles - 1)
@@ -112,23 +134,36 @@ internal sealed class PdfImageTileCacheEntry : IDisposable
                 }
             }
 
-            if (producedCurrentTile != null)
+            if (producedCurrentTile)
             {
-                _currentTileIndex++;
-                return producedCurrentTile;
+                _initializeTileIndex++;
+                return;
             }
         }
 
-        int pendingCount = 0;
-        foreach (CachedTile cached in _tiles)
+        throw new InvalidOperationException($"Tile {_initializeTileIndex} was not produced by decoder {_decoder.GetType().Name}.");
+    }
+
+    /// <summary>
+    /// Returns the next tile from the cache. Called during the Execute pass.
+    /// All tiles must have been populated by prior <see cref="InitializeNextTile"/> calls.
+    /// </summary>
+    public PdfImageTile GetNextTile()
+    {
+        if (_getTileIndex >= TileInfo.TotalTiles)
         {
-            if (cached.IsPendingUpdate)
-            {
-                pendingCount++;
-            }
+            throw new InvalidOperationException($"Tile index {_getTileIndex} is out of range (TotalTiles={TileInfo.TotalTiles}).");
         }
 
-        throw new InvalidOperationException($"Tile {_currentTileIndex} was not produced by decoder {_decoder.GetType().Name}.");
+        CachedTile cachedTile = _tiles[_getTileIndex];
+
+        if (!cachedTile.HasTile)
+        {
+            throw new InvalidOperationException($"Tile at index {_getTileIndex} was not initialized.");
+        }
+
+        _getTileIndex++;
+        return cachedTile.GetTile(_imageCache);
     }
 
     /// <summary>
@@ -166,7 +201,7 @@ internal sealed class PdfImageTileCacheEntry : IDisposable
     /// cached. Returns null when every tile needs decoding, signaling the decoder to decode the
     /// whole image rather than build the full index set.
     /// </summary>
-    private HashSet<int>? ComputeTileIndexesToDecode(SKMatrix ctm, HashSet<int> regionTileIndexes)
+    private HashSet<int>? ComputeTileIndexesToDecode(SKMatrix ctm, HashSet<int> regionTileIndexes, PdfCommandImageCache? imageCache)
     {
         HashSet<int> tileIndexesToDecode = [];
 
@@ -188,14 +223,14 @@ internal sealed class PdfImageTileCacheEntry : IDisposable
                     continue;
                 }
 
-                if (tile.Tile != null)
+                if (tile.HasTile)
                 {
                     tile.ClearPending();
                 }
                 else
                 {
                     SKRectI position = TileInfo.GetTilePosition(tile.Index);
-                    tile.UpdateTile(new PdfImageTile(tile.Index, position, null, null, isSkipped: true), ctm);
+                    tile.UpdateTile(new PdfImageTile(tile.Index, position, null, null, isSkipped: true), ctm, imageCache);
                 }
             }
 
@@ -267,11 +302,22 @@ internal sealed class PdfImageTileCacheEntry : IDisposable
     /// <summary>
     /// Holds a single cached tile together with the CTM it was decoded for, so the cache can
     /// tell whether the tile is still usable for a given transform without re-decoding it.
+    /// When a <see cref="PdfCommandImageCache"/> is available, image data is stored in the atlas
+    /// and the tile itself only keeps parameters. Without a cache, the tile holds the
+    /// <see cref="PdfImageTile"/> directly.
     /// </summary>
     private sealed class CachedTile : IDisposable
     {
-        private PdfImageTile? _tile;
+        private readonly Guid _cacheId = Guid.NewGuid();
+
+        private PdfCommandImageCache? _imageCache;
+        private PdfImageTile? _directTile;
+        private SKRectI _tilePosition;
+        private PdfImageRowDecodingParameters? _parameters;
         private SKMatrix _decodedCtm;
+        private bool _hasImage;
+        private bool _isSkipped;
+        private bool _isCached;
 
         public CachedTile(int index)
         {
@@ -279,20 +325,85 @@ internal sealed class PdfImageTileCacheEntry : IDisposable
             IsPendingUpdate = true;
         }
 
-        public PdfImageTile? Tile => _tile;
-
         public int Index { get; }
 
         public bool IsPendingUpdate { get; private set; }
 
-        public long EstimatedByteSize => (_tile?.Image is SKImage image) ? ComputeImageByteSize(image) : 0;
+        public bool HasTile => _hasImage || _isSkipped;
 
-        public void UpdateTile(PdfImageTile tile, SKMatrix ctm)
+        public long EstimatedByteSize
+        {
+            get
+            {
+                if (_isCached)
+                {
+                    return 0;
+                }
+
+                return (_directTile?.Image is SKImage image) ? (long)image.Width * image.Height * 4 : 0;
+            }
+        }
+
+        public PdfImageTile GetTile(PdfCommandImageCache? imageCache)
+        {
+            if (_isSkipped)
+            {
+                return new PdfImageTile(Index, _tilePosition, null, null, isSkipped: true);
+            }
+
+            if (_isCached && imageCache != null)
+            {
+                CachedImageResult cached = imageCache.GetImage(in _cacheId);
+
+                if (cached.IsAtlased)
+                {
+                    return new PdfImageTile(Index, _tilePosition, cached.Image, _parameters, isSkipped: false, cached.SourceRegion);
+                }
+
+                return new PdfImageTile(Index, _tilePosition, cached.Image, _parameters, isSkipped: false);
+            }
+
+            if (_directTile == null)
+            {
+                throw new InvalidOperationException($"Tile at index {Index} has no image data.");
+            }
+
+            return _directTile;
+        }
+
+        public void UpdateTile(PdfImageTile tile, SKMatrix ctm, PdfCommandImageCache? imageCache)
         {
             IsPendingUpdate = false;
-            _tile?.Dispose();
-            _tile = tile;
+            _tilePosition = tile.TilePosition;
+            _parameters = tile.Parameters;
+            _isSkipped = tile.IsSkipped;
             _decodedCtm = ctm;
+            _imageCache = imageCache;
+
+            RemoveFromCache();
+            _directTile?.Dispose();
+            _directTile = null;
+            _isCached = false;
+            _hasImage = false;
+
+            if (tile.Image != null)
+            {
+                _hasImage = true;
+
+                if (imageCache != null)
+                {
+                    _isCached = true;
+                    imageCache.CacheImage(in _cacheId, tile.Image);
+                }
+                else
+                {
+                    _directTile = tile;
+                }
+            }
+            else
+            {
+                tile.Dispose();
+            }
         }
 
         /// <summary>
@@ -303,8 +414,7 @@ internal sealed class PdfImageTileCacheEntry : IDisposable
         /// </summary>
         public bool IsValid(SKMatrix ctm)
         {
-            return _tile != null
-                && !_tile.IsSkipped
+            return _hasImage
                 && !IsPendingUpdate
                 && _decodedCtm.ScaleX == ctm.ScaleX
                 && _decodedCtm.ScaleY == ctm.ScaleY
@@ -314,8 +424,13 @@ internal sealed class PdfImageTileCacheEntry : IDisposable
 
         public void Clear()
         {
-            _tile?.Dispose();
-            _tile = null;
+            RemoveFromCache();
+            _directTile?.Dispose();
+            _directTile = null;
+            _hasImage = false;
+            _isSkipped = false;
+            _isCached = false;
+            _parameters = null;
             IsPendingUpdate = true;
             _decodedCtm = SKMatrix.Empty;
         }
@@ -324,8 +439,19 @@ internal sealed class PdfImageTileCacheEntry : IDisposable
 
         public void ClearPending() => IsPendingUpdate = false;
 
-        public void Dispose() => _tile?.Dispose();
+        public void Dispose()
+        {
+            RemoveFromCache();
+            _directTile?.Dispose();
+        }
 
-        private static long ComputeImageByteSize(SKImage image) => (long)image.Width * image.Height * 4;
+        private void RemoveFromCache()
+        {
+            if (_isCached && _imageCache != null)
+            {
+                _imageCache.Remove(in _cacheId);
+                _isCached = false;
+            }
+        }
     }
 }

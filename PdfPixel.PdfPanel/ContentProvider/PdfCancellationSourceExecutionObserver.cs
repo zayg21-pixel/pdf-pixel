@@ -8,6 +8,8 @@ namespace PdfPixel.PdfPanel.ContentProvider;
 /// </summary>
 public sealed class PdfCancellationSourceExecutionObserver : IPdfCancellableExecutionObserver
 {
+    private bool _disposed;
+
     /// <summary>
     /// The cancellation source that controls this observer.
     /// </summary>
@@ -16,6 +18,11 @@ public sealed class PdfCancellationSourceExecutionObserver : IPdfCancellableExec
     /// <inheritdoc/>
     public void Notify()
     {
+        if (_disposed)
+        {
+            throw new OperationCanceledException();
+        }
+
         try
         {
             CancellationTokenSource.Token.ThrowIfCancellationRequested();
@@ -46,5 +53,6 @@ public sealed class PdfCancellationSourceExecutionObserver : IPdfCancellableExec
     {
         Cancel();
         CancellationTokenSource.Dispose();
+        _disposed = true;
     }
 }

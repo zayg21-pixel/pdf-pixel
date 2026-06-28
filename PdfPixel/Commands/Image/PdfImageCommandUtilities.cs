@@ -87,6 +87,24 @@ internal static class PdfImageCommandUtilities
             new PdfTileInfo(new SKSizeI(maskImage.Width, maskImage.Height), maskTileSize));
     }
 
+    /// <summary>
+    /// Creates a color matrix that maps a grayscale mask to a solid fill color with
+    /// the gray channel used as alpha. Input is Gray8 where R=G=B=gray, A=1.
+    /// </summary>
+    public static float[] CreateStencilMaskColorMatrix(ref readonly SKColor fillColor, bool inverse)
+    {
+        float fillR = fillColor.Red / 255f;
+        float fillG = fillColor.Green / 255f;
+        float fillB = fillColor.Blue / 255f;
+
+        if (inverse)
+        {
+            return new float[] { -fillR, 0, 0, 0, fillR, 0, -fillG, 0, 0, fillG, 0, 0, -fillB, 0, fillB, -1, 0, 0, 0, 1 };
+        }
+
+        return new float[] { fillR, 0, 0, 0, 0, 0, fillG, 0, 0, 0, 0, 0, fillB, 0, 0, 1, 0, 0, 0, 0 };
+    }
+
     public static SKRectI ComputeImageRegionOfInterest(SKSizeI imageSize, SKMatrix ctm, PdfCommandExecutionContext executionContext)
     {
         SKRectI fullImageBounds = SKRectI.Create(0, 0, imageSize.Width, imageSize.Height);

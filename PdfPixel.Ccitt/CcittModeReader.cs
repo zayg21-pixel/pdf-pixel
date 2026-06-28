@@ -56,21 +56,9 @@ internal static class CcittModeReader
         if (found.HasValue)
         {
             ModeCode candidate = found.Value;
-            int pattern = reader.PeekBits(candidate.Bits);
-            if (pattern == candidate.Code)
-            {
-                for (int b = 0; b < candidate.Bits; b++)
-                {
-                    if (reader.ReadBit() < 0)
-                    {
-                        mode = default;
-                        return false;
-                    }
-                }
-
-                mode = candidate;
-                return true;
-            }
+            reader.DropBits(candidate.Bits);
+            mode = candidate;
+            return true;
         }
 
         mode = default;

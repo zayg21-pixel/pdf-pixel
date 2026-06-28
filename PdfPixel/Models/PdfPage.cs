@@ -130,6 +130,8 @@ internal class PdfPage : IPdfPageInternal
             throw new InvalidOperationException("Document reference not set. This page was not properly loaded from a document.");
         }
 
+        processor.Process(new Commands.Image.InitializeImageCacheCommand());
+
         PdfRenderer renderer = new(_document.LoggerFactory);
         PdfContentStreamRenderer contentRenderer = new(renderer, this);
 
@@ -144,6 +146,8 @@ internal class PdfPage : IPdfPageInternal
         {
             processor.Process(new RestoreStateCommand());
         }
+
+        _pageCache.ClearAfterRender();
     }
 
 }

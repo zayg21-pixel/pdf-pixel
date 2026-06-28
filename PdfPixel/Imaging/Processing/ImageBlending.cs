@@ -67,16 +67,19 @@ namespace PdfPixel.Imaging.Processing
 
         public static SKShader BuildImageShader(
             SKImage source,
+            SKRectI? sourceRegion,
             in SKSamplingOptions sampling)
         {
             return source.ToShader(
                 SKShaderTileMode.Clamp,
                 SKShaderTileMode.Clamp,
-                sampling);
+                sampling,
+                BuildShaderMatrix(source, sourceRegion, null));
         }
 
         public static SKShader BuildImageShader(
             SKImage source,
+            SKRectI? sourceRegion,
             SKSizeI targetSize,
             in SKSamplingOptions sampling)
         {
@@ -84,7 +87,36 @@ namespace PdfPixel.Imaging.Processing
                 SKShaderTileMode.Clamp,
                 SKShaderTileMode.Clamp,
                 sampling,
-                SKMatrix.CreateScale((float)targetSize.Width / source.Width, (float)targetSize.Height / source.Height));
+                BuildShaderMatrix(source, sourceRegion, targetSize));
+        }
+
+        private static SKMatrix BuildShaderMatrix(SKImage source, SKRectI? sourceRegion, SKSizeI? targetSize)
+        {
+            SKMatrix matrix = SKMatrix.Identity;
+
+            if (sourceRegion != null)
+            {
+                SKRectI region = sourceRegion.Value;
+                matrix = SKMatrix.CreateTranslation(-region.Left, -region.Top);
+
+                if (targetSize != null)
+                {
+                    SKSizeI target = targetSize.Value;
+                    matrix = SKMatrix.CreateScale(
+                        (float)target.Width / region.Width,
+                        (float)target.Height / region.Height)
+                        .PreConcat(matrix);
+                }
+            }
+            else if (targetSize != null)
+            {
+                SKSizeI target = targetSize.Value;
+                matrix = SKMatrix.CreateScale(
+                    (float)target.Width / source.Width,
+                    (float)target.Height / source.Height);
+            }
+
+            return matrix;
         }
 
         /// <summary>

@@ -13,6 +13,9 @@ public sealed class CpuSkSurfaceFactory : ISkSurfaceFactory
     private SKSurface? _currentSurface;
     private int _currentWidth;
     private int _currentHeight;
+    private SKSurface? _tilingSurface;
+    private int _tilingWidth;
+    private int _tilingHeight;
 
     /// <summary>
     /// Initializes a new instance with the specified pixel format.
@@ -55,6 +58,27 @@ public sealed class CpuSkSurfaceFactory : ISkSurfaceFactory
     }
 
     /// <inheritdoc />
-    public void Dispose() => _currentSurface?.Dispose();
+    public SKSurface GetTilingSurface(int width, int height)
+    {
+        if (_tilingSurface != null && _tilingWidth == width && _tilingHeight == height)
+        {
+            return _tilingSurface;
+        }
+
+        _tilingSurface?.Dispose();
+        SKImageInfo info = new(width, height, _colorType, _alphaType);
+        _tilingSurface = SKSurface.Create(info);
+        _tilingWidth = width;
+        _tilingHeight = height;
+
+        return _tilingSurface;
+    }
+
+    /// <inheritdoc />
+    public void Dispose()
+    {
+        _currentSurface?.Dispose();
+        _tilingSurface?.Dispose();
+    }
 }
 

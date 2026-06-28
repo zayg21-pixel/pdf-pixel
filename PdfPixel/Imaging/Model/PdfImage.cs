@@ -15,10 +15,10 @@ namespace PdfPixel.Imaging.Model;
 /// </summary>
 public class PdfImage
 {
-    private PdfImage(IPdfPageInternal page, PdfObject sourceObject, int width, int height)
+    private PdfImage(IPdfPageInternal page, PdfObjectStream stream, int width, int height)
     {
         Page = page;
-        SourceObject = sourceObject;
+        Stream = stream;
         Width = width;
         Height = height;
     }
@@ -26,20 +26,19 @@ public class PdfImage
     internal IPdfPageInternal Page { get; }
 
     /// <summary>
-    /// Gets the underlying <see cref="PdfObject"/> that serves as the source for this instance.
+    /// Gets the self-contained stream source for this image.
     /// </summary>
-    public PdfObject SourceObject { get; }
+    public PdfObjectStream Stream { get; }
 
     /// <summary>
     /// Returns the raw image data decoded from the PDF stream after reversing the /Filter chain.
     /// </summary>
-    /// <returns></returns>
-    public ReadOnlyMemory<byte> GetImageData(IPdfExecutionObserver? observer) => SourceObject.DecodeAsMemory(observer);
+    public ReadOnlyMemory<byte> GetImageData(IPdfExecutionObserver? observer) => Stream.DecodeAsMemory(observer);
 
     /// <summary>
     /// Retrieves the image data as a stream (for large images).
     /// </summary>
-    public Stream GetImageDataStream() => SourceObject.DecodeAsStream();
+    public Stream GetImageDataStream() => Stream.DecodeAsStream();
 
     /// <summary>
     /// Image width in pixels (/Width).
@@ -140,7 +139,7 @@ public class PdfImage
 
         PdfObject? colorSpaceObject = imageXObject.Dictionary.GetObject(PdfTokens.ColorSpaceKey);
 
-        PdfImage image = new(page, imageXObject, imageXObject.Dictionary.GetIntegerOrDefault(PdfTokens.WidthKey), imageXObject.Dictionary.GetIntegerOrDefault(PdfTokens.HeightKey))
+        PdfImage image = new(page, imageXObject.Stream, imageXObject.Dictionary.GetIntegerOrDefault(PdfTokens.WidthKey), imageXObject.Dictionary.GetIntegerOrDefault(PdfTokens.HeightKey))
         {
             BitsPerComponent = bitsPerComponent,
             ColorSpaceConverter = page.Cache.ColorSpace.ResolveByObject(colorSpaceObject, defaultComponents: -1),
@@ -173,7 +172,7 @@ public class PdfImage
         image.RenderingIntent = imageXObject.Dictionary.GetName(PdfTokens.IntentKey).AsEnum<PdfRenderingIntent>();
 
         // Type from Filter
-        List<PdfFilterType> filters = PdfStreamDecoder.GetFilters(imageXObject);
+        List<PdfFilterType> filters = imageXObject.Stream.Filters;
 
         if (filters.Count > 0)
         {

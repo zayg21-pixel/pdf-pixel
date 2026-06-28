@@ -13,10 +13,16 @@ internal sealed class DrawStencilMaskedImageTileCommand : PdfCommand
 
     public override bool IsScaleDependent => true;
 
+    public override void Initialize(IEnumerable<IPdfCommandModifier> modifiers, PdfCommandExecutionContext executionContext)
+    {
+        _context.ImageCache.InitializeNextTile(executionContext.ExecutionObserver);
+        _context.MaskCache.InitializeNextTile(executionContext.ExecutionObserver);
+    }
+
     public override void Execute(IEnumerable<IPdfCommandModifier> modifiers, PdfCommandExecutionContext executionContext)
     {
-        PdfImageTile imageTile = _context.ImageCache.GetNextTile(executionContext.ExecutionObserver);
-        PdfImageTile maskTile = _context.MaskCache.GetNextTile(executionContext.ExecutionObserver);
+        PdfImageTile imageTile = _context.ImageCache.GetNextTile();
+        PdfImageTile maskTile = _context.MaskCache.GetNextTile();
         if (imageTile.IsSkipped || maskTile.IsSkipped || imageTile.Image == null || maskTile.Image == null)
         {
             return;
@@ -25,9 +31,10 @@ internal sealed class DrawStencilMaskedImageTileCommand : PdfCommand
         SKMatrix ctm = CommandHelpers.GetScaledMatrix(executionContext);
         SKSamplingOptions sampling = PdfImageCommandUtilities.GetSamplingOptions(ctm, _context.ImageSize, interpolate: false); // TODO: [HIGH] wire interpolate
 
-        using SKShader imageShader = ImageBlending.BuildImageShader(imageTile.Image, new SKSizeI(imageTile.TilePosition.Width, imageTile.TilePosition.Height), sampling);
+        using SKShader imageShader = ImageBlending.BuildImageShader(imageTile.Image, imageTile.SourceRegion, new SKSizeI(imageTile.TilePosition.Width, imageTile.TilePosition.Height), sampling);
         using SKShader maskShader = ImageBlending.BuildImageShader(
             maskTile.Image,
+            maskTile.SourceRegion,
             new SKSizeI(imageTile.TilePosition.Width, imageTile.TilePosition.Height),
             new SKSamplingOptions(SKFilterMode.Linear));
         using SKShader blendingShader = ImageBlending.CreateStencilMaskShader(imageShader, maskShader, inverse: _context.InvertMask);
