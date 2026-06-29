@@ -1,5 +1,6 @@
 ﻿using PdfPixel.Text;
 using System;
+using System.IO.Hashing;
 using System.Linq;
 
 namespace PdfPixel.Models;
@@ -76,16 +77,7 @@ public readonly struct PdfString : IEquatable<PdfString>
     /// Returns a hash code for the current <see cref="PdfString"/>.
     /// </summary>
     /// <returns>A hash code for the value.</returns>
-    public override int GetHashCode()
-    {
-        HashCode hash = new();
-        foreach (byte b in Value.Span)
-        {
-            hash.Add(b);
-        }
-
-        return hash.ToHashCode();
-    }
+    public override int GetHashCode() => (int)XxHash32.HashToUInt32(Value.Span);
 
     /// <summary>
     /// Equality operator for <see cref="PdfString"/>.

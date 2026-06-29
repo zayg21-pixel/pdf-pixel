@@ -4,7 +4,6 @@ using PdfPixel.PdfPanel.Extensions;
 using PdfPixel.PdfPanel.Requests;
 using SkiaSharp;
 using System;
-using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 
@@ -121,10 +120,9 @@ public sealed class PdfPanelRenderer : IDisposable
         {
             PdfContentPictures pictures = _contentProvider.GetExistingContentPictures(page.PageNumber);
 
-            if (pictures.Content?.HasContent == true)
+            if (!pictures.IsContentScaleDependant)
             {
-                TileClearMode clearMode = (pictures.IsContentScaleDependant) ? TileClearMode.None : TileClearMode.ClearOnScaleChange;
-                _tiler.UpdateTiles(page.PageNumber, pictures.Content, in page, in request, clearMode);
+                _tiler.UpdateTiles(page.PageNumber, pictures.Content, in page, in request, forceClearVisible: false);
             }
 
             surface.Canvas.DrawPage(page, request, pictures, _tiler, PageDrawFlags.All, animation);
@@ -229,10 +227,7 @@ public sealed class PdfPanelRenderer : IDisposable
 
         VisiblePageInfo page = _lastRequest.VisiblePages.First(p => p.PageNumber == args.PageNumber);
 
-        if (args.ContentPictures.Content?.HasContent == true)
-        {
-            _tiler.UpdateTiles(page.PageNumber, args.ContentPictures.Content, in page, in _lastRequest, TileClearMode.ForceClear);
-        }
+        _tiler.UpdateTiles(page.PageNumber, args.ContentPictures.Content, in page, in _lastRequest, forceClearVisible: true);
 
         SKSurface surface = GetSurface(_lastRequest);
         surface.Canvas.DrawPage(page, _lastRequest, args.ContentPictures, _tiler, PageDrawFlags.Background | PageDrawFlags.Content, null);

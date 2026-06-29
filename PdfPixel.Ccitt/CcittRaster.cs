@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 
 namespace PdfPixel.Ccitt;
@@ -21,22 +20,20 @@ public static class CcittRaster
     /// <param name="width">Row width in pixels.</param>
     /// <param name="blackIs1">Bit polarity (1=black when true).</param>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static void RasterizeRuns(in Span<byte> buffer, List<int> runs, int rowIndex, int width, bool blackIs1)
+    public static void RasterizeRuns(in Span<byte> buffer, in ReadOnlySpan<int> runs, int rowIndex, int width, bool blackIs1)
     {
-        if (runs == null)
-        {
-            throw new ArgumentNullException(nameof(runs));
-        }
-
         int rowBytes = (width + 7) / 8;
         int rowBase = rowIndex * rowBytes;
         int x = 0;
-        var isBlack = false; // first run white
+        var isBlack = false;
         int blackBit = blackIs1 ? 1 : 0;
 
-        for (int r = 0; r < runs.Count; r++)
+        ref readonly int runRef = ref runs[0];
+        int runCount = runs.Length;
+
+        for (int r = 0; r < runCount; r++)
         {
-            int runLength = runs[r];
+            int runLength = runRef;
             if (runLength > 0 && isBlack)
             {
                 WriteBlackRun(buffer, rowBase, x, runLength, blackBit);
@@ -44,6 +41,7 @@ public static class CcittRaster
 
             x += runLength;
             isBlack = !isBlack;
+            runRef = ref Unsafe.Add(ref Unsafe.AsRef(in runRef), 1);
         }
     }
 
@@ -51,39 +49,38 @@ public static class CcittRaster
     /// Build reference change list from run lengths for subsequent 2D line processing.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static int BuildReferenceChangeList(List<int> runs, int width, int[] buffer)
+    public static int BuildReferenceChangeList(in ReadOnlySpan<int> runs, int width, in Span<int> buffer)
     {
-        if (runs == null)
-        {
-            throw new ArgumentNullException(nameof(runs));
-        }
-
-        if (buffer == null)
-        {
-            throw new ArgumentNullException(nameof(runs));
-        }
-
         int position = 0;
-        if (runs.Count > 0 && runs[0] == 0)
+        int runCount = runs.Length;
+        ref int bufferWrite = ref buffer[0];
+
+        if (runCount > 0 && runs[0] == 0)
         {
-            buffer[position] = 0;
+            bufferWrite = 0;
+            bufferWrite = ref Unsafe.Add(ref bufferWrite, 1);
             position++;
         }
 
+        ref readonly int runRef = ref runs[0];
         int accumulator = 0;
-        for (int i = 0; i < runs.Count; i++)
+
+        for (int i = 0; i < runCount; i++)
         {
-            accumulator += runs[i];
+            accumulator += runRef;
             if (accumulator > 0 && accumulator < width)
             {
-                buffer[position] = accumulator;
+                bufferWrite = accumulator;
+                bufferWrite = ref Unsafe.Add(ref bufferWrite, 1);
                 position++;
             }
+
+            runRef = ref Unsafe.Add(ref Unsafe.AsRef(in runRef), 1);
         }
 
-        if (position == 0 || buffer[position - 1] != width)
+        if (position == 0 || Unsafe.Add(ref buffer[0], position - 1) != width)
         {
-            buffer[position] = width;
+            bufferWrite = width;
             position++;
         }
 

@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 
 namespace PdfPixel.Ccitt;
@@ -11,21 +10,18 @@ namespace PdfPixel.Ccitt;
 public static class CcittG4TwoDDecoder
 {
     /// <summary>
-    /// Decodes one CCITT G4 2-D encoded line into a run-length list using the provided reference change positions.
+    /// Decodes one CCITT G4 2-D encoded line into a run-length buffer using the provided reference change positions.
     /// </summary>
     /// <param name="reader">Bit reader positioned at the start of the line.</param>
     /// <param name="width">Line width in pixels.</param>
     /// <param name="referenceChanges">Change positions from the previous reference row (color-transition x-coordinates).</param>
-    /// <param name="runs">Output list; cleared then populated with alternating white/black run lengths (first run is white).</param>
+    /// <param name="runs">Output buffer populated with alternating white/black run lengths (first run is white).</param>
+    /// <param name="runsCount">On return, the number of runs written.</param>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static void DecodeTwoDLine(ref CcittBitReader reader, int width, in Span<int> referenceChanges, List<int> runs)
+    public static void DecodeTwoDLine(ref CcittBitReader reader, int width, in ReadOnlySpan<int> referenceChanges, in Span<int> runs, ref int runsCount)
     {
-        if (runs == null)
-        {
-            throw new ArgumentNullException(nameof(runs));
-        }
-
-        runs.Clear();
+        runsCount = 0;
+        ref int runWrite = ref runs[0];
 
         int a0 = 0;
         int currentRunLength = 0;
@@ -52,7 +48,7 @@ public static class CcittG4TwoDDecoder
             {
                 case ModeType.Pass:
                 {
-                    bool colorBefore = runs.Count % 2 == 1;
+                    bool colorBefore = runsCount % 2 == 1;
                     GetB1B2(referenceChanges, a0, colorBefore, out int b1, out int b2);
                     if (b1 < a0 || b2 <= b1 || b2 > width)
                     {
@@ -66,7 +62,7 @@ public static class CcittG4TwoDDecoder
                 }
                 case ModeType.Vertical:
                 {
-                    bool colorBefore = runs.Count % 2 == 1;
+                    bool colorBefore = runsCount % 2 == 1;
                     if (mode.VerticalDelta < -3 || mode.VerticalDelta > 3)
                     {
                         throw new InvalidOperationException("CCITT G4 decode error: vertical delta out of range (" + mode.VerticalDelta + ").");
@@ -81,13 +77,16 @@ public static class CcittG4TwoDDecoder
 
                     int run = a1 - a0;
                     currentRunLength += run;
-                    FinalizeRun(runs, ref currentRunLength);
+                    runWrite = currentRunLength;
+                    runWrite = ref Unsafe.Add(ref runWrite, 1);
+                    runsCount++;
+                    currentRunLength = 0;
                     a0 = a1;
                     break;
                 }
                 case ModeType.Horizontal:
                 {
-                    bool colorBefore = runs.Count % 2 == 1;
+                    bool colorBefore = runsCount % 2 == 1;
                     RunDecodeResult firstRun = CcittRunDecoder.DecodeRun(ref reader, colorBefore);
 
                     if (!firstRun.HasTerminating)
@@ -102,8 +101,11 @@ public static class CcittG4TwoDDecoder
 
                     currentRunLength += firstRun.Length;
                     a0 += firstRun.Length;
-                    FinalizeRun(runs, ref currentRunLength);
-                    bool colorAfterFirst = runs.Count % 2 == 1;
+                    runWrite = currentRunLength;
+                    runWrite = ref Unsafe.Add(ref runWrite, 1);
+                    runsCount++;
+                    currentRunLength = 0;
+                    bool colorAfterFirst = runsCount % 2 == 1;
 
                     RunDecodeResult secondRun = CcittRunDecoder.DecodeRun(ref reader, colorAfterFirst);
 
@@ -119,7 +121,10 @@ public static class CcittG4TwoDDecoder
 
                     currentRunLength += secondRun.Length;
                     a0 += secondRun.Length;
-                    FinalizeRun(runs, ref currentRunLength);
+                    runWrite = currentRunLength;
+                    runWrite = ref Unsafe.Add(ref runWrite, 1);
+                    runsCount++;
+                    currentRunLength = 0;
                     break;
                 }
                 default:
@@ -131,15 +136,9 @@ public static class CcittG4TwoDDecoder
 
         if (currentRunLength > 0)
         {
-            FinalizeRun(runs, ref currentRunLength);
+            runWrite = currentRunLength;
+            runsCount++;
         }
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static void FinalizeRun(List<int> runs, ref int currentLength)
-    {
-        runs.Add(currentLength);
-        currentLength = 0;
     }
 
     /// <summary>
@@ -147,9 +146,9 @@ public static class CcittG4TwoDDecoder
     /// is not equal to a0Color. Returns the last change if no such change is found.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    internal static int GetB1(in Span<int> referenceChanges, int a0, bool a0Color)
+    internal static int GetB1(in ReadOnlySpan<int> referenceChanges, int a0, bool a0Color)
     {
-        ref int start = ref referenceChanges[0];
+        ref readonly int start = ref referenceChanges[0];
         int length = referenceChanges.Length;
 
         for (int i = 0; i < length; i++)
@@ -161,17 +160,16 @@ public static class CcittG4TwoDDecoder
                 return changePosition;
             }
 
-            start = ref Unsafe.Add(ref start, 1);
+            start = ref Unsafe.Add(ref Unsafe.AsRef(in start), 1);
         }
 
-        // If not found, return the last change
         return referenceChanges[referenceChanges.Length - 1];
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    internal static void GetB1B2(in Span<int> referenceChanges, int a0, bool a0Color, out int b1, out int b2)
+    internal static void GetB1B2(in ReadOnlySpan<int> referenceChanges, int a0, bool a0Color, out int b1, out int b2)
     {
-        ref int start = ref referenceChanges[0];
+        ref readonly int start = ref referenceChanges[0];
         int length = referenceChanges.Length;
 
         for (int i = 0; i < length; i++)
@@ -184,10 +182,9 @@ public static class CcittG4TwoDDecoder
                 return;
             }
 
-            start = ref Unsafe.Add(ref start, 1);
+            start = ref Unsafe.Add(ref Unsafe.AsRef(in start), 1);
         }
 
-        // Fallback: assign last change for both b1 and b2
         b1 = referenceChanges[referenceChanges.Length - 1];
         b2 = b1;
     }

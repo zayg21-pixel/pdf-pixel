@@ -11,7 +11,7 @@ namespace PdfPixel.Commands.Image;
 /// </summary>
 internal sealed class PdfCommandImageCache : IDisposable
 {
-    private const int MaxCachedImageSize = 256;
+    private const int MaxCachedImageSize = 256; // TODO: [MEDIUM] wire constants to parsing parameters
 
     private readonly Dictionary<Guid, SKImage> _largeImages = [];
     private readonly List<AtlasPage> _pages = [];
@@ -105,24 +105,6 @@ internal sealed class PdfCommandImageCache : IDisposable
         }
     }
 
-    /// <inheritdoc />
-    public void Dispose()
-    {
-        foreach (SKImage image in _largeImages.Values)
-        {
-            image.Dispose();
-        }
-
-        _largeImages.Clear();
-
-        foreach (AtlasPage page in _pages)
-        {
-            page.Dispose();
-        }
-
-        _pages.Clear();
-    }
-
     private AtlasPage? FindActivePage(ref readonly AtlasKey key)
     {
         for (int i = _pages.Count - 1; i >= 0; i--)
@@ -147,5 +129,23 @@ internal sealed class PdfCommandImageCache : IDisposable
         }
 
         return null;
+    }
+
+    /// <inheritdoc />
+    public void Dispose()
+    {
+        foreach (SKImage image in _largeImages.Values)
+        {
+            image.Dispose();
+        }
+
+        _largeImages.Clear();
+
+        foreach (AtlasPage page in _pages)
+        {
+            page.Dispose();
+        }
+
+        _pages.Clear();
     }
 }

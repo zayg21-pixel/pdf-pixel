@@ -1,5 +1,5 @@
 using System;
-using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 
 namespace PdfPixel.Ccitt;
 
@@ -11,26 +11,23 @@ namespace PdfPixel.Ccitt;
 public static class CcittG3OneDDecoder
 {
     /// <summary>
-    /// Decodes one CCITT G3 1-D encoded line into a run-length list.
+    /// Decodes one CCITT G3 1-D encoded line into a run-length buffer.
     /// </summary>
     /// <param name="reader">Bit reader positioned at the start of the line.</param>
     /// <param name="width">Expected line width in pixels.</param>
     /// <param name="requireLeadingEol">When true, a leading EOL marker must be present and is consumed first.</param>
     /// <param name="byteAlign">When true, the reader is byte-aligned after consuming the leading EOL.</param>
-    /// <param name="runs">Output list; cleared then populated with alternating white/black run lengths (first run is white).</param>
+    /// <param name="runs">Output buffer populated with alternating white/black run lengths (first run is white).</param>
+    /// <param name="runsCount">On return, the number of runs written.</param>
     public static void DecodeOneDCollectRuns(
         ref CcittBitReader reader,
         int width,
         bool requireLeadingEol,
         bool byteAlign,
-        List<int> runs)
+        in Span<int> runs,
+        ref int runsCount)
     {
-        if (runs == null)
-        {
-            throw new ArgumentNullException(nameof(runs));
-        }
-
-        runs.Clear();
+        runsCount = 0;
 
         if (requireLeadingEol)
         {
@@ -47,6 +44,7 @@ public static class CcittG3OneDDecoder
 
         int xPosition = 0;
         var currentIsBlack = false;
+        ref int runWrite = ref runs[0];
 
         while (xPosition < width)
         {
@@ -78,7 +76,9 @@ public static class CcittG3OneDDecoder
                 throw new InvalidOperationException("CCITT G3 1D decode error: run overruns line (run=" + runLength + ", x=" + xPosition + ").");
             }
 
-            runs.Add(runLength);
+            runWrite = runLength;
+            runWrite = ref Unsafe.Add(ref runWrite, 1);
+            runsCount++;
             xPosition += runLength;
             currentIsBlack = !currentIsBlack;
         }

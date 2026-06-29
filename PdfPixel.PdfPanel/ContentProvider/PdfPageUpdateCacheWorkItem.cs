@@ -178,7 +178,7 @@ public class PdfPageUpdateCacheWorkItem : IWorkItem
     /// command replay and recorded pictures operate in) and intersects it with the page
     /// bounds, giving the visible portion of the page content in its own coordinate system.
     /// </summary>
-    private SKRect ComputeRegionOfInterest()
+    private SKRect ComputeRegionOfInterest() // TODO: [MEDIUM] this can be a common helper
     {
         VisiblePageInfo visiblePageInfo = _request.VisiblePages.First(page => page.PageNumber == CacheEntry.PageNumber);
 

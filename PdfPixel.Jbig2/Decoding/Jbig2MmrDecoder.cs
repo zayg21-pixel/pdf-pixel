@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using PdfPixel.Ccitt;
 using PdfPixel.Jbig2.Model;
 
@@ -32,19 +31,22 @@ internal static class Jbig2MmrDecoder
         referenceChanges[0] = width;
         int changesCount = 1;
 
-        List<int> runs = new(64);
+        var runs = new int[width + 1];
+        int runsCount = 0;
 
         for (int y = 0; y < height; y++)
         {
             observer?.Notify();
 
-            CcittG4TwoDDecoder.DecodeTwoDLine(ref reader, width, new Span<int>(referenceChanges, 0, changesCount), runs);
+            runsCount = 0;
+            ReadOnlySpan<int> refChanges = new(referenceChanges, 0, changesCount);
+            CcittG4TwoDDecoder.DecodeTwoDLine(ref reader, width, refChanges, runs, ref runsCount);
 
-            // Rasterize runs directly into the bitmap row (JBIG2 uses blackIs1=true)
+            ReadOnlySpan<int> decodedRuns = new(runs, 0, runsCount);
             Span<byte> row = bitmap.GetRow(y);
-            CcittRaster.RasterizeRuns(row, runs, 0, width, blackIs1: true);
+            CcittRaster.RasterizeRuns(row, decodedRuns, 0, width, blackIs1: true);
 
-            changesCount = CcittRaster.BuildReferenceChangeList(runs, width, referenceChanges);
+            changesCount = CcittRaster.BuildReferenceChangeList(decodedRuns, width, referenceChanges);
         }
 
         // Consume the EOFB terminator (2 consecutive EOL codes) that follows each

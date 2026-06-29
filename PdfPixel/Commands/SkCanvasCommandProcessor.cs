@@ -40,6 +40,7 @@ public sealed class SkCanvasCommandProcessor : IPdfCommandProcessor
 
         try
         {
+            command.Initialize(Array.Empty<IPdfCommandModifier>(), _executionContext);
             command.Execute(Array.Empty<IPdfCommandModifier>(), _executionContext);
         }
         catch (OperationCanceledException)

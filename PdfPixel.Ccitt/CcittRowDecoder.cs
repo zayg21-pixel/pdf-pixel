@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 
 namespace PdfPixel.Ccitt;
@@ -30,7 +29,8 @@ public sealed class CcittRowDecoder
 
     private readonly int[] _referenceChanges;
     private int _changesCount;
-    private readonly List<int> _runs;
+    private readonly int[] _runs;
+    private int _runsCount;
 
     private int _currentRowIndex;
     private bool _completed;
@@ -80,7 +80,8 @@ public sealed class CcittRowDecoder
         _bufferedBits = 0;
         _buffer = 0;
 
-        _runs = new List<int>(256);
+        _runs = new int[_width + 1];
+        _runsCount = 0;
         _referenceChanges = new int[_width + 1];
         _referenceChanges[0] = _width;
         _changesCount = 1;
@@ -134,24 +135,27 @@ public sealed class CcittRowDecoder
 
         bool isOneDLine = DetermineLineKind(ref reader);
 
-        _runs.Clear();
+        _runsCount = 0;
+        Span<int> runsSpan = _runs;
 
         if (isOneDLine)
         {
-            CcittG3OneDDecoder.DecodeOneDCollectRuns(ref reader, _width, requireLeadingEol: false, byteAlign: false, runs: _runs);
+            CcittG3OneDDecoder.DecodeOneDCollectRuns(ref reader, _width, requireLeadingEol: false, byteAlign: false, runs: runsSpan, runsCount: ref _runsCount);
         }
         else
         {
-            CcittG4TwoDDecoder.DecodeTwoDLine(ref reader, _width, _referenceChanges.AsSpan().Slice(0, _changesCount), _runs);
+            ReadOnlySpan<int> refChanges = new(_referenceChanges, 0, _changesCount);
+            CcittG4TwoDDecoder.DecodeTwoDLine(ref reader, _width, refChanges, runsSpan, ref _runsCount);
         }
 
         Span<byte> rowSpan = destinationRow.Slice(0, RowStride);
+        ReadOnlySpan<int> decodedRuns = new(_runs, 0, _runsCount);
 
         CleanupBuffer(rowSpan);
 
-        CcittRaster.RasterizeRuns(rowSpan, _runs, 0, _width, _blackIs1);
+        CcittRaster.RasterizeRuns(rowSpan, decodedRuns, 0, _width, _blackIs1);
 
-        _changesCount = CcittRaster.BuildReferenceChangeList(_runs, _width, _referenceChanges);
+        _changesCount = CcittRaster.BuildReferenceChangeList(decodedRuns, _width, _referenceChanges);
 
         // Snapshot updated reader state
         _byteIndex = reader.ByteIndex;

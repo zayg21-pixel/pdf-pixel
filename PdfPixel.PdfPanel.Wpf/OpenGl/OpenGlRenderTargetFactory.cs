@@ -77,23 +77,12 @@ public sealed class OpenGlRenderTargetFactory : IPdfPanelRenderTargetFactory, IP
             throw new InvalidOperationException("Failed to create GRGlInterface for WGL context.");
         }
 
-        var contextOptions = new GRContextOptions
-        {
-            RuntimeProgramCacheSize = 128,
-            DoManualMipmapping = true
-        };
-
-        _grContext = GRContext.CreateGl(glInterface, contextOptions);
+        _grContext = GRContext.CreateGl(glInterface);
 
         if (_grContext == null)
         {
             throw new InvalidOperationException("Failed to create GRContext for WGL context.");
         }
-
-        // Cap GPU resource cache to limit stencil/texture memory from path clipping.
-        // Without a limit, Ganesh grows the cache unbounded. On integrated GPUs
-        // (shared system RAM) this manifests as visible process memory growth.
-        _grContext.SetResourceCacheLimit(ResourceCacheLimitBytes);
     }
 
     /// <inheritdoc />
@@ -214,6 +203,7 @@ public sealed class OpenGlRenderTargetFactory : IPdfPanelRenderTargetFactory, IP
     public SKSurface GetTilingSurface(int width, int height)
     {
         _glContext.MakeCurrent();
+        _grContext.PurgeUnlockedResources(scratchResourcesOnly: true);
 
         if (_tilingSurface != null && _tilingWidth == width && _tilingHeight == height)
         {

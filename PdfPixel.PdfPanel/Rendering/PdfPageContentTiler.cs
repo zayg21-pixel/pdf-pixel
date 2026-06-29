@@ -3,6 +3,7 @@ using PdfPixel.PdfPanel.Requests;
 using SkiaSharp;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace PdfPixel.PdfPanel.Rendering;
 
@@ -13,7 +14,7 @@ namespace PdfPixel.PdfPanel.Rendering;
 /// </summary>
 public sealed class PdfPageContentTiler : IDisposable
 {
-    private const int TileSize = 1024;
+    private const int TileSize = 256;
 
     private readonly ISkSurfaceFactory _surfaceFactory;
     private readonly Dictionary<int, PageTileCache> _pageCache = [];
@@ -27,10 +28,9 @@ public sealed class PdfPageContentTiler : IDisposable
     /// </summary>
     public void UpdateTiles(
         int pageNumber,
-        ContentLocker<SKPicture> contentLocker,
+        ContentLocker<SKPicture>? contentLocker,
         ref readonly VisiblePageInfo pageInfo,
-        ref readonly PagesDrawingRequest request,
-        TileClearMode clearMode)
+        ref readonly PagesDrawingRequest request, bool forceClearVisible)
     {
         if (contentLocker?.HasContent != true)
         {
@@ -43,48 +43,46 @@ public sealed class PdfPageContentTiler : IDisposable
             _pageCache[pageNumber] = pageCache;
         }
 
-        bool shouldClear = clearMode == TileClearMode.ForceClear
-            || (clearMode == TileClearMode.ClearOnScaleChange && pageCache.Scale != request.Scale);
-
-        if (shouldClear)
+        if (pageCache.Scale != request.Scale)
         {
             pageCache.Clear();
             pageCache.Scale = request.Scale;
         }
 
         SKRect visibleRegion = ComputeVisibleRegion(in pageInfo, in request);
-        RasterizeVisibleTiles(pageCache, contentLocker, in pageInfo, request.Scale, visibleRegion);
+
+        if (forceClearVisible)
+        {
+            ClearTilesInRegion(pageCache, visibleRegion);
+        }
+
+        RasterizeVisibleTiles(pageCache, contentLocker, request.Scale, visibleRegion);
     }
 
     /// <summary>
     /// Draws cached tiles for the given page onto the canvas.
     /// </summary>
-    public void DrawTiles(SKCanvas canvas, int pageNumber, float currentScale)
+    public void DrawTiles(SKCanvas canvas, int pageNumber, ref readonly VisiblePageInfo pageInfo, float currentScale)
     {
         if (!_pageCache.TryGetValue(pageNumber, out PageTileCache? pageCache))
         {
             return;
         }
 
-        float scaledTileSize = TileSize / pageCache.Scale;
-
         SKSamplingOptions sampling = (pageCache.Scale != currentScale)
             ? new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.Linear)
             : SKSamplingOptions.Default;
 
-        foreach (KeyValuePair<long, SKImage> entry in pageCache.Tiles)
+        SKMatrix contentTransform = pageInfo.ContentTransform;
+        int savedCount = canvas.Save();
+        canvas.Concat(in contentTransform);
+
+        foreach (CachedTile tile in pageCache.Tiles)
         {
-            var tileX = (int)(entry.Key >> 32);
-            var tileY = (int)(entry.Key & 0xFFFFFFFF);
-
-            SKRect dest = new(
-                tileX * scaledTileSize,
-                tileY * scaledTileSize,
-                (tileX + 1) * scaledTileSize,
-                (tileY + 1) * scaledTileSize);
-
-            canvas.DrawImage(entry.Value, dest, sampling);
+            canvas.DrawImage(tile.Image, tile.Destination, sampling);
         }
+
+        canvas.RestoreToCount(savedCount);
     }
 
     /// <summary>
@@ -97,34 +95,10 @@ public sealed class PdfPageContentTiler : IDisposable
     /// </summary>
     public void EvictExcept(IReadOnlyList<VisiblePageInfo> visiblePages)
     {
-        List<int>? toRemove = null;
-
-        foreach (int pageNumber in _pageCache.Keys)
+        foreach (int pageNumber in _pageCache.Keys.Where(key => !visiblePages.Any(page => page.PageNumber == key)).ToList())
         {
-            var found = false;
-            for (int i = 0; i < visiblePages.Count; i++)
-            {
-                if (visiblePages[i].PageNumber == pageNumber)
-                {
-                    found = true;
-                    break;
-                }
-            }
-
-            if (!found)
-            {
-                toRemove ??= new List<int>();
-                toRemove.Add(pageNumber);
-            }
-        }
-
-        if (toRemove != null)
-        {
-            foreach (int pageNumber in toRemove)
-            {
-                _pageCache[pageNumber].Clear();
-                _pageCache.Remove(pageNumber);
-            }
+            _pageCache[pageNumber].Clear();
+            _pageCache.Remove(pageNumber);
         }
     }
 
@@ -147,7 +121,6 @@ public sealed class PdfPageContentTiler : IDisposable
     private void RasterizeVisibleTiles(
         PageTileCache pageCache,
         ContentLocker<SKPicture> contentLocker,
-        ref readonly VisiblePageInfo pageInfo,
         float scale,
         SKRect visibleRegion)
     {
@@ -162,25 +135,53 @@ public sealed class PdfPageContentTiler : IDisposable
         {
             for (int col = startCol; col < endCol; col++)
             {
-                long tileKey = ((long)col << 32) | (uint)row;
+                SKRect destination = SKRect.Create(
+                    col * scaledTileSize,
+                    row * scaledTileSize,
+                    scaledTileSize,
+                    scaledTileSize);
 
-                if (pageCache.Tiles.ContainsKey(tileKey))
+                if (HasTileAt(pageCache, destination))
                 {
                     continue;
                 }
 
-                SKImage? tileImage = RasterizeTile(contentLocker, in pageInfo, scale, col, row, scaledTileSize);
+                SKImage? tileImage = RasterizeTile(contentLocker, scale, col, row, scaledTileSize);
                 if (tileImage != null)
                 {
-                    pageCache.Tiles[tileKey] = tileImage;
+                    pageCache.Tiles.Add(new CachedTile(tileImage, destination));
                 }
             }
         }
     }
 
+    private static void ClearTilesInRegion(PageTileCache pageCache, SKRect region)
+    {
+        for (int i = pageCache.Tiles.Count - 1; i >= 0; i--)
+        {
+            if (pageCache.Tiles[i].Destination.IntersectsWith(region))
+            {
+                pageCache.Tiles[i].Dispose();
+                pageCache.Tiles.RemoveAt(i);
+            }
+        }
+    }
+
+    private static bool HasTileAt(PageTileCache pageCache, SKRect destination)
+    {
+        for (int i = 0; i < pageCache.Tiles.Count; i++)
+        {
+            if (pageCache.Tiles[i].Destination == destination)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     private SKImage? RasterizeTile(
         ContentLocker<SKPicture> contentLocker,
-        ref readonly VisiblePageInfo pageInfo,
         float scale,
         int col,
         int row,
@@ -201,9 +202,6 @@ public sealed class PdfPageContentTiler : IDisposable
         tileCanvas.Scale(scale, scale);
         tileCanvas.Translate(-col * scaledTileSize, -row * scaledTileSize);
 
-        SKMatrix contentTransform = pageInfo.ContentTransform;
-        tileCanvas.Concat(in contentTransform);
-
         tileCanvas.DrawPicture(lockedPicture.Content);
         tileCanvas.RestoreToCount(savedCount);
         tileCanvas.Flush();
@@ -223,17 +221,26 @@ public sealed class PdfPageContentTiler : IDisposable
         return regionOfInterest;
     }
 
+    private sealed class CachedTile(SKImage image, SKRect destination) : IDisposable
+    {
+        public SKImage Image { get; } = image;
+
+        public SKRect Destination { get; } = destination;
+
+        public void Dispose() => Image.Dispose();
+    }
+
     private sealed class PageTileCache
     {
-        public Dictionary<long, SKImage> Tiles { get; } = [];
+        public List<CachedTile> Tiles { get; } = [];
 
         public float Scale { get; set; }
 
         public void Clear()
         {
-            foreach (SKImage image in Tiles.Values)
+            foreach (CachedTile tile in Tiles)
             {
-                image.Dispose();
+                tile.Dispose();
             }
 
             Tiles.Clear();

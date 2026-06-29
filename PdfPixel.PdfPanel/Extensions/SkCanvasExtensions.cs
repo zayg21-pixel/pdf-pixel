@@ -52,7 +52,7 @@ internal static class SkCanvasExtensions
             if ((flags & PageDrawFlags.Content) != 0)
             {
                 int layerCount = canvas.SaveLayer();
-                tiler.DrawTiles(canvas, page.PageNumber, request.Scale);
+                tiler.DrawTiles(canvas, page.PageNumber, in page, request.Scale);
                 DrawPagePicture(canvas, pictures?.Annotations, page);
                 canvas.RestoreToCount(layerCount);
 
