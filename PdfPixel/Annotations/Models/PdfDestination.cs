@@ -55,7 +55,6 @@ public sealed class PdfDestination
     /// This method resolves the page once and caches it for subsequent calls.
     /// </remarks>
     /// <returns>The resolved <see cref="PdfPage"/>, or null if it cannot be resolved.</returns>
-    /// <returns>The resolved <see cref="PdfPage"/>, or null if it cannot be resolved when the page is not found.</returns>
     public IPdfPage? GetPdfPage()
     {
         if (_cachedPage != null)

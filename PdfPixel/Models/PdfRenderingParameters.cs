@@ -41,5 +41,5 @@ public class PdfRenderingParameters
     /// When true, text character data is extracted and accumulated in the text block tree
     /// accessible via <see cref="Commands.PdfCommandExecutionContext.RootTextBlock"/> during command execution.
     /// </summary>
-    public bool ExtractText { get; set; }
+    public bool ExtractText { get; set; } = true;
 }

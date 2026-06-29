@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging;
+using PdfPixel.TextExtraction;
 using System;
 using System.Collections.Generic;
 
@@ -24,4 +25,10 @@ public interface IPdfDocument : IDisposable
     /// keyed by their indirect object reference. Empty if the document has no optional content.
     /// </summary>
     IReadOnlyDictionary<PdfReference, PdfOptionalContentGroup> OptionalContentGroups { get; }
+
+    /// <summary>
+    /// Gets the document structure tree providing per-page MCID reading order,
+    /// or <see langword="null"/> for untagged documents.
+    /// </summary>
+    PdfStructureTree? StructureTree { get; }
 }

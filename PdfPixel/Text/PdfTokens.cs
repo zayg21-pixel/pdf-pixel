@@ -387,6 +387,12 @@ internal static class PdfTokens
     public static readonly PdfString IndicesKey = (PdfString)"I"u8;                   // Selected indices for list box
     public static readonly PdfString AppearanceCharacteristicsKey = (PdfString)"MK"u8; // Appearance characteristics dictionary
 
+    // Structure tree keys
+    public static readonly PdfString StructTreeRootKey = (PdfString)"StructTreeRoot"u8;
+    public static readonly PdfString PgKey = (PdfString)"Pg"u8;                           // Page reference in structure element
+    public static readonly PdfString AltKey = (PdfString)"Alt"u8;                         // Alternative text in structure element
+    public static readonly PdfString ExpandedFormKey = (PdfString)"E"u8;                  // Expanded form of abbreviation in structure element
+
     // Page label number tree keys
     public static readonly PdfString PageLabelsKey = (PdfString)"PageLabels"u8;
     public static readonly PdfString NumsKey = (PdfString)"Nums"u8;

@@ -131,7 +131,8 @@ public sealed class PdfPageCacheEntry : IDisposable
         {
             Content = Content.ContentPicture,
             Annotations = AnnotationContent.ContentPicture,
-            IsContentScaleDependant = Content.IsScaleDependant
+            IsContentScaleDependant = Content.IsScaleDependant,
+            ContentRootTextBlock = Content.RootTextBlock
         };
     }
 

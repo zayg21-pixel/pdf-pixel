@@ -42,7 +42,8 @@ public class PdfTextMarkup
     public bool IsArtifact { get; }
 
     /// <summary>
-    /// Marked content identifier linking to the structure tree (/MCID).
+    /// Owning structure element, or <see langword="null"/> if not linked to the structure tree.
+    /// Provides access to the semantic tag hierarchy and reading order index.
     /// </summary>
-    public int? Mcid { get; internal set; }
+    public PdfStructureElement? StructureElement { get; internal set; }
 }

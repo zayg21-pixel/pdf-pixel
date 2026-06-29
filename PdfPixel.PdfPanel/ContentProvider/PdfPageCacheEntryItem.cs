@@ -1,5 +1,6 @@
 using PdfPixel.Commands;
 using PdfPixel.PdfPanel.Requests;
+using PdfPixel.TextExtraction;
 using SkiaSharp;
 using System;
 using System.Linq;
@@ -35,6 +36,11 @@ public sealed class PdfPageCacheEntryItem : IDisposable
     public PagesDrawingRequest? LastRequest { get; private set; }
 
     /// <summary>
+    /// Root of the text block tree extracted during the last content picture generation.
+    /// </summary>
+    public PdfTextBlock? RootTextBlock { get; private set; }
+
+    /// <summary>
     /// Replace page content with a new command recording. Disposes the previous recording if present.
     /// </summary>
     /// <param name="commandRecording">New command recording. May be null.</param>
@@ -56,7 +62,7 @@ public sealed class PdfPageCacheEntryItem : IDisposable
     /// <summary>
     /// Replace the content picture and remember the request that produced it. Disposes the previous picture if present.
     /// </summary>
-    public void UpdateContentPicture(SKPicture? picture, PagesDrawingRequest request, bool isPartialContent)
+    public void UpdateContentPicture(SKPicture? picture, PagesDrawingRequest request, bool isPartialContent, PdfTextBlock? rootTextBlock = null)
     {
         if (request == null)
         {
@@ -67,6 +73,7 @@ public sealed class PdfPageCacheEntryItem : IDisposable
         ContentPicture.SetContent(picture);
         LastRequest = request;
         _wasPartialContent = isPartialContent;
+        RootTextBlock = rootTextBlock;
     }
 
     /// <summary>
@@ -97,6 +104,7 @@ public sealed class PdfPageCacheEntryItem : IDisposable
         ContentPicture.SetContent(default);
         LastRequest = null;
         _wasPartialContent = false;
+        RootTextBlock = null;
     }
 
     private void ThrowIfDisposed()

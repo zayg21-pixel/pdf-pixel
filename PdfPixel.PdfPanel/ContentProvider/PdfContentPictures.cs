@@ -1,3 +1,4 @@
+using PdfPixel.TextExtraction;
 using SkiaSharp;
 
 namespace PdfPixel.PdfPanel.ContentProvider;
@@ -22,4 +23,9 @@ public class PdfContentPictures
     /// When false, the same picture can be re-tiled at any scale without re-decoding.
     /// </summary>
     public bool IsContentScaleDependant { get; set; }
+
+    /// <summary>
+    /// Root of the text block tree extracted from the main content.
+    /// </summary>
+    public PdfTextBlock? ContentRootTextBlock { get; set; }
 }

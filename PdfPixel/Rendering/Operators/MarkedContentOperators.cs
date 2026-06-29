@@ -139,22 +139,28 @@ internal class MarkedContentOperators : IOperatorProcessor
         _processor.Process(new BeginMarkedContentCommand(markedContent));
     }
 
-    private static PdfTextMarkup? TryParseTextMarkup(in PdfString tagName, PdfDictionary? propertiesDictionary)
+    private PdfTextMarkup? TryParseTextMarkup(in PdfString tagName, PdfDictionary? propertiesDictionary)
     {
         PdfTextTag tag = tagName.AsEnum<PdfTextTag>();
 
-        var hasProperties = false;
-        PdfString actualText = default;
-        PdfString lang = default;
+        PdfString inlineActualText = default;
+        PdfString inlineLang = default;
         int? mcid = null;
 
         if (propertiesDictionary != null)
         {
-            actualText = propertiesDictionary.GetString(PdfTokens.ActualTextKey);
-            lang = propertiesDictionary.GetString(PdfTokens.LangKey);
+            inlineActualText = propertiesDictionary.GetString(PdfTokens.ActualTextKey);
+            inlineLang = propertiesDictionary.GetString(PdfTokens.LangKey);
             mcid = propertiesDictionary.GetInteger(PdfTokens.MCIDKey);
-            hasProperties = !actualText.IsEmpty || !lang.IsEmpty || mcid != null;
         }
+
+        PdfStructureElement? structureElement = null;
+        if (mcid != null)
+        {
+            structureElement = _page.Document.StructureTree?.FindByMcid(_page.PageObject.Reference, mcid.Value);
+        }
+
+        bool hasProperties = !inlineActualText.IsEmpty || !inlineLang.IsEmpty || structureElement != null;
 
         if (tag == PdfTextTag.Custom && !hasProperties)
         {
@@ -168,11 +174,16 @@ internal class MarkedContentOperators : IOperatorProcessor
             markup.CustomTag = tagName;
         }
 
-        if (hasProperties)
+        if (structureElement != null)
         {
-            markup.ActualText = actualText;
-            markup.Lang = lang;
-            markup.Mcid = mcid;
+            markup.ActualText = (inlineActualText.IsEmpty) ? structureElement.ActualText : inlineActualText;
+            markup.Lang = (inlineLang.IsEmpty) ? structureElement.Lang : inlineLang;
+            markup.StructureElement = structureElement;
+        }
+        else
+        {
+            markup.ActualText = inlineActualText;
+            markup.Lang = inlineLang;
         }
 
         return markup;

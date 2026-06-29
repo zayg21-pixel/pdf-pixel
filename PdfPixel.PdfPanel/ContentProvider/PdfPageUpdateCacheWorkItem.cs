@@ -2,6 +2,7 @@ using PdfPixel.Commands;
 using PdfPixel.Models;
 using PdfPixel.PdfPanel.Requests;
 using PdfPixel.PdfPanel.WorkQueue;
+using PdfPixel.TextExtraction;
 using SkiaSharp;
 using System;
 using System.Collections.Generic;
@@ -81,16 +82,23 @@ public class PdfPageUpdateCacheWorkItem : IWorkItem
 
             if (contentRecording.Content != null)
             {
-                SKPicture? contentPicture = PdfDocumentContentExtensions.RecordingToSkPicture(
-                    CacheEntry.PageInfo,
-                    contentRecording.Content,
+                using SKPictureRecorder recorder = new();
+                SKCanvas canvas = recorder.BeginRecording(SKRect.Create(CacheEntry.PageInfo.Width, CacheEntry.PageInfo.Height));
+                using PdfCommandExecutionContext executionContext = new(
                     _request.CommandExecutionParameters,
                     _documentLocker,
                     _document.OptionalContentGroups,
                     _contentObserver,
-                    out bool isPartialContent,
+                    canvas,
                     regionOfInterest);
-                CacheEntry.Content.UpdateContentPicture(contentPicture, _request, isPartialContent);
+
+                PdfDocumentContentExtensions.RecordingToSkPicture(contentRecording.Content, executionContext);
+
+                SKPicture? contentPicture = recorder.EndRecording();
+                bool isPartialContent = executionContext.IsPartialContent;
+                PdfTextBlock rootTextBlock = executionContext.RootTextBlock;
+
+                CacheEntry.Content.UpdateContentPicture(contentPicture, _request, isPartialContent, rootTextBlock);
                 contentUpdated = true;
                 contentIsPartial = isPartialContent;
             }
@@ -127,18 +135,29 @@ public class PdfPageUpdateCacheWorkItem : IWorkItem
         {
             using LockedContent<PdfCommandRecorder> contentRecording = CacheEntry.AnnotationContent.ContentCommandRecording.GetContent();
 
-            SkiaSharp.SKPicture? contentPicture = PdfDocumentContentExtensions.RecordingToSkPicture(
-                CacheEntry.PageInfo,
-                contentRecording.Content,
-                _request.CommandExecutionParameters,
-                _documentLocker,
-                _document.OptionalContentGroups,
-                _contentObserver,
-                out bool isPartialContent,
-                regionOfInterest);
-            CacheEntry.AnnotationContent.UpdateContentPicture(contentPicture, _request, isPartialContent);
+            var annotationIsPartial = false;
 
-            _onPageUpdated?.Invoke(new PageUpdatedArgs(CacheEntry.PageNumber, CacheEntry.GetContentPictures(), UpdatedContentType.Annotations, isPartialContent));
+            if (contentRecording.Content != null)
+            {
+                using SKPictureRecorder annotationRecorder = new();
+                SKCanvas annotationCanvas = annotationRecorder.BeginRecording(SKRect.Create(CacheEntry.PageInfo.Width, CacheEntry.PageInfo.Height));
+                using PdfCommandExecutionContext annotationContext = new(
+                    _request.CommandExecutionParameters,
+                    _documentLocker,
+                    _document.OptionalContentGroups,
+                    _contentObserver,
+                    annotationCanvas,
+                    regionOfInterest);
+
+                PdfDocumentContentExtensions.RecordingToSkPicture(contentRecording.Content, annotationContext);
+
+                SKPicture? annotationPicture = annotationRecorder.EndRecording();
+                annotationIsPartial = annotationContext.IsPartialContent;
+
+                CacheEntry.AnnotationContent.UpdateContentPicture(annotationPicture, _request, annotationIsPartial);
+            }
+
+            _onPageUpdated?.Invoke(new PageUpdatedArgs(CacheEntry.PageNumber, CacheEntry.GetContentPictures(), UpdatedContentType.Annotations, annotationIsPartial));
         }
     }
 

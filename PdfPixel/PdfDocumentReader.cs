@@ -4,6 +4,8 @@ using PdfPixel.Color.Icc.Model;
 using PdfPixel.Fonts.Management;
 using PdfPixel.Models;
 using PdfPixel.Parsing;
+using PdfPixel.Text;
+using PdfPixel.TextExtraction;
 using System;
 using System.IO;
 
@@ -104,6 +106,9 @@ public class PdfDocumentReader
 
             PdfOptionalContentGroupParser ocgParser = new(document.RootObject, _loggerFactory.CreateLogger<PdfOptionalContentGroupParser>());
             ((PdfDocument)document).OptionalContentGroups = ocgParser.Parse();
+
+            PdfDictionary? structTreeRoot = document.RootObject.Dictionary.GetDictionary(PdfTokens.StructTreeRootKey);
+            ((PdfDocument)document).StructureTree = PdfStructureTree.FromDictionary(structTreeRoot, document);
 
             IccProfile? outputIntentProfile = outputIntentParser.ParseFirstOutputIntentProfile();
             document.ObjectCache.OutputIntentProfile = outputIntentProfile;

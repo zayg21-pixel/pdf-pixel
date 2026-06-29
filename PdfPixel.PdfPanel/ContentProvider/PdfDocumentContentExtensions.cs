@@ -79,35 +79,32 @@ internal static class PdfDocumentContentExtensions
         return commandRecording;
     }
 
-    public static SKPicture? RecordingToSkPicture(
-        in PdfPanelPageInfo pageInfo,
-        PdfCommandRecorder? commandRecording,
-        PdfCommandExecutionParameters executionParameters,
-        object contentLocker,
-        IReadOnlyDictionary<PdfReference, PdfOptionalContentGroup> optionalContentGroups,
-        IPdfExecutionObserver executionObserver,
-        out bool isPartialContent,
-        SKRect? regionOfInterest = null)
+    /// <summary>
+    /// Replays the command recording onto the execution context's canvas.
+    /// The caller is responsible for creating the <see cref="SKPictureRecorder"/>,
+    /// beginning recording, constructing the <see cref="PdfCommandExecutionContext"/>
+    /// with the resulting canvas, and calling <see cref="SKPictureRecorder.EndRecording"/>
+    /// after this method returns.
+    /// </summary>
+    public static void RecordingToSkPicture(
+        PdfCommandRecorder commandRecording,
+        PdfCommandExecutionContext executionContext)
     {
-        isPartialContent = false;
-
         if (commandRecording == null)
         {
-            return null;
+            throw new ArgumentNullException(nameof(commandRecording));
         }
 
-        using SKPictureRecorder recorder = new();
-        SKCanvas canvas = recorder.BeginRecording(SKRect.Create(pageInfo.Width, pageInfo.Height));
-        using PdfCommandExecutionContext executionContext = new(executionParameters, contentLocker, optionalContentGroups, executionObserver, canvas, regionOfInterest);
+        if (executionContext == null)
+        {
+            throw new ArgumentNullException(nameof(executionContext));
+        }
 
         commandRecording.Initialize(Array.Empty<IPdfCommandModifier>(), executionContext);
         executionContext.Frames.Reset();
         commandRecording.Replay(Array.Empty<IPdfCommandModifier>(), executionContext);
 
         executionContext.Canvas.Flush();
-        isPartialContent = executionContext.IsPartialContent;
-
-        return recorder.EndRecording();
     }
 
     private static void ApplyPageTransformations(IPdfPage pdfPage, PdfCommandRecorder commandRecording)

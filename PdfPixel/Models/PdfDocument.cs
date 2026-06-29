@@ -1,11 +1,12 @@
 using Microsoft.Extensions.Logging;
 using PdfPixel.Encryption;
 using PdfPixel.Fonts.Management;
+using PdfPixel.Fonts.Mapping;
 using PdfPixel.Parsing;
 using PdfPixel.Streams;
+using PdfPixel.TextExtraction;
 using System.Collections.Generic;
 using System.IO;
-using PdfPixel.Fonts.Mapping;
 
 namespace PdfPixel.Models;
 
@@ -46,6 +47,9 @@ internal class PdfDocument : IPdfDocumentInternal
 
     /// <inheritdoc />
     public IReadOnlyDictionary<PdfReference, PdfOptionalContentGroup> OptionalContentGroups { get; internal set; } = new Dictionary<PdfReference, PdfOptionalContentGroup>();
+
+    /// <inheritdoc />
+    public PdfStructureTree? StructureTree { get; internal set; }
 
     List<IPdfPageInternal> IPdfDocumentInternal.Pages => _pages;
 

@@ -2,6 +2,7 @@ using PdfPixel.PdfPanel.Animation;
 using PdfPixel.PdfPanel.ContentProvider;
 using PdfPixel.PdfPanel.Rendering;
 using PdfPixel.PdfPanel.Requests;
+using PdfPixel.PdfPanel.Text;
 using SkiaSharp;
 using System;
 
@@ -15,6 +16,7 @@ internal static class SkCanvasExtensions
         PagesDrawingRequest request,
         PdfContentPictures pictures,
         PdfPageContentTiler tiler,
+        PdfPanelTextSelector textSelector,
         PageDrawFlags flags,
         AnimationState? animation)
     {
@@ -54,6 +56,7 @@ internal static class SkCanvasExtensions
                 int layerCount = canvas.SaveLayer();
                 tiler.DrawTiles(canvas, page.PageNumber, in page, request.Scale);
                 DrawPagePicture(canvas, pictures?.Annotations, page);
+                DrawSelectionPicture(canvas, textSelector, page);
                 canvas.RestoreToCount(layerCount);
 
                 if (!tiler.HasTiles(page.PageNumber) && (flags & PageDrawFlags.Placeholder) != 0 && animation != null)
@@ -65,6 +68,26 @@ internal static class SkCanvasExtensions
         finally
         {
             canvas.RestoreToCount(savedCount);
+        }
+    }
+
+    private static void DrawSelectionPicture(SKCanvas canvas, PdfPanelTextSelector textSelector, in VisiblePageInfo page)
+    {
+        if (textSelector.Picture == null)
+        {
+            return;
+        }
+
+        SKMatrix transform = page.ContentTransform;
+        int saveCount = canvas.Save();
+        try
+        {
+            canvas.Concat(in transform);
+            canvas.DrawPicture(textSelector.Picture);
+        }
+        finally
+        {
+            canvas.RestoreToCount(saveCount);
         }
     }
 

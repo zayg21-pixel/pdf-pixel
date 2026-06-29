@@ -1,4 +1,3 @@
-using PdfPixel.Annotations.Models;
 using PdfPixel.PdfPanel.Extensions;
 using PdfPixel.PdfPanel.Requests;
 using PdfPixel.PdfPanel.Layout;
@@ -171,11 +170,8 @@ public class PdfPanelContext
     /// </summary>
     public void Render()
     {
-        PagesDrawingRequest? request = BuildRequest();
-        if (request != null)
-        {
-            _renderer.Submit(request);
-        }
+        _renderer.Submit(BuildRequest());
+        _renderer.Submit(BuildUserInterfaceRequest());
     }
 
     /// <summary>
@@ -188,17 +184,9 @@ public class PdfPanelContext
     /// </summary>
     public void Reset() => _renderer.Reset();
 
-    private PagesDrawingRequest? BuildRequest()
+    private T GetBaseRequest<T>() where T : DrawingRequest, new()
     {
-        if (Pages == null)
-        {
-            return null;
-        }
-
-        PdfCommandExecutionParameters parameters = CommandExecutionParameters.Clone();
-        parameters.ScaleFactor = Scale;
-
-        return new PagesDrawingRequest
+        return new()
         {
             Scale = Scale,
             ActiveAnnotation = ActiveAnnotation,
@@ -206,12 +194,33 @@ public class PdfPanelContext
             Offset = new SKPoint(HorizontalOffset, VerticalOffset),
             CanvasSize = new SKSize(ViewportWidth, ViewportHeight),
             RenderTarget = _renderTargetFactory.GetRenderTarget(this),
-            VisiblePages = GetVisiblePages().ToArray(),
-            BackgroundColor = BackgroundColor,
-            PageCornerRadius = PageCornerRadius,
-            CommandExecutionParameters = parameters,
-            RenderingParameters = RenderingParameters
+            VisiblePages = GetVisiblePages().ToArray()
         };
+    }
+
+    private PagesDrawingRequest BuildRequest()
+    {
+        PagesDrawingRequest request = GetBaseRequest<PagesDrawingRequest>();
+
+        PdfCommandExecutionParameters parameters = CommandExecutionParameters.Clone();
+        parameters.ScaleFactor = Scale;
+
+        request.BackgroundColor = BackgroundColor;
+        request.PageCornerRadius = PageCornerRadius;
+        request.CommandExecutionParameters = parameters;
+        request.RenderingParameters = RenderingParameters;
+
+        return request;
+    }
+
+    private UserInterfaceDrawingRequest BuildUserInterfaceRequest()
+    {
+        UserInterfaceDrawingRequest request = GetBaseRequest<UserInterfaceDrawingRequest>();
+
+        request.PointerPosition = PointerPosition;
+        request.PointerState = PointerState;
+
+        return request;
     }
 
     private IEnumerable<VisiblePageInfo> GetVisiblePages()
@@ -237,7 +246,7 @@ public class PdfPanelContext
         PdfAnnotationPopup? newActiveAnnotation = null;
         var newState = PdfPanelPointerState.None;
 
-        if (PointerPosition.HasValue && Pages != null)
+        if (PointerPosition.HasValue)
         {
             for (int i = 0; i < Pages.Count; i++)
             {
