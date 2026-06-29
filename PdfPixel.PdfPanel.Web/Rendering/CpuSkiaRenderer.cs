@@ -80,5 +80,8 @@ internal sealed class CpuSkiaRenderer : ISkSurfaceFactory, IPdfPanelRenderTarget
     }
 
     /// <inheritdoc />
+    public SKSurface GetTilingSurface(int width, int height) => _surfaceFactory.GetTilingSurface(width, height);
+
+    /// <inheritdoc />
     public void Dispose() => _surfaceFactory.Dispose();
 }

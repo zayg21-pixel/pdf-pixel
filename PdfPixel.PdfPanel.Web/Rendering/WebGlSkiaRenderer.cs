@@ -21,6 +21,9 @@ internal sealed class WebGlSkiaRenderer : IPdfPanelRenderTargetFactory, ISkSurfa
     private readonly string _canvasSelector;
     private readonly ILogger _logger;
     private CanvasGlContext _glContext;
+    private SKSurface _tilingSurface;
+    private int _tilingWidth;
+    private int _tilingHeight;
     private int _currentWebGlContext;
 
     public WebGlSkiaRenderer(ILogger logger, string canvasSelector)
@@ -63,8 +66,28 @@ internal sealed class WebGlSkiaRenderer : IPdfPanelRenderTargetFactory, ISkSurfa
     }
 
     /// <inheritdoc />
+    public SKSurface GetTilingSurface(int width, int height)
+    {
+        MakeContextCurrent(_glContext.WebGlContext);
+
+        if (_tilingSurface != null && _tilingWidth == width && _tilingHeight == height)
+        {
+            return _tilingSurface;
+        }
+
+        _tilingSurface?.Dispose();
+        SKImageInfo info = new(width, height, SKColorType.Rgba8888, SKAlphaType.Premul);
+        _tilingSurface = SKSurface.Create(_glContext.GrContext, budgeted: true, info);
+        _tilingWidth = width;
+        _tilingHeight = height;
+
+        return _tilingSurface;
+    }
+
+    /// <inheritdoc />
     public void Dispose()
     {
+        _tilingSurface?.Dispose();
         _glContext?.Dispose();
     }
 

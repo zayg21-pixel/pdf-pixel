@@ -4,6 +4,8 @@
 
 # CA IDE warnings
 dotnet_diagnostic.ide0059.severity = warning
+dotnet_diagnostic.CS1573.severity = warning  # Missing param tag in XML comment
+dotnet_diagnostic.CS1591.severity = warning  # Missing XML comment for publicly visible type or member
 
 # CA suppressions
 

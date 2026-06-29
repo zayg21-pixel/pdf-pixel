@@ -26,7 +26,7 @@ public sealed class PdfObjectStream
         PdfStreamDecoder streamDecoder,
         List<PdfFilterType> filters,
         List<PdfDecodeParameters?> decodeParameters,
-        ReadOnlyMemory<byte> embeddedStream)
+        in ReadOnlyMemory<byte> embeddedStream)
     {
         _streamDecoder = streamDecoder;
         Filters = filters;
@@ -41,7 +41,7 @@ public sealed class PdfObjectStream
         PdfObjectStreamReference streamReference,
         BufferedStream documentStream,
         BasePdfDecryptor? decryptor,
-        PdfReference objectReference)
+        in PdfReference objectReference)
     {
         _streamDecoder = streamDecoder;
         Filters = filters;

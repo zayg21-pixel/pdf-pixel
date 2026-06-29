@@ -20,6 +20,7 @@ internal static class Type1ToCffConverter
     /// Retrieves the CFF font data from a Type1 font program embedded in the given font descriptor.
     /// </summary>
     /// <param name="descriptor">Font instance.</param>
+    /// <param name="loggerFactory">Logger factory for PostScript evaluation diagnostics.</param>
     /// <returns>CFF font bytes.</returns>
     /// <exception cref="InvalidDataException">Invalid font data.</exception>
     public static CffInfo? GetCffFont(PdfFontDescriptor descriptor, ILoggerFactory loggerFactory)

@@ -8,9 +8,8 @@ using System.Linq;
 namespace PdfPixel.PdfPanel.Rendering;
 
 /// <summary>
-/// Rasterizes content <see cref="SKPicture"/> recordings into fixed-size tile images,
-/// caching them per page so that subsequent frames draw a few large images instead
-/// of replaying thousands of draw commands.
+/// Rasterizes content <see cref="SKPicture"/> recordings into cached tile images
+/// for visible page regions.
 /// </summary>
 public sealed class PdfPageContentTiler : IDisposable
 {
@@ -19,19 +18,33 @@ public sealed class PdfPageContentTiler : IDisposable
     private readonly ISkSurfaceFactory _surfaceFactory;
     private readonly Dictionary<int, PageTileCache> _pageCache = [];
 
-    /// <inheritdoc cref="PdfPageContentTiler"/>
+    /// <summary>
+    /// Initializes a new instance of the <see cref="PdfPageContentTiler"/> class.
+    /// </summary>
+    /// <param name="surfaceFactory">Factory used to create surfaces for tile rasterization.</param>
     public PdfPageContentTiler(ISkSurfaceFactory surfaceFactory)
         => _surfaceFactory = surfaceFactory ?? throw new ArgumentNullException(nameof(surfaceFactory));
 
     /// <summary>
     /// Ensures tiles are rasterized for the visible region of the given page.
     /// </summary>
+    /// <param name="pageNumber">The page number to update tiles for.</param>
+    /// <param name="contentLocker">Locked content picture to rasterize.</param>
+    /// <param name="pageInfo">Visible page layout snapshot.</param>
+    /// <param name="request">Current drawing request.</param>
+    /// <param name="forceClearVisible">When true, re-rasterizes tiles in the visible region.</param>
     public void UpdateTiles(
         int pageNumber,
         ContentLocker<SKPicture>? contentLocker,
         ref readonly VisiblePageInfo pageInfo,
-        ref readonly PagesDrawingRequest request, bool forceClearVisible)
+        ref readonly PagesDrawingRequest request,
+        bool forceClearVisible)
     {
+        if (request == null)
+        {
+            throw new ArgumentNullException(nameof(request));
+        }
+
         if (contentLocker?.HasContent != true)
         {
             return;
@@ -62,8 +75,17 @@ public sealed class PdfPageContentTiler : IDisposable
     /// <summary>
     /// Draws cached tiles for the given page onto the canvas.
     /// </summary>
+    /// <param name="canvas">The canvas to draw on.</param>
+    /// <param name="pageNumber">The page number to draw tiles for.</param>
+    /// <param name="pageInfo">Visible page layout snapshot.</param>
+    /// <param name="currentScale">Current rendering scale.</param>
     public void DrawTiles(SKCanvas canvas, int pageNumber, ref readonly VisiblePageInfo pageInfo, float currentScale)
     {
+        if (canvas == null)
+        {
+            throw new ArgumentNullException(nameof(canvas));
+        }
+
         if (!_pageCache.TryGetValue(pageNumber, out PageTileCache? pageCache))
         {
             return;
@@ -88,11 +110,13 @@ public sealed class PdfPageContentTiler : IDisposable
     /// <summary>
     /// Returns true if there are any cached tiles for the given page.
     /// </summary>
+    /// <param name="pageNumber">The page number to check.</param>
     public bool HasTiles(int pageNumber) => _pageCache.ContainsKey(pageNumber) && _pageCache[pageNumber].Tiles.Count > 0;
 
     /// <summary>
     /// Evicts cached tiles for pages not in the given visible set.
     /// </summary>
+    /// <param name="visiblePages">Pages to keep tiles for.</param>
     public void EvictExcept(IReadOnlyList<VisiblePageInfo> visiblePages)
     {
         foreach (int pageNumber in _pageCache.Keys.Where(key => !visiblePages.Any(page => page.PageNumber == key)).ToList())

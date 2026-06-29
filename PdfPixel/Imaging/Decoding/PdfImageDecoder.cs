@@ -14,13 +14,13 @@ namespace PdfPixel.Imaging.Decoding;
 /// </summary>
 public abstract class PdfImageDecoder : IDisposable
 {
+    private readonly PdfColorSpaceConverter _resolvedColorSpaceConverter;
+
     /// <summary>
     /// Initializes the base decoder with the source image and logger factory.
     /// </summary>
     /// <param name="image">The PDF image descriptor to decode.</param>
     /// <param name="loggerFactory">Logger factory used to create per-decoder loggers.</param>
-    private readonly PdfColorSpaceConverter _resolvedColorSpaceConverter;
-
     protected PdfImageDecoder(PdfImage image, ILoggerFactory loggerFactory)
     {
         Image = image ?? throw new ArgumentNullException(nameof(image));

@@ -2,6 +2,7 @@ using PdfPixel.Color.Sampling;
 using PdfPixel.Models;
 using PdfPixel.Parsing;
 using PdfPixel.Shading.Model;
+using PdfPixel.Streams;
 using PdfPixel.Text;
 using SkiaSharp;
 using System;
@@ -81,7 +82,14 @@ internal class MeshDecoder
     /// <returns>List of decoded <see cref="MeshData"/> instances.</returns>
     public List<MeshData> Decode()
     {
-        ReadOnlyMemory<byte> memory = _shading.Stream.DecodeAsMemory();
+        PdfObjectStream? stream = _shading.Stream;
+
+        if (stream == null)
+        {
+            throw new ArgumentNullException(nameof(stream));
+        }
+
+        ReadOnlyMemory<byte> memory = stream.DecodeAsMemory();
         UintBitReader bitReader = new(memory.Span);
         List<MeshData> patches = [];
         MeshData? previousPatch = null;

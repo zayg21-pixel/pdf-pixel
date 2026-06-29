@@ -34,6 +34,11 @@ public sealed class PdfStreamDecoder
         List<PdfDecodeParameters?> decodeParameters,
         IPdfExecutionObserver? observer)
     {
+        if (rawStream == null)
+        {
+            throw new ArgumentNullException(nameof(rawStream));
+        }
+
         using Stream final = DecodeContentAsStream(rawStream, filters, decodeParameters);
 
         using MemoryStream memoryStream = new();
@@ -56,6 +61,16 @@ public sealed class PdfStreamDecoder
         List<PdfFilterType> filters,
         List<PdfDecodeParameters?> decodeParameters)
     {
+        if (filters == null)
+        {
+            throw new ArgumentNullException(nameof(filters));
+        }
+
+        if (decodeParameters == null)
+        {
+            throw new ArgumentNullException(nameof(decodeParameters));
+        }
+
         for (int filterIndex = 0; filterIndex < filters.Count; filterIndex++)
         {
             PdfFilterType filter = filters[filterIndex];
@@ -127,6 +142,11 @@ public sealed class PdfStreamDecoder
     /// </summary>
     public static List<PdfFilterType> GetFilters(PdfDictionary dictionary)
     {
+        if (dictionary == null)
+        {
+            throw new ArgumentNullException(nameof(dictionary));
+        }
+
         List<PdfFilterType> filters = [];
 
         PdfArray? filterArray = dictionary.GetArray(PdfTokens.FilterKey);
@@ -152,6 +172,11 @@ public sealed class PdfStreamDecoder
     /// </summary>
     public static List<PdfDecodeParameters?> GetDecodeParameters(PdfDictionary dictionary)
     {
+        if (dictionary == null)
+        {
+            throw new ArgumentNullException(nameof(dictionary));
+        }
+
         List<PdfDecodeParameters?> list = [];
 
         PdfArray? parmsArray = dictionary.GetArray(PdfTokens.DecodeParmsKey);
