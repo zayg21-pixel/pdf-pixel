@@ -119,6 +119,6 @@ internal static class PdfImageCommandUtilities
         SKRect mapped = contentToImagePixels.MapRect(executionContext.PageRegionOfInterest.Value);
         SKRectI imageRoi = SKRectI.Round(mapped);
         imageRoi.Intersect(fullImageBounds);
-        return (imageRoi.IsEmpty) ? fullImageBounds : imageRoi;
+        return imageRoi;
     }
 }

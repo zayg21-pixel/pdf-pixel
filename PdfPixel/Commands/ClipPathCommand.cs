@@ -3,6 +3,8 @@ using System.Collections.Generic;
 
 namespace PdfPixel.Commands;
 
+// TODO: [HIGH] SKRect based command shall be separate one.
+
 /// <summary>
 /// Applies a clipping path to the canvas.
 /// </summary>
