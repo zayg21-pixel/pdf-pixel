@@ -72,7 +72,7 @@ public sealed class PdfTilingPattern : PdfPattern
 
         renderTarget.BeforePatternRender(processor);
 
-        processor.Process(new SaveStateCommand());
+        processor.Process(SaveStateCommand.Instance);
         processor.Process(new ConcatMatrixCommand(matrix));
 
         IPdfCommandModifier? modifier = (PaintTypeKind == PdfTilingPaintType.Uncolored)
@@ -97,14 +97,14 @@ public sealed class PdfTilingPattern : PdfPattern
             {
                 float y = startY + (j * YStep);
 
-                processor.Process(new SaveStateCommand());
+                processor.Process(SaveStateCommand.Instance);
                 processor.Process(new ConcatMatrixCommand(SKMatrix.CreateTranslation(x, y)));
                 processor.Process(recordingCommand);
-                processor.Process(new RestoreStateCommand());
+                processor.Process(RestoreStateCommand.Instance);
             }
         }
 
-        processor.Process(new RestoreStateCommand());
+        processor.Process(RestoreStateCommand.Instance);
         renderTarget.AfterPatternRender(processor);
     }
 }

@@ -50,7 +50,7 @@ internal class TextStrokeRenderTarget : IRenderTarget
 
     public void BeforePatternRender(IPdfCommandProcessor processor)
     {
-        processor.Process(new SaveStateCommand());
+        processor.Process(SaveStateCommand.Instance);
 
         if (_clipPath != null)
         {
@@ -58,7 +58,7 @@ internal class TextStrokeRenderTarget : IRenderTarget
         }
     }
 
-    public void AfterPatternRender(IPdfCommandProcessor processor) => processor.Process(new RestoreStateCommand());
+    public void AfterPatternRender(IPdfCommandProcessor processor) => processor.Process(RestoreStateCommand.Instance);
 
     public void Render(IPdfCommandProcessor processor)
     {

@@ -110,7 +110,7 @@ internal static class PdfAnnotationGraphics
         float offsetX = rect.Left + ((rect.Width - (icon.Width * scale)) / 2f);
         float offsetY = rect.Top + ((rect.Height - (icon.Height * scale)) / 2f);
 
-        processor.Process(new SaveStateCommand());
+        processor.Process(SaveStateCommand.Instance);
         processor.Process(new ConcatMatrixCommand(
             SKMatrix.CreateScaleTranslation(scale, scale, offsetX, offsetY)));
         processor.Process(new ConcatMatrixCommand(icon.ViewportMatrix));
@@ -120,7 +120,7 @@ internal static class PdfAnnotationGraphics
             RenderIconPath(processor, iconPath, color, interiorColor);
         }
 
-        processor.Process(new RestoreStateCommand());
+        processor.Process(RestoreStateCommand.Instance);
     }
 
     /// <summary>

@@ -58,7 +58,7 @@ internal static class PdfAnnotationAppearanceRenderer
             processor.Process(new BeginMarkedContentCommand(markedContent));
         }
 
-        processor.Process(new SaveStateCommand());
+        processor.Process(SaveStateCommand.Instance);
 
         var success = false;
 
@@ -76,7 +76,7 @@ internal static class PdfAnnotationAppearanceRenderer
             }
         }
 
-        processor.Process(new RestoreStateCommand());
+        processor.Process(RestoreStateCommand.Instance);
 
         if (optionalContent != null)
         {

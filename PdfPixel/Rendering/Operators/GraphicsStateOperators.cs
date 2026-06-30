@@ -120,7 +120,7 @@ internal class GraphicsStateOperators : IOperatorProcessor
     private void ProcessSaveGraphicsState(PdfGraphicsState graphicsState)
     {
         _graphicsStack.Push(graphicsState.Clone());
-        _processor.Process(new SaveStateCommand());
+        _processor.Process(SaveStateCommand.Instance);
     }
 
     private void ProcessRestoreGraphicsState(ref PdfGraphicsState graphicsState)
@@ -131,7 +131,7 @@ internal class GraphicsStateOperators : IOperatorProcessor
         }
 
         graphicsState = _graphicsStack.Pop();
-        _processor.Process(new RestoreStateCommand());
+        _processor.Process(RestoreStateCommand.Instance);
     }
 
     private void ProcessConcatenateMatrix(PdfGraphicsState graphicsState)

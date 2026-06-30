@@ -7,6 +7,10 @@ namespace PdfPixel.Commands;
 /// </summary>
 public sealed class SaveStateCommand : PdfCommand
 {
+    private SaveStateCommand()
+    {
+    }
+
     /// <inheritdoc />
     public override void Initialize(IEnumerable<IPdfCommandModifier> modifiers, PdfCommandExecutionContext executionContext)
         => executionContext.Frames.OnSaveState();
@@ -17,6 +21,11 @@ public sealed class SaveStateCommand : PdfCommand
         executionContext.Canvas.Save();
         executionContext.Frames.OnSaveState();
     }
+
+    /// <summary>
+    /// Default instance of <see cref="SaveStateCommand"/>.
+    /// </summary>
+    public static SaveStateCommand Instance { get; } = new();
 
     /// <inheritdoc/>
     protected override void Dispose(bool disposing)

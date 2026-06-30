@@ -51,13 +51,13 @@ internal class ImageFillRenderTarget : IRenderTarget
         if (_image.AlphaMode == PdfImageAlphaMode.StencilMask)
         {
             ImageDecodingContext maskContext = new(_context, SKColors.White, 1f, SKBlendMode.DstIn);
-            processor.Process(new SaveStateCommand());
+            processor.Process(SaveStateCommand.Instance);
             processor.Process(new ConcatMatrixCommand(PdfImageCommandUtilities.GetImageMatrix()));
             ProcessTileCommands(processor, _image, maskContext);
-            processor.Process(new RestoreStateCommand());
+            processor.Process(RestoreStateCommand.Instance);
         }
 
-        processor.Process(new RestoreStateCommand());
+        processor.Process(RestoreStateCommand.Instance);
     }
 
     public void Render(IPdfCommandProcessor processor)
@@ -68,13 +68,13 @@ internal class ImageFillRenderTarget : IRenderTarget
             return;
         }
 
-        processor.Process(new SaveStateCommand());
+        processor.Process(SaveStateCommand.Instance);
         processor.Process(new ClipPathCommand(new SKRect(0, 0, 1, 1), SKClipOperation.Intersect));
         processor.Process(new ConcatMatrixCommand(PdfImageCommandUtilities.GetImageMatrix()));
 
         ProcessTileCommands(processor, _image, _context);
 
-        processor.Process(new RestoreStateCommand());
+        processor.Process(RestoreStateCommand.Instance);
     }
 
     private void ProcessTileCommands(IPdfCommandProcessor processor, PdfImage image, ImageDecodingContext context)

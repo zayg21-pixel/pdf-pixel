@@ -38,14 +38,14 @@ internal class TextFillRenderTarget : IRenderTarget
 
     public void BeforePatternRender(IPdfCommandProcessor processor)
     {
-        processor.Process(new SaveStateCommand());
+        processor.Process(SaveStateCommand.Instance);
         if (_clipPath != null)
         {
             processor.Process(new ClipPathCommand(new SKPath(_clipPath), SKClipOperation.Intersect));
         }
     }
 
-    public void AfterPatternRender(IPdfCommandProcessor processor) => processor.Process(new RestoreStateCommand());
+    public void AfterPatternRender(IPdfCommandProcessor processor) => processor.Process(RestoreStateCommand.Instance);
 
     public void Render(IPdfCommandProcessor processor)
     {
@@ -61,7 +61,7 @@ internal class TextFillRenderTarget : IRenderTarget
 
             SKMatrix textMatrix = TextRenderUtilities.GetFullTextMatrix(_state);
 
-            processor.Process(new SaveStateCommand());
+            processor.Process(SaveStateCommand.Instance);
 
             // Apply text matrix transformation
             processor.Process(new ConcatMatrixCommand(textMatrix));
@@ -69,7 +69,7 @@ internal class TextFillRenderTarget : IRenderTarget
             SKPaint paint = PdfPaintFactory.CreateFillPaint(_state);
             processor.Process(new DrawShapedTextCommand(_shapingResult.ToArray(), PdfPaintFactory.CloneFont(_font), paint));
 
-            processor.Process(new RestoreStateCommand());
+            processor.Process(RestoreStateCommand.Instance);
         }
     }
 

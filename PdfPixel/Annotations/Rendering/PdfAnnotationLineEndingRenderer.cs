@@ -41,7 +41,7 @@ internal static class PdfAnnotationLineEndingRenderer
         var angle = (float)Math.Atan2(dy, dx);
         float endingSize = lineWidth * 3;
 
-        processor.Process(new SaveStateCommand());
+        processor.Process(SaveStateCommand.Instance);
         processor.Process(new ConcatMatrixCommand(SKMatrix.CreateTranslation(x, y)));
         processor.Process(new ConcatMatrixCommand(SKMatrix.CreateRotationDegrees(angle * 180 / (float)Math.PI)));
 
@@ -94,7 +94,7 @@ internal static class PdfAnnotationLineEndingRenderer
                 }
         }
 
-        processor.Process(new RestoreStateCommand());
+        processor.Process(RestoreStateCommand.Instance);
     }
 
     private static void DrawOpenArrow(IPdfCommandProcessor processor, float size, float lineWidth, in SKColor color)

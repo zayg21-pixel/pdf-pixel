@@ -144,7 +144,7 @@ internal class PdfPage : IPdfPageInternal
 
         if (_transparencyGroup != null)
         {
-            processor.Process(new RestoreStateCommand());
+            processor.Process(RestoreStateCommand.Instance);
         }
 
         _pageCache.ClearAfterRender();

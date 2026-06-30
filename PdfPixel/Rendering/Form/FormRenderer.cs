@@ -59,7 +59,7 @@ public class FormRenderer : IFormRenderer
         using SoftMaskDrawingScope softMaskScope = new(_renderer, processor, graphicsState);
         softMaskScope.BeginDrawContent();
 
-        processor.Process(new SaveStateCommand());
+        processor.Process(SaveStateCommand.Instance);
 
         // Apply form matrix if present
         processor.Process(new ConcatMatrixCommand(formXObject.Matrix));
@@ -95,10 +95,10 @@ public class FormRenderer : IFormRenderer
 
         if (formXObject.TransparencyGroup != null)
         {
-            processor.Process(new RestoreStateCommand());
+            processor.Process(RestoreStateCommand.Instance);
         }
 
-        processor.Process(new RestoreStateCommand());
+        processor.Process(RestoreStateCommand.Instance);
 
         softMaskScope.EndDrawContent();
 

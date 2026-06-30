@@ -8,6 +8,10 @@ namespace PdfPixel.Commands;
 /// </summary>
 public sealed class RestoreStateCommand : PdfCommand
 {
+    private RestoreStateCommand()
+    {
+    }
+
     /// <inheritdoc />
     public override void Initialize(IEnumerable<IPdfCommandModifier> modifiers, PdfCommandExecutionContext executionContext)
         => executionContext.Frames.OnRestoreState();
@@ -18,6 +22,11 @@ public sealed class RestoreStateCommand : PdfCommand
         executionContext.Canvas.Restore();
         executionContext.Frames.OnRestoreState();
     }
+
+    /// <summary>
+    /// Default instance of <see cref="RestoreStateCommand"/>.
+    /// </summary>
+    public static RestoreStateCommand Instance { get; } = new();
 
     /// <inheritdoc/>
     protected override void Dispose(bool disposing)

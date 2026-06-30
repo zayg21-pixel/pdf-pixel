@@ -381,12 +381,12 @@ public abstract class PdfAnnotationBase
             }
         }
 
-        processor.Process(new SaveStateCommand());
+        processor.Process(SaveStateCommand.Instance);
         processor.Process(new ClipPathCommand(Rectangle, SKClipOperation.Intersect));
 
         if (AppearanceDictionary != null && RenderAppearanceStream(processor, page, visualStateKind, renderer, renderingParameters, observer))
         {
-            processor.Process(new RestoreStateCommand());
+            processor.Process(RestoreStateCommand.Instance);
             return true;
         }
 
@@ -400,10 +400,10 @@ public abstract class PdfAnnotationBase
 
         if (useOpacityLayer)
         {
-            processor.Process(new RestoreStateCommand());
+            processor.Process(RestoreStateCommand.Instance);
         }
 
-        processor.Process(new RestoreStateCommand());
+        processor.Process(RestoreStateCommand.Instance);
 
         return rendered;
     }

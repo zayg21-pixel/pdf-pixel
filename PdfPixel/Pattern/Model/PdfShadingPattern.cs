@@ -51,7 +51,7 @@ public sealed class PdfShadingPattern : PdfPattern
 
         PdfCommandRecorder recorder = new(state.Page.Document.LoggerFactory.CreateLogger<PdfCommandRecorder>());
 
-        recorder.Process(new SaveStateCommand());
+        recorder.Process(SaveStateCommand.Instance);
         recorder.Process(new ConcatMatrixCommand(matrix));
 
         if (Shading.BBox.HasValue)
@@ -74,7 +74,7 @@ public sealed class PdfShadingPattern : PdfPattern
         ShadingDecodingContext context = new(state, Shading);
         recorder.Process(new PdfDrawShadingCommand(Shading, context, state.Page.Document.LoggerFactory));
 
-        recorder.Process(new RestoreStateCommand());
+        recorder.Process(RestoreStateCommand.Instance);
 
         renderTarget.BeforePatternRender(processor);
         processor.Process(new DrawRecordingCommand(recorder));

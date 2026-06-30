@@ -144,7 +144,7 @@ public class PdfTextRenderer : IPdfTextRenderer
             && state.TextRenderingMode != PdfTextRenderingMode.Clip)
         {
             // Type3 glyphs are recorded commands in glyph space (after FontMatrix). Apply text matrix and per-glyph offsets.
-            processor.Process(new SaveStateCommand());
+            processor.Process(SaveStateCommand.Instance);
             SKMatrix fullTextMatrix = TextRenderUtilities.GetFullTextMatrix(state, inverse: false);
             processor.Process(new ConcatMatrixCommand(fullTextMatrix));
 
@@ -158,16 +158,16 @@ public class PdfTextRenderer : IPdfTextRenderer
                         ? default
                         : new UncoloredPaintModifier(state.FillPaint.Color);
 
-                    processor.Process(new SaveStateCommand());
+                    processor.Process(SaveStateCommand.Instance);
                     // Translate by glyph X/Y (already in text space units after fullTextMatrix).
                     processor.Process(new ConcatMatrixCommand(SKMatrix.CreateTranslation(glyph.X, glyph.Y)));
                     processor.Process(new ConcatMatrixCommand(type3Font.FontMatrix));
                     processor.Process(new DrawRecordingCommand(charInfo.Recording, modifier, disposeRecording: false));
-                    processor.Process(new RestoreStateCommand());
+                    processor.Process(RestoreStateCommand.Instance);
                 }
             }
 
-            processor.Process(new RestoreStateCommand());
+            processor.Process(RestoreStateCommand.Instance);
         }
 
         if (state.RenderingParameters.ExtractText)
@@ -257,10 +257,10 @@ public class PdfTextRenderer : IPdfTextRenderer
             state.PendingTextMarkup = null;
         }
 
-        processor.Process(new SaveStateCommand());
+        processor.Process(SaveStateCommand.Instance);
         processor.Process(new ConcatMatrixCommand(matrix));
         processor.Process(new TextCharactersCommand(characters));
-        processor.Process(new RestoreStateCommand());
+        processor.Process(RestoreStateCommand.Instance);
 
         if (pendingMarkup != null)
         {
