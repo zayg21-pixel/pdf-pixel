@@ -203,7 +203,6 @@ public sealed class OpenGlRenderTargetFactory : IPdfPanelRenderTargetFactory, IP
     public SKSurface GetTilingSurface(int width, int height)
     {
         _glContext.MakeCurrent();
-        _grContext.PurgeUnlockedResources(scratchResourcesOnly: true);
 
         if (_tilingSurface != null && _tilingWidth == width && _tilingHeight == height)
         {
