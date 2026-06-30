@@ -1,4 +1,5 @@
 using PdfPixel.PdfPanel.ContentProvider;
+using PdfPixel.PdfPanel.Extensions;
 using PdfPixel.PdfPanel.Requests;
 using SkiaSharp;
 using System;
@@ -62,7 +63,7 @@ public sealed class PdfPageContentTiler : IDisposable
             pageCache.Scale = request.Scale;
         }
 
-        SKRect visibleRegion = ComputeVisibleRegion(in pageInfo, in request);
+        SKRect visibleRegion = request.ComputeRegionOfInterest(pageInfo.PageNumber);
 
         if (forceClearVisible)
         {
@@ -233,19 +234,7 @@ public sealed class PdfPageContentTiler : IDisposable
         return tileSurface.Snapshot();
     }
 
-    private static SKRect ComputeVisibleRegion(ref readonly VisiblePageInfo pageInfo, ref readonly PagesDrawingRequest request)
-    {
-        SKMatrix contentToCanvas = pageInfo.GetContentToCanvasMatrix(request.Scale);
-        SKRect canvasRect = SKRect.Create(0, 0, request.CanvasSize.Width, request.CanvasSize.Height);
-        SKRect regionOfInterest = contentToCanvas.Invert().MapRect(canvasRect);
-
-        SKRect pageBounds = SKRect.Create(0, 0, pageInfo.Info.Width, pageInfo.Info.Height);
-        regionOfInterest.Intersect(pageBounds);
-
-        return regionOfInterest;
-    }
-
-    private sealed class CachedTile(SKImage image, SKRect destination) : IDisposable
+private sealed class CachedTile(SKImage image, SKRect destination) : IDisposable
     {
         public SKImage Image { get; } = image;
 

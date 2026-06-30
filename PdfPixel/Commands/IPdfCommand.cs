@@ -25,7 +25,7 @@ public interface IPdfCommand : IDisposable
     void Execute(IEnumerable<IPdfCommandModifier> modifiers, PdfCommandExecutionContext executionContext);
 
     /// <summary>
-    /// If true - command will produce different result depending on scale.
+    /// Decoding capabilities of this command that determine when a cached picture must be regenerated.
     /// </summary>
-    bool IsScaleDependent { get; }
+    PdfCommandFeatures Features { get; }
 }

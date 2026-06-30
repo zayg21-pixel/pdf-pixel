@@ -17,7 +17,7 @@ internal sealed class InitializeTileCacheCommand : PdfCommand
         _imageSize = imageSize;
     }
 
-    public override bool IsScaleDependent => true;
+    public override PdfCommandFeatures Features => PdfCommandFeatures.Region | PdfCommandFeatures.Scale;
 
     public override void Initialize(IEnumerable<IPdfCommandModifier> modifiers, PdfCommandExecutionContext executionContext)
     {

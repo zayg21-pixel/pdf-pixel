@@ -1,3 +1,4 @@
+using PdfPixel.Commands;
 using PdfPixel.TextExtraction;
 using SkiaSharp;
 
@@ -19,10 +20,9 @@ public class PdfContentPictures
     public ContentLocker<SKPicture>? Annotations { get; set; }
 
     /// <summary>
-    /// True when the content picture produces different output at different scales.
-    /// When false, the same picture can be re-tiled at any scale without re-decoding.
+    /// Combined features of all commands in the main content picture.
     /// </summary>
-    public bool IsContentScaleDependant { get; set; }
+    public PdfCommandFeatures ContentFeatures { get; set; }
 
     /// <summary>
     /// Root of the text block tree extracted from the main content.

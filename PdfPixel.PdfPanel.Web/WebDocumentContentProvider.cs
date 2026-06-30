@@ -66,14 +66,15 @@ public class WebDocumentContentProvider : IPdfPageContentProvider
 
         if (response.ContentType == UpdatedContentType.Content)
         {
-            _cache[pageIndex].Content.UpdateContentPicture(picture, drawingRequest, response.IsPartialContent);
+            _cache[pageIndex].Content.UpdateContent(picture, drawingRequest, response.IsPartialContent);
         }
         else if (response.ContentType == UpdatedContentType.Annotations)
         {
-            _cache[pageIndex].AnnotationContent.UpdateContentPicture(picture, drawingRequest, response.IsPartialContent);
+            _cache[pageIndex].AnnotationContent.UpdateContent(picture, drawingRequest, response.IsPartialContent);
         }
 
-        OnPageUpdated?.Invoke(new PageUpdatedArgs(response.PageNumber, GetExistingContentPictures(response.PageNumber), response.ContentType, response.IsPartialContent));
+        SKRect regionOfInterest = response.RegionOfInterest.ToSkRect();
+        OnPageUpdated?.Invoke(new PageUpdatedArgs(response.PageNumber, GetExistingContentPictures(response.PageNumber), response.ContentType, response.IsPartialContent, regionOfInterest));
     }
 
     public void UpdateDocument(WebDocumentData documentData)

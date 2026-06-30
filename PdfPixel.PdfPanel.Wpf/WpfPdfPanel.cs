@@ -78,6 +78,8 @@ public partial class WpfPdfPanel : FrameworkElement
         var source = PresentationSource.FromVisual(this);
         ((HwndSource)source)?.AddHook(Hook);
 
+        InputManager.Current.PreNotifyInput += OnPreNotifyInput;
+
         DrawingVisual = new DrawingVisual();
         children.Add(DrawingVisual);
 
@@ -88,6 +90,8 @@ public partial class WpfPdfPanel : FrameworkElement
     {
         var source = PresentationSource.FromVisual(this);
         ((HwndSource)source)?.RemoveHook(Hook);
+
+        InputManager.Current.PreNotifyInput -= OnPreNotifyInput;
 
         _animationClock?.Dispose();
         _animationClock = null;
@@ -220,6 +224,18 @@ public partial class WpfPdfPanel : FrameworkElement
         _context.Update();
 
         UpdateAnnotationState();
+
+        if (AnnotationPopup == null)
+        {
+            if (_renderer.TextSelector.IsPointerOverText)
+            {
+                Cursor = Cursors.IBeam;
+            }
+            else
+            {
+                Cursor = Cursors.Arrow;
+            }
+        }
 
         _context.SetAutoScaleMode(AutoScaleMode);
         _context.Update();

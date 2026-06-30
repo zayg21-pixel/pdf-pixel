@@ -13,13 +13,21 @@ namespace PdfPixel.PdfPanel.Text;
 /// </summary>
 public sealed partial class PdfPanelTextSelector : IDisposable
 {
+    private const float MinDragDistance = 4f;
+    private const float CharacterHitRadius = 10;
+    private const float LineMergeThreshold = 0.5f;
+    private static readonly SKColor HighlightColor = new SKColor(50, 100, 220, 80);
+
     private readonly IPdfPageContentProvider _contentProvider;
     private readonly Dictionary<int, List<PdfCharacter>> _flattenedPages = [];
-    private SKPicture? _picture;
+    private readonly Dictionary<int, SKPicture> _selectionPictures = [];
     private int? _anchorPageNumber;
-    private int _anchorCharIndex;
-    private int _currentCharIndex;
-    private bool _isDragging;
+    private SKPoint _anchorPoint;
+    private int? _anchorCharIndex;
+    private int? _currentCharIndex;
+    private List<PdfCharacter>? _selectedCharacters;
+    private PointerPagePosition? _previousPosition;
+    private bool _isPointerOverText;
 
     /// <summary>
     /// Initializes a new <see cref="PdfPanelTextSelector"/> with the given content provider.
@@ -28,9 +36,15 @@ public sealed partial class PdfPanelTextSelector : IDisposable
         => _contentProvider = contentProvider ?? throw new ArgumentNullException(nameof(contentProvider));
 
     /// <summary>
-    /// The currently generated selection highlight picture, or <see langword="null"/> if nothing is selected.
+    /// Returns the selection highlight picture for the given page, or <see langword="null"/> if that page has no selection.
     /// </summary>
-    internal SKPicture? Picture => _picture;
+    internal SKPicture? GetSelectionPicture(int pageNumber)
+        => _selectionPictures.TryGetValue(pageNumber, out SKPicture? picture) ? picture : null;
+
+    /// <summary>
+    /// Whether the pointer is currently over a text character.
+    /// </summary>
+    public bool IsPointerOverText => _isPointerOverText;
 
     /// <summary>
     /// The text content of the current selection, or empty if nothing is selected.
@@ -39,27 +53,17 @@ public sealed partial class PdfPanelTextSelector : IDisposable
     {
         get
         {
-            if (_anchorPageNumber == null)
+            if (_selectedCharacters == null)
             {
                 return string.Empty;
             }
-
-            if (!_flattenedPages.TryGetValue(_anchorPageNumber.Value, out List<PdfCharacter>? characters))
-            {
-                return string.Empty;
-            }
-
-            int start = Math.Min(_anchorCharIndex, _currentCharIndex);
-            int end = Math.Max(_anchorCharIndex, _currentCharIndex);
-            start = Math.Max(start, 0);
-            end = Math.Min(end, characters.Count - 1);
 
             StringBuilder builder = new();
-            for (int i = start; i <= end; i++)
+            foreach (PdfCharacter character in _selectedCharacters)
             {
-                if (characters[i].Text != null)
+                if (character.Text != null)
                 {
-                    builder.Append(characters[i].Text);
+                    builder.Append(character.Text);
                 }
             }
 
@@ -68,64 +72,145 @@ public sealed partial class PdfPanelTextSelector : IDisposable
     }
 
     /// <summary>
-    /// Updates selection state from the current pointer position and regenerates the highlight picture.
+    /// Updates selection state from the current pointer position and regenerates the highlight picture for that page.
     /// </summary>
     internal void Update(PointerPagePosition? position)
     {
-        _picture?.Dispose();
-        _picture = null;
-
         if (position == null)
         {
+            _isPointerOverText = false;
             return;
         }
 
         PointerPagePosition pos = position.Value;
+
         PdfContentPictures pictures = _contentProvider.GetExistingContentPictures(pos.PageNumber);
         if (pictures.ContentRootTextBlock == null)
         {
+            _isPointerOverText = false;
             return;
         }
 
         List<PdfCharacter> characters = GetFlattenedCharacters(pos.PageNumber, pictures.ContentRootTextBlock);
         if (characters.Count == 0)
         {
+            _isPointerOverText = false;
             return;
         }
 
+        _isPointerOverText = HitTestCharacterNearest(characters, pos.Position, CharacterHitRadius) != null;
         UpdateSelectionState(pos, characters);
 
-        if (_anchorPageNumber != null)
+        SKPicture? newPicture = GenerateSelectionPicture(pos.PageNumber);
+        if (newPicture != null)
         {
-            _picture = GenerateSelectionPicture(pos.PageNumber, characters);
+            if (_selectionPictures.TryGetValue(pos.PageNumber, out SKPicture? oldPicture))
+            {
+                oldPicture.Dispose();
+            }
+
+            _selectionPictures[pos.PageNumber] = newPicture;
         }
     }
 
     private void UpdateSelectionState(in PointerPagePosition position, List<PdfCharacter> characters)
     {
-        int charIndex = HitTestCharacter(characters, position.Position);
+        PointerPagePosition? previousPosition = _previousPosition;
+        _previousPosition = position;
 
-        if (position.State == PdfPanelButtonState.Pressed)
+        switch (previousPosition?.State, position.State)
         {
-            if (!_isDragging)
+            case (null, PdfPanelButtonState.Default):
+            case (PdfPanelButtonState.Default, PdfPanelButtonState.Default):
+                break;
+
+            case (null, PdfPanelButtonState.Pressed):
+            case (PdfPanelButtonState.Default, PdfPanelButtonState.Pressed):
             {
-                _anchorPageNumber = position.PageNumber;
-                _anchorCharIndex = charIndex;
-                _currentCharIndex = charIndex;
-                _isDragging = true;
+                OnPointerDown(position, characters);
+                break;
             }
-            else if (_anchorPageNumber == position.PageNumber)
+            case (PdfPanelButtonState.Pressed, PdfPanelButtonState.Pressed):
             {
-                _currentCharIndex = charIndex;
+                OnPointerDrag(previousPosition.Value, position, characters);
+                break;
             }
-        }
-        else
-        {
-            _isDragging = false;
+            case (PdfPanelButtonState.Pressed, PdfPanelButtonState.Default):
+            {
+                OnPointerDrag(previousPosition.Value, position, characters);
+                OnPointerUp();
+                break;
+            }
         }
     }
 
-    private static int HitTestCharacter(List<PdfCharacter> characters, SKPoint point)
+    private void OnPointerDown(in PointerPagePosition position, List<PdfCharacter> characters)
+    {
+        ClearSelectionPictures();
+        _anchorPageNumber = null;
+        _anchorCharIndex = null;
+        _currentCharIndex = null;
+        _selectedCharacters = null;
+
+        int? charIndex = HitTestCharacterNearest(characters, position.Position, CharacterHitRadius);
+        if (charIndex == null)
+        {
+            return;
+        }
+
+        _anchorPoint = position.Position;
+        _anchorPageNumber = position.PageNumber;
+        _anchorCharIndex = charIndex.Value;
+    }
+
+    private void OnPointerDrag(in PointerPagePosition previousPosition, in PointerPagePosition position, List<PdfCharacter> characters)
+    {
+        if (_anchorPageNumber != position.PageNumber || _anchorCharIndex == null)
+        {
+            return;
+        }
+
+        float dx = position.Position.X - _anchorPoint.X;
+        float dy = position.Position.Y - _anchorPoint.Y;
+        if ((dx * dx) + (dy * dy) < MinDragDistance * MinDragDistance)
+        {
+            return;
+        }
+
+        int? charIndex = HitTestCharacterNearest(characters, position.Position);
+        if (charIndex != null && charIndex != _currentCharIndex)
+        {
+            _currentCharIndex = charIndex;
+
+            int start = Math.Max(Math.Min(_anchorCharIndex.Value, charIndex.Value), 0);
+            int end = Math.Min(Math.Max(_anchorCharIndex.Value, charIndex.Value), characters.Count - 1);
+            _selectedCharacters = characters.GetRange(start, end - start + 1);
+        }
+    }
+
+    private void OnPointerUp()
+    {
+        if (_selectedCharacters == null)
+        {
+            ClearSelectionPictures();
+            _anchorPageNumber = null;
+        }
+
+        _anchorCharIndex = null;
+        _currentCharIndex = null;
+    }
+
+    private void ClearSelectionPictures()
+    {
+        foreach (SKPicture picture in _selectionPictures.Values)
+        {
+            picture.Dispose();
+        }
+
+        _selectionPictures.Clear();
+    }
+
+    private static int? HitTestCharacterNearest(List<PdfCharacter> characters, SKPoint point, float? maxDistance = null)
     {
         int closestIndex = 0;
         float closestDistance = float.MaxValue;
@@ -133,12 +218,6 @@ public sealed partial class PdfPanelTextSelector : IDisposable
         for (int i = 0; i < characters.Count; i++)
         {
             SKRect box = characters[i].BoundingBox;
-
-            if (box.Contains(point))
-            {
-                return i;
-            }
-
             float centerX = (box.Left + box.Right) / 2f;
             float centerY = (box.Top + box.Bottom) / 2f;
             float dx = point.X - centerX;
@@ -152,22 +231,17 @@ public sealed partial class PdfPanelTextSelector : IDisposable
             }
         }
 
-        return closestIndex;
-    }
-
-    private SKPicture? GenerateSelectionPicture(int pageNumber, List<PdfCharacter> characters)
-    {
-        if (_anchorPageNumber != pageNumber)
+        if (maxDistance != null && closestDistance > maxDistance.Value * maxDistance.Value)
         {
             return null;
         }
 
-        int start = Math.Min(_anchorCharIndex, _currentCharIndex);
-        int end = Math.Max(_anchorCharIndex, _currentCharIndex);
-        start = Math.Max(start, 0);
-        end = Math.Min(end, characters.Count - 1);
+        return closestIndex;
+    }
 
-        if (start > end)
+    private SKPicture? GenerateSelectionPicture(int pageNumber)
+    {
+        if (_anchorPageNumber != pageNumber || _selectedCharacters == null)
         {
             return null;
         }
@@ -180,20 +254,20 @@ public sealed partial class PdfPanelTextSelector : IDisposable
         SKPaint highlightPaint = new()
         {
             Style = SKPaintStyle.Fill,
-            Color = new SKColor(50, 100, 220, 80)
+            Color = HighlightColor
         };
 
         SKRect? currentStrip = null;
 
-        for (int i = start; i <= end; i++)
+        foreach (PdfCharacter character in _selectedCharacters)
         {
-            SKRect box = characters[i].BoundingBox;
+            SKRect box = character.BoundingBox;
 
             if (currentStrip == null)
             {
                 currentStrip = box;
             }
-            else if (Math.Abs(box.Top - currentStrip.Value.Top) < currentStrip.Value.Height * 0.5f)
+            else if (Math.Abs(box.Top - currentStrip.Value.Top) < currentStrip.Value.Height * LineMergeThreshold)
             {
                 currentStrip = SKRect.Union(currentStrip.Value, box);
             }
@@ -217,8 +291,7 @@ public sealed partial class PdfPanelTextSelector : IDisposable
     /// <inheritdoc />
     public void Dispose()
     {
-        _picture?.Dispose();
-        _picture = null;
+        ClearSelectionPictures();
         _flattenedPages.Clear();
     }
 }

@@ -1,3 +1,5 @@
+// TODO: [HIGH] cleanup and test the prototype — commented out pending rework of partial content model
+/*
 using PdfPixel.Commands;
 using PdfPixel.PdfPanel.Requests;
 using SkiaSharp;
@@ -86,7 +88,7 @@ internal sealed class PartialFlushObserver : IPdfCancellableExecutionObserver
         SKPicture partialPicture = _recorder.EndRecording();
         _recorder.Dispose();
 
-        _cacheContent.UpdateContentPicture(partialPicture, _request, isPartialContent: true);
+        _cacheContent.UpdateContent(partialPicture, _request, regionOfInterest: default, isPartialContent: true);
         _onPageUpdated?.Invoke();
 
         _recorder = new SKPictureRecorder();
@@ -104,3 +106,4 @@ internal sealed class PartialFlushObserver : IPdfCancellableExecutionObserver
     /// <inheritdoc />
     public void Dispose() => _recorder.Dispose();
 }
+*/

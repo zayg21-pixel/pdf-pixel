@@ -1,5 +1,6 @@
 using PdfPixel.Commands;
 using PdfPixel.Models;
+using PdfPixel.PdfPanel.Extensions;
 using PdfPixel.PdfPanel.Requests;
 using PdfPixel.PdfPanel.WorkQueue;
 using PdfPixel.TextExtraction;
@@ -65,7 +66,6 @@ public class PdfPageUpdateCacheWorkItem : IWorkItem
 
         var contentUpdated = false;
         var contentIsPartial = false;
-        SKRect regionOfInterest = ComputeRegionOfInterest();
 
         lock (_documentLocker)
         {
@@ -90,7 +90,7 @@ public class PdfPageUpdateCacheWorkItem : IWorkItem
                     _document.OptionalContentGroups,
                     _contentObserver,
                     canvas,
-                    regionOfInterest);
+                    _request.ComputeRegionOfInterest(CacheEntry.PageNumber));
 
                 PdfDocumentContentExtensions.RecordingToSkPicture(contentRecording.Content, executionContext);
 
@@ -98,7 +98,7 @@ public class PdfPageUpdateCacheWorkItem : IWorkItem
                 bool isPartialContent = executionContext.IsPartialContent;
                 PdfTextBlock rootTextBlock = executionContext.RootTextBlock;
 
-                CacheEntry.Content.UpdateContentPicture(contentPicture, _request, isPartialContent, rootTextBlock);
+                CacheEntry.Content.UpdateContent(contentPicture, _request, isPartialContent, rootTextBlock);
                 contentUpdated = true;
                 contentIsPartial = isPartialContent;
             }
@@ -106,7 +106,7 @@ public class PdfPageUpdateCacheWorkItem : IWorkItem
 
         if (contentUpdated)
         {
-            _onPageUpdated?.Invoke(new PageUpdatedArgs(CacheEntry.PageNumber, CacheEntry.GetContentPictures(), UpdatedContentType.Content, contentIsPartial));
+            _onPageUpdated?.Invoke(new PageUpdatedArgs(CacheEntry.PageNumber, CacheEntry.GetContentPictures(), UpdatedContentType.Content, contentIsPartial, CacheEntry.Content.LastRegionOfInterest));
         }
 
         var annotationRecordingUpdated = false;
@@ -147,29 +147,24 @@ public class PdfPageUpdateCacheWorkItem : IWorkItem
                     _document.OptionalContentGroups,
                     _contentObserver,
                     annotationCanvas,
-                    regionOfInterest);
+                    _request.ComputeRegionOfInterest(CacheEntry.PageNumber));
 
                 PdfDocumentContentExtensions.RecordingToSkPicture(contentRecording.Content, annotationContext);
 
                 SKPicture? annotationPicture = annotationRecorder.EndRecording();
                 annotationIsPartial = annotationContext.IsPartialContent;
 
-                CacheEntry.AnnotationContent.UpdateContentPicture(annotationPicture, _request, annotationIsPartial);
+                CacheEntry.AnnotationContent.UpdateContent(annotationPicture, _request, annotationIsPartial);
             }
 
-            _onPageUpdated?.Invoke(new PageUpdatedArgs(CacheEntry.PageNumber, CacheEntry.GetContentPictures(), UpdatedContentType.Annotations, annotationIsPartial));
+            _onPageUpdated?.Invoke(new PageUpdatedArgs(CacheEntry.PageNumber, CacheEntry.GetContentPictures(), UpdatedContentType.Annotations, annotationIsPartial, CacheEntry.AnnotationContent.LastRegionOfInterest));
         }
     }
 
-    /// <summary>
-    /// Replays <paramref name="commandRecording"/> onto a fresh <see cref="SKPictureRecorder"/>,
-    /// periodically flushing partial pictures to <see cref="CacheEntry"/> and firing
-    /// <see cref="_onPageUpdated"/> whenever 200 ms elapse between commands at layer depth 0,
-    /// so the UI can show progressive content while decoding continues.
-    /// </summary>
+    // TODO: [HIGH] cleanup and test the prototype
+    /*
     private SKPicture? ReplayContentWithPartialFlush(PdfCommandRecorder commandRecording, SKRect regionOfInterest, out bool isPartialContent)
     {
-        // TODO: [HIGH] cleanup and test the prototype
         Action? notifyPartialContent = (_onPageUpdated != null)
             ? () => _onPageUpdated(new PageUpdatedArgs(CacheEntry.PageNumber, CacheEntry.GetContentPictures(), UpdatedContentType.Content, isPartialContent: true))
             : null;
@@ -191,23 +186,6 @@ public class PdfPageUpdateCacheWorkItem : IWorkItem
         isPartialContent = executionContext.IsPartialContent;
         return finalPicture;
     }
+    */
 
-    /// <summary>
-    /// Maps the visible canvas area back into this page's content coordinates (the space
-    /// command replay and recorded pictures operate in) and intersects it with the page
-    /// bounds, giving the visible portion of the page content in its own coordinate system.
-    /// </summary>
-    private SKRect ComputeRegionOfInterest() // TODO: [MEDIUM] this can be a common helper
-    {
-        VisiblePageInfo visiblePageInfo = _request.VisiblePages.First(page => page.PageNumber == CacheEntry.PageNumber);
-
-        SKMatrix contentToCanvas = visiblePageInfo.GetContentToCanvasMatrix(_request.Scale);
-        SKRect canvasRect = SKRect.Create(0, 0, _request.CanvasSize.Width, _request.CanvasSize.Height);
-        SKRect regionOfInterest = contentToCanvas.Invert().MapRect(canvasRect);
-
-        SKRect pageBounds = SKRect.Create(0, 0, visiblePageInfo.Info.Width, visiblePageInfo.Info.Height);
-        regionOfInterest.Intersect(pageBounds);
-
-        return regionOfInterest;
-    }
 }

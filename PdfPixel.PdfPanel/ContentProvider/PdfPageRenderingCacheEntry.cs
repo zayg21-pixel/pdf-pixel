@@ -1,3 +1,4 @@
+using PdfPixel.Commands;
 using PdfPixel.PdfPanel.Annotations;
 using System;
 
@@ -23,6 +24,8 @@ public sealed class PdfPageCacheEntry : IDisposable
         PageNumber = pageNumber;
         PageInfo = pageInfo;
         Annotations = annotations;
+        Content = new PdfPageCacheEntryItem(pageNumber);
+        AnnotationContent = new PdfPageCacheEntryItem(pageNumber);
     }
 
     /// <summary>
@@ -38,12 +41,12 @@ public sealed class PdfPageCacheEntry : IDisposable
     /// <summary>
     /// Main page content.
     /// </summary>
-    public PdfPageCacheEntryItem Content { get; } = new();
+    public PdfPageCacheEntryItem Content { get; }
 
     /// <summary>
     /// Page annotation content.
     /// </summary>
-    public PdfPageCacheEntryItem AnnotationContent { get; } = new();
+    public PdfPageCacheEntryItem AnnotationContent { get; }
 
     /// <summary>
     /// Page annotations.
@@ -131,7 +134,7 @@ public sealed class PdfPageCacheEntry : IDisposable
         {
             Content = Content.ContentPicture,
             Annotations = AnnotationContent.ContentPicture,
-            IsContentScaleDependant = Content.IsScaleDependant,
+            ContentFeatures = Content.Features,
             ContentRootTextBlock = Content.RootTextBlock
         };
     }

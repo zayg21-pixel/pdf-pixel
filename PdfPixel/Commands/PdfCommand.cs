@@ -20,7 +20,7 @@ public abstract class PdfCommand : IPdfCommand
     public abstract void Execute(IEnumerable<IPdfCommandModifier> modifiers, PdfCommandExecutionContext executionContext);
 
     /// <inheritdoc />
-    public virtual bool IsScaleDependent => false;
+    public virtual PdfCommandFeatures Features => PdfCommandFeatures.None;
 
     /// <summary>
     /// Releases resources owned by this command.

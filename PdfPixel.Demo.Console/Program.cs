@@ -89,36 +89,6 @@ namespace PdfPixel.Console.Demo
             }
         }
 
-        static void TextTextExtraction(string fileName)
-        {
-            if (!File.Exists(fileName))
-            {
-                Logger.LogWarning("File not found: {File}", fileName);
-                Logger.LogInformation(string.Empty);
-                return;
-            }
-
-            Stopwatch sw = Stopwatch.StartNew();
-            Logger.LogInformation("Extracting text from file: {File}", fileName);
-
-            var reader = new PdfDocumentReader(LoggerFactoryInstance, FontProvider);
-            using var file = File.OpenRead(fileName);
-            using var document = reader.Read(file);
-
-            Dictionary<int, List<PdfCharacter>> extractedText = new Dictionary<int, List<PdfCharacter>>();
-
-            for (int i = 0; i < document.Pages.Count; i++)
-            {
-                var page = document.Pages[i];
-                var textContent = page.ExtractText();
-                extractedText[page.PageNumber] = textContent;
-            }
-
-            sw.Stop();
-
-            Logger.LogInformation("Extracted text from PDF: {File} in {ElapsedMilliseconds} ms", fileName, sw.ElapsedMilliseconds);
-        }
-
         static async Task TestPdfFile(string fileName)
         {
             await Task.Yield();
@@ -226,7 +196,7 @@ namespace PdfPixel.Console.Demo
             }
         }
 
-        private static SKPicture CreateRecording(PdfPage pdfPage)
+        private static SKPicture CreateRecording(IPdfPage pdfPage)
         {
             return null;
             //using var recorder = new SKPictureRecorder();

@@ -1,4 +1,5 @@
 using PdfPixel.Commands;
+using PdfPixel.PdfPanel.Extensions;
 using PdfPixel.PdfPanel.Requests;
 using PdfPixel.TextExtraction;
 using SkiaSharp;
@@ -13,7 +14,19 @@ namespace PdfPixel.PdfPanel.ContentProvider;
 public sealed class PdfPageCacheEntryItem : IDisposable
 {
     private bool _disposed;
-    private bool _wasPartialContent;
+
+    /// <summary>
+    /// Initializes the item for the given page number.
+    /// </summary>
+    public PdfPageCacheEntryItem(int pageNumber)
+    {
+        PageNumber = pageNumber;
+    }
+
+    /// <summary>
+    /// 1-based page number this item belongs to.
+    /// </summary>
+    public int PageNumber { get; }
 
     /// <summary>
     /// Represents page content as set of commands.
@@ -26,14 +39,24 @@ public sealed class PdfPageCacheEntryItem : IDisposable
     public ContentLocker<SKPicture> ContentPicture { get; } = new();
 
     /// <summary>
-    /// True if content depends on scale and requires generation if scale is updated.
+    /// Combined features of all commands in the current recording.
     /// </summary>
-    public bool IsScaleDependant { get; private set; }
+    public PdfCommandFeatures Features { get; private set; }
 
     /// <summary>
     /// Drawing request that produced the currently cached content picture.
     /// </summary>
     public PagesDrawingRequest? LastRequest { get; private set; }
+
+    /// <summary>
+    /// Visible region within the page content coordinate space used when the current picture was decoded.
+    /// </summary>
+    public SKRect LastRegionOfInterest { get; private set; }
+
+    /// <summary>
+    /// True when the cached picture covers only a subset of the full content.
+    /// </summary>
+    public bool IsPartialContent { get; private set; }
 
     /// <summary>
     /// Root of the text block tree extracted during the last content picture generation.
@@ -49,20 +72,15 @@ public sealed class PdfPageCacheEntryItem : IDisposable
         ThrowIfDisposed();
         ContentCommandRecording.SetContent(commandRecording);
 
-        if (commandRecording != null)
-        {
-            IsScaleDependant = commandRecording.Commands.Count > 0 && commandRecording.Commands.Any(x => x.IsScaleDependent);
-        }
-        else
-        {
-            IsScaleDependant = false;
-        }
+        Features = (commandRecording != null)
+            ? commandRecording.Commands.Aggregate(PdfCommandFeatures.None, (acc, cmd) => acc | cmd.Features)
+            : PdfCommandFeatures.None;
     }
 
     /// <summary>
     /// Replace the content picture and remember the request that produced it. Disposes the previous picture if present.
     /// </summary>
-    public void UpdateContentPicture(SKPicture? picture, PagesDrawingRequest request, bool isPartialContent, PdfTextBlock? rootTextBlock = null)
+    public void UpdateContent(SKPicture? picture, PagesDrawingRequest request, bool isPartialContent, PdfTextBlock? rootTextBlock = null)
     {
         if (request == null)
         {
@@ -72,13 +90,14 @@ public sealed class PdfPageCacheEntryItem : IDisposable
         ThrowIfDisposed();
         ContentPicture.SetContent(picture);
         LastRequest = request;
-        _wasPartialContent = isPartialContent;
+        LastRegionOfInterest = request.ComputeRegionOfInterest(PageNumber);
+        IsPartialContent = isPartialContent;
         RootTextBlock = rootTextBlock;
     }
 
     /// <summary>
     /// Returns <see langword="true"/> when the cached picture must be regenerated for <paramref name="request"/>:
-    /// no picture is cached yet, no request was recorded, or the content is scale-dependant and the scale changed.
+    /// no picture is cached yet, no request was recorded, or a feature-specific dependency changed.
     /// </summary>
     public bool NeedsUpdate(PagesDrawingRequest request)
     {
@@ -89,8 +108,8 @@ public sealed class PdfPageCacheEntryItem : IDisposable
 
         return !ContentPicture.HasContent
             || LastRequest == null
-            || _wasPartialContent
-            || (IsScaleDependant && LastRequest.CommandExecutionParameters.ScaleFactor != request.CommandExecutionParameters.ScaleFactor);
+            || ((Features & PdfCommandFeatures.Scale) != 0 && LastRequest.CommandExecutionParameters.ScaleFactor != request.CommandExecutionParameters.ScaleFactor)
+            || ((Features & PdfCommandFeatures.Region) != 0 && LastRegionOfInterest != request.ComputeRegionOfInterest(PageNumber));
     }
 
     /// <summary>
@@ -103,7 +122,8 @@ public sealed class PdfPageCacheEntryItem : IDisposable
         ContentCommandRecording.SetContent(default);
         ContentPicture.SetContent(default);
         LastRequest = null;
-        _wasPartialContent = false;
+        LastRegionOfInterest = default;
+        IsPartialContent = false;
         RootTextBlock = null;
     }
 

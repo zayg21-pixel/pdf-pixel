@@ -1,3 +1,5 @@
+using SkiaSharp;
+
 namespace PdfPixel.PdfPanel.ContentProvider;
 
 /// <summary>
@@ -6,14 +8,15 @@ namespace PdfPixel.PdfPanel.ContentProvider;
 public class PageUpdatedArgs
 {
     /// <summary>
-    /// Initialises a new instance with the updated page number, pictures, content type, and partial flag.
+    /// Initialises a new instance with the updated page number, pictures, content type, partial flag, and region of interest.
     /// </summary>
-    public PageUpdatedArgs(int pageNumber, PdfContentPictures contentPictures, UpdatedContentType updatedContentType, bool isPartialContent)
+    public PageUpdatedArgs(int pageNumber, PdfContentPictures contentPictures, UpdatedContentType updatedContentType, bool isPartialContent, SKRect regionOfInterest)
     {
         PageNumber = pageNumber;
         ContentPictures = contentPictures;
         UpdatedContentType = updatedContentType;
         IsPartialContent = isPartialContent;
+        RegionOfInterest = regionOfInterest;
     }
 
     /// <summary>
@@ -35,4 +38,9 @@ public class PageUpdatedArgs
     /// True when the content is a partial flush and further updates for this page are expected.
     /// </summary>
     public bool IsPartialContent { get; }
+
+    /// <summary>
+    /// Visible region within the page content coordinate space used when the content was decoded.
+    /// </summary>
+    public SKRect RegionOfInterest { get; }
 }

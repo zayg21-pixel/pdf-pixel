@@ -13,4 +13,6 @@ public class UpdateContentResponseHeader
     public bool IsPartialContent { get; set; }
 
     public WebDrawingRequest DrawingRequest { get; set; }
+
+    public WebRect RegionOfInterest { get; set; }
 }

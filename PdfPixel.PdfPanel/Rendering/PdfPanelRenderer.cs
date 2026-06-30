@@ -1,4 +1,5 @@
-﻿using PdfPixel.PdfPanel.Animation;
+﻿using PdfPixel.Commands;
+using PdfPixel.PdfPanel.Animation;
 using PdfPixel.PdfPanel.ContentProvider;
 using PdfPixel.PdfPanel.Extensions;
 using PdfPixel.PdfPanel.Requests;
@@ -105,13 +106,22 @@ public sealed class PdfPanelRenderer : IDisposable
         }
 
         PointerPagePosition? pointerPagePosition = GetPointerPagePosition(request);
-        TextSelector.Update(pointerPagePosition);
+        TextSelector.Update((request.ActiveAnnotation == null) ? pointerPagePosition : null);
+        // TODO: [HIGH] currently annotations always wins, this shall, but it should be "first wins" logic,
+        // for instance, if text is selected, navigation over same area shall not work
 
         if (pointerPagePosition != null && _lastRequest.RenderTarget != null)
         {
             VisiblePageInfo page = _lastRequest.VisiblePages.First(p => p.PageNumber == pointerPagePosition.Value.PageNumber);
-            RenderSinglePage(_lastRequest, in page, PageDrawFlags.Background | PageDrawFlags.Content);
-            _lastRequest.RenderTarget.Render(GetSurface(_lastRequest), _lastRequest);
+
+            PdfContentPictures pictures = _contentProvider.GetExistingContentPictures(page.PageNumber);
+
+            if (pictures.Content?.HasContent == true)
+            {
+                SKSurface surface = GetSurface(_lastRequest);
+                surface.Canvas.DrawPage(page, _lastRequest, pictures, _tiler, TextSelector, PageDrawFlags.Background | PageDrawFlags.Content, default);
+                _lastRequest.RenderTarget.Render(GetSurface(_lastRequest), _lastRequest);
+            }
         }
     }
 
@@ -185,29 +195,23 @@ public sealed class PdfPanelRenderer : IDisposable
 
         SKSurface surface = GetSurface(request);
         surface.Canvas.Clear(request.BackgroundColor);
+        AnimationState? animation = (_clock != null) ? new AnimationState(_lastTick, _clock.Fps) : null;
 
         _tiler.EvictExcept(request.VisiblePages);
 
         foreach (VisiblePageInfo page in request.VisiblePages)
         {
-            RenderSinglePage(request, in page, PageDrawFlags.All);
+            PdfContentPictures pictures = _contentProvider.GetExistingContentPictures(page.PageNumber);
+
+            if (pictures.ContentFeatures == PdfCommandFeatures.None)
+            {
+                _tiler.UpdateTiles(page.PageNumber, pictures.Content, in page, in request, forceClearVisible: false);
+            }
+
+            surface.Canvas.DrawPage(page, request, pictures, _tiler, TextSelector, PageDrawFlags.All, animation);
         }
 
         request.RenderTarget.Render(surface, request);
-    }
-
-    private void RenderSinglePage(PagesDrawingRequest request, ref readonly VisiblePageInfo page, PageDrawFlags flags)
-    {
-        PdfContentPictures pictures = _contentProvider.GetExistingContentPictures(page.PageNumber);
-
-        if (!pictures.IsContentScaleDependant)
-        {
-            _tiler.UpdateTiles(page.PageNumber, pictures.Content, in page, in request, forceClearVisible: false);
-        }
-
-        AnimationState? animation = (_clock != null) ? new AnimationState(_lastTick, _clock.Fps) : null;
-        SKSurface surface = GetSurface(request);
-        surface.Canvas.DrawPage(page, request, pictures, _tiler, TextSelector, flags, animation);
     }
 
     private void OnAnimationTick(object? sender, AnimationTickEventArgs args)

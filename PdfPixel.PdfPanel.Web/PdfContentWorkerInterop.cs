@@ -119,7 +119,8 @@ public partial class PdfContentWorkerInterop
                         PageNumber = args.PageNumber,
                         ContentType = args.UpdatedContentType,
                         IsPartialContent = args.IsPartialContent,
-                        DrawingRequest = request.DrawingRequest
+                        DrawingRequest = request.DrawingRequest,
+                        RegionOfInterest = WebRect.FromSkRect(args.RegionOfInterest)
                     }, InterfaceJsonContext.Default.UpdateContentResponseHeader);
 
                     OnDataReady(containerId, id, WorkerCommandType.PageContentReady.ToString(), headerData, contentData);

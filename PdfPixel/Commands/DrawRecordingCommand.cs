@@ -42,7 +42,7 @@ public sealed class DrawRecordingCommand : PdfCommand
     public IPdfCommandModifier? Modifier { get; }
 
     /// <inheritdoc />
-    public override bool IsScaleDependent => Recorder.Commands.Any(x => x.IsScaleDependent);
+    public override PdfCommandFeatures Features => Recorder.Commands.Aggregate(PdfCommandFeatures.None, (acc, cmd) => acc | cmd.Features);
 
     /// <inheritdoc />
     public override void Initialize(IEnumerable<IPdfCommandModifier> modifiers, PdfCommandExecutionContext executionContext)

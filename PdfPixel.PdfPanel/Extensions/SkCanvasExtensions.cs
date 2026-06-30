@@ -73,7 +73,8 @@ internal static class SkCanvasExtensions
 
     private static void DrawSelectionPicture(SKCanvas canvas, PdfPanelTextSelector textSelector, in VisiblePageInfo page)
     {
-        if (textSelector.Picture == null)
+        SKPicture? picture = textSelector.GetSelectionPicture(page.PageNumber);
+        if (picture == null)
         {
             return;
         }
@@ -83,7 +84,7 @@ internal static class SkCanvasExtensions
         try
         {
             canvas.Concat(in transform);
-            canvas.DrawPicture(textSelector.Picture);
+            canvas.DrawPicture(picture);
         }
         finally
         {

@@ -11,7 +11,7 @@ internal sealed class DrawStencilMaskedImageTileCommand : PdfCommand
 
     public DrawStencilMaskedImageTileCommand(StencilMaskedImageExecutionContext context) => _context = context;
 
-    public override bool IsScaleDependent => true;
+    public override PdfCommandFeatures Features => PdfCommandFeatures.Region | PdfCommandFeatures.Scale;
 
     public override void Initialize(IEnumerable<IPdfCommandModifier> modifiers, PdfCommandExecutionContext executionContext)
     {

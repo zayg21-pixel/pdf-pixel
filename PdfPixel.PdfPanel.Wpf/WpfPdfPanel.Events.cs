@@ -77,6 +77,30 @@ public partial class WpfPdfPanel
         }
     }
 
+    private void OnPreNotifyInput(object sender, NotifyInputEventArgs e)
+    {
+        if (!IsMouseOver)
+        {
+            return;
+        }
+
+        KeyEventArgs keyArgs = e.StagingItem.Input as KeyEventArgs;
+
+        if (keyArgs == null || keyArgs.RoutedEvent != Keyboard.KeyDownEvent)
+        {
+            return;
+        }
+
+        if (keyArgs.Key == Key.C && (Keyboard.Modifiers & ModifierKeys.Control) != 0)
+        {
+            string text = _renderer?.TextSelector.SelectedText ?? string.Empty;
+            if (text.Length > 0)
+            {
+                Clipboard.SetText(text);
+            }
+        }
+    }
+
     protected override void OnMouseMove(MouseEventArgs e)
     {
         base.OnMouseMove(e);

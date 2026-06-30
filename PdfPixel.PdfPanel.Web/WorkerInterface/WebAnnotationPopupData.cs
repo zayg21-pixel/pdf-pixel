@@ -10,13 +10,7 @@ public class WebAnnotationPopupData
 
     public bool IsInteractive { get; set; }
 
-    public float HoverLeft { get; set; }
-
-    public float HoverTop { get; set; }
-
-    public float HoverRight { get; set; }
-
-    public float HoverBottom { get; set; }
+    public WebRect HoverRectangle { get; set; }
 
     public WebAnnotationNavigationData Navigation { get; set; }
 
@@ -24,16 +18,11 @@ public class WebAnnotationPopupData
 
     internal static WebAnnotationPopupData FromPdfAnnotationPopup(PdfAnnotationPopup popup, int pageNumber)
     {
-        var hover = popup.HoverRectangle;
-
         return new WebAnnotationPopupData
         {
             PageNumber = pageNumber,
             IsInteractive = popup.IsInteractive,
-            HoverLeft = hover.Left,
-            HoverTop = hover.Top,
-            HoverRight = hover.Right,
-            HoverBottom = hover.Bottom,
+            HoverRectangle = WebRect.FromSkRect(popup.HoverRectangle),
             Navigation = popup.Navigation == null ? null : WebAnnotationNavigationData.FromPdfAnnotationNavigation(popup.Navigation),
             Messages = popup.Messages.Select(m => new WebAnnotationMessageData
             {
@@ -46,8 +35,6 @@ public class WebAnnotationPopupData
 
     internal PdfAnnotationPopup ToPdfAnnotationPopup()
     {
-        var hover = new SkiaSharp.SKRect(HoverLeft, HoverTop, HoverRight, HoverBottom);
-
         PdfAnnotationNavigation navigation = Navigation?.ToPdfAnnotationNavigation();
 
         PdfAnnotationMessage[] messages = Messages == null
@@ -57,6 +44,6 @@ public class WebAnnotationPopupData
                 m.Title,
                 m.Contents)).ToArray();
 
-        return new PdfAnnotationPopup(navigation, IsInteractive, hover, messages);
+        return new PdfAnnotationPopup(navigation, IsInteractive, HoverRectangle.ToSkRect(), messages);
     }
 }

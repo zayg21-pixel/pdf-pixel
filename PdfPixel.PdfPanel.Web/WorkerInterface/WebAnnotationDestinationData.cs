@@ -1,6 +1,5 @@
 using PdfPixel.Annotations.Models;
 using PdfPixel.PdfPanel.Annotations;
-using SkiaSharp;
 
 namespace PdfPixel.PdfPanel.Web.WorkerInterface;
 
@@ -10,13 +9,7 @@ public class WebAnnotationDestinationData
 
     public int FitType { get; set; }
 
-    public float? TargetLeft { get; set; }
-
-    public float? TargetTop { get; set; }
-
-    public float? TargetRight { get; set; }
-
-    public float? TargetBottom { get; set; }
+    public WebRect? TargetLocation { get; set; }
 
     public float? Zoom { get; set; }
 
@@ -26,25 +19,18 @@ public class WebAnnotationDestinationData
         {
             PageNumber = destination.PageNumber,
             FitType = (int)destination.FitType,
-            TargetLeft = destination.TargetLocation?.Left,
-            TargetTop = destination.TargetLocation?.Top,
-            TargetRight = destination.TargetLocation?.Right,
-            TargetBottom = destination.TargetLocation?.Bottom,
+            TargetLocation = destination.TargetLocation.HasValue ? WebRect.FromSkRect(destination.TargetLocation.Value) : null,
             Zoom = destination.Zoom
         };
     }
 
     internal PdfAnnotationDestination ToPdfAnnotationDestination()
     {
-        SKRect? targetLocation = TargetLeft.HasValue
-            ? new SKRect(TargetLeft.Value, TargetTop!.Value, TargetRight!.Value, TargetBottom!.Value)
-            : null;
-
         return new PdfAnnotationDestination
         {
             PageNumber = PageNumber,
             FitType = (PdfDestinationFitType)FitType,
-            TargetLocation = targetLocation,
+            TargetLocation = TargetLocation?.ToSkRect(),
             Zoom = Zoom
         };
     }
