@@ -48,6 +48,11 @@ internal sealed class SkiaFontVariation : IDisposable
     /// </summary>
     public SKTypeface ApplyWidthVariation(SKTypeface typeface, string? unicode, float? width)
     {
+        if (typeface == null)
+        {
+            return typeface;
+        }
+
         if (width == null || unicode == null || unicode.Length == 0)
         {
             return typeface;

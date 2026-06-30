@@ -133,21 +133,34 @@ public partial class PostScriptEvaluator
                         }
 
                         Dictionary<string, PostScriptToken> dict = [];
-                        for (int i = frame.StartIndex; i < result.Count; i += 2)
+                        PostScriptLiteralName? pendingKey = null;
+                        for (int i = frame.StartIndex; i < result.Count; i++)
                         {
-                            if (i + 1 >= result.Count)
+                            PostScriptToken token = result[i];
+                            if (token is PostScriptExecutableName executableName && executableName.Name == "def")
                             {
-                                throw new InvalidOperationException("Odd number of elements in PostScript dictionary.");
+                                continue;
                             }
 
-                                PostScriptToken key = result[i];
-
-                            if (key is not PostScriptLiteralName keyName)
+                            if (pendingKey == null)
                             {
-                                throw new InvalidOperationException("Invalid dictionary key type.");
-                            }
+                                if (token is not PostScriptLiteralName keyName)
+                                {
+                                    throw new InvalidOperationException("Invalid dictionary key type.");
+                                }
 
-                            dict[keyName.Name] = result[i + 1];
+                                pendingKey = keyName;
+                            }
+                            else
+                            {
+                                dict[pendingKey.Name] = token;
+                                pendingKey = null;
+                            }
+                        }
+
+                        if (pendingKey != null)
+                        {
+                            throw new InvalidOperationException("Odd number of elements in PostScript dictionary.");
                         }
 
                         result.RemoveRange(frame.StartIndex, count);
@@ -287,7 +300,7 @@ public partial class PostScriptEvaluator
         return result;
     }
 
-    private static bool IsPsWhitespace(byte b) => b == 0x20 || b == 0x09 || b == 0x0D || b == 0x0A || b == 0x0C;
+    private static bool IsPsWhitespace(byte b) => b == 0x20 || b == 0x09 || b == 0x0D || b == 0x0A || b == 0x0C || b == 0x00;
 
     private static bool IsTokenTerminator(byte b)
     {

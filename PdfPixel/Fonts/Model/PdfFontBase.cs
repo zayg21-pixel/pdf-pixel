@@ -175,7 +175,7 @@ public abstract class PdfFontBase : IDisposable
         {
             SKTypeface typeface = GetTypeface(unicode, width);
             float[] widths = [width];
-            (float xScale, SKPoint origin, float advancement) = GetScalingAndOrigin(unicode, default, displacement, width, widths);
+            (float xScale, SKPoint origin, float advancement) = GetScalingAndOrigin(unicode, displacement, width, widths);
             return new PdfCharacterInfo(characterCode, typeface, unicode, [gid], width, widths, xScale, origin, advancement);
         }
         else if (gid != 0 && unicode?.Length > 0)
@@ -184,7 +184,7 @@ public abstract class PdfFontBase : IDisposable
             using SKFont skFont = PdfPaintFactory.CreateTextFont(typeface);
             width = skFont.GetGlyphWidths(unicode).Sum();
             float[] widths = [width];
-            (float xScale, SKPoint origin, float advacement) = GetScalingAndOrigin(unicode, default, displacement, width, widths);
+            (float xScale, SKPoint origin, float advacement) = GetScalingAndOrigin(unicode, displacement, width, widths);
 
             return new PdfCharacterInfo(characterCode, typeface, unicode, [gid], width, widths, xScale, origin, advacement);
         }
@@ -194,7 +194,7 @@ public abstract class PdfFontBase : IDisposable
             using SKFont skFont = PdfPaintFactory.CreateTextFont(typeface);
             ushort[] gids = skFont.GetGlyphs(unicode);
             float[] widths = skFont.GetGlyphWidths(unicode);
-            (float xScale, SKPoint origin, float advacement) = GetScalingAndOrigin(unicode, skFont, displacement, width, widths);
+            (float xScale, SKPoint origin, float advacement) = GetScalingAndOrigin(unicode, displacement, width, widths);
 
             return new PdfCharacterInfo(characterCode, typeface, unicode, gids, width, widths, xScale, origin, advacement);
         }
@@ -205,7 +205,7 @@ public abstract class PdfFontBase : IDisposable
             ushort[] gids = skFont.GetGlyphs(unicode);
             float[] widths = skFont.GetGlyphWidths(unicode);
             width = widths.Sum();
-            (float xScale, SKPoint origin, float advacement) = GetScalingAndOrigin(unicode, skFont, displacement, width, widths);
+            (float xScale, SKPoint origin, float advacement) = GetScalingAndOrigin(unicode, displacement, width, widths);
 
             return new PdfCharacterInfo(characterCode, typeface, unicode, gids, width, widths, xScale, origin, advacement);
         }
@@ -214,18 +214,18 @@ public abstract class PdfFontBase : IDisposable
         return new PdfCharacterInfo(characterCode, fallbackTypeface, string.Empty, [0], 0, [0], 1, SKPoint.Empty, default);
     }
 
-    private (float xScale, SKPoint Origin, float Advancement) GetScalingAndOrigin(string? unicode, SKFont? font, in VerticalMetric verticalMetric, float originalWidth, float[] widths)
+    private (float xScale, SKPoint Origin, float Advancement) GetScalingAndOrigin(string? unicode, in VerticalMetric verticalMetric, float originalWidth, float[] widths)
     {
         float totalWidth = widths.Sum();
         float xScale;
         float offsetX;
-        float offsetY = 0;
+        float offsetY;
         float advancement;
 
         if (WritingMode == CMapWMode.Vertical)
         {
             offsetX = -(verticalMetric.V1X ?? totalWidth / 2f);
-            offsetY += verticalMetric.V1;
+            offsetY = verticalMetric.V1;
             xScale = 1;
             advancement = verticalMetric.W1;
         }
@@ -243,12 +243,8 @@ public abstract class PdfFontBase : IDisposable
                 xScale = 1;
             }
 
+            offsetY = 0;
             advancement = originalWidth;
-        }
-
-        if (FontDescriptor != null && font != null)
-        {
-            offsetY += (FontDescriptor.Descent / 1000f) + font.Metrics.Descent;
         }
 
         return (xScale, new SKPoint(offsetX, offsetY), advancement);
