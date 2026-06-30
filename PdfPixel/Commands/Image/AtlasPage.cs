@@ -11,7 +11,7 @@ namespace PdfPixel.Commands.Image;
 /// </summary>
 internal sealed class AtlasPage : IDisposable
 {
-    private const int MaxSize = 4096;
+    private const int MaxSize = 1024;
     private const int Padding = 1;
 
     private readonly AtlasKey _key;

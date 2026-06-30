@@ -47,7 +47,6 @@ internal static class PdfImageCommandUtilities
     /// </summary>
     public static SKSizeI? GetScaledSize(SKMatrix ctm, SKSizeI size)
     {
-        // TODO: [HIGH] we really do NOT need to descale tiny images, this bloats small image cache. CachedTile is blocker, as it validates against matrix
         SKPoint unitMapped = ctm.MapPoint(new SKPoint(1, 1)) - ctm.MapPoint(new SKPoint(0, 0));
 
         float unitPixelsX = Math.Abs(unitMapped.X);
