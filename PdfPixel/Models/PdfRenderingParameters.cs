@@ -9,7 +9,7 @@ public class PdfRenderingParameters
     /// <summary>
     /// Tile size used when splitting large images into tiles during command recording.
     /// </summary>
-    public int ImageTileSize { get; set; } = 1024;
+    public int ImageTileSize { get; set; } = 512;
 
     /// <summary>
     /// Upper bound on the combined estimated byte size of cached decoded tiles.

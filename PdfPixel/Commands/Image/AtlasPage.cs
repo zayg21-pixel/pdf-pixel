@@ -28,6 +28,8 @@ internal sealed class AtlasPage : IDisposable
 
     public AtlasPage(ref readonly AtlasKey key) => _key = key;
 
+    public AtlasKey Key => _key;
+
     public bool IsFrozen => _frozenImage != null;
 
     /// <summary>

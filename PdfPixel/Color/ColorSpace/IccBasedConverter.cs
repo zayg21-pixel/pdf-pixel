@@ -11,6 +11,7 @@ internal sealed class IccBasedConverter : PdfColorSpaceConverter
     private readonly bool _useDefault;
     private readonly PdfColorSpaceConverter _default;
     private readonly IccProfileTransform? _iccTransform;
+    private readonly bool _isStandardRgbOrGray;
 
     public IccBasedConverter(int n, PdfColorSpaceConverter? alternate, IccProfile? profile)
     {
@@ -19,7 +20,8 @@ internal sealed class IccBasedConverter : PdfColorSpaceConverter
 
         //note that if alternate is LAB we expect input in LAB coordinates, since LAB does not define any color correction,
         // we simply fallback to alternate here, as ICC requires 0 - 1 input
-        if (alternate is LabColorSpaceConverter || profile == null || profile.ChannelsCount != n || IccProfileAnalyzer.IsStandardSrgb(profile) || IccProfileAnalyzer.IsStandardGray(profile))
+        _isStandardRgbOrGray = profile != null && (IccProfileAnalyzer.IsStandardSrgb(profile) || IccProfileAnalyzer.IsStandardGray(profile));
+        if (alternate is LabColorSpaceConverter || profile == null || profile.ChannelsCount != n || _isStandardRgbOrGray)
         {
             _useDefault = true;
         }
@@ -30,12 +32,12 @@ internal sealed class IccBasedConverter : PdfColorSpaceConverter
 
         _default = alternate
             ?? n switch
-                {
-                    1 => DeviceGrayConverter.Instance,
-                    3 => DeviceRgbConverter.Instance,
-                    4 => DeviceCmykConverter.Instance,
-                    _ => DeviceRgbConverter.Instance
-                };
+            {
+                1 => DeviceGrayConverter.Instance,
+                3 => DeviceRgbConverter.Instance,
+                4 => DeviceCmykConverter.Instance,
+                _ => DeviceRgbConverter.Instance
+            };
     }
 
     public IccBasedConverter(int n, PdfColorSpaceConverter? alternate, byte[]? iccProfileBytes)
@@ -47,7 +49,7 @@ internal sealed class IccBasedConverter : PdfColorSpaceConverter
 
     public override int Components => _default.Components;
 
-    public override bool IsDevice => false;
+    public override bool IsDevice => _isStandardRgbOrGray;
 
     public int N { get; }
 

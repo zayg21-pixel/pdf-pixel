@@ -169,7 +169,7 @@ public sealed class SoftMaskDrawingScope : IDisposable
             maskPaint.ColorFilter = SKColorFilter.CreateLumaColor();
         }
 
-        // Position the mask form (matches old _canvas.Concat(Matrix)).
+        // Position the mask form
         _processor.Process(new SaveLayerCommand(_maskBounds, maskPaint));
 
         _processor.Process(new DrawRecordingCommand(recorder));

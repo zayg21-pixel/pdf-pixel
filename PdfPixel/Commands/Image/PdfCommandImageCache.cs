@@ -109,7 +109,7 @@ internal sealed class PdfCommandImageCache : IDisposable
     {
         for (int i = _pages.Count - 1; i >= 0; i--)
         {
-            if (!_pages[i].IsFrozen)
+            if (!_pages[i].IsFrozen && _pages[i].Key.Equals(key))
             {
                 return _pages[i];
             }
