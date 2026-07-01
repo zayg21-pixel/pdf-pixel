@@ -157,6 +157,11 @@ public sealed class CcittRowDecoder
 
         _changesCount = CcittRaster.BuildReferenceChangeList(decodedRuns, _width, _referenceChanges);
 
+        if (_byteAlign)
+        {
+            reader.AlignAfterEndOfLine(true);
+        }
+
         // Snapshot updated reader state
         _byteIndex = reader.ByteIndex;
         _bufferedBits = reader.BufferedBits;
@@ -216,11 +221,6 @@ public sealed class CcittRowDecoder
             throw new InvalidOperationException("CCITT mixed mode decode error: missing EOL before tag bit at row " + _currentRowIndex + ".");
         }
 
-        if (_byteAlign)
-        {
-            reader.AlignAfterEndOfLine(true);
-        }
-
         int tagBit = reader.ReadBit();
 
         if (tagBit < 0)
@@ -237,11 +237,6 @@ public sealed class CcittRowDecoder
         if (!ConsumeEolOptional(ref reader))
         {
             throw new InvalidOperationException("CCITT decode error: missing required EOL at row " + _currentRowIndex + ".");
-        }
-
-        if (_byteAlign)
-        {
-            reader.AlignAfterEndOfLine(true);
         }
     }
 

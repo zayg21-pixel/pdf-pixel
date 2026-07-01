@@ -56,7 +56,7 @@ internal sealed class CcittImageDecoder : PdfImageDecoder
         bool endOfLine = parameters?.EndOfLine ?? false;
         bool byteAlign = parameters?.EncodedByteAlign ?? false;
         bool blackIs1 = parameters?.BlackIs1 ?? false;
-        bool endOfBlock = parameters?.EndOfBlock ?? false;
+        bool endOfBlock = parameters?.EndOfBlock ?? true;
 
         PdfColorSpaceConverter converter = _colorSpaceConverter;
         SKSizeI? downscaledSize = PdfImageCommandUtilities.GetScaledSize(ctm, new SKSizeI(columns, rows));

@@ -6,10 +6,6 @@ using PdfPixel.PdfPanel.WorkQueue;
 using PdfPixel.TextExtraction;
 using SkiaSharp;
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading;
 
 namespace PdfPixel.PdfPanel.ContentProvider;
 

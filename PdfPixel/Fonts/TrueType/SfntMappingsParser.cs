@@ -240,7 +240,7 @@ internal static class SfntFontTableParser
             return code;
         }
 
-        if (AdobeGlyphList.CharacterMap.TryGetValue(glyphName, out string? unicode)
+        if (AdobeGlyphList.GetMap(encoding.Value).TryGetValue(glyphName, out string? unicode)
             && unicode != null
             && unicode.Length > 0)
         {

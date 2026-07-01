@@ -67,7 +67,7 @@ internal class SfntByteCodeToGidMapper : IByteCodeToGidMapper
             return gidByName;
         }
 
-        if (AdobeGlyphList.CharacterMap.TryGetValue(name, out string? unicode)
+        if (AdobeGlyphList.GetMap(_encoding).TryGetValue(name, out string? unicode)
             && _sfntTables.UnicodeToGid?.TryGetValue(unicode, out ushort gidByUnicode) == true)
         {
             return gidByUnicode;

@@ -57,7 +57,8 @@ public abstract class PdfSingleByteFont : PdfFontBase
 
     /// <summary>
     /// Converts a character code to its Unicode string representation.
-    /// First consults the ToUnicode CMap; if no mapping is found, falls back to the Adobe Glyph List via the font's encoding.
+    /// First consults the ToUnicode CMap; if no mapping is found, falls back to the Adobe Glyph List via the font's encoding;
+    /// if that also fails, falls back to treating the character code itself as a Unicode code point.
     /// </summary>
     /// <param name="code">The character code to convert.</param>
     /// <returns>The Unicode string for the character code, or <see langword="null"/> if no mapping is found.</returns>
@@ -73,12 +74,13 @@ public abstract class PdfSingleByteFont : PdfFontBase
         // Fallback to Adobe Glyph List mapping.
         PdfString name = SingleByteEncodings.GetNameByCodeOrUndefined((byte)(uint)code, Encoding.BaseEncoding, Encoding.Differences);
 
-        if (AdobeGlyphList.CharacterMap.TryGetValue(name, out string? aglUnicode))
+        if (AdobeGlyphList.GetMap(Encoding.BaseEncoding).TryGetValue(name, out string? aglUnicode))
         {
             return aglUnicode;
         }
 
-        return null;
+        // Fallback: treat the character code itself as a Unicode code point.
+        return char.ConvertFromUtf32((int)(uint)code);
     }
 
     /// <summary>
