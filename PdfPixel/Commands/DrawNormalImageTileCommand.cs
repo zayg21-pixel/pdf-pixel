@@ -31,9 +31,11 @@ internal sealed class DrawNormalImageTileCommand : PdfCommand
         using SKPaint paint = PdfImageCommandUtilities.GetBaseImagePaint(shader, _context.DecodingContext);
         CommandHelpers.ApplyModifiers(paint, modifiers);
 
+        bool antialias = PdfImageCommandUtilities.GetImageTileIsAntialias(ctm, _context.ImageSize, executionContext);
+
         executionContext.Canvas.Save();
         executionContext.Canvas.Scale(1f / _context.ImageSize.Width, 1f / _context.ImageSize.Height);
-        executionContext.Canvas.ClipRect(tile.TilePosition);
+        executionContext.Canvas.ClipRect(tile.TilePosition, antialias: antialias);
         executionContext.Canvas.Translate(tile.TilePosition.Left, tile.TilePosition.Top);
         executionContext.Canvas.DrawPaint(paint);
         executionContext.Canvas.Restore();

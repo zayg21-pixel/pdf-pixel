@@ -38,9 +38,6 @@ public class PdfStampAnnotation : PdfAnnotationBase
     /// </summary>
     public PdfStampName StampName { get; }
 
-    /// <inheritdoc />
-    public override bool ShouldDisplayBubble => false;
-
     internal override bool RenderFallback(IPdfCommandProcessor processor, IPdfPageInternal page, PdfAnnotationVisualStateKind visualStateKind)
     {
         SKColor stampColor = ResolveColor(page, new SKColor(180, 0, 0));

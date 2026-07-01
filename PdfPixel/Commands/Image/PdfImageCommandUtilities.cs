@@ -38,8 +38,31 @@ internal static class PdfImageCommandUtilities
         {
             return new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.Linear);
         }
+        else if (imageSize.Width < 2 || imageSize.Height < 2)
+        {
+            return new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.Linear);
+        }
+        else
+        {
+            return new SKSamplingOptions(SKFilterMode.Nearest, SKMipmapMode.None);
+        }
 
-        return new SKSamplingOptions(SKFilterMode.Nearest, SKMipmapMode.None);
+    }
+
+    /// <summary>
+    /// Returns whether a tile's clip rect should be antialiased. When the original image
+    /// renders at less than 2 px in width or height, tile seams fall within that sub-pixel
+    /// edge and are not noticeable, so antialiasing can be applied there safely.
+    /// </summary>
+    public static bool GetImageTileIsAntialias(SKMatrix ctm, SKSizeI imageSize, PdfCommandExecutionContext executionContext)
+    {
+        if (!executionContext.Parameters.Antialias)
+        {
+            return false;
+        }
+
+        SKSizeI renderedSize = GetScaledSize(ctm, imageSize) ?? imageSize;
+        return renderedSize.Width < 2 || renderedSize.Height < 2;
     }
 
     /// <summary>

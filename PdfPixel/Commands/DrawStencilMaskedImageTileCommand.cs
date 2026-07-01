@@ -41,9 +41,11 @@ internal sealed class DrawStencilMaskedImageTileCommand : PdfCommand
         using SKPaint paint = PdfImageCommandUtilities.GetBaseImagePaint(blendingShader, _context.DecodingContext);
         CommandHelpers.ApplyModifiers(paint, modifiers);
 
+        bool antialias = PdfImageCommandUtilities.GetImageTileIsAntialias(ctm, _context.ImageSize, executionContext);
+
         executionContext.Canvas.Save();
         executionContext.Canvas.Scale(1f / _context.ImageSize.Width, 1f / _context.ImageSize.Height);
-        executionContext.Canvas.ClipRect(imageTile.TilePosition);
+        executionContext.Canvas.ClipRect(imageTile.TilePosition, antialias: antialias);
         executionContext.Canvas.Translate(imageTile.TilePosition.Left, imageTile.TilePosition.Top);
         executionContext.Canvas.DrawPaint(paint);
         executionContext.Canvas.Restore();
