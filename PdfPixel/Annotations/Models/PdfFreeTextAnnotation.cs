@@ -1,6 +1,5 @@
 using PdfPixel.Commands;
 using PdfPixel.Models;
-using SkiaSharp;
 
 namespace PdfPixel.Annotations.Models;
 
@@ -19,6 +18,7 @@ public class PdfFreeTextAnnotation : PdfAnnotationBase
     public PdfFreeTextAnnotation(PdfObject annotationObject)
         : base(annotationObject, PdfAnnotationSubType.FreeText)
     {
+        var data = annotationObject.Dictionary.GetObject((PdfString)"DA");
         // TODO: [MEDIUM] DA (default appearance), Q (justification), IT (intent), CL (callout line), RD (rect inset), DS, BE
     }
 

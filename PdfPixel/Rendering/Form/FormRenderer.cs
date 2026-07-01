@@ -7,8 +7,6 @@ using PdfPixel.Rendering.State;
 using PdfPixel.Transparency.Utilities;
 using SkiaSharp;
 using System;
-using System.Collections;
-using System.Collections.Generic;
 
 namespace PdfPixel.Rendering.Form;
 

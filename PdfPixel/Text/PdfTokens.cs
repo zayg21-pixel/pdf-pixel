@@ -191,7 +191,7 @@ internal static class PdfTokens
     public static readonly PdfString CoordsKey = (PdfString)"Coords"u8;           // coordinates array
     public static readonly PdfString C0Key = (PdfString)"C0"u8;                   // starting color components
     public static readonly PdfString C1Key = (PdfString)"C1"u8;                   // ending color components
-    public static readonly PdfString FunctionKey = (PdfString)"Function"u8;       // function for color (not implemented)
+    public static readonly PdfString FunctionKey = (PdfString)"Function"u8;       // function for color
     public static readonly PdfString DomainKey = (PdfString)"Domain"u8;           // optional domain for input variable
     public static readonly PdfString FunctionTypeKey = (PdfString)"FunctionType"u8; // function dictionaries only
     public static readonly PdfString FnNKey = (PdfString)"N"u8;                   // exponent for function type 2 (distinct from object-stream /N)

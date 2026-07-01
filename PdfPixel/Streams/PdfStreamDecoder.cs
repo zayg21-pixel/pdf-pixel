@@ -160,8 +160,11 @@ public sealed class PdfStreamDecoder
         }
         else
         {
-            PdfFilterType filterType = dictionary.GetName(PdfTokens.FilterKey).AsEnum<PdfFilterType>();
-            filters.Add(filterType);
+            PdfString filterName = dictionary.GetName(PdfTokens.FilterKey);
+            if (!filterName.IsEmpty)
+            {
+                filters.Add(filterName.AsEnum<PdfFilterType>());
+            }
         }
 
         return filters;
@@ -188,7 +191,7 @@ public sealed class PdfStreamDecoder
                 list.Add(PdfDecodeParameters.FromDictionary(dict));
             }
         }
-        else
+        else if (dictionary.HasKey(PdfTokens.DecodeParmsKey))
         {
             PdfDictionary? single = dictionary.GetDictionary(PdfTokens.DecodeParmsKey);
             list.Add(PdfDecodeParameters.FromDictionary(single));
