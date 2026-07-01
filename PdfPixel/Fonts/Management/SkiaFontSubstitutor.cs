@@ -36,9 +36,10 @@ internal sealed class SkiaFontSubstitutor
     /// </returns>
     public SKTypeface SubstituteTypeface(in PdfSubstitutionInfo substitutionInfo, string? unicode, float? width)
     {
-        if (Enum.TryParse(substitutionInfo.NormalizedStem, out PdfStandardFontName standardFont))
+        PdfStandardFontName? standardFont = substitutionInfo.GetStandardName();
+        if (standardFont.HasValue)
         {
-            SKTypeface? standardTypeface = _skiaFontProvider.GetStandardFont(standardFont, substitutionInfo.FontStyle, unicode, width);
+            SKTypeface? standardTypeface = _skiaFontProvider.GetStandardFont(standardFont.Value, substitutionInfo.FontStyle, unicode, width);
 
             if (standardTypeface != null)
             {

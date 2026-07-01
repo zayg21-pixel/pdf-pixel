@@ -156,4 +156,23 @@ internal static class SingleByteEncodings
 
         return default;
     }
+
+    /// <summary>
+    /// Gets the default encoding for a Standard 14 font family.
+    /// </summary>
+    /// <param name="fontName">The Standard 14 font family.</param>
+    /// <returns>The corresponding <see cref="PdfFontEncoding"/>, or null if no match is found.</returns>
+    public static PdfFontEncoding? GetDefaultEncoding(PdfStandardFontName fontName)
+    {
+        for (int i = 0; i < Standard14NameEncodings.Length; i++)
+        {
+            (PdfStandardFontName Name, PdfFontEncoding Encoding) pair = Standard14NameEncodings[i];
+            if (pair.Name == fontName)
+            {
+                return pair.Encoding;
+            }
+        }
+
+        return default;
+    }
 }

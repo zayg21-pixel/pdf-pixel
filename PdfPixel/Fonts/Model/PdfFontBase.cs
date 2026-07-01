@@ -50,9 +50,10 @@ public abstract class PdfFontBase : IDisposable
     protected internal virtual PdfSubstitutionInfo SubstitutionInfo { get; }
 
     /// <summary>
-    /// <see langword="true"/> when no embedded typeface is available and rendering must rely on font substitution.
+    /// <see langword="true"/> when glyphs of this font may be shaped against more than one substitute typeface,
+    /// so rendering must group and switch fonts per glyph instead of assuming a single shared typeface.
     /// </summary>
-    protected internal bool SubstituteFont => Typeface == null;
+    protected internal virtual bool IsSubstitutedFont => Typeface == null;
 
     /// <summary>
     /// Original PDF font object.
@@ -105,11 +106,22 @@ public abstract class PdfFontBase : IDisposable
 
     /// <summary>
     /// Returns the SkiaSharp SKTypeface instance for this PDF font.
+    /// When <see cref="IsSubstitutedFont"/> is <see langword="true"/>, re-resolves per glyph using the
+    /// <paramref name="unicode"/>/<paramref name="width"/> hints instead of trusting a single fixed typeface,
+    /// so glyphs missing from the primary substitute can still fall back to a different font.
     /// </summary>
     /// <param name="unicode">Hint for font substitution.</param>
     /// <param name="width">Optional horizontal scale hint (1.0 = normal). Mapped to the <c>wdth</c> axis when available.</param>
     /// <returns>SKTypeface instance, should not be disposed.</returns>
-    internal SKTypeface GetTypeface(string? unicode, float? width) => Typeface ?? Document.FontSubstitutor.SubstituteTypeface(SubstitutionInfo, unicode, width);
+    internal SKTypeface GetTypeface(string? unicode, float? width)
+    {
+        if (!IsSubstitutedFont && Typeface != null)
+        {
+            return Typeface;
+        }
+
+        return Document.FontSubstitutor.SubstituteTypeface(SubstitutionInfo, unicode, width);
+    }
 
     /// <summary>
     /// Converts a <see cref="PdfCharacterCode"/> to its corresponding Unicode string representation.

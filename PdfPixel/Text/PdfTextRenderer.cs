@@ -92,7 +92,7 @@ public class PdfTextRenderer : IPdfTextRenderer
         {
             ProcessType3(processor, glyphs, state, type3Font);
         }
-        else if (font.SubstituteFont)
+        else if (font.IsSubstitutedFont)
         {
             const float scaleTolerancePercent = 0.01f; // 1%
             List<ShapedGlyph> glyphBuffer = [];

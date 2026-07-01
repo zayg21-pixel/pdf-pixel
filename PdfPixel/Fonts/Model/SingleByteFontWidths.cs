@@ -1,5 +1,6 @@
 using PdfPixel.Models;
 using PdfPixel.Fonts.Mapping;
+using PdfPixel.Fonts.Management;
 using PdfPixel.Text;
 
 namespace PdfPixel.Fonts.Model;
@@ -8,7 +9,7 @@ namespace PdfPixel.Fonts.Model;
 /// Font width information for single-byte fonts (Type1, TrueType, MMType1, Type3).
 /// All widths are stored in user space units (PDF spec: multiply by WidthToUserSpaceCoeff).
 /// </summary>
-public class SingleByteFontWidths //TODO: [HIGH] need pre-defined for standard fonts, same for Descriptor and factors
+public class SingleByteFontWidths
 {
     /// <summary>
     /// Coefficient to convert PDF font units to user space units.
@@ -88,6 +89,37 @@ public class SingleByteFontWidths //TODO: [HIGH] need pre-defined for standard f
         {
             FirstChar = firstChar,
             LastChar = lastChar,
+            Widths = widthsArray
+        };
+    }
+
+    /// <summary>
+    /// Builds the default (code 0-255) width table for a Standard 14 font, from the embedded AFM width
+    /// resources. Used when a PDF font dictionary omits <c>/Widths</c>.
+    /// </summary>
+    /// <param name="fontName">The Standard 14 font family.</param>
+    /// <param name="bold">Whether to resolve the bold style variant.</param>
+    /// <param name="italic">Whether to resolve the italic/oblique style variant.</param>
+    /// <param name="encoding">The font's actual encoding, matching what the glyph-ID resolution path uses.</param>
+    /// <returns>The resolved widths, or <see langword="null"/> if the family or style variant is unknown.</returns>
+    internal static SingleByteFontWidths? FromStandardFont(PdfStandardFontName fontName, bool bold, bool italic, PdfFontEncoding encoding)
+    {
+        int[]? widths = Standard14Metrics.GetWidths(fontName, bold, italic, encoding);
+        if (widths == null)
+        {
+            return null;
+        }
+
+        var widthsArray = new float[widths.Length];
+        for (int i = 0; i < widths.Length; i++)
+        {
+            widthsArray[i] = widths[i] * WidthToUserSpaceCoeff;
+        }
+
+        return new SingleByteFontWidths
+        {
+            FirstChar = 0,
+            LastChar = (uint)(widths.Length - 1),
             Widths = widthsArray
         };
     }

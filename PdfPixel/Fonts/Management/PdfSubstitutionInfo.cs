@@ -1,3 +1,4 @@
+using PdfPixel.Fonts.Mapping;
 using PdfPixel.Fonts.Model;
 using PdfPixel.Models;
 using SkiaSharp;
@@ -68,12 +69,17 @@ public readonly struct PdfSubstitutionInfo
     /// <summary>
     /// <see langword="true"/> when <see cref="FontStyle"/> indicates a weight heavier than normal.
     /// </summary>
-    public bool IsBold => FontStyle.Weight != 0;
+    public bool IsBold => FontStyle.Weight >= (int)SKFontStyleWeight.Bold;
 
     /// <summary>
     /// <see langword="true"/> when <see cref="FontStyle"/> specifies an italic or oblique slant.
     /// </summary>
     public bool IsItalic => FontStyle.Slant != SKFontStyleSlant.Upright;
+
+    /// <summary>
+    /// Resolves <see cref="NormalizedStem"/> to a Standard 14 font family, or <see langword="null"/> if it isn't one.
+    /// </summary>
+    public PdfStandardFontName? GetStandardName() => Enum.TryParse(NormalizedStem, out PdfStandardFontName standardFontName) ? standardFontName : null;
 
     /// <summary>
     /// Initializes a new <see cref="PdfSubstitutionInfo"/> with an empty stem and normal style.

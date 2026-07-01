@@ -129,6 +129,55 @@ internal static class PdfTextResourceConverter
     }
 
     /// <summary>
+    /// Decodes a blob back into a glyph-name-to-width map.
+    /// Format per entry: [UTF-8 name bytes][0x00 terminator][2 bytes width, ushort, little-endian]
+    /// </summary>
+    /// <param name="blob">The binary blob.</param>
+    /// <returns>The decoded glyph-name-to-width map.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="blob"/> is null.</exception>
+    /// <exception cref="FormatException">Thrown when the blob is malformed.</exception>
+    public static Dictionary<PdfString, ushort> FromWidthMapBlob(byte[] blob)
+    {
+        if (blob == null)
+        {
+            throw new ArgumentNullException(nameof(blob));
+        }
+
+        Dictionary<PdfString, ushort> result = [];
+        ReadOnlyMemory<byte> blobMemory = blob.AsMemory();
+        int index = 0;
+
+        while (index < blob.Length)
+        {
+            int nameStart = index;
+            while (index < blob.Length && blob[index] != 0)
+            {
+                index++;
+            }
+
+            if (index >= blob.Length)
+            {
+                throw new FormatException("Unexpected end of blob while reading glyph name.");
+            }
+
+            PdfString name = new(blobMemory.Slice(nameStart, index - nameStart));
+            index++; // skip the null terminator
+
+            if (index + 2 > blob.Length)
+            {
+                throw new FormatException("Unexpected end of blob while reading width.");
+            }
+
+            ushort width = BinaryPrimitives.ReadUInt16LittleEndian(blob.AsSpan(index, 2));
+            index += 2;
+
+            result[name] = width;
+        }
+
+        return result;
+    }
+
+    /// <summary>
     /// Decodes a blob back into an array of <see cref="PdfString"/>.
     /// </summary>
     /// <param name="blob">Binary blob.</param>

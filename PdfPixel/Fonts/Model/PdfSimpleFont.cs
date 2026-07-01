@@ -20,17 +20,26 @@ public class PdfSimpleFont : PdfSingleByteFont
     private readonly ILogger<PdfSimpleFont> _logger;
     private readonly SKTypeface _typeface;
     private readonly IByteCodeToGidMapper _mapper;
+    private readonly bool _isSubstituted;
+    private readonly SingleByteFontWidths? _standardFontWidths;
 
     internal PdfSimpleFont(PdfObject fontObject)
         : base(fontObject)
     {
         _logger = fontObject.Document.LoggerFactory.CreateLogger<PdfSimpleFont>();
-        (_typeface, _mapper) = GetTypefaceAndMapper();
+        (_typeface, _mapper, _isSubstituted) = GetTypefaceAndMapper();
+
+        PdfStandardFontName? standardFontName = SubstitutionInfo.GetStandardName();
+        if (standardFontName.HasValue)
+        {
+            _standardFontWidths = SingleByteFontWidths.FromStandardFont(standardFontName.Value, SubstitutionInfo.IsBold, SubstitutionInfo.IsItalic, Encoding.BaseEncoding);
+        }
     }
 
     /// <summary>
     /// Returns the advance width for the specified character code.
-    /// Uses the font metrics table first, and falls back to the glyph-ID mapper when the metrics entry is zero.
+    /// Uses the font metrics table first, falls back to the glyph-ID mapper when the metrics entry is zero,
+    /// and finally to the Standard 14 AFM widths when the font has no embedded metrics at all.
     /// </summary>
     /// <param name="code">The character code to retrieve the width for.</param>
     /// <returns>The advance width in user space units.</returns>
@@ -44,6 +53,11 @@ public class PdfSimpleFont : PdfSingleByteFont
             width = (float)_mapper.GetWidth((byte)(code));
         }
 
+        if (width == 0 && _standardFontWidths != null)
+        {
+            width = _standardFontWidths.GetWidth(code) ?? 0f;
+        }
+
         return width;
     }
 
@@ -52,7 +66,10 @@ public class PdfSimpleFont : PdfSingleByteFont
     /// </summary>
     protected internal override SKTypeface Typeface => _typeface;
 
-    private (SKTypeface, IByteCodeToGidMapper) GetTypefaceAndMapper()
+    /// <inheritdoc/>
+    protected internal override bool IsSubstitutedFont => _isSubstituted;
+
+    private (SKTypeface, IByteCodeToGidMapper, bool isSubstituted) GetTypefaceAndMapper()
     {
         try
         {
@@ -91,7 +108,7 @@ public class PdfSimpleFont : PdfSingleByteFont
 
                     CffByteCodeToGidMapper mapper = new(cffInfo, FontDescriptor.Flags, Encoding);
 
-                    return (typeface, mapper);
+                    return (typeface, mapper, false);
                 }
                 case PdfFontFileFormat.Type1C:
                 {
@@ -116,7 +133,7 @@ public class PdfSimpleFont : PdfSingleByteFont
 
                     CffByteCodeToGidMapper mapper = new(cffInfo, FontDescriptor.Flags, Encoding);
 
-                    return (typeface, mapper);
+                    return (typeface, mapper, false);
                 }
                 case PdfFontFileFormat.TrueType:
                 {
@@ -130,7 +147,7 @@ public class PdfSimpleFont : PdfSingleByteFont
 
                     SfntByteCodeToGidMapper mapper = new(sfntTables, FontDescriptor.Flags, substituted: false, Encoding);
 
-                    return (typeface, mapper);
+                    return (typeface, mapper, false);
                 }
             }
         }
@@ -141,13 +158,26 @@ public class PdfSimpleFont : PdfSingleByteFont
         }
 #pragma warning restore CA1031
 
+        PdfFontEncoding? standard14Encoding = SingleByteEncodings.GetEncodingByName(BaseFont);
+
         if (Encoding.BaseEncoding == PdfFontEncoding.Unknown)
         {
-            PdfFontEncoding encoding = SingleByteEncodings.GetEncodingByName(BaseFont) ?? PdfFontEncoding.StandardEncoding;
-            Encoding.UpdateEncoding(encoding);
+            Encoding.UpdateEncoding(standard14Encoding ?? PdfFontEncoding.StandardEncoding);
         }
 
-        return default;
+        // Standard 14 fonts resolve to a single well-known substitute, so a direct code-to-GID
+        // mapper for that one typeface is reliable. Arbitrary non-embedded fonts may need a
+        // different fallback typeface per glyph, which only the generic Unicode shaping path supports.
+        if (standard14Encoding != null)
+        {
+            SKTypeface substituteTypeface = Document.FontSubstitutor.SubstituteTypeface(SubstitutionInfo, null, null);
+            SfntFontTables substituteSfntTables = SfntFontTableParser.GetSfntFontTables(substituteTypeface);
+            SfntByteCodeToGidMapper substituteMapper = new(substituteSfntTables, FontDescriptor?.Flags ?? default, substituted: true, Encoding);
+
+            return (substituteTypeface, substituteMapper, true);
+        }
+
+        return (default, default, true);
     }
 
     /// <summary>

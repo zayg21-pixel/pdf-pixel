@@ -6,6 +6,7 @@ using Microsoft.Extensions.Logging;
 using PdfPixel.Fonts.Mapping;
 using PdfPixel.ResourceGenerator.Cmaps;
 using PdfPixel.ResourceGenerator.Encodings;
+using PdfPixel.ResourceGenerator.Metrics;
 
 namespace PdfPixel.ResourceGenerator;
 
@@ -24,12 +25,13 @@ internal static class Program
     private const string CidToUnicodeOutputDirectory = "CidToUnicode";
     private const string Cid2CodeOutputDirectory = "Cid2Code";
     private const string GlyphNamesOutputDirectory = "GlyphNames";
+    private const string Standard14WidthsOutputDirectory = "Standard14Widths";
 
     private static async Task<int> Main()
     {
         using ILoggerFactory loggerFactory = LoggerFactory.Create(builder => builder.AddConsole());
 
-        foreach (string dir in new[] { CmapOutputDirectory, CidToUnicodeOutputDirectory, Cid2CodeOutputDirectory, GlyphNamesOutputDirectory })
+        foreach (string dir in new[] { CmapOutputDirectory, CidToUnicodeOutputDirectory, Cid2CodeOutputDirectory, GlyphNamesOutputDirectory, Standard14WidthsOutputDirectory })
         {
             if (Directory.Exists(dir))
             {
@@ -75,6 +77,9 @@ internal static class Program
 
         string aglOverridesPath = Path.Combine(AppContext.BaseDirectory, "AglOverrides.txt");
         AglGenerator.GenerateFromFile(aglOverridesPath, GlyphNamesOutputDirectory);
+
+        Console.WriteLine($"Generating Standard 14 widths to {Standard14WidthsOutputDirectory} ...");
+        Standard14WidthGenerator.GenerateAll(Standard14WidthsOutputDirectory);
 
         Console.WriteLine("Done.");
         return 0;
