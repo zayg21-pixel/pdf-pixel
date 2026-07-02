@@ -258,8 +258,8 @@ public static class PdfPanelPageExtensions
         }
 
         return new SKPoint(
-            pdfPoint.X,
-            page.Info.Height - pdfPoint.Y);
+            pdfPoint.X - page.Info.Left,
+            page.Info.Height + page.Info.Top - pdfPoint.Y);
     }
 
     /// <summary>
@@ -276,8 +276,8 @@ public static class PdfPanelPageExtensions
         }
 
         return SKRect.Create(
-            pdfRect.Left,
-            page.Info.Height - pdfRect.Bottom,
+            pdfRect.Left - page.Info.Left,
+            page.Info.Height + page.Info.Top - pdfRect.Bottom,
             pdfRect.Width,
             pdfRect.Height);
     }

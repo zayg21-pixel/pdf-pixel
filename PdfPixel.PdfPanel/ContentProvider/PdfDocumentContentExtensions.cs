@@ -122,6 +122,6 @@ internal static class PdfDocumentContentExtensions
     {
         IPdfPage pdfPage = document.Pages[pageNumber - 1];
         string label = document.Pages[pageNumber - 1].PageLabel.DecodePdfString();
-        return new PdfPanelPageInfo(label, pdfPage.CropBox.Width, pdfPage.CropBox.Height, pdfPage.Rotation);
+        return new PdfPanelPageInfo(label, pdfPage.CropBox.Width, pdfPage.CropBox.Height, pdfPage.CropBox.Left, pdfPage.CropBox.Top, pdfPage.Rotation);
     }
 }

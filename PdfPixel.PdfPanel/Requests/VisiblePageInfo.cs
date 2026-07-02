@@ -100,8 +100,8 @@ public readonly struct VisiblePageInfo
     public SKRect FromPdfRect(SKRect pdfRect)
     {
         return SKRect.Create(
-            pdfRect.Left,
-            Info.Height - pdfRect.Bottom,
+            pdfRect.Left - Info.Left,
+            Info.Height + Info.Top - pdfRect.Bottom,
             pdfRect.Width,
             pdfRect.Height);
     }
