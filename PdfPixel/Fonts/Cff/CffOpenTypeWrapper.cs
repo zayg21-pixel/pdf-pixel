@@ -86,14 +86,14 @@ internal static class CffOpenTypeWrapper
             MakeTable(TagCff, cffData.ToArray()),
             MakeTable(TagMaxp, BuildMaxp(numGlyphs)),
             MakeTable(TagOS2, BuildOS2(numGlyphs, descriptor)),
-            MakeTable(TagHhea, BuildHhea(numberOfHMetrics: 1, descriptor)),
-            MakeTable(TagHmtx, BuildHmtx(numGlyphs, numberOfHMetrics: 1)),
+            MakeTable(TagHhea, BuildHhea(numGlyphs, descriptor)),
+            MakeTable(TagHmtx, BuildHmtx(numGlyphs, cffInfo.GidWidths)),
             MakeTable(TagPost, BuildPost())
         ];
 
         tables.Add(MakeTable(TagName, BuildName(descriptor)));
         tables.Add(MakeTable(TagCmap, BuildCmapEmpty()));
-        tables.Add(MakeTable(TagHead, BuildHead(checksumAdjustment: 0))); // Add last – checksum patched later.
+        tables.Add(MakeTable(TagHead, BuildHead(checksumAdjustment: 0, descriptor))); // Add last – checksum patched later.
 
         tables.Sort((left, right) => left.Tag.CompareTo(right.Tag));
 
@@ -143,7 +143,7 @@ internal static class CffOpenTypeWrapper
         };
     }
 
-    private static byte[] BuildHead(uint checksumAdjustment)
+    private static byte[] BuildHead(uint checksumAdjustment, PdfFontDescriptor fontDescriptor)
     {
         using (MemoryStream stream = new(54))
         using (BinaryWriter writer = new(stream))
@@ -156,10 +156,10 @@ internal static class CffOpenTypeWrapper
             CffOpenTypeWriter.WriteUInt16BE(writer, (ushort)DefaultUnitsPerEm); // unitsPerEm
             CffOpenTypeWriter.WriteInt64BE(writer, 0);                  // created
             CffOpenTypeWriter.WriteInt64BE(writer, 0);                  // modified
-            CffOpenTypeWriter.WriteInt16BE(writer, 0);                  // xMin
-            CffOpenTypeWriter.WriteInt16BE(writer, DefaultDescent);     // yMin
-            CffOpenTypeWriter.WriteInt16BE(writer, DefaultUnitsPerEm);  // xMax (approx)
-            CffOpenTypeWriter.WriteInt16BE(writer, DefaultAscent);      // yMax (approx)
+            CffOpenTypeWriter.WriteInt16BE(writer, (short)Math.Min(0, Math.Round(fontDescriptor.FontBBox.Left))); // xMin
+            CffOpenTypeWriter.WriteInt16BE(writer, CffOpenTypeWriter.ClampToShort(fontDescriptor.Descent, DefaultDescent)); // yMin
+            CffOpenTypeWriter.WriteInt16BE(writer, (short)Math.Max(DefaultUnitsPerEm, Math.Round(fontDescriptor.FontBBox.Right))); // xMax
+            CffOpenTypeWriter.WriteInt16BE(writer, CffOpenTypeWriter.ClampToShort(fontDescriptor.Ascent, DefaultAscent)); // yMax
             CffOpenTypeWriter.WriteUInt16BE(writer, 0);                 // macStyle
             CffOpenTypeWriter.WriteUInt16BE(writer, DefaultLowestRecPpem);
             CffOpenTypeWriter.WriteInt16BE(writer, 2);                  // fontDirectionHint
@@ -180,7 +180,7 @@ internal static class CffOpenTypeWrapper
         }
     }
 
-    private static byte[] BuildHhea(ushort numberOfHMetrics, PdfFontDescriptor fontDescriptor)
+    private static byte[] BuildHhea(ushort numGlyphs, PdfFontDescriptor fontDescriptor)
     {
         using (MemoryStream stream = new(36))
         using (BinaryWriter writer = new(stream))
@@ -201,22 +201,22 @@ internal static class CffOpenTypeWrapper
             }
 
             CffOpenTypeWriter.WriteInt16BE(writer, 0); // metricDataFormat
-            CffOpenTypeWriter.WriteUInt16BE(writer, numberOfHMetrics);
+            CffOpenTypeWriter.WriteUInt16BE(writer, numGlyphs); // numberOfHMetrics: one real entry per glyph, no compression.
             return stream.ToArray();
         }
     }
 
-    private static byte[] BuildHmtx(ushort numGlyphs, ushort numberOfHMetrics)
+    private static byte[] BuildHmtx(ushort numGlyphs, float[]? gidWidths)
     {
-        int length = (numberOfHMetrics * 4) + (Math.Max(0, numGlyphs - numberOfHMetrics) * 2);
-        using (MemoryStream stream = new(length))
+        using (MemoryStream stream = new(numGlyphs * 4))
         using (BinaryWriter writer = new(stream))
         {
-            CffOpenTypeWriter.WriteUInt16BE(writer, DefaultAdvanceWidth); // single metric: advance
-            CffOpenTypeWriter.WriteInt16BE(writer, 0);                    // lsb
-            for (int glyphIndex = 0; glyphIndex < numGlyphs - numberOfHMetrics; glyphIndex++)
+            for (int glyphId = 0; glyphId < numGlyphs; glyphId++)
             {
-                CffOpenTypeWriter.WriteInt16BE(writer, 0);
+                float glyphSpaceWidth = (gidWidths != null && glyphId < gidWidths.Length) ? gidWidths[glyphId] : 0;
+                ushort advanceWidth = (ushort)Math.Max(0, Math.Round(glyphSpaceWidth * DefaultUnitsPerEm));
+                CffOpenTypeWriter.WriteUInt16BE(writer, advanceWidth);
+                CffOpenTypeWriter.WriteInt16BE(writer, 0); // lsb
             }
 
             return stream.ToArray();

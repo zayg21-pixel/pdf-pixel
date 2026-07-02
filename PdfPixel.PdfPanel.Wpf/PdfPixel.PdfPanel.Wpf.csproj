@@ -8,6 +8,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="SkiaSharp.NativeAssets.Win32" Version="4.148.0" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\PdfPixel.PdfPanel\PdfPixel.PdfPanel.csproj" />
     <ProjectReference Include="..\PdfPixel\PdfPixel.csproj" />
   </ItemGroup>
