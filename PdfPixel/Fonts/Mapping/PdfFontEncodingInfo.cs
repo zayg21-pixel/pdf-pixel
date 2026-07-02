@@ -48,7 +48,8 @@ public class PdfFontEncodingInfo
     public void UpdateEncoding(PdfFontEncoding baseEncoding) => BaseEncoding = baseEncoding;
 
     /// <summary>
-    /// Merges glyph names from the encoding vector into differences, without overwriting existing entries.
+    /// Merges glyph names from the encoding vector into differences, adding only codes that are
+    /// not already resolved by <see cref="Differences"/> or by <see cref="BaseEncoding"/>.
     /// </summary>
     /// <param name="encodingVector">Encoding vector to merge.</param>
     public void MergeCodeToName(PdfString[]? encodingVector)
@@ -61,6 +62,11 @@ public class PdfFontEncodingInfo
         for (int code = 0; code < encodingVector.Length; code++)
         {
             if (Differences.ContainsKey(code))
+            {
+                continue;
+            }
+
+            if (!SingleByteEncodings.GetNameByCode((byte)code, BaseEncoding).IsEmpty)
             {
                 continue;
             }
