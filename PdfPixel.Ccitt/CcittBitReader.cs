@@ -29,9 +29,18 @@ public ref struct CcittBitReader
     }
 
     /// <summary>
-    /// Current byte index within the underlying data span.
+    /// Current byte index within the underlying data span. Includes bytes prefetched into the
+    /// internal buffer but not yet consumed by <see cref="ReadBit"/>/<see cref="DropBits"/> —
+    /// use <see cref="ConsumedByteIndex"/> to get the byte offset of actually consumed bits.
     /// </summary>
     public readonly int ByteIndex => _byteIndex;
+
+    /// <summary>
+    /// Byte offset immediately past the bits actually consumed so far, rounded up to the next
+    /// byte boundary. Unlike <see cref="ByteIndex"/>, this excludes bytes that were prefetched
+    /// into the buffer but not yet read.
+    /// </summary>
+    public readonly int ConsumedByteIndex => ((_byteIndex * 8) - _bufferedBits + 7) >> 3;
 
     /// <summary>
     /// Number of valid bits currently buffered.

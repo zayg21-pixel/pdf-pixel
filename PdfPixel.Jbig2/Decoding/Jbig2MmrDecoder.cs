@@ -54,7 +54,7 @@ internal static class Jbig2MmrDecoder
         reader.TryConsumeEol();
         reader.TryConsumeEol();
 
-        bytesConsumed = reader.ByteIndex;
+        bytesConsumed = reader.ConsumedByteIndex;
         return bitmap;
     }
 }
