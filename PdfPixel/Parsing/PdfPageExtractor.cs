@@ -35,12 +35,20 @@ internal class PdfPageExtractor
     {
         if (_document.RootObject != null)
         {
-            // Try to resolve page labels from the catalog
-            PdfPageLabelResolver labelResolver = new(_document.RootObject.Dictionary);
-
             PdfObject? rootPagesObject = _document.RootObject.Dictionary.GetObject(PdfTokens.PagesKey);
+            if (rootPagesObject == null)
+            {
+                _logger.LogWarning("Root object (ref {RootRef}) present but /Pages tree not found; attempting recovery scan.", _document.RootObject);
+                PdfXrefRecoveryScanner recoveryScanner = new(_document);
+                recoveryScanner.Scan();
+                rootPagesObject = _document.RootObject.Dictionary.GetObject(PdfTokens.PagesKey);
+            }
+
             if (rootPagesObject != null)
             {
+                // Try to resolve page labels from the catalog
+                PdfPageLabelResolver labelResolver = new(_document.RootObject.Dictionary);
+
                 PdfPageResources initialResources = new();
                 initialResources.UpdateFrom(rootPagesObject); // seed from root /Pages
                 HashSet<uint> visited = [];
@@ -48,7 +56,7 @@ internal class PdfPageExtractor
                 return;
             }
 
-            _logger.LogWarning("Root object (ref {RootRef}) present but /Pages tree not found.", _document.RootObject);
+            _logger.LogWarning("Root object (ref {RootRef}) present but /Pages tree not found even after recovery scan.", _document.RootObject);
         }
         else
         {
