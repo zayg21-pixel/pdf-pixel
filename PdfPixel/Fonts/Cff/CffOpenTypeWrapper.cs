@@ -215,7 +215,7 @@ internal static class CffOpenTypeWrapper
             for (int glyphId = 0; glyphId < numGlyphs; glyphId++)
             {
                 float glyphSpaceWidth = (gidWidths != null && glyphId < gidWidths.Length) ? gidWidths[glyphId] : 0;
-                ushort advanceWidth = (ushort)Math.Max(0, Math.Round(glyphSpaceWidth * DefaultUnitsPerEm));
+                var advanceWidth = (ushort)Math.Max(0, Math.Round(glyphSpaceWidth * DefaultUnitsPerEm));
                 CffOpenTypeWriter.WriteUInt16BE(writer, advanceWidth);
                 CffOpenTypeWriter.WriteInt16BE(writer, 0); // lsb
             }

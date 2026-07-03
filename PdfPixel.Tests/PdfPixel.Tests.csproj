@@ -12,6 +12,7 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\PdfPixel\PdfPixel.csproj" />
+    <ProjectReference Include="..\PdfPixel.Jbig2\PdfPixel.Jbig2.csproj" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="jbig2\**\*">

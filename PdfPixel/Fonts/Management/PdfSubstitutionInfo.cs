@@ -79,7 +79,7 @@ public readonly struct PdfSubstitutionInfo
     /// <summary>
     /// Resolves <see cref="NormalizedStem"/> to a Standard 14 font family, or <see langword="null"/> if it isn't one.
     /// </summary>
-    public PdfStandardFontName? GetStandardName() => Enum.TryParse(NormalizedStem, out PdfStandardFontName standardFontName) ? standardFontName : null;
+    public PdfStandardFontName? GetStandardName() => (Enum.TryParse(NormalizedStem, out PdfStandardFontName standardFontName)) ? standardFontName : null;
 
     /// <summary>
     /// Initializes a new <see cref="PdfSubstitutionInfo"/> with an empty stem and normal style.

@@ -18,8 +18,8 @@ namespace PdfPixel.Fonts.Model;
 public class PdfSimpleFont : PdfSingleByteFont
 {
     private readonly ILogger<PdfSimpleFont> _logger;
-    private readonly SKTypeface _typeface;
-    private readonly IByteCodeToGidMapper _mapper;
+    private readonly SKTypeface? _typeface;
+    private readonly IByteCodeToGidMapper? _mapper;
     private readonly bool _isSubstituted;
     private readonly SingleByteFontWidths? _standardFontWidths;
 
@@ -64,12 +64,12 @@ public class PdfSimpleFont : PdfSingleByteFont
     /// <summary>
     /// The embedded or substituted SkiaSharp typeface for this simple font.
     /// </summary>
-    protected internal override SKTypeface Typeface => _typeface;
+    protected internal override SKTypeface? Typeface => _typeface;
 
     /// <inheritdoc/>
     protected internal override bool IsSubstitutedFont => _isSubstituted;
 
-    private (SKTypeface, IByteCodeToGidMapper, bool isSubstituted) GetTypefaceAndMapper()
+    private (SKTypeface? Typeface, IByteCodeToGidMapper? Mapper, bool IsSubstituted) GetTypefaceAndMapper()
     {
         try
         {

@@ -49,11 +49,8 @@ internal sealed class SkiaFontVariation : IDisposable
     public SKTypeface ApplyWidthVariation(SKTypeface typeface, string? unicode, float? width)
     {
         // TODO: need to fix
+#pragma warning disable CS0162
         return typeface;
-        if (typeface == null)
-        {
-            return typeface;
-        }
 
         if (width == null || unicode == null || unicode.Length == 0)
         {
@@ -74,6 +71,7 @@ internal sealed class SkiaFontVariation : IDisposable
 
         float widthPercent = (width.Value / measuredWidth) * WidthScaleToPercent;
         return _variationCache.GetOrAdd((typeface.Handle, widthPercent), key => CloneWithWidth(typeface, key.Width));
+#pragma warning restore CS0162
     }
 
     private static bool HasWidthAxis(SKTypeface typeface)

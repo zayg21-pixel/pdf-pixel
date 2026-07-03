@@ -28,7 +28,7 @@ public class PdfStructureTree
     /// Looks up the structure element that owns the given marked content identifier on the specified page.
     /// Returns <see langword="null"/> if the MCID is not present in the structure tree.
     /// </summary>
-    internal PdfStructureElement? FindByMcid(PdfReference pageRef, int mcid)
+    internal PdfStructureElement? FindByMcid(in PdfReference pageRef, int mcid)
         => (_mcidMap.TryGetValue((pageRef, mcid), out PdfStructureElement? element)) ? element : null;
 
     /// <summary>

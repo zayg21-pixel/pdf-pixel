@@ -18,7 +18,6 @@ public class PdfFreeTextAnnotation : PdfAnnotationBase
     public PdfFreeTextAnnotation(PdfObject annotationObject)
         : base(annotationObject, PdfAnnotationSubType.FreeText)
     {
-        var data = annotationObject.Dictionary.GetObject((PdfString)"DA");
         // TODO: [MEDIUM] DA (default appearance), Q (justification), IT (intent), CL (callout line), RD (rect inset), DS, BE
     }
 
