@@ -27,7 +27,7 @@ jobs:
         run: dotnet restore PdfPixel/PdfPixel.csproj
 
       - name: Pack
-        run: dotnet pack PdfPixel/PdfPixel.csproj --configuration Release --no-restore --output nupkg
+        run: dotnet pack PdfPixel/PdfPixel.csproj --configuration Release --no-restore --output "${{ github.workspace }}/nupkg"
 
       - name: NuGet login (OIDC to temp API key)
         uses: NuGet/login@v1
@@ -36,4 +36,6 @@ jobs:
           user: ${{ secrets.NUGET_USER }}
 
       - name: Push to NuGet.org
-        run: dotnet nuget push "nupkg/*.nupkg" --api-key "${{ steps.login.outputs.NUGET_API_KEY }}" --source https://api.nuget.org/v3/index.json --skip-duplicate
+        run: |
+          $package = Get-ChildItem -Path "${{ github.workspace }}/nupkg" -Filter *.nupkg | Select-Object -First 1
+          dotnet nuget push $package.FullName --api-key "${{ steps.login.outputs.NUGET_API_KEY }}" --source https://api.nuget.org/v3/index.json --skip-duplicate
