@@ -203,7 +203,8 @@ public sealed class PdfPanelRenderer : IDisposable
         {
             PdfContentPictures pictures = _contentProvider.GetExistingContentPictures(page.PageNumber);
 
-            if (pictures.ContentFeatures == PdfCommandFeatures.None)
+            // When it's scale/region dependent, we will receive OnPageUpdated event and redraw the page 
+            if (!((pictures.ContentFeatures & PdfCommandFeatures.Scale) != 0 || (pictures.ContentFeatures & PdfCommandFeatures.Region) != 0))
             {
                 _tiler.UpdateTiles(page.PageNumber, pictures.Content, in page, in request, forceClearVisible: false);
             }

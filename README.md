@@ -1,5 +1,8 @@
 # PDF Pixel
 
+[![Publish NuGet Package](https://github.com/zayg21-pixel/pdf-pixel/actions/workflows/nuget-publish.yml/badge.svg)](https://github.com/zayg21-pixel/pdf-pixel/actions/workflows/nuget-publish.yml)
+[![CI](https://github.com/zayg21-pixel/pdf-pixel/actions/workflows/ci.yml/badge.svg)](https://github.com/zayg21-pixel/pdf-pixel/actions/workflows/ci.yml)
+
 PDF Pixel is a native C# PDF rendering library for .NET, built around SkiaSharp as its rendering engine. It renders PDF documents to raster output with full fidelity, optimized for both CPU and GPU rendering, with no dependency on external PDF frameworks — just SkiaSharp, standard Microsoft libraries, and bundled Adobe CMap resources for character mapping. Coverage spans the full PDF specification for static content, with all essential rendering features supported. A ready-made panel component makes it straightforward to embed PDF viewing directly into any application.
 
 ---
