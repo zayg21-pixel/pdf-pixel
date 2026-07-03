@@ -1,231 +1,122 @@
-﻿using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging;
+using PdfPixel.Annotations.Models;
 using PdfPixel.Commands;
 using PdfPixel.Fonts.Management;
 using PdfPixel.Models;
-using PdfPixel.TextExtraction;
 using SkiaSharp;
 using System.Diagnostics;
 
 namespace PdfPixel.Console.Demo
 {
-    class Program
+    internal sealed class Program
     {
-        private static readonly ILoggerFactory LoggerFactoryInstance = LoggerFactory.Create(builder => builder.AddConsole(LogLevel.Information));
-        private static readonly ILogger Logger = LoggerFactoryInstance.CreateLogger<Program>();
-        private static readonly ISkiaFontProvider FontProvider = new WindowsSkiaFontProvider();
-
-        static async Task Main(string[] args)
+        private static void Main()
         {
-            Logger.LogInformation("PDF Direct Rendering Library");
-            Logger.LogInformation("===========================");
-            Logger.LogInformation(string.Empty);
+            // The only thing you need to change to run this example.
+            string pdfPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "pdfs", "sample.pdf");
 
-            // Test with some sample PDFs
-            string[] testFiles = {
-                //"pdfs//freeculture.pdf"
-                //"pdfs//100mb.pdf",
-                //"pdfs//PDF-Horizontal-Scaling.pdf",
-                //"pdfs//pattern_text_embedded_font.pdf",
-                //"pdfs//textframe-gradient.pdf",
-                //"pdfs//chrome-text-selection-markedContent.pdf", // interesting, some odd boxes on text
-                //"pdfs//colorkeymask.pdf",
-                "pdfs//coons-allflags-withfunction.pdf",
-                //"pdfs//lamp_cairo.pdf",
-                //"pdfs//tensor4-nofunction.pdf",
-                //"pdfs//LATTICE1.pdf",
-                //"pdfs//inks.pdf",
-                //"pdfs//canvas.pdf",
-                //"pdfs//personwithdog.pdf",
-                //"pdfs//alphatrans.pdf",
-                //"pdfs//ArabicCIDTrueType.pdf",
-                //"pdfs//asciihexdecode.pdf",
-                //"pdfs//complex_ttf_font.pdf",
-                //"pdfs//complex_ttf_font_ed.pdf",
-                //"pdfs//icc-lab-8bit.pdf",
-                //"pdfs//devicen.pdf",
-                //"pdfs//icc-xyz.pdf",
-                //"pdfs//icc-lab4.pdf",
-                //"pdfs//icc-lab2.pdf",
-                //"pdf-example-password.pdf",
-                //"pdfs//mixedfonts.pdf", // came a bit broken
-                //"pdfs//mixedfonts_ed.pdf",
-                //"pdfs//blendmode.pdf",
-                //"pdfs//calgray.pdf",
-                //"pdfs//calrgb.pdf",
-                //"pdfs//colorspace_cos.pdf",
-                //"pdfs//cmykjpeg.pdf",
-                //"pdfs//IndexedCS_negative_and_high.pdf",
-                //"pdfs//tiling-pattern-box.pdf",
-                //"pdfs//gradientfill.pdf",
-                //"pdfs//ccitt_EndOfBlock_false.pdf",
-                //"pdfs//images_1bit_grayscale.pdf",
-                //"pdfs//shading_extend.pdf",
-                //"pdfs//pdf_c.pdf",
-                //"pdfs//1208.0264v4.pdf",
-                //"pdfs//806-5413-10.pdf",
-                //"pdfs//1208.0264v4_ed.pdf",
-                //"pdfs//1405.2785v3.pdf",
-                //"pdfs//5091.Design_MM_Fonts.pdf",
-                //"pdfs//2009science11_12.pdf",
-                //"PDF32000_2008.pdf",
-                //"ch14.pdf"
-                //@"documentS.pdf",
-                "pdfs/BAM.pdf",
-                //@"documentC.pdf",
-                //@"sample.pdf",
-                //"Adyen.pdf",
-                //"Adyen 2023.pdf",
-                //"adyen_2020.pdf",
-                //"adyen_2020_debug.pdf",
-                //"pdfs\\emojies.pdf",
-                //"documentEd.pdf",
-                //@"document_1.pdf"
-            };
+            // Multiplies the page size before rendering; use a value above 1 for a sharper output image.
+            float scale = 1f;
 
-            foreach (var file in testFiles)
+            // Renders using a GPU-backed Skia surface (OpenGL) instead of a software-only one.
+            bool gpuMode = true;
+
+            // PdfDocumentReader needs a logger factory for diagnostics during parsing and rendering.
+            using ILoggerFactory loggerFactory = LoggerFactory.Create(builder => builder.AddConsole());
+            ILogger logger = loggerFactory.CreateLogger<Program>();
+
+            // ...and a font provider, used to substitute system fonts for fonts not embedded in the PDF.
+            ISkiaFontProvider fontProvider = new WindowsSkiaFontProvider();
+
+            // PdfDocumentReader is the entry point for parsing PDF files.
+            PdfDocumentReader reader = new(loggerFactory, fontProvider);
+
+            // The reader needs a seekable, readable stream; it reads the whole document into memory.
+            using FileStream fileStream = File.OpenRead(pdfPath);
+
+            // Parses the document and returns the page graph used for rendering.
+            using IPdfDocument document = reader.Read(fileStream);
+
+            // Optional content groups are the PDF's layers (e.g. "Notes", "Watermark"). Passing the
+            // document's groups renders every layer in its default visibility state.
+            IReadOnlyDictionary<PdfReference, PdfOptionalContentGroup> optionalContentGroups = document.OptionalContentGroups;
+
+            // Each PDF gets its own output subfolder, named after the source file, under pdfs/.
+            string outputDirectory = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "pdfs", Path.GetFileNameWithoutExtension(pdfPath));
+            Directory.CreateDirectory(outputDirectory);
+
+            // Tracks the total time spent exporting all pages, logged once the export finishes.
+            Stopwatch exportStopwatch = Stopwatch.StartNew();
+
+            // Render every page in the document.
+            foreach (IPdfPage page in document.Pages)
             {
-                await TestPdfFile(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, file));
-                //TextTextExtraction(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, file));
-            }
-        }
+                // CropBox is the visible page area in PDF units; scale it to get the output image size.
+                SKImageInfo imageInfo = new((int)(page.CropBox.Width * scale), (int)(page.CropBox.Height * scale));
+                using SKSurface surface = SkSurfaceFactory.GetSkiaSurface(imageInfo, gpuMode);
+                SKCanvas canvas = surface.Canvas;
+                canvas.Clear(SKColors.White);
 
-        static async Task TestPdfFile(string fileName)
-        {
-            await Task.Yield();
+                // Save the canvas state before applying the page transform, so it can be restored afterwards.
+                int savedCanvasState = canvas.Save();
 
-            // Create a D3D11 device
+                // Scales the whole page up or down to the requested output resolution.
+                canvas.Scale(scale, scale);
 
-            //using var d3dContext = new VorticeDirect3DContext();
-            //using var backend = d3dContext.CreateBackendContext();
+                // PDF content is authored with the origin at the bottom-left and Y increasing upward.
+                // The canvas has the origin at the top-left and Y increasing downward, so the page must
+                // be translated and flipped vertically to land right-side-up in the output image.
+                canvas.Translate(-page.CropBox.Left, page.CropBox.Height + page.CropBox.Top);
+                canvas.Scale(1, -1);
 
-            //// Create GRContext for Direct3D
-            //using var grContext = GRContext.CreateDirect3D(backend);
+                // Guards the page's lazily-parsed content stream against concurrent access; use a private
+                // object per concurrent render of the same page.
+                object contentLocker = new();
 
-            Logger.LogInformation("Testing file: {File}", fileName);
-            Logger.LogInformation(new string('=', 50));
+                // Lets a long-running render be cancelled cooperatively; CancellationToken.None never cancels.
+                IPdfExecutionObserver executionObserver = new PdfCancellationExecutionObserver(CancellationToken.None);
 
-            if (!File.Exists(fileName))
-            {
-                Logger.LogWarning("File not found: {File}", fileName);
-                Logger.LogInformation(string.Empty);
-                return;
-            }
+                // Bundles the canvas, rendering options, and the objects above into the state every
+                // drawing command reads from while the page is replayed.
+                using PdfCommandExecutionContext executionContext = new(
+                    new PdfCommandExecutionParameters(),
+                    contentLocker,
+                    optionalContentGroups,
+                    executionObserver,
+                    canvas);
 
-            try
-            {
-                
-                var reader = new PdfDocumentReader(LoggerFactoryInstance, FontProvider);
-                using var file = File.OpenRead(fileName);
-                using var document = reader.Read(file);
+                // Executes each drawing command immediately against executionContext.Canvas.
+                using SkCanvasCommandProcessor processor = new(executionContext, loggerFactory.CreateLogger<SkCanvasCommandProcessor>());
 
-                Logger.LogInformation("Successfully read PDF: {File}", fileName);
-                Logger.LogInformation("Total pages: {Count}", document.Pages.Count);
+                // Draws the page content: paths, text, images, and shadings.
+                page.Render(processor, new PdfRenderingParameters(), executionObserver);
 
-                var start = 0;
-                var max = 1000;
-                float scaleX = 1f; // Scale factor for rendering
-
-                // Analyze pages with detailed content stream debugging
-                for (int i = start; i < Math.Min(max, document.Pages.Count); i++)
+                // Annotations (comments, stamps, links, etc.) are rendered separately from page content.
+                foreach (PdfPageAnnotation annotation in page.Annotations)
                 {
-                    var page = document.Pages[i];
-                    Logger.LogInformation("Page {PageNumber}:", page.PageNumber);
-
-                    // Demonstrate rendering to a bitmap
-                    try
+                    // Skip annotations excluded from on-screen and print rendering.
+                    if ((annotation.Content.Flags & (PdfAnnotationFlags.Hidden | PdfAnnotationFlags.NoView)) != 0)
                     {
-                        var renderingBounds = page.CropBox;
-
-                        var renderWidth = (int)Math.Max(renderingBounds.Width, 100); // Minimum 100px
-                        var renderHeight = (int)Math.Max(renderingBounds.Height, 100); // Minimum 100px
-
-                        var info = new SKImageInfo((int)(renderWidth * scaleX), (int)(renderHeight * scaleX), SKColorType.Rgba8888, SKAlphaType.Premul, SKColorSpace.CreateSrgb());
-                        //using var surface = SKSurface.Create(grContext, false, info);
-                        using var surface = SKSurface.Create(info);
-
-                        using var canvas = surface.Canvas;
-                        canvas.Scale(scaleX, scaleX); // Apply scaling for high-res rendering
-                        canvas.Clear(SKColors.White);
-
-                        // Render the page (this will show transformation debug info)
-                        //using (var processor = new SkCanvasCommandProcessor(canvas, new PdfCommandExecutionContext(new PdfRenderingParameters(), CancellationToken.None)))
-                        //{
-                        //    page.Draw(processor, CancellationToken.None);
-                        //}
-
-                        Logger.LogInformation("  === PAGE RENDERING COMPLETE ===");
-
-                        var basePath = Path.Combine(Path.GetDirectoryName(fileName), "Test");
-                        var name = Path.GetFileNameWithoutExtension(fileName);
-
-                        if (!Directory.Exists(basePath))
-                        {
-                            Directory.CreateDirectory(basePath);
-                        }
-
-                        //if (page.PageNumber == document.PageCount)
-                        //{
-                        //    Console.WriteLine();
-                        //}
-
-                        // Save as PNG (optional)
-                        //var filename_png = $"{basePath}\\{name}_page_{page.PageNumber}.jpg";
-                        //using (var image = surface.Snapshot())
-                        //using (var data = image.Encode(SKEncodedImageFormat.Jpeg, 100))
-                        //using (var fileStream = File.OpenWrite(filename_png))
-                        //{
-                        //    data.SaveTo(fileStream);
-                        //}
-
-                        using var recording = CreateRecording(page);
-                        SaveSkp(recording, $"{basePath}\\{name}_page_{page.PageNumber}.skp");
-                        //SaveRecording(recording, scaleX, filename_png);
-                    }
-                    catch (Exception ex)
-                    {
-                        Logger.LogError(ex, "    Rendering error on page {PageNumber}.", page.PageNumber);
+                        continue;
                     }
 
-                    Logger.LogInformation(string.Empty);
+                    annotation.Render(processor, PdfAnnotationVisualStateKind.Normal, new PdfRenderingParameters(), executionObserver);
                 }
+
+                // Undoes the scale/translate/flip applied above, leaving the canvas in its original state.
+                canvas.RestoreToCount(savedCanvasState);
+
+                // Write the finished surface as an uncompressed BMP into the PDF's output subfolder, named
+                // by page number. Skipping PNG/JPEG compression entirely matters for a demo exporting many pages.
+                string outputPath = Path.Combine(outputDirectory, $"{page.PageNumber}.bmp");
+                using SKImage image = surface.Snapshot();
+                BitmapWriter.Write(image, outputPath);
+
+                logger.LogInformation("Exported page {PageNumber} to {OutputPath}", page.PageNumber, outputPath);
             }
-            catch (Exception ex)
-            {
-                Logger.LogError(ex, "Error reading PDF: {File}", fileName);
-                Logger.LogError(ex, "Stack trace logged");
-            }
-        }
 
-        private static SKPicture CreateRecording(IPdfPage pdfPage)
-        {
-            return null;
-            //using var recorder = new SKPictureRecorder();
-            //using var canvas = recorder.BeginRecording(SKRect.Create(pdfPage.CropBox.Width, pdfPage.CropBox.Height));
-            //canvas.ClipRect(new SKRect(0, 0, pdfPage.CropBox.Width, pdfPage.CropBox.Height));
-
-            //canvas.Clear(SKColors.White);
-            //using var processor = new SkCanvasCommandProcessor(canvas, new PdfCommandExecutionContext(new PdfRenderingParameters(), CancellationToken.None));
-            //pdfPage.Draw(processor, CancellationToken.None);
-
-            //canvas.Flush();
-            //return recorder.EndRecording();
-        }
-
-        private static void SaveSkp(SKPicture picture, string path)
-        {
-            using var fileStream = File.OpenWrite(path);
-            picture.Serialize(fileStream);
-        }
-
-        private static void SaveRecording(SKPicture picture, float scale, string path)
-        {
-            var matrix = SKMatrix.CreateScale(scale, scale);
-            using var image = SKImage.FromPicture(picture, new SKSizeI((int)(picture.CullRect.Width * scale), (int)(picture.CullRect.Height * scale)), matrix);
-            using (var data = image.Encode(SKEncodedImageFormat.Jpeg, 100))
-            using (var fileStream = File.OpenWrite(path))
-            {
-                data.SaveTo(fileStream);
-            }
+            exportStopwatch.Stop();
+            logger.LogInformation("Exported {PageCount} page(s) in {ElapsedMilliseconds} ms", document.Pages.Count, exportStopwatch.ElapsedMilliseconds);
         }
     }
 }

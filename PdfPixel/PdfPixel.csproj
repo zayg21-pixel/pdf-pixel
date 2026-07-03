@@ -10,6 +10,24 @@
     <IsAotCompatible>true</IsAotCompatible>
   </PropertyGroup>
 
+  <PropertyGroup>
+    <PackageId>PdfPixel</PackageId>
+    <Version>$([System.IO.File]::ReadAllText('$(MSBuildThisFileDirectory)..\Version.txt').Trim())</Version>
+    <Description>A native C# PDF rendering library for .NET, built around SkiaSharp, with no dependency on external PDF frameworks.</Description>
+    <Authors>PDF Pixel</Authors>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/zayg21-pixel/pdf-pixel</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/zayg21-pixel/pdf-pixel</RepositoryUrl>
+    <PackageIcon>logo.png</PackageIcon>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageTags>pdf;rendering;skiasharp;raster</PackageTags>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="" />
+    <None Include="..\logo.png" Pack="true" PackagePath="" />
+  </ItemGroup>
+
   <ItemGroup>
     <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
       <_Parameter1>PdfPixel.Benchmarks</_Parameter1>
@@ -33,12 +51,17 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\PdfPixel.Color\PdfPixel.Color.csproj" />
-    <ProjectReference Include="..\PdfPixel.Jpg\PdfPixel.Jpg.csproj" />
-    <ProjectReference Include="..\PdfPixel.Jpx\PdfPixel.Jpx.csproj" />
-    <ProjectReference Include="..\PdfPixel.Ccitt\PdfPixel.Ccitt.csproj" />
-    <ProjectReference Include="..\PdfPixel.Jbig2\PdfPixel.Jbig2.csproj" />
-    <ProjectReference Include="..\PdfPixel.PostScript\PdfPixel.PostScript.csproj" />
+    <!--
+      PrivateAssets="all" stops NuGet from emitting a <dependency> on these projects' own
+      PackageId/Version (they are IsPackable=false and never published); AddProjectReferenceAssembliesToPackage
+      below bundles their compiled assemblies into this package instead.
+    -->
+    <ProjectReference Include="..\PdfPixel.Color\PdfPixel.Color.csproj" PrivateAssets="all" />
+    <ProjectReference Include="..\PdfPixel.Jpg\PdfPixel.Jpg.csproj" PrivateAssets="all" />
+    <ProjectReference Include="..\PdfPixel.Jpx\PdfPixel.Jpx.csproj" PrivateAssets="all" />
+    <ProjectReference Include="..\PdfPixel.Ccitt\PdfPixel.Ccitt.csproj" PrivateAssets="all" />
+    <ProjectReference Include="..\PdfPixel.Jbig2\PdfPixel.Jbig2.csproj" PrivateAssets="all" />
+    <ProjectReference Include="..\PdfPixel.PostScript\PdfPixel.PostScript.csproj" PrivateAssets="all" />
   </ItemGroup>
 
   <ItemGroup>
@@ -55,5 +78,15 @@
   <ItemGroup>
     <Folder Include="Color\Sampling\" />
   </ItemGroup>
+
+  <PropertyGroup>
+    <TargetsForTfmSpecificBuildOutput>$(TargetsForTfmSpecificBuildOutput);AddProjectReferenceAssembliesToPackage</TargetsForTfmSpecificBuildOutput>
+  </PropertyGroup>
+
+  <Target Name="AddProjectReferenceAssembliesToPackage" DependsOnTargets="ResolveReferences">
+    <ItemGroup>
+      <BuildOutputInPackage Include="@(ReferenceCopyLocalPaths->WithMetadataValue('ReferenceSourceTarget', 'ProjectReference'))" />
+    </ItemGroup>
+  </Target>
 
   </Project>

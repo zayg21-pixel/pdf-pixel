@@ -11,7 +11,7 @@ internal sealed class DrawNormalImageTileCommand : PdfCommand
 
     public DrawNormalImageTileCommand(NormalImageExecutionContext context) => _context = context;
 
-    public override PdfCommandFeatures Features => PdfCommandFeatures.Region | PdfCommandFeatures.Scale;
+    public override PdfCommandFeatures Features => PdfCommandFeatures.Region | PdfCommandFeatures.Scale | PdfCommandFeatures.DeferredDispose;
 
     public override void Initialize(IEnumerable<IPdfCommandModifier> modifiers, PdfCommandExecutionContext executionContext)
         => _context.TileCache.InitializeNextTile(executionContext.ExecutionObserver);

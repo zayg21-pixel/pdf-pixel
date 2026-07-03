@@ -3,6 +3,7 @@ using PdfPixel.Commands;
 using SkiaSharp;
 using System;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 
 namespace PdfPixel.Imaging.Processing;
 
@@ -20,6 +21,7 @@ internal sealed class PdfImageTilingContext : IDisposable
     private readonly bool _isDownscaled;
     private readonly float _outputScaleX;
     private readonly float _outputScaleY;
+    private readonly int _componentCount;
 
     private int _nextTileRowToOpen;
 
@@ -43,6 +45,7 @@ internal sealed class PdfImageTilingContext : IDisposable
 
         _columnSampleRanges = ComputeSampleRanges(tileInfo.TilesHorizontal, tileInfo.TileWidth, tileInfo.ImageSize.Width, imageParameters.Width);
         _rowSampleRanges = ComputeSampleRanges(tileInfo.TilesVertical, tileInfo.TileHeight, tileInfo.ImageSize.Height, imageParameters.Height);
+        _componentCount = imageParameters.ColorSpaceConverter.Components + ((imageParameters.HasAlphaChannel) ? 1 : 0);
     }
 
     /// <summary>
@@ -50,6 +53,7 @@ internal sealed class PdfImageTilingContext : IDisposable
     /// includes <paramref name="imageRowIndex"/>, and returns the tiles of any tile rows
     /// that complete as a result (or null if none completed yet).
     /// </summary>
+    [MethodImpl(methodImplOptions: MethodImplOptions.AggressiveInlining)]
     public PdfImageTile[]? WriteRowAndTryGetTiles(int imageRowIndex, in ReadOnlySpan<byte> fullWidthRow, IPdfExecutionObserver? observer)
     {
         OpenNewTileRows(imageRowIndex, observer);
@@ -62,6 +66,7 @@ internal sealed class PdfImageTilingContext : IDisposable
     /// Several tile rows can legitimately start on the same image row when the decoded
     /// resolution is lower than the tile grid — they then sample (and share) that single row.
     /// </summary>
+    [MethodImpl(methodImplOptions: MethodImplOptions.AggressiveInlining)]
     private void OpenNewTileRows(int imageRowIndex, IPdfExecutionObserver? observer)
     {
         while (_nextTileRowToOpen < _tileInfo.TilesVertical && _rowSampleRanges[_nextTileRowToOpen].Start == imageRowIndex)
@@ -115,10 +120,9 @@ internal sealed class PdfImageTilingContext : IDisposable
         }
     }
 
+    [MethodImpl(methodImplOptions:  MethodImplOptions.AggressiveInlining)]
     private void WriteRowToOpenTileRows(int imageRowIndex, in ReadOnlySpan<byte> fullWidthRow, IPdfExecutionObserver? observer)
     {
-        int componentCount = _imageParameters.ColorSpaceConverter.Components
-            + ((_imageParameters.HasAlphaChannel) ? 1 : 0);
         int bitsPerComponent = _imageParameters.BitsPerComponent;
 
         foreach (OpenTileRow openTileRow in _openTileRows)
@@ -133,13 +137,14 @@ internal sealed class PdfImageTilingContext : IDisposable
                 }
 
                 IndexRange columnRange = _columnSampleRanges[column];
-                byte[] slice = ExtractTileRowSlice(fullWidthRow, columnRange.Start, columnRange.End - columnRange.Start, bitsPerComponent, componentCount);
+                byte[] slice = ExtractTileRowSlice(fullWidthRow, columnRange.Start, columnRange.End - columnRange.Start, bitsPerComponent, _componentCount);
                 openTileRow.Processors[column]?.WriteRow(rowWithinTile, slice);
                 observer?.Notify();
             }
         }
     }
 
+    [MethodImpl(methodImplOptions: MethodImplOptions.AggressiveInlining)]
     private PdfImageTile[]? CloseFinishedTileRows(int imageRowIndex, IPdfExecutionObserver? observer)
     {
         List<PdfImageTile>? closedTiles = null;
@@ -164,6 +169,7 @@ internal sealed class PdfImageTilingContext : IDisposable
         return closedTiles?.ToArray();
     }
 
+    [MethodImpl(methodImplOptions: MethodImplOptions.AggressiveInlining)]
     private void EmitTiles(OpenTileRow openTileRow, List<PdfImageTile> destination)
     {
         for (int column = 0; column < _tileInfo.TilesHorizontal; column++)
@@ -192,6 +198,7 @@ internal sealed class PdfImageTilingContext : IDisposable
     /// decoded resolution is lower than the cell count, several adjacent cells legitimately
     /// resolve to (and share) the same single decoded sample.
     /// </summary>
+    [MethodImpl(methodImplOptions: MethodImplOptions.AggressiveInlining)]
     private static IndexRange[] ComputeSampleRanges(int tileCount, int nominalTileSize, int nominalImageDimension, int decodedImageDimension)
     {
         float scale = (float)decodedImageDimension / nominalImageDimension;
@@ -222,6 +229,7 @@ internal sealed class PdfImageTilingContext : IDisposable
         return ranges;
     }
 
+    [MethodImpl(methodImplOptions: MethodImplOptions.AggressiveInlining)]
     private static byte[] ExtractTileRowSlice(
         in ReadOnlySpan<byte> fullWidthRow,
         int tileStartPixel,
@@ -279,6 +287,7 @@ internal sealed class PdfImageTilingContext : IDisposable
         return tileSlice;
     }
 
+    [MethodImpl(methodImplOptions: MethodImplOptions.AggressiveInlining)]
     private void DisposeOpenTileRows()
     {
         foreach (OpenTileRow openTileRow in _openTileRows)

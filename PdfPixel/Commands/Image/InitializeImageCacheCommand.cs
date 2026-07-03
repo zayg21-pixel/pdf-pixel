@@ -11,6 +11,8 @@ internal sealed class InitializeImageCacheCommand : PdfCommand
 {
     private readonly PdfCommandImageCache _imageCache = new();
 
+    public override PdfCommandFeatures Features => PdfCommandFeatures.DeferredDispose;
+
     public override void Initialize(IEnumerable<IPdfCommandModifier> modifiers, PdfCommandExecutionContext executionContext)
         => executionContext.ImageCache = _imageCache;
 

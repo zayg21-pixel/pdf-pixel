@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging;
 using System;
+using System.Collections.Generic;
 
 namespace PdfPixel.Commands;
 
@@ -13,6 +14,7 @@ public sealed class SkCanvasCommandProcessor : IPdfCommandProcessor
 {
     private readonly PdfCommandExecutionContext _executionContext;
     private readonly ILogger<SkCanvasCommandProcessor> _logger;
+    private readonly List<IPdfCommand> _deferredDisposeCommands = [];
 
     /// <summary>
     /// Initializes the processor with the given execution context and logger.
@@ -57,12 +59,26 @@ public sealed class SkCanvasCommandProcessor : IPdfCommandProcessor
         }
 
         _executionContext.CurrentCommand = command;
-        command.Dispose();
+
+        if ((command.Features & PdfCommandFeatures.DeferredDispose) != 0)
+        {
+            _deferredDisposeCommands.Add(command);
+        }
+        else
+        {
+            command.Dispose();
+        }
     }
 
     /// <inheritdoc/>
     public void Dispose()
     {
         // Does not own the execution context; caller manages its lifetime.
+        foreach (IPdfCommand command in _deferredDisposeCommands)
+        {
+            command.Dispose();
+        }
+
+        _deferredDisposeCommands.Clear();
     }
 }

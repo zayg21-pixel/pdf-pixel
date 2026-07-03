@@ -4,6 +4,12 @@ PDF Pixel is a native C# PDF rendering library for .NET, built around SkiaSharp 
 
 ---
 
+## Documentation
+
+- [Getting Started](docs/getting-started.md) — render a page to PNG, render annotations, coordinate systems
+
+---
+
 ## Feature Support
 
 ### Images
