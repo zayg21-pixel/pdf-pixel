@@ -1,0 +1,35 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-and-test:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            8.0.x
+            9.0.x
+            10.0.x
+
+      - name: Restore
+        run: dotnet restore PdfPixel.slnx
+
+      - name: Build
+        run: dotnet build PdfPixel.slnx --configuration Release --no-restore
+
+      - name: Test PdfPixel.Tests
+        run: dotnet test PdfPixel.Tests/PdfPixel.Tests.csproj --configuration Release --no-build
+
+      - name: Test PdfPixel.Jpg.Test
+        run: dotnet test PdfPixel.Jpg.Test/PdfPixel.Jpg.Test.csproj --configuration Release --no-build
