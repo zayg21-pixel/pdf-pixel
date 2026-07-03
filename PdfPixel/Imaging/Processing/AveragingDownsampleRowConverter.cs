@@ -29,6 +29,7 @@ internal sealed class AveragingDownsampleRowConverter : IRowConverter
     private readonly HashSet<int> _flushAfterSourceRow;
 
     private int _nextDestinationRowToWrite;
+    private int _accumulatedSourceRowCount;
 
     private readonly uint _sourceMaximumValue;
     private readonly float _sourceToDestinationScale;
@@ -84,12 +85,16 @@ internal sealed class AveragingDownsampleRowConverter : IRowConverter
 
             if (destinationColumn != currentDestinationColumn)
             {
+                int columnCount = sourceColumn - sourceColumnRangeStart;
+                float horizontalReciprocal = (columnCount == 0) ? 0f : 1f / columnCount;
+
                 for (int component = 0; component < components; component++)
                 {
                     int destinationIndex = (currentDestinationColumn * components) + component;
                     int flatStart = (sourceColumnRangeStart * components) + component;
                     int flatEnd = (sourceColumn * components) + component;
                     _sourceSampleRangeForDestinationSample[destinationIndex] = new Range(flatStart, flatEnd);
+                    _destinationRowAccumulators[destinationIndex].HorizontalReciprocal = horizontalReciprocal;
                 }
 
                 sourceColumnRangeStart = sourceColumn;
@@ -130,11 +135,13 @@ internal sealed class AveragingDownsampleRowConverter : IRowConverter
 
         ReadSourceRowSamples(sourceRow);
         AccumulateSourceRow();
+        _accumulatedSourceRowCount++;
 
         if (_flushAfterSourceRow.Contains(rowIndex))
         {
             WriteAveragedRow(destRow);
             ResetAccumulators();
+            _accumulatedSourceRowCount = 0;
             _nextDestinationRowToWrite++;
             return true;
         }
@@ -166,27 +173,31 @@ internal sealed class AveragingDownsampleRowConverter : IRowConverter
             ref readonly Range range = ref Unsafe.Add(ref sampleRangeReference, destinationIndex);
 
             long sum = 0;
-            int count = 0;
 
             for (int sourceIndex = range.Start; sourceIndex < range.End; sourceIndex += _components)
             {
                 sum += Unsafe.Add(ref sourceSamplesReference, sourceIndex);
-                count++;
             }
 
-            destinationAccumulatorReference.Add(sum, count);
+            destinationAccumulatorReference.Sum += sum;
             destinationAccumulatorReference = ref Unsafe.Add(ref destinationAccumulatorReference, 1);
         }
     }
 
+    // The vertical divisor (source rows accumulated since the last flush) is pure grid geometry
+    // and identical for every sample in this row, so it is turned into a single reciprocal here
+    // instead of dividing per sample. The horizontal divisor is already baked into each
+    // accumulator's HorizontalReciprocal at construction time.
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private void WriteAveragedRow(in Span<byte> destRow)
     {
         int totalSamples = _destinationWidth * _components;
+        float verticalScale = _sourceToDestinationScale / _accumulatedSourceRowCount;
         UintBitWriter writer = new(destRow);
+
         for (int sampleIndex = 0; sampleIndex < totalSamples; sampleIndex++)
         {
-            byte value = _destinationRowAccumulators[sampleIndex].GetAverage(_sourceToDestinationScale);
+            byte value = _destinationRowAccumulators[sampleIndex].GetAverage(verticalScale);
             writer.Write8Bits(value);
         }
 
@@ -194,29 +205,23 @@ internal sealed class AveragingDownsampleRowConverter : IRowConverter
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private void ResetAccumulators() => Array.Clear(_destinationRowAccumulators, 0, _destinationRowAccumulators.Length);
+    private void ResetAccumulators()
+    {
+        for (int index = 0; index < _destinationRowAccumulators.Length; index++)
+        {
+            _destinationRowAccumulators[index].Sum = 0;
+        }
+    }
 
     private struct Accumulator
     {
         public long Sum;
-        public int Count;
+        public float HorizontalReciprocal;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Add(long value, int count)
+        public readonly byte GetAverage(float verticalScale)
         {
-            Sum += value;
-            Count += count;
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public readonly byte GetAverage(float scale)
-        {
-            if (Count == 0)
-            {
-                return 0;
-            }
-
-            float average = (Sum / (float)Count) * scale;
+            float average = Sum * HorizontalReciprocal * verticalScale;
             if (average < 0)
             {
                 return 0;
