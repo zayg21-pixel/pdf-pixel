@@ -77,7 +77,9 @@ public sealed class OpenGlRenderTargetFactory : IPdfPanelRenderTargetFactory, IP
             throw new InvalidOperationException("Failed to create GRGlInterface for WGL context.");
         }
 
-        _grContext = GRContext.CreateGl(glInterface);
+        // StencilBuffers causes most of blending issues. Though, disabling them does not solve ALL issues
+        _grContext = GRContext.CreateGl(glInterface, new GRContextOptions { RuntimeProgramCacheSize = 128, AvoidStencilBuffers = true });
+        _grContext.SetResourceCacheLimit(128_000_000);
 
         if (_grContext == null)
         {
@@ -158,6 +160,7 @@ public sealed class OpenGlRenderTargetFactory : IPdfPanelRenderTargetFactory, IP
         var imageInfo = new SKImageInfo(_currentWidth, _currentHeight, SKColorType.Bgra8888, SKAlphaType.Premul);
 
         _glContext.MakeCurrent();
+        _grContext.Flush();
 
         PresentToWriteableBitmap(imageInfo, surface, request);
     }

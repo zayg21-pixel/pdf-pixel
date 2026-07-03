@@ -4,6 +4,7 @@ using System.IO;
 using System.Text;
 using PdfPixel.Fonts.Management;
 using PdfPixel.Fonts.Model;
+using SkiaSharp;
 
 namespace PdfPixel.Fonts.Cff;
 
@@ -254,8 +255,9 @@ internal static class CffOpenTypeWrapper
             short sTypoAscender = CffOpenTypeWriter.ClampToShort((fontDescriptor.Ascent != 0) ? fontDescriptor.Ascent : DefaultAscent, DefaultAscent);
             short sTypoDescender = CffOpenTypeWriter.ClampToShort((fontDescriptor.Descent != 0) ? fontDescriptor.Descent : DefaultDescent, DefaultDescent);
             const short sTypoLineGap = DefaultLineGap;
-            var usWinAscent = (ushort)Math.Max(0, (int)Math.Round((fontDescriptor.FontBBox.Top != 0) ? fontDescriptor.FontBBox.Top : DefaultAscent));
-            var usWinDescent = (ushort)Math.Max(0, -(int)Math.Round((fontDescriptor.FontBBox.Bottom != 0) ? fontDescriptor.FontBBox.Bottom : DefaultDescent));
+            bool hasFontBBox = fontDescriptor.FontBBox != SKRect.Empty;
+            var usWinAscent = (ushort)Math.Max(0, (int)Math.Round(hasFontBBox ? fontDescriptor.FontBBox.Bottom : DefaultAscent));
+            var usWinDescent = (ushort)Math.Max(0, -(int)Math.Round(hasFontBBox ? fontDescriptor.FontBBox.Top : DefaultDescent));
 
             ushort fsSelection = 0;
             bool italic = (fontDescriptor.Flags & PdfFontFlags.Italic) == PdfFontFlags.Italic || Math.Abs(fontDescriptor.ItalicAngle) > 0.1f;
