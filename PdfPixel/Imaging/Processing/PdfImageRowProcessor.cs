@@ -40,7 +40,6 @@ internal sealed partial class PdfImageRowProcessor : IDisposable
     private readonly PdfColorSpaceConverter _converter;
     private readonly ILogger _logger;
 
-    private readonly int _bitsPerComponent;
     private readonly int _components;
     private readonly int _totalComponents;
     private readonly bool _hasAlpha;
@@ -75,7 +74,7 @@ internal sealed partial class PdfImageRowProcessor : IDisposable
 
         int sourceWidth = parameters.Width;
         int sourceHeight = parameters.Height;
-        _bitsPerComponent = parameters.BitsPerComponent;
+        int bitsPerComponent = parameters.BitsPerComponent;
         _converter = parameters.ColorSpaceConverter ?? throw new InvalidOperationException("Color space converter must not be null for row processing.");
 
         if (sourceWidth <= 0 || sourceHeight <= 0)
@@ -83,9 +82,9 @@ internal sealed partial class PdfImageRowProcessor : IDisposable
             throw new ArgumentException("Image dimensions must be positive.");
         }
 
-        if (_bitsPerComponent > 16)
+        if (bitsPerComponent > 16)
         {
-            throw new NotSupportedException($"Row processor supports up to 16 bits per component (got {_bitsPerComponent}).");
+            throw new NotSupportedException($"Row processor supports up to 16 bits per component (got {bitsPerComponent}).");
         }
 
         _components = _converter.Components;
@@ -102,14 +101,14 @@ internal sealed partial class PdfImageRowProcessor : IDisposable
                 _outputMode = OutputMode.IndexedRgbaColorConverted;
                 _indexedPalette = indexedConverter.BuildPackedPalette(_parameters.RenderingIntent, _parameters.Context.FullTransferFunction);
             }
-            else if (_components == 1 && _bitsPerComponent <= 8 && !_hasAlpha)
+            else if (_components == 1 && bitsPerComponent <= 8 && !_hasAlpha)
             {
                 _outputMode = OutputMode.IndexedRgbaColorConverted;
-                _indexedPalette = BuildPackedPalette(_parameters, _bitsPerComponent);
+                _indexedPalette = BuildPackedPalette(_parameters, bitsPerComponent);
 
                 if ((_stages & ProcessingStages.Decode) != 0)
                 {
-                    int maxCode = (1 << _bitsPerComponent) - 1;
+                    int maxCode = (1 << bitsPerComponent) - 1;
                     _decodeArray = new float[] { _decodeArray[0] * maxCode, _decodeArray[1] * maxCode };
                 }
             }
@@ -124,25 +123,26 @@ internal sealed partial class PdfImageRowProcessor : IDisposable
             _outputMode = (_components == 1 && !_hasAlpha) ? OutputMode.Gray : OutputMode.Rgba;
         }
 
+        int rowConverterSourceBitsPerComponent = bitsPerComponent;
+
         if (_outputMode == OutputMode.IndexedRgbaColorConverted)
         {
-            _indexedBitsPerComponent = _bitsPerComponent;
+            _indexedBitsPerComponent = bitsPerComponent;
             _totalComponents = 4;
-            _bitsPerComponent = NormalizedBitsPerComponent;
+            rowConverterSourceBitsPerComponent = NormalizedBitsPerComponent;
         }
 
         if (parameters.DownscaledSize.HasValue)
         {
             _width = parameters.DownscaledSize.Value.Width;
             _height = parameters.DownscaledSize.Value.Height;
-            _rowConverter = new AveragingDownsampleRowConverter(_totalComponents, _bitsPerComponent, sourceWidth, _width, sourceHeight, _height);
+            _rowConverter = new AveragingDownsampleRowConverter(_totalComponents, rowConverterSourceBitsPerComponent, sourceWidth, _width, sourceHeight, _height);
         }
         else
         {
             _width = sourceWidth;
             _height = sourceHeight;
-            _rowConverter = new SampleNormalizingRowConverter(_totalComponents, _bitsPerComponent, _width);
-            _bitsPerComponent = NormalizedBitsPerComponent;
+            _rowConverter = new SampleNormalizingRowConverter(_totalComponents, rowConverterSourceBitsPerComponent, _width);
         }
 
         if (_outputMode == OutputMode.Gray)
@@ -160,7 +160,7 @@ internal sealed partial class PdfImageRowProcessor : IDisposable
         }
         else
         {
-            _scale = 1f / ((1 << _bitsPerComponent) - 1);
+            _scale = 1f / ((1 << NormalizedBitsPerComponent) - 1);
         }
     }
 
@@ -375,7 +375,7 @@ internal sealed partial class PdfImageRowProcessor : IDisposable
 
         int pixelCount = _width;
         ref RgbaPacked destPixel = ref Unsafe.As<byte, RgbaPacked>(ref _rgbaBuffer[0]);
-        UintBitReaderFixedLength bitReader = new(decodedRow, _bitsPerComponent);
+        ref byte sourceByte = ref decodedRow[0];
 
         Span<float> componentValues = stackalloc float[_components];
 
@@ -383,14 +383,16 @@ internal sealed partial class PdfImageRowProcessor : IDisposable
         {
             for (int c = 0; c < _components; c++)
             {
-                componentValues[c] = bitReader.Read() * _scale;
+                componentValues[c] = sourceByte * _scale;
+                sourceByte = ref Unsafe.Add(ref sourceByte, 1);
             }
 
             ColorVectorUtilities.Load01ToRgba(_sampler.Sample(componentValues), ref destPixel);
 
             if (_hasAlpha)
             {
-                destPixel.A = (byte)Math.Min(bitReader.Read(), 255);
+                destPixel.A = sourceByte;
+                sourceByte = ref Unsafe.Add(ref sourceByte, 1);
             }
 
             destPixel = ref Unsafe.Add(ref destPixel, 1);
@@ -408,7 +410,7 @@ internal sealed partial class PdfImageRowProcessor : IDisposable
         int pixelCount = _width;
         ref byte destRowByte = ref _rgbaBuffer[0];
         ref RgbaPacked destPixel = ref Unsafe.As<byte, RgbaPacked>(ref destRowByte);
-        UintBitReaderFixedLength bitReader = new(decodedRow, _bitsPerComponent);
+        ref byte sourceByte = ref decodedRow[0];
 
         Span<float> componentValues = stackalloc float[_components];
 
@@ -421,7 +423,8 @@ internal sealed partial class PdfImageRowProcessor : IDisposable
 
             for (int c = 0; c < _components; c++)
             {
-                uint sample = bitReader.Read();
+                byte sample = sourceByte;
+                sourceByte = ref Unsafe.Add(ref sourceByte, 1);
 
                 if (applyMask && maskMatch)
                 {
@@ -452,7 +455,8 @@ internal sealed partial class PdfImageRowProcessor : IDisposable
 
             if (_hasAlpha)
             {
-                destPixel.A = (byte)Math.Min(bitReader.Read(), 255);
+                destPixel.A = sourceByte;
+                sourceByte = ref Unsafe.Add(ref sourceByte, 1);
             }
 
             if (applyMask && maskMatch)

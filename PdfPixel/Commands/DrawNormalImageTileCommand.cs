@@ -24,19 +24,16 @@ internal sealed class DrawNormalImageTileCommand : PdfCommand
             return;
         }
 
-        SKMatrix ctm = CommandHelpers.GetScaledMatrix(executionContext);
-        SKSamplingOptions sampling = PdfImageCommandUtilities.GetSamplingOptions(ctm, _context.ImageSize, _context.Interpolate);
+        SnappedTilePlacement placement = PdfImageCommandUtilities.GetSnappedTilePlacement(
+            executionContext, _context.ImageSize, tile.TilePosition, _context.Interpolate);
 
-        using SKShader shader = ImageBlending.BuildImageShader(tile.Image, tile.SourceRegion, new SKSizeI(tile.TilePosition.Width, tile.TilePosition.Height), sampling);
+        using SKShader shader = ImageBlending.BuildImageShader(tile.Image, tile.SourceRegion, placement.DeviceSize, placement.Sampling);
         using SKPaint paint = PdfImageCommandUtilities.GetBaseImagePaint(shader, _context.DecodingContext);
         CommandHelpers.ApplyModifiers(paint, modifiers);
 
-        bool antialias = PdfImageCommandUtilities.GetImageTileIsAntialias(ctm, _context.ImageSize, executionContext);
-
         executionContext.Canvas.Save();
-        executionContext.Canvas.Scale(1f / _context.ImageSize.Width, 1f / _context.ImageSize.Height);
-        executionContext.Canvas.ClipRect(tile.TilePosition, antialias: antialias);
-        executionContext.Canvas.Translate(tile.TilePosition.Left, tile.TilePosition.Top);
+        executionContext.Canvas.Concat(placement.PlacementMatrix);
+        executionContext.Canvas.ClipRect(placement.PlacementRectangle, antialias: placement.IsAntialiased);
         executionContext.Canvas.DrawPaint(paint);
         executionContext.Canvas.Restore();
     }

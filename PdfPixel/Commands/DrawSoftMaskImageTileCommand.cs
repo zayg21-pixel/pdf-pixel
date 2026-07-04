@@ -33,8 +33,8 @@ internal sealed class DrawSoftMaskImageTileCommand : PdfCommand
             return;
         }
 
-        SKMatrix ctm = CommandHelpers.GetScaledMatrix(executionContext);
-        SKSamplingOptions sampling = PdfImageCommandUtilities.GetSamplingOptions(ctm, _context.ImageSize, _context.Interpolate);
+        SnappedTilePlacement placement = PdfImageCommandUtilities.GetSnappedTilePlacement(
+            executionContext, _context.ImageSize, imageTile.TilePosition, _context.Interpolate);
 
         SKColor? matte = null;
         if (_context.MatteArray != null && maskTile.Parameters != null)
@@ -42,18 +42,15 @@ internal sealed class DrawSoftMaskImageTileCommand : PdfCommand
             matte = maskTile.Parameters.ColorSpaceConverter.ToSrgb(_context.MatteArray, maskTile.Parameters.RenderingIntent, default);
         }
 
-        using SKShader imageShader = ImageBlending.BuildImageShader(imageTile.Image, imageTile.SourceRegion, new SKSizeI(imageTile.TilePosition.Width, imageTile.TilePosition.Height), sampling);
-        using SKShader maskShader = ImageBlending.BuildImageShader(maskTile.Image, maskTile.SourceRegion, new SKSizeI(imageTile.TilePosition.Width, imageTile.TilePosition.Height), sampling);
+        using SKShader imageShader = ImageBlending.BuildImageShader(imageTile.Image, imageTile.SourceRegion, placement.DeviceSize, placement.Sampling);
+        using SKShader maskShader = ImageBlending.BuildImageShader(maskTile.Image, maskTile.SourceRegion, placement.DeviceSize, placement.Sampling);
         using SKShader blendingShader = ImageBlending.CreateSoftMaskBlendingShader(imageShader, maskShader, matte);
         using SKPaint paint = PdfImageCommandUtilities.GetBaseImagePaint(blendingShader, _context.DecodingContext);
         CommandHelpers.ApplyModifiers(paint, modifiers);
 
-        bool antialias = PdfImageCommandUtilities.GetImageTileIsAntialias(ctm, _context.ImageSize, executionContext);
-
         executionContext.Canvas.Save();
-        executionContext.Canvas.Scale(1f / _context.ImageSize.Width, 1f / _context.ImageSize.Height);
-        executionContext.Canvas.ClipRect(imageTile.TilePosition, antialias: antialias);
-        executionContext.Canvas.Translate(imageTile.TilePosition.Left, imageTile.TilePosition.Top);
+        executionContext.Canvas.Concat(placement.PlacementMatrix);
+        executionContext.Canvas.ClipRect(placement.PlacementRectangle, antialias: placement.IsAntialiased);
         executionContext.Canvas.DrawPaint(paint);
         executionContext.Canvas.Restore();
     }
