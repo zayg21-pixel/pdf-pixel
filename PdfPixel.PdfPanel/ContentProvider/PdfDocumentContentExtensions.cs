@@ -5,7 +5,6 @@ using PdfPixel.Models;
 using PdfPixel.Text;
 using SkiaSharp;
 using System;
-using System.Collections.Generic;
 
 namespace PdfPixel.PdfPanel.ContentProvider;
 

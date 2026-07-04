@@ -36,11 +36,11 @@ internal static class PdfImageCommandUtilities
 
         if (isDownscaled || interpolate)
         {
-            return new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.Linear);
+            return new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.None);
         }
         else if (imageSize.Width < 2 || imageSize.Height < 2)
         {
-            return new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.Linear);
+            return new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.None);
         }
         else
         {
@@ -56,6 +56,8 @@ internal static class PdfImageCommandUtilities
     /// </summary>
     public static bool GetImageTileIsAntialias(SKMatrix ctm, SKSizeI imageSize, PdfCommandExecutionContext executionContext)
     {
+        // TODO: [HIGH] this was designed for 1x1 standalone images, but this actually affects how we render "normal" images
+        return false;
         if (!executionContext.Parameters.Antialias)
         {
             return false;

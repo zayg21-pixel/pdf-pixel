@@ -11,10 +11,10 @@ namespace PdfPixel.Commands.Image;
 /// </summary>
 internal sealed class AtlasPage : IDisposable
 {
-    private const int MaxSize = 1024;
     private const int Padding = 1;
 
     private readonly AtlasKey _key;
+    private readonly int _maxSize;
     private readonly Dictionary<Guid, AtlasEntry> _entries = [];
 
     private SKImage? _frozenImage;
@@ -26,7 +26,11 @@ internal sealed class AtlasPage : IDisposable
     private int _usedWidth;
     private int _usedHeight;
 
-    public AtlasPage(ref readonly AtlasKey key) => _key = key;
+    public AtlasPage(ref readonly AtlasKey key, int maxSize)
+    {
+        _key = key;
+        _maxSize = maxSize;
+    }
 
     public AtlasKey Key => _key;
 
@@ -175,14 +179,14 @@ internal sealed class AtlasPage : IDisposable
         int paddedWidth = width + (2 * Padding);
         int paddedHeight = height + (2 * Padding);
 
-        if (_currentX + paddedWidth > MaxSize)
+        if (_currentX + paddedWidth > _maxSize)
         {
             _currentX = 0;
             _currentY += _currentRowHeight;
             _currentRowHeight = 0;
         }
 
-        if (_currentY + paddedHeight > MaxSize)
+        if (_currentY + paddedHeight > _maxSize)
         {
             position = default;
             return false;

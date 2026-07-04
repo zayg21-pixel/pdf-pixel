@@ -1,5 +1,6 @@
 # PDF Pixel
 
+[![NuGet](https://img.shields.io/nuget/v/PdfPixel.svg)](https://www.nuget.org/packages/PdfPixel/)
 [![Publish NuGet Package](https://github.com/zayg21-pixel/pdf-pixel/actions/workflows/nuget-publish.yml/badge.svg)](https://github.com/zayg21-pixel/pdf-pixel/actions/workflows/nuget-publish.yml)
 [![CI](https://github.com/zayg21-pixel/pdf-pixel/actions/workflows/ci.yml/badge.svg)](https://github.com/zayg21-pixel/pdf-pixel/actions/workflows/ci.yml)
 

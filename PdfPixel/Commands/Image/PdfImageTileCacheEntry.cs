@@ -8,7 +8,6 @@ namespace PdfPixel.Commands.Image;
 
 internal sealed class PdfImageTileCacheEntry : IDisposable
 {
-
     private readonly PdfImageDecoder _decoder;
     private readonly ImageDecodingContext _context;
     private readonly CachedTile[] _tiles;

@@ -12,6 +12,7 @@ namespace PdfPixel.Commands.Image;
 internal sealed class PdfCommandImageCache : IDisposable
 {
     private const int MaxCachedImageSize = 256; // TODO: [MEDIUM] wire constants to parsing parameters
+    private const int MaxPageSize = 512;
 
     private readonly Dictionary<Guid, SKImage> _largeImages = [];
     private readonly List<AtlasPage> _pages = [];
@@ -47,7 +48,7 @@ internal sealed class PdfCommandImageCache : IDisposable
 
         activePage?.Freeze();
 
-        AtlasPage newPage = new(in key);
+        AtlasPage newPage = new(in key, MaxPageSize);
         _pages.Add(newPage);
 
         if (!newPage.TryAdd(in id, image))
