@@ -20,7 +20,7 @@ public sealed class TextCharactersCommand : PdfCommand
     public TextCharactersCommand(PdfCharacter[] characters) => _characters = characters;
 
     /// <inheritdoc />
-    public override void Execute(IEnumerable<IPdfCommandModifier> modifiers, PdfCommandExecutionContext executionContext)
+    public override void Execute(PdfCommandExecutionContext executionContext)
     {
         SKMatrix matrix = executionContext.Frames.TotalMatrix;
 

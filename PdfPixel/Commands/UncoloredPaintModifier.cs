@@ -1,4 +1,5 @@
 using SkiaSharp;
+using System;
 
 namespace PdfPixel.Commands;
 
@@ -7,7 +8,7 @@ namespace PdfPixel.Commands;
 /// with a specific color. Used for uncolored tiling patterns and uncolored Type 3 glyphs
 /// where the drawn shapes should adopt the current fill/stroke color at replay time.
 /// </summary>
-internal sealed class UncoloredPaintModifier : IPdfCommandModifier
+public sealed class UncoloredPaintModifier
 {
     private readonly SKColorFilter _colorFilter;
 
@@ -62,10 +63,16 @@ internal sealed class UncoloredPaintModifier : IPdfCommandModifier
     /// </summary>
     public void ModifyPaint(SKPaint paint)
     {
+        if (paint == null)
+        {
+            throw new ArgumentNullException(nameof(paint));
+        }
+
         paint.ColorFilter = (paint.ColorFilter != null)
             ? SKColorFilter.CreateCompose(_colorFilter, paint.ColorFilter)
             : _colorFilter;
     }
 
+    /// <inheritdoc />
     public void Dispose() => _colorFilter?.Dispose();
 }

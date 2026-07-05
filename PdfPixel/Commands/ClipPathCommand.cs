@@ -22,14 +22,14 @@ public sealed class ClipPathCommand : PdfCommand
     }
 
     /// <inheritdoc />
-    public override void Initialize(IEnumerable<IPdfCommandModifier> modifiers, PdfCommandExecutionContext executionContext)
+    public override void Initialize(PdfCommandExecutionContext executionContext)
     {
         bool antialias = CommandHelpers.GetPathIsAntialias(_path, executionContext);
         executionContext.Frames.OnClipPath(_path, _operation, antialias);
     }
 
     /// <inheritdoc />
-    public override void Execute(IEnumerable<IPdfCommandModifier> modifiers, PdfCommandExecutionContext executionContext)
+    public override void Execute(PdfCommandExecutionContext executionContext)
     {
         bool antialias = CommandHelpers.GetPathIsAntialias(_path, executionContext);
         executionContext.Canvas.ClipPath(_path, _operation, antialias);

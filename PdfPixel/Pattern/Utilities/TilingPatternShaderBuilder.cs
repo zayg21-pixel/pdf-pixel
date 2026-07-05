@@ -16,8 +16,6 @@ internal sealed class TilingPatternShaderBuilder
 {
     /// <summary>
     /// Renders a single tiling pattern cell into a <see cref="PdfCommandRecorder"/>.
-    /// Does not apply tint or color filter; the caller applies an <see cref="IPdfCommandModifier"/>
-    /// during replay for uncolored patterns.
     /// </summary>
     /// <param name="renderer">PDF renderer instance.</param>
     /// <param name="pattern">Tiling pattern definition.</param>

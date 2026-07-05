@@ -34,9 +34,14 @@ internal class PathFillRenderTarget : IRenderTarget
     {
         processor.Process(SaveStateCommand.Instance);
         processor.Process(new ClipPathCommand(new SKPath(_path), SKClipOperation.Intersect));
+        processor.Process(new SaveLayerCommand(_path.Bounds, null));
     }
 
-    public void AfterPatternRender(IPdfCommandProcessor processor) => processor.Process(RestoreStateCommand.Instance);
+    public void AfterPatternRender(IPdfCommandProcessor processor)
+    {
+        processor.Process(RestoreLayerCommand.Instance);
+        processor.Process(RestoreStateCommand.Instance);
+    }
 
     public void Render(IPdfCommandProcessor processor)
     {

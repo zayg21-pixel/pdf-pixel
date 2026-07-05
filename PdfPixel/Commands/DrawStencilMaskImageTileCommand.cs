@@ -1,7 +1,6 @@
 using PdfPixel.Commands.Image;
 using PdfPixel.Imaging.Processing;
 using SkiaSharp;
-using System.Collections.Generic;
 
 namespace PdfPixel.Commands;
 
@@ -11,18 +10,25 @@ namespace PdfPixel.Commands;
 public sealed class DrawStencilMaskImageTileCommand : PdfCommand
 {
     private readonly StencilMaskImageExecutionContext _context;
+    private readonly SKColorFilter _colorFilter;
 
-    internal DrawStencilMaskImageTileCommand(StencilMaskImageExecutionContext context) => _context = context;
+    internal DrawStencilMaskImageTileCommand(StencilMaskImageExecutionContext context)
+    {
+        _context = context;
+        SKColor fillColor = _context.DecodingContext.FillColor;
+        float[] colorMatrix = PdfImageCommandUtilities.CreateStencilMaskColorMatrix(in fillColor, _context.InvertMask);
+        _colorFilter = SKColorFilter.CreateColorMatrix(colorMatrix);
+    }
 
     /// <inheritdoc />
     public override PdfCommandFeatures Features => PdfCommandFeatures.Region | PdfCommandFeatures.Scale | PdfCommandFeatures.DeferredDispose;
 
     /// <inheritdoc />
-    public override void Initialize(IEnumerable<IPdfCommandModifier> modifiers, PdfCommandExecutionContext executionContext)
+    public override void Initialize(PdfCommandExecutionContext executionContext)
         => _context.TileCache.InitializeNextTile(executionContext.ExecutionObserver);
 
     /// <inheritdoc />
-    public override void Execute(IEnumerable<IPdfCommandModifier> modifiers, PdfCommandExecutionContext executionContext)
+    public override void Execute(PdfCommandExecutionContext executionContext)
     {
         PdfImageTile tile = _context.TileCache.GetNextTile();
         if (tile.IsSkipped || tile.Image == null)
@@ -33,18 +39,20 @@ public sealed class DrawStencilMaskImageTileCommand : PdfCommand
         SnappedTilePlacement placement = PdfImageCommandUtilities.GetSnappedTilePlacement(
             executionContext, _context.ImageSize, tile.TilePosition, _context.Interpolate);
 
-        using SKShader stencilShader = ImageBlending.BuildImageShader(tile.Image, tile.SourceRegion, placement.DeviceSize, placement.Sampling);
-        using SKShader blendingShader = ImageBlending.CreateImageMaskBlendingShader(stencilShader, _context.DecodingContext.FillColor, inverse: _context.InvertMask);
-        using SKPaint paint = PdfImageCommandUtilities.GetBaseImagePaint(blendingShader, _context.DecodingContext);
-        CommandHelpers.ApplyModifiers(paint, modifiers);
+        using SKPaint paint = PdfImageCommandUtilities.GetBaseImagePaint(_context.DecodingContext);
+        paint.ColorFilter = _colorFilter;
+        CommandHelpers.ApplyModifiers(paint, executionContext);
 
         executionContext.Canvas.Save();
         executionContext.Canvas.Concat(placement.PlacementMatrix);
-        executionContext.Canvas.ClipRect(placement.PlacementRectangle, antialias: placement.IsAntialiased);
-        executionContext.Canvas.DrawPaint(paint);
+        executionContext.Canvas.DrawImage(tile.Image, tile.GetSourceRect(), placement.PlacementRectangle, placement.Sampling, paint);
         executionContext.Canvas.Restore();
     }
 
     /// <inheritdoc />
-    protected override void Dispose(bool disposing) => _context.Dispose();
+    protected override void Dispose(bool disposing)
+    {
+        _context.Dispose();
+        _colorFilter.Dispose();
+    }
 }

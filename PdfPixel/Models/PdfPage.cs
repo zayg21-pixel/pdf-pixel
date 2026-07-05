@@ -132,7 +132,7 @@ internal class PdfPage : IPdfPageInternal
 
         if (renderingParameters.UsePageImageCache)
         {
-            processor.Process(new Commands.InitializeImageCacheCommand(renderingParameters.MaxAtlasedImageSize, renderingParameters.AtlasPageSize));
+            processor.Process(new InitializeImageCacheCommand(renderingParameters.MaxAtlasedImageSize, renderingParameters.AtlasPageSize));
         }
 
         PdfRenderer renderer = new(_document.LoggerFactory);

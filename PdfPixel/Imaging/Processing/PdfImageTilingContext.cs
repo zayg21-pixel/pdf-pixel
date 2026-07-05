@@ -177,15 +177,18 @@ internal sealed class PdfImageTilingContext : IDisposable
             int tileIndex = (openTileRow.TileRow * _tileInfo.TilesHorizontal) + column;
             SKRectI tilePosition = _tileInfo.GetTilePosition(tileIndex);
 
-            if (openTileRow.Processors[column] == null)
+            PdfImageRowProcessor? tileProcessor = openTileRow.Processors[column];
+
+            if (tileProcessor == null)
             {
                 destination.Add(new PdfImageTile(tileIndex, tilePosition, null, null, isSkipped: true));
                 continue;
             }
 
-            SKImage? image = openTileRow.Processors[column]?.GetDecoded();
-            openTileRow.Processors[column]?.Dispose();
+            SKImage image = tileProcessor.GetDecoded();
+            tileProcessor.Dispose();
             openTileRow.Processors[column] = null;
+
             destination.Add(new PdfImageTile(tileIndex, tilePosition, image, openTileRow.Parameters[column], isSkipped: false));
         }
     }

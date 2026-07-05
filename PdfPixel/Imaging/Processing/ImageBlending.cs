@@ -9,7 +9,6 @@ namespace PdfPixel.Imaging.Processing
     {
         private static readonly SKRuntimeEffect _softMaskEffect;
         private static readonly SKRuntimeEffect _imageMaskEffect;
-        private static readonly SKRuntimeEffect _stencilMaskEffect;
 
         static ImageBlending()
         {
@@ -48,21 +47,6 @@ namespace PdfPixel.Imaging.Processing
             ";
             _softMaskEffect = SKRuntimeEffect.CreateShader(softMaskSksl, out _);
             _imageMaskEffect = SKRuntimeEffect.CreateShader(imageMaskSksl, out _);
-
-            const string stencilMaskSksl = @"
-                uniform shader image;
-                uniform shader mask;
-                uniform half useInverse;
-
-                half4 main(float2 coord) {
-                    half4 color = image.eval(coord);
-                    half gray = mask.eval(coord).r;
-                    half maskAlpha = mix(gray, 1.0 - gray, useInverse);
-                    return color * maskAlpha;
-                }
-            ";
-
-            _stencilMaskEffect = SKRuntimeEffect.CreateShader(stencilMaskSksl, out _);
         }
 
         public static SKShader BuildImageShader(
@@ -162,25 +146,6 @@ namespace PdfPixel.Imaging.Processing
             SKRuntimeEffectChildren children = new(_imageMaskEffect) { { "mask", maskChild } };
 
             return _imageMaskEffect.ToShader(uniforms, children);
-        }
-
-        /// <summary>
-        /// Creates a stencil-mask shader from pre-built image and mask child shaders.
-        /// </summary>
-        public static SKShader CreateStencilMaskShader(
-            SKShader imageChild,
-            SKShader maskChild,
-            bool inverse)
-        {
-            SKRuntimeEffectUniforms uniforms = new(_stencilMaskEffect) { ["useInverse"] = inverse ? 1.0f : 0.0f };
-
-            SKRuntimeEffectChildren children = new(_stencilMaskEffect)
-            {
-                { "image", imageChild },
-                { "mask", maskChild }
-            };
-
-            return _stencilMaskEffect.ToShader(uniforms, children);
         }
     }
 }

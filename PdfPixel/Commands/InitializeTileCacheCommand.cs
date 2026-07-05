@@ -27,7 +27,7 @@ public sealed class InitializeTileCacheCommand : PdfCommand
     public override PdfCommandFeatures Features => PdfCommandFeatures.Region | PdfCommandFeatures.Scale | PdfCommandFeatures.DeferredDispose;
 
     /// <inheritdoc />
-    public override void Initialize(IEnumerable<IPdfCommandModifier> modifiers, PdfCommandExecutionContext executionContext)
+    public override void Initialize(PdfCommandExecutionContext executionContext)
     {
         _initializedContext = executionContext;
 
@@ -40,10 +40,14 @@ public sealed class InitializeTileCacheCommand : PdfCommand
         }
 
         _tileCache.Initialize(ctm, imageRegion, executionContext.ContentLocker, executionContext.ExecutionObserver, executionContext.ImageCache);
+
+        SKRect contentRegion = PdfImageCommandUtilities.ComputeContentRegionOfInterest(executionContext.Frames.TotalMatrix, executionContext);
+        bool antialias = CommandHelpers.GetRectIsAntialias(contentRegion, executionContext);
+        executionContext.Frames.OnClipRect(contentRegion, SKClipOperation.Intersect, antialias);
     }
 
     /// <inheritdoc />
-    public override void Execute(IEnumerable<IPdfCommandModifier> modifiers, PdfCommandExecutionContext executionContext)
+    public override void Execute(PdfCommandExecutionContext executionContext)
     {
         if (!ReferenceEquals(executionContext, _initializedContext))
         {
@@ -51,6 +55,11 @@ public sealed class InitializeTileCacheCommand : PdfCommand
         }
 
         _tileCache.ResetTileIndexes();
+
+        SKRect contentRegion = PdfImageCommandUtilities.ComputeContentRegionOfInterest(executionContext.Frames.TotalMatrix, executionContext);
+        bool antialias = CommandHelpers.GetRectIsAntialias(contentRegion, executionContext);
+        executionContext.Canvas.ClipRect(contentRegion, SKClipOperation.Intersect, antialias);
+        executionContext.Frames.OnClipRect(contentRegion, SKClipOperation.Intersect, antialias);
     }
 
     /// <inheritdoc />

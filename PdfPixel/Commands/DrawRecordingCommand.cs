@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using System.Linq;
 
 namespace PdfPixel.Commands;
@@ -15,7 +14,7 @@ public sealed class DrawRecordingCommand : PdfCommand
     /// <summary>
     /// Initializes the command with a recorder, an optional paint modifier, and ownership flag.
     /// </summary>
-    public DrawRecordingCommand(PdfCommandRecorder recorder, IPdfCommandModifier? modifier, bool disposeRecording = true)
+    public DrawRecordingCommand(PdfCommandRecorder recorder, UncoloredPaintModifier? modifier, bool disposeRecording = true)
     {
         Recorder = recorder;
         Modifier = modifier;
@@ -39,44 +38,48 @@ public sealed class DrawRecordingCommand : PdfCommand
     /// <summary>
     /// Modifier of a current command batch.
     /// </summary>
-    public IPdfCommandModifier? Modifier { get; }
+    public UncoloredPaintModifier? Modifier { get; }
 
     /// <inheritdoc />
     public override PdfCommandFeatures Features => Recorder.Commands.Aggregate(PdfCommandFeatures.None, (acc, cmd) => acc | cmd.Features);
 
     /// <inheritdoc />
-    public override void Initialize(IEnumerable<IPdfCommandModifier> modifiers, PdfCommandExecutionContext executionContext)
+    public override void Initialize(PdfCommandExecutionContext executionContext)
     {
         int savesCountBefore = executionContext.Frames.SavesCount;
 
         if (Modifier != null)
         {
-            Recorder.Initialize(modifiers.Append(Modifier), executionContext);
-        }
-        else
-        {
-            Recorder.Initialize(modifiers, executionContext);
+            executionContext.UncoloredModifier = Modifier;
         }
 
+        Recorder.Initialize(executionContext);
+
         BalanceFrames(executionContext, savesCountBefore, applyToCanvas: false);
+       
+        if (Modifier != null)
+        {
+            executionContext.UncoloredModifier = null;
+        }
     }
 
     /// <inheritdoc />
-    public override void Execute(IEnumerable<IPdfCommandModifier> modifiers, PdfCommandExecutionContext executionContext)
+    public override void Execute(PdfCommandExecutionContext executionContext)
     {
         int savesCountBefore = executionContext.Frames.SavesCount;
-
-        // Append the recording-specific modifier so it composes on top of any outer modifiers.
         if (Modifier != null)
         {
-            Recorder.Replay(modifiers.Append(Modifier), executionContext);
-        }
-        else
-        {
-            Recorder.Replay(modifiers, executionContext);
+            executionContext.UncoloredModifier = Modifier;
         }
 
+        Recorder.Replay(executionContext);
+
         BalanceFrames(executionContext, savesCountBefore, applyToCanvas: true);
+
+        if (Modifier != null)
+        {
+            executionContext.UncoloredModifier = null;
+        }
     }
 
     /// <summary>

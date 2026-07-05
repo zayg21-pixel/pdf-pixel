@@ -75,7 +75,7 @@ public sealed class PdfTilingPattern : PdfPattern
         processor.Process(SaveStateCommand.Instance);
         processor.Process(new ConcatMatrixCommand(matrix));
 
-        IPdfCommandModifier? modifier = (PaintTypeKind == PdfTilingPaintType.Uncolored)
+        UncoloredPaintModifier? modifier = (PaintTypeKind == PdfTilingPaintType.Uncolored)
             ? new UncoloredPaintModifier(renderTarget.Color)
             : default;
 

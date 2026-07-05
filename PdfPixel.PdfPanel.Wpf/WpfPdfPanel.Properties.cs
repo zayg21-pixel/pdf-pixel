@@ -23,7 +23,7 @@ public partial class WpfPdfPanel
         new FrameworkPropertyMetadata(0.1d, FrameworkPropertyMetadataOptions.AffectsRender));
 
     public static readonly DependencyProperty MaxScaleProperty = DependencyProperty.Register(nameof(MaxScale), typeof(double), typeof(WpfPdfPanel),
-        new FrameworkPropertyMetadata(10d, FrameworkPropertyMetadataOptions.AffectsRender));
+        new FrameworkPropertyMetadata(50d, FrameworkPropertyMetadataOptions.AffectsRender));
 
     public static readonly DependencyProperty PageGapProperty = DependencyProperty.Register(nameof(PageGap), typeof(double), typeof(WpfPdfPanel),
         new FrameworkPropertyMetadata(20d, FrameworkPropertyMetadataOptions.AffectsRender));

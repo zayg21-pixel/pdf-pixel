@@ -6,6 +6,7 @@ using PdfPixel.Imaging.Model;
 using PdfPixel.Pattern.Model;
 using PdfPixel.Rendering.State;
 using SkiaSharp;
+using System;
 
 namespace PdfPixel.Rendering.Image;
 
@@ -69,7 +70,6 @@ internal class ImageFillRenderTarget : IRenderTarget
         }
 
         processor.Process(SaveStateCommand.Instance);
-        processor.Process(new ClipRectangleCommand(new SKRect(0, 0, 1, 1), SKClipOperation.Intersect));
         processor.Process(new ConcatMatrixCommand(PdfImageCommandUtilities.GetImageMatrix()));
 
         ProcessTileCommands(processor, _image, _context);
@@ -106,13 +106,34 @@ internal class ImageFillRenderTarget : IRenderTarget
             }
             case PdfImageAlphaMode.ImageWithStencilMask:
             {
-                StencilMaskedImageExecutionContext ctx = StencilMaskedImageExecutionContext.Create(image, context, _loggerFactory);
-                processor.Process(new InitializeTileCacheCommand(ctx.ImageCache, ctx.ImageSize));
-                processor.Process(new InitializeTileCacheCommand(ctx.MaskCache, ctx.MaskSize));
-                for (int i = 0; i < ctx.TileInfo.TotalTiles; i++)
+                PdfImage? stencilMask = image.StencilMask;
+                if (stencilMask == null)
                 {
-                    processor.Process(new DrawStencilMaskedImageTileCommand(ctx));
+                    throw new ArgumentException($"Stencil mask not defined for image {image.Name}.");
                 }
+
+                ImageDecodingContext imageLayerContext = new(context, SKColors.White, 1f, SKBlendMode.SrcOver);
+                NormalImageExecutionContext imageCtx = NormalImageExecutionContext.Create(image, imageLayerContext, _loggerFactory);
+                processor.Process(new InitializeTileCacheCommand(imageCtx.TileCache, imageCtx.ImageSize));
+
+                ImageDecodingContext maskContext = new(context, SKColors.White, 1f, SKBlendMode.DstIn);
+                StencilMaskImageExecutionContext maskCtx = StencilMaskImageExecutionContext.Create(stencilMask, maskContext, _loggerFactory);
+                processor.Process(new InitializeTileCacheCommand(maskCtx.TileCache, maskCtx.ImageSize));
+
+                SKPaint layerPaint = PdfPaintFactory.CreateCompositionLayerPaint(_state);
+                processor.Process(new SaveLayerCommand(new SKRect(0, 0, 1, 1), layerPaint));
+
+                for (int i = 0; i < imageCtx.TileInfo.TotalTiles; i++)
+                {
+                    processor.Process(new DrawNormalImageTileCommand(imageCtx));
+                }
+
+                for (int i = 0; i < maskCtx.TileInfo.TotalTiles; i++)
+                {
+                    processor.Process(new DrawStencilMaskImageTileCommand(maskCtx));
+                }
+
+                processor.Process(RestoreLayerCommand.Instance);
 
                 break;
             }

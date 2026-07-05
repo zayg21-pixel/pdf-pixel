@@ -18,14 +18,14 @@ public sealed class DrawSoftMaskImageTileCommand : PdfCommand
     public override PdfCommandFeatures Features => PdfCommandFeatures.Region | PdfCommandFeatures.Scale | PdfCommandFeatures.DeferredDispose;
 
     /// <inheritdoc />
-    public override void Initialize(IEnumerable<IPdfCommandModifier> modifiers, PdfCommandExecutionContext executionContext)
+    public override void Initialize(PdfCommandExecutionContext executionContext)
     {
         _context.ImageCache.InitializeNextTile(executionContext.ExecutionObserver);
         _context.MaskCache.InitializeNextTile(executionContext.ExecutionObserver);
     }
 
     /// <inheritdoc />
-    public override void Execute(IEnumerable<IPdfCommandModifier> modifiers, PdfCommandExecutionContext executionContext)
+    public override void Execute(PdfCommandExecutionContext executionContext)
     {
         PdfImageTile imageTile = _context.ImageCache.GetNextTile();
         PdfImageTile maskTile = _context.MaskCache.GetNextTile();
@@ -52,11 +52,11 @@ public sealed class DrawSoftMaskImageTileCommand : PdfCommand
         using SKShader maskShader = ImageBlending.BuildImageShader(maskTile.Image, maskTile.SourceRegion, placement.DeviceSize, placement.Sampling);
         using SKShader blendingShader = ImageBlending.CreateSoftMaskBlendingShader(imageShader, maskShader, matte);
         using SKPaint paint = PdfImageCommandUtilities.GetBaseImagePaint(blendingShader, _context.DecodingContext);
-        CommandHelpers.ApplyModifiers(paint, modifiers);
+        CommandHelpers.ApplyModifiers(paint, executionContext);
 
         executionContext.Canvas.Save();
         executionContext.Canvas.Concat(placement.PlacementMatrix);
-        executionContext.Canvas.ClipRect(placement.PlacementRectangle, antialias: placement.IsAntialiased);
+        executionContext.Canvas.ClipRect(placement.PlacementRectangle);
         executionContext.Canvas.DrawPaint(paint);
         executionContext.Canvas.Restore();
     }

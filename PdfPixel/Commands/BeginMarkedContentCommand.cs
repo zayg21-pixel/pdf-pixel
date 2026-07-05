@@ -19,7 +19,7 @@ public sealed class BeginMarkedContentCommand : PdfCommand
     public PdfMarkedContent MarkedContent { get; }
 
     /// <inheritdoc />
-    public override void Execute(IEnumerable<IPdfCommandModifier> modifiers, PdfCommandExecutionContext executionContext)
+    public override void Execute(PdfCommandExecutionContext executionContext)
         => executionContext.MarkedContent.Push(MarkedContent);
 
     /// <inheritdoc />

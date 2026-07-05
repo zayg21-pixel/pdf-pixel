@@ -14,7 +14,7 @@ namespace PdfPixel.PdfPanel.Rendering;
 /// </summary>
 public sealed class PdfPageContentTiler : IDisposable
 {
-    private const int TileSize = 128;
+    private const int TileSize = 1024;
 
     private readonly ISkSurfaceFactory _surfaceFactory;
     private readonly Dictionary<int, PageTileCache> _pageCache = [];
@@ -229,7 +229,6 @@ public sealed class PdfPageContentTiler : IDisposable
 
         tileCanvas.DrawPicture(lockedPicture.Content);
         tileCanvas.RestoreToCount(savedCount);
-        tileCanvas.Flush();
 
         return tileSurface.Snapshot();
     }

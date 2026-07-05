@@ -1,19 +1,19 @@
 ﻿using PdfPixel.Annotations.Models;
-using System.Threading;
+using PdfPixel.PdfPanel.Animation;
+using PdfPixel.PdfPanel.Annotations;
 using PdfPixel.PdfPanel.Extensions;
 using PdfPixel.PdfPanel.Layout;
+using PdfPixel.PdfPanel.Rendering;
 using PdfPixel.PdfPanel.Wpf.Drawing;
 using PdfPixel.PdfPanel.Wpf.OpenGl;
 using SkiaSharp;
 using System;
 using System.Diagnostics;
+using System.Threading;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
-using PdfPixel.PdfPanel.Rendering;
-using PdfPixel.PdfPanel.Animation;
-using PdfPixel.PdfPanel.Annotations;
 
 namespace PdfPixel.PdfPanel.Wpf;
 
@@ -207,6 +207,8 @@ public partial class WpfPdfPanel : FrameworkElement
     {
         EnsureViewerCanvas();
 
+        _context.MinScale = (float)MinScale;
+        _context.MaxScale = (float)MaxScale;
         _context.ViewportWidth = (float)CanvasSize.Width;
         _context.ViewportHeight = (float)CanvasSize.Height;
         _context.MinimumPageGap = (float)PageGap;

@@ -52,7 +52,7 @@ public sealed class PdfDrawShadingCommand : PdfCommand
     }
 
     /// <inheritdoc />
-    public override void Initialize(IEnumerable<IPdfCommandModifier> modifiers, PdfCommandExecutionContext executionContext)
+    public override void Initialize(PdfCommandExecutionContext executionContext)
     {
         lock (executionContext.ContentLocker)
         {
@@ -90,7 +90,7 @@ public sealed class PdfDrawShadingCommand : PdfCommand
     }
 
     /// <inheritdoc />
-    public override void Execute(IEnumerable<IPdfCommandModifier> modifiers, PdfCommandExecutionContext executionContext)
+    public override void Execute(PdfCommandExecutionContext executionContext)
     {
         switch (_shading.ShadingType)
         {
@@ -101,24 +101,24 @@ public sealed class PdfDrawShadingCommand : PdfCommand
             }
             case PdfShadingType.Axial:
             {
-                ExecuteAxial(executionContext, modifiers);
+                ExecuteAxial(executionContext);
                 break;
             }
             case PdfShadingType.Radial:
             {
-                ExecuteRadial(executionContext, modifiers);
+                ExecuteRadial(executionContext);
                 break;
             }
             case PdfShadingType.FreeFormGouraud:
             case PdfShadingType.LatticeFormGouraud:
             {
-                ExecuteGouraud(executionContext, modifiers);
+                ExecuteGouraud(executionContext);
                 break;
             }
             case PdfShadingType.CoonsPatchMesh:
             case PdfShadingType.TensorProductPatchMesh:
             {
-                ExecutePatchMesh(executionContext, modifiers);
+                ExecutePatchMesh(executionContext);
                 break;
             }
         }
@@ -202,45 +202,45 @@ public sealed class PdfDrawShadingCommand : PdfCommand
         executionContext.Canvas.Restore();
     }
 
-    private void ExecuteAxial(PdfCommandExecutionContext executionContext, IEnumerable<IPdfCommandModifier> modifiers)
+    private void ExecuteAxial(PdfCommandExecutionContext executionContext)
     {
         if (_axialCache == null)
         {
             return;
         }
 
-        DrawPaintToCanvas(executionContext, _axialCache, modifiers);
+        DrawPaintToCanvas(executionContext, _axialCache);
     }
 
-    private void ExecuteRadial(PdfCommandExecutionContext executionContext, IEnumerable<IPdfCommandModifier> modifiers)
+    private void ExecuteRadial(PdfCommandExecutionContext executionContext)
     {
         if (_radialCache == null)
         {
             return;
         }
 
-        DrawPaintToCanvas(executionContext, _radialCache.InnerPaint, modifiers);
-        DrawPaintToCanvas(executionContext, _radialCache.OuterPaint, modifiers);
+        DrawPaintToCanvas(executionContext, _radialCache.InnerPaint);
+        DrawPaintToCanvas(executionContext, _radialCache.OuterPaint);
     }
 
-    private void ExecuteGouraud(PdfCommandExecutionContext executionContext, IEnumerable<IPdfCommandModifier> modifiers)
+    private void ExecuteGouraud(PdfCommandExecutionContext executionContext)
     {
         if (_gouraudCache == null)
         {
             return;
         }
 
-        DrawVerticesToCanvas(executionContext, _gouraudCache, modifiers);
+        DrawVerticesToCanvas(executionContext, _gouraudCache);
     }
 
-    private void ExecutePatchMesh(PdfCommandExecutionContext executionContext, IEnumerable<IPdfCommandModifier> modifiers)
+    private void ExecutePatchMesh(PdfCommandExecutionContext executionContext)
     {
         if (_patchMeshCache == null)
         {
             return;
         }
 
-        DrawVerticesToCanvas(executionContext, _patchMeshCache, modifiers);
+        DrawVerticesToCanvas(executionContext, _patchMeshCache);
     }
 
     private SKPaint? CreateAxialPaint(int defaultFunctionSamples)
@@ -281,24 +281,24 @@ public sealed class PdfDrawShadingCommand : PdfCommand
         return _builder.BuildRadialPaints(_shading, colors, positions);
     }
 
-    private void DrawPaintToCanvas(PdfCommandExecutionContext executionContext, SKPaint basePaint, IEnumerable<IPdfCommandModifier> modifiers)
+    private void DrawPaintToCanvas(PdfCommandExecutionContext executionContext, SKPaint basePaint)
     {
         using SKPaint paint = basePaint.Clone();
         paint.Color = PdfPaintFactory.ApplyAlpha(paint.Color, _context.FillAlpha);
         paint.IsAntialias = executionContext.Parameters.Antialias;
 
-        CommandHelpers.ApplyModifiers(paint, modifiers);
+        CommandHelpers.ApplyModifiers(paint, executionContext);
 
         executionContext.Canvas.DrawPaint(paint);
     }
 
-    private void DrawVerticesToCanvas(PdfCommandExecutionContext executionContext, SKVertices vertices, IEnumerable<IPdfCommandModifier> modifiers)
+    private void DrawVerticesToCanvas(PdfCommandExecutionContext executionContext, SKVertices vertices)
     {
         using SKPaint paint = PdfPaintFactory.CreateShaderPaint();
         paint.Color = PdfPaintFactory.ApplyAlpha(paint.Color, _context.FillAlpha);
         paint.IsAntialias = executionContext.Parameters.Antialias;
 
-        CommandHelpers.ApplyModifiers(paint, modifiers);
+        CommandHelpers.ApplyModifiers(paint, executionContext);
 
         executionContext.Canvas.DrawVertices(vertices, SKBlendMode.DstIn, paint);
     }

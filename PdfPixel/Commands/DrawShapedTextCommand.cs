@@ -26,14 +26,14 @@ public sealed class DrawShapedTextCommand : PdfCommand
     }
 
     /// <inheritdoc />
-    public override void Execute(IEnumerable<IPdfCommandModifier> modifiers, PdfCommandExecutionContext executionContext)
+    public override void Execute(PdfCommandExecutionContext executionContext)
     {
         using SKPaint paint = _basePaint.Clone();
         bool antialias = executionContext.Parameters.Antialias;
         paint.IsAntialias = antialias;
         PdfPaintFactory.ApplyAntialias(_baseFont, antialias);
 
-        CommandHelpers.ApplyModifiers(paint, modifiers);
+        CommandHelpers.ApplyModifiers(paint, executionContext);
 
         using SKTextBlob? blob = TextRenderUtilities.BuildTextBlob(_shapingResult, _baseFont);
 

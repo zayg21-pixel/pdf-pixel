@@ -35,6 +35,11 @@ public sealed class PdfCommandExecutionContext : IDisposable
     }
 
     /// <summary>
+    /// Current paint uncolored modifier.
+    /// </summary>
+    public UncoloredPaintModifier? UncoloredModifier { get; internal set; }
+
+    /// <summary>
     /// Execution parameters that may vary between replays (e.g. scale factor, antialias).
     /// </summary>
     public PdfCommandExecutionParameters Parameters { get; }

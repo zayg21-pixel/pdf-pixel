@@ -24,11 +24,11 @@ public sealed class InitializeImageCacheCommand : PdfCommand
     public override PdfCommandFeatures Features => PdfCommandFeatures.DeferredDispose;
 
     /// <inheritdoc />
-    public override void Initialize(IEnumerable<IPdfCommandModifier> modifiers, PdfCommandExecutionContext executionContext)
+    public override void Initialize(PdfCommandExecutionContext executionContext)
         => executionContext.ImageCache = _imageCache;
 
     /// <inheritdoc />
-    public override void Execute(IEnumerable<IPdfCommandModifier> modifiers, PdfCommandExecutionContext executionContext)
+    public override void Execute(PdfCommandExecutionContext executionContext)
         => executionContext.ImageCache = _imageCache;
 
     /// <inheritdoc />

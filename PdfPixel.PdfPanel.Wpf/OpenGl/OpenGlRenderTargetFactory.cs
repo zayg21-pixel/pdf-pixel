@@ -12,8 +12,6 @@ namespace PdfPixel.PdfPanel.Wpf.OpenGl;
 /// <summary>
 /// Experimental GPU-accelerated render target factory that uses OpenGL (WGL) for drawing
 /// and reads back pixels to a <see cref="WriteableBitmap"/> for WPF presentation.
-/// Combines the GPU surface management of the D3D path with the <see cref="WriteableBitmap"/>
-/// presentation of the software path, avoiding D3D shared-context memory issues.
 /// <para>
 /// Flow: render thread draws on GPU-backed <see cref="SKSurface"/> → <c>ReadPixels</c> into
 /// a CPU buffer → UI thread copies into <see cref="WriteableBitmap"/> → <see cref="DrawingVisual"/>.
@@ -78,8 +76,8 @@ public sealed class OpenGlRenderTargetFactory : IPdfPanelRenderTargetFactory, IP
         }
 
         // StencilBuffers causes most of blending issues. Though, disabling them does not solve ALL issues
-        _grContext = GRContext.CreateGl(glInterface, new GRContextOptions { RuntimeProgramCacheSize = 128, AvoidStencilBuffers = true });
-        _grContext.SetResourceCacheLimit(128_000_000);
+        _grContext = GRContext.CreateGl(glInterface, new GRContextOptions { RuntimeProgramCacheSize = 128 });
+        _grContext.SetResourceCacheLimit(ResourceCacheLimitBytes);
 
         if (_grContext == null)
         {

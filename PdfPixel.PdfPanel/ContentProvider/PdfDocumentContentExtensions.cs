@@ -99,9 +99,9 @@ internal static class PdfDocumentContentExtensions
             throw new ArgumentNullException(nameof(executionContext));
         }
 
-        commandRecording.Initialize(Array.Empty<IPdfCommandModifier>(), executionContext);
+        commandRecording.Initialize(executionContext);
         executionContext.Frames.Reset();
-        commandRecording.Replay(Array.Empty<IPdfCommandModifier>(), executionContext);
+        commandRecording.Replay(executionContext);
 
         executionContext.Canvas.Flush();
     }

@@ -55,10 +55,19 @@ internal class TextStrokeRenderTarget : IRenderTarget
         if (_clipPath != null)
         {
             processor.Process(new ClipPathCommand(new SKPath(_clipPath), SKClipOperation.Intersect));
+            processor.Process(new SaveLayerCommand(_clipPath.Bounds, null));
         }
     }
 
-    public void AfterPatternRender(IPdfCommandProcessor processor) => processor.Process(RestoreStateCommand.Instance);
+    public void AfterPatternRender(IPdfCommandProcessor processor)
+    {
+        if (_clipPath != null)
+        {
+            processor.Process(RestoreLayerCommand.Instance);
+        }
+
+        processor.Process(RestoreStateCommand.Instance);
+    }
 
     public void Render(IPdfCommandProcessor processor)
     {

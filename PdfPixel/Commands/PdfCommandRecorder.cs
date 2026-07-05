@@ -32,9 +32,8 @@ public sealed class PdfCommandRecorder : IPdfCommandProcessor
     /// Runs the Initialize phase on all recorded commands, preparing caches and decoding
     /// images without touching the canvas.
     /// </summary>
-    /// <param name="modifiers">The modifiers to apply during initialization, applied in order.</param>
     /// <param name="executionContext">Execution-time context containing rendering parameters and cancellation.</param>
-    public void Initialize(IEnumerable<IPdfCommandModifier> modifiers, PdfCommandExecutionContext executionContext)
+    public void Initialize(PdfCommandExecutionContext executionContext)
     {
         if (executionContext == null)
         {
@@ -50,7 +49,7 @@ public sealed class PdfCommandRecorder : IPdfCommandProcessor
 
             try
             {
-                command.Initialize(modifiers, executionContext);
+                command.Initialize(executionContext);
             }
             catch (OperationCanceledException)
             {
@@ -72,9 +71,8 @@ public sealed class PdfCommandRecorder : IPdfCommandProcessor
     /// <summary>
     /// Replays all recorded commands using the canvas and rendering parameters from <paramref name="executionContext"/>.
     /// </summary>
-    /// <param name="modifiers">The modifiers to apply during replay, applied in order.</param>
     /// <param name="executionContext">Execution-time context containing the canvas, rendering parameters, and cancellation.</param>
-    public void Replay(IEnumerable<IPdfCommandModifier> modifiers, PdfCommandExecutionContext executionContext)
+    public void Replay(PdfCommandExecutionContext executionContext)
     {
         if (executionContext == null)
         {
@@ -90,7 +88,7 @@ public sealed class PdfCommandRecorder : IPdfCommandProcessor
 
             try
             {
-                command.Execute(modifiers, executionContext);
+                command.Execute(executionContext);
             }
             catch (OperationCanceledException)
             {

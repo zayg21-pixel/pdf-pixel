@@ -154,7 +154,7 @@ public class PdfTextRenderer : IPdfTextRenderer
                 PdfType3CharacterInfo charInfo = type3Font.GetCharacterInfo(glyph.CharacterInfo.CharacterCode, _renderer, state);
                 if (charInfo.IsDefined && charInfo.Recording != null)
                 {
-                    IPdfCommandModifier? modifier = (charInfo.IsColored)
+                    UncoloredPaintModifier? modifier = (charInfo.IsColored)
                         ? default
                         : new UncoloredPaintModifier(state.FillPaint.Color);
 

@@ -1,6 +1,8 @@
 ﻿using SkiaSharp;
 using System;
 using System.Collections.Generic;
+using System.Linq;
+using System.Runtime.CompilerServices;
 
 namespace PdfPixel.Commands;
 
@@ -12,23 +14,21 @@ internal static class CommandHelpers
     private const float AxisAlignEpsilon = 0.01f;
 
     /// <summary>
-    /// Applies the modifiers to the given paint, returning a new paint with the modifiers applied.
+    /// Applies the modifiers to the given paint.
     /// </summary>
-    public static SKPaint ApplyModifiers(SKPaint paint, IEnumerable<IPdfCommandModifier> modifiers)
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static void ApplyModifiers(SKPaint paint, PdfCommandExecutionContext context)
     {
-        SKPaint result = paint.Clone();
-
-        foreach (IPdfCommandModifier modifier in modifiers)
+        if (context.UncoloredModifier != null)
         {
-            modifier.ModifyPaint(result);
+            context.UncoloredModifier.ModifyPaint(paint);
         }
-
-        return result;
     }
 
     /// <summary>
     /// Returns the command-derived total matrix scaled to <see cref="PdfPixel.Models.PdfCommandExecutionParameters.ScaleFactor"/>.
     /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static SKMatrix GetScaledMatrix(PdfCommandExecutionContext executionContext)
     {
         SKMatrix totalMatrix = executionContext.Frames.TotalMatrix;
@@ -42,6 +42,7 @@ internal static class CommandHelpers
         return totalMatrix;
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static bool GetPathIsAntialias(SKPath path, PdfCommandExecutionContext executionContext, SKPaint? paint = null)
     {
         if (!executionContext.Parameters.Antialias)
@@ -91,6 +92,7 @@ internal static class CommandHelpers
         return false;
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static bool GetRectIsAntialias(SKRect rect, PdfCommandExecutionContext executionContext)
     {
         if (!executionContext.Parameters.Antialias)
@@ -115,6 +117,7 @@ internal static class CommandHelpers
         return false;
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static bool PathIsAxisAligned(SKPath path, SKMatrix matrix)
     {
         using SKPath.Iterator iterator = path.CreateIterator(true); // forceClose ensures implicit closing segments are checked

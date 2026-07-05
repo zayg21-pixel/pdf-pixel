@@ -21,9 +21,10 @@ public sealed class DrawPathCommand : PdfCommand
     }
 
     /// <inheritdoc />
-    public override void Execute(IEnumerable<IPdfCommandModifier> modifiers, PdfCommandExecutionContext executionContext)
+    public override void Execute(PdfCommandExecutionContext executionContext)
     {
-        using SKPaint paint = CommandHelpers.ApplyModifiers(_basePaint, modifiers);
+        using SKPaint paint = _basePaint.Clone();
+        CommandHelpers.ApplyModifiers(paint, executionContext);
         paint.IsAntialias = CommandHelpers.GetPathIsAntialias(_path, executionContext, paint);
         executionContext.Canvas.DrawPath(_path, paint);
     }

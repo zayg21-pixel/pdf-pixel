@@ -18,11 +18,11 @@ public sealed class DrawNormalImageTileCommand : PdfCommand
     public override PdfCommandFeatures Features => PdfCommandFeatures.Region | PdfCommandFeatures.Scale | PdfCommandFeatures.DeferredDispose;
 
     /// <inheritdoc />
-    public override void Initialize(IEnumerable<IPdfCommandModifier> modifiers, PdfCommandExecutionContext executionContext)
+    public override void Initialize(PdfCommandExecutionContext executionContext)
         => _context.TileCache.InitializeNextTile(executionContext.ExecutionObserver);
 
     /// <inheritdoc />
-    public override void Execute(IEnumerable<IPdfCommandModifier> modifiers, PdfCommandExecutionContext executionContext)
+    public override void Execute(PdfCommandExecutionContext executionContext)
     {
         PdfImageTile tile = _context.TileCache.GetNextTile();
         if (tile.IsSkipped || tile.Image == null)
@@ -33,14 +33,12 @@ public sealed class DrawNormalImageTileCommand : PdfCommand
         SnappedTilePlacement placement = PdfImageCommandUtilities.GetSnappedTilePlacement(
             executionContext, _context.ImageSize, tile.TilePosition, _context.Interpolate);
 
-        using SKShader shader = ImageBlending.BuildImageShader(tile.Image, tile.SourceRegion, placement.DeviceSize, placement.Sampling);
-        using SKPaint paint = PdfImageCommandUtilities.GetBaseImagePaint(shader, _context.DecodingContext);
-        CommandHelpers.ApplyModifiers(paint, modifiers);
+        using SKPaint paint = PdfImageCommandUtilities.GetBaseImagePaint(_context.DecodingContext);
+        CommandHelpers.ApplyModifiers(paint, executionContext);
 
         executionContext.Canvas.Save();
         executionContext.Canvas.Concat(placement.PlacementMatrix);
-        executionContext.Canvas.ClipRect(placement.PlacementRectangle, antialias: placement.IsAntialiased);
-        executionContext.Canvas.DrawPaint(paint);
+        executionContext.Canvas.DrawImage(tile.Image, tile.GetSourceRect(), placement.PlacementRectangle, placement.Sampling, paint);
         executionContext.Canvas.Restore();
     }
 

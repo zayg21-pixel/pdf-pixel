@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
 
 namespace PdfPixel.Commands;
 
@@ -12,12 +11,12 @@ public abstract class PdfCommand : IPdfCommand
     ~PdfCommand() => Dispose(disposing: false);
 
     /// <inheritdoc />
-    public virtual void Initialize(IEnumerable<IPdfCommandModifier> modifiers, PdfCommandExecutionContext executionContext)
+    public virtual void Initialize(PdfCommandExecutionContext executionContext)
     {
     }
 
     /// <inheritdoc />
-    public abstract void Execute(IEnumerable<IPdfCommandModifier> modifiers, PdfCommandExecutionContext executionContext);
+    public abstract void Execute(PdfCommandExecutionContext executionContext);
 
     /// <inheritdoc />
     public virtual PdfCommandFeatures Features => PdfCommandFeatures.None;

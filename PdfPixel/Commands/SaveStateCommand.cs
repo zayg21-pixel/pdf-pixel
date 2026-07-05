@@ -12,11 +12,11 @@ public sealed class SaveStateCommand : PdfCommand
     }
 
     /// <inheritdoc />
-    public override void Initialize(IEnumerable<IPdfCommandModifier> modifiers, PdfCommandExecutionContext executionContext)
+    public override void Initialize(PdfCommandExecutionContext executionContext)
         => executionContext.Frames.OnSaveState();
 
     /// <inheritdoc />
-    public override void Execute(IEnumerable<IPdfCommandModifier> modifiers, PdfCommandExecutionContext executionContext)
+    public override void Execute(PdfCommandExecutionContext executionContext)
     {
         executionContext.Canvas.Save();
         executionContext.Frames.OnSaveState();

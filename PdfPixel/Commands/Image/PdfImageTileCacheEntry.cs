@@ -302,8 +302,7 @@ internal sealed class PdfImageTileCacheEntry : IDisposable
     /// Holds a single cached tile together with the CTM it was decoded for, so the cache can
     /// tell whether the tile is still usable for a given transform without re-decoding it.
     /// When a <see cref="PdfCommandImageCache"/> is available, image data is stored in the atlas
-    /// and the tile itself only keeps parameters. Without a cache, the tile holds the
-    /// <see cref="PdfImageTile"/> directly.
+    /// and the tile itself only keeps parameters.
     /// </summary>
     private sealed class CachedTile : IDisposable
     {
@@ -412,6 +411,7 @@ internal sealed class PdfImageTileCacheEntry : IDisposable
         /// </summary>
         public bool IsValid(SKMatrix ctm)
         {
+            // TODO: [HIGH] this is incorrect, we shall compare EXCLUSIVELY to downscaled size
             return _hasImage
                 && !IsPendingUpdate
                 && _decodedCtm.ScaleX == ctm.ScaleX
