@@ -5,17 +5,23 @@ using System.Collections.Generic;
 
 namespace PdfPixel.Commands;
 
-internal sealed class DrawNormalImageTileCommand : PdfCommand
+/// <summary>
+/// Draws one tile of an image with no mask, placing it directly onto the canvas.
+/// </summary>
+public sealed class DrawNormalImageTileCommand : PdfCommand
 {
     private readonly NormalImageExecutionContext _context;
 
-    public DrawNormalImageTileCommand(NormalImageExecutionContext context) => _context = context;
+    internal DrawNormalImageTileCommand(NormalImageExecutionContext context) => _context = context;
 
+    /// <inheritdoc />
     public override PdfCommandFeatures Features => PdfCommandFeatures.Region | PdfCommandFeatures.Scale | PdfCommandFeatures.DeferredDispose;
 
+    /// <inheritdoc />
     public override void Initialize(IEnumerable<IPdfCommandModifier> modifiers, PdfCommandExecutionContext executionContext)
         => _context.TileCache.InitializeNextTile(executionContext.ExecutionObserver);
 
+    /// <inheritdoc />
     public override void Execute(IEnumerable<IPdfCommandModifier> modifiers, PdfCommandExecutionContext executionContext)
     {
         PdfImageTile tile = _context.TileCache.GetNextTile();
@@ -38,5 +44,6 @@ internal sealed class DrawNormalImageTileCommand : PdfCommand
         executionContext.Canvas.Restore();
     }
 
+    /// <inheritdoc />
     protected override void Dispose(bool disposing) => _context.Dispose();
 }

@@ -1,5 +1,4 @@
 using System;
-using Microsoft.Extensions.Logging;
 using PdfPixel.Encryption;
 using PdfPixel.Models;
 using PdfPixel.Text;
@@ -12,13 +11,9 @@ namespace PdfPixel.Parsing;
 internal sealed class PdfTrailerParser
 {
     private readonly IPdfDocumentInternal _document;
-    private readonly ILogger<PdfTrailerParser> _logger;
 
     public PdfTrailerParser(IPdfDocumentInternal document)
-    {
-        _document = document ?? throw new ArgumentNullException(nameof(document));
-        _logger = document.LoggerFactory.CreateLogger<PdfTrailerParser>();
-    }
+        => _document = document ?? throw new ArgumentNullException(nameof(document));
 
     /// <summary>
     /// Return the /Prev offset from the current trailer dictionary.
@@ -113,9 +108,5 @@ internal sealed class PdfTrailerParser
         }
 
         _document.Decryptor = PdfDecryptorFactory.Create(parameters);
-        if (_document.Decryptor == null)
-        {
-            _logger.LogWarning("PdfTrailerParser: Failed to create decryptor despite presence of /Encrypt dictionary (V={V} R={R}).", parameters.V, parameters.R);
-        }
     }
 }

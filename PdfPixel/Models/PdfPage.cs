@@ -130,7 +130,10 @@ internal class PdfPage : IPdfPageInternal
             throw new InvalidOperationException("Document reference not set. This page was not properly loaded from a document.");
         }
 
-        processor.Process(new Commands.Image.InitializeImageCacheCommand());
+        if (renderingParameters.UsePageImageCache)
+        {
+            processor.Process(new Commands.InitializeImageCacheCommand(renderingParameters.MaxAtlasedImageSize, renderingParameters.AtlasPageSize));
+        }
 
         PdfRenderer renderer = new(_document.LoggerFactory);
         PdfContentStreamRenderer contentRenderer = new(renderer, this);

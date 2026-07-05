@@ -6,7 +6,7 @@ using PdfPixel.Transparency.Model;
 using SkiaSharp;
 using System;
 
-namespace PdfPixel.Commands;
+namespace PdfPixel.Commands.Image;
 
 /// <summary>
 /// Immutable snapshot of the graphics state values needed for image decoding.

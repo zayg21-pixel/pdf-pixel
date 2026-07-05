@@ -317,6 +317,8 @@ internal sealed class PdfImageTileCacheEntry : IDisposable
         private bool _hasImage;
         private bool _isSkipped;
         private bool _isCached;
+        private int _imageWidth;
+        private int _imageHeight;
 
         public CachedTile(int index)
         {
@@ -330,18 +332,13 @@ internal sealed class PdfImageTileCacheEntry : IDisposable
 
         public bool HasTile => _hasImage || _isSkipped;
 
-        public long EstimatedByteSize
-        {
-            get
-            {
-                if (_isCached)
-                {
-                    return 0;
-                }
-
-                return (_directTile?.Image is SKImage image) ? (long)image.Width * image.Height * 4 : 0;
-            }
-        }
+        /// <summary>
+        /// Estimated pixel memory retained by this tile's decoded image, whether stored directly
+        /// or via a <see cref="PdfCommandImageCache"/> (atlas-packed or standalone). Estimated as
+        /// Width * Height * 4 (RGBA8888), computed from the dimensions captured at decode time
+        /// since atlas-packed images are no longer directly reachable once cached.
+        /// </summary>
+        public long EstimatedByteSize => _hasImage ? (long)_imageWidth * _imageHeight * 4 : 0;
 
         public PdfImageTile GetTile(PdfCommandImageCache? imageCache)
         {
@@ -388,6 +385,8 @@ internal sealed class PdfImageTileCacheEntry : IDisposable
             if (tile.Image != null)
             {
                 _hasImage = true;
+                _imageWidth = tile.Image.Width;
+                _imageHeight = tile.Image.Height;
 
                 if (imageCache != null)
                 {

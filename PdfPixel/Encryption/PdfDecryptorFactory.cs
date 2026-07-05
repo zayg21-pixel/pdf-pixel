@@ -1,4 +1,6 @@
-﻿namespace PdfPixel.Encryption;
+﻿using System;
+
+namespace PdfPixel.Encryption;
 
 /// <summary>
 /// Factory selecting appropriate decryptor implementation based on /V and /R.
@@ -6,13 +8,15 @@
 public static class PdfDecryptorFactory
 {
     /// <summary>
-    /// Creates a decryptor for the given parameters based on the /R revision, or <see langword="null"/> for unsupported revisions.
+    /// Creates a decryptor for the given parameters based on the /R revision.
     /// </summary>
-    public static BasePdfDecryptor? Create(PdfDecryptorParameters parameters)
+    /// <exception cref="ArgumentNullException">Thrown if <paramref name="parameters"/> is <see langword="null"/>.</exception>
+    /// <exception cref="NotSupportedException">Thrown if the /R revision is not supported.</exception>
+    public static BasePdfDecryptor Create(PdfDecryptorParameters parameters)
     {
         if (parameters == null)
         {
-            return null;
+            throw new ArgumentNullException(nameof(parameters));
         }
 
         if (parameters.R <= 2)
@@ -30,6 +34,6 @@ public static class PdfDecryptorFactory
             return new R5R6Decryptor(parameters);
         }
 
-        return null;
+        throw new NotSupportedException($"Unsupported encryption revision (V={parameters.V} R={parameters.R}).");
     }
 }

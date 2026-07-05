@@ -89,7 +89,7 @@ public sealed class PdfCommandExecutionContext : IDisposable
 
     /// <summary>
     /// Shared image cache that packs small images into atlas textures during the Initialize
-    /// phase to reduce GPU texture count during rendering. Set by <see cref="Image.InitializeImageCacheCommand"/>.
+    /// phase to reduce GPU texture count during rendering. Set by <see cref="InitializeImageCacheCommand"/>.
     /// Null when no image cache command is present in the recording.
     /// </summary>
     internal PdfCommandImageCache? ImageCache { get; set; }

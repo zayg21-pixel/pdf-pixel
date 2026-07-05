@@ -11,11 +11,22 @@ namespace PdfPixel.Commands.Image;
 /// </summary>
 internal sealed class PdfCommandImageCache : IDisposable
 {
-    private const int MaxCachedImageSize = 256; // TODO: [MEDIUM] wire constants to parsing parameters
-    private const int MaxPageSize = 512;
+    private readonly int _maxAtlasedImageSize;
+    private readonly int _atlasPageSize;
 
     private readonly Dictionary<Guid, SKImage> _largeImages = [];
     private readonly List<AtlasPage> _pages = [];
+
+    /// <summary>
+    /// Initializes the cache with the atlas packing thresholds from <see cref="PdfPixel.Models.PdfRenderingParameters"/>.
+    /// </summary>
+    /// <param name="maxAtlasedImageSize">Maximum width/height, in pixels, for an image to be eligible for atlas packing.</param>
+    /// <param name="atlasPageSize">Size, in pixels, of each square atlas page.</param>
+    public PdfCommandImageCache(int maxAtlasedImageSize, int atlasPageSize)
+    {
+        _maxAtlasedImageSize = maxAtlasedImageSize;
+        _atlasPageSize = atlasPageSize;
+    }
 
     /// <summary>
     /// Stores an image in the cache.
@@ -32,7 +43,7 @@ internal sealed class PdfCommandImageCache : IDisposable
             throw new InvalidOperationException($"Image with id {id} is already cached.");
         }
 
-        if (image.Width > MaxCachedImageSize || image.Height > MaxCachedImageSize)
+        if (image.Width > _maxAtlasedImageSize || image.Height > _maxAtlasedImageSize)
         {
             _largeImages[id] = image;
             return;
@@ -48,7 +59,7 @@ internal sealed class PdfCommandImageCache : IDisposable
 
         activePage?.Freeze();
 
-        AtlasPage newPage = new(in key, MaxPageSize);
+        AtlasPage newPage = new(in key, _atlasPageSize);
         _pages.Add(newPage);
 
         if (!newPage.TryAdd(in id, image))

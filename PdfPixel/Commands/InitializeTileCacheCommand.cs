@@ -1,24 +1,32 @@
+using PdfPixel.Commands.Image;
 using SkiaSharp;
 using System;
 using System.Collections.Generic;
 
-namespace PdfPixel.Commands.Image;
+namespace PdfPixel.Commands;
 
-internal sealed class InitializeTileCacheCommand : PdfCommand
+/// <summary>
+/// Initializes the tile cache for an image before its per-tile draw commands run, computing the
+/// region of interest and marking the execution context as partial content when the region is
+/// smaller than the full image.
+/// </summary>
+public sealed class InitializeTileCacheCommand : PdfCommand
 {
     private readonly PdfImageTileCacheEntry _tileCache;
     private readonly SKSizeI _imageSize;
 
     private PdfCommandExecutionContext? _initializedContext;
 
-    public InitializeTileCacheCommand(PdfImageTileCacheEntry tileCache, SKSizeI imageSize)
+    internal InitializeTileCacheCommand(PdfImageTileCacheEntry tileCache, SKSizeI imageSize)
     {
         _tileCache = tileCache;
         _imageSize = imageSize;
     }
 
+    /// <inheritdoc />
     public override PdfCommandFeatures Features => PdfCommandFeatures.Region | PdfCommandFeatures.Scale | PdfCommandFeatures.DeferredDispose;
 
+    /// <inheritdoc />
     public override void Initialize(IEnumerable<IPdfCommandModifier> modifiers, PdfCommandExecutionContext executionContext)
     {
         _initializedContext = executionContext;
@@ -34,6 +42,7 @@ internal sealed class InitializeTileCacheCommand : PdfCommand
         _tileCache.Initialize(ctm, imageRegion, executionContext.ContentLocker, executionContext.ExecutionObserver, executionContext.ImageCache);
     }
 
+    /// <inheritdoc />
     public override void Execute(IEnumerable<IPdfCommandModifier> modifiers, PdfCommandExecutionContext executionContext)
     {
         if (!ReferenceEquals(executionContext, _initializedContext))
@@ -44,5 +53,6 @@ internal sealed class InitializeTileCacheCommand : PdfCommand
         _tileCache.ResetTileIndexes();
     }
 
+    /// <inheritdoc />
     protected override void Dispose(bool disposing) => _tileCache.Dispose();
 }

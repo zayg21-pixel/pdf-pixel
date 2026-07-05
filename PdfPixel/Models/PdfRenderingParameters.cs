@@ -18,6 +18,24 @@ public class PdfRenderingParameters
     public long MaxTileCacheSizeBytes { get; set; } = 10 * 1024 * 1024;
 
     /// <summary>
+    /// When true, small images decoded during rendering are packed into shared atlas textures
+    /// (see <see cref="Commands.InitializeImageCacheCommand"/>) to reduce GPU texture count.
+    /// </summary>
+    public bool UsePageImageCache { get; set; } = true;
+
+    /// <summary>
+    /// Maximum width/height, in pixels, for a decoded image to be eligible for atlas packing.
+    /// Larger images are cached standalone instead. Only applies when <see cref="UsePageImageCache"/> is true.
+    /// </summary>
+    public int MaxAtlasedImageSize { get; set; } = 256;
+
+    /// <summary>
+    /// Size, in pixels, of each square atlas page used to pack small images together.
+    /// Only applies when <see cref="UsePageImageCache"/> is true.
+    /// </summary>
+    public int AtlasPageSize { get; set; } = 512;
+
+    /// <summary>
     /// When false, path drawing commands are suppressed.
     /// </summary>
     public bool RenderPaths { get; set; } = true;

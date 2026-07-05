@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Logging;
 using PdfPixel.Color.ColorSpace;
 using PdfPixel.Commands;
+using PdfPixel.Commands.Image;
 using PdfPixel.Imaging.Model;
 using PdfPixel.Imaging.Processing;
 using SkiaSharp;

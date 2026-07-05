@@ -7,6 +7,7 @@ using PdfPixel.PdfPanel.Wpf;
 using SkiaSharp;
 using System.Collections.ObjectModel;
 using System.IO;
+using System.Windows;
 using System.Windows.Input;
 using PdfPixel.Models;
 using System.Linq;
@@ -301,19 +302,55 @@ public class MainWindowsViewModel : ObservableObject
         _document?.Dispose();
         currentPages?.Dispose();
 
-        if (fileInfo.Length < 50_000_000)
+        IPdfDocument document = ReadDocumentWithPasswordPrompt(fileInfo);
+        if (document == null)
         {
-            var fileBytes = File.ReadAllBytes(SelectedPdfFile.FilePath);
-            var fileStream = new MemoryStream(fileBytes);
-            _document = _reader.Read(fileStream);
-        }
-        else
-        {
-            var fileStream = File.OpenRead(SelectedPdfFile.FilePath);
-            _document = _reader.Read(fileStream);
+            _document = null;
+            return;
         }
 
+        _document = document;
         Pages = PdfPanelPageCollection.FromDocument(_document, _loggerFactory);
         AutoScaleMode = PdfPanelAutoScaleMode.ScaleToHeight;
+    }
+
+    private IPdfDocument ReadDocumentWithPasswordPrompt(FileInfo fileInfo)
+    {
+        string password = string.Empty;
+        string errorMessage = null;
+
+        while (true)
+        {
+            Stream fileStream = OpenFileStream(fileInfo);
+
+            try
+            {
+                return _reader.Read(fileStream, password);
+            }
+            catch (PdfIncorrectPasswordException)
+            {
+                fileStream.Dispose();
+
+                string enteredPassword = PasswordPromptWindow.TryPromptForPassword(Application.Current.MainWindow, errorMessage);
+                if (enteredPassword == null)
+                {
+                    return null;
+                }
+
+                password = enteredPassword;
+                errorMessage = "Incorrect password. Please try again.";
+            }
+        }
+    }
+
+    private static Stream OpenFileStream(FileInfo fileInfo)
+    {
+        if (fileInfo.Length < 50_000_000)
+        {
+            var fileBytes = File.ReadAllBytes(fileInfo.FullName);
+            return new MemoryStream(fileBytes);
+        }
+
+        return File.OpenRead(fileInfo.FullName);
     }
 }

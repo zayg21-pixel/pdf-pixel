@@ -5,20 +5,26 @@ using System.Collections.Generic;
 
 namespace PdfPixel.Commands;
 
-internal sealed class DrawSoftMaskImageTileCommand : PdfCommand
+/// <summary>
+/// Draws one tile of an image combined with a soft mask image (/SMask), blending the image through the grayscale mask onto the canvas.
+/// </summary>
+public sealed class DrawSoftMaskImageTileCommand : PdfCommand
 {
     private readonly SoftMaskImageExecutionContext _context;
 
-    public DrawSoftMaskImageTileCommand(SoftMaskImageExecutionContext context) => _context = context;
+    internal DrawSoftMaskImageTileCommand(SoftMaskImageExecutionContext context) => _context = context;
 
+    /// <inheritdoc />
     public override PdfCommandFeatures Features => PdfCommandFeatures.Region | PdfCommandFeatures.Scale | PdfCommandFeatures.DeferredDispose;
 
+    /// <inheritdoc />
     public override void Initialize(IEnumerable<IPdfCommandModifier> modifiers, PdfCommandExecutionContext executionContext)
     {
         _context.ImageCache.InitializeNextTile(executionContext.ExecutionObserver);
         _context.MaskCache.InitializeNextTile(executionContext.ExecutionObserver);
     }
 
+    /// <inheritdoc />
     public override void Execute(IEnumerable<IPdfCommandModifier> modifiers, PdfCommandExecutionContext executionContext)
     {
         PdfImageTile imageTile = _context.ImageCache.GetNextTile();
@@ -55,5 +61,6 @@ internal sealed class DrawSoftMaskImageTileCommand : PdfCommand
         executionContext.Canvas.Restore();
     }
 
+    /// <inheritdoc />
     protected override void Dispose(bool disposing) => _context.Dispose();
 }

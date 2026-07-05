@@ -5,17 +5,23 @@ using System.Collections.Generic;
 
 namespace PdfPixel.Commands;
 
-internal sealed class DrawStencilMaskImageTileCommand : PdfCommand
+/// <summary>
+/// Draws one tile of an image mask (1-bit stencil), blending the fill color through the stencil onto the canvas.
+/// </summary>
+public sealed class DrawStencilMaskImageTileCommand : PdfCommand
 {
     private readonly StencilMaskImageExecutionContext _context;
 
-    public DrawStencilMaskImageTileCommand(StencilMaskImageExecutionContext context) => _context = context;
+    internal DrawStencilMaskImageTileCommand(StencilMaskImageExecutionContext context) => _context = context;
 
+    /// <inheritdoc />
     public override PdfCommandFeatures Features => PdfCommandFeatures.Region | PdfCommandFeatures.Scale | PdfCommandFeatures.DeferredDispose;
 
+    /// <inheritdoc />
     public override void Initialize(IEnumerable<IPdfCommandModifier> modifiers, PdfCommandExecutionContext executionContext)
         => _context.TileCache.InitializeNextTile(executionContext.ExecutionObserver);
 
+    /// <inheritdoc />
     public override void Execute(IEnumerable<IPdfCommandModifier> modifiers, PdfCommandExecutionContext executionContext)
     {
         PdfImageTile tile = _context.TileCache.GetNextTile();
@@ -39,5 +45,6 @@ internal sealed class DrawStencilMaskImageTileCommand : PdfCommand
         executionContext.Canvas.Restore();
     }
 
+    /// <inheritdoc />
     protected override void Dispose(bool disposing) => _context.Dispose();
 }
