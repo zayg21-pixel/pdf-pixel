@@ -47,6 +47,8 @@ public sealed class DrawRecordingCommand : PdfCommand
     /// <inheritdoc />
     public override void Initialize(IEnumerable<IPdfCommandModifier> modifiers, PdfCommandExecutionContext executionContext)
     {
+        int savesCountBefore = executionContext.Frames.SavesCount;
+
         if (Modifier != null)
         {
             Recorder.Initialize(modifiers.Append(Modifier), executionContext);
@@ -55,11 +57,15 @@ public sealed class DrawRecordingCommand : PdfCommand
         {
             Recorder.Initialize(modifiers, executionContext);
         }
+
+        BalanceFrames(executionContext, savesCountBefore, applyToCanvas: false);
     }
 
     /// <inheritdoc />
     public override void Execute(IEnumerable<IPdfCommandModifier> modifiers, PdfCommandExecutionContext executionContext)
     {
+        int savesCountBefore = executionContext.Frames.SavesCount;
+
         // Append the recording-specific modifier so it composes on top of any outer modifiers.
         if (Modifier != null)
         {
@@ -68,6 +74,39 @@ public sealed class DrawRecordingCommand : PdfCommand
         else
         {
             Recorder.Replay(modifiers, executionContext);
+        }
+
+        BalanceFrames(executionContext, savesCountBefore, applyToCanvas: true);
+    }
+
+    /// <summary>
+    /// Restores the save/restore stack to the depth it was at before the recording was replayed.
+    /// Non-spec-compliant content streams can save more states than they restore, or restore more
+    /// than they saved (popping into the caller's own saved state). Left unbalanced, either case
+    /// would corrupt the canvas and frame state for every command that runs after this one.
+    /// </summary>
+    private static void BalanceFrames(PdfCommandExecutionContext executionContext, int savesCountBefore, bool applyToCanvas)
+    {
+        PdfCommandExecutionFrames frames = executionContext.Frames;
+
+        while (frames.SavesCount > savesCountBefore)
+        {
+            if (applyToCanvas)
+            {
+                executionContext.Canvas.Restore();
+            }
+
+            frames.OnRestoreState();
+        }
+
+        while (frames.SavesCount < savesCountBefore)
+        {
+            if (applyToCanvas)
+            {
+                executionContext.Canvas.Save();
+            }
+
+            frames.OnSaveState();
         }
     }
 

@@ -26,7 +26,7 @@ internal static class PdfImageCommandUtilities
                 SKMatrix.CreateScale(1f / imageSize.Width, 1f / imageSize.Height),
                 SKMatrix.CreateTranslation(tilePosition.Left, tilePosition.Top));
 
-            return new SnappedTilePlacement(fallbackDeviceSize, fallbackPlacementMatrix, isAntialiased: executionContext.Parameters.Antialias, sampling);
+            return new SnappedTilePlacement(fallbackDeviceSize, fallbackPlacementMatrix, isAntialiased: false, sampling);
         }
 
         SKPoint exactImageDeviceSize = GetExactAxisScale(ctm);
