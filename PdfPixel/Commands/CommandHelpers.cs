@@ -1,7 +1,6 @@
 ﻿using SkiaSharp;
 using System;
 using System.Collections.Generic;
-using System.Text;
 
 namespace PdfPixel.Commands;
 
@@ -10,6 +9,8 @@ namespace PdfPixel.Commands;
 /// </summary>
 internal static class CommandHelpers
 {
+    private const float AxisAlignEpsilon = 0.01f;
+
     /// <summary>
     /// Applies the modifiers to the given paint, returning a new paint with the modifiers applied.
     /// </summary>
@@ -90,7 +91,29 @@ internal static class CommandHelpers
         return false;
     }
 
-    private const float AxisAlignEpsilon = 0.01f;
+    public static bool GetRectIsAntialias(SKRect rect, PdfCommandExecutionContext executionContext)
+    {
+        if (!executionContext.Parameters.Antialias)
+        {
+            return false;
+        }
+
+        SKMatrix scaledMatrix = GetScaledMatrix(executionContext);
+
+        bool isAxisAligned = MathF.Abs(scaledMatrix.SkewX) <= AxisAlignEpsilon && MathF.Abs(scaledMatrix.SkewY) <= AxisAlignEpsilon;
+        if (!isAxisAligned)
+        {
+            return true;
+        }
+
+        SKRect scaledRect = scaledMatrix.MapRect(rect);
+        if (scaledRect.Width < 2 || scaledRect.Height < 2)
+        {
+            return executionContext.Parameters.Antialias;
+        }
+
+        return false;
+    }
 
     private static bool PathIsAxisAligned(SKPath path, SKMatrix matrix)
     {

@@ -69,7 +69,7 @@ public class ShadingRenderer : IShadingRenderer
     {
         if (shading.BBox.HasValue)
         {
-            processor.Process(new ClipPathCommand(shading.BBox.Value, SKClipOperation.Intersect));
+            processor.Process(new ClipRectangleCommand(shading.BBox.Value, SKClipOperation.Intersect));
         }
 
         if (shading.Background != null && shading.BBox.HasValue)

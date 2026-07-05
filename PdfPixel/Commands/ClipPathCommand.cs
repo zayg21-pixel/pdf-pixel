@@ -3,8 +3,6 @@ using System.Collections.Generic;
 
 namespace PdfPixel.Commands;
 
-// TODO: [HIGH] SKRect based command shall be separate one.
-
 /// <summary>
 /// Applies a clipping path to the canvas.
 /// </summary>
@@ -20,17 +18,6 @@ public sealed class ClipPathCommand : PdfCommand
     public ClipPathCommand(SKPath path, SKClipOperation operation)
     {
         _path = path;
-        _operation = operation;
-    }
-
-    /// <summary>
-    /// Initializes the command with a rectangular clip path and the given clip operation.
-    /// </summary>
-    public ClipPathCommand(SKRect rect, SKClipOperation operation)
-    {
-        using SKPathBuilder builder = new();
-        builder.AddRect(rect);
-        _path = builder.Detach();
         _operation = operation;
     }
 

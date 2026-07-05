@@ -3,11 +3,11 @@ using System.Collections.Generic;
 namespace PdfPixel.Commands;
 
 /// <summary>
-/// Restores the most recently saved canvas state from the state stack.
+/// Restores the most recently saved layer from the state stack, mirroring <see cref="SaveLayerCommand"/>.
 /// </summary>
-public sealed class RestoreStateCommand : PdfCommand
+public sealed class RestoreLayerCommand : PdfCommand
 {
-    private RestoreStateCommand()
+    private RestoreLayerCommand()
     {
     }
 
@@ -23,9 +23,9 @@ public sealed class RestoreStateCommand : PdfCommand
     }
 
     /// <summary>
-    /// Default instance of <see cref="RestoreStateCommand"/>.
+    /// Default instance of <see cref="RestoreLayerCommand"/>.
     /// </summary>
-    public static RestoreStateCommand Instance { get; } = new();
+    public static RestoreLayerCommand Instance { get; } = new();
 
     /// <inheritdoc/>
     protected override void Dispose(bool disposing)

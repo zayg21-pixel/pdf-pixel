@@ -109,7 +109,7 @@ public sealed class SoftMaskDrawingScope : IDisposable
         PdfCommandRecorder recorder = new(_graphicsState.Page.Document.LoggerFactory.CreateLogger<PdfCommandRecorder>());
         recorder.Process(SaveStateCommand.Instance);
         recorder.Process(new ConcatMatrixCommand(_maskMatrix));
-        recorder.Process(new ClipPathCommand(_softMask.MaskForm.BBox, SKClipOperation.Intersect));
+        recorder.Process(new ClipRectangleCommand(_softMask.MaskForm.BBox, SKClipOperation.Intersect));
 
         if (_softMask.Subtype == PdfSoftMaskSubtype.Luminosity)
         {
@@ -173,10 +173,10 @@ public sealed class SoftMaskDrawingScope : IDisposable
         _processor.Process(new SaveLayerCommand(_maskBounds, maskPaint));
 
         _processor.Process(new DrawRecordingCommand(recorder));
-        _processor.Process(RestoreStateCommand.Instance);
+        _processor.Process(RestoreLayerCommand.Instance);
 
         // Restore Layer 1 (composites masked content onto parent)
-        _processor.Process(RestoreStateCommand.Instance);
+        _processor.Process(RestoreLayerCommand.Instance);
         _shouldApplyMask = false;
     }
 

@@ -29,7 +29,7 @@ internal sealed class DrawStencilMaskedImageTileCommand : PdfCommand
         }
 
         SnappedTilePlacement placement = PdfImageCommandUtilities.GetSnappedTilePlacement(
-            executionContext, _context.ImageSize, imageTile.TilePosition, interpolate: false); // TODO: [HIGH] wire interpolate
+            executionContext, _context.ImageSize, imageTile.TilePosition, _context.Interpolate);
 
         using SKShader imageShader = ImageBlending.BuildImageShader(imageTile.Image, imageTile.SourceRegion, placement.DeviceSize, placement.Sampling);
         using SKShader maskShader = ImageBlending.BuildImageShader(maskTile.Image, maskTile.SourceRegion, placement.DeviceSize, placement.Sampling);

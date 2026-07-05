@@ -56,7 +56,7 @@ public sealed class PdfShadingPattern : PdfPattern
 
         if (Shading.BBox.HasValue)
         {
-            recorder.Process(new ClipPathCommand(Shading.BBox.Value, SKClipOperation.Intersect));
+            recorder.Process(new ClipRectangleCommand(Shading.BBox.Value, SKClipOperation.Intersect));
         }
 
         if (Shading.Background != null && Shading.BBox.HasValue)

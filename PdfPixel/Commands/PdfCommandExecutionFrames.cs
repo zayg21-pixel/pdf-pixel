@@ -112,6 +112,12 @@ public sealed class PdfCommandExecutionFrames : IDisposable
     }
 
     /// <summary>
+    /// Records a clip-rectangle operation for replay via <see cref="ApplyStateTo"/>.
+    /// </summary>
+    public void OnClipRect(SKRect rect, SKClipOperation operation, bool antialias)
+        => _stateOps.Add(new ClipRectCanvasOp(rect, operation, antialias));
+
+    /// <summary>
     /// Replays the accumulated save/matrix/clip operations onto <paramref name="canvas"/>,
     /// bringing it to the same state as the canvas that produced this frames instance.
     /// Must only be called when <see cref="LayerDepth"/> is 0.
@@ -212,6 +218,22 @@ public sealed class PdfCommandExecutionFrames : IDisposable
             base.Dispose();
             _path.Dispose();
         }
+    }
+
+    private sealed class ClipRectCanvasOp : CanvasStateOp
+    {
+        private readonly SKRect _rect;
+        private readonly SKClipOperation _operation;
+        private readonly bool _antialias;
+
+        public ClipRectCanvasOp(SKRect rect, SKClipOperation operation, bool antialias)
+        {
+            _rect = rect;
+            _operation = operation;
+            _antialias = antialias;
+        }
+
+        public override void Apply(SKCanvas canvas) => canvas.ClipRect(_rect, _operation, _antialias);
     }
 
     private readonly struct Frame

@@ -15,7 +15,8 @@ internal sealed class StencilMaskedImageExecutionContext : IDisposable
         ImageDecodingContext decodingContext,
         PdfImageTileCacheEntry imageCache,
         PdfImageTileCacheEntry maskCache,
-        bool invertMask)
+        bool invertMask,
+        bool interpolate)
     {
         ImageSize = imageSize;
         MaskSize = maskSize;
@@ -23,6 +24,7 @@ internal sealed class StencilMaskedImageExecutionContext : IDisposable
         ImageCache = imageCache;
         MaskCache = maskCache;
         InvertMask = invertMask;
+        Interpolate = interpolate;
     }
 
     public SKSizeI ImageSize { get; }
@@ -42,6 +44,8 @@ internal sealed class StencilMaskedImageExecutionContext : IDisposable
     /// False when the mask Decode array is [1 0], true otherwise (default [0 1] behavior).
     /// </summary>
     public bool InvertMask { get; }
+
+    public bool Interpolate { get; }
 
     public static StencilMaskedImageExecutionContext Create(PdfImage pdfImage, ImageDecodingContext context, ILoggerFactory loggerFactory)
     {
@@ -80,7 +84,8 @@ internal sealed class StencilMaskedImageExecutionContext : IDisposable
             context,
             new PdfImageTileCacheEntry(imageDecoder, context, imageTileInfo),
             new PdfImageTileCacheEntry(maskDecoder, context, maskTileInfo),
-            invertMask);
+            invertMask,
+            pdfImage.Interpolate);
     }
 
     public void Dispose()

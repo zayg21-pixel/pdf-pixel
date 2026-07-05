@@ -43,7 +43,7 @@ internal class ImageFillRenderTarget : IRenderTarget
             Color = PdfPaintFactory.ApplyAlpha(SKColors.White, _context.FillAlpha)
         };
         processor.Process(new SaveLayerCommand(new SKRect(0, 0, 1, 1), layerPaint));
-        processor.Process(new ClipPathCommand(new SKRect(0, 0, 1, 1), SKClipOperation.Intersect));
+        processor.Process(new ClipRectangleCommand(new SKRect(0, 0, 1, 1), SKClipOperation.Intersect));
     }
 
     public void AfterPatternRender(IPdfCommandProcessor processor)
@@ -57,7 +57,7 @@ internal class ImageFillRenderTarget : IRenderTarget
             processor.Process(RestoreStateCommand.Instance);
         }
 
-        processor.Process(RestoreStateCommand.Instance);
+        processor.Process(RestoreLayerCommand.Instance);
     }
 
     public void Render(IPdfCommandProcessor processor)
@@ -69,7 +69,7 @@ internal class ImageFillRenderTarget : IRenderTarget
         }
 
         processor.Process(SaveStateCommand.Instance);
-        processor.Process(new ClipPathCommand(new SKRect(0, 0, 1, 1), SKClipOperation.Intersect));
+        processor.Process(new ClipRectangleCommand(new SKRect(0, 0, 1, 1), SKClipOperation.Intersect));
         processor.Process(new ConcatMatrixCommand(PdfImageCommandUtilities.GetImageMatrix()));
 
         ProcessTileCommands(processor, _image, _context);

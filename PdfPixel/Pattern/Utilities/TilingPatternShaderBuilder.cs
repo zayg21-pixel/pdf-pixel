@@ -43,7 +43,7 @@ internal sealed class TilingPatternShaderBuilder
         PdfCommandRecorder recorder = new(sourceState.Page.Document.LoggerFactory.CreateLogger<PdfCommandRecorder>());
 
         // Clip to pattern cell bounds
-        recorder.Process(new ClipPathCommand(pattern.BBox, SKClipOperation.Intersect));
+        recorder.Process(new ClipRectangleCommand(pattern.BBox, SKClipOperation.Intersect));
 
         // Render pattern cell without tint or color filter
         FormXObjectPageWrapper patternPage = new(pattern.SourceObject);

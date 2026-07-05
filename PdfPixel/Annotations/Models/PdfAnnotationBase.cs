@@ -382,7 +382,7 @@ public abstract class PdfAnnotationBase
         }
 
         processor.Process(SaveStateCommand.Instance);
-        processor.Process(new ClipPathCommand(Rectangle, SKClipOperation.Intersect));
+        processor.Process(new ClipRectangleCommand(Rectangle, SKClipOperation.Intersect));
 
         if (AppearanceDictionary != null && RenderAppearanceStream(processor, page, visualStateKind, renderer, renderingParameters, observer))
         {
@@ -400,7 +400,7 @@ public abstract class PdfAnnotationBase
 
         if (useOpacityLayer)
         {
-            processor.Process(RestoreStateCommand.Instance);
+            processor.Process(RestoreLayerCommand.Instance);
         }
 
         processor.Process(RestoreStateCommand.Instance);

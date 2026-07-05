@@ -9,12 +9,13 @@ namespace PdfPixel.Commands.Image;
 
 internal sealed class StencilMaskImageExecutionContext : IDisposable
 {
-    public StencilMaskImageExecutionContext(SKSizeI imageSize, ImageDecodingContext decodingContext, PdfImageTileCacheEntry tileCache, bool invertMask)
+    public StencilMaskImageExecutionContext(SKSizeI imageSize, ImageDecodingContext decodingContext, PdfImageTileCacheEntry tileCache, bool invertMask, bool interpolate)
     {
         ImageSize = imageSize;
         DecodingContext = decodingContext;
         TileCache = tileCache;
         InvertMask = invertMask;
+        Interpolate = interpolate;
     }
 
     public SKSizeI ImageSize { get;}
@@ -31,6 +32,8 @@ internal sealed class StencilMaskImageExecutionContext : IDisposable
     /// </summary>
     public bool InvertMask { get; }
 
+    public bool Interpolate { get; }
+
     public static StencilMaskImageExecutionContext Create(PdfImage pdfImage, ImageDecodingContext context, ILoggerFactory loggerFactory)
     {
         SKSizeI imageSize = new(pdfImage.Width, pdfImage.Height);
@@ -45,7 +48,7 @@ internal sealed class StencilMaskImageExecutionContext : IDisposable
         bool invertMask = decode == null || decode.Length < 2 || decode[0] < decode[1];
 
         PdfTileInfo tileInfo = new(imageSize, new SKSizeI(context.DefaultTileSize, context.DefaultTileSize));
-        return new StencilMaskImageExecutionContext(imageSize, context, new PdfImageTileCacheEntry(decoder, context, tileInfo), invertMask);
+        return new StencilMaskImageExecutionContext(imageSize, context, new PdfImageTileCacheEntry(decoder, context, tileInfo), invertMask, pdfImage.Interpolate);
     }
 
     public void Dispose() => TileCache.Dispose();

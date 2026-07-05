@@ -63,7 +63,7 @@ public class FormRenderer : IFormRenderer
         processor.Process(new ConcatMatrixCommand(formXObject.Matrix));
 
         // Clip to /BBox
-        processor.Process(new ClipPathCommand(formXObject.BBox, SKClipOperation.Intersect));
+        processor.Process(new ClipRectangleCommand(formXObject.BBox, SKClipOperation.Intersect));
 
         if (formXObject.TransparencyGroup != null)
         {
@@ -93,7 +93,7 @@ public class FormRenderer : IFormRenderer
 
         if (formXObject.TransparencyGroup != null)
         {
-            processor.Process(RestoreStateCommand.Instance);
+            processor.Process(RestoreLayerCommand.Instance);
         }
 
         processor.Process(RestoreStateCommand.Instance);
