@@ -28,10 +28,6 @@ public static class PdfAnnotationFactory
 
         // Get the annotation subtype and convert to enum
         PdfAnnotationSubType subtype = annotationObject.Dictionary.GetName(PdfTokens.SubtypeKey).AsEnum<PdfAnnotationSubType>();
-        if (subtype == PdfAnnotationSubType.Unknown)
-        {
-            return null; // Not a valid annotation without a valid subtype
-        }
 
         // Create specific annotation types based on subtype
         return subtype switch

@@ -29,7 +29,7 @@ public abstract class PdfAnnotationBase
     protected PdfAnnotationBase(PdfObject annotationObject, PdfAnnotationSubType subtype)
     {
         AnnotationObject = annotationObject ?? throw new ArgumentNullException(nameof(annotationObject));
-        Subtype = (subtype == PdfAnnotationSubType.Unknown) ? throw new ArgumentException("Subtype cannot be Unknown", nameof(subtype)) : subtype;
+        Subtype = subtype;
 
         // Initialize all properties in constructor to avoid re-parsing
         Rectangle = PdfLocationUtilities.CreateBBox(annotationObject.Dictionary.GetArray(PdfTokens.RectKey)) ?? SKRect.Empty;
