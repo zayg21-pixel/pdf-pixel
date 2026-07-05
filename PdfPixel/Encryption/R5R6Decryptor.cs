@@ -15,6 +15,7 @@ namespace PdfPixel.Encryption;
 internal sealed class R5R6Decryptor : BasePdfDecryptor
 {
     private const int MaxPasswordBytes = 127;
+    private const int UEntryLength = 48;
 
     private byte[]? _fileKey;
     private string _lastPassword = string.Empty;
@@ -79,6 +80,15 @@ internal sealed class R5R6Decryptor : BasePdfDecryptor
         byte[] userEncryptedKey = Parameters.UserEncryptedKey ?? throw new PdfInvalidDocumentException("Encrypted document is missing the required /UE (user encrypted key) entry.");
         byte[] ownerEncryptedKey = Parameters.OwnerEncryptedKey ?? throw new PdfInvalidDocumentException("Encrypted document is missing the required /OE (owner encrypted key) entry.");
 
+        if (userEntry.Length < UEntryLength)
+        {
+            throw new PdfInvalidDocumentException("Encrypted document has a malformed /U (user entry); expected at least 48 bytes.");
+        }
+
+        // Algorithm 2.A/2.B require exactly the 48-byte U string when hashing the owner password.
+        // Some writers pad /U with trailing bytes beyond the required 48; only the first 48 are significant.
+        byte[] uString = userEntry.AsSpan(0, UEntryLength).ToArray();
+
         byte[] passwordBytes = GetPasswordBytes();
         var zeroIv = new byte[16];
 
@@ -93,11 +103,11 @@ internal sealed class R5R6Decryptor : BasePdfDecryptor
         }
 
         byte[] ownerValidationSalt = ownerEntry.AsSpan(32, 8).ToArray();
-        byte[] ownerHash = Hash2B(passwordBytes, ownerValidationSalt, userEntry);
+        byte[] ownerHash = Hash2B(passwordBytes, ownerValidationSalt, uString);
         if (ownerHash.AsSpan().SequenceEqual(ownerEntry.AsSpan(0, 32)))
         {
             byte[] ownerKeySalt = ownerEntry.AsSpan(40, 8).ToArray();
-            byte[] intermediateKey = Hash2B(passwordBytes, ownerKeySalt, userEntry);
+            byte[] intermediateKey = Hash2B(passwordBytes, ownerKeySalt, uString);
             _fileKey = _aes.Decrypt(intermediateKey, zeroIv, ownerEncryptedKey, stripPkcs7Padding: false);
             return;
         }
