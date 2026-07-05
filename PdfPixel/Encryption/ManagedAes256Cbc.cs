@@ -4,17 +4,17 @@ using System.Runtime.CompilerServices;
 namespace PdfPixel.Encryption;
 
 /// <summary>
-/// Pure managed AES-128-CBC decryption with PKCS#7 unpadding.
+/// Pure managed AES-256-CBC decryption, optionally with PKCS#7 unpadding.
 /// Used in place of <see cref="System.Security.Cryptography.Aes"/> to support
 /// platforms where the native implementation is unavailable (e.g., Blazor WASM).
 /// Only decryption is implemented; encryption is not required for PDF parsing.
 /// </summary>
-internal sealed class ManagedAes128Cbc // TODO: [HIGH] only use managed version when standard is not available?
+internal sealed class ManagedAes256Cbc
 {
     /// <summary>
     /// Pre-allocated round-key buffer, filled on each <see cref="Decrypt"/> call.
     /// </summary>
-    private readonly uint[] _roundKeys = new uint[44];
+    private readonly uint[] _roundKeys = new uint[60];
 
     /// <summary>
     /// Reusable 16-byte block buffer for in-place decryption.
@@ -22,25 +22,26 @@ internal sealed class ManagedAes128Cbc // TODO: [HIGH] only use managed version 
     private readonly byte[] _state = new byte[16];
 
     /// <summary>
-    /// Creates a new <see cref="ManagedAes128Cbc"/> instance with pre-allocated internal buffers.
+    /// Creates a new <see cref="ManagedAes256Cbc"/> instance with pre-allocated internal buffers.
     /// </summary>
-    public ManagedAes128Cbc()
+    public ManagedAes256Cbc()
     {
     }
 
     /// <summary>
-    /// Decrypts <paramref name="ciphertext"/> using AES-128-CBC with the given 16-byte
-    /// <paramref name="key"/> and <paramref name="iv"/>, then strips PKCS#7 padding.
+    /// Decrypts <paramref name="ciphertext"/> using AES-256-CBC with the given 32-byte
+    /// <paramref name="key"/> and 16-byte <paramref name="iv"/>.
     /// </summary>
-    /// <param name="key">128-bit (16-byte) AES key.</param>
+    /// <param name="key">256-bit (32-byte) AES key.</param>
     /// <param name="iv">128-bit (16-byte) initialisation vector.</param>
     /// <param name="ciphertext">Ciphertext whose length must be a multiple of 16.</param>
-    /// <returns>Decrypted plaintext with PKCS#7 padding removed when valid.</returns>
-    public byte[] Decrypt(byte[] key, byte[] iv, byte[] ciphertext)
+    /// <param name="stripPkcs7Padding">Whether to remove PKCS#7 padding from the result. Set to <see langword="false"/> for the fixed-length key-unwrap operations (/UE, /OE) which use no padding.</param>
+    /// <returns>Decrypted plaintext, with PKCS#7 padding removed when <paramref name="stripPkcs7Padding"/> is <see langword="true"/> and the padding is valid.</returns>
+    public byte[] Decrypt(byte[] key, byte[] iv, byte[] ciphertext, bool stripPkcs7Padding)
     {
-        if (key == null || key.Length != 16)
+        if (key == null || key.Length != 32)
         {
-            throw new ArgumentException("Key must be exactly 16 bytes for AES-128.", nameof(key));
+            throw new ArgumentException("Key must be exactly 32 bytes for AES-256.", nameof(key));
         }
 
         if (iv == null || iv.Length != 16)
@@ -81,7 +82,7 @@ internal sealed class ManagedAes128Cbc // TODO: [HIGH] only use managed version 
             }
         }
 
-        return RemovePkcs7Padding(plaintext);
+        return stripPkcs7Padding ? RemovePkcs7Padding(plaintext) : plaintext;
     }
 
     /// <summary>
@@ -115,16 +116,16 @@ internal sealed class ManagedAes128Cbc // TODO: [HIGH] only use managed version 
     }
 
     /// <summary>
-    /// AES-128 key schedule: produces 44 round-key words in <see cref="_roundKeys"/>.
-    /// Rounds 1–9 are pre-transformed with InvMixColumns for the equivalent inverse cipher
+    /// AES-256 key schedule: produces 60 round-key words in <see cref="_roundKeys"/>.
+    /// Rounds 1–13 are pre-transformed with InvMixColumns for the equivalent inverse cipher
     /// (FIPS 197, §5.3.5), enabling T-table-based decryption.
     /// </summary>
     private void ExpandKey(byte[] key)
     {
-        // AES-128: Nk=4, Nr=10, total words = 4 * (Nr+1) = 44
+        // AES-256: Nk=8, Nr=14, total words = 4 * (Nr+1) = 60
         uint[] w = _roundKeys;
 
-        for (int i = 0; i < 4; i++)
+        for (int i = 0; i < 8; i++)
         {
             w[i] = (uint)(
                 (key[(i * 4) + 0] << 24)
@@ -133,20 +134,24 @@ internal sealed class ManagedAes128Cbc // TODO: [HIGH] only use managed version 
                     | key[(i * 4) + 3]);
         }
 
-        for (int i = 4; i < 44; i++)
+        for (int i = 8; i < 60; i++)
         {
             uint temp = w[i - 1];
-            if (i % 4 == 0)
+            if (i % 8 == 0)
             {
                 // RotWord + SubWord + XOR with Rcon
-                temp = SubWord(RotWord(temp)) ^ ((uint)AesTables.Rcon[(i / 4) - 1] << 24);
+                temp = SubWord(RotWord(temp)) ^ ((uint)AesTables.Rcon[(i / 8) - 1] << 24);
+            }
+            else if (i % 8 == 4)
+            {
+                temp = SubWord(temp);
             }
 
-            w[i] = w[i - 4] ^ temp;
+            w[i] = w[i - 8] ^ temp;
         }
 
-        // Apply InvMixColumns to round keys 1–9 for equivalent inverse cipher.
-        for (int round = 1; round <= 9; round++)
+        // Apply InvMixColumns to round keys 1–13 for equivalent inverse cipher.
+        for (int round = 1; round <= 13; round++)
         {
             for (int col = 0; col < 4; col++)
             {
@@ -168,21 +173,21 @@ internal sealed class ManagedAes128Cbc // TODO: [HIGH] only use managed version 
     /// <summary>
     /// Decrypts a single 16-byte AES block in place using T-tables (equivalent inverse cipher).
     /// The state buffer uses column-major layout (index = col*4 + row). InvShiftRows,
-    /// InvSubBytes, and InvMixColumns are fused into T-table lookups for rounds 1–9.
+    /// InvSubBytes, and InvMixColumns are fused into T-table lookups for rounds 1–13.
     /// </summary>
     private void DecryptBlock(byte[] state)
     {
         uint[] rk = _roundKeys;
 
-        // Pack state bytes into column words (big-endian: row 0 in MSB) and apply initial round key (round 10).
-        uint c0 = ((uint)state[0] << 24 | (uint)state[1] << 16 | (uint)state[2] << 8 | state[3]) ^ rk[40];
-        uint c1 = ((uint)state[4] << 24 | (uint)state[5] << 16 | (uint)state[6] << 8 | state[7]) ^ rk[41];
-        uint c2 = ((uint)state[8] << 24 | (uint)state[9] << 16 | (uint)state[10] << 8 | state[11]) ^ rk[42];
-        uint c3 = ((uint)state[12] << 24 | (uint)state[13] << 16 | (uint)state[14] << 8 | state[15]) ^ rk[43];
+        // Pack state bytes into column words (big-endian: row 0 in MSB) and apply initial round key (round 14).
+        uint c0 = ((uint)state[0] << 24 | (uint)state[1] << 16 | (uint)state[2] << 8 | state[3]) ^ rk[56];
+        uint c1 = ((uint)state[4] << 24 | (uint)state[5] << 16 | (uint)state[6] << 8 | state[7]) ^ rk[57];
+        uint c2 = ((uint)state[8] << 24 | (uint)state[9] << 16 | (uint)state[10] << 8 | state[11]) ^ rk[58];
+        uint c3 = ((uint)state[12] << 24 | (uint)state[13] << 16 | (uint)state[14] << 8 | state[15]) ^ rk[59];
 
-        // Rounds 9 down to 1: T-table lookups with InvShiftRows built into the indexing pattern.
+        // Rounds 13 down to 1: T-table lookups with InvShiftRows built into the indexing pattern.
         // Each output column j reads: row 0 from c_j, row 1 from c_{(j+3)%4}, row 2 from c_{(j+2)%4}, row 3 from c_{(j+1)%4}.
-        for (int round = 9; round >= 1; round--)
+        for (int round = 13; round >= 1; round--)
         {
             int ki = round * 4;
             uint t0 = AesTables.Td0[(c0 >> 24) & 0xFF] ^ AesTables.Td1[(c3 >> 16) & 0xFF] ^ AesTables.Td2[(c2 >> 8) & 0xFF] ^ AesTables.Td3[c1 & 0xFF] ^ rk[ki];

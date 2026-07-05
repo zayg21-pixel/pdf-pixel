@@ -21,6 +21,7 @@
     <File Path="LICENSE" />
     <File Path="NOTICE" />
     <File Path="README.md" />
+    <File Path="Version.txt" />
   </Folder>
   <Folder Name="/Tools/">
     <Project Path="PdfPixel.ResourceGenerator/PdfPixel.ResourceGenerator.csproj" />

@@ -25,7 +25,11 @@ public static class PdfDecryptorFactory
             return new R3R4Decryptor(parameters);
         }
 
-        // Future: R5/R6 AES-256 decryptor
+        if (parameters.R == 5 || parameters.R == 6)
+        {
+            return new R5R6Decryptor(parameters);
+        }
+
         return null;
     }
 }
