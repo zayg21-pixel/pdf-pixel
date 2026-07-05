@@ -64,11 +64,10 @@ PDF Pixel is a native C# PDF rendering library for .NET, built around SkiaSharp 
 ### Encryption
 - ✅ RC4 40-bit / 128-bit
 - ✅ AES-128
-- 🔲 AES-256 *(planned)*
+- ⚠️ AES-256 *(R6 only, R5 planned)*
 
 ### Annotations
 - ✅ Text
-- ✅ FreeText
 - ✅ Line, Square, Circle, Polygon, PolyLine
 - ✅ Highlight, Underline, Squiggly, StrikeOut
 - ✅ Ink
@@ -77,12 +76,13 @@ PDF Pixel is a native C# PDF rendering library for .NET, built around SkiaSharp 
 - ✅ File Attachment
 - ✅ Stamp
 - ✅ Caret
+- ⚠️ FreeText *(no default appearance (DA) generation — requires an existing appearance stream)*
+- ⚠️ Redact *(rendered as generic annotation, no dedicated support)*
 - 🔲 Widget (AcroForm) *(planned)*
-- 🔲 Redact *(planned)*
 - ❌ Sound, Movie, Screen, 3D
 
 ### Interactive & Scripting
-- ❌ Text Selection *(planned)*
+- ⚠️ Text Selection *(extracts all glyphs, but does not sort into reading order; markup-aware selection not fully supported)*
 - ❌ JavaScript *(not planned)*
 - ❌ XFA *(not planned)*
 
@@ -95,20 +95,20 @@ PDF Pixel is a native C# PDF rendering library for .NET, built around SkiaSharp 
 - Add Examples project
 - Release NuGet packages:
   - `PdfPixel`
+
+### Stage 2
+- Finalize PdfPixel.PdfPanel and demo projects for WPF and WASM (Web)
+- Unit tests
+- Stage 2 bug fixes
+- Implement text extraction and text selection
+- Implement `PdfPixel.Tiff`
+- Documentation
+- Release NuGet packages:
   - `PdfPixel.Color`
   - `PdfPixel.Ccitt`
   - `PdfPixel.Jpg`
   - `PdfPixel.Jpx`
   - `PdfPixel.Jbig2`
-
-### Stage 2
-- Finalize PdfPixel.PdfPanel and demo projects for WPF and WASM (Web)
-- Start working on unit tests
-- Stage 2 bug fixes
-- Migrate to SkiaSharp 4
-- Implement text extraction and text selection
-- Implement `PdfPixel.Tiff`
-- Release NuGet packages:
   - `PdfPixel.PdfPanel`
   - `PdfPixel.PdfPanel.Wpf`
   - `PdfPixel.PdfPanel.Web`
