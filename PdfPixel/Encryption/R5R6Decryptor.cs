@@ -26,6 +26,7 @@ internal sealed class R5R6Decryptor : BasePdfDecryptor
     {
         if (parameters.R != 6)
         {
+            // TODO: [MEDIUM] implement R5 (deprecated, pre-standardization AES-256 variant from ISO 32000-1 ExtensionLevel 3)
             throw new NotSupportedException($"PDF Standard Security Handler revision {parameters.R} (deprecated AES-256) is not supported. Only revision 6 is supported.");
         }
     }

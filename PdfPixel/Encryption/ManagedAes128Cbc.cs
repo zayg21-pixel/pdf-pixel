@@ -9,7 +9,7 @@ namespace PdfPixel.Encryption;
 /// platforms where the native implementation is unavailable (e.g., Blazor WASM).
 /// Only decryption is implemented; encryption is not required for PDF parsing.
 /// </summary>
-internal sealed class ManagedAes128Cbc // TODO: [HIGH] only use managed version when standard is not available?
+internal sealed class ManagedAes128Cbc
 {
     /// <summary>
     /// Pre-allocated round-key buffer, filled on each <see cref="Decrypt"/> call.

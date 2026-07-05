@@ -57,7 +57,7 @@ internal sealed class PdfImageTileCacheEntry : IDisposable
         _initializeTileIndex = 0;
         _getTileIndex = 0;
 
-        // TODO: [MEDIUM] Type3 fonts share recordings across pages, each with its own image cache.
+        // TODO: [HIGH] Type3 fonts share recordings across pages, each with its own image cache.
         // Switching cache forces re-decode, losing previously cached tiles. A global/local cache
         // split would let shared recordings keep their images across pages.
         if (imageCacheChanged)

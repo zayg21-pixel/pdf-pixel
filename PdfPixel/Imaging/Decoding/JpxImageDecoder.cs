@@ -191,7 +191,7 @@ internal class JpxImageDecoder : PdfImageDecoder
         return regionsOfInterest;
     }
 
-    private sealed class JpxObserver : IJpxExectionObserver // TODO: [HIGH] add default implementations of ExectionObserver to JBIG2 and JPX
+    private sealed class JpxObserver : IJpxExectionObserver
     {
         private readonly IPdfExecutionObserver? _pdfObserver;
 

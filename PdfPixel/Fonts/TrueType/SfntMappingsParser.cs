@@ -215,7 +215,7 @@ internal static class SfntFontTableParser
             }
         }
 
-        // TODO: [HIGH] Add support for format 10/12
+        // TODO: [MEDIUM] Add support for format 10/12
         return unicodeToGid;
     }
 

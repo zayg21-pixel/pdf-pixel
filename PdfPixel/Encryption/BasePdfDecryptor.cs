@@ -4,7 +4,6 @@ using System.IO;
 
 namespace PdfPixel.Encryption;
 
-// TODO: [MEDIUM] implement missing decryptions
 /// <summary>
 /// Base decryptor that exposes unified byte decryption for both streams and string objects.
 /// Implementations derive file and object specific keys internally.
