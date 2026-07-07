@@ -21,7 +21,7 @@ public class PdfRenderingParameters
     /// When true, small images decoded during rendering are packed into shared atlas textures
     /// (see <see cref="Commands.InitializeImageCacheCommand"/>) to reduce GPU texture count.
     /// </summary>
-    public bool UsePageImageCache { get; set; } = true;
+    public bool UsePageImageCache { get; set; }
 
     /// <summary>
     /// Maximum width/height, in pixels, for a decoded image to be eligible for atlas packing.

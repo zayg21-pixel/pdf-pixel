@@ -60,14 +60,19 @@ internal sealed class SoftMaskImageExecutionContext : IDisposable
             throw new ArgumentException($"Mask decoder for image {maskImage.Type} is not defined.");
         }
 
-        (PdfTileInfo imageTileInfo, PdfTileInfo maskTileInfo) = PdfImageCommandUtilities.ComputePairedTileSizes(pdfImage, maskImage, context.DefaultTileSize);
+        if (maskSize != imageSize)
+        {
+            throw new ArgumentException($"Image size {imageSize} is not equal to mask size {maskSize}.");
+        }
+
+        PdfTileInfo tileInfo = new(imageSize, new SKSizeI(context.DefaultTileSize, context.DefaultTileSize));
 
         return new SoftMaskImageExecutionContext(
             imageSize,
             maskSize,
             context,
-            new PdfImageTileCacheEntry(imageDecoder, context, imageTileInfo),
-            new PdfImageTileCacheEntry(maskDecoder, context, maskTileInfo),
+            new PdfImageTileCacheEntry(imageDecoder, context, tileInfo),
+            new PdfImageTileCacheEntry(maskDecoder, context, tileInfo),
             maskImage.MatteArray,
             pdfImage.Interpolate);
     }

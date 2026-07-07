@@ -19,7 +19,7 @@ namespace PdfPixel.Console.Demo
             float scale = 1f;
 
             // Renders using a GPU-backed Skia surface (OpenGL) instead of a software-only one.
-            bool gpuMode = true;
+            bool gpuMode = false;
 
             // PdfDocumentReader needs a logger factory for diagnostics during parsing and rendering.
             using ILoggerFactory loggerFactory = LoggerFactory.Create(builder => builder.AddConsole());
@@ -79,7 +79,11 @@ namespace PdfPixel.Console.Demo
                 // Bundles the canvas, rendering options, and the objects above into the state every
                 // drawing command reads from while the page is replayed.
                 using PdfCommandExecutionContext executionContext = new(
-                    new PdfCommandExecutionParameters(),
+                    new PdfCommandExecutionParameters
+                    {
+                        ScaleFactor = scale,
+                        Antialias = false
+                    },
                     contentLocker,
                     optionalContentGroups,
                     executionObserver,
@@ -106,8 +110,6 @@ namespace PdfPixel.Console.Demo
                 // Undoes the scale/translate/flip applied above, leaving the canvas in its original state.
                 canvas.RestoreToCount(savedCanvasState);
 
-                // Write the finished surface as an uncompressed BMP into the PDF's output subfolder, named
-                // by page number. Skipping PNG/JPEG compression entirely matters for a demo exporting many pages.
                 string outputPath = Path.Combine(outputDirectory, $"{page.PageNumber}.bmp");
                 using SKImage image = surface.Snapshot();
                 BitmapWriter.Write(image, outputPath);

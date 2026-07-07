@@ -1,7 +1,6 @@
 using PdfPixel.Commands.Image;
 using SkiaSharp;
 using System;
-using System.Collections.Generic;
 
 namespace PdfPixel.Commands;
 
@@ -32,7 +31,7 @@ public sealed class InitializeTileCacheCommand : PdfCommand
         _initializedContext = executionContext;
 
         SKMatrix ctm = CommandHelpers.GetScaledMatrix(executionContext);
-        SKRectI imageRegion = PdfImageCommandUtilities.ComputeImageRegionOfInterest(_imageSize, executionContext.Frames.TotalMatrix, executionContext);
+        SKRectI imageRegion = PdfImageCommandUtilities.ComputeImageRegionOfInterest(_imageSize, executionContext);
 
         if (imageRegion.Width != _imageSize.Width || imageRegion.Height != _imageSize.Height)
         {
@@ -41,9 +40,8 @@ public sealed class InitializeTileCacheCommand : PdfCommand
 
         _tileCache.Initialize(ctm, imageRegion, executionContext.ContentLocker, executionContext.ExecutionObserver, executionContext.ImageCache);
 
-        SKRect contentRegion = PdfImageCommandUtilities.ComputeContentRegionOfInterest(executionContext.Frames.TotalMatrix, executionContext);
-        bool antialias = CommandHelpers.GetRectIsAntialias(contentRegion, executionContext);
-        executionContext.Frames.OnClipRect(contentRegion, SKClipOperation.Intersect, antialias);
+        SKRect contentRegion = PdfImageCommandUtilities.ComputeContentRegionOfInterest(executionContext);
+        executionContext.Frames.OnClipRect(contentRegion, SKClipOperation.Intersect, antialias: false);
     }
 
     /// <inheritdoc />
@@ -56,10 +54,9 @@ public sealed class InitializeTileCacheCommand : PdfCommand
 
         _tileCache.ResetTileIndexes();
 
-        SKRect contentRegion = PdfImageCommandUtilities.ComputeContentRegionOfInterest(executionContext.Frames.TotalMatrix, executionContext);
-        bool antialias = CommandHelpers.GetRectIsAntialias(contentRegion, executionContext);
-        executionContext.Canvas.ClipRect(contentRegion, SKClipOperation.Intersect, antialias);
-        executionContext.Frames.OnClipRect(contentRegion, SKClipOperation.Intersect, antialias);
+        SKRect contentRegion = PdfImageCommandUtilities.ComputeContentRegionOfInterest(executionContext);
+        executionContext.Canvas.ClipRect(contentRegion, SKClipOperation.Intersect, antialias: false);
+        executionContext.Frames.OnClipRect(contentRegion, SKClipOperation.Intersect, antialias: false);
     }
 
     /// <inheritdoc />

@@ -1,6 +1,4 @@
 using PdfPixel.Color.Paint;
-using PdfPixel.Imaging.Model;
-using PdfPixel.Imaging.Processing;
 using SkiaSharp;
 using System;
 using System.Runtime.CompilerServices;
@@ -48,16 +46,7 @@ internal static class PdfImageCommandUtilities
             return new SnappedTilePlacement(fallbackDeviceSize, fallbackPlacementMatrix, sampling);
         }
 
-        SKPoint exactImageDeviceSize = GetExactAxisScale(ctm);
-
-        SKMatrix pixelToDeviceMatrix = new()
-        {
-            ScaleX = exactImageDeviceSize.X / imageSize.Width,
-            ScaleY = exactImageDeviceSize.Y / imageSize.Height,
-            TransX = ctm.TransX,
-            TransY = ctm.TransY,
-            Persp2 = 1
-        };
+        SKMatrix pixelToDeviceMatrix = ctm.PreConcat(SKMatrix.CreateScale(1f / imageSize.Width, 1f / imageSize.Height));
 
         SKRect devicePosition = pixelToDeviceMatrix.MapRect((SKRect)tilePosition);
         SKRect snappedDevicePosition = SnapToDevicePixels(devicePosition);
@@ -66,19 +55,7 @@ internal static class PdfImageCommandUtilities
             (int)(snappedDevicePosition.Right - snappedDevicePosition.Left),
             (int)(snappedDevicePosition.Bottom - snappedDevicePosition.Top));
 
-        float signX = MathF.Sign(ctm.ScaleX);
-        float signY = MathF.Sign(ctm.ScaleY);
-
-        SKMatrix signOnlyPlacement = new()
-        {
-            ScaleX = signX,
-            ScaleY = signY,
-            TransX = (signX > 0) ? snappedDevicePosition.Left : snappedDevicePosition.Right,
-            TransY = (signY > 0) ? snappedDevicePosition.Top : snappedDevicePosition.Bottom,
-            Persp2 = 1
-        };
-
-        SKMatrix placementMatrix = SKMatrix.Concat(ctm.Invert(), signOnlyPlacement);
+        SKMatrix placementMatrix = SKMatrix.Concat(ctm.Invert(), SKMatrix.CreateTranslation(snappedDevicePosition.Left, snappedDevicePosition.Top));
 
         return new SnappedTilePlacement(deviceSize, placementMatrix, sampling);
     }
@@ -108,41 +85,33 @@ internal static class PdfImageCommandUtilities
         => ctm.SkewX == 0 && ctm.SkewY == 0 && ctm.ScaleX != 0 && ctm.ScaleY != 0;
 
     /// <summary>
-    /// Returns the whole image's exact (unrounded, signed) device-pixel size per axis.
-    /// </summary>
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static SKPoint GetExactAxisScale(SKMatrix ctm)
-        => ctm.MapPoint(new SKPoint(1, 1)) - ctm.MapPoint(new SKPoint(0, 0));
-
-    /// <summary>
     /// Snaps <paramref name="deviceRect"/> to whole device pixels, with a minimum size of one
     /// device pixel per dimension.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static SKRect SnapToDevicePixels(SKRect deviceRect)
     {
-        (float left, float right) = SnapDimensionToDevicePixels(deviceRect.Left, deviceRect.Right, deviceRect.MidX);
-        (float top, float bottom) = SnapDimensionToDevicePixels(deviceRect.Top, deviceRect.Bottom, deviceRect.MidY);
+        (float left, float right) = SnapDimensionToWholePixels(deviceRect.Left, deviceRect.Right);
+        (float top, float bottom) = SnapDimensionToWholePixels(deviceRect.Top, deviceRect.Bottom);
 
         return new SKRect(left, top, right, bottom);
     }
 
+    /// <summary>
+    /// Snaps a [<paramref name="low"/>, <paramref name="high"/>) range to whole pixel
+    /// boundaries, with a minimum size of one pixel.
+    /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static (float Low, float High) SnapDimensionToDevicePixels(float low, float high, float mid)
+    private static (float Low, float High) SnapDimensionToWholePixels(float low, float high)
     {
         if (high - low < 1)
         {
-            float snappedLow = MathF.Floor(mid);
+            float snappedLow = MathF.Floor(low);
             return (snappedLow, snappedLow + 1);
         }
 
         float roundedLow = MathF.Round(low);
         float roundedHigh = MathF.Round(high);
-
-        if (roundedHigh - roundedLow < 1)
-        {
-            roundedHigh = roundedLow + 1;
-        }
 
         return (roundedLow, roundedHigh);
     }
@@ -163,8 +132,8 @@ internal static class PdfImageCommandUtilities
         }
 
         return new SKSizeI(
-            Math.Max(1, (int)Math.Ceiling(exactSize.Value.Width)),
-            Math.Max(1, (int)Math.Ceiling(exactSize.Value.Height)));
+            Math.Max(1, (int)Math.Round(exactSize.Value.Width)),
+            Math.Max(1, (int)Math.Round(exactSize.Value.Height)));
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -224,33 +193,12 @@ internal static class PdfImageCommandUtilities
     }
 
     /// <summary>
-    /// Computes tile sizes for two co-rendered images (image + mask) so they share an
-    /// identical relative tile grid (same number of tile rows and columns). Uses the
-    /// larger image as the baseline — a finer grid on the higher-resolution image
-    /// minimises sub-pixel misalignment when shaders composite both layers.
-    /// </summary>
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static (PdfTileInfo imageTileInfo, PdfTileInfo maskTileInfo) ComputePairedTileSizes(
-        PdfImage pdfImage, PdfImage maskImage, int defaultTileSize)
-    {
-        // TODO: [HIGH] this might not work as expected, tiles might be mis-aligned
-        float scaleX = (float)maskImage.Width / pdfImage.Width;
-        float scaleY = (float)maskImage.Height / pdfImage.Height;
-        SKSizeI maskTileSize = new(
-            Math.Max(1, (int)Math.Round(defaultTileSize * scaleX)),
-            Math.Max(1, (int)Math.Round(defaultTileSize * scaleY)));
-        return (
-            new PdfTileInfo(new SKSizeI(pdfImage.Width, pdfImage.Height), new SKSizeI(defaultTileSize, defaultTileSize)),
-            new PdfTileInfo(new SKSizeI(maskImage.Width, maskImage.Height), maskTileSize));
-    }
-
-    /// <summary>
     /// Maps the current viewport's page-space region of interest into unit-square content space
-    /// via <paramref name="ctm"/>, intersected with the unit square. Returns the full unit square
-    /// when no region of interest is set (the full page is visible).
+    /// via CTM, intersected with the unit square and snapped to cover at least one device pixel.
+    /// Returns the full unit square when no region of interest is set (the full page is visible).
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static SKRect ComputeContentRegionOfInterest(SKMatrix ctm, PdfCommandExecutionContext executionContext)
+    public static SKRect ComputeContentRegionOfInterest(PdfCommandExecutionContext executionContext)
     {
         SKRect unitSquare = SKRect.Create(0, 0, 1, 1);
 
@@ -259,13 +207,18 @@ internal static class PdfImageCommandUtilities
             return unitSquare;
         }
 
-        SKRect mapped = ctm.Invert().MapRect(executionContext.PageRegionOfInterest.Value);
+        SKRect mapped = executionContext.Frames.TotalMatrix.Invert().MapRect(executionContext.PageRegionOfInterest.Value);
         mapped.Intersect(unitSquare);
-        return mapped;
+
+        SKMatrix ctm = CommandHelpers.GetScaledMatrix(executionContext);
+        SKRect deviceRect = ctm.MapRect(mapped);
+        SKRect snappedDeviceRect = SnapToDevicePixels(deviceRect);
+
+        return ctm.Invert().MapRect(snappedDeviceRect);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static SKRectI ComputeImageRegionOfInterest(SKSizeI imageSize, SKMatrix ctm, PdfCommandExecutionContext executionContext)
+    public static SKRectI ComputeImageRegionOfInterest(SKSizeI imageSize, PdfCommandExecutionContext executionContext)
     {
         SKRectI fullImageBounds = SKRectI.Create(0, 0, imageSize.Width, imageSize.Height);
 
@@ -274,7 +227,7 @@ internal static class PdfImageCommandUtilities
             return fullImageBounds;
         }
 
-        SKMatrix contentToImagePixels = ctm.Invert().PostConcat(SKMatrix.CreateScale(imageSize.Width, imageSize.Height));
+        SKMatrix contentToImagePixels = executionContext.Frames.TotalMatrix.Invert().PostConcat(SKMatrix.CreateScale(imageSize.Width, imageSize.Height));
         SKRect mapped = contentToImagePixels.MapRect(executionContext.PageRegionOfInterest.Value);
         SKRectI imageRoi = SKRectI.Round(mapped);
         imageRoi.Intersect(fullImageBounds);
