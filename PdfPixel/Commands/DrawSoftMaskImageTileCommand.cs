@@ -48,8 +48,8 @@ public sealed class DrawSoftMaskImageTileCommand : PdfCommand
             matte = maskTile.Parameters.ColorSpaceConverter.ToSrgb(_context.MatteArray, maskTile.Parameters.RenderingIntent, default);
         }
 
-        using SKShader imageShader = ImageBlending.BuildImageShader(imageTile.Image, imageTile.SourceRegion, placement.DeviceSize, placement.Sampling);
-        using SKShader maskShader = ImageBlending.BuildImageShader(maskTile.Image, maskTile.SourceRegion, placement.DeviceSize, placement.Sampling);
+        using SKShader imageShader = ImageBlending.BuildImageShader(imageTile.Image, placement.DeviceSize, placement.Sampling);
+        using SKShader maskShader = ImageBlending.BuildImageShader(maskTile.Image, placement.DeviceSize, placement.Sampling);
         using SKShader blendingShader = ImageBlending.CreateSoftMaskBlendingShader(imageShader, maskShader, matte);
         using SKPaint paint = PdfImageCommandUtilities.GetBaseImagePaint(blendingShader, _context.DecodingContext);
         CommandHelpers.ApplyModifiers(paint, executionContext);

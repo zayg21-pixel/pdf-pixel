@@ -1,4 +1,3 @@
-using PdfPixel.Commands.Image;
 using PdfPixel.Models;
 using PdfPixel.TextExtraction;
 using SkiaSharp;
@@ -91,13 +90,6 @@ public sealed class PdfCommandExecutionContext : IDisposable
     /// mirroring the canvas save/restore stack without depending on the canvas itself.
     /// </summary>
     public PdfCommandExecutionFrames Frames { get; } = new();
-
-    /// <summary>
-    /// Shared image cache that packs small images into atlas textures during the Initialize
-    /// phase to reduce GPU texture count during rendering. Set by <see cref="InitializeImageCacheCommand"/>.
-    /// Null when no image cache command is present in the recording.
-    /// </summary>
-    internal PdfCommandImageCache? ImageCache { get; set; }
 
     /// <summary>
     /// Tracks active marked content scopes and evaluates optional content visibility.

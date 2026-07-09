@@ -3,7 +3,6 @@ using PdfPixel.Color.Paint;
 using PdfPixel.Shading;
 using PdfPixel.Shading.Model;
 using SkiaSharp;
-using System.Collections.Generic;
 
 namespace PdfPixel.Commands;
 
@@ -12,7 +11,7 @@ namespace PdfPixel.Commands;
 /// gradient construction). Execute draws the prepared results to the canvas.
 /// Caches expensive results and only rebuilds when the relevant rendering parameter changes.
 /// </summary>
-public sealed class PdfDrawShadingCommand : PdfCommand
+public sealed class DrawShadingCommand : PdfCommand
 {
     private readonly PdfShading _shading;
     private readonly ShadingDecodingContext _context;
@@ -39,12 +38,12 @@ public sealed class PdfDrawShadingCommand : PdfCommand
     private int _patchMeshCacheMaxVertices = -1;
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="PdfDrawShadingCommand"/> class.
+    /// Initializes a new instance of the <see cref="DrawShadingCommand"/> class.
     /// </summary>
     /// <param name="shading">Parsed shading model.</param>
     /// <param name="context">Snapshot of graphics-state values captured at record time.</param>
     /// <param name="loggerFactory">Logger factory for diagnostic output.</param>
-    public PdfDrawShadingCommand(PdfShading shading, ShadingDecodingContext context, ILoggerFactory loggerFactory)
+    public DrawShadingCommand(PdfShading shading, ShadingDecodingContext context, ILoggerFactory loggerFactory)
     {
         _shading = shading;
         _context = context;

@@ -38,7 +38,7 @@ public sealed class InitializeTileCacheCommand : PdfCommand
             executionContext.SetPartialContent();
         }
 
-        _tileCache.Initialize(ctm, imageRegion, executionContext.ContentLocker, executionContext.ExecutionObserver, executionContext.ImageCache);
+        _tileCache.Initialize(ctm, imageRegion, executionContext.ContentLocker, executionContext.ExecutionObserver);
 
         SKRect contentRegion = PdfImageCommandUtilities.ComputeContentRegionOfInterest(executionContext);
         executionContext.Frames.OnClipRect(contentRegion, SKClipOperation.Intersect, antialias: false);

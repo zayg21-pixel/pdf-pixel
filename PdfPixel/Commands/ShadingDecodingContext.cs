@@ -7,7 +7,7 @@ namespace PdfPixel.Commands;
 
 /// <summary>
 /// Immutable snapshot of graphics-state values needed for lazy shading evaluation.
-/// Captured at record time so the <see cref="PdfDrawShadingCommand"/> can rebuild
+/// Captured at record time so the <see cref="DrawShadingCommand"/> can rebuild
 /// shading geometry at Execute time without referencing <see cref="PdfGraphicsState"/>.
 /// </summary>
 public sealed class ShadingDecodingContext

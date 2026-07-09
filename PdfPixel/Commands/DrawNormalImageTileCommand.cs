@@ -38,7 +38,7 @@ public sealed class DrawNormalImageTileCommand : PdfCommand
 
         executionContext.Canvas.Save();
         executionContext.Canvas.Concat(placement.PlacementMatrix);
-        executionContext.Canvas.DrawImage(tile.Image, tile.GetSourceRect(), placement.PlacementRectangle, placement.Sampling, paint);
+        executionContext.Canvas.DrawImage(tile.Image, placement.PlacementRectangle, placement.Sampling, paint);
         executionContext.Canvas.Restore();
     }
 
