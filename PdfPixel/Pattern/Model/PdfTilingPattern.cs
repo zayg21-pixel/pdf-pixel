@@ -81,7 +81,7 @@ public sealed class PdfTilingPattern : PdfPattern
         SKRect bounds = matrix.Invert().MapRect(renderTarget.Bounds);
 
         DrawRecordingCommand recordingCommand = new(tileRecorder, modifier);
-        processor.Process(new DrawTilingCommand(bounds, XStep, YStep, recordingCommand));
+        processor.Process(new DrawTilingCommand(bounds, BBox, XStep, YStep, recordingCommand));
 
         processor.Process(RestoreStateCommand.Instance);
         renderTarget.AfterPatternRender(processor);

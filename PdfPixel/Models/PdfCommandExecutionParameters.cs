@@ -34,6 +34,11 @@ public class PdfCommandExecutionParameters : IEquatable<PdfCommandExecutionParam
     /// </summary>
     public int ImageTileSize { get; set; } = 1024;
 
+    /// <summary>
+    /// If true - rects and image tiles are snapped to whole device pixels.
+    /// </summary>
+    public bool SnapToDevicePixels { get; set; } = true;
+
     /// <inheritdoc />
     public bool Equals(PdfCommandExecutionParameters? other)
     {
@@ -50,7 +55,8 @@ public class PdfCommandExecutionParameters : IEquatable<PdfCommandExecutionParam
         return Antialias == other.Antialias
             && ScaleFactor == other.ScaleFactor
             && DefaultFunctionSamples == other.DefaultFunctionSamples
-            && MaxTessellationVertices == other.MaxTessellationVertices;
+            && MaxTessellationVertices == other.MaxTessellationVertices
+            && SnapToDevicePixels == other.SnapToDevicePixels;
     }
 
     /// <inheritdoc />
@@ -64,7 +70,8 @@ public class PdfCommandExecutionParameters : IEquatable<PdfCommandExecutionParam
             ScaleFactor,
             DefaultFunctionSamples,
             MaxTessellationVertices,
-            ImageTileSize);
+            ImageTileSize,
+            SnapToDevicePixels);
     }
 
     /// <summary>
@@ -94,7 +101,8 @@ public class PdfCommandExecutionParameters : IEquatable<PdfCommandExecutionParam
             ScaleFactor = ScaleFactor,
             DefaultFunctionSamples = DefaultFunctionSamples,
             MaxTessellationVertices = MaxTessellationVertices,
-            ImageTileSize = ImageTileSize
+            ImageTileSize = ImageTileSize,
+            SnapToDevicePixels = SnapToDevicePixels
         };
     }
 

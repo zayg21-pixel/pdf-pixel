@@ -33,31 +33,78 @@ internal static class PdfImageCommandUtilities
     public static SnappedTilePlacement GetSnappedTilePlacement(
         PdfCommandExecutionContext executionContext, SKSizeI imageSize, SKRectI tilePosition, bool interpolate)
     {
-        SKMatrix ctm = CommandHelpers.GetScaledMatrix(executionContext);
+        SKMatrix baseCtm = CommandHelpers.GetScaledMatrix(executionContext);
+        SKMatrix ctm = GetImageCtm(baseCtm);
         SKSamplingOptions sampling = GetSamplingOptions(ctm, imageSize, interpolate);
 
-        if (!IsAxisAligned(ctm))
+        if (!executionContext.Parameters.SnapToDevicePixels || !CommandHelpers.IsAxisAligned(ctm))
         {
-            SKSizeI fallbackDeviceSize = new(tilePosition.Width, tilePosition.Height);
-            SKMatrix fallbackPlacementMatrix = SKMatrix.Concat(
-                SKMatrix.CreateScale(1f / imageSize.Width, 1f / imageSize.Height),
-                SKMatrix.CreateTranslation(tilePosition.Left, tilePosition.Top));
-
-            return new SnappedTilePlacement(fallbackDeviceSize, fallbackPlacementMatrix, sampling);
+            return GetUnsnappedTilePlacement(imageSize, tilePosition, sampling);
         }
 
         SKMatrix pixelToDeviceMatrix = ctm.PreConcat(SKMatrix.CreateScale(1f / imageSize.Width, 1f / imageSize.Height));
 
-        SKRect devicePosition = pixelToDeviceMatrix.MapRect((SKRect)tilePosition);
-        SKRect snappedDevicePosition = CommandHelpers.SnapToDevicePixels(devicePosition);
+        SKPoint topLeft = pixelToDeviceMatrix.MapPoint(new SKPoint(tilePosition.Left, tilePosition.Top));
+        SKPoint bottomRight = pixelToDeviceMatrix.MapPoint(new SKPoint(tilePosition.Right, tilePosition.Bottom));
 
-        SKSizeI deviceSize = new(
-            (int)(snappedDevicePosition.Right - snappedDevicePosition.Left),
-            (int)(snappedDevicePosition.Bottom - snappedDevicePosition.Top));
+        float roundedLeft = MathF.Round(topLeft.X);
+        float roundedTop = MathF.Round(topLeft.Y);
+        float roundedRight = MathF.Round(bottomRight.X);
+        float roundedBottom = MathF.Round(bottomRight.Y);
 
-        SKMatrix placementMatrix = SKMatrix.Concat(ctm.Invert(), SKMatrix.CreateTranslation(snappedDevicePosition.Left, snappedDevicePosition.Top));
+        float deviceWidth = MathF.Abs(roundedRight - roundedLeft);
+        if (deviceWidth == 0)
+        {
+            deviceWidth = 1;
+        }
+
+        float deviceHeight = MathF.Abs(roundedBottom - roundedTop);
+        if (deviceHeight == 0)
+        {
+            deviceHeight = 1;
+        }
+
+        SKSize deviceSize = new(deviceWidth, deviceHeight);
+        SKMatrix placementMatrix = GetSignedPlacementMatrix(baseCtm, pixelToDeviceMatrix, roundedLeft, roundedTop);
 
         return new SnappedTilePlacement(deviceSize, placementMatrix, sampling);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static SnappedTilePlacement GetUnsnappedTilePlacement(SKSizeI imageSize, SKRectI tilePosition, in SKSamplingOptions sampling)
+    {
+        SKSizeI fallbackDeviceSize = new(tilePosition.Width, tilePosition.Height);
+        SKMatrix fallbackPlacementMatrix = SKMatrix.Concat(
+            GetImageMatrix(),
+            SKMatrix.Concat(
+                SKMatrix.CreateScale(1f / imageSize.Width, 1f / imageSize.Height),
+                SKMatrix.CreateTranslation(tilePosition.Left, tilePosition.Top)));
+
+        return new SnappedTilePlacement(fallbackDeviceSize, fallbackPlacementMatrix, sampling);
+    }
+
+    /// <summary>
+    /// Builds the matrix that places a tile at the rounded device position while re-applying the
+    /// axis signs that rounding stripped out, so mirrored images (e.g. the CTM's baked-in Y-flip)
+    /// still draw the right way up. <paramref name="canvasCtm"/> is the transform actually on the
+    /// canvas at draw time (no image flip), used to cancel it out; <paramref name="pixelToDeviceMatrix"/>
+    /// is the image-inclusive matrix the rounded position/sign were computed from.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static SKMatrix GetSignedPlacementMatrix(SKMatrix canvasCtm, SKMatrix pixelToDeviceMatrix, float roundedLeft, float roundedTop)
+    {
+        SKMatrix signedPlacement = new(
+            MathF.Sign(pixelToDeviceMatrix.ScaleX),
+            0,
+            roundedLeft,
+            0,
+            MathF.Sign(pixelToDeviceMatrix.ScaleY),
+            roundedTop,
+            0,
+            0,
+            1);
+
+        return SKMatrix.Concat(canvasCtm.Invert(), signedPlacement);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -74,15 +121,6 @@ internal static class PdfImageCommandUtilities
             return new SKSamplingOptions(SKFilterMode.Nearest);
         }
     }
-
-    /// <summary>
-    /// Returns whether <paramref name="ctm"/> is a plain scale (any sign, i.e. flips are fine)
-    /// and translation, with no rotation or skew — the only shape of transform for which
-    /// snapping a rect to whole device pixels is well-defined.
-    /// </summary>
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static bool IsAxisAligned(SKMatrix ctm)
-        => ctm.SkewX == 0 && ctm.SkewY == 0 && ctm.ScaleX != 0 && ctm.ScaleY != 0;
 
     /// <summary>
     /// Returns a scaled size for the given original size based on the current CTM, rounded up so
@@ -117,7 +155,7 @@ internal static class PdfImageCommandUtilities
 
         float maxScale = Math.Max(relScaleX, relScaleY);
 
-        if (maxScale >= 1f)
+        if (maxScale >= 0.5f)
         {
             return default;
         }
@@ -128,11 +166,16 @@ internal static class PdfImageCommandUtilities
     /// <summary>
     /// Returns the matrix that maps PDF image space to Skia canvas space.
     /// Equivalent to: <c>canvas.Concat(Scale(1,−1))</c> then <c>canvas.Concat(Translate(0,−1))</c>.
-    /// Emit via <see cref="ConcatMatrixCommand"/> instead of calling canvas directly.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static SKMatrix GetImageMatrix()
         => SKMatrix.Concat(SKMatrix.CreateScale(1, -1), SKMatrix.CreateTranslation(0, -1));
+
+    /// <summary>
+    /// Folds <see cref="GetImageMatrix"/> into <paramref name="ctm"/>.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static SKMatrix GetImageCtm(SKMatrix ctm) => ctm.PreConcat(GetImageMatrix());
 
     // TODO: [MEDIUM] shall go to paint factory with other paints
     /// <summary>
@@ -160,31 +203,6 @@ internal static class PdfImageCommandUtilities
         };
     }
 
-    /// <summary>
-    /// Maps the current viewport's page-space region of interest into unit-square content space
-    /// via CTM, intersected with the unit square and snapped to cover at least one device pixel.
-    /// Returns the full unit square when no region of interest is set (the full page is visible).
-    /// </summary>
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static SKRect ComputeContentRegionOfInterest(PdfCommandExecutionContext executionContext)
-    {
-        SKRect unitSquare = SKRect.Create(0, 0, 1, 1);
-
-        if (!executionContext.PageRegionOfInterest.HasValue)
-        {
-            return unitSquare;
-        }
-
-        SKRect mapped = executionContext.Frames.TotalMatrix.Invert().MapRect(executionContext.PageRegionOfInterest.Value);
-        mapped.Intersect(unitSquare);
-
-        SKMatrix ctm = CommandHelpers.GetScaledMatrix(executionContext);
-        SKRect deviceRect = ctm.MapRect(mapped);
-        SKRect snappedDeviceRect = CommandHelpers.SnapToDevicePixels(deviceRect);
-
-        return ctm.Invert().MapRect(snappedDeviceRect);
-    }
-
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static SKRectI ComputeImageRegionOfInterest(SKSizeI imageSize, PdfCommandExecutionContext executionContext)
     {
@@ -195,7 +213,7 @@ internal static class PdfImageCommandUtilities
             return fullImageBounds;
         }
 
-        SKMatrix contentToImagePixels = executionContext.Frames.TotalMatrix.Invert().PostConcat(SKMatrix.CreateScale(imageSize.Width, imageSize.Height));
+        SKMatrix contentToImagePixels = GetImageCtm(executionContext.Frames.TotalMatrix).Invert().PostConcat(SKMatrix.CreateScale(imageSize.Width, imageSize.Height));
         SKRect mapped = contentToImagePixels.MapRect(executionContext.PageRegionOfInterest.Value);
         SKRectI imageRoi = SKRectI.Round(mapped);
         imageRoi.Intersect(fullImageBounds);

@@ -9,7 +9,7 @@ namespace PdfPixel.Commands.Image;
 /// </summary>
 internal readonly struct SnappedTilePlacement
 {
-    public SnappedTilePlacement(SKSizeI deviceSize, SKMatrix placementMatrix, in SKSamplingOptions sampling)
+    public SnappedTilePlacement(SKSize deviceSize, SKMatrix placementMatrix, in SKSamplingOptions sampling)
     {
         DeviceSize = deviceSize;
         PlacementMatrix = placementMatrix;
@@ -17,7 +17,7 @@ internal readonly struct SnappedTilePlacement
         Sampling = sampling;
     }
 
-    public SKSizeI DeviceSize { get; }
+    public SKSize DeviceSize { get; }
 
     public SKMatrix PlacementMatrix { get; }
 

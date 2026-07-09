@@ -19,15 +19,8 @@ public sealed class DrawSoftMaskImageTileCommand : PdfCommand
     /// <inheritdoc />
     public override void Execute(PdfCommandExecutionContext executionContext)
     {
-        _context.ImageCache.InitializeNextTile(executionContext.ExecutionObserver);
-        _context.MaskCache.InitializeNextTile(executionContext.ExecutionObserver);
-
-        PdfImageTile imageTile = _context.ImageCache.GetNextTile();
-        PdfImageTile maskTile = _context.MaskCache.GetNextTile();
-        if (imageTile.IsSkipped || maskTile.IsSkipped)
-        {
-            return;
-        }
+        PdfImageTile imageTile = _context.ImageCache.GetNextTile(executionContext.ExecutionObserver);
+        PdfImageTile maskTile = _context.MaskCache.GetNextTile(executionContext.ExecutionObserver);
 
         if (imageTile.Image == null || maskTile.Image == null)
         {

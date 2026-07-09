@@ -123,6 +123,11 @@ internal static class CommandHelpers
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static SKRect GetPixelSnappedRect(SKRect rect, PdfCommandExecutionContext executionContext)
     {
+        if (!executionContext.Parameters.SnapToDevicePixels)
+        {
+            return rect;
+        }
+
         SKMatrix scaledMatrix = GetScaledMatrix(executionContext);
 
         if (!IsAxisAligned(scaledMatrix))
@@ -140,7 +145,7 @@ internal static class CommandHelpers
     /// Returns whether <paramref name="matrix"/> has no rotation or skew, within <see cref="AxisAlignEpsilon"/>.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static bool IsAxisAligned(SKMatrix matrix)
+    public static bool IsAxisAligned(SKMatrix matrix)
         => MathF.Abs(matrix.SkewX) <= AxisAlignEpsilon && MathF.Abs(matrix.SkewY) <= AxisAlignEpsilon;
 
     /// <summary>

@@ -27,7 +27,8 @@ public sealed class PdfCommandExecutionContext : IDisposable
     {
         Parameters = parameters ?? throw new ArgumentNullException(nameof(parameters));
         ContentLocker = contentLocker ?? throw new ArgumentNullException(nameof(contentLocker));
-        MarkedContent = new PdfMarkedContentState(optionalContentGroups ?? throw new ArgumentNullException(nameof(optionalContentGroups)));
+        OptionalContentGroups = optionalContentGroups ?? throw new ArgumentNullException(nameof(optionalContentGroups));
+        MarkedContent = new PdfMarkedContentState(OptionalContentGroups);
         ExecutionObserver = executionObserver;
         Canvas = canvas ?? throw new ArgumentNullException(nameof(canvas));
         PageRegionOfInterest = pageRegionOfInterest;
@@ -95,6 +96,11 @@ public sealed class PdfCommandExecutionContext : IDisposable
     /// Tracks active marked content scopes and evaluates optional content visibility.
     /// </summary>
     public PdfMarkedContentState MarkedContent { get; }
+
+    /// <summary>
+    /// Optional content groups (layers) defined by the document, keyed by their indirect reference.
+    /// </summary>
+    public IReadOnlyDictionary<PdfReference, PdfOptionalContentGroup> OptionalContentGroups { get; }
 
     /// <summary>
     /// Root of the text block tree built during command execution.

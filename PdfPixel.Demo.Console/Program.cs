@@ -13,10 +13,10 @@ namespace PdfPixel.Console.Demo
         private static void Main()
         {
             // The only thing you need to change to run this example.
-            string pdfPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "pdfs", "pr8808.pdf.pdf");
+            string pdfPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "pdfs", "bug810214.pdf.link.pdf");
 
             // Multiplies the page size before rendering; use a value above 1 for a sharper output image.
-            float scale = 4f;
+            float scale = 1f;
 
             // Renders using a GPU-backed Skia surface (OpenGL) instead of a software-only one.
             bool gpuMode = false;

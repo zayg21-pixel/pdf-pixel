@@ -51,7 +51,7 @@ namespace PdfPixel.Imaging.Processing
 
         public static SKShader BuildImageShader(
             SKImage source,
-            SKSizeI targetSize,
+            SKSize targetSize,
             in SKSamplingOptions sampling)
         {
             return source.ToShader(
@@ -61,7 +61,7 @@ namespace PdfPixel.Imaging.Processing
                 BuildShaderMatrix(source, targetSize));
         }
 
-        private static SKMatrix BuildShaderMatrix(SKImage source, SKSizeI targetSize)
+        private static SKMatrix BuildShaderMatrix(SKImage source, SKSize targetSize)
         {
             return SKMatrix.CreateScale(
                 (float)targetSize.Width / source.Width,

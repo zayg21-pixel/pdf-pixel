@@ -25,7 +25,7 @@ public sealed class InitializeTileCacheCommand : PdfCommand
     /// <inheritdoc />
     public override void Execute(PdfCommandExecutionContext executionContext)
     {
-        SKMatrix ctm = CommandHelpers.GetScaledMatrix(executionContext);
+        SKMatrix ctm = PdfImageCommandUtilities.GetImageCtm(CommandHelpers.GetScaledMatrix(executionContext));
         SKRectI imageRegion = PdfImageCommandUtilities.ComputeImageRegionOfInterest(_imageSize, executionContext);
 
         if (imageRegion.Width != _imageSize.Width || imageRegion.Height != _imageSize.Height)
@@ -34,11 +34,7 @@ public sealed class InitializeTileCacheCommand : PdfCommand
         }
 
         _tileCache.Initialize(ctm, imageRegion, executionContext.ContentLocker, executionContext.ExecutionObserver);
-        _tileCache.ResetTileIndexes();
-
-        SKRect contentRegion = PdfImageCommandUtilities.ComputeContentRegionOfInterest(executionContext);
-        executionContext.Canvas.ClipRect(contentRegion, SKClipOperation.Intersect, antialias: false);
-        executionContext.Frames.OnClipRect(contentRegion, SKClipOperation.Intersect, antialias: false);
+        _tileCache.ResetTileIndex();
     }
 
     /// <inheritdoc />

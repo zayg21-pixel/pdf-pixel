@@ -1,3 +1,4 @@
+using PdfPixel.Models;
 using System;
 using SkiaSharp;
 
@@ -9,10 +10,11 @@ namespace PdfPixel.Commands;
 public sealed class DrawTilingCommand : PdfCommand
 {
     /// <summary>
-    /// Initializes the command with the pattern-space bounds to tile, the cell step, and the recorded cell content.
+    /// Initializes the command with the pattern-space bounds to tile, the cell bounding box, the cell step, and the recorded cell content.
     /// </summary>
-    public DrawTilingCommand(SKRect bounds, float xStep, float yStep, DrawRecordingCommand recordingCommand)
+    public DrawTilingCommand(SKRect bounds, SKRect bbox, float xStep, float yStep, DrawRecordingCommand recordingCommand)
     {
+        BBox = bbox;
         XStep = xStep;
         YStep = yStep;
         RecordingCommand = recordingCommand;
@@ -26,6 +28,11 @@ public sealed class DrawTilingCommand : PdfCommand
         XCount = (int)Math.Ceiling((endX - startX) / xStep);
         YCount = (int)Math.Ceiling((endY - startY) / yStep);
     }
+
+    /// <summary>
+    /// Gets the pattern cell's bounding box, in pattern space, that each tile is clipped to.
+    /// </summary>
+    public SKRect BBox { get; }
 
     /// <summary>
     /// Gets the pattern-space area to cover with tiles, expanded to whole steps.
@@ -63,6 +70,26 @@ public sealed class DrawTilingCommand : PdfCommand
     /// <inheritdoc />
     public override void Execute(PdfCommandExecutionContext executionContext)
     {
+        PdfCommandExecutionParameters childParameters = executionContext.Parameters.Clone();
+        childParameters.SnapToDevicePixels = false;
+
+        using SKPictureRecorder recorder = new();
+        using SKCanvas canvas = recorder.BeginRecording(BBox);
+        using PdfCommandExecutionContext childContext = new(
+            childParameters,
+            executionContext.ContentLocker,
+            executionContext.OptionalContentGroups,
+            executionContext.ExecutionObserver,
+            canvas);
+
+        // do not apply AA to clip BBox to avoid seams
+        canvas.ClipRect(BBox, SKClipOperation.Intersect);
+        childContext.Frames.OnConcatMatrix(executionContext.Frames.TotalMatrix);
+        RecordingCommand.Execute(childContext);
+
+        using SKPicture picture = recorder.EndRecording();
+
+        //return;
         for (int i = 0; i <= XCount; i++)
         {
             float x = TilingArea.Left + (i * XStep);
@@ -73,15 +100,10 @@ public sealed class DrawTilingCommand : PdfCommand
                 SKMatrix translation = SKMatrix.CreateTranslation(x, y);
 
                 executionContext.Canvas.Save();
-                executionContext.Frames.OnSaveState();
-
                 executionContext.Canvas.Concat(translation);
-                executionContext.Frames.OnConcatMatrix(translation);
-
-                RecordingCommand.Execute(executionContext);
+                executionContext.Canvas.DrawPicture(picture);
 
                 executionContext.Canvas.Restore();
-                executionContext.Frames.OnRestoreState();
             }
         }
     }

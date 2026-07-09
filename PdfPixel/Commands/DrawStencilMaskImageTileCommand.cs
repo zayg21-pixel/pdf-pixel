@@ -26,16 +26,13 @@ public sealed class DrawStencilMaskImageTileCommand : PdfCommand
     /// <inheritdoc />
     public override void Execute(PdfCommandExecutionContext executionContext)
     {
-        _context.TileCache.InitializeNextTile(executionContext.ExecutionObserver);
-
-        PdfImageTile tile = _context.TileCache.GetNextTile();
+        PdfImageTile tile = _context.TileCache.GetNextTile(executionContext.ExecutionObserver);
         if (tile.IsSkipped || tile.Image == null)
         {
             return;
         }
 
-        SnappedTilePlacement placement = PdfImageCommandUtilities.GetSnappedTilePlacement(
-            executionContext, _context.ImageSize, tile.TilePosition, _context.Interpolate);
+        SnappedTilePlacement placement = PdfImageCommandUtilities.GetSnappedTilePlacement(executionContext, _context.ImageSize, tile.TilePosition, _context.Interpolate);
 
         using SKPaint paint = PdfImageCommandUtilities.GetBaseImagePaint(_context.DecodingContext);
         paint.ColorFilter = _colorFilter;

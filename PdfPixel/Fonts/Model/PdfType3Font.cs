@@ -150,9 +150,7 @@ public class PdfType3Font : PdfSingleByteFont
 
         PdfGraphicsState charState = new(glyphPage, sourceState.RecursionGuard, default, default, sourceState.RenderingParameters);
 
-        recorder.Process(SaveStateCommand.Instance);
         contentRenderer.RenderContext(recorder, ref parseContext, charState);
-        recorder.Process(RestoreStateCommand.Instance);
 
         PdfType3CharacterInfo info = new(recorder, boundingBox, advancement);
         type3Cache[charCode] = info;

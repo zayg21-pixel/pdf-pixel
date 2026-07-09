@@ -53,7 +53,6 @@ internal class ImageFillRenderTarget : IRenderTarget
         {
             ImageDecodingContext maskContext = new(_context, SKColors.White, 1f, SKBlendMode.DstIn);
             processor.Process(SaveStateCommand.Instance);
-            processor.Process(new ConcatMatrixCommand(PdfImageCommandUtilities.GetImageMatrix()));
             ProcessTileCommands(processor, _image, maskContext);
             processor.Process(RestoreStateCommand.Instance);
         }
@@ -69,12 +68,7 @@ internal class ImageFillRenderTarget : IRenderTarget
             return;
         }
 
-        processor.Process(SaveStateCommand.Instance);
-        processor.Process(new ConcatMatrixCommand(PdfImageCommandUtilities.GetImageMatrix()));
-
         ProcessTileCommands(processor, _image, _context);
-
-        processor.Process(RestoreStateCommand.Instance);
     }
 
     private void ProcessTileCommands(IPdfCommandProcessor processor, PdfImage image, ImageDecodingContext context)
