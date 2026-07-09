@@ -42,7 +42,6 @@ public sealed class SkCanvasCommandProcessor : IPdfCommandProcessor
 
         try
         {
-            command.Initialize(_executionContext);
             command.Execute(_executionContext);
         }
         catch (OperationCanceledException)

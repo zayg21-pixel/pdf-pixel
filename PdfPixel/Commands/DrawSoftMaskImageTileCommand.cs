@@ -18,15 +18,11 @@ public sealed class DrawSoftMaskImageTileCommand : PdfCommand
     public override PdfCommandFeatures Features => PdfCommandFeatures.Region | PdfCommandFeatures.Scale | PdfCommandFeatures.DeferredDispose;
 
     /// <inheritdoc />
-    public override void Initialize(PdfCommandExecutionContext executionContext)
+    public override void Execute(PdfCommandExecutionContext executionContext)
     {
         _context.ImageCache.InitializeNextTile(executionContext.ExecutionObserver);
         _context.MaskCache.InitializeNextTile(executionContext.ExecutionObserver);
-    }
 
-    /// <inheritdoc />
-    public override void Execute(PdfCommandExecutionContext executionContext)
-    {
         PdfImageTile imageTile = _context.ImageCache.GetNextTile();
         PdfImageTile maskTile = _context.MaskCache.GetNextTile();
         if (imageTile.IsSkipped || maskTile.IsSkipped)

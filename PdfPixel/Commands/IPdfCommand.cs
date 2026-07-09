@@ -8,14 +8,6 @@ namespace PdfPixel.Commands;
 public interface IPdfCommand : IDisposable
 {
     /// <summary>
-    /// Prepares this command for execution — decodes images, populates caches, and performs
-    /// other long-running work that does not require the canvas. Called on the background thread
-    /// before <see cref="Execute"/>. The execution context must not change between the two calls.
-    /// </summary>
-    /// <param name="executionContext">Execution-time context containing rendering parameters and cancellation.</param>
-    void Initialize(PdfCommandExecutionContext executionContext);
-
-    /// <summary>
     /// Executes this command. The canvas to draw on is obtained from <see cref="PdfCommandExecutionContext.Canvas"/>.
     /// </summary>
     /// <param name="executionContext">Execution-time context containing the canvas, rendering parameters, and cancellation.</param>

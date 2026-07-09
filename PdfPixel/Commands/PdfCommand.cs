@@ -11,11 +11,6 @@ public abstract class PdfCommand : IPdfCommand
     ~PdfCommand() => Dispose(disposing: false);
 
     /// <inheritdoc />
-    public virtual void Initialize(PdfCommandExecutionContext executionContext)
-    {
-    }
-
-    /// <inheritdoc />
     public abstract void Execute(PdfCommandExecutionContext executionContext);
 
     /// <inheritdoc />

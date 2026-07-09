@@ -29,46 +29,6 @@ public sealed class PdfCommandRecorder : IPdfCommandProcessor
     public IReadOnlyList<IPdfCommand> Commands => _commands;
 
     /// <summary>
-    /// Runs the Initialize phase on all recorded commands, preparing caches and decoding
-    /// images without touching the canvas.
-    /// </summary>
-    /// <param name="executionContext">Execution-time context containing rendering parameters and cancellation.</param>
-    public void Initialize(PdfCommandExecutionContext executionContext)
-    {
-        if (executionContext == null)
-        {
-            throw new ArgumentNullException(nameof(executionContext));
-        }
-
-        foreach (IPdfCommand command in _commands)
-        {
-            if (!executionContext.MarkedContent.ShouldExecute(command))
-            {
-                continue;
-            }
-
-            try
-            {
-                command.Initialize(executionContext);
-            }
-            catch (OperationCanceledException)
-            {
-                throw;
-            }
-#pragma warning disable CA1031 // Do not catch general exception types
-            catch (Exception exception)
-#pragma warning restore CA1031 // Do not catch general exception types
-            {
-                _logger.LogWarning(exception, "Command {CommandType} failed during initialization.", command.GetType().Name);
-                continue;
-            }
-
-            executionContext.CurrentCommand = command;
-            executionContext.ExecutionObserver?.Notify();
-        }
-    }
-
-    /// <summary>
     /// Replays all recorded commands using the canvas and rendering parameters from <paramref name="executionContext"/>.
     /// </summary>
     /// <param name="executionContext">Execution-time context containing the canvas, rendering parameters, and cancellation.</param>

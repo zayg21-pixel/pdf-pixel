@@ -44,26 +44,6 @@ public sealed class DrawRecordingCommand : PdfCommand
     public override PdfCommandFeatures Features => Recorder.Commands.Aggregate(PdfCommandFeatures.None, (acc, cmd) => acc | cmd.Features);
 
     /// <inheritdoc />
-    public override void Initialize(PdfCommandExecutionContext executionContext)
-    {
-        int savesCountBefore = executionContext.Frames.SavesCount;
-
-        if (Modifier != null)
-        {
-            executionContext.UncoloredModifier = Modifier;
-        }
-
-        Recorder.Initialize(executionContext);
-
-        BalanceFrames(executionContext, savesCountBefore, applyToCanvas: false);
-       
-        if (Modifier != null)
-        {
-            executionContext.UncoloredModifier = null;
-        }
-    }
-
-    /// <inheritdoc />
     public override void Execute(PdfCommandExecutionContext executionContext)
     {
         int savesCountBefore = executionContext.Frames.SavesCount;
@@ -74,7 +54,7 @@ public sealed class DrawRecordingCommand : PdfCommand
 
         Recorder.Replay(executionContext);
 
-        BalanceFrames(executionContext, savesCountBefore, applyToCanvas: true);
+        BalanceFrames(executionContext, savesCountBefore);
 
         if (Modifier != null)
         {
@@ -88,27 +68,19 @@ public sealed class DrawRecordingCommand : PdfCommand
     /// than they saved (popping into the caller's own saved state). Left unbalanced, either case
     /// would corrupt the canvas and frame state for every command that runs after this one.
     /// </summary>
-    private static void BalanceFrames(PdfCommandExecutionContext executionContext, int savesCountBefore, bool applyToCanvas)
+    private static void BalanceFrames(PdfCommandExecutionContext executionContext, int savesCountBefore)
     {
         PdfCommandExecutionFrames frames = executionContext.Frames;
 
         while (frames.SavesCount > savesCountBefore)
         {
-            if (applyToCanvas)
-            {
-                executionContext.Canvas.Restore();
-            }
-
+            executionContext.Canvas.Restore();
             frames.OnRestoreState();
         }
 
         while (frames.SavesCount < savesCountBefore)
         {
-            if (applyToCanvas)
-            {
-                executionContext.Canvas.Save();
-            }
-
+            executionContext.Canvas.Save();
             frames.OnSaveState();
         }
     }

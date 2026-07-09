@@ -24,12 +24,10 @@ public sealed class DrawStencilMaskImageTileCommand : PdfCommand
     public override PdfCommandFeatures Features => PdfCommandFeatures.Region | PdfCommandFeatures.Scale | PdfCommandFeatures.DeferredDispose;
 
     /// <inheritdoc />
-    public override void Initialize(PdfCommandExecutionContext executionContext)
-        => _context.TileCache.InitializeNextTile(executionContext.ExecutionObserver);
-
-    /// <inheritdoc />
     public override void Execute(PdfCommandExecutionContext executionContext)
     {
+        _context.TileCache.InitializeNextTile(executionContext.ExecutionObserver);
+
         PdfImageTile tile = _context.TileCache.GetNextTile();
         if (tile.IsSkipped || tile.Image == null)
         {

@@ -12,10 +12,6 @@ public sealed class SaveStateCommand : PdfCommand
     }
 
     /// <inheritdoc />
-    public override void Initialize(PdfCommandExecutionContext executionContext)
-        => executionContext.Frames.OnSaveState();
-
-    /// <inheritdoc />
     public override void Execute(PdfCommandExecutionContext executionContext)
     {
         executionContext.Canvas.Save();

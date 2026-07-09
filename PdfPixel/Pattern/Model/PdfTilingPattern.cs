@@ -1,4 +1,3 @@
-using System;
 using PdfPixel.Commands;
 using PdfPixel.Models;
 using PdfPixel.Pattern.Utilities;
@@ -81,28 +80,8 @@ public sealed class PdfTilingPattern : PdfPattern
 
         SKRect bounds = matrix.Invert().MapRect(renderTarget.Bounds);
 
-        var startX = (float)(Math.Floor(bounds.Left / XStep) * XStep);
-        var startY = (float)(Math.Floor(bounds.Top / YStep) * YStep);
-        var endX = (float)(Math.Ceiling(bounds.Right / XStep) * XStep);
-        var endY = (float)(Math.Ceiling(bounds.Bottom / YStep) * YStep);
-
-        var xCount = (int)Math.Ceiling((endX - startX) / XStep);
-        var yCount = (int)Math.Ceiling((endY - startY) / YStep);
-        DrawRecordingCommand recordingCommand = new (tileRecorder, modifier);
-
-        for (int i = 0; i <= xCount; i++)
-        {
-            float x = startX + (i * XStep);
-            for (int j = 0; j <= yCount; j++)
-            {
-                float y = startY + (j * YStep);
-
-                processor.Process(SaveStateCommand.Instance);
-                processor.Process(new ConcatMatrixCommand(SKMatrix.CreateTranslation(x, y)));
-                processor.Process(recordingCommand);
-                processor.Process(RestoreStateCommand.Instance);
-            }
-        }
+        DrawRecordingCommand recordingCommand = new(tileRecorder, modifier);
+        processor.Process(new DrawTilingCommand(bounds, XStep, YStep, recordingCommand));
 
         processor.Process(RestoreStateCommand.Instance);
         renderTarget.AfterPatternRender(processor);

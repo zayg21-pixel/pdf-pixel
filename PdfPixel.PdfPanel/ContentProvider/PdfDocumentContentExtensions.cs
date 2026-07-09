@@ -99,7 +99,6 @@ internal static class PdfDocumentContentExtensions
             throw new ArgumentNullException(nameof(executionContext));
         }
 
-        commandRecording.Initialize(executionContext);
         executionContext.Frames.Reset();
         commandRecording.Replay(executionContext);
 

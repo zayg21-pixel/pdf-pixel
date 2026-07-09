@@ -7,9 +7,9 @@ using SkiaSharp;
 namespace PdfPixel.Commands;
 
 /// <summary>
-/// Draws PDF shading. Initialize prepares expensive data (function sampling, mesh decoding,
-/// gradient construction). Execute draws the prepared results to the canvas.
-/// Caches expensive results and only rebuilds when the relevant rendering parameter changes.
+/// Draws PDF shading. Builds expensive data (function sampling, mesh decoding, gradient construction)
+/// and draws the results to the canvas. Caches expensive results and only rebuilds when the relevant
+/// rendering parameter changes.
 /// </summary>
 public sealed class DrawShadingCommand : PdfCommand
 {
@@ -48,44 +48,6 @@ public sealed class DrawShadingCommand : PdfCommand
         _shading = shading;
         _context = context;
         _builder = new PdfShadingBuilder(loggerFactory);
-    }
-
-    /// <inheritdoc />
-    public override void Initialize(PdfCommandExecutionContext executionContext)
-    {
-        lock (executionContext.ContentLocker)
-        {
-            switch (_shading.ShadingType)
-            {
-                case PdfShadingType.FunctionBased:
-                {
-                    InitializeFunctionBased(executionContext);
-                    break;
-                }
-                case PdfShadingType.Axial:
-                {
-                    InitializeAxial(executionContext);
-                    break;
-                }
-                case PdfShadingType.Radial:
-                {
-                    InitializeRadial(executionContext);
-                    break;
-                }
-                case PdfShadingType.FreeFormGouraud:
-                case PdfShadingType.LatticeFormGouraud:
-                {
-                    InitializeGouraud();
-                    break;
-                }
-                case PdfShadingType.CoonsPatchMesh:
-                case PdfShadingType.TensorProductPatchMesh:
-                {
-                    InitializePatchMesh(executionContext);
-                    break;
-                }
-            }
-        }
     }
 
     /// <inheritdoc />
@@ -190,6 +152,11 @@ public sealed class DrawShadingCommand : PdfCommand
 
     private void ExecuteFunctionBased(PdfCommandExecutionContext executionContext)
     {
+        lock (executionContext.ContentLocker)
+        {
+            InitializeFunctionBased(executionContext);
+        }
+
         if (_functionCache == null)
         {
             return;
@@ -203,6 +170,11 @@ public sealed class DrawShadingCommand : PdfCommand
 
     private void ExecuteAxial(PdfCommandExecutionContext executionContext)
     {
+        lock (executionContext.ContentLocker)
+        {
+            InitializeAxial(executionContext);
+        }
+
         if (_axialCache == null)
         {
             return;
@@ -213,6 +185,11 @@ public sealed class DrawShadingCommand : PdfCommand
 
     private void ExecuteRadial(PdfCommandExecutionContext executionContext)
     {
+        lock (executionContext.ContentLocker)
+        {
+            InitializeRadial(executionContext);
+        }
+
         if (_radialCache == null)
         {
             return;
@@ -224,6 +201,11 @@ public sealed class DrawShadingCommand : PdfCommand
 
     private void ExecuteGouraud(PdfCommandExecutionContext executionContext)
     {
+        lock (executionContext.ContentLocker)
+        {
+            InitializeGouraud();
+        }
+
         if (_gouraudCache == null)
         {
             return;
@@ -234,6 +216,11 @@ public sealed class DrawShadingCommand : PdfCommand
 
     private void ExecutePatchMesh(PdfCommandExecutionContext executionContext)
     {
+        lock (executionContext.ContentLocker)
+        {
+            InitializePatchMesh(executionContext);
+        }
+
         if (_patchMeshCache == null)
         {
             return;

@@ -1,6 +1,5 @@
 using PdfPixel.Commands.Image;
 using SkiaSharp;
-using System;
 
 namespace PdfPixel.Commands;
 
@@ -14,8 +13,6 @@ public sealed class InitializeTileCacheCommand : PdfCommand
     private readonly PdfImageTileCacheEntry _tileCache;
     private readonly SKSizeI _imageSize;
 
-    private PdfCommandExecutionContext? _initializedContext;
-
     internal InitializeTileCacheCommand(PdfImageTileCacheEntry tileCache, SKSizeI imageSize)
     {
         _tileCache = tileCache;
@@ -26,10 +23,8 @@ public sealed class InitializeTileCacheCommand : PdfCommand
     public override PdfCommandFeatures Features => PdfCommandFeatures.Region | PdfCommandFeatures.Scale | PdfCommandFeatures.DeferredDispose;
 
     /// <inheritdoc />
-    public override void Initialize(PdfCommandExecutionContext executionContext)
+    public override void Execute(PdfCommandExecutionContext executionContext)
     {
-        _initializedContext = executionContext;
-
         SKMatrix ctm = CommandHelpers.GetScaledMatrix(executionContext);
         SKRectI imageRegion = PdfImageCommandUtilities.ComputeImageRegionOfInterest(_imageSize, executionContext);
 
@@ -39,19 +34,6 @@ public sealed class InitializeTileCacheCommand : PdfCommand
         }
 
         _tileCache.Initialize(ctm, imageRegion, executionContext.ContentLocker, executionContext.ExecutionObserver);
-
-        SKRect contentRegion = PdfImageCommandUtilities.ComputeContentRegionOfInterest(executionContext);
-        executionContext.Frames.OnClipRect(contentRegion, SKClipOperation.Intersect, antialias: false);
-    }
-
-    /// <inheritdoc />
-    public override void Execute(PdfCommandExecutionContext executionContext)
-    {
-        if (!ReferenceEquals(executionContext, _initializedContext))
-        {
-            throw new InvalidOperationException("Execution context changed between Initialize and Execute.");
-        }
-
         _tileCache.ResetTileIndexes();
 
         SKRect contentRegion = PdfImageCommandUtilities.ComputeContentRegionOfInterest(executionContext);
