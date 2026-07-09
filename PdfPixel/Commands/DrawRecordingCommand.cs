@@ -47,6 +47,8 @@ public sealed class DrawRecordingCommand : PdfCommand
     public override void Execute(PdfCommandExecutionContext executionContext)
     {
         int savesCountBefore = executionContext.Frames.SavesCount;
+        UncoloredPaintModifier? previousModifier = executionContext.UncoloredModifier;
+
         if (Modifier != null)
         {
             executionContext.UncoloredModifier = Modifier;
@@ -56,10 +58,7 @@ public sealed class DrawRecordingCommand : PdfCommand
 
         BalanceFrames(executionContext, savesCountBefore);
 
-        if (Modifier != null)
-        {
-            executionContext.UncoloredModifier = null;
-        }
+        executionContext.UncoloredModifier = previousModifier;
     }
 
     /// <summary>

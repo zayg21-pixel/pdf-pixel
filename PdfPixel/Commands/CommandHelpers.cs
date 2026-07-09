@@ -102,8 +102,7 @@ internal static class CommandHelpers
 
         SKMatrix scaledMatrix = GetScaledMatrix(executionContext);
 
-        bool isAxisAligned = MathF.Abs(scaledMatrix.SkewX) <= AxisAlignEpsilon && MathF.Abs(scaledMatrix.SkewY) <= AxisAlignEpsilon;
-        if (!isAxisAligned)
+        if (!IsAxisAligned(scaledMatrix))
         {
             return true;
         }
@@ -115,6 +114,65 @@ internal static class CommandHelpers
         }
 
         return false;
+    }
+
+    /// <summary>
+    /// Snaps <paramref name="rect"/> to whole device pixels when the command-derived total
+    /// matrix is axis-aligned, returning it unchanged otherwise.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static SKRect GetPixelSnappedRect(SKRect rect, PdfCommandExecutionContext executionContext)
+    {
+        SKMatrix scaledMatrix = GetScaledMatrix(executionContext);
+
+        if (!IsAxisAligned(scaledMatrix))
+        {
+            return rect;
+        }
+
+        SKRect deviceRect = scaledMatrix.MapRect(rect);
+        SKRect snappedDeviceRect = SnapToDevicePixels(deviceRect);
+
+        return scaledMatrix.Invert().MapRect(snappedDeviceRect);
+    }
+
+    /// <summary>
+    /// Returns whether <paramref name="matrix"/> has no rotation or skew, within <see cref="AxisAlignEpsilon"/>.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static bool IsAxisAligned(SKMatrix matrix)
+        => MathF.Abs(matrix.SkewX) <= AxisAlignEpsilon && MathF.Abs(matrix.SkewY) <= AxisAlignEpsilon;
+
+    /// <summary>
+    /// Snaps <paramref name="deviceRect"/> to whole device pixels, with a minimum size of one
+    /// device pixel per dimension.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static SKRect SnapToDevicePixels(SKRect deviceRect)
+    {
+        (float left, float right) = SnapDimensionToWholePixels(deviceRect.Left, deviceRect.Right);
+        (float top, float bottom) = SnapDimensionToWholePixels(deviceRect.Top, deviceRect.Bottom);
+
+        return new SKRect(left, top, right, bottom);
+    }
+
+    /// <summary>
+    /// Snaps a [<paramref name="low"/>, <paramref name="high"/>) range to whole pixel
+    /// boundaries, with a minimum size of one pixel.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static (float Low, float High) SnapDimensionToWholePixels(float low, float high)
+    {
+        if (high - low < 1)
+        {
+            float snappedLow = MathF.Floor(low);
+            return (snappedLow, snappedLow + 1);
+        }
+
+        float roundedLow = MathF.Round(low);
+        float roundedHigh = MathF.Round(high);
+
+        return (roundedLow, roundedHigh);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]

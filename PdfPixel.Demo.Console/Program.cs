@@ -13,10 +13,10 @@ namespace PdfPixel.Console.Demo
         private static void Main()
         {
             // The only thing you need to change to run this example.
-            string pdfPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "pdfs", "sample.pdf");
+            string pdfPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "pdfs", "pr8808.pdf.pdf");
 
             // Multiplies the page size before rendering; use a value above 1 for a sharper output image.
-            float scale = 1f;
+            float scale = 4f;
 
             // Renders using a GPU-backed Skia surface (OpenGL) instead of a software-only one.
             bool gpuMode = false;
@@ -57,18 +57,6 @@ namespace PdfPixel.Console.Demo
                 SKCanvas canvas = surface.Canvas;
                 canvas.Clear(SKColors.White);
 
-                // Save the canvas state before applying the page transform, so it can be restored afterwards.
-                int savedCanvasState = canvas.Save();
-
-                // Scales the whole page up or down to the requested output resolution.
-                canvas.Scale(scale, scale);
-
-                // PDF content is authored with the origin at the bottom-left and Y increasing upward.
-                // The canvas has the origin at the top-left and Y increasing downward, so the page must
-                // be translated and flipped vertically to land right-side-up in the output image.
-                canvas.Translate(-page.CropBox.Left, page.CropBox.Height + page.CropBox.Top);
-                canvas.Scale(1, -1);
-
                 // Guards the page's lazily-parsed content stream against concurrent access; use a private
                 // object per concurrent render of the same page.
                 object contentLocker = new();
@@ -92,6 +80,18 @@ namespace PdfPixel.Console.Demo
                 // Executes each drawing command immediately against executionContext.Canvas.
                 using SkCanvasCommandProcessor processor = new(executionContext, loggerFactory.CreateLogger<SkCanvasCommandProcessor>());
 
+                // Save the execution context's state before applying the page transform, so it can be restored afterwards.
+                processor.Process(SaveStateCommand.Instance);
+
+                // Scales the whole page up or down to the requested output resolution.
+                processor.Process(new ConcatMatrixCommand(SKMatrix.CreateScale(scale, scale)));
+
+                // PDF content is authored with the origin at the bottom-left and Y increasing upward.
+                // The canvas has the origin at the top-left and Y increasing downward, so the page must
+                // be translated and flipped vertically to land right-side-up in the output image.
+                processor.Process(new ConcatMatrixCommand(SKMatrix.CreateTranslation(-page.CropBox.Left, page.CropBox.Height + page.CropBox.Top)));
+                processor.Process(new ConcatMatrixCommand(SKMatrix.CreateScale(1, -1)));
+
                 // Draws the page content: paths, text, images, and shadings.
                 page.Render(processor, new PdfRenderingParameters(), executionObserver);
 
@@ -107,8 +107,8 @@ namespace PdfPixel.Console.Demo
                     annotation.Render(processor, PdfAnnotationVisualStateKind.Normal, new PdfRenderingParameters(), executionObserver);
                 }
 
-                // Undoes the scale/translate/flip applied above, leaving the canvas in its original state.
-                canvas.RestoreToCount(savedCanvasState);
+                // Undoes the scale/translate/flip applied above, leaving the execution context in its original state.
+                processor.Process(RestoreStateCommand.Instance);
 
                 string outputPath = Path.Combine(outputDirectory, $"{page.PageNumber}.bmp");
                 using SKImage image = surface.Snapshot();

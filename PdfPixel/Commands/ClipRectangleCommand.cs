@@ -23,9 +23,10 @@ public sealed class ClipRectangleCommand : PdfCommand
     /// <inheritdoc />
     public override void Execute(PdfCommandExecutionContext executionContext)
     {
-        bool antialias = CommandHelpers.GetRectIsAntialias(_rect, executionContext);
-        executionContext.Canvas.ClipRect(_rect, _operation, antialias);
-        executionContext.Frames.OnClipRect(_rect, _operation, antialias);
+        SKRect snappedRect = CommandHelpers.GetPixelSnappedRect(_rect, executionContext);
+        bool antialias = CommandHelpers.GetRectIsAntialias(snappedRect, executionContext);
+        executionContext.Canvas.ClipRect(snappedRect, _operation, antialias);
+        executionContext.Frames.OnClipRect(snappedRect, _operation, antialias);
     }
 
     /// <inheritdoc />

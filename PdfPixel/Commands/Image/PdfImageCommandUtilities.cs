@@ -49,7 +49,7 @@ internal static class PdfImageCommandUtilities
         SKMatrix pixelToDeviceMatrix = ctm.PreConcat(SKMatrix.CreateScale(1f / imageSize.Width, 1f / imageSize.Height));
 
         SKRect devicePosition = pixelToDeviceMatrix.MapRect((SKRect)tilePosition);
-        SKRect snappedDevicePosition = SnapToDevicePixels(devicePosition);
+        SKRect snappedDevicePosition = CommandHelpers.SnapToDevicePixels(devicePosition);
 
         SKSizeI deviceSize = new(
             (int)(snappedDevicePosition.Right - snappedDevicePosition.Left),
@@ -83,38 +83,6 @@ internal static class PdfImageCommandUtilities
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static bool IsAxisAligned(SKMatrix ctm)
         => ctm.SkewX == 0 && ctm.SkewY == 0 && ctm.ScaleX != 0 && ctm.ScaleY != 0;
-
-    /// <summary>
-    /// Snaps <paramref name="deviceRect"/> to whole device pixels, with a minimum size of one
-    /// device pixel per dimension.
-    /// </summary>
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static SKRect SnapToDevicePixels(SKRect deviceRect)
-    {
-        (float left, float right) = SnapDimensionToWholePixels(deviceRect.Left, deviceRect.Right);
-        (float top, float bottom) = SnapDimensionToWholePixels(deviceRect.Top, deviceRect.Bottom);
-
-        return new SKRect(left, top, right, bottom);
-    }
-
-    /// <summary>
-    /// Snaps a [<paramref name="low"/>, <paramref name="high"/>) range to whole pixel
-    /// boundaries, with a minimum size of one pixel.
-    /// </summary>
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static (float Low, float High) SnapDimensionToWholePixels(float low, float high)
-    {
-        if (high - low < 1)
-        {
-            float snappedLow = MathF.Floor(low);
-            return (snappedLow, snappedLow + 1);
-        }
-
-        float roundedLow = MathF.Round(low);
-        float roundedHigh = MathF.Round(high);
-
-        return (roundedLow, roundedHigh);
-    }
 
     /// <summary>
     /// Returns a scaled size for the given original size based on the current CTM, rounded up so
@@ -212,7 +180,7 @@ internal static class PdfImageCommandUtilities
 
         SKMatrix ctm = CommandHelpers.GetScaledMatrix(executionContext);
         SKRect deviceRect = ctm.MapRect(mapped);
-        SKRect snappedDeviceRect = SnapToDevicePixels(deviceRect);
+        SKRect snappedDeviceRect = CommandHelpers.SnapToDevicePixels(deviceRect);
 
         return ctm.Invert().MapRect(snappedDeviceRect);
     }
