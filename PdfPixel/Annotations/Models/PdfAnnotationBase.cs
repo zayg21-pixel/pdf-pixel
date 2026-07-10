@@ -1,3 +1,4 @@
+using PdfPixel.Annotations;
 using PdfPixel.Models;
 using PdfPixel.Text;
 using PdfPixel.Rendering.Operators;
@@ -33,7 +34,12 @@ public abstract class PdfAnnotationBase
 
         // Initialize all properties in constructor to avoid re-parsing
         Rectangle = PdfLocationUtilities.CreateBBox(annotationObject.Dictionary.GetArray(PdfTokens.RectKey)) ?? SKRect.Empty;
-        Contents = annotationObject.Dictionary.GetString(PdfTokens.ContentsKey);
+        RichContents = annotationObject.Dictionary.GetString(PdfTokens.RichContentsKey);
+
+        PdfString contents = annotationObject.Dictionary.GetString(PdfTokens.ContentsKey);
+        Contents = (contents.IsEmpty)
+            ? PdfRichTextContentParser.ExtractPlainText(RichContents)
+            : contents;
         Name = annotationObject.Dictionary.GetString(PdfTokens.NameKey);
 
         PdfString modDateString = annotationObject.Dictionary.GetString(PdfTokens.ModificationDateKey);
@@ -126,6 +132,12 @@ public abstract class PdfAnnotationBase
     /// for the annotation or associated with it.
     /// </summary>
     public PdfString Contents { get; }
+
+    /// <summary>
+    /// Gets the annotation's rich text contents (the RC entry), an XHTML-subset
+    /// markup representation of <see cref="Contents"/>.
+    /// </summary>
+    public PdfString RichContents { get; }
 
     /// <summary>
     /// Gets the annotation's name, a text string uniquely identifying it among
