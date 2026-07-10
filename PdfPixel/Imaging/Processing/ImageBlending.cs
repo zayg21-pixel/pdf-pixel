@@ -9,6 +9,7 @@ namespace PdfPixel.Imaging.Processing
     {
         private static readonly SKRuntimeEffect _softMaskEffect;
         private static readonly SKRuntimeEffect _imageMaskEffect;
+        private static readonly SKRuntimeEffect _imageMaskColorFilterEffect;
 
         static ImageBlending()
         {
@@ -45,8 +46,20 @@ namespace PdfPixel.Imaging.Processing
                     return half4(fillColor * maskAlpha, maskAlpha);
                 }
             ";
+            const string imageMaskColorFilterSksl = @"
+                uniform half3 fillColor;
+                uniform half useInverse;
+
+                half4 main(half4 color) {
+                    half gray = color.r;
+                    half maskAlpha = mix(gray, 1.0 - gray, useInverse);
+                    return half4(fillColor * maskAlpha, maskAlpha);
+                }
+            ";
+
             _softMaskEffect = SKRuntimeEffect.CreateShader(softMaskSksl, out _);
             _imageMaskEffect = SKRuntimeEffect.CreateShader(imageMaskSksl, out _);
+            _imageMaskColorFilterEffect = SKRuntimeEffect.CreateColorFilter(imageMaskColorFilterSksl, out _);
         }
 
         public static SKShader BuildImageShader(
@@ -111,6 +124,22 @@ namespace PdfPixel.Imaging.Processing
             SKRuntimeEffectChildren children = new(_imageMaskEffect) { { "mask", maskChild } };
 
             return _imageMaskEffect.ToShader(uniforms, children);
+        }
+
+        /// <summary>
+        /// Creates a color filter that turns a grayscale stencil mask image into the fill color,
+        /// using the mask's own gray value as alpha, with optional inversion. Applied directly to
+        /// the image being drawn, so the effect stays within the image's bounds.
+        /// </summary>
+        public static SKColorFilter CreateImageMaskColorFilter(in SKColor fillColor, bool inverse)
+        {
+            SKRuntimeEffectUniforms uniforms = new(_imageMaskColorFilterEffect)
+            {
+                ["fillColor"] = fillColor,
+                ["useInverse"] = inverse ? 1.0f : 0.0f
+            };
+
+            return _imageMaskColorFilterEffect.ToColorFilter(uniforms);
         }
     }
 }

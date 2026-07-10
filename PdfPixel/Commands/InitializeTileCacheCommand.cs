@@ -20,7 +20,7 @@ public sealed class InitializeTileCacheCommand : PdfCommand
     }
 
     /// <inheritdoc />
-    public override PdfCommandFeatures Features => PdfCommandFeatures.Region | PdfCommandFeatures.Scale | PdfCommandFeatures.DeferredDispose;
+    public override PdfCommandFeatures Features => PdfCommandFeatures.Region | PdfCommandFeatures.Scale;
 
     /// <inheritdoc />
     public override void Execute(PdfCommandExecutionContext executionContext)

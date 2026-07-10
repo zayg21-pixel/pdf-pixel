@@ -16,12 +16,11 @@ public sealed class DrawStencilMaskImageTileCommand : PdfCommand
     {
         _context = context;
         SKColor fillColor = _context.DecodingContext.FillColor;
-        float[] colorMatrix = PdfImageCommandUtilities.CreateStencilMaskColorMatrix(in fillColor, _context.InvertMask);
-        _colorFilter = SKColorFilter.CreateColorMatrix(colorMatrix);
+        _colorFilter = ImageBlending.CreateImageMaskColorFilter(in fillColor, _context.InvertMask);
     }
 
     /// <inheritdoc />
-    public override PdfCommandFeatures Features => PdfCommandFeatures.Region | PdfCommandFeatures.Scale | PdfCommandFeatures.DeferredDispose;
+    public override PdfCommandFeatures Features => PdfCommandFeatures.Region | PdfCommandFeatures.Scale;
 
     /// <inheritdoc />
     public override void Execute(PdfCommandExecutionContext executionContext)

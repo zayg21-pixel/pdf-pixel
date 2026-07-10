@@ -8,24 +8,6 @@ namespace PdfPixel.Commands.Image;
 internal static class PdfImageCommandUtilities
 {
     /// <summary>
-    /// Creates a color matrix that maps a grayscale mask to a solid fill color with
-    /// the gray channel used as alpha. Input is Gray8 where R=G=B=gray, A=1.
-    /// </summary>
-    public static float[] CreateStencilMaskColorMatrix(ref readonly SKColor fillColor, bool inverse)
-    {
-        float fillR = fillColor.Red / 255f;
-        float fillG = fillColor.Green / 255f;
-        float fillB = fillColor.Blue / 255f;
-
-        if (inverse)
-        {
-            return new float[] { -fillR, 0, 0, 0, fillR, 0, -fillG, 0, 0, fillG, 0, 0, -fillB, 0, fillB, -1, 0, 0, 0, 1 };
-        }
-
-        return new float[] { fillR, 0, 0, 0, 0, 0, fillG, 0, 0, 0, 0, 0, fillB, 0, 0, 1, 0, 0, 0, 0 };
-    }
-
-    /// <summary>
     /// Computes where <paramref name="tilePosition"/> should be drawn, snapping to whole device
     /// pixels when the CTM is axis-aligned, falling back to the tile's native pixel
     /// size with no snapping otherwise.
@@ -155,7 +137,7 @@ internal static class PdfImageCommandUtilities
 
         float maxScale = Math.Max(relScaleX, relScaleY);
 
-        if (maxScale >= 0.5f)
+        if (maxScale >= 1f)
         {
             return default;
         }

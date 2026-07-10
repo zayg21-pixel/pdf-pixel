@@ -1,6 +1,7 @@
 using PdfPixel.Models;
 using System;
 using SkiaSharp;
+using PdfPixel.Color.Paint;
 
 namespace PdfPixel.Commands;
 
@@ -89,6 +90,25 @@ public sealed class DrawTilingCommand : PdfCommand
 
         using SKPicture picture = recorder.EndRecording();
 
+        ShaderTilingParameters shaderTilingParameters = GetShaderTilingParameters(executionContext);
+
+        if (shaderTilingParameters.CanUseShaders)
+        {
+            SKRect tileRect = new(
+                BBox.Left,
+                BBox.Top,
+                BBox.Left + shaderTilingParameters.ExactTileSize.Width,
+                BBox.Top + shaderTilingParameters.ExactTileSize.Height);
+
+            using SKShader shader = picture.ToShader(SKShaderTileMode.Repeat, SKShaderTileMode.Repeat, tileRect);
+            using SKPaint shaderPaint = PdfPaintFactory.CreateShaderPaint();
+            shaderPaint.Shader = shader;
+
+            executionContext.Canvas.DrawRect(TilingArea, shaderPaint);
+
+            return;
+        }
+
         for (int i = 0; i <= XCount; i++)
         {
             float x = TilingArea.Left + (i * XStep);
@@ -107,6 +127,40 @@ public sealed class DrawTilingCommand : PdfCommand
         }
     }
 
+    private ShaderTilingParameters GetShaderTilingParameters(PdfCommandExecutionContext executionContext)
+    {
+        SKMatrix deviceMatrix = CommandHelpers.GetScaledMatrix(executionContext);
+        SKPoint deviceOrigin = deviceMatrix.MapPoint(SKPoint.Empty);
+        SKPoint deviceXAxis = deviceMatrix.MapPoint(new SKPoint(XStep, 0)) - deviceOrigin;
+        SKPoint deviceYAxis = deviceMatrix.MapPoint(new SKPoint(0, YStep)) - deviceOrigin;
+
+        float scaleX = deviceXAxis.Length / XStep;
+        float scaleY = deviceYAxis.Length / YStep;
+
+        float targetPixelsX = MathF.Round(deviceXAxis.Length);
+        float targetPixelsY = MathF.Round(deviceYAxis.Length);
+
+        SKSize exactTileSize = new(targetPixelsX / scaleX, targetPixelsY / scaleY);
+
+        int maxTileDeviceDimension = executionContext.Parameters.ImageTileSize;
+        bool canUseShaders = deviceXAxis.Length <= maxTileDeviceDimension && deviceYAxis.Length <= maxTileDeviceDimension;
+
+        return new ShaderTilingParameters(canUseShaders, exactTileSize);
+    }
+
     /// <inheritdoc />
     protected override void Dispose(bool disposing) => RecordingCommand.Dispose();
+
+    private readonly struct ShaderTilingParameters
+    {
+        public ShaderTilingParameters(bool canUseShaders, SKSize exactTileSize)
+        {
+            CanUseShaders = canUseShaders;
+            ExactTileSize = exactTileSize;
+        }
+
+        public bool CanUseShaders { get; }
+
+        public SKSize ExactTileSize { get; }
+    }
 }
