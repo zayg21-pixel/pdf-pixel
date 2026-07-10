@@ -52,6 +52,45 @@ internal static class PdfImageCommandUtilities
         return new SnappedTilePlacement(deviceSize, placementMatrix, sampling);
     }
 
+    /// <summary>
+    /// Computes where <paramref name="tilePosition"/> should be drawn, snapping only its
+    /// position to whole device pixels when the CTM is axis-aligned, while deriving its size
+    /// from the CTM scale and pixel dimensions alone. Unlike <see cref="GetSnappedTilePlacement"/>,
+    /// which rounds each edge independently, this keeps identically-sized tiles (e.g. repeated
+    /// stencil-mask glyphs) at the same device size regardless of where they land on the pixel
+    /// grid, falling back to the tile's native pixel size with no snapping otherwise.
+    /// </summary>
+    public static SnappedTilePlacement GetStableSizeSnappedTilePlacement(
+        PdfCommandExecutionContext executionContext, SKSizeI imageSize, SKRectI tilePosition, bool interpolate)
+    {
+        SKMatrix baseCtm = CommandHelpers.GetScaledMatrix(executionContext);
+        SKMatrix ctm = GetImageCtm(baseCtm);
+        SKSamplingOptions sampling = GetSamplingOptions(ctm, imageSize, interpolate);
+
+        if (!executionContext.Parameters.SnapToDevicePixels || !CommandHelpers.IsAxisAligned(ctm))
+        {
+            return GetUnsnappedTilePlacement(imageSize, tilePosition, sampling);
+        }
+
+        SKMatrix pixelToDeviceMatrix = ctm.PreConcat(SKMatrix.CreateScale(1f / imageSize.Width, 1f / imageSize.Height));
+
+        SKPoint topLeft = pixelToDeviceMatrix.MapPoint(new SKPoint(tilePosition.Left, tilePosition.Top));
+
+        float exactWidth = tilePosition.Width * MathF.Abs(pixelToDeviceMatrix.ScaleX);
+        float exactHeight = tilePosition.Height * MathF.Abs(pixelToDeviceMatrix.ScaleY);
+
+        float deviceWidth = MathF.Max(1, MathF.Round(exactWidth));
+        float deviceHeight = MathF.Max(1, MathF.Round(exactHeight));
+
+        float roundedLeft = MathF.Round(topLeft.X + (exactWidth - deviceWidth) / 2f);
+        float roundedTop = MathF.Round(topLeft.Y + (exactHeight - deviceHeight) / 2f);
+
+        SKSize deviceSize = new(deviceWidth, deviceHeight);
+        SKMatrix placementMatrix = GetSignedPlacementMatrix(baseCtm, pixelToDeviceMatrix, roundedLeft, roundedTop);
+
+        return new SnappedTilePlacement(deviceSize, placementMatrix, sampling);
+    }
+
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static SnappedTilePlacement GetUnsnappedTilePlacement(SKSizeI imageSize, SKRectI tilePosition, in SKSamplingOptions sampling)
     {

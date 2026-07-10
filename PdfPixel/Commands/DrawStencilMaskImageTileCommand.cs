@@ -31,7 +31,16 @@ public sealed class DrawStencilMaskImageTileCommand : PdfCommand
             return;
         }
 
-        SnappedTilePlacement placement = PdfImageCommandUtilities.GetSnappedTilePlacement(executionContext, _context.ImageSize, tile.TilePosition, _context.Interpolate);
+        SnappedTilePlacement placement;
+
+        if (_context.TileInfo.TotalTiles == 1)
+        {
+            placement = PdfImageCommandUtilities.GetStableSizeSnappedTilePlacement(executionContext, _context.ImageSize, tile.TilePosition, _context.Interpolate);
+        }
+        else
+        {
+            placement = PdfImageCommandUtilities.GetSnappedTilePlacement(executionContext, _context.ImageSize, tile.TilePosition, _context.Interpolate);
+        }
 
         using SKPaint paint = PdfImageCommandUtilities.GetBaseImagePaint(_context.DecodingContext);
         paint.ColorFilter = _colorFilter;
