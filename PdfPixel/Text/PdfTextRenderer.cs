@@ -158,12 +158,9 @@ public class PdfTextRenderer : IPdfTextRenderer
                         ? default
                         : new UncoloredPaintModifier(state.FillPaint.Color);
 
-                    processor.Process(SaveStateCommand.Instance);
                     // Translate by glyph X/Y (already in text space units after fullTextMatrix).
-                    processor.Process(new ConcatMatrixCommand(SKMatrix.CreateTranslation(glyph.X, glyph.Y)));
-                    processor.Process(new ConcatMatrixCommand(type3Font.FontMatrix));
-                    processor.Process(new DrawRecordingCommand(charInfo.Recording, modifier, disposeRecording: false));
-                    processor.Process(RestoreStateCommand.Instance);
+                    SKMatrix glyphMatrix = SKMatrix.CreateTranslation(glyph.X, glyph.Y).PreConcat(type3Font.FontMatrix);
+                    processor.Process(new DrawRecordingCommand(charInfo.Recording, glyphMatrix, modifier, disposeRecording: false));
                 }
             }
 
@@ -257,10 +254,7 @@ public class PdfTextRenderer : IPdfTextRenderer
             state.PendingTextMarkup = null;
         }
 
-        processor.Process(SaveStateCommand.Instance);
-        processor.Process(new ConcatMatrixCommand(matrix));
-        processor.Process(new TextCharactersCommand(characters));
-        processor.Process(RestoreStateCommand.Instance);
+        processor.Process(new TextCharactersCommand(matrix, characters));
 
         if (pendingMarkup != null)
         {

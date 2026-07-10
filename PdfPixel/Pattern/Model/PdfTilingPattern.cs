@@ -71,9 +71,6 @@ public sealed class PdfTilingPattern : PdfPattern
 
         renderTarget.BeforePatternRender(processor);
 
-        processor.Process(SaveStateCommand.Instance);
-        processor.Process(new ConcatMatrixCommand(matrix));
-
         UncoloredPaintModifier? modifier = (PaintTypeKind == PdfTilingPaintType.Uncolored)
             ? new UncoloredPaintModifier(renderTarget.Color)
             : default;
@@ -81,9 +78,8 @@ public sealed class PdfTilingPattern : PdfPattern
         SKRect bounds = matrix.Invert().MapRect(renderTarget.Bounds);
 
         DrawRecordingCommand recordingCommand = new(tileRecorder, modifier);
-        processor.Process(new DrawTilingCommand(bounds, BBox, XStep, YStep, recordingCommand));
+        processor.Process(new DrawTilingCommand(matrix, bounds, BBox, XStep, YStep, recordingCommand));
 
-        processor.Process(RestoreStateCommand.Instance);
         renderTarget.AfterPatternRender(processor);
     }
 }

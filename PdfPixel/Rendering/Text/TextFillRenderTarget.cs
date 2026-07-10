@@ -70,15 +70,8 @@ internal class TextFillRenderTarget : IRenderTarget
 
             SKMatrix textMatrix = TextRenderUtilities.GetFullTextMatrix(_state);
 
-            processor.Process(SaveStateCommand.Instance);
-
-            // Apply text matrix transformation
-            processor.Process(new ConcatMatrixCommand(textMatrix));
-
             SKPaint paint = PdfPaintFactory.CreateFillPaint(_state);
-            processor.Process(new DrawShapedTextCommand(_shapingResult.ToArray(), PdfPaintFactory.CloneFont(_font), paint));
-
-            processor.Process(RestoreStateCommand.Instance);
+            processor.Process(new DrawShapedTextCommand(textMatrix, _shapingResult.ToArray(), PdfPaintFactory.CloneFont(_font), paint));
         }
     }
 

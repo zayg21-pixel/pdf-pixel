@@ -384,14 +384,11 @@ public partial class WpfPdfPanel : FrameworkElement
 
         try
         {
-            Dispatcher.BeginInvoke(new Action(() =>
-            {
                 Process.Start(new ProcessStartInfo
                 {
                     FileName = uriString,
                     UseShellExecute = true
                 });
-            }));
         }
 #if DEBUG
         catch (Exception ex)

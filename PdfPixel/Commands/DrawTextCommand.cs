@@ -7,21 +7,25 @@ namespace PdfPixel.Commands;
 /// <summary>
 /// Draws text at the origin using the given font and paint.
 /// </summary>
-public sealed class DrawTextCommand : PdfCommand
+public sealed class DrawTextCommand : PdfCommand, IMatrixCommand
 {
     private readonly string _text;
     private readonly SKFont _baseFont;
     private readonly SKPaint _basePaint;
 
     /// <summary>
-    /// Initializes the command with the given text, font and paint.
+    /// Initializes the command with the given text, matrix, font and paint.
     /// </summary>
-    public DrawTextCommand(string text, SKFont font, SKPaint basePaint)
+    public DrawTextCommand(string text, SKMatrix matrix, SKFont font, SKPaint basePaint)
     {
         _text = text;
+        Matrix = matrix;
         _baseFont = font;
         _basePaint = basePaint;
     }
+
+    /// <inheritdoc />
+    public SKMatrix Matrix { get; }
 
     /// <inheritdoc />
     public override void Execute(PdfCommandExecutionContext executionContext)
@@ -32,7 +36,11 @@ public sealed class DrawTextCommand : PdfCommand
         PdfPaintFactory.ApplyAntialias(_baseFont, antialias);
         CommandHelpers.ApplyModifiers(paint, executionContext);
 
-        executionContext.Canvas.DrawText(_text, 0f, 0f, SKTextAlign.Left, _baseFont, paint);
+        SKCanvas canvas = executionContext.Canvas;
+        canvas.Save();
+        canvas.Concat(Matrix);
+        canvas.DrawText(_text, 0f, 0f, SKTextAlign.Left, _baseFont, paint);
+        canvas.Restore();
     }
 
     /// <inheritdoc />

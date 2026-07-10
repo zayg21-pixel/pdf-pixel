@@ -6,15 +6,18 @@ using PdfPixel.Color.Paint;
 namespace PdfPixel.Commands;
 
 /// <summary>
-/// Replays a recorded pattern cell across a tiled grid covering the given bounds.
+/// Replays a recorded pattern cell across a tiled grid covering the given bounds, under its own matrix.
+/// Owns a save/restore around the replay because it executes a nested <see cref="DrawRecordingCommand"/>
+/// and draws directly onto the canvas in pattern space.
 /// </summary>
-public sealed class DrawTilingCommand : PdfCommand
+public sealed class DrawTilingCommand : PdfCommand, IMatrixCommand
 {
     /// <summary>
-    /// Initializes the command with the pattern-space bounds to tile, the cell bounding box, the cell step, and the recorded cell content.
+    /// Initializes the command with the matrix, the pattern-space bounds to tile, the cell bounding box, the cell step, and the recorded cell content.
     /// </summary>
-    public DrawTilingCommand(SKRect bounds, SKRect bbox, float xStep, float yStep, DrawRecordingCommand recordingCommand)
+    public DrawTilingCommand(SKMatrix matrix, SKRect bounds, SKRect bbox, float xStep, float yStep, DrawRecordingCommand recordingCommand)
     {
+        Matrix = matrix;
         BBox = bbox;
         XStep = xStep;
         YStep = yStep;
@@ -29,6 +32,9 @@ public sealed class DrawTilingCommand : PdfCommand
         XCount = (int)Math.Ceiling((endX - startX) / xStep);
         YCount = (int)Math.Ceiling((endY - startY) / yStep);
     }
+
+    /// <inheritdoc />
+    public SKMatrix Matrix { get; }
 
     /// <summary>
     /// Gets the pattern cell's bounding box, in pattern space, that each tile is clipped to.
@@ -71,60 +77,70 @@ public sealed class DrawTilingCommand : PdfCommand
     /// <inheritdoc />
     public override void Execute(PdfCommandExecutionContext executionContext)
     {
+        executionContext.Canvas.Save();
+        executionContext.Frames.OnSaveState();
+        executionContext.Canvas.Concat(Matrix);
+        executionContext.Frames.OnConcatMatrix(Matrix);
+
         PdfCommandExecutionParameters childParameters = executionContext.Parameters.Clone();
         childParameters.SnapToDevicePixels = false;
 
-        using SKPictureRecorder recorder = new();
-        using SKCanvas canvas = recorder.BeginRecording(BBox);
-        using PdfCommandExecutionContext childContext = new(
-            childParameters,
-            executionContext.ContentLocker,
-            executionContext.OptionalContentGroups,
-            executionContext.ExecutionObserver,
-            canvas);
-
-        // do not apply AA to clip BBox to avoid seams
-        canvas.ClipRect(BBox, SKClipOperation.Intersect);
-        childContext.Frames.OnConcatMatrix(executionContext.Frames.TotalMatrix);
-        RecordingCommand.Execute(childContext);
-
-        using SKPicture picture = recorder.EndRecording();
-
-        ShaderTilingParameters shaderTilingParameters = GetShaderTilingParameters(executionContext);
-
-        if (shaderTilingParameters.CanUseShaders)
+        using (SKPictureRecorder recorder = new())
         {
-            SKRect tileRect = new(
-                BBox.Left,
-                BBox.Top,
-                BBox.Left + shaderTilingParameters.ExactTileSize.Width,
-                BBox.Top + shaderTilingParameters.ExactTileSize.Height);
+            using SKCanvas canvas = recorder.BeginRecording(BBox);
+            using PdfCommandExecutionContext childContext = new(
+                childParameters,
+                executionContext.ContentLocker,
+                executionContext.OptionalContentGroups,
+                executionContext.ExecutionObserver,
+                canvas);
 
-            using SKShader shader = picture.ToShader(SKShaderTileMode.Repeat, SKShaderTileMode.Repeat, tileRect);
-            using SKPaint shaderPaint = PdfPaintFactory.CreateShaderPaint();
-            shaderPaint.Shader = shader;
+            // do not apply AA to clip BBox to avoid seams
+            canvas.ClipRect(BBox, SKClipOperation.Intersect);
+            childContext.Frames.OnConcatMatrix(executionContext.Frames.TotalMatrix);
+            RecordingCommand.Execute(childContext);
 
-            executionContext.Canvas.DrawRect(TilingArea, shaderPaint);
+            using SKPicture picture = recorder.EndRecording();
 
-            return;
-        }
+            ShaderTilingParameters shaderTilingParameters = GetShaderTilingParameters(executionContext);
 
-        for (int i = 0; i <= XCount; i++)
-        {
-            float x = TilingArea.Left + (i * XStep);
-            for (int j = 0; j <= YCount; j++)
+            if (shaderTilingParameters.CanUseShaders)
             {
-                float y = TilingArea.Top + (j * YStep);
+                SKRect tileRect = new(
+                    BBox.Left,
+                    BBox.Top,
+                    BBox.Left + shaderTilingParameters.ExactTileSize.Width,
+                    BBox.Top + shaderTilingParameters.ExactTileSize.Height);
 
-                SKMatrix translation = SKMatrix.CreateTranslation(x, y);
+                using SKShader shader = picture.ToShader(SKShaderTileMode.Repeat, SKShaderTileMode.Repeat, tileRect);
+                using SKPaint shaderPaint = PdfPaintFactory.CreateShaderPaint();
+                shaderPaint.Shader = shader;
 
-                executionContext.Canvas.Save();
-                executionContext.Canvas.Concat(translation);
-                executionContext.Canvas.DrawPicture(picture);
+                executionContext.Canvas.DrawRect(TilingArea, shaderPaint);
+            }
+            else
+            {
+                for (int i = 0; i <= XCount; i++)
+                {
+                    float x = TilingArea.Left + (i * XStep);
+                    for (int j = 0; j <= YCount; j++)
+                    {
+                        float y = TilingArea.Top + (j * YStep);
 
-                executionContext.Canvas.Restore();
+                        SKMatrix translation = SKMatrix.CreateTranslation(x, y);
+
+                        executionContext.Canvas.Save();
+                        executionContext.Canvas.Concat(translation);
+                        executionContext.Canvas.DrawPicture(picture);
+
+                        executionContext.Canvas.Restore();
+                    }
+                }
             }
         }
+
+        executionContext.Canvas.Restore();
+        executionContext.Frames.OnRestoreState();
     }
 
     private ShaderTilingParameters GetShaderTilingParameters(PdfCommandExecutionContext executionContext)

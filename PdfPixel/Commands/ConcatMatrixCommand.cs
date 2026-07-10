@@ -6,7 +6,7 @@ namespace PdfPixel.Commands;
 /// <summary>
 /// Concatenates a matrix onto the current canvas transformation.
 /// </summary>
-public sealed class ConcatMatrixCommand : PdfCommand
+public sealed class ConcatMatrixCommand : PdfCommand, IMatrixCommand
 {
 
     /// <summary>
