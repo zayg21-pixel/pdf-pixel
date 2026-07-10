@@ -138,12 +138,11 @@ public sealed class PdfPanelRenderer : IDisposable
         {
             SKMatrix canvasToContent = page.GetContentToCanvasMatrix(request.Scale).Invert();
             SKPoint contentPoint = canvasToContent.MapPoint(pointerPosition);
-            SKSize rotatedSize = page.RotatedSize;
 
             if (contentPoint.X >= 0
-                && contentPoint.X <= rotatedSize.Width
+                && contentPoint.X <= page.Info.Width
                 && contentPoint.Y >= 0
-                && contentPoint.Y <= rotatedSize.Height)
+                && contentPoint.Y <= page.Info.Height)
             {
                 return new PointerPagePosition(page.PageNumber, contentPoint, request.PointerState);
             }
