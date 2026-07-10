@@ -89,7 +89,6 @@ public sealed class DrawTilingCommand : PdfCommand
 
         using SKPicture picture = recorder.EndRecording();
 
-        //return;
         for (int i = 0; i <= XCount; i++)
         {
             float x = TilingArea.Left + (i * XStep);

@@ -42,6 +42,32 @@ internal static class CommandHelpers
         return totalMatrix;
     }
 
+    /// <summary>
+    /// Returns the user-space stroke width whose image under the current device matrix
+    /// measures exactly one device pixel along its narrowest axis. Clamping a stroke width
+    /// to at least this value keeps thin lines visible at low zoom, matching the minimum-line-width
+    /// behavior of other PDF viewers.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static float GetMinimumStrokeWidth(PdfCommandExecutionContext executionContext)
+    {
+        SKMatrix matrix = GetScaledMatrix(executionContext);
+        SKPoint origin = matrix.MapPoint(SKPoint.Empty);
+        SKPoint xAxis = matrix.MapPoint(new SKPoint(1, 0)) - origin;
+        SKPoint yAxis = matrix.MapPoint(new SKPoint(0, 1)) - origin;
+
+        float normX = xAxis.Length;
+        float normY = yAxis.Length;
+        float absDeterminant = Math.Abs((xAxis.X * yAxis.Y) - (xAxis.Y * yAxis.X));
+
+        if (absDeterminant <= 0)
+        {
+            return 1f;
+        }
+
+        return Math.Max(normX, normY) / absDeterminant;
+    }
+
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static bool GetPathIsAntialias(SKPath path, PdfCommandExecutionContext executionContext, SKPaint? paint = null)
     {

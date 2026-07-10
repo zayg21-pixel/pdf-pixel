@@ -1,5 +1,4 @@
 using SkiaSharp;
-using System.Collections.Generic;
 
 namespace PdfPixel.Commands;
 
@@ -21,11 +20,24 @@ public sealed class DrawPathCommand : PdfCommand
     }
 
     /// <inheritdoc />
+    public override PdfCommandFeatures Features => PdfCommandFeatures.Scale;
+
+    /// <inheritdoc />
     public override void Execute(PdfCommandExecutionContext executionContext)
     {
         using SKPaint paint = _basePaint.Clone();
         CommandHelpers.ApplyModifiers(paint, executionContext);
         paint.IsAntialias = CommandHelpers.GetPathIsAntialias(_path, executionContext, paint);
+
+        if ((paint.Style == SKPaintStyle.Stroke || paint.Style == SKPaintStyle.StrokeAndFill) && paint.StrokeWidth > 0)
+        {
+            float minimumStrokeWidth = CommandHelpers.GetMinimumStrokeWidth(executionContext);
+            if (paint.StrokeWidth < minimumStrokeWidth)
+            {
+                paint.StrokeWidth = minimumStrokeWidth;
+            }
+        }
+
         executionContext.Canvas.DrawPath(_path, paint);
     }
 
