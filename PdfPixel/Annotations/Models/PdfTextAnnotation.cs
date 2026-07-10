@@ -28,7 +28,15 @@ public class PdfTextAnnotation : PdfAnnotationBase
         Icon = annotationObject.Dictionary.GetName(PdfTokens.NameKey).AsEnum<PdfTextAnnotationIcon>();
         StateModel = annotationObject.Dictionary.GetName(PdfTokens.StateModelKey);
         State = annotationObject.Dictionary.GetName(PdfTokens.StateKey);
+
+        SKRect rectangle = base.Rectangle;
+        Rectangle = (rectangle.Width > 0 && rectangle.Height > 0)
+            ? rectangle
+            : SKRect.Create(rectangle.Left, rectangle.Top, PdfAnnotationGraphics.DefaultBubbleSize, PdfAnnotationGraphics.DefaultBubbleSize);
     }
+
+    /// <inheritdoc/>
+    public override SKRect Rectangle { get; }
 
     /// <summary>
     /// Gets a value indicating whether the annotation is initially displayed in an open state.

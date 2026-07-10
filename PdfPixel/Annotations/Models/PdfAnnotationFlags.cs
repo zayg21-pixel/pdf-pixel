@@ -28,6 +28,9 @@ public enum PdfAnnotationFlags
     /// </summary>
     Print = 1 << 2,
 
+    // TODO: [MEDIUM] NoZoom is not honored by rendering. Annotations should keep a fixed device-pixel
+    // size across page zoom levels; today annotation commands are recorded in PDF user-space units and
+    // scaled with the rest of the page.
     /// <summary>
     /// If set, do not scale the annotation's appearance to match the magnification of the page.
     /// </summary>

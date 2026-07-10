@@ -83,7 +83,7 @@ public abstract class PdfAnnotationBase
     /// The rectangle is specified in default user space coordinates and
     /// represents the annotation's bounding box.
     /// </remarks>
-    public SKRect Rectangle { get; }
+    public virtual SKRect Rectangle { get; }
 
     /// <summary>
     /// Starting point of actual content.
