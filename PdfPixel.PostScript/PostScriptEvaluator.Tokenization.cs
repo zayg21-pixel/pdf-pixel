@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging;
 using PdfPixel.PostScript.Tokens;
 using System;
 using System.Collections.Generic;
@@ -62,14 +63,16 @@ public partial class PostScriptEvaluator
                     position++;
                     if (frames.Count == 0 || frames.Peek().Kind != FrameKind.Procedure)
                     {
-                        throw new InvalidOperationException("Unexpected closing brace '}' with no matching '{'.");
+                        _logger.LogWarning("Unexpected closing brace '}}' with no matching '{{'.");
+                        continue;
                     }
 
                     Frame frame = frames.Pop();
                     int count = result.Count - frame.StartIndex;
                     if (count < 0)
                     {
-                        throw new InvalidOperationException("Internal tokenizer frame error for procedure.");
+                        _logger.LogWarning("Internal tokenizer frame error for procedure.");
+                        continue;
                     }
 
                     List<PostScriptToken> innerTokens = new(count);
@@ -93,14 +96,16 @@ public partial class PostScriptEvaluator
                     position++;
                     if (frames.Count == 0 || frames.Peek().Kind != FrameKind.Array)
                     {
-                        throw new InvalidOperationException("Unexpected closing bracket ']' with no matching '['.");
+                        _logger.LogWarning("Unexpected closing bracket ']' with no matching '['.");
+                        continue;
                     }
 
                     Frame frame = frames.Pop();
                     int count = result.Count - frame.StartIndex;
                     if (count < 0)
                     {
-                        throw new InvalidOperationException("Internal tokenizer frame error for array.");
+                        _logger.LogWarning("Internal tokenizer frame error for array.");
+                        continue;
                     }
 
                     var inner = new PostScriptToken[count];
@@ -122,14 +127,16 @@ public partial class PostScriptEvaluator
                         position++;
                         if (frames.Count == 0 || frames.Peek().Kind != FrameKind.Dictionary)
                         {
-                            throw new InvalidOperationException("Unexpected closing dictionary '>>' with no matching '<<'.");
+                            _logger.LogWarning("Unexpected closing dictionary '>>' with no matching '<<'.");
+                            continue;
                         }
 
                         Frame frame = frames.Pop();
                         int count = result.Count - frame.StartIndex;
                         if (count < 0)
                         {
-                            throw new InvalidOperationException("Internal tokenizer frame error for dictionary.");
+                            _logger.LogWarning("Internal tokenizer frame error for dictionary.");
+                            continue;
                         }
 
                         Dictionary<string, PostScriptToken> dict = [];
@@ -146,7 +153,8 @@ public partial class PostScriptEvaluator
                             {
                                 if (token is not PostScriptLiteralName keyName)
                                 {
-                                    throw new InvalidOperationException("Invalid dictionary key type.");
+                                    _logger.LogWarning("Invalid dictionary key type.");
+                                    continue;
                                 }
 
                                 pendingKey = keyName;
@@ -160,7 +168,8 @@ public partial class PostScriptEvaluator
 
                         if (pendingKey != null)
                         {
-                            throw new InvalidOperationException("Odd number of elements in PostScript dictionary.");
+                            _logger.LogWarning("Odd number of elements in PostScript dictionary.");
+                            continue;
                         }
 
                         result.RemoveRange(frame.StartIndex, count);
@@ -169,7 +178,8 @@ public partial class PostScriptEvaluator
                     }
                     else
                     {
-                        throw new InvalidOperationException("Unexpected single '>' character in PostScript data.");
+                        _logger.LogWarning("Unexpected single '>' character in PostScript data.");
+                        continue;
                     }
                 }
                 case '(':
@@ -238,13 +248,15 @@ public partial class PostScriptEvaluator
                         // Must have preceding length number token.
                         if (result.Count == 0 || result[result.Count - 1] is not PostScriptNumber lenToken)
                         {
-                            throw new InvalidOperationException("Binary block operator '" + raw + "' encountered without preceding length number.");
+                            _logger.LogWarning("Binary block operator '{Operator}' encountered without preceding length number.", raw);
+                            continue;
                         }
 
                         var byteCount = (int)lenToken.Number;
                         if (byteCount < 0 || position + byteCount > length)
                         {
-                            throw new InvalidOperationException("Binary block length out of range: " + byteCount);
+                            _logger.LogWarning("Binary block length out of range: {ByteCount}", byteCount);
+                            continue;
                         }
 
                         // Consume exactly one whitespace delimiter (spec) if present at current position.
@@ -255,7 +267,8 @@ public partial class PostScriptEvaluator
 
                         if (position + byteCount > length)
                         {
-                            throw new InvalidOperationException("Insufficient data for binary block length " + byteCount);
+                            _logger.LogWarning("Insufficient data for binary block length {ByteCount}", byteCount);
+                            continue;
                         }
 
                         var block = new byte[byteCount];
@@ -294,7 +307,7 @@ public partial class PostScriptEvaluator
         {
             Frame open = frames.Peek();
             string kind = (open.Kind == FrameKind.Procedure) ? "{" : "[";
-            throw new InvalidOperationException($"Unclosed PostScript {open.Kind} starting with '{kind}' at token index {open.StartIndex}.");
+            _logger.LogWarning("Unclosed PostScript {Kind} starting with '{OpenChar}' at token index {StartIndex}.", open.Kind, kind, open.StartIndex);
         }
 
         return result;
@@ -402,7 +415,7 @@ public partial class PostScriptEvaluator
         return builder.ToArray();
     }
 
-    private static byte[] ReadHexString(in ReadOnlySpan<byte> data, ref int position)
+    private byte[] ReadHexString(in ReadOnlySpan<byte> data, ref int position)
     {
         if (position >= data.Length || data[position] != (byte)'<')
         {
@@ -431,7 +444,9 @@ public partial class PostScriptEvaluator
             int value = HexCharToInt((char)b);
             if (value == -1)
             {
-                throw new InvalidOperationException($"Invalid hex character '{(char)b}' in PostScript hex string.");
+                _logger.LogWarning("Invalid hex character '{Character}' in PostScript hex string.", (char)b);
+                position++;
+                continue;
             }
 
             if (firstNibble == -1)
