@@ -142,11 +142,24 @@ public class PdfCidFont : PdfFontBase
                     byte[]? typefaceData = CffOpenTypeWrapper.Wrap(FontDescriptor, cffInfo);
                     SKTypeface typeface = SKTypeface.FromData(SKData.CreateCopy(typefaceData));
 
+                    if (typeface == null)
+                    {
+                        _logger.LogWarning("Failed to create typeface from embedded Type1C font data for font '{FontName}'", BaseFont);
+                        throw new InvalidOperationException("Failed to create typeface from embedded Type1C font data.");
+                    }
+
                     return (typeface, cffInfo);
                 }
                 case PdfFontFileFormat.TrueType:
                 {
                     SKTypeface typeface = SKTypeface.FromStream(FontDescriptor.FontFileStream?.DecodeAsStream());
+
+                    if (typeface == null)
+                    {
+                        _logger.LogWarning("Failed to create typeface from embedded TrueType font data for font '{FontName}'", BaseFont);
+                        throw new InvalidOperationException("Failed to create typeface from embedded TrueType font data.");
+                    }
+
                     return (typeface, null);
                 }
             }

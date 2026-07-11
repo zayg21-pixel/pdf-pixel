@@ -6,6 +6,8 @@ using SkiaSharp;
 
 namespace PdfPixel.Fonts.Management;
 
+// TODO: [HIGH] InMemorySkiaFontProvider must register fonts with style, otherwise we can't find a match
+
 /// <summary>
 /// Font provider that resolves standard PDF fonts and named fonts from explicitly registered in-memory font data.
 /// Suitable for environments where system fonts are unavailable, such as browser/WASM.

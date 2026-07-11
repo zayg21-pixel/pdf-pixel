@@ -4,6 +4,7 @@ using PdfPixel.Text;
 using PdfPixel.Models;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 
 namespace PdfPixel.Fonts.Cff;
@@ -246,7 +247,8 @@ internal class CffSidGidMapper
                 GidWidths = gidWidths,
                 Encoding = encoding,
                 CodeToName = codeToName,
-                CffData = cffDataMemory
+                CffData = cffDataMemory,
+                FontMatrix = topDictData.FontMatrix?.Select(x => (float)x).ToArray()
             };
 
             return true;

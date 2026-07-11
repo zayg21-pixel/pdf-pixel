@@ -120,7 +120,8 @@ internal static class Type1DictionaryToCffConverter
             IsCidFont = false,
             GlyphCount = orderedCharStrings.Count,
             CodeToName = encodingVector,
-            CffData = ms.ToArray()
+            CffData = ms.ToArray(),
+            FontMatrix = fontMatrix
         };
 
         return cffInfo;

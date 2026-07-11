@@ -7,7 +7,6 @@ using PdfPixel.Models;
 using PdfPixel.Text;
 using SkiaSharp;
 using System;
-using System.Text;
 
 namespace PdfPixel.Fonts.Model;
 
@@ -131,6 +130,12 @@ public class PdfSimpleFont : PdfSingleByteFont
                     byte[]? typefaceData = CffOpenTypeWrapper.Wrap(FontDescriptor, cffInfo);
                     SKTypeface typeface = SKTypeface.FromData(SKData.CreateCopy(typefaceData));
 
+                    if (typeface == null)
+                    {
+                        _logger.LogWarning("Failed to create typeface from embedded Type1C font data for font '{FontName}'", BaseFont);
+                        throw new InvalidOperationException("Failed to create typeface from embedded Type1C font data.");
+                    }
+
                     CffByteCodeToGidMapper mapper = new(cffInfo, FontDescriptor.Flags, Encoding);
 
                     return (typeface, mapper, false);
@@ -138,6 +143,13 @@ public class PdfSimpleFont : PdfSingleByteFont
                 case PdfFontFileFormat.TrueType:
                 {
                     SKTypeface typeface = SKTypeface.FromStream(FontDescriptor.FontFileStream?.DecodeAsStream());
+
+                    if (typeface == null)
+                    {
+                        _logger.LogWarning("Failed to create typeface from embedded TrueType font data for font '{FontName}'", BaseFont);
+                        throw new InvalidOperationException("Failed to create typeface from embedded TrueType font data.");
+                    }
+
                     SfntFontTables sfntTables = SfntFontTableParser.GetSfntFontTables(typeface);
 
                     if (Encoding.BaseEncoding == PdfFontEncoding.Unknown)

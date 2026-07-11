@@ -50,4 +50,11 @@ internal sealed class CffInfo
     /// Gets or sets the raw CFF font data.
     /// </summary>
     public ReadOnlyMemory<byte> CffData { get; set; }
+
+    /// <summary>
+    /// Gets or sets the font's FontMatrix (6 values: a, b, c, d, e, f), mapping design units to glyph-space units.
+    /// <see langword="null"/> when the font does not specify one, meaning the standard CFF convention of
+    /// 1000 design units per em (matrix [0.001, 0, 0, 0.001, 0, 0]) applies.
+    /// </summary>
+    public float[]? FontMatrix { get; set; }
 }
