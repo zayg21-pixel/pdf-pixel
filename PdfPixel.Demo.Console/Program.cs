@@ -13,7 +13,7 @@ namespace PdfPixel.Console.Demo
         private static void Main()
         {
             // The only thing you need to change to run this example.
-            string pdfPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "pdfs", "bug810214.pdf.link.pdf");
+            string pdfPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "pdfs", "sample.pdf");
 
             // Multiplies the page size before rendering; use a value above 1 for a sharper output image.
             float scale = 1f;
