@@ -19,10 +19,7 @@ public sealed class PdfPageCacheEntryItem : IDisposable
     /// <summary>
     /// Initializes the item for the given page number.
     /// </summary>
-    public PdfPageCacheEntryItem(int pageNumber)
-    {
-        PageNumber = pageNumber;
-    }
+    public PdfPageCacheEntryItem(int pageNumber) => PageNumber = pageNumber;
 
     /// <summary>
     /// 1-based page number this item belongs to.

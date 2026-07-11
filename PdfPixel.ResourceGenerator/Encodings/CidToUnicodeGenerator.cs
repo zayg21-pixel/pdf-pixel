@@ -17,7 +17,7 @@ internal static class CidToUnicodeGenerator
         { "Adobe-Korea1",  ([8],          [9, 7],           [10]) },
         { "Adobe-KR",      ([1],          [2],              [3]) },
         { "Adobe-Manga1",  ([1],          [2],              [3]) },
-        { "Adobe-Japan2",  ([1],          [2],              [3]) },
+        { "Adobe-Japan2",  ([1],          [2],              [3]) }
     };
 
     public static void GenerateAll(string sourceRoot, string outputDirectory)

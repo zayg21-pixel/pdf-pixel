@@ -70,6 +70,7 @@ class PdfPanelView {
         this.onTouchStart = this.onTouchStart.bind(this);
         this.onTouchMove = this.onTouchMove.bind(this);
         this.onTouchEnd = this.onTouchEnd.bind(this);
+        this.onKeyDown = this.onKeyDown.bind(this);
     }
 
     requestRender() {
@@ -306,6 +307,20 @@ class PdfPanelView {
         }
     }
 
+    onKeyDown(e) {
+        if (!(e.ctrlKey || e.metaKey) || e.key !== 'c') {
+            return;
+        }
+
+        const text = interop.GetSelectedText(this.id);
+        if (!text) {
+            return;
+        }
+
+        e.preventDefault();
+        navigator.clipboard.writeText(text).catch(err => console.warn(`Failed to write clipboard for view '${this.id}':`, err));
+    }
+
     onResizeRequested() {
         const hasHorizontalScrollbar = this.state.scrollWidth > this.state.viewportWidth;
         const hasVerticalScrollbar = this.state.scrollHeight > this.state.viewportHeight;
@@ -325,6 +340,7 @@ class PdfPanelView {
         this.scrollHost.addEventListener('touchend', this.onTouchEnd);
         document.addEventListener('mousemove', this.onMouseMove);
         document.addEventListener('pointerup', this.onPointerUp);
+        document.addEventListener('keydown', this.onKeyDown);
 
         this.resizeObserver = new ResizeObserver(this.onResizeRequested);
         this.resizeObserver.observe(this.container);
@@ -339,6 +355,7 @@ class PdfPanelView {
         this.scrollHost.removeEventListener('touchend', this.onTouchEnd);
         document.removeEventListener('mousemove', this.onMouseMove);
         document.removeEventListener('pointerup', this.onPointerUp);
+        document.removeEventListener('keydown', this.onKeyDown);
 
         if (this.resizeObserver) {
             this.resizeObserver.disconnect();

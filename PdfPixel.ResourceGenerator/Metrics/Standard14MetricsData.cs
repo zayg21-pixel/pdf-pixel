@@ -2954,7 +2954,7 @@ internal static class Standard14MetricsData
             ["a188"] = 873,
             ["a189"] = 927,
             ["a190"] = 970,
-            ["a191"] = 918,
+            ["a191"] = 918
         }
     };
 

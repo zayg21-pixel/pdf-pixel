@@ -14,6 +14,11 @@ public static class PdfTextBlockFlattener
     /// </summary>
     public static List<PdfCharacter> Flatten(PdfTextBlock rootTextBlock)
     {
+        if (rootTextBlock == null)
+        {
+            return new List<PdfCharacter>();
+        }
+
         List<PdfCharacter> result = [];
         FlattenRecursive(rootTextBlock, result);
         return result;

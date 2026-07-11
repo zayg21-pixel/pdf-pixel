@@ -199,6 +199,20 @@ public partial class PdfPanelInterop
         }
     }
 
+    /// <summary>
+    /// Returns the currently selected text for the given container, or an empty string if nothing is selected.
+    /// </summary>
+    [JSExport]
+    public static string GetSelectedText(string containerId)
+    {
+        if (!ResourcesMap.TryGetValue(containerId, out var resources))
+        {
+            return string.Empty;
+        }
+
+        return resources.Renderer.TextSelector.SelectedText;
+    }
+
     [JSExport]
     public static void UnregisterCanvas(string containerId)
     {
@@ -327,7 +341,8 @@ public partial class PdfPanelInterop
             resources.LastAnnotationState = activeAnnotationState;
 
             bool isInteractiveAnnotation = activeAnnotation != null && activeAnnotation.IsInteractive;
-            state.SetProperty("cursorStyle", isInteractiveAnnotation ? "pointer" : "default");
+            bool isPointerOverText = resources.Renderer.TextSelector.IsPointerOverText;
+            state.SetProperty("cursorStyle", isInteractiveAnnotation ? "pointer" : (isPointerOverText ? "text" : "default"));
             state.SetProperty("openUri", openUri);
 
             if (activeAnnotation != null)

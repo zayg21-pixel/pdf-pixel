@@ -51,7 +51,10 @@ internal static class Standard14WidthGenerator
         return stream.ToArray();
     }
 
-    private static string ToPascalCase(string variantName) => variantName
-        .Replace("-", string.Empty, StringComparison.Ordinal)
-        .Replace("Oblique", "Italic", StringComparison.Ordinal);
+    private static string ToPascalCase(string variantName)
+    {
+        return variantName
+            .Replace("-", string.Empty, StringComparison.Ordinal)
+            .Replace("Oblique", "Italic", StringComparison.Ordinal);
+    }
 }

@@ -16,7 +16,8 @@ public sealed partial class PdfPanelTextSelector : IDisposable
     private const float MinDragDistance = 4f;
     private const float CharacterHitRadius = 10;
     private const float LineMergeThreshold = 0.5f;
-    private static readonly SKColor HighlightColor = new SKColor(50, 100, 220, 80);
+
+    private static readonly SKColor HighlightColor = new(50, 100, 220, 80);
 
     private readonly IPdfPageContentProvider _contentProvider;
     private readonly Dictionary<int, SKPicture> _selectionPictures = [];
@@ -38,7 +39,7 @@ public sealed partial class PdfPanelTextSelector : IDisposable
     /// Returns the selection highlight picture for the given page, or <see langword="null"/> if that page has no selection.
     /// </summary>
     internal SKPicture? GetSelectionPicture(int pageNumber)
-        => _selectionPictures.TryGetValue(pageNumber, out SKPicture? picture) ? picture : null;
+        => (_selectionPictures.TryGetValue(pageNumber, out SKPicture? picture)) ? picture : null;
 
     /// <summary>
     /// Whether the pointer is currently over a text character.

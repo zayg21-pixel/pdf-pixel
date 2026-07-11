@@ -128,7 +128,7 @@ internal static class Cid2CodeTableParser
         }
 
         int totalBytes = token.Length / 2;
-        byte[] buffer = new byte[totalBytes];
+        var buffer = new byte[totalBytes];
 
         for (int i = 0; i < totalBytes; i++)
         {
