@@ -14,7 +14,7 @@ public sealed class DrawSoftMaskImageTileCommand : PdfCommand
     internal DrawSoftMaskImageTileCommand(SoftMaskImageExecutionContext context) => _context = context;
 
     /// <inheritdoc />
-    public override PdfCommandFeatures Features => PdfCommandFeatures.Region | PdfCommandFeatures.Scale;
+    public override PdfCommandFeatures Features => PdfCommandFeatures.Region | PdfCommandFeatures.Scale | PdfCommandFeatures.DeferredDispose;
 
     /// <inheritdoc />
     public override void Execute(PdfCommandExecutionContext executionContext)

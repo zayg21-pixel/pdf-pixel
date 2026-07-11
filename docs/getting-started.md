@@ -63,7 +63,10 @@ foreach (IPdfPage page in document.Pages)
     // Bundles the canvas, rendering options, and the objects above into the state every
     // drawing command reads from while the page is replayed.
     using PdfCommandExecutionContext executionContext = new(
-        new PdfCommandExecutionParameters(),
+        new PdfCommandExecutionParameters
+        {
+            ScaleFactor = scale
+        },
         contentLocker,
         optionalContentGroups,
         executionObserver,
