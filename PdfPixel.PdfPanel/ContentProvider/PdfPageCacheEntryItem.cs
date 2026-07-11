@@ -4,6 +4,7 @@ using PdfPixel.PdfPanel.Requests;
 using PdfPixel.TextExtraction;
 using SkiaSharp;
 using System;
+using System.Collections.Generic;
 using System.Linq;
 
 namespace PdfPixel.PdfPanel.ContentProvider;
@@ -59,9 +60,9 @@ public sealed class PdfPageCacheEntryItem : IDisposable
     public bool IsPartialContent { get; private set; }
 
     /// <summary>
-    /// Root of the text block tree extracted during the last content picture generation.
+    /// Flattened characters extracted during the last content picture generation, in reading order.
     /// </summary>
-    public PdfTextBlock? RootTextBlock { get; private set; }
+    public List<PdfCharacter>? Characters { get; private set; }
 
     /// <summary>
     /// Replace page content with a new command recording. Disposes the previous recording if present.
@@ -80,7 +81,7 @@ public sealed class PdfPageCacheEntryItem : IDisposable
     /// <summary>
     /// Replace the content picture and remember the request that produced it. Disposes the previous picture if present.
     /// </summary>
-    public void UpdateContent(SKPicture? picture, PagesDrawingRequest request, bool isPartialContent, PdfTextBlock? rootTextBlock = null)
+    public void UpdateContent(SKPicture? picture, PagesDrawingRequest request, bool isPartialContent, List<PdfCharacter>? characters = null)
     {
         if (request == null)
         {
@@ -92,7 +93,7 @@ public sealed class PdfPageCacheEntryItem : IDisposable
         LastRequest = request;
         LastRegionOfInterest = request.ComputeRegionOfInterest(PageNumber);
         IsPartialContent = isPartialContent;
-        RootTextBlock = rootTextBlock;
+        Characters = characters;
     }
 
     /// <summary>
@@ -124,7 +125,7 @@ public sealed class PdfPageCacheEntryItem : IDisposable
         LastRequest = null;
         LastRegionOfInterest = default;
         IsPartialContent = false;
-        RootTextBlock = null;
+        Characters = null;
     }
 
     private void ThrowIfDisposed()

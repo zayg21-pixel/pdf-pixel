@@ -3,6 +3,7 @@ using PdfPixel.PdfPanel.Annotations;
 using PdfPixel.PdfPanel.ContentProvider;
 using PdfPixel.PdfPanel.Requests;
 using PdfPixel.PdfPanel.Web.WorkerInterface;
+using PdfPixel.TextExtraction;
 using SkiaSharp;
 using System;
 using System.Collections.Generic;
@@ -66,7 +67,8 @@ public class WebDocumentContentProvider : IPdfPageContentProvider
 
         if (response.ContentType == UpdatedContentType.Content)
         {
-            _cache[pageIndex].Content.UpdateContent(picture, drawingRequest, response.IsPartialContent);
+            List<PdfCharacter> characters = response.Characters?.Select(character => character.ToPdfCharacter()).ToList();
+            _cache[pageIndex].Content.UpdateContent(picture, drawingRequest, response.IsPartialContent, characters);
         }
         else if (response.ContentType == UpdatedContentType.Annotations)
         {
@@ -145,7 +147,8 @@ public class WebDocumentContentProvider : IPdfPageContentProvider
         return new PdfContentPictures
         {
             Content = _cache[pageNumber - 1].Content.ContentPicture,
-            Annotations = _cache[pageNumber - 1].AnnotationContent.ContentPicture
+            Annotations = _cache[pageNumber - 1].AnnotationContent.ContentPicture,
+            ContentCharacters = _cache[pageNumber - 1].Content.Characters
         };
     }
 

@@ -1,25 +1,25 @@
-using PdfPixel.TextExtraction;
 using SkiaSharp;
 using System.Collections.Generic;
 
-namespace PdfPixel.PdfPanel.Text;
+namespace PdfPixel.TextExtraction;
 
-public sealed partial class PdfPanelTextSelector
+/// <summary>
+/// Flattens a <see cref="PdfTextBlock"/> tree into a linear sequence of characters in reading order,
+/// excluding artifacts and substituting /ActualText replacements.
+/// </summary>
+public static class PdfTextBlockFlattener
 {
-    private List<PdfCharacter> GetFlattenedCharacters(int pageNumber, PdfTextBlock rootTextBlock)
+    /// <summary>
+    /// Flattens the given text block tree into a list of characters.
+    /// </summary>
+    public static List<PdfCharacter> Flatten(PdfTextBlock rootTextBlock)
     {
-        if (_flattenedPages.TryGetValue(pageNumber, out List<PdfCharacter>? cached))
-        {
-            return cached;
-        }
-
         List<PdfCharacter> result = [];
-        FlattenTextBlockRecursive(rootTextBlock, result);
-        _flattenedPages[pageNumber] = result;
+        FlattenRecursive(rootTextBlock, result);
         return result;
     }
 
-    private static void FlattenTextBlockRecursive(PdfTextBlock block, List<PdfCharacter> result)
+    private static void FlattenRecursive(PdfTextBlock block, List<PdfCharacter> result)
     {
         if (block.Markup?.IsArtifact == true)
         {
@@ -45,7 +45,7 @@ public sealed partial class PdfPanelTextSelector
 
         foreach (PdfTextBlock child in block.Children)
         {
-            FlattenTextBlockRecursive(child, result);
+            FlattenRecursive(child, result);
         }
     }
 

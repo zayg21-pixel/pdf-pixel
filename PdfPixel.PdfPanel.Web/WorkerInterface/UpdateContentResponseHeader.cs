@@ -1,4 +1,5 @@
 using PdfPixel.PdfPanel.ContentProvider;
+using System.Collections.Generic;
 
 namespace PdfPixel.PdfPanel.Web.WorkerInterface;
 
@@ -15,4 +16,6 @@ public class UpdateContentResponseHeader
     public WebDrawingRequest DrawingRequest { get; set; }
 
     public WebRect RegionOfInterest { get; set; }
+
+    public List<WebTextCharacter> Characters { get; set; }
 }

@@ -114,13 +114,18 @@ public partial class PdfContentWorkerInterop
                     using var picture = contentLocker.GetContent();
                     contentData = picture.Content.Serialize().Span.ToArray();
 
+                    List<WebTextCharacter> characters = args.UpdatedContentType == UpdatedContentType.Content && args.ContentPictures.ContentCharacters != null
+                        ? args.ContentPictures.ContentCharacters.Select(WebTextCharacter.FromPdfCharacter).ToList()
+                        : null;
+
                     var headerData = JsonSerializer.Serialize(new UpdateContentResponseHeader
                     {
                         PageNumber = args.PageNumber,
                         ContentType = args.UpdatedContentType,
                         IsPartialContent = args.IsPartialContent,
                         DrawingRequest = request.DrawingRequest,
-                        RegionOfInterest = WebRect.FromSkRect(args.RegionOfInterest)
+                        RegionOfInterest = WebRect.FromSkRect(args.RegionOfInterest),
+                        Characters = characters
                     }, InterfaceJsonContext.Default.UpdateContentResponseHeader);
 
                     OnDataReady(containerId, id, WorkerCommandType.PageContentReady.ToString(), headerData, contentData);

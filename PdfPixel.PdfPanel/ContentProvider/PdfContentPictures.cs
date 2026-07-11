@@ -1,6 +1,7 @@
 using PdfPixel.Commands;
 using PdfPixel.TextExtraction;
 using SkiaSharp;
+using System.Collections.Generic;
 
 namespace PdfPixel.PdfPanel.ContentProvider;
 
@@ -25,7 +26,7 @@ public class PdfContentPictures
     public PdfCommandFeatures ContentFeatures { get; set; }
 
     /// <summary>
-    /// Root of the text block tree extracted from the main content.
+    /// Flattened characters extracted from the main content, in reading order.
     /// </summary>
-    public PdfTextBlock? ContentRootTextBlock { get; set; }
+    public List<PdfCharacter>? ContentCharacters { get; set; }
 }

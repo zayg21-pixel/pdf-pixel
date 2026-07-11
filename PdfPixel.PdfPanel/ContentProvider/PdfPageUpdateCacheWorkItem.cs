@@ -6,6 +6,7 @@ using PdfPixel.PdfPanel.WorkQueue;
 using PdfPixel.TextExtraction;
 using SkiaSharp;
 using System;
+using System.Collections.Generic;
 
 namespace PdfPixel.PdfPanel.ContentProvider;
 
@@ -92,9 +93,9 @@ public class PdfPageUpdateCacheWorkItem : IWorkItem
 
                 SKPicture? contentPicture = recorder.EndRecording();
                 bool isPartialContent = executionContext.IsPartialContent;
-                PdfTextBlock rootTextBlock = executionContext.RootTextBlock;
+                List<PdfCharacter> characters = PdfTextBlockFlattener.Flatten(executionContext.RootTextBlock);
 
-                CacheEntry.Content.UpdateContent(contentPicture, _request, isPartialContent, rootTextBlock);
+                CacheEntry.Content.UpdateContent(contentPicture, _request, isPartialContent, characters);
                 contentUpdated = true;
                 contentIsPartial = isPartialContent;
             }

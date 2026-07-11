@@ -19,7 +19,6 @@ public sealed partial class PdfPanelTextSelector : IDisposable
     private static readonly SKColor HighlightColor = new SKColor(50, 100, 220, 80);
 
     private readonly IPdfPageContentProvider _contentProvider;
-    private readonly Dictionary<int, List<PdfCharacter>> _flattenedPages = [];
     private readonly Dictionary<int, SKPicture> _selectionPictures = [];
     private int? _anchorPageNumber;
     private SKPoint _anchorPoint;
@@ -85,18 +84,13 @@ public sealed partial class PdfPanelTextSelector : IDisposable
         PointerPagePosition pos = position.Value;
 
         PdfContentPictures pictures = _contentProvider.GetExistingContentPictures(pos.PageNumber);
-        if (pictures.ContentRootTextBlock == null)
+        if (pictures.ContentCharacters == null || pictures.ContentCharacters.Count == 0)
         {
             _isPointerOverText = false;
             return;
         }
 
-        List<PdfCharacter> characters = GetFlattenedCharacters(pos.PageNumber, pictures.ContentRootTextBlock);
-        if (characters.Count == 0)
-        {
-            _isPointerOverText = false;
-            return;
-        }
+        List<PdfCharacter> characters = pictures.ContentCharacters;
 
         _isPointerOverText = HitTestCharacterNearest(characters, pos.Position, CharacterHitRadius) != null;
         UpdateSelectionState(pos, characters);
@@ -289,9 +283,5 @@ public sealed partial class PdfPanelTextSelector : IDisposable
     }
 
     /// <inheritdoc />
-    public void Dispose()
-    {
-        ClearSelectionPictures();
-        _flattenedPages.Clear();
-    }
+    public void Dispose() => ClearSelectionPictures();
 }
