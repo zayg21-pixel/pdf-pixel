@@ -193,7 +193,7 @@ public partial class PdfContentWorkerInterop
             Logger.LogInformation("Reading PDF document, size={Size} bytes", documentData.Length);
             var document = reader.Read(new MemoryStream(documentData), string.Empty);
             Logger.LogInformation("PDF document parsed, pages={PageCount}", document.Pages.Count);
-            var workQueue = new ImmidiateWorkQueue();
+            var workQueue = new ImmidiateWorkQueue(LoggerFactory.CreateLogger<ImmidiateWorkQueue>());
             var observerFactory = new WorkerSabObserverFactory();
             var contentProvider = new PdfPageContentProvider(document, workQueue, observerFactory);
             var pages = PdfPanelPageCollection.FromContentProvider(contentProvider);

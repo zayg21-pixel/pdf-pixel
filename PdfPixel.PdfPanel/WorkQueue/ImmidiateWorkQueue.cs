@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging;
 using System;
 
 namespace PdfPixel.PdfPanel.WorkQueue;
@@ -8,6 +9,13 @@ namespace PdfPixel.PdfPanel.WorkQueue;
 /// </summary>
 public sealed class ImmidiateWorkQueue : IWorkQueue
 {
+    private readonly ILogger<ImmidiateWorkQueue> _logger;
+
+    /// <summary>
+    /// Initialises the queue with the logger used to report exceptions from processed items.
+    /// </summary>
+    public ImmidiateWorkQueue(ILogger<ImmidiateWorkQueue> logger) => _logger = logger;
+
     /// <inheritdoc />
     public void Enqueue(IWorkItem item)
     {
@@ -27,9 +35,9 @@ public sealed class ImmidiateWorkQueue : IWorkQueue
         {
         }
 #pragma warning disable CA1031
-        catch
+        catch (Exception ex)
         {
-            // TODO: log
+            _logger.LogError(ex, "An error occurred while processing a work item.");
         }
 #pragma warning restore CA1031
     }
