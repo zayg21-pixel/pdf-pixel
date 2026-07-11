@@ -238,7 +238,7 @@ internal sealed class PdfXrefLoader : IDisposable
             return false;
         }
 
-        TryAddObjectIndexEntry(reference, info);
+        TryAddObjectIndexEntry(in reference, info);
         return true;
     }
 
@@ -371,26 +371,23 @@ internal sealed class PdfXrefLoader : IDisposable
                     }
                 }
 
-                TryAddObjectIndexEntry(reference, info);
+                TryAddObjectIndexEntry(in reference, info);
             }
         }
     }
 
     /// <summary>
     /// Add an entry to the document object index if not already present (newest wins).
-    /// Logs a debug message when an older revision entry is skipped.
     /// </summary>
     /// <param name="reference">Object reference (number + generation).</param>
     /// <param name="info">Parsed xref information describing the object.</param>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private void TryAddObjectIndexEntry(in PdfReference reference, PdfObjectInfo info)
     {
         if (!_document.ObjectCache.ObjectIndex.ContainsKey(reference))
         {
             _document.ObjectCache.ObjectIndex[reference] = info;
-            return;
         }
-
-        _logger.LogDebug("Skipping older revision entry for object {Object} gen {Gen}.", reference.ObjectNumber, reference.Generation);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
