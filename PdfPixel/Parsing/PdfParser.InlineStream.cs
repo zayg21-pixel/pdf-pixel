@@ -10,7 +10,16 @@ internal partial struct PdfParser
     {
         // ID operator already consumed by ReadToken
         // Skip single whitespace after ID per PDF spec
-        if (IsWhitespace(PeekByte()))
+        byte firstByte = PeekByte();
+        if (firstByte == CarriageReturn)
+        {
+            Advance(1);
+            if (!IsAtEnd && PeekByte() == LineFeed)
+            {
+                Advance(1);
+            }
+        }
+        else if (IsWhitespace(firstByte))
         {
             Advance(1);
         }
