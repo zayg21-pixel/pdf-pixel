@@ -41,7 +41,7 @@ internal static class PdfPaintFactory
             Size = 1,
             Subpixel = true,
             LinearMetrics = true,
-            Hinting = SKFontHinting.Normal
+            Hinting = SKFontHinting.Slight
         };
 
         // Skew/rotation are already represented in the text matrix applied at draw time.
