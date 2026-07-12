@@ -194,18 +194,10 @@ internal sealed class CffCharStringMetricsParser
             case OpVstem:
             case OpHstemhm:
             case OpVstemhm:
-                {
-                    if (operandArray.Length % 2 == 1)
-                    {
-                        metrics.Width = (double)operandArray[0];
-                    }
-
-                    break;
-                }
             case OpHintmask:
             case OpCntrmask:
                 {
-                    if (operandArray.Length > 0)
+                    if (operandArray.Length % 2 == 1)
                     {
                         metrics.Width = (double)operandArray[0];
                     }

@@ -4,7 +4,6 @@ using System.IO;
 using System.Text;
 using PdfPixel.Fonts.Management;
 using PdfPixel.Fonts.Model;
-using SkiaSharp;
 
 namespace PdfPixel.Fonts.Cff;
 
@@ -40,10 +39,9 @@ internal static class CffOpenTypeWrapper
     private const short DefaultUnderlineThickness = 50;
     private const short DefaultStrikeoutSize = 10;
     private const short DefaultStrikeoutPosition = 250;
-    private const ushort DefaultLowestRecPpem = 8;
-    private const short DefaultCaretSlopeRise = 1;
-    private const short DefaultCaretSlopeRun = 0;
+    private const ushort DefaultLowestRecPpem = 17;
     private const short DefaultLineGap = 0;
+    private const short HeadXMax = 0x0FFF;
     private const ushort DefaultWeightIfUnknown = 400;
     private const ushort DefaultBoldWeight = 700;
     private const short DefaultAvgWidth = 500;
@@ -158,17 +156,17 @@ internal static class CffOpenTypeWrapper
             CffOpenTypeWriter.WriteUInt32BE(writer, 0x00010000);        // fontRevision 1.0
             CffOpenTypeWriter.WriteUInt32BE(writer, checksumAdjustment);
             CffOpenTypeWriter.WriteUInt32BE(writer, HeadMagic);
-            CffOpenTypeWriter.WriteUInt16BE(writer, 0x000B);            // flags (baseline/lsb/pointsize)
+            CffOpenTypeWriter.WriteUInt16BE(writer, 0);                 // flags
             CffOpenTypeWriter.WriteUInt16BE(writer, (ushort)unitsPerEm);
             CffOpenTypeWriter.WriteInt64BE(writer, 0);                  // created
             CffOpenTypeWriter.WriteInt64BE(writer, 0);                  // modified
-            CffOpenTypeWriter.WriteInt16BE(writer, CffOpenTypeWriter.ClampToShort(Math.Min(0f, fontDescriptor.FontBBox.Left * unitsPerEmScale), fallback: 0)); // xMin
+            CffOpenTypeWriter.WriteInt16BE(writer, 0);                  // xMin
             CffOpenTypeWriter.WriteInt16BE(writer, CffOpenTypeWriter.ClampToShort(fontDescriptor.Descent * unitsPerEmScale, (short)Math.Round(DefaultDescent * unitsPerEmScale))); // yMin
-            CffOpenTypeWriter.WriteInt16BE(writer, CffOpenTypeWriter.ClampToShort(Math.Max(unitsPerEm, fontDescriptor.FontBBox.Right * unitsPerEmScale), fallback: unitsPerEm)); // xMax
+            CffOpenTypeWriter.WriteInt16BE(writer, HeadXMax);           // xMax
             CffOpenTypeWriter.WriteInt16BE(writer, CffOpenTypeWriter.ClampToShort(fontDescriptor.Ascent * unitsPerEmScale, (short)Math.Round(DefaultAscent * unitsPerEmScale))); // yMax
-            CffOpenTypeWriter.WriteUInt16BE(writer, 0);                 // macStyle
+            CffOpenTypeWriter.WriteUInt16BE(writer, (ushort)((fontDescriptor.ItalicAngle != 0) ? 2 : 0)); // macStyle
             CffOpenTypeWriter.WriteUInt16BE(writer, DefaultLowestRecPpem);
-            CffOpenTypeWriter.WriteInt16BE(writer, 2);                  // fontDirectionHint
+            CffOpenTypeWriter.WriteInt16BE(writer, 0);                  // fontDirectionHint
             CffOpenTypeWriter.WriteInt16BE(writer, 0);                  // indexToLocFormat
             CffOpenTypeWriter.WriteInt16BE(writer, 0);                  // glyphDataFormat
             return stream.ToArray();
@@ -197,12 +195,12 @@ internal static class CffOpenTypeWrapper
             CffOpenTypeWriter.WriteInt16BE(writer, CffOpenTypeWriter.ClampToShort(fontDescriptor.Ascent * unitsPerEmScale, (short)Math.Round(DefaultAscent * unitsPerEmScale)));
             CffOpenTypeWriter.WriteInt16BE(writer, CffOpenTypeWriter.ClampToShort(fontDescriptor.Descent * unitsPerEmScale, (short)Math.Round(DefaultDescent * unitsPerEmScale)));
             CffOpenTypeWriter.WriteInt16BE(writer, DefaultLineGap); // line gap
-            CffOpenTypeWriter.WriteUInt16BE(writer, (ushort)Math.Max(1, (int)Math.Round((fontDescriptor.MaxWidth != 0) ? fontDescriptor.MaxWidth * unitsPerEmScale : unitsPerEm))); // advanceWidthMax
+            CffOpenTypeWriter.WriteUInt16BE(writer, ushort.MaxValue); // advanceWidthMax
             CffOpenTypeWriter.WriteInt16BE(writer, 0); // minLeftSideBearing
             CffOpenTypeWriter.WriteInt16BE(writer, 0); // minRightSideBearing
-            CffOpenTypeWriter.WriteInt16BE(writer, (short)Math.Max(0, (int)Math.Round((fontDescriptor.FontBBox.Right - fontDescriptor.FontBBox.Left) * unitsPerEmScale))); // xMaxExtent
-            CffOpenTypeWriter.WriteInt16BE(writer, DefaultCaretSlopeRise);
-            CffOpenTypeWriter.WriteInt16BE(writer, DefaultCaretSlopeRun);
+            CffOpenTypeWriter.WriteInt16BE(writer, 0); // xMaxExtent
+            CffOpenTypeWriter.WriteInt16BE(writer, CffOpenTypeWriter.ClampToShort(fontDescriptor.CapHeight * unitsPerEmScale, fallback: 0)); // caretSlopeRise
+            CffOpenTypeWriter.WriteInt16BE(writer, CffOpenTypeWriter.ClampToShort((float)Math.Tan(fontDescriptor.ItalicAngle * Math.PI / 180.0) * fontDescriptor.XHeight * unitsPerEmScale, fallback: 0)); // caretSlopeRun
             for (int reservedIndex = 0; reservedIndex < 5; reservedIndex++)
             {
                 CffOpenTypeWriter.WriteInt16BE(writer, 0);
@@ -222,8 +220,8 @@ internal static class CffOpenTypeWrapper
             for (int glyphId = 0; glyphId < numGlyphs; glyphId++)
             {
                 float glyphSpaceWidth = (gidWidths != null && glyphId < gidWidths.Length) ? gidWidths[glyphId] : 0;
-                var advanceWidth = (ushort)Math.Max(0, Math.Round(glyphSpaceWidth * unitsPerEm));
-                CffOpenTypeWriter.WriteUInt16BE(writer, advanceWidth);
+                var advanceWidth = (short)Math.Ceiling(glyphSpaceWidth * unitsPerEm);
+                CffOpenTypeWriter.WriteInt16BE(writer, advanceWidth);
                 CffOpenTypeWriter.WriteInt16BE(writer, 0); // lsb
             }
 
@@ -264,15 +262,21 @@ internal static class CffOpenTypeWrapper
                 : ((fontDescriptor.Flags & PdfFontFlags.ForceBold) == PdfFontFlags.ForceBold) ? DefaultBoldWeight : DefaultWeightIfUnknown);
             const ushort usWidthClass = 5; // Medium width
             var scaledDefaultAscent = (short)Math.Round(DefaultAscent * unitsPerEmScale);
-            float ascent = ((fontDescriptor.Ascent != 0) ? fontDescriptor.Ascent : DefaultAscent) * unitsPerEmScale;
-            short sTypoAscender = CffOpenTypeWriter.ClampToShort(ascent, scaledDefaultAscent);
+            float ascentValue = (fontDescriptor.Ascent != 0) ? fontDescriptor.Ascent : fontDescriptor.FontBBox.Top;
+            var typoAscent = (float)Math.Round(unitsPerEmScale * ascentValue);
+            short sTypoAscender = CffOpenTypeWriter.ClampToShort(typoAscent, scaledDefaultAscent);
             var scaledDefaultDescent = (short)Math.Round(DefaultDescent * unitsPerEmScale);
-            float descent = ((fontDescriptor.Descent != 0) ? fontDescriptor.Descent : DefaultDescent) * unitsPerEmScale;
-            short sTypoDescender = CffOpenTypeWriter.ClampToShort(descent, scaledDefaultDescent);
+            float descentValue = (fontDescriptor.Descent != 0) ? fontDescriptor.Descent : fontDescriptor.FontBBox.Bottom;
+            var typoDescent = (float)Math.Round(unitsPerEmScale * descentValue);
+            if (typoDescent > 0 && fontDescriptor.Descent > 0 && fontDescriptor.FontBBox.Bottom < 0)
+            {
+                typoDescent = -typoDescent; // fixing incorrect descent
+            }
+
+            short sTypoDescender = CffOpenTypeWriter.ClampToShort(typoDescent, scaledDefaultDescent);
             const short sTypoLineGap = DefaultLineGap;
-            bool hasFontBBox = fontDescriptor.FontBBox != SKRect.Empty;
-            var usWinAscent = (ushort)Math.Max(0, (int)Math.Round((hasFontBBox ? fontDescriptor.FontBBox.Bottom : DefaultAscent) * unitsPerEmScale));
-            var usWinDescent = (ushort)Math.Max(0, -(int)Math.Round((hasFontBBox ? fontDescriptor.FontBBox.Top : DefaultDescent) * unitsPerEmScale));
+            var usWinAscent = (ushort)Math.Max(0, (int)Math.Round(typoAscent));
+            var usWinDescent = (ushort)Math.Max(0, -(int)Math.Round(typoDescent));
 
             ushort fsSelection = 0;
             bool italic = (fontDescriptor.Flags & PdfFontFlags.Italic) == PdfFontFlags.Italic || Math.Abs(fontDescriptor.ItalicAngle) > 0.1f;
