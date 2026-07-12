@@ -129,15 +129,15 @@ internal sealed class JpxInverseDwt53 : IJpxInverseDwt
                 }
             }
 
-            // Apply 1D inverse 5-3 filter on columns then rows
-            for (int x = 0; x < nextWidth; x++)
-            {
-                InverseLiftColumn(interleaved, nextWidth, nextHeight, x, _columnBuffer);
-            }
-
+            // Apply 1D inverse 5-3 filter on rows then columns
             for (int y = 0; y < nextHeight; y++)
             {
                 InverseLiftRow(interleaved, nextWidth, y);
+            }
+
+            for (int x = 0; x < nextWidth; x++)
+            {
+                InverseLiftColumn(interleaved, nextWidth, nextHeight, x, _columnBuffer);
             }
 
             // Copy result for next level

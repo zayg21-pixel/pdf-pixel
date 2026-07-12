@@ -98,10 +98,7 @@ public sealed class JpxTileToRowConverter
         _currentTileRowTiles = new JpxTile[_tileProvider.TilesHorizontal];
 
         // Use the JPX header's precision (per spec, ignore PDF BitsPerComponent for JPX).
-        // Components may declare different precisions; align to the widest one so no
-        // channel loses precision when packed into a single per-row bit depth.
-        // Cap at 16, the maximum supported by the row processor.
-        int headerBpc = 8;
+        int headerBpc = 0;
         for (int i = 0; i < header.Components.Count; i++)
         {
             headerBpc = Math.Max(headerBpc, header.Components[i].PrecisionBits);

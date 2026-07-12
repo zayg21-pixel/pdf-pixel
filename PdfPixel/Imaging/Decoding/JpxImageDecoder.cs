@@ -51,7 +51,7 @@ internal class JpxImageDecoder : PdfImageDecoder
             throw new InvalidOperationException($"Cannot determine color space for JPX image with {jpxHeader.ComponentCount} components (Name={Image.Name}).");
         }
 
-        JpxDecodingParameters jpxDecodingParameters = ComputeDecodingParameters(jpxHeader, ctm, tileInfo, tileIndexesToDecode);
+        JpxDecodingParameters jpxDecodingParameters = ComputeDecodingParameters(jpxHeader, ctm, tileInfo, tileIndexesToDecode, _resolvedConverter);
         JpxTileProvider tileProvider = new(
             jpxHeader,
             encodedData.Span.Slice(jpxHeader.CodestreamOffset),
@@ -141,9 +141,15 @@ internal class JpxImageDecoder : PdfImageDecoder
         };
     }
 
-    private static JpxDecodingParameters ComputeDecodingParameters(JpxHeader header, SKMatrix ctm, PdfTileInfo tileInfo, HashSet<int>? tileIndexesToDecode)
+    private static JpxDecodingParameters ComputeDecodingParameters(JpxHeader header, SKMatrix ctm, PdfTileInfo tileInfo, HashSet<int>? tileIndexesToDecode, PdfColorSpaceConverter resolvedConverter)
     {
         IReadOnlyList<JpxRegion>? regionsOfInterest = ComputeRegionsOfInterest(tileInfo, tileIndexesToDecode);
+
+        // Indexed samples are palette indices; never reconstruct them at a reduced DWT level.
+        if (resolvedConverter is IndexedConverter)
+        {
+            return new JpxDecodingParameters(1, regionsOfInterest);
+        }
 
         SKSizeI sourceSize = new((int)header.Width, (int)header.Height);
         SKSizeI? targetSize = PdfImageCommandUtilities.GetScaledSize(ctm, sourceSize);
