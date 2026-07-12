@@ -296,21 +296,17 @@ internal sealed partial class PdfImageRowProcessor : IDisposable
         }
 
         RgbaPacked[] palette = _indexedPalette;
-        int paletteSize = palette.Length;
+        ref RgbaPacked paletteRef = ref palette[0];
+        var paletteSize = (uint)palette.Length;
+        uint paletteMin = paletteSize - 1;
         int pixelCount = _parameters.Width;
         ref RgbaPacked destPixel = ref Unsafe.As<byte, RgbaPacked>(ref _rgbaBuffer[0]);
         UintBitReaderFixedLength bitReader = new(decodedRow, _indexedBitsPerComponent);
 
         for (int x = 0; x < pixelCount; x++)
         {
-            uint sample = bitReader.Read();
-
-            if (sample >= (uint)paletteSize)
-            {
-                sample = (uint)(paletteSize - 1);
-            }
-
-            destPixel = palette[sample];
+            uint sample = Math.Min(bitReader.Read(), paletteMin);
+            destPixel = Unsafe.Add(ref paletteRef, sample);
             destPixel = ref Unsafe.Add(ref destPixel, 1);
         }
     }
@@ -323,8 +319,11 @@ internal sealed partial class PdfImageRowProcessor : IDisposable
             throw new InvalidOperationException("Not initialized.");
         }
 
+        // TODO: [MEDIUM] optimize further
         RgbaPacked[] palette = _indexedPalette;
-        int paletteSize = palette.Length;
+        ref RgbaPacked paletteRef = ref palette[0];
+        var paletteSize = (uint)palette.Length;
+        uint paletteMin = paletteSize - 1;
         int pixelCount = _parameters.Width;
         ref RgbaPacked destPixel = ref Unsafe.As<byte, RgbaPacked>(ref _rgbaBuffer[0]);
         UintBitReaderFixedLength bitReader = new(decodedRow, _indexedBitsPerComponent);
@@ -343,10 +342,7 @@ internal sealed partial class PdfImageRowProcessor : IDisposable
                 sample = (uint)Math.Max(0, dMin + (sample * (dMax - dMin) * _scale));
             }
 
-            if (sample >= (uint)paletteSize)
-            {
-                sample = (uint)(paletteSize - 1);
-            }
+            sample = Math.Min(sample, paletteMin);
 
             destPixel = palette[sample];
 
