@@ -153,7 +153,7 @@ public sealed class PdfObjectInfo
     public bool FromCrossReferenceStream { get; private set; }
 
     /// <summary>
-    /// True if this entry was synthesized by a fallback scanner (no valid xref data). Used for diagnostics.
+    /// True if this entry was synthesized by a fallback scanner (no valid xref data).
     /// </summary>
     public bool FromFallbackScan { get; internal set; }
 

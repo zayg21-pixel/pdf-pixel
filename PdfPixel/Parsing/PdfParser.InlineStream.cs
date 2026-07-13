@@ -6,10 +6,11 @@ namespace PdfPixel.Parsing;
 internal partial struct PdfParser
 {
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private IPdfValue ReadInlineStream()
+    private IPdfValue? ReadInlineStream()
     {
         // ID operator already consumed by ReadToken
         // Skip single whitespace after ID per PDF spec
+        int beginPosition = Position;
         byte firstByte = PeekByte();
         if (firstByte == CarriageReturn)
         {
@@ -27,6 +28,8 @@ internal partial struct PdfParser
         _localBuffer.Clear();
 
         int previousByte = -1; // Tracks last consumed byte for whitespace check before potential EI.
+        var endFound = false;
+
         while (!IsAtEnd)
         {
             byte current = ReadByte();
@@ -44,6 +47,7 @@ internal partial struct PdfParser
                     {
                         // Roll back the consumed 'E' since EI marks end; leave Position at start of 'E'.
                         SetPosition(Position - 1);
+                        endFound = true;
                         break;
                     }
                 }
@@ -51,6 +55,14 @@ internal partial struct PdfParser
 
             _localBuffer.Add(current);
             previousByte = current;
+        }
+
+        if (!endFound)
+        {
+            // No EI terminator before end of data: not a valid inline stream. Roll back so the
+            // caller does not treat the truncated bytes as content.
+            Position = beginPosition;
+            return null;
         }
 
         if (_localBuffer.Count == 0)

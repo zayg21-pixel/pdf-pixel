@@ -165,7 +165,12 @@ internal ref partial struct PdfParser
                 }
                 case PdfTokenType.InlineStreamStart:
                 {
-                    IPdfValue streamValue = ReadInlineStream();
+                    IPdfValue? streamValue = ReadInlineStream();
+                    if (streamValue == null)
+                    {
+                        return null;
+                    }
+
                     values.Add(streamValue);
                     break;
                 }
