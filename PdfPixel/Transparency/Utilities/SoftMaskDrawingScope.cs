@@ -1,5 +1,4 @@
 using Microsoft.Extensions.Logging;
-using System;
 using PdfPixel.Color.Paint;
 using PdfPixel.Color.Transform;
 using PdfPixel.Commands;
@@ -8,6 +7,7 @@ using PdfPixel.Rendering;
 using PdfPixel.Rendering.State;
 using PdfPixel.Transparency.Model;
 using SkiaSharp;
+using System;
 
 namespace PdfPixel.Transparency.Utilities;
 
@@ -85,8 +85,8 @@ public sealed class SoftMaskDrawingScope : IDisposable
         _maskBounds = _maskMatrix.MapRect(_softMask.MaskForm.BBox);
 
         SKPaint layerPaint = PdfPaintFactory.CreateMaskLayerPaint();
-
         _processor.Process(new SaveLayerCommand(_maskBounds, layerPaint));
+        _processor.Process(new ClipRectangleCommand(_maskBounds, SKClipOperation.Intersect));
     }
 
     /// <summary>
@@ -109,7 +109,6 @@ public sealed class SoftMaskDrawingScope : IDisposable
         PdfCommandRecorder recorder = new(_graphicsState.Page.Document.LoggerFactory.CreateLogger<PdfCommandRecorder>());
         recorder.Process(SaveStateCommand.Instance);
         recorder.Process(new ConcatMatrixCommand(_maskMatrix));
-        recorder.Process(new ClipRectangleCommand(_softMask.MaskForm.BBox, SKClipOperation.Intersect));
 
         if (_softMask.Subtype == PdfSoftMaskSubtype.Luminosity)
         {
