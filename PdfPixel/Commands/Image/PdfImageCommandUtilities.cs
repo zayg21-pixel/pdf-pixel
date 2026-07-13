@@ -24,10 +24,8 @@ internal static class PdfImageCommandUtilities
             return GetUnsnappedTilePlacement(imageSize, tilePosition, sampling);
         }
 
-        SKMatrix pixelToDeviceMatrix = ctm.PreConcat(SKMatrix.CreateScale(1f / imageSize.Width, 1f / imageSize.Height));
-
-        SKPoint topLeft = pixelToDeviceMatrix.MapPoint(new SKPoint(tilePosition.Left, tilePosition.Top));
-        SKPoint bottomRight = pixelToDeviceMatrix.MapPoint(new SKPoint(tilePosition.Right, tilePosition.Bottom));
+        SKPoint topLeft = ctm.MapPoint(new SKPoint(tilePosition.Left / (float)imageSize.Width, tilePosition.Top / (float)imageSize.Height));
+        SKPoint bottomRight = ctm.MapPoint(new SKPoint(tilePosition.Right / (float)imageSize.Width, tilePosition.Bottom / (float)imageSize.Height));
 
         float roundedLeft = MathF.Round(topLeft.X);
         float roundedTop = MathF.Round(topLeft.Y);
@@ -47,7 +45,7 @@ internal static class PdfImageCommandUtilities
         }
 
         SKSize deviceSize = new(deviceWidth, deviceHeight);
-        SKMatrix placementMatrix = GetSignedPlacementMatrix(baseCtm, pixelToDeviceMatrix, roundedLeft, roundedTop);
+        SKMatrix placementMatrix = GetSignedPlacementMatrix(baseCtm, ctm, roundedLeft, roundedTop);
 
         return new SnappedTilePlacement(deviceSize, placementMatrix, sampling);
     }
@@ -69,18 +67,18 @@ internal static class PdfImageCommandUtilities
     /// Builds the matrix that places a tile at the rounded device position while re-applying the
     /// axis signs that rounding stripped out, so mirrored images (e.g. the CTM's baked-in Y-flip)
     /// still draw the right way up. <paramref name="canvasCtm"/> is the transform actually on the
-    /// canvas at draw time (no image flip), used to cancel it out; <paramref name="pixelToDeviceMatrix"/>
+    /// canvas at draw time (no image flip), used to cancel it out; <paramref name="imageCtm"/>
     /// is the image-inclusive matrix the rounded position/sign were computed from.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static SKMatrix GetSignedPlacementMatrix(SKMatrix canvasCtm, SKMatrix pixelToDeviceMatrix, float roundedLeft, float roundedTop)
+    private static SKMatrix GetSignedPlacementMatrix(SKMatrix canvasCtm, SKMatrix imageCtm, float roundedLeft, float roundedTop)
     {
         SKMatrix signedPlacement = new(
-            MathF.Sign(pixelToDeviceMatrix.ScaleX),
+            MathF.Sign(imageCtm.ScaleX),
             0,
             roundedLeft,
             0,
-            MathF.Sign(pixelToDeviceMatrix.ScaleY),
+            MathF.Sign(imageCtm.ScaleY),
             roundedTop,
             0,
             0,
@@ -112,25 +110,11 @@ internal static class PdfImageCommandUtilities
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static SKSizeI? GetScaledSize(SKMatrix ctm, SKSizeI size)
     {
-        SKSize? exactSize = GetExactScaledSize(ctm, size);
+        SKPoint origin = ctm.MapPoint(new SKPoint(0, 0));
+        SKPoint corner = ctm.MapPoint(new SKPoint(1, 1));
 
-        if (!exactSize.HasValue)
-        {
-            return null;
-        }
-
-        return new SKSizeI(
-            Math.Max(1, (int)Math.Round(exactSize.Value.Width)),
-            Math.Max(1, (int)Math.Round(exactSize.Value.Height)));
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static SKSize? GetExactScaledSize(SKMatrix ctm, SKSizeI size)
-    {
-        SKPoint unitMapped = ctm.MapPoint(new SKPoint(1, 1)) - ctm.MapPoint(new SKPoint(0, 0));
-
-        float unitPixelsX = Math.Abs(unitMapped.X);
-        float unitPixelsY = Math.Abs(unitMapped.Y);
+        float unitPixelsX = Math.Abs(corner.X - origin.X);
+        float unitPixelsY = Math.Abs(corner.Y - origin.Y);
 
         float relScaleX = unitPixelsX / size.Width;
         float relScaleY = unitPixelsY / size.Height;
@@ -142,7 +126,19 @@ internal static class PdfImageCommandUtilities
             return default;
         }
 
-        return new SKSize(size.Width * maxScale, size.Height * maxScale);
+        if (CommandHelpers.IsAxisAligned(ctm))
+        {
+            int scaledWidth = Math.Abs((int)Math.Round(corner.X) - (int)Math.Round(origin.X));
+            int scaledHeight = Math.Abs((int)Math.Round(corner.Y) - (int)Math.Round(origin.Y));
+
+            return new SKSizeI(Math.Max(1, scaledWidth), Math.Max(1, scaledHeight));
+        }
+
+        SKSize exactSize = new(size.Width * maxScale, size.Height * maxScale);
+
+        return new SKSizeI(
+            Math.Max(1, (int)Math.Round(exactSize.Width)),
+            Math.Max(1, (int)Math.Round(exactSize.Height)));
     }
 
     /// <summary>
