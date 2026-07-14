@@ -1,5 +1,5 @@
 ﻿using Microsoft.Extensions.Logging;
-using PdfPixel.Color.ColorSpace;
+using PdfPixel.Color.Sampling;
 using PdfPixel.Color.Transform;
 using PdfPixel.Commands;
 using PdfPixel.Functions;
@@ -19,17 +19,13 @@ internal partial class PdfShadingBuilder
     /// Returns <see langword="null"/> if the shading is invalid or degenerate.
     /// </summary>
     /// <param name="shading">Parsed shading model.</param>
-    /// <param name="converter">Resolved color space converter.</param>
-    /// <param name="renderingIntent">Rendering intent for color conversion.</param>
-    /// <param name="fullTransferFunction">Transfer function for color conversion.</param>
+    /// <param name="sampler">RGBA sampler for color conversion.</param>
     /// <param name="defaultFunctionSamples">Number of function samples to use.</param>
     /// <param name="observer">Execution observer for progress and cancellation.</param>
     /// <returns>A <see cref="FunctionShadingResult"/> containing the bitmap and matrix, or <see langword="null"/> on failure.</returns>
     public FunctionShadingResult? BuildFunctionBasedBitmap(
         PdfShading shading,
-        PdfColorSpaceConverter converter,
-        PdfRenderingIntent renderingIntent,
-        IColorTransform? fullTransferFunction,
+        ColorTransformSampler sampler,
         int defaultFunctionSamples,
         IPdfExecutionObserver observer)
     {
@@ -76,7 +72,7 @@ internal partial class PdfShadingBuilder
             {
                 float domainX = xSamples[xIndex];
                 ReadOnlySpan<float> comps = function.Evaluate([domainX, domainY]);
-                SKColor color = converter.ToSrgb(comps, renderingIntent, fullTransferFunction);
+                SKColor color = sampler.Sample(comps).From01ToSkiaColor();
                 pixelColors[(yIndex * bitmapWidth) + xIndex] = color;
             }
 

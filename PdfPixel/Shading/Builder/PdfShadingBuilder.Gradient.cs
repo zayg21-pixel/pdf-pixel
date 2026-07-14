@@ -1,6 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
-using PdfPixel.Color.ColorSpace;
 using PdfPixel.Color.Paint;
+using PdfPixel.Color.Sampling;
 using PdfPixel.Color.Transform;
 using PdfPixel.Functions;
 using PdfPixel.Shading.Model;
@@ -113,17 +113,13 @@ internal partial class PdfShadingBuilder
     /// across the domain range.
     /// </summary>
     /// <param name="shading">Parsed shading model.</param>
-    /// <param name="converter">Resolved color space converter.</param>
-    /// <param name="renderingIntent">Rendering intent for color conversion.</param>
-    /// <param name="fullTransferFunction">Transfer function for color conversion.</param>
+    /// <param name="sampler">RGBA sampler for color conversion.</param>
     /// <param name="defaultFunctionSamples">Number of function samples to use.</param>
     /// <param name="colors">Output array of SKColor stops.</param>
     /// <param name="positions">Output array of gradient positions.</param>
     public void BuildShadingColorsAndStops(
         PdfShading shading,
-        PdfColorSpaceConverter converter,
-        PdfRenderingIntent renderingIntent,
-        IColorTransform? fullTransferFunction,
+        ColorTransformSampler sampler,
         int defaultFunctionSamples,
         out SKColor[] colors,
         out float[] positions)
@@ -156,7 +152,7 @@ internal partial class PdfShadingBuilder
                 float x = sampleXs[i];
                 float t = (x - domainStart) / domainLength;
                 ReadOnlySpan<float> comps = PdfFunctions.EvaluateColorFunctions(shading.Functions, x);
-                colors[i] = converter.ToSrgb(comps, renderingIntent, fullTransferFunction);
+                colors[i] = sampler.Sample(comps).From01ToSkiaColor();
                 positions[i] = t;
             }
         }

@@ -16,6 +16,7 @@ public sealed class DrawShadingCommand : PdfCommand
     private readonly PdfShading _shading;
     private readonly ShadingDecodingContext _context;
     private readonly PdfShadingBuilder _builder;
+    private readonly Color.Sampling.ColorTransformSampler _sampler;
 
     // Function-based (Type 1) cache
     private FunctionShadingResult? _functionCache;
@@ -48,6 +49,7 @@ public sealed class DrawShadingCommand : PdfCommand
         _shading = shading;
         _context = context;
         _builder = new PdfShadingBuilder(loggerFactory);
+        _sampler = _context.Converter.GetRgbaSampler(_context.RenderingIntent, _context.FullTransferFunction);
     }
 
     /// <inheritdoc />
@@ -94,9 +96,7 @@ public sealed class DrawShadingCommand : PdfCommand
             _functionCache?.Dispose();
             _functionCache = _builder.BuildFunctionBasedBitmap(
                 _shading,
-                _context.Converter,
-                _context.RenderingIntent,
-                _context.FullTransferFunction,
+                _sampler,
                 defaultFunctionSamples,
                 executionContext.ExecutionObserver);
             _functionCacheSamples = defaultFunctionSamples;
@@ -131,8 +131,7 @@ public sealed class DrawShadingCommand : PdfCommand
     {
         if (!_gouraudCacheBuilt)
         {
-            Color.Sampling.ColorTransformSampler sampler = _context.Converter.GetRgbaSampler(_context.RenderingIntent, _context.FullTransferFunction);
-            _gouraudCache = _builder.BuildGouraudVertices(_shading, sampler);
+            _gouraudCache = _builder.BuildGouraudVertices(_shading, _sampler);
             _gouraudCacheBuilt = true;
         }
     }
@@ -144,8 +143,7 @@ public sealed class DrawShadingCommand : PdfCommand
         if (_patchMeshCacheMaxVertices != maxTessellationVertices)
         {
             _patchMeshCache?.Dispose();
-            Color.Sampling.ColorTransformSampler sampler = _context.Converter.GetRgbaSampler(_context.RenderingIntent, _context.FullTransferFunction);
-            _patchMeshCache = _builder.BuildPatchMeshVertices(_shading, sampler, maxTessellationVertices, executionContext.ExecutionObserver);
+            _patchMeshCache = _builder.BuildPatchMeshVertices(_shading, _sampler, maxTessellationVertices, executionContext.ExecutionObserver);
             _patchMeshCacheMaxVertices = maxTessellationVertices;
         }
     }
@@ -233,9 +231,7 @@ public sealed class DrawShadingCommand : PdfCommand
     {
         _builder.BuildShadingColorsAndStops(
             _shading,
-            _context.Converter,
-            _context.RenderingIntent,
-            _context.FullTransferFunction,
+            _sampler,
             defaultFunctionSamples,
             out SKColor[] colors,
             out float[] positions);
@@ -252,9 +248,7 @@ public sealed class DrawShadingCommand : PdfCommand
     {
         _builder.BuildShadingColorsAndStops(
             _shading,
-            _context.Converter,
-            _context.RenderingIntent,
-            _context.FullTransferFunction,
+            _sampler,
             defaultFunctionSamples,
             out SKColor[] colors,
             out float[] positions);
