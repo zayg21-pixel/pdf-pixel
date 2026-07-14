@@ -17,16 +17,6 @@ public abstract class PdfColorSpaceConverter
 
 #if !NETSTANDARD2_0
     private readonly ColorTransformSampler[] _colorSamplers = new ColorTransformSampler[Enum.GetValues<PdfRenderingIntent>().Length];
-
-    static PdfColorSpaceConverter()
-    {
-        ChainedColorTransform.ResolveTransformType = static transform => transform switch
-        {
-            Transform.TransferFunctionTransform => typeof(Transform.TransferFunctionTransform),
-            Transform.IndexedColorTransform => typeof(Transform.IndexedColorTransform),
-            _ => null
-        };
-    }
 #else
     private readonly ColorTransformSampler[] _colorSamplers = new ColorTransformSampler[Enum.GetValues(typeof(PdfRenderingIntent)).Length];
 #endif
