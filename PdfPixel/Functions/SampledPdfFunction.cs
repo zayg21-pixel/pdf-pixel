@@ -15,8 +15,12 @@ public sealed class SampledPdfFunction : PdfFunction
     private readonly int _componentCount;
     private readonly int[] _strides;
     private readonly float[] _table;
-    private readonly float[]? _decode;
     private readonly float[]? _encode;
+    private readonly int[] _lowerIndices;
+    private readonly int[] _upperIndices;
+    private readonly float[] _fractions;
+    private readonly float[] _output;
+    private readonly float[] _singleInput;
 
     private SampledPdfFunction(
         int[] sizes,
@@ -25,7 +29,6 @@ public sealed class SampledPdfFunction : PdfFunction
         int[] strides,
         float[] table,
         float[] range,
-        float[]? decode,
         float[]? encode,
         float[] domain)
         : base(domain, range)
@@ -35,8 +38,13 @@ public sealed class SampledPdfFunction : PdfFunction
         _componentCount = componentCount;
         _strides = strides;
         _table = table;
-        _decode = decode;
         _encode = encode;
+
+        _lowerIndices = new int[dimensions];
+        _upperIndices = new int[dimensions];
+        _fractions = new float[dimensions];
+        _output = new float[componentCount];
+        _singleInput = new float[1];
     }
 
     /// <summary>
@@ -145,7 +153,6 @@ public sealed class SampledPdfFunction : PdfFunction
             strides,
             table,
             range,
-            decode,
             encode,
             domain);
     }
@@ -163,9 +170,8 @@ public sealed class SampledPdfFunction : PdfFunction
     /// <inheritdoc />
     public override ReadOnlySpan<float> Evaluate(float value)
     {
-        var input = new float[Dimensions];
-        input[0] = value;
-        return Evaluate(input);
+        _singleInput[0] = value;
+        return Evaluate(_singleInput);
     }
 
     /// <inheritdoc />
@@ -176,30 +182,19 @@ public sealed class SampledPdfFunction : PdfFunction
             return Array.Empty<float>();
         }
 
-        var i0 = new int[Dimensions];
-        var i1 = new int[Dimensions];
-        var fractions = new float[Dimensions];
-
         for (int dimensionIndex = 0; dimensionIndex < Dimensions; dimensionIndex++)
         {
+            int size = _sizes[dimensionIndex];
             float domainMin = Domain[2 * dimensionIndex];
             float domainMax = Domain[(2 * dimensionIndex) + 1];
             float inputValue = (dimensionIndex < values.Length) ? values[dimensionIndex] : 0f;
             // Clamp input to domain
             inputValue = Clamp(inputValue, Domain, dimensionIndex);
 
-            float decodeMin = (_decode != null && _decode.Length >= 2 * Dimensions)
-                ? _decode[2 * dimensionIndex]
-                : domainMin;
-            float decodeMax = (_decode != null && _decode.Length >= 2 * Dimensions)
-                ? _decode[(2 * dimensionIndex) + 1]
-                : domainMax;
-
             float domainT = (inputValue - domainMin) / (domainMax - domainMin);
-            float mappedInput = decodeMin + (domainT * (decodeMax - decodeMin));
 
             float encodeMin = 0f;
-            float encodeMax = _sizes[dimensionIndex] - 1;
+            float encodeMax = size - 1;
             if (_encode != null && _encode.Length >= 2 * Dimensions)
             {
                 encodeMin = _encode[2 * dimensionIndex];
@@ -210,8 +205,8 @@ public sealed class SampledPdfFunction : PdfFunction
                 }
             }
 
-            float u = encodeMin + ((mappedInput - decodeMin) / (decodeMax - decodeMin) * (encodeMax - encodeMin));
-            if (_sizes[dimensionIndex] == 1)
+            float u = encodeMin + (domainT * (encodeMax - encodeMin));
+            if (size == 1)
             {
                 u = 0f;
             }
@@ -220,24 +215,42 @@ public sealed class SampledPdfFunction : PdfFunction
             {
                 u = 0f;
             }
-            else if (u > _sizes[dimensionIndex] - 1)
+            else if (u > size - 1)
             {
-                u = _sizes[dimensionIndex] - 1;
+                u = size - 1;
             }
 
-            var floorIndex = (int)Math.Floor(u);
-            int upperIndex = floorIndex + 1;
-            if (upperIndex >= _sizes[dimensionIndex])
+            // Snap to the nearest grid index when u lands within float round-trip tolerance of it,
+            // so evaluating the function's own sampling points reproduces the table row directly
+            // instead of blending it with its neighbor.
+            var roundedIndex = (int)Math.Round(u);
+            int lowerIndex;
+            int upperIndex;
+            float fraction;
+            if (roundedIndex >= 0 && roundedIndex < size && Math.Abs(u - roundedIndex) < 1e-4f)
             {
-                upperIndex = floorIndex;
+                lowerIndex = roundedIndex;
+                upperIndex = roundedIndex;
+                fraction = 0f;
+            }
+            else
+            {
+                lowerIndex = (int)Math.Floor(u);
+                upperIndex = lowerIndex + 1;
+                if (upperIndex >= size)
+                {
+                    upperIndex = lowerIndex;
+                }
+
+                fraction = u - lowerIndex;
             }
 
-            i0[dimensionIndex] = floorIndex;
-            i1[dimensionIndex] = upperIndex;
-            fractions[dimensionIndex] = u - floorIndex;
+            _lowerIndices[dimensionIndex] = lowerIndex;
+            _upperIndices[dimensionIndex] = upperIndex;
+            _fractions[dimensionIndex] = fraction;
         }
 
-        var output = new float[_componentCount];
+        Array.Clear(_output, 0, _output.Length);
         int cornerCount = 1 << Dimensions;
         for (int corner = 0; corner < cornerCount; corner++)
         {
@@ -246,8 +259,8 @@ public sealed class SampledPdfFunction : PdfFunction
             for (int dimensionIndex = 0; dimensionIndex < Dimensions; dimensionIndex++)
             {
                 bool useUpper = (corner & 1 << dimensionIndex) != 0;
-                int sampleIndex = useUpper ? i1[dimensionIndex] : i0[dimensionIndex];
-                float f = fractions[dimensionIndex];
+                int sampleIndex = useUpper ? _upperIndices[dimensionIndex] : _lowerIndices[dimensionIndex];
+                float f = _fractions[dimensionIndex];
                 weight *= useUpper ? f : 1f - f;
                 linearIndex += sampleIndex * _strides[dimensionIndex];
                 if (weight == 0f)
@@ -264,14 +277,14 @@ public sealed class SampledPdfFunction : PdfFunction
             int baseOffset = linearIndex * _componentCount;
             for (int componentIndex = 0; componentIndex < _componentCount; componentIndex++)
             {
-                output[componentIndex] += weight * _table[baseOffset + componentIndex];
+                _output[componentIndex] += weight * _table[baseOffset + componentIndex];
             }
         }
 
         // Clamp output to range
-        Clamp(output, Range);
+        Clamp(_output, Range);
 
-        return output;
+        return _output;
     }
 
     /// <summary>

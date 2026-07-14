@@ -1,3 +1,4 @@
+using PdfPixel.Commands.Cache;
 using PdfPixel.Models;
 using PdfPixel.TextExtraction;
 using SkiaSharp;
@@ -93,6 +94,11 @@ public sealed class PdfCommandExecutionContext : IDisposable
     public PdfCommandExecutionFrames Frames { get; } = new();
 
     /// <summary>
+    /// General-purpose cache for values commands want to reuse across this execution's replay.
+    /// </summary>
+    public CommandCache Cache { get; } = new();
+
+    /// <summary>
     /// Tracks active marked content scopes and evaluates optional content visibility.
     /// </summary>
     public PdfMarkedContentState MarkedContent { get; }
@@ -128,6 +134,7 @@ public sealed class PdfCommandExecutionContext : IDisposable
     public void Dispose()
     {
         Frames.Dispose();
+        Cache.Dispose();
         Canvas.Dispose();
     }
 }

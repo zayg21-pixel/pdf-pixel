@@ -1,16 +1,18 @@
 using Microsoft.Extensions.Logging;
 using PdfPixel.Color.Paint;
+using PdfPixel.Commands.Cache;
 using PdfPixel.Shading;
 using PdfPixel.Shading.Model;
 using SkiaSharp;
 using System;
+using System.Runtime.CompilerServices;
 
 namespace PdfPixel.Commands;
 
 /// <summary>
 /// Draws PDF shading. Builds expensive data (function sampling, mesh decoding, gradient construction)
-/// and draws the results to the canvas. Caches expensive results and only rebuilds when the relevant
-/// rendering parameter changes.
+/// once per shading and reuses the result from <see cref="PdfCommandExecutionContext.Cache"/> for every
+/// other command instance drawing the same shading during the same execution.
 /// </summary>
 public sealed class DrawShadingCommand : PdfCommand
 {
@@ -18,26 +20,6 @@ public sealed class DrawShadingCommand : PdfCommand
     private readonly ShadingDecodingContext _context;
     private readonly PdfShadingBuilder _builder;
     private readonly Color.Sampling.ColorTransformSampler _sampler;
-
-    // Function-based (Type 1) cache
-    private FunctionShadingResult? _functionCache;
-    private int _functionCacheSamples = -1;
-
-    // Axial (Type 2) cache
-    private SKPaint? _axialCache;
-    private int _axialCacheSamples = -1;
-
-    // Radial (Type 3) cache
-    private RadialShadingPaints? _radialCache;
-    private int _radialCacheSamples = -1;
-
-    // Gouraud (Type 4/5) cache
-    private SKVertices? _gouraudCache;
-    private bool _gouraudCacheBuilt;
-
-    // Patch mesh (Type 6/7) cache
-    private SKVertices? _patchMeshCache;
-    private int _patchMeshCacheMaxVertices = -1;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="DrawShadingCommand"/> class.
@@ -55,212 +37,165 @@ public sealed class DrawShadingCommand : PdfCommand
     /// <inheritdoc />
     public override void Execute(PdfCommandExecutionContext executionContext)
     {
+        ShadingCommandCacheEntry entry = GetOrBuildEntry(executionContext);
+
         switch (_shading.ShadingType)
         {
             case PdfShadingType.FunctionBased:
             {
-                ExecuteFunctionBased(executionContext);
+                ExecuteFunctionBased(executionContext, entry);
                 break;
             }
             case PdfShadingType.Axial:
             {
-                ExecuteAxial(executionContext);
+                ExecuteAxial(executionContext, entry);
                 break;
             }
             case PdfShadingType.Radial:
             {
-                ExecuteRadial(executionContext);
+                ExecuteRadial(executionContext, entry);
                 break;
             }
             case PdfShadingType.FreeFormGouraud:
             case PdfShadingType.LatticeFormGouraud:
             {
-                ExecuteGouraud(executionContext);
+                ExecuteGouraud(executionContext, entry);
                 break;
             }
             case PdfShadingType.CoonsPatchMesh:
             case PdfShadingType.TensorProductPatchMesh:
             {
-                ExecutePatchMesh(executionContext);
+                ExecutePatchMesh(executionContext, entry);
                 break;
             }
         }
     }
 
-    private void InitializeFunctionBased(PdfCommandExecutionContext executionContext)
+    private ShadingCommandCacheEntry GetOrBuildEntry(PdfCommandExecutionContext executionContext)
     {
-        int defaultFunctionSamples = executionContext.Parameters.DefaultFunctionSamples;
+        ShadingCommandCacheKey key = new(_context);
 
-        if (_functionCacheSamples != defaultFunctionSamples)
-        {
-            _functionCache?.Dispose();
-            _functionCache = _builder.BuildFunctionBasedBitmap(
-                _shading,
-                _sampler,
-                defaultFunctionSamples,
-                executionContext.ExecutionObserver);
-            _functionCacheSamples = defaultFunctionSamples;
-        }
-    }
-
-    private void InitializeAxial(PdfCommandExecutionContext executionContext)
-    {
-        int defaultFunctionSamples = executionContext.Parameters.DefaultFunctionSamples;
-
-        if (_axialCacheSamples != defaultFunctionSamples)
-        {
-            _axialCache?.Dispose();
-            _axialCache = CreateAxialPaint(defaultFunctionSamples);
-            _axialCacheSamples = defaultFunctionSamples;
-        }
-    }
-
-    private void InitializeRadial(PdfCommandExecutionContext executionContext)
-    {
-        int defaultFunctionSamples = executionContext.Parameters.DefaultFunctionSamples;
-
-        if (_radialCacheSamples != defaultFunctionSamples)
-        {
-            _radialCache?.Dispose();
-            _radialCache = CreateRadialPaints(defaultFunctionSamples);
-            _radialCacheSamples = defaultFunctionSamples;
-        }
-    }
-
-    private void InitializeGouraud()
-    {
-        if (!_gouraudCacheBuilt)
-        {
-            _gouraudCache = _builder.BuildGouraudVertices(_shading, _sampler);
-            _gouraudCacheBuilt = true;
-        }
-    }
-
-    private void InitializePatchMesh(PdfCommandExecutionContext executionContext)
-    {
-        int maxTessellationVertices = executionContext.Parameters.MaxTessellationVertices;
-
-        if (_patchMeshCacheMaxVertices != maxTessellationVertices)
-        {
-            _patchMeshCache?.Dispose();
-            _patchMeshCache = _builder.BuildPatchMeshVertices(_shading, _sampler, maxTessellationVertices, executionContext.ExecutionObserver);
-            _patchMeshCacheMaxVertices = maxTessellationVertices;
-        }
-    }
-
-    private void ExecuteFunctionBased(PdfCommandExecutionContext executionContext)
-    {
         lock (executionContext.ContentLocker)
         {
-            InitializeFunctionBased(executionContext);
+            if (executionContext.Cache.GetEntry(key) is ShadingCommandCacheEntry existing && existing.ParametersMatches(executionContext.Parameters))
+            {
+                return existing;
+            }
+
+            ShadingCommandCacheEntry entry = BuildEntry(executionContext);
+            executionContext.Cache.StoreEntry(key, entry);
+            return entry;
+        }
+    }
+
+    private ShadingCommandCacheEntry BuildEntry(PdfCommandExecutionContext executionContext)
+    {
+        ShadingCommandCacheEntry entry = new();
+
+        switch (_shading.ShadingType)
+        {
+            case PdfShadingType.FunctionBased:
+            {
+                entry.FunctionSamples = executionContext.Parameters.DefaultFunctionSamples;
+                entry.Function = _builder.BuildFunctionBasedBitmap(
+                    _shading,
+                    _sampler,
+                    executionContext.Parameters.DefaultFunctionSamples,
+                    executionContext.ExecutionObserver);
+                break;
+            }
+            case PdfShadingType.Axial:
+            {
+                entry.FunctionSamples = executionContext.Parameters.DefaultFunctionSamples;
+                ShadingColorStops axialColorStops = _builder.BuildShadingColorsAndStops(_shading, _sampler, executionContext.Parameters.DefaultFunctionSamples);
+                entry.Axial = _builder.BuildAxialPaint(_shading, axialColorStops);
+                break;
+            }
+            case PdfShadingType.Radial:
+            {
+                entry.FunctionSamples = executionContext.Parameters.DefaultFunctionSamples;
+                ShadingColorStops radialColorStops = _builder.BuildShadingColorsAndStops(_shading, _sampler, executionContext.Parameters.DefaultFunctionSamples);
+                entry.Radial = _builder.BuildRadialPaints(_shading, radialColorStops);
+                break;
+            }
+            case PdfShadingType.FreeFormGouraud:
+            case PdfShadingType.LatticeFormGouraud:
+            {
+                entry.Gouraud = _builder.BuildGouraudVertices(_shading, _sampler);
+                break;
+            }
+            case PdfShadingType.CoonsPatchMesh:
+            case PdfShadingType.TensorProductPatchMesh:
+            {
+                entry.TessellationVertices = executionContext.Parameters.MaxTessellationVertices;
+                entry.PatchMesh = _builder.BuildPatchMeshVertices(_shading, _sampler, executionContext.Parameters.MaxTessellationVertices, executionContext.ExecutionObserver);
+                break;
+            }
         }
 
-        if (_functionCache == null)
+        return entry;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private void ExecuteFunctionBased(PdfCommandExecutionContext executionContext, ShadingCommandCacheEntry entry)
+    {
+        if (entry.Function == null)
         {
             return;
         }
 
         executionContext.Canvas.Save();
-        executionContext.Canvas.Concat(_functionCache.Matrix);
-        executionContext.Canvas.DrawBitmap(_functionCache.Bitmap, SKPoint.Empty, SKSamplingOptions.Default);
+        executionContext.Canvas.Concat(entry.Function.Matrix);
+        executionContext.Canvas.DrawBitmap(entry.Function.Bitmap, SKPoint.Empty, SKSamplingOptions.Default);
         executionContext.Canvas.Restore();
     }
 
-    private void ExecuteAxial(PdfCommandExecutionContext executionContext)
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private void ExecuteAxial(PdfCommandExecutionContext executionContext, ShadingCommandCacheEntry entry)
     {
-        lock (executionContext.ContentLocker)
-        {
-            InitializeAxial(executionContext);
-        }
-
-        if (_axialCache == null)
+        if (entry.Axial == null)
         {
             return;
         }
 
-        DrawPaintToCanvas(executionContext, _axialCache);
+        DrawPaintToCanvas(executionContext, entry.Axial);
     }
 
-    private void ExecuteRadial(PdfCommandExecutionContext executionContext)
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private void ExecuteRadial(PdfCommandExecutionContext executionContext, ShadingCommandCacheEntry entry)
     {
-        lock (executionContext.ContentLocker)
-        {
-            InitializeRadial(executionContext);
-        }
-
-        if (_radialCache == null)
+        if (entry.Radial == null)
         {
             return;
         }
 
-        DrawPaintToCanvas(executionContext, _radialCache.InnerPaint);
-        DrawPaintToCanvas(executionContext, _radialCache.OuterPaint);
+        DrawPaintToCanvas(executionContext, entry.Radial.InnerPaint);
+        DrawPaintToCanvas(executionContext, entry.Radial.OuterPaint);
     }
 
-    private void ExecuteGouraud(PdfCommandExecutionContext executionContext)
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private void ExecuteGouraud(PdfCommandExecutionContext executionContext, ShadingCommandCacheEntry entry)
     {
-        lock (executionContext.ContentLocker)
-        {
-            InitializeGouraud();
-        }
-
-        if (_gouraudCache == null)
+        if (entry.Gouraud == null)
         {
             return;
         }
 
-        DrawVerticesToCanvas(executionContext, _gouraudCache);
+        DrawVerticesToCanvas(executionContext, entry.Gouraud);
     }
 
-    private void ExecutePatchMesh(PdfCommandExecutionContext executionContext)
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private void ExecutePatchMesh(PdfCommandExecutionContext executionContext, ShadingCommandCacheEntry entry)
     {
-        lock (executionContext.ContentLocker)
-        {
-            InitializePatchMesh(executionContext);
-        }
-
-        if (_patchMeshCache == null)
+        if (entry.PatchMesh == null)
         {
             return;
         }
 
-        DrawVerticesToCanvas(executionContext, _patchMeshCache);
+        DrawVerticesToCanvas(executionContext, entry.PatchMesh);
     }
 
-    private SKPaint? CreateAxialPaint(int defaultFunctionSamples)
-    {
-        _builder.BuildShadingColorsAndStops(
-            _shading,
-            _sampler,
-            defaultFunctionSamples,
-            out SKColor[] colors,
-            out float[] positions);
-
-        if (colors == null || colors.Length == 0)
-        {
-            return null;
-        }
-
-        return _builder.BuildAxialPaint(_shading, colors, positions);
-    }
-
-    private RadialShadingPaints? CreateRadialPaints(int defaultFunctionSamples)
-    {
-        _builder.BuildShadingColorsAndStops(
-            _shading,
-            _sampler,
-            defaultFunctionSamples,
-            out SKColor[] colors,
-            out float[] positions);
-
-        if (colors == null || colors.Length == 0)
-        {
-            return null;
-        }
-
-        return _builder.BuildRadialPaints(_shading, colors, positions);
-    }
-
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private void DrawPaintToCanvas(PdfCommandExecutionContext executionContext, SKPaint basePaint)
     {
         using SKPaint paint = basePaint.Clone();
@@ -272,6 +207,7 @@ public sealed class DrawShadingCommand : PdfCommand
         executionContext.Canvas.DrawPaint(paint);
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private void DrawVerticesToCanvas(PdfCommandExecutionContext executionContext, SKVertices vertices)
     {
         using SKPaint paint = PdfPaintFactory.CreateShaderPaint();
@@ -286,19 +222,5 @@ public sealed class DrawShadingCommand : PdfCommand
     /// <inheritdoc />
     protected override void Dispose(bool disposing)
     {
-        _functionCache?.Dispose();
-        _functionCache = null;
-
-        _axialCache?.Dispose();
-        _axialCache = null;
-
-        _radialCache?.Dispose();
-        _radialCache = null;
-
-        _gouraudCache?.Dispose();
-        _gouraudCache = null;
-
-        _patchMeshCache?.Dispose();
-        _patchMeshCache = null;
     }
 }
