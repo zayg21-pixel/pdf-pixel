@@ -86,6 +86,6 @@ public class ShadingRenderer : IShadingRenderer
         }
 
         ShadingDecodingContext context = new(state, shading);
-        processor.Process(new DrawShadingCommand(shading, context, _loggerFactory));
+        processor.Process(new DrawShadingCommand(context, _loggerFactory));
     }
 }

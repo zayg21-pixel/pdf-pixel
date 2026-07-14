@@ -172,7 +172,7 @@ internal class MiscellaneousOperators : IOperatorProcessor
             return;
         }
 
-        PdfShading shading = new(shadingObject);
+        PdfShading shading = PdfShading.GetShading(shadingObject);
 
         _renderer.DrawShading(_processor, shading, graphicsState);
     }

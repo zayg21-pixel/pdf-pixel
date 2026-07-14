@@ -19,11 +19,17 @@ public sealed class ShadingDecodingContext
     /// <param name="shading">Shading model whose color space will be resolved.</param>
     internal ShadingDecodingContext(PdfGraphicsState state, PdfShading shading)
     {
+        Shading = shading;
         Converter = state.Page.Cache.ColorSpace.ResolveByObject(shading.ColorSpaceConverter) ?? DeviceRgbConverter.Instance;
         FillAlpha = state.FillAlpha;
         RenderingIntent = state.RenderingIntent;
         FullTransferFunction = state.FullTransferFunction;
     }
+
+    /// <summary>
+    /// Shading model this context was captured for.
+    /// </summary>
+    public PdfShading Shading { get; }
 
     /// <summary>
     /// Resolved color space converter for the shading's color space.

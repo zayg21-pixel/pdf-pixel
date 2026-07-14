@@ -5,6 +5,7 @@ using PdfPixel.Fonts.Model;
 using PdfPixel.Functions;
 using PdfPixel.Jbig2.Decoding;
 using PdfPixel.Parsing;
+using PdfPixel.Shading.Model;
 using System.Collections.Generic;
 
 namespace PdfPixel.Models;
@@ -54,6 +55,11 @@ internal class PdfDocumentObjectCache
     /// Document cache for parsed transfer function transforms (TR), keyed by reference.
     /// </summary>
     internal Dictionary<PdfReference, TransferFunctionTransform> TransferFunctionTransforms { get; } = [];
+
+    /// <summary>
+    /// High-level cache for parsed PDF shadings, keyed by reference.
+    /// </summary>
+    internal Dictionary<PdfReference, PdfShading> Shadings { get; } = [];
 
     /// <summary>
     /// JBIG2 globals caches, keyed by the PDF reference of the /JBIG2Globals stream object.

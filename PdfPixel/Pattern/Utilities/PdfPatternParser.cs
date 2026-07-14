@@ -80,7 +80,7 @@ internal static class PdfPatternParser
         }
 
         PdfDictionary? extGState = dictionary.GetDictionary(PdfTokens.ExtGStateKey);
-        PdfShading shading = new(shadingObject);
+        PdfShading shading = PdfShading.GetShading(shadingObject);
 
         return new PdfShadingPattern(patternObject, shading, matrix, extGState);
     }

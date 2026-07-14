@@ -1,10 +1,10 @@
-using PdfPixel.Color.ColorSpace;
 using PdfPixel.Functions;
 using PdfPixel.Models;
 using PdfPixel.Rendering.Operators;
 using PdfPixel.Streams;
 using PdfPixel.Text;
 using SkiaSharp;
+using System;
 using System.Collections.Generic;
 
 namespace PdfPixel.Shading.Model;
@@ -16,9 +16,10 @@ namespace PdfPixel.Shading.Model;
 /// </summary>
 public sealed class PdfShading
 {
-    internal PdfShading(PdfObject pdfObject)
+    private PdfShading(PdfObject pdfObject)
     {
         PdfDictionary rawDictionary = pdfObject.Dictionary;
+        SourceReference = pdfObject.Reference;
 
         if (rawDictionary == null)
         {
@@ -79,6 +80,43 @@ public sealed class PdfShading
                 break;
             }
         }
+    }
+
+    /// <summary>
+    /// Source object reference.
+    /// </summary>
+    public PdfReference SourceReference { get; }
+
+    /// <summary>
+    /// Returns a parsed PdfShading instance for the given shading object, using the document's cache if available.
+    /// </summary>
+    /// <param name="pdfObject">PDF shading object.</param>
+    /// <returns>PdfShading instance, resolved from cache or newly parsed.</returns>
+    public static PdfShading GetShading(PdfObject pdfObject)
+    {
+        if (pdfObject == null)
+        {
+            throw new ArgumentNullException(nameof(pdfObject));
+        }
+
+        if (pdfObject.Reference.IsValid && pdfObject.Document != null)
+        {
+            Dictionary<PdfReference, PdfShading> cache = pdfObject.Document.ObjectCache.Shadings;
+            if (cache.TryGetValue(pdfObject.Reference, out PdfShading? cachedShading))
+            {
+                return cachedShading;
+            }
+        }
+
+        PdfShading shading = new(pdfObject);
+
+        if (pdfObject.Reference.IsValid && pdfObject.Document != null)
+        {
+            Dictionary<PdfReference, PdfShading> cache = pdfObject.Document.ObjectCache.Shadings;
+            cache[pdfObject.Reference] = shading;
+        }
+
+        return shading;
     }
 
     /// <summary>

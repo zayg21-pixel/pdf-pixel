@@ -3,6 +3,7 @@ using PdfPixel.Color.Paint;
 using PdfPixel.Shading;
 using PdfPixel.Shading.Model;
 using SkiaSharp;
+using System;
 
 namespace PdfPixel.Commands;
 
@@ -41,13 +42,12 @@ public sealed class DrawShadingCommand : PdfCommand
     /// <summary>
     /// Initializes a new instance of the <see cref="DrawShadingCommand"/> class.
     /// </summary>
-    /// <param name="shading">Parsed shading model.</param>
     /// <param name="context">Snapshot of graphics-state values captured at record time.</param>
     /// <param name="loggerFactory">Logger factory for diagnostic output.</param>
-    public DrawShadingCommand(PdfShading shading, ShadingDecodingContext context, ILoggerFactory loggerFactory)
+    public DrawShadingCommand(ShadingDecodingContext context, ILoggerFactory loggerFactory)
     {
-        _shading = shading;
-        _context = context;
+        _context = context ?? throw new ArgumentNullException(nameof(context));
+        _shading = _context.Shading;
         _builder = new PdfShadingBuilder(loggerFactory);
         _sampler = _context.Converter.GetRgbaSampler(_context.RenderingIntent, _context.FullTransferFunction);
     }
