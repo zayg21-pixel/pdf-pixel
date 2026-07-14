@@ -45,7 +45,7 @@ internal class RawImageDecoder : PdfImageDecoder
             ResolvedColorSpaceConverter,
             Image.HasImageMask,
             Image.MaskArray,
-            Image.DecodeArray,
+            Image.Decode,
             downscaledSize);
 
         int rowBytes = checked(((Image.Width * ResolvedColorSpaceConverter.Components * Image.BitsPerComponent) + 7) / 8);

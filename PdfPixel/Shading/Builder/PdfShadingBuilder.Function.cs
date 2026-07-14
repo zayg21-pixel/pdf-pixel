@@ -41,12 +41,12 @@ internal partial class PdfShadingBuilder
         float domainX1 = 1f;
         float domainY0 = 0f;
         float domainY1 = 1f;
-        if (shading.Domain?.Length >= 4)
+        if (shading.Domain?.Length >= 2)
         {
-            domainX0 = shading.Domain[0];
-            domainX1 = shading.Domain[1];
-            domainY0 = shading.Domain[2];
-            domainY1 = shading.Domain[3];
+            domainX0 = shading.Domain[0].Min;
+            domainX1 = shading.Domain[0].Max;
+            domainY0 = shading.Domain[1].Min;
+            domainY1 = shading.Domain[1].Max;
         }
 
         float domainWidth = Math.Abs(domainX1 - domainX0);

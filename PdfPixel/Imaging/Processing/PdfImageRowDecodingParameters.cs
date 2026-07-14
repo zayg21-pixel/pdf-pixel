@@ -1,6 +1,7 @@
 using PdfPixel.Color.ColorSpace;
 using PdfPixel.Commands.Image;
 using PdfPixel.Imaging.Model;
+using PdfPixel.Models;
 using SkiaSharp;
 
 namespace PdfPixel.Imaging.Processing;
@@ -24,7 +25,7 @@ public sealed class PdfImageRowDecodingParameters
     /// <param name="colorSpaceConverter">Converter that maps raw sample values to output colors.</param>
     /// <param name="hasImageMask">True when the image is a stencil mask (PDF /ImageMask).</param>
     /// <param name="maskArray">Color-key masking range pairs from the PDF /Mask entry, or null.</param>
-    /// <param name="decodeArray">Sample remapping table from the PDF /Decode entry, or null for the default.</param>
+    /// <param name="decode">Sample remapping table from the PDF /Decode entry, or null for the default.</param>
     /// <param name="downscaledSize">Target output size after downscaling, or null when no downscaling is applied.</param>
     /// <param name="hasAlphaChannel">
     /// True when the interleaved row samples contain an alpha component as
@@ -39,7 +40,7 @@ public sealed class PdfImageRowDecodingParameters
         PdfColorSpaceConverter colorSpaceConverter,
         bool hasImageMask,
         int[]? maskArray,
-        float[]? decodeArray,
+        PdfRange[]? decode,
         SKSizeI? downscaledSize,
         bool hasAlphaChannel = false)
     {
@@ -51,7 +52,7 @@ public sealed class PdfImageRowDecodingParameters
         Context = context;
         HasImageMask = hasImageMask;
         MaskArray = maskArray;
-        DecodeArray = decodeArray;
+        Decode = decode;
         DownscaledSize = downscaledSize;
         HasAlphaChannel = hasAlphaChannel;
     }
@@ -94,7 +95,7 @@ public sealed class PdfImageRowDecodingParameters
     /// <summary>
     /// Sample remapping table from the PDF /Decode entry, or null for the default mapping.
     /// </summary>
-    public float[]? DecodeArray { get; }
+    public PdfRange[]? Decode { get; }
 
     /// <summary>
     /// Target output size after downscaling, or null when no downscaling is applied.

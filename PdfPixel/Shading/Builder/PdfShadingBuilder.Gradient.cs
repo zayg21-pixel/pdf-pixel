@@ -124,10 +124,10 @@ internal partial class PdfShadingBuilder
     {
         float domainStart = 0f;
         float domainEnd = 1f;
-        if (shading.Domain?.Length >= 2)
+        if (shading.Domain?.Length >= 1)
         {
-            domainStart = shading.Domain[0];
-            domainEnd = shading.Domain[1];
+            domainStart = shading.Domain[0].Min;
+            domainEnd = shading.Domain[0].Max;
         }
 
         SKColor[] colors;

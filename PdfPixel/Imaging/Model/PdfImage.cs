@@ -33,7 +33,8 @@ public class PdfImage
         ColorSpaceObject = dictionary.GetObject(PdfTokens.ColorSpaceKey);
         HasImageMask = dictionary.GetBooleanOrDefault(PdfTokens.ImageMaskKey);
         Interpolate = dictionary.GetBooleanOrDefault(PdfTokens.InterpolateKey);
-        DecodeArray = dictionary.GetArray(PdfTokens.DecodeKey)?.GetFloatArray();
+        float[]? decodeArray = dictionary.GetArray(PdfTokens.DecodeKey)?.GetFloatArray();
+        Decode = (decodeArray != null) ? PdfRange.FromArray(decodeArray) : null;
 
         PdfArray? maskArray = dictionary.GetArray(PdfTokens.MaskKey);
         if (maskArray != null)
@@ -172,9 +173,9 @@ public class PdfImage
     public int[]? MaskArray { get; }
 
     /// <summary>
-    /// Per-component decode mapping array (/Decode) as floats: [d0, d1] per component.
+    /// Per-component decode mapping (/Decode), one entry per component.
     /// </summary>
-    public float[]? DecodeArray { get; }
+    public PdfRange[]? Decode { get; }
 
     /// <summary>
     /// Indicates whether interpolation should be applied when scaling the image (/Interpolate).

@@ -59,7 +59,7 @@ internal sealed class Jbig2ImageDecoder : PdfImageDecoder
             converter,
             Image.HasImageMask,
             Image.MaskArray,
-            Image.DecodeArray,
+            Image.Decode,
             downscaledSize);
 
         _fullWidthRowBuffer = new byte[_cachedBitmap.Stride];

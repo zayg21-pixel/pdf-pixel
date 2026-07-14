@@ -2,6 +2,7 @@ using Microsoft.Extensions.Logging;
 using PdfPixel.Imaging.Decoding;
 using PdfPixel.Imaging.Model;
 using PdfPixel.Imaging.Processing;
+using PdfPixel.Models;
 using SkiaSharp;
 using System;
 
@@ -44,8 +45,8 @@ internal sealed class StencilMaskImageExecutionContext : IDisposable
             throw new ArgumentException($"Decoder for image {pdfImage.Type} is not defined.");
         }
 
-        float[]? decode = pdfImage.DecodeArray;
-        bool invertMask = decode == null || decode.Length < 2 || decode[0] < decode[1];
+        PdfRange[]? decode = pdfImage.Decode;
+        bool invertMask = decode == null || decode.Length < 1 || decode[0].Min < decode[0].Max;
 
         PdfTileInfo tileInfo = new(imageSize, new SKSizeI(context.DefaultTileSize, context.DefaultTileSize));
         return new StencilMaskImageExecutionContext(imageSize, context, new PdfImageTileCacheEntry(decoder, tileInfo), invertMask, pdfImage.Interpolate);

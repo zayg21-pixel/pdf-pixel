@@ -97,7 +97,7 @@ internal sealed class PdfImageTilingContext : IDisposable
                     _imageParameters.ColorSpaceConverter,
                     _imageParameters.HasImageMask,
                     _imageParameters.MaskArray,
-                    _imageParameters.DecodeArray,
+                    _imageParameters.Decode,
                     downscaledSize: downscaledSize,
                     hasAlphaChannel: _imageParameters.HasAlphaChannel);
 

@@ -12,7 +12,7 @@ public enum PdfImageAlphaMode
 
     /// <summary>
     /// <see cref="PdfImage.HasImageMask"/> is true, background is defined by background color or pattern,
-    /// image contents set alpha transparency. <see cref="PdfImage.DecodeArray"/> controls mask inversion.
+    /// image contents set alpha transparency. <see cref="PdfImage.Decode"/> controls mask inversion.
     /// </summary>
     StencilMask,
 

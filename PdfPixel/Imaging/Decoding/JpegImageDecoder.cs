@@ -83,7 +83,7 @@ public sealed class JpegImageDecoder : PdfImageDecoder
             resolvedConverter,
             Image.HasImageMask,
             Image.MaskArray,
-            Image.DecodeArray,
+            Image.Decode,
             downscaledSize);
 
         _jpgRowDecoder = CreateJpgDecoder(encodedData, header);

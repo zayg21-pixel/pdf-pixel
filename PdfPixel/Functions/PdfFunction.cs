@@ -12,21 +12,21 @@ public abstract class PdfFunction
     /// <summary>
     /// Initializes the function with its input domain and optional output range.
     /// </summary>
-    protected PdfFunction(float[] domain, float[]? range)
+    protected PdfFunction(PdfRange[] domain, PdfRange[]? range)
     {
         Domain = domain;
         Range = range;
     }
 
     /// <summary>
-    /// Input domain as interleaved [min, max] pairs, one pair per input dimension.
+    /// Input domain, one entry per input dimension.
     /// </summary>
-    public float[] Domain { get; }
+    public PdfRange[] Domain { get; }
 
     /// <summary>
-    /// Optional output range as interleaved [min, max] pairs; <see langword="null"/> means unbounded.
+    /// Optional output range, one entry per output component; <see langword="null"/> means unbounded.
     /// </summary>
-    public float[]? Range { get; }
+    public PdfRange[]? Range { get; }
 
     /// <summary>
     /// Evaluate the function for a single input value.
@@ -76,43 +76,39 @@ public abstract class PdfFunction
     }
 
     /// <summary>
-    /// Clamps each value in the input span to the corresponding min/max pair in the range span.
+    /// Clamps each value in the input span to the corresponding entry in <paramref name="range"/>.
     /// </summary>
     /// <param name="values">Input values to clamp.</param>
-    /// <param name="range">Range span, as [min0, max0, min1, max1, ...].</param>
-    protected static void Clamp(in Span<float> values, in ReadOnlySpan<float> range)
+    /// <param name="range">One entry per component; no-op when <see langword="null"/>.</param>
+    protected static void Clamp(in Span<float> values, PdfRange[]? range)
     {
-        if (range.IsEmpty)
+        if (range == null)
         {
             return;
         }
 
-        int count = Math.Min(values.Length, range.Length / 2);
+        int count = Math.Min(values.Length, range.Length);
         for (int i = 0; i < count; i++)
         {
-            float min = range[i * 2];
-            float max = range[(i * 2) + 1];
-            values[i] = Math.Max(min, Math.Min(max, values[i]));
+            values[i] = range[i].Clamp(values[i]);
         }
     }
 
     /// <summary>
-    /// Clamps a single value to the min/max pair at the specified index in the range span.
+    /// Clamps a single value to the entry at the specified index in <paramref name="range"/>.
     /// </summary>
     /// <param name="value">Value to clamp.</param>
-    /// <param name="range">Range span, as [min0, max0, min1, max1, ...].</param>
-    /// <param name="index">Index of the min/max pair to use.</param>
+    /// <param name="range">One entry per component; returns <paramref name="value"/> unchanged when <see langword="null"/> or too short.</param>
+    /// <param name="index">Index of the entry to use.</param>
     /// <returns>Clamped value.</returns>
-    protected static float Clamp(float value, in ReadOnlySpan<float> range, int index)
+    protected static float Clamp(float value, PdfRange[]? range, int index)
     {
-        if (range.Length < (index + 1) * 2)
+        if (range == null || range.Length <= index)
         {
             return value;
         }
 
-        float min = range[index * 2];
-        float max = range[(index * 2) + 1];
-        return Math.Max(min, Math.Min(max, value));
+        return range[index].Clamp(value);
     }
 
     /// <summary>

@@ -46,33 +46,30 @@ internal class MeshDecoder
         _bitsPerCoordinate = shading.BitsPerCoordinate ?? 0;
         _bitsPerComponent = shading.BitsPerComponent ?? 0;
         _bitsPerFlag = shading.BitsPerFlag ?? 0;
-        float[]? decodeArray = shading.DecodeArray;
-        if (decodeArray == null || decodeArray.Length < 6 || (decodeArray.Length - 4) % 2 != 0)
+        PdfRange[]? decodeRanges = shading.Decode;
+        if (decodeRanges == null || decodeRanges.Length < 3)
         {
             throw new ArgumentException("Decode array must contain at least xmin,xmax,ymin,ymax and pairs of min/max for each color component");
         }
 
-        _numColorComponents = (decodeArray.Length - 4) / 2;
-        _xmin = decodeArray[0];
-        float xmax = decodeArray[1];
-        _ymin = decodeArray[2];
-        float ymax = decodeArray[3];
-        float xRange = xmax - _xmin;
-        float yRange = ymax - _ymin;
+        _numColorComponents = decodeRanges.Length - 2;
+        PdfRange xRange = decodeRanges[0];
+        PdfRange yRange = decodeRanges[1];
+        _xmin = xRange.Min;
+        _ymin = yRange.Min;
         _controlPointCount = (shading.ShadingType == PdfShadingType.TensorProductPatchMesh) ? 16 : 12;
         _componentDenominator = 1f / ((1UL << _bitsPerComponent) - 1);
         _coordinateDenominator = 1f / ((1UL << _bitsPerCoordinate) - 1);
-        _xScale = _coordinateDenominator * xRange;
-        _yScale = _coordinateDenominator * yRange;
+        _xScale = _coordinateDenominator * xRange.Range;
+        _yScale = _coordinateDenominator * yRange.Range;
 
         // Precompute min and pre-multiplied scale for each color component
         _colorComponentMinAndScale = new ColorMinAndScale[_numColorComponents];
         for (int componentIndex = 0; componentIndex < _numColorComponents; componentIndex++)
         {
-            float minValue = decodeArray[4 + (componentIndex * 2)];
-            float maxValue = decodeArray[4 + (componentIndex * 2) + 1];
-            float scalePremultiplied = _componentDenominator * (maxValue - minValue);
-            _colorComponentMinAndScale[componentIndex] = new ColorMinAndScale(minValue, scalePremultiplied);
+            PdfRange componentRange = decodeRanges[2 + componentIndex];
+            float scalePremultiplied = _componentDenominator * componentRange.Range;
+            _colorComponentMinAndScale[componentIndex] = new ColorMinAndScale(componentRange.Min, scalePremultiplied);
         }
     }
 

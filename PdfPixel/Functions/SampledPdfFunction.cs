@@ -15,7 +15,7 @@ public sealed class SampledPdfFunction : PdfFunction
     private readonly int _componentCount;
     private readonly int[] _strides;
     private readonly float[] _table;
-    private readonly float[]? _encode;
+    private readonly PdfRange[] _encodeRanges;
     private readonly int[] _lowerIndices;
     private readonly int[] _upperIndices;
     private readonly float[] _fractions;
@@ -28,9 +28,9 @@ public sealed class SampledPdfFunction : PdfFunction
         int componentCount,
         int[] strides,
         float[] table,
-        float[] range,
-        float[]? encode,
-        float[] domain)
+        PdfRange[]? encode,
+        PdfRange[] range,
+        PdfRange[] domain)
         : base(domain, range)
     {
         _sizes = sizes;
@@ -38,13 +38,34 @@ public sealed class SampledPdfFunction : PdfFunction
         _componentCount = componentCount;
         _strides = strides;
         _table = table;
-        _encode = encode;
+
+        _encodeRanges = BuildEncodeRanges(encode, sizes, dimensions);
 
         _lowerIndices = new int[dimensions];
         _upperIndices = new int[dimensions];
         _fractions = new float[dimensions];
         _output = new float[componentCount];
         _singleInput = new float[1];
+    }
+
+    /// <summary>
+    /// Builds one <see cref="PdfRange"/> per input dimension from the /Encode array, falling back to
+    /// [0, size - 1] when unspecified.
+    /// </summary>
+    private static PdfRange[] BuildEncodeRanges(PdfRange[]? encode, int[] sizes, int dimensions)
+    {
+        if (encode != null && encode.Length >= dimensions)
+        {
+            return encode;
+        }
+
+        var ranges = new PdfRange[dimensions];
+        for (int dimensionIndex = 0; dimensionIndex < dimensions; dimensionIndex++)
+        {
+            ranges[dimensionIndex] = new PdfRange(0f, sizes[dimensionIndex] - 1);
+        }
+
+        return ranges;
     }
 
     /// <summary>
@@ -118,6 +139,11 @@ public sealed class SampledPdfFunction : PdfFunction
             return null;
         }
 
+        PdfRange[] rangeEntries = PdfRange.FromArray(range);
+        PdfRange[] outputRanges = (decode != null && decode.Length >= 2 * componentCount)
+            ? PdfRange.FromArray(decode)
+            : rangeEntries;
+
         UintBitReaderFixedLength bitReader = new(raw.Span, bitsPerSample);
         var table = new float[totalSamples * componentCount];
         float factor = 1f / ((1UL << bitsPerSample) - 1);
@@ -128,23 +154,11 @@ public sealed class SampledPdfFunction : PdfFunction
             {
                 uint sample = bitReader.Read();
                 float normalized = sample * factor;
-
-                float outMin;
-                float outMax;
-                if (decode != null && decode.Length >= 2 * componentCount)
-                {
-                    outMin = decode[2 * componentIndex];
-                    outMax = decode[(2 * componentIndex) + 1];
-                }
-                else
-                {
-                    outMin = range[2 * componentIndex];
-                    outMax = range[(2 * componentIndex) + 1];
-                }
-
-                table[(linearIndex * componentCount) + componentIndex] = outMin + (normalized * (outMax - outMin));
+                table[(linearIndex * componentCount) + componentIndex] = outputRanges[componentIndex].Denormalize(normalized);
             }
         }
+
+        PdfRange[]? encodeEntries = (encode != null) ? PdfRange.FromArray(encode) : null;
 
         return new SampledPdfFunction(
             sizes,
@@ -152,9 +166,9 @@ public sealed class SampledPdfFunction : PdfFunction
             componentCount,
             strides,
             table,
-            range,
-            encode,
-            domain);
+            encodeEntries,
+            rangeEntries,
+            PdfRange.FromArray(domain));
     }
 
     /// <summary>
@@ -185,27 +199,13 @@ public sealed class SampledPdfFunction : PdfFunction
         for (int dimensionIndex = 0; dimensionIndex < Dimensions; dimensionIndex++)
         {
             int size = _sizes[dimensionIndex];
-            float domainMin = Domain[2 * dimensionIndex];
-            float domainMax = Domain[(2 * dimensionIndex) + 1];
+            PdfRange domainRange = Domain[dimensionIndex];
             float inputValue = (dimensionIndex < values.Length) ? values[dimensionIndex] : 0f;
             // Clamp input to domain
-            inputValue = Clamp(inputValue, Domain, dimensionIndex);
+            inputValue = domainRange.Clamp(inputValue);
 
-            float domainT = (inputValue - domainMin) / (domainMax - domainMin);
-
-            float encodeMin = 0f;
-            float encodeMax = size - 1;
-            if (_encode != null && _encode.Length >= 2 * Dimensions)
-            {
-                encodeMin = _encode[2 * dimensionIndex];
-                encodeMax = _encode[(2 * dimensionIndex) + 1];
-                if (Math.Abs(encodeMax - encodeMin) < 1e-12f)
-                {
-                    encodeMax = encodeMin + 1f;
-                }
-            }
-
-            float u = encodeMin + (domainT * (encodeMax - encodeMin));
+            float domainT = domainRange.Normalize(inputValue);
+            float u = _encodeRanges[dimensionIndex].Denormalize(domainT);
             if (size == 1)
             {
                 u = 0f;
@@ -220,30 +220,14 @@ public sealed class SampledPdfFunction : PdfFunction
                 u = size - 1;
             }
 
-            // Snap to the nearest grid index when u lands within float round-trip tolerance of it,
-            // so evaluating the function's own sampling points reproduces the table row directly
-            // instead of blending it with its neighbor.
-            var roundedIndex = (int)Math.Round(u);
-            int lowerIndex;
-            int upperIndex;
-            float fraction;
-            if (roundedIndex >= 0 && roundedIndex < size && Math.Abs(u - roundedIndex) < 1e-4f)
+            var lowerIndex = (int)Math.Floor(u);
+            int upperIndex = lowerIndex + 1;
+            if (upperIndex >= size)
             {
-                lowerIndex = roundedIndex;
-                upperIndex = roundedIndex;
-                fraction = 0f;
+                upperIndex = lowerIndex;
             }
-            else
-            {
-                lowerIndex = (int)Math.Floor(u);
-                upperIndex = lowerIndex + 1;
-                if (upperIndex >= size)
-                {
-                    upperIndex = lowerIndex;
-                }
 
-                fraction = u - lowerIndex;
-            }
+            float fraction = u - lowerIndex;
 
             _lowerIndices[dimensionIndex] = lowerIndex;
             _upperIndices[dimensionIndex] = upperIndex;
@@ -298,34 +282,20 @@ public sealed class SampledPdfFunction : PdfFunction
         }
 
         int size = _sizes[dimension];
-        float start = Domain[2 * dimension];
-        float end = Domain[(2 * dimension) + 1];
-
-        // If encode specifies a custom range, respect it when mapping sample indices to domain
-        float encodeMin = 0f;
-        float encodeMax = size - 1;
-        if (_encode != null && _encode.Length >= 2 * Dimensions)
-        {
-            encodeMin = _encode[2 * dimension];
-            encodeMax = _encode[(2 * dimension) + 1];
-            if (Math.Abs(encodeMax - encodeMin) < 1e-12f)
-            {
-                encodeMax = encodeMin + 1f;
-            }
-        }
+        PdfRange domainRange = Domain[dimension];
 
         var points = new float[size];
         if (size == 1)
         {
-            points[0] = start;
+            points[0] = domainRange.Min;
             return points;
         }
 
+        PdfRange encodeRange = _encodeRanges[dimension];
         for (int i = 0; i < size; i++)
         {
-            float u = i;
-            float t = (u - encodeMin) / (encodeMax - encodeMin);
-            points[i] = start + (t * (end - start));
+            float t = encodeRange.Normalize(i);
+            points[i] = domainRange.Denormalize(t);
         }
 
         return points;

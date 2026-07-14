@@ -70,7 +70,7 @@ internal sealed class CcittImageDecoder : PdfImageDecoder
             converter,
             Image.HasImageMask,
             Image.MaskArray,
-            Image.DecodeArray,
+            Image.Decode,
             downscaledSize);
 
         _rowDecoder = new CcittRowDecoder(encodedData, columns, rows, blackIs1, k, endOfLine, byteAlign, endOfBlock);

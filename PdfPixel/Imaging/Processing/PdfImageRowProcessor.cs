@@ -3,6 +3,7 @@ using PdfPixel.Color.ColorSpace;
 using PdfPixel.Color.Sampling;
 using PdfPixel.Color.Structures;
 using PdfPixel.Color.Transform;
+using PdfPixel.Models;
 using PdfPixel.Parsing;
 using SkiaSharp;
 using System;
@@ -62,7 +63,7 @@ internal sealed partial class PdfImageRowProcessor : IDisposable
     private byte[]? _convertedRowBuffer;
 
     private readonly ProcessingStages _stages;
-    private readonly float[] _decodeArray;
+    private readonly PdfRange[] _decodeRanges;
     private readonly int[] _maskArray;
     private readonly int _indexedBitsPerComponent;
     private readonly float _scale;
@@ -90,7 +91,7 @@ internal sealed partial class PdfImageRowProcessor : IDisposable
         _components = _converter.Components;
         _hasAlpha = parameters.HasAlphaChannel;
         _totalComponents = _components + (_hasAlpha ? 1 : 0);
-        _decodeArray = parameters.DecodeArray ?? Array.Empty<float>();
+        _decodeRanges = parameters.Decode ?? Array.Empty<PdfRange>();
         _maskArray = parameters.MaskArray ?? Array.Empty<int>();
         _stages = GetProcessingStages(parameters);
 
@@ -109,7 +110,7 @@ internal sealed partial class PdfImageRowProcessor : IDisposable
                 if ((_stages & ProcessingStages.Decode) != 0)
                 {
                     int maxCode = (1 << bitsPerComponent) - 1;
-                    _decodeArray = new float[] { _decodeArray[0] * maxCode, _decodeArray[1] * maxCode };
+                    _decodeRanges = new PdfRange[] { new(_decodeRanges[0].Min * maxCode, _decodeRanges[0].Max * maxCode) };
                 }
             }
             else
@@ -319,7 +320,7 @@ internal sealed partial class PdfImageRowProcessor : IDisposable
             throw new InvalidOperationException("Not initialized.");
         }
 
-        // TODO: [MEDIUM] optimize further
+        // TODO: [MEDIUM] optimize further, see ColorMinAndScale
         RgbaPacked[] palette = _indexedPalette;
         ref RgbaPacked paletteRef = ref palette[0];
         var paletteSize = (uint)palette.Length;
@@ -337,9 +338,8 @@ internal sealed partial class PdfImageRowProcessor : IDisposable
 
             if (applyDecode)
             {
-                float dMin = _decodeArray[0];
-                float dMax = _decodeArray[1];
-                sample = (uint)Math.Max(0, dMin + (sample * (dMax - dMin) * _scale));
+                PdfRange decodeRange = _decodeRanges[0];
+                sample = (uint)Math.Max(0, decodeRange.Min + (sample * decodeRange.Range * _scale));
             }
 
             sample = Math.Min(sample, paletteMin);
@@ -437,10 +437,7 @@ internal sealed partial class PdfImageRowProcessor : IDisposable
 
                 if (applyDecode)
                 {
-                    int di = c * 2;
-                    float dMin = _decodeArray[di];
-                    float dMax = _decodeArray[di + 1];
-                    value01 = dMin + (value01 * (dMax - dMin));
+                    value01 = _decodeRanges[c].Denormalize(value01);
                 }
 
                 componentValues[c] = value01;

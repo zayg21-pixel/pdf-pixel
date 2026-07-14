@@ -12,21 +12,48 @@ public sealed class StitchingPdfFunction : PdfFunction
 {
     private readonly List<PdfFunction?> _subFunctions;
     private readonly float[]? _bounds;
-    private readonly float[]? _encode;
+    private readonly PdfRange[] _segmentDomains;
+    private readonly PdfRange[]? _segmentEncodes;
     private readonly float[]? _buffer;
 
-    private StitchingPdfFunction(List<PdfFunction?> subFunctions, float[]? bounds, float[]? encode, float[] domain, float[]? range)
+    private StitchingPdfFunction(List<PdfFunction?> subFunctions, float[]? bounds, PdfRange[]? encode, PdfRange[] domain, PdfRange[]? range)
         : base(domain, range)
     {
         _subFunctions = subFunctions;
         _bounds = bounds;
-        _encode = encode;
 
-        if (Range?.Length >= 2)
+        int segmentCount = subFunctions.Count;
+        _segmentDomains = BuildSegmentDomains(domain[0], bounds, segmentCount);
+        _segmentEncodes = (encode != null && encode.Length >= segmentCount) ? encode : null;
+
+        _buffer = (range != null) ? new float[range.Length] : null;
+    }
+
+    /// <summary>
+    /// Builds one <see cref="PdfRange"/> per segment covering its [a, b) slice of <paramref name="domain"/>,
+    /// using <paramref name="bounds"/> as the interior split points.
+    /// </summary>
+    private static PdfRange[] BuildSegmentDomains(in PdfRange domain, float[]? bounds, int segmentCount)
+    {
+        var segments = new PdfRange[segmentCount];
+        for (int seg = 0; seg < segmentCount; seg++)
         {
-            int outputCount = Range.Length / 2;
-            _buffer = new float[outputCount];
+            float lowerBound = domain.Min;
+            if (seg > 0 && bounds != null && bounds.Length >= seg)
+            {
+                lowerBound = bounds[seg - 1];
+            }
+
+            float upperBound = domain.Max;
+            if (bounds != null && bounds.Length > seg)
+            {
+                upperBound = bounds[seg];
+            }
+
+            segments[seg] = new PdfRange(lowerBound, upperBound);
         }
+
+        return segments;
     }
 
     /// <summary>
@@ -73,16 +100,16 @@ public sealed class StitchingPdfFunction : PdfFunction
             domain = new float[] { 0f, 1f };
         }
 
-        return new StitchingPdfFunction(subFunctions, bounds, encode, domain, range);
+        PdfRange[]? encodeEntries = (encode != null) ? PdfRange.FromArray(encode) : null;
+        PdfRange[]? rangeEntries = (range != null) ? PdfRange.FromArray(range) : null;
+
+        return new StitchingPdfFunction(subFunctions, bounds, encodeEntries, PdfRange.FromArray(domain), rangeEntries);
     }
 
     /// <inheritdoc />
     public override ReadOnlySpan<float> Evaluate(float value)
     {
-        float x = Clamp(value, Domain, 0);
-
-        float domainStart = Domain[0];
-        float domainEnd = Domain[1];
+        float x = Domain[0].Clamp(value);
 
         int segmentIndex = 0;
         if (_bounds?.Length > 0)
@@ -99,15 +126,10 @@ public sealed class StitchingPdfFunction : PdfFunction
         }
 
         float mappedInput = x;
-        if (_bounds != null && _encode != null && _encode.Length >= 2 * _subFunctions.Count)
+        if (_bounds != null && _segmentEncodes != null)
         {
-            float a = (segmentIndex == 0) ? domainStart : _bounds[segmentIndex - 1];
-            float b = (segmentIndex < _bounds.Length) ? _bounds[segmentIndex] : domainEnd;
-            float e0 = _encode[2 * segmentIndex];
-            float e1 = _encode[(2 * segmentIndex) + 1];
-            float length = b - a;
-            float localT = (length != 0f) ? (x - a) / length : 0f;
-            mappedInput = e0 + (localT * (e1 - e0));
+            float localT = _segmentDomains[segmentIndex].Normalize(x);
+            mappedInput = _segmentEncodes[segmentIndex].Denormalize(localT);
         }
 
         PdfFunction? childFunction = (segmentIndex < _subFunctions.Count) ? _subFunctions[segmentIndex] : null;
@@ -142,49 +164,38 @@ public sealed class StitchingPdfFunction : PdfFunction
     /// </summary>
     public override float[] GetSamplingPoints(int dimension, float domainStart, float domainEnd, int fallbackSamplesCount)
     {
-        float start = domainStart;
-        float end = domainEnd;
-
-        List<float> points = [];
-
-        int segmentCount = (_subFunctions?.Count) ?? 0;
+        int segmentCount = _subFunctions?.Count ?? 0;
         if (segmentCount == 0)
         {
-            return base.GetSamplingPoints(dimension, start, end, fallbackSamplesCount);
+            return base.GetSamplingPoints(dimension, domainStart, domainEnd, fallbackSamplesCount);
         }
 
+        PdfRange[] segmentDomains = BuildSegmentDomains(new PdfRange(domainStart, domainEnd), _bounds, segmentCount);
+
+        List<float> points = [];
         for (int seg = 0; seg < segmentCount; seg++)
         {
-            float a = (seg == 0) ? start : (_bounds != null && _bounds.Length >= seg) ? _bounds[seg - 1] : start;
-            float b = (_bounds != null && _bounds.Length > seg) ? _bounds[seg] : end;
-
             PdfFunction? child = _subFunctions?[seg];
             if (child == null)
             {
                 continue;
             }
 
-            if (_encode != null && _encode.Length >= 2 * segmentCount)
+            PdfRange segmentDomain = segmentDomains[seg];
+            if (_segmentEncodes != null)
             {
-                float e0 = _encode[2 * seg];
-                float e1 = _encode[(2 * seg) + 1];
-
-                float[] childSamples = child.GetSamplingPoints(dimension, e0, e1, fallbackSamplesCount);
-                float denom = e1 - e0;
+                PdfRange segmentEncode = _segmentEncodes[seg];
+                float[] childSamples = child.GetSamplingPoints(dimension, segmentEncode.Min, segmentEncode.Max, fallbackSamplesCount);
                 for (int i = 0; i < childSamples.Length; i++)
                 {
-                    float t = (denom == 0f) ? 0f : (childSamples[i] - e0) / denom;
-                    float x = a + (t * (b - a));
-                    points.Add(x);
+                    float t = segmentEncode.Normalize(childSamples[i]);
+                    points.Add(segmentDomain.Denormalize(t));
                 }
             }
             else
             {
-                float[] segSamples = base.GetSamplingPoints(dimension, a, b, fallbackSamplesCount);
-                for (int i = 0; i < segSamples.Length; i++)
-                {
-                    points.Add(segSamples[i]);
-                }
+                float[] segmentSamples = base.GetSamplingPoints(dimension, segmentDomain.Min, segmentDomain.Max, fallbackSamplesCount);
+                points.AddRange(segmentSamples);
             }
         }
 

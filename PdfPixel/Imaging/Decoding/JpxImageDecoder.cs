@@ -70,7 +70,7 @@ internal class JpxImageDecoder : PdfImageDecoder
             _resolvedConverter,
             Image.HasImageMask,
             Image.MaskArray,
-            Image.DecodeArray,
+            Image.Decode,
             downscaledSize: downscaledSize,
             hasAlphaChannel: _rowConverter.HasAlphaChannel);
 

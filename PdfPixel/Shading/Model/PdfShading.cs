@@ -30,7 +30,8 @@ public sealed class PdfShading
 
         ShadingType = (PdfShadingType)rawDictionary.GetIntegerOrDefault(PdfTokens.ShadingTypeKey);
         Coords = rawDictionary.GetArray(PdfTokens.CoordsKey)?.GetFloatArray();
-        Domain = rawDictionary.GetArray(PdfTokens.DomainKey)?.GetFloatArray();
+        float[]? domainArray = rawDictionary.GetArray(PdfTokens.DomainKey)?.GetFloatArray();
+        Domain = (domainArray != null) ? PdfRange.FromArray(domainArray) : null;
 
         PdfArray? extendArr = rawDictionary.GetArray(PdfTokens.ExtendKey);
         if (extendArr?.Count >= 2)
@@ -75,7 +76,8 @@ public sealed class PdfShading
                 BitsPerCoordinate = rawDictionary.GetInteger(PdfTokens.BitsPerCoordinateKey);
                 BitsPerComponent = rawDictionary.GetInteger(PdfTokens.BitsPerComponentKey);
                 BitsPerFlag = rawDictionary.GetInteger(PdfTokens.BitsPerFlagKey);
-                DecodeArray = rawDictionary.GetArray(PdfTokens.DecodeKey)?.GetFloatArray();
+                float[]? decodeArray = rawDictionary.GetArray(PdfTokens.DecodeKey)?.GetFloatArray();
+                Decode = (decodeArray != null) ? PdfRange.FromArray(decodeArray) : null;
                 VerticesPerRow = rawDictionary.GetInteger(PdfTokens.VerticesPerRowKey);
                 break;
             }
@@ -135,9 +137,9 @@ public sealed class PdfShading
     public float[]? Coords { get; }
 
     /// <summary>
-    /// Domain array (/Domain) defining parameter range for function evaluation (Type 1 - 3 specific).
+    /// Domain (/Domain) defining parameter range for function evaluation (Type 1 - 3 specific).
     /// </summary>
-    public float[]? Domain { get; }
+    public PdfRange[]? Domain { get; }
 
     /// <summary>
     /// Start extension flag (/Extend[0]), type 2, 3 specific.
@@ -190,9 +192,9 @@ public sealed class PdfShading
     public int? BitsPerFlag { get; }
 
     /// <summary>
-    /// Decode array (/Decode), mesh shading types 4-7.
+    /// Decode (/Decode), mesh shading types 4-7.
     /// </summary>
-    public float[]? DecodeArray { get; }
+    public PdfRange[]? Decode { get; }
 
     /// <summary>
     /// Vertices per row (/VerticesPerRow), lattice-form Gouraud type 5 only.

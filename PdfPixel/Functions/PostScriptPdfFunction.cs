@@ -23,9 +23,9 @@ public sealed class PostScriptPdfFunction : PdfFunction
     /// Initializes a new instance of the <see cref="PostScriptPdfFunction"/> class.
     /// </summary>
     /// <param name="evaluator">The PostScript expression evaluator.</param>
-    /// <param name="domain">Domain array.</param>
-    /// <param name="range">Range array.</param>
-    private PostScriptPdfFunction(PostScriptEvaluator evaluator, float[] domain, float[] range)
+    /// <param name="domain">Domain entries.</param>
+    /// <param name="range">Range entries.</param>
+    private PostScriptPdfFunction(PostScriptEvaluator evaluator, PdfRange[] domain, PdfRange[] range)
         : base(domain, range)
     {
         if (Range == null)
@@ -36,8 +36,8 @@ public sealed class PostScriptPdfFunction : PdfFunction
         _evaluator = evaluator ?? throw new ArgumentNullException(nameof(evaluator));
 
         // Attempt to compile a fast path producing all outputs.
-        List<string> parameterNames = new(capacity: Domain.Length / 2);
-        int paramCount = Domain.Length / 2;
+        List<string> parameterNames = new(capacity: domain.Length);
+        int paramCount = domain.Length;
         for (int i = 0; i < paramCount; i++)
         {
             parameterNames.Add((i == 0) ? "x" : "x" + i);
@@ -47,7 +47,7 @@ public sealed class PostScriptPdfFunction : PdfFunction
         {
             _compiled = fn;
             _argBuffer = new float[paramCount];
-            _resultBuffer = new float[Range.Length / 2];
+            _resultBuffer = new float[range.Length];
         }
     }
 
@@ -72,7 +72,7 @@ public sealed class PostScriptPdfFunction : PdfFunction
             return Array.Empty<float>();
         }
 
-        int outputCount = Range.Length / 2;
+        int outputCount = Range.Length;
 
         // Fast path: compiled vector function if available.
         if (_compiled != null && _argBuffer != null && _resultBuffer != null)
@@ -152,6 +152,6 @@ public sealed class PostScriptPdfFunction : PdfFunction
         }
 
         PostScriptEvaluator evaulator = new(streamData.Span, appendExec: true, functionObject.Document.LoggerFactory.CreateLogger<PostScriptEvaluator>());
-        return new PostScriptPdfFunction(evaulator, domain, range);
+        return new PostScriptPdfFunction(evaulator, PdfRange.FromArray(domain), PdfRange.FromArray(range));
     }
 }

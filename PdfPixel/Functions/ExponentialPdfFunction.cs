@@ -17,7 +17,7 @@ public sealed class ExponentialPdfFunction : PdfFunction
     private readonly int _componentCount;
     private readonly float[] _buffer;
 
-    private ExponentialPdfFunction(float[] c0, float[] c1, float exponent, float[] domain, float[]? range)
+    private ExponentialPdfFunction(float[] c0, float[] c1, float exponent, PdfRange[] domain, PdfRange[]? range)
         : base(domain, range)
     {
         _c0 = c0;
@@ -38,7 +38,7 @@ public sealed class ExponentialPdfFunction : PdfFunction
     /// <inheritdoc />
     public override ReadOnlySpan<float> Evaluate(float value)
     {
-        float x = Clamp(value, Domain, 0);
+        float x = Domain[0].Clamp(value);
 
         float xExp = _fastPow.Evaluate(x);
 
@@ -98,6 +98,8 @@ public sealed class ExponentialPdfFunction : PdfFunction
             return null;
         }
 
-        return new ExponentialPdfFunction(c0, c1, exponent, domain, range);
+        PdfRange[]? rangeEntries = (range != null) ? PdfRange.FromArray(range) : null;
+
+        return new ExponentialPdfFunction(c0, c1, exponent, PdfRange.FromArray(domain), rangeEntries);
     }
 }

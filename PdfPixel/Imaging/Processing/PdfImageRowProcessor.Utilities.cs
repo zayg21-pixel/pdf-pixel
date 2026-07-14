@@ -2,6 +2,7 @@ using PdfPixel.Color.ColorSpace;
 using PdfPixel.Color.Sampling;
 using PdfPixel.Color.Structures;
 using PdfPixel.Color.Transform;
+using PdfPixel.Models;
 using System;
 
 namespace PdfPixel.Imaging.Processing;
@@ -25,9 +26,9 @@ internal sealed partial class PdfImageRowProcessor
         return palette;
     }
 
-    private static bool ShouldApplyDecode(float[]? decode, int componentCount, int bitsPerComponent, bool indexed)
+    private static bool ShouldApplyDecode(PdfRange[]? decode, int componentCount, int bitsPerComponent, bool indexed)
     {
-        if (decode == null || decode.Length != componentCount * 2)
+        if (decode == null || decode.Length != componentCount)
         {
             return false;
         }
@@ -36,9 +37,7 @@ internal sealed partial class PdfImageRowProcessor
 
         for (int i = 0; i < componentCount; i++)
         {
-            float min = decode[i * 2];
-            float max = decode[(i * 2) + 1];
-            if (min != 0f || max != defaultMax)
+            if (decode[i].Min != 0f || decode[i].Max != defaultMax)
             {
                 return true;
             }
@@ -58,7 +57,7 @@ internal sealed partial class PdfImageRowProcessor
 
         var stages = ProcessingStages.None;
 
-        if (ShouldApplyDecode(parameters.DecodeArray, converter.Components, parameters.BitsPerComponent, converter is IndexedConverter))
+        if (ShouldApplyDecode(parameters.Decode, converter.Components, parameters.BitsPerComponent, converter is IndexedConverter))
         {
             stages |= ProcessingStages.Decode;
         }
