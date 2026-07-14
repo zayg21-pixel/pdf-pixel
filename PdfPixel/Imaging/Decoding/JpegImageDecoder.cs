@@ -30,9 +30,10 @@ public sealed class JpegImageDecoder : PdfImageDecoder
     /// Initializes a new <see cref="JpegImageDecoder"/> for the given PDF image.
     /// </summary>
     /// <param name="image">The source PDF image descriptor.</param>
+    /// <param name="context">Decoding context holding the page and color space resolved for <paramref name="image"/>.</param>
     /// <param name="loggerFactory">Logger factory used to create per-decoder loggers.</param>
-    public JpegImageDecoder(PdfImage image, ILoggerFactory loggerFactory)
-        : base(image, loggerFactory)
+    public JpegImageDecoder(PdfImage image, ImageDecodingContext context, ILoggerFactory loggerFactory)
+        : base(image, context, loggerFactory)
     {
     }
 
@@ -41,16 +42,15 @@ public sealed class JpegImageDecoder : PdfImageDecoder
     /// profiles), computes the downscaled output size, and prepares the row decoder and tiling context.
     /// </summary>
     /// <param name="tileInfo">Tile grid dimensions for this decode pass.</param>
-    /// <param name="context">Rendering context carrying target surface and quality settings.</param>
     /// <param name="contentLocker">Lock object used to serialize access to the compressed image data.</param>
     /// <param name="ctm">Current transformation matrix, used to compute the scaled output size.</param>
     /// <param name="tileIndexesToDecode">Indexes of tiles that must be decoded; every other tile is produced as a skipped placeholder. Null means every tile must be decoded.</param>
     /// <param name="observer">Observer notified on each decoded row.</param>
-    public override void Initialize(PdfTileInfo tileInfo, ImageDecodingContext context, object contentLocker, SKMatrix ctm, HashSet<int>? tileIndexesToDecode, IPdfExecutionObserver observer)
+    public override void Initialize(PdfTileInfo tileInfo, object contentLocker, SKMatrix ctm, HashSet<int>? tileIndexesToDecode, IPdfExecutionObserver observer)
     {
         if (!ValidateImageParameters())
         {
-            throw new InvalidOperationException($"JPEG image parameters are invalid (Name={Image.Name}).");
+            throw new InvalidOperationException($"JPEG image parameters are invalid (SourceReference={Image.SourceReference}).");
         }
 
         ReadOnlyMemory<byte> encodedData;
@@ -63,11 +63,11 @@ public sealed class JpegImageDecoder : PdfImageDecoder
 
         if (header == null || header.ContentOffset < 0)
         {
-            throw new InvalidOperationException($"JPEG header is invalid (Name={Image.Name}).");
+            throw new InvalidOperationException($"JPEG header is invalid (SourceReference={Image.SourceReference}).");
         }
 
         PdfColorSpaceConverter resolvedConverter = ResolvedColorSpaceConverter;
-        if ((Image.ColorSpaceConverter == null || resolvedConverter.IsDevice) && JpgIccProfileReader.TryAssembleIccProfile(header, out byte[]? profileBytes))
+        if ((Context.ColorSpaceConverter == null || resolvedConverter.IsDevice) && JpgIccProfileReader.TryAssembleIccProfile(header, out byte[]? profileBytes))
         {
             resolvedConverter = new IccBasedConverter(header.ComponentCount, resolvedConverter, profileBytes);
         }
@@ -75,7 +75,7 @@ public sealed class JpegImageDecoder : PdfImageDecoder
         SKSizeI? downscaledSize = PdfImageCommandUtilities.GetScaledSize(ctm, new SKSizeI(Image.Width, Image.Height));
 
         _imageParameters = new PdfImageRowDecodingParameters(
-            context,
+            Context,
             Image.Width,
             Image.Height,
             Image.BitsPerComponent,
@@ -109,7 +109,7 @@ public sealed class JpegImageDecoder : PdfImageDecoder
         {
             if (!_jpgRowDecoder.TryReadRow(_fullWidthRowBuffer))
             {
-                throw new InvalidOperationException($"JPEG decode failed at image row {_currentImageRow} (Image={Image.Name}).");
+                throw new InvalidOperationException($"JPEG decode failed at image row {_currentImageRow} (SourceReference={Image.SourceReference}).");
             }
 
             PdfImageTile[]? tiles = _tilingContext.WriteRowAndTryGetTiles(_currentImageRow, _fullWidthRowBuffer, observer);
@@ -146,7 +146,7 @@ public sealed class JpegImageDecoder : PdfImageDecoder
         {
             JpgFrameType.ProgressiveDct => new JpgProgressiveDecoder(header, compressed, colorParameters),
             JpgFrameType.BaselineDct or JpgFrameType.ExtendedSequentialDct => new JpgBaselineDecoder(header, compressed, colorParameters),
-            _ => throw new NotSupportedException($"JPEG frame type {header.FrameType} is not supported (Image={Image.Name}).")
+            _ => throw new NotSupportedException($"JPEG frame type {header.FrameType} is not supported (SourceReference={Image.SourceReference}).")
         };
     }
 

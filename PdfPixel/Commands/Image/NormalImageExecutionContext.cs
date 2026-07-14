@@ -20,7 +20,7 @@ internal sealed class NormalImageExecutionContext : IDisposable
     public static NormalImageExecutionContext Create(PdfImage pdfImage, ImageDecodingContext context, ILoggerFactory loggerFactory)
     {
         SKSizeI imageSize = new(pdfImage.Width, pdfImage.Height);
-        PdfImageDecoder? decoder = PdfImageDecoder.GetDecoder(pdfImage, loggerFactory);
+        PdfImageDecoder? decoder = PdfImageDecoder.GetDecoder(pdfImage, context, loggerFactory);
 
         if (decoder == null)
         {
@@ -28,7 +28,7 @@ internal sealed class NormalImageExecutionContext : IDisposable
         }
 
         PdfTileInfo tileInfo = new(imageSize, new SKSizeI(context.DefaultTileSize, context.DefaultTileSize));
-        return new NormalImageExecutionContext(imageSize, context, new PdfImageTileCacheEntry(decoder, context, tileInfo), pdfImage.Interpolate);
+        return new NormalImageExecutionContext(imageSize, context, new PdfImageTileCacheEntry(decoder, tileInfo), pdfImage.Interpolate);
     }
 
     public SKSizeI ImageSize { get; }

@@ -21,21 +21,21 @@ internal sealed class CcittImageDecoder : PdfImageDecoder
 
     private readonly PdfColorSpaceConverter _colorSpaceConverter;
 
-    public CcittImageDecoder(PdfImage image, ILoggerFactory loggerFactory)
-        : base(image, loggerFactory)
+    public CcittImageDecoder(PdfImage image, ImageDecodingContext context, ILoggerFactory loggerFactory)
+        : base(image, context, loggerFactory)
     {
-        _colorSpaceConverter = image.ColorSpaceConverter
-            ?? image.Page.Cache.ColorSpace.ResolveDeviceConverter(1)
+        _colorSpaceConverter = context.ColorSpaceConverter
+            ?? context.Page.Cache.ColorSpace.ResolveDeviceConverter(1)
             ?? DeviceGrayConverter.Instance;
     }
 
     protected override PdfColorSpaceConverter ResolvedColorSpaceConverter => _colorSpaceConverter;
 
-    public override void Initialize(PdfTileInfo tileInfo, ImageDecodingContext context, object contentLocker, SKMatrix ctm, HashSet<int>? tileIndexesToDecode, IPdfExecutionObserver? observer)
+    public override void Initialize(PdfTileInfo tileInfo, object contentLocker, SKMatrix ctm, HashSet<int>? tileIndexesToDecode, IPdfExecutionObserver? observer)
     {
         if (!ValidateImageParameters())
         {
-            throw new InvalidOperationException($"CCITT image parameters are invalid (Name={Image.Name}).");
+            throw new InvalidOperationException($"CCITT image parameters are invalid (SourceReference={Image.SourceReference}).");
         }
 
         ReadOnlyMemory<byte> encodedData;
@@ -46,7 +46,7 @@ internal sealed class CcittImageDecoder : PdfImageDecoder
 
         if (encodedData.IsEmpty)
         {
-            throw new InvalidOperationException($"CCITT image data is empty (Name={Image.Name}).");
+            throw new InvalidOperationException($"CCITT image data is empty (SourceReference={Image.SourceReference}).");
         }
 
         PdfDecodeParameters? parameters = Image.DecodeParms;
@@ -62,7 +62,7 @@ internal sealed class CcittImageDecoder : PdfImageDecoder
         SKSizeI? downscaledSize = PdfImageCommandUtilities.GetScaledSize(ctm, new SKSizeI(columns, rows));
 
         _imageParameters = new PdfImageRowDecodingParameters(
-            context,
+            Context,
             Image.Width,
             Image.Height,
             Image.BitsPerComponent,
@@ -91,7 +91,7 @@ internal sealed class CcittImageDecoder : PdfImageDecoder
         {
             if (!_rowDecoder.DecodeNextRow(ref buffer))
             {
-                Logger.LogWarning("CCITT row decoder ended early at image row {Row} (Name={Name}).", _currentImageRow, Image.Name);
+                Logger.LogWarning("CCITT row decoder ended early at image row {Row} (SourceReference={SourceReference}).", _currentImageRow, Image.SourceReference);
                 return null;
             }
 

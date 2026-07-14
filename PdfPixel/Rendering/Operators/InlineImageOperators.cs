@@ -73,7 +73,7 @@ internal class InlineImageOperators : IOperatorProcessor
 
         PdfObject inlineObject = new(default, _page.Document, PdfValueFactory.Dictionary(imageDictionary)) { EmbaddedStream = image.AsString().Value };
 
-        PdfImage pdfImage = PdfImage.FromXObject(inlineObject, _page, name: PdfString.Empty, isSoftMask: false);
+        PdfImage pdfImage = PdfImage.GetImage(inlineObject);
         _renderer.DrawImage(_processor, pdfImage, graphicsState);
     }
 

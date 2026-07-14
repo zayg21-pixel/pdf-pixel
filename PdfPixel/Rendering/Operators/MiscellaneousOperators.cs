@@ -116,7 +116,7 @@ internal class MiscellaneousOperators : IOperatorProcessor
         {
             case PdfXObjectSubtype.Image:
             {
-                PdfImage pdfImage = PdfImage.FromXObject(pageObject.XObject, _page, xObjectName, isSoftMask: false);
+                PdfImage pdfImage = PdfImage.GetImage(pageObject.XObject);
                 _renderer.DrawImage(_processor, pdfImage, graphicsState);
                 break;
             }

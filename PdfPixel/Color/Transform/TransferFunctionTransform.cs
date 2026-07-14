@@ -45,7 +45,7 @@ namespace PdfPixel.Color.Transform
                 return null;
             }
 
-            if (functionObject.Reference.IsValid && functionObject.Document != null)
+            if (functionObject.Reference.IsValid)
             {
                 Dictionary<PdfReference, TransferFunctionTransform> cache = functionObject.Document.ObjectCache.TransferFunctionTransforms;
                 if (cache.TryGetValue(functionObject.Reference, out TransferFunctionTransform? cachedTransform))
@@ -56,7 +56,7 @@ namespace PdfPixel.Color.Transform
 
             TransferFunctionTransform? transform = FromPdfObjectCore(functionObject);
 
-            if (transform != null && functionObject.Reference.IsValid && functionObject.Document != null)
+            if (transform != null && functionObject.Reference.IsValid)
             {
                 Dictionary<PdfReference, TransferFunctionTransform> cache = functionObject.Document.ObjectCache.TransferFunctionTransforms;
                 cache[functionObject.Reference] = transform;

@@ -18,21 +18,29 @@ public abstract class PdfImageDecoder : IDisposable
     private readonly PdfColorSpaceConverter _resolvedColorSpaceConverter;
 
     /// <summary>
-    /// Initializes the base decoder with the source image and logger factory.
+    /// Initializes the base decoder with the source image, decoding context, and logger factory.
     /// </summary>
     /// <param name="image">The PDF image descriptor to decode.</param>
+    /// <param name="context">Decoding context holding the page and color space resolved for <paramref name="image"/>.</param>
     /// <param name="loggerFactory">Logger factory used to create per-decoder loggers.</param>
-    protected PdfImageDecoder(PdfImage image, ILoggerFactory loggerFactory)
+    protected PdfImageDecoder(PdfImage image, ImageDecodingContext context, ILoggerFactory loggerFactory)
     {
         Image = image ?? throw new ArgumentNullException(nameof(image));
         LoggerFactory = loggerFactory ?? throw new ArgumentNullException(nameof(loggerFactory));
         Logger = loggerFactory.CreateLogger(GetType());
 
-        PdfColorSpaceConverter? converter = image.ColorSpaceConverter;
+        if (context == null)
+        {
+            throw new ArgumentNullException(nameof(context));
+        }
+
+        Context = context;
+
+        PdfColorSpaceConverter? converter = context.ColorSpaceConverter;
         if (converter == null)
         {
             int defaultComponents = (image.BitsPerComponent == 1) ? 1 : 3;
-            converter = image.Page.Cache.ColorSpace.ResolveDeviceConverter(defaultComponents);
+            converter = context.Page.Cache.ColorSpace.ResolveDeviceConverter(defaultComponents);
         }
 
         _resolvedColorSpaceConverter = converter ?? DeviceRgbConverter.Instance;
@@ -42,6 +50,12 @@ public abstract class PdfImageDecoder : IDisposable
     /// Source PDF image to decode.
     /// </summary>
     public PdfImage Image { get; }
+
+    /// <summary>
+    /// Decoding context this decoder was constructed with, holding the page and the color space
+    /// resolved for <see cref="Image"/>.
+    /// </summary>
+    public ImageDecodingContext Context { get; }
 
     /// <summary>
     /// Resolved color space converter for this image, eagerly computed during construction.
@@ -64,31 +78,37 @@ public abstract class PdfImageDecoder : IDisposable
     /// Returns null for unsupported encodings.
     /// </summary>
     /// <param name="pdfImage">The image descriptor to decode.</param>
+    /// <param name="context">Decoding context holding the page and color space resolved for <paramref name="pdfImage"/>.</param>
     /// <param name="loggerFactory">Logger factory instance.</param>
     /// <returns>A concrete <see cref="PdfImageDecoder"/> instance, or null if unsupported.</returns>
-    public static PdfImageDecoder? GetDecoder(PdfImage pdfImage, ILoggerFactory loggerFactory)
+    public static PdfImageDecoder? GetDecoder(PdfImage pdfImage, ImageDecodingContext context, ILoggerFactory loggerFactory)
     {
         if (pdfImage == null)
         {
             return null;
         }
 
+        if (context == null)
+        {
+            throw new ArgumentNullException(nameof(context));
+        }
+
         switch (pdfImage.Type)
         {
             case PdfImageType.Raw:
-                return new RawImageDecoder(pdfImage, loggerFactory);
+                return new RawImageDecoder(pdfImage, context, loggerFactory);
 
             case PdfImageType.JPEG:
-                return new JpegImageDecoder(pdfImage, loggerFactory);
+                return new JpegImageDecoder(pdfImage, context, loggerFactory);
 
             case PdfImageType.JPEG2000:
-                return new JpxImageDecoder(pdfImage, loggerFactory);
+                return new JpxImageDecoder(pdfImage, context, loggerFactory);
 
             case PdfImageType.CCITT:
-                return new CcittImageDecoder(pdfImage, loggerFactory);
+                return new CcittImageDecoder(pdfImage, context, loggerFactory);
 
             case PdfImageType.JBIG2:
-                return new Jbig2ImageDecoder(pdfImage, loggerFactory);
+                return new Jbig2ImageDecoder(pdfImage, context, loggerFactory);
 
             default:
                 return null;
@@ -100,12 +120,11 @@ public abstract class PdfImageDecoder : IDisposable
     /// Derived classes override this to parse format-specific stream headers and allocate buffers.
     /// </summary>
     /// <param name="tileInfo">Tile grid dimensions for this decode pass.</param>
-    /// <param name="context">Rendering context carrying target surface and quality settings.</param>
     /// <param name="contentLocker">Lock object used to serialize access to the compressed image data.</param>
     /// <param name="ctm">Current transformation matrix, used to compute the scaled output size.</param>
     /// <param name="tileIndexesToDecode">Indexes of tiles that must be decoded; every other tile is produced as a skipped placeholder. Null means every tile must be decoded.</param>
     /// <param name="observer">Observer notified during initialization steps.</param>
-    public virtual void Initialize(PdfTileInfo tileInfo, ImageDecodingContext context, object contentLocker, SKMatrix ctm, HashSet<int>? tileIndexesToDecode, IPdfExecutionObserver observer)
+    public virtual void Initialize(PdfTileInfo tileInfo, object contentLocker, SKMatrix ctm, HashSet<int>? tileIndexesToDecode, IPdfExecutionObserver observer)
     {
     }
 
@@ -126,7 +145,7 @@ public abstract class PdfImageDecoder : IDisposable
         int width = Image.Width;
         int height = Image.Height;
         int bitsPerComponent = Image.BitsPerComponent;
-        PdfColorSpaceConverter? converter = Image.ColorSpaceConverter;
+        PdfColorSpaceConverter converter = ResolvedColorSpaceConverter;
 
         if (width <= 0 || height <= 0 || bitsPerComponent <= 0)
         {

@@ -61,7 +61,7 @@ public sealed class PdfShadingPattern : PdfPattern
 
         if (Shading.Background != null && Shading.BBox.HasValue)
         {
-            PdfColorSpaceConverter? colorSpace = state.Page.Cache.ColorSpace.ResolveByObject(Shading.ColorSpaceConverter) ?? DeviceRgbConverter.Instance;
+            PdfColorSpaceConverter? colorSpace = state.Page.Cache.ColorSpace.ResolveByObject(Shading.ColorSpaceObject) ?? DeviceRgbConverter.Instance;
             SKColor backgroundColor = colorSpace.ToSrgb(Shading.Background, state.RenderingIntent, state.FullTransferFunction);
             SKPaint backgroundPaint = PdfPaintFactory.CreateBackgroundPaint(backgroundColor);
 

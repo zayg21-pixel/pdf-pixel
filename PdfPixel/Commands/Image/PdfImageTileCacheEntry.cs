@@ -15,17 +15,15 @@ namespace PdfPixel.Commands.Image;
 internal sealed class PdfImageTileCacheEntry : IDisposable
 {
     private readonly PdfImageDecoder _decoder;
-    private readonly ImageDecodingContext _context;
     private readonly CachedTile[] _tiles;
 
     private SKSizeI? _scaledSize;
     private int _tileIndex;
     private bool _decoding;
 
-    public PdfImageTileCacheEntry(PdfImageDecoder decoder, ImageDecodingContext context, PdfTileInfo tileInfo)
+    public PdfImageTileCacheEntry(PdfImageDecoder decoder, PdfTileInfo tileInfo)
     {
         _decoder = decoder ?? throw new ArgumentNullException(nameof(decoder));
-        _context = context ?? throw new ArgumentNullException(nameof(context));
         TileInfo = tileInfo ?? throw new ArgumentNullException(nameof(tileInfo));
 
         _tiles = new CachedTile[tileInfo.TotalTiles];
@@ -67,7 +65,7 @@ internal sealed class PdfImageTileCacheEntry : IDisposable
 
         if (tileIndexesToDecode == null || tileIndexesToDecode.Count > 0)
         {
-            _decoder.Initialize(TileInfo, _context, contentLocker, ctm, tileIndexesToDecode, observer);
+            _decoder.Initialize(TileInfo, contentLocker, ctm, tileIndexesToDecode, observer);
             _decoding = true;
         }
     }
@@ -187,7 +185,7 @@ internal sealed class PdfImageTileCacheEntry : IDisposable
     {
         long cacheSizeBytes = ComputeCacheSizeBytes();
 
-        for (int tileIndex = 0; tileIndex < _tiles.Length && cacheSizeBytes > _context.MaxTileCacheSizeBytes; tileIndex++)
+        for (int tileIndex = 0; tileIndex < _tiles.Length && cacheSizeBytes > _decoder.Context.MaxTileCacheSizeBytes; tileIndex++)
         {
             if (regionTileIndexes.Contains(tileIndex))
             {

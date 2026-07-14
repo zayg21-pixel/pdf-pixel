@@ -20,7 +20,7 @@ public sealed class ShadingDecodingContext
     internal ShadingDecodingContext(PdfGraphicsState state, PdfShading shading)
     {
         Shading = shading;
-        Converter = state.Page.Cache.ColorSpace.ResolveByObject(shading.ColorSpaceConverter) ?? DeviceRgbConverter.Instance;
+        Converter = state.Page.Cache.ColorSpace.ResolveByObject(shading.ColorSpaceObject) ?? DeviceRgbConverter.Instance;
         FillAlpha = state.FillAlpha;
         RenderingIntent = state.RenderingIntent;
         FullTransferFunction = state.FullTransferFunction;

@@ -26,16 +26,16 @@ internal class JpxImageDecoder : PdfImageDecoder
     private readonly PdfColorSpaceConverter? _deviceRgb;
     private readonly PdfColorSpaceConverter? _deviceCmyk;
 
-    public JpxImageDecoder(PdfImage image, ILoggerFactory loggerFactory)
-        : base(image, loggerFactory)
+    public JpxImageDecoder(PdfImage image, ImageDecodingContext context, ILoggerFactory loggerFactory)
+        : base(image, context, loggerFactory)
     {
-        ColorSpaceResolver colorSpace = image.Page.Cache.ColorSpace;
+        ColorSpaceResolver colorSpace = context.Page.Cache.ColorSpace;
         _deviceGray = colorSpace.ResolveDeviceConverter(1);
         _deviceRgb = colorSpace.ResolveDeviceConverter(3);
         _deviceCmyk = colorSpace.ResolveDeviceConverter(4);
     }
 
-    public override void Initialize(PdfTileInfo tileInfo, ImageDecodingContext context, object contentLocker, SKMatrix ctm, HashSet<int>? tileIndexesToDecode, IPdfExecutionObserver? observer)
+    public override void Initialize(PdfTileInfo tileInfo, object contentLocker, SKMatrix ctm, HashSet<int>? tileIndexesToDecode, IPdfExecutionObserver? observer)
     {
         ReadOnlyMemory<byte> encodedData;
         lock (contentLocker)
@@ -48,7 +48,7 @@ internal class JpxImageDecoder : PdfImageDecoder
         _resolvedConverter = ResolveConverter(jpxHeader);
         if (_resolvedConverter == null)
         {
-            throw new InvalidOperationException($"Cannot determine color space for JPX image with {jpxHeader.ComponentCount} components (Name={Image.Name}).");
+            throw new InvalidOperationException($"Cannot determine color space for JPX image with {jpxHeader.ComponentCount} components (SourceReference={Image.SourceReference}).");
         }
 
         JpxDecodingParameters jpxDecodingParameters = ComputeDecodingParameters(jpxHeader, ctm, tileInfo, tileIndexesToDecode, _resolvedConverter);
@@ -62,7 +62,7 @@ internal class JpxImageDecoder : PdfImageDecoder
         SKSizeI? downscaledSize = PdfImageCommandUtilities.GetScaledSize(ctm, new SKSizeI(_rowConverter.Width, _rowConverter.Height));
 
         _imageParameters = new PdfImageRowDecodingParameters(
-            context,
+            Context,
             _rowConverter.Width,
             _rowConverter.Height,
             _rowConverter.BitsPerComponent,
@@ -92,7 +92,7 @@ internal class JpxImageDecoder : PdfImageDecoder
         {
             if (!_rowConverter.TryGetNextRow(_fullWidthRowBuffer, jpxObserver))
             {
-                throw new InvalidOperationException($"JPX decode failed at row {_currentImageRow} (Image={Image.Name}).");
+                throw new InvalidOperationException($"JPX decode failed at row {_currentImageRow} (SourceReference={Image.SourceReference}).");
             }
 
             PdfImageTile[]? tiles = _tilingContext.WriteRowAndTryGetTiles(_currentImageRow, _fullWidthRowBuffer, observer);
@@ -121,7 +121,7 @@ internal class JpxImageDecoder : PdfImageDecoder
     {
         int colorComponents = GetColorComponentCount(header);
 
-        PdfColorSpaceConverter? converter = Image.ColorSpaceConverter;
+        PdfColorSpaceConverter? converter = Context.ColorSpaceConverter;
         if (converter != null && (converter is IndexedConverter || converter.Components == colorComponents))
         {
             return converter;

@@ -24,34 +24,34 @@ internal sealed class Jbig2ImageDecoder : PdfImageDecoder
 
     private readonly PdfColorSpaceConverter _colorSpaceConverter;
 
-    public Jbig2ImageDecoder(PdfImage image, ILoggerFactory loggerFactory)
-        : base(image, loggerFactory)
+    public Jbig2ImageDecoder(PdfImage image, ImageDecodingContext context, ILoggerFactory loggerFactory)
+        : base(image, context, loggerFactory)
     {
-        _colorSpaceConverter = image.ColorSpaceConverter
-            ?? image.Page.Cache.ColorSpace.ResolveDeviceConverter(1)
+        _colorSpaceConverter = context.ColorSpaceConverter
+            ?? context.Page.Cache.ColorSpace.ResolveDeviceConverter(1)
             ?? DeviceGrayConverter.Instance;
     }
 
     protected override PdfColorSpaceConverter ResolvedColorSpaceConverter => _colorSpaceConverter;
 
-    public override void Initialize(PdfTileInfo tileInfo, ImageDecodingContext context, object contentLocker, SKMatrix ctm, HashSet<int>? tileIndexesToDecode, IPdfExecutionObserver? observer)
+    public override void Initialize(PdfTileInfo tileInfo, object contentLocker, SKMatrix ctm, HashSet<int>? tileIndexesToDecode, IPdfExecutionObserver? observer)
     {
         if (!ValidateImageParameters())
         {
-            throw new InvalidOperationException($"JBIG2 image parameters are invalid (Name={Image.Name}).");
+            throw new InvalidOperationException($"JBIG2 image parameters are invalid (SourceReference={Image.SourceReference}).");
         }
 
         EnsureBitmapDecoded(contentLocker, observer);
         if (_cachedBitmap == null)
         {
-            throw new InvalidOperationException($"JBIG2 page decoding failed (Name={Image.Name}).");
+            throw new InvalidOperationException($"JBIG2 page decoding failed (SourceReference={Image.SourceReference}).");
         }
 
         PdfColorSpaceConverter converter = _colorSpaceConverter;
         SKSizeI? downscaledSize = PdfImageCommandUtilities.GetScaledSize(ctm, new SKSizeI(Image.Width, Image.Height));
 
         _imageParameters = new PdfImageRowDecodingParameters(
-            context,
+            Context,
             Image.Width,
             Image.Height,
             Image.BitsPerComponent,
@@ -106,7 +106,7 @@ internal sealed class Jbig2ImageDecoder : PdfImageDecoder
 
         if (imageData.IsEmpty)
         {
-            throw new InvalidOperationException($"JBIG2 image data is empty (Name={Image.Name}).");
+            throw new InvalidOperationException($"JBIG2 image data is empty (SourceReference={Image.SourceReference}).");
         }
 
         Jbig2SegmentCache? globalCache = ResolveGlobalsCache(contentLocker);
@@ -132,7 +132,7 @@ internal sealed class Jbig2ImageDecoder : PdfImageDecoder
             return null;
         }
 
-        Models.PdfDocumentObjectCache? objectCache = Image.Page.Document.ObjectCache;
+        Models.PdfDocumentObjectCache? objectCache = Context.Page.Document.ObjectCache;
         if (objectCache != null && objectCache.Jbig2GlobalCaches.TryGetValue(globalsObject.Reference, out Jbig2SegmentCache? existing))
         {
             return existing;

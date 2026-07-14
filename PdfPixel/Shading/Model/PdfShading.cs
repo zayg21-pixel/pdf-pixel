@@ -39,7 +39,7 @@ public sealed class PdfShading
             ExtendEnd = extendArr.GetBooleanOrDefault(1);
         }
 
-        ColorSpaceConverter = rawDictionary.GetObject(PdfTokens.ColorSpaceKey);
+        ColorSpaceObject = rawDictionary.GetObject(PdfTokens.ColorSpaceKey);
         Functions = new List<PdfFunction>();
 
         List<PdfObject>? functionObjects = rawDictionary.GetObjects(PdfTokens.FunctionKey);
@@ -99,7 +99,7 @@ public sealed class PdfShading
             throw new ArgumentNullException(nameof(pdfObject));
         }
 
-        if (pdfObject.Reference.IsValid && pdfObject.Document != null)
+        if (pdfObject.Reference.IsValid)
         {
             Dictionary<PdfReference, PdfShading> cache = pdfObject.Document.ObjectCache.Shadings;
             if (cache.TryGetValue(pdfObject.Reference, out PdfShading? cachedShading))
@@ -110,7 +110,7 @@ public sealed class PdfShading
 
         PdfShading shading = new(pdfObject);
 
-        if (pdfObject.Reference.IsValid && pdfObject.Document != null)
+        if (pdfObject.Reference.IsValid)
         {
             Dictionary<PdfReference, PdfShading> cache = pdfObject.Document.ObjectCache.Shadings;
             cache[pdfObject.Reference] = shading;
@@ -152,7 +152,7 @@ public sealed class PdfShading
     /// <summary>
     /// Color space value (/ColorSpace) object.
     /// </summary>
-    public PdfObject? ColorSpaceConverter { get; }
+    public PdfObject? ColorSpaceObject { get; }
 
     /// <summary>
     /// List of resolved PdfFunction(s) for function-based color evaluation.

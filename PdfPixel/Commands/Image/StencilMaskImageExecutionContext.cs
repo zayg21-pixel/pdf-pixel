@@ -37,7 +37,7 @@ internal sealed class StencilMaskImageExecutionContext : IDisposable
     public static StencilMaskImageExecutionContext Create(PdfImage pdfImage, ImageDecodingContext context, ILoggerFactory loggerFactory)
     {
         SKSizeI imageSize = new(pdfImage.Width, pdfImage.Height);
-        PdfImageDecoder? decoder = PdfImageDecoder.GetDecoder(pdfImage, loggerFactory);
+        PdfImageDecoder? decoder = PdfImageDecoder.GetDecoder(pdfImage, context, loggerFactory);
 
         if (decoder == null)
         {
@@ -48,7 +48,7 @@ internal sealed class StencilMaskImageExecutionContext : IDisposable
         bool invertMask = decode == null || decode.Length < 2 || decode[0] < decode[1];
 
         PdfTileInfo tileInfo = new(imageSize, new SKSizeI(context.DefaultTileSize, context.DefaultTileSize));
-        return new StencilMaskImageExecutionContext(imageSize, context, new PdfImageTileCacheEntry(decoder, context, tileInfo), invertMask, pdfImage.Interpolate);
+        return new StencilMaskImageExecutionContext(imageSize, context, new PdfImageTileCacheEntry(decoder, tileInfo), invertMask, pdfImage.Interpolate);
     }
 
     public void Dispose() => TileCache.Dispose();

@@ -21,23 +21,23 @@ internal class RawImageDecoder : PdfImageDecoder
     private PdfImageRowDecodingParameters? _imageParameters;
     private int _currentImageRow;
 
-    public RawImageDecoder(PdfImage image, ILoggerFactory loggerFactory)
-        : base(image, loggerFactory)
+    public RawImageDecoder(PdfImage image, ImageDecodingContext context, ILoggerFactory loggerFactory)
+        : base(image, context, loggerFactory)
     {
     }
 
-    public override void Initialize(PdfTileInfo tileInfo, ImageDecodingContext context, object contentLocker, SKMatrix ctm, HashSet<int>? tileIndexesToDecode, IPdfExecutionObserver? observer)
+    public override void Initialize(PdfTileInfo tileInfo, object contentLocker, SKMatrix ctm, HashSet<int>? tileIndexesToDecode, IPdfExecutionObserver? observer)
     {
         if (!ValidateImageParameters())
         {
-            throw new InvalidOperationException($"Raw image parameters are invalid (Name={Image.Name}).");
+            throw new InvalidOperationException($"Raw image parameters are invalid (SourceReference={Image.SourceReference}).");
         }
 
         _contentLocker = contentLocker;
         SKSizeI? downscaledSize = PdfImageCommandUtilities.GetScaledSize(ctm, new SKSizeI(Image.Width, Image.Height));
 
         _imageParameters = new PdfImageRowDecodingParameters(
-            context,
+            Context,
             Image.Width,
             Image.Height,
             Image.BitsPerComponent,

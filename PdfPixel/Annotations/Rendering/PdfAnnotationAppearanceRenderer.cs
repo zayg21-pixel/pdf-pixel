@@ -187,7 +187,7 @@ internal static class PdfAnnotationAppearanceRenderer
         PdfRenderingParameters renderingParameters,
         IPdfExecutionObserver observer)
     {
-        PdfImage pdfImage = PdfImage.FromXObject(imageObject, page, PdfString.Empty, isSoftMask: false);
+        PdfImage pdfImage = PdfImage.GetImage(imageObject);
         if (pdfImage == null)
         {
             return false;

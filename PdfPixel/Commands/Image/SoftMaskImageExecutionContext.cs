@@ -40,15 +40,17 @@ internal sealed class SoftMaskImageExecutionContext : IDisposable
     {
         if (pdfImage.SoftMask == null)
         {
-            throw new ArgumentException($"Not defined soft mask for image {pdfImage.Name}.");
+            throw new ArgumentException($"Not defined soft mask for image {pdfImage.SourceReference}.");
         }
 
         PdfImage maskImage = pdfImage.SoftMask;
         SKSizeI imageSize = new(pdfImage.Width, pdfImage.Height);
         SKSizeI maskSize = new(maskImage.Width, maskImage.Height);
 
-        PdfImageDecoder? imageDecoder = PdfImageDecoder.GetDecoder(pdfImage, loggerFactory);
-        PdfImageDecoder? maskDecoder = PdfImageDecoder.GetDecoder(maskImage, loggerFactory);
+        ImageDecodingContext maskDecodingContext = new(context, maskImage, context.FillColor, context.FillAlpha, context.BlendMode);
+
+        PdfImageDecoder? imageDecoder = PdfImageDecoder.GetDecoder(pdfImage, context, loggerFactory);
+        PdfImageDecoder? maskDecoder = PdfImageDecoder.GetDecoder(maskImage, maskDecodingContext, loggerFactory);
 
         if (imageDecoder == null)
         {
@@ -69,8 +71,8 @@ internal sealed class SoftMaskImageExecutionContext : IDisposable
             imageSize,
             maskSize,
             context,
-            new PdfImageTileCacheEntry(imageDecoder, context, imageTileInfo),
-            new PdfImageTileCacheEntry(maskDecoder, context, maskTileInfo),
+            new PdfImageTileCacheEntry(imageDecoder, imageTileInfo),
+            new PdfImageTileCacheEntry(maskDecoder, maskTileInfo),
             maskImage.MatteArray,
             pdfImage.Interpolate);
     }

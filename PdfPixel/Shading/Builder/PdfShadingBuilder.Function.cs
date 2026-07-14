@@ -29,7 +29,7 @@ internal partial class PdfShadingBuilder
         int defaultFunctionSamples,
         IPdfExecutionObserver observer)
     {
-        if (shading.Functions == null || shading.Functions.Count == 0 || shading.ColorSpaceConverter == null)
+        if (shading.Functions == null || shading.Functions.Count == 0 || shading.ColorSpaceObject == null)
         {
             _logger.LogWarning("Function-based shading has no functions or color space converter");
             return null;
