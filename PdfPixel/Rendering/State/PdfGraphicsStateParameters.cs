@@ -167,6 +167,7 @@ namespace PdfPixel.Rendering.State
             if (SoftMask != null || (SoftMask == null && graphicsState.SoftMask != null))
             {
                 graphicsState.SoftMask = SoftMask;
+                graphicsState.SoftMaskCTM = graphicsState.CTM;
             }
 
             if (TransferFunction != null || (TransferFunction == null && graphicsState.TransferFunction != null))

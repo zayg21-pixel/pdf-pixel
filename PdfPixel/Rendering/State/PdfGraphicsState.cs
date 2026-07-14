@@ -295,6 +295,12 @@ public class PdfGraphicsState
     public PdfSoftMask? SoftMask { get; set; }
 
     /// <summary>
+    /// CTM in effect when the <c>gs</c> operator assigned <see cref="SoftMask"/>. Per spec, the soft mask's
+    /// BBox/Matrix map through this frozen CTM, not the CTM in effect when the mask is later applied to painted content.
+    /// </summary>
+    public SKMatrix SoftMaskCTM { get; set; } = SKMatrix.Identity;
+
+    /// <summary>
     /// Alpha-is-shape flag (AIS entry in ExtGState). When true, alpha is treated as shape, not opacity.
     /// Default false.
     /// </summary>
@@ -423,6 +429,7 @@ public class PdfGraphicsState
             FillColorConverter = FillColorConverter,
             RenderingIntent = RenderingIntent,
             SoftMask = SoftMask,
+            SoftMaskCTM = SoftMaskCTM,
             TransferFunction = TransferFunction,
             AlphaIsShape = AlphaIsShape,
             OverprintMode = OverprintMode,

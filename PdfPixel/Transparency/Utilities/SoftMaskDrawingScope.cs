@@ -30,6 +30,7 @@ public sealed class SoftMaskDrawingScope : IDisposable
 
     private SKRect _maskBounds;
     private SKMatrix _maskMatrix;
+    private SKMatrix _worldToMaskForm;
     private bool _began;
     private bool _shouldApplyMask;
     private bool _disposed;
@@ -81,7 +82,8 @@ public sealed class SoftMaskDrawingScope : IDisposable
             return;
         }
 
-        _maskMatrix = SKMatrix.Concat(_graphicsState.CTM.Invert(), _softMask.MaskForm.Matrix);
+        _worldToMaskForm = SKMatrix.Concat(_graphicsState.SoftMaskCTM, _softMask.MaskForm.Matrix);
+        _maskMatrix = SKMatrix.Concat(_graphicsState.CTM.Invert(), _worldToMaskForm);
         _maskBounds = _maskMatrix.MapRect(_softMask.MaskForm.BBox);
 
         SKPaint layerPaint = PdfPaintFactory.CreateMaskLayerPaint();
@@ -123,15 +125,11 @@ public sealed class SoftMaskDrawingScope : IDisposable
 
         // Render mask content stream into the recorder (isolated from canvas transforms).
         ReadOnlyMemory<byte> contentData = _softMask.MaskForm.GetFormData();
-        if (!contentData.IsEmpty)
+        uint softMaskObjectNumber = _softMask.MaskForm.XObject.Reference.ObjectNumber;
+        bool isRecursive = _graphicsState.RecursionGuard.Contains(softMaskObjectNumber);
+
+        if (!contentData.IsEmpty && !isRecursive)
         {
-            uint softMaskObjectNumber = _softMask.MaskForm.XObject.Reference.ObjectNumber;
-
-            if (_graphicsState.RecursionGuard.Contains(softMaskObjectNumber))
-            {
-                return;
-            }
-
             _graphicsState.RecursionGuard.Add(softMaskObjectNumber);
 
             Forms.FormXObjectPageWrapper page = _softMask.MaskForm.GetFormPage();
@@ -151,7 +149,7 @@ public sealed class SoftMaskDrawingScope : IDisposable
                 maskGs.ExternalTransferFunction = new ChainedColorTransform(maskGs.ExternalTransferFunction, _softMask.TransferFunction);
             }
 
-            maskGs.CTM = _softMask.MaskForm.Matrix;
+            maskGs.CTM = _worldToMaskForm;
 
             PdfContentStreamRenderer contentRenderer = new(_renderer, page);
             contentRenderer.RenderContext(recorder, ref parseContext, maskGs);
