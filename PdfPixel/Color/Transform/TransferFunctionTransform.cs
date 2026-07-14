@@ -1,5 +1,6 @@
 using PdfPixel.Functions;
 using PdfPixel.Models;
+using System.Collections.Generic;
 using System.Numerics;
 using System.Runtime.CompilerServices;
 
@@ -44,6 +45,28 @@ namespace PdfPixel.Color.Transform
                 return null;
             }
 
+            if (functionObject.Reference.IsValid && functionObject.Document != null)
+            {
+                Dictionary<PdfReference, TransferFunctionTransform> cache = functionObject.Document.ObjectCache.TransferFunctionTransforms;
+                if (cache.TryGetValue(functionObject.Reference, out TransferFunctionTransform? cachedTransform))
+                {
+                    return cachedTransform;
+                }
+            }
+
+            TransferFunctionTransform? transform = FromPdfObjectCore(functionObject);
+
+            if (transform != null && functionObject.Reference.IsValid && functionObject.Document != null)
+            {
+                Dictionary<PdfReference, TransferFunctionTransform> cache = functionObject.Document.ObjectCache.TransferFunctionTransforms;
+                cache[functionObject.Reference] = transform;
+            }
+
+            return transform;
+        }
+
+        private static TransferFunctionTransform? FromPdfObjectCore(PdfObject functionObject)
+        {
             IPdfValue value = functionObject.Value;
 
             if (value.Type == PdfValueType.Array)

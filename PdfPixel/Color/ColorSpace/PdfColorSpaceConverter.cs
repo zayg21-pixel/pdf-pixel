@@ -2,6 +2,8 @@ using PdfPixel.Color.Sampling;
 using PdfPixel.Color.Transform;
 using SkiaSharp;
 using System;
+using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 
 namespace PdfPixel.Color.ColorSpace;
 
@@ -11,6 +13,8 @@ namespace PdfPixel.Color.ColorSpace;
 /// </summary>
 public abstract class PdfColorSpaceConverter
 {
+    private readonly Dictionary<PostTransformCacheKey, ColorTransformSampler> _postTransformSamplers = [];
+
 #if !NETSTANDARD2_0
     private readonly ColorTransformSampler[] _colorSamplers = new ColorTransformSampler[Enum.GetValues<PdfRenderingIntent>().Length];
 
@@ -56,22 +60,27 @@ public abstract class PdfColorSpaceConverter
     /// <returns>Sampler value.</returns>
     public ColorTransformSampler GetRgbaSampler(PdfRenderingIntent intent, IColorTransform? postTransform)
     {
-        if (postTransform == null && _colorSamplers[(int)intent] is ColorTransformSampler sampler)
-        {
-            return sampler;
-        }
-
-        ColorTransformSampler newSampler = GetRgbaSamplerCore(intent, postTransform);
-
         if (postTransform == null)
         {
+            if (_colorSamplers[(int)intent] is ColorTransformSampler sampler)
+            {
+                return sampler;
+            }
+
+            ColorTransformSampler newSampler = GetRgbaSamplerCore(intent, postTransform);
             _colorSamplers[(int)intent] = newSampler;
             return newSampler;
         }
-        else
+
+        PostTransformCacheKey key = new(intent, postTransform);
+        if (_postTransformSamplers.TryGetValue(key, out ColorTransformSampler? cachedSampler))
         {
-            return newSampler;
+            return cachedSampler;
         }
+
+        ColorTransformSampler createdSampler = GetRgbaSamplerCore(intent, postTransform);
+        _postTransformSamplers[key] = createdSampler;
+        return createdSampler;
     }
 
     /// <summary>
@@ -81,4 +90,23 @@ public abstract class PdfColorSpaceConverter
     /// <param name="postTransform">Post color transform (if defined).</param>
     /// <returns>RGBA sampler.</returns>
     protected abstract ColorTransformSampler GetRgbaSamplerCore(PdfRenderingIntent intent, IColorTransform? postTransform);
+
+    private readonly struct PostTransformCacheKey : IEquatable<PostTransformCacheKey>
+    {
+        private readonly PdfRenderingIntent _intent;
+        private readonly IColorTransform _postTransform;
+
+        public PostTransformCacheKey(PdfRenderingIntent intent, IColorTransform postTransform)
+        {
+            _intent = intent;
+            _postTransform = postTransform;
+        }
+
+        public bool Equals(PostTransformCacheKey other)
+            => _intent == other._intent && ReferenceEquals(_postTransform, other._postTransform);
+
+        public override bool Equals(object? obj) => obj is PostTransformCacheKey key && Equals(key);
+
+        public override int GetHashCode() => HashCode.Combine(_intent, RuntimeHelpers.GetHashCode(_postTransform));
+    }
 }

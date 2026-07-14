@@ -1,5 +1,6 @@
 using PdfPixel.Color.ColorSpace;
 using PdfPixel.Color.Icc.Model;
+using PdfPixel.Color.Transform;
 using PdfPixel.Fonts.Model;
 using PdfPixel.Functions;
 using PdfPixel.Jbig2.Decoding;
@@ -48,6 +49,11 @@ internal class PdfDocumentObjectCache
     /// High-level cache for parsed PDF functions, keyed by reference.
     /// </summary>
     internal Dictionary<PdfReference, PdfFunction> Functions { get; } = [];
+
+    /// <summary>
+    /// Document cache for parsed transfer function transforms (TR), keyed by reference.
+    /// </summary>
+    internal Dictionary<PdfReference, TransferFunctionTransform> TransferFunctionTransforms { get; } = [];
 
     /// <summary>
     /// JBIG2 globals caches, keyed by the PDF reference of the /JBIG2Globals stream object.
