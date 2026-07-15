@@ -88,7 +88,7 @@ internal ref partial struct PdfParser
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public IPdfValue? ReadNextValue()
+    public IPdfValue? ReadNextValue(Stack<IPdfValue>? operandStack = null)
     {
         List<IPdfValue> values = [];
         Stack<CollectionFrame> frames = [];
@@ -165,7 +165,7 @@ internal ref partial struct PdfParser
                 }
                 case PdfTokenType.InlineStreamStart:
                 {
-                    IPdfValue? streamValue = ReadInlineStream();
+                    IPdfValue? streamValue = ReadInlineStream(operandStack);
                     if (streamValue == null)
                     {
                         return null;

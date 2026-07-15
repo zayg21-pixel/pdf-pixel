@@ -147,20 +147,36 @@ public sealed class PdfStreamDecoder
             throw new ArgumentNullException(nameof(dictionary));
         }
 
+        return GetFilters(dictionary.GetValue(PdfTokens.FilterKey));
+    }
+
+    /// <summary>
+    /// Expands a <c>/Filter</c> value (a single name or an array of names) into the ordered filter chain.
+    /// </summary>
+    public static List<PdfFilterType> GetFilters(IPdfValue? filterValue)
+    {
         List<PdfFilterType> filters = [];
 
-        PdfArray? filterArray = dictionary.GetArray(PdfTokens.FilterKey);
-        if (filterArray != null)
+        if (filterValue == null)
         {
-            for (int index = 0; index < filterArray.Count; index++)
+            return filters;
+        }
+
+        if (filterValue.Type == PdfValueType.Array)
+        {
+            PdfArray? filterArray = filterValue.AsArray();
+            if (filterArray != null)
             {
-                PdfFilterType filterType = filterArray.GetName(index).AsEnum<PdfFilterType>();
-                filters.Add(filterType);
+                for (int index = 0; index < filterArray.Count; index++)
+                {
+                    PdfFilterType filterType = filterArray.GetName(index).AsEnum<PdfFilterType>();
+                    filters.Add(filterType);
+                }
             }
         }
-        else
+        else if (filterValue.Type == PdfValueType.Name)
         {
-            PdfString filterName = dictionary.GetName(PdfTokens.FilterKey);
+            PdfString filterName = filterValue.AsName();
             if (!filterName.IsEmpty)
             {
                 filters.Add(filterName.AsEnum<PdfFilterType>());

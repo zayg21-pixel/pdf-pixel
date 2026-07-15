@@ -87,7 +87,7 @@ internal class PdfContentStreamRenderer
         PdfParser parser = new(parseContext, _page.Document, allowReferences: false, decrypt: false);
         IPdfValue? value;
 
-        while ((value = parser.ReadNextValue()) != null)
+        while ((value = parser.ReadNextValue(operandStack)) != null)
         {
             if (value.Type == PdfValueType.Operator)
             {
