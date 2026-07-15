@@ -7,7 +7,6 @@ namespace PdfPixel.Models;
 /// </summary>
 public class PdfDictionary
 {
-
     /// <summary>
     /// Initializes a new instance of the <see cref="PdfDictionary"/> class with the specified document and optional values.
     /// </summary>

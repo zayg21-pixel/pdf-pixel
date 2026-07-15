@@ -54,6 +54,7 @@ internal sealed class PdfXrefLoader : IDisposable
         }
 
         PdfParser parser = new(_document.Stream, _document, allowReferences: true, decrypt: false);
+        HashSet<int> visitedOffsets = [xrefOffset];
 
         // Classic table path.
         if (MatchSequenceAt(xrefOffset, PdfTokens.Xref))
@@ -68,6 +69,12 @@ internal sealed class PdfXrefLoader : IDisposable
                 while ((prevOffset = _trailerParser.GetPrevOffset(trailer)).HasValue)
                 {
                     int offsetValue = prevOffset.Value;
+                    if (!visitedOffsets.Add(offsetValue))
+                    {
+                        _logger.LogWarning("Detected /Prev chain cycle at offset {Offset}; stopping xref traversal.", offsetValue);
+                        break;
+                    }
+
                     _logger.LogDebug("Following /Prev chain to offset {Offset} (classic path).", offsetValue);
                     if (MatchSequenceAt(offsetValue, PdfTokens.Xref))
                     {
@@ -101,6 +108,12 @@ internal sealed class PdfXrefLoader : IDisposable
             while ((prevOffset = _trailerParser.GetPrevOffset(streamTrailer)).HasValue)
             {
                 int offsetValue = prevOffset.Value;
+                if (!visitedOffsets.Add(offsetValue))
+                {
+                    _logger.LogWarning("Detected /Prev chain cycle at offset {Offset}; stopping xref traversal.", offsetValue);
+                    break;
+                }
+
                 _logger.LogDebug("Following /Prev chain to offset {Offset} (stream path).", offsetValue);
                 if (MatchSequenceAt(offsetValue, PdfTokens.Xref))
                 {
