@@ -29,6 +29,7 @@ internal static class CffOpenTypeWrapper
 
     private const ushort NameIdFontFamily = 1;
     private const ushort NameIdFontSubfamily = 2;
+    private const ushort NameIdUniqueIdentifier = 3;
     private const ushort NameIdFullFontName = 4;
     private const ushort NameIdPostScriptName = 6;
     private const ushort NameIdVersionString = 5;
@@ -118,15 +119,15 @@ internal static class CffOpenTypeWrapper
         uint totalChecksum = CffOpenTypeWriter.CalcTableChecksum(firstPassFont);
         uint checksumAdjustment = unchecked(ChecksumMagic - totalChecksum);
 
-        // Patch head checksumAdjustment and its checksum.
+        // Patch head's checksumAdjustment field. Per the OpenType spec, the table directory's
+        // checksum entry for 'head' is defined as the checksum computed with checksumAdjustment
+        // treated as zero (already the case in tables[i].Checksum from the loop above), so it
+        // must NOT be recomputed from the patched bytes.
         for (int i = 0; i < tables.Count; i++)
         {
             if (tables[i].Tag == TagHead)
             {
-                Table headTable = tables[i];
-                CffOpenTypeWriter.WriteUInt32BE(headTable.Data, 8, checksumAdjustment); // checksumAdjustment field offset.
-                headTable.Checksum = CffOpenTypeWriter.CalcTableChecksum(headTable.Data);
-                tables[i] = headTable;
+                CffOpenTypeWriter.WriteUInt32BE(tables[i].Data, 8, checksumAdjustment); // checksumAdjustment field offset.
                 break;
             }
         }
@@ -251,7 +252,7 @@ internal static class CffOpenTypeWrapper
     {
         float unitsPerEmScale = unitsPerEm / (float)DefaultUnitsPerEm;
 
-        using (MemoryStream stream = new(78))
+        using (MemoryStream stream = new(96))
         using (BinaryWriter writer = new(stream))
         {
             var scaledDefaultAvgWidth = (short)Math.Round(DefaultAvgWidth * unitsPerEmScale);
@@ -296,7 +297,7 @@ internal static class CffOpenTypeWrapper
                 fsSelection |= 0x0002; // REGULAR
             }
 
-            CffOpenTypeWriter.WriteUInt16BE(writer, 0);              // version 0
+            CffOpenTypeWriter.WriteUInt16BE(writer, 4);              // version 4; Windows rejects version 0
             CffOpenTypeWriter.WriteInt16BE(writer, xAvgCharWidth);   // xAvgCharWidth
             CffOpenTypeWriter.WriteUInt16BE(writer, usWeightClass);  // usWeightClass
             CffOpenTypeWriter.WriteUInt16BE(writer, usWidthClass);   // usWidthClass
@@ -332,6 +333,15 @@ internal static class CffOpenTypeWrapper
             CffOpenTypeWriter.WriteInt16BE(writer, sTypoLineGap);
             CffOpenTypeWriter.WriteUInt16BE(writer, usWinAscent);
             CffOpenTypeWriter.WriteUInt16BE(writer, usWinDescent);
+            CffOpenTypeWriter.WriteUInt32BE(writer, 0x00000001); // ulCodePageRange1: Latin 1 (CP1252)
+            CffOpenTypeWriter.WriteUInt32BE(writer, 0);          // ulCodePageRange2
+            short scaledDefaultCapHeight = CffOpenTypeWriter.ClampToShort(0.7f * unitsPerEm, fallback: 0);
+            short scaledDefaultXHeight = CffOpenTypeWriter.ClampToShort(0.5f * unitsPerEm, fallback: 0);
+            CffOpenTypeWriter.WriteInt16BE(writer, CffOpenTypeWriter.ClampToShort(fontDescriptor.XHeight * unitsPerEmScale, scaledDefaultXHeight));    // sxHeight
+            CffOpenTypeWriter.WriteInt16BE(writer, CffOpenTypeWriter.ClampToShort(fontDescriptor.CapHeight * unitsPerEmScale, scaledDefaultCapHeight)); // sCapHeight
+            CffOpenTypeWriter.WriteUInt16BE(writer, 0);      // usDefaultChar
+            CffOpenTypeWriter.WriteUInt16BE(writer, 0x0020); // usBreakChar (space)
+            CffOpenTypeWriter.WriteUInt16BE(writer, 1);      // usMaxContext
             return stream.ToArray();
         }
     }
@@ -373,10 +383,15 @@ internal static class CffOpenTypeWrapper
         List<(ushort NameId, string Value)> records = [
             (NameIdFontFamily, family),
             (NameIdFontSubfamily, subfamily),
+            (NameIdUniqueIdentifier, $"{DefaultVersionString};{postScriptName}"),
             (NameIdFullFontName, $"{family} {subfamily}"),
-            (NameIdPostScriptName, postScriptName),
-            (NameIdVersionString, DefaultVersionString)
+            (NameIdVersionString, DefaultVersionString),
+            (NameIdPostScriptName, postScriptName)
         ];
+
+        // The name table's records must be sorted by (platformID, encodingID, languageID, nameID);
+        // all records here share the same platform/encoding/language, so sorting by nameID suffices.
+        records.Sort((left, right) => left.NameId.CompareTo(right.NameId));
 
         const ushort platformWindows = 3;
         const ushort encodingUnicodeBmp = 1;
@@ -433,7 +448,7 @@ internal static class CffOpenTypeWrapper
 
             // Subtable (format 4) – minimal terminating mapping.
             CffOpenTypeWriter.WriteUInt16BE(writer, 4);  // format
-            CffOpenTypeWriter.WriteUInt16BE(writer, 16); // length
+            CffOpenTypeWriter.WriteUInt16BE(writer, 24); // length
             CffOpenTypeWriter.WriteUInt16BE(writer, 0);  // language
             CffOpenTypeWriter.WriteUInt16BE(writer, 2);  // segCountX2 (1 segment => 2)
             CffOpenTypeWriter.WriteUInt16BE(writer, 2);  // searchRange

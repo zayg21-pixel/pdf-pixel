@@ -9,12 +9,47 @@ namespace PdfPixel.Fonts.TrueType;
 internal static class SnftCMapParser
 {
     /// <summary>
+    /// Parses a CMap subtable of any supported format (0, 4 or 6) into a single code-to-GID mapping shape.
+    /// </summary>
+    /// <param name="data">The font table data.</param>
+    /// <param name="format">The cmap subtable format number.</param>
+    /// <param name="offset">The offset to the subtable.</param>
+    /// <returns>Dictionary mapping character codes to glyph IDs, or <see langword="null"/> if the format is unsupported.</returns>
+    public static Dictionary<int, ushort>? Parse(byte[] data, ushort format, int offset)
+    {
+        return format switch
+        {
+            0 => ToCodeToGidDictionary(ParseFormat0(data, offset)),
+            4 => ParseFormat4(data, offset),
+            6 => ParseFormat6(data, offset),
+            _ => null
+        };
+    }
+
+    private static Dictionary<int, ushort> ToCodeToGidDictionary(ushort[] codeToGidArray)
+    {
+        Dictionary<int, ushort> codeToGid = [];
+
+        for (int code = 0; code < codeToGidArray.Length; code++)
+        {
+            ushort gid = codeToGidArray[code];
+
+            if (gid != 0)
+            {
+                codeToGid[code] = gid;
+            }
+        }
+
+        return codeToGid;
+    }
+
+    /// <summary>
     /// Parses a CMap format 0 subtable and returns an array mapping character codes (0-255) to glyph IDs.
     /// </summary>
     /// <param name="data">The font table data.</param>
     /// <param name="offset">The offset to the format 0 subtable.</param>
     /// <returns>Array of glyph IDs indexed by character code.</returns>
-    public static ushort[] ParseFormat0(byte[] data, int offset)
+    private static ushort[] ParseFormat0(byte[] data, int offset)
     {
         var codeToGid = new ushort[256];
         int glyphArrayOffset = offset + 6;
@@ -38,7 +73,7 @@ internal static class SnftCMapParser
     /// <param name="data">The font table data.</param>
     /// <param name="offset">The offset to the format 4 subtable.</param>
     /// <returns>Dictionary mapping Unicode codepoints to glyph IDs.</returns>
-    public static Dictionary<int, ushort> ParseFormat4(byte[] data, int offset)
+    private static Dictionary<int, ushort> ParseFormat4(byte[] data, int offset)
     {
         int segCount = SnftExtractHelpers.ReadUInt16(data, offset + 6) / 2;
         int endCodeOffset = offset + 14;
@@ -99,7 +134,7 @@ internal static class SnftCMapParser
     /// <param name="data">The font table data.</param>
     /// <param name="offset">The offset to the format 6 subtable.</param>
     /// <returns>Dictionary mapping character codes to glyph IDs.</returns>
-    public static Dictionary<int, ushort> ParseFormat6(byte[] data, int offset)
+    private static Dictionary<int, ushort> ParseFormat6(byte[] data, int offset)
     {
         // Format 6 subtable structure:
         // format:      2 bytes (should be 6)

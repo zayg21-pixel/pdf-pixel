@@ -128,7 +128,8 @@ public class PdfSimpleFont : PdfSingleByteFont
                     Encoding.MergeCodeToName(cffInfo.CodeToName);
 
                     byte[]? typefaceData = CffOpenTypeWrapper.Wrap(FontDescriptor, cffInfo);
-                    SKTypeface typeface = SKTypeface.FromData(SKData.CreateCopy(typefaceData));
+                    using SKData skTypefaceData = SKData.CreateCopy(typefaceData);
+                    SKTypeface typeface = SKTypeface.FromData(skTypefaceData);
 
                     if (typeface == null)
                     {
@@ -150,7 +151,7 @@ public class PdfSimpleFont : PdfSingleByteFont
                         throw new InvalidOperationException("Failed to create typeface from embedded TrueType font data.");
                     }
 
-                    SfntFontTables sfntTables = SfntFontTableParser.GetSfntFontTables(typeface);
+                    SfntFontTables sfntTables = SfntFontTablesParser.GetSfntFontTables(typeface);
 
                     if (Encoding.BaseEncoding == PdfFontEncoding.Unknown)
                     {
@@ -183,7 +184,7 @@ public class PdfSimpleFont : PdfSingleByteFont
         if (standard14Encoding != null)
         {
             SKTypeface substituteTypeface = Document.FontSubstitutor.SubstituteTypeface(SubstitutionInfo, null, null);
-            SfntFontTables substituteSfntTables = SfntFontTableParser.GetSfntFontTables(substituteTypeface);
+            SfntFontTables substituteSfntTables = SfntFontTablesParser.GetSfntFontTables(substituteTypeface);
             SfntByteCodeToGidMapper substituteMapper = new(substituteSfntTables, FontDescriptor?.Flags ?? default, substituted: true, Encoding);
 
             return (substituteTypeface, substituteMapper, true);

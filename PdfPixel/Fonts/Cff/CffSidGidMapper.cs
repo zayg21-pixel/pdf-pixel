@@ -19,8 +19,13 @@ internal class CffSidGidMapper
     private const int PredefinedEncodingExpert = 1;       // ExpertEncoding id
 
     private readonly ILogger<CffSidGidMapper> _logger;
+    private readonly ILoggerFactory _loggerFactory;
 
-    public CffSidGidMapper(ILoggerFactory loggerFactory) => _logger = loggerFactory.CreateLogger<CffSidGidMapper>();
+    public CffSidGidMapper(ILoggerFactory loggerFactory)
+    {
+        _loggerFactory = loggerFactory;
+        _logger = loggerFactory.CreateLogger<CffSidGidMapper>();
+    }
 
     /// <summary>
     /// Attempt to parse a name-keyed (non-CID) CFF font and produce glyph mapping metadata.
@@ -100,7 +105,7 @@ internal class CffSidGidMapper
 
             ReadOnlyMemory<byte> topDictBytes = cffBytes.Slice(topDictStart, topDictEnd - topDictStart);
 
-            CffTopDictReader topDictReader = new();
+            CffTopDictReader topDictReader = new(_loggerFactory.CreateLogger<CffTopDictReader>());
             CffTopDictData topDictData = topDictReader.ParseTopDict(topDictBytes.Span);
 
             if (!topDictData.CharStringsOffset.HasValue || topDictData.CharStringsOffset.Value >= cffBytes.Length)
@@ -133,7 +138,7 @@ internal class CffSidGidMapper
                 if (privateDictStart >= 0 && privateDictStart + privateDictSize <= cffBytes.Length)
                 {
                     ReadOnlyMemory<byte> privateDictBytes = cffBytes.Slice(privateDictStart, privateDictSize);
-                    CffPrivateDictParser privateDictParser = new();
+                    CffPrivateDictParser privateDictParser = new(_loggerFactory.CreateLogger<CffPrivateDictParser>());
                     CffPrivateDictData privateDictData = privateDictParser.ParsePrivateDict(privateDictBytes.Span);
 
                     defaultWidthX = privateDictData.DefaultWidthX ?? 0;

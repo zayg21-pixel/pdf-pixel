@@ -1,4 +1,5 @@
 using System;
+using Microsoft.Extensions.Logging;
 
 namespace PdfPixel.Fonts.Cff;
 
@@ -12,6 +13,10 @@ internal sealed class CffPrivateDictParser
     private const byte OperatorDefaultWidthX = 20;
     private const byte OperatorNominalWidthX = 21;
 
+    private readonly ILogger _logger;
+
+    public CffPrivateDictParser(ILogger logger) => _logger = logger;
+
     /// <summary>
     /// Parses a CFF Private DICT and extracts relevant metadata.
     /// Parses what it can find and fills the data class.
@@ -21,7 +26,7 @@ internal sealed class CffPrivateDictParser
     public CffPrivateDictData ParsePrivateDict(in ReadOnlySpan<byte> privateDictBytes)
     {
         CffPrivateDictData data = new();
-        CffDictionaryReader dictReader = new(privateDictBytes);
+        CffDictionaryReader dictReader = new(privateDictBytes, _logger);
 
         while (dictReader.TryReadNextOperator(out byte @operator, out decimal[] operands))
         {

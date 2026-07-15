@@ -26,12 +26,21 @@ internal static class Program
     private const string Cid2CodeOutputDirectory = "Cid2Code";
     private const string GlyphNamesOutputDirectory = "GlyphNames";
     private const string Standard14WidthsOutputDirectory = "Standard14Widths";
+    private const string PostGlyphOrderOutputDirectory = "PostGlyphOrder";
 
     private static async Task<int> Main()
     {
         using ILoggerFactory loggerFactory = LoggerFactory.Create(builder => builder.AddConsole());
 
-        foreach (string dir in new[] { CmapOutputDirectory, CidToUnicodeOutputDirectory, Cid2CodeOutputDirectory, GlyphNamesOutputDirectory, Standard14WidthsOutputDirectory })
+        foreach (string dir in new[]
+        {
+            CmapOutputDirectory,
+            CidToUnicodeOutputDirectory,
+            Cid2CodeOutputDirectory,
+            GlyphNamesOutputDirectory,
+            Standard14WidthsOutputDirectory,
+            PostGlyphOrderOutputDirectory
+        })
         {
             if (Directory.Exists(dir))
             {
@@ -80,6 +89,10 @@ internal static class Program
 
         Console.WriteLine($"Generating Standard 14 widths to {Standard14WidthsOutputDirectory} ...");
         Standard14WidthGenerator.GenerateAll(Standard14WidthsOutputDirectory);
+
+        Console.WriteLine($"Generating post table standard glyph order to {PostGlyphOrderOutputDirectory} ...");
+        string postGlyphOrderSourcePath = Path.Combine(AppContext.BaseDirectory, "Encodings", "PostGlyphOrder.txt");
+        PostGlyphOrderGenerator.Generate(postGlyphOrderSourcePath, PostGlyphOrderOutputDirectory);
 
         Console.WriteLine("Done.");
         return 0;

@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
-using PdfPixel.Fonts.Model;
 using PdfPixel.Models;
+using PdfPixel.Resources;
 using PdfPixel.Text;
 
 namespace PdfPixel.Fonts.TrueType;
@@ -12,8 +12,15 @@ namespace PdfPixel.Fonts.TrueType;
 internal static class SfntPostTableParser
 {
     /// <summary>
+    /// The standard Macintosh glyph ordering used by 'post' table formats 1.0 and 2.0 for
+    /// name indices 0-257, as defined in the TrueType specification. This is distinct from
+    /// <see cref="PdfPixel.Fonts.Model.PdfFontEncoding.MacRomanEncoding"/>, which is a PDF text encoding, not a glyph order.
+    /// </summary>
+    private static readonly PdfString[] StandardMacGlyphOrder = PdfTextResourceConverter.FromPdfStringBlob(PdfResourceLoader.GetResource("PostGlyphOrder.bin"));
+
+    /// <summary>
     /// Parses the 'post' table (format 1.0) and returns a mapping from glyph names to glyph IDs (GIDs).
-    /// Only standard MacRoman glyph names are used; no custom names.
+    /// The font is assumed to contain exactly the standard Macintosh glyph set, in standard order.
     /// </summary>
     /// <param name="postData">The raw bytes of the 'post' table.</param>
     /// <returns>Dictionary mapping glyph names to GIDs.</returns>
@@ -31,11 +38,10 @@ internal static class SfntPostTableParser
             throw new ArgumentException("Only post table format 1.0 is supported.", nameof(postData));
         }
 
-        PdfString[] macGlyphNames = SingleByteEncodings.GetEncodingSet(PdfFontEncoding.MacRomanEncoding) ?? Array.Empty<PdfString>();
-        Dictionary<PdfString, ushort> nameToGid = new(macGlyphNames.Length);
-        for (int glyphIndex = 0; glyphIndex < macGlyphNames.Length; glyphIndex++)
+        Dictionary<PdfString, ushort> nameToGid = new(StandardMacGlyphOrder.Length);
+        for (int glyphIndex = 0; glyphIndex < StandardMacGlyphOrder.Length; glyphIndex++)
         {
-            PdfString glyphName = macGlyphNames[glyphIndex];
+            PdfString glyphName = StandardMacGlyphOrder[glyphIndex];
             nameToGid[glyphName] = (ushort)glyphIndex;
         }
 
@@ -71,17 +77,15 @@ internal static class SfntPostTableParser
             nameIndices.Add(nameIndex);
         }
 
-        PdfString[] macGlyphNames = SingleByteEncodings.GetEncodingSet(PdfFontEncoding.MacRomanEncoding) ?? Array.Empty<PdfString>();
-
         int customNameOffset = glyphNameIndexOffset + (numGlyphs * 2);
         int customNamePtr = customNameOffset;
         for (int glyphIndex = 0; glyphIndex < numGlyphs; glyphIndex++)
         {
             int nameIndex = nameIndices[glyphIndex];
             PdfString glyphName;
-            if (nameIndex < macGlyphNames.Length)
+            if (nameIndex < StandardMacGlyphOrder.Length)
             {
-                glyphName = macGlyphNames[nameIndex];
+                glyphName = StandardMacGlyphOrder[nameIndex];
             }
             else
             {

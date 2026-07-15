@@ -17,12 +17,12 @@ internal static class SingleByteEncodings
     /// </summary>
     public static readonly PdfString UndefinedCharacter = (PdfString)".notdef"u8;
 
-    private static readonly PdfString[] standard;
-    private static readonly PdfString[] ansi;
-    private static readonly PdfString[] macRoman;
-    private static readonly PdfString[] macExpert;
-    private static readonly PdfString[] symbol;
-    private static readonly PdfString[] zapfDingbats;
+    private static readonly PdfString[] _standard;
+    private static readonly PdfString[] _ansi;
+    private static readonly PdfString[] _macRoman;
+    private static readonly PdfString[] _macExpert;
+    private static readonly PdfString[] _symbol;
+    private static readonly PdfString[] _zapfDingbats;
 
     // Predefined Standard 14 font name mappings to encodings
     private static readonly (PdfStandardFontName Name, PdfFontEncoding Encoding)[] Standard14NameEncodings =
@@ -42,22 +42,22 @@ internal static class SingleByteEncodings
     static SingleByteEncodings()
     {
         byte[] standardData = PdfResourceLoader.GetResource("StandardEncodings.bin");
-        standard = PdfTextResourceConverter.FromPdfStringBlob(standardData);
+        _standard = PdfTextResourceConverter.FromPdfStringBlob(standardData);
 
         byte[] ansiData = PdfResourceLoader.GetResource("AnsiEncodings.bin");
-        ansi = PdfTextResourceConverter.FromPdfStringBlob(ansiData);
+        _ansi = PdfTextResourceConverter.FromPdfStringBlob(ansiData);
 
         byte[] macRomanData = PdfResourceLoader.GetResource("MacRomanEncodings.bin");
-        macRoman = PdfTextResourceConverter.FromPdfStringBlob(macRomanData);
+        _macRoman = PdfTextResourceConverter.FromPdfStringBlob(macRomanData);
 
         byte[] macExpertData = PdfResourceLoader.GetResource("MacExpertEncodings.bin");
-        macExpert = PdfTextResourceConverter.FromPdfStringBlob(macExpertData);
+        _macExpert = PdfTextResourceConverter.FromPdfStringBlob(macExpertData);
 
         byte[] symbolData = PdfResourceLoader.GetResource("SymbolEncodings.bin");
-        symbol = PdfTextResourceConverter.FromPdfStringBlob(symbolData);
+        _symbol = PdfTextResourceConverter.FromPdfStringBlob(symbolData);
 
         byte[] zapfDingbatsData = PdfResourceLoader.GetResource("ZapfDingbatsEncodings.bin");
-        zapfDingbats = PdfTextResourceConverter.FromPdfStringBlob(zapfDingbatsData);
+        _zapfDingbats = PdfTextResourceConverter.FromPdfStringBlob(zapfDingbatsData);
     }
 
     /// <summary>
@@ -69,12 +69,12 @@ internal static class SingleByteEncodings
     {
         return encoding switch
         {
-            PdfFontEncoding.StandardEncoding => standard,
-            PdfFontEncoding.WinAnsiEncoding => ansi,
-            PdfFontEncoding.MacExpertEncoding => macExpert,
-            PdfFontEncoding.MacRomanEncoding => macRoman,
-            PdfFontEncoding.SymbolEncoding => symbol,
-            PdfFontEncoding.ZapfDingbatsEncoding => zapfDingbats,
+            PdfFontEncoding.StandardEncoding => _standard,
+            PdfFontEncoding.WinAnsiEncoding => _ansi,
+            PdfFontEncoding.MacExpertEncoding => _macExpert,
+            PdfFontEncoding.MacRomanEncoding => _macRoman,
+            PdfFontEncoding.SymbolEncoding => _symbol,
+            PdfFontEncoding.ZapfDingbatsEncoding => _zapfDingbats,
             _ => default
         };
     }
@@ -95,12 +95,12 @@ internal static class SingleByteEncodings
 
         return encoding switch
         {
-            PdfFontEncoding.StandardEncoding => standard[code],
-            PdfFontEncoding.MacRomanEncoding => macRoman[code],
-            PdfFontEncoding.WinAnsiEncoding => ansi[code],
-            PdfFontEncoding.MacExpertEncoding => macExpert[code],
-            PdfFontEncoding.SymbolEncoding => symbol[code],
-            PdfFontEncoding.ZapfDingbatsEncoding => zapfDingbats[code],
+            PdfFontEncoding.StandardEncoding => _standard[code],
+            PdfFontEncoding.MacRomanEncoding => _macRoman[code],
+            PdfFontEncoding.WinAnsiEncoding => _ansi[code],
+            PdfFontEncoding.MacExpertEncoding => _macExpert[code],
+            PdfFontEncoding.SymbolEncoding => _symbol[code],
+            PdfFontEncoding.ZapfDingbatsEncoding => _zapfDingbats[code],
             _ => default
         };
     }

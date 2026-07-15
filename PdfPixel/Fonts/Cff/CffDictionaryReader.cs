@@ -2,6 +2,7 @@ using System;
 using System.Buffers;
 using System.Collections.Generic;
 using System.Globalization;
+using Microsoft.Extensions.Logging;
 
 namespace PdfPixel.Fonts.Cff;
 
@@ -26,12 +27,14 @@ internal ref struct CffDictionaryReader
     private readonly ReadOnlySpan<byte> _dictBytes;
     private int _position;
     private readonly List<decimal> _operandStack;
+    private readonly ILogger _logger;
 
-    public CffDictionaryReader(in ReadOnlySpan<byte> dictBytes)
+    public CffDictionaryReader(in ReadOnlySpan<byte> dictBytes, ILogger logger)
     {
         _dictBytes = dictBytes;
         _position = 0;
         _operandStack = new List<decimal>(capacity: 4);
+        _logger = logger;
     }
 
     /// <summary>
@@ -71,12 +74,16 @@ internal ref struct CffDictionaryReader
                 return true;
             }
 
-            if (!TryReadOperand(currentByte, out decimal operandValue))
+            // Reserved/unrecognized leading bytes can appear in malformed DICTs; skip them and
+            // keep scanning so a later valid operator is still reached instead of aborting the DICT.
+            if (TryReadOperand(currentByte, out decimal operandValue))
             {
-                return false;
+                _operandStack.Add(operandValue);
             }
-
-            _operandStack.Add(operandValue);
+            else
+            {
+                _logger.LogWarning("Failed to parse CFF DICT operand starting with byte {ByteValue} at position {Position}; skipping it.", currentByte, _position - 1);
+            }
         }
 
         return false;
@@ -173,31 +180,27 @@ internal ref struct CffDictionaryReader
                 var highNibble = (byte)((nibblePair >> 4) & 0xF);
                 var lowNibble = (byte)(nibblePair & 0xF);
 
-                if (!TryProcessNibble(highNibble, numberChars, ref charCount, out finished))
-                {
-                    return false;
-                }
+                TryProcessNibble(highNibble, numberChars, ref charCount, out finished);
 
                 if (finished)
                 {
                     break;
                 }
 
-                if (!TryProcessNibble(lowNibble, numberChars, ref charCount, out finished))
-                {
-                    return false;
-                }
+                TryProcessNibble(lowNibble, numberChars, ref charCount, out finished);
             }
 
             if (charCount > 0)
             {
                 string numberString = new(numberChars, 0, charCount);
-                if (decimal.TryParse(numberString, NumberStyles.Float, CultureInfo.InvariantCulture, out value))
+
+                if (!decimal.TryParse(numberString, NumberStyles.Float, CultureInfo.InvariantCulture, out value))
                 {
-                    return true;
+                    _logger.LogWarning("CFF DICT real number \"{NumberString}\" at position {Position} is out of range for decimal; using 0.", numberString, _position);
+                    value = 0;
                 }
 
-                return false;
+                return true;
             }
 
             if (finished)

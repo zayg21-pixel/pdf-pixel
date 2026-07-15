@@ -1,4 +1,5 @@
 using System;
+using Microsoft.Extensions.Logging;
 
 namespace PdfPixel.Fonts.Cff;
 
@@ -15,6 +16,10 @@ internal sealed class CffTopDictReader
     private const byte OperatorCharStrings = 17;
     private const byte OperatorPrivate = 18;
 
+    private readonly ILogger _logger;
+
+    public CffTopDictReader(ILogger logger) => _logger = logger;
+
     /// <summary>
     /// Parses a CFF Top DICT and extracts relevant metadata.
     /// Caller should check if CharStringsOffset is zero to determine if parsing was successful.
@@ -24,7 +29,7 @@ internal sealed class CffTopDictReader
     public CffTopDictData ParseTopDict(in ReadOnlySpan<byte> topDictBytes)
     {
         CffTopDictData result = new();
-        CffDictionaryReader dictReader = new(topDictBytes);
+        CffDictionaryReader dictReader = new(topDictBytes, _logger);
 
         while (dictReader.TryReadNextOperator(out byte @operator, out decimal[] operands))
         {

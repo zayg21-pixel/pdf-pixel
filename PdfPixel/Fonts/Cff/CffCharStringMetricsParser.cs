@@ -246,7 +246,9 @@ internal sealed class CffCharStringMetricsParser
                 }
             case OpEndchar:
                 {
-                    if (operandArray.Length > 0)
+                    // endchar takes 0 args, or 4 args for the deprecated SEAC-like accent composition form.
+                    // A width precedes those in either case, so only 1 or 5 operands carry a width.
+                    if (operandArray.Length == 1 || operandArray.Length == 5)
                     {
                         metrics.Width = (double)operandArray[0];
                     }
