@@ -120,6 +120,27 @@ internal static class SfntFontTableParser
     }
 
     /// <summary>
+    /// Converts a format 0 code-to-GID array into the sparse dictionary shape used by
+    /// <see cref="ExtractUnicodeToGid"/>, skipping unmapped (GID 0) entries.
+    /// </summary>
+    private static Dictionary<int, ushort> ToCodeToGidDictionary(ushort[] codeToGidArray)
+    {
+        Dictionary<int, ushort> codeToGid = [];
+
+        for (int code = 0; code < codeToGidArray.Length; code++)
+        {
+            ushort gid = codeToGidArray[code];
+
+            if (gid != 0)
+            {
+                codeToGid[code] = gid;
+            }
+        }
+
+        return codeToGid;
+    }
+
+    /// <summary>
     /// Extracts a mapping from glyph names to glyph IDs (GIDs) using the font's 'post' table and CMap format 0.
     /// Used only as a fallback if direct code-to-GID mapping is unavailable.
     /// </summary>
@@ -166,7 +187,7 @@ internal static class SfntFontTableParser
     }
 
     /// <summary>
-    /// Extracts a mapping from Unicode codepoints to glyph IDs (GIDs) using CMap format 4.
+    /// Extracts a mapping from Unicode codepoints to glyph IDs (GIDs) using CMap formats 0, 4 and 6.
     /// </summary>
     /// <param name="info">FontTableInfo struct with table data and offsets.</param>
     /// <returns>Dictionary mapping Unicode codepoints to GIDs.</returns>
@@ -183,7 +204,11 @@ internal static class SfntFontTableParser
         {
             Dictionary<int, ushort>? codeToGid = null;
 
-            if (cmap.Format == 4)
+            if (cmap.Format == 0)
+            {
+                codeToGid = ToCodeToGidDictionary(SnftCMapParser.ParseFormat0(info.CmapData, cmap.Offset));
+            }
+            else if (cmap.Format == 4)
             {
                 codeToGid = SnftCMapParser.ParseFormat4(info.CmapData, cmap.Offset);
             }
