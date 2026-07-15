@@ -15,11 +15,6 @@ public static class PdfBlendModeNames
     /// <returns>Corresponding SkiaSharp blend mode</returns>
     public static SKBlendMode ToSkiaBlendMode(PdfBlendMode pdfBlendMode)
     {
-        if (pdfBlendMode == PdfBlendMode.Multiply)
-        {
-
-        }
-
         return pdfBlendMode switch
         {
             PdfBlendMode.Normal => SKBlendMode.SrcOver,

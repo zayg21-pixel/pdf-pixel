@@ -31,20 +31,14 @@ namespace PdfPixel.Rendering.State
                 return parameters;
             }
 
-            if (gsDict.HasKey(PdfTokens.AlphaIsShapeKey))
-            {
-                parameters.AlphaIsShape = gsDict.GetBooleanOrDefault(PdfTokens.AlphaIsShapeKey);
-            }
+            parameters.AlphaIsShape = gsDict.GetBoolean(PdfTokens.AlphaIsShapeKey);
+            parameters.LineWidth = gsDict.GetFloat(PdfTokens.LineWidthKey);
+            parameters.MiterLimit = gsDict.GetFloat(PdfTokens.MiterLimitKey);
 
-            if (gsDict.HasKey(PdfTokens.LineWidthKey))
+            float? capStyle = gsDict.GetFloat(PdfTokens.LineCapKey);
+            if (capStyle.HasValue)
             {
-                parameters.LineWidth = gsDict.GetFloatOrDefault(PdfTokens.LineWidthKey);
-            }
-
-            if (gsDict.HasKey(PdfTokens.LineCapKey))
-            {
-                float capStyle = gsDict.GetFloatOrDefault(PdfTokens.LineCapKey);
-                parameters.LineCap = capStyle switch
+                parameters.LineCap = capStyle.Value switch
                 {
                     0 => SKStrokeCap.Butt,
                     1 => SKStrokeCap.Round,
@@ -53,10 +47,10 @@ namespace PdfPixel.Rendering.State
                 };
             }
 
-            if (gsDict.HasKey(PdfTokens.LineJoinKey))
+            float? joinStyle = gsDict.GetFloat(PdfTokens.LineJoinKey);
+            if (joinStyle.HasValue)
             {
-                float joinStyle = gsDict.GetFloatOrDefault(PdfTokens.LineJoinKey);
-                parameters.LineJoin = joinStyle switch
+                parameters.LineJoin = joinStyle.Value switch
                 {
                     0 => SKStrokeJoin.Miter,
                     1 => SKStrokeJoin.Round,
@@ -65,90 +59,73 @@ namespace PdfPixel.Rendering.State
                 };
             }
 
-            if (gsDict.HasKey(PdfTokens.MiterLimitKey))
+            PdfArray? dashArray = gsDict.GetArray(PdfTokens.DashPatternKey);
+            if (dashArray?.Count >= 2)
             {
-                parameters.MiterLimit = gsDict.GetFloatOrDefault(PdfTokens.MiterLimitKey);
-            }
+                float[]? patternArray = dashArray.GetArray(0)?.GetFloatArray();
+                float phase = dashArray.GetFloatOrDefault(1);
 
-            if (gsDict.HasKey(PdfTokens.DashPatternKey))
-            {
-                PdfArray? dashArray = gsDict.GetArray(PdfTokens.DashPatternKey);
-                if (dashArray?.Count >= 2)
+                if (patternArray?.Length > 0)
                 {
-                    float[]? patternArray = dashArray.GetArray(0)?.GetFloatArray();
-                    float phase = dashArray.GetFloatOrDefault(1);
-
-                    if (patternArray?.Length > 0)
-                    {
-                        parameters.DashPattern = patternArray;
-                        parameters.DashPhase = phase;
-                    }
-                    else
-                    {
-                        // Empty array means solid line
-                        parameters.DashPattern = null;
-                        parameters.DashPhase = 0f;
-                    }
+                    parameters.DashPattern = patternArray;
+                    parameters.DashPhase = phase;
+                }
+                else
+                {
+                    // Empty array means solid line
+                    parameters.DashPattern = null;
+                    parameters.DashPhase = 0f;
                 }
             }
 
-            if (gsDict.HasKey(PdfTokens.StrokeAlphaKey)) // Stroke alpha (/CA)
+            float? strokeAlpha = gsDict.GetFloat(PdfTokens.StrokeAlphaKey); // Stroke alpha (/CA)
+            if (strokeAlpha.HasValue)
             {
-                float alpha = gsDict.GetFloatOrDefault(PdfTokens.StrokeAlphaKey);
                 // Clamp alpha to valid range [0.0, 1.0] as per PDF specification
-                parameters.StrokeAlpha = Math.Max(0f, Math.Min(1f, alpha));
+                parameters.StrokeAlpha = Math.Max(0f, Math.Min(1f, strokeAlpha.Value));
             }
 
-            if (gsDict.HasKey(PdfTokens.FillAlphaKey))   // Fill alpha (/ca)
+            float? fillAlpha = gsDict.GetFloat(PdfTokens.FillAlphaKey); // Fill alpha (/ca)
+            if (fillAlpha.HasValue)
             {
-                float alpha = gsDict.GetFloatOrDefault(PdfTokens.FillAlphaKey);
                 // Clamp alpha to valid range [0.0, 1.0] as per PDF specification
-                parameters.FillAlpha = Math.Max(0f, Math.Min(1f, alpha));
+                parameters.FillAlpha = Math.Max(0f, Math.Min(1f, fillAlpha.Value));
             }
 
             if (gsDict.HasKey(PdfTokens.BlendModeKey))
             {
+                var mode = PdfBlendMode.Unknown;
+
                 // First try to get as name
                 PdfString blendModeName = gsDict.GetName(PdfTokens.BlendModeKey);
                 if (!blendModeName.IsEmpty)
                 {
-                    PdfBlendMode mode = blendModeName.AsEnum<PdfBlendMode>();
-                    if (mode != PdfBlendMode.Unknown)
-                    {
-                        parameters.BlendMode = mode;
-                    }
+                    mode = blendModeName.AsEnum<PdfBlendMode>();
                 }
                 else
                 {
                     // Handle blend mode arrays - PDF viewers should use the first supported blend mode
                     PdfArray? blendModeArray = gsDict.GetArray(PdfTokens.BlendModeKey);
-                    if (blendModeArray?.Count > 0)
+                    if (blendModeArray != null)
                     {
-                        // Try each blend mode in the array until we find a supported one
                         for (int index = 0; index < blendModeArray.Count; index++)
                         {
-                            PdfBlendMode mode = blendModeArray.GetName(index).AsEnum<PdfBlendMode>();
-
-                            if (mode != PdfBlendMode.Unknown)
+                            PdfBlendMode candidate = blendModeArray.GetName(index).AsEnum<PdfBlendMode>();
+                            if (candidate != PdfBlendMode.Unknown)
                             {
-                                parameters.BlendMode = mode;
+                                mode = candidate;
                                 break;
                             }
                         }
                     }
                 }
+
+                // An unrecognized blend mode name falls back to Normal, per spec, rather than being ignored.
+                parameters.BlendMode = (mode == PdfBlendMode.Unknown) ? PdfBlendMode.Normal : mode;
             }
 
-            PdfArray? matrixArray = null;
-            if (gsDict.HasKey(PdfTokens.MatrixKey)) // Custom transformation matrix
-            {
-                matrixArray = gsDict.GetArray(PdfTokens.MatrixKey);
-            }
-            else if (gsDict.HasKey(PdfTokens.CTMKey)) // Alternative key name
-            {
-                matrixArray = gsDict.GetArray(PdfTokens.CTMKey);
-            }
-
+            // Custom transformation matrix (/Matrix, or /CTM as an alternative key name)
+            PdfArray? matrixArray = gsDict.GetArray(PdfTokens.MatrixKey) ?? gsDict.GetArray(PdfTokens.CTMKey);
             parameters.TransformMatrix = PdfLocationUtilities.CreateMatrix(matrixArray);
 
             // Soft Mask (/SMask)
@@ -157,7 +134,7 @@ namespace PdfPixel.Rendering.State
                 PdfString maskName = gsDict.GetName(PdfTokens.SoftMaskKey);
                 if (maskName == PdfTokens.NoneValue)
                 {
-                    parameters.SoftMask = null; // explicit removal
+                    parameters.ShouldUnsetSoftMask = true;
                 }
                 else
                 {
@@ -166,49 +143,30 @@ namespace PdfPixel.Rendering.State
                 }
             }
 
-            // Transfer Function (/TR)
-            if (gsDict.HasKey(PdfTokens.TransferFunctionKey))
+            // Transfer Function (/TR2 takes priority over /TR)
+            if (gsDict.HasKey(PdfTokens.TransferFunction2Key))
             {
-                PdfObject? trObject = gsDict.GetObject(PdfTokens.TransferFunctionKey);
-                parameters.TransferFunction = TransferFunctionTransform.FromPdfObject(trObject);
+                ParseTransferFunction(gsDict, PdfTokens.TransferFunction2Key, PdfTokens.DefaultValue, parameters);
+            }
+            else if (gsDict.HasKey(PdfTokens.TransferFunctionKey))
+            {
+                ParseTransferFunction(gsDict, PdfTokens.TransferFunctionKey, PdfTokens.IdentityKey, parameters);
             }
 
-            // Knockout (/TK)
-            if (gsDict.HasKey(PdfTokens.KnockoutKey))
-            {
-                parameters.Knockout = gsDict.GetBooleanOrDefault(PdfTokens.KnockoutKey);
-            }
-
-            // Overprint Mode (/OPM)
-            if (gsDict.HasKey(PdfTokens.OverprintModeKey))
-            {
-                parameters.OverprintMode = gsDict.GetIntegerOrDefault(PdfTokens.OverprintModeKey);
-            }
-
-            // Overprint Stroke (/OP)
-            if (gsDict.HasKey(PdfTokens.OverprintStrokeKey))
-            {
-                parameters.OverprintStroke = gsDict.GetBooleanOrDefault(PdfTokens.OverprintStrokeKey);
-            }
-
-            // Overprint Fill (/op)
-            if (gsDict.HasKey(PdfTokens.OverprintFillKey))
-            {
-                parameters.OverprintFill = gsDict.GetBooleanOrDefault(PdfTokens.OverprintFillKey);
-            }
+            parameters.Knockout = gsDict.GetBoolean(PdfTokens.KnockoutKey);           // Knockout (/TK)
+            parameters.OverprintMode = gsDict.GetInteger(PdfTokens.OverprintModeKey); // Overprint Mode (/OPM)
+            parameters.OverprintStroke = gsDict.GetBoolean(PdfTokens.OverprintStrokeKey); // Overprint Stroke (/OP)
+            parameters.OverprintFill = gsDict.GetBoolean(PdfTokens.OverprintFillKey);     // Overprint Fill (/op)
 
             // Font (/Font)
-            if (gsDict.HasKey(PdfTokens.FontKey))
+            PdfArray? fontArray = gsDict.GetArray(PdfTokens.FontKey);
+            if (fontArray?.Count == 2)
             {
-                PdfArray? fontArray = gsDict.GetArray(PdfTokens.FontKey);
-                if (fontArray?.Count == 2)
-                {
-                    PdfObject? fontObject = fontArray.GetObject(0);
-                    float fontSize = fontArray.GetFloatOrDefault(1);
+                PdfObject? fontObject = fontArray.GetObject(0);
+                float fontSize = fontArray.GetFloatOrDefault(1);
 
-                    parameters.Font = page.Cache.GetFont(fontObject);
-                    parameters.FontSize = fontSize;
-                }
+                parameters.Font = page.Cache.GetFont(fontObject);
+                parameters.FontSize = fontSize;
             }
 
             // Rendering intent (/RI)
@@ -219,6 +177,22 @@ namespace PdfPixel.Rendering.State
             }
 
             return parameters;
+        }
+
+        /// <summary>
+        /// Parses a /TR or /TR2 entry. The unset name (/Identity for TR, /Default for TR2) clears any inherited transfer function.
+        /// </summary>
+        private static void ParseTransferFunction(PdfDictionary gsDict, in PdfString key, in PdfString unsetValue, PdfGraphicsStateParameters parameters)
+        {
+            PdfString name = gsDict.GetName(key);
+            if (name == unsetValue)
+            {
+                parameters.ShouldUnsetTransferFunction = true;
+                return;
+            }
+
+            PdfObject? transferFunctionObject = gsDict.GetObject(key);
+            parameters.TransferFunction = TransferFunctionTransform.FromPdfObject(transferFunctionObject);
         }
     }
 }

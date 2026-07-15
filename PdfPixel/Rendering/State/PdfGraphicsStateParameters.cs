@@ -68,6 +68,11 @@ namespace PdfPixel.Rendering.State
         public PdfSoftMask? SoftMask { get; set; }
 
         /// <summary>
+        /// True when /SMask was explicitly set to /None, meaning any inherited soft mask must be cleared.
+        /// </summary>
+        public bool ShouldUnsetSoftMask { get; set; }
+
+        /// <summary>
         /// Parsed knockout flag (/TK). Null when absent.
         /// </summary>
         public bool? Knockout { get; set; }
@@ -108,9 +113,14 @@ namespace PdfPixel.Rendering.State
         public bool? AlphaIsShape { get; set; }
 
         /// <summary>
-        /// Optional transfer function (TR) parsed from ExtGState.
+        /// Optional transfer function (TR or TR2) parsed from ExtGState.
         /// </summary>
         public TransferFunctionTransform? TransferFunction { get; set; }
+
+        /// <summary>
+        /// True when TR was explicitly set to /Identity, or TR2 to /Default, meaning any inherited transfer function must be cleared.
+        /// </summary>
+        public bool ShouldUnsetTransferFunction { get; set; }
 
         /// <summary>
         /// Apply parsed parameter values to a target graphics state instance. Only non-null entries are applied.
@@ -164,15 +174,23 @@ namespace PdfPixel.Rendering.State
                 graphicsState.BlendMode = BlendMode.Value;
             }
 
-            if (SoftMask != null || (SoftMask == null && graphicsState.SoftMask != null))
+            if (SoftMask != null)
             {
                 graphicsState.SoftMask = SoftMask;
                 graphicsState.SoftMaskCTM = graphicsState.CTM;
             }
+            else if (ShouldUnsetSoftMask)
+            {
+                graphicsState.SoftMask = null;
+            }
 
-            if (TransferFunction != null || (TransferFunction == null && graphicsState.TransferFunction != null))
+            if (TransferFunction != null)
             {
                 graphicsState.TransferFunction = TransferFunction;
+            }
+            else if (ShouldUnsetTransferFunction)
+            {
+                graphicsState.TransferFunction = null;
             }
 
             if (Knockout.HasValue)

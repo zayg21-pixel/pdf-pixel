@@ -230,6 +230,7 @@ internal static class PdfTokens
     public static readonly PdfString SoftMaskGroupKey = (PdfString)"G"u8;
     public static readonly PdfString SoftMaskBCKey = (PdfString)"BC"u8;
     public static readonly PdfString TransferFunctionKey = (PdfString)"TR"u8;
+    public static readonly PdfString TransferFunction2Key = (PdfString)"TR2"u8;
 
     // Transparency Group Subtypes
     public static readonly PdfString TransparencyGroupValue = (PdfString)"Transparency"u8;
@@ -258,6 +259,7 @@ internal static class PdfTokens
 
     // PDF Special Values
     public static readonly PdfString NoneValue = (PdfString)"None"u8;
+    public static readonly PdfString DefaultValue = (PdfString)"Default"u8;
 
     // Color/ICC and CIE /Lab related keys
     public static readonly PdfString AlternateKey = (PdfString)"Alternate"u8;

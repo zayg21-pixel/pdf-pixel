@@ -74,7 +74,7 @@ public sealed class SoftMaskDrawingScope : IDisposable
             return;
         }
 
-        _shouldApplyMask = _softMask?.MaskForm != null;
+        _shouldApplyMask = true;
 
         if (_softMask == null || _softMask.MaskForm == null)
         {
