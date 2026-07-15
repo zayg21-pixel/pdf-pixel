@@ -181,7 +181,7 @@ internal sealed class PdfImageTilingContext : IDisposable
 
             if (tileProcessor == null)
             {
-                destination.Add(new PdfImageTile(tileIndex, tilePosition, null, null, isSkipped: true));
+                destination.Add(PdfImageTile.CreateEmpty(tileIndex));
                 continue;
             }
 
@@ -189,7 +189,7 @@ internal sealed class PdfImageTilingContext : IDisposable
             tileProcessor.Dispose();
             openTileRow.Processors[column] = null;
 
-            destination.Add(new PdfImageTile(tileIndex, tilePosition, image, openTileRow.Parameters[column], isSkipped: false));
+            destination.Add(new PdfImageTile(tileIndex, tilePosition, image, openTileRow.Parameters[column]));
         }
     }
 

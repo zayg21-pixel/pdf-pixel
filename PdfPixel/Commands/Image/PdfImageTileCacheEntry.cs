@@ -227,39 +227,42 @@ internal sealed class PdfImageTileCacheEntry : IDisposable
 
     private sealed class CachedTile : IDisposable
     {
-        private SKImage? _image;
-        private SKRectI _tilePosition;
+        private PdfImageTile _tile;
 
-        public CachedTile(int index) => Index = index;
+        public CachedTile(int index)
+        {
+            Index = index;
+            _tile = PdfImageTile.CreateEmpty(index);
+        }
 
         public int Index { get; }
 
         public bool IsPendingUpdate { get; set; }
 
-        public bool HasImage => _image != null;
+        public bool HasImage => _tile.Image != null;
 
-        public long EstimatedByteSize => (_image != null) ? (long)_image.Width * _image.Height * 4 : 0;
+        public long EstimatedByteSize => (_tile.Image != null) ? (long)_tile.Image.Width * _tile.Image.Height * 4 : 0;
 
-        public PdfImageTile GetTile() => new(Index, _tilePosition, _image, null, isSkipped: _image == null);
+        public PdfImageTile GetTile() => _tile;
 
         public void SetTile(PdfImageTile tile)
         {
             IsPendingUpdate = false;
-            _tilePosition = tile.TilePosition;
 
-            if (!ReferenceEquals(_image, tile.Image))
+            if (!ReferenceEquals(_tile.Image, tile.Image))
             {
-                _image?.Dispose();
-                _image = tile.Image;
+                _tile.Dispose();
             }
+
+            _tile = tile;
         }
 
         public void Clear()
         {
-            _image?.Dispose();
-            _image = null;
+            _tile.Dispose();
+            _tile = PdfImageTile.CreateEmpty(Index);
         }
 
-        public void Dispose() => _image?.Dispose();
+        public void Dispose() => _tile.Dispose();
     }
 }
