@@ -45,7 +45,8 @@ internal static class TextRenderUtilities
             return 0;
         }
 
-        return shapingResult[shapingResult.Count - 1].X + shapingResult[shapingResult.Count - 1].Advance;
+        ShapedGlyph last = shapingResult[shapingResult.Count - 1];
+        return last.X - last.CharacterInfo.Offset.X + last.Advance;
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -56,7 +57,8 @@ internal static class TextRenderUtilities
             return 0;
         }
 
-        return shapingResult[shapingResult.Count - 1].Y + shapingResult[shapingResult.Count - 1].Advance;
+        ShapedGlyph last = shapingResult[shapingResult.Count - 1];
+        return last.Y - last.CharacterInfo.Offset.Y + last.Advance;
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]

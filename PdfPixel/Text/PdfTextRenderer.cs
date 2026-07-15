@@ -76,7 +76,7 @@ public class PdfTextRenderer : IPdfTextRenderer
 
         if (state.CurrentFont != null && state.CurrentFont.WritingMode == Fonts.Mapping.CMapWMode.Vertical)
         {
-            return new SKSize(0, TextRenderUtilities.GetTextHeight(glyphs) * state.FontSize);
+            return new SKSize(0, -TextRenderUtilities.GetTextHeight(glyphs) * state.FontSize);
         }
         else
         {
