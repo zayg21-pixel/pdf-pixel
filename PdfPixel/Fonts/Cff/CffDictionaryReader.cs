@@ -196,6 +196,14 @@ internal ref struct CffDictionaryReader
                 {
                     return true;
                 }
+
+                return false;
+            }
+
+            if (finished)
+            {
+                value = 0;
+                return true;
             }
 
             return false;
