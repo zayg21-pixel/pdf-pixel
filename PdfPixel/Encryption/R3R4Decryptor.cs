@@ -118,17 +118,17 @@ namespace PdfPixel.Encryption
             }
 
             int bits = Parameters.LengthBits;
+            if (bits == 0)
+            {
+                bits = 128;
+            }
+
             if (bits < 40)
             {
                 bits = 40;
             }
 
             if (bits > 128)
-            {
-                bits = 128;
-            }
-
-            if (bits == 0)
             {
                 bits = 128;
             }
