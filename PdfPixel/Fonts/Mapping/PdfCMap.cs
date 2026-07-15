@@ -26,6 +26,21 @@ public class PdfCMap
     public bool HasCodeSpaceRanges => _codeSpaceRanges.Count > 0;
 
     /// <summary>
+    /// True when this CMap has no codespace ranges and no character mappings of any kind.
+    /// </summary>
+    internal bool IsEmpty
+    {
+        get
+        {
+            return !HasCodeSpaceRanges
+                && _characterCodeToUnicode.Count == 0
+                && _codeToCid.Count == 0
+                && IsRangeBucketsEmpty(_unicodeRangesByLength)
+                && IsRangeBucketsEmpty(_cidRangesByLength);
+        }
+    }
+
+    /// <summary>
     /// Defined CMap name.
     /// </summary>
     public PdfString Name { get; internal set; }
@@ -375,4 +390,18 @@ public class PdfCMap
     /// in the range [0, 0x10FFFF] and not in the surrogate range [0xD800, 0xDFFF].
     /// </summary>
     public static bool IsValidCodePoint(int codePoint) => codePoint >= 0 && codePoint <= 0x10FFFF && (codePoint < 0xD800 || codePoint > 0xDFFF);
+
+    private static bool IsRangeBucketsEmpty<T>(LengthBuckets<T> buckets)
+    {
+        for (int length = LengthBuckets<T>.MinLength; length <= LengthBuckets<T>.MaxLength; length++)
+        {
+            List<T>? bucket = buckets[length];
+            if (bucket != null && bucket.Count > 0)
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
 }

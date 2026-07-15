@@ -40,102 +40,111 @@ public static class PdfCMapParser
         evaluator.EvaluateTokens(stack);
 
         PostScriptDictionary? cmaps = evaluator.GetResourceCategory(PdfTokens.CMapKey.ToString());
-        if (!(cmaps?.Entries.FirstOrDefault().Value is PostScriptDictionary cmapDictionary))
+        if (cmaps?.Entries.FirstOrDefault().Value is PostScriptDictionary cmapDictionary)
         {
-            return cmap;
-        }
+            cmap.CidSystemInfo = GetInfo(cmapDictionary);
 
-        cmap.CidSystemInfo = GetInfo(cmapDictionary);
-
-        if (cmapDictionary.Entries.TryGetValue("codespacerange", out PostScriptToken? codespaceRange) && codespaceRange is PostScriptArray codespaceRangeArray)
-        {
-            PostScriptToken[] arrayItems = codespaceRangeArray.Elements;
-
-            foreach (PostScriptToken item in arrayItems)
+            if (cmapDictionary.Entries.TryGetValue("codespacerange", out PostScriptToken? codespaceRange) && codespaceRange is PostScriptArray codespaceRangeArray)
             {
-                if (item is PostScriptArray innerArray)
+                PostScriptToken[] arrayItems = codespaceRangeArray.Elements;
+
+                foreach (PostScriptToken item in arrayItems)
                 {
-                    ParseCodespaceRangeMapping(innerArray.Elements, cmap);
-                }
-            }
-        }
-
-        if (cmapDictionary.Entries.TryGetValue("bfchar", out PostScriptToken? bfChar) && bfChar is PostScriptArray bfCharArray)
-        {
-            PostScriptToken[] arrayItems = bfCharArray.Elements;
-
-            foreach (PostScriptToken item in arrayItems)
-            {
-                if (item is PostScriptArray innerArray)
-                {
-                    ParseBfCharMappings(innerArray.Elements, cmap);
-                }
-            }
-        }
-
-        if (cmapDictionary.Entries.TryGetValue("bfrange", out PostScriptToken? bfRange) && bfRange is PostScriptArray bfRangeArray)
-        {
-            PostScriptToken[] arrayItems = bfRangeArray.Elements;
-
-            foreach (PostScriptToken item in arrayItems)
-            {
-                if (item is PostScriptArray innerArray)
-                {
-                    ParseBfRangeMappings(innerArray.Elements, cmap);
-                }
-            }
-
-        }
-
-        if (cmapDictionary.Entries.TryGetValue("cidchar", out PostScriptToken? cidChar) && cidChar is PostScriptArray cidCharArray)
-        {
-            PostScriptToken[] arrayItems = cidCharArray.Elements;
-
-            foreach (PostScriptToken item in arrayItems)
-            {
-                if (item is PostScriptArray innerArray)
-                {
-                    ParseCidCharMappings(innerArray.Elements, cmap);
-                }
-            }
-        }
-
-        if (cmapDictionary.Entries.TryGetValue("cidrange", out PostScriptToken? cidRange) && cidRange is PostScriptArray cidRangeArray)
-        {
-            PostScriptToken[] arrayItems = cidRangeArray.Elements;
-
-            foreach (PostScriptToken item in arrayItems)
-            {
-                if (item is PostScriptArray innerArray)
-                {
-                    ParseCidRangeMappings(innerArray.Elements, cmap);
-                }
-            }
-        }
-
-        if (cmapDictionary.Entries.TryGetValue("usecmap", out PostScriptToken? useCMapToken) && useCMapToken is PostScriptArray useCMapArray)
-        {
-            foreach (PostScriptToken element in useCMapArray.Elements)
-            {
-                if (element is PostScriptLiteralName useCMapName)
-                {
-                    PdfCMap? baseCMap = cmapProvider?.Invoke(PdfString.FromString(useCMapName.Name));
-                    if (baseCMap != null)
+                    if (item is PostScriptArray innerArray)
                     {
-                        cmap.MergeFrom(baseCMap);
+                        ParseCodespaceRangeMapping(innerArray.Elements, cmap);
                     }
                 }
             }
+
+            if (cmapDictionary.Entries.TryGetValue("bfchar", out PostScriptToken? bfChar) && bfChar is PostScriptArray bfCharArray)
+            {
+                PostScriptToken[] arrayItems = bfCharArray.Elements;
+
+                foreach (PostScriptToken item in arrayItems)
+                {
+                    if (item is PostScriptArray innerArray)
+                    {
+                        ParseBfCharMappings(innerArray.Elements, cmap);
+                    }
+                }
+            }
+
+            if (cmapDictionary.Entries.TryGetValue("bfrange", out PostScriptToken? bfRange) && bfRange is PostScriptArray bfRangeArray)
+            {
+                PostScriptToken[] arrayItems = bfRangeArray.Elements;
+
+                foreach (PostScriptToken item in arrayItems)
+                {
+                    if (item is PostScriptArray innerArray)
+                    {
+                        ParseBfRangeMappings(innerArray.Elements, cmap);
+                    }
+                }
+
+            }
+
+            if (cmapDictionary.Entries.TryGetValue("cidchar", out PostScriptToken? cidChar) && cidChar is PostScriptArray cidCharArray)
+            {
+                PostScriptToken[] arrayItems = cidCharArray.Elements;
+
+                foreach (PostScriptToken item in arrayItems)
+                {
+                    if (item is PostScriptArray innerArray)
+                    {
+                        ParseCidCharMappings(innerArray.Elements, cmap);
+                    }
+                }
+            }
+
+            if (cmapDictionary.Entries.TryGetValue("cidrange", out PostScriptToken? cidRange) && cidRange is PostScriptArray cidRangeArray)
+            {
+                PostScriptToken[] arrayItems = cidRangeArray.Elements;
+
+                foreach (PostScriptToken item in arrayItems)
+                {
+                    if (item is PostScriptArray innerArray)
+                    {
+                        ParseCidRangeMappings(innerArray.Elements, cmap);
+                    }
+                }
+            }
+
+            if (cmapDictionary.Entries.TryGetValue("usecmap", out PostScriptToken? useCMapToken) && useCMapToken is PostScriptArray useCMapArray)
+            {
+                foreach (PostScriptToken element in useCMapArray.Elements)
+                {
+                    if (element is PostScriptLiteralName useCMapName)
+                    {
+                        PdfCMap? baseCMap = cmapProvider?.Invoke(PdfString.FromString(useCMapName.Name));
+                        if (baseCMap != null)
+                        {
+                            cmap.MergeFrom(baseCMap);
+                        }
+                    }
+                }
+            }
+
+            if (cmapDictionary.Entries.TryGetValue("WMode", out PostScriptToken? wmodeToken) && wmodeToken is PostScriptNumber wmodeNumber)
+            {
+                cmap.WMode = (CMapWMode)(int)wmodeNumber.Number;
+            }
+
+            if (cmapDictionary.Entries.TryGetValue("CMapName", out PostScriptToken? name) && name is PostScriptLiteralName nameLiteral)
+            {
+                cmap.Name = PdfString.FromString(nameLiteral.Name);
+            }
         }
 
-        if (cmapDictionary.Entries.TryGetValue("WMode", out PostScriptToken? wmodeToken) && wmodeToken is PostScriptNumber wmodeNumber)
+        if (cmap.IsEmpty)
         {
-            cmap.WMode = (CMapWMode)(int)wmodeNumber.Number;
-        }
-
-        if (cmapDictionary.Entries.TryGetValue("CMapName", out PostScriptToken? name) && name is PostScriptLiteralName nameLiteral)
-        {
-            cmap.Name = PdfString.FromString(nameLiteral.Name);
+            PdfCMap fallback = PdfCMapScanner.Scan(cmapBytes);
+            if (!fallback.IsEmpty)
+            {
+                loggerFactory.CreateLogger<PdfCMap>()
+                    .LogWarning("CMap PostScript evaluation produced no usable ranges; recovered mappings by scanning the raw CMap stream instead.");
+                return fallback;
+            }
         }
 
         return cmap;
