@@ -15,6 +15,7 @@ public static class CmapCompressor
 {
     private enum BlockId : byte
     {
+        CodeSpaceRanges = 1,
         Ranges = 2,
         Singles = 3,
         OverridesHeader = 4,
@@ -105,6 +106,18 @@ public static class CmapCompressor
         Directory.CreateDirectory(Path.GetDirectoryName(outputPath) ?? ".");
         using FileStream stream = File.Create(outputPath);
 
+        if (cmap.CodeSpaceRanges.Count > 0)
+        {
+            stream.WriteByte((byte)BlockId.CodeSpaceRanges);
+            WriteVarUInt(stream, (uint)cmap.CodeSpaceRanges.Count);
+            foreach (CodeSpaceRange range in cmap.CodeSpaceRanges)
+            {
+                stream.WriteByte((byte)range.Length);
+                WriteVarUInt(stream, range.Start);
+                WriteVarUInt(stream, range.End);
+            }
+        }
+
         stream.WriteByte((byte)BlockId.OverridesHeader);
         WriteVarUInt(stream, (uint)clusterIndex);
 
@@ -152,7 +165,44 @@ public static class CmapCompressor
 
             diffs.Sort((a, b) => a.CodeValue.CompareTo(b.CodeValue));
 
-            WriteRangeBlocks(stream, codeLength, diffs.ConvertAll(d => new Entry { CodeValue = d.CodeValue, Cid = d.Cid }));
+            // Diffs are written exclusively as Singles, never coalesced into Ranges: a Single always
+            // overwrites whatever the cluster base defined for that code once merged, regardless of
+            // whether the base happened to store it as a Range or a Single. A coalesced Range diff
+            // cannot make that guarantee, since CID lookups always favor an existing Single over a Range.
+            WriteSinglesOnly(stream, codeLength, diffs.ConvertAll(d => new Entry { CodeValue = d.CodeValue, Cid = d.Cid }));
+        }
+    }
+
+    private static void WriteSinglesOnly(FileStream stream, byte codeLength, List<Entry> entries)
+    {
+        if (entries.Count == 0)
+        {
+            return;
+        }
+
+        stream.WriteByte((byte)BlockId.Singles);
+        WriteVarUInt(stream, (uint)entries.Count);
+        stream.WriteByte(codeLength);
+
+        uint prevCode = 0;
+        uint prevCid = 0;
+        for (int i = 0; i < entries.Count; i++)
+        {
+            Entry entry = entries[i];
+            if (i == 0)
+            {
+                WriteVarUInt(stream, entry.CodeValue);
+                WriteVarUInt(stream, entry.Cid);
+            }
+            else
+            {
+                WriteVarUInt(stream, entry.CodeValue - prevCode);
+                int cidDelta = unchecked((int)(entry.Cid - prevCid));
+                WriteVarInt(stream, cidDelta);
+            }
+
+            prevCode = entry.CodeValue;
+            prevCid = entry.Cid;
         }
     }
 

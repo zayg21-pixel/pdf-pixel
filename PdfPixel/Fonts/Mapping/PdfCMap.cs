@@ -26,6 +26,11 @@ public class PdfCMap
     public bool HasCodeSpaceRanges => _codeSpaceRanges.Count > 0;
 
     /// <summary>
+    /// A read-only view of the codespace ranges declared on this CMap.
+    /// </summary>
+    public IReadOnlyList<CodeSpaceRange> CodeSpaceRanges => _codeSpaceRanges;
+
+    /// <summary>
     /// True when this CMap has no codespace ranges and no character mappings of any kind.
     /// </summary>
     internal bool IsEmpty

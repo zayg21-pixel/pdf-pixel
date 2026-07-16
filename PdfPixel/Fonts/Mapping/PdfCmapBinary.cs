@@ -13,6 +13,7 @@ public static class PdfCmapBinary
 {
     private enum CMapBinaryBlockId : byte
     {
+        CodeSpaceRanges = 1,
         Ranges = 2,
         Singles = 3,
         OverridesHeader = 4,
@@ -40,6 +41,21 @@ public static class PdfCmapBinary
             byte blockId = span[offset++];
             switch ((CMapBinaryBlockId)blockId)
             {
+                case CMapBinaryBlockId.CodeSpaceRanges:
+                {
+                    uint count = ReadVarUInt(span, ref offset);
+                    for (uint i = 0; i < count; i++)
+                    {
+                        byte codeLength = span[offset++];
+                        uint start = ReadVarUInt(span, ref offset);
+                        uint end = ReadVarUInt(span, ref offset);
+                        ReadOnlyMemory<byte> startBytes = PdfCharacterCode.PackUIntToBigEndian(start, codeLength);
+                        ReadOnlyMemory<byte> endBytes = PdfCharacterCode.PackUIntToBigEndian(end, codeLength);
+                        cmap.AddCodespaceRange(startBytes.Span, endBytes.Span);
+                    }
+
+                    break;
+                }
                 case CMapBinaryBlockId.OverridesHeader:
                 {
                     uint clusterIndex = ReadVarUInt(span, ref offset);
