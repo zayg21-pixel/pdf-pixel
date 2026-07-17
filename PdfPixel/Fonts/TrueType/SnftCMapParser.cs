@@ -91,11 +91,6 @@ internal static class SnftCMapParser
             var idDelta = (short)SnftExtractHelpers.ReadUInt16(data, idDeltaOffset + (segIndex * 2));
             int idRangeOffset = SnftExtractHelpers.ReadUInt16(data, idRangeOffsetOffset + (segIndex * 2));
 
-            if (endCode == 0xFFFF)
-            {
-                continue;
-            }
-
             for (int code = startCode; code <= endCode; code++)
             {
                 ushort glyphId = 0;
@@ -111,10 +106,7 @@ internal static class SnftCMapParser
                     if (glyphArrayIndex + 1 < data.Length)
                     {
                         ushort glyphIdFromArray = SnftExtractHelpers.ReadUInt16(data, glyphArrayIndex);
-                        if (glyphIdFromArray != 0)
-                        {
-                            glyphId = (ushort)(glyphIdFromArray + idDelta & 0xFFFF);
-                        }
+                        glyphId = (ushort)(glyphIdFromArray + idDelta & 0xFFFF);
                     }
                 }
 
