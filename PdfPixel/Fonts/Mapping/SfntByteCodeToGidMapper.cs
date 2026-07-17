@@ -20,8 +20,9 @@ internal class SfntByteCodeToGidMapper : IByteCodeToGidMapper
     private readonly PdfFontEncoding _encoding;
     private readonly Dictionary<int, PdfString> _differences;
     private readonly ushort[]? _singleByteCodeToGid;
-    private readonly ReadOnlyDictionary<PdfString, ushort>? _nameToGid;
-    private readonly ReadOnlyDictionary<string, ushort>? _unicodeToGid;
+    private readonly Dictionary<PdfString, ushort>? _nameToGid;
+    private readonly Dictionary<string, ushort>? _unicodeToGid;
+    private readonly SfntFontTables _d;
 
     /// <summary>
     /// Initializes a new instance of <see cref="SfntByteCodeToGidMapper"/> for the specified font tables and encoding.
@@ -50,8 +51,8 @@ internal class SfntByteCodeToGidMapper : IByteCodeToGidMapper
         }
         else
         {
-            _nameToGid = new ReadOnlyDictionary<PdfString, ushort>(fontTables.NameToGid);
-            _unicodeToGid = new ReadOnlyDictionary<string, ushort>(ExtractUnicodeToGid(fontTables));
+            _nameToGid = fontTables.NameToGid;
+            _unicodeToGid = ExtractUnicodeToGid(fontTables);
         }
     }
 
@@ -119,6 +120,7 @@ internal class SfntByteCodeToGidMapper : IByteCodeToGidMapper
 
     private static ushort[]? ApplyEncoding(IEnumerable<SfntCMapEntry> entries)
     {
+        ushort[]? result = default;
         foreach (SfntCMapEntry entry in entries)
         {
             if (entry.CodeToGid == null)
@@ -126,16 +128,14 @@ internal class SfntByteCodeToGidMapper : IByteCodeToGidMapper
                 continue;
             }
 
-            var result = new ushort[256];
+            result = new ushort[256];
             foreach (KeyValuePair<int, ushort> kvp in entry.CodeToGid)
             {
                 result[(byte)kvp.Key] = kvp.Value;
             }
-
-            return result;
         }
 
-        return null;
+        return result;
     }
 
     /// <summary>

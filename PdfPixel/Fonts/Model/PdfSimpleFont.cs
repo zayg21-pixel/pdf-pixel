@@ -153,8 +153,7 @@ public class PdfSimpleFont : PdfSingleByteFont
 
                     SfntFontTables sfntTables = SfntFontTablesParser.GetSfntFontTables(typeface);
 
-                    // TODO: [HIGH] we need to be careful with symbolic fonts here for encoding
-                    if (Encoding.BaseEncoding == PdfFontEncoding.Unknown)
+                    if ((FontDescriptor.Flags & PdfFontFlags.Symbolic) == 0 && Encoding.BaseEncoding == PdfFontEncoding.Unknown)
                     {
                         Encoding.UpdateEncoding(PdfFontEncoding.WinAnsiEncoding);
                     }
