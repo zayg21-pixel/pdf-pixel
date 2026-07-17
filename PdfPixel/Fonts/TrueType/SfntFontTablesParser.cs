@@ -62,7 +62,7 @@ internal static class SfntFontTablesParser
 
                 ushort format = SnftExtractHelpers.ReadUInt16(cmapData, (int)subtableOffset);
                 PdfFontEncoding? encoding = SnftCMapParser.GetFormatEncoding(cmapData, recordOffset);
-                Dictionary<int, ushort>? codeToGid = SnftCMapParser.Parse(cmapData, format, (int)subtableOffset);
+                SortedDictionary<int, ushort>? codeToGid = SnftCMapParser.Parse(cmapData, format, (int)subtableOffset);
 
                 tables.CMapEntries.Add(new SfntCMapEntry(format, (int)subtableOffset, encoding, codeToGid));
             }

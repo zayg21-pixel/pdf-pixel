@@ -15,7 +15,7 @@ public class SfntCMapEntry
     /// <param name="offset">The byte offset of the subtable within the cmap table data.</param>
     /// <param name="encoding">The PDF font encoding associated with this subtable, or <see langword="null"/> when the encoding could not be determined.</param>
     /// <param name="codeToGid">The parsed code-to-GID mapping for this subtable, or <see langword="null"/> if the format is unsupported.</param>
-    public SfntCMapEntry(ushort format, int offset, PdfFontEncoding? encoding, Dictionary<int, ushort>? codeToGid)
+    public SfntCMapEntry(ushort format, int offset, PdfFontEncoding? encoding, SortedDictionary<int, ushort>? codeToGid)
     {
         Format = format;
         Offset = offset;
@@ -41,5 +41,5 @@ public class SfntCMapEntry
     /// <summary>
     /// The subtable parsed once into a code-to-GID mapping, or <see langword="null"/> if the format is unsupported.
     /// </summary>
-    public Dictionary<int, ushort>? CodeToGid { get; }
+    public SortedDictionary<int, ushort>? CodeToGid { get; }
 }
