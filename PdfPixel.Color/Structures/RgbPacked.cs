@@ -41,7 +41,7 @@ public struct RgbPacked : IEquatable<RgbPacked>
     public override int GetHashCode() => HashCode.Combine(R, G, B);
 
     /// <inheritdoc/>
-    public override bool Equals(object? obj) => obj is RgbaPacked other && Equals(other);
+    public override bool Equals(object? obj) => obj is RgbPacked other && Equals(other);
 
     /// <inheritdoc/>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -56,4 +56,7 @@ public struct RgbPacked : IEquatable<RgbPacked>
     /// Returns <see langword="true"/> if the values differ in any channel byte.
     /// </summary>
     public static bool operator !=(RgbPacked rgb1, RgbPacked rgb2) => !rgb1.Equals(rgb2);
+
+    /// <inheritdoc/>
+    public override string ToString() => $"#{R:X2}{G:X2}{B:X2}";
 }

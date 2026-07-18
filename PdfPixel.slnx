@@ -25,6 +25,7 @@
     <File Path="Version.txt" />
   </Folder>
   <Folder Name="/Tools/">
+    <Project Path="PdfPixel.Diagnostics/PdfPixel.Diagnostics.csproj" />
     <Project Path="PdfPixel.ResourceGenerator/PdfPixel.ResourceGenerator.csproj" />
   </Folder>
   <Project Path="PdfPixel.Benchmarks/PdfPixel.Benchmarks.csproj" />

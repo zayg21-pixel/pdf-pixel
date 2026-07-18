@@ -63,4 +63,7 @@ public struct RgbaPacked : IEquatable<RgbaPacked>
     /// Returns <see langword="true"/> if the values differ in any channel byte.
     /// </summary>
     public static bool operator !=(RgbaPacked rgba1, RgbaPacked rgba2) => !rgba1.Equals(rgba2);
+
+    /// <inheritdoc/>
+    public override string ToString() => $"#{R:X2}{G:X2}{B:X2}{A:X2}";
 }
