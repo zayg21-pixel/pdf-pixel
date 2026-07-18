@@ -122,7 +122,7 @@ internal static class Cid2CodeTableParser
             .OrderBy(t => t)
             .FirstOrDefault();
 
-        if (token == null || token == "*" || token.Length % 2 != 0)
+        if (token == null || token == "*" || token.Equals("FFFD", StringComparison.OrdinalIgnoreCase) || token.Length % 2 != 0)
         {
             return string.Empty;
         }

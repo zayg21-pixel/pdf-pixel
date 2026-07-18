@@ -205,7 +205,7 @@ public static class PdfCMapParser
 
             Span<byte> unicodeBytes = unicodeString.Data.AsSpan();
 
-            if (!IsSentinelFFFF(unicodeBytes))
+            if (!IsSentinelFFFF(unicodeBytes) && !IsSentinelFFFD(unicodeBytes))
             {
                 cmap.AddMapping(code, ParseBytesToUnicode(unicodeBytes));
             }
@@ -232,7 +232,7 @@ public static class PdfCMapParser
             if (thirdToken is PostScriptString unicodeString)
             {
                 ReadOnlySpan<byte> unicodeBytes = unicodeString.Data.AsSpan();
-                if (IsSentinelFFFF(unicodeBytes))
+                if (IsSentinelFFFF(unicodeBytes) || IsSentinelFFFD(unicodeBytes))
                 {
                     continue;
                 }
@@ -291,7 +291,7 @@ public static class PdfCMapParser
                     }
 
                     ReadOnlySpan<byte> hex = arrayItem.Data.AsSpan();
-                    if (IsSentinelFFFF(hex))
+                    if (IsSentinelFFFF(hex) || IsSentinelFFFD(hex))
                     {
                         continue;
                     }
@@ -354,4 +354,7 @@ public static class PdfCMapParser
     }
 
     private static bool IsSentinelFFFF(in ReadOnlySpan<byte> bytes) => bytes.Length == 2 && bytes[0] == 0xFF && bytes[1] == 0xFF;
+
+    // Adobe's CID-to-Unicode source data uses <FFFD> as a "no Unicode value" sentinel for a CID.
+    private static bool IsSentinelFFFD(in ReadOnlySpan<byte> bytes) => bytes.Length == 2 && bytes[0] == 0xFF && bytes[1] == 0xFD;
 }

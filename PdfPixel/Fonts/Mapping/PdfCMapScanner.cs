@@ -122,7 +122,7 @@ internal static class PdfCMapScanner
 
     private static void AddUnicodeMapping(PdfCMap cmap, byte[] codeBytes, byte[] destinationBytes)
     {
-        if (IsSentinelFFFF(destinationBytes))
+        if (IsSentinelFFFF(destinationBytes) || IsSentinelFFFD(destinationBytes))
         {
             return;
         }
@@ -132,7 +132,7 @@ internal static class PdfCMapScanner
 
     private static void AddUnicodeRangeMapping(PdfCMap cmap, byte[] startCode, byte[] endCode, byte[] destinationBytes)
     {
-        if (IsSentinelFFFF(destinationBytes))
+        if (IsSentinelFFFF(destinationBytes) || IsSentinelFFFD(destinationBytes))
         {
             return;
         }
@@ -157,6 +157,9 @@ internal static class PdfCMapScanner
     }
 
     private static bool IsSentinelFFFF(byte[] bytes) => bytes.Length == 2 && bytes[0] == 0xFF && bytes[1] == 0xFF;
+
+    // Adobe's CID-to-Unicode source data uses <FFFD> as a "no Unicode value" sentinel for a CID.
+    private static bool IsSentinelFFFD(byte[] bytes) => bytes.Length == 2 && bytes[0] == 0xFF && bytes[1] == 0xFD;
 
     private static string DecodeUtf16BE(byte[] bytes)
     {
