@@ -18,7 +18,7 @@ internal sealed class CalGrayConverter : CalRgbConverter
 
     public override bool IsDevice => false;
 
-    protected override ColorTransformSampler GetRgbaSamplerCore(PdfRenderingIntent intent, IColorTransform? postTransform)
+    protected override ColorTransformSampler GetRgbaSamplerCore(PdfRenderingIntent intent, IColorTransform? postTransform, bool normalize)
     {
         ChainedColorTransform toGrayChain = new(
             new FunctionColorTransform(x => new Vector4(x.X, x.X, x.X, 1f)),

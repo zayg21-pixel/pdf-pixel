@@ -41,7 +41,7 @@ internal sealed class IndexedConverter : PdfColorSpaceConverter
             return existing;
         }
 
-        ColorTransformSampler sampler = _baseConv.GetRgbaSampler(renderingIntent, postTransform);
+        ColorTransformSampler sampler = _baseConv.GetRgbaSampler(renderingIntent, postTransform, normalize: false);
 
         int baseComps = _baseConv.Components;
         int paletteSize = _hiVal + 1;
@@ -80,7 +80,7 @@ internal sealed class IndexedConverter : PdfColorSpaceConverter
         return packedPalette;
     }
 
-    protected override ColorTransformSampler GetRgbaSamplerCore(PdfRenderingIntent intent, IColorTransform? postTransform)
+    protected override ColorTransformSampler GetRgbaSamplerCore(PdfRenderingIntent intent, IColorTransform? postTransform, bool normalize)
         => new(new ChainedColorTransform(new IndexedColorTransform(BuildPalette(intent, postTransform), _hiVal)));
 
     private readonly struct PaletteCacheKey : IEquatable<PaletteCacheKey>

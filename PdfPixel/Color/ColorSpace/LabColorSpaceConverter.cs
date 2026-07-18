@@ -56,9 +56,12 @@ internal sealed class LabColorSpaceConverter : PdfColorSpaceConverter
 
     public override bool IsDevice => false;
 
-    protected override ColorTransformSampler GetRgbaSamplerCore(PdfRenderingIntent intent, IColorTransform? postTransform)
+    public override IColorTransform NormalizeTransform => _normalizeTransform;
+
+    protected override ColorTransformSampler GetRgbaSamplerCore(PdfRenderingIntent intent, IColorTransform? postTransform, bool normalize)
     {
-        ChainedColorTransform chained = new(_normalizeTransform, _labTransform, postTransform);
+        IColorTransform? firstStage = normalize ? _normalizeTransform : null;
+        ChainedColorTransform chained = new(firstStage, _labTransform, postTransform);
         return new ColorTransformSampler(chained);
     }
 }

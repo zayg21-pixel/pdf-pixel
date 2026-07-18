@@ -13,13 +13,7 @@ namespace PdfPixel.Color.ColorSpace;
 /// </summary>
 public abstract class PdfColorSpaceConverter
 {
-    private readonly Dictionary<PostTransformCacheKey, ColorTransformSampler> _postTransformSamplers = [];
-
-#if !NETSTANDARD2_0
-    private readonly ColorTransformSampler[] _colorSamplers = new ColorTransformSampler[Enum.GetValues<PdfRenderingIntent>().Length];
-#else
-    private readonly ColorTransformSampler[] _colorSamplers = new ColorTransformSampler[Enum.GetValues(typeof(PdfRenderingIntent)).Length];
-#endif
+    private readonly Dictionary<SamplerCacheKey, ColorTransformSampler> _samplers = [];
 
     /// <summary>
     /// Gets the number of input components for the color space (e.g. 1=Gray, 3=RGB, 4=CMYK).
@@ -31,6 +25,14 @@ public abstract class PdfColorSpaceConverter
     /// Device spaces may bypass certain lookups.
     /// </summary>
     public abstract bool IsDevice { get; }
+
+    /// <summary>
+    /// Optional transform mapping this space's real component values into the ICC profile connection
+    /// space encoding (0..1). Null when component values are already in that encoding, which covers
+    /// most color spaces. Used by <see cref="IccBasedConverter"/> to correctly feed real component
+    /// values of its Alternate into an embedded ICC profile transform.
+    /// </summary>
+    public virtual IColorTransform? NormalizeTransform => null;
 
     /// <summary>
     /// Converts normalized (0..1) component values to sRGB using the derived converter implementation.
@@ -47,29 +49,23 @@ public abstract class PdfColorSpaceConverter
     /// </summary>
     /// <param name="intent">Rendering intent.</param>
     /// <param name="postTransform">Post color transform (if defined).</param>
+    /// <param name="normalize">
+    /// True (the default) when <paramref name="postTransform"/>'s caller supplies this space's real,
+    /// native component values (e.g. real Lab units) and expects the converter to range-clamp and
+    /// re-encode them as needed internally. False when the caller already has values in whatever
+    /// domain this converter's underlying pipeline consumes natively, so that step should be skipped.
+    /// </param>
     /// <returns>Sampler value.</returns>
-    public ColorTransformSampler GetRgbaSampler(PdfRenderingIntent intent, IColorTransform? postTransform)
+    public ColorTransformSampler GetRgbaSampler(PdfRenderingIntent intent, IColorTransform? postTransform, bool normalize = true)
     {
-        if (postTransform == null)
-        {
-            if (_colorSamplers[(int)intent] is ColorTransformSampler sampler)
-            {
-                return sampler;
-            }
-
-            ColorTransformSampler newSampler = GetRgbaSamplerCore(intent, postTransform);
-            _colorSamplers[(int)intent] = newSampler;
-            return newSampler;
-        }
-
-        PostTransformCacheKey key = new(intent, postTransform);
-        if (_postTransformSamplers.TryGetValue(key, out ColorTransformSampler? cachedSampler))
+        SamplerCacheKey key = new(intent, postTransform, normalize);
+        if (_samplers.TryGetValue(key, out ColorTransformSampler? cachedSampler))
         {
             return cachedSampler;
         }
 
-        ColorTransformSampler createdSampler = GetRgbaSamplerCore(intent, postTransform);
-        _postTransformSamplers[key] = createdSampler;
+        ColorTransformSampler createdSampler = GetRgbaSamplerCore(intent, postTransform, normalize);
+        _samplers[key] = createdSampler;
         return createdSampler;
     }
 
@@ -78,25 +74,28 @@ public abstract class PdfColorSpaceConverter
     /// </summary>
     /// <param name="intent">Rendering intent.</param>
     /// <param name="postTransform">Post color transform (if defined).</param>
+    /// <param name="normalize">See <see cref="GetRgbaSampler"/>.</param>
     /// <returns>RGBA sampler.</returns>
-    protected abstract ColorTransformSampler GetRgbaSamplerCore(PdfRenderingIntent intent, IColorTransform? postTransform);
+    protected abstract ColorTransformSampler GetRgbaSamplerCore(PdfRenderingIntent intent, IColorTransform? postTransform, bool normalize);
 
-    private readonly struct PostTransformCacheKey : IEquatable<PostTransformCacheKey>
+    private readonly struct SamplerCacheKey : IEquatable<SamplerCacheKey>
     {
         private readonly PdfRenderingIntent _intent;
-        private readonly IColorTransform _postTransform;
+        private readonly IColorTransform? _postTransform;
+        private readonly bool _normalize;
 
-        public PostTransformCacheKey(PdfRenderingIntent intent, IColorTransform postTransform)
+        public SamplerCacheKey(PdfRenderingIntent intent, IColorTransform? postTransform, bool normalize)
         {
             _intent = intent;
             _postTransform = postTransform;
+            _normalize = normalize;
         }
 
-        public bool Equals(PostTransformCacheKey other)
-            => _intent == other._intent && ReferenceEquals(_postTransform, other._postTransform);
+        public bool Equals(SamplerCacheKey other)
+            => _intent == other._intent && _normalize == other._normalize && ReferenceEquals(_postTransform, other._postTransform);
 
-        public override bool Equals(object? obj) => obj is PostTransformCacheKey key && Equals(key);
+        public override bool Equals(object? obj) => obj is SamplerCacheKey key && Equals(key);
 
-        public override int GetHashCode() => HashCode.Combine(_intent, RuntimeHelpers.GetHashCode(_postTransform));
+        public override int GetHashCode() => HashCode.Combine(_intent, _normalize, (_postTransform == null) ? 0 : RuntimeHelpers.GetHashCode(_postTransform));
     }
 }

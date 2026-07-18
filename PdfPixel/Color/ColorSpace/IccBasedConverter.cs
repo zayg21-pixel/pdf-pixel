@@ -18,10 +18,8 @@ internal sealed class IccBasedConverter : PdfColorSpaceConverter
         Profile = profile;
         N = n;
 
-        //note that if alternate is LAB we expect input in LAB coordinates, since LAB does not define any color correction,
-        // we simply fallback to alternate here, as ICC requires 0 - 1 input
         _isStandardRgbOrGray = profile != null && (IccProfileAnalyzer.IsStandardSrgb(profile) || IccProfileAnalyzer.IsStandardGray(profile));
-        if (alternate is LabColorSpaceConverter || profile == null || profile.ChannelsCount != n || _isStandardRgbOrGray)
+        if (profile == null || profile.ChannelsCount != n || _isStandardRgbOrGray)
         {
             _useDefault = true;
         }
@@ -53,6 +51,8 @@ internal sealed class IccBasedConverter : PdfColorSpaceConverter
 
     public int N { get; }
 
+    public override IColorTransform? NormalizeTransform => _default.NormalizeTransform;
+
     private static IccProfile? GetProfile(byte[]? bytes)
     {
         if (bytes == null)
@@ -76,13 +76,16 @@ internal sealed class IccBasedConverter : PdfColorSpaceConverter
 #pragma warning restore RCS1075
     }
 
-    protected override ColorTransformSampler GetRgbaSamplerCore(PdfRenderingIntent intent, IColorTransform? postTransform)
+    protected override ColorTransformSampler GetRgbaSamplerCore(PdfRenderingIntent intent, IColorTransform? postTransform, bool normalize)
     {
         if (_useDefault || _iccTransform == null)
         {
-            return _default.GetRgbaSampler(intent, postTransform);
+            return _default.GetRgbaSampler(intent, postTransform, normalize);
         }
 
-        return new ColorTransformSampler(new ChainedColorTransform(_iccTransform.GetIntentTransform(intent.ToIccRenderingIntent()), postTransform));
+        IColorTransform iccPipeline = _iccTransform.GetIntentTransform(intent.ToIccRenderingIntent());
+        IColorTransform? normalizeTransform = normalize ? _default.NormalizeTransform : null;
+        ChainedColorTransform chained = new(normalizeTransform, iccPipeline, postTransform);
+        return new ColorTransformSampler(chained);
     }
 }

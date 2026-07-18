@@ -116,7 +116,10 @@ internal sealed partial class PdfImageRowProcessor : IDisposable
             else
             {
                 _outputMode = OutputMode.RgbaColorConverted;
-                _sampler = _parameters.ColorSpaceConverter.GetRgbaSampler(_parameters.RenderingIntent, _parameters.Context.FullTransferFunction);
+
+                // Normalize only when Decode denormalizes samples to real component values below.
+                bool applyDecode = (_stages & ProcessingStages.Decode) != 0;
+                _sampler = _parameters.ColorSpaceConverter.GetRgbaSampler(_parameters.RenderingIntent, _parameters.Context.FullTransferFunction, normalize: applyDecode);
             }
         }
         else

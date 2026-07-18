@@ -19,6 +19,6 @@ internal sealed class PatternColorSpaceConverter : PdfColorSpaceConverter
 
     public override int Components => _baseColorSpace?.Components ?? 0;
 
-    protected override ColorTransformSampler GetRgbaSamplerCore(PdfRenderingIntent intent, IColorTransform? postTransform)
-        => _baseColorSpace?.GetRgbaSampler(intent, postTransform) ?? new ColorTransformSampler(new ChainedColorTransform(postTransform));
+    protected override ColorTransformSampler GetRgbaSamplerCore(PdfRenderingIntent intent, IColorTransform? postTransform, bool normalize)
+        => _baseColorSpace?.GetRgbaSampler(intent, postTransform, normalize) ?? new ColorTransformSampler(new ChainedColorTransform(postTransform));
 }
