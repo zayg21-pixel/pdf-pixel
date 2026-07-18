@@ -49,6 +49,7 @@ internal sealed class Program
         // Render every page in the document.
         foreach (IPdfPage page in document.Pages)
         {
+
             // Guards the page's lazily-parsed content stream against concurrent access; use a private
             // object per concurrent render of the same page.
             object contentLocker = new();

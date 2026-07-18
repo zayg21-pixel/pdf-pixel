@@ -26,4 +26,17 @@ public sealed class BeginMarkedContentCommand : PdfCommand
     protected override void Dispose(bool disposing)
     {
     }
+
+    /// <inheritdoc />
+    public override string ToString()
+    {
+        if (MarkedContent.OptionalContent == null)
+        {
+            return $"{nameof(BeginMarkedContentCommand)} {MarkedContent.Tag}";
+        }
+
+        string groups = string.Join(",", MarkedContent.OptionalContent.Groups);
+        string expression = (MarkedContent.OptionalContent.VisibilityExpression != null) ? " VE" : string.Empty;
+        return $"{nameof(BeginMarkedContentCommand)} {MarkedContent.Tag} OC[{groups}] {MarkedContent.OptionalContent.VisibilityPolicy}{expression}";
+    }
 }

@@ -300,6 +300,7 @@ internal static class PdfTokens
     public static readonly PdfString OptionalContentKey = (PdfString)"OC"u8;          // Optional content
     public static readonly PdfString OptionalContentGroupsKey = (PdfString)"OCGs"u8;  // Optional content groups
     public static readonly PdfString VisibilityPolicyKey = (PdfString)"P"u8;           // Visibility policy
+    public static readonly PdfString VisibilityExpressionKey = (PdfString)"VE"u8;      // Visibility expression (OCMD)
     public static readonly PdfString PropertiesKey = (PdfString)"Properties"u8;        // Properties subdictionary
     public static readonly PdfString OCPropertiesKey = (PdfString)"OCProperties"u8;    // Catalog optional content properties
     public static readonly PdfString OnKey = (PdfString)"ON"u8;                        // Default-on OCG array

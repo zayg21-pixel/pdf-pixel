@@ -15,10 +15,12 @@ public class PdfOptionalContentMembership
     /// </summary>
     public PdfOptionalContentMembership(
         IReadOnlyList<PdfReference> groups,
-        PdfOptionalContentVisibilityPolicy visibilityPolicy)
+        PdfOptionalContentVisibilityPolicy visibilityPolicy,
+        PdfVisibilityExpression? visibilityExpression = null)
     {
         Groups = groups;
         VisibilityPolicy = visibilityPolicy;
+        VisibilityExpression = visibilityExpression;
     }
 
     /// <summary>
@@ -30,6 +32,12 @@ public class PdfOptionalContentMembership
     /// Policy used to determine visibility from the group states.
     /// </summary>
     public PdfOptionalContentVisibilityPolicy VisibilityPolicy { get; }
+
+    /// <summary>
+    /// Parsed /VE visibility expression, when present. Per spec, this takes precedence over
+    /// <see cref="Groups"/> and <see cref="VisibilityPolicy"/> when evaluating visibility.
+    /// </summary>
+    public PdfVisibilityExpression? VisibilityExpression { get; }
 
     /// <summary>
     /// Parses an optional content entry from a parent dictionary containing an /OC key.
@@ -71,6 +79,16 @@ public class PdfOptionalContentMembership
         PdfOptionalContentVisibilityPolicy policy = membershipDictionary
             .GetName(PdfTokens.VisibilityPolicyKey)
             .AsEnum<PdfOptionalContentVisibilityPolicy>();
+
+        PdfArray? visibilityExpressionArray = membershipDictionary.GetArray(PdfTokens.VisibilityExpressionKey);
+        PdfVisibilityExpression? visibilityExpression = (visibilityExpressionArray != null)
+            ? PdfVisibilityExpression.Parse(visibilityExpressionArray)
+            : null;
+
+        if (visibilityExpression != null)
+        {
+            return new PdfOptionalContentMembership([], policy, visibilityExpression);
+        }
 
         // /OCGs can be a single OCG reference or an array of OCG references.
         List<PdfObject>? groupObjects = membershipDictionary.GetObjects(PdfTokens.OptionalContentGroupsKey);

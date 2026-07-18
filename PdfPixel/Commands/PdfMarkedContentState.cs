@@ -130,6 +130,11 @@ public sealed class PdfMarkedContentState
 
     private bool IsOptionalContentVisible(PdfOptionalContentMembership membership)
     {
+        if (membership.VisibilityExpression != null)
+        {
+            return EvaluateVisibilityExpression(membership.VisibilityExpression);
+        }
+
         IReadOnlyList<PdfReference> groups = membership.Groups;
         if (groups.Count == 0)
         {
@@ -144,6 +149,52 @@ public sealed class PdfMarkedContentState
             PdfOptionalContentVisibilityPolicy.AllOff => AreAllHidden(groups),
             _ => true
         };
+    }
+
+    private bool EvaluateVisibilityExpression(PdfVisibilityExpression expression)
+    {
+        if (expression.Type == PdfVisibilityExpressionType.Group)
+        {
+            return GetGroupVisibility(expression.Group);
+        }
+
+        IReadOnlyList<PdfVisibilityExpression> operands = expression.Operands;
+
+        switch (expression.Operator)
+        {
+            case PdfVisibilityExpressionOperator.And:
+            {
+                foreach (PdfVisibilityExpression operand in operands)
+                {
+                    if (!EvaluateVisibilityExpression(operand))
+                    {
+                        return false;
+                    }
+                }
+
+                return true;
+            }
+            case PdfVisibilityExpressionOperator.Or:
+            {
+                foreach (PdfVisibilityExpression operand in operands)
+                {
+                    if (EvaluateVisibilityExpression(operand))
+                    {
+                        return true;
+                    }
+                }
+
+                return false;
+            }
+            case PdfVisibilityExpressionOperator.Not:
+            {
+                return operands.Count > 0 && !EvaluateVisibilityExpression(operands[0]);
+            }
+            default:
+            {
+                return true;
+            }
+        }
     }
 
     private bool GetGroupVisibility(in PdfReference reference)
