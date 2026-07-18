@@ -12,33 +12,36 @@ namespace PdfPixel.Commands;
 /// </summary>
 public sealed class TextCharactersCommand : PdfCommand, IMatrixCommand
 {
-    private readonly PdfCharacter[] _characters;
-
     /// <summary>
     /// Initializes the command with the matrix to apply and the captured characters whose bounding boxes are in pre-CTM space.
     /// </summary>
     public TextCharactersCommand(SKMatrix matrix, PdfCharacter[] characters)
     {
         Matrix = matrix;
-        _characters = characters;
+        Characters = characters;
     }
 
     /// <inheritdoc />
     public SKMatrix Matrix { get; }
+
+    /// <summary>
+    /// Gets the captured characters, with bounding boxes in pre-CTM space.
+    /// </summary>
+    public PdfCharacter[] Characters { get; }
 
     /// <inheritdoc />
     public override void Execute(PdfCommandExecutionContext executionContext)
     {
         SKMatrix matrix = executionContext.Frames.TotalMatrix.PreConcat(Matrix);
 
-        List<PdfCharacter> mapped = new(_characters.Length);
+        List<PdfCharacter> mapped = new(Characters.Length);
 
-        for (int i = 0; i < _characters.Length; i++)
+        for (int i = 0; i < Characters.Length; i++)
         {
-            SKRect pageRect = matrix.MapRect(_characters[i].BoundingBox).Standardized;
+            SKRect pageRect = matrix.MapRect(Characters[i].BoundingBox).Standardized;
             if (pageRect.Width != 0)
             {
-                mapped.Add(new PdfCharacter(_characters[i].Text, pageRect));
+                mapped.Add(new PdfCharacter(Characters[i].Text, pageRect));
             }
         }
 

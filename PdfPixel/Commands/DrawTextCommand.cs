@@ -1,52 +1,60 @@
 using PdfPixel.Color.Paint;
 using SkiaSharp;
-using System.Collections.Generic;
 
 namespace PdfPixel.Commands;
 
 /// <summary>
 /// Draws text at the origin using the given font and paint.
 /// </summary>
-public sealed class DrawTextCommand : PdfCommand, IMatrixCommand
+public sealed class DrawTextCommand : PdfCommand, IMatrixCommand, IPaintCommand
 {
-    private readonly string _text;
-    private readonly SKFont _baseFont;
-    private readonly SKPaint _basePaint;
-
     /// <summary>
     /// Initializes the command with the given text, matrix, font and paint.
     /// </summary>
     public DrawTextCommand(string text, SKMatrix matrix, SKFont font, SKPaint basePaint)
     {
-        _text = text;
+        Text = text;
         Matrix = matrix;
-        _baseFont = font;
-        _basePaint = basePaint;
+        Font = font;
+        Paint = basePaint;
     }
+
+    /// <summary>
+    /// Gets the text drawn by this command.
+    /// </summary>
+    public string Text { get; }
 
     /// <inheritdoc />
     public SKMatrix Matrix { get; }
 
+    /// <summary>
+    /// Gets the font used to draw the text.
+    /// </summary>
+    public SKFont Font { get; }
+
+    /// <inheritdoc />
+    public SKPaint Paint { get; }
+
     /// <inheritdoc />
     public override void Execute(PdfCommandExecutionContext executionContext)
     {
-        using SKPaint paint = _basePaint.Clone();
+        using SKPaint paint = Paint.Clone();
         bool antialias = executionContext.Parameters.Antialias;
         paint.IsAntialias = antialias;
-        PdfPaintFactory.ApplyAntialias(_baseFont, antialias);
+        PdfPaintFactory.ApplyAntialias(Font, antialias);
         CommandHelpers.ApplyModifiers(paint, executionContext);
 
         SKCanvas canvas = executionContext.Canvas;
         canvas.Save();
         canvas.Concat(Matrix);
-        canvas.DrawText(_text, 0f, 0f, SKTextAlign.Left, _baseFont, paint);
+        canvas.DrawText(Text, 0f, 0f, SKTextAlign.Left, Font, paint);
         canvas.Restore();
     }
 
     /// <inheritdoc />
     protected override void Dispose(bool disposing)
     {
-        _baseFont.Dispose();
-        _basePaint.Dispose();
+        Font.Dispose();
+        Paint.Dispose();
     }
 }

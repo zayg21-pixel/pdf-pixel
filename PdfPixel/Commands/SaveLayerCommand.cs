@@ -1,5 +1,4 @@
 using SkiaSharp;
-using System.Collections.Generic;
 
 namespace PdfPixel.Commands;
 
@@ -8,37 +7,42 @@ namespace PdfPixel.Commands;
 /// depending on whether bounds and/or paint are supplied.
 /// Owns the paint (if any) and disposes it with the command.
 /// </summary>
-public sealed class SaveLayerCommand : PdfCommand
+public sealed class SaveLayerCommand : PdfCommand, IPaintCommand
 {
-    private readonly SKRect _bounds;
-    private readonly SKPaint? _paint;
-
     /// <summary>
     /// Initializes the command with the layer bounds and takes ownership of the paint.
     /// </summary>
     public SaveLayerCommand(SKRect bounds, SKPaint? paint)
     {
-        _bounds = bounds;
-        _paint = paint;
+        Bounds = bounds;
+        Paint = paint;
     }
+
+    /// <summary>
+    /// Gets the bounds of the layer being saved.
+    /// </summary>
+    public SKRect Bounds { get; }
+
+    /// <inheritdoc />
+    public SKPaint? Paint { get; }
 
     /// <inheritdoc />
     public override void Execute(PdfCommandExecutionContext executionContext)
     {
-        if (_paint != null)
+        if (Paint != null)
         {
-            using SKPaint paint = _paint.Clone();
+            using SKPaint paint = Paint.Clone();
             paint.IsAntialias = executionContext.Parameters.Antialias;
-            executionContext.Canvas.SaveLayer(_bounds, paint);
+            executionContext.Canvas.SaveLayer(Bounds, paint);
         }
         else
         {
-            executionContext.Canvas.SaveLayer(_bounds, null);
+            executionContext.Canvas.SaveLayer(Bounds, null);
         }
 
         executionContext.Frames.OnSaveLayer();
     }
 
     /// <inheritdoc />
-    protected override void Dispose(bool disposing) => _paint?.Dispose();
+    protected override void Dispose(bool disposing) => Paint?.Dispose();
 }

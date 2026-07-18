@@ -2,44 +2,52 @@ using PdfPixel.Color.Paint;
 using PdfPixel.Rendering.Text;
 using PdfPixel.Text;
 using SkiaSharp;
-using System.Collections.Generic;
 
 namespace PdfPixel.Commands;
 
 /// <summary>
 /// Draws shaped text at the origin by building a text blob from pre-shaped glyphs.
 /// </summary>
-public sealed class DrawShapedTextCommand : PdfCommand, IMatrixCommand
+public sealed class DrawShapedTextCommand : PdfCommand, IMatrixCommand, IPaintCommand
 {
-    private readonly ShapedGlyph[] _shapingResult;
-    private readonly SKFont _baseFont;
-    private readonly SKPaint _basePaint;
-
     /// <summary>
     /// Initializes the command with the given matrix, shaped glyphs, font and paint.
     /// </summary>
     public DrawShapedTextCommand(SKMatrix matrix, ShapedGlyph[] shapingResult, SKFont font, SKPaint basePaint)
     {
         Matrix = matrix;
-        _shapingResult = shapingResult;
-        _baseFont = font;
-        _basePaint = basePaint;
+        ShapingResult = shapingResult;
+        Font = font;
+        Paint = basePaint;
     }
 
     /// <inheritdoc />
     public SKMatrix Matrix { get; }
 
+    /// <summary>
+    /// Gets the pre-shaped glyphs drawn by this command.
+    /// </summary>
+    public ShapedGlyph[] ShapingResult { get; }
+
+    /// <summary>
+    /// Gets the font used to draw the shaped glyphs.
+    /// </summary>
+    public SKFont Font { get; }
+
+    /// <inheritdoc />
+    public SKPaint Paint { get; }
+
     /// <inheritdoc />
     public override void Execute(PdfCommandExecutionContext executionContext)
     {
-        using SKPaint paint = _basePaint.Clone();
+        using SKPaint paint = Paint.Clone();
         bool antialias = executionContext.Parameters.Antialias;
         paint.IsAntialias = antialias;
-        PdfPaintFactory.ApplyAntialias(_baseFont, antialias);
+        PdfPaintFactory.ApplyAntialias(Font, antialias);
 
         CommandHelpers.ApplyModifiers(paint, executionContext);
 
-        using SKTextBlob? blob = TextRenderUtilities.BuildTextBlob(_shapingResult, _baseFont);
+        using SKTextBlob? blob = TextRenderUtilities.BuildTextBlob(ShapingResult, Font);
 
         if (blob != null)
         {
@@ -54,7 +62,7 @@ public sealed class DrawShapedTextCommand : PdfCommand, IMatrixCommand
     /// <inheritdoc />
     protected override void Dispose(bool disposing)
     {
-        _baseFont?.Dispose();
-        _basePaint.Dispose();
+        Font.Dispose();
+        Paint.Dispose();
     }
 }
