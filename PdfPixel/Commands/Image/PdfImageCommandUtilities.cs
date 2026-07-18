@@ -111,10 +111,11 @@ internal static class PdfImageCommandUtilities
     public static SKSizeI? GetScaledSize(SKMatrix ctm, SKSizeI size)
     {
         SKPoint origin = ctm.MapPoint(new SKPoint(0, 0));
-        SKPoint corner = ctm.MapPoint(new SKPoint(1, 1));
+        SKPoint edgeX = ctm.MapPoint(new SKPoint(1, 0));
+        SKPoint edgeY = ctm.MapPoint(new SKPoint(0, 1));
 
-        float unitPixelsX = Math.Abs(corner.X - origin.X);
-        float unitPixelsY = Math.Abs(corner.Y - origin.Y);
+        float unitPixelsX = SKPoint.Distance(origin, edgeX);
+        float unitPixelsY = SKPoint.Distance(origin, edgeY);
 
         float relScaleX = unitPixelsX / size.Width;
         float relScaleY = unitPixelsY / size.Height;
@@ -128,8 +129,8 @@ internal static class PdfImageCommandUtilities
 
         if (CommandHelpers.IsAxisAligned(ctm))
         {
-            int scaledWidth = Math.Abs((int)Math.Round(corner.X) - (int)Math.Round(origin.X));
-            int scaledHeight = Math.Abs((int)Math.Round(corner.Y) - (int)Math.Round(origin.Y));
+            int scaledWidth = Math.Abs((int)Math.Round(edgeX.X) - (int)Math.Round(origin.X));
+            int scaledHeight = Math.Abs((int)Math.Round(edgeY.Y) - (int)Math.Round(origin.Y));
 
             return new SKSizeI(Math.Max(1, scaledWidth), Math.Max(1, scaledHeight));
         }
