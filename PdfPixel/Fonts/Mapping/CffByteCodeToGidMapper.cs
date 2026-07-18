@@ -1,4 +1,4 @@
-﻿using PdfPixel.Fonts.Cff;
+using PdfPixel.Fonts.Cff;
 using PdfPixel.Fonts.Model;
 using PdfPixel.Models;
 using PdfPixel.Text;
@@ -14,45 +14,49 @@ namespace PdfPixel.Fonts.Mapping;
 /// </summary>
 internal class CffByteCodeToGidMapper : IByteCodeToGidMapper
 {
-    private readonly CffInfo _cffInfo;
-    private readonly PdfFontFlags _flags;
-    private readonly PdfFontEncoding _encoding;
-    private readonly Dictionary<int, PdfString> _differences;
+    private readonly ushort[] _codeToGid = new ushort[256];
+    private readonly float[] _codeToWidth = new float[256];
 
     /// <summary>
     /// Initializes a new instance of <see cref="CffByteCodeToGidMapper"/> for the specified CFF font info.
     /// </summary>
     /// <param name="cffInfo">The parsed CFF font metadata.</param>
-    /// <param name="flags">Flags defined in PDF font.</param>
     /// <param name="encodingInfo">The PDF font encoding.</param>
     public CffByteCodeToGidMapper(
         CffInfo cffInfo,
-        PdfFontFlags flags,
         PdfFontEncodingInfo encodingInfo)
     {
-        _cffInfo = cffInfo ?? throw new ArgumentNullException(nameof(cffInfo));
-        _flags = flags;
-        _encoding = encodingInfo.BaseEncoding;
-        _differences = encodingInfo.Differences;
+        if (cffInfo == null)
+        {
+            throw new ArgumentNullException(nameof(cffInfo));
+        }
+
+        PdfFontEncoding encoding = encodingInfo.BaseEncoding;
+        Dictionary<int, PdfString> differences = encodingInfo.Differences;
+
+        for (int code = 0; code < 256; code++)
+        {
+            PdfString glyphName = SingleByteEncodings.GetNameByCode((byte)code, encoding, differences);
+
+            if (cffInfo.NameToGid != null && !glyphName.IsEmpty && cffInfo.NameToGid.TryGetValue(glyphName, out ushort gid))
+            {
+                _codeToGid[code] = gid;
+
+                if (cffInfo.GidWidths != null && gid < cffInfo.GidWidths.Length)
+                {
+                    _codeToWidth[code] = cffInfo.GidWidths[gid];
+                }
+            }
+        }
     }
 
     /// <summary>
     /// Gets the glyph ID (GID) for the specified character code.
-    /// Uses identity mapping if specified; otherwise, resolves using encoding or SID-to-GID map.
     /// Returns 0 if the mapping is not found.
     /// </summary>
     /// <param name="code">The PDF character code.</param>
     /// <returns>The glyph ID (GID) for the character code, or 0 if not found.</returns>
-    public ushort GetGid(byte code)
-    {
-        PdfString glyphName = SingleByteEncodings.GetNameByCode(code, _encoding, _differences);
-        if (_cffInfo.NameToGid != null && !glyphName.IsEmpty && _cffInfo.NameToGid.TryGetValue(glyphName, out ushort gidByName))
-        {
-            return gidByName;
-        }
-
-        return 0;
-    }
+    public ushort GetGid(byte code) => _codeToGid[code];
 
     /// <summary>
     /// Gets the glyph width for the specified character code.
@@ -60,14 +64,5 @@ internal class CffByteCodeToGidMapper : IByteCodeToGidMapper
     /// </summary>
     /// <param name="code">The PDF character code.</param>
     /// <returns>The glyph width for the character code, or 0 if not found.</returns>
-    public float GetWidth(byte code)
-    {
-        ushort gid = GetGid(code);
-        if (gid == 0 || _cffInfo.GidWidths == null || gid >= _cffInfo.GidWidths.Length)
-        {
-            return 0;
-        }
-
-        return _cffInfo.GidWidths[gid];
-    }
+    public float GetWidth(byte code) => _codeToWidth[code];
 }

@@ -13,12 +13,8 @@ namespace PdfPixel.Fonts.Mapping;
 /// </summary>
 internal class SfntByteCodeToGidMapper : IByteCodeToGidMapper
 {
-    private readonly PdfFontEncoding _encoding;
-    private readonly Dictionary<int, PdfString> _differences;
-    private readonly ushort[]? _singleByteCodeToGid;
-    private readonly Dictionary<PdfString, ushort>? _nameToGid;
-    private readonly Dictionary<string, ushort>? _unicodeToGid;
-    private readonly float[]? _gidWidths;
+    private readonly ushort[] _codeToGid = new ushort[256];
+    private readonly float[] _codeToWidth = new float[256];
 
     /// <summary>
     /// Initializes a new instance of <see cref="SfntByteCodeToGidMapper"/> for the specified font tables and encoding.
@@ -38,21 +34,33 @@ internal class SfntByteCodeToGidMapper : IByteCodeToGidMapper
             throw new ArgumentNullException(nameof(fontTables));
         }
 
-        _encoding = encodingInfo.BaseEncoding;
-        _differences = encodingInfo.Differences;
+        PdfFontEncoding encoding = encodingInfo.BaseEncoding;
+        Dictionary<int, PdfString> differences = encodingInfo.Differences;
 
         // Heuristic: a Symbolic font (PDF spec Table 123) is not supposed to declare an Encoding.
         // When it does anyway, the flag is treated as unreliable and the font as non-symbolic.
-        bool hasEncoding = !(encodingInfo.BaseEncoding == PdfFontEncoding.Unknown && encodingInfo.Differences.Count == 0);
+        bool hasEncoding = !(encoding == PdfFontEncoding.Unknown && differences.Count == 0);
 
+        ushort[]? singleByteCodeToGid = null;
         if (!hasEncoding && !substituted && (flags & PdfFontFlags.Symbolic) != 0)
         {
-            _singleByteCodeToGid = ExtractSingleByteCodeToGid(fontTables);
+            singleByteCodeToGid = ExtractSingleByteCodeToGid(fontTables);
         }
 
-        _nameToGid = fontTables.NameToGid;
-        _unicodeToGid = ExtractUnicodeToGid(fontTables);
-        _gidWidths = fontTables.GidWidths;
+        Dictionary<PdfString, ushort> nameToGid = fontTables.NameToGid;
+        Dictionary<string, ushort> unicodeToGid = ExtractUnicodeToGid(fontTables);
+        float[]? gidWidths = fontTables.GidWidths;
+
+        for (int code = 0; code < 256; code++)
+        {
+            ushort gid = ResolveGid((byte)code, singleByteCodeToGid, encoding, differences, nameToGid, unicodeToGid);
+            _codeToGid[code] = gid;
+
+            if (gid != 0 && gidWidths?.Length > 0)
+            {
+                _codeToWidth[code] = gidWidths[Math.Min(gid, gidWidths.Length - 1)];
+            }
+        }
     }
 
     /// <summary>
@@ -60,11 +68,26 @@ internal class SfntByteCodeToGidMapper : IByteCodeToGidMapper
     /// </summary>
     /// <param name="code">The PDF character code.</param>
     /// <returns>The glyph ID (GID) for the character code, or 0 if not found.</returns>
-    public ushort GetGid(byte code)
+    public ushort GetGid(byte code) => _codeToGid[code];
+
+    /// <summary>
+    /// Gets the glyph width for the specified character code.
+    /// </summary>
+    /// <param name="code">The PDF character code.</param>
+    /// <returns>The glyph width for the character code, or 0.</returns>
+    public float GetWidth(byte code) => _codeToWidth[code];
+
+    private static ushort ResolveGid(
+        byte code,
+        ushort[]? singleByteCodeToGid,
+        PdfFontEncoding encoding,
+        Dictionary<int, PdfString> differences,
+        Dictionary<PdfString, ushort> nameToGid,
+        Dictionary<string, ushort> unicodeToGid)
     {
-        if (_singleByteCodeToGid != null)
+        if (singleByteCodeToGid != null)
         {
-            ushort gid = _singleByteCodeToGid[code];
+            ushort gid = singleByteCodeToGid[code];
 
             if (gid != 0)
             {
@@ -72,47 +95,25 @@ internal class SfntByteCodeToGidMapper : IByteCodeToGidMapper
             }
         }
 
-        PdfString name = SingleByteEncodings.GetNameByCode(code, _encoding, _differences);
+        PdfString name = SingleByteEncodings.GetNameByCode(code, encoding, differences);
 
         if (name.IsEmpty)
         {
             return 0;
         }
 
-        if (_nameToGid?.TryGetValue(name, out ushort gidByName) == true)
+        if (nameToGid.TryGetValue(name, out ushort gidByName))
         {
             return gidByName;
         }
 
-        if (AdobeGlyphList.GetMap(_encoding).TryGetValue(name, out string? unicode)
-            && _unicodeToGid?.TryGetValue(unicode, out ushort gidByUnicode) == true)
+        if (AdobeGlyphList.GetMap(encoding).TryGetValue(name, out string? unicode)
+            && unicodeToGid.TryGetValue(unicode, out ushort gidByUnicode))
         {
             return gidByUnicode;
         }
 
         return 0;
-    }
-
-    /// <summary>
-    /// Gets the glyph width for the specified character code.
-    /// </summary>
-    /// <param name="code">The PDF character code.</param>
-    /// <returns>The glyph width for the character code, or 0.</returns>
-    public float GetWidth(byte code)
-    {
-        if (_gidWidths == null || _gidWidths.Length == 0)
-        {
-            return 0;
-        }
-
-        ushort gid = GetGid(code);
-        if (gid == 0)
-        {
-            return 0;
-        }
-
-        int index = Math.Min(gid, _gidWidths.Length - 1);
-        return _gidWidths[index];
     }
 
     private static ushort[]? ExtractSingleByteCodeToGid(SfntFontTables fontTables)

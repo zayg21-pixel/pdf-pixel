@@ -105,7 +105,7 @@ public class PdfSimpleFont : PdfSingleByteFont
                     // it will fallback to correct CodeToName
                     Encoding.MergeCodeToName(cffInfo.CodeToName);
 
-                    CffByteCodeToGidMapper mapper = new(cffInfo, FontDescriptor.Flags, Encoding);
+                    CffByteCodeToGidMapper mapper = new(cffInfo, Encoding);
 
                     return (typeface, mapper, false);
                 }
@@ -137,7 +137,7 @@ public class PdfSimpleFont : PdfSingleByteFont
                         throw new InvalidOperationException("Failed to create typeface from embedded Type1C font data.");
                     }
 
-                    CffByteCodeToGidMapper mapper = new(cffInfo, FontDescriptor.Flags, Encoding);
+                    CffByteCodeToGidMapper mapper = new(cffInfo, Encoding);
 
                     return (typeface, mapper, false);
                 }
