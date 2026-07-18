@@ -58,22 +58,15 @@ internal sealed class Program
 
             // Pass 1: record the page's drawing commands without executing them. No canvas exists
             // yet at this point; PdfCommandRecorder just collects the commands for later replay.
-            using PdfCommandRecorder recorder = new(loggerFactory.CreateLogger<PdfCommandRecorder>());
+            // Content and annotations are recorded into separate recorders so they can be dumped
+            // and replayed independently.
+            using PdfCommandRecorder contentRecorder = new(loggerFactory.CreateLogger<PdfCommandRecorder>());
+            RecordPageTransform(contentRecorder, page, scale);
+            page.Render(contentRecorder, new PdfRenderingParameters(), executionObserver);
+            contentRecorder.Process(RestoreStateCommand.Instance);
 
-            // Save the execution context's state before applying the page transform, so it can be restored afterwards.
-            recorder.Process(SaveStateCommand.Instance);
-
-            // Scales the whole page up or down to the requested output resolution.
-            recorder.Process(new ConcatMatrixCommand(SKMatrix.CreateScale(scale, scale)));
-
-            // PDF content is authored with the origin at the bottom-left and Y increasing upward.
-            // The canvas has the origin at the top-left and Y increasing downward, so the page must
-            // be translated and flipped vertically to land right-side-up in the output image.
-            recorder.Process(new ConcatMatrixCommand(SKMatrix.CreateTranslation(-page.CropBox.Left, page.CropBox.Height + page.CropBox.Top)));
-            recorder.Process(new ConcatMatrixCommand(SKMatrix.CreateScale(1, -1)));
-
-            // Records the page content: paths, text, images, and shadings.
-            page.Render(recorder, new PdfRenderingParameters(), executionObserver);
+            using PdfCommandRecorder annotationRecorder = new(loggerFactory.CreateLogger<PdfCommandRecorder>());
+            RecordPageTransform(annotationRecorder, page, scale);
 
             // Annotations (comments, stamps, links, etc.) are recorded separately from page content.
             foreach (PdfPageAnnotation annotation in page.Annotations)
@@ -84,11 +77,16 @@ internal sealed class Program
                     continue;
                 }
 
-                annotation.Render(recorder, PdfAnnotationVisualStateKind.Normal, new PdfRenderingParameters(), executionObserver);
+                annotation.Render(annotationRecorder, PdfAnnotationVisualStateKind.Normal, new PdfRenderingParameters(), executionObserver);
             }
 
-            // Undoes the scale/translate/flip applied above, leaving the execution context in its original state.
-            recorder.Process(RestoreStateCommand.Instance);
+            annotationRecorder.Process(RestoreStateCommand.Instance);
+
+            Console.WriteLine($"Page {page.PageNumber} content commands:");
+            DumpCommands(contentRecorder.Commands);
+
+            Console.WriteLine($"Page {page.PageNumber} annotation commands:");
+            DumpCommands(annotationRecorder.Commands);
 
             // Pass 2: replay the recorded commands against a real canvas.
             // CropBox is the visible page area in PDF units; scale it to get the output image size.
@@ -98,7 +96,7 @@ internal sealed class Program
             canvas.Clear(SKColors.White);
 
             // Bundles the canvas, rendering options, and the objects above into the state every
-            // drawing command reads from while the recording is replayed.
+            // drawing command reads from while the recordings are replayed.
             using PdfCommandExecutionContext executionContext = new(
                 new PdfCommandExecutionParameters
                 {
@@ -109,7 +107,8 @@ internal sealed class Program
                 executionObserver,
                 canvas);
 
-            recorder.Replay(executionContext);
+            contentRecorder.Replay(executionContext);
+            annotationRecorder.Replay(executionContext);
 
             string outputPath = Path.Combine(outputDirectory, $"{page.PageNumber}.png");
             using SKImage image = surface.Snapshot();
@@ -122,5 +121,34 @@ internal sealed class Program
 
         exportStopwatch.Stop();
         logger.LogInformation("Exported {PageCount} page(s) in {ElapsedMilliseconds} ms", document.Pages.Count, exportStopwatch.ElapsedMilliseconds);
+    }
+
+    // Save the execution context's state before applying the page transform, so it can be restored afterwards.
+    // Scales the whole page up or down to the requested output resolution, then translates and flips it:
+    // PDF content is authored with the origin at the bottom-left and Y increasing upward, while the canvas
+    // has the origin at the top-left and Y increasing downward.
+    private static void RecordPageTransform(PdfCommandRecorder recorder, IPdfPage page, float scale)
+    {
+        recorder.Process(SaveStateCommand.Instance);
+        recorder.Process(new ConcatMatrixCommand(SKMatrix.CreateScale(scale, scale)));
+        recorder.Process(new ConcatMatrixCommand(SKMatrix.CreateTranslation(-page.CropBox.Left, page.CropBox.Height + page.CropBox.Top)));
+        recorder.Process(new ConcatMatrixCommand(SKMatrix.CreateScale(1, -1)));
+    }
+
+    // Prints every command in order; when a command is a DrawRecordingCommand, its nested
+    // recording is dumped recursively, indented one tab further per recursion level.
+    private static void DumpCommands(IReadOnlyList<IPdfCommand> commands, int depth = 0)
+    {
+        string indent = new('\t', depth);
+
+        foreach (IPdfCommand command in commands)
+        {
+            Console.WriteLine($"{indent}{command}");
+
+            if (command is DrawRecordingCommand recordingCommand)
+            {
+                DumpCommands(recordingCommand.Recorder.Commands, depth + 1);
+            }
+        }
     }
 }

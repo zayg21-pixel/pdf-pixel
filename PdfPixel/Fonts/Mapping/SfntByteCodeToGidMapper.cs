@@ -172,12 +172,19 @@ internal class SfntByteCodeToGidMapper : IByteCodeToGidMapper
 
     /// <summary>
     /// Extracts a mapping from Unicode codepoints to glyph IDs (GIDs) using CMap formats 0, 4 and 6.
+    /// When multiple subtables map the same codepoint to different GIDs, the first one wins, so
+    /// subtables are visited in cmap subtable priority order: the (3,1) Microsoft Unicode BMP
+    /// subtable (tagged <see cref="PdfFontEncoding.WinAnsiEncoding"/> by <see cref="SnftCMapParser.GetFormatEncoding"/>)
+    /// is the canonical Unicode cmap and takes precedence over the (3,0) Symbol and (1,0) Mac Roman
+    /// subtables, which fonts only carry for legacy/symbolic use.
     /// </summary>
     private static Dictionary<string, ushort> ExtractUnicodeToGid(SfntFontTables fontTables)
     {
         Dictionary<string, ushort> unicodeToGid = [];
 
-        foreach (SfntCMapEntry cmap in fontTables.CMapEntries)
+        IEnumerable<SfntCMapEntry> orderedCMapEntries = fontTables.CMapEntries.OrderBy(GetCMapPriority);
+
+        foreach (SfntCMapEntry cmap in orderedCMapEntries)
         {
             if (cmap.CodeToGid == null)
             {
@@ -204,6 +211,17 @@ internal class SfntByteCodeToGidMapper : IByteCodeToGidMapper
 
         // TODO: [MEDIUM] Add support for format 10/12
         return unicodeToGid;
+    }
+
+    private static int GetCMapPriority(SfntCMapEntry cmap)
+    {
+        return cmap.Encoding switch
+        {
+            PdfFontEncoding.WinAnsiEncoding => 0,
+            PdfFontEncoding.SymbolEncoding => 1,
+            PdfFontEncoding.MacRomanEncoding => 2,
+            _ => 3
+        };
     }
 
     private static int ConvertToUnicode(int code, PdfFontEncoding? encoding)
