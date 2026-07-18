@@ -18,6 +18,7 @@ internal class SfntByteCodeToGidMapper : IByteCodeToGidMapper
     private readonly ushort[]? _singleByteCodeToGid;
     private readonly Dictionary<PdfString, ushort>? _nameToGid;
     private readonly Dictionary<string, ushort>? _unicodeToGid;
+    private readonly float[]? _gidWidths;
 
     /// <summary>
     /// Initializes a new instance of <see cref="SfntByteCodeToGidMapper"/> for the specified font tables and encoding.
@@ -51,6 +52,7 @@ internal class SfntByteCodeToGidMapper : IByteCodeToGidMapper
 
         _nameToGid = fontTables.NameToGid;
         _unicodeToGid = ExtractUnicodeToGid(fontTables);
+        _gidWidths = fontTables.GidWidths;
     }
 
     /// <summary>
@@ -93,11 +95,25 @@ internal class SfntByteCodeToGidMapper : IByteCodeToGidMapper
 
     /// <summary>
     /// Gets the glyph width for the specified character code.
-    /// Returns 0 for now (not yet implemented for SFNT fonts).
     /// </summary>
     /// <param name="code">The PDF character code.</param>
     /// <returns>The glyph width for the character code, or 0.</returns>
-    public float GetWidth(byte code) => 0;
+    public float GetWidth(byte code)
+    {
+        if (_gidWidths == null || _gidWidths.Length == 0)
+        {
+            return 0;
+        }
+
+        ushort gid = GetGid(code);
+        if (gid == 0)
+        {
+            return 0;
+        }
+
+        int index = Math.Min(gid, _gidWidths.Length - 1);
+        return _gidWidths[index];
+    }
 
     private static ushort[]? ExtractSingleByteCodeToGid(SfntFontTables fontTables)
     {

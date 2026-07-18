@@ -68,6 +68,54 @@ internal static class SfntFontTablesParser
             }
         }
 
+        tables.GidWidths = GetGidWidths(typeface);
+
         return tables;
+    }
+
+    /// <summary>
+    /// Reads 'head', 'hhea' and 'hmtx' per the OpenType spec to build a per-GID advance width table,
+    /// each entry expressed as a fraction of the em square (advanceWidth / unitsPerEm).
+    /// </summary>
+    private static float[]? GetGidWidths(SKTypeface typeface)
+    {
+        uint headTag = SnftExtractHelpers.ConvertTagToUInt32("head");
+        uint hheaTag = SnftExtractHelpers.ConvertTagToUInt32("hhea");
+        uint hmtxTag = SnftExtractHelpers.ConvertTagToUInt32("hmtx");
+
+        if (!typeface.TryGetTableData(headTag, out byte[] headData)
+            || headData == null
+            || headData.Length < 20
+            || !typeface.TryGetTableData(hheaTag, out byte[] hheaData)
+            || hheaData == null
+            || hheaData.Length < 36
+            || !typeface.TryGetTableData(hmtxTag, out byte[] hmtxData)
+            || hmtxData == null)
+        {
+            return null;
+        }
+
+        ushort unitsPerEm = SnftExtractHelpers.ReadUInt16(headData, 18);
+        ushort numberOfHMetrics = SnftExtractHelpers.ReadUInt16(hheaData, 34);
+
+        if (unitsPerEm == 0 || numberOfHMetrics == 0)
+        {
+            return null;
+        }
+
+        var gidWidths = new float[numberOfHMetrics];
+        for (int gid = 0; gid < numberOfHMetrics; gid++)
+        {
+            int recordOffset = gid * 4;
+            if (recordOffset + 2 > hmtxData.Length)
+            {
+                break;
+            }
+
+            ushort advanceWidth = SnftExtractHelpers.ReadUInt16(hmtxData, recordOffset);
+            gidWidths[gid] = advanceWidth / (float)unitsPerEm;
+        }
+
+        return gidWidths;
     }
 }
