@@ -101,14 +101,12 @@ internal class PdfContentStreamRenderer
                 {
                     throw;
                 }
-#if !DEBUG
 #pragma warning disable CA1031
                 catch (Exception ex)
                 {
                     _logger.LogError(ex, "Error \"{Message}\" processing PDF content stream operator {Operator}. Continuing to next.", ex.Message, op);
                 }
 #pragma warning restore CA1031
-#endif
 
                 operandStack.Clear();
             }

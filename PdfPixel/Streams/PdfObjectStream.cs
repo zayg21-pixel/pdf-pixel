@@ -101,6 +101,18 @@ public sealed class PdfObjectStream
     }
 
     /// <summary>
+    /// Gets whether this stream has any content to read or decode.
+    /// </summary>
+    public bool HasContent
+    {
+        get
+        {
+            return !_embeddedStream.IsEmpty
+                || (_streamReference.HasValue && _streamReference.Value.Length != 0 && _documentStream != null);
+        }
+    }
+
+    /// <summary>
     /// Gets the raw, undecoded stream.
     /// </summary>
     public Stream GetRawStream()
@@ -110,14 +122,15 @@ public sealed class PdfObjectStream
             return new MemoryStream(_embeddedStream.ToArray());
         }
 
-        if (!_streamReference.HasValue || _documentStream == null)
+        if (!_streamReference.HasValue || _streamReference.Value.Length == 0 || _documentStream == null)
         {
             return Stream.Null;
         }
 
-        SubrangeReadOnlyStream subrange = new(_documentStream, _streamReference.Value.Offset, _streamReference.Value.Length, leaveOpen: true);
+        PdfObjectStreamReference streamReference = _streamReference.Value;
+        SubrangeReadOnlyStream subrange = new(_documentStream, streamReference.Offset, streamReference.Length, leaveOpen: true);
 
-        if (_streamReference.Value.IsEncrypted && _decryptor != null && _objectReference.IsValid)
+        if (streamReference.IsEncrypted && _decryptor != null && _objectReference.IsValid)
         {
             return _decryptor.DecryptStream(subrange, _objectReference);
         }
@@ -129,11 +142,25 @@ public sealed class PdfObjectStream
     /// Decodes the stream and returns a readable <see cref="Stream"/> (caller disposes).
     /// </summary>
     public Stream DecodeAsStream()
-        => _streamDecoder.DecodeContentAsStream(GetRawStream(), Filters, DecodeParameters);
+    {
+        if (!HasContent)
+        {
+            return Stream.Null;
+        }
+
+        return _streamDecoder.DecodeContentAsStream(GetRawStream(), Filters, DecodeParameters);
+    }
 
     /// <summary>
     /// Decodes the stream and returns the decoded bytes as memory.
     /// </summary>
     public ReadOnlyMemory<byte> DecodeAsMemory(IPdfExecutionObserver? observer = default)
-        => _streamDecoder.DecodeContentStream(GetRawStream(), Filters, DecodeParameters, observer);
+    {
+        if (!HasContent)
+        {
+            return ReadOnlyMemory<byte>.Empty;
+        }
+
+        return _streamDecoder.DecodeContentStream(GetRawStream(), Filters, DecodeParameters, observer);
+    }
 }
