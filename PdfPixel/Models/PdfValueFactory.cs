@@ -26,9 +26,9 @@ public static class PdfValueFactory
     public static IPdfValue<PdfString> Operator(in PdfString value) => new PdfValue<PdfString>(value, PdfValueType.Operator);
 
     /// <summary>
-    /// Creates a PDF inline stream value.
+    /// Creates a fully parsed inline image value, carrying its image dictionary and raw stream bytes.
     /// </summary>
-    public static IPdfValue<PdfString> InlineStream(in PdfString value) => new PdfValue<PdfString>(value, PdfValueType.InlineStream);
+    public static IPdfValue<PdfObject> InlineImage(PdfObject value) => new PdfValue<PdfObject>(value, PdfValueType.InlineImage);
 
     /// <summary>
     /// Creates a PDF integer value.

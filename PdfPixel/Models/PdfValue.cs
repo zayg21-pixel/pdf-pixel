@@ -43,7 +43,7 @@ public class PdfValue<T> : IPdfValue, IPdfValue<T>
             PdfValueType.Reference => Value?.ToString(),
             PdfValueType.Array => (Value is List<IPdfValue> list) ? $"[{list.Count} items]" : "[array]",
             PdfValueType.Dictionary => (Value is PdfDictionary dict) ? $"<< {dict.Count} entries >>" : "<<dictionary>>",
-            PdfValueType.InlineStream => "[inline stream]",
+            PdfValueType.InlineImage => "[inline image]",
             _ => "unknown"
         };
     }

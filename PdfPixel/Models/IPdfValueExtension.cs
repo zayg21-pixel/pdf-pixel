@@ -151,6 +151,21 @@ internal static class IPdfValueExtension
     }
 
     /// <summary>
+    /// Returns the value as a parsed inline image object if the type is <see cref="PdfValueType.InlineImage"/>; otherwise returns <c>null</c>.
+    /// </summary>
+    /// <param name="value">The PDF value to convert.</param>
+    /// <returns>The <see cref="PdfObject"/> carrying the inline image's dictionary and stream bytes, or <c>null</c>.</returns>
+    public static PdfObject? AsInlineImage(this IPdfValue? value)
+    {
+        if (value is PdfValue<PdfObject> inlineImageValue && inlineImageValue.Type == PdfValueType.InlineImage)
+        {
+            return inlineImageValue.Value;
+        }
+
+        return null;
+    }
+
+    /// <summary>
     /// Resolves a reference value to its underlying non-reference value, following references up to <paramref name="maxDepth"/>.
     /// Returns <c>null</c> if the value is not a reference, the document is <c>null</c>, or the reference cannot be resolved.
     /// </summary>

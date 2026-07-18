@@ -56,7 +56,8 @@ public enum PdfValueType
     Dictionary,
 
     /// <summary>
-    /// Represents a PDF inline stream (embedded data within content streams).
+    /// Represents a fully parsed inline image (BI/ID/EI) embedded within a content stream,
+    /// carrying its image dictionary and raw stream bytes as a <see cref="PdfObject"/>.
     /// </summary>
-    InlineStream
+    InlineImage
 }
