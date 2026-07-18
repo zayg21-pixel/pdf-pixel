@@ -37,14 +37,12 @@ internal class SfntByteCodeToGidMapper : IByteCodeToGidMapper
         PdfFontEncoding encoding = encodingInfo.BaseEncoding;
         Dictionary<int, PdfString> differences = encodingInfo.Differences;
 
-        // Heuristic: a Symbolic font (PDF spec Table 123) is not supposed to declare an Encoding.
-        // When it does anyway, the flag is treated as unreliable and the font as non-symbolic.
         bool hasEncoding = !(encoding == PdfFontEncoding.Unknown && differences.Count == 0);
 
         ushort[]? singleByteCodeToGid = null;
-        if (!hasEncoding && !substituted && (flags & PdfFontFlags.Symbolic) != 0)
+        if (!substituted && (flags & PdfFontFlags.Symbolic) != 0)
         {
-            singleByteCodeToGid = ExtractSingleByteCodeToGid(fontTables);
+            singleByteCodeToGid = ExtractSingleByteCodeToGid(fontTables, hasEncoding);
         }
 
         Dictionary<PdfString, ushort> nameToGid = fontTables.NameToGid;
@@ -116,15 +114,22 @@ internal class SfntByteCodeToGidMapper : IByteCodeToGidMapper
         return 0;
     }
 
-    private static ushort[]? ExtractSingleByteCodeToGid(SfntFontTables fontTables)
+    private static ushort[]? ExtractSingleByteCodeToGid(SfntFontTables fontTables, bool hasEncoding)
     {
         if (fontTables.CMapEntries.Count == 0)
         {
             return null;
         }
 
-        return ApplyEncoding(fontTables.CMapEntries.Where(entry => entry.Encoding == PdfFontEncoding.SymbolEncoding), PdfFontEncoding.SymbolEncoding)
-            ?? ApplyEncoding(fontTables.CMapEntries.Where(entry => entry.Encoding == PdfFontEncoding.MacRomanEncoding), PdfFontEncoding.MacRomanEncoding);
+        ushort[]? result = ApplyEncoding(fontTables.CMapEntries.Where(entry => entry.Encoding == PdfFontEncoding.SymbolEncoding), PdfFontEncoding.SymbolEncoding);
+
+        // Heuristic: a Symbolic font is not supposed to declare an Encoding, looks like 1 particular generator creates ANSI symbolic encoding
+        if (result == null && hasEncoding)
+        {
+            result = ApplyEncoding(fontTables.CMapEntries.Where(entry => entry.Encoding == PdfFontEncoding.WinAnsiEncoding), PdfFontEncoding.WinAnsiEncoding);
+        }
+
+        return result ?? ApplyEncoding(fontTables.CMapEntries.Where(entry => entry.Encoding == PdfFontEncoding.MacRomanEncoding), PdfFontEncoding.MacRomanEncoding);
     }
 
     /// <summary>
