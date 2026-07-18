@@ -39,6 +39,7 @@ internal partial struct PdfParser
         {
             PdfFilterType.ASCII85Decode => TryReadUntilAscii85Eod(),
             PdfFilterType.ASCIIHexDecode => TryReadUntilAsciiHexEod(),
+            PdfFilterType.DCTDecode => TryReadUntilJpegEoi(),
             null => TryReadRawImageData(imageDictionary) || TryScanEi(),
             _ => TryScanEi()
         };
@@ -176,6 +177,78 @@ internal partial struct PdfParser
             if (current == (byte)'>')
             {
                 return SkipToEiOperator();
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Walks JPEG markers to find the EOI marker (0xFFD9) instead of scanning raw bytes for it, since
+    /// length-prefixed segments such as APPn (which may embed a full nested JPEG thumbnail) can otherwise
+    /// contain a coincidental 0xFFD9 byte pair that is not the real end of the image.
+    /// </summary>
+    private bool TryReadUntilJpegEoi()
+    {
+        while (!IsAtEnd)
+        {
+            byte current = ReadByte();
+            _localBuffer.Add(current);
+
+            if (current != (byte)0xFF || IsAtEnd)
+            {
+                continue;
+            }
+
+            byte marker = PeekByte();
+
+            if (marker == 0x00)
+            {
+                // Byte-stuffed literal 0xFF within entropy-coded scan data, not a marker.
+                _localBuffer.Add(ReadByte());
+                continue;
+            }
+
+            if (marker == (byte)0xFF)
+            {
+                // Fill byte padding before the real marker; re-check it as the next prefix candidate.
+                continue;
+            }
+
+            if (marker == (byte)0xD9)
+            {
+                _localBuffer.Add(ReadByte());
+                return SkipToEiOperator();
+            }
+
+            if ((marker >= 0xD0 && marker <= 0xD8) || marker == 0x01)
+            {
+                // Standalone marker (RST0-7, SOI, TEM): no length-prefixed payload follows.
+                _localBuffer.Add(ReadByte());
+                continue;
+            }
+
+            _localBuffer.Add(ReadByte());
+
+            if (Position + 1 >= Length)
+            {
+                return false;
+            }
+
+            int segmentLength = (PeekByte() << 8) | PeekByte(1);
+            if (segmentLength < 2)
+            {
+                return false;
+            }
+
+            for (int index = 0; index < segmentLength; index++)
+            {
+                if (IsAtEnd)
+                {
+                    return false;
+                }
+
+                _localBuffer.Add(ReadByte());
             }
         }
 
