@@ -1,6 +1,7 @@
 using PdfPixel.Commands.Image;
 using PdfPixel.Imaging.Processing;
 using SkiaSharp;
+using System.Globalization;
 
 namespace PdfPixel.Commands;
 
@@ -10,6 +11,8 @@ namespace PdfPixel.Commands;
 public sealed class DrawSoftMaskImageTileCommand : PdfCommand
 {
     private readonly SoftMaskImageExecutionContext _context;
+    private int? _lastImageTileIndex;
+    private int? _lastMaskTileIndex;
 
     internal DrawSoftMaskImageTileCommand(SoftMaskImageExecutionContext context) => _context = context;
 
@@ -21,6 +24,9 @@ public sealed class DrawSoftMaskImageTileCommand : PdfCommand
     {
         PdfImageTile imageTile = _context.ImageCache.GetNextTile(executionContext.ExecutionObserver);
         PdfImageTile maskTile = _context.MaskCache.GetNextTile(executionContext.ExecutionObserver);
+
+        _lastImageTileIndex = imageTile.TileIndex;
+        _lastMaskTileIndex = maskTile.TileIndex;
 
         if (imageTile.Image == null || maskTile.Image == null)
         {
@@ -51,4 +57,8 @@ public sealed class DrawSoftMaskImageTileCommand : PdfCommand
 
     /// <inheritdoc />
     protected override void Dispose(bool disposing) => _context.Dispose();
+
+    /// <inheritdoc />
+    public override string ToString()
+        => $"{nameof(DrawSoftMaskImageTileCommand)} imageTile={_lastImageTileIndex?.ToString(CultureInfo.InvariantCulture) ?? "not executed"}, maskTile={_lastMaskTileIndex?.ToString(CultureInfo.InvariantCulture) ?? "not executed"}";
 }

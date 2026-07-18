@@ -117,4 +117,7 @@ public sealed class DrawRecordingCommand : PdfCommand, IMatrixCommand
 
         Modifier?.Dispose();
     }
+
+    /// <inheritdoc />
+    public override string ToString() => $"{nameof(DrawRecordingCommand)} {CommandHelpers.FormatMatrix(Matrix)}";
 }

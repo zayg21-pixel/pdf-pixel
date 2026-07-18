@@ -2,6 +2,7 @@ using PdfPixel.Commands.Image;
 using PdfPixel.Imaging.Processing;
 using SkiaSharp;
 using System.Collections.Generic;
+using System.Globalization;
 
 namespace PdfPixel.Commands;
 
@@ -11,6 +12,7 @@ namespace PdfPixel.Commands;
 public sealed class DrawNormalImageTileCommand : PdfCommand
 {
     private readonly NormalImageExecutionContext _context;
+    private int? _lastTileIndex;
 
     internal DrawNormalImageTileCommand(NormalImageExecutionContext context) => _context = context;
 
@@ -21,6 +23,8 @@ public sealed class DrawNormalImageTileCommand : PdfCommand
     public override void Execute(PdfCommandExecutionContext executionContext)
     {
         PdfImageTile tile = _context.TileCache.GetNextTile(executionContext.ExecutionObserver);
+        _lastTileIndex = tile.TileIndex;
+
         if (tile.IsSkipped || tile.Image == null)
         {
             return;
@@ -40,4 +44,8 @@ public sealed class DrawNormalImageTileCommand : PdfCommand
 
     /// <inheritdoc />
     protected override void Dispose(bool disposing) => _context.Dispose();
+
+    /// <inheritdoc />
+    public override string ToString()
+        => $"{nameof(DrawNormalImageTileCommand)} tile={_lastTileIndex?.ToString(CultureInfo.InvariantCulture) ?? "not executed"}";
 }

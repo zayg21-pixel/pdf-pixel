@@ -170,6 +170,18 @@ internal static class CommandHelpers
     /// <summary>
     /// Returns whether <paramref name="matrix"/> has no rotation or skew, within <see cref="AxisAlignEpsilon"/>.
     /// </summary>
+    /// <summary>
+    /// Formats a matrix in short PDF <c>[a b c d e f]</c> operand order, for debugging.
+    /// </summary>
+    public static string FormatMatrix(SKMatrix matrix)
+        => $"[{matrix.ScaleX:0.###} {matrix.SkewY:0.###} {matrix.SkewX:0.###} {matrix.ScaleY:0.###} {matrix.TransX:0.###} {matrix.TransY:0.###}]";
+
+    /// <summary>
+    /// Formats a paint's blend mode, color, and style, for debugging.
+    /// </summary>
+    public static string FormatPaint(SKPaint paint)
+        => $"{paint.BlendMode}/{paint.Color}/{paint.Style}";
+
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static bool IsAxisAligned(SKMatrix matrix)
         => MathF.Abs(matrix.SkewX) <= AxisAlignEpsilon && MathF.Abs(matrix.SkewY) <= AxisAlignEpsilon;

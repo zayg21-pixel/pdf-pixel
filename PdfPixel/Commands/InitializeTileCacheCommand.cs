@@ -39,4 +39,8 @@ public sealed class InitializeTileCacheCommand : PdfCommand
 
     /// <inheritdoc />
     protected override void Dispose(bool disposing) => _tileCache.Dispose();
+
+    /// <inheritdoc />
+    public override string ToString()
+        => $"{nameof(InitializeTileCacheCommand)} {_tileCache.Decoder.Image.Type}, {_imageSize.Width}x{_imageSize.Height}, {_tileCache.Decoder.Image.BitsPerComponent}bpc, {_tileCache.TileInfo.TotalTiles} tiles";
 }

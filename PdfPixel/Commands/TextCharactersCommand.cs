@@ -1,6 +1,7 @@
 using PdfPixel.TextExtraction;
 using SkiaSharp;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace PdfPixel.Commands;
 
@@ -54,5 +55,12 @@ public sealed class TextCharactersCommand : PdfCommand, IMatrixCommand
     /// <inheritdoc />
     protected override void Dispose(bool disposing)
     {
+    }
+
+    /// <inheritdoc />
+    public override string ToString()
+    {
+        string text = string.Concat(Characters.Select(character => character.Text));
+        return $"{nameof(TextCharactersCommand)} {CommandHelpers.FormatMatrix(Matrix)} \"{text}\"";
     }
 }

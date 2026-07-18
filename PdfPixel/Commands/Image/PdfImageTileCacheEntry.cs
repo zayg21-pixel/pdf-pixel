@@ -14,7 +14,6 @@ namespace PdfPixel.Commands.Image;
 /// </summary>
 internal sealed class PdfImageTileCacheEntry : IDisposable
 {
-    private readonly PdfImageDecoder _decoder;
     private readonly CachedTile[] _tiles;
 
     private SKSizeI? _scaledSize;
@@ -23,7 +22,7 @@ internal sealed class PdfImageTileCacheEntry : IDisposable
 
     public PdfImageTileCacheEntry(PdfImageDecoder decoder, PdfTileInfo tileInfo)
     {
-        _decoder = decoder ?? throw new ArgumentNullException(nameof(decoder));
+        Decoder = decoder ?? throw new ArgumentNullException(nameof(decoder));
         TileInfo = tileInfo ?? throw new ArgumentNullException(nameof(tileInfo));
 
         _tiles = new CachedTile[tileInfo.TotalTiles];
@@ -33,6 +32,11 @@ internal sealed class PdfImageTileCacheEntry : IDisposable
         }
     }
 
+    /// <summary>
+    /// Decoder used to produce tiles for this cache entry.
+    /// </summary>
+    public PdfImageDecoder Decoder { get; }
+
     public PdfTileInfo TileInfo { get; }
 
     public void ResetTileIndex() => _tileIndex = 0;
@@ -41,7 +45,7 @@ internal sealed class PdfImageTileCacheEntry : IDisposable
     {
         if (_decoding)
         {
-            _decoder.Cleanup();
+            Decoder.Cleanup();
             _decoding = false;
         }
 
@@ -65,7 +69,7 @@ internal sealed class PdfImageTileCacheEntry : IDisposable
 
         if (tileIndexesToDecode == null || tileIndexesToDecode.Count > 0)
         {
-            _decoder.Initialize(TileInfo, contentLocker, ctm, tileIndexesToDecode, observer);
+            Decoder.Initialize(TileInfo, contentLocker, ctm, tileIndexesToDecode, observer);
             _decoding = true;
         }
     }
@@ -99,7 +103,7 @@ internal sealed class PdfImageTileCacheEntry : IDisposable
         {
             observer?.Notify();
 
-            PdfImageTile[]? batch = _decoder.DecodeNextTiles(observer);
+            PdfImageTile[]? batch = Decoder.DecodeNextTiles(observer);
             if (batch == null)
             {
                 throw new InvalidOperationException($"Decoder returned null before producing tile {tileIndex}.");
@@ -128,7 +132,7 @@ internal sealed class PdfImageTileCacheEntry : IDisposable
                 if (tile.TileIndex == TileInfo.TotalTiles - 1)
                 {
                     _decoding = false;
-                    _decoder.Cleanup();
+                    Decoder.Cleanup();
                 }
             }
 
@@ -138,7 +142,7 @@ internal sealed class PdfImageTileCacheEntry : IDisposable
             }
         }
 
-        throw new InvalidOperationException($"Tile {tileIndex} was not produced by decoder {_decoder.GetType().Name}.");
+        throw new InvalidOperationException($"Tile {tileIndex} was not produced by decoder {Decoder.GetType().Name}.");
     }
 
     private HashSet<int> ComputeRegionTileIndexes(SKRectI imageRegion)
@@ -185,7 +189,7 @@ internal sealed class PdfImageTileCacheEntry : IDisposable
     {
         long cacheSizeBytes = ComputeCacheSizeBytes();
 
-        for (int tileIndex = 0; tileIndex < _tiles.Length && cacheSizeBytes > _decoder.Context.MaxTileCacheSizeBytes; tileIndex++)
+        for (int tileIndex = 0; tileIndex < _tiles.Length && cacheSizeBytes > Decoder.Context.MaxTileCacheSizeBytes; tileIndex++)
         {
             if (regionTileIndexes.Contains(tileIndex))
             {
@@ -218,7 +222,7 @@ internal sealed class PdfImageTileCacheEntry : IDisposable
 
     public void Dispose()
     {
-        _decoder.Dispose();
+        Decoder.Dispose();
         foreach (CachedTile cachedTile in _tiles)
         {
             cachedTile.Dispose();

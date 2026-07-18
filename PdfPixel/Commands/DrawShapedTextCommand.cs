@@ -2,6 +2,7 @@ using PdfPixel.Color.Paint;
 using PdfPixel.Rendering.Text;
 using PdfPixel.Text;
 using SkiaSharp;
+using System.Linq;
 
 namespace PdfPixel.Commands;
 
@@ -64,5 +65,12 @@ public sealed class DrawShapedTextCommand : PdfCommand, IMatrixCommand, IPaintCo
     {
         Font.Dispose();
         Paint.Dispose();
+    }
+
+    /// <inheritdoc />
+    public override string ToString()
+    {
+        string chars = string.Join(" ", ShapingResult.Select(glyph => $"{glyph.CharacterInfo.Unicode}/{glyph.GlyphId}"));
+        return $"{nameof(DrawShapedTextCommand)} {CommandHelpers.FormatMatrix(Matrix)} {CommandHelpers.FormatPaint(Paint)} \"{chars}\"";
     }
 }

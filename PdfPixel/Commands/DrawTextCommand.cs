@@ -57,4 +57,7 @@ public sealed class DrawTextCommand : PdfCommand, IMatrixCommand, IPaintCommand
         Font.Dispose();
         Paint.Dispose();
     }
+
+    /// <inheritdoc />
+    public override string ToString() => $"{nameof(DrawTextCommand)} {CommandHelpers.FormatMatrix(Matrix)} {CommandHelpers.FormatPaint(Paint)} \"{Text}\"";
 }

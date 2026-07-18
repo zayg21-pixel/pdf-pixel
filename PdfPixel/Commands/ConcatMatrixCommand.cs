@@ -30,4 +30,7 @@ public sealed class ConcatMatrixCommand : PdfCommand, IMatrixCommand
     protected override void Dispose(bool disposing)
     {
     }
+
+    /// <inheritdoc />
+    public override string ToString() => $"{nameof(ConcatMatrixCommand)} {CommandHelpers.FormatMatrix(Matrix)}";
 }

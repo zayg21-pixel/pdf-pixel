@@ -50,4 +50,7 @@ public sealed class DrawPathCommand : PdfCommand, IPathCommand, IPaintCommand
         Path.Dispose();
         Paint.Dispose();
     }
+
+    /// <inheritdoc />
+    public override string ToString() => $"{nameof(DrawPathCommand)} {CommandHelpers.FormatPaint(Paint)}";
 }

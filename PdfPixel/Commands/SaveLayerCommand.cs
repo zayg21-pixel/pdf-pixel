@@ -45,4 +45,8 @@ public sealed class SaveLayerCommand : PdfCommand, IPaintCommand
 
     /// <inheritdoc />
     protected override void Dispose(bool disposing) => Paint?.Dispose();
+
+    /// <inheritdoc />
+    public override string ToString()
+        => $"{nameof(SaveLayerCommand)} {((Paint != null) ? CommandHelpers.FormatPaint(Paint) : "no paint")}";
 }

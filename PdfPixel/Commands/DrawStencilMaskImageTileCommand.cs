@@ -1,6 +1,7 @@
 using PdfPixel.Commands.Image;
 using PdfPixel.Imaging.Processing;
 using SkiaSharp;
+using System.Globalization;
 
 namespace PdfPixel.Commands;
 
@@ -11,6 +12,7 @@ public sealed class DrawStencilMaskImageTileCommand : PdfCommand
 {
     private readonly StencilMaskImageExecutionContext _context;
     private readonly SKColorFilter _colorFilter;
+    private int? _lastTileIndex;
 
     internal DrawStencilMaskImageTileCommand(StencilMaskImageExecutionContext context)
     {
@@ -26,6 +28,8 @@ public sealed class DrawStencilMaskImageTileCommand : PdfCommand
     public override void Execute(PdfCommandExecutionContext executionContext)
     {
         PdfImageTile tile = _context.TileCache.GetNextTile(executionContext.ExecutionObserver);
+        _lastTileIndex = tile.TileIndex;
+
         if (tile.IsSkipped || tile.Image == null)
         {
             return;
@@ -49,4 +53,8 @@ public sealed class DrawStencilMaskImageTileCommand : PdfCommand
         _context.Dispose();
         _colorFilter.Dispose();
     }
+
+    /// <inheritdoc />
+    public override string ToString()
+        => $"{nameof(DrawStencilMaskImageTileCommand)} tile={_lastTileIndex?.ToString(CultureInfo.InvariantCulture) ?? "not executed"}";
 }
