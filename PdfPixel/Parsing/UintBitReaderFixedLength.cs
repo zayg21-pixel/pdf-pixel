@@ -13,9 +13,7 @@ internal ref struct UintBitReaderFixedLength
     private readonly ReadOnlySpan<byte> _data;
     private readonly int _bitCount;
     private readonly int _inverseBitCount;
-    private int _bitPosition;
     private int _bufferedBits;
-    private readonly int _bitLength;
     private ulong _buffer;
     private int _bufferedByteIndex;
 
@@ -30,20 +28,8 @@ internal ref struct UintBitReaderFixedLength
         _data = data;
         _bitCount = bitCount;
         _inverseBitCount = 64 - bitCount;
-        _bitPosition = 0;
-        _bitLength = data.Length * 8;
         _buffer = 0;
     }
-
-    /// <summary>
-    /// Gets a value indicating whether the end of the data has been reached.
-    /// </summary>
-    public bool EndOfData => _bitPosition >= _bitLength;
-
-    /// <summary>
-    /// Gets the current bit position in the stream.
-    /// </summary>
-    public int BitPosition => _bitPosition;
 
     /// <summary>
     /// Reads the next value of fixed bit width.
@@ -60,7 +46,6 @@ internal ref struct UintBitReaderFixedLength
         var value = (uint)(_buffer >> _inverseBitCount);
         _buffer <<= _bitCount;
         _bufferedBits -= _bitCount;
-        _bitPosition += _bitCount;
 
         return value;
     }
@@ -93,21 +78,5 @@ internal ref struct UintBitReaderFixedLength
 
             _bufferedByteIndex = endIndex;
         }
-    }
-
-    /// <summary>
-    /// Advances the current bit position by the specified number of items, invalidating the internal buffer for the
-    /// next read operation.
-    /// </summary>
-    /// <param name="count">The number of items to advance. Must be non-negative.</param>
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public void Advance(int count)
-    {
-        int totalBits = count * _bitCount;
-        _bitPosition += totalBits;
-        // Invalidate buffer so next read will refill at the new position
-        _bufferedBits = 0;
-        _buffer = 0;
-        _bufferedByteIndex = _bitPosition >> 3;
     }
 }
