@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Logging;
 using PdfPixel.Fonts.Cff;
 using PdfPixel.Fonts.Mapping;
+using PdfPixel.Fonts.TrueType;
 using PdfPixel.Models;
 using PdfPixel.Text;
 using SkiaSharp;
@@ -17,6 +18,7 @@ public class PdfCidFont : PdfFontBase
 {
     private readonly ILogger<PdfCidFont> _logger;
     private readonly SKTypeface _typeface;
+    private readonly float[]? _widths;
 
     /// <summary>
     /// Constructor for CID fonts - lightweight operations only
@@ -35,7 +37,15 @@ public class PdfCidFont : PdfFontBase
 
         if (typefaceInfo.CffInfo != null && CidToGidMap == null)
         {
+            _widths = typefaceInfo.CffInfo.GidWidths;
             CidToGidMap = PdfCidToGidMap.FromCffFont(typefaceInfo.CffInfo);
+        }
+
+        if (FontDescriptor != null && Widths.CidWidths.Count == 0 && Widths.DefaultWidth == null)
+        {
+            SfntFontTables tables = SfntFontTablesParser.GetSfntFontTables(_typeface);
+            _widths = tables.GidWidths;
+
         }
     }
 
@@ -75,7 +85,7 @@ public class PdfCidFont : PdfFontBase
     public float GetWidthByCid(uint cid)
     {
         float? width = Widths.GetWidth(cid);
-        return width ?? (float)(Widths.DefaultWidth ?? (float)0f);
+        return width ?? Widths.DefaultWidth ?? 1;
     }
 
     /// <summary>
