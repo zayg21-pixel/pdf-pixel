@@ -1,5 +1,5 @@
 using PdfPixel.Color.Paint;
-using PdfPixel.Models;
+using PdfPixel.Geometry;
 using SkiaSharp;
 
 namespace PdfPixel.Commands;

@@ -1,4 +1,4 @@
-namespace PdfPixel.Path;
+namespace PdfPixel.Geometry;
 
 /// <summary>
 /// Identifies the kind of a <see cref="PdfPathSegment"/>.

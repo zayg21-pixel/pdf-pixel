@@ -1,7 +1,7 @@
-using PdfPixel.Models;
+using PdfPixel.Geometry;
 using System;
 
-namespace PdfPixel.Path;
+namespace PdfPixel.Geometry;
 
 /// <summary>
 /// A single segment of a <see cref="PdfPath"/>.

@@ -1,5 +1,6 @@
 using PdfPixel.Annotations.Models;
 using PdfPixel.Commands;
+using PdfPixel.Geometry;
 using System.Collections.Generic;
 
 namespace PdfPixel.Models;

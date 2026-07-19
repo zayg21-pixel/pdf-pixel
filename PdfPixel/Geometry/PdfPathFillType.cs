@@ -1,4 +1,4 @@
-namespace PdfPixel.Path;
+namespace PdfPixel.Geometry;
 
 /// <summary>
 /// Determines which regions of a self-intersecting or overlapping <see cref="PdfPath"/> are

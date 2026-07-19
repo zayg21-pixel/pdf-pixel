@@ -1,7 +1,7 @@
-using PdfPixel.Models;
+using PdfPixel.Geometry;
 using System;
 
-namespace PdfPixel.Path;
+namespace PdfPixel.Geometry;
 
 /// <summary>
 /// Convenience shape-building extensions for <see cref="PdfPath"/>. These shapes have no direct PDF

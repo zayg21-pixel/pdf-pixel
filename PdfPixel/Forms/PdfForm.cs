@@ -1,3 +1,4 @@
+using PdfPixel.Geometry;
 using PdfPixel.Models;
 using PdfPixel.Text;
 using PdfPixel.Transparency.Model;

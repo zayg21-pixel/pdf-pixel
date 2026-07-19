@@ -1,3 +1,4 @@
+using PdfPixel.Geometry;
 using PdfPixel.Models;
 using PdfPixel.Streams;
 using PdfPixel.Text;

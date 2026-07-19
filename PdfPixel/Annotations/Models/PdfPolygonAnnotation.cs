@@ -1,7 +1,8 @@
 using PdfPixel.Color.ColorSpace;
 using PdfPixel.Commands;
+using PdfPixel.Geometry;
 using PdfPixel.Models;
-using PdfPixel.Path;
+using PdfPixel.Geometry;
 using PdfPixel.Text;
 using SkiaSharp;
 using System.Collections.Generic;

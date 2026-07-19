@@ -1,7 +1,6 @@
-using PdfPixel.Models;
 using System.Collections.Generic;
 
-namespace PdfPixel.Path;
+namespace PdfPixel.Geometry;
 
 /// <summary>
 /// A geometric path built from move, line, cubic curve, and close segments.

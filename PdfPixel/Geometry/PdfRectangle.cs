@@ -1,8 +1,9 @@
+using PdfPixel.Models;
 using SkiaSharp;
 using System;
 using System.Globalization;
 
-namespace PdfPixel.Models;
+namespace PdfPixel.Geometry;
 
 /// <summary>
 /// A rectangle defined by its left, top, right, and bottom edges.

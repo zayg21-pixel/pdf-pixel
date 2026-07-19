@@ -7,6 +7,7 @@ using PdfPixel.Annotations.Rendering;
 using PdfPixel.Commands;
 using SkiaSharp;
 using System;
+using PdfPixel.Geometry;
 
 namespace PdfPixel.Annotations.Models;
 

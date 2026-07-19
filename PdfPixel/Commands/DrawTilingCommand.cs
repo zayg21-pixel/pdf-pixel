@@ -2,6 +2,7 @@ using PdfPixel.Models;
 using System;
 using SkiaSharp;
 using PdfPixel.Color.Paint;
+using PdfPixel.Geometry;
 
 namespace PdfPixel.Commands;
 

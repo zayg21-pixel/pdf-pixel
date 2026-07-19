@@ -1,6 +1,6 @@
 using SkiaSharp;
 
-namespace PdfPixel.Path;
+namespace PdfPixel.Geometry;
 
 /// <summary>
 /// Converts <see cref="PdfPath"/> instances to <see cref="SKPath"/> for rendering.

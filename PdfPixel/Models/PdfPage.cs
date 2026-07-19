@@ -8,6 +8,7 @@ using PdfPixel.Transparency.Utilities;
 using SkiaSharp;
 using System;
 using System.Collections.Generic;
+using PdfPixel.Geometry;
 
 namespace PdfPixel.Models;
 

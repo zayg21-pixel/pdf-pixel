@@ -1,7 +1,8 @@
+using PdfPixel.Models;
 using SkiaSharp;
 using System.Globalization;
 
-namespace PdfPixel.Models;
+namespace PdfPixel.Geometry;
 
 /// <summary>
 /// A point defined by its X and Y coordinates.

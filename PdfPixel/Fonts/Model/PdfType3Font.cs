@@ -2,6 +2,7 @@ using Microsoft.Extensions.Logging;
 using PdfPixel.Commands;
 using PdfPixel.Fonts.Mapping;
 using PdfPixel.Forms;
+using PdfPixel.Geometry;
 using PdfPixel.Models;
 using PdfPixel.Parsing;
 using PdfPixel.Rendering;

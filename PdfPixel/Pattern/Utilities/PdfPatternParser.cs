@@ -4,6 +4,7 @@ using PdfPixel.Shading.Model;
 using PdfPixel.Pattern.Model;
 using PdfPixel.Text;
 using PdfPixel.Rendering;
+using PdfPixel.Geometry;
 
 namespace PdfPixel.Pattern.Utilities;
 

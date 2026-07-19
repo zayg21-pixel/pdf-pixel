@@ -1,4 +1,4 @@
-using PdfPixel.Path;
+using PdfPixel.Geometry;
 using SkiaSharp;
 
 namespace PdfPixel.Commands;

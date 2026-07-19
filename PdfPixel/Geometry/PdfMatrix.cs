@@ -1,9 +1,10 @@
+using PdfPixel.Models;
 using SkiaSharp;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
 
-namespace PdfPixel.Models;
+namespace PdfPixel.Geometry;
 
 /// <summary>
 /// A 2D affine transformation matrix with 6 operands, structurally compatible with the

@@ -6,6 +6,7 @@ using PdfPixel.Transparency.Utilities;
 using PdfPixel.Transparency.Model;
 using PdfPixel.Color.ColorSpace;
 using PdfPixel.Color.Transform;
+using PdfPixel.Geometry;
 
 namespace PdfPixel.Rendering.State
 {
