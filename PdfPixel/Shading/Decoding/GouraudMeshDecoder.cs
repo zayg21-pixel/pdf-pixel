@@ -1,10 +1,11 @@
+using PdfPixel.Color;
 using PdfPixel.Color.Sampling;
+using PdfPixel.Geometry;
 using PdfPixel.Models;
 using PdfPixel.Parsing;
 using PdfPixel.Shading.Model;
 using PdfPixel.Streams;
 using PdfPixel.Text;
-using SkiaSharp;
 using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
@@ -116,11 +117,11 @@ internal class GouraudMeshDecoder
 
         while (!bitReader.EndOfData)
         {
-            SKPoint[]? previousVertices = previous?.Points;
-            SKColor[]? previousColors = previous?.CornerColors;
+            PdfPoint[]? previousVertices = previous?.Points;
+            PdfColor[]? previousColors = previous?.CornerColors;
 
-            var vertices = new SKPoint[3];
-            var colors = new SKColor[3];
+            var vertices = new PdfPoint[3];
+            var colors = new PdfColor[3];
             uint flag = bitReader.ReadBits(_bitsPerFlag);
 
             if (flag == 0 || previousVertices == null)
@@ -180,11 +181,11 @@ internal class GouraudMeshDecoder
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private List<MeshData> ReadType5(ref UintBitReader bitReader)
     {
-        List<(SKPoint point, SKColor color)> vertexList = [];
+        List<(PdfPoint point, PdfColor color)> vertexList = [];
         while (!bitReader.EndOfData)
         {
-            SKPoint point = MeshReader.ReadPoint(ref bitReader, _bitsPerCoordinate, _xmin, _ymin, _xScale, _yScale);
-            SKColor color = MeshReader.ReadColorComponents(ref bitReader, _bitsPerComponent, _colorComponentMinAndScale, _numColorComponents, _shading.Functions, _sampler);
+            PdfPoint point = MeshReader.ReadPoint(ref bitReader, _bitsPerCoordinate, _xmin, _ymin, _xScale, _yScale);
+            PdfColor color = MeshReader.ReadColorComponents(ref bitReader, _bitsPerComponent, _colorComponentMinAndScale, _numColorComponents, _shading.Functions, _sampler);
 
             bitReader.AlignToNextByte();
 

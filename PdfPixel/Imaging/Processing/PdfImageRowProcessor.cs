@@ -3,11 +3,10 @@ using PdfPixel.Color.ColorSpace;
 using PdfPixel.Color.Sampling;
 using PdfPixel.Color.Structures;
 using PdfPixel.Color.Transform;
+using PdfPixel.Imaging.Model;
 using PdfPixel.Models;
 using PdfPixel.Parsing;
-using SkiaSharp;
 using System;
-using System.Buffers;
 using System.Numerics;
 using System.Runtime.CompilerServices;
 
@@ -46,13 +45,14 @@ internal sealed partial class PdfImageRowProcessor : IDisposable
     private readonly bool _hasAlpha;
 
     private readonly OutputMode _outputMode;
-    private readonly SKImageInfo _imageInfo;
+    private readonly PdfImageColorFormat _colorFormat;
+    private readonly int _rowBytes;
 
     private readonly ColorTransformSampler? _sampler;
     private readonly RgbaPacked[]? _indexedPalette;
     private byte[]? _rgbaBuffer;
-    private byte[]? _pixelBuffer;
-    private int _pixelBufferOffset;
+    private PdfDecodedImage? _decodedImage;
+    private int _outputRowIndex;
     private bool _initialized;
     private bool _completed;
 
@@ -151,11 +151,13 @@ internal sealed partial class PdfImageRowProcessor : IDisposable
 
         if (_outputMode == OutputMode.Gray)
         {
-            _imageInfo = new SKImageInfo(_width, _height, SKColorType.Gray8, SKAlphaType.Opaque);
+            _colorFormat = PdfImageColorFormat.Gray;
+            _rowBytes = _width;
         }
         else
         {
-            _imageInfo = new SKImageInfo(_width, _height, SKColorType.Rgba8888, SKAlphaType.Unpremul);
+            _colorFormat = PdfImageColorFormat.Rgba;
+            _rowBytes = _width * 4;
         }
 
         if (_outputMode == OutputMode.IndexedRgbaColorConverted)
@@ -179,7 +181,7 @@ internal sealed partial class PdfImageRowProcessor : IDisposable
             return;
         }
 
-        _pixelBuffer = ArrayPool<byte>.Shared.Rent(_imageInfo.RowBytes * _height);
+        _decodedImage = new PdfDecodedImage(_width, _height, _colorFormat);
 
         switch (_outputMode)
         {
@@ -467,21 +469,17 @@ internal sealed partial class PdfImageRowProcessor : IDisposable
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private void CopyRowToPixelBuffer(in ReadOnlySpan<byte> source)
     {
-        int rowBytes = _imageInfo.RowBytes;
-        source.Slice(0, rowBytes).CopyTo(_pixelBuffer.AsSpan(_pixelBufferOffset, rowBytes));
-        _pixelBufferOffset += rowBytes;
+        Span<byte> destRow = GetDecodedImage().GetRow(_outputRowIndex++);
+        source.Slice(0, _rowBytes).CopyTo(destRow);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private void WriteGrayAlphaRow(in ReadOnlySpan<byte> normalizedRow)
     {
-        if (_pixelBuffer == null)
-        {
-            throw new InvalidOperationException("Not initialized.");
-        }
+        Span<byte> destRow = GetDecodedImage().GetRow(_outputRowIndex++);
 
         ref byte source = ref Unsafe.AsRef(in normalizedRow[0]);
-        ref uint destPixel = ref Unsafe.As<byte, uint>(ref _pixelBuffer[_pixelBufferOffset]);
+        ref uint destPixel = ref Unsafe.As<byte, uint>(ref destRow[0]);
 
         for (int x = 0; x < _width; x++)
         {
@@ -490,57 +488,50 @@ internal sealed partial class PdfImageRowProcessor : IDisposable
             byte alpha = Unsafe.Add(ref source, offset + 1);
             Unsafe.Add(ref destPixel, x) = (uint)(gray | (gray << 8) | (gray << 16) | (alpha << 24));
         }
-
-        _pixelBufferOffset += _imageInfo.RowBytes;
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private void WriteRgba8Row(in ReadOnlySpan<byte> normalizedRow)
     {
-        if (_pixelBuffer == null)
-        {
-            throw new InvalidOperationException("Not initialized.");
-        }
+        Span<byte> destRow = GetDecodedImage().GetRow(_outputRowIndex++);
 
         ref byte source = ref Unsafe.AsRef(in normalizedRow[0]);
-        ref uint destPixel = ref Unsafe.As<byte, uint>(ref _pixelBuffer[_pixelBufferOffset]);
+        ref uint destPixel = ref Unsafe.As<byte, uint>(ref destRow[0]);
 
         for (int x = 0; x < _width; x++)
         {
             uint rgb = Unsafe.As<byte, uint>(ref Unsafe.Add(ref source, x * 3));
             Unsafe.Add(ref destPixel, x) = rgb | 0xFF000000;
         }
-
-        _pixelBufferOffset += _imageInfo.RowBytes;
     }
 
+    private PdfDecodedImage GetDecodedImage() => _decodedImage ?? throw new InvalidOperationException("Not initialized.");
+
     /// <summary>
-    /// Returns an SKImage built from the pixel buffer.
+    /// Returns the decoded pixel data built from the pixel buffer. Ownership transfers to the caller,
+    /// who becomes responsible for disposing it.
     /// </summary>
-    public SKImage GetDecoded()
+    public PdfDecodedImage GetDecoded()
     {
         if (!_initialized)
         {
-            throw new InvalidOperationException("InitializeBuffer must be called before GetSkImage.");
+            throw new InvalidOperationException("InitializeBuffer must be called before GetDecoded.");
         }
 
         if (_completed)
         {
-            throw new InvalidOperationException("GetSkImage already called.");
+            throw new InvalidOperationException("GetDecoded already called.");
         }
 
+        PdfDecodedImage decodedImage = GetDecodedImage();
         _completed = true;
+        _decodedImage = null;
 
-        int totalBytes = _imageInfo.RowBytes * _height;
-        return SKImage.FromPixelCopy(_imageInfo, _pixelBuffer.AsSpan(0, totalBytes));
+        return decodedImage;
     }
 
-    public void Dispose()
-    {
-        if (_pixelBuffer != null)
-        {
-            ArrayPool<byte>.Shared.Return(_pixelBuffer);
-            _pixelBuffer = null;
-        }
-    }
+    /// <summary>
+    /// Disposes the decoded image if <see cref="GetDecoded"/> was never called.
+    /// </summary>
+    public void Dispose() => _decodedImage?.Dispose();
 }

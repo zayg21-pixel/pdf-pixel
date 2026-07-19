@@ -1,18 +1,18 @@
 ﻿using Microsoft.Extensions.Logging;
+using PdfPixel.Color;
 using PdfPixel.Color.Sampling;
 using PdfPixel.Commands;
+using PdfPixel.Geometry;
 using PdfPixel.Shading.Builder;
 using PdfPixel.Shading.Decoding;
 using PdfPixel.Shading.Model;
-using SkiaSharp;
 using System;
 using System.Collections.Generic;
-using System.Threading;
 
 namespace PdfPixel.Shading;
 
 /// <summary>
-/// Provides mesh patch rendering for PDF Type 4–7 shading using SkiaSharp.
+/// Provides mesh patch rendering for PDF Type 4–7 shading.
 /// </summary>
 internal partial class PdfShadingBuilder
 {
@@ -23,7 +23,7 @@ internal partial class PdfShadingBuilder
     /// <param name="shading">Parsed shading model.</param>
     /// <param name="sampler">RGBA sampler for color conversion.</param>
     /// <returns>Batched triangle vertices, or null on failure.</returns>
-    public SKVertices? BuildGouraudVertices(PdfShading shading, ColorTransformSampler sampler)
+    public PdfVertices? BuildGouraudVertices(PdfShading shading, ColorTransformSampler sampler)
     {
         GouraudMeshDecoder decoder = new(shading, sampler);
         List<MeshData> triangles = decoder.Decode();
@@ -36,17 +36,19 @@ internal partial class PdfShadingBuilder
         // Aggregate all triangle points and colors into single arrays for batch drawing
         int triangleCount = triangles.Count;
         int vertexCount = triangleCount * 3;
-        var allPoints = new SKPoint[vertexCount];
-        var allColors = new SKColor[vertexCount];
+        var allPoints = new PdfPoint[vertexCount];
+        var allColors = new PdfColor[vertexCount];
 
         for (int triangleIndex = 0; triangleIndex < triangleCount; triangleIndex++)
         {
             MeshData triangle = triangles[triangleIndex];
-            Array.Copy(triangle.Points, 0, allPoints, triangleIndex * 3, 3);
-            Array.Copy(triangle.CornerColors, 0, allColors, triangleIndex * 3, 3);
+            int offset = triangleIndex * 3;
+
+            Array.Copy(triangle.Points, 0, allPoints, offset, 3);
+            Array.Copy(triangle.CornerColors, 0, allColors, offset, 3);
         }
 
-        return SKVertices.CreateCopy(SKVertexMode.Triangles, allPoints, allColors);
+        return new PdfVertices(allPoints, allColors, null);
     }
 
     /// <summary>
@@ -58,7 +60,7 @@ internal partial class PdfShadingBuilder
     /// <param name="maxTessellationVertices">Maximum tessellation vertices per patch.</param>
     /// <param name="observer">Execution observer for long-running operations.</param>
     /// <returns>Tessellated patch vertices, or null on failure.</returns>
-    public SKVertices? BuildPatchMeshVertices(PdfShading shading, ColorTransformSampler sampler, int maxTessellationVertices, IPdfExecutionObserver observer)
+    public PdfVertices? BuildPatchMeshVertices(PdfShading shading, ColorTransformSampler sampler, int maxTessellationVertices, IPdfExecutionObserver observer)
     {
         MeshDecoder decoder = new(shading, sampler);
         List<MeshData> patches = decoder.Decode();

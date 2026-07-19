@@ -1,5 +1,7 @@
 using Microsoft.Extensions.Logging;
 using PdfPixel.Commands;
+using PdfPixel.Commands.Converters;
+using PdfPixel.Imaging.Model;
 using SkiaSharp;
 using System;
 using System.Collections.Generic;
@@ -185,8 +187,8 @@ internal sealed class PdfImageTilingContext : IDisposable
                 continue;
             }
 
-            SKImage image = tileProcessor.GetDecoded();
-            tileProcessor.Dispose();
+            using PdfDecodedImage decodedImage = tileProcessor.GetDecoded();
+            SKImage image = PdfImageConverter.ToSkImage(decodedImage);
             openTileRow.Processors[column] = null;
 
             destination.Add(new PdfImageTile(tileIndex, tilePosition, image, openTileRow.Parameters[column]));

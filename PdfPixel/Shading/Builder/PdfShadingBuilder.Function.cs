@@ -1,30 +1,33 @@
 ﻿using Microsoft.Extensions.Logging;
 using PdfPixel.Color.Sampling;
+using PdfPixel.Color.Structures;
 using PdfPixel.Color.Transform;
 using PdfPixel.Commands;
 using PdfPixel.Functions;
 using PdfPixel.Geometry;
+using PdfPixel.Imaging.Model;
 using PdfPixel.Rendering.Operators;
 using PdfPixel.Shading.Model;
 using PdfPixel.Text;
-using SkiaSharp;
 using System;
+using System.Numerics;
+using System.Runtime.CompilerServices;
 
 namespace PdfPixel.Shading;
 
 internal partial class PdfShadingBuilder
 {
     /// <summary>
-    /// Builds a function-based (Type 1) shading bitmap and the matrix that maps
-    /// bitmap pixel space into the shading coordinate system.
+    /// Builds a function-based (Type 1) shading image and the matrix that maps
+    /// image pixel space into the shading coordinate system.
     /// Returns <see langword="null"/> if the shading is invalid or degenerate.
     /// </summary>
     /// <param name="shading">Parsed shading model.</param>
     /// <param name="sampler">RGBA sampler for color conversion.</param>
     /// <param name="defaultFunctionSamples">Number of function samples to use.</param>
     /// <param name="observer">Execution observer for progress and cancellation.</param>
-    /// <returns>A <see cref="FunctionShadingResult"/> containing the bitmap and matrix, or <see langword="null"/> on failure.</returns>
-    public FunctionShadingResult? BuildFunctionBasedBitmap(
+    /// <returns>A <see cref="FunctionShadingResult"/> containing the image and matrix, or <see langword="null"/> on failure.</returns>
+    public FunctionShadingResult? BuildFunctionBased(
         PdfShading shading,
         ColorTransformSampler sampler,
         int defaultFunctionSamples,
@@ -64,8 +67,10 @@ internal partial class PdfShadingBuilder
         int bitmapWidth = Math.Max(1, xSamples.Length);
         int bitmapHeight = Math.Max(1, ySamples.Length);
 
-        SKBitmap bitmap = new(bitmapWidth, bitmapHeight);
-        var pixelColors = new SKColor[bitmapWidth * bitmapHeight];
+        PdfDecodedImage decodedImage = new(bitmapWidth, bitmapHeight, PdfImageColorFormat.Rgba);
+        Span<byte> imageBuffer = decodedImage.GetRawBuffer();
+        ref RgbaPacked destPixel = ref Unsafe.As<byte, RgbaPacked>(ref imageBuffer[0]);
+
         for (int yIndex = 0; yIndex < bitmapHeight; yIndex++)
         {
             float domainY = ySamples[yIndex];
@@ -73,14 +78,13 @@ internal partial class PdfShadingBuilder
             {
                 float domainX = xSamples[xIndex];
                 ReadOnlySpan<float> comps = function.Evaluate([domainX, domainY]);
-                SKColor color = sampler.Sample(comps).From01ToSkiaColor();
-                pixelColors[(yIndex * bitmapWidth) + xIndex] = color;
+                Vector4 colorVector = sampler.Sample(comps);
+                ColorVectorUtilities.Load01ToRgba(colorVector, ref destPixel);
+                destPixel = ref Unsafe.Add(ref destPixel, 1);
             }
 
             observer?.Notify();
         }
-
-        bitmap.Pixels = pixelColors;
 
         // Compute matrix to map bitmap pixel space to domain rectangle
         float scaleX = domainWidth / bitmapWidth;
@@ -97,6 +101,6 @@ internal partial class PdfShadingBuilder
             ? PdfMatrix.Concat(shadingMatrix.Value, pixelToDomain)
             : pixelToDomain;
 
-        return new FunctionShadingResult(bitmap, finalMatrix);
+        return new FunctionShadingResult(decodedImage, finalMatrix);
     }
 }

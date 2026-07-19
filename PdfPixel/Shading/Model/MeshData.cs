@@ -1,4 +1,5 @@
-using SkiaSharp;
+using PdfPixel.Color;
+using PdfPixel.Geometry;
 
 namespace PdfPixel.Shading.Model;
 
@@ -32,7 +33,7 @@ internal class MeshData
     /// <param name="points">Vertices or control points in user-space coordinates (decode applied).</param>
     /// <param name="cornerInputs">Colors for the patch corners or triangle vertices.</param>
     /// <param name="flag">Edge flag for the patch, as decoded from the shading stream.</param>
-    public MeshData(SKPoint[] points, SKColor[] cornerInputs, uint flag)
+    public MeshData(PdfPoint[] points, PdfColor[] cornerInputs, uint flag)
     {
         Points = points;
         CornerColors = cornerInputs;
@@ -43,12 +44,12 @@ internal class MeshData
     /// Gets the vertices or control points for the patch in user-space coordinates.
     /// The PDF decode array has already been applied; these are not normalized.
     /// </summary>
-    public SKPoint[] Points { get; }
+    public PdfPoint[] Points { get; }
 
     /// <summary>
     /// Gets the colors for the patch corners or triangle vertices.
     /// </summary>
-    public SKColor[] CornerColors { get; }
+    public PdfColor[] CornerColors { get; }
 
     /// <summary>
     /// Gets the edge flag for the patch, as decoded from the shading stream.

@@ -1,9 +1,10 @@
+using PdfPixel.Color;
 using PdfPixel.Color.ColorSpace;
 using PdfPixel.Color.Sampling;
 using PdfPixel.Color.Transform;
 using PdfPixel.Functions;
+using PdfPixel.Geometry;
 using PdfPixel.Parsing;
-using SkiaSharp;
 using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
@@ -16,7 +17,7 @@ namespace PdfPixel.Shading.Decoding;
 internal static class MeshReader
 {
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static SKPoint ReadPoint(
+    public static PdfPoint ReadPoint(
         ref UintBitReader bitReader,
         int bitsPerCoordinate,
         float xmin,
@@ -28,11 +29,11 @@ internal static class MeshReader
         uint rawY = bitReader.ReadBits(bitsPerCoordinate);
         float decodedX = xmin + (rawX * xScale);
         float decodedY = ymin + (rawY * yScale);
-        return new SKPoint(decodedX, decodedY);
+        return new PdfPoint(decodedX, decodedY);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static SKColor ReadColorComponents(
+    public static PdfColor ReadColorComponents(
         ref UintBitReader bitReader,
         int bitsPerComponent,
         ColorMinAndScale[] colorComponentMinAndScale,
@@ -53,7 +54,7 @@ internal static class MeshReader
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static SKColor EvaluatePatchColor(
+    public static PdfColor EvaluatePatchColor(
         in ReadOnlySpan<float> input,
         List<PdfFunction> functions,
         ColorTransformSampler colorSampler)
@@ -61,11 +62,11 @@ internal static class MeshReader
         if (functions?.Count > 0)
         {
             ReadOnlySpan<float> evaluated = PdfFunctions.EvaluateColorFunctions(functions, input);
-            return colorSampler.Sample(evaluated).From01ToSkiaColor();
+            return colorSampler.Sample(evaluated).ToPdfColor();
         }
         else
         {
-            return colorSampler.Sample(input).From01ToSkiaColor();
+            return colorSampler.Sample(input).ToPdfColor();
         }
     }
 }

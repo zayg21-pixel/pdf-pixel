@@ -1,5 +1,6 @@
 using PdfPixel.Models;
 using PdfPixel.Shading;
+using PdfPixel.Shading.Model;
 using SkiaSharp;
 
 namespace PdfPixel.Commands.Cache;
@@ -27,9 +28,9 @@ internal sealed class ShadingCommandCacheEntry : ICommandCacheItem
 
     public RadialShadingPaints? Radial { get; set; }
 
-    public SKVertices? Gouraud { get; set; }
+    public PdfVertices? Gouraud { get; set; }
 
-    public SKVertices? PatchMesh { get; set; }
+    public PdfVertices? PatchMesh { get; set; }
 
     /// <summary>
     /// True when the built primitives were produced with the same sample and tessellation limits
@@ -46,7 +47,5 @@ internal sealed class ShadingCommandCacheEntry : ICommandCacheItem
         Function?.Dispose();
         Axial?.Dispose();
         Radial?.Dispose();
-        Gouraud?.Dispose();
-        PatchMesh?.Dispose();
     }
 }

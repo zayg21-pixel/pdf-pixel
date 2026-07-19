@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Logging;
 using PdfPixel.Color.Paint;
 using PdfPixel.Commands.Cache;
+using PdfPixel.Commands.Converters;
 using PdfPixel.Shading;
 using PdfPixel.Shading.Model;
 using SkiaSharp;
@@ -97,7 +98,7 @@ public sealed class DrawShadingCommand : PdfCommand
             case PdfShadingType.FunctionBased:
             {
                 entry.FunctionSamples = executionContext.Parameters.DefaultFunctionSamples;
-                entry.Function = _builder.BuildFunctionBasedBitmap(
+                entry.Function = _builder.BuildFunctionBased(
                     _shading,
                     _sampler,
                     executionContext.Parameters.DefaultFunctionSamples,
@@ -144,9 +145,11 @@ public sealed class DrawShadingCommand : PdfCommand
             return;
         }
 
+        using SKImage image = PdfImageConverter.ToSkImage(entry.Function.Image);
+
         executionContext.Canvas.Save();
         executionContext.Canvas.Concat(entry.Function.Matrix.ToSkMatrix());
-        executionContext.Canvas.DrawBitmap(entry.Function.Bitmap, SKPoint.Empty, SKSamplingOptions.Default);
+        executionContext.Canvas.DrawImage(image, SKPoint.Empty, SKSamplingOptions.Default);
         executionContext.Canvas.Restore();
     }
 
@@ -208,7 +211,7 @@ public sealed class DrawShadingCommand : PdfCommand
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private void DrawVerticesToCanvas(PdfCommandExecutionContext executionContext, SKVertices vertices)
+    private void DrawVerticesToCanvas(PdfCommandExecutionContext executionContext, PdfVertices vertices)
     {
         using SKPaint paint = PdfPaintFactory.CreateShaderPaint();
         paint.Color = PdfPaintFactory.ApplyAlpha(paint.Color, _context.FillAlpha);
@@ -216,7 +219,8 @@ public sealed class DrawShadingCommand : PdfCommand
 
         CommandHelpers.ApplyModifiers(paint, executionContext);
 
-        executionContext.Canvas.DrawVertices(vertices, SKBlendMode.DstIn, paint);
+        using SKVertices skVertices = PdfShadingConverter.ToSkVertices(vertices);
+        executionContext.Canvas.DrawVertices(skVertices, SKBlendMode.DstIn, paint);
     }
 
     /// <inheritdoc />

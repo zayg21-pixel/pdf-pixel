@@ -1,10 +1,11 @@
+using PdfPixel.Color;
 using PdfPixel.Color.Sampling;
+using PdfPixel.Geometry;
 using PdfPixel.Models;
 using PdfPixel.Parsing;
 using PdfPixel.Shading.Model;
 using PdfPixel.Streams;
 using PdfPixel.Text;
-using SkiaSharp;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -112,8 +113,8 @@ internal class MeshDecoder
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private MeshData DecodeMesh(ref UintBitReader bitReader, byte flag, MeshData? previousPatch)
     {
-        var controlPoints = new SKPoint[_controlPointCount];
-        var cornerColors = new SKColor[4];
+        var controlPoints = new PdfPoint[_controlPointCount];
+        var cornerColors = new PdfColor[4];
 
         if (flag == 0)
         {

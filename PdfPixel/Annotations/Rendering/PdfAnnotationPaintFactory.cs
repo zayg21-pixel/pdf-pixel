@@ -43,6 +43,16 @@ internal static class PdfAnnotationPaintFactory
     public static PdfPaint CreateStrokePaint(in PdfColor color) => new(PdfPaintStyle.Stroke) { Color = color };
 
     /// <summary>
+    /// Plain stroke paint with a specific line width; otherwise default stroke styling
+    /// (Butt cap, Miter join, no dash/border effect).
+    /// </summary>
+    public static PdfPaint CreateStrokePaint(in PdfColor color, float lineWidth)
+    {
+        PdfStrokeStyle strokeStyle = new() { LineWidth = lineWidth };
+        return CreateStrokePaint(color, strokeStyle);
+    }
+
+    /// <summary>
     /// Stroke paint from a fully resolved stroke style. Color is the only piece resolved at render time
     /// (it depends on the page's color space); width, cap, join, dash, and border style/effect are
     /// expected to already be set on <paramref name="strokeStyle"/>.

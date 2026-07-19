@@ -1,7 +1,8 @@
-﻿using PdfPixel.Color.Transform;
+﻿using PdfPixel.Color;
+using PdfPixel.Color.Transform;
 using PdfPixel.Commands;
+using PdfPixel.Geometry;
 using PdfPixel.Shading.Model;
-using SkiaSharp;
 using System;
 using System.Collections.Generic;
 using System.Numerics;
@@ -55,8 +56,8 @@ internal static class MeshEvaluator
     /// <param name="patches">List of mesh patches to tessellate.</param>
     /// <param name="tessellation">Number of subdivisions per axis (higher = smoother).</param>
     /// <param name="observer">Execution observer for long-running operations.</param>
-    /// <returns>SKVertices instance containing all tessellated mesh vertices, colors, and indices.</returns>
-    public static SKVertices CreateVerticesForPatches(List<MeshData> patches, int tessellation, IPdfExecutionObserver observer)
+    /// <returns>PdfVertices instance containing all tessellated mesh vertices, colors, and indices.</returns>
+    public static PdfVertices CreateVerticesForPatches(List<MeshData> patches, int tessellation, IPdfExecutionObserver observer)
     {
         if (patches == null || patches.Count == 0)
         {
@@ -68,7 +69,7 @@ internal static class MeshEvaluator
             throw new ArgumentOutOfRangeException(nameof(tessellation), "Tessellation must be >= 1.");
         }
 
-        // Adjust tessellation to avoid 16-bit index overflow in SKVertices.
+        // Adjust tessellation to avoid 16-bit index overflow.
         // totalVertices = patches.Count * (tessellation + 1)^2 must be <= 65535.
         const int maxVertices = ushort.MaxValue;
         var safeVertexCountPerPatch = (int)MathF.Floor(MathF.Sqrt(maxVertices / (float)patches.Count));
@@ -82,8 +83,8 @@ internal static class MeshEvaluator
         int totalVertices = verticesPerPatch * patches.Count;
         int totalIndices = indicesPerPatch * patches.Count;
 
-        var allVertices = new SKPoint[totalVertices];
-        var allColors = new SKColor[totalVertices];
+        var allVertices = new PdfPoint[totalVertices];
+        var allColors = new PdfColor[totalVertices];
         var allIndices = new ushort[totalIndices];
 
         int vertexOffset = 0;
@@ -98,22 +99,22 @@ internal static class MeshEvaluator
                 for (int columnIndex = 0; columnIndex < vertexCountPerAxis; columnIndex++)
                 {
                     float u = (float)columnIndex / tessellation;
-                    SKPoint evaluatedPoing;
-                    SKPoint[] patchPoints = patch.Points;
+                    PdfPoint evaluatedPoint;
+                    PdfPoint[] patchPoints = patch.Points;
                     if (patchPoints.Length == 16)
                     {
-                        evaluatedPoing = EvalTensorBezier(u, v, patchPoints);
+                        evaluatedPoint = EvalTensorBezier(u, v, patchPoints);
                     }
                     else if (patchPoints.Length == 12)
                     {
-                        evaluatedPoing = EvalCoons(u, v, patchPoints);
+                        evaluatedPoint = EvalCoons(u, v, patchPoints);
                     }
                     else
                     {
                         throw new ArgumentException("Unsupported control point count for mesh patch. Expected 12 or 16.");
                     }
 
-                    allVertices[vertexOffset + vertexIndex] = evaluatedPoing;
+                    allVertices[vertexOffset + vertexIndex] = evaluatedPoint;
                     allColors[vertexOffset + vertexIndex] = InterpolateCornerColors(u, v, patch.CornerColors);
                     vertexIndex++;
                 }
@@ -144,7 +145,7 @@ internal static class MeshEvaluator
             indexOffset += indicesPerPatch;
         }
 
-        return SKVertices.CreateCopy(SKVertexMode.Triangles, allVertices, null, allColors, allIndices);
+        return new PdfVertices(allVertices, allColors, allIndices);
     }
 
     /// <summary>
@@ -153,9 +154,9 @@ internal static class MeshEvaluator
     /// <param name="u">Normalized horizontal coordinate (0..1).</param>
     /// <param name="v">Normalized vertical coordinate (0..1).</param>
     /// <param name="controlPoints">Array of 16 control points.</param>
-    /// <returns>Surface position as SKPoint.</returns>
+    /// <returns>Surface position as PdfPoint.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static SKPoint EvalTensorBezier(float u, float v, SKPoint[] controlPoints)
+    private static PdfPoint EvalTensorBezier(float u, float v, PdfPoint[] controlPoints)
     {
         if (controlPoints == null || controlPoints.Length != 16)
         {
@@ -174,7 +175,7 @@ internal static class MeshEvaluator
         for (int matrixIndex = 0; matrixIndex < 16; matrixIndex++)
         {
             int controlPointIndex = ControlPointIndexColumnMap[matrixIndex];
-            SKPoint p = controlPoints[controlPointIndex];
+            PdfPoint p = controlPoints[controlPointIndex];
             Unsafe.Add(ref mxRef, matrixIndex) = p.X;
             Unsafe.Add(ref myRef, matrixIndex) = p.Y;
         }
@@ -191,7 +192,7 @@ internal static class MeshEvaluator
         float x = ColorVectorUtilities.CustomDot(dx, bv);
         float y = ColorVectorUtilities.CustomDot(dy, bv);
 
-        return new SKPoint(x, y);
+        return new PdfPoint(x, y);
     }
 
     /// <summary>
@@ -201,9 +202,9 @@ internal static class MeshEvaluator
     /// <param name="u">Normalized horizontal coordinate (0..1).</param>
     /// <param name="v">Normalized vertical coordinate (0..1).</param>
     /// <param name="controlPoints">Array of 12 control points.</param>
-    /// <returns>Surface position as SKPoint.</returns>
+    /// <returns>Surface position as PdfPoint.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static SKPoint EvalCoons(float u, float v, SKPoint[] controlPoints)
+    private static PdfPoint EvalCoons(float u, float v, PdfPoint[] controlPoints)
     {
         if (controlPoints == null || controlPoints.Length != 12)
         {
@@ -223,7 +224,7 @@ internal static class MeshEvaluator
         for (int matrixIndex = 0; matrixIndex < 16; matrixIndex++)
         {
             int cpIndex = BoundaryControlPointColumnMap[matrixIndex];
-            SKPoint p = controlPoints[cpIndex];
+            PdfPoint p = controlPoints[cpIndex];
             Unsafe.Add(ref bxRef, matrixIndex) = p.X;
             Unsafe.Add(ref byRef, matrixIndex) = p.Y;
         }
@@ -283,7 +284,7 @@ internal static class MeshEvaluator
         float finalX = (oneMinusV * b0X) + (v * b1X) + ((oneMinusU * l0X) + (u * l1X)) - bilinearX;
         float finalY = (oneMinusV * b0Y) + (v * b1Y) + ((oneMinusU * l0Y) + (u * l1Y)) - bilinearY;
 
-        return new SKPoint(finalX, finalY);
+        return new PdfPoint(finalX, finalY);
     }
 
     /// <summary>
@@ -291,10 +292,10 @@ internal static class MeshEvaluator
     /// </summary>
     /// <param name="u">Normalized horizontal coordinate (0..1).</param>
     /// <param name="v">Normalized vertical coordinate (0..1).</param>
-    /// <param name="cornerColors">Array of 4 SKColor values (order: bottom-left, top-left, top-right, bottom-right).</param>
-    /// <returns>Interpolated SKColor.</returns>
+    /// <param name="cornerColors">Array of 4 PdfColor values (order: bottom-left, top-left, top-right, bottom-right).</param>
+    /// <returns>Interpolated PdfColor.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static SKColor InterpolateCornerColors(float u, float v, SKColor[] cornerColors)
+    private static PdfColor InterpolateCornerColors(float u, float v, PdfColor[] cornerColors)
     {
         // Compute bilinear weights for each corner
         float oneMinusU = 1.0f - u;
@@ -333,27 +334,7 @@ internal static class MeshEvaluator
         float interpolatedBlue = ColorVectorUtilities.CustomDot(blueChannel, weights);
         float interpolatedAlpha = ColorVectorUtilities.CustomDot(alphaChannel, weights);
 
-        return new SKColor(
-            ClampToByte(interpolatedRed),
-            ClampToByte(interpolatedGreen),
-            ClampToByte(interpolatedBlue),
-            ClampToByte(interpolatedAlpha));
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static byte ClampToByte(float value)
-    {
-        if (value < 0f)
-        {
-            return 0;
-        }
-
-        if (value > 255f)
-        {
-            return 255;
-        }
-
-        return (byte)value;
+        return new PdfColor(interpolatedRed, interpolatedGreen, interpolatedBlue, interpolatedAlpha);
     }
 
     /// <summary>
