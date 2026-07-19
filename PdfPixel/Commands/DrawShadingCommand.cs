@@ -145,7 +145,7 @@ public sealed class DrawShadingCommand : PdfCommand
         }
 
         executionContext.Canvas.Save();
-        executionContext.Canvas.Concat(entry.Function.Matrix);
+        executionContext.Canvas.Concat(entry.Function.Matrix.ToSkMatrix());
         executionContext.Canvas.DrawBitmap(entry.Function.Bitmap, SKPoint.Empty, SKSamplingOptions.Default);
         executionContext.Canvas.Restore();
     }

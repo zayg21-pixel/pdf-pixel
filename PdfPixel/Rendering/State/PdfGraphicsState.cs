@@ -5,6 +5,7 @@ using PdfPixel.Color.Sampling;
 using PdfPixel.Color.Transform;
 using PdfPixel.Commands;
 using PdfPixel.Fonts.Model;
+using PdfPixel.Geometry;
 using PdfPixel.Models;
 using PdfPixel.Text;
 using PdfPixel.TextExtraction;
@@ -250,7 +251,7 @@ public class PdfGraphicsState
     /// CTM in effect when the <c>gs</c> operator assigned <see cref="SoftMask"/>. Per spec, the soft mask's
     /// BBox/Matrix map through this frozen CTM, not the CTM in effect when the mask is later applied to painted content.
     /// </summary>
-    public SKMatrix SoftMaskCTM { get; set; } = SKMatrix.Identity;
+    public PdfMatrix SoftMaskCTM { get; set; } = PdfMatrix.Identity;
 
     /// <summary>
     /// Alpha-is-shape flag (AIS entry in ExtGState). When true, alpha is treated as shape, not opacity.
@@ -319,18 +320,18 @@ public class PdfGraphicsState
     /// <summary>
     /// Current text matrix (Tm).
     /// </summary>
-    public SKMatrix TextMatrix { get; set; } = SKMatrix.Identity;
+    public PdfMatrix TextMatrix { get; set; } = PdfMatrix.Identity;
 
     /// <summary>
     /// Current text line matrix (start of line position).
     /// </summary>
-    public SKMatrix TextLineMatrix { get; set; } = SKMatrix.Identity;
+    public PdfMatrix TextLineMatrix { get; set; } = PdfMatrix.Identity;
 
     /// <summary>
     /// Current transformation matrix (CTM) from user space to device space.
     /// Stored to enable proper coordinate system transformations for patterns and other operations.
     /// </summary>
-    public SKMatrix CTM { get; set; } = SKMatrix.Identity;
+    public PdfMatrix CTM { get; set; } = PdfMatrix.Identity;
 
     /// <summary>
     /// True while inside a text object (between BT and ET).

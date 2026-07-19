@@ -2,6 +2,7 @@ using Microsoft.Extensions.Logging;
 using PdfPixel.Color.Paint;
 using PdfPixel.Commands;
 using PdfPixel.Fonts.Model;
+using PdfPixel.Geometry;
 using PdfPixel.Models;
 using PdfPixel.Rendering;
 using PdfPixel.Rendering.State;
@@ -145,7 +146,7 @@ public class PdfTextRenderer : IPdfTextRenderer
         {
             // Type3 glyphs are recorded commands in glyph space (after FontMatrix). Apply text matrix and per-glyph offsets.
             processor.Process(SaveStateCommand.Instance);
-            SKMatrix fullTextMatrix = TextRenderUtilities.GetFullTextMatrix(state, inverse: false);
+            PdfMatrix fullTextMatrix = TextRenderUtilities.GetFullTextMatrix(state, inverse: false);
             processor.Process(new ConcatMatrixCommand(fullTextMatrix));
 
             for (int i = 0; i < glyphs.Count; i++)
@@ -159,7 +160,7 @@ public class PdfTextRenderer : IPdfTextRenderer
                         : new UncoloredPaintModifier(state.FillPaint.Color);
 
                     // Translate by glyph X/Y (already in text space units after fullTextMatrix).
-                    SKMatrix glyphMatrix = SKMatrix.CreateTranslation(glyph.X, glyph.Y).PreConcat(type3Font.FontMatrix);
+                    PdfMatrix glyphMatrix = PdfMatrix.CreateTranslation(glyph.X, glyph.Y).PreConcat(type3Font.FontMatrix);
                     processor.Process(new DrawRecordingCommand(charInfo.Recording, glyphMatrix, modifier, disposeRecording: false));
                 }
             }
@@ -175,12 +176,12 @@ public class PdfTextRenderer : IPdfTextRenderer
             {
                 ShapedGlyph glyph = glyphs[i];
                 PdfType3CharacterInfo charInfo = type3Font.GetCharacterInfo(glyph.CharacterInfo.CharacterCode, _renderer, state);
-                SKRect? glyphBBox = charInfo.BBox ?? type3Font.FontBBox;
+                PdfRectangle? glyphBBox = charInfo.BBox ?? type3Font.FontBBox;
                 SKRect bounds;
 
                 if (glyphBBox.HasValue)
                 {
-                    SKRect mapped = type3Font.FontMatrix.MapRect(glyphBBox.Value);
+                    PdfRectangle mapped = type3Font.FontMatrix.MapRect(glyphBBox.Value);
                     bounds = new SKRect(glyph.X + mapped.Left, glyph.Y + mapped.Top, glyph.X + mapped.Right, glyph.Y + mapped.Bottom);
                 }
                 else
@@ -191,7 +192,7 @@ public class PdfTextRenderer : IPdfTextRenderer
                 characters[i] = new PdfCharacter(glyph.CharacterInfo.Unicode, bounds);
             }
 
-            SKMatrix extractMatrix = TextRenderUtilities.GetFullTextMatrix(state, inverse: false);
+            PdfMatrix extractMatrix = TextRenderUtilities.GetFullTextMatrix(state, inverse: false);
             EmitTextCharacters(processor, state, extractMatrix, characters);
         }
     }
@@ -238,13 +239,13 @@ public class PdfTextRenderer : IPdfTextRenderer
                     new SKRect(glyph.X, glyph.Y + metrics.Ascent, glyph.X + glyph.CharacterInfo.OriginalWidth, glyph.Y + metrics.Descent));
             }
 
-            SKMatrix textMatrix = TextRenderUtilities.GetFullTextMatrix(state);
+            PdfMatrix textMatrix = TextRenderUtilities.GetFullTextMatrix(state);
             EmitTextCharacters(processor, state, textMatrix, characters);
         }
     }
 
     [MethodImpl(methodImplOptions: MethodImplOptions.AggressiveInlining)]
-    private static void EmitTextCharacters(IPdfCommandProcessor processor, PdfGraphicsState state, SKMatrix matrix, PdfCharacter[] characters)
+    private static void EmitTextCharacters(IPdfCommandProcessor processor, PdfGraphicsState state, in PdfMatrix matrix, PdfCharacter[] characters)
     {
         PdfTextMarkup? pendingMarkup = state.PendingTextMarkup;
         if (pendingMarkup != null)

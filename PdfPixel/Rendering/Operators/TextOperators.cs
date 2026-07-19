@@ -156,15 +156,15 @@ internal class TextOperators : IOperatorProcessor
         }
 
         graphicsState.InTextObject = true;
-        graphicsState.TextMatrix = SKMatrix.Identity;
-        graphicsState.TextLineMatrix = SKMatrix.Identity;
+        graphicsState.TextMatrix = PdfMatrix.Identity;
+        graphicsState.TextLineMatrix = PdfMatrix.Identity;
     }
 
     private void ProcessEndText(PdfGraphicsState graphicsState)
     {
         graphicsState.InTextObject = false;
-        graphicsState.TextMatrix = SKMatrix.Identity;
-        graphicsState.TextLineMatrix = SKMatrix.Identity;
+        graphicsState.TextMatrix = PdfMatrix.Identity;
+        graphicsState.TextLineMatrix = PdfMatrix.Identity;
 
         if (graphicsState.TextClipPath != null)
         {
@@ -277,7 +277,7 @@ internal class TextOperators : IOperatorProcessor
 
         float tx = operands[0].AsFloat();
         float ty = operands[1].AsFloat();
-        SKMatrix translation = SKMatrix.CreateTranslation(tx, ty);
+        PdfMatrix translation = PdfMatrix.CreateTranslation(tx, ty);
         graphicsState.TextLineMatrix = translation.PostConcat(graphicsState.TextLineMatrix);
         graphicsState.TextMatrix = graphicsState.TextLineMatrix;
     }
@@ -293,7 +293,7 @@ internal class TextOperators : IOperatorProcessor
         float tx = operands[0].AsFloat();
         float ty = operands[1].AsFloat();
         graphicsState.Leading = ty;
-        SKMatrix translation = SKMatrix.CreateTranslation(tx, ty);
+        PdfMatrix translation = PdfMatrix.CreateTranslation(tx, ty);
         graphicsState.TextLineMatrix = translation.PostConcat(graphicsState.TextLineMatrix);
         graphicsState.TextMatrix = graphicsState.TextLineMatrix;
     }
@@ -340,7 +340,7 @@ internal class TextOperators : IOperatorProcessor
             return;
         }
 
-        SKMatrix translation = SKMatrix.CreateTranslation(0, graphicsState.Leading);
+        PdfMatrix translation = PdfMatrix.CreateTranslation(0, graphicsState.Leading);
         graphicsState.TextLineMatrix = translation.PostConcat(graphicsState.TextLineMatrix);
         graphicsState.TextMatrix = graphicsState.TextLineMatrix;
     }
@@ -353,7 +353,7 @@ internal class TextOperators : IOperatorProcessor
             return;
         }
 
-        SKMatrix matrix = PdfLocationUtilities.CreateMatrix(operands);
+        PdfMatrix matrix = PdfMatrix.FromOperands(operands) ?? PdfMatrix.Identity;
         graphicsState.TextMatrix = matrix;
         graphicsState.TextLineMatrix = matrix;
     }
@@ -382,7 +382,7 @@ internal class TextOperators : IOperatorProcessor
     private void ProcessSequence(PdfGraphicsState graphicsState, List<ShapedGlyph> glyphs)
     {
         SKSize advancement = _renderer.DrawTextSequence(_processor, glyphs, graphicsState, graphicsState.CurrentFont);
-        SKMatrix advanceMatrix = SKMatrix.CreateTranslation(advancement.Width, advancement.Height);
-        graphicsState.TextMatrix = SKMatrix.Concat(graphicsState.TextMatrix, advanceMatrix);
+        PdfMatrix advanceMatrix = PdfMatrix.CreateTranslation(advancement.Width, advancement.Height);
+        graphicsState.TextMatrix = PdfMatrix.Concat(graphicsState.TextMatrix, advanceMatrix);
     }
 }

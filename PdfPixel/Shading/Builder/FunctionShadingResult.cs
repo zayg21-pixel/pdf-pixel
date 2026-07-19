@@ -1,3 +1,4 @@
+using PdfPixel.Geometry;
 using SkiaSharp;
 using System;
 
@@ -14,7 +15,7 @@ public sealed class FunctionShadingResult : IDisposable
     /// </summary>
     /// <param name="bitmap">Sampled shading bitmap.</param>
     /// <param name="matrix">User-space mapping matrix.</param>
-    public FunctionShadingResult(SKBitmap bitmap, SKMatrix matrix)
+    public FunctionShadingResult(SKBitmap bitmap, in PdfMatrix matrix)
     {
         Bitmap = bitmap;
         Matrix = matrix;
@@ -28,7 +29,7 @@ public sealed class FunctionShadingResult : IDisposable
     /// <summary>
     /// Gets the matrix that maps the bitmap into user space.
     /// </summary>
-    public SKMatrix Matrix { get; }
+    public PdfMatrix Matrix { get; }
 
     /// <inheritdoc />
     public void Dispose() => Bitmap?.Dispose();

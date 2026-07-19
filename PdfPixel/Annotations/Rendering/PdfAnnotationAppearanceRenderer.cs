@@ -1,12 +1,12 @@
 using PdfPixel.Annotations.Models;
 using PdfPixel.Commands;
 using PdfPixel.Forms;
+using PdfPixel.Geometry;
 using PdfPixel.Imaging.Model;
 using PdfPixel.Models;
 using PdfPixel.Rendering;
 using PdfPixel.Rendering.State;
 using PdfPixel.Text;
-using SkiaSharp;
 using System.Collections.Generic;
 
 namespace PdfPixel.Annotations.Rendering;
@@ -66,12 +66,12 @@ internal static class PdfAnnotationAppearanceRenderer
         {
             case PdfXObjectSubtype.Form:
             {
-                success = RenderFormAppearance(processor, appearanceObject, annotation.Rectangle.ToSkRect(), page, renderer, renderingParameters, observer);
+                success = RenderFormAppearance(processor, appearanceObject, annotation.Rectangle, page, renderer, renderingParameters, observer);
                 break;
             }
             case PdfXObjectSubtype.Image:
             {
-                success = RenderImageAppearance(processor, appearanceObject, annotation.Rectangle.ToSkRect(), page, renderer, renderingParameters, observer);
+                success = RenderImageAppearance(processor, appearanceObject, annotation.Rectangle, page, renderer, renderingParameters, observer);
                 break;
             }
         }
@@ -134,7 +134,7 @@ internal static class PdfAnnotationAppearanceRenderer
     private static bool RenderFormAppearance(
         IPdfCommandProcessor processor,
         PdfObject formObject,
-        SKRect annotationRect,
+        in PdfRectangle annotationRect,
         IPdfPageInternal page,
         IPdfRenderer renderer,
         PdfRenderingParameters renderingParameters,
@@ -146,11 +146,11 @@ internal static class PdfAnnotationAppearanceRenderer
             return false;
         }
 
-        SKRect appearanceBBox = formXObject.BBox;
-        SKMatrix matrix = formXObject.Matrix;
+        PdfRectangle appearanceBBox = formXObject.BBox;
+        PdfMatrix matrix = formXObject.Matrix;
 
-        SKRect transformedBBox = matrix.MapRect(appearanceBBox);
-        SKMatrix alignmentMatrix = ComputeAlignmentMatrix(transformedBBox, annotationRect);
+        PdfRectangle transformedBBox = matrix.MapRect(appearanceBBox);
+        PdfMatrix alignmentMatrix = ComputeAlignmentMatrix(transformedBBox, annotationRect);
 
         processor.Process(new ConcatMatrixCommand(alignmentMatrix));
 
@@ -164,7 +164,7 @@ internal static class PdfAnnotationAppearanceRenderer
     /// Computes matrix A that scales and translates the transformed appearance box
     /// to align with the annotation's rectangle.
     /// </summary>
-    private static SKMatrix ComputeAlignmentMatrix(SKRect transformedBBox, SKRect annotationRect)
+    private static PdfMatrix ComputeAlignmentMatrix(in PdfRectangle transformedBBox, in PdfRectangle annotationRect)
     {
         float scaleX = annotationRect.Width / transformedBBox.Width;
         float scaleY = annotationRect.Height / transformedBBox.Height;
@@ -172,7 +172,7 @@ internal static class PdfAnnotationAppearanceRenderer
         float translateX = annotationRect.Left - (transformedBBox.Left * scaleX);
         float translateY = annotationRect.Top - (transformedBBox.Top * scaleY);
 
-        return SKMatrix.CreateScaleTranslation(scaleX, scaleY, translateX, translateY);
+        return PdfMatrix.CreateScaleTranslation(scaleX, scaleY, translateX, translateY);
     }
 
     /// <summary>
@@ -181,7 +181,7 @@ internal static class PdfAnnotationAppearanceRenderer
     private static bool RenderImageAppearance(
         IPdfCommandProcessor processor,
         PdfObject imageObject,
-        SKRect annotationRect,
+        in PdfRectangle annotationRect,
         IPdfPageInternal page,
         IPdfRenderer renderer,
         PdfRenderingParameters renderingParameters,
@@ -193,10 +193,10 @@ internal static class PdfAnnotationAppearanceRenderer
             return false;
         }
 
-        if (annotationRect != SKRect.Empty)
+        if (!annotationRect.IsEmpty)
         {
-            processor.Process(new ConcatMatrixCommand(SKMatrix.CreateTranslation(annotationRect.Left, annotationRect.Top)));
-            processor.Process(new ConcatMatrixCommand(SKMatrix.CreateScale(annotationRect.Width, annotationRect.Height)));
+            processor.Process(new ConcatMatrixCommand(PdfMatrix.CreateTranslation(annotationRect.Left, annotationRect.Top)));
+            processor.Process(new ConcatMatrixCommand(PdfMatrix.CreateScale(annotationRect.Width, annotationRect.Height)));
         }
 
         PdfGraphicsState state = new(page, new HashSet<uint>(), externalTransform: null, observer, renderingParameters);

@@ -1,9 +1,9 @@
-using SkiaSharp;
 using PdfPixel.Color.Paint;
 using PdfPixel.Transparency.Model;
 using PdfPixel.Fonts.Model;
 using PdfPixel.Color.ColorSpace;
 using PdfPixel.Color.Transform;
+using PdfPixel.Geometry;
 
 namespace PdfPixel.Rendering.State
 {
@@ -61,7 +61,7 @@ namespace PdfPixel.Rendering.State
         /// <summary>
         /// Parsed transformation matrix (/Matrix or /CTM). Null when not present.
         /// </summary>
-        public SKMatrix? TransformMatrix { get; set; }
+        public PdfMatrix? TransformMatrix { get; set; }
 
         /// <summary>
         /// Parsed soft mask (/SMask). Null when absent or /None.
@@ -219,7 +219,7 @@ namespace PdfPixel.Rendering.State
 
             if (TransformMatrix.HasValue)
             {
-                SKMatrix matrix = TransformMatrix.Value;
+                PdfMatrix matrix = TransformMatrix.Value;
                 graphicsState.CTM = matrix.PostConcat(graphicsState.CTM);
             }
 

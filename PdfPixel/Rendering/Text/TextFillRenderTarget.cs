@@ -1,6 +1,7 @@
 using PdfPixel.Color;
 using PdfPixel.Color.Paint;
 using PdfPixel.Commands;
+using PdfPixel.Geometry;
 using PdfPixel.Pattern.Model;
 using PdfPixel.Rendering.State;
 using PdfPixel.Text;
@@ -65,7 +66,7 @@ internal class TextFillRenderTarget : IRenderTarget
         }
         else
         {
-            SKMatrix textMatrix = TextRenderUtilities.GetFullTextMatrix(_state);
+            PdfMatrix textMatrix = TextRenderUtilities.GetFullTextMatrix(_state);
 
             processor.Process(new DrawShapedTextCommand(textMatrix, _shapingResult.ToArray(), PdfPaintFactory.CloneFont(_font), _state.FillPaint));
         }

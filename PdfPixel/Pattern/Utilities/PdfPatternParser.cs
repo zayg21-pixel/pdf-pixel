@@ -1,4 +1,3 @@
-using SkiaSharp;
 using PdfPixel.Models;
 using PdfPixel.Shading.Model;
 using PdfPixel.Pattern.Model;
@@ -36,7 +35,7 @@ internal static class PdfPatternParser
         PdfDictionary dictionary = patternObject.Dictionary;
 
         PdfArray? bboxArray = dictionary.GetArray(PdfTokens.BBoxKey);
-        SKRect bbox = PdfLocationUtilities.CreateBBox(bboxArray) ?? SKRect.Empty;
+        PdfRectangle bbox = PdfRectangle.FromArray(bboxArray) ?? PdfRectangle.Empty;
 
         float xStep = dictionary.GetFloatOrDefault(PdfTokens.XStepKey);
         float yStep = dictionary.GetFloatOrDefault(PdfTokens.YStepKey);
@@ -52,7 +51,7 @@ internal static class PdfPatternParser
         };
 
         PdfArray? matrixArray = dictionary.GetArray(PdfTokens.MatrixKey);
-        SKMatrix matrix = PdfLocationUtilities.CreateMatrix(matrixArray) ?? SKMatrix.Identity;
+        PdfMatrix matrix = PdfMatrix.FromArray(matrixArray) ?? PdfMatrix.Identity;
 
         return new PdfTilingPattern(
             renderer,
@@ -70,7 +69,7 @@ internal static class PdfPatternParser
         PdfDictionary dictionary = patternObject.Dictionary;
 
         PdfArray? matrixArray = dictionary.GetArray(PdfTokens.MatrixKey);
-        SKMatrix matrix = PdfLocationUtilities.CreateMatrix(matrixArray) ?? SKMatrix.Identity;
+        PdfMatrix matrix = PdfMatrix.FromArray(matrixArray) ?? PdfMatrix.Identity;
 
         PdfObject? shadingObject = dictionary.GetObject(PdfTokens.ShadingKey);
 

@@ -1,5 +1,4 @@
 ﻿using PdfPixel.Models;
-using SkiaSharp;
 using System;
 using PdfPixel.Text;
 using PdfPixel.Transparency.Utilities;
@@ -127,7 +126,7 @@ namespace PdfPixel.Rendering.State
 
             // Custom transformation matrix (/Matrix, or /CTM as an alternative key name)
             PdfArray? matrixArray = gsDict.GetArray(PdfTokens.MatrixKey) ?? gsDict.GetArray(PdfTokens.CTMKey);
-            parameters.TransformMatrix = PdfLocationUtilities.CreateMatrix(matrixArray);
+            parameters.TransformMatrix = PdfMatrix.FromArray(matrixArray);
 
             // Soft Mask (/SMask)
             if (gsDict.HasKey(PdfTokens.SoftMaskKey))

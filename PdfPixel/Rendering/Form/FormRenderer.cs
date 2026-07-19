@@ -2,10 +2,10 @@
 using PdfPixel.Color.Paint;
 using PdfPixel.Commands;
 using PdfPixel.Forms;
+using PdfPixel.Models;
 using PdfPixel.Parsing;
 using PdfPixel.Rendering.State;
 using PdfPixel.Transparency.Utilities;
-using SkiaSharp;
 using System;
 
 namespace PdfPixel.Rendering.Form;
@@ -63,7 +63,7 @@ public class FormRenderer : IFormRenderer
         processor.Process(new ConcatMatrixCommand(formXObject.Matrix));
 
         // Clip to /BBox
-        processor.Process(new ClipRectangleCommand(formXObject.BBox, SKClipOperation.Intersect));
+        processor.Process(new ClipRectangleCommand(formXObject.BBox, PdfClipOperation.Intersect));
 
         if (formXObject.TransparencyGroup != null)
         {

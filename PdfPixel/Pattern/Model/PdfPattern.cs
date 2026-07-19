@@ -1,8 +1,8 @@
 using PdfPixel.Commands;
+using PdfPixel.Geometry;
 using PdfPixel.Models;
 using PdfPixel.Rendering;
 using PdfPixel.Rendering.State;
-using SkiaSharp;
 
 namespace PdfPixel.Pattern.Model;
 
@@ -15,7 +15,7 @@ public abstract class PdfPattern
     /// <summary>
     /// Initializes the pattern with its source object, transformation matrix, and pattern type.
     /// </summary>
-    protected PdfPattern(PdfObject sourceObject, SKMatrix matrix, PdfPatternType patternType)
+    protected PdfPattern(PdfObject sourceObject, in PdfMatrix matrix, PdfPatternType patternType)
     {
         SourceObject = sourceObject;
         PatternMatrix = matrix;
@@ -30,7 +30,7 @@ public abstract class PdfPattern
     /// <summary>
     /// Pattern transformation matrix (identity if /Matrix absent).
     /// </summary>
-    public SKMatrix PatternMatrix { get; }
+    public PdfMatrix PatternMatrix { get; }
 
     /// <summary>
     /// Underlying pattern type enum.

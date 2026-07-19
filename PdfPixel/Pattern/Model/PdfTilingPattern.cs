@@ -1,4 +1,5 @@
 using PdfPixel.Commands;
+using PdfPixel.Geometry;
 using PdfPixel.Models;
 using PdfPixel.Pattern.Utilities;
 using PdfPixel.Rendering;
@@ -17,12 +18,12 @@ public sealed class PdfTilingPattern : PdfPattern
     internal PdfTilingPattern(
         IPdfRenderer renderer,
         PdfObject sourceObject,
-        SKRect bbox,
+        in PdfRectangle bbox,
         float xStep,
         float yStep,
         PdfTilingPaintType paintTypeKind,
         PdfTilingSpacingType tilingTypeKind,
-        SKMatrix matrix)
+        in PdfMatrix matrix)
         : base(sourceObject, matrix, PdfPatternType.Tiling)
     {
         _renderer = renderer;
@@ -36,7 +37,7 @@ public sealed class PdfTilingPattern : PdfPattern
     /// <summary>
     /// Gets the bounding box of the pattern cell.
     /// </summary>
-    public SKRect BBox { get; }
+    public PdfRectangle BBox { get; }
 
     /// <summary>
     /// Gets the horizontal spacing between pattern cells.
@@ -67,7 +68,7 @@ public sealed class PdfTilingPattern : PdfPattern
             return;
         }
 
-        SKMatrix matrix = SKMatrix.Concat(state.CTM.Invert(), PatternMatrix);
+        PdfMatrix matrix = PdfMatrix.Concat(state.CTM.Invert(), PatternMatrix);
 
         renderTarget.BeforePatternRender(processor);
 
@@ -75,10 +76,10 @@ public sealed class PdfTilingPattern : PdfPattern
             ? new UncoloredPaintModifier(renderTarget.Color)
             : default;
 
-        SKRect bounds = matrix.Invert().MapRect(renderTarget.Bounds);
+        SKRect bounds = matrix.Invert().ToSkMatrix().MapRect(renderTarget.Bounds);
 
         DrawRecordingCommand recordingCommand = new(tileRecorder, modifier);
-        processor.Process(new DrawTilingCommand(matrix, bounds, BBox, XStep, YStep, recordingCommand));
+        processor.Process(new DrawTilingCommand(matrix.ToSkMatrix(), bounds, BBox.ToSkRect(), XStep, YStep, recordingCommand));
 
         renderTarget.AfterPatternRender(processor);
     }

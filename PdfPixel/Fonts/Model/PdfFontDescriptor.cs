@@ -2,7 +2,6 @@ using PdfPixel.Geometry;
 using PdfPixel.Models;
 using PdfPixel.Streams;
 using PdfPixel.Text;
-using SkiaSharp;
 
 namespace PdfPixel.Fonts.Model;
 
@@ -26,7 +25,7 @@ public class PdfFontDescriptor
     /// <summary>
     /// The font bounding box (/FontBBox) in glyph design units.
     /// </summary>
-    public SKRect FontBBox { get; set; }
+    public PdfRectangle FontBBox { get; set; }
 
     /// <summary>
     /// Italic angle of the font (/ItalicAngle).
@@ -207,7 +206,7 @@ public class PdfFontDescriptor
         }
 
         // Parse FontBBox array
-        descriptor.FontBBox = PdfLocationUtilities.CreateBBox(dict.GetArray(PdfTokens.FontBBoxKey)) ?? SKRect.Empty;
+        descriptor.FontBBox = PdfRectangle.FromArray(dict.GetArray(PdfTokens.FontBBoxKey)) ?? PdfRectangle.Empty;
 
         return descriptor;
     }

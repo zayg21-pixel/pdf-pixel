@@ -3,6 +3,7 @@ using PdfPixel.Color.Sampling;
 using PdfPixel.Color.Transform;
 using PdfPixel.Commands;
 using PdfPixel.Functions;
+using PdfPixel.Geometry;
 using PdfPixel.Rendering.Operators;
 using PdfPixel.Shading.Model;
 using PdfPixel.Text;
@@ -86,14 +87,14 @@ internal partial class PdfShadingBuilder
         float scaleY = domainHeight / bitmapHeight;
         float translateX = domainX0;
         float translateY = domainY0;
-        SKMatrix pixelToDomain = SKMatrix.CreateScale(scaleX, scaleY);
-        pixelToDomain = SKMatrix.Concat(SKMatrix.CreateTranslation(translateX, translateY), pixelToDomain);
+        PdfMatrix pixelToDomain = PdfMatrix.CreateScale(scaleX, scaleY);
+        pixelToDomain = PdfMatrix.Concat(PdfMatrix.CreateTranslation(translateX, translateY), pixelToDomain);
 
-        SKMatrix? shadingMatrix = shading.Matrix;
+        PdfMatrix? shadingMatrix = shading.Matrix;
 
         // Concatenate with shading.Matrix if present
-        SKMatrix finalMatrix = (shadingMatrix.HasValue)
-            ? SKMatrix.Concat(shadingMatrix.Value, pixelToDomain)
+        PdfMatrix finalMatrix = (shadingMatrix.HasValue)
+            ? PdfMatrix.Concat(shadingMatrix.Value, pixelToDomain)
             : pixelToDomain;
 
         return new FunctionShadingResult(bitmap, finalMatrix);

@@ -3,7 +3,6 @@ using PdfPixel.Models;
 using PdfPixel.Text;
 using PdfPixel.Transparency.Model;
 using PdfPixel.Transparency.Utilities;
-using SkiaSharp;
 using System;
 
 namespace PdfPixel.Forms;
@@ -14,8 +13,8 @@ namespace PdfPixel.Forms;
 public sealed class PdfForm
 {
     private PdfForm(
-        SKMatrix matrix,
-        SKRect bbox,
+        in PdfMatrix matrix,
+        in PdfRectangle bbox,
         PdfTransparencyGroup? transparencyGroup,
         PdfDictionary dictionary,
         PdfDictionary? resources,
@@ -34,12 +33,12 @@ public sealed class PdfForm
     /// <summary>
     /// The transformation matrix (/Matrix) for the form. Identity if not specified.
     /// </summary>
-    public SKMatrix Matrix { get; }
+    public PdfMatrix Matrix { get; }
 
     /// <summary>
     /// The bounding box (/BBox) for the form. Empty if not specified.
     /// </summary>
-    public SKRect BBox { get; }
+    public PdfRectangle BBox { get; }
 
     /// <summary>
     /// The transparency group (/Group) for the form, if present.
@@ -80,8 +79,8 @@ public sealed class PdfForm
         PdfDictionary? groupDict = dict.GetDictionary(PdfTokens.GroupKey);
         PdfDictionary? resourcesDict = dict.GetDictionary(PdfTokens.ResourcesKey);
 
-        SKMatrix matrix = PdfLocationUtilities.CreateMatrix(matrixArray) ?? SKMatrix.Identity;
-        SKRect bbox = PdfLocationUtilities.CreateBBox(bboxArray) ?? SKRect.Empty;
+        PdfMatrix matrix = PdfMatrix.FromArray(matrixArray) ?? PdfMatrix.Identity;
+        PdfRectangle bbox = PdfRectangle.FromArray(bboxArray) ?? PdfRectangle.Empty;
 
         PdfTransparencyGroup? transparencyGroup = PdfSoftMaskParser.ParseTransparencyGroup(groupDict, page);
 
@@ -104,6 +103,6 @@ public sealed class PdfForm
     /// <summary>
     /// Gets the bounding rectangle of the object after applying the current transformation matrix.
     /// </summary>
-    /// <returns>A <see cref="SKRect"/> representing the transformed bounding rectangle.</returns>
-    public SKRect GetTransformedBounds() => Matrix.MapRect(BBox);
+    /// <returns>A <see cref="PdfRectangle"/> representing the transformed bounding rectangle.</returns>
+    public PdfRectangle GetTransformedBounds() => Matrix.MapRect(BBox);
 }

@@ -3,6 +3,8 @@ using PdfPixel.Color;
 using PdfPixel.Color.Paint;
 using PdfPixel.Color.Transform;
 using PdfPixel.Commands;
+using PdfPixel.Geometry;
+using PdfPixel.Models;
 using PdfPixel.Parsing;
 using PdfPixel.Rendering;
 using PdfPixel.Rendering.State;
@@ -29,9 +31,9 @@ public sealed class SoftMaskDrawingScope : IDisposable
     private readonly PdfSoftMask? _softMask;
     private readonly PdfGraphicsState _graphicsState;
 
-    private SKRect _maskBounds;
-    private SKMatrix _maskMatrix;
-    private SKMatrix _worldToMaskForm;
+    private PdfRectangle _maskBounds;
+    private PdfMatrix _maskMatrix;
+    private PdfMatrix _worldToMaskForm;
     private bool _began;
     private bool _shouldApplyMask;
     private bool _disposed;
@@ -83,13 +85,13 @@ public sealed class SoftMaskDrawingScope : IDisposable
             return;
         }
 
-        _worldToMaskForm = SKMatrix.Concat(_graphicsState.SoftMaskCTM, _softMask.MaskForm.Matrix);
-        _maskMatrix = SKMatrix.Concat(_graphicsState.CTM.Invert(), _worldToMaskForm);
+        _worldToMaskForm = PdfMatrix.Concat(_graphicsState.SoftMaskCTM, _softMask.MaskForm.Matrix);
+        _maskMatrix = PdfMatrix.Concat(_graphicsState.CTM.Invert(), _worldToMaskForm);
         _maskBounds = _maskMatrix.MapRect(_softMask.MaskForm.BBox);
 
         SKPaint layerPaint = PdfPaintFactory.CreateMaskLayerPaint();
         _processor.Process(new SaveLayerCommand(_maskBounds, layerPaint));
-        _processor.Process(new ClipRectangleCommand(_maskBounds, SKClipOperation.Intersect));
+        _processor.Process(new ClipRectangleCommand(_maskBounds, PdfClipOperation.Intersect));
     }
 
     /// <summary>
@@ -119,7 +121,7 @@ public sealed class SoftMaskDrawingScope : IDisposable
             PdfPaint backgroundPaint = PdfPaintFactory.CreateBackgroundPaint(backgroundColor);
 
             using SKPathBuilder rectPathBuilder = new();
-            rectPathBuilder.AddRect(_softMask.MaskForm.BBox);
+            rectPathBuilder.AddRect(_softMask.MaskForm.BBox.ToSkRect());
 
             recorder.Process(new DrawPathCommand(rectPathBuilder.Detach(), backgroundPaint));
         }

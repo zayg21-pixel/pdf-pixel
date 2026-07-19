@@ -3,7 +3,6 @@ using PdfPixel.Geometry;
 using PdfPixel.Models;
 using PdfPixel.Streams;
 using PdfPixel.Text;
-using SkiaSharp;
 using System;
 using System.Collections.Generic;
 
@@ -56,7 +55,7 @@ public sealed class PdfShading
             }
         }
 
-        BBox = PdfLocationUtilities.CreateBBox(rawDictionary.GetArray(PdfTokens.BBoxKey));
+        BBox = PdfRectangle.FromArray(rawDictionary.GetArray(PdfTokens.BBoxKey));
         Background = rawDictionary.GetArray(PdfTokens.BackgroundKey)?.GetFloatArray();
         AntiAlias = rawDictionary.GetBooleanOrDefault(PdfTokens.AntiAliasKey);
 
@@ -64,7 +63,7 @@ public sealed class PdfShading
         {
             case PdfShadingType.FunctionBased:
             {
-                Matrix = PdfLocationUtilities.CreateMatrix(rawDictionary.GetArray(PdfTokens.MatrixKey));
+                Matrix = PdfMatrix.FromArray(rawDictionary.GetArray(PdfTokens.MatrixKey));
                 break;
             }
             case PdfShadingType.FreeFormGouraud:
@@ -169,7 +168,7 @@ public sealed class PdfShading
     /// <summary>
     /// Gets the optional bbox (/BBox) for this shading, if defined.
     /// </summary>
-    public SKRect? BBox { get; }
+    public PdfRectangle? BBox { get; }
 
     /// <summary>
     /// Gets the option to enable anti-aliasing (/AntiAlias) when rendering the shading.
@@ -204,5 +203,5 @@ public sealed class PdfShading
     /// <summary>
     /// Shading matrix (/Matrix), function-based shading type 1.
     /// </summary>
-    public SKMatrix? Matrix { get; }
+    public PdfMatrix? Matrix { get; }
 }

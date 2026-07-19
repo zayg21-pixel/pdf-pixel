@@ -6,7 +6,6 @@ using PdfPixel.Geometry;
 using PdfPixel.Models;
 using PdfPixel.Rendering.State;
 using PdfPixel.Text;
-using SkiaSharp;
 using System;
 using System.Collections.Generic;
 
@@ -144,7 +143,7 @@ internal class GraphicsStateOperators : IOperatorProcessor
             return;
         }
 
-        SKMatrix matrix = PdfLocationUtilities.CreateMatrix(operands);
+        PdfMatrix matrix = PdfMatrix.FromOperands(operands) ?? PdfMatrix.Identity;
         _processor.Process(new ConcatMatrixCommand(matrix));
 
         // Update CTM in graphics state - concatenate with existing CTM

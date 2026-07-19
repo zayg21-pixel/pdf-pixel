@@ -1,4 +1,5 @@
-﻿using PdfPixel.Rendering.State;
+﻿using PdfPixel.Geometry;
+using PdfPixel.Rendering.State;
 using PdfPixel.Text;
 using SkiaSharp;
 using System.Collections.Generic;
@@ -31,8 +32,8 @@ internal static class TextRenderUtilities
 
         SKPath textPath = textPathBuilder.Detach();
 
-        SKMatrix matrix = GetFullTextMatrix(state);
-        textPath.Transform(matrix);
+        PdfMatrix matrix = GetFullTextMatrix(state);
+        textPath.Transform(matrix.ToSkMatrix());
 
         return textPath;
     }
@@ -62,20 +63,20 @@ internal static class TextRenderUtilities
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static SKMatrix GetFullTextMatrix(PdfGraphicsState state, bool inverse = true)
+    public static PdfMatrix GetFullTextMatrix(PdfGraphicsState state, bool inverse = true)
     {
-        SKMatrix textMatrix = state.TextMatrix;
+        PdfMatrix textMatrix = state.TextMatrix;
 
         if (state.Rise != 0)
         {
-            textMatrix = SKMatrix.Concat(textMatrix, SKMatrix.CreateTranslation(0, state.Rise));
+            textMatrix = PdfMatrix.Concat(textMatrix, PdfMatrix.CreateTranslation(0, state.Rise));
         }
 
         // Apply font size, horizontal scaling, and vertical flip
         float fullHorizontalScale = state.FontSize * state.HorizontalScaling / 100f;
         int verticalFlip = inverse ? -1 : 1;
-        SKMatrix fontScalingMatrix = SKMatrix.CreateScale(fullHorizontalScale, state.FontSize * verticalFlip);
-        return SKMatrix.Concat(textMatrix, fontScalingMatrix);
+        PdfMatrix fontScalingMatrix = PdfMatrix.CreateScale(fullHorizontalScale, state.FontSize * verticalFlip);
+        return PdfMatrix.Concat(textMatrix, fontScalingMatrix);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]

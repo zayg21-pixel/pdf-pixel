@@ -3,6 +3,7 @@ using PdfPixel.Color;
 using PdfPixel.Color.ColorSpace;
 using PdfPixel.Color.Paint;
 using PdfPixel.Commands;
+using PdfPixel.Geometry;
 using PdfPixel.Models;
 using PdfPixel.Rendering;
 using PdfPixel.Rendering.State;
@@ -28,7 +29,7 @@ public sealed class PdfShadingPattern : PdfPattern
     internal PdfShadingPattern(
         PdfObject sourceObject,
         PdfShading shading,
-        SKMatrix matrix,
+        in PdfMatrix matrix,
         PdfDictionary? extGState)
         : base(sourceObject, matrix, PdfPatternType.Shading)
     {
@@ -48,7 +49,7 @@ public sealed class PdfShadingPattern : PdfPattern
 
     internal override void RenderPattern(IPdfCommandProcessor processor, PdfGraphicsState state, IRenderTarget renderTarget)
     {
-        SKMatrix matrix = SKMatrix.Concat(state.CTM.Invert(), PatternMatrix);
+        PdfMatrix matrix = PdfMatrix.Concat(state.CTM.Invert(), PatternMatrix);
 
         PdfCommandRecorder recorder = new(state.Page.Document.LoggerFactory.CreateLogger<PdfCommandRecorder>());
 
@@ -57,7 +58,7 @@ public sealed class PdfShadingPattern : PdfPattern
 
         if (Shading.BBox.HasValue)
         {
-            recorder.Process(new ClipRectangleCommand(Shading.BBox.Value, SKClipOperation.Intersect));
+            recorder.Process(new ClipRectangleCommand(Shading.BBox.Value, PdfClipOperation.Intersect));
         }
 
         if (Shading.Background != null && Shading.BBox.HasValue)
@@ -67,7 +68,7 @@ public sealed class PdfShadingPattern : PdfPattern
             PdfPaint backgroundPaint = PdfPaintFactory.CreateBackgroundPaint(backgroundColor);
 
             using SKPathBuilder rectPathBuilder = new();
-            rectPathBuilder.AddRect(Shading.BBox.Value);
+            rectPathBuilder.AddRect(Shading.BBox.Value.ToSkRect());
 
             recorder.Process(new DrawPathCommand(rectPathBuilder.Detach(), backgroundPaint));
         }

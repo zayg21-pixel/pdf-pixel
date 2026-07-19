@@ -40,11 +40,11 @@ public class PdfType3Font : PdfSingleByteFont
         CharProcs = Dictionary.GetDictionary(PdfTokens.CharProcsKey);
 
         // Get FontMatrix (required for Type3 fonts)
-        FontMatrix = PdfLocationUtilities.CreateMatrix(Dictionary.GetArray(PdfTokens.FontMatrixKey)) ?? SKMatrix.CreateScale(0.001f, 0.001f);
+        FontMatrix = PdfMatrix.FromArray(Dictionary.GetArray(PdfTokens.FontMatrixKey)) ?? PdfMatrix.CreateScale(0.001f, 0.001f);
 
         // Get FontBBox (required for Type3 fonts per PDF spec §9.6.5, Table 110)
         // Used as the recording bounds for d0 glyphs that do not specify a per-glyph bounding box
-        FontBBox = PdfLocationUtilities.CreateBBox(Dictionary.GetArray(PdfTokens.FontBBoxKey));
+        FontBBox = PdfRectangle.FromArray(Dictionary.GetArray(PdfTokens.FontBBoxKey));
 
         // Rescale width to glyph space
         Widths.RescaleWidths(FontMatrix.ScaleX / SingleByteFontWidths.WidthToUserSpaceCoeff);
@@ -73,13 +73,13 @@ public class PdfType3Font : PdfSingleByteFont
     /// Font transformation matrix (required for Type3 fonts)
     /// Maps from glyph space to text space
     /// </summary>
-    public SKMatrix FontMatrix { get; }
+    public PdfMatrix FontMatrix { get; }
 
     /// <summary>
     /// Font bounding box in glyph coordinate space (required for Type3 fonts per PDF spec §9.6.5, Table 110).
     /// Used as the recording bounds for d0 glyphs that do not define a per-glyph bounding box via d1.
     /// </summary>
-    public SKRect? FontBBox { get; }
+    public PdfRectangle? FontBBox { get; }
 
     /// <summary>
     /// Renders a Type 3 character CharProc to a recorded picture and extracts d0/d1 metrics from the glyph graphics state.
@@ -146,7 +146,7 @@ public class PdfType3Font : PdfSingleByteFont
         PdfContentStreamRenderer contentRenderer = new(renderer, glyphPage);
         PdfParseContext parseContext = new(streamData);
 
-        (SKSize advancement, SKRect? boundingBox) = ParseMetrics(parseContext);
+        (SKSize advancement, PdfRectangle? boundingBox) = ParseMetrics(parseContext);
 
         PdfGraphicsState charState = new(glyphPage, sourceState.RecursionGuard, default, default, sourceState.RenderingParameters);
 
@@ -160,14 +160,14 @@ public class PdfType3Font : PdfSingleByteFont
         return info;
     }
 
-    private (SKSize advancement, SKRect? boundingBox) ParseMetrics(PdfParseContext parseContext)
+    private (SKSize advancement, PdfRectangle? boundingBox) ParseMetrics(PdfParseContext parseContext)
     {
         PdfParser parser = new(parseContext, Document, allowReferences: false, decrypt: false);
         IPdfValue? value;
         Stack<IPdfValue> operandStack = [];
 
         SKSize type3Advancement = new(0, 0);
-        SKRect? type3BoundingBox = null;
+        PdfRectangle? type3BoundingBox = null;
         while ((value = parser.ReadNextValue()) != null)
         {
             if (value.Type == PdfValueType.Operator)
@@ -207,7 +207,7 @@ public class PdfType3Font : PdfSingleByteFont
                         float ury = operands[5].AsFloat();
 
                         type3Advancement = new SKSize(wx, wy);
-                        type3BoundingBox = new SKRect(llx, lly, urx, ury).Standardized;
+                        type3BoundingBox = new PdfRectangle(Math.Min(llx, urx), Math.Min(lly, ury), Math.Max(llx, urx), Math.Max(lly, ury));
 
                         return (type3Advancement, type3BoundingBox);
                     }

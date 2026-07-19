@@ -5,6 +5,7 @@ using PdfPixel.Commands;
 using PdfPixel.Shading.Model;
 using PdfPixel.Color;
 using PdfPixel.Color.Paint;
+using PdfPixel.Models;
 using PdfPixel.Rendering.State;
 using PdfPixel.Transparency.Utilities;
 using PdfPixel.Color.ColorSpace;
@@ -70,7 +71,7 @@ public class ShadingRenderer : IShadingRenderer
     {
         if (shading.BBox.HasValue)
         {
-            processor.Process(new ClipRectangleCommand(shading.BBox.Value, SKClipOperation.Intersect));
+            processor.Process(new ClipRectangleCommand(shading.BBox.Value, PdfClipOperation.Intersect));
         }
 
         if (shading.Background != null && shading.BBox.HasValue)
@@ -81,7 +82,7 @@ public class ShadingRenderer : IShadingRenderer
             PdfPaint backgroundPaint = PdfPaintFactory.CreateBackgroundPaint(backgroundColor);
 
             using SKPathBuilder rectPathBuilder = new();
-            rectPathBuilder.AddRect(shading.BBox.Value);
+            rectPathBuilder.AddRect(shading.BBox.Value.ToSkRect());
 
             processor.Process(new DrawPathCommand(rectPathBuilder.Detach(), backgroundPaint));
         }
