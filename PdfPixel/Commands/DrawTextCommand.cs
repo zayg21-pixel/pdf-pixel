@@ -23,7 +23,7 @@ public sealed class DrawTextCommand : PdfCommand, IMatrixCommand, IPaintCommand
     /// <summary>
     /// Initializes the command with the given text, matrix, font and paint.
     /// </summary>
-    public DrawTextCommand(string text, PdfMatrix matrix, SKFont font, SKPaint basePaint)
+    public DrawTextCommand(string text, in PdfMatrix matrix, SKFont font, SKPaint basePaint)
         : this(text, matrix.ToSkMatrix(), font, basePaint)
     {
     }

@@ -1,10 +1,9 @@
 using PdfPixel.Color.ColorSpace;
-using PdfPixel.Color.Paint;
 using PdfPixel.Color.Transform;
+using PdfPixel.Commands;
 using PdfPixel.Imaging.Model;
 using PdfPixel.Models;
 using PdfPixel.Rendering.State;
-using PdfPixel.Transparency.Model;
 using SkiaSharp;
 using System;
 
@@ -40,7 +39,7 @@ public sealed class ImageDecodingContext
         FullTransferFunction = state.FullTransferFunction;
         FillColor = state.FillPaint.Color;
         FillAlpha = state.FillAlpha;
-        BlendMode = PdfBlendModeNames.ToSkiaBlendMode(state.BlendMode);
+        BlendMode = SkiaEnumUtilities.ToSkiaBlendMode(state.BlendMode);
     }
 
     /// <summary>

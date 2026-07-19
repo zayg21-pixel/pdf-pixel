@@ -20,7 +20,8 @@ public sealed class ClipRectangleCommand : PdfCommand
     /// <summary>
     /// Initializes the command with the given rectangle and clip operation.
     /// </summary>
-    public ClipRectangleCommand(PdfRectangle rect, SKClipOperation operation) : this(rect.ToSkRect(), operation)
+    public ClipRectangleCommand(in PdfRectangle rect, PdfClipOperation operation)
+        : this(rect.ToSkRect(), SkiaEnumUtilities.ToSkClipOperation(operation))
     {
     }
 

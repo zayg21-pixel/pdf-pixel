@@ -1,18 +1,31 @@
+using PdfPixel.Models;
+using PdfPixel.Transparency.Model;
 using SkiaSharp;
 
-namespace PdfPixel.Transparency.Model;
+namespace PdfPixel.Commands;
 
 /// <summary>
-/// PDF blend mode name constants and utilities
+/// Converts PDF model enums to their SkiaSharp equivalents.
 /// </summary>
-public static class PdfBlendModeNames
+internal static class SkiaEnumUtilities
 {
     /// <summary>
-    /// Convert PDF blend mode to SkiaSharp blend mode
-    /// Note: Some PDF blend modes may not have exact SkiaSharp equivalents
+    /// Converts a <see cref="PdfClipOperation"/> to the corresponding <see cref="SKClipOperation"/>.
     /// </summary>
-    /// <param name="pdfBlendMode">PDF blend mode</param>
-    /// <returns>Corresponding SkiaSharp blend mode</returns>
+    public static SKClipOperation ToSkClipOperation(PdfClipOperation operation)
+    {
+        return operation switch
+        {
+            PdfClipOperation.Intersect => SKClipOperation.Intersect,
+            PdfClipOperation.Difference => SKClipOperation.Difference,
+            _ => SKClipOperation.Intersect
+        };
+    }
+
+    /// <summary>
+    /// Converts a <see cref="PdfBlendMode"/> to the corresponding <see cref="SKBlendMode"/>.
+    /// Note: Some PDF blend modes may not have exact SkiaSharp equivalents.
+    /// </summary>
     public static SKBlendMode ToSkiaBlendMode(PdfBlendMode pdfBlendMode)
     {
         return pdfBlendMode switch

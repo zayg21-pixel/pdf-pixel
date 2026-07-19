@@ -18,7 +18,8 @@ public sealed class ConcatMatrixCommand : PdfCommand, IMatrixCommand
     /// <summary>
     /// Initializes the command with the matrix to concatenate.
     /// </summary>
-    public ConcatMatrixCommand(PdfMatrix matrix) : this(matrix.ToSkMatrix())
+    public ConcatMatrixCommand(in PdfMatrix matrix)
+        : this(matrix.ToSkMatrix())
     {
     }
 

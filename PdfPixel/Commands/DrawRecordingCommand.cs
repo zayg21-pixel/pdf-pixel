@@ -29,7 +29,7 @@ public sealed class DrawRecordingCommand : PdfCommand, IMatrixCommand
     /// <summary>
     /// Initializes the command with a recorder, matrix, an optional paint modifier, and ownership flag.
     /// </summary>
-    public DrawRecordingCommand(PdfCommandRecorder recorder, PdfMatrix matrix, UncoloredPaintModifier? modifier, bool disposeRecording = true)
+    public DrawRecordingCommand(PdfCommandRecorder recorder, in PdfMatrix matrix, UncoloredPaintModifier? modifier, bool disposeRecording = true)
         : this(recorder, matrix.ToSkMatrix(), modifier, disposeRecording)
     {
     }

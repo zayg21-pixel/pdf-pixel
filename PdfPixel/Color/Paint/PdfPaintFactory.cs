@@ -1,5 +1,5 @@
-﻿using PdfPixel.Rendering.State;
-using PdfPixel.Transparency.Model;
+﻿using PdfPixel.Commands;
+using PdfPixel.Rendering.State;
 using SkiaSharp;
 using System;
 using System.Runtime.CompilerServices;
@@ -22,7 +22,7 @@ internal static class PdfPaintFactory
         SKPaint paint = new()
         {
             // Default blend is Normal (SrcOver). Map gstate blend to Skia.
-            BlendMode = PdfBlendModeNames.ToSkiaBlendMode(state.BlendMode)
+            BlendMode = SkiaEnumUtilities.ToSkiaBlendMode(state.BlendMode)
         };
         return paint;
     }

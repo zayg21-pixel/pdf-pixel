@@ -26,7 +26,7 @@ public sealed class DrawShapedTextCommand : PdfCommand, IMatrixCommand, IPaintCo
     /// <summary>
     /// Initializes the command with the given matrix, shaped glyphs, font and paint.
     /// </summary>
-    public DrawShapedTextCommand(PdfMatrix matrix, ShapedGlyph[] shapingResult, SKFont font, SKPaint basePaint)
+    public DrawShapedTextCommand(in PdfMatrix matrix, ShapedGlyph[] shapingResult, SKFont font, SKPaint basePaint)
         : this(matrix.ToSkMatrix(), shapingResult, font, basePaint)
     {
     }

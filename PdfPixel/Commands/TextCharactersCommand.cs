@@ -26,7 +26,8 @@ public sealed class TextCharactersCommand : PdfCommand, IMatrixCommand
     /// <summary>
     /// Initializes the command with the matrix to apply and the captured characters whose bounding boxes are in pre-CTM space.
     /// </summary>
-    public TextCharactersCommand(PdfMatrix matrix, PdfCharacter[] characters) : this(matrix.ToSkMatrix(), characters)
+    public TextCharactersCommand(in PdfMatrix matrix, PdfCharacter[] characters)
+        : this(matrix.ToSkMatrix(), characters)
     {
     }
 

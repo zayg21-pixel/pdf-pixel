@@ -22,7 +22,8 @@ public sealed class SaveLayerCommand : PdfCommand, IPaintCommand
     /// <summary>
     /// Initializes the command with the layer bounds and takes ownership of the paint.
     /// </summary>
-    public SaveLayerCommand(PdfRectangle bounds, SKPaint? paint) : this(bounds.ToSkRect(), paint)
+    public SaveLayerCommand(in PdfRectangle bounds, SKPaint? paint)
+        : this(bounds.ToSkRect(), paint)
     {
     }
 
