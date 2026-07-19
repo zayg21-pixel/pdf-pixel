@@ -140,25 +140,28 @@ public class PdfCidFont : PdfFontBase
             {
                 case PdfFontFileFormat.CIDFontType0C:
                 {
-                    CffSidGidMapper cffSidMapper = new(Document.LoggerFactory);
                     ReadOnlyMemory<byte> cffBytes = FontDescriptor.FontFileStream?.DecodeAsMemory() ?? ReadOnlyMemory<byte>.Empty;
+                    return LoadFromCffBytes(cffBytes);
+                }
+                case PdfFontFileFormat.OpenType:
+                {
+                    ReadOnlyMemory<byte> openTypeBytes = FontDescriptor.FontFileStream?.DecodeAsMemory() ?? ReadOnlyMemory<byte>.Empty;
 
-                    if (!cffSidMapper.TryParseNameKeyed(cffBytes, out CffInfo? cffInfo))
+                    if (OpenTypeCffTableReader.TryExtractCffTable(openTypeBytes, out ReadOnlyMemory<byte> cffTableBytes))
                     {
-                        _logger.LogWarning("Failed to parse embedded Type1C font data for font '{FontName}'", BaseFont);
-                        throw new InvalidOperationException("Failed to parse embedded Type1C font data.");
+                        return LoadFromCffBytes(cffTableBytes);
                     }
 
-                    byte[]? typefaceData = CffOpenTypeWrapper.Wrap(FontDescriptor, cffInfo);
-                    SKTypeface typeface = SKTypeface.FromData(SKData.CreateCopy(typefaceData));
+                    using SKData skFontData = SKData.CreateCopy(openTypeBytes.ToArray());
+                    SKTypeface typeface = SKTypeface.FromData(skFontData);
 
                     if (typeface == null)
                     {
-                        _logger.LogWarning("Failed to create typeface from embedded Type1C font data for font '{FontName}'", BaseFont);
-                        throw new InvalidOperationException("Failed to create typeface from embedded Type1C font data.");
+                        _logger.LogWarning("Failed to create typeface from embedded OpenType font data for font '{FontName}'", BaseFont);
+                        throw new InvalidOperationException("Failed to create typeface from embedded OpenType font data.");
                     }
 
-                    return (typeface, cffInfo);
+                    return (typeface, null);
                 }
                 case PdfFontFileFormat.TrueType:
                 {
@@ -182,6 +185,33 @@ public class PdfCidFont : PdfFontBase
 #pragma warning restore CA1031
 
         return default;
+    }
+
+    /// <summary>
+    /// Parses raw (unwrapped) CFF font data, rebuilds it into a minimal OpenType container, and loads it as
+    /// the font's typeface. Shared by CIDFontType0C and CFF-flavored OpenType FontFile3 data.
+    /// </summary>
+    /// <param name="cffBytes">The raw CFF font program bytes.</param>
+    private (SKTypeface Typeface, CffInfo? CffInfo) LoadFromCffBytes(in ReadOnlyMemory<byte> cffBytes)
+    {
+        CffSidGidMapper cffSidMapper = new(Document.LoggerFactory);
+
+        if (!cffSidMapper.TryParseNameKeyed(cffBytes, out CffInfo? cffInfo))
+        {
+            _logger.LogWarning("Failed to parse embedded CFF font data for font '{FontName}'", BaseFont);
+            throw new InvalidOperationException("Failed to parse embedded CFF font data.");
+        }
+
+        byte[]? typefaceData = CffOpenTypeWrapper.Wrap(FontDescriptor, cffInfo);
+        SKTypeface typeface = SKTypeface.FromData(SKData.CreateCopy(typefaceData));
+
+        if (typeface == null)
+        {
+            _logger.LogWarning("Failed to create typeface from embedded CFF font data for font '{FontName}'", BaseFont);
+            throw new InvalidOperationException("Failed to create typeface from embedded CFF font data.");
+        }
+
+        return (typeface, cffInfo);
     }
 
     private PdfCidSystemInfo? LoadCidSystemInfo()

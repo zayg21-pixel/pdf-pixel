@@ -37,5 +37,11 @@ public enum PdfFontFileFormat
     /// CFF for CIDFonts (/CIDFontType0C).
     /// </summary>
     [PdfEnumValue("CIDFontType0C")]
-    CIDFontType0C
+    CIDFontType0C,
+
+    /// <summary>
+    /// OpenType font program, either TrueType- or CFF-flavored (/OpenType).
+    /// </summary>
+    [PdfEnumValue("OpenType")]
+    OpenType
 }

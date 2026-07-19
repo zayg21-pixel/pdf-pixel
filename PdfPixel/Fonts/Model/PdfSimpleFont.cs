@@ -111,56 +111,24 @@ public class PdfSimpleFont : PdfSingleByteFont
                 }
                 case PdfFontFileFormat.Type1C:
                 {
-                    CffSidGidMapper cffSidMapper = new(Document.LoggerFactory);
                     ReadOnlyMemory<byte> cffBytes = FontDescriptor.FontFileStream?.DecodeAsMemory() ?? ReadOnlyMemory<byte>.Empty;
+                    return LoadFromCffBytes(cffBytes);
+                }
+                case PdfFontFileFormat.OpenType:
+                {
+                    ReadOnlyMemory<byte> openTypeBytes = FontDescriptor.FontFileStream?.DecodeAsMemory() ?? ReadOnlyMemory<byte>.Empty;
 
-                    if (!cffSidMapper.TryParseNameKeyed(cffBytes, out CffInfo? cffInfo) || cffInfo == null)
+                    if (OpenTypeCffTableReader.TryExtractCffTable(openTypeBytes, out ReadOnlyMemory<byte> cffTableBytes))
                     {
-                        _logger.LogWarning("Failed to parse embedded Type1C font data for font '{FontName}'", BaseFont);
-                        throw new InvalidOperationException("Failed to parse embedded Type1C font data.");
+                        return LoadFromCffBytes(cffTableBytes);
                     }
 
-                    if (Encoding.BaseEncoding == PdfFontEncoding.Unknown)
-                    {
-                        Encoding.UpdateEncoding(cffInfo.Encoding);
-                    }
-
-                    Encoding.MergeCodeToName(cffInfo.CodeToName);
-
-                    byte[]? typefaceData = CffOpenTypeWrapper.Wrap(FontDescriptor, cffInfo);
-                    using SKData skTypefaceData = SKData.CreateCopy(typefaceData);
-                    SKTypeface typeface = SKTypeface.FromData(skTypefaceData);
-
-                    if (typeface == null)
-                    {
-                        _logger.LogWarning("Failed to create typeface from embedded Type1C font data for font '{FontName}'", BaseFont);
-                        throw new InvalidOperationException("Failed to create typeface from embedded Type1C font data.");
-                    }
-
-                    CffByteCodeToGidMapper mapper = new(cffInfo, Encoding);
-
-                    return (typeface, mapper, false);
+                    return LoadFromSfntBytes(openTypeBytes);
                 }
                 case PdfFontFileFormat.TrueType:
                 {
-                    SKTypeface typeface = SKTypeface.FromStream(FontDescriptor.FontFileStream?.DecodeAsStream());
-
-                    if (typeface == null)
-                    {
-                        _logger.LogWarning("Failed to create typeface from embedded TrueType font data for font '{FontName}'", BaseFont);
-                        throw new InvalidOperationException("Failed to create typeface from embedded TrueType font data.");
-                    }
-
-                    SfntFontTables sfntTables = SfntFontTablesParser.GetSfntFontTables(typeface);
-
-                    if ((FontDescriptor.Flags & PdfFontFlags.Symbolic) == 0 && Encoding.BaseEncoding == PdfFontEncoding.Unknown)
-                    {
-                        Encoding.UpdateEncoding(PdfFontEncoding.WinAnsiEncoding);
-                    }
-
-                    SfntByteCodeToGidMapper mapper = new(sfntTables, FontDescriptor.Flags, substituted: false, Encoding);
-
-                    return (typeface, mapper, false);
+                    ReadOnlyMemory<byte> trueTypeBytes = FontDescriptor.FontFileStream?.DecodeAsMemory() ?? ReadOnlyMemory<byte>.Empty;
+                    return LoadFromSfntBytes(trueTypeBytes);
                 }
             }
         }
@@ -191,6 +159,71 @@ public class PdfSimpleFont : PdfSingleByteFont
         }
 
         return (default, default, true);
+    }
+
+    /// <summary>
+    /// Parses raw (unwrapped) CFF font data, rebuilds it into a minimal OpenType container, and loads it as
+    /// the font's typeface. Shared by Type1C and CFF-flavored OpenType FontFile3 data.
+    /// </summary>
+    /// <param name="cffBytes">The raw CFF font program bytes.</param>
+    private (SKTypeface? Typeface, IByteCodeToGidMapper? Mapper, bool IsSubstituted) LoadFromCffBytes(in ReadOnlyMemory<byte> cffBytes)
+    {
+        CffSidGidMapper cffSidMapper = new(Document.LoggerFactory);
+
+        if (!cffSidMapper.TryParseNameKeyed(cffBytes, out CffInfo? cffInfo) || cffInfo == null)
+        {
+            _logger.LogWarning("Failed to parse embedded CFF font data for font '{FontName}'", BaseFont);
+            throw new InvalidOperationException("Failed to parse embedded CFF font data.");
+        }
+
+        if (Encoding.BaseEncoding == PdfFontEncoding.Unknown)
+        {
+            Encoding.UpdateEncoding(cffInfo.Encoding);
+        }
+
+        Encoding.MergeCodeToName(cffInfo.CodeToName);
+
+        byte[]? typefaceData = CffOpenTypeWrapper.Wrap(FontDescriptor, cffInfo);
+        using SKData skTypefaceData = SKData.CreateCopy(typefaceData);
+        SKTypeface typeface = SKTypeface.FromData(skTypefaceData);
+
+        if (typeface == null)
+        {
+            _logger.LogWarning("Failed to create typeface from embedded CFF font data for font '{FontName}'", BaseFont);
+            throw new InvalidOperationException("Failed to create typeface from embedded CFF font data.");
+        }
+
+        CffByteCodeToGidMapper mapper = new(cffInfo, Encoding);
+
+        return (typeface, mapper, false);
+    }
+
+    /// <summary>
+    /// Loads a TrueType- or glyf-flavored OpenType font program directly and builds an sfnt-table-based
+    /// code-to-GID mapper from it.
+    /// </summary>
+    /// <param name="sfntBytes">The raw sfnt font program bytes.</param>
+    private (SKTypeface? Typeface, IByteCodeToGidMapper? Mapper, bool IsSubstituted) LoadFromSfntBytes(in ReadOnlyMemory<byte> sfntBytes)
+    {
+        using SKData skFontData = SKData.CreateCopy(sfntBytes.ToArray());
+        SKTypeface typeface = SKTypeface.FromData(skFontData);
+
+        if (typeface == null)
+        {
+            _logger.LogWarning("Failed to create typeface from embedded sfnt font data for font '{FontName}'", BaseFont);
+            throw new InvalidOperationException("Failed to create typeface from embedded sfnt font data.");
+        }
+
+        SfntFontTables sfntTables = SfntFontTablesParser.GetSfntFontTables(typeface);
+
+        if (FontDescriptor != null && (FontDescriptor.Flags & PdfFontFlags.Symbolic) == 0 && Encoding.BaseEncoding == PdfFontEncoding.Unknown)
+        {
+            Encoding.UpdateEncoding(PdfFontEncoding.WinAnsiEncoding);
+        }
+
+        SfntByteCodeToGidMapper mapper = new(sfntTables, FontDescriptor?.Flags ?? default, substituted: false, Encoding);
+
+        return (typeface, mapper, false);
     }
 
     /// <summary>

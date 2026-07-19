@@ -21,7 +21,7 @@ internal sealed class Program
         string pdfPath = args[0];
 
         // Multiplies the page size before rendering; use a value above 1 for a sharper output image.
-        float scale = 1f;
+        float scale = 4f;
 
         // PdfDocumentReader needs a logger factory for diagnostics during parsing and rendering.
         using ILoggerFactory loggerFactory = LoggerFactory.Create(builder => builder.AddConsole());
