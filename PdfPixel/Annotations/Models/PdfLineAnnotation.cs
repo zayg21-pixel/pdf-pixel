@@ -1,4 +1,5 @@
 using PdfPixel.Annotations.Rendering;
+using PdfPixel.Color;
 using PdfPixel.Commands;
 using PdfPixel.Geometry;
 using PdfPixel.Models;
@@ -101,7 +102,7 @@ public class PdfLineAnnotation : PdfAnnotationBase
 
     internal override bool RenderFallback(IPdfCommandProcessor processor, IPdfPageInternal page, PdfAnnotationVisualStateKind visualStateKind)
     {
-        SKColor lineColor = ResolveColor(page, SKColors.Black);
+        PdfColor lineColor = ResolveColor(page, PdfColors.Black);
         float lineWidth = BorderStyle?.Width ?? 1.0f;
 
         SKPaint linePaint = new()
@@ -109,7 +110,7 @@ public class PdfLineAnnotation : PdfAnnotationBase
             Style = SKPaintStyle.Stroke,
             StrokeWidth = lineWidth,
             StrokeCap = SKStrokeCap.Butt,
-            Color = lineColor
+            Color = lineColor.ToSkiaColor()
         };
 
         BorderStyle?.TryApplyEffect(linePaint, lineColor);
@@ -119,7 +120,7 @@ public class PdfLineAnnotation : PdfAnnotationBase
         linePath.LineTo(EndX, EndY);
         processor.Process(new DrawPathCommand(linePath, linePaint));
 
-        SKColor interiorSKColor = ResolveInteriorColor(page);
+        PdfColor interiorColor = ResolveInteriorColor(page);
 
         if (StartLineEnding != PdfLineEndingStyle.None)
         {
@@ -132,7 +133,7 @@ public class PdfLineAnnotation : PdfAnnotationBase
                 StartLineEnding,
                 lineWidth,
                 lineColor,
-                interiorSKColor);
+                interiorColor);
         }
 
         if (EndLineEnding != PdfLineEndingStyle.None)
@@ -146,7 +147,7 @@ public class PdfLineAnnotation : PdfAnnotationBase
                 EndLineEnding,
                 lineWidth,
                 lineColor,
-                interiorSKColor);
+                interiorColor);
         }
 
         return true;

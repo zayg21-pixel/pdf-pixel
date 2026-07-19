@@ -1,5 +1,4 @@
 using System;
-using SkiaSharp;
 using PdfPixel.Pattern.Model;
 
 namespace PdfPixel.Color.Paint;
@@ -15,7 +14,7 @@ public sealed class PdfPaint
     /// Gets the resolved sRGB color for solid color paints, or a placeholder color for pattern paints.
     /// For uncolored (stencil) patterns this color typically represents the resolved tint in the base color space.
     /// </summary>
-    public SKColor Color { get; }
+    public PdfColor Color { get; }
 
     /// <summary>
     /// Gets the pattern definition when the paint represents a pattern; null for solid color paints.
@@ -27,7 +26,7 @@ public sealed class PdfPaint
     /// </summary>
     public bool IsPattern => Pattern != null;
 
-    private PdfPaint(in SKColor color, PdfPattern? pattern)
+    private PdfPaint(in PdfColor color, PdfPattern? pattern)
     {
         Color = color;
         Pattern = pattern;
@@ -36,12 +35,12 @@ public sealed class PdfPaint
     /// <summary>
     /// Create a solid color paint.
     /// </summary>
-    public static PdfPaint Solid(in SKColor color) => new(color, null);
+    public static PdfPaint Solid(in PdfColor color) => new(color, null);
 
     /// <summary>
     /// Create a pattern paint (colored or uncolored). For uncolored patterns provide tint components.
     /// </summary>
-    public static PdfPaint PatternFill(PdfPattern pattern, in SKColor resolvedTintColor)
+    public static PdfPaint PatternFill(PdfPattern pattern, in PdfColor resolvedTintColor)
     {
         if (pattern == null)
         {

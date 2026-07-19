@@ -4,6 +4,7 @@ using PdfPixel.Parsing;
 using PdfPixel.Rendering;
 using PdfPixel.Annotations.Rendering;
 using PdfPixel.Commands;
+using PdfPixel.Color;
 using SkiaSharp;
 using System;
 using PdfPixel.Geometry;
@@ -385,8 +386,8 @@ public abstract class PdfAnnotationBase
 
             if (bubbleIcon != null)
             {
-                SKColor borderColor = ResolveColor(page, PdfAnnotationGraphics.DefaultBubbleBorderColor);
-                SKColor backgroundColor = ResolveInteriorColor(page, PdfAnnotationGraphics.DefaultBubbleBackgroundColor);
+                PdfColor borderColor = ResolveColor(page, PdfAnnotationGraphics.DefaultBubbleBorderColor);
+                PdfColor backgroundColor = ResolveInteriorColor(page, PdfAnnotationGraphics.DefaultBubbleBackgroundColor);
                 PdfAnnotationGraphics.RenderIcon(processor, bubbleIcon, GetHoverRectangle(page).ToSkRect(), borderColor, backgroundColor);
             }
         }
@@ -483,16 +484,16 @@ public abstract class PdfAnnotationBase
     /// </summary>
     /// <param name="page">The PDF page for color space resolution.</param>
     /// <param name="defaultColor">Default color to use if annotation has no color specified. If null, returns transparent.</param>
-    /// <returns>The resolved SKColor for rendering.</returns>
-    internal SKColor ResolveColor(IPdfPageInternal page, SKColor? defaultColor = null) => PdfAnnotationColorResolver.ResolveColor(Color, page, defaultColor);
+    /// <returns>The resolved color for rendering.</returns>
+    internal PdfColor ResolveColor(IPdfPageInternal page, PdfColor? defaultColor = null) => PdfAnnotationColorResolver.ResolveColor(Color, page, defaultColor);
 
     /// <summary>
     /// Resolves the annotation interior color using proper color space conversion.
     /// </summary>
     /// <param name="page">The PDF page for color space resolution.</param>
     /// <param name="defaultColor">Default color to use if annotation has no interior color specified. If null, returns transparent.</param>
-    /// <returns>The resolved SKColor for rendering.</returns>
-    internal SKColor ResolveInteriorColor(IPdfPageInternal page, SKColor? defaultColor = null) => PdfAnnotationColorResolver.ResolveColor(InteriorColor, page, defaultColor);
+    /// <returns>The resolved color for rendering.</returns>
+    internal PdfColor ResolveInteriorColor(IPdfPageInternal page, PdfColor? defaultColor = null) => PdfAnnotationColorResolver.ResolveColor(InteriorColor, page, defaultColor);
 
     /// <summary>
     /// Returns a string representation of this annotation.

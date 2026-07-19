@@ -1,9 +1,9 @@
 using PdfPixel.Annotations.Rendering;
+using PdfPixel.Color;
 using PdfPixel.Commands;
 using PdfPixel.Geometry;
 using PdfPixel.Models;
 using PdfPixel.Text;
-using SkiaSharp;
 
 namespace PdfPixel.Annotations.Models;
 
@@ -89,8 +89,8 @@ public class PdfTextAnnotation : PdfAnnotationBase
             return false;
         }
 
-        SKColor borderColor = ResolveColor(page, PdfAnnotationGraphics.DefaultBubbleBorderColor);
-        SKColor backgroundColor = ResolveInteriorColor(page, PdfAnnotationGraphics.DefaultBubbleBackgroundColor);
+        PdfColor borderColor = ResolveColor(page, PdfAnnotationGraphics.DefaultBubbleBorderColor);
+        PdfColor backgroundColor = ResolveInteriorColor(page, PdfAnnotationGraphics.DefaultBubbleBackgroundColor);
         PdfAnnotationGraphics.RenderIcon(processor, iconDefinition, GetHoverRectangle(page).ToSkRect(), borderColor, backgroundColor);
         return true;
     }

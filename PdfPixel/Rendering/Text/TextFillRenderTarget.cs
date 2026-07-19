@@ -1,3 +1,4 @@
+using PdfPixel.Color;
 using PdfPixel.Color.Paint;
 using PdfPixel.Commands;
 using PdfPixel.Pattern.Model;
@@ -34,7 +35,7 @@ internal class TextFillRenderTarget : IRenderTarget
 
     public SKRect Bounds => _clipPath?.Bounds ?? SKRect.Empty;
 
-    public SKColor Color => _state.FillPaint.Color;
+    public PdfColor Color => _state.FillPaint.Color;
 
     public void BeforePatternRender(IPdfCommandProcessor processor)
     {

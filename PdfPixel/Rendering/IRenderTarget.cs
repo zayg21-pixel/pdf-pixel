@@ -1,3 +1,4 @@
+using PdfPixel.Color;
 using PdfPixel.Commands;
 using SkiaSharp;
 using System;
@@ -28,7 +29,7 @@ namespace PdfPixel.Rendering
         /// <summary>
         /// Returns color of the render target if applicable.
         /// </summary>
-        SKColor Color { get; }
+        PdfColor Color { get; }
 
         /// <summary>
         /// Called by pattern implementations before they emit their tile/shading commands.

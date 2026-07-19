@@ -1,3 +1,4 @@
+using PdfPixel.Color;
 using PdfPixel.Commands;
 using PdfPixel.Geometry;
 using PdfPixel.Models;
@@ -75,15 +76,15 @@ public class PdfPolygonAnnotation : PdfAnnotationBase
 
         path.Close();
 
-        SKColor interiorSKColor = ResolveInteriorColor(page);
+        PdfColor interiorColor = ResolveInteriorColor(page);
         bool hasStroke = BorderStyle?.Width > 0 && Color?.Length > 0;
 
-        if (interiorSKColor != SKColors.Transparent)
+        if (interiorColor != PdfColors.Transparent)
         {
             SKPaint fillPaint = new()
             {
                 Style = SKPaintStyle.Fill,
-                Color = interiorSKColor
+                Color = interiorColor.ToSkiaColor()
             };
 
             processor.Process(new DrawPathCommand(path, fillPaint));
@@ -91,14 +92,14 @@ public class PdfPolygonAnnotation : PdfAnnotationBase
 
         if (BorderStyle != null && hasStroke)
         {
-            SKColor strokeColor = ResolveColor(page, SKColors.Black);
+            PdfColor strokeColor = ResolveColor(page, PdfColors.Black);
 
             SKPaint strokePaint = new()
             {
                 Style = SKPaintStyle.Stroke,
                 StrokeWidth = BorderStyle.Width,
                 StrokeJoin = SKStrokeJoin.Miter,
-                Color = strokeColor
+                Color = strokeColor.ToSkiaColor()
             };
 
             BorderStyle.TryApplyEffect(strokePaint, strokeColor);

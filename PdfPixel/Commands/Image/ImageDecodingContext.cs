@@ -1,3 +1,4 @@
+using PdfPixel.Color;
 using PdfPixel.Color.ColorSpace;
 using PdfPixel.Color.Transform;
 using PdfPixel.Commands;
@@ -47,7 +48,7 @@ public sealed class ImageDecodingContext
     /// and with explicit compositing overrides. Used for cases such as pattern-layer masking, where the
     /// target image and the desired blend mode and fill colour differ from the original graphics state.
     /// </summary>
-    public ImageDecodingContext(ImageDecodingContext source, PdfImage image, in SKColor fillColor, float fillAlpha, SKBlendMode blendMode)
+    public ImageDecodingContext(ImageDecodingContext source, PdfImage image, in PdfColor fillColor, float fillAlpha, SKBlendMode blendMode)
     {
         if (source == null)
         {
@@ -98,7 +99,7 @@ public sealed class ImageDecodingContext
     /// <summary>
     /// Fill color from the graphics state, used for stencil mask rendering.
     /// </summary>
-    public SKColor FillColor { get; }
+    public PdfColor FillColor { get; }
 
     /// <summary>
     /// Image fill alpha.

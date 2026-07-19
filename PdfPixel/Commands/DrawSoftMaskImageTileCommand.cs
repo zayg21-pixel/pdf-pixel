@@ -39,7 +39,7 @@ public sealed class DrawSoftMaskImageTileCommand : PdfCommand
         SKColor? matte = null;
         if (_context.MatteArray != null && maskTile.Parameters != null)
         {
-            matte = maskTile.Parameters.ColorSpaceConverter.ToSrgb(_context.MatteArray, maskTile.Parameters.RenderingIntent, default);
+            matte = maskTile.Parameters.ColorSpaceConverter.ToSrgb(_context.MatteArray, maskTile.Parameters.RenderingIntent, default).ToSkiaColor();
         }
 
         using SKShader imageShader = ImageBlending.BuildImageShader(imageTile.Image, placement.DeviceSize, placement.Sampling);

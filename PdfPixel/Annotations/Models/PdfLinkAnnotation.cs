@@ -1,3 +1,4 @@
+using PdfPixel.Color;
 using PdfPixel.Commands;
 using PdfPixel.Geometry;
 using PdfPixel.Models;
@@ -74,14 +75,14 @@ public class PdfLinkAnnotation : PdfTextMarkupAnnotation
             return false;
         }
 
-        SKColor color = ResolveColor(page, SKColors.Black);
+        PdfColor color = ResolveColor(page, PdfColors.Black);
         float borderWidth = BorderStyle.Width;
 
         SKPaint paint = new()
         {
             Style = SKPaintStyle.Stroke,
             StrokeWidth = borderWidth,
-            Color = color
+            Color = color.ToSkiaColor()
         };
 
         bool needsNormalDraw = BorderStyle.TryApplyEffect(paint, color);

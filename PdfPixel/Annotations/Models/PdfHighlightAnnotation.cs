@@ -1,3 +1,4 @@
+using PdfPixel.Color;
 using PdfPixel.Commands;
 using PdfPixel.Geometry;
 using PdfPixel.Models;
@@ -31,7 +32,7 @@ public class PdfHighlightAnnotation : PdfTextMarkupAnnotation
             return false;
         }
 
-        SKColor color = ResolveColor(page, new SKColor(255, 255, 0));
+        PdfColor color = ResolveColor(page, PdfColors.Yellow);
 
         foreach (PdfPoint[] quad in quads)
         {
@@ -45,7 +46,7 @@ public class PdfHighlightAnnotation : PdfTextMarkupAnnotation
             SKPaint paint = new()
             {
                 Style = SKPaintStyle.Fill,
-                Color = color,
+                Color = color.ToSkiaColor(),
                 BlendMode = SKBlendMode.Multiply
             };
 

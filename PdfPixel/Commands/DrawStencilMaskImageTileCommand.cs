@@ -17,7 +17,7 @@ public sealed class DrawStencilMaskImageTileCommand : PdfCommand
     internal DrawStencilMaskImageTileCommand(StencilMaskImageExecutionContext context)
     {
         _context = context;
-        SKColor fillColor = _context.DecodingContext.FillColor;
+        SKColor fillColor = _context.DecodingContext.FillColor.ToSkiaColor();
         _colorFilter = ImageBlending.CreateImageMaskColorFilter(in fillColor, _context.InvertMask);
     }
 

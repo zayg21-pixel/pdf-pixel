@@ -1,6 +1,6 @@
 using PdfPixel.Models;
+using PdfPixel.Color;
 using PdfPixel.Color.ColorSpace;
-using SkiaSharp;
 using System;
 
 namespace PdfPixel.Annotations.Rendering;
@@ -16,12 +16,12 @@ internal static class PdfAnnotationColorResolver
     /// <param name="colorComponents">The color component array from the annotation.</param>
     /// <param name="page">The PDF page for color space resolution.</param>
     /// <param name="defaultColor">Default color to use if annotation has no color specified. If null, returns transparent.</param>
-    /// <returns>The resolved SKColor for rendering.</returns>
-    public static SKColor ResolveColor(float[]? colorComponents, IPdfPageInternal page, SKColor? defaultColor = null)
+    /// <returns>The resolved color for rendering.</returns>
+    public static PdfColor ResolveColor(float[]? colorComponents, IPdfPageInternal page, PdfColor? defaultColor = null)
     {
         if (colorComponents == null || colorComponents.Length == 0)
         {
-            return defaultColor ?? SKColors.Transparent;
+            return defaultColor ?? PdfColors.Transparent;
         }
 
         PdfColorSpaceConverter? converter = page.Cache.ColorSpace.ResolveDeviceConverter(colorComponents.Length);

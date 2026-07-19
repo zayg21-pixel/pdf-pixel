@@ -1,4 +1,5 @@
 using PdfPixel.Annotations.Models;
+using PdfPixel.Color;
 using PdfPixel.Commands;
 using PdfPixel.Geometry;
 using PdfPixel.Resources;
@@ -25,12 +26,12 @@ internal static class PdfAnnotationGraphics
     /// <summary>
     /// Default border color used when rendering a bubble with no annotation color defined.
     /// </summary>
-    internal static readonly SKColor DefaultBubbleBorderColor = new(180, 140, 60);
+    internal static readonly PdfColor DefaultBubbleBorderColor = new(180f / 255f, 140f / 255f, 60f / 255f);
 
     /// <summary>
     /// Default background color used when rendering a bubble with no annotation interior color defined.
     /// </summary>
-    internal static readonly SKColor DefaultBubbleBackgroundColor = new(255, 255, 235);
+    internal static readonly PdfColor DefaultBubbleBackgroundColor = new(255f / 255f, 255f / 255f, 235f / 255f);
 
     private static readonly Dictionary<(string Name, PdfAnnotationVisualStateKind State), PdfAnnotationIconDefinition> Icons = [];
 
@@ -104,8 +105,8 @@ internal static class PdfAnnotationGraphics
         IPdfCommandProcessor processor,
         PdfAnnotationIconDefinition icon,
         SKRect rect,
-        in SKColor color,
-        SKColor? interiorColor)
+        in PdfColor color,
+        PdfColor? interiorColor)
     {
         float scale = Math.Min(rect.Width / icon.Width, rect.Height / icon.Height);
         float offsetX = rect.Left + ((rect.Width - (icon.Width * scale)) / 2f);
@@ -154,8 +155,8 @@ internal static class PdfAnnotationGraphics
         in PdfPoint adjacent,
         PdfLineEndingStyle style,
         float lineWidth,
-        in SKColor lineColor,
-        SKColor? interiorColor)
+        in PdfColor lineColor,
+        PdfColor? interiorColor)
     {
         PdfAnnotationLineEndingRenderer.DrawLineEnding(
             processor,
@@ -172,12 +173,12 @@ internal static class PdfAnnotationGraphics
     private static void RenderIconPath(
         IPdfCommandProcessor processor,
         PdfAnnotationIconPath iconPath,
-        in SKColor color,
-        SKColor? interiorColor)
+        in PdfColor color,
+        PdfColor? interiorColor)
     {
         if (iconPath.FillColorType != PdfAnnotationIconColorType.None)
         {
-            SKColor? fillColor = iconPath.FillColorType switch
+            PdfColor? fillColor = iconPath.FillColorType switch
             {
                 PdfAnnotationIconColorType.Interior => interiorColor,
                 PdfAnnotationIconColorType.Override => iconPath.FillColor,
@@ -189,7 +190,7 @@ internal static class PdfAnnotationGraphics
                 SKPaint fillPaint = new()
                 {
                     Style = SKPaintStyle.Fill,
-                    Color = ApplyOpacity(fillColor.Value, iconPath.FillOpacity)
+                    Color = ApplyOpacity(fillColor.Value, iconPath.FillOpacity).ToSkiaColor()
                 };
 
                 processor.Process(new DrawPathCommand(new SKPath(iconPath.Path), fillPaint));
@@ -198,7 +199,7 @@ internal static class PdfAnnotationGraphics
 
         if (iconPath.StrokeColorType != PdfAnnotationIconColorType.None)
         {
-            SKColor? strokeColor = iconPath.StrokeColorType switch
+            PdfColor? strokeColor = iconPath.StrokeColorType switch
             {
                 PdfAnnotationIconColorType.Interior => interiorColor,
                 PdfAnnotationIconColorType.Override => iconPath.StrokeColor,
@@ -213,7 +214,7 @@ internal static class PdfAnnotationGraphics
                     StrokeWidth = iconPath.StrokeWidth,
                     StrokeCap = iconPath.StrokeCap,
                     StrokeJoin = iconPath.StrokeJoin,
-                    Color = ApplyOpacity(strokeColor.Value, iconPath.StrokeOpacity)
+                    Color = ApplyOpacity(strokeColor.Value, iconPath.StrokeOpacity).ToSkiaColor()
                 };
 
                 processor.Process(new DrawPathCommand(new SKPath(iconPath.Path), strokePaint));
@@ -221,6 +222,6 @@ internal static class PdfAnnotationGraphics
         }
     }
 
-    private static SKColor ApplyOpacity(in SKColor color, float opacity)
-        => (opacity >= 1f) ? color : color.WithAlpha((byte)(color.Alpha * opacity));
+    private static PdfColor ApplyOpacity(in PdfColor color, float opacity)
+        => (opacity >= 1f) ? color : color.WithAlpha(color.Alpha * opacity);
 }

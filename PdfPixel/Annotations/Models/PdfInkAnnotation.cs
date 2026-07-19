@@ -1,3 +1,4 @@
+using PdfPixel.Color;
 using PdfPixel.Commands;
 using PdfPixel.Geometry;
 using PdfPixel.Models;
@@ -84,7 +85,7 @@ public class PdfInkAnnotation : PdfAnnotationBase
         }
 
         float lineWidth = BorderStyle?.Width ?? 1.0f;
-        SKColor inkColor = ResolveColor(page, SKColors.Black);
+        PdfColor inkColor = ResolveColor(page, PdfColors.Black);
 
         // Render each path in the parsed ink list
         foreach (PdfPoint[] points in InkList)
@@ -103,7 +104,7 @@ public class PdfInkAnnotation : PdfAnnotationBase
                 StrokeWidth = lineWidth,
                 StrokeCap = SKStrokeCap.Round,
                 StrokeJoin = SKStrokeJoin.Round,
-                Color = inkColor
+                Color = inkColor.ToSkiaColor()
             };
 
             BorderStyle?.TryApplyEffect(paint, inkColor);

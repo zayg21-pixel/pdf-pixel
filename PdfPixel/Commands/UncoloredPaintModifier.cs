@@ -1,3 +1,4 @@
+using PdfPixel.Color;
 using SkiaSharp;
 using System;
 
@@ -16,15 +17,15 @@ public sealed class UncoloredPaintModifier
     /// Creates a modifier that tints all paint with the specified color using SrcIn blending.
     /// </summary>
     /// <param name="color">The tint color to apply.</param>
-    public UncoloredPaintModifier(in SKColor color)
+    public UncoloredPaintModifier(in PdfColor color)
     {
         // PDF uncolored semantics (concise):
         // final RGB = paint.rgb * paint.alpha * srcA
         // final A   = paint.alpha * srcA
-        float pr = color.Red / 255f;
-        float pg = color.Green / 255f;
-        float pb = color.Blue / 255f;
-        float pa = color.Alpha / 255f;
+        float pr = color.Red;
+        float pg = color.Green;
+        float pb = color.Blue;
+        float pa = color.Alpha;
 
         float rMul = pr * pa;
         float gMul = pg * pa;

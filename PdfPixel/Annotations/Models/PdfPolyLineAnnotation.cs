@@ -1,4 +1,5 @@
 using PdfPixel.Annotations.Rendering;
+using PdfPixel.Color;
 using PdfPixel.Commands;
 using PdfPixel.Geometry;
 using PdfPixel.Models;
@@ -84,7 +85,7 @@ public class PdfPolyLineAnnotation : PdfAnnotationBase
             return false;
         }
 
-        SKColor lineColor = ResolveColor(page, SKColors.Black);
+        PdfColor lineColor = ResolveColor(page, PdfColors.Black);
         float lineWidth = BorderStyle?.Width ?? 1.0f;
 
         PdfPath path = new();
@@ -102,7 +103,7 @@ public class PdfPolyLineAnnotation : PdfAnnotationBase
             StrokeWidth = lineWidth,
             StrokeJoin = SKStrokeJoin.Miter,
             StrokeCap = SKStrokeCap.Butt,
-            Color = lineColor
+            Color = lineColor.ToSkiaColor()
         };
 
         BorderStyle?.TryApplyEffect(linePaint, lineColor);
@@ -110,7 +111,7 @@ public class PdfPolyLineAnnotation : PdfAnnotationBase
 
         processor.Process(new DrawPathCommand(path, linePaint));
 
-        SKColor interiorSKColor = ResolveInteriorColor(page);
+        PdfColor interiorColor = ResolveInteriorColor(page);
 
         if (StartLineEnding != PdfLineEndingStyle.None && Vertices.Length >= 2)
         {
@@ -123,7 +124,7 @@ public class PdfPolyLineAnnotation : PdfAnnotationBase
                 StartLineEnding,
                 lineWidth,
                 lineColor,
-                interiorSKColor);
+                interiorColor);
         }
 
         if (EndLineEnding != PdfLineEndingStyle.None && Vertices.Length >= 2)
@@ -137,7 +138,7 @@ public class PdfPolyLineAnnotation : PdfAnnotationBase
                 EndLineEnding,
                 lineWidth,
                 lineColor,
-                interiorSKColor);
+                interiorColor);
         }
 
         return true;

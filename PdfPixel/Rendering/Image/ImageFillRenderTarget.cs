@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging;
+using PdfPixel.Color;
 using PdfPixel.Color.Paint;
 using PdfPixel.Commands;
 using PdfPixel.Commands.Image;
@@ -34,7 +35,7 @@ internal class ImageFillRenderTarget : IRenderTarget
     // The image occupies the unit square in current CTM space.
     public SKRect Bounds => SKRect.Create(0, 0, 1, 1);
 
-    public SKColor Color => _state.FillPaint.Color;
+    public PdfColor Color => _state.FillPaint.Color;
 
     public void BeforePatternRender(IPdfCommandProcessor processor)
     {
@@ -51,7 +52,7 @@ internal class ImageFillRenderTarget : IRenderTarget
     {
         if (_image.AlphaMode == PdfImageAlphaMode.StencilMask)
         {
-            ImageDecodingContext maskContext = new(_context, _image, SKColors.White, 1f, SKBlendMode.DstIn);
+            ImageDecodingContext maskContext = new(_context, _image, PdfColors.White, 1f, SKBlendMode.DstIn);
             processor.Process(SaveStateCommand.Instance);
             ProcessTileCommands(processor, _image, maskContext);
             processor.Process(RestoreStateCommand.Instance);
@@ -106,11 +107,11 @@ internal class ImageFillRenderTarget : IRenderTarget
                     throw new ArgumentException($"Stencil mask not defined for image {image.SourceReference}.");
                 }
 
-                ImageDecodingContext imageLayerContext = new(context, image, SKColors.White, 1f, SKBlendMode.SrcOver);
+                ImageDecodingContext imageLayerContext = new(context, image, PdfColors.White, 1f, SKBlendMode.SrcOver);
                 NormalImageExecutionContext imageCtx = NormalImageExecutionContext.Create(image, imageLayerContext, _loggerFactory);
                 processor.Process(new InitializeTileCacheCommand(imageCtx.TileCache, imageCtx.ImageSize));
 
-                ImageDecodingContext maskContext = new(context, stencilMask, SKColors.White, 1f, SKBlendMode.DstIn);
+                ImageDecodingContext maskContext = new(context, stencilMask, PdfColors.White, 1f, SKBlendMode.DstIn);
                 StencilMaskImageExecutionContext maskCtx = StencilMaskImageExecutionContext.Create(stencilMask, maskContext, _loggerFactory);
                 processor.Process(new InitializeTileCacheCommand(maskCtx.TileCache, maskCtx.ImageSize));
 

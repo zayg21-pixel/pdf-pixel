@@ -1,3 +1,4 @@
+using PdfPixel.Color;
 using SkiaSharp;
 using System;
 
@@ -14,9 +15,9 @@ internal sealed class PdfAnnotationIconPath : IDisposable
     public PdfAnnotationIconPath(
         SKPath path,
         PdfAnnotationIconColorType fillColorType,
-        in SKColor fillColor,
+        in PdfColor fillColor,
         PdfAnnotationIconColorType strokeColorType,
-        in SKColor strokeColor,
+        in PdfColor strokeColor,
         float strokeWidth,
         SKStrokeCap strokeCap,
         SKStrokeJoin strokeJoin,
@@ -49,7 +50,7 @@ internal sealed class PdfAnnotationIconPath : IDisposable
     /// <summary>
     /// Gets the fill color used when <see cref="FillColorType"/> is <see cref="PdfAnnotationIconColorType.Override"/>.
     /// </summary>
-    public SKColor FillColor { get; }
+    public PdfColor FillColor { get; }
 
     /// <summary>
     /// Gets how the stroke color is sourced for this path.
@@ -60,7 +61,7 @@ internal sealed class PdfAnnotationIconPath : IDisposable
     /// <summary>
     /// Gets the stroke color used when <see cref="StrokeColorType"/> is <see cref="PdfAnnotationIconColorType.Override"/>.
     /// </summary>
-    public SKColor StrokeColor { get; }
+    public PdfColor StrokeColor { get; }
 
     /// <summary>
     /// Gets the stroke width in icon coordinate space.

@@ -1,3 +1,4 @@
+using PdfPixel.Color;
 using PdfPixel.Models;
 using PdfPixel.Rendering.Operators;
 using PdfPixel.Text;
@@ -105,7 +106,7 @@ public sealed class PdfBorderStyle
     /// <param name="paint">The SKPaint to apply the effect to.</param>
     /// <param name="borderColor">The base border color for calculating shadow colors.</param>
     /// <returns>True if an effect was applied and normal drawing should proceed, false if special geometry handling is needed (Underline).</returns>
-    public bool TryApplyEffect(SKPaint paint, in SKColor borderColor)
+    public bool TryApplyEffect(SKPaint paint, in PdfColor borderColor)
     {
         if (paint == null)
         {

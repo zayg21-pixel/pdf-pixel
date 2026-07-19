@@ -1,4 +1,5 @@
 using PdfPixel.Annotations.Models;
+using PdfPixel.Color;
 using SkiaSharp;
 using System;
 using System.Collections.Generic;
@@ -70,8 +71,8 @@ internal static class PdfAnnotationIconParser
         string pathData = RequireAttribute(pathElement, "d");
         SKPath path = SKPath.ParseSvgPathData(pathData);
 
-        (PdfAnnotationIconColorType fillColorType, SKColor fillColor) = ParseColorValue(pathElement.Attribute("fill")?.Value);
-        (PdfAnnotationIconColorType strokeColorType, SKColor strokeColor) = ParseColorValue(pathElement.Attribute("stroke")?.Value);
+        (PdfAnnotationIconColorType fillColorType, PdfColor fillColor) = ParseColorValue(pathElement.Attribute("fill")?.Value);
+        (PdfAnnotationIconColorType strokeColorType, PdfColor strokeColor) = ParseColorValue(pathElement.Attribute("stroke")?.Value);
 
         float strokeWidth = ParseFloatValue(pathElement.Attribute("stroke-width")?.Value ?? "1");
         SKStrokeCap strokeCap = ParseStrokeCap(pathElement.Attribute("stroke-linecap")?.Value ?? "butt");
@@ -84,24 +85,34 @@ internal static class PdfAnnotationIconParser
         return new PdfAnnotationIconPath(path, fillColorType, fillColor, strokeColorType, strokeColor, strokeWidth, strokeCap, strokeJoin, fillOpacity, strokeOpacity);
     }
 
-    private static (PdfAnnotationIconColorType ColorType, SKColor Color) ParseColorValue(string? value)
+    private static (PdfAnnotationIconColorType ColorType, PdfColor Color) ParseColorValue(string? value)
     {
         if (string.IsNullOrEmpty(value) || string.Equals(value, NoneValue, StringComparison.OrdinalIgnoreCase))
         {
-            return (PdfAnnotationIconColorType.None, SKColors.Transparent);
+            return (PdfAnnotationIconColorType.None, PdfColors.Transparent);
         }
 
         if (string.Equals(value, "interior", StringComparison.OrdinalIgnoreCase))
         {
-            return (PdfAnnotationIconColorType.Interior, SKColors.Transparent);
+            return (PdfAnnotationIconColorType.Interior, PdfColors.Transparent);
         }
 
         if (string.Equals(value, "exterior", StringComparison.OrdinalIgnoreCase))
         {
-            return (PdfAnnotationIconColorType.Exterior, SKColors.Transparent);
+            return (PdfAnnotationIconColorType.Exterior, PdfColors.Transparent);
         }
 
-        return (PdfAnnotationIconColorType.Override, SKColor.Parse(value));
+        return (PdfAnnotationIconColorType.Override, ParseHexColor(value));
+    }
+
+    private static PdfColor ParseHexColor(string value)
+    {
+        string hex = value.TrimStart('#');
+        var red = byte.Parse(hex.Substring(0, 2), NumberStyles.HexNumber, CultureInfo.InvariantCulture);
+        var green = byte.Parse(hex.Substring(2, 2), NumberStyles.HexNumber, CultureInfo.InvariantCulture);
+        var blue = byte.Parse(hex.Substring(4, 2), NumberStyles.HexNumber, CultureInfo.InvariantCulture);
+
+        return new PdfColor(red / 255f, green / 255f, blue / 255f);
     }
 
     private static SKMatrix ParseViewBox(string value, float width, float height)

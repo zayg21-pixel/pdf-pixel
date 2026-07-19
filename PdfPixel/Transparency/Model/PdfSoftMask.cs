@@ -1,7 +1,7 @@
+using PdfPixel.Color;
 using PdfPixel.Color.ColorSpace;
 using PdfPixel.Color.Transform;
 using PdfPixel.Forms;
-using SkiaSharp;
 
 namespace PdfPixel.Transparency.Model;
 
@@ -33,25 +33,25 @@ public class PdfSoftMask
     public TransferFunctionTransform? TransferFunction { get; set; }
 
     /// <summary>
-    /// Retrieves the background color as an SKColor, converting it to sRGB if necessary.
+    /// Retrieves the background color, converting it to sRGB if necessary.
     /// </summary>
     /// <param name="intent">Current intent.</param>
     /// <param name="postTransform">Post color transform (if defined).</param>
-    /// <returns>SKColor instance.</returns>
-    public SKColor GetBackgroundColor(PdfRenderingIntent intent, IColorTransform? postTransform)
+    /// <returns>Background color.</returns>
+    public PdfColor GetBackgroundColor(PdfRenderingIntent intent, IColorTransform? postTransform)
     {
         if (MaskForm == null)
         {
-            return SKColors.Black;
+            return PdfColors.Black;
         }
 
         if (BackgroundColorComponents != null)
         {
-            return MaskForm.TransparencyGroup?.ColorSpaceConverter?.ToSrgb(BackgroundColorComponents, intent, postTransform) ?? SKColors.Black;
+            return MaskForm.TransparencyGroup?.ColorSpaceConverter?.ToSrgb(BackgroundColorComponents, intent, postTransform) ?? PdfColors.Black;
         }
         else
         {
-            return SKColors.Black;
+            return PdfColors.Black;
         }
     }
 }

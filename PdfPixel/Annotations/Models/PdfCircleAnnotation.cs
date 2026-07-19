@@ -1,3 +1,4 @@
+using PdfPixel.Color;
 using PdfPixel.Commands;
 using PdfPixel.Geometry;
 using PdfPixel.Models;
@@ -46,17 +47,17 @@ public class PdfCircleAnnotation : PdfAnnotationBase
     {
         float width = ContentRectangle.Width;
         float height = ContentRectangle.Height;
-        SKColor interiorSKColor = ResolveInteriorColor(page);
+        PdfColor interiorColor = ResolveInteriorColor(page);
 
         float centerX = ContentRectangle.Left + (width / 2);
         float centerY = ContentRectangle.Top + (height / 2);
 
-        if (interiorSKColor != SKColors.Transparent)
+        if (interiorColor != PdfColors.Transparent)
         {
             SKPaint fillPaint = new()
             {
                 Style = SKPaintStyle.Fill,
-                Color = interiorSKColor
+                Color = interiorColor.ToSkiaColor()
             };
 
             PdfPath fillPath = new();
@@ -67,13 +68,13 @@ public class PdfCircleAnnotation : PdfAnnotationBase
         if (BorderStyle?.Width > 0 && Color?.Length > 0)
         {
             float borderWidth = BorderStyle.Width;
-            SKColor strokeColor = ResolveColor(page, SKColors.Black);
+            PdfColor strokeColor = ResolveColor(page, PdfColors.Black);
 
             SKPaint strokePaint = new()
             {
                 Style = SKPaintStyle.Stroke,
                 StrokeWidth = borderWidth,
-                Color = strokeColor
+                Color = strokeColor.ToSkiaColor()
             };
 
             BorderStyle.TryApplyEffect(strokePaint, strokeColor);

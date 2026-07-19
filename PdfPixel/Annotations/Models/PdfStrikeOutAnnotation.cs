@@ -1,3 +1,4 @@
+using PdfPixel.Color;
 using PdfPixel.Commands;
 using PdfPixel.Geometry;
 using PdfPixel.Models;
@@ -31,7 +32,7 @@ public class PdfStrikeOutAnnotation : PdfTextMarkupAnnotation
             return false;
         }
 
-        SKColor color = ResolveColor(page, SKColors.Red);
+        PdfColor color = ResolveColor(page, PdfColors.Red);
 
         foreach (PdfPoint[] quad in quads)
         {
@@ -44,7 +45,7 @@ public class PdfStrikeOutAnnotation : PdfTextMarkupAnnotation
             {
                 Style = SKPaintStyle.Stroke,
                 StrokeWidth = 1.0f,
-                Color = color
+                Color = color.ToSkiaColor()
             };
 
             PdfPath linePath = new();

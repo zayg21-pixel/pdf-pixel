@@ -1,3 +1,4 @@
+using PdfPixel.Color;
 using PdfPixel.Color.ColorSpace;
 using PdfPixel.Color.Paint;
 using PdfPixel.Color.Sampling;
@@ -16,7 +17,6 @@ namespace PdfPixel.Rendering.State;
 
 /// <summary>
 /// Graphics state for PDF rendering - corresponds to the PDF graphics state stack (q/Q operators).
-/// NOTE: Keep property comments in sync with PDF spec sections for easier maintenance.
 /// </summary>
 public class PdfGraphicsState
 {
@@ -80,12 +80,12 @@ public class PdfGraphicsState
     /// <summary>
     /// Current stroking paint (solid color or pattern).
     /// </summary>
-    public PdfPaint StrokePaint { get; set; } = PdfPaint.Solid(SKColors.Black);
+    public PdfPaint StrokePaint { get; set; } = PdfPaint.Solid(PdfColors.Black);
 
     /// <summary>
     /// Current non-stroking (fill) paint (solid color or pattern).
     /// </summary>
-    public PdfPaint FillPaint { get; set; } = PdfPaint.Solid(SKColors.Black);
+    public PdfPaint FillPaint { get; set; } = PdfPaint.Solid(PdfColors.Black);
 
     /// <summary>
     /// Gets the ColorTransformSampler for fill operations, cached and invalidated as needed.

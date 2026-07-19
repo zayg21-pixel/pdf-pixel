@@ -3,6 +3,7 @@ using SkiaSharp;
 using Microsoft.Extensions.Logging;
 using PdfPixel.Commands;
 using PdfPixel.Shading.Model;
+using PdfPixel.Color;
 using PdfPixel.Color.Paint;
 using PdfPixel.Rendering.State;
 using PdfPixel.Transparency.Utilities;
@@ -75,7 +76,7 @@ public class ShadingRenderer : IShadingRenderer
         if (shading.Background != null && shading.BBox.HasValue)
         {
             PdfColorSpaceConverter colorSpace = state.Page.Cache.ColorSpace.ResolveByObject(shading.ColorSpaceObject) ?? DeviceRgbConverter.Instance;
-            SKColor backgroundColor = colorSpace.ToSrgb(shading.Background, state.RenderingIntent, state.FullTransferFunction);
+            PdfColor backgroundColor = colorSpace.ToSrgb(shading.Background, state.RenderingIntent, state.FullTransferFunction);
 
             SKPaint backgroundPaint = PdfPaintFactory.CreateBackgroundPaint(backgroundColor);
 

@@ -1,3 +1,4 @@
+using PdfPixel.Color;
 using PdfPixel.Commands;
 using PdfPixel.Geometry;
 using PdfPixel.Models;
@@ -44,14 +45,14 @@ public class PdfSquareAnnotation : PdfAnnotationBase
 
     internal override bool RenderFallback(IPdfCommandProcessor processor, IPdfPageInternal page, PdfAnnotationVisualStateKind visualStateKind)
     {
-        SKColor interiorSKColor = ResolveInteriorColor(page);
+        PdfColor interiorColor = ResolveInteriorColor(page);
 
-        if (interiorSKColor != SKColors.Transparent)
+        if (interiorColor != PdfColors.Transparent)
         {
             SKPaint fillPaint = new()
             {
                 Style = SKPaintStyle.Fill,
-                Color = interiorSKColor
+                Color = interiorColor.ToSkiaColor()
             };
 
             PdfPath fillPath = new();
@@ -61,13 +62,13 @@ public class PdfSquareAnnotation : PdfAnnotationBase
 
         if (BorderStyle?.Width > 0 && Color?.Length > 0)
         {
-            SKColor strokeColor = ResolveColor(page, SKColors.Black);
+            PdfColor strokeColor = ResolveColor(page, PdfColors.Black);
 
             SKPaint strokePaint = new()
             {
                 Style = SKPaintStyle.Stroke,
                 StrokeWidth = BorderStyle.Width,
-                Color = strokeColor
+                Color = strokeColor.ToSkiaColor()
             };
 
             BorderStyle.TryApplyEffect(strokePaint, strokeColor);

@@ -1,3 +1,4 @@
+using PdfPixel.Color;
 using PdfPixel.Commands;
 using PdfPixel.Geometry;
 using PdfPixel.Models;
@@ -30,7 +31,7 @@ public class PdfUnderlineAnnotation : PdfTextMarkupAnnotation
             return false;
         }
 
-        SKColor color = ResolveColor(page, SKColors.Black);
+        PdfColor color = ResolveColor(page, PdfColors.Black);
 
         foreach (PdfPoint[] quad in quads)
         {
@@ -43,7 +44,7 @@ public class PdfUnderlineAnnotation : PdfTextMarkupAnnotation
             {
                 Style = SKPaintStyle.Stroke,
                 StrokeWidth = 1.0f,
-                Color = color
+                Color = color.ToSkiaColor()
             };
 
             PdfPath linePath = new();

@@ -1,3 +1,4 @@
+using PdfPixel.Color;
 using PdfPixel.Commands;
 using PdfPixel.Fonts.Management;
 using PdfPixel.Geometry;
@@ -41,9 +42,9 @@ public class PdfStampAnnotation : PdfAnnotationBase
 
     internal override bool RenderFallback(IPdfCommandProcessor processor, IPdfPageInternal page, PdfAnnotationVisualStateKind visualStateKind)
     {
-        SKColor stampColor = ResolveColor(page, new SKColor(180, 0, 0));
+        PdfColor stampColor = ResolveColor(page, new PdfColor(180f / 255f, 0f, 0f));
         float opacity = (visualStateKind == PdfAnnotationVisualStateKind.Rollover) ? 0.75f : 1.0f;
-        SKColor color = stampColor.WithAlpha((byte)(stampColor.Alpha * opacity));
+        PdfColor color = stampColor.WithAlpha(stampColor.Alpha * opacity);
 
         float borderWidth = (BorderStyle?.Width > 0) ? BorderStyle.Width : BorderWidthDefault;
         float cornerRadius = Math.Min(Rectangle.Width, Rectangle.Height) * CornerRadiusFraction;
@@ -65,7 +66,7 @@ public class PdfStampAnnotation : PdfAnnotationBase
         in PdfRectangle borderRect,
         float cornerRadius,
         float borderWidth,
-        in SKColor color)
+        in PdfColor color)
     {
         float shadowOffset = borderWidth * 0.5f;
         float shadowSigma = borderWidth * 0.3f;
@@ -74,7 +75,7 @@ public class PdfStampAnnotation : PdfAnnotationBase
         {
             Style = SKPaintStyle.Stroke,
             StrokeWidth = borderWidth,
-            Color = color,
+            Color = color.ToSkiaColor(),
             ImageFilter = SKImageFilter.CreateDropShadow(shadowOffset, -shadowOffset, shadowSigma, shadowSigma, SKColors.Black.WithAlpha(ShadowAlpha))
         };
 
@@ -83,7 +84,7 @@ public class PdfStampAnnotation : PdfAnnotationBase
         processor.Process(new DrawPathCommand(borderPath, borderPaint));
     }
 
-    private void DrawLabel(IPdfCommandProcessor processor, IPdfPageInternal page, string labelText, in SKColor color)
+    private void DrawLabel(IPdfCommandProcessor processor, IPdfPageInternal page, string labelText, in PdfColor color)
     {
         var substitutionInfo = PdfSubstitutionInfo.Parse(PdfString.FromString("Courier-Bold"), null);
         SKTypeface typeface = page.Document.FontSubstitutor.SubstituteTypeface(substitutionInfo, labelText, null);
@@ -122,7 +123,7 @@ public class PdfStampAnnotation : PdfAnnotationBase
         SKPaint textPaint = new()
         {
             Style = SKPaintStyle.Fill,
-            Color = color,
+            Color = color.ToSkiaColor(),
             ImageFilter = SKImageFilter.CreateDropShadow(shadowOffset, shadowOffset, shadowSigma, shadowSigma, SKColors.Black.WithAlpha(ShadowAlpha))
         };
 

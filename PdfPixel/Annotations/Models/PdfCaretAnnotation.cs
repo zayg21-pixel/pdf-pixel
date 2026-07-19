@@ -1,9 +1,9 @@
 using PdfPixel.Annotations.Rendering;
+using PdfPixel.Color;
 using PdfPixel.Commands;
 using PdfPixel.Geometry;
 using PdfPixel.Models;
 using PdfPixel.Text;
-using SkiaSharp;
 
 namespace PdfPixel.Annotations.Models;
 
@@ -54,7 +54,7 @@ public class PdfCaretAnnotation : PdfAnnotationBase
             return false;
         }
 
-        SKColor color = ResolveColor(page, SKColors.DarkBlue);
+        PdfColor color = ResolveColor(page, PdfColors.DarkBlue);
         PdfAnnotationGraphics.RenderIcon(processor, icon, MarkRectangle.ToSkRect(), color, null);
         return true;
     }

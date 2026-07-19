@@ -1,3 +1,4 @@
+using PdfPixel.Color;
 using PdfPixel.Color.Paint;
 using PdfPixel.Commands;
 using PdfPixel.Pattern.Model;
@@ -28,7 +29,7 @@ internal class PathFillRenderTarget : IRenderTarget
 
     public SKRect Bounds => _path.Bounds;
 
-    public SKColor Color => _state.FillPaint.Color;
+    public PdfColor Color => _state.FillPaint.Color;
 
     public void BeforePatternRender(IPdfCommandProcessor processor)
     {

@@ -56,7 +56,7 @@ internal static class PdfPaintFactory
     {
         SKPaint paint = CreateBasePaint(state);
         paint.Style = SKPaintStyle.Stroke;
-        paint.Color = ApplyAlpha(state.StrokePaint.Color, state.StrokeAlpha);
+        paint.Color = ApplyAlpha(state.StrokePaint.Color, state.StrokeAlpha).ToSkiaColor();
 
         ApplyStrokeStyling(paint, state);
 
@@ -72,7 +72,7 @@ internal static class PdfPaintFactory
         SKPaint paint = CreateBasePaint(state);
         paint.Style = SKPaintStyle.Fill;
 
-        paint.Color = ApplyAlpha(state.FillPaint.Color, state.FillAlpha);
+        paint.Color = ApplyAlpha(state.FillPaint.Color, state.FillAlpha).ToSkiaColor();
 
         return paint;
     }
@@ -102,12 +102,12 @@ internal static class PdfPaintFactory
     /// Antialiasing is deferred to command Execute time via <see cref="PdfPixel.Commands.PdfCommandExecutionContext"/>.
     /// </summary>
     /// <param name="background">Background color.</param>
-    public static SKPaint CreateBackgroundPaint(in SKColor background)
+    public static SKPaint CreateBackgroundPaint(in PdfColor background)
     {
         return new()
         {
             Style = SKPaintStyle.Fill,
-            Color = background
+            Color = background.ToSkiaColor()
         };
     }
 
@@ -182,4 +182,10 @@ internal static class PdfPaintFactory
 
         return color.WithAlpha(alphaBytes);
     }
+
+    /// <summary>
+    /// Applies the specified alpha (clamped to [0, 1]) to the color's alpha channel.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static PdfColor ApplyAlpha(in PdfColor color, float alpha) => color.WithAlpha(Math.Max(0f, Math.Min(1f, alpha)));
 }
