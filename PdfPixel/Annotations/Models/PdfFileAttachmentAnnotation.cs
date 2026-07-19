@@ -87,7 +87,7 @@ public class PdfFileAttachmentAnnotation : PdfAnnotationBase
         }
 
         SKColor color = ResolveColor(page, SKColors.DarkBlue);
-        PdfAnnotationGraphics.RenderIcon(processor, iconDefinition, Rectangle, color, null);
+        PdfAnnotationGraphics.RenderIcon(processor, iconDefinition, Rectangle.ToSkRect(), color, null);
         return true;
     }
 

@@ -32,7 +32,7 @@ public abstract class PdfAnnotationBase
         Subtype = subtype;
 
         // Initialize all properties in constructor to avoid re-parsing
-        Rectangle = PdfLocationUtilities.CreateBBox(annotationObject.Dictionary.GetArray(PdfTokens.RectKey)) ?? SKRect.Empty;
+        Rectangle = PdfRectangle.FromArray(annotationObject.Dictionary.GetArray(PdfTokens.RectKey)) ?? PdfRectangle.Empty;
         RichContents = annotationObject.Dictionary.GetString(PdfTokens.RichContentsKey);
 
         PdfString contents = annotationObject.Dictionary.GetString(PdfTokens.ContentsKey);
@@ -88,7 +88,7 @@ public abstract class PdfAnnotationBase
     /// The rectangle is specified in default user space coordinates and
     /// represents the annotation's bounding box.
     /// </remarks>
-    public virtual SKRect Rectangle { get; }
+    public virtual PdfRectangle Rectangle { get; }
 
     /// <summary>
     /// Starting point of actual content.
@@ -299,7 +299,7 @@ public abstract class PdfAnnotationBase
 
         SKRect hoverRect = ShouldDisplayBubble
             ? SKRect.Create(ContentStart.X - PdfAnnotationGraphics.DefaultBubbleSize, ContentStart.Y, PdfAnnotationGraphics.DefaultBubbleSize, PdfAnnotationGraphics.DefaultBubbleSize)
-            : Rectangle;
+            : Rectangle.ToSkRect();
 
         if (hoverRect.Width <= 0 || hoverRect.Height <= 0)
         {
@@ -393,7 +393,7 @@ public abstract class PdfAnnotationBase
         }
 
         processor.Process(SaveStateCommand.Instance);
-        processor.Process(new ClipRectangleCommand(Rectangle, SKClipOperation.Intersect));
+        processor.Process(new ClipRectangleCommand(Rectangle, PdfClipOperation.Intersect));
 
         if (AppearanceDictionary != null && RenderAppearanceStream(processor, page, visualStateKind, renderer, renderingParameters, observer))
         {
@@ -465,18 +465,18 @@ public abstract class PdfAnnotationBase
     /// Returns the annotation rectangle after applying RD (RectDifferences) insets, or the original
     /// rectangle unchanged when <paramref name="differences"/> is null.
     /// </summary>
-    protected static SKRect ApplyRectDifferences(SKRect rect, SKRect? differences)
+    protected static PdfRectangle ApplyRectDifferences(in PdfRectangle rect, PdfRectangle? differences)
     {
         if (differences == null)
         {
             return rect;
         }
 
-        return SKRect.Create(
+        return new PdfRectangle(
             rect.Left + differences.Value.Left,
             rect.Top + differences.Value.Top,
-            rect.Width - differences.Value.Left - differences.Value.Right,
-            rect.Height - differences.Value.Top - differences.Value.Bottom);
+            rect.Right - differences.Value.Right,
+            rect.Bottom - differences.Value.Bottom);
     }
 
     /// <summary>

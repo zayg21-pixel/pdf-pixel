@@ -41,6 +41,26 @@ public readonly struct PdfRectangle
     public float Bottom { get; }
 
     /// <summary>
+    /// Distance between <see cref="Left"/> and <see cref="Right"/>.
+    /// </summary>
+    public float Width => Right - Left;
+
+    /// <summary>
+    /// Distance between <see cref="Top"/> and <see cref="Bottom"/>.
+    /// </summary>
+    public float Height => Bottom - Top;
+
+    /// <summary>
+    /// Midpoint between <see cref="Left"/> and <see cref="Right"/>.
+    /// </summary>
+    public float MidX => (Left + Right) / 2f;
+
+    /// <summary>
+    /// Midpoint between <see cref="Top"/> and <see cref="Bottom"/>.
+    /// </summary>
+    public float MidY => (Top + Bottom) / 2f;
+
+    /// <summary>
     /// The empty rectangle, with all edges at 0.
     /// </summary>
     public static PdfRectangle Empty { get; } = new(0, 0, 0, 0);

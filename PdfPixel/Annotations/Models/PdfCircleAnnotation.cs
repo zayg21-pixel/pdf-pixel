@@ -21,7 +21,7 @@ public class PdfCircleAnnotation : PdfAnnotationBase
     public PdfCircleAnnotation(PdfObject annotationObject)
         : base(annotationObject, PdfAnnotationSubType.Circle)
     {
-        RectDifferences = PdfLocationUtilities.CreateBBox(annotationObject.Dictionary.GetArray(PdfTokens.RectDifferencesKey));
+        RectDifferences = PdfRectangle.FromArray(annotationObject.Dictionary.GetArray(PdfTokens.RectDifferencesKey));
         ContentRectangle = ApplyRectDifferences(Rectangle, RectDifferences);
         BorderEffect = PdfBorderEffect.FromDictionary(annotationObject.Dictionary.GetDictionary(PdfTokens.BorderEffectKey));
     }
@@ -29,12 +29,12 @@ public class PdfCircleAnnotation : PdfAnnotationBase
     /// <summary>
     /// Gets the rectangle differences that inset the drawn ellipse from the annotation rectangle.
     /// </summary>
-    public SKRect? RectDifferences { get; }
+    public PdfRectangle? RectDifferences { get; }
 
     /// <summary>
     /// Gets the effective drawing rectangle after applying <see cref="RectDifferences"/>.
     /// </summary>
-    public SKRect ContentRectangle { get; }
+    public PdfRectangle ContentRectangle { get; }
 
     /// <summary>
     /// Gets the border effect applied to this annotation's border, or null for no effect.

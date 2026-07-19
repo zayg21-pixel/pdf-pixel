@@ -46,7 +46,7 @@ public class PdfStampAnnotation : PdfAnnotationBase
 
         float borderWidth = (BorderStyle?.Width > 0) ? BorderStyle.Width : BorderWidthDefault;
         float cornerRadius = Math.Min(Rectangle.Width, Rectangle.Height) * CornerRadiusFraction;
-        SKRect borderRect = SKRect.Inflate(Rectangle, -borderWidth / 2f, -borderWidth / 2f);
+        SKRect borderRect = SKRect.Inflate(Rectangle.ToSkRect(), -borderWidth / 2f, -borderWidth / 2f);
 
         DrawBorder(processor, borderRect, cornerRadius, borderWidth, color);
         DrawLabel(processor, page, GetLabelText(StampName, Name), color);

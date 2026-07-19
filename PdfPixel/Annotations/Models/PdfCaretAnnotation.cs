@@ -25,7 +25,7 @@ public class PdfCaretAnnotation : PdfAnnotationBase
     {
         Symbol = annotationObject.Dictionary.GetName(PdfTokens.SymbolKey).AsEnum<PdfCaretSymbol>();
 
-        RectangleDifferences = PdfLocationUtilities.CreateBBox(annotationObject.Dictionary.GetArray(PdfTokens.RectDifferencesKey));
+        RectangleDifferences = PdfRectangle.FromArray(annotationObject.Dictionary.GetArray(PdfTokens.RectDifferencesKey));
         MarkRectangle = ApplyRectDifferences(Rectangle, RectangleDifferences);
     }
 
@@ -37,12 +37,12 @@ public class PdfCaretAnnotation : PdfAnnotationBase
     /// <summary>
     /// Gets the rectangle differences that inset the actual caret mark from the annotation rectangle.
     /// </summary>
-    public SKRect? RectangleDifferences { get; }
+    public PdfRectangle? RectangleDifferences { get; }
 
     /// <summary>
     /// Gets the actual mark rectangle after applying <see cref="RectangleDifferences"/>.
     /// </summary>
-    public SKRect MarkRectangle { get; }
+    public PdfRectangle MarkRectangle { get; }
 
     internal override bool RenderFallback(IPdfCommandProcessor processor, IPdfPageInternal page, PdfAnnotationVisualStateKind visualStateKind)
     {
@@ -54,7 +54,7 @@ public class PdfCaretAnnotation : PdfAnnotationBase
         }
 
         SKColor color = ResolveColor(page, SKColors.DarkBlue);
-        PdfAnnotationGraphics.RenderIcon(processor, icon, MarkRectangle, color, null);
+        PdfAnnotationGraphics.RenderIcon(processor, icon, MarkRectangle.ToSkRect(), color, null);
         return true;
     }
 }

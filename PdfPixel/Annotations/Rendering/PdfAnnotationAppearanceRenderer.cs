@@ -66,12 +66,12 @@ internal static class PdfAnnotationAppearanceRenderer
         {
             case PdfXObjectSubtype.Form:
             {
-                success = RenderFormAppearance(processor, appearanceObject, annotation.Rectangle, page, renderer, renderingParameters, observer);
+                success = RenderFormAppearance(processor, appearanceObject, annotation.Rectangle.ToSkRect(), page, renderer, renderingParameters, observer);
                 break;
             }
             case PdfXObjectSubtype.Image:
             {
-                success = RenderImageAppearance(processor, appearanceObject, annotation.Rectangle, page, renderer, renderingParameters, observer);
+                success = RenderImageAppearance(processor, appearanceObject, annotation.Rectangle.ToSkRect(), page, renderer, renderingParameters, observer);
                 break;
             }
         }

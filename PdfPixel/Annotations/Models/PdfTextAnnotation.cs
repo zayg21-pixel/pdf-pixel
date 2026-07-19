@@ -29,14 +29,14 @@ public class PdfTextAnnotation : PdfAnnotationBase
         StateModel = annotationObject.Dictionary.GetName(PdfTokens.StateModelKey);
         State = annotationObject.Dictionary.GetName(PdfTokens.StateKey);
 
-        SKRect rectangle = base.Rectangle;
+        PdfRectangle rectangle = base.Rectangle;
         Rectangle = (rectangle.Width > 0 && rectangle.Height > 0)
             ? rectangle
-            : SKRect.Create(rectangle.Left, rectangle.Top, PdfAnnotationGraphics.DefaultBubbleSize, PdfAnnotationGraphics.DefaultBubbleSize);
+            : new PdfRectangle(rectangle.Left, rectangle.Top, rectangle.Left + PdfAnnotationGraphics.DefaultBubbleSize, rectangle.Top + PdfAnnotationGraphics.DefaultBubbleSize);
     }
 
     /// <inheritdoc/>
-    public override SKRect Rectangle { get; }
+    public override PdfRectangle Rectangle { get; }
 
     /// <summary>
     /// Gets a value indicating whether the annotation is initially displayed in an open state.
@@ -58,7 +58,7 @@ public class PdfTextAnnotation : PdfAnnotationBase
     public override bool IsInteractive => true;
 
     /// <inheritdoc/>
-    public override SKRect GetHoverRectangle(IPdfPage page) => Rectangle;
+    public override SKRect GetHoverRectangle(IPdfPage page) => Rectangle.ToSkRect();
 
     /// <summary>
     /// Gets the state model corresponding to a change in the annotation's state.
