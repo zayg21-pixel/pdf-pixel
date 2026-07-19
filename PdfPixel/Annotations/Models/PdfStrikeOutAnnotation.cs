@@ -1,5 +1,6 @@
 using PdfPixel.Commands;
 using PdfPixel.Models;
+using PdfPixel.Path;
 using SkiaSharp;
 
 namespace PdfPixel.Annotations.Models;
@@ -46,10 +47,10 @@ public class PdfStrikeOutAnnotation : PdfTextMarkupAnnotation
                 Color = color
             };
 
-            using SKPathBuilder linePathBuilder = new();
-            linePathBuilder.MoveTo(startX, startY);
-            linePathBuilder.LineTo(endX, endY);
-            processor.Process(new DrawPathCommand(linePathBuilder.Detach(), paint));
+            PdfPath linePath = new();
+            linePath.MoveTo(startX, startY);
+            linePath.LineTo(endX, endY);
+            processor.Process(new DrawPathCommand(linePath, paint));
         }
 
         return true;

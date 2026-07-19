@@ -1,3 +1,4 @@
+using PdfPixel.Path;
 using SkiaSharp;
 
 namespace PdfPixel.Commands;
@@ -15,6 +16,14 @@ public sealed class ClipPathCommand : PdfCommand, IPathCommand
     {
         Path = path;
         Operation = operation;
+    }
+
+    /// <summary>
+    /// Initializes the command with the given path and clip operation.
+    /// </summary>
+    public ClipPathCommand(PdfPath path, SKClipOperation operation)
+        : this(path.ToSkPath(), operation)
+    {
     }
 
     /// <inheritdoc />

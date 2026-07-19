@@ -1,5 +1,6 @@
 using PdfPixel.Commands;
 using PdfPixel.Models;
+using PdfPixel.Path;
 using PdfPixel.Text;
 using SkiaSharp;
 using System;
@@ -93,8 +94,8 @@ public class PdfInkAnnotation : PdfAnnotationBase
                 continue;
             }
 
-            using SKPathBuilder pathBuilder = new();
-            BuildSmoothPath(pathBuilder, points);
+            PdfPath path = new();
+            BuildSmoothPath(path, points);
 
             SKPaint paint = new()
             {
@@ -107,19 +108,19 @@ public class PdfInkAnnotation : PdfAnnotationBase
 
             BorderStyle?.TryApplyEffect(paint, inkColor);
 
-            processor.Process(new DrawPathCommand(pathBuilder.Detach(), paint));
+            processor.Process(new DrawPathCommand(path, paint));
         }
 
         return true;
     }
 
-    private static void BuildSmoothPath(SKPathBuilder path, PdfPoint[] points)
+    private static void BuildSmoothPath(PdfPath path, PdfPoint[] points)
     {
-        path.MoveTo(points[0].ToSkPoint());
+        path.MoveTo(points[0]);
 
         if (points.Length == 2)
         {
-            path.LineTo(points[1].ToSkPoint());
+            path.LineTo(points[1]);
             return;
         }
 
@@ -130,14 +131,14 @@ public class PdfInkAnnotation : PdfAnnotationBase
             PdfPoint nextPoint = points[i + 1];
             PdfPoint farPoint = (i < points.Length - 2) ? points[i + 2] : points[points.Length - 1];
 
-            SKPoint control1 = new(
+            PdfPoint control1 = new(
                 currentPoint.X + (nextPoint.X - prevPoint.X) / 6f,
                 currentPoint.Y + (nextPoint.Y - prevPoint.Y) / 6f);
-            SKPoint control2 = new(
+            PdfPoint control2 = new(
                 nextPoint.X - (farPoint.X - currentPoint.X) / 6f,
                 nextPoint.Y - (farPoint.Y - currentPoint.Y) / 6f);
 
-            path.CubicTo(control1, control2, nextPoint.ToSkPoint());
+            path.CubicTo(control1, control2, nextPoint);
         }
     }
 

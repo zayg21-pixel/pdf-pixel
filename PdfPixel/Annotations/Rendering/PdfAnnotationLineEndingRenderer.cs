@@ -1,4 +1,6 @@
 using PdfPixel.Commands;
+using PdfPixel.Models;
+using PdfPixel.Path;
 using SkiaSharp;
 using System;
 
@@ -106,21 +108,21 @@ internal static class PdfAnnotationLineEndingRenderer
             Color = color
         };
 
-        using SKPathBuilder pathBuilder = new();
-        pathBuilder.MoveTo(size, -size / 2);
-        pathBuilder.LineTo(0, 0);
-        pathBuilder.LineTo(size, size / 2);
+        PdfPath path = new();
+        path.MoveTo(size, -size / 2);
+        path.LineTo(0, 0);
+        path.LineTo(size, size / 2);
 
-        processor.Process(new DrawPathCommand(pathBuilder.Detach(), paint));
+        processor.Process(new DrawPathCommand(path, paint));
     }
 
     private static void DrawClosedArrow(IPdfCommandProcessor processor, float size, float lineWidth, in SKColor color, SKColor? interiorColor)
     {
-        using SKPathBuilder pathBuilder = new();
-        pathBuilder.MoveTo(0, 0);
-        pathBuilder.LineTo(size, -size / 2);
-        pathBuilder.LineTo(size, size / 2);
-        pathBuilder.Close();
+        PdfPath path = new();
+        path.MoveTo(0, 0);
+        path.LineTo(size, -size / 2);
+        path.LineTo(size, size / 2);
+        path.Close();
 
         if (interiorColor.HasValue && interiorColor.Value != SKColors.Transparent)
         {
@@ -129,7 +131,7 @@ internal static class PdfAnnotationLineEndingRenderer
                 Style = SKPaintStyle.Fill,
                 Color = interiorColor.Value
             };
-            processor.Process(new DrawPathCommand(pathBuilder.Snapshot(), fillPaint));
+            processor.Process(new DrawPathCommand(path, fillPaint));
         }
 
         SKPaint strokePaint = new()
@@ -138,15 +140,15 @@ internal static class PdfAnnotationLineEndingRenderer
             StrokeWidth = lineWidth,
             Color = color
         };
-        processor.Process(new DrawPathCommand(pathBuilder.Detach(), strokePaint));
+        processor.Process(new DrawPathCommand(path, strokePaint));
     }
 
     private static void DrawSquare(IPdfCommandProcessor processor, float size, float lineWidth, in SKColor color, SKColor? interiorColor)
     {
-        SKRect rect = new(-size / 2, -size / 2, size / 2, size / 2);
+        PdfRectangle rect = new(-size / 2, -size / 2, size / 2, size / 2);
 
-        using SKPathBuilder pathBuilder = new();
-        pathBuilder.AddRect(rect);
+        PdfPath path = new();
+        path.AddRect(rect);
 
         if (interiorColor.HasValue && interiorColor.Value != SKColors.Transparent)
         {
@@ -155,7 +157,7 @@ internal static class PdfAnnotationLineEndingRenderer
                 Style = SKPaintStyle.Fill,
                 Color = interiorColor.Value
             };
-            processor.Process(new DrawPathCommand(pathBuilder.Snapshot(), fillPaint));
+            processor.Process(new DrawPathCommand(path, fillPaint));
         }
 
         SKPaint strokePaint = new()
@@ -164,15 +166,15 @@ internal static class PdfAnnotationLineEndingRenderer
             StrokeWidth = lineWidth,
             Color = color
         };
-        processor.Process(new DrawPathCommand(pathBuilder.Detach(), strokePaint));
+        processor.Process(new DrawPathCommand(path, strokePaint));
     }
 
     private static void DrawCircle(IPdfCommandProcessor processor, float size, float lineWidth, in SKColor color, SKColor? interiorColor)
     {
         float radius = size / 2;
 
-        using SKPathBuilder pathBuilder = new();
-        pathBuilder.AddCircle(0, 0, radius);
+        PdfPath path = new();
+        path.AddCircle(PdfPoint.Empty, radius);
 
         if (interiorColor.HasValue && interiorColor.Value != SKColors.Transparent)
         {
@@ -181,7 +183,7 @@ internal static class PdfAnnotationLineEndingRenderer
                 Style = SKPaintStyle.Fill,
                 Color = interiorColor.Value
             };
-            processor.Process(new DrawPathCommand(pathBuilder.Snapshot(), fillPaint));
+            processor.Process(new DrawPathCommand(path, fillPaint));
         }
 
         SKPaint strokePaint = new()
@@ -190,17 +192,17 @@ internal static class PdfAnnotationLineEndingRenderer
             StrokeWidth = lineWidth,
             Color = color
         };
-        processor.Process(new DrawPathCommand(pathBuilder.Detach(), strokePaint));
+        processor.Process(new DrawPathCommand(path, strokePaint));
     }
 
     private static void DrawDiamond(IPdfCommandProcessor processor, float size, float lineWidth, in SKColor color, SKColor? interiorColor)
     {
-        using SKPathBuilder pathBuilder = new();
-        pathBuilder.MoveTo(size / 2, 0);
-        pathBuilder.LineTo(0, -size / 2);
-        pathBuilder.LineTo(-size / 2, 0);
-        pathBuilder.LineTo(0, size / 2);
-        pathBuilder.Close();
+        PdfPath path = new();
+        path.MoveTo(size / 2, 0);
+        path.LineTo(0, -size / 2);
+        path.LineTo(-size / 2, 0);
+        path.LineTo(0, size / 2);
+        path.Close();
 
         if (interiorColor.HasValue && interiorColor.Value != SKColors.Transparent)
         {
@@ -209,7 +211,7 @@ internal static class PdfAnnotationLineEndingRenderer
                 Style = SKPaintStyle.Fill,
                 Color = interiorColor.Value
             };
-            processor.Process(new DrawPathCommand(pathBuilder.Snapshot(), fillPaint));
+            processor.Process(new DrawPathCommand(path, fillPaint));
         }
 
         SKPaint strokePaint = new()
@@ -218,7 +220,7 @@ internal static class PdfAnnotationLineEndingRenderer
             StrokeWidth = lineWidth,
             Color = color
         };
-        processor.Process(new DrawPathCommand(pathBuilder.Detach(), strokePaint));
+        processor.Process(new DrawPathCommand(path, strokePaint));
     }
 
     private static void DrawButt(IPdfCommandProcessor processor, float size, float lineWidth, in SKColor color)
@@ -230,10 +232,10 @@ internal static class PdfAnnotationLineEndingRenderer
             Color = color
         };
 
-        using SKPathBuilder pathBuilder = new();
-        pathBuilder.MoveTo(0, -size / 2);
-        pathBuilder.LineTo(0, size / 2);
-        processor.Process(new DrawPathCommand(pathBuilder.Detach(), paint));
+        PdfPath path = new();
+        path.MoveTo(0, -size / 2);
+        path.LineTo(0, size / 2);
+        processor.Process(new DrawPathCommand(path, paint));
     }
 
     private static void DrawROpenArrow(IPdfCommandProcessor processor, float size, float lineWidth, in SKColor color)
@@ -245,21 +247,21 @@ internal static class PdfAnnotationLineEndingRenderer
             Color = color
         };
 
-        using SKPathBuilder pathBuilder = new();
-        pathBuilder.MoveTo(size, size / 2);
-        pathBuilder.LineTo(0, 0);
-        pathBuilder.LineTo(size, -size / 2);
+        PdfPath path = new();
+        path.MoveTo(size, size / 2);
+        path.LineTo(0, 0);
+        path.LineTo(size, -size / 2);
 
-        processor.Process(new DrawPathCommand(pathBuilder.Detach(), paint));
+        processor.Process(new DrawPathCommand(path, paint));
     }
 
     private static void DrawRClosedArrow(IPdfCommandProcessor processor, float size, float lineWidth, in SKColor color, SKColor? interiorColor)
     {
-        using SKPathBuilder pathBuilder = new();
-        pathBuilder.MoveTo(0, 0);
-        pathBuilder.LineTo(size, size / 2);
-        pathBuilder.LineTo(size, -size / 2);
-        pathBuilder.Close();
+        PdfPath path = new();
+        path.MoveTo(0, 0);
+        path.LineTo(size, size / 2);
+        path.LineTo(size, -size / 2);
+        path.Close();
 
         if (interiorColor.HasValue && interiorColor.Value != SKColors.Transparent)
         {
@@ -268,7 +270,7 @@ internal static class PdfAnnotationLineEndingRenderer
                 Style = SKPaintStyle.Fill,
                 Color = interiorColor.Value
             };
-            processor.Process(new DrawPathCommand(pathBuilder.Snapshot(), fillPaint));
+            processor.Process(new DrawPathCommand(path, fillPaint));
         }
 
         SKPaint strokePaint = new()
@@ -277,7 +279,7 @@ internal static class PdfAnnotationLineEndingRenderer
             StrokeWidth = lineWidth,
             Color = color
         };
-        processor.Process(new DrawPathCommand(pathBuilder.Detach(), strokePaint));
+        processor.Process(new DrawPathCommand(path, strokePaint));
     }
 
     private static void DrawSlash(IPdfCommandProcessor processor, float size, float lineWidth, in SKColor color)
@@ -289,9 +291,9 @@ internal static class PdfAnnotationLineEndingRenderer
             Color = color
         };
 
-        using SKPathBuilder pathBuilder = new();
-        pathBuilder.MoveTo(-size / 2, -size / 2);
-        pathBuilder.LineTo(size / 2, size / 2);
-        processor.Process(new DrawPathCommand(pathBuilder.Detach(), paint));
+        PdfPath path = new();
+        path.MoveTo(-size / 2, -size / 2);
+        path.LineTo(size / 2, size / 2);
+        processor.Process(new DrawPathCommand(path, paint));
     }
 }

@@ -1,6 +1,7 @@
 using PdfPixel.Commands;
 using PdfPixel.Fonts.Management;
 using PdfPixel.Models;
+using PdfPixel.Path;
 using PdfPixel.Text;
 using SkiaSharp;
 using System;
@@ -46,7 +47,12 @@ public class PdfStampAnnotation : PdfAnnotationBase
 
         float borderWidth = (BorderStyle?.Width > 0) ? BorderStyle.Width : BorderWidthDefault;
         float cornerRadius = Math.Min(Rectangle.Width, Rectangle.Height) * CornerRadiusFraction;
-        SKRect borderRect = SKRect.Inflate(Rectangle.ToSkRect(), -borderWidth / 2f, -borderWidth / 2f);
+        float halfBorderWidth = borderWidth / 2f;
+        PdfRectangle borderRect = new(
+            Rectangle.Left + halfBorderWidth,
+            Rectangle.Top + halfBorderWidth,
+            Rectangle.Right - halfBorderWidth,
+            Rectangle.Bottom - halfBorderWidth);
 
         DrawBorder(processor, borderRect, cornerRadius, borderWidth, color);
         DrawLabel(processor, page, GetLabelText(StampName, Name), color);
@@ -56,7 +62,7 @@ public class PdfStampAnnotation : PdfAnnotationBase
 
     private static void DrawBorder(
         IPdfCommandProcessor processor,
-        SKRect borderRect,
+        in PdfRectangle borderRect,
         float cornerRadius,
         float borderWidth,
         in SKColor color)
@@ -72,9 +78,9 @@ public class PdfStampAnnotation : PdfAnnotationBase
             ImageFilter = SKImageFilter.CreateDropShadow(shadowOffset, -shadowOffset, shadowSigma, shadowSigma, SKColors.Black.WithAlpha(ShadowAlpha))
         };
 
-        using SKPathBuilder borderPathBuilder = new();
-        borderPathBuilder.AddRoundRect(borderRect, cornerRadius, cornerRadius);
-        processor.Process(new DrawPathCommand(borderPathBuilder.Detach(), borderPaint));
+        PdfPath borderPath = new();
+        borderPath.AddRoundRect(borderRect, cornerRadius, cornerRadius);
+        processor.Process(new DrawPathCommand(borderPath, borderPaint));
     }
 
     private void DrawLabel(IPdfCommandProcessor processor, IPdfPageInternal page, string labelText, in SKColor color)

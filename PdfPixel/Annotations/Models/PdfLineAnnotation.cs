@@ -1,6 +1,7 @@
 using PdfPixel.Annotations.Rendering;
 using PdfPixel.Commands;
 using PdfPixel.Models;
+using PdfPixel.Path;
 using PdfPixel.Text;
 using SkiaSharp;
 
@@ -113,10 +114,10 @@ public class PdfLineAnnotation : PdfAnnotationBase
 
         BorderStyle?.TryApplyEffect(linePaint, lineColor);
 
-        using SKPathBuilder linePathBuilder = new();
-        linePathBuilder.MoveTo(StartX, StartY);
-        linePathBuilder.LineTo(EndX, EndY);
-        processor.Process(new DrawPathCommand(linePathBuilder.Detach(), linePaint));
+        PdfPath linePath = new();
+        linePath.MoveTo(StartX, StartY);
+        linePath.LineTo(EndX, EndY);
+        processor.Process(new DrawPathCommand(linePath, linePaint));
 
         SKColor interiorSKColor = ResolveInteriorColor(page);
 

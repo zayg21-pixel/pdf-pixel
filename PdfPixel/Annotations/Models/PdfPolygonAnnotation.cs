@@ -1,6 +1,7 @@
 using PdfPixel.Color.ColorSpace;
 using PdfPixel.Commands;
 using PdfPixel.Models;
+using PdfPixel.Path;
 using PdfPixel.Text;
 using SkiaSharp;
 using System.Collections.Generic;
@@ -65,16 +66,16 @@ public class PdfPolygonAnnotation : PdfAnnotationBase
             return false;
         }
 
-        using SKPathBuilder pathBuilder = new();
+        PdfPath path = new();
 
-        pathBuilder.MoveTo(Vertices[0].ToSkPoint());
+        path.MoveTo(Vertices[0]);
 
         for (int i = 1; i < Vertices.Length; i++)
         {
-            pathBuilder.LineTo(Vertices[i].ToSkPoint());
+            path.LineTo(Vertices[i]);
         }
 
-        pathBuilder.Close();
+        path.Close();
 
         SKColor interiorSKColor = ResolveInteriorColor(page);
         bool hasStroke = BorderStyle?.Width > 0 && Color?.Length > 0;
@@ -87,7 +88,7 @@ public class PdfPolygonAnnotation : PdfAnnotationBase
                 Color = interiorSKColor
             };
 
-            processor.Process(new DrawPathCommand(hasStroke ? pathBuilder.Snapshot() : pathBuilder.Detach(), fillPaint));
+            processor.Process(new DrawPathCommand(path, fillPaint));
         }
 
         if (BorderStyle != null && hasStroke)
@@ -105,7 +106,7 @@ public class PdfPolygonAnnotation : PdfAnnotationBase
             BorderStyle.TryApplyEffect(strokePaint, strokeColor);
             BorderEffect?.TryApplyEffect(strokePaint, BorderStyle.Width);
 
-            processor.Process(new DrawPathCommand(pathBuilder.Detach(), strokePaint));
+            processor.Process(new DrawPathCommand(path, strokePaint));
         }
 
         return true;

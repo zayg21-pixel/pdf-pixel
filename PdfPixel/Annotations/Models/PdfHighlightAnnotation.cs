@@ -1,5 +1,6 @@
 using PdfPixel.Commands;
 using PdfPixel.Models;
+using PdfPixel.Path;
 using PdfPixel.Rendering;
 using SkiaSharp;
 
@@ -35,12 +36,12 @@ public class PdfHighlightAnnotation : PdfTextMarkupAnnotation
 
         foreach (PdfPoint[] quad in quads)
         {
-            using SKPathBuilder pathBuilder = new();
-            pathBuilder.MoveTo(quad[0].ToSkPoint());
-            pathBuilder.LineTo(quad[1].ToSkPoint());
-            pathBuilder.LineTo(quad[2].ToSkPoint());
-            pathBuilder.LineTo(quad[3].ToSkPoint());
-            pathBuilder.Close();
+            PdfPath path = new();
+            path.MoveTo(quad[0]);
+            path.LineTo(quad[1]);
+            path.LineTo(quad[2]);
+            path.LineTo(quad[3]);
+            path.Close();
 
             SKPaint paint = new()
             {
@@ -49,7 +50,7 @@ public class PdfHighlightAnnotation : PdfTextMarkupAnnotation
                 BlendMode = SKBlendMode.Multiply
             };
 
-            processor.Process(new DrawPathCommand(pathBuilder.Detach(), paint));
+            processor.Process(new DrawPathCommand(path, paint));
         }
 
         return true;

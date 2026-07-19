@@ -1,4 +1,5 @@
 using PdfPixel.Models;
+using PdfPixel.Path;
 using PdfPixel.Text;
 using SkiaSharp;
 
@@ -72,9 +73,9 @@ public sealed class PdfBorderEffect
         float bumpRadius = borderWidth * (1.5f + Intensity * 1.0f);
         float advance = bumpRadius * 1.6f;
 
-        using SKPathBuilder bumpBuilder = new();
-        bumpBuilder.AddArc(new SKRect(-bumpRadius, -bumpRadius, bumpRadius, bumpRadius), 0, -180);
-        SKPath bump = bumpBuilder.Detach();
+        PdfPath bumpPath = new();
+        bumpPath.AddArc(new PdfRectangle(-bumpRadius, -bumpRadius, bumpRadius, bumpRadius), 0, -180);
+        SKPath bump = bumpPath.ToSkPath();
 
         SKPathEffect cloud = SKPathEffect.Create1DPath(bump, advance, 0, SKPath1DPathEffectStyle.Rotate);
 

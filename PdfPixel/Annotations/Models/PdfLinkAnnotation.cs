@@ -1,5 +1,6 @@
 using PdfPixel.Commands;
 using PdfPixel.Models;
+using PdfPixel.Path;
 using PdfPixel.Text;
 using SkiaSharp;
 
@@ -88,22 +89,22 @@ public class PdfLinkAnnotation : PdfTextMarkupAnnotation
         if (!needsNormalDraw && BorderStyle.Style == PdfBorderStyleType.Underline)
         {
             float y = Rectangle.Top - (borderWidth / 2);
-            using SKPathBuilder linePathBuilder = new();
-            linePathBuilder.MoveTo(Rectangle.Left, y);
-            linePathBuilder.LineTo(Rectangle.Right, y);
-            processor.Process(new DrawPathCommand(linePathBuilder.Detach(), paint));
+            PdfPath linePath = new();
+            linePath.MoveTo(Rectangle.Left, y);
+            linePath.LineTo(Rectangle.Right, y);
+            processor.Process(new DrawPathCommand(linePath, paint));
         }
         else
         {
-            SKRect rect = new(
+            PdfRectangle rect = new(
                 Rectangle.Left + (borderWidth / 2),
                 Rectangle.Top + (borderWidth / 2),
                 Rectangle.Right - (borderWidth / 2),
                 Rectangle.Bottom - (borderWidth / 2));
 
-            using SKPathBuilder rectPathBuilder = new();
-            rectPathBuilder.AddRect(rect);
-            processor.Process(new DrawPathCommand(rectPathBuilder.Detach(), paint));
+            PdfPath rectPath = new();
+            rectPath.AddRect(rect);
+            processor.Process(new DrawPathCommand(rectPath, paint));
         }
 
         return true;

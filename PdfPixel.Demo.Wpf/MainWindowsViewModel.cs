@@ -11,10 +11,8 @@ using System.Windows;
 using System.Windows.Input;
 using PdfPixel.Models;
 using System.Linq;
-using System.Windows.Documents;
 using PdfPixel.TextExtraction;
 using System.Collections.Generic;
-using PdfPixel.Imaging.Decoding;
 
 namespace PdfPixel.Demo.Wpf;
 
@@ -23,7 +21,7 @@ public class PdfFileLocation
     public PdfFileLocation(string filePath)
     {
         FilePath = filePath;
-        FileName = Path.GetFileNameWithoutExtension(FilePath);
+        FileName = System.IO.Path.GetFileNameWithoutExtension(FilePath);
     }
 
     public string FilePath { get; }
@@ -271,7 +269,7 @@ public class MainWindowsViewModel : ObservableObject
         if (Directory.Exists(pdfDirectory))
         {
             var files = Directory.GetFiles(pdfDirectory, "*.pdf")
-                .OrderBy(x => Path.GetFileName(x), new NaturalStringComparer());
+                .OrderBy(x => System.IO.Path.GetFileName(x), new NaturalStringComparer());
 
             foreach (var file in files)
             {

@@ -1,3 +1,4 @@
+using PdfPixel.Path;
 using SkiaSharp;
 
 namespace PdfPixel.Commands;
@@ -14,6 +15,14 @@ public sealed class DrawPathCommand : PdfCommand, IPathCommand, IPaintCommand
     {
         Path = path;
         Paint = basePaint;
+    }
+
+    /// <summary>
+    /// Initializes the command with the given path and paint.
+    /// </summary>
+    public DrawPathCommand(PdfPath path, SKPaint basePaint)
+        : this(path.ToSkPath(), basePaint)
+    {
     }
 
     /// <inheritdoc />

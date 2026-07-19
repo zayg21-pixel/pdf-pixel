@@ -1,5 +1,6 @@
 using PdfPixel.Commands;
 using PdfPixel.Models;
+using PdfPixel.Path;
 using PdfPixel.Text;
 using SkiaSharp;
 
@@ -53,9 +54,9 @@ public class PdfSquareAnnotation : PdfAnnotationBase
                 Color = interiorSKColor
             };
 
-            using SKPathBuilder fillPathBuilder = new();
-            fillPathBuilder.AddRect(ContentRectangle.ToSkRect());
-            processor.Process(new DrawPathCommand(fillPathBuilder.Detach(), fillPaint));
+            PdfPath fillPath = new();
+            fillPath.AddRect(ContentRectangle);
+            processor.Process(new DrawPathCommand(fillPath, fillPaint));
         }
 
         if (BorderStyle?.Width > 0 && Color?.Length > 0)
@@ -73,15 +74,15 @@ public class PdfSquareAnnotation : PdfAnnotationBase
             BorderEffect?.TryApplyEffect(strokePaint, BorderStyle.Width);
 
             float halfBorder = BorderStyle.Width / 2f;
-            SKRect adjustedRect = new(
+            PdfRectangle adjustedRect = new(
                 ContentRectangle.Left + halfBorder,
                 ContentRectangle.Top + halfBorder,
                 ContentRectangle.Right - halfBorder,
                 ContentRectangle.Bottom - halfBorder);
 
-            using SKPathBuilder strokePathBuilder = new();
-            strokePathBuilder.AddRect(adjustedRect);
-            processor.Process(new DrawPathCommand(strokePathBuilder.Detach(), strokePaint));
+            PdfPath strokePath = new();
+            strokePath.AddRect(adjustedRect);
+            processor.Process(new DrawPathCommand(strokePath, strokePaint));
         }
 
         return true;
