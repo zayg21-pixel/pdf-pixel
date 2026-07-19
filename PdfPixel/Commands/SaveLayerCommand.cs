@@ -1,3 +1,4 @@
+using PdfPixel.Models;
 using SkiaSharp;
 
 namespace PdfPixel.Commands;
@@ -16,6 +17,13 @@ public sealed class SaveLayerCommand : PdfCommand, IPaintCommand
     {
         Bounds = bounds;
         Paint = paint;
+    }
+
+    /// <summary>
+    /// Initializes the command with the layer bounds and takes ownership of the paint.
+    /// </summary>
+    public SaveLayerCommand(PdfRectangle bounds, SKPaint? paint) : this(bounds.ToSkRect(), paint)
+    {
     }
 
     /// <summary>

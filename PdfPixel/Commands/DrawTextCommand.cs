@@ -1,4 +1,5 @@
 using PdfPixel.Color.Paint;
+using PdfPixel.Models;
 using SkiaSharp;
 
 namespace PdfPixel.Commands;
@@ -17,6 +18,14 @@ public sealed class DrawTextCommand : PdfCommand, IMatrixCommand, IPaintCommand
         Matrix = matrix;
         Font = font;
         Paint = basePaint;
+    }
+
+    /// <summary>
+    /// Initializes the command with the given text, matrix, font and paint.
+    /// </summary>
+    public DrawTextCommand(string text, PdfMatrix matrix, SKFont font, SKPaint basePaint)
+        : this(text, matrix.ToSkMatrix(), font, basePaint)
+    {
     }
 
     /// <summary>

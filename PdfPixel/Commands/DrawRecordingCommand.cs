@@ -1,3 +1,4 @@
+using PdfPixel.Models;
 using SkiaSharp;
 using System.Linq;
 
@@ -23,6 +24,14 @@ public sealed class DrawRecordingCommand : PdfCommand, IMatrixCommand
         Matrix = matrix;
         Modifier = modifier;
         _disposeRecording = disposeRecording;
+    }
+
+    /// <summary>
+    /// Initializes the command with a recorder, matrix, an optional paint modifier, and ownership flag.
+    /// </summary>
+    public DrawRecordingCommand(PdfCommandRecorder recorder, PdfMatrix matrix, UncoloredPaintModifier? modifier, bool disposeRecording = true)
+        : this(recorder, matrix.ToSkMatrix(), modifier, disposeRecording)
+    {
     }
 
     /// <summary>

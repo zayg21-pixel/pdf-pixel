@@ -1,3 +1,4 @@
+using PdfPixel.Models;
 using PdfPixel.TextExtraction;
 using SkiaSharp;
 using System.Collections.Generic;
@@ -20,6 +21,13 @@ public sealed class TextCharactersCommand : PdfCommand, IMatrixCommand
     {
         Matrix = matrix;
         Characters = characters;
+    }
+
+    /// <summary>
+    /// Initializes the command with the matrix to apply and the captured characters whose bounding boxes are in pre-CTM space.
+    /// </summary>
+    public TextCharactersCommand(PdfMatrix matrix, PdfCharacter[] characters) : this(matrix.ToSkMatrix(), characters)
+    {
     }
 
     /// <inheritdoc />

@@ -1,4 +1,5 @@
 using PdfPixel.Color.Paint;
+using PdfPixel.Models;
 using PdfPixel.Rendering.Text;
 using PdfPixel.Text;
 using SkiaSharp;
@@ -20,6 +21,14 @@ public sealed class DrawShapedTextCommand : PdfCommand, IMatrixCommand, IPaintCo
         ShapingResult = shapingResult;
         Font = font;
         Paint = basePaint;
+    }
+
+    /// <summary>
+    /// Initializes the command with the given matrix, shaped glyphs, font and paint.
+    /// </summary>
+    public DrawShapedTextCommand(PdfMatrix matrix, ShapedGlyph[] shapingResult, SKFont font, SKPaint basePaint)
+        : this(matrix.ToSkMatrix(), shapingResult, font, basePaint)
+    {
     }
 
     /// <inheritdoc />

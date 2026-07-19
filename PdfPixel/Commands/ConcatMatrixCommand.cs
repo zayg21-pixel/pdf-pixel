@@ -1,3 +1,4 @@
+using PdfPixel.Models;
 using SkiaSharp;
 using System.Collections.Generic;
 
@@ -13,6 +14,13 @@ public sealed class ConcatMatrixCommand : PdfCommand, IMatrixCommand
     /// Initializes the command with the matrix to concatenate.
     /// </summary>
     public ConcatMatrixCommand(SKMatrix matrix) => Matrix = matrix;
+
+    /// <summary>
+    /// Initializes the command with the matrix to concatenate.
+    /// </summary>
+    public ConcatMatrixCommand(PdfMatrix matrix) : this(matrix.ToSkMatrix())
+    {
+    }
 
     /// <summary>
     /// Gets the matrix that this command concatenates onto the canvas.

@@ -33,6 +33,14 @@ public sealed class DrawTilingCommand : PdfCommand, IMatrixCommand
         YCount = (int)Math.Ceiling((endY - startY) / yStep);
     }
 
+    /// <summary>
+    /// Initializes the command with the matrix, the pattern-space bounds to tile, the cell bounding box, the cell step, and the recorded cell content.
+    /// </summary>
+    public DrawTilingCommand(PdfMatrix matrix, PdfRectangle bounds, PdfRectangle bbox, float xStep, float yStep, DrawRecordingCommand recordingCommand)
+        : this(matrix.ToSkMatrix(), bounds.ToSkRect(), bbox.ToSkRect(), xStep, yStep, recordingCommand)
+    {
+    }
+
     /// <inheritdoc />
     public SKMatrix Matrix { get; }
 
