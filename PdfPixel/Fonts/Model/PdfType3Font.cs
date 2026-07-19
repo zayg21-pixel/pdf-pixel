@@ -146,7 +146,7 @@ public class PdfType3Font : PdfSingleByteFont
         PdfContentStreamRenderer contentRenderer = new(renderer, glyphPage);
         PdfParseContext parseContext = new(streamData);
 
-        (SKSize advancement, PdfRectangle? boundingBox) = ParseMetrics(parseContext);
+        (PdfSize advancement, PdfRectangle? boundingBox) = ParseMetrics(parseContext);
 
         PdfGraphicsState charState = new(glyphPage, sourceState.RecursionGuard, default, default, sourceState.RenderingParameters);
 
@@ -160,13 +160,13 @@ public class PdfType3Font : PdfSingleByteFont
         return info;
     }
 
-    private (SKSize advancement, PdfRectangle? boundingBox) ParseMetrics(PdfParseContext parseContext)
+    private (PdfSize advancement, PdfRectangle? boundingBox) ParseMetrics(PdfParseContext parseContext)
     {
         PdfParser parser = new(parseContext, Document, allowReferences: false, decrypt: false);
         IPdfValue? value;
         Stack<IPdfValue> operandStack = [];
 
-        SKSize type3Advancement = new(0, 0);
+        PdfSize type3Advancement = new(0, 0);
         PdfRectangle? type3BoundingBox = null;
         while ((value = parser.ReadNextValue()) != null)
         {
@@ -187,7 +187,7 @@ public class PdfType3Font : PdfSingleByteFont
 
                         float wx = operands[0].AsFloat();
                         float wy = operands[1].AsFloat();
-                        type3Advancement = new SKSize(wx, wy);
+                        type3Advancement = new PdfSize(wx, wy);
                         return (type3Advancement, type3BoundingBox);
                     }
                     case "d1":
@@ -206,7 +206,7 @@ public class PdfType3Font : PdfSingleByteFont
                         float urx = operands[4].AsFloat();
                         float ury = operands[5].AsFloat();
 
-                        type3Advancement = new SKSize(wx, wy);
+                        type3Advancement = new PdfSize(wx, wy);
                         type3BoundingBox = new PdfRectangle(Math.Min(llx, urx), Math.Min(lly, ury), Math.Max(llx, urx), Math.Max(lly, ury));
 
                         return (type3Advancement, type3BoundingBox);

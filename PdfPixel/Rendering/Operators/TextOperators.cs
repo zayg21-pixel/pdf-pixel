@@ -149,11 +149,7 @@ internal class TextOperators : IOperatorProcessor
 
     private void ProcessBeginText(PdfGraphicsState graphicsState)
     {
-        if (graphicsState.TextClipPath != null)
-        {
-            graphicsState.TextClipPath.Dispose();
-            graphicsState.TextClipPath = null;
-        }
+        graphicsState.TextClipPath = null;
 
         graphicsState.InTextObject = true;
         graphicsState.TextMatrix = PdfMatrix.Identity;
@@ -168,8 +164,7 @@ internal class TextOperators : IOperatorProcessor
 
         if (graphicsState.TextClipPath != null)
         {
-            _processor.Process(new ClipPathCommand(graphicsState.TextClipPath.Detach(), SKClipOperation.Intersect));
-            graphicsState.TextClipPath.Dispose();
+            _processor.Process(new ClipPathCommand(graphicsState.TextClipPath, SKClipOperation.Intersect));
             graphicsState.TextClipPath = null;
         }
     }
@@ -381,7 +376,7 @@ internal class TextOperators : IOperatorProcessor
 
     private void ProcessSequence(PdfGraphicsState graphicsState, List<ShapedGlyph> glyphs)
     {
-        SKSize advancement = _renderer.DrawTextSequence(_processor, glyphs, graphicsState, graphicsState.CurrentFont);
+        PdfSize advancement = _renderer.DrawTextSequence(_processor, glyphs, graphicsState, graphicsState.CurrentFont);
         PdfMatrix advanceMatrix = PdfMatrix.CreateTranslation(advancement.Width, advancement.Height);
         graphicsState.TextMatrix = PdfMatrix.Concat(graphicsState.TextMatrix, advanceMatrix);
     }

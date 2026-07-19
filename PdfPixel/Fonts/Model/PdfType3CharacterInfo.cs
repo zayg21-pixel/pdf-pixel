@@ -1,6 +1,5 @@
 using PdfPixel.Commands;
 using PdfPixel.Geometry;
-using SkiaSharp;
 
 namespace PdfPixel.Fonts.Model;
 
@@ -13,15 +12,15 @@ public sealed class PdfType3CharacterInfo
     /// <summary>
     /// Gets a singleton instance representing an undefined character (no recording/metrics available).
     /// </summary>
-    public static PdfType3CharacterInfo Undefined { get; } = new(null, null, SKSize.Empty);
+    public static PdfType3CharacterInfo Undefined { get; } = new(null, null, PdfSize.Empty);
 
     /// <summary>
     /// Initializes a new instance of the <see cref="PdfType3CharacterInfo"/> class.
     /// </summary>
     /// <param name="recording">Recorded drawing commands for the glyph; null when not defined.</param>
     /// <param name="bbox">Bounding box parsed by d1 (llx, lly, urx, ury). Null when not provided.</param>
-    /// <param name="advancement">Glyph advancement vector parsed by d0/d1 (wx, wy). If not provided, use <see cref="SKSize.Empty"/>.</param>
-    public PdfType3CharacterInfo(PdfCommandRecorder? recording, PdfRectangle? bbox, SKSize advancement)
+    /// <param name="advancement">Glyph advancement vector parsed by d0/d1 (wx, wy). If not provided, use <see cref="PdfSize.Empty"/>.</param>
+    public PdfType3CharacterInfo(PdfCommandRecorder? recording, PdfRectangle? bbox, in PdfSize advancement)
     {
         Recording = recording;
         BBox = bbox;
@@ -44,9 +43,9 @@ public sealed class PdfType3CharacterInfo
     public PdfRectangle? BBox { get; }
 
     /// <summary>
-    /// Gets the glyph advancement vector (wx, wy) from d0/d1. Defaults to <see cref="SKSize.Empty"/> when not provided.
+    /// Gets the glyph advancement vector (wx, wy) from d0/d1. Defaults to <see cref="PdfSize.Empty"/> when not provided.
     /// </summary>
-    public SKSize Advancement { get; }
+    public PdfSize Advancement { get; }
 
     /// <summary>
     /// Gets a value indicating whether the character is colored. Defined as BBox being provided.

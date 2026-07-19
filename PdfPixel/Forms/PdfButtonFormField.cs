@@ -1,6 +1,6 @@
+using PdfPixel.Geometry;
 using PdfPixel.Models;
 using PdfPixel.Text;
-using SkiaSharp;
 
 namespace PdfPixel.Forms;
 
@@ -60,7 +60,7 @@ public class PdfButtonFormField : PdfFormField
     /// <summary>
     /// Handles mouse down event on the button field.
     /// </summary>
-    public override bool OnMouseDown(SKPoint position, FormFieldPointerState state)
+    public override bool OnMouseDown(PdfPoint position, FormFieldPointerState state)
     {
         if (IsReadOnly)
         {
@@ -74,7 +74,7 @@ public class PdfButtonFormField : PdfFormField
     /// <summary>
     /// Handles mouse up event on the button field.
     /// </summary>
-    public override bool OnMouseUp(SKPoint position, FormFieldPointerState state)
+    public override bool OnMouseUp(PdfPoint position, FormFieldPointerState state)
     {
         if (IsReadOnly)
         {

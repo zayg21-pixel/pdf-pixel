@@ -1,4 +1,5 @@
 ﻿using PdfPixel.Annotations.Models;
+using PdfPixel.Geometry;
 using PdfPixel.PdfPanel.Annotations;
 using SkiaSharp;
 using System;
@@ -307,7 +308,7 @@ public static class PdfPanelContextExtensions
 
         if (destination.TargetLocation.HasValue)
         {
-            SKRect pdfRect = destination.TargetLocation.Value;
+            PdfRectangle pdfRect = destination.TargetLocation.Value;
             SKPoint pdfLocation = new(pdfRect.Left, pdfRect.Top);
             SKPoint pageLocation = targetPage.FromPdfPoint(pdfLocation);
 

@@ -1,6 +1,6 @@
+using PdfPixel.Geometry;
 using PdfPixel.Models;
 using PdfPixel.Text;
-using SkiaSharp;
 using System;
 
 namespace PdfPixel.Forms;
@@ -98,7 +98,7 @@ public class PdfTextFormField : PdfFormField
     /// <summary>
     /// Handles mouse down event to position caret or start selection.
     /// </summary>
-    public override bool OnMouseDown(SKPoint position, FormFieldPointerState state)
+    public override bool OnMouseDown(PdfPoint position, FormFieldPointerState state)
     {
         if (IsReadOnly)
         {
@@ -121,7 +121,7 @@ public class PdfTextFormField : PdfFormField
     /// <summary>
     /// Handles mouse move event to update selection.
     /// </summary>
-    public override bool OnMouseMove(SKPoint position, FormFieldPointerState state)
+    public override bool OnMouseMove(PdfPoint position, FormFieldPointerState state)
     {
         if (!HasFocus || state != FormFieldPointerState.Pressed)
         {
@@ -225,7 +225,7 @@ public class PdfTextFormField : PdfFormField
     /// This is a simplified implementation. A complete implementation would need
     /// to measure the actual text layout using the field's font and appearance.
     /// </remarks>
-    private int GetCharacterIndexAtPosition(SKPoint position)
+    private int GetCharacterIndexAtPosition(PdfPoint position)
     {
         string text = GetTextValue();
         var estimatedIndex = (int)(position.X / 10);

@@ -34,13 +34,6 @@ internal static class PdfPaintFactory
     }
 
     /// <summary>
-    /// Layer paint for soft mask.
-    /// Antialiasing is deferred to command Execute.
-    /// </summary>
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static SKPaint CreateMaskLayerPaint() => new();
-
-    /// <summary>
     /// Layer paint for composition operations, all blending and composing operations are delegated to layer.
     /// Alpha and blend mode come from the current fill paint; the color itself is irrelevant (opaque white)
     /// since the layer only exists to carry compositing parameters.

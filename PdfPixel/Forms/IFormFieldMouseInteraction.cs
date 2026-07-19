@@ -1,4 +1,4 @@
-using SkiaSharp;
+using PdfPixel.Geometry;
 
 namespace PdfPixel.Forms;
 
@@ -13,7 +13,7 @@ public interface IFormFieldMouseInteraction
     /// <param name="position">Mouse position in PDF coordinates relative to the field's rectangle.</param>
     /// <param name="state">Current pointer state.</param>
     /// <returns>True if the event was handled and should not propagate further.</returns>
-    bool OnMouseDown(SKPoint position, FormFieldPointerState state);
+    bool OnMouseDown(PdfPoint position, FormFieldPointerState state);
 
     /// <summary>
     /// Handles mouse up event on the form field.
@@ -21,7 +21,7 @@ public interface IFormFieldMouseInteraction
     /// <param name="position">Mouse position in PDF coordinates relative to the field's rectangle.</param>
     /// <param name="state">Current pointer state.</param>
     /// <returns>True if the event was handled and should not propagate further.</returns>
-    bool OnMouseUp(SKPoint position, FormFieldPointerState state);
+    bool OnMouseUp(PdfPoint position, FormFieldPointerState state);
 
     /// <summary>
     /// Handles mouse move event on the form field.
@@ -29,7 +29,7 @@ public interface IFormFieldMouseInteraction
     /// <param name="position">Mouse position in PDF coordinates relative to the field's rectangle.</param>
     /// <param name="state">Current pointer state.</param>
     /// <returns>True if the event was handled and should not propagate further.</returns>
-    bool OnMouseMove(SKPoint position, FormFieldPointerState state);
+    bool OnMouseMove(PdfPoint position, FormFieldPointerState state);
 
     /// <summary>
     /// Handles mouse enter event when the pointer enters the field's bounds.

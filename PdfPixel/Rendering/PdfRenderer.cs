@@ -3,6 +3,7 @@ using PdfPixel.Color.Paint;
 using PdfPixel.Commands;
 using PdfPixel.Fonts.Model;
 using PdfPixel.Forms;
+using PdfPixel.Geometry;
 using PdfPixel.Imaging.Model;
 using PdfPixel.Models;
 using PdfPixel.Rendering.Form;
@@ -50,7 +51,7 @@ public class PdfRenderer : IPdfRenderer
     /// <summary>
     /// Draw text with positioning adjustments (if any) and return total advancement.
     /// </summary>
-    public SKSize DrawTextSequence(IPdfCommandProcessor processor, List<ShapedGlyph> glyphs, PdfGraphicsState state, PdfFontBase? font)
+    public PdfSize DrawTextSequence(IPdfCommandProcessor processor, List<ShapedGlyph> glyphs, PdfGraphicsState state, PdfFontBase? font)
         => _textRenderer.DrawTextSequence(processor, glyphs, state, font);
 
     /// <summary>

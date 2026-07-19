@@ -1,3 +1,4 @@
+using PdfPixel.Geometry;
 using SkiaSharp;
 
 namespace PdfPixel.PdfPanel.Web.WorkerInterface;
@@ -24,6 +25,22 @@ public struct WebRect
     /// Creates a <see cref="WebRect"/> from an <see cref="SKRect"/>.
     /// </summary>
     public static WebRect FromSkRect(SKRect rect) => new()
+    {
+        Left = rect.Left,
+        Top = rect.Top,
+        Right = rect.Right,
+        Bottom = rect.Bottom
+    };
+
+    /// <summary>
+    /// Converts this instance to a <see cref="PdfRectangle"/>.
+    /// </summary>
+    public PdfRectangle ToPdfRectangle() => new(Left, Top, Right, Bottom);
+
+    /// <summary>
+    /// Creates a <see cref="WebRect"/> from a <see cref="PdfRectangle"/>.
+    /// </summary>
+    public static WebRect FromPdfRectangle(in PdfRectangle rect) => new()
     {
         Left = rect.Left,
         Top = rect.Top,

@@ -36,7 +36,7 @@ public class PdfTextRenderer : IPdfTextRenderer
     }
 
     /// <inheritdoc/>
-    public SKSize DrawTextSequence(IPdfCommandProcessor processor, List<ShapedGlyph> glyphs, PdfGraphicsState state, PdfFontBase? font)
+    public PdfSize DrawTextSequence(IPdfCommandProcessor processor, List<ShapedGlyph> glyphs, PdfGraphicsState state, PdfFontBase? font)
     {
         if (processor == null)
         {
@@ -55,12 +55,12 @@ public class PdfTextRenderer : IPdfTextRenderer
 
         if (font == null || glyphs.Count == 0)
         {
-            return SKSize.Empty;
+            return PdfSize.Empty;
         }
 
         if (!state.RenderingParameters.RenderText && !state.RenderingParameters.ExtractText)
         {
-            return SKSize.Empty;
+            return PdfSize.Empty;
         }
 
         if (state.RenderingParameters.RenderText)
@@ -77,12 +77,12 @@ public class PdfTextRenderer : IPdfTextRenderer
 
         if (state.CurrentFont != null && state.CurrentFont.WritingMode == Fonts.Mapping.CMapWMode.Vertical)
         {
-            return new SKSize(0, -TextRenderUtilities.GetTextHeight(glyphs) * state.FontSize);
+            return new PdfSize(0, -TextRenderUtilities.GetTextHeight(glyphs) * state.FontSize);
         }
         else
         {
             float fullHorizontalScale = state.FontSize * state.HorizontalScaling / 100f;
-            return new SKSize(TextRenderUtilities.GetTextWidth(glyphs) * fullHorizontalScale, 0);
+            return new PdfSize(TextRenderUtilities.GetTextWidth(glyphs) * fullHorizontalScale, 0);
         }
     }
 
@@ -220,8 +220,8 @@ public class PdfTextRenderer : IPdfTextRenderer
                 using SKPath textPath = TextRenderUtilities.GetTextPath(shapingResult, font, state);
                 if (!textPath.IsEmpty)
                 {
-                    state.TextClipPath ??= new SKPathBuilder();
-                    state.TextClipPath.AddPath(textPath);
+                    state.TextClipPath ??= new PdfPath();
+                    state.TextClipPath.AddPath(textPath.ToPdfPath());
                 }
             }
         }

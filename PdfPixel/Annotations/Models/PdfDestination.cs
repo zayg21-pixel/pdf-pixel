@@ -1,6 +1,6 @@
+using PdfPixel.Geometry;
 using PdfPixel.Models;
 using PdfPixel.Text;
-using SkiaSharp;
 using System;
 
 namespace PdfPixel.Annotations.Models;
@@ -109,7 +109,7 @@ public sealed class PdfDestination
     /// - Fit, FitB: returns null (scroll to page)
     /// </summary>
     /// <returns>A rectangle in PDF coordinates, or null when no specific location is needed (Fit/FitB) or the page cannot be resolved.</returns>
-    public SKRect? GetTargetLocation()
+    public PdfRectangle? GetTargetLocation()
     {
         IPdfPage? page = GetPdfPage();
         if (page == null)
@@ -123,25 +123,29 @@ public sealed class PdfDestination
                 {
                     float left = _left ?? 0f;
                     float top = _top ?? page.CropBox.Height;
-                    return SKRect.Create(left, top, 0, 0);
+                    return new PdfRectangle(left, top, left, top);
                 }
             case PdfDestinationFitType.FitH:
             case PdfDestinationFitType.FitBH:
                 {
                     float top = _top ?? page.CropBox.Height;
-                    return SKRect.Create(0, top, 0, 0);
+                    return new PdfRectangle(0, top, 0, top);
                 }
             case PdfDestinationFitType.FitV:
             case PdfDestinationFitType.FitBV:
                 {
                     float left = _left ?? 0f;
-                    return SKRect.Create(left, 0, 0, 0);
+                    return new PdfRectangle(left, 0, left, 0);
                 }
             case PdfDestinationFitType.FitR:
                 {
                     if (_left.HasValue && _bottom.HasValue && _right.HasValue && _top.HasValue)
                     {
-                        return new SKRect(_left.Value, _bottom.Value, _right.Value, _top.Value).Standardized;
+                        float left = Math.Min(_left.Value, _right.Value);
+                        float right = Math.Max(_left.Value, _right.Value);
+                        float top = Math.Min(_bottom.Value, _top.Value);
+                        float bottom = Math.Max(_bottom.Value, _top.Value);
+                        return new PdfRectangle(left, top, right, bottom);
                     }
 
                     return null;

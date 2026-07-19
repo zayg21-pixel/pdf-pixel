@@ -1,6 +1,6 @@
+using PdfPixel.Geometry;
 using PdfPixel.Models;
 using PdfPixel.Text;
-using SkiaSharp;
 using System;
 
 namespace PdfPixel.Forms;
@@ -140,7 +140,7 @@ public abstract class PdfFormField : IFormFieldMouseInteraction, IFormFieldKeybo
     /// <param name="position">Mouse position in PDF coordinates relative to the field's rectangle.</param>
     /// <param name="state">Current pointer state.</param>
     /// <returns>True if the event was handled.</returns>
-    public virtual bool OnMouseDown(SKPoint position, FormFieldPointerState state) => false;
+    public virtual bool OnMouseDown(PdfPoint position, FormFieldPointerState state) => false;
 
     /// <summary>
     /// Handles mouse up event on the form field.
@@ -148,7 +148,7 @@ public abstract class PdfFormField : IFormFieldMouseInteraction, IFormFieldKeybo
     /// <param name="position">Mouse position in PDF coordinates relative to the field's rectangle.</param>
     /// <param name="state">Current pointer state.</param>
     /// <returns>True if the event was handled.</returns>
-    public virtual bool OnMouseUp(SKPoint position, FormFieldPointerState state) => false;
+    public virtual bool OnMouseUp(PdfPoint position, FormFieldPointerState state) => false;
 
     /// <summary>
     /// Handles mouse move event on the form field.
@@ -156,7 +156,7 @@ public abstract class PdfFormField : IFormFieldMouseInteraction, IFormFieldKeybo
     /// <param name="position">Mouse position in PDF coordinates relative to the field's rectangle.</param>
     /// <param name="state">Current pointer state.</param>
     /// <returns>True if the event was handled.</returns>
-    public virtual bool OnMouseMove(SKPoint position, FormFieldPointerState state) => false;
+    public virtual bool OnMouseMove(PdfPoint position, FormFieldPointerState state) => false;
 
     /// <summary>
     /// Handles mouse enter event when the pointer enters the field's bounds.

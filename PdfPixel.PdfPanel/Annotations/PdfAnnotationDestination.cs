@@ -1,5 +1,5 @@
 using PdfPixel.Annotations.Models;
-using SkiaSharp;
+using PdfPixel.Geometry;
 
 namespace PdfPixel.PdfPanel.Annotations;
 
@@ -26,7 +26,7 @@ public class PdfAnnotationDestination
     /// (those scroll to the page top via page number).
     /// For <see cref="PdfDestinationFitType.FitR"/> contains the full rectangle to fit.
     /// </summary>
-    public SKRect? TargetLocation { get; set; }
+    public PdfRectangle? TargetLocation { get; set; }
 
     /// <summary>
     /// Explicit zoom for <see cref="PdfDestinationFitType.XYZ"/>. Null retains the current zoom.

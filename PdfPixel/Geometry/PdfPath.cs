@@ -55,4 +55,20 @@ public sealed class PdfPath
     /// Closes the current subpath with a straight line back to its start.
     /// </summary>
     public void Close() => _segments.Add(PdfPathSegment.Close());
+
+    /// <summary>
+    /// Appends a copy of another path's segments to this path.
+    /// </summary>
+    public void AddPath(PdfPath other)
+    {
+        foreach (PdfPathSegment segment in other.Segments)
+        {
+            _segments.Add(segment);
+        }
+    }
+
+    /// <summary>
+    /// Removes all segments, leaving the path empty.
+    /// </summary>
+    public void Clear() => _segments.Clear();
 }

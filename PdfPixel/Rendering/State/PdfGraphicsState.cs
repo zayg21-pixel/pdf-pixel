@@ -10,7 +10,6 @@ using PdfPixel.Models;
 using PdfPixel.Text;
 using PdfPixel.TextExtraction;
 using PdfPixel.Transparency.Model;
-using SkiaSharp;
 using System;
 using System.Collections.Generic;
 
@@ -341,7 +340,7 @@ public class PdfGraphicsState
     /// <summary>
     /// Gets or sets the clipping path used to define the area where text can be rendered.
     /// </summary>
-    public SKPathBuilder? TextClipPath { get; set; }
+    public PdfPath? TextClipPath { get; set; }
 
     /// <summary>
     /// Text markup set by a DP (marked content point with properties) operator.

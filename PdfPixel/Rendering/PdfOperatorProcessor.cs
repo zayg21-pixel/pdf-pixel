@@ -1,10 +1,10 @@
 using System.Collections.Generic;
 using Microsoft.Extensions.Logging;
 using PdfPixel.Commands;
+using PdfPixel.Geometry;
 using PdfPixel.Models;
 using PdfPixel.Rendering.Operators;
 using PdfPixel.Rendering.State;
-using SkiaSharp;
 
 namespace PdfPixel.Rendering;
 
@@ -19,7 +19,7 @@ internal class PdfOperatorProcessor
     private readonly IPdfCommandProcessor _processor;
     private readonly Stack<IPdfValue> _operandStack;
     private readonly Stack<PdfGraphicsState> _graphicsStack;
-    private readonly SKPathBuilder _currentPath;
+    private readonly PdfPath _currentPath;
     private readonly GraphicsStateOperators _graphicsStateOperators;
     private readonly TextOperators _textOperators;
     private readonly PathOperators _pathOperators;
@@ -35,7 +35,7 @@ internal class PdfOperatorProcessor
         IPdfCommandProcessor processor,
         Stack<IPdfValue> operandStack,
         Stack<PdfGraphicsState> graphicsStack,
-        SKPathBuilder currentPath)
+        PdfPath currentPath)
     {
         _renderer = renderer;
         _page = page;

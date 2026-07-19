@@ -19,7 +19,7 @@ public class WebAnnotationDestinationData
         {
             PageNumber = destination.PageNumber,
             FitType = (int)destination.FitType,
-            TargetLocation = destination.TargetLocation.HasValue ? WebRect.FromSkRect(destination.TargetLocation.Value) : null,
+            TargetLocation = destination.TargetLocation.HasValue ? WebRect.FromPdfRectangle(destination.TargetLocation.Value) : null,
             Zoom = destination.Zoom
         };
     }
@@ -30,7 +30,7 @@ public class WebAnnotationDestinationData
         {
             PageNumber = PageNumber,
             FitType = (PdfDestinationFitType)FitType,
-            TargetLocation = TargetLocation?.ToSkRect(),
+            TargetLocation = TargetLocation?.ToPdfRectangle(),
             Zoom = Zoom
         };
     }

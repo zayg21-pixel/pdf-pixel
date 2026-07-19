@@ -1,10 +1,10 @@
 using Microsoft.Extensions.Logging;
 using PdfPixel.Commands;
+using PdfPixel.Geometry;
 using PdfPixel.Models;
 using PdfPixel.Parsing;
 using PdfPixel.Rendering.State;
 using PdfPixel.Text;
-using SkiaSharp;
 using System;
 using System.Collections.Generic;
 
@@ -82,7 +82,7 @@ internal class PdfContentStreamRenderer
     {
         Stack<PdfGraphicsState> graphicsStack = [];
         Stack<IPdfValue> operandStack = [];
-        using SKPathBuilder currentPath = new();
+        PdfPath currentPath = new();
         PdfOperatorProcessor operatorProcessor = new(_renderer, _page, processor, operandStack, graphicsStack, currentPath);
         PdfParser parser = new(parseContext, _page.Document, allowReferences: false, decrypt: false);
         IPdfValue? value;
@@ -117,7 +117,5 @@ internal class PdfContentStreamRenderer
 
             graphicsState.ExecutionObserver?.Notify();
         }
-
-        currentPath.Dispose();
     }
 }

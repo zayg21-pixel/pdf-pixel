@@ -1,8 +1,8 @@
 using PdfPixel.Commands;
 using PdfPixel.Forms;
+using PdfPixel.Geometry;
 using PdfPixel.Models;
 using PdfPixel.Text;
-using SkiaSharp;
 
 namespace PdfPixel.Annotations.Models;
 
@@ -127,14 +127,14 @@ public class PdfWidgetAnnotation : PdfAnnotationBase
     /// <param name="position">Mouse position in PDF page coordinates.</param>
     /// <param name="state">Current pointer state.</param>
     /// <returns>True if the event was handled by the field.</returns>
-    public bool HandleMouseDown(SKPoint position, FormFieldPointerState state)
+    public bool HandleMouseDown(PdfPoint position, FormFieldPointerState state)
     {
         if (Field == null)
         {
             return false;
         }
 
-        SKPoint relativePosition = GetRelativePosition(position);
+        PdfPoint relativePosition = GetRelativePosition(position);
         return Field.OnMouseDown(relativePosition, state);
     }
 
@@ -144,14 +144,14 @@ public class PdfWidgetAnnotation : PdfAnnotationBase
     /// <param name="position">Mouse position in PDF page coordinates.</param>
     /// <param name="state">Current pointer state.</param>
     /// <returns>True if the event was handled by the field.</returns>
-    public bool HandleMouseUp(SKPoint position, FormFieldPointerState state)
+    public bool HandleMouseUp(PdfPoint position, FormFieldPointerState state)
     {
         if (Field == null)
         {
             return false;
         }
 
-        SKPoint relativePosition = GetRelativePosition(position);
+        PdfPoint relativePosition = GetRelativePosition(position);
         return Field.OnMouseUp(relativePosition, state);
     }
 
@@ -161,14 +161,14 @@ public class PdfWidgetAnnotation : PdfAnnotationBase
     /// <param name="position">Mouse position in PDF page coordinates.</param>
     /// <param name="state">Current pointer state.</param>
     /// <returns>True if the event was handled by the field.</returns>
-    public bool HandleMouseMove(SKPoint position, FormFieldPointerState state)
+    public bool HandleMouseMove(PdfPoint position, FormFieldPointerState state)
     {
         if (Field == null)
         {
             return false;
         }
 
-        SKPoint relativePosition = GetRelativePosition(position);
+        PdfPoint relativePosition = GetRelativePosition(position);
         return Field.OnMouseMove(relativePosition, state);
     }
 
@@ -263,7 +263,7 @@ public class PdfWidgetAnnotation : PdfAnnotationBase
     /// use top-left origin with Y increasing downward (like UI elements).
     /// This method converts from PDF page coordinates to field-relative UI coordinates.
     /// </remarks>
-    private SKPoint GetRelativePosition(SKPoint pagePosition)
+    private PdfPoint GetRelativePosition(PdfPoint pagePosition)
     {
         return new(
             pagePosition.X - Rectangle.Left,

@@ -1,6 +1,6 @@
+using PdfPixel.Geometry;
 using PdfPixel.Models;
 using PdfPixel.Text;
-using SkiaSharp;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -154,7 +154,7 @@ public class PdfChoiceFormField : PdfFormField
     /// <summary>
     /// Handles mouse down event on the choice field.
     /// </summary>
-    public override bool OnMouseDown(SKPoint position, FormFieldPointerState state)
+    public override bool OnMouseDown(PdfPoint position, FormFieldPointerState state)
     {
         if (IsReadOnly)
         {
@@ -193,7 +193,7 @@ public class PdfChoiceFormField : PdfFormField
     /// <summary>
     /// Handles mouse up event on the choice field.
     /// </summary>
-    public override bool OnMouseUp(SKPoint position, FormFieldPointerState state)
+    public override bool OnMouseUp(PdfPoint position, FormFieldPointerState state)
     {
         if (IsReadOnly || !_isDropdownOpen)
         {
@@ -219,7 +219,7 @@ public class PdfChoiceFormField : PdfFormField
     /// <summary>
     /// Handles mouse move event to update highlighted option.
     /// </summary>
-    public override bool OnMouseMove(SKPoint position, FormFieldPointerState state)
+    public override bool OnMouseMove(PdfPoint position, FormFieldPointerState state)
     {
         if (IsReadOnly)
         {
@@ -370,7 +370,7 @@ public class PdfChoiceFormField : PdfFormField
     /// This is a simplified implementation. A complete implementation would need
     /// to measure the actual option layout using the field's font and appearance.
     /// </remarks>
-    private int GetOptionIndexAtPosition(SKPoint position)
+    private int GetOptionIndexAtPosition(PdfPoint position)
     {
         if (Options == null || Options.Count == 0)
         {
