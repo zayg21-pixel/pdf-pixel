@@ -270,7 +270,7 @@ public abstract class PdfFontBase : IDisposable
         // Use GetPageObject instead of storing reference
         PdfObject? toUnicodeObj = Dictionary.GetObject(PdfTokens.ToUnicodeKey);
 
-        if (toUnicodeObj == null)
+        if (toUnicodeObj == null || !toUnicodeObj.HasStream)
         {
             return null;
         }

@@ -299,7 +299,8 @@ public class PdfCompositeFont : PdfFontBase
     /// <summary>
     /// Converts a character code to its Unicode string representation.
     /// First consults the ToUnicode CMap from the base class; if that yields no result, maps the code to a CID and
-    /// looks it up in the built-in CID-to-Unicode table for the font's CIDSystemInfo.
+    /// looks it up in the built-in CID-to-Unicode table for the font's CIDSystemInfo; if that also fails, falls
+    /// back to treating the character code itself as a Unicode code point.
     /// </summary>
     /// <param name="code">The character code to convert.</param>
     /// <returns>The Unicode string for the character code, or <see langword="null"/> if no mapping is found.</returns>
@@ -312,16 +313,13 @@ public class PdfCompositeFont : PdfFontBase
             return baseCode;
         }
 
-        if (!TryMapCodeToCid(code, out uint cid))
-        {
-            return null;
-        }
-
-        if (_toUnicode != null && _toUnicode.TryGetValue(cid, out string? resultString))
+        if (TryMapCodeToCid(code, out uint cid) && _toUnicode != null && _toUnicode.TryGetValue(cid, out string? resultString))
         {
             return resultString;
         }
 
-        return null;
+        // Fallback: treat the character code itself as a Unicode code point.
+        var codePoint = (int)(uint)code;
+        return (PdfCMap.IsValidCodePoint(codePoint)) ? char.ConvertFromUtf32(codePoint) : null;
     }
 }
