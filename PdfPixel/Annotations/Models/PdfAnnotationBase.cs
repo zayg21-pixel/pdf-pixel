@@ -1,7 +1,6 @@
 using PdfPixel.Annotations;
 using PdfPixel.Models;
 using PdfPixel.Text;
-using PdfPixel.Rendering.Operators;
 using PdfPixel.Parsing;
 using PdfPixel.Rendering;
 using PdfPixel.Annotations.Rendering;

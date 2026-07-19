@@ -1,6 +1,5 @@
 using PdfPixel.Commands;
 using PdfPixel.Models;
-using PdfPixel.Rendering.Operators;
 using PdfPixel.Text;
 using SkiaSharp;
 

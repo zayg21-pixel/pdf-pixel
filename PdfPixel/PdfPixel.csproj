@@ -75,10 +75,6 @@
     </PackageReference>
   </ItemGroup>
 
-  <ItemGroup>
-    <Folder Include="Color\Sampling\" />
-  </ItemGroup>
-
   <PropertyGroup>
     <TargetsForTfmSpecificBuildOutput>$(TargetsForTfmSpecificBuildOutput);AddProjectReferenceAssembliesToPackage</TargetsForTfmSpecificBuildOutput>
   </PropertyGroup>

@@ -2,7 +2,6 @@ using SkiaSharp;
 using PdfPixel.Models;
 using PdfPixel.Shading.Model;
 using PdfPixel.Pattern.Model;
-using PdfPixel.Rendering.Operators;
 using PdfPixel.Text;
 using PdfPixel.Rendering;
 

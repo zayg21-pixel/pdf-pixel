@@ -1,8 +1,7 @@
-using PdfPixel.Models;
 using SkiaSharp;
 using System.Collections.Generic;
 
-namespace PdfPixel.Rendering.Operators;
+namespace PdfPixel.Models;
 
 /// <summary>
 /// Utility methods for PDF location related operations and operand handling.

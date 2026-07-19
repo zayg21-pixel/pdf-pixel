@@ -5,7 +5,6 @@ using PdfPixel.Forms;
 using PdfPixel.Models;
 using PdfPixel.Parsing;
 using PdfPixel.Rendering;
-using PdfPixel.Rendering.Operators;
 using PdfPixel.Rendering.State;
 using PdfPixel.Text;
 using SkiaSharp;

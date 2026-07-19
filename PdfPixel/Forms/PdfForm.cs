@@ -1,5 +1,4 @@
 using PdfPixel.Models;
-using PdfPixel.Rendering.Operators;
 using PdfPixel.Text;
 using PdfPixel.Transparency.Model;
 using PdfPixel.Transparency.Utilities;

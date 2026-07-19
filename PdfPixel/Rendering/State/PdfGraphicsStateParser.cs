@@ -2,7 +2,6 @@
 using SkiaSharp;
 using System;
 using PdfPixel.Text;
-using PdfPixel.Rendering.Operators;
 using PdfPixel.Transparency.Utilities;
 using PdfPixel.Transparency.Model;
 using PdfPixel.Color.ColorSpace;
