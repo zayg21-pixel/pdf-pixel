@@ -2,6 +2,7 @@ using Microsoft.Extensions.Logging;
 using PdfPixel.Color.Paint;
 using PdfPixel.Commands;
 using PdfPixel.Rendering.State;
+using PdfPixel.Transparency.Model;
 using PdfPixel.Transparency.Utilities;
 using SkiaSharp;
 using System;
@@ -89,20 +90,28 @@ public class PathRenderer : IPathRenderer
             }
             case PdfPaintOperation.FillAndStroke:
             {
-                SKPath strokeOutline = PdfPaintFactory.CreateStrokePaint(state).GetFillPath(path);
-                SKPath fillOutline;
+                bool overlapAffectsCompositing = state.FillAlpha < 1
+                    || state.StrokeAlpha < 1
+                    || state.BlendMode != PdfBlendMode.Normal;
 
-                if (strokeOutline != null)
+                if (overlapAffectsCompositing)
                 {
-                    fillOutline = path.Op(strokeOutline, SKPathOp.Difference);
+                    using SKPaint strokePaint = PdfPaintFactory.CreateStrokePaint(state);
+                    SKPath strokeOutline = strokePaint.GetFillPath(path);
+
+                    processor.Process(SaveStateCommand.Instance);
+                    processor.Process(new ClipPathCommand(strokeOutline, SKClipOperation.Difference));
+
+                    using PathFillRenderTarget clippedFillTarget = new(new SKPath(path), state);
+                    clippedFillTarget.Render(processor);
+
+                    processor.Process(RestoreStateCommand.Instance);
                 }
                 else
                 {
-                    fillOutline = new SKPath(path);
+                    using PathFillRenderTarget fillTarget = new(new SKPath(path), state);
+                    fillTarget.Render(processor);
                 }
-
-                using PathFillRenderTarget fillTarget = new(fillOutline, state);
-                fillTarget.Render(processor);
 
                 using PathStrokeRenderTarget strokeTarget = new(new SKPath(path), state);
                 strokeTarget.Render(processor);

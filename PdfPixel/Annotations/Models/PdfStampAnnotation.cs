@@ -2,7 +2,6 @@ using PdfPixel.Commands;
 using PdfPixel.Fonts.Management;
 using PdfPixel.Geometry;
 using PdfPixel.Models;
-using PdfPixel.Geometry;
 using PdfPixel.Text;
 using SkiaSharp;
 using System;

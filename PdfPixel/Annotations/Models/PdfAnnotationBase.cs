@@ -1,4 +1,3 @@
-using PdfPixel.Annotations;
 using PdfPixel.Models;
 using PdfPixel.Text;
 using PdfPixel.Parsing;

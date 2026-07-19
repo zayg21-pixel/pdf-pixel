@@ -1,4 +1,3 @@
-using PdfPixel.Geometry;
 using System;
 
 namespace PdfPixel.Geometry;
