@@ -2,7 +2,6 @@
 using PdfPixel.Color.Paint;
 using PdfPixel.Models;
 using PdfPixel.Rendering.State;
-using PdfPixel.Transparency.Model;
 using System.Collections.Generic;
 
 namespace PdfPixel.Transparency.Utilities;
@@ -25,12 +24,8 @@ internal static class SoftMaskUtilities
         return new(page, sourceState)
         {
             // White stroke/fill -> maximum channel; alpha modulation derives from transparency settings.
-            StrokePaint = PdfPaint.Solid(PdfColors.White),
-            FillPaint = PdfPaint.Solid(PdfColors.White),
-            StrokeAlpha = 1.0f,
-            FillAlpha = 1.0f,
-            BlendMode = PdfBlendMode.Normal,
-            LineWidth = 1.0f
+            StrokePaint = PdfPaint.Solid(PdfColors.White, PdfPaintStyle.Stroke),
+            FillPaint = PdfPaint.Solid(PdfColors.White, PdfPaintStyle.Fill)
         };
     }
 
@@ -47,12 +42,8 @@ internal static class SoftMaskUtilities
         return new(page, sourceState)
         {
             // Black stroke/fill -> preserves true luminance contribution of painted colors.
-            StrokePaint = PdfPaint.Solid(PdfColors.Black),
-            FillPaint = PdfPaint.Solid(PdfColors.Black),
-            StrokeAlpha = 1.0f,
-            FillAlpha = 1.0f,
-            BlendMode = PdfBlendMode.Normal,
-            LineWidth = 1.0f
+            StrokePaint = PdfPaint.Solid(PdfColors.Black, PdfPaintStyle.Stroke),
+            FillPaint = PdfPaint.Solid(PdfColors.Black, PdfPaintStyle.Fill)
         };
     }
 }

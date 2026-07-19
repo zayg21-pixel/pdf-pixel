@@ -39,8 +39,8 @@ public sealed class ImageDecodingContext
         MaxTileCacheSizeBytes = state.RenderingParameters.MaxTileCacheSizeBytes;
         FullTransferFunction = state.FullTransferFunction;
         FillColor = state.FillPaint.Color;
-        FillAlpha = state.FillAlpha;
-        BlendMode = SkiaEnumUtilities.ToSkiaBlendMode(state.BlendMode);
+        FillAlpha = state.FillPaint.Alpha;
+        BlendMode = SkiaEnumUtilities.ToSkiaBlendMode(state.FillPaint.BlendMode);
     }
 
     /// <summary>

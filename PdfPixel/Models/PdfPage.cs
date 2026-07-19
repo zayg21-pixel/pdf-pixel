@@ -1,5 +1,4 @@
 using PdfPixel.Rendering;
-using PdfPixel.TextExtraction;
 using PdfPixel.Annotations.Models;
 using PdfPixel.Commands;
 using PdfPixel.Text;
@@ -136,7 +135,7 @@ internal class PdfPage : IPdfPageInternal
 
         if (_transparencyGroup != null)
         {
-            processor.Process(new SaveLayerCommand(CropBox, paint: null));
+            processor.Process(new SaveLayerCommand(CropBox, (SKPaint?)null));
         }
 
         contentRenderer.RenderContent(processor, renderingParameters, observer);

@@ -23,7 +23,8 @@ internal class PathStrokeRenderTarget : IRenderTarget
     {
         _sourcePath = path;
         _state = state;
-        _basePaint = PdfPaintFactory.CreateStrokePaint(state);
+        // Exception: SKPaint.GetFillPath has no PdfPaint equivalent, so we need the real SKPaint here.
+        _basePaint = state.StrokePaint.ToSkiaPaint();
 
         SKPath? fillPath = _basePaint.GetFillPath(path);
         _clipPath = fillPath ?? path;
@@ -43,7 +44,7 @@ internal class PathStrokeRenderTarget : IRenderTarget
     {
         processor.Process(SaveStateCommand.Instance);
         processor.Process(new ClipPathCommand(new SKPath(_clipPath), SKClipOperation.Intersect));
-        processor.Process(new SaveLayerCommand(_clipPath.Bounds, null));
+        processor.Process(new SaveLayerCommand(_clipPath.Bounds, (SKPaint?)null));
     }
 
     public void AfterPatternRender(IPdfCommandProcessor processor)

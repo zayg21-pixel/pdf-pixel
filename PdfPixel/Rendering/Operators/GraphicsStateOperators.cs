@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging;
 using PdfPixel.Color.ColorSpace;
+using PdfPixel.Color.Paint;
 using PdfPixel.Commands;
 using PdfPixel.Geometry;
 using PdfPixel.Models;
@@ -158,7 +159,7 @@ internal class GraphicsStateOperators : IOperatorProcessor
             return;
         }
 
-        graphicsState.LineWidth = operands[0].AsFloat();
+        graphicsState.StrokePaint.RequireStrokeStyle().LineWidth = operands[0].AsFloat();
     }
 
     private void ProcessSetLineCap(PdfGraphicsState graphicsState)
@@ -170,12 +171,12 @@ internal class GraphicsStateOperators : IOperatorProcessor
         }
 
         float capStyle = operands[0].AsFloat();
-        graphicsState.LineCap = capStyle switch
+        graphicsState.StrokePaint.RequireStrokeStyle().LineCap = capStyle switch
         {
-            0 => SKStrokeCap.Butt,
-            1 => SKStrokeCap.Round,
-            2 => SKStrokeCap.Square,
-            _ => SKStrokeCap.Butt
+            0 => PdfStrokeCap.Butt,
+            1 => PdfStrokeCap.Round,
+            2 => PdfStrokeCap.Square,
+            _ => PdfStrokeCap.Butt
         };
     }
 
@@ -188,12 +189,12 @@ internal class GraphicsStateOperators : IOperatorProcessor
         }
 
         float joinStyle = operands[0].AsFloat();
-        graphicsState.LineJoin = joinStyle switch
+        graphicsState.StrokePaint.RequireStrokeStyle().LineJoin = joinStyle switch
         {
-            0 => SKStrokeJoin.Miter,
-            1 => SKStrokeJoin.Round,
-            2 => SKStrokeJoin.Bevel,
-            _ => SKStrokeJoin.Miter
+            0 => PdfStrokeJoin.Miter,
+            1 => PdfStrokeJoin.Round,
+            2 => PdfStrokeJoin.Bevel,
+            _ => PdfStrokeJoin.Miter
         };
     }
 
@@ -205,7 +206,7 @@ internal class GraphicsStateOperators : IOperatorProcessor
             return;
         }
 
-        graphicsState.MiterLimit = operands[0].AsFloat();
+        graphicsState.StrokePaint.RequireStrokeStyle().MiterLimit = operands[0].AsFloat();
     }
 
     private void ProcessSetDashPattern(PdfGraphicsState graphicsState)
@@ -219,16 +220,17 @@ internal class GraphicsStateOperators : IOperatorProcessor
         float[]? dashArray = operands[0].AsArray()?.GetFloatArray();
         float dashPhase = operands[1].AsFloat();
 
+        PdfStrokeStyle strokeStyle = graphicsState.StrokePaint.RequireStrokeStyle();
         if (dashArray?.Length > 0)
         {
-            graphicsState.DashPattern = GetDashPattern(dashArray);
-            graphicsState.DashPhase = dashPhase;
+            strokeStyle.DashPattern = GetDashPattern(dashArray);
+            strokeStyle.DashPhase = dashPhase;
         }
         else
         {
             // Empty array means solid line
-            graphicsState.DashPattern = null;
-            graphicsState.DashPhase = 0;
+            strokeStyle.DashPattern = null;
+            strokeStyle.DashPhase = 0;
         }
     }
 

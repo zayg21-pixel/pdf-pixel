@@ -67,7 +67,7 @@ public class FormRenderer : IFormRenderer
 
         if (formXObject.TransparencyGroup != null)
         {
-            SKPaint formPaint = PdfPaintFactory.CreateCompositionLayerPaint(graphicsState);
+            PdfPaint formPaint = PdfPaintFactory.CreateCompositionLayerPaint(graphicsState);
             processor.Process(new SaveLayerCommand(formXObject.BBox, formPaint));
         }
 

@@ -26,7 +26,8 @@ internal class TextStrokeRenderTarget : IRenderTarget
         _font = font;
         _shapingResult = shapingResult;
         _state = state;
-        _strokePaint = PdfPaintFactory.CreateStrokePaint(state);
+        // Exception: SKPaint.GetFillPath has no PdfPaint equivalent, so we need the real SKPaint here.
+        _strokePaint = state.StrokePaint.ToSkiaPaint();
 
         if (state.StrokePaint.IsPattern)
         {
@@ -56,7 +57,7 @@ internal class TextStrokeRenderTarget : IRenderTarget
         if (_clipPath != null)
         {
             processor.Process(new ClipPathCommand(new SKPath(_clipPath), SKClipOperation.Intersect));
-            processor.Process(new SaveLayerCommand(_clipPath.Bounds, null));
+            processor.Process(new SaveLayerCommand(_clipPath.Bounds, (SKPaint?)null));
         }
     }
 

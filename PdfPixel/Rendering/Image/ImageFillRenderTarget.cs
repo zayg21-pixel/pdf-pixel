@@ -115,7 +115,7 @@ internal class ImageFillRenderTarget : IRenderTarget
                 StencilMaskImageExecutionContext maskCtx = StencilMaskImageExecutionContext.Create(stencilMask, maskContext, _loggerFactory);
                 processor.Process(new InitializeTileCacheCommand(maskCtx.TileCache, maskCtx.ImageSize));
 
-                SKPaint layerPaint = PdfPaintFactory.CreateCompositionLayerPaint(_state);
+                PdfPaint layerPaint = PdfPaintFactory.CreateCompositionLayerPaint(_state);
                 processor.Process(new SaveLayerCommand(new SKRect(0, 0, 1, 1), layerPaint));
 
                 for (int i = 0; i < imageCtx.TileInfo.TotalTiles; i++)

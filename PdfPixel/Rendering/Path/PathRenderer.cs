@@ -90,13 +90,14 @@ public class PathRenderer : IPathRenderer
             }
             case PdfPaintOperation.FillAndStroke:
             {
-                bool overlapAffectsCompositing = state.FillAlpha < 1
-                    || state.StrokeAlpha < 1
-                    || state.BlendMode != PdfBlendMode.Normal;
+                bool overlapAffectsCompositing = state.FillPaint.Alpha < 1
+                    || state.StrokePaint.Alpha < 1
+                    || state.FillPaint.BlendMode != PdfBlendMode.Normal;
 
                 if (overlapAffectsCompositing)
                 {
-                    using SKPaint strokePaint = PdfPaintFactory.CreateStrokePaint(state);
+                    // Exception: SKPaint.GetFillPath has no PdfPaint equivalent, so we need the real SKPaint here.
+                    using SKPaint strokePaint = state.StrokePaint.ToSkiaPaint();
                     SKPath strokeOutline = strokePaint.GetFillPath(path);
 
                     processor.Process(SaveStateCommand.Instance);

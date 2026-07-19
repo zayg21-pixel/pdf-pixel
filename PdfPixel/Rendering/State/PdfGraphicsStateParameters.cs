@@ -1,4 +1,5 @@
 using SkiaSharp;
+using PdfPixel.Color.Paint;
 using PdfPixel.Transparency.Model;
 using PdfPixel.Fonts.Model;
 using PdfPixel.Color.ColorSpace;
@@ -18,14 +19,14 @@ namespace PdfPixel.Rendering.State
         public float? LineWidth { get; set; }
 
         /// <summary>
-        /// Parsed line cap style (LineCap key / LC operator). Values map to <see cref="SKStrokeCap"/>. Null when absent.
+        /// Parsed line cap style (LineCap key / LC operator). Null when absent.
         /// </summary>
-        public SKStrokeCap? LineCap { get; set; }
+        public PdfStrokeCap? LineCap { get; set; }
 
         /// <summary>
-        /// Parsed line join style (LineJoin key / LJ operator). Values map to <see cref="SKStrokeJoin"/>. Null when absent.
+        /// Parsed line join style (LineJoin key / LJ operator). Null when absent.
         /// </summary>
-        public SKStrokeJoin? LineJoin { get; set; }
+        public PdfStrokeJoin? LineJoin { get; set; }
 
         /// <summary>
         /// Parsed miter limit (MiterLimit key / ML operator). Null when absent.
@@ -133,45 +134,48 @@ namespace PdfPixel.Rendering.State
                 return;
             }
 
+            PdfStrokeStyle strokeStyle = graphicsState.StrokePaint.RequireStrokeStyle();
+
             if (LineWidth.HasValue)
             {
-                graphicsState.LineWidth = LineWidth.Value;
+                strokeStyle.LineWidth = LineWidth.Value;
             }
 
             if (LineCap.HasValue)
             {
-                graphicsState.LineCap = LineCap.Value;
+                strokeStyle.LineCap = LineCap.Value;
             }
 
             if (LineJoin.HasValue)
             {
-                graphicsState.LineJoin = LineJoin.Value;
+                strokeStyle.LineJoin = LineJoin.Value;
             }
 
             if (MiterLimit.HasValue)
             {
-                graphicsState.MiterLimit = MiterLimit.Value;
+                strokeStyle.MiterLimit = MiterLimit.Value;
             }
 
             if (DashPattern != null)
             {
-                graphicsState.DashPattern = DashPattern;
-                graphicsState.DashPhase = DashPhase.GetValueOrDefault();
+                strokeStyle.DashPattern = DashPattern;
+                strokeStyle.DashPhase = DashPhase.GetValueOrDefault();
             }
 
             if (StrokeAlpha.HasValue)
             {
-                graphicsState.StrokeAlpha = StrokeAlpha.Value;
+                graphicsState.StrokePaint.Alpha = StrokeAlpha.Value;
             }
 
             if (FillAlpha.HasValue)
             {
-                graphicsState.FillAlpha = FillAlpha.Value;
+                graphicsState.FillPaint.Alpha = FillAlpha.Value;
             }
 
             if (BlendMode.HasValue)
             {
-                graphicsState.BlendMode = BlendMode.Value;
+                graphicsState.StrokePaint.BlendMode = BlendMode.Value;
+                graphicsState.FillPaint.BlendMode = BlendMode.Value;
             }
 
             if (SoftMask != null)
@@ -205,12 +209,12 @@ namespace PdfPixel.Rendering.State
 
             if (OverprintStroke.HasValue)
             {
-                graphicsState.OverprintStroke = OverprintStroke.Value;
+                graphicsState.StrokePaint.Overprint = OverprintStroke.Value;
             }
 
             if (OverprintFill.HasValue)
             {
-                graphicsState.OverprintFill = OverprintFill.Value;
+                graphicsState.FillPaint.Overprint = OverprintFill.Value;
             }
 
             if (TransformMatrix.HasValue)

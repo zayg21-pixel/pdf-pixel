@@ -29,6 +29,22 @@ public sealed class DrawTextCommand : PdfCommand, IMatrixCommand, IPaintCommand
     }
 
     /// <summary>
+    /// Initializes the command with the given text, matrix, font and paint.
+    /// </summary>
+    public DrawTextCommand(string text, SKMatrix matrix, SKFont font, PdfPaint basePaint)
+        : this(text, matrix, font, basePaint.ToSkiaPaint())
+    {
+    }
+
+    /// <summary>
+    /// Initializes the command with the given text, matrix, font and paint.
+    /// </summary>
+    public DrawTextCommand(string text, in PdfMatrix matrix, SKFont font, PdfPaint basePaint)
+        : this(text, matrix.ToSkMatrix(), font, basePaint.ToSkiaPaint())
+    {
+    }
+
+    /// <summary>
     /// Gets the text drawn by this command.
     /// </summary>
     public string Text { get; }

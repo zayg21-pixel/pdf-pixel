@@ -21,7 +21,7 @@ public sealed class ShadingDecodingContext
     {
         Shading = shading;
         Converter = state.Page.Cache.ColorSpace.ResolveByObject(shading.ColorSpaceObject) ?? DeviceRgbConverter.Instance;
-        FillAlpha = state.FillAlpha;
+        FillAlpha = state.FillPaint.Alpha;
         RenderingIntent = state.RenderingIntent;
         FullTransferFunction = state.FullTransferFunction;
     }

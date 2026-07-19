@@ -5,6 +5,7 @@ using PdfPixel.Text;
 using PdfPixel.Transparency.Utilities;
 using PdfPixel.Transparency.Model;
 using PdfPixel.Color.ColorSpace;
+using PdfPixel.Color.Paint;
 using PdfPixel.Color.Transform;
 using PdfPixel.Geometry;
 
@@ -40,10 +41,10 @@ namespace PdfPixel.Rendering.State
             {
                 parameters.LineCap = capStyle.Value switch
                 {
-                    0 => SKStrokeCap.Butt,
-                    1 => SKStrokeCap.Round,
-                    2 => SKStrokeCap.Square,
-                    _ => SKStrokeCap.Butt
+                    0 => PdfStrokeCap.Butt,
+                    1 => PdfStrokeCap.Round,
+                    2 => PdfStrokeCap.Square,
+                    _ => PdfStrokeCap.Butt
                 };
             }
 
@@ -52,10 +53,10 @@ namespace PdfPixel.Rendering.State
             {
                 parameters.LineJoin = joinStyle.Value switch
                 {
-                    0 => SKStrokeJoin.Miter,
-                    1 => SKStrokeJoin.Round,
-                    2 => SKStrokeJoin.Bevel,
-                    _ => SKStrokeJoin.Miter
+                    0 => PdfStrokeJoin.Miter,
+                    1 => PdfStrokeJoin.Round,
+                    2 => PdfStrokeJoin.Bevel,
+                    _ => PdfStrokeJoin.Miter
                 };
             }
 

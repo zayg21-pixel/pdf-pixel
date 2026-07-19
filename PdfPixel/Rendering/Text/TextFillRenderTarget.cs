@@ -43,7 +43,7 @@ internal class TextFillRenderTarget : IRenderTarget
         if (_clipPath != null)
         {
             processor.Process(new ClipPathCommand(new SKPath(_clipPath), SKClipOperation.Intersect));
-            processor.Process(new SaveLayerCommand(_clipPath.Bounds, null));
+            processor.Process(new SaveLayerCommand(_clipPath.Bounds, (SKPaint?)null));
         }
     }
 
@@ -65,14 +65,9 @@ internal class TextFillRenderTarget : IRenderTarget
         }
         else
         {
-            //SKPaint paint = PdfPaintFactory.CreateFillPaint(_state);
-            //SKPath path = TextRenderUtilities.GetTextPath(_shapingResult, _font, _state);
-            //processor.Process(new DrawPathCommand(path, paint));
-
             SKMatrix textMatrix = TextRenderUtilities.GetFullTextMatrix(_state);
 
-            SKPaint paint = PdfPaintFactory.CreateFillPaint(_state);
-            processor.Process(new DrawShapedTextCommand(textMatrix, _shapingResult.ToArray(), PdfPaintFactory.CloneFont(_font), paint));
+            processor.Process(new DrawShapedTextCommand(textMatrix, _shapingResult.ToArray(), PdfPaintFactory.CloneFont(_font), _state.FillPaint));
         }
     }
 

@@ -80,12 +80,12 @@ public class PdfGraphicsState
     /// <summary>
     /// Current stroking paint (solid color or pattern).
     /// </summary>
-    public PdfPaint StrokePaint { get; set; } = PdfPaint.Solid(PdfColors.Black);
+    public PdfPaint StrokePaint { get; set; } = PdfPaint.Solid(PdfColors.Black, PdfPaintStyle.Stroke);
 
     /// <summary>
     /// Current non-stroking (fill) paint (solid color or pattern).
     /// </summary>
-    public PdfPaint FillPaint { get; set; } = PdfPaint.Solid(PdfColors.Black);
+    public PdfPaint FillPaint { get; set; } = PdfPaint.Solid(PdfColors.Black, PdfPaintStyle.Fill);
 
     /// <summary>
     /// Gets the ColorTransformSampler for fill operations, cached and invalidated as needed.
@@ -230,39 +230,6 @@ public class PdfGraphicsState
     }
 
     // --------------------------------------------------------------------------------------
-    // Line state (see PDF 2.0 spec 8.4 Graphics State)
-    // --------------------------------------------------------------------------------------
-    /// <summary>
-    /// Line width (w operator). Default 1.
-    /// </summary>
-    public float LineWidth { get; set; } = 1.0f;
-
-    /// <summary>
-    /// Line cap style (J operator). Default Butt.
-    /// </summary>
-    public SKStrokeCap LineCap { get; set; } = SKStrokeCap.Butt;
-
-    /// <summary>
-    /// Line join style (j operator). Default Miter.
-    /// </summary>
-    public SKStrokeJoin LineJoin { get; set; } = SKStrokeJoin.Miter;
-
-    /// <summary>
-    /// Miter limit (M operator). Default 10.
-    /// </summary>
-    public float MiterLimit { get; set; } = 10.0f;
-
-    /// <summary>
-    /// Dash pattern array (d operator). Null means solid line.
-    /// </summary>
-    public float[]? DashPattern { get; set; }
-
-    /// <summary>
-    /// Dash phase (d operator). Default 0.
-    /// </summary>
-    public float DashPhase { get; set; }
-
-    // --------------------------------------------------------------------------------------
     // Path rendering state (see PDF 2.0 spec 8.4 Graphics State)
     // --------------------------------------------------------------------------------------
     /// <summary>
@@ -274,21 +241,6 @@ public class PdfGraphicsState
     // --------------------------------------------------------------------------------------
     // Transparency state (see PDF 2.0 spec 11 Transparency)
     // --------------------------------------------------------------------------------------
-    /// <summary>
-    /// Stroke alpha constant (CA entry in ExtGState). 0 = fully transparent, 1 = opaque.
-    /// </summary>
-    public float StrokeAlpha { get; set; } = 1.0f;
-
-    /// <summary>
-    /// Fill alpha constant (ca entry in ExtGState). 0 = fully transparent, 1 = opaque.
-    /// </summary>
-    public float FillAlpha { get; set; } = 1.0f;
-
-    /// <summary>
-    /// Current blend mode (BM entry in ExtGState). Default Normal.
-    /// </summary>
-    public PdfBlendMode BlendMode { get; set; } = PdfBlendMode.Normal;
-
     /// <summary>
     /// Active soft mask (SMask entry in ExtGState) or null when none.
     /// </summary>
@@ -320,16 +272,6 @@ public class PdfGraphicsState
     /// Overprint mode (OPM). Default 0.
     /// </summary>
     public int OverprintMode { get; set; }
-
-    /// <summary>
-    /// Overprint flag for stroke operations (OP). Default false.
-    /// </summary>
-    public bool OverprintStroke { get; set; }
-
-    /// <summary>
-    /// Overprint flag for fill operations (op). Default false.
-    /// </summary>
-    public bool OverprintFill { get; set; }
 
     // --------------------------------------------------------------------------------------
     // Text state (see PDF 2.0 spec 9 Text) - tracked between BT/ET
@@ -407,24 +349,16 @@ public class PdfGraphicsState
     public PdfTextMarkup? PendingTextMarkup { get; set; }
 
     /// <summary>
-    /// Create a deep copy for stack push (q operator). Paint objects are reference-copied (immutable usage expected).
+    /// Create a deep copy for stack push (q operator). Paint objects are cloned so mutations inside the
+    /// pushed scope never alias the parent scope's paint.
     /// </summary>
     public PdfGraphicsState Clone()
     {
         return new(Page, this)
         {
-            StrokePaint = StrokePaint,
-            FillPaint = FillPaint,
-            StrokeAlpha = StrokeAlpha,
+            StrokePaint = StrokePaint.Clone(),
+            FillPaint = FillPaint.Clone(),
             FlatnessTolerance = FlatnessTolerance,
-            FillAlpha = FillAlpha,
-            BlendMode = BlendMode,
-            LineWidth = LineWidth,
-            LineCap = LineCap,
-            LineJoin = LineJoin,
-            MiterLimit = MiterLimit,
-            DashPattern = (DashPattern != null) ? (float[])DashPattern.Clone() : null,
-            DashPhase = DashPhase,
             StrokeColorConverter = StrokeColorConverter,
             FillColorConverter = FillColorConverter,
             RenderingIntent = RenderingIntent,
@@ -433,8 +367,6 @@ public class PdfGraphicsState
             TransferFunction = TransferFunction,
             AlphaIsShape = AlphaIsShape,
             OverprintMode = OverprintMode,
-            OverprintStroke = OverprintStroke,
-            OverprintFill = OverprintFill,
             CurrentFont = CurrentFont,
             FontSize = FontSize,
             CharacterSpacing = CharacterSpacing,

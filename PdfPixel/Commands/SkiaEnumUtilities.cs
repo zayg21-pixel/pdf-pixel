@@ -1,3 +1,4 @@
+using PdfPixel.Color.Paint;
 using PdfPixel.Models;
 using PdfPixel.Transparency.Model;
 using SkiaSharp;
@@ -48,6 +49,32 @@ internal static class SkiaEnumUtilities
             PdfBlendMode.Luminosity => SKBlendMode.Luminosity,
             PdfBlendMode.Compatible => SKBlendMode.SrcOver, // Default to normal
             _ => SKBlendMode.SrcOver // Default fallback
+        };
+    }
+
+    /// <summary>
+    /// Converts a <see cref="PdfStrokeCap"/> to the corresponding <see cref="SKStrokeCap"/>.
+    /// </summary>
+    public static SKStrokeCap ToSkiaStrokeCap(PdfStrokeCap strokeCap)
+    {
+        return strokeCap switch
+        {
+            PdfStrokeCap.Round => SKStrokeCap.Round,
+            PdfStrokeCap.Square => SKStrokeCap.Square,
+            _ => SKStrokeCap.Butt
+        };
+    }
+
+    /// <summary>
+    /// Converts a <see cref="PdfStrokeJoin"/> to the corresponding <see cref="SKStrokeJoin"/>.
+    /// </summary>
+    public static SKStrokeJoin ToSkiaStrokeJoin(PdfStrokeJoin strokeJoin)
+    {
+        return strokeJoin switch
+        {
+            PdfStrokeJoin.Round => SKStrokeJoin.Round,
+            PdfStrokeJoin.Bevel => SKStrokeJoin.Bevel,
+            _ => SKStrokeJoin.Miter
         };
     }
 }

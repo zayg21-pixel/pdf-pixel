@@ -116,7 +116,7 @@ public sealed class SoftMaskDrawingScope : IDisposable
         if (_softMask.Subtype == PdfSoftMaskSubtype.Luminosity)
         {
             PdfColor backgroundColor = _softMask.GetBackgroundColor(_graphicsState.RenderingIntent, _graphicsState.FullTransferFunction);
-            SKPaint backgroundPaint = PdfPaintFactory.CreateBackgroundPaint(backgroundColor);
+            PdfPaint backgroundPaint = PdfPaintFactory.CreateBackgroundPaint(backgroundColor);
 
             using SKPathBuilder rectPathBuilder = new();
             rectPathBuilder.AddRect(_softMask.MaskForm.BBox);
