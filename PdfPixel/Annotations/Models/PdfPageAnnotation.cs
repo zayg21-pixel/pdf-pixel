@@ -30,7 +30,7 @@ public sealed class PdfPageAnnotation
     /// <summary>
     /// Returns the hover rectangle for this annotation in PDF page coordinates.
     /// </summary>
-    public SKRect GetHoverRectangle() => Content.GetHoverRectangle(_page);
+    public PdfRectangle GetHoverRectangle() => Content.GetHoverRectangle(_page);
 
     /// <summary>
     /// Renders this annotation via the command processor.

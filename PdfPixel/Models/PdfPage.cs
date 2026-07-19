@@ -18,7 +18,7 @@ namespace PdfPixel.Models;
 /// </summary>
 internal class PdfPage : IPdfPageInternal
 {
-    private static readonly SKRect DefaultMediaBox = new(0, 0, 612, 792);
+    private static readonly PdfRectangle DefaultMediaBox = new(0, 0, 612, 792);
 
     private readonly PdfPageCache _pageCache;
     private readonly IPdfDocumentInternal _document;
@@ -40,9 +40,9 @@ internal class PdfPage : IPdfPageInternal
         _pageResources = pageResources ?? throw new ArgumentNullException(nameof(pageResources));
 
         PageNumber = pageNumber;
-        SKRect media = pageResources.MediaBoxRect ?? DefaultMediaBox;
-        SKRect crop = pageResources.CropBoxRect ?? media;
-        crop = SKRect.Intersect(crop, media);
+        PdfRectangle media = pageResources.MediaBoxRect ?? DefaultMediaBox;
+        PdfRectangle crop = pageResources.CropBoxRect ?? media;
+        crop = PdfRectangle.Intersect(crop, media);
         MediaBox = media;
         CropBox = crop;
         Rotation = pageResources.Rotate ?? 0;
@@ -86,10 +86,10 @@ internal class PdfPage : IPdfPageInternal
     public int PageNumber { get; }
 
     /// <inheritdoc/>
-    public SKRect MediaBox { get; }
+    public PdfRectangle MediaBox { get; }
 
     /// <inheritdoc/>
-    public SKRect CropBox { get; }
+    public PdfRectangle CropBox { get; }
 
     /// <inheritdoc/>
     public int Rotation { get; }

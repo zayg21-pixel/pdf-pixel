@@ -28,16 +28,16 @@ public class PdfPolyLineAnnotation : PdfAnnotationBase
 
         if (vertices != null)
         {
-            Vertices = new SKPoint[vertices.Length / 2];
+            Vertices = new PdfPoint[vertices.Length / 2];
 
             for (int i = 0; i < vertices.Length; i += 2)
             {
-                Vertices[i / 2] = new SKPoint(vertices[i], vertices[i + 1]);
+                Vertices[i / 2] = new PdfPoint(vertices[i], vertices[i + 1]);
             }
         }
         else
         {
-            Vertices = Array.Empty<SKPoint>();
+            Vertices = Array.Empty<PdfPoint>();
         }
 
         PdfArray? lineEndingArray = annotationObject.Dictionary.GetArray(PdfTokens.LineEndingKey);
@@ -54,12 +54,12 @@ public class PdfPolyLineAnnotation : PdfAnnotationBase
     /// <summary>
     /// Gets the starting point for bubble placement, using the first vertex of the polyline.
     /// </summary>
-    protected override SKPoint ContentStart => (Vertices?.Length > 0) ? Vertices[0] : base.ContentStart;
+    protected override PdfPoint ContentStart => (Vertices?.Length > 0) ? Vertices[0] : base.ContentStart;
 
     /// <summary>
     /// Gets the vertices array containing coordinates of the polyline vertices.
     /// </summary>
-    public SKPoint[] Vertices { get; }
+    public PdfPoint[] Vertices { get; }
 
     /// <summary>
     /// Gets the line ending style at the start point.
@@ -88,11 +88,11 @@ public class PdfPolyLineAnnotation : PdfAnnotationBase
 
         using SKPathBuilder pathBuilder = new();
 
-        pathBuilder.MoveTo(Vertices[0]);
+        pathBuilder.MoveTo(Vertices[0].ToSkPoint());
 
         for (int i = 1; i < Vertices.Length; i++)
         {
-            pathBuilder.LineTo(Vertices[i]);
+            pathBuilder.LineTo(Vertices[i].ToSkPoint());
         }
 
         SKPaint linePaint = new()

@@ -1,6 +1,5 @@
 using PdfPixel.Annotations.Models;
 using PdfPixel.Commands;
-using SkiaSharp;
 using System.Collections.Generic;
 
 namespace PdfPixel.Models;
@@ -18,12 +17,12 @@ public interface IPdfPage
     /// <summary>
     /// Resolved MediaBox rectangle.
     /// </summary>
-    SKRect MediaBox { get; }
+    PdfRectangle MediaBox { get; }
 
     /// <summary>
     /// Resolved CropBox rectangle.
     /// </summary>
-    SKRect CropBox { get; }
+    PdfRectangle CropBox { get; }
 
     /// <summary>
     /// Normalized page rotation in degrees (0, 90, 180, 270).

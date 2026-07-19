@@ -25,7 +25,7 @@ public class PdfHighlightAnnotation : PdfTextMarkupAnnotation
 
     internal override bool RenderFallback(IPdfCommandProcessor processor, IPdfPageInternal page, PdfAnnotationVisualStateKind visualStateKind)
     {
-        SKPoint[][] quads = Quadrilaterals;
+        PdfPoint[][] quads = Quadrilaterals;
         if (quads.Length == 0)
         {
             return false;
@@ -33,13 +33,13 @@ public class PdfHighlightAnnotation : PdfTextMarkupAnnotation
 
         SKColor color = ResolveColor(page, new SKColor(255, 255, 0));
 
-        foreach (SKPoint[] quad in quads)
+        foreach (PdfPoint[] quad in quads)
         {
             using SKPathBuilder pathBuilder = new();
-            pathBuilder.MoveTo(quad[0]);
-            pathBuilder.LineTo(quad[1]);
-            pathBuilder.LineTo(quad[2]);
-            pathBuilder.LineTo(quad[3]);
+            pathBuilder.MoveTo(quad[0].ToSkPoint());
+            pathBuilder.LineTo(quad[1].ToSkPoint());
+            pathBuilder.LineTo(quad[2].ToSkPoint());
+            pathBuilder.LineTo(quad[3].ToSkPoint());
             pathBuilder.Close();
 
             SKPaint paint = new()

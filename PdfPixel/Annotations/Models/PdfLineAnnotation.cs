@@ -47,7 +47,7 @@ public class PdfLineAnnotation : PdfAnnotationBase
     /// <summary>
     /// Gets the starting point for bubble placement, using the line's start coordinates.
     /// </summary>
-    protected override SKPoint ContentStart => new(StartX, StartY);
+    protected override PdfPoint ContentStart => new(StartX, StartY);
 
     /// <summary>
     /// Gets the X coordinate of the line's start point.

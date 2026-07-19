@@ -93,7 +93,7 @@ public abstract class PdfAnnotationBase
     /// <summary>
     /// Starting point of actual content.
     /// </summary>
-    protected virtual SKPoint ContentStart => new(Rectangle.Left, Rectangle.Bottom);
+    protected virtual PdfPoint ContentStart => new(Rectangle.Left, Rectangle.Bottom);
 
     /// <summary>
     /// Gets whether this annotation should display a content bubble indicator.
@@ -290,23 +290,23 @@ public abstract class PdfAnnotationBase
     /// is at the bottom-left of the page.
     /// </remarks>
     /// <param name="page">Owning PDF page to crop margins to.</param>
-    public virtual SKRect GetHoverRectangle(IPdfPage page)
+    public virtual PdfRectangle GetHoverRectangle(IPdfPage page)
     {
         if (page == null)
         {
             throw new ArgumentNullException(nameof(page));
         }
 
-        SKRect hoverRect = ShouldDisplayBubble
-            ? SKRect.Create(ContentStart.X - PdfAnnotationGraphics.DefaultBubbleSize, ContentStart.Y, PdfAnnotationGraphics.DefaultBubbleSize, PdfAnnotationGraphics.DefaultBubbleSize)
-            : Rectangle.ToSkRect();
+        PdfRectangle hoverRect = ShouldDisplayBubble
+            ? new PdfRectangle(ContentStart.X - PdfAnnotationGraphics.DefaultBubbleSize, ContentStart.Y, ContentStart.X, ContentStart.Y + PdfAnnotationGraphics.DefaultBubbleSize)
+            : Rectangle;
 
         if (hoverRect.Width <= 0 || hoverRect.Height <= 0)
         {
-            return SKRect.Empty;
+            return PdfRectangle.Empty;
         }
 
-        SKRect crop = page.CropBox;
+        PdfRectangle crop = page.CropBox;
 
         float dx = 0f;
         if (hoverRect.Left < crop.Left)
@@ -328,8 +328,7 @@ public abstract class PdfAnnotationBase
             dy = crop.Bottom - hoverRect.Bottom;
         }
 
-        hoverRect.Offset(dx, dy);
-        return hoverRect;
+        return new PdfRectangle(hoverRect.Left + dx, hoverRect.Top + dy, hoverRect.Right + dx, hoverRect.Bottom + dy);
     }
 
     /// <summary>
@@ -388,7 +387,7 @@ public abstract class PdfAnnotationBase
             {
                 SKColor borderColor = ResolveColor(page, PdfAnnotationGraphics.DefaultBubbleBorderColor);
                 SKColor backgroundColor = ResolveInteriorColor(page, PdfAnnotationGraphics.DefaultBubbleBackgroundColor);
-                PdfAnnotationGraphics.RenderIcon(processor, bubbleIcon, GetHoverRectangle(page), borderColor, backgroundColor);
+                PdfAnnotationGraphics.RenderIcon(processor, bubbleIcon, GetHoverRectangle(page).ToSkRect(), borderColor, backgroundColor);
             }
         }
 

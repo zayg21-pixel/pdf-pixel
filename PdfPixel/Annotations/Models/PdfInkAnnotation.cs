@@ -30,43 +30,43 @@ public class PdfInkAnnotation : PdfAnnotationBase
     /// <summary>
     /// Gets the starting point for bubble placement, using the first point of the first ink path.
     /// </summary>
-    protected override SKPoint ContentStart => (InkList?.Length > 0 && InkList[0].Length > 0) ? InkList[0][0] : base.ContentStart;
+    protected override PdfPoint ContentStart => (InkList?.Length > 0 && InkList[0].Length > 0) ? InkList[0][0] : base.ContentStart;
 
     /// <summary>
-    /// Gets the parsed ink list as an array of arrays of SKPoint.
+    /// Gets the parsed ink list as an array of arrays of PdfPoint.
     /// Each inner array represents a path (sequence of points).
     /// </summary>
-    public SKPoint[][] InkList { get; }
+    public PdfPoint[][] InkList { get; }
 
-    private static SKPoint[][] ParseInkList(PdfArray? inkList)
+    private static PdfPoint[][] ParseInkList(PdfArray? inkList)
     {
         if (inkList == null || inkList.Count == 0)
         {
-            return Array.Empty<SKPoint[]>();
+            return Array.Empty<PdfPoint[]>();
         }
 
-        var result = new SKPoint[inkList.Count][];
+        var result = new PdfPoint[inkList.Count][];
         for (int i = 0; i < inkList.Count; i++)
         {
             PdfArray? pathArray = inkList.GetArray(i);
             if (pathArray == null || pathArray.Count < 4)
             {
-                result[i] = Array.Empty<SKPoint>();
+                result[i] = Array.Empty<PdfPoint>();
                 continue;
             }
 
             float[] coords = pathArray.GetFloatArray();
             if (coords == null || coords.Length < 4)
             {
-                result[i] = Array.Empty<SKPoint>();
+                result[i] = Array.Empty<PdfPoint>();
                 continue;
             }
 
-            var points = new SKPoint[coords.Length / 2];
+            var points = new PdfPoint[coords.Length / 2];
             int p = 0;
             for (int j = 0; j < coords.Length - 1; j += 2)
             {
-                points[p++] = new SKPoint(coords[j], coords[j + 1]);
+                points[p++] = new PdfPoint(coords[j], coords[j + 1]);
             }
 
             result[i] = points;
@@ -86,7 +86,7 @@ public class PdfInkAnnotation : PdfAnnotationBase
         SKColor inkColor = ResolveColor(page, SKColors.Black);
 
         // Render each path in the parsed ink list
-        foreach (SKPoint[] points in InkList)
+        foreach (PdfPoint[] points in InkList)
         {
             if (points == null || points.Length < 2)
             {
@@ -113,22 +113,22 @@ public class PdfInkAnnotation : PdfAnnotationBase
         return true;
     }
 
-    private static void BuildSmoothPath(SKPathBuilder path, SKPoint[] points)
+    private static void BuildSmoothPath(SKPathBuilder path, PdfPoint[] points)
     {
-        path.MoveTo(points[0]);
+        path.MoveTo(points[0].ToSkPoint());
 
         if (points.Length == 2)
         {
-            path.LineTo(points[1]);
+            path.LineTo(points[1].ToSkPoint());
             return;
         }
 
         for (int i = 0; i < points.Length - 1; i++)
         {
-            SKPoint prevPoint = (i > 0) ? points[i - 1] : points[0];
-            SKPoint currentPoint = points[i];
-            SKPoint nextPoint = points[i + 1];
-            SKPoint farPoint = (i < points.Length - 2) ? points[i + 2] : points[points.Length - 1];
+            PdfPoint prevPoint = (i > 0) ? points[i - 1] : points[0];
+            PdfPoint currentPoint = points[i];
+            PdfPoint nextPoint = points[i + 1];
+            PdfPoint farPoint = (i < points.Length - 2) ? points[i + 2] : points[points.Length - 1];
 
             SKPoint control1 = new(
                 currentPoint.X + (nextPoint.X - prevPoint.X) / 6f,
@@ -137,7 +137,7 @@ public class PdfInkAnnotation : PdfAnnotationBase
                 nextPoint.X - (farPoint.X - currentPoint.X) / 6f,
                 nextPoint.Y - (farPoint.Y - currentPoint.Y) / 6f);
 
-            path.CubicTo(control1, control2, nextPoint);
+            path.CubicTo(control1, control2, nextPoint.ToSkPoint());
         }
     }
 

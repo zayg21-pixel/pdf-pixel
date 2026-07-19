@@ -58,7 +58,7 @@ public class PdfTextAnnotation : PdfAnnotationBase
     public override bool IsInteractive => true;
 
     /// <inheritdoc/>
-    public override SKRect GetHoverRectangle(IPdfPage page) => Rectangle.ToSkRect();
+    public override PdfRectangle GetHoverRectangle(IPdfPage page) => Rectangle;
 
     /// <summary>
     /// Gets the state model corresponding to a change in the annotation's state.
@@ -90,7 +90,7 @@ public class PdfTextAnnotation : PdfAnnotationBase
 
         SKColor borderColor = ResolveColor(page, PdfAnnotationGraphics.DefaultBubbleBorderColor);
         SKColor backgroundColor = ResolveInteriorColor(page, PdfAnnotationGraphics.DefaultBubbleBackgroundColor);
-        PdfAnnotationGraphics.RenderIcon(processor, iconDefinition, GetHoverRectangle(page), borderColor, backgroundColor);
+        PdfAnnotationGraphics.RenderIcon(processor, iconDefinition, GetHoverRectangle(page).ToSkRect(), borderColor, backgroundColor);
         return true;
     }
 

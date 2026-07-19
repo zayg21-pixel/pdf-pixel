@@ -1,7 +1,6 @@
 using PdfPixel.Annotations;
 using PdfPixel.Annotations.Models;
 using PdfPixel.Text;
-using SkiaSharp;
 using System.Collections.Generic;
 
 namespace PdfPixel.Models;
@@ -9,7 +8,7 @@ namespace PdfPixel.Models;
 /// <summary>
 /// Accumulates inheritable page-tree attributes (Resources, MediaBox, CropBox, Rotate and other box types)
 /// for top-down traversal. Each child overrides previously inherited values for any keys it defines.
-/// Only stores parsed <see cref="SKRect"/> values for box arrays (no raw PdfArray retention).
+/// Only stores parsed <see cref="PdfRectangle"/> values for box arrays (no raw PdfArray retention).
 /// Rotation value is normalized here (0,90,180,270) when encountered.
 /// </summary>
 internal sealed class PdfPageResources
@@ -22,12 +21,12 @@ internal sealed class PdfPageResources
     /// <summary>
     /// Current effective /MediaBox rectangle (may be null if not yet defined or malformed array shorter than4 entries).
     /// </summary>
-    public SKRect? MediaBoxRect { get; private set; }
+    public PdfRectangle? MediaBoxRect { get; private set; }
 
     /// <summary>
     /// Current effective /CropBox rectangle (may be null if not yet defined or malformed array shorter than4 entries).
     /// </summary>
-    public SKRect? CropBoxRect { get; private set; }
+    public PdfRectangle? CropBoxRect { get; private set; }
 
     /// <summary>
     /// Current effective /Rotate value (degrees).
@@ -37,17 +36,17 @@ internal sealed class PdfPageResources
     /// <summary>
     /// Current effective /BleedBox rectangle.
     /// </summary>
-    public SKRect? BleedBoxRect { get; private set; }
+    public PdfRectangle? BleedBoxRect { get; private set; }
 
     /// <summary>
     /// Current effective /TrimBox rectangle.
     /// </summary>
-    public SKRect? TrimBoxRect { get; private set; }
+    public PdfRectangle? TrimBoxRect { get; private set; }
 
     /// <summary>
     /// Current effective /ArtBox rectangle.
     /// </summary>
-    public SKRect? ArtBoxRect { get; private set; }
+    public PdfRectangle? ArtBoxRect { get; private set; }
 
     /// <summary>
     /// Current effective /Annots array - parsed annotation objects.
@@ -97,12 +96,12 @@ internal sealed class PdfPageResources
 
         if (dict.HasKey(PdfTokens.MediaBoxKey))
         {
-            MediaBoxRect = PdfLocationUtilities.CreateBBox(dict.GetArray(PdfTokens.MediaBoxKey));
+            MediaBoxRect = PdfRectangle.FromArray(dict.GetArray(PdfTokens.MediaBoxKey));
         }
 
         if (dict.HasKey(PdfTokens.CropBoxKey))
         {
-            CropBoxRect = PdfLocationUtilities.CreateBBox(dict.GetArray(PdfTokens.CropBoxKey));
+            CropBoxRect = PdfRectangle.FromArray(dict.GetArray(PdfTokens.CropBoxKey));
         }
 
         if (dict.HasKey(PdfTokens.RotateKey))
@@ -112,17 +111,17 @@ internal sealed class PdfPageResources
 
         if (dict.HasKey(PdfTokens.BleedBoxKey))
         {
-            BleedBoxRect = PdfLocationUtilities.CreateBBox(dict.GetArray(PdfTokens.BleedBoxKey));
+            BleedBoxRect = PdfRectangle.FromArray(dict.GetArray(PdfTokens.BleedBoxKey));
         }
 
         if (dict.HasKey(PdfTokens.TrimBoxKey))
         {
-            TrimBoxRect = PdfLocationUtilities.CreateBBox(dict.GetArray(PdfTokens.TrimBoxKey));
+            TrimBoxRect = PdfRectangle.FromArray(dict.GetArray(PdfTokens.TrimBoxKey));
         }
 
         if (dict.HasKey(PdfTokens.ArtBoxKey))
         {
-            ArtBoxRect = PdfLocationUtilities.CreateBBox(dict.GetArray(PdfTokens.ArtBoxKey));
+            ArtBoxRect = PdfRectangle.FromArray(dict.GetArray(PdfTokens.ArtBoxKey));
         }
 
         if (dict.HasKey(PdfTokens.AnnotsKey))

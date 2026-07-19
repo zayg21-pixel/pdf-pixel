@@ -23,7 +23,7 @@ public class PdfUnderlineAnnotation : PdfTextMarkupAnnotation
 
     internal override bool RenderFallback(IPdfCommandProcessor processor, IPdfPageInternal page, PdfAnnotationVisualStateKind visualStateKind)
     {
-        SKPoint[][] quads = Quadrilaterals;
+        PdfPoint[][] quads = Quadrilaterals;
         if (quads.Length == 0)
         {
             return false;
@@ -31,7 +31,7 @@ public class PdfUnderlineAnnotation : PdfTextMarkupAnnotation
 
         SKColor color = ResolveColor(page, SKColors.Black);
 
-        foreach (SKPoint[] quad in quads)
+        foreach (PdfPoint[] quad in quads)
         {
             float startX = quad[0].X;
             float startY = quad[0].Y;

@@ -99,6 +99,18 @@ public readonly struct PdfRectangle
     /// </summary>
     internal SKRect ToSkRect() => new(Left, Top, Right, Bottom);
 
+    /// <summary>
+    /// Returns the overlapping region of <paramref name="a"/> and <paramref name="b"/>.
+    /// </summary>
+    public static PdfRectangle Intersect(in PdfRectangle a, in PdfRectangle b)
+    {
+        return new(
+            Math.Max(a.Left, b.Left),
+            Math.Max(a.Top, b.Top),
+            Math.Min(a.Right, b.Right),
+            Math.Min(a.Bottom, b.Bottom));
+    }
+
     /// <inheritdoc/>
     public override string ToString()
         => $"[{Left.ToString(CultureInfo.InvariantCulture)} {Top.ToString(CultureInfo.InvariantCulture)} {Right.ToString(CultureInfo.InvariantCulture)} {Bottom.ToString(CultureInfo.InvariantCulture)}]";

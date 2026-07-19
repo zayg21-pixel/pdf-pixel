@@ -1,4 +1,5 @@
 using PdfPixel.Annotations.Models;
+using PdfPixel.Models;
 using SkiaSharp;
 using System;
 
@@ -27,10 +28,12 @@ public class PdfAnnotationPopup
     /// Used when the document is loaded in-process (WPF path).
     /// </summary>
     internal PdfAnnotationPopup(PdfPageAnnotation pageAnnotation, PdfAnnotationNavigation? navigation, PdfAnnotationMessage[] messages)
-        : this(navigation, pageAnnotation.Content.IsInteractive, pageAnnotation.GetHoverRectangle(), messages)
+        : this(navigation, pageAnnotation.Content.IsInteractive, ToSkRect(pageAnnotation.GetHoverRectangle()), messages)
     {
         PageAnnotation = pageAnnotation ?? throw new ArgumentNullException(nameof(pageAnnotation));
     }
+
+    private static SKRect ToSkRect(in PdfRectangle rect) => new(rect.Left, rect.Top, rect.Right, rect.Bottom);
 
     /// <summary>
     /// The page-bound annotation this popup represents.

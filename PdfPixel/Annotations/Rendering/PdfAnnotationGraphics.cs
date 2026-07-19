@@ -1,5 +1,6 @@
 using PdfPixel.Annotations.Models;
 using PdfPixel.Commands;
+using PdfPixel.Models;
 using PdfPixel.Resources;
 using SkiaSharp;
 using System;
@@ -149,8 +150,8 @@ internal static class PdfAnnotationGraphics
     /// </param>
     public static void DrawLineEnding(
         IPdfCommandProcessor processor,
-        SKPoint point,
-        SKPoint adjacent,
+        in PdfPoint point,
+        in PdfPoint adjacent,
         PdfLineEndingStyle style,
         float lineWidth,
         in SKColor lineColor,

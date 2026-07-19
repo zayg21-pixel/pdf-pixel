@@ -24,7 +24,7 @@ public class PdfStrikeOutAnnotation : PdfTextMarkupAnnotation
 
     internal override bool RenderFallback(IPdfCommandProcessor processor, IPdfPageInternal page, PdfAnnotationVisualStateKind visualStateKind)
     {
-        SKPoint[][] quads = Quadrilaterals;
+        PdfPoint[][] quads = Quadrilaterals;
         if (quads.Length == 0)
         {
             return false;
@@ -32,7 +32,7 @@ public class PdfStrikeOutAnnotation : PdfTextMarkupAnnotation
 
         SKColor color = ResolveColor(page, SKColors.Red);
 
-        foreach (SKPoint[] quad in quads)
+        foreach (PdfPoint[] quad in quads)
         {
             float startX = (quad[0].X + quad[3].X) / 2;
             float startY = (quad[0].Y + quad[3].Y) / 2;
