@@ -15,6 +15,11 @@ public sealed class PdfPath
     public IReadOnlyList<PdfPathSegment> Segments => _segments;
 
     /// <summary>
+    /// Determines which regions are considered "inside" when this path is filled or used as a clip.
+    /// </summary>
+    public PdfPathFillType FillType { get; set; } = PdfPathFillType.Winding;
+
+    /// <summary>
     /// Starts a new subpath at the given point.
     /// </summary>
     public void MoveTo(float x, float y) => MoveTo(new PdfPoint(x, y));

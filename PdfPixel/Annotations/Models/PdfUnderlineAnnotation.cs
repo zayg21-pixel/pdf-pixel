@@ -1,8 +1,9 @@
+using PdfPixel.Annotations.Rendering;
 using PdfPixel.Color;
+using PdfPixel.Color.Paint;
 using PdfPixel.Commands;
 using PdfPixel.Geometry;
 using PdfPixel.Models;
-using SkiaSharp;
 
 namespace PdfPixel.Annotations.Models;
 
@@ -40,12 +41,7 @@ public class PdfUnderlineAnnotation : PdfTextMarkupAnnotation
             float endX = quad[1].X;
             float endY = quad[1].Y;
 
-            SKPaint paint = new()
-            {
-                Style = SKPaintStyle.Stroke,
-                StrokeWidth = 1.0f,
-                Color = color.ToSkiaColor()
-            };
+            PdfPaint paint = PdfAnnotationPaintFactory.CreateStrokePaint(color);
 
             PdfPath linePath = new();
             linePath.MoveTo(startX, startY);

@@ -1,9 +1,10 @@
+using PdfPixel.Annotations.Rendering;
 using PdfPixel.Color;
+using PdfPixel.Color.Paint;
 using PdfPixel.Commands;
 using PdfPixel.Geometry;
 using PdfPixel.Models;
 using PdfPixel.Text;
-using SkiaSharp;
 using System;
 
 namespace PdfPixel.Annotations.Models;
@@ -27,6 +28,10 @@ public class PdfInkAnnotation : PdfAnnotationBase
     {
         PdfArray? inkList = annotationObject.Dictionary.GetArray(PdfTokens.InkListKey);
         InkList = ParseInkList(inkList);
+
+        StrokeStyle = BorderStyle ?? new PdfStrokeStyle();
+        StrokeStyle.LineCap = PdfStrokeCap.Round;
+        StrokeStyle.LineJoin = PdfStrokeJoin.Round;
     }
 
     /// <summary>
@@ -39,6 +44,12 @@ public class PdfInkAnnotation : PdfAnnotationBase
     /// Each inner array represents a path (sequence of points).
     /// </summary>
     public PdfPoint[][] InkList { get; }
+
+    /// <summary>
+    /// Gets the stroke style used to draw the ink paths (always round cap/join), falling back to
+    /// defaults when no BS/Border entry is present.
+    /// </summary>
+    public PdfStrokeStyle StrokeStyle { get; }
 
     private static PdfPoint[][] ParseInkList(PdfArray? inkList)
     {
@@ -84,7 +95,6 @@ public class PdfInkAnnotation : PdfAnnotationBase
             return false;
         }
 
-        float lineWidth = BorderStyle?.Width ?? 1.0f;
         PdfColor inkColor = ResolveColor(page, PdfColors.Black);
 
         // Render each path in the parsed ink list
@@ -98,16 +108,7 @@ public class PdfInkAnnotation : PdfAnnotationBase
             PdfPath path = new();
             BuildSmoothPath(path, points);
 
-            SKPaint paint = new()
-            {
-                Style = SKPaintStyle.Stroke,
-                StrokeWidth = lineWidth,
-                StrokeCap = SKStrokeCap.Round,
-                StrokeJoin = SKStrokeJoin.Round,
-                Color = inkColor.ToSkiaColor()
-            };
-
-            BorderStyle?.TryApplyEffect(paint, inkColor);
+            PdfPaint paint = PdfAnnotationPaintFactory.CreateStrokePaint(inkColor, StrokeStyle);
 
             processor.Process(new DrawPathCommand(path, paint));
         }

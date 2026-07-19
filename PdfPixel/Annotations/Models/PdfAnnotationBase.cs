@@ -5,7 +5,7 @@ using PdfPixel.Rendering;
 using PdfPixel.Annotations.Rendering;
 using PdfPixel.Commands;
 using PdfPixel.Color;
-using SkiaSharp;
+using PdfPixel.Color.Paint;
 using System;
 using PdfPixel.Geometry;
 
@@ -58,7 +58,7 @@ public abstract class PdfAnnotationBase
 
         PdfDictionary? borderStyleDict = annotationObject.Dictionary.GetDictionary(PdfTokens.BorderStyleKey);
         PdfArray? borderArray = annotationObject.Dictionary.GetArray(PdfTokens.BorderKey);
-        BorderStyle = PdfBorderStyle.FromDictionary(borderStyleDict, borderArray);
+        BorderStyle = PdfAnnotationBorderParser.ParseBorderStyle(borderStyleDict, borderArray);
 
         Color = annotationObject.Dictionary.GetArray(PdfTokens.ColorKey)?.GetFloatArray();
         InteriorColor = annotationObject.Dictionary.GetArray(PdfTokens.InteriorColorKey)?.GetFloatArray();
@@ -206,7 +206,7 @@ public abstract class PdfAnnotationBase
     /// and dash pattern for dashed borders. This is parsed from the BS (Border Style) dictionary
     /// or the older Border array entry. Returns null if no border information is present.
     /// </remarks>
-    public PdfBorderStyle? BorderStyle { get; }
+    public PdfStrokeStyle? BorderStyle { get; }
 
     /// <summary>
     /// Gets the color array that specifies the annotation's color.
@@ -388,7 +388,7 @@ public abstract class PdfAnnotationBase
             {
                 PdfColor borderColor = ResolveColor(page, PdfAnnotationGraphics.DefaultBubbleBorderColor);
                 PdfColor backgroundColor = ResolveInteriorColor(page, PdfAnnotationGraphics.DefaultBubbleBackgroundColor);
-                PdfAnnotationGraphics.RenderIcon(processor, bubbleIcon, GetHoverRectangle(page).ToSkRect(), borderColor, backgroundColor);
+                PdfAnnotationGraphics.RenderIcon(processor, bubbleIcon, GetHoverRectangle(page), borderColor, backgroundColor);
             }
         }
 
@@ -404,7 +404,7 @@ public abstract class PdfAnnotationBase
         bool useOpacityLayer = Opacity < 1.0f;
         if (useOpacityLayer)
         {
-            processor.Process(new SaveLayerCommand(Rectangle, new SKPaint { Color = SKColors.White.WithAlpha((byte)(Opacity * 255)) }));
+            processor.Process(new SaveLayerCommand(Rectangle, PdfAnnotationPaintFactory.CreateOpacityLayerPaint(Opacity)));
         }
 
         bool rendered = RenderFallback(processor, page, visualStateKind);

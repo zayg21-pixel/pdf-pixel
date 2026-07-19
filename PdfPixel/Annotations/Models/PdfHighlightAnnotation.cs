@@ -1,8 +1,9 @@
+using PdfPixel.Annotations.Rendering;
 using PdfPixel.Color;
+using PdfPixel.Color.Paint;
 using PdfPixel.Commands;
 using PdfPixel.Geometry;
 using PdfPixel.Models;
-using SkiaSharp;
 
 namespace PdfPixel.Annotations.Models;
 
@@ -43,12 +44,7 @@ public class PdfHighlightAnnotation : PdfTextMarkupAnnotation
             path.LineTo(quad[3]);
             path.Close();
 
-            SKPaint paint = new()
-            {
-                Style = SKPaintStyle.Fill,
-                Color = color.ToSkiaColor(),
-                BlendMode = SKBlendMode.Multiply
-            };
+            PdfPaint paint = PdfAnnotationPaintFactory.CreateHighlightPaint(color);
 
             processor.Process(new DrawPathCommand(path, paint));
         }

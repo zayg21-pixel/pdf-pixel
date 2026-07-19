@@ -1,10 +1,10 @@
 using PdfPixel.Annotations.Rendering;
 using PdfPixel.Color;
+using PdfPixel.Color.Paint;
 using PdfPixel.Commands;
 using PdfPixel.Geometry;
 using PdfPixel.Models;
 using PdfPixel.Text;
-using SkiaSharp;
 using System;
 
 namespace PdfPixel.Annotations.Models;
@@ -49,7 +49,8 @@ public class PdfPolyLineAnnotation : PdfAnnotationBase
             EndLineEnding = lineEndingArray.GetName(1).AsEnum<PdfLineEndingStyle>();
         }
 
-        BorderEffect = PdfBorderEffect.FromDictionary(annotationObject.Dictionary.GetDictionary(PdfTokens.BorderEffectKey));
+        PdfAnnotationBorderParser.ApplyBorderEffect(BorderStyle, annotationObject.Dictionary.GetDictionary(PdfTokens.BorderEffectKey));
+        StrokeStyle = BorderStyle ?? new PdfStrokeStyle();
         // TODO: [MEDIUM] IT (Intent: PolyLineDimension), Measure
     }
 
@@ -74,9 +75,9 @@ public class PdfPolyLineAnnotation : PdfAnnotationBase
     public PdfLineEndingStyle EndLineEnding { get; }
 
     /// <summary>
-    /// Gets the border effect applied to this annotation's border, or null for no effect.
+    /// Gets the stroke style used to draw the polyline, falling back to defaults when no BS/Border entry is present.
     /// </summary>
-    public PdfBorderEffect? BorderEffect { get; }
+    public PdfStrokeStyle StrokeStyle { get; }
 
     internal override bool RenderFallback(IPdfCommandProcessor processor, IPdfPageInternal page, PdfAnnotationVisualStateKind visualStateKind)
     {
@@ -86,7 +87,6 @@ public class PdfPolyLineAnnotation : PdfAnnotationBase
         }
 
         PdfColor lineColor = ResolveColor(page, PdfColors.Black);
-        float lineWidth = BorderStyle?.Width ?? 1.0f;
 
         PdfPath path = new();
 
@@ -97,17 +97,7 @@ public class PdfPolyLineAnnotation : PdfAnnotationBase
             path.LineTo(Vertices[i]);
         }
 
-        SKPaint linePaint = new()
-        {
-            Style = SKPaintStyle.Stroke,
-            StrokeWidth = lineWidth,
-            StrokeJoin = SKStrokeJoin.Miter,
-            StrokeCap = SKStrokeCap.Butt,
-            Color = lineColor.ToSkiaColor()
-        };
-
-        BorderStyle?.TryApplyEffect(linePaint, lineColor);
-        BorderEffect?.TryApplyEffect(linePaint, lineWidth);
+        PdfPaint linePaint = PdfAnnotationPaintFactory.CreateStrokePaint(lineColor, StrokeStyle);
 
         processor.Process(new DrawPathCommand(path, linePaint));
 
@@ -122,7 +112,7 @@ public class PdfPolyLineAnnotation : PdfAnnotationBase
                 Vertices[1].X,
                 Vertices[1].Y,
                 StartLineEnding,
-                lineWidth,
+                StrokeStyle.LineWidth,
                 lineColor,
                 interiorColor);
         }
@@ -136,7 +126,7 @@ public class PdfPolyLineAnnotation : PdfAnnotationBase
                 Vertices[Vertices.Length - 2].X,
                 Vertices[Vertices.Length - 2].Y,
                 EndLineEnding,
-                lineWidth,
+                StrokeStyle.LineWidth,
                 lineColor,
                 interiorColor);
         }

@@ -1,13 +1,12 @@
 using PdfPixel.Annotations.Models;
-using SkiaSharp;
-using System;
+using PdfPixel.Geometry;
 
 namespace PdfPixel.Annotations.Rendering;
 
 /// <summary>
 /// A complete icon definition parsed from a resource XML element.
 /// </summary>
-internal sealed class PdfAnnotationIconDefinition : IDisposable
+internal sealed class PdfAnnotationIconDefinition
 {
     /// <summary>
     /// Initializes a new instance of the <see cref="PdfAnnotationIconDefinition"/> class.
@@ -17,7 +16,7 @@ internal sealed class PdfAnnotationIconDefinition : IDisposable
         float width,
         float height,
         PdfAnnotationVisualStateKind visualState,
-        SKMatrix viewportMatrix,
+        in PdfMatrix viewportMatrix,
         PdfAnnotationIconPath[] paths)
     {
         Name = name;
@@ -50,21 +49,12 @@ internal sealed class PdfAnnotationIconDefinition : IDisposable
 
     /// <summary>
     /// Gets the matrix that maps path coordinates to the icon's normalized coordinate space.
-    /// Derived from the <c>viewBox</c> attribute; <see cref="SKMatrix.Identity"/> when absent.
+    /// Derived from the <c>viewBox</c> attribute; <see cref="PdfMatrix.Identity"/> when absent.
     /// </summary>
-    public SKMatrix ViewportMatrix { get; }
+    public PdfMatrix ViewportMatrix { get; }
 
     /// <summary>
     /// Gets the ordered list of paths that make up the icon.
     /// </summary>
     public PdfAnnotationIconPath[] Paths { get; }
-
-    /// <inheritdoc />
-    public void Dispose()
-    {
-        foreach (PdfAnnotationIconPath path in Paths)
-        {
-            path.Dispose();
-        }
-    }
 }

@@ -89,8 +89,7 @@ public sealed class SoftMaskDrawingScope : IDisposable
         _maskMatrix = PdfMatrix.Concat(_graphicsState.CTM.Invert(), _worldToMaskForm);
         _maskBounds = _maskMatrix.MapRect(_softMask.MaskForm.BBox);
 
-        SKPaint layerPaint = PdfPaintFactory.CreateMaskLayerPaint();
-        _processor.Process(new SaveLayerCommand(_maskBounds, layerPaint));
+        _processor.Process(new SaveLayerCommand(_maskBounds));
         _processor.Process(new ClipRectangleCommand(_maskBounds, PdfClipOperation.Intersect));
     }
 
@@ -120,10 +119,10 @@ public sealed class SoftMaskDrawingScope : IDisposable
             PdfColor backgroundColor = _softMask.GetBackgroundColor(_graphicsState.RenderingIntent, _graphicsState.FullTransferFunction);
             PdfPaint backgroundPaint = PdfPaintFactory.CreateBackgroundPaint(backgroundColor);
 
-            using SKPathBuilder rectPathBuilder = new();
-            rectPathBuilder.AddRect(_softMask.MaskForm.BBox.ToSkRect());
+            PdfPath rectPath = new();
+            rectPath.AddRect(_softMask.MaskForm.BBox);
 
-            recorder.Process(new DrawPathCommand(rectPathBuilder.Detach(), backgroundPaint));
+            recorder.Process(new DrawPathCommand(rectPath, backgroundPaint));
         }
 
         // Render mask content stream into the recorder (isolated from canvas transforms).

@@ -1,6 +1,6 @@
 using PdfPixel.Text;
 
-namespace PdfPixel.Annotations.Models;
+namespace PdfPixel.Color.Paint;
 
 /// <summary>
 /// Specifies the visual effect applied to an annotation border.

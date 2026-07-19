@@ -31,8 +31,8 @@ public sealed class SaveLayerCommand : PdfCommand, IPaintCommand
     /// <summary>
     /// Initializes the command with the layer bounds and takes ownership of the converted paint.
     /// </summary>
-    public SaveLayerCommand(SKRect bounds, PdfPaint paint)
-        : this(bounds, paint.ToSkiaPaint())
+    public SaveLayerCommand(SKRect bounds, PdfPaint? paint)
+        : this(bounds, paint?.ToSkiaPaint())
     {
     }
 
@@ -43,6 +43,11 @@ public sealed class SaveLayerCommand : PdfCommand, IPaintCommand
         : this(bounds.ToSkRect(), paint.ToSkiaPaint())
     {
     }
+
+    /// <summary>
+    /// Initializes the command with the layer bounds.
+    /// </summary>
+    public SaveLayerCommand(in PdfRectangle bounds) => Bounds = bounds.ToSkRect();
 
     /// <summary>
     /// Gets the bounds of the layer being saved.

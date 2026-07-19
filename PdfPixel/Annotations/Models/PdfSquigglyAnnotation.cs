@@ -1,8 +1,9 @@
+using PdfPixel.Annotations.Rendering;
 using PdfPixel.Color;
+using PdfPixel.Color.Paint;
 using PdfPixel.Commands;
 using PdfPixel.Geometry;
 using PdfPixel.Models;
-using SkiaSharp;
 using System;
 
 namespace PdfPixel.Annotations.Models;
@@ -45,12 +46,7 @@ public class PdfSquigglyAnnotation : PdfTextMarkupAnnotation
             PdfPath path = new();
             DrawSquigglyLine(path, startX, startY, endX, endY);
 
-            SKPaint paint = new()
-            {
-                Style = SKPaintStyle.Stroke,
-                StrokeWidth = 1.0f,
-                Color = color.ToSkiaColor()
-            };
+            PdfPaint paint = PdfAnnotationPaintFactory.CreateStrokePaint(color);
 
             processor.Process(new DrawPathCommand(path, paint));
         }

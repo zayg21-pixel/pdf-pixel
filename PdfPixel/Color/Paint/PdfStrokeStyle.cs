@@ -37,6 +37,24 @@ public sealed class PdfStrokeStyle
     public float DashPhase { get; set; }
 
     /// <summary>
+    /// Border style (annotation BS dictionary Style entry). Default Solid; meaningless outside
+    /// annotation border rendering.
+    /// </summary>
+    public PdfBorderStyleType BorderStyleType { get; set; } = PdfBorderStyleType.Solid;
+
+    /// <summary>
+    /// Border effect (annotation BE dictionary Style entry). Default Solid (no effect); meaningless
+    /// outside annotation border rendering.
+    /// </summary>
+    public PdfBorderEffectType BorderEffectType { get; set; } = PdfBorderEffectType.Solid;
+
+    /// <summary>
+    /// Border effect intensity in the range 0–2 (annotation BE dictionary I entry). Only meaningful
+    /// when <see cref="BorderEffectType"/> is <see cref="PdfBorderEffectType.Cloudy"/>.
+    /// </summary>
+    public float BorderEffectIntensity { get; set; }
+
+    /// <summary>
     /// Creates an independent copy of this stroke style.
     /// </summary>
     public PdfStrokeStyle Clone()
@@ -48,7 +66,10 @@ public sealed class PdfStrokeStyle
             LineJoin = LineJoin,
             MiterLimit = MiterLimit,
             DashPattern = (DashPattern != null) ? (float[])DashPattern.Clone() : null,
-            DashPhase = DashPhase
+            DashPhase = DashPhase,
+            BorderStyleType = BorderStyleType,
+            BorderEffectType = BorderEffectType,
+            BorderEffectIntensity = BorderEffectIntensity
         };
     }
 }

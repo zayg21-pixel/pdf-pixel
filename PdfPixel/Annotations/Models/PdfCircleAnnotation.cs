@@ -1,9 +1,10 @@
+using PdfPixel.Annotations.Rendering;
 using PdfPixel.Color;
+using PdfPixel.Color.Paint;
 using PdfPixel.Commands;
 using PdfPixel.Geometry;
 using PdfPixel.Models;
 using PdfPixel.Text;
-using SkiaSharp;
 
 namespace PdfPixel.Annotations.Models;
 
@@ -25,7 +26,7 @@ public class PdfCircleAnnotation : PdfAnnotationBase
     {
         RectDifferences = PdfRectangle.FromArray(annotationObject.Dictionary.GetArray(PdfTokens.RectDifferencesKey));
         ContentRectangle = ApplyRectDifferences(Rectangle, RectDifferences);
-        BorderEffect = PdfBorderEffect.FromDictionary(annotationObject.Dictionary.GetDictionary(PdfTokens.BorderEffectKey));
+        PdfAnnotationBorderParser.ApplyBorderEffect(BorderStyle, annotationObject.Dictionary.GetDictionary(PdfTokens.BorderEffectKey));
     }
 
     /// <summary>
@@ -38,11 +39,6 @@ public class PdfCircleAnnotation : PdfAnnotationBase
     /// </summary>
     public PdfRectangle ContentRectangle { get; }
 
-    /// <summary>
-    /// Gets the border effect applied to this annotation's border, or null for no effect.
-    /// </summary>
-    public PdfBorderEffect? BorderEffect { get; }
-
     internal override bool RenderFallback(IPdfCommandProcessor processor, IPdfPageInternal page, PdfAnnotationVisualStateKind visualStateKind)
     {
         float width = ContentRectangle.Width;
@@ -54,34 +50,19 @@ public class PdfCircleAnnotation : PdfAnnotationBase
 
         if (interiorColor != PdfColors.Transparent)
         {
-            SKPaint fillPaint = new()
-            {
-                Style = SKPaintStyle.Fill,
-                Color = interiorColor.ToSkiaColor()
-            };
-
             PdfPath fillPath = new();
             fillPath.AddOval(new PdfRectangle(centerX - (width / 2), centerY - (height / 2), centerX + (width / 2), centerY + (height / 2)));
-            processor.Process(new DrawPathCommand(fillPath, fillPaint));
+            processor.Process(new DrawPathCommand(fillPath, PdfAnnotationPaintFactory.CreateFillPaint(interiorColor)));
         }
 
-        if (BorderStyle?.Width > 0 && Color?.Length > 0)
+        if (BorderStyle != null && BorderStyle.LineWidth > 0 && Color?.Length > 0)
         {
-            float borderWidth = BorderStyle.Width;
             PdfColor strokeColor = ResolveColor(page, PdfColors.Black);
 
-            SKPaint strokePaint = new()
-            {
-                Style = SKPaintStyle.Stroke,
-                StrokeWidth = borderWidth,
-                Color = strokeColor.ToSkiaColor()
-            };
+            PdfPaint strokePaint = PdfAnnotationPaintFactory.CreateStrokePaint(strokeColor, BorderStyle);
 
-            BorderStyle.TryApplyEffect(strokePaint, strokeColor);
-            BorderEffect?.TryApplyEffect(strokePaint, borderWidth);
-
-            float adjustedWidth = width - BorderStyle.Width;
-            float adjustedHeight = height - BorderStyle.Width;
+            float adjustedWidth = width - BorderStyle.LineWidth;
+            float adjustedHeight = height - BorderStyle.LineWidth;
 
             PdfPath strokePath = new();
             strokePath.AddOval(new PdfRectangle(

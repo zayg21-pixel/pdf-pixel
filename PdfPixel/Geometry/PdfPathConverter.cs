@@ -12,7 +12,7 @@ internal static class PdfPathConverter
     /// </summary>
     internal static SKPath ToSkPath(this PdfPath path)
     {
-        using SKPathBuilder builder = new();
+        using SKPathBuilder builder = new() { FillType = (path.FillType == PdfPathFillType.EvenOdd) ? SKPathFillType.EvenOdd : SKPathFillType.Winding };
 
         foreach (PdfPathSegment segment in path.Segments)
         {

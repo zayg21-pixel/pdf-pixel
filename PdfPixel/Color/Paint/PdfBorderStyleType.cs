@@ -1,6 +1,6 @@
 using PdfPixel.Text;
 
-namespace PdfPixel.Annotations.Models;
+namespace PdfPixel.Color.Paint;
 
 /// <summary>
 /// Represents the border style for annotations.

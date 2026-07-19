@@ -1,10 +1,10 @@
 using PdfPixel.Annotations.Rendering;
 using PdfPixel.Color;
+using PdfPixel.Color.Paint;
 using PdfPixel.Commands;
 using PdfPixel.Geometry;
 using PdfPixel.Models;
 using PdfPixel.Text;
-using SkiaSharp;
 
 namespace PdfPixel.Annotations.Models;
 
@@ -43,6 +43,7 @@ public class PdfLineAnnotation : PdfAnnotationBase
         LeaderLineLength = annotationObject.Dictionary.GetFloat(PdfTokens.LeaderLineKey);
         LeaderLineExtension = annotationObject.Dictionary.GetFloat(PdfTokens.LeaderLineExtensionKey);
         LeaderLineOffset = annotationObject.Dictionary.GetFloat(PdfTokens.LeaderLineOffsetKey);
+        StrokeStyle = BorderStyle ?? new PdfStrokeStyle();
         // TODO: [MEDIUM] Cap (caption flag), CP (caption position: Inline/Top), CO (caption offset), Measure (dimension dict)
     }
 
@@ -100,20 +101,16 @@ public class PdfLineAnnotation : PdfAnnotationBase
     /// </summary>
     public float? LeaderLineOffset { get; }
 
+    /// <summary>
+    /// Gets the stroke style used to draw the line, falling back to defaults when no BS/Border entry is present.
+    /// </summary>
+    public PdfStrokeStyle StrokeStyle { get; }
+
     internal override bool RenderFallback(IPdfCommandProcessor processor, IPdfPageInternal page, PdfAnnotationVisualStateKind visualStateKind)
     {
         PdfColor lineColor = ResolveColor(page, PdfColors.Black);
-        float lineWidth = BorderStyle?.Width ?? 1.0f;
 
-        SKPaint linePaint = new()
-        {
-            Style = SKPaintStyle.Stroke,
-            StrokeWidth = lineWidth,
-            StrokeCap = SKStrokeCap.Butt,
-            Color = lineColor.ToSkiaColor()
-        };
-
-        BorderStyle?.TryApplyEffect(linePaint, lineColor);
+        PdfPaint linePaint = PdfAnnotationPaintFactory.CreateStrokePaint(lineColor, StrokeStyle);
 
         PdfPath linePath = new();
         linePath.MoveTo(StartX, StartY);
@@ -131,7 +128,7 @@ public class PdfLineAnnotation : PdfAnnotationBase
                 EndX,
                 EndY,
                 StartLineEnding,
-                lineWidth,
+                StrokeStyle.LineWidth,
                 lineColor,
                 interiorColor);
         }
@@ -145,7 +142,7 @@ public class PdfLineAnnotation : PdfAnnotationBase
                 StartX,
                 StartY,
                 EndLineEnding,
-                lineWidth,
+                StrokeStyle.LineWidth,
                 lineColor,
                 interiorColor);
         }

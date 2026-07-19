@@ -1,9 +1,10 @@
+using PdfPixel.Annotations.Rendering;
 using PdfPixel.Color;
+using PdfPixel.Color.Paint;
 using PdfPixel.Commands;
 using PdfPixel.Geometry;
 using PdfPixel.Models;
 using PdfPixel.Text;
-using SkiaSharp;
 
 namespace PdfPixel.Annotations.Models;
 
@@ -70,24 +71,17 @@ public class PdfLinkAnnotation : PdfTextMarkupAnnotation
 
     internal override bool RenderFallback(IPdfCommandProcessor processor, IPdfPageInternal page, PdfAnnotationVisualStateKind visualStateKind)
     {
-        if (BorderStyle == null || BorderStyle.Width <= 0)
+        if (BorderStyle == null || BorderStyle.LineWidth <= 0)
         {
             return false;
         }
 
         PdfColor color = ResolveColor(page, PdfColors.Black);
-        float borderWidth = BorderStyle.Width;
+        float borderWidth = BorderStyle.LineWidth;
 
-        SKPaint paint = new()
-        {
-            Style = SKPaintStyle.Stroke,
-            StrokeWidth = borderWidth,
-            Color = color.ToSkiaColor()
-        };
+        PdfPaint paint = PdfAnnotationPaintFactory.CreateStrokePaint(color, BorderStyle);
 
-        bool needsNormalDraw = BorderStyle.TryApplyEffect(paint, color);
-
-        if (!needsNormalDraw && BorderStyle.Style == PdfBorderStyleType.Underline)
+        if (BorderStyle.BorderStyleType == PdfBorderStyleType.Underline)
         {
             float y = Rectangle.Top - (borderWidth / 2);
             PdfPath linePath = new();

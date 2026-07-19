@@ -1,8 +1,9 @@
+using PdfPixel.Annotations.Rendering;
 using PdfPixel.Color;
+using PdfPixel.Color.Paint;
 using PdfPixel.Commands;
 using PdfPixel.Geometry;
 using PdfPixel.Models;
-using SkiaSharp;
 
 namespace PdfPixel.Annotations.Models;
 
@@ -41,12 +42,7 @@ public class PdfStrikeOutAnnotation : PdfTextMarkupAnnotation
             float endX = (quad[1].X + quad[2].X) / 2;
             float endY = (quad[1].Y + quad[2].Y) / 2;
 
-            SKPaint paint = new()
-            {
-                Style = SKPaintStyle.Stroke,
-                StrokeWidth = 1.0f,
-                Color = color.ToSkiaColor()
-            };
+            PdfPaint paint = PdfAnnotationPaintFactory.CreateStrokePaint(color);
 
             PdfPath linePath = new();
             linePath.MoveTo(startX, startY);

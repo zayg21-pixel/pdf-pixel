@@ -24,6 +24,17 @@ public sealed class PdfPaint
     }
 
     /// <summary>
+    /// Initializes a new stroke paint that uses <paramref name="strokeStyle"/> directly (no copy).
+    /// The caller owns <paramref name="strokeStyle"/> and must not mutate it afterward, since it may be
+    /// shared across multiple paints created from the same style.
+    /// </summary>
+    public PdfPaint(PdfStrokeStyle strokeStyle)
+    {
+        Style = PdfPaintStyle.Stroke;
+        StrokeStyle = strokeStyle ?? throw new ArgumentNullException(nameof(strokeStyle));
+    }
+
+    /// <summary>
     /// Gets whether this paint is used for filling or stroking. Fixed for the lifetime of the instance.
     /// </summary>
     public PdfPaintStyle Style { get; }
@@ -149,6 +160,9 @@ public sealed class PdfPaint
             clone.StrokeStyle.MiterLimit = StrokeStyle.MiterLimit;
             clone.StrokeStyle.DashPattern = (StrokeStyle.DashPattern != null) ? (float[])StrokeStyle.DashPattern.Clone() : null;
             clone.StrokeStyle.DashPhase = StrokeStyle.DashPhase;
+            clone.StrokeStyle.BorderStyleType = StrokeStyle.BorderStyleType;
+            clone.StrokeStyle.BorderEffectType = StrokeStyle.BorderEffectType;
+            clone.StrokeStyle.BorderEffectIntensity = StrokeStyle.BorderEffectIntensity;
         }
 
         return clone;

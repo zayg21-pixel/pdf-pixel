@@ -1,4 +1,5 @@
 using PdfPixel.Commands;
+using PdfPixel.Geometry;
 using SkiaSharp;
 using System;
 using System.Runtime.CompilerServices;
@@ -45,7 +46,51 @@ internal static class PdfPaintConverter
         {
             paint.PathEffect = SKPathEffect.CreateDash(style.DashPattern, style.DashPhase);
         }
+
+        if (style.BorderStyleType == PdfBorderStyleType.Beveled || style.BorderStyleType == PdfBorderStyleType.Inset)
+        {
+            paint.ImageFilter = ComposeFilter(CreateBorderShadowFilter(style.BorderStyleType, width), paint.ImageFilter);
+        }
+
+        if (style.BorderEffectType == PdfBorderEffectType.Cloudy)
+        {
+            paint.PathEffect = ComposeEffect(CreateCloudyEffect(width, style.BorderEffectIntensity), paint.PathEffect);
+        }
     }
+
+    private static SKImageFilter CreateBorderShadowFilter(PdfBorderStyleType borderStyleType, float width)
+    {
+        float shadowOffset = width * 0.5f;
+        if (borderStyleType == PdfBorderStyleType.Inset)
+        {
+            shadowOffset = -shadowOffset;
+        }
+
+        return SKImageFilter.CreateDropShadow(
+            dx: shadowOffset,
+            dy: -shadowOffset,
+            sigmaX: width * 0.3f,
+            sigmaY: width * 0.3f,
+            color: SKColors.Black.WithAlpha(80));
+    }
+
+    private static SKPathEffect CreateCloudyEffect(float width, float intensity)
+    {
+        float bumpRadius = width * (1.5f + intensity * 1.0f);
+        float advance = bumpRadius * 1.6f;
+
+        PdfPath bumpPath = new();
+        bumpPath.AddArc(new PdfRectangle(-bumpRadius, -bumpRadius, bumpRadius, bumpRadius), 0, -180);
+        SKPath bump = bumpPath.ToSkPath();
+
+        return SKPathEffect.Create1DPath(bump, advance, 0, SKPath1DPathEffectStyle.Rotate);
+    }
+
+    private static SKImageFilter ComposeFilter(SKImageFilter outer, SKImageFilter? existing)
+        => (existing != null) ? SKImageFilter.CreateCompose(outer, existing) : outer;
+
+    private static SKPathEffect ComposeEffect(SKPathEffect outer, SKPathEffect? existing)
+        => (existing != null) ? SKPathEffect.CreateCompose(outer, existing) : outer;
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static PdfColor ApplyAlpha(in PdfColor color, float alpha) => color.WithAlpha(Math.Max(0f, Math.Min(1f, alpha)));

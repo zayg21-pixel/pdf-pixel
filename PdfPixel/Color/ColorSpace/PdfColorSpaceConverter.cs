@@ -1,6 +1,5 @@
 using PdfPixel.Color.Sampling;
 using PdfPixel.Color.Transform;
-using SkiaSharp;
 using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;

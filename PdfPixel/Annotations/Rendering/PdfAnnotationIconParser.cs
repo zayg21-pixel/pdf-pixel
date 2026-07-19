@@ -1,6 +1,7 @@
 using PdfPixel.Annotations.Models;
 using PdfPixel.Color;
-using SkiaSharp;
+using PdfPixel.Color.Paint;
+using PdfPixel.Geometry;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -38,12 +39,12 @@ internal static class PdfAnnotationIconParser
         string stateValue = iconElement.Attribute("state")?.Value ?? "Normal";
         PdfAnnotationVisualStateKind visualState = ParseVisualState(stateValue);
 
-        SKMatrix viewportMatrix;
+        PdfMatrix viewportMatrix;
         XAttribute? viewBoxAttribute = iconElement.Attribute("viewBox");
 
         viewportMatrix = (viewBoxAttribute != null)
             ? ParseViewBox(viewBoxAttribute.Value, width, height)
-            : SKMatrix.CreateScaleTranslation(1, -1, 0, height);
+            : PdfMatrix.CreateScaleTranslation(1, -1, 0, height);
 
         List<PdfAnnotationIconPath> paths = [];
 
@@ -69,14 +70,14 @@ internal static class PdfAnnotationIconParser
     private static PdfAnnotationIconPath ParsePath(XElement pathElement)
     {
         string pathData = RequireAttribute(pathElement, "d");
-        SKPath path = SKPath.ParseSvgPathData(pathData);
+        PdfPath path = PdfAnnotationSvgPathParser.Parse(pathData);
 
         (PdfAnnotationIconColorType fillColorType, PdfColor fillColor) = ParseColorValue(pathElement.Attribute("fill")?.Value);
         (PdfAnnotationIconColorType strokeColorType, PdfColor strokeColor) = ParseColorValue(pathElement.Attribute("stroke")?.Value);
 
         float strokeWidth = ParseFloatValue(pathElement.Attribute("stroke-width")?.Value ?? "1");
-        SKStrokeCap strokeCap = ParseStrokeCap(pathElement.Attribute("stroke-linecap")?.Value ?? "butt");
-        SKStrokeJoin strokeJoin = ParseStrokeJoin(pathElement.Attribute("stroke-linejoin")?.Value ?? "miter");
+        PdfStrokeCap strokeCap = ParseStrokeCap(pathElement.Attribute("stroke-linecap")?.Value ?? "butt");
+        PdfStrokeJoin strokeJoin = ParseStrokeJoin(pathElement.Attribute("stroke-linejoin")?.Value ?? "miter");
         float fillOpacity = ParseFloatValue(pathElement.Attribute("fill-opacity")?.Value ?? "1");
         float strokeOpacity = ParseFloatValue(pathElement.Attribute("stroke-opacity")?.Value ?? "1");
 
@@ -115,7 +116,7 @@ internal static class PdfAnnotationIconParser
         return new PdfColor(red / 255f, green / 255f, blue / 255f);
     }
 
-    private static SKMatrix ParseViewBox(string value, float width, float height)
+    private static PdfMatrix ParseViewBox(string value, float width, float height)
     {
         string[] parts = value.Split(separator, StringSplitOptions.RemoveEmptyEntries);
 
@@ -127,35 +128,35 @@ internal static class PdfAnnotationIconParser
         float scaleX = width / vbWidth;
         float scaleY = height / vbHeight;
 
-        return SKMatrix.CreateScaleTranslation(scaleX, -scaleY, -minX * scaleX, height + minY * scaleY);
+        return PdfMatrix.CreateScaleTranslation(scaleX, -scaleY, -minX * scaleX, height + (minY * scaleY));
     }
 
-    private static SKStrokeCap ParseStrokeCap(string value)
+    private static PdfStrokeCap ParseStrokeCap(string value)
     {
         return value switch
         {
-            "round" => SKStrokeCap.Round,
-            "square" => SKStrokeCap.Square,
-            _ => SKStrokeCap.Butt
+            "round" => PdfStrokeCap.Round,
+            "square" => PdfStrokeCap.Square,
+            _ => PdfStrokeCap.Butt
         };
     }
 
-    private static SKStrokeJoin ParseStrokeJoin(string value)
+    private static PdfStrokeJoin ParseStrokeJoin(string value)
     {
         return value switch
         {
-            "round" => SKStrokeJoin.Round,
-            "bevel" => SKStrokeJoin.Bevel,
-            _ => SKStrokeJoin.Miter
+            "round" => PdfStrokeJoin.Round,
+            "bevel" => PdfStrokeJoin.Bevel,
+            _ => PdfStrokeJoin.Miter
         };
     }
 
-    private static SKPathFillType ParseFillType(string value)
+    private static PdfPathFillType ParseFillType(string value)
     {
         return value switch
         {
-            "evenodd" => SKPathFillType.EvenOdd,
-            _ => SKPathFillType.Winding
+            "evenodd" => PdfPathFillType.EvenOdd,
+            _ => PdfPathFillType.Winding
         };
     }
 

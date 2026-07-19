@@ -1,4 +1,6 @@
+using PdfPixel.Annotations.Rendering;
 using PdfPixel.Color;
+using PdfPixel.Color.Paint;
 using PdfPixel.Commands;
 using PdfPixel.Fonts.Management;
 using PdfPixel.Geometry;
@@ -46,7 +48,7 @@ public class PdfStampAnnotation : PdfAnnotationBase
         float opacity = (visualStateKind == PdfAnnotationVisualStateKind.Rollover) ? 0.75f : 1.0f;
         PdfColor color = stampColor.WithAlpha(stampColor.Alpha * opacity);
 
-        float borderWidth = (BorderStyle?.Width > 0) ? BorderStyle.Width : BorderWidthDefault;
+        float borderWidth = (BorderStyle?.LineWidth > 0) ? BorderStyle.LineWidth : BorderWidthDefault;
         float cornerRadius = Math.Min(Rectangle.Width, Rectangle.Height) * CornerRadiusFraction;
         float halfBorderWidth = borderWidth / 2f;
         PdfRectangle borderRect = new(
@@ -68,16 +70,7 @@ public class PdfStampAnnotation : PdfAnnotationBase
         float borderWidth,
         in PdfColor color)
     {
-        float shadowOffset = borderWidth * 0.5f;
-        float shadowSigma = borderWidth * 0.3f;
-
-        SKPaint borderPaint = new()
-        {
-            Style = SKPaintStyle.Stroke,
-            StrokeWidth = borderWidth,
-            Color = color.ToSkiaColor(),
-            ImageFilter = SKImageFilter.CreateDropShadow(shadowOffset, -shadowOffset, shadowSigma, shadowSigma, SKColors.Black.WithAlpha(ShadowAlpha))
-        };
+        PdfPaint borderPaint = PdfAnnotationPaintFactory.CreateStampBorderPaint(color, borderWidth);
 
         PdfPath borderPath = new();
         borderPath.AddRoundRect(borderRect, cornerRadius, cornerRadius);

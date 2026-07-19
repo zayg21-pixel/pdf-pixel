@@ -91,7 +91,7 @@ public class PdfTextAnnotation : PdfAnnotationBase
 
         PdfColor borderColor = ResolveColor(page, PdfAnnotationGraphics.DefaultBubbleBorderColor);
         PdfColor backgroundColor = ResolveInteriorColor(page, PdfAnnotationGraphics.DefaultBubbleBackgroundColor);
-        PdfAnnotationGraphics.RenderIcon(processor, iconDefinition, GetHoverRectangle(page).ToSkRect(), borderColor, backgroundColor);
+        PdfAnnotationGraphics.RenderIcon(processor, iconDefinition, GetHoverRectangle(page), borderColor, backgroundColor);
         return true;
     }
 

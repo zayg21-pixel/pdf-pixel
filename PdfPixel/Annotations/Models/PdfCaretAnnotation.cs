@@ -55,7 +55,7 @@ public class PdfCaretAnnotation : PdfAnnotationBase
         }
 
         PdfColor color = ResolveColor(page, PdfColors.DarkBlue);
-        PdfAnnotationGraphics.RenderIcon(processor, icon, MarkRectangle.ToSkRect(), color, null);
+        PdfAnnotationGraphics.RenderIcon(processor, icon, MarkRectangle, color, null);
         return true;
     }
 }

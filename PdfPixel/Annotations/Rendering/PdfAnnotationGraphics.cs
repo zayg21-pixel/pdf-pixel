@@ -1,9 +1,9 @@
 using PdfPixel.Annotations.Models;
 using PdfPixel.Color;
+using PdfPixel.Color.Paint;
 using PdfPixel.Commands;
 using PdfPixel.Geometry;
 using PdfPixel.Resources;
-using SkiaSharp;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -104,7 +104,7 @@ internal static class PdfAnnotationGraphics
     public static void RenderIcon(
         IPdfCommandProcessor processor,
         PdfAnnotationIconDefinition icon,
-        SKRect rect,
+        in PdfRectangle rect,
         in PdfColor color,
         PdfColor? interiorColor)
     {
@@ -114,7 +114,7 @@ internal static class PdfAnnotationGraphics
 
         processor.Process(SaveStateCommand.Instance);
         processor.Process(new ConcatMatrixCommand(
-            SKMatrix.CreateScaleTranslation(scale, scale, offsetX, offsetY)));
+            PdfMatrix.CreateScaleTranslation(scale, scale, offsetX, offsetY)));
         processor.Process(new ConcatMatrixCommand(icon.ViewportMatrix));
 
         foreach (PdfAnnotationIconPath iconPath in icon.Paths)
@@ -187,13 +187,8 @@ internal static class PdfAnnotationGraphics
 
             if (fillColor != null)
             {
-                SKPaint fillPaint = new()
-                {
-                    Style = SKPaintStyle.Fill,
-                    Color = ApplyOpacity(fillColor.Value, iconPath.FillOpacity).ToSkiaColor()
-                };
-
-                processor.Process(new DrawPathCommand(new SKPath(iconPath.Path), fillPaint));
+                PdfPaint fillPaint = PdfAnnotationPaintFactory.CreateFillPaint(ApplyOpacity(fillColor.Value, iconPath.FillOpacity));
+                processor.Process(new DrawPathCommand(iconPath.Path, fillPaint));
             }
         }
 
@@ -208,16 +203,15 @@ internal static class PdfAnnotationGraphics
 
             if (strokeColor != null)
             {
-                SKPaint strokePaint = new()
+                PdfStrokeStyle strokeStyle = new()
                 {
-                    Style = SKPaintStyle.Stroke,
-                    StrokeWidth = iconPath.StrokeWidth,
-                    StrokeCap = iconPath.StrokeCap,
-                    StrokeJoin = iconPath.StrokeJoin,
-                    Color = ApplyOpacity(strokeColor.Value, iconPath.StrokeOpacity).ToSkiaColor()
+                    LineWidth = iconPath.StrokeWidth,
+                    LineCap = iconPath.StrokeCap,
+                    LineJoin = iconPath.StrokeJoin
                 };
 
-                processor.Process(new DrawPathCommand(new SKPath(iconPath.Path), strokePaint));
+                PdfPaint strokePaint = PdfAnnotationPaintFactory.CreateStrokePaint(ApplyOpacity(strokeColor.Value, iconPath.StrokeOpacity), strokeStyle);
+                processor.Process(new DrawPathCommand(iconPath.Path, strokePaint));
             }
         }
     }
