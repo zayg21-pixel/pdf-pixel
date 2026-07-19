@@ -9,7 +9,9 @@ namespace PdfPixel.Parsing;
 /// Fallback xref recovery scanner. When normal xref loading fails or produces an incomplete result,
 /// scans the entire file using PdfParser.ReadObject() to rebuild the object index from physical byte
 /// positions. Identifies the document catalog directly from object content so no trailer is needed.
-/// Only fills gaps; existing entries from PdfXrefLoader are never overwritten.
+/// By the time this runs, the existing xref table is known to be untrustworthy, so entries found by
+/// the scan replace whatever PdfXrefLoader indexed; later occurrences in the file (e.g. from
+/// incremental updates) win, since the scan proceeds in physical file order.
 /// </summary>
 internal sealed class PdfXrefRecoveryScanner
 {
@@ -40,13 +42,10 @@ internal sealed class PdfXrefRecoveryScanner
             }
 
             PdfReference reference = obj.Reference;
-            if (!_document.ObjectCache.ObjectIndex.ContainsKey(reference))
-            {
-                PdfObjectInfo info = PdfObjectInfo.ForUncompressed(reference, objectStart, false);
-                info.FromFallbackScan = true;
-                _document.ObjectCache.ObjectIndex[reference] = info;
-                objectsFound++;
-            }
+            PdfObjectInfo info = PdfObjectInfo.ForUncompressed(reference, objectStart, false);
+            info.FromFallbackScan = true;
+            _document.ObjectCache.ObjectIndex[reference] = info;
+            objectsFound++;
 
             if (_document.RootObject == null
                 && obj.Dictionary?.GetName(PdfTokens.TypeKey) == PdfTokens.CatalogKey)
