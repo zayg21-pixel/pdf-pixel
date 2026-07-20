@@ -1,4 +1,5 @@
 using PdfPixel.Color.Paint;
+using PdfPixel.Geometry;
 using SkiaSharp;
 using System;
 using System.Runtime.CompilerServices;
@@ -13,10 +14,10 @@ internal static class PdfImageCommandUtilities
     /// size with no snapping otherwise.
     /// </summary>
     public static SnappedTilePlacement GetSnappedTilePlacement(
-        PdfCommandExecutionContext executionContext, SKSizeI imageSize, SKRectI tilePosition, bool interpolate)
+        PdfCommandExecutionContext executionContext, in PdfIntegerSize imageSize, in PdfIntegerRectangle tilePosition, bool interpolate)
     {
-        SKMatrix baseCtm = CommandHelpers.GetScaledMatrix(executionContext);
-        SKMatrix ctm = GetImageCtm(baseCtm);
+        PdfMatrix baseCtm = CommandHelpers.GetScaledMatrix(executionContext);
+        PdfMatrix ctm = GetImageCtm(baseCtm);
         SKSamplingOptions sampling = GetSamplingOptions(ctm, imageSize, interpolate);
 
         if (!executionContext.Parameters.SnapToDevicePixels || !CommandHelpers.IsAxisAligned(ctm))
@@ -24,8 +25,8 @@ internal static class PdfImageCommandUtilities
             return GetUnsnappedTilePlacement(imageSize, tilePosition, sampling);
         }
 
-        SKPoint topLeft = ctm.MapPoint(new SKPoint(tilePosition.Left / (float)imageSize.Width, tilePosition.Top / (float)imageSize.Height));
-        SKPoint bottomRight = ctm.MapPoint(new SKPoint(tilePosition.Right / (float)imageSize.Width, tilePosition.Bottom / (float)imageSize.Height));
+        PdfPoint topLeft = ctm.MapPoint(new PdfPoint(tilePosition.Left / (float)imageSize.Width, tilePosition.Top / (float)imageSize.Height));
+        PdfPoint bottomRight = ctm.MapPoint(new PdfPoint(tilePosition.Right / (float)imageSize.Width, tilePosition.Bottom / (float)imageSize.Height));
 
         float roundedLeft = MathF.Round(topLeft.X);
         float roundedTop = MathF.Round(topLeft.Y);
@@ -45,20 +46,20 @@ internal static class PdfImageCommandUtilities
         }
 
         SKSize deviceSize = new(deviceWidth, deviceHeight);
-        SKMatrix placementMatrix = GetSignedPlacementMatrix(baseCtm, ctm, roundedLeft, roundedTop);
+        PdfMatrix placementMatrix = GetSignedPlacementMatrix(baseCtm, ctm, roundedLeft, roundedTop);
 
         return new SnappedTilePlacement(deviceSize, placementMatrix, sampling);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static SnappedTilePlacement GetUnsnappedTilePlacement(SKSizeI imageSize, SKRectI tilePosition, in SKSamplingOptions sampling)
+    private static SnappedTilePlacement GetUnsnappedTilePlacement(in PdfIntegerSize imageSize, in PdfIntegerRectangle tilePosition, in SKSamplingOptions sampling)
     {
-        SKSizeI fallbackDeviceSize = new(tilePosition.Width, tilePosition.Height);
-        SKMatrix fallbackPlacementMatrix = SKMatrix.Concat(
+        SKSize fallbackDeviceSize = new(tilePosition.Width, tilePosition.Height);
+        PdfMatrix fallbackPlacementMatrix = PdfMatrix.Concat(
             GetImageMatrix(),
-            SKMatrix.Concat(
-                SKMatrix.CreateScale(1f / imageSize.Width, 1f / imageSize.Height),
-                SKMatrix.CreateTranslation(tilePosition.Left, tilePosition.Top)));
+            PdfMatrix.Concat(
+                PdfMatrix.CreateScale(1f / imageSize.Width, 1f / imageSize.Height),
+                PdfMatrix.CreateTranslation(tilePosition.Left, tilePosition.Top)));
 
         return new SnappedTilePlacement(fallbackDeviceSize, fallbackPlacementMatrix, sampling);
     }
@@ -71,24 +72,21 @@ internal static class PdfImageCommandUtilities
     /// is the image-inclusive matrix the rounded position/sign were computed from.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static SKMatrix GetSignedPlacementMatrix(SKMatrix canvasCtm, SKMatrix imageCtm, float roundedLeft, float roundedTop)
+    private static PdfMatrix GetSignedPlacementMatrix(in PdfMatrix canvasCtm, in PdfMatrix imageCtm, float roundedLeft, float roundedTop)
     {
-        SKMatrix signedPlacement = new(
+        PdfMatrix signedPlacement = new(
             MathF.Sign(imageCtm.ScaleX),
             0,
             roundedLeft,
             0,
             MathF.Sign(imageCtm.ScaleY),
-            roundedTop,
-            0,
-            0,
-            1);
+            roundedTop);
 
-        return SKMatrix.Concat(canvasCtm.Invert(), signedPlacement);
+        return PdfMatrix.Concat(canvasCtm.Invert(), signedPlacement);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static SKSamplingOptions GetSamplingOptions(SKMatrix ctm, SKSizeI imageSize, bool interpolate)
+    private static SKSamplingOptions GetSamplingOptions(in PdfMatrix ctm, in PdfIntegerSize imageSize, bool interpolate)
     {
         bool isDownscaled = GetScaledSize(ctm, imageSize).HasValue;
 
@@ -108,14 +106,14 @@ internal static class PdfImageCommandUtilities
     /// true target.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static SKSizeI? GetScaledSize(SKMatrix ctm, SKSizeI size)
+    public static PdfIntegerSize? GetScaledSize(in PdfMatrix ctm, in PdfIntegerSize size)
     {
-        SKPoint origin = ctm.MapPoint(new SKPoint(0, 0));
-        SKPoint edgeX = ctm.MapPoint(new SKPoint(1, 0));
-        SKPoint edgeY = ctm.MapPoint(new SKPoint(0, 1));
+        PdfPoint origin = ctm.MapPoint(PdfPoint.Empty);
+        PdfPoint edgeX = ctm.MapPoint(new PdfPoint(1, 0));
+        PdfPoint edgeY = ctm.MapPoint(new PdfPoint(0, 1));
 
-        float unitPixelsX = SKPoint.Distance(origin, edgeX);
-        float unitPixelsY = SKPoint.Distance(origin, edgeY);
+        float unitPixelsX = Distance(origin, edgeX);
+        float unitPixelsY = Distance(origin, edgeY);
 
         float relScaleX = unitPixelsX / size.Width;
         float relScaleY = unitPixelsY / size.Height;
@@ -132,14 +130,22 @@ internal static class PdfImageCommandUtilities
             int scaledWidth = Math.Abs((int)Math.Round(edgeX.X) - (int)Math.Round(origin.X));
             int scaledHeight = Math.Abs((int)Math.Round(edgeY.Y) - (int)Math.Round(origin.Y));
 
-            return new SKSizeI(Math.Max(1, scaledWidth), Math.Max(1, scaledHeight));
+            return new PdfIntegerSize(Math.Max(1, scaledWidth), Math.Max(1, scaledHeight));
         }
 
         SKSize exactSize = new(size.Width * maxScale, size.Height * maxScale);
 
-        return new SKSizeI(
+        return new PdfIntegerSize(
             Math.Max(1, (int)Math.Round(exactSize.Width)),
             Math.Max(1, (int)Math.Round(exactSize.Height)));
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static float Distance(in PdfPoint a, in PdfPoint b)
+    {
+        float deltaX = b.X - a.X;
+        float deltaY = b.Y - a.Y;
+        return MathF.Sqrt((deltaX * deltaX) + (deltaY * deltaY));
     }
 
     /// <summary>
@@ -147,14 +153,14 @@ internal static class PdfImageCommandUtilities
     /// Equivalent to: <c>canvas.Concat(Scale(1,−1))</c> then <c>canvas.Concat(Translate(0,−1))</c>.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static SKMatrix GetImageMatrix()
-        => SKMatrix.Concat(SKMatrix.CreateScale(1, -1), SKMatrix.CreateTranslation(0, -1));
+    public static PdfMatrix GetImageMatrix()
+        => PdfMatrix.Concat(PdfMatrix.CreateScale(1, -1), PdfMatrix.CreateTranslation(0, -1));
 
     /// <summary>
     /// Folds <see cref="GetImageMatrix"/> into <paramref name="ctm"/>.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static SKMatrix GetImageCtm(SKMatrix ctm) => ctm.PreConcat(GetImageMatrix());
+    public static PdfMatrix GetImageCtm(in PdfMatrix ctm) => ctm.PreConcat(GetImageMatrix());
 
     // TODO: [MEDIUM] shall go to paint factory with other paints
     /// <summary>
@@ -183,19 +189,23 @@ internal static class PdfImageCommandUtilities
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static SKRectI ComputeImageRegionOfInterest(SKSizeI imageSize, PdfCommandExecutionContext executionContext)
+    public static PdfIntegerRectangle ComputeImageRegionOfInterest(in PdfIntegerSize imageSize, PdfCommandExecutionContext executionContext)
     {
-        SKRectI fullImageBounds = SKRectI.Create(0, 0, imageSize.Width, imageSize.Height);
+        PdfIntegerRectangle fullImageBounds = new(0, 0, imageSize.Width, imageSize.Height);
 
         if (!executionContext.PageRegionOfInterest.HasValue)
         {
             return fullImageBounds;
         }
 
-        SKMatrix contentToImagePixels = GetImageCtm(executionContext.Frames.TotalMatrix).Invert().PostConcat(SKMatrix.CreateScale(imageSize.Width, imageSize.Height));
-        SKRect mapped = contentToImagePixels.MapRect(executionContext.PageRegionOfInterest.Value);
-        SKRectI imageRoi = SKRectI.Round(mapped);
-        imageRoi.Intersect(fullImageBounds);
-        return imageRoi;
+        PdfMatrix contentToImagePixels = GetImageCtm(executionContext.Frames.TotalMatrix).Invert().PostConcat(PdfMatrix.CreateScale(imageSize.Width, imageSize.Height));
+        SKRect mapped = contentToImagePixels.ToSkMatrix().MapRect(executionContext.PageRegionOfInterest.Value);
+        PdfIntegerRectangle roundedRegionOfInterest = new(
+            (int)MathF.Round(mapped.Left),
+            (int)MathF.Round(mapped.Top),
+            (int)MathF.Round(mapped.Right),
+            (int)MathF.Round(mapped.Bottom));
+
+        return PdfIntegerRectangle.Intersect(roundedRegionOfInterest, fullImageBounds);
     }
 }

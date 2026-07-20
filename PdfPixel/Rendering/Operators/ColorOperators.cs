@@ -1,10 +1,8 @@
 using System.Collections.Generic;
 using PdfPixel.Models;
-using SkiaSharp;
 using PdfPixel.Color;
 using PdfPixel.Color.ColorSpace;
 using PdfPixel.Pattern.Model;
-using PdfPixel.Color.Paint;
 using PdfPixel.Rendering.State;
 using PdfPixel.Color.Transform;
 using System;

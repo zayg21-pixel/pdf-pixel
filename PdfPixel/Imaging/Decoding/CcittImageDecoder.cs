@@ -3,9 +3,9 @@ using PdfPixel.Ccitt;
 using PdfPixel.Color.ColorSpace;
 using PdfPixel.Commands;
 using PdfPixel.Commands.Image;
+using PdfPixel.Geometry;
 using PdfPixel.Imaging.Model;
 using PdfPixel.Imaging.Processing;
-using SkiaSharp;
 using System;
 using System.Collections.Generic;
 
@@ -31,7 +31,7 @@ internal sealed class CcittImageDecoder : PdfImageDecoder
 
     protected override PdfColorSpaceConverter ResolvedColorSpaceConverter => _colorSpaceConverter;
 
-    public override void Initialize(PdfTileInfo tileInfo, object contentLocker, SKMatrix ctm, HashSet<int>? tileIndexesToDecode, IPdfExecutionObserver? observer)
+    public override void Initialize(PdfTileInfo tileInfo, object contentLocker, in PdfMatrix ctm, HashSet<int>? tileIndexesToDecode, IPdfExecutionObserver? observer)
     {
         if (!ValidateImageParameters())
         {
@@ -59,7 +59,7 @@ internal sealed class CcittImageDecoder : PdfImageDecoder
         bool endOfBlock = parameters?.EndOfBlock ?? true;
 
         PdfColorSpaceConverter converter = _colorSpaceConverter;
-        SKSizeI? downscaledSize = PdfImageCommandUtilities.GetScaledSize(ctm, new SKSizeI(columns, rows));
+        PdfIntegerSize? downscaledSize = PdfImageCommandUtilities.GetScaledSize(ctm, new PdfIntegerSize(columns, rows));
 
         _imageParameters = new PdfImageRowDecodingParameters(
             Context,

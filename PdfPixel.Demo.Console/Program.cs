@@ -2,6 +2,7 @@ using Microsoft.Extensions.Logging;
 using PdfPixel.Annotations.Models;
 using PdfPixel.Commands;
 using PdfPixel.Fonts.Management;
+using PdfPixel.Geometry;
 using PdfPixel.Models;
 using SkiaSharp;
 using System.Diagnostics;
@@ -83,13 +84,13 @@ namespace PdfPixel.Console.Demo
                 processor.Process(SaveStateCommand.Instance);
 
                 // Scales the whole page up or down to the requested output resolution.
-                processor.Process(new ConcatMatrixCommand(SKMatrix.CreateScale(scale, scale)));
+                processor.Process(new ConcatMatrixCommand(PdfMatrix.CreateScale(scale, scale)));
 
                 // PDF content is authored with the origin at the bottom-left and Y increasing upward.
                 // The canvas has the origin at the top-left and Y increasing downward, so the page must
                 // be translated and flipped vertically to land right-side-up in the output image.
-                processor.Process(new ConcatMatrixCommand(SKMatrix.CreateTranslation(-page.CropBox.Left, page.CropBox.Height + page.CropBox.Top)));
-                processor.Process(new ConcatMatrixCommand(SKMatrix.CreateScale(1, -1)));
+                processor.Process(new ConcatMatrixCommand(PdfMatrix.CreateTranslation(-page.CropBox.Left, page.CropBox.Height + page.CropBox.Top)));
+                processor.Process(new ConcatMatrixCommand(PdfMatrix.CreateScale(1, -1)));
 
                 // Draws the page content: paths, text, images, and shadings.
                 page.Render(processor, new PdfRenderingParameters(), executionObserver);

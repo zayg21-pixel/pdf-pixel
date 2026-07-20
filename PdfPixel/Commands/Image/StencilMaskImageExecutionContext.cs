@@ -1,16 +1,16 @@
 using Microsoft.Extensions.Logging;
+using PdfPixel.Geometry;
 using PdfPixel.Imaging.Decoding;
 using PdfPixel.Imaging.Model;
 using PdfPixel.Imaging.Processing;
 using PdfPixel.Models;
-using SkiaSharp;
 using System;
 
 namespace PdfPixel.Commands.Image;
 
 internal sealed class StencilMaskImageExecutionContext : IDisposable
 {
-    public StencilMaskImageExecutionContext(SKSizeI imageSize, ImageDecodingContext decodingContext, PdfImageTileCacheEntry tileCache, bool invertMask, bool interpolate)
+    public StencilMaskImageExecutionContext(in PdfIntegerSize imageSize, ImageDecodingContext decodingContext, PdfImageTileCacheEntry tileCache, bool invertMask, bool interpolate)
     {
         ImageSize = imageSize;
         DecodingContext = decodingContext;
@@ -19,7 +19,7 @@ internal sealed class StencilMaskImageExecutionContext : IDisposable
         Interpolate = interpolate;
     }
 
-    public SKSizeI ImageSize { get;}
+    public PdfIntegerSize ImageSize { get;}
 
     public ImageDecodingContext DecodingContext { get;}
 
@@ -37,7 +37,7 @@ internal sealed class StencilMaskImageExecutionContext : IDisposable
 
     public static StencilMaskImageExecutionContext Create(PdfImage pdfImage, ImageDecodingContext context, ILoggerFactory loggerFactory)
     {
-        SKSizeI imageSize = new(pdfImage.Width, pdfImage.Height);
+        PdfIntegerSize imageSize = new(pdfImage.Width, pdfImage.Height);
         PdfImageDecoder? decoder = PdfImageDecoder.GetDecoder(pdfImage, context, loggerFactory);
 
         if (decoder == null)
@@ -48,7 +48,7 @@ internal sealed class StencilMaskImageExecutionContext : IDisposable
         PdfRange[]? decode = pdfImage.Decode;
         bool invertMask = decode == null || decode.Length < 1 || decode[0].Min < decode[0].Max;
 
-        PdfTileInfo tileInfo = new(imageSize, new SKSizeI(context.DefaultTileSize, context.DefaultTileSize));
+        PdfTileInfo tileInfo = new(imageSize, new PdfIntegerSize(context.DefaultTileSize, context.DefaultTileSize));
         return new StencilMaskImageExecutionContext(imageSize, context, new PdfImageTileCacheEntry(decoder, tileInfo), invertMask, pdfImage.Interpolate);
     }
 

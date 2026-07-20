@@ -2,9 +2,9 @@ using Microsoft.Extensions.Logging;
 using PdfPixel.Color.ColorSpace;
 using PdfPixel.Commands;
 using PdfPixel.Commands.Image;
+using PdfPixel.Geometry;
 using PdfPixel.Imaging.Model;
 using PdfPixel.Imaging.Processing;
-using SkiaSharp;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -26,7 +26,7 @@ internal class RawImageDecoder : PdfImageDecoder
     {
     }
 
-    public override void Initialize(PdfTileInfo tileInfo, object contentLocker, SKMatrix ctm, HashSet<int>? tileIndexesToDecode, IPdfExecutionObserver? observer)
+    public override void Initialize(PdfTileInfo tileInfo, object contentLocker, in PdfMatrix ctm, HashSet<int>? tileIndexesToDecode, IPdfExecutionObserver? observer)
     {
         if (!ValidateImageParameters())
         {
@@ -34,7 +34,7 @@ internal class RawImageDecoder : PdfImageDecoder
         }
 
         _contentLocker = contentLocker;
-        SKSizeI? downscaledSize = PdfImageCommandUtilities.GetScaledSize(ctm, new SKSizeI(Image.Width, Image.Height));
+        PdfIntegerSize? downscaledSize = PdfImageCommandUtilities.GetScaledSize(ctm, new PdfIntegerSize(Image.Width, Image.Height));
 
         _imageParameters = new PdfImageRowDecodingParameters(
             Context,

@@ -1,3 +1,4 @@
+using PdfPixel.Geometry;
 using SkiaSharp;
 
 namespace PdfPixel.Commands.Image;
@@ -9,7 +10,7 @@ namespace PdfPixel.Commands.Image;
 /// </summary>
 internal readonly struct SnappedTilePlacement
 {
-    public SnappedTilePlacement(SKSize deviceSize, SKMatrix placementMatrix, in SKSamplingOptions sampling)
+    public SnappedTilePlacement(SKSize deviceSize, in PdfMatrix placementMatrix, in SKSamplingOptions sampling)
     {
         DeviceSize = deviceSize;
         PlacementMatrix = placementMatrix;
@@ -19,7 +20,7 @@ internal readonly struct SnappedTilePlacement
 
     public SKSize DeviceSize { get; }
 
-    public SKMatrix PlacementMatrix { get; }
+    public PdfMatrix PlacementMatrix { get; }
 
     public SKRect PlacementRectangle { get; }
 

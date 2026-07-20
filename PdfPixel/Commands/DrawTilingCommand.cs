@@ -16,7 +16,7 @@ public sealed class DrawTilingCommand : PdfCommand, IMatrixCommand
     /// <summary>
     /// Initializes the command with the matrix, the pattern-space bounds to tile, the cell bounding box, the cell step, and the recorded cell content.
     /// </summary>
-    public DrawTilingCommand(SKMatrix matrix, SKRect bounds, SKRect bbox, float xStep, float yStep, DrawRecordingCommand recordingCommand)
+    public DrawTilingCommand(in PdfMatrix matrix, SKRect bounds, SKRect bbox, float xStep, float yStep, DrawRecordingCommand recordingCommand)
     {
         Matrix = matrix;
         BBox = bbox;
@@ -38,12 +38,12 @@ public sealed class DrawTilingCommand : PdfCommand, IMatrixCommand
     /// Initializes the command with the matrix, the pattern-space bounds to tile, the cell bounding box, the cell step, and the recorded cell content.
     /// </summary>
     public DrawTilingCommand(in PdfMatrix matrix, in PdfRectangle bounds, in PdfRectangle bbox, float xStep, float yStep, DrawRecordingCommand recordingCommand)
-        : this(matrix.ToSkMatrix(), bounds.ToSkRect(), bbox.ToSkRect(), xStep, yStep, recordingCommand)
+        : this(matrix, bounds.ToSkRect(), bbox.ToSkRect(), xStep, yStep, recordingCommand)
     {
     }
 
     /// <inheritdoc />
-    public SKMatrix Matrix { get; }
+    public PdfMatrix Matrix { get; }
 
     /// <summary>
     /// Gets the pattern cell's bounding box, in pattern space, that each tile is clipped to.
@@ -88,7 +88,7 @@ public sealed class DrawTilingCommand : PdfCommand, IMatrixCommand
     {
         executionContext.Canvas.Save();
         executionContext.Frames.OnSaveState();
-        executionContext.Canvas.Concat(Matrix);
+        executionContext.Canvas.Concat(Matrix.ToSkMatrix());
         executionContext.Frames.OnConcatMatrix(Matrix);
 
         PdfCommandExecutionParameters childParameters = executionContext.Parameters.Clone();
@@ -154,21 +154,29 @@ public sealed class DrawTilingCommand : PdfCommand, IMatrixCommand
 
     private ShaderTilingParameters GetShaderTilingParameters(PdfCommandExecutionContext executionContext)
     {
-        SKMatrix deviceMatrix = CommandHelpers.GetScaledMatrix(executionContext);
-        SKPoint deviceOrigin = deviceMatrix.MapPoint(SKPoint.Empty);
-        SKPoint deviceXAxis = deviceMatrix.MapPoint(new SKPoint(XStep, 0)) - deviceOrigin;
-        SKPoint deviceYAxis = deviceMatrix.MapPoint(new SKPoint(0, YStep)) - deviceOrigin;
+        PdfMatrix deviceMatrix = CommandHelpers.GetScaledMatrix(executionContext);
+        PdfPoint deviceOrigin = deviceMatrix.MapPoint(PdfPoint.Empty);
+        PdfPoint mappedX = deviceMatrix.MapPoint(new PdfPoint(XStep, 0));
+        PdfPoint mappedY = deviceMatrix.MapPoint(new PdfPoint(0, YStep));
 
-        float scaleX = deviceXAxis.Length / XStep;
-        float scaleY = deviceYAxis.Length / YStep;
+        float deviceXAxisX = mappedX.X - deviceOrigin.X;
+        float deviceXAxisY = mappedX.Y - deviceOrigin.Y;
+        float deviceYAxisX = mappedY.X - deviceOrigin.X;
+        float deviceYAxisY = mappedY.Y - deviceOrigin.Y;
 
-        float targetPixelsX = MathF.Round(deviceXAxis.Length);
-        float targetPixelsY = MathF.Round(deviceYAxis.Length);
+        float deviceXAxisLength = MathF.Sqrt((deviceXAxisX * deviceXAxisX) + (deviceXAxisY * deviceXAxisY));
+        float deviceYAxisLength = MathF.Sqrt((deviceYAxisX * deviceYAxisX) + (deviceYAxisY * deviceYAxisY));
+
+        float scaleX = deviceXAxisLength / XStep;
+        float scaleY = deviceYAxisLength / YStep;
+
+        float targetPixelsX = MathF.Round(deviceXAxisLength);
+        float targetPixelsY = MathF.Round(deviceYAxisLength);
 
         SKSize exactTileSize = new(targetPixelsX / scaleX, targetPixelsY / scaleY);
 
         int maxTileDeviceDimension = executionContext.Parameters.ImageTileSize;
-        bool canUseShaders = deviceXAxis.Length <= maxTileDeviceDimension && deviceYAxis.Length <= maxTileDeviceDimension;
+        bool canUseShaders = deviceXAxisLength <= maxTileDeviceDimension && deviceYAxisLength <= maxTileDeviceDimension;
 
         return new ShaderTilingParameters(canUseShaders, exactTileSize);
     }

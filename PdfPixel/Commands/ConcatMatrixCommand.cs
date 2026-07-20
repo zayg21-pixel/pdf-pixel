@@ -1,6 +1,4 @@
 using PdfPixel.Geometry;
-using SkiaSharp;
-using System.Collections.Generic;
 
 namespace PdfPixel.Commands;
 
@@ -9,29 +7,20 @@ namespace PdfPixel.Commands;
 /// </summary>
 public sealed class ConcatMatrixCommand : PdfCommand, IMatrixCommand
 {
-
     /// <summary>
     /// Initializes the command with the matrix to concatenate.
     /// </summary>
-    public ConcatMatrixCommand(SKMatrix matrix) => Matrix = matrix;
-
-    /// <summary>
-    /// Initializes the command with the matrix to concatenate.
-    /// </summary>
-    public ConcatMatrixCommand(in PdfMatrix matrix)
-        : this(matrix.ToSkMatrix())
-    {
-    }
+    public ConcatMatrixCommand(in PdfMatrix matrix) => Matrix = matrix;
 
     /// <summary>
     /// Gets the matrix that this command concatenates onto the canvas.
     /// </summary>
-    public SKMatrix Matrix { get; }
+    public PdfMatrix Matrix { get; }
 
     /// <inheritdoc />
     public override void Execute(PdfCommandExecutionContext executionContext)
     {
-        executionContext.Canvas.Concat(Matrix);
+        executionContext.Canvas.Concat(Matrix.ToSkMatrix());
         executionContext.Frames.OnConcatMatrix(Matrix);
     }
 

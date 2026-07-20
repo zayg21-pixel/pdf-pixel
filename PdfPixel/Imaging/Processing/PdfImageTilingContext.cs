@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Logging;
 using PdfPixel.Commands;
 using PdfPixel.Commands.Converters;
+using PdfPixel.Geometry;
 using PdfPixel.Imaging.Model;
 using SkiaSharp;
 using System;
@@ -86,8 +87,8 @@ internal sealed class PdfImageTilingContext : IDisposable
                 int decodedWidth = columnRange.End - columnRange.Start;
                 int decodedHeight = rowRange.End - rowRange.Start;
 
-                SKSizeI? downscaledSize = _isDownscaled
-                    ? new SKSizeI(Math.Max(1, (int)Math.Floor(decodedWidth * _outputScaleX)), Math.Max(1, (int)Math.Floor(decodedHeight * _outputScaleY)))
+                PdfIntegerSize? downscaledSize = _isDownscaled
+                    ? new PdfIntegerSize(Math.Max(1, (int)Math.Floor(decodedWidth * _outputScaleX)), Math.Max(1, (int)Math.Floor(decodedHeight * _outputScaleY)))
                     : null;
 
                 PdfImageRowDecodingParameters parameters = new(
@@ -177,7 +178,7 @@ internal sealed class PdfImageTilingContext : IDisposable
         for (int column = 0; column < _tileInfo.TilesHorizontal; column++)
         {
             int tileIndex = (openTileRow.TileRow * _tileInfo.TilesHorizontal) + column;
-            SKRectI tilePosition = _tileInfo.GetTilePosition(tileIndex);
+            PdfIntegerRectangle tilePosition = _tileInfo.GetTilePosition(tileIndex);
 
             PdfImageRowProcessor? tileProcessor = openTileRow.Processors[column];
 

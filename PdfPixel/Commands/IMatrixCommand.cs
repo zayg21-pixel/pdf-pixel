@@ -1,4 +1,4 @@
-using SkiaSharp;
+using PdfPixel.Geometry;
 
 namespace PdfPixel.Commands;
 
@@ -10,5 +10,5 @@ public interface IMatrixCommand
     /// <summary>
     /// Gets the matrix this command concatenates onto the canvas.
     /// </summary>
-    SKMatrix Matrix { get; }
+    PdfMatrix Matrix { get; }
 }

@@ -1,4 +1,5 @@
-﻿using SkiaSharp;
+using PdfPixel.Geometry;
+using SkiaSharp;
 using System;
 using System.Runtime.CompilerServices;
 
@@ -27,14 +28,14 @@ internal static class CommandHelpers
     /// Returns the command-derived total matrix scaled to <see cref="PdfPixel.Models.PdfCommandExecutionParameters.ScaleFactor"/>.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static SKMatrix GetScaledMatrix(PdfCommandExecutionContext executionContext)
+    public static PdfMatrix GetScaledMatrix(PdfCommandExecutionContext executionContext)
     {
-        SKMatrix totalMatrix = executionContext.Frames.TotalMatrix;
+        PdfMatrix totalMatrix = executionContext.Frames.TotalMatrix;
 
         if (executionContext.Parameters.ScaleFactor.HasValue)
         {
             float scaleValue = executionContext.Parameters.ScaleFactor.Value;
-            return totalMatrix.PostConcat(SKMatrix.CreateScale(scaleValue, scaleValue));
+            return totalMatrix.PostConcat(PdfMatrix.CreateScale(scaleValue, scaleValue));
         }
 
         return totalMatrix;
@@ -49,14 +50,19 @@ internal static class CommandHelpers
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static float GetMinimumStrokeWidth(PdfCommandExecutionContext executionContext)
     {
-        SKMatrix matrix = GetScaledMatrix(executionContext);
-        SKPoint origin = matrix.MapPoint(SKPoint.Empty);
-        SKPoint xAxis = matrix.MapPoint(new SKPoint(1, 0)) - origin;
-        SKPoint yAxis = matrix.MapPoint(new SKPoint(0, 1)) - origin;
+        PdfMatrix matrix = GetScaledMatrix(executionContext);
+        PdfPoint origin = matrix.MapPoint(PdfPoint.Empty);
+        PdfPoint mappedX = matrix.MapPoint(new PdfPoint(1, 0));
+        PdfPoint mappedY = matrix.MapPoint(new PdfPoint(0, 1));
 
-        float normX = xAxis.Length;
-        float normY = yAxis.Length;
-        float absDeterminant = Math.Abs((xAxis.X * yAxis.Y) - (xAxis.Y * yAxis.X));
+        float axisXx = mappedX.X - origin.X;
+        float axisXy = mappedX.Y - origin.Y;
+        float axisYx = mappedY.X - origin.X;
+        float axisYy = mappedY.Y - origin.Y;
+
+        float normX = MathF.Sqrt((axisXx * axisXx) + (axisXy * axisXy));
+        float normY = MathF.Sqrt((axisYx * axisYx) + (axisYy * axisYy));
+        float absDeterminant = Math.Abs((axisXx * axisYy) - (axisXy * axisYx));
 
         if (absDeterminant <= 0)
         {
@@ -74,7 +80,7 @@ internal static class CommandHelpers
             return false;
         }
 
-        SKMatrix scaledMatrix = GetScaledMatrix(executionContext);
+        SKMatrix scaledMatrix = GetScaledMatrix(executionContext).ToSkMatrix();
 
         if (!PathIsAxisAligned(path, scaledMatrix))
         {
@@ -124,14 +130,14 @@ internal static class CommandHelpers
             return false;
         }
 
-        SKMatrix scaledMatrix = GetScaledMatrix(executionContext);
+        PdfMatrix scaledMatrix = GetScaledMatrix(executionContext);
 
         if (!IsAxisAligned(scaledMatrix))
         {
             return true;
         }
 
-        SKRect scaledRect = scaledMatrix.MapRect(rect);
+        SKRect scaledRect = scaledMatrix.ToSkMatrix().MapRect(rect);
         if (scaledRect.Width < 2 || scaledRect.Height < 2)
         {
             return executionContext.Parameters.Antialias;
@@ -152,26 +158,24 @@ internal static class CommandHelpers
             return rect;
         }
 
-        SKMatrix scaledMatrix = GetScaledMatrix(executionContext);
+        PdfMatrix scaledMatrix = GetScaledMatrix(executionContext);
 
         if (!IsAxisAligned(scaledMatrix))
         {
             return rect;
         }
 
-        SKRect deviceRect = scaledMatrix.MapRect(rect);
+        SKMatrix skScaledMatrix = scaledMatrix.ToSkMatrix();
+        SKRect deviceRect = skScaledMatrix.MapRect(rect);
         SKRect snappedDeviceRect = SnapToDevicePixels(deviceRect);
 
-        return scaledMatrix.Invert().MapRect(snappedDeviceRect);
+        return skScaledMatrix.Invert().MapRect(snappedDeviceRect);
     }
 
     /// <summary>
-    /// Returns whether <paramref name="matrix"/> has no rotation or skew, within <see cref="AxisAlignEpsilon"/>.
-    /// </summary>
-    /// <summary>
     /// Formats a matrix in short PDF <c>[a b c d e f]</c> operand order, for debugging.
     /// </summary>
-    public static string FormatMatrix(SKMatrix matrix)
+    public static string FormatMatrix(in PdfMatrix matrix)
         => $"[{matrix.ScaleX:0.###} {matrix.SkewY:0.###} {matrix.SkewX:0.###} {matrix.ScaleY:0.###} {matrix.TransX:0.###} {matrix.TransY:0.###}]";
 
     /// <summary>
@@ -180,8 +184,11 @@ internal static class CommandHelpers
     public static string FormatPaint(SKPaint paint)
         => $"{paint.BlendMode}/{paint.Color}/{paint.Style}";
 
+    /// <summary>
+    /// Returns whether <paramref name="matrix"/> has no rotation or skew, within <see cref="AxisAlignEpsilon"/>.
+    /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static bool IsAxisAligned(SKMatrix matrix)
+    public static bool IsAxisAligned(in PdfMatrix matrix)
         => MathF.Abs(matrix.SkewX) <= AxisAlignEpsilon && MathF.Abs(matrix.SkewY) <= AxisAlignEpsilon;
 
     /// <summary>

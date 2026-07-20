@@ -49,7 +49,7 @@ public sealed class DrawSoftMaskImageTileCommand : PdfCommand
         CommandHelpers.ApplyModifiers(paint, executionContext);
 
         executionContext.Canvas.Save();
-        executionContext.Canvas.Concat(placement.PlacementMatrix);
+        executionContext.Canvas.Concat(placement.PlacementMatrix.ToSkMatrix());
         executionContext.Canvas.ClipRect(placement.PlacementRectangle);
         executionContext.Canvas.DrawPaint(paint);
         executionContext.Canvas.Restore();

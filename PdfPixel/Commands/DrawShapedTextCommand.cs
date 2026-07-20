@@ -15,7 +15,7 @@ public sealed class DrawShapedTextCommand : PdfCommand, IMatrixCommand, IPaintCo
     /// <summary>
     /// Initializes the command with the given matrix, shaped glyphs, font and paint.
     /// </summary>
-    public DrawShapedTextCommand(SKMatrix matrix, ShapedGlyph[] shapingResult, SKFont font, SKPaint basePaint)
+    public DrawShapedTextCommand(in PdfMatrix matrix, ShapedGlyph[] shapingResult, SKFont font, SKPaint basePaint)
     {
         Matrix = matrix;
         ShapingResult = shapingResult;
@@ -26,29 +26,13 @@ public sealed class DrawShapedTextCommand : PdfCommand, IMatrixCommand, IPaintCo
     /// <summary>
     /// Initializes the command with the given matrix, shaped glyphs, font and paint.
     /// </summary>
-    public DrawShapedTextCommand(in PdfMatrix matrix, ShapedGlyph[] shapingResult, SKFont font, SKPaint basePaint)
-        : this(matrix.ToSkMatrix(), shapingResult, font, basePaint)
-    {
-    }
-
-    /// <summary>
-    /// Initializes the command with the given matrix, shaped glyphs, font and paint.
-    /// </summary>
-    public DrawShapedTextCommand(SKMatrix matrix, ShapedGlyph[] shapingResult, SKFont font, PdfPaint basePaint)
+    public DrawShapedTextCommand(in PdfMatrix matrix, ShapedGlyph[] shapingResult, SKFont font, PdfPaint basePaint)
         : this(matrix, shapingResult, font, basePaint.ToSkiaPaint())
     {
     }
 
-    /// <summary>
-    /// Initializes the command with the given matrix, shaped glyphs, font and paint.
-    /// </summary>
-    public DrawShapedTextCommand(in PdfMatrix matrix, ShapedGlyph[] shapingResult, SKFont font, PdfPaint basePaint)
-        : this(matrix.ToSkMatrix(), shapingResult, font, basePaint.ToSkiaPaint())
-    {
-    }
-
     /// <inheritdoc />
-    public SKMatrix Matrix { get; }
+    public PdfMatrix Matrix { get; }
 
     /// <summary>
     /// Gets the pre-shaped glyphs drawn by this command.
@@ -79,7 +63,7 @@ public sealed class DrawShapedTextCommand : PdfCommand, IMatrixCommand, IPaintCo
         {
             SKCanvas canvas = executionContext.Canvas;
             canvas.Save();
-            canvas.Concat(Matrix);
+            canvas.Concat(Matrix.ToSkMatrix());
             canvas.DrawText(blob, 0f, 0f, paint);
             canvas.Restore();
         }

@@ -1,5 +1,4 @@
 using PdfPixel.Geometry;
-using SkiaSharp;
 using System.Linq;
 
 namespace PdfPixel.Commands;
@@ -18,7 +17,7 @@ public sealed class DrawRecordingCommand : PdfCommand, IMatrixCommand
     /// <summary>
     /// Initializes the command with a recorder, matrix, an optional paint modifier, and ownership flag.
     /// </summary>
-    public DrawRecordingCommand(PdfCommandRecorder recorder, SKMatrix matrix, UncoloredPaintModifier? modifier, bool disposeRecording = true)
+    public DrawRecordingCommand(PdfCommandRecorder recorder, in PdfMatrix matrix, UncoloredPaintModifier? modifier, bool disposeRecording = true)
     {
         Recorder = recorder;
         Matrix = matrix;
@@ -27,18 +26,10 @@ public sealed class DrawRecordingCommand : PdfCommand, IMatrixCommand
     }
 
     /// <summary>
-    /// Initializes the command with a recorder, matrix, an optional paint modifier, and ownership flag.
-    /// </summary>
-    public DrawRecordingCommand(PdfCommandRecorder recorder, in PdfMatrix matrix, UncoloredPaintModifier? modifier, bool disposeRecording = true)
-        : this(recorder, matrix.ToSkMatrix(), modifier, disposeRecording)
-    {
-    }
-
-    /// <summary>
     /// Initializes the command with a recorder, an optional paint modifier, and ownership flag; identity matrix.
     /// </summary>
     public DrawRecordingCommand(PdfCommandRecorder recorder, UncoloredPaintModifier? modifier, bool disposeRecording = true)
-        : this(recorder, SKMatrix.Identity, modifier, disposeRecording)
+        : this(recorder, PdfMatrix.Identity, modifier, disposeRecording)
     {
     }
 
@@ -46,7 +37,7 @@ public sealed class DrawRecordingCommand : PdfCommand, IMatrixCommand
     /// Initializes the command with a recorder and ownership flag; identity matrix, no paint modifier applied.
     /// </summary>
     public DrawRecordingCommand(PdfCommandRecorder recorder, bool disposeRecording = true)
-        : this(recorder, SKMatrix.Identity, null, disposeRecording)
+        : this(recorder, PdfMatrix.Identity, null, disposeRecording)
     {
     }
 
@@ -56,7 +47,7 @@ public sealed class DrawRecordingCommand : PdfCommand, IMatrixCommand
     public PdfCommandRecorder Recorder { get; }
 
     /// <inheritdoc />
-    public SKMatrix Matrix { get; }
+    public PdfMatrix Matrix { get; }
 
     /// <summary>
     /// Modifier of a current command batch.
@@ -78,7 +69,7 @@ public sealed class DrawRecordingCommand : PdfCommand, IMatrixCommand
 
         executionContext.Canvas.Save();
         executionContext.Frames.OnSaveState();
-        executionContext.Canvas.Concat(Matrix);
+        executionContext.Canvas.Concat(Matrix.ToSkMatrix());
         executionContext.Frames.OnConcatMatrix(Matrix);
 
         int savesCountAfterOwnSave = executionContext.Frames.SavesCount;

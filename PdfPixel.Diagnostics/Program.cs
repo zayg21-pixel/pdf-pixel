@@ -2,6 +2,7 @@ using Microsoft.Extensions.Logging;
 using PdfPixel.Annotations.Models;
 using PdfPixel.Commands;
 using PdfPixel.Fonts.Management;
+using PdfPixel.Geometry;
 using PdfPixel.Models;
 using SkiaSharp;
 using System.Diagnostics;
@@ -131,9 +132,9 @@ internal sealed class Program
     private static void RecordPageTransform(PdfCommandRecorder recorder, IPdfPage page, float scale)
     {
         recorder.Process(SaveStateCommand.Instance);
-        recorder.Process(new ConcatMatrixCommand(SKMatrix.CreateScale(scale, scale)));
-        recorder.Process(new ConcatMatrixCommand(SKMatrix.CreateTranslation(-page.CropBox.Left, page.CropBox.Height + page.CropBox.Top)));
-        recorder.Process(new ConcatMatrixCommand(SKMatrix.CreateScale(1, -1)));
+        recorder.Process(new ConcatMatrixCommand(PdfMatrix.CreateScale(scale, scale)));
+        recorder.Process(new ConcatMatrixCommand(PdfMatrix.CreateTranslation(-page.CropBox.Left, page.CropBox.Height + page.CropBox.Top)));
+        recorder.Process(new ConcatMatrixCommand(PdfMatrix.CreateScale(1, -1)));
     }
 
     // Prints every command in order; when a command is a DrawRecordingCommand, its nested

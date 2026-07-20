@@ -1,6 +1,7 @@
 ﻿using Microsoft.Extensions.Logging;
 using PdfPixel.Annotations.Models;
 using PdfPixel.Commands;
+using PdfPixel.Geometry;
 using PdfPixel.Models;
 using PdfPixel.Text;
 using SkiaSharp;
@@ -112,8 +113,8 @@ internal static class PdfDocumentContentExtensions
             SKClipOperation.Intersect));
 
         commandRecording.Process(new ConcatMatrixCommand(
-            SKMatrix.CreateTranslation(-pdfPage.CropBox.Left, pdfPage.CropBox.Height + pdfPage.CropBox.Top)));
-        commandRecording.Process(new ConcatMatrixCommand(SKMatrix.CreateScale(1, -1)));
+            PdfMatrix.CreateTranslation(-pdfPage.CropBox.Left, pdfPage.CropBox.Height + pdfPage.CropBox.Top)));
+        commandRecording.Process(new ConcatMatrixCommand(PdfMatrix.CreateScale(1, -1)));
     }
 
     public static PdfPanelPageInfo GetPageInfo(IPdfDocument document, int pageNumber)

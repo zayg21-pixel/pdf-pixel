@@ -1,4 +1,4 @@
-using SkiaSharp;
+using PdfPixel.Geometry;
 using System;
 
 namespace PdfPixel.Imaging.Processing;
@@ -16,7 +16,7 @@ public sealed class PdfTileInfo
     /// </summary>
     /// <param name="imageSize">Full size of the image in samples.</param>
     /// <param name="tileSize">Requested maximum tile size in samples.</param>
-    public PdfTileInfo(SKSizeI imageSize, SKSizeI tileSize)
+    public PdfTileInfo(in PdfIntegerSize imageSize, in PdfIntegerSize tileSize)
     {
         ImageSize = imageSize;
         TileWidth = Math.Min(tileSize.Width, imageSize.Width);
@@ -31,7 +31,7 @@ public sealed class PdfTileInfo
     /// <see cref="GetTilePosition"/> are expressed in this coordinate space, regardless of the
     /// resolution at which the image is actually decoded.
     /// </summary>
-    public SKSizeI ImageSize { get; }
+    public PdfIntegerSize ImageSize { get; }
 
     /// <summary>
     /// Width of each tile in samples, clamped to the image width.
@@ -63,16 +63,14 @@ public sealed class PdfTileInfo
     /// (un-descaled, un-downscaled) image coordinates — i.e. where the tile must be placed.
     /// </summary>
     /// <param name="tileIndex">Zero-based index of the tile in row-major order.</param>
-    public SKRectI GetTilePosition(int tileIndex)
+    public PdfIntegerRectangle GetTilePosition(int tileIndex)
     {
         int column = tileIndex % TilesHorizontal;
         int row = tileIndex / TilesHorizontal;
         int x = column * TileWidth;
         int y = row * TileHeight;
-        return SKRectI.Create(
-            x,
-            y,
-            Math.Min(TileWidth, ImageSize.Width - x),
-            Math.Min(TileHeight, ImageSize.Height - y));
+        int width = Math.Min(TileWidth, ImageSize.Width - x);
+        int height = Math.Min(TileHeight, ImageSize.Height - y);
+        return new PdfIntegerRectangle(x, y, x + width, y + height);
     }
 }

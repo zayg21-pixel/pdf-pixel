@@ -1,6 +1,6 @@
+using PdfPixel.Geometry;
 using PdfPixel.Imaging.Decoding;
 using PdfPixel.Imaging.Processing;
-using SkiaSharp;
 using System;
 using System.Collections.Generic;
 
@@ -16,7 +16,7 @@ internal sealed class PdfImageTileCacheEntry : IDisposable
 {
     private readonly CachedTile[] _tiles;
 
-    private SKSizeI? _scaledSize;
+    private PdfIntegerSize? _scaledSize;
     private int _tileIndex;
     private bool _decoding;
 
@@ -41,7 +41,7 @@ internal sealed class PdfImageTileCacheEntry : IDisposable
 
     public void ResetTileIndex() => _tileIndex = 0;
 
-    public void Initialize(SKMatrix ctm, SKRectI imageRegion, object contentLocker, IPdfExecutionObserver observer)
+    public void Initialize(in PdfMatrix ctm, in PdfIntegerRectangle imageRegion, object contentLocker, IPdfExecutionObserver observer)
     {
         if (_decoding)
         {
@@ -51,8 +51,8 @@ internal sealed class PdfImageTileCacheEntry : IDisposable
 
         _tileIndex = 0;
 
-        SKSizeI? scaledSize = PdfImageCommandUtilities.GetScaledSize(ctm, TileInfo.ImageSize);
-        if (scaledSize != _scaledSize)
+        PdfIntegerSize? scaledSize = PdfImageCommandUtilities.GetScaledSize(ctm, TileInfo.ImageSize);
+        if (!Equals(scaledSize, _scaledSize))
         {
             foreach (CachedTile cachedTile in _tiles)
             {
@@ -145,7 +145,7 @@ internal sealed class PdfImageTileCacheEntry : IDisposable
         throw new InvalidOperationException($"Tile {tileIndex} was not produced by decoder {Decoder.GetType().Name}.");
     }
 
-    private HashSet<int> ComputeRegionTileIndexes(SKRectI imageRegion)
+    private HashSet<int> ComputeRegionTileIndexes(in PdfIntegerRectangle imageRegion)
     {
         HashSet<int> regionTileIndexes = [];
 

@@ -1,15 +1,15 @@
 using Microsoft.Extensions.Logging;
+using PdfPixel.Geometry;
 using PdfPixel.Imaging.Decoding;
 using PdfPixel.Imaging.Model;
 using PdfPixel.Imaging.Processing;
-using SkiaSharp;
 using System;
 
 namespace PdfPixel.Commands.Image;
 
 internal sealed class NormalImageExecutionContext : IDisposable
 {
-    private NormalImageExecutionContext(SKSizeI imageSize, ImageDecodingContext decodingContext, PdfImageTileCacheEntry tileCache, bool interpolate)
+    private NormalImageExecutionContext(in PdfIntegerSize imageSize, ImageDecodingContext decodingContext, PdfImageTileCacheEntry tileCache, bool interpolate)
     {
         ImageSize = imageSize;
         DecodingContext = decodingContext;
@@ -19,7 +19,7 @@ internal sealed class NormalImageExecutionContext : IDisposable
 
     public static NormalImageExecutionContext Create(PdfImage pdfImage, ImageDecodingContext context, ILoggerFactory loggerFactory)
     {
-        SKSizeI imageSize = new(pdfImage.Width, pdfImage.Height);
+        PdfIntegerSize imageSize = new(pdfImage.Width, pdfImage.Height);
         PdfImageDecoder? decoder = PdfImageDecoder.GetDecoder(pdfImage, context, loggerFactory);
 
         if (decoder == null)
@@ -27,11 +27,11 @@ internal sealed class NormalImageExecutionContext : IDisposable
             throw new ArgumentException($"Decoder for image {pdfImage.Type} is not defined.");
         }
 
-        PdfTileInfo tileInfo = new(imageSize, new SKSizeI(context.DefaultTileSize, context.DefaultTileSize));
+        PdfTileInfo tileInfo = new(imageSize, new PdfIntegerSize(context.DefaultTileSize, context.DefaultTileSize));
         return new NormalImageExecutionContext(imageSize, context, new PdfImageTileCacheEntry(decoder, tileInfo), pdfImage.Interpolate);
     }
 
-    public SKSizeI ImageSize { get; }
+    public PdfIntegerSize ImageSize { get; }
 
     public ImageDecodingContext DecodingContext { get; }
 

@@ -101,16 +101,24 @@ public readonly struct PdfRectangle
     internal SKRect ToSkRect() => new(Left, Top, Right, Bottom);
 
     /// <summary>
-    /// Returns the overlapping region of <paramref name="a"/> and <paramref name="b"/>.
+    /// Returns the overlapping region of <paramref name="a"/> and <paramref name="b"/>, or <see cref="Empty"/> when they do not overlap.
     /// </summary>
     public static PdfRectangle Intersect(in PdfRectangle a, in PdfRectangle b)
     {
+        if (!IntersectsWithInclusive(a, b))
+        {
+            return Empty;
+        }
+
         return new(
             Math.Max(a.Left, b.Left),
             Math.Max(a.Top, b.Top),
             Math.Min(a.Right, b.Right),
             Math.Min(a.Bottom, b.Bottom));
     }
+
+    private static bool IntersectsWithInclusive(in PdfRectangle a, in PdfRectangle b)
+        => a.Left <= b.Right && a.Right >= b.Left && a.Top <= b.Bottom && a.Bottom >= b.Top;
 
     /// <inheritdoc/>
     public override string ToString()

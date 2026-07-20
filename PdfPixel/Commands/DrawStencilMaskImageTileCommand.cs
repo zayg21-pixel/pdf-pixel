@@ -42,7 +42,7 @@ public sealed class DrawStencilMaskImageTileCommand : PdfCommand
         CommandHelpers.ApplyModifiers(paint, executionContext);
 
         executionContext.Canvas.Save();
-        executionContext.Canvas.Concat(placement.PlacementMatrix);
+        executionContext.Canvas.Concat(placement.PlacementMatrix.ToSkMatrix());
         executionContext.Canvas.DrawImage(tile.Image, placement.PlacementRectangle, placement.Sampling, paint);
         executionContext.Canvas.Restore();
     }

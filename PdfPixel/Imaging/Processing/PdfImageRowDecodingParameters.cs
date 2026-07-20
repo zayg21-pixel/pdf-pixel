@@ -1,8 +1,8 @@
 using PdfPixel.Color.ColorSpace;
 using PdfPixel.Commands.Image;
+using PdfPixel.Geometry;
 using PdfPixel.Imaging.Model;
 using PdfPixel.Models;
-using SkiaSharp;
 
 namespace PdfPixel.Imaging.Processing;
 
@@ -41,7 +41,7 @@ public sealed class PdfImageRowDecodingParameters
         bool hasImageMask,
         int[]? maskArray,
         PdfRange[]? decode,
-        SKSizeI? downscaledSize,
+        PdfIntegerSize? downscaledSize,
         bool hasAlphaChannel = false)
     {
         Width = width;
@@ -100,7 +100,7 @@ public sealed class PdfImageRowDecodingParameters
     /// <summary>
     /// Target output size after downscaling, or null when no downscaling is applied.
     /// </summary>
-    public SKSizeI? DownscaledSize { get; }
+    public PdfIntegerSize? DownscaledSize { get; }
 
     /// <summary>
     /// True when the interleaved row samples contain an alpha component as

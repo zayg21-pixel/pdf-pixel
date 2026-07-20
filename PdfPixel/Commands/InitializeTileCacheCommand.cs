@@ -1,5 +1,5 @@
 using PdfPixel.Commands.Image;
-using SkiaSharp;
+using PdfPixel.Geometry;
 
 namespace PdfPixel.Commands;
 
@@ -11,9 +11,9 @@ namespace PdfPixel.Commands;
 public sealed class InitializeTileCacheCommand : PdfCommand
 {
     private readonly PdfImageTileCacheEntry _tileCache;
-    private readonly SKSizeI _imageSize;
+    private readonly PdfIntegerSize _imageSize;
 
-    internal InitializeTileCacheCommand(PdfImageTileCacheEntry tileCache, SKSizeI imageSize)
+    internal InitializeTileCacheCommand(PdfImageTileCacheEntry tileCache, in PdfIntegerSize imageSize)
     {
         _tileCache = tileCache;
         _imageSize = imageSize;
@@ -25,8 +25,8 @@ public sealed class InitializeTileCacheCommand : PdfCommand
     /// <inheritdoc />
     public override void Execute(PdfCommandExecutionContext executionContext)
     {
-        SKMatrix ctm = PdfImageCommandUtilities.GetImageCtm(CommandHelpers.GetScaledMatrix(executionContext));
-        SKRectI imageRegion = PdfImageCommandUtilities.ComputeImageRegionOfInterest(_imageSize, executionContext);
+        PdfMatrix ctm = PdfImageCommandUtilities.GetImageCtm(CommandHelpers.GetScaledMatrix(executionContext));
+        PdfIntegerRectangle imageRegion = PdfImageCommandUtilities.ComputeImageRegionOfInterest(_imageSize, executionContext);
 
         if (imageRegion.Width != _imageSize.Width || imageRegion.Height != _imageSize.Height)
         {

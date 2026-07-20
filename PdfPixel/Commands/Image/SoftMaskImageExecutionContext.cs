@@ -1,8 +1,8 @@
 using Microsoft.Extensions.Logging;
+using PdfPixel.Geometry;
 using PdfPixel.Imaging.Decoding;
 using PdfPixel.Imaging.Model;
 using PdfPixel.Imaging.Processing;
-using SkiaSharp;
 using System;
 
 namespace PdfPixel.Commands.Image;
@@ -10,8 +10,8 @@ namespace PdfPixel.Commands.Image;
 internal sealed class SoftMaskImageExecutionContext : IDisposable
 {
     public SoftMaskImageExecutionContext(
-        SKSizeI imageSize,
-        SKSizeI maskSize,
+        in PdfIntegerSize imageSize,
+        in PdfIntegerSize maskSize,
         ImageDecodingContext decodingContext,
         PdfImageTileCacheEntry imageCache,
         PdfImageTileCacheEntry maskCache,
@@ -27,8 +27,8 @@ internal sealed class SoftMaskImageExecutionContext : IDisposable
         Interpolate = interpolate;
     }
 
-    public SKSizeI ImageSize { get; }
-    public SKSizeI MaskSize { get; }
+    public PdfIntegerSize ImageSize { get; }
+    public PdfIntegerSize MaskSize { get; }
     public ImageDecodingContext DecodingContext { get; }
     public PdfImageTileCacheEntry ImageCache { get; }
     public PdfImageTileCacheEntry MaskCache { get; }
@@ -44,8 +44,8 @@ internal sealed class SoftMaskImageExecutionContext : IDisposable
         }
 
         PdfImage maskImage = pdfImage.SoftMask;
-        SKSizeI imageSize = new(pdfImage.Width, pdfImage.Height);
-        SKSizeI maskSize = new(maskImage.Width, maskImage.Height);
+        PdfIntegerSize imageSize = new(pdfImage.Width, pdfImage.Height);
+        PdfIntegerSize maskSize = new(maskImage.Width, maskImage.Height);
 
         ImageDecodingContext maskDecodingContext = new(context, maskImage, context.FillColor, context.FillAlpha, context.BlendMode);
 
@@ -62,10 +62,11 @@ internal sealed class SoftMaskImageExecutionContext : IDisposable
             throw new ArgumentException($"Mask decoder for image {maskImage.Type} is not defined.");
         }
 
-        SKSizeI defaultTileSize = new(context.DefaultTileSize, context.DefaultTileSize);
+        PdfIntegerSize defaultTileSize = new(context.DefaultTileSize, context.DefaultTileSize);
+        bool maskMatchesImageSize = maskSize.Equals(imageSize);
 
-        PdfTileInfo imageTileInfo = (maskSize == imageSize) ? new PdfTileInfo(imageSize, defaultTileSize) : new PdfTileInfo(imageSize, imageSize);
-        PdfTileInfo maskTileInfo = (maskSize == imageSize) ? new PdfTileInfo(maskSize, defaultTileSize) : new PdfTileInfo(maskSize, maskSize);
+        PdfTileInfo imageTileInfo = maskMatchesImageSize ? new PdfTileInfo(imageSize, defaultTileSize) : new PdfTileInfo(imageSize, imageSize);
+        PdfTileInfo maskTileInfo = maskMatchesImageSize ? new PdfTileInfo(maskSize, defaultTileSize) : new PdfTileInfo(maskSize, maskSize);
 
         return new SoftMaskImageExecutionContext(
             imageSize,

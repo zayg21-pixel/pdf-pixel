@@ -106,9 +106,9 @@ public class PdfStampAnnotation : PdfAnnotationBase
         float textX = Rectangle.MidX - textWidth / 2f;
         float textY = Rectangle.MidY + (metrics.Ascent + metrics.Descent) / 2f;
 
-        SKMatrix textMatrix = SKMatrix.Concat(
-            SKMatrix.CreateTranslation(textX, textY),
-            SKMatrix.CreateScale(1f, -1f));
+        PdfMatrix textMatrix = PdfMatrix.Concat(
+            PdfMatrix.CreateTranslation(textX, textY),
+            PdfMatrix.CreateScale(1f, -1f));
 
         float shadowOffset = font.Size * 0.05f;
         float shadowSigma = font.Size * 0.03f;

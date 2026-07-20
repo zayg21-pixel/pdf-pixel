@@ -1,3 +1,4 @@
+using PdfPixel.Geometry;
 using SkiaSharp;
 using System;
 using System.Collections.Generic;
@@ -17,13 +18,13 @@ public sealed class PdfCommandExecutionFrames : IDisposable
     private readonly Stack<Frame> _frames = [];
     private readonly List<CanvasStateOp> _stateOps = [];
     private readonly Stack<int> _savePoints = [];
-    private SKMatrix _totalMatrix = SKMatrix.Identity;
+    private PdfMatrix _totalMatrix = PdfMatrix.Identity;
     private int _layerDepth;
 
     /// <summary>
     /// Current total transformation matrix, accumulated from <see cref="OnConcatMatrix"/> notifications.
     /// </summary>
-    public SKMatrix TotalMatrix => _totalMatrix;
+    public PdfMatrix TotalMatrix => _totalMatrix;
 
     /// <summary>
     /// Number of currently active saved states, mirroring the depth of the canvas save stack.
@@ -92,9 +93,9 @@ public sealed class PdfCommandExecutionFrames : IDisposable
     /// Concatenates <paramref name="matrix"/> onto the current total transformation matrix.
     /// Called when a matrix-concatenation command is processed.
     /// </summary>
-    public void OnConcatMatrix(SKMatrix matrix)
+    public void OnConcatMatrix(in PdfMatrix matrix)
     {
-        _stateOps.Add(new ConcatMatrixCanvasOp(matrix));
+        _stateOps.Add(new ConcatMatrixCanvasOp(matrix.ToSkMatrix()));
         _totalMatrix = _totalMatrix.PreConcat(matrix);
     }
 
@@ -147,7 +148,7 @@ public sealed class PdfCommandExecutionFrames : IDisposable
         _stateOps.Clear();
         _savePoints.Clear();
 
-        _totalMatrix = SKMatrix.Identity;
+        _totalMatrix = PdfMatrix.Identity;
         _layerDepth = 0;
     }
 
@@ -238,13 +239,13 @@ public sealed class PdfCommandExecutionFrames : IDisposable
 
     private readonly struct Frame
     {
-        public Frame(SKMatrix matrix, bool isLayer)
+        public Frame(in PdfMatrix matrix, bool isLayer)
         {
             Matrix = matrix;
             IsLayer = isLayer;
         }
 
-        public SKMatrix Matrix { get; }
+        public PdfMatrix Matrix { get; }
 
         public bool IsLayer { get; }
     }

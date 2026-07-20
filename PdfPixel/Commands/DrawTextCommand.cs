@@ -12,7 +12,7 @@ public sealed class DrawTextCommand : PdfCommand, IMatrixCommand, IPaintCommand
     /// <summary>
     /// Initializes the command with the given text, matrix, font and paint.
     /// </summary>
-    public DrawTextCommand(string text, SKMatrix matrix, SKFont font, SKPaint basePaint)
+    public DrawTextCommand(string text, in PdfMatrix matrix, SKFont font, SKPaint basePaint)
     {
         Text = text;
         Matrix = matrix;
@@ -23,24 +23,8 @@ public sealed class DrawTextCommand : PdfCommand, IMatrixCommand, IPaintCommand
     /// <summary>
     /// Initializes the command with the given text, matrix, font and paint.
     /// </summary>
-    public DrawTextCommand(string text, in PdfMatrix matrix, SKFont font, SKPaint basePaint)
-        : this(text, matrix.ToSkMatrix(), font, basePaint)
-    {
-    }
-
-    /// <summary>
-    /// Initializes the command with the given text, matrix, font and paint.
-    /// </summary>
-    public DrawTextCommand(string text, SKMatrix matrix, SKFont font, PdfPaint basePaint)
-        : this(text, matrix, font, basePaint.ToSkiaPaint())
-    {
-    }
-
-    /// <summary>
-    /// Initializes the command with the given text, matrix, font and paint.
-    /// </summary>
     public DrawTextCommand(string text, in PdfMatrix matrix, SKFont font, PdfPaint basePaint)
-        : this(text, matrix.ToSkMatrix(), font, basePaint.ToSkiaPaint())
+        : this(text, matrix, font, basePaint.ToSkiaPaint())
     {
     }
 
@@ -50,7 +34,7 @@ public sealed class DrawTextCommand : PdfCommand, IMatrixCommand, IPaintCommand
     public string Text { get; }
 
     /// <inheritdoc />
-    public SKMatrix Matrix { get; }
+    public PdfMatrix Matrix { get; }
 
     /// <summary>
     /// Gets the font used to draw the text.
@@ -71,7 +55,7 @@ public sealed class DrawTextCommand : PdfCommand, IMatrixCommand, IPaintCommand
 
         SKCanvas canvas = executionContext.Canvas;
         canvas.Save();
-        canvas.Concat(Matrix);
+        canvas.Concat(Matrix.ToSkMatrix());
         canvas.DrawText(Text, 0f, 0f, SKTextAlign.Left, Font, paint);
         canvas.Restore();
     }

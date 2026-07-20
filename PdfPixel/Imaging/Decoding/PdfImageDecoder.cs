@@ -2,9 +2,9 @@ using Microsoft.Extensions.Logging;
 using PdfPixel.Color.ColorSpace;
 using PdfPixel.Commands;
 using PdfPixel.Commands.Image;
+using PdfPixel.Geometry;
 using PdfPixel.Imaging.Model;
 using PdfPixel.Imaging.Processing;
-using SkiaSharp;
 using System;
 using System.Collections.Generic;
 
@@ -124,7 +124,7 @@ public abstract class PdfImageDecoder : IDisposable
     /// <param name="ctm">Current transformation matrix, used to compute the scaled output size.</param>
     /// <param name="tileIndexesToDecode">Indexes of tiles that must be decoded; every other tile is produced as a skipped placeholder. Null means every tile must be decoded.</param>
     /// <param name="observer">Observer notified during initialization steps.</param>
-    public virtual void Initialize(PdfTileInfo tileInfo, object contentLocker, SKMatrix ctm, HashSet<int>? tileIndexesToDecode, IPdfExecutionObserver observer)
+    public virtual void Initialize(PdfTileInfo tileInfo, object contentLocker, in PdfMatrix ctm, HashSet<int>? tileIndexesToDecode, IPdfExecutionObserver observer)
     {
     }
 

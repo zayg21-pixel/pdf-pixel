@@ -17,22 +17,14 @@ public sealed class TextCharactersCommand : PdfCommand, IMatrixCommand
     /// <summary>
     /// Initializes the command with the matrix to apply and the captured characters whose bounding boxes are in pre-CTM space.
     /// </summary>
-    public TextCharactersCommand(SKMatrix matrix, PdfCharacter[] characters)
+    public TextCharactersCommand(in PdfMatrix matrix, PdfCharacter[] characters)
     {
         Matrix = matrix;
         Characters = characters;
     }
 
-    /// <summary>
-    /// Initializes the command with the matrix to apply and the captured characters whose bounding boxes are in pre-CTM space.
-    /// </summary>
-    public TextCharactersCommand(in PdfMatrix matrix, PdfCharacter[] characters)
-        : this(matrix.ToSkMatrix(), characters)
-    {
-    }
-
     /// <inheritdoc />
-    public SKMatrix Matrix { get; }
+    public PdfMatrix Matrix { get; }
 
     /// <summary>
     /// Gets the captured characters, with bounding boxes in pre-CTM space.
@@ -42,7 +34,7 @@ public sealed class TextCharactersCommand : PdfCommand, IMatrixCommand
     /// <inheritdoc />
     public override void Execute(PdfCommandExecutionContext executionContext)
     {
-        SKMatrix matrix = executionContext.Frames.TotalMatrix.PreConcat(Matrix);
+        SKMatrix matrix = executionContext.Frames.TotalMatrix.PreConcat(Matrix).ToSkMatrix();
 
         List<PdfCharacter> mapped = new(Characters.Length);
 

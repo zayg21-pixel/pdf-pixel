@@ -2,12 +2,12 @@ using Microsoft.Extensions.Logging;
 using PdfPixel.Color.ColorSpace;
 using PdfPixel.Commands;
 using PdfPixel.Commands.Image;
+using PdfPixel.Geometry;
 using PdfPixel.Imaging.Model;
 using PdfPixel.Imaging.Processing;
 using PdfPixel.Jpx.Decoding;
 using PdfPixel.Jpx.Model;
 using PdfPixel.Jpx.Parsing;
-using SkiaSharp;
 using System;
 using System.Collections.Generic;
 
@@ -35,7 +35,7 @@ internal class JpxImageDecoder : PdfImageDecoder
         _deviceCmyk = colorSpace.ResolveDeviceConverter(4);
     }
 
-    public override void Initialize(PdfTileInfo tileInfo, object contentLocker, SKMatrix ctm, HashSet<int>? tileIndexesToDecode, IPdfExecutionObserver? observer)
+    public override void Initialize(PdfTileInfo tileInfo, object contentLocker, in PdfMatrix ctm, HashSet<int>? tileIndexesToDecode, IPdfExecutionObserver? observer)
     {
         ReadOnlyMemory<byte> encodedData;
         lock (contentLocker)
@@ -59,7 +59,7 @@ internal class JpxImageDecoder : PdfImageDecoder
 
         _rowConverter = new JpxTileToRowConverter(jpxHeader, tileProvider, jpxDecodingParameters);
 
-        SKSizeI? downscaledSize = PdfImageCommandUtilities.GetScaledSize(ctm, new SKSizeI(_rowConverter.Width, _rowConverter.Height));
+        PdfIntegerSize? downscaledSize = PdfImageCommandUtilities.GetScaledSize(ctm, new PdfIntegerSize(_rowConverter.Width, _rowConverter.Height));
 
         _imageParameters = new PdfImageRowDecodingParameters(
             Context,
@@ -141,7 +141,7 @@ internal class JpxImageDecoder : PdfImageDecoder
         };
     }
 
-    private static JpxDecodingParameters ComputeDecodingParameters(JpxHeader header, SKMatrix ctm, PdfTileInfo tileInfo, HashSet<int>? tileIndexesToDecode, PdfColorSpaceConverter resolvedConverter)
+    private static JpxDecodingParameters ComputeDecodingParameters(JpxHeader header, in PdfMatrix ctm, PdfTileInfo tileInfo, HashSet<int>? tileIndexesToDecode, PdfColorSpaceConverter resolvedConverter)
     {
         IReadOnlyList<JpxRegion>? regionsOfInterest = ComputeRegionsOfInterest(tileInfo, tileIndexesToDecode);
 
@@ -151,8 +151,8 @@ internal class JpxImageDecoder : PdfImageDecoder
             return new JpxDecodingParameters(1, regionsOfInterest);
         }
 
-        SKSizeI sourceSize = new((int)header.Width, (int)header.Height);
-        SKSizeI? targetSize = PdfImageCommandUtilities.GetScaledSize(ctm, sourceSize);
+        PdfIntegerSize sourceSize = new((int)header.Width, (int)header.Height);
+        PdfIntegerSize? targetSize = PdfImageCommandUtilities.GetScaledSize(ctm, sourceSize);
 
         if (!targetSize.HasValue || header.CodingStyle == null)
         {
@@ -190,7 +190,7 @@ internal class JpxImageDecoder : PdfImageDecoder
         List<JpxRegion> regionsOfInterest = new(tileIndexesToDecode.Count);
         foreach (int tileIndex in tileIndexesToDecode)
         {
-            SKRectI tilePosition = tileInfo.GetTilePosition(tileIndex);
+            PdfIntegerRectangle tilePosition = tileInfo.GetTilePosition(tileIndex);
             regionsOfInterest.Add(new JpxRegion(tilePosition.Left, tilePosition.Top, tilePosition.Width, tilePosition.Height));
         }
 
