@@ -116,5 +116,21 @@ public enum PdfBlendMode
     /// Legacy compatibility mode; treated as Normal outside transparency groups.
     /// </summary>
     [PdfEnumValue("Compatible")]
-    Compatible
+    Compatible,
+
+    /// <summary>
+    /// Internal-only compositing mode where source alpha masks destination content (Porter-Duff
+    /// "destination-in"). Not a PDF spec blend mode and never appears in a /BM content stream value —
+    /// used exclusively for the internal stencil-mask alpha application pass.
+    /// </summary>
+    [PdfEnumValue("MaskComposite")]
+    MaskComposite,
+
+    /// <summary>
+    /// Internal-only compositing mode combining destination-in compositing with a luminosity-to-alpha
+    /// color filter, used for luminosity-type soft masks. Not a PDF spec blend mode and never appears
+    /// in a /BM content stream value.
+    /// </summary>
+    [PdfEnumValue("LuminosityMaskComposite")]
+    LuminosityMaskComposite
 }

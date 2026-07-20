@@ -1,6 +1,5 @@
 using PdfPixel.Geometry;
 using PdfPixel.Imaging.Model;
-using System;
 
 namespace PdfPixel.Shading;
 
@@ -8,7 +7,7 @@ namespace PdfPixel.Shading;
 /// Holds the sampled image and coordinate matrix produced by function-based (Type 1) shading.
 /// Disposes the image when the instance is disposed.
 /// </summary>
-public sealed class FunctionShadingResult : IDisposable
+public sealed class FunctionShadingResult
 {
     /// <summary>
     /// Initializes a new instance of the <see cref="FunctionShadingResult"/> class.
@@ -30,7 +29,4 @@ public sealed class FunctionShadingResult : IDisposable
     /// Gets the matrix that maps the image into user space.
     /// </summary>
     public PdfMatrix Matrix { get; }
-
-    /// <inheritdoc />
-    public void Dispose() => Image?.Dispose();
 }

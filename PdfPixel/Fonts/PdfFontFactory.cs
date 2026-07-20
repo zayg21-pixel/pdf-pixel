@@ -1,6 +1,8 @@
 using PdfPixel.Fonts.Model;
 using PdfPixel.Models;
 using PdfPixel.Text;
+using SkiaSharp;
+using System.Runtime.CompilerServices;
 
 namespace PdfPixel.Fonts;
 
@@ -9,6 +11,50 @@ namespace PdfPixel.Fonts;
 /// </summary>
 public static class PdfFontFactory
 {
+    /// <summary>
+    /// Create a font object for text shaping and measurement.
+    /// </summary>
+    /// <param name="typeface">Typeface to use</param>
+    /// <returns>Configured SKFont</returns>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    internal static SKFont CreateTextFont(SKTypeface typeface)
+    {
+        SKFont font = new()
+        {
+            Typeface = typeface,
+            Size = 1,
+            Subpixel = true,
+            LinearMetrics = true,
+            Hinting = SKFontHinting.Slight
+        };
+
+        // Skew/rotation are already represented in the text matrix applied at draw time.
+        return font;
+    }
+
+    /// <summary>
+    /// Creates a deep copy of the given font, preserving all properties.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    internal static SKFont CloneFont(SKFont font)
+    {
+        return new()
+        {
+            Typeface = font.Typeface,
+            BaselineSnap = font.BaselineSnap,
+            Edging = font.Edging,
+            EmbeddedBitmaps = font.EmbeddedBitmaps,
+            Embolden = font.Embolden,
+            ForceAutoHinting = font.ForceAutoHinting,
+            Hinting = font.Hinting,
+            LinearMetrics = font.LinearMetrics,
+            ScaleX = font.ScaleX,
+            Size = font.Size,
+            Subpixel = font.Subpixel,
+            SkewX = font.SkewX
+        };
+    }
+
     /// <summary>
     /// Determine if a PdfDictionary is a font dictionary by inspecting its Type/Subtype.
     /// </summary>

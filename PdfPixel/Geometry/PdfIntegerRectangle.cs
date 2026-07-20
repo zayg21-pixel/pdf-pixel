@@ -69,7 +69,7 @@ public readonly struct PdfIntegerRectangle
             return Empty;
         }
 
-        return new(
+        return new PdfIntegerRectangle(
             Math.Max(a.Left, b.Left),
             Math.Max(a.Top, b.Top),
             Math.Min(a.Right, b.Right),

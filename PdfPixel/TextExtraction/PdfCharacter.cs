@@ -1,4 +1,4 @@
-using SkiaSharp;
+using PdfPixel.Geometry;
 
 namespace PdfPixel.TextExtraction;
 
@@ -10,7 +10,7 @@ public readonly struct PdfCharacter
     /// <summary>
     /// Initializes a <see cref="PdfCharacter"/> with the given Unicode text and bounding box.
     /// </summary>
-    public PdfCharacter(string? text, SKRect boundingBox)
+    public PdfCharacter(string? text, in PdfRectangle boundingBox)
     {
         Text = text;
         BoundingBox = boundingBox;
@@ -24,5 +24,5 @@ public readonly struct PdfCharacter
     /// <summary>
     /// Bounding box of the character in page coordinates.
     /// </summary>
-    public SKRect BoundingBox { get; }
+    public PdfRectangle BoundingBox { get; }
 }

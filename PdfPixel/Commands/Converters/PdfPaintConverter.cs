@@ -1,10 +1,12 @@
-using PdfPixel.Commands.Converters;
+using PdfPixel.Color;
+using PdfPixel.Color.Paint;
 using PdfPixel.Geometry;
+using PdfPixel.Transparency.Model;
 using SkiaSharp;
 using System;
 using System.Runtime.CompilerServices;
 
-namespace PdfPixel.Color.Paint;
+namespace PdfPixel.Commands.Converters;
 
 /// <summary>
 /// Converts a <see cref="PdfPaint"/> to an <see cref="SKPaint"/>. Single place where a paint's color,
@@ -13,11 +15,11 @@ namespace PdfPixel.Color.Paint;
 internal static class PdfPaintConverter
 {
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static SKPaint ToSkiaPaint(PdfPaint paint)
+    internal static SKPaint ToSkiaPaint(PdfPaint paint)
     {
         SKPaint skPaint = new()
         {
-            BlendMode = SkiaEnumUtilities.ToSkiaBlendMode(paint.BlendMode),
+            BlendMode = paint.BlendMode.ToSkiaBlendMode(),
             Style = (paint.Style == PdfPaintStyle.Stroke) ? SKPaintStyle.Stroke : SKPaintStyle.Fill,
             Color = ApplyAlpha(paint.Color, paint.Alpha).ToSkiaColor()
         };
@@ -25,6 +27,11 @@ internal static class PdfPaintConverter
         if (paint.Style == PdfPaintStyle.Stroke)
         {
             ApplyStrokeStyling(skPaint, paint.RequireStrokeStyle());
+        }
+
+        if (paint.BlendMode == PdfBlendMode.LuminosityMaskComposite)
+        {
+            skPaint.ColorFilter = SKColorFilter.CreateLumaColor();
         }
 
         return skPaint;
@@ -37,8 +44,8 @@ internal static class PdfPaintConverter
         // StrokeWidth = 0 as a hairline, so pass through 0 unchanged; clamp negatives to 0.
         float width = style.LineWidth;
         paint.StrokeWidth = (width <= 0) ? 0f : width;
-        paint.StrokeCap = SkiaEnumUtilities.ToSkiaStrokeCap(style.LineCap);
-        paint.StrokeJoin = SkiaEnumUtilities.ToSkiaStrokeJoin(style.LineJoin);
+        paint.StrokeCap = style.LineCap.ToSkiaStrokeCap();
+        paint.StrokeJoin = style.LineJoin.ToSkiaStrokeJoin();
         // Miter limit must be positive; clamp to a safe minimum to avoid Skia issues.
         paint.StrokeMiter = (style.MiterLimit > 0) ? style.MiterLimit : 1f;
 

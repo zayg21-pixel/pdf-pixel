@@ -7,7 +7,7 @@ using System;
 
 namespace PdfPixel.Commands.Image;
 
-internal sealed class NormalImageExecutionContext : IDisposable
+internal sealed class NormalImageExecutionContext
 {
     private NormalImageExecutionContext(in PdfIntegerSize imageSize, ImageDecodingContext decodingContext, PdfImageTileCacheEntry tileCache, bool interpolate)
     {
@@ -40,6 +40,4 @@ internal sealed class NormalImageExecutionContext : IDisposable
     public bool Interpolate { get; }
 
     public PdfTileInfo TileInfo => TileCache.TileInfo;
-
-    public void Dispose() => TileCache.Dispose();
 }

@@ -1,5 +1,4 @@
 using System;
-using SkiaSharp;
 using Microsoft.Extensions.Logging;
 using PdfPixel.Commands;
 using PdfPixel.Shading.Model;
@@ -9,6 +8,7 @@ using PdfPixel.Models;
 using PdfPixel.Rendering.State;
 using PdfPixel.Transparency.Utilities;
 using PdfPixel.Color.ColorSpace;
+using PdfPixel.Geometry;
 
 namespace PdfPixel.Rendering.Shading;
 
@@ -81,10 +81,10 @@ public class ShadingRenderer : IShadingRenderer
 
             PdfPaint backgroundPaint = PdfPaintFactory.CreateBackgroundPaint(backgroundColor);
 
-            using SKPathBuilder rectPathBuilder = new();
-            rectPathBuilder.AddRect(shading.BBox.Value.ToSkRect());
+            PdfPath rectPath = new();
+            rectPath.AddRect(shading.BBox.Value);
 
-            processor.Process(new DrawPathCommand(rectPathBuilder.Detach(), backgroundPaint));
+            processor.Process(new DrawPathCommand(rectPath, backgroundPaint));
         }
 
         ShadingDecodingContext context = new(state, shading);

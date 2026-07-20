@@ -1,7 +1,8 @@
 using PdfPixel.Color;
-using PdfPixel.Color.Paint;
 using PdfPixel.Commands;
+using PdfPixel.Fonts;
 using PdfPixel.Geometry;
+using PdfPixel.Models;
 using PdfPixel.Pattern.Model;
 using PdfPixel.Rendering.State;
 using PdfPixel.Text;
@@ -19,7 +20,7 @@ internal class TextFillRenderTarget : IRenderTarget
     private readonly List<ShapedGlyph> _shapingResult;
     private readonly PdfGraphicsState _state;
     private readonly PdfPattern? _pattern;
-    private readonly SKPath? _clipPath;
+    private readonly PdfPath? _clipPath;
 
     public TextFillRenderTarget(SKFont font, List<ShapedGlyph> shapingResult, PdfGraphicsState state)
     {
@@ -32,9 +33,11 @@ internal class TextFillRenderTarget : IRenderTarget
             _pattern = state.FillPaint.Pattern;
             _clipPath = TextRenderUtilities.GetTextPath(shapingResult, font, state);
         }
+
+        Bounds = _clipPath?.GetBounds() ?? PdfRectangle.Empty;
     }
 
-    public PdfRectangle Bounds => (_clipPath == null) ? PdfRectangle.Empty : new(_clipPath.Bounds.Left, _clipPath.Bounds.Top, _clipPath.Bounds.Right, _clipPath.Bounds.Bottom);
+    public PdfRectangle Bounds { get; }
 
     public PdfColor Color => _state.FillPaint.Color;
 
@@ -43,8 +46,8 @@ internal class TextFillRenderTarget : IRenderTarget
         processor.Process(SaveStateCommand.Instance);
         if (_clipPath != null)
         {
-            processor.Process(new ClipPathCommand(new SKPath(_clipPath), SKClipOperation.Intersect));
-            processor.Process(new SaveLayerCommand(_clipPath.Bounds, (SKPaint?)null));
+            processor.Process(new ClipPathCommand(_clipPath, PdfClipOperation.Intersect));
+            processor.Process(new SaveLayerCommand(Bounds));
         }
     }
 
@@ -68,9 +71,7 @@ internal class TextFillRenderTarget : IRenderTarget
         {
             PdfMatrix textMatrix = TextRenderUtilities.GetFullTextMatrix(_state);
 
-            processor.Process(new DrawShapedTextCommand(textMatrix, _shapingResult.ToArray(), PdfPaintFactory.CloneFont(_font), _state.FillPaint));
+            processor.Process(new DrawShapedTextCommand(textMatrix, _shapingResult.ToArray(), PdfFontFactory.CloneFont(_font), _state.FillPaint));
         }
     }
-
-    public void Dispose() => _clipPath?.Dispose();
 }

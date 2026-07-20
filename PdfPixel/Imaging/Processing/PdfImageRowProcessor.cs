@@ -15,7 +15,7 @@ namespace PdfPixel.Imaging.Processing;
 /// <summary>
 /// Row-oriented image post processor that converts already decoded sample rows into final output buffers.
 /// </summary>
-internal sealed partial class PdfImageRowProcessor : IDisposable
+internal sealed partial class PdfImageRowProcessor
 {
     private const int NormalizedBitsPerComponent = 8;
 
@@ -529,9 +529,4 @@ internal sealed partial class PdfImageRowProcessor : IDisposable
 
         return decodedImage;
     }
-
-    /// <summary>
-    /// Disposes the decoded image if <see cref="GetDecoded"/> was never called.
-    /// </summary>
-    public void Dispose() => _decodedImage?.Dispose();
 }

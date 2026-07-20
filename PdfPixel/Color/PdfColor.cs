@@ -1,6 +1,4 @@
-using SkiaSharp;
 using System;
-using System.Runtime.CompilerServices;
 
 namespace PdfPixel.Color;
 
@@ -44,21 +42,6 @@ public readonly struct PdfColor : IEquatable<PdfColor>
     /// Returns a copy of this color with the alpha channel replaced.
     /// </summary>
     public PdfColor WithAlpha(float alpha) => new(Red, Green, Blue, alpha);
-
-    /// <summary>
-    /// Converts this color to an <see cref="SKColor"/>.
-    /// </summary>
-    internal SKColor ToSkiaColor()
-    {
-        return new(
-            ToByte(Red),
-            ToByte(Green),
-            ToByte(Blue),
-            ToByte(Alpha));
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static byte ToByte(float channel) => (byte)((Math.Max(0f, Math.Min(1f, channel)) * 255f) + 0.5f);
 
     /// <inheritdoc/>
     public bool Equals(PdfColor other) => Red == other.Red && Green == other.Green && Blue == other.Blue && Alpha == other.Alpha;

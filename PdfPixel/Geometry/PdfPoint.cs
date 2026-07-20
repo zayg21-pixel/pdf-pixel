@@ -1,5 +1,4 @@
 using PdfPixel.Models;
-using SkiaSharp;
 using System.Globalization;
 
 namespace PdfPixel.Geometry;
@@ -51,11 +50,6 @@ public readonly struct PdfPoint
 
         return new PdfPoint(array.GetFloatOrDefault(0), array.GetFloatOrDefault(1));
     }
-
-    /// <summary>
-    /// Converts this point to an <see cref="SKPoint"/>.
-    /// </summary>
-    internal SKPoint ToSkPoint() => new(X, Y);
 
     /// <inheritdoc/>
     public override string ToString()

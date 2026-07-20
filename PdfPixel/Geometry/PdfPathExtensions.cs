@@ -1,3 +1,4 @@
+using PdfPixel.Color.Paint;
 using System;
 
 namespace PdfPixel.Geometry;
@@ -10,6 +11,22 @@ namespace PdfPixel.Geometry;
 public static class PdfPathExtensions
 {
     private const float OvalKappa = 0.5522847498f;
+
+    /// <summary>
+    /// Computes a loose bounding rectangle for <paramref name="path"/> stroked with <paramref name="strokePaint"/>:
+    /// <see cref="PdfPath.GetBounds"/> inflated by half the line width (further inflated for miter joins,
+    /// since their tips can extend past a plain half-width inflation). Used for pattern tiling, where an
+    /// over-estimate is harmless but an under-estimate would drop visible tiles.
+    /// </summary>
+    public static PdfRectangle GetStrokeBounds(this PdfPath path, PdfPaint strokePaint)
+    {
+        PdfStrokeStyle style = strokePaint.RequireStrokeStyle();
+        float halfWidth = style.LineWidth / 2f;
+        float inflate = (style.LineJoin == PdfStrokeJoin.Miter) ? halfWidth * Math.Max(style.MiterLimit, 1f) : halfWidth;
+
+        PdfRectangle bounds = path.GetBounds();
+        return new PdfRectangle(bounds.Left - inflate, bounds.Top - inflate, bounds.Right + inflate, bounds.Bottom + inflate);
+    }
 
     /// <summary>
     /// Adds a closed rectangular contour.

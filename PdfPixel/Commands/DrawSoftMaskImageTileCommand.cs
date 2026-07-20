@@ -17,7 +17,7 @@ public sealed class DrawSoftMaskImageTileCommand : PdfCommand
     internal DrawSoftMaskImageTileCommand(SoftMaskImageExecutionContext context) => _context = context;
 
     /// <inheritdoc />
-    public override PdfCommandFeatures Features => PdfCommandFeatures.Region | PdfCommandFeatures.Scale | PdfCommandFeatures.DeferredDispose;
+    public override PdfCommandFeatures Features => PdfCommandFeatures.Region | PdfCommandFeatures.Scale;
 
     /// <inheritdoc />
     public override void Execute(PdfCommandExecutionContext executionContext)
@@ -42,8 +42,10 @@ public sealed class DrawSoftMaskImageTileCommand : PdfCommand
             matte = maskTile.Parameters.ColorSpaceConverter.ToSrgb(_context.MatteArray, maskTile.Parameters.RenderingIntent, default).ToSkiaColor();
         }
 
-        using SKShader imageShader = ImageBlending.BuildImageShader(imageTile.Image, placement.DeviceSize, placement.Sampling);
-        using SKShader maskShader = ImageBlending.BuildImageShader(maskTile.Image, placement.DeviceSize, placement.Sampling);
+        using SKImage skImage = imageTile.Image.ToSkImage();
+        using SKImage skMaskImage = maskTile.Image.ToSkImage();
+        using SKShader imageShader = ImageBlending.BuildImageShader(skImage, placement.DeviceSize, placement.Sampling);
+        using SKShader maskShader = ImageBlending.BuildImageShader(skMaskImage, placement.DeviceSize, placement.Sampling);
         using SKShader blendingShader = ImageBlending.CreateSoftMaskBlendingShader(imageShader, maskShader, matte);
         using SKPaint paint = PdfImageCommandUtilities.GetBaseImagePaint(blendingShader, _context.DecodingContext);
         CommandHelpers.ApplyModifiers(paint, executionContext);
@@ -56,7 +58,9 @@ public sealed class DrawSoftMaskImageTileCommand : PdfCommand
     }
 
     /// <inheritdoc />
-    protected override void Dispose(bool disposing) => _context.Dispose();
+    protected override void Dispose(bool disposing)
+    {
+    }
 
     /// <inheritdoc />
     public override string ToString()

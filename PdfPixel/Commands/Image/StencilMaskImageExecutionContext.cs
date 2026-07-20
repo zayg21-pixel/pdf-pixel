@@ -8,7 +8,7 @@ using System;
 
 namespace PdfPixel.Commands.Image;
 
-internal sealed class StencilMaskImageExecutionContext : IDisposable
+internal sealed class StencilMaskImageExecutionContext
 {
     public StencilMaskImageExecutionContext(in PdfIntegerSize imageSize, ImageDecodingContext decodingContext, PdfImageTileCacheEntry tileCache, bool invertMask, bool interpolate)
     {
@@ -51,6 +51,4 @@ internal sealed class StencilMaskImageExecutionContext : IDisposable
         PdfTileInfo tileInfo = new(imageSize, new PdfIntegerSize(context.DefaultTileSize, context.DefaultTileSize));
         return new StencilMaskImageExecutionContext(imageSize, context, new PdfImageTileCacheEntry(decoder, tileInfo), invertMask, pdfImage.Interpolate);
     }
-
-    public void Dispose() => TileCache.Dispose();
 }

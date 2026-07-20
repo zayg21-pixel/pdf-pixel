@@ -22,7 +22,7 @@ public sealed class DrawStencilMaskImageTileCommand : PdfCommand
     }
 
     /// <inheritdoc />
-    public override PdfCommandFeatures Features => PdfCommandFeatures.Region | PdfCommandFeatures.Scale | PdfCommandFeatures.DeferredDispose;
+    public override PdfCommandFeatures Features => PdfCommandFeatures.Region | PdfCommandFeatures.Scale;
 
     /// <inheritdoc />
     public override void Execute(PdfCommandExecutionContext executionContext)
@@ -37,22 +37,19 @@ public sealed class DrawStencilMaskImageTileCommand : PdfCommand
 
         SnappedTilePlacement placement = PdfImageCommandUtilities.GetSnappedTilePlacement(executionContext, _context.ImageSize, tile.TilePosition, _context.Interpolate);
 
+        using SKImage skImage = tile.Image.ToSkImage();
         using SKPaint paint = PdfImageCommandUtilities.GetBaseImagePaint(_context.DecodingContext);
         paint.ColorFilter = _colorFilter;
         CommandHelpers.ApplyModifiers(paint, executionContext);
 
         executionContext.Canvas.Save();
         executionContext.Canvas.Concat(placement.PlacementMatrix.ToSkMatrix());
-        executionContext.Canvas.DrawImage(tile.Image, placement.PlacementRectangle, placement.Sampling, paint);
+        executionContext.Canvas.DrawImage(skImage, placement.PlacementRectangle, placement.Sampling, paint);
         executionContext.Canvas.Restore();
     }
 
     /// <inheritdoc />
-    protected override void Dispose(bool disposing)
-    {
-        _context.Dispose();
-        _colorFilter.Dispose();
-    }
+    protected override void Dispose(bool disposing) => _colorFilter.Dispose();
 
     /// <inheritdoc />
     public override string ToString()

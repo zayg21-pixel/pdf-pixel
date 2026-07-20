@@ -1,7 +1,6 @@
 using PdfPixel.Models;
 using System;
 using SkiaSharp;
-using PdfPixel.Color.Paint;
 using PdfPixel.Geometry;
 
 namespace PdfPixel.Commands;
@@ -16,7 +15,7 @@ public sealed class DrawTilingCommand : PdfCommand, IMatrixCommand
     /// <summary>
     /// Initializes the command with the matrix, the pattern-space bounds to tile, the cell bounding box, the cell step, and the recorded cell content.
     /// </summary>
-    public DrawTilingCommand(in PdfMatrix matrix, SKRect bounds, SKRect bbox, float xStep, float yStep, DrawRecordingCommand recordingCommand)
+    public DrawTilingCommand(in PdfMatrix matrix, in PdfRectangle bounds, in PdfRectangle bbox, float xStep, float yStep, DrawRecordingCommand recordingCommand)
     {
         Matrix = matrix;
         BBox = bbox;
@@ -24,22 +23,14 @@ public sealed class DrawTilingCommand : PdfCommand, IMatrixCommand
         YStep = yStep;
         RecordingCommand = recordingCommand;
 
-        var startX = (float)(Math.Floor(bounds.Left / xStep) * xStep);
-        var startY = (float)(Math.Floor(bounds.Top / yStep) * yStep);
-        var endX = (float)(Math.Ceiling(bounds.Right / xStep) * xStep);
-        var endY = (float)(Math.Ceiling(bounds.Bottom / yStep) * yStep);
+        float startX = MathF.Floor(bounds.Left / xStep) * xStep;
+        float startY = MathF.Floor(bounds.Top / yStep) * yStep;
+        float endX = MathF.Ceiling(bounds.Right / xStep) * xStep;
+        float endY = MathF.Ceiling(bounds.Bottom / yStep) * yStep;
 
-        TilingArea = new SKRect(startX, startY, endX, endY);
-        XCount = (int)Math.Ceiling((endX - startX) / xStep);
-        YCount = (int)Math.Ceiling((endY - startY) / yStep);
-    }
-
-    /// <summary>
-    /// Initializes the command with the matrix, the pattern-space bounds to tile, the cell bounding box, the cell step, and the recorded cell content.
-    /// </summary>
-    public DrawTilingCommand(in PdfMatrix matrix, in PdfRectangle bounds, in PdfRectangle bbox, float xStep, float yStep, DrawRecordingCommand recordingCommand)
-        : this(matrix, bounds.ToSkRect(), bbox.ToSkRect(), xStep, yStep, recordingCommand)
-    {
+        TilingArea = new PdfRectangle(startX, startY, endX, endY);
+        XCount = (int)MathF.Ceiling((endX - startX) / xStep);
+        YCount = (int)MathF.Ceiling((endY - startY) / yStep);
     }
 
     /// <inheritdoc />
@@ -48,12 +39,12 @@ public sealed class DrawTilingCommand : PdfCommand, IMatrixCommand
     /// <summary>
     /// Gets the pattern cell's bounding box, in pattern space, that each tile is clipped to.
     /// </summary>
-    public SKRect BBox { get; }
+    public PdfRectangle BBox { get; }
 
     /// <summary>
     /// Gets the pattern-space area to cover with tiles, expanded to whole steps.
     /// </summary>
-    public SKRect TilingArea { get; }
+    public PdfRectangle TilingArea { get; }
 
     /// <summary>
     /// Gets the horizontal spacing between pattern cells.
@@ -94,9 +85,11 @@ public sealed class DrawTilingCommand : PdfCommand, IMatrixCommand
         PdfCommandExecutionParameters childParameters = executionContext.Parameters.Clone();
         childParameters.SnapToDevicePixels = false;
 
+        SKRect skBBox = BBox.ToSkRect();
+
         using (SKPictureRecorder recorder = new())
         {
-            using SKCanvas canvas = recorder.BeginRecording(BBox);
+            using SKCanvas canvas = recorder.BeginRecording(skBBox);
             using PdfCommandExecutionContext childContext = new(
                 childParameters,
                 executionContext.ContentLocker,
@@ -105,7 +98,7 @@ public sealed class DrawTilingCommand : PdfCommand, IMatrixCommand
                 canvas);
 
             // do not apply AA to clip BBox to avoid seams
-            canvas.ClipRect(BBox, SKClipOperation.Intersect);
+            canvas.ClipRect(skBBox, SKClipOperation.Intersect);
             childContext.Frames.OnConcatMatrix(executionContext.Frames.TotalMatrix);
             RecordingCommand.Execute(childContext);
 
@@ -116,16 +109,15 @@ public sealed class DrawTilingCommand : PdfCommand, IMatrixCommand
             if (shaderTilingParameters.CanUseShaders)
             {
                 SKRect tileRect = new(
-                    BBox.Left,
-                    BBox.Top,
-                    BBox.Left + shaderTilingParameters.ExactTileSize.Width,
-                    BBox.Top + shaderTilingParameters.ExactTileSize.Height);
+                    skBBox.Left,
+                    skBBox.Top,
+                    skBBox.Left + shaderTilingParameters.ExactTileWidth,
+                    skBBox.Top + shaderTilingParameters.ExactTileHeight);
 
                 using SKShader shader = picture.ToShader(SKShaderTileMode.Repeat, SKShaderTileMode.Repeat, tileRect);
-                using SKPaint shaderPaint = PdfPaintFactory.CreateShaderPaint();
-                shaderPaint.Shader = shader;
+                using SKPaint shaderPaint = new() { Shader = shader };
 
-                executionContext.Canvas.DrawRect(TilingArea, shaderPaint);
+                executionContext.Canvas.DrawRect(TilingArea.ToSkRect(), shaderPaint);
             }
             else
             {
@@ -173,12 +165,13 @@ public sealed class DrawTilingCommand : PdfCommand, IMatrixCommand
         float targetPixelsX = MathF.Round(deviceXAxisLength);
         float targetPixelsY = MathF.Round(deviceYAxisLength);
 
-        SKSize exactTileSize = new(targetPixelsX / scaleX, targetPixelsY / scaleY);
+        float exactTileWidth = targetPixelsX / scaleX;
+        float exactTileHeight = targetPixelsY / scaleY;
 
         int maxTileDeviceDimension = executionContext.Parameters.ImageTileSize;
         bool canUseShaders = deviceXAxisLength <= maxTileDeviceDimension && deviceYAxisLength <= maxTileDeviceDimension;
 
-        return new ShaderTilingParameters(canUseShaders, exactTileSize);
+        return new ShaderTilingParameters(canUseShaders, exactTileWidth, exactTileHeight);
     }
 
     /// <inheritdoc />
@@ -189,14 +182,17 @@ public sealed class DrawTilingCommand : PdfCommand, IMatrixCommand
 
     private readonly struct ShaderTilingParameters
     {
-        public ShaderTilingParameters(bool canUseShaders, SKSize exactTileSize)
+        public ShaderTilingParameters(bool canUseShaders, float exactTileWidth, float exactTileHeight)
         {
             CanUseShaders = canUseShaders;
-            ExactTileSize = exactTileSize;
+            ExactTileWidth = exactTileWidth;
+            ExactTileHeight = exactTileHeight;
         }
 
         public bool CanUseShaders { get; }
 
-        public SKSize ExactTileSize { get; }
+        public float ExactTileWidth { get; }
+
+        public float ExactTileHeight { get; }
     }
 }

@@ -14,7 +14,7 @@ public struct WebTextCharacter
     /// <summary>
     /// Converts this instance to a <see cref="PdfCharacter"/>.
     /// </summary>
-    public PdfCharacter ToPdfCharacter() => new(Text, BoundingBox.ToSkRect());
+    public PdfCharacter ToPdfCharacter() => new(Text, BoundingBox.ToPdfRectangle());
 
     /// <summary>
     /// Creates a <see cref="WebTextCharacter"/> from a <see cref="PdfCharacter"/>.
@@ -22,6 +22,6 @@ public struct WebTextCharacter
     public static WebTextCharacter FromPdfCharacter(PdfCharacter character) => new()
     {
         Text = character.Text,
-        BoundingBox = WebRect.FromSkRect(character.BoundingBox)
+        BoundingBox = WebRect.FromPdfRectangle(character.BoundingBox)
     };
 }

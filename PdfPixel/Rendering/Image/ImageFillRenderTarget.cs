@@ -5,9 +5,10 @@ using PdfPixel.Commands;
 using PdfPixel.Commands.Image;
 using PdfPixel.Geometry;
 using PdfPixel.Imaging.Model;
+using PdfPixel.Models;
 using PdfPixel.Pattern.Model;
 using PdfPixel.Rendering.State;
-using SkiaSharp;
+using PdfPixel.Transparency.Model;
 using System;
 
 namespace PdfPixel.Rendering.Image;
@@ -40,20 +41,16 @@ internal class ImageFillRenderTarget : IRenderTarget
 
     public void BeforePatternRender(IPdfCommandProcessor processor)
     {
-        SKPaint layerPaint = new()
-        {
-            BlendMode = _context.BlendMode,
-            Color = PdfPaintFactory.ApplyAlpha(SKColors.White, _context.FillAlpha)
-        };
-        processor.Process(new SaveLayerCommand(new SKRect(0, 0, 1, 1), layerPaint));
-        processor.Process(new ClipRectangleCommand(new SKRect(0, 0, 1, 1), SKClipOperation.Intersect));
+        PdfPaint layerPaint = PdfPaintFactory.CreateCompositionLayerPaint(_state);
+        processor.Process(new SaveLayerCommand(Bounds, layerPaint));
+        processor.Process(new ClipRectangleCommand(Bounds, PdfClipOperation.Intersect));
     }
 
     public void AfterPatternRender(IPdfCommandProcessor processor)
     {
         if (_image.AlphaMode == PdfImageAlphaMode.StencilMask)
         {
-            ImageDecodingContext maskContext = new(_context, _image, PdfColors.White, 1f, SKBlendMode.DstIn);
+            ImageDecodingContext maskContext = new(_context, _image, PdfColors.White, 1f, PdfBlendMode.MaskComposite);
             processor.Process(SaveStateCommand.Instance);
             ProcessTileCommands(processor, _image, maskContext);
             processor.Process(RestoreStateCommand.Instance);
@@ -108,16 +105,16 @@ internal class ImageFillRenderTarget : IRenderTarget
                     throw new ArgumentException($"Stencil mask not defined for image {image.SourceReference}.");
                 }
 
-                ImageDecodingContext imageLayerContext = new(context, image, PdfColors.White, 1f, SKBlendMode.SrcOver);
+                ImageDecodingContext imageLayerContext = new(context, image, PdfColors.White, 1f, PdfBlendMode.Normal);
                 NormalImageExecutionContext imageCtx = NormalImageExecutionContext.Create(image, imageLayerContext, _loggerFactory);
                 processor.Process(new InitializeTileCacheCommand(imageCtx.TileCache, imageCtx.ImageSize));
 
-                ImageDecodingContext maskContext = new(context, stencilMask, PdfColors.White, 1f, SKBlendMode.DstIn);
+                ImageDecodingContext maskContext = new(context, stencilMask, PdfColors.White, 1f, PdfBlendMode.MaskComposite);
                 StencilMaskImageExecutionContext maskCtx = StencilMaskImageExecutionContext.Create(stencilMask, maskContext, _loggerFactory);
                 processor.Process(new InitializeTileCacheCommand(maskCtx.TileCache, maskCtx.ImageSize));
 
                 PdfPaint layerPaint = PdfPaintFactory.CreateCompositionLayerPaint(_state);
-                processor.Process(new SaveLayerCommand(new SKRect(0, 0, 1, 1), layerPaint));
+                processor.Process(new SaveLayerCommand(Bounds, layerPaint));
 
                 for (int i = 0; i < imageCtx.TileInfo.TotalTiles; i++)
                 {
@@ -145,9 +142,5 @@ internal class ImageFillRenderTarget : IRenderTarget
                 break;
             }
         }
-    }
-
-    public void Dispose()
-    {
     }
 }

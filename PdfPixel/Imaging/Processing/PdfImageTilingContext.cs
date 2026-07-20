@@ -1,16 +1,14 @@
 using Microsoft.Extensions.Logging;
 using PdfPixel.Commands;
-using PdfPixel.Commands.Converters;
 using PdfPixel.Geometry;
 using PdfPixel.Imaging.Model;
-using SkiaSharp;
 using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 
 namespace PdfPixel.Imaging.Processing;
 
-internal sealed class PdfImageTilingContext : IDisposable
+internal sealed class PdfImageTilingContext
 {
     private readonly PdfTileInfo _tileInfo;
     private readonly PdfImageRowDecodingParameters _imageParameters;
@@ -188,11 +186,10 @@ internal sealed class PdfImageTilingContext : IDisposable
                 continue;
             }
 
-            using PdfDecodedImage decodedImage = tileProcessor.GetDecoded();
-            SKImage image = PdfImageConverter.ToSkImage(decodedImage);
+            PdfDecodedImage decodedImage = tileProcessor.GetDecoded();
             openTileRow.Processors[column] = null;
 
-            destination.Add(new PdfImageTile(tileIndex, tilePosition, image, openTileRow.Parameters[column]));
+            destination.Add(new PdfImageTile(tileIndex, tilePosition, decodedImage, openTileRow.Parameters[column]));
         }
     }
 
@@ -292,22 +289,6 @@ internal sealed class PdfImageTilingContext : IDisposable
 
         return tileSlice;
     }
-
-    [MethodImpl(methodImplOptions: MethodImplOptions.AggressiveInlining)]
-    private void DisposeOpenTileRows()
-    {
-        foreach (OpenTileRow openTileRow in _openTileRows)
-        {
-            foreach (PdfImageRowProcessor? processor in openTileRow.Processors)
-            {
-                processor?.Dispose();
-            }
-        }
-
-        _openTileRows.Clear();
-    }
-
-    public void Dispose() => DisposeOpenTileRows();
 
     private readonly struct IndexRange
     {

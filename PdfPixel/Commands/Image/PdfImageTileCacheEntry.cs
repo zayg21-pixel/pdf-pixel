@@ -12,7 +12,7 @@ namespace PdfPixel.Commands.Image;
 /// in order. Tiles outside the viewport are left alone. A CTM change that alters the decode size
 /// (images are never upscaled) drops the whole cache, since every tile shares one decode size.
 /// </summary>
-internal sealed class PdfImageTileCacheEntry : IDisposable
+internal sealed class PdfImageTileCacheEntry
 {
     private readonly CachedTile[] _tiles;
 
@@ -119,10 +119,6 @@ internal sealed class PdfImageTileCacheEntry : IDisposable
                 {
                     cachedTile.SetTile(tile);
                 }
-                else
-                {
-                    tile.Dispose();
-                }
 
                 if (tile.TileIndex == tileIndex)
                 {
@@ -220,16 +216,7 @@ internal sealed class PdfImageTileCacheEntry : IDisposable
         return cacheSizeBytes;
     }
 
-    public void Dispose()
-    {
-        Decoder.Dispose();
-        foreach (CachedTile cachedTile in _tiles)
-        {
-            cachedTile.Dispose();
-        }
-    }
-
-    private sealed class CachedTile : IDisposable
+    private sealed class CachedTile
     {
         private PdfImageTile _tile;
 
@@ -252,21 +239,9 @@ internal sealed class PdfImageTileCacheEntry : IDisposable
         public void SetTile(PdfImageTile tile)
         {
             IsPendingUpdate = false;
-
-            if (!ReferenceEquals(_tile.Image, tile.Image))
-            {
-                _tile.Dispose();
-            }
-
             _tile = tile;
         }
 
-        public void Clear()
-        {
-            _tile.Dispose();
-            _tile = PdfImageTile.CreateEmpty(Index);
-        }
-
-        public void Dispose() => _tile.Dispose();
+        public void Clear() => _tile = PdfImageTile.CreateEmpty(Index);
     }
 }

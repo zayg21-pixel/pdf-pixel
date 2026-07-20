@@ -1,5 +1,3 @@
-using SkiaSharp;
-
 namespace PdfPixel.Geometry;
 
 /// <summary>
@@ -30,9 +28,4 @@ public readonly struct PdfSize
     /// The zero-sized instance.
     /// </summary>
     public static PdfSize Empty { get; } = new(0, 0);
-
-    /// <summary>
-    /// Converts this size to an <see cref="SKSize"/>.
-    /// </summary>
-    internal SKSize ToSkSize() => new(Width, Height);
 }

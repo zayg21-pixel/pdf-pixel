@@ -1,4 +1,3 @@
-using PdfPixel.Color.Paint;
 using PdfPixel.Fonts.Management;
 using PdfPixel.Fonts.Mapping;
 using PdfPixel.Models;
@@ -193,7 +192,7 @@ public abstract class PdfFontBase : IDisposable
         else if (gid != 0 && unicode?.Length > 0)
         {
             SKTypeface typeface = GetTypeface(unicode, width);
-            using SKFont skFont = PdfPaintFactory.CreateTextFont(typeface);
+            using SKFont skFont = PdfFontFactory.CreateTextFont(typeface);
             width = skFont.GetGlyphWidths(unicode).Sum();
             float[] widths = [width];
             (float xScale, SKPoint origin, float advacement) = GetScalingAndOrigin(unicode, displacement, width, widths);
@@ -203,7 +202,7 @@ public abstract class PdfFontBase : IDisposable
         else if (gid == 0 && width != 0 && unicode?.Length > 0)
         {
             SKTypeface typeface = GetTypeface(unicode, width);
-            using SKFont skFont = PdfPaintFactory.CreateTextFont(typeface);
+            using SKFont skFont = PdfFontFactory.CreateTextFont(typeface);
             ushort[] gids = skFont.GetGlyphs(unicode);
             float[] widths = skFont.GetGlyphWidths(unicode);
             (float xScale, SKPoint origin, float advacement) = GetScalingAndOrigin(unicode, displacement, width, widths);
@@ -213,7 +212,7 @@ public abstract class PdfFontBase : IDisposable
         else if (unicode?.Length > 0)
         {
             SKTypeface typeface = GetTypeface(unicode, width);
-            using SKFont skFont = PdfPaintFactory.CreateTextFont(typeface);
+            using SKFont skFont = PdfFontFactory.CreateTextFont(typeface);
             ushort[] gids = skFont.GetGlyphs(unicode);
             float[] widths = skFont.GetGlyphWidths(unicode);
             width = widths.Sum();

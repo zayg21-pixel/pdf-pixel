@@ -1,4 +1,3 @@
-using PdfPixel.Color.Paint;
 using PdfPixel.Geometry;
 using SkiaSharp;
 using System;
@@ -173,8 +172,8 @@ internal static class PdfImageCommandUtilities
         return new()
         {
             Shader = shader,
-            BlendMode = context.BlendMode,
-            Color = PdfPaintFactory.ApplyAlpha(SKColors.White, context.FillAlpha)
+            BlendMode = context.BlendMode.ToSkiaBlendMode(),
+            Color = CommandHelpers.ApplyAlpha(SKColors.White, context.FillAlpha)
         };
     }
 
@@ -183,8 +182,8 @@ internal static class PdfImageCommandUtilities
     {
         return new()
         {
-            BlendMode = context.BlendMode,
-            Color = PdfPaintFactory.ApplyAlpha(SKColors.White, context.FillAlpha)
+            BlendMode = context.BlendMode.ToSkiaBlendMode(),
+            Color = CommandHelpers.ApplyAlpha(SKColors.White, context.FillAlpha)
         };
     }
 
@@ -199,7 +198,7 @@ internal static class PdfImageCommandUtilities
         }
 
         PdfMatrix contentToImagePixels = GetImageCtm(executionContext.Frames.TotalMatrix).Invert().PostConcat(PdfMatrix.CreateScale(imageSize.Width, imageSize.Height));
-        SKRect mapped = contentToImagePixels.ToSkMatrix().MapRect(executionContext.PageRegionOfInterest.Value);
+        PdfRectangle mapped = contentToImagePixels.MapRect(executionContext.PageRegionOfInterest.Value);
         PdfIntegerRectangle roundedRegionOfInterest = new(
             (int)MathF.Round(mapped.Left),
             (int)MathF.Round(mapped.Top),

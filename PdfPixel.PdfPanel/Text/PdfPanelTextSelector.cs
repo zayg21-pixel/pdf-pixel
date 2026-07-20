@@ -1,3 +1,4 @@
+using PdfPixel.Geometry;
 using PdfPixel.PdfPanel.ContentProvider;
 using PdfPixel.PdfPanel.Rendering;
 using PdfPixel.TextExtraction;
@@ -212,7 +213,8 @@ public sealed partial class PdfPanelTextSelector : IDisposable
 
         for (int i = 0; i < characters.Count; i++)
         {
-            SKRect box = characters[i].BoundingBox;
+            PdfRectangle characterBox = characters[i].BoundingBox;
+            SKRect box = new(characterBox.Left, characterBox.Top, characterBox.Right, characterBox.Bottom);
             float centerX = (box.Left + box.Right) / 2f;
             float centerY = (box.Top + box.Bottom) / 2f;
             float dx = point.X - centerX;
@@ -256,7 +258,8 @@ public sealed partial class PdfPanelTextSelector : IDisposable
 
         foreach (PdfCharacter character in _selectedCharacters)
         {
-            SKRect box = character.BoundingBox;
+            PdfRectangle characterBox = character.BoundingBox;
+            SKRect box = new(characterBox.Left, characterBox.Top, characterBox.Right, characterBox.Bottom);
 
             if (currentStrip == null)
             {

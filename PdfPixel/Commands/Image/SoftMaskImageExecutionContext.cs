@@ -7,7 +7,7 @@ using System;
 
 namespace PdfPixel.Commands.Image;
 
-internal sealed class SoftMaskImageExecutionContext : IDisposable
+internal sealed class SoftMaskImageExecutionContext
 {
     public SoftMaskImageExecutionContext(
         in PdfIntegerSize imageSize,
@@ -76,12 +76,6 @@ internal sealed class SoftMaskImageExecutionContext : IDisposable
             new PdfImageTileCacheEntry(maskDecoder, maskTileInfo),
             maskImage.MatteArray,
             pdfImage.Interpolate);
-    }
-
-    public void Dispose()
-    {
-        ImageCache.Dispose();
-        MaskCache.Dispose();
     }
 }
 

@@ -1,4 +1,4 @@
-using SkiaSharp;
+using PdfPixel.Geometry;
 
 namespace PdfPixel.TextExtraction;
 
@@ -10,7 +10,7 @@ public class PdfWord
     /// <summary>
     /// Initializes a new <see cref="PdfWord"/> with the given geometry and character data.
     /// </summary>
-    public PdfWord(SKRect boundingBox, PdfWordType type, int lineIndex, PdfCharacter[] characters)
+    public PdfWord(in PdfRectangle boundingBox, PdfWordType type, int lineIndex, PdfCharacter[] characters)
     {
         BoundingBox = boundingBox;
         Type = type;
@@ -21,7 +21,7 @@ public class PdfWord
     /// <summary>
     /// Bounding box of the word in page coordinates.
     /// </summary>
-    public SKRect BoundingBox { get; }
+    public PdfRectangle BoundingBox { get; }
 
     /// <summary>
     /// Whether this token is a normal word or a punctuation mark.

@@ -1,4 +1,5 @@
 using PdfPixel.Commands;
+using PdfPixel.Geometry;
 using PdfPixel.PdfPanel.Extensions;
 using PdfPixel.PdfPanel.Requests;
 using PdfPixel.TextExtraction;
@@ -49,7 +50,7 @@ public sealed class PdfPageCacheEntryItem : IDisposable
     /// <summary>
     /// Visible region within the page content coordinate space used when the current picture was decoded.
     /// </summary>
-    public SKRect LastRegionOfInterest { get; private set; }
+    public PdfRectangle LastRegionOfInterest { get; private set; }
 
     /// <summary>
     /// True when the cached picture covers only a subset of the full content.
@@ -107,7 +108,7 @@ public sealed class PdfPageCacheEntryItem : IDisposable
         return !ContentPicture.HasContent
             || LastRequest == null
             || ((Features & PdfCommandFeatures.Scale) != 0 && LastRequest.CommandExecutionParameters.ScaleFactor != request.CommandExecutionParameters.ScaleFactor)
-            || ((Features & PdfCommandFeatures.Region) != 0 && LastRegionOfInterest != request.ComputeRegionOfInterest(PageNumber));
+            || ((Features & PdfCommandFeatures.Region) != 0 && !LastRegionOfInterest.Equals(request.ComputeRegionOfInterest(PageNumber)));
     }
 
     /// <summary>

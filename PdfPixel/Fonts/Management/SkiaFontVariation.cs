@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Concurrent;
-using PdfPixel.Color.Paint;
 using SkiaSharp;
 
 namespace PdfPixel.Fonts.Management;
@@ -27,7 +26,7 @@ internal sealed class SkiaFontVariation : IDisposable
             return true;
         }
 
-        using SKFont skFont = PdfPaintFactory.CreateTextFont(typeface);
+        using SKFont skFont = PdfFontFactory.CreateTextFont(typeface);
         ushort[] glyphs = skFont.GetGlyphs(unicode);
 
         for (int i = 0; i < glyphs.Length; i++)
@@ -62,7 +61,7 @@ internal sealed class SkiaFontVariation : IDisposable
             return typeface;
         }
 
-        using SKFont skFont = PdfPaintFactory.CreateTextFont(typeface);
+        using SKFont skFont = PdfFontFactory.CreateTextFont(typeface);
         float measuredWidth = skFont.MeasureText(unicode);
         if (measuredWidth <= 0)
         {

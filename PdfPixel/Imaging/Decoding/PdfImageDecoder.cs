@@ -13,7 +13,7 @@ namespace PdfPixel.Imaging.Decoding;
 /// <summary>
 /// Base class for PDF image decoders.
 /// </summary>
-public abstract class PdfImageDecoder : IDisposable
+public abstract class PdfImageDecoder
 {
     private readonly PdfColorSpaceConverter _resolvedColorSpaceConverter;
 
@@ -180,15 +180,5 @@ public abstract class PdfImageDecoder : IDisposable
     /// </summary>
     public virtual void Cleanup()
     {
-    }
-
-    /// <inheritdoc/>
-    protected abstract void Dispose(bool disposing);
-
-    /// <inheritdoc/>
-    public void Dispose()
-    {
-        Dispose(true);
-        GC.SuppressFinalize(this);
     }
 }

@@ -14,45 +14,32 @@ public sealed class SaveLayerCommand : PdfCommand, IPaintCommand
     /// <summary>
     /// Initializes the command with the layer bounds and takes ownership of the paint.
     /// </summary>
-    public SaveLayerCommand(SKRect bounds, SKPaint? paint)
+    public SaveLayerCommand(in PdfRectangle bounds, SKPaint? paint)
     {
         Bounds = bounds;
         Paint = paint;
     }
 
     /// <summary>
-    /// Initializes the command with the layer bounds and takes ownership of the paint.
-    /// </summary>
-    public SaveLayerCommand(in PdfRectangle bounds, SKPaint? paint)
-        : this(bounds.ToSkRect(), paint)
-    {
-    }
-
-    /// <summary>
     /// Initializes the command with the layer bounds and takes ownership of the converted paint.
     /// </summary>
-    public SaveLayerCommand(SKRect bounds, PdfPaint? paint)
+    public SaveLayerCommand(in PdfRectangle bounds, PdfPaint? paint)
         : this(bounds, paint?.ToSkiaPaint())
-    {
-    }
-
-    /// <summary>
-    /// Initializes the command with the layer bounds and takes ownership of the converted paint.
-    /// </summary>
-    public SaveLayerCommand(in PdfRectangle bounds, PdfPaint paint)
-        : this(bounds.ToSkRect(), paint.ToSkiaPaint())
     {
     }
 
     /// <summary>
     /// Initializes the command with the layer bounds.
     /// </summary>
-    public SaveLayerCommand(in PdfRectangle bounds) => Bounds = bounds.ToSkRect();
+    public SaveLayerCommand(in PdfRectangle bounds)
+        : this(bounds, (SKPaint?)null)
+    {
+    }
 
     /// <summary>
     /// Gets the bounds of the layer being saved.
     /// </summary>
-    public SKRect Bounds { get; }
+    public PdfRectangle Bounds { get; }
 
     /// <inheritdoc />
     public SKPaint? Paint { get; }
@@ -60,15 +47,17 @@ public sealed class SaveLayerCommand : PdfCommand, IPaintCommand
     /// <inheritdoc />
     public override void Execute(PdfCommandExecutionContext executionContext)
     {
+        SKRect skBounds = Bounds.ToSkRect();
+
         if (Paint != null)
         {
             using SKPaint paint = Paint.Clone();
             paint.IsAntialias = executionContext.Parameters.Antialias;
-            executionContext.Canvas.SaveLayer(Bounds, paint);
+            executionContext.Canvas.SaveLayer(skBounds, paint);
         }
         else
         {
-            executionContext.Canvas.SaveLayer(Bounds, null);
+            executionContext.Canvas.SaveLayer(skBounds, null);
         }
 
         executionContext.Frames.OnSaveLayer();

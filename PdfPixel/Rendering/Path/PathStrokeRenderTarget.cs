@@ -1,9 +1,9 @@
 using PdfPixel.Color;
 using PdfPixel.Commands;
 using PdfPixel.Geometry;
+using PdfPixel.Models;
 using PdfPixel.Pattern.Model;
 using PdfPixel.Rendering.State;
-using SkiaSharp;
 
 namespace PdfPixel.Rendering.Path;
 
@@ -12,23 +12,15 @@ namespace PdfPixel.Rendering.Path;
 /// </summary>
 internal class PathStrokeRenderTarget : IRenderTarget
 {
-    private readonly SKPath _sourcePath;
-    private readonly SKPath _path;
-    private readonly SKPath _clipPath;
+    private readonly PdfPath _path;
     private readonly PdfGraphicsState _state;
     private readonly PdfPattern? _pattern;
-    private readonly SKPaint _basePaint;
 
-    public PathStrokeRenderTarget(SKPath path, PdfGraphicsState state)
+    public PathStrokeRenderTarget(PdfPath path, PdfGraphicsState state)
     {
-        _sourcePath = path;
+        _path = path;
         _state = state;
-        // Exception: SKPaint.GetFillPath has no PdfPaint equivalent, so we need the real SKPaint here.
-        _basePaint = state.StrokePaint.ToSkiaPaint();
-
-        SKPath? fillPath = _basePaint.GetFillPath(path);
-        _clipPath = fillPath ?? path;
-        _path = (state.StrokePaint.IsPattern) ? _clipPath : path;
+        Bounds = path.GetStrokeBounds(state.StrokePaint);
 
         if (state.StrokePaint.IsPattern)
         {
@@ -36,15 +28,15 @@ internal class PathStrokeRenderTarget : IRenderTarget
         }
     }
 
-    public PdfRectangle Bounds => new(_clipPath.Bounds.Left, _clipPath.Bounds.Top, _clipPath.Bounds.Right, _clipPath.Bounds.Bottom);
+    public PdfRectangle Bounds { get; }
 
     public PdfColor Color => _state.StrokePaint.Color;
 
     public void BeforePatternRender(IPdfCommandProcessor processor)
     {
         processor.Process(SaveStateCommand.Instance);
-        processor.Process(new ClipPathCommand(new SKPath(_clipPath), SKClipOperation.Intersect));
-        processor.Process(new SaveLayerCommand(_clipPath.Bounds, (SKPaint?)null));
+        processor.Process(new ClipStrokePathCommand(_path, _state.StrokePaint, PdfClipOperation.Intersect));
+        processor.Process(new SaveLayerCommand(Bounds));
     }
 
     public void AfterPatternRender(IPdfCommandProcessor processor)
@@ -61,14 +53,7 @@ internal class PathStrokeRenderTarget : IRenderTarget
         }
         else
         {
-            processor.Process(new DrawPathCommand(new SKPath(_path), _basePaint.Clone()));
+            processor.Process(new DrawPathCommand(_path, _state.StrokePaint));
         }
-    }
-
-    public void Dispose()
-    {
-        _sourcePath.Dispose();
-        _clipPath.Dispose();
-        _basePaint.Dispose();
     }
 }

@@ -1,6 +1,6 @@
 using Microsoft.Extensions.Logging;
-using PdfPixel.Color.Paint;
 using PdfPixel.Commands;
+using PdfPixel.Fonts;
 using PdfPixel.Fonts.Model;
 using PdfPixel.Geometry;
 using PdfPixel.Models;
@@ -115,7 +115,7 @@ public class PdfTextRenderer : IPdfTextRenderer
                     glyphBuffer.Clear();
                     skFont?.Dispose();
 
-                    skFont = PdfPaintFactory.CreateTextFont(typeface);
+                    skFont = PdfFontFactory.CreateTextFont(typeface);
                     skFont.ScaleX = scale;
                 }
 
@@ -132,7 +132,7 @@ public class PdfTextRenderer : IPdfTextRenderer
         else if (glyphs.Count > 0)
         {
             SKTypeface baseTypeface = glyphs[0].CharacterInfo.Typeface;
-            using SKFont skFont = PdfPaintFactory.CreateTextFont(baseTypeface);
+            using SKFont skFont = PdfFontFactory.CreateTextFont(baseTypeface);
             DrawShapedText(processor, skFont, glyphs, state);
         }
     }
@@ -177,16 +177,16 @@ public class PdfTextRenderer : IPdfTextRenderer
                 ShapedGlyph glyph = glyphs[i];
                 PdfType3CharacterInfo charInfo = type3Font.GetCharacterInfo(glyph.CharacterInfo.CharacterCode, _renderer, state);
                 PdfRectangle? glyphBBox = charInfo.BBox ?? type3Font.FontBBox;
-                SKRect bounds;
+                PdfRectangle bounds;
 
                 if (glyphBBox.HasValue)
                 {
                     PdfRectangle mapped = type3Font.FontMatrix.MapRect(glyphBBox.Value);
-                    bounds = new SKRect(glyph.X + mapped.Left, glyph.Y + mapped.Top, glyph.X + mapped.Right, glyph.Y + mapped.Bottom);
+                    bounds = new PdfRectangle(glyph.X + mapped.Left, glyph.Y + mapped.Top, glyph.X + mapped.Right, glyph.Y + mapped.Bottom);
                 }
                 else
                 {
-                    bounds = new SKRect(glyph.X, glyph.Y, glyph.X + glyph.Advance, glyph.Y);
+                    bounds = new PdfRectangle(glyph.X, glyph.Y, glyph.X + glyph.Advance, glyph.Y);
                 }
 
                 characters[i] = new PdfCharacter(glyph.CharacterInfo.Unicode, bounds);
@@ -204,24 +204,24 @@ public class PdfTextRenderer : IPdfTextRenderer
         {
             if (ShouldFill(state.TextRenderingMode))
             {
-                using TextFillRenderTarget textFillTarget = new(font, shapingResult, state);
+                TextFillRenderTarget textFillTarget = new(font, shapingResult, state);
                 textFillTarget.Render(processor);
             }
 
             if (ShouldStroke(state.TextRenderingMode))
             {
-                using TextStrokeRenderTarget textStrokeTarget = new(font, shapingResult, state);
+                TextStrokeRenderTarget textStrokeTarget = new(font, shapingResult, state);
                 textStrokeTarget.Render(processor);
             }
 
             // Apply clipping if requested (modes with Clip). Pure clip mode skips drawing above.
             if (ShouldClip(state.TextRenderingMode))
             {
-                using SKPath textPath = TextRenderUtilities.GetTextPath(shapingResult, font, state);
-                if (!textPath.IsEmpty)
+                PdfPath textPath = TextRenderUtilities.GetTextPath(shapingResult, font, state);
+                if (textPath.Segments.Count > 0)
                 {
                     state.TextClipPath ??= new PdfPath();
-                    state.TextClipPath.AddPath(textPath.ToPdfPath());
+                    state.TextClipPath.AddPath(textPath);
                 }
             }
         }
@@ -236,7 +236,7 @@ public class PdfTextRenderer : IPdfTextRenderer
                 ShapedGlyph glyph = shapingResult[i];
                 characters[i] = new PdfCharacter(
                     glyph.CharacterInfo.Unicode,
-                    new SKRect(glyph.X, glyph.Y + metrics.Ascent, glyph.X + glyph.CharacterInfo.OriginalWidth, glyph.Y + metrics.Descent));
+                    new PdfRectangle(glyph.X, glyph.Y + metrics.Ascent, glyph.X + glyph.CharacterInfo.OriginalWidth, glyph.Y + metrics.Descent));
             }
 
             PdfMatrix textMatrix = TextRenderUtilities.GetFullTextMatrix(state);

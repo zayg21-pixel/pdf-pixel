@@ -1,5 +1,4 @@
 using Microsoft.Extensions.Logging;
-using PdfPixel.Color.Paint;
 using PdfPixel.Commands.Cache;
 using PdfPixel.Commands.Converters;
 using PdfPixel.Shading;
@@ -108,15 +107,15 @@ public sealed class DrawShadingCommand : PdfCommand
             case PdfShadingType.Axial:
             {
                 entry.FunctionSamples = executionContext.Parameters.DefaultFunctionSamples;
-                ShadingColorStops axialColorStops = _builder.BuildShadingColorsAndStops(_shading, _sampler, executionContext.Parameters.DefaultFunctionSamples);
-                entry.Axial = _builder.BuildAxialPaint(_shading, axialColorStops);
+                PdfShadingColorStops axialColorStops = _builder.BuildShadingColorsAndStops(_shading, _sampler, executionContext.Parameters.DefaultFunctionSamples);
+                entry.Axial = _builder.BuildLinearGradient(_shading, axialColorStops);
                 break;
             }
             case PdfShadingType.Radial:
             {
                 entry.FunctionSamples = executionContext.Parameters.DefaultFunctionSamples;
-                ShadingColorStops radialColorStops = _builder.BuildShadingColorsAndStops(_shading, _sampler, executionContext.Parameters.DefaultFunctionSamples);
-                entry.Radial = _builder.BuildRadialPaints(_shading, radialColorStops);
+                PdfShadingColorStops radialColorStops = _builder.BuildShadingColorsAndStops(_shading, _sampler, executionContext.Parameters.DefaultFunctionSamples);
+                entry.Radial = _builder.BuildRadialGradient(_shading, radialColorStops);
                 break;
             }
             case PdfShadingType.FreeFormGouraud:
@@ -161,7 +160,8 @@ public sealed class DrawShadingCommand : PdfCommand
             return;
         }
 
-        DrawPaintToCanvas(executionContext, entry.Axial);
+        using SKPaint paint = entry.Axial.ToSkiaPaint();
+        DrawPaintToCanvas(executionContext, paint);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -172,8 +172,11 @@ public sealed class DrawShadingCommand : PdfCommand
             return;
         }
 
-        DrawPaintToCanvas(executionContext, entry.Radial.InnerPaint);
-        DrawPaintToCanvas(executionContext, entry.Radial.OuterPaint);
+        using SKPaint innerPaint = entry.Radial.ToSkiaInnerPaint();
+        DrawPaintToCanvas(executionContext, innerPaint);
+
+        using SKPaint outerPaint = entry.Radial.ToSkiaOuterPaint();
+        DrawPaintToCanvas(executionContext, outerPaint);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -199,10 +202,9 @@ public sealed class DrawShadingCommand : PdfCommand
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private void DrawPaintToCanvas(PdfCommandExecutionContext executionContext, SKPaint basePaint)
+    private void DrawPaintToCanvas(PdfCommandExecutionContext executionContext, SKPaint paint)
     {
-        using SKPaint paint = basePaint.Clone();
-        paint.Color = PdfPaintFactory.ApplyAlpha(paint.Color, _context.FillAlpha);
+        paint.Color = CommandHelpers.ApplyAlpha(paint.Color, _context.FillAlpha);
         paint.IsAntialias = executionContext.Parameters.Antialias;
 
         CommandHelpers.ApplyModifiers(paint, executionContext);
@@ -213,14 +215,23 @@ public sealed class DrawShadingCommand : PdfCommand
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private void DrawVerticesToCanvas(PdfCommandExecutionContext executionContext, PdfVertices vertices)
     {
-        using SKPaint paint = PdfPaintFactory.CreateShaderPaint();
-        paint.Color = PdfPaintFactory.ApplyAlpha(paint.Color, _context.FillAlpha);
-        paint.IsAntialias = executionContext.Parameters.Antialias;
-
-        CommandHelpers.ApplyModifiers(paint, executionContext);
+        using SKPaint paint = CreateVerticesPaint(executionContext);
 
         using SKVertices skVertices = PdfShadingConverter.ToSkVertices(vertices);
         executionContext.Canvas.DrawVertices(skVertices, SKBlendMode.DstIn, paint);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private SKPaint CreateVerticesPaint(PdfCommandExecutionContext executionContext)
+    {
+        SKPaint paint = new()
+        {
+            Color = CommandHelpers.ApplyAlpha(SKColors.Black, _context.FillAlpha),
+            IsAntialias = executionContext.Parameters.Antialias
+        };
+
+        CommandHelpers.ApplyModifiers(paint, executionContext);
+        return paint;
     }
 
     /// <inheritdoc />

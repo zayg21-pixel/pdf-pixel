@@ -1,13 +1,12 @@
 using PdfPixel.Geometry;
-using SkiaSharp;
-using System;
+using PdfPixel.Imaging.Model;
 
 namespace PdfPixel.Imaging.Processing;
 
 /// <summary>
 /// A single decoded region of a PDF image, positioned in original image coordinates.
 /// </summary>
-public sealed class PdfImageTile : IDisposable
+public sealed class PdfImageTile
 {
     /// <summary>
     /// Creates a tile descriptor with all decoded results.
@@ -16,7 +15,7 @@ public sealed class PdfImageTile : IDisposable
     /// <param name="tilePosition">Position and size of this tile in original image coordinates.</param>
     /// <param name="image">Decoded image for this tile.</param>
     /// <param name="parameters">Decoding parameters used to produce this tile.</param>
-    public PdfImageTile(int tileIndex, in PdfIntegerRectangle tilePosition, SKImage image, PdfImageRowDecodingParameters parameters)
+    public PdfImageTile(int tileIndex, in PdfIntegerRectangle tilePosition, PdfDecodedImage image, PdfImageRowDecodingParameters parameters)
         : this(tileIndex, tilePosition, image, parameters, isSkipped: false)
     {
     }
@@ -29,7 +28,7 @@ public sealed class PdfImageTile : IDisposable
     /// <param name="image">Decoded image for this tile, or null when <paramref name="isSkipped"/> is true.</param>
     /// <param name="parameters">Decoding parameters used to produce this tile, or null when skipped.</param>
     /// <param name="isSkipped">True when this tile was outside the region of interest and was not decoded.</param>
-    private PdfImageTile(int tileIndex, in PdfIntegerRectangle tilePosition, SKImage? image, PdfImageRowDecodingParameters? parameters, bool isSkipped)
+    private PdfImageTile(int tileIndex, in PdfIntegerRectangle tilePosition, PdfDecodedImage? image, PdfImageRowDecodingParameters? parameters, bool isSkipped)
     {
         TileIndex = tileIndex;
         TilePosition = tilePosition;
@@ -51,7 +50,7 @@ public sealed class PdfImageTile : IDisposable
     /// <summary>
     /// Decoded image for this tile, or null when <see cref="IsSkipped"/> is true.
     /// </summary>
-    public SKImage? Image { get; }
+    public PdfDecodedImage? Image { get; }
 
     /// <summary>
     /// Decoding parameters used to produce this tile, in the tile's own coordinate space.
@@ -69,7 +68,4 @@ public sealed class PdfImageTile : IDisposable
     /// <param name="tileIndex">Zero-based index of this tile in row-major order.</param>
     /// <returns>An empty <see cref="PdfImageTile"/>.</returns>
     public static PdfImageTile CreateEmpty(int tileIndex) => new(tileIndex, default, null, null, isSkipped: true);
-
-    /// <inheritdoc/>
-    public void Dispose() => Image?.Dispose();
 }

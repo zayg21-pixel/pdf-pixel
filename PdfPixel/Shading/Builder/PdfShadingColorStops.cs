@@ -1,4 +1,4 @@
-using SkiaSharp;
+using PdfPixel.Color;
 
 namespace PdfPixel.Shading;
 
@@ -6,14 +6,14 @@ namespace PdfPixel.Shading;
 /// Holds the color and position arrays produced by evaluating a shading's
 /// functions across its domain range.
 /// </summary>
-public sealed class ShadingColorStops
+public sealed class PdfShadingColorStops
 {
     /// <summary>
-    /// Initializes a new instance of the <see cref="ShadingColorStops"/> class.
+    /// Initializes a new instance of the <see cref="PdfShadingColorStops"/> class.
     /// </summary>
     /// <param name="colors">Color stops.</param>
     /// <param name="positions">Gradient positions.</param>
-    public ShadingColorStops(SKColor[] colors, float[] positions)
+    public PdfShadingColorStops(PdfColor[] colors, float[] positions)
     {
         Colors = colors;
         Positions = positions;
@@ -22,7 +22,7 @@ public sealed class ShadingColorStops
     /// <summary>
     /// Gets the color stops.
     /// </summary>
-    public SKColor[] Colors { get; }
+    public PdfColor[] Colors { get; }
 
     /// <summary>
     /// Gets the gradient positions.

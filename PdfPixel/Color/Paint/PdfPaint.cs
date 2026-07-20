@@ -1,4 +1,3 @@
-using SkiaSharp;
 using System;
 using PdfPixel.Pattern.Model;
 using PdfPixel.Transparency.Model;
@@ -132,11 +131,6 @@ public sealed class PdfPaint
 
         return new PdfPaint(style) { Color = resolvedTintColor, Pattern = pattern };
     }
-
-    /// <summary>
-    /// Converts this paint to an <see cref="SKPaint"/>.
-    /// </summary>
-    internal SKPaint ToSkiaPaint() => PdfPaintConverter.ToSkiaPaint(this);
 
     /// <summary>
     /// Creates an independent copy of this paint, so mutating the copy never affects this instance.

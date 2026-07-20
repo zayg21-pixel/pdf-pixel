@@ -1,4 +1,4 @@
-using SkiaSharp;
+using PdfPixel.Geometry;
 using System.Collections.Generic;
 
 namespace PdfPixel.TextExtraction;
@@ -33,7 +33,7 @@ public static class PdfTextBlockFlattener
 
         if (block.Markup?.ActualText.IsEmpty == false)
         {
-            SKRect? unionBounds = null;
+            PdfRectangle? unionBounds = null;
             CollectBounds(block, ref unionBounds);
             if (unionBounds != null)
             {
@@ -54,13 +54,13 @@ public static class PdfTextBlockFlattener
         }
     }
 
-    private static void CollectBounds(PdfTextBlock block, ref SKRect? bounds)
+    private static void CollectBounds(PdfTextBlock block, ref PdfRectangle? bounds)
     {
         foreach (PdfCharacter character in block.Characters)
         {
             bounds = (bounds == null)
                 ? character.BoundingBox
-                : SKRect.Union(bounds.Value, character.BoundingBox);
+                : PdfRectangle.Union(bounds.Value, character.BoundingBox);
         }
 
         foreach (PdfTextBlock child in block.Children)

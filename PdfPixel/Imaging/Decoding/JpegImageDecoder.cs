@@ -158,18 +158,8 @@ public sealed class JpegImageDecoder : PdfImageDecoder
     {
         _jpgRowDecoder = null;
         _fullWidthRowBuffer = null;
-        _tilingContext?.Dispose();
         _tilingContext = null;
         _imageParameters = null;
         _currentImageRow = 0;
-    }
-
-    /// <inheritdoc/>
-    protected override void Dispose(bool disposing)
-    {
-        if (disposing)
-        {
-            _tilingContext?.Dispose();
-        }
     }
 }

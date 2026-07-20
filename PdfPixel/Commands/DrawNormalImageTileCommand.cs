@@ -16,7 +16,7 @@ public sealed class DrawNormalImageTileCommand : PdfCommand
     internal DrawNormalImageTileCommand(NormalImageExecutionContext context) => _context = context;
 
     /// <inheritdoc />
-    public override PdfCommandFeatures Features => PdfCommandFeatures.Region | PdfCommandFeatures.Scale | PdfCommandFeatures.DeferredDispose;
+    public override PdfCommandFeatures Features => PdfCommandFeatures.Region | PdfCommandFeatures.Scale;
 
     /// <inheritdoc />
     public override void Execute(PdfCommandExecutionContext executionContext)
@@ -32,17 +32,20 @@ public sealed class DrawNormalImageTileCommand : PdfCommand
         SnappedTilePlacement placement = PdfImageCommandUtilities.GetSnappedTilePlacement(
             executionContext, _context.ImageSize, tile.TilePosition, _context.Interpolate);
 
+        using SKImage skImage = tile.Image.ToSkImage();
         using SKPaint paint = PdfImageCommandUtilities.GetBaseImagePaint(_context.DecodingContext);
         CommandHelpers.ApplyModifiers(paint, executionContext);
 
         executionContext.Canvas.Save();
         executionContext.Canvas.Concat(placement.PlacementMatrix.ToSkMatrix());
-        executionContext.Canvas.DrawImage(tile.Image, placement.PlacementRectangle, placement.Sampling, paint);
+        executionContext.Canvas.DrawImage(skImage, placement.PlacementRectangle, placement.Sampling, paint);
         executionContext.Canvas.Restore();
     }
 
     /// <inheritdoc />
-    protected override void Dispose(bool disposing) => _context.Dispose();
+    protected override void Dispose(bool disposing)
+    {
+    }
 
     /// <inheritdoc />
     public override string ToString()

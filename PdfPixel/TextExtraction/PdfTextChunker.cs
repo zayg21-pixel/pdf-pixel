@@ -1,7 +1,7 @@
-﻿using System;
+﻿using PdfPixel.Geometry;
+using System;
 using System.Collections.Generic;
 using System.Globalization;
-using SkiaSharp;
 
 namespace PdfPixel.TextExtraction;
 
@@ -143,10 +143,10 @@ public class PdfTextChunker
             throw new ArgumentException("No characters to create word.", nameof(chars));
         }
 
-        SKRect bbox = chars[0].BoundingBox;
+        PdfRectangle bbox = chars[0].BoundingBox;
         for (int i = 1; i < chars.Count; i++)
         {
-            bbox = SKRect.Union(bbox, chars[i].BoundingBox);
+            bbox = PdfRectangle.Union(bbox, chars[i].BoundingBox);
         }
 
         return new PdfWord(bbox, type, lineIndex, chars.ToArray());

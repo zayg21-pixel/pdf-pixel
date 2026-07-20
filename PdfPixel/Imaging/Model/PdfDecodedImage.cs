@@ -1,16 +1,14 @@
 using System;
-using System.Buffers;
 
 namespace PdfPixel.Imaging.Model;
 
 /// <summary>
-/// Fully decoded pixel data for an image or image tile. Rents its backing buffer from the shared
-/// array pool and returns it on <see cref="Dispose"/>.
+/// Fully decoded pixel data for an image or image tile.
 /// </summary>
-public sealed class PdfDecodedImage : IDisposable
+public sealed class PdfDecodedImage
 {
     private readonly int _rowBytes;
-    private byte[]? _buffer;
+    private byte[] _buffer;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="PdfDecodedImage"/> class, renting a buffer sized
@@ -25,7 +23,7 @@ public sealed class PdfDecodedImage : IDisposable
         Height = height;
         ColorFormat = colorFormat;
         _rowBytes = width * ((colorFormat == PdfImageColorFormat.Gray) ? 1 : 4);
-        _buffer = ArrayPool<byte>.Shared.Rent(_rowBytes * height);
+        _buffer = new byte[_rowBytes * height];
     }
 
     /// <summary>
@@ -54,14 +52,4 @@ public sealed class PdfDecodedImage : IDisposable
     internal Span<byte> GetRow(int row) => GetBuffer().AsSpan(row * _rowBytes, _rowBytes);
 
     private byte[] GetBuffer() => _buffer ?? throw new ObjectDisposedException(nameof(PdfDecodedImage));
-
-    /// <inheritdoc/>
-    public void Dispose()
-    {
-        if (_buffer != null)
-        {
-            ArrayPool<byte>.Shared.Return(_buffer);
-            _buffer = null;
-        }
-    }
 }

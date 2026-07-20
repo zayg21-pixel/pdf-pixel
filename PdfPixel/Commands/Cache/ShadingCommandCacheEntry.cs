@@ -1,7 +1,6 @@
 using PdfPixel.Models;
 using PdfPixel.Shading;
 using PdfPixel.Shading.Model;
-using SkiaSharp;
 
 namespace PdfPixel.Commands.Cache;
 
@@ -24,9 +23,9 @@ internal sealed class ShadingCommandCacheEntry : ICommandCacheItem
 
     public FunctionShadingResult? Function { get; set; }
 
-    public SKPaint? Axial { get; set; }
+    public PdfLinearGradient? Axial { get; set; }
 
-    public RadialShadingPaints? Radial { get; set; }
+    public PdfRadialGradient? Radial { get; set; }
 
     public PdfVertices? Gouraud { get; set; }
 
@@ -44,8 +43,5 @@ internal sealed class ShadingCommandCacheEntry : ICommandCacheItem
 
     public void Dispose()
     {
-        Function?.Dispose();
-        Axial?.Dispose();
-        Radial?.Dispose();
     }
 }

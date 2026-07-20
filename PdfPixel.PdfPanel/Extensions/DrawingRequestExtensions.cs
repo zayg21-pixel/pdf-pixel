@@ -1,3 +1,4 @@
+using PdfPixel.Geometry;
 using PdfPixel.PdfPanel.Requests;
 using SkiaSharp;
 using System.Linq;
@@ -11,7 +12,7 @@ internal static class DrawingRequestExtensions
     /// Maps the canvas bounds through the inverse content-to-canvas transform,
     /// then clamps to the page bounds.
     /// </summary>
-    internal static SKRect ComputeRegionOfInterest(this PagesDrawingRequest request, int pageNumber)
+    internal static PdfRectangle ComputeRegionOfInterest(this PagesDrawingRequest request, int pageNumber)
     {
         VisiblePageInfo pageInfo = request.VisiblePages.First(page => page.PageNumber == pageNumber);
 
@@ -22,6 +23,6 @@ internal static class DrawingRequestExtensions
         SKRect pageBounds = SKRect.Create(0, 0, pageInfo.Info.Width, pageInfo.Info.Height);
         regionOfInterest.Intersect(pageBounds);
 
-        return regionOfInterest;
+        return new PdfRectangle(regionOfInterest.Left, regionOfInterest.Top, regionOfInterest.Right, regionOfInterest.Bottom);
     }
 }

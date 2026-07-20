@@ -1,4 +1,5 @@
 using PdfPixel.Commands.Cache;
+using PdfPixel.Geometry;
 using PdfPixel.Models;
 using PdfPixel.TextExtraction;
 using SkiaSharp;
@@ -24,7 +25,7 @@ public sealed class PdfCommandExecutionContext : IDisposable
         IReadOnlyDictionary<PdfReference, PdfOptionalContentGroup> optionalContentGroups,
         IPdfExecutionObserver executionObserver,
         SKCanvas canvas,
-        SKRect? pageRegionOfInterest = null)
+        PdfRectangle? pageRegionOfInterest = null)
     {
         Parameters = parameters ?? throw new ArgumentNullException(nameof(parameters));
         ContentLocker = contentLocker ?? throw new ArgumentNullException(nameof(contentLocker));
@@ -64,7 +65,7 @@ public sealed class PdfCommandExecutionContext : IDisposable
     /// Visible region of the page in page coordinates. Null means the full page is visible.
     /// Used to skip decoding of image tiles outside the visible area.
     /// </summary>
-    public SKRect? PageRegionOfInterest { get; }
+    public PdfRectangle? PageRegionOfInterest { get; }
 
     /// <summary>
     /// True when at least one command signalled that the rendered output covers only a partial

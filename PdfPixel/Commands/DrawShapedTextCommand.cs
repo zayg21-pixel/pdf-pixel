@@ -53,7 +53,7 @@ public sealed class DrawShapedTextCommand : PdfCommand, IMatrixCommand, IPaintCo
         using SKPaint paint = Paint.Clone();
         bool antialias = executionContext.Parameters.Antialias;
         paint.IsAntialias = antialias;
-        PdfPaintFactory.ApplyAntialias(Font, antialias);
+        CommandHelpers.ApplyAntialias(Font, antialias);
 
         CommandHelpers.ApplyModifiers(paint, executionContext);
 

@@ -1,5 +1,4 @@
 using Microsoft.Extensions.Logging;
-using PdfPixel.Color.ColorSpace;
 using PdfPixel.Commands;
 using PdfPixel.Commands.Image;
 using PdfPixel.Geometry;
@@ -107,20 +106,10 @@ internal class RawImageDecoder : PdfImageDecoder
     {
         _dataStream?.Dispose();
         _dataStream = null;
-        _tilingContext?.Dispose();
         _tilingContext = null;
         _imageParameters = null;
         _fullWidthRowBuffer = null;
         _contentLocker = null;
         _currentImageRow = 0;
-    }
-
-    protected override void Dispose(bool disposing)
-    {
-        if (disposing)
-        {
-            _dataStream?.Dispose();
-            _tilingContext?.Dispose();
-        }
     }
 }

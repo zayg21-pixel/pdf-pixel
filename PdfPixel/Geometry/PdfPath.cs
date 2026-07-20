@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 
 namespace PdfPixel.Geometry;
@@ -18,6 +19,43 @@ public sealed class PdfPath
     /// Determines which regions are considered "inside" when this path is filled or used as a clip.
     /// </summary>
     public PdfPathFillType FillType { get; set; } = PdfPathFillType.Winding;
+
+    /// <summary>
+    /// Computes the smallest rectangle containing every point of every segment, including control points
+    /// of curve segments. <see cref="PdfRectangle.Empty"/> when the path has no segments. Recomputed on
+    /// every call by walking all segments.
+    /// </summary>
+    public PdfRectangle GetBounds()
+    {
+        var hasPoint = false;
+        float minX = 0;
+        float minY = 0;
+        float maxX = 0;
+        float maxY = 0;
+
+        foreach (PdfPathSegment segment in _segments)
+        {
+            foreach (PdfPoint point in segment.Points)
+            {
+                if (!hasPoint)
+                {
+                    minX = point.X;
+                    maxX = point.X;
+                    minY = point.Y;
+                    maxY = point.Y;
+                    hasPoint = true;
+                    continue;
+                }
+
+                minX = Math.Min(minX, point.X);
+                minY = Math.Min(minY, point.Y);
+                maxX = Math.Max(maxX, point.X);
+                maxY = Math.Max(maxY, point.Y);
+            }
+        }
+
+        return hasPoint ? new PdfRectangle(minX, minY, maxX, maxY) : PdfRectangle.Empty;
+    }
 
     /// <summary>
     /// Starts a new subpath at the given point.

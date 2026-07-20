@@ -1,4 +1,3 @@
-using PdfPixel.Commands.Converters;
 using PdfPixel.Geometry;
 using PdfPixel.Models;
 using SkiaSharp;
@@ -23,7 +22,7 @@ public sealed class ClipRectangleCommand : PdfCommand
     /// Initializes the command with the given rectangle and clip operation.
     /// </summary>
     public ClipRectangleCommand(in PdfRectangle rect, PdfClipOperation operation)
-        : this(rect.ToSkRect(), SkiaEnumUtilities.ToSkClipOperation(operation))
+        : this(rect.ToSkRect(), operation.ToSkClipOperation())
     {
     }
 

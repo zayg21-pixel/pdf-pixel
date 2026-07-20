@@ -1,4 +1,6 @@
-﻿using PdfPixel.Geometry;
+﻿using PdfPixel.Commands;
+using PdfPixel.Commands.Converters;
+using PdfPixel.Geometry;
 using PdfPixel.Rendering.State;
 using PdfPixel.Text;
 using SkiaSharp;
@@ -12,8 +14,14 @@ namespace PdfPixel.Rendering.Text;
 /// </summary>
 internal static class TextRenderUtilities
 {
+    /// <summary>
+    /// Builds the combined glyph outline for <paramref name="shapingResult"/>, transformed into the same
+    /// space as other drawing content. Glyph outlines only exist as <see cref="SKPath"/> (via
+    /// <see cref="SKFont.GetGlyphPath"/>), so this is the single place that boundary is crossed; every
+    /// caller works with the resulting <see cref="PdfPath"/> from here on.
+    /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static SKPath GetTextPath(List<ShapedGlyph> shapingResult, SKFont font, PdfGraphicsState state)
+    public static PdfPath GetTextPath(List<ShapedGlyph> shapingResult, SKFont font, PdfGraphicsState state)
     {
         using SKPathBuilder textPathBuilder = new();
 
@@ -30,12 +38,12 @@ internal static class TextRenderUtilities
             }
         }
 
-        SKPath textPath = textPathBuilder.Detach();
+        using SKPath textPath = textPathBuilder.Detach();
 
         PdfMatrix matrix = GetFullTextMatrix(state);
         textPath.Transform(matrix.ToSkMatrix());
 
-        return textPath;
+        return textPath.ToPdfPath();
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]

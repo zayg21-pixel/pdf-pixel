@@ -1,6 +1,7 @@
+using PdfPixel.Geometry;
 using SkiaSharp;
 
-namespace PdfPixel.Geometry;
+namespace PdfPixel.Commands.Converters;
 
 /// <summary>
 /// Converts <see cref="PdfPath"/> instances to <see cref="SKPath"/> for rendering.
@@ -10,7 +11,7 @@ internal static class PdfPathConverter
     /// <summary>
     /// Builds an <see cref="SKPath"/> equivalent to <paramref name="path"/>.
     /// </summary>
-    internal static SKPath ToSkPath(this PdfPath path)
+    internal static SKPath ToSkPath(PdfPath path)
     {
         using SKPathBuilder builder = new() { FillType = (path.FillType == PdfPathFillType.EvenOdd) ? SKPathFillType.EvenOdd : SKPathFillType.Winding };
 

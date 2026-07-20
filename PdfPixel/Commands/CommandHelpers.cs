@@ -24,6 +24,24 @@ internal static class CommandHelpers
         }
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static SKColor ApplyAlpha(in SKColor color, float alpha)
+    {
+        // Clamp alpha to valid range
+        alpha = Math.Max(0f, Math.Min(1f, alpha));
+
+        // Convert to byte and apply to the color's alpha channel
+        var alphaBytes = (byte)(alpha * 255);
+
+        return color.WithAlpha(alphaBytes);
+    }
+
+    /// <summary>
+    /// Sets font edging based on the antialias flag.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static void ApplyAntialias(SKFont font, bool antialias) => font.Edging = antialias ? SKFontEdging.SubpixelAntialias : SKFontEdging.Alias;
+
     /// <summary>
     /// Returns the command-derived total matrix scaled to <see cref="PdfPixel.Models.PdfCommandExecutionParameters.ScaleFactor"/>.
     /// </summary>

@@ -1,10 +1,9 @@
 using PdfPixel.Color;
-using PdfPixel.Color.Paint;
 using PdfPixel.Commands;
 using PdfPixel.Geometry;
+using PdfPixel.Models;
 using PdfPixel.Pattern.Model;
 using PdfPixel.Rendering.State;
-using SkiaSharp;
 
 namespace PdfPixel.Rendering.Path;
 
@@ -13,14 +12,15 @@ namespace PdfPixel.Rendering.Path;
 /// </summary>
 internal class PathFillRenderTarget : IRenderTarget
 {
-    private readonly SKPath _path;
+    private readonly PdfPath _path;
     private readonly PdfGraphicsState _state;
     private readonly PdfPattern? _pattern;
 
-    public PathFillRenderTarget(SKPath path, PdfGraphicsState state)
+    public PathFillRenderTarget(PdfPath path, PdfGraphicsState state)
     {
         _path = path;
         _state = state;
+        Bounds = path.GetBounds();
 
         if (state.FillPaint.IsPattern)
         {
@@ -28,15 +28,15 @@ internal class PathFillRenderTarget : IRenderTarget
         }
     }
 
-    public PdfRectangle Bounds => new(_path.Bounds.Left, _path.Bounds.Top, _path.Bounds.Right, _path.Bounds.Bottom);
+    public PdfRectangle Bounds { get; }
 
     public PdfColor Color => _state.FillPaint.Color;
 
     public void BeforePatternRender(IPdfCommandProcessor processor)
     {
         processor.Process(SaveStateCommand.Instance);
-        processor.Process(new ClipPathCommand(new SKPath(_path), SKClipOperation.Intersect));
-        processor.Process(new SaveLayerCommand(_path.Bounds, (SKPaint?)null));
+        processor.Process(new ClipPathCommand(_path, PdfClipOperation.Intersect));
+        processor.Process(new SaveLayerCommand(Bounds));
     }
 
     public void AfterPatternRender(IPdfCommandProcessor processor)
@@ -53,9 +53,7 @@ internal class PathFillRenderTarget : IRenderTarget
         }
         else
         {
-            processor.Process(new DrawPathCommand(new SKPath(_path), _state.FillPaint));
+            processor.Process(new DrawPathCommand(_path, _state.FillPaint));
         }
     }
-
-    public void Dispose() => _path.Dispose();
 }

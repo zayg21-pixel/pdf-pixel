@@ -1,3 +1,4 @@
+using PdfPixel.Geometry;
 using PdfPixel.PdfPanel.ContentProvider;
 using PdfPixel.PdfPanel.Extensions;
 using PdfPixel.PdfPanel.Requests;
@@ -63,7 +64,7 @@ public sealed class PdfPageContentTiler : IDisposable
             pageCache.Scale = request.Scale;
         }
 
-        SKRect visibleRegion = request.ComputeRegionOfInterest(pageInfo.PageNumber);
+        PdfRectangle visibleRegion = request.ComputeRegionOfInterest(pageInfo.PageNumber);
 
         if (forceClearVisible)
         {
@@ -147,7 +148,7 @@ public sealed class PdfPageContentTiler : IDisposable
         PageTileCache pageCache,
         ContentLocker<SKPicture> contentLocker,
         float scale,
-        SKRect visibleRegion)
+        in PdfRectangle visibleRegion)
     {
         float scaledTileSize = TileSize / scale;
 
@@ -180,11 +181,12 @@ public sealed class PdfPageContentTiler : IDisposable
         }
     }
 
-    private static void ClearTilesInRegion(PageTileCache pageCache, SKRect region)
+    private static void ClearTilesInRegion(PageTileCache pageCache, in PdfRectangle region)
     {
+        SKRect skRectRegion = new(region.Left, region.Top, region.Right, region.Bottom);
         for (int i = pageCache.Tiles.Count - 1; i >= 0; i--)
         {
-            if (pageCache.Tiles[i].Destination.IntersectsWith(region))
+            if (pageCache.Tiles[i].Destination.IntersectsWith(skRectRegion))
             {
                 pageCache.Tiles[i].Dispose();
                 pageCache.Tiles.RemoveAt(i);

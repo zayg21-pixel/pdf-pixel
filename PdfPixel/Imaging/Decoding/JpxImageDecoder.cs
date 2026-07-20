@@ -141,7 +141,12 @@ internal class JpxImageDecoder : PdfImageDecoder
         };
     }
 
-    private static JpxDecodingParameters ComputeDecodingParameters(JpxHeader header, in PdfMatrix ctm, PdfTileInfo tileInfo, HashSet<int>? tileIndexesToDecode, PdfColorSpaceConverter resolvedConverter)
+    private static JpxDecodingParameters ComputeDecodingParameters(
+        JpxHeader header,
+        in PdfMatrix ctm,
+        PdfTileInfo tileInfo,
+        HashSet<int>? tileIndexesToDecode,
+        PdfColorSpaceConverter resolvedConverter)
     {
         IReadOnlyList<JpxRegion>? regionsOfInterest = ComputeRegionsOfInterest(tileInfo, tileIndexesToDecode);
 
@@ -210,18 +215,9 @@ internal class JpxImageDecoder : PdfImageDecoder
     {
         _rowConverter = null;
         _resolvedConverter = null;
-        _tilingContext?.Dispose();
         _tilingContext = null;
         _imageParameters = null;
         _fullWidthRowBuffer = null;
         _currentImageRow = 0;
-    }
-
-    protected override void Dispose(bool disposing)
-    {
-        if (disposing)
-        {
-            _tilingContext?.Dispose();
-        }
     }
 }

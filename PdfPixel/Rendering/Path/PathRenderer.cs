@@ -2,10 +2,10 @@ using Microsoft.Extensions.Logging;
 using PdfPixel.Color.Paint;
 using PdfPixel.Commands;
 using PdfPixel.Geometry;
+using PdfPixel.Models;
 using PdfPixel.Rendering.State;
 using PdfPixel.Transparency.Model;
 using PdfPixel.Transparency.Utilities;
-using SkiaSharp;
 using System;
 using System.Runtime.CompilerServices;
 
@@ -64,7 +64,7 @@ public class PathRenderer : IPathRenderer
 
         using SoftMaskDrawingScope softMaskScope = new(_renderer, processor, state);
         softMaskScope.BeginDrawContent();
-        DrawPathCore(processor, path.ToSkPath(), state, operation);
+        DrawPathCore(processor, path, state, operation);
         softMaskScope.EndDrawContent();
     }
 
@@ -73,19 +73,19 @@ public class PathRenderer : IPathRenderer
     /// SaveLayer for FillAndStroke now uses the current clip region (no explicit bounds) simplifying logic.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private void DrawPathCore(IPdfCommandProcessor processor, SKPath path, PdfGraphicsState state, PdfPaintOperation operation)
+    private void DrawPathCore(IPdfCommandProcessor processor, PdfPath path, PdfGraphicsState state, PdfPaintOperation operation)
     {
         switch (operation)
         {
             case PdfPaintOperation.Stroke:
             {
-                using PathStrokeRenderTarget target = new(path, state);
+                PathStrokeRenderTarget target = new(path, state);
                 target.Render(processor);
                 break;
             }
             case PdfPaintOperation.Fill:
             {
-                using PathFillRenderTarget target = new(path, state);
+                PathFillRenderTarget target = new(path, state);
                 target.Render(processor);
                 break;
             }
@@ -97,25 +97,21 @@ public class PathRenderer : IPathRenderer
 
                 if (overlapAffectsCompositing)
                 {
-                    // Exception: SKPaint.GetFillPath has no PdfPaint equivalent, so we need the real SKPaint here.
-                    using SKPaint strokePaint = state.StrokePaint.ToSkiaPaint();
-                    SKPath strokeOutline = strokePaint.GetFillPath(path);
-
                     processor.Process(SaveStateCommand.Instance);
-                    processor.Process(new ClipPathCommand(strokeOutline, SKClipOperation.Difference));
+                    processor.Process(new ClipStrokePathCommand(path, state.StrokePaint, PdfClipOperation.Difference));
 
-                    using PathFillRenderTarget clippedFillTarget = new(path, state);
+                    PathFillRenderTarget clippedFillTarget = new(path, state);
                     clippedFillTarget.Render(processor);
 
                     processor.Process(RestoreStateCommand.Instance);
                 }
                 else
                 {
-                    using PathFillRenderTarget fillTarget = new(path, state);
+                    PathFillRenderTarget fillTarget = new(path, state);
                     fillTarget.Render(processor);
                 }
 
-                using PathStrokeRenderTarget strokeTarget = new(path, state);
+                PathStrokeRenderTarget strokeTarget = new(path, state);
                 strokeTarget.Render(processor);
 
                 break;

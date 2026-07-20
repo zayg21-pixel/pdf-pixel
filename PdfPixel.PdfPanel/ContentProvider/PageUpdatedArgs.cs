@@ -1,3 +1,4 @@
+using PdfPixel.Geometry;
 using SkiaSharp;
 
 namespace PdfPixel.PdfPanel.ContentProvider;
@@ -10,7 +11,7 @@ public class PageUpdatedArgs
     /// <summary>
     /// Initialises a new instance with the updated page number, pictures, content type, partial flag, and region of interest.
     /// </summary>
-    public PageUpdatedArgs(int pageNumber, PdfContentPictures contentPictures, UpdatedContentType updatedContentType, bool isPartialContent, SKRect regionOfInterest)
+    public PageUpdatedArgs(int pageNumber, PdfContentPictures contentPictures, UpdatedContentType updatedContentType, bool isPartialContent, in PdfRectangle regionOfInterest)
     {
         PageNumber = pageNumber;
         ContentPictures = contentPictures;
@@ -42,5 +43,5 @@ public class PageUpdatedArgs
     /// <summary>
     /// Visible region within the page content coordinate space used when the content was decoded.
     /// </summary>
-    public SKRect RegionOfInterest { get; }
+    public PdfRectangle RegionOfInterest { get; }
 }

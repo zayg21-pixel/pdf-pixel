@@ -9,7 +9,6 @@ using PdfPixel.Parsing;
 using PdfPixel.Rendering;
 using PdfPixel.Rendering.State;
 using PdfPixel.Transparency.Model;
-using SkiaSharp;
 using System;
 
 namespace PdfPixel.Transparency.Utilities;
@@ -94,9 +93,9 @@ public sealed class SoftMaskDrawingScope : IDisposable
     }
 
     /// <summary>
-    /// Ends the drawing scope. When a soft mask is active, opens a second layer with DstIn
-    /// blend mode (and an optional luma color filter for luminosity masks), renders the mask
-    /// content into it, then restores both layers so the mask composites onto the content.
+    /// Ends the drawing scope. When a soft mask is active, opens a second layer with a mask-compositing
+    /// paint (destination-in, plus a luminosity-to-alpha color filter for luminosity masks), renders the
+    /// mask content into it, then restores both layers so the mask composites onto the content.
     /// </summary>
     public void EndDrawContent()
     {
@@ -161,12 +160,7 @@ public sealed class SoftMaskDrawingScope : IDisposable
 
         recorder.Process(RestoreStateCommand.Instance);
 
-        SKPaint maskPaint = PdfPaintFactory.CreateMaskPaint();
-
-        if (_softMask.Subtype == PdfSoftMaskSubtype.Luminosity)
-        {
-            maskPaint.ColorFilter = SKColorFilter.CreateLumaColor();
-        }
+        PdfPaint maskPaint = PdfPaintFactory.CreateSoftMaskPaint(_softMask.Subtype);
 
         // Position the mask form
         _processor.Process(new SaveLayerCommand(_maskBounds, maskPaint));

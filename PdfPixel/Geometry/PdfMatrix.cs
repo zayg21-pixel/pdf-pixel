@@ -1,5 +1,4 @@
 using PdfPixel.Models;
-using SkiaSharp;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -112,11 +111,6 @@ public readonly struct PdfMatrix
 
         return new PdfMatrix(a, c, e, b, d, f);
     }
-
-    /// <summary>
-    /// Converts this matrix to an <see cref="SKMatrix"/>.
-    /// </summary>
-    internal SKMatrix ToSkMatrix() => new(ScaleX, SkewX, TransX, SkewY, ScaleY, TransY, 0, 0, 1);
 
     /// <summary>
     /// Creates a matrix that translates points by <paramref name="translateX"/> and <paramref name="translateY"/>.

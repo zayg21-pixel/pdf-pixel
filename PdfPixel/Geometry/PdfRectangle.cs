@@ -1,5 +1,4 @@
 using PdfPixel.Models;
-using SkiaSharp;
 using System;
 using System.Globalization;
 
@@ -96,11 +95,6 @@ public readonly struct PdfRectangle
     }
 
     /// <summary>
-    /// Converts this rectangle to an <see cref="SKRect"/>.
-    /// </summary>
-    internal SKRect ToSkRect() => new(Left, Top, Right, Bottom);
-
-    /// <summary>
     /// Returns the overlapping region of <paramref name="a"/> and <paramref name="b"/>, or <see cref="Empty"/> when they do not overlap.
     /// </summary>
     public static PdfRectangle Intersect(in PdfRectangle a, in PdfRectangle b)
@@ -110,7 +104,7 @@ public readonly struct PdfRectangle
             return Empty;
         }
 
-        return new(
+        return new PdfRectangle(
             Math.Max(a.Left, b.Left),
             Math.Max(a.Top, b.Top),
             Math.Min(a.Right, b.Right),
@@ -119,6 +113,18 @@ public readonly struct PdfRectangle
 
     private static bool IntersectsWithInclusive(in PdfRectangle a, in PdfRectangle b)
         => a.Left <= b.Right && a.Right >= b.Left && a.Top <= b.Bottom && a.Bottom >= b.Top;
+
+    /// <summary>
+    /// Returns the smallest rectangle that contains both <paramref name="a"/> and <paramref name="b"/>.
+    /// </summary>
+    public static PdfRectangle Union(in PdfRectangle a, in PdfRectangle b)
+    {
+        return new PdfRectangle(
+            Math.Min(a.Left, b.Left),
+            Math.Min(a.Top, b.Top),
+            Math.Max(a.Right, b.Right),
+            Math.Max(a.Bottom, b.Bottom));
+    }
 
     /// <inheritdoc/>
     public override string ToString()

@@ -1,11 +1,10 @@
 using PdfPixel.Color;
 using PdfPixel.Color.ColorSpace;
 using PdfPixel.Color.Transform;
-using PdfPixel.Commands.Converters;
 using PdfPixel.Imaging.Model;
 using PdfPixel.Models;
 using PdfPixel.Rendering.State;
-using SkiaSharp;
+using PdfPixel.Transparency.Model;
 using System;
 
 namespace PdfPixel.Commands.Image;
@@ -40,7 +39,7 @@ public sealed class ImageDecodingContext
         FullTransferFunction = state.FullTransferFunction;
         FillColor = state.FillPaint.Color;
         FillAlpha = state.FillPaint.Alpha;
-        BlendMode = SkiaEnumUtilities.ToSkiaBlendMode(state.FillPaint.BlendMode);
+        BlendMode = state.FillPaint.BlendMode;
     }
 
     /// <summary>
@@ -48,7 +47,7 @@ public sealed class ImageDecodingContext
     /// and with explicit compositing overrides. Used for cases such as pattern-layer masking, where the
     /// target image and the desired blend mode and fill colour differ from the original graphics state.
     /// </summary>
-    public ImageDecodingContext(ImageDecodingContext source, PdfImage image, in PdfColor fillColor, float fillAlpha, SKBlendMode blendMode)
+    public ImageDecodingContext(ImageDecodingContext source, PdfImage image, in PdfColor fillColor, float fillAlpha, PdfBlendMode blendMode)
     {
         if (source == null)
         {
@@ -107,9 +106,11 @@ public sealed class ImageDecodingContext
     public float FillAlpha { get; }
 
     /// <summary>
-    /// Skia blend mode for paint composition, converted from the PDF blend mode at construction.
+    /// Blend mode for paint composition. Usually the PDF content blend mode from the graphics state,
+    /// but may be <see cref="PdfBlendMode.MaskComposite"/> or <see cref="PdfBlendMode.LuminosityMaskComposite"/>
+    /// for internal stencil-mask alpha application, which has no PDF spec equivalent.
     /// </summary>
-    public SKBlendMode BlendMode { get; }
+    public PdfBlendMode BlendMode { get; }
 
     private PdfColorSpaceConverter? ResolveColorSpaceConverter(PdfImage image) => Page.Cache.ColorSpace.ResolveByObject(image.ColorSpaceObject, defaultComponents: -1);
 }

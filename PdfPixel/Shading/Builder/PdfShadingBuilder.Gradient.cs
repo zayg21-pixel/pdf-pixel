@@ -1,26 +1,25 @@
-﻿using Microsoft.Extensions.Logging;
-using PdfPixel.Color.Paint;
+using Microsoft.Extensions.Logging;
+using PdfPixel.Color;
 using PdfPixel.Color.Sampling;
 using PdfPixel.Color.Transform;
 using PdfPixel.Functions;
+using PdfPixel.Geometry;
 using PdfPixel.Shading.Model;
-using SkiaSharp;
 using System;
 using System.Collections.Generic;
-using System.Linq;
 
 namespace PdfPixel.Shading;
 
 internal partial class PdfShadingBuilder
 {
     /// <summary>
-    /// Builds an axial (Type 2) gradient paint with a linear gradient shader.
+    /// Builds an axial (Type 2) gradient model.
     /// Returns null if the shading coordinates are invalid.
     /// </summary>
     /// <param name="shading">Parsed shading model.</param>
     /// <param name="colorStops">Pre-computed color and position stops.</param>
-    /// <returns>Paint with gradient shader, or null on failure.</returns>
-    public SKPaint? BuildAxialPaint(PdfShading shading, ShadingColorStops colorStops)
+    /// <returns>The gradient model, or null on failure.</returns>
+    public PdfLinearGradient? BuildLinearGradient(PdfShading shading, PdfShadingColorStops colorStops)
     {
         if (shading.Coords?.Length != 4)
         {
@@ -28,30 +27,20 @@ internal partial class PdfShadingBuilder
             return null;
         }
 
-        SKPoint start = new(shading.Coords[0], shading.Coords[1]);
-        SKPoint end = new(shading.Coords[2], shading.Coords[3]);
+        PdfPoint start = new(shading.Coords[0], shading.Coords[1]);
+        PdfPoint end = new(shading.Coords[2], shading.Coords[3]);
 
-        using SKShader shader = SKShader.CreateLinearGradient(
-            start,
-            end,
-            colorStops.Colors,
-            colorStops.Positions,
-            SKShaderTileMode.Clamp);
-
-        SKPaint paint = PdfPaintFactory.CreateShaderPaint();
-        paint.Shader = shader;
-
-        return paint;
+        return new PdfLinearGradient(start, end, colorStops.Colors, colorStops.Positions);
     }
 
     /// <summary>
-    /// Builds radial (Type 3) gradient paints using two-point conical gradients.
-    /// Returns an inner (reversed) and outer paint for the two rendering passes.
+    /// Builds a radial (Type 3) gradient model.
+    /// Returns null if the shading coordinates are invalid.
     /// </summary>
     /// <param name="shading">Parsed shading model.</param>
     /// <param name="colorStops">Pre-computed color and position stops.</param>
-    /// <returns>A <see cref="RadialShadingPaints"/> with inner and outer paints, or <see langword="null"/> if coordinates are invalid.</returns>
-    public RadialShadingPaints? BuildRadialPaints(PdfShading shading, ShadingColorStops colorStops)
+    /// <returns>The gradient model, or null on failure.</returns>
+    public PdfRadialGradient? BuildRadialGradient(PdfShading shading, PdfShadingColorStops colorStops)
     {
         if (shading.Coords?.Length != 6)
         {
@@ -59,54 +48,12 @@ internal partial class PdfShadingBuilder
             return null;
         }
 
-        SKPoint center0 = new(shading.Coords[0], shading.Coords[1]);
-        SKPoint center1 = new(shading.Coords[3], shading.Coords[4]);
+        PdfPoint center0 = new(shading.Coords[0], shading.Coords[1]);
+        PdfPoint center1 = new(shading.Coords[3], shading.Coords[4]);
         float r0 = shading.Coords[2];
         float r1 = shading.Coords[5];
 
-        SKColor[] colors = colorStops.Colors;
-        float[] positions = colorStops.Positions;
-
-        // Inner surface (reversed direction)
-        SKPoint reversedCenter0 = center1;
-        SKPoint reversedCenter1 = center0;
-        float reversedR0 = r1;
-        float reversedR1 = r0;
-
-        SKColor[] reversedColors = colors.AsEnumerable().Reverse().ToArray();
-        float[] reversedPositions = positions.AsEnumerable().Reverse().ToArray();
-
-        for (int i = 0; i < reversedPositions.Length; i++)
-        {
-            reversedPositions[i] = 1 - reversedPositions[i];
-        }
-
-        using SKShader reversedShader = SKShader.CreateTwoPointConicalGradient(
-            reversedCenter0,
-            reversedR0,
-            reversedCenter1,
-            reversedR1,
-            reversedColors,
-            reversedPositions,
-            SKShaderTileMode.Clamp);
-
-        SKPaint innerPaint = PdfPaintFactory.CreateShaderPaint();
-        innerPaint.Shader = reversedShader;
-
-        // Outer surface
-        using SKShader shader = SKShader.CreateTwoPointConicalGradient(
-            center0,
-            r0,
-            center1,
-            r1,
-            colors,
-            positions,
-            SKShaderTileMode.Clamp);
-
-        SKPaint outerPaint = PdfPaintFactory.CreateShaderPaint();
-        outerPaint.Shader = shader;
-
-        return new RadialShadingPaints(innerPaint, outerPaint);
+        return new PdfRadialGradient(center0, r0, center1, r1, colorStops.Colors, colorStops.Positions);
     }
 
     /// <summary>
@@ -117,7 +64,7 @@ internal partial class PdfShadingBuilder
     /// <param name="sampler">RGBA sampler for color conversion.</param>
     /// <param name="defaultFunctionSamples">Number of function samples to use.</param>
     /// <returns>The computed color and position stops.</returns>
-    public ShadingColorStops BuildShadingColorsAndStops(
+    public PdfShadingColorStops BuildShadingColorsAndStops(
         PdfShading shading,
         ColorTransformSampler sampler,
         int defaultFunctionSamples)
@@ -130,7 +77,7 @@ internal partial class PdfShadingBuilder
             domainEnd = shading.Domain[0].Max;
         }
 
-        SKColor[] colors;
+        PdfColor[] colors;
         float[] positions;
 
         if (shading.Functions.Count > 0)
@@ -140,7 +87,7 @@ internal partial class PdfShadingBuilder
             float[] sampleXs = primaryFunction.GetSamplingPoints(0, domainStart, domainEnd, defaultFunctionSamples);
 
             positions = new float[sampleXs.Length];
-            colors = new SKColor[sampleXs.Length];
+            colors = new PdfColor[sampleXs.Length];
 
             float domainLength = domainEnd - domainStart;
             if (domainLength == 0f)
@@ -153,39 +100,39 @@ internal partial class PdfShadingBuilder
                 float x = sampleXs[i];
                 float t = (x - domainStart) / domainLength;
                 ReadOnlySpan<float> comps = PdfFunctions.EvaluateColorFunctions(shading.Functions, x);
-                colors[i] = sampler.Sample(comps).From01ToSkiaColor();
+                colors[i] = sampler.Sample(comps).ToPdfColor();
                 positions[i] = t;
             }
         }
         else
         {
-            colors = new SKColor[] { SKColors.Black, SKColors.White };
+            colors = new PdfColor[] { PdfColors.Black, PdfColors.White };
             positions = new float[] { 0f, 1f };
         }
 
         if (!shading.ExtendEnd || !shading.ExtendStart)
         {
             List<float> listPositions = new(positions);
-            List<SKColor> listColors = new(colors);
+            List<PdfColor> listColors = new(colors);
 
             if (!shading.ExtendStart)
             {
                 float start = positions[0];
                 listPositions.Insert(0, start);
-                listColors.Insert(0, SKColors.Transparent);
+                listColors.Insert(0, PdfColors.Transparent);
             }
 
             if (!shading.ExtendEnd)
             {
                 float end = positions[positions.Length - 1];
                 listPositions.Add(end);
-                listColors.Add(SKColors.Transparent);
+                listColors.Add(PdfColors.Transparent);
             }
 
             positions = listPositions.ToArray();
             colors = listColors.ToArray();
         }
 
-        return new ShadingColorStops(colors, positions);
+        return new PdfShadingColorStops(colors, positions);
     }
 }

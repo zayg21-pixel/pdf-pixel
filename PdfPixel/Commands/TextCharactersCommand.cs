@@ -1,6 +1,5 @@
 using PdfPixel.Geometry;
 using PdfPixel.TextExtraction;
-using SkiaSharp;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -34,13 +33,13 @@ public sealed class TextCharactersCommand : PdfCommand, IMatrixCommand
     /// <inheritdoc />
     public override void Execute(PdfCommandExecutionContext executionContext)
     {
-        SKMatrix matrix = executionContext.Frames.TotalMatrix.PreConcat(Matrix).ToSkMatrix();
+        PdfMatrix matrix = executionContext.Frames.TotalMatrix.PreConcat(Matrix);
 
         List<PdfCharacter> mapped = new(Characters.Length);
 
         for (int i = 0; i < Characters.Length; i++)
         {
-            SKRect pageRect = matrix.MapRect(Characters[i].BoundingBox).Standardized;
+            PdfRectangle pageRect = matrix.MapRect(Characters[i].BoundingBox);
             if (pageRect.Width != 0)
             {
                 mapped.Add(new PdfCharacter(Characters[i].Text, pageRect));

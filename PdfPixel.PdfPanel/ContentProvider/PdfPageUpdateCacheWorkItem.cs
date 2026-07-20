@@ -154,7 +154,8 @@ public class PdfPageUpdateCacheWorkItem : IWorkItem
                 CacheEntry.AnnotationContent.UpdateContent(annotationPicture, _request, annotationIsPartial);
             }
 
-            _onPageUpdated?.Invoke(new PageUpdatedArgs(CacheEntry.PageNumber, CacheEntry.GetContentPictures(), UpdatedContentType.Annotations, annotationIsPartial, CacheEntry.AnnotationContent.LastRegionOfInterest));
+            _onPageUpdated?.Invoke(
+                new PageUpdatedArgs(CacheEntry.PageNumber, CacheEntry.GetContentPictures(), UpdatedContentType.Annotations, annotationIsPartial, CacheEntry.AnnotationContent.LastRegionOfInterest));
         }
     }
 
