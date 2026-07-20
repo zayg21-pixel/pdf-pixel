@@ -8,7 +8,6 @@ using PdfPixel.Parsing;
 using PdfPixel.Rendering;
 using PdfPixel.Rendering.State;
 using PdfPixel.Text;
-using SkiaSharp;
 using System;
 using System.Collections.Generic;
 
@@ -60,7 +59,7 @@ public class PdfType3Font : PdfSingleByteFont
     /// Type 3 fonts do not use an embedded typeface; always returns <see langword="null"/>.
     /// Glyphs are rendered from PDF content streams rather than a conventional typeface.
     /// </summary>
-    protected internal override SKTypeface? Typeface => null;
+    protected internal override PdfTypeface? Typeface => null;
 
     /// <summary>
     /// Character procedures dictionary containing glyph definitions

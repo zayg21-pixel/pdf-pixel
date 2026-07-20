@@ -2,6 +2,7 @@ using PdfPixel.Annotations.Rendering;
 using PdfPixel.Color;
 using PdfPixel.Color.Paint;
 using PdfPixel.Commands;
+using PdfPixel.Fonts;
 using PdfPixel.Fonts.Management;
 using PdfPixel.Geometry;
 using PdfPixel.Models;
@@ -80,12 +81,12 @@ public class PdfStampAnnotation : PdfAnnotationBase
     private void DrawLabel(IPdfCommandProcessor processor, IPdfPageInternal page, string labelText, in PdfColor color)
     {
         var substitutionInfo = PdfSubstitutionInfo.Parse(PdfString.FromString("Courier-Bold"), null);
-        SKTypeface typeface = page.Document.FontSubstitutor.SubstituteTypeface(substitutionInfo, labelText, null);
+        PdfTypeface typeface = page.Document.FontSubstitutor.SubstituteTypeface(substitutionInfo, labelText, null);
 
         float availableWidth = Rectangle.Width * (1f - 2f * MarginFraction);
         float availableHeight = Rectangle.Height * (1f - 2f * MarginFraction);
 
-        SKFont font = new(typeface, availableHeight);
+        SKFont font = new(typeface.GetTypeface(), availableHeight);
         font.GetFontMetrics(out SKFontMetrics metrics);
 
         float glyphHeight = metrics.Descent - metrics.Ascent;

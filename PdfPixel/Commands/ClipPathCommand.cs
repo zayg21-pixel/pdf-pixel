@@ -11,20 +11,11 @@ public sealed class ClipPathCommand : PdfCommand, IPathCommand
 {
     /// <summary>
     /// Initializes the command with the given path and clip operation.
-    /// The command takes ownership of the path.
-    /// </summary>
-    public ClipPathCommand(SKPath path, SKClipOperation operation)
-    {
-        Path = path;
-        Operation = operation;
-    }
-
-    /// <summary>
-    /// Initializes the command with the given path and clip operation.
     /// </summary>
     public ClipPathCommand(PdfPath path, PdfClipOperation operation)
-        : this(path.ToSkPath(), operation.ToSkClipOperation())
     {
+        Path = path.ToSkPath();
+        Operation = operation.ToSkClipOperation();
     }
 
     /// <inheritdoc />

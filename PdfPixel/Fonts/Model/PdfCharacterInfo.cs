@@ -1,5 +1,5 @@
 using PdfPixel.Fonts.Mapping;
-using SkiaSharp;
+using PdfPixel.Geometry;
 
 namespace PdfPixel.Fonts.Model;
 
@@ -13,13 +13,13 @@ public struct PdfCharacterInfo
     /// </summary>
     public PdfCharacterInfo(
         PdfCharacterCode characterCode,
-        SKTypeface typeface,
+        PdfTypeface typeface,
         string? unicode,
         ushort[] gid,
         float originalWidth,
         float[] width,
         float xScale,
-        SKPoint offset,
+        in PdfPoint offset,
         float advancement)
     {
         CharacterCode = characterCode;
@@ -41,7 +41,7 @@ public struct PdfCharacterInfo
     /// <summary>
     /// Typeface used to shape this character.
     /// </summary>
-    public SKTypeface Typeface { get; set; }
+    public PdfTypeface Typeface { get; set; }
 
     /// <summary>
     /// The Unicode string for this character code.
@@ -71,7 +71,7 @@ public struct PdfCharacterInfo
     /// <summary>
     /// Rendering offset of the character.
     /// </summary>
-    public SKPoint Offset { get; }
+    public PdfPoint Offset { get; }
 
     /// <summary>
     /// Horizontal or vertical displacement after rendering the character.

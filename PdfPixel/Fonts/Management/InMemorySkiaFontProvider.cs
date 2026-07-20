@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.IO;
 using PdfPixel.Fonts.Mapping;
 using SkiaSharp;
 
@@ -11,17 +10,12 @@ namespace PdfPixel.Fonts.Management;
 /// <summary>
 /// Font provider that resolves standard PDF fonts and named fonts from explicitly registered in-memory font data.
 /// Suitable for environments where system fonts are unavailable, such as browser/WASM.
-/// When a width hint is provided and the resolved typeface supports the <c>wdth</c> variation axis,
-/// a variation-adjusted clone is returned and cached.
 /// </summary>
 public sealed class InMemorySkiaFontProvider : ISkiaFontProvider
 {
-    private readonly Dictionary<PdfStandardFontName, SKTypeface> _standardFonts = [];
-    private readonly Dictionary<string, SKTypeface> _namedFonts = new(StringComparer.OrdinalIgnoreCase);
-    private readonly HashSet<SKTypeface> _ownedTypefaces = [];
-    private readonly SkiaFontVariation _variation = new();
-    private bool _ownsFallback;
-    private SKTypeface _fallback;
+    private readonly Dictionary<PdfStandardFontName, PdfTypeface> _standardFonts = [];
+    private readonly Dictionary<string, PdfTypeface> _namedFonts = new(StringComparer.OrdinalIgnoreCase);
+    private PdfTypeface _fallback;
 
     /// <summary>
     /// Maps each <see cref="PdfStandardFontName"/> to the common display names that PDF documents
@@ -44,24 +38,13 @@ public sealed class InMemorySkiaFontProvider : ISkiaFontProvider
     /// <summary>
     /// Initializes a new instance of <see cref="InMemorySkiaFontProvider"/> with the Skia default typeface as fallback.
     /// </summary>
-    public InMemorySkiaFontProvider() => _fallback = SKTypeface.Default;
+    public InMemorySkiaFontProvider() => _fallback = new PdfTypeface(SKTypeface.Default);
 
     /// <summary>
     /// Registers font data to use as the fallback typeface when no registered font matches a requested name or glyph.
     /// </summary>
     /// <param name="fontData">Raw font file bytes (TTF, OTF, etc.).</param>
-    public void RegisterFallback(byte[] fontData)
-    {
-        SKTypeface typeface = SKTypeface.FromStream(new MemoryStream(fontData));
-
-        if (typeface == null)
-        {
-            throw new InvalidOperationException($"Invalid font data for fallback font.");
-        }
-
-        _fallback = typeface;
-        _ownsFallback = true;
-    }
+    public void RegisterFallback(byte[] fontData) => _fallback = new PdfTypeface(fontData);
 
     /// <summary>
     /// Registers font data for a standard PDF font name.
@@ -72,20 +55,14 @@ public sealed class InMemorySkiaFontProvider : ISkiaFontProvider
     /// <param name="fontData">Raw font file bytes (TTF, OTF, etc.).</param>
     public void RegisterStandardFont(PdfStandardFontName standardFont, byte[] fontData)
     {
-        SKTypeface typeface = SKTypeface.FromStream(new MemoryStream(fontData));
-
-        if (typeface == null)
-        {
-            throw new InvalidOperationException($"Invalid font data for {standardFont}.");
-        }
-
-        _ownedTypefaces.Add(typeface);
+        PdfTypeface typeface = new(fontData);
         _standardFonts[standardFont] = typeface;
 
         // Register by the typeface's own family name so GetFont can match it
-        if (!string.IsNullOrEmpty(typeface.FamilyName))
+        string? familyName = typeface.GetTypeface().FamilyName;
+        if (!string.IsNullOrEmpty(familyName))
         {
-            _namedFonts[typeface.FamilyName] = typeface;
+            _namedFonts[familyName] = typeface;
         }
 
         // Register by well-known display names that PDFs commonly reference
@@ -99,52 +76,33 @@ public sealed class InMemorySkiaFontProvider : ISkiaFontProvider
     }
 
     /// <inheritdoc/>
-    public SKTypeface? GetStandardFont(PdfStandardFontName standardFont, SKFontStyle style, string? unicode, float? width)
+    public PdfTypeface? GetStandardFont(PdfStandardFontName standardFont, SKFontStyle style, string? unicode, float? width)
     {
-        if (_standardFonts.TryGetValue(standardFont, out SKTypeface? typeface))
+        if (_standardFonts.TryGetValue(standardFont, out PdfTypeface? typeface) && typeface.ContainsGlyph(unicode))
         {
-            if (SkiaFontVariation.ContainsGlyphs(typeface, unicode))
-            {
-                return _variation.ApplyWidthVariation(typeface, unicode, width);
-            }
+            return typeface;
         }
 
         return null;
     }
 
     /// <inheritdoc/>
-    public SKTypeface GetFont(string? name, SKFontStyle style, string? unicode, float? width)
+    public PdfTypeface GetFont(string? name, SKFontStyle style, string? unicode, float? width)
     {
-        if (name != null && _namedFonts.TryGetValue(name, out SKTypeface? typeface))
+        if (name != null && _namedFonts.TryGetValue(name, out PdfTypeface? typeface) && typeface.ContainsGlyph(unicode))
         {
-            if (SkiaFontVariation.ContainsGlyphs(typeface, unicode))
-            {
-                return _variation.ApplyWidthVariation(typeface, unicode, width);
-            }
+            return typeface;
         }
 
-        return _variation.ApplyWidthVariation(_fallback, unicode, width);
+        return _fallback;
     }
 
     /// <summary>
-    /// Disposes all owned typeface instances, variation clones, and clears internal registrations.
+    /// Clears internal font registrations. Underlying native typefaces are released via finalizer.
     /// </summary>
     public void Dispose()
     {
-        _variation.Dispose();
-
-        foreach (SKTypeface typeface in _ownedTypefaces)
-        {
-            typeface.Dispose();
-        }
-
         _standardFonts.Clear();
         _namedFonts.Clear();
-        _ownedTypefaces.Clear();
-
-        if (_ownsFallback)
-        {
-            _fallback.Dispose();
-        }
     }
 }

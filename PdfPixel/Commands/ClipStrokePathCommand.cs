@@ -2,6 +2,7 @@ using PdfPixel.Color.Paint;
 using PdfPixel.Geometry;
 using PdfPixel.Models;
 using SkiaSharp;
+using System.IO;
 
 namespace PdfPixel.Commands;
 
@@ -12,21 +13,13 @@ namespace PdfPixel.Commands;
 public sealed class ClipStrokePathCommand : PdfCommand, IPathCommand
 {
     /// <summary>
-    /// Initializes the command with the given outline path and clip operation.
-    /// </summary>
-    public ClipStrokePathCommand(SKPath path, SKClipOperation operation)
-    {
-        Path = path;
-        Operation = operation;
-    }
-
-    /// <summary>
     /// Initializes the command with the given source path, stroke paint, and clip operation.
     /// The source path is converted to its stroked fill outline immediately.
     /// </summary>
     public ClipStrokePathCommand(PdfPath sourcePath, PdfPaint strokePaint, PdfClipOperation operation)
-        : this(BuildStrokeOutline(sourcePath, strokePaint), operation.ToSkClipOperation())
     {
+        Path = BuildStrokeOutline(sourcePath, strokePaint);
+        Operation = operation.ToSkClipOperation();
     }
 
     /// <inheritdoc />

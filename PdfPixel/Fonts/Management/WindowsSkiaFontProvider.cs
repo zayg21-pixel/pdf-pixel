@@ -7,14 +7,11 @@ namespace PdfPixel.Fonts.Management;
 
 /// <summary>
 /// Windows-specific Skia font provider that resolves standard PDF fonts and named fonts using system-installed families.
-/// When a width hint is provided and the resolved typeface supports the <c>wdth</c> variation axis,
-/// a variation-adjusted clone is returned and cached.
 /// </summary>
-public sealed class WindowsSkiaFontProvider : ISkiaFontProvider, IDisposable
+public sealed class WindowsSkiaFontProvider : ISkiaFontProvider
 {
     private readonly SKFontManager _fontManager;
     private readonly string? _fallbackFontName;
-    private readonly SkiaFontVariation _variation = new();
 
     private static readonly Dictionary<PdfStandardFontName, string[]> CandidatesMap = new()
     {
@@ -44,7 +41,7 @@ public sealed class WindowsSkiaFontProvider : ISkiaFontProvider, IDisposable
     }
 
     /// <inheritdoc/>
-    public SKTypeface? GetStandardFont(PdfStandardFontName standardFont, SKFontStyle style, string? unicode, float? width)
+    public PdfTypeface? GetStandardFont(PdfStandardFontName standardFont, SKFontStyle style, string? unicode, float? width)
     {
         if (!CandidatesMap.TryGetValue(standardFont, out string[]? candidates))
         {
@@ -54,9 +51,13 @@ public sealed class WindowsSkiaFontProvider : ISkiaFontProvider, IDisposable
         for (int i = 0; i < candidates.Length; i++)
         {
             SKTypeface matchedTypeface = _fontManager.MatchFamily(candidates[i], style);
-            if (matchedTypeface != null && SkiaFontVariation.ContainsGlyphs(matchedTypeface, unicode))
+            if (matchedTypeface != null)
             {
-                return _variation.ApplyWidthVariation(matchedTypeface, unicode, width);
+                PdfTypeface candidate = new(matchedTypeface);
+                if (candidate.ContainsGlyph(unicode))
+                {
+                    return candidate;
+                }
             }
         }
 
@@ -64,7 +65,7 @@ public sealed class WindowsSkiaFontProvider : ISkiaFontProvider, IDisposable
     }
 
     /// <inheritdoc/>
-    public SKTypeface GetFont(string? name, SKFontStyle style, string? unicode, float? width)
+    public PdfTypeface GetFont(string? name, SKFontStyle style, string? unicode, float? width)
     {
         if (string.IsNullOrEmpty(name))
         {
@@ -72,28 +73,28 @@ public sealed class WindowsSkiaFontProvider : ISkiaFontProvider, IDisposable
         }
 
         SKTypeface matchedTypeface = _fontManager.MatchFamily(name, style);
-        if (matchedTypeface != null && SkiaFontVariation.ContainsGlyphs(matchedTypeface, unicode))
+        if (matchedTypeface != null)
         {
-            return _variation.ApplyWidthVariation(matchedTypeface, unicode, width);
+            PdfTypeface candidate = new(matchedTypeface);
+            if (candidate.ContainsGlyph(unicode))
+            {
+                return candidate;
+            }
         }
 
         if (string.IsNullOrEmpty(unicode))
         {
-            return _variation.ApplyWidthVariation(_fontManager.MatchFamily(_fallbackFontName, style), unicode, width);
+            return new PdfTypeface(_fontManager.MatchFamily(_fallbackFontName, style));
         }
 
         if (unicode != null && unicode.Length > 0)
         {
-            return _variation.ApplyWidthVariation(_fontManager.MatchCharacter(_fallbackFontName, style, default, unicode[0]), unicode, width);
+            return new PdfTypeface(_fontManager.MatchCharacter(_fallbackFontName, style, default, unicode[0]));
         }
 
-        return _variation.ApplyWidthVariation(_fontManager.MatchFamily(_fallbackFontName), unicode, width);
+        return new PdfTypeface(_fontManager.MatchFamily(_fallbackFontName));
     }
 
     /// <inheritdoc/>
-    public void Dispose()
-    {
-        _variation.Dispose();
-        _fontManager?.Dispose();
-    }
+    public void Dispose() => _fontManager?.Dispose();
 }

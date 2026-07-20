@@ -2,7 +2,6 @@ using PdfPixel.Fonts.Management;
 using PdfPixel.Fonts.Mapping;
 using PdfPixel.Models;
 using PdfPixel.Text;
-using SkiaSharp;
 using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
@@ -36,7 +35,7 @@ public class PdfCompositeFont : PdfFontBase
     /// <summary>
     /// The typeface provided by the primary descendant CID font, or <see langword="null"/> when unavailable.
     /// </summary>
-    protected internal override SKTypeface? Typeface => PrimaryDescendant?.Typeface;
+    protected internal override PdfTypeface? Typeface => PrimaryDescendant?.Typeface;
 
     /// <summary>
     /// The writing mode (horizontal or vertical) determined from the CMap's WMode entry.

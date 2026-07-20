@@ -4,7 +4,6 @@ using PdfPixel.Fonts.Mapping;
 using PdfPixel.Fonts.TrueType;
 using PdfPixel.Models;
 using PdfPixel.Text;
-using SkiaSharp;
 using System;
 
 namespace PdfPixel.Fonts.Model;
@@ -17,7 +16,7 @@ namespace PdfPixel.Fonts.Model;
 public class PdfCidFont : PdfFontBase
 {
     private readonly ILogger<PdfCidFont> _logger;
-    private readonly SKTypeface _typeface;
+    private readonly PdfTypeface? _typeface;
     private readonly float[]? _widths;
 
     /// <summary>
@@ -32,7 +31,7 @@ public class PdfCidFont : PdfFontBase
         VerticalMetrics = CidFontVerticalMetrics.Parse(Dictionary);
         CidSystemInfo = LoadCidSystemInfo();
         CidToGidMap = LoadCidToGidMap();
-        (SKTypeface Typeface, CffInfo? CffInfo) typefaceInfo = GetTypeface();
+        (PdfTypeface? Typeface, CffInfo? CffInfo) typefaceInfo = GetTypeface();
         _typeface = typefaceInfo.Typeface;
 
         if (typefaceInfo.CffInfo != null && CidToGidMap == null)
@@ -41,19 +40,19 @@ public class PdfCidFont : PdfFontBase
             CidToGidMap = PdfCidToGidMap.FromCffFont(typefaceInfo.CffInfo);
         }
 
-        if (FontDescriptor != null && Widths.CidWidths.Count == 0 && Widths.DefaultWidth == null)
+        if (FontDescriptor != null && Widths.CidWidths.Count == 0 && Widths.DefaultWidth == null && _typeface != null)
         {
-            SfntFontTables tables = SfntFontTablesParser.GetSfntFontTables(_typeface);
+            SfntFontTables tables = SfntFontTablesParser.GetSfntFontTables(_typeface.GetTypeface());
             _widths = tables.GidWidths;
 
         }
     }
 
     /// <summary>
-    /// The embedded or substituted SkiaSharp typeface for this CID font.
+    /// The embedded or substituted typeface for this CID font.
     /// May be <see langword="null"/> when no embedded font data is present and no substitution has been applied.
     /// </summary>
-    protected internal override SKTypeface Typeface => _typeface;
+    protected internal override PdfTypeface? Typeface => _typeface;
 
     /// <summary>
     /// CID system information (Registry, Ordering, Supplement)
@@ -132,7 +131,7 @@ public class PdfCidFont : PdfFontBase
         return 0;
     }
 
-    private (SKTypeface Typeface, CffInfo? CffInfo) GetTypeface()
+    private (PdfTypeface? Typeface, CffInfo? CffInfo) GetTypeface()
     {
         try
         {
@@ -152,28 +151,12 @@ public class PdfCidFont : PdfFontBase
                         return LoadFromCffBytes(cffTableBytes);
                     }
 
-                    using SKData skFontData = SKData.CreateCopy(openTypeBytes.ToArray());
-                    SKTypeface typeface = SKTypeface.FromData(skFontData);
-
-                    if (typeface == null)
-                    {
-                        _logger.LogWarning("Failed to create typeface from embedded OpenType font data for font '{FontName}'", BaseFont);
-                        throw new InvalidOperationException("Failed to create typeface from embedded OpenType font data.");
-                    }
-
-                    return (typeface, null);
+                    return (new PdfTypeface(openTypeBytes), null);
                 }
                 case PdfFontFileFormat.TrueType:
                 {
-                    SKTypeface typeface = SKTypeface.FromStream(FontDescriptor.FontFileStream?.DecodeAsStream());
-
-                    if (typeface == null)
-                    {
-                        _logger.LogWarning("Failed to create typeface from embedded TrueType font data for font '{FontName}'", BaseFont);
-                        throw new InvalidOperationException("Failed to create typeface from embedded TrueType font data.");
-                    }
-
-                    return (typeface, null);
+                    ReadOnlyMemory<byte> trueTypeBytes = FontDescriptor.FontFileStream?.DecodeAsMemory() ?? ReadOnlyMemory<byte>.Empty;
+                    return (new PdfTypeface(trueTypeBytes), null);
                 }
             }
         }
@@ -192,7 +175,7 @@ public class PdfCidFont : PdfFontBase
     /// the font's typeface. Shared by CIDFontType0C and CFF-flavored OpenType FontFile3 data.
     /// </summary>
     /// <param name="cffBytes">The raw CFF font program bytes.</param>
-    private (SKTypeface Typeface, CffInfo? CffInfo) LoadFromCffBytes(in ReadOnlyMemory<byte> cffBytes)
+    private (PdfTypeface? Typeface, CffInfo? CffInfo) LoadFromCffBytes(in ReadOnlyMemory<byte> cffBytes)
     {
         CffSidGidMapper cffSidMapper = new(Document.LoggerFactory);
 
@@ -203,13 +186,7 @@ public class PdfCidFont : PdfFontBase
         }
 
         byte[]? typefaceData = CffOpenTypeWrapper.Wrap(FontDescriptor, cffInfo);
-        SKTypeface typeface = SKTypeface.FromData(SKData.CreateCopy(typefaceData));
-
-        if (typeface == null)
-        {
-            _logger.LogWarning("Failed to create typeface from embedded CFF font data for font '{FontName}'", BaseFont);
-            throw new InvalidOperationException("Failed to create typeface from embedded CFF font data.");
-        }
+        PdfTypeface typeface = new(typefaceData);
 
         return (typeface, cffInfo);
     }
@@ -282,13 +259,5 @@ public class PdfCidFont : PdfFontBase
 
         var cid = (uint)code;
         return GetGidByCid(cid);
-    }
-
-
-    /// <inheritdoc/>
-    protected override void Dispose(bool disposing)
-    {
-        _typeface?.Dispose();
-        base.Dispose(disposing);
     }
 }

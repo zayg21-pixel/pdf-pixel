@@ -12,27 +12,6 @@ namespace PdfPixel.Fonts;
 public static class PdfFontFactory
 {
     /// <summary>
-    /// Create a font object for text shaping and measurement.
-    /// </summary>
-    /// <param name="typeface">Typeface to use</param>
-    /// <returns>Configured SKFont</returns>
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    internal static SKFont CreateTextFont(SKTypeface typeface)
-    {
-        SKFont font = new()
-        {
-            Typeface = typeface,
-            Size = 1,
-            Subpixel = true,
-            LinearMetrics = true,
-            Hinting = SKFontHinting.Slight
-        };
-
-        // Skew/rotation are already represented in the text matrix applied at draw time.
-        return font;
-    }
-
-    /// <summary>
     /// Creates a deep copy of the given font, preserving all properties.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]

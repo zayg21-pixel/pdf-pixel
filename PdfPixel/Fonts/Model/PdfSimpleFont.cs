@@ -5,7 +5,6 @@ using PdfPixel.Fonts.TrueType;
 using PdfPixel.Fonts.Type1;
 using PdfPixel.Models;
 using PdfPixel.Text;
-using SkiaSharp;
 using System;
 
 namespace PdfPixel.Fonts.Model;
@@ -17,7 +16,7 @@ namespace PdfPixel.Fonts.Model;
 public class PdfSimpleFont : PdfSingleByteFont
 {
     private readonly ILogger<PdfSimpleFont> _logger;
-    private readonly SKTypeface? _typeface;
+    private readonly PdfTypeface? _typeface;
     private readonly IByteCodeToGidMapper? _mapper;
     private readonly bool _isSubstituted;
     private readonly SingleByteFontWidths? _standardFontWidths;
@@ -61,14 +60,14 @@ public class PdfSimpleFont : PdfSingleByteFont
     }
 
     /// <summary>
-    /// The embedded or substituted SkiaSharp typeface for this simple font.
+    /// The embedded or substituted typeface for this simple font.
     /// </summary>
-    protected internal override SKTypeface? Typeface => _typeface;
+    protected internal override PdfTypeface? Typeface => _typeface;
 
     /// <inheritdoc/>
     protected internal override bool IsSubstitutedFont => _isSubstituted;
 
-    private (SKTypeface? Typeface, IByteCodeToGidMapper? Mapper, bool IsSubstituted) GetTypefaceAndMapper()
+    private (PdfTypeface? Typeface, IByteCodeToGidMapper? Mapper, bool IsSubstituted) GetTypefaceAndMapper()
     {
         try
         {
@@ -77,20 +76,15 @@ public class PdfSimpleFont : PdfSingleByteFont
                 case PdfFontFileFormat.Type1:
                 {
                     CffInfo? cffInfo = Type1ToCffConverter.GetCffFont(FontDescriptor, Document.LoggerFactory);
-                    byte[]? typefaceData = CffOpenTypeWrapper.Wrap(FontDescriptor, cffInfo);
-                    SKTypeface typeface = SKTypeface.FromData(SKData.CreateCopy(typefaceData));
-
-                    if (typeface == null)
-                    {
-                        _logger.LogWarning("Failed to create typeface from embedded Type1 font data for font '{FontName}'", BaseFont);
-                        throw new InvalidOperationException("Failed to create typeface from embedded Type1 font data.");
-                    }
 
                     if (cffInfo == null)
                     {
                         _logger.LogWarning("Failed to get CFF font info for font '{FontName}'", BaseFont);
                         throw new InvalidOperationException("Failed to get CFF font info for font.");
                     }
+
+                    byte[]? typefaceData = CffOpenTypeWrapper.Wrap(FontDescriptor, cffInfo);
+                    PdfTypeface typeface = new(typefaceData);
 
                     if (Encoding.BaseEncoding == PdfFontEncoding.Unknown)
                     {
@@ -151,8 +145,8 @@ public class PdfSimpleFont : PdfSingleByteFont
         // different fallback typeface per glyph, which only the generic Unicode shaping path supports.
         if (standard14Encoding != null)
         {
-            SKTypeface substituteTypeface = Document.FontSubstitutor.SubstituteTypeface(SubstitutionInfo, null, null);
-            SfntFontTables substituteSfntTables = SfntFontTablesParser.GetSfntFontTables(substituteTypeface);
+            PdfTypeface substituteTypeface = Document.FontSubstitutor.SubstituteTypeface(SubstitutionInfo, null, null);
+            SfntFontTables substituteSfntTables = SfntFontTablesParser.GetSfntFontTables(substituteTypeface.GetTypeface());
             SfntByteCodeToGidMapper substituteMapper = new(substituteSfntTables, FontDescriptor?.Flags ?? default, substituted: true, Encoding);
 
             return (substituteTypeface, substituteMapper, true);
@@ -166,7 +160,7 @@ public class PdfSimpleFont : PdfSingleByteFont
     /// the font's typeface. Shared by Type1C and CFF-flavored OpenType FontFile3 data.
     /// </summary>
     /// <param name="cffBytes">The raw CFF font program bytes.</param>
-    private (SKTypeface? Typeface, IByteCodeToGidMapper? Mapper, bool IsSubstituted) LoadFromCffBytes(in ReadOnlyMemory<byte> cffBytes)
+    private (PdfTypeface? Typeface, IByteCodeToGidMapper? Mapper, bool IsSubstituted) LoadFromCffBytes(in ReadOnlyMemory<byte> cffBytes)
     {
         CffSidGidMapper cffSidMapper = new(Document.LoggerFactory);
 
@@ -184,14 +178,7 @@ public class PdfSimpleFont : PdfSingleByteFont
         Encoding.MergeCodeToName(cffInfo.CodeToName);
 
         byte[]? typefaceData = CffOpenTypeWrapper.Wrap(FontDescriptor, cffInfo);
-        using SKData skTypefaceData = SKData.CreateCopy(typefaceData);
-        SKTypeface typeface = SKTypeface.FromData(skTypefaceData);
-
-        if (typeface == null)
-        {
-            _logger.LogWarning("Failed to create typeface from embedded CFF font data for font '{FontName}'", BaseFont);
-            throw new InvalidOperationException("Failed to create typeface from embedded CFF font data.");
-        }
+        PdfTypeface typeface = new(typefaceData);
 
         CffByteCodeToGidMapper mapper = new(cffInfo, Encoding);
 
@@ -203,18 +190,10 @@ public class PdfSimpleFont : PdfSingleByteFont
     /// code-to-GID mapper from it.
     /// </summary>
     /// <param name="sfntBytes">The raw sfnt font program bytes.</param>
-    private (SKTypeface? Typeface, IByteCodeToGidMapper? Mapper, bool IsSubstituted) LoadFromSfntBytes(in ReadOnlyMemory<byte> sfntBytes)
+    private (PdfTypeface? Typeface, IByteCodeToGidMapper? Mapper, bool IsSubstituted) LoadFromSfntBytes(in ReadOnlyMemory<byte> sfntBytes)
     {
-        using SKData skFontData = SKData.CreateCopy(sfntBytes.ToArray());
-        SKTypeface typeface = SKTypeface.FromData(skFontData);
-
-        if (typeface == null)
-        {
-            _logger.LogWarning("Failed to create typeface from embedded sfnt font data for font '{FontName}'", BaseFont);
-            throw new InvalidOperationException("Failed to create typeface from embedded sfnt font data.");
-        }
-
-        SfntFontTables sfntTables = SfntFontTablesParser.GetSfntFontTables(typeface);
+        PdfTypeface typeface = new(sfntBytes);
+        SfntFontTables sfntTables = SfntFontTablesParser.GetSfntFontTables(typeface.GetTypeface());
 
         if (FontDescriptor != null && (FontDescriptor.Flags & PdfFontFlags.Symbolic) == 0 && Encoding.BaseEncoding == PdfFontEncoding.Unknown)
         {
@@ -245,12 +224,5 @@ public class PdfSimpleFont : PdfSingleByteFont
         }
 
         return _mapper.GetGid((byte)code);
-    }
-
-    /// <inheritdoc/>
-    protected override void Dispose(bool disposing)
-    {
-        _typeface?.Dispose();
-        base.Dispose(disposing);
     }
 }

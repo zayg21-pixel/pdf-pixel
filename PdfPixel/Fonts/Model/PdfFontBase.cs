@@ -1,8 +1,8 @@
 using PdfPixel.Fonts.Management;
 using PdfPixel.Fonts.Mapping;
+using PdfPixel.Geometry;
 using PdfPixel.Models;
 using PdfPixel.Text;
-using SkiaSharp;
 using System;
 using System.Collections.Concurrent;
 using System.Linq;
@@ -34,9 +34,9 @@ public abstract class PdfFontBase : IDisposable
     }
 
     /// <summary>
-    /// Returns the SkiaSharp SKTypeface instance for this PDF font.
+    /// Returns the typeface for this PDF font.
     /// </summary>
-    protected internal abstract SKTypeface? Typeface { get; }
+    protected internal abstract PdfTypeface? Typeface { get; }
 
     /// <summary>
     /// Writing mode for this font's CMap (horizontal/vertical).
@@ -104,15 +104,15 @@ public abstract class PdfFontBase : IDisposable
     public abstract VerticalMetric GetVerticalDisplacement(PdfCharacterCode code);
 
     /// <summary>
-    /// Returns the SkiaSharp SKTypeface instance for this PDF font.
+    /// Returns the typeface for this PDF font.
     /// When <see cref="IsSubstitutedFont"/> is <see langword="true"/>, re-resolves per glyph using the
     /// <paramref name="unicode"/>/<paramref name="width"/> hints instead of trusting a single fixed typeface,
     /// so glyphs missing from the primary substitute can still fall back to a different font.
     /// </summary>
     /// <param name="unicode">Hint for font substitution.</param>
     /// <param name="width">Optional horizontal scale hint (1.0 = normal). Mapped to the <c>wdth</c> axis when available.</param>
-    /// <returns>SKTypeface instance, should not be disposed.</returns>
-    internal SKTypeface GetTypeface(string? unicode, float? width)
+    /// <returns>A <see cref="PdfTypeface"/> instance.</returns>
+    internal PdfTypeface GetTypeface(string? unicode, float? width)
     {
         if (!IsSubstitutedFont && Typeface != null)
         {
@@ -184,48 +184,45 @@ public abstract class PdfFontBase : IDisposable
 
         if (gid != 0 && width != 0)
         {
-            SKTypeface typeface = GetTypeface(unicode, width);
+            PdfTypeface typeface = GetTypeface(unicode, width);
             float[] widths = [width];
-            (float xScale, SKPoint origin, float advancement) = GetScalingAndOrigin(unicode, displacement, width, widths);
+            (float xScale, PdfPoint origin, float advancement) = GetScalingAndOrigin(unicode, displacement, width, widths);
             return new PdfCharacterInfo(characterCode, typeface, unicode, [gid], width, widths, xScale, origin, advancement);
         }
         else if (gid != 0 && unicode?.Length > 0)
         {
-            SKTypeface typeface = GetTypeface(unicode, width);
-            using SKFont skFont = PdfFontFactory.CreateTextFont(typeface);
-            width = skFont.GetGlyphWidths(unicode).Sum();
+            PdfTypeface typeface = GetTypeface(unicode, width);
+            width = typeface.GetGlyphWidths(unicode).Sum();
             float[] widths = [width];
-            (float xScale, SKPoint origin, float advacement) = GetScalingAndOrigin(unicode, displacement, width, widths);
+            (float xScale, PdfPoint origin, float advacement) = GetScalingAndOrigin(unicode, displacement, width, widths);
 
             return new PdfCharacterInfo(characterCode, typeface, unicode, [gid], width, widths, xScale, origin, advacement);
         }
         else if (gid == 0 && width != 0 && unicode?.Length > 0)
         {
-            SKTypeface typeface = GetTypeface(unicode, width);
-            using SKFont skFont = PdfFontFactory.CreateTextFont(typeface);
-            ushort[] gids = skFont.GetGlyphs(unicode);
-            float[] widths = skFont.GetGlyphWidths(unicode);
-            (float xScale, SKPoint origin, float advacement) = GetScalingAndOrigin(unicode, displacement, width, widths);
+            PdfTypeface typeface = GetTypeface(unicode, width);
+            ushort[] gids = typeface.GetGlyphs(unicode);
+            float[] widths = typeface.GetGlyphWidths(unicode);
+            (float xScale, PdfPoint origin, float advacement) = GetScalingAndOrigin(unicode, displacement, width, widths);
 
             return new PdfCharacterInfo(characterCode, typeface, unicode, gids, width, widths, xScale, origin, advacement);
         }
         else if (unicode?.Length > 0)
         {
-            SKTypeface typeface = GetTypeface(unicode, width);
-            using SKFont skFont = PdfFontFactory.CreateTextFont(typeface);
-            ushort[] gids = skFont.GetGlyphs(unicode);
-            float[] widths = skFont.GetGlyphWidths(unicode);
+            PdfTypeface typeface = GetTypeface(unicode, width);
+            ushort[] gids = typeface.GetGlyphs(unicode);
+            float[] widths = typeface.GetGlyphWidths(unicode);
             width = widths.Sum();
-            (float xScale, SKPoint origin, float advacement) = GetScalingAndOrigin(unicode, displacement, width, widths);
+            (float xScale, PdfPoint origin, float advacement) = GetScalingAndOrigin(unicode, displacement, width, widths);
 
             return new PdfCharacterInfo(characterCode, typeface, unicode, gids, width, widths, xScale, origin, advacement);
         }
 
-        SKTypeface fallbackTypeface = GetTypeface(null, null);
-        return new PdfCharacterInfo(characterCode, fallbackTypeface, string.Empty, [0], 0, [0], 1, SKPoint.Empty, default);
+        PdfTypeface fallbackTypeface = GetTypeface(null, null);
+        return new PdfCharacterInfo(characterCode, fallbackTypeface, string.Empty, [0], 0, [0], 1, PdfPoint.Empty, default);
     }
 
-    private (float xScale, SKPoint Origin, float Advancement) GetScalingAndOrigin(string? unicode, in VerticalMetric verticalMetric, float originalWidth, float[] widths)
+    private (float xScale, PdfPoint Origin, float Advancement) GetScalingAndOrigin(string? unicode, in VerticalMetric verticalMetric, float originalWidth, float[] widths)
     {
         float totalWidth = widths.Sum();
         float xScale;
@@ -258,7 +255,7 @@ public abstract class PdfFontBase : IDisposable
             advancement = originalWidth;
         }
 
-        return (xScale, new SKPoint(offsetX, offsetY), advancement);
+        return (xScale, new PdfPoint(offsetX, offsetY), advancement);
     }
 
     /// <summary>

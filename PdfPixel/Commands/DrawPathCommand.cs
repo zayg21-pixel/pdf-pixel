@@ -12,34 +12,10 @@ public sealed class DrawPathCommand : PdfCommand, IPathCommand, IPaintCommand
     /// <summary>
     /// Initializes the command with the given path and paint.
     /// </summary>
-    public DrawPathCommand(SKPath path, SKPaint basePaint)
-    {
-        Path = path;
-        Paint = basePaint;
-    }
-
-    /// <summary>
-    /// Initializes the command with the given path and paint.
-    /// </summary>
-    public DrawPathCommand(PdfPath path, SKPaint basePaint)
-        : this(path.ToSkPath(), basePaint)
-    {
-    }
-
-    /// <summary>
-    /// Initializes the command with the given path and paint.
-    /// </summary>
-    public DrawPathCommand(SKPath path, PdfPaint basePaint)
-        : this(path, basePaint.ToSkiaPaint())
-    {
-    }
-
-    /// <summary>
-    /// Initializes the command with the given path and paint.
-    /// </summary>
     public DrawPathCommand(PdfPath path, PdfPaint basePaint)
-        : this(path.ToSkPath(), basePaint.ToSkiaPaint())
     {
+        Path = path.ToSkPath();
+        Paint = basePaint.ToSkiaPaint();
     }
 
     /// <inheritdoc />

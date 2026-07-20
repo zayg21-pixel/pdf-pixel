@@ -102,10 +102,10 @@ public class PdfTextRenderer : IPdfTextRenderer
             for (int i = 0; i < glyphs.Count; i++)
             {
                 ShapedGlyph glyph = glyphs[i];
-                SKTypeface typeface = glyph.CharacterInfo.Typeface;
+                PdfTypeface typeface = glyph.CharacterInfo.Typeface;
                 float scale = glyph.Scale;
 
-                if (skFont?.Typeface != typeface || Math.Abs(scale - skFont.ScaleX) / skFont.ScaleX >= scaleTolerancePercent)
+                if (skFont?.Typeface != typeface.GetTypeface() || Math.Abs(scale - skFont.ScaleX) / skFont.ScaleX >= scaleTolerancePercent)
                 {
                     if (glyphBuffer.Count > 0 && skFont != null)
                     {
@@ -115,7 +115,7 @@ public class PdfTextRenderer : IPdfTextRenderer
                     glyphBuffer.Clear();
                     skFont?.Dispose();
 
-                    skFont = PdfFontFactory.CreateTextFont(typeface);
+                    skFont = typeface.CreateTextFont();
                     skFont.ScaleX = scale;
                 }
 
@@ -131,8 +131,8 @@ public class PdfTextRenderer : IPdfTextRenderer
         }
         else if (glyphs.Count > 0)
         {
-            SKTypeface baseTypeface = glyphs[0].CharacterInfo.Typeface;
-            using SKFont skFont = PdfFontFactory.CreateTextFont(baseTypeface);
+            PdfTypeface baseTypeface = glyphs[0].CharacterInfo.Typeface;
+            using SKFont skFont = baseTypeface.CreateTextFont();
             DrawShapedText(processor, skFont, glyphs, state);
         }
     }

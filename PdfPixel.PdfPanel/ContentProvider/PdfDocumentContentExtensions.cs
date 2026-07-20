@@ -109,8 +109,8 @@ internal static class PdfDocumentContentExtensions
     private static void ApplyPageTransformations(IPdfPage pdfPage, PdfCommandRecorder commandRecording)
     {
         commandRecording.Process(new ClipRectangleCommand(
-            new SKRect(0, 0, pdfPage.CropBox.Width, pdfPage.CropBox.Height),
-            SKClipOperation.Intersect));
+            new PdfRectangle(0, 0, pdfPage.CropBox.Width, pdfPage.CropBox.Height),
+            PdfClipOperation.Intersect));
 
         commandRecording.Process(new ConcatMatrixCommand(
             PdfMatrix.CreateTranslation(-pdfPage.CropBox.Left, pdfPage.CropBox.Height + pdfPage.CropBox.Top)));
