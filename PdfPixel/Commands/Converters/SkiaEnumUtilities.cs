@@ -3,7 +3,7 @@ using PdfPixel.Models;
 using PdfPixel.Transparency.Model;
 using SkiaSharp;
 
-namespace PdfPixel.Commands;
+namespace PdfPixel.Commands.Converters;
 
 /// <summary>
 /// Converts PDF model enums to their SkiaSharp equivalents.

@@ -4,7 +4,6 @@ using PdfPixel.Commands;
 using PdfPixel.Text;
 using PdfPixel.Transparency.Model;
 using PdfPixel.Transparency.Utilities;
-using SkiaSharp;
 using System;
 using System.Collections.Generic;
 using PdfPixel.Geometry;
@@ -135,7 +134,7 @@ internal class PdfPage : IPdfPageInternal
 
         if (_transparencyGroup != null)
         {
-            processor.Process(new SaveLayerCommand(CropBox, (SKPaint?)null));
+            processor.Process(new SaveLayerCommand(CropBox));
         }
 
         contentRenderer.RenderContent(processor, renderingParameters, observer);

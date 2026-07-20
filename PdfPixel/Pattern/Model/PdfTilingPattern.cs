@@ -4,7 +4,6 @@ using PdfPixel.Models;
 using PdfPixel.Pattern.Utilities;
 using PdfPixel.Rendering;
 using PdfPixel.Rendering.State;
-using SkiaSharp;
 
 namespace PdfPixel.Pattern.Model;
 
@@ -76,10 +75,10 @@ public sealed class PdfTilingPattern : PdfPattern
             ? new UncoloredPaintModifier(renderTarget.Color)
             : default;
 
-        SKRect bounds = matrix.Invert().ToSkMatrix().MapRect(renderTarget.Bounds);
+        PdfRectangle bounds = matrix.Invert().MapRect(renderTarget.Bounds);
 
         DrawRecordingCommand recordingCommand = new(tileRecorder, modifier);
-        processor.Process(new DrawTilingCommand(matrix.ToSkMatrix(), bounds, BBox.ToSkRect(), XStep, YStep, recordingCommand));
+        processor.Process(new DrawTilingCommand(matrix.ToSkMatrix(), bounds.ToSkRect(), BBox.ToSkRect(), XStep, YStep, recordingCommand));
 
         renderTarget.AfterPatternRender(processor);
     }

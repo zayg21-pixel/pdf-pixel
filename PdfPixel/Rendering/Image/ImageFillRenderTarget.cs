@@ -3,6 +3,7 @@ using PdfPixel.Color;
 using PdfPixel.Color.Paint;
 using PdfPixel.Commands;
 using PdfPixel.Commands.Image;
+using PdfPixel.Geometry;
 using PdfPixel.Imaging.Model;
 using PdfPixel.Pattern.Model;
 using PdfPixel.Rendering.State;
@@ -33,7 +34,7 @@ internal class ImageFillRenderTarget : IRenderTarget
     }
 
     // The image occupies the unit square in current CTM space.
-    public SKRect Bounds => SKRect.Create(0, 0, 1, 1);
+    public PdfRectangle Bounds => new(0, 0, 1, 1);
 
     public PdfColor Color => _state.FillPaint.Color;
 

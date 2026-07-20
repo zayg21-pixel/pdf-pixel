@@ -1,4 +1,6 @@
+using PdfPixel.Commands.Converters;
 using PdfPixel.Geometry;
+using PdfPixel.Models;
 using SkiaSharp;
 
 namespace PdfPixel.Commands;
@@ -21,8 +23,8 @@ public sealed class ClipPathCommand : PdfCommand, IPathCommand
     /// <summary>
     /// Initializes the command with the given path and clip operation.
     /// </summary>
-    public ClipPathCommand(PdfPath path, SKClipOperation operation)
-        : this(path.ToSkPath(), operation)
+    public ClipPathCommand(PdfPath path, PdfClipOperation operation)
+        : this(path.ToSkPath(), SkiaEnumUtilities.ToSkClipOperation(operation))
     {
     }
 

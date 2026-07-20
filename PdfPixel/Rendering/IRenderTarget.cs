@@ -1,5 +1,6 @@
 using PdfPixel.Color;
 using PdfPixel.Commands;
+using PdfPixel.Geometry;
 using SkiaSharp;
 using System;
 
@@ -24,7 +25,7 @@ namespace PdfPixel.Rendering
         /// For path/text targets this is derived from the clip path bounds;
         /// for image targets it is the unit square [0,0,1,1].
         /// </summary>
-        SKRect Bounds { get; }
+        PdfRectangle Bounds { get; }
 
         /// <summary>
         /// Returns color of the render target if applicable.

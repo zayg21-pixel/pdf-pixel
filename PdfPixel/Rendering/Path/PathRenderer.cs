@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Logging;
 using PdfPixel.Color.Paint;
 using PdfPixel.Commands;
+using PdfPixel.Geometry;
 using PdfPixel.Rendering.State;
 using PdfPixel.Transparency.Model;
 using PdfPixel.Transparency.Utilities;
@@ -36,21 +37,21 @@ public class PathRenderer : IPathRenderer
     /// Handles pattern paints, soft masks, and combined fill+stroke layering.
     /// Note: FlatnessTolerance from graphics state is ignored, as SkiaSharp does not support curve flattening control.
     /// </summary>
-    public void DrawPath(IPdfCommandProcessor processor, SKPath path, PdfGraphicsState state, PdfPaintOperation operation)
+    public void DrawPath(IPdfCommandProcessor processor, PdfPath path, PdfGraphicsState state, PdfPaintOperation operation)
     {
         if (processor == null)
         {
             throw new ArgumentNullException(nameof(processor));
         }
 
+        if (path == null)
+        {
+            throw new ArgumentNullException(nameof(path));
+        }
+
         if (state == null)
         {
             throw new ArgumentNullException(nameof(state));
-        }
-
-        if (path?.IsEmpty != false)
-        {
-            return;
         }
 
         if (!state.RenderingParameters.RenderPaths)
@@ -63,7 +64,7 @@ public class PathRenderer : IPathRenderer
 
         using SoftMaskDrawingScope softMaskScope = new(_renderer, processor, state);
         softMaskScope.BeginDrawContent();
-        DrawPathCore(processor, path, state, operation);
+        DrawPathCore(processor, path.ToSkPath(), state, operation);
         softMaskScope.EndDrawContent();
     }
 
@@ -78,13 +79,13 @@ public class PathRenderer : IPathRenderer
         {
             case PdfPaintOperation.Stroke:
             {
-                using PathStrokeRenderTarget target = new(new SKPath(path), state);
+                using PathStrokeRenderTarget target = new(path, state);
                 target.Render(processor);
                 break;
             }
             case PdfPaintOperation.Fill:
             {
-                using PathFillRenderTarget target = new(new SKPath(path), state);
+                using PathFillRenderTarget target = new(path, state);
                 target.Render(processor);
                 break;
             }
@@ -103,18 +104,18 @@ public class PathRenderer : IPathRenderer
                     processor.Process(SaveStateCommand.Instance);
                     processor.Process(new ClipPathCommand(strokeOutline, SKClipOperation.Difference));
 
-                    using PathFillRenderTarget clippedFillTarget = new(new SKPath(path), state);
+                    using PathFillRenderTarget clippedFillTarget = new(path, state);
                     clippedFillTarget.Render(processor);
 
                     processor.Process(RestoreStateCommand.Instance);
                 }
                 else
                 {
-                    using PathFillRenderTarget fillTarget = new(new SKPath(path), state);
+                    using PathFillRenderTarget fillTarget = new(path, state);
                     fillTarget.Render(processor);
                 }
 
-                using PathStrokeRenderTarget strokeTarget = new(new SKPath(path), state);
+                using PathStrokeRenderTarget strokeTarget = new(path, state);
                 strokeTarget.Render(processor);
 
                 break;

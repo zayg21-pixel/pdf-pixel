@@ -1,6 +1,7 @@
 using PdfPixel.Color;
 using PdfPixel.Color.Paint;
 using PdfPixel.Commands;
+using PdfPixel.Geometry;
 using PdfPixel.Pattern.Model;
 using PdfPixel.Rendering.State;
 using SkiaSharp;
@@ -27,7 +28,7 @@ internal class PathFillRenderTarget : IRenderTarget
         }
     }
 
-    public SKRect Bounds => _path.Bounds;
+    public PdfRectangle Bounds => new(_path.Bounds.Left, _path.Bounds.Top, _path.Bounds.Right, _path.Bounds.Bottom);
 
     public PdfColor Color => _state.FillPaint.Color;
 

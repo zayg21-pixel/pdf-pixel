@@ -34,7 +34,7 @@ internal class TextFillRenderTarget : IRenderTarget
         }
     }
 
-    public SKRect Bounds => _clipPath?.Bounds ?? SKRect.Empty;
+    public PdfRectangle Bounds => (_clipPath == null) ? PdfRectangle.Empty : new(_clipPath.Bounds.Left, _clipPath.Bounds.Top, _clipPath.Bounds.Right, _clipPath.Bounds.Bottom);
 
     public PdfColor Color => _state.FillPaint.Color;
 

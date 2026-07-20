@@ -4,7 +4,6 @@ using PdfPixel.Geometry;
 using PdfPixel.Models;
 using PdfPixel.Rendering.State;
 using PdfPixel.Text;
-using SkiaSharp;
 
 namespace PdfPixel.Rendering.Operators;
 
@@ -164,7 +163,7 @@ internal class TextOperators : IOperatorProcessor
 
         if (graphicsState.TextClipPath != null)
         {
-            _processor.Process(new ClipPathCommand(graphicsState.TextClipPath, SKClipOperation.Intersect));
+            _processor.Process(new ClipPathCommand(graphicsState.TextClipPath, PdfClipOperation.Intersect));
             graphicsState.TextClipPath = null;
         }
     }

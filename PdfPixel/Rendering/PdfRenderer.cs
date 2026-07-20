@@ -5,16 +5,13 @@ using PdfPixel.Fonts.Model;
 using PdfPixel.Forms;
 using PdfPixel.Geometry;
 using PdfPixel.Imaging.Model;
-using PdfPixel.Models;
 using PdfPixel.Rendering.Form;
 using PdfPixel.Rendering.Image;
 using PdfPixel.Rendering.Path;
 using PdfPixel.Rendering.Shading;
 using PdfPixel.Rendering.State;
-using PdfPixel.Rendering.Text;
 using PdfPixel.Shading.Model;
 using PdfPixel.Text;
-using SkiaSharp;
 using System.Collections.Generic;
 
 namespace PdfPixel.Rendering;
@@ -57,7 +54,7 @@ public class PdfRenderer : IPdfRenderer
     /// <summary>
     /// Draw a path with the specified operation and fill type.
     /// </summary>
-    public void DrawPath(IPdfCommandProcessor processor, SKPath path, PdfGraphicsState state, PdfPaintOperation operation) => _pathRenderer.DrawPath(processor, path, state, operation);
+    public void DrawPath(IPdfCommandProcessor processor, PdfPath path, PdfGraphicsState state, PdfPaintOperation operation) => _pathRenderer.DrawPath(processor, path, state, operation);
 
     /// <summary>
     /// Draw an image in PDF unit coordinate space.

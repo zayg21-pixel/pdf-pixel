@@ -1,6 +1,7 @@
 using PdfPixel.Color;
 using PdfPixel.Color.Paint;
 using PdfPixel.Commands;
+using PdfPixel.Geometry;
 using PdfPixel.Pattern.Model;
 using PdfPixel.Rendering.State;
 using PdfPixel.Text;
@@ -46,7 +47,7 @@ internal class TextStrokeRenderTarget : IRenderTarget
         }
     }
 
-    public SKRect Bounds => _clipPath?.Bounds ?? SKRect.Empty;
+    public PdfRectangle Bounds => (_clipPath == null) ? PdfRectangle.Empty : new(_clipPath.Bounds.Left, _clipPath.Bounds.Top, _clipPath.Bounds.Right, _clipPath.Bounds.Bottom);
 
     public PdfColor Color => _state.StrokePaint.Color;
 

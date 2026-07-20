@@ -1,7 +1,6 @@
 using PdfPixel.Commands.Image;
 using PdfPixel.Imaging.Processing;
 using SkiaSharp;
-using System.Collections.Generic;
 using System.Globalization;
 
 namespace PdfPixel.Commands;

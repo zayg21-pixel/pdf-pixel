@@ -42,7 +42,7 @@ namespace PdfPixel.Rendering
         /// <param name="path">The path to render.</param>
         /// <param name="state">The current graphics state for rendering.</param>
         /// <param name="operation">The paint operation (stroke, fill, etc.).</param>
-        void DrawPath(IPdfCommandProcessor processor, SKPath path, PdfGraphicsState state, PdfPaintOperation operation);
+        void DrawPath(IPdfCommandProcessor processor, PdfPath path, PdfGraphicsState state, PdfPaintOperation operation);
 
         /// <summary>
         /// Draws a shading pattern using the given graphics state.

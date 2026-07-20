@@ -1,7 +1,7 @@
 using PdfPixel.Color;
 using PdfPixel.Color.ColorSpace;
 using PdfPixel.Color.Transform;
-using PdfPixel.Commands;
+using PdfPixel.Commands.Converters;
 using PdfPixel.Imaging.Model;
 using PdfPixel.Models;
 using PdfPixel.Rendering.State;

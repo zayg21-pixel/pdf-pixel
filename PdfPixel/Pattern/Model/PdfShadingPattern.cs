@@ -8,7 +8,6 @@ using PdfPixel.Models;
 using PdfPixel.Rendering;
 using PdfPixel.Rendering.State;
 using PdfPixel.Shading.Model;
-using SkiaSharp;
 
 namespace PdfPixel.Pattern.Model;
 
@@ -67,10 +66,10 @@ public sealed class PdfShadingPattern : PdfPattern
             PdfColor backgroundColor = colorSpace.ToSrgb(Shading.Background, state.RenderingIntent, state.FullTransferFunction);
             PdfPaint backgroundPaint = PdfPaintFactory.CreateBackgroundPaint(backgroundColor);
 
-            using SKPathBuilder rectPathBuilder = new();
-            rectPathBuilder.AddRect(Shading.BBox.Value.ToSkRect());
+            PdfPath rectPath = new();
+            rectPath.AddRect(Shading.BBox.Value);
 
-            recorder.Process(new DrawPathCommand(rectPathBuilder.Detach(), backgroundPaint));
+            recorder.Process(new DrawPathCommand(rectPath, backgroundPaint));
         }
 
         ShadingDecodingContext context = new(state, Shading);

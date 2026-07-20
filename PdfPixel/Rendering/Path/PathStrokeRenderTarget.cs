@@ -1,6 +1,6 @@
 using PdfPixel.Color;
-using PdfPixel.Color.Paint;
 using PdfPixel.Commands;
+using PdfPixel.Geometry;
 using PdfPixel.Pattern.Model;
 using PdfPixel.Rendering.State;
 using SkiaSharp;
@@ -36,7 +36,7 @@ internal class PathStrokeRenderTarget : IRenderTarget
         }
     }
 
-    public SKRect Bounds => _clipPath.Bounds;
+    public PdfRectangle Bounds => new(_clipPath.Bounds.Left, _clipPath.Bounds.Top, _clipPath.Bounds.Right, _clipPath.Bounds.Bottom);
 
     public PdfColor Color => _state.StrokePaint.Color;
 
