@@ -73,9 +73,9 @@ public class PdfStampAnnotation : PdfAnnotationBase
     {
         PdfPaint borderPaint = PdfAnnotationPaintFactory.CreateStampBorderPaint(color, borderWidth);
 
-        PdfPath borderPath = new();
+        PdfPathBuilder borderPath = new();
         borderPath.AddRoundRect(borderRect, cornerRadius, cornerRadius);
-        processor.Process(new DrawPathCommand(borderPath, borderPaint));
+        processor.Process(new DrawPathCommand(borderPath.ToPath(), borderPaint));
     }
 
     private void DrawLabel(IPdfCommandProcessor processor, IPdfPageInternal page, string labelText, in PdfColor color)

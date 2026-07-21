@@ -84,10 +84,10 @@ public class PdfLinkAnnotation : PdfTextMarkupAnnotation
         if (BorderStyle.BorderStyleType == PdfBorderStyleType.Underline)
         {
             float y = Rectangle.Top - (borderWidth / 2);
-            PdfPath linePath = new();
+            PdfPathBuilder linePath = new();
             linePath.MoveTo(Rectangle.Left, y);
             linePath.LineTo(Rectangle.Right, y);
-            processor.Process(new DrawPathCommand(linePath, paint));
+            processor.Process(new DrawPathCommand(linePath.ToPath(), paint));
         }
         else
         {
@@ -97,9 +97,9 @@ public class PdfLinkAnnotation : PdfTextMarkupAnnotation
                 Rectangle.Right - (borderWidth / 2),
                 Rectangle.Bottom - (borderWidth / 2));
 
-            PdfPath rectPath = new();
+            PdfPathBuilder rectPath = new();
             rectPath.AddRect(rect);
-            processor.Process(new DrawPathCommand(rectPath, paint));
+            processor.Process(new DrawPathCommand(rectPath.ToPath(), paint));
         }
 
         return true;

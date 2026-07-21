@@ -53,7 +53,7 @@ internal static class PdfPathConverter
     /// </summary>
     internal static PdfPath ToPdfPath(this SKPath path)
     {
-        PdfPath result = new() { FillType = (path.FillType == SKPathFillType.EvenOdd) ? PdfPathFillType.EvenOdd : PdfPathFillType.Winding };
+        PdfPathBuilder result = new() { FillType = (path.FillType == SKPathFillType.EvenOdd) ? PdfPathFillType.EvenOdd : PdfPathFillType.Winding };
 
         using SKPath.Iterator iterator = path.CreateIterator(false);
         var points = new SKPoint[4];
@@ -91,10 +91,10 @@ internal static class PdfPathConverter
             }
         }
 
-        return result;
+        return result.ToPath();
     }
 
-    private static void AddQuadratic(PdfPath path, SKPoint start, SKPoint control, SKPoint end)
+    private static void AddQuadratic(PdfPathBuilder path, SKPoint start, SKPoint control, SKPoint end)
     {
         const float TwoThirds = 2f / 3f;
 

@@ -163,7 +163,7 @@ internal class TextOperators : IOperatorProcessor
 
         if (graphicsState.TextClipPath != null)
         {
-            _processor.Process(new ClipPathCommand(graphicsState.TextClipPath, PdfClipOperation.Intersect));
+            _processor.Process(new ClipPathCommand(graphicsState.TextClipPath.ToPath(), PdfClipOperation.Intersect));
             graphicsState.TextClipPath = null;
         }
     }

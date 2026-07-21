@@ -105,18 +105,18 @@ public class PdfInkAnnotation : PdfAnnotationBase
                 continue;
             }
 
-            PdfPath path = new();
+            PdfPathBuilder path = new();
             BuildSmoothPath(path, points);
 
             PdfPaint paint = PdfAnnotationPaintFactory.CreateStrokePaint(inkColor, StrokeStyle);
 
-            processor.Process(new DrawPathCommand(path, paint));
+            processor.Process(new DrawPathCommand(path.ToPath(), paint));
         }
 
         return true;
     }
 
-    private static void BuildSmoothPath(PdfPath path, PdfPoint[] points)
+    private static void BuildSmoothPath(PdfPathBuilder path, PdfPoint[] points)
     {
         path.MoveTo(points[0]);
 

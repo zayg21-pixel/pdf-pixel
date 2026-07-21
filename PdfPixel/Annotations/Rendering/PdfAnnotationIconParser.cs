@@ -70,7 +70,8 @@ internal static class PdfAnnotationIconParser
     private static PdfAnnotationIconPath ParsePath(XElement pathElement)
     {
         string pathData = RequireAttribute(pathElement, "d");
-        PdfPath path = PdfAnnotationSvgPathParser.Parse(pathData);
+        PdfPathFillType fillType = ParseFillType(pathElement.Attribute("fill-rule")?.Value ?? "nonzero");
+        PdfPath path = PdfAnnotationSvgPathParser.Parse(pathData, fillType);
 
         (PdfAnnotationIconColorType fillColorType, PdfColor fillColor) = ParseColorValue(pathElement.Attribute("fill")?.Value);
         (PdfAnnotationIconColorType strokeColorType, PdfColor strokeColor) = ParseColorValue(pathElement.Attribute("stroke")?.Value);
@@ -80,8 +81,6 @@ internal static class PdfAnnotationIconParser
         PdfStrokeJoin strokeJoin = ParseStrokeJoin(pathElement.Attribute("stroke-linejoin")?.Value ?? "miter");
         float fillOpacity = ParseFloatValue(pathElement.Attribute("fill-opacity")?.Value ?? "1");
         float strokeOpacity = ParseFloatValue(pathElement.Attribute("stroke-opacity")?.Value ?? "1");
-
-        path.FillType = ParseFillType(pathElement.Attribute("fill-rule")?.Value ?? "nonzero");
 
         return new PdfAnnotationIconPath(path, fillColorType, fillColor, strokeColorType, strokeColor, strokeWidth, strokeCap, strokeJoin, fillOpacity, strokeOpacity);
     }

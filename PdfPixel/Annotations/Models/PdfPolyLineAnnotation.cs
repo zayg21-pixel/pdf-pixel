@@ -88,7 +88,7 @@ public class PdfPolyLineAnnotation : PdfAnnotationBase
 
         PdfColor lineColor = ResolveColor(page, PdfColors.Black);
 
-        PdfPath path = new();
+        PdfPathBuilder path = new();
 
         path.MoveTo(Vertices[0]);
 
@@ -99,7 +99,7 @@ public class PdfPolyLineAnnotation : PdfAnnotationBase
 
         PdfPaint linePaint = PdfAnnotationPaintFactory.CreateStrokePaint(lineColor, StrokeStyle);
 
-        processor.Process(new DrawPathCommand(path, linePaint));
+        processor.Process(new DrawPathCommand(path.ToPath(), linePaint));
 
         PdfColor interiorColor = ResolveInteriorColor(page);
 

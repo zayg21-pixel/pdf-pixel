@@ -45,9 +45,9 @@ public class PdfSquareAnnotation : PdfAnnotationBase
 
         if (interiorColor != PdfColors.Transparent)
         {
-            PdfPath fillPath = new();
+            PdfPathBuilder fillPath = new();
             fillPath.AddRect(ContentRectangle);
-            processor.Process(new DrawPathCommand(fillPath, PdfAnnotationPaintFactory.CreateFillPaint(interiorColor)));
+            processor.Process(new DrawPathCommand(fillPath.ToPath(), PdfAnnotationPaintFactory.CreateFillPaint(interiorColor)));
         }
 
         if (BorderStyle != null && BorderStyle.LineWidth > 0 && Color?.Length > 0)
@@ -63,9 +63,9 @@ public class PdfSquareAnnotation : PdfAnnotationBase
                 ContentRectangle.Right - halfBorder,
                 ContentRectangle.Bottom - halfBorder);
 
-            PdfPath strokePath = new();
+            PdfPathBuilder strokePath = new();
             strokePath.AddRect(adjustedRect);
-            processor.Process(new DrawPathCommand(strokePath, strokePaint));
+            processor.Process(new DrawPathCommand(strokePath.ToPath(), strokePaint));
         }
 
         return true;

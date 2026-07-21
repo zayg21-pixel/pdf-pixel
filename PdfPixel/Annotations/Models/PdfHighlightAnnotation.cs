@@ -37,7 +37,7 @@ public class PdfHighlightAnnotation : PdfTextMarkupAnnotation
 
         foreach (PdfPoint[] quad in quads)
         {
-            PdfPath path = new();
+            PdfPathBuilder path = new();
             path.MoveTo(quad[0]);
             path.LineTo(quad[1]);
             path.LineTo(quad[2]);
@@ -46,7 +46,7 @@ public class PdfHighlightAnnotation : PdfTextMarkupAnnotation
 
             PdfPaint paint = PdfAnnotationPaintFactory.CreateHighlightPaint(color);
 
-            processor.Process(new DrawPathCommand(path, paint));
+            processor.Process(new DrawPathCommand(path.ToPath(), paint));
         }
 
         return true;

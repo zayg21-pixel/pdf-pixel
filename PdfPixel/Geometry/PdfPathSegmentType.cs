@@ -1,27 +1,28 @@
 namespace PdfPixel.Geometry;
 
 /// <summary>
-/// Identifies the kind of a <see cref="PdfPathSegment"/>.
+/// Identifies the kind of a <see cref="PdfPathSegment"/>. The numeric value doubles as the tag byte
+/// written into <see cref="PdfPath"/>'s internal binary buffer ahead of each segment's points.
 /// </summary>
-public enum PdfPathSegmentType
+public enum PdfPathSegmentType : byte
 {
     /// <summary>
     /// Starts a new subpath at a point.
     /// </summary>
-    MoveTo,
+    MoveTo = 1,
 
     /// <summary>
     /// Draws a straight line to a point.
     /// </summary>
-    LineTo,
+    LineTo = 2,
 
     /// <summary>
     /// Draws a cubic Bézier curve through two control points to an end point.
     /// </summary>
-    CubicTo,
+    CubicTo = 3,
 
     /// <summary>
     /// Closes the current subpath with a straight line back to its start.
     /// </summary>
-    Close
+    Close = 4
 }

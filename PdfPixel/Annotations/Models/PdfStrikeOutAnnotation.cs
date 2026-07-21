@@ -44,10 +44,10 @@ public class PdfStrikeOutAnnotation : PdfTextMarkupAnnotation
 
             PdfPaint paint = PdfAnnotationPaintFactory.CreateStrokePaint(color);
 
-            PdfPath linePath = new();
+            PdfPathBuilder linePath = new();
             linePath.MoveTo(startX, startY);
             linePath.LineTo(endX, endY);
-            processor.Process(new DrawPathCommand(linePath, paint));
+            processor.Process(new DrawPathCommand(linePath.ToPath(), paint));
         }
 
         return true;

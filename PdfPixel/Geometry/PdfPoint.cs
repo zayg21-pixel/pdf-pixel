@@ -1,11 +1,13 @@
 using PdfPixel.Models;
 using System.Globalization;
+using System.Runtime.InteropServices;
 
 namespace PdfPixel.Geometry;
 
 /// <summary>
 /// A point defined by its X and Y coordinates.
 /// </summary>
+[StructLayout(LayoutKind.Sequential)]
 public readonly struct PdfPoint
 {
     /// <summary>

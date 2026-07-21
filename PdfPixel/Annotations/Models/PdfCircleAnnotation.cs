@@ -50,9 +50,9 @@ public class PdfCircleAnnotation : PdfAnnotationBase
 
         if (interiorColor != PdfColors.Transparent)
         {
-            PdfPath fillPath = new();
+            PdfPathBuilder fillPath = new();
             fillPath.AddOval(new PdfRectangle(centerX - (width / 2), centerY - (height / 2), centerX + (width / 2), centerY + (height / 2)));
-            processor.Process(new DrawPathCommand(fillPath, PdfAnnotationPaintFactory.CreateFillPaint(interiorColor)));
+            processor.Process(new DrawPathCommand(fillPath.ToPath(), PdfAnnotationPaintFactory.CreateFillPaint(interiorColor)));
         }
 
         if (BorderStyle != null && BorderStyle.LineWidth > 0 && Color?.Length > 0)
@@ -64,13 +64,13 @@ public class PdfCircleAnnotation : PdfAnnotationBase
             float adjustedWidth = width - BorderStyle.LineWidth;
             float adjustedHeight = height - BorderStyle.LineWidth;
 
-            PdfPath strokePath = new();
+            PdfPathBuilder strokePath = new();
             strokePath.AddOval(new PdfRectangle(
                 centerX - (adjustedWidth / 2),
                 centerY - (adjustedHeight / 2),
                 centerX + (adjustedWidth / 2),
                 centerY + (adjustedHeight / 2)));
-            processor.Process(new DrawPathCommand(strokePath, strokePaint));
+            processor.Process(new DrawPathCommand(strokePath.ToPath(), strokePaint));
         }
 
         return true;

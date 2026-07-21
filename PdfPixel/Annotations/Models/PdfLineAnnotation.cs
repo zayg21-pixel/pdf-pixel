@@ -112,10 +112,10 @@ public class PdfLineAnnotation : PdfAnnotationBase
 
         PdfPaint linePaint = PdfAnnotationPaintFactory.CreateStrokePaint(lineColor, StrokeStyle);
 
-        PdfPath linePath = new();
+        PdfPathBuilder linePath = new();
         linePath.MoveTo(StartX, StartY);
         linePath.LineTo(EndX, EndY);
-        processor.Process(new DrawPathCommand(linePath, linePaint));
+        processor.Process(new DrawPathCommand(linePath.ToPath(), linePaint));
 
         PdfColor interiorColor = ResolveInteriorColor(page);
 

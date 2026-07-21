@@ -1,17 +1,20 @@
-using PdfPixel.Geometry;
 using System;
 
 namespace PdfPixel.Geometry;
 
 /// <summary>
-/// A single segment of a <see cref="PdfPath"/>.
+/// A view over a single segment read from a <see cref="PdfPath"/>'s internal binary buffer.
 /// </summary>
-public sealed class PdfPathSegment
+public readonly ref struct PdfPathSegment
 {
     /// <summary>
-    /// Initializes a new <see cref="PdfPathSegment"/> from its type and points.
+    /// Initializes a new <see cref="PdfPathSegment"/> view over its type and points.
     /// </summary>
-    public PdfPathSegment(PdfPathSegmentType type, PdfPoint[] points)
+    // RCS1231 disabled: points is stored into a field and returned to the caller. An "in" parameter's
+    // dereferenced value cannot be returned past the current call, so this must stay a by-value parameter.
+#pragma warning disable RCS1231
+    public PdfPathSegment(PdfPathSegmentType type, ReadOnlySpan<PdfPoint> points)
+#pragma warning restore RCS1231
     {
         Type = type;
         Points = points;
@@ -27,26 +30,5 @@ public sealed class PdfPathSegment
     /// and <see cref="PdfPathSegmentType.LineTo"/>, three for <see cref="PdfPathSegmentType.CubicTo"/>
     /// (control point 1, control point 2, end point), none for <see cref="PdfPathSegmentType.Close"/>.
     /// </summary>
-    public PdfPoint[] Points { get; }
-
-    /// <summary>
-    /// Creates a <see cref="PdfPathSegmentType.MoveTo"/> segment.
-    /// </summary>
-    public static PdfPathSegment MoveTo(in PdfPoint point) => new(PdfPathSegmentType.MoveTo, [point]);
-
-    /// <summary>
-    /// Creates a <see cref="PdfPathSegmentType.LineTo"/> segment.
-    /// </summary>
-    public static PdfPathSegment LineTo(in PdfPoint point) => new(PdfPathSegmentType.LineTo, [point]);
-
-    /// <summary>
-    /// Creates a <see cref="PdfPathSegmentType.CubicTo"/> segment.
-    /// </summary>
-    public static PdfPathSegment CubicTo(in PdfPoint control1, in PdfPoint control2, in PdfPoint end)
-        => new(PdfPathSegmentType.CubicTo, [control1, control2, end]);
-
-    /// <summary>
-    /// Creates a <see cref="PdfPathSegmentType.Close"/> segment.
-    /// </summary>
-    public static PdfPathSegment Close() => new(PdfPathSegmentType.Close, Array.Empty<PdfPoint>());
+    public ReadOnlySpan<PdfPoint> Points { get; }
 }

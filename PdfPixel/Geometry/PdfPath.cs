@@ -1,24 +1,48 @@
 using System;
-using System.Collections.Generic;
 
 namespace PdfPixel.Geometry;
 
 /// <summary>
-/// A geometric path built from move, line, cubic curve, and close segments.
+/// An immutable geometric path built from move, line, cubic curve, and close segments. Segments are
+/// stored in a single binary buffer: each segment is a one-byte <see cref="PdfPathSegmentType"/> tag
+/// followed by its points, since the point count for every segment type is fixed and known from the tag.
+/// Build one incrementally with <see cref="PdfPathBuilder"/>.
 /// </summary>
 public sealed class PdfPath
 {
-    private readonly List<PdfPathSegment> _segments = [];
+    internal const int PointSizeBytes = sizeof(float) * 2;
+
+    private readonly ReadOnlyMemory<byte> _buffer;
+
+    /// <summary>
+    /// Initializes a new <see cref="PdfPath"/> from an already-encoded segment buffer.
+    /// </summary>
+    public PdfPath(ReadOnlyMemory<byte> buffer, PdfPathFillType fillType)
+    {
+        _buffer = buffer;
+        FillType = fillType;
+    }
 
     /// <summary>
     /// The segments that make up this path, in drawing order.
     /// </summary>
-    public IReadOnlyList<PdfPathSegment> Segments => _segments;
+    public PdfPathSegmentEnumerable Segments => new(_buffer.Span);
+
+    /// <summary>
+    /// Whether this path has no segments.
+    /// </summary>
+    public bool IsEmpty => _buffer.IsEmpty;
 
     /// <summary>
     /// Determines which regions are considered "inside" when this path is filled or used as a clip.
     /// </summary>
-    public PdfPathFillType FillType { get; set; } = PdfPathFillType.Winding;
+    public PdfPathFillType FillType { get; }
+
+    /// <summary>
+    /// The raw encoded segment buffer, for consumers that copy or reuse it directly (such as
+    /// <see cref="PdfPathBuilder.AddPath(PdfPath)"/>).
+    /// </summary>
+    internal ReadOnlyMemory<byte> Buffer => _buffer;
 
     /// <summary>
     /// Computes the smallest rectangle containing every point of every segment, including control points
@@ -33,7 +57,7 @@ public sealed class PdfPath
         float maxX = 0;
         float maxY = 0;
 
-        foreach (PdfPathSegment segment in _segments)
+        foreach (PdfPathSegment segment in Segments)
         {
             foreach (PdfPoint point in segment.Points)
             {
@@ -57,56 +81,15 @@ public sealed class PdfPath
         return hasPoint ? new PdfRectangle(minX, minY, maxX, maxY) : PdfRectangle.Empty;
     }
 
-    /// <summary>
-    /// Starts a new subpath at the given point.
-    /// </summary>
-    public void MoveTo(float x, float y) => MoveTo(new PdfPoint(x, y));
-
-    /// <summary>
-    /// Starts a new subpath at the given point.
-    /// </summary>
-    public void MoveTo(in PdfPoint point) => _segments.Add(PdfPathSegment.MoveTo(point));
-
-    /// <summary>
-    /// Draws a straight line from the current point to the given point.
-    /// </summary>
-    public void LineTo(float x, float y) => LineTo(new PdfPoint(x, y));
-
-    /// <summary>
-    /// Draws a straight line from the current point to the given point.
-    /// </summary>
-    public void LineTo(in PdfPoint point) => _segments.Add(PdfPathSegment.LineTo(point));
-
-    /// <summary>
-    /// Draws a cubic Bézier curve from the current point through two control points to an end point.
-    /// </summary>
-    public void CubicTo(float x1, float y1, float x2, float y2, float x3, float y3)
-        => CubicTo(new PdfPoint(x1, y1), new PdfPoint(x2, y2), new PdfPoint(x3, y3));
-
-    /// <summary>
-    /// Draws a cubic Bézier curve from the current point through two control points to an end point.
-    /// </summary>
-    public void CubicTo(in PdfPoint control1, in PdfPoint control2, in PdfPoint end)
-        => _segments.Add(PdfPathSegment.CubicTo(control1, control2, end));
-
-    /// <summary>
-    /// Closes the current subpath with a straight line back to its start.
-    /// </summary>
-    public void Close() => _segments.Add(PdfPathSegment.Close());
-
-    /// <summary>
-    /// Appends a copy of another path's segments to this path.
-    /// </summary>
-    public void AddPath(PdfPath other)
+    internal static int GetPointCount(PdfPathSegmentType type)
     {
-        foreach (PdfPathSegment segment in other.Segments)
+        return type switch
         {
-            _segments.Add(segment);
-        }
+            PdfPathSegmentType.MoveTo => 1,
+            PdfPathSegmentType.LineTo => 1,
+            PdfPathSegmentType.CubicTo => 3,
+            PdfPathSegmentType.Close => 0,
+            _ => 0
+        };
     }
-
-    /// <summary>
-    /// Removes all segments, leaving the path empty.
-    /// </summary>
-    public void Clear() => _segments.Clear();
 }

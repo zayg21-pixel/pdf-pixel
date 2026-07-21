@@ -81,10 +81,10 @@ public class ShadingRenderer : IShadingRenderer
 
             PdfPaint backgroundPaint = PdfPaintFactory.CreateBackgroundPaint(backgroundColor);
 
-            PdfPath rectPath = new();
+            PdfPathBuilder rectPath = new();
             rectPath.AddRect(shading.BBox.Value);
 
-            processor.Process(new DrawPathCommand(rectPath, backgroundPaint));
+            processor.Process(new DrawPathCommand(rectPath.ToPath(), backgroundPaint));
         }
 
         ShadingDecodingContext context = new(state, shading);

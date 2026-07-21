@@ -4,7 +4,7 @@ using System;
 namespace PdfPixel.Geometry;
 
 /// <summary>
-/// Convenience shape-building extensions for <see cref="PdfPath"/>. These shapes have no direct PDF
+/// Convenience shape-building extensions for <see cref="PdfPathBuilder"/>. These shapes have no direct PDF
 /// content-stream operator equivalent, so curved shapes are expanded into cubic Bézier
 /// segments using the standard cubic Bézier circle/arc approximation.
 /// </summary>
@@ -31,7 +31,7 @@ public static class PdfPathExtensions
     /// <summary>
     /// Adds a closed rectangular contour.
     /// </summary>
-    public static void AddRect(this PdfPath path, in PdfRectangle rect)
+    public static void AddRect(this PdfPathBuilder path, in PdfRectangle rect)
     {
         path.MoveTo(rect.Left, rect.Top);
         path.LineTo(rect.Right, rect.Top);
@@ -43,7 +43,7 @@ public static class PdfPathExtensions
     /// <summary>
     /// Adds a closed elliptical contour inscribed within <paramref name="rect"/>.
     /// </summary>
-    public static void AddOval(this PdfPath path, in PdfRectangle rect)
+    public static void AddOval(this PdfPathBuilder path, in PdfRectangle rect)
     {
         float centerX = rect.MidX;
         float centerY = rect.MidY;
@@ -68,14 +68,14 @@ public static class PdfPathExtensions
     /// <summary>
     /// Adds a closed circular contour centered at <paramref name="center"/>.
     /// </summary>
-    public static void AddCircle(this PdfPath path, in PdfPoint center, float radius)
+    public static void AddCircle(this PdfPathBuilder path, in PdfPoint center, float radius)
         => path.AddOval(new PdfRectangle(center.X - radius, center.Y - radius, center.X + radius, center.Y + radius));
 
     /// <summary>
     /// Adds a closed rectangular contour with rounded corners of radius <paramref name="cornerRadiusX"/>
     /// by <paramref name="cornerRadiusY"/>.
     /// </summary>
-    public static void AddRoundRect(this PdfPath path, in PdfRectangle rect, float cornerRadiusX, float cornerRadiusY)
+    public static void AddRoundRect(this PdfPathBuilder path, in PdfRectangle rect, float cornerRadiusX, float cornerRadiusY)
     {
         float radiusX = Math.Min(cornerRadiusX, rect.Width / 2f);
         float radiusY = Math.Min(cornerRadiusY, rect.Height / 2f);
@@ -104,7 +104,7 @@ public static class PdfPathExtensions
     /// Angles follow Skia's <c>SKPath.AddArc</c> convention: degrees measured from the positive
     /// x-axis, with positive values sweeping clockwise.
     /// </summary>
-    public static void AddArc(this PdfPath path, in PdfRectangle oval, float startAngleDegrees, float sweepAngleDegrees)
+    public static void AddArc(this PdfPathBuilder path, in PdfRectangle oval, float startAngleDegrees, float sweepAngleDegrees)
     {
         if (sweepAngleDegrees == 0)
         {

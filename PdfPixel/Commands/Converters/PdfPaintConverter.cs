@@ -86,9 +86,9 @@ internal static class PdfPaintConverter
         float bumpRadius = width * (1.5f + intensity * 1.0f);
         float advance = bumpRadius * 1.6f;
 
-        PdfPath bumpPath = new();
+        PdfPathBuilder bumpPath = new();
         bumpPath.AddArc(new PdfRectangle(-bumpRadius, -bumpRadius, bumpRadius, bumpRadius), 0, -180);
-        SKPath bump = bumpPath.ToSkPath();
+        SKPath bump = bumpPath.ToPath().ToSkPath();
 
         return SKPathEffect.Create1DPath(bump, advance, 0, SKPath1DPathEffectStyle.Rotate);
     }

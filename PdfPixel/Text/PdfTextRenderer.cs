@@ -218,9 +218,9 @@ public class PdfTextRenderer : IPdfTextRenderer
             if (ShouldClip(state.TextRenderingMode))
             {
                 PdfPath textPath = TextRenderUtilities.GetTextPath(shapingResult, font, state);
-                if (textPath.Segments.Count > 0)
+                if (!textPath.IsEmpty)
                 {
-                    state.TextClipPath ??= new PdfPath();
+                    state.TextClipPath ??= new PdfPathBuilder();
                     state.TextClipPath.AddPath(textPath);
                 }
             }

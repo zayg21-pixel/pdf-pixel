@@ -66,10 +66,10 @@ public sealed class PdfShadingPattern : PdfPattern
             PdfColor backgroundColor = colorSpace.ToSrgb(Shading.Background, state.RenderingIntent, state.FullTransferFunction);
             PdfPaint backgroundPaint = PdfPaintFactory.CreateBackgroundPaint(backgroundColor);
 
-            PdfPath rectPath = new();
+            PdfPathBuilder rectPath = new();
             rectPath.AddRect(Shading.BBox.Value);
 
-            recorder.Process(new DrawPathCommand(rectPath, backgroundPaint));
+            recorder.Process(new DrawPathCommand(rectPath.ToPath(), backgroundPaint));
         }
 
         ShadingDecodingContext context = new(state, Shading);

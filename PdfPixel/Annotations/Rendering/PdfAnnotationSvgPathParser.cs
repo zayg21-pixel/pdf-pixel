@@ -19,11 +19,11 @@ internal static class PdfAnnotationSvgPathParser
     private const float TwoThirds = 2f / 3f;
 
     /// <summary>
-    /// Parses the given SVG path data string into a <see cref="PdfPath"/>.
+    /// Parses the given SVG path data string into a <see cref="PdfPath"/> with the given fill type.
     /// </summary>
-    public static PdfPath Parse(string data)
+    public static PdfPath Parse(string data, PdfPathFillType fillType)
     {
-        PdfPath path = new();
+        PdfPathBuilder path = new() { FillType = fillType };
         int index = 0;
         var command = '\0';
         PdfPoint current = PdfPoint.Empty;
@@ -142,10 +142,10 @@ internal static class PdfAnnotationSvgPathParser
             }
         }
 
-        return path;
+        return path.ToPath();
     }
 
-    private static void AddQuadratic(PdfPath path, in PdfPoint start, in PdfPoint control, in PdfPoint end)
+    private static void AddQuadratic(PdfPathBuilder path, in PdfPoint start, in PdfPoint control, in PdfPoint end)
     {
         PdfPoint control1 = new(start.X + (TwoThirds * (control.X - start.X)), start.Y + (TwoThirds * (control.Y - start.Y)));
         PdfPoint control2 = new(end.X + (TwoThirds * (control.X - end.X)), end.Y + (TwoThirds * (control.Y - end.Y)));

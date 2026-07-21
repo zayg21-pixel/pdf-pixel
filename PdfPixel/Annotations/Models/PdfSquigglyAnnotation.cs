@@ -43,18 +43,18 @@ public class PdfSquigglyAnnotation : PdfTextMarkupAnnotation
             float endX = quad[1].X;
             float endY = quad[1].Y;
 
-            PdfPath path = new();
+            PdfPathBuilder path = new();
             DrawSquigglyLine(path, startX, startY, endX, endY);
 
             PdfPaint paint = PdfAnnotationPaintFactory.CreateStrokePaint(color);
 
-            processor.Process(new DrawPathCommand(path, paint));
+            processor.Process(new DrawPathCommand(path.ToPath(), paint));
         }
 
         return true;
     }
 
-    private static void DrawSquigglyLine(PdfPath path, float startX, float startY, float endX, float endY)
+    private static void DrawSquigglyLine(PdfPathBuilder path, float startX, float startY, float endX, float endY)
     {
         var length = (float)Math.Sqrt(Math.Pow(endX - startX, 2) + Math.Pow(endY - startY, 2));
         const float waveHeight = 2.0f;
