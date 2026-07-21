@@ -1,4 +1,4 @@
-using SkiaSharp;
+using PdfPixel.Color.Paint;
 
 namespace PdfPixel.Commands;
 
@@ -10,5 +10,5 @@ public interface IPaintCommand
     /// <summary>
     /// Gets the paint this command applies, or <see langword="null"/> when the command draws without a paint override.
     /// </summary>
-    SKPaint? Paint { get; }
+    PdfPaint? Paint { get; }
 }

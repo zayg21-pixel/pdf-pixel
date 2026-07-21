@@ -1,3 +1,4 @@
+using PdfPixel.Color.Paint;
 using PdfPixel.Geometry;
 using SkiaSharp;
 using System;
@@ -199,7 +200,7 @@ internal static class CommandHelpers
     /// <summary>
     /// Formats a paint's blend mode, color, and style, for debugging.
     /// </summary>
-    public static string FormatPaint(SKPaint paint)
+    public static string FormatPaint(PdfPaint paint)
         => $"{paint.BlendMode}/{paint.Color}/{paint.Style}";
 
     /// <summary>

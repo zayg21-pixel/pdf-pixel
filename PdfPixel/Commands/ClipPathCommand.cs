@@ -14,12 +14,12 @@ public sealed class ClipPathCommand : PdfCommand, IPathCommand
     /// </summary>
     public ClipPathCommand(PdfPath path, PdfClipOperation operation)
     {
-        Path = path.ToSkPath();
+        Path = path;
         Operation = operation.ToSkClipOperation();
     }
 
     /// <inheritdoc />
-    public SKPath Path { get; }
+    public PdfPath Path { get; }
 
     /// <summary>
     /// Gets the clip operation applied to the canvas.
@@ -29,11 +29,14 @@ public sealed class ClipPathCommand : PdfCommand, IPathCommand
     /// <inheritdoc />
     public override void Execute(PdfCommandExecutionContext executionContext)
     {
-        bool antialias = CommandHelpers.GetPathIsAntialias(Path, executionContext);
-        executionContext.Canvas.ClipPath(Path, Operation, antialias);
-        executionContext.Frames.OnClipPath(Path, Operation, antialias);
+        using SKPath path = Path.ToSkPath();
+        bool antialias = CommandHelpers.GetPathIsAntialias(path, executionContext);
+        executionContext.Canvas.ClipPath(path, Operation, antialias);
+        executionContext.Frames.OnClipPath(path, Operation, antialias);
     }
 
     /// <inheritdoc />
-    protected override void Dispose(bool disposing) => Path.Dispose();
+    protected override void Dispose(bool disposing)
+    {
+    }
 }

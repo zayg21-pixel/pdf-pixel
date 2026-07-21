@@ -2,7 +2,6 @@ using PdfPixel.Color.Paint;
 using PdfPixel.Geometry;
 using PdfPixel.Models;
 using SkiaSharp;
-using System.IO;
 
 namespace PdfPixel.Commands;
 
@@ -10,20 +9,20 @@ namespace PdfPixel.Commands;
 /// Clips using the fill outline of a path stroked with a given paint. Isolates the Skia-specific
 /// stroke-to-fill conversion (<see cref="SKPaint.GetFillPath(SKPath)"/>) behind the command boundary.
 /// </summary>
-public sealed class ClipStrokePathCommand : PdfCommand, IPathCommand
+public sealed class ClipStrokePathCommand : PdfCommand
 {
+    private readonly PdfPath _sourcePath;
+    private readonly PdfPaint _strokePaint;
+
     /// <summary>
     /// Initializes the command with the given source path, stroke paint, and clip operation.
-    /// The source path is converted to its stroked fill outline immediately.
     /// </summary>
     public ClipStrokePathCommand(PdfPath sourcePath, PdfPaint strokePaint, PdfClipOperation operation)
     {
-        Path = BuildStrokeOutline(sourcePath, strokePaint);
+        _sourcePath = sourcePath;
+        _strokePaint = strokePaint;
         Operation = operation.ToSkClipOperation();
     }
-
-    /// <inheritdoc />
-    public SKPath Path { get; }
 
     /// <summary>
     /// Gets the clip operation applied to the canvas.
@@ -33,13 +32,16 @@ public sealed class ClipStrokePathCommand : PdfCommand, IPathCommand
     /// <inheritdoc />
     public override void Execute(PdfCommandExecutionContext executionContext)
     {
-        bool antialias = CommandHelpers.GetPathIsAntialias(Path, executionContext);
-        executionContext.Canvas.ClipPath(Path, Operation, antialias);
-        executionContext.Frames.OnClipPath(Path, Operation, antialias);
+        using SKPath path = BuildStrokeOutline(_sourcePath, _strokePaint);
+        bool antialias = CommandHelpers.GetPathIsAntialias(path, executionContext);
+        executionContext.Canvas.ClipPath(path, Operation, antialias);
+        executionContext.Frames.OnClipPath(path, Operation, antialias);
     }
 
     /// <inheritdoc />
-    protected override void Dispose(bool disposing) => Path.Dispose();
+    protected override void Dispose(bool disposing)
+    {
+    }
 
     private static SKPath BuildStrokeOutline(PdfPath sourcePath, PdfPaint strokePaint)
     {

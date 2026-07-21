@@ -15,20 +15,12 @@ public sealed class DrawShapedTextCommand : PdfCommand, IMatrixCommand, IPaintCo
     /// <summary>
     /// Initializes the command with the given matrix, shaped glyphs, font and paint.
     /// </summary>
-    public DrawShapedTextCommand(in PdfMatrix matrix, ShapedGlyph[] shapingResult, SKFont font, SKPaint basePaint)
+    public DrawShapedTextCommand(in PdfMatrix matrix, ShapedGlyph[] shapingResult, SKFont font, PdfPaint paint)
     {
         Matrix = matrix;
         ShapingResult = shapingResult;
         Font = font;
-        Paint = basePaint;
-    }
-
-    /// <summary>
-    /// Initializes the command with the given matrix, shaped glyphs, font and paint.
-    /// </summary>
-    public DrawShapedTextCommand(in PdfMatrix matrix, ShapedGlyph[] shapingResult, SKFont font, PdfPaint basePaint)
-        : this(matrix, shapingResult, font, basePaint.ToSkiaPaint())
-    {
+        Paint = paint;
     }
 
     /// <inheritdoc />
@@ -45,12 +37,12 @@ public sealed class DrawShapedTextCommand : PdfCommand, IMatrixCommand, IPaintCo
     public SKFont Font { get; }
 
     /// <inheritdoc />
-    public SKPaint Paint { get; }
+    public PdfPaint Paint { get; }
 
     /// <inheritdoc />
     public override void Execute(PdfCommandExecutionContext executionContext)
     {
-        using SKPaint paint = Paint.Clone();
+        using SKPaint paint = Paint.ToSkiaPaint();
         bool antialias = executionContext.Parameters.Antialias;
         paint.IsAntialias = antialias;
         CommandHelpers.ApplyAntialias(Font, antialias);
@@ -70,11 +62,7 @@ public sealed class DrawShapedTextCommand : PdfCommand, IMatrixCommand, IPaintCo
     }
 
     /// <inheritdoc />
-    protected override void Dispose(bool disposing)
-    {
-        Font.Dispose();
-        Paint.Dispose();
-    }
+    protected override void Dispose(bool disposing) => Font.Dispose();
 
     /// <inheritdoc />
     public override string ToString()

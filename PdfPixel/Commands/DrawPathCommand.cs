@@ -12,17 +12,17 @@ public sealed class DrawPathCommand : PdfCommand, IPathCommand, IPaintCommand
     /// <summary>
     /// Initializes the command with the given path and paint.
     /// </summary>
-    public DrawPathCommand(PdfPath path, PdfPaint basePaint)
+    public DrawPathCommand(PdfPath path, PdfPaint paint)
     {
-        Path = path.ToSkPath();
-        Paint = basePaint.ToSkiaPaint();
+        Path = path;
+        Paint = paint;
     }
 
     /// <inheritdoc />
-    public SKPath Path { get; }
+    public PdfPath Path { get; }
 
     /// <inheritdoc />
-    public SKPaint Paint { get; }
+    public PdfPaint Paint { get; }
 
     /// <inheritdoc />
     public override PdfCommandFeatures Features => PdfCommandFeatures.Scale;
@@ -30,9 +30,10 @@ public sealed class DrawPathCommand : PdfCommand, IPathCommand, IPaintCommand
     /// <inheritdoc />
     public override void Execute(PdfCommandExecutionContext executionContext)
     {
-        using SKPaint paint = Paint.Clone();
+        using SKPath path = Path.ToSkPath();
+        using SKPaint paint = Paint.ToSkiaPaint();
         CommandHelpers.ApplyModifiers(paint, executionContext);
-        paint.IsAntialias = CommandHelpers.GetPathIsAntialias(Path, executionContext, paint);
+        paint.IsAntialias = CommandHelpers.GetPathIsAntialias(path, executionContext, paint);
 
         if ((paint.Style == SKPaintStyle.Stroke || paint.Style == SKPaintStyle.StrokeAndFill) && paint.StrokeWidth > 0)
         {
@@ -43,14 +44,12 @@ public sealed class DrawPathCommand : PdfCommand, IPathCommand, IPaintCommand
             }
         }
 
-        executionContext.Canvas.DrawPath(Path, paint);
+        executionContext.Canvas.DrawPath(path, paint);
     }
 
     /// <inheritdoc />
     protected override void Dispose(bool disposing)
     {
-        Path.Dispose();
-        Paint.Dispose();
     }
 
     /// <inheritdoc />

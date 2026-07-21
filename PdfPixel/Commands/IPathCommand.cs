@@ -1,4 +1,4 @@
-using SkiaSharp;
+using PdfPixel.Geometry;
 
 namespace PdfPixel.Commands;
 
@@ -10,5 +10,5 @@ public interface IPathCommand
     /// <summary>
     /// Gets the path this command operates on.
     /// </summary>
-    SKPath Path { get; }
+    PdfPath Path { get; }
 }

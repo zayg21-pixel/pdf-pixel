@@ -17,7 +17,7 @@ public sealed class PdfPath
     /// <summary>
     /// Initializes a new <see cref="PdfPath"/> from an already-encoded segment buffer.
     /// </summary>
-    public PdfPath(ReadOnlyMemory<byte> buffer, PdfPathFillType fillType)
+    public PdfPath(in ReadOnlyMemory<byte> buffer, PdfPathFillType fillType)
     {
         _buffer = buffer;
         FillType = fillType;

@@ -12,20 +12,12 @@ public sealed class DrawTextCommand : PdfCommand, IMatrixCommand, IPaintCommand
     /// <summary>
     /// Initializes the command with the given text, matrix, font and paint.
     /// </summary>
-    public DrawTextCommand(string text, in PdfMatrix matrix, SKFont font, SKPaint basePaint)
+    public DrawTextCommand(string text, in PdfMatrix matrix, SKFont font, PdfPaint paint)
     {
         Text = text;
         Matrix = matrix;
         Font = font;
-        Paint = basePaint;
-    }
-
-    /// <summary>
-    /// Initializes the command with the given text, matrix, font and paint.
-    /// </summary>
-    public DrawTextCommand(string text, in PdfMatrix matrix, SKFont font, PdfPaint basePaint)
-        : this(text, matrix, font, basePaint.ToSkiaPaint())
-    {
+        Paint = paint;
     }
 
     /// <summary>
@@ -42,12 +34,12 @@ public sealed class DrawTextCommand : PdfCommand, IMatrixCommand, IPaintCommand
     public SKFont Font { get; }
 
     /// <inheritdoc />
-    public SKPaint Paint { get; }
+    public PdfPaint Paint { get; }
 
     /// <inheritdoc />
     public override void Execute(PdfCommandExecutionContext executionContext)
     {
-        using SKPaint paint = Paint.Clone();
+        using SKPaint paint = Paint.ToSkiaPaint();
         bool antialias = executionContext.Parameters.Antialias;
         paint.IsAntialias = antialias;
         CommandHelpers.ApplyAntialias(Font, antialias);
@@ -61,11 +53,7 @@ public sealed class DrawTextCommand : PdfCommand, IMatrixCommand, IPaintCommand
     }
 
     /// <inheritdoc />
-    protected override void Dispose(bool disposing)
-    {
-        Font.Dispose();
-        Paint.Dispose();
-    }
+    protected override void Dispose(bool disposing) => Font.Dispose();
 
     /// <inheritdoc />
     public override string ToString() => $"{nameof(DrawTextCommand)} {CommandHelpers.FormatMatrix(Matrix)} {CommandHelpers.FormatPaint(Paint)} \"{Text}\"";
