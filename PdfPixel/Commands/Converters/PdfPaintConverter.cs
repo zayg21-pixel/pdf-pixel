@@ -29,6 +29,11 @@ internal static class PdfPaintConverter
             ApplyStrokeStyling(skPaint, paint.RequireStrokeStyle());
         }
 
+        if (paint.ShadowEffect is { } shadowEffect)
+        {
+            skPaint.ImageFilter = ComposeFilter(CreateShadowFilter(shadowEffect), skPaint.ImageFilter);
+        }
+
         if (paint.BlendMode == PdfBlendMode.LuminosityMaskComposite)
         {
             skPaint.ColorFilter = SKColorFilter.CreateLumaColor();
@@ -54,31 +59,20 @@ internal static class PdfPaintConverter
             paint.PathEffect = SKPathEffect.CreateDash(style.DashPattern, style.DashPhase);
         }
 
-        if (style.BorderStyleType == PdfBorderStyleType.Beveled || style.BorderStyleType == PdfBorderStyleType.Inset)
+        if (style.EffectType == PdfStrokeEffectType.Cloudy)
         {
-            paint.ImageFilter = ComposeFilter(CreateBorderShadowFilter(style.BorderStyleType, width), paint.ImageFilter);
-        }
-
-        if (style.BorderEffectType == PdfBorderEffectType.Cloudy)
-        {
-            paint.PathEffect = ComposeEffect(CreateCloudyEffect(width, style.BorderEffectIntensity), paint.PathEffect);
+            paint.PathEffect = ComposeEffect(CreateCloudyEffect(width, style.EffectIntensity), paint.PathEffect);
         }
     }
 
-    private static SKImageFilter CreateBorderShadowFilter(PdfBorderStyleType borderStyleType, float width)
+    private static SKImageFilter CreateShadowFilter(PdfPaintShadowEffect shadowEffect)
     {
-        float shadowOffset = width * 0.5f;
-        if (borderStyleType == PdfBorderStyleType.Inset)
-        {
-            shadowOffset = -shadowOffset;
-        }
-
         return SKImageFilter.CreateDropShadow(
-            dx: shadowOffset,
-            dy: -shadowOffset,
-            sigmaX: width * 0.3f,
-            sigmaY: width * 0.3f,
-            color: SKColors.Black.WithAlpha(80));
+            dx: shadowEffect.OffsetX,
+            dy: shadowEffect.OffsetY,
+            sigmaX: shadowEffect.SigmaX,
+            sigmaY: shadowEffect.SigmaY,
+            color: shadowEffect.Color.ToSkiaColor());
     }
 
     private static SKPathEffect CreateCloudyEffect(float width, float intensity)

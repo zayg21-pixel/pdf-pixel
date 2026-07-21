@@ -49,7 +49,7 @@ public class PdfStampAnnotation : PdfAnnotationBase
         float opacity = (visualStateKind == PdfAnnotationVisualStateKind.Rollover) ? 0.75f : 1.0f;
         PdfColor color = stampColor.WithAlpha(stampColor.Alpha * opacity);
 
-        float borderWidth = (BorderStyle?.LineWidth > 0) ? BorderStyle.LineWidth : BorderWidthDefault;
+        float borderWidth = (BorderStyle?.StrokeStyle.LineWidth > 0) ? BorderStyle.StrokeStyle.LineWidth : BorderWidthDefault;
         float cornerRadius = Math.Min(Rectangle.Width, Rectangle.Height) * CornerRadiusFraction;
         float halfBorderWidth = borderWidth / 2f;
         PdfRectangle borderRect = new(
@@ -113,13 +113,8 @@ public class PdfStampAnnotation : PdfAnnotationBase
 
         float shadowOffset = font.Size * 0.05f;
         float shadowSigma = font.Size * 0.03f;
-
-        SKPaint textPaint = new()
-        {
-            Style = SKPaintStyle.Fill,
-            Color = color.ToSkiaColor(),
-            ImageFilter = SKImageFilter.CreateDropShadow(shadowOffset, shadowOffset, shadowSigma, shadowSigma, SKColors.Black.WithAlpha(ShadowAlpha))
-        };
+        PdfPaintShadowEffect shadowEffect = new(shadowOffset, shadowOffset, shadowSigma, shadowSigma, PdfColors.Black.WithAlpha(ShadowAlpha / 255f));
+        PdfPaint textPaint = new PdfPaint(PdfPaintStyle.Fill).WithSolidColor(color).WithShadowEffect(shadowEffect);
 
         processor.Process(new DrawTextCommand(labelText, textMatrix, font, textPaint));
     }

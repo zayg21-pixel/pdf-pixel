@@ -1,12 +1,12 @@
 using PdfPixel.Text;
 
-namespace PdfPixel.Color.Paint;
+namespace PdfPixel.Annotations.Models;
 
 /// <summary>
 /// Specifies the visual effect applied to an annotation border.
 /// </summary>
 [PdfEnum]
-public enum PdfBorderEffectType
+public enum PdfAnnotationBorderEffectType
 {
     /// <summary>
     /// No effect — border is drawn normally.

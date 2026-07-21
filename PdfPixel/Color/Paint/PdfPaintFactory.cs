@@ -18,11 +18,9 @@ internal static class PdfPaintFactory
     {
         PdfPaint fillPaint = state.FillPaint;
         return new PdfPaint(PdfPaintStyle.Fill)
-        {
-            Color = PdfColors.White,
-            Alpha = fillPaint.Alpha,
-            BlendMode = fillPaint.BlendMode
-        };
+            .WithSolidColor(PdfColors.White)
+            .WithAlpha(fillPaint.Alpha)
+            .WithBlendMode(fillPaint.BlendMode);
     }
 
     /// <summary>
@@ -45,6 +43,6 @@ internal static class PdfPaintFactory
             ? PdfBlendMode.LuminosityMaskComposite
             : PdfBlendMode.MaskComposite;
 
-        return new PdfPaint(PdfPaintStyle.Fill) { BlendMode = blendMode };
+        return new PdfPaint(PdfPaintStyle.Fill).WithBlendMode(blendMode);
     }
 }

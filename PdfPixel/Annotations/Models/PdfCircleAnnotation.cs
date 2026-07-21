@@ -26,7 +26,7 @@ public class PdfCircleAnnotation : PdfAnnotationBase
     {
         RectDifferences = PdfRectangle.FromArray(annotationObject.Dictionary.GetArray(PdfTokens.RectDifferencesKey));
         ContentRectangle = ApplyRectDifferences(Rectangle, RectDifferences);
-        PdfAnnotationBorderParser.ApplyBorderEffect(BorderStyle, annotationObject.Dictionary.GetDictionary(PdfTokens.BorderEffectKey));
+        BorderEffect = PdfAnnotationBorderParser.ParseBorderEffect(annotationObject.Dictionary.GetDictionary(PdfTokens.BorderEffectKey));
     }
 
     /// <summary>
@@ -38,6 +38,11 @@ public class PdfCircleAnnotation : PdfAnnotationBase
     /// Gets the effective drawing rectangle after applying <see cref="RectDifferences"/>.
     /// </summary>
     public PdfRectangle ContentRectangle { get; }
+
+    /// <summary>
+    /// Gets the parsed border effect (BE entry).
+    /// </summary>
+    public PdfAnnotationBorderEffect BorderEffect { get; }
 
     internal override bool RenderFallback(IPdfCommandProcessor processor, IPdfPageInternal page, PdfAnnotationVisualStateKind visualStateKind)
     {
@@ -55,14 +60,14 @@ public class PdfCircleAnnotation : PdfAnnotationBase
             processor.Process(new DrawPathCommand(fillPath.ToPath(), PdfAnnotationPaintFactory.CreateFillPaint(interiorColor)));
         }
 
-        if (BorderStyle != null && BorderStyle.LineWidth > 0 && Color?.Length > 0)
+        if (BorderStyle != null && BorderStyle.StrokeStyle.LineWidth > 0 && Color?.Length > 0)
         {
             PdfColor strokeColor = ResolveColor(page, PdfColors.Black);
 
-            PdfPaint strokePaint = PdfAnnotationPaintFactory.CreateStrokePaint(strokeColor, BorderStyle);
+            PdfPaint strokePaint = PdfAnnotationPaintFactory.CreateStrokePaint(strokeColor, BorderStyle.StrokeStyle, BorderEffect);
 
-            float adjustedWidth = width - BorderStyle.LineWidth;
-            float adjustedHeight = height - BorderStyle.LineWidth;
+            float adjustedWidth = width - BorderStyle.StrokeStyle.LineWidth;
+            float adjustedHeight = height - BorderStyle.StrokeStyle.LineWidth;
 
             PdfPathBuilder strokePath = new();
             strokePath.AddOval(new PdfRectangle(

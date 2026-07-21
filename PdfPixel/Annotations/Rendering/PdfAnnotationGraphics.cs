@@ -203,12 +203,10 @@ internal static class PdfAnnotationGraphics
 
             if (strokeColor != null)
             {
-                PdfStrokeStyle strokeStyle = new()
-                {
-                    LineWidth = iconPath.StrokeWidth,
-                    LineCap = iconPath.StrokeCap,
-                    LineJoin = iconPath.StrokeJoin
-                };
+                PdfStrokeStyle strokeStyle = new(
+                    lineWidth: iconPath.StrokeWidth,
+                    lineCap: iconPath.StrokeCap,
+                    lineJoin: iconPath.StrokeJoin);
 
                 PdfPaint strokePaint = PdfAnnotationPaintFactory.CreateStrokePaint(ApplyOpacity(strokeColor.Value, iconPath.StrokeOpacity), strokeStyle);
                 processor.Process(new DrawPathCommand(iconPath.Path, strokePaint));

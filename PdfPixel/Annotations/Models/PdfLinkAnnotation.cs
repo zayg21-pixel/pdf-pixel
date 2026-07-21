@@ -71,17 +71,17 @@ public class PdfLinkAnnotation : PdfTextMarkupAnnotation
 
     internal override bool RenderFallback(IPdfCommandProcessor processor, IPdfPageInternal page, PdfAnnotationVisualStateKind visualStateKind)
     {
-        if (BorderStyle == null || BorderStyle.LineWidth <= 0)
+        if (BorderStyle == null || BorderStyle.StrokeStyle.LineWidth <= 0)
         {
             return false;
         }
 
         PdfColor color = ResolveColor(page, PdfColors.Black);
-        float borderWidth = BorderStyle.LineWidth;
+        float borderWidth = BorderStyle.StrokeStyle.LineWidth;
 
-        PdfPaint paint = PdfAnnotationPaintFactory.CreateStrokePaint(color, BorderStyle);
+        PdfPaint paint = PdfAnnotationPaintFactory.CreateStrokePaint(color, BorderStyle.StrokeStyle);
 
-        if (BorderStyle.BorderStyleType == PdfBorderStyleType.Underline)
+        if (BorderStyle.StyleType == PdfAnnotationBorderStyleType.Underline)
         {
             float y = Rectangle.Top - (borderWidth / 2);
             PdfPathBuilder linePath = new();

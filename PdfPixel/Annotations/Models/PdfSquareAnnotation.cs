@@ -26,7 +26,7 @@ public class PdfSquareAnnotation : PdfAnnotationBase
     {
         RectDifferences = PdfRectangle.FromArray(annotationObject.Dictionary.GetArray(PdfTokens.RectDifferencesKey));
         ContentRectangle = ApplyRectDifferences(Rectangle, RectDifferences);
-        PdfAnnotationBorderParser.ApplyBorderEffect(BorderStyle, annotationObject.Dictionary.GetDictionary(PdfTokens.BorderEffectKey));
+        BorderEffect = PdfAnnotationBorderParser.ParseBorderEffect(annotationObject.Dictionary.GetDictionary(PdfTokens.BorderEffectKey));
     }
 
     /// <summary>
@@ -39,6 +39,11 @@ public class PdfSquareAnnotation : PdfAnnotationBase
     /// </summary>
     public PdfRectangle ContentRectangle { get; }
 
+    /// <summary>
+    /// Gets the parsed border effect (BE entry).
+    /// </summary>
+    public PdfAnnotationBorderEffect BorderEffect { get; }
+
     internal override bool RenderFallback(IPdfCommandProcessor processor, IPdfPageInternal page, PdfAnnotationVisualStateKind visualStateKind)
     {
         PdfColor interiorColor = ResolveInteriorColor(page);
@@ -50,13 +55,13 @@ public class PdfSquareAnnotation : PdfAnnotationBase
             processor.Process(new DrawPathCommand(fillPath.ToPath(), PdfAnnotationPaintFactory.CreateFillPaint(interiorColor)));
         }
 
-        if (BorderStyle != null && BorderStyle.LineWidth > 0 && Color?.Length > 0)
+        if (BorderStyle != null && BorderStyle.StrokeStyle.LineWidth > 0 && Color?.Length > 0)
         {
             PdfColor strokeColor = ResolveColor(page, PdfColors.Black);
 
-            PdfPaint strokePaint = PdfAnnotationPaintFactory.CreateStrokePaint(strokeColor, BorderStyle);
+            PdfPaint strokePaint = PdfAnnotationPaintFactory.CreateStrokePaint(strokeColor, BorderStyle.StrokeStyle, BorderEffect);
 
-            float halfBorder = BorderStyle.LineWidth / 2f;
+            float halfBorder = BorderStyle.StrokeStyle.LineWidth / 2f;
             PdfRectangle adjustedRect = new(
                 ContentRectangle.Left + halfBorder,
                 ContentRectangle.Top + halfBorder,

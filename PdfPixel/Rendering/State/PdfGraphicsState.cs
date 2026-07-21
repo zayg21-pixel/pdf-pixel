@@ -349,15 +349,14 @@ public class PdfGraphicsState
     public PdfTextMarkup? PendingTextMarkup { get; set; }
 
     /// <summary>
-    /// Create a deep copy for stack push (q operator). Paint objects are cloned so mutations inside the
-    /// pushed scope never alias the parent scope's paint.
+    /// Create a copy for stack push (q operator).
     /// </summary>
     public PdfGraphicsState Clone()
     {
         return new(Page, this)
         {
-            StrokePaint = StrokePaint.Clone(),
-            FillPaint = FillPaint.Clone(),
+            StrokePaint = StrokePaint,
+            FillPaint = FillPaint,
             FlatnessTolerance = FlatnessTolerance,
             StrokeColorConverter = StrokeColorConverter,
             FillColorConverter = FillColorConverter,

@@ -29,9 +29,7 @@ public class PdfInkAnnotation : PdfAnnotationBase
         PdfArray? inkList = annotationObject.Dictionary.GetArray(PdfTokens.InkListKey);
         InkList = ParseInkList(inkList);
 
-        StrokeStyle = BorderStyle ?? new PdfStrokeStyle();
-        StrokeStyle.LineCap = PdfStrokeCap.Round;
-        StrokeStyle.LineJoin = PdfStrokeJoin.Round;
+        StrokeStyle = (BorderStyle?.StrokeStyle ?? new PdfStrokeStyle()).WithLineCap(PdfStrokeCap.Round).WithLineJoin(PdfStrokeJoin.Round);
     }
 
     /// <summary>

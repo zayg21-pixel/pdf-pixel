@@ -206,7 +206,7 @@ public abstract class PdfAnnotationBase
     /// and dash pattern for dashed borders. This is parsed from the BS (Border Style) dictionary
     /// or the older Border array entry. Returns null if no border information is present.
     /// </remarks>
-    public PdfStrokeStyle? BorderStyle { get; }
+    public PdfAnnotationBorderStyle? BorderStyle { get; }
 
     /// <summary>
     /// Gets the color array that specifies the annotation's color.

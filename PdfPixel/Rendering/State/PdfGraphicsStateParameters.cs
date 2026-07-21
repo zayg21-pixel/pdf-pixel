@@ -134,49 +134,8 @@ namespace PdfPixel.Rendering.State
                 return;
             }
 
-            PdfStrokeStyle strokeStyle = graphicsState.StrokePaint.RequireStrokeStyle();
-
-            if (LineWidth.HasValue)
-            {
-                strokeStyle.LineWidth = LineWidth.Value;
-            }
-
-            if (LineCap.HasValue)
-            {
-                strokeStyle.LineCap = LineCap.Value;
-            }
-
-            if (LineJoin.HasValue)
-            {
-                strokeStyle.LineJoin = LineJoin.Value;
-            }
-
-            if (MiterLimit.HasValue)
-            {
-                strokeStyle.MiterLimit = MiterLimit.Value;
-            }
-
-            if (DashPattern != null)
-            {
-                strokeStyle.DashPattern = DashPattern;
-                strokeStyle.DashPhase = DashPhase.GetValueOrDefault();
-            }
-
-            if (StrokeAlpha.HasValue)
-            {
-                graphicsState.StrokePaint.Alpha = StrokeAlpha.Value;
-            }
-
-            if (FillAlpha.HasValue)
-            {
-                graphicsState.FillPaint.Alpha = FillAlpha.Value;
-            }
-
-            if (BlendMode.HasValue)
-            {
-                graphicsState.StrokePaint.BlendMode = BlendMode.Value;
-                graphicsState.FillPaint.BlendMode = BlendMode.Value;
-            }
+            graphicsState.StrokePaint = graphicsState.StrokePaint.WithGraphicsState(this);
+            graphicsState.FillPaint = graphicsState.FillPaint.WithGraphicsState(this);
 
             if (SoftMask != null)
             {
@@ -205,16 +164,6 @@ namespace PdfPixel.Rendering.State
             if (OverprintMode.HasValue)
             {
                 graphicsState.OverprintMode = OverprintMode.Value;
-            }
-
-            if (OverprintStroke.HasValue)
-            {
-                graphicsState.StrokePaint.Overprint = OverprintStroke.Value;
-            }
-
-            if (OverprintFill.HasValue)
-            {
-                graphicsState.FillPaint.Overprint = OverprintFill.Value;
             }
 
             if (TransformMatrix.HasValue)

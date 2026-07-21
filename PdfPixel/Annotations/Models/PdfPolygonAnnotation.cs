@@ -40,7 +40,7 @@ public class PdfPolygonAnnotation : PdfAnnotationBase
             Vertices = System.Array.Empty<PdfPoint>();
         }
 
-        PdfAnnotationBorderParser.ApplyBorderEffect(BorderStyle, annotationObject.Dictionary.GetDictionary(PdfTokens.BorderEffectKey));
+        BorderEffect = PdfAnnotationBorderParser.ParseBorderEffect(annotationObject.Dictionary.GetDictionary(PdfTokens.BorderEffectKey));
         // TODO: [MEDIUM] IT (Intent: PolygonCloud, PolygonDimension), Measure
     }
 
@@ -53,6 +53,11 @@ public class PdfPolygonAnnotation : PdfAnnotationBase
     /// Gets the vertices array containing coordinates of the polygon vertices.
     /// </summary>
     public PdfPoint[] Vertices { get; }
+
+    /// <summary>
+    /// Gets the parsed border effect (BE entry).
+    /// </summary>
+    public PdfAnnotationBorderEffect BorderEffect { get; }
 
     internal override bool RenderFallback(IPdfCommandProcessor processor, IPdfPageInternal page, PdfAnnotationVisualStateKind visualStateKind)
     {
@@ -81,11 +86,11 @@ public class PdfPolygonAnnotation : PdfAnnotationBase
             processor.Process(new DrawPathCommand(builtPath, PdfAnnotationPaintFactory.CreateFillPaint(interiorColor)));
         }
 
-        if (BorderStyle != null && BorderStyle.LineWidth > 0 && Color?.Length > 0)
+        if (BorderStyle != null && BorderStyle.StrokeStyle.LineWidth > 0 && Color?.Length > 0)
         {
             PdfColor strokeColor = ResolveColor(page, PdfColors.Black);
 
-            PdfPaint strokePaint = PdfAnnotationPaintFactory.CreateStrokePaint(strokeColor, BorderStyle);
+            PdfPaint strokePaint = PdfAnnotationPaintFactory.CreateStrokePaint(strokeColor, BorderStyle.StrokeStyle, BorderEffect);
 
             processor.Process(new DrawPathCommand(builtPath, strokePaint));
         }

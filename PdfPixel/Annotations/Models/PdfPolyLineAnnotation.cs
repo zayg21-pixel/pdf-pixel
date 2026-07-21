@@ -49,8 +49,8 @@ public class PdfPolyLineAnnotation : PdfAnnotationBase
             EndLineEnding = lineEndingArray.GetName(1).AsEnum<PdfLineEndingStyle>();
         }
 
-        PdfAnnotationBorderParser.ApplyBorderEffect(BorderStyle, annotationObject.Dictionary.GetDictionary(PdfTokens.BorderEffectKey));
-        StrokeStyle = BorderStyle ?? new PdfStrokeStyle();
+        BorderEffect = PdfAnnotationBorderParser.ParseBorderEffect(annotationObject.Dictionary.GetDictionary(PdfTokens.BorderEffectKey));
+        StrokeStyle = BorderStyle?.StrokeStyle ?? new PdfStrokeStyle();
         // TODO: [MEDIUM] IT (Intent: PolyLineDimension), Measure
     }
 
@@ -78,6 +78,11 @@ public class PdfPolyLineAnnotation : PdfAnnotationBase
     /// Gets the stroke style used to draw the polyline, falling back to defaults when no BS/Border entry is present.
     /// </summary>
     public PdfStrokeStyle StrokeStyle { get; }
+
+    /// <summary>
+    /// Gets the parsed border effect (BE entry).
+    /// </summary>
+    public PdfAnnotationBorderEffect BorderEffect { get; }
 
     internal override bool RenderFallback(IPdfCommandProcessor processor, IPdfPageInternal page, PdfAnnotationVisualStateKind visualStateKind)
     {

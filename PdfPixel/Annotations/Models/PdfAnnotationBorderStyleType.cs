@@ -1,12 +1,12 @@
 using PdfPixel.Text;
 
-namespace PdfPixel.Color.Paint;
+namespace PdfPixel.Annotations.Models;
 
 /// <summary>
 /// Represents the border style for annotations.
 /// </summary>
 [PdfEnum]
-public enum PdfBorderStyleType
+public enum PdfAnnotationBorderStyleType
 {
     /// <summary>
     /// Solid border.
