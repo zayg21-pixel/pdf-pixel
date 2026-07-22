@@ -1,5 +1,7 @@
+using PdfPixel.Fonts;
 using PdfPixel.Fonts.Mapping;
 using PdfPixel.Fonts.Model;
+using PdfPixel.Fonts.Resources;
 using PdfPixel.Models;
 using PdfPixel.Resources;
 using PdfPixel.Text;
@@ -66,20 +68,20 @@ internal static class Standard14Metrics
     /// <param name="italic">Whether to resolve the italic/oblique style variant.</param>
     /// <param name="encoding">
     /// The font's actual encoding (as configured by the PDF's <c>/Encoding</c>, matching what the glyph-ID
-    /// resolution path uses). Falls back to the family's default encoding when <see cref="PdfFontEncoding.Unknown"/>.
+    /// resolution path uses). Falls back to the family's default encoding when <see cref="PdfEncoding.Unknown"/>.
     /// </param>
     /// <returns>A 256-entry width vector, or <see langword="null"/> if the family or style variant is unknown.</returns>
-    public static int[]? GetWidths(PdfStandardFontName fontName, bool bold, bool italic, PdfFontEncoding encoding)
+    public static int[]? GetWidths(PdfStandardFontName fontName, bool bold, bool italic, PdfEncoding encoding)
     {
-        if (encoding == PdfFontEncoding.Unknown)
+        if (encoding == PdfEncoding.Unknown)
         {
-            PdfFontEncoding? defaultEncoding = SingleByteEncodings.GetDefaultEncoding(fontName);
+            PdfFontEncoding? defaultEncoding = SingleByteEncodings.GetDefaultEncoding(fontName.ToPdfFontStandardName());
             if (defaultEncoding == null)
             {
                 return null;
             }
 
-            encoding = defaultEncoding.Value;
+            encoding = defaultEncoding.Value.ToPdfEncoding();
         }
 
         int? courierWidth = GetCourierWidth(fontName);
@@ -112,13 +114,13 @@ internal static class Standard14Metrics
         };
     }
 
-    private static int[] BuildWidths(PdfFontEncoding encoding, IReadOnlyDictionary<PdfString, ushort> glyphWidths)
+    private static int[] BuildWidths(PdfEncoding encoding, IReadOnlyDictionary<PdfString, ushort> glyphWidths)
     {
         var widths = new int[byte.MaxValue + 1];
 
         for (int code = 0; code <= byte.MaxValue; code++)
         {
-            PdfString name = SingleByteEncodings.GetNameByCode((byte)code, encoding);
+            PdfString name = SingleByteEncodings.GetNameByCode((byte)code, encoding.ToPdfFontEncoding()).ToPdfString();
             if (glyphWidths.TryGetValue(name, out ushort width))
             {
                 widths[code] = width;

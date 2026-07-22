@@ -1,5 +1,5 @@
-using PdfPixel.Models;
 using System;
+using PdfPixel.Fonts.Model;
 
 namespace PdfPixel.Fonts.Cff;
 
@@ -22,10 +22,10 @@ internal sealed class CffEncodingParser
         in ReadOnlySpan<byte> cffData,
         int encodingOffset,
         ushort[] sidByGlyph,
-        PdfString[] customStrings,
-        out PdfString[] codeToName)
+        PdfFontString[] customStrings,
+        out PdfFontString[] codeToName)
     {
-        codeToName = new PdfString[256];
+        codeToName = new PdfFontString[256];
 
         CffDataReader reader = new(cffData) { Position = encodingOffset };
 
@@ -60,8 +60,8 @@ internal sealed class CffEncodingParser
     private static bool TryParseFormat0(
         ref CffDataReader reader,
         ushort[] sidByGlyph,
-        PdfString[] customStrings,
-        PdfString[] codeToName)
+        PdfFontString[] customStrings,
+        PdfFontString[] codeToName)
     {
         if (!reader.TryReadByte(out byte codeCount))
         {
@@ -77,7 +77,7 @@ internal sealed class CffEncodingParser
 
             if (gid < sidByGlyph.Length)
             {
-                PdfString glyphName = ResolveGlyphName(sidByGlyph[gid], customStrings);
+                PdfFontString glyphName = ResolveGlyphName(sidByGlyph[gid], customStrings);
                 if (!glyphName.IsEmpty)
                 {
                     codeToName[code] = glyphName;
@@ -91,8 +91,8 @@ internal sealed class CffEncodingParser
     private static bool TryParseFormat1(
         ref CffDataReader reader,
         ushort[] sidByGlyph,
-        PdfString[] customStrings,
-        PdfString[] codeToName)
+        PdfFontString[] customStrings,
+        PdfFontString[] codeToName)
     {
         if (!reader.TryReadByte(out byte rangeCount))
         {
@@ -117,7 +117,7 @@ internal sealed class CffEncodingParser
                 int code = firstCode + codeOffset;
                 if (code < 256 && gid < sidByGlyph.Length)
                 {
-                    PdfString glyphName = ResolveGlyphName(sidByGlyph[gid], customStrings);
+                    PdfFontString glyphName = ResolveGlyphName(sidByGlyph[gid], customStrings);
                     if (!glyphName.IsEmpty)
                     {
                         codeToName[code] = glyphName;
@@ -133,8 +133,8 @@ internal sealed class CffEncodingParser
 
     private static void TryParseSupplement(
         ref CffDataReader reader,
-        PdfString[] customStrings,
-        PdfString[] codeToName)
+        PdfFontString[] customStrings,
+        PdfFontString[] codeToName)
     {
         if (!reader.TryReadByte(out byte supplementCount))
         {
@@ -153,7 +153,7 @@ internal sealed class CffEncodingParser
                 return;
             }
 
-            PdfString glyphName = ResolveGlyphName(sid, customStrings);
+            PdfFontString glyphName = ResolveGlyphName(sid, customStrings);
             if (!glyphName.IsEmpty)
             {
                 codeToName[code] = glyphName;
@@ -161,7 +161,7 @@ internal sealed class CffEncodingParser
         }
     }
 
-    private static PdfString ResolveGlyphName(ushort sid, PdfString[] customStrings)
+    private static PdfFontString ResolveGlyphName(ushort sid, PdfFontString[] customStrings)
     {
         if (sid < CffData.StandardStrings.Length)
         {

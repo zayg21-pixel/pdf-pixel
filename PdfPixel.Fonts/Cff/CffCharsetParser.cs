@@ -1,6 +1,6 @@
-using PdfPixel.Models;
 using System;
 using System.Collections.Generic;
+using PdfPixel.Fonts.Model;
 
 namespace PdfPixel.Fonts.Cff;
 
@@ -9,7 +9,7 @@ namespace PdfPixel.Fonts.Cff;
 /// </summary>
 internal sealed class CffCharsetParser
 {
-    private static readonly PdfString NotDefGlyphName = (PdfString)".notdef"u8;
+    private static readonly PdfFontString NotDefGlyphName = (PdfFontString)".notdef"u8;
 
     private const int PredefinedCharsetIsoAdobe = 0;
     private const int PredefinedCharsetExpert = 1;
@@ -18,14 +18,14 @@ internal sealed class CffCharsetParser
     private const int NotDefSid = 0;
     private const int FirstRealGlyphGid = 1;
 
-    private static readonly Dictionary<PdfString, ushort> StandardNameToSid = BuildStandardNameToSid();
+    private static readonly Dictionary<PdfFontString, ushort> StandardNameToSid = BuildStandardNameToSid();
 
-    private static Dictionary<PdfString, ushort> BuildStandardNameToSid()
+    private static Dictionary<PdfFontString, ushort> BuildStandardNameToSid()
     {
-        Dictionary<PdfString, ushort> standardNameToSidMap = new(CffData.StandardStrings.Length);
+        Dictionary<PdfFontString, ushort> standardNameToSidMap = new(CffData.StandardStrings.Length);
         for (ushort sid = 0; sid < CffData.StandardStrings.Length; sid++)
         {
-            PdfString standardName = CffData.StandardStrings[sid];
+            PdfFontString standardName = CffData.StandardStrings[sid];
             if (!standardName.IsEmpty && !standardNameToSidMap.ContainsKey(standardName))
             {
                 standardNameToSidMap[standardName] = sid;
@@ -155,18 +155,18 @@ internal sealed class CffCharsetParser
         sidByGlyph = new ushort[glyphCount];
         sidByGlyph[0] = NotDefSid;
 
-        PdfString[] charsetGlyphNames;
+        PdfFontString[] charsetGlyphNames;
         if (!TryGetCharsetNames(charsetId, out charsetGlyphNames))
         {
             return false;
         }
 
-        HashSet<PdfString> seenNames = [];
+        HashSet<PdfFontString> seenNames = [];
 
         int glyphId = FirstRealGlyphGid;
         for (int i = 0; i < charsetGlyphNames.Length && glyphId < glyphCount; i++)
         {
-            PdfString glyphName = charsetGlyphNames[i];
+            PdfFontString glyphName = charsetGlyphNames[i];
             if (glyphName.IsEmpty || glyphName == NotDefGlyphName)
             {
                 continue;
@@ -186,7 +186,7 @@ internal sealed class CffCharsetParser
         return true;
     }
 
-    private static bool TryGetCharsetNames(int charsetId, out PdfString[] charsetNames)
+    private static bool TryGetCharsetNames(int charsetId, out PdfFontString[] charsetNames)
     {
         switch (charsetId)
         {
@@ -207,13 +207,13 @@ internal sealed class CffCharsetParser
                 }
             default:
                 {
-                    charsetNames = Array.Empty<PdfString>();
+                    charsetNames = Array.Empty<PdfFontString>();
                     return false;
                 }
         }
     }
 
-    private static bool TryGetStandardSid(in PdfString name, out ushort sid)
+    private static bool TryGetStandardSid(in PdfFontString name, out ushort sid)
     {
         if (StandardNameToSid != null && StandardNameToSid.TryGetValue(name, out sid))
         {

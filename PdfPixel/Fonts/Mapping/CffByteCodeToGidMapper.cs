@@ -1,9 +1,6 @@
 using PdfPixel.Fonts.Cff;
 using PdfPixel.Fonts.Model;
-using PdfPixel.Models;
-using PdfPixel.Text;
 using System;
-using System.Collections.Generic;
 
 namespace PdfPixel.Fonts.Mapping;
 
@@ -31,12 +28,9 @@ internal class CffByteCodeToGidMapper : IByteCodeToGidMapper
             throw new ArgumentNullException(nameof(cffInfo));
         }
 
-        PdfFontEncoding encoding = encodingInfo.BaseEncoding;
-        Dictionary<int, PdfString> differences = encodingInfo.Differences;
-
         for (int code = 0; code < 256; code++)
         {
-            PdfString glyphName = SingleByteEncodings.GetNameByCode((byte)code, encoding, differences);
+            PdfFontString glyphName = encodingInfo.GetNameByCode((byte)code);
 
             if (cffInfo.NameToGid != null && !glyphName.IsEmpty && cffInfo.NameToGid.TryGetValue(glyphName, out ushort gid))
             {

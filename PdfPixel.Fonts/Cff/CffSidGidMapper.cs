@@ -1,11 +1,10 @@
 using Microsoft.Extensions.Logging;
 using PdfPixel.Fonts.Model;
-using PdfPixel.Text;
-using PdfPixel.Models;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using PdfPixel.Fonts.Resources;
 
 namespace PdfPixel.Fonts.Cff;
 
@@ -13,7 +12,7 @@ namespace PdfPixel.Fonts.Cff;
 /// Minimal CFF (Type 1C) reader utilities to get mappings for name-keyed CFF.
 /// Converted to an instance class to allow structured logging via PdfDocument logger factory.
 /// </summary>
-internal class CffSidGidMapper
+public class CffSidGidMapper
 {
     private const int PredefinedEncodingStandard = 0;     // StandardEncoding id
     private const int PredefinedEncodingExpert = 1;       // ExpertEncoding id
@@ -21,6 +20,10 @@ internal class CffSidGidMapper
     private readonly ILogger<CffSidGidMapper> _logger;
     private readonly ILoggerFactory _loggerFactory;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="CffSidGidMapper"/> class.
+    /// </summary>
+    /// <param name="loggerFactory">Logger factory used for structured diagnostics during parsing.</param>
     public CffSidGidMapper(ILoggerFactory loggerFactory)
     {
         _loggerFactory = loggerFactory;
@@ -197,7 +200,7 @@ internal class CffSidGidMapper
                 return false;
             }
 
-            var customStrings = new PdfString[stringIndexCount];
+            var customStrings = new PdfFontString[stringIndexCount];
             for (int stringIndex = 0; stringIndex < stringIndexCount; stringIndex++)
             {
                 int start = stringIndexDataStart + (stringIndexOffsets[stringIndex] - 1);
@@ -213,12 +216,12 @@ internal class CffSidGidMapper
             }
 
             // Build name->GID & SID->GID maps
-            Dictionary<PdfString, ushort> glyphNameToGid = new(glyphCount);
+            Dictionary<PdfFontString, ushort> glyphNameToGid = new(glyphCount);
             for (ushort glyphId = 0; glyphId < sidByGlyph.Length; glyphId++)
             {
                 ushort sid = sidByGlyph[glyphId];
 
-                PdfString glyphName = ResolveGlyphName(sid, customStrings);
+                PdfFontString glyphName = ResolveGlyphName(sid, customStrings);
                 if (!glyphName.IsEmpty && !glyphNameToGid.ContainsKey(glyphName))
                 {
                     glyphNameToGid[glyphName] = glyphId;
@@ -233,11 +236,11 @@ internal class CffSidGidMapper
                 _ => PdfFontEncoding.Unknown
             };
 
-            PdfString[]? codeToName = SingleByteEncodings.GetEncodingSet(encoding);
+            PdfFontString[]? codeToName = SingleByteEncodings.GetEncodingSet(encoding);
             if (codeToName == null && encodingOffsetValue > 1)
             {
                 CffEncodingParser encodingParser = new();
-                if (encodingParser.TryParseEncoding(cffBytes.Span, encodingOffsetValue, sidByGlyph, customStrings, out PdfString[] parsedCodeToName))
+                if (encodingParser.TryParseEncoding(cffBytes.Span, encodingOffsetValue, sidByGlyph, customStrings, out PdfFontString[] parsedCodeToName))
                 {
                     codeToName = parsedCodeToName;
                 }
@@ -270,7 +273,7 @@ internal class CffSidGidMapper
             if (start >= 0 && end >= start && end <= cffBytes.Length)
             {
                 ReadOnlySpan<byte> slice = cffBytes.Slice(start, end - start);
-                topNames.Add(Encoding.ASCII.GetString(slice));
+                topNames.Add(Encoding.ASCII.GetString(slice.ToArray()));
             }
         }
 
@@ -284,7 +287,7 @@ internal class CffSidGidMapper
         }
     }
 
-    private static PdfString ResolveGlyphName(ushort sid, PdfString[] customStrings)
+    private static PdfFontString ResolveGlyphName(ushort sid, PdfFontString[] customStrings)
     {
         if (sid < CffData.StandardStrings.Length)
         {

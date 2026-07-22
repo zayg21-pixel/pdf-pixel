@@ -102,7 +102,7 @@ public class SingleByteFontWidths
     /// <param name="italic">Whether to resolve the italic/oblique style variant.</param>
     /// <param name="encoding">The font's actual encoding, matching what the glyph-ID resolution path uses.</param>
     /// <returns>The resolved widths, or <see langword="null"/> if the family or style variant is unknown.</returns>
-    internal static SingleByteFontWidths? FromStandardFont(PdfStandardFontName fontName, bool bold, bool italic, PdfFontEncoding encoding)
+    internal static SingleByteFontWidths? FromStandardFont(PdfStandardFontName fontName, bool bold, bool italic, PdfEncoding encoding)
     {
         int[]? widths = Standard14Metrics.GetWidths(fontName, bold, italic, encoding);
         if (widths == null)

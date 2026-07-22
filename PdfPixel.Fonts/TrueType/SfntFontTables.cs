@@ -1,5 +1,5 @@
-using PdfPixel.Models;
 using System.Collections.Generic;
+using PdfPixel.Fonts.Model;
 
 namespace PdfPixel.Fonts.TrueType;
 
@@ -16,7 +16,7 @@ public class SfntFontTables
     /// <summary>
     /// Maps glyph names to glyph IDs (GIDs), parsed from the font's 'post' table.
     /// </summary>
-    public Dictionary<PdfString, ushort> NameToGid { get; } = [];
+    public Dictionary<PdfFontString, ushort> NameToGid { get; } = [];
 
     /// <summary>
     /// Advance width per glyph ID (GID), as a fraction of the em square, parsed from the font's

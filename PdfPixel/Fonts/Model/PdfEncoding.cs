@@ -6,7 +6,7 @@ namespace PdfPixel.Fonts.Model;
 /// Encoding for single byte fonts (Type1, TrueType, etc...)
 /// </summary>
 [PdfEnum]
-public enum PdfFontEncoding
+public enum PdfEncoding
 {
     /// <summary>
     /// The encoding is not specified or was not recognised.

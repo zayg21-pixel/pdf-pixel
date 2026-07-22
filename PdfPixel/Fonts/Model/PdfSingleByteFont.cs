@@ -1,6 +1,8 @@
+using PdfPixel.Fonts;
 using PdfPixel.Fonts.Mapping;
+using PdfPixel.Fonts.Model;
+using PdfPixel.Fonts.Resources;
 using PdfPixel.Models;
-using PdfPixel.Text;
 using System;
 
 namespace PdfPixel.Fonts.Model;
@@ -72,9 +74,9 @@ public abstract class PdfSingleByteFont : PdfFontBase
         }
 
         // Fallback to Adobe Glyph List mapping.
-        PdfString name = SingleByteEncodings.GetNameByCodeOrUndefined((byte)(uint)code, Encoding.BaseEncoding, Encoding.Differences);
+        PdfFontString name = Encoding.GetNameByCodeOrUndefined((byte)(uint)code);
 
-        if (AdobeGlyphList.GetMap(Encoding.BaseEncoding).TryGetValue(name, out string? aglUnicode))
+        if (AdobeGlyphList.GetMap(Encoding.BaseEncoding.ToPdfFontEncoding()).TryGetValue(name, out string? aglUnicode))
         {
             return aglUnicode;
         }

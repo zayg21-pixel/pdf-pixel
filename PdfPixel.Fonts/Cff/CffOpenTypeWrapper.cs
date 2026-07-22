@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
-using PdfPixel.Fonts.Management;
 using PdfPixel.Fonts.Model;
 
 namespace PdfPixel.Fonts.Cff;
@@ -11,7 +10,7 @@ namespace PdfPixel.Fonts.Cff;
 /// Wraps raw CFF (Type 1C) font data in a minimal OpenType (OTTO) container, synthesizing mandatory tables.
 /// The wrapper is intentionally minimal and only aims to satisfy typical FreeType / Skia requirements.
 /// </summary>
-internal static class CffOpenTypeWrapper
+public static class CffOpenTypeWrapper
 {
     private const uint SfntVersion = 0x4F54544F; // 'OTTO'
     private const uint TagCff = 0x43464620;      // 'CFF '
@@ -61,7 +60,7 @@ internal static class CffOpenTypeWrapper
     /// Produce a minimal OpenType font byte array containing the supplied CFF data and synthetic tables.
     /// Returns null if input is invalid or empty.
     /// </summary>
-    public static byte[]? Wrap(PdfFontDescriptor? descriptor, CffInfo? cffInfo)
+    public static byte[]? Wrap(PdfFontMetrics? descriptor, CffInfo? cffInfo)
     {
         if (cffInfo == null)
         {
@@ -146,7 +145,7 @@ internal static class CffOpenTypeWrapper
         };
     }
 
-    private static byte[] BuildHead(uint checksumAdjustment, PdfFontDescriptor fontDescriptor, short unitsPerEm)
+    private static byte[] BuildHead(uint checksumAdjustment, PdfFontMetrics fontDescriptor, short unitsPerEm)
     {
         float unitsPerEmScale = unitsPerEm / (float)DefaultUnitsPerEm;
 
@@ -185,7 +184,7 @@ internal static class CffOpenTypeWrapper
         }
     }
 
-    private static byte[] BuildHhea(ushort numGlyphs, PdfFontDescriptor fontDescriptor, short unitsPerEm)
+    private static byte[] BuildHhea(ushort numGlyphs, PdfFontMetrics fontDescriptor, short unitsPerEm)
     {
         float unitsPerEmScale = unitsPerEm / (float)DefaultUnitsPerEm;
 
@@ -248,7 +247,7 @@ internal static class CffOpenTypeWrapper
         }
     }
 
-    private static byte[] BuildOS2(ushort numGlyphs, PdfFontDescriptor fontDescriptor, short unitsPerEm)
+    private static byte[] BuildOS2(ushort numGlyphs, PdfFontMetrics fontDescriptor, short unitsPerEm)
     {
         float unitsPerEmScale = unitsPerEm / (float)DefaultUnitsPerEm;
 
@@ -258,18 +257,18 @@ internal static class CffOpenTypeWrapper
             var scaledDefaultAvgWidth = (short)Math.Round(DefaultAvgWidth * unitsPerEmScale);
             float avgWidth = ((fontDescriptor.AvgWidth != 0) ? fontDescriptor.AvgWidth : DefaultAvgWidth) * unitsPerEmScale;
             short xAvgCharWidth = CffOpenTypeWriter.ClampToShort(avgWidth, scaledDefaultAvgWidth);
-            var usWeightClass = (ushort)((fontDescriptor.FontWeight >= 100 && fontDescriptor.FontWeight <= 900)
-                ? fontDescriptor.FontWeight
-                : ((fontDescriptor.Flags & PdfFontFlags.ForceBold) == PdfFontFlags.ForceBold) ? DefaultBoldWeight : DefaultWeightIfUnknown);
+            var usWeightClass = (ushort)((fontDescriptor.Weight >= 100 && fontDescriptor.Weight <= 900)
+                ? fontDescriptor.Weight
+                : (fontDescriptor.IsForceBold) ? DefaultBoldWeight : DefaultWeightIfUnknown);
             const ushort usWidthClass = 5; // Medium width
             var scaledDefaultAscent = (short)Math.Round(DefaultAscent * unitsPerEmScale);
-            float ascentValue = (fontDescriptor.Ascent != 0) ? fontDescriptor.Ascent : fontDescriptor.FontBBox.Top;
+            float ascentValue = (fontDescriptor.Ascent != 0) ? fontDescriptor.Ascent : fontDescriptor.BoundingBoxTop;
             var typoAscent = (float)Math.Round(unitsPerEmScale * ascentValue);
             short sTypoAscender = CffOpenTypeWriter.ClampToShort(typoAscent, scaledDefaultAscent);
             var scaledDefaultDescent = (short)Math.Round(DefaultDescent * unitsPerEmScale);
-            float descentValue = (fontDescriptor.Descent != 0) ? fontDescriptor.Descent : fontDescriptor.FontBBox.Bottom;
+            float descentValue = (fontDescriptor.Descent != 0) ? fontDescriptor.Descent : fontDescriptor.BoundingBoxBottom;
             var typoDescent = (float)Math.Round(unitsPerEmScale * descentValue);
-            if (typoDescent > 0 && fontDescriptor.Descent > 0 && fontDescriptor.FontBBox.Bottom < 0)
+            if (typoDescent > 0 && fontDescriptor.Descent > 0 && fontDescriptor.BoundingBoxBottom < 0)
             {
                 typoDescent = -typoDescent; // fixing incorrect descent
             }
@@ -280,7 +279,7 @@ internal static class CffOpenTypeWrapper
             var usWinDescent = (ushort)Math.Max(0, -(int)Math.Round(typoDescent));
 
             ushort fsSelection = 0;
-            bool italic = (fontDescriptor.Flags & PdfFontFlags.Italic) == PdfFontFlags.Italic || Math.Abs(fontDescriptor.ItalicAngle) > 0.1f;
+            bool italic = fontDescriptor.IsItalic || Math.Abs(fontDescriptor.ItalicAngle) > 0.1f;
             bool bold = usWeightClass >= DefaultBoldWeight;
             if (italic)
             {
@@ -346,18 +345,16 @@ internal static class CffOpenTypeWrapper
         }
     }
 
-    private static byte[] BuildName(PdfFontDescriptor descriptor)
+    private static byte[] BuildName(PdfFontMetrics descriptor)
     {
-        var parsed = PdfSubstitutionInfo.Parse(descriptor.FontName, descriptor);
-
-        string family = parsed.NormalizedStem;
+        string family = StripSubsetPrefix(descriptor.FontName.ToString());
         if (string.IsNullOrWhiteSpace(family))
         {
             family = DefaultFamilyBaseName;
         }
 
-        bool boldHint = parsed.IsBold;
-        bool italicHint = parsed.IsItalic;
+        bool boldHint = descriptor.IsForceBold || descriptor.Weight >= DefaultBoldWeight;
+        bool italicHint = descriptor.IsItalic;
 
         string subfamily;
         if (boldHint && italicHint)
@@ -377,8 +374,7 @@ internal static class CffOpenTypeWrapper
             subfamily = "Regular";
         }
 
-        string baseName = parsed.NormalizedStem;
-        string postScriptName = baseName.Replace(' ', '-');
+        string postScriptName = family.Replace(' ', '-');
 
         List<(ushort NameId, string Value)> records = [
             (NameIdFontFamily, family),
@@ -433,6 +429,29 @@ internal static class CffOpenTypeWrapper
 
             return stream.ToArray();
         }
+    }
+
+    private static string StripSubsetPrefix(string fontName)
+    {
+        if (fontName.Length > 7 && fontName[6] == '+')
+        {
+            var isSubsetTag = true;
+            for (int index = 0; index < 6; index++)
+            {
+                if (fontName[index] is < 'A' or > 'Z')
+                {
+                    isSubsetTag = false;
+                    break;
+                }
+            }
+
+            if (isSubsetTag)
+            {
+                return fontName.Substring(7);
+            }
+        }
+
+        return fontName;
     }
 
     private static byte[] BuildCmapEmpty()

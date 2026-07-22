@@ -1,5 +1,4 @@
 using PdfPixel.Fonts.Model;
-using PdfPixel.Models;
 using System;
 using System.Collections.Generic;
 
@@ -9,7 +8,7 @@ namespace PdfPixel.Fonts.Cff;
 /// Holds parsed metadata for a CFF (Type 1C) font.
 /// Provides glyph count, glyph name to GID mapping, and raw CFF data.
 /// </summary>
-internal sealed class CffInfo
+public sealed class CffInfo
 {
     /// <summary>
     /// Gets or sets the total number of glyphs in the font.
@@ -19,12 +18,12 @@ internal sealed class CffInfo
     /// <summary>
     /// Gets or sets the mapping from glyph names to glyph IDs (GIDs).
     /// </summary>
-    public Dictionary<PdfString, ushort>? NameToGid { get; set; }
+    public Dictionary<PdfFontString, ushort>? NameToGid { get; set; }
 
     /// <summary>
     /// Code to name encoding vector.
     /// </summary>
-    public PdfString[]? CodeToName { get; set; }
+    public PdfFontString[]? CodeToName { get; set; }
 
     /// <summary>
     /// Gets or sets a value indicating whether the font is a CID font.

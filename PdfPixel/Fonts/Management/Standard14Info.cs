@@ -16,14 +16,14 @@ namespace PdfPixel.Fonts.Management
         /// <summary>
         /// The default encoding for this standard 14 font family.
         /// </summary>
-        public PdfFontEncoding DefaultEncoding { get; }
+        public PdfEncoding DefaultEncoding { get; }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="Standard14Info"/> class.
         /// </summary>
         /// <param name="substitutionCandidates">Font family names to try for substitution.</param>
         /// <param name="defaultEncoding">The default encoding for this font family.</param>
-        public Standard14Info(string[] substitutionCandidates, PdfFontEncoding defaultEncoding)
+        public Standard14Info(string[] substitutionCandidates, PdfEncoding defaultEncoding)
         {
             SubstitutionCandidates = substitutionCandidates ?? Array.Empty<string>();
             DefaultEncoding = defaultEncoding;

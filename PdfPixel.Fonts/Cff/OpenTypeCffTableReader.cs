@@ -7,7 +7,7 @@ namespace PdfPixel.Fonts.Cff;
 /// Reads the raw 'CFF ' table out of an OpenType (OTF) font file, when present, without requiring the
 /// container itself to be fully well-formed.
 /// </summary>
-internal static class OpenTypeCffTableReader
+public static class OpenTypeCffTableReader
 {
     private const uint TagCff = 0x43464620; // 'CFF '
     private const int SfntHeaderSize = 12;

@@ -1,11 +1,9 @@
 using PdfPixel.Fonts.Cff;
-using PdfPixel.Models;
-using PdfPixel.Text;
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
-using System.Text;
+using PdfPixel.Fonts.Resources;
+using PdfPixel.Fonts.Model;
 
 namespace PdfPixel.Fonts.Type1;
 
@@ -43,10 +41,10 @@ internal static class Type1CharStringConverter
     /// <summary>
     /// Convert all Type1 charstrings and flatten local subroutines (inlines their content). Skips hints.
     /// </summary>
-    public static Dictionary<PdfString, byte[]> ConvertAllCharStringsToType2Flatten(Type1ConverterContext context)
+    public static Dictionary<PdfFontString, byte[]> ConvertAllCharStringsToType2Flatten(Type1ConverterContext context)
     {
-        Dictionary<PdfString, byte[]> result = new(context.Source.Count);
-        foreach (KeyValuePair<PdfString, byte[]> kv in context.Source)
+        Dictionary<PdfFontString, byte[]> result = new(context.Source.Count);
+        foreach (KeyValuePair<PdfFontString, byte[]> kv in context.Source)
         {
             result[kv.Key] = FlattenCharString(kv.Value, context);
 
@@ -312,10 +310,10 @@ internal static class Type1CharStringConverter
                 Type1CharStringNumber achar = operandStack[operandStack.Count - 1];
                 operandStack.Clear();
 
-                PdfString[] standardEncoding = SingleByteEncodings.GetEncodingSet(Model.PdfFontEncoding.StandardEncoding) ?? Array.Empty<PdfString>();
+                PdfFontString[] standardEncoding = SingleByteEncodings.GetEncodingSet(Model.PdfFontEncoding.StandardEncoding) ?? Array.Empty<PdfFontString>();
 
-                PdfString nameA = standardEncoding[achar.Value1];
-                PdfString nameB = standardEncoding[bchar.Value1];
+                PdfFontString nameA = standardEncoding[achar.Value1];
+                PdfFontString nameB = standardEncoding[bchar.Value1];
                 byte[] aBytes = context.Source[nameA];
                 byte[] bBytes = context.Source[nameB];
 

@@ -22,7 +22,7 @@ internal static class PdfFontEncodingParser
         if (encodingValue == null)
         {
             // No /Encoding specified, assume standard
-            return new PdfFontEncodingInfo(PdfFontEncoding.Unknown, PdfString.Empty, null);
+            return new PdfFontEncodingInfo(PdfEncoding.Unknown, PdfString.Empty, null);
         }
 
         // Name case: /Encoding /WinAnsiEncoding, /UniJIS-UTF16-H, etc.
@@ -30,7 +30,7 @@ internal static class PdfFontEncodingParser
 
         if (!name.IsEmpty)
         {
-            PdfFontEncoding encoding = name.AsEnum<PdfFontEncoding>();
+            PdfEncoding encoding = name.AsEnum<PdfEncoding>();
             return new PdfFontEncodingInfo(encoding, name, null);
         }
 
@@ -40,7 +40,7 @@ internal static class PdfFontEncodingParser
         {
             // Base encoding name (optional); default per spec is StandardEncoding for Type1/Type3, WinAnsi for TrueType
             name = encodingDictionary.GetName(PdfTokens.BaseEncodingKey);
-            PdfFontEncoding baseEncoding = name.AsEnum<PdfFontEncoding>();
+            PdfEncoding baseEncoding = name.AsEnum<PdfEncoding>();
 
             Dictionary<int, PdfString> differences = [];
             PdfArray? diffs = encodingDictionary.GetArray(PdfTokens.DifferencesKey);
@@ -73,6 +73,6 @@ internal static class PdfFontEncodingParser
         }
 
         // Fallback: unknown encoding representation
-        return new PdfFontEncodingInfo(PdfFontEncoding.Unknown, PdfString.Empty, null);
+        return new PdfFontEncodingInfo(PdfEncoding.Unknown, PdfString.Empty, null);
     }
 }

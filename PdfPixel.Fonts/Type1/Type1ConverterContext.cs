@@ -1,5 +1,5 @@
 using System.Collections.Generic;
-using PdfPixel.Models;
+using PdfPixel.Fonts.Model;
 
 namespace PdfPixel.Fonts.Type1;
 
@@ -8,7 +8,7 @@ namespace PdfPixel.Fonts.Type1;
 /// </summary>
 internal struct Type1ConverterContext
 {
-    public Dictionary<PdfString, byte[]> Source { get; set; }
+    public Dictionary<PdfFontString, byte[]> Source { get; set; }
 
     public Dictionary<int, byte[]> LocalSubrs { get; set; }
 

@@ -1,6 +1,6 @@
 using PdfPixel.Fonts.Model;
-using PdfPixel.Models;
 using SkiaSharp;
+using System;
 using System.Collections.Generic;
 
 namespace PdfPixel.Fonts.TrueType;
@@ -8,7 +8,7 @@ namespace PdfPixel.Fonts.TrueType;
 /// <summary>
 /// Extracts font table information from a SKTypeface for SNFT fonts.
 /// </summary>
-internal static class SfntFontTablesParser
+public static class SfntFontTablesParser
 {
     /// <summary>
     /// Extracts all cmap subtables and 'post' table glyph names from the specified <see cref="SKTypeface"/>.
@@ -17,6 +17,11 @@ internal static class SfntFontTablesParser
     /// <returns><see cref="SfntFontTables"/> with all parsed cmap entries and post-table glyph names.</returns>
     public static SfntFontTables GetSfntFontTables(SKTypeface typeface)
     {
+        if (typeface == null)
+        {
+            throw new ArgumentNullException(nameof(typeface));
+        }
+
         SfntFontTables tables = new();
 
         uint postTag = SnftExtractHelpers.ConvertTagToUInt32("post");
@@ -25,7 +30,7 @@ internal static class SfntFontTablesParser
             uint formatFixed = SnftExtractHelpers.ReadUInt32(postData, 0);
             float format = formatFixed / 65536.0f;
 
-            Dictionary<PdfString, ushort>? nameToGid = format switch
+            Dictionary<PdfFontString, ushort>? nameToGid = format switch
             {
                 1.0f => SfntPostTableParser.GetNameToGidFormat1(postData),
                 2.0f => SfntPostTableParser.GetNameToGidFormat2(postData),
@@ -34,7 +39,7 @@ internal static class SfntFontTablesParser
 
             if (nameToGid != null)
             {
-                foreach (KeyValuePair<PdfString, ushort> kvp in nameToGid)
+                foreach (KeyValuePair<PdfFontString, ushort> kvp in nameToGid)
                 {
                     tables.NameToGid[kvp.Key] = kvp.Value;
                 }

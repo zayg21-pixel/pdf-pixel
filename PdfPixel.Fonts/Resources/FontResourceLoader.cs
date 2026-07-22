@@ -1,26 +1,21 @@
-﻿using PdfPixel.Text;
 using System.IO;
-using System.IO.Compression;
-using System.Linq;
 
-namespace PdfPixel.Resources;
+namespace PdfPixel.Fonts.Resources;
 
 /// <summary>
-/// Loads embedded PDF resources from the assembly.
+/// Loads embedded font resources from the assembly.
 /// </summary>
-public static class PdfResourceLoader
+internal static class FontResourceLoader
 {
     /// <summary>
     /// Loads an embedded resource from the assembly as a byte array.
     /// </summary>
     /// <param name="resourceName">Resource name.</param>
-    /// <returns></returns>
-    /// <exception cref="FileNotFoundException"></exception>
+    /// <exception cref="FileNotFoundException">Thrown when the resource is not found.</exception>
     public static byte[] GetResource(string resourceName)
     {
-        System.Reflection.Assembly assembly = typeof(PdfResourceLoader).Assembly;
-        // Open the resource stream
-        using Stream? stream = assembly.GetManifestResourceStream($"{nameof(PdfPixel)}.{nameof(Resources)}.{resourceName}");
+        System.Reflection.Assembly assembly = typeof(FontResourceLoader).Assembly;
+        using Stream? stream = assembly.GetManifestResourceStream($"{nameof(PdfPixel)}.{nameof(Fonts)}.{nameof(Resources)}.{resourceName}");
 
         if (stream == null)
         {

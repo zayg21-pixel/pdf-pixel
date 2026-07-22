@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging;
+using PdfPixel.Fonts;
 using PdfPixel.Fonts.Cff;
 using PdfPixel.Fonts.Mapping;
 using PdfPixel.Fonts.TrueType;
@@ -185,7 +186,7 @@ public class PdfCidFont : PdfFontBase
             throw new InvalidOperationException("Failed to parse embedded CFF font data.");
         }
 
-        byte[]? typefaceData = CffOpenTypeWrapper.Wrap(FontDescriptor, cffInfo);
+        byte[]? typefaceData = CffOpenTypeWrapper.Wrap(FontDescriptor?.ToPdfFontMetrics(), cffInfo);
         PdfTypeface typeface = new(typefaceData);
 
         return (typeface, cffInfo);

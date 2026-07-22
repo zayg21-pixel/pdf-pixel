@@ -1,6 +1,8 @@
 using Microsoft.Extensions.Logging;
 using PdfPixel.Commands;
+using PdfPixel.Fonts;
 using PdfPixel.Fonts.Mapping;
+using PdfPixel.Fonts.Resources;
 using PdfPixel.Forms;
 using PdfPixel.Geometry;
 using PdfPixel.Models;
@@ -48,10 +50,10 @@ public class PdfType3Font : PdfSingleByteFont
         // Rescale width to glyph space
         Widths.RescaleWidths(FontMatrix.ScaleX / SingleByteFontWidths.WidthToUserSpaceCoeff);
 
-        if (Encoding.BaseEncoding == PdfFontEncoding.Unknown)
+        if (Encoding.BaseEncoding == PdfEncoding.Unknown)
         {
             // Default to StandardEncoding for Type3 fonts if no encoding specified
-            Encoding.UpdateEncoding(PdfFontEncoding.StandardEncoding);
+            Encoding.UpdateEncoding(PdfEncoding.StandardEncoding);
         }
     }
 
@@ -224,7 +226,7 @@ public class PdfType3Font : PdfSingleByteFont
     /// <summary>
     /// Convert character code to character name based on encoding
     /// </summary>
-    private PdfString GetCharacterName(PdfCharacterCode charCode) => SingleByteEncodings.GetNameByCode((byte)charCode, Encoding.BaseEncoding, Encoding.Differences);
+    private PdfString GetCharacterName(PdfCharacterCode charCode) => Encoding.GetNameByCode((byte)charCode).ToPdfString();
 
     /// <summary>
     /// Gets the glyph ID (GID) for the specified character code in a Type3 font.

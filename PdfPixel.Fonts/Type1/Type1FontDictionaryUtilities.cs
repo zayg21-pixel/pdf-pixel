@@ -1,9 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
 using PdfPixel.PostScript.Tokens;
-using PdfPixel.Models;
-using PdfPixel.Text;
 using PdfPixel.Fonts.Model;
+using PdfPixel.Fonts.Resources;
 
 namespace PdfPixel.Fonts.Type1;
 
@@ -81,9 +80,9 @@ internal static class Type1FontDictionaryUtilities
     /// </summary>
     /// <param name="fontDict">Top-level font dictionary.</param>
     /// <returns>Dictionary of glyph name to decrypted charstring bytes (LenIV prefix removed when applicable).</returns>
-    public static Dictionary<PdfString, byte[]> GetCharStrings(PostScriptDictionary fontDict)
+    public static Dictionary<PdfFontString, byte[]> GetCharStrings(PostScriptDictionary fontDict)
     {
-        Dictionary<PdfString, byte[]> results = [];
+        Dictionary<PdfFontString, byte[]> results = [];
         if (fontDict == null)
         {
             return results;
@@ -101,7 +100,7 @@ internal static class Type1FontDictionaryUtilities
             {
                 byte[] data = bin.Data ?? Array.Empty<byte>();
                 byte[] decrypted = (lenIV < 0) ? data : Type1Decryptor.DecryptCharString(data, lenIV);
-                results[(PdfString)entry.Key] = decrypted;
+                results[(PdfFontString)entry.Key] = decrypted;
             }
         }
 
@@ -220,12 +219,12 @@ internal static class Type1FontDictionaryUtilities
     /// <summary>
     /// Extract a256-entry encoding vector. If /Encoding is a known predefined name, returns the shared vector
     /// from <see cref="SingleByteEncodings"/>. If /Encoding is an array (custom), builds a new256-length vector
-    /// mapping indices to glyph names. Entries equal to ".notdef" are normalized to PdfString.Empty so callers can compare using SingleByteEncodings.UndefinedCharacter.
+    /// mapping indices to glyph names. Entries equal to ".notdef" are normalized to PdfFontString.Empty so callers can compare using SingleByteEncodings.UndefinedCharacter.
     /// Returns null if /Encoding absent or unknown.
     /// </summary>
     /// <param name="fontDict">Top-level font dictionary.</param>
-    /// <returns>PdfString[256] encoding vector or null if not present.</returns>
-    public static PdfString[]? GetEncodingVector(PostScriptDictionary fontDict)
+    /// <returns>PdfFontString[256] encoding vector or null if not present.</returns>
+    public static PdfFontString[]? GetEncodingVector(PostScriptDictionary fontDict)
     {
         if (fontDict == null)
         {
@@ -241,24 +240,24 @@ internal static class Type1FontDictionaryUtilities
         {
             // Map predefined encoding name to enum then to shared vector.
             PdfFontEncoding encodingEnum = MapEncodingName(litName.Name);
-            PdfString[]? predefined = SingleByteEncodings.GetEncodingSet(encodingEnum);
+            PdfFontString[]? predefined = SingleByteEncodings.GetEncodingSet(encodingEnum);
             return predefined; // May be null if unknown (caller handles null).
         }
 
         if (encToken is PostScriptArray arr && arr.Elements != null)
         {
-            var vector = new PdfString[256];
+            var vector = new PdfFontString[256];
             int limit = Math.Min(arr.Elements.Length, 256);
             for (int i = 0; i < limit; i++)
             {
                 PostScriptToken element = arr.Elements[i];
                 if (element is PostScriptLiteralName glyphName)
                 {
-                    vector[i] = (glyphName.Name == NotdefName) ? PdfString.Empty : (PdfString)glyphName.Name;
+                    vector[i] = (glyphName.Name == NotdefName) ? PdfFontString.Empty : (PdfFontString)glyphName.Name;
                 }
                 else
                 {
-                    vector[i] = PdfString.Empty;
+                    vector[i] = PdfFontString.Empty;
                 }
             }
 
@@ -303,7 +302,7 @@ internal static class Type1FontDictionaryUtilities
 
     public static PostScriptArray? GetEncodingArray(PdfFontEncoding pdfEncoding)
     {
-        PdfString[]? encodingSet = SingleByteEncodings.GetEncodingSet(pdfEncoding);
+        PdfFontString[]? encodingSet = SingleByteEncodings.GetEncodingSet(pdfEncoding);
 
         if (encodingSet == null)
         {
@@ -314,8 +313,8 @@ internal static class Type1FontDictionaryUtilities
 
         for (int i = 0; i < encodingSet.Length; i++)
         {
-            PdfString glyphName = encodingSet[i];
-            if (glyphName == PdfString.Empty)
+            PdfFontString glyphName = encodingSet[i];
+            if (glyphName == PdfFontString.Empty)
             {
                 encodingArray.Elements[i] = new PostScriptLiteralName(NotdefName);
             }

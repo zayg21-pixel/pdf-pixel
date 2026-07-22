@@ -1,12 +1,11 @@
 using PdfPixel.Fonts.Cff;
 using PdfPixel.Fonts.Model;
-using PdfPixel.Models;
 using PdfPixel.PostScript.Tokens;
-using PdfPixel.Text;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
+using PdfPixel.Fonts.Resources;
 
 namespace PdfPixel.Fonts.Type1;
 
@@ -18,27 +17,22 @@ internal static class Type1DictionaryToCffConverter
     private const int FirstCustomSid = 391; // CFF spec: custom strings start at SID391.
     private const byte OpEndChar = 14;
 
-    public static CffInfo? GenerateCffFontDataFromDictionary(PostScriptDictionary fontDictionary, PdfFontDescriptor descriptor)
+    public static CffInfo? GenerateCffFontDataFromDictionary(PostScriptDictionary fontDictionary, in PdfFontString fallbackFontName)
     {
         if (fontDictionary == null)
         {
             return null;
         }
 
-        if (descriptor == null)
-        {
-            return null;
-        }
-
-        Dictionary<PdfString, byte[]> type1CharStrings = Type1FontDictionaryUtilities.GetCharStrings(fontDictionary);
+        Dictionary<PdfFontString, byte[]> type1CharStrings = Type1FontDictionaryUtilities.GetCharStrings(fontDictionary);
         Dictionary<int, byte[]> type1Subrs = Type1FontDictionaryUtilities.GetSubroutines(fontDictionary); // Source local subrs for flattening.
         float[] fontMatrix = Type1FontDictionaryUtilities.GetFontMatrix(fontDictionary) ?? [0.001f, 0f, 0f, 0.001f, 0f, 0f];
         float[] effectiveFontBBox = Type1FontDictionaryUtilities.GetFontBBox(fontDictionary) ?? [0f, 0f, 0f, 0f];
 
         string? fontName = Type1FontDictionaryUtilities.GetFontName(fontDictionary);
-        if (string.IsNullOrEmpty(fontName) && descriptor.FontName.ToString() != null)
+        if (string.IsNullOrEmpty(fontName) && !fallbackFontName.IsEmpty)
         {
-            fontName = descriptor.FontName.ToString();
+            fontName = fallbackFontName.ToString();
         }
 
         if (string.IsNullOrEmpty(fontName))
@@ -52,15 +46,15 @@ internal static class Type1DictionaryToCffConverter
             LocalSubrs = type1Subrs
         };
 
-        Dictionary<PdfString, byte[]> type2CharStrings = Type1CharStringConverter.ConvertAllCharStringsToType2Flatten(parameters);
+        Dictionary<PdfFontString, byte[]> type2CharStrings = Type1CharStringConverter.ConvertAllCharStringsToType2Flatten(parameters);
 
-        PdfString[] encodingVector = Type1FontDictionaryUtilities.GetEncodingVector(fontDictionary) ?? Array.Empty<PdfString>();
+        PdfFontString[] encodingVector = Type1FontDictionaryUtilities.GetEncodingVector(fontDictionary) ?? Array.Empty<PdfFontString>();
 
         GlyphCollections glyphCollections = BuildGlyphCollections(type2CharStrings);
         List<byte[]> orderedCharStrings = glyphCollections.OrderedCharStrings;
         ushort[] sids = glyphCollections.Sids;
         List<byte[]> customStrings = glyphCollections.CustomStrings;
-        Dictionary<PdfString, ushort> nameToGid = glyphCollections.NameToGid;
+        Dictionary<PdfFontString, ushort> nameToGid = glyphCollections.NameToGid;
 
         byte[] charStringsIndex = CffIndexBuilder.BuildIndex(orderedCharStrings);
         byte[] stringIndex = CffIndexBuilder.BuildIndex(customStrings); // May be empty.
@@ -127,9 +121,9 @@ internal static class Type1DictionaryToCffConverter
         return cffInfo;
     }
 
-    private static GlyphCollections BuildGlyphCollections(Dictionary<PdfString, byte[]> convertedType2CharStrings)
+    private static GlyphCollections BuildGlyphCollections(Dictionary<PdfFontString, byte[]> convertedType2CharStrings)
     {
-        PdfString notdefName = SingleByteEncodings.UndefinedCharacter;
+        PdfFontString notdefName = SingleByteEncodings.UndefinedCharacter;
         int totalCount = convertedType2CharStrings.Count;
         bool hasNotdef = convertedType2CharStrings.ContainsKey(notdefName);
         if (!hasNotdef)
@@ -140,7 +134,7 @@ internal static class Type1DictionaryToCffConverter
         List<byte[]> orderedCharStrings = new(totalCount);
         var sids = new ushort[totalCount];
         List<byte[]> customStrings = new(totalCount);
-        Dictionary<PdfString, ushort> nameToGid = new(totalCount);
+        Dictionary<PdfFontString, ushort> nameToGid = new(totalCount);
         ushort nextSid = FirstCustomSid;
 
         if (hasNotdef)
@@ -156,9 +150,9 @@ internal static class Type1DictionaryToCffConverter
         nameToGid[notdefName] = 0;
 
         int gid = 1;
-        foreach (KeyValuePair<PdfString, byte[]> kvp in convertedType2CharStrings)
+        foreach (KeyValuePair<PdfFontString, byte[]> kvp in convertedType2CharStrings)
         {
-            PdfString name = kvp.Key;
+            PdfFontString name = kvp.Key;
             if (name == notdefName)
             {
                 continue;
@@ -282,6 +276,6 @@ internal static class Type1DictionaryToCffConverter
         public List<byte[]> OrderedCharStrings;
         public ushort[] Sids;
         public List<byte[]> CustomStrings;
-        public Dictionary<PdfString, ushort> NameToGid;
+        public Dictionary<PdfFontString, ushort> NameToGid;
     }
 }

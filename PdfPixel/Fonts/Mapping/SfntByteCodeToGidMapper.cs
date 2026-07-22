@@ -1,7 +1,7 @@
+using PdfPixel.Fonts;
 using PdfPixel.Fonts.Model;
+using PdfPixel.Fonts.Resources;
 using PdfPixel.Fonts.TrueType;
-using PdfPixel.Models;
-using PdfPixel.Text;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -34,10 +34,8 @@ internal class SfntByteCodeToGidMapper : IByteCodeToGidMapper
             throw new ArgumentNullException(nameof(fontTables));
         }
 
-        PdfFontEncoding encoding = encodingInfo.BaseEncoding;
-        Dictionary<int, PdfString> differences = encodingInfo.Differences;
-
-        bool hasEncoding = !(encoding == PdfFontEncoding.Unknown && differences.Count == 0);
+        PdfFontEncoding encoding = encodingInfo.BaseEncoding.ToPdfFontEncoding();
+        bool hasEncoding = !(encoding == PdfFontEncoding.Unknown && encodingInfo.Differences.Count == 0);
 
         ushort[]? singleByteCodeToGid = null;
         if (!substituted && (flags & PdfFontFlags.Symbolic) != 0)
@@ -45,13 +43,13 @@ internal class SfntByteCodeToGidMapper : IByteCodeToGidMapper
             singleByteCodeToGid = ExtractSingleByteCodeToGid(fontTables, hasEncoding);
         }
 
-        Dictionary<PdfString, ushort> nameToGid = fontTables.NameToGid;
+        Dictionary<PdfFontString, ushort> nameToGid = fontTables.NameToGid;
         Dictionary<string, ushort> unicodeToGid = ExtractUnicodeToGid(fontTables);
         float[]? gidWidths = fontTables.GidWidths;
 
         for (int code = 0; code < 256; code++)
         {
-            ushort gid = ResolveGid((byte)code, singleByteCodeToGid, encoding, differences, nameToGid, unicodeToGid);
+            ushort gid = ResolveGid((byte)code, singleByteCodeToGid, encoding, encodingInfo, nameToGid, unicodeToGid);
             _codeToGid[code] = gid;
 
             if (gid != 0 && gidWidths?.Length > 0)
@@ -79,8 +77,8 @@ internal class SfntByteCodeToGidMapper : IByteCodeToGidMapper
         byte code,
         ushort[]? singleByteCodeToGid,
         PdfFontEncoding encoding,
-        Dictionary<int, PdfString> differences,
-        Dictionary<PdfString, ushort> nameToGid,
+        PdfFontEncodingInfo encodingInfo,
+        Dictionary<PdfFontString, ushort> nameToGid,
         Dictionary<string, ushort> unicodeToGid)
     {
         if (singleByteCodeToGid != null)
@@ -93,7 +91,7 @@ internal class SfntByteCodeToGidMapper : IByteCodeToGidMapper
             }
         }
 
-        PdfString name = SingleByteEncodings.GetNameByCode(code, encoding, differences);
+        PdfFontString name = encodingInfo.GetNameByCode(code);
 
         if (name.IsEmpty)
         {
@@ -238,7 +236,7 @@ internal class SfntByteCodeToGidMapper : IByteCodeToGidMapper
             return code;
         }
 
-        PdfString glyphName = SingleByteEncodings.GetNameByCode((byte)code, encoding.Value);
+        PdfFontString glyphName = SingleByteEncodings.GetNameByCode((byte)code, encoding.Value);
 
         if (glyphName.IsEmpty)
         {
