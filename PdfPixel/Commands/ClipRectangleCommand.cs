@@ -35,7 +35,7 @@ public sealed class ClipRectangleCommand : PdfCommand
         SKClipOperation skOperation = Operation.ToSkClipOperation();
         bool antialias = CommandHelpers.GetRectIsAntialias(snappedRect, executionContext);
         executionContext.Canvas.ClipRect(snappedRect, skOperation, antialias);
-        executionContext.Frames.OnClipRect(snappedRect, skOperation, antialias);
+        executionContext.Frames.OnClipRect(Rect, Operation);
     }
 
     /// <inheritdoc />

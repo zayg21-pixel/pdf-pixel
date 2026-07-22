@@ -158,32 +158,4 @@ public class PdfPageUpdateCacheWorkItem : IWorkItem
                 new PageUpdatedArgs(CacheEntry.PageNumber, CacheEntry.GetContentPictures(), UpdatedContentType.Annotations, annotationIsPartial, CacheEntry.AnnotationContent.LastRegionOfInterest));
         }
     }
-
-    // TODO: [HIGH] cleanup and test the prototype
-    /*
-    private SKPicture? ReplayContentWithPartialFlush(PdfCommandRecorder commandRecording, SKRect regionOfInterest, out bool isPartialContent)
-    {
-        Action? notifyPartialContent = (_onPageUpdated != null)
-            ? () => _onPageUpdated(new PageUpdatedArgs(CacheEntry.PageNumber, CacheEntry.GetContentPictures(), UpdatedContentType.Content, isPartialContent: true))
-            : null;
-
-        using PartialFlushObserver flushObserver = new(
-            _contentObserver,
-            CacheEntry.Content,
-            _request,
-            notifyPartialContent,
-            SKRect.Create(CacheEntry.PageInfo.Width, CacheEntry.PageInfo.Height));
-
-        SKCanvas canvas = flushObserver.BeginRecording();
-        using PdfCommandExecutionContext executionContext = new(_request.CommandExecutionParameters, _documentLocker, _document.OptionalContentGroups, flushObserver, canvas, regionOfInterest);
-        flushObserver.Initialize(executionContext);
-
-        commandRecording.Replay(Array.Empty<IPdfCommandModifier>(), executionContext);
-
-        SKPicture? finalPicture = flushObserver.EndRecording();
-        isPartialContent = executionContext.IsPartialContent;
-        return finalPicture;
-    }
-    */
-
 }

@@ -46,7 +46,15 @@ public sealed class ClipPathCommand : PdfCommand, IPathCommand
         SKClipOperation skOperation = Operation.ToSkClipOperation();
 
         executionContext.Canvas.ClipPath(clipPath, skOperation, antialias);
-        executionContext.Frames.OnClipPath(clipPath, skOperation, antialias);
+
+        if (strokePaint != null && Paint != null)
+        {
+            executionContext.Frames.OnClipStrokePath(Path, Operation, Paint);
+        }
+        else
+        {
+            executionContext.Frames.OnClipPath(Path, Operation);
+        }
     }
 
     private SKPaint? BuildStrokePaint(PdfCommandExecutionContext executionContext)

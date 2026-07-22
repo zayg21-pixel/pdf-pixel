@@ -59,7 +59,7 @@ public sealed class PdfCommandExecutionContext : IDisposable
     /// <summary>
     /// The canvas commands draw onto during this replay.
     /// </summary>
-    public SKCanvas Canvas { get; private set; }
+    public SKCanvas Canvas { get; }
 
     /// <summary>
     /// Visible region of the page in page coordinates. Null means the full page is visible.
@@ -89,7 +89,7 @@ public sealed class PdfCommandExecutionContext : IDisposable
     public IPdfCommand? CurrentCommand { get; set; }
 
     /// <summary>
-    /// Tracks the total transformation matrix and clip path derived purely from processed commands,
+    /// Tracks the total transformation matrix and current clip derived purely from processed commands,
     /// mirroring the canvas save/restore stack without depending on the canvas itself.
     /// </summary>
     public PdfCommandExecutionFrames Frames { get; } = new();
@@ -115,26 +115,9 @@ public sealed class PdfCommandExecutionContext : IDisposable
     /// </summary>
     public PdfTextBlock RootTextBlock => MarkedContent.RootTextBlock;
 
-    /// <summary>
-    /// Disposes the current canvas, replaces it with <paramref name="canvas"/>, and replays the
-    /// accumulated frame state onto the new canvas so it is in the same transformation and clip state.
-    /// </summary>
-    public void UpdateCanvas(SKCanvas canvas)
-    {
-        if (canvas == null)
-        {
-            throw new ArgumentNullException(nameof(canvas));
-        }
-
-        Canvas.Dispose();
-        Canvas = canvas;
-        Frames.ApplyStateTo(canvas);
-    }
-
     /// <inheritdoc />
     public void Dispose()
     {
-        Frames.Dispose();
         Cache.Dispose();
         Canvas.Dispose();
     }
